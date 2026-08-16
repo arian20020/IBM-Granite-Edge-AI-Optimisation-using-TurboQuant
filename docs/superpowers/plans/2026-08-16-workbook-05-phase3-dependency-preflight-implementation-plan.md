@@ -1,40 +1,41 @@
 # Workbook 05 Phase 3 Clean Dependency Preflight Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Track progress by changing each `- [ ]` checkbox only after its stated verification has passed.
 
-**Goal:** Implement a clean, reproducible Windows Python 3.12.10 dependency preflight for the reviewed Granite 4.1 3B OpenVINO conversion toolchain, then validate its text-only evidence independently without downloading, converting, loading, or executing a model.
+**Goal:** Implement a clean and reproducible Windows Python 3.12.10 dependency preflight for the reviewed IBM Granite 4.1 3B OpenVINO conversion toolchain, then validate the resulting text-only evidence independently without downloading, converting, loading, or executing a model.
 
-**Architecture:** A dedicated GitHub Actions workflow has three boundaries: a GitHub-hosted repository contract, a manually confirmed Lenovo self-hosted collector, and a fresh GitHub-hosted validator that treats the uploaded artifact only as untrusted data. The collector creates one fresh `C:\w5c\dependency-preflight-<run-id>-<attempt>` workspace, verifies immutable source trees, creates and installs hash-locked normal distributions, installs the two reviewed VCS packages from verified local source trees, runs import/CLI/no-model checks, and writes a manifest only after a `Passed` decision. Existing Phase 3 offline-fixture and live-asset-lock code remain separate and unchanged.
+**Architecture:** Add one dedicated GitHub Actions workflow with three boundaries: a GitHub-hosted repository contract, a manually confirmed Lenovo self-hosted collector, and a fresh GitHub-hosted validator. The collector creates one new `C:\w5c\dependency-preflight-<run-id>-<attempt>` workspace containing separate bootstrap and final virtual environments. It verifies immutable Optimum source trees, installs a committed hash-locked `pip-tools` bootstrap only in the bootstrap environment, generates a complete Windows/Python-specific ordinary-distribution lock, installs that lock into the untouched final environment, installs the two VCS projects from their verified local trees with dependency resolution and build isolation disabled, runs import/CLI/no-model checks, and writes `manifest.sha256` only after a schema-valid `Passed` decision. The existing Phase 3 offline fixture and blocked live asset-lock operation remain separate and unchanged.
 
-**Tech Stack:** Python 3.12.10 standard library, `jsonschema==4.25.1`, Windows PowerShell 5.1, Git, `pip`, `pip-tools==7.5.0`, GitHub Actions, unittest, Draft 2020-12 JSON Schema, SHA-256 manifests.
+**Tech Stack:** Python 3.12.10 standard library, `jsonschema==4.25.1`, Windows PowerShell 5.1, Git, pip, `pip-tools==7.5.0`, GitHub Actions, `unittest`, Draft 2020-12 JSON Schema, SHA-256 manifests.
 
-## Global constraints
+## Approved boundaries
 
 - Campaign: `GTQ-WB05-MF-v1`.
 - Route: `route-a-merged-openvino`.
 - Base interpreter: `C:\Program Files\Python312\python.exe`, exactly `Python 3.12.10`.
-- Workspace identity: `C:\w5c\dependency-preflight-<github.run_id>-<github.run_attempt>`.
-- Existing workspace identities are rejected. They are never reused, repaired, reset, cleaned, or deleted.
-- The workflow must never read from or write to `C:\w5m` and must not modify anything under `C:\w5a`.
+- Attempt root: `C:\w5c\dependency-preflight-<github.run_id>-<github.run_attempt>`.
+- Existing attempt roots are rejected. They are never reused, repaired, reset, cleaned, or deleted.
+- The preflight must not read from or write to `C:\w5m` except for constructing inert, never-opened path values in the repository-controlled argument-list test.
+- Nothing under `C:\w5a` is modified.
 - Pull requests may reach only the GitHub-hosted repository-contract job.
-- The self-hosted collector requires `workflow_dispatch`, `refs/heads/main`, and `confirm_live_dependency_preflight == true`.
+- The Lenovo collector requires `workflow_dispatch`, `refs/heads/main`, and `confirm_live_dependency_preflight == true` before runner assignment.
 - Self-hosted labels are exactly `self-hosted`, `Windows`, `X64`, `workbook05`, and `intel-target`.
 - Workflow permissions remain `contents: read` and `actions: read`.
-- Every external action is pinned to a full 40-character commit SHA and every checkout uses `persist-credentials: false`.
-- `concurrency.cancel-in-progress` remains `false` so one attempt cannot erase the evidence boundary of another.
-- All native commands use an explicit executable and argument array. No `Invoke-Expression`, `cmd /c`, shell-generated command string, or full environment capture is permitted.
+- External actions are pinned to full 40-character commit SHAs; every checkout uses `persist-credentials: false`.
+- `concurrency.cancel-in-progress` remains `false`.
+- Every native command uses one explicit executable plus an ordered argument array. `Invoke-Expression`, `cmd /c`, generated shell command strings, and full inherited-environment capture are forbidden.
 - Every native command has a finite deadline, concurrent stdout/stderr draining, a stable command ID, an allowlisted environment record, timestamps, exit code, and portable evidence paths.
-- Text evidence only: UTF-8 JSON, CSV, Markdown, logs, and SHA-256 manifests.
-- Prohibited artifact payloads include model/tokenizer files, OpenVINO IR, source archives, wheels, executables, libraries, checkpoints, GGUF, ONNX, safetensors, ZIP/TAR/GZ/7z, and symbolic-link/reparse payloads.
+- Only UTF-8 JSON, CSV, Markdown, logs, and SHA-256 manifests may enter the artifact.
+- Model/tokenizer files, OpenVINO IR, source archives, wheels, executables, libraries, checkpoints, GGUF, ONNX, safetensors, ZIP/TAR/GZ/7z, symbolic links, junctions, and reparse payloads are forbidden.
 - `manifest.sha256` is written last and only for a complete `Passed` attempt.
-- JSON finalisation uses same-directory temporary files followed by atomic replacement. A successful attempt leaves no `*.tmp` files.
+- Final JSON writes use a same-directory temporary file followed by an atomic move. A successful attempt leaves no `*.tmp` file.
 - A failed or interrupted attempt preserves completed evidence and writes `failure.json`; it does not create a positive manifest or silently continue.
-- All scientific authorisation flags remain `false`.
-- The existing offline fixture script `Invoke-Workbook05Phase3DependencyPreflight.ps1`, Phase 3 asset workflow, asset-lock settings, Runtime/GenAI evidence, Route B controls, and application production code are not changed by this enablement.
-- Every behavioural change follows RED → GREEN → refactor → focused commit.
-- Code comments explain each logical block and every security- or evidence-sensitive line.
+- All model and scientific authorisation flags remain `false`.
+- The existing offline fixture script, Phase 3 asset workflow, asset-lock settings, accepted Runtime/GenAI evidence, Route B controls, and application production code remain unchanged.
+- Every behaviour change follows RED → GREEN → refactor → focused commit.
+- Comments explain each logical block and each security- or evidence-sensitive line.
 
-## Reviewed dependency candidate
+## Exact reviewed dependency candidate
 
 ```text
 optimum-intel @ git+https://github.com/huggingface/optimum-intel.git@a3b6012a4c02f4147260da4d4601bb6a3c0d2bb0
@@ -46,19 +47,104 @@ openvino==2026.2.1
 openvino-tokenizers==2026.2.1.0
 ```
 
-## Verified upstream facts that constrain implementation
+The pinned `optimum-intel` source declares these runtime requirements:
 
-- The pinned `optimum-intel` `setup.py` declares the reviewed ten-item `INSTALL_REQUIRE` list and the `optimum-cli=optimum.commands.optimum_cli:main` console entry point.
-- The pinned `optimum` `setup.py` declares `transformers>=4.29`, `torch>=1.11`, `packaging`, `numpy`, and `huggingface_hub>=0.8.0`, plus the same `optimum-cli` entry point.
-- Both pinned repositories contain `pyproject.toml` files without a `[build-system]` table; the collector therefore records that fact and uses only the already hash-locked local `setuptools`/`wheel` build prerequisites with build isolation disabled.
-- pip's `--report` output is supported installation evidence but is not a lock-file format. The committed/generated hash lock remains the installation authority.
-- `pip-compile` must run in the same Windows/Python environment as the target installation because environment markers and available distributions can change the result.
-- `pip-compile --generate-hashes` is used to generate pip hash-checking input.
-- GitHub job-level `if` expressions are evaluated before a job is routed to a runner; the branch/confirmation condition therefore protects the Lenovo before the self-hosted job is assigned.
+```text
+torch>=2.1
+safetensors<0.8.0
+optimum~=2.3.0
+transformers>=4.51,<5.6
+setuptools
+huggingface-hub>=0.23.2,<1.22
+nncf>=2.19.0
+openvino>=2026.0
+openvino-tokenizers>=2026.0
+requests>=2.33,<3.0
+```
+
+The pinned `optimum` source declares:
+
+```text
+transformers>=4.29
+torch>=1.11
+packaging
+numpy
+huggingface_hub>=0.8.0
+```
+
+The ordinary lock input is therefore the exact five headline pins plus the reviewed non-VCS runtime/build requirements that are not already made stricter by those pins:
+
+```text
+transformers==5.5.0
+huggingface-hub==1.21.0
+nncf==3.2.0
+openvino==2026.2.1
+openvino-tokenizers==2026.2.1.0
+torch>=2.1
+safetensors<0.8.0
+setuptools
+requests>=2.33,<3.0
+packaging
+numpy
+wheel
+```
+
+`optimum~=2.3.0` is deliberately excluded from the ordinary lock because the exact reviewed Optimum commit is installed separately from its verified local source tree. Tests must prove that the stronger exact pins satisfy the redundant source constraints and that no source requirement is silently omitted.
+
+## Workspace and evidence layout
+
+```text
+C:\w5c\dependency-preflight-<run>-<attempt>\
+  workspace\
+    bootstrap-venv\
+    environment\
+    sources\
+      optimum-intel\
+      optimum\
+    private-downloads\
+    private-build\
+    requirements.phase3-assets.in
+  evidence\
+    decision.json
+    observation.json
+    checks.json
+    stage-order.json
+    summary.md
+    manifest.sha256                 # success only, written last
+    failure.json                    # failed/interrupted attempts only
+    locks\
+      requirements.phase3-bootstrap.txt
+      requirements.phase3-assets.txt
+    reports\
+      bootstrap-install-report.json
+      bootstrap-packages.json
+      source-contracts.json
+      normal-install-report.json
+      normal-packages.json
+      vcs-packages.json
+      final-environment-packages.json
+      imports.json
+      no-model-check.json
+    sources\
+      optimum.json
+      optimum-intel.json
+      optimum-files.csv
+      optimum-intel-files.csv
+    commands\
+      command-index.json
+    logs\
+      *.command.json
+      *.stdout.txt
+      *.stderr.txt
+      *.resources.json
+      *.resources.csv
+```
+
+Source checkouts, package caches, wheel/build products, and virtual environments remain under `workspace` and never enter the artifact.
 
 ## File map
 
-### New files
+### New repository files
 
 ```text
 .github/workflows/workbook-05-phase3-dependency-preflight.yml
@@ -69,9 +155,11 @@ scripts/testing/workbook05/phase3/dependency_lock_cli.py
 scripts/testing/workbook05/phase3/dependency_source_contract.py
 scripts/testing/workbook05/phase3/dependency_no_model_check.py
 tests/testing/workbook05/Invoke-Phase3DependencyPreflightLiveTests.Tests.ps1
-tests/testing/workbook05/test_phase3_dependency_preflight_workflow_contract.py
+tests/testing/workbook05/test_phase3_dependency_lock_cli.py
 tests/testing/workbook05/test_phase3_dependency_source_contract.py
 tests/testing/workbook05/test_phase3_dependency_no_model_check.py
+tests/testing/workbook05/test_phase3_dependency_import_check.py
+tests/testing/workbook05/test_phase3_dependency_preflight_workflow_contract.py
 docs/testing/workbook05/phase3-dependency-preflight-runbook.md
 ```
 
@@ -80,8 +168,9 @@ docs/testing/workbook05/phase3-dependency-preflight-runbook.md
 ```text
 scripts/testing/workbook05/Workbook05.ControlledProcess.psm1
 scripts/testing/workbook05/phase3/conversion.py
-scripts/testing/workbook05/phase3/dependency_lock.py
 scripts/testing/workbook05/phase3/dependency_preflight.py
+scripts/testing/workbook05/phase3/dependency_lock.py
+scripts/testing/workbook05/phase3/dependency_preflight_cli.py
 scripts/testing/workbook05/phase3/dependency_import_check.py
 scripts/testing/workbook05/phase3/dependency_bundle_validation.py
 experiments/granite_turboquant_intel/schemas/workbook05/conversion-dependency-preflight.schema.json
@@ -94,7 +183,7 @@ docs/testing/workbook05/phase3-c1-implementation-status.md
 docs/testing/workbook05/phase3-asset-lock-runbook.md
 ```
 
-### Explicitly unchanged files
+### Files explicitly unchanged
 
 ```text
 scripts/testing/workbook05/Invoke-Workbook05Phase3DependencyPreflight.ps1
@@ -106,16 +195,17 @@ IBM Granite with TurboQuant (Intel)/**
 
 ---
 
-### Task 1: Extend the closed decision model for real live outcomes
+### Task 1: Extend the closed decision contract for live bootstrap evidence and interruption semantics
 
 **Files:**
 - Modify: `scripts/testing/workbook05/phase3/dependency_preflight.py`.
 - Modify: `scripts/testing/workbook05/phase3/dependency_lock.py`.
+- Modify: `scripts/testing/workbook05/phase3/dependency_preflight_cli.py`.
 - Modify: `experiments/granite_turboquant_intel/schemas/workbook05/conversion-dependency-preflight.schema.json`.
 - Test: `tests/testing/workbook05/test_phase3_dependency_preflight.py`.
 - Test: `tests/testing/workbook05/test_phase3_dependency_lock.py`.
 
-**Interfaces:**
+**Contract additions:**
 
 ```python
 DependencyCheck.status in {
@@ -125,17 +215,27 @@ DependencyCheck.status in {
     "IntegrityFailure",
     "InfrastructureInterrupted",
 }
+```
 
-collect_dependency_preflight_record(...) -> dict[str, object]
-build_dependency_preflight_record(observation: dict[str, object]) -> dict[str, object]
+Add a required `bootstrap_lock` object to the decision:
+
+```json
+{
+  "path": "locks/requirements.phase3-bootstrap.txt",
+  "sha256": "64 lowercase hex characters",
+  "install_report_path": "reports/bootstrap-install-report.json",
+  "install_report_sha256": "64 lowercase hex characters",
+  "normal_distribution_count": 0,
+  "all_normal_artifacts_hashed": true
+}
 ```
 
 - [ ] **Step 1: Write failing regression tests**
 
-Add tests proving that:
+Add tests proving:
 
 ```python
-def test_interrupted_check_is_not_misreported_as_dependency_failure(self):
+def test_interrupted_check_is_not_misreported_as_package_failure(self):
     checks = list(_checks())
     checks[1] = DependencyCheck(
         name="install",
@@ -146,14 +246,16 @@ def test_interrupted_check_is_not_misreported_as_dependency_failure(self):
     self.assertEqual("InfrastructureInterrupted", record["status"])
 
 
-def test_live_optimum_intel_git_local_version_is_accepted(self):
-    observation = _observation()
-    observation["vcs_packages"][0]["version"] = "2.3.0.dev0+a3b6012"
-    record = build_dependency_preflight_record(observation)
-    self.assertEqual("Passed", record["status"])
+def test_bootstrap_lock_and_report_are_bound_into_decision(self):
+    record = _record()
+    self.assertEqual(
+        "locks/requirements.phase3-bootstrap.txt",
+        record["bootstrap_lock"]["path"],
+    )
+    self.assertRegex(record["bootstrap_lock"]["sha256"], r"^[0-9a-f]{64}$")
 ```
 
-Also validate the resulting record against the Draft 2020-12 schema.
+Also prove that a bootstrap lock/report digest mismatch is `IntegrityFailure`, every scientific flag stays false, and a Git-derived Optimum Intel local version matching `2.3.0.dev0+<commit-prefix>` is accepted only when its full source commit is independently correct.
 
 - [ ] **Step 2: Run and verify RED**
 
@@ -163,34 +265,38 @@ Also validate the resulting record against the Draft 2020-12 schema.
   tests.testing.workbook05.test_phase3_dependency_lock
 ```
 
-Expected: `InfrastructureInterrupted` is rejected and the Git-derived local version is classified as an integrity failure.
+Expected: failures for the missing `bootstrap_lock`, unsupported interruption status, and strict old Optimum Intel version rule.
 
-- [ ] **Step 3: Implement the minimal status/version changes**
-
-Use explicit precedence so an integrity defect cannot be hidden by an interruption:
+- [ ] **Step 3: Implement explicit status precedence**
 
 ```python
 if integrity_reasons:
     status = "IntegrityFailure"
 elif any(check.status == "InfrastructureInterrupted" for check in checks):
     status = "InfrastructureInterrupted"
-elif failed_checks:
+elif any(check.status != "Passed" for check in checks):
     status = "Blocked"
 else:
     status = "Passed"
 ```
 
-Accept only this source-derived Optimum Intel version shape:
+Integrity failure always outranks an interruption so identity drift cannot be hidden.
+
+- [ ] **Step 4: Implement the exact source-derived version rule**
 
 ```python
-_OPTIMUM_INTEL_LIVE_VERSION = re.compile(
+_OPTIMUM_INTEL_VERSION = re.compile(
     r"^2\.3\.0\.dev0(?:\+[0-9a-f]{7,40})?$"
 )
 ```
 
-Add `InfrastructureInterrupted` to the schema's check and overall decision enums. Do not change any scientific authorisation constant.
+The version pattern supplements—never replaces—the full reviewed source commit check.
 
-- [ ] **Step 4: Run focused tests and the schema suite**
+- [ ] **Step 5: Update schema and CLI input plumbing**
+
+Add `bootstrap_lock` and `InfrastructureInterrupted` to the closed schema. Extend `build_dependency_preflight_record(...)` and its CLI observation input so bootstrap lock/report identities are recomputed from bytes rather than trusted as supplied summaries.
+
+- [ ] **Step 6: Run focused/schema tests**
 
 ```powershell
 & 'C:\Program Files\Python312\python.exe' -m unittest -v `
@@ -201,28 +307,29 @@ Add `InfrastructureInterrupted` to the schema's check and overall decision enums
 
 Expected: zero failures.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
 git add scripts/testing/workbook05/phase3/dependency_preflight.py \
         scripts/testing/workbook05/phase3/dependency_lock.py \
+        scripts/testing/workbook05/phase3/dependency_preflight_cli.py \
         experiments/granite_turboquant_intel/schemas/workbook05/conversion-dependency-preflight.schema.json \
         tests/testing/workbook05/test_phase3_dependency_preflight.py \
         tests/testing/workbook05/test_phase3_dependency_lock.py
-git commit -m "feat(workbook05): distinguish interrupted dependency preflights"
+git commit -m "feat(workbook05): bind live dependency preflight identities"
 ```
 
 ---
 
-### Task 2: Generalise hash-lock verification and commit the bootstrap lock
+### Task 2: Generalise hash-lock verification and commit the hash-locked bootstrap
 
 **Files:**
 - Create: `scripts/testing/workbook05/requirements.phase3-bootstrap.in`.
 - Create: `scripts/testing/workbook05/requirements.phase3-bootstrap.txt`.
 - Create: `scripts/testing/workbook05/phase3/dependency_lock_cli.py`.
+- Create: `tests/testing/workbook05/test_phase3_dependency_lock_cli.py`.
 - Modify: `scripts/testing/workbook05/phase3/dependency_lock.py`.
 - Modify: `tests/testing/workbook05/test_phase3_dependency_lock.py`.
-- Create focused CLI tests in: `tests/testing/workbook05/test_phase3_dependency_lock_cli.py`.
 
 **Interfaces:**
 
@@ -240,28 +347,18 @@ parse_install_report_against_lock(
     *,
     forbidden_names: frozenset[str] = frozenset(),
 ) -> tuple[DependencyPackage, ...]
-
-python -m scripts.testing.workbook05.phase3.dependency_lock_cli \
-  validate-install --lock ... --report ... --kind bootstrap --output ...
 ```
 
-- [ ] **Step 1: Write failing generic-lock tests**
+CLI:
 
-Require exact pins, SHA-256 hashes, one canonical package name, no URL/VCS/editable/index directives, and report-to-lock archive digest equality for both bootstrap and normal locks. Preserve the existing normal-lock rule that forbids `optimum` and `optimum-intel`.
-
-```python
-def test_bootstrap_lock_requires_pip_tools_7_5_0_and_hashes(self):
-    lock = parse_hash_locked_requirements(
-        "pip-tools==7.5.0 --hash=sha256:" + "a" * 64 + "\n",
-        required_direct_versions={"pip-tools": "7.5.0"},
-    )
-    self.assertEqual(["pip-tools"], [item.name for item in lock])
-
-
-def test_generic_report_rejects_unlocked_distribution(self):
-    with self.assertRaisesRegex(ValueError, "not present in the lock"):
-        parse_install_report_against_lock(report_with_extra_click(), lock)
+```text
+python -m scripts.testing.workbook05.phase3.dependency_lock_cli validate-lock ...
+python -m scripts.testing.workbook05.phase3.dependency_lock_cli validate-report ...
 ```
+
+- [ ] **Step 1: Write failing generic lock/report tests**
+
+Require exact `name==version` pins, one or more SHA-256 hashes, canonical-name uniqueness, no URL/VCS/editable/index directive, and report archive digest equality. Preserve the existing rule that `optimum` and `optimum-intel` are forbidden in the ordinary lock/report.
 
 - [ ] **Step 2: Verify RED**
 
@@ -271,52 +368,54 @@ def test_generic_report_rejects_unlocked_distribution(self):
   tests.testing.workbook05.test_phase3_dependency_lock_cli
 ```
 
-Expected: missing generic parameters/CLI failures.
+Expected: import/signature failures for the generic API and CLI.
 
-- [ ] **Step 3: Refactor behind the existing public behaviour**
+- [ ] **Step 3: Refactor behind compatibility wrappers**
 
-Keep `parse_normal_install_report(...)` as a compatibility wrapper around the generic validator. The refactor must not weaken any existing normal-distribution checks.
+Keep `parse_normal_install_report(...)` as a wrapper around the new generic implementation so existing callers and tests do not lose behaviour.
 
-The CLI writes one atomic JSON object containing:
+The CLI writes atomic JSON with the computed lock digest, package count, and actual package identities. It rejects an existing output or `*.tmp` file.
 
-```json
-{
-  "kind": "bootstrap",
-  "lock_sha256": "64 lowercase hex characters",
-  "package_count": 7,
-  "packages": []
-}
-```
-
-The concrete count comes from the generated lock; tests calculate it rather than hard-coding a speculative value.
-
-- [ ] **Step 4: Generate the real bootstrap lock on exact Windows Python**
-
-Create this input file:
+- [ ] **Step 4: Add the bootstrap input**
 
 ```text
 pip-tools==7.5.0
 ```
 
-Then run:
+- [ ] **Step 5: Generate the bootstrap lock in a disposable Python 3.12.10 environment**
+
+The one-time repository-maintenance generation is not live acceptance evidence. Verify the exact official `pip-tools` 7.5.0 wheel digest before using it to generate the committed lock:
 
 ```powershell
 $ErrorActionPreference = 'Stop'
 $python = 'C:\Program Files\Python312\python.exe'
-$version = ((& $python --version 2>&1) | Out-String).Trim()
-if ($version -ne 'Python 3.12.10') {
-    throw "Expected Python 3.12.10, observed $version"
-}
-
+$expectedWheel = '69758e4e5a65f160e315d74db46246fdbb30d549f1ed0c4236d057122c9b0f18'
 $root = Join-Path $env:TEMP ('wb05-bootstrap-lock-' + [Guid]::NewGuid().ToString('N'))
-& $python -m venv $root
-$venvPython = Join-Path $root 'Scripts\python.exe'
+$download = Join-Path $root 'download'
+$venv = Join-Path $root 'venv'
+New-Item -ItemType Directory -Path $download -Force:$false | Out-Null
 
-& $venvPython -m pip install --disable-pip-version-check 'pip-tools==7.5.0'
-if ($LASTEXITCODE -ne 0) { throw 'Temporary pip-tools installation failed.' }
+& $python -m pip download `
+    --isolated `
+    --disable-pip-version-check `
+    --only-binary=:all: `
+    --no-deps `
+    --dest $download `
+    'pip-tools==7.5.0'
+if ($LASTEXITCODE -ne 0) { throw 'pip-tools wheel download failed.' }
 
-$observed = ((& $venvPython -c "import importlib.metadata; print(importlib.metadata.version('pip-tools'))") | Out-String).Trim()
-if ($observed -ne '7.5.0') { throw "Expected pip-tools 7.5.0, observed $observed" }
+$wheel = @(Get-ChildItem -LiteralPath $download -Filter '*.whl' -File)
+if ($wheel.Count -ne 1) { throw 'Expected exactly one pip-tools wheel.' }
+$actualWheel = (Get-FileHash -LiteralPath $wheel[0].FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+if ($actualWheel -ne $expectedWheel) { throw "Unexpected pip-tools wheel digest: $actualWheel" }
+
+& $python -m venv $venv
+$venvPython = Join-Path $venv 'Scripts\python.exe'
+& $venvPython -m pip install `
+    --isolated `
+    --disable-pip-version-check `
+    $wheel[0].FullName
+if ($LASTEXITCODE -ne 0) { throw 'Disposable pip-tools installation failed.' }
 
 & $venvPython -m piptools compile `
     --no-config `
@@ -333,9 +432,13 @@ if ($LASTEXITCODE -ne 0) { throw 'Bootstrap lock generation failed.' }
 Remove-Item -LiteralPath $root -Recurse -Force
 ```
 
-The generated file must contain `pip-tools==7.5.0`, exact versions for every transitive package, and at least one SHA-256 per distribution. It must contain no VCS/URL/editable/index directive.
+The disposable generator is never accepted merely because it ran. The committed output must pass parser tests and a separate clean hash-enforced installation simulation before use.
 
-- [ ] **Step 5: Validate the committed lock**
+- [ ] **Step 6: Validate the real committed bootstrap lock**
+
+Require `pip-tools==7.5.0`, exact transitive pins, hashes for every distribution, no VCS/URL/editable/index directive, and deterministic LF text.
+
+- [ ] **Step 7: Run focused tests**
 
 ```powershell
 & 'C:\Program Files\Python312\python.exe' -m unittest -v `
@@ -343,9 +446,9 @@ The generated file must contain `pip-tools==7.5.0`, exact versions for every tra
   tests.testing.workbook05.test_phase3_dependency_lock_cli
 ```
 
-Expected: zero failures and the real committed lock parses successfully.
+Expected: zero failures.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add scripts/testing/workbook05/requirements.phase3-bootstrap.in \
@@ -359,12 +462,12 @@ git commit -m "feat(workbook05): add hash-locked preflight bootstrap"
 
 ---
 
-### Task 3: Validate pinned source metadata without executing source code
+### Task 3: Validate pinned source metadata as data and synthesise the complete ordinary-lock input
 
 **Files:**
-- Create: `scripts/testing/workbook05/phase3/dependency_source_contract.py`.
 - Modify: `scripts/testing/workbook05/phase3/conversion.py`.
-- Test: `tests/testing/workbook05/test_phase3_dependency_source_contract.py`.
+- Create: `scripts/testing/workbook05/phase3/dependency_source_contract.py`.
+- Create: `tests/testing/workbook05/test_phase3_dependency_source_contract.py`.
 
 **Interfaces:**
 
@@ -372,7 +475,7 @@ git commit -m "feat(workbook05): add hash-locked preflight bootstrap"
 @dataclass(frozen=True)
 class SourcePackageContract:
     name: str
-    version: str
+    base_version: str
     runtime_requirements: tuple[str, ...]
     console_entry_points: tuple[str, ...]
     build_system_declared: bool
@@ -382,11 +485,12 @@ validate_reviewed_source_contracts(
     optimum_root: Path,
     optimum_intel_root: Path,
 ) -> dict[str, object]
+build_reviewed_normal_requirement_input() -> tuple[str, ...]
 ```
 
 - [ ] **Step 1: Add exact reviewed constants**
 
-In `conversion.py`, add the pinned Optimum runtime requirements alongside the existing Optimum Intel list:
+Add these immutable catalogues to `conversion.py`:
 
 ```python
 REVIEWED_OPTIMUM_CONSTRAINTS = (
@@ -397,32 +501,35 @@ REVIEWED_OPTIMUM_CONSTRAINTS = (
     "huggingface_hub>=0.8.0",
 )
 
-REVIEWED_OPTIMUM_ENTRY_POINT = (
-    "optimum-cli=optimum.commands.optimum_cli:main"
+REVIEWED_NORMAL_REQUIREMENT_INPUT = (
+    "transformers==5.5.0",
+    "huggingface-hub==1.21.0",
+    "nncf==3.2.0",
+    "openvino==2026.2.1",
+    "openvino-tokenizers==2026.2.1.0",
+    "torch>=2.1",
+    "safetensors<0.8.0",
+    "setuptools",
+    "requests>=2.33,<3.0",
+    "packaging",
+    "numpy",
+    "wheel",
 )
 ```
 
-Keep the existing Optimum Intel constraints unchanged.
+Retain the current exact Optimum Intel constraints and both exact console entry points.
 
-- [ ] **Step 2: Write failing static-parser tests**
+- [ ] **Step 2: Write failing parser and synthesis tests**
 
-Use temporary `setup.py`, version, and `pyproject.toml` fixtures. Assert exact extraction, rejection of dynamic/non-literal dependency construction, rejection of an unexpected `[build-system]`, rejection of a changed console entry point, and rejection of an unexpected dependency.
+Use temporary fixtures to prove exact extraction without execution. Reject dynamic/non-literal dependency construction, an unexpected `[build-system]`, changed entry point, changed version, missing source requirement, or additional source requirement.
 
-```python
-def test_parser_reads_literal_setup_metadata_without_exec(self):
-    contract = inspect_source_contract("optimum", fixture_root)
-    self.assertEqual("2.3.0", contract.version)
-    self.assertEqual(REVIEWED_OPTIMUM_CONSTRAINTS, contract.runtime_requirements)
+Prove the ordinary input:
 
-
-def test_dynamic_dependency_expression_is_rejected(self):
-    (fixture_root / "setup.py").write_text(
-        "REQUIRED_PKGS = load_requirements()\nsetup(install_requires=REQUIRED_PKGS)\n",
-        encoding="utf-8",
-    )
-    with self.assertRaisesRegex(ValueError, "literal"):
-        inspect_source_contract("optimum", fixture_root)
-```
+- contains every exact five direct pin;
+- contains `torch`, `safetensors`, `setuptools`, `requests`, `packaging`, `numpy`, and `wheel`;
+- excludes `optimum` and `optimum-intel`;
+- contains no duplicate canonical package name;
+- satisfies every reviewed source constraint either directly, through a stronger exact pin, or through the separately verified VCS Optimum source.
 
 - [ ] **Step 3: Verify RED**
 
@@ -431,18 +538,21 @@ def test_dynamic_dependency_expression_is_rejected(self):
   tests.testing.workbook05.test_phase3_dependency_source_contract
 ```
 
-Expected: missing-module failure.
+Expected: missing-module/constants failures.
 
 - [ ] **Step 4: Implement an AST/TOML data-only parser**
 
-Use `ast.parse` and `ast.literal_eval` for the exact named constants and `setup(...)` keyword arguments. Use `tomllib` only to inspect `pyproject.toml`. Never import or execute `setup.py`.
+Use `ast.parse` and `ast.literal_eval` for exact named list/tuple constants and `setup(...)` keyword arguments. Read version files directly. Use `tomllib` only to inspect `pyproject.toml`. Never import or execute `setup.py`.
 
 ```python
-module = ast.parse(setup_path.read_text(encoding="utf-8"), filename=str(setup_path))
-value = ast.literal_eval(assignment.value)
+module = ast.parse(
+    setup_path.read_text(encoding="utf-8"),
+    filename=str(setup_path),
+)
+requirements = ast.literal_eval(requirement_assignment.value)
 ```
 
-The output record must state:
+The source-contract report records:
 
 ```json
 {
@@ -453,7 +563,11 @@ The output record must state:
 }
 ```
 
-- [ ] **Step 5: Run focused and conversion tests**
+- [ ] **Step 5: Implement deterministic requirements input writing**
+
+Write the reviewed tuple exactly, one line per requirement, LF-terminated. Reject an existing output instead of overwriting it. Keep the generated input under the attempt workspace, not the repository.
+
+- [ ] **Step 6: Run focused and conversion tests**
 
 ```powershell
 & 'C:\Program Files\Python312\python.exe' -m unittest -v `
@@ -463,13 +577,13 @@ The output record must state:
 
 Expected: zero failures.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
 git add scripts/testing/workbook05/phase3/conversion.py \
         scripts/testing/workbook05/phase3/dependency_source_contract.py \
         tests/testing/workbook05/test_phase3_dependency_source_contract.py
-git commit -m "feat(workbook05): inspect pinned dependency sources as data"
+git commit -m "feat(workbook05): validate conversion source metadata"
 ```
 
 ---
@@ -478,20 +592,16 @@ git commit -m "feat(workbook05): inspect pinned dependency sources as data"
 
 **Files:**
 - Create: `scripts/testing/workbook05/phase3/dependency_no_model_check.py`.
-- Test: `tests/testing/workbook05/test_phase3_dependency_no_model_check.py`.
+- Create: `tests/testing/workbook05/test_phase3_dependency_no_model_check.py`.
 
-**Interfaces:**
+**Interface:**
 
 ```python
 run_no_model_check(
+    environment_root: Path,
     optimum_root: Path,
     optimum_intel_root: Path,
 ) -> dict[str, object]
-
-python -m scripts.testing.workbook05.phase3.dependency_no_model_check \
-  --optimum-root ... \
-  --optimum-intel-root ... \
-  --output ...
 ```
 
 - [ ] **Step 1: Write failing tests**
@@ -499,21 +609,15 @@ python -m scripts.testing.workbook05.phase3.dependency_no_model_check \
 Prove that the check:
 
 - validates both static source contracts;
-- validates the exact reviewed direct candidate;
-- constructs the exact conversion argument array with `ConversionRequest`;
+- imports the installed conversion modules from the supplied final environment;
+- verifies the exact installed direct package versions;
+- constructs the exact conversion argument array through `ConversionRequest` and `build_optimum_argument_list`;
 - sets `trust_remote_code=False`;
-- rejects `--trust-remote-code` anywhere in the resulting arguments;
-- does not open a model path, contact a model repository, import Optimum, or call a subprocess;
+- rejects `--trust-remote-code` anywhere in the argument array;
+- does not call a subprocess, open/test a model path, contact a network, or create an output directory;
 - writes JSON atomically and leaves no temporary file.
 
-```python
-def test_no_model_check_constructs_safe_arguments_only(self):
-    record = run_no_model_check(optimum_root, optimum_intel_root)
-    self.assertFalse(record["trust_remote_code"])
-    self.assertNotIn("--trust-remote-code", record["conversion_arguments"])
-    self.assertFalse(record["model_opened"])
-    self.assertFalse(record["network_contacted"])
-```
+Patch `subprocess`, socket creation, and model-path filesystem methods to raise if used.
 
 - [ ] **Step 2: Verify RED**
 
@@ -524,23 +628,29 @@ def test_no_model_check_constructs_safe_arguments_only(self):
 
 Expected: missing-module failure.
 
-- [ ] **Step 3: Implement the minimum data-only check**
+- [ ] **Step 3: Implement the inert argument construction**
 
-Construct paths as inert argument values only:
+Use the actual `ConversionRequest` field names:
 
 ```python
 request = ConversionRequest(
-    optimum_cli=Path(r"C:\w5c\dependency-preflight-check\venv\Scripts\optimum-cli.exe"),
-    source_model_path=Path(r"C:\w5m\not-opened-source"),
-    output_directory=Path(r"C:\w5m\not-created-output"),
+    optimum_cli=(
+        environment_root / "Scripts" / "optimum-cli.exe"
+    ),
+    source_directory=Path(r"C:\w5m\sources\not-opened-source"),
+    output_directory=Path(r"C:\w5m\converted\not-created-output"),
     trust_remote_code=False,
 )
 arguments = build_optimum_argument_list(request)
 ```
 
-Do not call the executable and do not test whether either model path exists.
+Those two `C:\w5m` values are inert strings required by the approved conversion-path contract. The check must not call `exists`, `resolve`, `open`, `mkdir`, or an external process on either value.
 
-- [ ] **Step 4: Run focused tests**
+- [ ] **Step 4: Record exact observations**
+
+The output includes installed module/package versions, source-contract result, ordered conversion arguments, `trust_remote_code=false`, `model_opened=false`, `network_contacted=false`, and `process_executed=false`.
+
+- [ ] **Step 5: Run focused tests**
 
 ```powershell
 & 'C:\Program Files\Python312\python.exe' -m unittest -v `
@@ -550,7 +660,7 @@ Do not call the executable and do not test whether either model path exists.
 
 Expected: zero failures.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
 git add scripts/testing/workbook05/phase3/dependency_no_model_check.py \
@@ -560,31 +670,35 @@ git commit -m "feat(workbook05): add no-model conversion compatibility check"
 
 ---
 
-### Task 5: Extend the controlled process adapter without changing existing build behaviour
+### Task 5: Extend the controlled process adapter narrowly for preflight evidence
 
 **Files:**
 - Modify: `scripts/testing/workbook05/Workbook05.ControlledProcess.psm1`.
 - Modify: `tests/testing/workbook05/test_build_powershell_contract.py`.
-- Test behaviour in: `tests/testing/workbook05/Invoke-Phase3DependencyPreflightLiveTests.Tests.ps1`.
+- Exercise behaviour in: `tests/testing/workbook05/Invoke-Phase3DependencyPreflightLiveTests.Tests.ps1`.
 
-**Interface change:**
+**Interface additions:**
 
 ```powershell
 Invoke-Wb05ControlledLoggedProcess `
     -Component 'dependency-preflight' `
     -LogFileExtension 'txt' `
+    -AtomicJsonEvidence `
     -MaximumElapsedSeconds 900
 ```
 
 - [ ] **Step 1: Write failing contract tests**
 
-Require `dependency-preflight` in the component `ValidateSet` and an optional log extension that defaults to `log` so all Runtime/GenAI call sites retain their current filenames.
+Require:
 
-```python
-def test_controlled_process_supports_dependency_preflight_without_changing_default_logs(self):
-    self.assertIn("'dependency-preflight'", self.text)
-    self.assertIn("[string]$LogFileExtension = 'log'", self.text)
+```text
+'dependency-preflight' in the component ValidateSet
+[string]$LogFileExtension = 'log'
+[ValidateSet('log', 'txt')]
+[switch]$AtomicJsonEvidence
 ```
+
+The default must preserve existing Runtime/GenAI `.log` filenames.
 
 - [ ] **Step 2: Verify RED**
 
@@ -593,28 +707,15 @@ def test_controlled_process_supports_dependency_preflight_without_changing_defau
   tests.testing.workbook05.test_build_powershell_contract
 ```
 
-Expected: missing component/log-extension assertions.
+Expected: missing component/log/atomic-mode assertions.
 
-- [ ] **Step 3: Implement the narrow adapter extension**
+- [ ] **Step 3: Implement the narrow extension**
 
-```powershell
-[ValidateSet('runtime', 'genai', 'dependency-preflight')]
-[string]$Component,
+When `-AtomicJsonEvidence` is present, write the command record and resource-summary JSON to `<final>.tmp`, then move within the same directory after successful serialization. Reject an existing final or temporary path. Logs and CSV remain streamed evidence.
 
-[ValidateSet('log', 'txt')]
-[string]$LogFileExtension = 'log'
-```
+Do not change quoting, process-tree discovery/termination, memory/commit safety stops, elapsed-time deadline, environment allowlisting, or existing return fields.
 
-Build paths with the validated extension:
-
-```powershell
-$stdoutPath = Join-Path $EvidenceDirectory "$safeId.stdout.$LogFileExtension"
-$stderrPath = Join-Path $EvidenceDirectory "$safeId.stderr.$LogFileExtension"
-```
-
-Do not alter argument quoting, deadlines, process-tree termination, resource sampling, environment allowlisting, or existing return fields.
-
-- [ ] **Step 4: Run existing deadline and build tests**
+- [ ] **Step 4: Run existing behavioural tests**
 
 ```powershell
 & '.\tests\testing\workbook05\Invoke-BuildProcessDeadlineTests.Tests.ps1'
@@ -623,7 +724,7 @@ Do not alter argument quoting, deadlines, process-tree termination, resource sam
   tests.testing.workbook05.test_build_powershell_contract
 ```
 
-Expected: existing `.log` behaviour and deadline evidence still pass.
+Expected: the existing deadline test still passes and existing call sites still use `.log` by default.
 
 - [ ] **Step 5: Commit**
 
@@ -635,13 +736,13 @@ git commit -m "refactor(workbook05): admit controlled dependency commands"
 
 ---
 
-### Task 6: Implement fresh workspace and immutable source-verification stages
+### Task 6: Implement fresh workspace creation and immutable source verification
 
 **Files:**
 - Create: `scripts/testing/workbook05/Invoke-Workbook05Phase3DependencyPreflightLive.ps1`.
 - Create: `tests/testing/workbook05/Invoke-Phase3DependencyPreflightLiveTests.Tests.ps1`.
 
-**Entry point:**
+**Production entry point:**
 
 ```powershell
 & '.\scripts\testing\workbook05\Invoke-Workbook05Phase3DependencyPreflightLive.ps1' `
@@ -651,37 +752,34 @@ git commit -m "refactor(workbook05): admit controlled dependency commands"
     -BasePythonPath 'C:\Program Files\Python312\python.exe'
 ```
 
-- [ ] **Step 1: Write failing simulation tests for the first two stages**
+- [ ] **Step 1: Write failing simulation tests**
 
-The test script must use a temporary normal local root through a hidden `-SimulationMode` seam. Production calls must reject a custom root or command invoker unless simulation mode is explicitly enabled.
+Use a hidden `-SimulationMode` seam with a temporary normal local root and deterministic command adapter. The workflow/static contract must forbid simulation parameters in production dispatch.
 
-Test these cases:
+Test:
 
 ```text
 fresh normal workspace accepted
 existing workspace rejected without deletion
-file/junction/symlink/reparse root rejected
-UNC/device path rejected
+file/symlink/junction/reparse root rejected
+UNC/device/parent-traversal path rejected
 wrong source origin rejected
 wrong source commit rejected
 dirty source rejected
-tracked symlink rejected
-source failure occurs before any install command
+tracked link/reparse file rejected
+source failure stops before bootstrap or install
 ```
-
-The simulation command invoker returns predetermined command records; it never reaches the network.
 
 - [ ] **Step 2: Verify RED**
 
 ```powershell
-& '.\tests\testing\workbook05\Invoke-Phase3DependencyPreflightLiveTests.Tests.ps1'
+& '.\tests\testing\workbook05\Invoke-Phase3DependencyPreflightLiveTests.Tests.ps1' `
+    -FocusedArea 'workspace-source'
 ```
 
-Expected: live script is missing.
+Expected: live script missing.
 
-- [ ] **Step 3: Implement strict entry validation and stage ledger**
-
-Use this exact stage order:
+- [ ] **Step 3: Implement fixed identity and stage ledger**
 
 ```powershell
 $StageOrder = @(
@@ -696,20 +794,16 @@ $StageOrder = @(
     'record-generation',
     'manifest-generation'
 )
-```
 
-Derive—not accept—the workspace identity:
-
-```powershell
 $runIdentity = "dependency-preflight-$RunId-$RunAttempt"
-$workspaceRoot = Join-Path 'C:\w5c' $runIdentity
+$attemptRoot = Join-Path 'C:\w5c' $runIdentity
 ```
 
-Verify the base interpreter before creating the venv. Record the base interpreter only as a prerequisite; the decision records the fresh venv interpreter.
+Do not accept an operator-supplied production workspace, source revision, package version, model path, or command string.
 
-- [ ] **Step 4: Implement immutable Git acquisition and source manifests**
+- [ ] **Step 4: Implement immutable Git acquisition**
 
-For each source, use explicit commands equivalent to:
+For each source, execute explicit argument-array commands equivalent to:
 
 ```text
 git init <source-root>
@@ -722,27 +816,24 @@ git -C <source-root> status --porcelain --untracked-files=all
 git -C <source-root> ls-files
 ```
 
-Every call goes through `Invoke-Wb05ControlledLoggedProcess` with `-Component dependency-preflight`, `-LogFileExtension txt`, and a finite deadline. Never use `git reset --hard`, `git clean`, moving branches, tags, or implicit default-branch checkout.
+Never use `git reset --hard`, `git clean`, a branch, a tag, or implicit default-branch checkout.
 
-Pass the `git ls-files` output to the existing `source_tree_manifest.py` to write:
+Store the `git ls-files` text outside the source root so generating evidence cannot dirty the source.
 
-```text
-sources/optimum.json
-sources/optimum-intel.json
-sources/optimum-files.csv
-sources/optimum-intel-files.csv
-```
+- [ ] **Step 5: Generate complete source identities**
 
-- [ ] **Step 5: Run source-stage simulations**
+Call the existing `source_tree_manifest.py` with the verified tracked list to create both source JSON records and CSV manifests. The helper must reject a tracked link/reparse chain, duplicate/case-colliding path, empty tracked list, or file outside the source root.
+
+- [ ] **Step 6: Run source simulations**
 
 ```powershell
 & '.\tests\testing\workbook05\Invoke-Phase3DependencyPreflightLiveTests.Tests.ps1' `
     -FocusedArea 'workspace-source'
 ```
 
-Expected: all source-boundary cases pass and no install command appears after a failed source check.
+Expected: all cases pass and no later command is recorded after a failed source check.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
 git add scripts/testing/workbook05/Invoke-Workbook05Phase3DependencyPreflightLive.ps1 \
@@ -752,7 +843,7 @@ git commit -m "feat(workbook05): verify fresh preflight sources"
 
 ---
 
-### Task 7: Implement lock generation and controlled installation stages
+### Task 7: Implement the separate bootstrap environment and target-specific lock generation
 
 **Files:**
 - Modify: `scripts/testing/workbook05/Invoke-Workbook05Phase3DependencyPreflightLive.ps1`.
@@ -760,81 +851,58 @@ git commit -m "feat(workbook05): verify fresh preflight sources"
 - Use: `scripts/testing/workbook05/phase3/dependency_lock_cli.py`.
 - Use: `scripts/testing/workbook05/phase3/dependency_source_contract.py`.
 
-- [ ] **Step 1: Write failing simulations for resolver/install boundaries**
+- [ ] **Step 1: Write failing bootstrap/lock simulations**
 
-Require exact command order and flags:
-
-```text
-venv creation
-bootstrap install with --require-hashes and --report
-bootstrap report validation
-source metadata validation
-pip-compile with --no-config and --generate-hashes
-normal lock validation
-normal install with --require-hashes and --report
-normal install report validation
-optimum local install with --no-deps --no-build-isolation
-optimum-intel local install with --no-deps --no-build-isolation
-pip check
-```
-
-Reject:
+Require this exact causal order:
 
 ```text
-unhashed bootstrap or normal lock
-URL/VCS/editable/index directive in either normal lock
-normal lock direct-version drift
-unexpected installed distribution
-archive digest absent from or different from the lock
-optimum or optimum-intel in the normal lock/report
-VCS install missing --no-deps
-VCS install missing --no-build-isolation
-source metadata drift
+verify committed bootstrap lock
+create bootstrap-venv
+install bootstrap lock with --require-hashes and --report
+validate bootstrap report against bootstrap lock
+validate source metadata as data
+write complete ordinary requirements input
+generate ordinary lock with --generate-hashes
+validate ordinary lock
 ```
+
+Reject an unhashed bootstrap member, bootstrap report drift, changed source metadata, missing ordinary runtime requirement, VCS package in ordinary input/lock, direct-version drift, URL/VCS/editable/index directive, and duplicate canonical name.
 
 - [ ] **Step 2: Verify RED**
 
 ```powershell
 & '.\tests\testing\workbook05\Invoke-Phase3DependencyPreflightLiveTests.Tests.ps1' `
-    -FocusedArea 'lock-install'
+    -FocusedArea 'bootstrap-lock'
 ```
 
-Expected: lock/install stages are not implemented.
+Expected: bootstrap/lock stages missing.
 
-- [ ] **Step 3: Create the fresh environment and install the bootstrap lock**
+- [ ] **Step 3: Create only the bootstrap environment**
 
-Use only the venv interpreter:
-
-```powershell
-& $BasePythonPath -m venv $venvRoot
-$venvPython = Join-Path $venvRoot 'Scripts\python.exe'
-
-& $venvPython -m pip install `
-    --disable-pip-version-check `
-    --require-hashes `
-    --report $bootstrapReportPath `
-    -r $bootstrapLockPath
+```text
+<BasePython> -m venv <attempt>/workspace/bootstrap-venv
+<bootstrap-python> -m pip install
+  --isolated
+  --no-input
+  --disable-pip-version-check
+  --require-hashes
+  --report <evidence>/reports/bootstrap-install-report.json
+  -r <repository>/scripts/testing/workbook05/requirements.phase3-bootstrap.txt
 ```
 
-Do not upgrade the machine-wide Python or pip. Record the venv Python/pip paths, versions, and file hashes after creation.
+Copy the committed bootstrap lock byte-for-byte into `evidence/locks` only after validating it. Set `TEMP`, `TMP`, and package cache paths to attempt-local private directories for the controlled command, then restore the previous process environment.
 
 - [ ] **Step 4: Validate source metadata before resolution**
 
-Run the data-only source contract CLI before `pip-compile`. Save `reports/source-contracts.json`. A mismatch is `IntegrityFailure`, not a reason to ask pip to resolve a different candidate.
+Run the data-only source contract helper with base Python and write `reports/source-contracts.json`. A mismatch is `IntegrityFailure`; it never causes automatic candidate/version adjustment.
 
-- [ ] **Step 5: Generate and validate the normal lock in the target environment**
+- [ ] **Step 5: Write the complete ordinary input**
 
-Write a workspace-local input containing only:
+Write exactly `REVIEWED_NORMAL_REQUIREMENT_INPUT` to `workspace/requirements.phase3-assets.in`. Prove that each source requirement is covered and that `optimum`/`optimum-intel` remain separate VCS identities.
 
-```text
-transformers==5.5.0
-huggingface-hub==1.21.0
-nncf==3.2.0
-openvino==2026.2.1
-openvino-tokenizers==2026.2.1.0
-```
+- [ ] **Step 6: Generate the target lock with bootstrap Python**
 
-Then execute:
+Use separate array items equivalent to:
 
 ```text
 python -m piptools compile
@@ -845,67 +913,50 @@ python -m piptools compile
 --allow-unsafe
 --no-emit-index-url
 --no-emit-trusted-host
---output-file <workspace>/evidence/locks/requirements.phase3-assets.txt
+--output-file <evidence>/locks/requirements.phase3-assets.txt
 <workspace>/requirements.phase3-assets.in
 ```
 
-The exact paths are separate argument-array items. Validate the lock before installation.
+The bootstrap and final environments use the same Windows host and Python 3.12.10 base, but no bootstrap package enters the final environment.
 
-- [ ] **Step 6: Install normal and VCS packages**
+- [ ] **Step 7: Validate generated lock before target installation**
 
-Normal distributions use the generated lock and `reports/normal-install-report.json`. The two VCS packages are installed in this order from their verified local trees:
+Require exact five direct pins, all transitive entries exactly pinned and hashed, no VCS/URL/editable/index directive, and no `optimum`/`optimum-intel` distribution.
 
-```text
-optimum
-optimum-intel
-```
-
-Each local install includes exactly:
-
-```text
---no-deps
---no-build-isolation
-```
-
-It must not contain an index URL, VCS URL, branch, tag, or remote-code option. Run `python -m pip check` afterward.
-
-Write `reports/vcs-packages.json` from `importlib.metadata` observations plus the already verified full source commits; do not infer commit identity from the installed version string.
-
-- [ ] **Step 7: Run lock/install simulations and focused Python tests**
+- [ ] **Step 8: Run simulations/focused tests**
 
 ```powershell
 & '.\tests\testing\workbook05\Invoke-Phase3DependencyPreflightLiveTests.Tests.ps1' `
-    -FocusedArea 'lock-install'
+    -FocusedArea 'bootstrap-lock'
 
 & 'C:\Program Files\Python312\python.exe' -m unittest -v `
-  tests.testing.workbook05.test_phase3_dependency_lock `
   tests.testing.workbook05.test_phase3_dependency_lock_cli `
   tests.testing.workbook05.test_phase3_dependency_source_contract
 ```
 
 Expected: zero failures.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 9: Commit**
 
 ```bash
 git add scripts/testing/workbook05/Invoke-Workbook05Phase3DependencyPreflightLive.ps1 \
         tests/testing/workbook05/Invoke-Phase3DependencyPreflightLiveTests.Tests.ps1
-git commit -m "feat(workbook05): resolve and install locked dependencies"
+git commit -m "feat(workbook05): generate target dependency lock"
 ```
 
 ---
 
-### Task 8: Add imports, CLI, decision, failure, and manifest finalisation
+### Task 8: Install the untouched final environment and execute the six no-model checks
 
 **Files:**
 - Modify: `scripts/testing/workbook05/phase3/dependency_import_check.py`.
+- Create: `tests/testing/workbook05/test_phase3_dependency_import_check.py`.
 - Modify: `scripts/testing/workbook05/Invoke-Workbook05Phase3DependencyPreflightLive.ps1`.
 - Modify: `tests/testing/workbook05/Invoke-Phase3DependencyPreflightLiveTests.Tests.ps1`.
-- Add focused Python tests to: `tests/testing/workbook05/test_phase3_dependency_import_check.py`.
 
 - [ ] **Step 1: Write failing import-boundary tests**
 
-Add `--expected-environment-root` and reject any imported module whose resolved `__file__` is outside the fresh venv. The test uses temporary fake packages to prove both accepted and escaped module paths.
+Add `--expected-environment-root` and reject any imported module whose resolved `__file__` is outside the final environment. Use temporary fake packages to prove accepted and escaped paths.
 
 - [ ] **Step 2: Verify RED**
 
@@ -914,11 +965,66 @@ Add `--expected-environment-root` and reject any imported module whose resolved 
   tests.testing.workbook05.test_phase3_dependency_import_check
 ```
 
-Expected: missing option/path enforcement.
+Expected: missing path enforcement.
 
-- [ ] **Step 3: Implement the exact six checks**
+- [ ] **Step 3: Create the untouched final environment after lock acceptance**
 
-The final `checks.json` order is:
+```text
+<BasePython> -m venv <attempt>/workspace/environment
+```
+
+Verify Python 3.12.10. Record final Python and pip versions, paths, and executable SHA-256 values after environment creation. The decision’s Python/pip identity refers to this final environment, never the bootstrap environment.
+
+- [ ] **Step 4: Install ordinary distributions with hash checking**
+
+```text
+<final-python> -m pip install
+  --isolated
+  --no-input
+  --disable-pip-version-check
+  --require-hashes
+  --report <evidence>/reports/normal-install-report.json
+  -r <evidence>/locks/requirements.phase3-assets.txt
+```
+
+Validate the report against the lock before VCS installation. Every actual archive digest must match an allowed lock digest.
+
+- [ ] **Step 5: Install VCS packages from verified local trees**
+
+Install in this order:
+
+```text
+optimum
+optimum-intel
+```
+
+Each command includes exactly:
+
+```text
+--no-deps
+--no-build-isolation
+```
+
+It uses attempt-local `TEMP`, `TMP`, and cache paths. It contains no VCS URL, branch, tag, index override, or remote-code option. The previously locked `setuptools` and `wheel` satisfy the reviewed local build boundary.
+
+- [ ] **Step 6: Verify final package inventory**
+
+Write `normal-packages.json`, `vcs-packages.json`, and `final-environment-packages.json`. The final environment may contain only:
+
+```text
+pip itself
+ordinary distributions from the generated lock
+optimum from the reviewed local commit
+optimum-intel from the reviewed local commit
+```
+
+Any other distribution is `IntegrityFailure`. The two VCS distributions must not occur in the ordinary lock/report.
+
+- [ ] **Step 7: Run `pip check`**
+
+A non-zero result makes the `install` check `Blocked`; it must not be rewritten as a resolver success.
+
+- [ ] **Step 8: Run the exact six checks in order**
 
 ```text
 resolver
@@ -929,148 +1035,178 @@ no_model_compatibility
 remote_code_disabled
 ```
 
-- `imports`: run `dependency_import_check.py` in a new venv Python process and require all five exact modules.
-- `cli_help`: execute the venv's `optimum-cli.exe --help` and require exit code `0`.
-- `no_model_compatibility`: run `dependency_no_model_check.py` and require exit code `0`.
-- `remote_code_disabled`: derive `Passed` only from the no-model record's explicit `trust_remote_code=false` and absence of `--trust-remote-code`; do not execute another tool.
+- `imports`: new final-Python process imports exactly `optimum`, `optimum.intel`, `transformers`, `nncf`, and `openvino`; every module file stays under the final environment.
+- `cli_help`: exact final `optimum-cli.exe --help`, exit code `0` required.
+- `no_model_compatibility`: run the Task 4 helper with final Python, verified source roots, and final environment root.
+- `remote_code_disabled`: derive from the structured no-model record only; require `trust_remote_code=false` and no `--trust-remote-code` argument.
 
-- [ ] **Step 4: Build observation and decision atomically**
+- [ ] **Step 9: Run install/check simulations**
 
-Write:
-
-```text
-observation.json
-checks.json
-stage-order.json
-commands/command-index.json
-summary.md
-```
-
-Then invoke the existing `dependency_preflight_cli.py` to create `decision.json`. The command index contains unique command IDs and portable paths to command records/stdout/stderr/resource evidence.
-
-- [ ] **Step 5: Implement failure and interruption behaviour**
-
-In one outer `try/catch/finally`:
+Cover normal report drift, unexpected final package, missing `--no-deps`, missing `--no-build-isolation`, `pip check` failure, escaped import, CLI failure, no-model failure, and remote-code drift.
 
 ```powershell
-catch {
-    # Preserve the first causal message and completed stages.
-    Write-Wb05AtomicJson -Path $failurePath -Value $failureRecord
-    throw
+& '.\tests\testing\workbook05\Invoke-Phase3DependencyPreflightLiveTests.Tests.ps1' `
+    -FocusedArea 'install-checks'
+
+& 'C:\Program Files\Python312\python.exe' -m unittest -v `
+  tests.testing.workbook05.test_phase3_dependency_import_check `
+  tests.testing.workbook05.test_phase3_dependency_no_model_check
+```
+
+Expected: zero failures.
+
+- [ ] **Step 10: Commit**
+
+```bash
+git add scripts/testing/workbook05/phase3/dependency_import_check.py \
+        tests/testing/workbook05/test_phase3_dependency_import_check.py \
+        scripts/testing/workbook05/Invoke-Workbook05Phase3DependencyPreflightLive.ps1 \
+        tests/testing/workbook05/Invoke-Phase3DependencyPreflightLiveTests.Tests.ps1
+git commit -m "feat(workbook05): qualify final conversion environment"
+```
+
+---
+
+### Task 9: Finalise atomic success/failure evidence and write the manifest last
+
+**Files:**
+- Modify: `scripts/testing/workbook05/Invoke-Workbook05Phase3DependencyPreflightLive.ps1`.
+- Modify: `tests/testing/workbook05/Invoke-Phase3DependencyPreflightLiveTests.Tests.ps1`.
+
+- [ ] **Step 1: Write failing finalisation tests**
+
+Cover:
+
+```text
+success creates observation, checks, stage order, command index, summary, decision
+success writes manifest after every other final file
+success leaves no *.tmp
+Blocked decision produces no acceptance manifest
+IntegrityFailure produces failure.json and no manifest
+controlled deadline/safety termination becomes InfrastructureInterrupted
+first causal message is preserved
+completed stages are preserved
+existing final or temporary record is never overwritten
+```
+
+- [ ] **Step 2: Verify RED**
+
+```powershell
+& '.\tests\testing\workbook05\Invoke-Phase3DependencyPreflightLiveTests.Tests.ps1' `
+    -FocusedArea 'finalisation'
+```
+
+Expected: finalisation assertions fail.
+
+- [ ] **Step 3: Implement private atomic JSON writing**
+
+```powershell
+function Write-PreflightAtomicJson {
+    param([string]$Path, [object]$Value)
+
+    $temporary = $Path + '.tmp'
+    if (Test-Path -LiteralPath $Path -PathType Leaf) {
+        throw "Final evidence already exists: $Path"
+    }
+    if (Test-Path -LiteralPath $temporary) {
+        throw "Temporary evidence already exists: $temporary"
+    }
+    Write-Wb05Json -Path $temporary -Value $Value
+    [IO.File]::Move($temporary, $Path)
 }
 ```
 
-Rules:
+Use it for collector-owned JSON. Controlled command JSON uses Task 5 atomic mode.
 
-- preserve the first causal exception;
-- record current stage and completed stages;
-- record `InfrastructureInterrupted` for controlled process deadline/safety termination;
-- do not overwrite an existing final record;
-- do not write `manifest.sha256` unless `decision.status == 'Passed'`;
-- remove no evidence on failure;
-- leave no `*.tmp` after a successful finalisation.
+- [ ] **Step 4: Build a recomputable observation and decision**
 
-- [ ] **Step 6: Write the manifest last**
+`observation.json` contains raw identities/relationships required by `build_dependency_preflight_record(...)`, including bootstrap lock/report bytes, normal lock/report bytes, VCS packages, source trees, checks, final Python/pip identity, and exact direct requirements. `decision.json` is produced by the repository CLI and validated against the closed schema.
 
-Only after the decision is schema-valid and `Passed`:
+- [ ] **Step 5: Build the command index and stage ledger**
 
-```powershell
-& $venvPython -m scripts.testing.workbook05.hash_manifest `
-    --root $evidenceRoot `
-    --output (Join-Path $evidenceRoot 'manifest.sha256')
+Require unique command IDs and portable paths to each command record, stdout, stderr, resource summary, and resource CSV. `stage-order.json` contains the fixed full order plus the completed prefix.
+
+- [ ] **Step 6: Implement failure classification**
+
+`failure.json` contains:
+
+```text
+schema_version
+campaign_id
+record_type = dependency-preflight-failure
+route_id
+run_id
+run_attempt
+workspace_root
+current_stage
+completed_stages
+classification = Blocked | IntegrityFailure | InfrastructureInterrupted
+first_causal_message
+recorded_at_utc
+all six scientific authorisation flags = false
 ```
 
-No later step may change any bundle member.
+A controlled process deadline, memory/commit safety stop, runner cancellation evidence, or externally terminated process is not called a package incompatibility. An identity mismatch remains `IntegrityFailure`.
 
-- [ ] **Step 7: Run complete collector simulations**
+- [ ] **Step 7: Write `manifest.sha256` only after `Passed`**
 
-Test success, import failure, CLI failure, no-model failure, trust-remote-code rejection, command timeout, thrown simulation exception, no manifest on failure, manifest last on success, and no temporary file after success.
+Invoke the existing hash-manifest module only after every final record exists and `decision.status == 'Passed'`. No subsequent command may mutate the bundle.
+
+- [ ] **Step 8: Run complete PowerShell simulations**
 
 ```powershell
 & '.\tests\testing\workbook05\Invoke-Phase3DependencyPreflightLiveTests.Tests.ps1'
 ```
 
-Expected: all simulations pass without network or model access.
+Expected: every success/failure/interruption scenario passes without network or model access.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 9: Commit**
 
 ```bash
-git add scripts/testing/workbook05/phase3/dependency_import_check.py \
-        scripts/testing/workbook05/Invoke-Workbook05Phase3DependencyPreflightLive.ps1 \
-        tests/testing/workbook05/Invoke-Phase3DependencyPreflightLiveTests.Tests.ps1 \
-        tests/testing/workbook05/test_phase3_dependency_import_check.py
+git add scripts/testing/workbook05/Invoke-Workbook05Phase3DependencyPreflightLive.ps1 \
+        tests/testing/workbook05/Invoke-Phase3DependencyPreflightLiveTests.Tests.ps1
 git commit -m "feat(workbook05): finalise dependency preflight evidence"
 ```
 
 ---
 
-### Task 9: Harden independent validation for the complete live bundle
+### Task 10: Harden independent validation for the complete live bundle
 
 **Files:**
 - Modify: `scripts/testing/workbook05/phase3/dependency_bundle_validation.py`.
 - Modify: `tests/testing/workbook05/test_phase3_dependency_bundle_validation.py`.
-- Modify only if a shared helper is required: `scripts/testing/workbook05/hash_manifest.py`.
-
-**Required successful bundle:**
-
-```text
-decision.json
-observation.json
-checks.json
-stage-order.json
-summary.md
-manifest.sha256
-locks/requirements.phase3-bootstrap.txt
-locks/requirements.phase3-assets.txt
-reports/bootstrap-install-report.json
-reports/bootstrap-packages.json
-reports/normal-install-report.json
-reports/normal-packages.json
-reports/vcs-packages.json
-reports/source-contracts.json
-reports/no-model-check.json
-sources/optimum.json
-sources/optimum-intel.json
-sources/optimum-files.csv
-sources/optimum-intel-files.csv
-commands/command-index.json
-logs/*.command.json
-logs/*.stdout.txt
-logs/*.stderr.txt
-logs/*.resources.json
-logs/*.resources.csv
-```
+- Modify only when shared hardening is required: `scripts/testing/workbook05/hash_manifest.py`.
 
 - [ ] **Step 1: Expand the valid fixture first**
 
-Make the in-test valid bundle include every required live member and all cross-record relationships. Confirm the old validator fails RED because it does not understand the new evidence.
+Build one complete valid live bundle matching the layout above. Confirm RED because the current validator does not validate bootstrap/final-inventory/command-index/source-contract relationships.
 
-- [ ] **Step 2: Add adversarial tests**
+- [ ] **Step 2: Add named adversarial tests**
 
-Reject each of these independently:
+Reject independently:
 
 ```text
-missing required member
-changed/added/duplicate manifest member
-parent traversal or backslash path
-case-colliding bundle path
-secret/token pattern
-symlink/reparse/non-regular member
-forbidden suffix in any case
+missing required success member
+changed, added, missing, malformed, or duplicate manifest member
+parent traversal, backslash, absolute, or case-colliding path
+secret/token/private-key pattern
+symlink, junction, reparse, or non-regular member
+forbidden suffix in any letter case
 bootstrap lock/report mismatch
 normal lock/report mismatch
-unexpected installed distribution
-VCS package in normal lock/report
+unexpected final environment distribution
+VCS package in ordinary lock/report
 wrong VCS origin or commit
 source CSV duplicate/case collision
-source CSV row hash/size/path drift
-source JSON file_count or aggregate mismatch
+source CSV hash/size/path drift
+source JSON file_count or aggregate drift
 source-contract drift
-check order/status mismatch
+check order/status drift
 command-index duplicate/missing/unsafe record
-command record pointing to missing stdout/stderr
-stage-order mismatch
-unrecomputable Passed decision
+command record pointing to missing stdout/stderr/resource evidence
+stage-order drift
+unrecomputable decision
+non-Passed decision under --require-passed
 any true scientific authorisation
 ```
 
@@ -1081,22 +1217,26 @@ any true scientific authorisation
   tests.testing.workbook05.test_phase3_dependency_bundle_validation
 ```
 
-Expected: new live valid fixture and adversarial cases fail for missing implementation.
+Expected: new cases fail for missing validation.
 
-- [ ] **Step 4: Implement read-only cross-validation**
+- [ ] **Step 4: Implement read-only validation**
 
-The validator may only enumerate, read, parse, hash, and compare. It must never import, execute, load, or shell an artifact member.
+The validator may enumerate, `lstat`, read, parse, hash, and compare. It must never import, execute, dynamically load, or shell an artifact member.
 
-Recompute source aggregate hashes from CSV rows using the same canonical record format as `sha256_tree`:
+Recompute source aggregate hashes from CSV rows using the existing tree-hash record format:
 
 ```python
 line = f"{relative_path}\0{size_bytes}\0{sha256}\n".encode("utf-8")
 aggregate.update(line)
 ```
 
-Validate both locks and reports with the generic lock validator. Rebuild the decision from `observation.json` and compare exact object equality with `decision.json`.
+Validate both locks/reports through the generic lock validator. Rebuild the decision from `observation.json` and require exact object equality with `decision.json`.
 
-- [ ] **Step 5: Run focused and full Python suites**
+- [ ] **Step 5: Validate the final environment set**
+
+Require the final package inventory to equal pip plus the union of ordinary locked distributions and two exact VCS packages. A package omitted from reports or introduced by local install fails closed.
+
+- [ ] **Step 6: Run focused/full Python suites**
 
 ```powershell
 & 'C:\Program Files\Python312\python.exe' -m unittest -v `
@@ -1108,20 +1248,19 @@ Validate both locks and reports with the generic lock validator. Rebuild the dec
 
 Expected: zero failures.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
 git add scripts/testing/workbook05/phase3/dependency_bundle_validation.py \
-        scripts/testing/workbook05/hash_manifest.py \
         tests/testing/workbook05/test_phase3_dependency_bundle_validation.py
 git commit -m "feat(workbook05): validate complete dependency bundles"
 ```
 
-Omit `hash_manifest.py` from the commit if no shared change was required.
+Add `scripts/testing/workbook05/hash_manifest.py` only if a tested shared hardening change was actually required.
 
 ---
 
-### Task 10: Add the dedicated three-boundary workflow
+### Task 11: Add the dedicated three-boundary workflow
 
 **Files:**
 - Create: `.github/workflows/workbook-05-phase3-dependency-preflight.yml`.
@@ -1129,7 +1268,7 @@ Omit `hash_manifest.py` from the commit if no shared change was required.
 
 - [ ] **Step 1: Write the failing workflow contract**
 
-Require jobs named:
+Require jobs:
 
 ```text
 repository-contract
@@ -1137,7 +1276,7 @@ collect-dependencies
 validate-dependencies
 ```
 
-Require the collector condition to contain all three clauses:
+Require the collector condition to contain:
 
 ```yaml
 github.event_name == 'workflow_dispatch'
@@ -1145,7 +1284,7 @@ github.ref == 'refs/heads/main'
 inputs.confirm_live_dependency_preflight == true
 ```
 
-Also require exact runner labels, read-only permissions, 40-character action SHAs, credential-free checkouts, `cancel-in-progress: false`, same-revision checkout, same-attempt artifact identity, `--require-passed`, and no model/download/conversion tokens.
+Also require exact labels, read-only permissions, full action SHAs, credential-free checkouts, `cancel-in-progress: false`, exact-revision checkout, same-attempt artifact identity, `--require-passed`, and absence of model download/conversion execution.
 
 - [ ] **Step 2: Verify RED**
 
@@ -1154,35 +1293,35 @@ Also require exact runner labels, read-only permissions, 40-character action SHA
   tests.testing.workbook05.test_phase3_dependency_preflight_workflow_contract
 ```
 
-Expected: workflow file is missing.
+Expected: workflow missing.
 
-- [ ] **Step 3: Implement the GitHub-hosted repository contract**
+- [ ] **Step 3: Implement the hosted repository contract**
 
-Use `windows-latest`, Python `3.12.10`, the pinned validation dependency directory, the complete Phase 3 gate, and focused live-collector simulation tests. This job has no self-hosted runner, no conversion environment, and no model path.
+Use `windows-latest`, Python 3.12.10, repository-pinned `jsonschema` outside the checkout, focused simulation tests, and the complete Phase 3 gate. This job has no self-hosted access, conversion environment, or model path.
 
-- [ ] **Step 4: Implement the manually confirmed Lenovo collector**
+- [ ] **Step 4: Implement the confirmed Lenovo collector**
 
-Use exact labels and a `240`-minute job timeout. Verify the fixed base Python, run the complete Phase 3 gate, then call the live collector. Upload the exact attempt directory with `if: ${{ always() }}` and artifact identity:
+Use exact labels and a 240-minute timeout. Re-verify fixed base Python, run the complete Phase 3 gate, then call the live collector. Upload the exact attempt evidence with `if: ${{ always() }}` and identity:
 
 ```text
 workbook-05-phase3-dependency-preflight-${{ github.run_id }}-${{ github.run_attempt }}
 ```
 
-The workflow supplies only repository root, run ID, attempt, and fixed Python path. It does not accept a workspace path, source commit, package version, model path, or command string as user input.
+The workflow supplies only repository root, run ID, attempt, and fixed Python path. It never accepts a workspace, source revision, dependency version, model path, or command string from the operator.
 
 - [ ] **Step 5: Implement independent hosted validation**
 
-The validator checks out the same exact revision, runs the complete repository gate, downloads the exact same-attempt artifact, and runs:
+Use a fresh hosted Windows runner, the same exact repository revision, and the exact same-attempt artifact. Run:
 
 ```text
 python -m scripts.testing.workbook05.phase3.dependency_bundle_validation
---bundle-root <runner-temp path>
+--bundle-root <runner-temp bundle>
 --repository-root <checkout>
 --require-passed
 --report <runner-temp report>
 ```
 
-It never adds an artifact directory to `PATH` or `PYTHONPATH` and never invokes a file from the artifact.
+Never add the artifact to `PATH` or `PYTHONPATH`; never invoke a file from it.
 
 - [ ] **Step 6: Run workflow contracts**
 
@@ -1205,72 +1344,34 @@ git commit -m "ci(workbook05): add clean dependency preflight workflow"
 
 ---
 
-### Task 11: Add operator guidance while preserving the live-asset-lock block
+### Task 12: Add operator guidance, close the repository gate, and verify one exact PR head
 
 **Files:**
 - Create: `docs/testing/workbook05/phase3-dependency-preflight-runbook.md`.
 - Modify: `docs/testing/workbook05/phase3-c1-implementation-status.md`.
 - Modify: `docs/testing/workbook05/phase3-asset-lock-runbook.md`.
+- Modify only if needed: `scripts/testing/Validate-Workbook05-Phase3.ps1`.
+- Review every file changed in Tasks 1–11.
 
-- [ ] **Step 1: Write the dependency-preflight runbook**
+- [ ] **Step 1: Write the beginner-friendly runbook**
 
-Explain, in beginner-friendly language:
+Explain what the preflight proves and does not prove, exact workflow input, machine preparation, stage order, workspace/evidence locations, successful artifact contents, status meanings, failure preservation, independent artifact/decision hashing, and project-owner acceptance.
 
-```text
-what the preflight proves
-what it does not prove
-exact workflow and input
-machine preparation
-exact stage order
-workspace/evidence locations
-successful artifact contents
-how to interpret Passed/Blocked/IntegrityFailure/InfrastructureInterrupted
-how to preserve and inspect a failed attempt
-how to independently hash the artifact and decision
-how project-owner acceptance is recorded
-```
-
-State explicitly that success still does not enable `live-asset-lock` automatically.
+State clearly that a successful preflight still does not enable `live-asset-lock` automatically.
 
 - [ ] **Step 2: Update C1 status truthfully**
 
-Change Task 6 from “deferred” to “implemented but not yet accepted live” only after all repository tests pass. Keep live asset locking blocked until a later separately reviewed binding change consumes an exact accepted decision digest and retained workspace.
+Describe dependency-preflight repository implementation as complete only after all repository tests pass. Live acceptance remains pending until the manual `main` run, hosted validation, independent rehash, and owner acceptance. Keep live asset locking blocked until a separate binding change consumes the exact accepted decision and retained workspace.
 
 - [ ] **Step 3: Cross-link the asset-lock runbook**
 
-Replace any generic dependency-preflight instructions with a link to the dedicated runbook, but do not change its dispatch instructions or unblock the current `live-asset-lock` operation.
+Point its dependency section to the dedicated runbook without changing current dispatch instructions or removing the existing live block.
 
-- [ ] **Step 4: Run documentation/security scans**
+- [ ] **Step 4: Extend the Phase 3 forbidden-payload scan only if required**
 
-```powershell
-git diff --check
+If new repository fixture roots are introduced, include them in `Validate-Workbook05-Phase3.ps1`. Do not weaken or replace the established BuildStage gate.
 
-git grep -n -I -E 'HF_TOKEN|HUGGING_FACE_HUB_TOKEN|Authorization: Bearer|BEGIN (RSA|OPENSSH|EC) PRIVATE KEY' -- `
-  docs/testing/workbook05 `
-  docs/superpowers
-```
-
-Expected: no whitespace error and no secret-like value.
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add docs/testing/workbook05/phase3-dependency-preflight-runbook.md \
-        docs/testing/workbook05/phase3-c1-implementation-status.md \
-        docs/testing/workbook05/phase3-asset-lock-runbook.md
-git commit -m "docs(workbook05): document dependency preflight operation"
-```
-
----
-
-### Task 12: Integrate the gate, perform complete verification, and prepare PR review
-
-**Files:**
-- Modify: `scripts/testing/Validate-Workbook05-Phase3.ps1` only to include any new repository-controlled dependency-bundle fixture root in its forbidden-payload scan.
-- Review all files changed by Tasks 1–11.
-- Update Draft PR `#72` with exact implementation and verification context.
-
-- [ ] **Step 1: Run focused tests first**
+- [ ] **Step 5: Run focused tests**
 
 ```powershell
 & 'C:\Program Files\Python312\python.exe' -m unittest -v `
@@ -1288,7 +1389,7 @@ git commit -m "docs(workbook05): document dependency preflight operation"
 
 Expected: zero failures.
 
-- [ ] **Step 2: Run the complete Phase 3 repository gate**
+- [ ] **Step 6: Run the complete Phase 3 gate**
 
 ```powershell
 & '.\scripts\testing\Validate-Workbook05-Phase3.ps1' `
@@ -1303,11 +1404,11 @@ WORKBOOK05_BUILD_STAGE_GATE_PASS
 WORKBOOK05_PHASE3_GATE_PASS
 ```
 
-- [ ] **Step 3: Run application regression**
+- [ ] **Step 7: Run the exact application regression recipe**
 
-Use the repository's exact README/build workflow commands; do not invent a different local recipe. At minimum, confirm the same restore/build/test boundary as `.github/workflows/build-and-test.yml` and retain the TRX.
+Follow the repository README and `.github/workflows/build-and-test.yml`; do not invent a different build/test route. Retain and inspect the actual TRX rather than relying only on a green status.
 
-- [ ] **Step 4: Run final repository hygiene checks**
+- [ ] **Step 8: Run final hygiene/security checks**
 
 ```powershell
 git diff --check
@@ -1319,25 +1420,30 @@ git ls-files |
 git grep -n -I -E 'Invoke-Expression|git reset --hard|git clean|cmd /c' -- `
   .github/workflows/workbook-05-phase3-dependency-preflight.yml `
   scripts/testing/workbook05/Invoke-Workbook05Phase3DependencyPreflightLive.ps1
+
+git grep -n -I -E 'HF_TOKEN|HUGGING_FACE_HUB_TOKEN|Authorization: Bearer|BEGIN (RSA|OPENSSH|EC) PRIVATE KEY' -- `
+  docs/testing/workbook05 `
+  docs/superpowers `
+  scripts/testing/workbook05
 ```
 
-Expected: no whitespace/conflict errors, no newly tracked prohibited payload, and no forbidden execution/destructive pattern.
+Expected: no whitespace/conflict errors, no newly tracked prohibited payload, no forbidden execution/destructive pattern, and no secret-like value.
 
-- [ ] **Step 5: Review exact scope against the approved design**
+- [ ] **Step 9: Review every approved requirement**
 
-Confirm every design requirement is either:
+Classify every design point as:
 
 ```text
 implemented and tested
-explicitly retained as a non-claim
-explicitly deferred to the later live-asset-lock binding change
+retained explicitly as a non-claim
+or deferred explicitly to the later live-asset-lock binding change
 ```
 
-Confirm no placeholder, TODO, fake hash, shortened commit, moving branch/tag, or unexplained source/version exists.
+Reject any placeholder, TODO, fake digest, shortened controlling commit, moving branch/tag, unexplained version, or undocumented deviation.
 
-- [ ] **Step 6: Push and verify the exact PR head**
+- [ ] **Step 10: Verify the exact current PR head in GitHub**
 
-Require these GitHub checks on one exact current head:
+Require these checks on one exact SHA:
 
 ```text
 Build and test
@@ -1347,40 +1453,29 @@ Workbook 05 Phase 3 assets — repository contract
 Workbook 05 Phase 3 dependency preflight — repository contract
 ```
 
-Do not rely on a green run from an earlier commit. Inspect the actual job logs and retained unit-test artifact where available.
+A green run from an earlier commit is not transferable. Inspect job logs and the retained unit-test artifact where available.
 
-- [ ] **Step 7: Update the detailed PR body**
+- [ ] **Step 11: Update Draft PR #72 with full context**
 
-The PR must explain:
+Document exact sources/versions, two-environment bootstrap design, lock/input derivation, trust boundaries, every changed file, RED/GREEN evidence, final test counts, known warnings, what remains blocked, failure recovery, and the post-merge live-proof sequence.
 
-```text
-why a separate preflight exists
-exact sources and versions
-hash-lock/bootstrap method
-source-metadata method
-collector/validator trust boundaries
-all changed files
-all tests and exact counts
-known warnings
-what remains blocked
-post-merge manual live-proof sequence
-rollback/recovery behaviour
-```
+Keep the PR Draft until the project owner approves the implemented boundary.
 
-Keep the PR in Draft until the project owner approves the implementation boundary.
-
-- [ ] **Step 8: Commit any final gate/documentation adjustment**
+- [ ] **Step 12: Commit documentation/gate closure**
 
 ```bash
-git add scripts/testing/Validate-Workbook05-Phase3.ps1
+git add docs/testing/workbook05/phase3-dependency-preflight-runbook.md \
+        docs/testing/workbook05/phase3-c1-implementation-status.md \
+        docs/testing/workbook05/phase3-asset-lock-runbook.md \
+        scripts/testing/Validate-Workbook05-Phase3.ps1
 git commit -m "test(workbook05): close dependency preflight repository gate"
 ```
 
-Skip this commit when the gate required no modification.
+Omit `Validate-Workbook05-Phase3.ps1` when no gate modification was needed.
 
 ---
 
-## Post-merge live proof — not part of implementation PR execution
+## Post-merge live proof — explicitly outside implementation execution
 
 After the exact implementation head is approved, merged, and a fresh `main` application regression passes, manually dispatch:
 
@@ -1393,39 +1488,38 @@ Use workflow from: main
 confirm_live_dependency_preflight: checked
 ```
 
-The accepted result requires:
+Acceptance requires:
 
 ```text
-repository contract: Passed
-Lenovo collection: Passed
-hosted untrusted-data validation: Passed
-artifact SHA-256 independently recalculated
+repository contract Passed
+Lenovo collection Passed
+hosted untrusted-data validation Passed
 exact main commit recorded
-decision.json SHA-256 independently recalculated
+artifact SHA-256 independently recalculated
+GitHub artifact digest matched
+exact decision.json SHA-256 independently recalculated
 retained C:\w5c workspace identity recorded
 project-owner acceptance explicitly recorded
-all scientific authorisation flags false
+all model/scientific authorisation flags false
 ```
 
-A successful preflight still does not download Granite or enable live asset locking. A later, separate reviewed change must bind the accepted decision digest and retained workspace into the existing `live-asset-lock` gate.
+A successful preflight still does not download Granite, run conversion, or enable live asset locking. A later separate reviewed change must bind the accepted decision digest and retained workspace into the existing `live-asset-lock` gate.
 
-## Professional references used for this plan
+## Professional references used to verify this plan
 
-- pip installation report specification: `https://pip.pypa.io/en/latest/reference/installation-report/`
-- pip secure/hash-checking installation guidance: `https://pip.pypa.io/en/stable/topics/secure-installs/`
-- pip-tools reproducibility, environment, and `--generate-hashes` guidance: `https://pip-tools.readthedocs.io/en/stable/`
-- GitHub Actions full-SHA policy: `https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository`
-- GitHub self-hosted runner labels/routing: `https://docs.github.com/en/actions/how-tos/write-workflows/choose-where-workflows-run/choose-the-runner-for-a-job`
-- GitHub workflow contexts and pre-routing job conditions: `https://docs.github.com/en/actions/reference/workflows-and-actions/contexts`
-- Pinned Optimum Intel metadata: `huggingface/optimum-intel@a3b6012a4c02f4147260da4d4601bb6a3c0d2bb0/setup.py`
-- Pinned Optimum metadata: `huggingface/optimum@982e495540364f95da1e4b6f62d2d4e5907d08fd/setup.py`
+- pip installation-report specification: used only as observed install evidence, not as a lock authority.
+- pip secure/hash-checking installation guidance: all ordinary artifacts must be exactly pinned and hash admitted.
+- pip-tools reproducibility guidance: lock generation occurs for the same Windows/Python target and uses `--generate-hashes`.
+- GitHub Actions repository policy guidance: third-party actions remain pinned to complete commit SHAs.
+- GitHub workflow-context guidance: the job-level manual-main-confirmation condition is evaluated before self-hosted runner routing.
+- Exact pinned `optimum-intel` and `optimum` `setup.py`/`pyproject.toml` contents: used to define the source contracts, runtime requirements, entry point, version handling, and no-build-system condition.
 
 ## Textbook basis
 
-- *Designing Secure Software*, Chapters 2–4, 6–7, 10, and 12–13: trust boundaries, untrusted input, least functionality, secure defaults, fail-closed handling, and independent security validation.
-- *The Art of Unit Testing*, Chapters 7–10: trustworthy/maintainable tests, test recipes, connected test levels, and delivery-pipeline confidence.
+- *Designing Secure Software*, Chapters 2–4, 6–7, 10, and 12–13: explicit trust boundaries, least functionality, secure defaults, untrusted-input validation, fail-closed evidence, and independent checking.
+- *The Art of Unit Testing*, Chapters 7–10: trustworthy tests, maintainability, connected test levels, test recipes, and delivery-pipeline confidence.
 - *Why Programs Fail*, Chapters 3–6 and 13–16: reproduce the first causal divergence, preserve observations, isolate failure, distinguish infrastructure interruption, and verify the correction.
-- *Code Complete*, Chapters 3, 8, 22–23, 28–29: upstream prerequisites, defensive programming, developer testing, retained records, configuration management, and incremental integration.
+- *Code Complete*, Chapters 3, 8, 22–23, and 28–29: upstream prerequisites, defensive programming, developer testing, retained records, configuration management, and incremental integration.
 - *Refactoring*, Chapter 1: protect behaviour with self-checking tests and make the smallest safe structural change before adding behaviour.
 - *Systems Engineering: Principles and Practice*, Chapters 13–17: reduce uncertainty through component qualification, staged integration, traceable Test and Evaluation, and evidence-based advancement.
 - *Engineering Software Products*, Chapters 7–10: secure/reliable programming, automated testing, DevOps automation, and controlled code management.
