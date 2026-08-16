@@ -13,6 +13,7 @@ from scripts.testing.workbook05.phase3.conversion import (
     REVIEWED_DIRECT_REQUIREMENTS,
 )
 from scripts.testing.workbook05.phase3.dependency_lock import (
+    VCS_PACKAGE_NAMES,
     build_dependency_preflight_record,
     parse_hash_locked_requirements,
     parse_normal_install_report,
@@ -27,6 +28,33 @@ SCHEMA_PATH = (
     / "schemas"
     / "workbook05"
     / "conversion-dependency-preflight.schema.json"
+)
+
+BOOTSTRAP_INPUT_PATH = (
+    REPOSITORY_ROOT
+    / "scripts"
+    / "testing"
+    / "workbook05"
+    / "requirements.phase3-bootstrap.in"
+)
+BOOTSTRAP_LOCK_PATH = BOOTSTRAP_INPUT_PATH.with_suffix(".txt")
+EXPECTED_BOOTSTRAP_DIRECT_VERSIONS = {
+    "pip": "26.1.2",
+    "pip-tools": "7.6.0",
+}
+EXPECTED_BOOTSTRAP_LOCKED_VERSIONS = {
+    "build": "1.5.0",
+    "click": "8.4.2",
+    "colorama": "0.4.6",
+    "packaging": "26.3",
+    "pip": "26.1.2",
+    "pip-tools": "7.6.0",
+    "pyproject-hooks": "1.2.0",
+    "setuptools": "84.0.0",
+    "wheel": "0.48.0",
+}
+EXPECTED_BOOTSTRAP_LOCK_SHA256 = (
+    "44fec5a5c2b7fb0cd0aa36f52af1d664f65812f1b112ec1e78bc00c3c9ae288f"
 )
 
 
@@ -231,6 +259,59 @@ def _observation(lock_text: str | None = None) -> dict[str, object]:
 
 class Phase3DependencyLockTests(unittest.TestCase):
     """Prove normal artifacts are hash locked and VCS sources stay separate."""
+
+    def test_committed_bootstrap_input_freezes_the_reviewed_generator_pair(
+        self,
+    ) -> None:
+        self.assertTrue(
+            BOOTSTRAP_INPUT_PATH.is_file(),
+            (
+                "requirements.phase3-bootstrap.in is missing; expected "
+                "pip-tools==7.6.0 and pip==26.1.2."
+            ),
+        )
+
+        self.assertEqual(
+            b"pip-tools==7.6.0\npip==26.1.2\n",
+            BOOTSTRAP_INPUT_PATH.read_bytes(),
+        )
+
+    def test_committed_bootstrap_lock_is_byte_deterministic_and_complete(
+        self,
+    ) -> None:
+        self.assertTrue(
+            BOOTSTRAP_LOCK_PATH.is_file(),
+            (
+                "requirements.phase3-bootstrap.txt is missing; expected the "
+                "pip-tools==7.6.0 bootstrap lock."
+            ),
+        )
+        lock_bytes = BOOTSTRAP_LOCK_PATH.read_bytes()
+
+        self.assertFalse(lock_bytes.startswith(b"\xef\xbb\xbf"))
+        self.assertNotIn(b"\r", lock_bytes)
+        self.assertTrue(lock_bytes.endswith(b"\n"))
+        self.assertEqual(
+            EXPECTED_BOOTSTRAP_LOCK_SHA256,
+            hashlib.sha256(lock_bytes).hexdigest(),
+        )
+
+        lock_text = lock_bytes.decode("utf-8")
+        packages = parse_hash_locked_requirements(
+            lock_text,
+            required_direct_versions=EXPECTED_BOOTSTRAP_DIRECT_VERSIONS,
+            forbidden_names=VCS_PACKAGE_NAMES,
+        )
+
+        self.assertEqual(
+            EXPECTED_BOOTSTRAP_LOCKED_VERSIONS,
+            {package.name: package.version for package in packages},
+        )
+        self.assertTrue(all(package.hashes for package in packages))
+        self.assertEqual(
+            len(packages),
+            len({package.name for package in packages}),
+        )
 
     def test_valid_normal_lock_is_parsed_deterministically(self) -> None:
         packages = parse_hash_locked_requirements(_lock_text())
