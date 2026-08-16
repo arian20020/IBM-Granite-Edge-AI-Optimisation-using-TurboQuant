@@ -454,7 +454,6 @@ function Read-FullEvidence {
         $gpuConsistent = $gpuCount -ge 0 -and
             $gpuReported -eq ($gpuCount -gt 0) -and
             ((-not $intelGpu) -or ($gpuReported -and $gpuCount -gt 0))
-        Assert-Condition $gpuConsistent 'GPU evidence is inconsistent.'
         $memorySemantics = Assert-Bool $value 'dedicatedSharedMemorySemanticsEstablished'
         Assert-Condition ((Assert-String $value 'intelNpuDetectionState') -ceq 'DetectionUnavailable') 'Intel NPU state is invalid.'
         $versionSocket = Assert-Bool $value 'versionCandidateSocketObserved'
@@ -470,6 +469,13 @@ function Read-FullEvidence {
         Assert-Condition (($null -eq $rawName) -eq ($null -eq $rawHash)) 'Raw capture pair is incomplete.'
         Assert-Condition ($null -eq $rawName -or $rawName -ceq 'llmfit-system.raw.json' -and (Test-LowerHex $rawHash 64) -and $jsonValid) 'Raw capture pair is invalid.'
         $diagnostics = @(Assert-Diagnostics $value)
+        $gpuInconsistentDiagnostic = $diagnostics -ccontains 'HI-LLMFIT-GPU-INCONSISTENT'
+        if ($gpuConsistent) {
+            Assert-Condition (-not $gpuInconsistentDiagnostic) 'GPU inconsistency diagnostic disagrees with the aggregate fields.'
+        }
+        else {
+            Assert-Condition ($disposition -ceq 'Rejected' -and $gpuInconsistentDiagnostic) 'GPU aggregate inconsistency lacks a matching Rejected diagnostic.'
+        }
         $hardDiagnostics = @($diagnostics | Where-Object { $nonFailureDiagnostics -cnotcontains $_ })
         $functional = $reportedVersion -ceq 'llmfit 1.1.9' -and
             $observedArchive -ceq $expectedArchive -and $observedExecutable -ceq $expectedExecutable -and
