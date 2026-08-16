@@ -30,6 +30,27 @@
     "performance_claim_authorised",
     "quality_claim_authorised"
   ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "not": {
+              "const": "Blocked"
+            }
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "required": [
+          "bootstrap_lock"
+        ]
+      }
+    }
+  ],
   "$defs": {
     "sha256": {
       "type": "string",
@@ -58,7 +79,10 @@
       ],
       "properties": {
         "name": {
-          "enum": ["optimum", "optimum-intel"]
+          "enum": [
+            "optimum",
+            "optimum-intel"
+          ]
         },
         "repository": {
           "type": "string",
@@ -83,7 +107,12 @@
     "package": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name", "version", "source_identity", "direct"],
+      "required": [
+        "name",
+        "version",
+        "source_identity",
+        "direct"
+      ],
       "properties": {
         "name": {
           "type": "string",
@@ -105,7 +134,11 @@
     "check": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name", "status", "exit_code"],
+      "required": [
+        "name",
+        "status",
+        "exit_code"
+      ],
       "properties": {
         "name": {
           "enum": [
@@ -118,10 +151,19 @@
           ]
         },
         "status": {
-          "enum": ["Passed", "Failed", "Blocked", "IntegrityFailure"]
+          "enum": [
+            "Passed",
+            "Failed",
+            "Blocked",
+            "IntegrityFailure",
+            "InfrastructureInterrupted"
+          ]
         },
         "exit_code": {
-          "type": ["integer", "null"]
+          "type": [
+            "integer",
+            "null"
+          ]
         }
       }
     }
@@ -146,7 +188,11 @@
     "workspace": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["root", "normal_local_directory", "fresh"],
+      "required": [
+        "root",
+        "normal_local_directory",
+        "fresh"
+      ],
       "properties": {
         "root": {
           "$ref": "#/$defs/windowsPath"
@@ -162,7 +208,11 @@
     "python": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["version", "executable_path", "executable_sha256"],
+      "required": [
+        "version",
+        "executable_path",
+        "executable_sha256"
+      ],
       "properties": {
         "version": {
           "type": "string",
@@ -179,7 +229,11 @@
     "pip": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["version", "executable_path", "executable_sha256"],
+      "required": [
+        "version",
+        "executable_path",
+        "executable_sha256"
+      ],
       "properties": {
         "version": {
           "type": "string",
@@ -208,6 +262,39 @@
       "items": {
         "type": "string",
         "minLength": 1
+      }
+    },
+    "bootstrap_lock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "install_report_path",
+        "install_report_sha256",
+        "normal_distribution_count",
+        "all_normal_artifacts_hashed"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/portablePath"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "install_report_path": {
+          "$ref": "#/$defs/portablePath"
+        },
+        "install_report_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "normal_distribution_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "all_normal_artifacts_hashed": {
+          "type": "boolean"
+        }
       }
     },
     "lock": {
@@ -275,7 +362,12 @@
       "type": "integer"
     },
     "status": {
-      "enum": ["Passed", "Blocked", "IntegrityFailure"]
+      "enum": [
+        "Passed",
+        "Blocked",
+        "IntegrityFailure",
+        "InfrastructureInterrupted"
+      ]
     },
     "reasons": {
       "type": "array",

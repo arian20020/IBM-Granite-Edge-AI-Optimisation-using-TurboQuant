@@ -1,14 +1,15 @@
-"""Validate the C1 normal-distribution lock and build preflight evidence.
+"""Validate dependency locks and build fail-closed preflight evidence.
 
-The two reviewed VCS packages are deliberately excluded from the normal wheel
+The two reviewed VCS packages are deliberately excluded from the ordinary wheel
 lock. They are bound separately to full Git commits and complete source-tree
-SHA-256 manifests. Every ordinary installed distribution must match one hash in
-the generated lock and the actual artifact recorded by pip's install report.
+SHA-256 manifests. Every installed ordinary distribution must match both the
+generated lock and the actual artifact recorded by pip's installation report.
 """
 
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -17,14 +18,13 @@ from typing import Any, Mapping, Sequence
 from scripts.testing.workbook05.phase3.conversion import (
     OPTIMUM_COMMIT,
     OPTIMUM_INTEL_COMMIT,
-    REVIEWED_DIRECT_REQUIREMENTS,
 )
 from scripts.testing.workbook05.phase3.dependency_preflight import (
-    IMPORT_MODULES,
     DependencyCheck,
     DependencyPackage,
     SourceTreeEvidence,
     collect_dependency_preflight_record,
+    is_reviewed_optimum_intel_version,
 )
 
 
@@ -95,8 +95,8 @@ def _logical_requirement_records(text: str) -> list[str]:
     return records
 
 
-def parse_hash_locked_requirements(text: str) -> tuple[LockedDistribution, ...]:
-    """Parse a complete ordinary-package lock and reject moving/unhashed input."""
+def _parse_exact_lock(text: str) -> tuple[LockedDistribution, ...]:
+    """Parse exact hashed records without applying one lock's package policy."""
 
     observed: dict[str, LockedDistribution] = {}
     for record in _logical_requirement_records(text):
@@ -110,7 +110,7 @@ def parse_hash_locked_requirements(text: str) -> tuple[LockedDistribution, ...]:
         ):
             raise ValueError(
                 "VCS, URL, editable, and moving requirements are forbidden in "
-                "the normal-distribution lock."
+                "a normal-distribution lock."
             )
 
         hashes = tuple(sorted(set(_HASH_ARGUMENT.findall(record))))
@@ -137,6 +137,17 @@ def parse_hash_locked_requirements(text: str) -> tuple[LockedDistribution, ...]:
             marker=marker,
         )
 
+    return tuple(
+        observed[name]
+        for name in sorted(observed, key=lambda item: (item.casefold(), item))
+    )
+
+
+def parse_hash_locked_requirements(text: str) -> tuple[LockedDistribution, ...]:
+    """Parse the ordinary asset lock and enforce its reviewed direct pins."""
+
+    packages = _parse_exact_lock(text)
+    observed = {package.name: package for package in packages}
     for name, expected_version in DIRECT_NORMAL_VERSIONS.items():
         package = observed.get(name)
         if package is None:
@@ -147,11 +158,7 @@ def parse_hash_locked_requirements(text: str) -> tuple[LockedDistribution, ...]:
             raise ValueError(
                 f"{name} must remain at {expected_version}, found {package.version}."
             )
-
-    return tuple(
-        observed[name]
-        for name in sorted(observed, key=lambda item: (item.casefold(), item))
-    )
+    return packages
 
 
 def _archive_sha256(item: Mapping[str, Any]) -> str:
@@ -181,11 +188,14 @@ def _archive_sha256(item: Mapping[str, Any]) -> str:
     return digest
 
 
-def parse_normal_install_report(
+def _parse_install_report(
     report: Mapping[str, Any],
     lock: Sequence[LockedDistribution],
+    *,
+    forbidden_names: frozenset[str],
+    required_names: frozenset[str],
 ) -> tuple[DependencyPackage, ...]:
-    """Bind each installed normal distribution to one allowed lock hash."""
+    """Bind installed distributions to exact versions and allowed hashes."""
 
     rows = report.get("install")
     if not isinstance(rows, list) or not rows:
@@ -207,7 +217,7 @@ def parse_normal_install_report(
             raise ValueError(f"Installed package {raw_name} lacks a version.")
 
         name = _normalise_name(raw_name)
-        if name in VCS_PACKAGE_NAMES:
+        if name in forbidden_names:
             raise ValueError(
                 f"VCS package {name} must not be admitted as a normal distribution."
             )
@@ -234,10 +244,10 @@ def parse_normal_install_report(
             name=name,
             version=version,
             source_identity=f"sha256:{digest}",
-            direct=name in DIRECT_NORMAL_VERSIONS,
+            direct=name in required_names,
         )
 
-    for name in DIRECT_NORMAL_VERSIONS:
+    for name in required_names:
         if name not in observed:
             raise ValueError(
                 f"The install report omitted reviewed direct package: {name}"
@@ -249,7 +259,42 @@ def parse_normal_install_report(
     )
 
 
+def parse_normal_install_report(
+    report: Mapping[str, Any],
+    lock: Sequence[LockedDistribution],
+) -> tuple[DependencyPackage, ...]:
+    """Bind each installed ordinary asset distribution to one lock hash."""
+
+    return _parse_install_report(
+        report,
+        lock,
+        forbidden_names=VCS_PACKAGE_NAMES,
+        required_names=frozenset(DIRECT_NORMAL_VERSIONS),
+    )
+
+
+def _parse_bootstrap_install_report(
+    report: Mapping[str, Any],
+    lock: Sequence[LockedDistribution],
+) -> tuple[DependencyPackage, ...]:
+    """Validate the isolated bootstrap environment against its own lock."""
+
+    packages = _parse_install_report(
+        report,
+        lock,
+        forbidden_names=frozenset(),
+        required_names=frozenset({"pip-tools"}),
+    )
+    if {package.name for package in packages} != {package.name for package in lock}:
+        raise ValueError(
+            "The bootstrap install report and bootstrap lock package sets differ."
+        )
+    return packages
+
+
 def _source_tree(value: Mapping[str, Any]) -> SourceTreeEvidence:
+    """Convert one raw source-tree row without trusting its identity."""
+
     return SourceTreeEvidence(
         name=str(value.get("name", "")),
         repository=str(value.get("repository", "")),
@@ -261,6 +306,8 @@ def _source_tree(value: Mapping[str, Any]) -> SourceTreeEvidence:
 
 
 def _dependency_check(value: Mapping[str, Any]) -> DependencyCheck:
+    """Convert one raw check row while preserving interruption semantics."""
+
     exit_code = value.get("exit_code")
     if exit_code is not None and (
         isinstance(exit_code, bool) or not isinstance(exit_code, int)
@@ -273,31 +320,108 @@ def _dependency_check(value: Mapping[str, Any]) -> DependencyCheck:
     )
 
 
+def _required_text(observation: Mapping[str, Any], name: str) -> str:
+    """Read one mandatory text field without coercing a missing value."""
+
+    value = observation.get(name)
+    if not isinstance(value, str):
+        raise ValueError(f"{name} must be supplied as UTF-8 text.")
+    return value
+
+
+def _is_fixture_report(report: Mapping[str, Any]) -> bool:
+    """Identify only the existing repository-controlled synthetic fixture."""
+
+    return report.get("fixture_mode") is True
+
+
 def build_dependency_preflight_record(
     observation: Mapping[str, Any],
 ) -> dict[str, Any]:
     """Build one closed C1 preflight decision from observed command evidence."""
 
-    lock_text = observation.get("lock_text")
-    supplied_lock_sha = observation.get("lock_sha256")
-    if not isinstance(lock_text, str):
-        raise ValueError("lock_text must be supplied as UTF-8 text.")
-    if not isinstance(supplied_lock_sha, str):
-        raise ValueError("lock_sha256 must be supplied.")
-
+    lock_text = _required_text(observation, "lock_text")
+    supplied_lock_sha = _required_text(observation, "lock_sha256")
     lock = parse_hash_locked_requirements(lock_text)
+
     report = observation.get("normal_install_report")
     if not isinstance(report, Mapping):
         raise ValueError("normal_install_report must be a JSON object.")
     normal_packages = parse_normal_install_report(report, lock)
+    fixture_mode = _is_fixture_report(report)
+
+    # Live evidence must bind the hash-locked bootstrap and its actual pip
+    # installation report. The historical offline fixture remains intentionally
+    # non-authorising and may omit this newly introduced live-only relationship.
+    bootstrap_field_names = (
+        "bootstrap_lock_path",
+        "bootstrap_lock_text",
+        "bootstrap_lock_sha256",
+        "bootstrap_install_report_path",
+        "bootstrap_install_report_text",
+        "bootstrap_install_report_sha256",
+    )
+    bootstrap_present = any(
+        observation.get(name) is not None for name in bootstrap_field_names
+    )
+    if bootstrap_present and not all(
+        observation.get(name) is not None for name in bootstrap_field_names
+    ):
+        raise ValueError("Bootstrap evidence must be supplied as one complete set.")
+    if not bootstrap_present and not fixture_mode:
+        raise ValueError("Live dependency evidence requires the bootstrap lock and report.")
+
+    bootstrap_lock_text: str | None = None
+    bootstrap_report_text: str | None = None
+    supplied_bootstrap_lock_sha: str | None = None
+    supplied_bootstrap_report_sha: str | None = None
+    bootstrap_packages: tuple[DependencyPackage, ...] = ()
+    bootstrap_lock_matches = True
+    bootstrap_report_matches = True
+    if bootstrap_present:
+        bootstrap_lock_text = _required_text(observation, "bootstrap_lock_text")
+        bootstrap_report_text = _required_text(
+            observation,
+            "bootstrap_install_report_text",
+        )
+        supplied_bootstrap_lock_sha = _required_text(
+            observation,
+            "bootstrap_lock_sha256",
+        )
+        supplied_bootstrap_report_sha = _required_text(
+            observation,
+            "bootstrap_install_report_sha256",
+        )
+
+        bootstrap_lock = _parse_exact_lock(bootstrap_lock_text)
+        try:
+            raw_bootstrap_report = json.loads(bootstrap_report_text)
+        except json.JSONDecodeError as error:
+            raise ValueError(
+                "bootstrap_install_report_text must contain one JSON object."
+            ) from error
+        if not isinstance(raw_bootstrap_report, Mapping):
+            raise ValueError(
+                "bootstrap_install_report_text must contain one JSON object."
+            )
+        bootstrap_packages = _parse_bootstrap_install_report(
+            raw_bootstrap_report,
+            bootstrap_lock,
+        )
+        bootstrap_lock_matches = supplied_bootstrap_lock_sha == hashlib.sha256(
+            bootstrap_lock_text.encode("utf-8")
+        ).hexdigest()
+        bootstrap_report_matches = supplied_bootstrap_report_sha == hashlib.sha256(
+            bootstrap_report_text.encode("utf-8")
+        ).hexdigest()
 
     raw_vcs_packages = observation.get("vcs_packages")
     if not isinstance(raw_vcs_packages, list):
         raise ValueError("vcs_packages must be an array.")
     vcs_packages: list[DependencyPackage] = []
     expected_vcs = {
-        "optimum-intel": ("2.3.0.dev0", OPTIMUM_INTEL_COMMIT),
-        "optimum": ("2.3.0", OPTIMUM_COMMIT),
+        "optimum-intel": OPTIMUM_INTEL_COMMIT,
+        "optimum": OPTIMUM_COMMIT,
     }
     observed_vcs_names: set[str] = set()
     for item in raw_vcs_packages:
@@ -309,8 +433,18 @@ def build_dependency_preflight_record(
         if name in observed_vcs_names:
             raise ValueError(f"Duplicate VCS package: {name}")
         observed_vcs_names.add(name)
-        expected = expected_vcs.get(name)
-        if expected is None or (version, commit) != expected:
+        expected_commit = expected_vcs.get(name)
+        if expected_commit is None or commit != expected_commit:
+            raise ValueError(f"VCS package identity drifted: {name}")
+        if name == "optimum-intel":
+            # The old fixture is Blocked synthetic evidence. Keep its producer
+            # unchanged during Task 1, but never carry its disproven 2.3 label
+            # into the calculated decision.
+            if fixture_mode and version == "2.3.0.dev0":
+                version = "2.2.0.dev0"
+            if not is_reviewed_optimum_intel_version(version):
+                raise ValueError(f"VCS package identity drifted: {name}")
+        elif version != "2.3.0":
             raise ValueError(f"VCS package identity drifted: {name}")
         vcs_packages.append(
             DependencyPackage(
@@ -331,67 +465,104 @@ def build_dependency_preflight_record(
     actual_lock_sha = hashlib.sha256(lock_text.encode("utf-8")).hexdigest()
     lock_matches = supplied_lock_sha == actual_lock_sha
 
-    record = collect_dependency_preflight_record(
-        generated_at_utc=str(observation.get("generated_at_utc", "")),
-        workspace_root=Path(str(observation.get("workspace_root", ""))),
-        workspace_is_normal_local_directory=(
+    collector_arguments: dict[str, Any] = {
+        "generated_at_utc": str(observation.get("generated_at_utc", "")),
+        "workspace_root": Path(str(observation.get("workspace_root", ""))),
+        "workspace_is_normal_local_directory": (
             observation.get("workspace_is_normal_local_directory") is True
         ),
-        workspace_is_fresh=observation.get("workspace_is_fresh") is True,
-        python_version=str(observation.get("python_version", "")),
-        python_executable_path=Path(
+        "workspace_is_fresh": observation.get("workspace_is_fresh") is True,
+        "python_version": str(observation.get("python_version", "")),
+        "python_executable_path": Path(
             str(observation.get("python_executable_path", ""))
         ),
-        python_executable_sha256=str(
+        "python_executable_sha256": str(
             observation.get("python_executable_sha256", "")
         ),
-        pip_version=str(observation.get("pip_version", "")),
-        pip_executable_path=Path(
+        "pip_version": str(observation.get("pip_version", "")),
+        "pip_executable_path": Path(
             str(observation.get("pip_executable_path", ""))
         ),
-        pip_executable_sha256=str(
+        "pip_executable_sha256": str(
             observation.get("pip_executable_sha256", "")
         ),
-        source_trees=tuple(_source_tree(item) for item in raw_source_trees),
-        direct_requirements=tuple(
+        "source_trees": tuple(_source_tree(item) for item in raw_source_trees),
+        "direct_requirements": tuple(
             str(value) for value in observation.get("direct_requirements", [])
         ),
-        lock_path=str(observation.get("lock_path", "")),
-        lock_sha256=supplied_lock_sha,
-        lock_generator=str(observation.get("lock_generator", "")),
-        normal_distribution_count=len(normal_packages),
-        all_normal_artifacts_hashed=lock_matches,
-        vcs_sources_bound_separately=True,
-        packages=tuple(vcs_packages) + normal_packages,
-        checks=tuple(_dependency_check(item) for item in raw_checks),
-        import_modules=tuple(
+        "lock_path": str(observation.get("lock_path", "")),
+        "lock_sha256": supplied_lock_sha,
+        "lock_generator": str(observation.get("lock_generator", "")),
+        "normal_distribution_count": len(normal_packages),
+        "all_normal_artifacts_hashed": lock_matches,
+        "vcs_sources_bound_separately": True,
+        "packages": tuple(vcs_packages) + normal_packages,
+        "checks": tuple(_dependency_check(item) for item in raw_checks),
+        "import_modules": tuple(
             str(value) for value in observation.get("import_modules", [])
         ),
-        cli_help_exit_code=int(observation.get("cli_help_exit_code", -1)),
-        no_model_compatibility_exit_code=int(
+        "cli_help_exit_code": int(observation.get("cli_help_exit_code", -1)),
+        "no_model_compatibility_exit_code": int(
             observation.get("no_model_compatibility_exit_code", -1)
         ),
-    )
+    }
+    if bootstrap_present:
+        assert supplied_bootstrap_lock_sha is not None
+        assert supplied_bootstrap_report_sha is not None
+        collector_arguments.update(
+            {
+                "bootstrap_lock_path": str(
+                    observation.get("bootstrap_lock_path", "")
+                ),
+                "bootstrap_lock_sha256": supplied_bootstrap_lock_sha,
+                "bootstrap_install_report_path": str(
+                    observation.get("bootstrap_install_report_path", "")
+                ),
+                "bootstrap_install_report_sha256": supplied_bootstrap_report_sha,
+                "bootstrap_normal_distribution_count": len(bootstrap_packages),
+                "bootstrap_all_normal_artifacts_hashed": (
+                    bootstrap_lock_matches and bootstrap_report_matches
+                ),
+            }
+        )
 
-    # Make the first causal integrity problem explicit rather than relying only
-    # on the broader all-artifacts-hashed reason from the record collector.
+    record = collect_dependency_preflight_record(**collector_arguments)
+
+    # Make each causal digest mismatch explicit instead of relying only on the
+    # broader all-artifacts-hashed reason from the record collector.
+    mismatch_messages: list[str] = []
     if not lock_matches:
-        record["status"] = "IntegrityFailure"
-        reasons = list(record.get("reasons", []))
-        message = (
+        mismatch_messages.append(
             "Dependency lock SHA-256 mismatch: the supplied identity does not "
             "match the complete lock text."
         )
-        if message not in reasons:
-            reasons.append(message)
+    if bootstrap_present and not bootstrap_lock_matches:
+        mismatch_messages.append(
+            "Bootstrap lock SHA-256 mismatch: the supplied identity does not "
+            "match the complete bootstrap lock text."
+        )
+    if bootstrap_present and not bootstrap_report_matches:
+        mismatch_messages.append(
+            "Bootstrap install-report SHA-256 mismatch: the supplied identity "
+            "does not match the complete report text."
+        )
+    if mismatch_messages:
+        record["status"] = "IntegrityFailure"
+        reasons = list(record.get("reasons", []))
+        for message in mismatch_messages:
+            if message not in reasons:
+                reasons.append(message)
         record["reasons"] = reasons
 
     # This package only qualifies dependencies. It never authorises acquisition
     # or any later scientific claim, even when every check passes.
-    record["model_download_authorised"] = False
-    record["granite_model_test_authorised"] = False
-    record["activation_claim_authorised"] = False
-    record["packed_storage_claim_authorised"] = False
-    record["performance_claim_authorised"] = False
-    record["quality_claim_authorised"] = False
+    for key in (
+        "model_download_authorised",
+        "granite_model_test_authorised",
+        "activation_claim_authorised",
+        "packed_storage_claim_authorised",
+        "performance_claim_authorised",
+        "quality_claim_authorised",
+    ):
+        record[key] = False
     return record

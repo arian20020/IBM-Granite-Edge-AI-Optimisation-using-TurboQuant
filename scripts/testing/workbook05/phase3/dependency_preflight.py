@@ -40,7 +40,12 @@ RECORD_TYPE = "conversion-dependency-preflight"
 
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _HASH_IDENTITY = re.compile(r"^sha256:[0-9a-f]{64}$")
-_OPTIMUM_INTEL_VERSION = re.compile(r"^2\.3\.0\.dev0(?:\+[0-9a-f]+)?$")
+
+# The pinned Optimum Intel source declares 2.2.0.dev0. setup.py may append
+# a 7-40 character lowercase Git prefix when installed from a checkout.
+_OPTIMUM_INTEL_VERSION = re.compile(
+    r"^2\.2\.0\.dev0(?:\+([0-9a-f]{7,40}))?$"
+)
 
 # Repository, origin, and commit are all checked. A matching package version is
 # not enough to prove which source tree produced a VCS installation.
@@ -60,7 +65,7 @@ _EXPECTED_SOURCES: dict[str, tuple[str, str, str]] = {
 # Normal distributions use wheel/sdist SHA-256 identities. The two VCS packages
 # use their reviewed full commit identities and separate source-tree manifests.
 _EXPECTED_DIRECT_PACKAGES: dict[str, tuple[str, str | None]] = {
-    "optimum-intel": ("2.3.0.dev0", OPTIMUM_INTEL_COMMIT),
+    "optimum-intel": ("2.2.0.dev0", OPTIMUM_INTEL_COMMIT),
     "optimum": ("2.3.0", OPTIMUM_COMMIT),
     "transformers": ("5.5.0", None),
     "huggingface-hub": ("1.21.0", None),
@@ -135,17 +140,17 @@ def _utc_timestamp(value: object) -> str:
     return value
 
 
-def _portable_path(value: object) -> str:
+def _portable_path(value: object, label: str) -> str:
     """Validate one canonical forward-slash path stored in portable evidence."""
 
-    text = _text(value, "Dependency lock path")
+    text = _text(value, label)
     if "\\" in text or text.startswith("/") or text.endswith("/") or "//" in text:
-        raise ValueError("Dependency lock path must be portable and relative.")
+        raise ValueError(f"{label} must be portable and relative.")
     parts = text.split("/")
     if any(part in {"", ".", ".."} for part in parts):
-        raise ValueError("Dependency lock path contains an unsafe segment.")
+        raise ValueError(f"{label} contains an unsafe segment.")
     if PurePosixPath(text).is_absolute() or PureWindowsPath(text).drive:
-        raise ValueError("Dependency lock path must not be absolute.")
+        raise ValueError(f"{label} must not be absolute.")
     return text
 
 
@@ -175,6 +180,16 @@ def _strict_child(candidate: PureWindowsPath, root: PureWindowsPath) -> bool:
         len(candidate_parts) > len(root_parts)
         and candidate_parts[: len(root_parts)] == root_parts
     )
+
+
+def is_reviewed_optimum_intel_version(value: str) -> bool:
+    """Accept only the source-declared version and a truthful Git suffix."""
+
+    match = _OPTIMUM_INTEL_VERSION.fullmatch(value)
+    if match is None:
+        return False
+    suffix = match.group(1)
+    return suffix is None or OPTIMUM_INTEL_COMMIT.startswith(suffix)
 
 
 def _source_records(
@@ -267,7 +282,7 @@ def _package_records(
             continue
         version_ok = value.version == expected_version
         if name == "optimum-intel":
-            version_ok = bool(_OPTIMUM_INTEL_VERSION.fullmatch(value.version))
+            version_ok = is_reviewed_optimum_intel_version(value.version)
         if not version_ok:
             issues.append(f"The {name} package version does not match the reviewed set.")
         if expected_commit is not None:
@@ -287,14 +302,22 @@ def _package_records(
 
 def _check_records(
     values: Sequence[DependencyCheck],
-) -> tuple[list[dict[str, Any]], list[str], list[str]]:
+) -> tuple[list[dict[str, Any]], list[str], list[str], list[str]]:
     """Validate the exact check catalogue and classify its observations."""
 
     records: list[dict[str, Any]] = []
     integrity: list[str] = []
+    interrupted: list[str] = []
     blocked: list[str] = []
     observed: dict[str, DependencyCheck] = {}
 
+    allowed_statuses = {
+        "Passed",
+        "Failed",
+        "Blocked",
+        "IntegrityFailure",
+        "InfrastructureInterrupted",
+    }
     for value in values:
         name = _text(value.name, "Check name")
         key = name.casefold()
@@ -302,7 +325,7 @@ def _check_records(
             raise ValueError(f"duplicate check identity: {name}")
         observed[key] = value
         status = _text(value.status, f"Status for {name}")
-        if status not in {"Passed", "Failed", "Blocked", "IntegrityFailure"}:
+        if status not in allowed_statuses:
             raise ValueError(f"Unsupported check status for {name}: {status}")
         if value.exit_code is not None and (
             isinstance(value.exit_code, bool)
@@ -321,6 +344,11 @@ def _check_records(
             continue
         if value.status == "IntegrityFailure":
             integrity.append(f"Dependency check {name} reported IntegrityFailure.")
+        elif value.status == "InfrastructureInterrupted":
+            interrupted.append(
+                f"Dependency check {name} was interrupted "
+                f"(exit_code={value.exit_code})."
+            )
         elif value.status != "Passed":
             blocked.append(
                 f"Dependency check {name} did not pass "
@@ -329,7 +357,7 @@ def _check_records(
 
     order = {name: index for index, name in enumerate(REQUIRED_CHECK_NAMES)}
     records.sort(key=lambda item: order.get(str(item["name"]), len(order)))
-    return records, integrity, blocked
+    return records, integrity, interrupted, blocked
 
 
 def collect_dependency_preflight_record(
@@ -346,6 +374,12 @@ def collect_dependency_preflight_record(
     pip_executable_sha256: str,
     source_trees: Sequence[SourceTreeEvidence],
     direct_requirements: Sequence[str],
+    bootstrap_lock_path: str | None = None,
+    bootstrap_lock_sha256: str | None = None,
+    bootstrap_install_report_path: str | None = None,
+    bootstrap_install_report_sha256: str | None = None,
+    bootstrap_normal_distribution_count: int | None = None,
+    bootstrap_all_normal_artifacts_hashed: bool | None = None,
     lock_path: str,
     lock_sha256: str,
     lock_generator: str,
@@ -368,15 +402,72 @@ def collect_dependency_preflight_record(
     python_digest = _sha256(python_executable_sha256, "Python executable digest")
     pip_digest = _sha256(pip_executable_sha256, "pip executable digest")
     lock_digest = _sha256(lock_sha256, "Dependency lock digest")
-    portable_lock_path = _portable_path(lock_path)
+    portable_lock_path = _portable_path(lock_path, "Dependency lock path")
     python_version_text = _text(python_version, "Python version")
     pip_version_text = _text(pip_version, "pip version")
     generator = _text(lock_generator, "Dependency lock generator")
 
-    if isinstance(normal_distribution_count, bool) or not isinstance(
-        normal_distribution_count,
-        int,
-    ) or normal_distribution_count < 0:
+    bootstrap_values = (
+        bootstrap_lock_path,
+        bootstrap_lock_sha256,
+        bootstrap_install_report_path,
+        bootstrap_install_report_sha256,
+        bootstrap_normal_distribution_count,
+        bootstrap_all_normal_artifacts_hashed,
+    )
+    bootstrap_present = any(value is not None for value in bootstrap_values)
+    if bootstrap_present and not all(value is not None for value in bootstrap_values):
+        raise ValueError("Bootstrap lock evidence must be supplied as one complete object.")
+
+    bootstrap_record: dict[str, Any] | None = None
+    if bootstrap_present:
+        assert bootstrap_lock_path is not None
+        assert bootstrap_lock_sha256 is not None
+        assert bootstrap_install_report_path is not None
+        assert bootstrap_install_report_sha256 is not None
+        assert bootstrap_normal_distribution_count is not None
+        assert bootstrap_all_normal_artifacts_hashed is not None
+
+        if (
+            isinstance(bootstrap_normal_distribution_count, bool)
+            or not isinstance(bootstrap_normal_distribution_count, int)
+            or bootstrap_normal_distribution_count < 0
+        ):
+            raise ValueError(
+                "bootstrap_normal_distribution_count must be non-negative."
+            )
+        if not isinstance(bootstrap_all_normal_artifacts_hashed, bool):
+            raise ValueError(
+                "bootstrap_all_normal_artifacts_hashed must be Boolean."
+            )
+        bootstrap_record = {
+            "path": _portable_path(
+                bootstrap_lock_path,
+                "Bootstrap lock path",
+            ),
+            "sha256": _sha256(
+                bootstrap_lock_sha256,
+                "Bootstrap lock digest",
+            ),
+            "install_report_path": _portable_path(
+                bootstrap_install_report_path,
+                "Bootstrap install-report path",
+            ),
+            "install_report_sha256": _sha256(
+                bootstrap_install_report_sha256,
+                "Bootstrap install-report digest",
+            ),
+            "normal_distribution_count": bootstrap_normal_distribution_count,
+            "all_normal_artifacts_hashed": (
+                bootstrap_all_normal_artifacts_hashed
+            ),
+        }
+
+    if (
+        isinstance(normal_distribution_count, bool)
+        or not isinstance(normal_distribution_count, int)
+        or normal_distribution_count < 0
+    ):
         raise ValueError("normal_distribution_count must be non-negative.")
     for label, value in (
         ("workspace_is_normal_local_directory", workspace_is_normal_local_directory),
@@ -395,8 +486,14 @@ def collect_dependency_preflight_record(
 
     source_records, source_issues = _source_records(source_trees)
     package_records, package_issues = _package_records(packages)
-    check_records, check_integrity, check_blocked = _check_records(checks)
+    (
+        check_records,
+        check_integrity,
+        check_interrupted,
+        check_blocked,
+    ) = _check_records(checks)
     integrity = source_issues + package_issues + check_integrity
+    interrupted = list(check_interrupted)
     blocked = list(check_blocked)
 
     # Well-formed observations that violate policy are retained as evidence and
@@ -412,28 +509,48 @@ def collect_dependency_preflight_record(
     if pip_path.name.casefold() != "pip.exe":
         integrity.append("The pip executable path does not end with pip.exe.")
     if not workspace_is_normal_local_directory:
-        integrity.append("The dependency-preflight workspace is not a normal local directory.")
+        integrity.append(
+            "The dependency-preflight workspace is not a normal local directory."
+        )
     if not workspace_is_fresh:
         integrity.append("The dependency-preflight workspace is not fresh.")
     if python_version_text != "3.12.10":
         integrity.append(f"Python version drifted from 3.12.10: {python_version_text}.")
     if generator != "pip-tools==7.5.0":
-        integrity.append(f"The lock generator drifted from pip-tools==7.5.0: {generator}.")
+        integrity.append(
+            f"The lock generator drifted from pip-tools==7.5.0: {generator}."
+        )
 
     reviewed_requirements = tuple(
         _text(value, "Direct requirement")
         for value in direct_requirements
     )
     if reviewed_requirements != REVIEWED_DIRECT_REQUIREMENTS:
-        integrity.append("The direct requirements do not match the reviewed set exactly.")
+        integrity.append(
+            "The direct requirements do not match the reviewed set exactly."
+        )
+    if bootstrap_record is not None and not bootstrap_record[
+        "all_normal_artifacts_hashed"
+    ]:
+        integrity.append(
+            "One or more bootstrap dependency artifacts are missing a SHA-256 hash."
+        )
     if not all_normal_artifacts_hashed:
-        integrity.append("One or more normal dependency artifacts are missing a SHA-256 hash.")
+        integrity.append(
+            "One or more normal dependency artifacts are missing a SHA-256 hash."
+        )
     if not vcs_sources_bound_separately:
-        integrity.append("The VCS commits and source-tree manifests were not bound separately.")
+        integrity.append(
+            "The VCS commits and source-tree manifests were not bound separately."
+        )
 
-    observed_imports = tuple(_text(value, "Import module") for value in import_modules)
+    observed_imports = tuple(
+        _text(value, "Import module") for value in import_modules
+    )
     if observed_imports != IMPORT_MODULES:
-        integrity.append("The import-module catalogue does not match the reviewed checks.")
+        integrity.append(
+            "The import-module catalogue does not match the reviewed checks."
+        )
 
     # Duplicate exit-code fields deliberately make tampering detectable.
     by_name = {str(item["name"]): item for item in check_records}
@@ -443,8 +560,13 @@ def collect_dependency_preflight_record(
         integrity.append("The cli_help exit code disagrees with its check record.")
     elif cli_help_exit_code != 0:
         blocked.append(f"cli_help exited with code {cli_help_exit_code}.")
-    if model_check is not None and model_check["exit_code"] != no_model_compatibility_exit_code:
-        integrity.append("The no_model_compatibility exit code disagrees with its check record.")
+    if (
+        model_check is not None
+        and model_check["exit_code"] != no_model_compatibility_exit_code
+    ):
+        integrity.append(
+            "The no_model_compatibility exit code disagrees with its check record."
+        )
     elif no_model_compatibility_exit_code != 0:
         blocked.append(
             "no_model_compatibility exited with code "
@@ -453,7 +575,10 @@ def collect_dependency_preflight_record(
 
     if integrity:
         status = "IntegrityFailure"
-        reasons = integrity + blocked
+        reasons = integrity + interrupted + blocked
+    elif interrupted:
+        status = "InfrastructureInterrupted"
+        reasons = interrupted + blocked
     elif blocked:
         status = "Blocked"
         reasons = blocked
@@ -463,7 +588,7 @@ def collect_dependency_preflight_record(
             "The reviewed dependency identities and no-model checks passed."
         ]
 
-    return {
+    record: dict[str, Any] = {
         "schema_version": "1.0",
         "campaign_id": CAMPAIGN_ID,
         "record_type": RECORD_TYPE,
@@ -508,3 +633,6 @@ def collect_dependency_preflight_record(
         "performance_claim_authorised": False,
         "quality_claim_authorised": False,
     }
+    if bootstrap_record is not None:
+        record["bootstrap_lock"] = bootstrap_record
+    return record
