@@ -157,11 +157,20 @@ Strict pixel comparison and controlled OS evidence remain absent and open.
 
 ### Final progress-polish evidence
 
-Fresh final-ladder totals and hashes are intentionally deferred until the
-serialized evidence run completes. The exact Debug catalogue remains 50
-fixtures (`MI-001` through `MI-050`). Hardware Inspection is not implemented
-by these controls, and no strict Figma-pixel, real Narrator, or controlled-OS
-claim is made.
+The final local Debug gate at
+`27934be2687418d7890b677cfcdabf22f059633d` passed its exact 322/322
+focused-polish map, including Action 4, Content 25, Model 9, Outcome 7,
+status-glyph 16, disclosure 5, page-layout 4, rendered-state 21,
+render-harness 2, and accessibility 9 executions. Its matching
+322 definitions/results and zero adverse counters are sealed by TRX SHA-256
+`B99360523E044578DCA7F5A420E60BBC33589409FCAE5D13D8362C5B563DF029`.
+The exact 50-fixture catalogue (`MI-001` through `MI-050`) also passed 220/220
+with SHA-256
+`17BC168A33C4C22D21F22042226FEBA827F9F7518243E09C1CF93D9013B1F1F9`.
+
+Hardware Inspection is not implemented by these controls. Raw test artifacts
+remain local and untracked; strict Figma-pixel, real Narrator, controlled-OS,
+and manual visual acceptance are not claimed.
 
 ## Ownership boundary and non-claims
 

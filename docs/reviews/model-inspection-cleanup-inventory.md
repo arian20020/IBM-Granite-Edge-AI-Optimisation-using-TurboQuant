@@ -18,9 +18,15 @@ controlled-OS evidence remain open.
 
 All nine Task 11 documentation files were already registered in the source
 list, so this docs-only pass adds no inventory path and does not change the
-ledger/source-list cardinality. Fresh final-ladder totals and hashes are
-intentionally deferred until the serialized evidence artifacts are parsed; the
-cleanup verifier will re-establish exactness in that ladder.
+ledger/source-list cardinality of 625/625. The serialized local ladder at
+`27934be2687418d7890b677cfcdabf22f059633d` passed Runtime 189/189, Worker
+77/77, Debug 19/19 plus 220/220 plus 322/322, Release 717/717, and N-001 1/1,
+all with exact definition/result closure and zero adverse counters. Source
+freeze, WER, and process gates remained clean. Release isolation scanned 112
+files with zero forbidden hits; its external evidence SHA-256 was
+`2B2907FFADA8B5D13D96256FF07C1F366FD7E7EEB0D84FCC8CD6A21D20FEB1B7`.
+Raw artifacts remain local and untracked. The exact evidence-doc commit still
+requires its post-commit FinalSource gate and is not pre-claimed here.
 
 ## Inventory and historical evidence ledger
 

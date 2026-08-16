@@ -3,9 +3,10 @@
 ## Evidence status
 
 This record separates ordinary packaged semantic/render evidence from strict
-pixel and controlled operating-system evidence. The run described immediately
-below is historical pre-progress-polish evidence: it was a dirty local
-hosted-equivalent candidate, not a hosted exact-head run.
+pixel and controlled operating-system evidence. The dirty pre-progress-polish
+local hosted-equivalent candidate remains preserved later under **Historical
+ordinary local candidate identity**; it is not the current final-ladder
+evidence and was not a hosted exact-head run.
 
 The current semantic contract covers immediate
 `Starting secure inspection…` feedback, five real operation boundaries, a
@@ -18,10 +19,26 @@ exactly `MI-001` through `MI-050`, including `MI-050`.
 
 ### Final progress-polish evidence
 
-Fresh final-ladder totals and hashes are intentionally deferred until the
-serialized RuntimeWorker, Debug, and Release artifacts have been parsed. Raw
-identity-bearing TRX/logs remain local, untracked, and do-not-stage/upload.
-Hardware Inspection is not implemented by this branch.
+The local semantic/render ladder at
+`27934be2687418d7890b677cfcdabf22f059633d` passed Debug focused polish
+322/322 with exact definition/result closure and zero adverse counters (TRX
+SHA-256
+`B99360523E044578DCA7F5A420E60BBC33589409FCAE5D13D8362C5B563DF029`).
+The exact 50-fixture category passed 220/220
+(`17BC168A33C4C22D21F22042226FEBA827F9F7518243E09C1CF93D9013B1F1F9`),
+the ordinary filtered Release suite passed 717/717
+(`964371FA518BC6E2EF0F8061E38E95BE6582FB4890200F7507C6D2F7B88049CB`),
+and packaged N-001 passed 1/1
+(`F104764E57E2572E281FE32622E5E7920E2D32EE9931AD4D70D5219EA895BA8F`).
+
+These are ordinary packaged semantic, geometry, state, and smoke-render
+results. The 8,211-byte harness PNG is not a strict state actual and was not
+promoted to controlled evidence. Raw identity-bearing TRX/logs remain local,
+untracked, and do-not-stage/upload. Exact Figma-node pixel comparison, actual
+High Contrast/200% campaigns, real Narrator, and manual visual acceptance
+remain open. Hardware Inspection is not implemented by this branch.
+
+### Historical ordinary local candidate identity
 
 The reproducible, non-private local run identity is:
 

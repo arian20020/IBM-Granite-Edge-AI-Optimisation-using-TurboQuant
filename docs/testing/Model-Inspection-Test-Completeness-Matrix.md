@@ -3,10 +3,11 @@
 | Metadata | Value |
 |---|---|
 | Document ID | `TEST-COV-MODEL-INSPECTION-001` |
-| Status | Progress-polish behavior implemented; fresh final-ladder evidence pending; strict pixels, controlled OS/manual accessibility, and hosted exact-head closure remain open |
+| Status | Progress-polish behavior and final local ladder sealed; strict pixels, controlled OS/manual accessibility, manual visual acceptance, and hosted exact-head closure remain open |
 | Audit date | 2026-08-08 |
 | Historical evidence date | 2026-08-13 |
-| Audited commit | historical baseline `5f90a5d9299363214f11454f548ff8571d98b1a5` plus the historical Task 10 candidate described below |
+| Progress-polish evidence date | 2026-08-16 |
+| Audited commit | progress-polish source `27934be2687418d7890b677cfcdabf22f059633d`; historical baseline and Task 10 evidence remain labelled below |
 | Audit branch | `test/model-inspection-completeness-gate` |
 | Stacked base | `refactor/model-inspection-cleanup` |
 | Related roadmap | [Model Inspection completion roadmap](../superpowers/specs/2026-08-08-model-inspection-completion-roadmap-design.md) |
@@ -52,9 +53,25 @@ conversion, failure, and cancellation states. The Debug catalogue is exactly
 
 ### Final progress-polish evidence
 
-Fresh final-ladder totals and hashes are intentionally deferred until the
-serialized RuntimeWorker, Debug, and Release artifacts have been parsed. No
-strict Figma-pixel, real Narrator, or controlled-OS claim is made.
+The serialized local ladder at
+`27934be2687418d7890b677cfcdabf22f059633d` passed Runtime 189/189
+(`C5916E795839D9C3DB2A2BA810C1B71E8C2B2363E4D3305A4D80C14C96CB643A`),
+Worker 77/77
+(`2BE31A252D2063716053D545C29FF582DE10BE5618C349CABE414D183703398B`),
+Debug Interaction/Lifetime 19/19, fixture category 220/220, focused polish
+322/322, ordinary filtered Release 717/717, and packaged N-001 1/1. Every TRX
+had exact definition/result closure and zero adverse counters. The Debug
+fixture map remained 41/12/73/6/13/7/25/37/6; Release retained its protected
+31-class, 497-execution map including all 39 navigation executions.
+
+All phase commands exited zero, the frozen source/status snapshot remained
+stable, scoped WER deltas were zero, and no relevant processes remained.
+Release isolation passed against the same source commit, scanned 112 files,
+and found zero forbidden fixture/gallery path, token, or metadata hits; its
+external evidence SHA-256 was
+`2B2907FFADA8B5D13D96256FF07C1F366FD7E7EEB0D84FCC8CD6A21D20FEB1B7`.
+Raw artifacts remain local and untracked. Strict Figma-pixel, real Narrator,
+controlled-OS, manual visual, and hosted exact-head claims remain open.
 
 The matrix applies the Project Testing Standard rather than creating a second
 generic testing method.

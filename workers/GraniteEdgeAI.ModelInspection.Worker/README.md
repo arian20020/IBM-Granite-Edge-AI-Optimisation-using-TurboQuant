@@ -58,10 +58,18 @@ inference, tensor, performance, or quality claim.
 
 ### Final progress-polish evidence
 
-Fresh final-ladder totals and hashes are intentionally deferred until the
-serialized evidence run completes. Existing Gate 2 and package evidence below
-is historical. Hardware Inspection is not implemented, and no strict
-Figma-pixel, real Narrator, or controlled-OS claim belongs to this worker.
+The serialized local RuntimeWorker phase at
+`27934be2687418d7890b677cfcdabf22f059633d` passed the exact Worker map
+77/77: 67 `LlamaSharpInspectionEngineTests` and 10 `WorkerHostTests`. The TRX
+contained 77 matching definitions/results, every adverse counter was zero, and
+its SHA-256 was
+`2BE31A252D2063716053D545C29FF582DE10BE5618C349CABE414D183703398B`.
+The phase preserved its frozen source/status snapshot, recorded zero scoped
+WER delta, and ended with zero relevant processes.
+
+Existing Gate 2 and package evidence below is historical. Hardware Inspection
+is not implemented, and no strict Figma-pixel, real Narrator, controlled-OS,
+or full-inference claim belongs to this worker result.
 
 ## x64 package closure
 

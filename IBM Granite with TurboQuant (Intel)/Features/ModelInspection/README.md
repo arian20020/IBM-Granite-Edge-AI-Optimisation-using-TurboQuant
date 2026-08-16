@@ -66,7 +66,8 @@ Page
 | fixed manifest-verified x64 worker closure | Implemented in build/test package |
 | real N-001 packaged page journey through all five stages | Implemented and locally tested |
 | Hardware Fit or conversion execution | Not implemented in this feature slice |
-| extracted MSIX and hosted exact-head release attestation | Pending |
+| isolated local MSIX build/extraction/content scan | Passed locally |
+| release notice approval, installed/deployed MSIX acceptance, and hosted exact-head attestation | Pending |
 
 ## Source hierarchy
 
@@ -155,9 +156,31 @@ branch; it remains a separate future feature.
 
 ### Final progress-polish evidence
 
-Fresh final-ladder totals and hashes are intentionally not recorded until the
-serialized RuntimeWorker, Debug, and Release phases have completed and their
-artifacts have been parsed.
+The serialized local final ladder passed on 2026-08-16 against source commit
+`27934be2687418d7890b677cfcdabf22f059633d`. Runtime passed 189/189
+(`C5916E795839D9C3DB2A2BA810C1B71E8C2B2363E4D3305A4D80C14C96CB643A`)
+and Worker passed 77/77
+(`2BE31A252D2063716053D545C29FF582DE10BE5618C349CABE414D183703398B`).
+Debug passed Interaction/Lifetime 19/19, the exact nine-class fixture catalogue
+220/220, and focused progress polish 322/322. Release passed the ordinary
+two-category filtered suite 717/717, including the unchanged 31-class,
+497-execution protected map and all 39 navigation executions, followed by the
+exact N-001 journey 1/1.
+
+Every TRX had matching total/executed/passed and definition/result counts, with
+all adverse counters zero. The Debug and Release packaged-recipe SHA-256 values
+were `DFDE99F0D0B56200B3E67B2209816C42F634461EFCE4F2619E6CE03D284D8CA8`
+and `5D08ADBF554AE4C57F8AB7FA84D806DCDA3377A33A03FC3095D71FA697E7DC62`.
+All three phases preserved the frozen source/status snapshot, recorded zero
+scoped WER delta, and ended with zero relevant app, worker, or test processes.
+Release isolation passed with 112 scanned files and zero forbidden
+path/token/metadata hits; its external evidence SHA-256 was
+`2B2907FFADA8B5D13D96256FF07C1F366FD7E7EEB0D84FCC8CD6A21D20FEB1B7`.
+
+The raw identity-bearing TRX/logs remain local, untracked, and
+do-not-stage/upload. This is local semantic/build evidence, not strict
+Figma-pixel, real Narrator, controlled-OS, manual visual, or hosted exact-head
+evidence. Hardware Inspection remains outside this branch.
 
 ## Outcome policy
 
@@ -285,7 +308,9 @@ It does not perform or prove:
 - Hardware Fit execution/navigation;
 - chat execution;
 - non-x64 inspection;
-- extracted MSIX closure/notice approval or hosted exact-head release evidence.
+- release notice approval;
+- installed/deployed MSIX manual acceptance;
+- hosted exact-head release evidence.
 
 Those are downstream product/release gates and must not be folded into the
 meaning of Model Inspection completion.

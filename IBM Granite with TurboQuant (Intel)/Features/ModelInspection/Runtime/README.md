@@ -107,7 +107,15 @@ evidence rejection, privacy, cancellation, and the worker-client adapter:
 
 ### Final progress-polish evidence
 
-Fresh final-ladder totals and hashes are intentionally deferred until the
-serialized evidence run completes. Historical evidence elsewhere remains
-labelled as such. Hardware Inspection is not implemented, and these runtime
-tests make no strict Figma-pixel, real Narrator, or controlled-OS claim.
+The serialized local RuntimeWorker phase passed against
+`27934be2687418d7890b677cfcdabf22f059633d`: the exact 22-class runtime
+project passed 189/189 with 189 matching definitions/results and TRX SHA-256
+`C5916E795839D9C3DB2A2BA810C1B71E8C2B2363E4D3305A4D80C14C96CB643A`;
+the worker project passed 77/77 with SHA-256
+`2BE31A252D2063716053D545C29FF582DE10BE5618C349CABE414D183703398B`.
+Every adverse counter was zero, the frozen source/status snapshot remained
+unchanged, the scoped WER delta was zero, and no relevant process remained.
+
+Historical evidence elsewhere remains labelled as such. Hardware Inspection
+is not implemented, and these tests make no strict Figma-pixel, real Narrator,
+controlled-OS, or real Granite inference claim.

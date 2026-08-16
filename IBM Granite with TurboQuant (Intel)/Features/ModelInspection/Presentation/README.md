@@ -173,7 +173,7 @@ with zero forbidden fixture/gallery path, token, or metadata hits. Strict Figma
 pixels, controlled-OS/manual Narrator evidence, and hosted exact-head closure
 remain open.
 
-### Current behavior and pending final evidence
+### Final progress-polish evidence
 
 The presentation contract now includes shared vector status glyphs, the
 Measured Checklist's 24/16 px page rhythm and five 48 px rows, Balanced Centre
@@ -181,9 +181,22 @@ terminal geometry, natural-height warning/failure states, and responsive
 one-, two-, and three-action arrangements. The exact Debug catalogue remains
 `MI-001` through `MI-050`. Hardware Inspection is not implemented here.
 
-Fresh final-ladder totals and hashes are intentionally deferred until the
-serialized evidence run completes. No strict Figma-pixel, real Narrator, or
-controlled-OS claim is made without separate controlled evidence.
+The serialized local ladder at
+`27934be2687418d7890b677cfcdabf22f059633d` passed the exact Debug
+Interaction/Lifetime pair 19/19, nine-class fixture category 220/220, and
+22-class focused polish map 322/322. Their TRX SHA-256 values were
+`2A1516B05DE81D2638AE219CFD5D7CAD660D365E689887DAD8A7752453C30695`,
+`17BC168A33C4C22D21F22042226FEBA827F9F7518243E09C1CF93D9013B1F1F9`,
+and `B99360523E044578DCA7F5A420E60BBC33589409FCAE5D13D8362C5B563DF029`.
+The ordinary filtered Release suite then passed 717/717
+(`964371FA518BC6E2EF0F8061E38E95BE6582FB4890200F7507C6D2F7B88049CB`)
+and the exact packaged N-001 journey passed 1/1
+(`F104764E57E2572E281FE32622E5E7920E2D32EE9931AD4D70D5219EA895BA8F`).
+All identities closed exactly and all adverse counters were zero.
+
+Raw TRX/logs remain local, untracked, and do-not-stage/upload. Strict
+Figma-pixel comparison, real Narrator, controlled-OS execution, manual visual
+acceptance, and hosted exact-head closure remain separate open evidence.
 
 ## Change hazards
 
