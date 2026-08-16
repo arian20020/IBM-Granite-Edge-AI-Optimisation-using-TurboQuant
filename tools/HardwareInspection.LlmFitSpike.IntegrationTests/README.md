@@ -1,9 +1,10 @@
 # LLM Fit Gate 1 trusted integration tests
 
-This Microsoft Testing Platform project contains the four manual operational
-gates for the integrity-pinned LLM Fit v1.1.9 Windows x64 candidate. It is
-separate from the deterministic suite because three tests require the named
-Windows Intel target and one requires a controlled offline run.
+This Microsoft Testing Platform project contains four manual operational gates
+for the integrity-pinned LLM Fit v1.1.9 Windows x64 candidate and three local
+deterministic boundary checks. The operational gates are separate from the
+main deterministic suite because three require the named Windows Intel target
+and one requires a controlled offline run.
 
 The tests are black-box gates. They do not reference internal spike runner
 types and they do not rerun the candidate during trusted-capture validation.
@@ -34,6 +35,12 @@ It requires:
 GRANITE_LLMFIT_CANDIDATE_ROOT
 GRANITE_LLMFIT_OFFLINE_OUTPUT
 ```
+
+`Task8Deterministic` contains three environment-independent guards for
+privacy-safe artifact strings, the exact 30-second boundary, and stable file
+identity across a temporary hard-link alias. Both link names and the temporary
+directory are removed before the test reports its result; no candidate is
+executed and no global drive mapping is changed.
 
 A missing variable produces `Assert.Inconclusive` with the missing variable
 names. Once every variable for a category is present, an invalid path,

@@ -13,6 +13,7 @@ using HardwareInspection.LlmFitSpike.Candidate;
 using HardwareInspection.LlmFitSpike.Evidence;
 using HardwareInspection.LlmFitSpike.Inspection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Microsoft.Win32.SafeHandles;
 
 namespace HardwareInspection.LlmFitSpike.IntegrationTests;
 
@@ -40,6 +41,13 @@ public sealed partial class LlmFitCandidateIntegrationTests
     private const int MaximumEvidenceBytes = 128 * 1024;
     private const int MaximumReferenceBytes = 128 * 1024;
     private const int MaximumRawBytes = 2 * 1024 * 1024;
+    private const uint FileFlagOpenReparsePoint = 0x00200000;
+    private const uint FileReadAttributes = 0x00000080;
+    private const uint OpenExisting = 3;
+    private const uint ShareDelete = 0x00000004;
+    private const uint ShareRead = 0x00000001;
+    private const uint ShareWrite = 0x00000002;
+    private const uint ToolhelpSnapshotProcess = 0x00000002;
     private static readonly string[] ApprovedSystemArguments =
         ["--no-dashboard", "--json", "system"];
     private static readonly string[] ApprovedVersionArguments = ["--version"];
@@ -109,28 +117,67 @@ public sealed partial class LlmFitCandidateIntegrationTests
         Assert.IsTrue(
             verification.MayExecuteForGate1,
             "HI-GATE1-REQUIRED-TEST-FAILURE: candidate is not an AMD64 Gate 1 executable.");
-        Assert.AreEqual(ArchiveHash, verification.ArchiveSha256);
-        Assert.AreEqual(ExecutableHash, verification.ExecutableSha256);
-        Assert.AreEqual("AMD64", verification.PeMachine);
+        Assert.IsTrue(
+            string.Equals(ArchiveHash, verification.ArchiveSha256, StringComparison.Ordinal),
+            "Candidate archive identity differs.");
+        Assert.IsTrue(
+            string.Equals(ExecutableHash, verification.ExecutableSha256, StringComparison.Ordinal),
+            "Candidate executable identity differs.");
+        Assert.IsTrue(
+            string.Equals("AMD64", verification.PeMachine, StringComparison.Ordinal),
+            "Candidate architecture differs.");
 
         LlmFitGate1Evidence evidence = capture.Gate.Evidence;
         AssertEvidenceMatchesVerification(evidence, verification);
-        Assert.AreEqual("1.0", evidence.SchemaVersion);
-        Assert.AreEqual("FunctionalPassWithPackagingConcern", evidence.Disposition);
-        Assert.AreEqual(CandidateId, evidence.CandidateId);
-        Assert.AreEqual(Version, evidence.ExpectedVersion);
-        Assert.AreEqual(ReportedVersion, evidence.ReportedVersion);
-        Assert.AreEqual(ReleaseCommit, evidence.ReleaseCommit);
-        Assert.AreEqual(ArchiveHash, evidence.ExpectedArchiveSha256);
-        Assert.AreEqual(ArchiveHash, evidence.ObservedArchiveSha256);
-        Assert.AreEqual(ExecutableHash, evidence.ExpectedExecutableSha256);
-        Assert.AreEqual(ExecutableHash, evidence.ObservedExecutableSha256);
-        Assert.AreEqual("AMD64", evidence.ExpectedPeMachine);
-        Assert.AreEqual("AMD64", evidence.ObservedPeMachine);
-        CollectionAssert.AreEqual(ApprovedVersionArguments, evidence.VersionInvocationArguments);
-        CollectionAssert.AreEqual(
-            ApprovedSystemArguments,
-            evidence.SystemInvocationArguments);
+        Assert.IsTrue(
+            string.Equals("1.0", evidence.SchemaVersion, StringComparison.Ordinal),
+            "Evidence schema differs.");
+        Assert.IsTrue(
+            string.Equals(
+                "FunctionalPassWithPackagingConcern",
+                evidence.Disposition,
+                StringComparison.Ordinal),
+            "Evidence disposition differs.");
+        Assert.IsTrue(
+            string.Equals(CandidateId, evidence.CandidateId, StringComparison.Ordinal),
+            "Evidence candidate identity differs.");
+        Assert.IsTrue(
+            string.Equals(Version, evidence.ExpectedVersion, StringComparison.Ordinal),
+            "Evidence expected version differs.");
+        Assert.IsTrue(
+            string.Equals(ReportedVersion, evidence.ReportedVersion, StringComparison.Ordinal),
+            "Evidence reported version differs.");
+        Assert.IsTrue(
+            string.Equals(ReleaseCommit, evidence.ReleaseCommit, StringComparison.Ordinal),
+            "Evidence release identity differs.");
+        Assert.IsTrue(
+            string.Equals(ArchiveHash, evidence.ExpectedArchiveSha256, StringComparison.Ordinal),
+            "Evidence expected archive identity differs.");
+        Assert.IsTrue(
+            string.Equals(ArchiveHash, evidence.ObservedArchiveSha256, StringComparison.Ordinal),
+            "Evidence observed archive identity differs.");
+        Assert.IsTrue(
+            string.Equals(ExecutableHash, evidence.ExpectedExecutableSha256, StringComparison.Ordinal),
+            "Evidence expected executable identity differs.");
+        Assert.IsTrue(
+            string.Equals(ExecutableHash, evidence.ObservedExecutableSha256, StringComparison.Ordinal),
+            "Evidence observed executable identity differs.");
+        Assert.IsTrue(
+            string.Equals("AMD64", evidence.ExpectedPeMachine, StringComparison.Ordinal),
+            "Evidence expected architecture differs.");
+        Assert.IsTrue(
+            string.Equals("AMD64", evidence.ObservedPeMachine, StringComparison.Ordinal),
+            "Evidence observed architecture differs.");
+        Assert.IsTrue(
+            evidence.VersionInvocationArguments.SequenceEqual(
+                ApprovedVersionArguments,
+                StringComparer.Ordinal),
+            "Evidence version arguments differ.");
+        Assert.IsTrue(
+            evidence.SystemInvocationArguments.SequenceEqual(
+                ApprovedSystemArguments,
+                StringComparer.Ordinal),
+            "Evidence system arguments differ.");
         Assert.AreEqual(0, evidence.VersionExitCode);
         Assert.AreEqual(0, evidence.SystemExitCode);
         Assert.IsFalse(evidence.ProcessStartFailed);
@@ -144,10 +191,22 @@ public sealed partial class LlmFitCandidateIntegrationTests
         Assert.IsNotNull(evidence.CpuLogicalProcessorCount);
         Assert.IsNotNull(evidence.TotalRamGiB);
         Assert.IsNotNull(evidence.AvailableRamGiB);
-        Assert.AreEqual(RawFileName, evidence.RawSystemJsonFileName);
-        Assert.AreEqual(capture.Gate.RawSha256, evidence.RawSystemJsonSha256);
+        Assert.IsTrue(
+            string.Equals(RawFileName, evidence.RawSystemJsonFileName, StringComparison.Ordinal),
+            "Evidence raw filename differs.");
+        Assert.IsTrue(
+            string.Equals(
+                capture.Gate.RawSha256,
+                evidence.RawSystemJsonSha256,
+                StringComparison.Ordinal),
+            "Evidence raw identity differs.");
         Assert.AreEqual(0, capture.Reference.GateExitCode);
-        Assert.AreEqual(evidence.Disposition, capture.Reference.GateDisposition);
+        Assert.IsTrue(
+            string.Equals(
+                evidence.Disposition,
+                capture.Reference.GateDisposition,
+                StringComparison.Ordinal),
+            "Reference disposition differs from evidence.");
         Assert.IsTrue(capture.Reference.JsonValid);
         Assert.IsTrue(capture.Reference.RequiredCpuRamPresent);
     }
@@ -207,10 +266,14 @@ public sealed partial class LlmFitCandidateIntegrationTests
         Assert.IsTrue(reference.CapturedBeforeUtc <= reference.GateStartedAtUtc);
         Assert.IsTrue(reference.GateStartedAtUtc <= reference.GateCompletedAtUtc);
         Assert.IsTrue(reference.GateCompletedAtUtc <= reference.CapturedAfterUtc);
-        long expectedInterval = checked((long)(reference.CapturedAfterUtc -
-            reference.CapturedBeforeUtc).TotalMilliseconds);
+        long expectedInterval = GetCaptureIntervalMilliseconds(
+            reference.CapturedBeforeUtc,
+            reference.CapturedAfterUtc);
+        bool expectedWithinThirtySeconds = IsCaptureWithinThirtySeconds(
+            reference.CapturedBeforeUtc,
+            reference.CapturedAfterUtc);
         Assert.AreEqual(expectedInterval, reference.CaptureIntervalMilliseconds);
-        Assert.AreEqual(expectedInterval <= 30_000, reference.CaptureWithinThirtySeconds);
+        Assert.AreEqual(expectedWithinThirtySeconds, reference.CaptureWithinThirtySeconds);
         Assert.IsTrue(
             reference.CaptureWithinThirtySeconds,
             "HI-GATE1-WINDOWS-COMPARISON-FAILED: reference and candidate capture exceeded 30 seconds.");
@@ -221,13 +284,26 @@ public sealed partial class LlmFitCandidateIntegrationTests
                 StringComparer.Ordinal)
             .Any();
         Assert.AreEqual(gpuIdentityMatched, reference.IntelGpuIdentityMatched);
-        Assert.AreEqual(
-            gpuIdentityMatched ? "Matched" : "FieldLevelGap",
-            reference.IntelGpuComparisonStatus);
+        Assert.IsTrue(
+            string.Equals(
+                gpuIdentityMatched ? "Matched" : "FieldLevelGap",
+                reference.IntelGpuComparisonStatus,
+                StringComparison.Ordinal),
+            "Reference Intel GPU comparison status differs.");
         Assert.IsFalse(reference.DedicatedSharedMemorySemanticsEstablished);
         Assert.IsFalse(capture.Gate.Evidence.DedicatedSharedMemorySemanticsEstablished);
-        Assert.AreEqual("DetectionUnavailable", reference.IntelNpuDetectionState);
-        Assert.AreEqual("DetectionUnavailable", capture.Gate.Evidence.IntelNpuDetectionState);
+        Assert.IsTrue(
+            string.Equals(
+                "DetectionUnavailable",
+                reference.IntelNpuDetectionState,
+                StringComparison.Ordinal),
+            "Reference NPU status differs.");
+        Assert.IsTrue(
+            string.Equals(
+                "DetectionUnavailable",
+                capture.Gate.Evidence.IntelNpuDetectionState,
+                StringComparison.Ordinal),
+            "Evidence NPU status differs.");
     }
 
     [TestMethod]
@@ -336,7 +412,12 @@ public sealed partial class LlmFitCandidateIntegrationTests
                 candidateRoot,
                 manifest);
             AssertEvidenceMatchesVerification(gate.Evidence, verificationAfterRun);
-            Assert.AreEqual("FunctionalPassWithPackagingConcern", gate.Evidence.Disposition);
+            Assert.IsTrue(
+                string.Equals(
+                    "FunctionalPassWithPackagingConcern",
+                    gate.Evidence.Disposition,
+                    StringComparison.Ordinal),
+                "Offline evidence disposition differs.");
             Assert.IsTrue(gate.Evidence.JsonValid);
             Assert.IsTrue(gate.Evidence.RequiredCpuRamPresent);
             Assert.IsNotNull(gate.Evidence.CpuLogicalProcessorCount);
@@ -360,6 +441,132 @@ public sealed partial class LlmFitCandidateIntegrationTests
                 "HI-GATE1-REQUIRED-TEST-FAILURE: configured offline execution or evidence is invalid.");
             throw;
         }
+    }
+
+    [TestMethod]
+    [TestCategory("Task8Deterministic")]
+    public void ArtifactStringShape_RejectsPathsAndFreeTextWithGenericDiagnostics()
+    {
+        const string Tampered = @"X:\tampered\private-device-name.txt";
+        ValidateEvidenceStringShapes(
+            "FunctionalPassWithPackagingConcern",
+            false,
+            "NotSigned");
+        ValidateEvidenceStringShapes(
+            "FunctionalPassWithPackagingConcern",
+            true,
+            "PresentUnverified");
+        ValidateHardwareNames(
+        [
+            "Intel(R) Core(TM) i7-1260P @ 2.10GHz",
+            "Intel(R) Iris(R) Xe Graphics",
+        ]);
+        ValidateRawHardwareNames(
+        [
+            "AMD Ryzen 7 7840U w/ Radeon 780M Graphics",
+            "Adapter: [field-level identity]",
+        ]);
+
+        InvalidDataException dispositionFailure = Assert.ThrowsExactly<InvalidDataException>(
+            () => ValidateEvidenceStringShapes(Tampered, false, "NotSigned"));
+        Assert.IsTrue(
+            string.Equals(
+                dispositionFailure.Message,
+                "Evidence string fields failed privacy-safe validation.",
+                StringComparison.Ordinal),
+            "Artifact string validation did not return its fixed diagnostic.");
+
+        InvalidDataException statusFailure = Assert.ThrowsExactly<InvalidDataException>(
+            () => ValidateEvidenceStringShapes(
+                "FunctionalPassWithPackagingConcern",
+                false,
+                Tampered));
+        Assert.IsTrue(
+            string.Equals(
+                statusFailure.Message,
+                "Evidence string fields failed privacy-safe validation.",
+                StringComparison.Ordinal),
+            "Authenticode validation did not return its fixed diagnostic.");
+
+        InvalidDataException hardwareNameFailure = Assert.ThrowsExactly<InvalidDataException>(
+            () => ValidateHardwareNames([Tampered]));
+        Assert.IsTrue(
+            string.Equals(
+                hardwareNameFailure.Message,
+                "A Windows hardware name has an unsafe shape.",
+                StringComparison.Ordinal),
+            "Hardware-name validation did not return its fixed diagnostic.");
+
+        InvalidDataException rawHardwareNameFailure = Assert.ThrowsExactly<InvalidDataException>(
+            () => ValidateRawHardwareNames([Tampered]));
+        Assert.IsTrue(
+            string.Equals(
+                rawHardwareNameFailure.Message,
+                "A raw hardware name has an unsafe shape.",
+                StringComparison.Ordinal),
+            "Raw hardware-name validation did not return its fixed diagnostic.");
+    }
+
+    [TestMethod]
+    [TestCategory("Task8Deterministic")]
+    public void CaptureInterval_ThirtySecondsPlusOneTickIsOutsideBoundary()
+    {
+        DateTimeOffset before = new(2026, 8, 16, 12, 0, 0, TimeSpan.Zero);
+        DateTimeOffset exactlyThirtySeconds = before.AddSeconds(30);
+        DateTimeOffset oneTickLate = exactlyThirtySeconds.AddTicks(1);
+
+        Assert.IsTrue(IsCaptureWithinThirtySeconds(before, exactlyThirtySeconds));
+        Assert.IsFalse(IsCaptureWithinThirtySeconds(before, oneTickLate));
+        Assert.AreEqual(30_000, GetCaptureIntervalMilliseconds(before, oneTickLate));
+    }
+
+    [TestMethod]
+    [TestCategory("Task8Deterministic")]
+    public void StableFileIdentity_HardLinkAliasMatchesPhysicalFileAndIsRemoved()
+    {
+        string temporaryDirectory = Path.Combine(
+            Path.GetTempPath(),
+            "granite-llmfit-identity-" + Guid.NewGuid().ToString("N"));
+        string physicalFile = Path.Combine(temporaryDirectory, "identity-probe.bin");
+        string aliasFile = Path.Combine(temporaryDirectory, "identity-alias.bin");
+        bool aliasCreated = false;
+        bool identityMatched = false;
+        bool cleanupSucceeded = false;
+        try
+        {
+            Directory.CreateDirectory(temporaryDirectory);
+            File.WriteAllBytes(physicalFile, [0x47]);
+            aliasCreated = CreateHardLink(aliasFile, physicalFile, 0);
+            if (aliasCreated)
+            {
+                identityMatched = ResolveStableRegularFileIdentity(physicalFile) ==
+                    ResolveStableRegularFileIdentity(aliasFile);
+            }
+        }
+        finally
+        {
+            if (File.Exists(aliasFile))
+            {
+                File.Delete(aliasFile);
+            }
+
+            if (File.Exists(physicalFile))
+            {
+                File.Delete(physicalFile);
+            }
+
+            if (Directory.Exists(temporaryDirectory))
+            {
+                Directory.Delete(temporaryDirectory, recursive: false);
+            }
+
+            cleanupSucceeded = !File.Exists(aliasFile) && !File.Exists(physicalFile) &&
+                !Directory.Exists(temporaryDirectory);
+        }
+
+        Assert.IsTrue(aliasCreated, "The deterministic hard-link alias could not be created.");
+        Assert.IsTrue(identityMatched, "Stable file identity did not recognize a hard-link alias.");
+        Assert.IsTrue(cleanupSucceeded, "The deterministic hard-link alias was not removed exactly.");
     }
 
     private static TrustedCapture LoadTrustedCapture()
@@ -546,7 +753,19 @@ public sealed partial class LlmFitCandidateIntegrationTests
     {
         try
         {
-            return new LlmFitCandidateVerifier().Verify(candidateRoot, manifest);
+            LlmFitCandidateVerification verification =
+                new LlmFitCandidateVerifier().Verify(candidateRoot, manifest);
+            Require(
+                IsLowercaseSha256(verification.ArchiveSha256) &&
+                    IsLowercaseSha256(verification.ExecutableSha256) &&
+                    string.Equals(verification.PeMachine, "AMD64", StringComparison.Ordinal) &&
+                    verification.AuthenticodeStatus is "NotSigned" or "PresentUnverified" &&
+                    verification.AuthenticodePresent == string.Equals(
+                        verification.AuthenticodeStatus,
+                        "PresentUnverified",
+                        StringComparison.Ordinal),
+                "Candidate verification strings failed privacy-safe validation.");
+            return verification;
         }
         catch (Exception exception) when (
             exception is ArgumentException or IOException or InvalidDataException or
@@ -587,11 +806,31 @@ public sealed partial class LlmFitCandidateIntegrationTests
         LlmFitCandidateVerification verification)
     {
         Assert.IsTrue(verification.IntegrityPassed);
-        Assert.AreEqual(verification.ArchiveSha256, evidence.ObservedArchiveSha256);
-        Assert.AreEqual(verification.ExecutableSha256, evidence.ObservedExecutableSha256);
-        Assert.AreEqual(verification.PeMachine, evidence.ObservedPeMachine);
+        Assert.IsTrue(
+            string.Equals(
+                verification.ArchiveSha256,
+                evidence.ObservedArchiveSha256,
+                StringComparison.Ordinal),
+            "Evidence archive identity differs from fresh verification.");
+        Assert.IsTrue(
+            string.Equals(
+                verification.ExecutableSha256,
+                evidence.ObservedExecutableSha256,
+                StringComparison.Ordinal),
+            "Evidence executable identity differs from fresh verification.");
+        Assert.IsTrue(
+            string.Equals(
+                verification.PeMachine,
+                evidence.ObservedPeMachine,
+                StringComparison.Ordinal),
+            "Evidence architecture differs from fresh verification.");
         Assert.AreEqual(verification.AuthenticodePresent, evidence.AuthenticodePresent);
-        Assert.AreEqual(verification.AuthenticodeStatus, evidence.AuthenticodeStatus);
+        Assert.IsTrue(
+            string.Equals(
+                verification.AuthenticodeStatus,
+                evidence.AuthenticodeStatus,
+                StringComparison.Ordinal),
+            "Evidence Authenticode status differs from fresh verification.");
     }
 
     private static void AssertReferenceMatchesSocketEvidence(
@@ -678,6 +917,10 @@ public sealed partial class LlmFitCandidateIntegrationTests
 
     private static void ValidateEvidenceShape(LlmFitGate1Evidence evidence)
     {
+        ValidateEvidenceStringShapes(
+            evidence.Disposition,
+            evidence.AuthenticodePresent,
+            evidence.AuthenticodeStatus);
         Require(evidence.SchemaVersion == "1.0", "Evidence schema differs.");
         Require(evidence.CandidateId == CandidateId, "Evidence candidate differs.");
         Require(evidence.ExpectedVersion == Version, "Evidence expected version differs.");
@@ -744,6 +987,43 @@ public sealed partial class LlmFitCandidateIntegrationTests
             "Evidence diagnostics contain duplicates.");
     }
 
+    private static void ValidateEvidenceStringShapes(
+        string disposition,
+        bool authenticodePresent,
+        string authenticodeStatus)
+    {
+        Require(
+            string.Equals(
+                disposition,
+                "FunctionalPassWithPackagingConcern",
+                StringComparison.Ordinal),
+            "Evidence string fields failed privacy-safe validation.");
+        bool statusAllowed = authenticodeStatus is "NotSigned" or "PresentUnverified";
+        bool statusMatchesPresence = authenticodePresent == string.Equals(
+            authenticodeStatus,
+            "PresentUnverified",
+            StringComparison.Ordinal);
+        Require(
+            statusAllowed && statusMatchesPresence,
+            "Evidence string fields failed privacy-safe validation.");
+    }
+
+    private static bool IsCaptureWithinThirtySeconds(
+        DateTimeOffset capturedBefore,
+        DateTimeOffset capturedAfter)
+    {
+        TimeSpan interval = capturedAfter - capturedBefore;
+        return interval >= TimeSpan.Zero && interval <= TimeSpan.FromSeconds(30);
+    }
+
+    private static long GetCaptureIntervalMilliseconds(
+        DateTimeOffset capturedBefore,
+        DateTimeOffset capturedAfter)
+    {
+        TimeSpan interval = capturedAfter - capturedBefore;
+        return interval.Ticks / TimeSpan.TicksPerMillisecond;
+    }
+
     private static void ValidateReferenceShape(WindowsReference reference)
     {
         Require(reference.SchemaVersion == "1.0", "Reference schema differs.");
@@ -752,7 +1032,21 @@ public sealed partial class LlmFitCandidateIntegrationTests
         Require(reference.GateStartedAtUtc.Offset == TimeSpan.Zero, "Gate start is not UTC.");
         Require(reference.GateCompletedAtUtc.Offset == TimeSpan.Zero, "Gate end is not UTC.");
         Require(reference.CapturedAfterUtc.Offset == TimeSpan.Zero, "After timestamp is not UTC.");
-        Require(reference.CaptureIntervalMilliseconds >= 0, "Reference interval is negative.");
+        Require(
+            reference.CapturedBeforeUtc <= reference.GateStartedAtUtc &&
+                reference.GateStartedAtUtc <= reference.GateCompletedAtUtc &&
+                reference.GateCompletedAtUtc <= reference.CapturedAfterUtc,
+            "Reference timestamps are not bracketed.");
+        Require(
+            reference.CaptureIntervalMilliseconds == GetCaptureIntervalMilliseconds(
+                reference.CapturedBeforeUtc,
+                reference.CapturedAfterUtc),
+            "Reference interval differs from its timestamps.");
+        Require(
+            reference.CaptureWithinThirtySeconds == IsCaptureWithinThirtySeconds(
+                reference.CapturedBeforeUtc,
+                reference.CapturedAfterUtc),
+            "Reference interval classification differs from its timestamps.");
         Require(reference.WindowsCpuNames is { Length: > 0 }, "Windows CPU names are absent.");
         Require(reference.WindowsGpuNames is { Length: > 0 }, "Windows GPU names are absent.");
         ValidateHardwareNames(reference.WindowsCpuNames);
@@ -798,10 +1092,31 @@ public sealed partial class LlmFitCandidateIntegrationTests
         var normalized = new HashSet<string>(StringComparer.Ordinal);
         foreach (string name in names)
         {
-            Require(!string.IsNullOrWhiteSpace(name), "A Windows hardware name is empty.");
-            Require(name.Length <= 256, "A Windows hardware name is too long.");
-            Require(!name.Any(char.IsControl), "A Windows hardware name contains a control character.");
+            Require(
+                !string.IsNullOrWhiteSpace(name) &&
+                    name.Length <= 256 &&
+                    !name.Any(char.IsControl) &&
+                    HardwareNameRegex().IsMatch(name),
+                "A Windows hardware name has an unsafe shape.");
             Require(normalized.Add(NormalizeHardwareIdentity(name)), "Windows hardware names are duplicated.");
+        }
+    }
+
+    private static void ValidateRawHardwareNames(IEnumerable<string> names)
+    {
+        var normalized = new HashSet<string>(StringComparer.Ordinal);
+        foreach (string name in names)
+        {
+            Require(
+                !string.IsNullOrWhiteSpace(name) &&
+                    name.Length <= 256 &&
+                    !name.Any(char.IsControl) &&
+                    !Path.IsPathFullyQualified(name) &&
+                    !name.StartsWith(@"\\", StringComparison.Ordinal),
+                "A raw hardware name has an unsafe shape.");
+            Require(
+                normalized.Add(NormalizeHardwareIdentity(name)),
+                "Raw hardware names are duplicated.");
         }
     }
 
@@ -832,7 +1147,14 @@ public sealed partial class LlmFitCandidateIntegrationTests
             }
         }
 
-        return new RawHardwareFacts(cpuName, gpuNames.Distinct(StringComparer.Ordinal).ToArray());
+        string[] distinctGpuNames = gpuNames.Distinct(StringComparer.Ordinal).ToArray();
+        ValidateRawHardwareNames([cpuName]);
+        if (distinctGpuNames.Length != 0)
+        {
+            ValidateRawHardwareNames(distinctGpuNames);
+        }
+
+        return new RawHardwareFacts(cpuName, distinctGpuNames);
     }
 
     private static string NormalizeHardwareIdentity(string value)
@@ -861,12 +1183,64 @@ public sealed partial class LlmFitCandidateIntegrationTests
             .Distinct(StringComparer.Ordinal);
     }
 
+    private static StableFileIdentity ResolveStableRegularFileIdentity(string path)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        using SafeFileHandle handle = CreateFile(
+            path,
+            FileReadAttributes,
+            ShareRead | ShareWrite | ShareDelete,
+            0,
+            OpenExisting,
+            FileFlagOpenReparsePoint,
+            0);
+        if (handle.IsInvalid)
+        {
+            int errorCode = Marshal.GetLastWin32Error();
+            handle.Dispose();
+            throw new IOException(
+                "A process image identity could not be opened safely.",
+                new Win32Exception(errorCode));
+        }
+
+        if (!GetFileInformationByHandle(handle, out ByHandleFileInformation information))
+        {
+            throw new IOException(
+                "A process image identity could not be read safely.",
+                new Win32Exception(Marshal.GetLastWin32Error()));
+        }
+
+        if ((information.FileAttributes &
+            (FileAttributes.Directory | FileAttributes.ReparsePoint)) != 0)
+        {
+            throw new InvalidDataException(
+                "A process image identity must refer to an ordinary file.");
+        }
+
+        return new StableFileIdentity(
+            information.VolumeSerialNumber,
+            ((ulong)information.FileIndexHigh << 32) | information.FileIndexLow);
+    }
+
     private static bool IsCandidateProcessPresent(
         string candidateRoot,
         LlmFitCandidateManifest manifest)
     {
-        string expectedExecutable = Path.GetFullPath(
-            Path.Combine(candidateRoot, manifest.Executable.RelativePath));
+        StableFileIdentity expectedIdentity;
+        try
+        {
+            expectedIdentity = ResolveStableRegularFileIdentity(
+                Path.Combine(candidateRoot, manifest.Executable.RelativePath));
+        }
+        catch (Exception exception) when (
+            exception is ArgumentException or IOException or InvalidDataException or
+            NotSupportedException or UnauthorizedAccessException or
+            System.Security.SecurityException)
+        {
+            throw new InvalidOperationException(
+                "Candidate process identity could not be inspected safely.");
+        }
+
         string processName = Path.GetFileNameWithoutExtension(manifest.Executable.RelativePath);
         Process[] processes;
         try
@@ -887,49 +1261,76 @@ public sealed partial class LlmFitCandidateIntegrationTests
             {
                 try
                 {
-                    string? processPath = process.MainModule?.FileName;
-                    if (processPath is null)
-                    {
-                        if (TryGetHasExited(process) == true)
-                        {
-                            continue;
-                        }
-
-                        throw new InvalidOperationException(
-                            "Candidate process identity could not be inspected safely.");
-                    }
-
-                    if (string.Equals(
-                        Path.GetFullPath(processPath),
-                        expectedExecutable,
-                        StringComparison.OrdinalIgnoreCase))
-                    {
-                        return true;
-                    }
-                }
-                catch (Exception exception) when (
-                    exception is ArgumentException or Win32Exception or
-                    NotSupportedException or System.Security.SecurityException)
-                {
-                    throw new InvalidOperationException(
-                        "Candidate process identity could not be inspected safely.",
-                        exception);
-                }
-                catch (InvalidOperationException exception)
-                {
-                    if (TryGetHasExited(process) == true)
+                    if (!TryObserveProcessImage(process, out ProcessImageObservation observation))
                     {
                         continue;
                     }
 
+                    if (observation.FileIdentity == expectedIdentity)
+                    {
+                        return true;
+                    }
+                }
+                catch (InvalidOperationException)
+                {
                     throw new InvalidOperationException(
-                        "Candidate process identity could not be inspected safely.",
-                        exception);
+                        "Candidate process identity could not be inspected safely.");
                 }
             }
         }
 
         return false;
+    }
+
+    private static bool TryObserveProcessImage(
+        Process process,
+        out ProcessImageObservation observation)
+    {
+        try
+        {
+            SafeProcessHandle processHandle = process.SafeHandle;
+            if (processHandle.IsInvalid || processHandle.IsClosed)
+            {
+                if (TryGetHasExited(process) == true)
+                {
+                    observation = default;
+                    return false;
+                }
+
+                throw new InvalidOperationException(
+                    "Process image identity could not be established safely.");
+            }
+
+            int processId = process.Id;
+            DateTime startTimeUtc = process.StartTime.ToUniversalTime();
+            string? processPath = process.MainModule?.FileName;
+            if (processPath is null)
+            {
+                throw new InvalidOperationException(
+                    "Process image identity could not be established safely.");
+            }
+
+            observation = new ProcessImageObservation(
+                processId,
+                startTimeUtc,
+                ResolveStableRegularFileIdentity(processPath));
+            return true;
+        }
+        catch (Exception exception) when (
+            exception is ArgumentException or IOException or InvalidDataException or
+            InvalidOperationException or NotSupportedException or ObjectDisposedException or
+            UnauthorizedAccessException or Win32Exception or
+            System.Security.SecurityException)
+        {
+            if (TryGetHasExited(process) == true)
+            {
+                observation = default;
+                return false;
+            }
+
+            throw new InvalidOperationException(
+                "Process image identity could not be established safely.");
+        }
     }
 
     private static async Task<int> RunFixedCliAsync(
@@ -1098,8 +1499,20 @@ public sealed partial class LlmFitCandidateIntegrationTests
         string candidateRoot,
         LlmFitCandidateManifest manifest)
     {
-        string expectedExecutable = Path.GetFullPath(
-            Path.Combine(candidateRoot, manifest.Executable.RelativePath));
+        StableFileIdentity expectedIdentity;
+        try
+        {
+            expectedIdentity = ResolveStableRegularFileIdentity(
+                Path.Combine(candidateRoot, manifest.Executable.RelativePath));
+        }
+        catch (Exception exception) when (
+            exception is ArgumentException or IOException or InvalidDataException or
+            NotSupportedException or UnauthorizedAccessException or
+            System.Security.SecurityException)
+        {
+            return new CandidateProcessCleanup(false, true, false);
+        }
+
         string processName = Path.GetFileNameWithoutExtension(manifest.Executable.RelativePath);
         Process[] processes;
         try
@@ -1119,57 +1532,34 @@ public sealed partial class LlmFitCandidateIntegrationTests
         {
             using (process)
             {
-                string? processPath;
+                ProcessImageObservation observation;
                 try
                 {
-                    processPath = process.MainModule?.FileName;
-                }
-                catch (Exception exception) when (
-                    exception is InvalidOperationException or Win32Exception or
-                    NotSupportedException or System.Security.SecurityException)
-                {
-                    if (TryGetHasExited(process) == true)
+                    if (!TryObserveProcessImage(process, out observation))
                     {
                         continue;
                     }
-
-                    observationUncertain = true;
-                    continue;
                 }
-
-                if (processPath is null)
-                {
-                    if (TryGetHasExited(process) != true)
-                    {
-                        observationUncertain = true;
-                    }
-
-                    continue;
-                }
-
-                string fullProcessPath;
-                try
-                {
-                    fullProcessPath = Path.GetFullPath(processPath);
-                }
-                catch (Exception exception) when (
-                    exception is ArgumentException or NotSupportedException or
-                    System.Security.SecurityException)
+                catch (InvalidOperationException)
                 {
                     observationUncertain = true;
                     continue;
                 }
 
-                if (!string.Equals(
-                    fullProcessPath,
-                    expectedExecutable,
-                    StringComparison.OrdinalIgnoreCase))
+                if (observation.FileIdentity != expectedIdentity)
                 {
                     continue;
                 }
 
                 residualObserved = true;
-                if (!await EnsureProcessExitedAsync(process).ConfigureAwait(false))
+                VerifiedProcessCleanup verifiedCleanup = await StopVerifiedCandidateProcessAsync(
+                        process,
+                        observation,
+                        expectedIdentity)
+                    .ConfigureAwait(false);
+                cleanupSucceeded &= verifiedCleanup.CleanupSucceeded;
+                observationUncertain |= verifiedCleanup.ObservationUncertain;
+                if (!verifiedCleanup.CleanupSucceeded)
                 {
                     cleanupSucceeded = false;
                 }
@@ -1192,6 +1582,138 @@ public sealed partial class LlmFitCandidateIntegrationTests
             residualObserved,
             observationUncertain,
             cleanupSucceeded);
+    }
+
+    private static async Task<VerifiedProcessCleanup> StopVerifiedCandidateProcessAsync(
+        Process process,
+        ProcessImageObservation originalObservation,
+        StableFileIdentity expectedIdentity)
+    {
+        ProcessImageObservation currentObservation;
+        try
+        {
+            if (!TryObserveProcessImage(process, out currentObservation))
+            {
+                return new VerifiedProcessCleanup(true, false);
+            }
+        }
+        catch (InvalidOperationException)
+        {
+            return new VerifiedProcessCleanup(false, true);
+        }
+
+        if (currentObservation.ProcessId != originalObservation.ProcessId ||
+            currentObservation.StartTimeUtc != originalObservation.StartTimeUtc ||
+            currentObservation.FileIdentity != expectedIdentity)
+        {
+            return new VerifiedProcessCleanup(false, true);
+        }
+
+        try
+        {
+            SafeProcessHandle processHandle = process.SafeHandle;
+            if (processHandle.IsInvalid || processHandle.IsClosed)
+            {
+                return TryGetHasExited(process) == true
+                    ? new VerifiedProcessCleanup(true, false)
+                    : new VerifiedProcessCleanup(false, true);
+            }
+
+            process.Kill(entireProcessTree: true);
+
+            await process.WaitForExitAsync()
+                .WaitAsync(TimeSpan.FromSeconds(10))
+                .ConfigureAwait(false);
+            bool rootExited = TryGetHasExited(process) == true;
+            bool descendantsExited = await WaitForDescendantProcessesToExitAsync(
+                    originalObservation.ProcessId)
+                .ConfigureAwait(false);
+            return new VerifiedProcessCleanup(rootExited && descendantsExited, false);
+        }
+        catch (Exception exception) when (
+            exception is InvalidOperationException or NotSupportedException or
+            ObjectDisposedException or TimeoutException or Win32Exception)
+        {
+            return TryGetHasExited(process) == true
+                ? new VerifiedProcessCleanup(true, false)
+                : new VerifiedProcessCleanup(false, false);
+        }
+    }
+
+    private static async Task<bool> WaitForDescendantProcessesToExitAsync(int rootProcessId)
+    {
+        DateTimeOffset deadline = DateTimeOffset.UtcNow.AddSeconds(10);
+        while (true)
+        {
+            if (!TryGetDescendantProcessIds(rootProcessId, out HashSet<uint> descendants))
+            {
+                return false;
+            }
+
+            if (descendants.Count == 0)
+            {
+                return true;
+            }
+
+            if (DateTimeOffset.UtcNow >= deadline)
+            {
+                return false;
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(50)).ConfigureAwait(false);
+        }
+    }
+
+    private static bool TryGetDescendantProcessIds(
+        int rootProcessId,
+        out HashSet<uint> descendants)
+    {
+        descendants = [];
+        using SafeFileHandle snapshot = CreateToolhelp32Snapshot(ToolhelpSnapshotProcess, 0);
+        if (snapshot.IsInvalid)
+        {
+            return false;
+        }
+
+        var parentByProcess = new Dictionary<uint, uint>();
+        var entry = new ProcessEntry32();
+        if (!Process32First(snapshot, ref entry))
+        {
+            return false;
+        }
+
+        do
+        {
+            parentByProcess[entry.ProcessId] = entry.ParentProcessId;
+            entry = new ProcessEntry32();
+        }
+        while (Process32Next(snapshot, ref entry));
+
+        int lastError = Marshal.GetLastWin32Error();
+        const int ErrorNoMoreFiles = 18;
+        if (lastError != ErrorNoMoreFiles)
+        {
+            return false;
+        }
+
+        var tree = new HashSet<uint> { checked((uint)rootProcessId) };
+        bool added;
+        do
+        {
+            added = false;
+            foreach (KeyValuePair<uint, uint> process in parentByProcess)
+            {
+                if (tree.Contains(process.Value) && tree.Add(process.Key))
+                {
+                    added = true;
+                }
+            }
+        }
+        while (added);
+
+        tree.Remove(checked((uint)rootProcessId));
+        descendants = tree;
+        return true;
     }
 
     private static bool? TryGetHasExited(Process process)
@@ -1419,6 +1941,125 @@ public sealed partial class LlmFitCandidateIntegrationTests
         }
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    private struct ByHandleFileInformation
+    {
+        public FileAttributes FileAttributes;
+        public uint CreationTimeLow;
+        public uint CreationTimeHigh;
+        public uint LastAccessTimeLow;
+        public uint LastAccessTimeHigh;
+        public uint LastWriteTimeLow;
+        public uint LastWriteTimeHigh;
+        public uint VolumeSerialNumber;
+        public uint FileSizeHigh;
+        public uint FileSizeLow;
+        public uint NumberOfLinks;
+        public uint FileIndexHigh;
+        public uint FileIndexLow;
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    private struct ProcessEntry32
+    {
+        public ProcessEntry32()
+        {
+            this = default;
+            Size = checked((uint)Marshal.SizeOf<ProcessEntry32>());
+            ExecutableFile = string.Empty;
+        }
+
+        public uint Size;
+        public uint UsageCount;
+        public uint ProcessId;
+        public nint DefaultHeapId;
+        public uint ModuleId;
+        public uint ThreadCount;
+        public uint ParentProcessId;
+        public int BasePriority;
+        public uint Flags;
+
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)]
+        public string ExecutableFile;
+    }
+
+#pragma warning disable SYSLIB1054 // Project policy forbids unsafe LibraryImport buffers.
+    [DllImport(
+        "kernel32.dll",
+        EntryPoint = "CreateFileW",
+        ExactSpelling = true,
+        CharSet = CharSet.Unicode,
+        SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    private static extern SafeFileHandle CreateFile(
+        string fileName,
+        uint desiredAccess,
+        uint shareMode,
+        nint securityAttributes,
+        uint creationDisposition,
+        uint flagsAndAttributes,
+        nint templateFile);
+
+    [DllImport(
+        "kernel32.dll",
+        EntryPoint = "CreateHardLinkW",
+        ExactSpelling = true,
+        CharSet = CharSet.Unicode,
+        SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool CreateHardLink(
+        string fileName,
+        string existingFileName,
+        nint securityAttributes);
+
+    [DllImport(
+        "kernel32.dll",
+        EntryPoint = "CreateToolhelp32Snapshot",
+        ExactSpelling = true,
+        SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    private static extern SafeFileHandle CreateToolhelp32Snapshot(
+        uint flags,
+        uint processId);
+
+    [DllImport(
+        "kernel32.dll",
+        EntryPoint = "GetFileInformationByHandle",
+        ExactSpelling = true,
+        SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetFileInformationByHandle(
+        SafeFileHandle file,
+        out ByHandleFileInformation fileInformation);
+
+    [DllImport(
+        "kernel32.dll",
+        EntryPoint = "Process32FirstW",
+        ExactSpelling = true,
+        CharSet = CharSet.Unicode,
+        SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool Process32First(
+        SafeFileHandle snapshot,
+        ref ProcessEntry32 entry);
+
+    [DllImport(
+        "kernel32.dll",
+        EntryPoint = "Process32NextW",
+        ExactSpelling = true,
+        CharSet = CharSet.Unicode,
+        SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool Process32Next(
+        SafeFileHandle snapshot,
+        ref ProcessEntry32 entry);
+
+#pragma warning restore SYSLIB1054
+
     [GeneratedRegex(@"\((?:R|TM)\)|[®™]", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex TrademarkMarkerRegex();
 
@@ -1427,6 +2068,11 @@ public sealed partial class LlmFitCandidateIntegrationTests
 
     [GeneratedRegex(@"\s+", RegexOptions.CultureInvariant)]
     private static partial Regex RepeatedWhitespaceRegex();
+
+    [GeneratedRegex(
+        @"^[\p{L}\p{Nd}\p{Zs}().,+_'@&\u00AE\u2122-]+$",
+        RegexOptions.CultureInvariant)]
+    private static partial Regex HardwareNameRegex();
 
     private sealed record TrustedCapture(
         string CandidateRoot,
@@ -1446,6 +2092,19 @@ public sealed partial class LlmFitCandidateIntegrationTests
         bool ResidualObserved,
         bool ObservationUncertain,
         bool CleanupSucceeded);
+
+    private readonly record struct ProcessImageObservation(
+        int ProcessId,
+        DateTime StartTimeUtc,
+        StableFileIdentity FileIdentity);
+
+    private readonly record struct StableFileIdentity(
+        uint VolumeSerialNumber,
+        ulong FileId);
+
+    private readonly record struct VerifiedProcessCleanup(
+        bool CleanupSucceeded,
+        bool ObservationUncertain);
 
     private sealed record WindowsReference(
         string SchemaVersion,

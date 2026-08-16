@@ -205,9 +205,9 @@ Windows/IT process, even if the test failed.
 Required success result: exactly 1 passed, 0 failed and 0 skipped, with
 `$offlineExitCode` equal to 0. Inspect the console and TRX.
 
-If either network precondition was false, the expected result is a deliberate
-test failure. Before touching the candidate, the test atomically writes this
-minimal record to the required output path:
+If either required offline condition was not satisfied, the expected result is
+a deliberate test failure. Before touching the candidate, the test atomically
+writes this minimal record to the required output path:
 
 ```text
 <GRANITE_LLMFIT_OFFLINE_OUTPUT>\llmfit-gate1.evidence.json

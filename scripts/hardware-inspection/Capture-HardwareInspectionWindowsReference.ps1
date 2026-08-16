@@ -803,8 +803,11 @@ if ([System.IO.File]::Exists($observationPath)) {
         -MaximumBytes 16384
 }
 
+$captureInterval = $capturedAfter - $capturedBefore
 $captureIntervalMilliseconds = [long][Math]::Floor(
-    ($capturedAfter - $capturedBefore).TotalMilliseconds)
+    $captureInterval.TotalMilliseconds)
+$captureWithinThirtySeconds =
+    $captureInterval -le [System.TimeSpan]::FromSeconds(30)
 $summary = [ordered]@{
     schemaVersion = '1.0'
     captureStatus = 'Captured'
@@ -821,7 +824,7 @@ $summary = [ordered]@{
         'o',
         [System.Globalization.CultureInfo]::InvariantCulture)
     captureIntervalMilliseconds = $captureIntervalMilliseconds
-    captureWithinThirtySeconds = $captureIntervalMilliseconds -le 30000
+    captureWithinThirtySeconds = $captureWithinThirtySeconds
     windowsX64 = $windowsX64
     windowsCpuNames = @($windowsCpuNames)
     windowsLogicalProcessorCount = [int]$logicalProcessorTotal
