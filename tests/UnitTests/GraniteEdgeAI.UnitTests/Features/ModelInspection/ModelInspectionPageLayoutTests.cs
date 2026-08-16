@@ -175,7 +175,7 @@ public sealed class ModelInspectionPageLayoutTests
     public void ResponsiveStates_DeclareExactClientBreakpointsAndInsets()
     {
         var page = new ModelInspectionPage();
-        FrameworkElement layoutRoot = Assert.IsInstanceOfType<FrameworkElement>(
+        Grid layoutRoot = Assert.IsInstanceOfType<Grid>(
             page.FindName("LayoutRoot"));
 
         AssertResponsiveStateContract(
@@ -195,6 +195,29 @@ public sealed class ModelInspectionPageLayoutTests
             inset: 16);
 
         ResourceDictionary resources = ModelInspectionResources();
+        Assert.AreEqual(840d, resources["InspectionContentColumnWidth"]);
+        Assert.AreEqual(
+            new CornerRadius(12d),
+            Assert.IsInstanceOfType<CornerRadius>(
+                resources["InspectionCardCornerRadius"]));
+        Thickness cardPadding = Assert.IsInstanceOfType<Thickness>(
+            resources["InspectionCardPadding"]);
+        Assert.AreEqual(24d, cardPadding.Left, 0.01d);
+        Assert.AreEqual(24d, cardPadding.Top, 0.01d);
+        Assert.AreEqual(24d, cardPadding.Right, 0.01d);
+        Assert.AreEqual(24d, cardPadding.Bottom, 0.01d);
+        foreach (string themeName in new[] { "Light", "Dark", "HighContrast" })
+        {
+            ResourceDictionary theme = Assert.IsInstanceOfType<ResourceDictionary>(
+                resources.ThemeDictionaries[themeName]);
+            Assert.IsTrue(
+                theme.ContainsKey("InspectionCanvasBrush"),
+                $"{themeName} must define InspectionCanvasBrush");
+        }
+        Assert.AreEqual(ElementTheme.Default, page.RequestedTheme);
+        Assert.AreSame(
+            ThemeResource("Light", "InspectionCanvasBrush"),
+            layoutRoot.Background);
         Assert.AreEqual(16d, resources["InspectionCardGap"]);
         Assert.AreEqual(24d, resources["InspectionHeaderToCardGap"]);
         Assert.AreEqual(16d, resources["InspectionProgressHeadingGap"]);

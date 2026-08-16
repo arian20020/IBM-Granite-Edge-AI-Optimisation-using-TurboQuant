@@ -91,7 +91,7 @@ public sealed class ModelInspectionRenderedStateTests
         Assert.AreEqual(840d, contentHost.ActualWidth, 1d);
         Assert.AreEqual(300d, contentOrigin.X, 1d);
         AssertBrushColor(
-            "InspectionSurfaceBrush",
+            "InspectionCanvasBrush",
             Element<Grid>(page, "LayoutRoot").Background);
 
         Assert.AreEqual(840d, model.ActualWidth, 1d, $"{state} model width");
@@ -345,7 +345,7 @@ public sealed class ModelInspectionRenderedStateTests
     }
 
     private static readonly double[] ResponsiveWidths =
-        [1440d, 888d, 887d, 600d, 599d, 360d];
+        [1440d, 900d, 888d, 887d, 600d, 599d, 480d, 360d];
 
     private static readonly string DominatingModelName = new('M', 160);
 
@@ -738,6 +738,12 @@ public sealed class ModelInspectionRenderedStateTests
         AssertHiddenCardMeasuresZero(
             actions,
             presentation.ActionCard.Mode == InspectionActionCardMode.Hidden);
+        AssertFindingsSurfacesRespectCardInsets(
+            content,
+            presentation.ContentCard.Mode,
+            state,
+            preview200,
+            width);
 
         FrameworkElement pageTitle = Element<FrameworkElement>(page, "PageTitle");
         FrameworkElement explanation = Element<FrameworkElement>(
@@ -1327,6 +1333,81 @@ public sealed class ModelInspectionRenderedStateTests
         }
     }
 
+    private static void AssertFindingsSurfacesRespectCardInsets(
+        InspectionContentCard content,
+        InspectionContentCardMode mode,
+        ModelInspectionFigmaState state,
+        bool preview200,
+        double width)
+    {
+        if (mode is InspectionContentCardMode.Hidden or InspectionContentCardMode.Progress)
+        {
+            return;
+        }
+
+        Border shell = Element<Border>(content, "ContentCardShell");
+        InspectionDisclosure findingsDisclosure = Element<InspectionDisclosure>(
+            content,
+            "FindingsDisclosure");
+        Grid findingsHeaderContent = Assert.IsInstanceOfType<Grid>(
+            findingsDisclosure.HeaderContent);
+        FrameworkElement[] surfaces =
+        [
+            Element<FrameworkElement>(content, "FindingsSectionTitle"),
+            Element<FrameworkElement>(content, "FindingsItemsRepeater"),
+            Element<FrameworkElement>(content, "SupportingText"),
+            Element<FrameworkElement>(content, "TertiaryText"),
+            Element<FrameworkElement>(content, "DiagnosticCodeBorder"),
+            Element<FrameworkElement>(content, "ExpandedReportViewport")
+        ];
+        foreach (FrameworkElement surface in surfaces.Where(IsRendered))
+        {
+            Point origin = surface.TransformToVisual(shell).TransformPoint(default);
+            double leftInset = origin.X - shell.BorderThickness.Left;
+            double rightInset = shell.ActualWidth - shell.BorderThickness.Right -
+                origin.X - surface.ActualWidth;
+            Assert.IsGreaterThanOrEqualTo(
+                24d - 0.01d,
+                leftInset,
+                $"{state}/{preview200}/{width}: {surface.Name} left inset");
+            Assert.IsGreaterThanOrEqualTo(
+                24d - 0.01d,
+                rightInset,
+                $"{state}/{preview200}/{width}: {surface.Name} right inset");
+        }
+
+        if (IsRendered(findingsHeaderContent))
+        {
+            Point headerOrigin = findingsHeaderContent.TransformToVisual(shell)
+                .TransformPoint(default);
+            double headerContentLeftInset = headerOrigin.X - shell.BorderThickness.Left +
+                findingsHeaderContent.Padding.Left;
+            Assert.IsGreaterThanOrEqualTo(
+                24d - 0.01d,
+                headerContentLeftInset,
+                $"{state}/{preview200}/{width}: findings disclosure header content left inset");
+            if (findingsHeaderContent.Padding.Right > 0d)
+            {
+                double headerContentRightInset = shell.ActualWidth -
+                    shell.BorderThickness.Right - headerOrigin.X -
+                    findingsHeaderContent.ActualWidth + findingsHeaderContent.Padding.Right;
+                Assert.IsGreaterThanOrEqualTo(
+                    24d - 0.01d,
+                    headerContentRightInset,
+                    $"{state}/{preview200}/{width}: findings disclosure header content right inset");
+            }
+        }
+
+        if (preview200)
+        {
+            Assert.AreEqual(
+                0d,
+                shell.MinHeight,
+                0.01d,
+                $"{state}/{width}: findings card remains natural at 200%");
+        }
+    }
+
     private static void AssertTypographyAndWrapping(
         FrameworkElement page,
         InspectionModelCard model,
@@ -1490,11 +1571,17 @@ public sealed class ModelInspectionRenderedStateTests
                 .TransformPoint(new Point());
             Point statusOrigin = statusChip.TransformToVisual(modelSurface)
                 .TransformPoint(new Point());
-            Assert.AreEqual(24d, formatOrigin.X, 1d);
             Assert.AreEqual(
                 24d,
-                modelSurface.ActualWidth - statusOrigin.X - statusChip.ActualWidth,
-                1d);
+                formatOrigin.X - ((Border)modelSurface).BorderThickness.Left,
+                1d,
+                "compact format tile inner left inset");
+            Assert.AreEqual(
+                24d,
+                modelSurface.ActualWidth - ((Border)modelSurface).BorderThickness.Right -
+                    statusOrigin.X - statusChip.ActualWidth,
+                1d,
+                "compact status chip inner right inset");
         }
 
         if (presentation.ModelCard.IsInspectionDetailsExpanded)
@@ -1502,10 +1589,10 @@ public sealed class ModelInspectionRenderedStateTests
             FrameworkElement viewport = Element<FrameworkElement>(
                 model,
                 "InspectionDetailsViewport");
-            Point viewportOrigin = viewport.TransformToVisual(modelSurface)
-                .TransformPoint(new Point());
-            Assert.AreEqual(24d, viewportOrigin.X, 1d);
-            Assert.AreEqual(792d, viewport.ActualWidth, 1d);
+            AssertCardInnerHorizontalGeometry(
+                (Border)modelSurface,
+                viewport,
+                "model inspection details viewport");
         }
 
         if (presentation.ContentCard.Mode == InspectionContentCardMode.Hidden)
@@ -1536,7 +1623,10 @@ public sealed class ModelInspectionRenderedStateTests
         }
         else
         {
-            Assert.AreEqual(792d, primaryRows.ActualWidth, 1d);
+            AssertCardInnerHorizontalGeometry(
+                contentSurface,
+                primaryRows,
+                "findings list");
         }
 
         if (presentation.ContentCard.Mode != InspectionContentCardMode.Progress)
@@ -1555,10 +1645,10 @@ public sealed class ModelInspectionRenderedStateTests
             FrameworkElement viewport = Element<FrameworkElement>(
                 content,
                 "ExpandedReportViewport");
-            Point viewportOrigin = viewport.TransformToVisual(contentSurface)
-                .TransformPoint(new Point());
-            Assert.AreEqual(24d, viewportOrigin.X, 1d);
-            Assert.AreEqual(792d, viewport.ActualWidth, 1d);
+            AssertCardInnerHorizontalGeometry(
+                contentSurface,
+                viewport,
+                "expanded report viewport");
             Border[] expandedRows = Descendants(viewport)
                 .OfType<Border>()
                 .Where(row => Math.Abs(row.MinHeight - 58d) < 0.01d)
@@ -1569,6 +1659,22 @@ public sealed class ModelInspectionRenderedStateTests
             Assert.IsTrue(expandedRows.All(row =>
                 Math.Abs(row.ActualHeight - 58d) <= 1d));
         }
+    }
+
+    private static void AssertCardInnerHorizontalGeometry(
+        Border card,
+        FrameworkElement surface,
+        string surfaceName)
+    {
+        Point origin = surface.TransformToVisual(card).TransformPoint(default);
+        double leftInset = origin.X - card.BorderThickness.Left;
+        double rightInset = card.ActualWidth - card.BorderThickness.Right -
+            origin.X - surface.ActualWidth;
+        double expectedWidth = card.ActualWidth - card.BorderThickness.Left -
+            card.BorderThickness.Right - 48d;
+        Assert.AreEqual(24d, leftInset, 1d, $"{surfaceName} inner left inset");
+        Assert.AreEqual(24d, rightInset, 1d, $"{surfaceName} inner right inset");
+        Assert.AreEqual(expectedWidth, surface.ActualWidth, 1d, $"{surfaceName} inner width");
     }
 
     private static void AssertRenderedPalette(

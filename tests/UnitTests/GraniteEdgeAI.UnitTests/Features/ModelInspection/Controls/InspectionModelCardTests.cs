@@ -40,6 +40,9 @@ public sealed class InspectionModelCardTests
             width: 840,
             isExpanded: false);
         Border detailed = Find<Border>(control, "DetailedView");
+        Border compact = Find<Border>(control, "CompactView");
+        FrameworkElement detailedHeader = Find<FrameworkElement>(control, "DetailedHeader");
+        FrameworkElement metadataGrid = Find<FrameworkElement>(control, "MetadataGrid");
         TextBlock[] labels = MetadataLabels(control);
         TextBlock sectionTitle = Descendants(control)
             .OfType<TextBlock>()
@@ -91,6 +94,11 @@ public sealed class InspectionModelCardTests
             1d,
             "format chip remains right aligned");
         Assert.AreEqual(12d, detailed.CornerRadius.TopLeft, 0.01, "shared card radius");
+        Assert.AreEqual(new Thickness(24d), compact.Padding, "compact view padding");
+        Assert.AreEqual(24d, detailedHeader.Margin.Left, 0.01d, "detailed header left inset");
+        Assert.AreEqual(24d, detailedHeader.Margin.Right, 0.01d, "detailed header right inset");
+        Assert.AreEqual(24d, metadataGrid.Margin.Left, 0.01d, "metadata left inset");
+        Assert.AreEqual(24d, metadataGrid.Margin.Right, 0.01d, "metadata right inset");
         Assert.AreEqual(
             30d,
             Find<Border>(control, "OverviewFormatChip").ActualHeight,

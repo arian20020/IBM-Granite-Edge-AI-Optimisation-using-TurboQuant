@@ -72,6 +72,8 @@ public sealed class InspectionOutcomeCardTests
                 AccessibilityView.Raw,
                 AutomationProperties.GetAccessibilityView(glyph));
             Assert.AreEqual(12d, card.CornerRadius.TopLeft, 0.01, "shared card radius");
+            Assert.AreEqual(new Thickness(24d), card.Padding, "card padding");
+            Assert.AreEqual(16d, layout.ColumnSpacing, 0.01d, "outcome column spacing");
             Assert.AreEqual(14d, title.FontSize, 0.01, "outcome title size");
             Assert.AreEqual(12d, message.FontSize, 0.01, "outcome helper size");
             Assert.AreSame(Resource("InspectionSuccessSurfaceBrush"), card.Background);

@@ -85,6 +85,8 @@ public sealed class InspectionContentCardTests
             Button cancel = (Button)actions.FindName("CancelActionButton");
             Grid heading = Assert.IsInstanceOfType<Grid>(
                 content.FindName("ProgressHeadingRow"));
+            Grid progressView = Assert.IsInstanceOfType<Grid>(
+                content.FindName("ProgressView"));
             Border completedCountChip = Assert.IsInstanceOfType<Border>(
                 content.FindName("ProgressCompletedCountChip"));
             TextBlock completedCountText = EnumerateDescendants(completedCountChip)
@@ -95,6 +97,7 @@ public sealed class InspectionContentCardTests
             Assert.AreEqual(ModelInspectionFigmaState.InspectionProgress, page.State);
             Assert.AreEqual("Inspection progress", page.ContentCard.SectionTitle);
             Assert.AreEqual("0 of 5 checks complete", page.ContentCard.ProgressSummary);
+            Assert.AreEqual(new Thickness(24d), progressView.Padding, "progress view padding");
             Assert.HasCount(5, rows);
             Assert.IsTrue(rows.All(row => row.ActualHeight >= 48d));
             Assert.IsTrue(rows.All(row => Math.Abs(row.ActualHeight - 48d) <= 1d));

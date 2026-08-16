@@ -41,6 +41,7 @@ public sealed class InspectionActionCardTests
             Border result = (Border)control.FindName("ResultView");
             Assert.AreEqual(0d, result.MinHeight, 0.01d,
                 "the action surface must use its natural content height");
+            Assert.AreEqual(new Thickness(24d), result.Padding, "result view padding");
             Assert.IsGreaterThanOrEqualTo(44d, secondaryOne.MinHeight);
             Assert.AreEqual(46d, secondaryOne.MinHeight, 0.01);
             Assert.AreEqual(46d, secondaryTwo.MinHeight, 0.01);
