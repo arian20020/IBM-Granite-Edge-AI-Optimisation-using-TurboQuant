@@ -446,6 +446,7 @@ function Read-FullEvidence {
         Assert-Condition ($null -eq $totalRam -or $totalRam -ge 0) 'Total RAM is invalid.'
         Assert-Condition ($null -eq $availableRam -or $availableRam -ge 0) 'Available RAM is invalid.'
         Assert-Condition (-not $cpuRam -or $null -ne $logical -and $null -ne $totalRam -and $null -ne $availableRam) 'Required CPU/RAM values are absent.'
+        Assert-Condition (-not $cpuRam -or ($totalRam -gt 0 -and $availableRam -ge 0 -and $availableRam -le $totalRam)) 'Required CPU/RAM values are not sensible.'
         Assert-Condition ($null -eq $totalRam -or $null -eq $availableRam -or $availableRam -le $totalRam) 'Available RAM exceeds total RAM.'
         $gpuReported = Assert-Bool $value 'gpuReported'
         $gpuCount = Assert-Integer $value 'reportedGpuCount'
@@ -1172,7 +1173,7 @@ if ($hasFullTrusted) {
     [void]$builder.AppendLine("| Dashboard port 8787 observed | $(Format-YesNo ($trustedEvidence.VersionDashboard -or $trustedEvidence.SystemDashboard)) |")
     [void]$builder.AppendLine("| Residual candidate process observed | $(Format-YesNo ($trustedEvidence.VersionResidual -or $trustedEvidence.SystemResidual)) |")
     [void]$builder.AppendLine("| Authenticode observation | ``$($trustedEvidence.AuthenticodeStatus)``; upstream signing claim mismatch $(Format-YesNo ($trustedEvidence.Diagnostics -ccontains 'HI-LLMFIT-SIGNATURE-CLAIM-MISMATCH')) |")
-    [void]$builder.AppendLine("| Transitive dependency-license inventory | $(if ($trustedEvidence.Diagnostics -ccontains 'HI-LLMFIT-DEPENDENCY-LICENSE-INVENTORY-PENDING') { 'Pending; production redistribution remains blocked' } else { 'Recorded as explicitly dispositioned by the input evidence' }) |")
+    [void]$builder.AppendLine("| Transitive dependency-license inventory | $(if ($trustedEvidence.Diagnostics -ccontains 'HI-LLMFIT-DEPENDENCY-LICENSE-INVENTORY-PENDING') { 'Pending; production redistribution remains blocked' } else { 'No pending diagnostic recorded; independent dependency/license disposition not established' }) |")
     [void]$builder.AppendLine("| Schema-documentation drift | $(Format-YesNo ($trustedEvidence.Diagnostics -ccontains 'HI-LLMFIT-SCHEMA-DOCUMENTATION-DRIFT')) |")
 }
 

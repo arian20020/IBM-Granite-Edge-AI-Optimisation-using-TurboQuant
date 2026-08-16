@@ -143,8 +143,20 @@ jobs:
             }
             if ($ExpectedNames.Count -ne 0) {
               $actualNames = @($results | ForEach-Object { $_.GetAttribute("testName") })
+              $actualNameSet = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+              foreach ($actualName in $actualNames) {
+                if (-not $actualNameSet.Add([string]$actualName)) {
+                  throw "$Suite has a Duplicate test identity."
+                }
+              }
+              $expectedNameSet = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+              foreach ($expectedName in $ExpectedNames) {
+                if (-not $expectedNameSet.Add([string]$expectedName)) {
+                  throw "$Suite expected-name configuration contains a duplicate."
+                }
+              }
               if ($actualNames.Count -ne $ExpectedNames.Count -or
-                  @($actualNames | Where-Object { $ExpectedNames -cnotcontains $_ }).Count -ne 0) {
+                  -not $actualNameSet.SetEquals($expectedNameSet)) {
                 throw "$Suite exact test identities differ."
               }
             }
@@ -173,7 +185,7 @@ jobs:
               @(
                 "ArtifactStringShape_RejectsPathsAndFreeTextWithGenericDiagnostics",
                 "CaptureInterval_ThirtySecondsPlusOneTickIsOutsideBoundary",
-                "StableFileIdentity_HardLinkAliasMatchesPhysicalFileAndIsRemoved")
+                "StableFileIdentityAndProcessTreeCleanup_AreFailClosed")
           }
           $summaryPath = Join-Path $env:HARDWARE_INSPECTION_RESULTS "hardware-inspection-llmfit-summary.json"
           $json = $summary | ConvertTo-Json -Depth 4
