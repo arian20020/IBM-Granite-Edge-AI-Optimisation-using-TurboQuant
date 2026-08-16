@@ -6,6 +6,7 @@ on:
       - design/workbook-05-phase3-dependency-preflight
     paths:
       - '.github/maintenance/workbook05-phase3-next-patch.txt'
+      - '.github/maintenance/workbook05-phase3-run-patch.txt'
 
 # Temporary same-repository maintenance only. The wrapper executes the exact
 # reviewed patch script already stored in the branch, after binding its Git blob
@@ -27,7 +28,7 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      - name: Check out the exact patch-envelope revision
+      - name: Check out the exact patch-trigger revision
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
           persist-credentials: true
@@ -40,7 +41,7 @@ jobs:
           python-version: '3.12.10'
           check-latest: false
 
-      - name: Extract and execute the exact reviewed patch script
+      - name: Bind, extract, and execute the exact reviewed patch script
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -50,11 +51,48 @@ jobs:
           # The Linux wrapper changes only the host used for checkout; it does
           # not accept an arbitrary command from the patch envelope.
           $sourcePath = '.github/workflows/workbook-05-phase3-text-patch-maintenance.yml'
-          $expectedBlob = '1abc2fbbbdf59bd5f1b4c52834ee51ea0a43dc91'
-          $actualBlob = ((git hash-object -- $sourcePath) | Out-String).Trim()
-          if ($LASTEXITCODE -ne 0 -or $actualBlob -ne $expectedBlob) {
-              throw "Reviewed patch-script blob mismatch: $actualBlob"
+          $expectedSourceBlob = '1abc2fbbbdf59bd5f1b4c52834ee51ea0a43dc91'
+          $actualSourceBlob = ((git hash-object -- $sourcePath) | Out-String).Trim()
+          if ($LASTEXITCODE -ne 0 -or $actualSourceBlob -ne $expectedSourceBlob) {
+              throw "Reviewed patch-script blob mismatch: $actualSourceBlob"
           }
+
+          # The tiny trigger binds this invocation to the exact reviewed patch
+          # envelope. The wrapper rewrites only expected_parent in its private
+          # checkout so the original fail-closed script can validate this new
+          # trigger commit without changing the patch bytes or verification mode.
+          $envelopePath = '.github/maintenance/workbook05-phase3-next-patch.txt'
+          $triggerPath = '.github/maintenance/workbook05-phase3-run-patch.txt'
+          $expectedEnvelopeBlob = '2dc1358556fadf1b38cda3b2c5671b1c866ea207'
+          $actualEnvelopeBlob = ((git hash-object -- $envelopePath) | Out-String).Trim()
+          if ($LASTEXITCODE -ne 0 -or $actualEnvelopeBlob -ne $expectedEnvelopeBlob) {
+              throw "Reviewed patch-envelope blob mismatch: $actualEnvelopeBlob"
+          }
+          $expectedTrigger = "schema_version=1.0`nenvelope_blob=$expectedEnvelopeBlob`n"
+          $actualTrigger = [IO.File]::ReadAllText($triggerPath)
+          if ($actualTrigger -ne $expectedTrigger) {
+              throw 'The patch trigger does not match the closed two-line contract.'
+          }
+
+          $actualParent = ((git rev-parse HEAD^) | Out-String).Trim()
+          if ($LASTEXITCODE -ne 0 -or $actualParent -notmatch '^[0-9a-f]{40}$') {
+              throw "Unable to resolve the patch-trigger parent: $actualParent"
+          }
+          $envelopeLines = @([IO.File]::ReadAllLines($envelopePath))
+          if (
+              $envelopeLines.Count -ne 6 -or
+              $envelopeLines[0] -ne 'schema_version=1.0' -or
+              $envelopeLines[1] -notmatch '^expected_parent=[0-9a-f]{40}$'
+          ) {
+              throw 'The reviewed patch envelope does not have the expected closed shape.'
+          }
+          $envelopeLines[1] = "expected_parent=$actualParent"
+          [IO.File]::WriteAllText(
+              $envelopePath,
+              (($envelopeLines -join "`n") + "`n"),
+              [Text.UTF8Encoding]::new($false)
+          )
+          Remove-Item -LiteralPath $triggerPath -Force
 
           # The reviewed run block is the final block in the source workflow.
           # Extract it as text, remove the fixed YAML indentation, and make the
