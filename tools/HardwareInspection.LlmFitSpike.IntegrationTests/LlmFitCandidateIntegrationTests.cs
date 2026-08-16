@@ -522,7 +522,7 @@ public sealed partial class LlmFitCandidateIntegrationTests
 
     [TestMethod]
     [TestCategory("Task8Deterministic")]
-    public void StableFileIdentity_HardLinkAliasMatchesPhysicalFileAndIsRemoved()
+    public async Task StableFileIdentityAndProcessTreeCleanup_AreFailClosed()
     {
         string temporaryDirectory = Path.Combine(
             Path.GetTempPath(),
@@ -567,6 +567,33 @@ public sealed partial class LlmFitCandidateIntegrationTests
         Assert.IsTrue(aliasCreated, "The deterministic hard-link alias could not be created.");
         Assert.IsTrue(identityMatched, "Stable file identity did not recognize a hard-link alias.");
         Assert.IsTrue(cleanupSucceeded, "The deterministic hard-link alias was not removed exactly.");
+
+        int survivingDescendantChecks = 0;
+        VerifiedProcessCleanup survivingDescendant = await CompleteVerifiedProcessTreeCleanupAsync(
+            rootProcessId: 12_345,
+            rootExited: true,
+            _ =>
+            {
+                survivingDescendantChecks++;
+                return Task.FromResult(false);
+            }).ConfigureAwait(false);
+        Assert.AreEqual(1, survivingDescendantChecks);
+        Assert.IsFalse(survivingDescendant.CleanupSucceeded);
+        Assert.IsTrue(survivingDescendant.ObservationUncertain);
+
+        int exceptionalDescendantChecks = 0;
+        VerifiedProcessCleanup exceptionalDescendant = await CompleteVerifiedProcessTreeCleanupAsync(
+            rootProcessId: 12_345,
+            rootExited: true,
+            _ =>
+            {
+                exceptionalDescendantChecks++;
+                return Task.FromException<bool>(
+                    new InvalidOperationException("Simulated descendant observation failure."));
+            }).ConfigureAwait(false);
+        Assert.AreEqual(1, exceptionalDescendantChecks);
+        Assert.IsFalse(exceptionalDescendant.CleanupSucceeded);
+        Assert.IsTrue(exceptionalDescendant.ObservationUncertain);
     }
 
     private static TrustedCapture LoadTrustedCapture()
@@ -1594,12 +1621,20 @@ public sealed partial class LlmFitCandidateIntegrationTests
         {
             if (!TryObserveProcessImage(process, out currentObservation))
             {
-                return new VerifiedProcessCleanup(true, false);
+                return await CompleteVerifiedProcessTreeCleanupAsync(
+                        originalObservation.ProcessId,
+                        TryGetHasExited(process),
+                        WaitForDescendantProcessesToExitAsync)
+                    .ConfigureAwait(false);
             }
         }
         catch (InvalidOperationException)
         {
-            return new VerifiedProcessCleanup(false, true);
+            return await CompleteVerifiedProcessTreeCleanupAsync(
+                    originalObservation.ProcessId,
+                    TryGetHasExited(process),
+                    WaitForDescendantProcessesToExitAsync)
+                .ConfigureAwait(false);
         }
 
         if (currentObservation.ProcessId != originalObservation.ProcessId ||
@@ -1614,9 +1649,11 @@ public sealed partial class LlmFitCandidateIntegrationTests
             SafeProcessHandle processHandle = process.SafeHandle;
             if (processHandle.IsInvalid || processHandle.IsClosed)
             {
-                return TryGetHasExited(process) == true
-                    ? new VerifiedProcessCleanup(true, false)
-                    : new VerifiedProcessCleanup(false, true);
+                return await CompleteVerifiedProcessTreeCleanupAsync(
+                        originalObservation.ProcessId,
+                        TryGetHasExited(process),
+                        WaitForDescendantProcessesToExitAsync)
+                    .ConfigureAwait(false);
             }
 
             process.Kill(entireProcessTree: true);
@@ -1624,19 +1661,21 @@ public sealed partial class LlmFitCandidateIntegrationTests
             await process.WaitForExitAsync()
                 .WaitAsync(TimeSpan.FromSeconds(10))
                 .ConfigureAwait(false);
-            bool rootExited = TryGetHasExited(process) == true;
-            bool descendantsExited = await WaitForDescendantProcessesToExitAsync(
-                    originalObservation.ProcessId)
+            return await CompleteVerifiedProcessTreeCleanupAsync(
+                    originalObservation.ProcessId,
+                    TryGetHasExited(process),
+                    WaitForDescendantProcessesToExitAsync)
                 .ConfigureAwait(false);
-            return new VerifiedProcessCleanup(rootExited && descendantsExited, false);
         }
         catch (Exception exception) when (
             exception is InvalidOperationException or NotSupportedException or
             ObjectDisposedException or TimeoutException or Win32Exception)
         {
-            return TryGetHasExited(process) == true
-                ? new VerifiedProcessCleanup(true, false)
-                : new VerifiedProcessCleanup(false, false);
+            return await CompleteVerifiedProcessTreeCleanupAsync(
+                    originalObservation.ProcessId,
+                    TryGetHasExited(process),
+                    WaitForDescendantProcessesToExitAsync)
+                .ConfigureAwait(false);
         }
     }
 
@@ -1662,6 +1701,28 @@ public sealed partial class LlmFitCandidateIntegrationTests
 
             await Task.Delay(TimeSpan.FromMilliseconds(50)).ConfigureAwait(false);
         }
+    }
+
+    private static async Task<VerifiedProcessCleanup> CompleteVerifiedProcessTreeCleanupAsync(
+        int rootProcessId,
+        bool? rootExited,
+        Func<int, Task<bool>> descendantExitVerifier)
+    {
+        bool descendantsExited;
+        try
+        {
+            descendantsExited = await descendantExitVerifier(rootProcessId)
+                .ConfigureAwait(false);
+        }
+        catch (Exception exception) when (
+            exception is InvalidOperationException or NotSupportedException or
+            ObjectDisposedException or TimeoutException or Win32Exception)
+        {
+            return new VerifiedProcessCleanup(false, true);
+        }
+
+        bool cleanupSucceeded = rootExited == true && descendantsExited;
+        return new VerifiedProcessCleanup(cleanupSucceeded, !cleanupSucceeded);
     }
 
     private static bool TryGetDescendantProcessIds(
