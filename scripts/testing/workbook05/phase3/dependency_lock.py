@@ -61,6 +61,38 @@ def _normalise_name(value: str) -> str:
     return _NAME_SEPARATOR.sub("-", value).casefold()
 
 
+def _canonical_versions(
+    values: Mapping[str, str] | None,
+) -> dict[str, str]:
+    """Canonicalise a required-version map and reject ambiguous duplicates."""
+
+    if values is None:
+        return {}
+    result: dict[str, str] = {}
+    for raw_name, raw_version in values.items():
+        if not isinstance(raw_name, str) or not raw_name.strip():
+            raise ValueError("A required distribution name is empty.")
+        if not isinstance(raw_version, str) or not raw_version.strip():
+            raise ValueError(f"A required version is empty for {raw_name!r}.")
+        name = _normalise_name(raw_name.strip())
+        version = raw_version.strip()
+        if name in result:
+            raise ValueError(f"Duplicate required distribution: {name}")
+        result[name] = version
+    return result
+
+
+def _canonical_names(values: frozenset[str]) -> frozenset[str]:
+    """Canonicalise one distribution-name allow/deny set."""
+
+    result: set[str] = set()
+    for raw_name in values:
+        if not isinstance(raw_name, str) or not raw_name.strip():
+            raise ValueError("A forbidden distribution name is empty.")
+        result.add(_normalise_name(raw_name.strip()))
+    return frozenset(result)
+
+
 def _logical_requirement_records(text: str) -> list[str]:
     """Join pip-compile backslash continuations without executing the file."""
 
@@ -143,17 +175,30 @@ def _parse_exact_lock(text: str) -> tuple[LockedDistribution, ...]:
     )
 
 
-def parse_hash_locked_requirements(text: str) -> tuple[LockedDistribution, ...]:
-    """Parse the ordinary asset lock and enforce its reviewed direct pins."""
+def parse_hash_locked_requirements(
+    text: str,
+    *,
+    required_direct_versions: Mapping[str, str] | None = None,
+    forbidden_names: frozenset[str] = frozenset(),
+) -> tuple[LockedDistribution, ...]:
+    """Parse an exact hash lock under an explicit package-name policy."""
 
     packages = _parse_exact_lock(text)
     observed = {package.name: package for package in packages}
-    for name, expected_version in DIRECT_NORMAL_VERSIONS.items():
+    required = _canonical_versions(required_direct_versions)
+    forbidden = _canonical_names(forbidden_names)
+
+    present_forbidden = sorted(set(observed).intersection(forbidden))
+    if present_forbidden:
+        raise ValueError(
+            "The lock contains forbidden normal distributions: "
+            + ", ".join(present_forbidden)
+        )
+
+    for name, expected_version in required.items():
         package = observed.get(name)
         if package is None:
-            raise ValueError(
-                f"The lock is missing reviewed direct normal package: {name}"
-            )
+            raise ValueError(f"The lock is missing required distribution: {name}")
         if package.version != expected_version:
             raise ValueError(
                 f"{name} must remain at {expected_version}, found {package.version}."
@@ -188,20 +233,23 @@ def _archive_sha256(item: Mapping[str, Any]) -> str:
     return digest
 
 
-def _parse_install_report(
+def parse_install_report_against_lock(
     report: Mapping[str, Any],
     lock: Sequence[LockedDistribution],
     *,
-    forbidden_names: frozenset[str],
-    required_names: frozenset[str],
+    forbidden_names: frozenset[str] = frozenset(),
 ) -> tuple[DependencyPackage, ...]:
-    """Bind installed distributions to exact versions and allowed hashes."""
+    """Bind every installed distribution to the exact lock package set."""
 
     rows = report.get("install")
     if not isinstance(rows, list) or not rows:
         raise ValueError("The pip install report contains no installed packages.")
 
+    forbidden = _canonical_names(forbidden_names)
     locked = {package.name: package for package in lock}
+    if len(locked) != len(tuple(lock)):
+        raise ValueError("The lock contains duplicate canonical package names.")
+
     observed: dict[str, DependencyPackage] = {}
     for item in rows:
         if not isinstance(item, Mapping):
@@ -217,9 +265,9 @@ def _parse_install_report(
             raise ValueError(f"Installed package {raw_name} lacks a version.")
 
         name = _normalise_name(raw_name)
-        if name in forbidden_names:
+        if name in forbidden:
             raise ValueError(
-                f"VCS package {name} must not be admitted as a normal distribution."
+                f"VCS package or other forbidden normal distribution: {name}"
             )
         if name in observed:
             raise ValueError(f"Duplicate installed distribution: {name}")
@@ -244,14 +292,21 @@ def _parse_install_report(
             name=name,
             version=version,
             source_identity=f"sha256:{digest}",
-            direct=name in required_names,
+            direct=(item.get("requested") is True or item.get("is_direct") is True),
         )
 
-    for name in required_names:
-        if name not in observed:
-            raise ValueError(
-                f"The install report omitted reviewed direct package: {name}"
-            )
+    if set(observed) != set(locked):
+        missing = sorted(set(locked).difference(observed))
+        unexpected = sorted(set(observed).difference(locked))
+        detail = []
+        if missing:
+            detail.append("missing=" + ",".join(missing))
+        if unexpected:
+            detail.append("unexpected=" + ",".join(unexpected))
+        raise ValueError(
+            "The install-report and lock package sets differ"
+            + (": " + "; ".join(detail) if detail else ".")
+        )
 
     return tuple(
         observed[name]
@@ -263,13 +318,35 @@ def parse_normal_install_report(
     report: Mapping[str, Any],
     lock: Sequence[LockedDistribution],
 ) -> tuple[DependencyPackage, ...]:
-    """Bind each installed ordinary asset distribution to one lock hash."""
+    """Compatibility wrapper for the reviewed ordinary conversion lock."""
 
-    return _parse_install_report(
+    packages = parse_install_report_against_lock(
         report,
         lock,
         forbidden_names=VCS_PACKAGE_NAMES,
-        required_names=frozenset(DIRECT_NORMAL_VERSIONS),
+    )
+    observed = {package.name: package for package in packages}
+    for name, expected_version in DIRECT_NORMAL_VERSIONS.items():
+        package = observed.get(name)
+        if package is None:
+            raise ValueError(
+                f"The install report omitted reviewed direct package: {name}"
+            )
+        if package.version != expected_version:
+            raise ValueError(
+                f"Installed {name} must remain at {expected_version}."
+            )
+
+    # Historical fixture reports predate pip's requested/is_direct fields.
+    # The reviewed ordinary direct set remains authoritative for this wrapper.
+    return tuple(
+        DependencyPackage(
+            name=package.name,
+            version=package.version,
+            source_identity=package.source_identity,
+            direct=package.name in DIRECT_NORMAL_VERSIONS,
+        )
+        for package in packages
     )
 
 
@@ -279,16 +356,11 @@ def _parse_bootstrap_install_report(
 ) -> tuple[DependencyPackage, ...]:
     """Validate the isolated bootstrap environment against its own lock."""
 
-    packages = _parse_install_report(
-        report,
-        lock,
-        forbidden_names=frozenset(),
-        required_names=frozenset({"pip-tools"}),
-    )
-    if {package.name for package in packages} != {package.name for package in lock}:
-        raise ValueError(
-            "The bootstrap install report and bootstrap lock package sets differ."
-        )
+    packages = parse_install_report_against_lock(report, lock)
+    by_name = {package.name: package for package in packages}
+    pip_tools = by_name.get("pip-tools")
+    if pip_tools is None or pip_tools.version != "7.5.0":
+        raise ValueError("The bootstrap report must contain pip-tools==7.5.0.")
     return packages
 
 
@@ -342,7 +414,11 @@ def build_dependency_preflight_record(
 
     lock_text = _required_text(observation, "lock_text")
     supplied_lock_sha = _required_text(observation, "lock_sha256")
-    lock = parse_hash_locked_requirements(lock_text)
+    lock = parse_hash_locked_requirements(
+        lock_text,
+        required_direct_versions=DIRECT_NORMAL_VERSIONS,
+        forbidden_names=VCS_PACKAGE_NAMES,
+    )
 
     report = observation.get("normal_install_report")
     if not isinstance(report, Mapping):
@@ -393,7 +469,11 @@ def build_dependency_preflight_record(
             "bootstrap_install_report_sha256",
         )
 
-        bootstrap_lock = _parse_exact_lock(bootstrap_lock_text)
+        bootstrap_lock = parse_hash_locked_requirements(
+            bootstrap_lock_text,
+            required_direct_versions={"pip-tools": "7.5.0"},
+            forbidden_names=VCS_PACKAGE_NAMES,
+        )
         try:
             raw_bootstrap_report = json.loads(bootstrap_report_text)
         except json.JSONDecodeError as error:
