@@ -1,2 +1,0 @@
-schema_version=1.0
-envelope_blob=149abe35255052fe5675262cccd693e946ba9e40
