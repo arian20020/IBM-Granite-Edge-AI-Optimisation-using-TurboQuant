@@ -451,9 +451,11 @@ function Read-FullEvidence {
         $gpuReported = Assert-Bool $value 'gpuReported'
         $gpuCount = Assert-Integer $value 'reportedGpuCount'
         $intelGpu = Assert-Bool $value 'intelGpuReported'
-        $gpuConsistent = $gpuCount -ge 0 -and
-            $gpuReported -eq ($gpuCount -gt 0) -and
+        $gpuBaselineValid = $gpuCount -ge 0 -and
+            ($gpuReported -or ($gpuCount -eq 0 -and -not $intelGpu)) -and
             ((-not $intelGpu) -or ($gpuReported -and $gpuCount -gt 0))
+        Assert-Condition $gpuBaselineValid 'GPU evidence violates the writer schema.'
+        $gpuConsistent = $gpuReported -eq ($gpuCount -gt 0)
         $memorySemantics = Assert-Bool $value 'dedicatedSharedMemorySemanticsEstablished'
         Assert-Condition ((Assert-String $value 'intelNpuDetectionState') -ceq 'DetectionUnavailable') 'Intel NPU state is invalid.'
         $versionSocket = Assert-Bool $value 'versionCandidateSocketObserved'
@@ -470,11 +472,11 @@ function Read-FullEvidence {
         Assert-Condition ($null -eq $rawName -or $rawName -ceq 'llmfit-system.raw.json' -and (Test-LowerHex $rawHash 64) -and $jsonValid) 'Raw capture pair is invalid.'
         $diagnostics = @(Assert-Diagnostics $value)
         $gpuInconsistentDiagnostic = $diagnostics -ccontains 'HI-LLMFIT-GPU-INCONSISTENT'
-        if ($gpuConsistent) {
-            Assert-Condition (-not $gpuInconsistentDiagnostic) 'GPU inconsistency diagnostic disagrees with the aggregate fields.'
-        }
-        else {
+        if (-not $gpuConsistent) {
             Assert-Condition ($disposition -ceq 'Rejected' -and $gpuInconsistentDiagnostic) 'GPU aggregate inconsistency lacks a matching Rejected diagnostic.'
+        }
+        if ($gpuInconsistentDiagnostic) {
+            Assert-Condition ($disposition -ceq 'Rejected') 'GPU inconsistency diagnostic requires a Rejected disposition.'
         }
         $hardDiagnostics = @($diagnostics | Where-Object { $nonFailureDiagnostics -cnotcontains $_ })
         $functional = $reportedVersion -ceq 'llmfit 1.1.9' -and
