@@ -617,12 +617,12 @@
                         <Setter Target="ExpandedReportViewport.Margin" Value="24,0,24,24" />
                         <Setter Target="FindingsDisclosureActionText.MaxWidth" Value="112" />
                         <Setter Target="TechnicalDetailsFutureHelpText.(Grid.ColumnSpan)" Value="2" />
-                        <Setter Target="TechnicalDetailsFutureHelpText.Margin" Value="16,12,16,0" />
+                        <Setter Target="TechnicalDetailsFutureHelpText.Margin" Value="24,12,24,0" />
                         <Setter Target="TechnicalDetailsFutureHelpText.VerticalAlignment" Value="Top" />
                         <Setter Target="TechnicalDetailsButton.(Grid.Row)" Value="1" />
                         <Setter Target="TechnicalDetailsButton.(Grid.Column)" Value="0" />
                         <Setter Target="TechnicalDetailsButton.(Grid.ColumnSpan)" Value="2" />
-                        <Setter Target="TechnicalDetailsButton.Margin" Value="16,8,16,12" />
+                        <Setter Target="TechnicalDetailsButton.Margin" Value="24,8,24,12" />
                         <Setter Target="TechnicalDetailsButton.HorizontalAlignment" Value="Left" />
                     </VisualState.Setters>
                 </VisualState>

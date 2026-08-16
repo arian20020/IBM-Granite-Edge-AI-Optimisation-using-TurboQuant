@@ -744,6 +744,13 @@ public sealed class ModelInspectionRenderedStateTests
             state,
             preview200,
             width);
+        AssertNarrowCardInsets(
+            model,
+            content,
+            presentation,
+            state,
+            preview200,
+            width);
 
         FrameworkElement pageTitle = Element<FrameworkElement>(page, "PageTitle");
         FrameworkElement explanation = Element<FrameworkElement>(
@@ -893,6 +900,75 @@ public sealed class ModelInspectionRenderedStateTests
         {
             Assert.AreEqual(0d, card.ActualHeight, 0.01d, card.Name);
             Assert.AreEqual(0d, root.ActualHeight, 0.01d, card.Name);
+        }
+    }
+
+    private static void AssertNarrowCardInsets(
+        InspectionModelCard model,
+        InspectionContentCard content,
+        ModelInspectionPagePresentation presentation,
+        ModelInspectionFigmaState state,
+        bool preview200,
+        double width)
+    {
+        if (width >= 600d)
+        {
+            return;
+        }
+
+        Border compact = Element<Border>(model, "CompactView");
+        Assert.AreEqual(
+            new Thickness(24d),
+            compact.Padding,
+            $"{state}/{preview200}/{width}: compact card inset");
+
+        Grid detailedHeader = Element<Grid>(model, "DetailedHeader");
+        Grid metadata = Element<Grid>(model, "MetadataGrid");
+        Grid inspectionDetailsHeader = Element<Grid>(
+            model,
+            "InspectionDetailsHeader");
+        FrameworkElement inspectionDetailsViewport = Element<FrameworkElement>(
+            model,
+            "InspectionDetailsViewport");
+        Assert.AreEqual(
+            new Thickness(24d, 0d, 24d, 0d),
+            detailedHeader.Margin,
+            $"{state}/{preview200}/{width}: detailed header inset");
+        Assert.AreEqual(
+            new Thickness(24d, 0d, 24d, 0d),
+            metadata.Margin,
+            $"{state}/{preview200}/{width}: metadata inset");
+        Assert.AreEqual(
+            new Thickness(24d, 0d, 24d, 0d),
+            inspectionDetailsHeader.Padding,
+            $"{state}/{preview200}/{width}: inspection details header inset");
+        Assert.AreEqual(
+            new Thickness(24d, -5d, 24d, 19d),
+            inspectionDetailsViewport.Margin,
+            $"{state}/{preview200}/{width}: inspection details viewport inset");
+
+        TextBlock technicalDetailsFutureHelpText = Element<TextBlock>(
+            content,
+            "TechnicalDetailsFutureHelpText");
+        Button technicalDetailsButton = Element<Button>(
+            content,
+            "TechnicalDetailsButton");
+        Assert.AreEqual(
+            new Thickness(24d, 12d, 24d, 0d),
+            technicalDetailsFutureHelpText.Margin,
+            $"{state}/{preview200}/{width}: technical details help inset");
+        Assert.AreEqual(
+            new Thickness(24d, 8d, 24d, 12d),
+            technicalDetailsButton.Margin,
+            $"{state}/{preview200}/{width}: technical details action inset");
+
+        if (presentation.ModelCard.DisplayMode == InspectionModelCardMode.Detailed &&
+            presentation.ModelCard.IsInspectionDetailsExpanded)
+        {
+            AssertCardInnerHorizontalGeometry(
+                Element<Border>(model, "DetailedView"),
+                inspectionDetailsViewport,
+                $"{state}/{preview200}/{width}: inspection details viewport");
         }
     }
 

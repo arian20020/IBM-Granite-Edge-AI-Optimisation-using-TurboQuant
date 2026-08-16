@@ -270,18 +270,24 @@
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition x:Name="DetailedHeaderTrailingColumn" Width="108" />
                     </Grid.ColumnDefinitions>
-                    <TextBlock
-                        x:Name="ModelOverviewTitle"
+                    <Grid
+                        x:Name="ModelOverviewTitleHost"
                         Grid.Row="0"
                         Grid.Column="1"
-                        HorizontalAlignment="Center"
-                        VerticalAlignment="Center"
-                        FontFamily="{StaticResource InspectionSectionTitleFontFamily}"
-                        FontSize="{ThemeResource InspectionSectionTitleFontSize}"
-                        FontWeight="{StaticResource InspectionSectionTitleFontWeight}"
-                        Foreground="{ThemeResource InspectionTextPrimaryBrush}"
-                        Text="Model overview"
-                        TextWrapping="WrapWholeWords" />
+                        HorizontalAlignment="Stretch"
+                        VerticalAlignment="Center">
+                        <TextBlock
+                            x:Name="ModelOverviewTitle"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            FontFamily="{StaticResource InspectionSectionTitleFontFamily}"
+                            FontSize="{ThemeResource InspectionSectionTitleFontSize}"
+                            FontWeight="{StaticResource InspectionSectionTitleFontWeight}"
+                            Foreground="{ThemeResource InspectionTextPrimaryBrush}"
+                            Text="Model overview"
+                            TextAlignment="Center"
+                            TextWrapping="WrapWholeWords" />
+                    </Grid>
                     <Border
                         x:Name="OverviewFormatChip"
                         Grid.Row="0"
@@ -677,7 +683,7 @@
                         <Setter Target="MetadataColumnTwo.Width" Value="0" />
                         <Setter Target="MetadataColumnThree.Width" Value="0" />
                         <Setter Target="MetadataColumnFour.Width" Value="0" />
-                        <Setter Target="CompactView.Padding" Value="16" />
+                        <Setter Target="CompactView.Padding" Value="{StaticResource InspectionCardPadding}" />
                         <Setter Target="CompactFormatTile.(Grid.Row)" Value="0" />
                         <Setter Target="CompactFormatTile.(Grid.Column)" Value="0" />
                         <Setter Target="CompactFormatTile.(Grid.ColumnSpan)" Value="3" />
@@ -691,22 +697,23 @@
                         <Setter Target="CompactStatusChip.(Grid.ColumnSpan)" Value="3" />
                         <Setter Target="CompactStatusChip.Margin" Value="0,12,0,0" />
                         <Setter Target="CompactStatusChip.HorizontalAlignment" Value="Left" />
-                        <Setter Target="DetailedHeader.Margin" Value="15,0" />
-                        <Setter Target="ModelOverviewTitle.(Grid.Column)" Value="0" />
-                        <Setter Target="ModelOverviewTitle.(Grid.ColumnSpan)" Value="3" />
+                        <Setter Target="DetailedHeader.Margin" Value="24,0" />
+                        <Setter Target="DetailedHeader.ColumnSpacing" Value="0" />
+                        <Setter Target="ModelOverviewTitleHost.(Grid.Column)" Value="0" />
+                        <Setter Target="ModelOverviewTitleHost.(Grid.ColumnSpan)" Value="3" />
                         <Setter Target="OverviewFormatChip.(Grid.Row)" Value="1" />
                         <Setter Target="OverviewFormatChip.(Grid.Column)" Value="0" />
                         <Setter Target="OverviewFormatChip.(Grid.ColumnSpan)" Value="3" />
                         <Setter Target="OverviewFormatChip.Margin" Value="0,12,0,0" />
                         <Setter Target="OverviewFormatChip.HorizontalAlignment" Value="Left" />
-                        <Setter Target="MetadataGrid.Margin" Value="15,0" />
-                        <Setter Target="InspectionDetailsHeader.Padding" Value="15,0" />
+                        <Setter Target="MetadataGrid.Margin" Value="24,0" />
+                        <Setter Target="InspectionDetailsHeader.Padding" Value="24,0" />
                         <Setter Target="InspectionDetailsActionText.(Grid.Row)" Value="1" />
                         <Setter Target="InspectionDetailsActionText.(Grid.Column)" Value="1" />
                         <Setter Target="InspectionDetailsActionText.(Grid.ColumnSpan)" Value="2" />
                         <Setter Target="InspectionDetailsActionText.Margin" Value="0,8,6,8" />
                         <Setter Target="InspectionDetailsActionText.HorizontalAlignment" Value="Left" />
-                        <Setter Target="InspectionDetailsViewport.Margin" Value="15,-5,15,19" />
+                        <Setter Target="InspectionDetailsViewport.Margin" Value="24,-5,24,19" />
                         <Setter Target="ModelNameField.(Grid.Row)" Value="0" />
                         <Setter Target="ModelNameField.(Grid.Column)" Value="0" />
                         <Setter Target="ModelNameField.Padding" Value="0,10" />

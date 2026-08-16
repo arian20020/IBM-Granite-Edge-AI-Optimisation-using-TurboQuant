@@ -410,10 +410,24 @@ public sealed class InspectionModelCardTests
             FrameworkElement header = Find<FrameworkElement>(
                 control,
                 "DetailedHeader");
+            FrameworkElement titleHost = Find<FrameworkElement>(
+                control,
+                "ModelOverviewTitleHost");
             TextBlock sectionTitle = Descendants(header)
                 .OfType<TextBlock>()
                 .Single(text => text.Text == "Model overview");
             AssertElementCentre(sectionTitle, detailed, "responsive ready title");
+            if (clientWidth < 600d)
+            {
+                Assert.AreEqual(
+                    HorizontalAlignment.Center,
+                    sectionTitle.HorizontalAlignment,
+                    "narrow ready title centers within the available header row");
+                Assert.AreEqual(
+                    TextAlignment.Center,
+                    sectionTitle.TextAlignment,
+                    "narrow ready title preserves centered hierarchy");
+            }
             AssertTextFits(
                 formatText,
                 formatChip,
@@ -426,8 +440,8 @@ public sealed class InspectionModelCardTests
                     control,
                     effectiveWidth: 360d,
                     expectedRowCount: 8);
-                Assert.AreEqual(0, Grid.GetColumn(sectionTitle));
-                Assert.AreEqual(3, Grid.GetColumnSpan(sectionTitle));
+                Assert.AreEqual(0, Grid.GetColumn(titleHost));
+                Assert.AreEqual(3, Grid.GetColumnSpan(titleHost));
                 Assert.IsGreaterThan(
                     120d,
                     sectionTitle.ActualWidth,
@@ -445,6 +459,14 @@ public sealed class InspectionModelCardTests
                     sectionTitle,
                     detailed,
                     "360px ready title");
+                Assert.AreEqual(
+                    HorizontalAlignment.Center,
+                    sectionTitle.HorizontalAlignment,
+                    "360px ready title centers within the available header row");
+                Assert.AreEqual(
+                    TextAlignment.Center,
+                    sectionTitle.TextAlignment,
+                    "360px ready title preserves centered hierarchy");
 
                 Point titleOrigin = sectionTitle
                     .TransformToVisual(header)
@@ -473,6 +495,14 @@ public sealed class InspectionModelCardTests
                     sectionTitle,
                     detailed,
                     "scaled narrow ready title");
+                Assert.AreEqual(
+                    HorizontalAlignment.Center,
+                    sectionTitle.HorizontalAlignment,
+                    "scaled narrow ready title centers within the available header row");
+                Assert.AreEqual(
+                    TextAlignment.Center,
+                    sectionTitle.TextAlignment,
+                    "scaled narrow ready title preserves centered hierarchy");
                 Assert.IsTrue(
                     formatChip.ActualHeight > Math.Max(30d, baselineChipHeight),
                     "the format badge must grow naturally at 200% equivalent text size");
