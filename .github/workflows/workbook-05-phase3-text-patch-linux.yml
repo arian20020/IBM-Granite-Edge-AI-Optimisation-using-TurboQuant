@@ -47,6 +47,30 @@ jobs:
           $ErrorActionPreference = 'Stop'
           Set-StrictMode -Version Latest
 
+          # Treat the repository's established CRLF source files as valid line
+          # endings while retaining all other whitespace checks. Disable bytecode
+          # writes so hosted verification cannot add generated cache payloads to
+          # the implementation commit.
+          git config core.whitespace cr-at-eol
+          $env:PYTHONDONTWRITEBYTECODE = '1'
+
+          # Install only the repository-pinned validation dependency into
+          # runner-temporary storage. The patch verification imports jsonschema
+          # from this isolated target and does not alter the hosted interpreter.
+          $dependencyDirectory = Join-Path $env:RUNNER_TEMP 'workbook05-phase3-python'
+          if (Test-Path -LiteralPath $dependencyDirectory) {
+              throw "Unexpected retained validation directory: $dependencyDirectory"
+          }
+          New-Item -ItemType Directory -Path $dependencyDirectory -Force:$false | Out-Null
+          python -m pip install `
+              --disable-pip-version-check `
+              --target $dependencyDirectory `
+              -r 'scripts/testing/workbook05/requirements.txt'
+          if ($LASTEXITCODE -ne 0) {
+              throw "Pinned validation dependency installation exited with code $LASTEXITCODE."
+          }
+          $env:PYTHONPATH = $dependencyDirectory
+
           # Bind execution to the exact reviewed Windows-runner workflow blob.
           # The Linux wrapper changes only the host used for checkout; it does
           # not accept an arbitrary command from the patch envelope.
@@ -63,7 +87,7 @@ jobs:
           # trigger commit without changing the patch bytes or verification mode.
           $envelopePath = '.github/maintenance/workbook05-phase3-next-patch.txt'
           $triggerPath = '.github/maintenance/workbook05-phase3-run-patch.txt'
-          $expectedEnvelopeBlob = '2dc1358556fadf1b38cda3b2c5671b1c866ea207'
+          $expectedEnvelopeBlob = '149abe35255052fe5675262cccd693e946ba9e40'
           $actualEnvelopeBlob = ((git hash-object -- $envelopePath) | Out-String).Trim()
           if ($LASTEXITCODE -ne 0 -or $actualEnvelopeBlob -ne $expectedEnvelopeBlob) {
               throw "Reviewed patch-envelope blob mismatch: $actualEnvelopeBlob"
