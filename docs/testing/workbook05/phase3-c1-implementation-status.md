@@ -5,20 +5,23 @@
 **Package:** C1 — immutable model and conversion assets  
 **C1 control pull request:** `#69`  
 **Dependency-preflight pull request:** `#72`  
-**Status:** Dependency-preflight repository implementation complete; live dependency and C1 acceptance remain pending
+**Status:** Dependency-preflight repository implementation complete; exact-head verification blocked by GitHub billing/spending restriction; live dependency and C1 acceptance remain pending
 
 ## Current checkpoint states
 
 - Dependency-preflight repository implementation: **Complete**
-- Exact-head repository verification: **In progress on PR `#72`**
+- Exact-head repository verification: **Blocked by GitHub billing/spending restriction**
 - Live dependency-preflight acceptance: **Pending**
 - Live C1 asset locking: **Blocked**
 
 `Complete` here refers only to the repository implementation boundary: code,
 closed schemas, deterministic fixtures, tests, workflow controls, independent
-validation, and operator guidance. The exact-head checks still have to pass before
-PR `#72` is approved or merged. It does not mean that a live dependency
-environment or C1 asset has been accepted.
+validation, and operator guidance. GitHub is currently refusing the required hosted
+exact-head jobs because of the account billing/spending restriction, so PR `#72`
+remains Draft and must not be approved or merged yet. Once that infrastructure
+blocker is corrected, every required workflow must be rerun against the new exact
+head. It does not mean that a live dependency environment or C1 asset has been
+accepted.
 
 ## Meaning of this status
 
