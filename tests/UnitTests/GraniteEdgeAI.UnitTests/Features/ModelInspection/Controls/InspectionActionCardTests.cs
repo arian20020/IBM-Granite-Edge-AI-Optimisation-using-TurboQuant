@@ -1,5 +1,8 @@
 using GraniteEdgeAI.Features.ModelInspection.Controls;
 using GraniteEdgeAI.Features.ModelInspection.Models;
+using GraniteEdgeAI.Features.ModelInspection.Presentation;
+using GraniteEdgeAI.Features.ModelInspection.ViewModels;
+using GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
@@ -41,7 +44,8 @@ public sealed class InspectionActionCardTests
             Border result = (Border)control.FindName("ResultView");
             Assert.AreEqual(0d, result.MinHeight, 0.01d,
                 "the action surface must use its natural content height");
-            Assert.AreEqual(new Thickness(24d), result.Padding, "result view padding");
+            Assert.AreEqual(new Thickness(20d, 17d, 20d, 17d), result.Padding,
+                "compact result action padding");
             Assert.IsGreaterThanOrEqualTo(44d, secondaryOne.MinHeight);
             Assert.AreEqual(46d, secondaryOne.MinHeight, 0.01);
             Assert.AreEqual(46d, secondaryTwo.MinHeight, 0.01);
@@ -86,21 +90,78 @@ public sealed class InspectionActionCardTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
-    public void InspectingCancel_DoesNotReceiveFutureActionHelp()
+    public async Task InspectingCancel_DoesNotReceiveFutureActionHelp()
     {
+        ModelInspectionPagePresentation page =
+            ModelInspectionPresentationFactory.Create(
+                PresentationTestData.CreateRequest(),
+                ModelInspectionViewSnapshot.Initial,
+                new ModelInspectionPresentationCommands(
+                    PresentationTestData.CreateCommand(),
+                    PresentationTestData.CreateCommand(),
+                    PresentationTestData.CreateCommand()),
+                isDisclosureExpanded: false,
+                new InspectionProgressRows());
         var control = new InspectionActionCard
         {
-            Presentation = new InspectionActionCardPresentation
-            {
-                Mode = InspectionActionCardMode.Inspecting,
-                CancelAction = VisibleAction("Cancel inspection", enabled: false)
-            }
+            Width = 840,
+            Presentation = page.ActionCard
         };
-        Button cancel = FindButton(control, "CancelActionButton");
+        var loaded = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        control.Loaded += (_, _) => loaded.TrySetResult(true);
+        var window = new Window { Content = control };
 
-        Assert.IsFalse(cancel.IsEnabled);
-        Assert.AreEqual(string.Empty, AutomationProperties.GetHelpText(cancel));
-        Assert.IsNull(ToolTipService.GetToolTip(cancel));
+        try
+        {
+            window.Activate();
+            await loaded.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            control.UpdateLayout();
+
+            Border inspecting = Assert.IsInstanceOfType<Border>(
+                control.FindName("InspectingCardSurface"));
+            Grid layout = Assert.IsInstanceOfType<Grid>(
+                control.FindName("InspectingLayout"));
+            TextBlock reassurance = Assert.IsInstanceOfType<TextBlock>(
+                control.FindName("InspectingMessage"));
+            Button cancel = FindButton(control, "CancelActionButton");
+            Windows.Foundation.Point reassuranceOrigin = reassurance
+                .TransformToVisual(inspecting)
+                .TransformPoint(default);
+            Windows.Foundation.Point cancelOrigin = cancel
+                .TransformToVisual(inspecting)
+                .TransformPoint(default);
+
+            Assert.AreEqual(840d, inspecting.ActualWidth, 0.01d);
+            Assert.AreEqual(new Thickness(24d), inspecting.Padding,
+                "inspecting action card padding");
+            Assert.AreEqual(12d, inspecting.CornerRadius.TopLeft, 0.01d);
+            Assert.AreEqual(new Thickness(1d), inspecting.BorderThickness);
+            Assert.IsNotNull(inspecting.Background);
+            Assert.IsNotNull(inspecting.BorderBrush);
+            Assert.AreEqual(2, layout.RowDefinitions.Count);
+            Assert.IsTrue(string.IsNullOrEmpty(page.ActionCard.Title),
+                "the real inspecting presentation does not invent a heading");
+            Assert.IsNull(control.FindName("InspectingTitle"));
+            Assert.AreEqual(0, Grid.GetRow(reassurance));
+            Assert.AreEqual(1, Grid.GetRow(cancel));
+            Assert.IsLessThan(cancelOrigin.Y, reassuranceOrigin.Y,
+                "reassurance is presented before the cancel action");
+            Assert.AreEqual(
+                inspecting.ActualWidth / 2d,
+                cancelOrigin.X + (cancel.ActualWidth / 2d),
+                1d,
+                "cancel action is centred in the inspecting card");
+            Assert.IsGreaterThanOrEqualTo(44d, cancel.ActualHeight);
+            Assert.IsFalse(cancel.IsEnabled);
+            Assert.AreEqual(string.Empty, AutomationProperties.GetHelpText(cancel));
+            Assert.IsNull(ToolTipService.GetToolTip(cancel));
+        }
+        finally
+        {
+            window.Content = null;
+            window.Close();
+        }
     }
 
     [UITestMethod]

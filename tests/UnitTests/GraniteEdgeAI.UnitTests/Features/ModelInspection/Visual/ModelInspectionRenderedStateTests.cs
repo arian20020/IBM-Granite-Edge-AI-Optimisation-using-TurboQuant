@@ -107,6 +107,9 @@ public sealed class ModelInspectionRenderedStateTests
 
         if (expectedContentMode == InspectionContentCardMode.Progress)
         {
+            Border progressRowsSurface = Element<Border>(
+                content,
+                "ProgressRowsSurface");
             Grid[] progressRows = Descendants(content)
                 .OfType<Grid>()
                 .Where(row => string.Equals(
@@ -119,6 +122,12 @@ public sealed class ModelInspectionRenderedStateTests
                 row.ActualHeight >= 48d));
             Assert.IsTrue(progressRows.All(row =>
                 Math.Abs(row.ActualHeight - 48d) <= 1d));
+            Assert.AreEqual(new Thickness(1d), progressRowsSurface.BorderThickness);
+            Assert.AreEqual(10d, progressRowsSurface.CornerRadius.TopLeft, 0.01d);
+            Assert.IsTrue(Descendants(progressRowsSurface)
+                .OfType<InspectionStatusGlyph>()
+                .Where(IsRendered)
+                .All(glyph => Math.Abs(glyph.SurfaceSize - 22d) <= 0.01d));
         }
 
         FrameworkElement[] visibleCards =
@@ -151,8 +160,24 @@ public sealed class ModelInspectionRenderedStateTests
             Assert.AreEqual(0d, VisibleLayoutHeight(outcome), 0.01d);
 
             Button cancel = Element<Button>(actions, "CancelActionButton");
+            Border inspectingView = Element<Border>(actions, "InspectingCardSurface");
+            Grid inspectingLayout = Element<Grid>(actions, "InspectingLayout");
+            TextBlock reassurance = Element<TextBlock>(actions, "InspectingMessage");
             Assert.IsGreaterThanOrEqualTo(44d, cancel.ActualHeight);
             Assert.AreEqual(184d, cancel.ActualWidth, 1d);
+            Assert.AreEqual(new Thickness(24d), inspectingView.Padding);
+            Assert.AreEqual(new Thickness(1d), inspectingView.BorderThickness);
+            Assert.AreEqual(12d, inspectingView.CornerRadius.TopLeft, 0.01d);
+            Assert.IsTrue(string.IsNullOrEmpty(actions.Presentation.Title));
+            Assert.AreEqual(2, inspectingLayout.RowDefinitions.Count);
+            Assert.AreEqual(0, Grid.GetRow(reassurance));
+            Assert.AreEqual(1, Grid.GetRow(cancel));
+            Point reassuranceOrigin = reassurance.TransformToVisual(inspectingView)
+                .TransformPoint(default);
+            Point cancelOrigin = cancel.TransformToVisual(inspectingView)
+                .TransformPoint(default);
+            Assert.IsTrue(reassuranceOrigin.Y < cancelOrigin.Y,
+                "the real progress reassurance appears before Cancel");
         }
         else
         {
@@ -162,7 +187,7 @@ public sealed class ModelInspectionRenderedStateTests
             Assert.AreEqual(300d, bannerOrigin.X, 1d, $"{state} banner x");
             Assert.AreEqual(840d, banner.ActualWidth, 1d, $"{state} banner width");
             Assert.AreEqual(0d, banner.MinHeight, 0.01d, $"{state} banner minimum");
-            AssertBalancedOutcome(outcome, banner, state.ToString());
+            AssertCompactOutcome(outcome, banner, state.ToString());
             AssertBrushColor(
                 outcomeSurfaceResource,
                 banner.Background,
@@ -234,6 +259,9 @@ public sealed class ModelInspectionRenderedStateTests
             ? ((InspectionModelCard)owner).ActiveDisclosure!
             : ((InspectionContentCard)owner).ActiveDisclosure!;
         Assert.IsNotNull(disclosure);
+        Border disclosureSurface = Element<Border>(
+            disclosure,
+            "DisclosureCardSurface");
         Assert.IsFalse(disclosure.IsExpanded);
         Assert.AreEqual(Visibility.Collapsed, disclosure.ViewportTarget.Visibility);
         FrameworkElement disclosureHeader = Element<FrameworkElement>(
@@ -241,12 +269,18 @@ public sealed class ModelInspectionRenderedStateTests
             "DisclosureToggleButton");
         double collapsedHeight = VisibleLayoutHeight(owner);
         Assert.AreEqual(
-            disclosureHeader.ActualHeight,
+            disclosureHeader.ActualHeight +
+                disclosureSurface.BorderThickness.Top +
+                disclosureSurface.BorderThickness.Bottom,
             disclosure.ActualHeight,
             1d,
             "collapsed disclosure equals its realized header");
         Assert.AreEqual(840d, banner.ActualWidth, 1d, "collapsed banner width");
         Assert.AreEqual(840d, detailsSurface.ActualWidth, 1d, "collapsed details width");
+        Assert.AreEqual(840d, disclosureSurface.ActualWidth, 1d,
+            "collapsed disclosure card width");
+        Assert.AreEqual(new Thickness(1d), disclosureSurface.BorderThickness);
+        Assert.AreEqual(12d, disclosureSurface.CornerRadius.TopLeft, 0.01d);
         Assert.AreEqual(840d, actionSurface.ActualWidth, 1d, "collapsed action width");
         Assert.AreEqual(0d, actionSurface.MinHeight, 0.01d, "collapsed action minimum");
 
@@ -264,6 +298,8 @@ public sealed class ModelInspectionRenderedStateTests
         Assert.IsGreaterThan(collapsedHeight, VisibleLayoutHeight(owner));
         Assert.AreEqual(840d, banner.ActualWidth, 1d, "expanded banner width");
         Assert.AreEqual(840d, detailsSurface.ActualWidth, 1d, "expanded details width");
+        Assert.AreEqual(840d, disclosureSurface.ActualWidth, 1d,
+            "expanded disclosure card width");
         Assert.AreEqual(840d, actionSurface.ActualWidth, 1d, "expanded action width");
         Assert.AreEqual(0d, actionSurface.MinHeight, 0.01d, "expanded action minimum");
 
@@ -751,6 +787,85 @@ public sealed class ModelInspectionRenderedStateTests
             state,
             preview200,
             width);
+        if (presentation.ContentCard.Mode == InspectionContentCardMode.Progress)
+        {
+            Grid[] progressRows = Descendants(content)
+                .OfType<Grid>()
+                .Where(row => string.Equals(
+                    row.Tag as string,
+                    "InspectionProgressRow",
+                    StringComparison.Ordinal))
+                .ToArray();
+            Assert.HasCount(5, progressRows);
+            foreach (Grid row in progressRows)
+            {
+                Grid statusOwner = Descendants(row)
+                    .OfType<Grid>()
+                    .Single(element =>
+                        Grid.GetColumn(element) == 2 &&
+                        ReferenceEquals(VisualTreeHelper.GetParent(element), row));
+                TextBlock fraction = Descendants(row)
+                    .OfType<TextBlock>()
+                    .Single(element =>
+                        Grid.GetColumn(element) == 3 &&
+                        ReferenceEquals(VisualTreeHelper.GetParent(element), row));
+                StackPanel copy = Descendants(row)
+                    .OfType<StackPanel>()
+                    .Single(element =>
+                        Grid.GetColumn(element) == 1 &&
+                        ReferenceEquals(VisualTreeHelper.GetParent(element), row));
+                Viewbox glyphHost = Descendants(row)
+                    .OfType<Viewbox>()
+                    .Single(element =>
+                        Grid.GetColumn(element) == 0 &&
+                        ReferenceEquals(VisualTreeHelper.GetParent(element), row));
+                Assert.AreEqual(20d, glyphHost.ActualWidth, 0.01d);
+                Assert.AreEqual(20d, glyphHost.ActualHeight, 0.01d);
+                if (width >= 888d)
+                {
+                    Assert.AreEqual(0, Grid.GetRow(statusOwner));
+                    Assert.AreEqual(0, Grid.GetRow(fraction));
+                    Assert.AreEqual(1, Grid.GetColumnSpan(copy));
+                    Assert.AreEqual(1, Grid.GetRowSpan(glyphHost));
+                }
+                else
+                {
+                    Grid rowStateHost = row.FindName("ProgressRowResponsiveHost") as Grid ??
+                        throw new AssertFailedException(
+                            "The progress-row responsive state host was not realized.");
+                    string rowWidthState = VisualStateManager
+                        .GetVisualStateGroups(rowStateHost)
+                        .First(group => group.Name == "ProgressRowWidthStates")
+                        .CurrentState?.Name ?? "<none>";
+                    Assert.AreEqual(1, Grid.GetRow(statusOwner),
+                        $"{state}/{preview200}/{width}: {rowWidthState}");
+                    Assert.AreEqual(1, Grid.GetRow(fraction));
+                    Assert.AreEqual(3, Grid.GetColumnSpan(copy));
+                    Assert.AreEqual(2, Grid.GetRowSpan(glyphHost));
+                    Rect copyBounds = Bounds(page, copy);
+                    Rect statusBounds = Bounds(page, statusOwner);
+                    Assert.IsTrue(
+                        copyBounds.Bottom <= statusBounds.Y + 1d,
+                        $"{state}/{preview200}/{width}: status reflows below copy");
+                }
+
+                Rect rowBounds = Bounds(page, row);
+                foreach (FrameworkElement trailing in new FrameworkElement[]
+                         {
+                             statusOwner,
+                             fraction
+                         }.Where(IsRendered))
+                {
+                    Rect bounds = Bounds(page, trailing);
+                    Assert.IsTrue(
+                        bounds.X >= rowBounds.X - 1d &&
+                        bounds.Right <= rowBounds.Right + 1d &&
+                        bounds.Y >= rowBounds.Y - 1d &&
+                        bounds.Bottom <= rowBounds.Bottom + 1d,
+                        $"{state}/{preview200}/{width}: trailing progress evidence fits");
+                }
+            }
+        }
 
         FrameworkElement pageTitle = Element<FrameworkElement>(page, "PageTitle");
         FrameworkElement explanation = Element<FrameworkElement>(
@@ -813,7 +928,7 @@ public sealed class ModelInspectionRenderedStateTests
                 Element<FrameworkElement>(model, "DeclaredContextField"),
                 Element<FrameworkElement>(model, "FileSizeField")
             ];
-            int expectedColumns = width >= 888d ? 3 : width >= 600d ? 2 : 1;
+            int expectedColumns = width >= 888d ? 3 : 2;
             Assert.AreEqual(
                 expectedColumns,
                 metadata.Select(Grid.GetColumn).Distinct().Count(),
@@ -936,19 +1051,19 @@ public sealed class ModelInspectionRenderedStateTests
             model,
             "InspectionDetailsViewport");
         Assert.AreEqual(
-            new Thickness(24d, 0d, 24d, 0d),
+            new Thickness(16d, 14d, 16d, 12d),
             detailedHeader.Margin,
             $"{state}/{preview200}/{width}: detailed header inset");
         Assert.AreEqual(
-            new Thickness(24d, 0d, 24d, 0d),
+            new Thickness(0d),
             metadata.Margin,
             $"{state}/{preview200}/{width}: metadata inset");
         Assert.AreEqual(
-            new Thickness(24d, 0d, 24d, 0d),
+            new Thickness(16d, 0d, 16d, 0d),
             inspectionDetailsHeader.Padding,
             $"{state}/{preview200}/{width}: inspection details header inset");
         Assert.AreEqual(
-            new Thickness(24d, -5d, 24d, 19d),
+            new Thickness(16d, 0d, 16d, 16d),
             inspectionDetailsViewport.Margin,
             $"{state}/{preview200}/{width}: inspection details viewport inset");
 
@@ -970,10 +1085,15 @@ public sealed class ModelInspectionRenderedStateTests
         if (presentation.ModelCard.DisplayMode == InspectionModelCardMode.Detailed &&
             presentation.ModelCard.IsInspectionDetailsExpanded)
         {
+            InspectionDisclosure disclosure = model.ActiveDisclosure!;
+            Border disclosureSurface = Element<Border>(
+                disclosure,
+                "DisclosureCardSurface");
             AssertCardInnerHorizontalGeometry(
-                Element<Border>(model, "DetailedView"),
+                disclosureSurface,
                 inspectionDetailsViewport,
-                $"{state}/{preview200}/{width}: inspection details viewport");
+                $"{state}/{preview200}/{width}: inspection details viewport",
+                expectedInset: 16d);
         }
     }
 
@@ -1050,12 +1170,12 @@ public sealed class ModelInspectionRenderedStateTests
             1d,
             $"{context}: configuration/result right bounds align");
 
-        Border configurationBackground = Descendants(configurationPanel)
-            .OfType<Border>()
-            .Single();
-        Border resultSummaryBackground = Descendants(resultSummaryPanel)
-            .OfType<Border>()
-            .Single();
+        Border configurationBackground = Element<Border>(
+            model,
+            "ModelConfigurationSurface");
+        Border resultSummaryBackground = Element<Border>(
+            model,
+            "ModelResultSummarySurface");
         AssertSameBounds(
             root,
             configurationPanel,
@@ -1515,11 +1635,7 @@ public sealed class ModelInspectionRenderedStateTests
             double expectedInset = width < 600d ? 16d : 24d;
             bool responsiveStateApplied = Math.Abs(
                 contentHost.Margin.Left - expectedInset) <= 0.1d;
-            int expectedMetadataColumns = width >= 888d
-                ? 3
-                : width >= 600d
-                    ? 2
-                    : 1;
+            int expectedMetadataColumns = width >= 888d ? 3 : 2;
             bool modelStateApplied = metadata
                 .Select(Grid.GetColumn)
                 .Distinct()
@@ -1577,6 +1693,8 @@ public sealed class ModelInspectionRenderedStateTests
         InspectionDisclosure findingsDisclosure = Element<InspectionDisclosure>(
             content,
             "FindingsDisclosure");
+        Border findingsDisclosureSurface = Assert.IsInstanceOfType<Border>(
+            findingsDisclosure.FindName("DisclosureCardSurface"));
         Grid findingsHeaderContent = Assert.IsInstanceOfType<Grid>(
             findingsDisclosure.HeaderContent);
         FrameworkElement[] surfaces =
@@ -1606,9 +1724,10 @@ public sealed class ModelInspectionRenderedStateTests
 
         if (IsRendered(findingsHeaderContent))
         {
-            Point headerOrigin = findingsHeaderContent.TransformToVisual(shell)
+            Point headerOrigin = findingsHeaderContent.TransformToVisual(
+                    findingsDisclosureSurface)
                 .TransformPoint(default);
-            double headerContentLeftInset = headerOrigin.X - shell.BorderThickness.Left +
+            double headerContentLeftInset = headerOrigin.X +
                 findingsHeaderContent.Padding.Left;
             Assert.IsGreaterThanOrEqualTo(
                 24d - 0.01d,
@@ -1616,8 +1735,8 @@ public sealed class ModelInspectionRenderedStateTests
                 $"{state}/{preview200}/{width}: findings disclosure header content left inset");
             if (findingsHeaderContent.Padding.Right > 0d)
             {
-                double headerContentRightInset = shell.ActualWidth -
-                    shell.BorderThickness.Right - headerOrigin.X -
+                double headerContentRightInset = findingsDisclosureSurface.ActualWidth -
+                    headerOrigin.X -
                     findingsHeaderContent.ActualWidth + findingsHeaderContent.Padding.Right;
                 Assert.IsGreaterThanOrEqualTo(
                     24d - 0.01d,
@@ -1767,13 +1886,15 @@ public sealed class ModelInspectionRenderedStateTests
         if (presentation.ModelCard.DisplayMode == InspectionModelCardMode.Detailed)
         {
             TextBlock title = Element<TextBlock>(model, "ModelOverviewTitle");
-            Point titleOrigin = title.TransformToVisual(modelSurface)
+            FrameworkElement overviewPanel = Element<FrameworkElement>(
+                model,
+                "ModelOverviewPanel");
+            Point titleOrigin = title.TransformToVisual(overviewPanel)
                 .TransformPoint(new Point());
-            Assert.AreEqual(
-                modelSurface.ActualWidth / 2d,
-                titleOrigin.X + (title.ActualWidth / 2d),
-                1d,
-                "ready model title centre");
+            Assert.AreEqual(TextAlignment.Left, title.TextAlignment);
+            Assert.AreEqual(HorizontalAlignment.Left, title.HorizontalAlignment);
+            Assert.AreEqual(18d, titleOrigin.X, 1d,
+                "ready model title left inset");
             FrameworkElement[] metadata =
             [
                 Element<FrameworkElement>(model, "ModelNameField"),
@@ -1799,16 +1920,20 @@ public sealed class ModelInspectionRenderedStateTests
         if (presentation.ModelCard.DisplayMode == InspectionModelCardMode.Compact)
         {
             Border formatTile = Element<Border>(model, "CompactFormatTile");
+            FrameworkElement summary = Element<FrameworkElement>(
+                model,
+                "CompactModelSummaryPanel");
             Border statusChip = Element<Border>(model, "CompactStatusChip");
-            Point formatOrigin = formatTile.TransformToVisual(modelSurface)
+            Point summaryOrigin = summary.TransformToVisual(modelSurface)
                 .TransformPoint(new Point());
             Point statusOrigin = statusChip.TransformToVisual(modelSurface)
                 .TransformPoint(new Point());
-            Assert.AreEqual(
-                24d,
-                formatOrigin.X - ((Border)modelSurface).BorderThickness.Left,
-                1d,
-                "compact format tile inner left inset");
+            Assert.AreEqual(Visibility.Collapsed, formatTile.Visibility,
+                "compact format tile is retired visually");
+            Assert.AreEqual(0, Grid.GetRow(summary));
+            Assert.AreEqual(0, Grid.GetRow(statusChip));
+            Assert.IsLessThan(statusOrigin.X, summaryOrigin.X,
+                "compact summary precedes the status pill");
             Assert.AreEqual(
                 24d,
                 modelSurface.ActualWidth - ((Border)modelSurface).BorderThickness.Right -
@@ -1822,8 +1947,12 @@ public sealed class ModelInspectionRenderedStateTests
             FrameworkElement viewport = Element<FrameworkElement>(
                 model,
                 "InspectionDetailsViewport");
+            InspectionDisclosure disclosure = model.ActiveDisclosure!;
+            Border disclosureSurface = Element<Border>(
+                disclosure,
+                "DisclosureCardSurface");
             AssertCardInnerHorizontalGeometry(
-                (Border)modelSurface,
+                disclosureSurface,
                 viewport,
                 "model inspection details viewport");
         }
@@ -1842,8 +1971,8 @@ public sealed class ModelInspectionRenderedStateTests
             .All(text => text.TextAlignment == TextAlignment.Left));
         FrameworkElement primaryRows = presentation.ContentCard.Mode ==
             InspectionContentCardMode.Progress
-                ? Element<FrameworkElement>(content, "ProgressItemsRepeater")
-                : Element<FrameworkElement>(content, "FindingsItemsRepeater");
+                ? Element<FrameworkElement>(content, "ProgressRowsSurface")
+                : Element<FrameworkElement>(content, "FindingsRowsSurface");
         if (presentation.ContentCard.Mode == InspectionContentCardMode.Progress)
         {
             Grid progressView = Element<Grid>(content, "ProgressView");
@@ -1866,11 +1995,11 @@ public sealed class ModelInspectionRenderedStateTests
         {
             Border[] collapsedRows = Descendants(primaryRows)
                 .OfType<Border>()
-                .Where(row => Math.Abs(row.MinHeight - 72d) < 0.01d)
+                .Where(row => Math.Abs(row.MinHeight - 48d) < 0.01d)
                 .ToArray();
             Assert.HasCount(presentation.ContentCard.Items.Count, collapsedRows);
             Assert.IsTrue(collapsedRows.All(row =>
-                Math.Abs(row.ActualHeight - 72d) <= 1d));
+                row.ActualHeight >= 48d));
         }
 
         if (presentation.ContentCard.IsExpanded)
@@ -1884,29 +2013,30 @@ public sealed class ModelInspectionRenderedStateTests
                 "expanded report viewport");
             Border[] expandedRows = Descendants(viewport)
                 .OfType<Border>()
-                .Where(row => Math.Abs(row.MinHeight - 58d) < 0.01d)
+                .Where(row => Math.Abs(row.MinHeight - 48d) < 0.01d)
                 .ToArray();
             Assert.HasCount(
                 presentation.ContentCard.ExpandedItems.Count,
                 expandedRows);
             Assert.IsTrue(expandedRows.All(row =>
-                Math.Abs(row.ActualHeight - 58d) <= 1d));
+                row.ActualHeight >= 48d));
         }
     }
 
     private static void AssertCardInnerHorizontalGeometry(
         Border card,
         FrameworkElement surface,
-        string surfaceName)
+        string surfaceName,
+        double expectedInset = 24d)
     {
         Point origin = surface.TransformToVisual(card).TransformPoint(default);
         double leftInset = origin.X - card.BorderThickness.Left;
         double rightInset = card.ActualWidth - card.BorderThickness.Right -
             origin.X - surface.ActualWidth;
         double expectedWidth = card.ActualWidth - card.BorderThickness.Left -
-            card.BorderThickness.Right - 48d;
-        Assert.AreEqual(24d, leftInset, 1d, $"{surfaceName} inner left inset");
-        Assert.AreEqual(24d, rightInset, 1d, $"{surfaceName} inner right inset");
+            card.BorderThickness.Right - (2d * expectedInset);
+        Assert.AreEqual(expectedInset, leftInset, 1d, $"{surfaceName} inner left inset");
+        Assert.AreEqual(expectedInset, rightInset, 1d, $"{surfaceName} inner right inset");
         Assert.AreEqual(expectedWidth, surface.ActualWidth, 1d, $"{surfaceName} inner width");
     }
 
@@ -1924,12 +2054,26 @@ public sealed class ModelInspectionRenderedStateTests
             "InspectionTextSecondaryMutedBrush",
             Element<TextBlock>(page, "ModelInspectionExplanation").Foreground);
 
-        Border modelSurface = presentation.ModelCard.DisplayMode ==
-            InspectionModelCardMode.Detailed
-                ? Element<Border>(model, "DetailedView")
-                : Element<Border>(model, "CompactView");
-        AssertBrushColor("InspectionSurfaceBrush", modelSurface.Background);
-        AssertBrushColor("InspectionBorderMutedBrush", modelSurface.BorderBrush);
+        if (presentation.ModelCard.DisplayMode == InspectionModelCardMode.Detailed)
+        {
+            foreach (string surfaceName in new[]
+                     {
+                         "ModelOverviewSurface",
+                         "ModelConfigurationSurface",
+                         "ModelResultSummarySurface"
+                     })
+            {
+                Border modelSurface = Element<Border>(model, surfaceName);
+                AssertBrushColor("InspectionSurfaceBrush", modelSurface.Background);
+                AssertBrushColor("InspectionBorderMutedBrush", modelSurface.BorderBrush);
+            }
+        }
+        else
+        {
+            Border modelSurface = Element<Border>(model, "CompactView");
+            AssertBrushColor("InspectionSurfaceBrush", modelSurface.Background);
+            AssertBrushColor("InspectionBorderMutedBrush", modelSurface.BorderBrush);
+        }
 
         if (presentation.ContentCard.Mode != InspectionContentCardMode.Hidden)
         {
@@ -2030,26 +2174,41 @@ public sealed class ModelInspectionRenderedStateTests
         }
     }
 
-    private static void AssertBalancedOutcome(
+    private static void AssertCompactOutcome(
         InspectionOutcomeCard outcome,
         Border banner,
         string state)
     {
         Grid layout = Element<Grid>(outcome, "OutcomeLayoutGrid");
-        Assert.AreEqual(
-            layout.ColumnDefinitions[0].ActualWidth,
-            layout.ColumnDefinitions[2].ActualWidth,
-            1d,
-            $"{state} outcome balance");
+        Assert.AreEqual(2, layout.ColumnDefinitions.Count,
+            $"{state} inline outcome columns");
+        Assert.AreEqual(20d, layout.ColumnDefinitions[0].ActualWidth, 0.01d,
+            $"{state} inline outcome glyph column");
+        InspectionStatusGlyph glyph = Element<InspectionStatusGlyph>(
+            outcome,
+            "OutcomeIcon");
+        Assert.AreEqual(22d, glyph.SurfaceSize, 0.01d,
+            $"{state} approved glyph dependency-property surface");
+        Border iconContainer = Element<Border>(outcome, "OutcomeIconContainer");
+        Viewbox glyphHost = Descendants(iconContainer)
+            .OfType<Viewbox>()
+            .Single(viewbox =>
+                Math.Abs(viewbox.Width - 20d) < 0.01d &&
+                Math.Abs(viewbox.Height - 20d) < 0.01d);
+        Assert.AreEqual(20d, glyphHost.ActualWidth, 0.01d,
+            $"{state} visible outcome glyph width");
+        Assert.AreEqual(20d, glyphHost.ActualHeight, 0.01d,
+            $"{state} visible outcome glyph height");
+        double? leftEdge = null;
         foreach (string name in new[] { "OutcomeTitle", "OutcomeMessage" })
         {
             TextBlock text = Element<TextBlock>(outcome, name);
             Point origin = text.TransformToVisual(banner).TransformPoint(new Point());
-            Assert.AreEqual(
-                banner.ActualWidth / 2d,
-                origin.X + (text.ActualWidth / 2d),
-                1d,
-                $"{state} {name} centre");
+            Assert.AreEqual(TextAlignment.Left, text.TextAlignment,
+                $"{state} {name} alignment");
+            leftEdge ??= origin.X;
+            Assert.AreEqual(leftEdge.Value, origin.X, 1d,
+                $"{state} {name} left edge");
         }
     }
 

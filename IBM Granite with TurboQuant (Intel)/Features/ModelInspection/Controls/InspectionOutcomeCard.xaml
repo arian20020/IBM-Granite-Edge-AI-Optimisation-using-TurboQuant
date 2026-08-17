@@ -19,7 +19,7 @@
             <Setter Property="FontSize" Value="{ThemeResource InspectionBodyFontSize}" />
             <Setter Property="FontWeight" Value="{StaticResource InspectionStrongBodyFontWeight}" />
             <Setter Property="Foreground" Value="{ThemeResource InspectionTextPrimaryBrush}" />
-            <Setter Property="TextAlignment" Value="Center" />
+            <Setter Property="TextAlignment" Value="Left" />
             <Setter Property="TextWrapping" Value="WrapWholeWords" />
         </Style>
         <Style
@@ -29,7 +29,7 @@
             <Setter Property="FontSize" Value="{ThemeResource InspectionHelperFontSize}" />
             <Setter Property="FontWeight" Value="{StaticResource InspectionHelperFontWeight}" />
             <Setter Property="Foreground" Value="{ThemeResource InspectionTextSecondaryBrush}" />
-            <Setter Property="TextAlignment" Value="Center" />
+            <Setter Property="TextAlignment" Value="Left" />
             <Setter Property="TextWrapping" Value="WrapWholeWords" />
         </Style>
     </UserControl.Resources>
@@ -43,38 +43,45 @@
         Visibility="{x:Bind CardVisibility, Mode=OneWay}">
         <Border
             x:Name="OutcomeCardBorder"
-            Padding="{StaticResource InspectionCardPadding}"
+            Padding="18,17"
             HorizontalAlignment="Stretch"
             BorderThickness="1"
             CornerRadius="{StaticResource InspectionCardCornerRadius}">
-            <Grid x:Name="OutcomeLayoutGrid" ColumnSpacing="16">
+            <Grid x:Name="OutcomeLayoutGrid" ColumnSpacing="12">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="40" />
+                    <ColumnDefinition Width="20" />
                     <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="40" />
                 </Grid.ColumnDefinitions>
 
                 <Border
                     x:Name="OutcomeIconContainer"
                     Grid.Column="0"
-                    Width="40"
-                    Height="40"
+                    Width="20"
+                    Height="20"
                     VerticalAlignment="Center"
                     AutomationProperties.AccessibilityView="Raw"
-                    BorderThickness="1"
-                    CornerRadius="{StaticResource InspectionCardCornerRadius}">
-                    <local:InspectionStatusGlyph
-                        x:Name="OutcomeIcon"
+                    BorderThickness="0"
+                    CornerRadius="10">
+                    <Viewbox
+                        Width="20"
+                        Height="20"
                         HorizontalAlignment="Center"
                         VerticalAlignment="Center"
-                        Kind="{x:Bind Presentation.GlyphKind, Mode=OneWay}"
-                        SurfaceSize="40" />
+                        Stretch="Uniform"
+                        StretchDirection="DownOnly">
+                        <local:InspectionStatusGlyph
+                            x:Name="OutcomeIcon"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Kind="{x:Bind Presentation.GlyphKind, Mode=OneWay}"
+                            SurfaceSize="22" />
+                    </Viewbox>
                 </Border>
 
                 <Grid Grid.Column="1">
                     <Grid
                         x:Name="OutcomeCopyPanel"
-                        HorizontalAlignment="Center"
+                        HorizontalAlignment="Stretch"
                         VerticalAlignment="Center"
                         RowSpacing="4">
                         <Grid.RowDefinitions>
@@ -83,14 +90,14 @@
                         </Grid.RowDefinitions>
                         <TextBlock
                             x:Name="OutcomeTitle"
-                            HorizontalAlignment="Center"
+                            HorizontalAlignment="Stretch"
                             d:Text="Ready for hardware check"
                             Style="{StaticResource InspectionOutcomeTitleStyle}"
                             Text="{x:Bind Presentation.Title, Mode=OneWay}" />
                         <TextBlock
                             x:Name="OutcomeMessage"
                             Grid.Row="1"
-                            HorizontalAlignment="Center"
+                            HorizontalAlignment="Stretch"
                             d:Text="The package, tokenizer, model structure and selected runtime all passed inspection."
                             Style="{StaticResource InspectionOutcomeMessageStyle}"
                             Text="{x:Bind Presentation.Message, Mode=OneWay}" />

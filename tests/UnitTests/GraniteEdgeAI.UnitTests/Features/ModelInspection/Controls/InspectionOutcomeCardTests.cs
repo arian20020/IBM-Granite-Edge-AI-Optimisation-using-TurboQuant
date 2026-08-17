@@ -45,35 +45,42 @@ public sealed class InspectionOutcomeCardTests
 
             Grid layout = Find<Grid>(control, "OutcomeLayoutGrid");
             ColumnDefinition leading = layout.ColumnDefinitions[0];
-            ColumnDefinition trailing = layout.ColumnDefinitions[2];
             ContentControl focus = Find<ContentControl>(control, "OutcomeFocusTarget");
             Point titleOrigin = title.TransformToVisual(card).TransformPoint(new Point());
             Point messageOrigin = message.TransformToVisual(card).TransformPoint(new Point());
 
             Assert.AreEqual(0d, card.MinHeight, 0.01, "the banner must size naturally");
-            Assert.AreEqual(leading.ActualWidth, trailing.ActualWidth, 0.01,
-                "the copy must be balanced by equal outer columns");
+            Assert.AreEqual(2, layout.ColumnDefinitions.Count,
+                "the compact outcome is one inline glyph plus left-aligned copy");
+            Assert.AreEqual(20d, leading.ActualWidth, 0.01,
+                "inline outcome glyph column");
             Assert.AreEqual(HorizontalAlignment.Stretch, focus.HorizontalContentAlignment);
             Assert.AreEqual(
-                card.ActualWidth / 2d,
-                titleOrigin.X + (title.ActualWidth / 2d),
+                messageOrigin.X,
+                titleOrigin.X,
                 1d,
-                "title centre");
-            Assert.AreEqual(
-                card.ActualWidth / 2d,
-                messageOrigin.X + (message.ActualWidth / 2d),
-                1d,
-                "message centre");
-            Assert.AreEqual(40d, iconContainer.ActualWidth, 0.01, "status icon width");
-            Assert.AreEqual(40d, iconContainer.ActualHeight, 0.01, "status icon height");
-            Assert.AreEqual(40d, glyph.SurfaceSize, 0.01, "glyph surface");
+                "outcome title and message share one left edge");
+            Assert.AreEqual(TextAlignment.Left, title.TextAlignment, "title alignment");
+            Assert.AreEqual(TextAlignment.Left, message.TextAlignment, "message alignment");
+            Assert.AreEqual(HorizontalAlignment.Stretch, title.HorizontalAlignment,
+                "title fills the copy column");
+            Assert.AreEqual(HorizontalAlignment.Stretch, message.HorizontalAlignment,
+                "message fills the copy column");
+            Assert.AreEqual(20d, iconContainer.ActualWidth, 0.01, "status icon width");
+            Assert.AreEqual(20d, iconContainer.ActualHeight, 0.01, "status icon height");
+            Assert.AreEqual(22d, glyph.SurfaceSize, 0.01,
+                "the approved dependency-property surface is uniformly scaled");
+            Viewbox glyphHost = VisibleGlyphHost(iconContainer);
+            Assert.AreEqual(20d, glyphHost.ActualWidth, 0.01, "visible glyph width");
+            Assert.AreEqual(20d, glyphHost.ActualHeight, 0.01, "visible glyph height");
             Assert.AreEqual(InspectionStatusGlyphKind.Success, glyph.Kind);
             Assert.AreEqual(
                 AccessibilityView.Raw,
                 AutomationProperties.GetAccessibilityView(glyph));
             Assert.AreEqual(12d, card.CornerRadius.TopLeft, 0.01, "shared card radius");
-            Assert.AreEqual(new Thickness(24d), card.Padding, "card padding");
-            Assert.AreEqual(16d, layout.ColumnSpacing, 0.01d, "outcome column spacing");
+            Assert.AreEqual(new Thickness(18d, 17d, 18d, 17d), card.Padding,
+                "compact outcome padding");
+            Assert.AreEqual(12d, layout.ColumnSpacing, 0.01d, "outcome column spacing");
             Assert.AreEqual(14d, title.FontSize, 0.01, "outcome title size");
             Assert.AreEqual(12d, message.FontSize, 0.01, "outcome helper size");
             Assert.AreSame(Resource("InspectionSuccessSurfaceBrush"), card.Background);
@@ -155,7 +162,12 @@ public sealed class InspectionOutcomeCardTests
             (InspectionStatusGlyphKind)glyphKindValue,
             glyph.Kind,
             tone.ToString());
-        Assert.AreEqual(40d, glyph.SurfaceSize, 0.01d, tone.ToString());
+        Assert.AreEqual(20d, iconContainer.Width, 0.01d, tone.ToString());
+        Assert.AreEqual(20d, iconContainer.Height, 0.01d, tone.ToString());
+        Assert.AreEqual(22d, glyph.SurfaceSize, 0.01d, tone.ToString());
+        Viewbox glyphHost = VisibleGlyphHost(iconContainer);
+        Assert.AreEqual(20d, glyphHost.Width, 0.01d, tone.ToString());
+        Assert.AreEqual(20d, glyphHost.Height, 0.01d, tone.ToString());
         Assert.AreEqual(
             AccessibilityView.Raw,
             AutomationProperties.GetAccessibilityView(glyph));
@@ -253,6 +265,13 @@ public sealed class InspectionOutcomeCardTests
 
     private static object Resource(string key) =>
         Application.Current.Resources[key];
+
+    private static Viewbox VisibleGlyphHost(DependencyObject root) =>
+        Descendants(root)
+            .OfType<Viewbox>()
+            .Single(viewbox =>
+                Math.Abs(viewbox.Width - 20d) < 0.01d &&
+                Math.Abs(viewbox.Height - 20d) < 0.01d);
 
     private static T Find<T>(FrameworkElement root, string name)
         where T : DependencyObject =>

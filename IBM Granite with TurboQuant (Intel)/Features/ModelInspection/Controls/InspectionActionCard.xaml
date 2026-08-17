@@ -56,44 +56,64 @@
 
         <StackPanel
             x:Name="InspectingView"
-            HorizontalAlignment="Center"
-            VerticalAlignment="Center"
-            Spacing="14"
+            HorizontalAlignment="Stretch"
             Visibility="Collapsed">
-            <Button
-                x:Name="CancelActionButton"
-                MinWidth="{x:Bind Presentation.CancelAction.MinimumWidth, Mode=OneWay}"
-                MinHeight="{StaticResource InspectionStandardButtonHeight}"
-                Padding="20,10"
-                HorizontalAlignment="Center"
-                HorizontalContentAlignment="Center"
-                VerticalContentAlignment="Center"
-                AutomationProperties.Name="{x:Bind Presentation.CancelAction.AutomationName, Mode=OneWay}"
-                Background="{ThemeResource InspectionSurfaceBrush}"
-                BorderBrush="{ThemeResource InspectionBorderControlBrush}"
+            <Border
+                x:Name="InspectingCardSurface"
+                Padding="{StaticResource InspectionCardPadding}"
+                HorizontalAlignment="Stretch"
+                Background="{ThemeResource InspectionSurfaceMutedBrush}"
+                BorderBrush="{ThemeResource InspectionBorderLightBrush}"
                 BorderThickness="1"
-                Command="{x:Bind Presentation.CancelAction.Command, Mode=OneWay}"
-                CommandParameter="{x:Bind Presentation.CancelAction.CommandParameter, Mode=OneWay}"
-                CornerRadius="12"
-                Foreground="{ThemeResource InspectionTextSecondaryStrongBrush}"
-                IsEnabled="{x:Bind Presentation.CancelAction.IsEnabled, Mode=OneWay}"
-                Tag="{x:Bind Presentation.CancelAction.ActionId, Mode=OneWay}"
-                TabIndex="0"
-                UseSystemFocusVisuals="True"
-                Visibility="{x:Bind Presentation.CancelAction.Visibility, Mode=OneWay}">
-                <TextBlock
-                    Style="{StaticResource InspectionActionButtonTextStyle}"
-                    Text="{x:Bind Presentation.CancelAction.Text, Mode=OneWay}" />
-            </Button>
-            <TextBlock
-                MaxWidth="520"
-                Style="{StaticResource InspectionActionMessageStyle}"
-                Text="{x:Bind Presentation.Message, Mode=OneWay}" />
+                CornerRadius="{StaticResource InspectionCardCornerRadius}">
+                <Grid
+                    x:Name="InspectingLayout"
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Center">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <TextBlock
+                        x:Name="InspectingMessage"
+                        MaxWidth="520"
+                        HorizontalAlignment="Center"
+                        Style="{StaticResource InspectionActionMessageStyle}"
+                        Text="{x:Bind Presentation.Message, Mode=OneWay}" />
+                    <Button
+                        x:Name="CancelActionButton"
+                        Grid.Row="1"
+                        MinWidth="{x:Bind Presentation.CancelAction.MinimumWidth, Mode=OneWay}"
+                        MinHeight="{StaticResource InspectionStandardButtonHeight}"
+                        Margin="0,12,0,0"
+                        Padding="20,10"
+                        HorizontalAlignment="Center"
+                        HorizontalContentAlignment="Center"
+                        VerticalContentAlignment="Center"
+                        AutomationProperties.Name="{x:Bind Presentation.CancelAction.AutomationName, Mode=OneWay}"
+                        Background="{ThemeResource InspectionSurfaceBrush}"
+                        BorderBrush="{ThemeResource InspectionBorderControlBrush}"
+                        BorderThickness="1"
+                        Command="{x:Bind Presentation.CancelAction.Command, Mode=OneWay}"
+                        CommandParameter="{x:Bind Presentation.CancelAction.CommandParameter, Mode=OneWay}"
+                        CornerRadius="12"
+                        Foreground="{ThemeResource InspectionTextSecondaryStrongBrush}"
+                        IsEnabled="{x:Bind Presentation.CancelAction.IsEnabled, Mode=OneWay}"
+                        Tag="{x:Bind Presentation.CancelAction.ActionId, Mode=OneWay}"
+                        TabIndex="0"
+                        UseSystemFocusVisuals="True"
+                        Visibility="{x:Bind Presentation.CancelAction.Visibility, Mode=OneWay}">
+                        <TextBlock
+                            Style="{StaticResource InspectionActionButtonTextStyle}"
+                            Text="{x:Bind Presentation.CancelAction.Text, Mode=OneWay}" />
+                    </Button>
+                </Grid>
+            </Border>
         </StackPanel>
 
         <Border
             x:Name="ResultView"
-            Padding="{StaticResource InspectionCardPadding}"
+            Padding="20,17"
             HorizontalAlignment="Stretch"
             Background="{ThemeResource InspectionSurfaceMutedBrush}"
             BorderBrush="{ThemeResource InspectionBorderLightBrush}"
@@ -119,7 +139,7 @@
                     x:Name="ResultButtonPanel"
                     Grid.Row="2"
                     MaxWidth="760"
-                    Margin="0,5,0,0"
+                    Margin="0,14,0,0"
                     HorizontalAlignment="Stretch"
                     ColumnSpacing="0"
                     RowSpacing="0">

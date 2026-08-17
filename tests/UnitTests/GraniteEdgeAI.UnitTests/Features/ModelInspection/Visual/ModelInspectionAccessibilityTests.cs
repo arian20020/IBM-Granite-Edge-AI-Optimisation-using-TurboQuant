@@ -133,7 +133,7 @@ public sealed class ModelInspectionAccessibilityTests
         Assert.AreEqual(Visibility.Visible, iconContainer.Visibility);
         Assert.AreEqual(Visibility.Visible, glyph.Visibility);
         Assert.AreEqual(InspectionStatusGlyphKind.Error, glyph.Kind);
-        Assert.AreEqual(40d, glyph.SurfaceSize, 0.01d);
+        Assert.AreEqual(22d, glyph.SurfaceSize, 0.01d);
         Assert.AreEqual(
             AccessibilityView.Raw,
             AutomationProperties.GetAccessibilityView(iconContainer));

@@ -450,10 +450,20 @@ public sealed class InspectionDisclosureTests
     public void Header_RestoresSemanticTopDivider()
     {
         var disclosure = CreateDisclosure();
+        var surface = (Border)disclosure.FindName("DisclosureCardSurface");
         var button = (Button)disclosure.FindName("DisclosureToggleButton");
+        var viewportHost = (Border)disclosure.FindName("DisclosureViewportHost");
+        var divider = (Border)disclosure.FindName("DisclosureDivider");
 
-        Assert.AreEqual(1d, button.BorderThickness.Top, 0.001);
-        Assert.IsNotNull(button.BorderBrush);
+        Assert.AreEqual(new Thickness(1d), surface.BorderThickness);
+        Assert.AreEqual(12d, surface.CornerRadius.TopLeft, 0.001d);
+        Assert.IsNotNull(surface.Background);
+        Assert.IsNotNull(surface.BorderBrush);
+        Assert.AreEqual(new Thickness(0d), button.BorderThickness);
+        Assert.AreEqual(new Thickness(0d), viewportHost.BorderThickness);
+        Assert.AreEqual(1d, divider.Height, 0.001d);
+        Assert.AreSame(surface.BorderBrush, divider.Background);
+        Assert.AreSame(VisualTreeHelper.GetParent(button), VisualTreeHelper.GetParent(viewportHost));
     }
 
     private static InspectionDisclosure CreateDisclosure() =>

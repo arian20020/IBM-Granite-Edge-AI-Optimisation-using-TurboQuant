@@ -338,11 +338,11 @@ public sealed class InspectionStatusGlyphTests
             await loaded.Task.WaitAsync(TimeSpan.FromSeconds(10));
             host.UpdateLayout();
 
-            AssertSurface(model, 22d, "Success");
-            AssertSurface(progress, 30d, "Waiting");
-            AssertSurface(disclosure, 30d, "Warning");
+            AssertSurface(model, 22d, "Success", visualSize: 20d);
+            AssertSurface(progress, 22d, "Waiting", visualSize: 20d);
+            AssertSurface(disclosure, 22d, "Warning", visualSize: 20d);
             AssertSurface(onboarding, 36d, "Success");
-            AssertSurface(outcome, 40d, "Success");
+            AssertSurface(outcome, 22d, "Success", visualSize: 20d);
 
             DependencyObject[] affected =
             [
@@ -619,7 +619,8 @@ public sealed class InspectionStatusGlyphTests
     private static void AssertSurface(
         DependencyObject root,
         double size,
-        string kindName)
+        string kindName,
+        double? visualSize = null)
     {
         InspectionStatusGlyph[] matches = Descendants(root)
             .OfType<InspectionStatusGlyph>()
@@ -631,6 +632,33 @@ public sealed class InspectionStatusGlyphTests
         Assert.IsNotEmpty(
             matches,
             $"Expected a {size}px {kindName} status glyph in {root.GetType().Name}.");
+        if (visualSize is double expectedVisualSize)
+        {
+            Assert.IsTrue(
+                matches.Any(glyph =>
+                    Ancestor<Viewbox>(glyph) is Viewbox host &&
+                    Math.Abs(host.ActualWidth - expectedVisualSize) < 0.01d &&
+                    Math.Abs(host.ActualHeight - expectedVisualSize) < 0.01d),
+                $"Expected a {expectedVisualSize}px visible {kindName} glyph footprint " +
+                $"in {root.GetType().Name}.");
+        }
+    }
+
+    private static T? Ancestor<T>(DependencyObject element)
+        where T : DependencyObject
+    {
+        DependencyObject? current = VisualTreeHelper.GetParent(element);
+        while (current is not null)
+        {
+            if (current is T match)
+            {
+                return match;
+            }
+
+            current = VisualTreeHelper.GetParent(current);
+        }
+
+        return null;
     }
 
     private static FrameworkElement KindRoot(

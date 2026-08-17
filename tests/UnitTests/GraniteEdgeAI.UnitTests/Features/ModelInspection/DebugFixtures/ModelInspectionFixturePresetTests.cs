@@ -861,47 +861,34 @@ public sealed class ModelInspectionFixturePresetTests
                 "InspectionOutcomeCardControl");
             var icon = (InspectionStatusGlyph)outcome.FindName("OutcomeIcon");
             var container = (Border)outcome.FindName("OutcomeIconContainer");
-            Assert.AreEqual(40d, container.ActualWidth, 1d,
+            Assert.AreEqual(20d, container.ActualWidth, 1d,
                 "OutcomeIconContainer width");
-            Assert.AreEqual(40d, container.ActualHeight, 1d,
+            Assert.AreEqual(20d, container.ActualHeight, 1d,
                 "OutcomeIconContainer height");
 
-            double originalMinWidth = icon.MinWidth;
-            double originalWidth = icon.Width;
-            double originalMaxWidth = icon.MaxWidth;
-            double originalMinHeight = icon.MinHeight;
-            double originalHeight = icon.Height;
-            double originalMaxHeight = icon.MaxHeight;
+            Transform originalTransform = icon.RenderTransform;
             try
             {
-                icon.MinWidth = 0d;
-                icon.MaxWidth = 80d;
-                icon.Width = 80d;
-                icon.MinHeight = 0d;
-                icon.MaxHeight = 80d;
-                icon.Height = 80d;
+                icon.RenderTransform = new TranslateTransform { X = 100d, Y = 100d };
                 ModelInspectionFixturePresetObservation overflow =
                     await host.ObservePresetForTestingAsync(
                         CancellationToken.None);
 
-                Assert.IsGreaterThanOrEqualTo(79d, icon.ActualWidth,
-                    "The glyph overflow mutation must realize its width.");
-                Assert.IsGreaterThanOrEqualTo(79d, icon.ActualHeight,
-                    "The glyph overflow mutation must realize its height.");
+                var translatedOrigin = icon.TransformToVisual(container)
+                    .TransformPoint(default);
+                Assert.IsGreaterThanOrEqualTo(80d, translatedOrigin.X,
+                    "The glyph overflow mutation must escape the semantic container horizontally.");
+                Assert.IsGreaterThanOrEqualTo(80d, translatedOrigin.Y,
+                    "The glyph overflow mutation must escape the semantic container vertically.");
                 Assert.IsFalse(overflow.NoClipping,
-                    "A semantic icon outside its 40x40 container must be observed.");
+                    "A semantic icon outside its 20x20 container must be observed.");
                 StringAssert.Contains(
                     overflow.NoClippingDiagnostic,
                     "OutcomeIcon");
             }
             finally
             {
-                icon.MinWidth = originalMinWidth;
-                icon.MaxWidth = originalMaxWidth;
-                icon.Width = originalWidth;
-                icon.MinHeight = originalMinHeight;
-                icon.MaxHeight = originalMaxHeight;
-                icon.Height = originalHeight;
+                icon.RenderTransform = originalTransform;
             }
         }
         finally
@@ -1267,7 +1254,7 @@ public sealed class ModelInspectionFixturePresetTests
                 packageRow.RenderTransformOrigin = default;
                 packageRow.RenderTransform = new TranslateTransform
                 {
-                    X = -2d - baselineRowBounds.X
+                    X = -4d - baselineRowBounds.X
                 };
                 await WaitForLoadedTreeBoundariesAsync(page);
 
@@ -1288,7 +1275,7 @@ public sealed class ModelInspectionFixturePresetTests
                 Assert.IsTrue(packageRow.IsLoaded);
                 Assert.IsGreaterThan(1d, packageRow.ActualWidth);
                 Assert.IsGreaterThan(1d, packageRow.ActualHeight);
-                Assert.AreEqual(-2d, rowBounds.X, 1d,
+                Assert.AreEqual(-4d, rowBounds.X, 1d,
                     "The XAML transform must realize the intended leading " +
                     "edge in scroll-content coordinates.");
                 Assert.IsTrue(rowBounds.X < -1d,
