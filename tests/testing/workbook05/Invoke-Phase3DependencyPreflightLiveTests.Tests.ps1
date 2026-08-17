@@ -45,7 +45,119 @@ function Assert-FalseClaims {
     }
 }
 
+function Get-DependencyLiveFunctionAst {
+    param([Parameter(Mandatory = $true)][string]$Name)
+
+    # Parse the production script as code without executing its top-level live
+    # orchestration. This lets the repository test exercise one pure helper and
+    # inspect its caller while preserving the no-network/no-install boundary.
+    $tokens = $null
+    $parseErrors = $null
+    $scriptAst = [Management.Automation.Language.Parser]::ParseFile(
+        $ScriptPath,
+        [ref]$tokens,
+        [ref]$parseErrors
+    )
+    if ($parseErrors.Count -ne 0) {
+        throw (
+            'Dependency-preflight live script has parser errors: ' +
+            (($parseErrors | ForEach-Object { $_.Message }) -join '; ')
+        )
+    }
+
+    $functionAst = $scriptAst.Find(
+        {
+            param($node)
+            return (
+                $node -is [Management.Automation.Language.FunctionDefinitionAst] -and
+                $node.Name -eq $Name
+            )
+        },
+        $true
+    )
+    if ($null -eq $functionAst) {
+        throw "Dependency-preflight live script is missing function: $Name"
+    }
+    return $functionAst
+}
+
+function Assert-SourceCsvSerializationContract {
+    # Load only the pure CSV helper from the production script. The helper must
+    # produce the exact three-column, LF-terminated format consumed by the
+    # independent Python validator.
+    $converterAst = Get-DependencyLiveFunctionAst `
+        -Name 'ConvertTo-PreflightSourceCsv'
+    . ([scriptblock]::Create($converterAst.Extent.Text))
+
+    # The live source collector must add real custom objects. An ordered
+    # dictionary is a collection type and ConvertTo-Csv would serialize its own
+    # dictionary members rather than the intended source-evidence fields.
+    $sourceFunctionAst = Get-DependencyLiveFunctionAst `
+        -Name 'Write-PreflightSourceIdentity'
+    $sourceFunctionText = $sourceFunctionAst.Extent.Text
+    if (
+        -not $sourceFunctionText.Contains(
+            '$Rows.Add([pscustomobject][ordered]@{'
+        )
+    ) {
+        throw 'Live source CSV rows are not explicit PSCustomObject records.'
+    }
+    if (
+        -not $sourceFunctionText.Contains(
+            'ConvertTo-PreflightSourceCsv -Rows @($Rows)'
+        )
+    ) {
+        throw 'Live source evidence does not call the tested CSV helper.'
+    }
+
+    $rows = [System.Collections.Generic.List[object]]::new()
+    $rows.Add([pscustomobject][ordered]@{
+        relative_path = 'README.md'
+        size_bytes = [int64]12
+        sha256 = ('a' * 64)
+    })
+    $rows.Add([pscustomobject][ordered]@{
+        relative_path = 'src/module.py'
+        size_bytes = [int64]34
+        sha256 = ('b' * 64)
+    })
+
+    [string]$csv = ConvertTo-PreflightSourceCsv -Rows @($rows)
+    $expectedHeader = '"relative_path","size_bytes","sha256"'
+    $firstLine = ($csv -split "`n")[0]
+    if ($firstLine -ne $expectedHeader) {
+        throw "Source CSV header drifted: $firstLine"
+    }
+    if (-not $csv.EndsWith("`n") -or $csv.EndsWith("`n`n")) {
+        throw 'Source CSV must end with exactly one LF.'
+    }
+    if (
+        $csv -match (
+            '(?i)OrderedDictionary|DictionaryEntry|IsReadOnly|' +
+            'IsFixedSize|SyncRoot'
+        )
+    ) {
+        throw 'Source CSV exposed dictionary implementation members.'
+    }
+
+    $roundTrip = @($csv | ConvertFrom-Csv)
+    if ($roundTrip.Count -ne 2) {
+        throw "Source CSV round-trip row count drifted: $($roundTrip.Count)"
+    }
+    if (
+        $roundTrip[0].relative_path -ne 'README.md' -or
+        $roundTrip[0].size_bytes -ne '12' -or
+        $roundTrip[0].sha256 -ne ('a' * 64)
+    ) {
+        throw 'Source CSV round-trip changed the first source record.'
+    }
+}
+
 try {
+    if ($FocusedArea -in @('all', 'workspace-source')) {
+        Assert-SourceCsvSerializationContract
+    }
+
     if ($FocusedArea -in @('all', 'workspace-source', 'bootstrap-lock', 'install-checks', 'finalisation')) {
         & $ScriptPath `
             -RepositoryRoot $RepositoryRoot `
