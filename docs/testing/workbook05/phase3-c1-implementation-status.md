@@ -7,6 +7,19 @@
 **Dependency-preflight pull request:** `#72`  
 **Status:** Dependency-preflight repository implementation complete; live dependency and C1 acceptance remain pending
 
+## Current checkpoint states
+
+- Dependency-preflight repository implementation: **Complete**
+- Exact-head repository verification: **In progress on PR `#72`**
+- Live dependency-preflight acceptance: **Pending**
+- Live C1 asset locking: **Blocked**
+
+`Complete` here refers only to the repository implementation boundary: code,
+closed schemas, deterministic fixtures, tests, workflow controls, independent
+validation, and operator guidance. The exact-head checks still have to pass before
+PR `#72` is approved or merged. It does not mean that a live dependency
+environment or C1 asset has been accepted.
+
 ## Meaning of this status
 
 Three different statements must remain separate:
@@ -58,7 +71,7 @@ PR `#72` implements these twelve repository boundaries:
 | 3. Data-only Optimum and Optimum Intel source contracts | Implemented and tested | Exact sources must still be acquired and hashed live |
 | 4. No-model compatibility check | Implemented and tested without model, network, or conversion access | Must pass in the final live environment |
 | 5. Controlled dependency command evidence | Implemented without weakening Runtime or GenAI defaults | No live command evidence accepted |
-| 6. Fresh workspace and immutable source verification | Implemented with deterministic simulations | No `C:\w5c` attempt accepted |
+| 6. Fresh workspace and immutable source verification | Implemented with deterministic simulations | No `C:\\w5c` attempt accepted |
 | 7. Separate bootstrap environment and target lock generation | Implemented and tested | No target lock accepted from the Lenovo |
 | 8. Untouched final environment and six ordered checks | Implemented and tested | No final conversion environment accepted |
 | 9. Atomic success/failure evidence and manifest-last rule | Implemented and tested | No live evidence bundle exists |
@@ -66,11 +79,8 @@ PR `#72` implements these twelve repository boundaries:
 | 11. Hosted → Lenovo → hosted workflow | Implemented with read-only permissions and fixed inputs | Manual `main` dispatch not yet accepted |
 | 12. Operator guidance and repository closure | Implemented | Independent hashing and owner acceptance remain pending |
 
-The dedicated operator instructions are in:
-
-```text
-docs/testing/workbook05/phase3-dependency-preflight-runbook.md
-```
+The dedicated operator instructions are in
+[`phase3-dependency-preflight-runbook.md`](phase3-dependency-preflight-runbook.md).
 
 ## Current permitted operations
 
