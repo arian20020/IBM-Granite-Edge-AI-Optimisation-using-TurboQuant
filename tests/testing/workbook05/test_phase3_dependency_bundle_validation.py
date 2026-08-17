@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import json
 import tempfile
 import unittest
@@ -142,7 +141,10 @@ class Phase3DependencyBundleValidationTests(unittest.TestCase):
         self._write_json(source_path, source)
         csv_path = self.bundle / "sources" / "optimum.csv"
         csv_path.write_text(
-            csv_path.read_text(encoding="utf-8") + "setup.py,1," + "a" * 64 + "\n",
+            csv_path.read_text(encoding="utf-8")
+            + "setup.py,1,"
+            + "a" * 64
+            + "\n",
             encoding="utf-8",
             newline="\n",
         )
@@ -212,18 +214,34 @@ class Phase3DependencyBundleValidationTests(unittest.TestCase):
             self._codes(validate_dependency_bundle(self.bundle, REPOSITORY_ROOT)),
         )
 
-    def test_secret_binary_added_member_and_case_collision_are_rejected(self) -> None:
+    def test_secret_binary_and_manifest_case_collision_are_rejected(self) -> None:
         (self.bundle / "summary.md").write_text(
             "HF_TOKEN=secret\n",
             encoding="utf-8",
         )
         (self.bundle / "payload.WHL").write_bytes(b"forbidden")
-        (self.bundle / "Checks.json").write_text("{}\n", encoding="utf-8")
         self._refresh_manifest()
+
+        # A Windows directory cannot contain both checks.json and Checks.json.
+        # Mutate the untrusted manifest directly so the validator must still
+        # reject a case-colliding second spelling before resolving the path.
+        manifest = self.bundle / "manifest.sha256"
+        checks_digest = next(
+            line.split("  ", maxsplit=1)[0]
+            for line in manifest.read_text(encoding="utf-8").splitlines()
+            if line.endswith("  checks.json")
+        )
+        manifest.write_text(
+            manifest.read_text(encoding="utf-8")
+            + f"{checks_digest}  Checks.json\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+
         codes = self._codes(validate_dependency_bundle(self.bundle, REPOSITORY_ROOT))
         self.assertIn("SECRET_PATTERN", codes)
         self.assertIn("FORBIDDEN_PAYLOAD", codes)
-        self.assertIn("CASE_COLLIDING_PATH", codes)
+        self.assertIn("HASH_MISMATCH", codes)
 
 
 if __name__ == "__main__":
