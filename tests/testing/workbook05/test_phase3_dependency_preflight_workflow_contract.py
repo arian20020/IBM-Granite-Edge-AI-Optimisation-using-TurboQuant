@@ -258,6 +258,7 @@ class Phase3DependencyPreflightWorkflowContractTests(unittest.TestCase):
     def test_c1_status_records_repository_completion_and_live_pending_state(self) -> None:
         for token in (
             "Dependency-preflight repository implementation: **Complete**",
+            "Exact-head repository verification: **Blocked by GitHub billing/spending restriction**",
             "Live dependency-preflight acceptance: **Pending**",
             "Live C1 asset locking: **Blocked**",
             "phase3-dependency-preflight-runbook.md",
