@@ -176,7 +176,12 @@ class Phase3DependencyLiveScriptContractTests(unittest.TestCase):
             self.test_harness.index(normalisation),
             self.test_harness.index(pass_marker),
         )
-        self.assertNotIn("exit 0", self.test_harness)
+        # Comments may explain why `exit 0` is unsafe. Reject only a real
+        # executable statement on its own PowerShell line.
+        self.assertNotRegex(
+            self.test_harness,
+            r"(?m)^\s*exit\s+0(?:\s*;)?\s*$",
+        )
         self.assertNotIn("$global:LASTEXITCODE = 0", self.test_harness)
 
     def test_live_builder_requires_the_adopted_bootstrap_versions(self) -> None:
