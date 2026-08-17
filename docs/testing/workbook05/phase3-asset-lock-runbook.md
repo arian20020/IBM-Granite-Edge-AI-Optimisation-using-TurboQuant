@@ -10,15 +10,10 @@ tokenizer files, conversion environment, conversion command, and converted
 OpenVINO files. It does **not** execute the model and does not prove that
 TurboQuant, scalar cache quantisation, or any other KV-cache codec ran.
 
-The complete clean dependency-preflight procedure is maintained separately in:
-
-```text
-docs/testing/workbook05/phase3-dependency-preflight-runbook.md
-```
-
-Use that document for dependency-machine preparation, dispatch, evidence review,
-independent hashing, and owner acceptance. Do not replace it with an improvised
-local package-install sequence.
+Follow the [clean dependency-preflight runbook](phase3-dependency-preflight-runbook.md)
+for dependency-machine preparation, dispatch, evidence review, independent
+hashing, and owner acceptance. Do not replace that controlled procedure with an
+improvised local package-install sequence.
 
 ## Current implementation boundary
 
@@ -207,9 +202,10 @@ workbook-05-phase3-assets-<workflow-run>-<attempt>
 
 ## Clean dependency preflight gate
 
-The controlling instructions are in
-`phase3-dependency-preflight-runbook.md`. After PR `#72` is approved and merged,
-and after a fresh `main` application regression passes, dispatch exactly:
+The controlling instructions are in the
+[clean dependency-preflight runbook](phase3-dependency-preflight-runbook.md).
+After PR `#72` is approved and merged, and after a fresh `main` application
+regression passes, dispatch exactly:
 
 ```text
 Actions
