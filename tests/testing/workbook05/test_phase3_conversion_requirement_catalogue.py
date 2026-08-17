@@ -3,6 +3,7 @@ from __future__ import annotations
 import unittest
 
 from scripts.testing.workbook05.phase3 import conversion
+from scripts.testing.workbook05.phase3 import dependency_source_contract
 
 
 _EXPECTED_OPTIMUM_CONSTRAINTS: tuple[str, ...] = (
@@ -35,13 +36,23 @@ class ConversionRequirementCatalogueTests(unittest.TestCase):
     def test_conversion_exports_exact_optimum_source_constraints(self) -> None:
         self.assertEqual(
             _EXPECTED_OPTIMUM_CONSTRAINTS,
-            getattr(conversion, "REVIEWED_OPTIMUM_CONSTRAINTS", None),
+            conversion.REVIEWED_OPTIMUM_CONSTRAINTS,
         )
 
     def test_conversion_exports_complete_normal_requirement_input(self) -> None:
         self.assertEqual(
             _EXPECTED_NORMAL_REQUIREMENT_INPUT,
-            getattr(conversion, "REVIEWED_NORMAL_REQUIREMENT_INPUT", None),
+            conversion.REVIEWED_NORMAL_REQUIREMENT_INPUT,
+        )
+
+    def test_source_inspection_reuses_conversion_catalogue_objects(self) -> None:
+        self.assertIs(
+            conversion.REVIEWED_OPTIMUM_CONSTRAINTS,
+            dependency_source_contract.REVIEWED_OPTIMUM_CONSTRAINTS,
+        )
+        self.assertIs(
+            conversion.REVIEWED_NORMAL_REQUIREMENT_INPUT,
+            dependency_source_contract.REVIEWED_NORMAL_REQUIREMENT_INPUT,
         )
 
 
