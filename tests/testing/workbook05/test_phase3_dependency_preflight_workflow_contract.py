@@ -19,6 +19,27 @@ LIVE_SCRIPT_PATH = (
     / "workbook05"
     / "Invoke-Workbook05Phase3DependencyPreflightLive.ps1"
 )
+DEPENDENCY_RUNBOOK_PATH = (
+    REPOSITORY_ROOT
+    / "docs"
+    / "testing"
+    / "workbook05"
+    / "phase3-dependency-preflight-runbook.md"
+)
+C1_STATUS_PATH = (
+    REPOSITORY_ROOT
+    / "docs"
+    / "testing"
+    / "workbook05"
+    / "phase3-c1-implementation-status.md"
+)
+ASSET_LOCK_RUNBOOK_PATH = (
+    REPOSITORY_ROOT
+    / "docs"
+    / "testing"
+    / "workbook05"
+    / "phase3-asset-lock-runbook.md"
+)
 
 
 class Phase3DependencyPreflightWorkflowContractTests(unittest.TestCase):
@@ -28,6 +49,13 @@ class Phase3DependencyPreflightWorkflowContractTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.workflow = WORKFLOW_PATH.read_text(encoding="utf-8")
         cls.live_script = LIVE_SCRIPT_PATH.read_text(encoding="utf-8")
+        cls.dependency_runbook = DEPENDENCY_RUNBOOK_PATH.read_text(
+            encoding="utf-8"
+        )
+        cls.c1_status = C1_STATUS_PATH.read_text(encoding="utf-8")
+        cls.asset_lock_runbook = ASSET_LOCK_RUNBOOK_PATH.read_text(
+            encoding="utf-8"
+        )
 
     def _job(self, start: str, end: str | None = None) -> str:
         section = self.workflow.split(f"  {start}:", maxsplit=1)[1]
@@ -216,6 +244,41 @@ class Phase3DependencyPreflightWorkflowContractTests(unittest.TestCase):
             "quality_claim_authorised = $false",
         ):
             self.assertIn(token, self.live_script)
+
+    def test_operator_runbook_keeps_live_asset_lock_separate(self) -> None:
+        for token in (
+            "confirm_live_dependency_preflight",
+            "workbook-05-phase3-dependency-preflight-<run-id>-<attempt>",
+            "Do not enable `live-asset-lock` from a green workflow screen alone.",
+            "all model and scientific authorisation flags as `false`",
+        ):
+            with self.subTest(token=token):
+                self.assertIn(token, self.dependency_runbook)
+
+    def test_c1_status_records_repository_completion_and_live_pending_state(self) -> None:
+        for token in (
+            "Dependency-preflight repository implementation: **Complete**",
+            "Live dependency-preflight acceptance: **Pending**",
+            "Live C1 asset locking: **Blocked**",
+            "phase3-dependency-preflight-runbook.md",
+            "PR `#72`",
+        ):
+            with self.subTest(token=token):
+                self.assertIn(token, self.c1_status)
+
+    def test_asset_lock_runbook_cross_links_preflight_without_opening_live_gate(self) -> None:
+        self.assertIn(
+            "[clean dependency-preflight runbook](phase3-dependency-preflight-runbook.md)",
+            self.asset_lock_runbook,
+        )
+        self.assertIn(
+            "`offline-fixture` is the only permitted operation",
+            self.asset_lock_runbook,
+        )
+        self.assertIn(
+            "fails closed if `live-asset-lock` is selected",
+            self.asset_lock_runbook,
+        )
 
 
 if __name__ == "__main__":
