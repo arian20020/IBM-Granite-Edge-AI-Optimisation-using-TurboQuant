@@ -90,7 +90,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     inventory_path = arguments.output.parent / "reports" / "normal-packages.json"
 
     # Check both final locations before publishing either record. If the second
-    # write fails unexpectedly, remove only the decision created by this call so
+    # write fails unexpectedly, remove only the inventory created by this call so
     # an incomplete evidence pair cannot be mistaken for a completed boundary.
     if arguments.output.exists() or arguments.output.with_name(
         arguments.output.name + ".tmp"
