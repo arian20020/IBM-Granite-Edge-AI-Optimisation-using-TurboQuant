@@ -22,30 +22,45 @@ class Phase3DependencyNoModelCheckTests(unittest.TestCase):
         self.temporary_directory = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary_directory.cleanup)
         self.root = Path(self.temporary_directory.name)
-        self.environment_root = self.root / "environment"
+
+        # The real conversion request admits only a final environment beneath
+        # C:\w5c. This is a lexical test value; the check never probes it.
+        self.environment_root = Path(
+            r"C:\w5c\dependency-preflight-fixture\environment"
+        )
         self.optimum_root = self.root / "sources" / "optimum"
         self.optimum_intel_root = self.root / "sources" / "optimum-intel"
 
     @staticmethod
     def _source_report() -> dict[str, object]:
         return {
+            "schema_version": "1.0",
+            "record_type": "dependency-source-contract",
+            "status": "Passed",
             "source_metadata_execution": False,
-            "contracts": {
+            "sources": {
                 "optimum": {
                     "name": "optimum",
                     "base_version": "2.3.0",
-                    "source_commit": conversion.OPTIMUM_COMMIT,
+                    "reviewed_commit": conversion.OPTIMUM_COMMIT,
                 },
                 "optimum-intel": {
                     "name": "optimum-intel",
                     "base_version": "2.2.0.dev0",
-                    "source_commit": conversion.OPTIMUM_INTEL_COMMIT,
+                    "reviewed_commit": conversion.OPTIMUM_INTEL_COMMIT,
                 },
             },
         }
 
-    def _versions(self) -> dict[str, str]:
-        values = dict(conversion.EXPECTED_NORMAL_PACKAGES)
+    @staticmethod
+    def _versions() -> dict[str, str]:
+        # Derive exact ordinary pins from the same production catalogue used by
+        # the checker instead of maintaining a second copied package table.
+        values = {
+            requirement.split("==", 1)[0]: requirement.split("==", 1)[1]
+            for requirement in conversion.REVIEWED_NORMAL_REQUIREMENT_INPUT
+            if "==" in requirement
+        }
         values.update(
             {
                 "optimum": "2.3.0",
@@ -55,7 +70,7 @@ class Phase3DependencyNoModelCheckTests(unittest.TestCase):
         return values
 
     def _module(self, name: str) -> SimpleNamespace:
-        relative = name.replace(".", "/") + "/__init__.py"
+        relative = name.replace(".", "\\") + r"\__init__.py"
         return SimpleNamespace(
             __file__=str(
                 self.environment_root / "Lib" / "site-packages" / relative
@@ -158,9 +173,7 @@ class Phase3DependencyNoModelCheckTests(unittest.TestCase):
         self.assertEqual("Passed", result["status"])
 
     def test_import_outside_supplied_environment_is_rejected(self) -> None:
-        escaped_module = SimpleNamespace(
-            __file__=str(self.root / "outside" / "module.py")
-        )
+        escaped_module = SimpleNamespace(__file__=r"C:\outside\module.py")
         with (
             patch(
                 "scripts.testing.workbook05.phase3.dependency_no_model_check.validate_reviewed_source_contracts",
