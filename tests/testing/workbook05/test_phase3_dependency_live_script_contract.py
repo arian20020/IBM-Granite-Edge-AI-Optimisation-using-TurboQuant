@@ -13,6 +13,10 @@ DECISION_PATH = (
     REPOSITORY_ROOT
     / "scripts/testing/workbook05/phase3/dependency_decision.py"
 )
+TEST_HARNESS_PATH = (
+    REPOSITORY_ROOT
+    / "tests/testing/workbook05/Invoke-Phase3DependencyPreflightLiveTests.Tests.ps1"
+)
 
 
 class Phase3DependencyLiveScriptContractTests(unittest.TestCase):
@@ -22,6 +26,7 @@ class Phase3DependencyLiveScriptContractTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.script = SCRIPT_PATH.read_text(encoding="utf-8")
         cls.decision = DECISION_PATH.read_text(encoding="utf-8")
+        cls.test_harness = TEST_HARNESS_PATH.read_text(encoding="utf-8")
 
     def test_exact_stage_order_and_workspace_identity_are_fixed(self) -> None:
         expected = (
@@ -151,6 +156,28 @@ class Phase3DependencyLiveScriptContractTests(unittest.TestCase):
         self.assertIn("[string]$SimulationRoot", self.script)
         self.assertIn("SimulationMode is a repository-test seam only", self.script)
         self.assertIn("dependency_preflight_fixture", self.script)
+
+    def test_successful_simulation_harness_normalises_expected_native_failure(self) -> None:
+        normalisation = "& $PythonPath -c 'raise SystemExit(0)'"
+        pass_marker = (
+            "Write-Host 'Workbook 05 Phase 3 dependency-preflight live "
+            "simulations passed.'"
+        )
+        failure_loop = "foreach ($classification in @("
+
+        self.assertIn(normalisation, self.test_harness)
+        self.assertIn(pass_marker, self.test_harness)
+        self.assertIn(failure_loop, self.test_harness)
+        self.assertLess(
+            self.test_harness.index(failure_loop),
+            self.test_harness.index(normalisation),
+        )
+        self.assertLess(
+            self.test_harness.index(normalisation),
+            self.test_harness.index(pass_marker),
+        )
+        self.assertNotIn("exit 0", self.test_harness)
+        self.assertNotIn("$global:LASTEXITCODE = 0", self.test_harness)
 
     def test_live_builder_requires_the_adopted_bootstrap_versions(self) -> None:
         self.assertIn('"pip-tools": "7.6.0"', self.decision)
