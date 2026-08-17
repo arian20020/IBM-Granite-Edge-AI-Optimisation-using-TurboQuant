@@ -20,6 +20,44 @@ function Write-Wb05ControlledUtf8Text {
     [IO.File]::WriteAllText($Path, $Text, $encoding)
 }
 
+function Write-Wb05ControlledJsonEvidence {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path,
+
+        [Parameter(Mandatory = $true)]
+        [object]$Value,
+
+        [switch]$Atomic
+    )
+
+    if (-not $Atomic) {
+        Write-Wb05Json -Path $Path -Value $Value
+        return
+    }
+
+    $temporaryPath = "$Path.tmp"
+    if (Test-Path -LiteralPath $Path) {
+        throw "Final controlled JSON evidence already exists: $Path"
+    }
+    if (Test-Path -LiteralPath $temporaryPath) {
+        throw "Temporary controlled JSON evidence already exists: $temporaryPath"
+    }
+
+    $temporaryCreated = $false
+    try {
+        Write-Wb05Json -Path $temporaryPath -Value $Value
+        $temporaryCreated = $true
+        [IO.File]::Move($temporaryPath, $Path)
+    }
+    catch {
+        if ($temporaryCreated -and (Test-Path -LiteralPath $temporaryPath)) {
+            Remove-Item -LiteralPath $temporaryPath -Force
+        }
+        throw
+    }
+}
+
 function ConvertTo-Wb05ControlledArgument {
     param(
         [Parameter(Mandatory = $true)]
@@ -139,7 +177,7 @@ function Invoke-Wb05ControlledLoggedProcess {
         [string]$RouteId,
 
         [Parameter(Mandatory = $true)]
-        [ValidateSet('runtime', 'genai')]
+        [ValidateSet('runtime', 'genai', 'dependency-preflight')]
         [string]$Component,
 
         [Parameter(Mandatory = $true)]
@@ -162,6 +200,11 @@ function Invoke-Wb05ControlledLoggedProcess {
         [int]$MaximumElapsedSeconds,
 
         [hashtable]$EnvironmentAllowlist = @{},
+
+        [ValidateSet('log', 'txt')]
+        [string]$LogFileExtension = 'log',
+
+        [switch]$AtomicJsonEvidence,
 
         [ValidateRange(1, 60)]
         [int]$SampleIntervalSeconds = 2,
@@ -186,8 +229,8 @@ function Invoke-Wb05ControlledLoggedProcess {
     }
 
     $safeId = $CommandId -replace '[^A-Za-z0-9._-]', '-'
-    $stdoutPath = Join-Path $EvidenceDirectory "$safeId.stdout.log"
-    $stderrPath = Join-Path $EvidenceDirectory "$safeId.stderr.log"
+    $stdoutPath = Join-Path $EvidenceDirectory "$safeId.stdout.$LogFileExtension"
+    $stderrPath = Join-Path $EvidenceDirectory "$safeId.stderr.$LogFileExtension"
     $recordPath = Join-Path $EvidenceDirectory "$safeId.command.json"
     $resourceCsvPath = Join-Path $EvidenceDirectory "$safeId.resources.csv"
     $resourceSummaryPath = Join-Path $EvidenceDirectory "$safeId.resources.json"
@@ -404,9 +447,10 @@ function Invoke-Wb05ControlledLoggedProcess {
         safety_stop_triggered = $safetyStopTriggered
         safety_stop_reason = $safetyStopReason
     }
-    Write-Wb05Json `
+    Write-Wb05ControlledJsonEvidence `
         -Path $resourceSummaryPath `
-        -Value $resourceSummary
+        -Value $resourceSummary `
+        -Atomic:$AtomicJsonEvidence
 
     $environment = [ordered]@{}
     foreach ($name in $EnvironmentAllowlist.Keys) {
@@ -438,7 +482,10 @@ function Invoke-Wb05ControlledLoggedProcess {
             -Root $EvidenceRoot `
             -Path $stderrPath
     }
-    Write-Wb05Json -Path $recordPath -Value $record
+    Write-Wb05ControlledJsonEvidence `
+        -Path $recordPath `
+        -Value $record `
+        -Atomic:$AtomicJsonEvidence
 
     return [pscustomobject]@{
         record = [pscustomobject]$record
