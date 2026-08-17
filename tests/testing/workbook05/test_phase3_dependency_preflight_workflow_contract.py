@@ -255,17 +255,22 @@ class Phase3DependencyPreflightWorkflowContractTests(unittest.TestCase):
             with self.subTest(token=token):
                 self.assertIn(token, self.dependency_runbook)
 
-    def test_c1_status_records_implemented_changes_and_blocked_closure(self) -> None:
+    def test_c1_status_delegates_task12_closure_to_exact_head_pr_evidence(self) -> None:
         for token in (
             "Dependency-preflight Tasks 1–12 changes: **Implemented**",
-            "Exact-head repository verification and Task 12 closure: **Blocked by GitHub billing/spending restriction**",
+            "Exact-head repository verification and Task 12 closure: **Controlled by PR `#72` exact-head evidence**",
             "Live dependency-preflight acceptance: **Pending**",
             "Live C1 asset locking: **Blocked**",
+            "Task 12 closure is determined exclusively by the exact-head evidence recorded in PR `#72`.",
             "phase3-dependency-preflight-runbook.md",
             "PR `#72`",
         ):
             with self.subTest(token=token):
                 self.assertIn(token, self.c1_status)
+        self.assertNotIn(
+            "billing/spending restriction",
+            self.c1_status.casefold(),
+        )
 
     def test_asset_lock_runbook_cross_links_preflight_without_opening_live_gate(self) -> None:
         self.assertIn(

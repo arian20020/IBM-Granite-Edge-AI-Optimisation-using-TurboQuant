@@ -5,23 +5,24 @@
 **Package:** C1 — immutable model and conversion assets  
 **C1 control pull request:** `#69`  
 **Dependency-preflight pull request:** `#72`  
-**Status:** Tasks 1–12 repository changes implemented; exact-head verification and Task 12 closure blocked by GitHub billing/spending restriction; live dependency and C1 acceptance remain pending
+**Status:** Tasks 1–12 repository changes implemented; exact-head verification and Task 12 closure are controlled by PR `#72` evidence; live dependency and C1 acceptance remain pending
 
 ## Current checkpoint states
 
 - Dependency-preflight Tasks 1–12 changes: **Implemented**
-- Exact-head repository verification and Task 12 closure: **Blocked by GitHub billing/spending restriction**
+- Exact-head repository verification and Task 12 closure: **Controlled by PR `#72` exact-head evidence**
 - Live dependency-preflight acceptance: **Pending**
 - Live C1 asset locking: **Blocked**
 
 `Implemented` means that the proposed code, closed schemas, deterministic
 fixtures, tests, workflow controls, independent validator, and operator guidance
-are present on the pull-request branch. It does not mean that Task 12 is closed or
-that the branch has passed the required exact-head gates. GitHub is currently
-refusing those hosted jobs because of the account billing/spending restriction, so
-PR `#72` remains Draft and must not be approved or merged yet. Once that
-infrastructure blocker is corrected, every required workflow must be rerun against
-the new exact head. No live dependency environment or C1 asset has been accepted.
+are present on the pull-request branch. It does not by itself mean that Task 12 is
+closed or that the branch has passed the required exact-head gates.
+
+Task 12 closure is determined exclusively by the exact-head evidence recorded in PR `#72`.
+Any change to the pull-request head invalidates an earlier exact-head result until
+every required gate has passed again. No live dependency environment or C1 asset
+has been accepted.
 
 ## Meaning of this status
 
@@ -38,11 +39,12 @@ Three different statements must remain separate:
    project owner accepts the same identities.
 
 PR `#72` contains the repository implementation candidate for the clean Windows
-conversion-dependency preflight. That does not mean the dependency environment
-has already passed on the Lenovo. Task 12 closure requires the blocked exact-head
-checks to pass first. Live acceptance remains pending until the later post-merge
-manual workflow, hosted validation, independent rehash, retained workspace check,
-and project-owner acceptance all succeed.
+conversion-dependency preflight. Task 12 may be reported as closed only when the
+required gates, independent application-artifact hash, and parsed TRX result for
+the exact final pull-request head are recorded there. That does not mean the
+dependency environment has already passed on the Lenovo. Live acceptance remains
+pending until the later post-merge manual workflow, hosted validation, independent
+rehash, retained workspace check, and project-owner acceptance all succeed.
 
 No model, conversion, codec, storage, performance, or quality result is claimed
 by this document.
@@ -62,7 +64,7 @@ by this document.
 | 9. Untrusted asset-bundle validation | Implemented with adversarial fixtures | No live asset bundle exists |
 | 10. Phase 3 repository gate and workflow boundaries | Hosted PR gate plus manual-main offline fixture workflow implemented | Only `offline-fixture` is currently permitted |
 | 11. Operator runbook and non-claim documentation | Implemented and cross-linked to the dependency runbook | Must be followed after merge |
-| 12. Package verification and PR preparation | Blocked pending exact-head checks | Post-merge dependency proof, C1 rehearsal, and owner acceptance remain pending |
+| 12. Package verification and PR preparation | Implementation complete; closure state governed by exact-head evidence in PR `#72` | Post-merge dependency proof, C1 rehearsal, and owner acceptance remain pending |
 
 ## Dependency-preflight repository ledger
 
@@ -81,7 +83,7 @@ PR `#72` implements these twelve repository boundaries as a verification candida
 | 9. Atomic success/failure evidence and manifest-last rule | Implemented with deterministic simulations | No live evidence bundle exists |
 | 10. Complete independent untrusted-data validator | Implemented with adversarial tests | No live artifact validated |
 | 11. Hosted → Lenovo → hosted workflow | Implemented with read-only permissions and fixed inputs | Manual `main` dispatch not yet accepted |
-| 12. Operator guidance and repository closure | Guidance implemented; closure blocked pending exact-head verification | Independent hashing and owner acceptance remain pending |
+| 12. Operator guidance and repository closure | Guidance and closure controls implemented; verification result recorded in PR `#72` | Independent hashing and owner acceptance remain pending |
 
 The dedicated operator instructions are in
 [`phase3-dependency-preflight-runbook.md`](phase3-dependency-preflight-runbook.md).
