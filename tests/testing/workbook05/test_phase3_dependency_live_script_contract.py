@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 import unittest
 from pathlib import Path
 
@@ -10,9 +9,9 @@ SCRIPT_PATH = (
     REPOSITORY_ROOT
     / "scripts/testing/workbook05/Invoke-Workbook05Phase3DependencyPreflightLive.ps1"
 )
-DEPENDENCY_LOCK_PATH = (
+DECISION_PATH = (
     REPOSITORY_ROOT
-    / "scripts/testing/workbook05/phase3/dependency_lock.py"
+    / "scripts/testing/workbook05/phase3/dependency_decision.py"
 )
 
 
@@ -22,7 +21,7 @@ class Phase3DependencyLiveScriptContractTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.script = SCRIPT_PATH.read_text(encoding="utf-8")
-        cls.dependency_lock = DEPENDENCY_LOCK_PATH.read_text(encoding="utf-8")
+        cls.decision = DECISION_PATH.read_text(encoding="utf-8")
 
     def test_exact_stage_order_and_workspace_identity_are_fixed(self) -> None:
         expected = (
@@ -151,10 +150,11 @@ class Phase3DependencyLiveScriptContractTests(unittest.TestCase):
         self.assertIn("SimulationMode is a repository-test seam only", self.script)
         self.assertIn("dependency_preflight_fixture", self.script)
 
-    def test_bootstrap_builder_requires_the_adopted_versions(self) -> None:
-        self.assertIn('{"pip-tools": "7.6.0", "pip": "26.1.2"}', self.dependency_lock)
-        self.assertNotIn('pip_tools.version != "7.5.0"', self.dependency_lock)
-        self.assertNotIn('pip-tools==7.5.0', self.dependency_lock)
+    def test_live_builder_requires_the_adopted_bootstrap_versions(self) -> None:
+        self.assertIn('"pip-tools": "7.6.0"', self.decision)
+        self.assertIn('"pip": "26.1.2"', self.decision)
+        self.assertIn('LIVE_LOCK_GENERATOR = "pip-tools==7.6.0"', self.decision)
+        self.assertNotIn('pip-tools==7.5.0', self.decision)
 
 
 if __name__ == "__main__":
