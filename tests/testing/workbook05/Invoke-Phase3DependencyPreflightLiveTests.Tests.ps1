@@ -321,6 +321,11 @@ try {
         }
     }
 
+    # The three negative simulations intentionally make Python return 1. Once
+    # every exception and failure record has been asserted, clear only that
+    # expected native exit code so the enclosing repository gate receives the
+    # test script's real result rather than the last fixture process result.
+    $global:LASTEXITCODE = 0
     Write-Host 'Workbook 05 Phase 3 dependency-preflight live simulations passed.'
 }
 finally {
