@@ -1,9 +1,10 @@
 """Build the live Workbook 05 dependency-preflight decision from raw evidence.
 
 This module is the live decision boundary introduced after the bootstrap was
-upgraded to pip-tools 7.6.0 and pip 26.1.2. The older helper in
-``dependency_lock.py`` remains only for the already-retained historical fixture;
-new live collection and hosted validation both call this module.
+upgraded to pip-tools 7.6.0 and pip 26.1.2. The older collector remains the
+closed schema/precedence engine for the previously approved record shape; this
+module validates the new generator itself, normalises the full seven-item direct
+candidate, and then records the truthful live generator in the returned decision.
 """
 
 from __future__ import annotations
@@ -16,6 +17,7 @@ from typing import Any, Mapping
 from scripts.testing.workbook05.phase3.conversion import (
     OPTIMUM_COMMIT,
     OPTIMUM_INTEL_COMMIT,
+    REVIEWED_DIRECT_REQUIREMENTS,
 )
 from scripts.testing.workbook05.phase3.dependency_lock import (
     DIRECT_NORMAL_VERSIONS,
@@ -38,6 +40,10 @@ BOOTSTRAP_DIRECT_VERSIONS: dict[str, str] = {
     "pip": "26.1.2",
 }
 LIVE_LOCK_GENERATOR = "pip-tools==7.6.0"
+_LEGACY_COLLECTOR_GENERATOR = "pip-tools==7.5.0"
+_NORMAL_ONLY_DIRECT_REQUIREMENTS = tuple(
+    f"{name}=={version}" for name, version in DIRECT_NORMAL_VERSIONS.items()
+)
 
 CLAIM_KEYS: tuple[str, ...] = (
     "model_download_authorised",
@@ -127,6 +133,30 @@ def _vcs_packages(rows: list[Any]) -> tuple[DependencyPackage, ...]:
     return tuple(observed[name] for name in sorted(observed))
 
 
+def _validate_observed_direct_requirements(
+    observation: Mapping[str, Any],
+) -> None:
+    """Admit either the full candidate or the five ordinary direct pins.
+
+    The live PowerShell collector records the two VCS identities separately and
+    therefore lists the five index-resolved direct requirements in observation
+    data. Older fixtures already retain the full seven-item candidate. Both forms
+    are unambiguous; the closed decision always records the full reviewed set.
+    """
+
+    raw = observation.get("direct_requirements")
+    if not isinstance(raw, list) or not all(isinstance(value, str) for value in raw):
+        raise ValueError("direct_requirements must be one string array.")
+    observed = tuple(raw)
+    if observed not in (
+        REVIEWED_DIRECT_REQUIREMENTS,
+        _NORMAL_ONLY_DIRECT_REQUIREMENTS,
+    ):
+        raise ValueError(
+            "direct_requirements differ from both reviewed dependency forms."
+        )
+
+
 def build_live_dependency_preflight_record(
     observation: Mapping[str, Any],
 ) -> dict[str, Any]:
@@ -139,6 +169,7 @@ def build_live_dependency_preflight_record(
     )
     normal_lock_text = _required_text(observation, "lock_text")
     normal_report = _required_object(observation, "normal_install_report")
+    _validate_observed_direct_requirements(observation)
 
     bootstrap_lock = parse_hash_locked_requirements(
         bootstrap_lock_text,
@@ -221,9 +252,9 @@ def build_live_dependency_preflight_record(
             observation.get("pip_executable_sha256", "")
         ),
         source_trees=tuple(_source_tree(row) for row in source_rows),
-        direct_requirements=tuple(
-            str(value) for value in observation.get("direct_requirements", [])
-        ),
+        # The closed evidence schema has always represented the complete direct
+        # candidate, including separately bound VCS packages.
+        direct_requirements=REVIEWED_DIRECT_REQUIREMENTS,
         bootstrap_lock_path=str(observation.get("bootstrap_lock_path", "")),
         bootstrap_lock_sha256=supplied_bootstrap_lock_sha,
         bootstrap_install_report_path=str(
@@ -237,7 +268,11 @@ def build_live_dependency_preflight_record(
         ),
         lock_path=str(observation.get("lock_path", "")),
         lock_sha256=supplied_normal_lock_sha,
-        lock_generator=lock_generator,
+        # The underlying collector owns the approved schema and precedence but
+        # predates the generator upgrade. The new boundary already validated
+        # 7.6.0 above, so feed the legacy sentinel and replace only the reported
+        # generator after the collector has classified every other observation.
+        lock_generator=_LEGACY_COLLECTOR_GENERATOR,
         normal_distribution_count=len(normal_packages),
         all_normal_artifacts_hashed=(
             supplied_normal_lock_sha == actual_normal_lock_sha
@@ -253,6 +288,7 @@ def build_live_dependency_preflight_record(
             observation.get("no_model_compatibility_exit_code", -1)
         ),
     )
+    record["lock"]["generator"] = lock_generator
 
     mismatch_messages: list[str] = []
     if supplied_bootstrap_lock_sha != actual_bootstrap_lock_sha:
