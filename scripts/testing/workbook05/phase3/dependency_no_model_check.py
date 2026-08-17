@@ -106,14 +106,28 @@ def _is_reviewed_optimum_intel_version(value: str) -> bool:
 def _pure_windows_child(root: Path, candidate_text: str, *, label: str) -> str:
     """Validate Windows containment lexically without probing the filesystem."""
 
-    root_path = PureWindowsPath(str(root))
+    root_text = str(root)
+    lowered_root = root_text.casefold()
+    lowered_candidate = candidate_text.casefold()
+    if root_text.startswith("\\\\") or lowered_root.startswith(("\\\\?\\", "\\\\.\\")):
+        raise NoModelCheckError(
+            f"The supplied environment root must not be a UNC or device path: {root}"
+        )
+    if candidate_text.startswith("\\\\") or lowered_candidate.startswith(
+        ("\\\\?\\", "\\\\.\\")
+    ):
+        raise NoModelCheckError(f"{label} must not be a UNC or device path: {candidate_text}")
+
+    root_path = PureWindowsPath(root_text)
     candidate = PureWindowsPath(candidate_text)
     if not root_path.is_absolute() or not root_path.drive:
         raise NoModelCheckError(
             f"The supplied environment root must be an absolute Windows path: {root}"
         )
     if not candidate.is_absolute() or not candidate.drive:
-        raise NoModelCheckError(f"{label} is not an absolute Windows path: {candidate_text}")
+        raise NoModelCheckError(
+            f"{label} is not an absolute Windows path: {candidate_text}"
+        )
     if root_path.drive.casefold() != candidate.drive.casefold():
         raise NoModelCheckError(
             f"{label} is outside the supplied environment: {candidate_text}"
@@ -218,25 +232,23 @@ def _validate_source_report(report: Mapping[str, Any]) -> dict[str, Any]:
         raise NoModelCheckError(
             "The reviewed source contracts were not validated through the data-only path."
         )
-    contracts = report.get("contracts")
-    if not isinstance(contracts, Mapping):
-        raise NoModelCheckError("The source-contract report has no contract mapping.")
+    sources = report.get("sources")
+    if not isinstance(sources, Mapping):
+        raise NoModelCheckError("The source-contract report has no source mapping.")
 
     expected = {
         "optimum": ("2.3.0", OPTIMUM_COMMIT),
         "optimum-intel": ("2.2.0.dev0", OPTIMUM_INTEL_COMMIT),
     }
     for name, (version, commit) in expected.items():
-        contract = contracts.get(name)
+        contract = sources.get(name)
         if not isinstance(contract, Mapping):
             raise NoModelCheckError(f"The source-contract report is missing {name}.")
         if contract.get("name") != name:
             raise NoModelCheckError(f"The {name} source contract changed package name.")
         if contract.get("base_version") != version:
             raise NoModelCheckError(f"The {name} source contract changed version.")
-        # Live source reports include the commit. Focused fixtures may inject it
-        # explicitly; a different or missing identity fails closed.
-        if contract.get("source_commit") != commit:
+        if contract.get("reviewed_commit") != commit:
             raise NoModelCheckError(f"The {name} source contract changed commit.")
     return dict(report)
 
@@ -311,18 +323,23 @@ def write_no_model_check(path: Path, payload: Mapping[str, Any]) -> None:
         raise FileExistsError(f"Temporary no-model record already exists: {temporary}")
 
     text = json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+    temporary_created = False
     try:
         # Exclusive creation prevents another process from replacing a record
         # between the checks above and the write.
         with temporary.open("x", encoding="utf-8", newline="\n") as stream:
+            temporary_created = True
             stream.write(text)
             stream.flush()
             os.fsync(stream.fileno())
-        os.replace(temporary, path)
+
+        # On the target Windows host os.rename refuses to replace a final path
+        # created concurrently, preserving the no-overwrite evidence boundary.
+        os.rename(temporary, path)
     except Exception:
         # Remove only the temporary file created by this function. Existing final
-        # evidence is never deleted or rewritten.
-        if temporary.exists():
+        # evidence and a temporary file owned by another process are untouched.
+        if temporary_created and temporary.exists():
             temporary.unlink()
         raise
 
