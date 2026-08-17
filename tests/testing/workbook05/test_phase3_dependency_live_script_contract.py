@@ -73,8 +73,8 @@ class Phase3DependencyLiveScriptContractTests(unittest.TestCase):
 
     def test_two_environments_hash_locks_and_local_source_installs_are_explicit(self) -> None:
         required = (
-            "workspace\\bootstrap-venv",
-            "workspace\\environment",
+            "$BootstrapEnvironment = Join-Path $WorkspaceRoot 'bootstrap-venv'",
+            "$FinalEnvironment = Join-Path $WorkspaceRoot 'environment'",
             "requirements.phase3-bootstrap.txt",
             "--require-hashes",
             "--report",
