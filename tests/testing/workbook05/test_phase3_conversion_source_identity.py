@@ -74,6 +74,28 @@ class ConversionSourceIdentityRegressionTests(unittest.TestCase):
             optimum_intel["source_identity"],
         )
 
+    def test_matching_git_derived_version_suffix_is_accepted(self) -> None:
+        prefix = OPTIMUM_INTEL_COMMIT[:12]
+        records = _package_records(
+            _packages(optimum_intel_version=f"2.2.0.dev0+{prefix}")
+        )
+
+        optimum_intel = next(
+            record
+            for record in records
+            if record["name"] == "optimum-intel"
+        )
+        self.assertEqual(
+            f"2.2.0.dev0+{prefix}",
+            optimum_intel["version"],
+        )
+
+    def test_unrelated_git_derived_version_suffix_is_rejected(self) -> None:
+        with self.assertRaisesRegex(ValueError, "reviewed version"):
+            _package_records(
+                _packages(optimum_intel_version="2.2.0.dev0+deadbee")
+            )
+
     def test_superseded_optimum_intel_version_is_rejected(self) -> None:
         with self.assertRaisesRegex(ValueError, "reviewed version"):
             _package_records(
