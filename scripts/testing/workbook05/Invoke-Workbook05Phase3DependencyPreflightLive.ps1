@@ -363,6 +363,26 @@ function Read-PreflightStdout {
     ).Trim()
 }
 
+function ConvertTo-PreflightSourceCsv {
+    [CmdletBinding()]
+    param(
+        # Source rows are explicit PSCustomObject records with the three fields
+        # consumed by the independent Python bundle validator.
+        [Parameter(Mandatory = $true)][object[]]$Rows
+    )
+
+    if ($Rows.Count -eq 0) {
+        throw 'Source CSV requires at least one row.'
+    }
+
+    # ConvertTo-Csv returns one string per row. Join those strings explicitly
+    # with LF, then append exactly one final LF so the artifact is deterministic
+    # across Windows PowerShell versions and contains no ambiguous + / -join
+    # operator ordering.
+    $CsvLines = @($Rows | ConvertTo-Csv -NoTypeInformation)
+    return (($CsvLines -join "`n") + "`n")
+}
+
 function Write-PreflightSourceIdentity {
     [CmdletBinding()]
     param(
@@ -394,7 +414,11 @@ function Write-PreflightSourceIdentity {
             throw "Tracked source member is linked for ${Name}: $Relative"
         }
         $Digest = Get-PreflightSha256 -Path $Candidate
-        $Rows.Add([ordered]@{
+
+        # PSCustomObject exposes only the intended source-evidence properties to
+        # ConvertTo-Csv. A raw ordered dictionary would serialize dictionary
+        # implementation members instead of these three columns.
+        $Rows.Add([pscustomobject][ordered]@{
             relative_path = $Relative.Replace('\', '/')
             size_bytes = [int64]$Item.Length
             sha256 = $Digest
@@ -419,9 +443,10 @@ function Write-PreflightSourceIdentity {
     }
 
     $CsvPath = Join-Path $SourceEvidenceDirectory "$Name.csv"
+    $CsvText = ConvertTo-PreflightSourceCsv -Rows @($Rows)
     Write-PreflightUtf8Text `
         -Path $CsvPath `
-        -Text ((@($Rows) | ConvertTo-Csv -NoTypeInformation) -join "`n" + "`n")
+        -Text $CsvText
     $Record = [ordered]@{
         name = $Name
         repository = $Repository
