@@ -12,38 +12,14 @@ from typing import Final
 from scripts.testing.workbook05.phase3.conversion import (
     OPTIMUM_COMMIT,
     OPTIMUM_INTEL_COMMIT,
+    REVIEWED_NORMAL_REQUIREMENT_INPUT,
+    REVIEWED_OPTIMUM_CONSTRAINTS,
     REVIEWED_OPTIMUM_INTEL_CONSTRAINTS,
 )
 
 
-# Task 3 freezes the second source contract and the complete ordinary-lock
-# input here first. These constants are also exported from conversion.py at
-# the Task 3 closure boundary so acquisition and conversion share one source.
-REVIEWED_OPTIMUM_CONSTRAINTS: Final[tuple[str, ...]] = (
-    "transformers>=4.29",
-    "torch>=1.11",
-    "packaging",
-    "numpy",
-    "huggingface_hub>=0.8.0",
-)
-
-REVIEWED_NORMAL_REQUIREMENT_INPUT: Final[tuple[str, ...]] = (
-    "transformers==5.5.0",
-    "huggingface-hub==1.21.0",
-    "nncf==3.2.0",
-    "openvino==2026.2.1",
-    "openvino-tokenizers==2026.2.1.0",
-    "torch>=2.1",
-    "safetensors<0.8.0",
-    "setuptools",
-    "requests>=2.33,<3.0",
-    "packaging",
-    "numpy",
-    "wheel",
-)
-
-# Both reviewed source trees expose the same console command. Keeping this
-# value explicit makes an entry-point change a reviewable contract change.
+# Both reviewed source trees expose this exact command. Keeping the entry point
+# explicit makes a packaging-interface change a separately reviewable decision.
 _REVIEWED_ENTRY_POINTS: Final[tuple[str, ...]] = (
     "optimum-cli=optimum.commands.optimum_cli:main",
 )
@@ -62,7 +38,7 @@ class SourcePackageContract:
 
 @dataclass(frozen=True, slots=True)
 class _SourceLayout:
-    """The exact metadata locations and declarations reviewed for one package."""
+    """Exact metadata locations and expected values for one reviewed package."""
 
     requirement_assignment: str
     version_path: tuple[str, ...]
@@ -88,8 +64,8 @@ _SOURCE_LAYOUTS: Final[dict[str, _SourceLayout]] = {
     ),
 }
 
-# Each row states how one exact reviewed source requirement is satisfied by
-# the final ordinary input or by the independently pinned Optimum VCS source.
+# Each row explains how one exact source requirement is met by either the
+# ordinary resolver input or the separately verified Optimum VCS source.
 _REQUIREMENT_COVERAGE: Final[tuple[tuple[str, str, str, str], ...]] = (
     (
         "optimum",
@@ -162,7 +138,7 @@ _REQUIREMENT_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*")
 
 
 def _is_link_like(path: Path) -> bool:
-    """Reject symbolic links and Windows junctions when the API is available."""
+    """Return whether a path is a symbolic link or Windows junction."""
 
     if path.is_symlink():
         return True
@@ -171,7 +147,7 @@ def _is_link_like(path: Path) -> bool:
 
 
 def _normal_source_root(root: Path) -> Path:
-    """Return a real source directory without following a link-like root."""
+    """Resolve one normal local source directory without following a link root."""
 
     if _is_link_like(root) or not root.is_dir():
         raise ValueError(f"Source root must be one normal directory: {root}")
@@ -183,7 +159,7 @@ def _normal_source_file(
     resolved_root: Path,
     relative_parts: tuple[str, ...],
 ) -> Path:
-    """Resolve one required regular file while keeping it inside the source root."""
+    """Resolve a required regular file while retaining source-root containment."""
 
     candidate = root.joinpath(*relative_parts)
     current = root
@@ -196,6 +172,7 @@ def _normal_source_file(
             )
     if not candidate.is_file():
         raise ValueError(f"Required source metadata file is missing: {candidate}")
+
     resolved_candidate = candidate.resolve(strict=True)
     try:
         resolved_candidate.relative_to(resolved_root)
@@ -219,7 +196,7 @@ def _parse_python(path: Path) -> ast.Module:
 
 
 def _single_assignment(module: ast.Module, name: str) -> ast.expr:
-    """Return the value of one exact top-level assignment."""
+    """Return the value from exactly one top-level assignment."""
 
     values: list[ast.expr] = []
     for statement in module.body:
@@ -234,6 +211,7 @@ def _single_assignment(module: ast.Module, name: str) -> ast.expr:
             and statement.value is not None
         ):
             values.append(statement.value)
+
     if len(values) != 1:
         raise ValueError(
             f"Source metadata must declare exactly one top-level {name} assignment."
@@ -241,16 +219,18 @@ def _single_assignment(module: ast.Module, name: str) -> ast.expr:
     return values[0]
 
 
-def _literal_string_sequence(
-    expression: ast.expr,
-    label: str,
-) -> tuple[str, ...]:
-    """Require one literal, duplicate-free list or tuple of exact strings."""
+def _literal_value(expression: ast.expr, label: str) -> object:
+    """Evaluate only Python literals and turn every dynamic form into a failure."""
 
     try:
-        value = ast.literal_eval(expression)
+        return ast.literal_eval(expression)
     except (ValueError, TypeError) as error:
-        raise ValueError(f"{label} must be one literal list or tuple.") from error
+        raise ValueError(f"{label} must be expressed entirely as literals.") from error
+
+
+def _string_sequence(value: object, label: str) -> tuple[str, ...]:
+    """Validate one duplicate-free list or tuple of exact non-empty strings."""
+
     if not isinstance(value, (list, tuple)):
         raise ValueError(f"{label} must be one literal list or tuple.")
 
@@ -270,18 +250,25 @@ def _literal_string_sequence(
             raise ValueError(f"{label} contains a duplicate value: {item}")
         seen.add(key)
         result.append(item)
+
     if not result:
         raise ValueError(f"{label} must not be empty.")
     return tuple(result)
 
 
-def _literal_string(expression: ast.expr, label: str) -> str:
-    """Require one non-empty string literal."""
+def _literal_string_sequence(
+    expression: ast.expr,
+    label: str,
+) -> tuple[str, ...]:
+    """Read and validate one literal sequence of strings."""
 
-    try:
-        value = ast.literal_eval(expression)
-    except (ValueError, TypeError) as error:
-        raise ValueError(f"{label} must be one string literal.") from error
+    return _string_sequence(_literal_value(expression, label), label)
+
+
+def _literal_string(expression: ast.expr, label: str) -> str:
+    """Read one non-empty string literal."""
+
+    value = _literal_value(expression, label)
     if not isinstance(value, str) or not value or value != value.strip():
         raise ValueError(f"{label} must be one non-empty string literal.")
     return value
@@ -312,21 +299,15 @@ def _setup_keywords(module: ast.Module) -> dict[str, ast.expr]:
 
 
 def _entry_points(expression: ast.expr) -> tuple[str, ...]:
-    """Read the literal console-script catalogue from setup metadata."""
+    """Read the exact literal console-script catalogue from setup metadata."""
 
-    try:
-        value = ast.literal_eval(expression)
-    except (ValueError, TypeError) as error:
-        raise ValueError("The console entry point metadata must be literal.") from error
+    value = _literal_value(expression, "Console entry point metadata")
     if not isinstance(value, dict) or set(value) != {"console_scripts"}:
         raise ValueError(
             "The console entry point metadata must contain only console_scripts."
         )
-    scripts = value["console_scripts"]
-    if not isinstance(scripts, (list, tuple)):
-        raise ValueError("The console entry point catalogue must be a list or tuple.")
-    return _literal_string_sequence(
-        ast.Constant(value=list(scripts)),
+    return _string_sequence(
+        value["console_scripts"],
         "console entry point catalogue",
     )
 
@@ -361,9 +342,10 @@ def _canonical_requirement_name(requirement: str) -> str:
     return re.sub(r"[-_.]+", "-", match.group(0)).casefold()
 
 
-def _reject_duplicate_requirement_names(requirements: tuple[str, ...]) -> None:
-    """Prevent two strings from silently controlling the same distribution."""
+def _validated_normal_requirement_input() -> tuple[str, ...]:
+    """Return the canonical catalogue after duplicate and VCS-package checks."""
 
+    requirements = tuple(REVIEWED_NORMAL_REQUIREMENT_INPUT)
     seen: set[str] = set()
     for requirement in requirements:
         name = _canonical_requirement_name(requirement)
@@ -373,6 +355,13 @@ def _reject_duplicate_requirement_names(requirements: tuple[str, ...]) -> None:
                 f"{name}"
             )
         seen.add(name)
+
+    forbidden = {"optimum", "optimum-intel"}
+    if forbidden & seen:
+        raise ValueError(
+            "VCS packages must remain outside the ordinary requirement input."
+        )
+    return requirements
 
 
 def inspect_source_contract(name: str, root: Path) -> SourcePackageContract:
@@ -413,6 +402,7 @@ def inspect_source_contract(name: str, root: Path) -> SourcePackageContract:
         raise ValueError(
             f"Source package name does not match {name}: {observed_name}"
         )
+
     version_expression = keywords["version"]
     if (
         not isinstance(version_expression, ast.Name)
@@ -421,6 +411,7 @@ def inspect_source_contract(name: str, root: Path) -> SourcePackageContract:
         raise ValueError(
             "setup(...) version must reference the reviewed __version__ value."
         )
+
     requirements_expression = keywords["install_requires"]
     if (
         not isinstance(requirements_expression, ast.Name)
@@ -436,6 +427,7 @@ def inspect_source_contract(name: str, root: Path) -> SourcePackageContract:
         raise ValueError(
             "The reviewed source pyproject.toml must not declare [build-system]."
         )
+
     return SourcePackageContract(
         name=name,
         base_version=_version_from_file(version_path),
@@ -448,18 +440,7 @@ def inspect_source_contract(name: str, root: Path) -> SourcePackageContract:
 def build_reviewed_normal_requirement_input() -> tuple[str, ...]:
     """Return the exact ordinary-distribution input approved for resolution."""
 
-    requirements = tuple(REVIEWED_NORMAL_REQUIREMENT_INPUT)
-    _reject_duplicate_requirement_names(requirements)
-    forbidden = {"optimum", "optimum-intel"}
-    observed = {
-        _canonical_requirement_name(requirement)
-        for requirement in requirements
-    }
-    if forbidden & observed:
-        raise ValueError(
-            "VCS packages must remain outside the ordinary requirement input."
-        )
-    return requirements
+    return _validated_normal_requirement_input()
 
 
 def _requirement_coverage() -> list[dict[str, str]]:
@@ -481,7 +462,7 @@ def _requirement_coverage() -> list[dict[str, str]]:
             "The reviewed requirement coverage map is incomplete or duplicated."
         )
 
-    ordinary = set(build_reviewed_normal_requirement_input())
+    ordinary = set(_validated_normal_requirement_input())
     records: list[dict[str, str]] = []
     for source_name, requirement, covered_by, mode in _REQUIREMENT_COVERAGE:
         if mode == "reviewed-vcs-source":
@@ -561,7 +542,7 @@ def validate_reviewed_source_contracts(
         "reviewed_build_tools": ["setuptools", "wheel"],
         "sources": source_records,
         "normal_requirement_input": list(
-            build_reviewed_normal_requirement_input()
+            _validated_normal_requirement_input()
         ),
         "requirement_coverage": _requirement_coverage(),
     }
@@ -572,13 +553,14 @@ def write_reviewed_normal_requirement_input(
 ) -> tuple[str, ...]:
     """Create the exact LF-terminated input once without overwriting any file."""
 
-    requirements = build_reviewed_normal_requirement_input()
+    requirements = _validated_normal_requirement_input()
     output.parent.mkdir(parents=True, exist_ok=True)
     temporary = output.with_name(output.name + ".tmp")
     if temporary.exists():
         raise FileExistsError(
             f"Temporary requirements output already exists: {temporary}"
         )
+
     payload = ("\n".join(requirements) + "\n").encode("utf-8")
     # Exclusive creation is the fail-closed boundary: a pre-existing file is
     # never replaced, repaired, or silently reused.
