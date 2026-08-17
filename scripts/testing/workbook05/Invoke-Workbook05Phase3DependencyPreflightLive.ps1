@@ -78,6 +78,19 @@ if ($SimulationMode) {
         throw "Simulation Python application is missing: $BasePythonPath"
     }
 
+    # Mirror the live collector's fail-closed workspace rule inside the
+    # repository-only fixture seam. Checking before Python starts preserves the
+    # first causal message instead of replacing it with a generic exit code.
+    $SimulationAttemptRoot = Join-Path `
+        $SimulationRoot `
+        "dependency-preflight-$RunId-$RunAttempt"
+    if (Test-Path -LiteralPath $SimulationAttemptRoot) {
+        throw (
+            'C1 dependency-preflight workspace already exists: ' +
+            $SimulationAttemptRoot
+        )
+    }
+
     $FixtureArguments = @(
         '-m',
         'scripts.testing.workbook05.phase3.dependency_preflight_fixture',
