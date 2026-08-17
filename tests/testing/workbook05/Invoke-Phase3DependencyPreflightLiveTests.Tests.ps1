@@ -321,11 +321,18 @@ try {
         }
     }
 
-    # The three negative simulations intentionally make Python return 1. Once
-    # every exception and failure record has been asserted, clear only that
-    # expected native exit code so the enclosing repository gate receives the
-    # test script's real result rather than the last fixture process result.
-    $global:LASTEXITCODE = 0
+    # The failure fixtures deliberately invoke Python processes that return
+    # exit code 1. PowerShell retains the most recent native-process exit code
+    # even after the expected exception is caught. Finish with one explicit
+    # successful native boundary so the enclosing repository gate receives the
+    # simulation harness result rather than the last fixture-process result.
+    # Do not use `exit 0`, because that could terminate the parent PowerShell
+    # host instead of returning control to the gate.
+    & $PythonPath -c 'raise SystemExit(0)'
+    if ($LASTEXITCODE -ne 0) {
+        throw 'Could not normalise the dependency simulation native exit code.'
+    }
+
     Write-Host 'Workbook 05 Phase 3 dependency-preflight live simulations passed.'
 }
 finally {
