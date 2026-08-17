@@ -255,10 +255,10 @@ class Phase3DependencyPreflightWorkflowContractTests(unittest.TestCase):
             with self.subTest(token=token):
                 self.assertIn(token, self.dependency_runbook)
 
-    def test_c1_status_records_repository_completion_and_live_pending_state(self) -> None:
+    def test_c1_status_records_implemented_changes_and_blocked_closure(self) -> None:
         for token in (
-            "Dependency-preflight repository implementation: **Complete**",
-            "Exact-head repository verification: **Blocked by GitHub billing/spending restriction**",
+            "Dependency-preflight Tasks 1–12 changes: **Implemented**",
+            "Exact-head repository verification and Task 12 closure: **Blocked by GitHub billing/spending restriction**",
             "Live dependency-preflight acceptance: **Pending**",
             "Live C1 asset locking: **Blocked**",
             "phase3-dependency-preflight-runbook.md",
