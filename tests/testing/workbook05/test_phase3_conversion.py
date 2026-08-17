@@ -62,7 +62,7 @@ def _packages() -> tuple[ConversionPackage, ...]:
     return (
         ConversionPackage(
             name="optimum-intel",
-            version="2.3.0.dev0",
+            version="2.2.0.dev0",
             source_identity=OPTIMUM_INTEL_COMMIT,
         ),
         ConversionPackage(

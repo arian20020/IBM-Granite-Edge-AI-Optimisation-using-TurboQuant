@@ -61,22 +61,43 @@ def verify_hash_manifest(root: Path, manifest_path: Path) -> list[str]:
     manifest_path = manifest_path.resolve()
     issues: list[str] = []
     expected: dict[str, str] = {}
+    expected_casefold: dict[str, str] = {}
     if not manifest_path.is_file():
         return [f"missing hash manifest: {manifest_path}"]
 
-    for line_number, raw_line in enumerate(manifest_path.read_text(encoding="utf-8-sig").splitlines(), start=1):
+    for line_number, raw_line in enumerate(
+        manifest_path.read_text(encoding="utf-8-sig").splitlines(),
+        start=1,
+    ):
         match = LINE_PATTERN.fullmatch(raw_line)
         if not match:
             issues.append(f"malformed hash row {line_number}")
             continue
         digest, relative = match.groups()
         parsed = PurePosixPath(relative)
-        if parsed.is_absolute() or ".." in parsed.parts or "." in parsed.parts or "\\" in relative:
+        if (
+            parsed.is_absolute()
+            or ".." in parsed.parts
+            or "." in parsed.parts
+            or "\\" in relative
+        ):
             issues.append(f"path traversal in hash row {line_number}: {relative}")
             continue
         if relative in expected:
             issues.append(f"duplicate hash entry: {relative}")
             continue
+
+        # Windows resolves names case-insensitively. Reject a manifest that tries
+        # to bind two spellings to one target even when the hosted validator runs
+        # on a filesystem where both names could coexist.
+        folded = relative.casefold()
+        prior = expected_casefold.get(folded)
+        if prior is not None and prior != relative:
+            issues.append(
+                f"case-colliding hash entry: {prior} and {relative}"
+            )
+            continue
+        expected_casefold[folded] = relative
         expected[relative] = digest
 
     actual_paths = {

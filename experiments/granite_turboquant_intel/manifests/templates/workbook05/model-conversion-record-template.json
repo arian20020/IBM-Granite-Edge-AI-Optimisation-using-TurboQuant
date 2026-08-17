@@ -24,7 +24,7 @@
     "packages": [
       {
         "name": "optimum-intel",
-        "version": "2.3.0.dev0",
+        "version": "2.2.0.dev0",
         "source_identity": "a3b6012a4c02f4147260da4d4601bb6a3c0d2bb0"
       }
     ]

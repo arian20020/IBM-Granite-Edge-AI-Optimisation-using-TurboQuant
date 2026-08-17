@@ -4,6 +4,8 @@
 *.json text eol=lf
 *.yml text eol=lf
 *.yaml text eol=lf
+scripts/testing/workbook05/requirements.phase3-bootstrap.in text eol=lf
+scripts/testing/workbook05/requirements.phase3-bootstrap.txt text eol=lf
 *.ps1 text eol=crlf
 # BEGIN IXN CONTROLLED EXPERIMENT EVIDENCE
 # Machine-generated evidence is immutable. Do not normalize line endings.

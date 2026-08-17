@@ -57,7 +57,7 @@ def _packages() -> tuple[DependencyPackage, ...]:
     return (
         DependencyPackage(
             name="optimum-intel",
-            version="2.3.0.dev0",
+            version="2.2.0.dev0",
             source_identity=OPTIMUM_INTEL_COMMIT,
             direct=True,
         ),
@@ -133,18 +133,24 @@ def _record(**overrides: object) -> dict[str, object]:
         "workspace_is_fresh": True,
         "python_version": "3.12.10",
         "python_executable_path": Path(
-            r"C:\w5c\dependency-preflight-31770000000-1\venv\Scripts\python.exe"
+            r"C:\w5c\dependency-preflight-31770000000-1\environment\Scripts\python.exe"
         ),
         "python_executable_sha256": "9" * 64,
         "pip_version": "25.2",
         "pip_executable_path": Path(
-            r"C:\w5c\dependency-preflight-31770000000-1\venv\Scripts\pip.exe"
+            r"C:\w5c\dependency-preflight-31770000000-1\environment\Scripts\pip.exe"
         ),
         "pip_executable_sha256": "a" * 64,
         "source_trees": _source_trees(),
         "direct_requirements": REVIEWED_DIRECT_REQUIREMENTS,
+        "bootstrap_lock_path": "locks/requirements.phase3-bootstrap.txt",
+        "bootstrap_lock_sha256": "b" * 64,
+        "bootstrap_install_report_path": "reports/bootstrap-install-report.json",
+        "bootstrap_install_report_sha256": "c" * 64,
+        "bootstrap_normal_distribution_count": 4,
+        "bootstrap_all_normal_artifacts_hashed": True,
         "lock_path": "locks/requirements.phase3-assets.txt",
-        "lock_sha256": "b" * 64,
+        "lock_sha256": "d" * 64,
         "lock_generator": "pip-tools==7.5.0",
         "normal_distribution_count": 8,
         "all_normal_artifacts_hashed": True,
@@ -185,6 +191,75 @@ class Phase3DependencyPreflightTests(unittest.TestCase):
             "quality_claim_authorised",
         ):
             self.assertFalse(record[claim])
+
+    def test_interrupted_check_is_not_misreported_as_package_failure(self) -> None:
+        checks = list(_checks())
+        checks[1] = DependencyCheck(
+            name="install",
+            status="InfrastructureInterrupted",
+            exit_code=-1,
+        )
+
+        record = _record(checks=tuple(checks))
+
+        self.assertEqual("InfrastructureInterrupted", record["status"])
+        self.assertIn("install", " ".join(record["reasons"]))
+
+    def test_integrity_failure_outranks_infrastructure_interruption(self) -> None:
+        checks = list(_checks())
+        checks[1] = DependencyCheck(
+            name="install",
+            status="InfrastructureInterrupted",
+            exit_code=-1,
+        )
+
+        record = _record(
+            checks=tuple(checks),
+            workspace_is_fresh=False,
+        )
+
+        self.assertEqual("IntegrityFailure", record["status"])
+
+    def test_bootstrap_lock_and_report_are_bound_into_decision(self) -> None:
+        record = _record()
+
+        self.assertEqual(
+            {
+                "path": "locks/requirements.phase3-bootstrap.txt",
+                "sha256": "b" * 64,
+                "install_report_path": "reports/bootstrap-install-report.json",
+                "install_report_sha256": "c" * 64,
+                "normal_distribution_count": 4,
+                "all_normal_artifacts_hashed": True,
+            },
+            record["bootstrap_lock"],
+        )
+
+    def test_git_derived_optimum_intel_version_needs_the_full_source_commit(
+        self,
+    ) -> None:
+        packages = list(_packages())
+        packages[0] = DependencyPackage(
+            name="optimum-intel",
+            version=f"2.2.0.dev0+{OPTIMUM_INTEL_COMMIT[:7]}",
+            source_identity=OPTIMUM_INTEL_COMMIT,
+            direct=True,
+        )
+
+        accepted = _record(packages=tuple(packages))
+
+        self.assertEqual("Passed", accepted["status"])
+
+        packages[0] = DependencyPackage(
+            name="optimum-intel",
+            version=f"2.2.0.dev0+{OPTIMUM_INTEL_COMMIT[:7]}",
+            source_identity="f" * 40,
+            direct=True,
+        )
+        rejected = _record(packages=tuple(packages))
+
+        self.assertEqual("IntegrityFailure", rejected["status"])
+        self.assertIn("source identity", " ".join(rejected["reasons"]))
 
     def test_wrong_or_dirty_vcs_source_is_integrity_failure(self) -> None:
         wrong_commit = list(_source_trees())
@@ -288,16 +363,17 @@ class Phase3DependencyPreflightTests(unittest.TestCase):
         )
         self.assertEqual("IntegrityFailure", record["status"])
 
-    def test_lock_path_must_be_portable(self) -> None:
-        for value in (
-            "../outside.txt",
-            r"locks\windows.txt",
-            "/absolute.txt",
-            "C:/absolute.txt",
-        ):
-            with self.subTest(value=value):
-                with self.assertRaises(ValueError):
-                    _record(lock_path=value)
+    def test_lock_paths_must_be_portable(self) -> None:
+        for field in ("lock_path", "bootstrap_lock_path", "bootstrap_install_report_path"):
+            for value in (
+                "../outside.txt",
+                r"locks\windows.txt",
+                "/absolute.txt",
+                "C:/absolute.txt",
+            ):
+                with self.subTest(field=field, value=value):
+                    with self.assertRaises(ValueError):
+                        _record(**{field: value})
 
 
 if __name__ == "__main__":

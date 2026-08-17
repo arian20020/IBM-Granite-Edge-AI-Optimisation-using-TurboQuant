@@ -51,12 +51,39 @@ REVIEWED_OPTIMUM_INTEL_CONSTRAINTS: tuple[str, ...] = (
     "requests>=2.33,<3.0",
 )
 
+# The exact pinned Optimum source is inspected independently from setup.py data.
+# A changed, missing, or additional runtime requirement is a new candidate.
+REVIEWED_OPTIMUM_CONSTRAINTS: tuple[str, ...] = (
+    "transformers>=4.29",
+    "torch>=1.11",
+    "packaging",
+    "numpy",
+    "huggingface_hub>=0.8.0",
+)
+
+# These ordinary distributions are resolved together for the final clean
+# environment. The two VCS packages remain separate verified local installs.
+REVIEWED_NORMAL_REQUIREMENT_INPUT: tuple[str, ...] = (
+    "transformers==5.5.0",
+    "huggingface-hub==1.21.0",
+    "nncf==3.2.0",
+    "openvino==2026.2.1",
+    "openvino-tokenizers==2026.2.1.0",
+    "torch>=2.1",
+    "safetensors<0.8.0",
+    "setuptools",
+    "requests>=2.33,<3.0",
+    "packaging",
+    "numpy",
+    "wheel",
+)
+
 _FULL_COMMIT_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 _SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 _CONVERSION_ID_PATTERN = re.compile(r"^CONV-WB05-[A-Z0-9-]+$")
 _ASSET_ID_PATTERN = re.compile(r"^MODEL-WB05-[A-Z0-9-]+$")
 _OPTIMUM_INTEL_VERSION_PATTERN = re.compile(
-    r"^2\.3\.0\.dev0(?:\+[0-9a-f]+)?$"
+    r"^2\.2\.0\.dev0(?:\+([0-9a-f]{7,40}))?$"
 )
 
 _EXPECTED_PACKAGE_VERSIONS: dict[str, str] = {
@@ -121,6 +148,16 @@ def validate_optimum_intel_constraints(constraints: Sequence[str]) -> None:
             "The pinned optimum-intel declared constraints do not match the "
             "reviewed source contract."
         )
+
+
+def _is_reviewed_optimum_intel_version(value: str) -> bool:
+    """Accept only the source version and a truthful pinned-commit suffix."""
+
+    match = _OPTIMUM_INTEL_VERSION_PATTERN.fullmatch(value)
+    if match is None:
+        return False
+    suffix = match.group(1)
+    return suffix is None or OPTIMUM_INTEL_COMMIT.startswith(suffix)
 
 
 def _windows_path(
@@ -336,9 +373,10 @@ def _package_records(
         )
 
     optimum_intel = observed["optimum-intel"]
-    if not _OPTIMUM_INTEL_VERSION_PATTERN.fullmatch(
-        optimum_intel.version
-    ) or optimum_intel.source_identity != OPTIMUM_INTEL_COMMIT:
+    if (
+        not _is_reviewed_optimum_intel_version(optimum_intel.version)
+        or optimum_intel.source_identity != OPTIMUM_INTEL_COMMIT
+    ):
         raise ValueError(
             "optimum-intel must retain the reviewed version line and exact commit."
         )

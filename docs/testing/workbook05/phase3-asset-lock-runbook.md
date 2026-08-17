@@ -10,9 +10,14 @@ tokenizer files, conversion environment, conversion command, and converted
 OpenVINO files. It does **not** execute the model and does not prove that
 TurboQuant, scalar cache quantisation, or any other KV-cache codec ran.
 
+Follow the [clean dependency-preflight runbook](phase3-dependency-preflight-runbook.md)
+for dependency-machine preparation, dispatch, evidence review, independent
+hashing, and owner acceptance. Do not replace that controlled procedure with an
+improvised local package-install sequence.
+
 ## Current implementation boundary
 
-The Phase 3 workflow has two explicit operations:
+The Phase 3 asset workflow has two explicit operations:
 
 ```text
 offline-fixture
@@ -27,6 +32,10 @@ fails closed if `live-asset-lock` is selected before that gate is completed.
 Passing the repository workflow, offline fixture, or dependency installation
 must never be reported as model download, conversion, loading, generation,
 codec activation, performance, or quality evidence.
+
+PR `#72` implements the separate dependency-preflight repository boundary. Its
+implementation does not itself constitute live dependency acceptance and does
+not remove the asset workflow's existing block.
 
 ## Accepted read-only Phase 2 prerequisites
 
@@ -112,16 +121,17 @@ Remote model code: disabled
 `--trust-remote-code` is forbidden. A tool requiring remote repository Python
 code blocks the candidate instead of weakening the security boundary.
 
-## Before merging the C1 implementation
+## Before merging the C1 or dependency-preflight implementation
 
 PR verification must use its exact current head, not an earlier green commit.
-The following must pass:
+The following must pass where the changed paths trigger them:
 
 ```text
 Build and test
 Workbook 05 documented build
 Workbook 05 Route A Runtime controlled resume contract
 Workbook 05 Phase 3 assets — repository contract
+Workbook 05 Phase 3 dependency preflight — repository contract
 ```
 
 Run the repository-controlled Phase 3 gate locally or in CI:
@@ -132,9 +142,10 @@ Run the repository-controlled Phase 3 gate locally or in CI:
     -PythonPath 'python'
 ```
 
-The final controlled line must be:
+The final controlled lines must include:
 
 ```text
+WORKBOOK05_BUILD_STAGE_GATE_PASS
 WORKBOOK05_PHASE3_GATE_PASS
 ```
 
@@ -150,12 +161,13 @@ git ls-files |
 No generated model, tokenizer, IR, executable, library, wheel, or archive may be
 committed as evidence.
 
-## Safe workflow rehearsal before merge
+## Safe asset-workflow rehearsal after merge
 
-Pull requests run only the GitHub-hosted `repository-contract` job. They cannot
+Pull requests run only the GitHub-hosted repository-contract jobs. They cannot
 reach the self-hosted Intel runner.
 
-After the implementation is merged, the first manual rehearsal must use:
+After the C1 implementation is merged, the first asset-workflow rehearsal must
+still use:
 
 ```text
 Actions
@@ -190,32 +202,61 @@ workbook-05-phase3-assets-<workflow-run>-<attempt>
 
 ## Clean dependency preflight gate
 
-Before any live model operation, create a fresh Python 3.12.10 environment in a
-new normal `C:\w5c` workspace and prove all of the following:
+The controlling instructions are in the
+[clean dependency-preflight runbook](phase3-dependency-preflight-runbook.md).
+After PR `#72` is approved and merged, and after a fresh `main` application
+regression passes, dispatch exactly:
 
-1. Both Optimum repositories have the exact reviewed origins and commits.
-2. Both source trees are clean and have complete SHA-256 manifests.
-3. Every normal distribution is resolved in one complete lock and the actual
-   installed artifact has a recorded SHA-256.
-4. The two VCS packages are installed only from their immutable reviewed source
-   trees and with dependency resolution disabled.
-5. `pip check` succeeds.
-6. New-process imports succeed for `optimum`, `optimum.intel`, `transformers`,
-   `nncf`, and `openvino`.
-7. `optimum-cli --help` exits with code `0`.
-8. Repository-controlled no-model compatibility tests pass.
-9. The constructed conversion arguments contain no `--trust-remote-code`.
-10. A text-only dependency-preflight artifact passes independent hosted
-    validation.
+```text
+Actions
+→ Workbook 05 Phase 3 dependency preflight
+→ Run workflow
 
-The downloaded artifact and its decision file must be rehashed independently.
-Record the accepted decision SHA-256 before enabling the live asset-lock input.
+Use workflow from: main
+confirm_live_dependency_preflight: checked
+```
 
-## Live C1 dispatch — only after dependency acceptance
+The workflow must prove all of the following from one exact run and attempt:
 
-Do not use this sequence until the workflow implementation explicitly consumes
-and verifies the accepted dependency-preflight decision. Merely entering a
-64-character value is not sufficient.
+1. Both Optimum repositories have the exact reviewed HTTPS origins and full
+   commits.
+2. Both source trees are clean and have complete tracked-file SHA-256
+   catalogues and aggregate hashes.
+3. A separate bootstrap environment uses the committed hash lock for
+   `pip-tools==7.6.0` and `pip==26.1.2`.
+4. Every ordinary distribution is resolved into one complete target lock and
+   installed with `--require-hashes` and a retained pip report.
+5. The two VCS packages are installed only from their immutable reviewed local
+   source trees with `--no-deps --no-build-isolation`.
+6. The final environment contains only pip, the ordinary locked packages, and
+   the exact two VCS packages.
+7. `pip check` succeeds.
+8. New-process imports succeed for `optimum`, `optimum.intel`, `transformers`,
+   `nncf`, and `openvino`, and every imported file stays under the final
+   environment.
+9. `optimum-cli --help` exits with code `0`.
+10. The repository-controlled no-model compatibility check passes without
+    opening a model, contacting a model repository, creating a conversion
+    output, or launching conversion.
+11. The constructed conversion arguments contain no `--trust-remote-code`.
+12. The text-only artifact passes independent hosted validation strictly as
+    untrusted data.
+
+Acceptance then requires the exact `main` commit, workflow run and attempt,
+artifact name, GitHub digest, independently recalculated artifact SHA-256,
+independently recalculated `decision.json` SHA-256, retained `C:\w5c` workspace,
+and explicit project-owner acceptance to be recorded.
+
+A successful dependency preflight still does **not** enable `live-asset-lock`.
+A separate reviewed binding change must consume and verify the exact accepted
+decision digest and retained workspace. Merely entering a digest into the asset
+workflow is not sufficient.
+
+## Live C1 dispatch — only after dependency acceptance and binding
+
+Do not use this sequence until the asset-workflow implementation explicitly
+consumes and verifies the accepted dependency-preflight decision and retained
+workspace. The repository currently keeps this operation blocked.
 
 The eventual live dispatch will be:
 
@@ -309,8 +350,8 @@ The independent hosted validator must reject:
 
 ## Project-owner acceptance
 
-C1 is accepted only after all three workflow boundaries pass and the project
-owner independently verifies:
+C1 is accepted only after all three asset-workflow boundaries pass and the
+project owner independently verifies:
 
 ```text
 workflow run ID and attempt
