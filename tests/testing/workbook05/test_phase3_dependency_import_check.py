@@ -1,21 +1,20 @@
 from __future__ import annotations
 
-import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from scripts.testing.workbook05.phase3.dependency_import_check import (
-    collect_import_observations,
-)
+from scripts.testing.workbook05.phase3 import dependency_import_check
 
 
 class Phase3DependencyImportCheckTests(unittest.TestCase):
     """Bind fresh-process imports to the supplied final environment."""
 
     def setUp(self) -> None:
-        self.root = Path(r"C:\w5c\dependency-preflight-fixture\workspace\environment")
+        self.root = Path(
+            r"C:\w5c\dependency-preflight-fixture\workspace\environment"
+        )
 
     def _module(self, name: str) -> SimpleNamespace:
         relative = name.replace(".", "\\") + r"\__init__.py"
@@ -30,17 +29,24 @@ class Phase3DependencyImportCheckTests(unittest.TestCase):
             "nncf": "3.2.0",
             "openvino": "2026.2.1",
         }
+        # Patch the already imported module objects directly. Patching by a long
+        # dotted string after replacing importlib.import_module would make the
+        # mock interfere with unittest.mock's own target resolution.
         with (
-            patch(
-                "scripts.testing.workbook05.phase3.dependency_import_check.importlib.import_module",
+            patch.object(
+                dependency_import_check.importlib,
+                "import_module",
                 side_effect=self._module,
             ),
-            patch(
-                "scripts.testing.workbook05.phase3.dependency_import_check.importlib.metadata.version",
+            patch.object(
+                dependency_import_check.importlib.metadata,
+                "version",
                 side_effect=lambda name: versions[name],
             ),
         ):
-            observations = collect_import_observations(self.root)
+            observations = dependency_import_check.collect_import_observations(
+                self.root
+            )
 
         self.assertEqual(
             {"optimum", "optimum.intel", "transformers", "nncf", "openvino"},
@@ -48,7 +54,9 @@ class Phase3DependencyImportCheckTests(unittest.TestCase):
         )
         self.assertTrue(
             all(
-                row["module_file"].casefold().startswith(str(self.root).casefold())
+                row["module_file"].casefold().startswith(
+                    str(self.root).casefold()
+                )
                 for row in observations.values()
             )
         )
@@ -56,26 +64,29 @@ class Phase3DependencyImportCheckTests(unittest.TestCase):
     def test_import_escaping_final_environment_is_rejected(self) -> None:
         escaped = SimpleNamespace(__file__=r"C:\outside\module.py")
         with (
-            patch(
-                "scripts.testing.workbook05.phase3.dependency_import_check.importlib.import_module",
+            patch.object(
+                dependency_import_check.importlib,
+                "import_module",
                 return_value=escaped,
             ),
-            patch(
-                "scripts.testing.workbook05.phase3.dependency_import_check.importlib.metadata.version",
+            patch.object(
+                dependency_import_check.importlib.metadata,
+                "version",
                 return_value="1.0",
             ),
         ):
             with self.assertRaisesRegex(ValueError, "escaped"):
-                collect_import_observations(self.root)
+                dependency_import_check.collect_import_observations(self.root)
 
     def test_import_without_file_identity_is_rejected(self) -> None:
         missing = SimpleNamespace(__file__="")
-        with patch(
-            "scripts.testing.workbook05.phase3.dependency_import_check.importlib.import_module",
+        with patch.object(
+            dependency_import_check.importlib,
+            "import_module",
             return_value=missing,
         ):
             with self.assertRaisesRegex(ValueError, "no file identity"):
-                collect_import_observations(self.root)
+                dependency_import_check.collect_import_observations(self.root)
 
 
 if __name__ == "__main__":
