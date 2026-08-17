@@ -103,7 +103,9 @@ class Phase3DependencyLiveScriptContractTests(unittest.TestCase):
             "no_model_compatibility",
             "remote_code_disabled",
         )
-        positions = [self.script.index(f"'{name}'") for name in expected]
+        # Search the actual Add-PreflightCheck calls rather than the catalogue at
+        # the top of the script, so unrelated occurrences cannot falsify order.
+        positions = [self.script.index(f"-Name '{name}'") for name in expected]
         self.assertEqual(sorted(positions), positions)
         required = (
             "dependency_lock_cli",
@@ -154,7 +156,13 @@ class Phase3DependencyLiveScriptContractTests(unittest.TestCase):
         self.assertIn('"pip-tools": "7.6.0"', self.decision)
         self.assertIn('"pip": "26.1.2"', self.decision)
         self.assertIn('LIVE_LOCK_GENERATOR = "pip-tools==7.6.0"', self.decision)
-        self.assertNotIn('pip-tools==7.5.0', self.decision)
+        # The closed legacy classifier still has one private compatibility token,
+        # but live evidence must be validated and rewritten to the adopted value.
+        self.assertIn(
+            '_LEGACY_COLLECTOR_GENERATOR = "pip-tools==7.5.0"',
+            self.decision,
+        )
+        self.assertIn('record["lock"]["generator"] = lock_generator', self.decision)
 
 
 if __name__ == "__main__":
