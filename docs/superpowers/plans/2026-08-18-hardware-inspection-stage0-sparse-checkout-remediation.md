@@ -4,7 +4,7 @@
 
 **Goal:** Make the manual GitHub-hosted Stage 0 workflow complete successfully on Windows by materializing only its approved repository controls and inert evaluated design documents.
 
-**Architecture:** Retain the pinned `actions/checkout` steps and add exact sparse-checkout inputs: cone mode for control and a root-anchored non-cone pattern for evaluated. The control checkout includes complete workflow, Hardware Inspection script, runbook, design, manifest, and contract-test namespaces; the evaluated checkout includes only inert design specifications while the approved commit SHA binds the full source identity.
+**Architecture:** Retain the pinned `actions/checkout` steps, require Git `2.28.0+` before either checkout, and add exact sparse-checkout inputs: cone mode for control and a root-anchored non-cone pattern for evaluated. The control checkout includes complete workflow, Hardware Inspection script, runbook, design, manifest, and contract-test namespaces; the evaluated checkout includes only inert design specifications at the immutable approved SHA while `source_ref` remains provenance metadata.
 
 **Tech Stack:** GitHub Actions YAML, `actions/checkout` v7 pinned at `9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0`, Python 3.12 `unittest`, Windows PowerShell 5.1, Git sparse checkout.
 
@@ -22,7 +22,13 @@ The correction is evaluated-only. Control remains the exact cone-mode boundary; 
           sparse-checkout-cone-mode: false
 ```
 
-No evaluated code, project, executable, workflow step, or test runs. The corrected canonical workflow SHA-256 is `d1f1653e8c67c65a43ae296956cc4c561f7479895bed40ee5abe92ebd780f2e3`.
+No evaluated code, project, executable, workflow step, or test runs. The corrected canonical workflow SHA-256 is `81a5893ccde84507ea8fd6d5409811ba55f0d16252b864907c29884f61c8fabf`.
+
+## Security verification erratum — 2026-08-18
+
+Follow-up verification found that the pinned `actions/checkout` action can fall back to a full REST archive when Git is missing or too old to support sparse checkout. The fixed first executable step now performs a privacy-safe Git capability precheck before either checkout, accepts only a single strict version line at Git `2.28.0` or newer, and fails with a fixed message without exposing command output or paths. This prevents REST fallback from materializing a broad worktree before the sparse boundary is established.
+
+The evaluated checkout now resolves the immutable `steps.approval.outputs.approved_sha` value, not the movable `steps.approval.outputs.source_ref`. `source_ref` remains validator output and summary provenance only. The precheck and immutable SHA pin prevent both broad REST fallback materialization and movable-ref pre-materialization. The corrected canonical workflow SHA-256 is `81a5893ccde84507ea8fd6d5409811ba55f0d16252b864907c29884f61c8fabf`.
 
 ---
 
@@ -45,12 +51,46 @@ No evaluated code, project, executable, workflow step, or test runs. The correct
 - Modify: `.github/workflows/hardware-inspection-intel-runner-stage0.yml`
 
 **Interfaces:**
-- Consumes: existing canonical workflow bytes, the pinned checkout action, the approval manifest output `steps.approval.outputs.source_ref`, and the existing 12-test contract module.
-- Produces: canonical workflow SHA-256 `d1f1653e8c67c65a43ae296956cc4c561f7479895bed40ee5abe92ebd780f2e3` and the exact control-cone and evaluated non-cone sparse-checkout blocks.
+- Consumes: existing canonical workflow bytes, the pinned checkout action, the approval manifest output `steps.approval.outputs.approved_sha` for immutable evaluated materialization, `source_ref` as provenance only, and the existing 12-test contract module.
+- Produces: canonical workflow SHA-256 `81a5893ccde84507ea8fd6d5409811ba55f0d16252b864907c29884f61c8fabf`, the fixed first Git precheck, and the exact control-cone and evaluated non-cone sparse-checkout blocks.
 
 - [ ] **Step 1: Add the focused failing contract assertions**
 
-In `test_stage0_workflow_pins_actions_and_drops_checkout_credentials`, keep all current assertions and add exact expected checkout fragments:
+In `test_stage0_workflow_pins_actions_and_drops_checkout_credentials`, keep all current assertions, require the exact first Git precheck below, execute its extracted run block under PowerShell 5.1 with deterministic local stubs, and add exact expected checkout fragments:
+
+```yaml
+      - name: Require sparse-checkout-capable Git
+        shell: powershell
+        run: |
+          $ProgressPreference = 'SilentlyContinue'
+          $ErrorActionPreference = 'Stop'
+          $failure = 'HI-RUNNER-STAGE0-GIT-INVALID: required Git capability is unavailable.'
+          try {
+            $gitCommand = Get-Command git -CommandType Application -ErrorAction SilentlyContinue
+            if ($null -eq $gitCommand) {
+              throw 'invalid'
+            }
+            $versionLines = @(& $gitCommand.Source --version 2>$null)
+            if ($LASTEXITCODE -ne 0 -or $versionLines.Count -ne 1) {
+              throw 'invalid'
+            }
+            $versionText = [string]$versionLines[0]
+            if ($versionText -cnotmatch '\Agit version (?<major>0|[1-9][0-9]*)\.(?<minor>0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:\.windows\.(?:0|[1-9][0-9]*))?\z') {
+              throw 'invalid'
+            }
+            $major = [int]$Matches['major']
+            $minor = [int]$Matches['minor']
+            if ($major -lt 2 -or ($major -eq 2 -and $minor -lt 28)) {
+              throw 'invalid'
+            }
+          }
+          catch {
+            [Console]::Error.WriteLine($failure)
+            exit 1
+          }
+```
+
+The semantic matrix accepts only `2.28.0`, `2.51.0`, `2.51.0.windows.2`, and `3.0.0`, and rejects `2.27.99`, two-component, uppercase/malformed, multiline, nonzero, throwing, and missing cases with empty stdout and exact `HI-RUNNER-STAGE0-GIT-INVALID: required Git capability is unavailable.\n` stderr. A malicious `C:\private\SECRET_TOKEN` source must not appear in output. The precheck contains no `${{`, absolute path, network, or candidate command.
 
 ```python
 control_sparse_checkout = """          sparse-checkout: |
@@ -100,13 +140,19 @@ Run:
 python -m unittest `
   tests.testing.hardware_inspection.test_intel_runner_stage0_contract.IntelRunnerStage0ContractTests.test_stage0_workflow_pins_actions_and_drops_checkout_credentials `
   -v
+python -m unittest `
+  tests.testing.hardware_inspection.test_intel_runner_stage0_contract.IntelRunnerStage0ContractTests.test_stage0_workflow_executes_validators_only_from_control_checkout `
+  -v
+python -m unittest `
+  tests.testing.hardware_inspection.test_intel_runner_stage0_contract.IntelRunnerStage0ContractTests.test_stage0_workflow_reads_approved_source_without_free_form_sha_input `
+  -v
 ```
 
-Expected: one test runs and fails because the current evaluated checkout still uses the cone pattern and mode instead of the root-anchored non-cone pattern. The failure must not be a Python import, syntax, or harness error.
+Run the focused existing identities for the precheck, checkout ordering, and approved-ref assertions while retaining the current pre-security digest during RED. Expected failures are the absent precheck and old movable `source_ref` ref, not import, syntax, harness, or canonical-digest errors.
 
-- [ ] **Step 3: Add the exact control sparse checkout**
+- [ ] **Step 3: Add the exact Git precheck and control sparse checkout**
 
-Extend `Check out default-branch controls` without changing its ref, path, depth, credential, action-pin, or step order:
+Add the exact Git precheck as the first executable step directly under `steps:` and before any checkout. It must have no preceding `uses:` step. Then extend `Check out default-branch controls` without changing its ref, path, depth, credential, action-pin, or step order:
 
 ```yaml
         with:
@@ -124,13 +170,13 @@ Extend `Check out default-branch controls` without changing its ref, path, depth
           sparse-checkout-cone-mode: true
 ```
 
-- [ ] **Step 4: Add the exact evaluated sparse checkout**
+- [ ] **Step 4: Add the exact evaluated sparse checkout at the approved SHA**
 
-Extend `Check out approved source for identity comparison only` without changing its manifest-selected ref, path, depth, credential, action-pin, or step order:
+Extend `Check out approved source for identity comparison only` without changing its approved SHA ref, path, depth, credential, action-pin, or step order. Keep `source_ref` only in validator provenance output and summary metadata:
 
 ```yaml
         with:
-          ref: ${{ steps.approval.outputs.source_ref }}
+          ref: ${{ steps.approval.outputs.approved_sha }}
           path: evaluated
           fetch-depth: 1
           persist-credentials: false
@@ -144,7 +190,7 @@ Extend `Check out approved source for identity comparison only` without changing
 Change only:
 
 ```python
-EXPECTED_WORKFLOW_SHA256 = "d1f1653e8c67c65a43ae296956cc4c561f7479895bed40ee5abe92ebd780f2e3"
+EXPECTED_WORKFLOW_SHA256 = "81a5893ccde84507ea8fd6d5409811ba55f0d16252b864907c29884f61c8fabf"
 ```
 
 The new digest is computed from the exact LF-only workflow above with one trailing LF. Do not weaken `_assert_canonical_workflow` or remove any existing mutation.
@@ -170,7 +216,7 @@ git diff --check
 git diff --check origin/main...HEAD
 ```
 
-Expected: exactly 12 tests pass with zero skips/failures/errors, Python compilation exits 0, PowerShell reports zero parser errors, and both working-tree and committed-range whitespace checks exit 0.
+Expected: the PowerShell 5.1 precheck semantic matrix and exactly 12 tests pass with zero skips/failures/errors, Python compilation exits 0, PowerShell reports zero parser errors, and both working-tree and committed-range whitespace checks exit 0.
 
 - [ ] **Step 7: Verify exact scope and bytes**
 
@@ -184,9 +230,10 @@ if (-not ([System.Text.Encoding]::UTF8.GetString($workflowBytes).EndsWith("`n"))
     throw 'Workflow lacks its final LF.'
 }
 if ((Get-FileHash -Algorithm SHA256 $workflow).Hash.ToLowerInvariant() -ne
-    'd1f1653e8c67c65a43ae296956cc4c561f7479895bed40ee5abe92ebd780f2e3') {
+    '81a5893ccde84507ea8fd6d5409811ba55f0d16252b864907c29884f61c8fabf') {
     throw 'Workflow digest mismatch.'
 }
+if ((Get-Item $workflow).Length -ne 5940) { throw 'Workflow byte length mismatch.' }
 
 $actualPaths = @(
     git diff --name-only origin/main...HEAD
@@ -212,7 +259,7 @@ git add -- `
   .github/workflows/hardware-inspection-intel-runner-stage0.yml `
   tests/testing/hardware_inspection/test_intel_runner_stage0_contract.py
 git diff --cached --check
-git commit -m "fix(hardware-inspection): constrain Stage 0 checkout scope"
+git commit -m "fix(hardware-inspection): pin Stage 0 sparse prerequisites"
 ```
 
 The worktree must be clean after the commit.
@@ -228,10 +275,12 @@ The worktree must be clean after the commit.
 - Create temporarily outside the repository: owned sparse control and evaluated clones; delete them after verification.
 
 **Interfaces:**
-- Consumes: Task 1 workflow digest and exact control cone/evaluated non-cone sparse boundaries.
-- Produces: local proof that the control cone runs all 12 contracts and the evaluated non-cone pattern supports exact SHA/clean identity validation without materializing executable feature content.
+- Consumes: Task 1 workflow digest, the fixed Git `2.28.0+` precheck result, and exact control cone/evaluated non-cone sparse boundaries.
+- Produces: local proof that the control cone runs all 12 contracts and the evaluated non-cone pattern materializes only inert specs at immutable `approved_sha` without materializing executable feature content.
 
 - [ ] **Step 1: Run the exact owned sparse-checkout proof**
+
+Before creating either temporary clone, execute the exact first-step Git precheck under PowerShell 5.1 and stop if it does not accept the single strict version line. Resolve `approvedSha` from the exact approval manifest before materialization; use `source_ref` only when checking the validator's provenance output, never as an evaluated checkout ref. These prerequisites ensure a missing/old Git cannot trigger REST archive fallback and that evaluated materialization cannot follow a movable ref.
 
 Run this as one PowerShell command so the randomly generated ownership path never has to be inferred by a later shell. It clones only into a new GUID-named direct child of the OS temp directory and deletes only that validated child in `finally`:
 
@@ -426,12 +475,13 @@ if ($remoteFixSha -cne $fixSha) { throw 'Remote fix ref does not match the revie
 $prBody = @"
 ## Summary
 - fixes failed repository-only Stage 0 run 32138539513
+- requires a fixed Git 2.28+ precheck before checkout and uses the immutable approved SHA for evaluated materialization
 - replaces both broad Windows checkouts with reviewed control-cone and evaluated non-cone sparse boundaries
 - preserves all Hardware Inspection, Gate 1, Gate 2, laptop, candidate, and network behavior
 
 ## Verification
 - Stage 0 contracts: 12 passed, 0 failed, 0 skipped
-- canonical workflow SHA-256: d1f1653e8c67c65a43ae296956cc4c561f7479895bed40ee5abe92ebd780f2e3
+- canonical workflow SHA-256: 81a5893ccde84507ea8fd6d5409811ba55f0d16252b864907c29884f61c8fabf
 - local control/evaluated sparse-checkout proof: passed
 - PowerShell parser, Python compile, whitespace, scope, and independent reviews: passed
 
@@ -442,7 +492,7 @@ This PR does not contact a self-hosted runner or Intel laptop, acquire or execut
     --base main `
     --head fix/hardware-inspection-stage0-sparse-checkout `
     --draft `
-    --title 'fix(hardware-inspection): constrain Stage 0 checkout scope' `
+    --title 'fix(hardware-inspection): pin Stage 0 sparse prerequisites' `
     --body $prBody
 if ($LASTEXITCODE -ne 0) { throw 'Draft PR creation failed.' }
 ```
@@ -515,7 +565,7 @@ if ($featureSha -cne 'cc2e57ceb94e73e49f34fc383d5440a9047fba21') {
 }
 ```
 
-Re-read the merged workflow from `origin/main` and confirm it remains manual-only with the canonical SHA-256 `d1f1653e8c67c65a43ae296956cc4c561f7479895bed40ee5abe92ebd780f2e3`.
+Re-read the merged workflow from `origin/main` and confirm it remains manual-only with the canonical SHA-256 `81a5893ccde84507ea8fd6d5409811ba55f0d16252b864907c29884f61c8fabf`.
 
 - [ ] **Step 5: Create a new manual dispatch**
 
@@ -588,6 +638,7 @@ if ($jobs.Count -ne 1 -or
     throw 'Stage 0 job identity, outcome, or hosted-runner boundary is invalid.'
 }
 $expectedSteps = @(
+    'Require sparse-checkout-capable Git',
     'Check out default-branch controls',
     'Set up Python for repository contracts',
     'Run Stage 0 contracts',
@@ -603,6 +654,13 @@ foreach ($stepName in $expectedSteps) {
 }
 if ([int]$artifactResponse.total_count -ne 0) {
     throw 'Stage 0 unexpectedly uploaded an artifact.'
+}
+$workflowText = (Get-Content -Raw '.github/workflows/hardware-inspection-intel-runner-stage0.yml')
+if ($workflowText -notmatch "ref: \$\{\{ steps\.approval\.outputs\.approved_sha \}\}") {
+    throw 'Evaluated checkout is not pinned to approved_sha.'
+}
+if ($workflowText -match "ref: \$\{\{ steps\.approval\.outputs\.source_ref \}\}") {
+    throw 'Evaluated checkout uses movable source_ref.'
 }
 $runLog = (& gh run view $newRun.databaseId --repo $repository --log | Out-String)
 foreach ($requiredLogFragment in @(
@@ -625,6 +683,7 @@ Require:
 - status `completed`, conclusion `success`, attempt `1`;
 - actor and triggering actor `arian20020`;
 - exactly one `hosted-preflight` job on `windows-latest`;
+- fixed Git `2.28.0+` precheck passes before any checkout;
 - both sparse checkout steps pass;
 - exactly 12 Stage 0 contracts pass;
 - Dispatch and Source validator phases pass;
@@ -635,4 +694,4 @@ If the new run fails, stop, retain its exact logs, and return to root-cause anal
 
 - [ ] **Step 7: Final handoff**
 
-Report the remediation PR, merge SHA, successful new run URL, exact 12-test result, hashes, zero-artifact/self-hosted proof, and the unchanged Gate 1/Gate 2 boundary. Preserve the fix worktree and branches for audit; do not remove candidate or user artifacts.
+Report the remediation PR, merge SHA, successful new run URL, exact 12-test result, Git precheck matrix, immutable approved-SHA checkout proof, hashes, zero-artifact/self-hosted proof, and the unchanged Gate 1/Gate 2 boundary. Preserve the fix worktree and branches for audit; do not remove candidate or user artifacts.

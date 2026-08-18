@@ -17,7 +17,13 @@ The correction is evaluated-only. The control checkout remains the exact six-dir
           sparse-checkout-cone-mode: false
 ```
 
-That pattern is bounded to the 22 inert Markdown specifications under `docs/superpowers/specs`; no evaluated code, project, executable, workflow step, or test runs. The corrected canonical workflow SHA-256 is `d1f1653e8c67c65a43ae296956cc4c561f7479895bed40ee5abe92ebd780f2e3`.
+That pattern is bounded to the 22 inert Markdown specifications under `docs/superpowers/specs`; no evaluated code, project, executable, workflow step, or test runs. The corrected canonical workflow SHA-256 is `81a5893ccde84507ea8fd6d5409811ba55f0d16252b864907c29884f61c8fabf`.
+
+## Security verification erratum — 2026-08-18
+
+Follow-up verification found that the pinned `actions/checkout` action can fall back to a full REST archive when Git is missing or too old to support sparse checkout. The fixed first executable step now performs a privacy-safe Git capability precheck before either checkout, accepts only a single strict version line at Git `2.28.0` or newer, and fails with a fixed message without exposing command output or paths. This prevents REST fallback from materializing a broad worktree before the sparse boundary is established.
+
+The evaluated checkout now resolves the immutable `steps.approval.outputs.approved_sha` value, not the movable `steps.approval.outputs.source_ref`. `source_ref` remains validator output and summary provenance only. The precheck and immutable SHA pin therefore prevent both broad REST fallback materialization and movable-ref pre-materialization. The corrected canonical workflow SHA-256 is `81a5893ccde84507ea8fd6d5409811ba55f0d16252b864907c29884f61c8fabf`.
 
 ## Problem
 
@@ -89,34 +95,39 @@ persist-credentials: false
 
 The control checkout retains `sparse-checkout-cone-mode: true`; the evaluated checkout uses the exact non-cone block above.
 
+Before either checkout, the first executable step requires Git `2.28.0` or newer using the fixed privacy-safe precheck; the evaluated `actions/checkout` step consumes `steps.approval.outputs.approved_sha`, while `source_ref` remains provenance metadata emitted by the validator.
+
 No explicit checkout filter or global Git configuration is added. The pinned checkout action may apply its own partial-clone optimization internally.
 
 ## Execution flow
 
 1. GitHub creates one `windows-latest` `hosted-preflight` job after the existing owner, default-branch, first-attempt, and confirmation guards pass.
-2. The control checkout materializes only the approved cones.
-3. Python 3.12.10 is configured and the same 12 Stage 0 contracts run from `control`.
-4. The control validator checks dispatch context and the strict approval manifest.
-5. The evaluated checkout materializes only the 22 inert design specifications at the manifest-selected feature ref using the root-anchored non-cone pattern.
-6. The control validator compares evaluated `HEAD` to the approved SHA, verifies sparse worktree cleanliness, and publishes the fixed safe summary.
-7. No artifact is uploaded.
+2. The first executable step performs the fixed Git `2.28.0+` capability precheck and fails closed before any checkout if the requirement is unavailable.
+3. The control checkout materializes only the approved cones.
+4. Python 3.12.10 is configured and the same 12 Stage 0 contracts run from `control`.
+5. The control validator checks dispatch context and the strict approval manifest, emitting `source_ref` as provenance and `approved_sha` as the immutable checkout value.
+6. The evaluated checkout materializes only the 22 inert design specifications at `approved_sha` using the root-anchored non-cone pattern.
+7. The control validator compares evaluated `HEAD` to the approved SHA, verifies sparse worktree cleanliness, and publishes the fixed safe summary.
+8. No artifact is uploaded.
 
 Any checkout, contract, manifest, identity, or cleanliness failure stops the job before later stages. A checkout fallback or runner drift that cannot honor the sparse boundary is expected to fail closed rather than authorize a laptop stage.
 
 ## Test design
 
-The existing workflow contract is updated test-first. Before the evaluated workflow correction, the focused contract must fail because the evaluated checkout still uses the cone pattern and mode. The production change then replaces only that evaluated block with the exact root-anchored non-cone block and updates the canonical workflow SHA-256.
+The existing workflow contract is updated test-first. Before the security correction, focused existing identities must fail because the first Git precheck is absent and the evaluated checkout still uses the movable `source_ref`; the current pre-security digest remains in place during RED. The production change then adds the exact first precheck, switches evaluated materialization to `approved_sha`, and updates the canonical workflow SHA-256.
 
 The existing test identity will assert:
 
 - exactly two `sparse-checkout` blocks;
 - exactly one `sparse-checkout-cone-mode: true` setting and one `sparse-checkout-cone-mode: false` setting;
 - the exact ordered control cone list and root-anchored evaluated directory pattern;
+- the exact first Git precheck step, including its strict version matrix, fixed failure output, no path/network content, and pre-checkout placement;
+- evaluated `approved_sha` materialization with `source_ref` retained only as provenance metadata;
 - no explicit filter or `core.longpaths` setting;
 - both immutable checkout pins and both `persist-credentials: false` settings remain;
 - control execution and evaluated identity-only ordering remain unchanged.
 
-The complete 12-test suite, Python compilation, PowerShell 5.1 parser, canonical hashes, UTF-8/no-BOM checks, and commit-range whitespace checks must pass. A local owned temporary sparse checkout will run the 12 contracts from the control cone and verify evaluated SHA/cleanliness behavior before publication.
+The complete 12-test suite, PowerShell 5.1 Git-precheck semantic matrix, Python compilation, PowerShell 5.1 parser, canonical hashes, UTF-8/no-BOM checks, and commit-range whitespace checks must pass. A local owned temporary sparse checkout will run the 12 contracts from the control cone and verify evaluated SHA/cleanliness behavior after the Git precheck prerequisite and immutable SHA materialization are confirmed.
 
 ## Delivery and verification
 
