@@ -451,17 +451,84 @@ class IntelRunnerStage0ContractTests(unittest.TestCase):
     def test_stage0_validator_accepts_only_matching_clean_source_identity(self):
         self.assertTrue(MANIFEST_PATH.is_file(), "approval manifest is missing")
         self.assertTrue(VALIDATOR_PATH.is_file(), "Stage 0 validator is missing")
+        validator_text = VALIDATOR_PATH.read_text(encoding="utf-8")
+        tracked_probe = "status --porcelain --untracked-files=no"
+        untracked_probe = "ls-files --others --"
+        self.assertEqual(validator_text.count(tracked_probe), 1)
+        self.assertEqual(validator_text.count(untracked_probe), 1)
+        self.assertLess(validator_text.index(tracked_probe), validator_text.index(untracked_probe))
+        self.assertNotIn("status --porcelain --untracked-files=all", validator_text)
+        self.assertNotIn("GIT_NO_LAZY_FETCH", validator_text)
+        self.assertNotRegex(validator_text, r"ls-files --others[^\r\n]*--exclude")
         with tempfile.TemporaryDirectory() as temporary_directory:
             control_root = Path(temporary_directory) / "control"
+            origin_root = Path(temporary_directory) / "origin"
             source_root = Path(temporary_directory) / "source"
-            source_root.mkdir()
-            subprocess.run(["git", "init", "--quiet", str(source_root)], check=True, timeout=20)
-            subprocess.run(["git", "-C", str(source_root), "config", "user.email", "test@example.invalid"], check=True, timeout=20)
-            subprocess.run(["git", "-C", str(source_root), "config", "user.name", "Contract Test"], check=True, timeout=20)
-            (source_root / "identity.txt").write_text("approved identity\n", encoding="utf-8")
-            subprocess.run(["git", "-C", str(source_root), "add", "identity.txt"], check=True, timeout=20)
-            subprocess.run(["git", "-C", str(source_root), "commit", "--quiet", "-m", "identity"], check=True, timeout=20)
-            source_sha = subprocess.run(["git", "-C", str(source_root), "rev-parse", "HEAD"], text=True, capture_output=True, check=True, timeout=20).stdout.strip()
+            origin_root.mkdir()
+            subprocess.run(["git", "init", "--quiet", str(origin_root)], check=True, timeout=20)
+            subprocess.run(["git", "-C", str(origin_root), "config", "user.email", "test@example.invalid"], check=True, timeout=20)
+            subprocess.run(["git", "-C", str(origin_root), "config", "user.name", "Contract Test"], check=True, timeout=20)
+            subprocess.run(["git", "-C", str(origin_root), "config", "core.autocrlf", "false"], check=True, timeout=20)
+            subprocess.run(["git", "-C", str(origin_root), "config", "uploadpack.allowFilter", "true"], check=True, timeout=20)
+            (origin_root / ".gitignore").write_text("ignored-only.txt\n", encoding="utf-8", newline="\n")
+            identity_path = origin_root / "docs" / "superpowers" / "specs" / "identity.md"
+            identity_path.parent.mkdir(parents=True)
+            identity_path.write_text("approved identity\n", encoding="utf-8", newline="\n")
+            subprocess.run(["git", "-C", str(origin_root), "add", ".gitignore", "docs/superpowers/specs/identity.md"], check=True, timeout=20)
+            subprocess.run(["git", "-C", str(origin_root), "commit", "--quiet", "-m", "identity"], check=True, timeout=20)
+            source_sha = subprocess.run(["git", "-C", str(origin_root), "rev-parse", "HEAD"], text=True, capture_output=True, check=True, timeout=20).stdout.strip()
+            identity_oid = subprocess.run(["git", "-C", str(origin_root), "rev-parse", "HEAD:docs/superpowers/specs/identity.md"], text=True, capture_output=True, check=True, timeout=20).stdout.strip()
+            gitignore_oid = subprocess.run(["git", "-C", str(origin_root), "rev-parse", "HEAD:.gitignore"], text=True, capture_output=True, check=True, timeout=20).stdout.strip()
+
+            subprocess.run(
+                ["git", "clone", "--quiet", "--filter=blob:none", "--no-checkout", origin_root.as_uri(), str(source_root)],
+                check=True,
+                timeout=20,
+            )
+            seeded_identity_oid = subprocess.run(
+                ["git", "-C", str(source_root), "hash-object", "-w", str(identity_path)],
+                text=True,
+                capture_output=True,
+                timeout=20,
+                check=True,
+            ).stdout.strip()
+            self.assertEqual(seeded_identity_oid, identity_oid)
+            pre_checkout_missing = subprocess.run(
+                ["git", "-C", str(source_root), "rev-list", "--objects", "--missing=print", source_sha],
+                text=True,
+                capture_output=True,
+                timeout=20,
+                check=True,
+            )
+            self.assertNotIn("?" + identity_oid, pre_checkout_missing.stdout.splitlines())
+            self.assertIn("?" + gitignore_oid, pre_checkout_missing.stdout.splitlines())
+            subprocess.run(["git", "-C", str(source_root), "sparse-checkout", "init", "--no-cone"], check=True, timeout=20)
+            subprocess.run(
+                ["git", "-C", str(source_root), "sparse-checkout", "set", "--no-cone", "/docs/superpowers/specs/"],
+                check=True,
+                timeout=20,
+            )
+            subprocess.run(["git", "-C", str(source_root), "checkout", "--quiet", "--detach", source_sha], check=True, timeout=20)
+            self.assertFalse((source_root / ".gitignore").exists())
+            self.assertTrue((source_root / "docs" / "superpowers" / "specs" / "identity.md").is_file())
+
+            missing_objects = subprocess.run(
+                ["git", "-C", str(source_root), "rev-list", "--objects", "--missing=print", source_sha],
+                text=True,
+                capture_output=True,
+                timeout=20,
+                check=True,
+            )
+            self.assertIn("?" + gitignore_oid, missing_objects.stdout.splitlines())
+            origin_root.rename(Path(temporary_directory) / "unreachable-origin")
+            old_status = subprocess.run(
+                ["git", "-C", str(source_root), "status", "--porcelain", "--untracked-files=all"],
+                text=True,
+                capture_output=True,
+                timeout=20,
+                check=False,
+            )
+            self.assertNotEqual(old_status.returncode, 0)
             write_manifest(control_root, sha=source_sha)
 
             dispatch = run_validator(**valid_dispatch_parameters(control_root))
@@ -477,18 +544,31 @@ class IntelRunnerStage0ContractTests(unittest.TestCase):
             source = run_validator(**source_parameters)
             self.assertEqual(source.returncode, 0, normalized(source.stderr))
 
-            (source_root / "identity.txt").write_text("modified identity\n", encoding="utf-8")
+            source_identity_path = source_root / "docs" / "superpowers" / "specs" / "identity.md"
+            source_identity_path.write_text("modified identity\n", encoding="utf-8", newline="\n")
             tracked_dirty = run_validator(**source_parameters)
             self.assertNotEqual(tracked_dirty.returncode, 0)
             self.assertEqual(normalized(tracked_dirty.stderr), INVALID_STDERR)
-            subprocess.run(["git", "-C", str(source_root), "restore", "--worktree", "identity.txt"], check=True, timeout=20)
+            subprocess.run(
+                ["git", "-C", str(source_root), "restore", "--worktree", "docs/superpowers/specs/identity.md"],
+                check=True,
+                timeout=20,
+            )
 
-            (source_root / "untracked.txt").write_text("unsafe\n", encoding="utf-8")
+            untracked_path = source_root / "docs" / "superpowers" / "specs" / "untracked.md"
+            untracked_path.write_text("unsafe\n", encoding="utf-8", newline="\n")
             dirty = run_validator(**source_parameters)
             self.assertNotEqual(dirty.returncode, 0)
             self.assertEqual(normalized(dirty.stderr), INVALID_STDERR)
 
-            (source_root / "untracked.txt").unlink()
+            untracked_path.unlink()
+            ignored_path = source_root / "ignored-only.txt"
+            ignored_path.write_text("unsafe even when ignored\n", encoding="utf-8", newline="\n")
+            ignored_dirty = run_validator(**source_parameters)
+            self.assertNotEqual(ignored_dirty.returncode, 0)
+            self.assertEqual(normalized(ignored_dirty.stderr), INVALID_STDERR)
+
+            ignored_path.unlink()
             write_manifest(control_root, sha="d" * 40)
             mismatched = run_validator(**source_parameters)
             self.assertNotEqual(mismatched.returncode, 0)
