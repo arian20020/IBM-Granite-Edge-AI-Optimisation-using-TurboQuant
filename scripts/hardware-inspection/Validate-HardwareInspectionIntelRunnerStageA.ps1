@@ -1,33 +1,23 @@
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory = $true)]
     [string]$Phase,
 
-    [Parameter(Mandatory = $true)]
     [string]$ControlRoot,
 
-    [Parameter(Mandatory = $true)]
     [string]$WorkflowRef,
 
-    [Parameter(Mandatory = $true)]
     [string]$DefaultBranch,
 
-    [Parameter(Mandatory = $true)]
     [string]$Actor,
 
-    [Parameter(Mandatory = $true)]
     [string]$TriggeringActor,
 
-    [Parameter(Mandatory = $true)]
     [string]$RepositoryOwner,
 
-    [Parameter(Mandatory = $true)]
     [string]$RunAttempt,
 
-    [Parameter(Mandatory = $true)]
     [string]$Confirmation,
 
-    [Parameter(Mandatory = $true)]
     [string]$RunnerLabel,
 
     [string]$SourceCheckoutRoot,

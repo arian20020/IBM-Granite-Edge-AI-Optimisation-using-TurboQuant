@@ -1,10 +1,10 @@
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory)][string] $EvaluatedRoot,
-    [Parameter(Mandatory)][string] $ApprovedSha,
-    [Parameter(Mandatory)][string] $LocalWorkRoot,
-    [Parameter(Mandatory)][string] $SummaryJsonPath,
-    [Parameter(Mandatory)][string] $SummaryMarkdownPath
+    [string] $EvaluatedRoot,
+    [string] $ApprovedSha,
+    [string] $LocalWorkRoot,
+    [string] $SummaryJsonPath,
+    [string] $SummaryMarkdownPath
 )
 
 Set-StrictMode -Version Latest
@@ -288,7 +288,7 @@ function Assert-StageASummaryPrivacy {
 function Test-StageAResidualProcesses {
     $residual = @(Get-Process | Where-Object { $_.ProcessName -match '(?i)(llmfit|fake.*tool)' })
     Assert-StageACondition ($residual.Count -eq 0)
-    $listeners = @(Get-NetTCPConnection -State Listen -LocalPort 8787 -ErrorAction SilentlyContinue)
+    $listeners = @(Get-NetTCPConnection -ErrorAction Stop | Where-Object { $_.State -eq 'Listen' -and $_.LocalPort -eq 8787 })
     Assert-StageACondition ($listeners.Count -eq 0)
 }
 

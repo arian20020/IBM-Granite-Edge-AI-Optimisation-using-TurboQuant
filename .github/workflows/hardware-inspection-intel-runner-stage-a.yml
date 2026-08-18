@@ -253,6 +253,8 @@ jobs:
           STAGEA_APPROVED_SHA: ${{ needs.hosted-preflight.outputs.approved_sha }}
         run: |
           $ErrorActionPreference = 'Stop'
+          $failure = 'HI-RUNNER-STAGEA-EXECUTION-INVALID: deterministic execution failed.'
+          try {
           $exportDirectory = 'stage-a-export'
           if (Test-Path -LiteralPath $exportDirectory) {
             throw 'HI-RUNNER-STAGEA-EXPORT-INVALID: export directory already exists.'
@@ -268,6 +270,11 @@ jobs:
             -LocalWorkRoot $localWorkRoot `
             -SummaryJsonPath 'stage-a-export/stage-a-summary.json' `
             -SummaryMarkdownPath 'stage-a-export/stage-a-summary.md'
+          }
+          catch {
+            [Console]::Error.WriteLine($failure)
+            exit 1
+          }
 
       - name: Upload Stage A summary
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
@@ -323,6 +330,6 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $failure = 'HI-RUNNER-STAGEA-RESIDUE-INVALID: fixed residue check failed.'
           try {
-            if (@(Get-Process | Where-Object { $_.ProcessName -match '(?i)(llmfit|fake.*tool)' }).Count -ne 0 -or @(Get-NetTCPConnection -State Listen -LocalPort 8787 -ErrorAction SilentlyContinue).Count -ne 0) { throw $failure }
+            if (@(Get-Process | Where-Object { $_.ProcessName -match '(?i)(llmfit|fake.*tool)' }).Count -ne 0 -or @(Get-NetTCPConnection -ErrorAction Stop | Where-Object { $_.State -eq 'Listen' -and $_.LocalPort -eq 8787 }).Count -ne 0) { throw $failure }
           }
           catch { [Console]::Error.WriteLine($failure); exit 1 }
