@@ -7,38 +7,24 @@ import importlib
 import importlib.metadata
 import json
 import os
-from pathlib import Path, PureWindowsPath
+from pathlib import Path
 from typing import Any, Mapping, Sequence
 
+from scripts.testing.workbook05.phase3.dependency_import_identity import (
+    observe_module_identity,
+)
 from scripts.testing.workbook05.phase3.dependency_preflight import IMPORT_MODULES
-
-
-def _windows_child(root: Path, candidate_text: str, module_name: str) -> str:
-    root_path = PureWindowsPath(str(root))
-    candidate = PureWindowsPath(candidate_text)
-    if not root_path.is_absolute() or not candidate.is_absolute():
-        raise ValueError(
-            f"Imported module path must be an absolute Windows path: {module_name}"
-        )
-    root_parts = tuple(part.casefold() for part in root_path.parts)
-    candidate_parts = tuple(part.casefold() for part in candidate.parts)
-    if (
-        len(candidate_parts) <= len(root_parts)
-        or candidate_parts[: len(root_parts)] != root_parts
-    ):
-        raise ValueError(
-            f"Imported module escaped the expected final environment: {module_name}"
-        )
-    return str(candidate)
 
 
 def collect_import_observations(
     expected_environment_root: Path | None = None,
-) -> dict[str, dict[str, str]]:
+) -> dict[str, dict[str, Any]]:
     """Import every required module and bind it to the final environment."""
 
-    observations: dict[str, dict[str, str]] = {}
+    observations: dict[str, dict[str, Any]] = {}
     for module_name in IMPORT_MODULES:
+        # Import only the exact reviewed catalogue. The helper below then binds
+        # either a conventional module file or every PEP 420 namespace location.
         module = importlib.import_module(module_name)
         top_level = module_name.split(".", maxsplit=1)[0]
         package_name = {
@@ -47,17 +33,35 @@ def collect_import_observations(
             "nncf": "nncf",
             "openvino": "openvino",
         }[top_level]
-        module_file = str(getattr(module, "__file__", ""))
-        if not module_file:
-            raise ValueError(f"Imported module has no file identity: {module_name}")
-        if expected_environment_root is not None:
-            module_file = _windows_child(
+
+        if expected_environment_root is None:
+            # The command-line live boundary always supplies a root. This branch
+            # remains available for diagnostic use while still requiring a real
+            # import identity rather than converting ``None`` to text.
+            module_file = getattr(module, "__file__", None)
+            if not isinstance(module_file, str) or not module_file:
+                raise ValueError(
+                    f"Imported module has no concrete file identity without an "
+                    f"expected environment root: {module_name}"
+                )
+            module_kind = "file"
+            module_locations = [module_file]
+        else:
+            identity = observe_module_identity(
+                module,
                 expected_environment_root,
-                module_file,
                 module_name,
             )
+            module_file = identity.primary_location
+            module_kind = identity.kind
+            module_locations = list(identity.locations)
+
+        # Preserve ``module_file`` for compatibility with the existing evidence
+        # record while explicitly exposing namespace kind and all locations.
         observations[module_name] = {
             "module_file": module_file,
+            "module_kind": module_kind,
+            "module_locations": module_locations,
             "package": package_name,
             "version": importlib.metadata.version(package_name),
         }
@@ -65,6 +69,8 @@ def collect_import_observations(
 
 
 def _write_atomic(path: Path, value: Mapping[str, Any]) -> None:
+    """Write the import report once, using a sibling temporary file."""
+
     temporary = path.with_name(path.name + ".tmp")
     if path.exists():
         raise FileExistsError(f"Import-check output already exists: {path}")
@@ -88,6 +94,8 @@ def _write_atomic(path: Path, value: Mapping[str, Any]) -> None:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    """Run the fresh-process import check and optionally retain its JSON."""
+
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--expected-environment-root", type=Path)
     parser.add_argument("--output", type=Path)
