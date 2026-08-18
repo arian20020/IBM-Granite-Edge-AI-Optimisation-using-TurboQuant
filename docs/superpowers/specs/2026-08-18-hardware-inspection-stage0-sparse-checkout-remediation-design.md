@@ -5,6 +5,20 @@
 **Failed run:** `32138539513`
 **Failed revision:** `0b7da6413ba20508928c2033b88dc3d3efd10143`
 
+## Verification erratum — 2026-08-18
+
+Task 2's local sparse-checkout proof showed that Git cone mode's parent-directory semantics materialize repository-root files even when the configured cone is `docs/superpowers/specs`. The observed evaluated checkout included `Initialize-Repository-Structure.ps1` and `IBM Granite with TurboQuant (Intel).slnx`, so the evaluated boundary was not limited to inert specifications.
+
+The correction is evaluated-only. The control checkout remains the exact six-directory cone with `sparse-checkout-cone-mode: true`. The evaluated checkout now uses one root-anchored non-cone directory pattern:
+
+```yaml
+          sparse-checkout: |
+            /docs/superpowers/specs/
+          sparse-checkout-cone-mode: false
+```
+
+That pattern is bounded to the 22 inert Markdown specifications under `docs/superpowers/specs`; no evaluated code, project, executable, workflow step, or test runs. The corrected canonical workflow SHA-256 is `d1f1653e8c67c65a43ae296956cc4c561f7479895bed40ee5abe92ebd780f2e3`.
+
 ## Problem
 
 The first manual Stage 0 dispatch failed in the initial `actions/checkout` step on GitHub's `windows-latest` runner. The reviewed `main` revision was fetched successfully, but a full worktree checkout tried to materialize unrelated repository paths whose absolute Windows paths were 260 to 268 characters long. Git exited with code 128 before Python setup, contracts, approval-manifest validation, evaluated-source comparison, or summary publication.
@@ -24,9 +38,9 @@ This was a repository checkout failure, not a Hardware Inspection or LLM Fit res
 
 ## Considered approaches
 
-### 1. Cone-mode sparse checkout — selected
+### 1. Cone-mode control and non-cone evaluated sparse checkout — selected
 
-Materialize only the repository directories required by Stage 0. This follows existing repository workflow patterns, avoids unrelated Windows-incompatible paths, reduces untrusted content, and retains `actions/checkout` authentication and cleanup behavior.
+Materialize only the repository directories required by Stage 0. The control checkout uses cone mode, while the evaluated checkout uses one root-anchored non-cone directory pattern. This follows existing repository workflow patterns, avoids unrelated Windows-incompatible paths, reduces untrusted content, and retains `actions/checkout` authentication and cleanup behavior.
 
 ### 2. Enable `core.longpaths` before full checkout — rejected
 
@@ -56,21 +70,24 @@ Cone-mode parent semantics also materialize `scripts/README.md`, which the contr
 - all testing runbooks, so a copied Gate 1 operational runbook remains detectable;
 - the approval manifest, canonical workflow, validator, design, runbook, and contract module.
 
-The evaluated feature checkout will use one inert cone:
+The evaluated feature checkout will use this exact root-anchored non-cone pattern and mode:
 
-```text
-docs/superpowers/specs
+```yaml
+          sparse-checkout: |
+            /docs/superpowers/specs/
+          sparse-checkout-cone-mode: false
 ```
 
-No evaluated script, project, executable, workflow step, or test is run. `rev-parse HEAD` binds the full commit identity to the approved SHA even though only Markdown design documents are materialized. `git status --porcelain --untracked-files=all` validates the resulting sparse worktree state; it is not represented as proof that every tracked file was materialized.
+The root-anchored non-cone directory pattern is bounded to the 22 inert Markdown specifications. No evaluated script, project, executable, workflow step, or test is run. `rev-parse HEAD` binds the full commit identity to the approved SHA even though only Markdown design documents are materialized. `git status --porcelain --untracked-files=all` validates the resulting sparse worktree state; it is not represented as proof that every tracked file was materialized.
 
 Both checkouts retain:
 
 ```yaml
 fetch-depth: 1
 persist-credentials: false
-sparse-checkout-cone-mode: true
 ```
+
+The control checkout retains `sparse-checkout-cone-mode: true`; the evaluated checkout uses the exact non-cone block above.
 
 No explicit checkout filter or global Git configuration is added. The pinned checkout action may apply its own partial-clone optimization internally.
 
@@ -80,7 +97,7 @@ No explicit checkout filter or global Git configuration is added. The pinned che
 2. The control checkout materializes only the approved cones.
 3. Python 3.12.10 is configured and the same 12 Stage 0 contracts run from `control`.
 4. The control validator checks dispatch context and the strict approval manifest.
-5. The evaluated checkout materializes only design specifications at the manifest-selected feature ref.
+5. The evaluated checkout materializes only the 22 inert design specifications at the manifest-selected feature ref using the root-anchored non-cone pattern.
 6. The control validator compares evaluated `HEAD` to the approved SHA, verifies sparse worktree cleanliness, and publishes the fixed safe summary.
 7. No artifact is uploaded.
 
@@ -88,14 +105,14 @@ Any checkout, contract, manifest, identity, or cleanliness failure stops the job
 
 ## Test design
 
-The existing workflow contract is updated test-first. Before the workflow changes, the focused contract must fail because both checkouts lack sparse inputs. The production change then adds the two exact sparse blocks and updates the canonical workflow SHA-256.
+The existing workflow contract is updated test-first. Before the evaluated workflow correction, the focused contract must fail because the evaluated checkout still uses the cone pattern and mode. The production change then replaces only that evaluated block with the exact root-anchored non-cone block and updates the canonical workflow SHA-256.
 
 The existing test identity will assert:
 
 - exactly two `sparse-checkout` blocks;
-- exactly two `sparse-checkout-cone-mode: true` settings;
-- the exact ordered control and evaluated cone lists;
-- no non-cone mode, explicit filter, or `core.longpaths` setting;
+- exactly one `sparse-checkout-cone-mode: true` setting and one `sparse-checkout-cone-mode: false` setting;
+- the exact ordered control cone list and root-anchored evaluated directory pattern;
+- no explicit filter or `core.longpaths` setting;
 - both immutable checkout pins and both `persist-credentials: false` settings remain;
 - control execution and evaluated identity-only ordering remain unchanged.
 

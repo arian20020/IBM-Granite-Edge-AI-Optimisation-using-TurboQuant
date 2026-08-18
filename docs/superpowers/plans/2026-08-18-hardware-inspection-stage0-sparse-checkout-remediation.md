@@ -4,11 +4,25 @@
 
 **Goal:** Make the manual GitHub-hosted Stage 0 workflow complete successfully on Windows by materializing only its approved repository controls and inert evaluated design documents.
 
-**Architecture:** Retain the pinned `actions/checkout` steps and add exact cone-mode sparse-checkout inputs. The control checkout includes complete workflow, Hardware Inspection script, runbook, design, manifest, and contract-test namespaces; the evaluated checkout includes only inert design specifications while the approved commit SHA binds the full source identity.
+**Architecture:** Retain the pinned `actions/checkout` steps and add exact sparse-checkout inputs: cone mode for control and a root-anchored non-cone pattern for evaluated. The control checkout includes complete workflow, Hardware Inspection script, runbook, design, manifest, and contract-test namespaces; the evaluated checkout includes only inert design specifications while the approved commit SHA binds the full source identity.
 
 **Tech Stack:** GitHub Actions YAML, `actions/checkout` v7 pinned at `9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0`, Python 3.12 `unittest`, Windows PowerShell 5.1, Git sparse checkout.
 
 **Spec:** `docs/superpowers/specs/2026-08-18-hardware-inspection-stage0-sparse-checkout-remediation-design.md`
+
+## Verification erratum — 2026-08-18
+
+Task 2's local sparse-checkout proof showed that Git cone mode's parent-directory semantics materialize repository-root files even when the configured evaluated cone is `docs/superpowers/specs`. The observed evaluated checkout included `Initialize-Repository-Structure.ps1` and `IBM Granite with TurboQuant (Intel).slnx`, so it was not bounded to inert specifications.
+
+The correction is evaluated-only. Control remains the exact cone-mode boundary; evaluated uses one root-anchored non-cone directory pattern bounded to the 22 inert Markdown specifications:
+
+```yaml
+          sparse-checkout: |
+            /docs/superpowers/specs/
+          sparse-checkout-cone-mode: false
+```
+
+No evaluated code, project, executable, workflow step, or test runs. The corrected canonical workflow SHA-256 is `d1f1653e8c67c65a43ae296956cc4c561f7479895bed40ee5abe92ebd780f2e3`.
 
 ---
 
@@ -32,7 +46,7 @@
 
 **Interfaces:**
 - Consumes: existing canonical workflow bytes, the pinned checkout action, the approval manifest output `steps.approval.outputs.source_ref`, and the existing 12-test contract module.
-- Produces: canonical workflow SHA-256 `a4dc9d363277dc7ed318e310aecb8b251346cc96cce8380f288b382af264de29` and two exact cone-mode sparse-checkout blocks.
+- Produces: canonical workflow SHA-256 `d1f1653e8c67c65a43ae296956cc4c561f7479895bed40ee5abe92ebd780f2e3` and the exact control-cone and evaluated non-cone sparse-checkout blocks.
 
 - [ ] **Step 1: Add the focused failing contract assertions**
 
@@ -49,15 +63,15 @@ control_sparse_checkout = """          sparse-checkout: |
           sparse-checkout-cone-mode: true
 """
 evaluated_sparse_checkout = """          sparse-checkout: |
-            docs/superpowers/specs
-          sparse-checkout-cone-mode: true
+            /docs/superpowers/specs/
+          sparse-checkout-cone-mode: false
 """
 
 self.assertEqual(text.count("          sparse-checkout: |\n"), 2)
-self.assertEqual(text.count("          sparse-checkout-cone-mode: true\n"), 2)
+self.assertEqual(text.count("          sparse-checkout-cone-mode: true\n"), 1)
+self.assertEqual(text.count("          sparse-checkout-cone-mode: false\n"), 1)
 self.assertIn(control_sparse_checkout, text)
 self.assertIn(evaluated_sparse_checkout, text)
-self.assertNotIn("sparse-checkout-cone-mode: false", text)
 self.assertNotIn("          filter:", text)
 self.assertNotIn("core.longpaths", text.casefold())
 
@@ -72,6 +86,10 @@ self.assertIn(control_sparse_checkout, control_step)
 self.assertNotIn(evaluated_sparse_checkout, control_step)
 self.assertIn(evaluated_sparse_checkout, evaluated_step)
 self.assertNotIn(control_sparse_checkout, evaluated_step)
+self.assertIn("          sparse-checkout-cone-mode: true\n", control_step)
+self.assertNotIn("          sparse-checkout-cone-mode: false\n", control_step)
+self.assertIn("          sparse-checkout-cone-mode: false\n", evaluated_step)
+self.assertNotIn("          sparse-checkout-cone-mode: true\n", evaluated_step)
 ```
 
 - [ ] **Step 2: Run the focused test and capture RED**
@@ -84,7 +102,7 @@ python -m unittest `
   -v
 ```
 
-Expected: one test runs and fails because the current workflow has zero `sparse-checkout` blocks. The failure must not be a Python import, syntax, or harness error.
+Expected: one test runs and fails because the current evaluated checkout still uses the cone pattern and mode instead of the root-anchored non-cone pattern. The failure must not be a Python import, syntax, or harness error.
 
 - [ ] **Step 3: Add the exact control sparse checkout**
 
@@ -117,8 +135,8 @@ Extend `Check out approved source for identity comparison only` without changing
           fetch-depth: 1
           persist-credentials: false
           sparse-checkout: |
-            docs/superpowers/specs
-          sparse-checkout-cone-mode: true
+            /docs/superpowers/specs/
+          sparse-checkout-cone-mode: false
 ```
 
 - [ ] **Step 5: Update the canonical workflow digest**
@@ -126,7 +144,7 @@ Extend `Check out approved source for identity comparison only` without changing
 Change only:
 
 ```python
-EXPECTED_WORKFLOW_SHA256 = "a4dc9d363277dc7ed318e310aecb8b251346cc96cce8380f288b382af264de29"
+EXPECTED_WORKFLOW_SHA256 = "d1f1653e8c67c65a43ae296956cc4c561f7479895bed40ee5abe92ebd780f2e3"
 ```
 
 The new digest is computed from the exact LF-only workflow above with one trailing LF. Do not weaken `_assert_canonical_workflow` or remove any existing mutation.
@@ -166,7 +184,7 @@ if (-not ([System.Text.Encoding]::UTF8.GetString($workflowBytes).EndsWith("`n"))
     throw 'Workflow lacks its final LF.'
 }
 if ((Get-FileHash -Algorithm SHA256 $workflow).Hash.ToLowerInvariant() -ne
-    'a4dc9d363277dc7ed318e310aecb8b251346cc96cce8380f288b382af264de29') {
+    'd1f1653e8c67c65a43ae296956cc4c561f7479895bed40ee5abe92ebd780f2e3') {
     throw 'Workflow digest mismatch.'
 }
 
@@ -210,8 +228,8 @@ The worktree must be clean after the commit.
 - Create temporarily outside the repository: owned sparse control and evaluated clones; delete them after verification.
 
 **Interfaces:**
-- Consumes: Task 1 workflow digest and exact sparse cones.
-- Produces: local proof that the control cone runs all 12 contracts and the evaluated cone supports exact SHA/clean identity validation without materializing executable feature content.
+- Consumes: Task 1 workflow digest and exact control cone/evaluated non-cone sparse boundaries.
+- Produces: local proof that the control cone runs all 12 contracts and the evaluated non-cone pattern supports exact SHA/clean identity validation without materializing executable feature content.
 
 - [ ] **Step 1: Run the exact owned sparse-checkout proof**
 
@@ -281,10 +299,10 @@ try {
 
     & git clone --no-checkout --no-local 'C:\hardware-inspection' $evaluatedRoot
     if ($LASTEXITCODE -ne 0) { throw 'Evaluated clone failed.' }
-    & git -C $evaluatedRoot sparse-checkout init --cone
+    & git -C $evaluatedRoot sparse-checkout init --no-cone
     if ($LASTEXITCODE -ne 0) { throw 'Evaluated sparse initialization failed.' }
-    & git -C $evaluatedRoot sparse-checkout set 'docs/superpowers/specs'
-    if ($LASTEXITCODE -ne 0) { throw 'Evaluated cone selection failed.' }
+    & git -C $evaluatedRoot sparse-checkout set --no-cone '/docs/superpowers/specs/'
+    if ($LASTEXITCODE -ne 0) { throw 'Evaluated non-cone selection failed.' }
     & git -C $evaluatedRoot checkout --detach $approvedSha
     if ($LASTEXITCODE -ne 0) { throw 'Evaluated sparse checkout failed.' }
 
@@ -408,12 +426,12 @@ if ($remoteFixSha -cne $fixSha) { throw 'Remote fix ref does not match the revie
 $prBody = @"
 ## Summary
 - fixes failed repository-only Stage 0 run 32138539513
-- replaces both broad Windows checkouts with reviewed cone-mode sparse boundaries
+- replaces both broad Windows checkouts with reviewed control-cone and evaluated non-cone sparse boundaries
 - preserves all Hardware Inspection, Gate 1, Gate 2, laptop, candidate, and network behavior
 
 ## Verification
 - Stage 0 contracts: 12 passed, 0 failed, 0 skipped
-- canonical workflow SHA-256: a4dc9d363277dc7ed318e310aecb8b251346cc96cce8380f288b382af264de29
+- canonical workflow SHA-256: d1f1653e8c67c65a43ae296956cc4c561f7479895bed40ee5abe92ebd780f2e3
 - local control/evaluated sparse-checkout proof: passed
 - PowerShell parser, Python compile, whitespace, scope, and independent reviews: passed
 
@@ -497,7 +515,7 @@ if ($featureSha -cne 'cc2e57ceb94e73e49f34fc383d5440a9047fba21') {
 }
 ```
 
-Re-read the merged workflow from `origin/main` and confirm it remains manual-only with the canonical SHA-256 `a4dc9d363277dc7ed318e310aecb8b251346cc96cce8380f288b382af264de29`.
+Re-read the merged workflow from `origin/main` and confirm it remains manual-only with the canonical SHA-256 `d1f1653e8c67c65a43ae296956cc4c561f7479895bed40ee5abe92ebd780f2e3`.
 
 - [ ] **Step 5: Create a new manual dispatch**
 
