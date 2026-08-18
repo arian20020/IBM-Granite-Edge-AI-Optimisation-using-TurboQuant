@@ -184,6 +184,34 @@ class Phase3DependencyLiveScriptContractTests(unittest.TestCase):
         )
         self.assertNotIn("$global:LASTEXITCODE = 0", self.test_harness)
 
+    def test_command_output_reader_handles_clean_empty_git_status(self) -> None:
+        # Live run 32083055893 attempt 2 proved that a successful, clean
+        # `git status --porcelain --untracked-files=all` produces a readable
+        # zero-byte stdout file. Windows PowerShell 5.1 returns no object for
+        # `Get-Content -Raw` in that case, so the reader must convert only that
+        # legitimate result to the empty string while still failing for a missing
+        # or unreadable evidence file.
+        required_tokens = (
+            "$capturedOutput = Get-Content",
+            "-LiteralPath $Result.stdout_path",
+            "-Raw",
+            "-ErrorAction Stop",
+            "if ($null -eq $capturedOutput)",
+            "return ''",
+            "return $capturedOutput.Trim()",
+        )
+        for token in required_tokens:
+            with self.subTest(token=token):
+                self.assertIn(token, self.script)
+
+        # Protect against reintroducing the exact one-expression form that threw
+        # `InvokeMethodOnNull` during source verification in attempt 2.
+        self.assertNotIn(
+            "return (\n        Get-Content -LiteralPath "
+            "$Result.stdout_path -Raw -Encoding UTF8\n    ).Trim()",
+            self.script,
+        )
+
     def test_live_builder_requires_the_adopted_bootstrap_versions(self) -> None:
         self.assertIn('"pip-tools": "7.6.0"', self.decision)
         self.assertIn('"pip": "26.1.2"', self.decision)
