@@ -151,7 +151,7 @@ function Get-ApprovedManifestSha {
     $text = $encoding.GetString($bytes)
     $match = [System.Text.RegularExpressions.Regex]::Match(
         $text,
-        '\A\s*\{\s*"schemaVersion"\s*:\s*"1\.0"\s*,\s*"remoteFeatureRef"\s*:\s*"refs/heads/feature/hardware-inspection"\s*,\s*"approvedTipSha"\s*:\s*"((?!0{40}")[0-9a-f]{40})"\s*\}\s*\z',
+        '\A[ \t\r\n]*\{[ \t\r\n]*"schemaVersion"[ \t\r\n]*:[ \t\r\n]*"1\.0"[ \t\r\n]*,[ \t\r\n]*"remoteFeatureRef"[ \t\r\n]*:[ \t\r\n]*"refs/heads/feature/hardware-inspection"[ \t\r\n]*,[ \t\r\n]*"approvedTipSha"[ \t\r\n]*:[ \t\r\n]*"((?!0{40}")[0-9a-f]{40})"[ \t\r\n]*\}[ \t\r\n]*\z',
         [System.Text.RegularExpressions.RegexOptions]::CultureInvariant
     )
     if (-not $match.Success) {
@@ -160,15 +160,65 @@ function Get-ApprovedManifestSha {
     return $match.Groups[1].Value
 }
 
-function Get-ExactGitHead {
-    param([string]$Root)
-
-    $null = Get-Command -Name git -ErrorAction Stop
-    $lines = @(& git -C $Root rev-parse HEAD 2>$null)
-    if ($LASTEXITCODE -ne 0 -or $lines.Count -ne 1) {
-        throw 'Git identity is unavailable.'
+function Assert-NoGitEnvironment {
+    foreach ($name in [System.Environment]::GetEnvironmentVariables().Keys) {
+        if (([string]$name).StartsWith('GIT_', [System.StringComparison]::OrdinalIgnoreCase)) {
+            throw 'Git environment is present.'
+        }
     }
-    $head = [string]$lines[0]
+}
+
+function Resolve-GitApplication {
+    $applications = @(
+        Get-Command -Name git -CommandType Application -ErrorAction Stop |
+            Select-Object -First 1
+    )
+    if ($applications.Count -ne 1 -or [string]::IsNullOrWhiteSpace($applications[0].Source)) {
+        throw 'Git application is unavailable.'
+    }
+    return [string]$applications[0].Source
+}
+
+function Invoke-ExactGitLine {
+    param(
+        [string]$Root,
+        [string]$GitApplication,
+        [string[]]$GitArguments
+    )
+
+    $lines = @(& $GitApplication -C $Root @GitArguments 2>$null)
+    if ($LASTEXITCODE -ne 0 -or $lines.Count -ne 1) {
+        throw 'Git command did not return one line.'
+    }
+    return [string]$lines[0]
+}
+
+function Assert-ExactGitCheckout {
+    param(
+        [string]$Root,
+        [string]$GitApplication
+    )
+
+    $expectedGitDirectory = Resolve-NormalExistingDirectory -Path (Join-Path -Path $Root -ChildPath '.git')
+    $topLevel = Invoke-ExactGitLine -Root $Root -GitApplication $GitApplication -GitArguments @('rev-parse', '--show-toplevel')
+    $normalTopLevel = Resolve-NormalExistingDirectory -Path $topLevel
+    if (-not [string]::Equals($normalTopLevel, $Root, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw 'Git work tree does not match checkout root.'
+    }
+    $gitDirectory = Invoke-ExactGitLine -Root $Root -GitApplication $GitApplication -GitArguments @('rev-parse', '--absolute-git-dir')
+    $normalGitDirectory = Resolve-NormalExistingDirectory -Path $gitDirectory
+    if (-not [string]::Equals($normalGitDirectory, $expectedGitDirectory, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw 'Git directory does not match checkout root.'
+    }
+}
+
+function Get-ExactGitHead {
+    param(
+        [string]$Root,
+        [string]$GitApplication
+    )
+
+    $head = Invoke-ExactGitLine -Root $Root -GitApplication $GitApplication -GitArguments @('rev-parse', 'HEAD')
     if ($head -cnotmatch '^[0-9a-f]{40}$') {
         throw 'Git identity is invalid.'
     }
@@ -176,13 +226,16 @@ function Get-ExactGitHead {
 }
 
 function Assert-CleanGitCheckout {
-    param([string]$Root)
+    param(
+        [string]$Root,
+        [string]$GitApplication
+    )
 
-    $tracked = @(& git -C $Root status --porcelain --untracked-files=no 2>$null)
+    $tracked = @(& $GitApplication -C $Root status --porcelain --untracked-files=no 2>$null)
     if ($LASTEXITCODE -ne 0 -or $tracked.Count -ne 0) {
         throw 'Git checkout is not clean.'
     }
-    $untracked = @(& git -C $Root ls-files --others -- 2>$null)
+    $untracked = @(& $GitApplication -C $Root ls-files --others -- 2>$null)
     if ($LASTEXITCODE -ne 0 -or $untracked.Count -ne 0) {
         throw 'Git checkout is not clean.'
     }
@@ -194,8 +247,49 @@ function Write-Utf8NoBomFile {
         [string]$Content
     )
 
-    $encoding = New-Object System.Text.UTF8Encoding($false)
-    [System.IO.File]::WriteAllText($Path, $Content, $encoding)
+    $directory = [System.IO.Path]::GetDirectoryName($Path)
+    $temporaryPath = Join-Path -Path $directory -ChildPath ('.stagea-' + [System.Guid]::NewGuid().ToString('N') + '.tmp')
+    $stream = $null
+    $writer = $null
+    try {
+        $stream = New-Object System.IO.FileStream(
+            $temporaryPath,
+            [System.IO.FileMode]::CreateNew,
+            [System.IO.FileAccess]::Write,
+            [System.IO.FileShare]::None
+        )
+        $writer = New-Object System.IO.StreamWriter(
+            $stream,
+            (New-Object System.Text.UTF8Encoding($false)),
+            1024,
+            $true
+        )
+        $writer.Write($Content)
+        $writer.Flush()
+        $stream.Flush($true)
+        $writer.Dispose()
+        $writer = $null
+        $stream.Dispose()
+        $stream = $null
+        if ([System.IO.File]::Exists($Path)) {
+            [System.IO.File]::Replace($temporaryPath, $Path, $null)
+        }
+        else {
+            [System.IO.File]::Move($temporaryPath, $Path)
+        }
+        $temporaryPath = $null
+    }
+    finally {
+        if ($null -ne $writer) {
+            $writer.Dispose()
+        }
+        if ($null -ne $stream) {
+            $stream.Dispose()
+        }
+        if ($null -ne $temporaryPath -and [System.IO.File]::Exists($temporaryPath)) {
+            [System.IO.File]::Delete($temporaryPath)
+        }
+    }
 }
 
 try {
@@ -214,6 +308,8 @@ try {
     $normalControlRoot = Resolve-NormalExistingDirectory -Path $ControlRoot
     $manifestSha = Get-ApprovedManifestSha -Root $normalControlRoot
     $sourceRef = 'refs/heads/feature/hardware-inspection'
+    Assert-NoGitEnvironment
+    $gitApplication = Resolve-GitApplication
 
     if ($Phase -ceq 'Hosted') {
         if ([string]::IsNullOrWhiteSpace($SourceCheckoutRoot) -or
@@ -221,11 +317,12 @@ try {
             throw 'Hosted inputs are missing.'
         }
         $sourceRoot = Resolve-NormalExistingDirectory -Path $SourceCheckoutRoot
-        $sourceHead = Get-ExactGitHead -Root $sourceRoot
+        Assert-ExactGitCheckout -Root $sourceRoot -GitApplication $gitApplication
+        $sourceHead = Get-ExactGitHead -Root $sourceRoot -GitApplication $gitApplication
         if ($sourceHead -cne $manifestSha) {
             throw 'Source identity is not approved.'
         }
-        Assert-CleanGitCheckout -Root $sourceRoot
+        Assert-CleanGitCheckout -Root $sourceRoot -GitApplication $gitApplication
         $outputPath = Resolve-NormalOutputPath -Path $GitHubOutputPath
         $output = 'source_ref=' + $sourceRef + [char]10 +
             'approved_sha=' + $manifestSha + [char]10 +
@@ -258,11 +355,12 @@ try {
     if (Test-Path -LiteralPath $candidateDirectory -PathType Container) {
         throw 'Candidate directory is present.'
     }
-    $evaluatedHead = Get-ExactGitHead -Root $evaluatedRoot
+    Assert-ExactGitCheckout -Root $evaluatedRoot -GitApplication $gitApplication
+    $evaluatedHead = Get-ExactGitHead -Root $evaluatedRoot -GitApplication $gitApplication
     if ($evaluatedHead -cne $manifestSha) {
         throw 'Evaluated identity is not approved.'
     }
-    Assert-CleanGitCheckout -Root $evaluatedRoot
+    Assert-CleanGitCheckout -Root $evaluatedRoot -GitApplication $gitApplication
     $normalSummaryPath = Resolve-NormalOutputPath -Path $SummaryPath
     $summary = '# Stage A deterministic-only validation' + [char]10 + [char]10 +
         'Status: authorised deterministic validation complete.' + [char]10 +

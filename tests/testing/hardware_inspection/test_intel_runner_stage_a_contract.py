@@ -1,6 +1,7 @@
 import base64
 import codecs
 import copy
+import ctypes
 import json
 import os
 import re
@@ -528,6 +529,28 @@ def _assert_invalid_validator_result(test_case, result):
     test_case.assertEqual(result.stdout, "")
 
 
+class _ExclusiveFileLock:
+    def __init__(self, path):
+        self.path = path
+        self.handle = None
+
+    def __enter__(self):
+        if os.name != "nt":
+            return False
+        kernel32 = ctypes.windll.kernel32
+        handle = kernel32.CreateFileW(
+            str(self.path), 0x80000000, 0, None, 3, 0x80, None
+        )
+        if handle == ctypes.c_void_p(-1).value:
+            return False
+        self.handle = handle
+        return True
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        if self.handle is not None:
+            ctypes.windll.kernel32.CloseHandle(self.handle)
+
+
 class IntelRunnerStageAContractTests(unittest.TestCase):
     def test_stage_a_workflow_is_manual_default_branch_owner_and_first_attempt_only(self):
         raw, document = _workflow(self)
@@ -771,6 +794,9 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
                 {"Actor": "someone-else"},
                 {"WorkflowRef": "refs/heads/feature/hardware-inspection"},
                 {"RunnerLabel": "hardware-gate1-0123456789ABCDEG"},
+                {"ControlRoot": r"\\localhost\stage-a-canary"},
+                {"ControlRoot": r"\\?\C:\stage-a-canary"},
+                {"ControlRoot": r"\\.\C:\stage-a-canary"},
             ):
                 result = _invoke(
                     VALIDATOR_PATH,
@@ -802,6 +828,26 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
                     "eligible=true\n"
                 ).encode("utf-8"),
             )
+            hosted_output.write_bytes(b"prior-content-canary\n")
+            with _ExclusiveFileLock(hosted_output) as locked:
+                if locked:
+                    entries_before = {path.name for path in fixture_root.iterdir()}
+                    locked_result = _invoke(
+                        VALIDATOR_PATH,
+                        _validator_arguments(
+                            control_root,
+                            SourceCheckoutRoot=checkout_root,
+                            GitHubOutputPath=hosted_output,
+                        ),
+                        environment,
+                    )
+            if os.name == "nt":
+                self.assertTrue(locked, "exclusive output lock fixture is unavailable")
+            if locked:
+                _assert_invalid_validator_result(self, locked_result)
+                self.assertEqual(hosted_output.read_bytes(), b"prior-content-canary\n")
+                self.assertEqual({path.name for path in fixture_root.iterdir()}, entries_before)
+            hosted_output.write_bytes(b"hosted-output-reset\n")
             for malformed_label in (
                 "hardware-gate1-0123456789abcdef\n",
                 "hardware-gate1-0123456789abcdef\r\n",
@@ -819,11 +865,47 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
                 _assert_invalid_validator_result(self, result)
                 self.assertNotIn("hardware-gate1-0123456789abcdef", result.stdout + result.stderr)
 
+            reparse_control_root = fixture_root / "reparse-control-root"
+            try:
+                reparse_control_root.symlink_to(control_root, target_is_directory=True)
+            except OSError:
+                pass
+            else:
+                result = _invoke(
+                    VALIDATOR_PATH,
+                    _validator_arguments(
+                        reparse_control_root,
+                        SourceCheckoutRoot=checkout_root,
+                        GitHubOutputPath=hosted_output,
+                    ),
+                    environment,
+                )
+                _assert_invalid_validator_result(self, result)
+
+            forged_git_environment = environment.copy()
+            forged_git_environment["GIT_DIR"] = str(checkout_root / ".git")
+            forged_git_environment["GIT_WORK_TREE"] = str(checkout_root)
+            forged_source = fixture_root / "forged-source"
+            forged_source.mkdir()
+            result = _invoke(
+                VALIDATOR_PATH,
+                _validator_arguments(
+                    control_root,
+                    SourceCheckoutRoot=forged_source,
+                    GitHubOutputPath=hosted_output,
+                ),
+                forged_git_environment,
+            )
+            _assert_invalid_validator_result(self, result)
+
             for manifest_raw in (
                 b'{"schemaVersion":"1.0","remoteFeatureRef":"refs/heads/feature/hardware-inspection","approvedTipSha":"' + approved_sha.encode("ascii") + b'","extra":true}',
                 b'{"remoteFeatureRef":"refs/heads/feature/hardware-inspection","schemaVersion":"1.0","approvedTipSha":"' + approved_sha.encode("ascii") + b'"}',
                 b'{"schemaVersion":"1.0","remoteFeatureRef":"refs/heads/feature/hardware-inspection","approvedTipSha":"' + approved_sha.encode("ascii") + b'","approvedTipSha":"' + approved_sha.encode("ascii") + b'"}',
                 b'\xef\xbb\xbf{"schemaVersion":"1.0"}',
+                b'{\xc2\xa0"schemaVersion":"1.0","remoteFeatureRef":"refs/heads/feature/hardware-inspection","approvedTipSha":"' + approved_sha.encode("ascii") + b'"}',
+                b'{\x0c"schemaVersion":"1.0","remoteFeatureRef":"refs/heads/feature/hardware-inspection","approvedTipSha":"' + approved_sha.encode("ascii") + b'"}',
+                b'{\x0b"schemaVersion":"1.0","remoteFeatureRef":"refs/heads/feature/hardware-inspection","approvedTipSha":"' + approved_sha.encode("ascii") + b'"}',
             ):
                 _write_approval_manifest(control_root, approved_sha, manifest_raw)
                 result = _invoke(
