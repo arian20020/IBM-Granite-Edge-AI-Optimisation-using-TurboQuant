@@ -29,7 +29,7 @@ WORKFLOW_PATH = (
     / "workflows"
     / "hardware-inspection-intel-runner-stage0.yml"
 )
-EXPECTED_WORKFLOW_SHA256 = "9f14750368eef1a105332ccb54cd513ca92fd4af91dd8542efe5ededff304309"
+EXPECTED_WORKFLOW_SHA256 = "a4dc9d363277dc7ed318e310aecb8b251346cc96cce8380f288b382af264de29"
 EXPECTED_STAGE0_RUNBOOK_SHA256 = "27b006d1e28e6def738578d0fec7acd885f90005402772456b1dfc751e3f9e92"
 INVALID_STDERR = "HI-RUNNER-STAGE0-INVALID: repository-only validation failed.\n"
 
@@ -524,6 +524,38 @@ on:
         self.assertIn("          python-version: '3.12.10'\n", text)
         self.assertEqual(text.count("persist-credentials: false"), 2)
         self.assertIn("          ref: ${{ github.sha }}\n          path: control", text)
+        control_sparse_checkout = """          sparse-checkout: |
+            .github/hardware-inspection
+            .github/workflows
+            docs/superpowers/specs
+            docs/testing/runbooks
+            scripts/hardware-inspection
+            tests/testing/hardware_inspection
+          sparse-checkout-cone-mode: true
+"""
+        evaluated_sparse_checkout = """          sparse-checkout: |
+            docs/superpowers/specs
+          sparse-checkout-cone-mode: true
+"""
+
+        self.assertEqual(text.count("          sparse-checkout: |\n"), 2)
+        self.assertEqual(text.count("          sparse-checkout-cone-mode: true\n"), 2)
+        self.assertIn(control_sparse_checkout, text)
+        self.assertIn(evaluated_sparse_checkout, text)
+        self.assertNotIn("sparse-checkout-cone-mode: false", text)
+        self.assertNotIn("          filter:", text)
+        self.assertNotIn("core.longpaths", text.casefold())
+
+        control_start = text.index("      - name: Check out default-branch controls\n")
+        control_end = text.index("      - name: Set up Python for repository contracts\n", control_start)
+        evaluated_start = text.index("      - name: Check out approved source for identity comparison only\n")
+        evaluated_end = text.index("      - name: Confirm approved source identity and publish safe summary\n", evaluated_start)
+        control_step = text[control_start:control_end]
+        evaluated_step = text[evaluated_start:evaluated_end]
+        self.assertIn(control_sparse_checkout, control_step)
+        self.assertNotIn(evaluated_sparse_checkout, control_step)
+        self.assertIn(evaluated_sparse_checkout, evaluated_step)
+        self.assertNotIn(control_sparse_checkout, evaluated_step)
 
     def test_stage0_workflow_reads_approved_source_without_free_form_sha_input(self):
         raw = _workflow()
