@@ -22,19 +22,27 @@ The correction is evaluated-only. Control remains the exact cone-mode boundary; 
           sparse-checkout-cone-mode: false
 ```
 
-No evaluated code, project, executable, workflow step, or test runs. The corrected canonical workflow SHA-256 is `81a5893ccde84507ea8fd6d5409811ba55f0d16252b864907c29884f61c8fabf`.
+No evaluated code, project, executable, workflow step, or test runs. The corrected canonical workflow SHA-256 is `db075979900b0e5ca5aef3588f64225221f91bba744018f20180470177061ab3`.
 
 ## Security verification erratum — 2026-08-18
 
 Follow-up verification found that the pinned `actions/checkout` action can fall back to a full REST archive when Git is missing or too old to support sparse checkout. The fixed first executable step now performs a privacy-safe Git capability precheck before either checkout, accepts only a single strict version line at Git `2.28.0` or newer, and fails with a fixed message without exposing command output or paths. This prevents REST fallback from materializing a broad worktree before the sparse boundary is established.
 
-The evaluated checkout now resolves the immutable `steps.approval.outputs.approved_sha` value, not the movable `steps.approval.outputs.source_ref`. `source_ref` remains validator output and summary provenance only. The precheck and immutable SHA pin prevent both broad REST fallback materialization and movable-ref pre-materialization. The corrected canonical workflow SHA-256 is `81a5893ccde84507ea8fd6d5409811ba55f0d16252b864907c29884f61c8fabf`.
+The evaluated checkout now resolves the immutable `steps.approval.outputs.approved_sha` value, not the movable `steps.approval.outputs.source_ref`. `source_ref` remains validator output and summary provenance only. The precheck and immutable SHA pin prevent both broad REST fallback materialization and movable-ref pre-materialization. The corrected canonical workflow SHA-256 is `db075979900b0e5ca5aef3588f64225221f91bba744018f20180470177061ab3`.
+
+## Git command-resolution follow-up — 2026-08-18
+
+Hosted attempt-1 run `32155463873` failed in the first capability gate with the fixed privacy-safe Git error even though the official Windows image Git version `2.55.0.windows.3` satisfies the strict version expression. Reproduction showed that `Get-Command git -CommandType Application` can return multiple PATH-visible Git applications, including `bin` and `cmd`, and that invoking the array's `.Source` value treats all returned paths as one command name.
+
+The narrow correction selects the first PATH-ordered application with `Select-Object -First 1`, matching the pinned checkout bundle's `which('git', true)` then `matches[0]` resolution. Existing test identities now cover valid-first/invalid-second and invalid-first/valid-second results, retain the fixed error and no-output privacy boundary, and bind removal of first-result selection through the canonical mutation set. The suite remains exactly 12 identities and the canonical workflow SHA-256 is `db075979900b0e5ca5aef3588f64225221f91bba744018f20180470177061ab3`.
+
+This follow-up is isolated in `C:\hardware-inspection-stage0-git-fix` on `fix/hardware-inspection-stage0-git-resolution`, based on failed revision `b985ec7d9fe11aedd83afa9ba657699ed115a19f`. Every executable instruction below is bound to that worktree, branch, and base; preceding delivery history remains available in Git rather than in stale executable commands.
 
 ---
 
 ## Global Constraints
 
-- Work only in `C:\hardware-inspection-stage0-fix` on branch `fix/hardware-inspection-stage0-sparse-checkout`, based on failed `main` revision `0b7da6413ba20508928c2033b88dc3d3efd10143`.
+- Work only in `C:\hardware-inspection-stage0-git-fix` on branch `fix/hardware-inspection-stage0-git-resolution`, based on failed `main` revision `b985ec7d9fe11aedd83afa9ba657699ed115a19f`.
 - Do not modify Hardware Inspection UI/runtime, LLM Fit candidate logic, evidence, Gate 1 records, Gate 2, Model Inspection, the Intel laptop, self-hosted runners, adapters, or network state.
 - Keep the workflow manual-only, `windows-latest`, owner-only, default-branch-only, first-attempt-only, read-only, and artifact-free.
 - Keep both immutable action pins and both `persist-credentials: false` settings.
@@ -42,9 +50,9 @@ The evaluated checkout now resolves the immutable `steps.approval.outputs.approv
 - Keep exactly 12 Stage 0 contract-test identities.
 - Use `apply_patch` for repository edits. Preserve unrelated and ignored files.
 - Use UTF-8 without BOM and LF-only YAML with exactly one trailing LF.
-- Never rerun failed run `32138539513`; after the fix merge, create a new `workflow_dispatch` run so `github.run_attempt` remains `1`.
+- Never rerun failed runs `32138539513` or `32155463873`; after the fix merge, create a new `workflow_dispatch` run so `github.run_attempt` remains `1`.
 
-### Task 1: Lock and implement the sparse checkout boundary
+### Task 1: Lock and implement deterministic Stage 0 Git resolution
 
 **Files:**
 - Modify: `tests/testing/hardware_inspection/test_intel_runner_stage0_contract.py`
@@ -52,11 +60,11 @@ The evaluated checkout now resolves the immutable `steps.approval.outputs.approv
 
 **Interfaces:**
 - Consumes: existing canonical workflow bytes, the pinned checkout action, the approval manifest output `steps.approval.outputs.approved_sha` for immutable evaluated materialization, `source_ref` as provenance only, and the existing 12-test contract module.
-- Produces: canonical workflow SHA-256 `81a5893ccde84507ea8fd6d5409811ba55f0d16252b864907c29884f61c8fabf`, the fixed first Git precheck, and the exact control-cone and evaluated non-cone sparse-checkout blocks.
+- Produces: canonical workflow SHA-256 `db075979900b0e5ca5aef3588f64225221f91bba744018f20180470177061ab3`, deterministic first-PATH-application resolution in the existing Git precheck, and unchanged control-cone/evaluated non-cone sparse-checkout blocks.
 
 - [ ] **Step 1: Add the focused failing contract assertions**
 
-In `test_stage0_workflow_pins_actions_and_drops_checkout_credentials`, keep all current assertions, require the exact first Git precheck below, execute its extracted run block under PowerShell 5.1 with deterministic local stubs, and add exact expected checkout fragments:
+In `test_stage0_workflow_pins_actions_and_drops_checkout_credentials`, keep all current assertions, require the exact first Git precheck below, execute its extracted run block under PowerShell 5.1 with deterministic local stubs, and add exact expected checkout fragments. The same identity must prove that the first PATH-ordered application is used when two applications are returned, including valid-first/invalid-second and invalid-first/valid-second cases, with the fixed privacy-safe failure retained:
 
 ```yaml
       - name: Require sparse-checkout-capable Git
@@ -66,7 +74,7 @@ In `test_stage0_workflow_pins_actions_and_drops_checkout_credentials`, keep all 
           $ErrorActionPreference = 'Stop'
           $failure = 'HI-RUNNER-STAGE0-GIT-INVALID: required Git capability is unavailable.'
           try {
-            $gitCommand = Get-Command git -CommandType Application -ErrorAction SilentlyContinue
+            $gitCommand = Get-Command git -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
             if ($null -eq $gitCommand) {
               throw 'invalid'
             }
@@ -90,7 +98,7 @@ In `test_stage0_workflow_pins_actions_and_drops_checkout_credentials`, keep all 
           }
 ```
 
-The semantic matrix accepts only `2.28.0`, `2.51.0`, `2.51.0.windows.2`, and `3.0.0`, and rejects `2.27.99`, two-component, uppercase/malformed, multiline, nonzero, throwing, and missing cases with empty stdout and exact `HI-RUNNER-STAGE0-GIT-INVALID: required Git capability is unavailable.\n` stderr. A malicious `C:\private\SECRET_TOKEN` source must not appear in output. The precheck contains no `${{`, absolute path, network, or candidate command.
+The semantic matrix accepts `2.28.0`, `2.51.0`, `2.51.0.windows.2`, the hosted-image form `2.55.0.windows.3`, and `3.0.0`; it rejects `2.27.99`, two-component, uppercase/malformed, multiline, nonzero, throwing, and missing cases with empty stdout and exact `HI-RUNNER-STAGE0-GIT-INVALID: required Git capability is unavailable.\n` stderr. A valid first application plus invalid second application must pass, while an invalid first application plus valid second application must fail with the same fixed output. A malicious `C:\private\SECRET_TOKEN` source must not appear in output. The precheck contains no `${{`, absolute path, network, or candidate command.
 
 ```python
 control_sparse_checkout = """          sparse-checkout: |
@@ -141,18 +149,19 @@ python -m unittest `
   tests.testing.hardware_inspection.test_intel_runner_stage0_contract.IntelRunnerStage0ContractTests.test_stage0_workflow_pins_actions_and_drops_checkout_credentials `
   -v
 python -m unittest `
-  tests.testing.hardware_inspection.test_intel_runner_stage0_contract.IntelRunnerStage0ContractTests.test_stage0_workflow_executes_validators_only_from_control_checkout `
-  -v
-python -m unittest `
-  tests.testing.hardware_inspection.test_intel_runner_stage0_contract.IntelRunnerStage0ContractTests.test_stage0_workflow_reads_approved_source_without_free_form_sha_input `
+  tests.testing.hardware_inspection.test_intel_runner_stage0_contract.IntelRunnerStage0ContractTests.test_stage0_workflow_exposes_only_manual_trigger_and_hosted_runner `
   -v
 ```
 
-Run the focused existing identities for the precheck, checkout ordering, and approved-ref assertions while retaining the current pre-security digest during RED. Expected failures are the absent precheck and old movable `source_ref` ref, not import, syntax, harness, or canonical-digest errors.
+The base revision already contains the first Git gate, both sparse boundaries, and immutable `approved_sha` materialization. Keep `EXPECTED_WORKFLOW_SHA256` at the pre-follow-up value `81a5893ccde84507ea8fd6d5409811ba55f0d16252b864907c29884f61c8fabf` during RED. Add the ordered two-application stub cases and the mutation that removes ` | Select-Object -First 1` before editing the workflow. The action-pin identity must fail because valid-first/invalid-second returns exit `1`, while the canonical-mutation identity must fail because removing the still-missing selection is a no-op and leaves the pre-follow-up digest unchanged. Import, syntax, harness, precheck-presence, sparse-boundary, and approved-SHA assertions must not be the RED cause.
 
-- [ ] **Step 3: Add the exact Git precheck and control sparse checkout**
+- [ ] **Step 3: Select the first PATH-ordered Git application**
 
-Add the exact Git precheck as the first executable step directly under `steps:` and before any checkout. It must have no preceding `uses:` step. Then extend `Check out default-branch controls` without changing its ref, path, depth, credential, action-pin, or step order:
+Change only the existing precheck's command-resolution assignment to append `| Select-Object -First 1`. Keep the precheck as the first executable step with no preceding `uses:` step. Do not change the control checkout's ref, path, depth, credentials, action pin, sparse cones, or step order:
+
+```powershell
+$gitCommand = Get-Command git -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+```
 
 ```yaml
         with:
@@ -170,9 +179,9 @@ Add the exact Git precheck as the first executable step directly under `steps:` 
           sparse-checkout-cone-mode: true
 ```
 
-- [ ] **Step 4: Add the exact evaluated sparse checkout at the approved SHA**
+- [ ] **Step 4: Preserve the evaluated sparse checkout at the approved SHA**
 
-Extend `Check out approved source for identity comparison only` without changing its approved SHA ref, path, depth, credential, action-pin, or step order. Keep `source_ref` only in validator provenance output and summary metadata:
+Verify `Check out approved source for identity comparison only` remains byte-for-byte unchanged. Do not change its approved SHA ref, path, depth, credential, action pin, non-cone pattern, or step order. Keep `source_ref` only in validator provenance output and summary metadata:
 
 ```yaml
         with:
@@ -190,7 +199,7 @@ Extend `Check out approved source for identity comparison only` without changing
 Change only:
 
 ```python
-EXPECTED_WORKFLOW_SHA256 = "81a5893ccde84507ea8fd6d5409811ba55f0d16252b864907c29884f61c8fabf"
+EXPECTED_WORKFLOW_SHA256 = "db075979900b0e5ca5aef3588f64225221f91bba744018f20180470177061ab3"
 ```
 
 The new digest is computed from the exact LF-only workflow above with one trailing LF. Do not weaken `_assert_canonical_workflow` or remove any existing mutation.
@@ -213,7 +222,7 @@ $errors = $null
 if ($errors.Count -ne 0) { throw 'Stage 0 validator parser check failed.' }
 
 git diff --check
-git diff --check origin/main...HEAD
+git diff --check b985ec7d9fe11aedd83afa9ba657699ed115a19f...HEAD
 ```
 
 Expected: the PowerShell 5.1 precheck semantic matrix and exactly 12 tests pass with zero skips/failures/errors, Python compilation exits 0, PowerShell reports zero parser errors, and both working-tree and committed-range whitespace checks exit 0.
@@ -230,13 +239,13 @@ if (-not ([System.Text.Encoding]::UTF8.GetString($workflowBytes).EndsWith("`n"))
     throw 'Workflow lacks its final LF.'
 }
 if ((Get-FileHash -Algorithm SHA256 $workflow).Hash.ToLowerInvariant() -ne
-    '81a5893ccde84507ea8fd6d5409811ba55f0d16252b864907c29884f61c8fabf') {
+    'db075979900b0e5ca5aef3588f64225221f91bba744018f20180470177061ab3') {
     throw 'Workflow digest mismatch.'
 }
-if ((Get-Item $workflow).Length -ne 5940) { throw 'Workflow byte length mismatch.' }
+if ((Get-Item $workflow).Length -ne 5965) { throw 'Workflow byte length mismatch.' }
 
 $actualPaths = @(
-    git diff --name-only origin/main...HEAD
+    git diff --name-only b985ec7d9fe11aedd83afa9ba657699ed115a19f...HEAD
     git diff --name-only
 ) | Sort-Object -Unique
 $expectedPaths = @(
@@ -250,16 +259,18 @@ if (Compare-Object -ReferenceObject $expectedPaths -DifferenceObject $actualPath
 }
 ```
 
-Expected implementation scope beyond the already committed design and plan: only the workflow and contract test. No candidate, operational, UI, evidence, or runbook file changes.
+Expected aggregate follow-up scope from `b985ec7d9fe11aedd83afa9ba657699ed115a19f`: exactly the workflow, contract test, remediation design, and remediation plan. No candidate, operational, UI, evidence, or runbook file changes.
 
 - [ ] **Step 8: Commit the tested implementation**
 
 ```powershell
 git add -- `
   .github/workflows/hardware-inspection-intel-runner-stage0.yml `
+  docs/superpowers/plans/2026-08-18-hardware-inspection-stage0-sparse-checkout-remediation.md `
+  docs/superpowers/specs/2026-08-18-hardware-inspection-stage0-sparse-checkout-remediation-design.md `
   tests/testing/hardware_inspection/test_intel_runner_stage0_contract.py
 git diff --cached --check
-git commit -m "fix(hardware-inspection): pin Stage 0 sparse prerequisites"
+git commit -m "fix(hardware-inspection): select first Stage 0 Git application"
 ```
 
 The worktree must be clean after the commit.
@@ -286,6 +297,19 @@ Run this as one PowerShell command so the randomly generated ownership path neve
 
 ```powershell
 $ErrorActionPreference = 'Stop'
+$followUpRoot = 'C:\hardware-inspection-stage0-git-fix'
+$followUpBranch = 'fix/hardware-inspection-stage0-git-resolution'
+$followUpBaseSha = 'b985ec7d9fe11aedd83afa9ba657699ed115a19f'
+$actualBranch = (& git -C $followUpRoot branch --show-current).Trim()
+$reviewedFollowUpHead = (& git -C $followUpRoot rev-parse HEAD).Trim()
+$actualMergeBase = (& git -C $followUpRoot merge-base $followUpBaseSha $reviewedFollowUpHead).Trim()
+$followUpStatus = @(& git -C $followUpRoot status --porcelain --untracked-files=all)
+if ($actualBranch -cne $followUpBranch -or
+    $reviewedFollowUpHead -cnotmatch '\A(?!0{40}\z)[0-9a-f]{40}\z' -or
+    $actualMergeBase -cne $followUpBaseSha -or
+    $followUpStatus.Count -ne 0) {
+    throw 'Reviewed Git-resolution follow-up identity or worktree state is invalid.'
+}
 $tempParent = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath()).TrimEnd('\')
 $proofLeaf = 'GraniteEdgeAI-Stage0-Sparse-Proof-' + [Guid]::NewGuid().ToString('N')
 $proofRoot = Join-Path $tempParent $proofLeaf
@@ -298,7 +322,7 @@ if (Test-Path -LiteralPath $proofRoot) { throw 'Owned sparse-proof root already 
 try {
     $gitFailure = 'HI-RUNNER-STAGE0-GIT-INVALID: required Git capability is unavailable.'
     try {
-        $gitCommand = Get-Command git -CommandType Application -ErrorAction SilentlyContinue
+        $gitCommand = Get-Command git -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
         if ($null -eq $gitCommand) {
             throw 'invalid'
         }
@@ -328,7 +352,7 @@ try {
         throw 'Owned sparse-proof root escaped the OS temp directory.'
     }
 
-    & git clone --no-checkout --no-local 'C:\hardware-inspection-stage0-fix' $controlRoot
+    & git clone --no-checkout --no-local $followUpRoot $controlRoot
     if ($LASTEXITCODE -ne 0) { throw 'Control clone failed.' }
     & git -C $controlRoot sparse-checkout init --cone
     if ($LASTEXITCODE -ne 0) { throw 'Control sparse initialization failed.' }
@@ -340,7 +364,7 @@ try {
         'scripts/hardware-inspection' `
         'tests/testing/hardware_inspection'
     if ($LASTEXITCODE -ne 0) { throw 'Control cone selection failed.' }
-    $implementationSha = (& git -C 'C:\hardware-inspection-stage0-fix' rev-parse HEAD).Trim()
+    $implementationSha = $reviewedFollowUpHead
     & git -C $controlRoot checkout --detach $implementationSha
     if ($LASTEXITCODE -ne 0) { throw 'Control sparse checkout failed.' }
 
@@ -514,45 +538,97 @@ First request a spec review against the confirmed remediation design and this pl
 
 - [ ] **Step 3: Run final pre-publication verification**
 
-Freshly rerun all Task 1 checks, verify the branch differs from `origin/main` only by the design, plan, workflow, and contract test, and verify both this fix worktree and the frozen feature worktree have no tracked changes. The feature local and remote SHA must still equal `cc2e57ceb94e73e49f34fc383d5440a9047fba21`.
+Freshly rerun all Task 1 checks from `C:\hardware-inspection-stage0-git-fix`. Require branch `fix/hardware-inspection-stage0-git-resolution`, require merge-base `b985ec7d9fe11aedd83afa9ba657699ed115a19f`, capture the full 40-hex current HEAD as the reviewed follow-up head, and verify the range from that base contains only the design, plan, workflow, and contract test. Verify both this follow-up worktree and the frozen feature worktree have no tracked changes. The feature local and remote SHA must still equal `cc2e57ceb94e73e49f34fc383d5440a9047fba21`.
+
+```powershell
+$followUpRoot = 'C:\hardware-inspection-stage0-git-fix'
+$followUpBranch = 'fix/hardware-inspection-stage0-git-resolution'
+$followUpBaseSha = 'b985ec7d9fe11aedd83afa9ba657699ed115a19f'
+$reviewedFollowUpHead = (& git -C $followUpRoot rev-parse HEAD).Trim()
+$actualMergeBase = (& git -C $followUpRoot merge-base $followUpBaseSha $reviewedFollowUpHead).Trim()
+$actualBranch = (& git -C $followUpRoot branch --show-current).Trim()
+$expectedPaths = @(
+    '.github/workflows/hardware-inspection-intel-runner-stage0.yml'
+    'docs/superpowers/plans/2026-08-18-hardware-inspection-stage0-sparse-checkout-remediation.md'
+    'docs/superpowers/specs/2026-08-18-hardware-inspection-stage0-sparse-checkout-remediation-design.md'
+    'tests/testing/hardware_inspection/test_intel_runner_stage0_contract.py'
+) | Sort-Object
+$range = "$followUpBaseSha..$reviewedFollowUpHead"
+$actualPaths = @(& git -C $followUpRoot diff --name-only $range) | Sort-Object
+if ($reviewedFollowUpHead -cnotmatch '\A(?!0{40}\z)[0-9a-f]{40}\z' -or
+    $actualMergeBase -cne $followUpBaseSha -or
+    $actualBranch -cne $followUpBranch -or
+    (Compare-Object -ReferenceObject $expectedPaths -DifferenceObject $actualPaths) -or
+    @(& git -C $followUpRoot status --porcelain --untracked-files=all).Count -ne 0) {
+    throw 'Pre-publication follow-up identity, scope, branch, or cleanliness check failed.'
+}
+
+$expectedFeatureSha = 'cc2e57ceb94e73e49f34fc383d5440a9047fba21'
+$localFeatureSha = (& git -C 'C:\hardware-inspection' rev-parse HEAD).Trim()
+$remoteFeatureSha = ((& git -C $followUpRoot ls-remote origin `
+    refs/heads/feature/hardware-inspection) -split '\s+')[0]
+if ($localFeatureSha -cne $expectedFeatureSha -or
+    $remoteFeatureSha -cne $expectedFeatureSha -or
+    @(& git -C 'C:\hardware-inspection' status --porcelain --untracked-files=all).Count -ne 0) {
+    throw 'Frozen Hardware Inspection feature identity or cleanliness check failed.'
+}
+```
 
 ---
 
 ### Task 3: Publish, merge, and create a new Stage 0 run
 
 **Files:**
-- Publish: branch `fix/hardware-inspection-stage0-sparse-checkout`
+- Publish: branch `fix/hardware-inspection-stage0-git-resolution`
 - Create: one draft pull request targeting `main`
 - Execute after review and authorized merge: `.github/workflows/hardware-inspection-intel-runner-stage0.yml`
 
 **Interfaces:**
-- Consumes: reviewed Task 1 commit, Task 2 verification evidence, and exact workflow digest.
-- Produces: merged sparse-checkout remediation and one new first-attempt repository-only Stage 0 run.
+- Consumes: reviewed Git-resolution follow-up head, Task 2 verification evidence, and exact workflow digest.
+- Produces: merged Git-resolution follow-up and one new first-attempt repository-only Stage 0 run.
 
 - [ ] **Step 1: Push without force and open a draft PR**
 
-Run from the clean fix worktree:
+Run from the clean Git-resolution follow-up worktree:
 
 ```powershell
-$fixSha = (& git rev-parse HEAD).Trim()
-if (@(& git status --porcelain --untracked-files=all).Count -ne 0) {
-    throw 'Fix worktree must be clean before publication.'
+$followUpRoot = 'C:\hardware-inspection-stage0-git-fix'
+$followUpBranch = 'fix/hardware-inspection-stage0-git-resolution'
+$followUpBaseSha = 'b985ec7d9fe11aedd83afa9ba657699ed115a19f'
+if ((& git rev-parse --show-toplevel).Trim().Replace('\', '/') -cne
+    $followUpRoot.Replace('\', '/')) {
+    throw 'Publication is not running from the Git-resolution follow-up worktree.'
 }
-& git push --set-upstream origin fix/hardware-inspection-stage0-sparse-checkout
-if ($LASTEXITCODE -ne 0) { throw 'Fix-branch push failed.' }
-$remoteFixSha = ((& git ls-remote --heads origin refs/heads/fix/hardware-inspection-stage0-sparse-checkout) -split '\s+')[0]
-if ($remoteFixSha -cne $fixSha) { throw 'Remote fix ref does not match the reviewed head.' }
+if ((& git branch --show-current).Trim() -cne $followUpBranch) {
+    throw 'Publication is not running from the Git-resolution follow-up branch.'
+}
+$reviewedFollowUpHead = (& git rev-parse HEAD).Trim()
+$actualMergeBase = (& git merge-base $followUpBaseSha $reviewedFollowUpHead).Trim()
+if ($reviewedFollowUpHead -cnotmatch '\A(?!0{40}\z)[0-9a-f]{40}\z' -or
+    $actualMergeBase -cne $followUpBaseSha) {
+    throw 'Reviewed Git-resolution follow-up head or base is invalid.'
+}
+if (@(& git status --porcelain --untracked-files=all).Count -ne 0) {
+    throw 'Follow-up worktree must be clean before publication.'
+}
+& git push --set-upstream origin $followUpBranch
+if ($LASTEXITCODE -ne 0) { throw 'Follow-up branch push failed.' }
+$remoteFollowUpHead = ((& git ls-remote --heads origin "refs/heads/$followUpBranch") -split '\s+')[0]
+if ($remoteFollowUpHead -cne $reviewedFollowUpHead) {
+    throw 'Remote follow-up ref does not match the reviewed head.'
+}
 
 $prBody = @"
 ## Summary
-- fixes failed repository-only Stage 0 run 32138539513
-- requires a fixed Git 2.28+ precheck before checkout and uses the immutable approved SHA for evaluated materialization
-- replaces both broad Windows checkouts with reviewed control-cone and evaluated non-cone sparse boundaries
+- fixes the first Git capability gate failure in attempt-1 run 32155463873
+- selects the first PATH-ordered Git application, matching the pinned checkout action, while retaining strict Git 2.28+ and privacy-safe failure handling
+- preserves the sparse checkout and immutable approved-SHA corrections introduced after failed run 32138539513
 - preserves all Hardware Inspection, Gate 1, Gate 2, laptop, candidate, and network behavior
 
 ## Verification
 - Stage 0 contracts: 12 passed, 0 failed, 0 skipped
-- canonical workflow SHA-256: 81a5893ccde84507ea8fd6d5409811ba55f0d16252b864907c29884f61c8fabf
+- real and ordered multi-application PowerShell 5.1 Git matrices: passed
+- canonical workflow SHA-256: db075979900b0e5ca5aef3588f64225221f91bba744018f20180470177061ab3
 - local control/evaluated sparse-checkout proof: passed
 - PowerShell parser, Python compile, whitespace, scope, and independent reviews: passed
 
@@ -561,9 +637,9 @@ This PR does not contact a self-hosted runner or Intel laptop, acquire or execut
 & gh pr create `
     --repo arian20020/IBM-Granite-Edge-AI-Optimisation-using-TurboQuant `
     --base main `
-    --head fix/hardware-inspection-stage0-sparse-checkout `
+    --head $followUpBranch `
     --draft `
-    --title 'fix(hardware-inspection): pin Stage 0 sparse prerequisites' `
+    --title 'fix(hardware-inspection): select first Stage 0 Git application' `
     --body $prBody
 if ($LASTEXITCODE -ne 0) { throw 'Draft PR creation failed.' }
 ```
@@ -575,10 +651,10 @@ Do not upload TRX, raw evidence, paths, or machine data.
 Resolve the PR number from its exact head branch, then watch every applicable check:
 
 ```powershell
-$pr = gh pr view fix/hardware-inspection-stage0-sparse-checkout `
+$pr = gh pr view $followUpBranch `
     --repo arian20020/IBM-Granite-Edge-AI-Optimisation-using-TurboQuant `
     --json number,headRefOid,isDraft,mergeable,mergeStateStatus | ConvertFrom-Json
-if ($pr.headRefOid -cne $fixSha) { throw 'PR head moved after review.' }
+if ($pr.headRefOid -cne $reviewedFollowUpHead) { throw 'PR head moved after review.' }
 gh pr checks $pr.number `
     --repo arian20020/IBM-Granite-Edge-AI-Optimisation-using-TurboQuant `
     --watch `
@@ -599,7 +675,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Could not mark the reviewed PR ready.' }
 $readyPr = gh pr view $pr.number `
     --repo arian20020/IBM-Granite-Edge-AI-Optimisation-using-TurboQuant `
     --json headRefOid,mergeable,mergeStateStatus,isDraft | ConvertFrom-Json
-if ($readyPr.headRefOid -cne $fixSha -or
+if ($readyPr.headRefOid -cne $reviewedFollowUpHead -or
     $readyPr.isDraft -or
     $readyPr.mergeable -cne 'MERGEABLE' -or
     $readyPr.mergeStateStatus -cne 'CLEAN') {
@@ -608,7 +684,7 @@ if ($readyPr.headRefOid -cne $fixSha -or
 gh pr merge $pr.number `
     --repo arian20020/IBM-Granite-Edge-AI-Optimisation-using-TurboQuant `
     --merge `
-    --match-head-commit $fixSha
+    --match-head-commit $reviewedFollowUpHead
 if ($LASTEXITCODE -ne 0) { throw 'PR merge failed.' }
 ```
 
@@ -624,19 +700,19 @@ git fetch origin `
     refs/heads/feature/hardware-inspection:refs/remotes/origin/feature/hardware-inspection
 $mergeSha = (& git rev-parse origin/main).Trim()
 $parents = @((& git show -s --format=%P $mergeSha).Trim() -split ' ')
-if ($parents.Count -ne 2 -or $parents[1] -cne $fixSha) {
-    throw 'Main is not the expected merge of the reviewed fix head.'
+if ($parents.Count -ne 2 -or $parents[1] -cne $reviewedFollowUpHead) {
+    throw 'Main is not the expected merge of the reviewed follow-up head.'
 }
-$fixTree = (& git rev-parse "$fixSha^{tree}").Trim()
+$followUpTree = (& git rev-parse "$reviewedFollowUpHead^{tree}").Trim()
 $mergeTree = (& git rev-parse "$mergeSha^{tree}").Trim()
-if ($fixTree -cne $mergeTree) { throw 'Merged main tree differs from the reviewed fix tree.' }
+if ($followUpTree -cne $mergeTree) { throw 'Merged main tree differs from the reviewed follow-up tree.' }
 $featureSha = (& git rev-parse origin/feature/hardware-inspection).Trim()
 if ($featureSha -cne 'cc2e57ceb94e73e49f34fc383d5440a9047fba21') {
     throw 'Approved Hardware Inspection feature ref moved.'
 }
 ```
 
-Re-read the merged workflow from `origin/main` and confirm it remains manual-only with the canonical SHA-256 `81a5893ccde84507ea8fd6d5409811ba55f0d16252b864907c29884f61c8fabf`.
+Re-read the merged workflow from `origin/main` and confirm it remains manual-only with the canonical SHA-256 `db075979900b0e5ca5aef3588f64225221f91bba744018f20180470177061ab3`.
 
 - [ ] **Step 5: Create a new manual dispatch**
 
@@ -645,11 +721,10 @@ Record the existing run IDs, then run exactly:
 ```powershell
 $workflowName = 'hardware-inspection-intel-runner-stage0.yml'
 $repository = 'arian20020/IBM-Granite-Edge-AI-Optimisation-using-TurboQuant'
-$beforeRunIds = @(
-    gh run list --repo $repository --workflow $workflowName --limit 100 --json databaseId |
-        ConvertFrom-Json |
-        ForEach-Object { [string]$_.databaseId }
-)
+$existingRuns = gh run list --repo $repository --workflow $workflowName --limit 100 --json databaseId |
+    ConvertFrom-Json
+if ($LASTEXITCODE -ne 0) { throw 'Existing Stage 0 run listing failed.' }
+$beforeRunIds = @($existingRuns | ForEach-Object { [string]$_.databaseId })
 gh workflow run hardware-inspection-intel-runner-stage0.yml `
     --repo $repository `
     --ref main `
@@ -659,11 +734,19 @@ if ($LASTEXITCODE -ne 0) { throw 'New Stage 0 dispatch failed.' }
 $deadline = [DateTime]::UtcNow.AddMinutes(2)
 do {
     Start-Sleep -Seconds 3
+    $listedRuns = gh run list --repo $repository --workflow $workflowName --limit 20 `
+        --json databaseId,event,headBranch,headSha,attempt,createdAt,status,conclusion |
+        ConvertFrom-Json
+    if ($LASTEXITCODE -ne 0) { throw 'New Stage 0 run listing failed.' }
     $newRuns = @(
-        gh run list --repo $repository --workflow $workflowName --limit 20 `
-            --json databaseId,event,headBranch,headSha,attempt,createdAt,status,conclusion |
-            ConvertFrom-Json |
-            Where-Object { [string]$_.databaseId -notin $beforeRunIds }
+        $listedRuns | Where-Object {
+            [string]$_.databaseId -notin $beforeRunIds -and
+            $_.event -ceq 'workflow_dispatch' -and
+            $_.headBranch -ceq 'main' -and
+            $_.headSha -ceq $mergeSha -and
+            [int]$_.attempt -eq 1 -and
+            [string]$_.databaseId -notin @('32138539513', '32155463873')
+        }
     )
 } while ($newRuns.Count -eq 0 -and [DateTime]::UtcNow -lt $deadline)
 if ($newRuns.Count -ne 1) { throw 'Could not identify exactly one new Stage 0 run.' }
@@ -672,12 +755,12 @@ if ($newRun.event -cne 'workflow_dispatch' -or
     $newRun.headBranch -cne 'main' -or
     $newRun.headSha -cne $mergeSha -or
     [int]$newRun.attempt -ne 1 -or
-    [string]$newRun.databaseId -eq '32138539513') {
+    [string]$newRun.databaseId -in @('32138539513', '32155463873')) {
     throw 'New Stage 0 run identity is invalid.'
 }
 ```
 
-Do not use GitHub's rerun operation on `32138539513`.
+Do not use GitHub's rerun operation on `32138539513` or `32155463873`.
 
 - [ ] **Step 6: Verify the hosted result**
 
@@ -689,8 +772,26 @@ if ($LASTEXITCODE -ne 0) { throw 'New Stage 0 run failed.' }
 $run = gh api "repos/$repository/actions/runs/$($newRun.databaseId)" | ConvertFrom-Json
 $jobsResponse = gh api "repos/$repository/actions/runs/$($newRun.databaseId)/jobs?filter=all&per_page=100" |
     ConvertFrom-Json
-$artifactResponse = gh api "repos/$repository/actions/runs/$($newRun.databaseId)/artifacts" |
-    ConvertFrom-Json
+$artifactFailure = 'HI-RUNNER-STAGE0-ARTIFACT-INVALID: artifact verification failed.'
+function Stop-Stage0ArtifactVerification {
+    [Console]::Error.WriteLine($artifactFailure)
+    exit 1
+}
+$artifactApiLines = @(
+    & gh api "repos/$repository/actions/runs/$($newRun.databaseId)/artifacts" 2>$null
+)
+$artifactApiExitCode = $LASTEXITCODE
+if ($artifactApiExitCode -ne 0) {
+    Stop-Stage0ArtifactVerification
+}
+$artifactJson = $artifactApiLines -join "`n"
+$artifactResponse = $null
+try {
+    $artifactResponse = $artifactJson | ConvertFrom-Json -ErrorAction Stop
+}
+catch {
+    Stop-Stage0ArtifactVerification
+}
 $jobs = @($jobsResponse.jobs)
 if ($run.status -cne 'completed' -or
     $run.conclusion -cne 'success' -or
@@ -723,8 +824,42 @@ foreach ($stepName in $expectedSteps) {
         throw "Required Stage 0 step did not succeed: $stepName"
     }
 }
-if ([int]$artifactResponse.total_count -ne 0) {
-    throw 'Stage 0 unexpectedly uploaded an artifact.'
+$totalCountProperties = @(
+    $artifactResponse.PSObject.Properties |
+        Where-Object { $_.Name -ceq 'total_count' }
+)
+$artifactInventoryProperties = @(
+    $artifactResponse.PSObject.Properties |
+        Where-Object { $_.Name -ceq 'artifacts' }
+)
+if ($null -eq $artifactResponse -or
+    $totalCountProperties.Count -ne 1 -or
+    $artifactInventoryProperties.Count -ne 1) {
+    Stop-Stage0ArtifactVerification
+}
+$totalCountValue = $totalCountProperties[0].Value
+$integralTypeCodes = @(
+    [System.TypeCode]::SByte,
+    [System.TypeCode]::Byte,
+    [System.TypeCode]::Int16,
+    [System.TypeCode]::UInt16,
+    [System.TypeCode]::Int32,
+    [System.TypeCode]::UInt32,
+    [System.TypeCode]::Int64,
+    [System.TypeCode]::UInt64
+)
+if ($null -eq $totalCountValue -or
+    [System.Type]::GetTypeCode($totalCountValue.GetType()) -notin $integralTypeCodes) {
+    Stop-Stage0ArtifactVerification
+}
+$artifactTotalCount = [decimal]$totalCountValue
+$artifactInventory = $artifactInventoryProperties[0].Value
+if ($artifactTotalCount -lt 0 -or
+    $null -eq $artifactInventory -or
+    $artifactInventory -isnot [System.Array] -or
+    [decimal]@($artifactInventory).Count -ne $artifactTotalCount -or
+    $artifactTotalCount -ne 0) {
+    Stop-Stage0ArtifactVerification
 }
 $workflowText = (Get-Content -Raw '.github/workflows/hardware-inspection-intel-runner-stage0.yml')
 if ($workflowText -notmatch "ref: \$\{\{ steps\.approval\.outputs\.approved_sha \}\}") {
@@ -759,10 +894,12 @@ Require:
 - exactly 12 Stage 0 contracts pass;
 - Dispatch and Source validator phases pass;
 - summary says Stage 0 only, laptop not contacted, candidate not acquired/executed, Gate 1 Blocked, and Gate 2 prohibited;
-- artifact count `0` and no self-hosted job.
+- artifact API exit `0`, valid JSON, exactly one integral nonnegative `total_count` equal to `0`, and exactly one empty `artifacts` array;
+- every artifact API, parse, schema, type, range, inventory, or nonzero-count failure emits only `HI-RUNNER-STAGE0-ARTIFACT-INVALID: artifact verification failed.`;
+- no self-hosted job.
 
 If the new run fails, stop, retain its exact logs, and return to root-cause analysis. Do not expand into Stage A, B, C, or D.
 
 - [ ] **Step 7: Final handoff**
 
-Report the remediation PR, merge SHA, successful new run URL, exact 12-test result, Git precheck matrix, immutable approved-SHA checkout proof, hashes, zero-artifact/self-hosted proof, and the unchanged Gate 1/Gate 2 boundary. Preserve the fix worktree and branches for audit; do not remove candidate or user artifacts.
+Report the Git-resolution remediation PR, merge SHA, successful new run URL, exact 12-test result, Git precheck matrix, immutable approved-SHA checkout proof, hashes, zero-artifact/self-hosted proof, and the unchanged Gate 1/Gate 2 boundary. Preserve the follow-up worktree and branch for audit; do not remove candidate or user artifacts.
