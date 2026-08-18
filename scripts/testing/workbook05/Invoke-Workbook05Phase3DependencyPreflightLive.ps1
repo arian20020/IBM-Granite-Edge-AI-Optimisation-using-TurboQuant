@@ -371,9 +371,19 @@ function Invoke-PreflightCommand {
 function Read-PreflightStdout {
     param([Parameter(Mandatory = $true)][object]$Result)
 
-    return (
-        Get-Content -LiteralPath $Result.stdout_path -Raw -Encoding UTF8
-    ).Trim()
+    # Windows PowerShell 5.1 returns no object for a readable zero-byte file.
+    # Preserve that legitimate command result as an empty string, while
+    # retaining -ErrorAction Stop so a missing or unreadable evidence file
+    # still fails at the first causal boundary.
+    $capturedOutput = Get-Content `
+        -LiteralPath $Result.stdout_path `
+        -Raw `
+        -Encoding UTF8 `
+        -ErrorAction Stop
+    if ($null -eq $capturedOutput) {
+        return ''
+    }
+    return $capturedOutput.Trim()
 }
 
 function ConvertTo-PreflightSourceCsv {
