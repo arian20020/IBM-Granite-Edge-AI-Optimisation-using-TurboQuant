@@ -29,7 +29,7 @@ WORKFLOW_PATH = (
     / "workflows"
     / "hardware-inspection-intel-runner-stage0.yml"
 )
-EXPECTED_WORKFLOW_SHA256 = "a4dc9d363277dc7ed318e310aecb8b251346cc96cce8380f288b382af264de29"
+EXPECTED_WORKFLOW_SHA256 = "d1f1653e8c67c65a43ae296956cc4c561f7479895bed40ee5abe92ebd780f2e3"
 EXPECTED_STAGE0_RUNBOOK_SHA256 = "27b006d1e28e6def738578d0fec7acd885f90005402772456b1dfc751e3f9e92"
 INVALID_STDERR = "HI-RUNNER-STAGE0-INVALID: repository-only validation failed.\n"
 
@@ -534,15 +534,15 @@ on:
           sparse-checkout-cone-mode: true
 """
         evaluated_sparse_checkout = """          sparse-checkout: |
-            docs/superpowers/specs
-          sparse-checkout-cone-mode: true
+            /docs/superpowers/specs/
+          sparse-checkout-cone-mode: false
 """
 
         self.assertEqual(text.count("          sparse-checkout: |\n"), 2)
-        self.assertEqual(text.count("          sparse-checkout-cone-mode: true\n"), 2)
+        self.assertEqual(text.count("          sparse-checkout-cone-mode: true\n"), 1)
+        self.assertEqual(text.count("          sparse-checkout-cone-mode: false\n"), 1)
         self.assertIn(control_sparse_checkout, text)
         self.assertIn(evaluated_sparse_checkout, text)
-        self.assertNotIn("sparse-checkout-cone-mode: false", text)
         self.assertNotIn("          filter:", text)
         self.assertNotIn("core.longpaths", text.casefold())
 
@@ -556,6 +556,10 @@ on:
         self.assertNotIn(evaluated_sparse_checkout, control_step)
         self.assertIn(evaluated_sparse_checkout, evaluated_step)
         self.assertNotIn(control_sparse_checkout, evaluated_step)
+        self.assertIn("          sparse-checkout-cone-mode: true\n", control_step)
+        self.assertNotIn("          sparse-checkout-cone-mode: false\n", control_step)
+        self.assertIn("          sparse-checkout-cone-mode: false\n", evaluated_step)
+        self.assertNotIn("          sparse-checkout-cone-mode: true\n", evaluated_step)
 
     def test_stage0_workflow_reads_approved_source_without_free_form_sha_input(self):
         raw = _workflow()
