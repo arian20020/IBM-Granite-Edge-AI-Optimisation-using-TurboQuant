@@ -6,6 +6,8 @@
 **Failed revision:** `0b7da6413ba20508928c2033b88dc3d3efd10143`
 **Git-resolution follow-up failed run:** `32155463873` (attempt `1`)
 **Git-resolution follow-up failed revision:** `b985ec7d9fe11aedd83afa9ba657699ed115a19f`
+**Source-validation follow-up failed run:** `32162980959` (attempt `1`)
+**Source-validation follow-up failed revision:** `12c0ff1ef322d2ed455fcab9c7cfa76185432884`
 
 ## Verification erratum — 2026-08-18
 
@@ -32,6 +34,14 @@ The evaluated checkout now resolves the immutable `steps.approval.outputs.approv
 Hosted attempt-1 run `32155463873` reached the first Git capability gate and failed with the fixed privacy-safe error. The official Windows image inventory lists `git version 2.55.0.windows.3`, which satisfies the strict capability expression. The failure instead came from treating every `Application` returned by `Get-Command git` as one invocation target when the hosted `PATH` exposes multiple Git applications, including `bin` and `cmd`.
 
 The precheck now resolves the first PATH-ordered `Application` deterministically with `Select-Object -First 1`. This matches the pinned checkout implementation, whose bundled `which('git', true)` lookup selects `matches[0]`, as well as a plain `git` invocation. The existing contract identity proves that a valid first application is used even when a second result is invalid, that an invalid first application is rejected even when a second result is valid, and that every failure remains the same fixed message without exposing either path or command output. Exactly 12 test identities remain. The resulting canonical workflow SHA-256 is `db075979900b0e5ca5aef3588f64225221f91bba744018f20180470177061ab3`.
+
+## Source cleanliness validation erratum — 2026-08-18
+
+Hosted attempt-1 run `32162980959` passed the repository contracts and reached Source validation, but the generic fail-closed result stopped the job before summary publication. An exact local reproduction showed that the evaluated checkout can be a blobless partial clone whose root `.gitignore` is a missing promisor object. With checkout credentials deliberately unpersisted and the origin unavailable, `git status --porcelain --untracked-files=all` tries to lazy-fetch that blob so it can classify untracked paths, then exits nonzero even when the sparse checkout is clean.
+
+The validator now separates cleanliness into two network-free probes. `git status --porcelain --untracked-files=no` checks staged and tracked worktree changes without enumerating untracked paths. `git ls-files --others --`, deliberately without any exclude flags and with an explicit end-of-options marker, then reports every untracked path, including paths that a materialized `.gitignore` would normally ignore. Either a nonzero exit or any output still fails through the same fixed generic stderr. This is stricter about untracked residue and remains compatible with the existing Git `2.28.0+` floor; `GIT_NO_LAZY_FETCH` is not used because it was introduced after that floor.
+
+The workflow, its canonical SHA-256 `db075979900b0e5ca5aef3588f64225221f91bba744018f20180470177061ab3`, both `persist-credentials: false` settings, the 22-inert-document evaluated boundary, and all Hardware Inspection and gate boundaries remain unchanged. The existing Source-validator test identity owns the blobless/offline regression plus clean, tracked-dirty, untracked-dirty, and ignored-dirty cases, so the suite remains exactly 12 identities.
 
 ## Problem
 
@@ -92,7 +102,7 @@ The evaluated feature checkout will use this exact root-anchored non-cone patter
           sparse-checkout-cone-mode: false
 ```
 
-The root-anchored non-cone directory pattern is bounded to the 22 inert Markdown specifications. No evaluated script, project, executable, workflow step, or test is run. `rev-parse HEAD` binds the full commit identity to the approved SHA even though only Markdown design documents are materialized. `git status --porcelain --untracked-files=all` validates the resulting sparse worktree state; it is not represented as proof that every tracked file was materialized.
+The root-anchored non-cone directory pattern is bounded to the 22 inert Markdown specifications. No evaluated script, project, executable, workflow step, or test is run. `rev-parse HEAD` binds the full commit identity to the approved SHA even though only Markdown design documents are materialized. `git status --porcelain --untracked-files=no` validates staged and tracked worktree state, then `git ls-files --others --` without exclude flags rejects every untracked path, including normally ignored paths. These checks are not represented as proof that every tracked file was materialized.
 
 Both checkouts retain:
 
@@ -115,7 +125,7 @@ No explicit checkout filter or global Git configuration is added. The pinned che
 4. Python 3.12.10 is configured and the same 12 Stage 0 contracts run from `control`.
 5. The control validator checks dispatch context and the strict approval manifest, emitting `source_ref` as provenance and `approved_sha` as the immutable checkout value.
 6. The evaluated checkout materializes only the 22 inert design specifications at `approved_sha` using the root-anchored non-cone pattern.
-7. The control validator compares evaluated `HEAD` to the approved SHA, verifies sparse worktree cleanliness, and publishes the fixed safe summary.
+7. The control validator compares evaluated `HEAD` to the approved SHA, verifies staged/tracked cleanliness and the absence of all untracked paths through separate network-free probes, and publishes the fixed safe summary.
 8. No artifact is uploaded.
 
 Any checkout, contract, manifest, identity, or cleanliness failure stops the job before later stages. A checkout fallback or runner drift that cannot honor the sparse boundary is expected to fail closed rather than authorize a laptop stage.
@@ -135,13 +145,13 @@ The existing test identity will assert:
 - both immutable checkout pins and both `persist-credentials: false` settings remain;
 - control execution and evaluated identity-only ordering remain unchanged.
 
-The complete 12-test suite, PowerShell 5.1 Git-precheck semantic matrix (including ordered duplicate application results), Python compilation, PowerShell 5.1 parser, canonical hashes, UTF-8/no-BOM checks, and commit-range whitespace checks must pass. A local owned temporary sparse checkout will run the 12 contracts from the control cone and verify evaluated SHA/cleanliness behavior after the Git precheck prerequisite and immutable SHA materialization are confirmed.
+The complete 12-test suite, PowerShell 5.1 Git-precheck semantic matrix (including ordered duplicate application results), Python compilation, PowerShell 5.1 parser, canonical hashes, UTF-8/no-BOM checks, and commit-range whitespace checks must pass. The existing Source-validator identity must also reproduce the old failure with a missing `.gitignore` promisor blob and unreachable origin, accept the clean checkout through the two network-free probes, and reject tracked, ordinary untracked, and normally ignored dirt. A local owned temporary sparse checkout will run the 12 contracts from the control cone and verify evaluated SHA/cleanliness behavior after the Git precheck prerequisite and immutable SHA materialization are confirmed.
 
 ## Delivery and verification
 
-The remediation is delivered in a separate fix branch and pull request based on the failed `main` revision. The PR changes only the workflow, its contract test, and this approved remediation documentation plus its implementation plan.
+The source-validation follow-up is developed separately from the frozen Hardware Inspection feature, based exactly on failed `main` revision `12c0ff1ef322d2ed455fcab9c7cfa76185432884`. Its maximum scope is the validator, the existing contract module, this design, and its implementation plan; the workflow is byte-for-byte unchanged.
 
-After review and merge, create a new manual `workflow_dispatch` run. Do not rerun failed runs `32138539513` or `32155463873`, because a rerun would have `run_attempt` greater than 1 and must remain rejected by the existing guard.
+After review and merge, create a new manual `workflow_dispatch` run. Do not rerun failed runs `32138539513`, `32155463873`, or `32162980959`, because a rerun would have `run_attempt` greater than 1 and must remain rejected by the existing guard.
 
 Success requires exactly one hosted job, all 12 contracts passing, both validator phases succeeding, the fixed safe summary, zero uploaded artifacts, and no self-hosted job or Intel-laptop contact.
 
