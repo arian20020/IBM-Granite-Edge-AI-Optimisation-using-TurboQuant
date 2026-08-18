@@ -207,7 +207,7 @@ try {
         $RepositoryOwner -cne 'arian20020' -or
         $RunAttempt -cne '1' -or
         $Confirmation -cne 'true' -or
-        $RunnerLabel -cnotmatch '^hardware-gate1-[0-9a-f]{16}$') {
+        $RunnerLabel -cnotmatch '\Ahardware-gate1-[0-9a-f]{16}\z') {
         throw 'Dispatch context is invalid.'
     }
 

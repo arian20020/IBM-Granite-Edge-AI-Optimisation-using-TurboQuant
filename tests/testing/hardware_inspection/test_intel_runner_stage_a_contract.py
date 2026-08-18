@@ -427,6 +427,33 @@ def _invoke(script, arguments, environment=None):
     )
 
 
+def _invoke_with_literal_runner_label(script, arguments, runner_label, environment=None):
+    def powershell_literal(value):
+        return "'" + str(value).replace("'", "''") + "'"
+
+    command = "$runnerLabel = " + powershell_literal(runner_label) + "\n& " + powershell_literal(script)
+    for key, value in arguments.items():
+        if key != "RunnerLabel":
+            command += " -" + key + " " + powershell_literal(value)
+    command += " -RunnerLabel $runnerLabel"
+    return subprocess.run(
+        [
+            _powershell_executable(),
+            "-NoProfile",
+            "-NonInteractive",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-Command",
+            command,
+        ],
+        text=True,
+        capture_output=True,
+        timeout=30,
+        check=False,
+        env=environment,
+    )
+
+
 def _validator_arguments(control_root, **changes):
     arguments = {
         "Phase": "Hosted",
@@ -775,6 +802,22 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
                     "eligible=true\n"
                 ).encode("utf-8"),
             )
+            for malformed_label in (
+                "hardware-gate1-0123456789abcdef\n",
+                "hardware-gate1-0123456789abcdef\r\n",
+            ):
+                result = _invoke_with_literal_runner_label(
+                    VALIDATOR_PATH,
+                    _validator_arguments(
+                        control_root,
+                        SourceCheckoutRoot=checkout_root,
+                        GitHubOutputPath=hosted_output,
+                    ),
+                    malformed_label,
+                    environment,
+                )
+                _assert_invalid_validator_result(self, result)
+                self.assertNotIn("hardware-gate1-0123456789abcdef", result.stdout + result.stderr)
 
             for manifest_raw in (
                 b'{"schemaVersion":"1.0","remoteFeatureRef":"refs/heads/feature/hardware-inspection","approvedTipSha":"' + approved_sha.encode("ascii") + b'","extra":true}',
