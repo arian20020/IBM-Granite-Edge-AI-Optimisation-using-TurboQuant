@@ -127,6 +127,16 @@ def _assert_no_host_or_path_leaks(test_case, text):
     test_case.assertNotRegex(text, r"(?i)(?:[a-z]:\\|\\\\[^\s\\]+\\|/home/|/Users/)")
 
 
+def _assert_no_forbidden_runner_commands(test_case, commands):
+    executable = "\n".join(commands).casefold()
+    for forbidden in (
+        "start-process", "invoke-webrequest", "curl", "wget",
+        "trustedwindowsintel", "trustedoffline", "disable-netadapter",
+        "enable-netadapter", "netsh", "invoke-expression",
+    ):
+        test_case.assertNotIn(forbidden, executable)
+
+
 def _strip_yaml_comment(value):
     quote = None
     escaped = False
@@ -812,6 +822,7 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
     def test_stage_a_workflow_executes_only_the_two_deterministic_categories(self):
         raw, document = _workflow(self)
         runner_text, commands, strings = _powershell_ast_text(self, RUNNER_PATH)
+        _assert_no_forbidden_runner_commands(self, commands)
         command_text = re.sub(r"\s+", " ", "\n".join(strings))
         ast_text = "\n".join(commands + strings)
         self.assertEqual(command_text.count("TestCategory=Deterministic"), 1)
@@ -876,6 +887,7 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
             with self.subTest(mutation=mutation[:50]):
                 with self.assertRaises(AssertionError):
                     mutated_executable = "\n".join(mutated_commands + mutated_strings).casefold()
+                    _assert_no_forbidden_runner_commands(self, mutated_commands)
                     self.assertNotIn("candidate", mutated_executable)
                     self.assertNotIn("trustedwindowsintel", mutated_executable)
                     self.assertNotIn("trustedoffline", mutated_executable)
