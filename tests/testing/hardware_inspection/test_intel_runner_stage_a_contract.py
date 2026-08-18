@@ -1204,6 +1204,16 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
                     "Test-StageANormalExistingPath '" + str(reparse).replace("'", "''") + "' $true | Out-Null"
                 )
                 self.assertNotEqual(result.returncode, 0)
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            checkout = Path(temporary_directory) / "checkout"
+            _create_clean_checkout(checkout)
+            top_level = _git_output(checkout, "rev-parse", "--show-toplevel")
+            git_directory = _git_output(checkout, "rev-parse", "--absolute-git-dir")
+            for git_path in (top_level, git_directory):
+                result = _invoke_runner_pure(
+                    "Test-StageANormalExistingPath '" + git_path.replace("'", "''") + "' $true | Out-Null"
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
         timeout_fixture = _invoke_runner_pure(
             "$process = New-Object System.Diagnostics.Process\n"
             "$process.StartInfo = New-Object System.Diagnostics.ProcessStartInfo\n"
