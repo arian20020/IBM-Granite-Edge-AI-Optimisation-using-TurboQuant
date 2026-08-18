@@ -280,7 +280,7 @@ The worktree must be clean after the commit.
 
 - [ ] **Step 1: Run the exact owned sparse-checkout proof**
 
-Before creating either temporary clone, execute the exact first-step Git precheck under PowerShell 5.1 and stop if it does not accept the single strict version line. Resolve `approvedSha` from the exact approval manifest before materialization; use `source_ref` only when checking the validator's provenance output, never as an evaluated checkout ref. These prerequisites ensure a missing/old Git cannot trigger REST archive fallback and that evaluated materialization cannot follow a movable ref.
+Before the first temporary clone, execute the exact first-step Git precheck under PowerShell 5.1 and stop if it does not accept the single strict version line. After the control sparse clone and 12-test proof, run the Dispatch validator, parse its exact three-line LF output, capture and validate `approved_sha`, and compare it to the pinned expected feature SHA before creating the evaluated clone. Use `source_ref` only when checking validator provenance output, never as an evaluated checkout ref. These prerequisites ensure a missing/old Git cannot trigger REST archive fallback and that evaluated materialization cannot follow a movable ref.
 
 Run this as one PowerShell command so the randomly generated ownership path never has to be inferred by a later shell. It clones only into a new GUID-named direct child of the OS temp directory and deletes only that validated child in `finally`:
 
@@ -291,11 +291,36 @@ $proofLeaf = 'GraniteEdgeAI-Stage0-Sparse-Proof-' + [Guid]::NewGuid().ToString('
 $proofRoot = Join-Path $tempParent $proofLeaf
 $controlRoot = Join-Path $proofRoot 'control'
 $evaluatedRoot = Join-Path $proofRoot 'evaluated'
-$approvedSha = 'cc2e57ceb94e73e49f34fc383d5440a9047fba21'
+$expectedFeatureSha = 'cc2e57ceb94e73e49f34fc383d5440a9047fba21'
 
 if (Test-Path -LiteralPath $proofRoot) { throw 'Owned sparse-proof root already exists.' }
 
 try {
+    $gitFailure = 'HI-RUNNER-STAGE0-GIT-INVALID: required Git capability is unavailable.'
+    try {
+        $gitCommand = Get-Command git -CommandType Application -ErrorAction SilentlyContinue
+        if ($null -eq $gitCommand) {
+            throw 'invalid'
+        }
+        $versionLines = @(& $gitCommand.Source --version 2>$null)
+        if ($LASTEXITCODE -ne 0 -or $versionLines.Count -ne 1) {
+            throw 'invalid'
+        }
+        $versionText = [string]$versionLines[0]
+        if ($versionText -cnotmatch '\Agit version (?<major>0|[1-9][0-9]*)\.(?<minor>0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:\.windows\.(?:0|[1-9][0-9]*))?\z') {
+            throw 'invalid'
+        }
+        $major = [int]$Matches['major']
+        $minor = [int]$Matches['minor']
+        if ($major -lt 2 -or ($major -eq 2 -and $minor -lt 28)) {
+            throw 'invalid'
+        }
+    }
+    catch {
+        [Console]::Error.WriteLine($gitFailure)
+        exit 1
+    }
+
     New-Item -ItemType Directory -Path $proofRoot -ErrorAction Stop | Out-Null
     $resolvedProofRoot = (Resolve-Path -LiteralPath $proofRoot).Path.TrimEnd('\')
     if ((Split-Path -Parent $resolvedProofRoot) -cne $tempParent -or
@@ -346,6 +371,41 @@ try {
         Pop-Location
     }
 
+    $validator = Join-Path $controlRoot 'scripts\hardware-inspection\Validate-HardwareInspectionIntelRunnerStage0.ps1'
+    $dispatchOutputPath = Join-Path $proofRoot 'dispatch-output.txt'
+    $summaryPath = Join-Path $proofRoot 'summary.md'
+    $commonArguments = @(
+        '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', $validator,
+        '-ControlRoot', $controlRoot,
+        '-WorkflowRef', 'refs/heads/main',
+        '-DefaultBranch', 'main',
+        '-Actor', 'arian20020',
+        '-TriggeringActor', 'arian20020',
+        '-RepositoryOwner', 'arian20020',
+        '-RunAttempt', '1',
+        '-ConfirmRepositoryOnly', 'true'
+    )
+    & powershell.exe @commonArguments -Phase Dispatch -GitHubOutputPath $dispatchOutputPath | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw 'Dispatch validator failed in the sparse control checkout.' }
+    $dispatchText = [System.IO.File]::ReadAllText($dispatchOutputPath)
+    $dispatchMatch = [regex]::Match(
+        $dispatchText,
+        '\Asource_ref=refs/heads/feature/hardware-inspection\napproved_sha=(?<approved_sha>(?!0{40}\n)[0-9a-f]{40})\nrepository_only=true\n\z',
+        [System.Text.RegularExpressions.RegexOptions]::CultureInvariant
+    )
+    if (-not $dispatchMatch.Success) {
+        throw 'Dispatch validator emitted unexpected output.'
+    }
+    $approvedSha = $dispatchMatch.Groups['approved_sha'].Value
+    if ($approvedSha -cne $expectedFeatureSha) {
+        throw 'Dispatch approved SHA differs from the pinned feature SHA.'
+    }
+    $expectedDispatch = "source_ref=refs/heads/feature/hardware-inspection`n" +
+        "approved_sha=$approvedSha`nrepository_only=true`n"
+    if ($dispatchText -cne $expectedDispatch) {
+        throw 'Dispatch validator emitted unexpected output.'
+    }
+
     & git clone --no-checkout --no-local 'C:\hardware-inspection' $evaluatedRoot
     if ($LASTEXITCODE -ne 0) { throw 'Evaluated clone failed.' }
     & git -C $evaluatedRoot sparse-checkout init --no-cone
@@ -375,28 +435,6 @@ try {
         Select-Object -First 1
     if ($null -ne $forbiddenEvaluatedFile) {
         throw 'Evaluated sparse checkout contains a forbidden executable or project file.'
-    }
-
-    $validator = Join-Path $controlRoot 'scripts\hardware-inspection\Validate-HardwareInspectionIntelRunnerStage0.ps1'
-    $dispatchOutputPath = Join-Path $proofRoot 'dispatch-output.txt'
-    $summaryPath = Join-Path $proofRoot 'summary.md'
-    $commonArguments = @(
-        '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', $validator,
-        '-ControlRoot', $controlRoot,
-        '-WorkflowRef', 'refs/heads/main',
-        '-DefaultBranch', 'main',
-        '-Actor', 'arian20020',
-        '-TriggeringActor', 'arian20020',
-        '-RepositoryOwner', 'arian20020',
-        '-RunAttempt', '1',
-        '-ConfirmRepositoryOnly', 'true'
-    )
-    & powershell.exe @commonArguments -Phase Dispatch -GitHubOutputPath $dispatchOutputPath | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw 'Dispatch validator failed in the sparse control checkout.' }
-    $expectedDispatch = "source_ref=refs/heads/feature/hardware-inspection`n" +
-        "approved_sha=$approvedSha`nrepository_only=true`n"
-    if ([System.IO.File]::ReadAllText($dispatchOutputPath) -cne $expectedDispatch) {
-        throw 'Dispatch validator emitted unexpected output.'
     }
 
     & powershell.exe @commonArguments `
