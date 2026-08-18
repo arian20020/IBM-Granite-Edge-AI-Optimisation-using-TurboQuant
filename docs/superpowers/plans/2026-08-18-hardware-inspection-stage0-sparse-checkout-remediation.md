@@ -22,13 +22,21 @@ The correction is evaluated-only. Control remains the exact cone-mode boundary; 
           sparse-checkout-cone-mode: false
 ```
 
-No evaluated code, project, executable, workflow step, or test runs. The corrected canonical workflow SHA-256 is `81a5893ccde84507ea8fd6d5409811ba55f0d16252b864907c29884f61c8fabf`.
+No evaluated code, project, executable, workflow step, or test runs. The corrected canonical workflow SHA-256 is `db075979900b0e5ca5aef3588f64225221f91bba744018f20180470177061ab3`.
 
 ## Security verification erratum — 2026-08-18
 
 Follow-up verification found that the pinned `actions/checkout` action can fall back to a full REST archive when Git is missing or too old to support sparse checkout. The fixed first executable step now performs a privacy-safe Git capability precheck before either checkout, accepts only a single strict version line at Git `2.28.0` or newer, and fails with a fixed message without exposing command output or paths. This prevents REST fallback from materializing a broad worktree before the sparse boundary is established.
 
-The evaluated checkout now resolves the immutable `steps.approval.outputs.approved_sha` value, not the movable `steps.approval.outputs.source_ref`. `source_ref` remains validator output and summary provenance only. The precheck and immutable SHA pin prevent both broad REST fallback materialization and movable-ref pre-materialization. The corrected canonical workflow SHA-256 is `81a5893ccde84507ea8fd6d5409811ba55f0d16252b864907c29884f61c8fabf`.
+The evaluated checkout now resolves the immutable `steps.approval.outputs.approved_sha` value, not the movable `steps.approval.outputs.source_ref`. `source_ref` remains validator output and summary provenance only. The precheck and immutable SHA pin prevent both broad REST fallback materialization and movable-ref pre-materialization. The corrected canonical workflow SHA-256 is `db075979900b0e5ca5aef3588f64225221f91bba744018f20180470177061ab3`.
+
+## Git command-resolution follow-up — 2026-08-18
+
+Hosted attempt-1 run `32155463873` failed in the first capability gate with the fixed privacy-safe Git error even though the official Windows image Git version `2.55.0.windows.3` satisfies the strict version expression. Reproduction showed that `Get-Command git -CommandType Application` can return multiple PATH-visible Git applications, including `bin` and `cmd`, and that invoking the array's `.Source` value treats all returned paths as one command name.
+
+The narrow correction selects the first PATH-ordered application with `Select-Object -First 1`, matching the pinned checkout bundle's `which('git', true)` then `matches[0]` resolution. Existing test identities now cover valid-first/invalid-second and invalid-first/valid-second results, retain the fixed error and no-output privacy boundary, and bind removal of first-result selection through the canonical mutation set. The suite remains exactly 12 identities and the canonical workflow SHA-256 is `db075979900b0e5ca5aef3588f64225221f91bba744018f20180470177061ab3`.
+
+This follow-up is isolated in `C:\hardware-inspection-stage0-git-fix` on `fix/hardware-inspection-stage0-git-resolution`, based on failed revision `b985ec7d9fe11aedd83afa9ba657699ed115a19f`. The original sparse-remediation worktree and branch references below remain the audit record for the preceding delivery.
 
 ---
 
@@ -42,7 +50,7 @@ The evaluated checkout now resolves the immutable `steps.approval.outputs.approv
 - Keep exactly 12 Stage 0 contract-test identities.
 - Use `apply_patch` for repository edits. Preserve unrelated and ignored files.
 - Use UTF-8 without BOM and LF-only YAML with exactly one trailing LF.
-- Never rerun failed run `32138539513`; after the fix merge, create a new `workflow_dispatch` run so `github.run_attempt` remains `1`.
+- Never rerun failed runs `32138539513` or `32155463873`; after the fix merge, create a new `workflow_dispatch` run so `github.run_attempt` remains `1`.
 
 ### Task 1: Lock and implement the sparse checkout boundary
 
@@ -52,11 +60,11 @@ The evaluated checkout now resolves the immutable `steps.approval.outputs.approv
 
 **Interfaces:**
 - Consumes: existing canonical workflow bytes, the pinned checkout action, the approval manifest output `steps.approval.outputs.approved_sha` for immutable evaluated materialization, `source_ref` as provenance only, and the existing 12-test contract module.
-- Produces: canonical workflow SHA-256 `81a5893ccde84507ea8fd6d5409811ba55f0d16252b864907c29884f61c8fabf`, the fixed first Git precheck, and the exact control-cone and evaluated non-cone sparse-checkout blocks.
+- Produces: canonical workflow SHA-256 `db075979900b0e5ca5aef3588f64225221f91bba744018f20180470177061ab3`, the fixed first Git precheck, and the exact control-cone and evaluated non-cone sparse-checkout blocks.
 
 - [ ] **Step 1: Add the focused failing contract assertions**
 
-In `test_stage0_workflow_pins_actions_and_drops_checkout_credentials`, keep all current assertions, require the exact first Git precheck below, execute its extracted run block under PowerShell 5.1 with deterministic local stubs, and add exact expected checkout fragments:
+In `test_stage0_workflow_pins_actions_and_drops_checkout_credentials`, keep all current assertions, require the exact first Git precheck below, execute its extracted run block under PowerShell 5.1 with deterministic local stubs, and add exact expected checkout fragments. The same identity must prove that the first PATH-ordered application is used when two applications are returned, including valid-first/invalid-second and invalid-first/valid-second cases, with the fixed privacy-safe failure retained:
 
 ```yaml
       - name: Require sparse-checkout-capable Git
@@ -66,7 +74,7 @@ In `test_stage0_workflow_pins_actions_and_drops_checkout_credentials`, keep all 
           $ErrorActionPreference = 'Stop'
           $failure = 'HI-RUNNER-STAGE0-GIT-INVALID: required Git capability is unavailable.'
           try {
-            $gitCommand = Get-Command git -CommandType Application -ErrorAction SilentlyContinue
+            $gitCommand = Get-Command git -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
             if ($null -eq $gitCommand) {
               throw 'invalid'
             }
@@ -190,7 +198,7 @@ Extend `Check out approved source for identity comparison only` without changing
 Change only:
 
 ```python
-EXPECTED_WORKFLOW_SHA256 = "81a5893ccde84507ea8fd6d5409811ba55f0d16252b864907c29884f61c8fabf"
+EXPECTED_WORKFLOW_SHA256 = "db075979900b0e5ca5aef3588f64225221f91bba744018f20180470177061ab3"
 ```
 
 The new digest is computed from the exact LF-only workflow above with one trailing LF. Do not weaken `_assert_canonical_workflow` or remove any existing mutation.
@@ -230,10 +238,10 @@ if (-not ([System.Text.Encoding]::UTF8.GetString($workflowBytes).EndsWith("`n"))
     throw 'Workflow lacks its final LF.'
 }
 if ((Get-FileHash -Algorithm SHA256 $workflow).Hash.ToLowerInvariant() -ne
-    '81a5893ccde84507ea8fd6d5409811ba55f0d16252b864907c29884f61c8fabf') {
+    'db075979900b0e5ca5aef3588f64225221f91bba744018f20180470177061ab3') {
     throw 'Workflow digest mismatch.'
 }
-if ((Get-Item $workflow).Length -ne 5940) { throw 'Workflow byte length mismatch.' }
+if ((Get-Item $workflow).Length -ne 5965) { throw 'Workflow byte length mismatch.' }
 
 $actualPaths = @(
     git diff --name-only origin/main...HEAD
@@ -298,7 +306,7 @@ if (Test-Path -LiteralPath $proofRoot) { throw 'Owned sparse-proof root already 
 try {
     $gitFailure = 'HI-RUNNER-STAGE0-GIT-INVALID: required Git capability is unavailable.'
     try {
-        $gitCommand = Get-Command git -CommandType Application -ErrorAction SilentlyContinue
+        $gitCommand = Get-Command git -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
         if ($null -eq $gitCommand) {
             throw 'invalid'
         }
@@ -545,14 +553,14 @@ if ($remoteFixSha -cne $fixSha) { throw 'Remote fix ref does not match the revie
 
 $prBody = @"
 ## Summary
-- fixes failed repository-only Stage 0 run 32138539513
+- fixes failed repository-only Stage 0 runs 32138539513 and 32155463873
 - requires a fixed Git 2.28+ precheck before checkout and uses the immutable approved SHA for evaluated materialization
 - replaces both broad Windows checkouts with reviewed control-cone and evaluated non-cone sparse boundaries
 - preserves all Hardware Inspection, Gate 1, Gate 2, laptop, candidate, and network behavior
 
 ## Verification
 - Stage 0 contracts: 12 passed, 0 failed, 0 skipped
-- canonical workflow SHA-256: 81a5893ccde84507ea8fd6d5409811ba55f0d16252b864907c29884f61c8fabf
+- canonical workflow SHA-256: db075979900b0e5ca5aef3588f64225221f91bba744018f20180470177061ab3
 - local control/evaluated sparse-checkout proof: passed
 - PowerShell parser, Python compile, whitespace, scope, and independent reviews: passed
 
@@ -636,7 +644,7 @@ if ($featureSha -cne 'cc2e57ceb94e73e49f34fc383d5440a9047fba21') {
 }
 ```
 
-Re-read the merged workflow from `origin/main` and confirm it remains manual-only with the canonical SHA-256 `81a5893ccde84507ea8fd6d5409811ba55f0d16252b864907c29884f61c8fabf`.
+Re-read the merged workflow from `origin/main` and confirm it remains manual-only with the canonical SHA-256 `db075979900b0e5ca5aef3588f64225221f91bba744018f20180470177061ab3`.
 
 - [ ] **Step 5: Create a new manual dispatch**
 
@@ -645,11 +653,10 @@ Record the existing run IDs, then run exactly:
 ```powershell
 $workflowName = 'hardware-inspection-intel-runner-stage0.yml'
 $repository = 'arian20020/IBM-Granite-Edge-AI-Optimisation-using-TurboQuant'
-$beforeRunIds = @(
-    gh run list --repo $repository --workflow $workflowName --limit 100 --json databaseId |
-        ConvertFrom-Json |
-        ForEach-Object { [string]$_.databaseId }
-)
+$existingRuns = gh run list --repo $repository --workflow $workflowName --limit 100 --json databaseId |
+    ConvertFrom-Json
+if ($LASTEXITCODE -ne 0) { throw 'Existing Stage 0 run listing failed.' }
+$beforeRunIds = @($existingRuns | ForEach-Object { [string]$_.databaseId })
 gh workflow run hardware-inspection-intel-runner-stage0.yml `
     --repo $repository `
     --ref main `
@@ -659,11 +666,19 @@ if ($LASTEXITCODE -ne 0) { throw 'New Stage 0 dispatch failed.' }
 $deadline = [DateTime]::UtcNow.AddMinutes(2)
 do {
     Start-Sleep -Seconds 3
+    $listedRuns = gh run list --repo $repository --workflow $workflowName --limit 20 `
+        --json databaseId,event,headBranch,headSha,attempt,createdAt,status,conclusion |
+        ConvertFrom-Json
+    if ($LASTEXITCODE -ne 0) { throw 'New Stage 0 run listing failed.' }
     $newRuns = @(
-        gh run list --repo $repository --workflow $workflowName --limit 20 `
-            --json databaseId,event,headBranch,headSha,attempt,createdAt,status,conclusion |
-            ConvertFrom-Json |
-            Where-Object { [string]$_.databaseId -notin $beforeRunIds }
+        $listedRuns | Where-Object {
+            [string]$_.databaseId -notin $beforeRunIds -and
+            $_.event -ceq 'workflow_dispatch' -and
+            $_.headBranch -ceq 'main' -and
+            $_.headSha -ceq $mergeSha -and
+            [int]$_.attempt -eq 1 -and
+            [string]$_.databaseId -notin @('32138539513', '32155463873')
+        }
     )
 } while ($newRuns.Count -eq 0 -and [DateTime]::UtcNow -lt $deadline)
 if ($newRuns.Count -ne 1) { throw 'Could not identify exactly one new Stage 0 run.' }
@@ -672,12 +687,12 @@ if ($newRun.event -cne 'workflow_dispatch' -or
     $newRun.headBranch -cne 'main' -or
     $newRun.headSha -cne $mergeSha -or
     [int]$newRun.attempt -ne 1 -or
-    [string]$newRun.databaseId -eq '32138539513') {
+    [string]$newRun.databaseId -in @('32138539513', '32155463873')) {
     throw 'New Stage 0 run identity is invalid.'
 }
 ```
 
-Do not use GitHub's rerun operation on `32138539513`.
+Do not use GitHub's rerun operation on `32138539513` or `32155463873`.
 
 - [ ] **Step 6: Verify the hosted result**
 

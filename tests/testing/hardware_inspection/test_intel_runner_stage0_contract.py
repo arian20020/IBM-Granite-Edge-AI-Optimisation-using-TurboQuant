@@ -31,7 +31,7 @@ WORKFLOW_PATH = (
     / "workflows"
     / "hardware-inspection-intel-runner-stage0.yml"
 )
-EXPECTED_WORKFLOW_SHA256 = "81a5893ccde84507ea8fd6d5409811ba55f0d16252b864907c29884f61c8fabf"
+EXPECTED_WORKFLOW_SHA256 = "db075979900b0e5ca5aef3588f64225221f91bba744018f20180470177061ab3"
 EXPECTED_STAGE0_RUNBOOK_SHA256 = "27b006d1e28e6def738578d0fec7acd885f90005402772456b1dfc751e3f9e92"
 INVALID_STDERR = "HI-RUNNER-STAGE0-INVALID: repository-only validation failed.\n"
 GIT_INVALID_STDERR = "HI-RUNNER-STAGE0-GIT-INVALID: required Git capability is unavailable.\n"
@@ -112,15 +112,31 @@ def _workflow_run_body(step):
     return "\n".join(line[10:] for line in lines) + "\n"
 
 
-def _run_git_precheck(run_body, *, output="git version 2.51.0", mode="output", source=None):
+def _run_git_precheck(
+    run_body,
+    *,
+    output="git version 2.51.0",
+    mode="output",
+    source=None,
+    secondary_output=None,
+):
     with tempfile.TemporaryDirectory() as temporary_directory:
         root = Path(temporary_directory)
         stub = root / "git.cmd"
+        secondary_stub = root / "git-secondary.cmd"
         if mode == "output" or mode == "nonzero":
             stub.write_text(
                 "@echo off\n"
                 + "\n".join("@echo " + line for line in output.splitlines())
                 + "\n@exit /b " + ("7" if mode == "nonzero" else "0") + "\n",
+                encoding="ascii",
+                newline="\r\n",
+            )
+        if secondary_output is not None:
+            secondary_stub.write_text(
+                "@echo off\n"
+                + "\n".join("@echo " + line for line in secondary_output.splitlines())
+                + "\n@exit /b 0\n",
                 encoding="ascii",
                 newline="\r\n",
             )
@@ -141,6 +157,9 @@ def _run_git_precheck(run_body, *, output="git version 2.51.0", mode="output", s
                     throw 'stub failure'
                   }
                   [pscustomobject]@{ Source = $env:STAGE0_GIT_SOURCE }
+                  if (-not [string]::IsNullOrEmpty($env:STAGE0_GIT_SECONDARY_SOURCE)) {
+                    [pscustomobject]@{ Source = $env:STAGE0_GIT_SECONDARY_SOURCE }
+                  }
                 }
                 """
             ).lstrip()
@@ -151,6 +170,9 @@ def _run_git_precheck(run_body, *, output="git version 2.51.0", mode="output", s
         environment = os.environ.copy()
         environment["STAGE0_GIT_MODE"] = mode
         environment["STAGE0_GIT_SOURCE"] = str(source if source is not None else stub)
+        environment["STAGE0_GIT_SECONDARY_SOURCE"] = (
+            str(secondary_stub) if secondary_output is not None else ""
+        )
         return subprocess.run(
             [powershell_executable(), "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", str(wrapper)],
             text=True,
@@ -546,8 +568,9 @@ on:
             raw.replace(b"ref: ${{ github.sha }}", b"ref: feature/hardware-inspection", 1),
             raw.replace(b"on:\n", b"on:\n  pull_request_target:\n  workflow_run:\n", 1),
             raw.replace(b"$minor -lt 28", b"$minor -lt 27", 1),
+            raw.replace(b" | Select-Object -First 1", b"", 1),
         )
-        self.assertEqual(len(mutations), 10)
+        self.assertEqual(len(mutations), 11)
         for mutation in mutations:
             self.assertNotEqual(hashlib.sha256(mutation).hexdigest(), EXPECTED_WORKFLOW_SHA256)
             with self.assertRaises(AssertionError):
@@ -588,7 +611,7 @@ on:
           $ErrorActionPreference = 'Stop'
           $failure = 'HI-RUNNER-STAGE0-GIT-INVALID: required Git capability is unavailable.'
           try {
-            $gitCommand = Get-Command git -CommandType Application -ErrorAction SilentlyContinue
+            $gitCommand = Get-Command git -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
             if ($null -eq $gitCommand) {
               throw 'invalid'
             }
@@ -616,7 +639,6 @@ on:
         control_step_start = text.index("      - name: Check out default-branch controls\n")
         separator_start = text.index("\n\n      - name: Check out default-branch controls\n", precheck_start)
         precheck_step = text[precheck_start:separator_start + 1]
-        self.assertEqual(precheck_step, expected_git_precheck)
         self.assertNotIn("${{", precheck_step)
         self.assertNotRegex(precheck_step, r"(?i)candidate|invoke-webrequest|start-bitstransfer|curl|wget|netsh|git (?:clone|fetch|checkout|push)")
         self.assertNotRegex(precheck_step, r"(?<![A-Za-z0-9])[A-Za-z]:[\\/]")
@@ -627,6 +649,24 @@ on:
             self.assertEqual(result.returncode, 0, normalized(result.stderr))
             self.assertEqual(normalized(result.stdout), "")
             self.assertEqual(normalized(result.stderr), "")
+
+        first_application = _run_git_precheck(
+            run_body,
+            output="git version 2.55.0.windows.3",
+            secondary_output="git version 2.27.99",
+        )
+        self.assertEqual(first_application.returncode, 0, normalized(first_application.stderr))
+        self.assertEqual(normalized(first_application.stdout), "")
+        self.assertEqual(normalized(first_application.stderr), "")
+
+        invalid_first_application = _run_git_precheck(
+            run_body,
+            output="git version 2.27.99",
+            secondary_output="git version 2.55.0.windows.3",
+        )
+        self.assertEqual(invalid_first_application.returncode, 1)
+        self.assertEqual(normalized(invalid_first_application.stdout), "")
+        self.assertEqual(normalized(invalid_first_application.stderr), GIT_INVALID_STDERR)
 
         for output in (
             "git version 2.27.99",
@@ -651,6 +691,8 @@ on:
         self.assertEqual(normalized(result.stdout), "")
         self.assertEqual(normalized(result.stderr), GIT_INVALID_STDERR)
         self.assertNotIn(secret, normalized(result.stdout) + normalized(result.stderr))
+
+        self.assertEqual(precheck_step, expected_git_precheck)
 
         checkout = "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0"
         setup_python = "actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065"

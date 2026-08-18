@@ -37,7 +37,7 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $failure = 'HI-RUNNER-STAGE0-GIT-INVALID: required Git capability is unavailable.'
           try {
-            $gitCommand = Get-Command git -CommandType Application -ErrorAction SilentlyContinue
+            $gitCommand = Get-Command git -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
             if ($null -eq $gitCommand) {
               throw 'invalid'
             }

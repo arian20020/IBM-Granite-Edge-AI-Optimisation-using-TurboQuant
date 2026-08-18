@@ -4,6 +4,8 @@
 **Scope:** GitHub-hosted, repository-only Stage 0 checkout remediation
 **Failed run:** `32138539513`
 **Failed revision:** `0b7da6413ba20508928c2033b88dc3d3efd10143`
+**Git-resolution follow-up failed run:** `32155463873` (attempt `1`)
+**Git-resolution follow-up failed revision:** `b985ec7d9fe11aedd83afa9ba657699ed115a19f`
 
 ## Verification erratum — 2026-08-18
 
@@ -17,13 +19,19 @@ The correction is evaluated-only. The control checkout remains the exact six-dir
           sparse-checkout-cone-mode: false
 ```
 
-That pattern is bounded to the 22 inert Markdown specifications under `docs/superpowers/specs`; no evaluated code, project, executable, workflow step, or test runs. The corrected canonical workflow SHA-256 is `81a5893ccde84507ea8fd6d5409811ba55f0d16252b864907c29884f61c8fabf`.
+That pattern is bounded to the 22 inert Markdown specifications under `docs/superpowers/specs`; no evaluated code, project, executable, workflow step, or test runs. The corrected canonical workflow SHA-256 is `db075979900b0e5ca5aef3588f64225221f91bba744018f20180470177061ab3`.
 
 ## Security verification erratum — 2026-08-18
 
 Follow-up verification found that the pinned `actions/checkout` action can fall back to a full REST archive when Git is missing or too old to support sparse checkout. The fixed first executable step now performs a privacy-safe Git capability precheck before either checkout, accepts only a single strict version line at Git `2.28.0` or newer, and fails with a fixed message without exposing command output or paths. This prevents REST fallback from materializing a broad worktree before the sparse boundary is established.
 
-The evaluated checkout now resolves the immutable `steps.approval.outputs.approved_sha` value, not the movable `steps.approval.outputs.source_ref`. `source_ref` remains validator output and summary provenance only. The precheck and immutable SHA pin therefore prevent both broad REST fallback materialization and movable-ref pre-materialization. The corrected canonical workflow SHA-256 is `81a5893ccde84507ea8fd6d5409811ba55f0d16252b864907c29884f61c8fabf`.
+The evaluated checkout now resolves the immutable `steps.approval.outputs.approved_sha` value, not the movable `steps.approval.outputs.source_ref`. `source_ref` remains validator output and summary provenance only. The precheck and immutable SHA pin therefore prevent both broad REST fallback materialization and movable-ref pre-materialization. The corrected canonical workflow SHA-256 is `db075979900b0e5ca5aef3588f64225221f91bba744018f20180470177061ab3`.
+
+## Git command-resolution verification erratum — 2026-08-18
+
+Hosted attempt-1 run `32155463873` reached the first Git capability gate and failed with the fixed privacy-safe error. The official Windows image inventory lists `git version 2.55.0.windows.3`, which satisfies the strict capability expression. The failure instead came from treating every `Application` returned by `Get-Command git` as one invocation target when the hosted `PATH` exposes multiple Git applications, including `bin` and `cmd`.
+
+The precheck now resolves the first PATH-ordered `Application` deterministically with `Select-Object -First 1`. This matches the pinned checkout implementation, whose bundled `which('git', true)` lookup selects `matches[0]`, as well as a plain `git` invocation. The existing contract identity proves that a valid first application is used even when a second result is invalid, that an invalid first application is rejected even when a second result is valid, and that every failure remains the same fixed message without exposing either path or command output. Exactly 12 test identities remain. The resulting canonical workflow SHA-256 is `db075979900b0e5ca5aef3588f64225221f91bba744018f20180470177061ab3`.
 
 ## Problem
 
@@ -95,7 +103,7 @@ persist-credentials: false
 
 The control checkout retains `sparse-checkout-cone-mode: true`; the evaluated checkout uses the exact non-cone block above.
 
-Before either checkout, the first executable step requires Git `2.28.0` or newer using the fixed privacy-safe precheck; the evaluated `actions/checkout` step consumes `steps.approval.outputs.approved_sha`, while `source_ref` remains provenance metadata emitted by the validator.
+Before either checkout, the first executable step selects the first PATH-ordered Git application and requires Git `2.28.0` or newer using the fixed privacy-safe precheck; the evaluated `actions/checkout` step consumes `steps.approval.outputs.approved_sha`, while `source_ref` remains provenance metadata emitted by the validator.
 
 No explicit checkout filter or global Git configuration is added. The pinned checkout action may apply its own partial-clone optimization internally.
 
@@ -121,19 +129,19 @@ The existing test identity will assert:
 - exactly two `sparse-checkout` blocks;
 - exactly one `sparse-checkout-cone-mode: true` setting and one `sparse-checkout-cone-mode: false` setting;
 - the exact ordered control cone list and root-anchored evaluated directory pattern;
-- the exact first Git precheck step, including its strict version matrix, fixed failure output, no path/network content, and pre-checkout placement;
+- the exact first Git precheck step, including deterministic first-application resolution, its strict version matrix, fixed failure output, no path/network content, and pre-checkout placement;
 - evaluated `approved_sha` materialization with `source_ref` retained only as provenance metadata;
 - no explicit filter or `core.longpaths` setting;
 - both immutable checkout pins and both `persist-credentials: false` settings remain;
 - control execution and evaluated identity-only ordering remain unchanged.
 
-The complete 12-test suite, PowerShell 5.1 Git-precheck semantic matrix, Python compilation, PowerShell 5.1 parser, canonical hashes, UTF-8/no-BOM checks, and commit-range whitespace checks must pass. A local owned temporary sparse checkout will run the 12 contracts from the control cone and verify evaluated SHA/cleanliness behavior after the Git precheck prerequisite and immutable SHA materialization are confirmed.
+The complete 12-test suite, PowerShell 5.1 Git-precheck semantic matrix (including ordered duplicate application results), Python compilation, PowerShell 5.1 parser, canonical hashes, UTF-8/no-BOM checks, and commit-range whitespace checks must pass. A local owned temporary sparse checkout will run the 12 contracts from the control cone and verify evaluated SHA/cleanliness behavior after the Git precheck prerequisite and immutable SHA materialization are confirmed.
 
 ## Delivery and verification
 
 The remediation is delivered in a separate fix branch and pull request based on the failed `main` revision. The PR changes only the workflow, its contract test, and this approved remediation documentation plus its implementation plan.
 
-After review and merge, create a new manual `workflow_dispatch` run. Do not rerun failed run `32138539513`, because a rerun would have `run_attempt` greater than 1 and must remain rejected by the existing guard.
+After review and merge, create a new manual `workflow_dispatch` run. Do not rerun failed runs `32138539513` or `32155463873`, because a rerun would have `run_attempt` greater than 1 and must remain rejected by the existing guard.
 
 Success requires exactly one hosted job, all 12 contracts passing, both validator phases succeeding, the fixed safe summary, zero uploaded artifacts, and no self-hosted job or Intel-laptop contact.
 
