@@ -519,6 +519,24 @@ def _invoke_runner_trx_fixture(path, kind):
     )
 
 
+def _invoke_runner_pure(body):
+    script_literal = str(RUNNER_PATH).replace("'", "''")
+    command = (
+        "$ErrorActionPreference = 'Stop'\n"
+        + ". '"
+        + script_literal
+        + "' -EvaluatedRoot 'x' -ApprovedSha ('0' * 40) -LocalWorkRoot 'x' -SummaryJsonPath 'x' -SummaryMarkdownPath 'x'\n"
+        + body
+    )
+    return subprocess.run(
+        [_powershell_executable(), "-NoProfile", "-NonInteractive", "-Command", command],
+        text=True,
+        capture_output=True,
+        timeout=20,
+        check=False,
+    )
+
+
 def _validator_arguments(control_root, **changes):
     arguments = {
         "Phase": "Hosted",
@@ -759,6 +777,8 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
         ast_text = "\n".join(commands + strings)
         self.assertEqual(command_text.count("TestCategory=Deterministic"), 1)
         self.assertEqual(command_text.count("TestCategory=Task8Deterministic"), 1)
+        self.assertEqual(command_text.count("--report-trx"), 2)
+        self.assertEqual(command_text.count("--report-trx-filename"), 2)
         self.assertIn("174", ast_text)
         self.assertIn("3", ast_text)
         self.assertEqual(sum(identity in ast_text for identity in TASK8_IDENTITIES), 3)
@@ -791,7 +811,8 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
         for forbidden in (
             "candidate",
             "capture",
-            "report",
+            "report generator",
+            "report publication",
             "trustedwindowsintel",
             "trustedoffline",
             "adapter",
@@ -1149,7 +1170,50 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
         self.assertRegex(executable, r"(?i)status\s+--porcelain|clean")
         self.assertRegex(executable, r"(?i)rev-parse\s+HEAD|approvedsha")
         self.assertRegex(executable, r"GRANITE_LLMFIT_")
-        self.assertRegex(runner_text, r"\$workRoot\s+-cne\s+\$evaluated")
+        self.assertIn("Test-StageADisjointPaths $workRoot $evaluated", runner_text)
+        for required_hardening in (
+            "Test-StageADisjointPaths",
+            "DirectorySeparatorChar",
+            "taskkill.exe",
+            "CancelKeyPress",
+            "StageAOwnedProcesses",
+            "Wait-StageAProcess",
+        ):
+            self.assertIn(required_hardening, runner_text)
+        for first, second, expected_success in (
+            ("C:\\stage-a\\source", "C:\\stage-a\\work", True),
+            ("C:\\stage-a\\source", "C:\\stage-a\\source\\child", False),
+            ("C:\\stage-a\\source\\child", "C:\\stage-a\\source", False),
+            ("C:\\stage-a\\source", "C:\\stage-a\\source", False),
+        ):
+            result = _invoke_runner_pure(
+                "Test-StageADisjointPaths '" + first + "' '" + second + "'"
+            )
+            self.assertEqual(result.returncode == 0, expected_success)
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            target = root / "target"
+            target.mkdir()
+            reparse = root / "ancestor-reparse"
+            try:
+                reparse.symlink_to(target, target_is_directory=True)
+            except OSError:
+                pass
+            else:
+                result = _invoke_runner_pure(
+                    "Test-StageANormalExistingPath '" + str(reparse).replace("'", "''") + "' $true | Out-Null"
+                )
+                self.assertNotEqual(result.returncode, 0)
+        timeout_fixture = _invoke_runner_pure(
+            "$process = New-Object System.Diagnostics.Process\n"
+            "$process.StartInfo = New-Object System.Diagnostics.ProcessStartInfo\n"
+            "$process.StartInfo.FileName = $env:ComSpec\n"
+            "$process.StartInfo.Arguments = '/c ping -n 3 127.0.0.1 > nul'\n"
+            "$process.StartInfo.UseShellExecute = $false\n"
+            "$null = $process.Start()\n"
+            "try { Wait-StageAProcess $process 0 } finally { if (-not $process.HasExited) { $process.Kill(); $process.WaitForExit() } }"
+        )
+        self.assertNotEqual(timeout_fixture.returncode, 0)
 
     def test_stage_a_runner_requires_exact_trx_identities_and_zero_nonpassing(self):
         runner_text, commands, strings = _powershell_ast_text(self, RUNNER_PATH)
@@ -1204,6 +1268,10 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
                     "counters": valid.replace('passed="', 'passed="999', 1),
                     "missing-counters": valid.replace("<Counters ", "<MissingCounters ", 1).replace(" /></ResultSummary>", " /></ResultSummary>", 1),
                 }
+                for counter_name in ("notRunnable", "disconnected", "warning", "completed", "inProgress", "pending"):
+                    mutations["counter-" + counter_name] = valid.replace(
+                        counter_name + '=\"0\"', counter_name + '=\"1\"', 1
+                    )
                 for name, mutated in mutations.items():
                     with self.subTest(kind=kind, mutation=name):
                         fixture.write_text(mutated, encoding="utf-8", newline="\n")
@@ -1223,6 +1291,8 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
         self.assertIn("deterministic.trx", executable.casefold())
         self.assertIn("task8.trx", executable.casefold())
         self.assertNotIn("Write-Output", executable)
+        for required_privacy_check in ("llmfit", ".trx"):
+            self.assertIn(required_privacy_check.casefold(), runner_text.casefold())
         if WORKFLOW_PATH.is_file():
             _, document = _workflow(self)
             _assert_summary_upload(self, document)

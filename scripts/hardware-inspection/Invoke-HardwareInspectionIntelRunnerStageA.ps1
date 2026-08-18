@@ -13,6 +13,8 @@ $ErrorActionPreference = 'Stop'
 $script:StageAFailure = 'HI-RUNNER-STAGEA-TESTS-FAILED: deterministic validation failed.'
 $script:StageATrxNamespace = 'http://microsoft.com/schemas/VisualStudio/TeamTest/2010'
 $script:StageAMaximumTrxBytes = 16MB
+$script:StageAOwnedProcesses = New-Object System.Collections.ArrayList
+$script:StageACancelled = $false
 
 function Assert-StageACondition {
     param([bool] $Condition)
@@ -24,11 +26,23 @@ function Test-StageANormalExistingPath {
     $fullPath = [System.IO.Path]::GetFullPath($Path)
     Assert-StageACondition (-not ($fullPath.StartsWith('\\', [System.StringComparison]::Ordinal) -or $fullPath.StartsWith('\\?\', [System.StringComparison]::Ordinal)))
     $item = Get-Item -LiteralPath $fullPath -Force
-    Assert-StageACondition (($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -eq 0)
+    $component = $item
+    while ($null -ne $component) {
+        Assert-StageACondition (($component.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -eq 0)
+        $component = $component.Parent
+    }
     Assert-StageACondition ($item.PSIsContainer -eq $Directory)
     $drive = New-Object System.IO.DriveInfo($fullPath.Substring(0, 3))
     Assert-StageACondition ($drive.DriveType -eq [System.IO.DriveType]::Fixed)
-    return $fullPath.TrimEnd('\')
+    return $fullPath.TrimEnd([System.IO.Path]::DirectorySeparatorChar)
+}
+
+function Test-StageADisjointPaths {
+    param([string] $First, [string] $Second)
+    $separator = [System.IO.Path]::DirectorySeparatorChar
+    Assert-StageACondition ($First -ine $Second)
+    Assert-StageACondition (-not $First.StartsWith($Second + $separator, [System.StringComparison]::OrdinalIgnoreCase))
+    Assert-StageACondition (-not $Second.StartsWith($First + $separator, [System.StringComparison]::OrdinalIgnoreCase))
 }
 
 function Get-StageAOutputPath {
@@ -39,8 +53,7 @@ function Get-StageAOutputPath {
     Assert-StageACondition (-not [string]::IsNullOrWhiteSpace($parent))
     $parent = Test-StageANormalExistingPath $parent $true
     Assert-StageACondition (-not (Test-Path -LiteralPath $fullPath))
-    Assert-StageACondition (-not $fullPath.StartsWith($Evaluated + '\', [System.StringComparison]::OrdinalIgnoreCase))
-    Assert-StageACondition (-not $Evaluated.StartsWith($parent + '\', [System.StringComparison]::OrdinalIgnoreCase))
+    Test-StageADisjointPaths $fullPath $Evaluated
     return $fullPath
 }
 
@@ -51,8 +64,47 @@ function ConvertTo-StageACommandLine {
     }) -join ' ')
 }
 
+function Wait-StageAProcess {
+    param([System.Diagnostics.Process] $Process, [int] $TimeoutSeconds)
+    $deadline = [System.Diagnostics.Stopwatch]::StartNew()
+    while (-not $Process.HasExited) {
+        Assert-StageACondition (-not $script:StageACancelled)
+        Assert-StageACondition ($deadline.Elapsed.TotalSeconds -lt $TimeoutSeconds)
+        Start-Sleep -Milliseconds 100
+    }
+}
+
+function Stop-StageAOwnedProcesses {
+    $wasCancelled = $script:StageACancelled
+    $script:StageACancelled = $false
+    $windowsDirectory = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::Windows)
+    $taskkillPath = [System.IO.Path]::GetFullPath((Join-Path $windowsDirectory 'System32\taskkill.exe'))
+    try {
+        foreach ($owned in @($script:StageAOwnedProcesses)) {
+            try {
+            $current = Get-Process -Id $owned.Id -ErrorAction SilentlyContinue
+            if ($null -ne $current -and $current.StartTime.ToUniversalTime().Ticks -eq $owned.StartTicks) {
+                $information = New-Object System.Diagnostics.ProcessStartInfo
+                $information.FileName = $taskkillPath; $information.Arguments = '/PID ' + $owned.Id + ' /T /F'
+                $information.UseShellExecute = $false; $information.CreateNoWindow = $true
+                $information.RedirectStandardOutput = $true; $information.RedirectStandardError = $true
+                $taskkill = New-Object System.Diagnostics.Process; $taskkill.StartInfo = $information
+                if ($taskkill.Start()) {
+                    $outputRead = $taskkill.StandardOutput.ReadToEndAsync(); $errorRead = $taskkill.StandardError.ReadToEndAsync()
+                    Wait-StageAProcess $taskkill 30
+                    $null = $outputRead.GetAwaiter().GetResult(); $null = $errorRead.GetAwaiter().GetResult()
+                }
+            }
+            } catch { throw }
+        }
+    } finally {
+        $script:StageAOwnedProcesses.Clear()
+        $script:StageACancelled = $wasCancelled
+    }
+}
+
 function Invoke-StageAProcess {
-    param([string] $Application, [string[]] $ArgumentList, [string] $LogPath)
+    param([string] $Application, [string[]] $ArgumentList, [string] $LogPath, [int] $TimeoutSeconds)
     $information = New-Object System.Diagnostics.ProcessStartInfo
     $information.FileName = $Application
     $information.Arguments = ConvertTo-StageACommandLine $ArgumentList
@@ -63,9 +115,10 @@ function Invoke-StageAProcess {
     $process = New-Object System.Diagnostics.Process
     $process.StartInfo = $information
     Assert-StageACondition ($process.Start())
+    [void]$script:StageAOwnedProcesses.Add([pscustomobject]@{ Id = $process.Id; StartTicks = $process.StartTime.ToUniversalTime().Ticks })
     $outputRead = $process.StandardOutput.ReadToEndAsync()
     $errorRead = $process.StandardError.ReadToEndAsync()
-    $process.WaitForExit()
+    Wait-StageAProcess $process $TimeoutSeconds
     $standardOutput = $outputRead.GetAwaiter().GetResult()
     $standardError = $errorRead.GetAwaiter().GetResult()
     [System.IO.File]::WriteAllText($LogPath, $standardOutput + $standardError, (New-Object System.Text.UTF8Encoding($false)))
@@ -155,12 +208,12 @@ function Read-HardwareInspectionIntelRunnerStageATrx {
     $counterNodes = @($document.SelectNodes('/t:TestRun/t:ResultSummary/t:Counters', $manager))
     Assert-StageACondition ($counterNodes.Count -eq 1)
     $counters = $counterNodes[0]
-    foreach ($name in @('total','executed','passed','failed','error','timeout','aborted','inconclusive','notExecuted')) {
+    foreach ($name in @('total','executed','passed','failed','error','timeout','aborted','inconclusive','notExecuted','notRunnable','disconnected','warning','completed','inProgress','pending')) {
         $attribute = $counters.Attributes[$name]
         Assert-StageACondition ($null -ne $attribute -and $attribute.Value -cmatch '\A[0-9]+\z')
     }
     Assert-StageACondition ([int]$counters.GetAttribute('total') -eq $expectedCount -and [int]$counters.GetAttribute('executed') -eq $expectedCount -and [int]$counters.GetAttribute('passed') -eq $expectedCount)
-    foreach ($name in @('failed','error','timeout','aborted','inconclusive','notExecuted')) { Assert-StageACondition ([int]$counters.GetAttribute($name) -eq 0) }
+    foreach ($name in @('failed','error','timeout','aborted','inconclusive','notExecuted','notRunnable','disconnected','warning','completed','inProgress','pending')) { Assert-StageACondition ([int]$counters.GetAttribute($name) -eq 0) }
     return [pscustomobject]@{ Passed = $expectedCount; NonPassing = 0 }
 }
 
@@ -186,7 +239,7 @@ function Assert-StageASummaryPrivacy {
     $expectedJson = '{"schemaVersion":"1.0","evaluatedSha":"' + $Sha + '","deterministicPassed":174,"task8DeterministicPassed":3,"nonPassing":0}'
     Assert-StageACondition ($Json -ceq $expectedJson)
     foreach ($text in @($Json, $Markdown)) {
-        Assert-StageACondition ($text -notmatch '(?i)(?:[a-z]:\\|\\\\|/home/|/users/|stdout|stderr|\.trx|\b(?:cpu|gpu|hostname|computername|username|ip|mac)\b)')
+        Assert-StageACondition ($text -notmatch '(?i)(?:[a-z]:\\|\\\\|/home/|/users/|stdout|stderr|\.trx|<\?xml|<testrun|\b(?:candidate|llmfit|json|cpu|gpu|hostname|computername|username|ip|mac)\b)')
     }
 }
 
@@ -204,9 +257,7 @@ function Invoke-HardwareInspectionIntelRunnerStageAInternal {
     }
     $evaluated = Test-StageANormalExistingPath $EvaluatedRoot $true
     $workRoot = Test-StageANormalExistingPath $LocalWorkRoot $true
-    Assert-StageACondition ($workRoot -cne $evaluated)
-    Assert-StageACondition (-not $workRoot.StartsWith($evaluated + '\\', [System.StringComparison]::OrdinalIgnoreCase))
-    Assert-StageACondition (-not $evaluated.StartsWith($workRoot + '\\', [System.StringComparison]::OrdinalIgnoreCase))
+    Test-StageADisjointPaths $workRoot $evaluated
     $summaryJson = Get-StageAOutputPath $SummaryJsonPath $evaluated
     $summaryMarkdown = Get-StageAOutputPath $SummaryMarkdownPath $evaluated
     Assert-StageACondition ($summaryJson -ine $summaryMarkdown)
@@ -221,14 +272,14 @@ function Invoke-HardwareInspectionIntelRunnerStageAInternal {
     [System.IO.Directory]::CreateDirectory($runDirectory) | Out-Null
     $runDirectory = Test-StageANormalExistingPath $runDirectory $true
     $gitLog = Join-Path $runDirectory 'git.log'
-    $topLevel = Invoke-StageAProcess $git[0].Source @('-C',$evaluated,'rev-parse','--show-toplevel') $gitLog
-    $absoluteGitDirectory = Invoke-StageAProcess $git[0].Source @('-C',$evaluated,'rev-parse','--absolute-git-dir') $gitLog
-    $head = Invoke-StageAProcess $git[0].Source @('-C',$evaluated,'rev-parse','HEAD') $gitLog
-    Assert-StageACondition ($topLevel -ceq $evaluated -and $absoluteGitDirectory -ceq $gitDirectory -and $head -ceq $ApprovedSha)
-    $null = Invoke-StageAProcess $git[0].Source @('-C',$evaluated,'status','--porcelain=v1','--untracked-files=all') $gitLog
+    $topLevel = Test-StageANormalExistingPath (Invoke-StageAProcess $git[0].Source @('-C',$evaluated,'rev-parse','--show-toplevel') $gitLog 30) $true
+    $absoluteGitDirectory = Test-StageANormalExistingPath (Invoke-StageAProcess $git[0].Source @('-C',$evaluated,'rev-parse','--absolute-git-dir') $gitLog 30) $true
+    $head = Invoke-StageAProcess $git[0].Source @('-C',$evaluated,'rev-parse','HEAD') $gitLog 30
+    Assert-StageACondition ($topLevel -ieq $evaluated -and $absoluteGitDirectory -ieq $gitDirectory -and $head -ceq $ApprovedSha)
+    $null = Invoke-StageAProcess $git[0].Source @('-C',$evaluated,'status','--porcelain=v1','--untracked-files=all') $gitLog 30
     Assert-StageACondition ([string]::IsNullOrEmpty((Get-Content -LiteralPath $gitLog -Raw)))
-    $null = Invoke-StageAProcess $git[0].Source @('-C',$evaluated,'diff','--quiet') $gitLog
-    $null = Invoke-StageAProcess $git[0].Source @('-C',$evaluated,'diff','--cached','--quiet') $gitLog
+    $null = Invoke-StageAProcess $git[0].Source @('-C',$evaluated,'diff','--quiet') $gitLog 30
+    $null = Invoke-StageAProcess $git[0].Source @('-C',$evaluated,'diff','--cached','--quiet') $gitLog 30
     $dotnet = @(Get-Command dotnet.exe -CommandType Application | Select-Object -First 1)
     Assert-StageACondition ($dotnet.Count -eq 1)
     $projects = @(
@@ -239,15 +290,15 @@ function Invoke-HardwareInspectionIntelRunnerStageAInternal {
         $projectPath = Join-Path $evaluated $project
         Assert-StageACondition (Test-Path -LiteralPath $projectPath -PathType Leaf)
         $name = [System.IO.Path]::GetFileNameWithoutExtension($projectPath)
-        $null = Invoke-StageAProcess $dotnet[0].Source @('restore',$projectPath,'--runtime','win-x64','-p:Configuration=Release') (Join-Path $runDirectory ($name + '.restore.log'))
-        $null = Invoke-StageAProcess $dotnet[0].Source @('build',$projectPath,'--configuration','Release','--runtime','win-x64','--no-restore') (Join-Path $runDirectory ($name + '.build.log'))
+        $null = Invoke-StageAProcess $dotnet[0].Source @('restore',$projectPath,'--runtime','win-x64','-p:Configuration=Release') (Join-Path $runDirectory ($name + '.restore.log')) 300
+        $null = Invoke-StageAProcess $dotnet[0].Source @('build',$projectPath,'--configuration','Release','--runtime','win-x64','--no-restore') (Join-Path $runDirectory ($name + '.build.log')) 300
     }
     $resultsDirectory = Join-Path $runDirectory 'results'
     [System.IO.Directory]::CreateDirectory($resultsDirectory) | Out-Null
     $deterministicProject = Join-Path $evaluated $projects[0]
     $task8Project = Join-Path $evaluated $projects[1]
-    $null = Invoke-StageAProcess $dotnet[0].Source @('test',$deterministicProject,'--configuration','Release','--runtime','win-x64','--no-restore','--no-build','--filter','TestCategory=Deterministic','--minimum-expected-tests','174','--results-directory',$resultsDirectory,'--report-trx','--report-trx-filename','deterministic.trx','--no-ansi') (Join-Path $runDirectory 'deterministic.log')
-    $null = Invoke-StageAProcess $dotnet[0].Source @('test',$task8Project,'--configuration','Release','--runtime','win-x64','--no-restore','--no-build','--filter','TestCategory=Task8Deterministic','--minimum-expected-tests','3','--results-directory',$resultsDirectory,'--report-trx','--report-trx-filename','task8.trx','--no-ansi') (Join-Path $runDirectory 'task8.log')
+    $null = Invoke-StageAProcess $dotnet[0].Source @('test',$deterministicProject,'--configuration','Release','--runtime','win-x64','--no-restore','--no-build','--filter','TestCategory=Deterministic','--minimum-expected-tests','174','--results-directory',$resultsDirectory,'--report-trx','--report-trx-filename','deterministic.trx','--no-ansi') (Join-Path $runDirectory 'deterministic.log') 300
+    $null = Invoke-StageAProcess $dotnet[0].Source @('test',$task8Project,'--configuration','Release','--runtime','win-x64','--no-restore','--no-build','--filter','TestCategory=Task8Deterministic','--minimum-expected-tests','3','--results-directory',$resultsDirectory,'--report-trx','--report-trx-filename','task8.trx','--no-ansi') (Join-Path $runDirectory 'task8.log') 300
     $deterministic = Read-HardwareInspectionIntelRunnerStageATrx (Join-Path $resultsDirectory 'deterministic.trx') 'Deterministic'
     $task8 = Read-HardwareInspectionIntelRunnerStageATrx (Join-Path $resultsDirectory 'task8.trx') 'Task8Deterministic'
     Test-StageAResidualProcesses
@@ -261,9 +312,14 @@ function Invoke-HardwareInspectionIntelRunnerStageAInternal {
 if ($MyInvocation.InvocationName -ne '.') {
     $primaryFailure = $null
     $cleanupFailure = $null
-    try { Invoke-HardwareInspectionIntelRunnerStageAInternal }
+    $cancelHandler = [System.ConsoleCancelEventHandler]{ param($sender, $eventArgs); $eventArgs.Cancel = $true; $script:StageACancelled = $true }
+    try {
+        [System.Console]::add_CancelKeyPress($cancelHandler)
+        Invoke-HardwareInspectionIntelRunnerStageAInternal
+    }
     catch { $primaryFailure = $_ }
-    try { Test-StageAResidualProcesses }
+    finally { [System.Console]::remove_CancelKeyPress($cancelHandler) }
+    try { Stop-StageAOwnedProcesses; Test-StageAResidualProcesses }
     catch { $cleanupFailure = $_ }
     if ($null -ne $primaryFailure -or $null -ne $cleanupFailure) {
         [Console]::Error.WriteLine($script:StageAFailure)
