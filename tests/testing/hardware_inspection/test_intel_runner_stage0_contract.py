@@ -477,6 +477,7 @@ class IntelRunnerStage0ContractTests(unittest.TestCase):
             subprocess.run(["git", "-C", str(origin_root), "add", ".gitignore", "docs/superpowers/specs/identity.md"], check=True, timeout=20)
             subprocess.run(["git", "-C", str(origin_root), "commit", "--quiet", "-m", "identity"], check=True, timeout=20)
             source_sha = subprocess.run(["git", "-C", str(origin_root), "rev-parse", "HEAD"], text=True, capture_output=True, check=True, timeout=20).stdout.strip()
+            identity_oid = subprocess.run(["git", "-C", str(origin_root), "rev-parse", "HEAD:docs/superpowers/specs/identity.md"], text=True, capture_output=True, check=True, timeout=20).stdout.strip()
             gitignore_oid = subprocess.run(["git", "-C", str(origin_root), "rev-parse", "HEAD:.gitignore"], text=True, capture_output=True, check=True, timeout=20).stdout.strip()
 
             subprocess.run(
@@ -484,6 +485,23 @@ class IntelRunnerStage0ContractTests(unittest.TestCase):
                 check=True,
                 timeout=20,
             )
+            seeded_identity_oid = subprocess.run(
+                ["git", "-C", str(source_root), "hash-object", "-w", str(identity_path)],
+                text=True,
+                capture_output=True,
+                timeout=20,
+                check=True,
+            ).stdout.strip()
+            self.assertEqual(seeded_identity_oid, identity_oid)
+            pre_checkout_missing = subprocess.run(
+                ["git", "-C", str(source_root), "rev-list", "--objects", "--missing=print", source_sha],
+                text=True,
+                capture_output=True,
+                timeout=20,
+                check=True,
+            )
+            self.assertNotIn("?" + identity_oid, pre_checkout_missing.stdout.splitlines())
+            self.assertIn("?" + gitignore_oid, pre_checkout_missing.stdout.splitlines())
             subprocess.run(["git", "-C", str(source_root), "sparse-checkout", "init", "--no-cone"], check=True, timeout=20)
             subprocess.run(
                 ["git", "-C", str(source_root), "sparse-checkout", "set", "--no-cone", "/docs/superpowers/specs/"],

@@ -930,7 +930,7 @@ Report the Git-resolution remediation PR, merge SHA, successful new run URL, exa
 
 - [ ] **Step 1: Reproduce RED inside the existing Source-validator identity**
 
-Build a local origin containing a root `.gitignore` and one inert evaluated specification. Enable partial-clone filtering, create a blobless no-cone clone bounded to `/docs/superpowers/specs/`, prove the `.gitignore` blob is still missing with `git rev-list --objects --missing=print`, then rename the origin so it is unreachable. Prove the old `git status --porcelain --untracked-files=all` exits nonzero and observe the existing validator identity fail because the clean Source phase emits only `HI-RUNNER-STAGE0-INVALID: repository-only validation failed.`
+Build a local origin containing a root `.gitignore` and one inert evaluated specification. Compute both committed blob OIDs, enable partial-clone filtering, and create a blobless no-cone clone bounded to `/docs/superpowers/specs/`. Before sparse setup or checkout, run `git -C <source> hash-object -w <origin-identity-path>` and require its output to equal the committed `identity.md` blob OID exactly. Then prove the `.gitignore` blob is still missing with `git rev-list --objects --missing=print`, complete sparse setup and checkout, and rename the origin so it is unreachable. This seeds only the allowed materialized blob, so the checkout fixture does not depend on lazy-fetch behavior that can differ at the Git `2.28.0` floor. Prove the old `git status --porcelain --untracked-files=all` exits nonzero and observe the existing validator identity fail because the clean Source phase emits only `HI-RUNNER-STAGE0-INVALID: repository-only validation failed.`
 
 - [ ] **Step 2: Implement the two-probe correction and reach GREEN**
 
@@ -952,3 +952,5 @@ Do not add exclude flags or `GIT_NO_LAZY_FETCH`. Extend the same test identity t
 - [ ] **Step 3: Verify and commit locally**
 
 Run the exact 12-test module, Python compilation, Windows PowerShell 5.1 parser, relevant focused regression, workflow digest comparison against base, test-identity count, UTF-8/no-BOM/LF checks, `git diff --check`, and an exact four-path range/scope check. Require the branch/base identities above and a clean worktree after committing with a precise Source-validation message. Do not push, create a pull request, dispatch, contact the Intel laptop, acquire or execute the candidate, change adapters or network state, or advance Gate 1/Gate 2.
+
+Compatibility-review verification on this development host found Git `2.51.0.windows.2` and no exact MinGit `2.28.0` installation. The Git-floor proof is therefore the review-required deterministic object construction: only the inert identity blob is seeded through the long-established `hash-object -w` interface, its OID must match the committed OID, `.gitignore` must remain reported missing, and checkout plus the old-status failure must still reproduce before the fixed validator passes.
