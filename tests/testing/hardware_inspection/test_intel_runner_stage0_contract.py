@@ -130,11 +130,11 @@ def _markdown_link_destinations(text):
 
 def _stage0_inventory_paths():
     paths = set()
-    for path in REPOSITORY_ROOT.glob(
-        ".github/workflows/hardware-inspection-intel-runner-stage*.yml"
-    ):
-        if path.is_file():
-            paths.add(path.relative_to(REPOSITORY_ROOT).as_posix())
+    workflows = REPOSITORY_ROOT / ".github" / "workflows"
+    if workflows.is_dir():
+        for path in workflows.rglob("*"):
+            if path.is_file():
+                paths.add(path.relative_to(REPOSITORY_ROOT).as_posix())
     hardware_scripts = REPOSITORY_ROOT / "scripts" / "hardware-inspection"
     if hardware_scripts.is_dir():
         for path in hardware_scripts.rglob("*"):
@@ -152,15 +152,22 @@ def _stage0_inventory_paths():
     return paths
 
 
+def _is_stage0_workflow_alias(path):
+    directory, separator, filename = path.replace("\\", "/").rpartition("/")
+    if not separator or directory.casefold() != ".github/workflows":
+        return False
+    stem, separator, suffix = filename.rpartition(".")
+    return (
+        bool(separator)
+        and suffix.casefold() in ("yml", "yaml")
+        and stem.casefold().startswith("hardware-inspection-intel-runner-stage")
+    )
+
+
 def _assert_stage0_inventory(test_case, repository_paths):
     paths = set(repository_paths)
     stage_workflows = {
-        path
-        for path in paths
-        if re.fullmatch(
-            r"\.github/workflows/hardware-inspection-intel-runner-stage[^/]*\.yml",
-            path,
-        )
+        path for path in paths if _is_stage0_workflow_alias(path)
     }
     test_case.assertEqual(
         stage_workflows,
@@ -664,6 +671,8 @@ on:
                     _assert_stage0_runbook_security(self, runbook_raw + mutation)
         for mutation in (
             ".github/workflows/hardware-inspection-intel-runner-stage-x.yml",
+            ".github/workflows/hardware-inspection-intel-runner-stage-c.yaml",
+            ".github/workflows/Hardware-Inspection-Intel-Runner-Stage-C.yml",
             "scripts/hardware-inspection/Start-HardwareInspectionCandidate.ps1",
             "docs/testing/runbooks/Hardware-Inspection-LLM-Fit-Gate-1-Runbook.md",
         ):
