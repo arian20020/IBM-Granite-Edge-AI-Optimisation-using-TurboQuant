@@ -126,7 +126,7 @@ function Stop-StageAOwnedProcesses {
 }
 
 function Invoke-StageAProcess {
-    param([string] $Application, [string[]] $ArgumentList, [string] $LogPath, [int] $TimeoutSeconds, [bool] $RegisterOwned = $true)
+    param([string] $Application, [string[]] $ArgumentList, [string] $LogPath, [int] $TimeoutSeconds, [bool] $RegisterOwned = $true, [bool] $ReturnOutput = $false)
     $information = New-Object System.Diagnostics.ProcessStartInfo
     $information.FileName = $Application
     $information.Arguments = ConvertTo-StageACommandLine $ArgumentList
@@ -151,6 +151,7 @@ function Invoke-StageAProcess {
     $truncated = $outputTask.GetAwaiter().GetResult() -or $errorTask.GetAwaiter().GetResult()
     Assert-StageACondition (-not $truncated)
     Assert-StageACondition ($process.ExitCode -eq 0)
+    if (-not $ReturnOutput) { return }
     Assert-StageACondition ((Get-Item -LiteralPath $stdoutPath).Length -le 4096)
     return (Get-Content -LiteralPath $stdoutPath -Raw).Trim()
 }
@@ -304,15 +305,20 @@ function Invoke-HardwareInspectionIntelRunnerStageAInternal {
     $runDirectory = Join-Path $workRoot ('stagea-' + [guid]::NewGuid().ToString('N'))
     [System.IO.Directory]::CreateDirectory($runDirectory) | Out-Null
     $runDirectory = Test-StageANormalExistingPath $runDirectory $true
-    $gitLog = Join-Path $runDirectory 'git.log'
-    $topLevel = Test-StageANormalExistingPath (Invoke-StageAProcess $git[0].Source @('-C',$evaluated,'rev-parse','--show-toplevel') $gitLog 30) $true
-    $absoluteGitDirectory = Test-StageANormalExistingPath (Invoke-StageAProcess $git[0].Source @('-C',$evaluated,'rev-parse','--absolute-git-dir') $gitLog 30) $true
-    $head = Invoke-StageAProcess $git[0].Source @('-C',$evaluated,'rev-parse','HEAD') $gitLog 30
+    $gitTopLog = Join-Path $runDirectory 'git-top'
+    $gitDirLog = Join-Path $runDirectory 'git-dir'
+    $gitHeadLog = Join-Path $runDirectory 'git-head'
+    $gitStatusLog = Join-Path $runDirectory 'git-status'
+    $gitDiffLog = Join-Path $runDirectory 'git-diff'
+    $gitDiffCachedLog = Join-Path $runDirectory 'git-diff-cached'
+    $topLevel = Test-StageANormalExistingPath (Invoke-StageAProcess $git[0].Source @('-C',$evaluated,'rev-parse','--show-toplevel') $gitTopLog 30 $true $true) $true
+    $absoluteGitDirectory = Test-StageANormalExistingPath (Invoke-StageAProcess $git[0].Source @('-C',$evaluated,'rev-parse','--absolute-git-dir') $gitDirLog 30 $true $true) $true
+    $head = Invoke-StageAProcess $git[0].Source @('-C',$evaluated,'rev-parse','HEAD') $gitHeadLog 30 $true $true
     Assert-StageACondition ($topLevel -ieq $evaluated -and $absoluteGitDirectory -ieq $gitDirectory -and $head -ceq $ApprovedSha)
-    $null = Invoke-StageAProcess $git[0].Source @('-C',$evaluated,'status','--porcelain=v1','--untracked-files=all') $gitLog 30
-    Assert-StageACondition ([string]::IsNullOrEmpty((Get-Content -LiteralPath $gitLog -Raw)))
-    $null = Invoke-StageAProcess $git[0].Source @('-C',$evaluated,'diff','--quiet') $gitLog 30
-    $null = Invoke-StageAProcess $git[0].Source @('-C',$evaluated,'diff','--cached','--quiet') $gitLog 30
+    $null = Invoke-StageAProcess $git[0].Source @('-C',$evaluated,'status','--porcelain=v1','--untracked-files=all') $gitStatusLog 30
+    Assert-StageACondition ([string]::IsNullOrEmpty((Get-Content -LiteralPath ($gitStatusLog + '.stdout') -Raw)))
+    $null = Invoke-StageAProcess $git[0].Source @('-C',$evaluated,'diff','--quiet') $gitDiffLog 30
+    $null = Invoke-StageAProcess $git[0].Source @('-C',$evaluated,'diff','--cached','--quiet') $gitDiffCachedLog 30
     $dotnet = @(Get-Command dotnet.exe -CommandType Application | Select-Object -First 1)
     Assert-StageACondition ($dotnet.Count -eq 1)
     $projects = @(

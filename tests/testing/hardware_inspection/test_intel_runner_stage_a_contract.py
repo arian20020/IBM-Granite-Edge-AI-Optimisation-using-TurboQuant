@@ -1216,6 +1216,22 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
                     "Test-StageANormalExistingPath '" + git_path.replace("'", "''") + "' $true | Out-Null"
                 )
                 self.assertEqual(result.returncode, 0, result.stderr)
+            log_root = Path(temporary_directory) / "sequential-git"
+            log_root.mkdir()
+            result = _invoke_runner_pure(
+                "$git = (Get-Command git.exe -CommandType Application | Select-Object -First 1).Source\n"
+                + "Invoke-StageAProcess $git @('-C','"
+                + str(checkout).replace("'", "''")
+                + "','rev-parse','--show-toplevel') '"
+                + str(log_root / "git-top").replace("'", "''")
+                + "' 20 $true $true | Out-Null\n"
+                + "Invoke-StageAProcess $git @('-C','"
+                + str(checkout).replace("'", "''")
+                + "','rev-parse','HEAD') '"
+                + str(log_root / "git-head").replace("'", "''")
+                + "' 20 $true $true | Out-Null"
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
         timeout_fixture = _invoke_runner_pure(
             "$process = New-Object System.Diagnostics.Process\n"
             "$process.StartInfo = New-Object System.Diagnostics.ProcessStartInfo\n"
@@ -1241,6 +1257,18 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
                 + ".stdout').Length -gt 16MB) { exit 3 }"
             )
             result = _invoke_runner_pure(body)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            small_log_path = Path(temporary_directory) / "over-four-kib.log"
+            small_body = (
+                "$tool = (Get-Command powershell.exe -CommandType Application | Select-Object -First 1).Source\n"
+                "Invoke-StageAProcess $tool @('-NoProfile','-NonInteractive','-Command',\"[Console]::Out.Write([string]::new([char]121, 8192))\") '"
+                + str(small_log_path).replace("'", "''")
+                + "' 20 | Out-Null\n"
+                "if ((Get-Item '"
+                + str(small_log_path).replace("'", "''")
+                + ".stdout').Length -ne 8192) { exit 4 }"
+            )
+            result = _invoke_runner_pure(small_body)
             self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_stage_a_runner_requires_exact_trx_identities_and_zero_nonpassing(self):
