@@ -1,7 +1,6 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)]
-    [ValidateSet('Dispatch', 'Source')]
     [string]$Phase,
 
     [Parameter(Mandatory = $true)]
@@ -54,7 +53,8 @@ function Fail-RepositoryOnlyValidation {
 }
 
 try {
-    if ($DefaultBranch -cne 'main' -or
+    if (($Phase -cne 'Dispatch' -and $Phase -cne 'Source') -or
+        $DefaultBranch -cne 'main' -or
         $WorkflowRef -cne 'refs/heads/main' -or
         $RepositoryOwner -cne 'arian20020' -or
         $Actor -cne $RepositoryOwner -or

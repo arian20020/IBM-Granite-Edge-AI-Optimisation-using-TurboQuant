@@ -134,6 +134,16 @@ class IntelRunnerStage0ContractTests(unittest.TestCase):
                 self.assertNotEqual(result.returncode, 0)
                 self.assertEqual(normalized(result.stderr), INVALID_STDERR)
 
+            parameters = valid_dispatch_parameters(control_root)
+            parameters["Phase"] = "TOP-SECRET-PHASE"
+            result = run_validator(**parameters)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(normalized(result.stderr), INVALID_STDERR)
+            self.assertNotIn("TOP-SECRET-PHASE", normalized(result.stdout))
+            self.assertNotIn("TOP-SECRET-PHASE", normalized(result.stderr))
+            self.assertNotIn(str(VALIDATOR_PATH), normalized(result.stdout))
+            self.assertNotIn(str(VALIDATOR_PATH), normalized(result.stderr))
+
     def test_stage0_validator_accepts_only_matching_clean_source_identity(self):
         self.assertTrue(MANIFEST_PATH.is_file(), "approval manifest is missing")
         self.assertTrue(VALIDATOR_PATH.is_file(), "Stage 0 validator is missing")
