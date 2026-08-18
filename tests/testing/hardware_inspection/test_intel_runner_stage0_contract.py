@@ -30,7 +30,7 @@ WORKFLOW_PATH = (
     / "hardware-inspection-intel-runner-stage0.yml"
 )
 EXPECTED_WORKFLOW_SHA256 = "9f14750368eef1a105332ccb54cd513ca92fd4af91dd8542efe5ededff304309"
-EXPECTED_STAGE0_RUNBOOK_SHA256 = "e461fbe1e9a6b0325fe066dd08c7a1aa2b7108d85e188980278ec89df27d42bd"
+EXPECTED_STAGE0_RUNBOOK_SHA256 = "27b006d1e28e6def738578d0fec7acd885f90005402772456b1dfc751e3f9e92"
 INVALID_STDERR = "HI-RUNNER-STAGE0-INVALID: repository-only validation failed.\n"
 
 
@@ -126,6 +126,66 @@ def _markdown_link_destinations(text):
             destination = destination[1:-1]
         path = unquote(urlsplit(destination).path).replace("\\", "/")
         yield path.rstrip("/").rsplit("/", 1)[-1]
+
+
+def _stage0_inventory_paths():
+    paths = set()
+    for path in REPOSITORY_ROOT.glob(
+        ".github/workflows/hardware-inspection-intel-runner-stage*.yml"
+    ):
+        if path.is_file():
+            paths.add(path.relative_to(REPOSITORY_ROOT).as_posix())
+    hardware_scripts = REPOSITORY_ROOT / "scripts" / "hardware-inspection"
+    if hardware_scripts.is_dir():
+        for path in hardware_scripts.rglob("*"):
+            if path.is_file():
+                paths.add(path.relative_to(REPOSITORY_ROOT).as_posix())
+    gate1_runbook = (
+        REPOSITORY_ROOT
+        / "docs"
+        / "testing"
+        / "runbooks"
+        / "Hardware-Inspection-LLM-Fit-Gate-1-Runbook.md"
+    )
+    if gate1_runbook.is_file():
+        paths.add(gate1_runbook.relative_to(REPOSITORY_ROOT).as_posix())
+    return paths
+
+
+def _assert_stage0_inventory(test_case, repository_paths):
+    paths = set(repository_paths)
+    stage_workflows = {
+        path
+        for path in paths
+        if re.fullmatch(
+            r"\.github/workflows/hardware-inspection-intel-runner-stage[^/]*\.yml",
+            path,
+        )
+    }
+    test_case.assertEqual(
+        stage_workflows,
+        {".github/workflows/hardware-inspection-intel-runner-stage0.yml"},
+    )
+    hardware_scripts = {
+        path for path in paths if path.startswith("scripts/hardware-inspection/")
+    }
+    test_case.assertEqual(
+        hardware_scripts,
+        {"scripts/hardware-inspection/Validate-HardwareInspectionIntelRunnerStage0.ps1"},
+    )
+    test_case.assertNotIn(
+        "docs/testing/runbooks/Hardware-Inspection-LLM-Fit-Gate-1-Runbook.md",
+        paths,
+    )
+    for forbidden_path in (
+        ".github/workflows/hardware-inspection-intel-runner-stage-a.yml",
+        ".github/workflows/hardware-inspection-intel-runner-stage-b.yml",
+        ".github/workflows/hardware-inspection-intel-runner-stage-d.yml",
+        "scripts/hardware-inspection/Invoke-HardwareInspectionIntelOffline.ps1",
+        "scripts/hardware-inspection/Disable-HardwareInspectionNetwork.ps1",
+        "scripts/hardware-inspection/Enable-HardwareInspectionNetwork.ps1",
+    ):
+        test_case.assertNotIn(forbidden_path, paths)
 
 
 def _assert_stage0_runbook_security(test_case, raw):
@@ -569,21 +629,15 @@ on:
         self.assertIn("Validate-HardwareInspectionIntelRunnerStage0.ps1", scripts_readme)
         self.assertIn("Hardware-Inspection-Intel-Runner-Stage-0-Runbook.md", scripts_readme)
 
-        for forbidden_path in (
-            ".github/workflows/hardware-inspection-intel-runner-stage-a.yml",
-            ".github/workflows/hardware-inspection-intel-runner-stage-b.yml",
-            ".github/workflows/hardware-inspection-intel-runner-stage-d.yml",
-            "scripts/hardware-inspection/Invoke-HardwareInspectionIntelOffline.ps1",
-            "scripts/hardware-inspection/Disable-HardwareInspectionNetwork.ps1",
-            "scripts/hardware-inspection/Enable-HardwareInspectionNetwork.ps1",
-        ):
-            self.assertFalse(
-                (REPOSITORY_ROOT / forbidden_path).exists(),
-                "forbidden Stage 0 inventory path exists: " + forbidden_path,
-        )
+        inventory_paths = _stage0_inventory_paths()
+        _assert_stage0_inventory(self, inventory_paths)
 
         runbook_raw = runbook_path.read_bytes()
+        runbook_text = runbook_raw.decode("utf-8", "strict")
         _assert_stage0_runbook_security(self, runbook_raw)
+
+        with self.subTest(command="committed range"):
+            self.assertIn("git diff --check origin/main...HEAD", runbook_text)
 
         readme_links = re.findall(
             r"\[`Hardware-Inspection-Intel-Runner-Stage-0-Runbook\.md`\]\(([^)]+)\)",
@@ -608,6 +662,14 @@ on:
             with self.subTest(mutation=mutation.decode("utf-8").strip()):
                 with self.assertRaises(AssertionError):
                     _assert_stage0_runbook_security(self, runbook_raw + mutation)
+        for mutation in (
+            ".github/workflows/hardware-inspection-intel-runner-stage-x.yml",
+            "scripts/hardware-inspection/Start-HardwareInspectionCandidate.ps1",
+            "docs/testing/runbooks/Hardware-Inspection-LLM-Fit-Gate-1-Runbook.md",
+        ):
+            with self.subTest(inventory_mutation=mutation):
+                with self.assertRaises(AssertionError):
+                    _assert_stage0_inventory(self, inventory_paths | {mutation})
 
 
 if __name__ == "__main__":

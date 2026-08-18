@@ -26,7 +26,7 @@ Run these commands from the integration checkout:
 
 ```text
 python -m unittest tests.testing.hardware_inspection.test_intel_runner_stage0_contract -v
-git diff --check
+git diff --check origin/main...HEAD
 ```
 
 Run this PowerShell 5.1 `Parser.ParseFile` syntax check for the validator from the repository root:
