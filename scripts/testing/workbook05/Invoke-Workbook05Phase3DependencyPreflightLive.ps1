@@ -576,6 +576,13 @@ function Acquire-PreflightSource {
     return $SourceRoot
 }
 
+# The workflow's repository gate uses a temporary PYTHONPATH for its
+# pinned validator. Preserve the caller's value, but remove it before
+# any live child process so the bootstrap and final virtual environments
+# cannot treat runner-temporary packages as already installed.
+$OriginalPythonPath = $env:PYTHONPATH
+Remove-Item Env:PYTHONPATH -ErrorAction SilentlyContinue
+
 try {
     # -----------------------------------------------------------------------
     # 1. Fresh workspace and fixed tool identities.
@@ -1159,6 +1166,15 @@ catch {
     throw
 }
 finally {
+    # Restore the process environment exactly as it was supplied by the
+    # workflow after every success or failure path.
+    if ($null -eq $OriginalPythonPath) {
+        Remove-Item Env:PYTHONPATH -ErrorAction SilentlyContinue
+    }
+    else {
+        $env:PYTHONPATH = $OriginalPythonPath
+    }
+
     if (Get-Variable -Name OriginalTemp -ErrorAction SilentlyContinue) {
         if ($null -eq $OriginalTemp) {
             Remove-Item Env:TEMP -ErrorAction SilentlyContinue
