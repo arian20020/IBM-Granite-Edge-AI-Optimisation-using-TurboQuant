@@ -118,8 +118,12 @@ try {
         throw 'Source identity does not match approval.'
     }
 
-    $statusLines = @(& git -C $SourceCheckoutRoot status --porcelain --untracked-files=all 2>$null)
+    $statusLines = @(& git -C $SourceCheckoutRoot status --porcelain --untracked-files=no 2>$null)
     if ($LASTEXITCODE -ne 0 -or ($statusLines -join [char]10).Length -ne 0) {
+        throw 'Source checkout is not clean.'
+    }
+    $untrackedLines = @(& git -C $SourceCheckoutRoot ls-files --others -- 2>$null)
+    if ($LASTEXITCODE -ne 0 -or ($untrackedLines -join [char]10).Length -ne 0) {
         throw 'Source checkout is not clean.'
     }
 

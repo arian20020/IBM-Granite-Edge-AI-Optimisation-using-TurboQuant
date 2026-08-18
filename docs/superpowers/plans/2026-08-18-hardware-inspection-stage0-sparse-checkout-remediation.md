@@ -38,19 +38,29 @@ The narrow correction selects the first PATH-ordered application with `Select-Ob
 
 This follow-up is isolated in `C:\hardware-inspection-stage0-git-fix` on `fix/hardware-inspection-stage0-git-resolution`, based on failed revision `b985ec7d9fe11aedd83afa9ba657699ed115a19f`. Every executable instruction below is bound to that worktree, branch, and base; preceding delivery history remains available in Git rather than in stale executable commands.
 
+## Source cleanliness validation follow-up — 2026-08-18
+
+Hosted attempt-1 run `32162980959` at `12c0ff1ef322d2ed455fcab9c7cfa76185432884` passed the repository contracts and reached Source validation, then stopped through the validator's fixed generic error before summary publication. The confirmed reproduction is a blobless non-cone sparse checkout with a missing root `.gitignore` promisor object and an unavailable origin. The old `git status --porcelain --untracked-files=all` attempts to lazy-fetch the missing ignore blob and therefore rejects an otherwise clean evaluated checkout.
+
+The narrow correction uses `git status --porcelain --untracked-files=no` for staged and tracked worktree dirt, followed by `git ls-files --others --` without exclude flags for every untracked path, including normally ignored paths. The explicit `--` closes option parsing. Both probes are network-free in the exact reproduction and work at the existing Git `2.28.0+` floor. Do not use `GIT_NO_LAZY_FETCH`: that environment control was introduced in Git 2.45 and would silently weaken the declared compatibility floor.
+
+This follow-up is isolated in `C:\hardware-inspection-stage0-source-fix` on `fix/hardware-inspection-stage0-source-validation`, based exactly on failed revision `12c0ff1ef322d2ed455fcab9c7cfa76185432884`. Task 4 is the only current executable task; Tasks 1 through 3 below remain the completed Git-resolution delivery record and must not be rerun. The current task stops after a verified local commit: no push, pull request, workflow dispatch, or failed-run rerun is authorized.
+
 ---
 
 ## Global Constraints
 
-- Work only in `C:\hardware-inspection-stage0-git-fix` on branch `fix/hardware-inspection-stage0-git-resolution`, based on failed `main` revision `b985ec7d9fe11aedd83afa9ba657699ed115a19f`.
+- For Task 4, work only in `C:\hardware-inspection-stage0-source-fix` on branch `fix/hardware-inspection-stage0-source-validation`, based exactly on failed `main` revision `12c0ff1ef322d2ed455fcab9c7cfa76185432884`. Earlier worktree bindings are historical only.
 - Do not modify Hardware Inspection UI/runtime, LLM Fit candidate logic, evidence, Gate 1 records, Gate 2, Model Inspection, the Intel laptop, self-hosted runners, adapters, or network state.
 - Keep the workflow manual-only, `windows-latest`, owner-only, default-branch-only, first-attempt-only, read-only, and artifact-free.
 - Keep both immutable action pins and both `persist-credentials: false` settings.
 - Execute code only from `control`; never execute content from `evaluated`.
 - Keep exactly 12 Stage 0 contract-test identities.
+- Keep `.github/workflows/hardware-inspection-intel-runner-stage0.yml` byte-for-byte unchanged, including both immutable action pins and both `persist-credentials: false` settings.
+- Limit the aggregate Task 4 range to the validator, the existing Stage 0 contract module, this plan, and its design.
 - Use `apply_patch` for repository edits. Preserve unrelated and ignored files.
 - Use UTF-8 without BOM and LF-only YAML with exactly one trailing LF.
-- Never rerun failed runs `32138539513` or `32155463873`; after the fix merge, create a new `workflow_dispatch` run so `github.run_attempt` remains `1`.
+- Never rerun failed runs `32138539513`, `32155463873`, or `32162980959`; Task 4 performs no workflow dispatch.
 
 ### Task 1: Lock and implement deterministic Stage 0 Git resolution
 
@@ -903,3 +913,44 @@ If the new run fails, stop, retain its exact logs, and return to root-cause anal
 - [ ] **Step 7: Final handoff**
 
 Report the Git-resolution remediation PR, merge SHA, successful new run URL, exact 12-test result, Git precheck matrix, immutable approved-SHA checkout proof, hashes, zero-artifact/self-hosted proof, and the unchanged Gate 1/Gate 2 boundary. Preserve the follow-up worktree and branch for audit; do not remove candidate or user artifacts.
+
+---
+
+### Task 4: Make Source cleanliness validation offline-safe
+
+**Files:**
+- Modify: `scripts/hardware-inspection/Validate-HardwareInspectionIntelRunnerStage0.ps1`
+- Modify: `tests/testing/hardware_inspection/test_intel_runner_stage0_contract.py`
+- Modify: `docs/superpowers/specs/2026-08-18-hardware-inspection-stage0-sparse-checkout-remediation-design.md`
+- Modify: `docs/superpowers/plans/2026-08-18-hardware-inspection-stage0-sparse-checkout-remediation.md`
+
+**Interfaces:**
+- Consumes: the existing Source phase, approved immutable SHA, blobless evaluated sparse checkout, fixed generic stderr, and Git `2.28.0+` floor.
+- Produces: network-free clean-source validation that still rejects staged, tracked, ordinary untracked, and normally ignored dirt, with exactly 12 test identities and no workflow-byte change.
+
+- [ ] **Step 1: Reproduce RED inside the existing Source-validator identity**
+
+Build a local origin containing a root `.gitignore` and one inert evaluated specification. Compute both committed blob OIDs, enable partial-clone filtering, and create a blobless no-cone clone bounded to `/docs/superpowers/specs/`. Before sparse setup or checkout, run `git -C <source> hash-object -w <origin-identity-path>` and require its output to equal the committed `identity.md` blob OID exactly. Then prove the `.gitignore` blob is still missing with `git rev-list --objects --missing=print`, complete sparse setup and checkout, and rename the origin so it is unreachable. This seeds only the allowed materialized blob, so the checkout fixture does not depend on lazy-fetch behavior that can differ at the Git `2.28.0` floor. Prove the old `git status --porcelain --untracked-files=all` exits nonzero and observe the existing validator identity fail because the clean Source phase emits only `HI-RUNNER-STAGE0-INVALID: repository-only validation failed.`
+
+- [ ] **Step 2: Implement the two-probe correction and reach GREEN**
+
+Replace only the old Source cleanliness invocation with these ordered fail-closed probes:
+
+```powershell
+    $statusLines = @(& git -C $SourceCheckoutRoot status --porcelain --untracked-files=no 2>$null)
+    if ($LASTEXITCODE -ne 0 -or ($statusLines -join [char]10).Length -ne 0) {
+        throw 'Source checkout is not clean.'
+    }
+    $untrackedLines = @(& git -C $SourceCheckoutRoot ls-files --others -- 2>$null)
+    if ($LASTEXITCODE -ne 0 -or ($untrackedLines -join [char]10).Length -ne 0) {
+        throw 'Source checkout is not clean.'
+    }
+```
+
+Do not add exclude flags or `GIT_NO_LAZY_FETCH`. Extend the same test identity to require the exact ordered probes, forbid the old invocation and incompatible environment control, accept the clean offline fixture, and reject tracked, ordinary untracked, and normally ignored dirt through the unchanged generic stderr.
+
+- [ ] **Step 3: Verify and commit locally**
+
+Run the exact 12-test module, Python compilation, Windows PowerShell 5.1 parser, relevant focused regression, workflow digest comparison against base, test-identity count, UTF-8/no-BOM/LF checks, `git diff --check`, and an exact four-path range/scope check. Require the branch/base identities above and a clean worktree after committing with a precise Source-validation message. Do not push, create a pull request, dispatch, contact the Intel laptop, acquire or execute the candidate, change adapters or network state, or advance Gate 1/Gate 2.
+
+Compatibility-review verification ran the focused existing Source-validator identity successfully under exact `git version 2.28.0.windows.1`. The deterministic fixture seeds only the inert identity blob through `hash-object -w`, requires its OID to match the committed OID, requires `.gitignore` to remain reported missing, and still reproduces the old-status failure before the fixed validator passes.
