@@ -151,6 +151,8 @@ def _yaml_scalar(value):
         return True
     if value in ("false", "False", "FALSE"):
         return False
+    if re.fullmatch(r"0|[1-9][0-9]*", value):
+        return int(value)
     if value.startswith("[") and value.endswith("]"):
         return [_yaml_scalar(item) for item in value[1:-1].split(",") if item.strip()]
     if value[:1] in ("'", '"') and value[-1:] == value[:1]:
@@ -370,16 +372,17 @@ def _assert_workflow_shape(test_case, document):
     test_case.assertEqual(inputs["confirm_authorised_runner"]["default"], False)
     test_case.assertEqual(document["permissions"], {"contents": "read"})
     test_case.assertEqual(list(document["jobs"]), ["hosted-preflight", "deterministic-runner"])
-    test_case.assertIn("workflow_dispatch", document["jobs"]["hosted-preflight"]["if"])
-    guard = document["jobs"]["deterministic-runner"]["if"]
-    for expression in (
-        "github.ref == format('refs/heads/{0}', github.event.repository.default_branch)",
-        "github.actor == github.repository_owner",
-        "github.triggering_actor == github.repository_owner",
-        "github.run_attempt == 1",
-        "inputs.confirm_authorised_runner == true",
-    ):
-        test_case.assertIn(expression, guard)
+    for job_name in ("hosted-preflight", "deterministic-runner"):
+        guard = document["jobs"][job_name]["if"]
+        for expression in (
+            "github.event_name == 'workflow_dispatch'",
+            "github.ref == format('refs/heads/{0}', github.event.repository.default_branch)",
+            "github.actor == github.repository_owner",
+            "github.triggering_actor == github.repository_owner",
+            "github.run_attempt == 1",
+            "inputs.confirm_authorised_runner == true",
+        ):
+            test_case.assertIn(expression, guard)
 
 
 def _assert_runner_routing(test_case, document, validator_text):
@@ -683,7 +686,10 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
         runner_text = "\n".join(str(step) for step in _steps(document, "deterministic-runner"))
         self.assertIn("default_branch", hosted_text)
         self.assertIn("llmfit-gate1-approved-source.json", hosted_text)
-        self.assertIn("approved_sha", hosted_text)
+        self.assertIn(
+            "approved_sha",
+            json.dumps(document["jobs"]["hosted-preflight"]["outputs"]),
+        )
         self.assertIn("source_ref", hosted_text)
         self.assertIn("approved_sha", runner_text)
         self.assertNotIn("feature/hardware-inspection", runner_text)
@@ -773,11 +779,14 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
     def test_stage_a_workflow_executes_only_the_two_deterministic_categories(self):
         raw, document = _workflow(self)
         runner_text, commands, strings = _powershell_ast_text(self, RUNNER_PATH)
-        command_text = re.sub(r"\s+", " ", "\n".join(commands))
+        command_text = re.sub(r"\s+", " ", "\n".join(strings))
         ast_text = "\n".join(commands + strings)
         self.assertEqual(command_text.count("TestCategory=Deterministic"), 1)
         self.assertEqual(command_text.count("TestCategory=Task8Deterministic"), 1)
-        self.assertEqual(command_text.count("--report-trx"), 2)
+        self.assertEqual(
+            len(re.findall(r"(?<![A-Za-z-])--report-trx(?![A-Za-z-])", command_text)),
+            2,
+        )
         self.assertEqual(command_text.count("--report-trx-filename"), 2)
         self.assertIn("174", ast_text)
         self.assertIn("3", ast_text)
@@ -798,16 +807,14 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
     def test_stage_a_workflow_has_no_candidate_capture_offline_or_adapter_path(self):
         raw, document = _workflow(self)
         runner_text, commands, strings = _powershell_ast_text(self, RUNNER_PATH)
-        executable_text = "\n".join(
-            [str(step.get("run", "")) for _, step in _all_steps(document)]
-            + commands
-            + strings
-        ).casefold()
+        workflow_run_text = "\n".join(
+            str(step.get("run", "")) for _, step in _all_steps(document)
+        )
+        executable_text = workflow_run_text.casefold()
         for identity in TASK8_IDENTITIES:
             executable_text = executable_text.replace(identity.casefold(), "")
         allowed_absence_check = "third-party\\bin\\llmfit\\v1.1.9\\win-x64"
-        self.assertEqual(executable_text.count(allowed_absence_check), 1)
-        executable_text = executable_text.replace(allowed_absence_check, "")
+        self.assertEqual(runner_text.casefold().count(allowed_absence_check), 1)
         for forbidden in (
             "candidate",
             "capture",

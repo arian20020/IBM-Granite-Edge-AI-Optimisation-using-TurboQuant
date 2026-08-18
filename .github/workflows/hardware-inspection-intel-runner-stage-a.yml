@@ -1,0 +1,251 @@
+name: Hardware Inspection Intel runner Stage A
+
+on:
+  workflow_dispatch:
+    inputs:
+      runner_label:
+        description: Approved deterministic runner label
+        required: true
+        type: string
+      confirm_authorised_runner:
+        description: Confirm this run is authorised for the approved deterministic runner
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hardware-inspection-llmfit-authorised
+  cancel-in-progress: false
+
+jobs:
+  hosted-preflight:
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch) &&
+      github.actor == github.repository_owner &&
+      github.triggering_actor == github.repository_owner &&
+      github.run_attempt == 1 &&
+      inputs.confirm_authorised_runner == true
+    runs-on: windows-latest
+    timeout-minutes: 15
+    outputs:
+      approved_sha: ${{ steps.validated.outputs.approved_sha }}
+      source_ref: ${{ steps.validated.outputs.source_ref }}
+      runner_label: ${{ steps.validated.outputs.runner_label }}
+      eligible: ${{ steps.validated.outputs.eligible }}
+    steps:
+      - name: Check out default-branch controls
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          path: control
+          fetch-depth: 1
+          persist-credentials: false
+          sparse-checkout: |
+            .github/hardware-inspection
+            .github/workflows
+            docs/superpowers/specs
+            docs/testing/runbooks
+            scripts/hardware-inspection
+            tests/testing/hardware_inspection
+          sparse-checkout-cone-mode: true
+
+      - name: Set up Python for control contracts
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.10'
+
+      - name: Run Stage 0 and Stage A control contracts
+        shell: powershell
+        working-directory: control
+        run: >-
+          python -m unittest -v
+          tests.testing.hardware_inspection.test_intel_runner_stage0_contract
+          tests.testing.hardware_inspection.test_intel_runner_stage_a_contract
+
+      - name: Parse the default-branch llmfit-gate1-approved-source.json approval manifest
+        id: approval
+        shell: powershell
+        env:
+          STAGE0_WORKFLOW_REF: ${{ github.ref }}
+          STAGE0_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          STAGE0_ACTOR: ${{ github.actor }}
+          STAGE0_TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+          STAGE0_REPOSITORY_OWNER: ${{ github.repository_owner }}
+          STAGE0_RUN_ATTEMPT: ${{ github.run_attempt }}
+          STAGE0_CONFIRMATION: ${{ inputs.confirm_authorised_runner }}
+        run: |
+          & '.\control\scripts\hardware-inspection\Validate-HardwareInspectionIntelRunnerStage0.ps1' `
+            -Phase Dispatch `
+            -ControlRoot (Join-Path $env:GITHUB_WORKSPACE 'control') `
+            -WorkflowRef $env:STAGE0_WORKFLOW_REF `
+            -DefaultBranch $env:STAGE0_DEFAULT_BRANCH `
+            -Actor $env:STAGE0_ACTOR `
+            -TriggeringActor $env:STAGE0_TRIGGERING_ACTOR `
+            -RepositoryOwner $env:STAGE0_REPOSITORY_OWNER `
+            -RunAttempt $env:STAGE0_RUN_ATTEMPT `
+            -ConfirmRepositoryOnly $env:STAGE0_CONFIRMATION `
+            -GitHubOutputPath $env:GITHUB_OUTPUT
+
+      - name: Check out approved source identity only
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ steps.approval.outputs.source_ref }}
+          path: source-identity
+          fetch-depth: 1
+          persist-credentials: false
+          sparse-checkout: |
+            /docs/superpowers/specs/
+          sparse-checkout-cone-mode: false
+
+      - name: Validate approved source and runner label
+        id: validated
+        shell: powershell
+        env:
+          STAGEA_WORKFLOW_REF: ${{ github.ref }}
+          STAGEA_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          STAGEA_ACTOR: ${{ github.actor }}
+          STAGEA_TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+          STAGEA_REPOSITORY_OWNER: ${{ github.repository_owner }}
+          STAGEA_RUN_ATTEMPT: ${{ github.run_attempt }}
+          STAGEA_CONFIRMATION: ${{ inputs.confirm_authorised_runner }}
+          STAGEA_RUNNER_LABEL: ${{ inputs.runner_label }}
+        run: |
+          & '.\control\scripts\hardware-inspection\Validate-HardwareInspectionIntelRunnerStageA.ps1' `
+            -Phase Hosted `
+            -ControlRoot (Join-Path $env:GITHUB_WORKSPACE 'control') `
+            -SourceCheckoutRoot (Join-Path $env:GITHUB_WORKSPACE 'source-identity') `
+            -WorkflowRef $env:STAGEA_WORKFLOW_REF `
+            -DefaultBranch $env:STAGEA_DEFAULT_BRANCH `
+            -Actor $env:STAGEA_ACTOR `
+            -TriggeringActor $env:STAGEA_TRIGGERING_ACTOR `
+            -RepositoryOwner $env:STAGEA_REPOSITORY_OWNER `
+            -RunAttempt $env:STAGEA_RUN_ATTEMPT `
+            -Confirmation $env:STAGEA_CONFIRMATION `
+            -RunnerLabel $env:STAGEA_RUNNER_LABEL `
+            -GitHubOutputPath $env:GITHUB_OUTPUT
+
+  deterministic-runner:
+    needs: hosted-preflight
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch) &&
+      github.actor == github.repository_owner &&
+      github.triggering_actor == github.repository_owner &&
+      github.run_attempt == 1 &&
+      inputs.confirm_authorised_runner == true &&
+      needs.hosted-preflight.outputs.eligible == 'true'
+    runs-on: ${{ needs.hosted-preflight.outputs.runner_label }}
+    timeout-minutes: 35
+    steps:
+      - name: Reject debug controls and mask runner metadata
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $failure = 'HI-RUNNER-STAGEA-ENVIRONMENT-INVALID: runner environment is invalid.'
+          try {
+            foreach ($name in @('ACTIONS_STEP_DEBUG', 'ACTIONS_RUNNER_DEBUG')) {
+              if ([string]::Equals([Environment]::GetEnvironmentVariable($name), 'true', [System.StringComparison]::OrdinalIgnoreCase)) {
+                throw $failure
+              }
+            }
+            foreach ($name in @('GITHUB_WORKSPACE', 'RUNNER_TEMP', 'RUNNER_WORKSPACE', 'USERNAME')) {
+              $value = [Environment]::GetEnvironmentVariable($name)
+              if ([string]::IsNullOrWhiteSpace($value)) {
+                throw $failure
+              }
+              Write-Host "::add-mask::$value"
+            }
+          }
+          catch {
+            [Console]::Error.WriteLine($failure)
+            exit 1
+          }
+
+      - name: Check out default-branch controls
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          path: control
+          fetch-depth: 1
+          persist-credentials: false
+          sparse-checkout: |
+            .github/hardware-inspection
+            scripts/hardware-inspection
+          sparse-checkout-cone-mode: true
+
+      - name: Check out approved evaluated source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ needs.hosted-preflight.outputs.approved_sha }}
+          path: evaluated
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Validate evaluated source before execution
+        shell: powershell
+        env:
+          STAGEA_WORKFLOW_REF: ${{ github.ref }}
+          STAGEA_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          STAGEA_ACTOR: ${{ github.actor }}
+          STAGEA_TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+          STAGEA_REPOSITORY_OWNER: ${{ github.repository_owner }}
+          STAGEA_RUN_ATTEMPT: ${{ github.run_attempt }}
+          STAGEA_CONFIRMATION: ${{ inputs.confirm_authorised_runner }}
+          STAGEA_RUNNER_LABEL: ${{ needs.hosted-preflight.outputs.runner_label }}
+          STAGEA_APPROVED_SHA: ${{ needs.hosted-preflight.outputs.approved_sha }}
+        run: |
+          & '.\control\scripts\hardware-inspection\Validate-HardwareInspectionIntelRunnerStageA.ps1' `
+            -Phase Runner `
+            -ControlRoot (Join-Path $env:GITHUB_WORKSPACE 'control') `
+            -EvaluatedRoot (Join-Path $env:GITHUB_WORKSPACE 'evaluated') `
+            -ApprovedSha $env:STAGEA_APPROVED_SHA `
+            -WorkflowRef $env:STAGEA_WORKFLOW_REF `
+            -DefaultBranch $env:STAGEA_DEFAULT_BRANCH `
+            -Actor $env:STAGEA_ACTOR `
+            -TriggeringActor $env:STAGEA_TRIGGERING_ACTOR `
+            -RepositoryOwner $env:STAGEA_REPOSITORY_OWNER `
+            -RunAttempt $env:STAGEA_RUN_ATTEMPT `
+            -Confirmation $env:STAGEA_CONFIRMATION `
+            -RunnerLabel $env:STAGEA_RUNNER_LABEL `
+            -SummaryPath $env:GITHUB_STEP_SUMMARY
+
+      - name: Set up .NET from the evaluated source
+        uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d
+        with:
+          global-json-file: evaluated/global.json
+
+      - name: Run authorised deterministic validation
+        shell: powershell
+        working-directory: ${{ github.workspace }}
+        env:
+          STAGEA_APPROVED_SHA: ${{ needs.hosted-preflight.outputs.approved_sha }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $exportDirectory = 'stage-a-export'
+          if (Test-Path -LiteralPath $exportDirectory) {
+            throw 'HI-RUNNER-STAGEA-EXPORT-INVALID: export directory already exists.'
+          }
+          [System.IO.Directory]::CreateDirectory($exportDirectory) | Out-Null
+          $localWorkRoot = Join-Path $env:RUNNER_TEMP 'hardware-inspection-stage-a'
+          if (-not (Test-Path -LiteralPath $localWorkRoot -PathType Container)) {
+            [System.IO.Directory]::CreateDirectory($localWorkRoot) | Out-Null
+          }
+          & '.\control\scripts\hardware-inspection\Invoke-HardwareInspectionIntelRunnerStageA.ps1' `
+            -EvaluatedRoot 'evaluated' `
+            -ApprovedSha $env:STAGEA_APPROVED_SHA `
+            -LocalWorkRoot $localWorkRoot `
+            -SummaryJsonPath 'stage-a-export/stage-a-summary.json' `
+            -SummaryMarkdownPath $env:GITHUB_STEP_SUMMARY
+
+      - name: Upload Stage A summary
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+        with:
+          name: hardware-inspection-stage-a-summary-${{ github.run_id }}-${{ github.run_attempt }}
+          path: stage-a-export/stage-a-summary.json
+          if-no-files-found: error
+          retention-days: 3
+          hidden-files: false
