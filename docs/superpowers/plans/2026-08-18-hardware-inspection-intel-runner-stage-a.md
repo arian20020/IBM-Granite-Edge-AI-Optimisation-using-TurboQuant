@@ -116,13 +116,13 @@ param(
 
 Inside one `try/catch`, require:
 
-- `Phase` is exactly `Hosted` or `Runner`;
+- `Phase` is exactly `Hosted`, `RunnerContext`, or `Runner`;
 - `main`, `refs/heads/main`, owner/actor/triggering actor `arian20020`, attempt `1`, and confirmation `true`;
 - label exactly `hardware-gate1-[0-9a-f]{16}`;
 - the existing manifest is strict UTF-8/no BOM, at most 4096 bytes, and exactly the three approved properties;
 - source ref exactly `refs/heads/feature/hardware-inspection` and SHA exactly the manifest's lowercase nonzero 40-hex value;
 - Hosted phase receives an identity-only checkout of that remote feature ref and proves its current `HEAD` is still the approved SHA; a moved branch fails before the self-hosted job becomes eligible;
-- Runner phase receives that exact SHA, resolves a normal local evaluated directory, proves `git rev-parse HEAD` equality, and proves no tracked or untracked dirt using the existing offline-compatible split probes;
+- RunnerContext validates the manifest-bound SHA, dispatch context, label, and operational environment before evaluated checkout. Runner then receives that exact checked-out SHA, resolves a normal local evaluated directory, proves `git rev-parse HEAD` equality, and proves no tracked or untracked dirt using the existing offline-compatible split probes;
 - all six `GRANITE_LLMFIT_*` operational variables are absent;
 - `third-party/bin/llmfit/v1.1.9/win-x64` is absent before test execution.
 
@@ -132,7 +132,7 @@ Every failure writes exactly:
 HI-RUNNER-STAGEA-INVALID: authorised deterministic validation failed.
 ```
 
-Do not echo exceptions, values, paths, labels, users, hosts, or Git output. Hosted success may write only `approved_sha`, `source_ref`, `runner_label`, and `eligible=true` to `GITHUB_OUTPUT`; the validated label is routing data and must not be copied into the job summary or uploaded artifact. Runner success writes only a fixed Stage A heading and approved SHA to the job summary.
+Do not echo exceptions, values, paths, labels, users, hosts, or Git output. Hosted success may write only `approved_sha`, `source_ref`, `runner_label`, and `eligible=true` to `GITHUB_OUTPUT`; validators emit no completion summary. The runner writes fixed local Markdown and JSON only; after JSON upload, a default-control publication step validates and appends the Markdown to the GitHub job summary.
 
 - [ ] **Step 2: Extend tests before implementation where each rule is absent**
 
@@ -260,7 +260,7 @@ Self-hosted execution order is fixed:
 9. append the fixed safe Markdown summary;
 10. always perform bounded leak checks; never automatically delete an unverified path.
 
-GitHub pre-creates `GITHUB_STEP_SUMMARY` as an empty ordinary file. The runner therefore writes its fixed Markdown to the fresh local export directory; only after the JSON upload may a default-control publication step validate that exact Markdown and append it to the pre-created GitHub summary. Where the runner is invoked with an existing Markdown target, only an empty, ordinary non-reparse file beneath a validated ancestor chain is replaceable atomically; JSON targets must be absent.
+GitHub pre-creates `GITHUB_STEP_SUMMARY` as an empty ordinary file. Both runner output targets are therefore fresh and absent-only in the local export directory. Only after the JSON upload may a default-control publication step validate that exact local Markdown and write it through a held handle to the pre-created empty GitHub summary file after validating its ordinary non-reparse target and ancestor chain.
 
 No step may contain acquisition/capture/report commands, candidate arguments or URL, `TrustedWindowsIntel`, `TrustedOffline`, `GRANITE_LLMFIT_*` assignment, adapter/network commands, raw artifact paths, `Start-Process`, shell indirection, or execution from an evaluated `working-directory` except the exact `dotnet` project commands owned by the default-branch runner script.
 

@@ -385,6 +385,11 @@ def _assert_workflow_shape(test_case, document):
             "inputs.confirm_authorised_runner == true",
         ):
             test_case.assertIn(expression, guard)
+    hosted_guard = re.sub(r"\s+", "", document["jobs"]["hosted-preflight"]["if"])
+    runner_guard = re.sub(r"\s+", "", document["jobs"]["deterministic-runner"]["if"])
+    required_guard = "github.event_name=='workflow_dispatch'&&github.ref==format('refs/heads/{0}',github.event.repository.default_branch)&&github.actor==github.repository_owner&&github.triggering_actor==github.repository_owner&&github.run_attempt==1&&inputs.confirm_authorised_runner==true"
+    test_case.assertEqual(hosted_guard, required_guard)
+    test_case.assertEqual(runner_guard, required_guard + "&&needs.hosted-preflight.outputs.eligible=='true'")
 
 
 def _assert_runner_routing(test_case, document, validator_text):
@@ -419,13 +424,18 @@ def _assert_runner_routing(test_case, document, validator_text):
         "Validate evaluated source before execution",
         "Set up .NET from the evaluated source",
         "Run authorised deterministic validation",
+        "Upload Stage A summary",
+        "Publish validated Stage A summary",
+        "Check Stage A residue",
     ]
-    test_case.assertEqual(runner_names[: len(required_order)], required_order)
+    test_case.assertEqual(runner_names, required_order)
     debug_step = runner_steps[0]
     test_case.assertIn("${{ runner.debug }}", str(debug_step))
     test_case.assertIn("RUNNER_DEBUG", str(debug_step.get("run", "")))
     test_case.assertIn("RunnerContext", str(runner_steps[2].get("run", "")))
     test_case.assertIn("-Phase Runner", str(runner_steps[4].get("run", "")))
+    test_case.assertEqual(runner_steps[-1].get("if"), "${{ always() }}")
+    test_case.assertEqual(runner_steps[-1].get("timeout-minutes"), 2)
 
 
 def _invoke(script, arguments, environment=None):
@@ -1522,6 +1532,9 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
             for path in (REPOSITORY_ROOT / ".github" / "workflows").rglob("*")
             if path.is_file()
         }
+        self.assertEqual(workflow_paths, {
+            ".github/workflows/build-and-test.yml", ".github/workflows/hardware-inspection-intel-runner-stage0.yml", ".github/workflows/hardware-inspection-intel-runner-stage-a.yml", ".github/workflows/traceability-validation.yml", ".github/workflows/workbook-05-documented-build.yml", ".github/workflows/workbook-05-phase3-assets.yml", ".github/workflows/workbook-05-phase3-dependency-preflight.yml", ".github/workflows/workbook-05-preflight.yml", ".github/workflows/workbook-05-route-b-repair.yml", ".github/workflows/workbook-05-runner-smoke.yml", ".github/workflows/workbook-05-runtime-resume.yml", ".github/workflows/workbook-05-source-admission.yml",
+        })
         stage_a_paths = {
             path for path in workflow_paths
             if re.search(r"hardware-inspection-intel-runner-stage-[a-d]\.ya?ml\Z", path, re.I)
@@ -1533,9 +1546,11 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
         for mutation in (
             workflow_paths | {".github/workflows/hardware-inspection-intel-runner-stage-b.yml"},
             workflow_paths | {".github/workflows/hardware-inspection-intel-runner-gate-2.yml"},
+            workflow_paths | {".github/workflows/unrelated-new-name.yml"},
         ):
             with self.subTest(mutation=sorted(mutation)[-1]):
                 with self.assertRaises(AssertionError):
+                    self.assertEqual(mutation, workflow_paths)
                     mutated_stage_paths = {
                         path for path in mutation
                         if re.search(r"hardware-inspection-intel-runner-stage-[a-d]\.ya?ml\Z", path, re.I)

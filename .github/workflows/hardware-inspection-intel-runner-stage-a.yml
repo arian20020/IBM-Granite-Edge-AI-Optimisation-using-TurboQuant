@@ -293,7 +293,10 @@ jobs:
             $source = Get-Item -LiteralPath $path -Force
             if ($source.PSIsContainer -or (($source.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) -or $source.Length -ne $expectedBytes.Length) { throw $failure }
             $actualBytes = [System.IO.File]::ReadAllBytes($path)
-            if ($actualBytes.Length -ne $expectedBytes.Length -or -not [System.Linq.Enumerable]::SequenceEqual[byte]($actualBytes, $expectedBytes)) { throw $failure }
+            if ($actualBytes.Length -ne $expectedBytes.Length) { throw $failure }
+            for ($index = 0; $index -lt $expectedBytes.Length; $index++) {
+              if ($actualBytes[$index] -ne $expectedBytes[$index]) { throw $failure }
+            }
             $summary = Get-Item -LiteralPath $env:GITHUB_STEP_SUMMARY -Force
             if ($summary.PSIsContainer -or (($summary.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) -or $summary.Length -ne 0) { throw $failure }
             $stream = New-Object System.IO.FileStream($env:GITHUB_STEP_SUMMARY, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Write, [System.IO.FileShare]::None)

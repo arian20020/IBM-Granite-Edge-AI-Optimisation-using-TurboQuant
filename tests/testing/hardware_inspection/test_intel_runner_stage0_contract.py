@@ -252,6 +252,10 @@ def _is_stage0_workflow_alias(path):
 
 def _assert_stage0_inventory(test_case, repository_paths):
     paths = set(repository_paths)
+    workflow_paths = {path for path in paths if path.casefold().startswith(".github/workflows/")}
+    test_case.assertEqual(workflow_paths, {
+        ".github/workflows/build-and-test.yml", ".github/workflows/hardware-inspection-intel-runner-stage0.yml", ".github/workflows/hardware-inspection-intel-runner-stage-a.yml", ".github/workflows/traceability-validation.yml", ".github/workflows/workbook-05-documented-build.yml", ".github/workflows/workbook-05-phase3-assets.yml", ".github/workflows/workbook-05-phase3-dependency-preflight.yml", ".github/workflows/workbook-05-preflight.yml", ".github/workflows/workbook-05-route-b-repair.yml", ".github/workflows/workbook-05-runner-smoke.yml", ".github/workflows/workbook-05-runtime-resume.yml", ".github/workflows/workbook-05-source-admission.yml",
+    })
     stage_workflows = {
         path for path in paths if _is_stage0_workflow_alias(path)
     }
@@ -995,6 +999,7 @@ on:
             ".github/workflows/hardware_inspection_intel_runner_stage_a.yml",
             ".github/workflows/hardware-inspection-intel-runner-phase-b.yml",
             ".github/workflows/intel-hardware-inspection-offline.yml",
+            ".github/workflows/unrelated-new-name.yml",
             ".github/workflows/hardware-inspection-intel-runner-stage-b.yml",
             ".github/workflows/hardware-inspection-intel-runner-stage-c.yml",
             ".github/workflows/hardware-inspection-intel-runner-stage-d.yml",
