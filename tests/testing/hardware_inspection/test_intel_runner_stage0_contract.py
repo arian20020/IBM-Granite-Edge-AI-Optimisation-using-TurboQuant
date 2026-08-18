@@ -7,6 +7,7 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from urllib.parse import unquote, urlsplit
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
@@ -29,6 +30,7 @@ WORKFLOW_PATH = (
     / "hardware-inspection-intel-runner-stage0.yml"
 )
 EXPECTED_WORKFLOW_SHA256 = "9f14750368eef1a105332ccb54cd513ca92fd4af91dd8542efe5ededff304309"
+EXPECTED_STAGE0_RUNBOOK_SHA256 = "e461fbe1e9a6b0325fe066dd08c7a1aa2b7108d85e188980278ec89df27d42bd"
 INVALID_STDERR = "HI-RUNNER-STAGE0-INVALID: repository-only validation failed.\n"
 
 
@@ -112,6 +114,129 @@ def _assert_canonical_workflow(raw):
     actual = hashlib.sha256(raw).hexdigest()
     if actual != EXPECTED_WORKFLOW_SHA256:
         raise AssertionError("unexpected Stage 0 workflow digest: " + actual)
+
+
+def _markdown_link_destinations(text):
+    for match in re.finditer(
+        r"\[[^\]]*\]\(\s*(?P<destination><[^>]*>|[^)\s]+)(?:\s+[^)]*)?\s*\)",
+        text,
+    ):
+        destination = match.group("destination")
+        if destination.startswith("<") and destination.endswith(">"):
+            destination = destination[1:-1]
+        path = unquote(urlsplit(destination).path).replace("\\", "/")
+        yield path.rstrip("/").rsplit("/", 1)[-1]
+
+
+def _assert_stage0_runbook_security(test_case, raw):
+    if isinstance(raw, str):
+        raw = raw.encode("utf-8")
+    test_case.assertFalse(raw.startswith(codecs.BOM_UTF8))
+    runbook_text = raw.decode("utf-8", "strict")
+    normalized_runbook = " ".join(runbook_text.split())
+    for required_phrase in (
+        "Stage 0 is repository-only",
+        "The UCL Intel laptop must remain disconnected from this stage",
+        "Gate 1 remains Blocked",
+        "Gate 2 must not start",
+        "No LLM Fit candidate is acquired or executed",
+        "future Stage A requires a separate approved plan",
+        "The existing Workbook/TurboQuant runner must not be stopped, removed, relabelled, or contacted",
+        "written UCL approval for the dedicated account, runner registration, repository and dependency execution, and evidence storage",
+        "every repository writer must be UCL-authorised and trusted",
+        "Actor, ref, label, environment, and approval-manifest checks are defence in depth, not substitutes",
+    ):
+        test_case.assertIn(required_phrase, normalized_runbook)
+    gate1_path = "docs/testing/runbooks/Hardware-Inspection-LLM-Fit-Gate-1-Runbook.md"
+    test_case.assertEqual(runbook_text.count(gate1_path), 1)
+    for basename in _markdown_link_destinations(runbook_text):
+        test_case.assertNotEqual(
+            basename.casefold(),
+            "hardware-inspection-llm-fit-gate-1-runbook.md",
+        )
+
+    # This canonical security/operator boundary changes only with a reviewed digest update.
+    test_case.assertEqual(
+        hashlib.sha256(raw).hexdigest(), EXPECTED_STAGE0_RUNBOOK_SHA256
+    )
+
+    parser_blocks = [
+        block
+        for block in re.findall(
+            r"```powershell\n(.*?)\n```", runbook_text, flags=re.DOTALL
+        )
+        if "ParseFile" in block
+    ]
+    if parser_blocks:
+        test_case.assertEqual(len(parser_blocks), 1)
+        documented_parser_command = parser_blocks[0]
+    else:
+        legacy_parser_commands = [
+            line
+            for line in runbook_text.splitlines()
+            if line.startswith("powershell.exe -NoProfile -Command ")
+            and "ParseFile" in line
+        ]
+        test_case.assertEqual(len(legacy_parser_commands), 1)
+        documented_parser_command = legacy_parser_commands[0]
+    parser_result = subprocess.run(
+        [
+            powershell_executable(),
+            "-NoProfile",
+            "-NonInteractive",
+            "-Command",
+            documented_parser_command,
+        ],
+        cwd=REPOSITORY_ROOT,
+        text=True,
+        capture_output=True,
+        timeout=20,
+        check=False,
+    )
+    test_case.assertEqual(
+        parser_result.returncode,
+        0,
+        "documented PowerShell parser verification failed",
+    )
+
+    for heading in (
+        "## Purpose",
+        "## Authority",
+        "## Preconditions",
+        "## Future permission gates",
+        "## Local contract verification",
+        "## Manual hosted dispatch only",
+        "## Expected result",
+        "## Stop conditions",
+        "## Deferred stages",
+    ):
+        test_case.assertIn(heading, runbook_text)
+    for required_statement in (
+        "Exactly one `hosted-preflight` job runs on `windows-latest`.",
+        "The control checkout executes the validators and tests; the evaluated checkout is identity-only.",
+        "No artifact is uploaded.",
+        "Stage 0 generates, reserves, and consumes no runner label.",
+        "Each future Stage A, B, and D gets a fresh one-time label under its separate approved plan.",
+        "Stage C remains manual offline work without adapter automation.",
+    ):
+        test_case.assertIn(required_statement, runbook_text)
+    test_case.assertIn(
+        "gh workflow run hardware-inspection-intel-runner-stage0.yml `\n"
+        "    --repo arian20020/IBM-Granite-Edge-AI-Optimisation-using-TurboQuant `\n"
+        "    --ref main `\n"
+        "    -f confirm_repository_only=true",
+        runbook_text,
+    )
+    for forbidden_claim in (
+        r"\bGate 1 (?:has )?(?:passed|satisfied)\b",
+        r"\bGate 2 (?:may|can) start\b",
+        r"\blaptop (?:was|is) contacted\b",
+        r"(?<!No )\bLLM Fit candidate (?:was|is) (?:acquired|executed)\b",
+        r"\badapter (?:enable|disable) automation\b",
+        r"(?<!No )\bartifact is uploaded\b",
+        r"\bStage 0 (?:has |will )?(?:a )?self-hosted job\b",
+    ):
+        test_case.assertNotRegex(runbook_text, forbidden_claim)
 
 
 class IntelRunnerStage0ContractTests(unittest.TestCase):
@@ -455,61 +580,10 @@ on:
             self.assertFalse(
                 (REPOSITORY_ROOT / forbidden_path).exists(),
                 "forbidden Stage 0 inventory path exists: " + forbidden_path,
-            )
+        )
 
-        runbook_text = runbook_path.read_text(encoding="utf-8")
-        normalized_runbook = " ".join(runbook_text.split())
-        for required_phrase in (
-            "Stage 0 is repository-only",
-            "The UCL Intel laptop must remain disconnected from this stage",
-            "Gate 1 remains Blocked",
-            "Gate 2 must not start",
-            "No LLM Fit candidate is acquired or executed",
-            "future Stage A requires a separate approved plan",
-            "The existing Workbook/TurboQuant runner must not be stopped, removed, relabelled, or contacted",
-            "written UCL approval for the dedicated account, runner registration, repository and dependency execution, and evidence storage",
-            "every repository writer must be UCL-authorised and trusted",
-            "Actor, ref, label, environment, and approval-manifest checks are defence in depth, not substitutes",
-        ):
-            self.assertIn(required_phrase, normalized_runbook)
-        parser_blocks = [
-            block
-            for block in re.findall(
-                r"```powershell\n(.*?)\n```", runbook_text, flags=re.DOTALL
-            )
-            if "ParseFile" in block
-        ]
-        if parser_blocks:
-            self.assertEqual(len(parser_blocks), 1)
-            documented_parser_command = parser_blocks[0]
-        else:
-            legacy_parser_commands = [
-                line
-                for line in runbook_text.splitlines()
-                if line.startswith("powershell.exe -NoProfile -Command ")
-                and "ParseFile" in line
-            ]
-            self.assertEqual(len(legacy_parser_commands), 1)
-            documented_parser_command = legacy_parser_commands[0]
-        parser_result = subprocess.run(
-            [
-                powershell_executable(),
-                "-NoProfile",
-                "-NonInteractive",
-                "-Command",
-                documented_parser_command,
-            ],
-            cwd=REPOSITORY_ROOT,
-            text=True,
-            capture_output=True,
-            timeout=20,
-            check=False,
-        )
-        self.assertEqual(
-            parser_result.returncode,
-            0,
-            "documented PowerShell parser verification failed",
-        )
+        runbook_raw = runbook_path.read_bytes()
+        _assert_stage0_runbook_security(self, runbook_raw)
 
         readme_links = re.findall(
             r"\[`Hardware-Inspection-Intel-Runner-Stage-0-Runbook\.md`\]\(([^)]+)\)",
@@ -524,52 +598,16 @@ on:
             runbook_path.resolve(),
         )
         self.assertTrue(runbook_path.is_file())
-
-        gate1_path = "docs/testing/runbooks/Hardware-Inspection-LLM-Fit-Gate-1-Runbook.md"
-        self.assertEqual(runbook_text.count(gate1_path), 1)
-        self.assertNotRegex(
-            runbook_text,
-            r"\[[^\]]*\]\(\s*" + re.escape(gate1_path) + r"\s*\)",
-        )
-
-        for heading in (
-            "## Purpose",
-            "## Authority",
-            "## Preconditions",
-            "## Future permission gates",
-            "## Local contract verification",
-            "## Manual hosted dispatch only",
-            "## Expected result",
-            "## Stop conditions",
-            "## Deferred stages",
+        for mutation in (
+            b"\nStage 0 reserves hardware-gate1-deadbeefdeadbeef.\n",
+            b"\nStages A, B, and D reuse the same label.\n",
+            b"\nGate 2 is allowed to start.\n",
+            b"\nThe laptop will be contacted.\n",
+            b"\n[Gate 1 runbook](Hardware-Inspection-LLM-Fit-Gate-1-Runbook.md)\n",
         ):
-            self.assertIn(heading, runbook_text)
-        for required_statement in (
-            "Exactly one `hosted-preflight` job runs on `windows-latest`.",
-            "The control checkout executes the validators and tests; the evaluated checkout is identity-only.",
-            "No artifact is uploaded.",
-            "Stage 0 generates, reserves, and consumes no runner label.",
-            "Each future Stage A, B, and D gets a fresh one-time label under its separate approved plan.",
-            "Stage C remains manual offline work without adapter automation.",
-        ):
-            self.assertIn(required_statement, runbook_text)
-        self.assertIn(
-            "gh workflow run hardware-inspection-intel-runner-stage0.yml `\n"
-            "    --repo arian20020/IBM-Granite-Edge-AI-Optimisation-using-TurboQuant `\n"
-            "    --ref main `\n"
-            "    -f confirm_repository_only=true",
-            runbook_text,
-        )
-        for forbidden_claim in (
-            r"\bGate 1 (?:has )?(?:passed|satisfied)\b",
-            r"\bGate 2 (?:may|can) start\b",
-            r"\blaptop (?:was|is) contacted\b",
-            r"(?<!No )\bLLM Fit candidate (?:was|is) (?:acquired|executed)\b",
-            r"\badapter (?:enable|disable) automation\b",
-            r"(?<!No )\bartifact is uploaded\b",
-            r"\bStage 0 (?:has |will )?(?:a )?self-hosted job\b",
-        ):
-            self.assertNotRegex(runbook_text, forbidden_claim)
+            with self.subTest(mutation=mutation.decode("utf-8").strip()):
+                with self.assertRaises(AssertionError):
+                    _assert_stage0_runbook_security(self, runbook_raw + mutation)
 
 
 if __name__ == "__main__":
