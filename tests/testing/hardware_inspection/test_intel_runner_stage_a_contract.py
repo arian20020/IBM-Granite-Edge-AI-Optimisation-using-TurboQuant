@@ -314,10 +314,11 @@ def _powershell_executable():
 
 def _powershell_ast(test_case, path):
     _required_file(test_case, path)
-    command = r"""
+    powershell_path = str(path).replace("'", "''")
+    command = "$path = '" + powershell_path + "'\n" + r"""
 $tokens = $null
 $errors = $null
-$ast = [System.Management.Automation.Language.Parser]::ParseFile($args[0], [ref]$tokens, [ref]$errors)
+$ast = [System.Management.Automation.Language.Parser]::ParseFile($path, [ref]$tokens, [ref]$errors)
 if ($errors.Count -ne 0) { exit 2 }
 foreach ($node in $ast.FindAll({ param($candidate) $candidate -is [System.Management.Automation.Language.CommandAst] }, $true)) {
   [Console]::WriteLine('COMMAND:' + [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($node.Extent.Text)))
@@ -327,7 +328,7 @@ foreach ($node in $ast.FindAll({ param($candidate) $candidate -is [System.Manage
 }
 """
     result = subprocess.run(
-        [_powershell_executable(), "-NoProfile", "-NonInteractive", "-Command", command, str(path)],
+        [_powershell_executable(), "-NoProfile", "-NonInteractive", "-Command", command],
         text=True,
         capture_output=True,
         timeout=20,
@@ -441,6 +442,63 @@ def _validator_arguments(control_root, **changes):
     }
     arguments.update(changes)
     return arguments
+
+
+def _validator_environment():
+    environment = os.environ.copy()
+    for name in (
+        "GRANITE_LLMFIT_CANDIDATE_ROOT",
+        "GRANITE_LLMFIT_TRUSTED_OUTPUT",
+        "GRANITE_LLMFIT_GATE1_OUTPUT",
+        "GRANITE_LLMFIT_WINDOWS_REFERENCE",
+        "GRANITE_LLMFIT_OFFLINE_OUTPUT",
+        "GRANITE_LLMFIT_FAKE_TOOL_ROOT",
+    ):
+        environment.pop(name, None)
+    return environment
+
+
+def _git_output(path, *arguments):
+    result = subprocess.run(
+        ["git", "-C", str(path), *arguments],
+        text=True,
+        capture_output=True,
+        timeout=20,
+        check=False,
+    )
+    if result.returncode:
+        raise AssertionError(result.stderr)
+    return result.stdout.strip()
+
+
+def _create_clean_checkout(root):
+    root.mkdir()
+    _git_output(root, "init")
+    _git_output(root, "config", "user.email", "stage-a@example.invalid")
+    _git_output(root, "config", "user.name", "Stage A")
+    (root / "identity.txt").write_text("stage-a\n", encoding="utf-8", newline="\n")
+    _git_output(root, "add", "identity.txt")
+    _git_output(root, "commit", "-m", "Stage A fixture")
+    return _git_output(root, "rev-parse", "HEAD")
+
+
+def _write_approval_manifest(control_root, approved_sha, raw=None):
+    manifest = control_root / ".github" / "hardware-inspection" / MANIFEST_PATH.name
+    manifest.parent.mkdir(parents=True, exist_ok=True)
+    manifest.write_bytes(
+        raw
+        if raw is not None
+        else (
+            '{"schemaVersion":"1.0","remoteFeatureRef":"refs/heads/feature/hardware-inspection",'
+            f'"approvedTipSha":"{approved_sha}"}}'
+        ).encode("utf-8")
+    )
+
+
+def _assert_invalid_validator_result(test_case, result):
+    test_case.assertNotEqual(result.returncode, 0)
+    test_case.assertEqual(result.stderr.replace("\r\n", "\n"), INVALID_VALIDATOR_STDERR)
+    test_case.assertEqual(result.stdout, "")
 
 
 class IntelRunnerStageAContractTests(unittest.TestCase):
@@ -669,29 +727,208 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
         for parameter in (
             "Phase", "ControlRoot", "WorkflowRef", "DefaultBranch", "Actor",
             "TriggeringActor", "RepositoryOwner", "RunAttempt", "Confirmation",
-            "RunnerLabel",
+            "RunnerLabel", "SourceCheckoutRoot", "EvaluatedRoot", "ApprovedSha",
+            "GitHubOutputPath", "SummaryPath",
         ):
             self.assertRegex(validator_text, rf"\$\(?{parameter}\)?")
         with tempfile.TemporaryDirectory() as temporary_directory:
-            control_root = Path(temporary_directory)
-            manifest = control_root / ".github" / "hardware-inspection" / MANIFEST_PATH.name
-            manifest.parent.mkdir(parents=True)
-            manifest.write_text(
-                '{"schemaVersion":"1.0","remoteFeatureRef":"refs/heads/feature/hardware-inspection",'
-                '"approvedTipSha":"cc2e57ceb94e73e49f34fc383d5440a9047fba21"}',
-                encoding="utf-8",
-                newline="\n",
-            )
+            fixture_root = Path(temporary_directory)
+            control_root = fixture_root / "control"
+            control_root.mkdir()
+            checkout_root = fixture_root / "checkout"
+            approved_sha = _create_clean_checkout(checkout_root)
+            _write_approval_manifest(control_root, approved_sha)
+            environment = _validator_environment()
             for change in (
                 {"Phase": "Invalid", "Confirmation": "canary"},
                 {"Actor": "someone-else"},
                 {"WorkflowRef": "refs/heads/feature/hardware-inspection"},
                 {"RunnerLabel": "hardware-gate1-0123456789ABCDEG"},
             ):
-                result = _invoke(VALIDATOR_PATH, _validator_arguments(control_root, **change))
-                self.assertNotEqual(result.returncode, 0)
-                self.assertEqual(result.stderr.replace("\r\n", "\n"), INVALID_VALIDATOR_STDERR)
+                result = _invoke(
+                    VALIDATOR_PATH,
+                    _validator_arguments(control_root, **change),
+                    environment,
+                )
+                _assert_invalid_validator_result(self, result)
                 self.assertNotIn("canary", result.stdout + result.stderr)
+
+            hosted_output = fixture_root / "hosted-output.txt"
+            hosted = _invoke(
+                VALIDATOR_PATH,
+                _validator_arguments(
+                    control_root,
+                    SourceCheckoutRoot=checkout_root,
+                    GitHubOutputPath=hosted_output,
+                ),
+                environment,
+            )
+            self.assertEqual(hosted.returncode, 0, hosted.stderr)
+            self.assertEqual(hosted.stdout, "")
+            self.assertEqual(hosted.stderr, "")
+            self.assertEqual(
+                hosted_output.read_bytes(),
+                (
+                    "source_ref=refs/heads/feature/hardware-inspection\n"
+                    f"approved_sha={approved_sha}\n"
+                    "runner_label=hardware-gate1-0123456789abcdef\n"
+                    "eligible=true\n"
+                ).encode("utf-8"),
+            )
+
+            for manifest_raw in (
+                b'{"schemaVersion":"1.0","remoteFeatureRef":"refs/heads/feature/hardware-inspection","approvedTipSha":"' + approved_sha.encode("ascii") + b'","extra":true}',
+                b'{"remoteFeatureRef":"refs/heads/feature/hardware-inspection","schemaVersion":"1.0","approvedTipSha":"' + approved_sha.encode("ascii") + b'"}',
+                b'{"schemaVersion":"1.0","remoteFeatureRef":"refs/heads/feature/hardware-inspection","approvedTipSha":"' + approved_sha.encode("ascii") + b'","approvedTipSha":"' + approved_sha.encode("ascii") + b'"}',
+                b'\xef\xbb\xbf{"schemaVersion":"1.0"}',
+            ):
+                _write_approval_manifest(control_root, approved_sha, manifest_raw)
+                result = _invoke(
+                    VALIDATOR_PATH,
+                    _validator_arguments(
+                        control_root,
+                        SourceCheckoutRoot=checkout_root,
+                        GitHubOutputPath=hosted_output,
+                    ),
+                    environment,
+                )
+                _assert_invalid_validator_result(self, result)
+            _write_approval_manifest(control_root, approved_sha)
+
+            _write_approval_manifest(control_root, "a" * 40)
+            result = _invoke(
+                VALIDATOR_PATH,
+                _validator_arguments(
+                    control_root,
+                    SourceCheckoutRoot=checkout_root,
+                    GitHubOutputPath=hosted_output,
+                ),
+                environment,
+            )
+            _assert_invalid_validator_result(self, result)
+            _write_approval_manifest(control_root, approved_sha)
+
+            (checkout_root / "identity.txt").write_text("dirty\n", encoding="utf-8", newline="\n")
+            result = _invoke(
+                VALIDATOR_PATH,
+                _validator_arguments(
+                    control_root,
+                    SourceCheckoutRoot=checkout_root,
+                    GitHubOutputPath=hosted_output,
+                ),
+                environment,
+            )
+            _assert_invalid_validator_result(self, result)
+            _git_output(checkout_root, "checkout", "--", "identity.txt")
+            (checkout_root / "untracked.txt").write_text("dirty\n", encoding="utf-8", newline="\n")
+            result = _invoke(
+                VALIDATOR_PATH,
+                _validator_arguments(
+                    control_root,
+                    SourceCheckoutRoot=checkout_root,
+                    GitHubOutputPath=hosted_output,
+                ),
+                environment,
+            )
+            _assert_invalid_validator_result(self, result)
+            (checkout_root / "untracked.txt").unlink()
+
+            invalid_git_root = fixture_root / "not-a-git-checkout"
+            invalid_git_root.mkdir()
+            result = _invoke(
+                VALIDATOR_PATH,
+                _validator_arguments(
+                    control_root,
+                    SourceCheckoutRoot=invalid_git_root,
+                    GitHubOutputPath=hosted_output,
+                ),
+                environment,
+            )
+            _assert_invalid_validator_result(self, result)
+            result = _invoke(
+                VALIDATOR_PATH,
+                _validator_arguments(
+                    control_root,
+                    SourceCheckoutRoot=checkout_root,
+                    GitHubOutputPath=fixture_root / "missing" / "output.txt",
+                ),
+                environment,
+            )
+            _assert_invalid_validator_result(self, result)
+
+            summary_path = fixture_root / "stage-a-summary.md"
+            runner = _invoke(
+                VALIDATOR_PATH,
+                _validator_arguments(
+                    control_root,
+                    Phase="Runner",
+                    ApprovedSha=approved_sha,
+                    EvaluatedRoot=checkout_root,
+                    SummaryPath=summary_path,
+                ),
+                environment,
+            )
+            self.assertEqual(runner.returncode, 0, runner.stderr)
+            self.assertEqual(runner.stdout, "")
+            self.assertEqual(runner.stderr, "")
+            summary = summary_path.read_bytes()
+            self.assertFalse(summary.startswith(codecs.BOM_UTF8))
+            self.assertNotIn(b"\r", summary)
+            self.assertIn(approved_sha.encode("ascii"), summary)
+            self.assertNotIn(b"hardware-gate1", summary)
+            self.assertNotIn(str(checkout_root).encode("utf-8"), summary)
+
+            for environment_name in (
+                "GRANITE_LLMFIT_CANDIDATE_ROOT",
+                "GRANITE_LLMFIT_TRUSTED_OUTPUT",
+                "GRANITE_LLMFIT_GATE1_OUTPUT",
+                "GRANITE_LLMFIT_WINDOWS_REFERENCE",
+                "GRANITE_LLMFIT_OFFLINE_OUTPUT",
+                "GRANITE_LLMFIT_FAKE_TOOL_ROOT",
+            ):
+                operational_environment = environment.copy()
+                operational_environment[environment_name] = "privacy-canary"
+                result = _invoke(
+                    VALIDATOR_PATH,
+                    _validator_arguments(
+                        control_root,
+                        Phase="Runner",
+                        ApprovedSha=approved_sha,
+                        EvaluatedRoot=checkout_root,
+                        SummaryPath=summary_path,
+                    ),
+                    operational_environment,
+                )
+                _assert_invalid_validator_result(self, result)
+                self.assertNotIn("privacy-canary", result.stdout + result.stderr)
+
+            candidate_root = checkout_root / "third-party" / "bin" / "llmfit" / "v1.1.9" / "win-x64"
+            candidate_root.mkdir(parents=True)
+            result = _invoke(
+                VALIDATOR_PATH,
+                _validator_arguments(
+                    control_root,
+                    Phase="Runner",
+                    ApprovedSha=approved_sha,
+                    EvaluatedRoot=checkout_root,
+                    SummaryPath=summary_path,
+                ),
+                environment,
+            )
+            _assert_invalid_validator_result(self, result)
+            shutil.rmtree(candidate_root.parents[3])
+            result = _invoke(
+                VALIDATOR_PATH,
+                _validator_arguments(
+                    control_root,
+                    Phase="Runner",
+                    ApprovedSha="b" * 40,
+                    EvaluatedRoot=checkout_root,
+                    SummaryPath=fixture_root / "missing" / "summary.md",
+                ),
+                environment,
+            )
+            _assert_invalid_validator_result(self, result)
 
     def test_stage_a_runner_rejects_dirty_wrong_sha_or_operational_environment(self):
         runner_text, commands, strings = _powershell_ast_text(self, RUNNER_PATH)
