@@ -773,6 +773,10 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
 
     def test_stage_a_workflow_pins_actions_and_drops_checkout_credentials(self):
         raw, document = _workflow(self)
+        for job_name, step in _all_steps(document):
+            if step.get("shell") == "powershell":
+                with self.subTest(inline_powershell=job_name + ":" + str(step.get("name", ""))):
+                    _powershell_text_ast(self, str(step.get("run", "")))
         uses = []
         checkout_steps = []
         for _, step in _all_steps(document):
