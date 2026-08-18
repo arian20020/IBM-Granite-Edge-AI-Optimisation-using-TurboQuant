@@ -122,6 +122,7 @@ def _assert_summary_upload(test_case, document):
 
 
 def _assert_no_host_or_path_leaks(test_case, text):
+    text = text.replace("\\\\?\\", "")
     test_case.assertNotRegex(text, r"(?i)\$\{\{\s*(?:runner\.|github\.workspace|github\.event\.runner)")
     test_case.assertNotRegex(text, r"(?i)\$env:(?:computername|username|userdomain|hostname)")
     test_case.assertNotRegex(text, r"(?i)(?:[a-z]:\\|\\\\[^\s\\]+\\|/home/|/Users/)")
@@ -1417,6 +1418,60 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
             trx_steps[0].setdefault("with", {})["path"] = "local\\deterministic.trx"
             with self.assertRaises(AssertionError):
                 _assert_summary_upload(self, trx_upload)
+            publisher = next(
+                step["run"]
+                for step in _steps(document, "deterministic-runner")
+                if step.get("name") == "Publish validated Stage A summary"
+            )
+            def publish_fixture(source_bytes, target_bytes, source_reparse=False, target_reparse=False):
+                with tempfile.TemporaryDirectory() as temporary_directory:
+                    root = Path(temporary_directory)
+                    export = root / "stage-a-export"
+                    export.mkdir()
+                    source = export / "stage-a-summary.md"
+                    target = root / "github-summary.md"
+                    source.write_bytes(source_bytes)
+                    target.write_bytes(target_bytes)
+                    if source_reparse or target_reparse:
+                        link = root / ("source-link.md" if source_reparse else "target-link.md")
+                        destination = source if source_reparse else target
+                        try:
+                            link.symlink_to(destination)
+                        except OSError:
+                            return None
+                        if source_reparse:
+                            source.unlink()
+                            link.rename(source)
+                        else:
+                            target.unlink()
+                            link.rename(target)
+                    literal = lambda value: "'" + str(value).replace("'", "''") + "'"
+                    command = (
+                        "$env:GITHUB_STEP_SUMMARY = " + literal(target) + "\n"
+                        "$env:STAGEA_APPROVED_SHA = '" + ("a" * 40) + "'\n"
+                        "& {\n" + publisher + "\n}"
+                    )
+                    result = subprocess.run(
+                        [_powershell_executable(), "-NoProfile", "-NonInteractive", "-Command", command],
+                        text=True, capture_output=True, cwd=root, timeout=20, check=False,
+                    )
+                    return result, target.read_bytes() if target.exists() else b""
+            expected_publish = (
+                "# Hardware Inspection Intel Stage A\n\n- Evaluated SHA: " + ("a" * 40)
+                + "\n- Deterministic passed: 174\n- Task8 deterministic passed: 3\n- Non-passing: 0\n"
+            ).encode("utf-8")
+            valid_publish = publish_fixture(expected_publish, b"")
+            self.assertIsNotNone(valid_publish)
+            self.assertEqual(valid_publish[0].returncode, 0, valid_publish[0].stderr)
+            self.assertEqual(valid_publish[1], expected_publish)
+            for source_bytes, target_bytes in ((b"malformed", b""), (expected_publish + b"x", b""), (expected_publish, b"nonempty")):
+                result = publish_fixture(source_bytes, target_bytes)
+                self.assertNotEqual(result[0].returncode, 0)
+                self.assertEqual(result[0].stderr.replace("\r\n", "\n"), "HI-RUNNER-STAGEA-SUMMARY-INVALID: summary publication failed.\n")
+            for source_reparse, target_reparse in ((True, False), (False, True)):
+                result = publish_fixture(expected_publish, b"", source_reparse, target_reparse)
+                if result is not None:
+                    self.assertNotEqual(result[0].returncode, 0)
         sha = "a" * 40
         valid_json = (
             '{"schemaVersion":"1.0","evaluatedSha":"'

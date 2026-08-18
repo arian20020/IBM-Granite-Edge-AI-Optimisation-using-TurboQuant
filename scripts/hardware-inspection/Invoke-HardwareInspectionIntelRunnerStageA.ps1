@@ -17,6 +17,7 @@ $script:StageAMaximumProcessStreamBytes = 16MB # Per stdout/stderr log; excess i
 $script:StageAOwnedProcesses = New-Object System.Collections.ArrayList
 $script:StageACancelled = $false
 
+function Initialize-StageACappedDrain {
 if ($null -eq ('HardwareInspection.StageA.CappedDrain' -as [type])) {
     Add-Type -TypeDefinition @'
 using System;
@@ -40,6 +41,7 @@ namespace HardwareInspection.StageA {
     }
 }
 '@
+}
 }
 
 function Assert-StageACondition {
@@ -291,6 +293,7 @@ function Test-StageAResidualProcesses {
 }
 
 function Invoke-HardwareInspectionIntelRunnerStageAInternal {
+    Initialize-StageACappedDrain
     foreach ($name in [System.Environment]::GetEnvironmentVariables().Keys) {
         $environmentName = [string]$name
         Assert-StageACondition (-not ($environmentName.StartsWith('GIT_', [System.StringComparison]::OrdinalIgnoreCase) -or $environmentName.StartsWith('GRANITE_LLMFIT_', [System.StringComparison]::OrdinalIgnoreCase)))

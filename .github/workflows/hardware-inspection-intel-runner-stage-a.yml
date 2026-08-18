@@ -286,21 +286,32 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $failure = 'HI-RUNNER-STAGEA-SUMMARY-INVALID: summary publication failed.'
           try {
+            function Assert-NormalSummaryFile([string] $candidate) {
+              $full = [System.IO.Path]::GetFullPath($candidate)
+              if ($full.StartsWith('\\') -or $full.StartsWith('\\?\')) { throw $failure }
+              $item = Get-Item -LiteralPath $full -Force
+              if ($item.PSIsContainer -or (($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0)) { throw $failure }
+              $component = Get-Item -LiteralPath ([System.IO.Path]::GetDirectoryName($full)) -Force
+              while ($null -ne $component) { if (($component.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) { throw $failure }; $component = $component.Parent }
+              if ((New-Object System.IO.DriveInfo($full.Substring(0, 3))).DriveType -ne [System.IO.DriveType]::Fixed) { throw $failure }
+              return $full
+            }
             $path = 'stage-a-export/stage-a-summary.md'
             $utf8 = New-Object System.Text.UTF8Encoding($false, $true)
             $expected = "# Hardware Inspection Intel Stage A`n`n- Evaluated SHA: $env:STAGEA_APPROVED_SHA`n- Deterministic passed: 174`n- Task8 deterministic passed: 3`n- Non-passing: 0`n"
             $expectedBytes = $utf8.GetBytes($expected)
-            $source = Get-Item -LiteralPath $path -Force
-            if ($source.PSIsContainer -or (($source.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) -or $source.Length -ne $expectedBytes.Length) { throw $failure }
-            $actualBytes = [System.IO.File]::ReadAllBytes($path)
+            $sourcePath = Assert-NormalSummaryFile $path
+            $source = Get-Item -LiteralPath $sourcePath -Force
+            if ($source.Length -ne $expectedBytes.Length) { throw $failure }
+            $sourceStream = New-Object System.IO.FileStream($sourcePath, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::None)
+            try { if ($sourceStream.Length -ne $expectedBytes.Length) { throw $failure }; $actualBytes = New-Object byte[] $sourceStream.Length; $null = $sourceStream.Read($actualBytes, 0, $actualBytes.Length) } finally { $sourceStream.Dispose() }
             if ($actualBytes.Length -ne $expectedBytes.Length) { throw $failure }
             for ($index = 0; $index -lt $expectedBytes.Length; $index++) {
               if ($actualBytes[$index] -ne $expectedBytes[$index]) { throw $failure }
             }
-            $summary = Get-Item -LiteralPath $env:GITHUB_STEP_SUMMARY -Force
-            if ($summary.PSIsContainer -or (($summary.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) -or $summary.Length -ne 0) { throw $failure }
-            $stream = New-Object System.IO.FileStream($env:GITHUB_STEP_SUMMARY, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Write, [System.IO.FileShare]::None)
-            try { $stream.Write($expectedBytes, 0, $expectedBytes.Length); $stream.Flush($true) } finally { $stream.Dispose() }
+            $summaryPath = Assert-NormalSummaryFile $env:GITHUB_STEP_SUMMARY
+            $stream = New-Object System.IO.FileStream($summaryPath, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Write, [System.IO.FileShare]::None)
+            try { if ($stream.Length -ne 0) { throw $failure }; $stream.Write($expectedBytes, 0, $expectedBytes.Length); $stream.Flush($true) } finally { $stream.Dispose() }
           }
           catch { [Console]::Error.WriteLine($failure); exit 1 }
 
