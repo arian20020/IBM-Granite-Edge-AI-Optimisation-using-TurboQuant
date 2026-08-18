@@ -416,6 +416,66 @@ on:
         ):
             self.assertNotIn(forbidden, text)
 
+    def test_stage0_inventory_contains_only_approved_repository_controls(self):
+        runbook_path = (
+            REPOSITORY_ROOT
+            / "docs"
+            / "testing"
+            / "runbooks"
+            / "Hardware-Inspection-Intel-Runner-Stage-0-Runbook.md"
+        )
+        design_path = (
+            REPOSITORY_ROOT
+            / "docs"
+            / "superpowers"
+            / "specs"
+            / "2026-08-18-hardware-inspection-intel-runner-configuration-design.md"
+        )
+        scripts_readme_path = REPOSITORY_ROOT / "scripts" / "README.md"
+        self.assertTrue(runbook_path.is_file(), "Stage 0 runbook is missing")
+        self.assertTrue(design_path.is_file(), "Stage 0 design copy is missing")
+        self.assertEqual(
+            hashlib.sha256(design_path.read_bytes()).hexdigest(),
+            "44916a51c7d4e1856b73564c8ce23e9b4ee60b20067c67a2edeff8c482e13cfe",
+        )
+
+        scripts_readme = scripts_readme_path.read_text(encoding="utf-8")
+        self.assertIn("Validate-HardwareInspectionIntelRunnerStage0.ps1", scripts_readme)
+        self.assertIn("Hardware-Inspection-Intel-Runner-Stage-0-Runbook.md", scripts_readme)
+
+        for forbidden_path in (
+            ".github/workflows/hardware-inspection-intel-runner-stage-a.yml",
+            ".github/workflows/hardware-inspection-intel-runner-stage-b.yml",
+            ".github/workflows/hardware-inspection-intel-runner-stage-d.yml",
+            "scripts/hardware-inspection/Invoke-HardwareInspectionIntelOffline.ps1",
+            "scripts/hardware-inspection/Disable-HardwareInspectionNetwork.ps1",
+            "scripts/hardware-inspection/Enable-HardwareInspectionNetwork.ps1",
+        ):
+            self.assertFalse(
+                (REPOSITORY_ROOT / forbidden_path).exists(),
+                "forbidden Stage 0 inventory path exists: " + forbidden_path,
+            )
+
+        runbook_text = runbook_path.read_text(encoding="utf-8")
+        normalized_runbook = " ".join(runbook_text.split())
+        for required_phrase in (
+            "Stage 0 is repository-only",
+            "The UCL Intel laptop must remain disconnected from this stage",
+            "Gate 1 remains Blocked",
+            "Gate 2 must not start",
+            "No LLM Fit candidate is acquired or executed",
+            "future Stage A requires a separate approved plan",
+            "The existing Workbook/TurboQuant runner must not be stopped, removed, relabelled, or contacted",
+            "written UCL approval for the dedicated account, runner registration, repository and dependency execution, and evidence storage",
+            "every repository writer must be UCL-authorised and trusted",
+            "Actor, ref, label, environment, and approval-manifest checks are defence in depth, not substitutes",
+        ):
+            self.assertIn(required_phrase, normalized_runbook)
+        self.assertIn(
+            "docs/testing/runbooks/Hardware-Inspection-LLM-Fit-Gate-1-Runbook.md",
+            runbook_text,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
