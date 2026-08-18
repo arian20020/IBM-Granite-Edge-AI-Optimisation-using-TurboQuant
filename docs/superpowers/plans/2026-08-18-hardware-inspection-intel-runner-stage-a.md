@@ -38,7 +38,7 @@ Modify:
 - `docs/testing/README.md` — index Stage A as permission-gated deterministic evidence, not Gate 1 evidence.
 - `scripts/README.md` — document the two default-branch control scripts and their privacy boundary.
 
-Do not modify the approved-source manifest, Stage 0 workflow/validator/contracts/runbook, frozen feature branch, Gate 1 evidence record, production design, Model Inspection, application projects, or any Gate 2–9 file.
+Do not modify the approved-source manifest, Stage 0 workflow/validator/runbook, frozen feature branch, Gate 1 evidence record, production design, Model Inspection, application projects, or any Gate 2–9 file. The only approved Stage 0 transition is to amend the existing Stage 0 inventory contract so its exact allowlist admits this canonical Stage A workflow and its two default-branch Stage A control scripts alongside Stage 0. That contract change must retain case-insensitive namespace detection and reject every alias, later stage, alternative operational script, and Gate 1 runbook; it does not authorise any other Stage 0 change.
 
 ### Task 1: Lock the Stage A repository contract
 
@@ -226,6 +226,7 @@ git commit -m "feat(hardware-inspection): run deterministic Intel Stage A"
 **Files:**
 - Create: `.github/workflows/hardware-inspection-intel-runner-stage-a.yml`
 - Test: `tests/testing/hardware_inspection/test_intel_runner_stage_a_contract.py`
+- Modify: `tests/testing/hardware_inspection/test_intel_runner_stage0_contract.py` — only the existing inventory-contract identity, to allow the exact canonical Stage A workflow plus `Validate-HardwareInspectionIntelRunnerStageA.ps1` and `Invoke-HardwareInspectionIntelRunnerStageA.ps1`, with no aliases.
 
 - [ ] **Step 1: Make the workflow tests RED for missing executable YAML**
 
@@ -311,7 +312,7 @@ git commit -m "docs(hardware-inspection): document Intel runner Stage A"
 
 - [ ] **Step 1: Verify exact repository scope**
 
-Allow only the seven Stage A paths in this plan. Confirm the Stage 0 workflow/validator/test/runbook and approved-source manifest are byte-identical to their `origin/main` versions. Confirm no evaluated feature, Model Inspection, Gate 1 evidence, application, UI, candidate, raw artifact, or Stage B–D file changed.
+Allow only the seven Stage A paths in this plan plus this implementation plan and the existing Stage 0 inventory contract. Confirm the Stage 0 workflow, validator, runbook, and approved-source manifest are byte-identical to their `origin/main` versions. Confirm the Stage 0 contract change is limited to admitting exactly `.github/workflows/hardware-inspection-intel-runner-stage-a.yml`, `Validate-HardwareInspectionIntelRunnerStageA.ps1`, and `Invoke-HardwareInspectionIntelRunnerStageA.ps1` alongside Stage 0 while rejecting aliases, later stages, alternative operational scripts, and the Gate 1 runbook. Confirm no evaluated feature, Model Inspection, Gate 1 evidence, application, UI, candidate, raw artifact, or Stage B–D file changed.
 
 - [ ] **Step 2: Run dependency-free verification**
 

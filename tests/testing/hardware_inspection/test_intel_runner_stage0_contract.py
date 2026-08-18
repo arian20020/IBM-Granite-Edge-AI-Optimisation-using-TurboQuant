@@ -256,21 +256,27 @@ def _assert_stage0_inventory(test_case, repository_paths):
     }
     test_case.assertEqual(
         stage_workflows,
-        {".github/workflows/hardware-inspection-intel-runner-stage0.yml"},
+        {
+            ".github/workflows/hardware-inspection-intel-runner-stage0.yml",
+            ".github/workflows/hardware-inspection-intel-runner-stage-a.yml",
+        },
     )
     hardware_scripts = {
         path for path in paths if path.startswith("scripts/hardware-inspection/")
     }
     test_case.assertEqual(
         hardware_scripts,
-        {"scripts/hardware-inspection/Validate-HardwareInspectionIntelRunnerStage0.ps1"},
+        {
+            "scripts/hardware-inspection/Validate-HardwareInspectionIntelRunnerStage0.ps1",
+            "scripts/hardware-inspection/Validate-HardwareInspectionIntelRunnerStageA.ps1",
+            "scripts/hardware-inspection/Invoke-HardwareInspectionIntelRunnerStageA.ps1",
+        },
     )
     test_case.assertNotIn(
         "docs/testing/runbooks/Hardware-Inspection-LLM-Fit-Gate-1-Runbook.md",
         paths,
     )
     for forbidden_path in (
-        ".github/workflows/hardware-inspection-intel-runner-stage-a.yml",
         ".github/workflows/hardware-inspection-intel-runner-stage-b.yml",
         ".github/workflows/hardware-inspection-intel-runner-stage-d.yml",
         "scripts/hardware-inspection/Invoke-HardwareInspectionIntelOffline.ps1",
@@ -978,10 +984,22 @@ on:
                 with self.assertRaises(AssertionError):
                     _assert_stage0_runbook_security(self, runbook_raw + mutation)
         for mutation in (
+            ".github/workflows/hardware-inspection-intel-runner-stage-a.yaml",
+            ".github/workflows/Hardware-Inspection-Intel-Runner-Stage-A.yml",
+            ".github/workflows/hardware-inspection-intel-runner-stage-a-copy.yml",
+            ".github/workflows/hardware-inspection-intel-runner-stage-a-alternate.yml",
+            ".github/workflows/hardware-inspection-intel-runner-stage-b.yml",
+            ".github/workflows/hardware-inspection-intel-runner-stage-c.yml",
+            ".github/workflows/hardware-inspection-intel-runner-stage-d.yml",
             ".github/workflows/hardware-inspection-intel-runner-stage-x.yml",
             ".github/workflows/hardware-inspection-intel-runner-stage-c.yaml",
             ".github/workflows/Hardware-Inspection-Intel-Runner-Stage-C.yml",
             "scripts/hardware-inspection/Start-HardwareInspectionCandidate.ps1",
+            "scripts/hardware-inspection/Invoke-HardwareInspectionIntelOffline.ps1",
+            "scripts/hardware-inspection/Disable-HardwareInspectionNetwork.ps1",
+            "scripts/hardware-inspection/Enable-HardwareInspectionNetwork.ps1",
+            "scripts/hardware-inspection/Invoke-HardwareInspectionIntelRunnerStageA-copy.ps1",
+            "scripts/hardware-inspection/Validate-HardwareInspectionIntelRunnerStageA-alternate.ps1",
             "docs/testing/runbooks/Hardware-Inspection-LLM-Fit-Gate-1-Runbook.md",
         ):
             with self.subTest(inventory_mutation=mutation):
