@@ -1,0 +1,31 @@
+name: Temporary export of Phase 3 live collector
+
+on:
+  push:
+    paths:
+      - '.github/workflows/export-phase3-live-script.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    name: Export exact live collector source
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out exact branch revision
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            scripts/testing/workbook05/Invoke-Workbook05Phase3DependencyPreflightLive.ps1
+          sparse-checkout-cone-mode: false
+
+      - name: Upload exact source bytes
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+        with:
+          name: phase3-live-script-${{ github.run_id }}-${{ github.run_attempt }}
+          path: scripts/testing/workbook05/Invoke-Workbook05Phase3DependencyPreflightLive.ps1
+          if-no-files-found: error
+          retention-days: 1
