@@ -1,10 +1,12 @@
 import codecs
 import hashlib
 import json
+import os
 import re
 import shutil
 import subprocess
 import tempfile
+import textwrap
 import unittest
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
@@ -29,9 +31,10 @@ WORKFLOW_PATH = (
     / "workflows"
     / "hardware-inspection-intel-runner-stage0.yml"
 )
-EXPECTED_WORKFLOW_SHA256 = "9f14750368eef1a105332ccb54cd513ca92fd4af91dd8542efe5ededff304309"
+EXPECTED_WORKFLOW_SHA256 = "81a5893ccde84507ea8fd6d5409811ba55f0d16252b864907c29884f61c8fabf"
 EXPECTED_STAGE0_RUNBOOK_SHA256 = "27b006d1e28e6def738578d0fec7acd885f90005402772456b1dfc751e3f9e92"
 INVALID_STDERR = "HI-RUNNER-STAGE0-INVALID: repository-only validation failed.\n"
+GIT_INVALID_STDERR = "HI-RUNNER-STAGE0-GIT-INVALID: required Git capability is unavailable.\n"
 
 
 def strict_json_object(text):
@@ -96,6 +99,66 @@ def valid_dispatch_parameters(control_root):
 
 def normalized(value):
     return value.replace("\r\n", "\n").replace("\r", "\n")
+
+
+def _workflow_run_body(step):
+    marker = "        run: |\n"
+    if marker not in step:
+        raise AssertionError("workflow step has no PowerShell run block")
+    body = step.split(marker, 1)[1]
+    lines = body.splitlines()
+    if any(not line.startswith("          ") for line in lines if line):
+        raise AssertionError("workflow run block indentation is not canonical")
+    return "\n".join(line[10:] for line in lines) + "\n"
+
+
+def _run_git_precheck(run_body, *, output="git version 2.51.0", mode="output", source=None):
+    with tempfile.TemporaryDirectory() as temporary_directory:
+        root = Path(temporary_directory)
+        stub = root / "git.cmd"
+        if mode == "output" or mode == "nonzero":
+            stub.write_text(
+                "@echo off\n"
+                + "\n".join("@echo " + line for line in output.splitlines())
+                + "\n@exit /b " + ("7" if mode == "nonzero" else "0") + "\n",
+                encoding="ascii",
+                newline="\r\n",
+            )
+        wrapper = root / "git-precheck.ps1"
+        wrapper.write_text(
+            textwrap.dedent(
+                """
+                function Get-Command {
+                  [CmdletBinding()]
+                  param(
+                    [string]$Name,
+                    [string]$CommandType
+                  )
+                  if ($env:STAGE0_GIT_MODE -eq 'missing') {
+                    return $null
+                  }
+                  if ($env:STAGE0_GIT_MODE -eq 'throwing') {
+                    throw 'stub failure'
+                  }
+                  [pscustomobject]@{ Source = $env:STAGE0_GIT_SOURCE }
+                }
+                """
+            ).lstrip()
+            + run_body,
+            encoding="utf-8",
+            newline="\n",
+        )
+        environment = os.environ.copy()
+        environment["STAGE0_GIT_MODE"] = mode
+        environment["STAGE0_GIT_SOURCE"] = str(source if source is not None else stub)
+        return subprocess.run(
+            [powershell_executable(), "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", str(wrapper)],
+            text=True,
+            capture_output=True,
+            timeout=20,
+            check=False,
+            env=environment,
+        )
 
 
 def _workflow():
@@ -482,8 +545,9 @@ on:
             ),
             raw.replace(b"ref: ${{ github.sha }}", b"ref: feature/hardware-inspection", 1),
             raw.replace(b"on:\n", b"on:\n  pull_request_target:\n  workflow_run:\n", 1),
+            raw.replace(b"$minor -lt 28", b"$minor -lt 27", 1),
         )
-        self.assertEqual(len(mutations), 9)
+        self.assertEqual(len(mutations), 10)
         for mutation in mutations:
             self.assertNotEqual(hashlib.sha256(mutation).hexdigest(), EXPECTED_WORKFLOW_SHA256)
             with self.assertRaises(AssertionError):
@@ -517,6 +581,77 @@ on:
         raw = _workflow()
         _assert_canonical_workflow(raw)
         text = raw.decode("utf-8")
+        expected_git_precheck = """      - name: Require sparse-checkout-capable Git
+        shell: powershell
+        run: |
+          $ProgressPreference = 'SilentlyContinue'
+          $ErrorActionPreference = 'Stop'
+          $failure = 'HI-RUNNER-STAGE0-GIT-INVALID: required Git capability is unavailable.'
+          try {
+            $gitCommand = Get-Command git -CommandType Application -ErrorAction SilentlyContinue
+            if ($null -eq $gitCommand) {
+              throw 'invalid'
+            }
+            $versionLines = @(& $gitCommand.Source --version 2>$null)
+            if ($LASTEXITCODE -ne 0 -or $versionLines.Count -ne 1) {
+              throw 'invalid'
+            }
+            $versionText = [string]$versionLines[0]
+            if ($versionText -cnotmatch '\\Agit version (?<major>0|[1-9][0-9]*)\\.(?<minor>0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)(?:\\.windows\\.(?:0|[1-9][0-9]*))?\\z') {
+              throw 'invalid'
+            }
+            $major = [int]$Matches['major']
+            $minor = [int]$Matches['minor']
+            if ($major -lt 2 -or ($major -eq 2 -and $minor -lt 28)) {
+              throw 'invalid'
+            }
+          }
+          catch {
+            [Console]::Error.WriteLine($failure)
+            exit 1
+          }
+"""
+        self.assertEqual(text.count("      - name: Require sparse-checkout-capable Git\n"), 1)
+        precheck_start = text.index("      - name: Require sparse-checkout-capable Git\n")
+        control_step_start = text.index("      - name: Check out default-branch controls\n")
+        separator_start = text.index("\n\n      - name: Check out default-branch controls\n", precheck_start)
+        precheck_step = text[precheck_start:separator_start + 1]
+        self.assertEqual(precheck_step, expected_git_precheck)
+        self.assertNotIn("${{", precheck_step)
+        self.assertNotRegex(precheck_step, r"(?i)candidate|invoke-webrequest|start-bitstransfer|curl|wget|netsh|git (?:clone|fetch|checkout|push)")
+        self.assertNotRegex(precheck_step, r"(?<![A-Za-z0-9])[A-Za-z]:[\\/]")
+        run_body = _workflow_run_body(precheck_step)
+
+        for version in ("2.28.0", "2.51.0", "2.51.0.windows.2", "3.0.0"):
+            result = _run_git_precheck(run_body, output="git version " + version)
+            self.assertEqual(result.returncode, 0, normalized(result.stderr))
+            self.assertEqual(normalized(result.stdout), "")
+            self.assertEqual(normalized(result.stderr), "")
+
+        for output in (
+            "git version 2.27.99",
+            "git version 2.51",
+            "Git version 2.51.0",
+            "git version 2.51.0\nmalformed-extra-line",
+        ):
+            result = _run_git_precheck(run_body, output=output)
+            self.assertEqual(result.returncode, 1)
+            self.assertEqual(normalized(result.stdout), "")
+            self.assertEqual(normalized(result.stderr), GIT_INVALID_STDERR)
+
+        for mode in ("nonzero", "throwing", "missing"):
+            result = _run_git_precheck(run_body, mode=mode)
+            self.assertEqual(result.returncode, 1)
+            self.assertEqual(normalized(result.stdout), "")
+            self.assertEqual(normalized(result.stderr), GIT_INVALID_STDERR)
+
+        secret = r"C:\private\SECRET_TOKEN"
+        result = _run_git_precheck(run_body, source=secret)
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(normalized(result.stdout), "")
+        self.assertEqual(normalized(result.stderr), GIT_INVALID_STDERR)
+        self.assertNotIn(secret, normalized(result.stdout) + normalized(result.stderr))
+
         checkout = "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0"
         setup_python = "actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065"
         uses = [line.strip() for line in text.splitlines() if line.strip().startswith("uses:")]
@@ -524,6 +659,42 @@ on:
         self.assertIn("          python-version: '3.12.10'\n", text)
         self.assertEqual(text.count("persist-credentials: false"), 2)
         self.assertIn("          ref: ${{ github.sha }}\n          path: control", text)
+        control_sparse_checkout = """          sparse-checkout: |
+            .github/hardware-inspection
+            .github/workflows
+            docs/superpowers/specs
+            docs/testing/runbooks
+            scripts/hardware-inspection
+            tests/testing/hardware_inspection
+          sparse-checkout-cone-mode: true
+"""
+        evaluated_sparse_checkout = """          sparse-checkout: |
+            /docs/superpowers/specs/
+          sparse-checkout-cone-mode: false
+"""
+
+        self.assertEqual(text.count("          sparse-checkout: |\n"), 2)
+        self.assertEqual(text.count("          sparse-checkout-cone-mode: true\n"), 1)
+        self.assertEqual(text.count("          sparse-checkout-cone-mode: false\n"), 1)
+        self.assertIn(control_sparse_checkout, text)
+        self.assertIn(evaluated_sparse_checkout, text)
+        self.assertNotIn("          filter:", text)
+        self.assertNotIn("core.longpaths", text.casefold())
+
+        control_start = text.index("      - name: Check out default-branch controls\n")
+        control_end = text.index("      - name: Set up Python for repository contracts\n", control_start)
+        evaluated_start = text.index("      - name: Check out approved source for identity comparison only\n")
+        evaluated_end = text.index("      - name: Confirm approved source identity and publish safe summary\n", evaluated_start)
+        control_step = text[control_start:control_end]
+        evaluated_step = text[evaluated_start:evaluated_end]
+        self.assertIn(control_sparse_checkout, control_step)
+        self.assertNotIn(evaluated_sparse_checkout, control_step)
+        self.assertIn(evaluated_sparse_checkout, evaluated_step)
+        self.assertNotIn(control_sparse_checkout, evaluated_step)
+        self.assertIn("          sparse-checkout-cone-mode: true\n", control_step)
+        self.assertNotIn("          sparse-checkout-cone-mode: false\n", control_step)
+        self.assertIn("          sparse-checkout-cone-mode: false\n", evaluated_step)
+        self.assertNotIn("          sparse-checkout-cone-mode: true\n", evaluated_step)
 
     def test_stage0_workflow_reads_approved_source_without_free_form_sha_input(self):
         raw = _workflow()
@@ -535,7 +706,8 @@ on:
         self.assertNotIn("source_sha", text)
         self.assertNotIn("source_ref:", text)
         self.assertNotIn("input_sha", text)
-        self.assertIn("          ref: ${{ steps.approval.outputs.source_ref }}\n", text)
+        self.assertIn("          ref: ${{ steps.approval.outputs.approved_sha }}\n", text)
+        self.assertNotIn("          ref: ${{ steps.approval.outputs.source_ref }}\n", text)
         self.assertIn("          path: evaluated\n", text)
 
     def test_stage0_workflow_executes_validators_only_from_control_checkout(self):
@@ -547,6 +719,13 @@ on:
         self.assertEqual(text.count("Validate-HardwareInspectionIntelRunnerStage0.ps1"), 2)
         self.assertGreaterEqual(text.count(".\\control\\scripts\\hardware-inspection\\Validate-HardwareInspectionIntelRunnerStage0.ps1"), 2)
         self.assertNotIn(".\\evaluated\\scripts", text)
+        steps_start = text.index("    steps:\n")
+        self.assertEqual(text.count("      - name: Require sparse-checkout-capable Git\n"), 1)
+        precheck_start = text.index("      - name: Require sparse-checkout-capable Git\n", steps_start)
+        control_checkout_start = text.index("      - name: Check out default-branch controls\n", precheck_start)
+        self.assertLess(precheck_start, control_checkout_start)
+        self.assertNotIn("uses:", text[steps_start:precheck_start])
+        self.assertEqual(text[steps_start:precheck_start], "    steps:\n")
         self.assertLess(text.index("path: control"), text.index("Run Stage 0 contracts"))
         self.assertLess(text.index("Run Stage 0 contracts"), text.index("Validate dispatch and approval manifest"))
         self.assertLess(text.index("Validate dispatch and approval manifest"), text.index("path: evaluated"))
@@ -594,6 +773,13 @@ on:
         raw = _workflow()
         _assert_canonical_workflow(raw)
         text = raw.decode("utf-8").lower()
+        text_without_fixed_precheck = text.replace(
+            "          $erroractionpreference = 'stop'\n",
+            "",
+        ).replace(
+            "          $progresspreference = 'silentlycontinue'\n",
+            "",
+        )
         for forbidden in (
             "actions/upload-artifact",
             "upload-artifact",
@@ -607,7 +793,7 @@ on:
             "id-token:",
             "environment:",
         ):
-            self.assertNotIn(forbidden, text)
+            self.assertNotIn(forbidden, text_without_fixed_precheck)
 
     def test_stage0_inventory_contains_only_approved_repository_controls(self):
         runbook_path = (
