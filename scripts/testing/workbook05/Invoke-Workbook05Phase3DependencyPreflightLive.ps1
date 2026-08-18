@@ -970,74 +970,51 @@ try {
         (Read-PreflightStdout $PipVersionResult) -split '\s+'
     )[1]
 
-    $BootstrapLockText = Get-Content `
-        -LiteralPath $RetainedBootstrapLock `
-        -Raw `
-        -Encoding UTF8
-    $BootstrapReportText = Get-Content `
-        -LiteralPath $BootstrapReport `
-        -Raw `
-        -Encoding UTF8
-    $NormalLockText = Get-Content `
-        -LiteralPath $OrdinaryLock `
-        -Raw `
-        -Encoding UTF8
-    $NormalReportObject = Get-Content `
-        -LiteralPath $NormalReport `
-        -Raw `
-        -Encoding UTF8 |
-        ConvertFrom-Json
+    # Publish the small ordered check catalogue before observation materialisation.
+    # The Python boundary reads this retained record as data and the hosted
+    # validator independently verifies the same six checks and their order.
+    $ChecksPath = Join-Path $EvidenceRoot 'checks.json'
+    Write-PreflightAtomicJson `
+        -Path $ChecksPath `
+        -Value ([ordered]@{ checks = @($CheckRows) })
 
-    $Observation = [ordered]@{
-        generated_at_utc = [DateTime]::UtcNow.ToString('o')
-        simulation_mode = $false
-        workspace_root = $attemptRoot
-        workspace_is_normal_local_directory = $true
-        workspace_is_fresh = $true
-        python_version = $ObservedPythonVersion
-        python_executable_path = $FinalPython
-        python_executable_sha256 = Get-PreflightSha256 $FinalPython
-        pip_version = $ObservedPipVersion
-        pip_executable_path = $FinalPip
-        pip_executable_sha256 = Get-PreflightSha256 $FinalPip
-        source_trees = @($SourceRows)
-        direct_requirements = @(
-            'transformers==5.5.0',
-            'huggingface-hub==1.21.0',
-            'nncf==3.2.0',
-            'openvino==2026.2.1',
-            'openvino-tokenizers==2026.2.1.0'
-        )
-        bootstrap_lock_path = 'locks/requirements.phase3-bootstrap.txt'
-        bootstrap_lock_text = $BootstrapLockText
-        bootstrap_lock_sha256 = Get-PreflightSha256 $RetainedBootstrapLock
-        bootstrap_install_report_path = 'reports/bootstrap-install-report.json'
-        bootstrap_install_report_text = $BootstrapReportText
-        bootstrap_install_report_sha256 = Get-PreflightSha256 $BootstrapReport
-        lock_path = 'locks/requirements.phase3-assets.txt'
-        lock_text = $NormalLockText
-        lock_sha256 = Get-PreflightSha256 $OrdinaryLock
-        lock_generator = 'pip-tools==7.6.0'
-        normal_install_report = $NormalReportObject
-        vcs_packages = $VcsPackages
-        checks = @($CheckRows)
-        import_modules = @(
-            'optimum',
-            'optimum.intel',
-            'transformers',
-            'nncf',
-            'openvino'
-        )
-        cli_help_exit_code = 0
-        no_model_compatibility_exit_code = 0
-        final_environment_packages = @($FinalPackages)
-        source_contracts_path = 'reports/source-contracts.json'
-        no_model_compatibility_path = 'reports/no-model-compatibility.json'
-        command_index_path = 'command-index.json'
-        stage_order_path = 'stage-order.json'
-    }
+    # Keep PowerShell responsible for process supervision and scalar identities,
+    # but let Python materialise the large heterogeneous observation graph. This
+    # avoids Windows PowerShell 5.1 re-serialising pip's complete install report.
+    $ObservationGeneratedAtUtc = [DateTime]::UtcNow.ToString('o')
+    $FinalPythonSha256 = Get-PreflightSha256 $FinalPython
+    $FinalPipSha256 = Get-PreflightSha256 $FinalPip
     $ObservationPath = Join-Path $EvidenceRoot 'observation.json'
-    Write-PreflightAtomicJson -Path $ObservationPath -Value $Observation
+    Invoke-PreflightCommand `
+        -CommandId 'observation-materialize' `
+        -FilePath $BasePythonPath `
+        -ArgumentList @(
+            '-m',
+            'scripts.testing.workbook05.phase3.dependency_observation_cli',
+            '--output', $ObservationPath,
+            '--generated-at-utc', $ObservationGeneratedAtUtc,
+            '--workspace-root', $attemptRoot,
+            '--python-version', $ObservedPythonVersion,
+            '--python-executable-path', $FinalPython,
+            '--python-executable-sha256', $FinalPythonSha256,
+            '--pip-version', $ObservedPipVersion,
+            '--pip-executable-path', $FinalPip,
+            '--pip-executable-sha256', $FinalPipSha256,
+            '--bootstrap-lock', $RetainedBootstrapLock,
+            '--bootstrap-install-report', $BootstrapReport,
+            '--normal-lock', $OrdinaryLock,
+            '--normal-install-report', $NormalReport,
+            '--source-tree',
+            (Join-Path $SourceEvidenceDirectory 'optimum.json'),
+            '--source-tree',
+            (Join-Path $SourceEvidenceDirectory 'optimum-intel.json'),
+            '--vcs-packages',
+            (Join-Path $ReportDirectory 'vcs-packages.json'),
+            '--checks', $ChecksPath,
+            '--final-environment-packages',
+            (Join-Path $ReportDirectory 'final-environment-packages.json')
+        ) `
+        -WorkingDirectory $RepositoryRoot | Out-Null
 
     $DecisionPath = Join-Path $EvidenceRoot 'decision.json'
     Invoke-PreflightCommand `
@@ -1062,9 +1039,6 @@ try {
         )
     }
 
-    Write-PreflightAtomicJson `
-        -Path (Join-Path $EvidenceRoot 'checks.json') `
-        -Value ([ordered]@{ checks = @($CheckRows) })
     Write-PreflightAtomicJson `
         -Path (Join-Path $EvidenceRoot 'command-index.json') `
         -Value ([ordered]@{
