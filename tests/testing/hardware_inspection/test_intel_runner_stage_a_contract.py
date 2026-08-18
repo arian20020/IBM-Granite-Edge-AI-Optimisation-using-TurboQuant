@@ -455,6 +455,70 @@ def _invoke_with_literal_runner_label(script, arguments, runner_label, environme
     )
 
 
+def _stage_a_trx_fixture(kind):
+    namespace = "http://microsoft.com/schemas/VisualStudio/TeamTest/2010"
+    if kind == "Deterministic":
+        names = [f"Deterministic_{index:03d}" for index in range(174)]
+        assembly = "HardwareInspection.LlmFitSpike.Tests.dll"
+        class_name = "HardwareInspection.LlmFitSpike.Tests.DeterministicFixture"
+    else:
+        names = list(TASK8_IDENTITIES)
+        assembly = "HardwareInspection.LlmFitSpike.IntegrationTests.dll"
+        class_name = "HardwareInspection.LlmFitSpike.IntegrationTests.LlmFitCandidateIntegrationTests"
+    records = []
+    for index, name in enumerate(names, 1):
+        test_id = f"{index:08x}-0000-0000-0000-000000000001"
+        execution_id = f"{index:08x}-0000-0000-0000-000000000002"
+        records.append((name, test_id, execution_id))
+    results = "".join(
+        f'<UnitTestResult testName="{name}" outcome="Passed" testId="{test_id}" executionId="{execution_id}" />'
+        for name, test_id, execution_id in records
+    )
+    definitions = "".join(
+        f'<UnitTest name="{name}" storage="{assembly}" id="{test_id}"><Execution id="{execution_id}" /><TestMethod codeBase="{assembly}" className="{class_name}" name="{name}" /></UnitTest>'
+        for name, test_id, execution_id in records
+    )
+    entries = "".join(
+        f'<TestEntry testId="{test_id}" executionId="{execution_id}" />'
+        for _, test_id, execution_id in records
+    )
+    total = len(records)
+    counters = (
+        f'total="{total}" executed="{total}" passed="{total}" failed="0" error="0" '
+        'timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" '
+        'notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" '
+        'inProgress="0" pending="0"'
+    )
+    return (
+        f'<TestRun xmlns="{namespace}"><Results>{results}</Results>'
+        f'<TestDefinitions>{definitions}</TestDefinitions><TestEntries>{entries}</TestEntries>'
+        f'<ResultSummary outcome="Passed"><Counters {counters} /></ResultSummary></TestRun>'
+    )
+
+
+def _invoke_runner_trx_fixture(path, kind):
+    script_literal = str(RUNNER_PATH).replace("'", "''")
+    path_literal = str(path).replace("'", "''")
+    command = (
+        "$ErrorActionPreference = 'Stop'\n"
+        + ". '"
+        + script_literal
+        + "' -EvaluatedRoot 'x' -ApprovedSha ('0' * 40) -LocalWorkRoot 'x' -SummaryJsonPath 'x' -SummaryMarkdownPath 'x'\n"
+        + "Read-HardwareInspectionIntelRunnerStageATrx -Path '"
+        + path_literal
+        + "' -Kind '"
+        + kind
+        + "' | Out-Null\n[Console]::Write('ok')"
+    )
+    return subprocess.run(
+        [_powershell_executable(), "-NoProfile", "-NonInteractive", "-Command", command],
+        text=True,
+        capture_output=True,
+        timeout=20,
+        check=False,
+    )
+
+
 def _validator_arguments(control_root, **changes):
     arguments = {
         "Phase": "Hosted",
@@ -705,7 +769,7 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
             runner_text.replace("174", "173", 1),
             runner_text.replace(TASK8_IDENTITIES[0], TASK8_IDENTITIES[0] + "Extra", 1),
         ):
-            _, mutated_commands, _ = _powershell_text_ast(self, mutation)
+            mutated_commands, _ = _powershell_text_ast(self, mutation)
             with self.subTest(mutation=mutation[:50]):
                 with self.assertRaises(AssertionError):
                     mutated_command_text = "\n".join(mutated_commands)
@@ -721,6 +785,9 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
         ).casefold()
         for identity in TASK8_IDENTITIES:
             executable_text = executable_text.replace(identity.casefold(), "")
+        allowed_absence_check = "third-party\\bin\\llmfit\\v1.1.9\\win-x64"
+        self.assertEqual(executable_text.count(allowed_absence_check), 1)
+        executable_text = executable_text.replace(allowed_absence_check, "")
         for forbidden in (
             "candidate",
             "capture",
@@ -739,12 +806,12 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
         ):
             self.assertNotIn(forbidden, executable_text)
         for mutation in (
-            runner_text.replace("param(", "Start-Process candidate; param(", 1),
-            runner_text.replace("param(", "TrustedWindowsIntel; param(", 1),
-            runner_text.replace("param(", "TrustedOffline; param(", 1),
-            runner_text.replace("param(", "Disable-NetAdapter -Name Ethernet; param(", 1),
+            runner_text.replace("Set-StrictMode", "Start-Process candidate; Set-StrictMode", 1),
+            runner_text.replace("Set-StrictMode", "TrustedWindowsIntel; Set-StrictMode", 1),
+            runner_text.replace("Set-StrictMode", "TrustedOffline; Set-StrictMode", 1),
+            runner_text.replace("Set-StrictMode", "Disable-NetAdapter -Name Ethernet; Set-StrictMode", 1),
         ):
-            _, mutated_commands, mutated_strings = _powershell_text_ast(self, mutation)
+            mutated_commands, mutated_strings = _powershell_text_ast(self, mutation)
             with self.subTest(mutation=mutation[:50]):
                 with self.assertRaises(AssertionError):
                     mutated_executable = "\n".join(mutated_commands + mutated_strings).casefold()
@@ -1082,6 +1149,7 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
         self.assertRegex(executable, r"(?i)status\s+--porcelain|clean")
         self.assertRegex(executable, r"(?i)rev-parse\s+HEAD|approvedsha")
         self.assertRegex(executable, r"GRANITE_LLMFIT_")
+        self.assertRegex(runner_text, r"\$workRoot\s+-cne\s+\$evaluated")
 
     def test_stage_a_runner_requires_exact_trx_identities_and_zero_nonpassing(self):
         runner_text, commands, strings = _powershell_ast_text(self, RUNNER_PATH)
@@ -1093,58 +1161,97 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
         self.assertRegex(executable, r"(?i)non.?passing|failed|skipped|not.?executed")
         self.assertRegex(executable, r"(?i)DTD|DtdProcessing|XmlReaderSettings")
         mutations = (
-            (runner_text.replace("174", "173", 1), lambda text: self.assertIn("174", text)),
+            (runner_text.replace("174", "173"), lambda text: self.assertIn("174", text)),
             (
-                runner_text.replace("nonPassing", "nonPassingRelaxed", 1),
+                runner_text.replace("nonPassing", "nonPassingRelaxed"),
                 lambda text: self.assertRegex(text, r"(?<![A-Za-z])nonPassing(?![A-Za-z])"),
             ),
         )
         for mutation, predicate in mutations:
-            _, mutated_commands, mutated_strings = _powershell_text_ast(self, mutation)
+            mutated_commands, mutated_strings = _powershell_text_ast(self, mutation)
             with self.subTest(mutation=mutation[:50]):
                 with self.assertRaises(AssertionError):
                     mutated = "\n".join(mutated_commands + mutated_strings)
                     predicate(mutated)
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            fixture_root = Path(temporary_directory)
+            for kind in ("Deterministic", "Task8Deterministic"):
+                valid = _stage_a_trx_fixture(kind)
+                fixture = fixture_root / (kind + ".trx")
+                fixture.write_text(valid, encoding="utf-8", newline="\n")
+                result = _invoke_runner_trx_fixture(fixture, kind)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stdout, "ok")
+                mutations = {
+                    "duplicate-id": valid.replace(
+                        'testId="00000002-0000-0000-0000-000000000001"',
+                        'testId="00000001-0000-0000-0000-000000000001"',
+                        1,
+                    ),
+                    "missing-entry": valid.replace("<TestEntries>", "<TestEntries>", 1).replace(
+                        '<TestEntry testId="00000001-0000-0000-0000-000000000001" executionId="00000001-0000-0000-0000-000000000002" />',
+                        "",
+                        1,
+                    ),
+                    "relabelled-id": valid.replace(
+                        f'testName="{TASK8_IDENTITIES[0] if kind == "Task8Deterministic" else "Deterministic_000"}"',
+                        'testName="Relabelled"',
+                        1,
+                    ),
+                    "dtd": valid.replace("<TestRun ", "<!DOCTYPE TestRun [<!ENTITY xxe SYSTEM 'file:///x'>]><TestRun ", 1),
+                    "stale-extra": valid.replace("</Results>", '<UnitTestResult testName="Stale" outcome="Passed" testId="ffffffff-0000-0000-0000-000000000001" executionId="ffffffff-0000-0000-0000-000000000002" /></Results>', 1),
+                    "nonpass": valid.replace('outcome="Passed"', 'outcome="Failed"', 1),
+                    "counters": valid.replace('passed="', 'passed="999', 1),
+                    "missing-counters": valid.replace("<Counters ", "<MissingCounters ", 1).replace(" /></ResultSummary>", " /></ResultSummary>", 1),
+                }
+                for name, mutated in mutations.items():
+                    with self.subTest(kind=kind, mutation=name):
+                        fixture.write_text(mutated, encoding="utf-8", newline="\n")
+                        result = _invoke_runner_trx_fixture(fixture, kind)
+                        self.assertNotEqual(result.returncode, 0)
 
     def test_stage_a_summary_is_allowlisted_and_raw_artifacts_stay_local(self):
         runner_text, commands, strings = _powershell_ast_text(self, RUNNER_PATH)
-        _, document = _workflow(self)
         executable = "\n".join(commands + strings)
         self.assertIn('"schemaVersion"', executable)
         self.assertIn('"evaluatedSha"', executable)
         self.assertIn('"deterministicPassed"', executable)
         self.assertIn('"task8DeterministicPassed"', executable)
         self.assertIn('"nonPassing"', executable)
-        for forbidden in ("stdout", "stderr", ".trx", "raw", "ComputerName", "MachineName", "upload"):
+        for forbidden in ("MachineName", "upload"):
             self.assertNotIn(forbidden.casefold(), executable.casefold())
-        _assert_summary_upload(self, document)
-        _assert_no_host_or_path_leaks(self, executable)
-        workflow_runs = "\n".join(str(step.get("run", "")) for _, step in _all_steps(document))
-        _assert_no_host_or_path_leaks(self, workflow_runs)
-        trx_upload = copy.deepcopy(document)
-        trx_steps = [
-            step for _, step in _all_steps(trx_upload)
-            if str(step.get("uses", "")).startswith("actions/upload-artifact@")
-        ]
-        trx_steps[0].setdefault("with", {})["path"] = "local\\deterministic.trx"
-        with self.assertRaises(AssertionError):
-            _assert_summary_upload(self, trx_upload)
+        self.assertIn("deterministic.trx", executable.casefold())
+        self.assertIn("task8.trx", executable.casefold())
+        self.assertNotIn("Write-Output", executable)
+        if WORKFLOW_PATH.is_file():
+            _, document = _workflow(self)
+            _assert_summary_upload(self, document)
+            workflow_runs = "\n".join(str(step.get("run", "")) for _, step in _all_steps(document))
+            _assert_no_host_or_path_leaks(self, workflow_runs)
+            trx_upload = copy.deepcopy(document)
+            trx_steps = [
+                step for _, step in _all_steps(trx_upload)
+                if str(step.get("uses", "")).startswith("actions/upload-artifact@")
+            ]
+            trx_steps[0].setdefault("with", {})["path"] = "local\\deterministic.trx"
+            with self.assertRaises(AssertionError):
+                _assert_summary_upload(self, trx_upload)
         mutations = (
             (
                 runner_text.replace('"nonPassing"', '"host" : "canary", "nonPassing"', 1),
                 lambda text: self.assertNotIn("host", text.casefold()),
             ),
             (
-                runner_text.replace("param(", "Write-Output 'C:\\Users\\canary'; param(", 1),
+                runner_text.replace("Set-StrictMode", "Write-Output 'C:\\Users\\canary'; Set-StrictMode", 1),
                 lambda text: _assert_no_host_or_path_leaks(self, text),
             ),
             (
-                runner_text.replace("param(", "Write-Output $env:COMPUTERNAME; param(", 1),
+                runner_text.replace("Set-StrictMode", "Write-Output $env:COMPUTERNAME; Set-StrictMode", 1),
                 lambda text: _assert_no_host_or_path_leaks(self, text),
             ),
         )
         for mutation, predicate in mutations:
-            _, mutated_commands, mutated_strings = _powershell_text_ast(self, mutation)
+            mutated_commands, mutated_strings = _powershell_text_ast(self, mutation)
             with self.subTest(mutation=mutation[:50]):
                 with self.assertRaises(AssertionError):
                     mutated = "\n".join(mutated_commands + mutated_strings)

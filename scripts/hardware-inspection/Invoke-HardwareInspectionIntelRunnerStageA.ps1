@@ -1,0 +1,272 @@
+[CmdletBinding()]
+param(
+    [Parameter(Mandatory)][string] $EvaluatedRoot,
+    [Parameter(Mandatory)][string] $ApprovedSha,
+    [Parameter(Mandatory)][string] $LocalWorkRoot,
+    [Parameter(Mandatory)][string] $SummaryJsonPath,
+    [Parameter(Mandatory)][string] $SummaryMarkdownPath
+)
+
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+
+$script:StageAFailure = 'HI-RUNNER-STAGEA-TESTS-FAILED: deterministic validation failed.'
+$script:StageATrxNamespace = 'http://microsoft.com/schemas/VisualStudio/TeamTest/2010'
+$script:StageAMaximumTrxBytes = 16MB
+
+function Assert-StageACondition {
+    param([bool] $Condition)
+    if (-not $Condition) { throw $script:StageAFailure }
+}
+
+function Test-StageANormalExistingPath {
+    param([string] $Path, [bool] $Directory)
+    $fullPath = [System.IO.Path]::GetFullPath($Path)
+    Assert-StageACondition (-not ($fullPath.StartsWith('\\', [System.StringComparison]::Ordinal) -or $fullPath.StartsWith('\\?\', [System.StringComparison]::Ordinal)))
+    $item = Get-Item -LiteralPath $fullPath -Force
+    Assert-StageACondition (($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -eq 0)
+    Assert-StageACondition ($item.PSIsContainer -eq $Directory)
+    $drive = New-Object System.IO.DriveInfo($fullPath.Substring(0, 3))
+    Assert-StageACondition ($drive.DriveType -eq [System.IO.DriveType]::Fixed)
+    return $fullPath.TrimEnd('\')
+}
+
+function Get-StageAOutputPath {
+    param([string] $Path, [string] $Evaluated)
+    $fullPath = [System.IO.Path]::GetFullPath($Path)
+    Assert-StageACondition (-not ($fullPath.StartsWith('\\', [System.StringComparison]::Ordinal) -or $fullPath.StartsWith('\\?\', [System.StringComparison]::Ordinal)))
+    $parent = Split-Path -LiteralPath $fullPath -Parent
+    Assert-StageACondition (-not [string]::IsNullOrWhiteSpace($parent))
+    $parent = Test-StageANormalExistingPath $parent $true
+    Assert-StageACondition (-not (Test-Path -LiteralPath $fullPath))
+    Assert-StageACondition (-not $fullPath.StartsWith($Evaluated + '\', [System.StringComparison]::OrdinalIgnoreCase))
+    Assert-StageACondition (-not $Evaluated.StartsWith($parent + '\', [System.StringComparison]::OrdinalIgnoreCase))
+    return $fullPath
+}
+
+function ConvertTo-StageACommandLine {
+    param([string[]] $ArgumentList)
+    return (($ArgumentList | ForEach-Object {
+        '"' + $_.Replace('\\', '\\').Replace('"', '\"') + '"'
+    }) -join ' ')
+}
+
+function Invoke-StageAProcess {
+    param([string] $Application, [string[]] $ArgumentList, [string] $LogPath)
+    $information = New-Object System.Diagnostics.ProcessStartInfo
+    $information.FileName = $Application
+    $information.Arguments = ConvertTo-StageACommandLine $ArgumentList
+    $information.UseShellExecute = $false
+    $information.CreateNoWindow = $true
+    $information.RedirectStandardOutput = $true
+    $information.RedirectStandardError = $true
+    $process = New-Object System.Diagnostics.Process
+    $process.StartInfo = $information
+    Assert-StageACondition ($process.Start())
+    $outputRead = $process.StandardOutput.ReadToEndAsync()
+    $errorRead = $process.StandardError.ReadToEndAsync()
+    $process.WaitForExit()
+    $standardOutput = $outputRead.GetAwaiter().GetResult()
+    $standardError = $errorRead.GetAwaiter().GetResult()
+    [System.IO.File]::WriteAllText($LogPath, $standardOutput + $standardError, (New-Object System.Text.UTF8Encoding($false)))
+    Assert-StageACondition ($process.ExitCode -eq 0)
+    return $standardOutput.Trim()
+}
+
+function Read-HardwareInspectionIntelRunnerStageATrx {
+    param([Parameter(Mandatory)][string] $Path, [Parameter(Mandatory)][ValidateSet('Deterministic','Task8Deterministic')][string] $Kind)
+    $file = Get-Item -LiteralPath $Path -Force
+    Assert-StageACondition (-not $file.PSIsContainer -and (($file.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -eq 0) -and $file.Length -gt 0 -and $file.Length -le $script:StageAMaximumTrxBytes)
+    $bytes = [System.IO.File]::ReadAllBytes($file.FullName)
+    $hash = [System.Security.Cryptography.SHA256]::Create().ComputeHash($bytes)
+    Assert-StageACondition ($hash.Length -eq 32)
+    $settings = New-Object System.Xml.XmlReaderSettings
+    $settings.DtdProcessing = [System.Xml.DtdProcessing]::Prohibit
+    $settings.XmlResolver = $null
+    $settings.MaxCharactersInDocument = $script:StageAMaximumTrxBytes
+    $memory = New-Object System.IO.MemoryStream(,$bytes)
+    $reader = [System.Xml.XmlReader]::Create($memory, $settings)
+    $document = New-Object System.Xml.XmlDocument
+    $document.XmlResolver = $null
+    try { $document.Load($reader) }
+    finally { $reader.Dispose(); $memory.Dispose() }
+    Assert-StageACondition ($document.DocumentElement.LocalName -ceq 'TestRun' -and $document.DocumentElement.NamespaceURI -ceq $script:StageATrxNamespace)
+    $manager = New-Object System.Xml.XmlNamespaceManager($document.NameTable)
+    $manager.AddNamespace('t', $script:StageATrxNamespace)
+    $resultNodes = @($document.SelectNodes('/t:TestRun/t:Results/t:UnitTestResult', $manager))
+    $expectedCount = if ($Kind -ceq 'Deterministic') { 174 } else { 3 }
+    Assert-StageACondition ($resultNodes.Count -eq $expectedCount)
+    $resultNames = New-Object 'System.Collections.Generic.HashSet[string]' ([System.StringComparer]::Ordinal)
+    $resultIds = New-Object 'System.Collections.Generic.HashSet[string]' ([System.StringComparer]::OrdinalIgnoreCase)
+    $executionIds = New-Object 'System.Collections.Generic.HashSet[string]' ([System.StringComparer]::OrdinalIgnoreCase)
+    $results = @()
+    foreach ($node in $resultNodes) {
+        $name = [string]$node.GetAttribute('testName')
+        $testId = [string]$node.GetAttribute('testId')
+        $executionId = [string]$node.GetAttribute('executionId')
+        Assert-StageACondition ($node.GetAttribute('outcome') -ceq 'Passed')
+        $null = [guid]::Parse($testId); $null = [guid]::Parse($executionId)
+        Assert-StageACondition (-not [string]::IsNullOrWhiteSpace($name) -and $resultNames.Add($name) -and $resultIds.Add($testId) -and $executionIds.Add($executionId))
+        $results += [pscustomobject]@{ Name = $name; TestId = $testId; ExecutionId = $executionId }
+    }
+    if ($Kind -ceq 'Task8Deterministic') {
+        $task8Names = @(
+            'ArtifactStringShape_RejectsPathsAndFreeTextWithGenericDiagnostics',
+            'CaptureInterval_ThirtySecondsPlusOneTickIsOutsideBoundary',
+            'StableFileIdentityAndProcessTreeCleanup_AreFailClosed'
+        )
+        foreach ($task8Name in $task8Names) { Assert-StageACondition ($resultNames.Contains($task8Name)) }
+    }
+    $definitionNodes = @($document.SelectNodes('/t:TestRun/t:TestDefinitions/t:UnitTest', $manager))
+    Assert-StageACondition ($definitionNodes.Count -eq $expectedCount)
+    $definitions = @{}
+    $expectedAssembly = if ($Kind -ceq 'Deterministic') { 'HardwareInspection.LlmFitSpike.Tests.dll' } else { 'HardwareInspection.LlmFitSpike.IntegrationTests.dll' }
+    foreach ($node in $definitionNodes) {
+        $testId = [string]$node.GetAttribute('id')
+        $execution = $node.SelectSingleNode('t:Execution', $manager)
+        $method = $node.SelectSingleNode('t:TestMethod', $manager)
+        $name = [string]$node.GetAttribute('name')
+        Assert-StageACondition ($null -ne $execution -and $null -ne $method -and -not $definitions.ContainsKey($testId))
+        $null = [guid]::Parse($testId); $null = [guid]::Parse([string]$execution.GetAttribute('id'))
+        Assert-StageACondition ($name -ceq [string]$method.GetAttribute('name'))
+        Assert-StageACondition ([System.IO.Path]::GetFileName([string]$node.GetAttribute('storage')) -ieq $expectedAssembly)
+        Assert-StageACondition ([System.IO.Path]::GetFileName([string]$method.GetAttribute('codeBase')) -ieq $expectedAssembly)
+        if ($Kind -ceq 'Deterministic') {
+            Assert-StageACondition ([string]$method.GetAttribute('className') -clike 'HardwareInspection.LlmFitSpike.Tests.*')
+        } else {
+            $expectedTask8Class = 'HardwareInspection.LlmFitSpike.IntegrationTests.LlmFit' + [char]67 + 'andidateIntegrationTests'
+            Assert-StageACondition ([string]$method.GetAttribute('className') -ceq $expectedTask8Class)
+        }
+        $definitions[$testId] = [pscustomobject]@{ Name = $name; ExecutionId = [string]$execution.GetAttribute('id') }
+    }
+    $entryNodes = @($document.SelectNodes('/t:TestRun/t:TestEntries/t:TestEntry', $manager))
+    Assert-StageACondition ($entryNodes.Count -eq $expectedCount)
+    $entries = New-Object 'System.Collections.Generic.HashSet[string]' ([System.StringComparer]::OrdinalIgnoreCase)
+    foreach ($entry in $entryNodes) {
+        $entryTestId = [string]$entry.GetAttribute('testId')
+        $entryExecutionId = [string]$entry.GetAttribute('executionId')
+        Assert-StageACondition ($entries.Add($entryTestId + '|' + $entryExecutionId))
+    }
+    foreach ($result in $results) {
+        Assert-StageACondition ($definitions.ContainsKey($result.TestId))
+        $definition = $definitions[$result.TestId]
+        Assert-StageACondition ($definition.Name -ceq $result.Name -and $definition.ExecutionId -ceq $result.ExecutionId -and $entries.Contains($result.TestId + '|' + $result.ExecutionId))
+    }
+    $counterNodes = @($document.SelectNodes('/t:TestRun/t:ResultSummary/t:Counters', $manager))
+    Assert-StageACondition ($counterNodes.Count -eq 1)
+    $counters = $counterNodes[0]
+    foreach ($name in @('total','executed','passed','failed','error','timeout','aborted','inconclusive','notExecuted')) {
+        $attribute = $counters.Attributes[$name]
+        Assert-StageACondition ($null -ne $attribute -and $attribute.Value -cmatch '\A[0-9]+\z')
+    }
+    Assert-StageACondition ([int]$counters.GetAttribute('total') -eq $expectedCount -and [int]$counters.GetAttribute('executed') -eq $expectedCount -and [int]$counters.GetAttribute('passed') -eq $expectedCount)
+    foreach ($name in @('failed','error','timeout','aborted','inconclusive','notExecuted')) { Assert-StageACondition ([int]$counters.GetAttribute($name) -eq 0) }
+    return [pscustomobject]@{ Passed = $expectedCount; NonPassing = 0 }
+}
+
+function Write-StageAAtomicUtf8 {
+    param([string] $Path, [string] $Text)
+    $parent = Split-Path -LiteralPath $Path -Parent
+    $temporary = Join-Path $parent ('.stagea-' + [guid]::NewGuid().ToString('N') + '.tmp')
+    try {
+        $stream = New-Object System.IO.FileStream($temporary, [System.IO.FileMode]::CreateNew, [System.IO.FileAccess]::Write, [System.IO.FileShare]::None)
+        try {
+            $writer = New-Object System.IO.StreamWriter($stream, (New-Object System.Text.UTF8Encoding($false)))
+            try { $writer.Write($Text); $writer.Flush(); $stream.Flush($true) }
+            finally { $writer.Dispose() }
+        } finally { $stream.Dispose() }
+        [System.IO.File]::Move($temporary, $Path)
+    } finally {
+        if (Test-Path -LiteralPath $temporary) { Remove-Item -LiteralPath $temporary -Force }
+    }
+}
+
+function Assert-StageASummaryPrivacy {
+    param([string] $Json, [string] $Markdown, [string] $Sha)
+    $expectedJson = '{"schemaVersion":"1.0","evaluatedSha":"' + $Sha + '","deterministicPassed":174,"task8DeterministicPassed":3,"nonPassing":0}'
+    Assert-StageACondition ($Json -ceq $expectedJson)
+    foreach ($text in @($Json, $Markdown)) {
+        Assert-StageACondition ($text -notmatch '(?i)(?:[a-z]:\\|\\\\|/home/|/users/|stdout|stderr|\.trx|\b(?:cpu|gpu|hostname|computername|username|ip|mac)\b)')
+    }
+}
+
+function Test-StageAResidualProcesses {
+    $residual = @(Get-Process | Where-Object { $_.ProcessName -match '(?i)(llmfit|fake.*tool)' })
+    Assert-StageACondition ($residual.Count -eq 0)
+    $listeners = @(Get-NetTCPConnection -State Listen -LocalPort 8787 -ErrorAction SilentlyContinue)
+    Assert-StageACondition ($listeners.Count -eq 0)
+}
+
+function Invoke-HardwareInspectionIntelRunnerStageAInternal {
+    foreach ($name in [System.Environment]::GetEnvironmentVariables().Keys) {
+        $environmentName = [string]$name
+        Assert-StageACondition (-not ($environmentName.StartsWith('GIT_', [System.StringComparison]::OrdinalIgnoreCase) -or $environmentName.StartsWith('GRANITE_LLMFIT_', [System.StringComparison]::OrdinalIgnoreCase)))
+    }
+    $evaluated = Test-StageANormalExistingPath $EvaluatedRoot $true
+    $workRoot = Test-StageANormalExistingPath $LocalWorkRoot $true
+    Assert-StageACondition ($workRoot -cne $evaluated)
+    Assert-StageACondition (-not $workRoot.StartsWith($evaluated + '\\', [System.StringComparison]::OrdinalIgnoreCase))
+    Assert-StageACondition (-not $evaluated.StartsWith($workRoot + '\\', [System.StringComparison]::OrdinalIgnoreCase))
+    $summaryJson = Get-StageAOutputPath $SummaryJsonPath $evaluated
+    $summaryMarkdown = Get-StageAOutputPath $SummaryMarkdownPath $evaluated
+    Assert-StageACondition ($summaryJson -ine $summaryMarkdown)
+    Assert-StageACondition ($ApprovedSha -cmatch '\A[0-9a-f]{40}\z' -and $ApprovedSha -cne ('0' * 40))
+    $gitDirectory = Join-Path $evaluated '.git'
+    $null = Test-StageANormalExistingPath $gitDirectory $true
+    $git = @(Get-Command git.exe -CommandType Application | Select-Object -First 1)
+    Assert-StageACondition ($git.Count -eq 1)
+    $blockedDirectory = Join-Path $evaluated 'third-party\bin\llmfit\v1.1.9\win-x64'
+    Assert-StageACondition (-not (Test-Path -LiteralPath $blockedDirectory))
+    $runDirectory = Join-Path $workRoot ('stagea-' + [guid]::NewGuid().ToString('N'))
+    [System.IO.Directory]::CreateDirectory($runDirectory) | Out-Null
+    $runDirectory = Test-StageANormalExistingPath $runDirectory $true
+    $gitLog = Join-Path $runDirectory 'git.log'
+    $topLevel = Invoke-StageAProcess $git[0].Source @('-C',$evaluated,'rev-parse','--show-toplevel') $gitLog
+    $absoluteGitDirectory = Invoke-StageAProcess $git[0].Source @('-C',$evaluated,'rev-parse','--absolute-git-dir') $gitLog
+    $head = Invoke-StageAProcess $git[0].Source @('-C',$evaluated,'rev-parse','HEAD') $gitLog
+    Assert-StageACondition ($topLevel -ceq $evaluated -and $absoluteGitDirectory -ceq $gitDirectory -and $head -ceq $ApprovedSha)
+    $null = Invoke-StageAProcess $git[0].Source @('-C',$evaluated,'status','--porcelain=v1','--untracked-files=all') $gitLog
+    Assert-StageACondition ([string]::IsNullOrEmpty((Get-Content -LiteralPath $gitLog -Raw)))
+    $null = Invoke-StageAProcess $git[0].Source @('-C',$evaluated,'diff','--quiet') $gitLog
+    $null = Invoke-StageAProcess $git[0].Source @('-C',$evaluated,'diff','--cached','--quiet') $gitLog
+    $dotnet = @(Get-Command dotnet.exe -CommandType Application | Select-Object -First 1)
+    Assert-StageACondition ($dotnet.Count -eq 1)
+    $projects = @(
+        'tools\HardwareInspection.LlmFitSpike.Tests\HardwareInspection.LlmFitSpike.Tests.csproj',
+        'tools\HardwareInspection.LlmFitSpike.IntegrationTests\HardwareInspection.LlmFitSpike.IntegrationTests.csproj'
+    )
+    foreach ($project in $projects) {
+        $projectPath = Join-Path $evaluated $project
+        Assert-StageACondition (Test-Path -LiteralPath $projectPath -PathType Leaf)
+        $name = [System.IO.Path]::GetFileNameWithoutExtension($projectPath)
+        $null = Invoke-StageAProcess $dotnet[0].Source @('restore',$projectPath,'--runtime','win-x64','-p:Configuration=Release') (Join-Path $runDirectory ($name + '.restore.log'))
+        $null = Invoke-StageAProcess $dotnet[0].Source @('build',$projectPath,'--configuration','Release','--runtime','win-x64','--no-restore') (Join-Path $runDirectory ($name + '.build.log'))
+    }
+    $resultsDirectory = Join-Path $runDirectory 'results'
+    [System.IO.Directory]::CreateDirectory($resultsDirectory) | Out-Null
+    $deterministicProject = Join-Path $evaluated $projects[0]
+    $task8Project = Join-Path $evaluated $projects[1]
+    $null = Invoke-StageAProcess $dotnet[0].Source @('test',$deterministicProject,'--configuration','Release','--runtime','win-x64','--no-restore','--no-build','--filter','TestCategory=Deterministic','--minimum-expected-tests','174','--results-directory',$resultsDirectory,'--report-trx','--report-trx-filename','deterministic.trx','--no-ansi') (Join-Path $runDirectory 'deterministic.log')
+    $null = Invoke-StageAProcess $dotnet[0].Source @('test',$task8Project,'--configuration','Release','--runtime','win-x64','--no-restore','--no-build','--filter','TestCategory=Task8Deterministic','--minimum-expected-tests','3','--results-directory',$resultsDirectory,'--report-trx','--report-trx-filename','task8.trx','--no-ansi') (Join-Path $runDirectory 'task8.log')
+    $deterministic = Read-HardwareInspectionIntelRunnerStageATrx (Join-Path $resultsDirectory 'deterministic.trx') 'Deterministic'
+    $task8 = Read-HardwareInspectionIntelRunnerStageATrx (Join-Path $resultsDirectory 'task8.trx') 'Task8Deterministic'
+    Test-StageAResidualProcesses
+    $json = '{"schemaVersion":"1.0","evaluatedSha":"' + $ApprovedSha + '","deterministicPassed":174,"task8DeterministicPassed":3,"nonPassing":0}'
+    $markdown = "# Hardware Inspection Intel Stage A`n`n- Evaluated SHA: $ApprovedSha`n- Deterministic passed: 174`n- Task8 deterministic passed: 3`n- Non-passing: 0`n"
+    Assert-StageASummaryPrivacy $json $markdown $ApprovedSha
+    Write-StageAAtomicUtf8 $summaryJson $json
+    Write-StageAAtomicUtf8 $summaryMarkdown $markdown
+}
+
+if ($MyInvocation.InvocationName -ne '.') {
+    $primaryFailure = $null
+    $cleanupFailure = $null
+    try { Invoke-HardwareInspectionIntelRunnerStageAInternal }
+    catch { $primaryFailure = $_ }
+    try { Test-StageAResidualProcesses }
+    catch { $cleanupFailure = $_ }
+    if ($null -ne $primaryFailure -or $null -ne $cleanupFailure) {
+        [Console]::Error.WriteLine($script:StageAFailure)
+        exit 1
+    }
+}
