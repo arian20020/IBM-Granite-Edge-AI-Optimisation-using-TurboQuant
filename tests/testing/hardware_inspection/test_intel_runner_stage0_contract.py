@@ -247,7 +247,6 @@ def _is_stage0_workflow_alias(path):
         bool(separator)
         and suffix.casefold() in ("yml", "yaml")
         and "hardwareinspection" in normalized
-        and any(token in normalized for token in ("stage", "phase", "runner", "offline"))
     )
 
 

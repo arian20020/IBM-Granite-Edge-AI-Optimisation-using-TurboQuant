@@ -72,28 +72,14 @@ function Test-StageADisjointPaths {
     Assert-StageACondition (-not $Second.StartsWith($First + $separator, [System.StringComparison]::OrdinalIgnoreCase))
 }
 
-function Test-StageAEmptyExistingOutput {
-    param([string] $Path)
-    $item = Get-Item -LiteralPath $Path -Force
-    Assert-StageACondition (-not $item.PSIsContainer)
-    Assert-StageACondition (($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -eq 0)
-    $parent = [System.IO.Path]::GetDirectoryName([System.IO.Path]::GetFullPath($Path))
-    Assert-StageACondition (-not [string]::IsNullOrWhiteSpace($parent))
-    $null = Test-StageANormalExistingPath $parent $true
-    Assert-StageACondition ($item.Length -eq 0)
-}
-
 function Get-StageAOutputPath {
-    param([string] $Path, [string] $Evaluated, [bool] $AllowExistingEmpty = $false)
+    param([string] $Path, [string] $Evaluated)
     $fullPath = [System.IO.Path]::GetFullPath($Path)
     Assert-StageACondition (-not ($fullPath.StartsWith('\\', [System.StringComparison]::Ordinal) -or $fullPath.StartsWith('\\?\', [System.StringComparison]::Ordinal)))
     $parent = [System.IO.Path]::GetDirectoryName($fullPath)
     Assert-StageACondition (-not [string]::IsNullOrWhiteSpace($parent))
     $parent = Test-StageANormalExistingPath $parent $true
-    if (Test-Path -LiteralPath $fullPath) {
-        Assert-StageACondition $AllowExistingEmpty
-        Test-StageAEmptyExistingOutput $fullPath
-    }
+    Assert-StageACondition (-not (Test-Path -LiteralPath $fullPath))
     Test-StageADisjointPaths $fullPath $Evaluated
     return $fullPath
 }
@@ -265,17 +251,12 @@ function Read-HardwareInspectionIntelRunnerStageATrx {
 }
 
 function Write-StageAAtomicUtf8 {
-    param([string] $Path, [string] $Text, [bool] $AllowExistingEmpty = $false)
+    param([string] $Path, [string] $Text)
     $parent = [System.IO.Path]::GetDirectoryName($Path)
     Assert-StageACondition (-not [string]::IsNullOrWhiteSpace($parent))
     $parent = Test-StageANormalExistingPath $parent $true
-    $targetExisted = Test-Path -LiteralPath $Path
-    if ($targetExisted) {
-        Assert-StageACondition $AllowExistingEmpty
-        Test-StageAEmptyExistingOutput $Path
-    }
+    Assert-StageACondition (-not (Test-Path -LiteralPath $Path))
     $temporary = Join-Path $parent ('.stagea-' + [guid]::NewGuid().ToString('N') + '.tmp')
-    $backup = Join-Path $parent ('.stagea-' + [guid]::NewGuid().ToString('N') + '.bak')
     try {
         $stream = New-Object System.IO.FileStream($temporary, [System.IO.FileMode]::CreateNew, [System.IO.FileAccess]::Write, [System.IO.FileShare]::None)
         try {
@@ -284,18 +265,10 @@ function Write-StageAAtomicUtf8 {
             finally { $writer.Dispose() }
         } finally { $stream.Dispose() }
         $parent = Test-StageANormalExistingPath $parent $true
-        if ($targetExisted) {
-            Assert-StageACondition (Test-Path -LiteralPath $Path)
-            Test-StageAEmptyExistingOutput $Path
-            [System.IO.File]::Replace($temporary, $Path, $backup)
-        }
-        else {
-            Assert-StageACondition (-not (Test-Path -LiteralPath $Path))
-            [System.IO.File]::Move($temporary, $Path)
-        }
+        Assert-StageACondition (-not (Test-Path -LiteralPath $Path))
+        [System.IO.File]::Move($temporary, $Path)
     } finally {
         if (Test-Path -LiteralPath $temporary) { Remove-Item -LiteralPath $temporary -Force }
-        if (Test-Path -LiteralPath $backup) { Remove-Item -LiteralPath $backup -Force }
     }
 }
 
@@ -325,8 +298,8 @@ function Invoke-HardwareInspectionIntelRunnerStageAInternal {
     $evaluated = Test-StageANormalExistingPath $EvaluatedRoot $true
     $workRoot = Test-StageANormalExistingPath $LocalWorkRoot $true
     Test-StageADisjointPaths $workRoot $evaluated
-    $summaryJson = Get-StageAOutputPath $SummaryJsonPath $evaluated $false
-    $summaryMarkdown = Get-StageAOutputPath $SummaryMarkdownPath $evaluated $true
+    $summaryJson = Get-StageAOutputPath $SummaryJsonPath $evaluated
+    $summaryMarkdown = Get-StageAOutputPath $SummaryMarkdownPath $evaluated
     Assert-StageACondition ($summaryJson -ine $summaryMarkdown)
     Assert-StageACondition ($ApprovedSha -cmatch '\A[0-9a-f]{40}\z' -and $ApprovedSha -cne ('0' * 40))
     $gitDirectory = Join-Path $evaluated '.git'
@@ -377,8 +350,8 @@ function Invoke-HardwareInspectionIntelRunnerStageAInternal {
     $json = '{"schemaVersion":"1.0","evaluatedSha":"' + $ApprovedSha + '","deterministicPassed":174,"task8DeterministicPassed":3,"nonPassing":0}'
     $markdown = "# Hardware Inspection Intel Stage A`n`n- Evaluated SHA: $ApprovedSha`n- Deterministic passed: 174`n- Task8 deterministic passed: 3`n- Non-passing: 0`n"
     Assert-StageASummaryPrivacy $json $markdown $ApprovedSha
-    Write-StageAAtomicUtf8 $summaryJson $json $false
-    Write-StageAAtomicUtf8 $summaryMarkdown $markdown $true
+    Write-StageAAtomicUtf8 $summaryJson $json
+    Write-StageAAtomicUtf8 $summaryMarkdown $markdown
 }
 
 if ($MyInvocation.InvocationName -ne '.') {

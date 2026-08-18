@@ -1441,9 +1441,9 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
                 + " $true\nWrite-StageAAtomicUtf8 $json 'json' $false\n"
                 + "Write-StageAAtomicUtf8 $markdown 'markdown' $true"
             )
-            self.assertEqual(publish.returncode, 0, publish.stderr)
-            self.assertEqual(summary_json.read_bytes(), b"json")
-            self.assertEqual(summary_markdown.read_bytes(), b"markdown")
+            self.assertNotEqual(publish.returncode, 0)
+            self.assertFalse(summary_json.exists())
+            self.assertEqual(summary_markdown.read_bytes(), b"")
             nonempty_markdown = root / "nonempty-summary.md"
             nonempty_markdown.write_bytes(b"preserve")
             rejected_nonempty = _invoke_runner_pure(

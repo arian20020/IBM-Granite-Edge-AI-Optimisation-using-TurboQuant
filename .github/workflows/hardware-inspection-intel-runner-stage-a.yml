@@ -151,7 +151,7 @@ jobs:
           try {
             foreach ($name in @('ACTIONS_STEP_DEBUG', 'ACTIONS_RUNNER_DEBUG', 'RUNNER_DEBUG', 'STAGEA_RUNNER_DEBUG')) {
               $debugValue = [Environment]::GetEnvironmentVariable($name)
-              if ([string]::Equals($debugValue, 'true', [System.StringComparison]::OrdinalIgnoreCase) -or $debugValue -ceq '1') {
+              if (-not [string]::IsNullOrEmpty($debugValue)) {
                 throw $failure
               }
             }
@@ -288,10 +288,16 @@ jobs:
           try {
             $path = 'stage-a-export/stage-a-summary.md'
             $utf8 = New-Object System.Text.UTF8Encoding($false, $true)
-            $markdown = $utf8.GetString([System.IO.File]::ReadAllBytes($path))
             $expected = "# Hardware Inspection Intel Stage A`n`n- Evaluated SHA: $env:STAGEA_APPROVED_SHA`n- Deterministic passed: 174`n- Task8 deterministic passed: 3`n- Non-passing: 0`n"
-            if ($markdown -cne $expected) { throw $failure }
-            [System.IO.File]::AppendAllText($env:GITHUB_STEP_SUMMARY, $markdown, (New-Object System.Text.UTF8Encoding($false)))
+            $expectedBytes = $utf8.GetBytes($expected)
+            $source = Get-Item -LiteralPath $path -Force
+            if ($source.PSIsContainer -or (($source.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) -or $source.Length -ne $expectedBytes.Length) { throw $failure }
+            $actualBytes = [System.IO.File]::ReadAllBytes($path)
+            if ($actualBytes.Length -ne $expectedBytes.Length -or -not [System.Linq.Enumerable]::SequenceEqual[byte]($actualBytes, $expectedBytes)) { throw $failure }
+            $summary = Get-Item -LiteralPath $env:GITHUB_STEP_SUMMARY -Force
+            if ($summary.PSIsContainer -or (($summary.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) -or $summary.Length -ne 0) { throw $failure }
+            $stream = New-Object System.IO.FileStream($env:GITHUB_STEP_SUMMARY, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Write, [System.IO.FileShare]::None)
+            try { $stream.Write($expectedBytes, 0, $expectedBytes.Length); $stream.Flush($true) } finally { $stream.Dispose() }
           }
           catch { [Console]::Error.WriteLine($failure); exit 1 }
 
