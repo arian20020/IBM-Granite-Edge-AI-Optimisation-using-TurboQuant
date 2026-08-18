@@ -358,12 +358,45 @@ try {
 
     Push-Location $controlRoot
     try {
-        $contractOutput = (& python -m unittest `
-            tests.testing.hardware_inspection.test_intel_runner_stage0_contract `
-            -v 2>&1 | Out-String)
-        if ($LASTEXITCODE -ne 0 -or
-            $contractOutput -notmatch '(?m)^Ran 12 tests' -or
-            $contractOutput -notmatch '(?m)^OK\r?$') {
+        $contractOutput = ''
+        $contractExitCode = -1
+        $captureFailed = $false
+        $savedErrorActionPreference = $ErrorActionPreference
+        try {
+            $ErrorActionPreference = 'Continue'
+            $contractOutput = (& python -m unittest `
+                tests.testing.hardware_inspection.test_intel_runner_stage0_contract `
+                -v 2>&1 | Out-String)
+            $contractExitCode = $LASTEXITCODE
+        }
+        catch {
+            $captureFailed = $true
+        }
+        finally {
+            $ErrorActionPreference = $savedErrorActionPreference
+        }
+
+        $regexOptions = [System.Text.RegularExpressions.RegexOptions]::CultureInvariant
+        $ranCount = [System.Text.RegularExpressions.Regex]::Matches(
+            $contractOutput,
+            '(?m)^Ran 12 tests in [0-9]+(?:\.[0-9]+)?s\r?$',
+            $regexOptions
+        ).Count
+        $okCount = [System.Text.RegularExpressions.Regex]::Matches(
+            $contractOutput,
+            '(?m)^OK\r?$',
+            $regexOptions
+        ).Count
+        $failureMarkerCount = [System.Text.RegularExpressions.Regex]::Matches(
+            $contractOutput,
+            '(?m)(?:^FAILED\b|^FAIL:|^ERROR:|^OK \(|\.\.\. skipped\b)',
+            $regexOptions
+        ).Count
+        if ($captureFailed -or
+            $contractExitCode -ne 0 -or
+            $ranCount -ne 1 -or
+            $okCount -ne 1 -or
+            $failureMarkerCount -ne 0) {
             throw 'Sparse control contracts were not exactly 12 passing tests.'
         }
     }
