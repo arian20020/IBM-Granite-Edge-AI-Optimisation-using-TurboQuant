@@ -70,6 +70,8 @@ class Phase3DependencyNoModelCheckTests(unittest.TestCase):
         return values
 
     def _module(self, name: str) -> SimpleNamespace:
+        """Return a conventional package with one concrete module file."""
+
         relative = name.replace(".", "\\") + r"\__init__.py"
         return SimpleNamespace(
             __file__=str(
@@ -77,7 +79,20 @@ class Phase3DependencyNoModelCheckTests(unittest.TestCase):
             )
         )
 
-    def test_check_validates_sources_versions_and_exact_conversion_arguments(self) -> None:
+    @staticmethod
+    def _namespace_module(*locations: str) -> SimpleNamespace:
+        """Return the PEP 420 shape used by the installed Optimum namespace."""
+
+        return SimpleNamespace(
+            __file__=None,
+            __spec__=SimpleNamespace(
+                submodule_search_locations=list(locations),
+            ),
+        )
+
+    def _run_with_importer(self, importer: object) -> dict[str, object]:
+        """Run the inert check with only import identity replaced for the test."""
+
         with (
             patch(
                 "scripts.testing.workbook05.phase3.dependency_no_model_check.validate_reviewed_source_contracts",
@@ -85,7 +100,7 @@ class Phase3DependencyNoModelCheckTests(unittest.TestCase):
             ) as source_validator,
             patch(
                 "scripts.testing.workbook05.phase3.dependency_no_model_check.import_module",
-                side_effect=self._module,
+                side_effect=importer,
             ),
             patch(
                 "scripts.testing.workbook05.phase3.dependency_no_model_check.distribution_version",
@@ -102,6 +117,11 @@ class Phase3DependencyNoModelCheckTests(unittest.TestCase):
             self.optimum_root,
             self.optimum_intel_root,
         )
+        return result
+
+    def test_check_validates_sources_versions_and_exact_conversion_arguments(self) -> None:
+        result = self._run_with_importer(self._module)
+
         self.assertEqual("Passed", result["status"])
         self.assertFalse(result["source_contracts"]["source_metadata_execution"])
         self.assertEqual(
@@ -126,6 +146,28 @@ class Phase3DependencyNoModelCheckTests(unittest.TestCase):
                 for value in result["scientific_authorisations"].values()
             )
         )
+        self.assertTrue(
+            all(row["kind"] == "file" for row in result["imported_modules"])
+        )
+
+    def test_namespace_package_inside_final_environment_is_accepted(self) -> None:
+        namespace_location = str(
+            self.environment_root / "Lib" / "site-packages" / "optimum"
+        )
+
+        def import_candidate(name: str) -> SimpleNamespace:
+            if name == "optimum":
+                return self._namespace_module(namespace_location)
+            return self._module(name)
+
+        result = self._run_with_importer(import_candidate)
+
+        optimum = next(
+            row for row in result["imported_modules"] if row["module"] == "optimum"
+        )
+        self.assertEqual("namespace", optimum["kind"])
+        self.assertEqual(namespace_location, optimum["file"])
+        self.assertEqual([namespace_location], optimum["locations"])
 
     def test_check_never_touches_model_paths_network_or_subprocess(self) -> None:
         with (
@@ -182,6 +224,32 @@ class Phase3DependencyNoModelCheckTests(unittest.TestCase):
             patch(
                 "scripts.testing.workbook05.phase3.dependency_no_model_check.import_module",
                 return_value=escaped_module,
+            ),
+            patch(
+                "scripts.testing.workbook05.phase3.dependency_no_model_check.distribution_version",
+                side_effect=lambda name: self._versions()[name],
+            ),
+        ):
+            with self.assertRaisesRegex(
+                NoModelCheckError,
+                "outside the supplied environment",
+            ):
+                run_no_model_check(
+                    self.environment_root,
+                    self.optimum_root,
+                    self.optimum_intel_root,
+                )
+
+    def test_namespace_import_outside_supplied_environment_is_rejected(self) -> None:
+        escaped_namespace = self._namespace_module(r"C:\outside\optimum")
+        with (
+            patch(
+                "scripts.testing.workbook05.phase3.dependency_no_model_check.validate_reviewed_source_contracts",
+                return_value=self._source_report(),
+            ),
+            patch(
+                "scripts.testing.workbook05.phase3.dependency_no_model_check.import_module",
+                return_value=escaped_namespace,
             ),
             patch(
                 "scripts.testing.workbook05.phase3.dependency_no_model_check.distribution_version",

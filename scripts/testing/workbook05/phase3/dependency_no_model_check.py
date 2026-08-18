@@ -9,7 +9,7 @@ import re
 from importlib import import_module
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as distribution_version
-from pathlib import Path, PureWindowsPath
+from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from scripts.testing.workbook05.phase3.conversion import (
@@ -18,6 +18,10 @@ from scripts.testing.workbook05.phase3.conversion import (
     OPTIMUM_INTEL_COMMIT,
     REVIEWED_NORMAL_REQUIREMENT_INPUT,
     build_optimum_argument_list,
+)
+from scripts.testing.workbook05.phase3.dependency_import_identity import (
+    ImportIdentityError,
+    observe_module_identity,
 )
 from scripts.testing.workbook05.phase3.dependency_preflight import (
     CAMPAIGN_ID,
@@ -103,68 +107,31 @@ def _is_reviewed_optimum_intel_version(value: str) -> bool:
     return suffix is None or OPTIMUM_INTEL_COMMIT.startswith(suffix)
 
 
-def _pure_windows_child(root: Path, candidate_text: str, *, label: str) -> str:
-    """Validate Windows containment lexically without probing the filesystem."""
+def _observe_imports(environment_root: Path) -> list[dict[str, Any]]:
+    """Import the reviewed catalogue and bind every location to the final venv."""
 
-    root_text = str(root)
-    lowered_root = root_text.casefold()
-    lowered_candidate = candidate_text.casefold()
-    if root_text.startswith("\\\\") or lowered_root.startswith(("\\\\?\\", "\\\\.\\")):
-        raise NoModelCheckError(
-            f"The supplied environment root must not be a UNC or device path: {root}"
-        )
-    if candidate_text.startswith("\\\\") or lowered_candidate.startswith(
-        ("\\\\?\\", "\\\\.\\")
-    ):
-        raise NoModelCheckError(f"{label} must not be a UNC or device path: {candidate_text}")
-
-    root_path = PureWindowsPath(root_text)
-    candidate = PureWindowsPath(candidate_text)
-    if not root_path.is_absolute() or not root_path.drive:
-        raise NoModelCheckError(
-            f"The supplied environment root must be an absolute Windows path: {root}"
-        )
-    if not candidate.is_absolute() or not candidate.drive:
-        raise NoModelCheckError(
-            f"{label} is not an absolute Windows path: {candidate_text}"
-        )
-    if root_path.drive.casefold() != candidate.drive.casefold():
-        raise NoModelCheckError(
-            f"{label} is outside the supplied environment: {candidate_text}"
-        )
-
-    root_parts = tuple(part.casefold() for part in root_path.parts)
-    candidate_parts = tuple(part.casefold() for part in candidate.parts)
-    if (
-        len(candidate_parts) <= len(root_parts)
-        or candidate_parts[: len(root_parts)] != root_parts
-    ):
-        raise NoModelCheckError(
-            f"{label} is outside the supplied environment: {candidate_text}"
-        )
-    return str(candidate)
-
-
-def _observe_imports(environment_root: Path) -> list[dict[str, str]]:
-    """Import only the reviewed modules and bind each file to the final environment."""
-
-    observations: list[dict[str, str]] = []
+    observations: list[dict[str, Any]] = []
     for module_name in IMPORT_MODULES:
         module = import_module(module_name)
-        module_file = getattr(module, "__file__", None)
-        if not isinstance(module_file, str) or not module_file:
-            raise NoModelCheckError(
-                f"Imported module does not expose a file identity: {module_name}"
+        try:
+            identity = observe_module_identity(
+                module,
+                environment_root,
+                module_name,
             )
-        contained_file = _pure_windows_child(
-            environment_root,
-            module_file,
-            label=f"Imported module {module_name}",
-        )
+        except ImportIdentityError as error:
+            # Keep the public exception type used by the no-model boundary while
+            # sharing one import-identity implementation with the earlier check.
+            raise NoModelCheckError(str(error)) from error
+
+        # Preserve the existing ``file`` field as the primary compatibility path
+        # while retaining kind and every namespace contribution explicitly.
         observations.append(
             {
                 "module": module_name,
-                "file": contained_file,
+                "file": identity.primary_location,
+                "kind": identity.kind,
+                "locations": list(identity.locations),
             }
         )
     return observations
