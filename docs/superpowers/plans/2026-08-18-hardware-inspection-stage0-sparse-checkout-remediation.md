@@ -772,8 +772,26 @@ if ($LASTEXITCODE -ne 0) { throw 'New Stage 0 run failed.' }
 $run = gh api "repos/$repository/actions/runs/$($newRun.databaseId)" | ConvertFrom-Json
 $jobsResponse = gh api "repos/$repository/actions/runs/$($newRun.databaseId)/jobs?filter=all&per_page=100" |
     ConvertFrom-Json
-$artifactResponse = gh api "repos/$repository/actions/runs/$($newRun.databaseId)/artifacts" |
-    ConvertFrom-Json
+$artifactFailure = 'HI-RUNNER-STAGE0-ARTIFACT-INVALID: artifact verification failed.'
+function Stop-Stage0ArtifactVerification {
+    [Console]::Error.WriteLine($artifactFailure)
+    exit 1
+}
+$artifactApiLines = @(
+    & gh api "repos/$repository/actions/runs/$($newRun.databaseId)/artifacts" 2>$null
+)
+$artifactApiExitCode = $LASTEXITCODE
+if ($artifactApiExitCode -ne 0) {
+    Stop-Stage0ArtifactVerification
+}
+$artifactJson = $artifactApiLines -join "`n"
+$artifactResponse = $null
+try {
+    $artifactResponse = $artifactJson | ConvertFrom-Json -ErrorAction Stop
+}
+catch {
+    Stop-Stage0ArtifactVerification
+}
 $jobs = @($jobsResponse.jobs)
 if ($run.status -cne 'completed' -or
     $run.conclusion -cne 'success' -or
@@ -806,8 +824,42 @@ foreach ($stepName in $expectedSteps) {
         throw "Required Stage 0 step did not succeed: $stepName"
     }
 }
-if ([int]$artifactResponse.total_count -ne 0) {
-    throw 'Stage 0 unexpectedly uploaded an artifact.'
+$totalCountProperties = @(
+    $artifactResponse.PSObject.Properties |
+        Where-Object { $_.Name -ceq 'total_count' }
+)
+$artifactInventoryProperties = @(
+    $artifactResponse.PSObject.Properties |
+        Where-Object { $_.Name -ceq 'artifacts' }
+)
+if ($null -eq $artifactResponse -or
+    $totalCountProperties.Count -ne 1 -or
+    $artifactInventoryProperties.Count -ne 1) {
+    Stop-Stage0ArtifactVerification
+}
+$totalCountValue = $totalCountProperties[0].Value
+$integralTypeCodes = @(
+    [System.TypeCode]::SByte,
+    [System.TypeCode]::Byte,
+    [System.TypeCode]::Int16,
+    [System.TypeCode]::UInt16,
+    [System.TypeCode]::Int32,
+    [System.TypeCode]::UInt32,
+    [System.TypeCode]::Int64,
+    [System.TypeCode]::UInt64
+)
+if ($null -eq $totalCountValue -or
+    [System.Type]::GetTypeCode($totalCountValue.GetType()) -notin $integralTypeCodes) {
+    Stop-Stage0ArtifactVerification
+}
+$artifactTotalCount = [decimal]$totalCountValue
+$artifactInventory = $artifactInventoryProperties[0].Value
+if ($artifactTotalCount -lt 0 -or
+    $null -eq $artifactInventory -or
+    $artifactInventory -isnot [System.Array] -or
+    [decimal]@($artifactInventory).Count -ne $artifactTotalCount -or
+    $artifactTotalCount -ne 0) {
+    Stop-Stage0ArtifactVerification
 }
 $workflowText = (Get-Content -Raw '.github/workflows/hardware-inspection-intel-runner-stage0.yml')
 if ($workflowText -notmatch "ref: \$\{\{ steps\.approval\.outputs\.approved_sha \}\}") {
@@ -842,7 +894,9 @@ Require:
 - exactly 12 Stage 0 contracts pass;
 - Dispatch and Source validator phases pass;
 - summary says Stage 0 only, laptop not contacted, candidate not acquired/executed, Gate 1 Blocked, and Gate 2 prohibited;
-- artifact count `0` and no self-hosted job.
+- artifact API exit `0`, valid JSON, exactly one integral nonnegative `total_count` equal to `0`, and exactly one empty `artifacts` array;
+- every artifact API, parse, schema, type, range, inventory, or nonzero-count failure emits only `HI-RUNNER-STAGE0-ARTIFACT-INVALID: artifact verification failed.`;
+- no self-hosted job.
 
 If the new run fails, stop, retain its exact logs, and return to root-cause analysis. Do not expand into Stage A, B, C, or D.
 
