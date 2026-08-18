@@ -260,6 +260,8 @@ Self-hosted execution order is fixed:
 9. append the fixed safe Markdown summary;
 10. always perform bounded leak checks; never automatically delete an unverified path.
 
+GitHub pre-creates `GITHUB_STEP_SUMMARY` as an empty ordinary file. The runner therefore writes its fixed Markdown to the fresh local export directory; only after the JSON upload may a default-control publication step validate that exact Markdown and append it to the pre-created GitHub summary. Where the runner is invoked with an existing Markdown target, only an empty, ordinary non-reparse file beneath a validated ancestor chain is replaceable atomically; JSON targets must be absent.
+
 No step may contain acquisition/capture/report commands, candidate arguments or URL, `TrustedWindowsIntel`, `TrustedOffline`, `GRANITE_LLMFIT_*` assignment, adapter/network commands, raw artifact paths, `Start-Process`, shell indirection, or execution from an evaluated `working-directory` except the exact `dotnet` project commands owned by the default-branch runner script.
 
 - [ ] **Step 3: Run canonical/mutation GREEN**

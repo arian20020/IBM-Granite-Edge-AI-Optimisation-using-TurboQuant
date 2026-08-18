@@ -113,6 +113,8 @@ def _assert_summary_upload(test_case, document):
     ]
     test_case.assertEqual(len(upload_steps), 1)
     upload_with = upload_steps[0].get("with", {})
+    test_case.assertEqual(upload_with.get("include-hidden-files"), False)
+    test_case.assertNotIn("hidden-files", upload_with)
     upload_path = json.dumps(upload_with).casefold()
     test_case.assertIn("summary", upload_path)
     test_case.assertNotIn(".trx", upload_path)
@@ -407,6 +409,23 @@ def _assert_runner_routing(test_case, document, validator_text):
     test_case.assertRegex(validator_text, r"hardware-gate1-\[0-9a-f\]\{16\}")
     test_case.assertNotIn("runs-on: ${{ inputs.runner_label }}", _strict_utf8(WORKFLOW_PATH))
     test_case.assertNotIn("self-hosted", _strict_utf8(WORKFLOW_PATH).lower())
+    runner_steps = jobs["deterministic-runner"]["steps"]
+    runner_names = [step.get("name") for step in runner_steps]
+    required_order = [
+        "Reject debug controls and mask runner metadata",
+        "Check out default-branch controls",
+        "Validate runner context before evaluated checkout",
+        "Check out approved evaluated source",
+        "Validate evaluated source before execution",
+        "Set up .NET from the evaluated source",
+        "Run authorised deterministic validation",
+    ]
+    test_case.assertEqual(runner_names[: len(required_order)], required_order)
+    debug_step = runner_steps[0]
+    test_case.assertIn("${{ runner.debug }}", str(debug_step))
+    test_case.assertIn("RUNNER_DEBUG", str(debug_step.get("run", "")))
+    test_case.assertIn("RunnerContext", str(runner_steps[2].get("run", "")))
+    test_case.assertIn("-Phase Runner", str(runner_steps[4].get("run", "")))
 
 
 def _invoke(script, arguments, environment=None):
@@ -1091,12 +1110,7 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
             self.assertEqual(runner.returncode, 0, runner.stderr)
             self.assertEqual(runner.stdout, "")
             self.assertEqual(runner.stderr, "")
-            summary = summary_path.read_bytes()
-            self.assertFalse(summary.startswith(codecs.BOM_UTF8))
-            self.assertNotIn(b"\r", summary)
-            self.assertIn(approved_sha.encode("ascii"), summary)
-            self.assertNotIn(b"hardware-gate1", summary)
-            self.assertNotIn(str(checkout_root).encode("utf-8"), summary)
+            self.assertFalse(summary_path.exists())
 
             for environment_name in (
                 "GRANITE_LLMFIT_CANDIDATE_ROOT",
@@ -1407,6 +1421,76 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
         ):
             with self.subTest(malformed_markdown=malformed_markdown[:20]):
                 self.assertNotEqual(privacy_result(malformed_markdown).returncode, 0)
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            evaluated = root / "evaluated"
+            evaluated.mkdir()
+            summary_json = root / "summary.json"
+            summary_markdown = root / "summary.md"
+            summary_markdown.write_bytes(b"")
+            literal = lambda value: "'" + str(value).replace("'", "''") + "'"
+            publish = _invoke_runner_pure(
+                "$json = Get-StageAOutputPath "
+                + literal(summary_json)
+                + " "
+                + literal(evaluated)
+                + " $false\n$markdown = Get-StageAOutputPath "
+                + literal(summary_markdown)
+                + " "
+                + literal(evaluated)
+                + " $true\nWrite-StageAAtomicUtf8 $json 'json' $false\n"
+                + "Write-StageAAtomicUtf8 $markdown 'markdown' $true"
+            )
+            self.assertEqual(publish.returncode, 0, publish.stderr)
+            self.assertEqual(summary_json.read_bytes(), b"json")
+            self.assertEqual(summary_markdown.read_bytes(), b"markdown")
+            nonempty_markdown = root / "nonempty-summary.md"
+            nonempty_markdown.write_bytes(b"preserve")
+            rejected_nonempty = _invoke_runner_pure(
+                "Get-StageAOutputPath "
+                + literal(nonempty_markdown)
+                + " "
+                + literal(evaluated)
+                + " $true | Out-Null"
+            )
+            self.assertNotEqual(rejected_nonempty.returncode, 0)
+            self.assertEqual(nonempty_markdown.read_bytes(), b"preserve")
+            preexisting_json = root / "preexisting-summary.json"
+            preexisting_json.write_bytes(b"")
+            rejected_json = _invoke_runner_pure(
+                "Get-StageAOutputPath "
+                + literal(preexisting_json)
+                + " "
+                + literal(evaluated)
+                + " $false | Out-Null"
+            )
+            self.assertNotEqual(rejected_json.returncode, 0)
+            summary_directory = root / "summary-directory"
+            summary_directory.mkdir()
+            rejected_directory = _invoke_runner_pure(
+                "Get-StageAOutputPath "
+                + literal(summary_directory)
+                + " "
+                + literal(evaluated)
+                + " $true | Out-Null"
+            )
+            self.assertNotEqual(rejected_directory.returncode, 0)
+            reparse_target = root / "summary-target.md"
+            reparse_target.write_bytes(b"")
+            reparse_summary = root / "summary-reparse.md"
+            try:
+                reparse_summary.symlink_to(reparse_target)
+            except OSError:
+                pass
+            else:
+                rejected_reparse = _invoke_runner_pure(
+                    "Get-StageAOutputPath "
+                    + literal(reparse_summary)
+                    + " "
+                    + literal(evaluated)
+                    + " $true | Out-Null"
+                )
+                self.assertNotEqual(rejected_reparse.returncode, 0)
         mutations = (
             (
                 runner_text.replace('"nonPassing"', '"host" : "canary", "nonPassing"', 1),

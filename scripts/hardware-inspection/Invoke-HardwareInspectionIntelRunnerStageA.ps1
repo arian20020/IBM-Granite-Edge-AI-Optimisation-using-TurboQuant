@@ -52,7 +52,8 @@ function Test-StageANormalExistingPath {
     $fullPath = [System.IO.Path]::GetFullPath($Path)
     Assert-StageACondition (-not ($fullPath.StartsWith('\\', [System.StringComparison]::Ordinal) -or $fullPath.StartsWith('\\?\', [System.StringComparison]::Ordinal)))
     $item = Get-Item -LiteralPath $fullPath -Force
-    $component = $item
+    Assert-StageACondition (($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -eq 0)
+    $component = if ($item.PSIsContainer) { $item } else { $item.Directory }
     while ($null -ne $component) {
         Assert-StageACondition (($component.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -eq 0)
         $component = $component.Parent
@@ -71,14 +72,28 @@ function Test-StageADisjointPaths {
     Assert-StageACondition (-not $Second.StartsWith($First + $separator, [System.StringComparison]::OrdinalIgnoreCase))
 }
 
+function Test-StageAEmptyExistingOutput {
+    param([string] $Path)
+    $item = Get-Item -LiteralPath $Path -Force
+    Assert-StageACondition (-not $item.PSIsContainer)
+    Assert-StageACondition (($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -eq 0)
+    $parent = [System.IO.Path]::GetDirectoryName([System.IO.Path]::GetFullPath($Path))
+    Assert-StageACondition (-not [string]::IsNullOrWhiteSpace($parent))
+    $null = Test-StageANormalExistingPath $parent $true
+    Assert-StageACondition ($item.Length -eq 0)
+}
+
 function Get-StageAOutputPath {
-    param([string] $Path, [string] $Evaluated)
+    param([string] $Path, [string] $Evaluated, [bool] $AllowExistingEmpty = $false)
     $fullPath = [System.IO.Path]::GetFullPath($Path)
     Assert-StageACondition (-not ($fullPath.StartsWith('\\', [System.StringComparison]::Ordinal) -or $fullPath.StartsWith('\\?\', [System.StringComparison]::Ordinal)))
-    $parent = Split-Path -LiteralPath $fullPath -Parent
+    $parent = [System.IO.Path]::GetDirectoryName($fullPath)
     Assert-StageACondition (-not [string]::IsNullOrWhiteSpace($parent))
     $parent = Test-StageANormalExistingPath $parent $true
-    Assert-StageACondition (-not (Test-Path -LiteralPath $fullPath))
+    if (Test-Path -LiteralPath $fullPath) {
+        Assert-StageACondition $AllowExistingEmpty
+        Test-StageAEmptyExistingOutput $fullPath
+    }
     Test-StageADisjointPaths $fullPath $Evaluated
     return $fullPath
 }
@@ -250,9 +265,17 @@ function Read-HardwareInspectionIntelRunnerStageATrx {
 }
 
 function Write-StageAAtomicUtf8 {
-    param([string] $Path, [string] $Text)
-    $parent = Split-Path -LiteralPath $Path -Parent
+    param([string] $Path, [string] $Text, [bool] $AllowExistingEmpty = $false)
+    $parent = [System.IO.Path]::GetDirectoryName($Path)
+    Assert-StageACondition (-not [string]::IsNullOrWhiteSpace($parent))
+    $parent = Test-StageANormalExistingPath $parent $true
+    $targetExisted = Test-Path -LiteralPath $Path
+    if ($targetExisted) {
+        Assert-StageACondition $AllowExistingEmpty
+        Test-StageAEmptyExistingOutput $Path
+    }
     $temporary = Join-Path $parent ('.stagea-' + [guid]::NewGuid().ToString('N') + '.tmp')
+    $backup = Join-Path $parent ('.stagea-' + [guid]::NewGuid().ToString('N') + '.bak')
     try {
         $stream = New-Object System.IO.FileStream($temporary, [System.IO.FileMode]::CreateNew, [System.IO.FileAccess]::Write, [System.IO.FileShare]::None)
         try {
@@ -260,9 +283,19 @@ function Write-StageAAtomicUtf8 {
             try { $writer.Write($Text); $writer.Flush(); $stream.Flush($true) }
             finally { $writer.Dispose() }
         } finally { $stream.Dispose() }
-        [System.IO.File]::Move($temporary, $Path)
+        $parent = Test-StageANormalExistingPath $parent $true
+        if ($targetExisted) {
+            Assert-StageACondition (Test-Path -LiteralPath $Path)
+            Test-StageAEmptyExistingOutput $Path
+            [System.IO.File]::Replace($temporary, $Path, $backup)
+        }
+        else {
+            Assert-StageACondition (-not (Test-Path -LiteralPath $Path))
+            [System.IO.File]::Move($temporary, $Path)
+        }
     } finally {
         if (Test-Path -LiteralPath $temporary) { Remove-Item -LiteralPath $temporary -Force }
+        if (Test-Path -LiteralPath $backup) { Remove-Item -LiteralPath $backup -Force }
     }
 }
 
@@ -292,8 +325,8 @@ function Invoke-HardwareInspectionIntelRunnerStageAInternal {
     $evaluated = Test-StageANormalExistingPath $EvaluatedRoot $true
     $workRoot = Test-StageANormalExistingPath $LocalWorkRoot $true
     Test-StageADisjointPaths $workRoot $evaluated
-    $summaryJson = Get-StageAOutputPath $SummaryJsonPath $evaluated
-    $summaryMarkdown = Get-StageAOutputPath $SummaryMarkdownPath $evaluated
+    $summaryJson = Get-StageAOutputPath $SummaryJsonPath $evaluated $false
+    $summaryMarkdown = Get-StageAOutputPath $SummaryMarkdownPath $evaluated $true
     Assert-StageACondition ($summaryJson -ine $summaryMarkdown)
     Assert-StageACondition ($ApprovedSha -cmatch '\A[0-9a-f]{40}\z' -and $ApprovedSha -cne ('0' * 40))
     $gitDirectory = Join-Path $evaluated '.git'
@@ -344,8 +377,8 @@ function Invoke-HardwareInspectionIntelRunnerStageAInternal {
     $json = '{"schemaVersion":"1.0","evaluatedSha":"' + $ApprovedSha + '","deterministicPassed":174,"task8DeterministicPassed":3,"nonPassing":0}'
     $markdown = "# Hardware Inspection Intel Stage A`n`n- Evaluated SHA: $ApprovedSha`n- Deterministic passed: 174`n- Task8 deterministic passed: 3`n- Non-passing: 0`n"
     Assert-StageASummaryPrivacy $json $markdown $ApprovedSha
-    Write-StageAAtomicUtf8 $summaryJson $json
-    Write-StageAAtomicUtf8 $summaryMarkdown $markdown
+    Write-StageAAtomicUtf8 $summaryJson $json $false
+    Write-StageAAtomicUtf8 $summaryMarkdown $markdown $true
 }
 
 if ($MyInvocation.InvocationName -ne '.') {

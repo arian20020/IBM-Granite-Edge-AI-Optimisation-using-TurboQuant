@@ -293,7 +293,7 @@ function Write-Utf8NoBomFile {
 }
 
 try {
-    if (($Phase -cne 'Hosted' -and $Phase -cne 'Runner') -or
+    if (($Phase -cne 'Hosted' -and $Phase -cne 'RunnerContext' -and $Phase -cne 'Runner') -or
         $WorkflowRef -cne 'refs/heads/main' -or
         $DefaultBranch -cne 'main' -or
         $Actor -cne 'arian20020' -or
@@ -332,10 +332,7 @@ try {
         exit 0
     }
 
-    if ([string]::IsNullOrWhiteSpace($ApprovedSha) -or
-        [string]::IsNullOrWhiteSpace($EvaluatedRoot) -or
-        [string]::IsNullOrWhiteSpace($SummaryPath) -or
-        $ApprovedSha -cne $manifestSha) {
+    if ([string]::IsNullOrWhiteSpace($ApprovedSha) -or $ApprovedSha -cne $manifestSha) {
         throw 'Runner inputs are invalid.'
     }
     foreach ($environmentName in @(
@@ -350,6 +347,12 @@ try {
             throw 'Operational environment is present.'
         }
     }
+    if ($Phase -ceq 'RunnerContext') {
+        exit 0
+    }
+    if ([string]::IsNullOrWhiteSpace($EvaluatedRoot)) {
+        throw 'Runner inputs are invalid.'
+    }
     $evaluatedRoot = Resolve-NormalExistingDirectory -Path $EvaluatedRoot
     $candidateDirectory = Join-Path -Path $evaluatedRoot -ChildPath 'third-party\bin\llmfit\v1.1.9\win-x64'
     if (Test-Path -LiteralPath $candidateDirectory -PathType Container) {
@@ -361,11 +364,6 @@ try {
         throw 'Evaluated identity is not approved.'
     }
     Assert-CleanGitCheckout -Root $evaluatedRoot -GitApplication $gitApplication
-    $normalSummaryPath = Resolve-NormalOutputPath -Path $SummaryPath
-    $summary = '# Stage A deterministic-only validation' + [char]10 + [char]10 +
-        'Status: authorised deterministic validation complete.' + [char]10 +
-        'Approved SHA: ' + $manifestSha + [char]10
-    Write-Utf8NoBomFile -Path $normalSummaryPath -Content $summary
     exit 0
 }
 catch {

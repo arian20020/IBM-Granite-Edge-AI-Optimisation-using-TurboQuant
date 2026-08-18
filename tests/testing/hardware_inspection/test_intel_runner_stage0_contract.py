@@ -242,10 +242,12 @@ def _is_stage0_workflow_alias(path):
     if not separator or directory.casefold() != ".github/workflows":
         return False
     stem, separator, suffix = filename.rpartition(".")
+    normalized = re.sub(r"[^a-z0-9]+", "", stem.casefold())
     return (
         bool(separator)
         and suffix.casefold() in ("yml", "yaml")
-        and stem.casefold().startswith("hardware-inspection-intel-runner-stage")
+        and "hardwareinspection" in normalized
+        and any(token in normalized for token in ("stage", "phase", "runner", "offline"))
     )
 
 
@@ -262,7 +264,7 @@ def _assert_stage0_inventory(test_case, repository_paths):
         },
     )
     hardware_scripts = {
-        path for path in paths if path.startswith("scripts/hardware-inspection/")
+        path for path in paths if path.casefold().startswith("scripts/hardware-inspection/")
     }
     test_case.assertEqual(
         hardware_scripts,
@@ -272,10 +274,12 @@ def _assert_stage0_inventory(test_case, repository_paths):
             "scripts/hardware-inspection/Invoke-HardwareInspectionIntelRunnerStageA.ps1",
         },
     )
-    test_case.assertNotIn(
-        "docs/testing/runbooks/Hardware-Inspection-LLM-Fit-Gate-1-Runbook.md",
-        paths,
-    )
+    for path in paths:
+        normalized = re.sub(r"[^a-z0-9]+", "", path.casefold())
+        test_case.assertNotEqual(
+            normalized,
+            "docstestingrunbookshardwareinspectionllmfitgate1runbookmd",
+        )
     for forbidden_path in (
         ".github/workflows/hardware-inspection-intel-runner-stage-b.yml",
         ".github/workflows/hardware-inspection-intel-runner-stage-d.yml",
@@ -988,6 +992,10 @@ on:
             ".github/workflows/Hardware-Inspection-Intel-Runner-Stage-A.yml",
             ".github/workflows/hardware-inspection-intel-runner-stage-a-copy.yml",
             ".github/workflows/hardware-inspection-intel-runner-stage-a-alternate.yml",
+            ".github/workflows/hardware-inspection-stage-a.yml",
+            ".github/workflows/hardware_inspection_intel_runner_stage_a.yml",
+            ".github/workflows/hardware-inspection-intel-runner-phase-b.yml",
+            ".github/workflows/intel-hardware-inspection-offline.yml",
             ".github/workflows/hardware-inspection-intel-runner-stage-b.yml",
             ".github/workflows/hardware-inspection-intel-runner-stage-c.yml",
             ".github/workflows/hardware-inspection-intel-runner-stage-d.yml",
@@ -1001,6 +1009,7 @@ on:
             "scripts/hardware-inspection/Invoke-HardwareInspectionIntelRunnerStageA-copy.ps1",
             "scripts/hardware-inspection/Validate-HardwareInspectionIntelRunnerStageA-alternate.ps1",
             "docs/testing/runbooks/Hardware-Inspection-LLM-Fit-Gate-1-Runbook.md",
+            "docs/testing/runbooks/hardware_inspection_llm_fit_gate_1_runbook.md",
         ):
             with self.subTest(inventory_mutation=mutation):
                 with self.assertRaises(AssertionError):

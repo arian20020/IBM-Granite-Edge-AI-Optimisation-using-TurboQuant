@@ -143,12 +143,15 @@ jobs:
     steps:
       - name: Reject debug controls and mask runner metadata
         shell: powershell
+        env:
+          STAGEA_RUNNER_DEBUG: ${{ runner.debug }}
         run: |
           $ErrorActionPreference = 'Stop'
           $failure = 'HI-RUNNER-STAGEA-ENVIRONMENT-INVALID: runner environment is invalid.'
           try {
-            foreach ($name in @('ACTIONS_STEP_DEBUG', 'ACTIONS_RUNNER_DEBUG')) {
-              if ([string]::Equals([Environment]::GetEnvironmentVariable($name), 'true', [System.StringComparison]::OrdinalIgnoreCase)) {
+            foreach ($name in @('ACTIONS_STEP_DEBUG', 'ACTIONS_RUNNER_DEBUG', 'RUNNER_DEBUG', 'STAGEA_RUNNER_DEBUG')) {
+              $debugValue = [Environment]::GetEnvironmentVariable($name)
+              if ([string]::Equals($debugValue, 'true', [System.StringComparison]::OrdinalIgnoreCase) -or $debugValue -ceq '1') {
                 throw $failure
               }
             }
@@ -176,6 +179,32 @@ jobs:
             .github/hardware-inspection
             scripts/hardware-inspection
           sparse-checkout-cone-mode: true
+
+      - name: Validate runner context before evaluated checkout
+        shell: powershell
+        env:
+          STAGEA_WORKFLOW_REF: ${{ github.ref }}
+          STAGEA_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          STAGEA_ACTOR: ${{ github.actor }}
+          STAGEA_TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+          STAGEA_REPOSITORY_OWNER: ${{ github.repository_owner }}
+          STAGEA_RUN_ATTEMPT: ${{ github.run_attempt }}
+          STAGEA_CONFIRMATION: ${{ inputs.confirm_authorised_runner }}
+          STAGEA_RUNNER_LABEL: ${{ needs.hosted-preflight.outputs.runner_label }}
+          STAGEA_APPROVED_SHA: ${{ needs.hosted-preflight.outputs.approved_sha }}
+        run: |
+          & '.\control\scripts\hardware-inspection\Validate-HardwareInspectionIntelRunnerStageA.ps1' `
+            -Phase RunnerContext `
+            -ControlRoot (Join-Path $env:GITHUB_WORKSPACE 'control') `
+            -ApprovedSha $env:STAGEA_APPROVED_SHA `
+            -WorkflowRef $env:STAGEA_WORKFLOW_REF `
+            -DefaultBranch $env:STAGEA_DEFAULT_BRANCH `
+            -Actor $env:STAGEA_ACTOR `
+            -TriggeringActor $env:STAGEA_TRIGGERING_ACTOR `
+            -RepositoryOwner $env:STAGEA_REPOSITORY_OWNER `
+            -RunAttempt $env:STAGEA_RUN_ATTEMPT `
+            -Confirmation $env:STAGEA_CONFIRMATION `
+            -RunnerLabel $env:STAGEA_RUNNER_LABEL
 
       - name: Check out approved evaluated source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -210,8 +239,7 @@ jobs:
             -RepositoryOwner $env:STAGEA_REPOSITORY_OWNER `
             -RunAttempt $env:STAGEA_RUN_ATTEMPT `
             -Confirmation $env:STAGEA_CONFIRMATION `
-            -RunnerLabel $env:STAGEA_RUNNER_LABEL `
-            -SummaryPath $env:GITHUB_STEP_SUMMARY
+            -RunnerLabel $env:STAGEA_RUNNER_LABEL
 
       - name: Set up .NET from the evaluated source
         uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d
@@ -239,7 +267,7 @@ jobs:
             -ApprovedSha $env:STAGEA_APPROVED_SHA `
             -LocalWorkRoot $localWorkRoot `
             -SummaryJsonPath 'stage-a-export/stage-a-summary.json' `
-            -SummaryMarkdownPath $env:GITHUB_STEP_SUMMARY
+            -SummaryMarkdownPath 'stage-a-export/stage-a-summary.md'
 
       - name: Upload Stage A summary
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
@@ -248,4 +276,33 @@ jobs:
           path: stage-a-export/stage-a-summary.json
           if-no-files-found: error
           retention-days: 3
-          hidden-files: false
+          include-hidden-files: false
+
+      - name: Publish validated Stage A summary
+        shell: powershell
+        env:
+          STAGEA_APPROVED_SHA: ${{ needs.hosted-preflight.outputs.approved_sha }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $failure = 'HI-RUNNER-STAGEA-SUMMARY-INVALID: summary publication failed.'
+          try {
+            $path = 'stage-a-export/stage-a-summary.md'
+            $utf8 = New-Object System.Text.UTF8Encoding($false, $true)
+            $markdown = $utf8.GetString([System.IO.File]::ReadAllBytes($path))
+            $expected = "# Hardware Inspection Intel Stage A`n`n- Evaluated SHA: $env:STAGEA_APPROVED_SHA`n- Deterministic passed: 174`n- Task8 deterministic passed: 3`n- Non-passing: 0`n"
+            if ($markdown -cne $expected) { throw $failure }
+            [System.IO.File]::AppendAllText($env:GITHUB_STEP_SUMMARY, $markdown, (New-Object System.Text.UTF8Encoding($false)))
+          }
+          catch { [Console]::Error.WriteLine($failure); exit 1 }
+
+      - name: Check Stage A residue
+        if: ${{ always() }}
+        timeout-minutes: 2
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $failure = 'HI-RUNNER-STAGEA-RESIDUE-INVALID: fixed residue check failed.'
+          try {
+            if (@(Get-Process | Where-Object { $_.ProcessName -match '(?i)(llmfit|fake.*tool)' }).Count -ne 0 -or @(Get-NetTCPConnection -State Listen -LocalPort 8787 -ErrorAction SilentlyContinue).Count -ne 0) { throw $failure }
+          }
+          catch { [Console]::Error.WriteLine($failure); exit 1 }
