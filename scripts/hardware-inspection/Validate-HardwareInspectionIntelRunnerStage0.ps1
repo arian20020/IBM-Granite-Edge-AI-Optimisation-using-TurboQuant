@@ -123,13 +123,14 @@ try {
         throw 'Source checkout is not clean.'
     }
 
-    $summary = 'Hardware inspection Intel runner Stage 0' + [char]10 +
-        'Stage 0 only.' + [char]10 +
-        'Intel laptop not contacted.' + [char]10 +
-        'Candidate not acquired or executed.' + [char]10 +
-        'Gate 1 remains Blocked.' + [char]10 +
-        'Gate 2 is prohibited.' + [char]10 +
-        'Approved safe ref/SHA confirmed.' + [char]10
+    $summary = '# Hardware Inspection Intel runner preflight' + [char]10 + [char]10 +
+        '- Stage 0 only.' + [char]10 +
+        '- The Intel laptop was not contacted.' + [char]10 +
+        '- The LLM Fit candidate was not acquired or executed.' + [char]10 +
+        '- Gate 1 remains Blocked.' + [char]10 +
+        '- Gate 2 is prohibited.' + [char]10 +
+        '- Approved source ref: ' + $sourceRef + [char]10 +
+        '- Approved source SHA: ' + $sourceSha + [char]10
     if (-not [string]::IsNullOrEmpty($SummaryPath)) {
         Write-Utf8NoBomFile -Path $SummaryPath -Content $summary
     }

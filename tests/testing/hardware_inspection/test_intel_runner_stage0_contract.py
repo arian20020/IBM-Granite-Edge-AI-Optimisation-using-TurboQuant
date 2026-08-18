@@ -162,9 +162,12 @@ class IntelRunnerStage0ContractTests(unittest.TestCase):
             source_parameters.update({"Phase": "Source", "SourceCheckoutRoot": source_root})
             source = run_validator(**source_parameters)
             self.assertEqual(source.returncode, 0, normalized(source.stderr))
-            self.assertIn("Stage 0 only", normalized(source.stdout))
-            self.assertIn("Gate 1 remains Blocked", normalized(source.stdout))
-            self.assertIn("Gate 2 is prohibited", normalized(source.stdout))
+
+            (source_root / "identity.txt").write_text("modified identity\n", encoding="utf-8")
+            tracked_dirty = run_validator(**source_parameters)
+            self.assertNotEqual(tracked_dirty.returncode, 0)
+            self.assertEqual(normalized(tracked_dirty.stderr), INVALID_STDERR)
+            subprocess.run(["git", "-C", str(source_root), "restore", "--worktree", "identity.txt"], check=True, timeout=20)
 
             (source_root / "untracked.txt").write_text("unsafe\n", encoding="utf-8")
             dirty = run_validator(**source_parameters)
@@ -176,6 +179,18 @@ class IntelRunnerStage0ContractTests(unittest.TestCase):
             mismatched = run_validator(**source_parameters)
             self.assertNotEqual(mismatched.returncode, 0)
             self.assertEqual(normalized(mismatched.stderr), INVALID_STDERR)
+
+            self.assertEqual(
+                normalized(source.stdout),
+                "# Hardware Inspection Intel runner preflight\n\n"
+                "- Stage 0 only.\n"
+                "- The Intel laptop was not contacted.\n"
+                "- The LLM Fit candidate was not acquired or executed.\n"
+                "- Gate 1 remains Blocked.\n"
+                "- Gate 2 is prohibited.\n"
+                "- Approved source ref: refs/heads/feature/hardware-inspection\n"
+                "- Approved source SHA: " + source_sha + "\n",
+            )
 
 
 if __name__ == "__main__":
