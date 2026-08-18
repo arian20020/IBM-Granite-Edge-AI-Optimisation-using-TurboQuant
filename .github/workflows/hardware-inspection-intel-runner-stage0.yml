@@ -1,0 +1,108 @@
+name: Hardware Inspection Intel runner Stage 0
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_repository_only:
+        description: Confirm this run is repository-only and will not contact the Intel laptop
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hardware-inspection-intel-runner-stage0
+  cancel-in-progress: false
+
+jobs:
+  hosted-preflight:
+    name: Validate repository-only Intel runner controls
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch) &&
+      github.actor == github.repository_owner &&
+      github.triggering_actor == github.repository_owner &&
+      github.run_attempt == 1 &&
+      inputs.confirm_repository_only == true
+    runs-on: windows-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out default-branch controls
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          ref: ${{ github.sha }}
+          path: control
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Python for repository contracts
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.10'
+
+      - name: Run Stage 0 contracts
+        shell: pwsh
+        working-directory: control
+        run: >-
+          python -m unittest
+          tests.testing.hardware_inspection.test_intel_runner_stage0_contract
+          -v
+
+      - name: Validate dispatch and approval manifest
+        id: approval
+        shell: powershell
+        env:
+          STAGE0_WORKFLOW_REF: ${{ github.ref }}
+          STAGE0_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          STAGE0_ACTOR: ${{ github.actor }}
+          STAGE0_TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+          STAGE0_REPOSITORY_OWNER: ${{ github.repository_owner }}
+          STAGE0_RUN_ATTEMPT: ${{ github.run_attempt }}
+          STAGE0_CONFIRMATION: ${{ inputs.confirm_repository_only }}
+        run: |
+          & '.\control\scripts\hardware-inspection\Validate-HardwareInspectionIntelRunnerStage0.ps1' `
+            -Phase Dispatch `
+            -ControlRoot (Join-Path $env:GITHUB_WORKSPACE 'control') `
+            -WorkflowRef $env:STAGE0_WORKFLOW_REF `
+            -DefaultBranch $env:STAGE0_DEFAULT_BRANCH `
+            -Actor $env:STAGE0_ACTOR `
+            -TriggeringActor $env:STAGE0_TRIGGERING_ACTOR `
+            -RepositoryOwner $env:STAGE0_REPOSITORY_OWNER `
+            -RunAttempt $env:STAGE0_RUN_ATTEMPT `
+            -ConfirmRepositoryOnly $env:STAGE0_CONFIRMATION `
+            -GitHubOutputPath $env:GITHUB_OUTPUT
+
+      - name: Check out approved source for identity comparison only
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          ref: ${{ steps.approval.outputs.source_ref }}
+          path: evaluated
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Confirm approved source identity and publish safe summary
+        shell: powershell
+        env:
+          STAGE0_WORKFLOW_REF: ${{ github.ref }}
+          STAGE0_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          STAGE0_ACTOR: ${{ github.actor }}
+          STAGE0_TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+          STAGE0_REPOSITORY_OWNER: ${{ github.repository_owner }}
+          STAGE0_RUN_ATTEMPT: ${{ github.run_attempt }}
+          STAGE0_CONFIRMATION: ${{ inputs.confirm_repository_only }}
+        run: |
+          & '.\control\scripts\hardware-inspection\Validate-HardwareInspectionIntelRunnerStage0.ps1' `
+            -Phase Source `
+            -ControlRoot (Join-Path $env:GITHUB_WORKSPACE 'control') `
+            -SourceCheckoutRoot (Join-Path $env:GITHUB_WORKSPACE 'evaluated') `
+            -WorkflowRef $env:STAGE0_WORKFLOW_REF `
+            -DefaultBranch $env:STAGE0_DEFAULT_BRANCH `
+            -Actor $env:STAGE0_ACTOR `
+            -TriggeringActor $env:STAGE0_TRIGGERING_ACTOR `
+            -RepositoryOwner $env:STAGE0_REPOSITORY_OWNER `
+            -RunAttempt $env:STAGE0_RUN_ATTEMPT `
+            -ConfirmRepositoryOnly $env:STAGE0_CONFIRMATION `
+            -SummaryPath $env:GITHUB_STEP_SUMMARY

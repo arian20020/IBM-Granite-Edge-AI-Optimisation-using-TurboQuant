@@ -1,4 +1,5 @@
 import codecs
+import hashlib
 import json
 import shutil
 import subprocess
@@ -20,6 +21,13 @@ VALIDATOR_PATH = (
     / "hardware-inspection"
     / "Validate-HardwareInspectionIntelRunnerStage0.ps1"
 )
+WORKFLOW_PATH = (
+    REPOSITORY_ROOT
+    / ".github"
+    / "workflows"
+    / "hardware-inspection-intel-runner-stage0.yml"
+)
+EXPECTED_WORKFLOW_SHA256 = "9f14750368eef1a105332ccb54cd513ca92fd4af91dd8542efe5ededff304309"
 INVALID_STDERR = "HI-RUNNER-STAGE0-INVALID: repository-only validation failed.\n"
 
 
@@ -85,6 +93,24 @@ def valid_dispatch_parameters(control_root):
 
 def normalized(value):
     return value.replace("\r\n", "\n").replace("\r", "\n")
+
+
+def _workflow():
+    if not WORKFLOW_PATH.is_file():
+        raise AssertionError("Stage 0 workflow is missing")
+    raw = WORKFLOW_PATH.read_bytes()
+    if raw.startswith(codecs.BOM_UTF8):
+        raise AssertionError("Stage 0 workflow must not have a UTF-8 BOM")
+    if b"\r" in raw:
+        raise AssertionError("Stage 0 workflow must use LF line endings")
+    raw.decode("utf-8", "strict")
+    return raw
+
+
+def _assert_canonical_workflow(raw):
+    actual = hashlib.sha256(raw).hexdigest()
+    if actual != EXPECTED_WORKFLOW_SHA256:
+        raise AssertionError("unexpected Stage 0 workflow digest: " + actual)
 
 
 class IntelRunnerStage0ContractTests(unittest.TestCase):
@@ -201,6 +227,194 @@ class IntelRunnerStage0ContractTests(unittest.TestCase):
                 "- Approved source ref: refs/heads/feature/hardware-inspection\n"
                 "- Approved source SHA: " + source_sha + "\n",
             )
+
+    def test_stage0_workflow_exposes_only_manual_trigger_and_hosted_runner(self):
+        raw = _workflow()
+        _assert_canonical_workflow(raw)
+        text = raw.decode("utf-8")
+        pre_permissions = text.split("\npermissions:\n", 1)[0]
+        self.assertEqual(
+            pre_permissions,
+            """name: Hardware Inspection Intel runner Stage 0
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_repository_only:
+        description: Confirm this run is repository-only and will not contact the Intel laptop
+        required: true
+        default: false
+        type: boolean
+""",
+        )
+        job_headers = [
+            line
+            for line in text.split("\njobs:\n", 1)[1].splitlines()
+            if line.startswith("  ") and not line.startswith("    ") and line.endswith(":")
+        ]
+        self.assertEqual(job_headers, ["  hosted-preflight:"])
+        self.assertEqual(text.count("runs-on: windows-latest"), 1)
+        self.assertNotIn("self-hosted", text)
+
+        guard = b"""    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch) &&
+      github.actor == github.repository_owner &&
+      github.triggering_actor == github.repository_owner &&
+      github.run_attempt == 1 &&
+      inputs.confirm_repository_only == true
+"""
+        mutations = (
+            raw + b"# comment-only mutation\n",
+            raw.replace(b"runs-on: windows-latest", b"'runs-on': windows-latest", 1),
+            raw.replace(b"working-directory: control", b"working-directory: evaluated", 1),
+            raw.replace(b".\\control\\scripts", b".\\evaluated\\scripts", 1),
+            raw.replace(
+                b"      - name: Set up Python for repository contracts\n",
+                b"      - uses: actions/cache@deadbeef\n\n      - name: Set up Python for repository contracts\n",
+                1,
+            ),
+            raw.replace(
+                b"\njobs:\n",
+                b"\njobs:\n  contact-runner:\n    runs-on: windows-latest\n    steps:\n      - run: Get-ComputerInfo\n",
+                1,
+            ),
+            raw.replace(
+                guard,
+                b"""    # guard expressions moved to comments
+    # github.event_name == 'workflow_dispatch'
+    if: true
+""",
+                1,
+            ),
+            raw.replace(b"ref: ${{ github.sha }}", b"ref: feature/hardware-inspection", 1),
+            raw.replace(b"on:\n", b"on:\n  pull_request_target:\n  workflow_run:\n", 1),
+        )
+        self.assertEqual(len(mutations), 9)
+        for mutation in mutations:
+            self.assertNotEqual(hashlib.sha256(mutation).hexdigest(), EXPECTED_WORKFLOW_SHA256)
+            with self.assertRaises(AssertionError):
+                _assert_canonical_workflow(mutation)
+
+    def test_stage0_workflow_uses_read_only_permissions_owner_and_default_guards(self):
+        raw = _workflow()
+        _assert_canonical_workflow(raw)
+        text = raw.decode("utf-8")
+        self.assertIn("permissions:\n  contents: read\n", text)
+        self.assertEqual(text.count("permissions:"), 1)
+        self.assertNotIn("contents: write", text)
+        self.assertIn(
+            """    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch) &&
+      github.actor == github.repository_owner &&
+      github.triggering_actor == github.repository_owner &&
+      github.run_attempt == 1 &&
+      inputs.confirm_repository_only == true
+""",
+            text,
+        )
+        self.assertIn("    timeout-minutes: 10\n", text)
+        self.assertIn(
+            "concurrency:\n  group: hardware-inspection-intel-runner-stage0\n  cancel-in-progress: false\n",
+            text,
+        )
+
+    def test_stage0_workflow_pins_actions_and_drops_checkout_credentials(self):
+        raw = _workflow()
+        _assert_canonical_workflow(raw)
+        text = raw.decode("utf-8")
+        checkout = "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0"
+        setup_python = "actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065"
+        uses = [line.strip() for line in text.splitlines() if line.strip().startswith("uses:")]
+        self.assertEqual(uses, ["uses: " + checkout, "uses: " + setup_python, "uses: " + checkout])
+        self.assertIn("          python-version: '3.12.10'\n", text)
+        self.assertEqual(text.count("persist-credentials: false"), 2)
+        self.assertIn("          ref: ${{ github.sha }}\n          path: control", text)
+
+    def test_stage0_workflow_reads_approved_source_without_free_form_sha_input(self):
+        raw = _workflow()
+        _assert_canonical_workflow(raw)
+        text = raw.decode("utf-8")
+        self.assertIn("    inputs:\n      confirm_repository_only:\n", text)
+        self.assertEqual(text.count("      confirm_repository_only:\n"), 1)
+        self.assertNotIn("runner_label", text)
+        self.assertNotIn("source_sha", text)
+        self.assertNotIn("source_ref:", text)
+        self.assertNotIn("input_sha", text)
+        self.assertIn("          ref: ${{ steps.approval.outputs.source_ref }}\n", text)
+        self.assertIn("          path: evaluated\n", text)
+
+    def test_stage0_workflow_executes_validators_only_from_control_checkout(self):
+        raw = _workflow()
+        _assert_canonical_workflow(raw)
+        text = raw.decode("utf-8")
+        self.assertEqual(text.count("          path: control"), 1)
+        self.assertEqual(text.count("          path: evaluated"), 1)
+        self.assertEqual(text.count("Validate-HardwareInspectionIntelRunnerStage0.ps1"), 2)
+        self.assertGreaterEqual(text.count(".\\control\\scripts\\hardware-inspection\\Validate-HardwareInspectionIntelRunnerStage0.ps1"), 2)
+        self.assertNotIn(".\\evaluated\\scripts", text)
+        self.assertLess(text.index("path: control"), text.index("Run Stage 0 contracts"))
+        self.assertLess(text.index("Run Stage 0 contracts"), text.index("Validate dispatch and approval manifest"))
+        self.assertLess(text.index("Validate dispatch and approval manifest"), text.index("path: evaluated"))
+        self.assertLess(text.index("path: evaluated"), text.index("Confirm approved source identity"))
+
+    def test_stage0_workflow_has_no_self_hosted_registration_or_service_path(self):
+        raw = _workflow()
+        _assert_canonical_workflow(raw)
+        text = raw.decode("utf-8").lower()
+        for forbidden in (
+            "self-hosted",
+            "config.cmd",
+            "config.sh",
+            "run.cmd",
+            "run.sh",
+            "svc install",
+            "svc.cmd",
+            "service install",
+            "ephemeral",
+            "get-computerinfo",
+        ):
+            self.assertNotIn(forbidden, text)
+
+    def test_stage0_workflow_has_no_candidate_capture_report_or_offline_path(self):
+        raw = _workflow()
+        _assert_canonical_workflow(raw)
+        text = raw.decode("utf-8").lower()
+        for forbidden in (
+            "candidate",
+            "capture",
+            "report",
+            "trusted tests",
+            "llmfit",
+            "hardware artifact",
+            "dotnet restore",
+            "dotnet build",
+            "dotnet test",
+            "adapter",
+            "netsh",
+            "offline",
+        ):
+            self.assertNotIn(forbidden, text)
+
+    def test_stage0_workflow_has_no_raw_upload_or_operational_environment(self):
+        raw = _workflow()
+        _assert_canonical_workflow(raw)
+        text = raw.decode("utf-8").lower()
+        for forbidden in (
+            "actions/upload-artifact",
+            "upload-artifact",
+            ".trx",
+            "reference",
+            "raw",
+            "evidence",
+            "granite",
+            "secrets.",
+            "contents: write",
+            "id-token:",
+            "environment:",
+        ):
+            self.assertNotIn(forbidden, text)
 
 
 if __name__ == "__main__":
