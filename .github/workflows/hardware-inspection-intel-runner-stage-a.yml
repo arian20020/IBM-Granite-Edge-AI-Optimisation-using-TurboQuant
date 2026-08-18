@@ -304,7 +304,7 @@ jobs:
             $source = Get-Item -LiteralPath $sourcePath -Force
             if ($source.Length -ne $expectedBytes.Length) { throw $failure }
             $sourceStream = New-Object System.IO.FileStream($sourcePath, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::None)
-            try { if ($sourceStream.Length -ne $expectedBytes.Length) { throw $failure }; $actualBytes = New-Object byte[] $sourceStream.Length; $null = $sourceStream.Read($actualBytes, 0, $actualBytes.Length) } finally { $sourceStream.Dispose() }
+            try { if ($sourceStream.Length -ne $expectedBytes.Length) { throw $failure }; $actualBytes = New-Object byte[] $sourceStream.Length; $offset = 0; while ($offset -lt $actualBytes.Length) { $count = $sourceStream.Read($actualBytes, $offset, $actualBytes.Length - $offset); if ($count -le 0) { throw $failure }; $offset += $count } } finally { $sourceStream.Dispose() }
             if ($actualBytes.Length -ne $expectedBytes.Length) { throw $failure }
             for ($index = 0; $index -lt $expectedBytes.Length; $index++) {
               if ($actualBytes[$index] -ne $expectedBytes[$index]) { throw $failure }

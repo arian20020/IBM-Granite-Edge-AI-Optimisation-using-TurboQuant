@@ -946,6 +946,16 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
                 )
                 _assert_invalid_validator_result(self, result)
                 self.assertNotIn("canary", result.stdout + result.stderr)
+            runner_literal = str(RUNNER_PATH).replace("'", "''")
+            add_type_failure = subprocess.run(
+                [_powershell_executable(), "-NoProfile", "-NonInteractive", "-Command",
+                 "function Add-Type { throw 'C:\\Users\\canary\\compiler-failure' }\n& '" + runner_literal + "' -EvaluatedRoot 'x' -ApprovedSha ('a' * 40) -LocalWorkRoot 'x' -SummaryJsonPath 'x' -SummaryMarkdownPath 'x'"],
+                text=True, capture_output=True, timeout=20, check=False,
+            )
+            self.assertNotEqual(add_type_failure.returncode, 0)
+            self.assertEqual(add_type_failure.stdout, "")
+            self.assertEqual(add_type_failure.stderr.replace("\r\n", "\n"), INVALID_RUNNER_STDERR)
+            self.assertNotIn("canary", add_type_failure.stderr)
 
             hosted_output = fixture_root / "hosted-output.txt"
             hosted = _invoke(
