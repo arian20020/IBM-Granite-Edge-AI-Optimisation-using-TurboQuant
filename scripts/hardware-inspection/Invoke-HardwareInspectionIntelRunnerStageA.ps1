@@ -13,8 +13,34 @@ $ErrorActionPreference = 'Stop'
 $script:StageAFailure = 'HI-RUNNER-STAGEA-TESTS-FAILED: deterministic validation failed.'
 $script:StageATrxNamespace = 'http://microsoft.com/schemas/VisualStudio/TeamTest/2010'
 $script:StageAMaximumTrxBytes = 16MB
+$script:StageAMaximumProcessStreamBytes = 16MB # Per stdout/stderr log; excess is drained and discarded.
 $script:StageAOwnedProcesses = New-Object System.Collections.ArrayList
 $script:StageACancelled = $false
+
+if ($null -eq ('HardwareInspection.StageA.CappedDrain' -as [type])) {
+    Add-Type -TypeDefinition @'
+using System;
+using System.IO;
+using System.Threading.Tasks;
+namespace HardwareInspection.StageA {
+    public static class CappedDrain {
+        public static async Task<bool> CopyAsync(Stream source, string path, long maximumBytes) {
+            var buffer = new byte[1048576]; long written = 0; bool truncated = false;
+            using (var destination = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1048576, true)) {
+                int count;
+                while ((count = await source.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false)) != 0) {
+                    var accepted = (int)Math.Min((long)count, Math.Max(0L, maximumBytes - written));
+                    if (accepted != 0) { await destination.WriteAsync(buffer, 0, accepted).ConfigureAwait(false); written += accepted; }
+                    if (accepted != count) { truncated = true; }
+                }
+                await destination.FlushAsync().ConfigureAwait(false);
+            }
+            return truncated;
+        }
+    }
+}
+'@
+}
 
 function Assert-StageACondition {
     param([bool] $Condition)
@@ -74,6 +100,11 @@ function Wait-StageAProcess {
     }
 }
 
+function Copy-StageAProcessStream {
+    param([System.IO.Stream] $Source, [string] $Path)
+    return [HardwareInspection.StageA.CappedDrain]::CopyAsync($Source, $Path, $script:StageAMaximumProcessStreamBytes)
+}
+
 function Stop-StageAOwnedProcesses {
     $wasCancelled = $script:StageACancelled
     $script:StageACancelled = $false
@@ -84,16 +115,7 @@ function Stop-StageAOwnedProcesses {
             try {
             $current = Get-Process -Id $owned.Id -ErrorAction SilentlyContinue
             if ($null -ne $current -and $current.StartTime.ToUniversalTime().Ticks -eq $owned.StartTicks) {
-                $information = New-Object System.Diagnostics.ProcessStartInfo
-                $information.FileName = $taskkillPath; $information.Arguments = '/PID ' + $owned.Id + ' /T /F'
-                $information.UseShellExecute = $false; $information.CreateNoWindow = $true
-                $information.RedirectStandardOutput = $true; $information.RedirectStandardError = $true
-                $taskkill = New-Object System.Diagnostics.Process; $taskkill.StartInfo = $information
-                if ($taskkill.Start()) {
-                    $outputRead = $taskkill.StandardOutput.ReadToEndAsync(); $errorRead = $taskkill.StandardError.ReadToEndAsync()
-                    Wait-StageAProcess $taskkill 30
-                    $null = $outputRead.GetAwaiter().GetResult(); $null = $errorRead.GetAwaiter().GetResult()
-                }
+                $null = Invoke-StageAProcess $taskkillPath @('/PID',[string]$owned.Id,'/T','/F') ($owned.LogPath + '.cleanup') 30 $false
             }
             } catch { throw }
         }
@@ -104,7 +126,7 @@ function Stop-StageAOwnedProcesses {
 }
 
 function Invoke-StageAProcess {
-    param([string] $Application, [string[]] $ArgumentList, [string] $LogPath, [int] $TimeoutSeconds)
+    param([string] $Application, [string[]] $ArgumentList, [string] $LogPath, [int] $TimeoutSeconds, [bool] $RegisterOwned = $true)
     $information = New-Object System.Diagnostics.ProcessStartInfo
     $information.FileName = $Application
     $information.Arguments = ConvertTo-StageACommandLine $ArgumentList
@@ -115,15 +137,22 @@ function Invoke-StageAProcess {
     $process = New-Object System.Diagnostics.Process
     $process.StartInfo = $information
     Assert-StageACondition ($process.Start())
-    [void]$script:StageAOwnedProcesses.Add([pscustomobject]@{ Id = $process.Id; StartTicks = $process.StartTime.ToUniversalTime().Ticks })
-    $outputRead = $process.StandardOutput.ReadToEndAsync()
-    $errorRead = $process.StandardError.ReadToEndAsync()
-    Wait-StageAProcess $process $TimeoutSeconds
-    $standardOutput = $outputRead.GetAwaiter().GetResult()
-    $standardError = $errorRead.GetAwaiter().GetResult()
-    [System.IO.File]::WriteAllText($LogPath, $standardOutput + $standardError, (New-Object System.Text.UTF8Encoding($false)))
+    if ($RegisterOwned) { [void]$script:StageAOwnedProcesses.Add([pscustomobject]@{ Id = $process.Id; StartTicks = $process.StartTime.ToUniversalTime().Ticks; LogPath = $LogPath }) }
+    $stdoutPath = $LogPath + '.stdout'
+    $stderrPath = $LogPath + '.stderr'
+    $outputTask = Copy-StageAProcessStream $process.StandardOutput.BaseStream $stdoutPath
+    $errorTask = Copy-StageAProcessStream $process.StandardError.BaseStream $stderrPath
+    $deadline = [System.Diagnostics.Stopwatch]::StartNew()
+    while ((-not $outputTask.IsCompleted) -or (-not $errorTask.IsCompleted) -or (-not $process.HasExited)) {
+            Assert-StageACondition (-not $script:StageACancelled)
+            Assert-StageACondition ($deadline.Elapsed.TotalSeconds -lt $TimeoutSeconds)
+            Start-Sleep -Milliseconds 20
+    }
+    $truncated = $outputTask.GetAwaiter().GetResult() -or $errorTask.GetAwaiter().GetResult()
+    Assert-StageACondition (-not $truncated)
     Assert-StageACondition ($process.ExitCode -eq 0)
-    return $standardOutput.Trim()
+    Assert-StageACondition ((Get-Item -LiteralPath $stdoutPath).Length -le 4096)
+    return (Get-Content -LiteralPath $stdoutPath -Raw).Trim()
 }
 
 function Read-HardwareInspectionIntelRunnerStageATrx {
@@ -205,15 +234,17 @@ function Read-HardwareInspectionIntelRunnerStageATrx {
         $definition = $definitions[$result.TestId]
         Assert-StageACondition ($definition.Name -ceq $result.Name -and $definition.ExecutionId -ceq $result.ExecutionId -and $entries.Contains($result.TestId + '|' + $result.ExecutionId))
     }
+    $summaryNodes = @($document.SelectNodes('/t:TestRun/t:ResultSummary', $manager))
+    Assert-StageACondition ($summaryNodes.Count -eq 1 -and $summaryNodes[0].GetAttribute('outcome') -ceq 'Completed')
     $counterNodes = @($document.SelectNodes('/t:TestRun/t:ResultSummary/t:Counters', $manager))
     Assert-StageACondition ($counterNodes.Count -eq 1)
     $counters = $counterNodes[0]
-    foreach ($name in @('total','executed','passed','failed','error','timeout','aborted','inconclusive','notExecuted','notRunnable','disconnected','warning','completed','inProgress','pending')) {
+    foreach ($name in @('total','executed','passed','failed','error','timeout','aborted','inconclusive','passedButRunAborted','notExecuted','notRunnable','disconnected','warning','completed','inProgress','pending')) {
         $attribute = $counters.Attributes[$name]
         Assert-StageACondition ($null -ne $attribute -and $attribute.Value -cmatch '\A[0-9]+\z')
     }
     Assert-StageACondition ([int]$counters.GetAttribute('total') -eq $expectedCount -and [int]$counters.GetAttribute('executed') -eq $expectedCount -and [int]$counters.GetAttribute('passed') -eq $expectedCount)
-    foreach ($name in @('failed','error','timeout','aborted','inconclusive','notExecuted','notRunnable','disconnected','warning','completed','inProgress','pending')) { Assert-StageACondition ([int]$counters.GetAttribute($name) -eq 0) }
+    foreach ($name in @('failed','error','timeout','aborted','inconclusive','passedButRunAborted','notExecuted','notRunnable','disconnected','warning','completed','inProgress','pending')) { Assert-StageACondition ([int]$counters.GetAttribute($name) -eq 0) }
     return [pscustomobject]@{ Passed = $expectedCount; NonPassing = 0 }
 }
 

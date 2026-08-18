@@ -492,7 +492,7 @@ def _stage_a_trx_fixture(kind):
     return (
         f'<TestRun xmlns="{namespace}"><Results>{results}</Results>'
         f'<TestDefinitions>{definitions}</TestDefinitions><TestEntries>{entries}</TestEntries>'
-        f'<ResultSummary outcome="Passed"><Counters {counters} /></ResultSummary></TestRun>'
+        f'<ResultSummary outcome="Completed"><Counters {counters} /></ResultSummary></TestRun>'
     )
 
 
@@ -1178,6 +1178,8 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
             "CancelKeyPress",
             "StageAOwnedProcesses",
             "Wait-StageAProcess",
+            "StageAMaximumProcessStreamBytes",
+            "Copy-StageAProcessStream",
         ):
             self.assertIn(required_hardening, runner_text)
         for first, second, expected_success in (
@@ -1224,6 +1226,22 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
             "try { Wait-StageAProcess $process 0 } finally { if (-not $process.HasExited) { $process.Kill(); $process.WaitForExit() } }"
         )
         self.assertNotEqual(timeout_fixture.returncode, 0)
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            log_path = Path(temporary_directory) / "high-volume.log"
+            body = (
+                "$tool = (Get-Command powershell.exe -CommandType Application | Select-Object -First 1).Source\n"
+                "try { Invoke-StageAProcess $tool @('-NoProfile','-NonInteractive','-Command',\"[Console]::Out.Write([string]::new([char]120, 17825792))\") '"
+                + str(log_path).replace("'", "''")
+                + "' 20 | Out-Null } catch { }\n"
+                "if (-not (Test-Path '"
+                + str(log_path).replace("'", "''")
+                + ".stdout')) { exit 2 }\n"
+                "if ((Get-Item '"
+                + str(log_path).replace("'", "''")
+                + ".stdout').Length -gt 16MB) { exit 3 }"
+            )
+            result = _invoke_runner_pure(body)
+            self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_stage_a_runner_requires_exact_trx_identities_and_zero_nonpassing(self):
         runner_text, commands, strings = _powershell_ast_text(self, RUNNER_PATH)
@@ -1282,6 +1300,14 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
                     mutations["counter-" + counter_name] = valid.replace(
                         counter_name + '=\"0\"', counter_name + '=\"1\"', 1
                     )
+                mutations.update(
+                    {
+                        "summary-outcome": valid.replace('ResultSummary outcome="Completed"', 'ResultSummary outcome="Aborted"', 1),
+                        "missing-summary-outcome": valid.replace('ResultSummary outcome="Completed"', 'ResultSummary', 1),
+                        "passed-but-aborted": valid.replace('passedButRunAborted="0"', 'passedButRunAborted="1"', 1),
+                        "missing-passed-but-aborted": valid.replace(' passedButRunAborted="0"', '', 1),
+                    }
+                )
                 for name, mutated in mutations.items():
                     with self.subTest(kind=kind, mutation=name):
                         fixture.write_text(mutated, encoding="utf-8", newline="\n")
