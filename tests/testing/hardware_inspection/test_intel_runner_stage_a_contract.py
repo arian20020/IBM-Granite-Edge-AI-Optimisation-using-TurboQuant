@@ -1,5 +1,6 @@
 import base64
 import codecs
+import copy
 import json
 import os
 import re
@@ -75,6 +76,52 @@ def _strict_utf8(path):
     if b"\r" in raw:
         raise AssertionError(f"{path.name} must use LF line endings")
     return raw.decode("utf-8", "strict")
+
+
+def _strict_json_object(raw):
+    def reject_duplicates(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError("duplicate JSON key: " + key)
+            result[key] = value
+        return result
+
+    return json.loads(raw.decode("utf-8", "strict"), object_pairs_hook=reject_duplicates)
+
+
+def _assert_approval_manifest(test_case, raw):
+    test_case.assertFalse(raw.startswith(codecs.BOM_UTF8))
+    test_case.assertNotIn(b"\r", raw)
+    data = _strict_json_object(raw)
+    test_case.assertEqual(
+        list(data), ["schemaVersion", "remoteFeatureRef", "approvedTipSha"]
+    )
+    test_case.assertEqual(data["schemaVersion"], "1.0")
+    test_case.assertEqual(
+        data["remoteFeatureRef"], "refs/heads/feature/hardware-inspection"
+    )
+    test_case.assertRegex(data["approvedTipSha"], r"^(?!0{40}$)[0-9a-f]{40}$")
+
+
+def _assert_summary_upload(test_case, document):
+    upload_steps = [
+        step
+        for _, step in _all_steps(document)
+        if str(step.get("uses", "")).startswith("actions/upload-artifact@")
+    ]
+    test_case.assertEqual(len(upload_steps), 1)
+    upload_with = upload_steps[0].get("with", {})
+    upload_path = json.dumps(upload_with).casefold()
+    test_case.assertIn("summary", upload_path)
+    test_case.assertNotIn(".trx", upload_path)
+    test_case.assertNotRegex(upload_path, r"(?:[a-z]:\\|\\\\|runner\.|computername|hostname)")
+
+
+def _assert_no_host_or_path_leaks(test_case, text):
+    test_case.assertNotRegex(text, r"(?i)\$\{\{\s*(?:runner\.|github\.workspace|github\.event\.runner)")
+    test_case.assertNotRegex(text, r"(?i)\$env:(?:computername|username|userdomain|hostname)")
+    test_case.assertNotRegex(text, r"(?i)(?:[a-z]:\\|\\\\[^\s\\]+\\|/home/|/Users/)")
 
 
 def _strip_yaml_comment(value):
@@ -335,7 +382,20 @@ def _assert_workflow_shape(test_case, document):
 
 def _assert_runner_routing(test_case, document, validator_text):
     jobs = document["jobs"]
+    test_case.assertEqual(list(jobs), ["hosted-preflight", "deterministic-runner"])
     test_case.assertEqual(jobs["hosted-preflight"]["runs-on"], "windows-latest")
+    preflight_outputs = jobs["hosted-preflight"].get("outputs", {})
+    test_case.assertEqual(
+        set(preflight_outputs), {"approved_sha", "source_ref", "runner_label", "eligible"}
+    )
+    test_case.assertRegex(
+        str(preflight_outputs["runner_label"]),
+        r"\$\{\{\s*steps\.[A-Za-z0-9_-]+\.outputs\.runner_label\s*\}\}",
+    )
+    hosted_run_text = "\n".join(
+        str(step.get("run", "")) for step in jobs["hosted-preflight"].get("steps", [])
+    )
+    test_case.assertRegex(hosted_run_text, r"(?i)(?:RunnerLabel|runner_label)")
     runner = jobs["deterministic-runner"]
     test_case.assertEqual(runner["needs"], "hosted-preflight")
     test_case.assertEqual(runner["runs-on"], "${{ needs.hosted-preflight.outputs.runner_label }}")
@@ -392,6 +452,7 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
             raw.replace(b"on:\n  workflow_dispatch:", b"on:\n  push:\n  workflow_dispatch:", 1),
             raw.replace(b"github.run_attempt == 1", b"github.run_attempt == 2", 1),
             raw.replace(b"github.actor == github.repository_owner", b"github.actor == 'other'", 1),
+            raw.replace(b"github.triggering_actor == github.repository_owner", b"github.triggering_actor == 'other'", 1),
             raw.replace(b"inputs.confirm_authorised_runner == true", b"true", 1),
         ):
             with self.subTest(mutation=mutation[:40]):
@@ -399,31 +460,34 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
                     _assert_workflow_shape(self, _yaml_load(mutation))
 
     def test_stage_a_workflow_uses_hosted_preflight_then_exact_one_time_label(self):
-        raw, document = _workflow(self)
+        _, document = _workflow(self)
         validator_text = _strict_utf8(_required_file(self, VALIDATOR_PATH))
         _powershell_ast(self, VALIDATOR_PATH)
         _assert_runner_routing(self, document, validator_text)
         self.assertEqual(len(document["jobs"]), 2)
-        for mutation in (
-            raw.replace(
-                b"${{ needs.hosted-preflight.outputs.runner_label }}",
-                b"${{ inputs.runner_label }}",
-                1,
-            ),
-            raw.replace(
-                b"${{ needs.hosted-preflight.outputs.runner_label }}",
-                b"hardware-gate1-0123456789abcdef",
-                1,
-            ),
-            raw.replace(b"jobs:\n", b"jobs:\n  extra-self-hosted:\n    runs-on: self-hosted\n", 1),
-        ):
-            with self.subTest(mutation=mutation[:60]):
-                mutated = _yaml_load(mutation)
+        mutations = []
+        missing_output = copy.deepcopy(document)
+        del missing_output["jobs"]["hosted-preflight"]["outputs"]["runner_label"]
+        mutations.append(missing_output)
+        raw_input_output = copy.deepcopy(document)
+        raw_input_output["jobs"]["hosted-preflight"]["outputs"]["runner_label"] = "${{ inputs.runner_label }}"
+        mutations.append(raw_input_output)
+        fixed_label = copy.deepcopy(document)
+        fixed_label["jobs"]["deterministic-runner"]["runs-on"] = "hardware-gate1-0123456789abcdef"
+        mutations.append(fixed_label)
+        second_job = copy.deepcopy(document)
+        second_job["jobs"]["extra-self-hosted"] = {"runs-on": "self-hosted"}
+        mutations.append(second_job)
+        for mutation in mutations:
+            with self.subTest(mutation=repr(mutation)[:60]):
                 with self.assertRaises(AssertionError):
-                    _assert_runner_routing(self, mutated, validator_text)
+                    _assert_runner_routing(self, mutation, validator_text)
 
     def test_stage_a_workflow_reads_only_the_default_branch_approval_manifest(self):
         raw, document = _workflow(self)
+        manifest_path = _required_file(self, MANIFEST_PATH)
+        manifest_raw = manifest_path.read_bytes()
+        _assert_approval_manifest(self, manifest_raw)
         self.assertEqual(list(document["jobs"]), ["hosted-preflight", "deterministic-runner"])
         hosted_text = "\n".join(str(step) for step in _steps(document, "hosted-preflight"))
         runner_text = "\n".join(str(step) for step in _steps(document, "deterministic-runner"))
@@ -434,6 +498,43 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
         self.assertIn("approved_sha", runner_text)
         self.assertNotIn("feature/hardware-inspection", runner_text)
         self.assertNotRegex(runner_text, r"ref['\"]?\s*[:=]\s*['\"]?refs/heads/")
+        runner_checkouts = [
+            step
+            for step in _steps(document, "deterministic-runner")
+            if str(step.get("uses", "")).startswith("actions/checkout@")
+        ]
+        self.assertGreaterEqual(len(runner_checkouts), 2)
+        self.assertTrue(
+            any("approved_sha" in str(step.get("with", {}).get("ref", "")) for step in runner_checkouts)
+        )
+        for step in runner_checkouts:
+            ref = str(step.get("with", {}).get("ref", ""))
+            self.assertNotIn("feature/hardware-inspection", ref)
+            self.assertNotRegex(ref, r"(?i)refs/heads/")
+        for mutation in (
+            manifest_raw + b'\n{"extra":"malformed"}',
+            manifest_raw.replace(b'"schemaVersion":"1.0"', b'"schemaVersion":"2.0"', 1),
+            manifest_raw.replace(b'"approvedTipSha":"', b'"approvedTipSha":"not-a-sha-', 1),
+            manifest_raw.replace(
+                b'"approvedTipSha":"',
+                b'"approvedTipSha":"cc2e57ceb94e73e49f34fc383d5440a9047fba21","approvedTipSha":"',
+                1,
+            ),
+        ):
+            with self.subTest(manifest_mutation=mutation[:50]):
+                with self.assertRaises((AssertionError, ValueError, json.JSONDecodeError)):
+                    _assert_approval_manifest(self, mutation)
+        branch_checkout = copy.deepcopy(document)
+        branch_runner_checkouts = [
+            step
+            for step in _steps(branch_checkout, "deterministic-runner")
+            if str(step.get("uses", "")).startswith("actions/checkout@")
+        ]
+        branch_runner_checkouts[-1].setdefault("with", {})["ref"] = "refs/heads/feature/hardware-inspection"
+        with self.assertRaises(AssertionError):
+            mutated_runner_text = "\n".join(str(step) for step in _steps(branch_checkout, "deterministic-runner"))
+            self.assertNotIn("feature/hardware-inspection", mutated_runner_text)
+            self.assertNotRegex(mutated_runner_text, r"ref['\"]?\s*[:=]\s*['\"]?refs/heads/")
         for mutation in (
             raw.replace(b"github.event.repository.default_branch", b"feature/hardware-inspection", 1),
             raw.replace(b"approved_sha", b"input_sha", 1),
@@ -532,6 +633,7 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
         for mutation in (
             runner_text.replace("param(", "Start-Process candidate; param(", 1),
             runner_text.replace("param(", "TrustedWindowsIntel; param(", 1),
+            runner_text.replace("param(", "TrustedOffline; param(", 1),
             runner_text.replace("param(", "Disable-NetAdapter -Name Ethernet; param(", 1),
         ):
             _, mutated_commands, mutated_strings = _powershell_text_ast(self, mutation)
@@ -540,6 +642,7 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
                     mutated_executable = "\n".join(mutated_commands + mutated_strings).casefold()
                     self.assertNotIn("candidate", mutated_executable)
                     self.assertNotIn("trustedwindowsintel", mutated_executable)
+                    self.assertNotIn("trustedoffline", mutated_executable)
                     self.assertNotIn("disable-netadapter", mutated_executable)
 
     def test_stage_a_workflow_has_bounded_timeout_and_non_cancelling_concurrency(self):
@@ -652,24 +755,38 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
         self.assertIn('"nonPassing"', executable)
         for forbidden in ("stdout", "stderr", ".trx", "raw", "ComputerName", "MachineName", "upload"):
             self.assertNotIn(forbidden.casefold(), executable.casefold())
-        upload_steps = [
-            step for _, step in _all_steps(document)
+        _assert_summary_upload(self, document)
+        _assert_no_host_or_path_leaks(self, executable)
+        workflow_runs = "\n".join(str(step.get("run", "")) for _, step in _all_steps(document))
+        _assert_no_host_or_path_leaks(self, workflow_runs)
+        trx_upload = copy.deepcopy(document)
+        trx_steps = [
+            step for _, step in _all_steps(trx_upload)
             if str(step.get("uses", "")).startswith("actions/upload-artifact@")
         ]
-        self.assertEqual(len(upload_steps), 1)
-        upload_path = json.dumps(upload_steps[0].get("with", {})).casefold()
-        self.assertIn("summary", upload_path)
-        self.assertNotIn(".trx", upload_path)
-        for mutation in (
-            runner_text.replace('"nonPassing"', '"host" : "canary", "nonPassing"', 1),
-            runner_text.replace("SummaryJsonPath", "TrxUploadPath", 1),
-        ):
+        trx_steps[0].setdefault("with", {})["path"] = "local\\deterministic.trx"
+        with self.assertRaises(AssertionError):
+            _assert_summary_upload(self, trx_upload)
+        mutations = (
+            (
+                runner_text.replace('"nonPassing"', '"host" : "canary", "nonPassing"', 1),
+                lambda text: self.assertNotIn("host", text.casefold()),
+            ),
+            (
+                runner_text.replace("param(", "Write-Output 'C:\\Users\\canary'; param(", 1),
+                lambda text: _assert_no_host_or_path_leaks(self, text),
+            ),
+            (
+                runner_text.replace("param(", "Write-Output $env:COMPUTERNAME; param(", 1),
+                lambda text: _assert_no_host_or_path_leaks(self, text),
+            ),
+        )
+        for mutation, predicate in mutations:
             _, mutated_commands, mutated_strings = _powershell_text_ast(self, mutation)
             with self.subTest(mutation=mutation[:50]):
                 with self.assertRaises(AssertionError):
-                    mutated = "\n".join(mutated_commands + mutated_strings).casefold()
-                    self.assertNotIn("canary", mutated)
-                    self.assertNotIn("trxuploadpath", mutated)
+                    mutated = "\n".join(mutated_commands + mutated_strings)
+                    predicate(mutated)
 
     def test_stage_a_inventory_cannot_activate_stage_b_c_d_or_gate_2(self):
         _required_file(self, WORKFLOW_PATH)
