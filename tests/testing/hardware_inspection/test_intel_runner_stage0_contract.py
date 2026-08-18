@@ -1,6 +1,7 @@
 import codecs
 import hashlib
 import json
+import re
 import shutil
 import subprocess
 import tempfile
@@ -471,10 +472,104 @@ on:
             "Actor, ref, label, environment, and approval-manifest checks are defence in depth, not substitutes",
         ):
             self.assertIn(required_phrase, normalized_runbook)
+        parser_blocks = [
+            block
+            for block in re.findall(
+                r"```powershell\n(.*?)\n```", runbook_text, flags=re.DOTALL
+            )
+            if "ParseFile" in block
+        ]
+        if parser_blocks:
+            self.assertEqual(len(parser_blocks), 1)
+            documented_parser_command = parser_blocks[0]
+        else:
+            legacy_parser_commands = [
+                line
+                for line in runbook_text.splitlines()
+                if line.startswith("powershell.exe -NoProfile -Command ")
+                and "ParseFile" in line
+            ]
+            self.assertEqual(len(legacy_parser_commands), 1)
+            documented_parser_command = legacy_parser_commands[0]
+        parser_result = subprocess.run(
+            [
+                powershell_executable(),
+                "-NoProfile",
+                "-NonInteractive",
+                "-Command",
+                documented_parser_command,
+            ],
+            cwd=REPOSITORY_ROOT,
+            text=True,
+            capture_output=True,
+            timeout=20,
+            check=False,
+        )
+        self.assertEqual(
+            parser_result.returncode,
+            0,
+            "documented PowerShell parser verification failed",
+        )
+
+        readme_links = re.findall(
+            r"\[`Hardware-Inspection-Intel-Runner-Stage-0-Runbook\.md`\]\(([^)]+)\)",
+            scripts_readme,
+        )
+        self.assertEqual(
+            readme_links,
+            ["../docs/testing/runbooks/Hardware-Inspection-Intel-Runner-Stage-0-Runbook.md"],
+        )
+        self.assertEqual(
+            (scripts_readme_path.parent / readme_links[0]).resolve(),
+            runbook_path.resolve(),
+        )
+        self.assertTrue(runbook_path.is_file())
+
+        gate1_path = "docs/testing/runbooks/Hardware-Inspection-LLM-Fit-Gate-1-Runbook.md"
+        self.assertEqual(runbook_text.count(gate1_path), 1)
+        self.assertNotRegex(
+            runbook_text,
+            r"\[[^\]]*\]\(\s*" + re.escape(gate1_path) + r"\s*\)",
+        )
+
+        for heading in (
+            "## Purpose",
+            "## Authority",
+            "## Preconditions",
+            "## Future permission gates",
+            "## Local contract verification",
+            "## Manual hosted dispatch only",
+            "## Expected result",
+            "## Stop conditions",
+            "## Deferred stages",
+        ):
+            self.assertIn(heading, runbook_text)
+        for required_statement in (
+            "Exactly one `hosted-preflight` job runs on `windows-latest`.",
+            "The control checkout executes the validators and tests; the evaluated checkout is identity-only.",
+            "No artifact is uploaded.",
+            "Stage 0 generates, reserves, and consumes no runner label.",
+            "Each future Stage A, B, and D gets a fresh one-time label under its separate approved plan.",
+            "Stage C remains manual offline work without adapter automation.",
+        ):
+            self.assertIn(required_statement, runbook_text)
         self.assertIn(
-            "docs/testing/runbooks/Hardware-Inspection-LLM-Fit-Gate-1-Runbook.md",
+            "gh workflow run hardware-inspection-intel-runner-stage0.yml `\n"
+            "    --repo arian20020/IBM-Granite-Edge-AI-Optimisation-using-TurboQuant `\n"
+            "    --ref main `\n"
+            "    -f confirm_repository_only=true",
             runbook_text,
         )
+        for forbidden_claim in (
+            r"\bGate 1 (?:has )?(?:passed|satisfied)\b",
+            r"\bGate 2 (?:may|can) start\b",
+            r"\blaptop (?:was|is) contacted\b",
+            r"(?<!No )\bLLM Fit candidate (?:was|is) (?:acquired|executed)\b",
+            r"\badapter (?:enable|disable) automation\b",
+            r"(?<!No )\bartifact is uploaded\b",
+            r"\bStage 0 (?:has |will )?(?:a )?self-hosted job\b",
+        ):
+            self.assertNotRegex(runbook_text, forbidden_claim)
 
 
 if __name__ == "__main__":

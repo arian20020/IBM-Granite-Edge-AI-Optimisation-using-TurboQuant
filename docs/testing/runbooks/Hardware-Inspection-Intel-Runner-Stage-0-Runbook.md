@@ -18,7 +18,7 @@ This runbook is governed by the copied design specification at `docs/superpowers
 
 ## Future permission gates
 
-Before any later self-hosted stage, obtain written UCL approval for the dedicated account, runner registration, repository and dependency execution, and evidence storage. every repository writer must be UCL-authorised and trusted, or a future non-operator read-only design must be explicitly approved. Actor, ref, label, environment, and approval-manifest checks are defence in depth, not substitutes for those approvals and the repository-writer trust boundary.
+Before any later self-hosted stage, obtain written UCL approval for the dedicated account, runner registration, repository and dependency execution, and evidence storage. The condition is that every repository writer must be UCL-authorised and trusted, or a future non-operator read-only design must be explicitly approved. Actor, ref, label, environment, and approval-manifest checks are defence in depth, not substitutes for those approvals and the repository-writer trust boundary.
 
 ## Local contract verification
 
@@ -26,11 +26,26 @@ Run these commands from the integration checkout:
 
 ```text
 python -m unittest tests.testing.hardware_inspection.test_intel_runner_stage0_contract -v
-powershell.exe -NoProfile -Command "$tokens = $null; $errors = $null; [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path scripts/hardware-inspection/Validate-HardwareInspectionIntelRunnerStage0.ps1).Path, [ref]$tokens, [ref]$errors) | Out-Null; if ($errors.Count) { $errors | ForEach-Object { $_.ToString() }; exit 1 }"
 git diff --check
 ```
 
-The PowerShell command is the PowerShell 5.1 `Parser.ParseFile` syntax check for the validator. Exactly 12 tests must pass.
+Run this PowerShell 5.1 `Parser.ParseFile` syntax check for the validator from the repository root:
+
+```powershell
+$tokens = $null
+$errors = $null
+[System.Management.Automation.Language.Parser]::ParseFile(
+    (Resolve-Path 'scripts/hardware-inspection/Validate-HardwareInspectionIntelRunnerStage0.ps1').Path,
+    [ref]$tokens,
+    [ref]$errors
+) | Out-Null
+if ($errors.Count -ne 0) {
+    Write-Error 'Stage 0 validator parser check failed.'
+    exit 1
+}
+```
+
+Exactly 12 tests must pass.
 
 ## Manual hosted dispatch only
 
@@ -41,7 +56,7 @@ gh workflow run hardware-inspection-intel-runner-stage0.yml `
     -f confirm_repository_only=true
 ```
 
-No runner label is used or reserved in Stage 0.
+Stage 0 generates, reserves, and consumes no runner label. No runner label is used or reserved in Stage 0.
 
 ## Expected result
 
@@ -61,4 +76,4 @@ Stop immediately if any path would involve a self-hosted runner, runner registra
 
 ## Deferred stages
 
-Stages A, B, C, and D each require separate approval. A future Stage A requires a separate approved plan. Each future Stage A, B, and D uses a fresh one-time label. Stage C is manual offline work and never adapter automation.
+Stages A, B, C, and D each require separate approval. A future Stage A requires a separate approved plan. Each future Stage A, B, and D gets a fresh one-time label under its separate approved plan. Stage C remains manual offline work without adapter automation.
