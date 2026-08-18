@@ -237,7 +237,9 @@ function Write-StageAAtomicUtf8 {
 function Assert-StageASummaryPrivacy {
     param([string] $Json, [string] $Markdown, [string] $Sha)
     $expectedJson = '{"schemaVersion":"1.0","evaluatedSha":"' + $Sha + '","deterministicPassed":174,"task8DeterministicPassed":3,"nonPassing":0}'
+    $expectedMarkdown = "# Hardware Inspection Intel Stage A`n`n- Evaluated SHA: $Sha`n- Deterministic passed: 174`n- Task8 deterministic passed: 3`n- Non-passing: 0`n"
     Assert-StageACondition ($Json -ceq $expectedJson)
+    Assert-StageACondition ($Markdown -ceq $expectedMarkdown)
     foreach ($text in @($Json, $Markdown)) {
         Assert-StageACondition ($text -notmatch '(?i)(?:[a-z]:\\|\\\\|/home/|/users/|stdout|stderr|\.trx|<\?xml|<testrun|\b(?:candidate|llmfit|json|cpu|gpu|hostname|computername|username|ip|mac)\b)')
     }

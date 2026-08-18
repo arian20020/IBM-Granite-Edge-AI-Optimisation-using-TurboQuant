@@ -1316,6 +1316,36 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
             trx_steps[0].setdefault("with", {})["path"] = "local\\deterministic.trx"
             with self.assertRaises(AssertionError):
                 _assert_summary_upload(self, trx_upload)
+        sha = "a" * 40
+        valid_json = (
+            '{"schemaVersion":"1.0","evaluatedSha":"'
+            + sha
+            + '","deterministicPassed":174,"task8DeterministicPassed":3,"nonPassing":0}'
+        )
+        valid_markdown = (
+            "# Hardware Inspection Intel Stage A\n\n"
+            + "- Evaluated SHA: "
+            + sha
+            + "\n- Deterministic passed: 174\n- Task8 deterministic passed: 3\n- Non-passing: 0\n"
+        )
+        def privacy_result(markdown):
+            literal = lambda value: "'" + value.replace("'", "''") + "'"
+            return _invoke_runner_pure(
+                "Assert-StageASummaryPrivacy "
+                + literal(valid_json)
+                + " "
+                + literal(markdown)
+                + " "
+                + literal(sha)
+            )
+        self.assertEqual(privacy_result(valid_markdown).returncode, 0)
+        for malformed_markdown in (
+            '{"x":1}',
+            '<Results><UnitTestResult /></Results>',
+            valid_markdown + "appended content\n",
+        ):
+            with self.subTest(malformed_markdown=malformed_markdown[:20]):
+                self.assertNotEqual(privacy_result(malformed_markdown).returncode, 0)
         mutations = (
             (
                 runner_text.replace('"nonPassing"', '"host" : "canary", "nonPassing"', 1),
