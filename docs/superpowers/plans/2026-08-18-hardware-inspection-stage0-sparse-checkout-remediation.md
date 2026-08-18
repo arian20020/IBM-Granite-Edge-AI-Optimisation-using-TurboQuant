@@ -363,7 +363,7 @@ try {
             -v 2>&1 | Out-String)
         if ($LASTEXITCODE -ne 0 -or
             $contractOutput -notmatch '(?m)^Ran 12 tests' -or
-            $contractOutput -notmatch '(?m)^OK$') {
+            $contractOutput -notmatch '(?m)^OK\r?$') {
             throw 'Sparse control contracts were not exactly 12 passing tests.'
         }
     }
