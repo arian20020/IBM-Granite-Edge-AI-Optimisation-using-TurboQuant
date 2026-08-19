@@ -18,9 +18,6 @@ from dataclasses import dataclass
 from pathlib import Path, PureWindowsPath
 from typing import Any, Mapping, Sequence
 
-from scripts.testing.workbook05.phase3.dependency_bundle_validation import (
-    validate_dependency_bundle,
-)
 from scripts.testing.workbook05.phase3.hashing import sha256_file
 
 
@@ -153,7 +150,12 @@ def validate_dependency_acceptance_record(
             "independent_artifact_sha256",
         }:
             code = "ARTIFACT_SHA256_MISMATCH"
-        elif key in {"workflow_run_id", "run_attempt", "workspace_root", "evidence_root"}:
+        elif key in {
+            "workflow_run_id",
+            "run_attempt",
+            "workspace_root",
+            "evidence_root",
+        }:
             code = "WORKSPACE_IDENTITY_MISMATCH"
         _issue(
             issues,
@@ -213,7 +215,9 @@ def _load_json_object(path: Path, label: str) -> dict[str, Any]:
             raise ValueError(f"{label} must use BOM-free UTF-8.")
         value = json.loads(text)
     except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as error:
-        raise ValueError(f"{label} is not valid strict UTF-8 JSON: {path}: {error}") from error
+        raise ValueError(
+            f"{label} is not valid strict UTF-8 JSON: {path}: {error}"
+        ) from error
     if not isinstance(value, dict):
         raise ValueError(f"{label} must contain one JSON object: {path}")
     return value
@@ -227,7 +231,9 @@ def _is_link_or_reparse(path: Path) -> bool:
     try:
         attributes = getattr(path.lstat(), "st_file_attributes", 0)
     except OSError as error:
-        raise ValueError(f"Unable to inspect retained path safely: {path}: {error}") from error
+        raise ValueError(
+            f"Unable to inspect retained path safely: {path}: {error}"
+        ) from error
     flag = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
     return bool(attributes & flag)
 
@@ -360,6 +366,19 @@ def verify_retained_dependency_acceptance(
         raise ValueError("Resolved dependency workspace differs from the accepted path.")
     if not _windows_same_path(str(evidence), str(record["evidence_root"])):
         raise ValueError("Resolved dependency evidence root differs from the accepted path.")
+
+    # Import the repository-only validator only when this verifier is executed.
+    # Live model download imports the acceptance constants from this module in
+    # the accepted conversion environment, which intentionally lacks jsonschema.
+    try:
+        from scripts.testing.workbook05.phase3.dependency_bundle_validation import (
+            validate_dependency_bundle,
+        )
+    except ImportError as error:
+        raise ValueError(
+            "Retained dependency validation requires the repository validator "
+            "environment with jsonschema installed."
+        ) from error
 
     # Treat the retained Lenovo bundle as untrusted data again. This catches a
     # changed manifest, package record, source identity, command log, or claim.
