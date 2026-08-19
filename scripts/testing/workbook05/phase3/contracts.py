@@ -4,12 +4,16 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Mapping
-
-from jsonschema import Draft202012Validator, FormatChecker
-from jsonschema.exceptions import ValidationError
+from typing import TYPE_CHECKING, Any, Mapping
 
 from scripts.testing.workbook05.schema_validation import ValidationIssue
+
+if TYPE_CHECKING:
+    # Keep static type information without making every Phase 3 CLI depend on
+    # the repository-only schema validator at import time. Live model work runs
+    # in the independently accepted conversion environment, which deliberately
+    # does not contain jsonschema.
+    from jsonschema.exceptions import ValidationError
 
 
 SCHEMA_NAMES: dict[str, str] = {
@@ -57,6 +61,18 @@ def validate_phase3_record(
     repository_root: Path,
 ) -> list[ValidationIssue]:
     """Return every schema problem in stable path/message order."""
+
+    # Schema validation belongs to the repository-validation environment. The
+    # import is intentionally delayed so acquisition and conversion subcommands
+    # can be imported by the accepted model environment without widening its
+    # independently frozen dependency set.
+    try:
+        from jsonschema import Draft202012Validator, FormatChecker
+    except ImportError as error:
+        raise ValueError(
+            "Phase 3 schema validation requires the repository validator "
+            "environment with jsonschema installed."
+        ) from error
 
     schema_path = _schema_path(record_type, repository_root)
     schema = json.loads(schema_path.read_text(encoding="utf-8-sig"))
