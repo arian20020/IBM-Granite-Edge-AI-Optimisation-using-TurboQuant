@@ -40,8 +40,16 @@ class Phase3AssetWorkflowContractTests(unittest.TestCase):
         self.assertIn("repository-contract:", self.workflow)
         self.assertIn("collect-assets:", self.workflow)
         self.assertIn("validate-assets:", self.workflow)
-        self.assertIn(
+        self.assertNotIn(
             "Live asset locking is blocked in this revision",
+            self.workflow,
+        )
+        self.assertIn(
+            "Verify accepted dependency binding before model access",
+            self.workflow,
+        )
+        self.assertIn(
+            "429b90548ce2b4c8463941c5b2983c8ff0cf6cc3ea3865375c8cae78d7193b49",
             self.workflow,
         )
 
@@ -216,6 +224,7 @@ class Phase3AssetWorkflowContractTests(unittest.TestCase):
             "docs/superpowers",
             "docs/testing",
             "experiments/granite_turboquant_intel/configurations/workbook05",
+            "experiments/granite_turboquant_intel/manifests/campaigns/GTQ-WB05-MF-v1",
             "experiments/granite_turboquant_intel/manifests/templates/workbook05",
             "experiments/granite_turboquant_intel/schemas/workbook05",
             "scripts/testing",
