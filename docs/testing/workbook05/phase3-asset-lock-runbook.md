@@ -11,31 +11,69 @@ OpenVINO files. It does **not** execute the model and does not prove that
 TurboQuant, scalar cache quantisation, or any other KV-cache codec ran.
 
 Follow the [clean dependency-preflight runbook](phase3-dependency-preflight-runbook.md)
-for dependency-machine preparation, dispatch, evidence review, independent
-hashing, and owner acceptance. Do not replace that controlled procedure with an
-improvised local package-install sequence.
+for dependency-machine preparation, evidence review, independent hashing, and
+acceptance. Do not replace that controlled procedure with an improvised local
+package-install sequence.
 
 ## Current implementation boundary
 
-The Phase 3 asset workflow has two explicit operations:
+The Phase 3 asset workflow exposes exactly two operations:
 
 ```text
 offline-fixture
 live-asset-lock
 ```
 
-`offline-fixture` is the only permitted operation until the clean Windows
-Python 3.12.10 dependency preflight has produced an independently validated
-and project-owner-accepted decision SHA-256. The current workflow deliberately
-fails closed if `live-asset-lock` is selected before that gate is completed.
+`offline-fixture` remains the default, deterministic, network-free rehearsal.
+`live-asset-lock` is enabled only because one exact clean Windows dependency
+preflight has now been independently validated and accepted into the repository.
+The workflow and the live orchestrator both revalidate that binding before any
+model-root creation, Hugging Face request, download, or conversion command.
 
-Passing the repository workflow, offline fixture, or dependency installation
-must never be reported as model download, conversion, loading, generation,
-codec activation, performance, or quality evidence.
+The exact workflow step is:
 
-PR `#72` implements the separate dependency-preflight repository boundary. Its
-implementation does not itself constitute live dependency acceptance and does
-not remove the asset workflow's existing block.
+```text
+Verify accepted dependency binding before model access
+```
+
+A different digest, run, attempt, artifact, retained workspace, decision file,
+Python executable, source identity, package record, manifest, or scientific flag
+fails closed. Passing repository tests, dependency installation, or the offline
+fixture must never be reported as model download, conversion, loading,
+generation, codec activation, performance, or quality evidence.
+
+## Accepted dependency-preflight binding
+
+The only dependency candidate admitted to live C1 is:
+
+```text
+Workflow run: 32211117536
+Run attempt: 1
+Main commit: c417efd936a7fa2e871b689065b2f3b88636c1a1
+Artifact ID: 9350956534
+Artifact name: workbook-05-phase3-dependency-preflight-32211117536-1
+GitHub artifact SHA-256:
+b68a4f8af8c57a9f5d71347d2485855796f4d0dce0291c50b596512c309c0c21
+Independent artifact SHA-256:
+b68a4f8af8c57a9f5d71347d2485855796f4d0dce0291c50b596512c309c0c21
+decision.json SHA-256:
+429b90548ce2b4c8463941c5b2983c8ff0cf6cc3ea3865375c8cae78d7193b49
+Retained workspace:
+C:\w5c\dependency-preflight-32211117536-1
+```
+
+The committed acceptance record is:
+
+```text
+experiments/granite_turboquant_intel/manifests/campaigns/
+GTQ-WB05-MF-v1/phase3/accepted-dependency-preflight.json
+```
+
+It records explicit owner acceptance while keeping model-download and every
+scientific-authorisation field `false`. The live C1 workflow does not trust the
+manual digest alone: it validates the committed record, the retained bundle,
+`manifest.sha256`, `decision.json`, the live observation, the accepted Python
+binary, and the Optimum CLI location before model access.
 
 ## Accepted read-only Phase 2 prerequisites
 
@@ -71,15 +109,16 @@ GenAI decision SHA-256:
 0f273e1f345e1512e8e159af9b83f9ad521a26aa5e0ae813f2599161a5cb4a79
 ```
 
-Every live C1 attempt must revalidate these exact decisions and installed
-outputs before it contacts the model repository or invokes conversion tooling.
+Every live C1 attempt revalidates these exact decisions, source identities,
+claim boundaries, and installed outputs before it contacts the model repository
+or invokes conversion tooling.
 
 ## Controlled storage boundaries
 
 ```text
 C:\w5a\  accepted Runtime and GenAI prerequisites; read-only
 C:\w5m\  immutable source and converted model assets
-C:\w5c\  C1 dependency/conversion/evidence workspaces
+C:\w5c\  accepted dependency and C1 evidence workspaces
 C:\w5r\  later measured-run workspaces; unused by C1
 ```
 
@@ -88,13 +127,13 @@ device paths, junctions, symbolic links, mount points, and Windows reparse
 points are rejected. Existing attempt, source, and converted directories are
 never silently reused or deleted.
 
-At least exactly `53,687,091,200` free bytes (50 GiB) are required before a
-Granite 4.1 3B source download or conversion. Passing the disk check alone does
-not authorise a download.
+At least `53,687,091,200` free bytes (50 GiB) are required before a Granite
+4.1 3B source download or conversion. Passing the disk check alone does not
+authorise a download.
 
 ## Reviewed conversion candidate
 
-The controlling direct dependency candidate is:
+The controlling dependency candidate is:
 
 ```text
 optimum-intel @ git+https://github.com/huggingface/optimum-intel.git@a3b6012a4c02f4147260da4d4601bb6a3c0d2bb0
@@ -110,6 +149,7 @@ The reviewed conversion is:
 
 ```text
 Model repository: ibm-granite/granite-4.1-3b
+Requested revision: main, resolved once to a full immutable commit
 Task: text-generation-with-past
 Weight format: INT4
 Symmetry: asymmetric
@@ -121,7 +161,7 @@ Remote model code: disabled
 `--trust-remote-code` is forbidden. A tool requiring remote repository Python
 code blocks the candidate instead of weakening the security boundary.
 
-## Before merging the C1 or dependency-preflight implementation
+## Pull-request verification
 
 PR verification must use its exact current head, not an earlier green commit.
 The following must pass where the changed paths trigger them:
@@ -134,7 +174,7 @@ Workbook 05 Phase 3 assets — repository contract
 Workbook 05 Phase 3 dependency preflight — repository contract
 ```
 
-Run the repository-controlled Phase 3 gate locally or in CI:
+The repository-controlled gate is:
 
 ```powershell
 & '.\scripts\testing\Validate-Workbook05-Phase3.ps1' `
@@ -161,13 +201,10 @@ git ls-files |
 No generated model, tokenizer, IR, executable, library, wheel, or archive may be
 committed as evidence.
 
-## Safe asset-workflow rehearsal after merge
+## Safe offline rehearsal
 
-Pull requests run only the GitHub-hosted repository-contract jobs. They cannot
-reach the self-hosted Intel runner.
-
-After the C1 implementation is merged, the first asset-workflow rehearsal must
-still use:
+Pull requests run only GitHub-hosted repository-contract jobs and cannot reach
+the self-hosted Intel runner. A post-merge model-free rehearsal uses:
 
 ```text
 Actions
@@ -190,75 +227,14 @@ Collect controlled C1 asset evidence
 Validate C1 artifact as untrusted data
 ```
 
-The offline fixture performs no network model download and no model execution.
-It creates disposable fixture payloads beneath runner temporary storage and
-uploads only text/JSON/CSV/log evidence.
+The fixture creates disposable source-shaped and converted-shaped files beneath
+runner temporary storage. It performs no network model download and no model
+execution, then uploads only text, JSON, CSV, and log evidence.
 
-Expected artifact identity:
+## Live C1 dispatch
 
-```text
-workbook-05-phase3-assets-<workflow-run>-<attempt>
-```
-
-## Clean dependency preflight gate
-
-The controlling instructions are in the
-[clean dependency-preflight runbook](phase3-dependency-preflight-runbook.md).
-After PR `#72` is approved and merged, and after a fresh `main` application
-regression passes, dispatch exactly:
-
-```text
-Actions
-→ Workbook 05 Phase 3 dependency preflight
-→ Run workflow
-
-Use workflow from: main
-confirm_live_dependency_preflight: checked
-```
-
-The workflow must prove all of the following from one exact run and attempt:
-
-1. Both Optimum repositories have the exact reviewed HTTPS origins and full
-   commits.
-2. Both source trees are clean and have complete tracked-file SHA-256
-   catalogues and aggregate hashes.
-3. A separate bootstrap environment uses the committed hash lock for
-   `pip-tools==7.6.0` and `pip==26.1.2`.
-4. Every ordinary distribution is resolved into one complete target lock and
-   installed with `--require-hashes` and a retained pip report.
-5. The two VCS packages are installed only from their immutable reviewed local
-   source trees with `--no-deps --no-build-isolation`.
-6. The final environment contains only pip, the ordinary locked packages, and
-   the exact two VCS packages.
-7. `pip check` succeeds.
-8. New-process imports succeed for `optimum`, `optimum.intel`, `transformers`,
-   `nncf`, and `openvino`, and every imported file stays under the final
-   environment.
-9. `optimum-cli --help` exits with code `0`.
-10. The repository-controlled no-model compatibility check passes without
-    opening a model, contacting a model repository, creating a conversion
-    output, or launching conversion.
-11. The constructed conversion arguments contain no `--trust-remote-code`.
-12. The text-only artifact passes independent hosted validation strictly as
-    untrusted data.
-
-Acceptance then requires the exact `main` commit, workflow run and attempt,
-artifact name, GitHub digest, independently recalculated artifact SHA-256,
-independently recalculated `decision.json` SHA-256, retained `C:\w5c` workspace,
-and explicit project-owner acceptance to be recorded.
-
-A successful dependency preflight still does **not** enable `live-asset-lock`.
-A separate reviewed binding change must consume and verify the exact accepted
-decision digest and retained workspace. Merely entering a digest into the asset
-workflow is not sufficient.
-
-## Live C1 dispatch — only after dependency acceptance and binding
-
-Do not use this sequence until the asset-workflow implementation explicitly
-consumes and verifies the accepted dependency-preflight decision and retained
-workspace. The repository currently keeps this operation blocked.
-
-The eventual live dispatch will be:
+Use this route only after the live-binding implementation has been merged and a
+fresh post-merge `main` regression has passed:
 
 ```text
 Actions
@@ -268,10 +244,11 @@ Actions
 Use workflow from: main
 operation: live-asset-lock
 confirm_live_asset_lock: checked
-accepted_dependency_preflight_sha256: <exact accepted lowercase SHA-256>
+accepted_dependency_preflight_sha256:
+429b90548ce2b4c8463941c5b2983c8ff0cf6cc3ea3865375c8cae78d7193b49
 ```
 
-Before the final green button:
+Before pressing the final green button:
 
 - keep the Lenovo connected to mains power;
 - keep Windows sleep disabled while plugged in;
@@ -280,9 +257,14 @@ Before the final green button:
 - avoid Visual Studio builds, games, cleanup utilities, or large downloads;
 - do not change anything under `C:\w5a`, `C:\w5m`, or `C:\w5c` during the run.
 
+The workflow first validates the manual boundary, installs only its isolated
+repository validator, runs the full Phase 3 gate, and executes **Verify accepted
+dependency binding before model access**. The dedicated live orchestrator then
+repeats the dependency proof before creating or touching `C:\w5m`.
+
 ## Required live stage order
 
-The orchestrator must retain this exact order:
+The orchestrator retains this exact order:
 
 ```text
 prerequisite-verification
@@ -297,16 +279,23 @@ schema-validation
 manifest-generation
 ```
 
-`manifest.sha256` is written last. Records are written to `*.tmp`, validated,
-flushed, and atomically moved to their final names. A failure preserves earlier
-evidence and writes `failure.json`; it must not create a positive asset lock,
-repair a partial model directory, or delete an earlier attempt.
+The first `prerequisite-verification` stage contains both the accepted dependency
+revalidation and the accepted Route A Runtime/GenAI revalidation. Model-root access
+occurs only in the following `path-root-verification` stage.
+
+`manifest.sha256` is written last. Records are written to `*.tmp`, flushed, and
+atomically moved to their final names. A failure preserves earlier evidence and
+writes `failure.json`; it must not create a positive asset lock, repair a partial
+model directory, or delete an earlier attempt.
 
 ## Required text-only artifact
 
 ```text
+dependency-acceptance-proof.json
+dependency/decision.json
 prerequisite-proof.json
 disk-preflight.json
+resolved-model.json
 asset-lock.json
 conversion-record.json
 source-files.csv
@@ -320,14 +309,15 @@ manifest.sha256
 ```
 
 The source and converted CSV files contain paths, sizes, and SHA-256 values only.
-They never contain model bytes.
+Model source files and converted OpenVINO IR remain under `C:\w5m` and are never
+uploaded.
 
 The independent hosted validator must reject:
 
 - missing required evidence;
 - hash drift, added files, or duplicate manifest rows;
 - unsafe portable paths or parent traversal;
-- secret/token patterns;
+- secret or token patterns;
 - model, IR, executable, library, wheel, or archive payloads;
 - wrong Granite repository or non-immutable revision;
 - remote-code arguments;
@@ -337,7 +327,7 @@ The independent hosted validator must reject:
 ## Interruption and recovery
 
 1. Do not rerun immediately and do not delete the failed workspace.
-2. Record the workflow run ID, attempt, exact `main` commit, failed job and step.
+2. Record the workflow run ID, attempt, exact `main` commit, failed job, and step.
 3. Preserve the text artifact if one was uploaded.
 4. Inspect `failure.json`, the last completed stage, stdout, stderr, and resource
    state before proposing a repair.
@@ -358,11 +348,13 @@ workflow run ID and attempt
 exact main commit
 artifact name and GitHub-recorded SHA-256
 independently recalculated artifact SHA-256
-asset-lock decision SHA-256
-conversion decision SHA-256
+manifest.sha256 coverage and member hashes
+asset-lock.json SHA-256 and status
+conversion-record.json SHA-256 and status
 immutable model repository and full revision
 local source and converted directory identities
-complete file catalogues and aggregate hashes
+complete source, tokenizer, and converted-file catalogues
+aggregate model, tokenizer, and conversion-output hashes
 all later scientific authorisations remain false
 ```
 
