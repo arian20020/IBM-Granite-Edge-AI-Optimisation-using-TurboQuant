@@ -177,7 +177,7 @@ function Invoke-Wb05ControlledLoggedProcess {
         [string]$RouteId,
 
         [Parameter(Mandatory = $true)]
-        [ValidateSet('runtime', 'genai', 'dependency-preflight')]
+        [ValidateSet('runtime', 'genai', 'dependency-preflight', 'assets')]
         [string]$Component,
 
         [Parameter(Mandatory = $true)]
