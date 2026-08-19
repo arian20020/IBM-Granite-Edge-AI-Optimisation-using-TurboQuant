@@ -42,6 +42,7 @@ class Phase3LiveAssetLockContractTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.workflow = WORKFLOW_PATH.read_text(encoding="utf-8")
+        cls.live_script = LIVE_SCRIPT_PATH.read_text(encoding="utf-8")
         cls.controlled_process = CONTROLLED_PROCESS_PATH.read_text(
             encoding="utf-8"
         )
@@ -95,12 +96,7 @@ class Phase3LiveAssetLockContractTests(unittest.TestCase):
         self.assertIn("operation == 'offline-fixture'", self.workflow)
 
     def test_live_script_exists_and_preserves_the_approved_c1_order(self) -> None:
-        self.assertTrue(
-            LIVE_SCRIPT_PATH.is_file(),
-            "The dedicated live C1 orchestrator has not been implemented.",
-        )
-        script = LIVE_SCRIPT_PATH.read_text(encoding="utf-8")
-
+        script = self.live_script
         stages = (
             "prerequisite-verification",
             "path-root-verification",
@@ -131,6 +127,27 @@ class Phase3LiveAssetLockContractTests(unittest.TestCase):
         self.assertNotIn("Invoke-Expression", script)
         self.assertNotIn("cmd /c", script.casefold())
         self.assertNotIn("Remove-Item -Recurse", script)
+
+    def test_record_materialisation_restores_only_the_repository_validator(self) -> None:
+        """Model work uses the accepted venv; schema records use hosted validators."""
+
+        script = self.live_script
+        record_start = script.index("$RecordResult =")
+        record_end = script.index(
+            "if ($RecordResult.record.exit_code -ne 0)",
+            record_start,
+        )
+        record_section = script[record_start:record_end]
+        record_prefix = script[max(0, record_start - 700):record_start]
+        record_suffix = script[record_end:record_end + 700]
+
+        self.assertIn("$env:PYTHONPATH = $OriginalPythonPath", record_prefix)
+        self.assertIn("-FilePath $BasePythonPath", record_section)
+        self.assertNotIn("-FilePath $AcceptedPythonPath", record_section)
+        self.assertIn(
+            "Remove-Item Env:PYTHONPATH -ErrorAction SilentlyContinue",
+            record_suffix,
+        )
 
     def test_controlled_process_adapter_admits_the_assets_component(self) -> None:
         flattened = self.controlled_process.replace("\n", " ")
