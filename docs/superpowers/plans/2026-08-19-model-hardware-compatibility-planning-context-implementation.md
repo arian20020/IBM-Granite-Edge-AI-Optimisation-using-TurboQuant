@@ -3,13 +3,13 @@
 > **Execution skill:** Use `superpowers:executing-plans` or
 > `superpowers:subagent-driven-development`.
 
-**Decision:** 3 of 8  
-**Status:** Approved implementation plan  
-**Plan date:** 2026-08-19  
-**Scope:** Decision 3 policy, tests, documentation, CI discovery, and evidence  
-**Expected size:** One short implementation slice, approximately half to one focused
-working day once Decision 1 and Decision 2 contracts are available  
-**Spec:** `docs/superpowers/specs/2026-08-19-model-hardware-compatibility-planning-context-design.md`
+- **Decision:** 3 of 8
+- **Status:** Approved implementation plan
+- **Plan date:** 2026-08-19
+- **Scope:** Decision 3 policy, tests, documentation, CI discovery, and evidence
+- **Expected size:** One short implementation slice, approximately half to one focused
+  working day once Decision 1 and Decision 2 contracts are available
+- **Spec:** `docs/superpowers/specs/2026-08-19-model-hardware-compatibility-planning-context-design.md`
 
 ---
 

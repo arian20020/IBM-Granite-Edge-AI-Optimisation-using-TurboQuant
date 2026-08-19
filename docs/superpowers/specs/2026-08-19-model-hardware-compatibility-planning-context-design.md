@@ -1,12 +1,12 @@
 # Model–Hardware Compatibility Decision 3 — Planning-Context Policy
 
-**Decision:** 3 of 8  
-**Status:** Approved and closed at planning level  
-**Decision date:** 2026-08-19  
-**Final review date:** 2026-08-19  
-**Scope:** Baseline context selection and preservation of explicit context intent  
-**Implementation status:** Planned, not yet implemented  
-**Policy identity:** `PlanningContext / planning-context-v1`
+- **Decision:** 3 of 8
+- **Status:** Approved and closed at planning level
+- **Decision date:** 2026-08-19
+- **Final review date:** 2026-08-19
+- **Scope:** Baseline context selection and preservation of explicit context intent
+- **Implementation status:** Planned, not yet implemented
+- **Policy identity:** `PlanningContext / planning-context-v1`
 
 ---
 
