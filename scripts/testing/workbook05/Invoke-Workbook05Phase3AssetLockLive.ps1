@@ -16,7 +16,7 @@ param(
     [Parameter(Mandatory = $true)]
     [string] $AcceptedDependencyDecisionSha256,
 
-    # Fixed machine Python used only to verify the accepted dependency boundary.
+    # Fixed machine Python used for repository-only validation operations.
     [string] $BasePythonPath = 'C:\Program Files\Python312\python.exe'
 )
 
@@ -27,8 +27,10 @@ conversion after revalidating the exact accepted dependency workspace.
 
 .DESCRIPTION
 The dependency_acceptance verifier is deliberately invoked before the first
-model repository or model-root operation. The script uploads text evidence only;
-model and OpenVINO IR payloads remain under C:\w5m.
+model repository or model-root operation. Model acquisition and conversion use
+the accepted dependency environment, while schema materialisation returns to the
+repository validator. The script uploads text evidence only; model and OpenVINO
+IR payloads remain under C:\w5m.
 #>
 
 Set-StrictMode -Version Latest
@@ -321,7 +323,7 @@ try {
         '--genai-install',
         'C:\w5a\phase2-31661571860-1\i-genai',
         '--genai-decision',
-        'C:\w5a\accepted-route-a-genai-31661571860-1\decision.json',
+        'C:\w5a\accepted-route-a-genai-31656417607-1\decision.json',
         '--repository-root',
         $RepositoryRoot,
         '--output',
@@ -515,33 +517,52 @@ try {
     Start-ApprovedStage -Stage 'converted-file-hash-inventory'
     Start-ApprovedStage -Stage 'schema-validation'
 
-    $RecordResult = Invoke-Wb05ControlledLoggedProcess `
-        -CommandId 'asset-records' `
-        -RouteId 'route-a-merged-openvino' `
-        -Component 'assets' `
-        -FilePath $AcceptedPythonPath `
-        -ArgumentList @(
-            '-m',
-            'scripts.testing.workbook05.phase3.live_asset_lock',
-            'build-records',
-            '--repository-root',
-            $RepositoryRoot,
-            '--evidence-root',
-            $EvidenceRoot,
-            '--source-directory',
-            $SourceDirectory,
-            '--converted-directory',
-            $ConvertedDirectory,
-            '--dependency-evidence',
-            $AcceptedDependencyEvidence
-        ) `
-        -WorkingDirectory $RepositoryRoot `
-        -EvidenceDirectory $CommandDirectory `
-        -EvidenceRoot $EvidenceRoot `
-        -MaximumElapsedSeconds 3600 `
-        -LogFileExtension 'txt' `
-        -AtomicJsonEvidence
-    Assert-ControlledSuccess -Result $RecordResult -Label 'C1 record generation'
+    # Restore only the repository validator for record materialisation. The
+    # accepted conversion environment remains isolated from jsonschema.
+    if ([string]::IsNullOrWhiteSpace($OriginalPythonPath)) {
+        throw 'Repository validator PYTHONPATH is missing before C1 record generation.'
+    }
+    $env:PYTHONPATH = $OriginalPythonPath
+    try {
+        $RecordResult = Invoke-Wb05ControlledLoggedProcess `
+            -CommandId 'asset-records' `
+            -RouteId 'route-a-merged-openvino' `
+            -Component 'assets' `
+            -FilePath $BasePythonPath `
+            -ArgumentList @(
+                '-m',
+                'scripts.testing.workbook05.phase3.live_asset_lock',
+                'build-records',
+                '--repository-root',
+                $RepositoryRoot,
+                '--evidence-root',
+                $EvidenceRoot,
+                '--source-directory',
+                $SourceDirectory,
+                '--converted-directory',
+                $ConvertedDirectory,
+                '--dependency-evidence',
+                $AcceptedDependencyEvidence
+            ) `
+            -WorkingDirectory $RepositoryRoot `
+            -EvidenceDirectory $CommandDirectory `
+            -EvidenceRoot $EvidenceRoot `
+            -MaximumElapsedSeconds 3600 `
+            -LogFileExtension 'txt' `
+            -AtomicJsonEvidence
+        if ($RecordResult.record.exit_code -ne 0) {
+            throw "C1 record generation exited with code $($RecordResult.record.exit_code)."
+        }
+        if ($RecordResult.resource_summary.safety_stop_triggered -ne $false) {
+            throw (
+                'C1 record generation triggered the resource watchdog: ' +
+                [string]$RecordResult.resource_summary.safety_stop_reason
+            )
+        }
+    }
+    finally {
+        Remove-Item Env:PYTHONPATH -ErrorAction SilentlyContinue
+    }
 
     Start-ApprovedStage -Stage 'manifest-generation'
 
