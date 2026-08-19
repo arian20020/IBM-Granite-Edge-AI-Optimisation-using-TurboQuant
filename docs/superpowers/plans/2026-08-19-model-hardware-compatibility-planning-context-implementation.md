@@ -1,23 +1,21 @@
-# Decision 3 — Planning-Context Policy Implementation Plan
+# Decision 3 — Pragmatic Planning-Context Policy Implementation Plan
+
+> **Execution skill:** Use `superpowers:executing-plans` or
+> `superpowers:subagent-driven-development`.
 
 **Decision:** 3 of 8
-**Status:** Implementation blocked at the entry gate
+**Status:** Approved implementation plan; ready for a future implementation slice
 **Plan date:** 2026-08-19
-**Audit date:** 2026-08-19
-**Repository:** `arian20020/IBM-Granite-Edge-AI-Optimisation-using-TurboQuant`
-**Reviewed repository base:** `main@c417efd936a7fa2e871b689065b2f3b88636c1a1`
+**Scope:** Decision 3 production policy, focused tests, documentation, and CI discovery
+**Target size:** One short implementation slice; approximately half to one working day,
+excluding predecessor integration and CI queue time
 **Spec:** `docs/superpowers/specs/2026-08-19-model-hardware-compatibility-planning-context-design.md`
-**Current authorised action:** Preserve the plan only; do not implement production code
-
-> This plan becomes executable only after its entry gate passes. A future worker must
-> re-read the repository and the live CI workflow at the exact implementation base
-> before following any command or file path below.
 
 ---
 
 ## 1. Goal
 
-Implement the pure, deterministic Decision 3 policy that:
+Implement a pure policy that:
 
 ```text
 ApplicationDefault
@@ -27,187 +25,83 @@ UserRequested
 → exact request preserved
 → never silently clamped
 
-missing or unsupported model limit
+missing, zero, or unsupported model limit
 → typed NotEstablished result
 ```
 
-The policy records `PlanningContext / planning-context-v1` and performs no I/O,
-hardware inspection, resource estimation, candidate generation, UI work, or runtime
-execution.
+The policy records `PlanningContext / planning-context-v1`.
+
+It does not estimate memory, inspect hardware, generate candidates, choose a runtime,
+rank configurations, classify fit, or execute a model.
 
 ---
 
-## 2. Why execution is currently blocked
+## 2. Practical delivery rule
 
-The reviewed base does not contain the accepted Decision 1 and Decision 2
-implementations or the production Hardware Inspection handoff required by the
-integrated Block 3 request seam.
+This plan deliberately keeps the important engineering controls while avoiding
+unnecessary ceremony.
 
-A future worker must not make the plan compile by creating temporary or duplicate:
+### Must finish
 
 ```text
-ContextTokenCount
-CompatibilityContextRequest
-CompatibilityContextMode
-CompatibilityPolicyIdentity
-CompatibilityPolicyKind
-CompatibilityPolicyVersion
-ModelInspectionHandoff
-HardwareInspectionHandoff
-ModelHardwareCompatibilityRequest
+complete policy semantics
+immutable plan and resolution invariants
+focused deterministic tests
+no external dependencies
+feature README
+CI discovery
+one final packaged WinUI regression
+concise F-M09 evidence
 ```
 
-The correct response to a missing predecessor is to stop and integrate that
-predecessor, not to guess its namespace or reproduce its shape.
+### Do only when quick and useful
+
+```text
+reciprocal links from Decision 1 and Decision 2 documents
+extra explanatory examples
+additional source scans beyond the required boundary scan
+```
+
+### Deferred
+
+```text
+separate architecture-test project
+brittle reflection tests of exact method lists
+concurrency stress tests for a stateless calculation
+configuration file for 4,096
+one remote commit per enum or value object
+full packaged test run after every small file
+```
 
 ---
 
-## 3. Hard entry gate
+## 3. Starting conditions
 
-Complete every item in this section before creating a Decision 3 source file.
+Before editing production code:
 
-### 3.1 Establish one immutable integrated base
+1. use a dedicated branch/worktree;
+2. record the exact starting SHA;
+3. confirm the branch contains the accepted Decision 1 contracts:
+   `ContextTokenCount`, `CompatibilityContextMode`, and
+   `CompatibilityContextRequest`;
+4. confirm it contains the Decision 2 policy identity contracts:
+   `CompatibilityPolicyIdentity`, `CompatibilityPolicyKind`, and
+   `CompatibilityPolicyVersion`;
+5. search for duplicate definitions and keep exactly one canonical owner;
+6. read the current `.github/workflows/build-and-test.yml`;
+7. run the existing baseline verification appropriate to that branch.
 
-Record:
+If Decision 1 or Decision 2 implementation is on another branch, base this work after
+those commits. Do not recreate their contracts.
 
-```text
-repository
-base branch
-base commit SHA
-Decision 1 accepted commit SHA
-Decision 2 accepted commit SHA
-HardwareInspectionHandoff accepted commit SHA
-date and reviewer
-```
-
-The base must contain all three accepted predecessor packages. It must not be the
-historical Model Inspection branch merely because that branch was used during early
-design.
-
-### 3.2 Verify canonical predecessor files
-
-Confirm the accepted Decision 1 and Decision 2 design and plan files exist at their
-canonical paths:
-
-```text
-docs/superpowers/specs/
-  2026-08-19-model-hardware-compatibility-input-contract-design.md
-  2026-08-19-model-hardware-compatibility-result-contract-design.md
-
-docs/superpowers/plans/
-  2026-08-19-model-hardware-compatibility-input-contract-implementation.md
-  2026-08-19-model-hardware-compatibility-result-contract-implementation.md
-```
-
-Confirm the production contracts exist under their approved owners. Record their
-actual paths and namespaces instead of relying on this planning document.
-
-### 3.3 Prove there are no duplicate owners
-
-Run repository searches for every reused type. Review every match.
-
-```powershell
-git grep -n -E `
-  "class ContextTokenCount|record ContextTokenCount|struct ContextTokenCount|" `
-  "class CompatibilityContextRequest|record CompatibilityContextRequest|" `
-  "enum CompatibilityContextMode"
-
-git grep -n -E `
-  "class CompatibilityPolicyIdentity|record CompatibilityPolicyIdentity|" `
-  "enum CompatibilityPolicyKind|class CompatibilityPolicyVersion|" `
-  "record CompatibilityPolicyVersion"
-
-git grep -n -E `
-  "class ModelInspectionHandoff|record ModelInspectionHandoff|" `
-  "class HardwareInspectionHandoff|record HardwareInspectionHandoff|" `
-  "class ModelHardwareCompatibilityRequest|record ModelHardwareCompatibilityRequest"
-```
-
-Expected result: exactly one canonical definition of each type. Multiple definitions,
-ambiguous ownership, or missing definitions close the gate.
-
-### 3.4 Verify the clean baseline
-
-Re-read `.github/workflows/build-and-test.yml` at the exact base. Run its complete
-restore, build, fixture, packaged-test, TRX-validation, privacy, and artifact checks
-without removing existing gates.
-
-The reviewed `main` workflow currently uses:
-
-```text
-MSBuild Release x64 for the WinUI application
-dotnet build for the test source
-the generated .build.appxrecipe
-vstest.console.exe app-container execution
-TRX counter and required-class validation
-fixture reproducibility
-```
-
-The live workflow at implementation time is authoritative.
-
-### 3.5 Establish the focused red/green runner
-
-Try the fastest supported route without changing project semantics.
-
-A direct filtered `dotnet test` command is accepted only when retained output proves:
-
-```text
-the intended Decision 3 class was discovered
-at least one test was executed
-the expected red or green outcome occurred
-```
-
-If the packaged WinUI test project does not support that route, use the existing
-app-container runner with a supported class filter, or run the complete packaged
-suite. Do not convert the project into a different test architecture merely to obtain
-a convenient command.
-
-Record the successful focused command and its tool versions in the implementation
-evidence.
-
-### 3.6 Entry-gate disposition
-
-Create a short evidence record with exactly one disposition:
-
-```text
-Pass
-→ implementation may begin
-
-Blocked
-→ stop and name the missing or failing prerequisite
-```
-
-No partial production commit is allowed after a blocked disposition.
+`HardwareInspectionHandoff` is not required to implement or test this pure policy. It
+is required later when the full Compatibility request and orchestrator are wired.
 
 ---
 
-## 4. Isolated implementation workspace
+## 4. File map
 
-After the gate passes:
-
-1. create an isolated worktree or equivalent workspace;
-2. create a new Decision 3 feature branch from the recorded base SHA;
-3. verify the working tree is clean;
-4. run the accepted baseline test route once more;
-5. retain the starting SHA in the branch evidence.
-
-Suggested branch name:
-
-```text
-feature/model-hardware-compatibility-planning-context
-```
-
-Do not implement directly on `main`, a historical stacked branch, or a branch with
-unrelated changes.
-
----
-
-## 5. File map
-
-Use the actual namespaces and paths established by the entry gate. The expected
-Decision 3 package is:
-
-### 5.1 Production files
+### Production
 
 ```text
 IBM Granite with TurboQuant (Intel)/
@@ -222,7 +116,7 @@ IBM Granite with TurboQuant (Intel)/
                 └── CompatibilityPlanningContextEnums.cs
 ```
 
-### 5.2 Test files
+### Tests
 
 ```text
 tests/UnitTests/GraniteEdgeAI.UnitTests/
@@ -232,9 +126,7 @@ tests/UnitTests/GraniteEdgeAI.UnitTests/
         └── CompatibilityPlanningContextPolicyTests.cs
 ```
 
-### 5.3 Documentation and evidence files
-
-Modify only after production tests are green:
+### Documentation and evidence
 
 ```text
 IBM Granite with TurboQuant (Intel)/
@@ -244,175 +136,132 @@ IBM Granite with TurboQuant (Intel)/
 
 .github/workflows/build-and-test.yml
 
-the accepted Decision 1 and Decision 2 documents at their canonical paths
-
 docs/evidence/requirements/F-M09/
 └── decision-3-planning-context-policy.md
 ```
 
-Do not create a temporary orchestrator. The real Compatibility orchestration plan
-will consume this policy after the later estimation, supported-matrix, candidate,
-ranking, and classification decisions exist.
+Do not create an orchestrator in this slice.
 
 ---
 
-## 6. Global implementation constraints
+## 5. Global constraints
 
-- Reuse all Decision 1 and Decision 2 types; do not recreate or wrap them.
-- Keep `DefaultTargetTokens` equal to `4_096` for `planning-context-v1`.
+- Reuse Decision 1 and Decision 2 types.
+- Keep `DefaultTargetTokens = 4_096`.
+- Keep policy identity `PlanningContext / planning-context-v1`.
 - Preserve an explicit user request exactly.
-- Do not silently clamp, round, bucket, or normalise a requested token count.
+- Never silently clamp, round, bucket, or normalise a request.
 - Treat the trusted declared model limit as the version-one upper bound.
+- Return `NotEstablished` for missing, zero, or out-of-range model limits.
 - Do not add automatic RoPE or YaRN extension.
-- Return typed `NotEstablished` for missing, zero, or numerically unsupported limits.
-- Keep the policy pure, deterministic, stateless, thread-safe, and side-effect free.
-- Do not add hardware, memory, estimator, process, file, UI, network, clock, or
-  configuration dependencies.
-- Do not generate candidate context values; Decision 8 owns that ladder.
-- Add beginner-readable comments for each logical block and every non-obvious
-  invariant. Comments explain why a rule exists, not merely what the syntax says.
-- Never log a model path, hardware identity, command line, stdout, stderr, token,
-  credential, or user/machine identity.
-- Do not push a branch that exposes a deliberately incomplete valid request path.
+- Keep the policy deterministic, stateless, side-effect free, and synchronous.
+- Add beginner-readable comments for logical blocks and non-obvious invariants;
+  avoid comments that merely restate syntax.
+- Do not log paths, hardware identity, command lines, raw metadata, credentials, or
+  machine/account information.
+- Keep every reviewable commit internally complete; never push a valid request mode
+  that deliberately throws because the next task has not been completed.
 
 ---
 
-## 7. Test and commit strategy
+## 6. TDD and commit strategy
 
-Every production behaviour starts with a focused failing test. However, the remote
-review history must never expose a policy that accepts `ApplicationDefault` while
-throwing only because `UserRequested` is scheduled for the next task.
-
-Use this sequence:
+Use local red/green cycles, but keep remote history simple.
 
 ```text
-1. add all version-one policy-path tests
-2. observe the expected red result
-3. implement all version-one policy paths coherently
-4. observe the focused green result
-5. add negative invariant tests
-6. refactor while green
-7. run wider and packaged regression
-8. commit the complete behaviour
+1. write the complete failing contract tests
+2. implement enums, plan, resolution, and interface
+3. write all failing policy-path tests
+4. implement ApplicationDefault and UserRequested together
+5. add boundary/purity checks
+6. update README, CI discovery, and evidence
+7. run final verification
 ```
 
-Local red/green commits may be used during development, but squash or keep them
-local before review. Do not commit an `InvalidOperationException` such as
-"UserRequested support is implemented in the next test step."
-
-Recommended reviewable commit groups:
+Recommended reviewable commits:
 
 ```text
-test/feat: add complete planning-context contracts
-test/feat: implement complete planning-context policy
-test: guard planning-context purity
-docs: record Decision 3 evidence and CI discovery
+test/feat: add planning context contracts
+test/feat: implement planning context policy
+docs/test: record Decision 3 verification
 ```
 
-Each remote commit must leave every valid public request mode implemented and tested.
+Local red commits may be squashed. Do not commit the former temporary
+`InvalidOperationException` for `UserRequested`.
 
 ---
 
-## 8. Task 1 — Add enums and resolution contracts
+## 7. Task 1 — Contracts and invariants
 
-### 8.1 Failing tests
+### Files
 
-Create `CompatibilityPlanningContextContractTests` and first prove:
+```text
+CompatibilityPlanningContextEnums.cs
+CompatibilityPlanningContextPlan.cs
+CompatibilityPlanningContextResolution.cs
+ICompatibilityPlanningContextPolicy.cs
+CompatibilityPlanningContextContractTests.cs
+```
+
+### Write failing tests first
+
+Test:
 
 ```text
 all enums reserve zero for Unspecified
-only the approved version-one enum members exist
-Resolved carries a non-null plan and no reason
-NotEstablished carries no plan and one non-Unspecified reason
-null plan is rejected
-Unspecified failure reason is rejected
-contradictory resolution payloads cannot be constructed
+only approved version-one enum values exist
+valid ApplicationDefault plan is accepted
+valid UserRequested plan within the model limit is accepted
+valid UserRequested plan above the model limit is accepted
+ApplicationDefault with a requested value is rejected
+ApplicationDefault above the model limit is rejected
+UserRequested without a requested value is rejected
+baseline or preservation target differing from the request is rejected
+relationship inconsistent with the two token counts is rejected
+wrong policy kind/version is rejected
+Resolved requires a plan and no failure reason
+NotEstablished requires no plan and one non-Unspecified reason
 ```
 
-Run the focused command established by the entry gate and retain the expected red
-result.
+Run a focused test command only if output proves that the class was discovered and at
+least one test executed. Otherwise use the existing packaged runner or build-only red
+proof. Do not weaken the project to obtain a convenient command.
 
-### 8.2 Minimum implementation
+### Minimum implementation
 
-Add:
+- Add the three enums from the design.
+- Add deeply immutable `CompatibilityPlanningContextPlan`.
+- Add `CompatibilityPlanningContextResolution` with private construction and named
+  factories:
+  - `Resolved(plan)`
+  - `NotEstablished(reason)`
+- Add the small policy interface exactly as specified.
+- Validate all cross-property invariants before assigning properties.
+
+### Verify
 
 ```text
-CompatibilityContextLimitRelationship
-CompatibilityPlanningContextResolutionStatus
-CompatibilityPlanningContextFailureReason
-CompatibilityPlanningContextResolution
+focused contract tests green
+test project compiles
+no duplicate ContextTokenCount or policy identity type
 ```
 
-Use named factories:
-
-```text
-Resolved(plan)
-NotEstablished(reason)
-```
-
-Keep the constructor private so invalid combinations cannot be assembled elsewhere.
-
-### 8.3 Green and commit
-
-Run:
-
-```text
-focused contract tests
-all Decision 3 tests currently present
-```
-
-Commit only when every test passes and no unrelated file changed.
+Commit the complete contract package together.
 
 ---
 
-## 9. Task 2 — Add the immutable plan and invariants
+## 8. Task 2 — Complete policy
 
-### 9.1 Failing tests
-
-Add positive construction tests for:
+### Files
 
 ```text
-valid ApplicationDefault plan
-valid UserRequested plan within the model limit
-valid UserRequested plan above the model limit
+CompatibilityPlanningContextPolicy.cs
+CompatibilityPlanningContextPolicyTests.cs
 ```
 
-Add negative tests for:
+### Write all failing behaviour tests first
 
-```text
-Unspecified mode
-Unspecified relationship
-null token objects
-wrong policy kind
-wrong policy version where version validation is owned here
-ApplicationDefault carrying RequestedContextTokens
-ApplicationDefault baseline above model limit
-ApplicationDefault preservation target differing from baseline
-UserRequested without RequestedContextTokens
-UserRequested baseline differing from requested value
-UserRequested preservation target differing from requested value
-relationship disagreeing with token counts
-```
-
-### 9.2 Minimum implementation
-
-Add `CompatibilityPlanningContextPlan` as a deeply immutable value. Its constructor
-validates every cross-property rule before assigning a property.
-
-Do not expose setters, mutable collections, or a parameterless deserialisation path.
-
-### 9.3 Green and commit
-
-Run the focused contract tests, then all currently available non-UI/pure tests through
-the supported runner. Commit the complete immutable plan and its tests together.
-
----
-
-## 10. Task 3 — Implement the complete pure policy
-
-### 10.1 Add all failing policy-path tests first
-
-Create `CompatibilityPlanningContextPolicyTests` covering:
+Required cases:
 
 ```text
 ApplicationDefault + 131,072
@@ -430,13 +279,13 @@ UserRequested 16,384 + 131,072
 UserRequested 16,384 + 8,192
 → exact request / ExceedsModelLimit
 
-missing limit
+null limit
 → NotEstablished / ModelContextLimitUnavailable
 
 zero limit
 → NotEstablished / ModelContextLimitUnavailable
 
-int.MaxValue limit
+int.MaxValue
 → valid supported limit
 
 int.MaxValue + 1
@@ -445,90 +294,66 @@ int.MaxValue + 1
 null request
 → ArgumentNullException
 
-same input repeated
-→ value-equivalent output
+same inputs repeated
+→ value-equivalent result
 
 Identity
 → PlanningContext / planning-context-v1
 ```
 
-Run the focused suite and retain the expected red result.
+### Implement every path together
 
-### 10.2 Add the interface
-
-Add only:
-
-```csharp
-internal interface ICompatibilityPlanningContextPolicy
-{
-    CompatibilityPolicyIdentity Identity { get; }
-
-    CompatibilityPlanningContextResolution Resolve(
-        CompatibilityContextRequest request,
-        ulong? declaredModelContextLength);
-}
-```
-
-A genuine interface is justified because later orchestration will consume a versioned
-policy boundary and tests may replace it. Do not add additional interfaces for the
-plan or resolution values.
-
-### 10.3 Implement every version-one path
-
-Implement the complete algorithm in one coherent production change:
+Algorithm:
 
 ```text
 validate request
-resolve trusted model limit
-if limit cannot be represented
-    return typed NotEstablished
+resolve declared model limit
 
-if ApplicationDefault
+if limit missing or zero
+    return ModelContextLimitUnavailable
+
+if limit > int.MaxValue
+    return ModelContextLimitOutOfRange
+
+if mode = ApplicationDefault
     baseline = min(4,096, limit)
-    return Resolved default plan
+    return default plan
 
-if UserRequested
+if mode = UserRequested
     preserve exact request
     compare request with limit
-    return Resolved user plan
+    return requested plan
+
+otherwise
+    throw an out-of-range contract exception
 ```
 
-There is no temporary fallback branch and no "implemented next" exception.
-
-### 10.4 Green and commit
-
-Run:
+The implementation has:
 
 ```text
-focused policy tests
-focused contract tests
-all Decision 3 tests
-the supported wider test layer
+one parameterless construction path
+no mutable instance state
+no file/process/network/UI/time dependency
+no hardware or estimator input
 ```
 
-Only then commit the complete policy behaviour.
+### Verify
+
+```text
+focused policy tests green
+focused contract tests green
+all Decision 3 tests green
+```
+
+Commit the complete policy and tests together.
 
 ---
 
-## 11. Task 4 — Prove policy purity
+## 9. Task 3 — Boundary guard, documentation, and CI
 
-### 11.1 Reflection guards
+### Boundary scan
 
-Add tests that prove:
-
-```text
-the concrete policy has one parameterless constructor
-the declared public surface contains only Identity and Resolve
-the policy is sealed
-the policy stores no mutable instance state
-```
-
-Avoid brittle tests of private method names or harmless implementation detail.
-
-### 11.2 Dependency guards
-
-Use architecture tests or source scans to reject references from the Decision 3 folder
-to:
+Review the Decision 3 production folder for prohibited dependencies:
 
 ```text
 HardwareSnapshot
@@ -538,268 +363,193 @@ memory estimator
 candidate generator
 ProcessStartInfo
 FileStream
-Microsoft.UI.Xaml
 HttpClient
-DateTime, DateTimeOffset, Stopwatch, or random sources
+Microsoft.UI.Xaml
+DateTime
+DateTimeOffset
+Stopwatch
+Random
 ```
 
-Review matches manually so comments explaining a rejected dependency do not create
-false failures.
+Expected production matches: none.
 
-### 11.3 Determinism and concurrency
+Also search for rejected behaviour:
 
-Where practical, run the same valid inputs repeatedly and concurrently and compare
-the value outputs. The test must not depend on timing.
+```text
+16,384 as an automatic default
+--ctx-size 0 as the application decision
+silent clamp
+automatic RoPE/YaRN extension
+context ladder values
+```
 
-### 11.4 Green and commit
+Explanatory README/design text may mention rejected designs; production code may not.
 
-Run the complete Decision 3 suite. Commit the purity guards separately so reviewers
-can see the architectural protection clearly.
+### README
 
----
-
-## 12. Task 5 — Documentation, traceability, and CI discovery
-
-### 12.1 Feature README
-
-Explain in beginner-readable terms:
+Explain in simple language:
 
 ```text
 ApplicationDefault = min(4,096, declared model limit)
 UserRequested = exact request, never silently clamped
 missing model limit = not established
-no context extrapolation in version one
+4,096 is not a model limit or fit guarantee
 maximum safe context is calculated later
+Decision 8 owns candidate context values
 ```
 
-State explicitly that `4,096` is not a model limit, maximum-safe result, runtime
-verification, or fit guarantee.
+### CI discovery
 
-### 12.2 Decision references
+Preserve the current packaged WinUI route. Append both fully qualified Decision 3 test
+classes to the workflow's existing required-class list, without removing any existing
+class.
 
-Update the accepted Decision 1 and Decision 2 documents to link to the implemented
-Decision 3 policy without claiming that Decisions 4–8 are complete.
+### Evidence
 
-### 12.3 Requirement evidence
-
-Create the F-M09 evidence record with:
+Create a concise F-M09 record containing:
 
 ```text
-requirement and decision identifiers
-base and implementation SHAs
+requirement and Decision 3 identity
+base SHA and implementation SHA
 policy version
 test class names
-test runner and tool versions
-TRX counters
-relevant commit and PR
-non-claims
-reviewer
+focused test result
+packaged TRX totals
+relevant PR
+explicit non-claims
 ```
 
-Do not include raw local paths, machine identity, tokens, private UCL information,
-or unredacted command output.
+Do not include raw paths, machine identity, private UCL information, credentials, or
+unredacted logs.
 
-### 12.4 CI discovery
+### Optional cross-links
 
-Update the live `.github/workflows/build-and-test.yml` only as needed to prove the
-two Decision 3 classes are discovered and pass in the existing packaged run.
+Add one reciprocal Decision 3 link to Decision 1 and Decision 2 documents only when
+their canonical paths are present and the edits are trivial. This is not allowed to
+expand the slice.
 
-The current workflow's `$requiredClasses` mechanism is a suitable pattern. Preserve
-all existing required classes and append the fully qualified Decision 3 class names.
-Do not replace the app-container route with direct `dotnet test`.
-
-### 12.5 Green and commit
-
-Run the complete authoritative packaged suite and independently parse the retained
-TRX. Commit documentation, traceability, and CI discovery after the evidence exists.
+Commit documentation, CI discovery, and evidence together.
 
 ---
 
-## 13. Task 6 — Final verification gate
+## 10. Task 4 — Final verification
 
-### 13.1 Source-boundary scans
+Run fresh verification on the exact head intended for review.
 
-Run searches for forbidden implementation leakage:
-
-```powershell
-git grep -n -E `
-  "HardwareSnapshot|HardwareInspection|SystemMemorySnapshot|" `
-  "ProcessStartInfo|FileStream|Microsoft\.UI\.Xaml|HttpClient|" `
-  "DateTimeOffset\.UtcNow|DateTime\.UtcNow|Stopwatch|Random" -- `
-  "IBM Granite with TurboQuant (Intel)/Features/ModelHardwareCompatibility/Application/PlanningContext"
-```
-
-Run searches for forbidden Decision 8 behaviour:
-
-```powershell
-git grep -n -E `
-  "context ladder|candidate context|1_024|2_048|8_192|16_384|32_768" -- `
-  "IBM Granite with TurboQuant (Intel)/Features/ModelHardwareCompatibility/Application/PlanningContext"
-```
-
-Review every match. Test data and explanatory comments are not automatically
-production violations.
-
-### 13.2 Formatting and diff checks
-
-Run the repository-supported formatting check and:
-
-```powershell
-git diff --check
-git status --short
-```
-
-Expected result:
+### Static checks
 
 ```text
-no formatting changes required
-no whitespace errors
-only intended Decision 3 files changed
+git diff --check
+format verification supported by the repository
+duplicate-owner search
+prohibited-dependency scan
+rejected-behaviour scan
 ```
 
-### 13.3 Complete CI-equivalent validation
+### Build and tests
 
-Run every current workflow gate, including:
+Use the live workflow as authority:
 
 ```text
 fixture reproducibility
-restore
-WinUI Release x64 build
-test-project build
-packaged app-container test execution
-TRX non-zero discovery/execution checks
-all-pass counter checks
-required-class checks
-privacy and artifact checks present on the base
+WinUI Release x64 restore/build
+test-project restore/build
+packaged app-container execution
+TRX parsing
+non-zero discovery and execution
+all executed tests passed
+both Decision 3 classes passed
+artifact upload
+existing privacy/security gates
 ```
 
-Do not infer success from a green badge alone. Download and independently inspect the
-retained TRX or equivalent structured artifact.
+A focused command supplements this result; it does not replace packaged verification.
 
-### 13.4 Design review checklist
+### Manual diff review
 
 Confirm:
 
 ```text
-one policy interface
-one policy implementation
+one interface
+one sealed policy implementation
 one immutable plan
 one resolution envelope
 one enum file
-complete default and user-requested paths
-no silent clamp
-no model-family lookup
-no context extrapolation
-no hardware dependency
-no estimator dependency
-no UI/process/file/network/time dependency
-no context ladder
-4,096 default target
+two focused test classes
+4,096 default
+exact user-request preservation
+typed missing-limit outcomes
 planning-context-v1 identity
-all negative invariants tested
-Decision 3 test classes proven in packaged CI
+no Decision 4–8 logic
 ```
 
-### 13.5 Pull request
+### Evidence discipline
 
-Open a detailed draft pull request. The body explains:
-
-```text
-why a context is required before Configure Model
-why 4,096 is a planning baseline
-why user requests are never silently clamped
-why maximum safe context is later work
-which predecessor commits were reused
-which production and test files were added
-all verification commands and counters
-all non-claims
-remaining risks and deferred Decisions 4–8
-```
-
-Do not mark the PR ready until independent review confirms the evidence and exact
-head SHA.
-
----
-
-## 14. Acceptance matrix
-
-| Input | Expected Decision 3 result |
-|---|---|
-| ApplicationDefault, limit 131,072 | Resolved; baseline and preservation target 4,096 |
-| ApplicationDefault, limit 4,096 | Resolved; baseline and preservation target 4,096 |
-| ApplicationDefault, limit 2,048 | Resolved; baseline and preservation target 2,048 |
-| UserRequested 16,384, limit 131,072 | Resolved; exact request; WithinModelLimit |
-| UserRequested 16,384, limit 8,192 | Resolved; exact request; ExceedsModelLimit |
-| Any valid request, limit absent | NotEstablished; ModelContextLimitUnavailable |
-| Any valid request, limit zero | NotEstablished; ModelContextLimitUnavailable |
-| Any valid request, limit `int.MaxValue + 1` | NotEstablished; ModelContextLimitOutOfRange |
-| Contradictory plan payload | Synchronous construction exception |
-| Invalid request object | Synchronous contract exception |
-
----
-
-## 15. Implementation non-claims
-
-Completing this plan does not establish:
+Do not claim:
 
 ```text
-weight-memory estimation
-KV-cache formula correctness
-runtime overhead
-RAM or VRAM reserves
 maximum safe context
-candidate context ladder
+hardware fit
+runtime support
 candidate ranking
-backend or device support
-GPU offload
-expected performance
-quality preservation
-final compatibility outcome
-Runtime Verification success
-Hardware Inspection Gate 1 completion
+successful model load
+Hardware Inspection completion
 ```
 
-Those claims require their own decisions and evidence.
+Only after these checks pass should the implementation PR be marked ready.
 
 ---
 
-## 16. Textbook basis
+## 11. Acceptance checklist
 
-- **Systems Engineering: Principles and Practice**, Chapters 6, 11, 13, and 17:
-  prerequisite control, explicit assumptions, risk reduction, and test traceability.
-- **Fundamentals of Software Architecture**, Chapters 2, 3, 21, and 22:
-  trade-off analysis, cohesive boundaries, architectural decision records, and risk
-  visibility.
-- **Designing Secure Software**, Chapters 2–4, 6–7, 10, and 12:
-  trust-boundary analysis, least information, fail-secure contracts, design review,
-  input validation, and security testing.
-- **The Art of Unit Testing**, Chapters 7, 8, and 10: trustworthy and maintainable
-  tests, appropriate test levels, and a deliberate test recipe.
-- **Code Complete**, Chapters 3, 5, 8, 22, and 28: upstream prerequisites,
-  information hiding, defensive programming, developer testing, and configuration
-  management.
-- **Build desktop apps for Windows**: retain the real WinUI 3 and Windows App SDK
-  build, packaging, and app-container test environment.
+- [ ] Uses the canonical Decision 1 and Decision 2 types.
+- [ ] `ApplicationDefault` selects `min(4,096, model limit)`.
+- [ ] Explicit requests are preserved exactly.
+- [ ] Above-limit requests are `Resolved / ExceedsModelLimit`.
+- [ ] Missing and zero limits are `ModelContextLimitUnavailable`.
+- [ ] Values above `int.MaxValue` are `ModelContextLimitOutOfRange`.
+- [ ] All plan and resolution invariants reject contradictory construction.
+- [ ] Policy identity is `PlanningContext / planning-context-v1`.
+- [ ] Policy has no hardware, estimator, file, process, UI, network, time, or random
+      dependency.
+- [ ] Decision 8 remains the sole candidate-context owner.
+- [ ] README and evidence state all non-claims.
+- [ ] Packaged WinUI CI discovers and passes both Decision 3 test classes.
+- [ ] Final retained evidence is tied to the exact reviewed SHA.
 
 ---
 
-## 17. Current disposition
+## 12. Stop conditions
+
+Stop and report the exact blocker rather than guessing when:
 
 ```text
-Design
-→ approved in principle
-
-Implementation plan
-→ corrected and preserved
-
-Implementation
-→ blocked
-
-Next permitted programme action
-→ implement and integrate the accepted Decision 1 and Decision 2 packages and the
-  required HardwareInspectionHandoff, then re-run Section 3 against one immutable
-  base
+Decision 1 or Decision 2 contract shape differs from this plan
+duplicate canonical types exist
+the focused runner discovers zero intended tests
+the packaged test route fails
+the declared model context source is ambiguous
+a proposed change would introduce Decision 4–8 behaviour
 ```
 
-No Decision 3 production file should be created before that disposition changes from
-`Blocked` to `Pass`.
+A missing `HardwareInspectionHandoff` does not block the pure policy module. It blocks
+only later complete request composition/orchestration work that actually requires that
+handoff.
+
+---
+
+## 13. Final scope statement
+
+This plan implements only:
+
+```text
+context intent
+baseline selection
+relationship to model limit
+typed not-established outcomes
+policy identity
+```
+
+It leaves all resource and fit calculations to the remaining decisions. That narrow
+scope is the main reason Decision 3 can be implemented quickly without sacrificing
+correctness.
