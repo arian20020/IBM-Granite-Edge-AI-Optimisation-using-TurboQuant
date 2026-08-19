@@ -41,6 +41,8 @@ RUNBOOK_PATH = (
     / "runbooks"
     / "Hardware-Inspection-Intel-Runner-Stage-A-Runbook.md"
 )
+TESTING_INDEX_PATH = REPOSITORY_ROOT / "docs" / "testing" / "README.md"
+SCRIPTS_INDEX_PATH = REPOSITORY_ROOT / "scripts" / "README.md"
 MANIFEST_PATH = (
     REPOSITORY_ROOT
     / ".github"
@@ -67,6 +69,7 @@ FULL_ACTION_PINS = {
 }
 RUNNER_LABEL = re.compile(r"\Ahardware-gate1-[0-9a-f]{16}\Z")
 EXPECTED_WORKFLOW_SHA256 = "4abdbfc4ffcabec76a8dfb90a1dfd0d17bee837a995c7fe14cb3b250b854a6e1"
+EXPECTED_RUNBOOK_SHA256 = "73cdf7b0084b101943be10d159d14d5b4174e858963f8e0167b5690c892bb3a7"
 STAGEA_POWERSHELL_SHELL = (
     r'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe '
     r'-NoLogo -NoProfile -NonInteractive '
@@ -3307,6 +3310,136 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
         _required_file(self, VALIDATOR_PATH)
         _required_file(self, RUNNER_PATH)
         _required_file(self, RUNBOOK_PATH)
+        runbook_raw = RUNBOOK_PATH.read_bytes()
+        self.assertEqual(
+            hashlib.sha256(runbook_raw).hexdigest(), EXPECTED_RUNBOOK_SHA256
+        )
+        runbook = _strict_utf8(RUNBOOK_PATH).casefold()
+        for required_text in (
+            "written ucl approval",
+            "complete dispatch, queue, registration, and job window",
+            "dedicated non-admin",
+            "mutual ntfs isolation",
+            "no browser, pat, or retained secret",
+            "github's current supported runner",
+            "github-displayed sha-256",
+            "transfer the verified archive, never an extracted runner tree",
+            "recompute its sha-256 on the laptop immediately before extraction",
+            "runner.listener",
+            "runner.worker",
+            "scheduled auto-start",
+            "dispatch while the hardware runner is absent",
+            "second dispatch",
+            "sole expected queued run",
+            "triggering actor",
+            "attempt `1`",
+            "confirmation input",
+            "fresh one-time label",
+            "no other queued or running job targets the fresh label",
+            "fresh non-identifying runner name",
+            "--name <fresh-non-identifying-runner-name>",
+            "fresh, empty, dedicated work directory",
+            "outside onedrive, network, and profile locations",
+            "no reparse point in its ancestor chain",
+            "--ephemeral --no-default-labels --labels <fresh-label> --work <fresh-work-directory>",
+            "transient one-hour registration token",
+            "run.cmd",
+            "174 deterministic",
+            "3 task 8 deterministic",
+            "privacy-safe artifact",
+            "json-only privacy-safe artifact",
+            "hardware-inspection-stage-a-summary-<run-id>-1",
+            "`schemaversion`",
+            "`evaluatedsha`",
+            "`deterministicpassed`",
+            "`task8deterministicpassed`",
+            "`nonpassing`",
+            "`schemaversion` must equal `\"1.0\"`",
+            "`evaluatedsha` must equal the exact approved sha",
+            "`deterministicpassed` must equal `174`",
+            "`task8deterministicpassed` must equal `3`",
+            "`nonpassing` must equal `0`",
+            "retained for 3 days",
+            "sanitised remote log",
+            "raw trx, detailed restore/build/test logs",
+            "artifactstringshape_rejectspathsandfreetextwithgenericdiagnostics",
+            "captureinterval_thirtysecondsplusonetickisoutsideboundary",
+            "stablefileidentityandprocesstreecleanup_arefailclosed",
+            "automatic deregistration",
+            "time-limited removal flow",
+            "bounded diagnostic window",
+            "`_temp`",
+            "`_diag`",
+            "canonical stage a phase directory",
+            "approval manifest at the exact default-branch run commit",
+            "`.github/hardware-inspection/llmfit-gate1-approved-source.json`",
+            "runner installation directory: inspect `_diag`",
+            "work directory: inspect `_temp`",
+            "no registration or removal token may be requested",
+            "defender, edr, applocker, firewall, tls, and powershell policy",
+            "do not disable, bypass, weaken, or reconfigure",
+            "no hardware evidence",
+            "no candidate evidence",
+            "no trusted intel evidence",
+            "no offline evidence",
+            "no gate 1 evidence",
+            "does not permit gate 2",
+            "writer-trust failure",
+            "wrong, changed, or non-sole queued run",
+            "fixed or reused label",
+            "operational environment variable",
+            "debug logging",
+            "unverified cleanup target",
+            "global process-name kill",
+            "recursive parent deletion",
+            "outside the one authorised interactive `run.cmd` session",
+            "stage b",
+        ):
+            self.assertIn(required_text, runbook)
+
+        for forbidden_text in (
+            "hardware-inspection-llm-fit-gate-1-runbook.md",
+            "trustedwindowsintel",
+            "trustedoffline",
+            "granite_llmfit_",
+            "get-netadapter",
+            "disable-netadapter",
+            "enable-netadapter",
+            "invoke-webrequest",
+            "stop-process",
+            "taskkill",
+            "remove-item",
+            "gh workflow run",
+        ):
+            self.assertNotIn(forbidden_text, runbook)
+
+        testing_index = _strict_utf8(TESTING_INDEX_PATH)
+        scripts_index = _strict_utf8(SCRIPTS_INDEX_PATH)
+        self.assertIn(
+            "[Stage A operator runbook](runbooks/Hardware-Inspection-Intel-Runner-Stage-A-Runbook.md)",
+            testing_index,
+        )
+        self.assertIn(
+            "[`Hardware-Inspection-Intel-Runner-Stage-A-Runbook.md`](../docs/testing/runbooks/Hardware-Inspection-Intel-Runner-Stage-A-Runbook.md)",
+            scripts_index,
+        )
+        self.assertIn(
+            "[Stage A context validator](../../scripts/hardware-inspection/Validate-HardwareInspectionIntelRunnerStageA.ps1)",
+            testing_index,
+        )
+        self.assertIn(
+            "[Stage A deterministic runner](../../scripts/hardware-inspection/Invoke-HardwareInspectionIntelRunnerStageA.ps1)",
+            testing_index,
+        )
+        self.assertIn("Validate-HardwareInspectionIntelRunnerStageA.ps1", scripts_index)
+        self.assertIn("Invoke-HardwareInspectionIntelRunnerStageA.ps1", scripts_index)
+        self.assertIn("Gate 1 remains Blocked", testing_index)
+        self.assertNotIn(
+            "Hardware-Inspection-LLM-Fit-Gate-1-Runbook.md",
+            testing_index + scripts_index,
+        )
+        for evidence_id in ("F-M07", "HE-01", "HE-02"):
+            self.assertIn(evidence_id, testing_index)
         workflow_paths = {
             path.relative_to(REPOSITORY_ROOT).as_posix()
             for path in (REPOSITORY_ROOT / ".github" / "workflows").rglob("*")
