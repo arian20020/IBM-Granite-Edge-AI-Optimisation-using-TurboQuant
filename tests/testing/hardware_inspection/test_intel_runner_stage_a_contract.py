@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import re
+import signal
 import shutil
 import subprocess
 import tempfile
@@ -65,7 +66,17 @@ FULL_ACTION_PINS = {
     "actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f",
 }
 RUNNER_LABEL = re.compile(r"\Ahardware-gate1-[0-9a-f]{16}\Z")
-EXPECTED_WORKFLOW_SHA256 = "bff2441dcd72177e3adb8a052ac3a3bbff606995e4b5fcae64032152a951cb0d"
+EXPECTED_WORKFLOW_SHA256 = "4abdbfc4ffcabec76a8dfb90a1dfd0d17bee837a995c7fe14cb3b250b854a6e1"
+STAGEA_POWERSHELL_SHELL = (
+    r'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe '
+    r'-NoLogo -NoProfile -NonInteractive '
+    '-Command "$ErrorActionPreference = \'Stop\'; $global:LASTEXITCODE = 0; & \'{0}\'; '
+    'if (-not $?) { if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; exit 1 }; '
+    'exit $LASTEXITCODE"'
+)
+GIT_INVALID_STDERR = (
+    "HI-RUNNER-STAGEA-GIT-INVALID: required Git capability is unavailable.\n"
+)
 
 
 def _required_file(test_case, path):
@@ -511,6 +522,7 @@ def _assert_workflow_executable_chain(test_case, document):
     expected_context = (
         "& '.\\control\\scripts\\hardware-inspection\\Validate-HardwareInspectionIntelRunnerStageA.ps1' ` "
         "-Phase RunnerContext ` -ControlRoot (Join-Path $env:GITHUB_WORKSPACE 'control') ` "
+        "-EvaluatedRoot (Join-Path $env:GITHUB_WORKSPACE 'evaluated') ` "
         "-ApprovedSha $env:STAGEA_APPROVED_SHA ` -WorkflowRef $env:STAGEA_WORKFLOW_REF ` "
         "-DefaultBranch $env:STAGEA_DEFAULT_BRANCH ` -Actor $env:STAGEA_ACTOR ` "
         "-TriggeringActor $env:STAGEA_TRIGGERING_ACTOR ` -RepositoryOwner $env:STAGEA_REPOSITORY_OWNER ` "
@@ -587,8 +599,6 @@ def _invoke(script, arguments, environment=None):
         _powershell_executable(),
         "-NoProfile",
         "-NonInteractive",
-        "-ExecutionPolicy",
-        "Bypass",
         "-File",
         str(script),
     ]
@@ -618,8 +628,6 @@ def _invoke_with_literal_runner_label(script, arguments, runner_label, environme
             _powershell_executable(),
             "-NoProfile",
             "-NonInteractive",
-            "-ExecutionPolicy",
-            "Bypass",
             "-Command",
             command,
         ],
@@ -953,10 +961,18 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
 
     def test_stage_a_workflow_pins_actions_and_drops_checkout_credentials(self):
         raw, document = _workflow(self)
+        inline_steps = []
         for job_name, step in _all_steps(document):
-            if step.get("shell") == "powershell":
-                with self.subTest(inline_powershell=job_name + ":" + str(step.get("name", ""))):
+            if "run" in step:
+                inline_steps.append(step)
+                with self.subTest(
+                    inline_powershell=job_name + ":" + str(step.get("name", ""))
+                ):
+                    self.assertEqual(step.get("shell"), STAGEA_POWERSHELL_SHELL)
                     _powershell_text_ast(self, str(step.get("run", "")))
+        self.assertEqual(len(inline_steps), 11)
+        self.assertNotIn("shell: powershell", raw.decode("utf-8"))
+        self.assertNotIn("-ExecutionPolicy", raw.decode("utf-8"))
         uses = []
         checkout_steps = []
         for _, step in _all_steps(document):
@@ -968,9 +984,121 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
         self.assertGreaterEqual(len(checkout_steps), 2)
         for step in checkout_steps:
             self.assertEqual(step.get("with", {}).get("persist-credentials"), False)
+
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            hostile_marker = root / "hostile-profile-loaded.txt"
+            payload_marker = root / "payload-ran.txt"
+            hostile_profile = root / "Microsoft.PowerShell_profile.ps1"
+            payload = root / "payload.ps1"
+            hostile_profile.write_text(
+                "[IO.File]::WriteAllText('"
+                + str(hostile_marker).replace("'", "''")
+                + "','hostile-profile-loaded')\n",
+                encoding="utf-8",
+                newline="\n",
+            )
+            payload.write_text(
+                "[IO.File]::WriteAllText('"
+                + str(payload_marker).replace("'", "''")
+                + "','payload-ran')\n",
+                encoding="utf-8",
+                newline="\n",
+            )
+            wrapper = (
+                "$ErrorActionPreference = 'Stop'; $global:LASTEXITCODE = 0; & '"
+                + str(payload).replace("'", "''")
+                + "'; if (-not $?) { if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; "
+                "exit 1 }; exit $LASTEXITCODE"
+            )
+            shell_result = subprocess.run(
+                [
+                    r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe",
+                    "-NoLogo",
+                    "-NoProfile",
+                    "-NonInteractive",
+                    "-Command",
+                    wrapper,
+                ],
+                text=True,
+                capture_output=True,
+                timeout=20,
+                check=False,
+            )
+            self.assertEqual(shell_result.returncode, 0, shell_result.stderr)
+            self.assertTrue(payload_marker.is_file())
+            self.assertFalse(hostile_marker.exists())
+            control = subprocess.run(
+                [
+                    _powershell_executable(),
+                    "-NoProfile",
+                    "-NonInteractive",
+                    "-Command",
+                    ". '"
+                    + str(hostile_profile).replace("'", "''")
+                    + "'",
+                ],
+                text=True,
+                capture_output=True,
+                timeout=20,
+                check=False,
+            )
+            self.assertEqual(control.returncode, 0, control.stderr)
+            self.assertTrue(hostile_marker.is_file())
+
+            native_failure = root / "native-failure.ps1"
+            native_failure.write_text(
+                '& $env:ComSpec /d /c "exit 23"\n', encoding="utf-8", newline="\n"
+            )
+            native_wrapper = wrapper.replace(
+                str(payload).replace("'", "''"),
+                str(native_failure).replace("'", "''"),
+                1,
+            )
+            native_result = subprocess.run(
+                [
+                    r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe",
+                    "-NoLogo",
+                    "-NoProfile",
+                    "-NonInteractive",
+                    "-Command",
+                    native_wrapper,
+                ],
+                text=True,
+                capture_output=True,
+                timeout=20,
+                check=False,
+            )
+            self.assertEqual(native_result.returncode, 23)
+
+            powershell_failure = root / "powershell-failure.ps1"
+            powershell_failure.write_text(
+                "Write-Error 'private-canary'\n", encoding="utf-8", newline="\n"
+            )
+            powershell_wrapper = wrapper.replace(
+                str(payload).replace("'", "''"),
+                str(powershell_failure).replace("'", "''"),
+                1,
+            )
+            powershell_result = subprocess.run(
+                [
+                    r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe",
+                    "-NoLogo",
+                    "-NoProfile",
+                    "-NonInteractive",
+                    "-Command",
+                    powershell_wrapper,
+                ],
+                text=True,
+                capture_output=True,
+                timeout=20,
+                check=False,
+            )
+            self.assertNotEqual(powershell_result.returncode, 0)
         for mutation in (
             raw.replace(b"actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d", b"actions/setup-dotnet@v4", 1),
             raw.replace(b"persist-credentials: false", b"persist-credentials: true", 1),
+            raw.replace(b"-NoProfile", b"-NoProfileRemoved", 1),
         ):
             with self.subTest(mutation=mutation[:60]):
                 mutated = _yaml_load(mutation)
@@ -986,6 +1114,13 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
                             step.get("with", {}).get("persist-credentials") is False
                             for _, step in _all_steps(mutated)
                             if str(step.get("uses", "")).startswith("actions/checkout@")
+                        )
+                    )
+                    self.assertTrue(
+                        all(
+                            step.get("shell") == STAGEA_POWERSHELL_SHELL
+                            for _, step in _all_steps(mutated)
+                            if "run" in step
                         )
                     )
 
@@ -1205,6 +1340,9 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
                 + " }"
             )
             environment = os.environ.copy()
+            for name in list(environment):
+                if name.upper().startswith("GIT_"):
+                    environment.pop(name, None)
             for name in (
                 "ACTIONS_STEP_DEBUG",
                 "ACTIONS_RUNNER_DEBUG",
@@ -1220,17 +1358,100 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
                 runner_workspace = root / "runner-workspace"
                 runner_temp.mkdir()
                 runner_workspace.mkdir()
+                git_probe_marker = root / "git-command-probed.txt"
+                if mode.startswith("git:"):
+                    git_mode = mode.split(":", 1)[1]
+                    git_stub = root / "git.cmd"
+                    second_git_stub = root / "git-second.cmd"
+                    if git_mode in ("old", "multiple-first-invalid"):
+                        version_output = "git version 2.27.99"
+                    elif git_mode == "malformed":
+                        version_output = "git version 2.51\nprivate-canary"
+                    else:
+                        version_output = "git version 2.51.0.windows.2"
+                    git_stub.write_text(
+                        "@echo off\n"
+                        + "\n".join("@echo " + line for line in version_output.splitlines())
+                        + "\n@exit /b 0\n",
+                        encoding="ascii",
+                        newline="\r\n",
+                    )
+                    second_version = (
+                        "git version 2.27.99"
+                        if git_mode == "multiple-first-valid"
+                        else "git version 2.51.0"
+                    )
+                    second_git_stub.write_text(
+                        "@echo off\n@echo " + second_version + "\n@exit /b 0\n",
+                        encoding="ascii",
+                        newline="\r\n",
+                    )
+                    if git_mode == "missing":
+                        git_outputs = "return @()"
+                    elif git_mode in (
+                        "multiple-first-valid",
+                        "multiple-first-invalid",
+                    ):
+                        git_outputs = (
+                            "[pscustomobject]@{ Source = '"
+                            + str(git_stub).replace("'", "''")
+                            + "' }; [pscustomobject]@{ Source = '"
+                            + str(second_git_stub).replace("'", "''")
+                            + "' }"
+                        )
+                    else:
+                        git_outputs = (
+                            "[pscustomobject]@{ Source = '"
+                            + str(git_stub).replace("'", "''")
+                            + "' }"
+                        )
+                    prelude += (
+                        "\nfunction Get-Command { [CmdletBinding()] param("
+                        "[Parameter(Position=0)][string]$Name, [object]$CommandType, [switch]$All) "
+                        "if ($Name -cne 'git') { throw 'private-canary-unexpected-command' }; "
+                        + git_outputs
+                        + " }"
+                    )
+                elif mode == "git-env":
+                    environment["gIt_DiR"] = "private-canary"
+                    prelude += (
+                        "\nfunction Get-Command { [CmdletBinding()] param("
+                        "[Parameter(Position=0)][string]$Name, [object]$CommandType, [switch]$All) "
+                        "[IO.File]::WriteAllText('"
+                        + str(git_probe_marker).replace("'", "''")
+                        + "','called'); throw 'private-canary-git-probed' }"
+                    )
+                if mode == "workspace-unc":
+                    workspace_value = r"\\localhost\stage-a-canary"
+                elif mode == "workspace-device":
+                    workspace_value = r"\\?\C:\stage-a-canary"
+                else:
+                    workspace_value = str(root)
+                if mode == "stale-control-hooks":
+                    stale = root / "control" / ".git" / "hooks"
+                    stale.mkdir(parents=True)
+                    (stale / "pre-commit").write_text(
+                        "private-canary\n", encoding="utf-8", newline="\n"
+                    )
+                elif mode == "stale-evaluated-config":
+                    stale = root / "evaluated" / ".git"
+                    stale.mkdir(parents=True)
+                    (stale / "config").write_text(
+                        "private-canary\n", encoding="utf-8", newline="\n"
+                    )
                 environment.update(
                     {
-                        "GITHUB_WORKSPACE": str(root),
+                        "GITHUB_WORKSPACE": workspace_value,
                         "RUNNER_TEMP": str(runner_temp),
                         "RUNNER_WORKSPACE": str(runner_workspace),
                         "USERNAME": "stage-a-test",
                     }
                 )
-                return _run_inline_powershell(
+                result = _run_inline_powershell(
                     step["run"], prelude, environment=environment, cwd=root
                 )
+                result.git_probe_marker_exists = git_probe_marker.exists()
+                return result
 
         for step, failure in (
             (first_step, "HI-RUNNER-STAGEA-ENVIRONMENT-INVALID: runner environment is invalid.\n"),
@@ -1248,6 +1469,54 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
         self.assertEqual(clean_hosted_debug.returncode, 0, clean_hosted_debug.stderr)
         self.assertEqual(clean_hosted_debug.stdout, "")
         self.assertNotIn("eligible", str(hosted_debug_step.get("run", "")).casefold())
+        for step in (hosted_debug_step, first_step):
+            run_text = str(step.get("run", ""))
+            self.assertIn(
+                "Get-Command git -CommandType Application -All -ErrorAction SilentlyContinue | Select-Object -First 1",
+                run_text,
+            )
+            self.assertIn("StartsWith('GIT_'", run_text)
+            self.assertIn("git version (?<major>", run_text)
+            self.assertIn("GITHUB_WORKSPACE", run_text)
+            self.assertIn("'control'", run_text)
+            self.assertIn("'evaluated'", run_text)
+            for mode in (
+                "git:missing",
+                "git:old",
+                "git:malformed",
+                "git:multiple-first-invalid",
+                "git-env",
+            ):
+                with self.subTest(step=step.get("name"), git_precheck=mode):
+                    result = residue_result(step, mode)
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertEqual(result.stdout, "")
+                    self.assertEqual(
+                        result.stderr.replace("\r\n", "\n"), GIT_INVALID_STDERR
+                    )
+                    self.assertNotIn("private-canary", result.stdout + result.stderr)
+                    if mode == "git-env":
+                        self.assertFalse(result.git_probe_marker_exists)
+            ordered_result = residue_result(step, "git:multiple-first-valid")
+            self.assertEqual(ordered_result.returncode, 0, ordered_result.stderr)
+            self.assertNotIn(
+                "private-canary", ordered_result.stdout + ordered_result.stderr
+            )
+            for mode in (
+                "workspace-unc",
+                "workspace-device",
+                "stale-control-hooks",
+                "stale-evaluated-config",
+            ):
+                with self.subTest(step=step.get("name"), checkout_freshness=mode):
+                    result = residue_result(step, mode)
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertEqual(result.stdout, "")
+                    self.assertEqual(
+                        result.stderr.replace("\r\n", "\n"),
+                        "HI-RUNNER-STAGEA-ENVIRONMENT-INVALID: runner environment is invalid.\n",
+                    )
+                    self.assertNotIn("private-canary", result.stdout + result.stderr)
         for debug_name in (
             "ACTIONS_STEP_DEBUG",
             "ACTIONS_RUNNER_DEBUG",
@@ -1278,6 +1547,8 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
         self.assertIn("HI-RUNNER-STAGEA-INVALID", "\n".join(strings + commands + [validator_text]))
         self.assertGreaterEqual(validator_text.count("[System.IO.DriveType]::Fixed"), 2)
         self.assertIn("[System.IO.FileAttributes]::ReparsePoint", validator_text)
+        self.assertIn("$normalEvaluatedParent -ine $controlParentPath", validator_text)
+        self.assertIn("Test-Path -LiteralPath $anticipatedEvaluatedRoot", validator_text)
         for mutation, required in (
             (
                 validator_text.replace("[System.IO.DriveType]::Fixed", "[System.IO.DriveType]::Network"),
@@ -1401,7 +1672,7 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
             unregister_literal = str(unregister_marker).replace("'", "''")
             mutated_runner = fixture_root / "mutated-unregister-runner.ps1"
             unregister_mutation = runner_text.replace(
-                "[System.Console]::remove_CancelKeyPress($cancelHandler)",
+                "[HardwareInspection.StageA.CancellationState]::Remove()",
                 "throw 'C:\\Users\\canary\\unregister-failure'",
                 1,
             )
@@ -1423,6 +1694,33 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
             )
             self.assertNotIn("canary", unregister_failure.stderr)
             self.assertEqual(unregister_marker.read_text(encoding="utf-8"), "attempted")
+
+            install_marker = fixture_root / "install-cleanup.txt"
+            install_literal = str(install_marker).replace("'", "''")
+            install_runner = fixture_root / "mutated-install-runner.ps1"
+            install_mutation = runner_text.replace(
+                "[HardwareInspection.StageA.CancellationState]::Install()",
+                "throw 'C:\\Users\\canary\\install-failure'",
+                1,
+            )
+            self.assertNotEqual(install_mutation, runner_text)
+            install_runner.write_text(install_mutation, encoding="utf-8", newline="\n")
+            install_runner_literal = str(install_runner).replace("'", "''")
+            install_failure = subprocess.run(
+                [_powershell_executable(), "-NoProfile", "-NonInteractive", "-Command",
+                 "function Get-Process { [IO.File]::WriteAllText('" + install_literal + "','attempted'); @() }\n"
+                 "function Get-NetTCPConnection { @() }\n"
+                 "& '" + install_runner_literal + "' -EvaluatedRoot 'x' -ApprovedSha ('a' * 40) -LocalWorkRoot 'x' -SummaryJsonPath 'x' -SummaryMarkdownPath 'x'"],
+                text=True, capture_output=True, timeout=20, check=False,
+            )
+            self.assertNotEqual(install_failure.returncode, 0)
+            self.assertEqual(install_failure.stdout, "")
+            self.assertEqual(
+                install_failure.stderr.replace("\r\n", "\n"),
+                INVALID_RUNNER_STDERR,
+            )
+            self.assertNotIn("canary", install_failure.stderr)
+            self.assertEqual(install_marker.read_text(encoding="utf-8"), "attempted")
 
             hosted_output = fixture_root / "hosted-output.txt"
             hosted = _invoke(
@@ -1573,10 +1871,14 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
             runner_workspace = fixture_root / "runner-workspace"
             runner_temp.mkdir()
             runner_workspace.mkdir()
+            anticipated_evaluated = fixture_root / "evaluated"
+            wrong_evaluated_parent = fixture_root / "wrong-parent"
+            wrong_evaluated_parent.mkdir()
             context_arguments = _validator_arguments(
                 control_root,
                 Phase="RunnerContext",
                 ApprovedSha=approved_sha,
+                EvaluatedRoot=anticipated_evaluated,
                 RunnerTemp=runner_temp,
                 RunnerWorkspace=runner_workspace,
             )
@@ -1607,6 +1909,8 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
                 {"RunnerWorkspace": r"\\localhost\stage-a-canary"},
                 {"RunnerWorkspace": r"\\?\C:\stage-a-canary"},
                 {"RunnerWorkspace": r"\\.\C:\stage-a-canary"},
+                {"EvaluatedRoot": r"\\localhost\stage-a-canary"},
+                {"EvaluatedRoot": wrong_evaluated_parent / "evaluated"},
             ):
                 invalid_context_arguments = dict(context_arguments)
                 invalid_context_arguments.update(changes)
@@ -1667,6 +1971,17 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
             )
             _assert_invalid_validator_result(self, result)
             stale_work_root.rmdir()
+            anticipated_evaluated.mkdir()
+            (anticipated_evaluated / ".git").mkdir()
+            (anticipated_evaluated / ".git" / "config").write_text(
+                "private-canary\n", encoding="utf-8", newline="\n"
+            )
+            result = _invoke(
+                VALIDATOR_PATH, context_arguments, environment
+            )
+            _assert_invalid_validator_result(self, result)
+            self.assertNotIn("private-canary", result.stdout + result.stderr)
+            shutil.rmtree(anticipated_evaluated)
 
             _write_approval_manifest(control_root, "a" * 40)
             result = _invoke(
@@ -1822,11 +2137,13 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
         self.assertNotIn("New-Object System.Collections.ArrayList", pre_function_text)
         for required_runtime in (
             "JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE",
-            "AssignProcessToJobObject",
             "SetInformationJobObject",
             "CREATE_SUSPENDED",
             "EXTENDED_STARTUPINFO_PRESENT",
             "PROC_THREAD_ATTRIBUTE_HANDLE_LIST",
+            "PROC_THREAD_ATTRIBUTE_JOB_LIST",
+            "InitializeProcThreadAttributeList(IntPtr.Zero, 2",
+            "UpdateProcThreadAttribute(\n                    attributeList, 0, new IntPtr(PROC_THREAD_ATTRIBUTE_JOB_LIST)",
             "TerminateJobObject",
             "QueryInformationJobObject",
             "Process.GetProcessById",
@@ -1837,14 +2154,20 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
             "throw new AggregateException(primaryFailure, containmentFailure)",
         ):
             self.assertIn(required_runtime, runner_text)
+        self.assertNotIn("AssignProcessToJobObject", runner_text)
+        self.assertNotIn("job.AssignHandle", runner_text)
         suspended_start = runner_text.index("public static ContainedProcess StartSuspendedAssigned")
-        assignment = runner_text.index("job.AssignHandle(created.hProcess)", suspended_start)
+        job_attribute = runner_text.index(
+            "new IntPtr(PROC_THREAD_ATTRIBUTE_JOB_LIST)", suspended_start
+        )
+        create_process = runner_text.index("if (!CreateProcess(", job_attribute)
         resume = runner_text.index("ResumeThread(created.hThread)", suspended_start)
         retained_handle = runner_text.index("process.Handle", suspended_start)
         close_stdout_writer = runner_text.index("CloseHandle(stdoutWrite)", suspended_start)
-        self.assertLess(close_stdout_writer, assignment)
-        self.assertLess(retained_handle, assignment)
-        self.assertLess(assignment, resume)
+        self.assertLess(job_attribute, create_process)
+        self.assertLess(create_process, close_stdout_writer)
+        self.assertLess(close_stdout_writer, retained_handle)
+        self.assertLess(retained_handle, resume)
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             arguments = {
@@ -1870,13 +2193,34 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
             "Test-StageADisjointPaths",
             "DirectorySeparatorChar",
             "ProcessJob",
-            "CancelKeyPress",
+            "CancellationState",
+            "Console.CancelKeyPress += handler",
+            "private const int Active = 0",
+            "private const int Cancelled = 1",
+            "private const int Completed = 2",
+            "eventArgs.Cancel = true",
+            "Interlocked.CompareExchange(ref state, Cancelled, Active)",
+            "public static bool TryComplete()",
+            "[HardwareInspection.StageA.CancellationState]::Install()",
+            "[HardwareInspection.StageA.CancellationState]::TryComplete()",
+            "[HardwareInspection.StageA.CancellationState]::Remove()",
+            "[HardwareInspection.StageA.CancellationState]::IsCancellationRequested",
             "StageAOwnedProcesses",
             "Wait-StageAProcess",
             "StageAMaximumProcessStreamBytes",
             "Copy-StageAProcessStream",
         ):
             self.assertIn(required_hardening, runner_text)
+        self.assertNotIn("[System.ConsoleCancelEventHandler]", runner_text)
+        self.assertNotIn("$script:StageACancelled", runner_text)
+        cancel_handler = runner_text.index("private static void HandleCancel")
+        cancel_cas = runner_text.index(
+            "Interlocked.CompareExchange(ref state, Cancelled, Active)", cancel_handler
+        )
+        cancel_acknowledgement = runner_text.index(
+            "eventArgs.Cancel = true", cancel_handler
+        )
+        self.assertLess(cancel_cas, cancel_acknowledgement)
         for first, second, expected_success in (
             ("C:\\stage-a\\source", "C:\\stage-a\\work", True),
             ("C:\\stage-a\\source", "C:\\stage-a\\source\\child", False),
@@ -2059,41 +2403,115 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
 
         final_test_index = runner_text.index("'task8.log'")
         self.assertLess(
-            runner_text.index("Assert-StageACondition (-not $script:StageACancelled)", final_test_index),
+            runner_text.index(
+                "Assert-StageACondition (-not [HardwareInspection.StageA.CancellationState]::IsCancellationRequested)",
+                final_test_index,
+            ),
             runner_text.index("Read-HardwareInspectionIntelRunnerStageATrx", final_test_index),
         )
         final_residue_index = runner_text.index("Test-StageAResidualProcesses", final_test_index)
         self.assertLess(
-            runner_text.index("Assert-StageACondition (-not $script:StageACancelled)", final_residue_index),
+            runner_text.index(
+                "Assert-StageACondition (-not [HardwareInspection.StageA.CancellationState]::IsCancellationRequested)",
+                final_residue_index,
+            ),
             runner_text.index("$json =", final_residue_index),
         )
         outer_cleanup = runner_text.rindex("Stop-StageAOwnedProcesses; Test-StageAResidualProcesses")
         outer_publication = runner_text.index("Write-StageAAtomicUtf8 $publishJsonPath", outer_cleanup)
         cancel_after_json = runner_text.index(
-            "Assert-StageACondition (-not $script:StageACancelled)", outer_publication
+            "Assert-StageACondition (-not [HardwareInspection.StageA.CancellationState]::IsCancellationRequested)",
+            outer_publication,
         )
         markdown_publication = runner_text.index(
             "Write-StageAAtomicUtf8 $publishMarkdownPath", cancel_after_json
         )
         cancel_after_markdown = runner_text.index(
-            "Assert-StageACondition (-not $script:StageACancelled)", markdown_publication
+            "Assert-StageACondition (-not [HardwareInspection.StageA.CancellationState]::IsCancellationRequested)",
+            markdown_publication,
         )
-        outer_unregister = runner_text.index("remove_CancelKeyPress", cancel_after_markdown)
-        final_cancel_decision = runner_text.index("$script:StageACancelled) {", outer_unregister)
-        fixed_failure = runner_text.index("WriteLine($script:StageAFailure)", final_cancel_decision)
+        completion_boundary = runner_text.index(
+            "$completionWon = [HardwareInspection.StageA.CancellationState]::TryComplete()",
+            cancel_after_markdown,
+        )
+        outer_unregister = runner_text.index(
+            "[HardwareInspection.StageA.CancellationState]::Remove()", completion_boundary
+        )
+        final_completion_decision = runner_text.index(
+            "-not $completionWon", outer_unregister
+        )
+        fixed_failure = runner_text.index(
+            "WriteLine($script:StageAFailure)", final_completion_decision
+        )
         self.assertLess(outer_cleanup, outer_publication)
         self.assertLess(outer_publication, cancel_after_json)
         self.assertLess(cancel_after_json, markdown_publication)
         self.assertLess(markdown_publication, cancel_after_markdown)
-        self.assertLess(cancel_after_markdown, outer_unregister)
-        self.assertLess(outer_unregister, final_cancel_decision)
-        self.assertLess(final_cancel_decision, fixed_failure)
+        self.assertLess(cancel_after_markdown, completion_boundary)
+        self.assertLess(completion_boundary, outer_unregister)
+        self.assertLess(outer_unregister, final_completion_decision)
+        self.assertLess(final_completion_decision, fixed_failure)
+
+        cancellation_race_type = (
+            "    public static class CancellationRaceProbe {\n"
+            "        public static void Run() {\n"
+            "            int requestWins = 0; int completionWins = 0;\n"
+            "            for (int round = 0; round < 100; round++) {\n"
+            "                CancellationState.Install();\n"
+            "                bool requestWon = false; bool completionWon = false;\n"
+            "                using (var start = new ManualResetEvent(false)) {\n"
+            "                    var request = new Thread(() => { start.WaitOne(); if ((round & 1) != 0) Thread.Sleep(2); requestWon = CancellationState.Request(); });\n"
+            "                    var complete = new Thread(() => { start.WaitOne(); if ((round & 1) == 0) Thread.Sleep(2); completionWon = CancellationState.TryComplete(); });\n"
+            "                    request.Start(); complete.Start(); start.Set(); request.Join(); complete.Join();\n"
+            "                }\n"
+            "                if (requestWon == completionWon) throw new InvalidOperationException(\"race did not linearize\");\n"
+            "                if (CancellationState.IsCancellationRequested != requestWon) throw new InvalidOperationException(\"terminal state mismatch\");\n"
+            "                if (requestWon) requestWins++; else completionWins++;\n"
+            "                CancellationState.Remove();\n"
+            "            }\n"
+            "            if (requestWins == 0 || completionWins == 0) throw new InvalidOperationException(\"both outcomes were not covered\");\n"
+            "        }\n"
+            "    }\n\n"
+        )
+        cancellation_race_runner_text = runner_text.replace(
+            "    public sealed class ProcessJob : IDisposable {\n",
+            cancellation_race_type + "    public sealed class ProcessJob : IDisposable {\n",
+            1,
+        )
+        self.assertNotEqual(cancellation_race_runner_text, runner_text)
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            cancellation_race_runner = (
+                Path(temporary_directory) / "cancellation-race-runner.ps1"
+            )
+            cancellation_race_runner.write_text(
+                cancellation_race_runner_text, encoding="utf-8", newline="\n"
+            )
+            runner_literal = str(cancellation_race_runner).replace("'", "''")
+            cancellation_race = subprocess.run(
+                [
+                    _powershell_executable(),
+                    "-NoLogo",
+                    "-NoProfile",
+                    "-NonInteractive",
+                    "-Command",
+                    ". '"
+                    + runner_literal
+                    + "' -EvaluatedRoot 'x' -ApprovedSha ('0' * 40) -LocalWorkRoot 'x' -SummaryJsonPath 'x' -SummaryMarkdownPath 'x'; "
+                    "Initialize-StageARuntime; "
+                    "[HardwareInspection.StageA.CancellationRaceProbe]::Run()",
+                ],
+                text=True,
+                capture_output=True,
+                timeout=30,
+                check=False,
+            )
+        self.assertEqual(cancellation_race.returncode, 0, cancellation_race.stderr)
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             mutated_runner = root / "late-cancel-runner.ps1"
             late_cancel = runner_text.replace(
                 "            Invoke-HardwareInspectionIntelRunnerStageAInternal\n",
-                "            $script:StageACancelled = $true\n",
+                "            $null = [HardwareInspection.StageA.CancellationState]::Request()\n",
                 1,
             )
             self.assertNotEqual(late_cancel, runner_text)
@@ -2139,7 +2557,7 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
                 "cleanup-cancel",
                 seeded_runner.replace(
                     "try { Stop-StageAOwnedProcesses; Test-StageAResidualProcesses }",
-                    "try { Stop-StageAOwnedProcesses; $script:StageACancelled = $true; Test-StageAResidualProcesses }",
+                    "try { Stop-StageAOwnedProcesses; $null = [HardwareInspection.StageA.CancellationState]::Request(); Test-StageAResidualProcesses }",
                     1,
                 ),
             ),
@@ -2147,10 +2565,10 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
                 "publication-cancel",
                 seeded_runner.replace(
                     "                    Write-StageAAtomicUtf8 $publishJsonPath $script:StageAPendingSummaryJson\n"
-                    "                    Assert-StageACondition (-not $script:StageACancelled)\n",
+                    "                    Assert-StageACondition (-not [HardwareInspection.StageA.CancellationState]::IsCancellationRequested)\n",
                     "                    Write-StageAAtomicUtf8 $publishJsonPath $script:StageAPendingSummaryJson\n"
-                    "                    $script:StageACancelled = $true\n"
-                    "                    Assert-StageACondition (-not $script:StageACancelled)\n",
+                    "                    $null = [HardwareInspection.StageA.CancellationState]::Request()\n"
+                    "                    Assert-StageACondition (-not [HardwareInspection.StageA.CancellationState]::IsCancellationRequested)\n",
                     1,
                 ),
             ),
@@ -2187,6 +2605,114 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
                 self.assertFalse(markdown_path.exists())
 
         if os.name == "nt":
+            with tempfile.TemporaryDirectory() as temporary_directory:
+                root = Path(temporary_directory)
+                evaluated = root / "evaluated"
+                evaluated.mkdir()
+                ready = root / "cancel-ready.txt"
+                child_pid_path = root / "cancel-child-pid.txt"
+                log_path = root / "cancel-child.log"
+                json_path = root / "summary.json"
+                markdown_path = root / "summary.md"
+                child_script = (
+                    "[IO.File]::WriteAllText('"
+                    + str(child_pid_path).replace("'", "''")
+                    + "',[string]$PID); "
+                    + "[IO.File]::WriteAllText('"
+                    + str(ready).replace("'", "''")
+                    + "','ready'); [Threading.Thread]::Sleep(60000)"
+                )
+                child_encoded = base64.b64encode(
+                    child_script.encode("utf-16-le")
+                ).decode("ascii")
+                cancellation_runner_text = runner_text.replace(
+                    "            Invoke-HardwareInspectionIntelRunnerStageAInternal\n",
+                    "            $tool = (Get-Command powershell.exe -CommandType Application | Select-Object -First 1).Source\n"
+                    "            Invoke-StageAProcess $tool @('-NoLogo','-NoProfile','-NonInteractive','-EncodedCommand','"
+                    + child_encoded
+                    + "') '"
+                    + str(log_path).replace("'", "''")
+                    + "' 30 | Out-Null\n",
+                    1,
+                )
+                self.assertNotEqual(cancellation_runner_text, runner_text)
+                cancellation_runner = root / "live-cancellation-runner.ps1"
+                cancellation_runner.write_text(
+                    cancellation_runner_text, encoding="utf-8", newline="\n"
+                )
+                command = [
+                    _powershell_executable(),
+                    "-NoLogo",
+                    "-NoProfile",
+                    "-NonInteractive",
+                    "-File",
+                    str(cancellation_runner),
+                    "-EvaluatedRoot",
+                    str(evaluated),
+                    "-ApprovedSha",
+                    "a" * 40,
+                    "-LocalWorkRoot",
+                    str(root / "work"),
+                    "-SummaryJsonPath",
+                    str(json_path),
+                    "-SummaryMarkdownPath",
+                    str(markdown_path),
+                ]
+                child_pid = None
+                process = subprocess.Popen(
+                    command,
+                    text=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
+                )
+                try:
+                    for _ in range(500):
+                        if ready.exists() or process.poll() is not None:
+                            break
+                        time.sleep(0.02)
+                    self.assertTrue(ready.exists(), "live cancellation child never became ready")
+                    child_pid = int(child_pid_path.read_text(encoding="utf-8"))
+                    os.kill(process.pid, signal.CTRL_BREAK_EVENT)
+                    stdout, stderr = process.communicate(timeout=20)
+                    self.assertNotEqual(process.returncode, 0)
+                    self.assertEqual(stdout, "")
+                    self.assertEqual(
+                        stderr.replace("\r\n", "\n"), INVALID_RUNNER_STDERR
+                    )
+                    self.assertFalse(json_path.exists())
+                    self.assertFalse(markdown_path.exists())
+                    for _ in range(250):
+                        probe = subprocess.run(
+                            [
+                                _powershell_executable(),
+                                "-NoProfile",
+                                "-NonInteractive",
+                                "-Command",
+                                "if (Get-Process -Id "
+                                + str(child_pid)
+                                + " -ErrorAction SilentlyContinue) { exit 1 }",
+                            ],
+                            capture_output=True,
+                            timeout=5,
+                            check=False,
+                        )
+                        if probe.returncode == 0:
+                            break
+                        time.sleep(0.02)
+                    self.assertEqual(probe.returncode, 0, "cancelled job descendant survived")
+                finally:
+                    if process.poll() is None:
+                        process.kill()
+                        process.communicate(timeout=5)
+                    if child_pid is not None:
+                        subprocess.run(
+                            ["taskkill.exe", "/PID", str(child_pid), "/F"],
+                            capture_output=True,
+                            timeout=5,
+                            check=False,
+                        )
+
             with tempfile.TemporaryDirectory() as temporary_directory:
                 root = Path(temporary_directory)
                 ready = root / "root-ready.txt"

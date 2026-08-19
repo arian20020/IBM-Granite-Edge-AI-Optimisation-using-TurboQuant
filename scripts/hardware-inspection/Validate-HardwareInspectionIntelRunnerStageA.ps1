@@ -377,7 +377,8 @@ try {
     }
     if ($Phase -ceq 'RunnerContext') {
         if ([string]::IsNullOrWhiteSpace($RunnerTemp) -or
-            [string]::IsNullOrWhiteSpace($RunnerWorkspace)) {
+            [string]::IsNullOrWhiteSpace($RunnerWorkspace) -or
+            [string]::IsNullOrWhiteSpace($EvaluatedRoot)) {
             throw 'Runner roots are missing.'
         }
         $normalRunnerTemp = Resolve-NormalExistingDirectory -Path $RunnerTemp
@@ -385,6 +386,26 @@ try {
         $stageWorkRoot = Join-Path -Path $normalRunnerTemp -ChildPath 'hardware-inspection-stage-a'
         if (Test-Path -LiteralPath $stageWorkRoot) {
             throw 'Stage A work root already exists.'
+        }
+        if (Test-UnsafePathPrefix -Path $EvaluatedRoot) {
+            throw 'Evaluated root is unsafe.'
+        }
+        $anticipatedEvaluatedRoot = [System.IO.Path]::GetFullPath($EvaluatedRoot)
+        $evaluatedParentPath = [System.IO.Path]::GetDirectoryName($anticipatedEvaluatedRoot)
+        if ([string]::IsNullOrWhiteSpace($evaluatedParentPath) -or
+            [System.IO.Path]::GetFileName($anticipatedEvaluatedRoot) -ine 'evaluated' -or
+            (Test-Path -LiteralPath $anticipatedEvaluatedRoot)) {
+            throw 'Evaluated checkout root is not fresh.'
+        }
+        $normalEvaluatedParent = Resolve-NormalExistingDirectory -Path $evaluatedParentPath
+        $controlParentPath = [System.IO.Path]::GetDirectoryName($normalControlRoot)
+        if ([string]::IsNullOrWhiteSpace($controlParentPath) -or
+            [System.IO.Path]::GetFileName($normalControlRoot) -ine 'control' -or
+            $normalEvaluatedParent -ine $controlParentPath) {
+            throw 'Evaluated checkout root is not a direct workspace child.'
+        }
+        if (Test-Path -LiteralPath $anticipatedEvaluatedRoot) {
+            throw 'Evaluated checkout root is not fresh.'
         }
         exit 0
     }

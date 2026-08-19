@@ -16,7 +16,6 @@ $script:StageAMaximumTrxBytes = 16MB
 $script:StageAMaximumProcessStreamBytes = 16MB # Per stdout/stderr log; excess is drained and discarded.
 $script:StageAOwnedProcesses = $null
 $script:StageAProcessJob = $null
-$script:StageACancelled = $false
 $script:StageAPendingEvaluatedRoot = $null
 $script:StageAPendingSummaryJsonPath = $null
 $script:StageAPendingSummaryMarkdownPath = $null
@@ -51,6 +50,61 @@ namespace HardwareInspection.StageA {
                 await destination.FlushAsync().ConfigureAwait(false);
             }
             return truncated;
+        }
+    }
+
+    public static class CancellationState {
+        private const int Active = 0;
+        private const int Cancelled = 1;
+        private const int Completed = 2;
+        private static readonly object Sync = new object();
+        private static int state = Completed;
+        private static ConsoleCancelEventHandler handler;
+
+        private static void HandleCancel(object sender, ConsoleCancelEventArgs eventArgs) {
+            Interlocked.CompareExchange(ref state, Cancelled, Active);
+            eventArgs.Cancel = true;
+        }
+
+        public static bool IsCancellationRequested {
+            get { return Interlocked.CompareExchange(ref state, Active, Active) == Cancelled; }
+        }
+
+        public static bool Request() {
+            return Interlocked.CompareExchange(ref state, Cancelled, Active) == Active;
+        }
+
+        public static bool TryComplete() {
+            return Interlocked.CompareExchange(ref state, Completed, Active) == Active;
+        }
+
+        public static void Install() {
+            lock (Sync) {
+                if (handler != null) {
+                    throw new InvalidOperationException("Cancellation handling is already installed.");
+                }
+                Interlocked.Exchange(ref state, Active);
+                handler = new ConsoleCancelEventHandler(HandleCancel);
+                try {
+                    Console.CancelKeyPress += handler;
+                }
+                catch {
+                    handler = null;
+                    Interlocked.Exchange(ref state, Cancelled);
+                    throw;
+                }
+            }
+        }
+
+        public static void Remove() {
+            lock (Sync) {
+                if (handler == null) {
+                    throw new InvalidOperationException("Cancellation handling is not installed.");
+                }
+                ConsoleCancelEventHandler current = handler;
+                Console.CancelKeyPress -= current;
+                handler = null;
+            }
         }
     }
 
@@ -115,9 +169,6 @@ namespace HardwareInspection.StageA {
             uint informationLength);
 
         [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern bool AssignProcessToJobObject(IntPtr job, IntPtr process);
-
-        [DllImport("kernel32.dll", SetLastError = true)]
         private static extern bool TerminateJobObject(IntPtr job, uint exitCode);
 
         [DllImport("kernel32.dll", SetLastError = true)]
@@ -158,12 +209,10 @@ namespace HardwareInspection.StageA {
             }
         }
 
-        internal void AssignHandle(IntPtr processHandle) {
-            IntPtr job = handle;
+        internal IntPtr GetHandleForChildCreation() {
+            IntPtr job = Interlocked.CompareExchange(ref handle, IntPtr.Zero, IntPtr.Zero);
             if (job == IntPtr.Zero) { throw new ObjectDisposedException("ProcessJob"); }
-            if (!AssignProcessToJobObject(job, processHandle)) {
-                throw new Win32Exception(Marshal.GetLastWin32Error());
-            }
+            return job;
         }
 
         public void Dispose() {
@@ -216,6 +265,7 @@ namespace HardwareInspection.StageA {
         private const uint STARTF_USESTDHANDLES = 0x00000100;
         private const uint HANDLE_FLAG_INHERIT = 0x00000001;
         private const int PROC_THREAD_ATTRIBUTE_HANDLE_LIST = 0x00020002;
+        private const int PROC_THREAD_ATTRIBUTE_JOB_LIST = 0x0002000D;
         private const uint GENERIC_READ = 0x80000000;
         private const uint FILE_SHARE_READ = 0x00000001;
         private const uint FILE_SHARE_WRITE = 0x00000002;
@@ -366,6 +416,7 @@ namespace HardwareInspection.StageA {
             IntPtr stderrRead = IntPtr.Zero, stderrWrite = IntPtr.Zero;
             IntPtr stdin = IntPtr.Zero, environment = IntPtr.Zero;
             IntPtr attributeList = IntPtr.Zero, handleList = IntPtr.Zero;
+            IntPtr jobList = IntPtr.Zero;
             bool attributeListInitialized = false;
             PROCESS_INFORMATION created = new PROCESS_INFORMATION();
             Process process = null;
@@ -385,10 +436,11 @@ namespace HardwareInspection.StageA {
                 if (stdin == IntPtr.Zero || stdin == new IntPtr(-1)) {
                     throw new Win32Exception(Marshal.GetLastWin32Error());
                 }
+                IntPtr jobHandle = job.GetHandleForChildCreation();
                 UIntPtr attributeSize = UIntPtr.Zero;
-                InitializeProcThreadAttributeList(IntPtr.Zero, 1, 0, ref attributeSize);
+                InitializeProcThreadAttributeList(IntPtr.Zero, 2, 0, ref attributeSize);
                 attributeList = Marshal.AllocHGlobal((int)attributeSize.ToUInt64());
-                if (!InitializeProcThreadAttributeList(attributeList, 1, 0, ref attributeSize)) {
+                if (!InitializeProcThreadAttributeList(attributeList, 2, 0, ref attributeSize)) {
                     throw new Win32Exception(Marshal.GetLastWin32Error());
                 }
                 attributeListInitialized = true;
@@ -399,6 +451,13 @@ namespace HardwareInspection.StageA {
                 if (!UpdateProcThreadAttribute(
                     attributeList, 0, new IntPtr(PROC_THREAD_ATTRIBUTE_HANDLE_LIST),
                     handleList, new UIntPtr((uint)(IntPtr.Size * 3)), IntPtr.Zero, IntPtr.Zero)) {
+                    throw new Win32Exception(Marshal.GetLastWin32Error());
+                }
+                jobList = Marshal.AllocHGlobal(IntPtr.Size);
+                Marshal.WriteIntPtr(jobList, jobHandle);
+                if (!UpdateProcThreadAttribute(
+                    attributeList, 0, new IntPtr(PROC_THREAD_ATTRIBUTE_JOB_LIST),
+                    jobList, new UIntPtr((uint)IntPtr.Size), IntPtr.Zero, IntPtr.Zero)) {
                     throw new Win32Exception(Marshal.GetLastWin32Error());
                 }
                 var startup = new STARTUPINFOEX();
@@ -442,7 +501,6 @@ namespace HardwareInspection.StageA {
                 stderrRead = IntPtr.Zero;
                 stderr = new FileStream(stderrSafe, FileAccess.Read, 4096, false);
                 stderrSafe = null;
-                job.AssignHandle(created.hProcess);
                 if (ResumeThread(created.hThread) == UInt32.MaxValue) {
                     throw new Win32Exception(Marshal.GetLastWin32Error());
                 }
@@ -457,16 +515,6 @@ namespace HardwareInspection.StageA {
                     if (!terminated || waitResult != WAIT_OBJECT_0) {
                         containmentFailure = new InvalidOperationException(
                             "Suspended process termination could not be verified.");
-                        try {
-                            if (process != null) {
-                                if (!process.HasExited) { process.Kill(); }
-                                process.WaitForExit(5000);
-                            }
-                        }
-                        catch (Exception emergencyFailure) {
-                            containmentFailure = new AggregateException(
-                                containmentFailure, emergencyFailure);
-                        }
                     }
                 }
                 try { if (stdout != null) { stdout.Dispose(); } } catch { }
@@ -492,6 +540,7 @@ namespace HardwareInspection.StageA {
                     Marshal.FreeHGlobal(attributeList);
                 }
                 if (handleList != IntPtr.Zero) { Marshal.FreeHGlobal(handleList); }
+                if (jobList != IntPtr.Zero) { Marshal.FreeHGlobal(jobList); }
                 if (environment != IntPtr.Zero) { Marshal.FreeHGlobal(environment); }
             }
         }
@@ -574,7 +623,7 @@ function Wait-StageAProcess {
     param([System.Diagnostics.Process] $Process, [int] $TimeoutSeconds)
     $deadline = [System.Diagnostics.Stopwatch]::StartNew()
     while (-not $Process.HasExited) {
-        Assert-StageACondition (-not $script:StageACancelled)
+        Assert-StageACondition (-not [HardwareInspection.StageA.CancellationState]::IsCancellationRequested)
         Assert-StageACondition ($deadline.Elapsed.TotalSeconds -lt $TimeoutSeconds)
         Start-Sleep -Milliseconds 100
     }
@@ -661,13 +710,13 @@ function Invoke-StageAProcess {
     $errorTask = Copy-StageAProcessStream $contained.StandardError $stderrPath
     $deadline = [System.Diagnostics.Stopwatch]::StartNew()
     while ((-not $outputTask.IsCompleted) -or (-not $errorTask.IsCompleted) -or (-not $process.HasExited)) {
-            Assert-StageACondition (-not $script:StageACancelled)
+            Assert-StageACondition (-not [HardwareInspection.StageA.CancellationState]::IsCancellationRequested)
             Assert-StageACondition ($deadline.Elapsed.TotalSeconds -lt $TimeoutSeconds)
             Start-Sleep -Milliseconds 20
     }
     $truncated = $outputTask.GetAwaiter().GetResult() -or $errorTask.GetAwaiter().GetResult()
     Assert-StageACondition (-not $truncated)
-    Assert-StageACondition (-not $script:StageACancelled)
+    Assert-StageACondition (-not [HardwareInspection.StageA.CancellationState]::IsCancellationRequested)
     Assert-StageACondition ($process.ExitCode -eq 0)
     if (-not $ReturnOutput) { return }
     Assert-StageACondition ((Get-Item -LiteralPath $stdoutPath).Length -le 4096)
@@ -862,15 +911,15 @@ function Invoke-HardwareInspectionIntelRunnerStageAInternal {
     $task8Project = Join-Path $evaluated $projects[1]
     $null = Invoke-StageAProcess $dotnet[0].Source @('test',$deterministicProject,'--configuration','Release','--runtime','win-x64','--no-restore','--no-build','--filter','TestCategory=Deterministic','--minimum-expected-tests','174','--results-directory',$resultsDirectory,'--report-trx','--report-trx-filename','deterministic.trx','--no-ansi') (Join-Path $runDirectory 'deterministic.log') 300
     $null = Invoke-StageAProcess $dotnet[0].Source @('test',$task8Project,'--configuration','Release','--runtime','win-x64','--no-restore','--no-build','--filter','TestCategory=Task8Deterministic','--minimum-expected-tests','3','--results-directory',$resultsDirectory,'--report-trx','--report-trx-filename','task8.trx','--no-ansi') (Join-Path $runDirectory 'task8.log') 300
-    Assert-StageACondition (-not $script:StageACancelled)
+    Assert-StageACondition (-not [HardwareInspection.StageA.CancellationState]::IsCancellationRequested)
     $deterministic = Read-HardwareInspectionIntelRunnerStageATrx (Join-Path $resultsDirectory 'deterministic.trx') 'Deterministic'
     $task8 = Read-HardwareInspectionIntelRunnerStageATrx (Join-Path $resultsDirectory 'task8.trx') 'Task8Deterministic'
     Test-StageAResidualProcesses
-    Assert-StageACondition (-not $script:StageACancelled)
+    Assert-StageACondition (-not [HardwareInspection.StageA.CancellationState]::IsCancellationRequested)
     $json = '{"schemaVersion":"1.0","evaluatedSha":"' + $ApprovedSha + '","deterministicPassed":174,"task8DeterministicPassed":3,"nonPassing":0}'
     $markdown = "# Hardware Inspection Intel Stage A`n`n- Evaluated SHA: $ApprovedSha`n- Deterministic passed: 174`n- Task8 deterministic passed: 3`n- Non-passing: 0`n"
     Assert-StageASummaryPrivacy $json $markdown $ApprovedSha
-    Assert-StageACondition (-not $script:StageACancelled)
+    Assert-StageACondition (-not [HardwareInspection.StageA.CancellationState]::IsCancellationRequested)
     $script:StageAPendingEvaluatedRoot = $evaluated
     $script:StageAPendingSummaryJsonPath = $summaryJson
     $script:StageAPendingSummaryMarkdownPath = $summaryMarkdown
@@ -882,15 +931,14 @@ if ($MyInvocation.InvocationName -ne '.') {
     $primaryFailure = $null
     $unregisterFailure = $null
     $cleanupFailure = $null
-    $cancelHandler = $null
-    $cancelHandlerRegistered = $false
+    $cancellationInstalled = $false
+    $completionWon = $false
     $stageAFailed = $false
     try {
         try {
             Initialize-StageARuntime
-            $cancelHandler = [System.ConsoleCancelEventHandler]{ param($sender, $eventArgs); $eventArgs.Cancel = $true; $script:StageACancelled = $true }
-            [System.Console]::add_CancelKeyPress($cancelHandler)
-            $cancelHandlerRegistered = $true
+            [HardwareInspection.StageA.CancellationState]::Install()
+            $cancellationInstalled = $true
             Invoke-HardwareInspectionIntelRunnerStageAInternal
         }
         catch { $primaryFailure = $_ }
@@ -899,25 +947,26 @@ if ($MyInvocation.InvocationName -ne '.') {
             catch { $cleanupFailure = $_ }
             if ($null -eq $primaryFailure -and
                 $null -eq $cleanupFailure -and
-                -not $script:StageACancelled) {
+                -not [HardwareInspection.StageA.CancellationState]::IsCancellationRequested) {
                 try {
                     Assert-StageACondition (-not [string]::IsNullOrWhiteSpace($script:StageAPendingEvaluatedRoot))
                     $publishJsonPath = Get-StageAOutputPath $script:StageAPendingSummaryJsonPath $script:StageAPendingEvaluatedRoot
                     $publishMarkdownPath = Get-StageAOutputPath $script:StageAPendingSummaryMarkdownPath $script:StageAPendingEvaluatedRoot
                     Assert-StageACondition ($publishJsonPath -ine $publishMarkdownPath)
                     Assert-StageASummaryPrivacy $script:StageAPendingSummaryJson $script:StageAPendingSummaryMarkdown $ApprovedSha
-                    Assert-StageACondition (-not $script:StageACancelled)
+                    Assert-StageACondition (-not [HardwareInspection.StageA.CancellationState]::IsCancellationRequested)
                     Write-StageAAtomicUtf8 $publishJsonPath $script:StageAPendingSummaryJson
-                    Assert-StageACondition (-not $script:StageACancelled)
+                    Assert-StageACondition (-not [HardwareInspection.StageA.CancellationState]::IsCancellationRequested)
                     Write-StageAAtomicUtf8 $publishMarkdownPath $script:StageAPendingSummaryMarkdown
-                    Assert-StageACondition (-not $script:StageACancelled)
+                    Assert-StageACondition (-not [HardwareInspection.StageA.CancellationState]::IsCancellationRequested)
+                    $completionWon = [HardwareInspection.StageA.CancellationState]::TryComplete()
                 }
                 catch { $primaryFailure = $_ }
             }
-            if ($cancelHandlerRegistered) {
-                try { [System.Console]::remove_CancelKeyPress($cancelHandler) }
+            if ($cancellationInstalled) {
+                try { [HardwareInspection.StageA.CancellationState]::Remove() }
                 catch { $unregisterFailure = $_ }
-                finally { $cancelHandlerRegistered = $false }
+                finally { $cancellationInstalled = $false }
             }
             $script:StageAPendingEvaluatedRoot = $null
             $script:StageAPendingSummaryJsonPath = $null
@@ -928,7 +977,7 @@ if ($MyInvocation.InvocationName -ne '.') {
         if ($null -ne $primaryFailure -or
             $null -ne $unregisterFailure -or
             $null -ne $cleanupFailure -or
-            $script:StageACancelled) {
+            -not $completionWon) {
             $stageAFailed = $true
         }
     }

@@ -213,6 +213,51 @@ def _markdown_link_destinations(text):
         yield path.rstrip("/").rsplit("/", 1)[-1]
 
 
+def _is_stage0_hardware_script_candidate(path):
+    normalized_path = path.replace("\\", "/")
+    casefolded = normalized_path.casefold()
+    if not casefolded.startswith("scripts/") or not casefolded.endswith(".ps1"):
+        return False
+    normalized = re.sub(r"[^a-z0-9]+", "", casefolded[:-4])
+    has_hardware_identity = any(
+        token in normalized for token in ("hardware", "intel", "runner")
+    )
+    has_operational_marker = (
+        "inspection" in normalized
+        or "inspect" in normalized
+        or "intelrunner" in normalized
+        or ("llm" in normalized and "fit" in normalized)
+        or ("gate" in normalized and "1" in normalized)
+        or re.search(r"stage[abcd]", normalized) is not None
+        or "offline" in normalized
+        or "candidate" in normalized
+        or "acquire" in normalized
+        or "acquisition" in normalized
+        or "network" in normalized
+        or "adapter" in normalized
+    )
+    return has_hardware_identity and has_operational_marker
+
+
+def _is_stage0_gate1_runbook_candidate(path):
+    normalized_path = path.replace("\\", "/")
+    casefolded = normalized_path.casefold()
+    if not casefolded.startswith("docs/testing/runbooks/") or not casefolded.endswith(".md"):
+        return False
+    normalized = re.sub(r"[^a-z0-9]+", "", casefolded)
+    has_gate1_runbook_identity = (
+        "gate" in normalized and "1" in normalized and "runbook" in normalized
+    )
+    hardware_inspection_group = (
+        "hardware" in normalized
+        and ("inspection" in normalized or "inspect" in normalized)
+    )
+    llm_fit_group = "llm" in normalized and "fit" in normalized
+    return has_gate1_runbook_identity and (
+        hardware_inspection_group or llm_fit_group
+    )
+
+
 def _stage0_inventory_paths(repository_root=REPOSITORY_ROOT):
     environment = {
         key: value
@@ -255,22 +300,11 @@ def _stage0_inventory_paths(repository_root=REPOSITORY_ROOT):
     for relative in candidate_paths:
         normalized_path = relative.replace("\\", "/")
         casefolded = normalized_path.casefold()
-        normalized = re.sub(r"[^a-z0-9]+", "", normalized_path.casefold())
         if casefolded.startswith(".github/workflows/"):
             paths.add(normalized_path)
-        elif (
-            casefolded.startswith("scripts/")
-            and "hardware" in normalized
-            and "inspection" in normalized
-        ):
+        elif _is_stage0_hardware_script_candidate(normalized_path):
             paths.add(normalized_path)
-        elif (
-            casefolded.startswith("docs/testing/runbooks/")
-            and all(
-                token in normalized
-                for token in ("hardware", "inspection", "llm", "fit", "gate", "1", "runbook")
-            )
-        ):
+        elif _is_stage0_gate1_runbook_candidate(normalized_path):
             paths.add(normalized_path)
     return paths
 
@@ -307,9 +341,7 @@ def _assert_stage0_inventory(test_case, repository_paths):
     hardware_scripts = {
         path
         for path in paths
-        if path.casefold().startswith("scripts/")
-        and "hardware" in re.sub(r"[^a-z0-9]+", "", path.casefold())
-        and "inspection" in re.sub(r"[^a-z0-9]+", "", path.casefold())
+        if _is_stage0_hardware_script_candidate(path)
     }
     test_case.assertEqual(
         hardware_scripts,
@@ -322,11 +354,7 @@ def _assert_stage0_inventory(test_case, repository_paths):
     gate1_runbooks = {
         path
         for path in paths
-        if path.casefold().startswith("docs/testing/runbooks/")
-        and all(
-            token in re.sub(r"[^a-z0-9]+", "", path.casefold())
-            for token in ("hardware", "inspection", "llm", "fit", "gate", "1", "runbook")
-        )
+        if _is_stage0_gate1_runbook_candidate(path)
     }
     test_case.assertEqual(gate1_runbooks, set())
     for forbidden_path in (
@@ -1050,6 +1078,83 @@ on:
                 / "runbooks"
                 / "Hardware-Inspection-Intel-LLM-Fit-Gate-1-Runbook.md"
             )
+            selector_bypass_script_aliases = (
+                collector_root
+                / "scripts"
+                / "hardware-inspect"
+                / "Invoke-IntelRunnerStageB.ps1",
+                collector_root
+                / "scripts"
+                / "intel-tools"
+                / "Invoke-Runner-LLM-Secure-Fit.ps1",
+                collector_root
+                / "scripts"
+                / "runner-tools"
+                / "Invoke-Gate-Hardware-Review-1.ps1",
+                collector_root
+                / "scripts"
+                / "hardware-tools"
+                / "Invoke-Offline-Intel.ps1",
+                collector_root
+                / "scripts"
+                / "runner-tools"
+                / "Invoke-Intel-Hardware-Stage-C.ps1",
+                collector_root
+                / "scripts"
+                / "hardware-tools"
+                / "Invoke-Candidate.ps1",
+                collector_root
+                / "scripts"
+                / "hardware-tools"
+                / "Enable-NetworkAdapter.ps1",
+                collector_root
+                / "scripts"
+                / "intel-tools"
+                / "Invoke-HardwareAcquisition.ps1",
+            )
+            selector_bypass_runbook_aliases = (
+                collector_root
+                / "docs"
+                / "testing"
+                / "runbooks"
+                / "Hardware-Inspection-Gate-1-Runbook.md",
+                collector_root
+                / "docs"
+                / "testing"
+                / "runbooks"
+                / "Gate-Runbook-Hardware-1-Inspection.md",
+                collector_root
+                / "docs"
+                / "testing"
+                / "runbooks"
+                / "LLM-Fit-Gate-1-Runbook.md",
+                collector_root
+                / "docs"
+                / "testing"
+                / "runbooks"
+                / "Runbook-Gate-Review-LLM-1-Fit.md",
+            )
+            selector_noise_aliases = (
+                collector_root
+                / "scripts"
+                / "hardware-tools"
+                / "Invoke-Gate-Intel.ps1",
+                collector_root / "scripts" / "misc" / "Invoke-StageB.ps1",
+                collector_root
+                / "scripts"
+                / "hardware-tools"
+                / "Invoke-Offline-Intel.txt",
+                collector_root
+                / "docs"
+                / "testing"
+                / "runbooks"
+                / "Hardware-Inspection-Runbook.md",
+                collector_root
+                / "docs"
+                / "testing"
+                / "runbooks"
+                / "LLM-Fit-Runbook.md",
+            )
             script_alias.parent.mkdir(parents=True)
             runbook_alias.parent.mkdir(parents=True)
             inserted_script_alias.parent.mkdir(parents=True)
@@ -1058,6 +1163,13 @@ on:
             runbook_copy_alias.write_text("unsafe\n", encoding="utf-8", newline="\n")
             inserted_script_alias.write_text("unsafe\n", encoding="utf-8", newline="\n")
             inserted_runbook_alias.write_text("unsafe\n", encoding="utf-8", newline="\n")
+            for alias in (
+                selector_bypass_script_aliases
+                + selector_bypass_runbook_aliases
+                + selector_noise_aliases
+            ):
+                alias.parent.mkdir(parents=True, exist_ok=True)
+                alias.write_text("unsafe\n", encoding="utf-8", newline="\n")
             subprocess.run(
                 ["git", "-C", str(collector_root), "init", "--quiet"],
                 check=True,
@@ -1086,6 +1198,18 @@ on:
                     "docs/testing/runbooks/Hardware-Inspection-LLM-Fit-Gate-1-Runbook-copy.md",
                     "scripts/hardware-intel-inspection/Invoke-IntelRunnerStageA.ps1",
                     "docs/testing/runbooks/Hardware-Inspection-Intel-LLM-Fit-Gate-1-Runbook.md",
+                    "scripts/hardware-inspect/Invoke-IntelRunnerStageB.ps1",
+                    "scripts/intel-tools/Invoke-Runner-LLM-Secure-Fit.ps1",
+                    "scripts/runner-tools/Invoke-Gate-Hardware-Review-1.ps1",
+                    "scripts/hardware-tools/Invoke-Offline-Intel.ps1",
+                    "scripts/runner-tools/Invoke-Intel-Hardware-Stage-C.ps1",
+                    "scripts/hardware-tools/Invoke-Candidate.ps1",
+                    "scripts/hardware-tools/Enable-NetworkAdapter.ps1",
+                    "scripts/intel-tools/Invoke-HardwareAcquisition.ps1",
+                    "docs/testing/runbooks/Hardware-Inspection-Gate-1-Runbook.md",
+                    "docs/testing/runbooks/Gate-Runbook-Hardware-1-Inspection.md",
+                    "docs/testing/runbooks/LLM-Fit-Gate-1-Runbook.md",
+                    "docs/testing/runbooks/Runbook-Gate-Review-LLM-1-Fit.md",
                     ".github/workflows/hardware-inspection-intel-untracked.yml",
                 },
             )
@@ -1095,7 +1219,7 @@ on:
             hidden_script = (
                 sparse_root
                 / "scripts"
-                / "hardware-intel-inspection"
+                / "hardware-inspect"
                 / "Invoke-IntelRunnerStageB.ps1"
             )
             hidden_runbook = (
@@ -1103,7 +1227,7 @@ on:
                 / "docs"
                 / "testing"
                 / "runbooks"
-                / "LLM-Fit-Runbook-Hardware-Inspection-Gate-1.md"
+                / "Hardware-Inspection-Gate-1-Runbook.md"
             )
             visible_workflow.parent.mkdir(parents=True)
             hidden_script.parent.mkdir(parents=True)
@@ -1133,8 +1257,8 @@ on:
                 _stage0_inventory_paths(sparse_root),
                 {
                     ".github/workflows/visible.yml",
-                    "scripts/hardware-intel-inspection/Invoke-IntelRunnerStageB.ps1",
-                    "docs/testing/runbooks/LLM-Fit-Runbook-Hardware-Inspection-Gate-1.md",
+                    "scripts/hardware-inspect/Invoke-IntelRunnerStageB.ps1",
+                    "docs/testing/runbooks/Hardware-Inspection-Gate-1-Runbook.md",
                 },
             )
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -1193,8 +1317,17 @@ on:
             "scripts/hardware-inspection/Enable-HardwareInspectionNetwork.ps1",
             "scripts/hardware-inspection/Invoke-HardwareInspectionIntelRunnerStageA-copy.ps1",
             "scripts/hardware-inspection/Validate-HardwareInspectionIntelRunnerStageA-alternate.ps1",
+            "scripts/hardware-inspect/Invoke-IntelRunnerStageB.ps1",
+            "scripts/intel-tools/Invoke-Runner-LLM-Secure-Fit.ps1",
+            "scripts/runner-tools/Invoke-Gate-Hardware-Review-1.ps1",
+            "scripts/hardware-tools/Invoke-Offline-Intel.ps1",
+            "scripts/runner-tools/Invoke-Intel-Hardware-Stage-C.ps1",
             "docs/testing/runbooks/Hardware-Inspection-LLM-Fit-Gate-1-Runbook.md",
             "docs/testing/runbooks/hardware_inspection_llm_fit_gate_1_runbook.md",
+            "docs/testing/runbooks/Hardware-Inspection-Gate-1-Runbook.md",
+            "docs/testing/runbooks/Gate-Runbook-Hardware-1-Inspection.md",
+            "docs/testing/runbooks/LLM-Fit-Gate-1-Runbook.md",
+            "docs/testing/runbooks/Runbook-Gate-Review-LLM-1-Fit.md",
         ):
             with self.subTest(inventory_mutation=mutation):
                 with self.assertRaises(AssertionError):

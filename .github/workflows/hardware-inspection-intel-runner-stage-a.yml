@@ -39,18 +39,55 @@ jobs:
     steps:
       - name: Reject debug controls before runner eligibility
         timeout-minutes: 2
-        shell: powershell
+        shell: 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command "$ErrorActionPreference = ''Stop''; $global:LASTEXITCODE = 0; & ''{0}''; if (-not $?) { if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; exit 1 }; exit $LASTEXITCODE"'
         env:
           STAGEA_RUNNER_DEBUG: ${{ runner.debug }}
         run: |
           $ErrorActionPreference = 'Stop'
-          $failure = 'HI-RUNNER-STAGEA-DEBUG-INVALID: workflow debug logging is prohibited.'
+          $debugFailure = 'HI-RUNNER-STAGEA-DEBUG-INVALID: workflow debug logging is prohibited.'
+          $environmentFailure = 'HI-RUNNER-STAGEA-ENVIRONMENT-INVALID: runner environment is invalid.'
+          $gitFailure = 'HI-RUNNER-STAGEA-GIT-INVALID: required Git capability is unavailable.'
           try {
             foreach ($name in @('ACTIONS_STEP_DEBUG', 'ACTIONS_RUNNER_DEBUG', 'RUNNER_DEBUG', 'STAGEA_RUNNER_DEBUG')) {
-              if (-not [string]::IsNullOrEmpty([Environment]::GetEnvironmentVariable($name))) { throw $failure }
+              if (-not [string]::IsNullOrEmpty([Environment]::GetEnvironmentVariable($name))) { throw $debugFailure }
             }
           }
-          catch { [Console]::Error.WriteLine($failure); exit 1 }
+          catch { [Console]::Error.WriteLine($debugFailure); exit 1 }
+          try {
+            function Resolve-StageAPrecheckoutRoot([string] $pathValue) {
+              if ([string]::IsNullOrWhiteSpace($pathValue) -or -not [System.IO.Path]::IsPathRooted($pathValue)) { throw $environmentFailure }
+              $full = [System.IO.Path]::GetFullPath($pathValue)
+              if ($full -cnotmatch '\A[A-Za-z]:\\' -or -not (Test-Path -LiteralPath $full -PathType Container)) { throw $environmentFailure }
+              $component = Get-Item -LiteralPath $full -Force
+              while ($null -ne $component) {
+                if (($component.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) { throw $environmentFailure }
+                $component = $component.Parent
+              }
+              if ((New-Object System.IO.DriveInfo([System.IO.Path]::GetPathRoot($full))).DriveType -ne [System.IO.DriveType]::Fixed) { throw $environmentFailure }
+              return $full.TrimEnd([System.IO.Path]::DirectorySeparatorChar)
+            }
+            $workspace = Resolve-StageAPrecheckoutRoot $env:GITHUB_WORKSPACE
+            foreach ($childName in @('control', 'evaluated', 'source-identity')) {
+              $child = [System.IO.Path]::GetFullPath((Join-Path $workspace $childName))
+              if ([System.IO.Path]::GetDirectoryName($child) -ine $workspace -or (Test-Path -LiteralPath $child)) { throw $environmentFailure }
+            }
+          }
+          catch { [Console]::Error.WriteLine($environmentFailure); exit 1 }
+          try {
+            foreach ($environmentName in [System.Environment]::GetEnvironmentVariables().Keys) {
+              if ([string]$environmentName -ne '' -and ([string]$environmentName).StartsWith('GIT_', [System.StringComparison]::OrdinalIgnoreCase)) { throw $gitFailure }
+            }
+            $gitCommand = Get-Command git -CommandType Application -All -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($null -eq $gitCommand) { throw $gitFailure }
+            $versionLines = @(& $gitCommand.Source --version 2>$null)
+            if ($LASTEXITCODE -ne 0 -or $versionLines.Count -ne 1) { throw $gitFailure }
+            $versionText = [string]$versionLines[0]
+            if ($versionText -cnotmatch '\Agit version (?<major>0|[1-9][0-9]*)\.(?<minor>0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:\.windows\.(?:0|[1-9][0-9]*))?\z') { throw $gitFailure }
+            $major = [int]$Matches['major']
+            $minor = [int]$Matches['minor']
+            if ($major -lt 2 -or ($major -eq 2 -and $minor -lt 28)) { throw $gitFailure }
+          }
+          catch { [Console]::Error.WriteLine($gitFailure); exit 1 }
 
       - name: Check out default-branch controls
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -74,7 +111,7 @@ jobs:
           python-version: '3.12.10'
 
       - name: Run Stage 0 and Stage A control contracts
-        shell: powershell
+        shell: 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command "$ErrorActionPreference = ''Stop''; $global:LASTEXITCODE = 0; & ''{0}''; if (-not $?) { if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; exit 1 }; exit $LASTEXITCODE"'
         working-directory: control
         run: >-
           python -m unittest -v
@@ -83,7 +120,7 @@ jobs:
 
       - name: Parse the default-branch llmfit-gate1-approved-source.json approval manifest
         id: approval
-        shell: powershell
+        shell: 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command "$ErrorActionPreference = ''Stop''; $global:LASTEXITCODE = 0; & ''{0}''; if (-not $?) { if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; exit 1 }; exit $LASTEXITCODE"'
         env:
           STAGE0_WORKFLOW_REF: ${{ github.ref }}
           STAGE0_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
@@ -118,7 +155,7 @@ jobs:
 
       - name: Validate approved source and runner label
         id: validated
-        shell: powershell
+        shell: 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command "$ErrorActionPreference = ''Stop''; $global:LASTEXITCODE = 0; & ''{0}''; if (-not $?) { if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; exit 1 }; exit $LASTEXITCODE"'
         env:
           STAGEA_WORKFLOW_REF: ${{ github.ref }}
           STAGEA_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
@@ -158,13 +195,26 @@ jobs:
     steps:
       - name: Reject debug controls and mask runner metadata
         timeout-minutes: 2
-        shell: powershell
+        shell: 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command "$ErrorActionPreference = ''Stop''; $global:LASTEXITCODE = 0; & ''{0}''; if (-not $?) { if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; exit 1 }; exit $LASTEXITCODE"'
         env:
           STAGEA_RUNNER_DEBUG: ${{ runner.debug }}
         run: |
           $ErrorActionPreference = 'Stop'
           $failure = 'HI-RUNNER-STAGEA-ENVIRONMENT-INVALID: runner environment is invalid.'
+          $gitFailure = 'HI-RUNNER-STAGEA-GIT-INVALID: required Git capability is unavailable.'
           try {
+            function Resolve-StageAPrecheckoutRoot([string] $pathValue) {
+              if ([string]::IsNullOrWhiteSpace($pathValue) -or -not [System.IO.Path]::IsPathRooted($pathValue)) { throw $failure }
+              $full = [System.IO.Path]::GetFullPath($pathValue)
+              if ($full -cnotmatch '\A[A-Za-z]:\\' -or -not (Test-Path -LiteralPath $full -PathType Container)) { throw $failure }
+              $component = Get-Item -LiteralPath $full -Force
+              while ($null -ne $component) {
+                if (($component.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) { throw $failure }
+                $component = $component.Parent
+              }
+              if ((New-Object System.IO.DriveInfo([System.IO.Path]::GetPathRoot($full))).DriveType -ne [System.IO.DriveType]::Fixed) { throw $failure }
+              return $full.TrimEnd([System.IO.Path]::DirectorySeparatorChar)
+            }
             foreach ($name in @('ACTIONS_STEP_DEBUG', 'ACTIONS_RUNNER_DEBUG', 'RUNNER_DEBUG', 'STAGEA_RUNNER_DEBUG')) {
               $debugValue = [Environment]::GetEnvironmentVariable($name)
               if (-not [string]::IsNullOrEmpty($debugValue)) {
@@ -174,18 +224,43 @@ jobs:
             if (@(Get-Process | Where-Object { $_.ProcessName -match '(?i)(llmfit|fake.*tool)' }).Count -ne 0 -or @(Get-NetTCPConnection -ErrorAction Stop | Where-Object { $_.State -eq 'Listen' -and $_.LocalPort -eq 8787 }).Count -ne 0) {
               throw $failure
             }
+            $metadataValues = @()
             foreach ($name in @('GITHUB_WORKSPACE', 'RUNNER_TEMP', 'RUNNER_WORKSPACE', 'USERNAME')) {
               $value = [Environment]::GetEnvironmentVariable($name)
               if ([string]::IsNullOrWhiteSpace($value)) {
                 throw $failure
               }
-              Write-Host "::add-mask::$value"
+              $metadataValues += $value
+            }
+            $workspace = Resolve-StageAPrecheckoutRoot $env:GITHUB_WORKSPACE
+            foreach ($childName in @('control', 'evaluated')) {
+              $child = [System.IO.Path]::GetFullPath((Join-Path $workspace $childName))
+              if ([System.IO.Path]::GetDirectoryName($child) -ine $workspace -or (Test-Path -LiteralPath $child)) { throw $failure }
             }
           }
           catch {
             [Console]::Error.WriteLine($failure)
             exit 1
           }
+          try {
+            foreach ($environmentName in [System.Environment]::GetEnvironmentVariables().Keys) {
+              if ([string]$environmentName -ne '' -and ([string]$environmentName).StartsWith('GIT_', [System.StringComparison]::OrdinalIgnoreCase)) { throw $gitFailure }
+            }
+            $gitCommand = Get-Command git -CommandType Application -All -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($null -eq $gitCommand) { throw $gitFailure }
+            $versionLines = @(& $gitCommand.Source --version 2>$null)
+            if ($LASTEXITCODE -ne 0 -or $versionLines.Count -ne 1) { throw $gitFailure }
+            $versionText = [string]$versionLines[0]
+            if ($versionText -cnotmatch '\Agit version (?<major>0|[1-9][0-9]*)\.(?<minor>0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:\.windows\.(?:0|[1-9][0-9]*))?\z') { throw $gitFailure }
+            $major = [int]$Matches['major']
+            $minor = [int]$Matches['minor']
+            if ($major -lt 2 -or ($major -eq 2 -and $minor -lt 28)) { throw $gitFailure }
+          }
+          catch { [Console]::Error.WriteLine($gitFailure); exit 1 }
+          try {
+            foreach ($value in $metadataValues) { Write-Host "::add-mask::$value" }
+          }
+          catch { [Console]::Error.WriteLine($failure); exit 1 }
 
       - name: Check out default-branch controls
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -200,7 +275,7 @@ jobs:
           sparse-checkout-cone-mode: true
 
       - name: Validate runner context before evaluated checkout
-        shell: powershell
+        shell: 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command "$ErrorActionPreference = ''Stop''; $global:LASTEXITCODE = 0; & ''{0}''; if (-not $?) { if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; exit 1 }; exit $LASTEXITCODE"'
         env:
           STAGEA_WORKFLOW_REF: ${{ github.ref }}
           STAGEA_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
@@ -215,6 +290,7 @@ jobs:
           & '.\control\scripts\hardware-inspection\Validate-HardwareInspectionIntelRunnerStageA.ps1' `
             -Phase RunnerContext `
             -ControlRoot (Join-Path $env:GITHUB_WORKSPACE 'control') `
+            -EvaluatedRoot (Join-Path $env:GITHUB_WORKSPACE 'evaluated') `
             -ApprovedSha $env:STAGEA_APPROVED_SHA `
             -WorkflowRef $env:STAGEA_WORKFLOW_REF `
             -DefaultBranch $env:STAGEA_DEFAULT_BRANCH `
@@ -236,7 +312,7 @@ jobs:
           persist-credentials: false
 
       - name: Validate evaluated source before execution
-        shell: powershell
+        shell: 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command "$ErrorActionPreference = ''Stop''; $global:LASTEXITCODE = 0; & ''{0}''; if (-not $?) { if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; exit 1 }; exit $LASTEXITCODE"'
         env:
           STAGEA_WORKFLOW_REF: ${{ github.ref }}
           STAGEA_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
@@ -268,7 +344,7 @@ jobs:
           global-json-file: evaluated/global.json
 
       - name: Run authorised deterministic validation
-        shell: powershell
+        shell: 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command "$ErrorActionPreference = ''Stop''; $global:LASTEXITCODE = 0; & ''{0}''; if (-not $?) { if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; exit 1 }; exit $LASTEXITCODE"'
         working-directory: ${{ github.workspace }}
         env:
           STAGEA_APPROVED_SHA: ${{ needs.hosted-preflight.outputs.approved_sha }}
@@ -322,7 +398,7 @@ jobs:
           }
 
       - name: Validate Stage A summary artifacts before upload
-        shell: powershell
+        shell: 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command "$ErrorActionPreference = ''Stop''; $global:LASTEXITCODE = 0; & ''{0}''; if (-not $?) { if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; exit 1 }; exit $LASTEXITCODE"'
         env:
           STAGEA_APPROVED_SHA: ${{ needs.hosted-preflight.outputs.approved_sha }}
         run: |
@@ -369,7 +445,7 @@ jobs:
           include-hidden-files: false
 
       - name: Publish validated Stage A summary
-        shell: powershell
+        shell: 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command "$ErrorActionPreference = ''Stop''; $global:LASTEXITCODE = 0; & ''{0}''; if (-not $?) { if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; exit 1 }; exit $LASTEXITCODE"'
         env:
           STAGEA_APPROVED_SHA: ${{ needs.hosted-preflight.outputs.approved_sha }}
         run: |
@@ -412,7 +488,7 @@ jobs:
       - name: Check Stage A residue
         if: ${{ always() }}
         timeout-minutes: 2
-        shell: powershell
+        shell: 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command "$ErrorActionPreference = ''Stop''; $global:LASTEXITCODE = 0; & ''{0}''; if (-not $?) { if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; exit 1 }; exit $LASTEXITCODE"'
         run: |
           $ErrorActionPreference = 'Stop'
           $failure = 'HI-RUNNER-STAGEA-RESIDUE-INVALID: fixed residue check failed.'
