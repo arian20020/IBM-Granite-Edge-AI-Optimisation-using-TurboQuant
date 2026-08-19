@@ -1,12 +1,18 @@
 from __future__ import annotations
 
+import subprocess
+import sys
 import unittest
+from pathlib import Path
 
 from scripts.testing.workbook05.phase3.live_asset_lock import (
     HuggingFaceHubAdapter,
     classify_source_paths,
     require_converted_outputs,
 )
+
+
+REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 
 
 class Phase3LiveAssetLockCliTests(unittest.TestCase):
@@ -107,6 +113,36 @@ class Phase3LiveAssetLockCliTests(unittest.TestCase):
                 "allow_patterns": ["config.json", "model.safetensors"],
             },
             captured,
+        )
+
+    def test_download_stage_imports_without_repository_validator_packages(self) -> None:
+        """The accepted conversion venv intentionally does not contain jsonschema."""
+
+        code = r'''
+import builtins
+
+real_import = builtins.__import__
+
+def guarded_import(name, globals=None, locals=None, fromlist=(), level=0):
+    if name == "jsonschema" or name.startswith("jsonschema."):
+        raise ImportError("jsonschema is deliberately absent from the accepted venv")
+    return real_import(name, globals, locals, fromlist, level)
+
+builtins.__import__ = guarded_import
+import scripts.testing.workbook05.phase3.live_asset_lock
+'''
+        completed = subprocess.run(
+            [sys.executable, "-c", code],
+            cwd=REPOSITORY_ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        self.assertEqual(
+            0,
+            completed.returncode,
+            msg=(completed.stdout + completed.stderr),
         )
 
 
