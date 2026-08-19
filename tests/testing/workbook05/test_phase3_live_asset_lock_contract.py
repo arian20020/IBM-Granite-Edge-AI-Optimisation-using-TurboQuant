@@ -30,8 +30,10 @@ ACCEPTANCE_PATH = (
     REPOSITORY_ROOT
     / "experiments"
     / "granite_turboquant_intel"
-    / "configurations"
-    / "workbook05"
+    / "manifests"
+    / "campaigns"
+    / "GTQ-WB05-MF-v1"
+    / "phase3"
     / "accepted-dependency-preflight.json"
 )
 
@@ -102,7 +104,6 @@ class Phase3LiveAssetLockContractTests(unittest.TestCase):
         script = LIVE_SCRIPT_PATH.read_text(encoding="utf-8")
 
         stages = (
-            "dependency-acceptance-verification",
             "prerequisite-verification",
             "path-root-verification",
             "disk-preflight",
@@ -120,20 +121,26 @@ class Phase3LiveAssetLockContractTests(unittest.TestCase):
             positions.append(script.index(stage))
         self.assertEqual(positions, sorted(positions))
 
+        dependency_verification = script.index("dependency_acceptance")
+        model_root_access = script.index("C:\\w5m")
+        self.assertLess(dependency_verification, model_root_access)
         self.assertIn("Invoke-Wb05ControlledLoggedProcess", script)
         self.assertIn("-Component 'assets'", script)
-        self.assertIn("dependency_acceptance", script)
-        self.assertIn("live_model_assets", script)
+        self.assertIn("live_asset_lock", script)
         self.assertNotIn("--trust-remote-code", script)
         self.assertNotIn("Invoke-Expression", script)
         self.assertNotIn("cmd /c", script.casefold())
         self.assertNotIn("Remove-Item -Recurse", script)
 
     def test_controlled_process_adapter_admits_the_assets_component(self) -> None:
-        self.assertIn(
-            "'runtime', 'genai', 'dependency-preflight', 'assets'",
-            self.controlled_process.replace("\n", " "),
-        )
+        flattened = self.controlled_process.replace("\n", " ")
+        for component in (
+            "'runtime'",
+            "'genai'",
+            "'dependency-preflight'",
+            "'assets'",
+        ):
+            self.assertIn(component, flattened)
 
     def test_committed_acceptance_is_exactly_the_successful_run(self) -> None:
         self.assertTrue(
@@ -141,15 +148,15 @@ class Phase3LiveAssetLockContractTests(unittest.TestCase):
             "The independently verified dependency acceptance is not committed.",
         )
         record = json.loads(ACCEPTANCE_PATH.read_text(encoding="utf-8"))
-        self.assertEqual(32211117536, record["workflow"]["run_id"])
-        self.assertEqual(1, record["workflow"]["run_attempt"])
+        self.assertEqual("32211117536", record["workflow_run_id"])
+        self.assertEqual(1, record["run_attempt"])
         self.assertEqual(
             "429b90548ce2b4c8463941c5b2983c8ff0cf6cc3ea3865375c8cae78d7193b49",
-            record["decision"]["sha256"],
+            record["decision_sha256"],
         )
         self.assertEqual(
             "b68a4f8af8c57a9f5d71347d2485855796f4d0dce0291c50b596512c309c0c21",
-            record["artifact"]["independent_sha256"],
+            record["independent_artifact_sha256"],
         )
 
 
