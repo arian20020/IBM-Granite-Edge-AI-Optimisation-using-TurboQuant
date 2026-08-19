@@ -60,6 +60,32 @@ _CLAIM_KEYS = (
 )
 
 
+def validate_dependency_bundle(
+    bundle_root: Path,
+    repository_root: Path,
+) -> list[Any]:
+    """Call the repository-only dependency validator through a lazy seam.
+
+    The accepted conversion environment intentionally does not contain
+    ``jsonschema``. Keeping this adapter at module scope preserves a simple,
+    patchable test seam while delaying the repository validator import until
+    the retained dependency bundle is actually revalidated by the base Python
+    environment.
+    """
+
+    try:
+        from scripts.testing.workbook05.phase3.dependency_bundle_validation import (
+            validate_dependency_bundle as _validate_dependency_bundle,
+        )
+    except ImportError as error:
+        raise ValueError(
+            "Retained dependency validation requires the repository validator "
+            "environment with jsonschema installed."
+        ) from error
+
+    return _validate_dependency_bundle(bundle_root, repository_root)
+
+
 @dataclass(frozen=True, slots=True)
 class AcceptanceIssue:
     """One deterministic problem in the committed acceptance record."""
@@ -366,19 +392,6 @@ def verify_retained_dependency_acceptance(
         raise ValueError("Resolved dependency workspace differs from the accepted path.")
     if not _windows_same_path(str(evidence), str(record["evidence_root"])):
         raise ValueError("Resolved dependency evidence root differs from the accepted path.")
-
-    # Import the repository-only validator only when this verifier is executed.
-    # Live model download imports the acceptance constants from this module in
-    # the accepted conversion environment, which intentionally lacks jsonschema.
-    try:
-        from scripts.testing.workbook05.phase3.dependency_bundle_validation import (
-            validate_dependency_bundle,
-        )
-    except ImportError as error:
-        raise ValueError(
-            "Retained dependency validation requires the repository validator "
-            "environment with jsonschema installed."
-        ) from error
 
     # Treat the retained Lenovo bundle as untrusted data again. This catches a
     # changed manifest, package record, source identity, command log, or claim.
