@@ -37,6 +37,7 @@ Modify:
 
 - `docs/testing/README.md` — index Stage A as permission-gated deterministic evidence, not Gate 1 evidence.
 - `scripts/README.md` — document the two default-branch control scripts and their privacy boundary.
+- `tests/testing/hardware_inspection/test_intel_runner_stage0_contract.py` — broaden only the existing inventory identity so a sanitised Git-index query plus bounded on-disk discovery sees tracked sparse-checkout aliases and untracked workflow/script/runbook aliases, while its exact allowlist admits only the canonical Stage A workflow and two controls.
 
 Do not modify the approved-source manifest, Stage 0 workflow/validator/runbook, frozen feature branch, Gate 1 evidence record, production design, Model Inspection, application projects, or any Gate 2–9 file. The only approved Stage 0 transition is to amend the existing Stage 0 inventory contract so its exact allowlist admits this canonical Stage A workflow and its two default-branch Stage A control scripts alongside Stage 0. That contract change must retain case-insensitive namespace detection and reject every alias, later stage, alternative operational script, and Gate 1 runbook; it does not authorise any other Stage 0 change.
 
@@ -91,26 +92,27 @@ git commit -m "test(hardware-inspection): define Intel runner Stage A contract"
 
 - [ ] **Step 1: Implement the guarded interface**
 
-Use this public parameter surface; do not use binder-level `ValidateSet`, because binding failures bypass fixed diagnostics:
+Use this public parameter surface. Every known string is intentionally non-`Mandatory`, and there is no binder-level `ValidateSet`, so omitted and empty known values reach in-script validation inside the fixed-output `try/catch` instead of producing binder diagnostics:
 
 ```powershell
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory = $true)][string]$Phase,
-    [Parameter(Mandatory = $true)][string]$ControlRoot,
-    [Parameter(Mandatory = $true)][string]$WorkflowRef,
-    [Parameter(Mandatory = $true)][string]$DefaultBranch,
-    [Parameter(Mandatory = $true)][string]$Actor,
-    [Parameter(Mandatory = $true)][string]$TriggeringActor,
-    [Parameter(Mandatory = $true)][string]$RepositoryOwner,
-    [Parameter(Mandatory = $true)][string]$RunAttempt,
-    [Parameter(Mandatory = $true)][string]$Confirmation,
-    [Parameter(Mandatory = $true)][string]$RunnerLabel,
+    [string]$Phase,
+    [string]$ControlRoot,
+    [string]$WorkflowRef,
+    [string]$DefaultBranch,
+    [string]$Actor,
+    [string]$TriggeringActor,
+    [string]$RepositoryOwner,
+    [string]$RunAttempt,
+    [string]$Confirmation,
+    [string]$RunnerLabel,
     [string]$SourceCheckoutRoot,
     [string]$EvaluatedRoot,
     [string]$ApprovedSha,
     [string]$GitHubOutputPath,
-    [string]$SummaryPath
+    [string]$RunnerTemp,
+    [string]$RunnerWorkspace
 )
 ```
 
@@ -122,7 +124,7 @@ Inside one `try/catch`, require:
 - the existing manifest is strict UTF-8/no BOM, at most 4096 bytes, and exactly the three approved properties;
 - source ref exactly `refs/heads/feature/hardware-inspection` and SHA exactly the manifest's lowercase nonzero 40-hex value;
 - Hosted phase receives an identity-only checkout of that remote feature ref and proves its current `HEAD` is still the approved SHA; a moved branch fails before the self-hosted job becomes eligible;
-- RunnerContext validates the manifest-bound SHA, dispatch context, label, and operational environment before evaluated checkout. Runner then receives that exact checked-out SHA, resolves a normal local evaluated directory, proves `git rev-parse HEAD` equality, and proves no tracked or untracked dirt using the existing offline-compatible split probes;
+- RunnerContext validates the manifest-bound SHA, dispatch context, label, operational environment, and both `RunnerTemp` and `RunnerWorkspace` as existing normal non-reparse directories on fixed local drives before evaluated checkout or Stage A output/work-directory creation. The canonical `RunnerTemp\hardware-inspection-stage-a` child must still be absent. Runner then receives that exact checked-out SHA, resolves a normal local evaluated directory, proves `git rev-parse HEAD` equality, and proves no tracked or untracked dirt using the existing offline-compatible split probes;
 - all six `GRANITE_LLMFIT_*` operational variables are absent;
 - `third-party/bin/llmfit/v1.1.9/win-x64` is absent before test execution.
 
@@ -132,7 +134,7 @@ Every failure writes exactly:
 HI-RUNNER-STAGEA-INVALID: authorised deterministic validation failed.
 ```
 
-Do not echo exceptions, values, paths, labels, users, hosts, or Git output. Hosted success may write only `approved_sha`, `source_ref`, `runner_label`, and `eligible=true` to `GITHUB_OUTPUT`; validators emit no completion summary. The runner writes fixed local Markdown and JSON only; after JSON upload, a default-control publication step validates and appends the Markdown to the GitHub job summary.
+Do not echo exceptions, values, paths, labels, users, hosts, or Git output. Hosted success may write only `approved_sha`, `source_ref`, `runner_label`, and `eligible=true` to an absent local fixture target or GitHub's pre-created empty `GITHUB_OUTPUT`. Immediately before atomic replacement it must revalidate the target as the same empty ordinary non-reparse file with a normal fixed-drive ancestor chain; an existing nonempty file is preserved and rejected. Validators emit no completion summary. The runner publishes fixed local Markdown and JSON only after contained-process cleanup succeeds; a default-control step validates both exact artifacts before JSON upload, and a later default-control publication step revalidates and appends the Markdown to the GitHub job summary.
 
 - [ ] **Step 2: Extend tests before implementation where each rule is absent**
 
@@ -180,7 +182,7 @@ Reject stale/additional/duplicate/relabelled/missing result-definition-entry bin
 
 - [ ] **Step 2: Implement the runner**
 
-The script accepts only `EvaluatedRoot`, `ApprovedSha`, `LocalWorkRoot`, `SummaryJsonPath`, and `SummaryMarkdownPath`. It must:
+The script accepts only the five intentionally non-`Mandatory` string parameters `EvaluatedRoot`, `ApprovedSha`, `LocalWorkRoot`, `SummaryJsonPath`, and `SummaryMarkdownPath`, so missing/empty known arguments converge on the fixed in-script failure. It must:
 
 1. canonicalise all roots, reject device/UNC/reparse paths, and create only a fresh direct child under the supplied runner-local work root;
 2. revalidate exact SHA, clean tracked tree, absent operational variables, and absent candidate;
@@ -194,10 +196,13 @@ tools/HardwareInspection.LlmFitSpike.IntegrationTests/HardwareInspection.LlmFitS
 
 5. run exactly `TestCategory=Deterministic` with floor 174 and `TestCategory=Task8Deterministic` with floor 3, using `--no-restore --no-build --runtime win-x64 --report-trx --no-ansi`;
 6. parse the two local TRXs from the same bytes that are hashed, with DTD disabled and exact identities/counters;
-7. verify no `llmfit`/fake-tool process and no TCP 8787 listener remains;
-8. write the five-property summary as UTF-8 without BOM through a same-directory `CreateNew` temp and atomic rename;
-9. scan the summary for drive/UNC paths, user/host/hardware names, stdout/stderr, candidate names, raw JSON, TRX XML, IP/MAC/device identifiers, and additional fields;
-10. leave TRX and detailed logs local and never place them in the upload directory.
+7. verify before the first Git/.NET child and again after the final test that no `llmfit`/fake-tool process and no TCP 8787 listener remains;
+8. strip inherited `GITHUB_*`, `ACTIONS_*`, `RUNNER_*`, and `STAGEA_*` variables case-insensitively from every evaluated child, while retaining ordinary safe environment values;
+9. initialise the native runtime and owned collection only inside the guarded lifecycle. Start each child suspended with `STARTUPINFOEX` and an explicit inherited-handle allowlist, retain its stable process handle, assign it to a non-inheritable Windows Job Object with `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`, and only then resume it. Assignment/start failure must terminate and boundedly wait for the still-suspended root; final cleanup must terminate the job, query a bounded zero-active-process drain, and then attempt identity-safe direct-root cleanup without a global name kill;
+10. retain the allowlisted JSON/Markdown content in trusted parent memory, keep the cancellation handler registered through job cleanup, residue checks, and atomic publication, check cancellation after the final process, before TRX parsing, before and between both writes, then unregister last. Any start, handler, cleanup, cancellation, unregister, or residue failure emits the one fixed error and prevents workflow upload;
+11. only after successful contained cleanup write the five-property summary as UTF-8 without BOM through same-directory `CreateNew` temps and atomic renames;
+12. scan the summary for drive/UNC paths, user/host/hardware names, stdout/stderr, candidate names, raw JSON, TRX XML, IP/MAC/device identifiers, and additional fields;
+13. leave TRX and detailed logs local and never place them in the upload directory.
 
 Cancellation or any failure must attempt bounded process cleanup and retain the original failure while emitting only:
 
@@ -245,22 +250,25 @@ actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d
 actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
 ```
 
-Hosted preflight checks out only default-branch controls, runs Stage 0 and Stage A contracts, parses the manifest, performs an identity-only checkout of the approved remote feature ref, and requires that ref's current tip to equal the approved SHA before emitting eligibility. It never runs evaluated scripts or builds. The self-hosted checkout subsequently uses the immutable approved SHA, never the branch name.
+Hosted preflight first rejects any nonempty workflow-debug control (including a runner-context value of `false`) before it can emit eligibility, checks out only default-branch controls, runs exactly the Stage 0 and Stage A contract modules, parses the manifest, performs an identity-only checkout of the approved remote feature ref, and requires that ref's current tip to equal the approved SHA before emitting eligibility. It never runs evaluated scripts or builds. The self-hosted checkout subsequently uses the immutable approved SHA, never the branch name. The contract locks the final LF/no-BOM workflow bytes by SHA-256, the exact hosted/self-hosted step-name lists, and positive PowerShell-AST command/argument bindings so comments or manual/no-op replacements cannot satisfy the executable chain.
+
+Canonical Stage A workflow SHA-256: `bff2441dcd72177e3adb8a052ac3a3bbff606995e4b5fcae64032152a951cb0d`.
 
 Self-hosted execution order is fixed:
 
-1. mask the fixed runner/session roots and dedicated account value; reject `ACTIONS_STEP_DEBUG`/`ACTIONS_RUNNER_DEBUG`;
+1. with a two-minute bound, reject every debug control, query and reject pre-existing `llmfit`/fake-tool processes or TCP 8787 listeners, and only then mask the fixed runner/session roots and dedicated account value;
 2. check out default-branch controls with credentials disabled;
-3. validate Runner context before evaluated execution;
+3. validate Runner context, including fixed-local normal non-reparse `RUNNER_TEMP` and `RUNNER_WORKSPACE`, before evaluated checkout or Stage A output/work-directory creation;
 4. check out exactly `needs.hosted-preflight.outputs.approved_sha` with credentials disabled;
 5. revalidate exact SHA/clean tree/absent candidate and operational variables;
 6. set up .NET from `evaluated/global.json`;
-7. invoke only the default-branch Stage A runner script;
-8. upload only the already privacy-scanned JSON summary with a unique run-ID/attempt name and a short retention period;
-9. append the fixed safe Markdown summary;
-10. always perform bounded leak checks; never automatically delete an unverified path.
+7. revalidate the workspace and runner-temp parents, require both direct output/work children to be absent, create those exact fresh children with error-on-preexistence semantics, revalidate their parent identities, and invoke only the default-branch Stage A runner script;
+8. validate the exact ordinary fixed-drive JSON and Markdown bytes under an exclusive read handle immediately before upload;
+9. upload only the already privacy-scanned JSON summary with a unique run-ID/attempt name and a short retention period;
+10. append the fixed safe Markdown summary;
+11. always perform bounded leak checks, treating query failure as failure; never automatically delete an unverified path.
 
-GitHub pre-creates `GITHUB_STEP_SUMMARY` as an empty ordinary file. Both runner output targets are therefore fresh and absent-only in the local export directory. Only after the JSON upload may a default-control publication step validate that exact local Markdown and write it through a held handle to the pre-created empty GitHub summary file after validating its ordinary non-reparse target and ancestor chain.
+GitHub pre-creates `GITHUB_STEP_SUMMARY` as an empty ordinary file. Both runner output targets are therefore fresh and absent-only in the local export directory. Only after exact JSON/Markdown validation and the JSON upload may a default-control publication step validate that exact local Markdown and write it through a held handle to the pre-created empty GitHub summary file after validating its ordinary non-reparse target and ancestor chain.
 
 No step may contain acquisition/capture/report commands, candidate arguments or URL, `TrustedWindowsIntel`, `TrustedOffline`, `GRANITE_LLMFIT_*` assignment, adapter/network commands, raw artifact paths, `Start-Process`, shell indirection, or execution from an evaluated `working-directory` except the exact `dotnet` project commands owned by the default-branch runner script.
 
@@ -275,7 +283,7 @@ Expected: 12/12.
 - [ ] **Step 4: Commit**
 
 ```powershell
-git add .github/workflows/hardware-inspection-intel-runner-stage-a.yml tests/testing/hardware_inspection/test_intel_runner_stage_a_contract.py
+git add .github/workflows/hardware-inspection-intel-runner-stage-a.yml tests/testing/hardware_inspection/test_intel_runner_stage_a_contract.py tests/testing/hardware_inspection/test_intel_runner_stage0_contract.py
 git commit -m "build(hardware-inspection): add authorised Intel runner Stage A"
 ```
 
@@ -328,7 +336,7 @@ Expected: 12 Stage 0 plus 12 Stage A tests, all passed, zero skips; clean range 
 
 - [ ] **Step 3: Parse every PowerShell file and workflow**
 
-Use Windows PowerShell 5.1 `Parser.ParseFile` for both new scripts, `py_compile` for the contract module, and the contract's canonical YAML parser. Require strict UTF-8 without BOM, LF-only workflow, bounded file sizes, and no forbidden tokens.
+Use Windows PowerShell 5.1 `Parser.ParseFile` for both new scripts, `py_compile` for both contract modules, and the contract's canonical YAML parser. Require strict UTF-8 without BOM and LF-only bytes for the workflow/digest. Preserve the repository's `.gitattributes` PowerShell policy: checked-out `.ps1` files may be canonical all-LF or all-CRLF, semantic assertions normalise CRLF to LF, and lone/mixed carriage returns are rejected. Require bounded file sizes and no forbidden tokens.
 
 - [ ] **Step 4: Independently review security and specification**
 

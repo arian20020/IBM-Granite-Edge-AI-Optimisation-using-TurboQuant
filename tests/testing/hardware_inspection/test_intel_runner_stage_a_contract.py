@@ -2,12 +2,14 @@ import base64
 import codecs
 import copy
 import ctypes
+import hashlib
 import json
 import os
 import re
 import shutil
 import subprocess
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -63,6 +65,7 @@ FULL_ACTION_PINS = {
     "actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f",
 }
 RUNNER_LABEL = re.compile(r"\Ahardware-gate1-[0-9a-f]{16}\Z")
+EXPECTED_WORKFLOW_SHA256 = "bff2441dcd72177e3adb8a052ac3a3bbff606995e4b5fcae64032152a951cb0d"
 
 
 def _required_file(test_case, path):
@@ -74,9 +77,12 @@ def _strict_utf8(path):
     raw = path.read_bytes()
     if raw.startswith(codecs.BOM_UTF8):
         raise AssertionError(f"{path.name} must not have a UTF-8 BOM")
-    if b"\r" in raw:
-        raise AssertionError(f"{path.name} must use LF line endings")
-    return raw.decode("utf-8", "strict")
+    without_crlf = raw.replace(b"\r\n", b"")
+    if b"\r" in without_crlf:
+        raise AssertionError(f"{path.name} contains a lone carriage return")
+    if b"\r\n" in raw and b"\n" in without_crlf:
+        raise AssertionError(f"{path.name} mixes LF and CRLF line endings")
+    return raw.decode("utf-8", "strict").replace("\r\n", "\n")
 
 
 def _strict_json_object(raw):
@@ -306,6 +312,9 @@ def _yaml_load(raw):
 def _workflow(test_case):
     path = _required_file(test_case, WORKFLOW_PATH)
     raw = path.read_bytes()
+    test_case.assertFalse(raw.startswith(codecs.BOM_UTF8))
+    test_case.assertNotIn(b"\r", raw)
+    test_case.assertEqual(hashlib.sha256(raw).hexdigest(), EXPECTED_WORKFLOW_SHA256)
     return raw, _yaml_load(raw)
 
 
@@ -435,6 +444,7 @@ def _assert_runner_routing(test_case, document, validator_text):
         "Validate evaluated source before execution",
         "Set up .NET from the evaluated source",
         "Run authorised deterministic validation",
+        "Validate Stage A summary artifacts before upload",
         "Upload Stage A summary",
         "Publish validated Stage A summary",
         "Check Stage A residue",
@@ -447,6 +457,129 @@ def _assert_runner_routing(test_case, document, validator_text):
     test_case.assertIn("-Phase Runner", str(runner_steps[4].get("run", "")))
     test_case.assertEqual(runner_steps[-1].get("if"), "${{ always() }}")
     test_case.assertEqual(runner_steps[-1].get("timeout-minutes"), 2)
+
+
+def _normalized_powershell(text):
+    return re.sub(r"\s+", " ", str(text)).strip()
+
+
+def _assert_workflow_executable_chain(test_case, document):
+    hosted_steps = _steps(document, "hosted-preflight")
+    runner_steps = _steps(document, "deterministic-runner")
+    test_case.assertEqual(
+        [step.get("name") for step in hosted_steps],
+        [
+            "Reject debug controls before runner eligibility",
+            "Check out default-branch controls",
+            "Set up Python for control contracts",
+            "Run Stage 0 and Stage A control contracts",
+            "Parse the default-branch llmfit-gate1-approved-source.json approval manifest",
+            "Check out approved source identity only",
+            "Validate approved source and runner label",
+        ],
+    )
+    def ast_commands(step):
+        commands, _ = _powershell_text_ast(test_case, str(step.get("run", "")))
+        return [_normalized_powershell(command) for command in commands]
+
+    test_case.assertEqual(
+        ast_commands(hosted_steps[3]),
+        [
+            "python -m unittest -v "
+            "tests.testing.hardware_inspection.test_intel_runner_stage0_contract "
+            "tests.testing.hardware_inspection.test_intel_runner_stage_a_contract"
+        ],
+    )
+    expected_stage0 = (
+        "& '.\\control\\scripts\\hardware-inspection\\Validate-HardwareInspectionIntelRunnerStage0.ps1' ` "
+        "-Phase Dispatch ` -ControlRoot (Join-Path $env:GITHUB_WORKSPACE 'control') ` "
+        "-WorkflowRef $env:STAGE0_WORKFLOW_REF ` -DefaultBranch $env:STAGE0_DEFAULT_BRANCH ` "
+        "-Actor $env:STAGE0_ACTOR ` -TriggeringActor $env:STAGE0_TRIGGERING_ACTOR ` "
+        "-RepositoryOwner $env:STAGE0_REPOSITORY_OWNER ` -RunAttempt $env:STAGE0_RUN_ATTEMPT ` "
+        "-ConfirmRepositoryOnly $env:STAGE0_CONFIRMATION ` -GitHubOutputPath $env:GITHUB_OUTPUT"
+    )
+    expected_hosted = (
+        "& '.\\control\\scripts\\hardware-inspection\\Validate-HardwareInspectionIntelRunnerStageA.ps1' ` "
+        "-Phase Hosted ` -ControlRoot (Join-Path $env:GITHUB_WORKSPACE 'control') ` "
+        "-SourceCheckoutRoot (Join-Path $env:GITHUB_WORKSPACE 'source-identity') ` "
+        "-WorkflowRef $env:STAGEA_WORKFLOW_REF ` -DefaultBranch $env:STAGEA_DEFAULT_BRANCH ` "
+        "-Actor $env:STAGEA_ACTOR ` -TriggeringActor $env:STAGEA_TRIGGERING_ACTOR ` "
+        "-RepositoryOwner $env:STAGEA_REPOSITORY_OWNER ` -RunAttempt $env:STAGEA_RUN_ATTEMPT ` "
+        "-Confirmation $env:STAGEA_CONFIRMATION ` -RunnerLabel $env:STAGEA_RUNNER_LABEL ` "
+        "-GitHubOutputPath $env:GITHUB_OUTPUT"
+    )
+    expected_context = (
+        "& '.\\control\\scripts\\hardware-inspection\\Validate-HardwareInspectionIntelRunnerStageA.ps1' ` "
+        "-Phase RunnerContext ` -ControlRoot (Join-Path $env:GITHUB_WORKSPACE 'control') ` "
+        "-ApprovedSha $env:STAGEA_APPROVED_SHA ` -WorkflowRef $env:STAGEA_WORKFLOW_REF ` "
+        "-DefaultBranch $env:STAGEA_DEFAULT_BRANCH ` -Actor $env:STAGEA_ACTOR ` "
+        "-TriggeringActor $env:STAGEA_TRIGGERING_ACTOR ` -RepositoryOwner $env:STAGEA_REPOSITORY_OWNER ` "
+        "-RunAttempt $env:STAGEA_RUN_ATTEMPT ` -Confirmation $env:STAGEA_CONFIRMATION ` "
+        "-RunnerLabel $env:STAGEA_RUNNER_LABEL ` -RunnerTemp $env:RUNNER_TEMP ` "
+        "-RunnerWorkspace $env:RUNNER_WORKSPACE"
+    )
+    expected_runner_validation = (
+        "& '.\\control\\scripts\\hardware-inspection\\Validate-HardwareInspectionIntelRunnerStageA.ps1' ` "
+        "-Phase Runner ` -ControlRoot (Join-Path $env:GITHUB_WORKSPACE 'control') ` "
+        "-EvaluatedRoot (Join-Path $env:GITHUB_WORKSPACE 'evaluated') ` "
+        "-ApprovedSha $env:STAGEA_APPROVED_SHA ` -WorkflowRef $env:STAGEA_WORKFLOW_REF ` "
+        "-DefaultBranch $env:STAGEA_DEFAULT_BRANCH ` -Actor $env:STAGEA_ACTOR ` "
+        "-TriggeringActor $env:STAGEA_TRIGGERING_ACTOR ` -RepositoryOwner $env:STAGEA_REPOSITORY_OWNER ` "
+        "-RunAttempt $env:STAGEA_RUN_ATTEMPT ` -Confirmation $env:STAGEA_CONFIRMATION ` "
+        "-RunnerLabel $env:STAGEA_RUNNER_LABEL"
+    )
+    expected_runner = (
+        "& '.\\control\\scripts\\hardware-inspection\\Invoke-HardwareInspectionIntelRunnerStageA.ps1' ` "
+        "-EvaluatedRoot 'evaluated' ` -ApprovedSha $env:STAGEA_APPROVED_SHA ` "
+        "-LocalWorkRoot $localWorkRoot ` -SummaryJsonPath 'stage-a-export/stage-a-summary.json' ` "
+        "-SummaryMarkdownPath 'stage-a-export/stage-a-summary.md'"
+    )
+    test_case.assertEqual(
+        [command for command in ast_commands(hosted_steps[4]) if command.startswith("& ")],
+        [expected_stage0],
+    )
+    test_case.assertEqual(
+        [command for command in ast_commands(hosted_steps[6]) if command.startswith("& ")],
+        [expected_hosted],
+    )
+    test_case.assertEqual(
+        [command for command in ast_commands(runner_steps[2]) if command.startswith("& ")],
+        [expected_context],
+    )
+    test_case.assertEqual(
+        [command for command in ast_commands(runner_steps[4]) if command.startswith("& ")],
+        [expected_runner_validation],
+    )
+    test_case.assertEqual(
+        [command for command in ast_commands(runner_steps[6]) if command.startswith("& ")],
+        [expected_runner],
+    )
+    test_case.assertEqual(
+        [
+            command
+            for command in ast_commands(runner_steps[7])
+            if command.startswith("Assert-ExactNormalFile ")
+        ],
+        [
+            "Assert-ExactNormalFile 'stage-a-export/stage-a-summary.json' "
+            "$utf8.GetBytes($expectedJson)",
+            "Assert-ExactNormalFile 'stage-a-export/stage-a-summary.md' "
+            "$utf8.GetBytes($expectedMarkdown)",
+        ],
+    )
+
+
+def _run_inline_powershell(body, prelude="", environment=None, cwd=None, timeout=30):
+    command = prelude + "\n& {\n" + body + "\n}"
+    return subprocess.run(
+        [_powershell_executable(), "-NoProfile", "-NonInteractive", "-Command", command],
+        text=True,
+        capture_output=True,
+        timeout=timeout,
+        check=False,
+        env=environment,
+        cwd=cwd,
+    )
 
 
 def _invoke(script, arguments, environment=None):
@@ -562,7 +695,7 @@ def _invoke_runner_trx_fixture(path, kind):
     )
 
 
-def _invoke_runner_pure(body):
+def _runner_pure_command(body):
     script_literal = str(RUNNER_PATH).replace("'", "''")
     command = (
         "$ErrorActionPreference = 'Stop'\n"
@@ -571,12 +704,17 @@ def _invoke_runner_pure(body):
         + "' -EvaluatedRoot 'x' -ApprovedSha ('0' * 40) -LocalWorkRoot 'x' -SummaryJsonPath 'x' -SummaryMarkdownPath 'x'\n"
         + body
     )
+    return [_powershell_executable(), "-NoProfile", "-NonInteractive", "-Command", command]
+
+
+def _invoke_runner_pure(body, environment=None, timeout=20):
     return subprocess.run(
-        [_powershell_executable(), "-NoProfile", "-NonInteractive", "-Command", command],
+        _runner_pure_command(body),
         text=True,
         capture_output=True,
-        timeout=20,
+        timeout=timeout,
         check=False,
+        env=environment,
     )
 
 
@@ -679,6 +817,11 @@ class _ExclusiveFileLock:
 class IntelRunnerStageAContractTests(unittest.TestCase):
     def test_stage_a_workflow_is_manual_default_branch_owner_and_first_attempt_only(self):
         raw, document = _workflow(self)
+        self.assertEqual(hashlib.sha256(raw).hexdigest(), EXPECTED_WORKFLOW_SHA256)
+        digest_mutation = raw.replace(b"name:", b"name: mutated-", 1)
+        self.assertNotEqual(
+            hashlib.sha256(digest_mutation).hexdigest(), EXPECTED_WORKFLOW_SHA256
+        )
         _assert_workflow_shape(self, document)
         self.assertNotIn("pull_request", document["on"])
         for mutation in (
@@ -697,6 +840,7 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
         validator_text = _strict_utf8(_required_file(self, VALIDATOR_PATH))
         _powershell_ast(self, VALIDATOR_PATH)
         _assert_runner_routing(self, document, validator_text)
+        _assert_workflow_executable_chain(self, document)
         self.assertEqual(len(document["jobs"]), 2)
         mutations = []
         missing_output = copy.deepcopy(document)
@@ -715,6 +859,31 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
             with self.subTest(mutation=repr(mutation)[:60]):
                 with self.assertRaises(AssertionError):
                     _assert_runner_routing(self, mutation, validator_text)
+        manual_validation = copy.deepcopy(document)
+        manual_validation["jobs"]["hosted-preflight"]["steps"][6]["run"] = (
+            "# manually validated; the validator call was intentionally omitted"
+        )
+        no_op_runner = copy.deepcopy(document)
+        no_op_runner["jobs"]["deterministic-runner"]["steps"][6]["run"] = (
+            "Write-Host 'skipped'"
+        )
+        extra_contract = copy.deepcopy(document)
+        extra_contract["jobs"]["hosted-preflight"]["steps"][3]["run"] += (
+            " tests.testing.hardware_inspection.unreviewed_contract"
+        )
+        no_op_artifact_validation = copy.deepcopy(document)
+        no_op_artifact_validation["jobs"]["deterministic-runner"]["steps"][7]["run"] = (
+            "# summaries were manually inspected"
+        )
+        for mutation in (
+            manual_validation,
+            no_op_runner,
+            extra_contract,
+            no_op_artifact_validation,
+        ):
+            with self.subTest(executable_chain=repr(mutation)[:60]):
+                with self.assertRaises(AssertionError):
+                    _assert_workflow_executable_chain(self, mutation)
 
     def test_stage_a_workflow_reads_only_the_default_branch_approval_manifest(self):
         raw, document = _workflow(self)
@@ -848,6 +1017,108 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
                 with self.assertRaises(AssertionError):
                     mutated_command_text = "\n".join(mutated_commands)
                     self.assertRegex(mutated_command_text, r"(?i)floor[^\n]*174")
+        run_step = next(
+            step
+            for step in _steps(document, "deterministic-runner")
+            if step.get("name") == "Run authorised deterministic validation"
+        )
+        run_commands, _ = _powershell_text_ast(self, str(run_step["run"]))
+        normalized_run_commands = [_normalized_powershell(command) for command in run_commands]
+        first_creation = next(
+            index
+            for index, command in enumerate(normalized_run_commands)
+            if command.startswith("New-Item -ItemType Directory")
+        )
+        self.assertLess(
+            normalized_run_commands.index("Resolve-NormalFixedDirectory $env:GITHUB_WORKSPACE"),
+            first_creation,
+        )
+        self.assertLess(
+            normalized_run_commands.index("Resolve-NormalFixedDirectory $env:RUNNER_TEMP"),
+            first_creation,
+        )
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            runner_temp = root / "runner-temp"
+            runner_temp.mkdir()
+            environment = os.environ.copy()
+            environment["RUNNER_TEMP"] = str(runner_temp)
+            environment["GITHUB_WORKSPACE"] = str(root)
+            environment["STAGEA_APPROVED_SHA"] = "a" * 40
+            for unsafe_runner_temp in (
+                r"\\localhost\stage-a-canary",
+                r"\\?\C:\stage-a-canary",
+                r"\\.\C:\stage-a-canary",
+            ):
+                unsafe_environment = environment.copy()
+                unsafe_environment["RUNNER_TEMP"] = unsafe_runner_temp
+                result = _run_inline_powershell(
+                    run_step["run"], environment=unsafe_environment, cwd=root
+                )
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual(
+                    result.stderr.replace("\r\n", "\n"),
+                    "HI-RUNNER-STAGEA-EXECUTION-INVALID: deterministic execution failed.\n",
+                )
+                self.assertFalse((root / "stage-a-export").exists())
+            runner_temp_target = root / "runner-temp-target"
+            runner_temp_target.mkdir()
+            runner_temp_reparse = root / "runner-temp-reparse"
+            try:
+                runner_temp_reparse.symlink_to(
+                    runner_temp_target, target_is_directory=True
+                )
+            except OSError:
+                pass
+            else:
+                reparse_environment = environment.copy()
+                reparse_environment["RUNNER_TEMP"] = str(runner_temp_reparse)
+                result = _run_inline_powershell(
+                    run_step["run"], environment=reparse_environment, cwd=root
+                )
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual(
+                    result.stderr.replace("\r\n", "\n"),
+                    "HI-RUNNER-STAGEA-EXECUTION-INVALID: deterministic execution failed.\n",
+                )
+                self.assertFalse((root / "stage-a-export").exists())
+            create_failure = str(run_step["run"]).replace(
+                "New-Item -ItemType Directory -Path $exportDirectory -ErrorAction Stop | Out-Null",
+                "throw 'C:\\Users\\private-canary\\create-failure'",
+                1,
+            )
+            self.assertNotEqual(create_failure, run_step["run"])
+            result = _run_inline_powershell(
+                create_failure, environment=environment, cwd=root
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(
+                result.stderr.replace("\r\n", "\n"),
+                "HI-RUNNER-STAGEA-EXECUTION-INVALID: deterministic execution failed.\n",
+            )
+            self.assertNotIn("private-canary", result.stdout + result.stderr)
+
+            stale_export_root = root / "stage-a-export"
+            stale_export_root.mkdir()
+            result = _run_inline_powershell(
+                run_step["run"], environment=environment, cwd=root
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(
+                result.stderr.replace("\r\n", "\n"),
+                "HI-RUNNER-STAGEA-EXECUTION-INVALID: deterministic execution failed.\n",
+            )
+            stale_export_root.rmdir()
+            stale_work_root = runner_temp / "hardware-inspection-stage-a"
+            stale_work_root.mkdir()
+            result = _run_inline_powershell(
+                run_step["run"], environment=environment, cwd=root
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(
+                result.stderr.replace("\r\n", "\n"),
+                "HI-RUNNER-STAGEA-EXECUTION-INVALID: deterministic execution failed.\n",
+            )
 
     def test_stage_a_workflow_has_no_candidate_capture_offline_or_adapter_path(self):
         raw, document = _workflow(self)
@@ -902,6 +1173,96 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
         })
         self.assertEqual(document["jobs"]["hosted-preflight"]["timeout-minutes"], 15)
         self.assertEqual(document["jobs"]["deterministic-runner"]["timeout-minutes"], 35)
+        runner_steps = _steps(document, "deterministic-runner")
+        hosted_steps = _steps(document, "hosted-preflight")
+        hosted_debug_step = hosted_steps[0]
+        first_step = runner_steps[0]
+        final_step = runner_steps[-1]
+        self.assertEqual(hosted_debug_step.get("timeout-minutes"), 2)
+        self.assertEqual(first_step.get("timeout-minutes"), 2)
+        self.assertEqual(final_step.get("timeout-minutes"), 2)
+        self.assertEqual(final_step.get("if"), "${{ always() }}")
+
+        def residue_result(step, mode):
+            debug_name = mode.split(":", 1)[1] if mode.startswith("debug:") else None
+            if mode == "process":
+                process_body = "@([pscustomobject]@{ ProcessName = 'llmfit-private-canary' })"
+                connection_body = "@()"
+            elif mode == "listener":
+                process_body = "@()"
+                connection_body = "@([pscustomobject]@{ State = 'Listen'; LocalPort = 8787 })"
+            elif mode == "query-failure":
+                process_body = "@()"
+                connection_body = "throw 'C:\\Users\\private-canary\\query-failure'"
+            else:
+                process_body = "@()"
+                connection_body = "@()"
+            prelude = (
+                "function Get-Process { [CmdletBinding()] param() "
+                + process_body
+                + " }\nfunction Get-NetTCPConnection { [CmdletBinding()] param() "
+                + connection_body
+                + " }"
+            )
+            environment = os.environ.copy()
+            for name in (
+                "ACTIONS_STEP_DEBUG",
+                "ACTIONS_RUNNER_DEBUG",
+                "RUNNER_DEBUG",
+                "STAGEA_RUNNER_DEBUG",
+            ):
+                environment.pop(name, None)
+            if debug_name is not None:
+                environment[debug_name] = "false"
+            with tempfile.TemporaryDirectory() as temporary_directory:
+                root = Path(temporary_directory)
+                runner_temp = root / "runner-temp"
+                runner_workspace = root / "runner-workspace"
+                runner_temp.mkdir()
+                runner_workspace.mkdir()
+                environment.update(
+                    {
+                        "GITHUB_WORKSPACE": str(root),
+                        "RUNNER_TEMP": str(runner_temp),
+                        "RUNNER_WORKSPACE": str(runner_workspace),
+                        "USERNAME": "stage-a-test",
+                    }
+                )
+                return _run_inline_powershell(
+                    step["run"], prelude, environment=environment, cwd=root
+                )
+
+        for step, failure in (
+            (first_step, "HI-RUNNER-STAGEA-ENVIRONMENT-INVALID: runner environment is invalid.\n"),
+            (final_step, "HI-RUNNER-STAGEA-RESIDUE-INVALID: fixed residue check failed.\n"),
+        ):
+            clean = residue_result(step, "clean")
+            self.assertEqual(clean.returncode, 0, clean.stderr)
+            for mode in ("process", "listener", "query-failure"):
+                with self.subTest(step=step.get("name"), residue=mode):
+                    result = residue_result(step, mode)
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertEqual(result.stderr.replace("\r\n", "\n"), failure)
+                    self.assertNotIn("private-canary", result.stdout + result.stderr)
+        clean_hosted_debug = residue_result(hosted_debug_step, "clean")
+        self.assertEqual(clean_hosted_debug.returncode, 0, clean_hosted_debug.stderr)
+        self.assertEqual(clean_hosted_debug.stdout, "")
+        self.assertNotIn("eligible", str(hosted_debug_step.get("run", "")).casefold())
+        for debug_name in (
+            "ACTIONS_STEP_DEBUG",
+            "ACTIONS_RUNNER_DEBUG",
+            "RUNNER_DEBUG",
+            "STAGEA_RUNNER_DEBUG",
+        ):
+            for step, failure in (
+                (hosted_debug_step, "HI-RUNNER-STAGEA-DEBUG-INVALID: workflow debug logging is prohibited.\n"),
+                (first_step, "HI-RUNNER-STAGEA-ENVIRONMENT-INVALID: runner environment is invalid.\n"),
+            ):
+                with self.subTest(step=step.get("name"), debug=debug_name):
+                    result = residue_result(step, "debug:" + debug_name)
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertEqual(result.stdout, "")
+                    self.assertEqual(result.stderr.replace("\r\n", "\n"), failure)
         for mutation in (
             raw.replace(b"cancel-in-progress: false", b"cancel-in-progress: true", 1),
             raw.replace(b"timeout-minutes: 35", b"timeout-minutes: 350", 1),
@@ -915,13 +1276,56 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
     def test_stage_a_validator_rejects_invalid_context_with_fixed_output(self):
         validator_text, commands, strings = _powershell_ast_text(self, VALIDATOR_PATH)
         self.assertIn("HI-RUNNER-STAGEA-INVALID", "\n".join(strings + commands + [validator_text]))
+        self.assertGreaterEqual(validator_text.count("[System.IO.DriveType]::Fixed"), 2)
+        self.assertIn("[System.IO.FileAttributes]::ReparsePoint", validator_text)
+        for mutation, required in (
+            (
+                validator_text.replace("[System.IO.DriveType]::Fixed", "[System.IO.DriveType]::Network"),
+                "[System.IO.DriveType]::Fixed",
+            ),
+            (
+                validator_text.replace("[System.IO.FileAttributes]::ReparsePoint", "[System.IO.FileAttributes]::Normal"),
+                "[System.IO.FileAttributes]::ReparsePoint",
+            ),
+        ):
+            with self.assertRaises(AssertionError):
+                self.assertIn(required, mutation)
         for parameter in (
             "Phase", "ControlRoot", "WorkflowRef", "DefaultBranch", "Actor",
             "TriggeringActor", "RepositoryOwner", "RunAttempt", "Confirmation",
             "RunnerLabel", "SourceCheckoutRoot", "EvaluatedRoot", "ApprovedSha",
-            "GitHubOutputPath", "SummaryPath",
+            "GitHubOutputPath", "RunnerTemp", "RunnerWorkspace",
         ):
             self.assertRegex(validator_text, rf"\$\(?{parameter}\)?")
+        self.assertNotRegex(validator_text, r"\$\(?SummaryPath\)?")
+        with tempfile.TemporaryDirectory() as line_ending_directory:
+            line_ending_root = Path(line_ending_directory)
+            crlf_script = line_ending_root / "fresh-checkout.ps1"
+            crlf_script.write_bytes(b"$value = 1\r\n$value | Out-Null\r\n")
+            self.assertEqual(
+                _strict_utf8(crlf_script), "$value = 1\n$value | Out-Null\n"
+            )
+            _powershell_ast(self, crlf_script)
+            for raw in (
+                b"$value = 1\r\n$value | Out-Null\n",
+                b"$value = 1\r$value | Out-Null\r",
+                codecs.BOM_UTF8 + b"$value = 1\r\n",
+            ):
+                crlf_script.write_bytes(raw)
+                with self.assertRaises(AssertionError):
+                    _strict_utf8(crlf_script)
+            for source in (VALIDATOR_PATH, RUNNER_PATH):
+                normalized = _strict_utf8(source)
+                fresh_checkout_script = line_ending_root / source.name
+                fresh_checkout_script.write_bytes(
+                    normalized.replace("\n", "\r\n").encode("utf-8")
+                )
+                self.assertEqual(_strict_utf8(fresh_checkout_script), normalized)
+                _powershell_ast(self, fresh_checkout_script)
+        for arguments in ({}, {"Phase": ""}):
+            with self.subTest(validator_binding=arguments):
+                result = _invoke(VALIDATOR_PATH, arguments, _validator_environment())
+                _assert_invalid_validator_result(self, result)
         with tempfile.TemporaryDirectory() as temporary_directory:
             fixture_root = Path(temporary_directory)
             control_root = fixture_root / "control"
@@ -947,15 +1351,78 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
                 _assert_invalid_validator_result(self, result)
                 self.assertNotIn("canary", result.stdout + result.stderr)
             runner_literal = str(RUNNER_PATH).replace("'", "''")
+            cleanup_marker = fixture_root / "add-type-cleanup.txt"
+            cleanup_literal = str(cleanup_marker).replace("'", "''")
             add_type_failure = subprocess.run(
                 [_powershell_executable(), "-NoProfile", "-NonInteractive", "-Command",
-                 "function Add-Type { throw 'C:\\Users\\canary\\compiler-failure' }\n& '" + runner_literal + "' -EvaluatedRoot 'x' -ApprovedSha ('a' * 40) -LocalWorkRoot 'x' -SummaryJsonPath 'x' -SummaryMarkdownPath 'x'"],
+                 "function Add-Type { throw 'C:\\Users\\canary\\compiler-failure' }\n"
+                 "function Get-Process { [IO.File]::WriteAllText('" + cleanup_literal + "','attempted'); @() }\n"
+                 "function Get-NetTCPConnection { @() }\n"
+                 "& '" + runner_literal + "' -EvaluatedRoot 'x' -ApprovedSha ('a' * 40) -LocalWorkRoot 'x' -SummaryJsonPath 'x' -SummaryMarkdownPath 'x'"],
                 text=True, capture_output=True, timeout=20, check=False,
             )
             self.assertNotEqual(add_type_failure.returncode, 0)
             self.assertEqual(add_type_failure.stdout, "")
             self.assertEqual(add_type_failure.stderr.replace("\r\n", "\n"), INVALID_RUNNER_STDERR)
             self.assertNotIn("canary", add_type_failure.stderr)
+            self.assertEqual(cleanup_marker.read_text(encoding="utf-8"), "attempted")
+
+            runner_text = _strict_utf8(RUNNER_PATH)
+            collection_marker = fixture_root / "collection-init-cleanup.txt"
+            collection_literal = str(collection_marker).replace("'", "''")
+            collection_runner = fixture_root / "mutated-collection-runner.ps1"
+            collection_mutation = runner_text.replace(
+                "$script:StageAOwnedProcesses = New-Object System.Collections.ArrayList",
+                "throw 'C:\\Users\\canary\\collection-init-failure'",
+                1,
+            )
+            self.assertNotEqual(collection_mutation, runner_text)
+            collection_runner.write_text(
+                collection_mutation, encoding="utf-8", newline="\n"
+            )
+            collection_literal_runner = str(collection_runner).replace("'", "''")
+            collection_failure = subprocess.run(
+                [_powershell_executable(), "-NoProfile", "-NonInteractive", "-Command",
+                 "function Get-Process { [IO.File]::WriteAllText('" + collection_literal + "','attempted'); @() }\n"
+                 "function Get-NetTCPConnection { @() }\n"
+                 "& '" + collection_literal_runner + "' -EvaluatedRoot 'x' -ApprovedSha ('a' * 40) -LocalWorkRoot 'x' -SummaryJsonPath 'x' -SummaryMarkdownPath 'x'"],
+                text=True, capture_output=True, timeout=20, check=False,
+            )
+            self.assertNotEqual(collection_failure.returncode, 0)
+            self.assertEqual(collection_failure.stdout, "")
+            self.assertEqual(
+                collection_failure.stderr.replace("\r\n", "\n"),
+                INVALID_RUNNER_STDERR,
+            )
+            self.assertNotIn("canary", collection_failure.stderr)
+            self.assertEqual(collection_marker.read_text(encoding="utf-8"), "attempted")
+
+            unregister_marker = fixture_root / "unregister-cleanup.txt"
+            unregister_literal = str(unregister_marker).replace("'", "''")
+            mutated_runner = fixture_root / "mutated-unregister-runner.ps1"
+            unregister_mutation = runner_text.replace(
+                "[System.Console]::remove_CancelKeyPress($cancelHandler)",
+                "throw 'C:\\Users\\canary\\unregister-failure'",
+                1,
+            )
+            self.assertNotEqual(unregister_mutation, runner_text)
+            mutated_runner.write_text(unregister_mutation, encoding="utf-8", newline="\n")
+            mutated_literal = str(mutated_runner).replace("'", "''")
+            unregister_failure = subprocess.run(
+                [_powershell_executable(), "-NoProfile", "-NonInteractive", "-Command",
+                 "function Get-Process { [IO.File]::WriteAllText('" + unregister_literal + "','attempted'); @() }\n"
+                 "function Get-NetTCPConnection { @() }\n"
+                 "& '" + mutated_literal + "' -EvaluatedRoot 'x' -ApprovedSha ('a' * 40) -LocalWorkRoot 'x' -SummaryJsonPath 'x' -SummaryMarkdownPath 'x'"],
+                text=True, capture_output=True, timeout=20, check=False,
+            )
+            self.assertNotEqual(unregister_failure.returncode, 0)
+            self.assertEqual(unregister_failure.stdout, "")
+            self.assertEqual(
+                unregister_failure.stderr.replace("\r\n", "\n"),
+                INVALID_RUNNER_STDERR,
+            )
+            self.assertNotIn("canary", unregister_failure.stderr)
+            self.assertEqual(unregister_marker.read_text(encoding="utf-8"), "attempted")
 
             hosted_output = fixture_root / "hosted-output.txt"
             hosted = _invoke(
@@ -979,8 +1446,39 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
                     "eligible=true\n"
                 ).encode("utf-8"),
             )
-            hosted_output.write_bytes(b"prior-content-canary\n")
-            with _ExclusiveFileLock(hosted_output) as locked:
+            expected_hosted_output = hosted_output.read_bytes()
+            precreated_empty_output = fixture_root / "precreated-empty-output.txt"
+            precreated_empty_output.write_bytes(b"")
+            precreated = _invoke(
+                VALIDATOR_PATH,
+                _validator_arguments(
+                    control_root,
+                    SourceCheckoutRoot=checkout_root,
+                    GitHubOutputPath=precreated_empty_output,
+                ),
+                environment,
+            )
+            self.assertEqual(precreated.returncode, 0, precreated.stderr)
+            self.assertEqual(precreated.stdout, "")
+            self.assertEqual(precreated.stderr, "")
+            self.assertEqual(precreated_empty_output.read_bytes(), expected_hosted_output)
+            hosted_output.write_bytes(b"unlocked-nonempty-canary\n")
+            unlocked_nonempty = _invoke(
+                VALIDATOR_PATH,
+                _validator_arguments(
+                    control_root,
+                    SourceCheckoutRoot=checkout_root,
+                    GitHubOutputPath=hosted_output,
+                ),
+                environment,
+            )
+            _assert_invalid_validator_result(self, unlocked_nonempty)
+            self.assertEqual(
+                hosted_output.read_bytes(), b"unlocked-nonempty-canary\n"
+            )
+            locked_output = fixture_root / "locked-empty-output.txt"
+            locked_output.write_bytes(b"")
+            with _ExclusiveFileLock(locked_output) as locked:
                 if locked:
                     entries_before = {path.name for path in fixture_root.iterdir()}
                     locked_result = _invoke(
@@ -988,7 +1486,7 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
                         _validator_arguments(
                             control_root,
                             SourceCheckoutRoot=checkout_root,
-                            GitHubOutputPath=hosted_output,
+                            GitHubOutputPath=locked_output,
                         ),
                         environment,
                     )
@@ -996,7 +1494,7 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
                 self.assertTrue(locked, "exclusive output lock fixture is unavailable")
             if locked:
                 _assert_invalid_validator_result(self, locked_result)
-                self.assertEqual(hosted_output.read_bytes(), b"prior-content-canary\n")
+                self.assertEqual(locked_output.read_bytes(), b"")
                 self.assertEqual({path.name for path in fixture_root.iterdir()}, entries_before)
             hosted_output.write_bytes(b"hosted-output-reset\n")
             for malformed_label in (
@@ -1071,6 +1569,105 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
                 _assert_invalid_validator_result(self, result)
             _write_approval_manifest(control_root, approved_sha)
 
+            runner_temp = fixture_root / "runner-temp"
+            runner_workspace = fixture_root / "runner-workspace"
+            runner_temp.mkdir()
+            runner_workspace.mkdir()
+            context_arguments = _validator_arguments(
+                control_root,
+                Phase="RunnerContext",
+                ApprovedSha=approved_sha,
+                RunnerTemp=runner_temp,
+                RunnerWorkspace=runner_workspace,
+            )
+            valid_context = _invoke(
+                VALIDATOR_PATH, context_arguments, environment
+            )
+            self.assertEqual(valid_context.returncode, 0, valid_context.stderr)
+            self.assertEqual(valid_context.stdout, "")
+            self.assertEqual(valid_context.stderr, "")
+            nonfixed_validator = fixture_root / "nonfixed-drive-validator.ps1"
+            nonfixed_validator.write_text(
+                validator_text.replace(
+                    "[System.IO.DriveType]::Fixed",
+                    "[System.IO.DriveType]::Network",
+                ),
+                encoding="utf-8",
+                newline="\n",
+            )
+            simulated_nonfixed = _invoke(
+                nonfixed_validator, context_arguments, environment
+            )
+            _assert_invalid_validator_result(self, simulated_nonfixed)
+            for changes in (
+                {"ApprovedSha": "b" * 40},
+                {"RunnerTemp": r"\\localhost\stage-a-canary"},
+                {"RunnerTemp": r"\\?\C:\stage-a-canary"},
+                {"RunnerTemp": r"\\.\C:\stage-a-canary"},
+                {"RunnerWorkspace": r"\\localhost\stage-a-canary"},
+                {"RunnerWorkspace": r"\\?\C:\stage-a-canary"},
+                {"RunnerWorkspace": r"\\.\C:\stage-a-canary"},
+            ):
+                invalid_context_arguments = dict(context_arguments)
+                invalid_context_arguments.update(changes)
+                result = _invoke(
+                    VALIDATOR_PATH, invalid_context_arguments, environment
+                )
+                _assert_invalid_validator_result(self, result)
+            context_git_environment = environment.copy()
+            context_git_environment["gIt_DiR"] = "privacy-canary"
+            result = _invoke(
+                VALIDATOR_PATH, context_arguments, context_git_environment
+            )
+            _assert_invalid_validator_result(self, result)
+            for environment_name in (
+                "GRANITE_LLMFIT_CANDIDATE_ROOT",
+                "GRANITE_LLMFIT_TRUSTED_OUTPUT",
+                "GRANITE_LLMFIT_GATE1_OUTPUT",
+                "GRANITE_LLMFIT_WINDOWS_REFERENCE",
+                "GRANITE_LLMFIT_OFFLINE_OUTPUT",
+                "GRANITE_LLMFIT_FAKE_TOOL_ROOT",
+            ):
+                context_environment = environment.copy()
+                context_environment[environment_name] = "privacy-canary"
+                result = _invoke(
+                    VALIDATOR_PATH, context_arguments, context_environment
+                )
+                _assert_invalid_validator_result(self, result)
+            reparse_runner_temp = fixture_root / "runner-temp-reparse"
+            try:
+                reparse_runner_temp.symlink_to(runner_temp, target_is_directory=True)
+            except OSError:
+                pass
+            else:
+                reparse_arguments = dict(context_arguments)
+                reparse_arguments["RunnerTemp"] = reparse_runner_temp
+                result = _invoke(
+                    VALIDATOR_PATH, reparse_arguments, environment
+                )
+                _assert_invalid_validator_result(self, result)
+            reparse_runner_workspace = fixture_root / "runner-workspace-reparse"
+            try:
+                reparse_runner_workspace.symlink_to(
+                    runner_workspace, target_is_directory=True
+                )
+            except OSError:
+                pass
+            else:
+                reparse_arguments = dict(context_arguments)
+                reparse_arguments["RunnerWorkspace"] = reparse_runner_workspace
+                result = _invoke(
+                    VALIDATOR_PATH, reparse_arguments, environment
+                )
+                _assert_invalid_validator_result(self, result)
+            stale_work_root = runner_temp / "hardware-inspection-stage-a"
+            stale_work_root.mkdir()
+            result = _invoke(
+                VALIDATOR_PATH, context_arguments, environment
+            )
+            _assert_invalid_validator_result(self, result)
+            stale_work_root.rmdir()
+
             _write_approval_manifest(control_root, "a" * 40)
             result = _invoke(
                 VALIDATOR_PATH,
@@ -1132,7 +1729,6 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
             )
             _assert_invalid_validator_result(self, result)
 
-            summary_path = fixture_root / "stage-a-summary.md"
             runner = _invoke(
                 VALIDATOR_PATH,
                 _validator_arguments(
@@ -1140,14 +1736,12 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
                     Phase="Runner",
                     ApprovedSha=approved_sha,
                     EvaluatedRoot=checkout_root,
-                    SummaryPath=summary_path,
                 ),
                 environment,
             )
             self.assertEqual(runner.returncode, 0, runner.stderr)
             self.assertEqual(runner.stdout, "")
             self.assertEqual(runner.stderr, "")
-            self.assertFalse(summary_path.exists())
 
             for environment_name in (
                 "GRANITE_LLMFIT_CANDIDATE_ROOT",
@@ -1166,7 +1760,6 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
                         Phase="Runner",
                         ApprovedSha=approved_sha,
                         EvaluatedRoot=checkout_root,
-                        SummaryPath=summary_path,
                     ),
                     operational_environment,
                 )
@@ -1182,7 +1775,6 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
                     Phase="Runner",
                     ApprovedSha=approved_sha,
                     EvaluatedRoot=checkout_root,
-                    SummaryPath=summary_path,
                 ),
                 environment,
             )
@@ -1195,7 +1787,6 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
                     Phase="Runner",
                     ApprovedSha="b" * 40,
                     EvaluatedRoot=checkout_root,
-                    SummaryPath=fixture_root / "missing" / "summary.md",
                 ),
                 environment,
             )
@@ -1208,6 +1799,52 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
             "EvaluatedRoot", "ApprovedSha", "LocalWorkRoot", "SummaryJsonPath", "SummaryMarkdownPath",
         ):
             self.assertRegex(runner_text, rf"\${required_parameter}\b")
+        for arguments in (
+            {},
+            {
+                "EvaluatedRoot": "",
+                "ApprovedSha": "",
+                "LocalWorkRoot": "",
+                "SummaryJsonPath": "",
+                "SummaryMarkdownPath": "",
+            },
+        ):
+            with self.subTest(runner_binding=arguments):
+                result = _invoke(RUNNER_PATH, arguments, os.environ.copy())
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual(result.stdout, "")
+                self.assertEqual(
+                    result.stderr.replace("\r\n", "\n"), INVALID_RUNNER_STDERR
+                )
+        pre_function_text = runner_text.split("function Initialize-StageACappedDrain", 1)[0]
+        self.assertIn("$script:StageAOwnedProcesses = $null", pre_function_text)
+        self.assertIn("$script:StageAProcessJob = $null", pre_function_text)
+        self.assertNotIn("New-Object System.Collections.ArrayList", pre_function_text)
+        for required_runtime in (
+            "JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE",
+            "AssignProcessToJobObject",
+            "SetInformationJobObject",
+            "CREATE_SUSPENDED",
+            "EXTENDED_STARTUPINFO_PRESENT",
+            "PROC_THREAD_ATTRIBUTE_HANDLE_LIST",
+            "TerminateJobObject",
+            "QueryInformationJobObject",
+            "Process.GetProcessById",
+            "Initialize-StageARuntime",
+            "bool terminated = TerminateProcess(created.hProcess, 1)",
+            "uint waitResult = WaitForSingleObject(created.hProcess, 5000)",
+            "!terminated || waitResult != WAIT_OBJECT_0",
+            "throw new AggregateException(primaryFailure, containmentFailure)",
+        ):
+            self.assertIn(required_runtime, runner_text)
+        suspended_start = runner_text.index("public static ContainedProcess StartSuspendedAssigned")
+        assignment = runner_text.index("job.AssignHandle(created.hProcess)", suspended_start)
+        resume = runner_text.index("ResumeThread(created.hThread)", suspended_start)
+        retained_handle = runner_text.index("process.Handle", suspended_start)
+        close_stdout_writer = runner_text.index("CloseHandle(stdoutWrite)", suspended_start)
+        self.assertLess(close_stdout_writer, assignment)
+        self.assertLess(retained_handle, assignment)
+        self.assertLess(assignment, resume)
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             arguments = {
@@ -1232,7 +1869,7 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
         for required_hardening in (
             "Test-StageADisjointPaths",
             "DirectorySeparatorChar",
-            "taskkill.exe",
+            "ProcessJob",
             "CancelKeyPress",
             "StageAOwnedProcesses",
             "Wait-StageAProcess",
@@ -1277,7 +1914,9 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
             log_root = Path(temporary_directory) / "sequential-git"
             log_root.mkdir()
             result = _invoke_runner_pure(
-                "$git = (Get-Command git.exe -CommandType Application | Select-Object -First 1).Source\n"
+                "Initialize-StageARuntime\n"
+                + "$git = (Get-Command git.exe -CommandType Application | Select-Object -First 1).Source\n"
+                + "try {\n"
                 + "Invoke-StageAProcess $git @('-C','"
                 + str(checkout).replace("'", "''")
                 + "','rev-parse','--show-toplevel') '"
@@ -1287,7 +1926,7 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
                 + str(checkout).replace("'", "''")
                 + "','rev-parse','HEAD') '"
                 + str(log_root / "git-head").replace("'", "''")
-                + "' 20 $true $true | Out-Null"
+                + "' 20 $true $true | Out-Null\n} finally { Stop-StageAOwnedProcesses }"
             )
             self.assertEqual(result.returncode, 0, result.stderr)
         timeout_fixture = _invoke_runner_pure(
@@ -1303,10 +1942,11 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary_directory:
             log_path = Path(temporary_directory) / "high-volume.log"
             body = (
+                "Initialize-StageARuntime\n"
                 "$tool = (Get-Command powershell.exe -CommandType Application | Select-Object -First 1).Source\n"
-                "try { Invoke-StageAProcess $tool @('-NoProfile','-NonInteractive','-Command',\"[Console]::Out.Write([string]::new([char]120, 17825792))\") '"
+                "try { try { Invoke-StageAProcess $tool @('-NoProfile','-NonInteractive','-Command',\"[Console]::Out.Write([string]::new([char]120, 17825792))\") '"
                 + str(log_path).replace("'", "''")
-                + "' 20 | Out-Null } catch { }\n"
+                + "' 20 | Out-Null } catch { } } finally { Stop-StageAOwnedProcesses }\n"
                 "if (-not (Test-Path '"
                 + str(log_path).replace("'", "''")
                 + ".stdout')) { exit 2 }\n"
@@ -1318,16 +1958,445 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             small_log_path = Path(temporary_directory) / "over-four-kib.log"
             small_body = (
+                "Initialize-StageARuntime\n"
                 "$tool = (Get-Command powershell.exe -CommandType Application | Select-Object -First 1).Source\n"
-                "Invoke-StageAProcess $tool @('-NoProfile','-NonInteractive','-Command',\"[Console]::Out.Write([string]::new([char]121, 8192))\") '"
+                "try { Invoke-StageAProcess $tool @('-NoProfile','-NonInteractive','-Command',\"[Console]::Out.Write([string]::new([char]121, 8192))\") '"
                 + str(small_log_path).replace("'", "''")
-                + "' 20 | Out-Null\n"
+                + "' 20 | Out-Null } finally { Stop-StageAOwnedProcesses }\n"
                 "if ((Get-Item '"
                 + str(small_log_path).replace("'", "''")
                 + ".stdout').Length -ne 8192) { exit 4 }"
             )
             result = _invoke_runner_pure(small_body)
             self.assertEqual(result.returncode, 0, result.stderr)
+
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            log_path = root / "environment.log"
+            environment = os.environ.copy()
+            environment.update(
+                {
+                    "SAFE_CANARY": "ordinary-safe-value",
+                    "GITHUB_STEP_SUMMARY": "command-file-canary",
+                    "github_output": "output-canary",
+                    "GITHUB_ENV": "environment-canary",
+                    "GITHUB_PATH": "path-canary",
+                    "Actions_Cache_URL": "actions-canary",
+                    "RUNNER_TEMP": "runner-canary",
+                    "stagea_private": "stagea-canary",
+                }
+            )
+            child_command = (
+                "[Console]::Out.Write('safe=' + $env:SAFE_CANARY + ';github=' + "
+                "$env:GITHUB_STEP_SUMMARY + ';output=' + $env:GITHUB_OUTPUT + "
+                "';env=' + $env:GITHUB_ENV + ';path=' + $env:GITHUB_PATH + "
+                "';actions=' + $env:Actions_Cache_URL + ';runner=' + $env:RUNNER_TEMP + "
+                "';stagea=' + $env:stagea_private)"
+            )
+            body = (
+                "Initialize-StageARuntime\n"
+                "$tool = (Get-Command powershell.exe -CommandType Application | Select-Object -First 1).Source\n"
+                "try { Invoke-StageAProcess $tool @('-NoProfile','-NonInteractive','-Command',"
+                + "'"
+                + child_command.replace("'", "''")
+                + "') '"
+                + str(log_path).replace("'", "''")
+                + "' 20 | Out-Null } finally { Stop-StageAOwnedProcesses }"
+            )
+            result = _invoke_runner_pure(body, environment=environment)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(
+                (Path(str(log_path) + ".stdout")).read_text(encoding="utf-8"),
+                "safe=ordinary-safe-value;github=;output=;env=;path=;actions=;runner=;stagea=",
+            )
+
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            marker = root / "assignment-failure-marker.txt"
+            log_path = root / "assignment-failure.log"
+            child_script = (
+                "[IO.File]::WriteAllText('"
+                + str(marker).replace("'", "''")
+                + "','evaluated-code-ran')"
+            )
+            child_encoded = base64.b64encode(
+                child_script.encode("utf-16-le")
+            ).decode("ascii")
+            assignment_failure_runner = root / "assignment-failure-runner.ps1"
+            assignment_failure_mutation = runner_text.replace(
+                "            Invoke-HardwareInspectionIntelRunnerStageAInternal\n",
+                "            $script:StageAProcessJob.Dispose()\n"
+                "            $tool = (Get-Command powershell.exe -CommandType Application | Select-Object -First 1).Source\n"
+                "            Invoke-StageAProcess $tool @('-NoProfile','-NonInteractive','-EncodedCommand','"
+                + child_encoded
+                + "') '"
+                + str(log_path).replace("'", "''")
+                + "' 20 | Out-Null\n",
+                1,
+            )
+            self.assertNotEqual(assignment_failure_mutation, runner_text)
+            assignment_failure_runner.write_text(
+                assignment_failure_mutation, encoding="utf-8", newline="\n"
+            )
+            result = _invoke(
+                assignment_failure_runner,
+                {
+                    "EvaluatedRoot": root,
+                    "ApprovedSha": "a" * 40,
+                    "LocalWorkRoot": root,
+                    "SummaryJsonPath": root / "summary.json",
+                    "SummaryMarkdownPath": root / "summary.md",
+                },
+                os.environ.copy(),
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(result.stdout, "")
+            self.assertEqual(
+                result.stderr.replace("\r\n", "\n"), INVALID_RUNNER_STDERR
+            )
+            time.sleep(0.1)
+            self.assertFalse(marker.exists(), "suspended evaluated code ran before assignment")
+
+        final_test_index = runner_text.index("'task8.log'")
+        self.assertLess(
+            runner_text.index("Assert-StageACondition (-not $script:StageACancelled)", final_test_index),
+            runner_text.index("Read-HardwareInspectionIntelRunnerStageATrx", final_test_index),
+        )
+        final_residue_index = runner_text.index("Test-StageAResidualProcesses", final_test_index)
+        self.assertLess(
+            runner_text.index("Assert-StageACondition (-not $script:StageACancelled)", final_residue_index),
+            runner_text.index("$json =", final_residue_index),
+        )
+        outer_cleanup = runner_text.rindex("Stop-StageAOwnedProcesses; Test-StageAResidualProcesses")
+        outer_publication = runner_text.index("Write-StageAAtomicUtf8 $publishJsonPath", outer_cleanup)
+        cancel_after_json = runner_text.index(
+            "Assert-StageACondition (-not $script:StageACancelled)", outer_publication
+        )
+        markdown_publication = runner_text.index(
+            "Write-StageAAtomicUtf8 $publishMarkdownPath", cancel_after_json
+        )
+        cancel_after_markdown = runner_text.index(
+            "Assert-StageACondition (-not $script:StageACancelled)", markdown_publication
+        )
+        outer_unregister = runner_text.index("remove_CancelKeyPress", cancel_after_markdown)
+        final_cancel_decision = runner_text.index("$script:StageACancelled) {", outer_unregister)
+        fixed_failure = runner_text.index("WriteLine($script:StageAFailure)", final_cancel_decision)
+        self.assertLess(outer_cleanup, outer_publication)
+        self.assertLess(outer_publication, cancel_after_json)
+        self.assertLess(cancel_after_json, markdown_publication)
+        self.assertLess(markdown_publication, cancel_after_markdown)
+        self.assertLess(cancel_after_markdown, outer_unregister)
+        self.assertLess(outer_unregister, final_cancel_decision)
+        self.assertLess(final_cancel_decision, fixed_failure)
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            mutated_runner = root / "late-cancel-runner.ps1"
+            late_cancel = runner_text.replace(
+                "            Invoke-HardwareInspectionIntelRunnerStageAInternal\n",
+                "            $script:StageACancelled = $true\n",
+                1,
+            )
+            self.assertNotEqual(late_cancel, runner_text)
+            mutated_runner.write_text(late_cancel, encoding="utf-8", newline="\n")
+            result = _invoke(
+                mutated_runner,
+                {
+                    "EvaluatedRoot": root,
+                    "ApprovedSha": "a" * 40,
+                    "LocalWorkRoot": root,
+                    "SummaryJsonPath": root / "summary.json",
+                    "SummaryMarkdownPath": root / "summary.md",
+                },
+                os.environ.copy(),
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(result.stdout, "")
+            self.assertEqual(
+                result.stderr.replace("\r\n", "\n"), INVALID_RUNNER_STDERR
+            )
+            self.assertFalse((root / "summary.json").exists())
+            self.assertFalse((root / "summary.md").exists())
+
+        pending_replacement = (
+            "            $script:StageAPendingEvaluatedRoot = $EvaluatedRoot\n"
+            "            $script:StageAPendingSummaryJsonPath = $SummaryJsonPath\n"
+            "            $script:StageAPendingSummaryMarkdownPath = $SummaryMarkdownPath\n"
+            "            $script:StageAPendingSummaryJson = "
+            "'{\"schemaVersion\":\"1.0\",\"evaluatedSha\":\"' + $ApprovedSha + "
+            "'\",\"deterministicPassed\":174,\"task8DeterministicPassed\":3,\"nonPassing\":0}'\n"
+            "            $script:StageAPendingSummaryMarkdown = "
+            "\"# Hardware Inspection Intel Stage A`n`n- Evaluated SHA: $ApprovedSha`n"
+            "- Deterministic passed: 174`n- Task8 deterministic passed: 3`n- Non-passing: 0`n\"\n"
+        )
+        seeded_runner = runner_text.replace(
+            "            Invoke-HardwareInspectionIntelRunnerStageAInternal\n",
+            pending_replacement,
+            1,
+        )
+        self.assertNotEqual(seeded_runner, runner_text)
+        for mutation_name, mutation in (
+            (
+                "cleanup-cancel",
+                seeded_runner.replace(
+                    "try { Stop-StageAOwnedProcesses; Test-StageAResidualProcesses }",
+                    "try { Stop-StageAOwnedProcesses; $script:StageACancelled = $true; Test-StageAResidualProcesses }",
+                    1,
+                ),
+            ),
+            (
+                "publication-cancel",
+                seeded_runner.replace(
+                    "                    Write-StageAAtomicUtf8 $publishJsonPath $script:StageAPendingSummaryJson\n"
+                    "                    Assert-StageACondition (-not $script:StageACancelled)\n",
+                    "                    Write-StageAAtomicUtf8 $publishJsonPath $script:StageAPendingSummaryJson\n"
+                    "                    $script:StageACancelled = $true\n"
+                    "                    Assert-StageACondition (-not $script:StageACancelled)\n",
+                    1,
+                ),
+            ),
+        ):
+            with self.subTest(cancellation_seam=mutation_name), tempfile.TemporaryDirectory() as temporary_directory:
+                root = Path(temporary_directory)
+                mutated_runner = root / (mutation_name + "-runner.ps1")
+                mutated_runner.write_text(mutation, encoding="utf-8", newline="\n")
+                evaluated = root / "evaluated"
+                evaluated.mkdir()
+                json_path = root / "summary.json"
+                markdown_path = root / "summary.md"
+                result = _invoke(
+                    mutated_runner,
+                    {
+                        "EvaluatedRoot": evaluated,
+                        "ApprovedSha": "a" * 40,
+                        "LocalWorkRoot": root,
+                        "SummaryJsonPath": json_path,
+                        "SummaryMarkdownPath": markdown_path,
+                    },
+                    os.environ.copy(),
+                )
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual(result.stdout, "")
+                self.assertEqual(
+                    result.stderr.replace("\r\n", "\n"), INVALID_RUNNER_STDERR
+                )
+                if mutation_name == "cleanup-cancel":
+                    self.assertFalse(json_path.exists())
+                else:
+                    self.assertTrue(json_path.is_file())
+                    self.assertNotIn(b"tampered", json_path.read_bytes())
+                self.assertFalse(markdown_path.exists())
+
+        if os.name == "nt":
+            with tempfile.TemporaryDirectory() as temporary_directory:
+                root = Path(temporary_directory)
+                ready = root / "root-ready.txt"
+                release = root / "release.txt"
+                child_pid_path = root / "child-pid.txt"
+                log_path = root / "tree.log"
+                literal = lambda value: "'" + str(value).replace("'", "''") + "'"
+                child_script = "[Threading.Thread]::Sleep(60000)"
+                child_encoded = base64.b64encode(
+                    child_script.encode("utf-16-le")
+                ).decode("ascii")
+                parent_script = (
+                    "$ErrorActionPreference='Stop'\n"
+                    + "[IO.File]::WriteAllText("
+                    + literal(ready)
+                    + ",[string]$PID)\n"
+                    + "$deadline=[DateTime]::UtcNow.AddSeconds(15)\n"
+                    + "while(-not (Test-Path -LiteralPath "
+                    + literal(release)
+                    + ")) { if([DateTime]::UtcNow -ge $deadline){exit 9}; Start-Sleep -Milliseconds 20 }\n"
+                    + "$info=New-Object Diagnostics.ProcessStartInfo\n"
+                    + "$info.FileName=(Get-Command powershell.exe -CommandType Application | Select-Object -First 1).Source\n"
+                    + "$info.Arguments='-NoProfile -NonInteractive -EncodedCommand "
+                    + child_encoded
+                    + "'\n"
+                    + "$info.UseShellExecute=$true\n"
+                    + "$info.WindowStyle=[Diagnostics.ProcessWindowStyle]::Hidden\n"
+                    + "$child=[Diagnostics.Process]::Start($info)\n"
+                    + "[IO.File]::WriteAllText("
+                    + literal(child_pid_path)
+                    + ",[string]$child.Id)\n"
+                )
+                parent_encoded = base64.b64encode(
+                    parent_script.encode("utf-16-le")
+                ).decode("ascii")
+                body = (
+                    "Initialize-StageARuntime\n"
+                    "$tool=(Get-Command powershell.exe -CommandType Application | Select-Object -First 1).Source\n"
+                    "try { Invoke-StageAProcess $tool @('-NoProfile','-NonInteractive','-EncodedCommand','"
+                    + parent_encoded
+                    + "') "
+                    + literal(log_path)
+                    + " 25 | Out-Null } finally { Stop-StageAOwnedProcesses }"
+                )
+                process = subprocess.Popen(
+                    _runner_pure_command(body),
+                    text=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                )
+                child_pid = None
+                try:
+                    for _ in range(500):
+                        if ready.exists():
+                            break
+                        if process.poll() is not None:
+                            break
+                        time.sleep(0.02)
+                    self.assertTrue(ready.exists(), "job fixture root never reached its release gate")
+                    time.sleep(0.2)
+                    release.write_text("release\n", encoding="utf-8", newline="\n")
+                    stdout, stderr = process.communicate(timeout=30)
+                    self.assertEqual(process.returncode, 0, stderr)
+                    self.assertEqual(stdout, "")
+                    child_pid = int(child_pid_path.read_text(encoding="utf-8"))
+                    for _ in range(250):
+                        probe = subprocess.run(
+                            [
+                                _powershell_executable(),
+                                "-NoProfile",
+                                "-NonInteractive",
+                                "-Command",
+                                "if (Get-Process -Id "
+                                + str(child_pid)
+                                + " -ErrorAction SilentlyContinue) { exit 1 }",
+                            ],
+                            capture_output=True,
+                            timeout=5,
+                            check=False,
+                        )
+                        if probe.returncode == 0:
+                            break
+                        time.sleep(0.02)
+                    self.assertEqual(probe.returncode, 0, "job descendant survived cleanup")
+                finally:
+                    if process.poll() is None:
+                        process.kill()
+                        process.communicate(timeout=5)
+                    if child_pid is not None:
+                        subprocess.run(
+                            ["taskkill.exe", "/PID", str(child_pid), "/F"],
+                            capture_output=True,
+                            timeout=5,
+                            check=False,
+                        )
+
+            with tempfile.TemporaryDirectory() as temporary_directory:
+                root = Path(temporary_directory)
+                evaluated = root / "evaluated"
+                evaluated.mkdir()
+                json_path = root / "summary.json"
+                markdown_path = root / "summary.md"
+                child_ready = root / "overwriter-ready.txt"
+                child_pid_path = root / "overwriter-pid.txt"
+                log_path = root / "overwriter-parent.log"
+                literal = lambda value: "'" + str(value).replace("'", "''") + "'"
+                child_script = (
+                    "[IO.File]::WriteAllText("
+                    + literal(child_ready)
+                    + ",'ready')\n"
+                    + "$deadline=[DateTime]::UtcNow.AddSeconds(20)\n"
+                    + "while(-not (Test-Path -LiteralPath "
+                    + literal(json_path)
+                    + ")) { if([DateTime]::UtcNow -ge $deadline){exit 9}; Start-Sleep -Milliseconds 5 }\n"
+                    + "[IO.File]::WriteAllText("
+                    + literal(json_path)
+                    + ",'tampered-by-descendant')\n"
+                    + "Start-Sleep -Seconds 20\n"
+                )
+                child_encoded = base64.b64encode(
+                    child_script.encode("utf-16-le")
+                ).decode("ascii")
+                parent_script = (
+                    "$ErrorActionPreference='Stop'\n"
+                    + "$info=New-Object Diagnostics.ProcessStartInfo\n"
+                    + "$info.FileName=(Get-Command powershell.exe -CommandType Application | Select-Object -First 1).Source\n"
+                    + "$info.Arguments='-NoProfile -NonInteractive -EncodedCommand "
+                    + child_encoded
+                    + "'\n"
+                    + "$info.UseShellExecute=$true\n"
+                    + "$info.WindowStyle=[Diagnostics.ProcessWindowStyle]::Hidden\n"
+                    + "$child=[Diagnostics.Process]::Start($info)\n"
+                    + "[IO.File]::WriteAllText("
+                    + literal(child_pid_path)
+                    + ",[string]$child.Id)\n"
+                    + "$deadline=[DateTime]::UtcNow.AddSeconds(10)\n"
+                    + "while(-not (Test-Path -LiteralPath "
+                    + literal(child_ready)
+                    + ")) { if([DateTime]::UtcNow -ge $deadline){exit 8}; Start-Sleep -Milliseconds 10 }\n"
+                )
+                parent_encoded = base64.b64encode(
+                    parent_script.encode("utf-16-le")
+                ).decode("ascii")
+                lingering_replacement = (
+                    "            $tool = (Get-Command powershell.exe -CommandType Application | Select-Object -First 1).Source\n"
+                    "            Invoke-StageAProcess $tool @('-NoProfile','-NonInteractive','-EncodedCommand','"
+                    + parent_encoded
+                    + "') "
+                    + literal(log_path)
+                    + " 20 | Out-Null\n"
+                    + pending_replacement
+                )
+                lingering_runner_text = runner_text.replace(
+                    "            Invoke-HardwareInspectionIntelRunnerStageAInternal\n",
+                    lingering_replacement,
+                    1,
+                )
+                self.assertNotEqual(lingering_runner_text, runner_text)
+                lingering_runner = root / "lingering-overwriter-runner.ps1"
+                lingering_runner.write_text(
+                    lingering_runner_text, encoding="utf-8", newline="\n"
+                )
+                child_pid = None
+                try:
+                    result = _invoke(
+                        lingering_runner,
+                        {
+                            "EvaluatedRoot": evaluated,
+                            "ApprovedSha": "a" * 40,
+                            "LocalWorkRoot": root,
+                            "SummaryJsonPath": json_path,
+                            "SummaryMarkdownPath": markdown_path,
+                        },
+                        os.environ.copy(),
+                    )
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertEqual(result.stdout, "")
+                    self.assertEqual(result.stderr, "")
+                    child_pid = int(child_pid_path.read_text(encoding="utf-8"))
+                    expected_json = (
+                        '{"schemaVersion":"1.0","evaluatedSha":"'
+                        + ("a" * 40)
+                        + '","deterministicPassed":174,"task8DeterministicPassed":3,"nonPassing":0}'
+                    ).encode("utf-8")
+                    time.sleep(0.2)
+                    self.assertEqual(json_path.read_bytes(), expected_json)
+                    self.assertNotIn(b"tampered", markdown_path.read_bytes())
+                    probe = subprocess.run(
+                        [
+                            _powershell_executable(),
+                            "-NoProfile",
+                            "-NonInteractive",
+                            "-Command",
+                            "if (Get-Process -Id "
+                            + str(child_pid)
+                            + " -ErrorAction SilentlyContinue) { exit 1 }",
+                        ],
+                        capture_output=True,
+                        timeout=5,
+                        check=False,
+                    )
+                    self.assertEqual(probe.returncode, 0, "summary overwriter survived cleanup")
+                finally:
+                    if child_pid is not None:
+                        subprocess.run(
+                            ["taskkill.exe", "/PID", str(child_pid), "/F"],
+                            capture_output=True,
+                            timeout=5,
+                            check=False,
+                        )
 
     def test_stage_a_runner_requires_exact_trx_identities_and_zero_nonpassing(self):
         runner_text, commands, strings = _powershell_ast_text(self, RUNNER_PATH)
@@ -1420,6 +2489,110 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
             _assert_summary_upload(self, document)
             workflow_runs = "\n".join(str(step.get("run", "")) for _, step in _all_steps(document))
             _assert_no_host_or_path_leaks(self, workflow_runs)
+            artifact_validator = next(
+                step["run"]
+                for step in _steps(document, "deterministic-runner")
+                if step.get("name") == "Validate Stage A summary artifacts before upload"
+            )
+            approved_sha = "a" * 40
+            expected_artifact_json = (
+                '{"schemaVersion":"1.0","evaluatedSha":"'
+                + approved_sha
+                + '","deterministicPassed":174,"task8DeterministicPassed":3,"nonPassing":0}'
+            ).encode("utf-8")
+            expected_artifact_markdown = (
+                "# Hardware Inspection Intel Stage A\n\n- Evaluated SHA: "
+                + approved_sha
+                + "\n- Deterministic passed: 174\n- Task8 deterministic passed: 3\n- Non-passing: 0\n"
+            ).encode("utf-8")
+
+            def artifact_fixture(
+                json_bytes,
+                markdown_bytes,
+                file_reparse=False,
+                ancestor_reparse=False,
+                lock_json=False,
+            ):
+                with tempfile.TemporaryDirectory() as temporary_directory:
+                    root = Path(temporary_directory)
+                    if ancestor_reparse:
+                        actual_export = root / "actual-export"
+                        actual_export.mkdir()
+                        export = root / "stage-a-export"
+                        try:
+                            export.symlink_to(actual_export, target_is_directory=True)
+                        except OSError:
+                            return None
+                    else:
+                        export = root / "stage-a-export"
+                        export.mkdir()
+                    json_path = export / "stage-a-summary.json"
+                    markdown_path = export / "stage-a-summary.md"
+                    json_path.write_bytes(json_bytes)
+                    markdown_path.write_bytes(markdown_bytes)
+                    if file_reparse:
+                        target = root / "summary-target.json"
+                        target.write_bytes(json_bytes)
+                        json_path.unlink()
+                        try:
+                            json_path.symlink_to(target)
+                        except OSError:
+                            return None
+                    environment = os.environ.copy()
+                    environment["STAGEA_APPROVED_SHA"] = approved_sha
+                    if lock_json:
+                        with _ExclusiveFileLock(json_path) as locked:
+                            if not locked:
+                                return None
+                            return _run_inline_powershell(
+                                artifact_validator,
+                                environment=environment,
+                                cwd=root,
+                            )
+                    return _run_inline_powershell(
+                        artifact_validator,
+                        environment=environment,
+                        cwd=root,
+                    )
+
+            exact_artifacts = artifact_fixture(
+                expected_artifact_json, expected_artifact_markdown
+            )
+            self.assertEqual(exact_artifacts.returncode, 0, exact_artifacts.stderr)
+            self.assertEqual(exact_artifacts.stdout, "")
+            self.assertEqual(exact_artifacts.stderr, "")
+            for case_name, json_bytes, markdown_bytes in (
+                ("malformed-json", b"{}", expected_artifact_markdown),
+                ("extra-json-byte", expected_artifact_json + b"x", expected_artifact_markdown),
+                ("malformed-markdown", expected_artifact_json, b"malformed"),
+                ("extra-markdown-byte", expected_artifact_json, expected_artifact_markdown + b"x"),
+            ):
+                with self.subTest(artifact_validation=case_name):
+                    result = artifact_fixture(json_bytes, markdown_bytes)
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertEqual(result.stdout, "")
+                    self.assertEqual(
+                        result.stderr.replace("\r\n", "\n"),
+                        "HI-RUNNER-STAGEA-ARTIFACTS-INVALID: summary validation failed.\n",
+                    )
+            for case_name, kwargs in (
+                ("file-reparse", {"file_reparse": True}),
+                ("ancestor-reparse", {"ancestor_reparse": True}),
+                ("locked-json", {"lock_json": True}),
+            ):
+                with self.subTest(artifact_validation=case_name):
+                    result = artifact_fixture(
+                        expected_artifact_json,
+                        expected_artifact_markdown,
+                        **kwargs,
+                    )
+                    if result is not None:
+                        self.assertNotEqual(result.returncode, 0)
+                        self.assertEqual(result.stdout, "")
+                        self.assertEqual(
+                            result.stderr.replace("\r\n", "\n"),
+                            "HI-RUNNER-STAGEA-ARTIFACTS-INVALID: summary validation failed.\n",
+                        )
             trx_upload = copy.deepcopy(document)
             trx_steps = [
                 step for _, step in _all_steps(trx_upload)

@@ -213,27 +213,65 @@ def _markdown_link_destinations(text):
         yield path.rstrip("/").rsplit("/", 1)[-1]
 
 
-def _stage0_inventory_paths():
-    paths = set()
-    workflows = REPOSITORY_ROOT / ".github" / "workflows"
-    if workflows.is_dir():
-        for path in workflows.rglob("*"):
-            if path.is_file():
-                paths.add(path.relative_to(REPOSITORY_ROOT).as_posix())
-    hardware_scripts = REPOSITORY_ROOT / "scripts" / "hardware-inspection"
-    if hardware_scripts.is_dir():
-        for path in hardware_scripts.rglob("*"):
-            if path.is_file():
-                paths.add(path.relative_to(REPOSITORY_ROOT).as_posix())
-    gate1_runbook = (
-        REPOSITORY_ROOT
-        / "docs"
-        / "testing"
-        / "runbooks"
-        / "Hardware-Inspection-LLM-Fit-Gate-1-Runbook.md"
+def _stage0_inventory_paths(repository_root=REPOSITORY_ROOT):
+    environment = {
+        key: value
+        for key, value in os.environ.items()
+        if not key.casefold().startswith("git_")
+    }
+    result = subprocess.run(
+        ["git", "-C", str(repository_root), "ls-files", "-z"],
+        capture_output=True,
+        timeout=20,
+        check=False,
+        env=environment,
     )
-    if gate1_runbook.is_file():
-        paths.add(gate1_runbook.relative_to(REPOSITORY_ROOT).as_posix())
+    if result.returncode != 0:
+        raise AssertionError("Stage 0 inventory Git index query failed")
+    try:
+        tracked_paths = result.stdout.decode("utf-8", "strict").split("\0")
+    except UnicodeDecodeError as error:
+        raise AssertionError("Stage 0 inventory Git index is not UTF-8") from error
+    if tracked_paths[-1:] != [""]:
+        raise AssertionError("Stage 0 inventory Git index framing is invalid")
+    tracked_paths.pop()
+    candidate_paths = set(tracked_paths)
+    try:
+        for relative_root in (
+            Path(".github") / "workflows",
+            Path("scripts"),
+            Path("docs") / "testing" / "runbooks",
+        ):
+            root = repository_root / relative_root
+            if root.is_dir():
+                for path in root.rglob("*"):
+                    if path.is_file():
+                        candidate_paths.add(path.relative_to(repository_root).as_posix())
+                        if len(candidate_paths) > 100000:
+                            raise AssertionError("Stage 0 inventory is unexpectedly large")
+    except OSError as error:
+        raise AssertionError("Stage 0 on-disk inventory query failed") from error
+    paths = set()
+    for relative in candidate_paths:
+        normalized_path = relative.replace("\\", "/")
+        casefolded = normalized_path.casefold()
+        normalized = re.sub(r"[^a-z0-9]+", "", normalized_path.casefold())
+        if casefolded.startswith(".github/workflows/"):
+            paths.add(normalized_path)
+        elif (
+            casefolded.startswith("scripts/")
+            and "hardware" in normalized
+            and "inspection" in normalized
+        ):
+            paths.add(normalized_path)
+        elif (
+            casefolded.startswith("docs/testing/runbooks/")
+            and all(
+                token in normalized
+                for token in ("hardware", "inspection", "llm", "fit", "gate", "1", "runbook")
+            )
+        ):
+            paths.add(normalized_path)
     return paths
 
 
@@ -267,7 +305,11 @@ def _assert_stage0_inventory(test_case, repository_paths):
         },
     )
     hardware_scripts = {
-        path for path in paths if path.casefold().startswith("scripts/hardware-inspection/")
+        path
+        for path in paths
+        if path.casefold().startswith("scripts/")
+        and "hardware" in re.sub(r"[^a-z0-9]+", "", path.casefold())
+        and "inspection" in re.sub(r"[^a-z0-9]+", "", path.casefold())
     }
     test_case.assertEqual(
         hardware_scripts,
@@ -277,12 +319,16 @@ def _assert_stage0_inventory(test_case, repository_paths):
             "scripts/hardware-inspection/Invoke-HardwareInspectionIntelRunnerStageA.ps1",
         },
     )
-    for path in paths:
-        normalized = re.sub(r"[^a-z0-9]+", "", path.casefold())
-        test_case.assertNotEqual(
-            normalized,
-            "docstestingrunbookshardwareinspectionllmfitgate1runbookmd",
+    gate1_runbooks = {
+        path
+        for path in paths
+        if path.casefold().startswith("docs/testing/runbooks/")
+        and all(
+            token in re.sub(r"[^a-z0-9]+", "", path.casefold())
+            for token in ("hardware", "inspection", "llm", "fit", "gate", "1", "runbook")
         )
+    }
+    test_case.assertEqual(gate1_runbooks, set())
     for forbidden_path in (
         ".github/workflows/hardware-inspection-intel-runner-stage-b.yml",
         ".github/workflows/hardware-inspection-intel-runner-stage-d.yml",
@@ -959,6 +1005,141 @@ on:
 
         inventory_paths = _stage0_inventory_paths()
         _assert_stage0_inventory(self, inventory_paths)
+        prior_git_dir = os.environ.get("GIT_DIR")
+        os.environ["GIT_DIR"] = str(REPOSITORY_ROOT / "private-canary-invalid-git-dir")
+        try:
+            self.assertEqual(_stage0_inventory_paths(), inventory_paths)
+        finally:
+            if prior_git_dir is None:
+                os.environ.pop("GIT_DIR", None)
+            else:
+                os.environ["GIT_DIR"] = prior_git_dir
+
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            collector_root = Path(temporary_directory)
+            script_alias = (
+                collector_root
+                / "scripts"
+                / "hardware_inspection"
+                / "Invoke-HardwareInspectionIntelOffline.ps1"
+            )
+            runbook_alias = (
+                collector_root
+                / "docs"
+                / "testing"
+                / "runbooks"
+                / "hardware_inspection_llm_fit_gate_1_runbook.md"
+            )
+            runbook_copy_alias = (
+                collector_root
+                / "docs"
+                / "testing"
+                / "runbooks"
+                / "Hardware-Inspection-LLM-Fit-Gate-1-Runbook-copy.md"
+            )
+            inserted_script_alias = (
+                collector_root
+                / "scripts"
+                / "hardware-intel-inspection"
+                / "Invoke-IntelRunnerStageA.ps1"
+            )
+            inserted_runbook_alias = (
+                collector_root
+                / "docs"
+                / "testing"
+                / "runbooks"
+                / "Hardware-Inspection-Intel-LLM-Fit-Gate-1-Runbook.md"
+            )
+            script_alias.parent.mkdir(parents=True)
+            runbook_alias.parent.mkdir(parents=True)
+            inserted_script_alias.parent.mkdir(parents=True)
+            script_alias.write_text("unsafe\n", encoding="utf-8", newline="\n")
+            runbook_alias.write_text("unsafe\n", encoding="utf-8", newline="\n")
+            runbook_copy_alias.write_text("unsafe\n", encoding="utf-8", newline="\n")
+            inserted_script_alias.write_text("unsafe\n", encoding="utf-8", newline="\n")
+            inserted_runbook_alias.write_text("unsafe\n", encoding="utf-8", newline="\n")
+            subprocess.run(
+                ["git", "-C", str(collector_root), "init", "--quiet"],
+                check=True,
+                capture_output=True,
+                timeout=20,
+            )
+            subprocess.run(
+                ["git", "-C", str(collector_root), "add", "--", "scripts", "docs"],
+                check=True,
+                capture_output=True,
+                timeout=20,
+            )
+            untracked_workflow = (
+                collector_root
+                / ".github"
+                / "workflows"
+                / "hardware-inspection-intel-untracked.yml"
+            )
+            untracked_workflow.parent.mkdir(parents=True)
+            untracked_workflow.write_text("on: workflow_dispatch\n", encoding="utf-8", newline="\n")
+            self.assertEqual(
+                _stage0_inventory_paths(collector_root),
+                {
+                    "scripts/hardware_inspection/Invoke-HardwareInspectionIntelOffline.ps1",
+                    "docs/testing/runbooks/hardware_inspection_llm_fit_gate_1_runbook.md",
+                    "docs/testing/runbooks/Hardware-Inspection-LLM-Fit-Gate-1-Runbook-copy.md",
+                    "scripts/hardware-intel-inspection/Invoke-IntelRunnerStageA.ps1",
+                    "docs/testing/runbooks/Hardware-Inspection-Intel-LLM-Fit-Gate-1-Runbook.md",
+                    ".github/workflows/hardware-inspection-intel-untracked.yml",
+                },
+            )
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            sparse_root = Path(temporary_directory)
+            visible_workflow = sparse_root / ".github" / "workflows" / "visible.yml"
+            hidden_script = (
+                sparse_root
+                / "scripts"
+                / "hardware-intel-inspection"
+                / "Invoke-IntelRunnerStageB.ps1"
+            )
+            hidden_runbook = (
+                sparse_root
+                / "docs"
+                / "testing"
+                / "runbooks"
+                / "LLM-Fit-Runbook-Hardware-Inspection-Gate-1.md"
+            )
+            visible_workflow.parent.mkdir(parents=True)
+            hidden_script.parent.mkdir(parents=True)
+            hidden_runbook.parent.mkdir(parents=True)
+            visible_workflow.write_text("on: workflow_dispatch\n", encoding="utf-8", newline="\n")
+            hidden_script.write_text("unsafe\n", encoding="utf-8", newline="\n")
+            hidden_runbook.write_text("unsafe\n", encoding="utf-8", newline="\n")
+            for arguments in (
+                ("init", "--quiet"),
+                ("config", "user.email", "stage0@example.invalid"),
+                ("config", "user.name", "Stage 0"),
+                ("add", "--", ".github", "scripts", "docs"),
+                ("commit", "--quiet", "-m", "inventory fixture"),
+                ("sparse-checkout", "init", "--no-cone"),
+                ("sparse-checkout", "set", "--no-cone", "/.github/workflows/"),
+            ):
+                subprocess.run(
+                    ["git", "-C", str(sparse_root), *arguments],
+                    check=True,
+                    capture_output=True,
+                    timeout=20,
+                )
+            self.assertTrue(visible_workflow.is_file())
+            self.assertFalse(hidden_script.exists())
+            self.assertFalse(hidden_runbook.exists())
+            self.assertEqual(
+                _stage0_inventory_paths(sparse_root),
+                {
+                    ".github/workflows/visible.yml",
+                    "scripts/hardware-intel-inspection/Invoke-IntelRunnerStageB.ps1",
+                    "docs/testing/runbooks/LLM-Fit-Runbook-Hardware-Inspection-Gate-1.md",
+                },
+            )
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            with self.assertRaises(AssertionError):
+                _stage0_inventory_paths(Path(temporary_directory))
 
         runbook_raw = runbook_path.read_bytes()
         runbook_text = runbook_raw.decode("utf-8", "strict")

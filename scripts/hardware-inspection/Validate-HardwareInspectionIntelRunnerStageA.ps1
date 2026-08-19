@@ -24,7 +24,8 @@ param(
     [string]$EvaluatedRoot,
     [string]$ApprovedSha,
     [string]$GitHubOutputPath,
-    [string]$SummaryPath
+    [string]$RunnerTemp,
+    [string]$RunnerWorkspace
 )
 
 Set-StrictMode -Version Latest
@@ -84,6 +85,11 @@ function Resolve-NormalExistingDirectory {
         throw 'Directory is unavailable.'
     }
     Assert-NoReparseComponent -FullPath $fullPath
+    $driveRoot = [System.IO.Path]::GetPathRoot($fullPath)
+    $drive = New-Object System.IO.DriveInfo($driveRoot)
+    if ($drive.DriveType -ne [System.IO.DriveType]::Fixed) {
+        throw 'Directory is not on a fixed local drive.'
+    }
     return $fullPath
 }
 
@@ -101,6 +107,11 @@ function Resolve-NormalExistingFile {
         throw 'File is unavailable.'
     }
     Assert-NoReparseComponent -FullPath $fullPath
+    $driveRoot = [System.IO.Path]::GetPathRoot($fullPath)
+    $drive = New-Object System.IO.DriveInfo($driveRoot)
+    if ($drive.DriveType -ne [System.IO.DriveType]::Fixed) {
+        throw 'File is not on a fixed local drive.'
+    }
     return $fullPath
 }
 
@@ -118,11 +129,20 @@ function Resolve-NormalOutputPath {
     if ([string]::IsNullOrEmpty($parent)) {
         throw 'Output parent is invalid.'
     }
-    $null = Resolve-NormalExistingDirectory -Path $parent
-    if (Test-Path -LiteralPath $fullPath) {
-        $null = Resolve-NormalExistingFile -Path $fullPath
+    $normalParent = Resolve-NormalExistingDirectory -Path $parent
+    $exists = Test-Path -LiteralPath $fullPath
+    if ($exists) {
+        $normalFile = Resolve-NormalExistingFile -Path $fullPath
+        $file = Get-Item -LiteralPath $normalFile -Force
+        if ($file.Length -ne 0) {
+            throw 'Output file is not empty.'
+        }
     }
-    return $fullPath
+    return [pscustomobject]@{
+        Path = $fullPath
+        Parent = $normalParent
+        Existed = $exists
+    }
 }
 
 function Get-ApprovedManifestSha {
@@ -233,12 +253,14 @@ function Assert-CleanGitCheckout {
 
 function Write-Utf8NoBomFile {
     param(
-        [string]$Path,
+        [object]$Target,
         [string]$Content
     )
 
+    $Path = [string]$Target.Path
     $directory = [System.IO.Path]::GetDirectoryName($Path)
     $temporaryPath = Join-Path -Path $directory -ChildPath ('.stagea-' + [System.Guid]::NewGuid().ToString('N') + '.tmp')
+    $backupPath = $null
     $stream = $null
     $writer = $null
     try {
@@ -261,8 +283,21 @@ function Write-Utf8NoBomFile {
         $writer = $null
         $stream.Dispose()
         $stream = $null
-        if ([System.IO.File]::Exists($Path)) {
-            [System.IO.File]::Replace($temporaryPath, $Path, $null)
+        $revalidated = Resolve-NormalOutputPath -Path $Path
+        if ($revalidated.Path -cne $Target.Path -or
+            $revalidated.Parent -cne $Target.Parent -or
+            $revalidated.Existed -ne $Target.Existed) {
+            throw 'Output target changed before publication.'
+        }
+        if ($Target.Existed) {
+            $backupPath = Join-Path -Path $directory -ChildPath ('.stagea-' + [System.Guid]::NewGuid().ToString('N') + '.bak')
+            if ([System.IO.File]::Exists($backupPath)) {
+                throw 'Output backup already exists.'
+            }
+            [System.IO.File]::Replace($temporaryPath, $Path, $backupPath)
+            $temporaryPath = $null
+            [System.IO.File]::Delete($backupPath)
+            $backupPath = $null
         }
         else {
             [System.IO.File]::Move($temporaryPath, $Path)
@@ -278,6 +313,9 @@ function Write-Utf8NoBomFile {
         }
         if ($null -ne $temporaryPath -and [System.IO.File]::Exists($temporaryPath)) {
             [System.IO.File]::Delete($temporaryPath)
+        }
+        if ($null -ne $backupPath -and [System.IO.File]::Exists($backupPath)) {
+            [System.IO.File]::Delete($backupPath)
         }
     }
 }
@@ -313,12 +351,12 @@ try {
             throw 'Source identity is not approved.'
         }
         Assert-CleanGitCheckout -Root $sourceRoot -GitApplication $gitApplication
-        $outputPath = Resolve-NormalOutputPath -Path $GitHubOutputPath
+        $outputTarget = Resolve-NormalOutputPath -Path $GitHubOutputPath
         $output = 'source_ref=' + $sourceRef + [char]10 +
             'approved_sha=' + $manifestSha + [char]10 +
             'runner_label=' + $RunnerLabel + [char]10 +
             'eligible=true' + [char]10
-        Write-Utf8NoBomFile -Path $outputPath -Content $output
+        Write-Utf8NoBomFile -Target $outputTarget -Content $output
         exit 0
     }
 
@@ -338,6 +376,16 @@ try {
         }
     }
     if ($Phase -ceq 'RunnerContext') {
+        if ([string]::IsNullOrWhiteSpace($RunnerTemp) -or
+            [string]::IsNullOrWhiteSpace($RunnerWorkspace)) {
+            throw 'Runner roots are missing.'
+        }
+        $normalRunnerTemp = Resolve-NormalExistingDirectory -Path $RunnerTemp
+        $null = Resolve-NormalExistingDirectory -Path $RunnerWorkspace
+        $stageWorkRoot = Join-Path -Path $normalRunnerTemp -ChildPath 'hardware-inspection-stage-a'
+        if (Test-Path -LiteralPath $stageWorkRoot) {
+            throw 'Stage A work root already exists.'
+        }
         exit 0
     }
     if ([string]::IsNullOrWhiteSpace($EvaluatedRoot)) {

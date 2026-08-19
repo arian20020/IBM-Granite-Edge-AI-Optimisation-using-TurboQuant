@@ -14,15 +14,29 @@ $script:StageAFailure = 'HI-RUNNER-STAGEA-TESTS-FAILED: deterministic validation
 $script:StageATrxNamespace = 'http://microsoft.com/schemas/VisualStudio/TeamTest/2010'
 $script:StageAMaximumTrxBytes = 16MB
 $script:StageAMaximumProcessStreamBytes = 16MB # Per stdout/stderr log; excess is drained and discarded.
-$script:StageAOwnedProcesses = New-Object System.Collections.ArrayList
+$script:StageAOwnedProcesses = $null
+$script:StageAProcessJob = $null
 $script:StageACancelled = $false
+$script:StageAPendingEvaluatedRoot = $null
+$script:StageAPendingSummaryJsonPath = $null
+$script:StageAPendingSummaryMarkdownPath = $null
+$script:StageAPendingSummaryJson = $null
+$script:StageAPendingSummaryMarkdown = $null
 
 function Initialize-StageACappedDrain {
 if ($null -eq ('HardwareInspection.StageA.CappedDrain' -as [type])) {
     Add-Type -TypeDefinition @'
 using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
+using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Win32.SafeHandles;
 namespace HardwareInspection.StageA {
     public static class CappedDrain {
         public static async Task<bool> CopyAsync(Stream source, string path, long maximumBytes) {
@@ -39,9 +53,472 @@ namespace HardwareInspection.StageA {
             return truncated;
         }
     }
+
+    public sealed class ProcessJob : IDisposable {
+        private const uint JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x00002000;
+        private const int JobObjectExtendedLimitInformation = 9;
+        private IntPtr handle;
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct JOBOBJECT_BASIC_LIMIT_INFORMATION {
+            public long PerProcessUserTimeLimit;
+            public long PerJobUserTimeLimit;
+            public uint LimitFlags;
+            public UIntPtr MinimumWorkingSetSize;
+            public UIntPtr MaximumWorkingSetSize;
+            public uint ActiveProcessLimit;
+            public UIntPtr Affinity;
+            public uint PriorityClass;
+            public uint SchedulingClass;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct IO_COUNTERS {
+            public ulong ReadOperationCount;
+            public ulong WriteOperationCount;
+            public ulong OtherOperationCount;
+            public ulong ReadTransferCount;
+            public ulong WriteTransferCount;
+            public ulong OtherTransferCount;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct JOBOBJECT_EXTENDED_LIMIT_INFORMATION {
+            public JOBOBJECT_BASIC_LIMIT_INFORMATION BasicLimitInformation;
+            public IO_COUNTERS IoInfo;
+            public UIntPtr ProcessMemoryLimit;
+            public UIntPtr JobMemoryLimit;
+            public UIntPtr PeakProcessMemoryUsed;
+            public UIntPtr PeakJobMemoryUsed;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct JOBOBJECT_BASIC_ACCOUNTING_INFORMATION {
+            public long TotalUserTime;
+            public long TotalKernelTime;
+            public long ThisPeriodTotalUserTime;
+            public long ThisPeriodTotalKernelTime;
+            public uint TotalPageFaultCount;
+            public uint TotalProcesses;
+            public uint ActiveProcesses;
+            public uint TotalTerminatedProcesses;
+        }
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        private static extern IntPtr CreateJobObject(IntPtr securityAttributes, string name);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool SetInformationJobObject(
+            IntPtr job,
+            int informationClass,
+            IntPtr information,
+            uint informationLength);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool AssignProcessToJobObject(IntPtr job, IntPtr process);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool TerminateJobObject(IntPtr job, uint exitCode);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool QueryInformationJobObject(
+            IntPtr job,
+            int informationClass,
+            IntPtr information,
+            uint informationLength,
+            IntPtr returnLength);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool CloseHandle(IntPtr handle);
+
+        private ProcessJob(IntPtr jobHandle) { handle = jobHandle; }
+
+        public static ProcessJob CreateKillOnClose() {
+            IntPtr job = CreateJobObject(IntPtr.Zero, null);
+            if (job == IntPtr.Zero || job == new IntPtr(-1)) {
+                throw new Win32Exception(Marshal.GetLastWin32Error());
+            }
+            try {
+                var information = new JOBOBJECT_EXTENDED_LIMIT_INFORMATION();
+                information.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+                int length = Marshal.SizeOf(typeof(JOBOBJECT_EXTENDED_LIMIT_INFORMATION));
+                IntPtr buffer = Marshal.AllocHGlobal(length);
+                try {
+                    Marshal.StructureToPtr(information, buffer, false);
+                    if (!SetInformationJobObject(job, JobObjectExtendedLimitInformation, buffer, (uint)length)) {
+                        throw new Win32Exception(Marshal.GetLastWin32Error());
+                    }
+                }
+                finally { Marshal.FreeHGlobal(buffer); }
+                return new ProcessJob(job);
+            }
+            catch {
+                CloseHandle(job);
+                throw;
+            }
+        }
+
+        internal void AssignHandle(IntPtr processHandle) {
+            IntPtr job = handle;
+            if (job == IntPtr.Zero) { throw new ObjectDisposedException("ProcessJob"); }
+            if (!AssignProcessToJobObject(job, processHandle)) {
+                throw new Win32Exception(Marshal.GetLastWin32Error());
+            }
+        }
+
+        public void Dispose() {
+            IntPtr job = Interlocked.Exchange(ref handle, IntPtr.Zero);
+            if (job == IntPtr.Zero) { return; }
+            Exception failure = null;
+            try {
+                if (!TerminateJobObject(job, 1)) {
+                    failure = new Win32Exception(Marshal.GetLastWin32Error());
+                }
+                int length = Marshal.SizeOf(typeof(JOBOBJECT_BASIC_ACCOUNTING_INFORMATION));
+                IntPtr buffer = Marshal.AllocHGlobal(length);
+                try {
+                    var deadline = Stopwatch.StartNew();
+                    while (true) {
+                        if (!QueryInformationJobObject(job, 1, buffer, (uint)length, IntPtr.Zero)) {
+                            if (failure == null) {
+                                failure = new Win32Exception(Marshal.GetLastWin32Error());
+                            }
+                            break;
+                        }
+                        var accounting = (JOBOBJECT_BASIC_ACCOUNTING_INFORMATION)
+                            Marshal.PtrToStructure(buffer, typeof(JOBOBJECT_BASIC_ACCOUNTING_INFORMATION));
+                        if (accounting.ActiveProcesses == 0) { break; }
+                        if (deadline.ElapsedMilliseconds >= 5000) {
+                            if (failure == null) { failure = new TimeoutException(); }
+                            break;
+                        }
+                        Thread.Sleep(20);
+                    }
+                }
+                finally { Marshal.FreeHGlobal(buffer); }
+            }
+            finally {
+                if (!CloseHandle(job) && failure == null) {
+                    failure = new Win32Exception(Marshal.GetLastWin32Error());
+                }
+            }
+            if (failure != null) {
+                throw failure;
+            }
+        }
+    }
+
+    public sealed class ContainedProcess : IDisposable {
+        private const uint CREATE_SUSPENDED = 0x00000004;
+        private const uint CREATE_UNICODE_ENVIRONMENT = 0x00000400;
+        private const uint CREATE_NO_WINDOW = 0x08000000;
+        private const uint EXTENDED_STARTUPINFO_PRESENT = 0x00080000;
+        private const uint STARTF_USESTDHANDLES = 0x00000100;
+        private const uint HANDLE_FLAG_INHERIT = 0x00000001;
+        private const int PROC_THREAD_ATTRIBUTE_HANDLE_LIST = 0x00020002;
+        private const uint GENERIC_READ = 0x80000000;
+        private const uint FILE_SHARE_READ = 0x00000001;
+        private const uint FILE_SHARE_WRITE = 0x00000002;
+        private const uint OPEN_EXISTING = 3;
+        private const uint FILE_ATTRIBUTE_NORMAL = 0x00000080;
+        private const uint WAIT_OBJECT_0 = 0;
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct SECURITY_ATTRIBUTES {
+            public int nLength;
+            public IntPtr lpSecurityDescriptor;
+            [MarshalAs(UnmanagedType.Bool)] public bool bInheritHandle;
+        }
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        private struct STARTUPINFO {
+            public int cb;
+            public string lpReserved;
+            public string lpDesktop;
+            public string lpTitle;
+            public uint dwX;
+            public uint dwY;
+            public uint dwXSize;
+            public uint dwYSize;
+            public uint dwXCountChars;
+            public uint dwYCountChars;
+            public uint dwFillAttribute;
+            public uint dwFlags;
+            public short wShowWindow;
+            public short cbReserved2;
+            public IntPtr lpReserved2;
+            public IntPtr hStdInput;
+            public IntPtr hStdOutput;
+            public IntPtr hStdError;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct STARTUPINFOEX {
+            public STARTUPINFO StartupInfo;
+            public IntPtr lpAttributeList;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct PROCESS_INFORMATION {
+            public IntPtr hProcess;
+            public IntPtr hThread;
+            public uint dwProcessId;
+            public uint dwThreadId;
+        }
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool CreatePipe(
+            out IntPtr readPipe,
+            out IntPtr writePipe,
+            ref SECURITY_ATTRIBUTES pipeAttributes,
+            uint size);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool SetHandleInformation(IntPtr handle, uint mask, uint flags);
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        private static extern IntPtr CreateFile(
+            string fileName,
+            uint desiredAccess,
+            uint shareMode,
+            ref SECURITY_ATTRIBUTES securityAttributes,
+            uint creationDisposition,
+            uint flagsAndAttributes,
+            IntPtr templateFile);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool InitializeProcThreadAttributeList(
+            IntPtr attributeList,
+            int attributeCount,
+            int flags,
+            ref UIntPtr size);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool UpdateProcThreadAttribute(
+            IntPtr attributeList,
+            uint flags,
+            IntPtr attribute,
+            IntPtr value,
+            UIntPtr size,
+            IntPtr previousValue,
+            IntPtr returnSize);
+
+        [DllImport("kernel32.dll")]
+        private static extern void DeleteProcThreadAttributeList(IntPtr attributeList);
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        private static extern bool CreateProcess(
+            string applicationName,
+            StringBuilder commandLine,
+            IntPtr processAttributes,
+            IntPtr threadAttributes,
+            bool inheritHandles,
+            uint creationFlags,
+            IntPtr environment,
+            string currentDirectory,
+            ref STARTUPINFOEX startupInfo,
+            out PROCESS_INFORMATION processInformation);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern uint ResumeThread(IntPtr thread);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool TerminateProcess(IntPtr process, uint exitCode);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern uint WaitForSingleObject(IntPtr handle, uint milliseconds);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool CloseHandle(IntPtr handle);
+
+        public Process Process { get; private set; }
+        public Stream StandardOutput { get; private set; }
+        public Stream StandardError { get; private set; }
+
+        private ContainedProcess(Process process, Stream standardOutput, Stream standardError) {
+            Process = process;
+            StandardOutput = standardOutput;
+            StandardError = standardError;
+        }
+
+        private static IntPtr BuildEnvironment(ProcessStartInfo information) {
+            var entries = new List<string>();
+            foreach (DictionaryEntry entry in information.EnvironmentVariables) {
+                entries.Add((string)entry.Key + "=" + (string)entry.Value);
+            }
+            entries.Sort(StringComparer.OrdinalIgnoreCase);
+            return Marshal.StringToHGlobalUni(string.Join("\0", entries.ToArray()) + "\0\0");
+        }
+
+        public static ContainedProcess StartSuspendedAssigned(
+            ProcessStartInfo information,
+            ProcessJob job) {
+            if (information == null || job == null || information.UseShellExecute ||
+                !information.RedirectStandardOutput || !information.RedirectStandardError) {
+                throw new InvalidOperationException("Contained process configuration is invalid.");
+            }
+            var security = new SECURITY_ATTRIBUTES {
+                nLength = Marshal.SizeOf(typeof(SECURITY_ATTRIBUTES)),
+                lpSecurityDescriptor = IntPtr.Zero,
+                bInheritHandle = true
+            };
+            IntPtr stdoutRead = IntPtr.Zero, stdoutWrite = IntPtr.Zero;
+            IntPtr stderrRead = IntPtr.Zero, stderrWrite = IntPtr.Zero;
+            IntPtr stdin = IntPtr.Zero, environment = IntPtr.Zero;
+            IntPtr attributeList = IntPtr.Zero, handleList = IntPtr.Zero;
+            bool attributeListInitialized = false;
+            PROCESS_INFORMATION created = new PROCESS_INFORMATION();
+            Process process = null;
+            FileStream stdout = null, stderr = null;
+            SafeFileHandle stdoutSafe = null, stderrSafe = null;
+            bool resumed = false;
+            try {
+                if (!CreatePipe(out stdoutRead, out stdoutWrite, ref security, 0) ||
+                    !CreatePipe(out stderrRead, out stderrWrite, ref security, 0) ||
+                    !SetHandleInformation(stdoutRead, HANDLE_FLAG_INHERIT, 0) ||
+                    !SetHandleInformation(stderrRead, HANDLE_FLAG_INHERIT, 0)) {
+                    throw new Win32Exception(Marshal.GetLastWin32Error());
+                }
+                stdin = CreateFile(
+                    "NUL", GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE,
+                    ref security, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, IntPtr.Zero);
+                if (stdin == IntPtr.Zero || stdin == new IntPtr(-1)) {
+                    throw new Win32Exception(Marshal.GetLastWin32Error());
+                }
+                UIntPtr attributeSize = UIntPtr.Zero;
+                InitializeProcThreadAttributeList(IntPtr.Zero, 1, 0, ref attributeSize);
+                attributeList = Marshal.AllocHGlobal((int)attributeSize.ToUInt64());
+                if (!InitializeProcThreadAttributeList(attributeList, 1, 0, ref attributeSize)) {
+                    throw new Win32Exception(Marshal.GetLastWin32Error());
+                }
+                attributeListInitialized = true;
+                handleList = Marshal.AllocHGlobal(IntPtr.Size * 3);
+                Marshal.WriteIntPtr(handleList, 0, stdin);
+                Marshal.WriteIntPtr(handleList, IntPtr.Size, stdoutWrite);
+                Marshal.WriteIntPtr(handleList, IntPtr.Size * 2, stderrWrite);
+                if (!UpdateProcThreadAttribute(
+                    attributeList, 0, new IntPtr(PROC_THREAD_ATTRIBUTE_HANDLE_LIST),
+                    handleList, new UIntPtr((uint)(IntPtr.Size * 3)), IntPtr.Zero, IntPtr.Zero)) {
+                    throw new Win32Exception(Marshal.GetLastWin32Error());
+                }
+                var startup = new STARTUPINFOEX();
+                startup.StartupInfo.cb = Marshal.SizeOf(typeof(STARTUPINFOEX));
+                startup.StartupInfo.dwFlags = STARTF_USESTDHANDLES;
+                startup.StartupInfo.hStdInput = stdin;
+                startup.StartupInfo.hStdOutput = stdoutWrite;
+                startup.StartupInfo.hStdError = stderrWrite;
+                startup.lpAttributeList = attributeList;
+                environment = BuildEnvironment(information);
+                string command = "\"" + information.FileName + "\"";
+                if (!string.IsNullOrWhiteSpace(information.Arguments)) {
+                    command += " " + information.Arguments;
+                }
+                string currentDirectory = string.IsNullOrWhiteSpace(information.WorkingDirectory)
+                    ? null : information.WorkingDirectory;
+                if (!CreateProcess(
+                    information.FileName, new StringBuilder(command), IntPtr.Zero, IntPtr.Zero,
+                    true, CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT | CREATE_NO_WINDOW |
+                    EXTENDED_STARTUPINFO_PRESENT, environment, currentDirectory, ref startup, out created)) {
+                    throw new Win32Exception(Marshal.GetLastWin32Error());
+                }
+                if (!CloseHandle(stdoutWrite)) {
+                    throw new Win32Exception(Marshal.GetLastWin32Error());
+                }
+                stdoutWrite = IntPtr.Zero;
+                if (!CloseHandle(stderrWrite)) {
+                    throw new Win32Exception(Marshal.GetLastWin32Error());
+                }
+                stderrWrite = IntPtr.Zero;
+                process = Process.GetProcessById((int)created.dwProcessId);
+                IntPtr retainedProcessHandle = process.Handle;
+                if (retainedProcessHandle == IntPtr.Zero) {
+                    throw new InvalidOperationException("Process handle was not retained.");
+                }
+                stdoutSafe = new SafeFileHandle(stdoutRead, true);
+                stdoutRead = IntPtr.Zero;
+                stdout = new FileStream(stdoutSafe, FileAccess.Read, 4096, false);
+                stdoutSafe = null;
+                stderrSafe = new SafeFileHandle(stderrRead, true);
+                stderrRead = IntPtr.Zero;
+                stderr = new FileStream(stderrSafe, FileAccess.Read, 4096, false);
+                stderrSafe = null;
+                job.AssignHandle(created.hProcess);
+                if (ResumeThread(created.hThread) == UInt32.MaxValue) {
+                    throw new Win32Exception(Marshal.GetLastWin32Error());
+                }
+                resumed = true;
+                return new ContainedProcess(process, stdout, stderr);
+            }
+            catch (Exception primaryFailure) {
+                Exception containmentFailure = null;
+                if (created.hProcess != IntPtr.Zero && !resumed) {
+                    bool terminated = TerminateProcess(created.hProcess, 1);
+                    uint waitResult = WaitForSingleObject(created.hProcess, 5000);
+                    if (!terminated || waitResult != WAIT_OBJECT_0) {
+                        containmentFailure = new InvalidOperationException(
+                            "Suspended process termination could not be verified.");
+                        try {
+                            if (process != null) {
+                                if (!process.HasExited) { process.Kill(); }
+                                process.WaitForExit(5000);
+                            }
+                        }
+                        catch (Exception emergencyFailure) {
+                            containmentFailure = new AggregateException(
+                                containmentFailure, emergencyFailure);
+                        }
+                    }
+                }
+                try { if (stdout != null) { stdout.Dispose(); } } catch { }
+                try { if (stderr != null) { stderr.Dispose(); } } catch { }
+                try { if (stdoutSafe != null) { stdoutSafe.Dispose(); } } catch { }
+                try { if (stderrSafe != null) { stderrSafe.Dispose(); } } catch { }
+                try { if (process != null) { process.Dispose(); } } catch { }
+                if (containmentFailure != null) {
+                    throw new AggregateException(primaryFailure, containmentFailure);
+                }
+                throw;
+            }
+            finally {
+                if (created.hThread != IntPtr.Zero) { CloseHandle(created.hThread); }
+                if (created.hProcess != IntPtr.Zero) { CloseHandle(created.hProcess); }
+                if (stdoutRead != IntPtr.Zero) { CloseHandle(stdoutRead); }
+                if (stdoutWrite != IntPtr.Zero) { CloseHandle(stdoutWrite); }
+                if (stderrRead != IntPtr.Zero) { CloseHandle(stderrRead); }
+                if (stderrWrite != IntPtr.Zero) { CloseHandle(stderrWrite); }
+                if (stdin != IntPtr.Zero && stdin != new IntPtr(-1)) { CloseHandle(stdin); }
+                if (attributeList != IntPtr.Zero) {
+                    if (attributeListInitialized) { DeleteProcThreadAttributeList(attributeList); }
+                    Marshal.FreeHGlobal(attributeList);
+                }
+                if (handleList != IntPtr.Zero) { Marshal.FreeHGlobal(handleList); }
+                if (environment != IntPtr.Zero) { Marshal.FreeHGlobal(environment); }
+            }
+        }
+
+        public void Dispose() {
+            Exception failure = null;
+            Stream output = StandardOutput; StandardOutput = null;
+            Stream error = StandardError; StandardError = null;
+            System.Diagnostics.Process process = Process; Process = null;
+            try { if (output != null) { output.Dispose(); } }
+            catch (Exception exception) { failure = exception; }
+            try { if (error != null) { error.Dispose(); } }
+            catch (Exception exception) { if (failure == null) { failure = exception; } }
+            try { if (process != null) { process.Dispose(); } }
+            catch (Exception exception) { if (failure == null) { failure = exception; } }
+            if (failure != null) { throw failure; }
+        }
+    }
 }
 '@
 }
+}
+
+function Initialize-StageARuntime {
+    Initialize-StageACappedDrain
+    $script:StageAOwnedProcesses = New-Object System.Collections.ArrayList
+    $script:StageAProcessJob = [HardwareInspection.StageA.ProcessJob]::CreateKillOnClose()
 }
 
 function Assert-StageACondition {
@@ -109,27 +586,42 @@ function Copy-StageAProcessStream {
 }
 
 function Stop-StageAOwnedProcesses {
-    $wasCancelled = $script:StageACancelled
-    $script:StageACancelled = $false
-    $windowsDirectory = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::Windows)
-    $taskkillPath = [System.IO.Path]::GetFullPath((Join-Path $windowsDirectory 'System32\taskkill.exe'))
-    try {
+    $cleanupFailed = $false
+    if ($null -ne $script:StageAProcessJob) {
+        try {
+            $script:StageAProcessJob.Dispose()
+        }
+        catch { $cleanupFailed = $true }
+        finally { $script:StageAProcessJob = $null }
+    }
+    if ($null -ne $script:StageAOwnedProcesses) {
         foreach ($owned in @($script:StageAOwnedProcesses)) {
             try {
-            $current = Get-Process -Id $owned.Id -ErrorAction SilentlyContinue
-            if ($null -ne $current -and $current.StartTime.ToUniversalTime().Ticks -eq $owned.StartTicks) {
-                $null = Invoke-StageAProcess $taskkillPath @('/PID',[string]$owned.Id,'/T','/F') ($owned.LogPath + '.cleanup') 30 $false
+                $process = $owned.Process
+                if ($null -ne $process -and -not $process.HasExited) {
+                    $process.Kill()
+                    Assert-StageACondition ($process.WaitForExit(5000))
+                }
             }
-            } catch { throw }
+            catch { $cleanupFailed = $true }
+            finally {
+                try {
+                    if ($null -ne $owned.Contained) { $owned.Contained.Dispose() }
+                    elseif ($null -ne $owned.Process) { $owned.Process.Dispose() }
+                }
+                catch { $cleanupFailed = $true }
+            }
         }
-    } finally {
-        $script:StageAOwnedProcesses.Clear()
-        $script:StageACancelled = $wasCancelled
+        try { $script:StageAOwnedProcesses.Clear() }
+        catch { $cleanupFailed = $true }
+        $script:StageAOwnedProcesses = $null
     }
+    Assert-StageACondition (-not $cleanupFailed)
 }
 
 function Invoke-StageAProcess {
     param([string] $Application, [string[]] $ArgumentList, [string] $LogPath, [int] $TimeoutSeconds, [bool] $RegisterOwned = $true, [bool] $ReturnOutput = $false)
+    Assert-StageACondition $RegisterOwned
     $information = New-Object System.Diagnostics.ProcessStartInfo
     $information.FileName = $Application
     $information.Arguments = ConvertTo-StageACommandLine $ArgumentList
@@ -137,14 +629,36 @@ function Invoke-StageAProcess {
     $information.CreateNoWindow = $true
     $information.RedirectStandardOutput = $true
     $information.RedirectStandardError = $true
-    $process = New-Object System.Diagnostics.Process
-    $process.StartInfo = $information
-    Assert-StageACondition ($process.Start())
-    if ($RegisterOwned) { [void]$script:StageAOwnedProcesses.Add([pscustomobject]@{ Id = $process.Id; StartTicks = $process.StartTime.ToUniversalTime().Ticks; LogPath = $LogPath }) }
+    foreach ($environmentKey in @($information.EnvironmentVariables.Keys)) {
+        $environmentName = [string]$environmentKey
+        if ($environmentName.StartsWith('GITHUB_', [System.StringComparison]::OrdinalIgnoreCase) -or
+            $environmentName.StartsWith('ACTIONS_', [System.StringComparison]::OrdinalIgnoreCase) -or
+            $environmentName.StartsWith('RUNNER_', [System.StringComparison]::OrdinalIgnoreCase) -or
+            $environmentName.StartsWith('STAGEA_', [System.StringComparison]::OrdinalIgnoreCase)) {
+            $information.EnvironmentVariables.Remove($environmentName)
+        }
+    }
+    Assert-StageACondition ($null -ne $script:StageAOwnedProcesses -and $null -ne $script:StageAProcessJob)
+    $contained = [HardwareInspection.StageA.ContainedProcess]::StartSuspendedAssigned(
+        $information,
+        $script:StageAProcessJob
+    )
+    $process = $contained.Process
+    try {
+        [void]$script:StageAOwnedProcesses.Add([pscustomobject]@{
+            Process = $process
+            Contained = $contained
+            LogPath = $LogPath
+        })
+    }
+    catch {
+        try { $contained.Dispose() } catch { }
+        throw
+    }
     $stdoutPath = $LogPath + '.stdout'
     $stderrPath = $LogPath + '.stderr'
-    $outputTask = Copy-StageAProcessStream $process.StandardOutput.BaseStream $stdoutPath
-    $errorTask = Copy-StageAProcessStream $process.StandardError.BaseStream $stderrPath
+    $outputTask = Copy-StageAProcessStream $contained.StandardOutput $stdoutPath
+    $errorTask = Copy-StageAProcessStream $contained.StandardError $stderrPath
     $deadline = [System.Diagnostics.Stopwatch]::StartNew()
     while ((-not $outputTask.IsCompleted) -or (-not $errorTask.IsCompleted) -or (-not $process.HasExited)) {
             Assert-StageACondition (-not $script:StageACancelled)
@@ -153,6 +667,7 @@ function Invoke-StageAProcess {
     }
     $truncated = $outputTask.GetAwaiter().GetResult() -or $errorTask.GetAwaiter().GetResult()
     Assert-StageACondition (-not $truncated)
+    Assert-StageACondition (-not $script:StageACancelled)
     Assert-StageACondition ($process.ExitCode -eq 0)
     if (-not $ReturnOutput) { return }
     Assert-StageACondition ((Get-Item -LiteralPath $stdoutPath).Length -le 4096)
@@ -293,7 +808,6 @@ function Test-StageAResidualProcesses {
 }
 
 function Invoke-HardwareInspectionIntelRunnerStageAInternal {
-    Initialize-StageACappedDrain
     foreach ($name in [System.Environment]::GetEnvironmentVariables().Keys) {
         $environmentName = [string]$name
         Assert-StageACondition (-not ($environmentName.StartsWith('GIT_', [System.StringComparison]::OrdinalIgnoreCase) -or $environmentName.StartsWith('GRANITE_LLMFIT_', [System.StringComparison]::OrdinalIgnoreCase)))
@@ -311,6 +825,7 @@ function Invoke-HardwareInspectionIntelRunnerStageAInternal {
     Assert-StageACondition ($git.Count -eq 1)
     $blockedDirectory = Join-Path $evaluated 'third-party\bin\llmfit\v1.1.9\win-x64'
     Assert-StageACondition (-not (Test-Path -LiteralPath $blockedDirectory))
+    Test-StageAResidualProcesses
     $runDirectory = Join-Path $workRoot ('stagea-' + [guid]::NewGuid().ToString('N'))
     [System.IO.Directory]::CreateDirectory($runDirectory) | Out-Null
     $runDirectory = Test-StageANormalExistingPath $runDirectory $true
@@ -347,29 +862,78 @@ function Invoke-HardwareInspectionIntelRunnerStageAInternal {
     $task8Project = Join-Path $evaluated $projects[1]
     $null = Invoke-StageAProcess $dotnet[0].Source @('test',$deterministicProject,'--configuration','Release','--runtime','win-x64','--no-restore','--no-build','--filter','TestCategory=Deterministic','--minimum-expected-tests','174','--results-directory',$resultsDirectory,'--report-trx','--report-trx-filename','deterministic.trx','--no-ansi') (Join-Path $runDirectory 'deterministic.log') 300
     $null = Invoke-StageAProcess $dotnet[0].Source @('test',$task8Project,'--configuration','Release','--runtime','win-x64','--no-restore','--no-build','--filter','TestCategory=Task8Deterministic','--minimum-expected-tests','3','--results-directory',$resultsDirectory,'--report-trx','--report-trx-filename','task8.trx','--no-ansi') (Join-Path $runDirectory 'task8.log') 300
+    Assert-StageACondition (-not $script:StageACancelled)
     $deterministic = Read-HardwareInspectionIntelRunnerStageATrx (Join-Path $resultsDirectory 'deterministic.trx') 'Deterministic'
     $task8 = Read-HardwareInspectionIntelRunnerStageATrx (Join-Path $resultsDirectory 'task8.trx') 'Task8Deterministic'
     Test-StageAResidualProcesses
+    Assert-StageACondition (-not $script:StageACancelled)
     $json = '{"schemaVersion":"1.0","evaluatedSha":"' + $ApprovedSha + '","deterministicPassed":174,"task8DeterministicPassed":3,"nonPassing":0}'
     $markdown = "# Hardware Inspection Intel Stage A`n`n- Evaluated SHA: $ApprovedSha`n- Deterministic passed: 174`n- Task8 deterministic passed: 3`n- Non-passing: 0`n"
     Assert-StageASummaryPrivacy $json $markdown $ApprovedSha
-    Write-StageAAtomicUtf8 $summaryJson $json
-    Write-StageAAtomicUtf8 $summaryMarkdown $markdown
+    Assert-StageACondition (-not $script:StageACancelled)
+    $script:StageAPendingEvaluatedRoot = $evaluated
+    $script:StageAPendingSummaryJsonPath = $summaryJson
+    $script:StageAPendingSummaryMarkdownPath = $summaryMarkdown
+    $script:StageAPendingSummaryJson = $json
+    $script:StageAPendingSummaryMarkdown = $markdown
 }
 
 if ($MyInvocation.InvocationName -ne '.') {
     $primaryFailure = $null
+    $unregisterFailure = $null
     $cleanupFailure = $null
-    $cancelHandler = [System.ConsoleCancelEventHandler]{ param($sender, $eventArgs); $eventArgs.Cancel = $true; $script:StageACancelled = $true }
+    $cancelHandler = $null
+    $cancelHandlerRegistered = $false
+    $stageAFailed = $false
     try {
-        [System.Console]::add_CancelKeyPress($cancelHandler)
-        Invoke-HardwareInspectionIntelRunnerStageAInternal
+        try {
+            Initialize-StageARuntime
+            $cancelHandler = [System.ConsoleCancelEventHandler]{ param($sender, $eventArgs); $eventArgs.Cancel = $true; $script:StageACancelled = $true }
+            [System.Console]::add_CancelKeyPress($cancelHandler)
+            $cancelHandlerRegistered = $true
+            Invoke-HardwareInspectionIntelRunnerStageAInternal
+        }
+        catch { $primaryFailure = $_ }
+        finally {
+            try { Stop-StageAOwnedProcesses; Test-StageAResidualProcesses }
+            catch { $cleanupFailure = $_ }
+            if ($null -eq $primaryFailure -and
+                $null -eq $cleanupFailure -and
+                -not $script:StageACancelled) {
+                try {
+                    Assert-StageACondition (-not [string]::IsNullOrWhiteSpace($script:StageAPendingEvaluatedRoot))
+                    $publishJsonPath = Get-StageAOutputPath $script:StageAPendingSummaryJsonPath $script:StageAPendingEvaluatedRoot
+                    $publishMarkdownPath = Get-StageAOutputPath $script:StageAPendingSummaryMarkdownPath $script:StageAPendingEvaluatedRoot
+                    Assert-StageACondition ($publishJsonPath -ine $publishMarkdownPath)
+                    Assert-StageASummaryPrivacy $script:StageAPendingSummaryJson $script:StageAPendingSummaryMarkdown $ApprovedSha
+                    Assert-StageACondition (-not $script:StageACancelled)
+                    Write-StageAAtomicUtf8 $publishJsonPath $script:StageAPendingSummaryJson
+                    Assert-StageACondition (-not $script:StageACancelled)
+                    Write-StageAAtomicUtf8 $publishMarkdownPath $script:StageAPendingSummaryMarkdown
+                    Assert-StageACondition (-not $script:StageACancelled)
+                }
+                catch { $primaryFailure = $_ }
+            }
+            if ($cancelHandlerRegistered) {
+                try { [System.Console]::remove_CancelKeyPress($cancelHandler) }
+                catch { $unregisterFailure = $_ }
+                finally { $cancelHandlerRegistered = $false }
+            }
+            $script:StageAPendingEvaluatedRoot = $null
+            $script:StageAPendingSummaryJsonPath = $null
+            $script:StageAPendingSummaryMarkdownPath = $null
+            $script:StageAPendingSummaryJson = $null
+            $script:StageAPendingSummaryMarkdown = $null
+        }
+        if ($null -ne $primaryFailure -or
+            $null -ne $unregisterFailure -or
+            $null -ne $cleanupFailure -or
+            $script:StageACancelled) {
+            $stageAFailed = $true
+        }
     }
-    catch { $primaryFailure = $_ }
-    finally { [System.Console]::remove_CancelKeyPress($cancelHandler) }
-    try { Stop-StageAOwnedProcesses; Test-StageAResidualProcesses }
-    catch { $cleanupFailure = $_ }
-    if ($null -ne $primaryFailure -or $null -ne $cleanupFailure) {
+    catch { $stageAFailed = $true }
+    if ($stageAFailed) {
         [Console]::Error.WriteLine($script:StageAFailure)
         exit 1
     }

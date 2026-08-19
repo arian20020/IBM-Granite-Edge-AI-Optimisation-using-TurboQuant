@@ -37,6 +37,21 @@ jobs:
       runner_label: ${{ steps.validated.outputs.runner_label }}
       eligible: ${{ steps.validated.outputs.eligible }}
     steps:
+      - name: Reject debug controls before runner eligibility
+        timeout-minutes: 2
+        shell: powershell
+        env:
+          STAGEA_RUNNER_DEBUG: ${{ runner.debug }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $failure = 'HI-RUNNER-STAGEA-DEBUG-INVALID: workflow debug logging is prohibited.'
+          try {
+            foreach ($name in @('ACTIONS_STEP_DEBUG', 'ACTIONS_RUNNER_DEBUG', 'RUNNER_DEBUG', 'STAGEA_RUNNER_DEBUG')) {
+              if (-not [string]::IsNullOrEmpty([Environment]::GetEnvironmentVariable($name))) { throw $failure }
+            }
+          }
+          catch { [Console]::Error.WriteLine($failure); exit 1 }
+
       - name: Check out default-branch controls
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -142,6 +157,7 @@ jobs:
     timeout-minutes: 35
     steps:
       - name: Reject debug controls and mask runner metadata
+        timeout-minutes: 2
         shell: powershell
         env:
           STAGEA_RUNNER_DEBUG: ${{ runner.debug }}
@@ -154,6 +170,9 @@ jobs:
               if (-not [string]::IsNullOrEmpty($debugValue)) {
                 throw $failure
               }
+            }
+            if (@(Get-Process | Where-Object { $_.ProcessName -match '(?i)(llmfit|fake.*tool)' }).Count -ne 0 -or @(Get-NetTCPConnection -ErrorAction Stop | Where-Object { $_.State -eq 'Listen' -and $_.LocalPort -eq 8787 }).Count -ne 0) {
+              throw $failure
             }
             foreach ($name in @('GITHUB_WORKSPACE', 'RUNNER_TEMP', 'RUNNER_WORKSPACE', 'USERNAME')) {
               $value = [Environment]::GetEnvironmentVariable($name)
@@ -204,7 +223,9 @@ jobs:
             -RepositoryOwner $env:STAGEA_REPOSITORY_OWNER `
             -RunAttempt $env:STAGEA_RUN_ATTEMPT `
             -Confirmation $env:STAGEA_CONFIRMATION `
-            -RunnerLabel $env:STAGEA_RUNNER_LABEL
+            -RunnerLabel $env:STAGEA_RUNNER_LABEL `
+            -RunnerTemp $env:RUNNER_TEMP `
+            -RunnerWorkspace $env:RUNNER_WORKSPACE
 
       - name: Check out approved evaluated source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -255,15 +276,39 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $failure = 'HI-RUNNER-STAGEA-EXECUTION-INVALID: deterministic execution failed.'
           try {
-          $exportDirectory = 'stage-a-export'
-          if (Test-Path -LiteralPath $exportDirectory) {
-            throw 'HI-RUNNER-STAGEA-EXPORT-INVALID: export directory already exists.'
+          function Resolve-NormalFixedDirectory([string] $pathValue) {
+            if ([string]::IsNullOrWhiteSpace($pathValue) -or
+                $pathValue[0] -eq [System.IO.Path]::DirectorySeparatorChar -or
+                $pathValue[0] -eq [System.IO.Path]::AltDirectorySeparatorChar) { throw $failure }
+            $full = [System.IO.Path]::GetFullPath($pathValue)
+            if ($full[0] -eq [System.IO.Path]::DirectorySeparatorChar -or
+                $full[0] -eq [System.IO.Path]::AltDirectorySeparatorChar -or
+                -not (Test-Path -LiteralPath $full -PathType Container)) { throw $failure }
+            $component = Get-Item -LiteralPath $full -Force
+            while ($null -ne $component) {
+              if (($component.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) { throw $failure }
+              $component = $component.Parent
+            }
+            $drive = New-Object System.IO.DriveInfo([System.IO.Path]::GetPathRoot($full))
+            if ($drive.DriveType -ne [System.IO.DriveType]::Fixed) { throw $failure }
+            return $full.TrimEnd([System.IO.Path]::DirectorySeparatorChar)
           }
-          [System.IO.Directory]::CreateDirectory($exportDirectory) | Out-Null
-          $localWorkRoot = Join-Path $env:RUNNER_TEMP 'hardware-inspection-stage-a'
-          if (-not (Test-Path -LiteralPath $localWorkRoot -PathType Container)) {
-            [System.IO.Directory]::CreateDirectory($localWorkRoot) | Out-Null
-          }
+          $workspace = Resolve-NormalFixedDirectory $env:GITHUB_WORKSPACE
+          $currentDirectory = Resolve-NormalFixedDirectory ([string](Get-Location).Path)
+          if ($currentDirectory -ine $workspace) { throw $failure }
+          $runnerTemp = Resolve-NormalFixedDirectory $env:RUNNER_TEMP
+          $exportDirectory = Join-Path $workspace 'stage-a-export'
+          $localWorkRoot = Join-Path $runnerTemp 'hardware-inspection-stage-a'
+          if (Test-Path -LiteralPath $exportDirectory) { throw $failure }
+          if (Test-Path -LiteralPath $localWorkRoot) { throw $failure }
+          $workspace = Resolve-NormalFixedDirectory $workspace
+          $runnerTemp = Resolve-NormalFixedDirectory $runnerTemp
+          New-Item -ItemType Directory -Path $exportDirectory -ErrorAction Stop | Out-Null
+          New-Item -ItemType Directory -Path $localWorkRoot -ErrorAction Stop | Out-Null
+          $exportDirectory = Resolve-NormalFixedDirectory $exportDirectory
+          $localWorkRoot = Resolve-NormalFixedDirectory $localWorkRoot
+          if ([System.IO.Path]::GetDirectoryName($exportDirectory) -ine $workspace) { throw $failure }
+          if ([System.IO.Path]::GetDirectoryName($localWorkRoot) -ine $runnerTemp) { throw $failure }
           & '.\control\scripts\hardware-inspection\Invoke-HardwareInspectionIntelRunnerStageA.ps1' `
             -EvaluatedRoot 'evaluated' `
             -ApprovedSha $env:STAGEA_APPROVED_SHA `
@@ -275,6 +320,44 @@ jobs:
             [Console]::Error.WriteLine($failure)
             exit 1
           }
+
+      - name: Validate Stage A summary artifacts before upload
+        shell: powershell
+        env:
+          STAGEA_APPROVED_SHA: ${{ needs.hosted-preflight.outputs.approved_sha }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $failure = 'HI-RUNNER-STAGEA-ARTIFACTS-INVALID: summary validation failed.'
+          try {
+            function Assert-ExactNormalFile([string] $pathValue, [byte[]] $expectedBytes) {
+              if ([string]::IsNullOrWhiteSpace($pathValue) -or
+                  $pathValue[0] -eq [System.IO.Path]::DirectorySeparatorChar -or
+                  $pathValue[0] -eq [System.IO.Path]::AltDirectorySeparatorChar) { throw $failure }
+              $full = [System.IO.Path]::GetFullPath($pathValue)
+              if ($full[0] -eq [System.IO.Path]::DirectorySeparatorChar -or
+                  $full[0] -eq [System.IO.Path]::AltDirectorySeparatorChar) { throw $failure }
+              $item = Get-Item -LiteralPath $full -Force
+              if ($item.PSIsContainer -or (($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) -or $item.Length -ne $expectedBytes.Length) { throw $failure }
+              $component = $item.Directory
+              while ($null -ne $component) { if (($component.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) { throw $failure }; $component = $component.Parent }
+              if ((New-Object System.IO.DriveInfo([System.IO.Path]::GetPathRoot($full))).DriveType -ne [System.IO.DriveType]::Fixed) { throw $failure }
+              $stream = New-Object System.IO.FileStream($full, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::None)
+              try {
+                if ($stream.Length -ne $expectedBytes.Length) { throw $failure }
+                $actual = New-Object byte[] $expectedBytes.Length
+                $offset = 0
+                while ($offset -lt $actual.Length) { $count = $stream.Read($actual, $offset, $actual.Length - $offset); if ($count -le 0) { throw $failure }; $offset += $count }
+                for ($index = 0; $index -lt $expectedBytes.Length; $index++) { if ($actual[$index] -ne $expectedBytes[$index]) { throw $failure } }
+              }
+              finally { $stream.Dispose() }
+            }
+            $utf8 = New-Object System.Text.UTF8Encoding($false, $true)
+            $expectedJson = '{"schemaVersion":"1.0","evaluatedSha":"' + $env:STAGEA_APPROVED_SHA + '","deterministicPassed":174,"task8DeterministicPassed":3,"nonPassing":0}'
+            $expectedMarkdown = "# Hardware Inspection Intel Stage A`n`n- Evaluated SHA: $env:STAGEA_APPROVED_SHA`n- Deterministic passed: 174`n- Task8 deterministic passed: 3`n- Non-passing: 0`n"
+            Assert-ExactNormalFile 'stage-a-export/stage-a-summary.json' $utf8.GetBytes($expectedJson)
+            Assert-ExactNormalFile 'stage-a-export/stage-a-summary.md' $utf8.GetBytes($expectedMarkdown)
+          }
+          catch { [Console]::Error.WriteLine($failure); exit 1 }
 
       - name: Upload Stage A summary
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
@@ -293,9 +376,13 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $failure = 'HI-RUNNER-STAGEA-SUMMARY-INVALID: summary publication failed.'
           try {
-            function Assert-NormalSummaryFile([string] $candidate) {
-              $full = [System.IO.Path]::GetFullPath($candidate)
-              if ($full.StartsWith('\\') -or $full.StartsWith('\\?\')) { throw $failure }
+            function Assert-NormalSummaryFile([string] $pathValue) {
+              if ([string]::IsNullOrWhiteSpace($pathValue) -or
+                  $pathValue[0] -eq [System.IO.Path]::DirectorySeparatorChar -or
+                  $pathValue[0] -eq [System.IO.Path]::AltDirectorySeparatorChar) { throw $failure }
+              $full = [System.IO.Path]::GetFullPath($pathValue)
+              if ($full[0] -eq [System.IO.Path]::DirectorySeparatorChar -or
+                  $full[0] -eq [System.IO.Path]::AltDirectorySeparatorChar) { throw $failure }
               $item = Get-Item -LiteralPath $full -Force
               if ($item.PSIsContainer -or (($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0)) { throw $failure }
               $component = Get-Item -LiteralPath ([System.IO.Path]::GetDirectoryName($full)) -Force
