@@ -136,7 +136,7 @@ After the bounded window:
 1. independently canonicalise and revalidate the exact one-run runner installation directory, the separately fresh work directory, and the canonical Stage A phase directory;
 2. prove each is the recorded fixed-local, non-reparse, restrictive-ACL target and not a parent, profile, OneDrive, network, shared, or reused path;
 3. prove no unexpected runner/process/listener remains; and
-4. remove only the exact canonical Stage A phase directory as one of those three exact targets through the UCL-approved cleanup procedure; this removal contains every one-run SDK and NuGet child listed above.
+4. remove only all three separately revalidated exact targets through the UCL-approved cleanup procedure: the one-run runner installation directory, the separately fresh work directory, and the canonical Stage A phase directory; removal of the phase directory contains every one-run SDK and NuGet child listed above.
 
 An unverified cleanup target must remain untouched and the procedure must stop. Never use a wildcard, recursive parent deletion, global process-name kill, broad cache cleanup, or an unrelated runner removal. Record cleanup and the final absence checks outside repository source without laptop-identifying data.
 

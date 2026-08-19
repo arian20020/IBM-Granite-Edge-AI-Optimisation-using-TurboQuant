@@ -12,6 +12,7 @@ import subprocess
 import tempfile
 import time
 import unittest
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 
@@ -84,7 +85,7 @@ ONE_RUN_DEPENDENCY_DIRECTORIES = {
 }
 RUNNER_LABEL = re.compile(r"\Ahardware-gate1-[0-9a-f]{16}\Z")
 EXPECTED_WORKFLOW_SHA256 = "953167cdfcb983ae6d0ca00831d35fcdf826570001ab7721f1b835ab423c37a5"
-EXPECTED_RUNBOOK_SHA256 = "c7514d0989accf6076616a15c6c6fb62d018d84b92598bda9023fb5bf0a30702"
+EXPECTED_RUNBOOK_SHA256 = "cfef60a33c09e11fbd913a406c25852cad4ca263011fe42091f28059e9f1a51c"
 STAGEA_POWERSHELL_SHELL = (
     r'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe '
     r'-NoLogo -NoProfile -NonInteractive '
@@ -201,12 +202,22 @@ def _assert_one_run_dependency_cleanup_runbook(test_case, runbook):
         "before `actions/setup-dotnet`",
         "fresh, absent, ordinary direct children",
         "program files, userprofile, a browser profile, onedrive, a network location, or an unrelated machine-wide cache",
-        "remove only the exact canonical stage a phase directory",
+        "remove only all three separately revalidated exact targets",
     ):
         test_case.assertIn(required_text, runbook)
     for variable, child in ONE_RUN_DEPENDENCY_DIRECTORIES.items():
         test_case.assertIn(f"`{variable.casefold()}`", runbook)
         test_case.assertIn(f"`{child}`", runbook)
+
+
+def _assert_one_run_dependency_plan_order(test_case, plan):
+    for required_text in (
+        "create and bind the canonical one-run sdk/nuget phase root and its six fresh dependency children before setup-dotnet",
+        "set up .net from `evaluated/global.json` using the runnercontext-bound sdk/nuget paths",
+        "revalidate the existing phase root and all six dependency children",
+        "require the direct output child to be absent",
+    ):
+        test_case.assertIn(required_text, plan)
 
 
 def _assert_hidden_prompt_token_handling(test_case, runbook):
@@ -880,6 +891,19 @@ def _stage_a_trx_fixture(kind):
         f'<TestRun xmlns="{namespace}"><Results>{results}</Results>'
         f'<TestDefinitions>{definitions}</TestDefinitions><TestEntries>{entries}</TestEntries>'
         f'<ResultSummary outcome="Completed"><Counters {counters} /></ResultSummary></TestRun>'
+    )
+
+
+def _trx_direct_element_counts(text):
+    root = ET.fromstring(text)
+    containers = {
+        element.tag.rsplit("}", 1)[-1]: element
+        for element in root
+        if isinstance(element.tag, str)
+    }
+    return tuple(
+        sum(isinstance(child.tag, str) for child in containers[name])
+        for name in ("Results", "TestDefinitions", "TestEntries")
     )
 
 
@@ -3378,6 +3402,17 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
                 result = _invoke_runner_trx_fixture(fixture, kind)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual(result.stdout, "ok")
+                trx_namespace = "http://microsoft.com/schemas/VisualStudio/TeamTest/2010"
+                foreign_definition = valid.replace(
+                    "<UnitTest ", '<UnitTest xmlns="" ', 1
+                ).replace(
+                    "<Execution ", f'<Execution xmlns="{trx_namespace}" ', 1
+                ).replace(
+                    "<TestMethod ", f'<TestMethod xmlns="{trx_namespace}" ', 1
+                )
+                wrong_definition = valid.replace(
+                    "<UnitTest ", "<AlternateUnitTest ", 1
+                ).replace("</UnitTest>", "</AlternateUnitTest>", 1)
                 mutations = {
                     "duplicate-id": valid.replace(
                         'testId="00000002-0000-0000-0000-000000000001"',
@@ -3400,28 +3435,18 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
                     "counters": valid.replace('passed="', 'passed="999', 1),
                     "missing-counters": valid.replace("<Counters ", "<MissingCounters ", 1).replace(" /></ResultSummary>", " /></ResultSummary>", 1),
                     "foreign-result-child": valid.replace(
-                        "</Results>",
-                        '<UnitTestResult xmlns="" testName="Foreign" outcome="Failed" testId="ffffffff-0000-0000-0000-000000000001" executionId="ffffffff-0000-0000-0000-000000000002" /></Results>',
-                        1,
+                        "<UnitTestResult ", '<UnitTestResult xmlns="" ', 1
                     ),
                     "wrong-result-child": valid.replace(
-                        "</Results>", '<AlternateUnitTestResult outcome="Failed" /></Results>', 1
+                        "<UnitTestResult ", "<AlternateUnitTestResult ", 1
                     ),
-                    "foreign-definition-child": valid.replace(
-                        "</TestDefinitions>",
-                        '<UnitTest xmlns="" name="Foreign" storage="Foreign.dll" id="ffffffff-0000-0000-0000-000000000001" /></TestDefinitions>',
-                        1,
-                    ),
-                    "wrong-definition-child": valid.replace(
-                        "</TestDefinitions>", '<AlternateUnitTest /></TestDefinitions>', 1
-                    ),
+                    "foreign-definition-child": foreign_definition,
+                    "wrong-definition-child": wrong_definition,
                     "foreign-entry-child": valid.replace(
-                        "</TestEntries>",
-                        '<TestEntry xmlns="" testId="ffffffff-0000-0000-0000-000000000001" executionId="ffffffff-0000-0000-0000-000000000002" /></TestEntries>',
-                        1,
+                        "<TestEntry ", '<TestEntry xmlns="" ', 1
                     ),
                     "wrong-entry-child": valid.replace(
-                        "</TestEntries>", '<AlternateTestEntry /></TestEntries>', 1
+                        "<TestEntry ", "<AlternateTestEntry ", 1
                     ),
                 }
                 for counter_name in ("notRunnable", "disconnected", "warning", "completed", "inProgress", "pending"):
@@ -3438,6 +3463,18 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
                 )
                 for name, mutated in mutations.items():
                     with self.subTest(kind=kind, mutation=name):
+                        if name in {
+                            "foreign-result-child",
+                            "wrong-result-child",
+                            "foreign-definition-child",
+                            "wrong-definition-child",
+                            "foreign-entry-child",
+                            "wrong-entry-child",
+                        }:
+                            self.assertEqual(
+                                _trx_direct_element_counts(mutated),
+                                _trx_direct_element_counts(valid),
+                            )
                         fixture.write_text(mutated, encoding="utf-8", newline="\n")
                         result = _invoke_runner_trx_fixture(fixture, kind)
                         self.assertNotEqual(result.returncode, 0)
@@ -3772,6 +3809,7 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
         _assert_one_run_dependency_cleanup_runbook(self, runbook)
         _assert_hidden_prompt_token_handling(self, runbook)
         plan = _strict_utf8(PLAN_PATH).casefold()
+        _assert_one_run_dependency_plan_order(self, plan)
         for required_plan_text in (
             "actual windows computer name",
             "expected runner-group display",
@@ -3898,8 +3936,8 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
                     )
         dependency_cleanup_mutations = (
             (
-                "remove only the exact canonical stage a phase directory",
-                "leave the dependency cache behind",
+                "remove only all three separately revalidated exact targets",
+                "remove only the canonical stage a phase directory",
             ),
             ("`nuget-scratch`", "`unmanaged-nuget-scratch`"),
         )
@@ -3910,6 +3948,11 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
                     _assert_one_run_dependency_cleanup_runbook(
                         self, runbook.replace(original, replacement)
                     )
+        with self.assertRaises(AssertionError):
+            _assert_one_run_dependency_plan_order(
+                self,
+                plan.replace("before setup-dotnet", "after setup-dotnet", 1),
+            )
         token_handling_mutations = (
             (
                 "omit `--token`",

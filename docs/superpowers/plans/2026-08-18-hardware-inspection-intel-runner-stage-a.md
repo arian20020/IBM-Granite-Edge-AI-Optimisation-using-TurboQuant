@@ -292,11 +292,11 @@ Self-hosted execution order is fixed:
 
 1. with a two-minute bound in the first executable step, reject every debug control and inherited case-insensitive `GIT_*`, require the fixed Git Application contract, validate the fixed-local non-reparse workspace and absent exact `control`/`evaluated` children, query and reject pre-existing `llmfit`/fake-tool processes or TCP 8787 listeners, and only then mask the fixed runner/session roots and dedicated account value;
 2. check out default-branch controls with credentials disabled;
-3. validate Runner context again, including exact workspace/control/evaluated-child identity and fixed-local normal non-reparse `RUNNER_TEMP` and `RUNNER_WORKSPACE`, before evaluated checkout or Stage A output/work-directory creation;
+3. validate Runner context again, including exact workspace/control/evaluated-child identity and fixed-local normal non-reparse `RUNNER_TEMP` and `RUNNER_WORKSPACE`; require the anticipated evaluated child and phase root to be absent, then create and bind the canonical one-run SDK/NuGet phase root and its six fresh dependency children before setup-dotnet;
 4. check out exactly `needs.hosted-preflight.outputs.approved_sha` with credentials disabled;
 5. revalidate exact SHA/clean tree/absent candidate and operational variables;
-6. set up .NET from `evaluated/global.json`;
-7. revalidate the workspace and runner-temp parents, require both direct output/work children to be absent, create those exact fresh children with error-on-preexistence semantics, revalidate their parent identities, and invoke only the default-branch Stage A runner script;
+6. set up .NET from `evaluated/global.json` using the RunnerContext-bound SDK/NuGet paths;
+7. revalidate the workspace and runner-temp parents; revalidate the existing phase root and all six dependency children; require the direct output child to be absent, create that exact fresh output child with error-on-preexistence semantics, revalidate its parent identity, and invoke only the default-branch Stage A runner script;
 8. validate the exact ordinary fixed-drive JSON and Markdown bytes under an exclusive read handle immediately before upload;
 9. upload only the already privacy-scanned JSON summary with a unique run-ID/attempt name and a short retention period;
 10. append the fixed safe Markdown summary;
