@@ -127,7 +127,6 @@ class HuggingFaceHubAdapter(HubApi):
                 revision=revision,
                 local_dir=local_dir,
                 allow_patterns=allow_patterns,
-                local_dir_use_symlinks=False,
             )
         )
 
