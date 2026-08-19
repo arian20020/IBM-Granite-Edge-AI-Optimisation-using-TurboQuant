@@ -255,15 +255,15 @@ class Phase3DependencyPreflightWorkflowContractTests(unittest.TestCase):
             with self.subTest(token=token):
                 self.assertIn(token, self.dependency_runbook)
 
-    def test_c1_status_delegates_task12_closure_to_exact_head_pr_evidence(self) -> None:
+    def test_c1_status_records_accepted_dependency_and_pending_live_c1(self) -> None:
         for token in (
-            "Dependency-preflight Tasks 1–12 changes: **Implemented**",
-            "Exact-head repository verification and Task 12 closure: **Controlled by PR `#72` exact-head evidence**",
-            "Live dependency-preflight acceptance: **Pending**",
-            "Live C1 asset locking: **Blocked**",
-            "Task 12 closure is determined exclusively by the exact-head evidence recorded in PR `#72`.",
+            "Live dependency-preflight acceptance: **Accepted**",
+            "Workflow run `32211117536`, attempt `1`",
+            "429b90548ce2b4c8463941c5b2983c8ff0cf6cc3ea3865375c8cae78d7193b49",
+            "Live C1 binding implementation: **PR `#82`**",
+            "Live C1 asset evidence: **Pending post-merge dispatch and acceptance**",
             "phase3-dependency-preflight-runbook.md",
-            "PR `#72`",
+            "phase3-asset-lock-runbook.md",
         ):
             with self.subTest(token=token):
                 self.assertIn(token, self.c1_status)
@@ -272,16 +272,24 @@ class Phase3DependencyPreflightWorkflowContractTests(unittest.TestCase):
             self.c1_status.casefold(),
         )
 
-    def test_asset_lock_runbook_cross_links_preflight_without_opening_live_gate(self) -> None:
+    def test_asset_lock_runbook_cross_links_preflight_and_opens_only_bound_live_gate(self) -> None:
         self.assertIn(
             "[clean dependency-preflight runbook](phase3-dependency-preflight-runbook.md)",
             self.asset_lock_runbook,
         )
-        self.assertIn(
+        for token in (
+            "Accepted dependency-preflight binding",
+            "Verify accepted dependency binding before model access",
+            "32211117536",
+            "429b90548ce2b4c8463941c5b2983c8ff0cf6cc3ea3865375c8cae78d7193b49",
+            "operation: live-asset-lock",
+        ):
+            self.assertIn(token, self.asset_lock_runbook)
+        self.assertNotIn(
             "`offline-fixture` is the only permitted operation",
             self.asset_lock_runbook,
         )
-        self.assertIn(
+        self.assertNotIn(
             "fails closed if `live-asset-lock` is selected",
             self.asset_lock_runbook,
         )
