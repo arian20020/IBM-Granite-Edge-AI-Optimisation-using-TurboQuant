@@ -19,14 +19,10 @@ import stat
 import sys
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath, PureWindowsPath
-from typing import Any, Iterable, Mapping, Sequence
+from typing import Any, Mapping, Sequence
 
 from scripts.testing.workbook05.phase3.contracts import assert_phase3_record
 from scripts.testing.workbook05.phase3.conversion import (
-    ACCEPTED_OPTIMUM_COMMIT if False else OPTIMUM_COMMIT,
-)
-from scripts.testing.workbook05.phase3.conversion import (
-    OPTIMUM_INTEL_COMMIT,
     ConversionFile,
     ConversionPackage,
     ConversionRequest,
