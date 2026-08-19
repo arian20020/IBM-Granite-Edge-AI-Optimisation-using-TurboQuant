@@ -113,10 +113,19 @@ class Phase3DependencyAcceptanceTests(unittest.TestCase):
         scripts.mkdir(parents=True)
         acceptance_path.parent.mkdir(parents=True)
 
+        # Canonicalize after directory creation. Windows can expand an 8.3 temp
+        # path during resolve(); the committed and observed fixture identities
+        # must use the same canonical spelling as the production verifier.
+        workspace = workspace.resolve(strict=True)
+        evidence = evidence.resolve(strict=True)
+        scripts = scripts.resolve(strict=True)
+
         python_path = scripts / "python.exe"
         optimum_path = scripts / "optimum-cli.exe"
         python_path.write_bytes(b"accepted-python")
         optimum_path.write_bytes(b"accepted-optimum-cli")
+        python_path = python_path.resolve(strict=True)
+        optimum_path = optimum_path.resolve(strict=True)
 
         decision = {
             "schema_version": "1.0",
@@ -200,7 +209,7 @@ class Phase3DependencyAcceptanceTests(unittest.TestCase):
                 proof["optimum_cli_sha256"],
             )
             self.assertEqual(decision_sha256, proof["decision_sha256"])
-            self.assertEqual(str(workspace.resolve()), proof["workspace_root"])
+            self.assertEqual(str(workspace), proof["workspace_root"])
             for flag in CLAIM_FLAGS:
                 self.assertIs(proof[flag], False)
 
