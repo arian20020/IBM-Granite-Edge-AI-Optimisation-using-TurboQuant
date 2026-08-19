@@ -3,166 +3,110 @@
 **Campaign:** `GTQ-WB05-MF-v1`  
 **Route:** `route-a-merged-openvino`  
 **Package:** C1 — immutable model and conversion assets  
-**C1 control pull request:** `#69`  
-**Dependency-preflight pull request:** `#72`  
-**Status:** Tasks 1–12 repository changes implemented; exact-head verification and Task 12 closure are controlled by PR `#72` evidence; live dependency and C1 acceptance remain pending
+**C1 controls PR:** `#69`  
+**Dependency-preflight implementation PR:** `#72`  
+**Live C1 binding implementation:** `#82`  
+**Status:** the clean dependency environment is independently accepted; PR `#82` binds that exact evidence to the live C1 model-acquisition and conversion boundary; live C1 evidence is not yet accepted
 
 ## Current checkpoint states
 
-- Dependency-preflight Tasks 1–12 changes: **Implemented**
-- Exact-head repository verification and Task 12 closure: **Controlled by PR `#72` exact-head evidence**
-- Live dependency-preflight acceptance: **Pending**
-- Live C1 asset locking: **Blocked**
+- Dependency-preflight repository implementation: **Complete**
+- Live dependency-preflight acceptance: **Accepted**
+- Accepted dependency identity: **Workflow run `32211117536`, attempt `1`**
+- Live C1 binding implementation: **PR `#82`**
+- Live C1 asset evidence: **Pending post-merge dispatch and acceptance**
+- Granite model loading, generation, codec, performance, and quality evidence: **Not authorised by C1**
 
-`Implemented` means that the proposed code, closed schemas, deterministic
-fixtures, tests, workflow controls, independent validator, and operator guidance
-are present on the pull-request branch. It does not by itself mean that Task 12 is
-closed or that the branch has passed the required exact-head gates.
+This status distinguishes repository implementation, accepted dependency evidence,
+and live C1 asset evidence. A green repository workflow alone is not a model or
+scientific result. C1 is complete only after PR `#82` is merged, a fresh `main`
+`live-asset-lock` attempt passes all three workflow boundaries, its text-only
+artifact is independently rehashed and validated, the retained source and converted
+asset identities are checked, and the project owner accepts that exact attempt.
 
-Task 12 closure is determined exclusively by the exact-head evidence recorded in PR `#72`.
-Any change to the pull-request head invalidates an earlier exact-head result until
-every required gate has passed again. No live dependency environment or C1 asset
-has been accepted.
+## Accepted dependency-preflight evidence
 
-## Meaning of this status
+The accepted package-only environment is bound to:
 
-Three different statements must remain separate:
+```text
+Workflow: Workbook 05 Phase 3 dependency preflight
+Workflow run: 32211117536
+Run attempt: 1
+Project head: c417efd936a7fa2e871b689065b2f3b88636c1a1
+Artifact ID: 9350956534
+Artifact name: workbook-05-phase3-dependency-preflight-32211117536-1
+GitHub artifact SHA-256:
+b68a4f8af8c57a9f5d71347d2485855796f4d0dce0291c50b596512c309c0c21
+Independent artifact SHA-256:
+b68a4f8af8c57a9f5d71347d2485855796f4d0dce0291c50b596512c309c0c21
+decision.json SHA-256:
+429b90548ce2b4c8463941c5b2983c8ff0cf6cc3ea3865375c8cae78d7193b49
+Retained workspace:
+C:\w5c\dependency-preflight-32211117536-1
+```
 
-1. **Implemented** — repository code, schemas, tests, workflow controls, and
-   operator documentation exist as a review candidate.
-2. **Verified and closed** — every required repository check passes on one exact
-   pull-request head. Exact run IDs, test counts, and artifact digests are
-   recorded in the controlling pull request because they change with each repair.
-3. **Accepted live evidence** — a manually dispatched `main` workflow creates a
-   digest-bound artifact, a clean hosted runner validates it strictly as
-   untrusted data, the artifact and decision are independently rehashed, and the
-   project owner accepts the same identities.
+The committed owner-acceptance record is:
 
-PR `#72` contains the repository implementation candidate for the clean Windows
-conversion-dependency preflight. Task 12 may be reported as closed only when the
-required gates, independent application-artifact hash, and parsed TRX result for
-the exact final pull-request head are recorded there. That does not mean the
-dependency environment has already passed on the Lenovo. Live acceptance remains
-pending until the later post-merge manual workflow, hosted validation, independent
-rehash, retained workspace check, and project-owner acceptance all succeed.
+```text
+experiments/granite_turboquant_intel/manifests/campaigns/
+GTQ-WB05-MF-v1/phase3/accepted-dependency-preflight.json
+```
 
-No model, conversion, codec, storage, performance, or quality result is claimed
-by this document.
+The accepted artifact passed its hosted untrusted-data validator and an independent
+ZIP, path, manifest, decision, source, package, and scientific-flag inspection. The
+accepted environment contains Python `3.12.10`, Optimum `2.3.0`, Optimum Intel
+`2.2.0.dev0+a3b6012`, Transformers `5.5.0`, Hugging Face Hub `1.21.0`, NNCF
+`3.2.0`, OpenVINO `2026.2.1`, OpenVINO Tokenizers `2026.2.1.0`, and the exact
+reviewed VCS commits. It authorises only the following C1 binding verification;
+model download and every scientific claim remain false in the dependency record.
+
+The detailed operating procedure remains in
+[`phase3-dependency-preflight-runbook.md`](phase3-dependency-preflight-runbook.md).
+
+## What PR #82 adds
+
+PR `#82` is the narrow dependency-to-C1 binding and live asset-lock candidate. It:
+
+1. commits the exact accepted dependency identity;
+2. verifies the supplied decision digest before retained-workspace access;
+3. revalidates the committed acceptance, retained bundle, manifest, decision,
+   observation, Python executable, and Optimum CLI;
+4. keeps the offline fixture deterministic, network-free, and model-free;
+5. admits `assets` to the controlled native-process adapter;
+6. revalidates the accepted Route A Runtime and GenAI installations;
+7. enforces the 50 GiB disk boundary and normal local-directory policy;
+8. resolves the official Granite 4.1 3B request to one immutable Hub commit;
+9. downloads exactly the advertised snapshot outside Git;
+10. inventories and hashes source and tokenizer files;
+11. invokes the reviewed INT4 asymmetric group-128 data-free conversion;
+12. inventories and hashes every converted output;
+13. publishes only text, JSON, CSV, and log evidence;
+14. keeps all model-execution and scientific-authorisation fields false; and
+15. sends the same-attempt artifact to an independent hosted validator.
+
+The complete live operating procedure is in
+[`phase3-asset-lock-runbook.md`](phase3-asset-lock-runbook.md).
 
 ## C1 task ledger
 
-| Task | Repository boundary | Live-evidence boundary |
+| Task | Repository state | Live-evidence state |
 |---|---|---|
-| 1. Closed JSON contracts and schema registry | Implemented | Templates only |
-| 2. Deterministic hashing and controlled paths | Implemented | Ready for later collectors |
-| 3. Accepted Runtime/GenAI prerequisite revalidation | Implemented | Must rerun before any live asset access |
-| 4. Disk and workspace preflight | Implemented | Must rerun on the controlled laptop |
-| 5. Immutable model resolution/download adapter | Implemented with a fake Hub boundary | No Granite snapshot downloaded |
-| 6. Conversion dependency and provenance controls | Clean dependency-preflight implementation candidate is provided by PR `#72` | Manual `main` run and owner acceptance still required |
-| 7. Atomic asset-lock orchestrator | Offline fixture behaviour implemented | `live-asset-lock` remains blocked pending a separate dependency-binding change |
-| 8. Diagnostic-candidate classification | Implemented with a digest-bound `PathEquivalent` rule | No candidate has live path-equivalence evidence |
-| 9. Untrusted asset-bundle validation | Implemented with adversarial fixtures | No live asset bundle exists |
-| 10. Phase 3 repository gate and workflow boundaries | Hosted PR gate plus manual-main offline fixture workflow implemented | Only `offline-fixture` is currently permitted |
-| 11. Operator runbook and non-claim documentation | Implemented and cross-linked to the dependency runbook | Must be followed after merge |
-| 12. Package verification and PR preparation | Implementation complete; closure state governed by exact-head evidence in PR `#72` | Post-merge dependency proof, C1 rehearsal, and owner acceptance remain pending |
-
-## Dependency-preflight repository ledger
-
-PR `#72` implements these twelve repository boundaries as a verification candidate:
-
-| Item | Repository result | Live result |
-|---|---|---|
-| 1. Closed decision, schema, and interruption precedence | Implemented and tested in focused development cycles | No live decision exists |
-| 2. Hash-locked bootstrap using Python `3.12.10`, `pip-tools==7.6.0`, and `pip==26.1.2` | Implemented and tested in focused development cycles | No live bootstrap environment accepted |
-| 3. Data-only Optimum and Optimum Intel source contracts | Implemented and tested in focused development cycles | Exact sources must still be acquired and hashed live |
-| 4. No-model compatibility check | Implemented and tested without model, network, or conversion access | Must pass in the final live environment |
-| 5. Controlled dependency command evidence | Implemented without weakening Runtime or GenAI defaults | No live command evidence accepted |
-| 6. Fresh workspace and immutable source verification | Implemented with deterministic simulations | No `C:\\w5c` attempt accepted |
-| 7. Separate bootstrap environment and target lock generation | Implemented with deterministic simulations | No target lock accepted from the Lenovo |
-| 8. Untouched final environment and six ordered checks | Implemented with deterministic simulations | No final conversion environment accepted |
-| 9. Atomic success/failure evidence and manifest-last rule | Implemented with deterministic simulations | No live evidence bundle exists |
-| 10. Complete independent untrusted-data validator | Implemented with adversarial tests | No live artifact validated |
-| 11. Hosted → Lenovo → hosted workflow | Implemented with read-only permissions and fixed inputs | Manual `main` dispatch not yet accepted |
-| 12. Operator guidance and repository closure | Guidance and closure controls implemented; verification result recorded in PR `#72` | Independent hashing and owner acceptance remain pending |
-
-The dedicated operator instructions are in
-[`phase3-dependency-preflight-runbook.md`](phase3-dependency-preflight-runbook.md).
-
-## Current permitted operations
-
-The C1 asset workflow exposes:
-
-```text
-offline-fixture
-live-asset-lock
-```
-
-`offline-fixture` remains the only permitted C1 operation. `live-asset-lock`
-deliberately fails before model access until a later reviewed change binds an
-independently accepted dependency decision and its retained Windows workspace.
-
-The safe C1 rehearsal remains:
-
-```text
-Actions
-→ Workbook 05 Phase 3 assets
-→ Run workflow
-
-Use workflow from: main
-operation: offline-fixture
-confirm_live_asset_lock: unchecked
-accepted_dependency_preflight_sha256: blank
-```
-
-Expected jobs:
-
-```text
-Verify Phase 3 repository contract
-        ↓
-Collect controlled C1 asset evidence
-        ↓
-Validate C1 artifact as untrusted data
-```
-
-The rehearsal performs no network model download, model conversion, or model
-execution.
-
-## Post-merge dependency proof
-
-After PR `#72` passes all exact-head checks, is approved and merged, and a fresh
-`main` application regression passes, the separate dependency workflow is
-dispatched exactly as follows:
-
-```text
-Actions
-→ Workbook 05 Phase 3 dependency preflight
-→ Run workflow
-
-Use workflow from: main
-confirm_live_dependency_preflight: checked
-```
-
-Acceptance requires all of the following from one exact run and attempt:
-
-```text
-repository-contract Passed
-Lenovo collection Passed
-hosted untrusted-data validation Passed
-exact main commit recorded
-artifact name and GitHub digest recorded
-artifact SHA-256 independently recalculated and matched
-decision.json SHA-256 independently recalculated
-retained C:\w5c workspace recorded
-all model and scientific authorisation flags false
-project-owner acceptance explicitly recorded
-```
-
-Even a fully accepted dependency preflight does not automatically enable
-`live-asset-lock`. A later separate reviewed change must consume the exact
-accepted decision digest and retained workspace identity. Until that change is
-implemented, reviewed, merged, and verified, live Granite access remains blocked.
+| 1. Closed JSON contracts and schema registry | Implemented | Used by fixture and live validators |
+| 2. Deterministic hashing and controlled paths | Implemented | Dependency evidence accepted; live asset evidence pending |
+| 3. Accepted Runtime/GenAI prerequisite revalidation | Implemented | Must rerun inside the live C1 attempt |
+| 4. Disk and workspace preflight | Implemented | Must pass on the Lenovo before model access |
+| 5. Immutable model resolution/download adapter | Implemented and tested with an injected fake Hub | Live Granite snapshot pending |
+| 6. Conversion dependency and provenance controls | Implemented | Exact dependency environment accepted from run `32211117536` |
+| 7. Atomic asset-lock orchestrator | Offline and live paths implemented in PR `#82` | Live run pending post-merge |
+| 8. Diagnostic-candidate classification | Implemented | No live model inference classification belongs to C1 |
+| 9. Untrusted asset-bundle validation | Implemented with adversarial fixtures | Live same-attempt artifact pending |
+| 10. Phase 3 repository gate and workflow boundaries | Implemented | Post-merge `main` asset workflow pending |
+| 11. Operator runbooks and non-claims | Updated for accepted dependency and bounded live C1 | Must be followed exactly |
+| 12. Package verification and PR preparation | PR `#82` verification in progress | Owner merge approval and live C1 acceptance pending |
 
 ## Accepted read-only Phase 2 prerequisites
+
+These inputs remain immutable and read-only:
 
 ```text
 Runtime installation:
@@ -181,7 +125,7 @@ GenAI installation:
 C:\w5a\phase2-31661571860-1\i-genai
 
 GenAI decision:
-C:\w5a\accepted-route-a-genai-31661571860-1\decision.json
+C:\w5a\accepted-route-a-genai-31656417607-1\decision.json
 
 GenAI source:
 bd8d6542e3ca1ac30042d5d8d4202ce00b5f4af0
@@ -190,20 +134,54 @@ GenAI decision SHA-256:
 0f273e1f345e1512e8e159af9b83f9ad521a26aa5e0ae813f2599161a5cb4a79
 ```
 
-These paths remain read-only. Their identities are supported by the Route A
-Phase 2 closure record and must be revalidated before a later live C1 attempt.
+The live C1 attempt must revalidate these decisions, source commits, required
+installed files, and false scientific flags before it creates or touches the model
+root.
+
+## Post-merge live C1 boundary
+
+After PR `#82` passes every exact-head check, is reviewed and merged, and a fresh
+`main` application regression passes, the asset workflow is dispatched with:
+
+```text
+operation: live-asset-lock
+confirm_live_asset_lock: checked
+accepted_dependency_preflight_sha256:
+429b90548ce2b4c8463941c5b2983c8ff0cf6cc3ea3865375c8cae78d7193b49
+```
+
+The expected trust sequence is:
+
+```text
+hosted repository contract
+        ↓
+Lenovo dependency revalidation, model acquisition, and conversion
+        ↓
+hosted same-attempt artifact validation
+        ↓
+independent artifact, manifest, record, and retained-path inspection
+        ↓
+project-owner acceptance
+```
+
+The existing dependency workspace and every earlier failed C1/dependency attempt
+must remain unchanged. A new workflow run uses a new C1 evidence workspace and new
+immutable source/converted directory identities. No earlier attempt is repaired or
+relabelled as successful.
 
 ## Current non-claims
 
-No current C1 or dependency-preflight result proves or authorises:
+Neither the accepted dependency preflight nor PR `#82` currently proves or
+authorises:
 
 ```text
-Granite download, conversion, loading, or generation
+Granite model loading or text generation
 CPU, model, or KV-cache placement
 stateful SDPA/KV-cache execution
 scalar U8/U4 cache activation
 TurboQuant U3/U4 activation
 QJL or PolarQuant activation
+requested-versus-selected codec equality
 fallback absence
 packed K or V storage
 full KV-cache allocation
@@ -213,5 +191,5 @@ perplexity or P1–P6 quality
 Granite 8B feasibility
 ```
 
-Route B remains separately blocked and is not reopened by C1 or by dependency
-qualification.
+Those remain later C2–C5 and Stage D/E evidence boundaries. Route B remains
+separately blocked and is not reopened by C1 or dependency qualification.
