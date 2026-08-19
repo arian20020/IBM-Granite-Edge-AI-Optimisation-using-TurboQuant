@@ -122,7 +122,9 @@ class Phase3LiveAssetLockContractTests(unittest.TestCase):
         self.assertEqual(positions, sorted(positions))
 
         dependency_verification = script.index("dependency_acceptance")
-        model_root_access = script.index("C:\\w5m")
+        model_root_access = script.index(
+            "$ModelRoot = Assert-NormalDirectory -Path 'C:\\w5m'"
+        )
         self.assertLess(dependency_verification, model_root_access)
         self.assertIn("Invoke-Wb05ControlledLoggedProcess", script)
         self.assertIn("-Component 'assets'", script)
