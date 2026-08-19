@@ -59,10 +59,8 @@ class Phase3LiveAssetLockContractTests(unittest.TestCase):
     def test_live_operation_verifies_the_committed_acceptance_before_model_access(
         self,
     ) -> None:
-        self.assertIn(
-            "accepted-dependency-preflight.json",
-            self.workflow,
-        )
+        # The workflow invokes the reviewed module; that module owns the exact
+        # committed acceptance-record path and fails closed on any identity drift.
         self.assertIn(
             "scripts.testing.workbook05.phase3.dependency_acceptance",
             self.workflow,
