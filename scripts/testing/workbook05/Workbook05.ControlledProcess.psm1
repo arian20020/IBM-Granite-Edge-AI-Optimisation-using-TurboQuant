@@ -430,6 +430,21 @@ function Invoke-Wb05ControlledLoggedProcess {
     Write-Wb05ControlledUtf8Text -Path $stdoutPath -Text $stdout
     Write-Wb05ControlledUtf8Text -Path $stderrPath -Text $stderr
 
+    # Fast native commands can exit before the first sampling pass. The command
+    # index still promises a resource CSV, so publish the reviewed header without
+    # inventing a measurement row when no sample was observed.
+    if (-not $csvExists) {
+        $resourceCsvHeader = (
+            '"timestamp_utc","root_process_id","process_tree_ids",' +
+            '"working_set_bytes","private_bytes","available_memory_bytes",' +
+            '"commit_percent","heartbeat_age_seconds"'
+        )
+        Write-Wb05ControlledUtf8Text `
+            -Path $resourceCsvPath `
+            -Text $resourceCsvHeader
+        $csvExists = $true
+    }
+
     $resourceSummary = [ordered]@{
         schema_version = '1.0'
         campaign_id = 'GTQ-WB05-MF-v1'
