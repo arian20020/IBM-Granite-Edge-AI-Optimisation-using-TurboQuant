@@ -145,6 +145,18 @@ class DependencyBundleIssue:
     message: str
 
 
+@dataclass(frozen=True, slots=True)
+class LockReportEvidence:
+    """One parsed lock/report pair plus its exact retained-byte identities."""
+
+    lock: tuple[LockedDistribution, ...]
+    report: dict[str, Any]
+    lock_text: str
+    report_text: str
+    lock_sha256: str
+    report_sha256: str
+
+
 def _add(
     issues: list[DependencyBundleIssue],
     code: str,
@@ -159,6 +171,19 @@ def _load_object(path: Path) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise ValueError(f"Expected one JSON object: {path}")
     return value
+
+
+def _read_exact_utf8(path: Path, *, label: str) -> tuple[bytes, str]:
+    """Read strict UTF-8 without universal-newline byte normalization."""
+
+    payload = path.read_bytes()
+    try:
+        text = payload.decode("utf-8")
+    except UnicodeDecodeError as error:
+        raise ValueError(f"{label} must contain valid UTF-8 text.") from error
+    if text.startswith("\ufeff"):
+        raise ValueError(f"{label} must use BOM-free UTF-8 text.")
+    return payload, text
 
 
 def _canonical_name(value: str) -> str:
@@ -333,7 +358,7 @@ def _load_lock_and_report(
     required: Mapping[str, str],
     bootstrap: bool,
     issues: list[DependencyBundleIssue],
-) -> tuple[tuple[LockedDistribution, ...], dict[str, Any], str, str] | None:
+) -> LockReportEvidence | None:
     lock_path = bundle / lock_relative
     report_path = bundle / report_relative
     if not lock_path.is_file() or not report_path.is_file():
@@ -344,8 +369,14 @@ def _load_lock_and_report(
         else "NORMAL_LOCK_REPORT_MISMATCH"
     )
     try:
-        lock_text = lock_path.read_text(encoding="utf-8")
-        report_text = report_path.read_text(encoding="utf-8")
+        lock_bytes, lock_text = _read_exact_utf8(
+            lock_path,
+            label="dependency lock",
+        )
+        report_bytes, report_text = _read_exact_utf8(
+            report_path,
+            label="pip install report",
+        )
         report = json.loads(report_text)
         if not isinstance(report, Mapping):
             raise ValueError("pip report must contain one JSON object.")
@@ -365,13 +396,20 @@ def _load_lock_and_report(
     except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as error:
         _add(issues, code, report_relative, str(error))
         return None
-    return lock, dict(report), lock_text, report_text
+    return LockReportEvidence(
+        lock=lock,
+        report=dict(report),
+        lock_text=lock_text,
+        report_text=report_text,
+        lock_sha256=hashlib.sha256(lock_bytes).hexdigest(),
+        report_sha256=hashlib.sha256(report_bytes).hexdigest(),
+    )
 
 
 def _check_lock_observation_relationships(
     observation: Mapping[str, Any],
-    bootstrap_data: tuple[Sequence[LockedDistribution], Mapping[str, Any], str, str] | None,
-    normal_data: tuple[Sequence[LockedDistribution], Mapping[str, Any], str, str] | None,
+    bootstrap_data: LockReportEvidence | None,
+    normal_data: LockReportEvidence | None,
     issues: list[DependencyBundleIssue],
 ) -> None:
     bindings = (
@@ -395,29 +433,26 @@ def _check_lock_observation_relationships(
     for data, text_key, sha_key, report_key, report_sha_key, code in bindings:
         if data is None:
             continue
-        _, _, lock_text, report_text = data
-        actual_lock_sha = hashlib.sha256(lock_text.encode("utf-8")).hexdigest()
-        if observation.get(text_key) != lock_text or observation.get(sha_key) != actual_lock_sha:
+        if (
+            observation.get(text_key) != data.lock_text
+            or observation.get(sha_key) != data.lock_sha256
+        ):
             _add(
                 issues,
                 code,
                 "observation.json",
                 f"Observation {text_key}/{sha_key} differs from retained bytes.",
             )
-        if report_key is not None:
-            actual_report_sha = hashlib.sha256(
-                report_text.encode("utf-8")
-            ).hexdigest()
-            if (
-                observation.get(report_key) != report_text
-                or observation.get(report_sha_key) != actual_report_sha
-            ):
-                _add(
-                    issues,
-                    code,
-                    "observation.json",
-                    "Observation bootstrap report identity differs from retained bytes.",
-                )
+        if report_key is not None and (
+            observation.get(report_key) != data.report_text
+            or observation.get(report_sha_key) != data.report_sha256
+        ):
+            _add(
+                issues,
+                code,
+                "observation.json",
+                "Observation bootstrap report identity differs from retained bytes.",
+            )
 
 
 def _read_source_csv(
@@ -900,7 +935,7 @@ def validate_dependency_bundle(
         _check_checks_and_stages(bundle, observation, issues)
     _check_final_packages(
         bundle,
-        normal_data[0] if normal_data is not None else None,
+        normal_data.lock if normal_data is not None else None,
         issues,
     )
     _check_command_index(bundle, issues)
