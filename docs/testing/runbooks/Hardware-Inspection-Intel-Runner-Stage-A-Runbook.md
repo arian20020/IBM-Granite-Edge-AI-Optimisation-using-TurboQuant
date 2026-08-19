@@ -69,19 +69,33 @@ Inspect the approval manifest at the exact default-branch run commit on the trus
 
 Immediately before requesting a registration token and immediately before registration, recheck writer trust and prove that the exact run ID is still the sole expected queued run. Recheck its workflow, `refs/heads/main`, approved SHA, actor, triggering actor, attempt `1`, confirmation input, and fresh label, and prove no other queued or running job targets the fresh label. Stop on any mismatch or additional queued or running run.
 
-On the separate trusted operator device, request a new transient one-hour registration token only after the final queue verification. In the fresh installation directory on the laptop, use GitHub's displayed configuration command with the fresh non-identifying name and this exact flag sequence:
+Before registration, use the UCL-approved local no-echo procedure to compare the actual Windows computer name and expected runner-group display value with the external approval record. Both values must be explicitly UCL-approved and non-identifying. An unknown or unsafe identity is a hard stop. Do not print, echo, or store either value in a repository, chat, retained command history, screenshot, or log. Do not rename the laptop unless UCL separately authorises the rename; stop and obtain that authority first.
+
+The self-hosted runner can disclose the machine name and runner-group metadata during pre-job setup, before the first workflow step runs. Workflow masks cannot remediate this pre-step metadata, so the local no-echo approval check is the privacy boundary.
+
+Before registration and again before `run.cmd`, use the UCL-approved local no-echo procedure to inspect every runner-consumed proxy settings and configuration source, including `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY` case-insensitively, runner `.env` and service context, and any other proxy source the runner will consume. Every proxy value must be absent or its exact displayed metadata must be explicitly UCL-approved and non-identifying. Unknown or unsafe proxy metadata is a hard stop. Do not print, echo, or store a proxy URI or proxy metadata. Do not clear or reconfigure proxy state merely to continue.
+
+In the same local check, prove `ACTIONS_RUNNER_DEBUG`, `ACTIONS_STEP_DEBUG`, and `RUNNER_DEBUG`, plus runner trace and print-log controls, must all be absent before start. The hosted debug gate remains mandatory but does not replace this earlier check. Pre-step debug or trace disclosure is irreversible, and workflow masking begins too late to repair it.
+
+Before registration and repeat after registration immediately before `run.cmd`, use the same no-echo procedure to prove `ACTIONS_RUNNER_HOOK_JOB_STARTED` and `ACTIONS_RUNNER_HOOK_JOB_COMPLETED` are absent from the effective process, user, and system environment and the fresh runner-root `.env`. Registration can create `.env`, so both checks are required. Either value or entry is a hard stop; never execute, clear, or repair it to continue. These hooks run outside workflow steps as the runner account and can expose their path or output during runner setup/completion; the workflow's first guard is too late.
+
+Before registration and again immediately before `run.cmd`, use the same local no-echo inspection boundary to prove `ACTIONS_RUNNER_ACTION_ARCHIVE_CACHE` and `ACTIONS_RUNNER_SYMLINK_CACHED_ACTIONS` are absent from the effective process, user, and machine/system environment and from the fresh runner-root `.env`. Any value or entry is a hard stop. The operator must not execute, clear, repair, or override it merely to continue. These settings can change action materialisation before the first workflow step; a first-step workflow check is defence in depth only and cannot replace either local pre-registration/start check.
+
+On the separate trusted operator device, request a new transient one-hour registration token only after the final queue verification. Do not run or paste GitHub's displayed token-bearing command; use it only to obtain the trusted repository URL and transient token. Transfer the token through the approved transient procedure. On the laptop, prove `ACTIONS_RUNNER_INPUT_TOKEN` is absent, then invoke `config.cmd` interactively from the fresh installation directory with this exact token-free command:
 
 ```text
---ephemeral --no-default-labels --labels <fresh-label> --work <fresh-work-directory>
+.\config.cmd --url <trusted-repository-url> --name <fresh-non-identifying-runner-name> --ephemeral --no-default-labels --labels <fresh-label> --work <fresh-work-directory>
 ```
 
-Enter the transient token without retaining it. Do not add default, fixed, shared, `self-hosted`, `Windows`, or `X64` labels. Do not configure unattended execution. Do not install a service or scheduled task. Never reuse the runner installation, configuration, token, label, name, or work directory.
+Omit `--token`. Enter the token only at the runner's hidden secret prompt, then clear the clipboard immediately without retaining the value. Hard stop if the supported runner does not offer a non-echoing prompt. Do not add default, fixed, shared, `self-hosted`, `Windows`, or `X64` labels. Do not configure unattended execution. Do not install a service or scheduled task. Never reuse the runner installation, configuration, token, label, name, or work directory.
 
 Supply `--name <fresh-non-identifying-runner-name>` as a separate configuration value. Never substitute the runner name for the exact fresh label or derive one from the other.
 
 After registration, perform the same exact queue and writer-trust check once more. Only if it remains the sole expected queued run, start exactly one interactive `run.cmd` session from the dedicated account. Observe that it accepts exactly one job. Stop if another job is offered or any identity changes.
 
 ## 6. Verify the one deterministic job
+
+The workflow must create all one-run SDK and NuGet state only after RunnerContext validates the canonical Stage A phase directory and before `actions/setup-dotnet`. It must create these as fresh, absent, ordinary direct children of that one fixed-local, ancestor-reparse-free phase directory: `DOTNET_INSTALL_DIR` → `sdk`, `DOTNET_CLI_HOME` → `cli-home`, `NUGET_PACKAGES` → `nuget-packages`, `NUGET_HTTP_CACHE_PATH` → `nuget-http-cache`, `NUGET_PLUGINS_CACHE_PATH` → `nuget-plugins-cache`, and `NUGET_SCRATCH` → `nuget-scratch`. Telemetry, first-time experience, logo output, multilevel lookup, and global-tool PATH mutation must remain disabled. Any missing, pre-existing, reparse, mis-bound, or outside target is a hard stop. The setup action and every restore/build/test child must inherit these exact settings, while evaluated children remain unable to access GitHub command-file channels. Never place SDK/package state in Program Files, USERPROFILE, a browser profile, OneDrive, a network location, or an unrelated machine-wide cache, and never print a resolved path remotely.
 
 The accepted job may execute only the repository's Stage A deterministic boundary. Require all of the following:
 
@@ -105,7 +119,7 @@ Do not acquire or run a candidate. Do not clear a candidate directory or operati
 
 After the single job finishes, require GitHub to show automatic deregistration of the ephemeral runner. Verify no runner service, scheduled task, `Runner.Listener`, `Runner.Worker`, candidate/fake-tool process, or TCP 8787 listener remains. Query failure is a stop condition, not evidence of absence.
 
-If automatic deregistration fails, do not reuse the runner. On the separate trusted operator device, use only GitHub's time-limited removal flow for this exact runner. Transfer and clear the removal token using the same approved transient procedure. Do not use a PAT or a long-lived secret.
+If automatic deregistration fails, do not reuse the runner. On the separate trusted operator device, use only GitHub's time-limited removal flow for this exact runner. Transfer the removal token using the same approved transient procedure. For `config.cmd remove`, likewise omit `--token`, prove `ACTIONS_RUNNER_INPUT_TOKEN` is absent, and enter the time-limited removal token only at its hidden secret prompt before clearing the clipboard. Stop if the prompt is unavailable. Do not use a PAT or a long-lived secret.
 
 ## 8. Inspect and clean only exact targets
 
@@ -113,7 +127,7 @@ Keep a finite, bounded diagnostic window approved by UCL; it must not exceed 60 
 
 - runner installation directory: inspect `_diag`, runner configuration, and runner log remnants;
 - work directory: inspect `_temp`, actions, checkout, cache, and work-tree log remnants; and
-- canonical Stage A phase directory: inspect exactly `$RUNNER_TEMP\hardware-inspection-stage-a`.
+- canonical Stage A phase directory: inspect exactly `$RUNNER_TEMP\hardware-inspection-stage-a`, including `sdk`, `cli-home`, `nuget-packages`, `nuget-http-cache`, `nuget-plugins-cache`, and `nuget-scratch` plus the local run child and its detailed logs/TRX.
 
 Preserve only diagnostics that UCL explicitly approves, in the approved local evidence location, after the same privacy review. Do not upload raw diagnostics.
 
@@ -122,7 +136,7 @@ After the bounded window:
 1. independently canonicalise and revalidate the exact one-run runner installation directory, the separately fresh work directory, and the canonical Stage A phase directory;
 2. prove each is the recorded fixed-local, non-reparse, restrictive-ACL target and not a parent, profile, OneDrive, network, shared, or reused path;
 3. prove no unexpected runner/process/listener remains; and
-4. remove only those three exact targets through the UCL-approved cleanup procedure.
+4. remove only the exact canonical Stage A phase directory as one of those three exact targets through the UCL-approved cleanup procedure; this removal contains every one-run SDK and NuGet child listed above.
 
 An unverified cleanup target must remain untouched and the procedure must stop. Never use a wildcard, recursive parent deletion, global process-name kill, broad cache cleanup, or an unrelated runner removal. Record cleanup and the final absence checks outside repository source without laptop-identifying data.
 
@@ -135,10 +149,13 @@ Stop immediately for any of the following:
 - actor, triggering actor, ref, approved SHA, attempt, confirmation input, workflow, run ID, or label mismatch;
 - a rerun attempt, fixed or reused label, identifying/reused runner name, or any reused installation or work directory;
 - a pre-existing, reused, non-local, non-fixed-drive, shared, profile/OneDrive/network, incorrectly permissioned, nested, or reparse runner/work path;
+- an unknown, identifying, or unapproved Windows computer name or runner-group display value, or any attempt to print/store either value or rename the laptop without separate UCL authority;
+- unknown or unsafe proxy metadata, a retained proxy URI, any runner/debug/trace/print-log control, or an attempt to clear or reconfigure those settings merely to continue;
+- either runner hook or action-cache override variable or `.env` entry, any attempt to execute/clear/repair/override it, a token-bearing configuration/removal command, `ACTIONS_RUNNER_INPUT_TOKEN`, an echoing or unavailable token prompt, or retained token data;
 - candidate presence, a fake-tool process, an operational environment variable, debug logging, a TCP 8787 listener, or any pre-existing, unexpected, additional, service, scheduled, or residual runner process outside the one authorised interactive `run.cmd` session;
 - any browser login, PAT, retained secret, token retention, unattended execution, service installation, or scheduled task on the dedicated laptop account;
 - any raw upload, unexpected artifact, privacy failure, raw TRX/log exposure, result other than exact 174 deterministic plus 3 Task 8 deterministic passes, or non-passing result;
-- process/listener residue, automatic-deregistration/removal failure, an unverified cleanup target, or a request for broad/global cleanup; or
+- missing, pre-existing, reparse, outside, or mis-bound one-run SDK/NuGet state, dependency state in Program Files/profile/OneDrive/network/machine-wide locations, process/listener residue, automatic-deregistration/removal failure, an unverified cleanup target, or a request for broad/global cleanup; or
 - any request to acquire/execute a candidate, capture hardware, change networking, produce Gate 1 evidence, continue into Stage B, or start Gate 2.
 
 Do not redispatch, rerun, relabel, reuse, repair in place, weaken a guard, clear the unexpected state and continue, or extend this authority. A new attempt requires a separate review, fresh approval confirmation, fresh label, fresh install, fresh work directory, and new dispatch.

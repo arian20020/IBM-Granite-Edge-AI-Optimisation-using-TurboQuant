@@ -600,6 +600,21 @@ function Test-StageADisjointPaths {
     Assert-StageACondition (-not $Second.StartsWith($First + $separator, [System.StringComparison]::OrdinalIgnoreCase))
 }
 
+function Resolve-StageAGitApplication {
+    param([string] $VersionLogPath)
+    $applications = @(
+        Get-Command git -CommandType Application -All -ErrorAction SilentlyContinue | Select-Object -First 1
+    )
+    Assert-StageACondition ($applications.Count -eq 1 -and -not [string]::IsNullOrWhiteSpace([string]$applications[0].Source))
+    $application = Test-StageANormalExistingPath ([string]$applications[0].Source) $false
+    $versionText = Invoke-StageAGitProcess $application @('--version') $VersionLogPath 30 $true $true
+    Assert-StageACondition ($versionText -cmatch '\Agit version (?<major>0|[1-9][0-9]*)\.(?<minor>0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:\.windows\.(?:0|[1-9][0-9]*))?\z')
+    $major = [int]$Matches['major']
+    $minor = [int]$Matches['minor']
+    Assert-StageACondition ($major -gt 2 -or ($major -eq 2 -and $minor -ge 28))
+    return $application
+}
+
 function Get-StageAOutputPath {
     param([string] $Path, [string] $Evaluated)
     $fullPath = [System.IO.Path]::GetFullPath($Path)
@@ -723,6 +738,24 @@ function Invoke-StageAProcess {
     return (Get-Content -LiteralPath $stdoutPath -Raw).Trim()
 }
 
+function Invoke-StageAGitProcess {
+    param([string] $GitApplication, [string[]] $ArgumentList, [string] $LogPath, [int] $TimeoutSeconds, [bool] $RegisterOwned = $true, [bool] $ReturnOutput = $false)
+    $extension = [System.IO.Path]::GetExtension($GitApplication)
+    if ($extension -ieq '.exe' -or $extension -ieq '.com') {
+        return Invoke-StageAProcess $GitApplication $ArgumentList $LogPath $TimeoutSeconds $RegisterOwned $ReturnOutput
+    }
+    Assert-StageACondition ($extension -ieq '.cmd' -or $extension -ieq '.bat')
+    $powershell = Test-StageANormalExistingPath 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe' $false
+    $escapedApplication = $GitApplication.Replace("'", "''")
+    $escapedArguments = @(foreach ($argument in $ArgumentList) { "'" + $argument.Replace("'", "''") + "'" })
+    $command = '$ErrorActionPreference = ''Stop''' + [char]10 +
+        '$arguments = @(' + ($escapedArguments -join ',') + ')' + [char]10 +
+        "& '$escapedApplication' @arguments" + [char]10 +
+        'exit $LASTEXITCODE'
+    $encodedCommand = [System.Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($command))
+    return Invoke-StageAProcess $powershell @('-NoLogo','-NoProfile','-NonInteractive','-EncodedCommand',$encodedCommand) $LogPath $TimeoutSeconds $RegisterOwned $ReturnOutput
+}
+
 function Read-HardwareInspectionIntelRunnerStageATrx {
     param([Parameter(Mandatory)][string] $Path, [Parameter(Mandatory)][ValidateSet('Deterministic','Task8Deterministic')][string] $Kind)
     $file = Get-Item -LiteralPath $Path -Force
@@ -743,9 +776,20 @@ function Read-HardwareInspectionIntelRunnerStageATrx {
     Assert-StageACondition ($document.DocumentElement.LocalName -ceq 'TestRun' -and $document.DocumentElement.NamespaceURI -ceq $script:StageATrxNamespace)
     $manager = New-Object System.Xml.XmlNamespaceManager($document.NameTable)
     $manager.AddNamespace('t', $script:StageATrxNamespace)
-    $resultNodes = @($document.SelectNodes('/t:TestRun/t:Results/t:UnitTestResult', $manager))
     $expectedCount = if ($Kind -ceq 'Deterministic') { 174 } else { 3 }
-    Assert-StageACondition ($resultNodes.Count -eq $expectedCount)
+    function Get-StageAExactTrxChildren([System.Xml.XmlElement] $root, [string] $containerName, [string] $childName, [int] $childCount) {
+        $containers = @($root.ChildNodes | Where-Object {
+            $_.NodeType -eq [System.Xml.XmlNodeType]::Element -and $_.LocalName -ceq $containerName
+        })
+        Assert-StageACondition ($containers.Count -eq 1 -and $containers[0].NamespaceURI -ceq $script:StageATrxNamespace)
+        $children = @($containers[0].ChildNodes | Where-Object { $_.NodeType -eq [System.Xml.XmlNodeType]::Element })
+        Assert-StageACondition ($children.Count -eq $childCount)
+        foreach ($child in $children) {
+            Assert-StageACondition ($child.NamespaceURI -ceq $script:StageATrxNamespace -and $child.LocalName -ceq $childName)
+        }
+        return $children
+    }
+    $resultNodes = @(Get-StageAExactTrxChildren $document.DocumentElement 'Results' 'UnitTestResult' $expectedCount)
     $resultNames = New-Object 'System.Collections.Generic.HashSet[string]' ([System.StringComparer]::Ordinal)
     $resultIds = New-Object 'System.Collections.Generic.HashSet[string]' ([System.StringComparer]::OrdinalIgnoreCase)
     $executionIds = New-Object 'System.Collections.Generic.HashSet[string]' ([System.StringComparer]::OrdinalIgnoreCase)
@@ -767,8 +811,7 @@ function Read-HardwareInspectionIntelRunnerStageATrx {
         )
         foreach ($task8Name in $task8Names) { Assert-StageACondition ($resultNames.Contains($task8Name)) }
     }
-    $definitionNodes = @($document.SelectNodes('/t:TestRun/t:TestDefinitions/t:UnitTest', $manager))
-    Assert-StageACondition ($definitionNodes.Count -eq $expectedCount)
+    $definitionNodes = @(Get-StageAExactTrxChildren $document.DocumentElement 'TestDefinitions' 'UnitTest' $expectedCount)
     $definitions = @{}
     $expectedAssembly = if ($Kind -ceq 'Deterministic') { 'HardwareInspection.LlmFitSpike.Tests.dll' } else { 'HardwareInspection.LlmFitSpike.IntegrationTests.dll' }
     foreach ($node in $definitionNodes) {
@@ -789,8 +832,7 @@ function Read-HardwareInspectionIntelRunnerStageATrx {
         }
         $definitions[$testId] = [pscustomobject]@{ Name = $name; ExecutionId = [string]$execution.GetAttribute('id') }
     }
-    $entryNodes = @($document.SelectNodes('/t:TestRun/t:TestEntries/t:TestEntry', $manager))
-    Assert-StageACondition ($entryNodes.Count -eq $expectedCount)
+    $entryNodes = @(Get-StageAExactTrxChildren $document.DocumentElement 'TestEntries' 'TestEntry' $expectedCount)
     $entries = New-Object 'System.Collections.Generic.HashSet[string]' ([System.StringComparer]::OrdinalIgnoreCase)
     foreach ($entry in $entryNodes) {
         $entryTestId = [string]$entry.GetAttribute('testId')
@@ -864,36 +906,61 @@ function Invoke-HardwareInspectionIntelRunnerStageAInternal {
     $evaluated = Test-StageANormalExistingPath $EvaluatedRoot $true
     $workRoot = Test-StageANormalExistingPath $LocalWorkRoot $true
     Test-StageADisjointPaths $workRoot $evaluated
+    $dependencyChildren = [ordered]@{
+        DOTNET_INSTALL_DIR = 'sdk'
+        DOTNET_CLI_HOME = 'cli-home'
+        NUGET_PACKAGES = 'nuget-packages'
+        NUGET_HTTP_CACHE_PATH = 'nuget-http-cache'
+        NUGET_PLUGINS_CACHE_PATH = 'nuget-plugins-cache'
+        NUGET_SCRATCH = 'nuget-scratch'
+    }
+    $dependencyDirectories = @{}
+    foreach ($entry in $dependencyChildren.GetEnumerator()) {
+        $directory = Test-StageANormalExistingPath ([Environment]::GetEnvironmentVariable([string]$entry.Key)) $true
+        Assert-StageACondition ([System.IO.Path]::GetDirectoryName($directory) -ieq $workRoot -and [System.IO.Path]::GetFileName($directory) -ceq $entry.Value)
+        $dependencyDirectories[[string]$entry.Key] = $directory
+    }
+    foreach ($setting in @{
+        DOTNET_CLI_TELEMETRY_OPTOUT = '1'
+        DOTNET_SKIP_FIRST_TIME_EXPERIENCE = '1'
+        DOTNET_NOLOGO = '1'
+        DOTNET_MULTILEVEL_LOOKUP = '0'
+        DOTNET_ADD_GLOBAL_TOOLS_TO_PATH = '0'
+    }.GetEnumerator()) {
+        Assert-StageACondition ([Environment]::GetEnvironmentVariable([string]$setting.Key) -ceq $setting.Value)
+    }
     $summaryJson = Get-StageAOutputPath $SummaryJsonPath $evaluated
     $summaryMarkdown = Get-StageAOutputPath $SummaryMarkdownPath $evaluated
     Assert-StageACondition ($summaryJson -ine $summaryMarkdown)
     Assert-StageACondition ($ApprovedSha -cmatch '\A[0-9a-f]{40}\z' -and $ApprovedSha -cne ('0' * 40))
     $gitDirectory = Join-Path $evaluated '.git'
     $null = Test-StageANormalExistingPath $gitDirectory $true
-    $git = @(Get-Command git.exe -CommandType Application | Select-Object -First 1)
-    Assert-StageACondition ($git.Count -eq 1)
     $blockedDirectory = Join-Path $evaluated 'third-party\bin\llmfit\v1.1.9\win-x64'
     Assert-StageACondition (-not (Test-Path -LiteralPath $blockedDirectory))
     Test-StageAResidualProcesses
     $runDirectory = Join-Path $workRoot ('stagea-' + [guid]::NewGuid().ToString('N'))
     [System.IO.Directory]::CreateDirectory($runDirectory) | Out-Null
     $runDirectory = Test-StageANormalExistingPath $runDirectory $true
+    $gitVersionLog = Join-Path $runDirectory 'git-version'
+    $gitApplication = Resolve-StageAGitApplication $gitVersionLog
     $gitTopLog = Join-Path $runDirectory 'git-top'
     $gitDirLog = Join-Path $runDirectory 'git-dir'
     $gitHeadLog = Join-Path $runDirectory 'git-head'
     $gitStatusLog = Join-Path $runDirectory 'git-status'
     $gitDiffLog = Join-Path $runDirectory 'git-diff'
     $gitDiffCachedLog = Join-Path $runDirectory 'git-diff-cached'
-    $topLevel = Test-StageANormalExistingPath (Invoke-StageAProcess $git[0].Source @('-C',$evaluated,'rev-parse','--show-toplevel') $gitTopLog 30 $true $true) $true
-    $absoluteGitDirectory = Test-StageANormalExistingPath (Invoke-StageAProcess $git[0].Source @('-C',$evaluated,'rev-parse','--absolute-git-dir') $gitDirLog 30 $true $true) $true
-    $head = Invoke-StageAProcess $git[0].Source @('-C',$evaluated,'rev-parse','HEAD') $gitHeadLog 30 $true $true
+    $topLevel = Test-StageANormalExistingPath (Invoke-StageAGitProcess $gitApplication @('-C',$evaluated,'rev-parse','--show-toplevel') $gitTopLog 30 $true $true) $true
+    $absoluteGitDirectory = Test-StageANormalExistingPath (Invoke-StageAGitProcess $gitApplication @('-C',$evaluated,'rev-parse','--absolute-git-dir') $gitDirLog 30 $true $true) $true
+    $head = Invoke-StageAGitProcess $gitApplication @('-C',$evaluated,'rev-parse','HEAD') $gitHeadLog 30 $true $true
     Assert-StageACondition ($topLevel -ieq $evaluated -and $absoluteGitDirectory -ieq $gitDirectory -and $head -ceq $ApprovedSha)
-    $null = Invoke-StageAProcess $git[0].Source @('-C',$evaluated,'status','--porcelain=v1','--untracked-files=all') $gitStatusLog 30
+    $null = Invoke-StageAGitProcess $gitApplication @('-C',$evaluated,'status','--porcelain=v1','--untracked-files=all') $gitStatusLog 30
     Assert-StageACondition ([string]::IsNullOrEmpty((Get-Content -LiteralPath ($gitStatusLog + '.stdout') -Raw)))
-    $null = Invoke-StageAProcess $git[0].Source @('-C',$evaluated,'diff','--quiet') $gitDiffLog 30
-    $null = Invoke-StageAProcess $git[0].Source @('-C',$evaluated,'diff','--cached','--quiet') $gitDiffCachedLog 30
-    $dotnet = @(Get-Command dotnet.exe -CommandType Application | Select-Object -First 1)
-    Assert-StageACondition ($dotnet.Count -eq 1)
+    $null = Invoke-StageAGitProcess $gitApplication @('-C',$evaluated,'diff','--quiet') $gitDiffLog 30
+    $null = Invoke-StageAGitProcess $gitApplication @('-C',$evaluated,'diff','--cached','--quiet') $gitDiffCachedLog 30
+    $dotnet = @(Get-Command dotnet -CommandType Application -All -ErrorAction SilentlyContinue | Select-Object -First 1)
+    Assert-StageACondition ($dotnet.Count -eq 1 -and -not [string]::IsNullOrWhiteSpace([string]$dotnet[0].Source))
+    $dotnetApplication = Test-StageANormalExistingPath ([string]$dotnet[0].Source) $false
+    Assert-StageACondition ([System.IO.Path]::GetDirectoryName($dotnetApplication) -ieq $dependencyDirectories['DOTNET_INSTALL_DIR'])
     $projects = @(
         'tools\HardwareInspection.LlmFitSpike.Tests\HardwareInspection.LlmFitSpike.Tests.csproj',
         'tools\HardwareInspection.LlmFitSpike.IntegrationTests\HardwareInspection.LlmFitSpike.IntegrationTests.csproj'
@@ -902,15 +969,15 @@ function Invoke-HardwareInspectionIntelRunnerStageAInternal {
         $projectPath = Join-Path $evaluated $project
         Assert-StageACondition (Test-Path -LiteralPath $projectPath -PathType Leaf)
         $name = [System.IO.Path]::GetFileNameWithoutExtension($projectPath)
-        $null = Invoke-StageAProcess $dotnet[0].Source @('restore',$projectPath,'--runtime','win-x64','-p:Configuration=Release') (Join-Path $runDirectory ($name + '.restore.log')) 300
-        $null = Invoke-StageAProcess $dotnet[0].Source @('build',$projectPath,'--configuration','Release','--runtime','win-x64','--no-restore') (Join-Path $runDirectory ($name + '.build.log')) 300
+        $null = Invoke-StageAProcess $dotnetApplication @('restore',$projectPath,'--runtime','win-x64','-p:Configuration=Release') (Join-Path $runDirectory ($name + '.restore.log')) 300
+        $null = Invoke-StageAProcess $dotnetApplication @('build',$projectPath,'--configuration','Release','--runtime','win-x64','--no-restore') (Join-Path $runDirectory ($name + '.build.log')) 300
     }
     $resultsDirectory = Join-Path $runDirectory 'results'
     [System.IO.Directory]::CreateDirectory($resultsDirectory) | Out-Null
     $deterministicProject = Join-Path $evaluated $projects[0]
     $task8Project = Join-Path $evaluated $projects[1]
-    $null = Invoke-StageAProcess $dotnet[0].Source @('test',$deterministicProject,'--configuration','Release','--runtime','win-x64','--no-restore','--no-build','--filter','TestCategory=Deterministic','--minimum-expected-tests','174','--results-directory',$resultsDirectory,'--report-trx','--report-trx-filename','deterministic.trx','--no-ansi') (Join-Path $runDirectory 'deterministic.log') 300
-    $null = Invoke-StageAProcess $dotnet[0].Source @('test',$task8Project,'--configuration','Release','--runtime','win-x64','--no-restore','--no-build','--filter','TestCategory=Task8Deterministic','--minimum-expected-tests','3','--results-directory',$resultsDirectory,'--report-trx','--report-trx-filename','task8.trx','--no-ansi') (Join-Path $runDirectory 'task8.log') 300
+    $null = Invoke-StageAProcess $dotnetApplication @('test',$deterministicProject,'--configuration','Release','--runtime','win-x64','--no-restore','--no-build','--filter','TestCategory=Deterministic','--minimum-expected-tests','174','--results-directory',$resultsDirectory,'--report-trx','--report-trx-filename','deterministic.trx','--no-ansi') (Join-Path $runDirectory 'deterministic.log') 300
+    $null = Invoke-StageAProcess $dotnetApplication @('test',$task8Project,'--configuration','Release','--runtime','win-x64','--no-restore','--no-build','--filter','TestCategory=Task8Deterministic','--minimum-expected-tests','3','--results-directory',$resultsDirectory,'--report-trx','--report-trx-filename','task8.trx','--no-ansi') (Join-Path $runDirectory 'task8.log') 300
     Assert-StageACondition (-not [HardwareInspection.StageA.CancellationState]::IsCancellationRequested)
     $deterministic = Read-HardwareInspectionIntelRunnerStageATrx (Join-Path $resultsDirectory 'deterministic.trx') 'Deterministic'
     $task8 = Read-HardwareInspectionIntelRunnerStageATrx (Join-Path $resultsDirectory 'task8.trx') 'Task8Deterministic'

@@ -25,7 +25,8 @@ param(
     [string]$ApprovedSha,
     [string]$GitHubOutputPath,
     [string]$RunnerTemp,
-    [string]$RunnerWorkspace
+    [string]$RunnerWorkspace,
+    [string]$DependencyEnvironmentPath
 )
 
 Set-StrictMode -Version Latest
@@ -180,13 +181,26 @@ function Assert-NoGitEnvironment {
 
 function Resolve-GitApplication {
     $applications = @(
-        Get-Command -Name git -CommandType Application -ErrorAction Stop |
-            Select-Object -First 1
+        Get-Command git -CommandType Application -All -ErrorAction SilentlyContinue | Select-Object -First 1
     )
     if ($applications.Count -ne 1 -or [string]::IsNullOrWhiteSpace($applications[0].Source)) {
         throw 'Git application is unavailable.'
     }
-    return [string]$applications[0].Source
+    $application = Resolve-NormalExistingFile -Path ([string]$applications[0].Source)
+    $versionLines = @(& $application --version 2>$null)
+    if ($LASTEXITCODE -ne 0 -or $versionLines.Count -ne 1) {
+        throw 'Git version is unavailable.'
+    }
+    $versionText = [string]$versionLines[0]
+    if ($versionText -cnotmatch '\Agit version (?<major>0|[1-9][0-9]*)\.(?<minor>0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:\.windows\.(?:0|[1-9][0-9]*))?\z') {
+        throw 'Git version is invalid.'
+    }
+    $major = [int]$Matches['major']
+    $minor = [int]$Matches['minor']
+    if ($major -lt 2 -or ($major -eq 2 -and $minor -lt 28)) {
+        throw 'Git version is unsupported.'
+    }
+    return $application
 }
 
 function Invoke-ExactGitLine {
@@ -320,6 +334,58 @@ function Write-Utf8NoBomFile {
     }
 }
 
+function Initialize-OneRunDependencyState {
+    param(
+        [string]$NormalRunnerTemp,
+        [string]$EnvironmentPath
+    )
+
+    $stateFailure = 'One-run dependency state is invalid.'
+    $environmentTarget = Resolve-NormalOutputPath -Path $EnvironmentPath
+    if (-not $environmentTarget.Existed) {
+        throw $stateFailure
+    }
+    $phaseRoot = Join-Path -Path $NormalRunnerTemp -ChildPath 'hardware-inspection-stage-a'
+    if (Test-Path -LiteralPath $phaseRoot) { throw $stateFailure }
+    $directories = [ordered]@{
+        DOTNET_INSTALL_DIR = 'sdk'
+        DOTNET_CLI_HOME = 'cli-home'
+        NUGET_PACKAGES = 'nuget-packages'
+        NUGET_HTTP_CACHE_PATH = 'nuget-http-cache'
+        NUGET_PLUGINS_CACHE_PATH = 'nuget-plugins-cache'
+        NUGET_SCRATCH = 'nuget-scratch'
+    }
+    New-Item -ItemType Directory -Path $phaseRoot -ErrorAction Stop | Out-Null
+    $normalPhaseRoot = Resolve-NormalExistingDirectory -Path $phaseRoot
+    if ([System.IO.Path]::GetDirectoryName($normalPhaseRoot) -ine $NormalRunnerTemp) {
+        throw $stateFailure
+    }
+    $environmentLines = New-Object System.Collections.Generic.List[string]
+    foreach ($entry in $directories.GetEnumerator()) {
+        $childPath = Join-Path -Path $normalPhaseRoot -ChildPath $entry.Value
+        if (Test-Path -LiteralPath $childPath) { throw $stateFailure }
+        New-Item -ItemType Directory -Path $childPath -ErrorAction Stop | Out-Null
+        $normalChild = Resolve-NormalExistingDirectory -Path $childPath
+        if ([System.IO.Path]::GetDirectoryName($normalChild) -ine $normalPhaseRoot -or
+            [System.IO.Path]::GetFileName($normalChild) -cne $entry.Value) {
+            throw $stateFailure
+        }
+        $environmentLines.Add(([string]$entry.Key + '=' + $normalChild))
+    }
+    foreach ($setting in @(
+        'DOTNET_CLI_TELEMETRY_OPTOUT=1',
+        'DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1',
+        'DOTNET_NOLOGO=1',
+        'DOTNET_MULTILEVEL_LOOKUP=0',
+        'DOTNET_ADD_GLOBAL_TOOLS_TO_PATH=0'
+    )) {
+        $environmentLines.Add($setting)
+    }
+    $environmentContent = [string]::Join([char]10, $environmentLines) + [char]10
+    if ($environmentContent.IndexOf([char]13) -ge 0) { throw $stateFailure }
+    Write-Utf8NoBomFile -Target $environmentTarget -Content $environmentContent
+}
+
 try {
     if (($Phase -cne 'Hosted' -and $Phase -cne 'RunnerContext' -and $Phase -cne 'Runner') -or
         $WorkflowRef -cne 'refs/heads/main' -or
@@ -378,7 +444,8 @@ try {
     if ($Phase -ceq 'RunnerContext') {
         if ([string]::IsNullOrWhiteSpace($RunnerTemp) -or
             [string]::IsNullOrWhiteSpace($RunnerWorkspace) -or
-            [string]::IsNullOrWhiteSpace($EvaluatedRoot)) {
+            [string]::IsNullOrWhiteSpace($EvaluatedRoot) -or
+            [string]::IsNullOrWhiteSpace($DependencyEnvironmentPath)) {
             throw 'Runner roots are missing.'
         }
         $normalRunnerTemp = Resolve-NormalExistingDirectory -Path $RunnerTemp
@@ -407,6 +474,7 @@ try {
         if (Test-Path -LiteralPath $anticipatedEvaluatedRoot) {
             throw 'Evaluated checkout root is not fresh.'
         }
+        Initialize-OneRunDependencyState -NormalRunnerTemp $normalRunnerTemp -EnvironmentPath $DependencyEnvironmentPath
         exit 0
     }
     if ([string]::IsNullOrWhiteSpace($EvaluatedRoot)) {

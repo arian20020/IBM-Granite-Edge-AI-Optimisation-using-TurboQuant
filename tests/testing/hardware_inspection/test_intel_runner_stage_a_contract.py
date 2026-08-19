@@ -43,6 +43,13 @@ RUNBOOK_PATH = (
 )
 TESTING_INDEX_PATH = REPOSITORY_ROOT / "docs" / "testing" / "README.md"
 SCRIPTS_INDEX_PATH = REPOSITORY_ROOT / "scripts" / "README.md"
+PLAN_PATH = (
+    REPOSITORY_ROOT
+    / "docs"
+    / "superpowers"
+    / "plans"
+    / "2026-08-18-hardware-inspection-intel-runner-stage-a.md"
+)
 MANIFEST_PATH = (
     REPOSITORY_ROOT
     / ".github"
@@ -67,9 +74,17 @@ FULL_ACTION_PINS = {
     "actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d",
     "actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f",
 }
+ONE_RUN_DEPENDENCY_DIRECTORIES = {
+    "DOTNET_INSTALL_DIR": "sdk",
+    "DOTNET_CLI_HOME": "cli-home",
+    "NUGET_PACKAGES": "nuget-packages",
+    "NUGET_HTTP_CACHE_PATH": "nuget-http-cache",
+    "NUGET_PLUGINS_CACHE_PATH": "nuget-plugins-cache",
+    "NUGET_SCRATCH": "nuget-scratch",
+}
 RUNNER_LABEL = re.compile(r"\Ahardware-gate1-[0-9a-f]{16}\Z")
-EXPECTED_WORKFLOW_SHA256 = "4abdbfc4ffcabec76a8dfb90a1dfd0d17bee837a995c7fe14cb3b250b854a6e1"
-EXPECTED_RUNBOOK_SHA256 = "73cdf7b0084b101943be10d159d14d5b4174e858963f8e0167b5690c892bb3a7"
+EXPECTED_WORKFLOW_SHA256 = "953167cdfcb983ae6d0ca00831d35fcdf826570001ab7721f1b835ab423c37a5"
+EXPECTED_RUNBOOK_SHA256 = "c7514d0989accf6076616a15c6c6fb62d018d84b92598bda9023fb5bf0a30702"
 STAGEA_POWERSHELL_SHELL = (
     r'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe '
     r'-NoLogo -NoProfile -NonInteractive '
@@ -97,6 +112,120 @@ def _strict_utf8(path):
     if b"\r\n" in raw and b"\n" in without_crlf:
         raise AssertionError(f"{path.name} mixes LF and CRLF line endings")
     return raw.decode("utf-8", "strict").replace("\r\n", "\n")
+
+
+def _assert_canonical_file_bytes(test_case, path, allow_crlf=False):
+    raw = path.read_bytes()
+    test_case.assertFalse(raw.startswith(codecs.BOM_UTF8))
+    raw.decode("utf-8", "strict")
+    without_crlf = raw.replace(b"\r\n", b"")
+    test_case.assertNotIn(b"\r", without_crlf)
+    if allow_crlf and b"\r\n" in raw:
+        test_case.assertNotIn(b"\n", without_crlf)
+        test_case.assertTrue(raw.endswith(b"\r\n"))
+        test_case.assertFalse(raw.endswith(b"\r\n\r\n"))
+    else:
+        test_case.assertNotIn(b"\r", raw)
+        test_case.assertTrue(raw.endswith(b"\n"))
+        test_case.assertFalse(raw.endswith(b"\n\n"))
+
+
+def _assert_pre_registration_identity_privacy(test_case, runbook):
+    for required_text in (
+        "before registration, use the ucl-approved local no-echo procedure",
+        "actual windows computer name",
+        "expected runner-group display value",
+        "both values must be explicitly ucl-approved and non-identifying",
+        "an unknown or unsafe identity is a hard stop",
+        "do not print, echo, or store either value",
+        "repository, chat, retained command history, screenshot, or log",
+        "workflow masks cannot remediate this pre-step metadata",
+        "do not rename the laptop unless ucl separately authorises the rename",
+    ):
+        test_case.assertIn(required_text, runbook)
+
+
+def _assert_pre_step_proxy_and_debug_privacy(test_case, runbook):
+    for required_text in (
+        "before registration and again before `run.cmd`",
+        "ucl-approved local no-echo procedure",
+        "runner-consumed proxy settings and configuration",
+        "`http_proxy`, `https_proxy`, and `no_proxy` case-insensitively",
+        "runner `.env` and service context",
+        "absent or its exact displayed metadata must be explicitly ucl-approved and non-identifying",
+        "unknown or unsafe proxy metadata is a hard stop",
+        "do not print, echo, or store a proxy uri or proxy metadata",
+        "do not clear or reconfigure proxy state merely to continue",
+        "`actions_runner_debug`, `actions_step_debug`, and `runner_debug`",
+        "runner trace and print-log controls",
+        "must all be absent before start",
+        "pre-step debug or trace disclosure is irreversible",
+    ):
+        test_case.assertIn(required_text, runbook)
+
+
+def _assert_pre_step_hook_absence(test_case, runbook):
+    for required_text in (
+        "before registration and repeat after registration immediately before `run.cmd`",
+        "`actions_runner_hook_job_started`",
+        "`actions_runner_hook_job_completed`",
+        "effective process, user, and system environment",
+        "fresh runner-root `.env`",
+        "either value or entry is a hard stop",
+        "never execute, clear, or repair it",
+        "hooks run outside workflow steps",
+        "the workflow's first guard is too late",
+    ):
+        test_case.assertIn(required_text, runbook)
+
+
+def _assert_pre_step_action_cache_override_absence(test_case, runbook):
+    for required_text in (
+        "before registration and again immediately before `run.cmd`",
+        "`actions_runner_action_archive_cache`",
+        "`actions_runner_symlink_cached_actions`",
+        "effective process, user, and machine/system environment",
+        "fresh runner-root `.env`",
+        "any value or entry is a hard stop",
+        "must not execute, clear, repair, or override it merely to continue",
+        "action materialisation before the first workflow step",
+        "first-step workflow check is defence in depth only",
+    ):
+        test_case.assertIn(required_text, runbook)
+
+
+def _assert_one_run_dependency_cleanup_runbook(test_case, runbook):
+    for required_text in (
+        "one-run sdk and nuget state",
+        "canonical stage a phase directory",
+        "before `actions/setup-dotnet`",
+        "fresh, absent, ordinary direct children",
+        "program files, userprofile, a browser profile, onedrive, a network location, or an unrelated machine-wide cache",
+        "remove only the exact canonical stage a phase directory",
+    ):
+        test_case.assertIn(required_text, runbook)
+    for variable, child in ONE_RUN_DEPENDENCY_DIRECTORIES.items():
+        test_case.assertIn(f"`{variable.casefold()}`", runbook)
+        test_case.assertIn(f"`{child}`", runbook)
+
+
+def _assert_hidden_prompt_token_handling(test_case, runbook):
+    for required_text in (
+        "do not run or paste github's displayed token-bearing command",
+        "use it only to obtain the trusted repository url and transient token",
+        "prove `actions_runner_input_token` is absent",
+        "omit `--token`. enter the token only at the runner's hidden secret prompt",
+        "hard stop if the supported runner does not offer a non-echoing prompt",
+        ".\\config.cmd --url <trusted-repository-url> --name <fresh-non-identifying-runner-name> --ephemeral --no-default-labels --labels <fresh-label> --work <fresh-work-directory>",
+        "for `config.cmd remove`, likewise omit `--token`",
+        "enter the time-limited removal token only at its hidden secret prompt",
+    ):
+        test_case.assertIn(required_text, runbook)
+    code_blocks = re.findall(r"```(?:text)?\n(.*?)```", runbook, re.DOTALL)
+    test_case.assertTrue(code_blocks)
+    for code_block in code_blocks:
+        test_case.assertNotIn("--token", code_block)
+        test_case.assertNotIn("actions_runner_input_token", code_block)
 
 
 def _strict_json_object(raw):
@@ -531,7 +660,8 @@ def _assert_workflow_executable_chain(test_case, document):
         "-TriggeringActor $env:STAGEA_TRIGGERING_ACTOR ` -RepositoryOwner $env:STAGEA_REPOSITORY_OWNER ` "
         "-RunAttempt $env:STAGEA_RUN_ATTEMPT ` -Confirmation $env:STAGEA_CONFIRMATION ` "
         "-RunnerLabel $env:STAGEA_RUNNER_LABEL ` -RunnerTemp $env:RUNNER_TEMP ` "
-        "-RunnerWorkspace $env:RUNNER_WORKSPACE"
+        "-RunnerWorkspace $env:RUNNER_WORKSPACE ` "
+        "-DependencyEnvironmentPath $env:GITHUB_ENV"
     )
     expected_runner_validation = (
         "& '.\\control\\scripts\\hardware-inspection\\Validate-HardwareInspectionIntelRunnerStageA.ps1' ` "
@@ -581,6 +711,76 @@ def _assert_workflow_executable_chain(test_case, document):
             "Assert-ExactNormalFile 'stage-a-export/stage-a-summary.md' "
             "$utf8.GetBytes($expectedMarkdown)",
         ],
+    )
+
+
+def _assert_one_run_dependency_state(test_case, document, validator_text, runner_text):
+    runner_steps = _steps(document, "deterministic-runner")
+    context_step = next(
+        step
+        for step in runner_steps
+        if step.get("name") == "Validate runner context before evaluated checkout"
+    )
+    setup_step = next(
+        step
+        for step in runner_steps
+        if step.get("name") == "Set up .NET from the evaluated source"
+    )
+    execution_step = next(
+        step
+        for step in runner_steps
+        if step.get("name") == "Run authorised deterministic validation"
+    )
+    context_text = str(context_step.get("run", ""))
+    execution_text = str(execution_step.get("run", ""))
+    residue_text = str(runner_steps[-1].get("run", ""))
+    test_case.assertIn("-Phase RunnerContext", context_text)
+    test_case.assertIn("-DependencyEnvironmentPath $env:GITHUB_ENV", context_text)
+    test_case.assertIn(
+        "if (Test-Path -LiteralPath $phaseRoot) { throw $stateFailure }",
+        validator_text,
+    )
+    test_case.assertIn("[System.IO.FileAttributes]::ReparsePoint", validator_text)
+    test_case.assertIn("[System.IO.DriveType]::Fixed", validator_text)
+    test_case.assertIn(
+        "Write-Utf8NoBomFile -Target $environmentTarget -Content $environmentContent",
+        validator_text,
+    )
+    test_case.assertIn("$env:GITHUB_ENV", context_text)
+    for variable, child in ONE_RUN_DEPENDENCY_DIRECTORIES.items():
+        test_case.assertIn(f"{variable} = '{child}'", validator_text)
+        test_case.assertIn(f"{variable} = '{child}'", residue_text)
+        test_case.assertIn(variable, execution_text)
+        test_case.assertIn(variable, runner_text)
+    for name, value in {
+        "DOTNET_CLI_TELEMETRY_OPTOUT": "1",
+        "DOTNET_SKIP_FIRST_TIME_EXPERIENCE": "1",
+        "DOTNET_NOLOGO": "1",
+        "DOTNET_MULTILEVEL_LOOKUP": "0",
+        "DOTNET_ADD_GLOBAL_TOOLS_TO_PATH": "0",
+    }.items():
+        test_case.assertIn(f"{name}={value}", validator_text)
+        test_case.assertIn(name, execution_text)
+        test_case.assertIn(name, runner_text)
+    test_case.assertEqual(
+        setup_step.get("uses"),
+        "actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d",
+    )
+    test_case.assertEqual(
+        setup_step.get("with"), {"global-json-file": "evaluated/global.json"}
+    )
+    test_case.assertLess(runner_steps.index(context_step), runner_steps.index(setup_step))
+    test_case.assertLess(runner_steps.index(setup_step), runner_steps.index(execution_step))
+    test_case.assertIn(
+        "$localWorkRoot = Resolve-NormalFixedDirectory (Join-Path $runnerTemp 'hardware-inspection-stage-a')",
+        execution_text,
+    )
+    test_case.assertNotIn(
+        "New-Item -ItemType Directory -Path $localWorkRoot", execution_text
+    )
+    test_case.assertIn(
+        "[System.IO.Path]::GetDirectoryName($dotnetApplication) -ieq $dependencyDirectories['DOTNET_INSTALL_DIR']",
+        runner_text,
     )
 
 
@@ -782,6 +982,42 @@ def _create_clean_checkout(root):
     _git_output(root, "add", "identity.txt")
     _git_output(root, "commit", "-m", "Stage A fixture")
     return _git_output(root, "rev-parse", "HEAD")
+
+
+def _mixed_git_environment(root, base_environment):
+    actual_git = shutil.which("git", path=base_environment.get("PATH"))
+    if not actual_git:
+        raise AssertionError("Git fixture application is unavailable")
+    root.mkdir()
+    first_directory = root / "git-first"
+    later_directory = root / "git-later"
+    first_directory.mkdir()
+    later_directory.mkdir()
+    marker = root / "approved-git-invocations.txt"
+    approved_git = first_directory / "git.cmd"
+    approved_git.write_text(
+        "@echo off\n"
+        + "@echo approved>>\""
+        + str(marker)
+        + "\"\n"
+        + "@\""
+        + str(Path(actual_git).resolve())
+        + "\" %*\n"
+        + "@exit /b %errorlevel%\n",
+        encoding="ascii",
+        newline="\r\n",
+    )
+    later_git = later_directory / "git.exe"
+    shutil.copy2(actual_git, later_git)
+    environment = base_environment.copy()
+    environment["PATH"] = (
+        str(first_directory)
+        + os.pathsep
+        + str(later_directory)
+        + os.pathsep
+        + environment.get("PATH", "")
+    )
+    return environment, approved_git.resolve(), later_git.resolve(), marker
 
 
 def _write_approval_manifest(control_root, approved_sha, raw=None):
@@ -1130,7 +1366,40 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
     def test_stage_a_workflow_executes_only_the_two_deterministic_categories(self):
         raw, document = _workflow(self)
         runner_text, commands, strings = _powershell_ast_text(self, RUNNER_PATH)
+        validator_text = _strict_utf8(VALIDATOR_PATH)
         _assert_no_forbidden_runner_commands(self, commands)
+        _assert_one_run_dependency_state(
+            self, document, validator_text, runner_text
+        )
+        dependency_mutations = (
+            ("DOTNET_INSTALL_DIR = 'sdk'", "DOTNET_INSTALL_DIR = 'C:\\Program Files\\dotnet'"),
+            ("DOTNET_CLI_HOME = 'cli-home'", "DOTNET_CLI_HOME_MISSING = 'cli-home'"),
+            ("NUGET_PACKAGES = 'nuget-packages'", "NUGET_PACKAGES_MISSING = 'nuget-packages'"),
+            ("NUGET_HTTP_CACHE_PATH = 'nuget-http-cache'", "NUGET_HTTP_CACHE_PATH = '..\\outside'"),
+            ("if (Test-Path -LiteralPath $phaseRoot) { throw $stateFailure }", "if ($false) { throw $stateFailure }"),
+            ("[System.IO.FileAttributes]::ReparsePoint", "[System.IO.FileAttributes]::Normal"),
+        )
+        for original, replacement in dependency_mutations:
+            mutated_validator = validator_text.replace(original, replacement)
+            self.assertNotEqual(mutated_validator, validator_text)
+            with self.subTest(dependency_state_mutation=original):
+                with self.assertRaises((AssertionError, ValueError)):
+                    _assert_one_run_dependency_state(
+                        self, document, mutated_validator, runner_text
+                    )
+        mutated_document = copy.deepcopy(document)
+        context_step = next(
+            step
+            for step in _steps(mutated_document, "deterministic-runner")
+            if step.get("name") == "Validate runner context before evaluated checkout"
+        )
+        context_step["run"] = str(context_step["run"]).replace(
+            "$env:GITHUB_ENV", "$env:GITHUB_OUTPUT", 1
+        )
+        with self.assertRaises(AssertionError):
+            _assert_one_run_dependency_state(
+                self, mutated_document, validator_text, runner_text
+            )
         command_text = re.sub(r"\s+", " ", "\n".join(strings))
         ast_text = "\n".join(commands + strings)
         self.assertEqual(command_text.count("TestCategory=Deterministic"), 1)
@@ -1179,10 +1448,25 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
             root = Path(temporary_directory)
             runner_temp = root / "runner-temp"
             runner_temp.mkdir()
+            dependency_root = runner_temp / "hardware-inspection-stage-a"
+            dependency_root.mkdir()
             environment = os.environ.copy()
             environment["RUNNER_TEMP"] = str(runner_temp)
             environment["GITHUB_WORKSPACE"] = str(root)
             environment["STAGEA_APPROVED_SHA"] = "a" * 40
+            for variable, child in ONE_RUN_DEPENDENCY_DIRECTORIES.items():
+                child_path = dependency_root / child
+                child_path.mkdir()
+                environment[variable] = str(child_path)
+            environment.update(
+                {
+                    "DOTNET_CLI_TELEMETRY_OPTOUT": "1",
+                    "DOTNET_SKIP_FIRST_TIME_EXPERIENCE": "1",
+                    "DOTNET_NOLOGO": "1",
+                    "DOTNET_MULTILEVEL_LOOKUP": "0",
+                    "DOTNET_ADD_GLOBAL_TOOLS_TO_PATH": "0",
+                }
+            )
             for unsafe_runner_temp in (
                 r"\\localhost\stage-a-canary",
                 r"\\?\C:\stage-a-canary",
@@ -1247,8 +1531,8 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
                 "HI-RUNNER-STAGEA-EXECUTION-INVALID: deterministic execution failed.\n",
             )
             stale_export_root.rmdir()
-            stale_work_root = runner_temp / "hardware-inspection-stage-a"
-            stale_work_root.mkdir()
+            missing_dependency = dependency_root / "nuget-scratch"
+            missing_dependency.rmdir()
             result = _run_inline_powershell(
                 run_step["run"], environment=environment, cwd=root
             )
@@ -1323,6 +1607,11 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
 
         def residue_result(step, mode):
             debug_name = mode.split(":", 1)[1] if mode.startswith("debug:") else None
+            action_cache_name = (
+                mode.split(":", 1)[1]
+                if mode.startswith("action-cache:")
+                else None
+            )
             if mode == "process":
                 process_body = "@([pscustomobject]@{ ProcessName = 'llmfit-private-canary' })"
                 connection_body = "@()"
@@ -1351,10 +1640,14 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
                 "ACTIONS_RUNNER_DEBUG",
                 "RUNNER_DEBUG",
                 "STAGEA_RUNNER_DEBUG",
+                "ACTIONS_RUNNER_ACTION_ARCHIVE_CACHE",
+                "ACTIONS_RUNNER_SYMLINK_CACHED_ACTIONS",
             ):
                 environment.pop(name, None)
             if debug_name is not None:
                 environment[debug_name] = "false"
+            if action_cache_name is not None:
+                environment[action_cache_name] = "private-canary"
             with tempfile.TemporaryDirectory() as temporary_directory:
                 root = Path(temporary_directory)
                 runner_temp = root / "runner-temp"
@@ -1365,7 +1658,7 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
                 if mode.startswith("git:"):
                     git_mode = mode.split(":", 1)[1]
                     git_stub = root / "git.cmd"
-                    second_git_stub = root / "git-second.cmd"
+                    second_git_stub = root / "git.exe"
                     if git_mode in ("old", "multiple-first-invalid"):
                         version_output = "git version 2.27.99"
                     elif git_mode == "malformed":
@@ -1535,6 +1828,27 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
                     self.assertNotEqual(result.returncode, 0)
                     self.assertEqual(result.stdout, "")
                     self.assertEqual(result.stderr.replace("\r\n", "\n"), failure)
+        for action_cache_name in (
+            "ACTIONS_RUNNER_ACTION_ARCHIVE_CACHE",
+            "ACTIONS_RUNNER_SYMLINK_CACHED_ACTIONS",
+        ):
+            for step, failure in (
+                (hosted_debug_step, "HI-RUNNER-STAGEA-DEBUG-INVALID: workflow debug logging is prohibited.\n"),
+                (first_step, "HI-RUNNER-STAGEA-ENVIRONMENT-INVALID: runner environment is invalid.\n"),
+            ):
+                with self.subTest(
+                    step=step.get("name"), action_cache_override=action_cache_name
+                ):
+                    self.assertIn(action_cache_name, str(step.get("run", "")))
+                    result = residue_result(
+                        step, "action-cache:" + action_cache_name
+                    )
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertEqual(result.stdout, "")
+                    self.assertEqual(result.stderr.replace("\r\n", "\n"), failure)
+                    self.assertNotIn(
+                        "private-canary", result.stdout + result.stderr
+                    )
         for mutation in (
             raw.replace(b"cancel-in-progress: false", b"cancel-in-progress: true", 1),
             raw.replace(b"timeout-minutes: 35", b"timeout-minutes: 350", 1),
@@ -1552,6 +1866,12 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
         self.assertIn("[System.IO.FileAttributes]::ReparsePoint", validator_text)
         self.assertIn("$normalEvaluatedParent -ine $controlParentPath", validator_text)
         self.assertIn("Test-Path -LiteralPath $anticipatedEvaluatedRoot", validator_text)
+        self.assertIn(
+            "Get-Command git -CommandType Application -All -ErrorAction SilentlyContinue | Select-Object -First 1",
+            validator_text,
+        )
+        self.assertIn("git version (?<major>", validator_text)
+        self.assertNotIn("Get-Command git.exe", validator_text)
         for mutation, required in (
             (
                 validator_text.replace("[System.IO.DriveType]::Fixed", "[System.IO.DriveType]::Network"),
@@ -1569,6 +1889,7 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
             "TriggeringActor", "RepositoryOwner", "RunAttempt", "Confirmation",
             "RunnerLabel", "SourceCheckoutRoot", "EvaluatedRoot", "ApprovedSha",
             "GitHubOutputPath", "RunnerTemp", "RunnerWorkspace",
+            "DependencyEnvironmentPath",
         ):
             self.assertRegex(validator_text, rf"\$\(?{parameter}\)?")
         self.assertNotRegex(validator_text, r"\$\(?SummaryPath\)?")
@@ -1748,6 +2069,27 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
                 ).encode("utf-8"),
             )
             expected_hosted_output = hosted_output.read_bytes()
+            mixed_git_environment, approved_git, later_git, git_marker = (
+                _mixed_git_environment(fixture_root / "mixed-validator-git", environment)
+            )
+            mixed_output = fixture_root / "mixed-git-output.txt"
+            mixed_git = _invoke(
+                VALIDATOR_PATH,
+                _validator_arguments(
+                    control_root,
+                    SourceCheckoutRoot=checkout_root,
+                    GitHubOutputPath=mixed_output,
+                ),
+                mixed_git_environment,
+            )
+            self.assertEqual(mixed_git.returncode, 0, mixed_git.stderr)
+            self.assertEqual(mixed_git.stdout, "")
+            self.assertEqual(mixed_git.stderr, "")
+            self.assertTrue(approved_git.is_file())
+            self.assertTrue(later_git.is_file())
+            self.assertGreaterEqual(
+                len(git_marker.read_text(encoding="ascii").splitlines()), 6
+            )
             precreated_empty_output = fixture_root / "precreated-empty-output.txt"
             precreated_empty_output.write_bytes(b"")
             precreated = _invoke(
@@ -1877,6 +2219,8 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
             anticipated_evaluated = fixture_root / "evaluated"
             wrong_evaluated_parent = fixture_root / "wrong-parent"
             wrong_evaluated_parent.mkdir()
+            dependency_environment = fixture_root / "dependency-environment.txt"
+            dependency_environment.write_bytes(b"")
             context_arguments = _validator_arguments(
                 control_root,
                 Phase="RunnerContext",
@@ -1884,6 +2228,7 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
                 EvaluatedRoot=anticipated_evaluated,
                 RunnerTemp=runner_temp,
                 RunnerWorkspace=runner_workspace,
+                DependencyEnvironmentPath=dependency_environment,
             )
             valid_context = _invoke(
                 VALIDATOR_PATH, context_arguments, environment
@@ -1891,6 +2236,25 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
             self.assertEqual(valid_context.returncode, 0, valid_context.stderr)
             self.assertEqual(valid_context.stdout, "")
             self.assertEqual(valid_context.stderr, "")
+            dependency_root = runner_temp / "hardware-inspection-stage-a"
+            environment_lines = dependency_environment.read_text(
+                encoding="utf-8"
+            ).splitlines()
+            self.assertEqual(len(environment_lines), 11)
+            for variable, child in ONE_RUN_DEPENDENCY_DIRECTORIES.items():
+                child_path = dependency_root / child
+                self.assertTrue(child_path.is_dir())
+                self.assertIn(f"{variable}={child_path}", environment_lines)
+            for setting in (
+                "DOTNET_CLI_TELEMETRY_OPTOUT=1",
+                "DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1",
+                "DOTNET_NOLOGO=1",
+                "DOTNET_MULTILEVEL_LOOKUP=0",
+                "DOTNET_ADD_GLOBAL_TOOLS_TO_PATH=0",
+            ):
+                self.assertIn(setting, environment_lines)
+            shutil.rmtree(dependency_root)
+            dependency_environment.write_bytes(b"")
             nonfixed_validator = fixture_root / "nonfixed-drive-validator.ps1"
             nonfixed_validator.write_text(
                 validator_text.replace(
@@ -2117,6 +2481,20 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
             "EvaluatedRoot", "ApprovedSha", "LocalWorkRoot", "SummaryJsonPath", "SummaryMarkdownPath",
         ):
             self.assertRegex(runner_text, rf"\${required_parameter}\b")
+        self.assertIn(
+            "Get-Command git -CommandType Application -All -ErrorAction SilentlyContinue | Select-Object -First 1",
+            runner_text,
+        )
+        self.assertIn("git version (?<major>", runner_text)
+        self.assertNotIn("Get-Command git.exe", runner_text)
+        self.assertIn(
+            "Invoke-StageAGitProcess $application @('--version')",
+            runner_text,
+        )
+        self.assertNotIn("$versionLines = @(& $application --version", runner_text)
+        self.assertEqual(
+            runner_text.count("Invoke-StageAGitProcess $gitApplication"), 6
+        )
         for arguments in (
             {},
             {
@@ -2262,8 +2640,10 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
             log_root.mkdir()
             result = _invoke_runner_pure(
                 "Initialize-StageARuntime\n"
-                + "$git = (Get-Command git.exe -CommandType Application | Select-Object -First 1).Source\n"
                 + "try {\n"
+                + "$git = Resolve-StageAGitApplication '"
+                + str(log_root / "git-version").replace("'", "''")
+                + "'\n"
                 + "Invoke-StageAProcess $git @('-C','"
                 + str(checkout).replace("'", "''")
                 + "','rev-parse','--show-toplevel') '"
@@ -2276,6 +2656,35 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
                 + "' 20 $true $true | Out-Null\n} finally { Stop-StageAOwnedProcesses }"
             )
             self.assertEqual(result.returncode, 0, result.stderr)
+            mixed_environment, approved_git, later_git, git_marker = (
+                _mixed_git_environment(
+                    Path(temporary_directory) / "mixed-runner-git",
+                    os.environ.copy(),
+                )
+            )
+            mixed_log_root = Path(temporary_directory) / "mixed-git-logs"
+            mixed_log_root.mkdir()
+            mixed_result = _invoke_runner_pure(
+                "Initialize-StageARuntime\n"
+                + "try { $git = Resolve-StageAGitApplication '"
+                + str(mixed_log_root / "approved-version").replace("'", "''")
+                + "'\n"
+                + "if ([System.IO.Path]::GetFullPath($git) -ine '"
+                + str(approved_git).replace("'", "''")
+                + "') { throw 'private-canary-wrong-git' }\n"
+                + "Invoke-StageAGitProcess $git @('--version') '"
+                + str(mixed_log_root / "git-version").replace("'", "''")
+                + "' 20 | Out-Null } finally { Stop-StageAOwnedProcesses }",
+                environment=mixed_environment,
+            )
+            self.assertEqual(mixed_result.returncode, 0, mixed_result.stderr)
+            self.assertEqual(mixed_result.stdout, "")
+            self.assertEqual(mixed_result.stderr, "")
+            self.assertTrue(approved_git.is_file())
+            self.assertTrue(later_git.is_file())
+            self.assertGreaterEqual(
+                len(git_marker.read_text(encoding="ascii").splitlines()), 2
+            )
         timeout_fixture = _invoke_runner_pure(
             "$process = New-Object System.Diagnostics.Process\n"
             "$process.StartInfo = New-Object System.Diagnostics.ProcessStartInfo\n"
@@ -2331,6 +2740,12 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
                     "Actions_Cache_URL": "actions-canary",
                     "RUNNER_TEMP": "runner-canary",
                     "stagea_private": "stagea-canary",
+                    "DOTNET_INSTALL_DIR": "sdk-canary",
+                    "DOTNET_CLI_HOME": "cli-canary",
+                    "NUGET_PACKAGES": "packages-canary",
+                    "NUGET_HTTP_CACHE_PATH": "http-cache-canary",
+                    "NUGET_PLUGINS_CACHE_PATH": "plugins-cache-canary",
+                    "NUGET_SCRATCH": "scratch-canary",
                 }
             )
             child_command = (
@@ -2338,7 +2753,10 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
                 "$env:GITHUB_STEP_SUMMARY + ';output=' + $env:GITHUB_OUTPUT + "
                 "';env=' + $env:GITHUB_ENV + ';path=' + $env:GITHUB_PATH + "
                 "';actions=' + $env:Actions_Cache_URL + ';runner=' + $env:RUNNER_TEMP + "
-                "';stagea=' + $env:stagea_private)"
+                "';stagea=' + $env:stagea_private + ';sdk=' + $env:DOTNET_INSTALL_DIR + "
+                "';cli=' + $env:DOTNET_CLI_HOME + ';packages=' + $env:NUGET_PACKAGES + "
+                "';http=' + $env:NUGET_HTTP_CACHE_PATH + ';plugins=' + $env:NUGET_PLUGINS_CACHE_PATH + "
+                "';scratch=' + $env:NUGET_SCRATCH)"
             )
             body = (
                 "Initialize-StageARuntime\n"
@@ -2354,7 +2772,9 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(
                 (Path(str(log_path) + ".stdout")).read_text(encoding="utf-8"),
-                "safe=ordinary-safe-value;github=;output=;env=;path=;actions=;runner=;stagea=",
+                "safe=ordinary-safe-value;github=;output=;env=;path=;actions=;runner=;stagea=;"
+                "sdk=sdk-canary;cli=cli-canary;packages=packages-canary;"
+                "http=http-cache-canary;plugins=plugins-cache-canary;scratch=scratch-canary",
             )
 
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -2979,6 +3399,30 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
                     "nonpass": valid.replace('outcome="Passed"', 'outcome="Failed"', 1),
                     "counters": valid.replace('passed="', 'passed="999', 1),
                     "missing-counters": valid.replace("<Counters ", "<MissingCounters ", 1).replace(" /></ResultSummary>", " /></ResultSummary>", 1),
+                    "foreign-result-child": valid.replace(
+                        "</Results>",
+                        '<UnitTestResult xmlns="" testName="Foreign" outcome="Failed" testId="ffffffff-0000-0000-0000-000000000001" executionId="ffffffff-0000-0000-0000-000000000002" /></Results>',
+                        1,
+                    ),
+                    "wrong-result-child": valid.replace(
+                        "</Results>", '<AlternateUnitTestResult outcome="Failed" /></Results>', 1
+                    ),
+                    "foreign-definition-child": valid.replace(
+                        "</TestDefinitions>",
+                        '<UnitTest xmlns="" name="Foreign" storage="Foreign.dll" id="ffffffff-0000-0000-0000-000000000001" /></TestDefinitions>',
+                        1,
+                    ),
+                    "wrong-definition-child": valid.replace(
+                        "</TestDefinitions>", '<AlternateUnitTest /></TestDefinitions>', 1
+                    ),
+                    "foreign-entry-child": valid.replace(
+                        "</TestEntries>",
+                        '<TestEntry xmlns="" testId="ffffffff-0000-0000-0000-000000000001" executionId="ffffffff-0000-0000-0000-000000000002" /></TestEntries>',
+                        1,
+                    ),
+                    "wrong-entry-child": valid.replace(
+                        "</TestEntries>", '<AlternateTestEntry /></TestEntries>', 1
+                    ),
                 }
                 for counter_name in ("notRunnable", "disconnected", "warning", "completed", "inProgress", "pending"):
                     mutations["counter-" + counter_name] = valid.replace(
@@ -3310,11 +3754,179 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
         _required_file(self, VALIDATOR_PATH)
         _required_file(self, RUNNER_PATH)
         _required_file(self, RUNBOOK_PATH)
+        for canonical_path in (
+            WORKFLOW_PATH,
+            PLAN_PATH,
+            RUNBOOK_PATH,
+            Path(__file__).resolve(),
+        ):
+            _assert_canonical_file_bytes(self, canonical_path)
+        for powershell_path in (VALIDATOR_PATH, RUNNER_PATH):
+            _assert_canonical_file_bytes(self, powershell_path, allow_crlf=True)
         runbook_raw = RUNBOOK_PATH.read_bytes()
-        self.assertEqual(
-            hashlib.sha256(runbook_raw).hexdigest(), EXPECTED_RUNBOOK_SHA256
-        )
         runbook = _strict_utf8(RUNBOOK_PATH).casefold()
+        _assert_pre_registration_identity_privacy(self, runbook)
+        _assert_pre_step_proxy_and_debug_privacy(self, runbook)
+        _assert_pre_step_hook_absence(self, runbook)
+        _assert_pre_step_action_cache_override_absence(self, runbook)
+        _assert_one_run_dependency_cleanup_runbook(self, runbook)
+        _assert_hidden_prompt_token_handling(self, runbook)
+        plan = _strict_utf8(PLAN_PATH).casefold()
+        for required_plan_text in (
+            "actual windows computer name",
+            "expected runner-group display",
+            "local no-echo",
+            "pre-step metadata",
+            "workflow masks cannot remediate",
+            "http_proxy",
+            "https_proxy",
+            "no_proxy",
+            "actions_runner_debug",
+            "actions_step_debug",
+            "runner_debug",
+            "trace/print-log controls",
+            "actions_runner_hook_job_started",
+            "actions_runner_hook_job_completed",
+            "actions_runner_action_archive_cache",
+            "actions_runner_symlink_cached_actions",
+            "dotnet_install_dir",
+            "dotnet_cli_home",
+            "nuget_packages",
+            "nuget_http_cache_path",
+            "nuget_plugins_cache_path",
+            "nuget_scratch",
+            "one-run sdk and nuget state",
+            "effective process/user/system environment",
+            "fresh runner-root `.env`",
+            "actions_runner_input_token",
+            "hidden secret prompt",
+            "omit `--token`",
+            "do not clear, reconfigure, or rename",
+        ):
+            self.assertIn(required_plan_text, plan)
+        identity_privacy_mutations = (
+            (
+                "before registration, use the ucl-approved local no-echo procedure",
+                "after registration, use the ucl-approved local no-echo procedure",
+            ),
+            (
+                "explicitly ucl-approved and non-identifying",
+                "accepted by the operator",
+            ),
+            (
+                "do not print, echo, or store either value",
+                "print both values for review",
+            ),
+            (
+                "workflow masks cannot remediate this pre-step metadata",
+                "workflow masks remediate this metadata",
+            ),
+            (
+                "do not rename the laptop unless ucl separately authorises the rename",
+                "rename the laptop before registration",
+            ),
+        )
+        for original, replacement in identity_privacy_mutations:
+            self.assertIn(original, runbook)
+            with self.subTest(identity_privacy_mutation=original):
+                with self.assertRaises(AssertionError):
+                    _assert_pre_registration_identity_privacy(
+                        self, runbook.replace(original, replacement, 1)
+                    )
+        proxy_privacy_mutations = (
+            (
+                "unknown or unsafe proxy metadata is a hard stop",
+                "unknown proxy metadata may continue",
+            ),
+            (
+                "do not clear or reconfigure proxy state merely to continue",
+                "clear proxy state before continuing",
+            ),
+            (
+                "must all be absent before start",
+                "may remain enabled before start",
+            ),
+        )
+        for original, replacement in proxy_privacy_mutations:
+            self.assertIn(original, runbook)
+            with self.subTest(proxy_privacy_mutation=original):
+                with self.assertRaises(AssertionError):
+                    _assert_pre_step_proxy_and_debug_privacy(
+                        self, runbook.replace(original, replacement, 1)
+                    )
+        hook_absence_mutations = (
+            (
+                "either value or entry is a hard stop",
+                "either hook may run",
+            ),
+            (
+                "never execute, clear, or repair it",
+                "clear the hook and continue",
+            ),
+        )
+        for original, replacement in hook_absence_mutations:
+            self.assertIn(original, runbook)
+            with self.subTest(hook_absence_mutation=original):
+                with self.assertRaises(AssertionError):
+                    _assert_pre_step_hook_absence(
+                        self, runbook.replace(original, replacement, 1)
+                    )
+        action_cache_override_mutations = (
+            (
+                "before registration and again immediately before `run.cmd`",
+                "after registration",
+            ),
+            (
+                "any value or entry is a hard stop",
+                "an approved value may continue",
+            ),
+            (
+                "must not execute, clear, repair, or override it merely to continue",
+                "clear the override and continue",
+            ),
+            (
+                "first-step workflow check is defence in depth only",
+                "first-step workflow check replaces the local boundary",
+            ),
+        )
+        for original, replacement in action_cache_override_mutations:
+            self.assertIn(original, runbook)
+            with self.subTest(action_cache_override_mutation=original):
+                with self.assertRaises(AssertionError):
+                    _assert_pre_step_action_cache_override_absence(
+                        self, runbook.replace(original, replacement, 1)
+                    )
+        dependency_cleanup_mutations = (
+            (
+                "remove only the exact canonical stage a phase directory",
+                "leave the dependency cache behind",
+            ),
+            ("`nuget-scratch`", "`unmanaged-nuget-scratch`"),
+        )
+        for original, replacement in dependency_cleanup_mutations:
+            self.assertIn(original, runbook)
+            with self.subTest(dependency_cleanup_mutation=original):
+                with self.assertRaises(AssertionError):
+                    _assert_one_run_dependency_cleanup_runbook(
+                        self, runbook.replace(original, replacement)
+                    )
+        token_handling_mutations = (
+            (
+                "omit `--token`",
+                "include `--token`",
+            ),
+            (
+                "enter the token only at the runner's hidden secret prompt",
+                "pass the token on the command line",
+            ),
+        )
+        for original, replacement in token_handling_mutations:
+            self.assertIn(original, runbook)
+            with self.subTest(token_handling_mutation=original):
+                with self.assertRaises(AssertionError):
+                    _assert_hidden_prompt_token_handling(
+                        self, runbook.replace(original, replacement, 1)
+                    )
         for required_text in (
             "written ucl approval",
             "complete dispatch, queue, registration, and job window",
@@ -3396,6 +4008,18 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
             "stage b",
         ):
             self.assertIn(required_text, runbook)
+
+        self.assertEqual(
+            hashlib.sha256(runbook_raw).hexdigest(), EXPECTED_RUNBOOK_SHA256
+        )
+        runbook_digest_mutation = runbook_raw.replace(
+            b"# Hardware Inspection", b"# Mutated Hardware Inspection", 1
+        )
+        self.assertNotEqual(runbook_digest_mutation, runbook_raw)
+        self.assertNotEqual(
+            hashlib.sha256(runbook_digest_mutation).hexdigest(),
+            EXPECTED_RUNBOOK_SHA256,
+        )
 
         for forbidden_text in (
             "hardware-inspection-llm-fit-gate-1-runbook.md",

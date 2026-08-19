@@ -48,7 +48,7 @@ jobs:
           $environmentFailure = 'HI-RUNNER-STAGEA-ENVIRONMENT-INVALID: runner environment is invalid.'
           $gitFailure = 'HI-RUNNER-STAGEA-GIT-INVALID: required Git capability is unavailable.'
           try {
-            foreach ($name in @('ACTIONS_STEP_DEBUG', 'ACTIONS_RUNNER_DEBUG', 'RUNNER_DEBUG', 'STAGEA_RUNNER_DEBUG')) {
+          foreach ($name in @('ACTIONS_STEP_DEBUG', 'ACTIONS_RUNNER_DEBUG', 'RUNNER_DEBUG', 'STAGEA_RUNNER_DEBUG', 'ACTIONS_RUNNER_ACTION_ARCHIVE_CACHE', 'ACTIONS_RUNNER_SYMLINK_CACHED_ACTIONS')) {
               if (-not [string]::IsNullOrEmpty([Environment]::GetEnvironmentVariable($name))) { throw $debugFailure }
             }
           }
@@ -215,7 +215,7 @@ jobs:
               if ((New-Object System.IO.DriveInfo([System.IO.Path]::GetPathRoot($full))).DriveType -ne [System.IO.DriveType]::Fixed) { throw $failure }
               return $full.TrimEnd([System.IO.Path]::DirectorySeparatorChar)
             }
-            foreach ($name in @('ACTIONS_STEP_DEBUG', 'ACTIONS_RUNNER_DEBUG', 'RUNNER_DEBUG', 'STAGEA_RUNNER_DEBUG')) {
+          foreach ($name in @('ACTIONS_STEP_DEBUG', 'ACTIONS_RUNNER_DEBUG', 'RUNNER_DEBUG', 'STAGEA_RUNNER_DEBUG', 'ACTIONS_RUNNER_ACTION_ARCHIVE_CACHE', 'ACTIONS_RUNNER_SYMLINK_CACHED_ACTIONS')) {
               $debugValue = [Environment]::GetEnvironmentVariable($name)
               if (-not [string]::IsNullOrEmpty($debugValue)) {
                 throw $failure
@@ -301,7 +301,8 @@ jobs:
             -Confirmation $env:STAGEA_CONFIRMATION `
             -RunnerLabel $env:STAGEA_RUNNER_LABEL `
             -RunnerTemp $env:RUNNER_TEMP `
-            -RunnerWorkspace $env:RUNNER_WORKSPACE
+            -RunnerWorkspace $env:RUNNER_WORKSPACE `
+            -DependencyEnvironmentPath $env:GITHUB_ENV
 
       - name: Check out approved evaluated source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -374,17 +375,38 @@ jobs:
           if ($currentDirectory -ine $workspace) { throw $failure }
           $runnerTemp = Resolve-NormalFixedDirectory $env:RUNNER_TEMP
           $exportDirectory = Join-Path $workspace 'stage-a-export'
-          $localWorkRoot = Join-Path $runnerTemp 'hardware-inspection-stage-a'
+          $localWorkRoot = Resolve-NormalFixedDirectory (Join-Path $runnerTemp 'hardware-inspection-stage-a')
           if (Test-Path -LiteralPath $exportDirectory) { throw $failure }
-          if (Test-Path -LiteralPath $localWorkRoot) { throw $failure }
           $workspace = Resolve-NormalFixedDirectory $workspace
           $runnerTemp = Resolve-NormalFixedDirectory $runnerTemp
-          New-Item -ItemType Directory -Path $exportDirectory -ErrorAction Stop | Out-Null
-          New-Item -ItemType Directory -Path $localWorkRoot -ErrorAction Stop | Out-Null
-          $exportDirectory = Resolve-NormalFixedDirectory $exportDirectory
-          $localWorkRoot = Resolve-NormalFixedDirectory $localWorkRoot
-          if ([System.IO.Path]::GetDirectoryName($exportDirectory) -ine $workspace) { throw $failure }
           if ([System.IO.Path]::GetDirectoryName($localWorkRoot) -ine $runnerTemp) { throw $failure }
+          $dependencyChildren = [ordered]@{
+            DOTNET_INSTALL_DIR = 'sdk'
+            DOTNET_CLI_HOME = 'cli-home'
+            NUGET_PACKAGES = 'nuget-packages'
+            NUGET_HTTP_CACHE_PATH = 'nuget-http-cache'
+            NUGET_PLUGINS_CACHE_PATH = 'nuget-plugins-cache'
+            NUGET_SCRATCH = 'nuget-scratch'
+          }
+          $dependencyDirectories = @{}
+          foreach ($entry in $dependencyChildren.GetEnumerator()) {
+            $directory = Resolve-NormalFixedDirectory ([Environment]::GetEnvironmentVariable([string]$entry.Key))
+            if ([System.IO.Path]::GetDirectoryName($directory) -ine $localWorkRoot -or
+                [System.IO.Path]::GetFileName($directory) -cne $entry.Value) { throw $failure }
+            $dependencyDirectories[[string]$entry.Key] = $directory
+          }
+          foreach ($setting in @{
+            DOTNET_CLI_TELEMETRY_OPTOUT = '1'
+            DOTNET_SKIP_FIRST_TIME_EXPERIENCE = '1'
+            DOTNET_NOLOGO = '1'
+            DOTNET_MULTILEVEL_LOOKUP = '0'
+            DOTNET_ADD_GLOBAL_TOOLS_TO_PATH = '0'
+          }.GetEnumerator()) {
+            if ([Environment]::GetEnvironmentVariable([string]$setting.Key) -cne $setting.Value) { throw $failure }
+          }
+          New-Item -ItemType Directory -Path $exportDirectory -ErrorAction Stop | Out-Null
+          $exportDirectory = Resolve-NormalFixedDirectory $exportDirectory
+          if ([System.IO.Path]::GetDirectoryName($exportDirectory) -ine $workspace) { throw $failure }
           & '.\control\scripts\hardware-inspection\Invoke-HardwareInspectionIntelRunnerStageA.ps1' `
             -EvaluatedRoot 'evaluated' `
             -ApprovedSha $env:STAGEA_APPROVED_SHA `
@@ -494,5 +516,36 @@ jobs:
           $failure = 'HI-RUNNER-STAGEA-RESIDUE-INVALID: fixed residue check failed.'
           try {
             if (@(Get-Process | Where-Object { $_.ProcessName -match '(?i)(llmfit|fake.*tool)' }).Count -ne 0 -or @(Get-NetTCPConnection -ErrorAction Stop | Where-Object { $_.State -eq 'Listen' -and $_.LocalPort -eq 8787 }).Count -ne 0) { throw $failure }
+            function Resolve-ResidueDirectory([string] $pathValue) {
+              if ([string]::IsNullOrWhiteSpace($pathValue)) { throw $failure }
+              $full = [System.IO.Path]::GetFullPath($pathValue)
+              if ($full -cnotmatch '\A[A-Za-z]:\\' -or -not (Test-Path -LiteralPath $full -PathType Container)) { throw $failure }
+              $component = Get-Item -LiteralPath $full -Force
+              while ($null -ne $component) {
+                if (($component.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) { throw $failure }
+                $component = $component.Parent
+              }
+              if ((New-Object System.IO.DriveInfo([System.IO.Path]::GetPathRoot($full))).DriveType -ne [System.IO.DriveType]::Fixed) { throw $failure }
+              return $full.TrimEnd([System.IO.Path]::DirectorySeparatorChar)
+            }
+            $runnerTemp = Resolve-ResidueDirectory $env:RUNNER_TEMP
+            $phaseRoot = Join-Path $runnerTemp 'hardware-inspection-stage-a'
+            if (Test-Path -LiteralPath $phaseRoot) {
+              $phaseRoot = Resolve-ResidueDirectory $phaseRoot
+              if ([System.IO.Path]::GetDirectoryName($phaseRoot) -ine $runnerTemp) { throw $failure }
+              $dependencyChildren = [ordered]@{
+                DOTNET_INSTALL_DIR = 'sdk'
+                DOTNET_CLI_HOME = 'cli-home'
+                NUGET_PACKAGES = 'nuget-packages'
+                NUGET_HTTP_CACHE_PATH = 'nuget-http-cache'
+                NUGET_PLUGINS_CACHE_PATH = 'nuget-plugins-cache'
+                NUGET_SCRATCH = 'nuget-scratch'
+              }
+              foreach ($entry in $dependencyChildren.GetEnumerator()) {
+                $directory = Resolve-ResidueDirectory ([Environment]::GetEnvironmentVariable([string]$entry.Key))
+                if ([System.IO.Path]::GetDirectoryName($directory) -ine $phaseRoot -or
+                    [System.IO.Path]::GetFileName($directory) -cne $entry.Value) { throw $failure }
+              }
+            }
           }
           catch { [Console]::Error.WriteLine($failure); exit 1 }
