@@ -3,12 +3,12 @@
 > **Execution skill:** Use `superpowers:executing-plans` or
 > `superpowers:subagent-driven-development`.
 
-**Decision:** 3 of 8
-**Status:** Approved implementation plan; ready for a future implementation slice
-**Plan date:** 2026-08-19
-**Scope:** Decision 3 production policy, focused tests, documentation, and CI discovery
-**Target size:** One short implementation slice; approximately half to one working day,
-excluding predecessor integration and CI queue time
+**Decision:** 3 of 8  
+**Status:** Approved implementation plan  
+**Plan date:** 2026-08-19  
+**Scope:** Decision 3 policy, tests, documentation, CI discovery, and evidence  
+**Expected size:** One short implementation slice, approximately half to one focused
+working day once Decision 1 and Decision 2 contracts are available  
 **Spec:** `docs/superpowers/specs/2026-08-19-model-hardware-compatibility-planning-context-design.md`
 
 ---
@@ -31,15 +31,15 @@ missing, zero, or unsupported model limit
 
 The policy records `PlanningContext / planning-context-v1`.
 
-It does not estimate memory, inspect hardware, generate candidates, choose a runtime,
-rank configurations, classify fit, or execute a model.
+It implements no hardware inspection, memory formula, candidate generation, ranking,
+fit classification, or Runtime Verification.
 
 ---
 
 ## 2. Practical delivery rule
 
-This plan deliberately keeps the important engineering controls while avoiding
-unnecessary ceremony.
+Keep the controls that protect correctness and evidence, but do not turn this small
+policy into a large subsystem.
 
 ### Must finish
 
@@ -58,16 +58,16 @@ concise F-M09 evidence
 
 ```text
 reciprocal links from Decision 1 and Decision 2 documents
-extra explanatory examples
+extra examples beyond the required cases
 additional source scans beyond the required boundary scan
 ```
 
-### Deferred
+### Deliberately omitted
 
 ```text
 separate architecture-test project
 brittle reflection tests of exact method lists
-concurrency stress tests for a stateless calculation
+concurrency stress for a stateless calculation
 configuration file for 4,096
 one remote commit per enum or value object
 full packaged test run after every small file
@@ -77,9 +77,9 @@ full packaged test run after every small file
 
 ## 3. Starting conditions
 
-Before editing production code:
+Before creating a Decision 3 source file:
 
-1. use a dedicated branch/worktree;
+1. work on a dedicated branch or worktree;
 2. record the exact starting SHA;
 3. confirm the branch contains the accepted Decision 1 contracts:
    `ContextTokenCount`, `CompatibilityContextMode`, and
@@ -87,15 +87,15 @@ Before editing production code:
 4. confirm it contains the Decision 2 policy identity contracts:
    `CompatibilityPolicyIdentity`, `CompatibilityPolicyKind`, and
    `CompatibilityPolicyVersion`;
-5. search for duplicate definitions and keep exactly one canonical owner;
-6. read the current `.github/workflows/build-and-test.yml`;
+5. search for duplicate definitions and keep one canonical owner;
+6. read the live `.github/workflows/build-and-test.yml`;
 7. run the existing baseline verification appropriate to that branch.
 
-If Decision 1 or Decision 2 implementation is on another branch, base this work after
-those commits. Do not recreate their contracts.
+If Decision 1 or Decision 2 implementation lives on another branch, base this slice
+after those commits. Do not recreate or temporarily wrap their contracts.
 
-`HardwareInspectionHandoff` is not required to implement or test this pure policy. It
-is required later when the full Compatibility request and orchestrator are wired.
+`HardwareInspectionHandoff` is not needed to implement or unit-test this pure policy.
+It is needed later when the complete Compatibility request and orchestrator are wired.
 
 ---
 
@@ -140,42 +140,48 @@ docs/evidence/requirements/F-M09/
 └── decision-3-planning-context-policy.md
 ```
 
-Do not create an orchestrator in this slice.
+Do not add a temporary Compatibility orchestrator in this slice.
 
 ---
 
-## 5. Global constraints
+## 5. Global implementation constraints
 
 - Reuse Decision 1 and Decision 2 types.
+- Treat every `ContextTokenCount` as the total runtime context window, not prompt
+  length or output-token limit.
 - Keep `DefaultTargetTokens = 4_096`.
 - Keep policy identity `PlanningContext / planning-context-v1`.
 - Preserve an explicit user request exactly.
-- Never silently clamp, round, bucket, or normalise a request.
+- Never silently clamp, round, bucket, or normalise a requested count.
 - Treat the trusted declared model limit as the version-one upper bound.
 - Return `NotEstablished` for missing, zero, or out-of-range model limits.
 - Do not add automatic RoPE or YaRN extension.
-- Keep the policy deterministic, stateless, side-effect free, and synchronous.
-- Add beginner-readable comments for logical blocks and non-obvious invariants;
-  avoid comments that merely restate syntax.
-- Do not log paths, hardware identity, command lines, raw metadata, credentials, or
-  machine/account information.
-- Keep every reviewable commit internally complete; never push a valid request mode
-  that deliberately throws because the next task has not been completed.
+- Keep the policy deterministic, stateless, synchronous, and side-effect free.
+- Add comments for logical blocks and non-obvious invariants; avoid comments that
+  merely repeat syntax.
+- Do not log paths, raw model metadata, hardware identity, command lines, credentials,
+  or machine/account information.
+- Keep every reviewable commit internally complete. Never push a valid request mode
+  that deliberately throws because another task is scheduled later.
+- A changed context creates a new immutable request and Compatibility run; it never
+  mutates a historical result.
+- A later selected candidate must pass an explicit context to Runtime Verification;
+  do not use `--ctx-size 0` as the application's planning choice.
 
 ---
 
 ## 6. TDD and commit strategy
 
-Use local red/green cycles, but keep remote history simple.
+Use grouped red/green cycles rather than a remote commit for each small type.
 
 ```text
-1. write the complete failing contract tests
+1. write complete failing contract tests
 2. implement enums, plan, resolution, and interface
-3. write all failing policy-path tests
+3. write every failing policy-path test
 4. implement ApplicationDefault and UserRequested together
-5. add boundary/purity checks
+5. add boundary checks
 6. update README, CI discovery, and evidence
-7. run final verification
+7. run final verification on the exact review head
 ```
 
 Recommended reviewable commits:
@@ -205,7 +211,7 @@ CompatibilityPlanningContextContractTests.cs
 
 ### Write failing tests first
 
-Test:
+Cover:
 
 ```text
 all enums reserve zero for Unspecified
@@ -217,15 +223,15 @@ ApplicationDefault with a requested value is rejected
 ApplicationDefault above the model limit is rejected
 UserRequested without a requested value is rejected
 baseline or preservation target differing from the request is rejected
-relationship inconsistent with the two token counts is rejected
-wrong policy kind/version is rejected
+relationship inconsistent with request and model limit is rejected
+wrong policy kind or version is rejected
 Resolved requires a plan and no failure reason
 NotEstablished requires no plan and one non-Unspecified reason
 ```
 
-Run a focused test command only if output proves that the class was discovered and at
-least one test executed. Otherwise use the existing packaged runner or build-only red
-proof. Do not weaken the project to obtain a convenient command.
+Use a focused command only when its output proves that the intended class was
+discovered and at least one test executed. Otherwise use the existing packaged runner
+or a build-only red proof. Do not weaken the project for a convenient command.
 
 ### Minimum implementation
 
@@ -235,22 +241,23 @@ proof. Do not weaken the project to obtain a convenient command.
   factories:
   - `Resolved(plan)`
   - `NotEstablished(reason)`
-- Add the small policy interface exactly as specified.
-- Validate all cross-property invariants before assigning properties.
+- Add the policy interface exactly as specified.
+- Validate every cross-property invariant before assigning properties.
 
 ### Verify
 
 ```text
 focused contract tests green
 test project compiles
-no duplicate ContextTokenCount or policy identity type
+one canonical ContextTokenCount
+one canonical policy identity family
 ```
 
 Commit the complete contract package together.
 
 ---
 
-## 8. Task 2 — Complete policy
+## 8. Task 2 — Complete policy and behaviour tests
 
 ### Files
 
@@ -259,9 +266,7 @@ CompatibilityPlanningContextPolicy.cs
 CompatibilityPlanningContextPolicyTests.cs
 ```
 
-### Write all failing behaviour tests first
-
-Required cases:
+### Write all failing cases first
 
 ```text
 ApplicationDefault + 131,072
@@ -303,8 +308,6 @@ Identity
 
 ### Implement every path together
 
-Algorithm:
-
 ```text
 validate request
 resolve declared model limit
@@ -328,14 +331,8 @@ otherwise
     throw an out-of-range contract exception
 ```
 
-The implementation has:
-
-```text
-one parameterless construction path
-no mutable instance state
-no file/process/network/UI/time dependency
-no hardware or estimator input
-```
+The class has one parameterless construction path, no mutable instance state, and no
+file, process, network, UI, time, hardware, or estimator dependency.
 
 ### Verify
 
@@ -345,13 +342,13 @@ focused contract tests green
 all Decision 3 tests green
 ```
 
-Commit the complete policy and tests together.
+Commit the policy and complete behaviour tests together.
 
 ---
 
-## 9. Task 3 — Boundary guard, documentation, and CI
+## 9. Task 3 — Boundary guard, README, CI, and evidence
 
-### Boundary scan
+### 9.1 Boundary scan
 
 Review the Decision 3 production folder for prohibited dependencies:
 
@@ -373,40 +370,42 @@ Random
 
 Expected production matches: none.
 
-Also search for rejected behaviour:
+Also scan production code for rejected behaviour:
 
 ```text
 16,384 as an automatic default
 --ctx-size 0 as the application decision
 silent clamp
-automatic RoPE/YaRN extension
-context ladder values
+automatic RoPE or YaRN extension
+embedded context ladder values
 ```
 
-Explanatory README/design text may mention rejected designs; production code may not.
+Explanatory README/design text may mention rejected choices; production code may not.
 
-### README
+### 9.2 Feature README
 
-Explain in simple language:
+Explain in beginner-readable language:
 
 ```text
+ContextTokenCount = total runtime context window
 ApplicationDefault = min(4,096, declared model limit)
 UserRequested = exact request, never silently clamped
 missing model limit = not established
 4,096 is not a model limit or fit guarantee
 maximum safe context is calculated later
 Decision 8 owns candidate context values
+changing context starts a new Compatibility run
+selected candidates use an explicit runtime context
 ```
 
-### CI discovery
+### 9.3 CI discovery
 
-Preserve the current packaged WinUI route. Append both fully qualified Decision 3 test
-classes to the workflow's existing required-class list, without removing any existing
-class.
+Preserve the existing packaged WinUI route. Append both fully qualified Decision 3
+test classes to the workflow's required-class list without removing any existing class.
 
-### Evidence
+### 9.4 F-M09 evidence
 
-Create a concise F-M09 record containing:
+Create a concise record containing:
 
 ```text
 requirement and Decision 3 identity
@@ -419,16 +418,16 @@ relevant PR
 explicit non-claims
 ```
 
-Do not include raw paths, machine identity, private UCL information, credentials, or
-unredacted logs.
+Do not include raw local paths, private UCL information, machine identity,
+credentials, or unredacted logs.
 
-### Optional cross-links
+### 9.5 Optional cross-links
 
 Add one reciprocal Decision 3 link to Decision 1 and Decision 2 documents only when
-their canonical paths are present and the edits are trivial. This is not allowed to
-expand the slice.
+their canonical paths are present and the edits are trivial. Do not expand the slice for
+this.
 
-Commit documentation, CI discovery, and evidence together.
+Commit the README, CI assertion, and evidence together.
 
 ---
 
@@ -440,30 +439,31 @@ Run fresh verification on the exact head intended for review.
 
 ```text
 git diff --check
-format verification supported by the repository
+repository-supported format verification
 duplicate-owner search
 prohibited-dependency scan
 rejected-behaviour scan
 ```
 
-### Build and tests
+### Build and packaged tests
 
 Use the live workflow as authority:
 
 ```text
 fixture reproducibility
-WinUI Release x64 restore/build
-test-project restore/build
+WinUI Release x64 restore and build
+test-project restore and build
 packaged app-container execution
 TRX parsing
 non-zero discovery and execution
 all executed tests passed
 both Decision 3 classes passed
 artifact upload
-existing privacy/security gates
+existing privacy and security gates
 ```
 
-A focused command supplements this result; it does not replace packaged verification.
+A focused test command supplements this result; it does not replace packaged
+verification.
 
 ### Manual diff review
 
@@ -476,10 +476,13 @@ one immutable plan
 one resolution envelope
 one enum file
 two focused test classes
-4,096 default
-exact user-request preservation
+4,096 model-aware default
+exact request preservation
 typed missing-limit outcomes
 planning-context-v1 identity
+total context-window semantics
+new request/run after context change
+explicit runtime context handoff
 no Decision 4–8 logic
 ```
 
@@ -496,23 +499,26 @@ successful model load
 Hardware Inspection completion
 ```
 
-Only after these checks pass should the implementation PR be marked ready.
+Only after these checks pass may the implementation PR be marked ready.
 
 ---
 
 ## 11. Acceptance checklist
 
-- [ ] Uses the canonical Decision 1 and Decision 2 types.
+- [ ] Uses canonical Decision 1 and Decision 2 types.
+- [ ] Treats context count as the total runtime context window.
 - [ ] `ApplicationDefault` selects `min(4,096, model limit)`.
 - [ ] Explicit requests are preserved exactly.
 - [ ] Above-limit requests are `Resolved / ExceedsModelLimit`.
 - [ ] Missing and zero limits are `ModelContextLimitUnavailable`.
 - [ ] Values above `int.MaxValue` are `ModelContextLimitOutOfRange`.
-- [ ] All plan and resolution invariants reject contradictory construction.
+- [ ] Plan and resolution invariants reject contradictory construction.
 - [ ] Policy identity is `PlanningContext / planning-context-v1`.
 - [ ] Policy has no hardware, estimator, file, process, UI, network, time, or random
       dependency.
 - [ ] Decision 8 remains the sole candidate-context owner.
+- [ ] Context changes create new immutable requests and runs.
+- [ ] Selected candidates later pass explicit context values to Runtime Verification.
 - [ ] README and evidence state all non-claims.
 - [ ] Packaged WinUI CI discovers and passes both Decision 3 test classes.
 - [ ] Final retained evidence is tied to the exact reviewed SHA.
@@ -526,14 +532,14 @@ Stop and report the exact blocker rather than guessing when:
 ```text
 Decision 1 or Decision 2 contract shape differs from this plan
 duplicate canonical types exist
-the focused runner discovers zero intended tests
+the intended focused tests are not discovered
 the packaged test route fails
 the declared model context source is ambiguous
-a proposed change would introduce Decision 4–8 behaviour
+a proposed change introduces Decision 4–8 behaviour
 ```
 
-A missing `HardwareInspectionHandoff` does not block the pure policy module. It blocks
-only later complete request composition/orchestration work that actually requires that
+A missing `HardwareInspectionHandoff` does not block this pure policy module. It
+blocks only later request composition or orchestration that actually consumes that
 handoff.
 
 ---
@@ -543,13 +549,13 @@ handoff.
 This plan implements only:
 
 ```text
-context intent
+context-window intent
 baseline selection
-relationship to model limit
+preservation target
+relationship to the declared model limit
 typed not-established outcomes
 policy identity
 ```
 
-It leaves all resource and fit calculations to the remaining decisions. That narrow
-scope is the main reason Decision 3 can be implemented quickly without sacrificing
-correctness.
+All resource and fit calculations remain in later decisions. This narrow boundary is
+why Decision 3 can be implemented quickly without sacrificing correctness.
