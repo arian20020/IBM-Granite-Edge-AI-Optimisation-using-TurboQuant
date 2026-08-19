@@ -8,8 +8,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from scripts.testing.workbook05.hash_manifest import write_hash_manifest
-from scripts.testing.workbook05.phase3.asset_bundle_validation import (
-    validate_asset_bundle,
+from scripts.testing.workbook05.phase3.live_asset_bundle_validation import (
+    validate_live_asset_bundle,
 )
 from tests.testing.workbook05.test_phase3_asset_bundle_validation import (
     _create_valid_bundle,
@@ -166,7 +166,7 @@ class Phase3LiveAssetBundleValidationTests(unittest.TestCase):
             bundle.mkdir()
             _create_live_bundle(bundle)
             mutate(bundle)
-            return validate_asset_bundle(bundle, REPOSITORY_ROOT)
+            return validate_live_asset_bundle(bundle, REPOSITORY_ROOT)
 
     def test_complete_live_bundle_passes(self) -> None:
         self.assertEqual([], self._issues_after(lambda bundle: None))
