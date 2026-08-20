@@ -117,12 +117,13 @@ public sealed class OpenVinoStaticPackageInspector
             using JsonDocument generation = ReadJson(snapshot, "generation_config.json", GenerationProperties);
             using JsonDocument tokenizer = ReadJson(snapshot, "tokenizer_config.json", TokenizerProperties);
             long vocabularySize = RequiredPositiveInt64(config.RootElement, "vocab_size");
+            OptionalTokenizerFacts optionalTokenizerFacts = new();
             foreach (OpenVinoPackageSnapshotEntry optionalJson in snapshot.Entries.Where(static entry =>
                 OpenVinoPackagePolicy.IsJsonResource(entry.RelativeName) &&
                 !OpenVinoPackagePolicy.IsRequiredResource(entry.RelativeName)))
             {
                 using JsonDocument document = ReadJson(optionalJson, allowedProperties: null);
-                ValidateOptionalJson(optionalJson.RelativeName, document.RootElement, vocabularySize);
+                ValidateOptionalJson(optionalJson.RelativeName, document.RootElement, vocabularySize, optionalTokenizerFacts);
             }
 
             foreach (OpenVinoPackageSnapshotEntry textResource in snapshot.Entries.Where(static entry =>
@@ -174,6 +175,7 @@ public sealed class OpenVinoStaticPackageInspector
             }
 
             if (!TokenIdentifiersAgree(configRoot, generationRoot) ||
+                !TokenizerFactsAgree(configRoot, tokenizerRoot, optionalTokenizerFacts) ||
                 RequiredPositiveInt64(generationRoot, "max_new_tokens") > 512)
             {
                 return OpenVinoStaticPackageInspectionResult.Rejected(OpenVinoSupportCode.TokenizerUnsupported);
@@ -344,32 +346,38 @@ public sealed class OpenVinoStaticPackageInspector
         }
     }
 
-    private static void ValidateOptionalJson(string resourceName, JsonElement root, long vocabularySize)
+    private static void ValidateOptionalJson(
+        string resourceName,
+        JsonElement root,
+        long vocabularySize,
+        OptionalTokenizerFacts facts)
     {
         switch (resourceName)
         {
             case "vocab.json":
-                ValidateIdentifierMap(root, vocabularySize, requireFullVocabulary: true);
+                facts.Vocabulary = ValidateIdentifierMap(root, vocabularySize, requireFullVocabulary: true);
                 break;
             case "added_tokens.json":
-                ValidateIdentifierMap(root, vocabularySize, requireFullVocabulary: false);
+                facts.AddedTokens = ValidateIdentifierMap(root, vocabularySize, requireFullVocabulary: false);
                 break;
             case "special_tokens_map.json":
-                ValidateSpecialTokensMap(root);
+                facts.SpecialTokens = ValidateSpecialTokensMap(root);
                 break;
             case "chat_template.json":
                 ValidateClosedObject(root, new HashSet<string>(["chat_template"], StringComparer.Ordinal));
                 _ = RequiredString(root, "chat_template");
                 break;
             case "tokenizer.json":
-                ValidateTokenizerJson(root, vocabularySize);
+                (facts.TokenizerVocabulary, facts.TokenizerAddedTokens) = ValidateTokenizerJson(root, vocabularySize);
                 break;
             default:
                 throw new InvalidDataException("Optional JSON resource has no version-one schema.");
         }
     }
 
-    private static void ValidateTokenizerJson(JsonElement root, long vocabularySize)
+    private static (Dictionary<string, long> Vocabulary, Dictionary<string, long> AddedTokens) ValidateTokenizerJson(
+        JsonElement root,
+        long vocabularySize)
     {
         ValidateClosedObject(root, TokenizerJsonProperties);
         if (!string.Equals(RequiredString(root, "version"), "1.0", StringComparison.Ordinal))
@@ -383,6 +391,7 @@ public sealed class OpenVinoStaticPackageInspector
         }
 
         HashSet<long> addedTokenIds = [];
+        Dictionary<string, long> addedTokenFacts = new(StringComparer.Ordinal);
         foreach (JsonElement token in addedTokens.EnumerateArray())
         {
             ValidateClosedObject(token, AddedTokenProperties);
@@ -392,7 +401,11 @@ public sealed class OpenVinoStaticPackageInspector
                 throw new InvalidDataException("Tokenizer added-token identifiers must be unique.");
             }
 
-            _ = RequiredString(token, "content");
+            string content = RequiredString(token, "content");
+            if (!addedTokenFacts.TryAdd(content, id))
+            {
+                throw new InvalidDataException("Tokenizer added-token content must be unique.");
+            }
             foreach (string property in new[] { "single_word", "lstrip", "rstrip", "normalized", "special" })
             {
                 RequireBoolean(token, property);
@@ -415,7 +428,7 @@ public sealed class OpenVinoStaticPackageInspector
             throw new InvalidDataException("Tokenizer vocabulary is missing.");
         }
 
-        ValidateIdentifierMap(vocabulary, vocabularySize, requireFullVocabulary: true);
+        Dictionary<string, long> vocabularyFacts = ValidateIdentifierMap(vocabulary, vocabularySize, requireFullVocabulary: true);
         if (!model.TryGetProperty("merges", out JsonElement merges) || merges.ValueKind != JsonValueKind.Array)
         {
             throw new InvalidDataException("Tokenizer merges must be an array.");
@@ -447,9 +460,14 @@ public sealed class OpenVinoStaticPackageInspector
         {
             throw new InvalidDataException("Tokenizer dropout must be a finite probability.");
         }
+
+        return (vocabularyFacts, addedTokenFacts);
     }
 
-    private static void ValidateIdentifierMap(JsonElement root, long vocabularySize, bool requireFullVocabulary)
+    private static Dictionary<string, long> ValidateIdentifierMap(
+        JsonElement root,
+        long vocabularySize,
+        bool requireFullVocabulary)
     {
         if (root.ValueKind != JsonValueKind.Object)
         {
@@ -457,6 +475,7 @@ public sealed class OpenVinoStaticPackageInspector
         }
 
         HashSet<long> identifiers = [];
+        Dictionary<string, long> facts = new(StringComparer.Ordinal);
         int count = 0;
         foreach (JsonProperty property in root.EnumerateObject())
         {
@@ -468,17 +487,21 @@ public sealed class OpenVinoStaticPackageInspector
             }
 
             count++;
+            facts.Add(property.Name, identifier);
         }
 
         if (requireFullVocabulary && count != vocabularySize)
         {
             throw new InvalidDataException("Token identifier map must agree with configured vocabulary size.");
         }
+
+        return facts;
     }
 
-    private static void ValidateSpecialTokensMap(JsonElement root)
+    private static List<SpecialTokenFact> ValidateSpecialTokensMap(JsonElement root)
     {
         ValidateClosedObject(root, SpecialTokenMapProperties);
+        List<SpecialTokenFact> facts = [];
         foreach (JsonProperty property in root.EnumerateObject())
         {
             if (property.Name == "additional_special_tokens")
@@ -490,22 +513,23 @@ public sealed class OpenVinoStaticPackageInspector
 
                 foreach (JsonElement token in property.Value.EnumerateArray())
                 {
-                    ValidateSpecialToken(token);
+                    facts.Add(new SpecialTokenFact(property.Name, ValidateSpecialToken(token)));
                 }
             }
             else
             {
-                ValidateSpecialToken(property.Value);
+                facts.Add(new SpecialTokenFact(property.Name, ValidateSpecialToken(property.Value)));
             }
         }
+
+        return facts;
     }
 
-    private static void ValidateSpecialToken(JsonElement token)
+    private static string ValidateSpecialToken(JsonElement token)
     {
         if (token.ValueKind == JsonValueKind.String)
         {
-            _ = RequiredString(token);
-            return;
+            return RequiredString(token);
         }
 
         ValidateClosedObject(token, SpecialTokenObjectProperties);
@@ -514,6 +538,8 @@ public sealed class OpenVinoStaticPackageInspector
         {
             RequireBoolean(token, property);
         }
+
+        return RequiredString(token, "content");
     }
 
     private static void ValidateClosedObject(JsonElement value, HashSet<string> allowedProperties)
@@ -665,6 +691,145 @@ public sealed class OpenVinoStaticPackageInspector
         return true;
     }
 
+    private static bool TokenizerFactsAgree(
+        JsonElement config,
+        JsonElement tokenizer,
+        OptionalTokenizerFacts optional)
+    {
+        (string Token, long Identifier)[] requiredFacts =
+        [
+            (RequiredString(tokenizer, "bos_token"), RequireNonNegativeToken(config, "bos_token_id")),
+            (RequiredString(tokenizer, "eos_token"), RequireNonNegativeToken(config, "eos_token_id")),
+            (RequiredString(tokenizer, "pad_token"), RequireNonNegativeToken(config, "pad_token_id"))
+        ];
+        if (requiredFacts.Select(static fact => fact.Token).Distinct(StringComparer.Ordinal).Count() != 3 ||
+            requiredFacts.Select(static fact => fact.Identifier).Distinct().Count() != 3)
+        {
+            return false;
+        }
+
+        Dictionary<string, long> requiredTokens = requiredFacts.ToDictionary(
+            static fact => fact.Token,
+            static fact => fact.Identifier,
+            StringComparer.Ordinal);
+
+        Dictionary<string, long>?[] vocabularyCandidates = [optional.Vocabulary, optional.TokenizerVocabulary];
+        Dictionary<string, long>[] vocabularies = vocabularyCandidates
+                .Where(static vocabulary => vocabulary is not null)
+                .Cast<Dictionary<string, long>>()
+                .ToArray();
+        if (vocabularies.Length == 2 && !IdentifierMapsEqual(vocabularies[0], vocabularies[1]))
+        {
+            return false;
+        }
+
+        foreach (Dictionary<string, long> vocabulary in vocabularies)
+        {
+            foreach ((string token, long identifier) in requiredTokens)
+            {
+                if (!vocabulary.TryGetValue(token, out long observed) || observed != identifier)
+                {
+                    return false;
+                }
+            }
+        }
+
+        Dictionary<string, long>?[] addedTokenCandidates = [optional.AddedTokens, optional.TokenizerAddedTokens];
+        Dictionary<string, long>[] addedTokenSets = addedTokenCandidates
+                .Where(static tokens => tokens is not null)
+                .Cast<Dictionary<string, long>>()
+                .ToArray();
+        foreach (Dictionary<string, long> addedTokens in addedTokenSets)
+        {
+            foreach ((string token, long identifier) in addedTokens)
+            {
+                if (requiredTokens.TryGetValue(token, out long requiredIdentifier) && requiredIdentifier != identifier)
+                {
+                    return false;
+                }
+
+                foreach (Dictionary<string, long> vocabulary in vocabularies)
+                {
+                    if (!vocabulary.TryGetValue(token, out long vocabularyIdentifier) || vocabularyIdentifier != identifier)
+                    {
+                        return false;
+                    }
+                }
+            }
+        }
+
+        if (addedTokenSets.Length == 2)
+        {
+            foreach ((string token, long identifier) in addedTokenSets[0])
+            {
+                if (addedTokenSets[1].TryGetValue(token, out long otherIdentifier) && otherIdentifier != identifier)
+                {
+                    return false;
+                }
+            }
+        }
+
+        if (optional.SpecialTokens is not null)
+        {
+            HashSet<string> uniqueSpecialTokens = new(StringComparer.Ordinal);
+            foreach (SpecialTokenFact specialToken in optional.SpecialTokens)
+            {
+                if (!uniqueSpecialTokens.Add(specialToken.Content))
+                {
+                    return false;
+                }
+
+                string? requiredProperty = specialToken.Role switch
+                {
+                    "bos_token" => "bos_token",
+                    "eos_token" => "eos_token",
+                    "pad_token" => "pad_token",
+                    _ => null
+                };
+                if (requiredProperty is not null &&
+                    !string.Equals(specialToken.Content, RequiredString(tokenizer, requiredProperty), StringComparison.Ordinal))
+                {
+                    return false;
+                }
+
+                if (vocabularies.Length == 0)
+                {
+                    if (!requiredTokens.ContainsKey(specialToken.Content))
+                    {
+                        return false;
+                    }
+                }
+                else
+                {
+                    long? identifier = null;
+                    foreach (Dictionary<string, long> vocabulary in vocabularies)
+                    {
+                        if (!vocabulary.TryGetValue(specialToken.Content, out long observed) ||
+                            (identifier is not null && identifier != observed))
+                        {
+                            return false;
+                        }
+
+                        identifier = observed;
+                    }
+
+                    if (requiredTokens.TryGetValue(specialToken.Content, out long requiredIdentifier) && identifier != requiredIdentifier)
+                    {
+                        return false;
+                    }
+                }
+            }
+        }
+
+        return true;
+    }
+
+    private static bool IdentifierMapsEqual(
+        Dictionary<string, long> first,
+        Dictionary<string, long> second) =>
+        first.Count == second.Count &&
+        first.All(pair => second.TryGetValue(pair.Key, out long identifier) && identifier == pair.Value);
+
     private static string RequiredSingleString(JsonElement parent, string propertyName)
     {
         if (!parent.TryGetProperty(propertyName, out JsonElement value) || value.ValueKind != JsonValueKind.Array)
@@ -780,11 +945,18 @@ public sealed class OpenVinoStaticPackageInspector
         };
         HashSet<string> observedTypes = new(StringComparer.Ordinal);
         List<ObservedPort> observedPorts = [];
+        List<GraphEdge> graphEdges = [];
+        Dictionary<string, HashSet<string>> resultLayers = new(StringComparer.Ordinal);
         bool validRoot = false;
         bool insideConstant = false;
+        bool insideLayerOutput = false;
+        string? currentLayerId = null;
+        string? currentLayerType = null;
         string[]? currentPortNames = null;
+        string? currentPortId = null;
         string? currentPortPrecision = null;
         long? currentPortLastDimension = null;
+        bool currentPortIsOutput = false;
         bool insideNamedPortDimension = false;
         xml.Stream.Position = 0;
         using StreamReader text = new(xml.Stream, StrictUtf8, detectEncodingFromByteOrderMarks: false, 64 * 1024, leaveOpen: true);
@@ -822,10 +994,18 @@ public sealed class OpenVinoStaticPackageInspector
                 if (string.Equals(reader.LocalName, "layer", StringComparison.Ordinal))
                 {
                     string? layerType = reader.GetAttribute("type");
+                    currentLayerId = reader.GetAttribute("id");
+                    currentLayerType = layerType;
                     insideConstant = string.Equals(layerType, "Const", StringComparison.Ordinal);
                     if (!string.IsNullOrEmpty(layerType))
                     {
                         observedTypes.Add(layerType);
+                    }
+
+                    if (string.Equals(layerType, "Result", StringComparison.Ordinal) &&
+                        !string.IsNullOrWhiteSpace(currentLayerId))
+                    {
+                        resultLayers[currentLayerId] = SplitNames(reader.GetAttribute("output_names"));
                     }
                 }
                 else if (insideConstant && string.Equals(reader.LocalName, "data", StringComparison.Ordinal))
@@ -838,14 +1018,54 @@ public sealed class OpenVinoStaticPackageInspector
                     }
                 }
 
+                if (string.Equals(reader.LocalName, "output", StringComparison.Ordinal) && currentLayerId is not null)
+                {
+                    insideLayerOutput = true;
+                }
+
+                if (string.Equals(reader.LocalName, "edge", StringComparison.Ordinal))
+                {
+                    string? fromLayer = reader.GetAttribute("from-layer");
+                    string? fromPort = reader.GetAttribute("from-port");
+                    string? toLayer = reader.GetAttribute("to-layer");
+                    if (string.IsNullOrWhiteSpace(fromLayer) || string.IsNullOrWhiteSpace(fromPort) || string.IsNullOrWhiteSpace(toLayer))
+                    {
+                        return false;
+                    }
+
+                    graphEdges.Add(new GraphEdge(fromLayer, fromPort, toLayer));
+                }
+
                 if (string.Equals(reader.LocalName, "port", StringComparison.Ordinal))
                 {
                     string? names = reader.GetAttribute("names");
                     currentPortNames = string.IsNullOrWhiteSpace(names)
                         ? null
                         : names.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+                    currentPortId = reader.GetAttribute("id");
                     currentPortPrecision = reader.GetAttribute("precision");
                     currentPortLastDimension = null;
+                    currentPortIsOutput = insideLayerOutput;
+                    if (reader.IsEmptyElement)
+                    {
+                        if (currentPortNames is not null && !string.IsNullOrWhiteSpace(currentPortPrecision))
+                        {
+                            observedPorts.AddRange(currentPortNames.Select(name => new ObservedPort(
+                                name,
+                                currentPortPrecision,
+                                currentPortLastDimension,
+                                currentLayerId,
+                                currentLayerType,
+                                currentPortId,
+                                currentPortIsOutput)));
+                        }
+
+                        currentPortNames = null;
+                        currentPortId = null;
+                        currentPortPrecision = null;
+                        currentPortLastDimension = null;
+                        currentPortIsOutput = false;
+                    }
                 }
                 else if (currentPortNames is not null && string.Equals(reader.LocalName, "dim", StringComparison.Ordinal))
                 {
@@ -869,32 +1089,109 @@ public sealed class OpenVinoStaticPackageInspector
             {
                 if (currentPortNames is not null && !string.IsNullOrWhiteSpace(currentPortPrecision))
                 {
-                    observedPorts.AddRange(currentPortNames.Select(name => new ObservedPort(name, currentPortPrecision, currentPortLastDimension)));
+                    observedPorts.AddRange(currentPortNames.Select(name => new ObservedPort(
+                        name,
+                        currentPortPrecision,
+                        currentPortLastDimension,
+                        currentLayerId,
+                        currentLayerType,
+                        currentPortId,
+                        currentPortIsOutput)));
                 }
 
                 currentPortNames = null;
+                currentPortId = null;
                 currentPortPrecision = null;
                 currentPortLastDimension = null;
+                currentPortIsOutput = false;
                 insideNamedPortDimension = false;
+            }
+            else if (reader.NodeType == XmlNodeType.EndElement && string.Equals(reader.LocalName, "output", StringComparison.Ordinal))
+            {
+                insideLayerOutput = false;
             }
             else if (reader.NodeType == XmlNodeType.EndElement && string.Equals(reader.LocalName, "layer", StringComparison.Ordinal))
             {
                 insideConstant = false;
+                insideLayerOutput = false;
+                currentLayerId = null;
+                currentLayerType = null;
             }
         }
 
         xml.Stream.Position = 0;
         return validRoot &&
             requiredLayerTypes.All(observedTypes.Contains) &&
-            requiredPorts.All(expected => observedPorts.Any(observed =>
-                string.Equals(observed.Name, expected.Name, StringComparison.Ordinal) &&
-                string.Equals(observed.Precision, expected.Precision, StringComparison.Ordinal) &&
-                (expected.FinalDimension is null || observed.FinalDimension == expected.FinalDimension)));
+            requiredPorts.All(expected => IsUniqueResultConnectedOutput(expected, observedPorts, graphEdges, resultLayers));
     }
+
+    private static bool IsUniqueResultConnectedOutput(
+        ExpectedPort expected,
+        IReadOnlyCollection<ObservedPort> observedPorts,
+        IReadOnlyCollection<GraphEdge> graphEdges,
+        IReadOnlyDictionary<string, HashSet<string>> resultLayers)
+    {
+        ObservedPort[] candidates = observedPorts.Where(observed =>
+            string.Equals(observed.Name, expected.Name, StringComparison.Ordinal) &&
+            string.Equals(observed.Precision, expected.Precision, StringComparison.Ordinal) &&
+            (expected.FinalDimension is null || observed.FinalDimension == expected.FinalDimension)).ToArray();
+        if (candidates.Length != 1)
+        {
+            return false;
+        }
+
+        ObservedPort candidate = candidates[0];
+        if (!candidate.IsOutput ||
+            string.IsNullOrWhiteSpace(candidate.LayerId) ||
+            string.IsNullOrWhiteSpace(candidate.PortId) ||
+            string.Equals(candidate.LayerType, "Result", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        string[] correspondingResults = resultLayers
+            .Where(pair => pair.Value.Contains(expected.Name))
+            .Select(static pair => pair.Key)
+            .ToArray();
+        return correspondingResults.Length == 1 && graphEdges.Any(edge =>
+            string.Equals(edge.FromLayer, candidate.LayerId, StringComparison.Ordinal) &&
+            string.Equals(edge.FromPort, candidate.PortId, StringComparison.Ordinal) &&
+            string.Equals(edge.ToLayer, correspondingResults[0], StringComparison.Ordinal));
+    }
+
+    private static HashSet<string> SplitNames(string? names) =>
+        string.IsNullOrWhiteSpace(names)
+            ? new HashSet<string>(StringComparer.Ordinal)
+            : names.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+                .ToHashSet(StringComparer.Ordinal);
 
     private sealed record ExpectedPort(string Name, string Precision, long? FinalDimension);
 
-    private sealed record ObservedPort(string Name, string Precision, long? FinalDimension);
+    private sealed record ObservedPort(
+        string Name,
+        string Precision,
+        long? FinalDimension,
+        string? LayerId,
+        string? LayerType,
+        string? PortId,
+        bool IsOutput);
+
+    private sealed record GraphEdge(string FromLayer, string FromPort, string ToLayer);
+
+    private sealed record SpecialTokenFact(string Role, string Content);
+
+    private sealed class OptionalTokenizerFacts
+    {
+        public Dictionary<string, long>? Vocabulary { get; set; }
+
+        public Dictionary<string, long>? AddedTokens { get; set; }
+
+        public Dictionary<string, long>? TokenizerVocabulary { get; set; }
+
+        public Dictionary<string, long>? TokenizerAddedTokens { get; set; }
+
+        public List<SpecialTokenFact>? SpecialTokens { get; set; }
+    }
 
     private static OpenVinoPackageSnapshotEntry GetRequired(OpenVinoPackageSnapshot snapshot, string name)
     {

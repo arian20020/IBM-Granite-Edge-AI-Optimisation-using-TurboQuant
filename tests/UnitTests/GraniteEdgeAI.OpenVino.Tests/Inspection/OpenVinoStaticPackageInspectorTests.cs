@@ -73,7 +73,7 @@ public sealed class OpenVinoStaticPackageInspectorTests
     }
 
     [TestMethod]
-    [MalformedCase("missing-required")]
+    [MalformedCase("missing-required", OpenVinoSupportCode.PackageMissingResource)]
     public void MissingRequiredResourceUsesTheFixedPathFreeCode()
     {
         using TemporaryPackage package = TemporaryPackage.CopyFixture();
@@ -83,7 +83,7 @@ public sealed class OpenVinoStaticPackageInspectorTests
     }
 
     [TestMethod]
-    [MalformedCase("inconsistent-pair")]
+    [MalformedCase("inconsistent-pair", OpenVinoSupportCode.PackageInconsistentResource)]
     public void InconsistentXmlBinRelationshipUsesTheFixedCode()
     {
         using TemporaryPackage package = TemporaryPackage.CopyFixture();
@@ -96,7 +96,7 @@ public sealed class OpenVinoStaticPackageInspectorTests
     }
 
     [TestMethod]
-    [MalformedCase("entry-4097")]
+    [MalformedCase("entry-4097", OpenVinoSupportCode.PackageUnsafePath)]
     public void SnapshotterStopsAtThe4097thEntry()
     {
         using TemporaryPackage package = TemporaryPackage.CopyFixture();
@@ -113,7 +113,7 @@ public sealed class OpenVinoStaticPackageInspectorTests
     }
 
     [TestMethod]
-    [MalformedCase("depth-17")]
+    [MalformedCase("depth-17", OpenVinoSupportCode.PackageUnsafePath)]
     public void SnapshotterRejectsDepth17()
     {
         using TemporaryPackage package = TemporaryPackage.CopyFixture();
@@ -128,7 +128,7 @@ public sealed class OpenVinoStaticPackageInspectorTests
     }
 
     [TestMethod]
-    [MalformedCase("json-over-limit")]
+    [MalformedCase("json-over-limit", OpenVinoSupportCode.PackageInconsistentResource)]
     public void JsonOver16MiBIsRejectedBeforeMaterialization()
     {
         using TemporaryPackage package = TemporaryPackage.CopyFixture();
@@ -138,7 +138,7 @@ public sealed class OpenVinoStaticPackageInspectorTests
     }
 
     [TestMethod]
-    [MalformedCase("json-depth-33")]
+    [MalformedCase("json-depth-33", OpenVinoSupportCode.PackageInconsistentResource)]
     public void JsonDepth33IsRejected()
     {
         using TemporaryPackage package = TemporaryPackage.CopyFixture();
@@ -148,7 +148,7 @@ public sealed class OpenVinoStaticPackageInspectorTests
     }
 
     [TestMethod]
-    [MalformedCase("json-strictness")]
+    [MalformedCase("json-strictness", OpenVinoSupportCode.PackageInconsistentResource)]
     [DataRow("duplicate")]
     [DataRow("comment")]
     [DataRow("trailing")]
@@ -212,11 +212,11 @@ public sealed class OpenVinoStaticPackageInspectorTests
     public void VersionOneOptionalJsonResourcesUseClosedTypedSchemas()
     {
         using TemporaryPackage package = TemporaryPackage.CopyFixture();
-        package.Write("vocab.json", "{\"<pad>\":0,\"<bos>\":1,\"<eos>\":2,\"<unk>\":3,\"a\":4,\"b\":5,\"c\":6,\"d\":7}");
-        package.Write("added_tokens.json", "{\"<pad>\":0,\"<bos>\":1,\"<eos>\":2}");
-        package.Write("special_tokens_map.json", "{\"bos_token\":{\"content\":\"<bos>\",\"lstrip\":false,\"normalized\":false,\"rstrip\":false,\"single_word\":false},\"eos_token\":\"<eos>\",\"pad_token\":\"<pad>\",\"additional_special_tokens\":[\"<unk>\"]}");
+        package.Write("vocab.json", "{\"<|pad|>\":0,\"<|bos|>\":1,\"<|eos|>\":2,\"<unk>\":3,\"a\":4,\"b\":5,\"c\":6,\"d\":7}");
+        package.Write("added_tokens.json", "{\"<|pad|>\":0,\"<|bos|>\":1,\"<|eos|>\":2}");
+        package.Write("special_tokens_map.json", "{\"bos_token\":{\"content\":\"<|bos|>\",\"lstrip\":false,\"normalized\":false,\"rstrip\":false,\"single_word\":false},\"eos_token\":\"<|eos|>\",\"pad_token\":\"<|pad|>\",\"additional_special_tokens\":[\"<unk>\"]}");
         package.Write("chat_template.json", "{\"chat_template\":\"{% for message in messages %}{{ message.content }}{% endfor %}\"}");
-        package.Write("tokenizer.json", "{\"version\":\"1.0\",\"added_tokens\":[{\"id\":0,\"content\":\"<pad>\",\"single_word\":false,\"lstrip\":false,\"rstrip\":false,\"normalized\":false,\"special\":true}],\"model\":{\"type\":\"BPE\",\"vocab\":{\"<pad>\":0,\"<bos>\":1,\"<eos>\":2,\"<unk>\":3,\"a\":4,\"b\":5,\"c\":6,\"d\":7},\"merges\":[\"a b\"],\"unk_token\":\"<unk>\",\"fuse_unk\":false,\"byte_fallback\":false,\"ignore_merges\":false}}");
+        package.Write("tokenizer.json", "{\"version\":\"1.0\",\"added_tokens\":[{\"id\":0,\"content\":\"<|pad|>\",\"single_word\":false,\"lstrip\":false,\"rstrip\":false,\"normalized\":false,\"special\":true}],\"model\":{\"type\":\"BPE\",\"vocab\":{\"<|pad|>\":0,\"<|bos|>\":1,\"<|eos|>\":2,\"<unk>\":3,\"a\":4,\"b\":5,\"c\":6,\"d\":7},\"merges\":[\"a b\"],\"unk_token\":\"<unk>\",\"fuse_unk\":false,\"byte_fallback\":false,\"ignore_merges\":false}}");
 
         OpenVinoStaticPackageInspectionResult result = Inspect(package);
 
@@ -301,7 +301,7 @@ public sealed class OpenVinoStaticPackageInspectorTests
     }
 
     [TestMethod]
-    [MalformedCase("xml-over-limit")]
+    [MalformedCase("xml-over-limit", OpenVinoSupportCode.PackageInconsistentResource)]
     public void XmlOver256MiBIsRejectedWithoutMaterializingIt()
     {
         using TemporaryPackage package = TemporaryPackage.CopyFixture();
@@ -311,8 +311,19 @@ public sealed class OpenVinoStaticPackageInspectorTests
     }
 
     [TestMethod]
-    [MalformedCase("xml-dtd-entity-external")]
-    [MalformedCase("xml-external-schema")]
+    public void ValidXmlBetweenTextAndXmlCapsIsStreamedAndAccepted()
+    {
+        using TemporaryPackage package = TemporaryPackage.CopyFixture();
+        package.PadXmlWithComment("openvino_model.xml", OpenVinoPackagePolicy.MaximumTextBytes + 1L);
+
+        OpenVinoStaticPackageInspectionResult result = Inspect(package);
+
+        Assert.AreEqual(OpenVinoStaticInspectionStatus.NativeValidationRequired, result.Status);
+    }
+
+    [TestMethod]
+    [MalformedCase("xml-dtd-entity-external", OpenVinoSupportCode.PackageInconsistentResource)]
+    [MalformedCase("xml-external-schema", OpenVinoSupportCode.PackageInconsistentResource)]
     [DataRow("<!DOCTYPE net [<!ENTITY xxe SYSTEM \"file:///forbidden\">]><net name=\"x\" version=\"11\"><layers>&xxe;</layers></net>")]
     [DataRow("<net xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:noNamespaceSchemaLocation=\"file:///forbidden\" name=\"x\" version=\"11\"><layers /></net>")]
     public void XmlRejectsDtdEntitiesAndExternalSchemaResolution(string xml)
@@ -324,7 +335,7 @@ public sealed class OpenVinoStaticPackageInspectorTests
     }
 
     [TestMethod]
-    [MalformedCase("reparse-escape")]
+    [MalformedCase("reparse-escape", OpenVinoSupportCode.PackageUnsafePath)]
     public void ReparsePointEscapingTheRootIsRejected()
     {
         using TemporaryPackage package = TemporaryPackage.CopyFixture();
@@ -349,7 +360,7 @@ public sealed class OpenVinoStaticPackageInspectorTests
     }
 
     [TestMethod]
-    [MalformedCase("file-alternate-stream")]
+    [MalformedCase("file-alternate-stream", OpenVinoSupportCode.PackageUnsafePath)]
     public void AlternateDataStreamOnAFileIsRejected()
     {
         using TemporaryPackage package = TemporaryPackage.CopyFixture();
@@ -359,7 +370,7 @@ public sealed class OpenVinoStaticPackageInspectorTests
     }
 
     [TestMethod]
-    [MalformedCase("directory-alternate-stream")]
+    [MalformedCase("directory-alternate-stream", OpenVinoSupportCode.PackageUnsafePath)]
     public void AlternateDataStreamOnADirectoryIsRejected()
     {
         using TemporaryPackage package = TemporaryPackage.CopyFixture();
@@ -369,7 +380,7 @@ public sealed class OpenVinoStaticPackageInspectorTests
     }
 
     [TestMethod]
-    [MalformedCase("non-regular-required")]
+    [MalformedCase("non-regular-required", OpenVinoSupportCode.PackageUnsafePath)]
     public void NonRegularRequiredArtifactIsRejected()
     {
         using TemporaryPackage package = TemporaryPackage.CopyFixture();
@@ -380,8 +391,8 @@ public sealed class OpenVinoStaticPackageInspectorTests
     }
 
     [TestMethod]
-    [MalformedCase("executable-content")]
-    [MalformedCase("script-content")]
+    [MalformedCase("executable-content", OpenVinoSupportCode.PackageUnsafePath)]
+    [MalformedCase("script-content", OpenVinoSupportCode.PackageUnsafePath)]
     [DataRow("payload.exe", "MZ")]
     [DataRow("vocab.json", "#!/bin/sh\necho forbidden")]
     public void ExecutableOrScriptContentIsRejected(string relativeName, string content)
@@ -393,7 +404,7 @@ public sealed class OpenVinoStaticPackageInspectorTests
     }
 
     [TestMethod]
-    [MalformedCase("unreadable")]
+    [MalformedCase("unreadable", OpenVinoSupportCode.PackageUnreadable)]
     public void UnreadableRequiredArtifactUsesTheFixedCode()
     {
         using TemporaryPackage package = TemporaryPackage.CopyFixture();
@@ -403,7 +414,7 @@ public sealed class OpenVinoStaticPackageInspectorTests
     }
 
     [TestMethod]
-    [MalformedCase("mutating")]
+    [MalformedCase("mutating", OpenVinoSupportCode.PackageChanged)]
     public void ActiveWriterIsTreatedAsPackageMutation()
     {
         using TemporaryPackage package = TemporaryPackage.CopyFixture();
@@ -456,12 +467,86 @@ public sealed class OpenVinoStaticPackageInspectorTests
     }
 
     [TestMethod]
+    [DataRow("directory")]
+    [DataRow("junction")]
+    public void FileReplacementByDirectoryOrJunctionDuringFinalAcquisitionIsUnsafe(string replacement)
+    {
+        using TemporaryPackage package = TemporaryPackage.CopyFixture();
+        string victim = package.File("tokenizer_config.json");
+        string junctionTarget = package.CreateOutsideDirectory("acquisition-junction-target");
+        OpenVinoPackageSnapshotter snapshotter = new(observer: (stage, relativeName) =>
+        {
+            if (stage != OpenVinoPackageCaptureStage.BeforeAcquireFile || relativeName != "tokenizer_config.json")
+            {
+                return;
+            }
+
+            File.Delete(victim);
+            if (replacement == "directory")
+            {
+                Directory.CreateDirectory(victim);
+            }
+            else
+            {
+                package.CreateJunction(victim, junctionTarget);
+            }
+        });
+
+        AssertRejected(package, OpenVinoSupportCode.PackageUnsafePath, snapshotter);
+    }
+
+    [TestMethod]
+    public void EntryDeletedAfterEnumerationButBeforeDiscoveryOpenIsChanged()
+    {
+        using TemporaryPackage package = TemporaryPackage.CopyFixture();
+        string victim = package.File("tokenizer_config.json");
+        OpenVinoPackageSnapshotter snapshotter = new(observer: (stage, relativeName) =>
+        {
+            if (stage == OpenVinoPackageCaptureStage.BeforeDiscoverOpen && relativeName == "tokenizer_config.json")
+            {
+                File.Delete(victim);
+            }
+        });
+
+        AssertRejected(package, OpenVinoSupportCode.PackageChanged, snapshotter);
+    }
+
+    [TestMethod]
+    public void DriveRootNormalizationPreservesTheRootSeparator()
+    {
+        string driveRoot = Path.GetPathRoot(Environment.SystemDirectory)!;
+
+        string normalized = OpenVinoPackageSnapshotter.NormalizePackageRoot(driveRoot);
+
+        Assert.AreEqual(driveRoot, normalized);
+        Assert.IsTrue(Path.EndsInDirectorySeparator(normalized));
+    }
+
+    [TestMethod]
     public void EntryAddedAfterAllHandlesAreAcquiredIsChanged()
     {
         using TemporaryPackage package = TemporaryPackage.CopyFixture();
         OpenVinoPackageSnapshotter snapshotter = new(observer: (stage, _) =>
         {
             if (stage == OpenVinoPackageCaptureStage.AfterAllHandlesAcquired)
+            {
+                package.Write("vocab.json", "{\"fixture\":0}");
+            }
+        });
+
+        AssertRejected(package, OpenVinoSupportCode.PackageChanged, snapshotter);
+    }
+
+    [TestMethod]
+    [DataRow("AfterHashesCompleted")]
+    [DataRow("BeforeInspectorFinalValidation")]
+    public void EntryAddedDuringEveryFinalValidationWindowIsChanged(string stageName)
+    {
+        using TemporaryPackage package = TemporaryPackage.CopyFixture();
+        OpenVinoPackageCaptureStage mutationStage = Enum.Parse<OpenVinoPackageCaptureStage>(stageName);
+        OpenVinoPackageSnapshotter snapshotter = new(observer: (stage, _) =>
+        {
+            if (stage == mutationStage)
             {
                 package.Write("vocab.json", "{\"fixture\":0}");
             }
@@ -539,7 +624,7 @@ public sealed class OpenVinoStaticPackageInspectorTests
     }
 
     [TestMethod]
-    [MalformedCase("case-collision")]
+    [MalformedCase("case-collision", OpenVinoSupportCode.PackageUnsafePath)]
     public void FullCaptureRejectsInjectedCaseSensitiveCollision()
     {
         using TemporaryPackage package = TemporaryPackage.CopyFixture();
@@ -556,7 +641,7 @@ public sealed class OpenVinoStaticPackageInspectorTests
     }
 
     [TestMethod]
-    [MalformedCase("architecture")]
+    [MalformedCase("architecture", OpenVinoSupportCode.ModelArchitectureUnsupported)]
     [DataRow("model_type", "granitemoe")]
     [DataRow("model_type", "granitemoehybrid")]
     [DataRow("architectures", "GraniteMoeForCausalLM")]
@@ -574,7 +659,7 @@ public sealed class OpenVinoStaticPackageInspectorTests
     }
 
     [TestMethod]
-    [MalformedCase("task")]
+    [MalformedCase("task", OpenVinoSupportCode.ModelTaskUnsupported)]
     public void NonTextTaskUsesTheFixedCode()
     {
         using TemporaryPackage package = TemporaryPackage.CopyFixture();
@@ -598,7 +683,7 @@ public sealed class OpenVinoStaticPackageInspectorTests
     }
 
     [TestMethod]
-    [MalformedCase("tokenizer")]
+    [MalformedCase("tokenizer", OpenVinoSupportCode.TokenizerUnsupported)]
     [DataRow("tokenizer_class", "RemoteTokenizer")]
     [DataRow("model_max_length", "65")]
     public void InvalidTokenizerOrConfigConsistencyUsesTheFixedCode(string property, string value)
@@ -608,6 +693,53 @@ public sealed class OpenVinoStaticPackageInspectorTests
             ? JsonValue.Create(long.Parse(value, CultureInfo.InvariantCulture))!
             : JsonValue.Create(value)!;
         package.SetJson("tokenizer_config.json", property, replacement);
+
+        AssertRejected(package, OpenVinoSupportCode.TokenizerUnsupported);
+    }
+
+    [TestMethod]
+    [DataRow("duplicate-config-id")]
+    [DataRow("duplicate-tokenizer-string")]
+    [DataRow("vocab-id-mismatch")]
+    [DataRow("tokenizer-json-id-mismatch")]
+    [DataRow("added-token-id-mismatch")]
+    [DataRow("special-map-role-mismatch")]
+    [DataRow("special-map-duplicate")]
+    public void CrossResourceTokenizerFactsRejectMismatchOrAmbiguityWithFixedCode(string mutation)
+    {
+        using TemporaryPackage package = TemporaryPackage.CopyFixture();
+        const string consistentVocabulary = "{\"<|pad|>\":0,\"<|bos|>\":1,\"<|eos|>\":2,\"<unk>\":3,\"a\":4,\"b\":5,\"c\":6,\"d\":7}";
+        const string swappedVocabulary = "{\"<|pad|>\":0,\"<|bos|>\":2,\"<|eos|>\":1,\"<unk>\":3,\"a\":4,\"b\":5,\"c\":6,\"d\":7}";
+        switch (mutation)
+        {
+            case "duplicate-config-id":
+                package.SetJson("config.json", "bos_token_id", JsonValue.Create(2));
+                package.SetJson("generation_config.json", "bos_token_id", JsonValue.Create(2));
+                break;
+            case "duplicate-tokenizer-string":
+                package.SetJson("tokenizer_config.json", "bos_token", JsonValue.Create("<|eos|>"));
+                break;
+            case "vocab-id-mismatch":
+                package.Write("vocab.json", swappedVocabulary);
+                break;
+            case "tokenizer-json-id-mismatch":
+                package.Write("tokenizer.json", "{\"version\":\"1.0\",\"added_tokens\":[],\"model\":{\"type\":\"BPE\",\"vocab\":" + swappedVocabulary + ",\"merges\":[]}}");
+                break;
+            case "added-token-id-mismatch":
+                package.Write("added_tokens.json", "{\"<|pad|>\":0,\"<|bos|>\":2,\"<|eos|>\":1}");
+                break;
+            case "special-map-role-mismatch":
+                package.Write("vocab.json", consistentVocabulary);
+                package.Write("special_tokens_map.json", "{\"bos_token\":\"<|eos|>\",\"eos_token\":\"<|bos|>\",\"pad_token\":\"<|pad|>\"}");
+                break;
+            case "special-map-duplicate":
+                package.Write("vocab.json", consistentVocabulary);
+                package.Write("special_tokens_map.json", "{\"bos_token\":\"<|bos|>\",\"eos_token\":\"<|eos|>\",\"pad_token\":\"<|pad|>\",\"additional_special_tokens\":[\"<|bos|>\",\"<|bos|>\"]}");
+                break;
+            default:
+                Assert.Fail("Unknown tokenizer mutation.");
+                break;
+        }
 
         AssertRejected(package, OpenVinoSupportCode.TokenizerUnsupported);
     }
@@ -680,7 +812,23 @@ public sealed class OpenVinoStaticPackageInspectorTests
     }
 
     [TestMethod]
-    [MalformedCase("unknown-optional")]
+    [DataRow("openvino_model.xml", "logits", "FP32", "8")]
+    [DataRow("openvino_tokenizer.xml", "input_ids", "I64", null)]
+    [DataRow("openvino_detokenizer.xml", "string_output", "STRING", null)]
+    public void DisconnectedDecoyNamedPortCannotSatisfyRequiredGraphOutput(
+        string resource,
+        string portName,
+        string precision,
+        string? finalDimension)
+    {
+        using TemporaryPackage package = TemporaryPackage.CopyFixture();
+        package.AddDisconnectedDecoyGraphOutput(resource, portName, precision, finalDimension);
+
+        AssertRejected(package, OpenVinoSupportCode.PackageInconsistentResource);
+    }
+
+    [TestMethod]
+    [MalformedCase("unknown-optional", OpenVinoSupportCode.PackageInconsistentResource)]
     public void UnrecognizedOptionalResourceIsRejected()
     {
         using TemporaryPackage package = TemporaryPackage.CopyFixture();
@@ -694,21 +842,26 @@ public sealed class OpenVinoStaticPackageInspectorTests
     {
         string matrixPath = Path.Combine(AppContext.BaseDirectory, "TestFixtures", "OpenVINO", "Malformed", "matrix.json");
         using JsonDocument matrix = JsonDocument.Parse(File.ReadAllBytes(matrixPath));
-        string[] matrixIds = matrix.RootElement.GetProperty("cases").EnumerateArray()
-            .Select(static item => item.GetProperty("id").GetString()!)
-            .OrderBy(static id => id, StringComparer.Ordinal)
+        string[] matrixCases = matrix.RootElement.GetProperty("cases").EnumerateArray()
+            .Select(static item => $"{item.GetProperty("id").GetString()}|{item.GetProperty("supportCode").GetString()}")
+            .OrderBy(static item => item, StringComparer.Ordinal)
             .ToArray();
-        string[] executingIds = typeof(OpenVinoStaticPackageInspectorTests).GetMethods()
+        MalformedCaseAttribute[] executingAttributes = typeof(OpenVinoStaticPackageInspectorTests).GetMethods()
             .Where(static method => method.GetCustomAttributes(typeof(TestMethodAttribute), inherit: false).Length == 1)
             .SelectMany(static method => method.GetCustomAttributes(typeof(MalformedCaseAttribute), inherit: false))
             .Cast<MalformedCaseAttribute>()
-            .Select(static attribute => attribute.Id)
-            .OrderBy(static id => id, StringComparer.Ordinal)
+            .ToArray();
+        string[] executingCases = executingAttributes
+            .Select(static attribute => $"{attribute.Id}|{attribute.SupportCode.ToProtocolValue()}")
+            .OrderBy(static item => item, StringComparer.Ordinal)
             .ToArray();
 
-        Assert.AreEqual(matrixIds.Length, matrixIds.Distinct(StringComparer.Ordinal).Count(), "Matrix case IDs must be unique.");
-        Assert.AreEqual(executingIds.Length, executingIds.Distinct(StringComparer.Ordinal).Count(), "Executing case IDs must be unique.");
-        CollectionAssert.AreEqual(matrixIds, executingIds);
+        Assert.AreEqual(matrixCases.Length, matrixCases.Distinct(StringComparer.Ordinal).Count(), "Matrix ID/code pairs must be unique.");
+        Assert.AreEqual(
+            executingAttributes.Length,
+            executingAttributes.Select(static attribute => attribute.Id).Distinct(StringComparer.Ordinal).Count(),
+            "Executing case IDs must be unique.");
+        CollectionAssert.AreEqual(matrixCases, executingCases);
     }
 
     private static OpenVinoStaticPackageInspectionResult Inspect(
@@ -841,6 +994,29 @@ public sealed class OpenVinoStaticPackageInspectorTests
             stream.SetLength(length);
         }
 
+        public void PadXmlWithComment(string relativeName, long minimumLength)
+        {
+            string path = File(relativeName);
+            string xml = System.IO.File.ReadAllText(path);
+            int closingTag = xml.LastIndexOf("</net>", StringComparison.Ordinal);
+            Assert.IsGreaterThanOrEqualTo(0, closingTag);
+            using FileStream stream = new(path, FileMode.Create, FileAccess.Write, FileShare.None, 64 * 1024);
+            using StreamWriter writer = new(stream, new UTF8Encoding(false), 64 * 1024, leaveOpen: false);
+            writer.Write(xml.AsSpan(0, closingTag));
+            writer.Write("<!--");
+            char[] padding = Enumerable.Repeat(' ', 64 * 1024).ToArray();
+            long remaining = minimumLength - closingTag - 4 - 3 - (xml.Length - closingTag);
+            while (remaining > 0)
+            {
+                int count = (int)Math.Min(padding.Length, remaining);
+                writer.Write(padding, 0, count);
+                remaining -= count;
+            }
+
+            writer.Write("-->");
+            writer.Write(xml.AsSpan(closingTag));
+        }
+
         public void SetJson(string relativeName, string property, JsonNode? value)
         {
             string path = File(relativeName);
@@ -856,6 +1032,39 @@ public sealed class OpenVinoStaticPackageInspectorTests
             XElement port = document.Descendants("port").Single(element =>
                 ((string?)element.Attribute("names"))?.Split(',').Contains(portName, StringComparer.Ordinal) == true);
             mutation(port);
+            System.IO.File.WriteAllText(path, document.ToString(SaveOptions.DisableFormatting), new UTF8Encoding(false));
+        }
+
+        public void AddDisconnectedDecoyGraphOutput(
+            string relativeName,
+            string portName,
+            string precision,
+            string? finalDimension)
+        {
+            string path = File(relativeName);
+            XDocument document = XDocument.Load(path, LoadOptions.PreserveWhitespace);
+            XElement connectedOutput = document.Descendants("port").Single(element =>
+                ((string?)element.Attribute("names"))?.Split(',').Contains(portName, StringComparer.Ordinal) == true);
+            connectedOutput.SetAttributeValue("names", $"displaced_{portName}");
+            XElement decoy = document.Descendants("layer")
+                .First(element => (string?)element.Attribute("type") == "Const")
+                .Element("output")!
+                .Element("port")!;
+            decoy.SetAttributeValue("names", portName);
+            decoy.SetAttributeValue("precision", precision);
+            if (finalDimension is not null)
+            {
+                XElement? dimension = decoy.Elements("dim").LastOrDefault();
+                if (dimension is null)
+                {
+                    decoy.Add(new XElement("dim", finalDimension));
+                }
+                else
+                {
+                    dimension.Value = finalDimension;
+                }
+            }
+
             System.IO.File.WriteAllText(path, document.ToString(SaveOptions.DisableFormatting), new UTF8Encoding(false));
         }
 
@@ -889,7 +1098,9 @@ public sealed class OpenVinoStaticPackageInspectorTests
 }
 
 [AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
-internal sealed class MalformedCaseAttribute(string id) : Attribute
+internal sealed class MalformedCaseAttribute(string id, OpenVinoSupportCode supportCode) : Attribute
 {
     public string Id { get; } = id;
+
+    public OpenVinoSupportCode SupportCode { get; } = supportCode;
 }

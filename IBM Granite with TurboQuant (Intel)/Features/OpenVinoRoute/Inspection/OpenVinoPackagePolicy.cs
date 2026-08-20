@@ -53,8 +53,6 @@ public static class OpenVinoPackagePolicy
         relativeName.EndsWith(".xml", StringComparison.Ordinal);
 
     internal static bool IsTextResource(string relativeName) =>
-        IsJsonResource(relativeName) ||
-        IsXmlResource(relativeName) ||
         relativeName.Equals("chat_template.jinja", StringComparison.Ordinal) ||
         relativeName.Equals("merges.txt", StringComparison.Ordinal);
 

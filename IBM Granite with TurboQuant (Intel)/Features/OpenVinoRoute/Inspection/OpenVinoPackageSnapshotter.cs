@@ -29,6 +29,7 @@ internal enum OpenVinoSnapshotFailure
 
 internal enum OpenVinoPackageCaptureStage
 {
+    BeforeDiscoverOpen,
     BeforeAcquireFile,
     AfterAllHandlesAcquired,
     AfterHashesCompleted,
@@ -63,7 +64,7 @@ internal sealed class OpenVinoPackageSnapshotter
         string root;
         try
         {
-            root = Path.GetFullPath(packageRoot).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            root = NormalizePackageRoot(packageRoot);
         }
         catch (Exception exception) when (exception is ArgumentException or NotSupportedException)
         {
@@ -123,7 +124,7 @@ internal sealed class OpenVinoPackageSnapshotter
                     item.FullPath,
                     GenericRead,
                     FileShareRead,
-                    FileFlagOpenReparsePoint | FileFlagSequentialScan);
+                    FileFlagBackupSemantics | FileFlagOpenReparsePoint | FileFlagSequentialScan);
                 if (handle.IsInvalid)
                 {
                     int error = Marshal.GetLastWin32Error();
@@ -270,9 +271,12 @@ internal sealed class OpenVinoPackageSnapshotter
         }
     }
 
+    internal static string NormalizePackageRoot(string packageRoot) =>
+        Path.TrimEndingDirectorySeparator(Path.GetFullPath(packageRoot));
+
     private TopologyCapture DiscoverTopology(string root, string rootFinalPath, bool repeatCapture)
     {
-        string rootPrefix = root + Path.DirectorySeparatorChar;
+        string rootPrefix = Path.EndsInDirectorySeparator(root) ? root : root + Path.DirectorySeparatorChar;
         List<DiscoveredItem> discovered = [];
         Queue<DirectoryToVisit> directories = new();
         directories.Enqueue(new DirectoryToVisit(root, 0));
@@ -301,6 +305,7 @@ internal sealed class OpenVinoPackageSnapshotter
                         return TopologyCapture.Failed(OpenVinoSnapshotFailure.EscapedRoot);
                     }
 
+                    observer(OpenVinoPackageCaptureStage.BeforeDiscoverOpen, relativeName);
                     SafeFileHandle handle = OpenPath(
                         canonicalPath,
                         FileReadAttributes,
@@ -308,8 +313,9 @@ internal sealed class OpenVinoPackageSnapshotter
                         FileFlagBackupSemantics | FileFlagOpenReparsePoint);
                     if (handle.IsInvalid)
                     {
+                        int error = Marshal.GetLastWin32Error();
                         handle.Dispose();
-                        return TopologyCapture.Failed(repeatCapture
+                        return TopologyCapture.Failed((error is ErrorFileNotFound or ErrorPathNotFound) || repeatCapture
                             ? OpenVinoSnapshotFailure.Changed
                             : OpenVinoSnapshotFailure.Unreadable);
                     }
