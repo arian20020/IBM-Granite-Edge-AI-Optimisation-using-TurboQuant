@@ -41,20 +41,35 @@ function Test-ReviewRecords {
     param($Reviews)
 
     $required = @('DEP-01', 'DEP-02', 'LIC-01')
+    $sentinels = @(
+        'tbd',
+        'n/a',
+        'na',
+        'unverified',
+        'unknown',
+        'none',
+        'null',
+        'pending',
+        'unset',
+        '-'
+    )
     foreach ($gate in $required) {
         $review = @($Reviews | Where-Object { $_.gate -eq $gate })
+        $reviewer = [string]$review[0].reviewer
+        $reviewedAtUtc = [string]$review[0].reviewedAtUtc
+        $disposition = [string]$review[0].disposition
         if ($review.Count -ne 1 -or
-            [string]::IsNullOrWhiteSpace($review[0].reviewer) -or
-            [string]::IsNullOrWhiteSpace($review[0].reviewedAtUtc) -or
-            [string]::IsNullOrWhiteSpace($review[0].disposition) -or
-            $review[0].reviewer -eq 'TBD' -or
-            $review[0].reviewedAtUtc -eq 'TBD' -or
-            $review[0].disposition -eq 'TBD') {
+            [string]::IsNullOrWhiteSpace($reviewer) -or
+            [string]::IsNullOrWhiteSpace($reviewedAtUtc) -or
+            [string]::IsNullOrWhiteSpace($disposition) -or
+            $sentinels -contains $reviewer.Trim().ToLowerInvariant() -or
+            $sentinels -contains $reviewedAtUtc.Trim().ToLowerInvariant() -or
+            $sentinels -contains $disposition.Trim().ToLowerInvariant()) {
             return $false
         }
 
         $ignored = [DateTimeOffset]::MinValue
-        if (-not [DateTimeOffset]::TryParse($review[0].reviewedAtUtc, [ref]$ignored)) {
+        if (-not [DateTimeOffset]::TryParse($reviewedAtUtc, [ref]$ignored)) {
             return $false
         }
     }
@@ -163,6 +178,16 @@ function Test-ConverterClosure {
     }
 
     $runtime = Get-Lock (Join-Path $lockDirectory 'python-runtime.lock.json')
+    $runtimePath = Join-Path $Directory $runtime.filename
+    $runtimeFile = Get-Item -LiteralPath $runtimePath
+    if ([Int64]$runtime.length -le 0 -or
+        $runtime.sha256 -notmatch '^[0-9a-f]{64}$' -or
+        -not (Test-ReviewRecords $runtime.reviews) -or
+        $runtimeFile.Length -ne [Int64]$runtime.length -or
+        (Get-FileHash -LiteralPath $runtimePath -Algorithm SHA256).Hash.ToLowerInvariant() -cne $runtime.sha256) {
+        return $false
+    }
+
     $expected = @($runtime.filename) + @($manifest.wheels | ForEach-Object { $_.filename })
     $actual = @(Get-ChildItem -LiteralPath $Directory -File)
     if (@($actual | Where-Object { $_.Extension -ne '.whl' -and $_.Name -ne $runtime.filename }).Count -ne 0 -or
