@@ -81,6 +81,11 @@ public sealed partial class HardwareInspectionPage : Page
         {
             RecoveryPanel.Visibility = Visibility.Collapsed;
         }
+        LocalProcessingPanel.Visibility = state.Kind is HardwareInspectionPresentationKind.FailedCriticalEvidence
+            or HardwareInspectionPresentationKind.FailedTransientOperation
+            or HardwareInspectionPresentationKind.FailedApplicationRepairRequired
+            ? Visibility.Visible
+            : Visibility.Collapsed;
         ReviewPanel.Visibility = state.Kind == HardwareInspectionPresentationKind.CompletedWithWarnings
             ? Visibility.Visible
             : Visibility.Collapsed;

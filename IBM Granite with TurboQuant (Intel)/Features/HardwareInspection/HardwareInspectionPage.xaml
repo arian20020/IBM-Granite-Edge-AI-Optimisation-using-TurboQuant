@@ -100,6 +100,21 @@
                         x:Name="RecoveryPanel"
                         Visibility="Collapsed" />
                     <Border
+                        x:Name="LocalProcessingPanel"
+                        Padding="14,12"
+                        Background="{ThemeResource HardwareInspectionAccentSurfaceBrush}"
+                        BorderBrush="{ThemeResource HardwareInspectionAccentBorderBrush}"
+                        BorderThickness="{ThemeResource HardwareInspectionBorderThickness}"
+                        CornerRadius="8"
+                        Visibility="Collapsed">
+                        <TextBlock
+                            x:Name="LocalProcessingTextBlock"
+                            FontSize="{ThemeResource HardwareInspectionHelperFontSize}"
+                            Foreground="{ThemeResource HardwareInspectionTextSecondaryBrush}"
+                            Text="This hardware inspection ran locally and did not upload hardware information."
+                            TextWrapping="WrapWholeWords" />
+                    </Border>
+                    <Border
                         x:Name="ReviewPanel"
                         Padding="24"
                         Background="{ThemeResource HardwareInspectionWarningSurfaceBrush}"

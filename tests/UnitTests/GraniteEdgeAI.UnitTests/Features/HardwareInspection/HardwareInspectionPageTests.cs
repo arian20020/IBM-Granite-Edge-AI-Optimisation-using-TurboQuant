@@ -134,10 +134,15 @@ public sealed class HardwareInspectionPageTests
             (HardwareInspectionRecoveryCard)Element(page, "RecoveryPanel");
         Assert.AreEqual(Visibility.Visible, recovery.Visibility);
         Assert.AreEqual("What you can do", ((TextBlock)recovery.FindName("RecoveryHeadingTextBlock")).Text);
+        Assert.AreEqual(Visibility.Visible, Element(page, "LocalProcessingPanel").Visibility);
+        Assert.AreEqual(
+            "This hardware inspection ran locally and did not upload hardware information.",
+            Text(page, "LocalProcessingTextBlock").Text);
 
         page.Apply(_factory.CreateStopping());
         Assert.AreEqual("Why this may take a moment", ((TextBlock)recovery.FindName("RecoveryHeadingTextBlock")).Text);
         Assert.AreEqual(Visibility.Collapsed, Element(page, "DetailsCard").Visibility);
+        Assert.AreEqual(Visibility.Collapsed, Element(page, "LocalProcessingPanel").Visibility);
         Assert.AreEqual(Visibility.Visible, Element(page, "ActionCard").Visibility);
     }
 
