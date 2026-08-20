@@ -134,6 +134,14 @@ public sealed class HardwareInspectionContractTests
             Guid.Empty,
             HardwareInspectionOutcome.Completed,
             usable));
+        Assert.Throws<ArgumentException>(() => HardwareInspectionHandoff.Create(
+            inspectionId,
+            HardwareInspectionOutcome.Completed,
+            CreateSnapshot(
+                ["avx2"],
+                [],
+                CreateRequiredEvidence(),
+                HardwareSnapshotUsability.NotUsable)));
     }
 
     [TestMethod]
@@ -192,7 +200,8 @@ public sealed class HardwareInspectionContractTests
     private static HardwareSnapshot CreateSnapshot(
         IEnumerable<string> instructionSets,
         IEnumerable<GraphicsAdapterFacts> graphics,
-        IEnumerable<HardwareEvidenceEntry> evidence) =>
+        IEnumerable<HardwareEvidenceEntry> evidence,
+        HardwareSnapshotUsability usability = HardwareSnapshotUsability.Usable) =>
         new(
             snapshotId: Guid.NewGuid(),
             capturedAtUtc: CapturedAtUtc,
@@ -213,7 +222,7 @@ public sealed class HardwareInspectionContractTests
                 [LocalRuntimeBackend.Cpu, LocalRuntimeBackend.Sycl],
                 ["Intel Arc Graphics"]),
             evidence: new HardwareEvidenceManifest(evidence),
-            usability: HardwareSnapshotUsability.Usable);
+            usability: usability);
 
     private static HardwareEvidenceEntry[] CreateRequiredEvidence() =>
     [

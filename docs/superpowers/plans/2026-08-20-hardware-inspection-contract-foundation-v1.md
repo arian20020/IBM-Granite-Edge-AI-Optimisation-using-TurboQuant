@@ -17,14 +17,14 @@
 
 - [ ] **Step 1: Write tests for exact enums, snapshot validation, handoff eligibility, privacy exclusions, and fresh memory.**
 
-Use reflection for exact public shapes and direct construction for behavioral invariants. Include valid evidence for `processor.name`, `memory.installedBytes`, `memory.osUsableBytes`, and `memory.availableBytes`.
+Use reflection for exact public shapes and direct construction for behavioral invariants. Include valid evidence for `processor.name`, `memory.installedBytes`, `memory.osUsableBytes`, and `memory.availableBytes`. Use the repository's packaged `vstest.console.exe` recipe described in `tests/README.md`; `dotnet test` is not compatible with this WinUI app-container project.
 
 - [ ] **Step 2: Run the focused tests and verify RED.**
 
-Run:
+Build:
 
 ```powershell
-dotnet test "tests/UnitTests/GraniteEdgeAI.UnitTests/GraniteEdgeAI.UnitTests.csproj" -c Debug -p:Platform=x64 --filter "FullyQualifiedName~HardwareInspectionContractTests" --no-restore
+dotnet build "tests/UnitTests/GraniteEdgeAI.UnitTests/GraniteEdgeAI.UnitTests.csproj" -c Debug -p:Platform=x64 --no-restore
 ```
 
 Expected: compilation fails because the Hardware Inspection types do not exist.
@@ -88,11 +88,11 @@ Reject `Guid.Empty`, non-actionable outcomes, null snapshots, and snapshots whos
 
 - [ ] **Step 3: Add the fresh-memory contract.**
 
-Define `AvailableMemorySnapshot` with positive bytes and UTC time validation, and `IAvailableMemoryProvider.CaptureAsync(CancellationToken)` returning `ValueTask<AvailableMemorySnapshot>`.
+Define `AvailableMemorySnapshot` with an unsigned byte count (zero is valid) and UTC time validation, and `IAvailableMemoryProvider.CaptureAsync(CancellationToken)` returning `ValueTask<AvailableMemorySnapshot>`.
 
 - [ ] **Step 4: Run the focused tests and verify GREEN.**
 
-Use the Task 1 command. Expected: all `HardwareInspectionContractTests` pass.
+Use the packaged VSTest recipe from `tests/README.md` with `/TestCaseFilter:"FullyQualifiedName~HardwareInspectionContractTests"`. Expected: all `HardwareInspectionContractTests` pass.
 
 - [ ] **Step 5: Commit the application contract.**
 
@@ -105,6 +105,7 @@ git commit -m "feat(hardware-inspection): add actionable handoff contract"
 
 **Files:**
 - Create: `docs/testing/hardware-inspection/Hardware-Inspection-Contract-v1.md`
+- Create: `tests/testing/hardware_inspection/test_hardware_inspection_contract_v1.py`
 - Modify: `tests/UnitTests/GraniteEdgeAI.UnitTests/Features/HardwareInspection/HardwareInspectionContractTests.cs`
 
 - [ ] **Step 1: Record the exact contract.**
@@ -118,8 +119,8 @@ Assert the document exists, names the owner commit, lists both handoff propertie
 - [ ] **Step 3: Run focused and regression tests.**
 
 ```powershell
-dotnet test "tests/UnitTests/GraniteEdgeAI.UnitTests/GraniteEdgeAI.UnitTests.csproj" -c Debug -p:Platform=x64 --filter "FullyQualifiedName~HardwareInspectionContractTests"
-dotnet test "tests/UnitTests/GraniteEdgeAI.UnitTests/GraniteEdgeAI.UnitTests.csproj" -c Debug -p:Platform=x64
+python -B -m unittest -v tests.testing.hardware_inspection.test_hardware_inspection_contract_v1
+# Run the packaged focused and full VSTest recipes from tests/README.md.
 git diff --check
 ```
 
