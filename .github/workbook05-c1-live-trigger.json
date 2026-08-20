@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0",
+  "record_type": "workbook05-c1-one-shot-dispatch",
+  "repository": "arian20020/IBM-Granite-Edge-AI-Optimisation-using-TurboQuant",
+  "authorised_main_parent": "1dc0a0480f3d8ead58dd6c0430b10aa8a2bb305f",
+  "operation": "live-asset-lock",
+  "confirm_live_asset_lock": true,
+  "accepted_dependency_preflight_sha256": "429b90548ce2b4c8463941c5b2983c8ff0cf6cc3ea3865375c8cae78d7193b49",
+  "one_time_nonce": "wb05-c1-live-20260820-a",
+  "owner_authorised": true
+}
