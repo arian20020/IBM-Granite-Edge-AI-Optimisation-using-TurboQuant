@@ -18,3 +18,13 @@ The protected command-line runtime is implemented and exercised against a
 deterministic fake CLI. Real GGUF inference still requires an authorized local
 `llama.cpp` CPU build and an inference-capable GGUF model; neither artifact is
 downloaded or committed by this repository.
+
+Run all local verification with:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\gguf-runtime\Invoke-GgufChatVerification.ps1
+```
+
+Production packaging is opt-in through `GgufRuntimeInputRoot` plus the exact
+source commit, build identity, and build flags. The controlled real-model test
+must pass before a staged CLI build is described as supported.
