@@ -3,6 +3,7 @@ using GraniteEdgeAI.GgufRuntime.Contracts.Commands;
 using GraniteEdgeAI.GgufRuntime.Contracts.Configuration;
 using GraniteEdgeAI.GgufRuntime.Contracts.Events;
 using GraniteEdgeAI.GgufRuntime.Contracts.Session;
+using GraniteEdgeAI.GgufRuntime.Capabilities.Manifest;
 using GraniteEdgeAI.GgufRuntime.Transport;
 using GraniteEdgeAI.GgufRuntime.WorkerClient.Windows;
 
@@ -35,6 +36,35 @@ public sealed class GgufRuntimeClient
             cliExecutable,
             modelFile,
             ["--scenario", scenario]);
+
+    public static GgufRuntimeClient Create(
+        VerifiedGgufRuntimePackage package,
+        string modelFile)
+    {
+        ArgumentNullException.ThrowIfNull(package);
+        string supervisor = RequireExistingAbsoluteFile(
+            package.SupervisorExecutable,
+            nameof(package));
+        string cli = RequireExistingAbsoluteFile(
+            package.CliExecutable,
+            nameof(package));
+        string model = RequireExistingAbsoluteFile(modelFile, nameof(modelFile));
+        return new GgufRuntimeClient(supervisor, cli, model, []);
+    }
+
+    public static GgufRuntimeClient CreateFromPackage(
+        string packageRoot,
+        ReadOnlySpan<byte> trustedManifest,
+        string modelFile)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(packageRoot);
+        string root = Path.GetFullPath(packageRoot);
+        VerifiedGgufRuntimePackage package = GgufRuntimePackageLoader.Verify(
+            root,
+            trustedManifest,
+            Path.Combine(root, GgufRuntimePackageLoader.DetachedManifestFileName));
+        return Create(package, modelFile);
+    }
 
     public async Task<GgufRuntimeSession> StartAsync(
         GgufRuntimeConfiguration configuration,
@@ -84,5 +114,25 @@ public sealed class GgufRuntimeClient
         }
 
         return values;
+    }
+
+    private static string RequireExistingAbsoluteFile(string path, string parameterName)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !Path.IsPathFullyQualified(path))
+        {
+            throw new ArgumentException(
+                "A fully qualified local file is required.",
+                parameterName);
+        }
+
+        string fullPath = Path.GetFullPath(path);
+        if (!File.Exists(fullPath))
+        {
+            throw new FileNotFoundException(
+                "A required local runtime input is missing.",
+                fullPath);
+        }
+
+        return fullPath;
     }
 }

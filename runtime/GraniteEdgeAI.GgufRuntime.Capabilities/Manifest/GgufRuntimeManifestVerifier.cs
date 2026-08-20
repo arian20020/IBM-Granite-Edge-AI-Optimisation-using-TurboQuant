@@ -9,6 +9,12 @@ public static class GgufRuntimeManifestVerifier
     public static VerifiedGgufRuntimePackage Verify(
         string packageRoot,
         GgufRuntimeManifest manifest)
+        => Verify(packageRoot, manifest, excludedClosureFile: null);
+
+    internal static VerifiedGgufRuntimePackage Verify(
+        string packageRoot,
+        GgufRuntimeManifest manifest,
+        string? excludedClosureFile)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(packageRoot);
         ArgumentNullException.ThrowIfNull(manifest);
@@ -56,6 +62,14 @@ public static class GgufRuntimeManifestVerifier
                      "*",
                      SearchOption.AllDirectories))
         {
+            if (excludedClosureFile is not null &&
+                Path.GetFullPath(actualPath).Equals(
+                    excludedClosureFile,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
             if (!listedPaths.Contains(Path.GetFullPath(actualPath)))
             {
                 throw new GgufRuntimeTrustException("runtime-package-member-unlisted");
@@ -151,6 +165,11 @@ public static class GgufRuntimeManifestVerifier
         if (!actualHash.Equals(entry.Sha256, StringComparison.OrdinalIgnoreCase))
         {
             throw new GgufRuntimeTrustException("runtime-manifest-hash-mismatch");
+        }
+
+        if (entry.Role == GgufRuntimeFileRole.License)
+        {
+            return;
         }
 
         stream.Position = 0;

@@ -71,6 +71,30 @@ public sealed class GgufRuntimeManifestVerifierTests
         Assert.AreEqual("runtime-package-member-unlisted", exception.Code);
     }
 
+    [TestMethod]
+    public void VerifyAcceptsManifestedNonPeLicenseMaterial()
+    {
+        using var package = TemporaryRuntimePackage.Create();
+        string licensePath = Path.Combine(package.Root, "LICENSE.txt");
+        File.WriteAllText(licensePath, "fixture license");
+        GgufRuntimeManifest manifest = package.Manifest with
+        {
+            Files =
+            [
+                .. package.Manifest.Files,
+                TemporaryRuntimePackage.CreateEntry(
+                    licensePath,
+                    "LICENSE.txt",
+                    GgufRuntimeFileRole.License),
+            ],
+        };
+
+        VerifiedGgufRuntimePackage result =
+            GgufRuntimeManifestVerifier.Verify(package.Root, manifest);
+
+        Assert.AreEqual(package.SupervisorPath, result.SupervisorExecutable);
+    }
+
     internal sealed class TemporaryRuntimePackage : IDisposable
     {
         private TemporaryRuntimePackage(
@@ -131,7 +155,7 @@ public sealed class GgufRuntimeManifestVerifierTests
             }
         }
 
-        private static GgufRuntimeManifestEntry CreateEntry(
+        internal static GgufRuntimeManifestEntry CreateEntry(
             string path,
             string relativePath,
             GgufRuntimeFileRole role)
