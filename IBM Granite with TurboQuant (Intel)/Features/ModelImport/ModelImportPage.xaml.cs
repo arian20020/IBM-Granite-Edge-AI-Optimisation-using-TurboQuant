@@ -2,6 +2,7 @@ using GraniteEdgeAI.Features.ModelImport.Controls;
 using GraniteEdgeAI.Features.ModelImport.FileImport;
 using GraniteEdgeAI.Features.ModelImport.FileImport.PickerRoute;
 using GraniteEdgeAI.Features.ModelImport.QuickScan;
+using GraniteEdgeAI.Features.ModelImport.Selection;
 using GraniteEdgeAI.Features.ModelInspection.Contracts;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -50,7 +51,8 @@ namespace GraniteEdgeAI.Features.ModelImport
                 CancellationToken,
                 Task<ModelQuickScanResult>>? scanModelAsync = null,
             CultureInfo? displayCulture = null,
-            Action<ModelQuickScanFailureDiagnostic>? recordScanFailure = null)
+            Action<ModelQuickScanFailureDiagnostic>? recordScanFailure = null,
+            IModelSelectionClassifier? classifier = null)
         {
             InitializeComponent();
 
@@ -72,6 +74,7 @@ namespace GraniteEdgeAI.Features.ModelImport
             _displayCulture = displayCulture ?? CultureInfo.CurrentCulture;
             _recordScanFailure =
                 recordScanFailure ?? WriteFailureDiagnosticToTrace;
+            _classifier = classifier ?? new BoundedModelSelectionClassifier();
         }
 
         internal string? SelectedModelPath { get; private set; }
@@ -80,8 +83,12 @@ namespace GraniteEdgeAI.Features.ModelImport
 
         internal ModelQuickScanResult? ValidatedScanResult { get; private set; }
 
+        internal ModelSelectionRoute? CurrentRoute { get; private set; }
+
         /// Raised when the user requests full inspection of the validated model.
         internal event EventHandler<ModelInspectionRequestedEventArgs>? ModelInspectionRequested;
+        internal event EventHandler<OpenVinoInspectionRequestedEventArgs>? OpenVinoInspectionRequested;
+        internal event EventHandler<SourceModelInspectionRequestedEventArgs>? SourceModelInspectionRequested;
 
         internal async Task BrowseFilesAsync()
         {
@@ -99,35 +106,11 @@ namespace GraniteEdgeAI.Features.ModelImport
                 return;
             }
 
-            string selectedFileName = Path.GetFileName(selectedPath);
-            PrepareForScan(selectedPath, selectedFileName);
-
-            CancellationTokenSource scanCancellationTokenSource =
-                BeginScan();
-            ModelQuickScanResult scanResult;
-            bool shouldApplyResult;
-
-            try
-            {
-                scanResult = await _scanModelAsync(
-                    selectedFormat,
+            await SubmitInputAsync(
+                new ModelSelectionInput(
                     selectedPath,
-                    scanCancellationTokenSource.Token);
-            }
-            finally
-            {
-                shouldApplyResult = CompleteScan(
-                    scanCancellationTokenSource);
-                scanCancellationTokenSource.Dispose();
-            }
-
-            if (!shouldApplyResult)
-            {
-                // A removed or replaced scan must not alter the current page.
-                return;
-            }
-
-            ApplyScanResult(selectedFileName, scanResult);
+                    Path.GetFileName(selectedPath),
+                    isFolder: false));
         }
 
         private void PrepareForScan(
@@ -270,12 +253,14 @@ namespace GraniteEdgeAI.Features.ModelImport
                 _scanCancellationTokenSource;
             _scanCancellationTokenSource = null;
             activeScan?.Cancel();
+            RetireActiveSelectionOperation();
         }
 
         private void ResetToAwaitingSelection()
         {
             SelectedModelPath = null;
             ValidatedScanResult = null;
+            CurrentRoute = null;
             HasValidatedModel = false;
             ContinueToModelInspectionButton.IsEnabled = false;
             ImportModelCardControl.ShowAwaitingSelection();
