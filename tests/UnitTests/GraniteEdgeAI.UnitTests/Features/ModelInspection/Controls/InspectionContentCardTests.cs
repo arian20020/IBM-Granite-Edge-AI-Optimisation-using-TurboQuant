@@ -490,9 +490,128 @@ public sealed class InspectionContentCardTests
             control.UpdateLayout();
 
             Border shell = (Border)control.FindName("ContentCardShell");
+            TextBlock sectionTitle = Assert.IsInstanceOfType<TextBlock>(
+                control.FindName("FindingsSectionTitle"));
+            Border rowsSurface = Assert.IsInstanceOfType<Border>(
+                control.FindName("FindingsRowsSurface"));
+            TextBlock supporting = Assert.IsInstanceOfType<TextBlock>(
+                control.FindName("SupportingText"));
+            TextBlock tertiary = Assert.IsInstanceOfType<TextBlock>(
+                control.FindName("TertiaryText"));
+            Border diagnostic = Assert.IsInstanceOfType<Border>(
+                control.FindName("DiagnosticCodeBorder"));
+            Grid technicalDetailsHost = Assert.IsInstanceOfType<Grid>(
+                control.FindName("TechnicalDetailsHost"));
+            TextBlock technicalHelp = Assert.IsInstanceOfType<TextBlock>(
+                control.FindName("TechnicalDetailsFutureHelpText"));
+            Button technicalAction = Assert.IsInstanceOfType<Button>(
+                control.FindName("TechnicalDetailsButton"));
             Assert.AreEqual(expectedState, page.State);
             Assert.AreEqual(0d, shell.MinHeight, 0.01d);
             Assert.IsGreaterThan(0d, control.ActualHeight);
+            Assert.AreEqual(18d, ElementBounds(sectionTitle, shell).Top, 1d,
+                "terminal title top inset");
+            Assert.AreEqual(12d, VerticalGap(sectionTitle, rowsSurface, shell), 1d,
+                "title to semantic row");
+            if (supporting.Visibility == Visibility.Visible)
+            {
+                Assert.AreEqual(8d, VerticalGap(rowsSurface, supporting, shell), 1d,
+                    "semantic row to helper copy");
+            }
+
+            if (tertiary.Visibility == Visibility.Visible)
+            {
+                FrameworkElement previous = supporting.Visibility == Visibility.Visible
+                    ? supporting
+                    : rowsSurface;
+                Assert.AreEqual(8d, VerticalGap(previous, tertiary, shell), 1d,
+                    "helper copy rhythm");
+            }
+
+            if (diagnostic.Visibility == Visibility.Visible)
+            {
+                FrameworkElement previous = tertiary.Visibility == Visibility.Visible
+                    ? tertiary
+                    : supporting.Visibility == Visibility.Visible
+                        ? supporting
+                        : rowsSurface;
+                Assert.AreEqual(8d, VerticalGap(previous, diagnostic, shell), 1d,
+                    "helper copy to diagnostic code");
+            }
+
+            Border[] findingRows = EnumerateDescendants(rowsSurface)
+                .OfType<Border>()
+                .Where(row => string.Equals(
+                    row.Tag as string,
+                    "InspectionFindingRow",
+                    StringComparison.Ordinal))
+                .ToArray();
+            Assert.IsNotEmpty(findingRows);
+            foreach (Border findingRow in findingRows)
+            {
+                Grid layout = EnumerateDescendants(findingRow)
+                    .OfType<Grid>()
+                    .Single(grid => ReferenceEquals(
+                        VisualTreeHelper.GetParent(grid),
+                        findingRow));
+                ContentPresenter glyph = EnumerateDescendants(layout)
+                    .OfType<ContentPresenter>()
+                    .Single(presenter => Grid.GetColumn(presenter) == 0);
+                StackPanel copy = EnumerateDescendants(layout)
+                    .OfType<StackPanel>()
+                    .Single(panel => Grid.GetColumn(panel) == 1);
+                Border status = EnumerateDescendants(layout)
+                    .OfType<Border>()
+                    .Single(border => Grid.GetColumn(border) == 2);
+
+                Assert.AreEqual(24d, layout.ColumnDefinitions[0].ActualWidth, 0.01d);
+                Assert.AreEqual(12d, layout.ColumnSpacing, 0.01d);
+                AssertVerticallyCentred(findingRow, glyph, "terminal glyph");
+                AssertVerticallyCentred(findingRow, copy, "terminal copy");
+                AssertVerticallyCentred(findingRow, status, "terminal status");
+            }
+
+            if (technicalDetailsHost.Visibility == Visibility.Visible)
+            {
+                if (technicalHelp.Visibility == Visibility.Visible)
+                {
+                    AssertVerticallyCentred(
+                        technicalDetailsHost,
+                        technicalHelp,
+                        "technical-details helper");
+                }
+
+                if (technicalAction.Visibility == Visibility.Visible)
+                {
+                    AssertVerticallyCentred(
+                        technicalDetailsHost,
+                        technicalAction,
+                        "technical-details action");
+                }
+            }
+
+            control.Width = 480d;
+            control.UpdateLayout();
+            foreach (Border findingRow in findingRows)
+            {
+                Grid layout = EnumerateDescendants(findingRow)
+                    .OfType<Grid>()
+                    .Single(grid => ReferenceEquals(
+                        VisualTreeHelper.GetParent(grid),
+                        findingRow));
+                StackPanel copy = EnumerateDescendants(layout)
+                    .OfType<StackPanel>()
+                    .Single(panel => Grid.GetColumn(panel) == 1);
+                Border status = EnumerateDescendants(layout)
+                    .OfType<Border>()
+                    .Single(border => Grid.GetColumn(border) == 2);
+                Rect copyBounds = ElementBounds(copy, findingRow);
+                Rect statusBounds = ElementBounds(status, findingRow);
+                Assert.IsTrue(copyBounds.Right <= statusBounds.Left + 0.01d,
+                    "compact terminal copy cannot intersect its status");
+                Assert.IsTrue(statusBounds.Right <= findingRow.ActualWidth + 0.01d,
+                    "compact terminal status remains inside its row");
+            }
             foreach (TextBlock text in EnumerateDescendants(control)
                 .OfType<TextBlock>()
                 .Where(text => text.Text.Length >= 40))
