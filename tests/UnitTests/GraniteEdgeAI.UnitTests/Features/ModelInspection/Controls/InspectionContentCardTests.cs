@@ -103,6 +103,33 @@ public sealed class InspectionContentCardTests
             Assert.HasCount(5, rows);
             Assert.IsTrue(rows.All(row => row.ActualHeight >= 48d));
             Assert.IsTrue(rows.All(row => Math.Abs(row.ActualHeight - 48d) <= 1d));
+            AssertUniformHeights(rows, "initial progress rows");
+            foreach (Grid row in rows)
+            {
+                Assert.AreEqual(
+                    24d,
+                    row.ColumnDefinitions[0].ActualWidth,
+                    0.01d,
+                    "the glyph and step-number column is fixed");
+                Viewbox glyph = EnumerateDescendants(row)
+                    .OfType<Viewbox>()
+                    .Single(candidate => candidate.Name == "ProgressGlyphHost");
+                StackPanel copy = EnumerateDescendants(row)
+                    .OfType<StackPanel>()
+                    .Single(candidate => candidate.Name == "ProgressCopyPanel");
+                Grid status = EnumerateDescendants(row)
+                    .OfType<Grid>()
+                    .Single(candidate => candidate.Name == "ProgressStatusOwner");
+
+                AssertVerticallyCentred(row, glyph, "progress glyph");
+                AssertVerticallyCentred(row, copy, "progress copy");
+                AssertVerticallyCentred(row, status, "progress status");
+                Assert.AreEqual(
+                    12d,
+                    copy.Margin.Left,
+                    0.01d,
+                    "copy begins at the approved inset after the glyph column");
+            }
             Assert.AreEqual(new Thickness(1d), progressRowsSurface.BorderThickness);
             Assert.AreEqual(10d, progressRowsSurface.CornerRadius.TopLeft, 0.01d);
             Assert.AreSame(
@@ -281,6 +308,11 @@ public sealed class InspectionContentCardTests
                 disclosure.ActualHeight,
                 1d,
                 "collapsed disclosure must equal its realized header height");
+            Assert.IsGreaterThanOrEqualTo(68d, header.ActualHeight,
+                "the disclosure header keeps the approved comfortable target height");
+            AssertVerticallyCentred(header, disclosureGlyphHost, "disclosure glyph");
+            AssertVerticallyCentred(header, disclosureTitle, "disclosure title");
+            AssertVerticallyCentred(header, disclosureActionHost, "disclosure action");
 
             control.Presentation = CreateDisclosurePresentation(isExpanded: true);
             control.UpdateLayout();
@@ -308,6 +340,7 @@ public sealed class InspectionContentCardTests
                     row.ActualHeight >= 48d),
                 $"report rows keep a 48px minimum and grow naturally: " +
                 string.Join(", ", reportRows.Select(row => row.ActualHeight)));
+            AssertUniformHeights(reportRows, "expanded inspection rows at normal text size");
             Grid[] reportRowLayouts = reportRows
                 .Select(row => EnumerateDescendants(row)
                     .OfType<Grid>()
@@ -361,10 +394,31 @@ public sealed class InspectionContentCardTests
             control.UpdateLayout();
             Assert.IsGreaterThan(initialOffset, report.VerticalOffset);
 
+            double normalReportRowHeight = reportRows[0].ActualHeight;
+            foreach (TextBlock text in reportRows
+                .SelectMany(row => EnumerateDescendants(row).OfType<TextBlock>()))
+            {
+                text.FontSize *= 2d;
+            }
+
             disclosureTitle.FontSize *= 2d;
             disclosureAction.FontSize *= 2d;
             control.Width = 480d;
             control.UpdateLayout();
+
+            AssertUniformHeights(reportRows, "expanded inspection rows at representative 200% text");
+            Assert.IsGreaterThan(normalReportRowHeight, reportRows[0].ActualHeight,
+                "all inspection rows grow together for representative 200% text");
+            foreach (Border row in reportRows)
+            {
+                foreach (TextBlock text in EnumerateDescendants(row).OfType<TextBlock>())
+                {
+                    Rect textBounds = ElementBounds(text, row);
+                    Assert.IsTrue(textBounds.Top >= -0.01d &&
+                        textBounds.Bottom <= row.ActualHeight + 0.01d,
+                        $"scaled row text remains vertically unclipped: {text.Text}");
+                }
+            }
 
             Rect glyphBounds = ElementBounds(disclosureGlyphHost, header);
             Rect titleBounds = ElementBounds(disclosureTitle, header);
@@ -824,6 +878,10 @@ public sealed class InspectionContentCardTests
                 activeSurface.ActualWidth <= 0.01d ||
                 activeSurface.ActualHeight <= 0.01d,
                 "the retired full-row active surface must occupy no visible geometry");
+            Grid[] activeProgressRows = ProgressRows(control);
+            AssertUniformHeights(
+                activeProgressRows,
+                "active progress rows at normal text size");
             double standardActiveHeight = activeRow.ActualHeight;
             TextBlock[] scalableActiveText = EnumerateDescendants(activeRow)
                 .OfType<TextBlock>()
@@ -834,11 +892,19 @@ public sealed class InspectionContentCardTests
                     text.Text == "25%")
                 .ToArray();
             Assert.IsNotEmpty(scalableActiveText);
-            foreach (TextBlock text in scalableActiveText)
+            TextBlock[] scalableProgressText = activeProgressRows
+                .SelectMany(row => EnumerateDescendants(row).OfType<TextBlock>())
+                .Where(IsEffectivelyVisible)
+                .ToArray();
+            foreach (TextBlock text in scalableProgressText)
             {
                 text.FontSize *= 2d;
             }
+            control.InvalidateMeasure();
             control.UpdateLayout();
+            AssertUniformHeights(
+                activeProgressRows,
+                "active progress rows at representative 200% text");
             Assert.IsGreaterThan(standardActiveHeight, activeRow.ActualHeight);
             Assert.IsTrue(scalableActiveText.All(text =>
                     text.ActualHeight + 1d >= text.DesiredSize.Height),
@@ -1125,6 +1191,29 @@ public sealed class InspectionContentCardTests
         Point upperOrigin = upper.TransformToVisual(root).TransformPoint(new Point());
         Point lowerOrigin = lower.TransformToVisual(root).TransformPoint(new Point());
         return lowerOrigin.Y - (upperOrigin.Y + upper.ActualHeight);
+    }
+
+    private static void AssertUniformHeights(
+        IReadOnlyList<FrameworkElement> rows,
+        string context)
+    {
+        Assert.IsGreaterThan(0, rows.Count, context);
+        double expected = rows.Max(row => row.ActualHeight);
+        Assert.IsGreaterThanOrEqualTo(48d, expected, context);
+        foreach (FrameworkElement row in rows)
+        {
+            Assert.AreEqual(expected, row.ActualHeight, 1d, context);
+        }
+    }
+
+    private static void AssertVerticallyCentred(
+        FrameworkElement row,
+        FrameworkElement element,
+        string context)
+    {
+        Point origin = element.TransformToVisual(row).TransformPoint(default);
+        double elementCentre = origin.Y + (element.ActualHeight / 2d);
+        Assert.AreEqual(row.ActualHeight / 2d, elementCentre, 1d, context);
     }
 
     private static void AssertInRange(

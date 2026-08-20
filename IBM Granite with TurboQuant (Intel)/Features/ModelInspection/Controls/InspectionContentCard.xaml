@@ -182,13 +182,13 @@
                 AutomationProperties.HelpText="{x:Bind AutomationHelpText, Mode=OneWay}"
                 AutomationProperties.Name="{x:Bind Title}">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="32" />
+                    <ColumnDefinition Width="24" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
                 <UserControl
@@ -292,7 +292,7 @@
                     x:Name="ProgressCopyPanel"
                     Grid.Column="1"
                     MinWidth="0"
-                    Margin="0,7,0,7"
+                    Margin="12,7,0,7"
                     VerticalAlignment="Center"
                     Spacing="3">
                     <TextBlock Style="{StaticResource ContentPrimaryTextStyle}" Text="{x:Bind Title}" />
@@ -305,7 +305,7 @@
                 <Grid
                     x:Name="ProgressStatusOwner"
                     Grid.Column="2"
-                    Margin="18,0,0,0"
+                    Margin="12,0,0,0"
                     VerticalAlignment="Center">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="0" />
@@ -465,7 +465,7 @@
                             ItemTemplate="{StaticResource ProgressStageTemplate}"
                             ItemsSource="{x:Bind Presentation.ProgressRows.Items, Mode=OneWay}">
                             <ItemsRepeater.Layout>
-                                <StackLayout Orientation="Vertical" Spacing="0" />
+                                <local:EqualHeightStackLayout />
                             </ItemsRepeater.Layout>
                         </ItemsRepeater>
                     </Border>
@@ -681,7 +681,7 @@
                                 ItemsSource="{x:Bind ExpandedItems, Mode=OneWay}">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>
-                                        <StackPanel Orientation="Vertical" Spacing="0" />
+                                        <local:EqualHeightStackPanel />
                                     </ItemsPanelTemplate>
                                 </ItemsControl.ItemsPanel>
                             </ItemsControl>
