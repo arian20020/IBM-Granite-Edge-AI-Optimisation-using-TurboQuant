@@ -26,21 +26,32 @@ internal sealed class ModelSelectionDiagnostic
 
     private static bool ContainsRootedPath(string value)
     {
-        if (value.Contains(@"\\", System.StringComparison.Ordinal))
+        for (int index = 0; index < value.Length; index++)
         {
-            return true;
-        }
+            char current = value[index];
 
-        for (int index = 0; index < value.Length - 2; index++)
-        {
-            if (char.IsLetter(value[index]) &&
+            if (index < value.Length - 2 &&
+                char.IsLetter(current) &&
                 value[index + 1] == ':' &&
                 (value[index + 2] == '\\' || value[index + 2] == '/'))
+            {
+                return true;
+            }
+
+            if (current is '\\' or '/' &&
+                (index == 0 ||
+                 (index < value.Length - 1 && current == value[index + 1]) ||
+                 !IsPathSegmentCharacter(value[index - 1])))
             {
                 return true;
             }
         }
 
         return false;
+    }
+
+    private static bool IsPathSegmentCharacter(char value)
+    {
+        return char.IsLetterOrDigit(value) || value is '_' or '.';
     }
 }

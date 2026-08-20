@@ -78,6 +78,33 @@ public sealed class ModelSelectionContractTests
     }
 
     [TestMethod]
+    public void Diagnostic_RejectsMessagesContainingCurrentDriveRootedPaths()
+    {
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            new ModelSelectionDiagnostic(
+                "selection-failed",
+                @"Could not read \private\models\model.gguf."));
+    }
+
+    [TestMethod]
+    public void Diagnostic_RejectsMessagesContainingUnixRootedPaths()
+    {
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            new ModelSelectionDiagnostic(
+                "selection-failed",
+                "Could not read /private/models/model.gguf."));
+    }
+
+    [TestMethod]
+    public void Diagnostic_RejectsMessagesContainingSlashUncPaths()
+    {
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            new ModelSelectionDiagnostic(
+                "selection-failed",
+                "Could not read //server/share/model.gguf."));
+    }
+
+    [TestMethod]
     public void Contracts_RejectNullOrWhitespaceSafeValuesAndMissingFailureDiagnostic()
     {
         ModelSelectionOperationId operationId = ModelSelectionOperationId.CreateNew();
