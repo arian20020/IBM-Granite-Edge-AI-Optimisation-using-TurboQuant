@@ -126,6 +126,35 @@ raise SystemExit(exit_code)
 
             self.assertEqual(13, result.returncode)
 
+    def test_bare_cli_command_is_not_bound_to_python_path(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="turbovec bare command ") as temporary_directory:
+            root = Path(temporary_directory)
+            fake_interpreter = root / "environment python.cmd"
+            helper = root / "capture.py"
+            output = root / "capture.json"
+            helper.write_text(
+                """import json, os, pathlib, sys
+pathlib.Path(os.environ['GRANITE_TURBOVEC_CAPTURE']).write_text(
+    json.dumps(sys.argv[1:]), encoding='utf-8')
+""",
+                encoding="utf-8",
+            )
+            fake_interpreter.write_text(
+                f'@echo off\r\n"{sys.executable}" "%~dp0capture.py" %*\r\nexit /b %ERRORLEVEL%\r\n',
+                encoding="utf-8",
+            )
+            env = os.environ.copy()
+            env["GRANITE_TURBOVEC_PYTHON"] = str(fake_interpreter)
+            env["GRANITE_TURBOVEC_CAPTURE"] = str(output)
+
+            result = run_wrapper("doctor", env=env)
+
+            self.assertEqual(0, result.returncode)
+            self.assertEqual(
+                ["-m", "granite_turbovec.cli", "doctor"],
+                json.loads(output.read_text(encoding="utf-8")),
+            )
+
 
 class ResearchArtifactContractTests(unittest.TestCase):
     def test_approved_input_example_is_valid_and_unambiguously_placeholder_only(self) -> None:
