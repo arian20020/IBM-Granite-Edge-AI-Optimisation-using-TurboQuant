@@ -17,10 +17,15 @@ namespace GraniteEdgeAI.Features.ModelImport.DragDropRoute;
 internal sealed class ModelImportDropHandler
 {
     private readonly ModelSelectionInputNormalizer _normalizer;
+    private readonly IModelImportDropCallbackDispatcher _callbackDispatcher;
 
-    internal ModelImportDropHandler(ModelSelectionInputNormalizer normalizer)
+    internal ModelImportDropHandler(
+        ModelSelectionInputNormalizer normalizer,
+        IModelImportDropCallbackDispatcher? callbackDispatcher = null)
     {
         _normalizer = normalizer;
+        _callbackDispatcher = callbackDispatcher ??
+            SynchronizationContextModelImportDropCallbackDispatcher.CaptureCurrent();
     }
 
     /// <summary>
@@ -72,30 +77,38 @@ internal sealed class ModelImportDropHandler
         {
             if (!request.HasStorageItems)
             {
-                await reject(NoStorageItemsDiagnostic()).ConfigureAwait(false);
+                await DispatchTerminalCallbackAsync(
+                    () => reject(NoStorageItemsDiagnostic()),
+                    cancellationToken);
                 return;
             }
 
             IReadOnlyList<ModelImportDroppedItem> items =
-                await request.GetStorageItemsAsync().ConfigureAwait(false);
+                await request.GetStorageItemsAsync();
             cancellationToken.ThrowIfCancellationRequested();
 
             if (items.Count == 0)
             {
-                await reject(NoStorageItemsDiagnostic()).ConfigureAwait(false);
+                await DispatchTerminalCallbackAsync(
+                    () => reject(NoStorageItemsDiagnostic()),
+                    cancellationToken);
                 return;
             }
 
             if (items.Count != 1)
             {
-                await reject(MultipleItemsDiagnostic()).ConfigureAwait(false);
+                await DispatchTerminalCallbackAsync(
+                    () => reject(MultipleItemsDiagnostic()),
+                    cancellationToken);
                 return;
             }
 
             ModelImportDroppedItem item = items[0];
             if (!item.IsSupported)
             {
-                await reject(UnsupportedItemDiagnostic()).ConfigureAwait(false);
+                await DispatchTerminalCallbackAsync(
+                    () => reject(UnsupportedItemDiagnostic()),
+                    cancellationToken);
                 return;
             }
 
@@ -104,8 +117,11 @@ internal sealed class ModelImportDropHandler
                 item.IsFolder);
             cancellationToken.ThrowIfCancellationRequested();
 
-            request.SetAcceptedOperation(ModelImportDropOperation.Copy);
-            await accept(input).ConfigureAwait(false);
+            await DispatchTerminalCallbackAsync(() =>
+            {
+                request.SetAcceptedOperation(ModelImportDropOperation.Copy);
+                return accept(input);
+            }, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -115,6 +131,19 @@ internal sealed class ModelImportDropHandler
         {
             deferral.Complete();
         }
+    }
+
+    private Task DispatchTerminalCallbackAsync(
+        Func<Task> callback,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return _callbackDispatcher.InvokeAsync(() =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return callback();
+        });
     }
 
     private static DataPackageOperation ToNativeOperation(ModelImportDropOperation operation)
@@ -153,8 +182,7 @@ internal sealed class ModelImportDropHandler
         {
             IReadOnlyList<IStorageItem> storageItems = await _args.DataView
                 .GetStorageItemsAsync()
-                .AsTask(_cancellationToken)
-                .ConfigureAwait(false);
+                .AsTask(_cancellationToken);
 
             return storageItems.Select(ModelImportDroppedItem.FromStorageItem).ToArray();
         }
@@ -202,6 +230,50 @@ internal interface IModelImportDropRequest
 internal interface IModelImportDropDeferral
 {
     void Complete();
+}
+
+internal interface IModelImportDropCallbackDispatcher
+{
+    Task InvokeAsync(Func<Task> callback);
+}
+
+internal sealed class SynchronizationContextModelImportDropCallbackDispatcher :
+    IModelImportDropCallbackDispatcher
+{
+    private readonly SynchronizationContext? _context;
+
+    private SynchronizationContextModelImportDropCallbackDispatcher(SynchronizationContext? context)
+    {
+        _context = context;
+    }
+
+    internal static SynchronizationContextModelImportDropCallbackDispatcher CaptureCurrent() =>
+        new(SynchronizationContext.Current);
+
+    public Task InvokeAsync(Func<Task> callback)
+    {
+        ArgumentNullException.ThrowIfNull(callback);
+
+        if (_context is null || ReferenceEquals(SynchronizationContext.Current, _context))
+        {
+            return callback();
+        }
+
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _context.Post(async _ =>
+        {
+            try
+            {
+                await callback();
+                completion.SetResult();
+            }
+            catch (Exception exception)
+            {
+                completion.SetException(exception);
+            }
+        }, null);
+        return completion.Task;
+    }
 }
 
 internal sealed class ModelImportDroppedItem
