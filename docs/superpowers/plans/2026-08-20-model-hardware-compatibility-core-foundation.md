@@ -326,7 +326,7 @@ public sealed class PlanningContextPolicyTests
         Assert.AreEqual(16384, request.RequestedTokens!.Tokens);
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow(131072UL, 4096)]
     [DataRow(4096UL, 4096)]
     [DataRow(2048UL, 2048)]
@@ -364,7 +364,7 @@ public sealed class PlanningContextPolicyTests
         Assert.IsTrue(resolution.WithinModelLimit);
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow(null)]
     [DataRow(0UL)]
     public void MissingOrZeroModelLimit_IsNotEstablished(ulong? declaredLimit)
@@ -1328,7 +1328,7 @@ public sealed class FitPolicyTests
         Assert.AreEqual(ByteCount.Zero, assessment.Headroom);
     }
 
-    [DataTestMethod]
+    [TestMethod]
     // budget is 17 GiB. required = peak + max(0.5 GiB, 10% of peak).
     [DataRow(10UL, CompatibilityFitState.Safe)]        // 11.0 / 17 = 0.65 comfortable
     [DataRow(14UL, CompatibilityFitState.Safe)]        // 15.4 / 17 = 0.90 moderate
