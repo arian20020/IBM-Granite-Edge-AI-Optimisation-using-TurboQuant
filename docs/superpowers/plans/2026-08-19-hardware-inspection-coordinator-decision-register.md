@@ -416,3 +416,131 @@ The C0/I1 decision worker is accepted only when it returns one reviewable decisi
 10. receives independent architecture/security review with P2-CRIT-01 either explicitly closed by evidence or returned Open with the exact remaining decision—never silently downgraded.
 
 Only after these criteria are met may C0 decide whether to authorise a separate implementation plan. This register itself performs no code, hardware, candidate, laptop, workflow, push or PR action.
+
+## 26. `HI-C0-I1-S1-DECISION-v1`
+
+This is the controlling bounded post-approval record for `HI-C0-I1-S1-DECISION-v1`. It supersedes earlier statements in this register only where those statements say that `OD-01`, `OD-08`, `OD-SC-01`, `OD-SC-04`, or the exact I1/S1 decision contracts remain undecided, and only the decision-contract portions of earlier `P2-CRIT-01` and `P2-IMP-05` status statements. It does not alter any earlier V0 F1–F10 decision, production implementation state, evidence state, gate state, or operational prohibition.
+
+### 26.1 Authority and provenance
+
+| Item | Recorded authority |
+| --- | --- |
+| Approval authority | `user approval`, recorded in `HI-C0-I1-S1-DECISION-v1-Approval.txt` with SHA-256 `6F600E2A12082253B3D93971D482FDFD29168975428997A5B111D2A85A96D1E8` |
+| `decisionDocumentCommit` | `63ce50f695cde59e76649efef2d5e3172e59b0b2` |
+| Approved I1 document | `docs/superpowers/specs/2026-08-19-model-inspection-hardware-handoff-contract.md`, SHA-256 `A91672A4BC8AF08DF3DDFE2BDFBB56C708B0729FB6EFCF3E163215044DB3D836` |
+| Approved S1 document | `docs/superpowers/plans/2026-08-19-hardware-inspection-stage-c-execution-boundary.md`, SHA-256 `92426F25A049B025313B9AFE16E10916BB6BA118FF9E4245A4025EA39B240BC4` |
+| Independent readiness review | `HI-R4-C3-Verification-Complete.md`, SHA-256 `6D039D8A1F12691858D084507CF9482B1F6D04597747703E33020C52BB8211D3`, disposition **APPROVED FOR C0/USER DECISION SESSION** |
+| Approval meaning | Approval of the exact decision contracts only. It is not implementation approval, implementation-package acceptance, execution authority, or evidence acceptance. |
+
+The exact approved I1 and S1 document bytes at the pinned commit define the contracts. This register records their approval without modifying either approved document, its status text, formatting, or pinned identity.
+
+### 26.2 Approved cross-plane decision
+
+- The product `Model Inspection → Hardware Inspection → Block 3` plane and the operational `Stage B → Stage C → Stage D` execution/evidence plane remain separate.
+- No product retry, navigation event, route transaction, handoff, registry state, or product identity can authorize or identify Stage C.
+- No Stage C identity, decision reference, receipt, ledger, envelope, report, or other evidence can activate product navigation, register Block 3, or make Continue visible or enabled.
+
+### 26.3 Approved I1 decisions
+
+The closed `ModelInspectionHandoff` allowlist contains exactly these six required fields and no optional, nested, extension, or unknown fields:
+
+| Serialized field | Exact approved type and value |
+| --- | --- |
+| `schemaVersion` | Unsigned 16-bit integer, exactly `2` |
+| `modelInspectionHandoffId` | Non-zero random UUIDv4, lowercase RFC 4122 canonical D text |
+| `modelInspectionRunId` | Non-zero random UUIDv4, lowercase RFC 4122 canonical D text |
+| `outcome` | Case-sensitive closed enum `Ready` or `ReadyWithWarnings` |
+| `modelSha256` | Exactly 64 lowercase hexadecimal characters |
+| `modelLengthBytes` | Signed 64-bit integer in `1..9223372036854775807` |
+
+The following I1 decisions are approved exactly as specified by the pinned I1 document:
+
+- `modelInspectionRunId`, `modelInspectionHandoffId`, and `productHardwareRunId` have separate UUID roles. They are not interchangeable with one another or with any Stage B/C/D identity.
+- `schemaVersion` is `2`. Canonical encoding, exact case-sensitive wire names and values, immutable representation, and strict rejection of missing, duplicate, unknown, null, coerced, malformed, non-UTF-8, noncanonical, out-of-range, or trailing data are approved.
+- The complete canonical UTF-8 serialization has a 512-byte maximum.
+- The application-owned registry lifecycle—creation, `Issued`, atomic binding to one `productHardwareRunId`, opaque carriage, one committed Block 3 transfer, expiry, invalidation, and session end—is approved.
+- Claim is atomic. Rollback is permitted only when the application proves that no service/provider or Block 3 transfer began. Reissue is explicit and creates a new `modelInspectionHandoffId`; every product Hardware retry creates a new `productHardwareRunId`; every Model retry creates a new `modelInspectionRunId`; consumed, stale, invalidated, ambiguous, or prior-run identities are never reused.
+- Product Hardware carries the handoff opaquely. Hardware providers receive no `ModelInspectionHandoff`, `ModelInspectionRequest`, model identity, model metadata, or other model data, and Hardware collection or outcome cannot vary with model fields.
+- Block 3 is the sole component permitted to interpret the paired current valid Model and Hardware handoffs.
+- `OD-01` and `OD-08` are closed at decision-contract level only. Their production implementation and evidence obligations are not closed or started.
+
+V0 F9's outcome precondition remains exact: the current Hardware result is `Completed` or `CompletedWithWarnings`. Continue is enabled if and only if that precondition and all six conditions below simultaneously hold:
+
+1. A current valid `ModelInspectionHandoff` exists.
+2. A current usable `HardwareInspectionHandoff` exists.
+3. A registered and available Block 3 route exists.
+4. Both handoffs belong to the current `productHardwareRunId` and the expected `modelInspectionRunId`.
+5. The Model handoff is not stale, superseded, expired, consumed, ambiguously reissued or associated with a failed or rolled-back claim.
+6. The navigation transaction is completed and is not pending, failed, rolled back, duplicated or ambiguous.
+
+This approves the predicate as a decision contract; it does not satisfy the predicate, enable Continue, register a route, or authorize navigation.
+
+### 26.4 Approved S1 decisions
+
+The following exact closed contract shapes are approved by reference to the pinned S1 bytes and their controlling reconciliation text; no v1 shape or legacy alias is accepted:
+
+| Contract | Exact approved shape boundary |
+| --- | --- |
+| `StageCBlockedEnvelopeV2` | Schema identity `hi.stage-c.blocked-envelope.v2`; the complete closed V2 blocked-envelope shape, nullable pre-intake rules, fixed failure domains, canonical encoding, privacy boundary, validation rules, and fail-closed semantics in S1 §9.1 as amended and controlled by §17 |
+| `StageCExecutionLedgerV2` | Schema identity `hi.stage-c.execution-ledger.v2`; the complete consolidated closed 116-field V2 allowlist, types, domains, bindings, equality invariants, process-count invariant, launch-order proof, privacy boundary, canonical encoding, and fail-closed validation rules in S1 §9.2 as amended and controlled by §17 |
+| Conditional Stage D report | Schema identity `hi.gate1.report.v2`; the exact closed conditional Markdown schema, fixed title, ordered sections/tables/rows, bounded values, bindings, non-claims, and no-extra-content rule in S1 §10.1 as amended and controlled by §17 |
+
+The following S1 choices are approved:
+
+- `OD-SC-01`: Stage C has exactly one candidate invocation, using only `--no-dashboard --json system`. The earlier two-invocation route, including a Stage C `--version` invocation, is prohibited.
+- `OD-SC-04`: the sole future artifact container is `hardware-inspection-llmfit-gate1-report`; its sole filename is `hardware-inspection-llmfit-gate1-report.md`; and its exact closed conditional schema is `hi.gate1.report.v2`.
+- The C0-owned identity, ownership, cross-binding, privacy, and evidence-ordering decisions in the pinned S1 document are approved. This includes the separation of product and operational identities, Stage C ownership of `stageCAttemptId`, exact common-binding agreement, creator/independent-observer reconciliation, launch-authorization hash binding, zero-before/one-after process counts, the single joined timestamp order, cleanup-before-restoration, local-only raw evidence, and conditional Stage D safe projection.
+
+Approval of a conditional evidence or report shape does not create evidence, accept an implementation package, permit publication, or promote Gate 1.
+
+### 26.5 Explicitly unapproved and deferred
+
+| Deferred or unapproved item | Preserved boundary |
+| --- | --- |
+| `OD-SC-02` | No continuous OS process/TCP/UDP/DNS/proxy/listener observer or manual isolation/elevation/restoration procedure is selected or approved. |
+| `OD-SC-03` | No numeric platform-retention setting is selected or approved. Event-bound cleanup remains subject to any shorter future UCL policy, and publication remains disabled. |
+| `OD-SC-05` | No Stage C-local Windows reference capture or 30-second comparison policy is selected or approved. |
+| Capture owner | No capture-owner binary identity, version, or SHA-256 is selected or approved. |
+| Environment | No closed child-environment allowlist or environment-policy version is selected or approved. |
+| Timeout | No exact timeout is selected or approved. |
+| UCL operational conditions | No account, storage, encryption, physical-access, network, elevation, incident, restoration, or other UCL operational condition is selected or approved. Every UCL operational condition remains separately gated. |
+| Stage C implementation package | No implementation, test package, observer, fixture set, privacy implementation, deployment, or independent implementation/evidence-review acceptance is approved. |
+| Candidate and operations | Candidate acquisition or execution, hardware or laptop contact, network action or change, workflow dispatch, and publication remain unapproved. |
+| Execution start | No Stage A/B/C/D execution and no distinct Stage C execution-start authorization is approved. A later start decision still requires its named C0/user/UCL approvals and valid predecessor evidence. |
+| Block 3 and future schemas | No Block 3 calculation, route implementation, route activation, compatibility work, or future schema extension is approved. Any added field or later schema version requires a separate decision. |
+
+### 26.6 Finding and decision status
+
+| Item | Status after this decision |
+| --- | --- |
+| `OD-01` | **Approved; closed at decision-contract level only.** Production implementation and evidence obligations remain **Open — Not started**. |
+| `OD-08` | **Approved; closed at decision-contract level only.** Route implementation, registration, activation, recovery evidence, and Continue evidence remain **Open — Not started**. |
+| `OD-SC-01` | **Approved as a decision contract only.** Implementation, test acceptance, and execution evidence remain **Open — Not started**. |
+| `OD-SC-04` | **Approved as a conditional decision contract only.** No artifact exists or is authorized for publication; Stage D implementation and evidence remain **Open — Not started**. |
+| `OD-SC-02`, `OD-SC-03`, `OD-SC-05` | **Open — Decision required.** |
+| `P2-CRIT-01` | **Addressed/closed at decision-contract level only.** Its production implementation, privacy-test, navigation-test, and evidence obligations remain **Open — Not started**. |
+| `P2-IMP-05` | **Addressed/closed at decision-contract level only.** Its production route registration, validation, recovery, state-retention, and evidence obligations remain **Open — Not started**. |
+| `P2-CRIT-02` | **Open — Critical.** The Stage C contract decision does not supply a reviewed implementation or exactly-one-execution evidence. |
+| `P2-CRIT-03` | **Open — Critical.** No source/run/session/candidate/artifact execution chain exists. |
+| P3 findings | Unchanged. No P3 evidence or traceability finding closes merely because schemas or decision contracts were approved. |
+| P1 allocation | Unchanged. No P1 implementation or evidence row becomes `Complete` because of this decision. |
+| Stage C implementation/evidence obligations | **Open — Not started.** No approved implementation/test package and no execution evidence exist. |
+
+No evidence or artifact status is promoted by this decision.
+
+### 26.7 Programme state and authorization boundary
+
+- Authorized now: this documentation recording and subsequent controlled implementation planning within the approved decision boundaries.
+- Not authorized: implementation itself; product-route activation; Block 3 registration; Continue enablement; Stage A, B, C, or D execution; candidate acquisition or execution; hardware or laptop contact; network action or change; workflow dispatch; publication; or a distinct execution start.
+- Gate 1 remains **Blocked**. This decision is not Gate 1 implementation, evidence, closure, or an entry-permitting disposition.
+- Gate 2 and every later production gate remain **Not started and prohibited**.
+- No implementation, route, handoff, schema instance, ledger, report, evidence artifact, or operational result is accepted merely because its decision contract is approved.
+- This recording does not authorize push, PR, merge, or history rewriting.
+
+### 26.8 Next controlled actions
+
+1. Obtain a fresh independent read-only review of this one-file decision entry.
+2. In a separate task, perform E1-controlled import/regeneration of traceability from the exact pinned decision, document hashes, and resulting commit; do not hand-edit generated outputs.
+3. In a separate task, create and review an integration base.
+4. Only after those controls may separate implementation plans be prepared, and only inside the approved decision boundaries.
+5. Operational work continues to require every named user, C0, and UCL approval, including a distinct scoped execution-start authorization.
