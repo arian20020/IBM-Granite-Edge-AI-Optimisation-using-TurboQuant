@@ -694,6 +694,110 @@ class StagedPromotionTests(unittest.TestCase):
             self.assertEqual("keep", (replacement / "external-marker").read_text(encoding="utf-8"))
             self.assertTrue((root / "knowledge-index.slot-0" / "owner.json").exists())
 
+    def test_exclusive_claim_serializes_forced_reuse_contention(self):
+        claim_held = threading.Event()
+        release_claim = threading.Event()
+        writer_calls = []
+        results = []
+        lock = threading.Lock()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            target = root / "knowledge-index"
+            promote_staged_index(target, promotable_manifest(), write_index, validate_index, operation_id="claim-seed")
+            target.rename(root / "published-seed")
+            for index in (1, 2):
+                marker = root / f"knowledge-index.slot-{index}"
+                marker.mkdir()
+                (marker / "owner.json").write_text('{"operation_id":"occupied","schema_version":1}', encoding="utf-8")
+
+            def seam(_, phase):
+                if phase == "reserve" and not claim_held.is_set():
+                    claim_held.set()
+                    release_claim.wait(timeout=5)
+
+            def writer(staging):
+                with lock:
+                    writer_calls.append((staging.name, staging.stat().st_ino))
+                write_index(staging)
+
+            def run(operation):
+                try:
+                    promote_staged_index(target, promotable_manifest(), writer, lambda *_: False, operation_id=operation)
+                except ResearchError as error:
+                    with lock:
+                        results.append(error.code)
+
+            with mock.patch("granite_turbovec.manifest._slot_transition_claim_hook", side_effect=seam):
+                first = threading.Thread(target=run, args=("claim-first",))
+                first.start()
+                self.assertTrue(claim_held.wait(timeout=5))
+                second = threading.Thread(target=run, args=("claim-second",))
+                second.start()
+                second.join(timeout=5)
+                second_finished_while_claimed = not second.is_alive()
+                release_claim.set()
+                first.join(timeout=10)
+
+            self.assertTrue(second_finished_while_claimed)
+            self.assertFalse(first.is_alive())
+            self.assertEqual(1, len(writer_calls))
+            self.assertEqual(1, results.count("index-artifact-invalid"))
+            self.assertEqual(1, results.count("index-maintenance-required"))
+            slot_zero_quarantines = list(root.glob("knowledge-index.slot-0.staging-*.quarantine-*"))
+            self.assertEqual(1, len(slot_zero_quarantines))
+            self.assertLessEqual(len(list_retained_staging(target)), 3)
+
+    def test_release_claim_excludes_overlapping_available_acquire(self):
+        release_held = threading.Event()
+        continue_release = threading.Event()
+        second_results = []
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            target = root / "knowledge-index"
+            for index in (1, 2):
+                marker = root / f"knowledge-index.slot-{index}"
+                marker.mkdir()
+                (marker / "owner.json").write_text('{"operation_id":"occupied","schema_version":1}', encoding="utf-8")
+
+            def seam(_, phase):
+                if phase == "release":
+                    target.rename(root / "published-overlap")
+                    release_held.set()
+                    continue_release.wait(timeout=5)
+
+            def first_build():
+                promote_staged_index(target, promotable_manifest(), write_index, validate_index, operation_id="release-first")
+
+            with mock.patch("granite_turbovec.manifest._slot_transition_claim_hook", side_effect=seam):
+                first = threading.Thread(target=first_build)
+                first.start()
+                self.assertTrue(release_held.wait(timeout=10))
+                try:
+                    promote_staged_index(target, promotable_manifest(), write_index, lambda *_: False, operation_id="release-overlap")
+                except ResearchError as error:
+                    second_results.append(error.code)
+                continue_release.set()
+                first.join(timeout=10)
+
+            self.assertEqual(["index-maintenance-required"], second_results)
+            self.assertTrue((root / "knowledge-index.slot-0.available").exists())
+
+    def test_stale_transition_claim_is_fixed_bounded_and_visible(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            target = root / "knowledge-index"
+            for index in range(3):
+                (root / f"knowledge-index.slot-{index}.claim").write_text(
+                    '{"operation_id":"crashed","schema_version":1}',
+                    encoding="utf-8",
+                )
+            with self.assertRaises(ResearchError) as context:
+                promote_staged_index(target, promotable_manifest(), write_index, validate_index, operation_id="claim-blocked")
+            self.assertEqual("index-maintenance-required", context.exception.code)
+            retained = list_retained_staging(target)
+            self.assertEqual(3, len(retained))
+            self.assertTrue(all(item.name.endswith(".claim") for item in retained))
+
     def test_stale_slots_block_predictably_and_listing_handles_legacy_over_cap(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

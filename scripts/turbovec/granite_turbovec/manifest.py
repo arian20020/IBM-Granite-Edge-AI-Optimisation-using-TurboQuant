@@ -22,16 +22,21 @@ if os.name == "nt":
     _KERNEL32 = ctypes.WinDLL("kernel32", use_last_error=True)
     _INVALID_HANDLE_VALUE = ctypes.c_void_p(-1).value
     _DELETE = 0x00010000
+    _GENERIC_READ = 0x80000000
     _GENERIC_WRITE = 0x40000000
     _FILE_READ_ATTRIBUTES = 0x0080
     _FILE_TRAVERSE = 0x0020
     _SYNCHRONIZE = 0x00100000
     _FILE_SHARE_ALL = 0x00000007
+    _FILE_SHARE_READ_WRITE = 0x00000003
+    _CREATE_NEW = 1
     _OPEN_EXISTING = 3
+    _FILE_ATTRIBUTE_NORMAL = 0x00000080
     _FILE_FLAG_WRITE_THROUGH = 0x80000000
     _FILE_FLAG_BACKUP_SEMANTICS = 0x02000000
     _FILE_FLAG_OPEN_REPARSE_POINT = 0x00200000
     _FILE_RENAME_INFO_CLASS = 3
+    _FILE_DISPOSITION_INFO_CLASS = 4
 
     class _ByHandleFileInformation(ctypes.Structure):
         _fields_ = [
@@ -54,6 +59,9 @@ if os.name == "nt":
             ("file_name_length", wintypes.DWORD),
             ("file_name", wintypes.WCHAR * 1),
         ]
+
+    class _FileDispositionInfo(ctypes.Structure):
+        _fields_ = [("delete_file", wintypes.BOOLEAN)]
 
 from .contracts import ResearchError
 
@@ -145,6 +153,14 @@ class _SlotReservation:
     identity: tuple[int, int]
     handle: object
     index: int
+    operation_id: str
+
+
+@dataclass
+class _SlotClaim:
+    path: Path
+    identity: tuple[int, int]
+    handle: object
     operation_id: str
 
 
@@ -264,7 +280,7 @@ def promote_staged_index(
         parent_identity = _create_plain_directory(parent)
         _validate_destination_name(target)
         _require_destination_absent(target)
-        slot = _reserve_slot(target, operation)
+        slot = _reserve_slot(target, operation, parent_identity)
         staging = parent / (
             f"{target.name}.slot-{slot.index}.staging-{operation}"
         )
@@ -334,45 +350,21 @@ def list_retained_staging(destination: str | Path) -> tuple[Path, ...]:
     return _retained_staging_entries(target)
 
 
-def _reserve_slot(target: Path, operation_id: str) -> _SlotReservation:
+def _reserve_slot(
+    target: Path,
+    operation_id: str,
+    parent_identity: tuple[int, int],
+) -> _SlotReservation:
     for index in range(_MAX_RETAINED_STAGING):
-        slot = target.parent / f"{target.name}.slot-{index}"
-        available = slot.with_name(f"{slot.name}.available")
-        if _path_entry_exists(slot):
+        claim = _acquire_slot_claim(
+            target, index, operation_id, parent_identity
+        )
+        if claim is None:
             continue
-
-        available_handle = None
-        parent_handle = None
-        keep_handle = False
+        reservation = None
         try:
-            available_identity = _require_plain_directory(available)
-            _validate_available_slot(available, available_identity)
-            parent_identity = _require_plain_directory(target.parent)
-            parent_handle = _open_validated_directory_handle(
-                target.parent, parent_identity
-            )
-            available_handle = _open_validated_directory_handle(
-                available,
-                available_identity,
-                delete_access=True,
-                write_through=True,
-            )
-            _slot_acquire_race_hook(available)
-            _promote_validated_handle(
-                available_handle, parent_handle, slot, available_identity
-            )
-            _validate_open_handle_matches_path(available_handle, slot)
-            _write_slot_owner(slot, available_identity, operation_id)
-            keep_handle = True
-            return _SlotReservation(
-                slot,
-                available_identity,
-                available_handle,
-                index,
-                operation_id,
-            )
-        except FileNotFoundError:
-            pass
+            _slot_transition_claim_hook(claim.path, "reserve")
+            reservation = _reserve_claimed_slot(target, index, operation_id)
         except ResearchError as error:
             if error.code not in (
                 "index-destination-exists",
@@ -381,36 +373,94 @@ def _reserve_slot(target: Path, operation_id: str) -> _SlotReservation:
                 "index-maintenance-required",
             ):
                 raise
+            reservation = None
         except Exception:
-            pass
+            reservation = None
         finally:
-            _close_native_handle(parent_handle)
-            if available_handle is not None and not keep_handle:
-                _close_native_handle(available_handle)
-
-        if _path_entry_exists(available) or _path_entry_exists(slot):
-            continue
-        try:
-            slot.mkdir()
-        except FileExistsError:
-            continue
-        except Exception:
-            raise ResearchError("index-maintenance-required") from None
-        try:
-            identity = _require_plain_directory(slot)
-            _write_slot_owner(slot, identity, operation_id, first_write=True)
-            _fsync_directory(target.parent)
-            handle = _open_validated_directory_handle(
-                slot, identity, delete_access=True, write_through=True
-            )
-            return _SlotReservation(slot, identity, handle, index, operation_id)
-        except ResearchError:
-            # A partial/stale slot is deliberately retained and consumes capacity.
-            raise
-        except Exception:
-            # A partial/stale slot is deliberately retained and consumes capacity.
-            raise ResearchError("index-maintenance-required") from None
+            try:
+                _release_slot_claim(claim)
+            except Exception:
+                if reservation is not None:
+                    _close_native_handle(reservation.handle)
+                raise
+        if reservation is not None:
+            return reservation
     raise ResearchError("index-maintenance-required")
+
+
+def _reserve_claimed_slot(
+    target: Path, index: int, operation_id: str
+) -> _SlotReservation | None:
+    slot = target.parent / f"{target.name}.slot-{index}"
+    available = slot.with_name(f"{slot.name}.available")
+    if _path_entry_exists(slot):
+        return None
+
+    available_handle = None
+    parent_handle = None
+    keep_handle = False
+    try:
+        available_identity = _require_plain_directory(available)
+        _validate_available_slot(available, available_identity)
+        parent_identity = _require_plain_directory(target.parent)
+        parent_handle = _open_validated_directory_handle(
+            target.parent, parent_identity
+        )
+        available_handle = _open_validated_directory_handle(
+            available,
+            available_identity,
+            delete_access=True,
+            write_through=True,
+        )
+        _slot_acquire_race_hook(available)
+        _promote_validated_handle(
+            available_handle, parent_handle, slot, available_identity
+        )
+        _validate_open_handle_matches_path(available_handle, slot)
+        _write_slot_owner(slot, available_identity, operation_id)
+        keep_handle = True
+        return _SlotReservation(
+            slot,
+            available_identity,
+            available_handle,
+            index,
+            operation_id,
+        )
+    except ResearchError as error:
+        if error.code not in (
+            "index-destination-exists",
+            "index-path-invalid",
+            "index-promotion-failed",
+            "index-maintenance-required",
+        ):
+            raise
+    finally:
+        _close_native_handle(parent_handle)
+        if available_handle is not None and not keep_handle:
+            _close_native_handle(available_handle)
+
+    if _path_entry_exists(available) or _path_entry_exists(slot):
+        return None
+    try:
+        slot.mkdir()
+    except FileExistsError:
+        return None
+    except Exception:
+        raise ResearchError("index-maintenance-required") from None
+    try:
+        identity = _require_plain_directory(slot)
+        _write_slot_owner(slot, identity, operation_id, first_write=True)
+        _fsync_directory(target.parent)
+        handle = _open_validated_directory_handle(
+            slot, identity, delete_access=True, write_through=True
+        )
+        return _SlotReservation(slot, identity, handle, index, operation_id)
+    except ResearchError:
+        # A partial/stale slot is deliberately retained and consumes capacity.
+        raise
+    except Exception:
+        # A partial/stale slot is deliberately retained and consumes capacity.
+        raise ResearchError("index-maintenance-required") from None
 
 
 def _release_slot(
@@ -418,7 +468,15 @@ def _release_slot(
     parent_handle,
     target: Path,
 ) -> None:
+    _validate_open_handle_matches_path(parent_handle, target.parent)
+    parent_identity = _require_plain_directory(target.parent)
+    claim = _acquire_slot_claim(
+        target, slot.index, slot.operation_id, parent_identity
+    )
+    if claim is None:
+        raise ResearchError("index-maintenance-required")
     try:
+        _slot_transition_claim_hook(claim.path, "release")
         _validate_open_handle_matches_path(slot.handle, slot.path)
         _slot_release_race_hook(slot.path)
         released = target.parent / f"{target.name}.slot-{slot.index}.available"
@@ -430,6 +488,8 @@ def _release_slot(
         raise
     except Exception:
         raise ResearchError("index-maintenance-required") from None
+    finally:
+        _release_slot_claim(claim)
 
 
 def _slot_release_race_hook(path: Path) -> None:
@@ -438,6 +498,142 @@ def _slot_release_race_hook(path: Path) -> None:
 
 def _slot_acquire_race_hook(path: Path) -> None:
     """Test seam after available-slot validation and before handle-bound acquire."""
+
+
+def _slot_transition_claim_hook(path: Path, phase: str) -> None:
+    """Test seam while the exclusive slot-transition claim is held."""
+
+
+def _acquire_slot_claim(
+    target: Path,
+    index: int,
+    operation_id: str,
+    parent_identity: tuple[int, int],
+) -> _SlotClaim | None:
+    if os.name != "nt":
+        raise ResearchError("index-promotion-unsupported")
+    claim_path = target.parent / f"{target.name}.slot-{index}.claim"
+    _require_same_directory(target.parent, parent_identity)
+    _require_safe_leaf(claim_path, may_not_exist=True)
+    payload = json.dumps(
+        {"operation_id": operation_id, "schema_version": 1},
+        ensure_ascii=False,
+        allow_nan=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
+    create_file = _KERNEL32.CreateFileW
+    create_file.argtypes = [
+        wintypes.LPCWSTR,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.LPVOID,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.HANDLE,
+    ]
+    create_file.restype = wintypes.HANDLE
+    ctypes.set_last_error(0)
+    handle = create_file(
+        str(claim_path.absolute()),
+        _GENERIC_READ
+        | _GENERIC_WRITE
+        | _DELETE
+        | _FILE_READ_ATTRIBUTES
+        | _SYNCHRONIZE,
+        _FILE_SHARE_READ_WRITE,
+        None,
+        _CREATE_NEW,
+        _FILE_ATTRIBUTE_NORMAL | _FILE_FLAG_WRITE_THROUGH,
+        None,
+    )
+    if handle == _INVALID_HANDLE_VALUE:
+        if ctypes.get_last_error() in (80, 183):
+            return None
+        raise ResearchError("index-maintenance-required")
+    try:
+        write_file = _KERNEL32.WriteFile
+        write_file.argtypes = [
+            wintypes.HANDLE,
+            wintypes.LPCVOID,
+            wintypes.DWORD,
+            ctypes.POINTER(wintypes.DWORD),
+            wintypes.LPVOID,
+        ]
+        write_file.restype = wintypes.BOOL
+        written = wintypes.DWORD()
+        buffer = ctypes.create_string_buffer(payload)
+        ctypes.set_last_error(0)
+        if not write_file(
+            handle,
+            buffer,
+            len(payload),
+            ctypes.byref(written),
+            None,
+        ) or written.value != len(payload):
+            raise ResearchError("index-maintenance-required")
+        flush = _KERNEL32.FlushFileBuffers
+        flush.argtypes = [wintypes.HANDLE]
+        flush.restype = wintypes.BOOL
+        ctypes.set_last_error(0)
+        if not flush(handle):
+            raise ResearchError("index-maintenance-required")
+        identity = _native_handle_identity(handle)
+        _require_same_directory(target.parent, parent_identity)
+        _validate_open_handle_matches_path(handle, claim_path)
+        _fsync_directory(target.parent)
+        return _SlotClaim(claim_path, identity, handle, operation_id)
+    except ResearchError:
+        # Closing without disposition deliberately preserves an uncertain claim.
+        _close_native_handle(handle)
+        raise
+    except Exception:
+        # Closing without disposition deliberately preserves an uncertain claim.
+        _close_native_handle(handle)
+        raise ResearchError("index-maintenance-required") from None
+
+
+def _release_slot_claim(claim: _SlotClaim) -> None:
+    if claim.handle is None:
+        raise ResearchError("index-maintenance-required")
+    try:
+        _validate_open_handle_matches_path(claim.handle, claim.path)
+        if _native_handle_identity(claim.handle) != claim.identity:
+            raise ResearchError("index-maintenance-required")
+        disposition = _FileDispositionInfo(True)
+        set_information = _KERNEL32.SetFileInformationByHandle
+        set_information.argtypes = [
+            wintypes.HANDLE,
+            ctypes.c_int,
+            wintypes.LPVOID,
+            wintypes.DWORD,
+        ]
+        set_information.restype = wintypes.BOOL
+        ctypes.set_last_error(0)
+        if not set_information(
+            claim.handle,
+            _FILE_DISPOSITION_INFO_CLASS,
+            ctypes.byref(disposition),
+            ctypes.sizeof(disposition),
+        ):
+            raise ResearchError("index-maintenance-required")
+    except Exception:
+        # No path-based deletion fallback: an uncertain claim remains stale.
+        _close_native_handle(claim.handle)
+        claim.handle = None
+        raise ResearchError("index-maintenance-required") from None
+
+    close_handle = _KERNEL32.CloseHandle
+    close_handle.argtypes = [wintypes.HANDLE]
+    close_handle.restype = wintypes.BOOL
+    ctypes.set_last_error(0)
+    if not close_handle(claim.handle):
+        claim.handle = None
+        raise ResearchError("index-maintenance-required")
+    claim.handle = None
+    _fsync_directory(claim.path.parent)
+    if _path_entry_exists(claim.path):
+        raise ResearchError("index-maintenance-required")
 
 
 def _validate_available_slot(path: Path, identity: tuple[int, int]) -> None:
@@ -537,6 +733,7 @@ def _retained_staging_entries(target: Path) -> tuple[Path, ...]:
     }
     legacy = []
     slots = {}
+    claims = {}
     trees = {index: [] for index in range(_MAX_RETAINED_STAGING)}
     scanned = 0
     try:
@@ -555,6 +752,8 @@ def _retained_staging_entries(target: Path) -> tuple[Path, ...]:
                 for index, prefix in slot_prefixes.items():
                     if folded == prefix:
                         slots[index] = path
+                    elif folded == prefix + ".claim":
+                        claims[index] = path
                     elif folded.startswith(prefix + ".staging-"):
                         trees[index].append(path)
     except ResearchError:
@@ -563,6 +762,8 @@ def _retained_staging_entries(target: Path) -> tuple[Path, ...]:
         raise ResearchError("index-maintenance-required") from None
     retained = list(legacy)
     for index in range(_MAX_RETAINED_STAGING):
+        if index in claims:
+            retained.append(claims[index])
         if trees[index]:
             retained.extend(trees[index])
         elif index in slots:
