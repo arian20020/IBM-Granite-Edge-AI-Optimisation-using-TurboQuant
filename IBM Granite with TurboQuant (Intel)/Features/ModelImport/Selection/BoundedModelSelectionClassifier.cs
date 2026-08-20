@@ -14,6 +14,16 @@ internal sealed class BoundedModelSelectionClassifier : IModelSelectionClassifie
     private const string AccessMessage = "This model could not be opened. Check that it is available on this computer, then try again.";
     private const string UnsupportedFileMessage = "This model format is not supported here. Choose a GGUF file or a supported model folder.";
     private const string UnsupportedFolderMessage = "This folder does not contain a supported model at its top level. Choose another folder.";
+    private readonly Func<string, FileAttributes> attributesReader;
+    private readonly Action? beforeContinuityCheck;
+    private readonly Func<bool>? timeoutReached;
+
+    internal BoundedModelSelectionClassifier(Func<string, FileAttributes>? attributesReader = null, Action? beforeContinuityCheck = null, Func<bool>? timeoutReached = null)
+    {
+        this.attributesReader = attributesReader ?? File.GetAttributes;
+        this.beforeContinuityCheck = beforeContinuityCheck;
+        this.timeoutReached = timeoutReached;
+    }
 
     public async Task<ModelSelectionResult> ClassifyAsync(
         ModelSelectionOperationId operationId,
@@ -32,7 +42,7 @@ internal sealed class BoundedModelSelectionClassifier : IModelSelectionClassifie
         {
             return input.IsFolder
                 ? await ClassifyFolderAsync(operationId, input, token, stopwatch).ConfigureAwait(false)
-                : ClassifyFile(operationId, input, token);
+                : ClassifyFile(operationId, input, token, stopwatch);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -46,6 +56,10 @@ internal sealed class BoundedModelSelectionClassifier : IModelSelectionClassifie
         {
             return Failure(operationId, input.DisplayName, "selection-enumeration-limit", "This folder has too many items to check safely. Choose a more specific folder.");
         }
+        catch (CandidateChangedException)
+        {
+            return Failure(operationId, input.DisplayName, "model-selection-changed", "The selected model changed after validation. Choose the model again.");
+        }
         catch (UnauthorizedAccessException)
         {
             return Failure(operationId, input.DisplayName, "selection-access-denied", AccessMessage);
@@ -56,12 +70,14 @@ internal sealed class BoundedModelSelectionClassifier : IModelSelectionClassifie
         }
     }
 
-    private static ModelSelectionResult ClassifyFile(
+    private ModelSelectionResult ClassifyFile(
         ModelSelectionOperationId operationId,
         ModelSelectionInput input,
-        CancellationToken token)
+        CancellationToken token,
+        Stopwatch stopwatch)
     {
         token.ThrowIfCancellationRequested();
+        ThrowIfTimedOut(stopwatch, token);
         ModelSelectionDiagnostic? unsafeDiagnostic = GetUnsafeLocationDiagnostic(input.LocalPath, isFolder: false);
         if (unsafeDiagnostic is not null)
         {
@@ -78,7 +94,7 @@ internal sealed class BoundedModelSelectionClassifier : IModelSelectionClassifie
             : Failure(operationId, input.DisplayName, "selection-unsupported-file", UnsupportedFileMessage);
     }
 
-    private static async Task<ModelSelectionResult> ClassifyFolderAsync(
+    private async Task<ModelSelectionResult> ClassifyFolderAsync(
         ModelSelectionOperationId operationId,
         ModelSelectionInput input,
         CancellationToken token,
@@ -95,8 +111,8 @@ internal sealed class BoundedModelSelectionClassifier : IModelSelectionClassifie
             return Failure(operationId, input.DisplayName, "selection-access-denied", AccessMessage);
         }
 
-        DirectorySnapshot snapshot = DirectorySnapshot.Capture(input.LocalPath);
-        string[] children = EnumerateDirectChildren(input.LocalPath, token);
+        DirectorySnapshot snapshot = DirectorySnapshot.Capture(input.LocalPath, attributesReader);
+        string[] children = EnumerateDirectChildren(input.LocalPath, token, stopwatch);
         ThrowIfTimedOut(stopwatch, token);
 
         var xmlStems = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -165,7 +181,7 @@ internal sealed class BoundedModelSelectionClassifier : IModelSelectionClassifie
         return await ClassifySourceFolderAsync(operationId, input, configPath, indexPath, safetensorsPaths, snapshot, token, stopwatch).ConfigureAwait(false);
     }
 
-    private static async Task<ModelSelectionResult> ClassifySourceFolderAsync(
+    private async Task<ModelSelectionResult> ClassifySourceFolderAsync(
         ModelSelectionOperationId operationId,
         ModelSelectionInput input,
         string? configPath,
@@ -222,12 +238,13 @@ internal sealed class BoundedModelSelectionClassifier : IModelSelectionClassifie
         return ModelSelectionResult.Accepted(operationId, ModelSelectionRoute.SourceModelDirectory, input.DisplayName);
     }
 
-    private static string[] EnumerateDirectChildren(string path, CancellationToken token)
+    private string[] EnumerateDirectChildren(string path, CancellationToken token, Stopwatch stopwatch)
     {
         var children = new List<string>();
         foreach (string child in Directory.EnumerateFileSystemEntries(path, "*", SearchOption.TopDirectoryOnly))
         {
             token.ThrowIfCancellationRequested();
+            ThrowIfTimedOut(stopwatch, token);
             children.Add(child);
             if (children.Count > ModelSelectionLimits.MaximumDirectChildren)
             {
@@ -238,14 +255,25 @@ internal sealed class BoundedModelSelectionClassifier : IModelSelectionClassifie
         return children.ToArray();
     }
 
-    private static async Task<BoundedJson> ReadBoundedJsonAsync(string path, int remainingBudget, CancellationToken token, Stopwatch stopwatch)
+    private async Task<BoundedJson> ReadBoundedJsonAsync(string path, int remainingBudget, CancellationToken token, Stopwatch stopwatch)
     {
-        FileInfo info = new(path);
-        if (info.Length > remainingBudget) throw new JsonException();
-        byte[] bytes = await File.ReadAllBytesAsync(path, token).ConfigureAwait(false);
-        ThrowIfTimedOut(stopwatch, token);
-        if (bytes.Length > remainingBudget) throw new JsonException();
-        return new BoundedJson(JsonDocument.Parse(bytes), bytes.Length);
+        if (remainingBudget < 0) throw new JsonException();
+        await using FileStream stream = new(path, FileMode.Open, FileAccess.Read, FileShare.Read, 8192, useAsync: true);
+        using var content = new MemoryStream(Math.Min(remainingBudget + 1, 8192));
+        byte[] buffer = new byte[8192];
+        int total = 0;
+        while (true)
+        {
+            token.ThrowIfCancellationRequested();
+            ThrowIfTimedOut(stopwatch, token);
+            int count = Math.Min(buffer.Length, remainingBudget - total + 1);
+            int read = await stream.ReadAsync(buffer.AsMemory(0, count), token).ConfigureAwait(false);
+            if (read == 0) break;
+            total += read;
+            if (total > remainingBudget) throw new JsonException();
+            content.Write(buffer, 0, read);
+        }
+        return new BoundedJson(JsonDocument.Parse(content.ToArray()), total);
     }
 
     private static bool IsSupportedSourceConfiguration(JsonElement root)
@@ -273,13 +301,13 @@ internal sealed class BoundedModelSelectionClassifier : IModelSelectionClassifie
         return shards.Count != 0 && shards.All(shard => File.Exists(Path.Combine(folder, shard)));
     }
 
-    private static ModelSelectionDiagnostic? GetUnsafeLocationDiagnostic(string path, bool isFolder)
+    private ModelSelectionDiagnostic? GetUnsafeLocationDiagnostic(string path, bool isFolder)
     {
         if (path.StartsWith("\\\\?\\", StringComparison.Ordinal) || path.StartsWith("\\\\.\\", StringComparison.Ordinal)) return new("selection-network-location", "Choose an ordinary local item.");
         if (path.StartsWith("\\\\", StringComparison.Ordinal) || path.StartsWith("//", StringComparison.Ordinal)) return new("selection-network-location", "Choose an ordinary local item.");
         try
         {
-            FileAttributes attributes = File.GetAttributes(path);
+            FileAttributes attributes = attributesReader(path);
             if ((attributes & FileAttributes.ReparsePoint) != 0) return new("selection-reparse-point", "Choose an ordinary local item.");
             if ((attributes & FileAttributes.Offline) != 0) return new("selection-not-local", AccessMessage);
             string root = Path.GetPathRoot(Path.GetFullPath(path))!;
@@ -290,9 +318,10 @@ internal sealed class BoundedModelSelectionClassifier : IModelSelectionClassifie
         return null;
     }
 
-    private static void EnsureUnchanged(DirectorySnapshot snapshot, string path)
+    private void EnsureUnchanged(DirectorySnapshot snapshot, string path)
     {
-        if (!snapshot.Equals(DirectorySnapshot.Capture(path))) throw new IOException("candidate changed");
+        beforeContinuityCheck?.Invoke();
+        if (!snapshot.Equals(DirectorySnapshot.Capture(path, attributesReader))) throw new CandidateChangedException();
     }
 
     private static bool IsRelevantName(string name) =>
@@ -300,24 +329,38 @@ internal sealed class BoundedModelSelectionClassifier : IModelSelectionClassifie
         name.EndsWith(".safetensors", StringComparison.OrdinalIgnoreCase) || string.Equals(name, "config.json", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(name, "model.safetensors.index.json", StringComparison.OrdinalIgnoreCase);
 
-    private static void ThrowIfTimedOut(Stopwatch stopwatch, CancellationToken token)
+    private void ThrowIfTimedOut(Stopwatch stopwatch, CancellationToken token)
     {
-        if (stopwatch.Elapsed > ModelSelectionLimits.MaximumElapsed) throw new OperationCanceledException(token);
+        if (timeoutReached?.Invoke() == true || stopwatch.Elapsed > ModelSelectionLimits.MaximumElapsed) throw new OperationCanceledException(token);
     }
 
     private static ModelSelectionResult Failure(ModelSelectionOperationId id, string displayName, string code, string message) =>
         ModelSelectionResult.Failure(id, displayName, new ModelSelectionDiagnostic(code, message));
 
-    private readonly record struct DirectorySnapshot(FileAttributes Attributes, DateTime LastWriteTimeUtc)
+    private readonly record struct DirectorySnapshot(FileAttributes Attributes, DateTime LastWriteTimeUtc, long ChildState)
     {
-        internal static DirectorySnapshot Capture(string path)
+        internal static DirectorySnapshot Capture(string path, Func<string, FileAttributes> attributesReader)
         {
             DirectoryInfo info = new(path);
-            return new DirectorySnapshot(File.GetAttributes(path), info.LastWriteTimeUtc);
+            long childState = 17;
+            foreach (string child in Directory.EnumerateFileSystemEntries(path, "*", SearchOption.TopDirectoryOnly).OrderBy(value => value, StringComparer.OrdinalIgnoreCase))
+            {
+                if (Directory.Exists(child))
+                {
+                    childState = HashCode.Combine(childState, Path.GetFileName(child), attributesReader(child), new DirectoryInfo(child).LastWriteTimeUtc.Ticks);
+                }
+                else
+                {
+                    FileInfo childInfo = new(child);
+                    childState = HashCode.Combine(childState, Path.GetFileName(child), attributesReader(child), childInfo.Length, childInfo.LastWriteTimeUtc.Ticks);
+                }
+            }
+            return new DirectorySnapshot(attributesReader(path), info.LastWriteTimeUtc, childState);
         }
     }
 
     private readonly record struct BoundedJson(JsonDocument Document, int ByteCount);
 
     private sealed class DirectoryTooLargeException : IOException { }
+    private sealed class CandidateChangedException : IOException { }
 }

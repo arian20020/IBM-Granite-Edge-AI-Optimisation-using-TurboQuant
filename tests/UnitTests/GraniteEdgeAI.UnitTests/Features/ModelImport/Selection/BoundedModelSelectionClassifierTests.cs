@@ -182,6 +182,46 @@ public sealed class BoundedModelSelectionClassifierTests
     }
 
     [TestMethod]
+    public async Task ClassifyAsync_MapsCandidateChangedDuringValidation()
+    {
+        using var directory = new TemporaryDirectory();
+        directory.WriteFile("config.json", "{\"model_type\":\"granite\",\"architectures\":[\"GraniteForCausalLM\"]}");
+        directory.WriteFile("model.safetensors", "weights");
+        var classifier = new BoundedModelSelectionClassifier(beforeContinuityCheck: () => directory.WriteFile("changed.txt", "changed"));
+
+        ModelSelectionResult result = await classifier.ClassifyAsync(ModelSelectionOperationId.CreateNew(), new ModelSelectionInput(directory.Path, "model", true), CancellationToken.None);
+
+        Assert.AreEqual("model-selection-changed", result.Diagnostic!.Code);
+    }
+
+    [TestMethod]
+    public async Task ClassifyAsync_RejectsReparseAndOfflineCandidatesBeforeOpeningThem()
+    {
+        using var directory = new TemporaryDirectory();
+        string file = directory.WriteFile("model.gguf", "gguf");
+        var reparse = new BoundedModelSelectionClassifier(_ => FileAttributes.ReparsePoint);
+        var offline = new BoundedModelSelectionClassifier(_ => FileAttributes.Offline);
+
+        ModelSelectionResult reparseResult = await reparse.ClassifyAsync(ModelSelectionOperationId.CreateNew(), new ModelSelectionInput(file, "model.gguf", false), CancellationToken.None);
+        ModelSelectionResult offlineResult = await offline.ClassifyAsync(ModelSelectionOperationId.CreateNew(), new ModelSelectionInput(file, "model.gguf", false), CancellationToken.None);
+
+        Assert.AreEqual("selection-reparse-point", reparseResult.Diagnostic!.Code);
+        Assert.AreEqual("selection-not-local", offlineResult.Diagnostic!.Code);
+    }
+
+    [TestMethod]
+    public async Task ClassifyAsync_MapsElapsedLimitToTimeoutBeforeOpeningCandidate()
+    {
+        using var directory = new TemporaryDirectory();
+        string file = directory.WriteFile("model.gguf", "gguf");
+        var classifier = new BoundedModelSelectionClassifier(timeoutReached: () => true);
+
+        ModelSelectionResult result = await classifier.ClassifyAsync(ModelSelectionOperationId.CreateNew(), new ModelSelectionInput(file, "model.gguf", false), CancellationToken.None);
+
+        Assert.AreEqual("selection-timeout", result.Diagnostic!.Code);
+    }
+
+    [TestMethod]
     public async Task ClassifyAsync_RejectsNestedOnlySourceArtifacts()
     {
         using var directory = new TemporaryDirectory();
