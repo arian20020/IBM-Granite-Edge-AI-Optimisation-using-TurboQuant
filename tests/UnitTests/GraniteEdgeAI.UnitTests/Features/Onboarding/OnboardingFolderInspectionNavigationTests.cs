@@ -36,7 +36,7 @@ public sealed class OnboardingFolderInspectionNavigationTests
         Assert.IsInstanceOfType<ModelImportPage>(frame.Content);
         Assert.IsFalse(page.HasValidatedModel);
 
-        Assert.IsFalse(page.TryRequestModelInspection());
+        Assert.IsTrue(page.TryRequestModelInspection());
     }
 
     [UITestMethod]
@@ -61,7 +61,7 @@ public sealed class OnboardingFolderInspectionNavigationTests
         Assert.IsInstanceOfType<ModelImportPage>(frame.Content);
         Assert.AreEqual(OnboardingStage.ImportModel, shell.CurrentStage);
         Assert.IsNotNull(received);
-        Assert.AreEqual("private-source-package", received.DisplayName);
+        Assert.AreEqual("private-source-package", received.Selection.DisplayName);
         Assert.IsFalse(typeof(SourceModelConversionRequestedEventArgs).GetProperties()
             .Any(property => property.Name.Contains("Path", StringComparison.OrdinalIgnoreCase)));
     }

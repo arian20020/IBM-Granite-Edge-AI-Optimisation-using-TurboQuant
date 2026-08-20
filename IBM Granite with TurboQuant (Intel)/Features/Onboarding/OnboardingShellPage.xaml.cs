@@ -91,8 +91,8 @@ namespace GraniteEdgeAI.Features.Onboarding
                 ModelImportPage_ModelInspectionRequested;
             _attachedModelImportPage.OpenVinoInspectionRequested +=
                 ModelImportPage_OpenVinoInspectionRequested;
-            _attachedModelImportPage.SourceModelInspectionRequested +=
-                ModelImportPage_SourceModelInspectionRequested;
+            _attachedModelImportPage.SourceModelConversionRequested +=
+                ModelImportPage_SourceModelConversionRequested;
         }
 
         /// <summary>
@@ -232,9 +232,9 @@ namespace GraniteEdgeAI.Features.Onboarding
             }
         }
 
-        private void ModelImportPage_SourceModelInspectionRequested(
+        private void ModelImportPage_SourceModelConversionRequested(
             object? sender,
-            SourceModelInspectionRequestedEventArgs eventArguments)
+            SourceModelConversionRequestedEventArgs eventArguments)
         {
             if (sender is not ModelImportPage page ||
                 !ReferenceEquals(page, _attachedModelImportPage))
@@ -242,19 +242,10 @@ namespace GraniteEdgeAI.Features.Onboarding
                 return;
             }
 
-            var conversionRequest = new SourceModelConversionRequestedEventArgs(
-                eventArguments.OperationId,
-                eventArguments.DisplayName);
-            SourceModelConversionRequested?.Invoke(this, conversionRequest);
-            if (conversionRequest.NavigationAccepted)
-            {
-                eventArguments.AcceptNavigation();
-                return;
-            }
-
-            page.RejectFolderRoute(
-                "source-model-conversion-unavailable",
-                "Source-model conversion is not available in this build.");
+            // The shell relays the exact immutable intent. Conversion belongs
+            // to a later route; this boundary never starts a converter/process
+            // and never retains the selected folder path.
+            SourceModelConversionRequested?.Invoke(this, eventArguments);
         }
 
         /// <summary>
@@ -336,8 +327,8 @@ namespace GraniteEdgeAI.Features.Onboarding
                 ModelImportPage_ModelInspectionRequested;
             _attachedModelImportPage.OpenVinoInspectionRequested -=
                 ModelImportPage_OpenVinoInspectionRequested;
-            _attachedModelImportPage.SourceModelInspectionRequested -=
-                ModelImportPage_SourceModelInspectionRequested;
+            _attachedModelImportPage.SourceModelConversionRequested -=
+                ModelImportPage_SourceModelConversionRequested;
 
             // Release the reference to the old page.
             _attachedModelImportPage = null;

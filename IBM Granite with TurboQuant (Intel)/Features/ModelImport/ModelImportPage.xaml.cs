@@ -93,7 +93,7 @@ namespace GraniteEdgeAI.Features.ModelImport
         /// Raised when the user requests full inspection of the validated model.
         internal event EventHandler<ModelInspectionRequestedEventArgs>? ModelInspectionRequested;
         internal event EventHandler<OpenVinoInspectionRequestedEventArgs>? OpenVinoInspectionRequested;
-        internal event EventHandler<SourceModelInspectionRequestedEventArgs>? SourceModelInspectionRequested;
+        internal event EventHandler<SourceModelConversionRequestedEventArgs>? SourceModelConversionRequested;
 
         internal async Task BrowseFilesAsync()
         {

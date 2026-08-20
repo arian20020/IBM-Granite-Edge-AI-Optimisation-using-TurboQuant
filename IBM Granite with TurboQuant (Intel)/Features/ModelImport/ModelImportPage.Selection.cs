@@ -14,6 +14,7 @@ namespace GraniteEdgeAI.Features.ModelImport
         private ModelSelectionOperationId? _acceptedFolderOperationId;
         private string? _acceptedFolderDisplayName;
         private string? _acceptedFolderLocalPath;
+        private ModelSelectionResult? _acceptedFolderSelection;
 
         /// <summary>
         /// Submits one normalized candidate from either a picker or the future
@@ -37,6 +38,7 @@ namespace GraniteEdgeAI.Features.ModelImport
             _acceptedFolderOperationId = null;
             _acceptedFolderDisplayName = null;
             _acceptedFolderLocalPath = null;
+            _acceptedFolderSelection = null;
             HasValidatedModel = false;
             ContinueToModelInspectionButton.IsEnabled = false;
             ImportModelCardControl.ShowScanning(input.DisplayName);
@@ -103,6 +105,7 @@ namespace GraniteEdgeAI.Features.ModelImport
                 _acceptedFolderOperationId = operation.Id;
                 _acceptedFolderDisplayName = result.DisplayName;
                 _acceptedFolderLocalPath = input.LocalPath;
+                _acceptedFolderSelection = result;
                 ImportModelCardControl.ShowFolderAccepted(result.DisplayName);
                 return;
             }
@@ -114,6 +117,7 @@ namespace GraniteEdgeAI.Features.ModelImport
                 _acceptedFolderOperationId = operation.Id;
                 _acceptedFolderDisplayName = result.DisplayName;
                 _acceptedFolderLocalPath = input.LocalPath;
+                _acceptedFolderSelection = result;
                 ImportModelCardControl.ShowFolderAccepted(result.DisplayName);
                 return;
             }
@@ -162,7 +166,8 @@ namespace GraniteEdgeAI.Features.ModelImport
                 active is null || active.Token.IsCancellationRequested ||
                 _acceptedFolderOperationId != active.Id ||
                 string.IsNullOrWhiteSpace(_acceptedFolderDisplayName) ||
-                string.IsNullOrWhiteSpace(_acceptedFolderLocalPath))
+                string.IsNullOrWhiteSpace(_acceptedFolderLocalPath) ||
+                _acceptedFolderSelection is null)
             {
                 return false;
             }
@@ -175,9 +180,14 @@ namespace GraniteEdgeAI.Features.ModelImport
                 return CompleteFolderInspectionRequest(eventArguments.NavigationAccepted);
             }
 
-            var sourceEventArguments = new SourceModelInspectionRequestedEventArgs(active.Id, displayName);
-            SourceModelInspectionRequested?.Invoke(this, sourceEventArguments);
-            return CompleteFolderInspectionRequest(sourceEventArguments.NavigationAccepted);
+            SourceModelConversionRequested?.Invoke(
+                this,
+                new SourceModelConversionRequestedEventArgs(_acceptedFolderSelection));
+
+            // Source conversion has no navigator in this increment. Dispatch
+            // consumes this exact current intent so a repeated Continue click
+            // cannot emit it twice or create an executable action here.
+            return CompleteFolderInspectionRequest(navigationAccepted: true);
         }
 
         private bool CompleteFolderInspectionRequest(bool navigationAccepted)
@@ -190,6 +200,7 @@ namespace GraniteEdgeAI.Features.ModelImport
             _acceptedFolderOperationId = null;
             _acceptedFolderDisplayName = null;
             _acceptedFolderLocalPath = null;
+            _acceptedFolderSelection = null;
             return true;
         }
 
@@ -222,6 +233,7 @@ namespace GraniteEdgeAI.Features.ModelImport
             _acceptedFolderOperationId = null;
             _acceptedFolderDisplayName = null;
             _acceptedFolderLocalPath = null;
+            _acceptedFolderSelection = null;
             CurrentRoute = null;
             HasValidatedModel = false;
             ContinueToModelInspectionButton.IsEnabled = false;

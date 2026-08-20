@@ -23,7 +23,6 @@ public sealed class ModelImportPrivacyBoundaryTests
             typeof(ModelSelectionDiagnostic),
             typeof(ModelSelectionResult),
             typeof(OpenVinoInspectionRequestedEventArgs),
-            typeof(SourceModelInspectionRequestedEventArgs),
             typeof(SourceModelConversionRequestedEventArgs),
         ];
 
@@ -79,16 +78,20 @@ public sealed class ModelImportPrivacyBoundaryTests
         EventArgs[] eventArguments =
         [
             new OpenVinoInspectionRequestedEventArgs(operationId, displayName),
-            new SourceModelInspectionRequestedEventArgs(operationId, displayName),
-            new SourceModelConversionRequestedEventArgs(operationId, displayName),
+            new SourceModelConversionRequestedEventArgs(ModelSelectionResult.Accepted(
+                operationId,
+                ModelSelectionRoute.SourceModelDirectory,
+                displayName)),
         ];
 
         foreach (object eventArgument in eventArguments)
         {
-            PropertyInfo displayNameProperty = eventArgument.GetType().GetProperty(
-                "DisplayName",
-                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!;
-            string actualDisplayName = (string)displayNameProperty.GetValue(eventArgument)!;
+            string actualDisplayName = eventArgument is SourceModelConversionRequestedEventArgs conversion
+                ? conversion.Selection.DisplayName
+                : (string)eventArgument.GetType().GetProperty(
+                    "DisplayName",
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!
+                    .GetValue(eventArgument)!;
 
             Assert.AreEqual(displayName, actualDisplayName);
             Assert.IsFalse(actualDisplayName.Contains(absolutePath, StringComparison.OrdinalIgnoreCase));

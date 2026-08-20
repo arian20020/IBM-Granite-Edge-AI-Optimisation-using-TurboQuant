@@ -41,7 +41,6 @@ public sealed class ModelImportOwnershipContractTests
         Type[] handoffEventTypes =
         [
             typeof(OpenVinoInspectionRequestedEventArgs),
-            typeof(SourceModelInspectionRequestedEventArgs),
             typeof(SourceModelConversionRequestedEventArgs),
         ];
         foreach (Type type in handoffEventTypes)
@@ -61,7 +60,7 @@ public sealed class ModelImportOwnershipContractTests
             typeof(ModelSelectionInput),
             typeof(ModelSelectionResult),
             typeof(OpenVinoInspectionRequestedEventArgs),
-            typeof(SourceModelInspectionRequestedEventArgs),
+            typeof(SourceModelConversionRequestedEventArgs),
         ];
 
         foreach (Type type in d1Types)
@@ -69,10 +68,10 @@ public sealed class ModelImportOwnershipContractTests
             StringAssert.Contains(type.Namespace!, ".Features.ModelImport");
         }
 
-        // These are integration-owned handoff types. Their presence is an
-        // approved I0 seam, not a D1 ownership violation.
+        // The shell relays the D1-owned immutable intent without creating a
+        // second conversion payload or gaining a path capability.
         StringAssert.Contains(typeof(OnboardingShellPage).Namespace!, ".Features.Onboarding");
-        StringAssert.Contains(typeof(SourceModelConversionRequestedEventArgs).Namespace!, ".Features.Onboarding");
+        StringAssert.Contains(typeof(SourceModelConversionRequestedEventArgs).Namespace!, ".Features.ModelImport");
         Assert.AreEqual(typeof(ModelImportPage).Assembly, typeof(OnboardingShellPage).Assembly,
             "The ownership contract is namespace and handoff based, not an assembly split.");
     }

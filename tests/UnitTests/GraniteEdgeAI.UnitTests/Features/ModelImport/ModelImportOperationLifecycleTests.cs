@@ -109,7 +109,7 @@ public sealed class ModelImportOperationLifecycleTests
     [TestMethod]
     public void FolderIntentArgs_ExposeNoPathBearingProperty()
     {
-        foreach (Type type in new[] { typeof(OpenVinoInspectionRequestedEventArgs), typeof(SourceModelInspectionRequestedEventArgs) })
+        foreach (Type type in new[] { typeof(OpenVinoInspectionRequestedEventArgs), typeof(SourceModelConversionRequestedEventArgs) })
         {
             Assert.IsFalse(type.GetProperties().Any(property => property.Name.Contains("Path", StringComparison.OrdinalIgnoreCase)));
         }
