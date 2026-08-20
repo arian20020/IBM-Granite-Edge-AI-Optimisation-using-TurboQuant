@@ -450,8 +450,8 @@ Expected: exit 0; JSON reports Python 3.12.x, TurboVec 1.0.0, FastEmbed 0.8.0, N
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\turbovec\Invoke-TurboVecResearch.ps1 index --input .\scripts\turbovec\tests\fixtures\knowledge --output C:\approved\turbovec\runs\fixture-index --bits 2 4 --approved-input C:\approved\turbovec\approved-input.json
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\turbovec\Invoke-TurboVecResearch.ps1 query --index C:\approved\turbovec\runs\fixture-index --text "What does TurboVec compress?" --top-k 5
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\turbovec\Invoke-TurboVecResearch.ps1 benchmark --index C:\approved\turbovec\runs\fixture-index --fixture .\scripts\turbovec\tests\fixtures\evaluation.json --output C:\approved\turbovec\runs\fixture-evidence
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\turbovec\Invoke-TurboVecResearch.ps1 query --approved-input C:\approved\turbovec\approved-input.json --index C:\approved\turbovec\runs\fixture-index --text "What does TurboVec compress?" --top-k 5
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\turbovec\Invoke-TurboVecResearch.ps1 benchmark --approved-input C:\approved\turbovec\approved-input.json --index C:\approved\turbovec\runs\fixture-index --fixture .\scripts\turbovec\tests\fixtures\evaluation.json --output C:\approved\turbovec\runs\fixture-evidence
 ```
 
 Expected: index and query exit 0; benchmark exit 0 only when the approved 4-bit gate passes, otherwise exit 40 with complete evidence retained.

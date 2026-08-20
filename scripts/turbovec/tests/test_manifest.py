@@ -71,6 +71,10 @@ def float_identity(**changes):
     return replace(value, **changes)
 
 
+def suite_identity(**changes):
+    return replace(identity(), requested_backend="matched-suite", actual_backend="matched-suite", index_format="matched-suite-v1", bit_width=None)
+
+
 def manifest(**changes):
     value = IndexManifest(
         identity=identity(),
@@ -103,6 +107,24 @@ def validate_index(path, artifact, loaded):
 
 
 class CanonicalManifestTests(unittest.TestCase):
+    def test_matched_suite_manifest_binds_each_artifact_to_exact_route(self):
+        value = manifest(
+            identity=suite_identity(),
+            artifacts=(
+                ArtifactRecord("vectors-float32.npy", HASH_A, 12, 1, "NPY", 1, 384, "float32", "float32", "float32-npy-v1", None),
+                ArtifactRecord("index-2bit.tvim", HASH_B, 12, 1, "GTVI", 1, 384, "2bit", "turbovec", "gtvi-turbovec-v1", 2),
+                ArtifactRecord("index-4bit.tvim", HASH_A, 12, 1, "GTVI", 1, 384, "4bit", "turbovec", "gtvi-turbovec-v1", 4),
+            ),
+        )
+        payload = json.loads(canonical_json(value))
+        self.assertEqual("matched-suite", payload["identity"]["actual_backend"])
+        self.assertEqual([None, 2, 4], [item["bit_width"] for item in payload["artifacts"]])
+
+        bad = replace(value, artifacts=(value.artifacts[0], replace(value.artifacts[1], bit_width=4), value.artifacts[2]))
+        with self.assertRaises(ResearchError) as context:
+            canonical_json(bad)
+        self.assertEqual("index-manifest-invalid", context.exception.code)
+
     def test_atomic_roundtrip_is_canonical_and_hashable(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "manifest.json"
@@ -113,6 +135,17 @@ class CanonicalManifestTests(unittest.TestCase):
             self.assertEqual(canonical_json(expected), path.read_text(encoding="utf-8"))
             self.assertEqual(64, len(canonical_sha256(expected)))
             self.assertFalse((path.parent / "manifest.json.tmp-build-01").exists())
+
+    def test_legacy_schema_v1_artifacts_without_route_fields_still_load(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "manifest.json"; expected = manifest()
+            payload = json.loads(canonical_json(expected))
+            for artifact in payload["artifacts"]:
+                for field in ("route", "backend", "index_format", "bit_width"):
+                    artifact.pop(field)
+            path.write_text(json.dumps(payload, ensure_ascii=False, allow_nan=False, separators=(",", ":"), sort_keys=True), encoding="utf-8")
+            loaded = load_and_validate_manifest(path, expected.identity)
+        self.assertEqual(expected, loaded)
 
     def test_embedding_identity_mismatch_fails_closed(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -136,6 +136,10 @@ class ArtifactRecord:
     magic: str
     version: int
     dimension: int
+    route: str | None = None
+    backend: str | None = None
+    index_format: str | None = None
+    bit_width: int | None = None
 
 
 @dataclass(frozen=True)
@@ -237,7 +241,7 @@ def load_and_validate_manifest(
             parse_constant=lambda _: _reject_json_constant(),
         )
         loaded = _manifest_from_mapping(parsed)
-        if text != canonical_json(loaded):
+        if text not in (canonical_json(loaded), _legacy_canonical_json(loaded)):
             raise ResearchError("index-manifest-corrupt")
     except ResearchError:
         raise
@@ -841,6 +845,21 @@ def _validate_manifest(value: object) -> IndexManifest:
         for item in artifacts
     ):
         raise ResearchError("index-manifest-invalid")
+    if identity.actual_backend == "matched-suite":
+        if any(item.route is None for item in artifacts):
+            raise ResearchError("index-manifest-invalid")
+        route_records = {item.route: item for item in artifacts if item.route != "metadata"}
+        if set(route_records) - {"float32", "2bit", "4bit"} or "float32" not in route_records:
+            raise ResearchError("index-manifest-invalid")
+        if not ({"2bit", "4bit"} & set(route_records)):
+            raise ResearchError("index-manifest-invalid")
+    if any(item.backend == "turbovec" for item in artifacts) and (
+        identity.turbovec_version is None
+        or identity.turbovec_source_commit is None
+        or identity.turbovec_wheel_sha256 is None
+        or identity.turbovec_license is None
+    ):
+        raise ResearchError("index-manifest-invalid")
     return IndexManifest(identity, sources, chunks, value.created_utc, artifacts)
 
 
@@ -870,7 +889,7 @@ def _validate_identity(value: object) -> IndexIdentity:
         value.python_version,
     ) is None:
         raise ResearchError("index-manifest-invalid")
-    if value.requested_backend not in ("float32", "turbovec"):
+    if value.requested_backend not in ("float32", "turbovec", "matched-suite"):
         raise ResearchError("index-manifest-invalid")
     if value.requested_backend != value.actual_backend:
         raise ResearchError("index-manifest-invalid")
@@ -897,6 +916,13 @@ def _validate_identity(value: object) -> IndexIdentity:
             or type(value.bit_width) is not int
             or value.bit_width not in (2, 4)
         ):
+            raise ResearchError("index-manifest-invalid")
+        _text(value.turbovec_version)
+        _commit(value.turbovec_source_commit)
+        _hash(value.turbovec_wheel_sha256)
+        _text(value.turbovec_license)
+    elif value.actual_backend == "matched-suite":
+        if value.index_format != "matched-suite-v1" or value.bit_width is not None:
             raise ResearchError("index-manifest-invalid")
         _text(value.turbovec_version)
         _commit(value.turbovec_source_commit)
@@ -939,6 +965,20 @@ def _validate_artifact(value: object) -> ArtifactRecord:
     _text(value.magic)
     _positive_int(value.version)
     _positive_int(value.dimension)
+    route_fields = (value.route, value.backend, value.index_format, value.bit_width)
+    if any(item is not None for item in route_fields):
+        if value.route == "float32":
+            if value.filename != "vectors-float32.npy" or value.backend != "float32" or value.index_format != "float32-npy-v1" or value.bit_width is not None:
+                raise ResearchError("index-manifest-invalid")
+        elif value.route in ("2bit", "4bit"):
+            bits = int(value.route[0])
+            if value.filename != f"index-{value.route}.tvim" or value.backend != "turbovec" or value.index_format != "gtvi-turbovec-v1" or value.bit_width != bits:
+                raise ResearchError("index-manifest-invalid")
+        elif value.route == "metadata":
+            if value.backend != "metadata" or type(value.index_format) is not str or not value.index_format or value.bit_width is not None:
+                raise ResearchError("index-manifest-invalid")
+        else:
+            raise ResearchError("index-manifest-invalid")
     return value
 
 
@@ -960,15 +1000,35 @@ def _manifest_from_mapping(value: object) -> IndexManifest:
             for item in chunks_value
         ),
         created_utc=root["created_utc"],
-        artifacts=tuple(
-            ArtifactRecord(**_object(item, set(ArtifactRecord.__dataclass_fields__)))
-            for item in artifacts_value
-        ),
+        artifacts=tuple(_artifact_from_mapping(item) for item in artifacts_value),
     )
     try:
         return _validate_manifest(result)
     except ResearchError:
         raise ResearchError("index-manifest-corrupt") from None
+
+
+def _artifact_from_mapping(value: object) -> ArtifactRecord:
+    full = set(ArtifactRecord.__dataclass_fields__)
+    legacy = full - {"route", "backend", "index_format", "bit_width"}
+    if type(value) is not dict:
+        raise ResearchError("index-manifest-corrupt")
+    fields = set(value)
+    if fields == legacy:
+        return ArtifactRecord(**value)
+    if fields == full:
+        return ArtifactRecord(**value)
+    raise ResearchError("index-manifest-corrupt")
+
+
+def _legacy_canonical_json(value: IndexManifest) -> str:
+    payload = asdict(value)
+    for artifact in payload["artifacts"]:
+        if any(artifact[field] is not None for field in ("route", "backend", "index_format", "bit_width")):
+            return ""
+        for field in ("route", "backend", "index_format", "bit_width"):
+            artifact.pop(field)
+    return json.dumps(payload, ensure_ascii=False, allow_nan=False, separators=(",", ":"), sort_keys=True)
 
 
 def _compare_identity(actual: IndexIdentity, expected: IndexIdentity) -> None:

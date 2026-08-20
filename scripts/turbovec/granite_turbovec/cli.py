@@ -12,9 +12,7 @@ import math
 import os
 import platform
 import re
-import shutil
 import sys
-import tempfile
 import time
 import traceback
 import uuid
@@ -38,10 +36,15 @@ from .manifest import (
     IndexIdentity,
     IndexManifest,
     SourceRecord,
+    canonical_sha256 as manifest_sha256,
     load_and_validate_manifest,
     promote_staged_index,
+    _unlink_owned_file,
+    _require_plain_directory,
+    _require_same_directory,
 )
 from .text_pipeline import chunk_document, discover_documents
+from .tvim_container import extract_validated_payload, write_container
 
 
 SCHEMA_VERSION = 1
@@ -81,6 +84,7 @@ ERROR_EXIT = {
     "input-empty": 20, "input-invalid-utf8": 20, "input-unsafe-link": 20,
     "input-race-detected": 20, "query-invalid": 20, "query-empty": 20,
     "query-too-long": 20, "query-control-character": 20,
+    "query-top-k-invalid": 20,
     "evaluation-fixture-invalid": 20,
     # extraction and hard limits
     "input-file-count-limit": 21, "input-file-size-limit": 21,
@@ -97,6 +101,7 @@ ERROR_EXIT = {
     "index-promotion-unsupported": 30,
     # index / manifest / corruption
     "index-manifest-invalid": 31, "index-manifest-corrupt": 31,
+    "index-route-mismatch": 31,
     "index-manifest-write-failed": 31, "index-embedding-mismatch": 31,
     "index-dimension-mismatch": 31, "index-chunking-mismatch": 31,
     "index-backend-mismatch": 31, "index-format-mismatch": 31,
@@ -108,25 +113,25 @@ ERROR_EXIT = {
     "index-quarantine-failed": 31, "index-maintenance-required": 31,
     "index-directory-fsync-unsupported": 31, "index-durability-failed": 31,
     "index-operation-id-invalid": 31, "index-staging-limit-exceeded": 31,
-    "index-load-failed": 31, "chunks-artifact-invalid": 31,
-    "vectors-shape-invalid": 31, "vectors-dimension-invalid": 31,
-    "vectors-type-invalid": 31,
-    "vectors-count-invalid": 31, "vectors-empty": 31,
-    "vectors-nonfinite": 31, "vector-dtype-invalid": 31,
+    "chunks-artifact-invalid": 31,
     "ids-shape-invalid": 31, "ids-count-invalid": 31,
     "ids-empty": 31, "ids-type-invalid": 31, "ids-duplicate": 31,
-    "search-k-invalid": 31, "query-shape-invalid": 31,
-    "query-dimension-invalid": 31, "query-nonfinite": 31,
-    "query-type-invalid": 31, "index-search-result-invalid": 31,
+    "search-k-invalid": 20,
     # embedding runtime
     "embedding-failed": 32, "embedding-row-count-invalid": 32,
     "embedding-type-invalid": 32, "embedding-shape-invalid": 32,
     "embedding-dimension-invalid": 32, "embedding-nonfinite": 32,
     "embedding-input-invalid": 32,
+    "vectors-shape-invalid": 32, "vectors-dimension-invalid": 32,
+    "vectors-type-invalid": 32, "vectors-count-invalid": 32,
+    "vectors-empty": 32, "vectors-nonfinite": 32, "vector-dtype-invalid": 32,
+    "query-shape-invalid": 32, "query-dimension-invalid": 32,
+    "query-nonfinite": 32, "query-type-invalid": 32,
     # TurboVec runtime
     "index-create-failed": 33, "index-add-failed": 33,
     "index-search-failed": 33, "index-write-failed": 33,
     "index-bits-invalid": 33, "index-dimension-invalid": 33,
+    "index-load-failed": 33, "index-search-result-invalid": 33,
     # benchmark
     "benchmark-gate-failed": 40, "benchmark-evidence-invalid": 40,
     "timing-samples-invalid": 40, "timing-sample-count-insufficient": 40,
@@ -155,8 +160,8 @@ class CliDependencies:
     make_turbovec: Callable[[int, int], Any]
     load_turbovec: Callable[[Path], Any]
     now_utc: Callable[[], str]
-    model_dimension: Callable[[], int]
     perf_counter: Callable[[], float]
+    peak_working_set: Callable[[], int]
 
 
 @dataclass(frozen=True)
@@ -175,14 +180,15 @@ def default_dependencies() -> CliDependencies:
         model_manifest_sha256=_model_manifest_sha256,
         platform_info=lambda: {
             "platform": platform.system().casefold(),
+            "architecture": platform.machine(),
             "processor": platform.processor() or "unknown",
         },
         make_embedder=lambda cache: FastEmbedder(cache),
         make_turbovec=lambda dimension, bits: TurboVecIndex(dimension, bits=bits),
         load_turbovec=lambda path: TurboVecIndex.load(path),
         now_utc=lambda: time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        model_dimension=lambda: 384,
         perf_counter=time.perf_counter,
+        peak_working_set=_peak_working_set_bytes,
     )
 
 
@@ -201,7 +207,7 @@ def build_parser() -> argparse.ArgumentParser:
     index.add_argument("--approved-input", required=True)
     index.add_argument("--input", required=True)
     index.add_argument("--output", required=True)
-    index.add_argument("--bits", choices=("2", "4", "both"), default="both")
+    index.add_argument("--bits", nargs="+", choices=("2", "4"), default=["2", "4"])
     query = commands.add_parser("query")
     query.add_argument("--approved-input", required=True)
     query.add_argument("--index", required=True)
@@ -211,8 +217,8 @@ def build_parser() -> argparse.ArgumentParser:
     benchmark = commands.add_parser("benchmark")
     benchmark.add_argument("--approved-input", required=True)
     benchmark.add_argument("--fixture", required=True)
+    benchmark.add_argument("--index", required=True)
     benchmark.add_argument("--output", required=True)
-    benchmark.add_argument("--input")
     return parser
 
 
@@ -222,7 +228,7 @@ def run_cli(args: Sequence[str], *, dependencies: CliDependencies | None = None)
         namespace = build_parser().parse_args(list(args))
         # Dependencies sometimes use progress/logging libraries. Their output is
         # intentionally contained so stdout/stderr remain protocol streams.
-        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+        with _suppress_dependency_output():
             if namespace.command == "doctor":
                 payload = _doctor(namespace, dependencies)
             elif namespace.command == "index":
@@ -261,13 +267,13 @@ def main(args: Sequence[str] | None = None, *, dependencies: CliDependencies | N
 def _doctor(namespace: argparse.Namespace, deps: CliDependencies) -> Mapping[str, Any]:
     approval, actual = _validate_approved_input(Path(namespace.approved_input), deps)
     info = deps.platform_info()
-    embedder = deps.make_embedder(Path(approval["model_cache_root"]))
+    embedder = _validated_embedder(approval, deps)
     providers = list(getattr(embedder, "providers", ()))
     return {
         "schema_version": 1,
         "python": {"version": actual["python_version"]},
         "packages": dict(sorted(actual["packages"].items())),
-        "platform": {"name": str(info.get("platform", "unknown")), "processor": str(info.get("processor", "unknown"))},
+        "platform": {"name": _safe_machine_label(info.get("platform")), "architecture": _safe_machine_label(info.get("architecture")), "processor": _safe_machine_label(info.get("processor"))},
         "providers": {"requested": ["CPUExecutionProvider"], "actual": providers},
         "embedding_model": {"requested_identity": approval["embedding_model"], "actual_identity": str(getattr(embedder, "model_identity", "unknown")), "license": approval["embedding_model_license"], "manifest_sha256": actual["model_manifest_sha256"]},
         "turbovec": {"version": approval["turbovec_version"], "source_commit": approval["turbovec_source_commit"], "wheel_sha256": actual["wheel_sha256"], "license": "MIT"},
@@ -276,6 +282,10 @@ def _doctor(namespace: argparse.Namespace, deps: CliDependencies) -> Mapping[str
 
 
 def _index(namespace: argparse.Namespace, deps: CliDependencies) -> Mapping[str, Any]:
+    widths = [int(value) for value in namespace.bits]
+    if len(widths) != len(set(widths)):
+        raise ResearchError("research-argument-error")
+    bits = tuple(sorted(widths))
     approval, actual = _validate_approved_input(Path(namespace.approved_input), deps)
     destination = Path(namespace.output)
     if destination.exists() or destination.is_symlink():
@@ -284,11 +294,10 @@ def _index(namespace: argparse.Namespace, deps: CliDependencies) -> Mapping[str,
     chunks = tuple(chunk for document in documents for chunk in chunk_document(document))
     if not chunks:
         raise ResearchError("input-empty")
-    embedder = deps.make_embedder(Path(approval["model_cache_root"]))
+    embedder = _validated_embedder(approval, deps)
     vectors = validate_vectors(embedder.embed_documents([chunk.text for chunk in chunks]), dimension=embedder.dimension, expected_count=len(chunks))
     import numpy as np
     ids = validate_ids(np.asarray([chunk.chunk_id for chunk in chunks], dtype=np.uint64), expected_count=len(chunks))
-    bits = (2, 4) if namespace.bits == "both" else (int(namespace.bits),)
     identity = _identity(approval, actual, embedder, dimension=vectors.shape[1])
     sources = tuple(SourceRecord(item.relative_path, item.sha256) for item in documents)
     chunk_records = tuple(ChunkRecord(item.chunk_id, item.relative_path, item.start, item.end) for item in chunks)
@@ -299,15 +308,32 @@ def _index(namespace: argparse.Namespace, deps: CliDependencies) -> Mapping[str,
             np.save(stream, vectors, allow_pickle=False)
         with (staging / "ids.npy").open("xb") as stream:
             np.save(stream, ids, allow_pickle=False)
+        save_timings = {}
+        for width in bits:
+            index = deps.make_turbovec(vectors.shape[1], width)
+            index.add_with_ids(vectors, ids)
+            raw = staging / f"raw-{width}bit-{uuid.uuid4().hex}.tmp"
+            raw_identity = None
+            save_start = deps.perf_counter()
+            try:
+                index.write(raw)
+                raw_metadata = raw.lstat()
+                if _is_link_or_reparse(raw) or not raw.is_file():
+                    raise ResearchError("index-artifact-invalid")
+                raw_identity = (raw_metadata.st_dev, raw_metadata.st_ino)
+                write_container(raw, staging / f"index-{width}bit.tvim", bits=width, dimension=vectors.shape[1], count=len(chunks))
+            finally:
+                if raw.exists() and raw.is_file():
+                    if raw_identity is None:
+                        raw_metadata = raw.lstat(); raw_identity = (raw_metadata.st_dev, raw_metadata.st_ino)
+                    _unlink_owned_file(raw, raw_identity)
+            save_timings[f"{width}bit"] = deps.perf_counter() - save_start
         (staging / "baseline-results.json").write_bytes(_json_bytes({
             "schema_version": 1, "route": "float32", "count": len(chunks),
             "dimension": vectors.shape[1], "available_routes": ["float32", *(f"{item}bit" for item in bits)],
             "turbovec": {"version": approval["turbovec_version"], "source_commit": approval["turbovec_source_commit"], "wheel_sha256": approval["turbovec_wheel_sha256"], "license": "MIT"},
+            "save_timings_seconds": save_timings,
         }))
-        for width in bits:
-            index = deps.make_turbovec(vectors.shape[1], width)
-            index.add_with_ids(vectors, ids)
-            index.write(staging / f"index-{width}bit.tvim")
 
     def factory(staging: Path) -> IndexManifest:
         records = tuple(_record(path, len(chunks), vectors.shape[1]) for path in sorted(staging.iterdir(), key=lambda item: item.name))
@@ -319,31 +345,39 @@ def _index(namespace: argparse.Namespace, deps: CliDependencies) -> Mapping[str,
 
 def _query(namespace: argparse.Namespace, deps: CliDependencies) -> Mapping[str, Any]:
     text = _validate_query_text(namespace.text)
+    if type(namespace.top_k) is not int or namespace.top_k <= 0:
+        raise ResearchError("query-top-k-invalid")
     approval, actual = _validate_approved_input(Path(namespace.approved_input), deps)
     root = Path(namespace.index)
-    expected = _identity(approval, actual, None, dimension=deps.model_dimension())
+    expected = _identity(approval, actual, None, dimension=384)
     # Identity is checked before any artifact, index, or embedder is loaded.
     manifest = load_and_validate_manifest(root / "manifest.json", expected)
+    routes = {item.route for item in manifest.artifacts}
+    if namespace.route not in routes:
+        raise ResearchError("index-route-mismatch")
+    if namespace.top_k > len(manifest.chunks):
+        raise ResearchError("query-top-k-invalid")
+    embedder = _validated_embedder(approval, deps)
     _verify_all_artifacts(root, manifest, deps)
     chunks = _load_chunks(root / "chunks.jsonl", manifest)
     import numpy as np
     ids = np.load(root / "ids.npy", allow_pickle=False)
-    if namespace.top_k <= 0 or namespace.top_k > len(chunks):
-        raise ResearchError("search-k-invalid")
     start = deps.perf_counter()
-    embedder = deps.make_embedder(Path(approval["model_cache_root"]))
     embed_start = deps.perf_counter()
     query_vector = validate_vectors(embedder.embed_queries([text]), dimension=manifest.identity.dimension, expected_count=1)
     embedding_seconds = deps.perf_counter() - embed_start
     load_start = deps.perf_counter()
-    if namespace.route == "float32":
-        vectors = np.load(root / "vectors-float32.npy", allow_pickle=False)
-        index = Float32Index(vectors, ids)
-    else:
-        index = deps.load_turbovec(root / f"index-{namespace.route}.tvim")
-    load_seconds = deps.perf_counter() - load_start
-    search_start = deps.perf_counter()
-    scores, result_ids = index.search(query_vector, namespace.top_k)
+    with contextlib.ExitStack() as stack:
+        if namespace.route == "float32":
+            vectors = np.load(root / "vectors-float32.npy", allow_pickle=False)
+            index = Float32Index(vectors, ids)
+        else:
+            record = next(item for item in manifest.artifacts if item.route == namespace.route)
+            raw_path = stack.enter_context(extract_validated_payload(root / record.filename, bits=record.bit_width, dimension=record.dimension, count=record.count))
+            index = deps.load_turbovec(raw_path)
+        load_seconds = deps.perf_counter() - load_start
+        search_start = deps.perf_counter()
+        scores, result_ids = index.search(query_vector, namespace.top_k)
     search_seconds = deps.perf_counter() - search_start
     by_id = {chunk.chunk_id: chunk for chunk in chunks}
     results = []
@@ -360,48 +394,45 @@ def _query(namespace: argparse.Namespace, deps: CliDependencies) -> Mapping[str,
 
 def _benchmark(namespace: argparse.Namespace, deps: CliDependencies) -> tuple[Mapping[str, Any], bool]:
     end_to_end_start = deps.perf_counter()
-    approval, _ = _validate_approved_input(Path(namespace.approved_input), deps)
+    approval, actual = _validate_approved_input(Path(namespace.approved_input), deps)
     fixture_path = Path(namespace.fixture)
     fixture = load_evaluation_fixture(fixture_path)
-    knowledge = Path(namespace.input) if namespace.input else fixture_path.parent / "knowledge"
     output = Path(namespace.output)
     if output.exists() or output.is_symlink():
         raise ResearchError("evidence-destination-exists")
-    documents = discover_documents(knowledge)
-    chunks = tuple(chunk for document in documents for chunk in chunk_document(document))
-    if len(chunks) < fixture.top_k:
-        raise ResearchError("rankings-k-out-of-bounds")
-    embedder = deps.make_embedder(Path(approval["model_cache_root"]))
-    document_embedding_start = deps.perf_counter()
-    vectors = validate_vectors(embedder.embed_documents([item.text for item in chunks]), dimension=embedder.dimension, expected_count=len(chunks))
-    document_embedding_seconds = deps.perf_counter() - document_embedding_start
+    root = Path(namespace.index)
+    expected = _identity(approval, actual, None, dimension=384)
+    manifest = load_and_validate_manifest(root / "manifest.json", expected)
+    route_records = {item.route: item for item in manifest.artifacts if item.route != "metadata"}
+    if set(route_records) != {"float32", "2bit", "4bit"} or len(manifest.chunks) < fixture.top_k:
+        raise ResearchError("index-route-mismatch")
+    embedder = _validated_embedder(approval, deps)
+    _verify_all_artifacts(root, manifest, deps)
+    chunks = _load_chunks(root / "chunks.jsonl", manifest)
     query_embedding_start = deps.perf_counter()
     query_vectors = validate_vectors(embedder.embed_queries([item.text for item in fixture.queries]), dimension=embedder.dimension, expected_count=len(fixture.queries))
     query_embedding_seconds = deps.perf_counter() - query_embedding_start
     import numpy as np
-    ids = np.asarray([item.chunk_id for item in chunks], dtype=np.uint64)
-    baseline_build_start = deps.perf_counter()
-    routes = {"float32": Float32Index(vectors, ids)}
+    ids = validate_ids(np.load(root / "ids.npy", allow_pickle=False), expected_count=len(chunks))
+    metadata = json.loads((root / "baseline-results.json").read_text(encoding="utf-8"))
     phase_timings = {
-        "document_embedding_seconds": document_embedding_seconds,
+        "document_embedding_seconds": 0.0,
         "query_embedding_seconds": query_embedding_seconds,
-        "float32_index_build_seconds": deps.perf_counter() - baseline_build_start,
+        "index_build_from_existing_seconds": 0.0,
     }
-    persisted: dict[int, Path] = {}
-    temp_root = Path(tempfile.mkdtemp(prefix="granite-turbovec-benchmark-"))
-    try:
+    for bits in (2, 4):
+        phase_timings[f"{bits}bit_index_save_seconds"] = float(metadata["save_timings_seconds"][f"{bits}bit"])
+    with contextlib.ExitStack() as stack:
+        routes = {}
+        load_start = deps.perf_counter()
+        vectors = validate_vectors(np.load(root / "vectors-float32.npy", allow_pickle=False), dimension=384, expected_count=len(chunks))
+        routes["float32"] = Float32Index(vectors, ids)
+        phase_timings["float32_index_load_seconds"] = deps.perf_counter() - load_start
         for bits in (2, 4):
-            build_start = deps.perf_counter()
-            index = deps.make_turbovec(embedder.dimension, bits)
-            index.add_with_ids(vectors, ids)
-            phase_timings[f"{bits}bit_index_build_seconds"] = deps.perf_counter() - build_start
-            path = temp_root / f"index-{bits}bit.tvim"
-            save_start = deps.perf_counter()
-            index.write(path)
-            phase_timings[f"{bits}bit_index_save_seconds"] = deps.perf_counter() - save_start
-            persisted[bits] = path
+            record = route_records[f"{bits}bit"]
             load_start = deps.perf_counter()
-            routes[f"{bits}bit"] = deps.load_turbovec(path)
+            raw = stack.enter_context(extract_validated_payload(root / record.filename, bits=bits, dimension=384, count=len(chunks)))
+            routes[f"{bits}bit"] = deps.load_turbovec(raw)
             phase_timings[f"{bits}bit_index_load_seconds"] = deps.perf_counter() - load_start
         rankings: dict[str, list[list[int]]] = {}
         timings = {}
@@ -420,23 +451,23 @@ def _benchmark(namespace: argparse.Namespace, deps: CliDependencies) -> tuple[Ma
         evidence = build_matched_suite(
             rankings["float32"], rankings["2bit"], rankings["4bit"], relevant,
             baseline_timings=timings["float32"], two_bit_timings=timings["2bit"], four_bit_timings=timings["4bit"],
-            float32_vector_bytes=vectors.nbytes, two_bit_persisted_bytes=persisted[2].stat().st_size,
-            four_bit_persisted_bytes=persisted[4].stat().st_size,
+            float32_vector_bytes=(root / route_records["float32"].filename).stat().st_size,
+            two_bit_persisted_bytes=(root / route_records["2bit"].filename).stat().st_size,
+            four_bit_persisted_bytes=(root / route_records["4bit"].filename).stat().st_size,
             baseline_requested_provider="CPUExecutionProvider", baseline_actual_provider=_provider(embedder),
-            two_bit_requested_provider="turbovec", two_bit_actual_provider="turbovec",
-            four_bit_requested_provider="turbovec", four_bit_actual_provider="turbovec",
+            two_bit_requested_provider="CPUExecutionProvider", two_bit_actual_provider=_provider(embedder),
+            four_bit_requested_provider="CPUExecutionProvider", four_bit_actual_provider=_provider(embedder),
         )
         phase_timings["end_to_end_seconds"] = deps.perf_counter() - end_to_end_start
-        _write_evidence_atomic(output, evidence, phase_timings)
+        evidence_document = _build_evidence_document(evidence, phase_timings, approval, actual, deps, manifest, fixture_path)
+        _write_evidence_atomic(output, evidence, evidence_document)
         payload = {"schema_version": 1, "evidence": output.name, "gate_passed": evidence.gate.passed}
         return payload, evidence.gate.passed
-    finally:
-        shutil.rmtree(temp_root, ignore_errors=True)
 
 
 def _validate_approved_input(path: Path, deps: CliDependencies) -> tuple[dict[str, Any], dict[str, Any]]:
     try:
-        if _is_link_or_reparse(path):
+        if any(_is_link_or_reparse(item) for item in (path, *path.parents)):
             raise ResearchError("approved-input-invalid")
         raw = path.read_bytes()
         if len(raw) > 64 * 1024:
@@ -457,10 +488,16 @@ def _validate_approved_input(path: Path, deps: CliDependencies) -> tuple[dict[st
         raise ResearchError("approval-mismatch")
     cache = Path(value["model_cache_root"])
     try:
-        if not cache.is_dir() or any(_is_link_or_reparse(parent) for parent in (cache, *cache.parents)):
+        if not cache.is_absolute() or not cache.is_dir() or any(_is_link_or_reparse(parent) for parent in (cache, *cache.parents)):
             raise ResearchError("approval-mismatch")
     except OSError:
         raise ResearchError("approval-mismatch") from None
+    info = deps.platform_info()
+    if str(info.get("platform", "")).casefold() != "windows" or str(info.get("architecture", "")).casefold() not in {"amd64", "x86_64"}:
+        raise ResearchError("environment-mismatch")
+    for flag in ("HF_HUB_OFFLINE", "TRANSFORMERS_OFFLINE", "HF_HUB_DISABLE_TELEMETRY"):
+        if os.environ.get(flag) != "1":
+            raise ResearchError("environment-mismatch")
     actual = {
         "python_version": deps.python_version(), "packages": dict(deps.package_versions()),
         "dependency_lock_sha256": deps.dependency_lock_sha256(), "wheel_sha256": deps.wheel_sha256(),
@@ -473,15 +510,12 @@ def _validate_approved_input(path: Path, deps: CliDependencies) -> tuple[dict[st
     normalized_packages = {str(name).casefold(): str(version) for name, version in actual["packages"].items()}
     if normalized_packages != LOCKED_VERSIONS:
         raise ResearchError("dependency-mismatch")
-    for flag in ("HF_HUB_OFFLINE", "TRANSFORMERS_OFFLINE", "HF_HUB_DISABLE_TELEMETRY"):
-        if os.environ.get(flag, "1") != "1":
-            raise ResearchError("environment-mismatch")
     return value, actual
 
 
 def _identity(approval: Mapping[str, Any], actual: Mapping[str, Any], embedder: Any | None, *, dimension: int) -> IndexIdentity:
     del embedder
-    return IndexIdentity(1, "bounded-character-v1", 1, 1200, 200, approval["embedding_model"], approval["embedding_model_manifest_sha256"], approval["embedding_model_license"], dimension, "float32", "float32", "float32-npy-v1", None, None, None, None, None, actual["dependency_lock_sha256"], "CPUExecutionProvider", "CPUExecutionProvider", approval["python_version"])
+    return IndexIdentity(1, "bounded-character-v1", 1, 1200, 200, approval["embedding_model"], approval["embedding_model_manifest_sha256"], approval["embedding_model_license"], dimension, "matched-suite", "matched-suite", "matched-suite-v1", None, approval["turbovec_version"], approval["turbovec_source_commit"], approval["turbovec_wheel_sha256"], "MIT", actual["dependency_lock_sha256"], "CPUExecutionProvider", "CPUExecutionProvider", approval["python_version"])
 
 
 def _write_chunks(path: Path, chunks: Sequence[Chunk]) -> None:
@@ -526,12 +560,28 @@ def _load_chunks(path: Path, manifest: IndexManifest) -> tuple[Chunk, ...]:
 
 def _record(path: Path, count: int, dimension: int) -> ArtifactRecord:
     name = path.name
-    magic = "jsonl-v1" if name == "chunks.jsonl" else "npy-v1" if name.endswith(".npy") else "turbovec-v1" if name.endswith(".tvim") else "json-v1"
-    return ArtifactRecord(name, _sha256_file(path), path.stat().st_size, count, magic, 1, dimension)
+    if name == "vectors-float32.npy":
+        magic, route, backend, index_format, bit_width = "NPY", "float32", "float32", "float32-npy-v1", None
+    elif name.endswith(".tvim"):
+        bit_width = 2 if "-2bit" in name else 4
+        magic, route, backend, index_format = "GTVI", f"{bit_width}bit", "turbovec", "gtvi-turbovec-v1"
+    elif name == "ids.npy":
+        magic, route, backend, index_format, bit_width = "NPY", "metadata", "metadata", "npy-ids-v1", None
+    elif name == "chunks.jsonl":
+        magic, route, backend, index_format, bit_width = "JSONL", "metadata", "metadata", "canonical-jsonl-v1", None
+    else:
+        magic, route, backend, index_format, bit_width = "JSON", "metadata", "metadata", "canonical-json-v1", None
+    return ArtifactRecord(name, _sha256_file(path), path.stat().st_size, count, magic, 1, dimension, route, backend, index_format, bit_width)
 
 
 def _validate_artifact(path: Path, record: ArtifactRecord, manifest: IndexManifest, deps: CliDependencies) -> bool:
     import numpy as np
+    expected_magic = {
+        "chunks.jsonl": "JSONL", "vectors-float32.npy": "NPY", "ids.npy": "NPY",
+        "baseline-results.json": "JSON", "index-2bit.tvim": "GTVI", "index-4bit.tvim": "GTVI",
+    }.get(record.filename)
+    if expected_magic is None or record.magic != expected_magic or record.version != 1:
+        raise ResearchError("index-artifact-invalid")
     if record.filename == "chunks.jsonl":
         _load_chunks(path, manifest)
     elif record.filename == "vectors-float32.npy":
@@ -547,10 +597,11 @@ def _validate_artifact(path: Path, record: ArtifactRecord, manifest: IndexManife
         if tuple(int(x) for x in stable) != tuple(item.chunk_id for item in manifest.chunks):
             raise ResearchError("ids-count-invalid")
     elif record.filename.endswith(".tvim"):
-        index = deps.load_turbovec(path)
         expected_bits = 2 if "-2bit" in record.filename else 4
-        if index.dimension != record.dimension or index.bits != expected_bits or getattr(index, "_count", len(getattr(index, "ids", ()))) != record.count:
-            raise ResearchError("index-artifact-invalid")
+        with extract_validated_payload(path, bits=expected_bits, dimension=record.dimension, count=record.count) as raw:
+            index = deps.load_turbovec(raw)
+            if index.dimension != record.dimension or index.bits != expected_bits or getattr(index, "_count", len(getattr(index, "ids", ()))) != record.count:
+                raise ResearchError("index-artifact-invalid")
     elif record.filename == "baseline-results.json":
         value = json.loads(path.read_text(encoding="utf-8"))
         if (
@@ -566,6 +617,8 @@ def _validate_artifact(path: Path, record: ArtifactRecord, manifest: IndexManife
             or value["turbovec"].get("source_commit") != TURBOVEC_COMMIT
             or value["turbovec"].get("license") != "MIT"
             or not _HASH.fullmatch(str(value["turbovec"].get("wheel_sha256", "")))
+            or type(value.get("save_timings_seconds")) is not dict
+            or any(type(name) is not str or not isinstance(seconds, (int, float)) or isinstance(seconds, bool) or not math.isfinite(float(seconds)) or seconds < 0 for name, seconds in value.get("save_timings_seconds", {}).items())
         ):
             raise ResearchError("index-artifact-invalid")
     else:
@@ -583,26 +636,119 @@ def _verify_all_artifacts(root: Path, manifest: IndexManifest, deps: CliDependen
             if path.stat().st_size != record.size or _sha256_file(path) != record.sha256:
                 raise ResearchError("index-artifact-mismatch")
             _validate_artifact(path, record, manifest, deps)
-    except ResearchError:
+    except ResearchError as error:
+        if error.code in {
+            "vectors-shape-invalid", "vectors-dimension-invalid", "vectors-type-invalid",
+            "vectors-count-invalid", "vectors-empty", "vectors-nonfinite", "vector-dtype-invalid",
+            "ids-shape-invalid", "ids-count-invalid", "ids-empty", "ids-type-invalid", "ids-duplicate",
+            "index-load-failed", "index-search-result-invalid",
+        }:
+            raise ResearchError("index-artifact-invalid") from None
         raise
     except Exception:
         raise ResearchError("index-artifact-invalid") from None
 
 
-def _write_evidence_atomic(destination: Path, evidence: Any, phase_timings: Mapping[str, float]) -> None:
+def _build_evidence_document(evidence: Any, phase_timings: Mapping[str, float], approval: Mapping[str, Any], actual: Mapping[str, Any], deps: CliDependencies, manifest: IndexManifest, fixture_path: Path) -> Mapping[str, Any]:
+    if any(type(name) is not str or not name or not isinstance(value, (int, float)) or isinstance(value, bool) or not math.isfinite(float(value)) or value < 0 for name, value in phase_timings.items()):
+        raise ResearchError("timing-samples-invalid")
+    info = deps.platform_info()
+    peak = deps.peak_working_set()
+    if type(peak) is not int or peak <= 0:
+        raise ResearchError("environment-mismatch")
+    try:
+        if fixture_path.stat().st_size > 1024 * 1024:
+            raise ResearchError("evaluation-fixture-invalid")
+        fixture_hash = _sha256_file(fixture_path)
+    except ResearchError:
+        raise
+    except Exception:
+        raise ResearchError("evaluation-fixture-invalid") from None
+    environment = {
+        "python_version": approval["python_version"],
+        "packages": dict(sorted(actual["packages"].items())),
+        "dependency_lock_sha256": actual["dependency_lock_sha256"],
+        "turbovec_wheel_sha256": actual["wheel_sha256"],
+        "turbovec_source_commit": approval["turbovec_source_commit"],
+        "turbovec_license": "MIT",
+        "model_identity": approval["embedding_model"],
+        "model_manifest_sha256": actual["model_manifest_sha256"],
+        "model_license": approval["embedding_model_license"],
+        "requested_providers": ["CPUExecutionProvider"],
+        "actual_providers": ["CPUExecutionProvider"],
+        "os": _safe_machine_label(info.get("platform")),
+        "architecture": _safe_machine_label(info.get("architecture")),
+        "processor": _safe_machine_label(info.get("processor")),
+    }
+    document = {
+        "schema_version": 1,
+        "benchmark": evidence.to_dict(),
+        "environment": environment,
+        "index_manifest_sha256": manifest_sha256(manifest),
+        "source_hashes": [{"relative_path": item.relative_path, "sha256": item.sha256} for item in manifest.sources],
+        "evaluation_fixture_sha256": fixture_hash,
+        "phase_timings": {name: float(value) for name, value in sorted(phase_timings.items())},
+        "peak_working_set_bytes": peak,
+    }
+    _validate_evidence_document(document, evidence)
+    return document
+
+
+def _validate_evidence_document(document: Mapping[str, Any], evidence: Any) -> None:
+    if type(document) is not dict or set(document) != {"schema_version", "benchmark", "environment", "index_manifest_sha256", "source_hashes", "evaluation_fixture_sha256", "phase_timings", "peak_working_set_bytes"}:
+        raise ResearchError("benchmark-evidence-invalid")
+    if document["schema_version"] != 1 or document["benchmark"] != evidence.to_dict() or not _HASH.fullmatch(str(document["index_manifest_sha256"])) or not _HASH.fullmatch(str(document["evaluation_fixture_sha256"])):
+        raise ResearchError("benchmark-evidence-invalid")
+    if type(document["peak_working_set_bytes"]) is not int or document["peak_working_set_bytes"] <= 0:
+        raise ResearchError("benchmark-evidence-invalid")
+    environment = document["environment"]
+    if type(environment) is not dict or set(environment) != {"python_version", "packages", "dependency_lock_sha256", "turbovec_wheel_sha256", "turbovec_source_commit", "turbovec_license", "model_identity", "model_manifest_sha256", "model_license", "requested_providers", "actual_providers", "os", "architecture", "processor"}:
+        raise ResearchError("benchmark-evidence-invalid")
+    for field in ("dependency_lock_sha256", "turbovec_wheel_sha256", "model_manifest_sha256"):
+        if not _HASH.fullmatch(str(environment[field])):
+            raise ResearchError("benchmark-evidence-invalid")
+    if environment["requested_providers"] != ["CPUExecutionProvider"] or environment["actual_providers"] != ["CPUExecutionProvider"]:
+        raise ResearchError("benchmark-evidence-invalid")
+    sources = document["source_hashes"]
+    if type(sources) is not list or not sources or any(type(item) is not dict or set(item) != {"relative_path", "sha256"} or not _safe_relative(item["relative_path"]) or not _HASH.fullmatch(str(item["sha256"])) for item in sources):
+        raise ResearchError("benchmark-evidence-invalid")
+    timings = document["phase_timings"]
+    required = {"document_embedding_seconds", "query_embedding_seconds", "index_build_from_existing_seconds", "float32_index_load_seconds", "2bit_index_load_seconds", "4bit_index_load_seconds", "2bit_index_save_seconds", "4bit_index_save_seconds", "end_to_end_seconds"}
+    if type(timings) is not dict or set(timings) != required or any(not isinstance(value, (int, float)) or isinstance(value, bool) or not math.isfinite(float(value)) or value < 0 for value in timings.values()):
+        raise ResearchError("benchmark-evidence-invalid")
+    benchmark_json(document)
+
+
+def _write_evidence_atomic(destination: Path, evidence: Any, document: Mapping[str, Any]) -> None:
     parent = destination.parent
-    parent.mkdir(parents=True, exist_ok=True)
+    if not _safe_identity(destination.name):
+        raise ResearchError("index-path-invalid")
+    if not parent.is_dir() or any(_is_link_or_reparse(item) for item in (parent, *parent.parents)):
+        raise ResearchError("index-path-invalid")
     if destination.exists() or destination.is_symlink():
         raise ResearchError("evidence-destination-exists")
     staging = parent / f".{destination.name}.staging-{uuid.uuid4().hex}"
+    staging_identity = None
+    owned_files = []
+    published = False
     try:
         staging.mkdir()
-        (staging / "results.json").write_text(benchmark_json(evidence), encoding="utf-8")
-        if any(type(name) is not str or not name or not isinstance(value, (int, float)) or isinstance(value, bool) or not math.isfinite(float(value)) or value < 0 for name, value in phase_timings.items()):
-            raise ResearchError("timing-samples-invalid")
-        timing_lines = ["", "## Orchestration timings", "", "| Phase | Seconds |", "|---|---:|", *(f"| {name} | {float(value):.9g} |" for name, value in sorted(phase_timings.items()))]
-        (staging / "summary.md").write_text(render_markdown(evidence) + "\n".join(timing_lines) + "\n", encoding="utf-8")
+        staging_identity = _require_plain_directory(staging)
+        results_path = staging / "results.json"
+        with results_path.open("xb") as stream:
+            stream.write(benchmark_json(document).encode("utf-8")); stream.flush(); os.fsync(stream.fileno())
+            metadata = os.fstat(stream.fileno()); owned_files.append((results_path, (metadata.st_dev, metadata.st_ino)))
+        timing_lines = ["", "## Orchestration timings", "", "| Phase | Seconds |", "|---|---:|", *(f"| {name} | {float(value):.9g} |" for name, value in sorted(document["phase_timings"].items()))]
+        summary_path = staging / "summary.md"
+        with summary_path.open("xb") as stream:
+            stream.write((render_markdown(evidence) + "\n".join(timing_lines) + "\n").encode("utf-8")); stream.flush(); os.fsync(stream.fileno())
+            metadata = os.fstat(stream.fileno()); owned_files.append((summary_path, (metadata.st_dev, metadata.st_ino)))
+        _require_same_directory(staging, staging_identity)
+        if destination.exists() or destination.is_symlink():
+            raise ResearchError("evidence-destination-exists")
         os.rename(staging, destination)
+        _require_same_directory(destination, staging_identity)
+        published = True
     except FileExistsError:
         raise ResearchError("evidence-destination-exists") from None
     except ResearchError:
@@ -610,8 +756,20 @@ def _write_evidence_atomic(destination: Path, evidence: Any, phase_timings: Mapp
     except Exception:
         raise ResearchError("index-promotion-failed") from None
     finally:
-        if staging.exists():
-            shutil.rmtree(staging, ignore_errors=True)
+        if not published and staging_identity is not None:
+            for path, identity in owned_files:
+                _unlink_owned_file(path, identity)
+            try:
+                _require_same_directory(staging, staging_identity)
+                staging.rmdir()
+            except Exception:
+                pass
+
+
+def _safe_machine_label(value: Any) -> str:
+    text = str(value or "unknown")[:80]
+    sanitized = "".join(character if character.isalnum() or character in " ._+-" else "-" for character in text).strip()
+    return sanitized or "unknown"
 
 
 def _validate_query_text(value: Any) -> str:
@@ -634,6 +792,25 @@ def _diagnostic(code: str, relative_identity: str | None = None) -> Mapping[str,
     if relative_identity is not None and _safe_identity(relative_identity):
         value["relative_identity"] = relative_identity
     return value
+
+
+@contextlib.contextmanager
+def _suppress_dependency_output():
+    saved = []
+    try:
+        sys.stdout.flush(); sys.stderr.flush()
+        with open(os.devnull, "w", encoding="utf-8") as null:
+            for descriptor in (1, 2):
+                saved.append((descriptor, os.dup(descriptor)))
+                os.dup2(null.fileno(), descriptor)
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                yield
+    finally:
+        for descriptor, original in reversed(saved):
+            try:
+                os.dup2(original, descriptor)
+            finally:
+                os.close(original)
 
 
 def _json_bytes(value: Mapping[str, Any]) -> bytes:
@@ -737,7 +914,7 @@ def _configured_wheel_sha256() -> str:
         raise ResearchError("approval-mismatch")
     try:
         path = Path(wheel)
-        if path.suffix.casefold() != ".whl" or not path.is_file() or path.is_symlink():
+        if not path.is_absolute() or path.suffix.casefold() != ".whl" or not path.is_file() or any(_is_link_or_reparse(item) for item in (path, *path.parents)):
             raise ResearchError("approval-mismatch")
         return _sha256_file(path)
     except ResearchError:
@@ -749,6 +926,31 @@ def _configured_wheel_sha256() -> str:
 def _provider(embedder: Any) -> str:
     providers = list(getattr(embedder, "providers", ()))
     return providers[0] if providers else "unknown"
+
+
+def _validated_embedder(approval: Mapping[str, Any], deps: CliDependencies):
+    embedder = deps.make_embedder(Path(approval["model_cache_root"]))
+    if getattr(embedder, "model_identity", None) != approval["embedding_model"] or getattr(embedder, "dimension", None) != 384:
+        raise ResearchError("approval-mismatch")
+    if list(getattr(embedder, "providers", ())) != ["CPUExecutionProvider"]:
+        raise ResearchError("environment-mismatch")
+    return embedder
+
+
+def _peak_working_set_bytes() -> int:
+    if os.name == "nt":
+        try:
+            import ctypes
+            from ctypes import wintypes
+            class Counters(ctypes.Structure):
+                _fields_ = [("cb", wintypes.DWORD), ("PageFaultCount", wintypes.DWORD), ("PeakWorkingSetSize", ctypes.c_size_t), ("WorkingSetSize", ctypes.c_size_t), ("QuotaPeakPagedPoolUsage", ctypes.c_size_t), ("QuotaPagedPoolUsage", ctypes.c_size_t), ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t), ("QuotaNonPagedPoolUsage", ctypes.c_size_t), ("PagefileUsage", ctypes.c_size_t), ("PeakPagefileUsage", ctypes.c_size_t)]
+            counters = Counters(); counters.cb = ctypes.sizeof(counters)
+            if not ctypes.windll.psapi.GetProcessMemoryInfo(ctypes.windll.kernel32.GetCurrentProcess(), ctypes.byref(counters), counters.cb):
+                raise OSError
+            return int(counters.PeakWorkingSetSize)
+        except Exception:
+            raise ResearchError("environment-mismatch") from None
+    raise ResearchError("environment-mismatch")
 
 
 if __name__ == "__main__":
