@@ -6,6 +6,38 @@ namespace GraniteEdgeAI.GgufRuntime.WorkerProcess.Tests;
 public sealed class GgufRuntimePackageTests
 {
     [TestMethod]
+    public void VerificationBuildUsesReleaseOutputSeparateFromRunningDebugPreview()
+    {
+        string root = FindRepositoryRoot();
+        string script = File.ReadAllText(Path.Combine(
+            root,
+            "scripts",
+            "gguf-runtime",
+            "Invoke-GgufChatVerification.ps1"));
+
+        StringAssert.Contains(script, "-c Release");
+        Assert.IsFalse(
+            script.Contains("-c Debug", StringComparison.Ordinal),
+            "Verification must not overwrite the running Debug preview executable.");
+    }
+
+    [TestMethod]
+    public void ApplicationSelectsPublishProfileOnlyWhenItExists()
+    {
+        string root = FindRepositoryRoot();
+        XDocument project = XDocument.Load(Path.Combine(
+            root,
+            "IBM Granite with TurboQuant (Intel)",
+            "IBM Granite with TurboQuant (Intel).csproj"));
+        XElement publishProfile = project
+            .Descendants("PublishProfile")
+            .Single();
+
+        string condition = publishProfile.Attribute("Condition")?.Value ?? string.Empty;
+        StringAssert.Contains(condition, "Exists(");
+    }
+
+    [TestMethod]
     public void PackagingRequiresExplicitLocalRuntimeAndContainsNoNetworkAcquisition()
     {
         string root = FindRepositoryRoot();

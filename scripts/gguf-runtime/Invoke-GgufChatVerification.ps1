@@ -26,7 +26,7 @@ try {
     if (-not $SkipApplicationBuild) {
         $applicationProject = 'IBM Granite with TurboQuant (Intel)\IBM Granite with TurboQuant (Intel).csproj'
         & dotnet build $applicationProject `
-            -c Debug `
+            -c Release `
             -p:Platform=x64 `
             -p:RuntimeIdentifier=win-x64 `
             -p:SelfContained=true `
