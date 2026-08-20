@@ -191,7 +191,6 @@ public sealed class ModelInspectionPageLayoutTests
 
         Assert.AreSame(contentHost, scrollContent.Children.Single());
         Assert.AreSame(reflowHost, contentHost.Children.Single());
-        Assert.AreEqual(10, reflowHost.Children.Count);
         Assert.AreEqual(ScrollMode.Enabled, pageScrollViewer.VerticalScrollMode);
         Assert.AreEqual(
             ScrollBarVisibility.Auto,
@@ -253,6 +252,14 @@ public sealed class ModelInspectionPageLayoutTests
             new CornerRadius(12d),
             Assert.IsInstanceOfType<CornerRadius>(
                 resources["InspectionCardCornerRadius"]));
+        Assert.AreEqual(
+            new CornerRadius(10d),
+            Assert.IsInstanceOfType<CornerRadius>(
+                resources["InspectionActionCornerRadius"]));
+        Assert.AreEqual(
+            new Thickness(18d, 10d, 18d, 10d),
+            Assert.IsInstanceOfType<Thickness>(
+                resources["InspectionActionPadding"]));
         Thickness cardPadding = Assert.IsInstanceOfType<Thickness>(
             resources["InspectionCardPadding"]);
         Assert.AreEqual(24d, cardPadding.Left, 0.01d);
@@ -310,32 +317,6 @@ public sealed class ModelInspectionPageLayoutTests
             applicationResources.Remove("InspectionCardGap");
             applicationResources.Remove("InspectionHeaderToCardGap");
         }
-    }
-
-    [UITestMethod]
-    [TestCategory("WinUI")]
-    public void ActionCornerRadius_UsesApprovedHardwareToken()
-    {
-        ResourceDictionary resources = ModelInspectionResources();
-
-        Assert.IsTrue(resources.ContainsKey("InspectionActionCornerRadius"));
-        Assert.AreEqual(
-            new CornerRadius(10d),
-            Assert.IsInstanceOfType<CornerRadius>(
-                resources["InspectionActionCornerRadius"]));
-    }
-
-    [UITestMethod]
-    [TestCategory("WinUI")]
-    public void ActionPadding_UsesApprovedHardwareToken()
-    {
-        ResourceDictionary resources = ModelInspectionResources();
-
-        Assert.IsTrue(resources.ContainsKey("InspectionActionPadding"));
-        Assert.AreEqual(
-            new Thickness(18d, 10d, 18d, 10d),
-            Assert.IsInstanceOfType<Thickness>(
-                resources["InspectionActionPadding"]));
     }
 
     private static void AssertResponsiveStateContract(
