@@ -14,6 +14,11 @@ When Granite Edge AI opens, select **Preview Chat** in the upper-right corner.
 The preview runtime is deterministic and does not require a downloaded model.
 Its history is stored under `%LOCALAPPDATA%\GraniteEdgeAI\ChatHistory`.
 
+The message composer can select `.txt` and `.md` knowledge files. These
+selections are presentation-only: every selected file is labelled **Not
+indexed**, and its contents do not influence prompts or model context yet.
+Only the file name is shown in the chat interface.
+
 The protected command-line runtime is implemented and exercised against a
 deterministic fake CLI. Real GGUF inference still requires an authorized local
 `llama.cpp` CPU build and an inference-capable GGUF model; neither artifact is

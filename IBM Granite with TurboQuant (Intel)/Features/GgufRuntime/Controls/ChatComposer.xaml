@@ -24,6 +24,7 @@
                     <ItemsControl
                         x:Name="AttachmentItems"
                         Visibility="Collapsed"
+                        IsTabStop="False"
                         AutomationProperties.Name="Selected knowledge files">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>

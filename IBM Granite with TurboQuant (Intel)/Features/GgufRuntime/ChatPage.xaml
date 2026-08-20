@@ -53,6 +53,7 @@
                     Height="56"
                     HorizontalAlignment="Left"
                     Stretch="Uniform"
+                    AutomationProperties.AccessibilityView="Raw"
                     Source="ms-appx:///Assets/Branding/granite-edge-ai-lockup.svg" />
             </Grid>
             <Button
@@ -101,6 +102,7 @@
                 </ListView>
             </StackPanel>
             <Button
+                x:Name="SettingsButton"
                 Grid.Row="4"
                 Height="48"
                 HorizontalAlignment="Stretch"

@@ -1,6 +1,13 @@
 using GraniteEdgeAI.Features.GgufRuntime;
+using GraniteEdgeAI.Features.GgufRuntime.Attachments;
+using GraniteEdgeAI.Features.GgufRuntime.Controls;
+using GraniteEdgeAI.UnitTests.Features.ModelInspection.Visual;
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
+using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
 
 namespace GraniteEdgeAI.UnitTests.Features.GgufRuntime;
@@ -10,14 +17,131 @@ public sealed class ChatAccessibilityTests
 {
     [UITestMethod]
     [TestCategory("WinUI")]
-    public void PrimaryActionsAndTranscriptExposeAccessibleNames()
+    public async Task PageActionsExposeUniqueNamesAndAcceptKeyboardFocus()
     {
         var page = new ChatPage();
-        Button newChat = Assert.IsInstanceOfType<Button>(page.FindName("NewChatButton"));
-        ListView transcript = Assert.IsInstanceOfType<ListView>(page.FindName("TranscriptList"));
+        await using WinUiRenderHost host = await WinUiRenderHost.ShowAsync(page, 1200, 800);
+        Button[] actions =
+        [
+            FindButton(page, "NewChatButton"),
+            FindButton(page, "ImportModelButton"),
+            FindButton(page, "SettingsButton")
+        ];
 
-        Assert.AreEqual("Start a new chat", AutomationProperties.GetName(newChat));
+        CollectionAssert.AreEquivalent(
+            new[] { "Start a new chat", "Import another model", "Settings" },
+            actions.Select(AutomationProperties.GetName).ToArray());
+        AssertUniqueNonEmptyNames(actions);
+        foreach (Button action in actions)
+        {
+            Assert.IsTrue(action.IsTabStop);
+            Assert.IsTrue(action.Focus(FocusState.Keyboard));
+            Assert.AreSame(action, FocusManager.GetFocusedElement(page.XamlRoot));
+        }
+
+        ListView transcript = Assert.IsInstanceOfType<ListView>(page.FindName("TranscriptList"));
         Assert.AreEqual("Conversation messages", AutomationProperties.GetName(transcript));
         Assert.AreEqual("Polite", AutomationProperties.GetLiveSetting(transcript).ToString());
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task ComposerActionsExposeUniqueNamesAndAcceptKeyboardFocus()
+    {
+        var composer = new ChatComposer();
+        await using WinUiRenderHost host = await WinUiRenderHost.ShowAsync(composer, 700, 220);
+        Button attachment = FindButton(composer, "AttachmentButton");
+        Button send = FindButton(composer, "SendButton");
+
+        AssertUniqueNonEmptyNames([attachment, send]);
+        AssertKeyboardFocusable(composer, attachment);
+        AssertKeyboardFocusable(composer, send);
+
+        composer.IsGenerating = true;
+        Button stop = FindButton(composer, "StopButton");
+
+        CollectionAssert.AreEquivalent(
+            new[] { "Add knowledge files", "Send message", "Stop generation" },
+            new[]
+            {
+                AutomationProperties.GetName(attachment),
+                AutomationProperties.GetName(send),
+                AutomationProperties.GetName(stop)
+            });
+        AssertUniqueNonEmptyNames([attachment, send, stop]);
+        AssertKeyboardFocusable(composer, stop);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task AttachmentCollectionAndRealizedRemoveActionsAreAccessibleWithoutExtraTabStops()
+    {
+        var composer = new ChatComposer(new FixedKnowledgeFilePicker(
+            new KnowledgeFileCandidate(@"C:\Private\guide.md", 1024, true)));
+        await composer.AddKnowledgeFilesAsync();
+        await using WinUiRenderHost host = await WinUiRenderHost.ShowAsync(composer, 700, 240);
+        ItemsControl collection = Assert.IsInstanceOfType<ItemsControl>(
+            composer.FindName("AttachmentItems"));
+        Button remove = Descendants<Button>(collection).Single(button =>
+            AutomationProperties.GetName(button) == "Remove guide.md");
+
+        Assert.AreEqual("Selected knowledge files", AutomationProperties.GetName(collection));
+        Assert.IsFalse(collection.IsTabStop);
+        Assert.AreEqual("Remove guide.md", AutomationProperties.GetName(remove));
+        AssertKeyboardFocusable(composer, remove);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void BrandLockupIsDecorativeAndDoesNotDuplicateTheApplicationName()
+    {
+        var page = new ChatPage();
+        Image lockup = Assert.IsInstanceOfType<Image>(page.FindName("BrandLockup"));
+
+        Assert.AreEqual(AccessibilityView.Raw, AutomationProperties.GetAccessibilityView(lockup));
+        Assert.AreEqual(string.Empty, AutomationProperties.GetName(lockup));
+        Assert.IsFalse(lockup.IsTabStop);
+    }
+
+    private static Button FindButton(FrameworkElement root, string name) =>
+        Assert.IsInstanceOfType<Button>(root.FindName(name));
+
+    private static void AssertUniqueNonEmptyNames(IEnumerable<Button> actions)
+    {
+        string[] names = actions.Select(AutomationProperties.GetName).ToArray();
+        Assert.IsTrue(names.All(name => !string.IsNullOrWhiteSpace(name)));
+        Assert.AreEqual(names.Length, names.Distinct(StringComparer.Ordinal).Count());
+    }
+
+    private static void AssertKeyboardFocusable(FrameworkElement root, Button action)
+    {
+        Assert.IsTrue(action.IsTabStop);
+        Assert.IsTrue(action.Focus(FocusState.Keyboard));
+        Assert.AreSame(action, FocusManager.GetFocusedElement(root.XamlRoot));
+    }
+
+    private static IEnumerable<T> Descendants<T>(DependencyObject root)
+        where T : DependencyObject
+    {
+        for (int index = 0; index < VisualTreeHelper.GetChildrenCount(root); index++)
+        {
+            DependencyObject child = VisualTreeHelper.GetChild(root, index);
+            if (child is T match)
+            {
+                yield return match;
+            }
+
+            foreach (T descendant in Descendants<T>(child))
+            {
+                yield return descendant;
+            }
+        }
+    }
+
+    private sealed class FixedKnowledgeFilePicker(
+        params KnowledgeFileCandidate[] candidates) : IKnowledgeFilePicker
+    {
+        public Task<IReadOnlyList<KnowledgeFileCandidate>> PickAsync() =>
+            Task.FromResult<IReadOnlyList<KnowledgeFileCandidate>>(candidates);
     }
 }
