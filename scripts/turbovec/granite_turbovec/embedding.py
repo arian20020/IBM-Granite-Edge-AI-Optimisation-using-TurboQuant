@@ -114,6 +114,10 @@ class FastEmbedder:
                 raise ResearchError("embedding-dimension-invalid")
             if array.dtype.kind != "f":
                 raise ResearchError("embedding-type-invalid")
+            if not np.isfinite(array).all() or bool(
+                (np.abs(array) > np.finfo(np.float32).max).any()
+            ):
+                raise ResearchError("embedding-nonfinite")
             converted = np.asarray(array, dtype=np.float32)
             if not np.isfinite(converted).all():
                 raise ResearchError("embedding-nonfinite")

@@ -23,8 +23,8 @@ def validate_vectors(
         raise ResearchError("vectors-type-invalid") from None
     if array.ndim != 2:
         raise ResearchError("vectors-shape-invalid")
-    if array.dtype.kind != "f":
-        raise ResearchError("vectors-type-invalid")
+    if array.dtype != np.dtype(np.float32):
+        raise ResearchError("vector-dtype-invalid")
     if dimension is not None and (type(dimension) is not int or dimension <= 0 or array.shape[1] != dimension):
         raise ResearchError("vectors-dimension-invalid")
     if expected_count is not None and array.shape[0] != expected_count:
@@ -84,7 +84,7 @@ def _validate_queries(queries: Any, dimension: int):
             "vectors-dimension-invalid": "query-dimension-invalid",
             "vectors-empty": "query-empty",
             "vectors-nonfinite": "query-nonfinite",
-            "vectors-type-invalid": "query-type-invalid",
+            "vector-dtype-invalid": "query-type-invalid",
         }
         raise ResearchError(mapping.get(error.code, "query-invalid")) from None
 

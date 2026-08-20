@@ -99,6 +99,10 @@ class FastEmbedderTests(unittest.TestCase):
             (lambda _: iter(()), "embedding-row-count-invalid"),
             (lambda _: iter((np.ones(3), np.ones(4))), "embedding-dimension-invalid"),
             (lambda _: iter((np.array([1, np.nan, 3]),)), "embedding-nonfinite"),
+            (
+                lambda _: iter((np.array([float(np.finfo(np.float32).max) * 2, 1, 2], dtype=np.float64),)),
+                "embedding-nonfinite",
+            ),
         )
         for embed, expected in cases:
             class Broken(FakeFastEmbedModel):
@@ -115,7 +119,7 @@ class FastEmbedderTests(unittest.TestCase):
 
 class ValidationTests(unittest.TestCase):
     def test_validate_vectors_returns_defensive_contiguous_float32(self):
-        source = np.arange(12, dtype=np.float64).reshape(3, 4)[:, ::2]
+        source = np.arange(12, dtype=np.float32).reshape(3, 4)[:, ::2]
         result = validate_vectors(source, dimension=2, expected_count=3)
         source[0, 0] = 99
         self.assertEqual(np.float32, result.dtype)
@@ -124,14 +128,16 @@ class ValidationTests(unittest.TestCase):
 
     def test_validate_vectors_rejects_shapes_types_counts_empty_and_nonfinite(self):
         cases = (
-            (np.ones(3), {}, "vectors-shape-invalid"),
-            (np.ones((2, 3)), {"dimension": 2}, "vectors-dimension-invalid"),
-            (np.ones((2, 3)), {"expected_count": 1}, "vectors-count-invalid"),
-            (np.empty((0, 3)), {}, "vectors-empty"),
-            (np.array([[1, np.inf]]), {}, "vectors-nonfinite"),
-            (np.ones((1, 2), dtype=np.int64), {}, "vectors-type-invalid"),
-            (np.ones((1, 2), dtype=np.complex64), {}, "vectors-type-invalid"),
-            (np.array([[object()]], dtype=object), {}, "vectors-type-invalid"),
+            (np.ones(3, dtype=np.float32), {}, "vectors-shape-invalid"),
+            (np.ones((2, 3), dtype=np.float32), {"dimension": 2}, "vectors-dimension-invalid"),
+            (np.ones((2, 3), dtype=np.float32), {"expected_count": 1}, "vectors-count-invalid"),
+            (np.empty((0, 3), dtype=np.float32), {}, "vectors-empty"),
+            (np.array([[1, np.inf]], dtype=np.float32), {}, "vectors-nonfinite"),
+            (np.ones((1, 2), dtype=np.float64), {}, "vector-dtype-invalid"),
+            (np.array([[1.0 + 2**-30]], dtype=np.float64), {}, "vector-dtype-invalid"),
+            (np.ones((1, 2), dtype=np.int64), {}, "vector-dtype-invalid"),
+            (np.ones((1, 2), dtype=np.complex64), {}, "vector-dtype-invalid"),
+            (np.array([[object()]], dtype=object), {}, "vector-dtype-invalid"),
         )
         for value, kwargs, expected in cases:
             with self.subTest(expected=expected), self.assertRaises(ResearchError) as context:
