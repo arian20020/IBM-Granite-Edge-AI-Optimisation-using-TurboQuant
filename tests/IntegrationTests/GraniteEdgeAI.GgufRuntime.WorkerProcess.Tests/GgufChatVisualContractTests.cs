@@ -10,7 +10,9 @@ public sealed class GgufChatVisualContractTests
         "GgufChatPrimaryGradientBrush",
         "GgufChatPrimaryBrush",
         "GgufChatPrimaryHoverBrush",
+        "GgufChatPrimaryHoverBorderBrush",
         "GgufChatPrimaryPressedBrush",
+        "GgufChatPrimaryPressedBorderBrush",
         "GgufChatPrimaryForegroundBrush",
         "GgufChatPrimaryHoverForegroundBrush",
         "GgufChatPrimaryPressedForegroundBrush",
@@ -22,6 +24,12 @@ public sealed class GgufChatVisualContractTests
         "GgufChatSecondaryDisabledSurfaceBrush",
         "GgufChatSecondaryDisabledTextBrush",
         "GgufChatSecondaryDisabledBorderBrush",
+        "GgufChatSecondaryPointerOverBrush",
+        "GgufChatSecondaryPointerOverForegroundBrush",
+        "GgufChatSecondaryPointerOverBorderBrush",
+        "GgufChatSecondaryPressedBrush",
+        "GgufChatSecondaryPressedForegroundBrush",
+        "GgufChatSecondaryPressedBorderBrush",
         "GgufChatFocusBrush",
         "GgufChatHistoryHoverBrush",
         "GgufChatSurfaceBrush",
@@ -40,9 +48,49 @@ public sealed class GgufChatVisualContractTests
     private static readonly (string State, string Background, string Foreground, string Border)[] PrimaryStateResourcePairs =
     [
         ("Normal", "GgufChatPrimaryGradientBrush", "GgufChatPrimaryForegroundBrush", "GgufChatPrimaryBrush"),
-        ("PointerOver", "GgufChatPrimaryHoverBrush", "GgufChatPrimaryHoverForegroundBrush", "GgufChatPrimaryHoverBrush"),
-        ("Pressed", "GgufChatPrimaryPressedBrush", "GgufChatPrimaryPressedForegroundBrush", "GgufChatPrimaryPressedBrush"),
+        ("PointerOver", "GgufChatPrimaryHoverBrush", "GgufChatPrimaryHoverForegroundBrush", "GgufChatPrimaryHoverBorderBrush"),
+        ("Pressed", "GgufChatPrimaryPressedBrush", "GgufChatPrimaryPressedForegroundBrush", "GgufChatPrimaryPressedBorderBrush"),
         ("Disabled", "GgufChatPrimaryDisabledBrush", "GgufChatPrimaryDisabledForegroundBrush", "GgufChatPrimaryDisabledBorderBrush"),
+    ];
+
+    private static readonly (string State, string Background, string Foreground, string Border)[] SecondaryStateResourcePairs =
+    [
+        ("Normal", "GgufChatSecondarySurfaceBrush", "GgufChatTextBrush", "GgufChatPanelBorderBrush"),
+        ("PointerOver", "GgufChatSecondaryPointerOverBrush", "GgufChatSecondaryPointerOverForegroundBrush", "GgufChatSecondaryPointerOverBorderBrush"),
+        ("Pressed", "GgufChatSecondaryPressedBrush", "GgufChatSecondaryPressedForegroundBrush", "GgufChatSecondaryPressedBorderBrush"),
+        ("Disabled", "GgufChatSecondaryDisabledSurfaceBrush", "GgufChatSecondaryDisabledTextBrush", "GgufChatSecondaryDisabledBorderBrush"),
+    ];
+
+    private static readonly (string Resource, string SystemResource)[] HighContrastPrimaryAliases =
+    [
+        ("GgufChatPrimaryGradientBrush", "AccentButtonBackground"),
+        ("GgufChatPrimaryForegroundBrush", "AccentButtonForeground"),
+        ("GgufChatPrimaryBrush", "AccentButtonBorderBrush"),
+        ("GgufChatPrimaryHoverBrush", "AccentButtonBackgroundPointerOver"),
+        ("GgufChatPrimaryHoverForegroundBrush", "AccentButtonForegroundPointerOver"),
+        ("GgufChatPrimaryHoverBorderBrush", "AccentButtonBorderBrushPointerOver"),
+        ("GgufChatPrimaryPressedBrush", "AccentButtonBackgroundPressed"),
+        ("GgufChatPrimaryPressedForegroundBrush", "AccentButtonForegroundPressed"),
+        ("GgufChatPrimaryPressedBorderBrush", "AccentButtonBorderBrushPressed"),
+        ("GgufChatPrimaryDisabledBrush", "AccentButtonBackgroundDisabled"),
+        ("GgufChatPrimaryDisabledForegroundBrush", "AccentButtonForegroundDisabled"),
+        ("GgufChatPrimaryDisabledBorderBrush", "AccentButtonBorderBrushDisabled"),
+    ];
+
+    private static readonly (string Resource, string SystemResource)[] HighContrastSecondaryAliases =
+    [
+        ("GgufChatSecondarySurfaceBrush", "ButtonBackground"),
+        ("GgufChatTextBrush", "ButtonForeground"),
+        ("GgufChatPanelBorderBrush", "ButtonBorderBrush"),
+        ("GgufChatSecondaryPointerOverBrush", "ButtonBackgroundPointerOver"),
+        ("GgufChatSecondaryPointerOverForegroundBrush", "ButtonForegroundPointerOver"),
+        ("GgufChatSecondaryPointerOverBorderBrush", "ButtonBorderBrushPointerOver"),
+        ("GgufChatSecondaryPressedBrush", "ButtonBackgroundPressed"),
+        ("GgufChatSecondaryPressedForegroundBrush", "ButtonForegroundPressed"),
+        ("GgufChatSecondaryPressedBorderBrush", "ButtonBorderBrushPressed"),
+        ("GgufChatSecondaryDisabledSurfaceBrush", "ButtonBackgroundDisabled"),
+        ("GgufChatSecondaryDisabledTextBrush", "ButtonForegroundDisabled"),
+        ("GgufChatSecondaryDisabledBorderBrush", "ButtonBorderBrushDisabled"),
     ];
 
     [TestMethod]
@@ -68,8 +116,12 @@ public sealed class GgufChatVisualContractTests
                 AssertThemeResource(themeDictionary, x, resourceKey, themeKey);
             }
 
+        }
+
+        foreach (string themeKey in new[] { "Light", "Dark" })
+        {
             XElement primaryGradient = AssertThemeResource(
-                themeDictionary,
+                GetThemeDictionary(theme, presentation, x, themeKey),
                 x,
                 "GgufChatPrimaryGradientBrush",
                 themeKey);
@@ -87,6 +139,7 @@ public sealed class GgufChatVisualContractTests
 
         AssertStyleHasVisualStates(secondaryButtonStyle, presentation, x);
         AssertStyleHasVisualStates(primaryButtonStyle, presentation, x);
+        AssertButtonStylesAreDefinedOnlyAtRoot(theme, presentation, x);
     }
 
     [TestMethod]
@@ -114,17 +167,13 @@ public sealed class GgufChatVisualContractTests
             x,
             "GgufChatPrimaryForegroundBrush",
             "HighContrast");
-        StringAssert.Contains(
-            highContrastForeground.Attribute("Color")?.Value,
-            "SystemColorHighlightTextColor");
+        Assert.AreEqual("AccentButtonForeground", highContrastForeground.Attribute("ResourceKey")?.Value);
         XElement highContrastFocus = AssertThemeResource(
             highContrastDictionary,
             x,
             "GgufChatFocusBrush",
             "HighContrast");
-        StringAssert.Contains(
-            highContrastFocus.Attribute("Color")?.Value,
-            "SystemColorHighlightColor");
+        Assert.AreEqual("SystemControlFocusVisualPrimaryBrush", highContrastFocus.Attribute("ResourceKey")?.Value);
 
         XElement primaryButtonStyle = AssertRootResource(
             theme,
@@ -166,6 +215,20 @@ public sealed class GgufChatVisualContractTests
                 borderKey);
         }
 
+        XElement secondaryButtonStyle = AssertRootResource(theme, x, "GgufChatSecondaryButtonStyle");
+        foreach ((string stateName, string backgroundKey, string foregroundKey, string borderKey)
+                 in SecondaryStateResourcePairs)
+        {
+            AssertPrimaryStateUsesResources(
+                secondaryButtonStyle,
+                presentation,
+                x,
+                stateName,
+                backgroundKey,
+                foregroundKey,
+                borderKey);
+        }
+
         foreach (string themeKey in new[] { "Light", "Dark" })
         {
             XElement themeDictionary = GetThemeDictionary(theme, presentation, x, themeKey);
@@ -181,7 +244,7 @@ public sealed class GgufChatVisualContractTests
                     x,
                     foregroundKey,
                     themeKey);
-                AssertPrimaryContrast(background, foreground, themeKey, backgroundKey);
+                AssertPrimaryContrast(background, foreground, presentation, themeKey, backgroundKey);
             }
         }
 
@@ -203,21 +266,8 @@ public sealed class GgufChatVisualContractTests
         }
 
         XElement highContrast = GetThemeDictionary(theme, presentation, x, "HighContrast");
-        foreach (string styleKey in new[]
-                 {
-                     "GgufChatPrimaryButtonStyle",
-                     "GgufChatSecondaryButtonStyle",
-                 })
-        {
-            XElement highContrastStyle = AssertThemeResource(highContrast, x, styleKey, "HighContrast");
-            Assert.AreEqual("{StaticResource DefaultButtonStyle}", highContrastStyle.Attribute("BasedOn")?.Value);
-            Assert.IsFalse(
-                highContrastStyle.Descendants(presentation + "Setter")
-                    .Any(setter => setter.Attribute("Target")?.Value?.EndsWith(
-                        ".Opacity",
-                        StringComparison.Ordinal) == true),
-                "High Contrast must inherit the system disabled visuals instead of applying opacity.");
-        }
+        AssertHighContrastAliases(highContrast, x, HighContrastPrimaryAliases);
+        AssertHighContrastAliases(highContrast, x, HighContrastSecondaryAliases);
     }
 
     [TestMethod]
@@ -387,11 +437,12 @@ public sealed class GgufChatVisualContractTests
     private static void AssertPrimaryContrast(
         XElement background,
         XElement foreground,
+        XNamespace presentation,
         string themeKey,
         string backgroundKey)
     {
         IEnumerable<string?> backgroundColors = background.Name.LocalName == "LinearGradientBrush"
-            ? background.Elements().Select(stop => stop.Attribute("Color")?.Value)
+            ? GetOpaqueGradientEndpointColors(background, presentation)
             : [background.Attribute("Color")?.Value];
         string foregroundColor = foreground.Attribute("Color")?.Value
             ?? throw new AssertFailedException("Primary foreground must use a static colour.");
@@ -473,4 +524,64 @@ public sealed class GgufChatVisualContractTests
     private static double Linearize(double channel) => channel <= 0.04045
         ? channel / 12.92
         : Math.Pow((channel + 0.055) / 1.055, 2.4);
+
+    private static IEnumerable<string?> GetOpaqueGradientEndpointColors(
+        XElement gradient,
+        XNamespace presentation)
+    {
+        XElement[] stops = gradient.Elements(presentation + "GradientStop").ToArray();
+        Assert.IsTrue(stops.Length >= 2, "Primary gradients must have at least two stops.");
+        Assert.IsTrue(
+            stops.Any(stop => stop.Attribute("Offset")?.Value == "0"),
+            "Primary gradients must define a start stop at offset 0.");
+        Assert.IsTrue(
+            stops.Any(stop => stop.Attribute("Offset")?.Value == "1"),
+            "Primary gradients must define an end stop at offset 1.");
+        Assert.IsFalse(
+            stops.Any(stop => !IsOpaqueGradientStop(stop)),
+            "Primary gradient stops must be opaque.");
+        return stops.Select(stop => stop.Attribute("Color")?.Value);
+    }
+
+    private static bool IsOpaqueGradientStop(XElement stop)
+    {
+        string? color = stop.Attribute("Color")?.Value;
+        return color is not null
+            && (color.Length == 7
+                || (color.Length == 9
+                    && color.StartsWith("#FF", StringComparison.OrdinalIgnoreCase)));
+    }
+
+    private static void AssertButtonStylesAreDefinedOnlyAtRoot(
+        XDocument theme,
+        XNamespace presentation,
+        XNamespace x)
+    {
+        foreach (string styleKey in new[]
+                 {
+                     "GgufChatPrimaryButtonStyle",
+                     "GgufChatSecondaryButtonStyle",
+                 })
+        {
+            AssertRootResource(theme, x, styleKey);
+            bool isDuplicated = theme.Root!
+                .Element(presentation + "ResourceDictionary.ThemeDictionaries")!
+                .Descendants(presentation + "Style")
+                .Any(style => style.Attribute(x + "Key")?.Value == styleKey);
+            Assert.IsFalse(isDuplicated, $"'{styleKey}' must not be duplicated in a theme dictionary.");
+        }
+    }
+
+    private static void AssertHighContrastAliases(
+        XElement highContrast,
+        XNamespace x,
+        IEnumerable<(string Resource, string SystemResource)> aliases)
+    {
+        foreach ((string resourceKey, string systemResourceKey) in aliases)
+        {
+            XElement resource = AssertThemeResource(highContrast, x, resourceKey, "HighContrast");
+            Assert.AreEqual("StaticResource", resource.Name.LocalName);
+            Assert.AreEqual(systemResourceKey, resource.Attribute("ResourceKey")?.Value);
+        }
+    }
 }
