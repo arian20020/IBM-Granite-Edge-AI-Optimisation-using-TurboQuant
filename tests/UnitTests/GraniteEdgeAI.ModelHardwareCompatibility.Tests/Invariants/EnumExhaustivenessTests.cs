@@ -100,4 +100,73 @@ public sealed class EnumExhaustivenessTests
 
         Assert.AreEqual(values.Length, values.Distinct().Count());
     }
+
+    // Regression guard D: the pool router's expected outcome for every
+    // DeviceRouteId x GpuOffloadLevel pairing, pinned so a newly added enum
+    // member fails loudly instead of silently falling through a switch arm.
+    // Driven from Enum.GetValues over both enums rather than a fixed list, so
+    // a new device or offload level is swept automatically.
+    [TestMethod]
+    public void EveryDeviceAndOffloadPairing_RoutesToItsExpectedOutcome()
+    {
+        foreach (DeviceRouteId device in Enum.GetValues<DeviceRouteId>())
+        {
+            foreach (GpuOffloadLevel offload in Enum.GetValues<GpuOffloadLevel>())
+            {
+                bool resolved = GgufPoolRouter.TryResolve(
+                    device,
+                    offload,
+                    out GgufPoolRouting routing,
+                    out EstimationUnavailableReason reason);
+
+                string context = $"device={device}, offload={offload}";
+
+                // The Partial check runs before the device switch, so every
+                // device refuses with UnknownOffloadSplit under Partial offload
+                // regardless of whether that device is otherwise supported.
+                if (offload == GpuOffloadLevel.Partial)
+                {
+                    Assert.IsFalse(resolved, context);
+                    Assert.AreEqual(
+                        nameof(EstimationUnavailableReason.UnknownOffloadSplit),
+                        reason.ToString(),
+                        context);
+                    continue;
+                }
+
+                switch (device, offload)
+                {
+                    case (DeviceRouteId.Cpu, GpuOffloadLevel.None):
+                    case (DeviceRouteId.IntelIntegratedGpu, GpuOffloadLevel.None):
+                    case (DeviceRouteId.IntelDiscreteGpu, GpuOffloadLevel.None):
+                        Assert.IsTrue(resolved, context);
+                        Assert.AreEqual(ResourceTarget.SystemMemory, routing.ModelTarget, context);
+                        Assert.IsFalse(routing.RequiresHostStaging, context);
+                        break;
+
+                    case (DeviceRouteId.IntelIntegratedGpu, GpuOffloadLevel.Full):
+                        Assert.IsTrue(resolved, context);
+                        Assert.AreEqual(
+                            ResourceTarget.SharedDeviceMemory, routing.ModelTarget, context);
+                        Assert.IsFalse(routing.RequiresHostStaging, context);
+                        break;
+
+                    case (DeviceRouteId.IntelDiscreteGpu, GpuOffloadLevel.Full):
+                        Assert.IsTrue(resolved, context);
+                        Assert.AreEqual(
+                            ResourceTarget.DedicatedDeviceMemory, routing.ModelTarget, context);
+                        Assert.IsTrue(routing.RequiresHostStaging, context);
+                        break;
+
+                    default:
+                        Assert.IsFalse(resolved, context);
+                        Assert.AreEqual(
+                            nameof(EstimationUnavailableReason.UnsupportedDeviceRoute),
+                            reason.ToString(),
+                            context);
+                        break;
+                }
+            }
+        }
+    }
 }

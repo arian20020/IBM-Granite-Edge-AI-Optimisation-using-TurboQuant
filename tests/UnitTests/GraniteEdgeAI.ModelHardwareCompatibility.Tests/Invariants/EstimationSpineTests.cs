@@ -107,4 +107,44 @@ public sealed class EstimationSpineTests
             assessment.RequiredBytes > profile.SystemMemoryPressure,
             "The safety margin must be inside the required figure.");
     }
+
+    // Regression guard E: only three of the five refusal reasons in
+    // GgufResourceEstimator.Estimate were exercised end-to-end before this test.
+    // A converted weight target with no file type on the facts must surface
+    // UnknownSourceQuantisation through the whole spine, not just from the
+    // weight estimator in isolation.
+    [TestMethod]
+    public void AConvertedTargetWithNoFileType_SurfacesUnknownSourceQuantisationThroughTheSpine()
+    {
+        InspectedModelFacts facts = InspectedModelFacts.Create(
+            ByteCount.FromBytes(4 * Gibibyte),
+            layerCount: 32,
+            embeddingSize: 4096,
+            attentionHeadCount: 32,
+            keyValueHeadCount: 8,
+            declaredContextLimit: 32768,
+            fileType: null,
+            quantisationVersion: 2);
+
+        CompatibilityCandidate candidate = CompatibilityCandidate.Create(
+            GgufRouteConfiguration.Create(
+                GgufWeightFormat.Q4KM,
+                GgufKvCacheFormat.F16,
+                CompatibilityBackend.Cpu,
+                DeviceRouteId.Cpu,
+                GpuOffloadLevel.None),
+            ContextTokenCount.FromTokens(4096),
+            CandidatePreparation.WeightConversionRequired,
+            supportEntryId: "entry-1",
+            isExperimental: false,
+            isBaseline: false);
+
+        ResourceEstimate estimate = GgufResourceEstimator.Estimate(
+            facts, candidate, EstimatorPolicy.ProvisionalV1());
+
+        Assert.AreEqual(nameof(EstimationStatus.NotEstablished), estimate.Status.ToString());
+        Assert.AreEqual(
+            nameof(EstimationUnavailableReason.UnknownSourceQuantisation),
+            estimate.Reason.ToString());
+    }
 }
