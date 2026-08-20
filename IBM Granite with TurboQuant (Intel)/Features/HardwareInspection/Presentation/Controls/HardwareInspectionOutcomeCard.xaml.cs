@@ -42,12 +42,20 @@ public sealed partial class HardwareInspectionOutcomeCard : UserControl
             : Visibility.Collapsed;
         AccessibleAnnouncement = state.Announcement;
         AutomationProperties.SetName(OutcomeBorder, state.Announcement);
-        GlyphTextBlock.Text = CurrentTone switch
+        bool isStopping = state.Kind == HardwareInspectionPresentationKind.Stopping;
+        OutcomeProgressRing.IsActive = isStopping;
+        OutcomeProgressRing.Visibility = isStopping ? Visibility.Visible : Visibility.Collapsed;
+        GlyphFontIcon.Visibility = isStopping ? Visibility.Collapsed : Visibility.Visible;
+        GlyphFontIcon.Glyph = state.Kind switch
         {
-            HardwareInspectionOutcomeTone.Success => "✓",
-            HardwareInspectionOutcomeTone.Warning => "!",
-            HardwareInspectionOutcomeTone.Error => "×",
-            HardwareInspectionOutcomeTone.Neutral => "•",
+            HardwareInspectionPresentationKind.Completed => "\uE73E",
+            HardwareInspectionPresentationKind.CompletedWithWarnings => "\uE7BA",
+            HardwareInspectionPresentationKind.FailedCriticalEvidence
+                or HardwareInspectionPresentationKind.FailedTransientOperation
+                or HardwareInspectionPresentationKind.FailedApplicationRepairRequired
+                or HardwareInspectionPresentationKind.InvalidHandoff => "\uE711",
+            HardwareInspectionPresentationKind.Cancelled => "\uE738",
+            HardwareInspectionPresentationKind.Stopping => string.Empty,
             _ => throw new ArgumentOutOfRangeException(),
         };
         VisualStateManager.GoToState(this, CurrentTone.ToString(), false);

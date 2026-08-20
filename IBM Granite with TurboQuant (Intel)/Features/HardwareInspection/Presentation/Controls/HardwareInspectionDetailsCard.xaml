@@ -18,22 +18,54 @@
         CornerRadius="{ThemeResource HardwareInspectionCardCornerRadius}">
       <Expander
           x:Name="DetailsExpander"
-          HorizontalAlignment="Stretch">
+          HorizontalAlignment="Stretch"
+          HorizontalContentAlignment="Stretch">
         <Expander.Header>
-            <StackPanel Spacing="2">
+            <Grid MinHeight="52" ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="28" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Border
+                    Width="28"
+                    Height="28"
+                    VerticalAlignment="Center"
+                    Background="{ThemeResource HardwareInspectionAccentSurfaceBrush}"
+                    CornerRadius="14">
+                    <FontIcon
+                        x:Name="DetailsInformationGlyph"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        FontFamily="Segoe Fluent Icons"
+                        FontSize="13"
+                        Foreground="{ThemeResource HardwareInspectionAccentBrush}"
+                        Glyph="&#xE946;" />
+                </Border>
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                    <TextBlock
+                        x:Name="DetailsTitleTextBlock"
+                        FontFamily="{ThemeResource HardwareInspectionFontFamilyBold}"
+                        FontSize="{ThemeResource HardwareInspectionBodyFontSize}"
+                        FontWeight="{ThemeResource HardwareInspectionFontWeightBold}"
+                        Foreground="{ThemeResource HardwareInspectionTextPrimaryBrush}"
+                        Text="Inspection details" />
+                    <TextBlock
+                        x:Name="DetailsHelperTextBlock"
+                        FontSize="{ThemeResource HardwareInspectionHelperFontSize}"
+                        Foreground="{ThemeResource HardwareInspectionTextSecondaryBrush}"
+                        TextWrapping="WrapWholeWords" />
+                </StackPanel>
                 <TextBlock
-                    x:Name="DetailsTitleTextBlock"
-                    FontFamily="{ThemeResource HardwareInspectionFontFamilyBold}"
-                    FontSize="{ThemeResource HardwareInspectionSectionTitleFontSize}"
-                    FontWeight="{ThemeResource HardwareInspectionFontWeightBold}"
-                    Foreground="{ThemeResource HardwareInspectionTextPrimaryBrush}"
-                    Text="Inspection details" />
-                <TextBlock
-                    x:Name="DetailsHelperTextBlock"
+                    x:Name="DetailsActionTextBlock"
+                    Grid.Column="2"
+                    Margin="12,0,4,0"
+                    VerticalAlignment="Center"
                     FontSize="{ThemeResource HardwareInspectionHelperFontSize}"
-                    Foreground="{ThemeResource HardwareInspectionTextSecondaryBrush}"
-                    TextWrapping="WrapWholeWords" />
-            </StackPanel>
+                    FontWeight="Bold"
+                    Foreground="{ThemeResource HardwareInspectionAccentBrush}"
+                    Text="Show details" />
+            </Grid>
         </Expander.Header>
         <StackPanel Padding="0,12,0,0" Spacing="16">
             <TextBlock
@@ -58,7 +90,9 @@
                 BorderBrush="{ThemeResource HardwareInspectionBorderBrush}"
                 BorderThickness="1"
                 CornerRadius="8">
-                <ItemsControl ItemsSource="{x:Bind DetailRows, Mode=OneWay}">
+                <ItemsControl
+                    x:Name="DetailRowsItemsControl"
+                    ItemsSource="{x:Bind DetailRows, Mode=OneWay}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <Border
@@ -80,13 +114,14 @@
                                         VerticalAlignment="Top"
                                         Background="{ThemeResource HardwareInspectionSuccessSurfaceBrush}"
                                         CornerRadius="10">
-                                        <TextBlock
+                                        <FontIcon
+                                            x:Name="StageStatusFontIcon"
                                             HorizontalAlignment="Center"
                                             VerticalAlignment="Center"
-                                            FontSize="10"
-                                            FontWeight="Bold"
+                                            FontFamily="Segoe Fluent Icons"
+                                            FontSize="11"
                                             Foreground="{ThemeResource HardwareInspectionSuccessTextBrush}"
-                                            Text="{Binding Glyph}" />
+                                            Glyph="{Binding Glyph}" />
                                     </Border>
                                     <StackPanel Grid.Column="1" Spacing="2">
                                         <TextBlock
@@ -113,21 +148,38 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
             </Border>
-            <Expander x:Name="TechnicalExpander">
+            <Expander
+                x:Name="TechnicalExpander"
+                HorizontalContentAlignment="Stretch">
                 <Expander.Header>
-                    <StackPanel Spacing="2">
+                    <Grid MinHeight="44" ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel VerticalAlignment="Center" Spacing="2">
+                            <TextBlock
+                                x:Name="TechnicalTitleTextBlock"
+                                FontFamily="{ThemeResource HardwareInspectionFontFamilyBold}"
+                                FontSize="{ThemeResource HardwareInspectionBodyFontSize}"
+                                FontWeight="{ThemeResource HardwareInspectionFontWeightBold}"
+                                Text="Technical information for IT" />
+                            <TextBlock
+                                FontSize="{ThemeResource HardwareInspectionHelperFontSize}"
+                                Foreground="{ThemeResource HardwareInspectionTextSecondaryBrush}"
+                                Text="Sources, versions, timestamps, and safe support codes"
+                                TextWrapping="WrapWholeWords" />
+                        </StackPanel>
                         <TextBlock
-                            x:Name="TechnicalTitleTextBlock"
-                            FontFamily="{ThemeResource HardwareInspectionFontFamilyBold}"
-                            FontSize="{ThemeResource HardwareInspectionBodyFontSize}"
-                            FontWeight="{ThemeResource HardwareInspectionFontWeightBold}"
-                            Text="Technical information for IT" />
-                        <TextBlock
+                            x:Name="TechnicalActionTextBlock"
+                            Grid.Column="1"
+                            Margin="12,0,4,0"
+                            VerticalAlignment="Center"
                             FontSize="{ThemeResource HardwareInspectionHelperFontSize}"
-                            Foreground="{ThemeResource HardwareInspectionTextSecondaryBrush}"
-                            Text="Sources, versions, timestamps, and safe support codes"
-                            TextWrapping="WrapWholeWords" />
-                    </StackPanel>
+                            FontWeight="Bold"
+                            Foreground="{ThemeResource HardwareInspectionAccentBrush}"
+                            Text="Show IT details" />
+                    </Grid>
                 </Expander.Header>
                 <ItemsControl ItemsSource="{x:Bind TechnicalGroups, Mode=OneWay}">
                     <ItemsControl.ItemTemplate>

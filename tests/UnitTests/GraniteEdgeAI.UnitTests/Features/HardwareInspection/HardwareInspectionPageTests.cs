@@ -84,6 +84,8 @@ public sealed class HardwareInspectionPageTests
             (TextBlock)outcome.FindName("ReviewCountLabelTextBlock");
         Assert.AreEqual(HorizontalAlignment.Center, reviewCountLabel.HorizontalAlignment);
         Assert.AreEqual(TextAlignment.Center, reviewCountLabel.TextAlignment);
+        Assert.AreEqual("\uE7BA", ((FontIcon)page.FindName("WarningReviewGlyph")).Glyph);
+        Assert.AreEqual("\uE73E", ((FontIcon)page.FindName("ResolvedReviewGlyph")).Glyph);
     }
 
     [UITestMethod]
@@ -147,16 +149,13 @@ public sealed class HardwareInspectionPageTests
         ItemsControl recoveryItems =
             (ItemsControl)recovery.FindName("RecoveryItemsControl");
         Assert.AreEqual(2, recovery.Items.Count);
-        Border recoveryStepSurface =
-            (Border)recoveryItems.ItemTemplate.LoadContent();
-        Assert.AreEqual(new Thickness(16, 14, 16, 14), recoveryStepSurface.Padding);
-        Assert.AreEqual(new CornerRadius(10), recoveryStepSurface.CornerRadius);
-        Assert.IsNotNull(recoveryStepSurface.Background);
-        Assert.IsNotNull(recoveryStepSurface.BorderBrush);
+        Grid recoveryGuidanceRow =
+            (Grid)recoveryItems.ItemTemplate.LoadContent();
+        Assert.AreEqual(new Thickness(0, 6, 0, 6), recoveryGuidanceRow.Padding);
         Border recoveryStepMarker =
-            (Border)recoveryStepSurface.FindName("RecoveryStepMarker");
-        Assert.AreEqual(32d, recoveryStepMarker.Width);
-        Assert.AreEqual(32d, recoveryStepMarker.Height);
+            (Border)recoveryGuidanceRow.FindName("RecoveryStepMarker");
+        Assert.AreEqual(24d, recoveryStepMarker.Width);
+        Assert.AreEqual(24d, recoveryStepMarker.Height);
         Assert.AreEqual(Visibility.Visible, Element(page, "LocalProcessingPanel").Visibility);
         Assert.AreEqual(
             "This hardware inspection ran locally and did not upload hardware information.",

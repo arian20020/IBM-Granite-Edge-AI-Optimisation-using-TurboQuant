@@ -140,11 +140,13 @@
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
-                                <TextBlock
+                                <FontIcon
+                                    x:Name="WarningReviewGlyph"
                                     VerticalAlignment="Center"
-                                    FontSize="18"
+                                    FontFamily="Segoe Fluent Icons"
+                                    FontSize="15"
                                     Foreground="{ThemeResource HardwareInspectionWarningTextBrush}"
-                                    Text="!" />
+                                    Glyph="&#xE7BA;" />
                                 <StackPanel Grid.Column="1" Spacing="2">
                                     <TextBlock
                                         FontWeight="SemiBold"
@@ -160,11 +162,14 @@
                                     VerticalAlignment="Center"
                                     Foreground="{ThemeResource HardwareInspectionWarningTextBrush}"
                                     Text="Could not check" />
-                                <TextBlock
+                                <FontIcon
+                                    x:Name="ResolvedReviewGlyph"
                                     Grid.Row="1"
                                     VerticalAlignment="Center"
+                                    FontFamily="Segoe Fluent Icons"
+                                    FontSize="14"
                                     Foreground="{ThemeResource HardwareInspectionSuccessTextBrush}"
-                                    Text="✓" />
+                                    Glyph="&#xE73E;" />
                                 <StackPanel Grid.Row="1" Grid.Column="1" Spacing="2">
                                     <TextBlock
                                         FontWeight="SemiBold"

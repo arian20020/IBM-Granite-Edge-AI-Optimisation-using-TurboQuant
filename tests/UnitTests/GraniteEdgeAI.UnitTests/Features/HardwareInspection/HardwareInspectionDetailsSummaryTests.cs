@@ -71,6 +71,12 @@ public sealed class HardwareInspectionDetailsSummaryTests
         Assert.AreEqual("Report created", ((TextBlock)card.FindName("ReportBadgeTextBlock")).Text);
         Assert.IsNotNull(card.FindName("DetailsSurfaceBorder"));
         Assert.IsNotNull(card.FindName("StageRowsBorder"));
+        Assert.IsInstanceOfType<FontIcon>(card.FindName("DetailsInformationGlyph"));
+        Assert.AreEqual("Show details", ((TextBlock)card.FindName("DetailsActionTextBlock")).Text);
+        Assert.AreEqual("Show IT details", ((TextBlock)card.FindName("TechnicalActionTextBlock")).Text);
+        ItemsControl rows = (ItemsControl)card.FindName("DetailRowsItemsControl");
+        Border rowSurface = (Border)rows.ItemTemplate.LoadContent();
+        Assert.IsInstanceOfType<FontIcon>(rowSurface.FindName("StageStatusFontIcon"));
         Assert.AreEqual(0, Descendants<ScrollViewer>(card).Count());
     }
 
@@ -83,6 +89,8 @@ public sealed class HardwareInspectionDetailsSummaryTests
         card.Apply(state, preserveDisclosureState: false);
         ((Expander)card.FindName("DetailsExpander")).IsExpanded = true;
         ((Expander)card.FindName("TechnicalExpander")).IsExpanded = true;
+        Assert.AreEqual("Hide details", ((TextBlock)card.FindName("DetailsActionTextBlock")).Text);
+        Assert.AreEqual("Hide IT details", ((TextBlock)card.FindName("TechnicalActionTextBlock")).Text);
 
         card.Apply(state, preserveDisclosureState: true);
         Assert.IsTrue(((Expander)card.FindName("DetailsExpander")).IsExpanded);

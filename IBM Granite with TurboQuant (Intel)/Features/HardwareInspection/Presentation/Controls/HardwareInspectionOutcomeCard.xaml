@@ -22,7 +22,7 @@
                         <Setter Target="OutcomeBorder.Background" Value="{ThemeResource HardwareInspectionSurfaceSubtleBrush}" />
                         <Setter Target="OutcomeBorder.BorderBrush" Value="{ThemeResource HardwareInspectionBorderStrongBrush}" />
                         <Setter Target="GlyphBorder.Background" Value="{ThemeResource HardwareInspectionAccentSurfaceBrush}" />
-                        <Setter Target="GlyphTextBlock.Foreground" Value="{ThemeResource HardwareInspectionAccentBrush}" />
+                        <Setter Target="GlyphFontIcon.Foreground" Value="{ThemeResource HardwareInspectionAccentBrush}" />
                         <Setter Target="KickerTextBlock.Foreground" Value="{ThemeResource HardwareInspectionAccentBrush}" />
                     </VisualState.Setters>
                 </VisualState>
@@ -31,7 +31,7 @@
                         <Setter Target="OutcomeBorder.Background" Value="{ThemeResource HardwareInspectionSuccessSurfaceBrush}" />
                         <Setter Target="OutcomeBorder.BorderBrush" Value="{ThemeResource HardwareInspectionSuccessBorderBrush}" />
                         <Setter Target="GlyphBorder.Background" Value="{ThemeResource HardwareInspectionSurfaceBrush}" />
-                        <Setter Target="GlyphTextBlock.Foreground" Value="{ThemeResource HardwareInspectionSuccessTextBrush}" />
+                        <Setter Target="GlyphFontIcon.Foreground" Value="{ThemeResource HardwareInspectionSuccessTextBrush}" />
                         <Setter Target="KickerTextBlock.Foreground" Value="{ThemeResource HardwareInspectionSuccessTextBrush}" />
                     </VisualState.Setters>
                 </VisualState>
@@ -40,7 +40,7 @@
                         <Setter Target="OutcomeBorder.Background" Value="{ThemeResource HardwareInspectionWarningSurfaceBrush}" />
                         <Setter Target="OutcomeBorder.BorderBrush" Value="{ThemeResource HardwareInspectionWarningBorderBrush}" />
                         <Setter Target="GlyphBorder.Background" Value="{ThemeResource HardwareInspectionSurfaceBrush}" />
-                        <Setter Target="GlyphTextBlock.Foreground" Value="{ThemeResource HardwareInspectionWarningTextBrush}" />
+                        <Setter Target="GlyphFontIcon.Foreground" Value="{ThemeResource HardwareInspectionWarningTextBrush}" />
                         <Setter Target="KickerTextBlock.Foreground" Value="{ThemeResource HardwareInspectionWarningTextBrush}" />
                     </VisualState.Setters>
                 </VisualState>
@@ -49,7 +49,7 @@
                         <Setter Target="OutcomeBorder.Background" Value="{ThemeResource HardwareInspectionErrorSurfaceBrush}" />
                         <Setter Target="OutcomeBorder.BorderBrush" Value="{ThemeResource HardwareInspectionErrorBorderBrush}" />
                         <Setter Target="GlyphBorder.Background" Value="{ThemeResource HardwareInspectionSurfaceBrush}" />
-                        <Setter Target="GlyphTextBlock.Foreground" Value="{ThemeResource HardwareInspectionErrorTextBrush}" />
+                        <Setter Target="GlyphFontIcon.Foreground" Value="{ThemeResource HardwareInspectionErrorTextBrush}" />
                         <Setter Target="KickerTextBlock.Foreground" Value="{ThemeResource HardwareInspectionErrorTextBrush}" />
                     </VisualState.Setters>
                 </VisualState>
@@ -74,13 +74,23 @@
                     Width="44"
                     Height="44"
                     CornerRadius="22">
-                    <TextBlock
-                        x:Name="GlyphTextBlock"
-                        HorizontalAlignment="Center"
-                        VerticalAlignment="Center"
-                        FontFamily="{ThemeResource HardwareInspectionFontFamilyBold}"
-                        FontSize="20"
-                        FontWeight="{ThemeResource HardwareInspectionFontWeightBold}" />
+                    <Grid>
+                        <FontIcon
+                            x:Name="GlyphFontIcon"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            FontFamily="Segoe Fluent Icons"
+                            FontSize="17" />
+                        <ProgressRing
+                            x:Name="OutcomeProgressRing"
+                            Width="22"
+                            Height="22"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Foreground="{ThemeResource HardwareInspectionAccentBrush}"
+                            IsActive="False"
+                            Visibility="Collapsed" />
+                    </Grid>
                 </Border>
                 <StackPanel Grid.Column="1" Spacing="6">
                     <TextBlock

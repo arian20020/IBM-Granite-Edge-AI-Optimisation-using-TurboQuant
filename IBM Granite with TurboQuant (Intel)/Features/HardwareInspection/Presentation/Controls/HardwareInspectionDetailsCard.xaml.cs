@@ -11,6 +11,13 @@ public sealed partial class HardwareInspectionDetailsCard : UserControl
     public HardwareInspectionDetailsCard()
     {
         InitializeComponent();
+        DetailsExpander.RegisterPropertyChangedCallback(
+            Expander.IsExpandedProperty,
+            (_, _) => UpdateDisclosureLabels());
+        TechnicalExpander.RegisterPropertyChangedCallback(
+            Expander.IsExpandedProperty,
+            (_, _) => UpdateDisclosureLabels());
+        UpdateDisclosureLabels();
     }
 
     internal ObservableCollection<HardwareInspectionDetailRowViewData> DetailRows { get; } = [];
@@ -39,6 +46,17 @@ public sealed partial class HardwareInspectionDetailsCard : UserControl
 
         DetailsExpander.IsExpanded = outerExpanded;
         TechnicalExpander.IsExpanded = technicalExpanded;
+        UpdateDisclosureLabels();
+    }
+
+    private void UpdateDisclosureLabels()
+    {
+        DetailsActionTextBlock.Text = DetailsExpander.IsExpanded
+            ? "Hide details"
+            : "Show details";
+        TechnicalActionTextBlock.Text = TechnicalExpander.IsExpanded
+            ? "Hide IT details"
+            : "Show IT details";
     }
 }
 
@@ -52,11 +70,11 @@ internal sealed class HardwareInspectionDetailRowViewData
         AccessibleName = row.AccessibleName;
         Glyph = row.Status switch
         {
-            "Completed" or "Report created" => "✓",
-            "Completed with note" or "Could not check" => "!",
-            "Could not confirm" or "Stopped here" => "×",
-            "Cancelled here" or "Not started" or "Not used in report" => "–",
-            _ => "•",
+            "Completed" or "Report created" => "\uE73E",
+            "Completed with note" or "Could not check" => "\uE7BA",
+            "Could not confirm" or "Stopped here" => "\uE711",
+            "Cancelled here" or "Not started" or "Not used in report" => "\uE738",
+            _ => "\uE946",
         };
     }
 

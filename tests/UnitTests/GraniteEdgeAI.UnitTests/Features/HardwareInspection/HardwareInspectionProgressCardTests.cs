@@ -35,6 +35,12 @@ public sealed class HardwareInspectionProgressCardTests
         Assert.AreEqual(0, card.Rows.Count(row => row.CompletedVisibility == Visibility.Visible));
         Assert.AreEqual(6, card.Rows.Count(row => row.WaitingVisibility == Visibility.Visible));
         Assert.AreEqual("Active", card.Rows[0].Status);
+        ItemsControl rows = (ItemsControl)card.FindName("ProgressRowsItemsControl");
+        Border rowSurface = (Border)rows.ItemTemplate.LoadContent();
+        FontIcon completedGlyph = (FontIcon)rowSurface.FindName("CompletedGlyphIcon");
+        Assert.AreEqual("\uE73E", completedGlyph.Glyph);
+        Assert.AreEqual(HorizontalAlignment.Center, completedGlyph.HorizontalAlignment);
+        Assert.AreEqual(VerticalAlignment.Center, completedGlyph.VerticalAlignment);
     }
 
     [UITestMethod]

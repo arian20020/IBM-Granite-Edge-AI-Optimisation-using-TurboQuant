@@ -75,7 +75,9 @@
                     Text="checks complete" />
             </Grid>
 
-            <ItemsControl ItemsSource="{x:Bind Rows, Mode=OneWay}">
+            <ItemsControl
+                x:Name="ProgressRowsItemsControl"
+                ItemsSource="{x:Bind Rows, Mode=OneWay}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
                         <StackPanel Spacing="{ThemeResource HardwareInspectionFactTileGap}" />
@@ -102,13 +104,14 @@
                                     Background="{ThemeResource HardwareInspectionSuccessSurfaceBrush}"
                                     CornerRadius="22"
                                     Visibility="{Binding CompletedVisibility}">
-                                    <TextBlock
+                                    <FontIcon
+                                        x:Name="CompletedGlyphIcon"
                                         HorizontalAlignment="Center"
                                         VerticalAlignment="Center"
-                                        FontFamily="{ThemeResource HardwareInspectionFontFamilyBold}"
-                                        FontSize="16"
+                                        FontFamily="Segoe Fluent Icons"
+                                        FontSize="14"
                                         Foreground="{ThemeResource HardwareInspectionSuccessTextBrush}"
-                                        Text="✓" />
+                                        Glyph="&#xE73E;" />
                                 </Border>
                                 <ProgressRing
                                     Width="26"

@@ -26,11 +26,16 @@ public sealed class HardwareInspectionTerminalCardTests
         Assert.AreEqual(success.Title, Text(card, "TitleTextBlock").Text);
         Assert.AreEqual(success.Body, Text(card, "BodyTextBlock").Text);
         Assert.AreEqual(HardwareInspectionOutcomeTone.Success, card.CurrentTone);
+        FontIcon glyph = (FontIcon)card.FindName("GlyphFontIcon");
+        Assert.AreEqual("\uE73E", glyph.Glyph);
+        Assert.AreEqual(HorizontalAlignment.Center, glyph.HorizontalAlignment);
+        Assert.AreEqual(VerticalAlignment.Center, glyph.VerticalAlignment);
 
         HardwareInspectionPresentationState warning = _factory.CreateTerminal(HardwareInspectionOutcome.CompletedWithWarnings);
         card.Apply(warning);
         Assert.AreEqual(warning.Body, Text(card, "BodyTextBlock").Text);
         Assert.AreEqual(HardwareInspectionOutcomeTone.Warning, card.CurrentTone);
+        Assert.AreEqual("\uE7BA", glyph.Glyph);
 
         HardwareInspectionPresentationState failed = _factory.CreateTerminal(
             HardwareInspectionOutcome.Failed,
@@ -38,6 +43,7 @@ public sealed class HardwareInspectionTerminalCardTests
         card.Apply(failed);
         Assert.AreEqual(failed.Title, Text(card, "TitleTextBlock").Text);
         Assert.AreEqual(HardwareInspectionOutcomeTone.Error, card.CurrentTone);
+        Assert.AreEqual("\uE711", glyph.Glyph);
     }
 
     [UITestMethod]
@@ -56,6 +62,26 @@ public sealed class HardwareInspectionTerminalCardTests
             Assert.AreEqual(HardwareInspectionOutcomeTone.Neutral, card.CurrentTone);
             Assert.AreEqual(state.Announcement, card.AccessibleAnnouncement);
         }
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void OutcomeCard_StoppingUsesOrbitAndCancelledUsesMinusGlyph()
+    {
+        HardwareInspectionOutcomeCard card = new();
+        card.Apply(_factory.CreateStopping());
+
+        ProgressRing orbit = (ProgressRing)card.FindName("OutcomeProgressRing");
+        FontIcon glyph = (FontIcon)card.FindName("GlyphFontIcon");
+        Assert.AreEqual(Visibility.Visible, orbit.Visibility);
+        Assert.IsTrue(orbit.IsActive);
+        Assert.AreEqual(Visibility.Collapsed, glyph.Visibility);
+
+        card.Apply(_factory.CreateTerminal(HardwareInspectionOutcome.Cancelled));
+        Assert.AreEqual(Visibility.Collapsed, orbit.Visibility);
+        Assert.IsFalse(orbit.IsActive);
+        Assert.AreEqual(Visibility.Visible, glyph.Visibility);
+        Assert.AreEqual("\uE738", glyph.Glyph);
     }
 
     [UITestMethod]
