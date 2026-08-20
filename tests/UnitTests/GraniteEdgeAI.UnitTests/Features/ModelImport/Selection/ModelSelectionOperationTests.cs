@@ -78,4 +78,22 @@ public sealed class ModelSelectionOperationTests
 
         Assert.IsTrue(token.IsCancellationRequested);
     }
+
+    [TestMethod]
+    public void Dispose_DefersCancellationSourceReleaseUntilCompletion()
+    {
+        var operation = new ModelSelectionOperation();
+        CancellationToken token = operation.Token;
+
+        operation.Retire();
+        operation.Dispose();
+
+        Assert.IsTrue(token.IsCancellationRequested);
+        CancellationTokenRegistration registration = token.Register(static () => { });
+        registration.Dispose();
+
+        operation.Complete();
+
+        Assert.ThrowsExactly<ObjectDisposedException>(() => _ = operation.Token);
+    }
 }
