@@ -33,6 +33,17 @@
                 StrokeDashCap="Round"
                 StrokeThickness="1.5" />
 
+            <!-- Neutral 6%-opacity overlay: visible only while a native-valid file drag is over the card. -->
+            <Rectangle
+                x:Name="ValidDragHoverOverlay"
+                HorizontalAlignment="Stretch"
+                VerticalAlignment="Stretch"
+                Fill="#10000000"
+                IsHitTestVisible="False"
+                RadiusX="20"
+                RadiusY="20"
+                Visibility="Collapsed" />
+
             <StackPanel
                 Margin="22,20,22,20"
                 HorizontalAlignment="Center"

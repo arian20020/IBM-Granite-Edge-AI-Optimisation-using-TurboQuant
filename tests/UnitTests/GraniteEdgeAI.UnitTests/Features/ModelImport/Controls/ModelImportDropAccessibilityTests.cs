@@ -39,7 +39,7 @@ public sealed class ModelImportDropAccessibilityTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
-    public void ValidDrag_PreservesBaselineDropCardPresentation()
+    public void ValidDrag_SubtlyDarkensDropCardSurface()
     {
         var card = new ImportModelCard();
 
@@ -47,7 +47,10 @@ public sealed class ModelImportDropAccessibilityTests
 
         Assert.AreEqual(ImportModelCardState.DragOverValid, card.CurrentState);
         Assert.AreEqual(1.5d, GetRectangle(card, "AwaitingSelectionBorder").StrokeThickness);
-        Assert.IsNull(card.FindName("DropCardValidTint"));
+        var hoverOverlay = GetRectangle(card, "ValidDragHoverOverlay");
+        Assert.AreEqual(Visibility.Visible, hoverOverlay.Visibility);
+        Assert.AreEqual("#000000", BrushColor(hoverOverlay.Fill));
+        Assert.AreEqual(0x10, BrushOpacity(hoverOverlay.Fill));
         Assert.IsNull(card.FindName("DropValidationStatusTextBlock"));
     }
 
@@ -61,7 +64,9 @@ public sealed class ModelImportDropAccessibilityTests
 
         Assert.AreEqual(ImportModelCardState.DragOverInvalid, card.CurrentState);
         Assert.AreEqual(1.5d, GetRectangle(card, "AwaitingSelectionBorder").StrokeThickness);
-        Assert.IsNull(card.FindName("DropCardInvalidTint"));
+        Assert.AreEqual(
+            Visibility.Collapsed,
+            GetRectangle(card, "ValidDragHoverOverlay").Visibility);
         Assert.IsNull(card.FindName("DropValidationStatusTextBlock"));
     }
 
@@ -77,8 +82,26 @@ public sealed class ModelImportDropAccessibilityTests
         Assert.AreEqual(ImportModelCardState.AwaitingSelection, card.CurrentState);
         Assert.AreEqual(1.5d, GetRectangle(card, "AwaitingSelectionBorder").StrokeThickness);
         Assert.AreEqual(
+            Visibility.Collapsed,
+            GetRectangle(card, "ValidDragHoverOverlay").Visibility);
+        Assert.AreEqual(
             Visibility.Visible,
             ((FrameworkElement)card.FindName("AwaitingSelectionBorder")).Visibility);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void ValidDrag_InDarkTheme_UsesTheSameNeutralSurfaceOverlay()
+    {
+        var card = new ImportModelCard { RequestedTheme = ElementTheme.Dark };
+
+        card.ShowDragValidation(isValid: true);
+
+        var hoverOverlay = GetRectangle(card, "ValidDragHoverOverlay");
+        Assert.AreEqual(Visibility.Visible, hoverOverlay.Visibility);
+        Assert.AreEqual("#000000", BrushColor(hoverOverlay.Fill));
+        Assert.AreEqual(0x10, BrushOpacity(hoverOverlay.Fill));
+        Assert.AreEqual(1.5d, GetRectangle(card, "AwaitingSelectionBorder").StrokeThickness);
     }
 
     [UITestMethod]
@@ -169,6 +192,9 @@ public sealed class ModelImportDropAccessibilityTests
 
     private static string BrushColor(Brush brush) =>
         $"#{((SolidColorBrush)brush).Color.R:X2}{((SolidColorBrush)brush).Color.G:X2}{((SolidColorBrush)brush).Color.B:X2}";
+
+    private static byte BrushOpacity(Brush brush) =>
+        ((SolidColorBrush)brush).Color.A;
 
     private sealed class AcceptedFolderClassifier : IModelSelectionClassifier
     {

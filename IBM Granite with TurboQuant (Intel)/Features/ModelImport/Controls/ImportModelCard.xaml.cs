@@ -47,13 +47,15 @@ namespace GraniteEdgeAI.Features.ModelImport.Controls
             FolderAcceptedNameTextBlock.Text = folderName;
         }
 
-        // Native drag feedback is limited to the accepted operation; card visuals stay stable.
+        // Native drag feedback is limited to the accepted operation; only its surface darkens.
         internal void ShowDragValidation(bool isValid)
         {
             SetVisibleState(
                 isValid
                     ? ImportModelCardState.DragOverValid
                     : ImportModelCardState.DragOverInvalid);
+            ValidDragHoverOverlay.Visibility =
+                isValid ? Visibility.Visible : Visibility.Collapsed;
         }
 
         internal void ClearDragValidation()
@@ -198,6 +200,7 @@ namespace GraniteEdgeAI.Features.ModelImport.Controls
 
         private void ClearDragValidationPresentation()
         {
+            ValidDragHoverOverlay.Visibility = Visibility.Collapsed;
         }
 
         private void ClearScanningValues()
