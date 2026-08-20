@@ -139,5 +139,7 @@
     <Thickness x:Key="InspectionCardPadding">24</Thickness>
     <Thickness x:Key="InspectionDesktopPageMargin">24,28,24,32</Thickness>
     <Thickness x:Key="InspectionCompactPageMargin">16,24,16,24</Thickness>
+    <Thickness x:Key="InspectionActionPadding">18,10,18,10</Thickness>
     <CornerRadius x:Key="InspectionCardCornerRadius">12</CornerRadius>
+    <CornerRadius x:Key="InspectionActionCornerRadius">10</CornerRadius>
 </ResourceDictionary>

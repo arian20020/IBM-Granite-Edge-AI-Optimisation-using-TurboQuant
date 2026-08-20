@@ -181,6 +181,52 @@ public sealed class ModelInspectionPageLayoutTests
         var page = new ModelInspectionPage();
         Grid layoutRoot = Assert.IsInstanceOfType<Grid>(
             page.FindName("LayoutRoot"));
+        ScrollViewer pageScrollViewer = Assert.IsInstanceOfType<ScrollViewer>(
+            page.FindName("InspectionPageScrollViewer"));
+        Grid scrollContent = Assert.IsInstanceOfType<Grid>(pageScrollViewer.Content);
+        Grid contentHost = Assert.IsInstanceOfType<Grid>(
+            page.FindName("InspectionContentHost"));
+        Grid reflowHost = Assert.IsInstanceOfType<Grid>(
+            page.FindName("InspectionReflowHost"));
+
+        Assert.AreSame(contentHost, scrollContent.Children.Single());
+        Assert.AreSame(reflowHost, contentHost.Children.Single());
+        Assert.AreEqual(10, reflowHost.Children.Count);
+        Assert.AreEqual(ScrollMode.Enabled, pageScrollViewer.VerticalScrollMode);
+        Assert.AreEqual(
+            ScrollBarVisibility.Auto,
+            pageScrollViewer.VerticalScrollBarVisibility);
+        Assert.AreEqual(ScrollMode.Disabled, pageScrollViewer.HorizontalScrollMode);
+        Assert.AreEqual(
+            ScrollBarVisibility.Disabled,
+            pageScrollViewer.HorizontalScrollBarVisibility);
+        Assert.AreEqual(ZoomMode.Disabled, pageScrollViewer.ZoomMode);
+        Assert.IsFalse(reflowHost.Children.OfType<ScrollViewer>().Any());
+
+        FrameworkElement outcome = Assert.IsInstanceOfType<FrameworkElement>(
+            page.FindName("InspectionOutcomeCardControl"));
+        FrameworkElement model = Assert.IsInstanceOfType<FrameworkElement>(
+            page.FindName("InspectionModelCardControl"));
+        FrameworkElement content = Assert.IsInstanceOfType<FrameworkElement>(
+            page.FindName("InspectionContentCardControl"));
+        FrameworkElement outgoing = Assert.IsInstanceOfType<FrameworkElement>(
+            page.FindName("OutgoingProgressContentCard"));
+        FrameworkElement actions = Assert.IsInstanceOfType<FrameworkElement>(
+            page.FindName("InspectionActionCardControl"));
+        Assert.AreEqual(2, Grid.GetRow(outcome));
+        Assert.AreEqual(4, Grid.GetRow(model));
+        Assert.AreEqual(6, Grid.GetRow(content));
+        Assert.AreEqual(6, Grid.GetRow(outgoing));
+        Assert.AreEqual(8, Grid.GetRow(actions));
+        Assert.IsTrue(
+            reflowHost.Children.IndexOf(outcome) <
+            reflowHost.Children.IndexOf(model));
+        Assert.IsTrue(
+            reflowHost.Children.IndexOf(model) <
+            reflowHost.Children.IndexOf(content));
+        Assert.IsTrue(
+            reflowHost.Children.IndexOf(content) <
+            reflowHost.Children.IndexOf(actions));
 
         AssertResponsiveStateContract(
             layoutRoot,
@@ -200,6 +246,9 @@ public sealed class ModelInspectionPageLayoutTests
 
         ResourceDictionary resources = ModelInspectionResources();
         Assert.AreEqual(840d, resources["InspectionContentColumnWidth"]);
+        Assert.AreEqual(840d, contentHost.MaxWidth);
+        Assert.AreEqual(888d, resources["InspectionDesktopBreakpoint"]);
+        Assert.AreEqual(600d, resources["InspectionCompactBreakpoint"]);
         Assert.AreEqual(
             new CornerRadius(12d),
             Assert.IsInstanceOfType<CornerRadius>(
@@ -261,6 +310,32 @@ public sealed class ModelInspectionPageLayoutTests
             applicationResources.Remove("InspectionCardGap");
             applicationResources.Remove("InspectionHeaderToCardGap");
         }
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void ActionCornerRadius_UsesApprovedHardwareToken()
+    {
+        ResourceDictionary resources = ModelInspectionResources();
+
+        Assert.IsTrue(resources.ContainsKey("InspectionActionCornerRadius"));
+        Assert.AreEqual(
+            new CornerRadius(10d),
+            Assert.IsInstanceOfType<CornerRadius>(
+                resources["InspectionActionCornerRadius"]));
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void ActionPadding_UsesApprovedHardwareToken()
+    {
+        ResourceDictionary resources = ModelInspectionResources();
+
+        Assert.IsTrue(resources.ContainsKey("InspectionActionPadding"));
+        Assert.AreEqual(
+            new Thickness(18d, 10d, 18d, 10d),
+            Assert.IsInstanceOfType<Thickness>(
+                resources["InspectionActionPadding"]));
     }
 
     private static void AssertResponsiveStateContract(
