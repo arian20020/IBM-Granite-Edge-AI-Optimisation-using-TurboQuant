@@ -44,6 +44,70 @@ public sealed class ModelSelectionContractTests
     }
 
     [TestMethod]
+    public void Results_NormalizeRootedAndUncDisplayNamesToBasenames()
+    {
+        ModelSelectionOperationId operationId = ModelSelectionOperationId.CreateNew();
+        var diagnostic = new ModelSelectionDiagnostic(
+            "unsupported-selection",
+            "This item cannot be imported.");
+
+        ModelSelectionResult rootedResult = ModelSelectionResult.Accepted(
+            operationId,
+            ModelSelectionRoute.Gguf,
+            @"C:\private\models\model.gguf");
+        ModelSelectionResult uncResult = ModelSelectionResult.Failure(
+            operationId,
+            @"\\server\private\model.gguf",
+            diagnostic);
+
+        Assert.AreEqual("model.gguf", rootedResult.DisplayName);
+        Assert.AreEqual("model.gguf", uncResult.DisplayName);
+    }
+
+    [TestMethod]
+    public void Diagnostic_RejectsMessagesContainingRootedOrUncPaths()
+    {
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            new ModelSelectionDiagnostic(
+                "selection-failed",
+                @"Could not read C:\private\models\model.gguf."));
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            new ModelSelectionDiagnostic(
+                "selection-failed",
+                @"Could not read \\server\private\model.gguf."));
+    }
+
+    [TestMethod]
+    public void Contracts_RejectNullOrWhitespaceSafeValuesAndMissingFailureDiagnostic()
+    {
+        ModelSelectionOperationId operationId = ModelSelectionOperationId.CreateNew();
+
+        Assert.ThrowsExactly<ArgumentNullException>(() =>
+            ModelSelectionResult.Accepted(
+                operationId,
+                ModelSelectionRoute.Gguf,
+                null!));
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            ModelSelectionResult.Accepted(
+                operationId,
+                ModelSelectionRoute.Gguf,
+                "   "));
+        Assert.ThrowsExactly<ArgumentNullException>(() =>
+            new ModelSelectionDiagnostic(null!, "A safe message."));
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            new ModelSelectionDiagnostic("   ", "A safe message."));
+        Assert.ThrowsExactly<ArgumentNullException>(() =>
+            new ModelSelectionDiagnostic("selection-failed", null!));
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            new ModelSelectionDiagnostic("selection-failed", "   "));
+        Assert.ThrowsExactly<ArgumentNullException>(() =>
+            ModelSelectionResult.Failure(
+                operationId,
+                "model.gguf",
+                null!));
+    }
+
+    [TestMethod]
     public void Accepted_ResultHasRouteAndNoDiagnostic()
     {
         ModelSelectionOperationId operationId = ModelSelectionOperationId.CreateNew();

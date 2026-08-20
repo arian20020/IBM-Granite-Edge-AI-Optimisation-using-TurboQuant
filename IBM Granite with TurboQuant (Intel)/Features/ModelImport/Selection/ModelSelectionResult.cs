@@ -1,3 +1,6 @@
+using System;
+using System.IO;
+
 namespace GraniteEdgeAI.Features.ModelImport.Selection;
 
 internal sealed class ModelSelectionResult
@@ -12,7 +15,7 @@ internal sealed class ModelSelectionResult
         OperationId = operationId;
         IsAccepted = isAccepted;
         Route = route;
-        DisplayName = displayName;
+        DisplayName = NormalizeDisplayName(displayName);
         Diagnostic = diagnostic;
     }
 
@@ -44,11 +47,28 @@ internal sealed class ModelSelectionResult
         string displayName,
         ModelSelectionDiagnostic diagnostic)
     {
+        ArgumentNullException.ThrowIfNull(diagnostic);
+
         return new ModelSelectionResult(
             operationId,
             isAccepted: false,
             route: null,
             displayName,
             diagnostic);
+    }
+
+    private static string NormalizeDisplayName(string displayName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
+
+        string safeDisplayName = Path.GetFileName(displayName);
+        if (string.IsNullOrWhiteSpace(safeDisplayName))
+        {
+            throw new ArgumentException(
+                "Display name must include a file or folder name.",
+                nameof(displayName));
+        }
+
+        return safeDisplayName;
     }
 }
