@@ -387,7 +387,7 @@ The fixture smoke uses at most 32 generated tokens. C1 may approve a lower conte
 
 ### 12.3 Context accounting
 
-The managed layer performs a preliminary bound check. The native tokenizer performs the authoritative token count over the chat template and retained session history. A turn starts only when:
+The managed layer performs a preliminary bound check. The worker carries an explicit `ChatHistory` between turns rather than depending on the deprecated `start_chat()`/`finish_chat()` APIs. The native tokenizer performs the authoritative token count over the chat template and retained session history. A turn starts only when:
 
 ```text
 prompt_tokens + requested_new_tokens
