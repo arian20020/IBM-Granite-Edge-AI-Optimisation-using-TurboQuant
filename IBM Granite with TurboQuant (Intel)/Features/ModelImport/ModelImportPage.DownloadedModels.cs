@@ -2,6 +2,8 @@ using GraniteEdgeAI.Features.ModelImport.DownloadedModels;
 using Microsoft.UI.Xaml;
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -32,7 +34,11 @@ public sealed partial class ModelImportPage
             if (ReferenceEquals(searchCancellation, _downloadedModelSearchCancellation) &&
                 !searchCancellation.IsCancellationRequested)
             {
-                DownloadedModelDisplayNames = result.DisplayNames;
+                DownloadedModelDisplayNames = result.DisplayNames
+                    .Select(static displayName => Path.GetFileName(displayName))
+                    .Where(static displayName => !string.IsNullOrWhiteSpace(displayName))
+                    .ToArray();
+                UpdateDownloadedModelResults();
             }
         }
         catch (OperationCanceledException) when (searchCancellation.IsCancellationRequested)
@@ -61,6 +67,31 @@ public sealed partial class ModelImportPage
             ref _downloadedModelSearchCancellation, null);
         previous?.Cancel();
         DownloadedModelDisplayNames = Array.Empty<string>();
+        HideDownloadedModelResults();
         _downloadedModelFinder.ClearResults();
+    }
+
+    private void HideDownloadedModelResults()
+    {
+        DownloadedModelsResults.ItemsSource = null;
+        DownloadedModelsResults.Visibility = Visibility.Collapsed;
+        DownloadedModelsSearchStatus.Text = string.Empty;
+        DownloadedModelsResultsPanel.Visibility = Visibility.Collapsed;
+    }
+
+    private void UpdateDownloadedModelResults()
+    {
+        int resultCount = DownloadedModelDisplayNames.Count;
+        DownloadedModelsResultsPanel.Visibility = Visibility.Visible;
+        DownloadedModelsResults.ItemsSource = DownloadedModelDisplayNames;
+        DownloadedModelsResults.Visibility = resultCount > 0
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        DownloadedModelsSearchStatus.Text = resultCount switch
+        {
+            0 => "No downloaded models were found.",
+            1 => "1 downloaded model found.",
+            _ => $"{resultCount} downloaded models found."
+        };
     }
 }
