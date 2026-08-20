@@ -1,9 +1,9 @@
 # Model Inspection Native Spacing and Alignment Polish
 
-**Status:** User-approved design, pending implementation plan  
-**Date:** 2026-08-20  
-**Production baseline:** `85084459e9544984b0815f40ddad1ed6150cee00`  
-**Visual oracle:** `model-inspection-balanced-full-approval-v3.html` served at `http://127.0.0.1:59034/`  
+**Status:** User-approved design, pending implementation plan
+**Date:** 2026-08-20
+**Production baseline:** `85084459e9544984b0815f40ddad1ed6150cee00`
+**Visual oracle:** `model-inspection-balanced-full-approval-v3.html` served at `http://127.0.0.1:59034/`
 **Visual-oracle SHA-256:** `D44CFCE9C53BCD9D0EAAA41CA8BA9DED434F68845BBF943351518366FBB20CFF`
 
 ## Objective
