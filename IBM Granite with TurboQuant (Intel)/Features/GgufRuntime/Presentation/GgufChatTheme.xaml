@@ -9,9 +9,18 @@
             <SolidColorBrush x:Key="GgufChatRailBrush" Color="#FFFFFFFF" />
             <SolidColorBrush x:Key="GgufChatPrimaryBrush" Color="#2563EB" />
             <SolidColorBrush x:Key="GgufChatPrimaryHoverBrush" Color="#1D4ED8" />
+            <SolidColorBrush x:Key="GgufChatPrimaryPressedBrush" Color="#315ECA" />
+            <SolidColorBrush x:Key="GgufChatPrimaryForegroundBrush" Color="#FFFFFF" />
+            <LinearGradientBrush x:Key="GgufChatPrimaryGradientBrush" StartPoint="0,0" EndPoint="1,1">
+                <GradientStop Color="#3979F6" Offset="0" />
+                <GradientStop Color="#6558E8" Offset="1" />
+            </LinearGradientBrush>
             <SolidColorBrush x:Key="GgufChatTextBrush" Color="#111827" />
             <SolidColorBrush x:Key="GgufChatMutedBrush" Color="#6B7280" />
             <SolidColorBrush x:Key="GgufChatBorderBrush" Color="#D1D5DB" />
+            <SolidColorBrush x:Key="GgufChatPanelBorderBrush" Color="#DDE5F4" />
+            <SolidColorBrush x:Key="GgufChatSecondarySurfaceBrush" Color="#F7F9FE" />
+            <SolidColorBrush x:Key="GgufChatFocusBrush" Color="#1D4ED8" />
             <SolidColorBrush x:Key="GgufChatHistoryHoverBrush" Color="#F3F4F6" />
             <SolidColorBrush x:Key="GgufChatUserBubbleBrush" Color="#E8F0FF" />
         </ResourceDictionary>
@@ -21,9 +30,18 @@
             <SolidColorBrush x:Key="GgufChatRailBrush" Color="#172033" />
             <SolidColorBrush x:Key="GgufChatPrimaryBrush" Color="#60A5FA" />
             <SolidColorBrush x:Key="GgufChatPrimaryHoverBrush" Color="#93C5FD" />
+            <SolidColorBrush x:Key="GgufChatPrimaryPressedBrush" Color="#3B82F6" />
+            <SolidColorBrush x:Key="GgufChatPrimaryForegroundBrush" Color="#FFFFFF" />
+            <LinearGradientBrush x:Key="GgufChatPrimaryGradientBrush" StartPoint="0,0" EndPoint="1,1">
+                <GradientStop Color="#4F8DF7" Offset="0" />
+                <GradientStop Color="#7C6AF0" Offset="1" />
+            </LinearGradientBrush>
             <SolidColorBrush x:Key="GgufChatTextBrush" Color="#F9FAFB" />
             <SolidColorBrush x:Key="GgufChatMutedBrush" Color="#CBD5E1" />
             <SolidColorBrush x:Key="GgufChatBorderBrush" Color="#475569" />
+            <SolidColorBrush x:Key="GgufChatPanelBorderBrush" Color="#3D4B63" />
+            <SolidColorBrush x:Key="GgufChatSecondarySurfaceBrush" Color="#263247" />
+            <SolidColorBrush x:Key="GgufChatFocusBrush" Color="#BFDBFE" />
             <SolidColorBrush x:Key="GgufChatHistoryHoverBrush" Color="#273449" />
             <SolidColorBrush x:Key="GgufChatUserBubbleBrush" Color="#1E3A5F" />
         </ResourceDictionary>
@@ -33,11 +51,158 @@
             <SolidColorBrush x:Key="GgufChatRailBrush" Color="{ThemeResource SystemColorWindowColor}" />
             <SolidColorBrush x:Key="GgufChatPrimaryBrush" Color="{ThemeResource SystemColorHighlightColor}" />
             <SolidColorBrush x:Key="GgufChatPrimaryHoverBrush" Color="{ThemeResource SystemColorHighlightColor}" />
+            <SolidColorBrush x:Key="GgufChatPrimaryPressedBrush" Color="{ThemeResource SystemColorHighlightColor}" />
+            <SolidColorBrush x:Key="GgufChatPrimaryForegroundBrush" Color="{ThemeResource SystemColorHighlightTextColor}" />
+            <LinearGradientBrush x:Key="GgufChatPrimaryGradientBrush" StartPoint="0,0" EndPoint="1,1">
+                <GradientStop Color="{ThemeResource SystemColorHighlightColor}" Offset="0" />
+                <GradientStop Color="{ThemeResource SystemColorHighlightColor}" Offset="1" />
+            </LinearGradientBrush>
             <SolidColorBrush x:Key="GgufChatTextBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
             <SolidColorBrush x:Key="GgufChatMutedBrush" Color="{ThemeResource SystemColorGrayTextColor}" />
             <SolidColorBrush x:Key="GgufChatBorderBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+            <SolidColorBrush x:Key="GgufChatPanelBorderBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+            <SolidColorBrush x:Key="GgufChatSecondarySurfaceBrush" Color="{ThemeResource SystemColorWindowColor}" />
+            <SolidColorBrush x:Key="GgufChatFocusBrush" Color="{ThemeResource SystemColorHighlightColor}" />
             <SolidColorBrush x:Key="GgufChatHistoryHoverBrush" Color="{ThemeResource SystemColorHighlightColor}" />
             <SolidColorBrush x:Key="GgufChatUserBubbleBrush" Color="{ThemeResource SystemColorWindowColor}" />
         </ResourceDictionary>
     </ResourceDictionary.ThemeDictionaries>
+
+    <ThemeShadow x:Key="GgufChatPanelShadow" />
+
+    <Style x:Key="GgufChatPrimaryButtonStyle" TargetType="Button">
+        <Setter Property="Background" Value="{ThemeResource GgufChatPrimaryGradientBrush}" />
+        <Setter Property="BorderBrush" Value="{ThemeResource GgufChatPrimaryBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="Foreground" Value="{ThemeResource GgufChatPrimaryForegroundBrush}" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Padding" Value="18,10" />
+        <Setter Property="MinHeight" Value="40" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Grid>
+                        <Border x:Name="RootBorder"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="{TemplateBinding CornerRadius}">
+                            <ContentPresenter Content="{TemplateBinding Content}"
+                                              ContentTemplate="{TemplateBinding ContentTemplate}"
+                                              ContentTransitions="{TemplateBinding ContentTransitions}"
+                                              HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              Padding="{TemplateBinding Padding}"
+                                              VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" />
+                        </Border>
+                        <Border x:Name="FocusVisual"
+                                Margin="-3"
+                                BorderBrush="{ThemeResource GgufChatFocusBrush}"
+                                BorderThickness="2"
+                                CornerRadius="14"
+                                IsHitTestVisible="False"
+                                Visibility="Collapsed" />
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroup x:Name="CommonStates">
+                                <VisualState x:Name="Normal" />
+                                <VisualState x:Name="PointerOver">
+                                    <VisualState.Setters>
+                                        <Setter Target="RootBorder.Background" Value="{ThemeResource GgufChatPrimaryHoverBrush}" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Pressed">
+                                    <VisualState.Setters>
+                                        <Setter Target="RootBorder.Background" Value="{ThemeResource GgufChatPrimaryPressedBrush}" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Disabled">
+                                    <VisualState.Setters>
+                                        <Setter Target="RootBorder.Opacity" Value="0.55" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                            </VisualStateGroup>
+                            <VisualStateGroup x:Name="FocusStates">
+                                <VisualState x:Name="Focused">
+                                    <VisualState.Setters>
+                                        <Setter Target="FocusVisual.Visibility" Value="Visible" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Unfocused" />
+                            </VisualStateGroup>
+                        </VisualStateManager.VisualStateGroups>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="GgufChatSecondaryButtonStyle" TargetType="Button">
+        <Setter Property="Background" Value="{ThemeResource GgufChatSecondarySurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{ThemeResource GgufChatPanelBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="Foreground" Value="{ThemeResource GgufChatTextBrush}" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Padding" Value="18,10" />
+        <Setter Property="MinHeight" Value="40" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Grid>
+                        <Border x:Name="RootBorder"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="{TemplateBinding CornerRadius}">
+                            <ContentPresenter Content="{TemplateBinding Content}"
+                                              ContentTemplate="{TemplateBinding ContentTemplate}"
+                                              ContentTransitions="{TemplateBinding ContentTransitions}"
+                                              HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              Padding="{TemplateBinding Padding}"
+                                              VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" />
+                        </Border>
+                        <Border x:Name="FocusVisual"
+                                Margin="-3"
+                                BorderBrush="{ThemeResource GgufChatFocusBrush}"
+                                BorderThickness="2"
+                                CornerRadius="14"
+                                IsHitTestVisible="False"
+                                Visibility="Collapsed" />
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroup x:Name="CommonStates">
+                                <VisualState x:Name="Normal" />
+                                <VisualState x:Name="PointerOver">
+                                    <VisualState.Setters>
+                                        <Setter Target="RootBorder.Background" Value="{ThemeResource GgufChatHistoryHoverBrush}" />
+                                        <Setter Target="RootBorder.BorderBrush" Value="{ThemeResource GgufChatPrimaryHoverBrush}" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Pressed">
+                                    <VisualState.Setters>
+                                        <Setter Target="RootBorder.Background" Value="{ThemeResource GgufChatSurfaceBrush}" />
+                                        <Setter Target="RootBorder.BorderBrush" Value="{ThemeResource GgufChatPrimaryPressedBrush}" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Disabled">
+                                    <VisualState.Setters>
+                                        <Setter Target="RootBorder.Opacity" Value="0.55" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                            </VisualStateGroup>
+                            <VisualStateGroup x:Name="FocusStates">
+                                <VisualState x:Name="Focused">
+                                    <VisualState.Setters>
+                                        <Setter Target="FocusVisual.Visibility" Value="Visible" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Unfocused" />
+                            </VisualStateGroup>
+                        </VisualStateManager.VisualStateGroups>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
 </ResourceDictionary>
