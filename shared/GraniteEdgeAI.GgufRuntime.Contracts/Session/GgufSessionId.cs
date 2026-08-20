@@ -1,7 +1,10 @@
+using System.Text.Json.Serialization;
+
 namespace GraniteEdgeAI.GgufRuntime.Contracts.Session;
 
 public readonly record struct GgufSessionId
 {
+    [JsonConstructor]
     public GgufSessionId(Guid value)
     {
         if (value == Guid.Empty)
