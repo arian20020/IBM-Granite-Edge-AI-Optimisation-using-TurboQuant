@@ -50,6 +50,22 @@ public sealed class WeightQuantisationMapTests
     }
 
     [TestMethod]
+    [DataRow(1)]
+    [DataRow(3)]
+    [DataRow(99)]
+    public void FromGgufFileType_UnrecognisedQuantisationVersionIsUnknown(int version)
+    {
+        // This table is built against version 2 only. Reading a file type from
+        // any other version with this table would silently misstate the source
+        // encoding, so every other version collapses to Unknown rather than
+        // being decoded as if it were version 2.
+        Assert.AreEqual(
+            nameof(WeightQuantisation.Unknown),
+            WeightQuantisationMap.FromGgufFileType(fileType: 15, quantisationVersion: version)
+                .ToString());
+    }
+
+    [TestMethod]
     public void BitsPerWeight_IsMonotonicAcrossTheQualityLadder()
     {
         // The ladder is declared highest to lowest quality, so bits per weight

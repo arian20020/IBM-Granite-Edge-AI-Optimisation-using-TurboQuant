@@ -46,7 +46,11 @@ internal static class WeightQuantisationMap
         int? fileType,
         int? quantisationVersion)
     {
-        if (fileType is not { } type || quantisationVersion is null)
+        // Version 2 is the only encoding this table has been built against. A
+        // different version pins the file type to a table this map does not
+        // have, and reading it with the wrong table would silently misstate
+        // the source encoding rather than refuse.
+        if (fileType is not { } type || quantisationVersion is not 2)
         {
             return WeightQuantisation.Unknown;
         }
