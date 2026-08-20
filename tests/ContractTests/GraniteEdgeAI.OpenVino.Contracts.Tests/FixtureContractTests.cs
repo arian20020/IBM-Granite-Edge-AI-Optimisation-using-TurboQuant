@@ -247,6 +247,29 @@ public sealed class FixtureContractTests
     }
 
     [TestMethod]
+    [DataRow("387.4")]
+    [DataRow("9223372036854775808")]
+    [DataRow("-387")]
+    [DataRow("3.87e2")]
+    [DataRow("387.0")]
+    public void VerifierRejectsManifestLengthThatIsNotCanonicalNonNegativeInt64(
+        string replacementLength)
+    {
+        using TemporaryDirectory temporary = CopyCommittedFixture();
+        string manifestPath = Path.Combine(temporary.Path, "manifest.json");
+        string manifest = File.ReadAllText(manifestPath);
+        const string original = "\"length\": 387,";
+        int lengthStart = manifest.IndexOf(original, StringComparison.Ordinal);
+        Assert.IsTrue(lengthStart >= 0, "The controlled manifest length was not found.");
+        string replacement = $"\"length\": {replacementLength},";
+        File.WriteAllText(
+            manifestPath,
+            manifest.Remove(lengthStart, original.Length).Insert(lengthStart, replacement));
+
+        AssertScriptFailure(temporary.Path);
+    }
+
+    [TestMethod]
     public void VerifierRejectsCoordinatedWeakLicenseReplacement()
     {
         using TemporaryDirectory temporary = CopyCommittedFixture();

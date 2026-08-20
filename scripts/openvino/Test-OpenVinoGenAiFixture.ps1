@@ -170,6 +170,23 @@ function Test-JsonPropertyType {
     return $null -ne $child -and $child.GetAttribute('type') -ceq $Type
 }
 
+function Test-JsonCanonicalNonNegativeInt64 {
+    param([AllowNull()][System.Xml.XmlElement]$Element)
+
+    if ($null -eq $Element -or
+        $Element.GetAttribute('type') -cne 'number' -or
+        $Element.InnerText -cnotmatch '^(0|[1-9][0-9]*)$') {
+        return $false
+    }
+
+    $value = 0L
+    return [Int64]::TryParse(
+        $Element.InnerText,
+        [System.Globalization.NumberStyles]::None,
+        [System.Globalization.CultureInfo]::InvariantCulture,
+        [ref]$value)
+}
+
 function Test-JsonArray {
     param(
         [AllowNull()][System.Xml.XmlElement]$Element,
@@ -305,7 +322,7 @@ function Test-ManifestJsonSchema {
     foreach ($item in @($files.ChildNodes)) {
         if (-not (Test-JsonObjectSchema $item @('path', 'length', 'sha256')) -or
             -not (Test-JsonPropertyType $item 'path' 'string') -or
-            -not (Test-JsonPropertyType $item 'length' 'number') -or
+            -not (Test-JsonCanonicalNonNegativeInt64 $item.SelectSingleNode('length')) -or
             -not (Test-JsonPropertyType $item 'sha256' 'string')) {
             return $false
         }
@@ -583,20 +600,26 @@ try {
 
     $expectedPackagePaths = @($expectedFiles | Where-Object { $_.StartsWith('package/', [StringComparison]::Ordinal) })
     $entries = @($manifest.files)
-    if ($entries.Count -ne $expectedPackagePaths.Count) {
+    $manifestLengthNodes = @($manifestDocument.SelectNodes('/root/files/item/length'))
+    if ($entries.Count -ne $expectedPackagePaths.Count -or
+        $manifestLengthNodes.Count -ne $expectedPackagePaths.Count) {
         Stop-Invalid
     }
     for ($index = 0; $index -lt $entries.Count; $index++) {
         $entry = $entries[$index]
         $path = [string]$entry.path
+        $length = [Int64]::Parse(
+            $manifestLengthNodes[$index].InnerText,
+            [System.Globalization.NumberStyles]::None,
+            [System.Globalization.CultureInfo]::InvariantCulture)
         if ($path -cne $expectedPackagePaths[$index] -or
             [string]$entry.sha256 -cnotmatch '^[0-9a-f]{64}$' -or
-            [Int64]$entry.length -le 0) {
+            $length -le 0) {
             Stop-Invalid
         }
         $fullPath = Join-Path $root $path.Replace('/', '\')
         $file = Get-Item -LiteralPath $fullPath
-        if ($file.Length -ne [Int64]$entry.length -or
+        if ($file.Length -ne $length -or
             (Get-LowerSha256 $fullPath) -cne [string]$entry.sha256) {
             Stop-Invalid
         }
