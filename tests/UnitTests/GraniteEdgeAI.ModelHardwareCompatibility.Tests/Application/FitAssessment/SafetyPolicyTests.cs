@@ -77,4 +77,21 @@ public sealed class SafetyPolicyTests
         Assert.AreEqual(PolicyProvenance.Absent, policy.Provenance);
         Assert.ThrowsExactly<InvalidOperationException>(() => _ = policy.Thresholds);
     }
+
+    [TestMethod]
+    public void Absent_ExposesNoTerms()
+    {
+        // Mirrors EstimatorPolicyTests.Absent_ExposesNoTerms: reaching for an
+        // allowance on an absent policy is the moment a zero-margin,
+        // full-availability budget would be handed out, so it throws rather
+        // than returning zero.
+        SafetyPolicy policy = SafetyPolicy.Absent();
+
+        Assert.ThrowsExactly<InvalidOperationException>(() => _ = policy.OsAllowance);
+        Assert.ThrowsExactly<InvalidOperationException>(() => _ = policy.OperationalReserve);
+        Assert.ThrowsExactly<InvalidOperationException>(() => _ = policy.CalibrationMarginFloor);
+        Assert.ThrowsExactly<InvalidOperationException>(() => _ = policy.CalibrationMarginFraction);
+        Assert.ThrowsExactly<InvalidOperationException>(
+            () => policy.CalibrationMarginFor(ByteCount.FromBytes(1)));
+    }
 }

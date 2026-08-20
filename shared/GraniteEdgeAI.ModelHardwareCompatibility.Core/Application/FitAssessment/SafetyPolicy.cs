@@ -12,43 +12,43 @@ internal sealed record SafetyPolicy
     private const ulong Gibibyte = 1024UL * 1024 * 1024;
 
     private readonly FitThresholds? _thresholds;
+    private readonly SafetyTerms? _terms;
 
     private SafetyPolicy(
         PolicyProvenance provenance,
         string policyVersion,
         FitThresholds? thresholds,
-        ByteCount osAllowance,
-        ByteCount operationalReserve,
-        ByteCount calibrationMarginFloor,
-        decimal calibrationMarginFraction)
+        SafetyTerms? terms)
     {
         Provenance = provenance;
         PolicyVersion = policyVersion;
         _thresholds = thresholds;
-        OsAllowance = osAllowance;
-        OperationalReserve = operationalReserve;
-        CalibrationMarginFloor = calibrationMarginFloor;
-        CalibrationMarginFraction = calibrationMarginFraction;
+        _terms = terms;
     }
 
     internal PolicyProvenance Provenance { get; }
 
     internal string PolicyVersion { get; }
 
-    /// <summary>Memory held back for Windows and its drivers.</summary>
-    internal ByteCount OsAllowance { get; }
-
-    /// <summary>Memory held back for this application and other running apps.</summary>
-    internal ByteCount OperationalReserve { get; }
-
-    internal ByteCount CalibrationMarginFloor { get; }
-
-    internal decimal CalibrationMarginFraction { get; }
-
     internal FitThresholds Thresholds =>
         _thresholds ?? throw new InvalidOperationException(
             "An absent policy exposes no thresholds; evaluation must report NotEstablished "
             + "rather than fall back to an invented constant.");
+
+    private SafetyTerms Terms =>
+        _terms ?? throw new InvalidOperationException(
+            "An absent policy exposes no terms; evaluation must report NotEstablished "
+            + "rather than fall back to an invented allowance.");
+
+    /// <summary>Memory held back for Windows and its drivers.</summary>
+    internal ByteCount OsAllowance => Terms.OsAllowance;
+
+    /// <summary>Memory held back for this application and other running apps.</summary>
+    internal ByteCount OperationalReserve => Terms.OperationalReserve;
+
+    internal ByteCount CalibrationMarginFloor => Terms.CalibrationMarginFloor;
+
+    internal decimal CalibrationMarginFraction => Terms.CalibrationMarginFraction;
 
     /// <summary>
     /// The margin added to a predicted peak to cover underprediction. It is
@@ -57,12 +57,14 @@ internal sealed record SafetyPolicy
     /// </summary>
     internal ByteCount CalibrationMarginFor(ByteCount predictedPeak)
     {
-        ulong fromFraction = (ulong)Math.Ceiling(
-            predictedPeak.Bytes * CalibrationMarginFraction);
+        SafetyTerms terms = Terms;
 
-        return fromFraction > CalibrationMarginFloor.Bytes
+        ulong fromFraction = (ulong)Math.Ceiling(
+            predictedPeak.Bytes * terms.CalibrationMarginFraction);
+
+        return fromFraction > terms.CalibrationMarginFloor.Bytes
             ? ByteCount.FromBytes(fromFraction)
-            : CalibrationMarginFloor;
+            : terms.CalibrationMarginFloor;
     }
 
     internal static SafetyPolicy ProvisionalV1() => new(
@@ -72,17 +74,28 @@ internal sealed record SafetyPolicy
             ComfortableCeiling: 0.75m,
             ModerateHeadroomCeiling: 0.90m,
             NarrowCeiling: 1.00m),
-        osAllowance: ByteCount.FromBytes(2 * Gibibyte),
-        operationalReserve: ByteCount.FromBytes(Gibibyte),
-        calibrationMarginFloor: ByteCount.FromBytes(Gibibyte / 2),
-        calibrationMarginFraction: 0.10m);
+        terms: new SafetyTerms(
+            OsAllowance: ByteCount.FromBytes(2 * Gibibyte),
+            OperationalReserve: ByteCount.FromBytes(Gibibyte),
+            CalibrationMarginFloor: ByteCount.FromBytes(Gibibyte / 2),
+            CalibrationMarginFraction: 0.10m));
 
     internal static SafetyPolicy Absent() => new(
         PolicyProvenance.Absent,
         policyVersion: "absent",
         thresholds: null,
-        osAllowance: ByteCount.Zero,
-        operationalReserve: ByteCount.Zero,
-        calibrationMarginFloor: ByteCount.Zero,
-        calibrationMarginFraction: 0m);
+        terms: null);
+
+    /// <summary>
+    /// Bundles the byte allowances and margin terms so an absent policy can
+    /// withhold all of them behind one nullable field and one throwing
+    /// accessor, the same shape EstimatorPolicy uses for its terms. Without
+    /// this, an absent policy would have to default each term to zero, which
+    /// is a full-availability budget with no margin - "everything fits".
+    /// </summary>
+    private sealed record SafetyTerms(
+        ByteCount OsAllowance,
+        ByteCount OperationalReserve,
+        ByteCount CalibrationMarginFloor,
+        decimal CalibrationMarginFraction);
 }
