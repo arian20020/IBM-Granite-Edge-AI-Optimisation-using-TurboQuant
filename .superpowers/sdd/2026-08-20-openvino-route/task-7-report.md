@@ -263,3 +263,164 @@ rerun or used to justify changing a deadline.
   protocol or diagnostic boundary.
 - The known unrelated legacy delayed-handshake timing test remains 31/32 in this
   final run. `DEP-02` remains unresolved and untouched.
+
+## Independent review fix round 1
+
+This section supersedes the earlier security/lifetime, Hello-evidence, and final
+test-count statements wherever they differ. Review implementation is commit
+`4fa4200b` (`fix(openvino): retain verified native closures`). No Task 8 source,
+UI/solution/registry wiring, Task 5 fixture byte, Task 6 feature-local handoff type,
+GGUF path, converter path, dependency lock, or `DEP-02` state changed.
+
+### Protocol-governance ruling
+
+Before the native implementation, the root explicitly approved the narrow Task 2/4
+wire correction because the earlier unpublished feature-branch shape could not
+represent a protected arbitrary package selection, native parse/build evidence, or
+graceful session close. Producer and all consumers changed atomically on
+`feature/openvino-route`; no released or external compatibility consumer exists.
+The authoritative identifier therefore remains `openvino.official/1`. Bumping it
+solely for this pre-release atomic correction would manufacture a migration that no
+consumer can perform. The Task 2 report now records the corrected v1 baseline.
+
+### Review RED matrix
+
+| Review requirement | Failing evidence before production correction |
+| --- | --- |
+| Combined terminal context bound | Contract sequence test accepted prompt 63 plus generated 2 under context 64 (0/1). |
+| Hello build identity | Literal test did not compile because the two-argument `HelloEvent` did not exist. |
+| Independent runtime trust and lease | Two managed resolver tests did not compile: no resolver/lease and no installation trust-anchor parameters. |
+| Native package transaction | Native lease test did not compile: no lease/stage observers or retained transaction API. |
+| Partial STOP and reuse | Real canonical process case failed `runtime_protocol_failed` because generation completed before STOP ownership. |
+| Typed corrupt startup | Real process returned `runtime_protocol_failed` instead of the fixed package-integrity result; after native mapping, managed startup still collapsed `sessionFailed` until its mapping was corrected. |
+| Hello mismatch containment | The fake worker had no wrong-build-evidence scenario and startup accepted no caller-known comparison. |
+
+The tests exercise deterministic behavior and real handles/processes, not only
+source-shape assertions. Production changes followed the captured RED cases.
+
+### Independent runtime trust and retained closure
+
+`OpenVinoWorkerInstallation` now carries caller-known exact build evidence,
+including the approved worker-manifest digest, plus an explicit closed AMD64 binary
+inventory. `OpenVinoWorkerClosureResolver` validates that trusted digest before
+manifest entries, enforces the closed ordered topology, checks reparse points and
+alternate streams, validates final handle identities and containment, hashes and
+lengths every accepted file through held handles, and checks the exact x64 policy.
+The policy inventory is copied after validation so callers cannot mutate it during
+startup.
+
+The resulting `VerifiedOpenVinoWorkerClosure` retains the already-verified worker
+executable, manifest, root, directories, DLLs, and resources with write/delete
+sharing denied. Ownership transfers to the conversation and lasts until terminal
+process/tree/session disposal; inspection owns the same lease through clean exit.
+Tests prove both re-manifesting against a rewritten closure and post-verification
+DLL replacement fail before execution, and prove exclusive access returns after
+disposal. The worker-reported digest is evidence checked against this independent
+caller-known anchor; it is never the anchor itself.
+
+Native `runtime_context` independently leases the exact runtime root, manifest,
+parent directories, and every manifest file before the first dependent version or
+load call, and retains them until worker exit. Its real observer test attempts to
+truncate `worker-manifest.json` and `openvino.dll` after native verification but
+before dependent loading; both attempts are denied, while exclusive manifest access
+succeeds after context disposal. The build wires the verified Tokenizers runtime
+beside this test reproducibly rather than relying on ambient PATH or a reused cache.
+
+### Native package transaction and failure ownership
+
+The native `package_lease` is move-only and retains the reparse-safe package root,
+every accepted directory, and every closed-manifest resource with write/delete
+sharing denied. It validates alternate streams, final-handle containment and
+identity, length, SHA-256, package identity, and model identity. The lease spans all
+three real `read_model` calls, `LLMPipeline` construction, and each correctness-first
+per-turn pipeline reconstruction. A real canonical-fixture regression attempts
+replacement at main-model read, tokenizer read, detokenizer read, constructor, and
+generation stages; every attempt is denied, generation returns `fixture` with two
+native generated tokens, and deletion works after lease disposal.
+
+`runtime_context_exceeded` now comes only from the explicit checked context
+equation. Package parse/integrity faults map to fixed package codes; requested-token
+or output/protocol bounds map to `runtime_protocol_failed`; module/evidence escape
+maps to fatal `runtime_integrity_failed`; and unknown load/generation faults map to
+fatal `runtime_load_failed`. A startup failure emits exactly one typed
+`sessionFailed` and then exits nonzero. Managed startup preserves that typed support
+code rather than collapsing it to protocol failure. Session-present pipe I/O remains
+protocol failure; pre-launch closure-policy failures remain integrity/policy results.
+
+Managed terminal validation is subtraction-safe: prompt tokens must fit the session
+context and generated tokens must be no greater than the remaining context. The
+63+2-under-64 RED case is rejected without overflow-prone addition.
+
+### Hello, partial STOP, and residue proof
+
+The atomic v1 Hello now contains both protocol ID and the exact Runtime, GenAI,
+Tokenizers, and manifest identities. Managed startup compares the full value to the
+trusted installation evidence before accepting Hello, retains it for later
+inspection/session evidence comparisons, and rejects the fake worker's
+`wrong-build-evidence` case.
+
+The real-process STOP proof waits for at least one nonempty native callback fragment,
+then issues STOP, observes a successful partial `turnCompleted` with `stopped`, and
+reuses the same session for another successful prompt. For the tiny canonical model,
+the worker uses a bounded two-second condition-variable handoff after its first real
+callback fragment so the control command can acquire ownership; no text is faked,
+the fixture is unchanged, and EOS/generation policy is unchanged. CANCEL still emits
+no actionable token/turn after ownership and terminates as `sessionCancelled`.
+
+The residue regression runs from operation-owned copies of the entire stage and
+package with isolated TEMP/TMP roots. After close/disposal it proves no named worker
+remains, exclusively opens the manifest, executable, `openvino.dll`, and model for
+read/write with `FileShare.None`, proves the isolated temp root has no listener,
+cache, or temporary artifacts, deletes the copied package/stage/temp trees, and
+asserts all roots are absent. The worker creates no listener or cache root.
+
+### Independent clean A/B review proof
+
+Both roots began absent and were built/staged from the exact verified Task 1
+archives outside tracked paths. Each build script completed Release x64 compile,
+link, stage, manifest generation/verification, and the five-test native suite.
+
+| Closure | Result | Worker identity | Manifest identity |
+| --- | --- | --- | --- |
+| Review A (`granite-o1-task7-review1-build-a` / `...stage-a`) | CTest 5/5; `worker_manifest_valid` | 379,904 bytes; `d465bfeb1f327d1dde0adc98041e9e3a7260c1801147064dbacfb853702de712` | 4,059 bytes; `d6ef5c266a6019e84d996cd3d0ac6c68a7644ac040c1c1046b16c3951a6ee2bf` |
+| Review B (`granite-o1-task7-review1-build-b` / `...stage-b`) | CTest 5/5; `worker_manifest_valid` | 379,904 bytes; `beb45613b0301c5eae7b668f67354381efd93867c078076c487e2a3b1acbd2a7` | 4,059 bytes; `a26b6d6b3509a8c8901febd35e1a44aaae10391830db3a7587e394a0173ba07f` |
+
+The official managed suite passed 6/6 across distinct A/B closures, including real
+inspection, two-turn generation, typed hostile package failures, parent loss,
+post-fragment STOP/reuse, CANCEL, context rejection, graceful close, and strengthened
+residue ownership. This independently reconfirms `FIX-01` closed.
+
+### Final review verification
+
+| Verification | Result |
+| --- | --- |
+| Clean review A native CTest | 5/5 passed |
+| Clean review B native CTest | 5/5 passed |
+| Managed official native acceptance | 6/6 passed in 20.280s |
+| OpenVINO contracts, Release | 60/60 passed in 34.130s |
+| OpenVINO managed client, Release | 7/7 passed; final focused ownership rerun 7/7 in 2.080s |
+| OpenVINO full process suite, Release | 39/39 passed in 63.123s |
+| Hostile Hello suite | 7/7 passed, including wrong build evidence |
+| Strengthened residue case | 1/1 passed |
+| Real STOP/CANCEL/context case | 1/1 passed |
+| Real corrupt startup case | 1/1 passed |
+| Task 6/static OpenVINO suite | 124/124 passed in 18.879s |
+| Legacy ModelInspection managed client | 119/119 passed in 9.473s |
+| Legacy ModelInspection process suite | 31/32; sole documented delayed-handshake timing failure, expected exit 3/actual 2 at 4.747s; not rerun |
+| Review A and B manifest verifiers | `worker_manifest_valid` for each |
+| Task 1 official dependency verifier | `dependency_lock_valid` |
+| Task 5 fixture verifier | `fixture_valid` |
+| Process residue query | zero official/fake workers |
+
+The exact official identities remain Runtime
+`2026.3.0-22451-8a17657b995-releases/2026/3`, GenAI
+`2026.3.0.0-3277-bd8d6542e3c`, and Tokenizers
+`2026.3.0.0-703-183c6f25cda`. The only known unrelated regression exception remains
+the pre-existing legacy delayed-handshake timing test. The correctness-first
+per-turn pipeline reconstruction has a load-latency cost, and the tiny-fixture STOP
+handoff is a bounded test seam; neither weakens native evidence or deadlines. CPU
+actual-device evidence remains constructor-bound because the pinned public API has
+no compiled-model property; Task 10 must separately prove GPU actual-device
+selection. `DEP-02` remains unresolved and Task 8 remains pending.
+The round-1 fixes are implemented and verified, but Task 7 remains in progress until
+independent re-review accepts them.
