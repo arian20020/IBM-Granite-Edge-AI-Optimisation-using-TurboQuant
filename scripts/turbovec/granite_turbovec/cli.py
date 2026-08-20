@@ -413,7 +413,8 @@ def _query(namespace: argparse.Namespace, deps: CliDependencies) -> Mapping[str,
         embedding_seconds = deps.perf_counter() - embed_start
         search_start = deps.perf_counter()
         scores, result_ids = index.search(query_vector, namespace.top_k)
-    search_seconds = deps.perf_counter() - search_start
+        search_end = deps.perf_counter()
+    search_seconds = search_end - search_start
     by_id = {chunk.chunk_id: chunk for chunk in chunks}
     results = []
     for rank, (score, chunk_id) in enumerate(zip(scores[0], result_ids[0]), 1):

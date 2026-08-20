@@ -296,6 +296,27 @@ class CliTests(unittest.TestCase):
         self.assertTrue(all(isinstance(value, float) and value >= 0 for value in timings.values()))
         self.assertGreaterEqual(timings["end_to_end_seconds"], sum(value for name, value in timings.items() if name != "end_to_end_seconds"))
 
+    def test_turbovec_query_search_timing_excludes_payload_cleanup_but_total_includes_it(self):
+        from granite_turbovec import cli as cli_module
+        from contextlib import contextmanager
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary); approval = approved(root); source = root / "a.txt"; source.write_text("granite")
+            deps = dependencies(root); index = root / "index"
+            self.assertEqual(0, run_cli(["index", "--approved-input", str(approval), "--input", str(source), "--output", str(index)], dependencies=deps).exit_code)
+            tick = {"value": 0.0}
+            deps.perf_counter = lambda: tick.__setitem__("value", tick["value"] + 1.0) or tick["value"]
+            original = cli_module.extract_validated_payload
+            @contextmanager
+            def delayed_cleanup(*args, **kwargs):
+                with original(*args, **kwargs) as payload:
+                    yield payload
+                tick["value"] += 100.0
+            with mock.patch("granite_turbovec.cli.extract_validated_payload", delayed_cleanup):
+                result = run_cli(["query", "--approved-input", str(approval), "--index", str(index), "--text", "granite", "--top-k", "1", "--route", "4bit"], dependencies=deps)
+        self.assertEqual(0, result.exit_code)
+        self.assertEqual(1.0, result.payload["timings"]["search_seconds"])
+        self.assertGreaterEqual(result.payload["timings"]["end_to_end_seconds"], 100.0)
+
     def test_manifest_identity_mismatch_precedes_embedding_or_index_load(self):
         class Spies:
             embeds = loads = 0

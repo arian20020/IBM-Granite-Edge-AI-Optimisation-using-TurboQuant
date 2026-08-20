@@ -93,6 +93,17 @@ def promotable_manifest():
     )
 
 
+def matched_manifest():
+    return manifest(
+        identity=suite_identity(),
+        artifacts=(
+            ArtifactRecord("vectors-float32.npy", HASH_A, 12, 1, "NPY", 1, 384, "float32", "float32", "float32-npy-v1", None, "<f4"),
+            ArtifactRecord("index-2bit.tvim", HASH_B, 12, 1, "GTVI", 1, 384, "2bit", "turbovec", "gtvi-turbovec-v1", 2, None),
+            ArtifactRecord("index-4bit.tvim", HASH_A, 12, 1, "GTVI", 1, 384, "4bit", "turbovec", "gtvi-turbovec-v1", 4, None),
+        ),
+    )
+
+
 def write_index(staging):
     (staging / "index.tv").write_bytes(b"TVEC")
 
@@ -108,14 +119,7 @@ def validate_index(path, artifact, loaded):
 
 class CanonicalManifestTests(unittest.TestCase):
     def test_matched_suite_manifest_binds_each_artifact_to_exact_route(self):
-        value = manifest(
-            identity=suite_identity(),
-            artifacts=(
-                ArtifactRecord("vectors-float32.npy", HASH_A, 12, 1, "NPY", 1, 384, "float32", "float32", "float32-npy-v1", None, "<f4"),
-                ArtifactRecord("index-2bit.tvim", HASH_B, 12, 1, "GTVI", 1, 384, "2bit", "turbovec", "gtvi-turbovec-v1", 2, None),
-                ArtifactRecord("index-4bit.tvim", HASH_A, 12, 1, "GTVI", 1, 384, "4bit", "turbovec", "gtvi-turbovec-v1", 4, None),
-            ),
-        )
+        value = matched_manifest()
         payload = json.loads(canonical_json(value))
         self.assertEqual("matched-suite", payload["identity"]["actual_backend"])
         self.assertEqual([None, 2, 4], [item["bit_width"] for item in payload["artifacts"]])
@@ -146,6 +150,23 @@ class CanonicalManifestTests(unittest.TestCase):
             path.write_text(json.dumps(payload, ensure_ascii=False, allow_nan=False, separators=(",", ":"), sort_keys=True), encoding="utf-8")
             loaded = load_and_validate_manifest(path, expected.identity)
         self.assertEqual(expected, loaded)
+
+    def test_route_bearing_schema_v1_without_dtype_loads_only_by_exact_identity_inference(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "manifest.json"; expected = matched_manifest()
+            payload = json.loads(canonical_json(expected))
+            for artifact in payload["artifacts"]:
+                artifact.pop("dtype")
+            path.write_text(json.dumps(payload, ensure_ascii=False, allow_nan=False, separators=(",", ":"), sort_keys=True), encoding="utf-8")
+            loaded = load_and_validate_manifest(path, expected.identity)
+            dtypes = {item.filename: item.dtype for item in loaded.artifacts}
+            self.assertEqual("<f4", dtypes["vectors-float32.npy"])
+            self.assertIsNone(dtypes["index-2bit.tvim"])
+            payload["artifacts"][0]["index_format"] = "ambiguous-v1"
+            path.write_text(json.dumps(payload, ensure_ascii=False, allow_nan=False, separators=(",", ":"), sort_keys=True), encoding="utf-8")
+            with self.assertRaises(ResearchError) as context:
+                load_and_validate_manifest(path, expected.identity)
+        self.assertEqual("index-manifest-corrupt", context.exception.code)
 
     def test_embedding_identity_mismatch_fails_closed(self):
         with tempfile.TemporaryDirectory() as directory:

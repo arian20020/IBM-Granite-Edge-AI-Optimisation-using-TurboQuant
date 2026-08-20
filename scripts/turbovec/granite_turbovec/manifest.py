@@ -265,7 +265,7 @@ def load_and_validate_manifest(
             parse_constant=lambda _: _reject_json_constant(),
         )
         loaded = _manifest_from_mapping(parsed)
-        if text not in (canonical_json(loaded), _legacy_canonical_json(loaded)):
+        if text not in (canonical_json(loaded), _legacy_canonical_json(loaded), _legacy_route_canonical_json(loaded)):
             raise ResearchError("index-manifest-corrupt")
     except ResearchError:
         raise
@@ -1039,7 +1039,11 @@ def _artifact_from_mapping(value: object) -> ArtifactRecord:
     if fields == legacy_with_dtype and value.get("dtype") is None:
         return ArtifactRecord(**value)
     if fields == route_v1:
-        return ArtifactRecord(**value)
+        expected = SUITE_ARTIFACT_IDENTITIES.get(value.get("filename"))
+        actual = (value.get("magic"), value.get("route"), value.get("backend"), value.get("index_format"), value.get("bit_width"))
+        if expected is None or actual != expected[:5]:
+            raise ResearchError("index-manifest-corrupt")
+        return ArtifactRecord(**value, dtype=expected[5])
     if fields == full:
         return ArtifactRecord(**value)
     raise ResearchError("index-manifest-corrupt")
@@ -1052,6 +1056,17 @@ def _legacy_canonical_json(value: IndexManifest) -> str:
             return ""
         for field in ("route", "backend", "index_format", "bit_width", "dtype"):
             artifact.pop(field)
+    return json.dumps(payload, ensure_ascii=False, allow_nan=False, separators=(",", ":"), sort_keys=True)
+
+
+def _legacy_route_canonical_json(value: IndexManifest) -> str:
+    payload = asdict(value)
+    for artifact in payload["artifacts"]:
+        expected = SUITE_ARTIFACT_IDENTITIES.get(artifact["filename"])
+        actual = (artifact["magic"], artifact["route"], artifact["backend"], artifact["index_format"], artifact["bit_width"], artifact["dtype"])
+        if expected is None or actual != expected:
+            return ""
+        artifact.pop("dtype")
     return json.dumps(payload, ensure_ascii=False, allow_nan=False, separators=(",", ":"), sort_keys=True)
 
 
