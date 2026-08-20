@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Estimation;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.FitAssessment;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
@@ -20,33 +21,91 @@ public sealed class PrivacyCanaryTests
         "CompatibilityCandidate.SupportEntryId",
         "RouteConfiguration.CanonicalDescriptor",
         "GgufRouteConfiguration.CanonicalDescriptor",
-        "CandidateFingerprint.Value"
+        "CandidateFingerprint.Value",
+
+        // Hand-written ToString overrides surfaced once the scan widened to
+        // cover methods. Each formats an already-reviewed numeric value (or,
+        // for CandidateFingerprint, delegates to the already-allowed Value
+        // property) and introduces no new content of its own.
+        "ByteCount.ToString",
+        "ContextTokenCount.ToString",
+        "CandidateFingerprint.ToString"
     ];
+
+    private static readonly BindingFlags AllMembers =
+        BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic
+        | BindingFlags.DeclaredOnly;
 
     [TestMethod]
     public void NoUnreviewedStringMemberExistsInTheCompatibilityCore()
     {
         // A new string member is where a path or model name would first appear.
         // Adding one is allowed; adding one without review is not.
-        string[] found = typeof(ByteCount).Assembly
+        //
+        // Scans instance and static properties AND fields, and treats
+        // string[] / IEnumerable<string> the same as a bare string: a path or
+        // model name reaching a collection is exactly as much of a leak as
+        // reaching a scalar. Methods returning a string-carrying type are
+        // scanned too, since a computed string escapes this canary just as
+        // easily as a stored one.
+        string[] properties = typeof(ByteCount).Assembly
             .GetTypes()
             .SelectMany(type => type
-                .GetProperties(
-                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic
-                    | BindingFlags.DeclaredOnly)
-                .Where(property => property.PropertyType == typeof(string))
+                .GetProperties(AllMembers)
+                .Where(property => CarriesString(property.PropertyType))
                 .Select(property => $"{type.Name}.{property.Name}"))
+            .ToArray();
+
+        // Compiler-generated members are excluded: a property's backing field
+        // and a record's synthesized ToString() carry no content beyond what
+        // the declared members already expose, so they are not a new place
+        // for a string to enter - they are a mechanical byproduct of members
+        // this scan already reviews.
+        string[] fields = typeof(ByteCount).Assembly
+            .GetTypes()
+            .SelectMany(type => type
+                .GetFields(AllMembers)
+                .Where(field => CarriesString(field.FieldType) && !IsCompilerGenerated(field))
+                .Select(field => $"{type.Name}.{field.Name}"))
+            .ToArray();
+
+        string[] methods = typeof(ByteCount).Assembly
+            .GetTypes()
+            .SelectMany(type => type
+                .GetMethods(AllMembers)
+                .Where(method =>
+                    !method.IsSpecialName
+                    && CarriesString(method.ReturnType)
+                    && !IsCompilerGenerated(method))
+                .Select(method => $"{type.Name}.{method.Name}"))
+            .ToArray();
+
+        string[] found = properties
+            .Concat(fields)
+            .Concat(methods)
             .Where(name => !AllowedStringMembers.Contains(name))
+            .Distinct()
             .Order()
             .ToArray();
 
         Assert.AreEqual(
             0,
             found.Length,
-            "Unreviewed string members found. Confirm each carries no path, "
+            "Unreviewed string-carrying members found. Confirm each carries no path, "
             + "filename, model name or native error, then add it to the allowlist: "
             + string.Join(", ", found));
     }
+
+    private static bool CarriesString(Type type) =>
+        type == typeof(string)
+        || type == typeof(string[])
+        || (typeof(System.Collections.IEnumerable).IsAssignableFrom(type)
+            && type != typeof(string)
+            && type.IsGenericType
+            && type.GetGenericArguments().Contains(typeof(string)));
+
+    private static bool IsCompilerGenerated(MemberInfo member) =>
+        member.IsDefined(typeof(CompilerGeneratedAttribute), inherit: false);
 
     [TestMethod]
     public void EveryAllowedStringValue_IsFreeOfPathLikeContent()
