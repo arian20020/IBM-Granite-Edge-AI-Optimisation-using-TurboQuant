@@ -30,10 +30,40 @@
         <Style x:Key="InspectionActionButtonTextStyle" TargetType="TextBlock">
             <Setter Property="FontFamily" Value="{StaticResource InspectionStrongBodyFontFamily}" />
             <Setter Property="FontSize" Value="{ThemeResource InspectionHelperFontSize}" />
-            <Setter Property="FontWeight" Value="{StaticResource InspectionStrongBodyFontWeight}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="MaxLines" Value="0" />
             <Setter Property="TextAlignment" Value="Center" />
             <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+        <Style
+            x:Key="InspectionSecondaryActionButtonStyle"
+            BasedOn="{StaticResource DefaultButtonStyle}"
+            TargetType="Button">
+            <Setter Property="MinHeight" Value="{StaticResource InspectionStandardButtonHeight}" />
+            <Setter Property="Padding" Value="{StaticResource InspectionActionPadding}" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Background" Value="{ThemeResource InspectionSurfaceBrush}" />
+            <Setter Property="BorderBrush" Value="{ThemeResource InspectionBorderControlBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="{StaticResource InspectionActionCornerRadius}" />
+            <Setter Property="Foreground" Value="{ThemeResource InspectionTextSecondaryStrongBrush}" />
+            <Setter Property="UseSystemFocusVisuals" Value="True" />
+        </Style>
+        <Style
+            x:Key="InspectionPrimaryActionButtonStyle"
+            BasedOn="{StaticResource AccentButtonStyle}"
+            TargetType="Button">
+            <Setter Property="MinHeight" Value="{StaticResource InspectionStandardButtonHeight}" />
+            <Setter Property="Padding" Value="{StaticResource InspectionActionPadding}" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Background" Value="{ThemeResource InspectionPrimaryBlueBrush}" />
+            <Setter Property="BorderBrush" Value="{ThemeResource InspectionPrimaryBlueBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="{StaticResource InspectionActionCornerRadius}" />
+            <Setter Property="Foreground" Value="{ThemeResource InspectionSurfaceBrush}" />
+            <Setter Property="UseSystemFocusVisuals" Value="True" />
         </Style>
         <Style x:Key="InspectionFutureHelpStyle" TargetType="TextBlock">
             <Setter Property="Margin" Value="0,4,0,0" />
@@ -84,24 +114,15 @@
                         x:Name="CancelActionButton"
                         Grid.Row="1"
                         MinWidth="{x:Bind Presentation.CancelAction.MinimumWidth, Mode=OneWay}"
-                        MinHeight="{StaticResource InspectionStandardButtonHeight}"
                         Margin="0,12,0,0"
-                        Padding="{StaticResource InspectionActionPadding}"
                         HorizontalAlignment="Center"
-                        HorizontalContentAlignment="Center"
-                        VerticalContentAlignment="Center"
                         AutomationProperties.Name="{x:Bind Presentation.CancelAction.AutomationName, Mode=OneWay}"
-                        Background="{ThemeResource InspectionSurfaceBrush}"
-                        BorderBrush="{ThemeResource InspectionBorderControlBrush}"
-                        BorderThickness="1"
                         Command="{x:Bind Presentation.CancelAction.Command, Mode=OneWay}"
                         CommandParameter="{x:Bind Presentation.CancelAction.CommandParameter, Mode=OneWay}"
-                        CornerRadius="{StaticResource InspectionActionCornerRadius}"
-                        Foreground="{ThemeResource InspectionTextSecondaryStrongBrush}"
                         IsEnabled="{x:Bind Presentation.CancelAction.IsEnabled, Mode=OneWay}"
+                        Style="{StaticResource InspectionSecondaryActionButtonStyle}"
                         Tag="{x:Bind Presentation.CancelAction.ActionId, Mode=OneWay}"
                         TabIndex="0"
-                        UseSystemFocusVisuals="True"
                         Visibility="{x:Bind Presentation.CancelAction.Visibility, Mode=OneWay}">
                         <TextBlock
                             Style="{StaticResource InspectionActionButtonTextStyle}"
@@ -158,25 +179,16 @@
                         <Button
                             x:Name="SecondaryActionOneButton"
                             MinWidth="{StaticResource InspectionMinimumTargetSize}"
-                            MinHeight="{StaticResource InspectionStandardButtonHeight}"
-                            Padding="{StaticResource InspectionActionPadding}"
                             HorizontalAlignment="Stretch"
-                            HorizontalContentAlignment="Center"
-                            VerticalContentAlignment="Center"
                             AutomationProperties.HelpText="{x:Bind Presentation.SecondaryActionOne.AutomationHelpText, Mode=OneWay}"
                             AutomationProperties.Name="{x:Bind Presentation.SecondaryActionOne.AutomationName, Mode=OneWay}"
-                            Background="{ThemeResource InspectionSurfaceBrush}"
-                            BorderBrush="{ThemeResource InspectionBorderControlBrush}"
-                            BorderThickness="1"
                             Command="{x:Bind Presentation.SecondaryActionOne.Command, Mode=OneWay}"
                             CommandParameter="{x:Bind Presentation.SecondaryActionOne.CommandParameter, Mode=OneWay}"
-                            CornerRadius="{StaticResource InspectionActionCornerRadius}"
-                            Foreground="{ThemeResource InspectionTextSecondaryStrongBrush}"
                             IsEnabled="{x:Bind Presentation.SecondaryActionOne.IsEnabled, Mode=OneWay}"
+                            Style="{StaticResource InspectionSecondaryActionButtonStyle}"
                             Tag="{x:Bind Presentation.SecondaryActionOne.ActionId, Mode=OneWay}"
                             TabIndex="0"
                             ToolTipService.ToolTip="{x:Bind Presentation.SecondaryActionOne.AutomationHelpText, Mode=OneWay}"
-                            UseSystemFocusVisuals="True"
                             Visibility="{x:Bind Presentation.SecondaryActionOne.Visibility, Mode=OneWay}">
                             <TextBlock Style="{StaticResource InspectionActionButtonTextStyle}" Text="{x:Bind Presentation.SecondaryActionOne.Text, Mode=OneWay}" />
                         </Button>
@@ -193,25 +205,16 @@
                         <Button
                             x:Name="SecondaryActionTwoButton"
                             MinWidth="{StaticResource InspectionMinimumTargetSize}"
-                            MinHeight="{StaticResource InspectionStandardButtonHeight}"
-                            Padding="{StaticResource InspectionActionPadding}"
                             HorizontalAlignment="Stretch"
-                            HorizontalContentAlignment="Center"
-                            VerticalContentAlignment="Center"
                             AutomationProperties.HelpText="{x:Bind Presentation.SecondaryActionTwo.AutomationHelpText, Mode=OneWay}"
                             AutomationProperties.Name="{x:Bind Presentation.SecondaryActionTwo.AutomationName, Mode=OneWay}"
-                            Background="{ThemeResource InspectionSurfaceBrush}"
-                            BorderBrush="{ThemeResource InspectionBorderControlBrush}"
-                            BorderThickness="1"
                             Command="{x:Bind Presentation.SecondaryActionTwo.Command, Mode=OneWay}"
                             CommandParameter="{x:Bind Presentation.SecondaryActionTwo.CommandParameter, Mode=OneWay}"
-                            CornerRadius="{StaticResource InspectionActionCornerRadius}"
-                            Foreground="{ThemeResource InspectionTextSecondaryStrongBrush}"
                             IsEnabled="{x:Bind Presentation.SecondaryActionTwo.IsEnabled, Mode=OneWay}"
+                            Style="{StaticResource InspectionSecondaryActionButtonStyle}"
                             Tag="{x:Bind Presentation.SecondaryActionTwo.ActionId, Mode=OneWay}"
                             TabIndex="1"
                             ToolTipService.ToolTip="{x:Bind Presentation.SecondaryActionTwo.AutomationHelpText, Mode=OneWay}"
-                            UseSystemFocusVisuals="True"
                             Visibility="{x:Bind Presentation.SecondaryActionTwo.Visibility, Mode=OneWay}">
                             <TextBlock Style="{StaticResource InspectionActionButtonTextStyle}" Text="{x:Bind Presentation.SecondaryActionTwo.Text, Mode=OneWay}" />
                         </Button>
@@ -228,25 +231,16 @@
                         <Button
                             x:Name="PrimaryActionButton"
                             MinWidth="{StaticResource InspectionMinimumTargetSize}"
-                            MinHeight="{StaticResource InspectionStandardButtonHeight}"
-                            Padding="{StaticResource InspectionActionPadding}"
                             HorizontalAlignment="Stretch"
-                            HorizontalContentAlignment="Center"
-                            VerticalContentAlignment="Center"
                             AutomationProperties.HelpText="{x:Bind Presentation.PrimaryAction.AutomationHelpText, Mode=OneWay}"
                             AutomationProperties.Name="{x:Bind Presentation.PrimaryAction.AutomationName, Mode=OneWay}"
-                            Background="{ThemeResource InspectionPrimaryBlueBrush}"
-                            BorderBrush="{ThemeResource InspectionPrimaryBlueBrush}"
-                            BorderThickness="1"
                             Command="{x:Bind Presentation.PrimaryAction.Command, Mode=OneWay}"
                             CommandParameter="{x:Bind Presentation.PrimaryAction.CommandParameter, Mode=OneWay}"
-                            CornerRadius="{StaticResource InspectionActionCornerRadius}"
-                            Foreground="{ThemeResource InspectionSurfaceBrush}"
                             IsEnabled="{x:Bind Presentation.PrimaryAction.IsEnabled, Mode=OneWay}"
+                            Style="{StaticResource InspectionPrimaryActionButtonStyle}"
                             Tag="{x:Bind Presentation.PrimaryAction.ActionId, Mode=OneWay}"
                             TabIndex="2"
                             ToolTipService.ToolTip="{x:Bind Presentation.PrimaryAction.AutomationHelpText, Mode=OneWay}"
-                            UseSystemFocusVisuals="True"
                             Visibility="{x:Bind Presentation.PrimaryAction.Visibility, Mode=OneWay}">
                             <TextBlock Style="{StaticResource InspectionActionButtonTextStyle}" Text="{x:Bind Presentation.PrimaryAction.Text, Mode=OneWay}" />
                         </Button>
