@@ -36,6 +36,34 @@ public sealed class ProtocolSequenceTests
     }
 
     [TestMethod]
+    public void ConversationAcceptsOneTextFragmentForFixtureTokenAndAuthoritativeEosCount()
+    {
+        OpenVinoConversationValidator validator = StartedSession();
+        validator.Accept(new PromptCommand(SessionId, TurnId, "hello", 2));
+        validator.Accept(new GenerationStartedEvent(SessionId, TurnId));
+        validator.Accept(new TokenEvent(SessionId, TurnId, 0, "fixture"));
+        validator.Accept(TurnCompleted(TurnId, generatedTokenCount: 2));
+    }
+
+    [TestMethod]
+    public void ConversationRejectsAuthoritativeGeneratedCountAbovePromptRequest()
+    {
+        OpenVinoConversationValidator validator = StartedSession();
+        validator.Accept(new PromptCommand(SessionId, TurnId, "hello", 1));
+        validator.Accept(new GenerationStartedEvent(SessionId, TurnId));
+
+        Assert.ThrowsExactly<OpenVinoProtocolException>(() =>
+            validator.Accept(TurnCompleted(TurnId, generatedTokenCount: 2)));
+    }
+
+    [TestMethod]
+    public void TokenEventRejectsEmptyTextSoEosNeverCreatesAFrame()
+    {
+        Assert.ThrowsExactly<OpenVinoProtocolException>(() =>
+            new TokenEvent(SessionId, TurnId, 0, string.Empty).Validate());
+    }
+
+    [TestMethod]
     public void ConversationRejectsSessionStartWithoutExactlyOnePrecedingStartCommand()
     {
         OpenVinoConversationValidator validator = new();

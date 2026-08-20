@@ -18,6 +18,8 @@ public sealed class OpenVinoConversationValidator
     private string? _requestedDevice;
     private OpenVinoInspectionStage? _nextInspectionStage;
     private long _nextSequence;
+    private int _maximumContextTokens;
+    private int _requestedNewTokens;
     private int _turnCount;
     private int _operationTextBytes;
 
@@ -64,6 +66,7 @@ public sealed class OpenVinoConversationValidator
                 _sessionId = startSession.SessionId;
                 _inspectionRunId = startSession.InspectionRunId;
                 _requestedDevice = startSession.Device.DeviceId;
+                _maximumContextTokens = startSession.Limits.MaximumContextTokens;
                 CapturePackageIdentity(
                     startSession.PackageManifestDigest,
                     startSession.ModelSha256,
@@ -75,6 +78,7 @@ public sealed class OpenVinoConversationValidator
                 RequireSession(prompt.SessionId);
                 OpenVinoProtocol.Require(_turnCount < OpenVinoProtocol.MaximumTurns, "session exceeds the maximum turn count.");
                 _pendingTurnId = prompt.TurnId;
+                _requestedNewTokens = prompt.RequestedNewTokens;
                 _turnCount++;
                 _state = ConversationState.PromptAccepted;
                 break;
@@ -198,8 +202,11 @@ public sealed class OpenVinoConversationValidator
                 break;
             case TurnCompletedEvent completed:
                 OpenVinoProtocol.Require(
-                    completed.GeneratedTokenCount == _nextSequence,
-                    "turnCompleted generated token count must match the stream.");
+                    completed.PromptTokenCount <= _maximumContextTokens,
+                    "turnCompleted prompt token count must fit the session context limit.");
+                OpenVinoProtocol.Require(
+                    completed.GeneratedTokenCount <= _requestedNewTokens,
+                    "turnCompleted generated token count must not exceed the prompt request.");
                 OpenVinoProtocol.Require(
                     completed.Disposition ==
                         (_state == ConversationState.Stopping
@@ -276,6 +283,7 @@ public sealed class OpenVinoConversationValidator
         RequireSession(sessionId);
         RequireActiveTurn(turnId);
         _activeTurnId = null;
+        _requestedNewTokens = 0;
         _state = ConversationState.SessionReady;
     }
 

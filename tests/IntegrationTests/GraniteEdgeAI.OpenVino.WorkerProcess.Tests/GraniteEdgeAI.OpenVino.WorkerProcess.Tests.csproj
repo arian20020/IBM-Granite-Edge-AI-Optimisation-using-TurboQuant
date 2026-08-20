@@ -25,5 +25,6 @@
     <ProjectReference Include="..\..\..\infrastructure\GraniteEdgeAI.OpenVino.WorkerClient\GraniteEdgeAI.OpenVino.WorkerClient.csproj" />
     <ProjectReference Include="..\..\..\shared\GraniteEdgeAI.OpenVino.Contracts\GraniteEdgeAI.OpenVino.Contracts.csproj" />
     <ProjectReference Include="..\..\..\tests\ProcessFixtures\GraniteEdgeAI.OpenVino.ProtocolTestWorker\GraniteEdgeAI.OpenVino.ProtocolTestWorker.csproj" />
+    <ProjectReference Include="..\..\..\tests\ProcessFixtures\GraniteEdgeAI.OpenVino.ParentExitFixture\GraniteEdgeAI.OpenVino.ParentExitFixture.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 </Project>
