@@ -4,6 +4,7 @@ using GraniteEdgeAI.Features.ModelImport.QuickScan;
 using GraniteEdgeAI.Features.ModelImport.Selection;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -60,6 +61,56 @@ public sealed class ModelImportOperationLifecycleTests
         Assert.IsNull(page.CurrentRoute);
     }
 
+    [UITestMethod]
+    public async Task NavigationAway_PreventsLateClassifierSuccessFromRestoringSelection()
+    {
+        var classifier = new ControllableClassifier();
+        var page = CreatePage(classifier);
+        Task pending = page.SubmitInputAsync(new ModelSelectionInput(@"C:\Models\first.gguf", "first.gguf", false));
+
+        page.RetireSelectionForNavigation();
+        classifier.CompleteFirst(ModelSelectionRoute.Gguf);
+        await pending;
+
+        Assert.IsFalse(page.HasValidatedModel);
+        Assert.IsNull(page.CurrentRoute);
+    }
+
+    [UITestMethod]
+    public async Task WrongOperationId_IsIgnoredWithoutDispatchOrState()
+    {
+        var page = CreatePage(new WrongIdClassifier());
+        int eventCount = 0;
+        page.OpenVinoInspectionRequested += (_, _) => eventCount++;
+
+        await page.SubmitInputAsync(new ModelSelectionInput(@"C:\Models\openvino", "openvino", true));
+
+        Assert.IsNull(page.CurrentRoute);
+        Assert.IsFalse(page.HasValidatedModel);
+        Assert.AreEqual(0, eventCount);
+    }
+
+    [UITestMethod]
+    public async Task FolderSelection_ReplacesAcceptedGgufWithoutRetainingFilePath()
+    {
+        var page = CreatePage(new ShapeClassifier());
+        await page.SubmitInputAsync(new ModelSelectionInput(@"C:\Models\first.gguf", "first.gguf", false));
+        await page.SubmitInputAsync(new ModelSelectionInput(@"C:\Models\openvino", "openvino", true));
+
+        Assert.AreEqual(ModelSelectionRoute.OpenVinoDirectory, page.CurrentRoute);
+        Assert.IsNull(page.SelectedModelPath);
+        Assert.IsNull(page.ValidatedScanResult);
+    }
+
+    [TestMethod]
+    public void FolderIntentArgs_ExposeNoPathBearingProperty()
+    {
+        foreach (Type type in new[] { typeof(OpenVinoInspectionRequestedEventArgs), typeof(SourceModelInspectionRequestedEventArgs) })
+        {
+            Assert.IsFalse(type.GetProperties().Any(property => property.Name.Contains("Path", StringComparison.OrdinalIgnoreCase)));
+        }
+    }
+
     private static ModelImportPage CreatePage(IModelSelectionClassifier classifier) => new(
         () => Task.FromResult(ModelFormatSelection.Gguf),
         () => Task.FromResult<string?>(null),
@@ -89,5 +140,17 @@ public sealed class ModelImportOperationLifecycleTests
     {
         public Task<ModelSelectionResult> ClassifyAsync(ModelSelectionOperationId id, ModelSelectionInput input, CancellationToken token) =>
             Task.FromResult(ModelSelectionResult.Accepted(id, route, input.DisplayName));
+    }
+
+    private sealed class WrongIdClassifier : IModelSelectionClassifier
+    {
+        public Task<ModelSelectionResult> ClassifyAsync(ModelSelectionOperationId id, ModelSelectionInput input, CancellationToken token) =>
+            Task.FromResult(ModelSelectionResult.Accepted(ModelSelectionOperationId.CreateNew(), ModelSelectionRoute.OpenVinoDirectory, input.DisplayName));
+    }
+
+    private sealed class ShapeClassifier : IModelSelectionClassifier
+    {
+        public Task<ModelSelectionResult> ClassifyAsync(ModelSelectionOperationId id, ModelSelectionInput input, CancellationToken token) =>
+            Task.FromResult(ModelSelectionResult.Accepted(id, input.IsFolder ? ModelSelectionRoute.OpenVinoDirectory : ModelSelectionRoute.Gguf, input.DisplayName));
     }
 }

@@ -139,6 +139,13 @@ namespace GraniteEdgeAI.Features.ModelImport
             ResetToAwaitingSelection();
         }
 
+        // Keeps navigation retirement deterministic without requiring a Frame in tests.
+        internal void RetireSelectionForNavigation()
+        {
+            RetireActiveSelectionOperation();
+            ResetToAwaitingSelection();
+        }
+
         private bool TryRequestFolderInspection()
         {
             ModelSelectionOperation? active = Volatile.Read(ref _activeOperation);
@@ -167,7 +174,7 @@ namespace GraniteEdgeAI.Features.ModelImport
 
         protected override void OnNavigatedFrom(NavigationEventArgs e)
         {
-            RetireActiveSelectionOperation();
+            RetireSelectionForNavigation();
             CancelActiveScan();
             base.OnNavigatedFrom(e);
         }
