@@ -13,6 +13,8 @@ internal interface IGgufCliProcess : IAsyncDisposable
 
     ValueTask WritePromptAsync(string content, CancellationToken cancellationToken);
 
+    ValueTask<string?> ReadOutputLineAsync(CancellationToken cancellationToken);
+
     ValueTask<bool> TryInterruptAsync(CancellationToken cancellationToken);
 
     ValueTask TerminateAsync(CancellationToken cancellationToken);

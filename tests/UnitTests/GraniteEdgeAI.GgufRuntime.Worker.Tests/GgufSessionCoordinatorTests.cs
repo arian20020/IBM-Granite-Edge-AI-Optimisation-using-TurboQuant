@@ -122,6 +122,11 @@ public sealed class GgufSessionCoordinatorTests
             return ValueTask.CompletedTask;
         }
 
+        public ValueTask<string?> ReadOutputLineAsync(CancellationToken cancellationToken)
+        {
+            return ValueTask.FromResult<string?>(null);
+        }
+
         public ValueTask<bool> TryInterruptAsync(CancellationToken cancellationToken)
         {
             return ValueTask.FromResult(true);

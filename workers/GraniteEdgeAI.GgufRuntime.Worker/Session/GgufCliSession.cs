@@ -1,0 +1,154 @@
+using System.Diagnostics;
+using System.Text;
+using GraniteEdgeAI.GgufRuntime.Contracts.Commands;
+using GraniteEdgeAI.GgufRuntime.Contracts.Configuration;
+
+namespace GraniteEdgeAI.GgufRuntime.Worker.Session;
+
+internal sealed class GgufCliSession : IGgufCliProcess
+{
+    private const int MaximumDiagnosticCharacters = 64 * 1024;
+    private readonly string _executable;
+    private readonly IReadOnlyList<string> _argumentsOverride;
+    private Process? _process;
+    private StreamReader? _output;
+    private StreamWriter? _input;
+    private Task? _diagnosticDrain;
+
+    internal GgufCliSession(
+        string executable,
+        IReadOnlyList<string> argumentsOverride)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(executable);
+        ArgumentNullException.ThrowIfNull(argumentsOverride);
+        _executable = executable;
+        _argumentsOverride = argumentsOverride;
+    }
+
+    public async ValueTask StartAsync(
+        string modelPath,
+        GgufRuntimeConfiguration configuration,
+        IReadOnlyList<GgufConversationTurn> initialTurns,
+        CancellationToken cancellationToken)
+    {
+        if (_process is not null)
+        {
+            throw new InvalidOperationException("The CLI has already started.");
+        }
+
+        IReadOnlyList<string> arguments = _argumentsOverride.Count == 0
+            ? GgufCliArgumentBuilder.Build(modelPath, configuration)
+            : _argumentsOverride;
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = _executable,
+            WorkingDirectory = Path.GetDirectoryName(_executable)!,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardInput = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            StandardInputEncoding = new UTF8Encoding(false),
+            StandardOutputEncoding = new UTF8Encoding(false, true),
+            StandardErrorEncoding = new UTF8Encoding(false, true),
+        };
+        foreach (string argument in arguments)
+        {
+            startInfo.ArgumentList.Add(argument);
+        }
+
+        _process = Process.Start(startInfo)
+            ?? throw new InvalidOperationException("The CLI process did not start.");
+        _input = _process.StandardInput;
+        _output = _process.StandardOutput;
+        _diagnosticDrain = DrainDiagnosticsAsync(
+            _process.StandardError,
+            CancellationToken.None);
+        string? ready = await _output.ReadLineAsync(cancellationToken)
+            .ConfigureAwait(false);
+        if (!string.Equals(ready, "__G1_READY__", StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("The CLI did not become ready.");
+        }
+
+        // The real pinned adapter will replay approved initial turns using its
+        // exact chat template. The deterministic fixture starts with no history.
+        _ = initialTurns;
+    }
+
+    public async ValueTask WritePromptAsync(
+        string content,
+        CancellationToken cancellationToken)
+    {
+        StreamWriter input = _input
+            ?? throw new InvalidOperationException("The CLI is not running.");
+        await input.WriteLineAsync(content.AsMemory(), cancellationToken)
+            .ConfigureAwait(false);
+        await input.FlushAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    public async ValueTask<string?> ReadOutputLineAsync(
+        CancellationToken cancellationToken)
+    {
+        StreamReader output = _output
+            ?? throw new InvalidOperationException("The CLI is not running.");
+        return await output.ReadLineAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    public async ValueTask<bool> TryInterruptAsync(CancellationToken cancellationToken)
+    {
+        if (_input is null || _process is null || _process.HasExited)
+        {
+            return false;
+        }
+
+        await _input.WriteLineAsync("__G1_STOP__".AsMemory(), cancellationToken)
+            .ConfigureAwait(false);
+        await _input.FlushAsync(cancellationToken).ConfigureAwait(false);
+        return true;
+    }
+
+    public async ValueTask TerminateAsync(CancellationToken cancellationToken)
+    {
+        if (_process is null || _process.HasExited)
+        {
+            return;
+        }
+
+        _process.Kill(entireProcessTree: true);
+        await _process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_process is not null && !_process.HasExited)
+        {
+            _process.Kill(entireProcessTree: true);
+            await _process.WaitForExitAsync().ConfigureAwait(false);
+        }
+
+        _input?.Dispose();
+        _output?.Dispose();
+        if (_diagnosticDrain is not null)
+        {
+            await _diagnosticDrain.ConfigureAwait(false);
+        }
+
+        _process?.Dispose();
+    }
+
+    private static async Task DrainDiagnosticsAsync(
+        StreamReader error,
+        CancellationToken cancellationToken)
+    {
+        char[] buffer = new char[2048];
+        int retained = 0;
+        while (await error.ReadAsync(buffer.AsMemory(), cancellationToken)
+            .ConfigureAwait(false) is int read and > 0)
+        {
+            retained = Math.Min(MaximumDiagnosticCharacters, retained + read);
+        }
+
+        _ = retained;
+    }
+}

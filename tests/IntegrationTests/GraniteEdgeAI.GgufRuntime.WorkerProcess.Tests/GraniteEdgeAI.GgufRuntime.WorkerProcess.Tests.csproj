@@ -24,6 +24,8 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\infrastructure\GraniteEdgeAI.GgufRuntime.WorkerClient\GraniteEdgeAI.GgufRuntime.WorkerClient.csproj" />
+    <ProjectReference Include="..\..\..\workers\GraniteEdgeAI.GgufRuntime.Worker\GraniteEdgeAI.GgufRuntime.Worker.csproj" />
+    <ProjectReference Include="..\..\..\tests\ProcessFixtures\GraniteEdgeAI.GgufRuntime.FakeCli\GraniteEdgeAI.GgufRuntime.FakeCli.csproj" />
     <ProjectReference Include="..\..\..\tests\ProcessFixtures\GraniteEdgeAI.GgufRuntime.ProtocolTestWorker\GraniteEdgeAI.GgufRuntime.ProtocolTestWorker.csproj" />
   </ItemGroup>
 </Project>
