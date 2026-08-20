@@ -1,10 +1,10 @@
 # Risk Consolidation Map
 
 **Document ID:** MAP-RISK-CONS-001  
-**Version:** 1.0  
+**Version:** 1.1
 **Status:** Consolidation decision recorded — treatment evidence review pending  
 **Owner:** Arian B  
-**Review date:** 2026-07-14  
+**Review date:** 2026-08-21
 **Source inventory:** `R-001`–`R-254`  
 **Operational result:** 37 retained risks
 
@@ -49,7 +49,7 @@ Fixed boundaries remain in the Constraint Register. Beliefs requiring proof rema
 | R-002 | TurboQuant failure, non-activation or silent fallback | `R-082`, `R-083`, `R-084`, `R-090`, `R-094`, `R-095`, `R-096`, `R-097`, `R-205` |
 | R-086 | TurboQuant quality degradation | `R-188`, `R-189` |
 | R-087 | TurboQuant performance, memory-benefit or stability shortfall | `R-088`, `R-089`, `R-139`, `R-140`, `R-141`, `R-142` |
-| R-099 | No suitable controlled TurboVec implementation | `R-100`, `R-101`, `R-102`, `R-103`, `R-104`, `R-117`, `R-119` |
+| R-099 | Selected TurboVec demonstrator unsuitable for intended Intel or application promotion | `R-100`, `R-101`, `R-102`, `R-103`, `R-104`, `R-117`, `R-119` |
 | R-105 | TurboVec pipeline integration and retrieval-quality failure | `R-106`, `R-107`, `R-108`, `R-109`, `R-110`, `R-111`, `R-112`, `R-113`, `R-114`, `R-115`, `R-116`, `R-191`, `R-192` |
 | R-121 | Hardware and backend capability detection error | `R-122`, `R-131`, `R-132`, `R-133`, `R-138` |
 | R-123 | Unsafe or misleading memory-fit estimate | `R-124`, `R-125`, `R-126`, `R-127`, `R-128`, `R-129`, `R-130` |

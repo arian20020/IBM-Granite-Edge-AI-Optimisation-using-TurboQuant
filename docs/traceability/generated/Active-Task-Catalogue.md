@@ -3,9 +3,9 @@
 
 # Active Task Catalogue
 
-**Catalogue version:** 1.3  
-**Generated on:** 2026-07-14  
-**Source workbook SHA-256:** `ce3d4ecc056c802c87b4daa8d509f22f6feb537226c6d95bb29361dd89d9f9e8`  
+**Catalogue version:** 1.3
+**Generated on:** 2026-08-21
+**Source workbook SHA-256:** `b31727b97048dd3eb0c2805a67219bf670114b66d7129a0249830d00dbbbcd31`
 **Active task count:** 165
 
 > This is a generated repository snapshot. Update status and validation in the controlled RTM workbook, then regenerate these files.
@@ -152,9 +152,9 @@ Context/component/process/deployment views and ADRs for WinUI, adapters/no port,
 | Priority | Must |
 | Release role / phase | Research |
 | Deadline | 2026-07-14 |
-| Working status | In Progress |
-| Validation | Not Validated |
-| Effective status | **In Progress** |
+| Working status | Implemented |
+| Validation | Validated |
+| Effective status | **Verified** |
 | Planned evidence | [docs/architecture/decisions/ADR-TurboVec.md](../../architecture/decisions/ADR-TurboVec.md) |
 
 #### Task statement
@@ -2634,9 +2634,9 @@ Clean build/test and evidence structure exist.
 | Priority | P0 |
 | Release role / phase | P0 |
 | Deadline | 2026-07-14 |
-| Working status | In Progress |
-| Validation | Not Validated |
-| Effective status | **In Progress** |
+| Working status | Implemented |
+| Validation | Validated |
+| Effective status | **Verified** |
 | Planned evidence | [docs/evidence/work-packages/TV-01/](../../evidence/work-packages/TV-01) |
 
 #### Task statement

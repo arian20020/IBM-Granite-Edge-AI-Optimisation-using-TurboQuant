@@ -3,7 +3,7 @@
 
 # Full Requirement Baseline
 
-**Generated on:** 2026-07-14  
+**Generated on:** 2026-08-21
 **Requirement count:** 111
 
 > This baseline deliberately retains Active, Deferred, Superseded and Excluded records so that scope history is not lost.
@@ -1149,7 +1149,7 @@ The core research contribution is a controlled memory/quality/performance trade-
 | Release role | Research |
 | Lifecycle | **Active** |
 | Baseline version | v1.2 Draft |
-| Status | In Progress |
+| Status | Verified |
 | Target date | 2026-07-14 |
 | Owner | Arian B |
 | Planned evidence | [docs/architecture/decisions/ADR-TurboVec.md](../../architecture/decisions/ADR-TurboVec.md) |
@@ -1176,7 +1176,7 @@ The implementation name alone is insufficient for safe integration.
 
 - Source: MoSCoW v1.1 R-M02 revised by agreed scope
 - Previous/replacement ID: —
-- Notes: This is a critical assumption and gate.
+- Notes: Decision is Command-line demonstrator only. Intended Intel evidence and app integration are not claimed; UI remains Not indexed.
 
 <a id="req-r-m03"></a>
 ## REQ:R-M03 — The project must complete and preserve an official OpenVINO GenAI Granite baseline or a reproducible blocker.

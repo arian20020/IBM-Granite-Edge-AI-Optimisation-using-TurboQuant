@@ -50,9 +50,9 @@
 
 | ID | Task | Type | Status | Planned evidence |
 |---|---|---|---|---|
-| [`REQ:R-M02`](Active-Task-Catalogue.md#req-r-m02) | The project must identify, pin and document the exact TurboVec implementation and its role in the release. | Requirement | In Progress | [Open](../../architecture/decisions/ADR-TurboVec.md) |
+| [`REQ:R-M02`](Active-Task-Catalogue.md#req-r-m02) | The project must identify, pin and document the exact TurboVec implementation and its role in the release. | Requirement | Verified | [Open](../../architecture/decisions/ADR-TurboVec.md) |
 | [`WP:PD-08`](Active-Task-Catalogue.md#wp-pd-08) | Repository/test/evidence preparation | Work Package | In Progress | [Open](../../evidence/work-packages/PD-08) |
-| [`WP:TV-01`](Active-Task-Catalogue.md#wp-tv-01) | Identify and pin exact TurboVec implementation and contract | Work Package | In Progress | [Open](../../evidence/work-packages/TV-01) |
+| [`WP:TV-01`](Active-Task-Catalogue.md#wp-tv-01) | Identify and pin exact TurboVec implementation and contract | Work Package | Verified | [Open](../../evidence/work-packages/TV-01) |
 | [`EP:EP-018`](Active-Task-Catalogue.md#ep-ep-018) | Prepare test projects, fixtures, manifests and CI | Engineering Practice | In Progress | [Open](../../evidence/engineering-practices/EP-018) |
 | [`EP:EP-019`](Active-Task-Catalogue.md#ep-ep-019) | Freeze app-specific evaluation addendum | Engineering Practice | In Progress | [Open](../../evidence/engineering-practices/EP-019) |
 | [`WP:PD-09`](Active-Task-Catalogue.md#wp-pd-09) | App-specific evaluation addendum | Work Package | In Progress | [Open](../../evidence/work-packages/PD-09) |

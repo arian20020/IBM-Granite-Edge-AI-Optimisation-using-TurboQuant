@@ -116,7 +116,7 @@
 | [`WP:PD-06`](Active-Task-Catalogue.md#wp-pd-06) | Architecture views and ADRs | Work Package | Not Started | [Open](../../evidence/work-packages/PD-06) |
 | [`WP:PD-07`](Active-Task-Catalogue.md#wp-pd-07) | Application contracts/states/diagnostics | Work Package | Not Started | [Open](../../evidence/work-packages/PD-07) |
 | [`WP:PD-08`](Active-Task-Catalogue.md#wp-pd-08) | Repository/test/evidence preparation | Work Package | In Progress | [Open](../../evidence/work-packages/PD-08) |
-| [`WP:TV-01`](Active-Task-Catalogue.md#wp-tv-01) | Identify and pin exact TurboVec implementation and contract | Work Package | In Progress | [Open](../../evidence/work-packages/TV-01) |
+| [`WP:TV-01`](Active-Task-Catalogue.md#wp-tv-01) | Identify and pin exact TurboVec implementation and contract | Work Package | Verified | [Open](../../evidence/work-packages/TV-01) |
 | [`WP:PD-09`](Active-Task-Catalogue.md#wp-pd-09) | App-specific evaluation addendum | Work Package | In Progress | [Open](../../evidence/work-packages/PD-09) |
 | [`WP:PD-10`](Active-Task-Catalogue.md#wp-pd-10) | TurboVec and LLM Fit decision | Work Package | In Progress | [Open](../../evidence/work-packages/PD-10) |
 
@@ -217,7 +217,7 @@
 
 | ID | Task | Type | Status | Planned evidence |
 |---|---|---|---|---|
-| [`REQ:R-M02`](Active-Task-Catalogue.md#req-r-m02) | The project must identify, pin and document the exact TurboVec implementation and its role in the release. | Requirement | In Progress | [Open](../../architecture/decisions/ADR-TurboVec.md) |
+| [`REQ:R-M02`](Active-Task-Catalogue.md#req-r-m02) | The project must identify, pin and document the exact TurboVec implementation and its role in the release. | Requirement | Verified | [Open](../../architecture/decisions/ADR-TurboVec.md) |
 | [`REQ:R-M03`](Active-Task-Catalogue.md#req-r-m03) | The project must complete and preserve an official OpenVINO GenAI Granite baseline or a reproducible blocker. | Requirement | Partially Verified | [Open](../../../experiments/raw-results/EXP-OV-OFFICIAL-001) |
 | [`REQ:R-M01`](Active-Task-Catalogue.md#req-r-m01) | The project must compare at least one verified TurboQuant run with a matched standard KV-cache baseline. | Requirement | Partially Verified | [Open](../../../experiments/processed-results/EXP-TQ-COMP-001) |
 | [`REQ:R-M04`](Active-Task-Catalogue.md#req-r-m04) | The project must measure memory use for every final test configuration. | Requirement | Partially Verified | [Open](../../../experiments/processed-results/final-metrics) |

@@ -3,7 +3,7 @@
 
 # Work-Package Catalogue
 
-**Generated on:** 2026-07-14  
+**Generated on:** 2026-08-21
 **Record count:** 49
 
 | ID | Task | Priority | Phase / role | Status | Deadline | Planned evidence |
@@ -16,7 +16,7 @@
 | [`WP:PD-06`](Active-Task-Catalogue.md#wp-pd-06) | Architecture views and ADRs | P0 | P0 | Not Started | 2026-07-13 | [Open](../../evidence/work-packages/PD-06) |
 | [`WP:PD-07`](Active-Task-Catalogue.md#wp-pd-07) | Application contracts/states/diagnostics | P0 | P0 | Not Started | 2026-07-13 | [Open](../../evidence/work-packages/PD-07) |
 | [`WP:PD-08`](Active-Task-Catalogue.md#wp-pd-08) | Repository/test/evidence preparation | P0 | P0 | In Progress | 2026-07-14 | [Open](../../evidence/work-packages/PD-08) |
-| [`WP:TV-01`](Active-Task-Catalogue.md#wp-tv-01) | Identify and pin exact TurboVec implementation and contract | P0 | P0 | In Progress | 2026-07-14 | [Open](../../evidence/work-packages/TV-01) |
+| [`WP:TV-01`](Active-Task-Catalogue.md#wp-tv-01) | Identify and pin exact TurboVec implementation and contract | P0 | P0 | Verified | 2026-07-14 | [Open](../../evidence/work-packages/TV-01) |
 | [`WP:PD-09`](Active-Task-Catalogue.md#wp-pd-09) | App-specific evaluation addendum | P1 | P0 | In Progress | 2026-07-14 | [Open](../../evidence/work-packages/PD-09) |
 | [`WP:PD-10`](Active-Task-Catalogue.md#wp-pd-10) | TurboVec and LLM Fit decision | P1 | P0 | In Progress | 2026-07-14 | [Open](../../evidence/work-packages/PD-10) |
 | [`WP:IM-01`](Active-Task-Catalogue.md#wp-im-01) | Finish existing ModelImportPage layout/navigation | P0 | P1 | In Progress | 2026-07-15 | [Open](../../evidence/work-packages/IM-01) |

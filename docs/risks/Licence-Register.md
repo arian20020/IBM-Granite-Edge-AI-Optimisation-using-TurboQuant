@@ -1,18 +1,18 @@
 # Licence Register
 
 **Document ID:** REG-LIC-001  
-**Version:** 0.5
+**Version:** 0.6
 **Status:** Selected development dependencies reviewed — exact release-package review pending  
 **Owner:** Arian B  
 **Effective date:** 2026-07-14  
-**Last reviewed:** 2026-08-09
+**Last reviewed:** 2026-08-21
 **Next review:** When exact release artefacts are adopted and before release packaging  
 **Related requirement:** `G-M05`  
 **Related work package:** `PD-05`  
 **Related engineering practice:** `EP-007`  
 **Related change:** `CR-018` / `CHG-018`  
 **Related review:** `RV-007`  
-**Supporting evidence:** [Licence Review Notes](Licence-Review-Notes.md), [ADR-001](../architecture/decisions/ADR-001-llamasharp-application-runtime.md)
+**Supporting evidence:** [Licence Review Notes](Licence-Review-Notes.md), [ADR-001](../architecture/decisions/ADR-001-llamasharp-application-runtime.md), [ADR-TurboVec](../architecture/decisions/ADR-TurboVec.md), [TurboVec controlled evidence](../evidence/turbovec/README.md)
 
 ## Purpose
 
@@ -45,7 +45,7 @@ This is an engineering compliance record, not legal advice. Ambiguity remains `P
 | L-007 | .NET 8 SDK/runtime and base libraries | `net8.0-windows`; exact runtime patch pending | MIT for main repositories plus third-party notices and component-specific terms | Permitted | Permitted where applicable | Permitted subject to included-file terms and notices | Record exact runtime patch and third-party notices, especially for self-contained publication | Development use permitted. Framework-dependent release is preferred until self-contained inventory is reviewed | Restricted | Before self-contained or packaged release |
 | L-008 | AtomicBot-ai TurboQuant llama.cpp fork | Branch `feature/turboquant-kv-cache`; commit `b0e900a28ee4172bbb97df0d1ea1c78e86bc0ac6` | MIT in pinned repository, plus inherited dependencies | Permitted | Permitted | Source permitted; binary redistribution depends on compiled dependencies | Preserve MIT and inherited notices; record backend/native libraries; technical validity remains separate | Research, build, modification and testing permitted. Final binary bundling waits for dependency review | Restricted | Before adoption as the application route or packaging |
 | L-009 | animehacker TurboQuant llama.cpp fork | Branch `main`; commit `5bc5ed3bdc25003aa9f07422753a7b8d4f9190fc` | MIT in pinned repository, plus inherited dependencies | Permitted | Permitted | Source permitted; binary redistribution depends on compiled dependencies | Preserve MIT and inherited notices; review SYCL/oneAPI/native components; do not misdescribe Stage-1 implementation as full QJL-enabled TurboQuant | Research, build, modification and testing permitted. Final binary bundling waits for dependency review | Restricted | Before adoption as the application route or packaging |
-| L-010 | Selected TurboVec implementation | No repository or commit selected | Unknown | No external implementation permission assumed | No permission assumed | No permission assumed | A paper, idea or public snippet is not a software licence; identify repository, commit, licence and dependencies first | Do not copy, integrate or distribute external TurboVec code yet | Pending | When the feasibility investigation selects a candidate |
+| L-010 | TurboVec CLI-research dependency | `RyanCodrai/turbovec` v1.0.0, commit `ccab9f325e6ce2a270a87daf01ae4e443bcf2d49`; Windows x64 wheel SHA-256 `cd855e0b318a57dc57c733f9a62ae98de5192f4f6c2c760e305523e8ceb1b090` | MIT in the pinned upstream repository | Permitted for the bounded, offline command-line demonstrator and controlled research | Permitted under MIT | Source/wheel redistribution may be permitted under MIT, but application or release redistribution has not been assessed or approved | Preserve the upstream copyright and MIT permission notice; retain exact version, commit and wheel hash; acquire the wheel separately in the controlled setup; review every transitive package independently. The `BAAI/bge-small-en-v1.5` model has a separate MIT licence and identity record and is not licensed by TurboVec's MIT file | Separate controlled acquisition only. The wheel, model cache and dependencies are not bundled in the WinUI application or release. Final packaging review remains open | Restricted | If identity, role, dependencies or acquisition changes, and before any application or release redistribution |
 | L-011 | Evaluation prompts, synthetic documents and retrieval test data | Project-authored assets plus any later external sources | Project-authored material may be controlled by the project; external terms vary | Project-authored and clearly licensed material permitted | Depends on ownership/source | Depends on ownership/source | Maintain prompt/data manifest and provenance; exclude sensitive, unclear or non-redistributable material | Use project-authored synthetic material by default; review every external benchmark or document separately | Restricted | Before freezing evaluation assets |
 | L-012 | Application icons, images, fonts and design assets | Current WinUI assets; complete provenance manifest pending | Project-created, Microsoft-template or third-party terms depending on asset | Depends on source | Depends on source | Depends on source | Record each asset’s source and licence; replace unclear assets | Do not approve final packaging until the asset-provenance manifest is complete | Pending | Before UI freeze and release packaging |
 | L-013 | Research papers, textbooks and source extracts | Source-specific publications | Copyright, publisher terms or explicit open licence | Reading, analysis and citation permitted | Limited quotation/adaptation only where lawful | Full-text redistribution is not assumed | Cite accurately; use limited quotation; do not commit or ship full copyrighted books/papers without permission | Reference-only; exclude full copyrighted publications from repository and release | Restricted | When adding a new source or extract |
@@ -64,7 +64,7 @@ This is an engineering compliance record, not legal advice. Ambiguity remains `P
 | OpenVINO and OpenVINO GenAI development | Permitted under Apache-2.0 |
 | Official Granite 4.1 3B/8B use and conversion | Permitted under Apache-2.0, subject to exact artefact provenance |
 | One final bundle containing all runtimes, models and assets | Not yet approved |
-| TurboVec implementation code | Not yet selected or licensed |
+| TurboVec implementation code | Exact MIT-licensed `RyanCodrai/turbovec` v1.0.0 identity selected for a separately acquired command-line demonstrator only; not approved for WinUI or release bundling |
 | Project’s own public reuse licence | Not yet selected |
 
 ## Release licence gate

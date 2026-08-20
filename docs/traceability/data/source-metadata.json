@@ -1,9 +1,9 @@
 {
   "catalogue_version": "1.3",
   "schema_version": "1.0",
-  "generated_on": "2026-07-14",
-  "generated_from": "IXN_IBM_Granite_Requirements_Traceability_Matrix_v1.3 (1)(1).xlsx",
-  "source_sha256": "ce3d4ecc056c802c87b4daa8d509f22f6feb537226c6d95bb29361dd89d9f9e8",
+  "generated_on": "2026-08-21",
+  "generated_from": "IXN_IBM_Granite_Requirements_Traceability_Matrix_v1.3-turbovec-reconciled.xlsx",
+  "source_sha256": "b31727b97048dd3eb0c2805a67219bf670114b66d7129a0249830d00dbbbcd31",
   "source_sheets": [
     "Task Checklist",
     "Requirements",

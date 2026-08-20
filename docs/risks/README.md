@@ -1,11 +1,11 @@
 # Risk, Assumption, Constraint and Licence Control
 
 **Document ID:** IDX-RACL-001  
-**Version:** 0.8  
+**Version:** 0.9
 **Status:** Operational and Verified for `G-M05`, `PD-05` and `EP-007`  
 **Owner:** Arian B  
 **Effective date:** 2026-07-14  
-**Last reviewed:** 2026-07-15  
+**Last reviewed:** 2026-08-21
 **Next review:** Event-driven register reviews and final release-package review  
 **Related requirement:** `G-M05`  
 **Related work package:** `PD-05`  
@@ -28,7 +28,7 @@ This directory is the controlled home for project risks, assumptions, constraint
 |---|---|
 | Windows 11 x64, Intel, IBM Granite, upstream llama.cpp and one verified Experimental TurboQuant route | Core |
 | OpenVINO | Should Have |
-| TurboVec | Later feasibility investigation; full integration deferred |
+| TurboVec | Command-line demonstrator only on controlled Windows x64 AMD evidence; Intel and app integration remain unvalidated, and full integration stays deferred |
 
 ## Authoritative records
 
@@ -37,7 +37,7 @@ This directory is the controlled home for project risks, assumptions, constraint
 | Risks | [Risk Register](Risk-Register.md) | 254 identified items consolidated into 37 operational risks |
 | Assumptions | [Assumption Register](Assumption-Register.md) | `A-001`–`A-017` approved for planning; outcomes remain evidence-gated |
 | Constraints | [Constraint Register](Constraint-Register.md) | `C-001`–`C-015` approved Active |
-| Licences | [Licence Register](Licence-Register.md) | `L-001`–`L-015` reviewed at source level; final package gate remains |
+| Licences | [Licence Register](Licence-Register.md) | `L-001`–`L-017` reviewed at source level; final package gate remains |
 
 Supporting controls:
 

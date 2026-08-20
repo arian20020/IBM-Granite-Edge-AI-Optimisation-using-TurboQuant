@@ -1,10 +1,10 @@
 # Licence Review Notes
 
 **Document ID:** NOTE-LIC-001  
-**Version:** 1.0  
+**Version:** 1.1
 **Status:** Initial engineering review complete — final release-package review pending  
 **Owner / reviewer:** Arian B  
-**Review date:** 2026-07-14  
+**Review date:** 2026-08-21
 **Related register:** [Licence Register](Licence-Register.md)  
 **Related review:** `RV-007`
 
@@ -139,9 +139,19 @@ The repository describes a Stage-1/PolarQuant-style implementation and explicitl
 
 ### 3.10 TurboVec
 
-No exact TurboVec implementation has yet been selected. A paper, concept description or publicly visible code snippet is not enough to establish permission to copy, modify or distribute an implementation.
+Source and controlled artefact reviewed:
 
-**Decision:** Pending. Do not copy, integrate or distribute external TurboVec code until the exact repository, commit and licence are recorded.
+- repository: <https://github.com/RyanCodrai/turbovec>;
+- release: `v1.0.0`;
+- commit: `ccab9f325e6ce2a270a87daf01ae4e443bcf2d49`;
+- Windows x64 wheel SHA-256: `cd855e0b318a57dc57c733f9a62ae98de5192f4f6c2c760e305523e8ceb1b090`;
+- upstream code licence: MIT.
+
+The bounded review established a clear licence basis for the exact TurboVec code and wheel used by the offline command-line demonstrator. The MIT notice and copyright must be preserved. The wheel is obtained through a separate controlled acquisition and is not bundled into the WinUI application or a release package.
+
+The embedding model and Python environment require separate decisions. `BAAI/bge-small-en-v1.5` is recorded under its own MIT model licence and identity manifest; FastEmbed, NumPy, ONNX Runtime and their dependencies remain subject to their own package terms. TurboVec's MIT licence does not approve those separate artefacts.
+
+**Decision:** Restricted. Research, controlled acquisition and use of this exact identity are permitted for the **Command-line demonstrator only** role. No application integration or application/release redistribution is approved by this bounded review. Any bundling, dependency change or redistribution proposal requires a final packaging and notice review. See [ADR-TurboVec](../architecture/decisions/ADR-TurboVec.md) and the [controlled evidence record](../evidence/turbovec/README.md).
 
 ### 3.11 Evaluation prompts and data
 
@@ -182,10 +192,11 @@ Before release packaging:
 7. confirm that Windows SDK build tools are not shipped accidentally;
 8. decide whether .NET is framework-dependent or self-contained;
 9. complete asset and evaluation-data provenance;
-10. decide the licence for the project’s own source code.
+10. decide the licence for the project’s own source code;
+11. if TurboVec is ever proposed for application or release distribution, review the exact wheel, dependency inventory, model artefact and required notices for that package.
 
 ## 5. Current overall conclusion
 
-The project has a sound licence basis for research, development and modification of the main open-source runtimes and reviewed TurboQuant forks.
+The project has a sound licence basis for research, development and modification of the main open-source runtimes, reviewed TurboQuant forks and the exact TurboVec v1.0.0 command-line research dependency.
 
 The project is **not yet approved to distribute one final bundle containing every dependency and model artefact**. That decision remains gated on the exact release inventory, notices, model provenance and project-source licence decision.
