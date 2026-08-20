@@ -583,6 +583,57 @@ class StagedPromotionTests(unittest.TestCase):
             self.assertEqual(5, results.count("index-maintenance-required"))
             self.assertEqual(3, len(list_retained_staging(target)))
 
+    def test_concurrent_success_and_failures_keep_three_fixed_slot_states(self):
+        writer_barrier = threading.Barrier(3)
+        results = []
+        lock = threading.Lock()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            target = root / "knowledge-index"
+
+            def run(number, succeeds):
+                def writer(staging):
+                    write_index(staging)
+                    writer_barrier.wait(timeout=5)
+
+                try:
+                    promote_staged_index(
+                        target,
+                        promotable_manifest(),
+                        writer,
+                        (lambda *_: succeeds),
+                        operation_id=f"mixed-{number}",
+                    )
+                    result = "success"
+                except ResearchError as error:
+                    result = error.code
+                with lock:
+                    results.append(result)
+
+            threads = [
+                threading.Thread(target=run, args=(0, True)),
+                threading.Thread(target=run, args=(1, False)),
+                threading.Thread(target=run, args=(2, False)),
+            ]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join(timeout=10)
+
+            self.assertEqual(1, results.count("success"))
+            self.assertEqual(2, results.count("index-artifact-invalid"))
+            controls = [
+                child
+                for child in root.iterdir()
+                if child.name in {
+                    f"knowledge-index.slot-{slot}{suffix}"
+                    for slot in range(3)
+                    for suffix in ("", ".available")
+                }
+            ]
+            self.assertEqual(3, len(controls))
+            self.assertEqual(2, len(list_retained_staging(target)))
+
     def test_success_releases_exact_slot_for_subsequent_build(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -591,6 +642,57 @@ class StagedPromotionTests(unittest.TestCase):
             target.rename(root / "published-first")
             promote_staged_index(target, promotable_manifest(), write_index, validate_index, operation_id="second")
             self.assertEqual(b"TVEC", (target / "index.tv").read_bytes())
+
+    def test_twenty_successes_reuse_fixed_slot_without_retained_failures(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            target = root / "knowledge-index"
+            for number in range(20):
+                promote_staged_index(
+                    target,
+                    promotable_manifest(),
+                    write_index,
+                    validate_index,
+                    operation_id=f"success-{number}",
+                )
+                target.rename(root / f"published-{number}")
+            controls = list(root.glob("knowledge-index.slot-*"))
+            self.assertLessEqual(len(controls), 3)
+            self.assertEqual(["knowledge-index.slot-0.available"], [item.name for item in controls])
+            self.assertEqual((), list_retained_staging(target))
+
+    def test_reused_available_slot_atomically_rewrites_owner(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            target = root / "knowledge-index"
+            promote_staged_index(target, promotable_manifest(), write_index, validate_index, operation_id="owner-first")
+            target.rename(root / "published-first")
+            available = root / "knowledge-index.slot-0.available"
+            self.assertEqual('{"operation_id":"owner-first","schema_version":1}', (available / "owner.json").read_text(encoding="utf-8"))
+            with self.assertRaises(ResearchError):
+                promote_staged_index(target, promotable_manifest(), write_index, lambda *_: False, operation_id="owner-second")
+            active = root / "knowledge-index.slot-0"
+            self.assertEqual('{"operation_id":"owner-second","schema_version":1}', (active / "owner.json").read_text(encoding="utf-8"))
+
+    def test_available_acquire_swap_preserves_unowned_replacement(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            target = root / "knowledge-index"
+            promote_staged_index(target, promotable_manifest(), write_index, validate_index, operation_id="seed")
+            target.rename(root / "published-seed")
+            moved = root / "moved-available"
+
+            def swap(available):
+                available.rename(moved)
+                available.mkdir()
+                (available / "external-marker").write_text("keep", encoding="utf-8")
+
+            with mock.patch("granite_turbovec.manifest._slot_acquire_race_hook", side_effect=swap):
+                with self.assertRaises(ResearchError):
+                    promote_staged_index(target, promotable_manifest(), write_index, lambda *_: False, operation_id="acquire-swap")
+            replacement = root / "knowledge-index.slot-0.available"
+            self.assertEqual("keep", (replacement / "external-marker").read_text(encoding="utf-8"))
+            self.assertTrue((root / "knowledge-index.slot-0" / "owner.json").exists())
 
     def test_stale_slots_block_predictably_and_listing_handles_legacy_over_cap(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -627,9 +729,8 @@ class StagedPromotionTests(unittest.TestCase):
                     pass
             replacement = root / "knowledge-index.slot-0"
             self.assertEqual("keep", (replacement / "external-marker").read_text(encoding="utf-8"))
-            released = list(root.glob("knowledge-index.released-slot-0-*"))
-            self.assertEqual(1, len(released))
-            self.assertTrue((released[0] / "owner.json").exists())
+            released = root / "knowledge-index.slot-0.available"
+            self.assertTrue((released / "owner.json").exists())
             target.rename(root / "published-before-retry")
             used = []
 

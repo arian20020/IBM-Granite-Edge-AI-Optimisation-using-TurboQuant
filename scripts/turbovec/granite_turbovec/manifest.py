@@ -335,15 +335,61 @@ def list_retained_staging(destination: str | Path) -> tuple[Path, ...]:
 
 
 def _reserve_slot(target: Path, operation_id: str) -> _SlotReservation:
-    payload = json.dumps(
-        {"operation_id": operation_id, "schema_version": 1},
-        ensure_ascii=False,
-        allow_nan=False,
-        separators=(",", ":"),
-        sort_keys=True,
-    ).encode("utf-8")
     for index in range(_MAX_RETAINED_STAGING):
         slot = target.parent / f"{target.name}.slot-{index}"
+        available = slot.with_name(f"{slot.name}.available")
+        if _path_entry_exists(slot):
+            continue
+
+        available_handle = None
+        parent_handle = None
+        keep_handle = False
+        try:
+            available_identity = _require_plain_directory(available)
+            _validate_available_slot(available, available_identity)
+            parent_identity = _require_plain_directory(target.parent)
+            parent_handle = _open_validated_directory_handle(
+                target.parent, parent_identity
+            )
+            available_handle = _open_validated_directory_handle(
+                available,
+                available_identity,
+                delete_access=True,
+                write_through=True,
+            )
+            _slot_acquire_race_hook(available)
+            _promote_validated_handle(
+                available_handle, parent_handle, slot, available_identity
+            )
+            _validate_open_handle_matches_path(available_handle, slot)
+            _write_slot_owner(slot, available_identity, operation_id)
+            keep_handle = True
+            return _SlotReservation(
+                slot,
+                available_identity,
+                available_handle,
+                index,
+                operation_id,
+            )
+        except FileNotFoundError:
+            pass
+        except ResearchError as error:
+            if error.code not in (
+                "index-destination-exists",
+                "index-path-invalid",
+                "index-promotion-failed",
+                "index-maintenance-required",
+            ):
+                raise
+        except Exception:
+            pass
+        finally:
+            _close_native_handle(parent_handle)
+            if available_handle is not None and not keep_handle:
+                _close_native_handle(available_handle)
+
+        if _path_entry_exists(available) or _path_entry_exists(slot):
+            continue
         try:
             slot.mkdir()
         except FileExistsError:
@@ -352,12 +398,7 @@ def _reserve_slot(target: Path, operation_id: str) -> _SlotReservation:
             raise ResearchError("index-maintenance-required") from None
         try:
             identity = _require_plain_directory(slot)
-            owner = slot / "owner.json"
-            with owner.open("xb") as stream:
-                stream.write(payload)
-                stream.flush()
-                os.fsync(stream.fileno())
-            _fsync_directory(slot)
+            _write_slot_owner(slot, identity, operation_id, first_write=True)
             _fsync_directory(target.parent)
             handle = _open_validated_directory_handle(
                 slot, identity, delete_access=True, write_through=True
@@ -380,9 +421,7 @@ def _release_slot(
     try:
         _validate_open_handle_matches_path(slot.handle, slot.path)
         _slot_release_race_hook(slot.path)
-        released = target.parent / (
-            f"{target.name}.released-slot-{slot.index}-{uuid.uuid4().hex}"
-        )
+        released = target.parent / f"{target.name}.slot-{slot.index}.available"
         _promote_validated_handle(
             slot.handle, parent_handle, released, slot.identity
         )
@@ -395,6 +434,98 @@ def _release_slot(
 
 def _slot_release_race_hook(path: Path) -> None:
     """Test seam after slot validation and before handle-bound release."""
+
+
+def _slot_acquire_race_hook(path: Path) -> None:
+    """Test seam after available-slot validation and before handle-bound acquire."""
+
+
+def _validate_available_slot(path: Path, identity: tuple[int, int]) -> None:
+    _require_same_directory(path, identity)
+    try:
+        with os.scandir(path) as entries:
+            names = [entry.name for entry in entries]
+        if names != ["owner.json"]:
+            raise ResearchError("index-maintenance-required")
+        owner = path / "owner.json"
+        info = owner.stat(follow_symlinks=False)
+        if not stat.S_ISREG(info.st_mode) or info.st_size > 512:
+            raise ResearchError("index-maintenance-required")
+        raw = _bounded_read(owner, 512)
+        parsed = json.loads(
+            raw.decode("utf-8", errors="strict"),
+            object_pairs_hook=_unique_object,
+            parse_constant=lambda _: _reject_json_constant(),
+        )
+        if type(parsed) is not dict or set(parsed) != {
+            "operation_id",
+            "schema_version",
+        }:
+            raise ResearchError("index-maintenance-required")
+        if (
+            parsed["schema_version"] != 1
+            or type(parsed["schema_version"]) is not int
+        ):
+            raise ResearchError("index-maintenance-required")
+        _validated_operation_id(parsed["operation_id"])
+        canonical = json.dumps(
+            parsed,
+            ensure_ascii=False,
+            allow_nan=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode("utf-8")
+        if raw != canonical:
+            raise ResearchError("index-maintenance-required")
+        _require_same_directory(path, identity)
+    except Exception:
+        raise ResearchError("index-maintenance-required") from None
+
+
+def _write_slot_owner(
+    path: Path,
+    identity: tuple[int, int],
+    operation_id: str,
+    *,
+    first_write: bool = False,
+) -> None:
+    payload = json.dumps(
+        {"operation_id": operation_id, "schema_version": 1},
+        ensure_ascii=False,
+        allow_nan=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
+    owner = path / "owner.json"
+    temporary = path / f"owner.json.tmp-{operation_id}"
+    temporary_identity = None
+    created = False
+    try:
+        _require_same_directory(path, identity)
+        _require_safe_leaf(temporary, may_not_exist=True, must_not_exist=True)
+        with temporary.open("xb") as stream:
+            created = True
+            opened = os.fstat(stream.fileno())
+            temporary_identity = (opened.st_dev, opened.st_ino)
+            stream.write(payload)
+            stream.flush()
+            os.fsync(stream.fileno())
+        _require_same_file(temporary, temporary_identity)
+        _require_same_directory(path, identity)
+        if first_write:
+            _require_safe_leaf(owner, may_not_exist=True, must_not_exist=True)
+        os.replace(temporary, owner)
+        created = False
+        _require_same_directory(path, identity)
+        _fsync_directory(path)
+    except ResearchError:
+        if created and temporary_identity is not None:
+            _unlink_owned_file(temporary, temporary_identity)
+        raise
+    except Exception:
+        if created and temporary_identity is not None:
+            _unlink_owned_file(temporary, temporary_identity)
+        raise ResearchError("index-maintenance-required") from None
 
 
 def _retained_staging_entries(target: Path) -> tuple[Path, ...]:
