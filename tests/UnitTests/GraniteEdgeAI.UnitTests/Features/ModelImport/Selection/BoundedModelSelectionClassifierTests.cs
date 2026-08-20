@@ -265,6 +265,62 @@ public sealed class BoundedModelSelectionClassifierTests
     }
 
     [TestMethod]
+    public async Task ClassifyAsync_RejectsChildThatBecomesReparseBeforeDirectoryExists()
+    {
+        using var directory = new TemporaryDirectory();
+        string child = directory.WriteFile("model.xml", "xml");
+        int childAttributeReads = 0;
+        var classifier = new BoundedModelSelectionClassifier(
+            attributesReader: path => string.Equals(path, child, StringComparison.OrdinalIgnoreCase) && ++childAttributeReads > 1
+                ? FileAttributes.ReparsePoint
+                : FileAttributes.Normal,
+            directoryExists: path =>
+            {
+                if (string.Equals(path, child, StringComparison.OrdinalIgnoreCase) && childAttributeReads > 1)
+                {
+                    Assert.Fail("A child that became a reparse point must be rejected before Directory.Exists is queried.");
+                }
+
+                return Directory.Exists(path);
+            });
+
+        ModelSelectionResult result = await classifier.ClassifyAsync(
+            ModelSelectionOperationId.CreateNew(),
+            new ModelSelectionInput(directory.Path, "folder", true),
+            CancellationToken.None);
+
+        Assert.AreEqual("selection-reparse-point", result.Diagnostic!.Code);
+    }
+
+    [TestMethod]
+    public async Task ClassifyAsync_RejectsChildThatBecomesOfflineBeforeDirectoryExists()
+    {
+        using var directory = new TemporaryDirectory();
+        string child = directory.WriteFile("model.xml", "xml");
+        int childAttributeReads = 0;
+        var classifier = new BoundedModelSelectionClassifier(
+            attributesReader: path => string.Equals(path, child, StringComparison.OrdinalIgnoreCase) && ++childAttributeReads > 1
+                ? FileAttributes.Offline
+                : FileAttributes.Normal,
+            directoryExists: path =>
+            {
+                if (string.Equals(path, child, StringComparison.OrdinalIgnoreCase) && childAttributeReads > 1)
+                {
+                    Assert.Fail("An offline child must be rejected before Directory.Exists is queried.");
+                }
+
+                return Directory.Exists(path);
+            });
+
+        ModelSelectionResult result = await classifier.ClassifyAsync(
+            ModelSelectionOperationId.CreateNew(),
+            new ModelSelectionInput(directory.Path, "folder", true),
+            CancellationToken.None);
+
+        Assert.AreEqual("selection-not-local", result.Diagnostic!.Code);
+    }
+
+    [TestMethod]
     public async Task ClassifyAsync_ReturnsTimeoutWhenSynchronousValidationStalls()
     {
         using var directory = new TemporaryDirectory();

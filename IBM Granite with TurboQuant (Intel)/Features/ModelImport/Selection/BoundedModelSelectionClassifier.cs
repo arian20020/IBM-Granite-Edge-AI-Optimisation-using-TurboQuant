@@ -169,6 +169,12 @@ internal sealed class BoundedModelSelectionClassifier : IModelSelectionClassifie
         {
             token.ThrowIfCancellationRequested();
             ThrowIfTimedOut(stopwatch, token);
+            ModelSelectionDiagnostic? childUnsafe = GetUnsafeLocationDiagnostic(child, isFolder: false);
+            if (childUnsafe is not null)
+            {
+                return ModelSelectionResult.Failure(operationId, input.DisplayName, childUnsafe);
+            }
+
             string name = Path.GetFileName(child);
             if (IsRelevantName(name) && !names.Add(name) && names.Count > ModelSelectionLimits.MaximumRetainedNames)
             {
@@ -183,12 +189,6 @@ internal sealed class BoundedModelSelectionClassifier : IModelSelectionClassifie
             if (directoryExists(child))
             {
                 continue;
-            }
-
-            ModelSelectionDiagnostic? childUnsafe = GetUnsafeLocationDiagnostic(child, isFolder: false);
-            if (childUnsafe is not null)
-            {
-                return ModelSelectionResult.Failure(operationId, input.DisplayName, childUnsafe);
             }
 
             string extension = Path.GetExtension(name);
@@ -431,6 +431,10 @@ internal sealed class BoundedModelSelectionClassifier : IModelSelectionClassifie
                 if ((attributes & FileAttributes.ReparsePoint) != 0)
                 {
                     throw new UnsafeCandidateException(new ModelSelectionDiagnostic("selection-reparse-point", "Choose an ordinary local item."));
+                }
+                if ((attributes & FileAttributes.Offline) != 0)
+                {
+                    throw new UnsafeCandidateException(new ModelSelectionDiagnostic("selection-not-local", AccessMessage));
                 }
                 validatedChildren.Add((child, attributes));
             }
