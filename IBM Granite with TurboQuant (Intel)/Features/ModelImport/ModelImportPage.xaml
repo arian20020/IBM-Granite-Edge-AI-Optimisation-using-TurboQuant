@@ -58,7 +58,7 @@
                             x:Name="ModelDropTarget"
                             AllowDrop="True"
                             Background="Transparent"
-                            AutomationProperties.HelpText="Optional. Choose model file or Choose model folder provides the same selection options."
+                            AutomationProperties.HelpText="Optional. Choose model file to select a GGUF file or an OpenVINO model folder."
                             AutomationProperties.Name="Model drop area"
                             DragLeave="ModelDropTarget_DragLeave"
                             DragOver="ModelDropTarget_DragOver"
@@ -67,8 +67,7 @@
                                 x:Name="ImportModelCardControl"
                                 HorizontalAlignment="Stretch"
                                 BrowseFilesRequested="ImportModelCard_BrowseFilesRequested"
-                                CancelScanRequested="ImportModelCard_CancelScanRequested"
-                                ChooseModelFolderRequested="ImportModelCard_ChooseModelFolderRequested" />
+                                CancelScanRequested="ImportModelCard_CancelScanRequested" />
                         </Grid>
                         <TextBlock
                             x:Name="SelectionAnnouncement"

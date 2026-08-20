@@ -6,6 +6,7 @@ using GraniteEdgeAI.Features.ModelImport.Selection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Shapes;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
 using System.Reflection;
@@ -21,50 +22,47 @@ public sealed class ModelImportDropAccessibilityTests
     {
         var card = new ImportModelCard();
         var border = card.FindName("AwaitingSelectionBorder") as Rectangle;
-        var surface = card.FindName("DropCardSurface") as Rectangle;
 
         Assert.IsNotNull(border);
-        Assert.IsNotNull(surface);
-        Assert.IsNotNull(surface.Fill);
         Assert.IsNotNull(border.Stroke);
         Assert.IsTrue(border.StrokeDashArray.Count > 0);
+        Assert.AreEqual(6d, border.StrokeDashArray[0]);
+        Assert.AreEqual(5d, border.StrokeDashArray[1]);
         Assert.IsTrue(border.RadiusX > 0);
         Assert.IsTrue(border.RadiusY > 0);
+        Assert.AreEqual(20d, border.RadiusX);
+        Assert.AreEqual(20d, border.RadiusY);
+        Assert.AreEqual("#FAFBFD", BrushColor(border.Fill));
+        Assert.AreEqual("#C7D2E1", BrushColor(border.Stroke));
         Assert.AreEqual(Visibility.Visible, border.Visibility);
     }
 
     [UITestMethod]
     [TestCategory("WinUI")]
-    public void ValidDrag_UsesDropNowPresentationAndTargetIcon()
+    public void ValidDrag_PreservesBaselineDropCardPresentation()
     {
         var card = new ImportModelCard();
 
         card.ShowDragValidation(isValid: true);
 
         Assert.AreEqual(ImportModelCardState.DragOverValid, card.CurrentState);
-        Assert.AreEqual("Drop model now", GetDropStatus(card).Text);
-        Assert.AreEqual(Visibility.Visible, GetDropIcon(card).Visibility);
-        Assert.AreEqual("Valid drop target", AutomationProperties.GetName(GetDropIcon(card)));
-        Assert.AreEqual(
-            0.16d,
-            GetRectangle(card, "DropCardValidTint").Opacity,
-            0.001d);
-        Assert.AreEqual(2d, GetRectangle(card, "AwaitingSelectionBorder").StrokeThickness);
+        Assert.AreEqual(1.5d, GetRectangle(card, "AwaitingSelectionBorder").StrokeThickness);
+        Assert.IsNull(card.FindName("DropCardValidTint"));
+        Assert.IsNull(card.FindName("DropValidationStatusTextBlock"));
     }
 
     [UITestMethod]
     [TestCategory("WinUI")]
-    public void InvalidDrag_UsesCorrectivePresentation()
+    public void InvalidDrag_PreservesBaselineDropCardPresentation()
     {
         var card = new ImportModelCard();
 
         card.ShowDragValidation(isValid: false);
 
         Assert.AreEqual(ImportModelCardState.DragOverInvalid, card.CurrentState);
-        Assert.AreEqual(
-            "Drop exactly one supported model file or folder.",
-            GetDropStatus(card).Text);
-        Assert.AreEqual("Invalid drop target", AutomationProperties.GetName(GetDropIcon(card)));
+        Assert.AreEqual(1.5d, GetRectangle(card, "AwaitingSelectionBorder").StrokeThickness);
+        Assert.IsNull(card.FindName("DropCardInvalidTint"));
+        Assert.IsNull(card.FindName("DropValidationStatusTextBlock"));
     }
 
     [UITestMethod]
@@ -77,7 +75,7 @@ public sealed class ModelImportDropAccessibilityTests
         card.ClearDragValidation();
 
         Assert.AreEqual(ImportModelCardState.AwaitingSelection, card.CurrentState);
-        Assert.AreEqual(0d, GetDropStatusPanel(card).Opacity);
+        Assert.AreEqual(1.5d, GetRectangle(card, "AwaitingSelectionBorder").StrokeThickness);
         Assert.AreEqual(
             Visibility.Visible,
             ((FrameworkElement)card.FindName("AwaitingSelectionBorder")).Visibility);
@@ -95,27 +93,22 @@ public sealed class ModelImportDropAccessibilityTests
         Assert.IsNotNull(target.Background);
         Assert.AreEqual("Model drop area", AutomationProperties.GetName(target));
         StringAssert.Contains(AutomationProperties.GetHelpText(target), "Choose model file");
-        StringAssert.Contains(AutomationProperties.GetHelpText(target), "Choose model folder");
+        StringAssert.Contains(AutomationProperties.GetHelpText(target), "OpenVINO model folder");
     }
 
     [UITestMethod]
     [TestCategory("WinUI")]
-    public void DropSurface_ExposesPickerTargetsAndPoliteStatus()
+    public void DropSurface_ExposesOneAccessiblePickerAction()
     {
         var page = new ModelImportPage();
         var card = (ImportModelCard)page.FindName("ImportModelCardControl");
         var fileButton = card.FindName("ChooseModelFileButton") as Button;
-        var folderButton = card.FindName("ChooseModelFolderButton") as Button;
-        var announcement = page.FindName("SelectionAnnouncement") as TextBlock;
 
         Assert.IsNotNull(fileButton);
-        Assert.IsNotNull(folderButton);
         Assert.IsTrue(fileButton.MinHeight >= 44);
-        Assert.IsTrue(folderButton.MinHeight >= 44);
         Assert.AreEqual("Choose model file", AutomationProperties.GetName(fileButton));
-        Assert.AreEqual("Choose model folder", AutomationProperties.GetName(folderButton));
-        Assert.IsNotNull(announcement);
-        Assert.AreEqual("Polite", AutomationProperties.GetLiveSetting(announcement).ToString());
+        StringAssert.Contains(AutomationProperties.GetHelpText(fileButton), "OpenVINO");
+        Assert.IsNull(card.FindName("ChooseModelFolderButton"));
     }
 
     [UITestMethod]
@@ -171,17 +164,11 @@ public sealed class ModelImportDropAccessibilityTests
         Assert.AreEqual(string.Empty, announcement.Text);
     }
 
-    private static TextBlock GetDropStatus(ImportModelCard card) =>
-        (TextBlock)card.FindName("DropValidationStatusTextBlock");
-
-    private static FontIcon GetDropIcon(ImportModelCard card) =>
-        (FontIcon)card.FindName("DropValidationStatusIcon");
-
-    private static FrameworkElement GetDropStatusPanel(ImportModelCard card) =>
-        (FrameworkElement)card.FindName("DropValidationStatusPanel");
-
     private static Rectangle GetRectangle(ImportModelCard card, string name) =>
         (Rectangle)card.FindName(name);
+
+    private static string BrushColor(Brush brush) =>
+        $"#{((SolidColorBrush)brush).Color.R:X2}{((SolidColorBrush)brush).Color.G:X2}{((SolidColorBrush)brush).Color.B:X2}";
 
     private sealed class AcceptedFolderClassifier : IModelSelectionClassifier
     {

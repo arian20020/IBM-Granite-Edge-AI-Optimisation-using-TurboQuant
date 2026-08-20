@@ -1,5 +1,4 @@
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using System;
 
@@ -48,31 +47,13 @@ namespace GraniteEdgeAI.Features.ModelImport.Controls
             FolderAcceptedNameTextBlock.Text = folderName;
         }
 
-        // Static validation text deliberately avoids animation for reduced-motion users.
+        // Native drag feedback is limited to the accepted operation; card visuals stay stable.
         internal void ShowDragValidation(bool isValid)
         {
             SetVisibleState(
                 isValid
                     ? ImportModelCardState.DragOverValid
                     : ImportModelCardState.DragOverInvalid);
-            VisualStateManager.GoToState(
-                this,
-                isValid ? "ValidDropCardState" : "InvalidDropCardState",
-                useTransitions: false);
-            // The same values are set by the XAML visual state for a loaded control.
-            // Keep them explicit as well so the feedback remains immediate while the
-            // native drag event is being routed into the card.
-            DropCardValidTint.Opacity = isValid ? 0.16 : 0;
-            DropCardInvalidTint.Opacity = isValid ? 0 : 0.12;
-            AwaitingSelectionBorder.StrokeThickness = 2;
-            DropValidationStatusPanel.Opacity = 1;
-            DropValidationStatusTextBlock.Text = isValid
-                ? "Drop model now"
-                : "Drop exactly one supported model file or folder.";
-            DropValidationStatusIcon.Glyph = isValid ? "\uE898" : "\uE711";
-            AutomationProperties.SetName(
-                DropValidationStatusIcon,
-                isValid ? "Valid drop target" : "Invalid drop target");
         }
 
         internal void ClearDragValidation()
@@ -82,16 +63,6 @@ namespace GraniteEdgeAI.Features.ModelImport.Controls
                 SetVisibleState(ImportModelCardState.AwaitingSelection);
             }
 
-            VisualStateManager.GoToState(
-                this,
-                "DefaultDropCardState",
-                useTransitions: false);
-            DropValidationStatusPanel.Opacity = 0;
-            DropCardValidTint.Opacity = 0;
-            DropCardInvalidTint.Opacity = 0;
-            AwaitingSelectionBorder.StrokeThickness = 1.5;
-            DropValidationStatusTextBlock.Text = string.Empty;
-            AutomationProperties.SetName(DropValidationStatusIcon, string.Empty);
         }
 
         /// <summary>
@@ -227,16 +198,6 @@ namespace GraniteEdgeAI.Features.ModelImport.Controls
 
         private void ClearDragValidationPresentation()
         {
-            DropValidationStatusPanel.Opacity = 0;
-            DropCardValidTint.Opacity = 0;
-            DropCardInvalidTint.Opacity = 0;
-            AwaitingSelectionBorder.StrokeThickness = 1.5;
-            DropValidationStatusTextBlock.Text = string.Empty;
-            AutomationProperties.SetName(DropValidationStatusIcon, string.Empty);
-            VisualStateManager.GoToState(
-                this,
-                "DefaultDropCardState",
-                useTransitions: false);
         }
 
         private void ClearScanningValues()

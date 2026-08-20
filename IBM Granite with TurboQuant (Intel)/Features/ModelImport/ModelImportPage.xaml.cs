@@ -103,6 +103,12 @@ namespace GraniteEdgeAI.Features.ModelImport
             ModelFormatSelection selectedFormat =
                 await _selectModelFormatAsync();
 
+            if (selectedFormat == ModelFormatSelection.OpenVino)
+            {
+                await PickOpenVinoFolderAsync();
+                return;
+            }
+
             if (selectedFormat != ModelFormatSelection.Gguf)
             {
                 return;
@@ -348,6 +354,11 @@ namespace GraniteEdgeAI.Features.ModelImport
         private async void ImportModelCard_ChooseModelFolderRequested(
             object sender,
             RoutedEventArgs e)
+        {
+            await PickOpenVinoFolderAsync();
+        }
+
+        private async Task PickOpenVinoFolderAsync()
         {
             var picker = new OpenVINOFolderPicker();
             ModelSelectionInput? input = await picker.PickInputAsync(
