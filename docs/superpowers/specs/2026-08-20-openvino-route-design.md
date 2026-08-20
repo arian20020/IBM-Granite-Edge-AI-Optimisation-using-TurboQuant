@@ -1,10 +1,10 @@
 # Granite Edge AI OpenVINO Route Design
 
-**Date:** 2026-08-20  
-**Planning owner:** O1  
-**Repository branch at design write:** `feature/model-import-drag-drop`  
-**Base commit at design write:** `740accd26801c7a27a1ad947f4334e510cce28f6`  
-**Design status:** All nine design sections approved in brainstorming; written-spec review pending  
+**Date:** 2026-08-20
+**Planning owner:** O1
+**Repository branch at design write:** `feature/model-import-drag-drop`
+**Base commit at design write:** `740accd26801c7a27a1ad947f4334e510cce28f6`
+**Design status:** All nine design sections approved in brainstorming; written-spec review pending
 **Implementation status:** Not started; this document authorizes no production implementation or operational run
 
 ## 1. Purpose and authority
@@ -152,7 +152,7 @@ The managed layer owns:
 
 The stable worker is a Windows x64 C++ console executable linked and packaged against the exact released OpenVINO 2026.3 train. It exposes a bounded UTF-8 JSONL protocol over inherited stdin/stdout pipes. It never opens a listener.
 
-A process performs one bounded operation and exits. Supported operation kinds are package load validation, bounded prompt generation, and route-specific device verification. The worker is not a persistent daemon.
+A process performs one bounded operation and exits. An inspection process performs one inspection. A generation process owns one bounded local session: the MVP sends one prompt turn; the complete stable route supports at least two sequential turns while retaining the intended chat context. Supported operation kinds are package parse validation, bounded prompt session, and route-specific device verification. The worker is not a persistent daemon and never survives the app session that owns it.
 
 ### 6.3 Sealed conversion worker
 
@@ -258,7 +258,7 @@ Static validation records factual evidence for:
 - Generation and chat-template readiness.
 - Required IR relationships.
 
-Static validation cannot produce `Ready` by itself. The official native worker must construct a real `ov::genai::LLMPipeline` using the package and a controlled device in the appropriate implementation increment.
+Inspection remains device-neutral because it precedes H1 and C1. The native inspector must parse the main, tokenizer, and detokenizer IRs with `ov::Core::read_model` (or the exact equivalent released API) without compiling them to a device. Successful static and native parse validation may produce `Ready`; that means the package is complete, supported, and eligible to continue, not that the current computer is compatible. After C1 approves a configuration, the execution worker must construct the real `ov::genai::LLMPipeline` on the exact approved device. A compilation or generation failure is an execution failure and does not retroactively turn H1 into a compatibility engine.
 
 ### 8.4 Identity and mutation resistance
 
@@ -283,6 +283,17 @@ The first conversion entry is:
 
 Support is limited to model/revision/hash combinations covered by conversion tests and controlled IBM Granite evidence. Tool-level support for another architecture is not product support.
 
+The route support matrix begins as follows:
+
+| Input | Model type / architecture | Task | Initial disposition |
+| --- | --- | --- | --- |
+| Complete OpenVINO GenAI directory | `granite` / `GraniteForCausalLM` | causal text generation | Supported after device-neutral inspection; execution still requires C1 approval |
+| Local Safetensors source | `granite` / `GraniteForCausalLM` | `text-generation-with-past` | `ConversionRequired` when complete and allowlisted |
+| OpenVINO or source | `granitemoe` / `GraniteMoeForCausalLM` | causal text generation | Unsupported until exact conversion/runtime evidence is added |
+| OpenVINO or source | `granitemoehybrid` / `GraniteMoeHybridForCausalLM` | causal text generation | Unsupported until exact conversion/runtime evidence is added |
+| Any format | multimodal, speech, embedding, reranking, custom or remote-code architecture | non-approved task | Unsupported |
+| GGUF | any | any | Routed to G1; never an O1 candidate |
+
 ### 9.2 Completeness checks
 
 The source inspector validates without importing Python model modules:
@@ -304,8 +315,8 @@ O1 uses the established Model Inspection templates and these existing outcome na
 
 | Outcome | Meaning | Execution enabled |
 | --- | --- | --- |
-| `Ready` | Valid and runnable with an approved configuration | Yes |
-| `ReadyWithWarnings` | Runnable with factual non-blocking warnings | Yes |
+| `Ready` | Complete, supported, device-neutrally parsed, and eligible to continue | Yes |
+| `ReadyWithWarnings` | Eligible to continue with factual non-blocking warnings | Yes |
 | `ConversionRequired` | Complete allowlisted source requiring conversion | No; conversion action only |
 | `IncompletePackage` | Recognizable but required resources are missing/inconsistent | No |
 | `Unsupported` | Structurally valid but outside the evidenced route | No |
@@ -314,6 +325,8 @@ O1 uses the established Model Inspection templates and these existing outcome na
 Only `Ready` and `ReadyWithWarnings` are eligible for the approved downstream handoff. C1 remains the sole compatibility/configuration decision owner.
 
 The OpenVINO route reuses existing busy, progress, warning, result, cancellation, retry, footer, disclosure, and action templates. O1 supplies only typed OpenVINO presentation data and feature-local labels. It does not create a new visual system or copy Hardware semantics.
+
+The route-neutral prompt UI used by GGUF and OpenVINO exposes the same prompt box, Send, Stop, Cancel/close, streamed response region, backend/device/maturity summary, and terminal/recovery behavior. O1 provides the OpenVINO adapter and typed state only. Exact OpenVINO stage labels are `Checking OpenVINO package`, `Loading OpenVINO runtime`, `Generating locally`, `Preparing conversion`, `Converting model`, `Validating output`, `Publishing output`, and `Rechecking converted model`.
 
 Required accessibility behavior includes keyboard navigation, screen-reader names and live announcements, focus restoration after cancellation/errors, High Contrast support, scale-factor coverage, reduced-motion behavior, and no status conveyed by color alone.
 
@@ -349,10 +362,11 @@ No model path, prompt, generated text, token, credential, or configuration secre
 The official and TurboQuant workers use distinct closed protocol identifiers. Each process follows:
 
 1. Worker emits `hello` with protocol version and verified runtime/build identity.
-2. Parent sends exactly one `start` request.
-3. Worker emits ordered `started`, `progress`, zero or more `token`, and one terminal `completed` or `failed` event.
-4. While active, a dedicated stdin reader accepts one idempotent `stop` or `cancel` control frame for the same operation identity.
-5. Worker releases all resources and exits.
+2. Parent sends exactly one `startInspection` or `startSession` request.
+3. Inspection emits ordered `started`, `progress`, and one terminal `completed` or `failed` event, then exits.
+4. A generation session emits `sessionStarted`, accepts ordered `prompt` commands, and emits `generationStarted`, zero or more `token`, and one `turnCompleted` or `turnFailed` event for each turn.
+5. While a turn is active, a dedicated stdin reader accepts one idempotent `stop` for that turn or `cancel` for the owning session identity.
+6. `closeSession`, cancellation, idle timeout, app close, or fatal failure produces one terminal session event; the worker then releases all resources and exits.
 
 Protocol limits are:
 
@@ -361,9 +375,11 @@ Protocol limits are:
 - 64 KiB maximum prompt UTF-8 bytes.
 - 512 maximum requested new tokens for product prompting.
 - 4 MiB maximum cumulative token text per operation.
+- 32 maximum turns per process, with at least two supported by the complete stable route.
 - 256 KiB maximum retained sanitized stderr.
 - 5-second startup/handshake timeout.
-- 10-minute maximum generation operation.
+- 10-minute maximum per generation turn.
+- 5-minute maximum idle time between turns and 60-minute maximum session lifetime.
 - 5-second cooperative cancellation grace.
 - 5-second process-tree cleanup verification.
 
@@ -371,7 +387,7 @@ The fixture smoke uses at most 32 generated tokens. C1 may approve a lower conte
 
 ### 12.3 Context accounting
 
-The managed layer performs a preliminary bound check. The native tokenizer performs the authoritative token count. Generation starts only when:
+The managed layer performs a preliminary bound check. The native tokenizer performs the authoritative token count over the chat template and retained session history. A turn starts only when:
 
 ```text
 prompt_tokens + requested_new_tokens
@@ -382,8 +398,8 @@ Unknown context limits, overflow, invalid chat-template expansion, or tokenizer 
 
 ### 12.4 Stop and cancellation
 
-- `stop` returns a successful partial completion after the GenAI streaming callback returns `STOP`.
-- `cancel` returns no actionable output after the callback returns `CANCEL`.
+- `stop` returns a successful partial turn after the GenAI streaming callback returns `STOP`; the session may accept another prompt if its state remains valid.
+- `cancel` returns no actionable output and ends the session after the callback returns `CANCEL`.
 - A late event with a stale operation identity is discarded.
 - A worker that misses the grace period is terminated with its entire job tree.
 - Parent exit is observed by the worker; orphan execution is prohibited.
@@ -416,7 +432,7 @@ Conversion is a separate increment after stable CPU and tested Intel GPU generat
 4. Create an operation-owned staging directory beside the final destination.
 5. Launch packaged CPython using isolated mode and the fixed O1 converter module.
 6. Send source/destination data through bounded stdin.
-7. Force `local_files_only`, `trust_remote_code=false`, Safetensors, library `transformers`, task `text-generation-with-past`, and an explicit non-quantized baseline weight format.
+7. Force `local_files_only`, `trust_remote_code=false`, Safetensors, library `transformers`, task `text-generation-with-past`, and explicit baseline `weight_format=fp16`.
 8. Export a complete GenAI package including tokenizer/detokenizer IR and configuration resources.
 9. Validate the complete output with the independent native inspector.
 10. Construct the official CPU `LLMPipeline` and perform a bounded smoke generation.
@@ -483,6 +499,20 @@ KV-cache precision, cache capacity, and compiled-model caching are runtime setti
 - Never present a runtime cache or compiled cache as a converted model artifact.
 
 GGUF/llama.cpp flags and quantization names cannot appear in an OpenVINO candidate.
+
+### 15.4 Capability maturity matrix
+
+| Capability | Maturity at planned introduction | Evidence required before exposure |
+| --- | --- | --- |
+| Device-neutral Granite OpenVINO package inspection | Stable | deterministic fixture, malformed matrix, native IR parse |
+| Official OpenVINO CPU prompt session | Stable/required | real `LLMPipeline`, one-turn MVP, two-turn complete route, cancellation/cleanup, UCL Intel CPU |
+| Explicit Intel GPU prompt session | Stable when proven | exact GPU/driver/config, requested/actual equality, UCL run |
+| Dense Granite Safetensors conversion | Stable when proven | offline sealed conversion, real Granite, source preservation, reinspection |
+| FP16/INT8/INT4 persistent artifacts | Stable per evidenced entry | distinct output/provenance, quality, load/generation |
+| Standard `u8`/`u4` runtime KV cache | Stable per evidenced tuple | actual precision, quality, memory, device evidence |
+| TBQ4/TBQ4 Intel CPU | Experimental and mandatory | custom build, activation, Granite app E2E, quality/memory/performance |
+| TurboQuant GPU, TBQ3, QJL, PolarQuant | Planned/unsupported | separate complete gates |
+| NPU execution | Deferred | official support, exact target evidence, product approval |
 
 ## 16. Mandatory experimental TurboQuant increment
 
@@ -609,9 +639,11 @@ Idle
   -> TerminalInspectionOutcome
   -> AwaitingConfiguration
   -> Loading
-  -> Generating
-  -> Stopping | Cancelling
-  -> Completed | Failed | Cancelled
+  -> SessionReady
+  -> GeneratingTurn
+  -> StoppingTurn | CancellingSession
+  -> TurnCompleted -> SessionReady
+  -> SessionCompleted | Failed | Cancelled
 ```
 
 Conversion adds:
@@ -647,6 +679,7 @@ Malformed fixtures cover missing pairs, mismatched weights, invalid configs, dup
 - Filesystem/security: path/reparse/alias/TOCTOU/source preservation/publication/cleanup.
 - Process: manifest verification, DLL policy, environment, inherited handles, jobs, timeouts, descendants, zero listeners.
 - Native CPU: load, deterministic generation, stream, stop, cancel, repeated disposal.
+- Session: one-turn MVP, two sequential turns with retained context, stop-then-next-turn, reset-to-new-process, idle/session timeout.
 - GPU: explicit device, actual execution device, no fallback.
 - Conversion: sealed Python identity, offline/no remote code, complete output, rollback, native reinspection.
 - Optimization: artifact/profile distinction, identity, quality, and capability agreement.
@@ -754,6 +787,7 @@ The MVP is accepted only when:
 ### 24.2 Complete stable route
 
 - Explicit Intel GPU generation passes on the UCL laptop with requested/actual equality.
+- At least two sequential prompts complete in one bounded session, the second uses intended chat context, and reset starts a new process/session.
 - Allowlisted dense Granite converts offline from Safetensors with source preservation.
 - Output provenance, atomic publication, native reinspection, and smoke generation pass.
 - At least one persistent standard compression route passes.
@@ -847,6 +881,7 @@ Generated RTM/catalogue/evidence-index files are never hand-edited. O1 supplies 
 ### 27.5 Product requirements
 
 - `F-M18`: WinUI controls local command-line runtimes without requiring terminal commands.
+- `F-M20`: at least two prompts complete in one local session and reset creates a fresh session.
 - `F-M21`: one verified TurboQuant-enabled Granite configuration runs end to end in the application.
 - `F-M22`: a dependable verified fallback remains available when TurboQuant is absent/fails.
 - `N-M02`: models, prompts, documents, and answers are not uploaded to a cloud AI service.
