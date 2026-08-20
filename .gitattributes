@@ -14,3 +14,6 @@ experiments/granite_turboquant_intel/logs/** -text whitespace=-blank-at-eol,-bla
 experiments/granite_turboquant_intel/manifests/** -text
 experiments/granite_turboquant_intel/notes/upstream-llama-cpp/** -text
 # END IXN CONTROLLED EXPERIMENT EVIDENCE
+
+# Deterministic OpenVINO GenAI fixtures are locked by byte hash.
+tests/TestFixtures/OpenVINO/GenAI/TinySyntheticV1/** -text -eol whitespace=cr-at-eol
