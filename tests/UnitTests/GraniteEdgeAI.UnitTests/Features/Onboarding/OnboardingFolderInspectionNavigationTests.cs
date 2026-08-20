@@ -36,7 +36,7 @@ public sealed class OnboardingFolderInspectionNavigationTests
         Assert.IsInstanceOfType<ModelImportPage>(frame.Content);
         Assert.IsFalse(page.HasValidatedModel);
 
-        Assert.IsTrue(page.TryRequestModelInspection());
+        Assert.IsFalse(page.TryRequestModelInspection());
     }
 
     [UITestMethod]
@@ -55,7 +55,7 @@ public sealed class OnboardingFolderInspectionNavigationTests
             "private-source-package",
             isFolder: true));
 
-        Assert.IsFalse(page.TryRequestModelInspection());
+        Assert.IsTrue(page.TryRequestModelInspection());
 
         var frame = (Frame)shell.FindName("StageFrame");
         Assert.IsInstanceOfType<ModelImportPage>(frame.Content);
