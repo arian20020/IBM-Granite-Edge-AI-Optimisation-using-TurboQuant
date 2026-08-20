@@ -1,0 +1,152 @@
+name: Apply Workbook 05 C1 repair stage 2
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/apply-workbook05-c1-repair-stage2.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-workbook05-c1-repair-stage2-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  apply-repair:
+    name: Push tested non-workflow C1 repair files
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref == 'feature/workbook-05-c1-live-asset-lock'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out the exact pull-request branch
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: true
+          ref: feature/workbook-05-c1-live-asset-lock
+          fetch-depth: 0
+
+      - name: Verify the stage-2 controller commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected_parent='8c2a96a7a7aa7738fae0b68a71a6bc08fda45d88'
+          observed_parent="$(git rev-parse HEAD^)"
+          if [[ "$observed_parent" != "$expected_parent" ]]; then
+            echo "Expected stage-2 parent $expected_parent, found $observed_parent." >&2
+            exit 1
+          fi
+          mapfile -t changed < <(git diff-tree --no-commit-id --name-only -r HEAD)
+          if [[ "${#changed[@]}" -ne 1 || "${changed[0]}" != '.github/workflows/apply-workbook05-c1-repair-stage2.yml' ]]; then
+            printf 'Unexpected stage-2 controller paths:\n%s\n' "${changed[*]}" >&2
+            exit 1
+          fi
+          if [[ -n "$(git status --porcelain)" ]]; then
+            echo 'The stage-2 checkout is not clean.' >&2
+            exit 1
+          fi
+
+      - name: Set up Python 3.12.10
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.10'
+          check-latest: false
+
+      - name: Recover and verify the reviewed repair bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import base64
+          import hashlib
+          import re
+          from pathlib import Path
+
+          controller = Path('.github/workflows/apply-workbook05-c1-repair.yml')
+          text = controller.read_text(encoding='utf-8')
+          match = re.search(
+              r'(?m)^\s*REPAIR_ZIP_BASE64:\s*([A-Za-z0-9+/=]+)\s*$',
+              text,
+          )
+          if match is None:
+              raise SystemExit('The reviewed repair payload is absent from stage 1.')
+          payload = base64.b64decode(match.group(1), validate=True)
+          expected = '24bb3fea0a82c65e11c84820497a40ba87caa245cf2723db6cce993375f3e2aa'
+          observed = hashlib.sha256(payload).hexdigest()
+          if observed != expected:
+              raise SystemExit(f'Repair ZIP digest mismatch: {observed} != {expected}')
+          path = Path('/tmp/workbook05-c1-repair.zip')
+          path.write_bytes(payload)
+          print(path)
+          PY
+          rm -rf /tmp/workbook05-c1-repair
+          python -m zipfile -e /tmp/workbook05-c1-repair.zip /tmp/workbook05-c1-repair
+
+      - name: Apply the repair to this exact controller head
+        shell: bash
+        run: |
+          set -euo pipefail
+          current_head="$(git rev-parse HEAD)"
+          python - /tmp/workbook05-c1-repair/c1fix/apply_c1_fix.py "$current_head" <<'PY'
+          from pathlib import Path
+          import sys
+
+          path = Path(sys.argv[1])
+          current = sys.argv[2]
+          text = path.read_text(encoding='utf-8')
+          old = 'EXPECTED_HEAD = "4b388cdd6ce5669bb55565b77b2fbcf752b872cb"'
+          new = f'EXPECTED_HEAD = "{current}"'
+          if text.count(old) != 1:
+              raise SystemExit('The repair script head guard is missing or ambiguous.')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8', newline='\n')
+          PY
+          python /tmp/workbook05-c1-repair/c1fix/apply_c1_fix.py "$GITHUB_WORKSPACE"
+
+      - name: Install the pinned repository validation dependency
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install \
+            --disable-pip-version-check \
+            -r scripts/testing/workbook05/requirements.txt
+
+      - name: Run focused C1 repair tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m unittest -v \
+            tests.testing.workbook05.test_phase3_live_asset_bundle_validation \
+            tests.testing.workbook05.test_phase3_live_asset_environment_contract
+
+      - name: Commit and push only the tested non-workflow repair
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # GitHub's job token cannot update workflow files. The workflow routing
+          # correction is applied separately through the reviewed repository API.
+          git checkout -- .github/workflows/workbook-05-phase3-assets.yml
+
+          mapfile -t changed < <(git status --short | sed -E 's/^.. //')
+          expected=(
+            'scripts/testing/workbook05/Invoke-Workbook05Phase3AssetLockLive.ps1'
+            'scripts/testing/workbook05/phase3/live_asset_bundle_validation.py'
+          )
+          mapfile -t sorted_changed < <(printf '%s\n' "${changed[@]}" | sort)
+          mapfile -t sorted_expected < <(printf '%s\n' "${expected[@]}" | sort)
+          if [[ "$(printf '%s\n' "${sorted_changed[@]}")" != "$(printf '%s\n' "${sorted_expected[@]}")" ]]; then
+            printf 'Unexpected non-workflow repair paths:\n%s\n' "${changed[*]}" >&2
+            exit 1
+          fi
+
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- "${expected[@]}"
+          git commit -m 'fix(workbook05): isolate live C1 evidence and Hub state'
+          git push origin HEAD:feature/workbook-05-c1-live-asset-lock
