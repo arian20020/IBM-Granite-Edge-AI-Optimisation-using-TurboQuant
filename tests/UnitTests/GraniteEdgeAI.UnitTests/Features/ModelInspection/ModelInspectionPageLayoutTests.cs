@@ -116,7 +116,8 @@ public sealed class ModelInspectionPageLayoutTests
             (888d, 24d, 840d),
             (887d, 24d, 839d),
             (600d, 24d, 552d),
-            (599d, 16d, 567d)
+            (599d, 16d, 567d),
+            (480d, 16d, 448d)
         ];
         var loaded = new TaskCompletionSource<bool>(
             TaskCreationOptions.RunContinuationsAsynchronously);
@@ -163,6 +164,11 @@ public sealed class ModelInspectionPageLayoutTests
                     page.FindName("InspectionPageScrollViewer"));
                 Assert.AreEqual(0d, outcome.ActualHeight, 0.01d);
                 Assert.IsGreaterThan(0d, model.ActualHeight);
+                Assert.AreEqual(
+                    contentHost.ActualWidth,
+                    model.ActualWidth,
+                    1d,
+                    "every visible top-level card shares the content-host edges");
                 Assert.AreEqual(0d, content.ActualHeight, 0.01d);
                 Assert.AreEqual(0d, actions.ActualHeight, 0.01d);
             }
@@ -266,13 +272,37 @@ public sealed class ModelInspectionPageLayoutTests
         Assert.AreEqual(24d, cardPadding.Top, 0.01d);
         Assert.AreEqual(24d, cardPadding.Right, 0.01d);
         Assert.AreEqual(24d, cardPadding.Bottom, 0.01d);
+        string[] changedControlBrushes =
+        [
+            "InspectionBlueBorderBrush",
+            "InspectionBlueSurfaceBrush",
+            "InspectionBorderControlBrush",
+            "InspectionBorderLightBrush",
+            "InspectionBorderMutedBrush",
+            "InspectionErrorTextBrush",
+            "InspectionPrimaryBlueBrush",
+            "InspectionSuccessTextBrush",
+            "InspectionSurfaceBrush",
+            "InspectionSurfaceMutedBrush",
+            "InspectionSurfaceSubtleBrush",
+            "InspectionTextMutedBrush",
+            "InspectionTextPrimaryBrush",
+            "InspectionTextSecondaryMutedBrush",
+            "InspectionTextSecondaryStrongBrush",
+            "InspectionWarningTextBrush"
+        ];
         foreach (string themeName in new[] { "Light", "Dark", "HighContrast" })
         {
             ResourceDictionary theme = Assert.IsInstanceOfType<ResourceDictionary>(
                 resources.ThemeDictionaries[themeName]);
-            Assert.IsTrue(
-                theme.ContainsKey("InspectionCanvasBrush"),
-                $"{themeName} must define InspectionCanvasBrush");
+            foreach (string brushKey in changedControlBrushes)
+            {
+                Assert.IsTrue(
+                    theme.ContainsKey(brushKey),
+                    $"{themeName} must define {brushKey}");
+                Assert.IsNotNull(theme[brushKey],
+                    $"{themeName}/{brushKey} must resolve semantically");
+            }
         }
         Assert.AreEqual(ElementTheme.Light, page.RequestedTheme);
         Assert.AreEqual(ElementTheme.Light, page.ActualTheme);

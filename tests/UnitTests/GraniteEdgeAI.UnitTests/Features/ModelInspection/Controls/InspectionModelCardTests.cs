@@ -59,6 +59,7 @@ public sealed class InspectionModelCardTests
             ("FILE SIZE", "2.08 GB")
         ];
         FrameworkElement[] fields = MetadataFields(control);
+        Grid layoutRoot = Find<Grid>(control, "LayoutRoot");
         Grid overviewPanel = Find<Grid>(control, "ModelOverviewPanel");
         TextBlock overviewCopy = Find<TextBlock>(control, "ModelOverviewCopy");
         Border formatChip = Find<Border>(control, "OverviewFormatChip");
@@ -75,6 +76,10 @@ public sealed class InspectionModelCardTests
             "DisclosureToggleButton");
 
         Assert.AreEqual(840d, detailed.ActualWidth, 0.01, "model card width");
+        Assert.AreEqual(840d, layoutRoot.ActualWidth, 0.01,
+            "the model card root owns the shared 840px content edge");
+        Assert.AreEqual(layoutRoot.ActualWidth, detailed.ActualWidth, 0.01,
+            "the visible model surface shares both root edges");
         Assert.AreEqual(0d, detailed.MinHeight, 0.01, "model card must size naturally");
         Assert.AreEqual(
             disclosureHeader.ActualHeight +

@@ -9,6 +9,7 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
+using Windows.Foundation;
 using Windows.System;
 
 namespace GraniteEdgeAI.UnitTests.Features.ModelInspection.Controls;
@@ -457,6 +458,7 @@ public sealed class InspectionDisclosureTests
         var disclosure = new InspectionDisclosure
         {
             Width = 480d,
+            HeaderMinHeight = 68d,
             HeaderContent = header,
             ViewportContent = new TextBlock { Text = "Safe report" }
         };
@@ -497,6 +499,15 @@ public sealed class InspectionDisclosureTests
             Assert.AreEqual(new GridLength(44d), headerLayout.ColumnDefinitions[1].Width);
             Assert.AreEqual(44d, actionHost.ActualWidth, 0.01d);
             Assert.AreEqual(44d, actionHost.ActualHeight, 0.01d);
+            Assert.IsGreaterThanOrEqualTo(68d, headerLayout.ActualHeight,
+                "the normal disclosure header keeps the approved 68px target");
+            Assert.AreEqual(
+                VerticalCentre(headerLayout, actionHost),
+                VerticalCentre(headerLayout, contentPresenter),
+                1d,
+                "header copy and the disclosure action share a vertical centre");
+
+            double normalHeaderHeight = headerLayout.ActualHeight;
 
             header.FontSize *= 2d;
             disclosure.UpdateLayout();
@@ -509,12 +520,28 @@ public sealed class InspectionDisclosureTests
                 "the wrapping header and absolute action cannot intersect");
             Assert.IsTrue(header.ActualHeight + 1d >= header.DesiredSize.Height,
                 "scaled header copy must grow vertically instead of clipping");
+            Assert.IsGreaterThan(normalHeaderHeight, headerLayout.ActualHeight,
+                "the disclosure header grows naturally at representative 200% text");
+            Assert.AreEqual(
+                VerticalCentre(headerLayout, actionHost),
+                VerticalCentre(headerLayout, contentPresenter),
+                1d,
+                "scaled header copy and action remain vertically centred");
         }
         finally
         {
             window.Content = null;
             window.Close();
         }
+    }
+
+    private static double VerticalCentre(
+        FrameworkElement ancestor,
+        FrameworkElement element)
+    {
+        Point origin = element.TransformToVisual(ancestor)
+            .TransformPoint(new Point());
+        return origin.Y + (element.ActualHeight / 2d);
     }
 
     private static InspectionDisclosure CreateDisclosure() =>
