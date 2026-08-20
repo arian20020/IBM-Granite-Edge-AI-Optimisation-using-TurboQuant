@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "top_k": 10,
+  "queries": [
+    {
+      "query_id": "q01",
+      "question": "What kind of models are Granite models?",
+      "relevant_sources": ["granite.txt"]
+    },
+    {
+      "query_id": "q02",
+      "question": "Is Granite described as open source?",
+      "relevant_sources": ["granite.txt"]
+    },
+    {
+      "query_id": "q03",
+      "question": "What does retrieval find for a query?",
+      "relevant_sources": ["retrieval.md"]
+    },
+    {
+      "query_id": "q04",
+      "question": "Which document discusses finding relevant chunks?",
+      "relevant_sources": ["retrieval.md"]
+    },
+    {
+      "query_id": "q05",
+      "question": "Which source explains Granite and which explains retrieval?",
+      "relevant_sources": ["granite.txt", "retrieval.md"]
+    },
+    {
+      "query_id": "q06",
+      "question": "What is the capital of France?",
+      "relevant_sources": []
+    },
+    {
+      "query_id": "q07",
+      "question": "Does the fixture specify a Granite model parameter count?",
+      "relevant_sources": []
+    }
+  ]
+}
