@@ -2,80 +2,175 @@
 <UserControl
     x:Class="GraniteEdgeAI.Features.GgufRuntime.Controls.ChatComposer"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:attachments="using:GraniteEdgeAI.Features.GgufRuntime.Attachments">
     <Grid x:Name="ComposerRoot">
         <Border
             Background="{ThemeResource GgufChatSurfaceBrush}"
             BorderBrush="{ThemeResource GgufChatBorderBrush}"
             BorderThickness="1"
             CornerRadius="22"
-            Padding="12,8">
-            <Grid ColumnSpacing="12">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-                <Button
-                    x:Name="AttachmentButton"
-                    Width="44"
-                    Height="44"
-                    IsEnabled="False"
-                    AutomationProperties.Name="Add an attachment (coming later)"
-                    Content="+" />
-                <TextBox
-                    x:Name="PromptTextBox"
-                    Grid.Column="1"
-                    MinHeight="44"
-                    MaxHeight="160"
-                    AcceptsReturn="True"
-                    Padding="12,0"
-                    VerticalContentAlignment="Center"
-                    TextWrapping="Wrap"
-                    PlaceholderText="Type a message..."
-                    AutomationProperties.Name="Message" />
-                <Button
-                    x:Name="SendButton"
-                    Grid.Column="2"
-                    Width="52"
-                    Height="44"
-                    Background="{ThemeResource GgufChatPrimaryBrush}"
-                    Foreground="White"
-                    AutomationProperties.Name="Send message"
-                    Click="SendButton_Click">
-                    <FontIcon Glyph="&#xE72A;" />
-                </Button>
-                <Button
-                    x:Name="StopButton"
-                    Grid.Column="2"
-                    MinWidth="92"
-                    Height="44"
-                    Background="#111827"
-                    Foreground="White"
-                    AutomationProperties.Name="Stop generation"
-                    Visibility="Collapsed"
-                    Click="StopButton_Click">
-                    <Grid ColumnSpacing="8">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="16" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <Grid Width="16" Height="16">
-                            <Rectangle
-                                x:Name="StopSquare"
-                                Width="7"
-                                Height="7"
-                                Fill="White"
-                                HorizontalAlignment="Center"
+            Padding="12,10">
+            <Grid RowSpacing="8">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <StackPanel
+                    x:Name="AttachmentPresentation"
+                    Spacing="6"
+                    Visibility="Collapsed">
+                    <ItemsControl
+                        x:Name="AttachmentItems"
+                        Visibility="Collapsed"
+                        AutomationProperties.Name="Selected knowledge files">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <ItemsWrapGrid Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="attachments:KnowledgeAttachment">
+                                <Border
+                                    Margin="0,0,8,4"
+                                    Padding="10,6,6,6"
+                                    Background="{ThemeResource GgufChatSecondarySurfaceBrush}"
+                                    BorderBrush="{ThemeResource GgufChatPanelBorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="12">
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel VerticalAlignment="Center" Spacing="1">
+                                            <TextBlock
+                                                Text="{x:Bind FileName}"
+                                                FontWeight="SemiBold"
+                                                TextTrimming="CharacterEllipsis"
+                                                MaxWidth="220" />
+                                            <TextBlock
+                                                Text="{x:Bind StateText}"
+                                                FontSize="11"
+                                                Foreground="{ThemeResource GgufChatMutedBrush}" />
+                                        </StackPanel>
+                                        <Button
+                                            Grid.Column="1"
+                                            Width="40"
+                                            Height="40"
+                                            Padding="0"
+                                            VerticalAlignment="Center"
+                                            Background="Transparent"
+                                            BorderThickness="0"
+                                            CommandParameter="{x:Bind}"
+                                            AutomationProperties.Name="{x:Bind FileName}"
+                                            ToolTipService.ToolTip="Remove knowledge file"
+                                            Click="RemoveAttachment_Click"
+                                            Loaded="RemoveAttachmentButton_Loaded">
+                                            <FontIcon Glyph="&#xE711;" FontSize="12" />
+                                        </Button>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock
+                        x:Name="RejectionSummaryText"
+                        Visibility="Collapsed"
+                        TextWrapping="Wrap"
+                        Foreground="{ThemeResource GgufChatMutedBrush}"
+                        AutomationProperties.LiveSetting="Polite" />
+                </StackPanel>
+
+                <Grid
+                    x:Name="PromptRow"
+                    Grid.Row="1"
+                    MinHeight="52"
+                    ColumnSpacing="10"
+                    VerticalAlignment="Center">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <Button
+                        x:Name="AttachmentButton"
+                        Width="42"
+                        Height="42"
+                        Padding="0"
+                        VerticalAlignment="Center"
+                        Style="{StaticResource GgufChatSecondaryButtonStyle}"
+                        AutomationProperties.Name="Add knowledge files">
+                        <Button.Flyout>
+                            <MenuFlyout>
+                                <MenuFlyoutItem
+                                    x:Name="AddKnowledgeFilesMenuItem"
+                                    Text="Add knowledge files..."
+                                    Click="AddKnowledgeFiles_Click" />
+                            </MenuFlyout>
+                        </Button.Flyout>
+                        <FontIcon Glyph="&#xE710;" FontSize="16" />
+                    </Button>
+                    <TextBox
+                        x:Name="PromptTextBox"
+                        Grid.Column="1"
+                        MinHeight="44"
+                        MaxHeight="160"
+                        AcceptsReturn="True"
+                        Padding="12,0"
+                        VerticalAlignment="Center"
+                        VerticalContentAlignment="Center"
+                        TextWrapping="Wrap"
+                        PlaceholderText="Type a message..."
+                        AutomationProperties.Name="Message"
+                        TextChanged="PromptTextBox_TextChanged"
+                        SizeChanged="PromptTextBox_SizeChanged" />
+                    <Button
+                        x:Name="SendButton"
+                        Grid.Column="2"
+                        Width="52"
+                        Height="44"
+                        Padding="0"
+                        VerticalAlignment="Center"
+                        Style="{StaticResource GgufChatPrimaryButtonStyle}"
+                        AutomationProperties.Name="Send message"
+                        Click="SendButton_Click">
+                        <FontIcon Glyph="&#xE72A;" />
+                    </Button>
+                    <Button
+                        x:Name="StopButton"
+                        Grid.Column="2"
+                        MinWidth="92"
+                        Height="44"
+                        VerticalAlignment="Center"
+                        Background="#111827"
+                        Foreground="White"
+                        AutomationProperties.Name="Stop generation"
+                        Visibility="Collapsed"
+                        Click="StopButton_Click">
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="16" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Grid Width="16" Height="16">
+                                <Rectangle
+                                    x:Name="StopSquare"
+                                    Width="7"
+                                    Height="7"
+                                    Fill="White"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center" />
+                            </Grid>
+                            <TextBlock
+                                x:Name="StopLabel"
+                                Grid.Column="1"
+                                Text="Stop"
                                 VerticalAlignment="Center" />
                         </Grid>
-                        <TextBlock
-                            x:Name="StopLabel"
-                            Grid.Column="1"
-                            Text="Stop"
-                            VerticalAlignment="Center" />
-                    </Grid>
-                </Button>
+                    </Button>
+                </Grid>
             </Grid>
         </Border>
     </Grid>
