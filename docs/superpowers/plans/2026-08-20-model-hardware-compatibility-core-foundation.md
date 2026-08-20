@@ -1329,19 +1329,21 @@ public sealed class FitPolicyTests
     }
 
     [TestMethod]
-    // budget is 17 GiB. required = peak + max(0.5 GiB, 10% of peak).
-    [DataRow(10UL, CompatibilityFitState.Safe)]        // 11.0 / 17 = 0.65 comfortable
-    [DataRow(14UL, CompatibilityFitState.Safe)]        // 15.4 / 17 = 0.90 moderate
-    [DataRow(15UL, CompatibilityFitState.Narrow)]      // 16.5 / 17 = 0.97 narrow
-    [DataRow(17UL, CompatibilityFitState.DoesNotFit)]  // 18.7 / 17 = 1.10 over
-    public void State_FollowsTheApprovedThresholdBands(
-        ulong peakGib,
-        CompatibilityFitState expected)
+    // Budget is 17 GiB. Required is peak plus max(0.5 GiB, 10% of peak).
+    // The expected state travels as a name because a public test method
+    // cannot take an internal enum as a parameter (CS0051).
+    [DataRow(10UL, nameof(CompatibilityFitState.Safe))]        // 11.00 / 17 = 0.6471
+    [DataRow(13UL, nameof(CompatibilityFitState.Safe))]        // 14.30 / 17 = 0.8412
+    [DataRow(14UL, nameof(CompatibilityFitState.Narrow))]      // 15.40 / 17 = 0.9059
+    [DataRow(15UL, nameof(CompatibilityFitState.Narrow))]      // 16.50 / 17 = 0.9706
+    [DataRow(16UL, nameof(CompatibilityFitState.DoesNotFit))]  // 17.60 / 17 = 1.0353
+    [DataRow(17UL, nameof(CompatibilityFitState.DoesNotFit))]  // 18.70 / 17 = 1.1000
+    public void State_FollowsTheApprovedThresholdBands(ulong peakGib, string expected)
     {
         FitAssessment assessment = FitPolicy.Assess(
             SystemPeak(peakGib * Gib), Available(20 * Gib), SafetyPolicy.ProvisionalV1());
 
-        Assert.AreEqual(expected, assessment.State);
+        Assert.AreEqual(expected, assessment.State.ToString());
     }
 
     [TestMethod]
