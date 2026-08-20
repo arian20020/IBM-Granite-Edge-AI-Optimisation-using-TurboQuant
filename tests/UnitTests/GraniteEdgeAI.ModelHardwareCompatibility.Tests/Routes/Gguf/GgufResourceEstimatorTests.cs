@@ -129,14 +129,66 @@ public sealed class GgufResourceEstimatorTests
     public void Weights_AreLiveInEveryPhase()
     {
         // Weights are resident from load until the model is released, so a peak
-        // taken in any phase must include them.
+        // taken in any phase must include them. Asserted by membership rather
+        // than by count alone, so swapping one phase for another of the same
+        // set size would still be caught.
         ResourceComponent weights = Single(Estimate(), ResourceComponentKind.Weights);
 
+        Assert.IsTrue(weights.Phases.Contains(LifecyclePhase.Load));
+        Assert.IsTrue(weights.Phases.Contains(LifecyclePhase.Compile));
+        Assert.IsTrue(weights.Phases.Contains(LifecyclePhase.SteadyStateGeneration));
         Assert.AreEqual(3, weights.Phases.Count);
     }
 
     [TestMethod]
-    public void KvCache_IsLiveOnlyDuringGeneration()
+    public void ComputeBuffer_IsLiveDuringCompileAndGenerationOnly()
+    {
+        // A regression that shifted ComputeBuffer to load-only (or to every
+        // phase) would leave every other assertion in this file green, since
+        // nothing else pins its phase set.
+        ResourceComponent computeBuffer = Single(Estimate(), ResourceComponentKind.ComputeBuffer);
+
+        Assert.IsFalse(computeBuffer.Phases.Contains(LifecyclePhase.Load));
+        Assert.IsTrue(computeBuffer.Phases.Contains(LifecyclePhase.Compile));
+        Assert.IsTrue(computeBuffer.Phases.Contains(LifecyclePhase.SteadyStateGeneration));
+        Assert.AreEqual(2, computeBuffer.Phases.Count);
+    }
+
+    [TestMethod]
+    public void BackendAllocation_IsLiveInEveryPhase()
+    {
+        ResourceComponent backend = Single(Estimate(), ResourceComponentKind.BackendAllocation);
+
+        Assert.IsTrue(backend.Phases.Contains(LifecyclePhase.Load));
+        Assert.IsTrue(backend.Phases.Contains(LifecyclePhase.Compile));
+        Assert.IsTrue(backend.Phases.Contains(LifecyclePhase.SteadyStateGeneration));
+        Assert.AreEqual(3, backend.Phases.Count);
+    }
+
+    [TestMethod]
+    public void ApplicationOverhead_IsLiveInEveryPhase()
+    {
+        ResourceComponent overhead =
+            Single(Estimate(), ResourceComponentKind.ApplicationOverhead);
+
+        Assert.IsTrue(overhead.Phases.Contains(LifecyclePhase.Load));
+        Assert.IsTrue(overhead.Phases.Contains(LifecyclePhase.Compile));
+        Assert.IsTrue(overhead.Phases.Contains(LifecyclePhase.SteadyStateGeneration));
+        Assert.AreEqual(3, overhead.Phases.Count);
+    }
+
+    [TestMethod]
+    // Renamed from KvCache_IsLiveOnlyDuringGeneration: the previous name
+    // asserted a claim about llama.cpp's runtime behaviour that is not true -
+    // llama.cpp allocates the KV cache at context creation, before generation
+    // starts. What this actually pins is this estimator's own phase labelling
+    // for the KvCache component, not when the runtime allocates it. The
+    // mislabel is peak-neutral today only because the generation phase's
+    // model-target pool already dominates load/compile on all three routes,
+    // so charging KvCache to SteadyStateGeneration alone still lands inside
+    // the true peak. A future route where load or compile could exceed
+    // generation would need this revisited.
+    public void KvCache_IsLabelledLiveOnlyDuringGeneration()
     {
         ResourceComponent kv = Single(Estimate(), ResourceComponentKind.KvCache);
 
