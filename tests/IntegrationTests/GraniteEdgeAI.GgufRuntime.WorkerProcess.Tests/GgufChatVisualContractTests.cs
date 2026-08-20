@@ -5,6 +5,30 @@ namespace GraniteEdgeAI.GgufRuntime.WorkerProcess.Tests;
 [TestClass]
 public sealed class GgufChatVisualContractTests
 {
+    private static readonly string[] SoftModernThemeResourceKeys =
+    [
+        "GgufChatPrimaryGradientBrush",
+        "GgufChatPrimaryBrush",
+        "GgufChatPrimaryHoverBrush",
+        "GgufChatPrimaryPressedBrush",
+        "GgufChatPrimaryForegroundBrush",
+        "GgufChatPanelBorderBrush",
+        "GgufChatSecondarySurfaceBrush",
+        "GgufChatFocusBrush",
+        "GgufChatHistoryHoverBrush",
+        "GgufChatSurfaceBrush",
+        "GgufChatTextBrush",
+    ];
+
+    private static readonly string[] RequiredButtonVisualStates =
+    [
+        "Normal",
+        "PointerOver",
+        "Pressed",
+        "Disabled",
+        "Focused",
+    ];
+
     [TestMethod]
     public void ChatThemeDefinesSoftModernSurfaceAndControlResources()
     {
@@ -20,21 +44,28 @@ public sealed class GgufChatVisualContractTests
             "Presentation",
             "GgufChatTheme.xaml"));
 
-        XElement primaryGradient = AssertThemeResource(
+        foreach (string themeKey in new[] { "Light", "Dark", "HighContrast" })
+        {
+            XElement themeDictionary = GetThemeDictionary(theme, presentation, x, themeKey);
+            foreach (string resourceKey in SoftModernThemeResourceKeys)
+            {
+                AssertThemeResource(themeDictionary, x, resourceKey, themeKey);
+            }
+
+            XElement primaryGradient = AssertThemeResource(
+                themeDictionary,
+                x,
+                "GgufChatPrimaryGradientBrush",
+                themeKey);
+            Assert.AreEqual(presentation + "LinearGradientBrush", primaryGradient.Name);
+        }
+
+        XElement secondaryButtonStyle = AssertRootResource(
             theme,
-            presentation,
-            x,
-            "GgufChatPrimaryGradientBrush");
-        Assert.AreEqual(presentation + "LinearGradientBrush", primaryGradient.Name);
-        AssertThemeResource(theme, presentation, x, "GgufChatPanelBorderBrush");
-        XElement secondaryButtonStyle = AssertThemeResource(
-            theme,
-            presentation,
             x,
             "GgufChatSecondaryButtonStyle");
-        XElement primaryButtonStyle = AssertThemeResource(
+        XElement primaryButtonStyle = AssertRootResource(
             theme,
-            presentation,
             x,
             "GgufChatPrimaryButtonStyle");
 
@@ -57,19 +88,30 @@ public sealed class GgufChatVisualContractTests
             "Presentation",
             "GgufChatTheme.xaml"));
 
-        XElement highContrastDictionary = theme.Descendants(presentation + "ResourceDictionary")
-            .Single(dictionary => dictionary.Attribute(x + "Key")?.Value == "HighContrast");
-        XElement? highContrastForeground = highContrastDictionary.Elements()
-            .SingleOrDefault(element =>
-                element.Attribute(x + "Key")?.Value == "GgufChatPrimaryForegroundBrush");
-        Assert.IsNotNull(highContrastForeground);
+        XElement highContrastDictionary = GetThemeDictionary(
+            theme,
+            presentation,
+            x,
+            "HighContrast");
+        XElement highContrastForeground = AssertThemeResource(
+            highContrastDictionary,
+            x,
+            "GgufChatPrimaryForegroundBrush",
+            "HighContrast");
         StringAssert.Contains(
             highContrastForeground.Attribute("Color")?.Value,
             "SystemColorHighlightTextColor");
+        XElement highContrastFocus = AssertThemeResource(
+            highContrastDictionary,
+            x,
+            "GgufChatFocusBrush",
+            "HighContrast");
+        StringAssert.Contains(
+            highContrastFocus.Attribute("Color")?.Value,
+            "SystemColorHighlightColor");
 
-        XElement primaryButtonStyle = AssertThemeResource(
+        XElement primaryButtonStyle = AssertRootResource(
             theme,
-            presentation,
             x,
             "GgufChatPrimaryButtonStyle");
         XElement foregroundSetter = primaryButtonStyle.Descendants(presentation + "Setter")
@@ -152,17 +194,51 @@ public sealed class GgufChatVisualContractTests
         throw new InvalidOperationException("Repository root was not found.");
     }
 
-    private static XElement AssertThemeResource(
+    private static XElement GetThemeDictionary(
         XDocument theme,
         XNamespace presentation,
         XNamespace x,
+        string themeKey)
+    {
+        XElement? dictionaries = theme.Root?
+            .Element(presentation + "ResourceDictionary.ThemeDictionaries");
+        XElement? dictionary = dictionaries?
+            .Elements(presentation + "ResourceDictionary")
+            .SingleOrDefault(element => element.Attribute(x + "Key")?.Value == themeKey);
+
+        Assert.IsNotNull(dictionary, $"Theme dictionary '{themeKey}' is required.");
+        return dictionary;
+    }
+
+    private static XElement AssertThemeResource(
+        XElement themeDictionary,
+        XNamespace x,
+        string key,
+        string themeKey)
+    {
+        XElement[] resources = themeDictionary.Elements()
+            .Where(element => element.Attribute(x + "Key")?.Value == key)
+            .ToArray();
+
+        Assert.AreEqual(
+            1,
+            resources.Length,
+            $"Theme resource '{key}' must appear exactly once in the {themeKey} dictionary.");
+        return resources[0];
+    }
+
+    private static XElement AssertRootResource(
+        XDocument theme,
+        XNamespace x,
         string key)
     {
-        XElement? resource = theme.Descendants()
-            .FirstOrDefault(element => element.Attribute(x + "Key")?.Value == key);
+        XElement[] resources = theme.Root!
+            .Elements()
+            .Where(element => element.Attribute(x + "Key")?.Value == key)
+            .ToArray();
 
-        Assert.IsNotNull(resource, $"Theme resource '{key}' is required.");
-        return resource;
+        Assert.AreEqual(1, resources.Length, $"Root theme resource '{key}' is required.");
+        return resources[0];
     }
 
     private static void AssertStyleHasVisualStates(
@@ -170,16 +246,42 @@ public sealed class GgufChatVisualContractTests
         XNamespace presentation,
         XNamespace x)
     {
-        IReadOnlyCollection<string> stateNames = style
-            .Descendants(presentation + "VisualState")
-            .Select(state => state.Attribute(x + "Name")?.Value)
-            .Where(name => name is not null)
-            .Cast<string>()
-            .ToArray();
+        foreach (string stateName in RequiredButtonVisualStates)
+        {
+            XElement state = style.Descendants(presentation + "VisualState")
+                .SingleOrDefault(element => element.Attribute(x + "Name")?.Value == stateName)
+                ?? throw new AssertFailedException(
+                    $"The button style must define a '{stateName}' visual state.");
+            Assert.IsTrue(
+                state.Descendants(presentation + "Setter").Any()
+                    || state.Descendants(presentation + "Storyboard").Any(),
+                $"The '{stateName}' visual state must contain a visual change.");
+        }
 
-        string[] requiredStates = ["Normal", "PointerOver", "Pressed", "Disabled", "Focused"];
+        AssertStateChangesControlSurface(style, presentation, x, "PointerOver");
+        AssertStateChangesControlSurface(style, presentation, x, "Pressed");
+
+        XElement focusedState = style.Descendants(presentation + "VisualState")
+            .Single(element => element.Attribute(x + "Name")?.Value == "Focused");
         Assert.IsTrue(
-            requiredStates.All(stateNames.Contains),
-            "The button style must define normal, interaction, disabled, and focus states.");
+            focusedState.Descendants(presentation + "Setter")
+                .Any(setter => setter.Attribute("Target")?.Value == "FocusVisual.Visibility"),
+            "The focused state must display a non-colour-only focus visual.");
+    }
+
+    private static void AssertStateChangesControlSurface(
+        XElement style,
+        XNamespace presentation,
+        XNamespace x,
+        string stateName)
+    {
+        XElement state = style.Descendants(presentation + "VisualState")
+            .Single(element => element.Attribute(x + "Name")?.Value == stateName);
+        Assert.IsTrue(
+            state.Descendants(presentation + "Setter")
+                .Any(setter =>
+                    setter.Attribute("Target")?.Value is "RootBorder.Background"
+                        or "RootBorder.BorderBrush"),
+            $"The '{stateName}' visual state must change the control surface.");
     }
 }

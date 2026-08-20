@@ -105,7 +105,12 @@
                                 Visibility="Collapsed" />
                         <VisualStateManager.VisualStateGroups>
                             <VisualStateGroup x:Name="CommonStates">
-                                <VisualState x:Name="Normal" />
+                                <VisualState x:Name="Normal">
+                                    <VisualState.Setters>
+                                        <Setter Target="RootBorder.Background" Value="{ThemeResource GgufChatPrimaryGradientBrush}" />
+                                        <Setter Target="RootBorder.BorderBrush" Value="{ThemeResource GgufChatPrimaryBrush}" />
+                                    </VisualState.Setters>
+                                </VisualState>
                                 <VisualState x:Name="PointerOver">
                                     <VisualState.Setters>
                                         <Setter Target="RootBorder.Background" Value="{ThemeResource GgufChatPrimaryHoverBrush}" />
@@ -172,7 +177,12 @@
                                 Visibility="Collapsed" />
                         <VisualStateManager.VisualStateGroups>
                             <VisualStateGroup x:Name="CommonStates">
-                                <VisualState x:Name="Normal" />
+                                <VisualState x:Name="Normal">
+                                    <VisualState.Setters>
+                                        <Setter Target="RootBorder.Background" Value="{ThemeResource GgufChatSecondarySurfaceBrush}" />
+                                        <Setter Target="RootBorder.BorderBrush" Value="{ThemeResource GgufChatPanelBorderBrush}" />
+                                    </VisualState.Setters>
+                                </VisualState>
                                 <VisualState x:Name="PointerOver">
                                     <VisualState.Setters>
                                         <Setter Target="RootBorder.Background" Value="{ThemeResource GgufChatHistoryHoverBrush}" />
