@@ -20,4 +20,8 @@
     <PackageReference Include="MSTest.TestFramework" Version="4.3.2" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\shared\GraniteEdgeAI.OpenVino.Contracts\GraniteEdgeAI.OpenVino.Contracts.csproj" />
+  </ItemGroup>
+
 </Project>
