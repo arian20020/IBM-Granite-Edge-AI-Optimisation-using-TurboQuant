@@ -192,10 +192,13 @@ public sealed class HardwareInspectionContractTests
         Assert.AreEqual(CapturedAtUtc, value.CapturedAtUtc);
     }
 
-    private static HardwareSnapshot CreateUsableSnapshot() =>
+    internal static HardwareSnapshot CreateUsableSnapshotForPresentation() =>
         CreateSnapshot(["avx2"],
             [new GraphicsAdapterFacts("Intel Arc Graphics", 8UL * 1024 * 1024 * 1024, 0, 16UL * 1024 * 1024 * 1024)],
             CreateRequiredEvidence());
+
+    private static HardwareSnapshot CreateUsableSnapshot() =>
+        CreateUsableSnapshotForPresentation();
 
     private static HardwareSnapshot CreateSnapshot(
         IEnumerable<string> instructionSets,
