@@ -111,6 +111,34 @@ public sealed class ModelImportOperationLifecycleTests
         }
     }
 
+    [UITestMethod]
+    public async Task ReplacementDuringDelayedQuickScan_DoesNotDisposeTokenOrApplyStaleResult()
+    {
+        var scanStarted = new TaskCompletionSource<CancellationToken>();
+        var releaseScan = new TaskCompletionSource<ModelQuickScanResult>();
+        var page = new ModelImportPage(
+            () => Task.FromResult(ModelFormatSelection.Gguf),
+            () => Task.FromResult<string?>(null),
+            async (_, _, token) =>
+            {
+                scanStarted.SetResult(token);
+                return await releaseScan.Task;
+            },
+            classifier: new ShapeClassifier());
+
+        Task first = page.SubmitInputAsync(new ModelSelectionInput(@"C:\Models\first.gguf", "first.gguf", false));
+        CancellationToken token = await scanStarted.Task;
+        Task replacement = page.SubmitInputAsync(new ModelSelectionInput(@"C:\Models\openvino", "openvino", true));
+        await replacement;
+
+        using CancellationTokenRegistration registration = token.Register(() => { });
+        releaseScan.SetResult(ModelQuickScanResult.CreateSuccess("Granite", "granite", "3B", "Q4", 64, 4096, 3));
+        await first;
+
+        Assert.AreEqual(ModelSelectionRoute.OpenVinoDirectory, page.CurrentRoute);
+        Assert.IsNull(page.ValidatedScanResult);
+    }
+
     private static ModelImportPage CreatePage(IModelSelectionClassifier classifier) => new(
         () => Task.FromResult(ModelFormatSelection.Gguf),
         () => Task.FromResult<string?>(null),
