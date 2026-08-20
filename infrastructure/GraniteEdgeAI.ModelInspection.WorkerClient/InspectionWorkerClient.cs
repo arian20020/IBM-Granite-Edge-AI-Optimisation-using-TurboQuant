@@ -1,7 +1,7 @@
 using System.Collections;
 using GraniteEdgeAI.ModelInspection.Contracts;
 using GraniteEdgeAI.ModelInspection.Transport;
-using GraniteEdgeAI.ModelInspection.WorkerClient.Windows;
+using GraniteEdgeAI.ModelInspection.WorkerClient.ProtectedWorker;
 
 namespace GraniteEdgeAI.ModelInspection.WorkerClient;
 
@@ -35,6 +35,7 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
 
     private readonly WorkerClientOptions _options;
     private readonly WorkerExecutableResolver _resolver;
+    private readonly IProtectedWorkerSessionFactory _sessionFactory;
     private readonly IReadOnlyList<string> _testOnlyArguments;
     private readonly Func<IReadOnlyDictionary<string, string?>>
         _parentEnvironmentProvider;
@@ -74,15 +75,32 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
         string fixedWorkerRelativePath,
         IReadOnlyList<string> testOnlyArguments,
         Func<IReadOnlyDictionary<string, string?>> parentEnvironmentProvider)
+        : this(
+            options,
+            fixedWorkerRelativePath,
+            testOnlyArguments,
+            parentEnvironmentProvider,
+            new ProtectedWorkerSessionFactory())
+    {
+    }
+
+    private InspectionWorkerClient(
+        WorkerClientOptions options,
+        string fixedWorkerRelativePath,
+        IReadOnlyList<string> testOnlyArguments,
+        Func<IReadOnlyDictionary<string, string?>> parentEnvironmentProvider,
+        IProtectedWorkerSessionFactory sessionFactory)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentException.ThrowIfNullOrWhiteSpace(fixedWorkerRelativePath);
         ArgumentNullException.ThrowIfNull(testOnlyArguments);
         ArgumentNullException.ThrowIfNull(parentEnvironmentProvider);
+        ArgumentNullException.ThrowIfNull(sessionFactory);
 
         options.Validate();
         _options = options;
         _resolver = new WorkerExecutableResolver(fixedWorkerRelativePath);
+        _sessionFactory = sessionFactory;
         _testOnlyArguments = Array.AsReadOnly([.. testOnlyArguments]);
         _parentEnvironmentProvider = parentEnvironmentProvider;
     }
@@ -98,7 +116,7 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
         cancellationToken.ThrowIfCancellationRequested();
 
         WorkerFailureAccumulator failures = new();
-        WorkerProcessSession? session = null;
+        ProtectedWorkerSession? session = null;
         Task<StandardErrorSnapshot>? standardErrorTask = null;
         Task? processExitTask = null;
         StandardErrorSnapshot standardError = new(
@@ -118,20 +136,23 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
                 _resolver.Resolve(_options.ApprovedWorkerRoot);
             IReadOnlyDictionary<string, string> environment =
                 WorkerEnvironmentPolicy.Create(_parentEnvironmentProvider());
-            WindowsProcessLaunchRequest launchRequest = new(
+            ProtectedWorkerLaunchSpec launchSpec = new(
                 executable,
+                _testOnlyArguments,
                 environment,
-                _testOnlyArguments);
+                _options.MaximumRetainedStandardErrorBytes,
+                _options.StartupTimeout,
+                _options.CancellationGracePeriod,
+                _options.ProcessTreeCleanupTimeout);
 
-            session = WindowsWorkerProcessLauncher.Launch(launchRequest);
+            session = await _sessionFactory.StartAsync(
+                    launchSpec,
+                    cancellationToken)
+                .ConfigureAwait(false);
 
             // Start all independent observations immediately. No redirected
             // stream waits behind another stream or behind process exit.
-            BoundedStandardErrorCollector stderrCollector = new(
-                _options.MaximumRetainedStandardErrorBytes);
-            standardErrorTask = stderrCollector.DrainAsync(
-                session.StandardError,
-                CancellationToken.None);
+            standardErrorTask = session.ReadStandardErrorAsync();
             processExitTask = session.WaitForExitAsync(CancellationToken.None);
             BoundedUtf8LineReader stdoutReader = new(
                 session.StandardOutput,
@@ -262,8 +283,7 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
                     try
                     {
                         forcedTermination |=
-                            await session.TerminateAndVerifyEmptyAsync(
-                                    _options.ProcessTreeCleanupTimeout)
+                            await session.TerminateAndVerifyEmptyAsync()
                                 .ConfigureAwait(false);
                     }
                     catch (WorkerClientPolicyException error)
@@ -363,7 +383,7 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
     }
 
     private async Task<ActiveRunResult> RunActiveRequestAsync(
-        WorkerProcessSession session,
+        ProtectedWorkerSession session,
         Task<WorkerCompletedMessage> conversationTask,
         Task processExitTask,
         WorkerCancellationCoordinator cancellationCoordinator,
@@ -419,7 +439,7 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
     }
 
     private async Task<ActiveRunResult> FinishAfterCancellationAsync(
-        WorkerProcessSession session,
+        ProtectedWorkerSession session,
         Task<WorkerCompletedMessage> conversationTask,
         Task processExitTask,
         WorkerCancellationCoordinator cancellationCoordinator,
@@ -446,8 +466,7 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
             ObjectDisposedException or
             ProtocolStreamException)
         {
-            bool forced = await session.TerminateAndVerifyEmptyAsync(
-                    _options.ProcessTreeCleanupTimeout)
+            bool forced = await session.TerminateAndVerifyEmptyAsync()
                 .ConfigureAwait(false);
             return new ActiveRunResult(
                 TerminalMessage: null,
@@ -468,8 +487,7 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
 
         if (winner != completionTask)
         {
-            bool forced = await session.TerminateAndVerifyEmptyAsync(
-                    _options.ProcessTreeCleanupTimeout)
+            bool forced = await session.TerminateAndVerifyEmptyAsync()
                 .ConfigureAwait(false);
             return new ActiveRunResult(
                 TerminalMessage: null,
@@ -519,15 +537,14 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
     }
 
     private async Task<ActiveRunResult> FinishAfterRootExitAsync(
-        WorkerProcessSession session,
+        ProtectedWorkerSession session,
         Task<WorkerCompletedMessage> conversationTask,
         Task processExitTask)
     {
         await processExitTask.ConfigureAwait(false);
-        if (session.Job.GetActiveProcessCount() != 0)
+        if (session.GetActiveProcessCount() != 0)
         {
-            bool forced = await session.TerminateAndVerifyEmptyAsync(
-                    _options.ProcessTreeCleanupTimeout)
+            bool forced = await session.TerminateAndVerifyEmptyAsync()
                 .ConfigureAwait(false);
             return new ActiveRunResult(
                 TerminalMessage: null,
@@ -549,8 +566,7 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
         }
         catch (TimeoutException)
         {
-            bool forced = await session.TerminateAndVerifyEmptyAsync(
-                    _options.ProcessTreeCleanupTimeout)
+            bool forced = await session.TerminateAndVerifyEmptyAsync()
                 .ConfigureAwait(false);
             return new ActiveRunResult(
                 TerminalMessage: null,
@@ -573,8 +589,8 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
             Failure: null);
     }
 
-    private async Task<ActiveRunResult> FinishAfterTerminalAsync(
-        WorkerProcessSession session,
+    private static async Task<ActiveRunResult> FinishAfterTerminalAsync(
+        ProtectedWorkerSession session,
         WorkerCompletedMessage terminal,
         Task processExitTask,
         Task overallSignal)
@@ -585,8 +601,7 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
                 .ConfigureAwait(false);
             if (winner == overallSignal)
             {
-                bool forced = await session.TerminateAndVerifyEmptyAsync(
-                        _options.ProcessTreeCleanupTimeout)
+                bool forced = await session.TerminateAndVerifyEmptyAsync()
                     .ConfigureAwait(false);
                 return new ActiveRunResult(
                     TerminalMessage: null,
@@ -600,12 +615,10 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
 
         await processExitTask.ConfigureAwait(false);
         int exitCode = session.GetExitCode();
-        if (!await session.WaitForTreeEmptyAsync(
-                _options.ProcessTreeCleanupTimeout)
+        if (!await session.WaitForTreeEmptyAsync()
             .ConfigureAwait(false))
         {
-            bool forced = await session.TerminateAndVerifyEmptyAsync(
-                    _options.ProcessTreeCleanupTimeout)
+            bool forced = await session.TerminateAndVerifyEmptyAsync()
                 .ConfigureAwait(false);
             return new ActiveRunResult(
                 TerminalMessage: null,
@@ -627,8 +640,8 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
             Failure: null);
     }
 
-    private async Task<ProcessCompletion> CompleteConversationAndExitAsync(
-        WorkerProcessSession session,
+    private static async Task<ProcessCompletion> CompleteConversationAndExitAsync(
+        ProtectedWorkerSession session,
         Task<WorkerCompletedMessage> conversationTask,
         Task processExitTask,
         bool cancellationWasRequested)
@@ -637,8 +650,7 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
             .ConfigureAwait(false);
         await processExitTask.ConfigureAwait(false);
         int exitCode = session.GetExitCode();
-        if (!await session.WaitForTreeEmptyAsync(
-                _options.ProcessTreeCleanupTimeout)
+        if (!await session.WaitForTreeEmptyAsync()
             .ConfigureAwait(false))
         {
             throw PolicyFailure(
@@ -679,7 +691,7 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
 
     private async Task<WorkerHelloMessage> ReadAndValidateHelloAsync(
         BoundedUtf8LineReader stdoutReader,
-        WorkerProcessSession session,
+        ProtectedWorkerSession session,
         Task processExitTask,
         Task callerSignal,
         CancellationToken callerToken)
@@ -809,11 +821,11 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
     }
 
     private static uint TryGetActiveProcessCount(
-        WorkerProcessSession session)
+        ProtectedWorkerSession session)
     {
         try
         {
-            return session.Job.GetActiveProcessCount();
+            return session.GetActiveProcessCount();
         }
         catch (Exception error) when (IsExpectedProcessFailure(error))
         {
@@ -821,7 +833,7 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
         }
     }
 
-    private static int? TryGetExitCode(WorkerProcessSession session)
+    private static int? TryGetExitCode(ProtectedWorkerSession session)
     {
         try
         {

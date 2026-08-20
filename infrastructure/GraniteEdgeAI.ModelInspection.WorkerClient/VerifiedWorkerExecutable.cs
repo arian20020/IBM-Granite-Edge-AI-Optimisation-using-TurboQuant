@@ -6,11 +6,11 @@ namespace GraniteEdgeAI.ModelInspection.WorkerClient;
 /// Owns the verified worker path and the open file handle that keeps the
 /// executable identity available until the process-launch operation completes.
 /// </summary>
-internal sealed class VerifiedWorkerExecutable : IDisposable
+public sealed class VerifiedWorkerExecutable : IDisposable
 {
     private bool _disposed;
 
-    public VerifiedWorkerExecutable(
+    internal VerifiedWorkerExecutable(
         string approvedRootFinalPath,
         string executableFinalPath,
         SafeFileHandle verificationHandle)
@@ -28,7 +28,7 @@ internal sealed class VerifiedWorkerExecutable : IDisposable
 
     public string ExecutableFinalPath { get; }
 
-    public SafeFileHandle VerificationHandle { get; }
+    internal SafeFileHandle VerificationHandle { get; }
 
     public void Dispose()
     {

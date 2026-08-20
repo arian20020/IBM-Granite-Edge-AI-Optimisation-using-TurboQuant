@@ -4,7 +4,7 @@ namespace GraniteEdgeAI.ModelInspection.WorkerClient;
 /// Contains the bounded, redacted stderr evidence retained after the raw stream
 /// has been drained fully to EOF.
 /// </summary>
-internal sealed record StandardErrorSnapshot
+public sealed record StandardErrorSnapshot
 {
     internal StandardErrorSnapshot(
         string retainedText,
@@ -17,9 +17,9 @@ internal sealed record StandardErrorSnapshot
         InvalidUtf8Detected = invalidUtf8Detected;
     }
 
-    internal string RetainedText { get; }
+    public string RetainedText { get; }
 
-    internal bool IsTruncated { get; }
+    public bool IsTruncated { get; }
 
-    internal bool InvalidUtf8Detected { get; }
+    public bool InvalidUtf8Detected { get; }
 }

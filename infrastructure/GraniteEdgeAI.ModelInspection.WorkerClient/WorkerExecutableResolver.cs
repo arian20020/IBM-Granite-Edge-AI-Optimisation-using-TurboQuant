@@ -6,7 +6,7 @@ namespace GraniteEdgeAI.ModelInspection.WorkerClient;
 /// Resolves the one fixed production worker beneath a controlled installation
 /// root and rejects any path, reparse-point, final-path or architecture drift.
 /// </summary>
-internal sealed class WorkerExecutableResolver
+public sealed class WorkerExecutableResolver
 {
     private const ushort Amd64Machine = 0x8664;
     private const string UntrustedMessage =
