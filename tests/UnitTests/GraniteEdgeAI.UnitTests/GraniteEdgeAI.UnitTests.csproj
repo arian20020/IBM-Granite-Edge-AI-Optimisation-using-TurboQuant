@@ -371,6 +371,10 @@
           Link="Features\ModelInspection\Presentation\ModelInspectionTheme.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
+    <Page Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\GgufRuntime\Presentation\GgufChatTheme.xaml"
+          Link="Features\GgufRuntime\Presentation\GgufChatTheme.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <ProjectCapability Include="TestContainer" />
   </ItemGroup>
 

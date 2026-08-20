@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="GraniteEdgeAI.Features.GgufRuntime.Controls.ChatComposer"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid x:Name="ComposerRoot">
+        <Border
+            Background="{ThemeResource GgufChatSurfaceBrush}"
+            BorderBrush="{ThemeResource GgufChatBorderBrush}"
+            BorderThickness="1"
+            CornerRadius="22"
+            Padding="12,8">
+            <Grid ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Button
+                    x:Name="AttachmentButton"
+                    Width="44"
+                    Height="44"
+                    IsEnabled="False"
+                    AutomationProperties.Name="Add an attachment (coming later)"
+                    Content="+" />
+                <TextBox
+                    x:Name="PromptTextBox"
+                    Grid.Column="1"
+                    MinHeight="44"
+                    MaxHeight="160"
+                    AcceptsReturn="True"
+                    TextWrapping="Wrap"
+                    PlaceholderText="Type a message..."
+                    AutomationProperties.Name="Message" />
+                <Button
+                    x:Name="SendButton"
+                    Grid.Column="2"
+                    Width="52"
+                    Height="44"
+                    Background="{ThemeResource GgufChatPrimaryBrush}"
+                    Foreground="White"
+                    AutomationProperties.Name="Send message"
+                    Click="SendButton_Click">
+                    <FontIcon Glyph="&#xE72A;" />
+                </Button>
+                <Button
+                    x:Name="StopButton"
+                    Grid.Column="2"
+                    MinWidth="92"
+                    Height="44"
+                    Background="#111827"
+                    Foreground="White"
+                    AutomationProperties.Name="Stop generation"
+                    Visibility="Collapsed"
+                    Click="StopButton_Click">
+                    <Grid ColumnSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="16" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Grid Width="16" Height="16">
+                            <Rectangle
+                                x:Name="StopSquare"
+                                Width="7"
+                                Height="7"
+                                Fill="White"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center" />
+                        </Grid>
+                        <TextBlock
+                            x:Name="StopLabel"
+                            Grid.Column="1"
+                            Text="Stop"
+                            VerticalAlignment="Center" />
+                    </Grid>
+                </Button>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

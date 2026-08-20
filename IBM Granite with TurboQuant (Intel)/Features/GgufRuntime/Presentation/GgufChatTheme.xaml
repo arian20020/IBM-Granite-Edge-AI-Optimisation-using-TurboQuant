@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Light">
+            <SolidColorBrush x:Key="GgufChatCanvasBrush" Color="#F5F7FB" />
+            <SolidColorBrush x:Key="GgufChatSurfaceBrush" Color="#FFFFFFFF" />
+            <SolidColorBrush x:Key="GgufChatRailBrush" Color="#FFFFFFFF" />
+            <SolidColorBrush x:Key="GgufChatPrimaryBrush" Color="#2563EB" />
+            <SolidColorBrush x:Key="GgufChatPrimaryHoverBrush" Color="#1D4ED8" />
+            <SolidColorBrush x:Key="GgufChatTextBrush" Color="#111827" />
+            <SolidColorBrush x:Key="GgufChatMutedBrush" Color="#6B7280" />
+            <SolidColorBrush x:Key="GgufChatBorderBrush" Color="#D1D5DB" />
+            <SolidColorBrush x:Key="GgufChatHistoryHoverBrush" Color="#F3F4F6" />
+            <SolidColorBrush x:Key="GgufChatUserBubbleBrush" Color="#E8F0FF" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Dark">
+            <SolidColorBrush x:Key="GgufChatCanvasBrush" Color="#111827" />
+            <SolidColorBrush x:Key="GgufChatSurfaceBrush" Color="#1F2937" />
+            <SolidColorBrush x:Key="GgufChatRailBrush" Color="#172033" />
+            <SolidColorBrush x:Key="GgufChatPrimaryBrush" Color="#60A5FA" />
+            <SolidColorBrush x:Key="GgufChatPrimaryHoverBrush" Color="#93C5FD" />
+            <SolidColorBrush x:Key="GgufChatTextBrush" Color="#F9FAFB" />
+            <SolidColorBrush x:Key="GgufChatMutedBrush" Color="#CBD5E1" />
+            <SolidColorBrush x:Key="GgufChatBorderBrush" Color="#475569" />
+            <SolidColorBrush x:Key="GgufChatHistoryHoverBrush" Color="#273449" />
+            <SolidColorBrush x:Key="GgufChatUserBubbleBrush" Color="#1E3A5F" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="HighContrast">
+            <SolidColorBrush x:Key="GgufChatCanvasBrush" Color="{ThemeResource SystemColorWindowColor}" />
+            <SolidColorBrush x:Key="GgufChatSurfaceBrush" Color="{ThemeResource SystemColorWindowColor}" />
+            <SolidColorBrush x:Key="GgufChatRailBrush" Color="{ThemeResource SystemColorWindowColor}" />
+            <SolidColorBrush x:Key="GgufChatPrimaryBrush" Color="{ThemeResource SystemColorHighlightColor}" />
+            <SolidColorBrush x:Key="GgufChatPrimaryHoverBrush" Color="{ThemeResource SystemColorHighlightColor}" />
+            <SolidColorBrush x:Key="GgufChatTextBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+            <SolidColorBrush x:Key="GgufChatMutedBrush" Color="{ThemeResource SystemColorGrayTextColor}" />
+            <SolidColorBrush x:Key="GgufChatBorderBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+            <SolidColorBrush x:Key="GgufChatHistoryHoverBrush" Color="{ThemeResource SystemColorHighlightColor}" />
+            <SolidColorBrush x:Key="GgufChatUserBubbleBrush" Color="{ThemeResource SystemColorWindowColor}" />
+        </ResourceDictionary>
+    </ResourceDictionary.ThemeDictionaries>
+</ResourceDictionary>
