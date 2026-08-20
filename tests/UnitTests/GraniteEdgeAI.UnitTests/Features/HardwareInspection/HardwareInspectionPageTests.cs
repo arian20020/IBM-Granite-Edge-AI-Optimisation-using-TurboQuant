@@ -74,6 +74,16 @@ public sealed class HardwareInspectionPageTests
             (HardwareInspectionOutcomeCard)Element(page, "OutcomeCard");
         Assert.AreEqual(Visibility.Visible, ((FrameworkElement)outcome.FindName("ReviewCountPanel")).Visibility);
         Assert.AreEqual("1", ((TextBlock)outcome.FindName("ReviewCountTextBlock")).Text);
+        Assert.AreEqual(
+            HorizontalAlignment.Center,
+            ((FrameworkElement)outcome.FindName("ReviewCountPanel")).HorizontalAlignment);
+        Assert.AreEqual(
+            HorizontalAlignment.Center,
+            ((FrameworkElement)outcome.FindName("ReviewCountTextBlock")).HorizontalAlignment);
+        TextBlock reviewCountLabel =
+            (TextBlock)outcome.FindName("ReviewCountLabelTextBlock");
+        Assert.AreEqual(HorizontalAlignment.Center, reviewCountLabel.HorizontalAlignment);
+        Assert.AreEqual(TextAlignment.Center, reviewCountLabel.TextAlignment);
     }
 
     [UITestMethod]
@@ -134,6 +144,19 @@ public sealed class HardwareInspectionPageTests
             (HardwareInspectionRecoveryCard)Element(page, "RecoveryPanel");
         Assert.AreEqual(Visibility.Visible, recovery.Visibility);
         Assert.AreEqual("What you can do", ((TextBlock)recovery.FindName("RecoveryHeadingTextBlock")).Text);
+        ItemsControl recoveryItems =
+            (ItemsControl)recovery.FindName("RecoveryItemsControl");
+        Assert.AreEqual(2, recovery.Items.Count);
+        Border recoveryStepSurface =
+            (Border)recoveryItems.ItemTemplate.LoadContent();
+        Assert.AreEqual(new Thickness(16, 14, 16, 14), recoveryStepSurface.Padding);
+        Assert.AreEqual(new CornerRadius(10), recoveryStepSurface.CornerRadius);
+        Assert.IsNotNull(recoveryStepSurface.Background);
+        Assert.IsNotNull(recoveryStepSurface.BorderBrush);
+        Border recoveryStepMarker =
+            (Border)recoveryStepSurface.FindName("RecoveryStepMarker");
+        Assert.AreEqual(32d, recoveryStepMarker.Width);
+        Assert.AreEqual(32d, recoveryStepMarker.Height);
         Assert.AreEqual(Visibility.Visible, Element(page, "LocalProcessingPanel").Visibility);
         Assert.AreEqual(
             "This hardware inspection ran locally and did not upload hardware information.",

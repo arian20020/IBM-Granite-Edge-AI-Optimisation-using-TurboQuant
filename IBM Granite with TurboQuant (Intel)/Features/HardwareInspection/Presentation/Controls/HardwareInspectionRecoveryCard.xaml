@@ -11,68 +11,103 @@
         </ResourceDictionary>
     </UserControl.Resources>
     <Border
+        x:Name="RecoveryCardBorder"
         Padding="24"
         Background="{ThemeResource HardwareInspectionSurfaceBrush}"
         BorderBrush="{ThemeResource HardwareInspectionBorderStrongBrush}"
         BorderThickness="{ThemeResource HardwareInspectionBorderThickness}"
         CornerRadius="{ThemeResource HardwareInspectionCardCornerRadius}">
-        <StackPanel Spacing="16">
-            <StackPanel Spacing="4">
-                <TextBlock
-                    x:Name="RecoveryHeadingTextBlock"
-                    FontFamily="{ThemeResource HardwareInspectionFontFamilyBold}"
-                    FontSize="{ThemeResource HardwareInspectionSectionTitleFontSize}"
-                    FontWeight="{ThemeResource HardwareInspectionFontWeightBold}"
-                    Foreground="{ThemeResource HardwareInspectionTextPrimaryBrush}"
-                    TextWrapping="WrapWholeWords" />
-                <TextBlock
-                    x:Name="RecoveryHelperTextBlock"
-                    FontSize="{ThemeResource HardwareInspectionHelperFontSize}"
-                    Foreground="{ThemeResource HardwareInspectionTextSecondaryBrush}"
-                    TextWrapping="WrapWholeWords" />
-            </StackPanel>
-            <ItemsControl ItemsSource="{x:Bind Items, Mode=OneWay}">
+        <StackPanel Spacing="18">
+            <Grid ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="4" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Border
+                    Width="4"
+                    MinHeight="44"
+                    VerticalAlignment="Stretch"
+                    Background="{ThemeResource HardwareInspectionAccentBrush}"
+                    CornerRadius="2" />
+                <StackPanel Grid.Column="1" Spacing="4">
+                    <TextBlock
+                        x:Name="RecoveryHeadingTextBlock"
+                        FontFamily="{ThemeResource HardwareInspectionFontFamilyBold}"
+                        FontSize="{ThemeResource HardwareInspectionSectionTitleFontSize}"
+                        FontWeight="{ThemeResource HardwareInspectionFontWeightBold}"
+                        Foreground="{ThemeResource HardwareInspectionTextPrimaryBrush}"
+                        TextWrapping="WrapWholeWords" />
+                    <TextBlock
+                        x:Name="RecoveryHelperTextBlock"
+                        FontSize="{ThemeResource HardwareInspectionHelperFontSize}"
+                        Foreground="{ThemeResource HardwareInspectionTextSecondaryBrush}"
+                        TextWrapping="WrapWholeWords" />
+                </StackPanel>
+            </Grid>
+            <ItemsControl
+                x:Name="RecoveryItemsControl"
+                ItemsSource="{x:Bind Items, Mode=OneWay}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Spacing="10" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Grid MinHeight="44" Padding="0,6" ColumnSpacing="12">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="28" />
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <Border
-                                Width="24"
-                                Height="24"
-                                VerticalAlignment="Top"
-                                Background="{ThemeResource HardwareInspectionAccentSurfaceBrush}"
-                                CornerRadius="12">
-                                <TextBlock
-                                    HorizontalAlignment="Center"
+                        <Border
+                            x:Name="RecoveryStepSurface"
+                            MinHeight="64"
+                            Padding="16,14"
+                            Background="{ThemeResource HardwareInspectionSurfaceSubtleBrush}"
+                            BorderBrush="{ThemeResource HardwareInspectionBorderBrush}"
+                            BorderThickness="{ThemeResource HardwareInspectionBorderThickness}"
+                            CornerRadius="10">
+                            <Grid ColumnSpacing="14">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="32" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <Border
+                                    x:Name="RecoveryStepMarker"
+                                    Width="32"
+                                    Height="32"
                                     VerticalAlignment="Center"
+                                    Background="{ThemeResource HardwareInspectionAccentSurfaceBrush}"
+                                    BorderBrush="{ThemeResource HardwareInspectionAccentBorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="16">
+                                    <TextBlock
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        FontFamily="{ThemeResource HardwareInspectionFontFamilyBold}"
+                                        FontSize="12"
+                                        FontWeight="{ThemeResource HardwareInspectionFontWeightBold}"
+                                        Foreground="{ThemeResource HardwareInspectionAccentBrush}"
+                                        Text="{Binding Marker}" />
+                                </Border>
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="3">
+                                    <TextBlock
+                                        FontFamily="{ThemeResource HardwareInspectionFontFamilyBold}"
+                                        FontWeight="{ThemeResource HardwareInspectionFontWeightBold}"
+                                        Foreground="{ThemeResource HardwareInspectionTextPrimaryBrush}"
+                                        Text="{Binding Title}"
+                                        TextWrapping="WrapWholeWords" />
+                                    <TextBlock
+                                        FontSize="{ThemeResource HardwareInspectionHelperFontSize}"
+                                        Foreground="{ThemeResource HardwareInspectionTextSecondaryBrush}"
+                                        Text="{Binding Body}"
+                                        TextWrapping="WrapWholeWords" />
+                                </StackPanel>
+                                <TextBlock
+                                    Grid.Column="2"
+                                    VerticalAlignment="Center"
+                                    FontSize="{ThemeResource HardwareInspectionLabelFontSize}"
                                     FontWeight="Bold"
-                                    Foreground="{ThemeResource HardwareInspectionAccentBrush}"
-                                    Text="{Binding Marker}" />
-                            </Border>
-                            <StackPanel Grid.Column="1" Spacing="2">
-                                <TextBlock
-                                    FontWeight="SemiBold"
-                                    Foreground="{ThemeResource HardwareInspectionTextPrimaryBrush}"
-                                    Text="{Binding Title}"
-                                    TextWrapping="WrapWholeWords" />
-                                <TextBlock
-                                    FontSize="{ThemeResource HardwareInspectionHelperFontSize}"
-                                    Foreground="{ThemeResource HardwareInspectionTextSecondaryBrush}"
-                                    Text="{Binding Body}"
-                                    TextWrapping="WrapWholeWords" />
-                            </StackPanel>
-                            <TextBlock
-                                Grid.Column="2"
-                                VerticalAlignment="Center"
-                                FontSize="{ThemeResource HardwareInspectionLabelFontSize}"
-                                FontWeight="Bold"
-                                Foreground="{ThemeResource HardwareInspectionTextMutedBrush}"
-                                Text="{Binding Status}" />
-                        </Grid>
+                                    Foreground="{ThemeResource HardwareInspectionTextMutedBrush}"
+                                    Text="{Binding Status}" />
+                            </Grid>
+                        </Border>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>

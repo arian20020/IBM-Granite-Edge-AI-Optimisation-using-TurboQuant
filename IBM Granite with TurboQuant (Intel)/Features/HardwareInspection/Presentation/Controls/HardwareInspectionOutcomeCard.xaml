@@ -106,23 +106,26 @@
                 <StackPanel
                     x:Name="ReviewCountPanel"
                     Grid.Column="2"
-                    MinWidth="88"
-                    HorizontalAlignment="Right"
+                    MinWidth="104"
+                    HorizontalAlignment="Center"
                     VerticalAlignment="Center"
-                    Spacing="2"
+                    Spacing="4"
                     Visibility="Collapsed">
                     <TextBlock
                         x:Name="ReviewCountTextBlock"
-                        HorizontalAlignment="Right"
+                        HorizontalAlignment="Center"
                         FontFamily="{ThemeResource HardwareInspectionFontFamilyBold}"
                         FontSize="24"
                         FontWeight="{ThemeResource HardwareInspectionFontWeightBold}"
                         Foreground="{ThemeResource HardwareInspectionWarningTextBrush}" />
                     <TextBlock
-                        HorizontalAlignment="Right"
+                        x:Name="ReviewCountLabelTextBlock"
+                        MaxWidth="104"
+                        HorizontalAlignment="Center"
                         FontSize="{ThemeResource HardwareInspectionLabelFontSize}"
                         Foreground="{ThemeResource HardwareInspectionTextSecondaryBrush}"
                         Text="detail needs review"
+                        TextAlignment="Center"
                         TextWrapping="WrapWholeWords" />
                 </StackPanel>
             </Grid>
