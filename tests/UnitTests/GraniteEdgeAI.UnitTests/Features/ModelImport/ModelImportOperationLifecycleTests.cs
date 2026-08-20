@@ -30,6 +30,36 @@ public sealed class ModelImportOperationLifecycleTests
         Assert.IsNull(page.SelectedModelPath);
     }
 
+    [UITestMethod]
+    public async Task OpenVinoIntent_IsRaisedOnlyOnceWhenContinueIsRequested()
+    {
+        var page = CreatePage(new ImmediateClassifier(ModelSelectionRoute.OpenVinoDirectory));
+        int requestCount = 0;
+        page.OpenVinoInspectionRequested += (_, _) => requestCount++;
+
+        await page.SubmitInputAsync(new ModelSelectionInput(@"C:\Models\openvino", "openvino", true));
+
+        Assert.AreEqual(0, requestCount);
+        Assert.IsTrue(page.TryRequestModelInspection());
+        Assert.IsFalse(page.TryRequestModelInspection());
+        Assert.AreEqual(1, requestCount);
+    }
+
+    [UITestMethod]
+    public async Task Cancel_PreventsLateClassifierSuccessFromRestoringSelection()
+    {
+        var classifier = new ControllableClassifier();
+        var page = CreatePage(classifier);
+        Task pending = page.SubmitInputAsync(new ModelSelectionInput(@"C:\Models\first.gguf", "first.gguf", false));
+
+        page.CancelSelection();
+        classifier.CompleteFirst(ModelSelectionRoute.Gguf);
+        await pending;
+
+        Assert.IsFalse(page.HasValidatedModel);
+        Assert.IsNull(page.CurrentRoute);
+    }
+
     private static ModelImportPage CreatePage(IModelSelectionClassifier classifier) => new(
         () => Task.FromResult(ModelFormatSelection.Gguf),
         () => Task.FromResult<string?>(null),
@@ -53,5 +83,11 @@ public sealed class ModelImportOperationLifecycleTests
 
         internal void CompleteFirst(ModelSelectionRoute route) => first.SetResult(ModelSelectionResult.Accepted(firstId, route, "first.gguf"));
         internal void CompleteSecond(ModelSelectionRoute route) => second.SetResult(ModelSelectionResult.Accepted(secondId, route, "folder"));
+    }
+
+    private sealed class ImmediateClassifier(ModelSelectionRoute route) : IModelSelectionClassifier
+    {
+        public Task<ModelSelectionResult> ClassifyAsync(ModelSelectionOperationId id, ModelSelectionInput input, CancellationToken token) =>
+            Task.FromResult(ModelSelectionResult.Accepted(id, route, input.DisplayName));
     }
 }

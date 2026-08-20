@@ -343,6 +343,11 @@ namespace GraniteEdgeAI.Features.ModelImport
         /// </returns>
         internal bool TryRequestModelInspection()
         {
+            if (TryRequestFolderInspection())
+            {
+                return true;
+            }
+
             // Copy the current state into locals so one coherent validated
             // selection is used throughout this boundary method.
             string? selectedModelPath = SelectedModelPath;

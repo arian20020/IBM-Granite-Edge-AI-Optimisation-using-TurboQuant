@@ -11,6 +11,8 @@ namespace GraniteEdgeAI.Features.ModelImport
     {
         private readonly IModelSelectionClassifier _classifier;
         private ModelSelectionOperation? _activeOperation;
+        private ModelSelectionOperationId? _acceptedFolderOperationId;
+        private string? _acceptedFolderDisplayName;
 
         /// <summary>
         /// Submits one normalized candidate from either a picker or the future
@@ -29,14 +31,21 @@ namespace GraniteEdgeAI.Features.ModelImport
             SelectedModelPath = input.IsFolder ? null : input.LocalPath;
             ValidatedScanResult = null;
             CurrentRoute = null;
+            _acceptedFolderOperationId = null;
+            _acceptedFolderDisplayName = null;
             HasValidatedModel = false;
             ContinueToModelInspectionButton.IsEnabled = false;
             ImportModelCardControl.ShowScanning(input.DisplayName);
 
-            ModelSelectionResult? result = null;
             try
             {
-                result = await _classifier.ClassifyAsync(next.Id, input, next.Token);
+                ModelSelectionResult result = await _classifier.ClassifyAsync(next.Id, input, next.Token);
+                if (!IsCurrent(next) || next.Token.IsCancellationRequested || result.OperationId != next.Id)
+                {
+                    return;
+                }
+
+                await ApplyCurrentResultAsync(next, input, result);
             }
             catch (OperationCanceledException) when (next.Token.IsCancellationRequested)
             {
@@ -47,18 +56,21 @@ namespace GraniteEdgeAI.Features.ModelImport
 
                 return;
             }
+            catch (Exception)
+            {
+                if (IsCurrent(next) && !next.Token.IsCancellationRequested)
+                {
+                    CurrentRoute = null;
+                    HasValidatedModel = false;
+                    ContinueToModelInspectionButton.IsEnabled = false;
+                    ImportModelCardControl.ShowFailure(input.DisplayName, "selection-access-denied", "This model could not be opened. Check that it is available on this computer, then try again.");
+                }
+            }
             finally
             {
-                // Always finish task-side operation ownership, including failures.
+                // Completion waits for both classifier and GGUF scanner work.
                 next.Complete();
             }
-
-            if (!IsCurrent(next) || next.Token.IsCancellationRequested || result is null)
-            {
-                return;
-            }
-
-            await ApplyCurrentResultAsync(next, input, result);
         }
 
         private async Task ApplyCurrentResultAsync(
@@ -84,8 +96,8 @@ namespace GraniteEdgeAI.Features.ModelImport
             {
                 HasValidatedModel = true;
                 ContinueToModelInspectionButton.IsEnabled = true;
-                OpenVinoInspectionRequested?.Invoke(this,
-                    new OpenVinoInspectionRequestedEventArgs(operation.Id, result.DisplayName));
+                _acceptedFolderOperationId = operation.Id;
+                _acceptedFolderDisplayName = result.DisplayName;
                 return;
             }
 
@@ -93,8 +105,8 @@ namespace GraniteEdgeAI.Features.ModelImport
             {
                 HasValidatedModel = true;
                 ContinueToModelInspectionButton.IsEnabled = true;
-                SourceModelInspectionRequested?.Invoke(this,
-                    new SourceModelInspectionRequestedEventArgs(operation.Id, result.DisplayName));
+                _acceptedFolderOperationId = operation.Id;
+                _acceptedFolderDisplayName = result.DisplayName;
                 return;
             }
 
@@ -119,6 +131,38 @@ namespace GraniteEdgeAI.Features.ModelImport
                 ref _activeOperation, null);
             active?.Retire();
             active?.Dispose();
+        }
+
+        internal void CancelSelection()
+        {
+            RetireActiveSelectionOperation();
+            ResetToAwaitingSelection();
+        }
+
+        private bool TryRequestFolderInspection()
+        {
+            ModelSelectionOperation? active = Volatile.Read(ref _activeOperation);
+            if (!HasValidatedModel ||
+                CurrentRoute is not (ModelSelectionRoute.OpenVinoDirectory or ModelSelectionRoute.SourceModelDirectory) ||
+                active is null || active.Token.IsCancellationRequested ||
+                _acceptedFolderOperationId != active.Id ||
+                string.IsNullOrWhiteSpace(_acceptedFolderDisplayName))
+            {
+                return false;
+            }
+
+            string displayName = _acceptedFolderDisplayName;
+            _acceptedFolderOperationId = null;
+            _acceptedFolderDisplayName = null;
+            if (CurrentRoute == ModelSelectionRoute.OpenVinoDirectory)
+            {
+                OpenVinoInspectionRequested?.Invoke(this, new OpenVinoInspectionRequestedEventArgs(active.Id, displayName));
+            }
+            else
+            {
+                SourceModelInspectionRequested?.Invoke(this, new SourceModelInspectionRequestedEventArgs(active.Id, displayName));
+            }
+            return true;
         }
 
         protected override void OnNavigatedFrom(NavigationEventArgs e)
