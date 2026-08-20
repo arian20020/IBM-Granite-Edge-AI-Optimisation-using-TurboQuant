@@ -98,10 +98,10 @@ class C1OneShotDispatchContractTests(unittest.TestCase):
             EXPECTED_DECISION_SHA256,
             EXPECTED_NONCE,
             "workbook-05-phase3-assets.yml/dispatches",
-            "operation=live-asset-lock",
-            "confirm_live_asset_lock=true",
+            "inputs[operation]=live-asset-lock",
+            "inputs[confirm_live_asset_lock]=true",
             (
-                "accepted_dependency_preflight_sha256="
+                "inputs[accepted_dependency_preflight_sha256]="
                 + EXPECTED_DECISION_SHA256
             ),
             "GH_TOKEN: ${{ github.token }}",
