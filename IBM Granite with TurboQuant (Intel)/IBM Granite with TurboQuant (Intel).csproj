@@ -552,4 +552,7 @@
   <Import
     Project="ModelInspection.WorkerPackaging.targets"
     Condition="'$(Platform)' == 'x64'" />
+  <Import
+    Project="GgufRuntime.WorkerPackaging.targets"
+    Condition="'$(Platform)' == 'x64'" />
 </Project>
