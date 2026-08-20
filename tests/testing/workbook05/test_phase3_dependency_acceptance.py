@@ -144,6 +144,7 @@ class Phase3DependencyAcceptanceTests(unittest.TestCase):
         observation = {
             "generated_at_utc": "2026-08-19T03:18:00Z",
             "workspace_root": str(workspace),
+            "simulation_mode": False,
             "python_version": "3.12.10",
             "python_executable_path": str(python_path),
             "python_executable_sha256": hashlib.sha256(
