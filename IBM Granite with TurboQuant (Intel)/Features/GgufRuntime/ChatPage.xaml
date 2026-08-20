@@ -151,9 +151,11 @@
                             VerticalAlignment="Center"
                             Spacing="18">
                             <Image
+                                x:Name="EmptyStateBrandMark"
                                 Width="88"
                                 Height="88"
                                 Source="ms-appx:///Assets/Branding/granite-edge-ai-icon.svg"
+                                AutomationProperties.AccessibilityView="Raw"
                                 Opacity="0.9" />
                             <TextBlock
                                 Text="Start a new conversation"

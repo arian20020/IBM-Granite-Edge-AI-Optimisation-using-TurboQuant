@@ -93,14 +93,23 @@ public sealed class ChatAccessibilityTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
-    public void BrandLockupIsDecorativeAndDoesNotDuplicateTheApplicationName()
+    public void BrandImagesAreDecorativeAndDoNotDuplicateTheApplicationName()
     {
         var page = new ChatPage();
-        Image lockup = Assert.IsInstanceOfType<Image>(page.FindName("BrandLockup"));
+        Image[] brandImages =
+        [
+            Assert.IsInstanceOfType<Image>(page.FindName("BrandLockup")),
+            Assert.IsInstanceOfType<Image>(page.FindName("EmptyStateBrandMark"))
+        ];
 
-        Assert.AreEqual(AccessibilityView.Raw, AutomationProperties.GetAccessibilityView(lockup));
-        Assert.AreEqual(string.Empty, AutomationProperties.GetName(lockup));
-        Assert.IsFalse(lockup.IsTabStop);
+        foreach (Image image in brandImages)
+        {
+            Assert.AreEqual(
+                AccessibilityView.Raw,
+                AutomationProperties.GetAccessibilityView(image));
+            Assert.AreEqual(string.Empty, AutomationProperties.GetName(image));
+            Assert.IsFalse(image.IsTabStop);
+        }
     }
 
     private static Button FindButton(FrameworkElement root, string name) =>
