@@ -78,6 +78,19 @@ public sealed class ModelSelectionContractTests
     }
 
     [TestMethod]
+    public void Diagnostic_RejectsDriveRootsFollowingLabels()
+    {
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            new ModelSelectionDiagnostic(
+                "selection-failed",
+                @"Path=C:\private\model.gguf"));
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            new ModelSelectionDiagnostic(
+                "selection-failed",
+                @"failed:C:\private\model.gguf"));
+    }
+
+    [TestMethod]
     public void Diagnostic_RejectsMessagesContainingCurrentDriveRootedPaths()
     {
         Assert.ThrowsExactly<ArgumentException>(() =>

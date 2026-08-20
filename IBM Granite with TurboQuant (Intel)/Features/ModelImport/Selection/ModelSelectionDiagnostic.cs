@@ -30,17 +30,17 @@ internal sealed class ModelSelectionDiagnostic
         {
             char current = value[index];
 
-            if (index < value.Length - 2 &&
-                StartsStandalonePathToken(value, index) &&
-                char.IsLetter(current) &&
-                value[index + 1] == ':' &&
-                (value[index + 2] == '\\' || value[index + 2] == '/'))
+            if (IsDriveRoot(value, index))
             {
                 return true;
             }
 
-            if (current is '\\' or '/' &&
-                StartsStandalonePathToken(value, index))
+            if (current == '\\' && StartsBackslashRoot(value, index))
+            {
+                return true;
+            }
+
+            if (current == '/' && StartsSlashRoot(value, index))
             {
                 return true;
             }
@@ -49,10 +49,41 @@ internal sealed class ModelSelectionDiagnostic
         return false;
     }
 
-    private static bool StartsStandalonePathToken(string value, int index)
+    private static bool IsDriveRoot(string value, int index)
     {
-        return index == 0 ||
-               char.IsWhiteSpace(value[index - 1]) ||
-               value[index - 1] is '\'' or '"' or '(' or '[' or '{' or '<';
+        return index < value.Length - 2 &&
+               IsAsciiLetter(value[index]) &&
+               value[index + 1] == ':' &&
+               (value[index + 2] == '\\' || value[index + 2] == '/') &&
+               (index == 0 || !IsAsciiLetter(value[index - 1]));
+    }
+
+    private static bool StartsBackslashRoot(string value, int index)
+    {
+        return StartsAfter(value, index, allowColon: true);
+    }
+
+    private static bool StartsSlashRoot(string value, int index)
+    {
+        // A colon is intentionally not a slash-root boundary so https:// stays safe.
+        return StartsAfter(value, index, allowColon: false);
+    }
+
+    private static bool StartsAfter(string value, int index, bool allowColon)
+    {
+        if (index == 0)
+        {
+            return true;
+        }
+
+        char previous = value[index - 1];
+        return char.IsWhiteSpace(previous) ||
+               previous is '\'' or '"' or '(' or '[' or '{' or '<' or '=' ||
+               (allowColon && previous == ':');
+    }
+
+    private static bool IsAsciiLetter(char value)
+    {
+        return value is >= 'A' and <= 'Z' or >= 'a' and <= 'z';
     }
 }
