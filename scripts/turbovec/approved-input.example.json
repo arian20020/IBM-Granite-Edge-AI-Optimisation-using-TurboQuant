@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "approval_status": "example_only_replace_hashes_before_use",
+  "python_version": "3.12.10",
+  "turbovec_version": "1.0.0",
+  "turbovec_source_commit": "ccab9f325e6ce2a270a87daf01ae4e443bcf2d49",
+  "turbovec_wheel_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "embedding_model": "BAAI/bge-small-en-v1.5",
+  "embedding_model_manifest_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+  "embedding_model_license": "MIT",
+  "model_cache_root": "C:\\approved\\fastembed-cache"
+}
