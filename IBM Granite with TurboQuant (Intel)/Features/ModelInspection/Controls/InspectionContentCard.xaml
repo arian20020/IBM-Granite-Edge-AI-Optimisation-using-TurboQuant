@@ -606,7 +606,7 @@
                     Padding="23,0,23,0"
                     ColumnSpacing="12">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="22" />
+                        <ColumnDefinition Width="24" />
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>

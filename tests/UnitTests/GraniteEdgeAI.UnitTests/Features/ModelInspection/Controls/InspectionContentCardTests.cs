@@ -247,7 +247,7 @@ public sealed class InspectionContentCardTests
             double collapsedHeight = control.ActualHeight;
             Assert.AreEqual(0d, shell.MinHeight, 0.01d);
             Assert.AreEqual(3, disclosureHeader.ColumnDefinitions.Count);
-            Assert.AreEqual(22d, disclosureHeader.ColumnDefinitions[0].ActualWidth, 0.01d,
+            Assert.AreEqual(24d, disclosureHeader.ColumnDefinitions[0].ActualWidth, 0.01d,
                 "the disclosure reserves the same fixed icon column as status rows");
             Assert.AreEqual(20d, disclosureGlyphHost.ActualWidth, 0.01d);
             Assert.AreEqual(20d, disclosureGlyphHost.ActualHeight, 0.01d);
@@ -308,6 +308,21 @@ public sealed class InspectionContentCardTests
                     row.ActualHeight >= 48d),
                 $"report rows keep a 48px minimum and grow naturally: " +
                 string.Join(", ", reportRows.Select(row => row.ActualHeight)));
+            Grid[] reportRowLayouts = reportRows
+                .Select(row => EnumerateDescendants(row)
+                    .OfType<Grid>()
+                    .Single(grid => ReferenceEquals(
+                        VisualTreeHelper.GetParent(grid),
+                        row)))
+                .ToArray();
+            Assert.IsTrue(reportRowLayouts.All(row =>
+                    Math.Abs(row.ColumnDefinitions[0].ActualWidth - 24d) < 0.01d),
+                "every report row reserves the approved 24px status-glyph column");
+            Assert.AreEqual(
+                reportRowLayouts[0].ColumnDefinitions[0].ActualWidth,
+                disclosureHeader.ColumnDefinitions[0].ActualWidth,
+                0.01d,
+                "the disclosure and report rows share one icon-column contract");
             string[] expectedTitles =
             [
                 "Chat template warning",
@@ -358,7 +373,7 @@ public sealed class InspectionContentCardTests
                 "the vector host stays fixed at representative 200% text");
             Assert.AreEqual(20d, glyphBounds.Height, 0.01d,
                 "the vector host stays fixed at representative 200% text");
-            Assert.AreEqual(22d, disclosureHeader.ColumnDefinitions[0].ActualWidth, 0.01d,
+            Assert.AreEqual(24d, disclosureHeader.ColumnDefinitions[0].ActualWidth, 0.01d,
                 "text scaling cannot consume the reserved icon column");
             Assert.IsTrue(glyphBounds.Left >= -0.01d && glyphBounds.Right <= header.ActualWidth + 0.01d,
                 "the information glyph remains horizontally unclipped");
@@ -445,6 +460,7 @@ public sealed class InspectionContentCardTests
     [TestCategory("WinUI")]
     public void TechnicalDetailsFuture_ExposesDisabledHelpTooltipAndAdjacentText()
     {
+        RecordingCommand command = PresentationTestData.CreateCommand();
         var control = new InspectionContentCard
         {
             Presentation = new InspectionContentCardPresentation
@@ -455,12 +471,17 @@ public sealed class InspectionContentCardTests
                 TechnicalDetailsActionText = "View technical details",
                 TechnicalDetailsAutomationName = "View technical details",
                 TechnicalDetailsAutomationHelpText = "Coming later",
-                IsTechnicalDetailsEnabled = false
+                IsTechnicalDetailsEnabled = false,
+                OpenTechnicalDetailsCommand = command
             }
         };
+        Grid host = (Grid)control.FindName("TechnicalDetailsHost");
         Button button = (Button)control.FindName("TechnicalDetailsButton");
         TextBlock help = (TextBlock)control.FindName("TechnicalDetailsFutureHelpText");
 
+        Assert.AreEqual(5, Grid.GetRow(host));
+        Assert.AreSame(command, button.Command,
+            "the existing technical-details command seam remains bound in place");
         Assert.IsFalse(button.IsEnabled);
         Assert.AreEqual("Coming later", AutomationProperties.GetHelpText(button));
         Assert.AreEqual("Coming later", ToolTipService.GetToolTip(button));
