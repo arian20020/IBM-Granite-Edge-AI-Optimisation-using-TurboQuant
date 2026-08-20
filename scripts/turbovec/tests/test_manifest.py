@@ -350,8 +350,8 @@ class StagedPromotionTests(unittest.TestCase):
             with self.assertRaises(ResearchError) as context:
                 promote_staged_index(target, promotable_manifest(), write_index, lambda *_: False, operation_id="bad")
             self.assertEqual("index-artifact-invalid", context.exception.code)
-            self.assertFalse((root / "knowledge-index.staging-bad").exists())
-            quarantines = list(root.glob("knowledge-index.staging-bad.quarantine-*"))
+            self.assertFalse((root / "knowledge-index.slot-0.staging-bad").exists())
+            quarantines = list(root.glob("knowledge-index.slot-*.staging-bad.quarantine-*"))
             self.assertEqual(1, len(quarantines))
             self.assertTrue((quarantines[0] / "index.tv").exists())
             self.assertTrue(unrelated.exists())
@@ -506,7 +506,7 @@ class StagedPromotionTests(unittest.TestCase):
             elif failure is None:
                 self.fail("promotion returned success without publishing validated content")
             self.assertNotEqual(b"EVIL", (target / "index.tv").read_bytes() if target.exists() else b"")
-            attacker = root / "knowledge-index.staging-promotion-seam" / "index.tv"
+            attacker = root / "knowledge-index.slot-0.staging-promotion-seam" / "index.tv"
             self.assertEqual(b"EVIL", attacker.read_bytes())
 
     def test_durability_failure_never_reports_success(self):
@@ -550,6 +550,103 @@ class StagedPromotionTests(unittest.TestCase):
                 promote_staged_index(target, promotable_manifest(), write_index, validate_index, operation_id="blocked")
             self.assertEqual("index-maintenance-required", context.exception.code)
             self.assertEqual(retained, list_retained_staging(target))
+
+    def test_atomic_slots_bound_eight_concurrent_failed_writers(self):
+        writer_barrier = threading.Barrier(3)
+        writer_calls = 0
+        results = []
+        lock = threading.Lock()
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "knowledge-index"
+
+            def writer(staging):
+                nonlocal writer_calls
+                write_index(staging)
+                with lock:
+                    writer_calls += 1
+                writer_barrier.wait(timeout=5)
+
+            def run(number):
+                try:
+                    promote_staged_index(target, promotable_manifest(), writer, lambda *_: False, operation_id=f"parallel-{number}")
+                except ResearchError as error:
+                    with lock:
+                        results.append(error.code)
+
+            threads = [threading.Thread(target=run, args=(number,)) for number in range(8)]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join(timeout=10)
+            self.assertEqual(3, writer_calls)
+            self.assertEqual(3, results.count("index-artifact-invalid"))
+            self.assertEqual(5, results.count("index-maintenance-required"))
+            self.assertEqual(3, len(list_retained_staging(target)))
+
+    def test_success_releases_exact_slot_for_subsequent_build(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            target = root / "knowledge-index"
+            promote_staged_index(target, promotable_manifest(), write_index, validate_index, operation_id="first")
+            target.rename(root / "published-first")
+            promote_staged_index(target, promotable_manifest(), write_index, validate_index, operation_id="second")
+            self.assertEqual(b"TVEC", (target / "index.tv").read_bytes())
+
+    def test_stale_slots_block_predictably_and_listing_handles_legacy_over_cap(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            target = root / "knowledge-index"
+            for slot in range(3):
+                marker = root / f"knowledge-index.slot-{slot}"
+                marker.mkdir()
+                (marker / "owner.json").write_text('{"operation_id":"stale","schema_version":1}', encoding="utf-8")
+            with self.assertRaises(ResearchError) as context:
+                promote_staged_index(target, promotable_manifest(), write_index, validate_index, operation_id="blocked-stale")
+            self.assertEqual("index-maintenance-required", context.exception.code)
+
+            for number in range(5):
+                (root / f"knowledge-index.staging-legacy-{number}").mkdir()
+            retained = list_retained_staging(target)
+            self.assertGreaterEqual(len(retained), 5)
+
+    def test_slot_release_swap_never_deletes_or_reuses_unowned_marker(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            target = root / "knowledge-index"
+            swapped = root / "swapped-owned-slot"
+
+            def swap(slot):
+                slot.rename(swapped)
+                slot.mkdir()
+                (slot / "external-marker").write_text("keep", encoding="utf-8")
+
+            with mock.patch("granite_turbovec.manifest._slot_release_race_hook", side_effect=swap):
+                try:
+                    promote_staged_index(target, promotable_manifest(), write_index, validate_index, operation_id="slot-swap")
+                except ResearchError:
+                    pass
+            replacement = root / "knowledge-index.slot-0"
+            self.assertEqual("keep", (replacement / "external-marker").read_text(encoding="utf-8"))
+            released = list(root.glob("knowledge-index.released-slot-0-*"))
+            self.assertEqual(1, len(released))
+            self.assertTrue((released[0] / "owner.json").exists())
+            target.rename(root / "published-before-retry")
+            used = []
+
+            def retry_writer(staging):
+                used.append(staging.name)
+                write_index(staging)
+
+            with self.assertRaises(ResearchError):
+                promote_staged_index(
+                    target,
+                    promotable_manifest(),
+                    retry_writer,
+                    lambda *_: False,
+                    operation_id="slot-retry",
+                )
+            self.assertEqual(1, len(used))
+            self.assertIn(".slot-1.", used[0])
 
     def test_writer_sparse_oversize_is_bounded_and_retained_count_stays_finite(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -619,7 +716,7 @@ class StagedPromotionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             target = root / "knowledge-index"
-            replacement = root / "knowledge-index.staging-swap"
+            replacement = root / "knowledge-index.slot-0.staging-swap"
             moved = root / "moved-owned-staging"
 
             def writer(staging):
@@ -636,7 +733,7 @@ class StagedPromotionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             target = root / "knowledge-index"
-            staging = root / "knowledge-index.staging-seam"
+            staging = root / "knowledge-index.slot-0.staging-seam"
             original = root / "original-owned"
 
             def swap(active):

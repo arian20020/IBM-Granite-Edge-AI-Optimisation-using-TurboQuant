@@ -139,6 +139,15 @@ class IndexManifest:
     artifacts: tuple[ArtifactRecord, ...]
 
 
+@dataclass(frozen=True)
+class _SlotReservation:
+    path: Path
+    identity: tuple[int, int]
+    handle: object
+    index: int
+    operation_id: str
+
+
 def canonical_json(value: IndexManifest) -> str:
     """Return the only accepted serialization for a schema-v1 manifest."""
     manifest = _validate_manifest(value)
@@ -245,7 +254,8 @@ def promote_staged_index(
     operation = _validated_operation_id(operation_id)
     target = Path(destination)
     parent = target.parent
-    staging = parent / f"{target.name}.staging-{operation}"
+    staging = None
+    slot = None
     owned = False
     staging_identity = None
     promotion_handle = None
@@ -254,7 +264,10 @@ def promote_staged_index(
         parent_identity = _create_plain_directory(parent)
         _validate_destination_name(target)
         _require_destination_absent(target)
-        _ensure_maintenance_capacity(target)
+        slot = _reserve_slot(target, operation)
+        staging = parent / (
+            f"{target.name}.slot-{slot.index}.staging-{operation}"
+        )
         _require_safe_leaf(staging, may_not_exist=True, must_not_exist=True)
         staging.mkdir()
         owned = True
@@ -289,6 +302,7 @@ def promote_staged_index(
         owned = False
         _validate_open_handle_matches_path(promotion_handle, target)
         _fsync_directory(parent)
+        _release_slot(slot, parent_handle, target)
         return target
     except ResearchError:
         if owned and staging_identity is not None and not _quarantine_owned_staging(
@@ -305,6 +319,8 @@ def promote_staged_index(
     finally:
         _close_native_handle(promotion_handle)
         _close_native_handle(parent_handle)
+        if slot is not None:
+            _close_native_handle(slot.handle)
 
 
 def list_retained_staging(destination: str | Path) -> tuple[Path, ...]:
@@ -318,14 +334,79 @@ def list_retained_staging(destination: str | Path) -> tuple[Path, ...]:
     return _retained_staging_entries(target)
 
 
-def _ensure_maintenance_capacity(target: Path) -> None:
-    if len(_retained_staging_entries(target)) >= _MAX_RETAINED_STAGING:
-        raise ResearchError("index-maintenance-required")
+def _reserve_slot(target: Path, operation_id: str) -> _SlotReservation:
+    payload = json.dumps(
+        {"operation_id": operation_id, "schema_version": 1},
+        ensure_ascii=False,
+        allow_nan=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
+    for index in range(_MAX_RETAINED_STAGING):
+        slot = target.parent / f"{target.name}.slot-{index}"
+        try:
+            slot.mkdir()
+        except FileExistsError:
+            continue
+        except Exception:
+            raise ResearchError("index-maintenance-required") from None
+        try:
+            identity = _require_plain_directory(slot)
+            owner = slot / "owner.json"
+            with owner.open("xb") as stream:
+                stream.write(payload)
+                stream.flush()
+                os.fsync(stream.fileno())
+            _fsync_directory(slot)
+            _fsync_directory(target.parent)
+            handle = _open_validated_directory_handle(
+                slot, identity, delete_access=True, write_through=True
+            )
+            return _SlotReservation(slot, identity, handle, index, operation_id)
+        except ResearchError:
+            # A partial/stale slot is deliberately retained and consumes capacity.
+            raise
+        except Exception:
+            # A partial/stale slot is deliberately retained and consumes capacity.
+            raise ResearchError("index-maintenance-required") from None
+    raise ResearchError("index-maintenance-required")
+
+
+def _release_slot(
+    slot: _SlotReservation,
+    parent_handle,
+    target: Path,
+) -> None:
+    try:
+        _validate_open_handle_matches_path(slot.handle, slot.path)
+        _slot_release_race_hook(slot.path)
+        released = target.parent / (
+            f"{target.name}.released-slot-{slot.index}-{uuid.uuid4().hex}"
+        )
+        _promote_validated_handle(
+            slot.handle, parent_handle, released, slot.identity
+        )
+        _fsync_directory(target.parent)
+    except ResearchError:
+        raise
+    except Exception:
+        raise ResearchError("index-maintenance-required") from None
+
+
+def _slot_release_race_hook(path: Path) -> None:
+    """Test seam after slot validation and before handle-bound release."""
 
 
 def _retained_staging_entries(target: Path) -> tuple[Path, ...]:
-    prefix = f"{target.name}.staging-".casefold()
-    retained = []
+    legacy_prefix = f"{target.name}.staging-".casefold()
+    released_prefix = f"{target.name}.released-slot-".casefold()
+    slot_prefixes = {
+        index: f"{target.name}.slot-{index}".casefold()
+        for index in range(_MAX_RETAINED_STAGING)
+    }
+    legacy = []
+    slots = {}
+    trees = {index: [] for index in range(_MAX_RETAINED_STAGING)}
     scanned = 0
     try:
         with os.scandir(target.parent) as entries:
@@ -333,14 +414,28 @@ def _retained_staging_entries(target: Path) -> tuple[Path, ...]:
                 scanned += 1
                 if scanned > _MAX_PARENT_SCAN_ENTRIES:
                     raise ResearchError("index-maintenance-required")
-                if entry.name.casefold().startswith(prefix):
-                    retained.append(target.parent / entry.name)
-                    if len(retained) > _MAX_RETAINED_STAGING:
-                        raise ResearchError("index-maintenance-required")
+                folded = entry.name.casefold()
+                path = target.parent / entry.name
+                if folded.startswith(legacy_prefix) or folded.startswith(
+                    released_prefix
+                ):
+                    legacy.append(path)
+                    continue
+                for index, prefix in slot_prefixes.items():
+                    if folded == prefix:
+                        slots[index] = path
+                    elif folded.startswith(prefix + ".staging-"):
+                        trees[index].append(path)
     except ResearchError:
         raise
     except Exception:
         raise ResearchError("index-maintenance-required") from None
+    retained = list(legacy)
+    for index in range(_MAX_RETAINED_STAGING):
+        if trees[index]:
+            retained.extend(trees[index])
+        elif index in slots:
+            retained.append(slots[index])
     return tuple(sorted(retained, key=lambda item: (item.name.casefold(), item.name)))
 
 
@@ -741,6 +836,8 @@ def _artifact_filename(value: object) -> str:
         or ".staging-" in folded
         or ".quarantine-" in folded
         or ".tmp-" in folded
+        or ".slot-" in folded
+        or ".released-slot-" in folded
     ):
         raise ResearchError("index-manifest-invalid")
     return value
@@ -869,7 +966,16 @@ def _validate_destination_name(path: Path) -> None:
     except ResearchError:
         raise ResearchError("index-path-invalid") from None
     folded = path.name.casefold()
-    if any(marker in folded for marker in (".staging-", ".quarantine-", ".tmp-")):
+    if any(
+        marker in folded
+        for marker in (
+            ".staging-",
+            ".quarantine-",
+            ".tmp-",
+            ".slot-",
+            ".released-slot-",
+        )
+    ):
         raise ResearchError("index-path-invalid")
 
 
