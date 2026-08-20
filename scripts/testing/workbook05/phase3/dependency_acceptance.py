@@ -341,7 +341,7 @@ def _verify_decision_and_observation(
         observation_path,
         "Accepted dependency observation",
     )
-    if observation.get("simulation_mode") is not None:
+    if observation.get("simulation_mode") is not False:
         raise ValueError("The accepted dependency observation must be a live record.")
     if not _windows_same_path(
         str(observation.get("workspace_root", "")),
