@@ -436,7 +436,14 @@ jobs:
           $bundle = Join-Path $env:RUNNER_TEMP 'workbook-05-phase3-assets'
           $report = Join-Path $env:RUNNER_TEMP 'workbook-05-phase3-assets-validation.md'
 
-          python -m scripts.testing.workbook05.phase3.asset_bundle_validation `
+          $validator = if ('${{ inputs.operation }}' -eq 'live-asset-lock') {
+              'scripts.testing.workbook05.phase3.live_asset_bundle_validation'
+          }
+          else {
+              'scripts.testing.workbook05.phase3.asset_bundle_validation'
+          }
+
+          & python -m $validator `
               --bundle-root $bundle `
               --repository-root $env:GITHUB_WORKSPACE `
               --report $report
