@@ -2,6 +2,7 @@ using GraniteEdgeAI.Features.HardwareInspection.Application;
 using GraniteEdgeAI.Features.HardwareInspection.Presentation.Controls;
 using GraniteEdgeAI.Features.HardwareInspection.Presentation.Factories;
 using GraniteEdgeAI.Features.HardwareInspection.Presentation.State;
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Automation.Provider;
 using Microsoft.UI.Xaml.Controls;
@@ -105,6 +106,34 @@ public sealed class HardwareInspectionTerminalCardTests
         IInvokeProvider invoke = (IInvokeProvider)new ButtonAutomationPeer(tryAgain).GetPattern(PatternInterface.Invoke)!;
         invoke.Invoke();
         Assert.AreEqual(HardwareInspectionActionKind.TryAgain, requested);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void ActionCard_StacksButtonsAtCompactWidthWithoutChangingActions()
+    {
+        HardwareInspectionActionCard card = new();
+        HardwareInspectionPresentationState state = _factory.CreateTerminal(
+            HardwareInspectionOutcome.Completed,
+            hasUsableHandoff: true,
+            block3RouteRegistered: true);
+        card.Apply(state);
+
+        card.ApplyAvailableWidth(448);
+        StackPanel panel = (StackPanel)card.FindName("ActionsPanel");
+        Assert.AreEqual(Orientation.Vertical, panel.Orientation);
+        Assert.AreEqual(HorizontalAlignment.Stretch, panel.HorizontalAlignment);
+        Assert.IsTrue(panel.Children.Cast<Button>().All(button =>
+            button.HorizontalAlignment == HorizontalAlignment.Stretch));
+
+        card.ApplyAvailableWidth(840);
+        Assert.AreEqual(Orientation.Horizontal, panel.Orientation);
+        Assert.AreEqual(HorizontalAlignment.Center, panel.HorizontalAlignment);
+        Assert.IsTrue(panel.Children.Cast<Button>().All(button =>
+            button.HorizontalAlignment == HorizontalAlignment.Center));
+        CollectionAssert.AreEqual(
+            state.Actions.Select(action => action.Label).ToArray(),
+            panel.Children.Cast<Button>().Select(button => button.Content?.ToString()).ToArray());
     }
 
     private static TextBlock Text(HardwareInspectionOutcomeCard card, string name) =>

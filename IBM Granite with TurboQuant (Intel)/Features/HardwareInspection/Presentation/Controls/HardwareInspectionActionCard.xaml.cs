@@ -24,6 +24,7 @@ public sealed partial class HardwareInspectionActionCard : UserControl
     public HardwareInspectionActionCard()
     {
         InitializeComponent();
+        SizeChanged += (_, args) => ApplyAvailableWidth(args.NewSize.Width);
     }
 
     public event EventHandler<HardwareInspectionActionRequestedEventArgs>? ActionRequested;
@@ -60,6 +61,23 @@ public sealed partial class HardwareInspectionActionCard : UserControl
 
             button.Click += ActionButton_Click;
             ActionsPanel.Children.Add(button);
+        }
+
+        ApplyAvailableWidth(ActualWidth);
+    }
+
+    internal void ApplyAvailableWidth(double width)
+    {
+        bool compact = width < 600;
+        ActionsPanel.Orientation = compact ? Orientation.Vertical : Orientation.Horizontal;
+        ActionsPanel.HorizontalAlignment = compact
+            ? HorizontalAlignment.Stretch
+            : HorizontalAlignment.Center;
+        foreach (Button button in ActionsPanel.Children.OfType<Button>())
+        {
+            button.HorizontalAlignment = compact
+                ? HorizontalAlignment.Stretch
+                : HorizontalAlignment.Center;
         }
     }
 
