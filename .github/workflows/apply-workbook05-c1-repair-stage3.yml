@@ -1,4 +1,4 @@
-name: Materialise Workbook 05 C1 workflow patch
+name: Create Workbook 05 C1 workflow blob
 
 on:
   pull_request:
@@ -11,12 +11,12 @@ permissions:
   contents: write
 
 concurrency:
-  group: materialise-workbook05-c1-workflow-${{ github.event.pull_request.number }}
+  group: create-workbook05-c1-workflow-blob-${{ github.event.pull_request.number }}
   cancel-in-progress: false
 
 jobs:
-  materialise:
-    name: Publish reviewed workflow text outside workflow directory
+  create-blob:
+    name: Create exact reviewed C1 workflow blob
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.head_ref == 'feature/workbook-05-c1-live-asset-lock'
@@ -27,74 +27,141 @@ jobs:
       - name: Check out the exact pull-request branch
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
-          persist-credentials: true
+          persist-credentials: false
           ref: feature/workbook-05-c1-live-asset-lock
           fetch-depth: 0
 
-      - name: Verify the stage-3 controller commit
+      - name: Verify the updated stage-3 controller commit
         shell: bash
         run: |
           set -euo pipefail
-          expected_parent='50054327de8195fd776c5298f322ea653a77a82d'
+          expected_parent='f9584bfe951bdf778ba2c8872014464391482ab8'
           observed_parent="$(git rev-parse HEAD^)"
           if [[ "$observed_parent" != "$expected_parent" ]]; then
-            echo "Expected stage-3 parent $expected_parent, found $observed_parent." >&2
+            echo "Expected stage-3 update parent $expected_parent, found $observed_parent." >&2
             exit 1
           fi
           mapfile -t changed < <(git diff-tree --no-commit-id --name-only -r HEAD)
           if [[ "${#changed[@]}" -ne 1 || "${changed[0]}" != '.github/workflows/apply-workbook05-c1-repair-stage3.yml' ]]; then
-            printf 'Unexpected stage-3 controller paths:\n%s\n' "${changed[*]}" >&2
+            printf 'Unexpected stage-3 update paths:\n%s\n' "${changed[*]}" >&2
+            exit 1
+          fi
+          observed_workflow_blob="$(git rev-parse HEAD:.github/workflows/workbook-05-phase3-assets.yml)"
+          expected_workflow_blob='db05f0e5243327986d4de97b1342948ecb0dc7d1'
+          if [[ "$observed_workflow_blob" != "$expected_workflow_blob" ]]; then
+            echo "Expected unpatched workflow blob $expected_workflow_blob, found $observed_workflow_blob." >&2
             exit 1
           fi
 
-      - name: Materialise the exact reviewed workflow replacement
+      - name: Create the exact patched workflow blob through the Git data API
+        id: blob
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           python - <<'PY'
+          from __future__ import annotations
+
+          import json
+          import os
+          import urllib.request
           from pathlib import Path
 
           source = Path('.github/workflows/workbook-05-phase3-assets.yml')
-          destination = Path('docs/testing/workbook05/.c1-workflow-patch.yml')
           text = source.read_text(encoding='utf-8').replace('\r\n', '\n')
           old = """          python -m scripts.testing.workbook05.phase3.asset_bundle_validation `
               --bundle-root $bundle `
               --repository-root $env:GITHUB_WORKSPACE `
               --report $report
 """
-          new = """          $validator = if ('${{ inputs.operation }}' -eq 'live-asset-lock') {
-              'scripts.testing.workbook05.phase3.live_asset_bundle_validation'
-          }
-          else {
-              'scripts.testing.workbook05.phase3.asset_bundle_validation'
-          }
-
-          & python -m $validator `
-              --bundle-root $bundle `
-              --repository-root $env:GITHUB_WORKSPACE `
-              --report $report
-"""
-          if text.count(old) != 1:
+          literal_expression = '${' + '{ inputs.operation }}'
+          new = (
+              "          $validator = if ('"
+              + literal_expression
+              + "' -eq 'live-asset-lock') {\n"
+              + "              'scripts.testing.workbook05.phase3.live_asset_bundle_validation'\n"
+              + "          }\n"
+              + "          else {\n"
+              + "              'scripts.testing.workbook05.phase3.asset_bundle_validation'\n"
+              + "          }\n\n"
+              + "          & python -m $validator `\n"
+              + "              --bundle-root $bundle `\n"
+              + "              --repository-root $env:GITHUB_WORKSPACE `\n"
+              + "              --report $report\n"
+          )
+          count = text.count(old)
+          if count != 1:
               raise SystemExit(
-                  f'Expected one workflow routing fragment, found {text.count(old)}.'
+                  f'Expected one workflow routing fragment, found {count}.'
               )
           patched = text.replace(old, new, 1)
-          destination.write_text(patched, encoding='utf-8', newline='\n')
+          if patched.count('live_asset_bundle_validation') != 1:
+              raise SystemExit('The live validator route is missing or duplicated.')
+          if patched.count(literal_expression) < 1:
+              raise SystemExit('The literal workflow input expression was not preserved.')
+
+          repository = os.environ['GITHUB_REPOSITORY']
+          url = f'https://api.github.com/repos/{repository}/git/blobs'
+          payload = json.dumps(
+              {'content': patched, 'encoding': 'utf-8'}
+          ).encode('utf-8')
+          request = urllib.request.Request(
+              url,
+              data=payload,
+              method='POST',
+              headers={
+                  'Authorization': f"Bearer {os.environ['GH_TOKEN']}",
+                  'Accept': 'application/vnd.github+json',
+                  'X-GitHub-Api-Version': '2022-11-28',
+                  'Content-Type': 'application/json',
+              },
+          )
+          with urllib.request.urlopen(request, timeout=60) as response:
+              result = json.loads(response.read().decode('utf-8'))
+          sha = result.get('sha')
+          if not isinstance(sha, str) or len(sha) != 40:
+              raise SystemExit(f'GitHub returned an invalid blob response: {result!r}')
+
+          print(f'PATCHED_WORKFLOW_BLOB_SHA={sha}')
+          Path(os.environ['GITHUB_OUTPUT']).write_text(
+              f'sha={sha}\n',
+              encoding='utf-8',
+          )
+          Path(os.environ['GITHUB_STEP_SUMMARY']).write_text(
+              '# Workbook 05 C1 workflow blob\n\n'
+              f'Patched workflow blob SHA: `{sha}`\n',
+              encoding='utf-8',
+          )
           PY
 
-          git diff --check
-          mapfile -t changed < <(git status --short | sed -E 's/^.. //')
-          if [[ "${#changed[@]}" -ne 1 || "${changed[0]}" != 'docs/testing/workbook05/.c1-workflow-patch.yml' ]]; then
-            printf 'Unexpected materialised patch paths:\n%s\n' "${changed[*]}" >&2
-            exit 1
-          fi
-
-      - name: Push the reviewed workflow text as ordinary data
+      - name: Confirm the blob can be fetched unchanged
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PATCHED_SHA: ${{ steps.blob.outputs.sha }}
         run: |
           set -euo pipefail
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add docs/testing/workbook05/.c1-workflow-patch.yml
-          git commit -m 'chore(workbook05): materialise reviewed C1 workflow patch'
-          git push origin HEAD:feature/workbook-05-c1-live-asset-lock
+          python - <<'PY'
+          import base64
+          import json
+          import os
+          import urllib.request
+
+          repository = os.environ['GITHUB_REPOSITORY']
+          sha = os.environ['PATCHED_SHA']
+          request = urllib.request.Request(
+              f'https://api.github.com/repos/{repository}/git/blobs/{sha}',
+              headers={
+                  'Authorization': f"Bearer {os.environ['GH_TOKEN']}",
+                  'Accept': 'application/vnd.github+json',
+                  'X-GitHub-Api-Version': '2022-11-28',
+              },
+          )
+          with urllib.request.urlopen(request, timeout=60) as response:
+              result = json.loads(response.read().decode('utf-8'))
+          content = base64.b64decode(result['content']).decode('utf-8')
+          if 'scripts.testing.workbook05.phase3.live_asset_bundle_validation' not in content:
+              raise SystemExit('Fetched blob does not contain the live validator route.')
+          print(f'VERIFIED_PATCHED_WORKFLOW_BLOB_SHA={sha}')
+          PY
