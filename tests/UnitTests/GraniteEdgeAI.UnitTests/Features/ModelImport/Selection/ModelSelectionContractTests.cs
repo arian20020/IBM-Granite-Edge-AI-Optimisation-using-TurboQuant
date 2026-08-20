@@ -91,6 +91,31 @@ public sealed class ModelSelectionContractTests
     }
 
     [TestMethod]
+    public void Diagnostic_RejectsUnixAndSlashUncRootsFollowingLabels()
+    {
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            new ModelSelectionDiagnostic(
+                "selection-failed",
+                "Path:/private/model.gguf"));
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            new ModelSelectionDiagnostic(
+                "selection-failed",
+                "failed:/private/model.gguf"));
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            new ModelSelectionDiagnostic(
+                "selection-failed",
+                "Path://server/private/model.gguf"));
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            new ModelSelectionDiagnostic(
+                "selection-failed",
+                "failed://server/private/model.gguf"));
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            new ModelSelectionDiagnostic(
+                "selection-failed",
+                "See https:/private/model.gguf."));
+    }
+
+    [TestMethod]
     public void Diagnostic_RejectsMessagesContainingCurrentDriveRootedPaths()
     {
         Assert.ThrowsExactly<ArgumentException>(() =>

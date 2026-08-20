@@ -65,8 +65,28 @@ internal sealed class ModelSelectionDiagnostic
 
     private static bool StartsSlashRoot(string value, int index)
     {
-        // A colon is intentionally not a slash-root boundary so https:// stays safe.
+        if (index > 0 && value[index - 1] == ':')
+        {
+            // Only web URL schemes are allowed at ://; labelled path tokens stay private.
+            return index == value.Length - 1 ||
+                   value[index + 1] != '/' ||
+                   !HasWebUrlScheme(value, index - 1);
+        }
+
         return StartsAfter(value, index, allowColon: false);
+    }
+
+    private static bool HasWebUrlScheme(string value, int colonIndex)
+    {
+        int schemeStart = colonIndex - 1;
+        while (schemeStart >= 0 && IsAsciiLetter(value[schemeStart]))
+        {
+            schemeStart--;
+        }
+
+        string scheme = value[(schemeStart + 1)..colonIndex];
+        return string.Equals(scheme, "http", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(scheme, "https", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool StartsAfter(string value, int index, bool allowColon)
