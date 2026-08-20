@@ -51,11 +51,19 @@ namespace GraniteEdgeAI.Features.ModelImport.Controls
         // Static validation text deliberately avoids animation for reduced-motion users.
         internal void ShowDragValidation(bool isValid)
         {
-            DropValidationStatusPanel.Visibility = Visibility.Visible;
+            SetVisibleState(
+                isValid
+                    ? ImportModelCardState.DragOverValid
+                    : ImportModelCardState.DragOverInvalid);
+            VisualStateManager.GoToState(
+                this,
+                isValid ? "ValidDropCardState" : "InvalidDropCardState",
+                useTransitions: false);
+            DropValidationStatusPanel.Opacity = 1;
             DropValidationStatusTextBlock.Text = isValid
-                ? "Model file or folder can be dropped here."
-                : "Drop one model file or model folder.";
-            DropValidationStatusIcon.Glyph = isValid ? "\uE73E" : "\uE711";
+                ? "Drop model now"
+                : "Drop exactly one supported model file or folder.";
+            DropValidationStatusIcon.Glyph = isValid ? "\uE898" : "\uE711";
             AutomationProperties.SetName(
                 DropValidationStatusIcon,
                 isValid ? "Valid drop target" : "Invalid drop target");
@@ -63,7 +71,16 @@ namespace GraniteEdgeAI.Features.ModelImport.Controls
 
         internal void ClearDragValidation()
         {
-            DropValidationStatusPanel.Visibility = Visibility.Collapsed;
+            if (CurrentState is ImportModelCardState.DragOverValid or ImportModelCardState.DragOverInvalid)
+            {
+                SetVisibleState(ImportModelCardState.AwaitingSelection);
+            }
+
+            VisualStateManager.GoToState(
+                this,
+                "DefaultDropCardState",
+                useTransitions: false);
+            DropValidationStatusPanel.Opacity = 0;
             DropValidationStatusTextBlock.Text = string.Empty;
             AutomationProperties.SetName(DropValidationStatusIcon, string.Empty);
         }
@@ -130,6 +147,14 @@ namespace GraniteEdgeAI.Features.ModelImport.Controls
                     ShowAwaitingSelection();
                     return;
 
+                case ImportModelCardState.DragOverValid:
+                    ShowDragValidation(isValid: true);
+                    return;
+
+                case ImportModelCardState.DragOverInvalid:
+                    ShowDragValidation(isValid: false);
+                    return;
+
                 case ImportModelCardState.SelectionAccepted:
                     ShowFolderAccepted(selectedFileName ?? string.Empty);
                     return;
@@ -162,7 +187,9 @@ namespace GraniteEdgeAI.Features.ModelImport.Controls
             CurrentState = state;
 
             AwaitingSelectionView.Visibility =
-                state == ImportModelCardState.AwaitingSelection
+                state is ImportModelCardState.AwaitingSelection
+                    or ImportModelCardState.DragOverValid
+                    or ImportModelCardState.DragOverInvalid
                     ? Visibility.Visible
                     : Visibility.Collapsed;
             ScanningView.Visibility =
@@ -182,11 +209,22 @@ namespace GraniteEdgeAI.Features.ModelImport.Controls
                     ? Visibility.Visible
                     : Visibility.Collapsed;
 
-            ClearDragValidation();
+            ClearDragValidationPresentation();
             ClearScanningValues();
             ClearFailureValues();
             ClearSuccessValues();
             FolderAcceptedNameTextBlock.Text = string.Empty;
+        }
+
+        private void ClearDragValidationPresentation()
+        {
+            DropValidationStatusPanel.Opacity = 0;
+            DropValidationStatusTextBlock.Text = string.Empty;
+            AutomationProperties.SetName(DropValidationStatusIcon, string.Empty);
+            VisualStateManager.GoToState(
+                this,
+                "DefaultDropCardState",
+                useTransitions: false);
         }
 
         private void ClearScanningValues()

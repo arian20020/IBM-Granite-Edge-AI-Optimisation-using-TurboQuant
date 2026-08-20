@@ -8,6 +8,26 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
+    <VisualStateManager.VisualStateGroups>
+        <VisualStateGroup x:Name="DropCardVisualStates">
+            <VisualState x:Name="DefaultDropCardState" />
+            <VisualState x:Name="ValidDropCardState">
+                <VisualState.Setters>
+                    <Setter Target="DropCardValidTint.Opacity" Value="0.12" />
+                    <Setter Target="AwaitingSelectionBorder.Stroke" Value="{ThemeResource SystemControlHighlightAccentBrush}" />
+                    <Setter Target="AwaitingSelectionBorder.StrokeThickness" Value="2" />
+                </VisualState.Setters>
+            </VisualState>
+            <VisualState x:Name="InvalidDropCardState">
+                <VisualState.Setters>
+                    <Setter Target="DropCardInvalidTint.Opacity" Value="0.12" />
+                    <Setter Target="AwaitingSelectionBorder.Stroke" Value="{ThemeResource SystemControlErrorTextForegroundBrush}" />
+                    <Setter Target="AwaitingSelectionBorder.StrokeThickness" Value="2" />
+                </VisualState.Setters>
+            </VisualState>
+        </VisualStateGroup>
+    </VisualStateManager.VisualStateGroups>
+
     <Grid
         MinHeight="168"
         Margin="0,28,0,0"
@@ -17,10 +37,10 @@
         <Grid
             x:Name="AwaitingSelectionView"
             HorizontalAlignment="Stretch"
-            Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
             Visibility="Visible">
 
             <Rectangle
+                x:Name="AwaitingSelectionBorder"
                 HorizontalAlignment="Stretch"
                 VerticalAlignment="Stretch"
                 Fill="{ThemeResource SystemControlBackgroundBaseLowBrush}"
@@ -31,6 +51,22 @@
                 StrokeDashArray="6,5"
                 StrokeDashCap="Round"
                 StrokeThickness="1.5" />
+
+            <Rectangle
+                x:Name="DropCardValidTint"
+                Fill="{ThemeResource SystemControlHighlightAccentBrush}"
+                IsHitTestVisible="False"
+                Opacity="0"
+                RadiusX="20"
+                RadiusY="20" />
+
+            <Rectangle
+                x:Name="DropCardInvalidTint"
+                Fill="{ThemeResource SystemControlErrorTextForegroundBrush}"
+                IsHitTestVisible="False"
+                Opacity="0"
+                RadiusX="20"
+                RadiusY="20" />
 
             <StackPanel
                 Margin="22,20,22,20"
@@ -156,14 +192,15 @@
                     x:Name="DropValidationStatusPanel"
                     Margin="0,4,0,0"
                     HorizontalAlignment="Center"
+                    Opacity="0"
                     Orientation="Horizontal"
                     Spacing="8"
-                    Visibility="Collapsed">
+                    Visibility="Visible">
                     <FontIcon
                         x:Name="DropValidationStatusIcon"
                         AutomationProperties.Name=""
                         FontSize="16"
-                        Glyph="&#xE73E;" />
+                        Glyph="&#xE898;" />
                     <TextBlock
                         x:Name="DropValidationStatusTextBlock"
                         AutomationProperties.LiveSetting="Polite"

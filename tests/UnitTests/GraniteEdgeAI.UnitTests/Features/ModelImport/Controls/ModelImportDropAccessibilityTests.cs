@@ -6,6 +6,7 @@ using GraniteEdgeAI.Features.ModelImport.Selection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Shapes;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
 using System.Reflection;
 
@@ -14,6 +15,65 @@ namespace GraniteEdgeAI.UnitTests;
 [TestClass]
 public sealed class ModelImportDropAccessibilityTests
 {
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void AwaitingSelection_UsesVisibleRoundedDashedDropBorder()
+    {
+        var card = new ImportModelCard();
+        var border = card.FindName("AwaitingSelectionBorder") as Rectangle;
+
+        Assert.IsNotNull(border);
+        Assert.IsTrue(border.StrokeDashArray.Count > 0);
+        Assert.IsTrue(border.RadiusX > 0);
+        Assert.IsTrue(border.RadiusY > 0);
+        Assert.AreEqual(Visibility.Visible, border.Visibility);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void ValidDrag_UsesDropNowPresentationAndTargetIcon()
+    {
+        var card = new ImportModelCard();
+
+        card.ShowDragValidation(isValid: true);
+
+        Assert.AreEqual(ImportModelCardState.DragOverValid, card.CurrentState);
+        Assert.AreEqual("Drop model now", GetDropStatus(card).Text);
+        Assert.AreEqual(Visibility.Visible, GetDropIcon(card).Visibility);
+        Assert.AreEqual("Valid drop target", AutomationProperties.GetName(GetDropIcon(card)));
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void InvalidDrag_UsesCorrectivePresentation()
+    {
+        var card = new ImportModelCard();
+
+        card.ShowDragValidation(isValid: false);
+
+        Assert.AreEqual(ImportModelCardState.DragOverInvalid, card.CurrentState);
+        Assert.AreEqual(
+            "Drop exactly one supported model file or folder.",
+            GetDropStatus(card).Text);
+        Assert.AreEqual("Invalid drop target", AutomationProperties.GetName(GetDropIcon(card)));
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void DragLeave_RestoresAwaitingSelectionPresentation()
+    {
+        var card = new ImportModelCard();
+        card.ShowDragValidation(isValid: true);
+
+        card.ClearDragValidation();
+
+        Assert.AreEqual(ImportModelCardState.AwaitingSelection, card.CurrentState);
+        Assert.AreEqual(0d, GetDropStatusPanel(card).Opacity);
+        Assert.AreEqual(
+            Visibility.Visible,
+            ((FrameworkElement)card.FindName("AwaitingSelectionBorder")).Visibility);
+    }
+
     [UITestMethod]
     [TestCategory("WinUI")]
     public void DropSurface_IsHitTestableAndDescribesPickerParity()
@@ -102,6 +162,15 @@ public sealed class ModelImportDropAccessibilityTests
         Assert.AreEqual(string.Empty, announcement.Text);
     }
 
+    private static TextBlock GetDropStatus(ImportModelCard card) =>
+        (TextBlock)card.FindName("DropValidationStatusTextBlock");
+
+    private static FontIcon GetDropIcon(ImportModelCard card) =>
+        (FontIcon)card.FindName("DropValidationStatusIcon");
+
+    private static FrameworkElement GetDropStatusPanel(ImportModelCard card) =>
+        (FrameworkElement)card.FindName("DropValidationStatusPanel");
+
     private sealed class AcceptedFolderClassifier : IModelSelectionClassifier
     {
         public Task<ModelSelectionResult> ClassifyAsync(
@@ -112,5 +181,6 @@ public sealed class ModelImportDropAccessibilityTests
                 id,
                 ModelSelectionRoute.OpenVinoDirectory,
                 input.DisplayName));
-    }
+
+}
 }

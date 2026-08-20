@@ -17,11 +17,11 @@ public sealed class ModelImportResponsiveStateTests
 
         card.ShowDragValidation(isValid: true);
         Assert.AreEqual(Visibility.Visible, Status(card).Visibility);
-        Assert.AreEqual("Model file or folder can be dropped here.", Status(card).Text);
+        Assert.AreEqual("Drop model now", Status(card).Text);
         Assert.AreEqual("Valid drop target", AutomationProperties.GetName(StatusIcon(card)));
 
         card.ShowDragValidation(isValid: false);
-        Assert.AreEqual("Drop one model file or model folder.", Status(card).Text);
+        Assert.AreEqual("Drop exactly one supported model file or folder.", Status(card).Text);
         Assert.AreEqual("Invalid drop target", AutomationProperties.GetName(StatusIcon(card)));
     }
 
@@ -36,8 +36,8 @@ public sealed class ModelImportResponsiveStateTests
 
         Assert.AreEqual(ImportModelCardState.AwaitingSelection, card.CurrentState);
         Assert.AreEqual(
-            Visibility.Collapsed,
-            ((FrameworkElement)card.FindName("DropValidationStatusPanel")).Visibility);
+            0d,
+            ((FrameworkElement)card.FindName("DropValidationStatusPanel")).Opacity);
     }
 
     [UITestMethod]
