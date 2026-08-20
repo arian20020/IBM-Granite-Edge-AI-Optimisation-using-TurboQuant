@@ -148,6 +148,33 @@ public sealed class BoundedModelSelectionClassifierTests
     }
 
     [TestMethod]
+    public async Task ClassifyAsync_RejectsMalformedSourceIndex()
+    {
+        using var directory = new TemporaryDirectory();
+        directory.WriteFile("config.json", "{\"model_type\":\"granite\",\"architectures\":[\"GraniteForCausalLM\"]}");
+        directory.WriteFile("model.safetensors.index.json", "not json");
+
+        ModelSelectionResult result = await ClassifyAsync(directory.Path, isFolder: true);
+
+        Assert.AreEqual("selection-invalid-source-model", result.Diagnostic!.Code);
+    }
+
+    [TestMethod]
+    public async Task ClassifyAsync_AcceptsSourceIndexWhoseRootShardsExist()
+    {
+        using var directory = new TemporaryDirectory();
+        directory.WriteFile("config.json", "{\"model_type\":\"granite\",\"architectures\":[\"GraniteForCausalLM\"]}");
+        directory.WriteFile("model.safetensors.index.json", "{\"weight_map\":{\"layer.one\":\"model-00001-of-00002.safetensors\",\"layer.two\":\"model-00002-of-00002.safetensors\"}}");
+        directory.WriteFile("model-00001-of-00002.safetensors", "weights");
+        directory.WriteFile("model-00002-of-00002.safetensors", "weights");
+
+        ModelSelectionResult result = await ClassifyAsync(directory.Path, isFolder: true);
+
+        Assert.IsTrue(result.IsAccepted);
+        Assert.AreEqual(ModelSelectionRoute.SourceModelDirectory, result.Route);
+    }
+
+    [TestMethod]
     public async Task ClassifyAsync_RejectsMalformedSourceConfiguration()
     {
         using var directory = new TemporaryDirectory();
