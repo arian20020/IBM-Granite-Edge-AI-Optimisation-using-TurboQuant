@@ -58,6 +58,7 @@ shared/GraniteEdgeAI.ModelHardwareCompatibility.Core/
 │       ├── ResourceEstimate.cs                 Task 4 (new)
 │       └── EstimatorPolicy.cs                  Task 5 (new)
 └── Routes/Gguf/
+    ├── GgufWeightFormatMap.cs                  Task 2 (new)
     ├── GgufKvCacheBlockSpec.cs                 Task 6 (new)
     ├── GgufKvCacheEstimator.cs                 Task 6 (new)
     ├── GgufWeightEstimator.cs                  Task 7 (new)
@@ -78,6 +79,7 @@ tests/UnitTests/GraniteEdgeAI.ModelHardwareCompatibility.Tests/
 │       ├── ResourceEstimateTests.cs            Task 4 (new)
 │       └── EstimatorPolicyTests.cs             Task 5 (new)
 ├── Routes/Gguf/
+│   ├── GgufWeightFormatMapTests.cs             Task 2 (new)
 │   ├── GgufKvCacheEstimatorTests.cs            Task 6 (new)
 │   ├── GgufWeightEstimatorTests.cs             Task 7 (new)
 │   ├── GgufPoolRoutingTests.cs                 Task 8 (new)
@@ -262,11 +264,18 @@ input.
 **Files:**
 - Create: `shared/GraniteEdgeAI.ModelHardwareCompatibility.Core/Domain/WeightQuantisation.cs`
 - Create: `shared/GraniteEdgeAI.ModelHardwareCompatibility.Core/Domain/WeightQuantisationMap.cs`
+- Create: `shared/GraniteEdgeAI.ModelHardwareCompatibility.Core/Routes/Gguf/GgufWeightFormatMap.cs`
 - Test: `tests/UnitTests/GraniteEdgeAI.ModelHardwareCompatibility.Tests/Domain/WeightQuantisationMapTests.cs`
+- Test: `tests/UnitTests/GraniteEdgeAI.ModelHardwareCompatibility.Tests/Routes/Gguf/GgufWeightFormatMapTests.cs`
 
 **Interfaces:**
 - Consumes: `GgufWeightFormat` from the completed M3a work.
-- Produces: the `WeightQuantisation` enum; `WeightQuantisationMap.FromGgufFileType(int? fileType, int? quantisationVersion)` returning `WeightQuantisation`; `WeightQuantisationMap.FromWeightFormat(GgufWeightFormat format)` returning `WeightQuantisation`; `WeightQuantisationMap.BitsPerWeight(WeightQuantisation quantisation)` returning `decimal`. Consumed by Task 7.
+- Produces: the `WeightQuantisation` enum; `WeightQuantisationMap.FromGgufFileType(int? fileType, int? quantisationVersion)` returning `WeightQuantisation`; `WeightQuantisationMap.BitsPerWeight(WeightQuantisation quantisation)` returning `decimal`; and `GgufWeightFormatMap.ToCanonical(GgufWeightFormat format)` returning `WeightQuantisation`. Consumed by Tasks 7 and 10.
+
+> **Why the split.** `Domain/` contains no reference to `Routes/` today, and spec section 4 makes
+> route separation structural. `FromGgufFileType` takes plain `int?` values and stays in `Domain`.
+> Translating a `GgufWeightFormat` is route-specific knowledge, so it lives in `Routes/Gguf/`
+> instead — putting it in `Domain` would invert the layering on its first use.
 
 > **Verification note for the implementer.** The `fileType` values below are llama.cpp
 > `LLAMA_FTYPE_MOSTLY_*` constants. No llama.cpp header is vendored in this repository
@@ -281,7 +290,6 @@ Create `tests/UnitTests/GraniteEdgeAI.ModelHardwareCompatibility.Tests/Domain/We
 
 ```csharp
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
-using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.Gguf;
 
 namespace GraniteEdgeAI.ModelHardwareCompatibility.Tests.Domain;
 
@@ -365,14 +373,28 @@ public sealed class WeightQuantisationMapTests
             () => WeightQuantisationMap.BitsPerWeight(WeightQuantisation.Unknown));
     }
 
+}
+```
+
+Create `tests/UnitTests/GraniteEdgeAI.ModelHardwareCompatibility.Tests/Routes/Gguf/GgufWeightFormatMapTests.cs`:
+
+```csharp
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.Gguf;
+
+namespace GraniteEdgeAI.ModelHardwareCompatibility.Tests.Routes.Gguf;
+
+[TestClass]
+public sealed class GgufWeightFormatMapTests
+{
     [TestMethod]
-    public void FromWeightFormat_ImportedHasNoCanonicalQuantisation()
+    public void ToCanonical_ImportedHasNoCanonicalQuantisation()
     {
         // "Imported" means "whatever the file already is", which is a property of
         // the file and not of the requested format.
         Assert.AreEqual(
             nameof(WeightQuantisation.Unknown),
-            WeightQuantisationMap.FromWeightFormat(GgufWeightFormat.Imported).ToString());
+            GgufWeightFormatMap.ToCanonical(GgufWeightFormat.Imported).ToString());
     }
 
     [TestMethod]
@@ -383,11 +405,19 @@ public sealed class WeightQuantisationMapTests
     [DataRow(nameof(GgufWeightFormat.Q5KM), nameof(WeightQuantisation.Q5_K_M))]
     [DataRow(nameof(GgufWeightFormat.Q4KM), nameof(WeightQuantisation.Q4_K_M))]
     [DataRow(nameof(GgufWeightFormat.Q3KM), nameof(WeightQuantisation.Q3_K_M))]
-    public void FromWeightFormat_MapsEveryGeneratableFormat(string format, string expected)
+    public void ToCanonical_MapsEveryGeneratableFormat(string format, string expected)
     {
         GgufWeightFormat parsed = Enum.Parse<GgufWeightFormat>(format);
 
-        Assert.AreEqual(expected, WeightQuantisationMap.FromWeightFormat(parsed).ToString());
+        Assert.AreEqual(expected, GgufWeightFormatMap.ToCanonical(parsed).ToString());
+    }
+
+    [TestMethod]
+    public void ToCanonical_UnspecifiedHasNoCanonicalQuantisation()
+    {
+        Assert.AreEqual(
+            nameof(WeightQuantisation.Unknown),
+            GgufWeightFormatMap.ToCanonical(GgufWeightFormat.Unspecified).ToString());
     }
 }
 ```
@@ -434,8 +464,6 @@ internal enum WeightQuantisation
 Create `shared/GraniteEdgeAI.ModelHardwareCompatibility.Core/Domain/WeightQuantisationMap.cs`:
 
 ```csharp
-using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.Gguf;
-
 namespace GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
 
 /// <summary>
@@ -494,22 +522,6 @@ internal static class WeightQuantisationMap
             : WeightQuantisation.Unknown;
     }
 
-    /// <summary>
-    /// The canonical encoding a requested weight format produces. Imported has
-    /// none of its own: it is whatever the file already contains.
-    /// </summary>
-    internal static WeightQuantisation FromWeightFormat(GgufWeightFormat format) => format switch
-    {
-        GgufWeightFormat.BF16 => WeightQuantisation.BF16,
-        GgufWeightFormat.F16 => WeightQuantisation.F16,
-        GgufWeightFormat.Q8_0 => WeightQuantisation.Q8_0,
-        GgufWeightFormat.Q6K => WeightQuantisation.Q6_K,
-        GgufWeightFormat.Q5KM => WeightQuantisation.Q5_K_M,
-        GgufWeightFormat.Q4KM => WeightQuantisation.Q4_K_M,
-        GgufWeightFormat.Q3KM => WeightQuantisation.Q3_K_M,
-        _ => WeightQuantisation.Unknown
-    };
-
     internal static decimal BitsPerWeight(WeightQuantisation quantisation) =>
         Bits.TryGetValue(quantisation, out decimal bits)
             ? bits
@@ -520,16 +532,52 @@ internal static class WeightQuantisationMap
 }
 ```
 
-- [ ] **Step 5: Run the tests and verify they pass**
+- [ ] **Step 5: Implement the route-side format map**
+
+Create `shared/GraniteEdgeAI.ModelHardwareCompatibility.Core/Routes/Gguf/GgufWeightFormatMap.cs`:
+
+```csharp
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
+
+namespace GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.Gguf;
+
+/// <summary>
+/// Translates a requested llama.cpp weight format into C1's canonical encoding.
+///
+/// This lives on the route side rather than in Domain because knowing what
+/// "Q4KM" means is GGUF knowledge. Domain holds the canonical vocabulary and
+/// must not depend on any route.
+/// </summary>
+internal static class GgufWeightFormatMap
+{
+    /// <summary>
+    /// Imported has no canonical encoding of its own: it is whatever the file
+    /// already contains, which only the file's own identifiers can answer.
+    /// </summary>
+    internal static WeightQuantisation ToCanonical(GgufWeightFormat format) => format switch
+    {
+        GgufWeightFormat.BF16 => WeightQuantisation.BF16,
+        GgufWeightFormat.F16 => WeightQuantisation.F16,
+        GgufWeightFormat.Q8_0 => WeightQuantisation.Q8_0,
+        GgufWeightFormat.Q6K => WeightQuantisation.Q6_K,
+        GgufWeightFormat.Q5KM => WeightQuantisation.Q5_K_M,
+        GgufWeightFormat.Q4KM => WeightQuantisation.Q4_K_M,
+        GgufWeightFormat.Q3KM => WeightQuantisation.Q3_K_M,
+        _ => WeightQuantisation.Unknown
+    };
+}
+```
+
+- [ ] **Step 6: Run the tests and verify they pass**
 
 Run the suite command.
 
-Expected: PASS — every test green, including the 21 added in this task.
+Expected: PASS — every test green, including the 22 added in this task.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
-git add shared/GraniteEdgeAI.ModelHardwareCompatibility.Core/Domain/WeightQuantisation.cs shared/GraniteEdgeAI.ModelHardwareCompatibility.Core/Domain/WeightQuantisationMap.cs tests/UnitTests/GraniteEdgeAI.ModelHardwareCompatibility.Tests/Domain/WeightQuantisationMapTests.cs
+git add shared/GraniteEdgeAI.ModelHardwareCompatibility.Core/Domain/WeightQuantisation.cs shared/GraniteEdgeAI.ModelHardwareCompatibility.Core/Domain/WeightQuantisationMap.cs shared/GraniteEdgeAI.ModelHardwareCompatibility.Core/Routes/Gguf/GgufWeightFormatMap.cs tests/UnitTests/GraniteEdgeAI.ModelHardwareCompatibility.Tests/Domain/WeightQuantisationMapTests.cs tests/UnitTests/GraniteEdgeAI.ModelHardwareCompatibility.Tests/Routes/Gguf/GgufWeightFormatMapTests.cs
 git commit -m "feat(compatibility): derive canonical weight quantisation"
 ```
 
@@ -2183,7 +2231,7 @@ internal static class GgufWeightEstimator
             if (target != GgufWeightFormat.Imported)
             {
                 WeightQuantisation targetQuantisation =
-                    WeightQuantisationMap.FromWeightFormat(target);
+                    GgufWeightFormatMap.ToCanonical(target);
 
                 if (targetQuantisation == WeightQuantisation.Unknown)
                 {
@@ -3406,7 +3454,7 @@ public sealed class EnumExhaustivenessTests
                 continue;
             }
 
-            WeightQuantisation quantisation = WeightQuantisationMap.FromWeightFormat(format);
+            WeightQuantisation quantisation = GgufWeightFormatMap.ToCanonical(format);
 
             Assert.AreNotEqual(
                 WeightQuantisation.Unknown,
@@ -3559,6 +3607,8 @@ Create `tests/UnitTests/GraniteEdgeAI.ModelHardwareCompatibility.Tests/Invariant
 
 ```csharp
 using System.Reflection;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Estimation;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.FitAssessment;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
 
 namespace GraniteEdgeAI.ModelHardwareCompatibility.Tests.Invariants;
@@ -3614,8 +3664,8 @@ public sealed class PrivacyCanaryTests
 
         string[] samples =
         [
-            Core.Application.FitAssessment.SafetyPolicy.ProvisionalV1().PolicyVersion,
-            Core.Application.Estimation.EstimatorPolicy.ProvisionalV1().PolicyVersion
+            SafetyPolicy.ProvisionalV1().PolicyVersion,
+            EstimatorPolicy.ProvisionalV1().PolicyVersion
         ];
 
         foreach (string sample in samples)
@@ -3630,10 +3680,6 @@ public sealed class PrivacyCanaryTests
     }
 }
 ```
-
-> If the `Core.Application...` qualification above does not resolve, add
-> `using Core = GraniteEdgeAI.ModelHardwareCompatibility.Core;` at the top of the file rather than
-> widening the existing usings, which would shadow the `Domain` import.
 
 - [ ] **Step 7: Write the end-to-end spine test**
 
@@ -3768,17 +3814,20 @@ git mv tests/UnitTests/GraniteEdgeAI.ModelHardwareCompatibility.Tests/Applicatio
 git mv tests/UnitTests/GraniteEdgeAI.ModelHardwareCompatibility.Tests/Routes/GgufRouteConfigurationTests.cs tests/UnitTests/GraniteEdgeAI.ModelHardwareCompatibility.Tests/Routes/Gguf/GgufRouteConfigurationTests.cs
 ```
 
-Then update the namespace declaration in each moved file so it matches its new folder:
+Then update the namespace declaration in `GgufRouteConfigurationTests.cs` only:
 
-- `FitPolicyTests.cs` and `SafetyPolicyTests.cs`:
-  `namespace GraniteEdgeAI.ModelHardwareCompatibility.Tests.Application.FitAssessment;`
-- `GgufRouteConfigurationTests.cs`:
-  `namespace GraniteEdgeAI.ModelHardwareCompatibility.Tests.Routes.Gguf;`
+```csharp
+namespace GraniteEdgeAI.ModelHardwareCompatibility.Tests.Routes.Gguf;
+```
 
-`FitPolicyTests.cs` and `SafetyPolicyTests.cs` already carry
-`using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.FitAssessment;`. Once their own
-namespace ends in `FitAssessment`, that using becomes redundant but stays valid; leave it in place
-so the diff is a pure move plus one line.
+**Leave the namespace in `FitPolicyTests.cs` and `SafetyPolicyTests.cs` at
+`GraniteEdgeAI.ModelHardwareCompatibility.Tests.Application`.** This is deliberate, not an
+oversight. Inside a namespace ending in `FitAssessment`, the bare name `FitAssessment` binds to the
+sibling *namespace* rather than to the record, and the compiler rejects it with CS0118 —
+`FitPolicyTests` writes `FitAssessment assessment = FitPolicy.Assess(...)` more than ten times. The
+goal here is folder parity with the production tree; a test namespace that does not track its
+folder is a smaller cost than rewriting reviewed assertions to dodge a name collision. These two
+files therefore change location and nothing else.
 
 - [ ] **Step 10: Run the suite again and confirm the move changed nothing**
 
@@ -3871,7 +3920,7 @@ complete code. The one forward reference — `UnsupportedWeightFormat` used in T
 resolved inside Task 7 Step 2 rather than left dangling.
 
 **Type consistency.** `ByteCount.AlignUpTo` and `MultiplyByFraction` (Task 1) are used in Tasks 5,
-7 and 9. `WeightQuantisationMap.FromGgufFileType` / `FromWeightFormat` / `BitsPerWeight` (Task 2)
+7 and 9. `WeightQuantisationMap.FromGgufFileType` / `BitsPerWeight` and `GgufWeightFormatMap.ToCanonical` (Task 2)
 are used only in Task 7 and Task 10's sweeps. `InspectedModelFacts` property names (Task 3) match
 every later reference. `ResourceEstimate.Established` / `NotEstablished` (Task 4) match Tasks 6 to
 10. `EstimatorPolicy.Terms` and `ComputeBufferFor` (Task 5) match Tasks 7 and 9.
