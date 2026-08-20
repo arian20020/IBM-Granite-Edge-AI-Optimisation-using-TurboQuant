@@ -123,7 +123,7 @@ class ColdWarmTimings:
             not isinstance(self.cold, TimingSummary)
             or not isinstance(self.warm, TimingSummary)
             or self.cold.count < 1
-            or self.warm.count < 5
+            or self.warm.count < 1
         ):
             raise ResearchError("benchmark-evidence-invalid")
 
@@ -202,6 +202,7 @@ class GateResult:
 @dataclass(frozen=True)
 class RouteEvidence:
     route: str
+    bits: int | None
     requested_backend: str
     actual_backend: str
     requested_provider: str
@@ -213,8 +214,15 @@ class RouteEvidence:
     timings: ColdWarmTimings
 
     def __post_init__(self) -> None:
+        route_identity = {
+            "float32": (None, "float32"),
+            "turbovec-2bit": (2, "turbovec"),
+            "turbovec-4bit": (4, "turbovec"),
+        }.get(self.route)
         if (
-            self.route not in {"float32", "turbovec-4bit"}
+            route_identity is None
+            or (self.bits, self.requested_backend) != route_identity
+            or self.actual_backend != route_identity[1]
             or not all(
                 _safe_identity(identity)
                 for identity in (self.requested_backend, self.actual_backend, self.requested_provider, self.actual_provider)
@@ -233,6 +241,7 @@ class RouteEvidence:
         return {
             "actual_backend": self.actual_backend,
             "actual_provider": self.actual_provider,
+            "bits": self.bits,
             "metrics": self.metrics.to_dict(),
             "hit_at_5": self.hit_at_5,
             "query_count": self.query_count,
@@ -246,13 +255,18 @@ class RouteEvidence:
 
 @dataclass(frozen=True)
 class StorageEvidence:
+    route: str
+    bits: int
     float32_vector_bytes: int
     candidate_persisted_bytes: int
     size_ratio: float
 
     def __post_init__(self) -> None:
+        expected_bits = {"turbovec-2bit": 2, "turbovec-4bit": 4}.get(self.route)
         if (
-            type(self.float32_vector_bytes) is not int
+            expected_bits is None
+            or self.bits != expected_bits
+            or type(self.float32_vector_bytes) is not int
             or self.float32_vector_bytes <= 0
             or type(self.candidate_persisted_bytes) is not int
             or self.candidate_persisted_bytes <= 0
@@ -268,8 +282,10 @@ class StorageEvidence:
 
     def to_dict(self) -> dict[str, int | float]:
         return {
+            "bits": self.bits,
             "candidate_persisted_bytes": self.candidate_persisted_bytes,
             "float32_vector_bytes": self.float32_vector_bytes,
+            "route": self.route,
             "size_ratio": self.size_ratio,
         }
 
@@ -280,26 +296,43 @@ class BenchmarkEvidence:
     query_count: int
     top_k: int
     baseline: RouteEvidence
-    candidate: RouteEvidence
-    storage: StorageEvidence
+    candidates: tuple[RouteEvidence, ...]
+    storage: tuple[StorageEvidence, ...]
     gate: GateResult
 
     def __post_init__(self) -> None:
         if (
             not isinstance(self.baseline, RouteEvidence)
-            or not isinstance(self.candidate, RouteEvidence)
-            or not isinstance(self.storage, StorageEvidence)
+            or type(self.candidates) is not tuple
+            or len(self.candidates) != 2
+            or not all(isinstance(route, RouteEvidence) for route in self.candidates)
+            or type(self.storage) is not tuple
+            or len(self.storage) != 2
+            or not all(isinstance(item, StorageEvidence) for item in self.storage)
             or not isinstance(self.gate, GateResult)
         ):
             raise ResearchError("benchmark-evidence-invalid")
+        route_map = {route.route: route for route in self.candidates}
+        storage_map = {item.route: item for item in self.storage}
+        if (
+            len(route_map) != 2
+            or set(route_map) != {"turbovec-2bit", "turbovec-4bit"}
+            or len(storage_map) != 2
+            or set(storage_map) != set(route_map)
+        ):
+            raise ResearchError("benchmark-evidence-invalid")
+        two_bit = route_map["turbovec-2bit"]
+        four_bit = route_map["turbovec-4bit"]
+        two_storage = storage_map["turbovec-2bit"]
+        four_storage = storage_map["turbovec-4bit"]
         try:
             represented = GateMetrics(
-                self.candidate.metrics.recall_at_k,
-                _safe_ratio(self.candidate.metrics.mrr, self.baseline.metrics.mrr),
-                self.candidate.hit_at_5 - self.baseline.hit_at_5,
-                self.storage.size_ratio,
+                four_bit.metrics.recall_at_k,
+                _safe_ratio(four_bit.metrics.mrr, self.baseline.metrics.mrr),
+                four_bit.hit_at_5 - self.baseline.hit_at_5,
+                four_storage.size_ratio,
                 _safe_ratio(
-                    self.candidate.timings.warm.median_seconds,
+                    four_bit.timings.warm.median_seconds,
                     self.baseline.timings.warm.median_seconds,
                 ),
             )
@@ -314,24 +347,43 @@ class BenchmarkEvidence:
             or type(self.top_k) is not int
             or self.top_k != 10
             or self.baseline.route != "float32"
-            or self.candidate.route != "turbovec-4bit"
-            or self.baseline.route == self.candidate.route
+            or self.baseline.bits is not None
+            or self.baseline.requested_backend != "float32"
+            or self.baseline.actual_backend != "float32"
+            or not math.isclose(self.baseline.metrics.recall_at_k, 1.0, rel_tol=0, abs_tol=1e-15)
             or self.baseline.query_count != self.query_count
-            or self.candidate.query_count != self.query_count
             or self.baseline.top_k != self.top_k
-            or self.candidate.top_k != self.top_k
+            or any(route.query_count != self.query_count or route.top_k != self.top_k for route in (two_bit, four_bit))
+            or any(route.timings.warm.count < 5 for route in (self.baseline, two_bit, four_bit))
+            or two_storage.float32_vector_bytes != four_storage.float32_vector_bytes
             or self.gate != recomputed
         ):
             raise ResearchError("benchmark-evidence-invalid")
 
+    @property
+    def two_bit(self) -> RouteEvidence:
+        return next(route for route in self.candidates if route.route == "turbovec-2bit")
+
+    @property
+    def four_bit(self) -> RouteEvidence:
+        return next(route for route in self.candidates if route.route == "turbovec-4bit")
+
+    @property
+    def two_bit_storage(self) -> StorageEvidence:
+        return next(item for item in self.storage if item.route == "turbovec-2bit")
+
+    @property
+    def four_bit_storage(self) -> StorageEvidence:
+        return next(item for item in self.storage if item.route == "turbovec-4bit")
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "baseline": self.baseline.to_dict(),
-            "candidate": self.candidate.to_dict(),
+            "candidates": [route.to_dict() for route in sorted(self.candidates, key=lambda item: item.bits or 0)],
             "gate": self.gate.to_dict(),
             "query_count": self.query_count,
             "schema_version": self.schema_version,
-            "storage": self.storage.to_dict(),
+            "storage": [item.to_dict() for item in sorted(self.storage, key=lambda item: item.bits)],
             "top_k": self.top_k,
         }
 
@@ -458,85 +510,114 @@ def evaluate_gate(metrics: GateMetrics) -> GateResult:
     return GateResult(all(item.passed for item in criteria), criteria)
 
 
-def build_matched_evidence(
+def build_matched_suite(
     exact: Sequence[Sequence[int | str]],
-    candidate: Sequence[Sequence[int | str]],
+    two_bit_candidate: Sequence[Sequence[int | str]],
+    four_bit_candidate: Sequence[Sequence[int | str]],
     relevant: Sequence[set[int | str] | frozenset[int | str]],
     *,
     baseline_timings: ColdWarmTimings,
-    candidate_timings: ColdWarmTimings,
+    two_bit_timings: ColdWarmTimings,
+    four_bit_timings: ColdWarmTimings,
     float32_vector_bytes: int,
-    candidate_persisted_bytes: int,
-    requested_backend: str,
-    actual_backend: str,
-    requested_provider: str,
-    actual_provider: str,
-    baseline_route: str = "float32",
-    candidate_route: str = "turbovec-4bit",
+    two_bit_persisted_bytes: int,
+    four_bit_persisted_bytes: int,
+    baseline_requested_provider: str,
+    baseline_actual_provider: str,
+    two_bit_requested_provider: str,
+    two_bit_actual_provider: str,
+    four_bit_requested_provider: str,
+    four_bit_actual_provider: str,
 ) -> BenchmarkEvidence:
-    """Build evidence and all gate inputs from one matched set of rankings.
+    """Build a matched float32, two-bit, and four-bit benchmark suite.
 
-    Recall and MRR are measured at 10. Hit delta is measured at 5 from the
-    same query rows, preventing callers from combining unrelated runs.
+    Recall and MRR are measured at 10. Hit delta is measured at 5 from each
+    same-query run. Only the explicitly identified four-bit route feeds the
+    release gate; the two-bit route remains independently reportable.
     """
-    at_ten = compare_matched_routes(
-        exact, candidate, relevant, 10, exact_route=baseline_route, candidate_route=candidate_route
+    two_at_ten = compare_matched_routes(
+        exact, two_bit_candidate, relevant, 10,
+        exact_route="float32", candidate_route="turbovec-2bit",
     )
-    at_five = compare_matched_routes(
-        exact, candidate, relevant, 5, exact_route=baseline_route, candidate_route=candidate_route
+    two_at_five = compare_matched_routes(
+        exact, two_bit_candidate, relevant, 5,
+        exact_route="float32", candidate_route="turbovec-2bit",
+    )
+    four_at_ten = compare_matched_routes(
+        exact, four_bit_candidate, relevant, 10,
+        exact_route="float32", candidate_route="turbovec-4bit",
+    )
+    four_at_five = compare_matched_routes(
+        exact, four_bit_candidate, relevant, 5,
+        exact_route="float32", candidate_route="turbovec-4bit",
     )
     if type(float32_vector_bytes) is not int or float32_vector_bytes <= 0:
         raise ResearchError("storage-bytes-invalid")
-    if type(candidate_persisted_bytes) is not int or candidate_persisted_bytes <= 0:
+    if (
+        type(two_bit_persisted_bytes) is not int
+        or two_bit_persisted_bytes <= 0
+        or type(four_bit_persisted_bytes) is not int
+        or four_bit_persisted_bytes <= 0
+    ):
         raise ResearchError("storage-bytes-invalid")
-    size_ratio = _safe_ratio(candidate_persisted_bytes, float32_vector_bytes)
+    two_size_ratio = _safe_ratio(two_bit_persisted_bytes, float32_vector_bytes)
+    four_size_ratio = _safe_ratio(four_bit_persisted_bytes, float32_vector_bytes)
     latency_ratio = _safe_ratio(
-        candidate_timings.warm.median_seconds,
+        four_bit_timings.warm.median_seconds,
         baseline_timings.warm.median_seconds,
     )
     gate = evaluate_gate(
         GateMetrics(
-            at_ten.candidate.recall_at_k,
-            at_ten.mrr_ratio,
-            at_five.hit_delta,
-            size_ratio,
+            four_at_ten.candidate.recall_at_k,
+            four_at_ten.mrr_ratio,
+            four_at_five.hit_delta,
+            four_size_ratio,
             latency_ratio,
         )
     )
     evidence = BenchmarkEvidence(
         1,
-        at_ten.query_count,
+        four_at_ten.query_count,
         10,
         RouteEvidence(
-            baseline_route,
+            "float32",
+            None,
             "float32",
             "float32",
-            requested_provider,
-            actual_provider,
-            at_ten.query_count,
+            baseline_requested_provider,
+            baseline_actual_provider,
+            four_at_ten.query_count,
             10,
-            at_five.exact.hit_at_k,
-            at_ten.exact,
+            four_at_five.exact.hit_at_k,
+            four_at_ten.exact,
             baseline_timings,
         ),
-        RouteEvidence(
-            candidate_route,
-            requested_backend,
-            actual_backend,
-            requested_provider,
-            actual_provider,
-            at_ten.query_count,
-            10,
-            at_five.candidate.hit_at_k,
-            at_ten.candidate,
-            candidate_timings,
+        (
+            RouteEvidence(
+                "turbovec-2bit", 2, "turbovec", "turbovec",
+                two_bit_requested_provider, two_bit_actual_provider,
+                two_at_ten.query_count, 10, two_at_five.candidate.hit_at_k,
+                two_at_ten.candidate, two_bit_timings,
+            ),
+            RouteEvidence(
+                "turbovec-4bit", 4, "turbovec", "turbovec",
+                four_bit_requested_provider, four_bit_actual_provider,
+                four_at_ten.query_count, 10, four_at_five.candidate.hit_at_k,
+                four_at_ten.candidate, four_bit_timings,
+            ),
         ),
-        StorageEvidence(float32_vector_bytes, candidate_persisted_bytes, size_ratio),
+        (
+            StorageEvidence("turbovec-2bit", 2, float32_vector_bytes, two_bit_persisted_bytes, two_size_ratio),
+            StorageEvidence("turbovec-4bit", 4, float32_vector_bytes, four_bit_persisted_bytes, four_size_ratio),
+        ),
         gate,
     )
-    # Validate identities, storage consistency, and finite serialization now.
-    evidence.to_dict()
     return evidence
+
+
+# Compatibility name with an explicit three-route signature; there is no
+# generic candidate argument that could accidentally mislabel a two-bit run.
+build_matched_evidence = build_matched_suite
 
 
 def load_evaluation_fixture(path: str | Path) -> EvaluationFixture:
@@ -601,7 +682,7 @@ def render_markdown(evidence: BenchmarkEvidence) -> str:
         f"- Queries: {payload['query_count']}",
         f"- Top-k: {payload['top_k']}",
         f"- Baseline route: {payload['baseline']['route']}",
-        f"- Candidate route: {payload['candidate']['route']}",
+        f"- Candidate routes: {', '.join(item['route'] for item in payload['candidates'])}",
         "",
         "| Criterion | Value | Threshold | Pass |",
         "|---|---:|---:|:---:|",

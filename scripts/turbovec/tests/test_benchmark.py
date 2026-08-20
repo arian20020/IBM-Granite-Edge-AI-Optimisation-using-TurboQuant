@@ -16,7 +16,7 @@ from granite_turbovec.benchmark import (
     StorageEvidence,
     TimingSummary,
     aggregate_timings,
-    build_matched_evidence,
+    build_matched_suite,
     calculate_ratio,
     canonical_json,
     compare_matched_routes,
@@ -31,6 +31,43 @@ from granite_turbovec.text_pipeline import chunk_document, discover_documents
 
 
 FIXTURE = Path(__file__).parent / "fixtures" / "evaluation.json"
+
+
+def _build_suite(
+    exact,
+    four_bit,
+    relevant,
+    *,
+    baseline_timings,
+    four_bit_timings,
+    float32_vector_bytes,
+    four_bit_persisted_bytes,
+    two_bit=None,
+    two_bit_timings=None,
+    two_bit_persisted_bytes=None,
+):
+    return build_matched_suite(
+        exact,
+        exact if two_bit is None else two_bit,
+        four_bit,
+        relevant,
+        baseline_timings=baseline_timings,
+        two_bit_timings=baseline_timings if two_bit_timings is None else two_bit_timings,
+        four_bit_timings=four_bit_timings,
+        float32_vector_bytes=float32_vector_bytes,
+        two_bit_persisted_bytes=(
+            max(1, float32_vector_bytes // 8)
+            if two_bit_persisted_bytes is None
+            else two_bit_persisted_bytes
+        ),
+        four_bit_persisted_bytes=four_bit_persisted_bytes,
+        baseline_requested_provider="cpu",
+        baseline_actual_provider="CPUExecutionProvider",
+        two_bit_requested_provider="cpu",
+        two_bit_actual_provider="CPUExecutionProvider",
+        four_bit_requested_provider="cpu",
+        four_bit_actual_provider="CPUExecutionProvider",
+    )
 
 
 class RankingMetricTests(unittest.TestCase):
@@ -118,6 +155,8 @@ class TimingTests(unittest.TestCase):
             summarize_cold_warm([0.8], [0.1] * 4)
         self.assertEqual("timing-warm-count-insufficient", context.exception.code)
         self.assertEqual(1, aggregate_timings([0.1], require_release_evidence=False).count)
+        non_release = summarize_cold_warm([0.8], [0.1], require_release_evidence=False)
+        self.assertEqual(1, non_release.warm.count)
 
     def test_rejects_nonfinite_negative_bool_or_empty(self):
         for samples in ([], [-1.0], [math.nan], [math.inf], [True]):
@@ -166,12 +205,10 @@ class GateTests(unittest.TestCase):
         timing = summarize_cold_warm([1], [1] * 5)
 
         def evidence(candidate):
-            return build_matched_evidence(
+            return _build_suite(
                 exact, candidate, relevant,
-                baseline_timings=timing, candidate_timings=timing,
-                float32_vector_bytes=400, candidate_persisted_bytes=100,
-                requested_backend="turbovec", actual_backend="turbovec",
-                requested_provider="cpu", actual_provider="CPUExecutionProvider",
+                baseline_timings=timing, four_bit_timings=timing,
+                float32_vector_bytes=400, four_bit_persisted_bytes=100,
             )
 
         passing_hit = next(item for item in evidence(passing).gate.criteria if item.name == "hit_at_5_delta")
@@ -186,8 +223,15 @@ class FixtureAndEvidenceTests(unittest.TestCase):
         fixture = load_evaluation_fixture(FIXTURE)
         documents = discover_documents(FIXTURE.parent / "knowledge")
         chunks = [chunk for document in documents for chunk in chunk_document(document)]
-        self.assertGreaterEqual(len(chunks), fixture.top_k)
+        self.assertGreaterEqual(len(chunks), 20)
         self.assertEqual(len(chunks), len({chunk.chunk_id for chunk in chunks}))
+        controlled_failure = evaluate_rankings(
+            [[chunk.chunk_id for chunk in chunks[:10]]],
+            [[chunk.chunk_id for chunk in reversed(chunks[10:20])]],
+            [set()],
+            10,
+        )
+        self.assertEqual(0.0, controlled_failure.recall_at_k)
         by_source = {document.relative_path: document.text.casefold() for document in documents}
         keyed_terms = {
             ("q01", "granite.txt"): ("granite", "language models"),
@@ -208,53 +252,68 @@ class FixtureAndEvidenceTests(unittest.TestCase):
         relevant = [{0}, {10}]
         baseline_timing = summarize_cold_warm([0.2], [0.1] * 5)
         candidate_timing = summarize_cold_warm([0.2], [0.08] * 5)
-        evidence = build_matched_evidence(
+        evidence = _build_suite(
             baseline,
             candidate,
             relevant,
             baseline_timings=baseline_timing,
-            candidate_timings=candidate_timing,
+            four_bit_timings=candidate_timing,
             float32_vector_bytes=400,
-            candidate_persisted_bytes=100,
-            requested_backend="turbovec",
-            actual_backend="turbovec",
-            requested_provider="cpu",
-            actual_provider="CPUExecutionProvider",
+            four_bit_persisted_bytes=100,
         )
         self.assertTrue(evidence.gate.passed)
         self.assertEqual(1.0, evidence.gate.criteria[0].value)
         self.assertAlmostEqual(0.8, evidence.gate.criteria[-1].value)
-        self.assertEqual(0.25, evidence.storage.size_ratio)
+        self.assertEqual(0.25, evidence.four_bit_storage.size_ratio)
+        self.assertEqual({"turbovec-2bit", "turbovec-4bit"}, {route.route for route in evidence.candidates})
+
+    def test_two_bit_route_is_non_gating_but_serialized(self):
+        exact = [list(range(10))]
+        two_bit = [list(range(10, 20))]
+        timing = summarize_cold_warm([1], [1] * 5)
+        evidence = _build_suite(
+            exact, exact, [{0}], two_bit=two_bit,
+            baseline_timings=timing, two_bit_timings=timing, four_bit_timings=timing,
+            float32_vector_bytes=400, two_bit_persisted_bytes=50, four_bit_persisted_bytes=100,
+        )
+        self.assertEqual(0.0, evidence.two_bit.metrics.recall_at_k)
+        self.assertEqual(1.0, evidence.four_bit.metrics.recall_at_k)
+        self.assertTrue(evidence.gate.passed)
+        payload = json.loads(canonical_json(evidence))
+        self.assertEqual(["turbovec-2bit", "turbovec-4bit"], [item["route"] for item in payload["candidates"]])
+
+    def test_benchmark_rejects_structurally_valid_non_release_timings(self):
+        rankings = [list(range(10))]
+        non_release = summarize_cold_warm([1], [1], require_release_evidence=False)
+        with self.assertRaises(ResearchError) as context:
+            _build_suite(
+                rankings, rankings, [{0}],
+                baseline_timings=non_release, four_bit_timings=non_release,
+                float32_vector_bytes=100, four_bit_persisted_bytes=20,
+            )
+        self.assertEqual("benchmark-evidence-invalid", context.exception.code)
 
     def test_evidence_build_fails_closed_on_zero_baseline_latency(self):
         baseline = [list(range(10))]
         timings_zero = summarize_cold_warm([0], [0] * 5)
         timings_candidate = summarize_cold_warm([0.1], [0.1] * 5)
         with self.assertRaises(ResearchError) as context:
-            build_matched_evidence(
+            _build_suite(
                 baseline, baseline, [{0}],
                 baseline_timings=timings_zero,
-                candidate_timings=timings_candidate,
+                four_bit_timings=timings_candidate,
                 float32_vector_bytes=40,
-                candidate_persisted_bytes=10,
-                requested_backend="turbovec",
-                actual_backend="turbovec",
-                requested_provider="cpu",
-                actual_provider="CPUExecutionProvider",
+                four_bit_persisted_bytes=10,
             )
         self.assertEqual("metric-baseline-zero", context.exception.code)
 
         with self.assertRaises(ResearchError) as context:
-            build_matched_evidence(
+            _build_suite(
                 baseline, baseline, [{0}],
                 baseline_timings=timings_candidate,
-                candidate_timings=timings_candidate,
+                four_bit_timings=timings_candidate,
                 float32_vector_bytes=40,
-                candidate_persisted_bytes=0,
-                requested_backend="turbovec",
-                actual_backend="turbovec",
-                requested_provider="cpu",
-                actual_provider="CPUExecutionProvider",
+                four_bit_persisted_bytes=0,
             )
         self.assertEqual("storage-bytes-invalid", context.exception.code)
 
@@ -363,19 +422,17 @@ class FixtureAndEvidenceTests(unittest.TestCase):
     def test_evidence_serialization_and_markdown_are_deterministic_and_private(self):
         rankings = [list(range(10))]
         timings = summarize_cold_warm([0.2], [0.1] * 5)
-        evidence = build_matched_evidence(
+        evidence = _build_suite(
             rankings, rankings, [{0}],
-            baseline_timings=timings, candidate_timings=timings,
-            float32_vector_bytes=100, candidate_persisted_bytes=20,
-            requested_backend="turbovec", actual_backend="turbovec",
-            requested_provider="fastembed", actual_provider="fastembed",
+            baseline_timings=timings, four_bit_timings=timings,
+            float32_vector_bytes=100, four_bit_persisted_bytes=20,
         )
         first = canonical_json(evidence)
         second = canonical_json(evidence)
         self.assertEqual(first, second)
         payload = json.loads(first)
         self.assertEqual(1, payload["schema_version"])
-        self.assertEqual("turbovec-4bit", payload["candidate"]["route"])
+        self.assertEqual(["turbovec-2bit", "turbovec-4bit"], [item["route"] for item in payload["candidates"]])
         self.assertNotIn("__dataclass_fields__", first)
         markdown = render_markdown(evidence)
         self.assertEqual(markdown, render_markdown(evidence))
@@ -396,12 +453,10 @@ class FixtureAndEvidenceTests(unittest.TestCase):
     def test_forged_evidence_contradictions_fail_at_construction(self):
         rankings = [list(range(10))]
         timing = summarize_cold_warm([1], [1] * 5)
-        evidence = build_matched_evidence(
+        evidence = _build_suite(
             rankings, rankings, [{0}],
-            baseline_timings=timing, candidate_timings=timing,
-            float32_vector_bytes=100, candidate_persisted_bytes=20,
-            requested_backend="turbovec", actual_backend="turbovec",
-            requested_provider="cpu", actual_provider="CPUExecutionProvider",
+            baseline_timings=timing, four_bit_timings=timing,
+            float32_vector_bytes=100, four_bit_persisted_bytes=20,
         )
 
         contradictions = [
@@ -410,10 +465,19 @@ class FixtureAndEvidenceTests(unittest.TestCase):
             lambda: RankingMetrics(1.01, 1, 1),
             lambda: ColdWarmTimings(None, evidence.baseline.timings.warm),
             lambda: replace(evidence.baseline, metrics=None),
-            lambda: replace(evidence.baseline, requested_backend="C:private"),
+            lambda: replace(evidence.baseline, requested_backend="turbovec"),
+            lambda: replace(
+                evidence,
+                baseline=replace(
+                    evidence.baseline,
+                    metrics=replace(evidence.baseline.metrics, recall_at_k=0.9),
+                ),
+            ),
+            lambda: replace(evidence.four_bit, actual_backend="float32"),
+            lambda: replace(evidence.two_bit, bits=4),
             lambda: replace(evidence, baseline=replace(evidence.baseline, query_count=2)),
             lambda: replace(evidence.baseline, top_k=0),
-            lambda: StorageEvidence(100, 0, 0),
+            lambda: StorageEvidence("turbovec-4bit", 4, 100, 0, 0),
             lambda: GateCriterion("recall_at_10", 0.9, 0.85, "<=", True),
             lambda: GateCriterion("recall_at_10", 0.9, 0.85, ">=", False),
             lambda: GateResult(True, evidence.gate.criteria[:-1]),
@@ -424,9 +488,19 @@ class FixtureAndEvidenceTests(unittest.TestCase):
                 evidence,
                 top_k=5,
                 baseline=replace(evidence.baseline, top_k=5),
-                candidate=replace(evidence.candidate, top_k=5),
+                candidates=tuple(replace(route, top_k=5) for route in evidence.candidates),
             ),
-            lambda: replace(evidence, candidate=replace(evidence.candidate, route="float32")),
+            lambda: replace(evidence, candidates=evidence.candidates[:1]),
+            lambda: replace(evidence, candidates=(evidence.two_bit, evidence.two_bit)),
+            lambda: replace(evidence, storage=evidence.storage[:1]),
+            lambda: replace(evidence, storage=(evidence.two_bit_storage, evidence.two_bit_storage)),
+            lambda: replace(
+                evidence,
+                storage=(
+                    replace(evidence.two_bit_storage, float32_vector_bytes=200, size_ratio=0.0625),
+                    evidence.four_bit_storage,
+                ),
+            ),
             lambda: replace(evidence, gate=evaluate_gate(GateMetrics(0.9, 1, 0, 0.2, 1))),
         ]
         for index, forge in enumerate(contradictions):

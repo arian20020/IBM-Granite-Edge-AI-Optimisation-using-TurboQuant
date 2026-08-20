@@ -33,3 +33,43 @@ No passage here names a capital city, a chief executive, a current stock price, 
 Controlled summary
 
 For this fixture, the supported conclusion is deliberately narrow: Granite is a family of open source language models. The remaining paragraphs explain how that statement can participate in a reproducible local retrieval comparison. They provide nearby technical distractors about quantization, identities, privacy, and deterministic evidence. A lookup query should find the direct statement, a paraphrase should connect to the clarification, and an unsupported question should retain an empty relevance judgement instead of borrowing an unrelated passage.
+
+Artifact provenance distractor
+
+An artifact record can contain a cryptographic digest, a format label, and a controlled package version. Those details help reproduce a run but do not answer what Granite is. The digest is represented here only as a concept; this fixture contains no real package hash, download address, credential, or private cache location. Retrieval should prefer the direct language-model passage for a model-family question and treat provenance vocabulary as nearby technical distractor material.
+
+Hardware selection distractor
+
+Processor names, accelerator labels, and execution providers describe where a workload ran. They are not evidence that Granite has a particular parameter count or that one route is always faster. A benchmark records the provider it actually observed, even when it differs from the requested provider. This controlled paragraph adds hardware-related terms so a query about open source language models must rely on semantics instead of matching every occurrence of the generic words model and runtime.
+
+Prompt handling distractor
+
+A command-line prompt may be entered interactively or supplied through an approved argument contract. Prompt handling should preserve Unicode, cancellation, and deterministic error behavior. None of those interface details changes the supported Granite statement. Generated benchmark evidence avoids raw prompt text, while the public evaluation fixture contains only bounded synthetic questions. The distinction provides a privacy control and a distractor for searches involving the words input, question, or local.
+
+Versioning distractor
+
+Schema version 1 identifies the shape of the benchmark evidence, not the release number of a Granite model. A schema can remain stable while model artifacts change, and a model family can remain the same while a reporting format evolves. This passage deliberately repeats version and model in a context that should not satisfy a question asking for an actual model release date. No release date is provided anywhere in the fixture.
+
+Quality comparison distractor
+
+Recall, reciprocal rank, and hit rate describe retrieval rankings rather than language generation quality. Storage ratio describes persisted vectors rather than model weights. Latency ratio describes matched vector-search calls rather than end-to-end response time. These distinctions give the corpus realistic technical density while preserving a simple source-grounded answer: Granite is an open source family of language models. A semantic retriever should separate that answer from measurement definitions.
+
+Failure handling distractor
+
+Expected operational failures use bounded codes such as an invalid fixture or an unavailable dependency. Fixed codes prevent local exception strings from exposing private details and make automated assertions deterministic. Failure handling is relevant to the research tool but not to the identity of Granite. The corpus intentionally includes this repeated discussion of safe reporting so irrelevant passages can occupy candidate rankings and exercise a meaningful low-recall case.
+
+Reproducibility distractor
+
+Reproducibility requires ordered inputs, stable chunk boundaries, fixed embedding identity, and explicit backend observations. A second run should use the same controlled files and query order. Reproducibility does not imply identical performance across different machines, and it does not add unsupported facts about the model family. This section is long enough to form an independent chunk and acts as a distractor for generic queries about tests or evidence.
+
+Deployment boundary distractor
+
+The research benchmark does not install drivers, download models, or alter production configuration. It operates on preapproved local inputs and reports aggregate evidence. A separate product decision determines whether a validated route is suitable for deployment. This boundary prevents an experimental vector result from being presented as a production guarantee. It also adds deployment vocabulary without claiming that Granite requires a specific operating system or processor vendor.
+
+Repeated family statement
+
+Granite language models are described here once more as an open source model family so paraphrase retrieval has support across more than one bounded region. The repetition is controlled rather than accidental: chunk identifiers remain different because source coordinates differ, and relevant_sources still names only granite.txt. The repeated statement must not cause duplicate ranking identifiers, and it must not turn unrelated questions about geography or current events into supported queries.
+
+Final omission control
+
+The final Granite section confirms what remains absent. There is no named city, no weather measurement, no financial quote, no employee record, and no exact model parameter count. A retrieval candidate may still return this passage because it contains the phrase parameter count, but the evaluation judgement for that unsupported question remains empty. This is a deliberate hard negative that checks whether reporting follows approved relevance instead of guessing from lexical overlap.

@@ -37,3 +37,43 @@ Evaluation sources are canonical portable relative file identities ending in .tx
 ## Deterministic output
 
 Canonical JSON uses schema version 1, finite numeric values, stable field ordering, and no dataclass internals. A Markdown summary is derived from the same validated evidence. Requested and actual backend or provider labels remain explicit, so a fallback cannot masquerade as the requested acceleration route. These reporting rules are separate from retrieval quality and do not create relevance for unsupported questions.
+
+## Candidate route distractor
+
+A two-bit candidate and a four-bit candidate are evaluated beside one float32 baseline. Each candidate has its own ranking metrics, timing summary, storage evidence, and explicit bit identity. Only the four-bit candidate feeds the release gate, but the two-bit result remains visible for analysis. Keeping both routes in one matched suite prevents evidence from separate corpora or query orders from being presented as a coherent comparison.
+
+## Ordering distractor
+
+Rankings contain stable unique identifiers in descending relevance order. A reversed ordering can preserve Recall at 10 when it contains the same ten identifiers while changing reciprocal rank. A disjoint top ten can reduce Recall at 10 to zero when the controlled corpus has at least twenty chunks. Both situations are useful tests: one isolates ordering quality and the other proves the recall threshold can actually fail on the fixture.
+
+## Quantile distractor
+
+The timing median uses the conventional definition, averaging the two middle sorted samples when the count is even. The p95 uses the deterministic nearest-rank definition at sorted index ceiling of ninety-five percent times sample count, minus one. These timing rules are deliberately documented in retrieval.md but do not themselves make a chunk relevant to a question about the Granite model family.
+
+## Provider honesty distractor
+
+Requested provider and actual provider are separate bounded identity fields. They may differ when the runtime honestly reports a fallback, while route and backend identities cannot be relabeled. A float32 route remains float32, a two-bit route remains TurboVec two-bit, and a four-bit route remains TurboVec four-bit. This distinction prevents an accelerated label from being inferred merely because acceleration was requested.
+
+## Corpus discovery distractor
+
+Document discovery accepts only supported UTF-8 text and Markdown files under controlled byte and count limits. It sorts portable relative identities deterministically and rejects unsafe links or races. Discovery is performed before chunking, but file enumeration is not a retrieval metric. This paragraph adds file-system terminology as realistic distractor content while keeping the fixture limited to granite.txt and retrieval.md.
+
+## Chunk boundary distractor
+
+Default chunking uses a maximum of twelve hundred characters with two hundred characters of overlap. Preferred paragraph, newline, and whitespace boundaries keep text readable while source coordinates preserve identity. The expanded fixture intentionally emits at least twenty unique default chunks, allowing one top-ten ranking to be compared with another disjoint top-ten ranking without inventing identifiers outside the corpus.
+
+## Serialization distractor
+
+Stable JSON ordering makes evidence easy to hash and compare. Serialization rejects NaN, Infinity, invalid route combinations, contradictory gate values, and private path-like identities. Markdown is a view of the same validated object rather than an independent calculation. These rules protect evidence integrity, but a query about relevant chunks should still rank the direct retrieval definition above this reporting-focused passage.
+
+## Gate arithmetic distractor
+
+The four-bit gate recomputes ratios from represented values. Candidate MRR is divided by baseline MRR, candidate persisted bytes are divided by float32 vector bytes, and candidate warm median is divided by baseline warm median. Zero denominators fail closed. Hit delta subtracts baseline Hit at 5 from candidate Hit at 5 with a tiny absolute tolerance only at the declared minus five-percent boundary.
+
+## Wrong-answer distractor
+
+A distractor can be syntactically valid, contain familiar terms, and still lack judged relevance. The fixture includes passages about schemas, providers, storage, and chunking so a poorly aligned ranking has credible alternatives to the relevant definition. No-supported-answer queries keep an empty source list even when a passage repeats a word from the question. This prevents benchmark code from treating lexical coincidence as ground truth.
+
+## Retrieval recap
+
+Retrieval finds relevant chunks for a query, and the controlled paraphrase says that retrieval locates useful text segments for a question. Those two sentences support the evaluation queries assigned to retrieval.md. The surrounding sections create enough independent chunks and distractors for Recall at 10, MRR, and Hit at 5 to move separately. Stable source judgements, not raw text copied into output, determine which returned identifiers count as relevant.
