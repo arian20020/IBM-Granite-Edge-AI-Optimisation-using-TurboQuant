@@ -96,4 +96,17 @@ public sealed class ModelSelectionOperationTests
 
         Assert.ThrowsExactly<ObjectDisposedException>(() => _ = operation.Token);
     }
+
+    [TestMethod]
+    public void CompleteThenDispose_ReleasesCancellationSource()
+    {
+        var operation = new ModelSelectionOperation();
+        CancellationToken token = operation.Token;
+
+        operation.Complete();
+        operation.Dispose();
+
+        Assert.IsTrue(token.IsCancellationRequested);
+        Assert.ThrowsExactly<ObjectDisposedException>(() => _ = operation.Token);
+    }
 }
