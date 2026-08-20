@@ -6,6 +6,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace granite::official_worker {
@@ -18,6 +19,23 @@ inline constexpr std::string_view official_protocol = "openvino.official/1";
 class protocol_error final : public std::runtime_error {
 public:
     using std::runtime_error::runtime_error;
+};
+
+class worker_failure final : public std::runtime_error {
+public:
+    worker_failure(std::string support_code, bool fatal, std::string message)
+        : std::runtime_error(std::move(message)),
+          support_code_(std::move(support_code)),
+          fatal_(fatal) {}
+
+    [[nodiscard]] const std::string& support_code() const noexcept {
+        return support_code_;
+    }
+    [[nodiscard]] bool fatal() const noexcept { return fatal_; }
+
+private:
+    std::string support_code_;
+    bool fatal_;
 };
 
 enum class input_pipe_state { empty, available, closed };

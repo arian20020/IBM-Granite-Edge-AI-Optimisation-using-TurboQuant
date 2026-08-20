@@ -12,6 +12,7 @@ public sealed class OpenVinoConversationValidator
     private Guid? _pendingTurnId;
     private Guid? _activeTurnId;
     private string? _protocolId;
+    private OpenVinoBuildEvidence? _helloBuildEvidence;
     private string? _packageManifestDigest;
     private string? _modelSha256;
     private long _modelLengthBytes;
@@ -118,6 +119,7 @@ public sealed class OpenVinoConversationValidator
             case HelloEvent hello:
                 RequireState(ConversationState.AwaitingHello, "hello must be first and occur once");
                 _protocolId = hello.ProtocolId;
+                _helloBuildEvidence = hello.BuildEvidence;
                 _state = ConversationState.AwaitingStart;
                 break;
             case InspectionStartedEvent started:
@@ -175,7 +177,8 @@ public sealed class OpenVinoConversationValidator
                     string.Equals(
                         started.ActualExecutionDevices[0],
                         _requestedDevice,
-                        StringComparison.Ordinal),
+                        StringComparison.Ordinal) &&
+                    started.BuildEvidence == _helloBuildEvidence,
                     "sessionStarted runtime evidence must match the request.");
                 _state = ConversationState.SessionReady;
                 break;
@@ -207,6 +210,11 @@ public sealed class OpenVinoConversationValidator
                 OpenVinoProtocol.Require(
                     completed.GeneratedTokenCount <= _requestedNewTokens,
                     "turnCompleted generated token count must not exceed the prompt request.");
+                OpenVinoProtocol.Require(
+                    completed.PromptTokenCount <= _maximumContextTokens &&
+                    completed.GeneratedTokenCount <=
+                        _maximumContextTokens - completed.PromptTokenCount,
+                    "turnCompleted prompt and generated token counts must fit the session context limit.");
                 OpenVinoProtocol.Require(
                     completed.Disposition ==
                         (_state == ConversationState.Stopping
@@ -271,6 +279,9 @@ public sealed class OpenVinoConversationValidator
                 StringComparison.Ordinal) &&
             completed.ModelLengthBytes == _modelLengthBytes,
             "inspection completion identity must match the request.");
+        OpenVinoProtocol.Require(
+            completed.BuildEvidence == _helloBuildEvidence,
+            "inspection completion build evidence must match hello.");
         CompleteInspection(completed.InspectionRunId);
     }
 

@@ -63,6 +63,46 @@ if(BUILD_TESTING)
         set_tests_properties(openvino_official_two_turn_fixture PROPERTIES
             ENVIRONMENT_MODIFICATION
                 "PATH=path_list_prepend:${official_runtime_root}/bin/intel64/Release;PATH=path_list_prepend:${official_runtime_root}/3rdparty/tbb/bin")
+
+        add_executable(openvino_official_lease_tests tests/lease_tests.cpp)
+        target_compile_features(openvino_official_lease_tests PRIVATE cxx_std_20)
+        target_include_directories(openvino_official_lease_tests PRIVATE src "${NLOHMANN_JSON_INCLUDE_DIR}")
+        target_link_libraries(openvino_official_lease_tests PRIVATE openvino_official_core)
+        if(MSVC)
+            target_compile_options(openvino_official_lease_tests PRIVATE /W4 /WX /utf-8)
+        endif()
+        add_custom_command(TARGET openvino_official_lease_tests POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                "${official_runtime_root}/bin/intel64/Release/openvino_tokenizers.dll"
+                "$<TARGET_FILE_DIR:openvino_official_lease_tests>/openvino_tokenizers.dll"
+            VERBATIM)
+        add_custom_command(TARGET openvino_official_api_probe POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                "${official_runtime_root}/bin/intel64/Release/openvino_tokenizers.dll"
+                "$<TARGET_FILE_DIR:openvino_official_api_probe>/openvino_tokenizers.dll"
+            VERBATIM)
+        add_test(
+            NAME openvino_official_lease_tests
+            COMMAND openvino_official_lease_tests "${OFFICIAL_FIXTURE_PACKAGE}")
+        set_tests_properties(openvino_official_lease_tests PROPERTIES
+            ENVIRONMENT_MODIFICATION
+                "PATH=path_list_prepend:${official_runtime_root}/bin/intel64/Release;PATH=path_list_prepend:${official_runtime_root}/3rdparty/tbb/bin")
+
+        if(DEFINED OFFICIAL_WORKER_STAGE)
+            add_executable(openvino_official_runtime_lease_tests tests/runtime_lease_tests.cpp)
+            target_compile_features(openvino_official_runtime_lease_tests PRIVATE cxx_std_20)
+            target_include_directories(openvino_official_runtime_lease_tests PRIVATE src "${NLOHMANN_JSON_INCLUDE_DIR}")
+            target_link_libraries(openvino_official_runtime_lease_tests PRIVATE openvino_official_core)
+            if(MSVC)
+                target_compile_options(openvino_official_runtime_lease_tests PRIVATE /W4 /WX /utf-8)
+            endif()
+            add_test(
+                NAME openvino_official_runtime_lease_tests
+                COMMAND openvino_official_runtime_lease_tests "${OFFICIAL_WORKER_STAGE}")
+            set_tests_properties(openvino_official_runtime_lease_tests PROPERTIES
+                ENVIRONMENT_MODIFICATION
+                    "PATH=path_list_prepend:${official_runtime_root}/bin/intel64/Release;PATH=path_list_prepend:${official_runtime_root}/3rdparty/tbb/bin")
+        endif()
     endif()
 endif()
 

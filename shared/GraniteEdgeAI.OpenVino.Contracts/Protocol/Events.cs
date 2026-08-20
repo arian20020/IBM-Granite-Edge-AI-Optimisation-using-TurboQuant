@@ -10,14 +10,26 @@ public interface IOpenVinoEvent
     void Validate();
 }
 
-public sealed record HelloEvent(string ProtocolId) : IOpenVinoEvent
+public sealed record HelloEvent(
+    string ProtocolId,
+    OpenVinoBuildEvidence BuildEvidence) : IOpenVinoEvent
 {
     [JsonPropertyName("eventType")]
     public string EventType => "hello";
 
-    public void Validate() => OpenVinoProtocol.Require(
-        ProtocolId is OpenVinoProtocol.OfficialProtocolId or OpenVinoProtocol.TurboQuantProtocolId,
-        nameof(ProtocolId) + " must be an approved OpenVINO protocol identity.");
+    public void Validate()
+    {
+        OpenVinoProtocol.Require(
+            ProtocolId is OpenVinoProtocol.OfficialProtocolId or OpenVinoProtocol.TurboQuantProtocolId,
+            nameof(ProtocolId) + " must be an approved OpenVINO protocol identity.");
+        if (BuildEvidence is null)
+        {
+            throw new OpenVinoProtocolException(
+                nameof(BuildEvidence) + " must be present.");
+        }
+
+        BuildEvidence.Validate();
+    }
 }
 
 public enum OpenVinoInspectionStage

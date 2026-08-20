@@ -1,5 +1,7 @@
 using System.Diagnostics;
 using System.Reflection;
+using System.Security.Cryptography;
+using System.Text.Json;
 using GraniteEdgeAI.ModelInspection.WorkerClient.ProtectedWorker;
 using GraniteEdgeAI.OpenVino.Contracts;
 using GraniteEdgeAI.OpenVino.WorkerClient;
@@ -440,6 +442,7 @@ public sealed class ProtocolContainmentTests
 
     [TestMethod]
     [DataRow("wrong-protocol")]
+    [DataRow("wrong-build-evidence")]
     [DataRow("malformed-line")]
     [DataRow("oversized-line")]
     [DataRow("stdout-after-terminal")]
@@ -633,7 +636,9 @@ public sealed class ProtocolContainmentTests
         OpenVinoWorkerInstallation installation = new(
             root,
             "GraniteEdgeAI.OpenVino.ProtocolTestWorker.exe",
-            OpenVinoProtocol.OfficialProtocolId);
+            OpenVinoProtocol.OfficialProtocolId,
+            FixtureBuildEvidence(root),
+            ["GraniteEdgeAI.OpenVino.ProtocolTestWorker.exe"]);
         OpenVinoWorkerClientOptions options = new(
             installation,
             TimeSpan.FromMilliseconds(startupMs),
@@ -646,6 +651,15 @@ public sealed class ProtocolContainmentTests
             OpenVinoProtocol.MaximumLineBytes);
         return new OpenVinoWorkerClient(options);
     }
+
+    private static OpenVinoBuildEvidence FixtureBuildEvidence(string root) => new(
+        "fixture-runtime-2026.3.0",
+        "fixture-genai-2026.3.0.0",
+        "fixture-tokenizers-2026.3.0.0",
+        Sha256(Path.Combine(root, "worker-manifest.json")));
+
+    private static string Sha256(string path) => Convert.ToHexString(
+        SHA256.HashData(File.ReadAllBytes(path))).ToLowerInvariant();
 
     private static void PublishWatchdogTimeoutOutcome(
         OpenVinoConversation conversation)
@@ -811,9 +825,38 @@ public sealed class ProtocolContainmentTests
             }
 
             File.WriteAllText(Path.Combine(Root, "scenario.txt"), scenario);
+            WriteManifest();
         }
 
         internal string Root { get; }
+
+        private void WriteManifest()
+        {
+            object[] files = Directory.EnumerateFiles(
+                    Root,
+                    "*",
+                    SearchOption.AllDirectories)
+                .Where(path => !string.Equals(
+                    Path.GetFileName(path),
+                    "worker-manifest.json",
+                    StringComparison.OrdinalIgnoreCase))
+                .Select(path => new
+                {
+                    path,
+                    relative = Path.GetRelativePath(Root, path).Replace('\\', '/')
+                })
+                .OrderBy(item => item.relative, StringComparer.Ordinal)
+                .Select(item => (object)new
+                {
+                    path = item.relative,
+                    length = new FileInfo(item.path).Length,
+                    sha256 = Sha256(item.path)
+                })
+                .ToArray();
+            File.WriteAllText(
+                Path.Combine(Root, "worker-manifest.json"),
+                JsonSerializer.Serialize(new { schemaVersion = 1, files }));
+        }
 
         internal string MarkerPath(string name) =>
             Path.Combine(Root, name + ".marker");

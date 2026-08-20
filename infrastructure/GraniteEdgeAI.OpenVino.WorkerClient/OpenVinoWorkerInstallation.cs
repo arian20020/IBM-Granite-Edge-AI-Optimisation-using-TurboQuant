@@ -6,7 +6,9 @@ namespace GraniteEdgeAI.OpenVino.WorkerClient;
 public sealed record OpenVinoWorkerInstallation(
     string ApprovedWorkerRoot,
     string WorkerExecutableRelativePath,
-    string ExpectedProtocolId)
+    string ExpectedProtocolId,
+    OpenVinoBuildEvidence ExpectedBuildEvidence,
+    IReadOnlyList<string> ExpectedAmd64Binaries)
 {
     public void Validate()
     {
@@ -33,6 +35,34 @@ public sealed record OpenVinoWorkerInstallation(
             throw new ArgumentException(
                 "The expected protocol must identify one approved OpenVINO route.",
                 nameof(ExpectedProtocolId));
+        }
+
+        ArgumentNullException.ThrowIfNull(ExpectedBuildEvidence);
+        ExpectedBuildEvidence.Validate();
+        ArgumentNullException.ThrowIfNull(ExpectedAmd64Binaries);
+        if (ExpectedAmd64Binaries.Count == 0 ||
+            !ExpectedAmd64Binaries.Contains(
+                WorkerExecutableRelativePath.Replace('\\', '/'),
+                StringComparer.Ordinal))
+        {
+            throw new ArgumentException(
+                "The AMD64 binary policy must include the worker executable.",
+                nameof(ExpectedAmd64Binaries));
+        }
+
+        HashSet<string> binaries = new(StringComparer.Ordinal);
+        foreach (string binary in ExpectedAmd64Binaries)
+        {
+            if (string.IsNullOrWhiteSpace(binary) ||
+                Path.IsPathRooted(binary) || binary.Contains('\\') ||
+                binary.Contains('\0') || binary.Split('/').Any(segment =>
+                    string.IsNullOrEmpty(segment) || segment is "." or "..") ||
+                !binaries.Add(binary))
+            {
+                throw new ArgumentException(
+                    "The AMD64 binary policy must be a closed relative list.",
+                    nameof(ExpectedAmd64Binaries));
+            }
         }
     }
 }

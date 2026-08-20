@@ -2,12 +2,16 @@
 
 #include <atomic>
 #include <cstddef>
+#include <condition_variable>
 #include <filesystem>
 #include <memory>
+#include <mutex>
 #include <string>
 
 #include <nlohmann/json.hpp>
 #include <openvino/genai/llm_pipeline.hpp>
+
+#include "package_inspector.hpp"
 
 namespace granite::official_worker {
 
@@ -35,6 +39,10 @@ private:
 struct turn_control final {
     std::atomic_bool stop{false};
     std::atomic_bool cancel{false};
+    std::mutex mutex;
+    std::condition_variable changed;
+
+    void notify() noexcept { changed.notify_all(); }
 };
 
 struct turn_result final {
@@ -50,9 +58,10 @@ struct turn_result final {
 class official_session final {
 public:
     official_session(
-        const std::filesystem::path& package,
+        package_lease package,
         std::size_t model_context,
-        std::size_t c1_context);
+        std::size_t c1_context,
+        native_load_observer observer = {});
     ~official_session();
     official_session(const official_session&) = delete;
     official_session& operator=(const official_session&) = delete;
@@ -65,7 +74,8 @@ public:
         turn_control& control);
 
 private:
-    std::filesystem::path package_;
+    package_lease package_;
+    native_load_observer observer_;
     ov::genai::ChatHistory history_;
     std::size_t model_context_;
     std::size_t c1_context_;

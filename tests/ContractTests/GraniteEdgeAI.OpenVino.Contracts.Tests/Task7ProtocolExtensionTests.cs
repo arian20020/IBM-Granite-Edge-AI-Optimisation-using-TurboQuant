@@ -23,6 +23,35 @@ public sealed class Task7ProtocolExtensionTests
         "1111111111111111111111111111111111111111111111111111111111111111";
 
     [TestMethod]
+    public void HelloCarriesBuildEvidenceInOneClosedAtomicWireLiteral()
+    {
+        HelloEvent hello = new(OpenVinoProtocol.OfficialProtocolId, BuildEvidence());
+        const string json = """{"protocolId":"openvino.official/1","buildEvidence":{"runtimeBuild":"2026.3.0-22451-8a17657b995-releases/2026/3","genAiBuild":"2026.3.0.0-3277-bd8d6542e3c","tokenizersBuild":"2026.3.0.0-703-183c6f25cda","workerManifestDigest":"1111111111111111111111111111111111111111111111111111111111111111"},"eventType":"hello"}""";
+
+        Assert.AreEqual(json, Encoding.UTF8.GetString(OpenVinoProtocolJson.Serialize(hello)));
+        Assert.AreEqual(hello, OpenVinoProtocolJson.DeserializeEvent(Encoding.UTF8.GetBytes(json)));
+    }
+
+    [TestMethod]
+    public void TurnCompletionRejectsCombinedPromptAndGeneratedCountsAboveContext()
+    {
+        OpenVinoConversationValidator validator = new();
+        validator.Accept(Hello());
+        validator.Accept(StartSession());
+        validator.Accept(SessionStarted());
+        validator.Accept(new PromptCommand(SessionId, TurnId, "hello", 2));
+        validator.Accept(new GenerationStartedEvent(SessionId, TurnId));
+
+        Assert.ThrowsExactly<OpenVinoProtocolException>(() => validator.Accept(
+            new TurnCompletedEvent(
+                SessionId,
+                TurnId,
+                63,
+                2,
+                OpenVinoTurnDisposition.Completed)));
+    }
+
+    [TestMethod]
     public void ExtendedCommandsSerializeToIndependentClosedWireLiterals()
     {
         (IOpenVinoCommand Value, string Json)[] commands =
@@ -107,7 +136,7 @@ public sealed class Task7ProtocolExtensionTests
     public void InspectionAndIdleCloseFollowTheExtendedOrderedConversation()
     {
         OpenVinoConversationValidator inspection = new();
-        inspection.Accept(new HelloEvent(OpenVinoProtocol.OfficialProtocolId));
+        inspection.Accept(Hello());
         inspection.Accept(StartInspection());
         inspection.Accept(new InspectionStartedEvent(RunId));
         inspection.Accept(new InspectionProgressEvent(
@@ -126,7 +155,7 @@ public sealed class Task7ProtocolExtensionTests
         Assert.IsTrue(inspection.IsTerminal);
 
         OpenVinoConversationValidator session = new();
-        session.Accept(new HelloEvent(OpenVinoProtocol.OfficialProtocolId));
+        session.Accept(Hello());
         session.Accept(StartSession());
         session.Accept(SessionStarted());
         session.Accept(new CloseSessionCommand(SessionId));
@@ -138,7 +167,7 @@ public sealed class Task7ProtocolExtensionTests
     public void InspectionRejectsSkippedOrRepeatedProgressStagesAndMismatchedIdentity()
     {
         OpenVinoConversationValidator validator = new();
-        validator.Accept(new HelloEvent(OpenVinoProtocol.OfficialProtocolId));
+        validator.Accept(Hello());
         validator.Accept(StartInspection());
         validator.Accept(new InspectionStartedEvent(RunId));
 
@@ -148,7 +177,7 @@ public sealed class Task7ProtocolExtensionTests
                 OpenVinoInspectionStage.TokenizerParsed)));
 
         OpenVinoConversationValidator identity = new();
-        identity.Accept(new HelloEvent(OpenVinoProtocol.OfficialProtocolId));
+        identity.Accept(Hello());
         identity.Accept(StartInspection());
         identity.Accept(new InspectionStartedEvent(RunId));
         identity.Accept(new InspectionProgressEvent(
@@ -193,6 +222,10 @@ public sealed class Task7ProtocolExtensionTests
         "2026.3.0.0-3277-bd8d6542e3c",
         "2026.3.0.0-703-183c6f25cda",
         WorkerDigest);
+
+    private static HelloEvent Hello() => new(
+        OpenVinoProtocol.OfficialProtocolId,
+        BuildEvidence());
 
     private static InspectionCompletedEvent InspectionCompleted() => new(
         RunId,

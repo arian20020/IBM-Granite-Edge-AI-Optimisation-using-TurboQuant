@@ -20,7 +20,7 @@ public sealed class ProtocolSequenceTests
     {
         OpenVinoConversationValidator validator = new();
 
-        validator.Accept(new HelloEvent(OpenVinoProtocol.OfficialProtocolId));
+        validator.Accept(Hello());
         validator.Accept(StartSession());
         Assert.ThrowsExactly<OpenVinoProtocolException>(() => validator.Accept(StartSession()));
         validator.Accept(SessionStarted());
@@ -67,7 +67,7 @@ public sealed class ProtocolSequenceTests
     public void ConversationRejectsSessionStartWithoutExactlyOnePrecedingStartCommand()
     {
         OpenVinoConversationValidator validator = new();
-        validator.Accept(new HelloEvent(OpenVinoProtocol.OfficialProtocolId));
+        validator.Accept(Hello());
 
         Assert.ThrowsExactly<OpenVinoProtocolException>(() =>
             validator.Accept(SessionStarted()));
@@ -101,7 +101,7 @@ public sealed class ProtocolSequenceTests
     {
         OpenVinoConversationValidator validator = new();
 
-        validator.Accept(new HelloEvent(OpenVinoProtocol.OfficialProtocolId));
+        validator.Accept(Hello());
         validator.Accept(StartInspection());
         validator.Accept(new InspectionStartedEvent(RunId));
         validator.Accept(new InspectionProgressEvent(RunId, OpenVinoInspectionStage.ManifestVerified));
@@ -168,7 +168,7 @@ public sealed class ProtocolSequenceTests
     private static OpenVinoConversationValidator StartedSession()
     {
         OpenVinoConversationValidator validator = new();
-        validator.Accept(new HelloEvent(OpenVinoProtocol.OfficialProtocolId));
+        validator.Accept(Hello());
         validator.Accept(StartSession());
         validator.Accept(SessionStarted());
         return validator;
@@ -196,6 +196,10 @@ public sealed class ProtocolSequenceTests
         "2026.3.0.0-3277-bd8d6542e3c",
         "2026.3.0.0-703-183c6f25cda",
         WorkerDigest);
+
+    private static HelloEvent Hello() => new(
+        OpenVinoProtocol.OfficialProtocolId,
+        BuildEvidence());
 
     private static SessionStartedEvent SessionStarted() => new(
         SessionId,

@@ -68,13 +68,10 @@ try {
 
     $nativeBuild = Join-Path $buildRoot 'native'
     $fixturePackage = Join-Path $repositoryRoot 'tests\TestFixtures\OpenVINO\GenAI\TinySyntheticV1\package'
-    & $cmake -S (Join-Path $repositoryRoot 'workers\OpenVinoOfficial.Worker') -B $nativeBuild -G 'Visual Studio 17 2022' -A x64 "-DCMAKE_PREFIX_PATH=$runtime" "-DNLOHMANN_JSON_INCLUDE_DIR=$jsonInclude" "-DOFFICIAL_FIXTURE_PACKAGE=$fixturePackage"
+    & $cmake -S (Join-Path $repositoryRoot 'workers\OpenVinoOfficial.Worker') -B $nativeBuild -G 'Visual Studio 17 2022' -A x64 "-DCMAKE_PREFIX_PATH=$runtime" "-DNLOHMANN_JSON_INCLUDE_DIR=$jsonInclude" "-DOFFICIAL_FIXTURE_PACKAGE=$fixturePackage" "-DOFFICIAL_WORKER_STAGE=$stageRoot"
     if ($LASTEXITCODE -ne 0) { Stop-Build }
     & $cmake --build $nativeBuild --config Release --parallel
     if ($LASTEXITCODE -ne 0) { Stop-Build }
-    & (Join-Path (Split-Path $cmake) 'ctest.exe') --test-dir $nativeBuild -C Release --output-on-failure
-    if ($LASTEXITCODE -ne 0) { Stop-Build }
-
     $releaseBin = Join-Path $runtime 'bin\intel64\Release'
     $copyMap = @{
         (Join-Path $nativeBuild 'Release\OpenVinoOfficial.Worker.exe') = 'OpenVinoOfficial.Worker.exe'
@@ -109,6 +106,8 @@ try {
     if ($LASTEXITCODE -ne 0 -or [string]$manifestOutput -cne 'worker_manifest_created') { Stop-Build }
     $verifyOutput = & $windowsPowerShell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'Test-OpenVinoOfficialWorkerManifest.ps1') -StageDirectory $stageRoot
     if ($LASTEXITCODE -ne 0 -or [string]$verifyOutput -cne 'worker_manifest_valid') { Stop-Build }
+    & (Join-Path (Split-Path $cmake) 'ctest.exe') --test-dir $nativeBuild -C Release --output-on-failure
+    if ($LASTEXITCODE -ne 0) { Stop-Build }
     [Console]::Out.WriteLine('official_worker_built')
 }
 catch {

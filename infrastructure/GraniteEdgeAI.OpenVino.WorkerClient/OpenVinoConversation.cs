@@ -20,6 +20,7 @@ public sealed class OpenVinoConversation : IAsyncDisposable
     private readonly CancellationTokenSource _watchdogCancellation = new();
     private readonly Task _watchdogTask;
     private readonly OpenVinoTerminalCleanup _terminalCleanup;
+    private readonly VerifiedOpenVinoWorkerClosure _closure;
 
     private DateTimeOffset _lastActivityUtc = DateTimeOffset.UtcNow;
     private Guid? _activeTurnId;
@@ -35,7 +36,8 @@ public sealed class OpenVinoConversation : IAsyncDisposable
         Task processExit,
         OpenVinoConversationValidator validator,
         Guid sessionId,
-        OpenVinoWorkerClientOptions options)
+        OpenVinoWorkerClientOptions options,
+        VerifiedOpenVinoWorkerClosure closure)
     {
         _session = session;
         _stderrTask = stderrTask;
@@ -43,6 +45,7 @@ public sealed class OpenVinoConversation : IAsyncDisposable
         _validator = validator;
         _sessionId = sessionId;
         _options = options;
+        _closure = closure;
         _terminalCleanup = new OpenVinoTerminalCleanup(
             session,
             processExit,
@@ -407,6 +410,7 @@ public sealed class OpenVinoConversation : IAsyncDisposable
             _operationGate.Dispose();
             _terminalCleanup.Dispose();
             await _session.DisposeAsync().ConfigureAwait(false);
+            _closure.Dispose();
         }
     }
 

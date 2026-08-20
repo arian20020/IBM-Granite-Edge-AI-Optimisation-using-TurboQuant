@@ -7,10 +7,15 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace {
 
+constexpr std::string_view package_digest =
+    "b5316ac62e1e846b33ec92e5ad555859238af70ffd6b75aa50500995fbe15372";
+constexpr std::string_view model_digest =
+    "894dd0aac21e588d5cf78994d90aa0dcba8284626c976a4e0c89c0273b452c1c";
 constexpr std::string_view route_chat_template =
     "{{ bos_token }}{% for message in messages %}{{ message['content'] }}{% endfor %}";
 
@@ -35,7 +40,11 @@ int main(int argc, char** argv) {
         const std::filesystem::path package = std::filesystem::absolute(argv[1]);
         const std::string mode = argv[2];
         if (mode == "official" || mode == "official-async" || mode == "official-two") {
-            granite::official_worker::official_session session(package, 64U, 64U);
+            granite::official_worker::package_lease lease =
+                granite::official_worker::acquire_package(
+                    package, std::string(package_digest), std::string(model_digest), 88U);
+            granite::official_worker::official_session session(
+                std::move(lease), 64U, 64U);
             granite::official_worker::turn_control control;
             const auto generate = [&] {
                 return session.generate(

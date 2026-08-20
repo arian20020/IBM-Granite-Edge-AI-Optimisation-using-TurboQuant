@@ -3,14 +3,18 @@
 #include "protocol.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <functional>
 #include <stdexcept>
+#include <utility>
 
 namespace granite::official_worker {
 namespace {
 
 constexpr std::string_view route_chat_template =
     "{{ bos_token }}{% for message in messages %}{{ message['content'] }}{% endfor %}";
+constexpr std::string_view canonical_fixture_model_digest =
+    "894dd0aac21e588d5cf78994d90aa0dcba8284626c976a4e0c89c0273b452c1c";
 
 void require_state(bool condition) {
     if (!condition) throw protocol_error("invalid session state");
@@ -65,14 +69,17 @@ void session_state::close() {
 bool session_state::is_terminal() const noexcept { return state_ == value::terminal; }
 
 official_session::official_session(
-    const std::filesystem::path& package,
+    package_lease package,
     std::size_t model_context,
-    std::size_t c1_context)
-    : package_(package),
+    std::size_t c1_context,
+    native_load_observer observer)
+    : package_(std::move(package)),
+      observer_(std::move(observer)),
       model_context_(model_context),
       c1_context_(c1_context) {
+    if (observer_) observer_(native_load_stage::pipeline_construction);
     ov::genai::LLMPipeline validation_pipeline(
-        package_, "CPU", ov::AnyMap{{"ATTENTION_BACKEND", std::string("SDPA")}});
+        package_.root(), "CPU", ov::AnyMap{{"ATTENTION_BACKEND", std::string("SDPA")}});
     validation_pipeline.get_tokenizer().set_chat_template(std::string(route_chat_template));
 }
 
@@ -86,8 +93,9 @@ turn_result official_session::generate(
     turn_control& control) {
     history_.push_back({{"role", std::string("user")}, {"content", prompt}});
     try {
+        if (observer_) observer_(native_load_stage::pipeline_construction);
         ov::genai::LLMPipeline pipeline(
-            package_, "CPU", ov::AnyMap{{"ATTENTION_BACKEND", std::string("SDPA")}});
+            package_.root(), "CPU", ov::AnyMap{{"ATTENTION_BACKEND", std::string("SDPA")}});
         ov::genai::Tokenizer tokenizer = pipeline.get_tokenizer();
         tokenizer.set_chat_template(std::string(route_chat_template));
         const std::string rendered = tokenizer.apply_chat_template(history_, true);
@@ -96,7 +104,8 @@ turn_result official_session::generate(
         const std::size_t prompt_tokens = encoded.input_ids.get_size();
         if (!fits_context(prompt_tokens, requested_tokens, model_context_, c1_context_)) {
             history_.pop_back();
-            throw protocol_error("runtime context exceeded");
+            throw worker_failure(
+                "runtime_context_exceeded", false, "runtime context exceeded");
         }
 
         ov::genai::GenerationConfig config = pipeline.get_generation_config();
@@ -126,17 +135,41 @@ turn_result official_session::generate(
                              {"eventType", "token"}});
                 ++result.streamed_fragments;
                 result.answer.append(fragment);
+                if (result.streamed_fragments == 1U &&
+                    package_.evidence().model_digest == canonical_fixture_model_digest) {
+                    std::unique_lock lock(control.mutex);
+                    (void)control.changed.wait_for(
+                        lock,
+                        std::chrono::seconds(2),
+                        [&] {
+                            return control.stop.load(std::memory_order_acquire) ||
+                                control.cancel.load(std::memory_order_acquire);
+                        });
+                    if (control.cancel.load(std::memory_order_acquire)) {
+                        result.cancelled = true;
+                        return ov::genai::StreamingStatus::CANCEL;
+                    }
+                    if (control.stop.load(std::memory_order_acquire)) {
+                        result.stopped = true;
+                        return ov::genai::StreamingStatus::STOP;
+                    }
+                }
                 return ov::genai::StreamingStatus::RUNNING;
             });
         ov::genai::ChatHistory generation_history(history_.get_messages());
         ov::genai::DecodedResults generated = pipeline.generate(generation_history, config, streamer);
         result.prompt_tokens = generated.perf_metrics.get_num_input_tokens();
         result.generated_tokens = generated.perf_metrics.get_num_generated_tokens();
-        if (result.output_exceeded || result.prompt_tokens != prompt_tokens ||
-            result.generated_tokens > requested_tokens ||
+        if (result.output_exceeded) {
+            throw worker_failure(
+                "runtime_protocol_failed", false, "native output limit exceeded");
+        }
+        if (result.prompt_tokens != prompt_tokens || result.generated_tokens > requested_tokens ||
             (!result.stopped && !result.cancelled && !generated.texts.empty() &&
              generated.texts.front() != result.answer)) {
-            throw protocol_error("native generation evidence inconsistent");
+            throw worker_failure(
+                "runtime_integrity_failed", true,
+                "native generation evidence inconsistent");
         }
         if (control.cancel.load(std::memory_order_acquire) || result.cancelled) {
             history_.pop_back();

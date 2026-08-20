@@ -22,7 +22,7 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
         "The OpenVINO worker could not run inside the protected boundary.";
 
     private readonly OpenVinoWorkerClientOptions _options;
-    private readonly WorkerExecutableResolver _resolver;
+    private readonly OpenVinoWorkerClosureResolver _closureResolver;
     private readonly IProtectedWorkerSessionFactory _sessionFactory;
     private readonly Func<IReadOnlyDictionary<string, string?>>
         _environmentProvider;
@@ -45,8 +45,7 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
         ArgumentNullException.ThrowIfNull(environmentProvider);
         options.Validate();
         _options = options;
-        _resolver = new WorkerExecutableResolver(
-            options.Installation.WorkerExecutableRelativePath);
+        _closureResolver = new OpenVinoWorkerClosureResolver();
         _sessionFactory = sessionFactory;
         _environmentProvider = environmentProvider;
     }
@@ -59,11 +58,12 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
         command.Validate();
         ProtectedWorkerSession? session = null;
         Task<StandardErrorSnapshot>? stderrTask = null;
+        VerifiedOpenVinoWorkerClosure? closure = null;
         try
         {
             DateTimeOffset startupDeadline =
                 DateTimeOffset.UtcNow + _options.StartupTimeout;
-            (session, stderrTask) = await StartProtectedAsync(cancellationToken)
+            (session, stderrTask, closure) = await StartProtectedAsync(cancellationToken)
                 .ConfigureAwait(false);
             Task processExit = session.WaitForExitAsync(CancellationToken.None);
             OpenVinoConversationValidator validator = new();
@@ -112,6 +112,8 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
             {
                 await session.DisposeAsync().ConfigureAwait(false);
             }
+
+            closure?.Dispose();
         }
     }
 
@@ -123,11 +125,12 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
         command.Validate();
         ProtectedWorkerSession? session = null;
         Task<StandardErrorSnapshot>? stderrTask = null;
+        VerifiedOpenVinoWorkerClosure? closure = null;
         try
         {
             DateTimeOffset startupDeadline =
                 DateTimeOffset.UtcNow + _options.StartupTimeout;
-            (session, stderrTask) = await StartProtectedAsync(cancellationToken)
+            (session, stderrTask, closure) = await StartProtectedAsync(cancellationToken)
                 .ConfigureAwait(false);
             Task processExit = session.WaitForExitAsync(CancellationToken.None);
             OpenVinoConversationValidator validator = new();
@@ -153,6 +156,11 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
                     cancellationToken)
                 .ConfigureAwait(false);
             validator.Accept(started);
+            if (started is SessionFailedEvent failed)
+            {
+                throw WorkerReportedFailure(failed.SupportCode);
+            }
+
             if (started is not SessionStartedEvent)
             {
                 throw ProtocolFailure();
@@ -164,9 +172,11 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
                 processExit,
                 validator,
                 command.SessionId,
-                _options);
+                _options,
+                closure);
             session = null;
             stderrTask = null;
+            closure = null;
             return result;
         }
         catch (Exception error) when (IsControlled(error))
@@ -184,32 +194,45 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
             {
                 await session.DisposeAsync().ConfigureAwait(false);
             }
+
+            closure?.Dispose();
         }
     }
 
-    private async Task<(ProtectedWorkerSession, Task<StandardErrorSnapshot>)>
+    private async Task<(
+        ProtectedWorkerSession Session,
+        Task<StandardErrorSnapshot> StandardError,
+        VerifiedOpenVinoWorkerClosure Closure)>
         StartProtectedAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        using VerifiedWorkerExecutable executable = _resolver.Resolve(
-            _options.Installation.ApprovedWorkerRoot);
-        IReadOnlyDictionary<string, string> environment =
-            WorkerEnvironmentPolicy.Create(_environmentProvider());
-        ProtectedWorkerLaunchSpec spec = new(
-            executable,
-            ["--protocol", _options.Installation.ExpectedProtocolId],
-            environment,
-            _options.MaximumLineBytes,
-            _options.MaximumLineBytes,
-            _options.MaximumRetainedStandardErrorBytes,
-            _options.StartupTimeout,
-            _options.CancellationGrace,
-            _options.CleanupTimeout);
-        ProtectedWorkerSession session = await _sessionFactory.StartAsync(
-                spec,
-                cancellationToken)
-            .ConfigureAwait(false);
-        return (session, session.ReadStandardErrorAsync());
+        VerifiedOpenVinoWorkerClosure closure = _closureResolver.Resolve(
+            _options.Installation);
+        try
+        {
+            IReadOnlyDictionary<string, string> environment =
+                WorkerEnvironmentPolicy.Create(_environmentProvider());
+            ProtectedWorkerLaunchSpec spec = new(
+                closure.Executable,
+                ["--protocol", _options.Installation.ExpectedProtocolId],
+                environment,
+                _options.MaximumLineBytes,
+                _options.MaximumLineBytes,
+                _options.MaximumRetainedStandardErrorBytes,
+                _options.StartupTimeout,
+                _options.CancellationGrace,
+                _options.CleanupTimeout);
+            ProtectedWorkerSession session = await _sessionFactory.StartAsync(
+                    spec,
+                    cancellationToken)
+                .ConfigureAwait(false);
+            return (session, session.ReadStandardErrorAsync(), closure);
+        }
+        catch
+        {
+            closure.Dispose();
+            throw;
+        }
     }
 
     private async Task<HelloEvent> ReadHelloAsync(
@@ -228,7 +251,8 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
             !string.Equals(
                 hello.ProtocolId,
                 _options.Installation.ExpectedProtocolId,
-                StringComparison.Ordinal))
+                StringComparison.Ordinal) ||
+            hello.BuildEvidence != _options.Installation.ExpectedBuildEvidence)
         {
             throw ProtocolFailure();
         }
@@ -459,6 +483,7 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
             TimeoutException => TimeoutFailure(),
             OpenVinoProtocolException or ProtocolStreamException =>
                 ProtocolFailure(),
+            IOException when session is not null => ProtocolFailure(),
             _ => new OpenVinoWorkerClientException(
                 OpenVinoSupportCode.RuntimeIntegrityFailed,
                 RuntimeFailureMessage)

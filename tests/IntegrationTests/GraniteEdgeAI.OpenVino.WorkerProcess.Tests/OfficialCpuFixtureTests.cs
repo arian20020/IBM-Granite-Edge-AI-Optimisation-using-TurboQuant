@@ -1,5 +1,6 @@
 using GraniteEdgeAI.OpenVino.Contracts;
 using GraniteEdgeAI.OpenVino.WorkerClient;
+using GraniteEdgeAI.ModelInspection.WorkerClient.ProtectedWorker;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Diagnostics;
 using System.Security.Cryptography;
@@ -9,6 +10,7 @@ namespace GraniteEdgeAI.OpenVino.WorkerProcess.Tests;
 
 [TestClass]
 [TestCategory("OfficialNative")]
+[DoNotParallelize]
 public sealed class OfficialCpuFixtureTests
 {
     private const string PackageDigest =
@@ -48,15 +50,22 @@ public sealed class OfficialCpuFixtureTests
             stage, package, maximumContextTokens: 64).ConfigureAwait(false))
         {
             List<TokenEvent> stoppedTokens = [];
+            TaskCompletionSource firstFragment = new(
+                TaskCreationOptions.RunContinuationsAsynchronously);
             Task<IOpenVinoEvent> active = stopped.PromptAsync(
                 new PromptCommand(stopped.SessionId, Guid.NewGuid(), "hello", 2),
-                new InlineProgress<TokenEvent>(stoppedTokens.Add),
+                new InlineProgress<TokenEvent>(token =>
+                {
+                    stoppedTokens.Add(token);
+                    firstFragment.TrySetResult();
+                }),
                 CancellationToken.None);
-            await Task.Delay(50).ConfigureAwait(false);
+            await firstFragment.Task.WaitAsync(TimeSpan.FromSeconds(2)).ConfigureAwait(false);
             await stopped.StopAsync(CancellationToken.None).ConfigureAwait(false);
             TurnCompletedEvent terminal = Assert.IsInstanceOfType<TurnCompletedEvent>(
                 await active.ConfigureAwait(false));
             Assert.AreEqual(OpenVinoTurnDisposition.Stopped, terminal.Disposition);
+            Assert.IsGreaterThanOrEqualTo(1, stoppedTokens.Count);
 
             List<TokenEvent> nextTokens = [];
             TurnCompletedEvent next = Assert.IsInstanceOfType<TurnCompletedEvent>(
@@ -131,6 +140,94 @@ public sealed class OfficialCpuFixtureTests
     }
 
     [TestMethod]
+    public async Task CorruptPackageSessionStartupEmitsOneTypedFailureAndLeavesNoResidue()
+    {
+        string stage = RequireStage("OPENVINO_OFFICIAL_WORKER_STAGE_A");
+        using TemporaryPackage package = TemporaryPackage.CopyFrom(LocateCanonicalPackage());
+        string tokenizer = Path.Combine(package.Path, "openvino_tokenizer.xml");
+        byte[] bytes = File.ReadAllBytes(tokenizer);
+        File.WriteAllBytes(tokenizer, bytes[..32]);
+        PackageIdentity identity = CalculateIdentity(package.Path);
+
+        OpenVinoWorkerClientException error =
+            await Assert.ThrowsExactlyAsync<OpenVinoWorkerClientException>(() =>
+                CreateClient(stage).StartSessionAsync(
+                    new StartSessionCommand(
+                        Guid.NewGuid(),
+                        Guid.NewGuid(),
+                        package.Path,
+                        identity.PackageDigest,
+                        identity.ModelDigest,
+                        identity.ModelLength,
+                        new OpenVinoDeviceRequest("CPU"),
+                        new OpenVinoGenerationLimits(64, 2)),
+                    CancellationToken.None)).ConfigureAwait(false);
+
+        Assert.AreEqual(OpenVinoSupportCode.PackageInconsistentResource, error.SupportCode);
+        await AssertNoOfficialWorkerProcessAsync().ConfigureAwait(false);
+    }
+
+    [TestMethod]
+    public async Task TerminationReleasesAllOwnedResourcesAndCreatesNoListenerOrTempArtifacts()
+    {
+        string sourceStage = RequireStage("OPENVINO_OFFICIAL_WORKER_STAGE_A");
+        using TemporaryTree stage = TemporaryTree.CopyFrom(
+            sourceStage,
+            "GraniteEdgeAI-OpenVino-Stage-");
+        using TemporaryTree package = TemporaryTree.CopyFrom(
+            LocateCanonicalPackage(),
+            "GraniteEdgeAI-OpenVino-Package-");
+        using TemporaryTree operationTemp = TemporaryTree.CreateEmpty(
+            "GraniteEdgeAI-OpenVino-Temp-");
+        OpenVinoWorkerInstallation installation = CreateInstallation(stage.Path);
+        OpenVinoWorkerClientOptions options = OpenVinoWorkerClientOptions
+            .CreateDefault(installation);
+        Dictionary<string, string?> environment = new(
+            StringComparer.OrdinalIgnoreCase)
+        {
+            ["SystemRoot"] = Environment.GetEnvironmentVariable("SystemRoot"),
+            ["WINDIR"] = Environment.GetEnvironmentVariable("WINDIR"),
+            ["TEMP"] = operationTemp.Path,
+            ["TMP"] = operationTemp.Path
+        };
+        OpenVinoWorkerClient client = new(
+            options,
+            new ProtectedWorkerSessionFactory(),
+            () => environment);
+
+        await using (OpenVinoConversation conversation =
+            await StartConversationAsync(client, package.Path, 64)
+                .ConfigureAwait(false))
+        {
+            await conversation.CloseAsync(CancellationToken.None)
+                .ConfigureAwait(false);
+        }
+
+        await AssertNoOfficialWorkerProcessAsync().ConfigureAwait(false);
+        Assert.IsFalse(Directory.Exists(Path.Combine(operationTemp.Path, "listener")));
+        Assert.IsFalse(Directory.Exists(Path.Combine(operationTemp.Path, "cache")));
+        Assert.IsEmpty(Directory.EnumerateFileSystemEntries(operationTemp.Path));
+        foreach (string resource in new[]
+        {
+            Path.Combine(stage.Path, "worker-manifest.json"),
+            Path.Combine(stage.Path, "OpenVinoOfficial.Worker.exe"),
+            Path.Combine(stage.Path, "openvino.dll"),
+            Path.Combine(package.Path, "openvino_model.bin")
+        })
+        {
+            using FileStream exclusive = File.Open(
+                resource,
+                FileMode.Open,
+                FileAccess.ReadWrite,
+                FileShare.None);
+        }
+
+        package.DeleteAndAssert();
+        stage.DeleteAndAssert();
+        operationTemp.DeleteAndAssert();
+    }
+
+    [TestMethod]
     public async Task RealWorkerExitsWhenItsManagedParentClosesPipesDuringGeneration()
     {
         string stage = RequireStage("OPENVINO_OFFICIAL_WORKER_STAGE_A");
@@ -142,10 +239,8 @@ public sealed class OfficialCpuFixtureTests
             "GraniteEdgeAI.OpenVino.ParentExitFixture",
             "bin",
 #if DEBUG
-            "x64",
             "Debug",
 #else
-            "x64",
             "Release",
 #endif
             "net8.0-windows10.0.19041.0",
@@ -165,7 +260,14 @@ public sealed class OfficialCpuFixtureTests
         using Process parent = Process.Start(start) ?? throw new InvalidOperationException();
         string? childLine = await parent.StandardOutput.ReadLineAsync()
             .WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
-        Assert.IsTrue(int.TryParse(childLine, out int childId));
+        if (!int.TryParse(childLine, out int childId))
+        {
+            await parent.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5))
+                .ConfigureAwait(false);
+            Assert.Fail(
+                "Parent-loss fixture did not publish a worker identity: " +
+                await parent.StandardError.ReadToEndAsync().ConfigureAwait(false));
+        }
         await parent.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
         Assert.AreEqual(0, parent.ExitCode, await parent.StandardError.ReadToEndAsync().ConfigureAwait(false));
 
@@ -246,7 +348,16 @@ public sealed class OfficialCpuFixtureTests
         string package,
         int maximumContextTokens)
     {
-        return await CreateClient(stage).StartSessionAsync(
+        return await StartConversationAsync(
+            CreateClient(stage), package, maximumContextTokens).ConfigureAwait(false);
+    }
+
+    private static async Task<OpenVinoConversation> StartConversationAsync(
+        OpenVinoWorkerClient client,
+        string package,
+        int maximumContextTokens)
+    {
+        return await client.StartSessionAsync(
             new StartSessionCommand(
                 Guid.NewGuid(),
                 Guid.NewGuid(),
@@ -271,13 +382,32 @@ public sealed class OfficialCpuFixtureTests
 
     private static OpenVinoWorkerClient CreateClient(string stage)
     {
-        OpenVinoWorkerInstallation installation = new(
-            Path.GetFullPath(stage),
-            "OpenVinoOfficial.Worker.exe",
-            OpenVinoProtocol.OfficialProtocolId);
+        OpenVinoWorkerInstallation installation = CreateInstallation(stage);
         return new OpenVinoWorkerClient(
             OpenVinoWorkerClientOptions.CreateDefault(installation));
     }
+
+    private static OpenVinoWorkerInstallation CreateInstallation(string stage) => new(
+            Path.GetFullPath(stage),
+            "OpenVinoOfficial.Worker.exe",
+            OpenVinoProtocol.OfficialProtocolId,
+            new OpenVinoBuildEvidence(
+                ExpectedRuntime,
+                ExpectedGenAi,
+                ExpectedTokenizers,
+                Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(
+                    Path.Combine(stage, "worker-manifest.json"))))
+                    .ToLowerInvariant()),
+            [
+                "OpenVinoOfficial.Worker.exe",
+                "openvino.dll",
+                "openvino_genai.dll",
+                "openvino_intel_cpu_plugin.dll",
+                "openvino_ir_frontend.dll",
+                "openvino_tokenizers.dll",
+                "tbb12.dll",
+                "tbbbind_2_5.dll"
+            ]);
 
     private static string RequireStage(string variable)
     {
@@ -394,6 +524,55 @@ public sealed class OfficialCpuFixtureTests
         }
 
         public void Dispose() => Directory.Delete(Path, recursive: true);
+    }
+
+    private sealed class TemporaryTree : IDisposable
+    {
+        private bool _deleted;
+
+        private TemporaryTree(string path) => Path = path;
+
+        public string Path { get; }
+
+        public static TemporaryTree CreateEmpty(string prefix) => new(
+            Directory.CreateTempSubdirectory(prefix).FullName);
+
+        public static TemporaryTree CopyFrom(string source, string prefix)
+        {
+            TemporaryTree result = CreateEmpty(prefix);
+            foreach (string directory in Directory.EnumerateDirectories(
+                source, "*", SearchOption.AllDirectories))
+            {
+                Directory.CreateDirectory(System.IO.Path.Combine(
+                    result.Path,
+                    System.IO.Path.GetRelativePath(source, directory)));
+            }
+            foreach (string file in Directory.EnumerateFiles(
+                source, "*", SearchOption.AllDirectories))
+            {
+                string destination = System.IO.Path.Combine(
+                    result.Path,
+                    System.IO.Path.GetRelativePath(source, file));
+                Directory.CreateDirectory(System.IO.Path.GetDirectoryName(destination)!);
+                File.Copy(file, destination);
+            }
+            return result;
+        }
+
+        public void DeleteAndAssert()
+        {
+            Directory.Delete(Path, recursive: true);
+            Assert.IsFalse(Directory.Exists(Path));
+            _deleted = true;
+        }
+
+        public void Dispose()
+        {
+            if (!_deleted && Directory.Exists(Path))
+            {
+                Directory.Delete(Path, recursive: true);
+            }
+        }
     }
 
     private sealed record PackageIdentity(

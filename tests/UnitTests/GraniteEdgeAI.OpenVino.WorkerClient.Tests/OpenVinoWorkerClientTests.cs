@@ -44,7 +44,9 @@ public sealed class OpenVinoWorkerClientTests
         OpenVinoWorkerInstallation installation = new(
             Path.GetFullPath("worker-root"),
             "OpenVino.Worker.exe",
-            OpenVinoProtocol.OfficialProtocolId);
+            OpenVinoProtocol.OfficialProtocolId,
+            BuildEvidence(),
+            ["OpenVino.Worker.exe"]);
 
         OpenVinoWorkerClientOptions options =
             OpenVinoWorkerClientOptions.CreateDefault(installation);
@@ -66,11 +68,15 @@ public sealed class OpenVinoWorkerClientTests
         OpenVinoWorkerInstallation official = new(
             root,
             "Official.exe",
-            OpenVinoProtocol.OfficialProtocolId);
+            OpenVinoProtocol.OfficialProtocolId,
+            BuildEvidence(),
+            ["Official.exe"]);
         OpenVinoWorkerInstallation turboQuant = new(
             root,
             "TurboQuant.exe",
-            OpenVinoProtocol.TurboQuantProtocolId);
+            OpenVinoProtocol.TurboQuantProtocolId,
+            BuildEvidence(),
+            ["TurboQuant.exe"]);
 
         official.Validate();
         turboQuant.Validate();
@@ -84,7 +90,9 @@ public sealed class OpenVinoWorkerClientTests
         OpenVinoWorkerInstallation installation = new(
             Path.GetFullPath("worker-root"),
             "OpenVino.Worker.exe",
-            OpenVinoProtocol.OfficialProtocolId);
+            OpenVinoProtocol.OfficialProtocolId,
+            BuildEvidence(),
+            ["OpenVino.Worker.exe"]);
         OpenVinoWorkerClientOptions relaxed =
             OpenVinoWorkerClientOptions.CreateDefault(installation) with
             {
@@ -93,4 +101,10 @@ public sealed class OpenVinoWorkerClientTests
 
         Assert.ThrowsExactly<ArgumentOutOfRangeException>(relaxed.Validate);
     }
+
+    private static OpenVinoBuildEvidence BuildEvidence() => new(
+        "runtime-test-build",
+        "genai-test-build",
+        "tokenizers-test-build",
+        new string('1', 64));
 }

@@ -17,6 +17,7 @@
 #include <limits>
 #include <string>
 #include <thread>
+#include <utility>
 #include <vector>
 
 namespace granite::official_worker {
@@ -103,8 +104,9 @@ void run_inspection(const json& command, const runtime_evidence& runtime) {
 
     write_event({{"inspectionRunId", run_id}, {"eventType", "inspectionStarted"}});
     try {
-        const package_evidence evidence = inspect_package(
+        package_lease lease = acquire_package(
             package, package_digest, model_digest, model_length);
+        const package_evidence evidence = inspect_package(lease);
         write_event({{"inspectionRunId", run_id}, {"stage", "manifestVerified"}, {"eventType", "inspectionProgress"}});
         write_event({{"inspectionRunId", run_id}, {"stage", "mainModelParsed"}, {"eventType", "inspectionProgress"}});
         write_event({{"inspectionRunId", run_id}, {"stage", "tokenizerParsed"}, {"eventType", "inspectionProgress"}});
@@ -118,15 +120,20 @@ void run_inspection(const json& command, const runtime_evidence& runtime) {
                      {"detokenizerParsed", true},
                      {"buildEvidence", runtime.to_json()},
                      {"eventType", "inspectionCompleted"}});
+    } catch (const worker_failure& failure) {
+        write_event({{"inspectionRunId", run_id},
+                     {"supportCode", failure.support_code()},
+                     {"eventType", "inspectionFailed"}});
+        throw;
     } catch (...) {
         write_event({{"inspectionRunId", run_id},
-                     {"supportCode", "package_inconsistent_resource"},
+                     {"supportCode", "runtime_load_failed"},
                      {"eventType", "inspectionFailed"}});
         throw;
     }
 }
 
-void run_session(const json& command, const runtime_evidence& runtime) {
+void run_session_body(const json& command, const runtime_evidence& runtime) {
     const std::string session_id = required_string(command, "sessionId", 36U);
     const std::string inspection_id = required_string(command, "inspectionRunId", 36U);
     validate_id(session_id);
@@ -145,9 +152,11 @@ void run_session(const json& command, const runtime_evidence& runtime) {
         required_positive_u64(command.at("limits"), "maximumNewTokens"));
     if (session_new_tokens > 512U) throw protocol_error("generation limit rejected");
 
-    (void)inspect_package(package, package_digest, model_digest, model_length);
+    package_lease lease = acquire_package(
+        package, package_digest, model_digest, model_length);
+    (void)inspect_package(lease);
     const std::size_t model_context = model_context_limit(package);
-    official_session session(package, model_context, c1_context);
+    official_session session(std::move(lease), model_context, c1_context);
     verify_loaded_module_closure(executable_directory());
     write_event({{"sessionId", session_id},
                  {"requestedDevice", "CPU"},
@@ -180,7 +189,7 @@ void run_session(const json& command, const runtime_evidence& runtime) {
             required_positive_u64(next, "requestedNewTokens"));
         if (requested > session_new_tokens || requested > 512U) {
             write_event({{"sessionId", session_id}, {"turnId", turn_id},
-                         {"supportCode", "runtime_context_exceeded"}, {"eventType", "turnFailed"}});
+                         {"supportCode", "runtime_protocol_failed"}, {"eventType", "turnFailed"}});
             continue;
         }
 
@@ -197,6 +206,7 @@ void run_session(const json& command, const runtime_evidence& runtime) {
             if (input == input_pipe_state::empty) continue;
             if (input == input_pipe_state::closed) {
                 control.cancel.store(true, std::memory_order_release);
+                control.notify();
                 cancelled = true;
                 continue;
             }
@@ -210,8 +220,10 @@ void run_session(const json& command, const runtime_evidence& runtime) {
                 validate_id(control_turn);
                 if (control_turn != turn_id) throw protocol_error("turn identifier mismatch");
                 control.stop.store(true, std::memory_order_release);
+                control.notify();
             } else if (control_type == "cancelSession") {
                 control.cancel.store(true, std::memory_order_release);
+                control.notify();
                 cancelled = true;
             } else {
                 throw protocol_error("active turn command rejected");
@@ -221,14 +233,18 @@ void run_session(const json& command, const runtime_evidence& runtime) {
         turn_result result;
         try {
             result = generation.get();
+        } catch (const worker_failure& failure) {
+            if (failure.fatal()) throw;
+            write_event({{"sessionId", session_id}, {"turnId", turn_id},
+                         {"supportCode", failure.support_code()}, {"eventType", "turnFailed"}});
+            continue;
         } catch (const protocol_error&) {
             write_event({{"sessionId", session_id}, {"turnId", turn_id},
-                         {"supportCode", "runtime_context_exceeded"}, {"eventType", "turnFailed"}});
+                         {"supportCode", "runtime_protocol_failed"}, {"eventType", "turnFailed"}});
             continue;
         } catch (...) {
-            write_event({{"sessionId", session_id}, {"turnId", turn_id},
-                         {"supportCode", "runtime_load_failed"}, {"eventType", "turnFailed"}});
-            continue;
+            throw worker_failure(
+                "runtime_load_failed", true, "native generation failed");
         }
         if (cancelled || result.cancelled) {
             write_event({{"sessionId", session_id}, {"eventType", "sessionCancelled"}});
@@ -240,6 +256,23 @@ void run_session(const json& command, const runtime_evidence& runtime) {
                      {"generatedTokenCount", result.generated_tokens},
                      {"disposition", result.stopped ? "stopped" : "completed"},
                      {"eventType", "turnCompleted"}});
+    }
+}
+
+void run_session(const json& command, const runtime_evidence& runtime) {
+    const std::string session_id = required_string(command, "sessionId", 36U);
+    validate_id(session_id);
+    try {
+        run_session_body(command, runtime);
+    } catch (const worker_failure& failure) {
+        emit_session_failure(session_id, failure.support_code());
+        throw;
+    } catch (const protocol_error&) {
+        emit_session_failure(session_id, "runtime_protocol_failed");
+        throw;
+    } catch (...) {
+        emit_session_failure(session_id, "runtime_load_failed");
+        throw;
     }
 }
 
@@ -257,14 +290,16 @@ int main(int argc, char** argv) {
         arguments.reserve(static_cast<std::size_t>(argc));
         for (int index = 0; index < argc; ++index) arguments.emplace_back(argv[index]);
         (void)parse_arguments(arguments);
-        const runtime_evidence runtime = initialize_verified_runtime();
-        write_event({{"protocolId", official_protocol}, {"eventType", "hello"}});
+        const runtime_context runtime = initialize_verified_runtime();
+        write_event({{"protocolId", official_protocol},
+                     {"buildEvidence", runtime.evidence().to_json()},
+                     {"eventType", "hello"}});
         const nlohmann::json command = parse_json_line(read_bounded_line());
         const std::string type = command.at("commandType").get<std::string>();
         if (type == "startInspection") {
-            run_inspection(command, runtime);
+            run_inspection(command, runtime.evidence());
         } else if (type == "startSession") {
-            run_session(command, runtime);
+            run_session(command, runtime.evidence());
         } else {
             throw protocol_error("initial command rejected");
         }

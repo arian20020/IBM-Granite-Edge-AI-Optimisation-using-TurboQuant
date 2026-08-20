@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Security.Cryptography;
 using System.Text;
 using GraniteEdgeAI.ModelInspection.Transport;
 using GraniteEdgeAI.OpenVino.Contracts;
@@ -44,7 +45,11 @@ internal static class FixtureProgram
         string helloProtocol = scenario == "wrong-protocol"
             ? OpenVinoProtocol.TurboQuantProtocolId
             : OpenVinoProtocol.OfficialProtocolId;
-        await WriteAsync(writer, new HelloEvent(helloProtocol)).ConfigureAwait(false);
+        OpenVinoBuildEvidence helloEvidence = scenario == "wrong-build-evidence"
+            ? BuildEvidence() with { WorkerManifestDigest = new string('2', 64) }
+            : BuildEvidence();
+        await WriteAsync(writer, new HelloEvent(helloProtocol, helloEvidence))
+            .ConfigureAwait(false);
 
         if (scenario == "parent-exit")
         {
@@ -461,11 +466,20 @@ internal static class FixtureProgram
         true,
         BuildEvidence());
 
-    private static OpenVinoBuildEvidence BuildEvidence() => new(
-        "fixture-runtime-2026.3.0",
-        "fixture-genai-2026.3.0.0",
-        "fixture-tokenizers-2026.3.0.0",
-        "1111111111111111111111111111111111111111111111111111111111111111");
+    private static OpenVinoBuildEvidence BuildEvidence()
+    {
+        string root = Path.GetDirectoryName(Environment.ProcessPath)
+            ?? throw new InvalidOperationException(
+                "fixture executable root is unavailable");
+        string manifestDigest = Convert.ToHexString(SHA256.HashData(
+            File.ReadAllBytes(Path.Combine(root, "worker-manifest.json"))))
+            .ToLowerInvariant();
+        return new OpenVinoBuildEvidence(
+            "fixture-runtime-2026.3.0",
+            "fixture-genai-2026.3.0.0",
+            "fixture-tokenizers-2026.3.0.0",
+            manifestDigest);
+    }
 
     private static async Task WriteRawAsync(Stream output, byte[] payload)
     {

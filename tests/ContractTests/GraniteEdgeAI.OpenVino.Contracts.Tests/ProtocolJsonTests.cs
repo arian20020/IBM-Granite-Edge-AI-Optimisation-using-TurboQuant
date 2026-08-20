@@ -30,7 +30,7 @@ public sealed class ProtocolJsonTests
         ];
         (IOpenVinoEvent Value, string Json)[] events =
         [
-            (new HelloEvent("openvino.official/1"), """{"protocolId":"openvino.official/1","eventType":"hello"}"""),
+            (new HelloEvent("openvino.official/1", BuildEvidence()), """{"protocolId":"openvino.official/1","buildEvidence":{"runtimeBuild":"2026.3.0-22451-8a17657b995-releases/2026/3","genAiBuild":"2026.3.0.0-3277-bd8d6542e3c","tokenizersBuild":"2026.3.0.0-703-183c6f25cda","workerManifestDigest":"1111111111111111111111111111111111111111111111111111111111111111"},"eventType":"hello"}"""),
             (new InspectionStartedEvent(RunId), """{"inspectionRunId":"6e1ff10c-fd83-4b03-9a12-d35247e5a6a3","eventType":"inspectionStarted"}"""),
             (new InspectionProgressEvent(RunId, OpenVinoInspectionStage.ManifestVerified), """{"inspectionRunId":"6e1ff10c-fd83-4b03-9a12-d35247e5a6a3","stage":"manifestVerified","eventType":"inspectionProgress"}"""),
             (InspectionCompleted(), """{"inspectionRunId":"6e1ff10c-fd83-4b03-9a12-d35247e5a6a3","packageManifestDigest":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef","modelSha256":"abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789","modelLengthBytes":88,"mainModelParsed":true,"tokenizerParsed":true,"detokenizerParsed":true,"buildEvidence":{"runtimeBuild":"2026.3.0-22451-8a17657b995-releases/2026/3","genAiBuild":"2026.3.0.0-3277-bd8d6542e3c","tokenizersBuild":"2026.3.0.0-703-183c6f25cda","workerManifestDigest":"1111111111111111111111111111111111111111111111111111111111111111"},"eventType":"inspectionCompleted"}"""),
