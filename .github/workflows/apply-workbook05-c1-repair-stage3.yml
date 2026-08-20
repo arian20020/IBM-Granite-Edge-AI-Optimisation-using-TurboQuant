@@ -1,0 +1,100 @@
+name: Materialise Workbook 05 C1 workflow patch
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/apply-workbook05-c1-repair-stage3.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: materialise-workbook05-c1-workflow-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  materialise:
+    name: Publish reviewed workflow text outside workflow directory
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref == 'feature/workbook-05-c1-live-asset-lock'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out the exact pull-request branch
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: true
+          ref: feature/workbook-05-c1-live-asset-lock
+          fetch-depth: 0
+
+      - name: Verify the stage-3 controller commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected_parent='50054327de8195fd776c5298f322ea653a77a82d'
+          observed_parent="$(git rev-parse HEAD^)"
+          if [[ "$observed_parent" != "$expected_parent" ]]; then
+            echo "Expected stage-3 parent $expected_parent, found $observed_parent." >&2
+            exit 1
+          fi
+          mapfile -t changed < <(git diff-tree --no-commit-id --name-only -r HEAD)
+          if [[ "${#changed[@]}" -ne 1 || "${changed[0]}" != '.github/workflows/apply-workbook05-c1-repair-stage3.yml' ]]; then
+            printf 'Unexpected stage-3 controller paths:\n%s\n' "${changed[*]}" >&2
+            exit 1
+          fi
+
+      - name: Materialise the exact reviewed workflow replacement
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          source = Path('.github/workflows/workbook-05-phase3-assets.yml')
+          destination = Path('docs/testing/workbook05/.c1-workflow-patch.yml')
+          text = source.read_text(encoding='utf-8').replace('\r\n', '\n')
+          old = """          python -m scripts.testing.workbook05.phase3.asset_bundle_validation `
+              --bundle-root $bundle `
+              --repository-root $env:GITHUB_WORKSPACE `
+              --report $report
+"""
+          new = """          $validator = if ('${{ inputs.operation }}' -eq 'live-asset-lock') {
+              'scripts.testing.workbook05.phase3.live_asset_bundle_validation'
+          }
+          else {
+              'scripts.testing.workbook05.phase3.asset_bundle_validation'
+          }
+
+          & python -m $validator `
+              --bundle-root $bundle `
+              --repository-root $env:GITHUB_WORKSPACE `
+              --report $report
+"""
+          if text.count(old) != 1:
+              raise SystemExit(
+                  f'Expected one workflow routing fragment, found {text.count(old)}.'
+              )
+          patched = text.replace(old, new, 1)
+          destination.write_text(patched, encoding='utf-8', newline='\n')
+          PY
+
+          git diff --check
+          mapfile -t changed < <(git status --short | sed -E 's/^.. //')
+          if [[ "${#changed[@]}" -ne 1 || "${changed[0]}" != 'docs/testing/workbook05/.c1-workflow-patch.yml' ]]; then
+            printf 'Unexpected materialised patch paths:\n%s\n' "${changed[*]}" >&2
+            exit 1
+          fi
+
+      - name: Push the reviewed workflow text as ordinary data
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/testing/workbook05/.c1-workflow-patch.yml
+          git commit -m 'chore(workbook05): materialise reviewed C1 workflow patch'
+          git push origin HEAD:feature/workbook-05-c1-live-asset-lock
