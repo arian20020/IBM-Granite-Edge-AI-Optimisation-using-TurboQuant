@@ -7,7 +7,6 @@ import hashlib
 import json
 import os
 import re
-import shutil
 import stat
 import sys
 import uuid
@@ -23,6 +22,8 @@ _HASH = re.compile(r"[0-9a-f]{64}\Z")
 _OPERATION_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}\Z")
 _UTC = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?Z\Z")
 _MAX_MANIFEST_BYTES = 4 * 1024 * 1024
+_MAX_ARTIFACT_BYTES = 16 * 1024 * 1024 * 1024
+_MAX_ARTIFACT_COUNT = 6_400_000
 _REPARSE_POINT = 0x400
 _UINT64_MAX = (1 << 64) - 1
 _WINDOWS_RESERVED = {
@@ -226,12 +227,16 @@ def promote_staged_index(
         _fsync_directory(parent)
         return target
     except ResearchError:
-        if owned and staging_identity is not None:
-            _remove_owned_staging(staging, staging_identity)
+        if owned and staging_identity is not None and not _quarantine_owned_staging(
+            staging, staging_identity, parent, parent_identity
+        ):
+            raise ResearchError("index-quarantine-failed") from None
         raise
     except Exception:
-        if owned and staging_identity is not None:
-            _remove_owned_staging(staging, staging_identity)
+        if owned and staging_identity is not None and not _quarantine_owned_staging(
+            staging, staging_identity, parent, parent_identity
+        ):
+            raise ResearchError("index-quarantine-failed") from None
         raise ResearchError("index-promotion-failed") from None
 
 
@@ -261,7 +266,7 @@ def _validate_manifest(value: object) -> IndexManifest:
     if any(item.relative_path not in source_set for item in chunks):
         raise ResearchError("index-manifest-invalid")
     artifact_names = [item.filename for item in artifacts]
-    if len(artifact_names) != len(set(artifact_names)):
+    if len(artifact_names) != len({name.casefold() for name in artifact_names}):
         raise ResearchError("index-manifest-invalid")
     if any(
         item.count != len(chunks) or item.dimension != identity.dimension
@@ -293,6 +298,8 @@ def _validate_identity(value: object) -> IndexIdentity:
     _text(value.requested_provider)
     _text(value.actual_provider)
     if value.requested_backend not in ("float32", "turbovec"):
+        raise ResearchError("index-manifest-invalid")
+    if value.requested_backend != value.actual_backend:
         raise ResearchError("index-manifest-invalid")
     if value.actual_backend == "float32":
         if (
@@ -354,6 +361,8 @@ def _validate_artifact(value: object) -> ArtifactRecord:
     _hash(value.sha256)
     _nonnegative_int(value.size)
     _nonnegative_int(value.count)
+    if value.size > _MAX_ARTIFACT_BYTES or value.count > _MAX_ARTIFACT_COUNT:
+        raise ResearchError("index-manifest-invalid")
     _text(value.magic)
     _positive_int(value.version)
     _positive_int(value.dimension)
@@ -444,13 +453,13 @@ def _validate_artifacts(staging: Path, manifest: IndexManifest, validator) -> No
         path = staging / artifact.filename
         try:
             _require_plain_file(path)
-            digest, size = _hash_file(path)
+            digest, size = _hash_file(path, artifact.size)
             if size != artifact.size or digest != artifact.sha256:
                 raise ResearchError("index-artifact-mismatch")
             result = validator(path, artifact, manifest)
-            if result is False:
+            if result is not True:
                 raise ResearchError("index-artifact-invalid")
-            final_digest, final_size = _hash_file(path)
+            final_digest, final_size = _hash_file(path, artifact.size)
             if final_size != artifact.size or final_digest != artifact.sha256:
                 raise ResearchError("index-artifact-mismatch")
         except ResearchError:
@@ -459,7 +468,7 @@ def _validate_artifacts(staging: Path, manifest: IndexManifest, validator) -> No
             raise ResearchError("index-artifact-invalid") from None
 
 
-def _hash_file(path: Path) -> tuple[str, int]:
+def _hash_file(path: Path, expected_size: int) -> tuple[str, int]:
     digest = hashlib.sha256()
     size = 0
     with path.open("rb") as stream:
@@ -470,12 +479,16 @@ def _hash_file(path: Path) -> tuple[str, int]:
             opened.st_ino,
         ) != (current.st_dev, current.st_ino):
             raise ResearchError("index-artifact-invalid")
-        while True:
-            block = stream.read(1024 * 1024)
+        remaining = expected_size
+        while remaining:
+            block = stream.read(min(1024 * 1024, remaining))
             if not block:
-                break
+                raise ResearchError("index-artifact-mismatch")
             size += len(block)
+            remaining -= len(block)
             digest.update(block)
+        if stream.read(1):
+            raise ResearchError("index-artifact-mismatch")
     return digest.hexdigest(), size
 
 
@@ -586,6 +599,15 @@ def _artifact_filename(value: object) -> str:
     if value in (".", "..") or "/" in value or "\\" in value or ":" in value:
         raise ResearchError("index-manifest-invalid")
     _safe_windows_segment(value)
+    folded = value.casefold()
+    if (
+        folded == "manifest.json"
+        or folded.startswith("manifest.json.tmp-")
+        or ".staging-" in folded
+        or ".quarantine-" in folded
+        or ".tmp-" in folded
+    ):
+        raise ResearchError("index-manifest-invalid")
     return value
 
 
@@ -711,6 +733,9 @@ def _validate_destination_name(path: Path) -> None:
         _safe_windows_segment(path.name)
     except ResearchError:
         raise ResearchError("index-path-invalid") from None
+    folded = path.name.casefold()
+    if any(marker in folded for marker in (".staging-", ".quarantine-", ".tmp-")):
+        raise ResearchError("index-path-invalid")
 
 
 def _unlink_owned_file(path: Path, identity: tuple[int, int]) -> None:
@@ -726,17 +751,31 @@ def _unlink_owned_file(path: Path, identity: tuple[int, int]) -> None:
         pass
 
 
-def _remove_owned_staging(path: Path, identity: tuple[int, int]) -> None:
+def _quarantine_owned_staging(
+    path: Path,
+    identity: tuple[int, int],
+    parent: Path,
+    parent_identity: tuple[int, int],
+) -> bool:
+    """Move known-owned staging aside; never recursively delete by path."""
     try:
-        info = path.stat(follow_symlinks=False)
-        if (
-            stat.S_ISDIR(info.st_mode)
-            and not _is_reparse(info)
-            and (info.st_dev, info.st_ino) == identity
-        ):
-            shutil.rmtree(path)
+        _require_same_directory(parent, parent_identity)
+        _require_same_directory(path, identity)
+        _quarantine_race_hook(path)
+        _require_same_directory(parent, parent_identity)
+        _require_same_directory(path, identity)
+        quarantine = parent / f"{path.name}.quarantine-{uuid.uuid4().hex}"
+        _require_safe_leaf(quarantine, may_not_exist=True, must_not_exist=True)
+        _rename_directory_no_replace(path, quarantine)
+        _require_same_directory(quarantine, identity)
+        _fsync_directory(parent)
+        return True
     except Exception:
-        pass
+        return False
+
+
+def _quarantine_race_hook(path: Path) -> None:
+    """Test seam immediately before the final ownership check and rename."""
 
 
 def _require_no_reparse_chain(path: Path) -> None:

@@ -21,6 +21,7 @@ from granite_turbovec.manifest import (
     promote_staged_index,
     write_manifest_atomic,
 )
+from granite_turbovec import manifest as manifest_module
 
 
 HASH_A = "a" * 64
@@ -49,6 +50,21 @@ def identity(**changes):
         dependency_lock_sha256=HASH_A,
         requested_provider="CPUExecutionProvider",
         actual_provider="CPUExecutionProvider",
+    )
+    return replace(value, **changes)
+
+
+def float_identity(**changes):
+    value = replace(
+        identity(),
+        requested_backend="float32",
+        actual_backend="float32",
+        index_format="float32-npy-v1",
+        bit_width=None,
+        turbovec_version=None,
+        turbovec_source_commit=None,
+        turbovec_wheel_sha256=None,
+        turbovec_license=None,
     )
     return replace(value, **changes)
 
@@ -131,7 +147,6 @@ class CanonicalManifestTests(unittest.TestCase):
             ({"embedding_model_manifest_sha256": HASH_B}, "index-embedding-mismatch"),
             ({"dimension": 768}, "index-dimension-mismatch"),
             ({"chunk_max_chars": 900}, "index-chunking-mismatch"),
-            ({"requested_backend": "float32"}, "index-backend-mismatch"),
             ({"index_format": "turbovec-id-map-v2"}, "index-format-mismatch"),
             ({"bit_width": 2}, "index-bit-width-mismatch"),
             ({"turbovec_version": "1.0.1"}, "index-package-mismatch"),
@@ -144,6 +159,9 @@ class CanonicalManifestTests(unittest.TestCase):
                 with self.subTest(expected=expected), self.assertRaises(ResearchError) as context:
                     load_and_validate_manifest(path, identity(**changes))
                 self.assertEqual(expected, context.exception.code)
+            with self.assertRaises(ResearchError) as context:
+                load_and_validate_manifest(path, float_identity())
+            self.assertEqual("index-backend-mismatch", context.exception.code)
 
     def test_expected_manifest_also_binds_ordered_source_and_chunk_metadata(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -192,16 +210,40 @@ class CanonicalManifestTests(unittest.TestCase):
             replace(manifest(), chunks=(ChunkRecord(101, "knowledge/granite.txt", 14, 14),)),
             replace(manifest(), chunks=(ChunkRecord(101, "knowledge/granite.txt", 0, 14), ChunkRecord(101, "knowledge/granite.txt", 14, 15))),
             replace(manifest(), artifacts=(ArtifactRecord("../index.tv", HASH_B, 4, 1, "TVEC", 1, 384),)),
+            replace(manifest(), artifacts=(ArtifactRecord("/index.tv", HASH_B, 4, 1, "TVEC", 1, 384),)),
+            replace(manifest(), artifacts=(ArtifactRecord("index:stream", HASH_B, 4, 1, "TVEC", 1, 384),)),
+            replace(manifest(), artifacts=(ArtifactRecord("index.", HASH_B, 4, 1, "TVEC", 1, 384),)),
             replace(manifest(), artifacts=(ArtifactRecord("NUL.txt", HASH_B, 4, 1, "TVEC", 1, 384),)),
             replace(manifest(), artifacts=(ArtifactRecord("index.tv", HASH_B, 4, 2, "TVEC", 1, 384),)),
             replace(manifest(), identity=replace(identity(), bit_width=None)),
             replace(manifest(), identity=replace(identity(), schema_version=2)),
             replace(manifest(), identity=replace(identity(), requested_backend="unknown")),
             replace(manifest(), identity=replace(identity(), index_format="float32-npy-v1")),
+            replace(manifest(), identity=replace(identity(), requested_backend="float32")),
+            replace(manifest(), identity=float_identity(requested_backend="turbovec")),
+            replace(manifest(), artifacts=(
+                ArtifactRecord("index.tv", HASH_B, 4, 1, "TVEC", 1, 384),
+                ArtifactRecord("INDEX.TV", HASH_A, 4, 1, "TVEC", 1, 384),
+            )),
+            replace(manifest(), artifacts=(ArtifactRecord("manifest.json", HASH_B, 4, 1, "TVEC", 1, 384),)),
+            replace(manifest(), artifacts=(ArtifactRecord("manifest.json.tmp-op", HASH_B, 4, 1, "TVEC", 1, 384),)),
+            replace(manifest(), artifacts=(ArtifactRecord("index.staging-op", HASH_B, 4, 1, "TVEC", 1, 384),)),
+            replace(manifest(), artifacts=(ArtifactRecord("index.quarantine-op", HASH_B, 4, 1, "TVEC", 1, 384),)),
+            replace(manifest(), artifacts=(ArtifactRecord("index.tv", HASH_B, 16 * 1024 * 1024 * 1024 + 1, 1, "TVEC", 1, 384),)),
+            replace(manifest(), artifacts=(ArtifactRecord("index.tv", HASH_B, 4, 6_400_001, "TVEC", 1, 384),)),
         )
         for number, value in enumerate(invalid):
             with self.subTest(number=number), self.assertRaises(ResearchError):
                 canonical_json(value)
+
+    def test_both_supported_backend_pairs_are_valid(self):
+        self.assertIn('"actual_backend":"turbovec"', canonical_json(manifest()))
+        value = replace(
+            manifest(),
+            identity=float_identity(),
+            artifacts=(ArtifactRecord("index.npy", HASH_B, 4, 1, "NUMPY", 1, 384),),
+        )
+        self.assertIn('"actual_backend":"float32"', canonical_json(value))
 
     def test_atomic_write_replaces_regular_target_and_cleans_temp_on_failure(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -277,7 +319,23 @@ class StagedPromotionTests(unittest.TestCase):
             self.assertFalse(called)
             self.assertEqual("keep", (target / "marker").read_text(encoding="utf-8"))
 
-    def test_failed_artifact_validation_removes_only_owned_staging(self):
+    def test_reserved_quarantine_destination_is_rejected_before_writer(self):
+        called = False
+        with tempfile.TemporaryDirectory() as directory:
+            def writer(_):
+                nonlocal called
+                called = True
+            with self.assertRaises(ResearchError):
+                promote_staged_index(
+                    Path(directory) / "index.quarantine-user",
+                    promotable_manifest(),
+                    writer,
+                    validate_index,
+                    operation_id="reserved",
+                )
+            self.assertFalse(called)
+
+    def test_failed_artifact_validation_quarantines_only_owned_staging(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             unrelated = root / "unrelated"
@@ -287,8 +345,81 @@ class StagedPromotionTests(unittest.TestCase):
                 promote_staged_index(target, promotable_manifest(), write_index, lambda *_: False, operation_id="bad")
             self.assertEqual("index-artifact-invalid", context.exception.code)
             self.assertFalse((root / "knowledge-index.staging-bad").exists())
+            quarantines = list(root.glob("knowledge-index.staging-bad.quarantine-*"))
+            self.assertEqual(1, len(quarantines))
+            self.assertTrue((quarantines[0] / "index.tv").exists())
             self.assertTrue(unrelated.exists())
             self.assertFalse(target.exists())
+
+    def test_binary_validator_requires_explicit_true(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "knowledge-index"
+            def raises(*_):
+                raise OSError("private")
+            for number, validator in enumerate((lambda *_: None, lambda *_: 1, lambda *_: "true", raises)):
+                with self.subTest(number=number), self.assertRaises(ResearchError) as context:
+                    promote_staged_index(target, promotable_manifest(), write_index, validator, operation_id=f"validator-{number}")
+                self.assertEqual("index-artifact-invalid", context.exception.code)
+                self.assertFalse(target.exists())
+
+    def test_declared_small_artifact_rejects_extra_byte_without_adapter_call(self):
+        calls = 0
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "knowledge-index"
+            def oversized_writer(staging):
+                (staging / "index.tv").write_bytes(b"TVEC" + b"x" * (1024 * 1024))
+            def validator(*_):
+                nonlocal calls
+                calls += 1
+                return True
+            with self.assertRaises(ResearchError) as context:
+                promote_staged_index(target, promotable_manifest(), oversized_writer, validator, operation_id="extra-byte")
+            self.assertEqual("index-artifact-mismatch", context.exception.code)
+            self.assertEqual(0, calls)
+
+    def test_hash_reader_reads_only_declared_bytes_plus_one(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "artifact.bin"
+            path.write_bytes(b"TVEC" + b"x" * (1024 * 1024))
+            real_stream = path.open("rb")
+
+            class ReadSpy:
+                def __init__(self, stream):
+                    self.stream = stream
+                    self.requests = []
+
+                def __enter__(self):
+                    return self
+
+                def __exit__(self, *args):
+                    self.stream.close()
+
+                def fileno(self):
+                    return self.stream.fileno()
+
+                def read(self, size):
+                    self.requests.append(size)
+                    return self.stream.read(size)
+
+            spy = ReadSpy(real_stream)
+            with mock.patch.object(Path, "open", return_value=spy):
+                with self.assertRaises(ResearchError):
+                    manifest_module._hash_file(path, 4)
+            self.assertEqual([4, 1], spy.requests)
+
+    def test_declared_too_large_rejects_before_writer_or_read(self):
+        called = False
+        too_large = replace(
+            promotable_manifest(),
+            artifacts=(ArtifactRecord("index.tv", HASH_A, 16 * 1024 * 1024 * 1024 + 1, 1, "TVEC", 1, 384),),
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            def writer(_):
+                nonlocal called
+                called = True
+            with self.assertRaises(ResearchError):
+                promote_staged_index(Path(directory) / "index", too_large, writer, validate_index, operation_id="too-large")
+            self.assertFalse(called)
 
     def test_artifact_hash_or_size_mismatch_is_rejected_before_adapter_validation(self):
         calls = 0
@@ -406,6 +537,26 @@ class StagedPromotionTests(unittest.TestCase):
             with self.assertRaises(ResearchError):
                 promote_staged_index(target, promotable_manifest(), writer, validate_index, operation_id="swap")
             self.assertEqual("keep", (replacement / "unrelated-marker").read_text(encoding="utf-8"))
+            self.assertFalse(target.exists())
+
+    def test_cleanup_swap_at_quarantine_seam_preserves_unowned_content(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            target = root / "knowledge-index"
+            staging = root / "knowledge-index.staging-seam"
+            original = root / "original-owned"
+
+            def swap(active):
+                active.rename(original)
+                active.mkdir()
+                (active / "external-marker").write_text("keep", encoding="utf-8")
+
+            with mock.patch("granite_turbovec.manifest._quarantine_race_hook", side_effect=swap):
+                with self.assertRaises(ResearchError) as context:
+                    promote_staged_index(target, promotable_manifest(), write_index, lambda *_: False, operation_id="seam")
+            self.assertEqual("index-quarantine-failed", context.exception.code)
+            self.assertEqual("keep", (staging / "external-marker").read_text(encoding="utf-8"))
+            self.assertTrue((original / "index.tv").exists())
             self.assertFalse(target.exists())
 
 
