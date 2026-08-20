@@ -142,11 +142,14 @@ internal static class GgufResourceEstimator
 
             if (candidate.Preparation == CandidatePreparation.WeightConversionRequired)
             {
+                // The converted file stays on disk for the model's whole
+                // lifetime, not just while loading, so it is charged in every
+                // phase like Weights rather than confined to Load.
                 components.Add(ResourceComponent.Create(
                     ResourceComponentKind.PersistentArtifact,
                     ResourceTarget.Storage,
                     weightBytes,
-                    LoadOnly));
+                    AllPhases));
             }
 
             HashSet<EstimationLimitation> limitations =

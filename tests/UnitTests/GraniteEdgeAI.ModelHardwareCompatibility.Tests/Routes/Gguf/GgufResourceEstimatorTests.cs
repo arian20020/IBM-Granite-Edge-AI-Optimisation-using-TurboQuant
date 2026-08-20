@@ -71,11 +71,34 @@ public sealed class GgufResourceEstimatorTests
     }
 
     [TestMethod]
-    public void EveryComponentKind_AppearsAtMostOnce()
+    // Section 8: every mandatory component has exactly one owner, so a
+    // requirement can never be counted twice. Exercised with a weight
+    // conversion so StagingBuffer and PersistentArtifact - the only kinds
+    // that are appended rather than always emitted - are actually present in
+    // at least one case (discrete GPU builds the maximal seven-component
+    // set). The expected route travels as three names because a public test
+    // method cannot take internal enum parameters.
+    [DataRow(
+        nameof(DeviceRouteId.Cpu), nameof(CompatibilityBackend.Cpu), nameof(GpuOffloadLevel.None))]
+    [DataRow(
+        nameof(DeviceRouteId.IntelIntegratedGpu), nameof(CompatibilityBackend.IntelVulkan),
+        nameof(GpuOffloadLevel.Full))]
+    [DataRow(
+        nameof(DeviceRouteId.IntelDiscreteGpu), nameof(CompatibilityBackend.IntelSycl),
+        nameof(GpuOffloadLevel.Full))]
+    public void EveryComponentKind_AppearsAtMostOnce(
+        string deviceName, string backendName, string offloadName)
     {
-        // Section 8: every mandatory component has exactly one owner, so a
-        // requirement can never be counted twice.
-        ResourceEstimate estimate = Estimate();
+        DeviceRouteId device = Enum.Parse<DeviceRouteId>(deviceName);
+        CompatibilityBackend backend = Enum.Parse<CompatibilityBackend>(backendName);
+        GpuOffloadLevel offload = Enum.Parse<GpuOffloadLevel>(offloadName);
+
+        ResourceEstimate estimate = Estimate(Candidate(
+            device: device,
+            backend: backend,
+            offload: offload,
+            weights: GgufWeightFormat.Q4KM,
+            preparation: CandidatePreparation.WeightConversionRequired));
 
         int distinct = estimate.Components.Select(component => component.Kind).Distinct().Count();
 
@@ -140,6 +163,12 @@ public sealed class GgufResourceEstimatorTests
         Assert.IsTrue(
             staging.Phases.Contains(LifecyclePhase.Load),
             "A staging buffer is transient and exists only while loading.");
+
+        // The application itself never follows the model to device memory,
+        // even when the model's own weights are routed off SystemMemory.
+        Assert.AreEqual(
+            ResourceTarget.SystemMemory,
+            Single(estimate, ResourceComponentKind.ApplicationOverhead).Target);
     }
 
     [TestMethod]
@@ -158,6 +187,45 @@ public sealed class GgufResourceEstimatorTests
             estimate.Components.Any(
                 component => component.Kind == ResourceComponentKind.StagingBuffer),
             "Integrated graphics read the same RAM, so nothing is staged.");
+
+        // Shared device memory still is not system memory: the application's
+        // own overhead must stay pinned to SystemMemory even here.
+        Assert.AreEqual(
+            ResourceTarget.SystemMemory,
+            Single(estimate, ResourceComponentKind.ApplicationOverhead).Target);
+    }
+
+    [TestMethod]
+    // Inverting the CPU/GPU ternary in BackendAllocation would charge a
+    // full-offload route the CPU term (and vice versa) with every other test
+    // still green, so the expected term name travels as a string and the
+    // actual figure is read from the policy rather than hardcoded.
+    [DataRow(
+        nameof(DeviceRouteId.Cpu), nameof(CompatibilityBackend.Cpu), nameof(GpuOffloadLevel.None),
+        "Cpu")]
+    [DataRow(
+        nameof(DeviceRouteId.IntelIntegratedGpu), nameof(CompatibilityBackend.IntelVulkan),
+        nameof(GpuOffloadLevel.Full), "Gpu")]
+    [DataRow(
+        nameof(DeviceRouteId.IntelDiscreteGpu), nameof(CompatibilityBackend.IntelSycl),
+        nameof(GpuOffloadLevel.Full), "Gpu")]
+    public void BackendAllocation_UsesTheRouteAppropriateTerm(
+        string deviceName, string backendName, string offloadName, string expectedTerm)
+    {
+        DeviceRouteId device = Enum.Parse<DeviceRouteId>(deviceName);
+        CompatibilityBackend backend = Enum.Parse<CompatibilityBackend>(backendName);
+        GpuOffloadLevel offload = Enum.Parse<GpuOffloadLevel>(offloadName);
+
+        ResourceEstimate estimate = Estimate(Candidate(
+            device: device, backend: backend, offload: offload));
+
+        EstimatorTerms terms = EstimatorPolicy.ProvisionalV1().Terms;
+        ByteCount expected = expectedTerm == "Cpu"
+            ? terms.CpuBackendAllocation
+            : terms.GpuBackendAllocation;
+
+        Assert.AreEqual(
+            expected, Single(estimate, ResourceComponentKind.BackendAllocation).Bytes);
     }
 
     [TestMethod]
