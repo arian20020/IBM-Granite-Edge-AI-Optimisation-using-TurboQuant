@@ -302,6 +302,27 @@ class CanonicalManifestTests(unittest.TestCase):
 
 
 class StagedPromotionTests(unittest.TestCase):
+    def test_manifest_factory_runs_after_artifacts_exist_before_publication(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "index"
+            base = promotable_manifest()
+
+            def factory(staging):
+                self.assertTrue((staging / base.artifacts[0].filename).is_file())
+                return base
+
+            result = promote_staged_index(
+                target,
+                None,
+                write_index,
+                validate_index,
+                operation_id="factory",
+                manifest_factory=factory,
+            )
+
+            self.assertEqual(target, result)
+            self.assertTrue((target / "manifest.json").is_file())
+
     def test_validated_staging_is_promoted_with_manifest_written_last(self):
         with tempfile.TemporaryDirectory() as directory:
             target = Path(directory) / "knowledge-index"

@@ -259,14 +259,17 @@ def load_and_validate_manifest(
 
 def promote_staged_index(
     destination: str | Path,
-    manifest: IndexManifest,
+    manifest: IndexManifest | None,
     writer: Callable[[Path], None],
     artifact_validator: Callable[[Path, ArtifactRecord, IndexManifest], object],
     *,
     operation_id: str | None = None,
+    manifest_factory: Callable[[Path], IndexManifest] | None = None,
 ) -> Path:
     """Build, validate, then atomically publish a new sibling index directory."""
-    expected = _validate_manifest(manifest)
+    if (manifest is None) == (manifest_factory is None):
+        raise ResearchError("index-manifest-invalid")
+    expected = _validate_manifest(manifest) if manifest is not None else None
     operation = _validated_operation_id(operation_id)
     target = Path(destination)
     parent = target.parent
@@ -290,6 +293,15 @@ def promote_staged_index(
         staging_identity = _require_plain_directory(staging)
         writer(staging)
         _scan_staging_bounded(staging)
+        if manifest_factory is not None:
+            try:
+                expected = _validate_manifest(manifest_factory(staging))
+            except ResearchError:
+                raise
+            except Exception:
+                raise ResearchError("index-manifest-invalid") from None
+        if expected is None:
+            raise ResearchError("index-manifest-invalid")
         _require_same_directory(parent, parent_identity)
         _require_same_directory(staging, staging_identity)
         parent_handle = _open_validated_directory_handle(parent, parent_identity)
