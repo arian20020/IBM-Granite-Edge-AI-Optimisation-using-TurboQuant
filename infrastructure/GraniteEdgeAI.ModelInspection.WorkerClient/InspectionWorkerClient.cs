@@ -140,6 +140,8 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
                 executable,
                 _testOnlyArguments,
                 environment,
+                WorkerProtocol.MaximumMessageBytes,
+                WorkerProtocol.MaximumMessageBytes,
                 _options.MaximumRetainedStandardErrorBytes,
                 _options.StartupTimeout,
                 _options.CancellationGracePeriod,
@@ -154,9 +156,7 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
             // stream waits behind another stream or behind process exit.
             standardErrorTask = session.ReadStandardErrorAsync();
             processExitTask = session.WaitForExitAsync(CancellationToken.None);
-            BoundedUtf8LineReader stdoutReader = new(
-                session.StandardOutput,
-                WorkerProtocol.MaximumMessageBytes);
+            BoundedUtf8LineReader stdoutReader = session.StandardOutput;
             Task callerSignal = cancellationToken.CanBeCanceled
                 ? Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken)
                 : NeverCompletingTask;
@@ -174,9 +174,7 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
             // Cancelled terminal because no request has become active.
             cancellationToken.ThrowIfCancellationRequested();
 
-            using BoundedUtf8LineWriter stdinWriter = new(
-                session.StandardInput,
-                WorkerProtocol.MaximumMessageBytes);
+            BoundedUtf8LineWriter stdinWriter = session.StandardInput;
             await stdinWriter.WriteLineAsync(
                     WorkerProtocolJson.Serialize(command),
                     CancellationToken.None)
@@ -216,7 +214,7 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
 
             // Closing stdin after completion prevents a worker from waiting for
             // more commands and makes the parent-loss signal unambiguous.
-            await session.StandardInput.DisposeAsync().ConfigureAwait(false);
+            await session.CompleteInputAsync().ConfigureAwait(false);
         }
         catch (WorkerClientPolicyException error)
         {

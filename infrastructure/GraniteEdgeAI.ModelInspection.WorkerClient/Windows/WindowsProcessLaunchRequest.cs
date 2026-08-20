@@ -10,11 +10,18 @@ internal sealed record WindowsProcessLaunchRequest
     internal WindowsProcessLaunchRequest(
         VerifiedWorkerExecutable executable,
         IReadOnlyDictionary<string, string> environment,
-        IReadOnlyList<string> testOnlyArguments)
+        IReadOnlyList<string> testOnlyArguments,
+        TimeSpan cleanupTimeout)
     {
         ArgumentNullException.ThrowIfNull(executable);
         ArgumentNullException.ThrowIfNull(environment);
         ArgumentNullException.ThrowIfNull(testOnlyArguments);
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(
+            cleanupTimeout,
+            TimeSpan.Zero);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(
+            cleanupTimeout,
+            TimeSpan.FromSeconds(5));
 
         string canonicalWorkingDirectory;
         try
@@ -64,6 +71,7 @@ internal sealed record WindowsProcessLaunchRequest
         WorkingDirectory = canonicalWorkingDirectory;
         Environment = environment;
         TestOnlyArguments = Array.AsReadOnly([.. testOnlyArguments]);
+        CleanupTimeout = cleanupTimeout;
     }
 
     internal VerifiedWorkerExecutable Executable { get; }
@@ -77,6 +85,8 @@ internal sealed record WindowsProcessLaunchRequest
     /// abnormal behaviour. Production composition always supplies an empty list.
     /// </summary>
     internal IReadOnlyList<string> TestOnlyArguments { get; }
+
+    internal TimeSpan CleanupTimeout { get; }
 
     private static bool IsSameOrDescendant(string root, string candidate)
     {

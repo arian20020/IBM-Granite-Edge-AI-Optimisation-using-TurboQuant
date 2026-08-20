@@ -9,6 +9,8 @@ public sealed record ProtectedWorkerLaunchSpec(
     VerifiedWorkerExecutable Executable,
     IReadOnlyList<string> FixedArguments,
     IReadOnlyDictionary<string, string> Environment,
+    int MaximumStandardInputLineBytes,
+    int MaximumStandardOutputLineBytes,
     int MaximumStandardErrorBytes,
     TimeSpan StartupTimeout,
     TimeSpan CancellationGrace,

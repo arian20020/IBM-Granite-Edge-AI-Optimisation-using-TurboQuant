@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
 using GraniteEdgeAI.ModelInspection.WorkerClient.Windows;
 
 namespace GraniteEdgeAI.ModelInspection.WorkerClient.ProtectedWorker;
@@ -10,28 +11,11 @@ namespace GraniteEdgeAI.ModelInspection.WorkerClient.ProtectedWorker;
 public sealed class ProtectedWorkerSessionFactory :
     IProtectedWorkerSessionFactory
 {
-    private const int MaximumFixedArgumentCount = 16;
-    private const int MaximumFixedArgumentCharacters = 128;
+    private const int MaximumProtocolIdentifierCharacters = 96;
+    private static readonly TimeSpan MaximumCleanupTimeout =
+        TimeSpan.FromSeconds(5);
     private const string InvalidArgumentsMessage =
         "The protected worker fixed arguments are invalid.";
-    private static readonly string[] SensitiveArgumentNames =
-    [
-        "--model",
-        "--model-path",
-        "--prompt",
-        "--input",
-        "--json",
-        "--payload"
-    ];
-
-    private static readonly string[] ModelPayloadExtensions =
-    [
-        ".gguf",
-        ".onnx",
-        ".bin",
-        ".xml",
-        ".safetensors"
-    ];
 
     private readonly IWindowsWorkerProcessPlatform _platform;
 
@@ -62,7 +46,8 @@ public sealed class ProtectedWorkerSessionFactory :
         WindowsProcessLaunchRequest request = new(
             spec.Executable,
             environment,
-            fixedArguments);
+            fixedArguments,
+            spec.CleanupTimeout);
         WorkerProcessSession session = WindowsWorkerProcessLauncher.Launch(
             request,
             _platform);
@@ -80,6 +65,12 @@ public sealed class ProtectedWorkerSessionFactory :
     {
         ArgumentNullException.ThrowIfNull(spec.Executable);
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(
+            spec.MaximumStandardInputLineBytes,
+            0);
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(
+            spec.MaximumStandardOutputLineBytes,
+            0);
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(
             spec.MaximumStandardErrorBytes,
             0);
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(
@@ -91,68 +82,80 @@ public sealed class ProtectedWorkerSessionFactory :
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(
             spec.CleanupTimeout,
             TimeSpan.Zero);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(
+            spec.CleanupTimeout,
+            MaximumCleanupTimeout);
     }
 
     private static ReadOnlyCollection<string> ValidateAndSnapshotFixedArguments(
         IReadOnlyList<string> arguments)
     {
         ArgumentNullException.ThrowIfNull(arguments);
-        if (arguments.Count > MaximumFixedArgumentCount)
+        if (arguments.Count == 0)
+        {
+            return Array.AsReadOnly(Array.Empty<string>());
+        }
+
+        if (arguments.Count != 2)
         {
             throw InvalidArguments();
         }
 
-        List<string> snapshot = new(arguments.Count);
-        foreach (string argument in arguments)
+        string selector = arguments[0];
+        string identifier = arguments[1];
+        if (
+            !string.Equals(
+                selector,
+                "--protocol",
+                StringComparison.Ordinal) ||
+            !IsCanonicalProtocolIdentifier(identifier))
         {
-            if (!IsSafeSelector(argument))
-            {
-                throw InvalidArguments();
-            }
-
-            snapshot.Add(argument);
+            throw InvalidArguments();
         }
 
-        return snapshot.AsReadOnly();
+        return Array.AsReadOnly([selector, identifier]);
     }
 
-    private static bool IsSafeSelector(string? argument)
+    private static bool IsCanonicalProtocolIdentifier(string? value)
     {
-        if (string.IsNullOrWhiteSpace(argument) ||
-            argument.Length > MaximumFixedArgumentCharacters ||
-            argument.Any(char.IsWhiteSpace) ||
-            argument.Contains('\0') ||
-            argument.Contains('\\') ||
-            argument.Contains("..", StringComparison.Ordinal) ||
-            argument.IndexOfAny(['{', '}', '[', ']', '"', '\'', ':', ',']) >= 0 ||
-            Path.IsPathRooted(argument) ||
-            SensitiveArgumentNames.Contains(
-                argument,
-                StringComparer.OrdinalIgnoreCase) ||
-            ModelPayloadExtensions.Any(extension =>
-                argument.EndsWith(extension, StringComparison.OrdinalIgnoreCase)))
+        if (string.IsNullOrEmpty(value) ||
+            value.Length > MaximumProtocolIdentifierCharacters)
         {
             return false;
         }
 
-        foreach (char character in argument)
+        int separator = value.IndexOf('/');
+        if (separator <= 0 ||
+            separator != value.LastIndexOf('/') ||
+            separator == value.Length - 1)
         {
-            if (!(character is >= 'a' and <= 'z') &&
-                !(character is >= 'A' and <= 'Z') &&
-                !(character is >= '0' and <= '9') &&
-                character is not '-' and not '_' and not '.' and not '/')
-            {
-                return false;
-            }
+            return false;
         }
 
-        // A bare word is indistinguishable from a one-word prompt. Approved
-        // fixed selectors are flags, numeric values, kebab/snake identifiers,
-        // or versioned protocol identifiers.
-        return argument.StartsWith("--", StringComparison.Ordinal) ||
-            argument.All(char.IsDigit) ||
-            argument.IndexOfAny(['-', '_', '.', '/']) >= 0;
+        string route = value[..separator];
+        string versionText = value[(separator + 1)..];
+        string[] segments = route.Split('.');
+        return segments.Length >= 2 &&
+            segments.All(IsCanonicalRouteSegment) &&
+            long.TryParse(
+                versionText,
+                NumberStyles.None,
+                CultureInfo.InvariantCulture,
+                out long version) &&
+            version > 0 &&
+            string.Equals(
+                versionText,
+                version.ToString(CultureInfo.InvariantCulture),
+                StringComparison.Ordinal);
     }
+
+    private static bool IsCanonicalRouteSegment(string segment) =>
+        segment.Length is > 0 and <= 32 &&
+        segment[0] is >= 'a' and <= 'z' &&
+        segment[^1] is (>= 'a' and <= 'z') or (>= '0' and <= '9') &&
+        segment.All(static character =>
+            character is (>= 'a' and <= 'z') or
+                (>= '0' and <= '9') or '-');
 
     private static WorkerClientPolicyException InvalidArguments() =>
         WorkerClientPolicyException.For(

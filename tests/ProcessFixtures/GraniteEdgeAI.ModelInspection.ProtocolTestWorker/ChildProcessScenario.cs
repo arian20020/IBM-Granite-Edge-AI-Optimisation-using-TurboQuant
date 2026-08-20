@@ -19,7 +19,9 @@ internal static class ChildProcessScenario
             UseShellExecute = false,
             CreateNoWindow = true
         };
-        startInfo.ArgumentList.Add("child-process-wait");
+        startInfo.ArgumentList.Add("--protocol");
+        startInfo.ArgumentList.Add(
+            "modelinspection.fixture.child-process-wait/1");
         return Process.Start(startInfo) ??
             throw new InvalidOperationException(
                 "The fixture child process could not start.");

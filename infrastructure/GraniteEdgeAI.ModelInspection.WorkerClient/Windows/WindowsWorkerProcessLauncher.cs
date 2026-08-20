@@ -118,7 +118,8 @@ internal static class WindowsWorkerProcessLauncher
                 job,
                 standardInput,
                 standardOutput,
-                standardError);
+                standardError,
+                request.CleanupTimeout);
 
             // Ownership has moved into the session. Clear every local owner so
             // the finally block cannot double-dispose returned resources.

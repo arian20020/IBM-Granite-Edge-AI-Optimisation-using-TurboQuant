@@ -1,9 +1,11 @@
+using GraniteEdgeAI.ModelInspection.Transport;
+
 namespace GraniteEdgeAI.ModelInspection.WorkerClient.ProtectedWorker;
 
 /// <summary>
-/// Exposes one contained process, its standard streams, bounded stderr result,
-/// and authoritative full-tree cleanup operations. Protocol framing and
-/// parsing remain the responsibility of the route-specific client.
+/// Exposes one contained process, bounded line-oriented standard I/O, bounded
+/// stderr, and authoritative full-tree cleanup operations. Protocol parsing
+/// remains the responsibility of the route-specific client.
 /// </summary>
 public sealed class ProtectedWorkerSession : IAsyncDisposable
 {
@@ -21,6 +23,12 @@ public sealed class ProtectedWorkerSession : IAsyncDisposable
         StartupTimeout = spec.StartupTimeout;
         CancellationGrace = spec.CancellationGrace;
         CleanupTimeout = spec.CleanupTimeout;
+        StandardInput = new BoundedUtf8LineWriter(
+            session.StandardInput,
+            spec.MaximumStandardInputLineBytes);
+        StandardOutput = new BoundedUtf8LineReader(
+            session.StandardOutput,
+            spec.MaximumStandardOutputLineBytes);
 
         // Drain stderr from launch onward. Retention is bounded, but the pipe
         // is always consumed to EOF so a noisy child cannot deadlock itself.
@@ -33,9 +41,9 @@ public sealed class ProtectedWorkerSession : IAsyncDisposable
 
     public uint ProcessId => _session.ProcessId;
 
-    public Stream StandardInput => _session.StandardInput;
+    public BoundedUtf8LineWriter StandardInput { get; }
 
-    public Stream StandardOutput => _session.StandardOutput;
+    public BoundedUtf8LineReader StandardOutput { get; }
 
     public TimeSpan StartupTimeout { get; }
 
@@ -55,10 +63,17 @@ public sealed class ProtectedWorkerSession : IAsyncDisposable
         _session.Job.GetActiveProcessCount();
 
     public Task<bool> TerminateAndVerifyEmptyAsync() =>
-        _session.TerminateAndVerifyEmptyAsync(CleanupTimeout);
+        _session.TerminateAndVerifyEmptyAsync();
 
     public Task<bool> WaitForTreeEmptyAsync() =>
-        _session.WaitForTreeEmptyAsync(CleanupTimeout);
+        _session.WaitForTreeEmptyAsync();
 
-    public ValueTask DisposeAsync() => _session.DisposeAsync();
+    public ValueTask CompleteInputAsync() =>
+        _session.StandardInput.DisposeAsync();
+
+    public async ValueTask DisposeAsync()
+    {
+        StandardInput.Dispose();
+        await _session.DisposeAsync().ConfigureAwait(false);
+    }
 }

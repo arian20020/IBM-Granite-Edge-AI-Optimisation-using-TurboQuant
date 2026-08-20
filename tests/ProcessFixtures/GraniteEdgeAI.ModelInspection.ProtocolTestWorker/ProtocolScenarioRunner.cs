@@ -118,6 +118,21 @@ internal sealed class ProtocolScenarioRunner
         WorkerStartInspectionCommand start =
             await ReadCommandAsync<WorkerStartInspectionCommand>().ConfigureAwait(false);
         await _milestones.WriteAsync("FIXTURE:START_RECEIVED").ConfigureAwait(false);
+        if (scenario == TestWorkerScenario.ObserveParentIdentity)
+        {
+            using Process parent = Process.GetProcessById(start.ParentProcessId);
+            DateTimeOffset observedStart = new(
+                parent.StartTime.ToUniversalTime(),
+                TimeSpan.Zero);
+            if (observedStart != start.ParentProcessStartTimeUtc)
+            {
+                throw new InvalidOperationException(
+                    "The delivered parent identity did not match the observed process.");
+            }
+
+            await _milestones.WriteAsync("FIXTURE:PARENT_IDENTITY_OBSERVED")
+                .ConfigureAwait(false);
+        }
         if (scenario == TestWorkerScenario.CrashAfterStart)
         {
             Environment.FailFast("Fixture crash after start.");

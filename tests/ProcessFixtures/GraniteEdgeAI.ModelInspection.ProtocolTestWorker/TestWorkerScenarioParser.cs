@@ -8,6 +8,9 @@ namespace GraniteEdgeAI.ModelInspection.ProtocolTestWorker;
 /// </summary>
 internal static class TestWorkerScenarioParser
 {
+    private const string ProtocolSelector = "--protocol";
+    private const string FixtureRoutePrefix = "modelinspection.fixture.";
+
     private static readonly Dictionary<string, TestWorkerScenario> Scenarios =
         new(StringComparer.Ordinal)
         {
@@ -46,50 +49,86 @@ internal static class TestWorkerScenarioParser
             ["terminal-exit-mismatch"] = TestWorkerScenario.TerminalExitMismatch,
             ["echo-environment-keys"] = TestWorkerScenario.EchoEnvironmentKeys,
             ["probe-unrelated-handle"] = TestWorkerScenario.ProbeUnrelatedHandle,
+            ["observe-parent-identity"] = TestWorkerScenario.ObserveParentIdentity,
             ["child-process-wait"] = TestWorkerScenario.ChildProcessWait
         };
 
     internal static bool TryParse(string[] args, out TestWorkerScenarioRequest? request)
     {
         request = null;
-        if (args.Length == 0 || !Scenarios.TryGetValue(args[0], out TestWorkerScenario scenario))
+        if (args.Length != 2 ||
+            !string.Equals(args[0], ProtocolSelector, StringComparison.Ordinal) ||
+            !TryParseIdentifier(
+                args[1],
+                out TestWorkerScenario scenario,
+                out long version))
+        {
             return false;
+        }
 
         if (scenario == TestWorkerScenario.ProbeUnrelatedHandle)
         {
-            if (args.Length != 2 ||
-                !long.TryParse(args[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out long value) ||
-                value <= 0)
-                return false;
-
-            request = new TestWorkerScenarioRequest(scenario, value);
+            request = new TestWorkerScenarioRequest(scenario, version);
             return true;
         }
 
         if (scenario == TestWorkerScenario.CooperativeCancellation &&
-            args.Length == 2)
+            version != 1)
         {
-            if (!long.TryParse(
-                    args[1],
-                    NumberStyles.Integer,
-                    CultureInfo.InvariantCulture,
-                    out long delayMilliseconds) ||
-                delayMilliseconds <= 0 ||
-                delayMilliseconds > 5_000)
+            if (version > 5_000)
             {
                 return false;
             }
 
             request = new TestWorkerScenarioRequest(
                 scenario,
-                delayMilliseconds);
+                version);
             return true;
         }
 
-        if (args.Length != 1)
+        if (version != 1)
+        {
             return false;
+        }
 
         request = new TestWorkerScenarioRequest(scenario);
         return true;
+    }
+
+    private static bool TryParseIdentifier(
+        string identifier,
+        out TestWorkerScenario scenario,
+        out long version)
+    {
+        scenario = default;
+        version = default;
+        if (!identifier.StartsWith(
+                FixtureRoutePrefix,
+                StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        int separator = identifier.LastIndexOf('/');
+        if (separator <= FixtureRoutePrefix.Length ||
+            separator == identifier.Length - 1)
+        {
+            return false;
+        }
+
+        string scenarioName = identifier[
+            FixtureRoutePrefix.Length..separator];
+        string versionText = identifier[(separator + 1)..];
+        return Scenarios.TryGetValue(scenarioName, out scenario) &&
+            long.TryParse(
+                versionText,
+                NumberStyles.None,
+                CultureInfo.InvariantCulture,
+                out version) &&
+            version > 0 &&
+            string.Equals(
+                versionText,
+                version.ToString(CultureInfo.InvariantCulture),
+                StringComparison.Ordinal);
     }
 }
