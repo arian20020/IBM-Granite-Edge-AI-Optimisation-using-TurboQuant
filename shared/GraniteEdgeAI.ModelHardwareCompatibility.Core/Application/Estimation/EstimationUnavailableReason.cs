@@ -11,7 +11,13 @@ internal enum EstimationUnavailableReason
     /// <summary>No versioned estimator constants are available.</summary>
     EstimatorPolicyUnavailable,
 
-    /// <summary>Layers, heads or embedding size were not established.</summary>
+    /// <summary>
+    /// Layers, heads or embedding size were not established, or were
+    /// established but describe a shape this estimator cannot size - for
+    /// example an embedding size that does not divide evenly by the attention
+    /// head count. Rounding a shape like that would be inventing an
+    /// architecture rather than reading one.
+    /// </summary>
     UnknownArchitecture,
 
     /// <summary>

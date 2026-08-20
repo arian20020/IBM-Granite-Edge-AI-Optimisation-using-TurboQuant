@@ -44,5 +44,8 @@ mandatory margins are included, and any unknown input collapses a candidate to `
 rather than defaulting to zero.
 
 Both policies currently ship `Provisional` provenance: their values are documented defaults, not
-measurements. Every estimate built on them records the limitation, and moving to `Calibrated` is a
-data change rather than a code change.
+measurements. Every estimate built on them records the limitation. Moving either policy to
+`Calibrated` is a code change today, not a data change: both are hardcoded C# factories with
+private constructors, and no JSON (or other externally-loadable) asset exists yet. `Calibrated`
+itself has no factory. See "Known follow-up, recorded not hidden" in the GGUF resource estimator
+plan for what would need to exist first.

@@ -10,11 +10,13 @@ namespace GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.Gguf;
 ///
 /// Recorded limitation, spec section 8: C1 receives a file length and
 /// quantisation identifiers, not per-tensor sizes. This is derived from a
-/// measured quantity and is less precise than a tensor-level read, so every
-/// estimate built here carries WeightsDerivedFromFileLength. Converting between
-/// encodings scales by average bits per weight, which additionally carries
-/// WeightsScaledAcrossQuantisation because embeddings and normalisation tensors
-/// do not scale linearly.
+/// measured quantity and is less precise than a tensor-level read, which is why
+/// GgufResourceEstimator records WeightsDerivedFromFileLength on every estimate
+/// built from this type's output. This type attaches no limitations itself -
+/// it only reports scaledAcrossQuantisation, and it is the caller that
+/// additionally records WeightsScaledAcrossQuantisation when converting between
+/// encodings scales by average bits per weight, because embeddings and
+/// normalisation tensors do not scale linearly.
 /// </summary>
 internal static class GgufWeightEstimator
 {

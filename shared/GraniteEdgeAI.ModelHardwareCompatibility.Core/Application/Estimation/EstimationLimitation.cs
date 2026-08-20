@@ -18,7 +18,12 @@ internal enum EstimationLimitation
 
     /// <summary>
     /// Weight memory was scaled between two quantisations by average bits per
-    /// weight. Embeddings and normalisation tensors do not scale linearly.
+    /// weight. Embeddings and normalisation tensors do not scale linearly, so
+    /// this error is not symmetric: for a downward conversion (to fewer bits
+    /// per weight) it runs toward under-estimating the target size, which is
+    /// the false-safe direction. This is the one knowingly non-conservative
+    /// path in the estimator; every other margin in this codebase is added to
+    /// the requirement, never subtracted.
     /// </summary>
     WeightsScaledAcrossQuantisation,
 
