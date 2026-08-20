@@ -2,7 +2,7 @@ using System.Globalization;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.Gguf;
 
-namespace GraniteEdgeAI.ModelHardwareCompatibility.Tests.Routes;
+namespace GraniteEdgeAI.ModelHardwareCompatibility.Tests.Routes.Gguf;
 
 [TestClass]
 public sealed class GgufRouteConfigurationTests
