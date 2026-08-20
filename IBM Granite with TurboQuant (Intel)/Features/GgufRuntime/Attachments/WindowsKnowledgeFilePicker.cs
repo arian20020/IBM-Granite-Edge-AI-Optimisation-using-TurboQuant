@@ -8,6 +8,9 @@ namespace GraniteEdgeAI.Features.GgufRuntime.Attachments;
 
 internal sealed class WindowsKnowledgeFilePicker : IKnowledgeFilePicker
 {
+    private static readonly IReadOnlyList<string> AllowedFileTypes =
+        Array.AsReadOnly(new[] { ".txt", ".md" });
+
     public async Task<IReadOnlyList<KnowledgeFileCandidate>> PickAsync()
     {
         FileOpenPicker picker = new FileOpenPicker(App.MainWindow.AppWindow.Id)
@@ -15,22 +18,24 @@ internal sealed class WindowsKnowledgeFilePicker : IKnowledgeFilePicker
             Title = "Add knowledge files",
             CommitButtonText = "Attach",
         };
-        picker.FileTypeFilter.Add(".txt");
-        picker.FileTypeFilter.Add(".md");
+        foreach (string fileType in AllowedFileTypes)
+        {
+            picker.FileTypeFilter.Add(fileType);
+        }
 
-        IReadOnlyList<PickFileResult>? selected = await picker.PickMultipleFilesAsync();
-        if (selected is null || selected.Count == 0)
+        IReadOnlyList<PickFileResult>? results = await picker.PickMultipleFilesAsync();
+        if (results is null || results.Count == 0)
         {
             return Array.Empty<KnowledgeFileCandidate>();
         }
 
-        var candidates = new List<KnowledgeFileCandidate>(selected.Count);
-        foreach (PickFileResult result in selected)
+        var candidates = new List<KnowledgeFileCandidate>(results.Count);
+        foreach (PickFileResult result in results)
         {
             candidates.Add(ToCandidate(result?.Path));
         }
 
-        return candidates;
+        return candidates.AsReadOnly();
     }
 
     private static KnowledgeFileCandidate ToCandidate(string? path)
