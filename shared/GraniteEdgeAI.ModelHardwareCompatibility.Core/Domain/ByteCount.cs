@@ -56,6 +56,49 @@ internal readonly struct ByteCount : IEquatable<ByteCount>, IComparable<ByteCoun
     }
 
     /// <summary>
+    /// Rounds upward to an allocation boundary. Allocation granularity only ever
+    /// costs more memory than requested, so this rounds up and never down.
+    /// </summary>
+    internal ByteCount AlignUpTo(ulong alignment)
+    {
+        if (alignment == 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(alignment),
+                "An allocation boundary must be a positive number of bytes.");
+        }
+
+        if ((alignment & (alignment - 1)) != 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(alignment),
+                "An allocation boundary must be a power of two; a non-power-of-two "
+                + "value is almost always a units mistake.");
+        }
+
+        ulong remainder = Bytes % alignment;
+        return remainder == 0
+            ? this
+            : new ByteCount(checked(Bytes + (alignment - remainder)));
+    }
+
+    /// <summary>
+    /// Scales by a fraction, rounding upward. Overhead terms are always rounded
+    /// against the user, because an understated overhead is a false-safe result.
+    /// </summary>
+    internal ByteCount MultiplyByFraction(decimal fraction)
+    {
+        if (fraction < 0m)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(fraction),
+                "A byte quantity cannot be scaled by a negative fraction.");
+        }
+
+        return new ByteCount((ulong)Math.Ceiling(Bytes * fraction));
+    }
+
+    /// <summary>
     /// Expresses this quantity as a proportion of a denominator. Decimal is
     /// used rather than double so threshold comparisons are exact.
     /// </summary>
