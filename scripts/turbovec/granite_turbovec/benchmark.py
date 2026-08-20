@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import math
 import re
+import statistics
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any, Iterable, Mapping, Sequence
@@ -12,10 +13,20 @@ from typing import Any, Iterable, Mapping, Sequence
 from .contracts import ResearchError
 
 
-_QUERY_ID = re.compile(r"q[0-9]{2,4}\Z")
-_SAFE_IDENTITY = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:+-]{0,63}\Z")
-_MAX_QUERIES = 256
+_QUERY_ID = re.compile(r"q[0-9]{2}\Z")
+_SAFE_IDENTITY = re.compile(r"[A-Za-z0-9][A-Za-z0-9._+-]{0,63}\Z")
+_MAX_QUERIES = 99
 _MAX_QUERY_LENGTH = 500
+_GATE_SPECS = (
+    ("recall_at_10", 0.85, ">="),
+    ("mrr_ratio", 0.90, ">="),
+    ("hit_at_5_delta", -0.05, ">="),
+    ("size_ratio", 0.25, "<="),
+    ("latency_ratio", 1.0, "<="),
+)
+_GATE_TOLERANCE = 1e-12
+# Only Hit@5 uses this absolute threshold tolerance, to absorb rate-subtraction
+# noise such as 17/20 - 18/20 producing -0.050000000000000044.
 
 
 @dataclass(frozen=True)
@@ -23,6 +34,10 @@ class RankingMetrics:
     recall_at_k: float
     mrr: float
     hit_at_k: float
+
+    def __post_init__(self) -> None:
+        if not all(_finite_unit(value) for value in (self.recall_at_k, self.mrr, self.hit_at_k)):
+            raise ResearchError("benchmark-evidence-invalid")
 
     def to_dict(self) -> dict[str, float]:
         return {"hit_at_k": self.hit_at_k, "mrr": self.mrr, "recall_at_k": self.recall_at_k}
@@ -38,6 +53,24 @@ class MatchedRetrievalMetrics:
     candidate: RankingMetrics
     mrr_ratio: float
     hit_delta: float
+
+    def __post_init__(self) -> None:
+        if (
+            not _safe_identity(self.exact_route)
+            or not _safe_identity(self.candidate_route)
+            or self.exact_route == self.candidate_route
+            or type(self.query_count) is not int
+            or self.query_count <= 0
+            or type(self.top_k) is not int
+            or self.top_k <= 0
+            or not isinstance(self.exact, RankingMetrics)
+            or not isinstance(self.candidate, RankingMetrics)
+            or not _finite_nonnegative(self.mrr_ratio)
+            or not math.isclose(self.mrr_ratio, _safe_ratio(self.candidate.mrr, self.exact.mrr), rel_tol=1e-12, abs_tol=1e-15)
+            or not _finite_between(self.hit_delta, -1, 1)
+            or not math.isclose(self.hit_delta, self.candidate.hit_at_k - self.exact.hit_at_k, rel_tol=0, abs_tol=1e-15)
+        ):
+            raise ResearchError("benchmark-evidence-invalid")
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -60,6 +93,16 @@ class TimingSummary:
     min_seconds: float
     max_seconds: float
 
+    def __post_init__(self) -> None:
+        values = (self.min_seconds, self.median_seconds, self.p95_seconds, self.max_seconds)
+        if (
+            type(self.count) is not int
+            or self.count <= 0
+            or not all(_finite_nonnegative(value) for value in values)
+            or not self.min_seconds <= self.median_seconds <= self.p95_seconds <= self.max_seconds
+        ):
+            raise ResearchError("benchmark-evidence-invalid")
+
     def to_dict(self) -> dict[str, int | float]:
         return {
             "count": self.count,
@@ -74,6 +117,15 @@ class TimingSummary:
 class ColdWarmTimings:
     cold: TimingSummary
     warm: TimingSummary
+
+    def __post_init__(self) -> None:
+        if (
+            not isinstance(self.cold, TimingSummary)
+            or not isinstance(self.warm, TimingSummary)
+            or self.cold.count < 1
+            or self.warm.count < 5
+        ):
+            raise ResearchError("benchmark-evidence-invalid")
 
     def to_dict(self) -> dict[str, Any]:
         return {"cold": self.cold.to_dict(), "warm": self.warm.to_dict()}
@@ -105,6 +157,19 @@ class GateCriterion:
     comparison: str
     passed: bool
 
+    def __post_init__(self) -> None:
+        expected = next((item for item in _GATE_SPECS if item[0] == self.name), None)
+        if (
+            expected is None
+            or not _finite_number(self.value)
+            or not _finite_number(self.threshold)
+            or self.threshold != expected[1]
+            or self.comparison != expected[2]
+            or type(self.passed) is not bool
+            or self.passed != _criterion_passes(self.name, self.value, self.threshold, self.comparison)
+        ):
+            raise ResearchError("benchmark-evidence-invalid")
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "comparison": self.comparison,
@@ -120,6 +185,16 @@ class GateResult:
     passed: bool
     criteria: tuple[GateCriterion, ...]
 
+    def __post_init__(self) -> None:
+        if (
+            type(self.criteria) is not tuple
+            or not all(isinstance(item, GateCriterion) for item in self.criteria)
+            or tuple(item.name for item in self.criteria) != tuple(item[0] for item in _GATE_SPECS)
+            or type(self.passed) is not bool
+            or self.passed != all(item.passed for item in self.criteria)
+        ):
+            raise ResearchError("benchmark-evidence-invalid")
+
     def to_dict(self) -> dict[str, Any]:
         return {"criteria": [item.to_dict() for item in self.criteria], "passed": self.passed}
 
@@ -131,20 +206,40 @@ class RouteEvidence:
     actual_backend: str
     requested_provider: str
     actual_provider: str
+    query_count: int
+    top_k: int
+    hit_at_5: float
     metrics: RankingMetrics
     timings: ColdWarmTimings
 
+    def __post_init__(self) -> None:
+        if (
+            self.route not in {"float32", "turbovec-4bit"}
+            or not all(
+                _safe_identity(identity)
+                for identity in (self.requested_backend, self.actual_backend, self.requested_provider, self.actual_provider)
+            )
+            or type(self.query_count) is not int
+            or self.query_count <= 0
+            or type(self.top_k) is not int
+            or self.top_k <= 0
+            or not _finite_unit(self.hit_at_5)
+            or not isinstance(self.metrics, RankingMetrics)
+            or not isinstance(self.timings, ColdWarmTimings)
+        ):
+            raise ResearchError("benchmark-evidence-invalid")
+
     def to_dict(self) -> dict[str, Any]:
-        for identity in (self.route, self.requested_backend, self.actual_backend, self.requested_provider, self.actual_provider):
-            if type(identity) is not str or not _SAFE_IDENTITY.fullmatch(identity):
-                raise ResearchError("benchmark-evidence-invalid")
         return {
             "actual_backend": self.actual_backend,
             "actual_provider": self.actual_provider,
             "metrics": self.metrics.to_dict(),
+            "hit_at_5": self.hit_at_5,
+            "query_count": self.query_count,
             "requested_backend": self.requested_backend,
             "requested_provider": self.requested_provider,
             "route": self.route,
+            "top_k": self.top_k,
             "timings": self.timings.to_dict(),
         }
 
@@ -155,12 +250,12 @@ class StorageEvidence:
     candidate_persisted_bytes: int
     size_ratio: float
 
-    def to_dict(self) -> dict[str, int | float]:
+    def __post_init__(self) -> None:
         if (
             type(self.float32_vector_bytes) is not int
             or self.float32_vector_bytes <= 0
             or type(self.candidate_persisted_bytes) is not int
-            or self.candidate_persisted_bytes < 0
+            or self.candidate_persisted_bytes <= 0
             or not _finite_nonnegative(self.size_ratio)
             or not math.isclose(
                 self.size_ratio,
@@ -170,6 +265,8 @@ class StorageEvidence:
             )
         ):
             raise ResearchError("benchmark-evidence-invalid")
+
+    def to_dict(self) -> dict[str, int | float]:
         return {
             "candidate_persisted_bytes": self.candidate_persisted_bytes,
             "float32_vector_bytes": self.float32_vector_bytes,
@@ -187,9 +284,47 @@ class BenchmarkEvidence:
     storage: StorageEvidence
     gate: GateResult
 
-    def to_dict(self) -> dict[str, Any]:
-        if self.schema_version != 1 or self.query_count <= 0 or self.top_k <= 0:
+    def __post_init__(self) -> None:
+        if (
+            not isinstance(self.baseline, RouteEvidence)
+            or not isinstance(self.candidate, RouteEvidence)
+            or not isinstance(self.storage, StorageEvidence)
+            or not isinstance(self.gate, GateResult)
+        ):
             raise ResearchError("benchmark-evidence-invalid")
+        try:
+            represented = GateMetrics(
+                self.candidate.metrics.recall_at_k,
+                _safe_ratio(self.candidate.metrics.mrr, self.baseline.metrics.mrr),
+                self.candidate.hit_at_5 - self.baseline.hit_at_5,
+                self.storage.size_ratio,
+                _safe_ratio(
+                    self.candidate.timings.warm.median_seconds,
+                    self.baseline.timings.warm.median_seconds,
+                ),
+            )
+            recomputed = evaluate_gate(represented)
+        except ResearchError:
+            raise ResearchError("benchmark-evidence-invalid") from None
+        if (
+            type(self.schema_version) is not int
+            or self.schema_version != 1
+            or type(self.query_count) is not int
+            or self.query_count <= 0
+            or type(self.top_k) is not int
+            or self.top_k != 10
+            or self.baseline.route != "float32"
+            or self.candidate.route != "turbovec-4bit"
+            or self.baseline.route == self.candidate.route
+            or self.baseline.query_count != self.query_count
+            or self.candidate.query_count != self.query_count
+            or self.baseline.top_k != self.top_k
+            or self.candidate.top_k != self.top_k
+            or self.gate != recomputed
+        ):
+            raise ResearchError("benchmark-evidence-invalid")
+
+    def to_dict(self) -> dict[str, Any]:
         return {
             "baseline": self.baseline.to_dict(),
             "candidate": self.candidate.to_dict(),
@@ -275,6 +410,11 @@ def compare_matched_routes(
 
 
 def aggregate_timings(samples: Sequence[float], *, require_release_evidence: bool = False) -> TimingSummary:
+    """Summarize seconds with conventional median and nearest-rank p95.
+
+    For sorted ``N`` samples, p95 is ``samples[ceil(.95 * N) - 1]``. An even
+    sample count uses the arithmetic mean of the two middle values for median.
+    """
     if not isinstance(samples, Sequence) or isinstance(samples, (str, bytes)) or not samples:
         raise ResearchError("timing-samples-invalid")
     if require_release_evidence and len(samples) < 5:
@@ -290,7 +430,7 @@ def aggregate_timings(samples: Sequence[float], *, require_release_evidence: boo
     values.sort()
     return TimingSummary(
         len(values),
-        _nearest_rank(values, 0.50),
+        statistics.median(values),
         _nearest_rank(values, 0.95),
         values[0],
         values[-1],
@@ -309,11 +449,11 @@ def summarize_cold_warm(cold: Sequence[float], warm: Sequence[float], *, require
 def evaluate_gate(metrics: GateMetrics) -> GateResult:
     _validate_gate_metrics(metrics)
     criteria = (
-        GateCriterion("recall_at_10", metrics.recall_at_10, 0.85, ">=", metrics.recall_at_10 >= 0.85),
-        GateCriterion("mrr_ratio", metrics.mrr_ratio, 0.90, ">=", metrics.mrr_ratio >= 0.90),
-        GateCriterion("hit_at_5_delta", metrics.hit_at_5_delta, -0.05, ">=", metrics.hit_at_5_delta >= -0.05),
-        GateCriterion("size_ratio", metrics.size_ratio, 0.25, "<=", metrics.size_ratio <= 0.25),
-        GateCriterion("latency_ratio", metrics.latency_ratio, 1.0, "<=", metrics.latency_ratio <= 1.0),
+        GateCriterion("recall_at_10", metrics.recall_at_10, 0.85, ">=", _criterion_passes("recall_at_10", metrics.recall_at_10, 0.85, ">=")),
+        GateCriterion("mrr_ratio", metrics.mrr_ratio, 0.90, ">=", _criterion_passes("mrr_ratio", metrics.mrr_ratio, 0.90, ">=")),
+        GateCriterion("hit_at_5_delta", metrics.hit_at_5_delta, -0.05, ">=", _criterion_passes("hit_at_5_delta", metrics.hit_at_5_delta, -0.05, ">=")),
+        GateCriterion("size_ratio", metrics.size_ratio, 0.25, "<=", _criterion_passes("size_ratio", metrics.size_ratio, 0.25, "<=")),
+        GateCriterion("latency_ratio", metrics.latency_ratio, 1.0, "<=", _criterion_passes("latency_ratio", metrics.latency_ratio, 1.0, "<=")),
     )
     return GateResult(all(item.passed for item in criteria), criteria)
 
@@ -347,7 +487,7 @@ def build_matched_evidence(
     )
     if type(float32_vector_bytes) is not int or float32_vector_bytes <= 0:
         raise ResearchError("storage-bytes-invalid")
-    if type(candidate_persisted_bytes) is not int or candidate_persisted_bytes < 0:
+    if type(candidate_persisted_bytes) is not int or candidate_persisted_bytes <= 0:
         raise ResearchError("storage-bytes-invalid")
     size_ratio = _safe_ratio(candidate_persisted_bytes, float32_vector_bytes)
     latency_ratio = _safe_ratio(
@@ -373,6 +513,9 @@ def build_matched_evidence(
             "float32",
             requested_provider,
             actual_provider,
+            at_ten.query_count,
+            10,
+            at_five.exact.hit_at_k,
             at_ten.exact,
             baseline_timings,
         ),
@@ -382,6 +525,9 @@ def build_matched_evidence(
             actual_backend,
             requested_provider,
             actual_provider,
+            at_ten.query_count,
+            10,
+            at_five.candidate.hit_at_k,
             at_ten.candidate,
             candidate_timings,
         ),
@@ -406,7 +552,7 @@ def load_evaluation_fixture(path: str | Path) -> EvaluationFixture:
             raise ValueError
         top_k = payload["top_k"]
         queries = payload["queries"]
-        if type(top_k) is not int or not 1 <= top_k <= 100:
+        if type(top_k) is not int or top_k != 10:
             raise ValueError
         if type(queries) is not list or not 1 <= len(queries) <= _MAX_QUERIES:
             raise ValueError
@@ -422,9 +568,14 @@ def load_evaluation_fixture(path: str | Path) -> EvaluationFixture:
                 raise ValueError
             if type(question) is not str or not question.strip() or len(question) > _MAX_QUERY_LENGTH:
                 raise ValueError
-            if type(sources) is not list or len(sources) > 32 or len(sources) != len(set(sources)):
+            if (
+                type(sources) is not list
+                or len(sources) > 32
+                or any(type(source) is not str for source in sources)
+                or len(sources) != len({source.casefold() for source in sources})
+            ):
                 raise ValueError
-            if any(type(source) is not str or not _safe_relative_source(source) for source in sources):
+            if any(not _safe_relative_source(source) for source in sources):
                 raise ValueError
             seen.add(query_id)
             parsed.append(EvaluationQuery(query_id, question, tuple(sources)))
@@ -504,7 +655,7 @@ def _validate_identity(item: Any, identity_type: type | None, code: str) -> type
 
 
 def _nearest_rank(values: Sequence[float], quantile: float) -> float:
-    # Nearest-rank: sorted[ceil(p*N)-1], including p=.5 for the median.
+    # P95 uses nearest-rank: sorted[ceil(.95*N)-1]. Median is conventional.
     return values[max(0, math.ceil(quantile * len(values)) - 1)]
 
 
@@ -535,6 +686,33 @@ def _finite_nonnegative(value: Any) -> bool:
         and math.isfinite(float(value))
         and value >= 0
     )
+
+
+def _finite_number(value: Any) -> bool:
+    return not isinstance(value, bool) and isinstance(value, (int, float)) and math.isfinite(float(value))
+
+
+def _finite_unit(value: Any) -> bool:
+    return _finite_between(value, 0, 1)
+
+
+def _finite_between(value: Any, minimum: float, maximum: float) -> bool:
+    return _finite_number(value) and minimum <= value <= maximum
+
+
+def _safe_identity(value: Any) -> bool:
+    return type(value) is str and _SAFE_IDENTITY.fullmatch(value) is not None
+
+
+def _criterion_passes(name: str, value: float, threshold: float, comparison: str) -> bool:
+    if comparison == ">=":
+        tolerance = _GATE_TOLERANCE if name == "hit_at_5_delta" else 0.0
+        return value + tolerance >= threshold
+    if comparison == "<=":
+        return value <= threshold
+    return False
+
+
 def _reject_duplicate_keys(pairs: Iterable[tuple[str, Any]]) -> dict[str, Any]:
     result: dict[str, Any] = {}
     for key, value in pairs:
@@ -545,17 +723,31 @@ def _reject_duplicate_keys(pairs: Iterable[tuple[str, Any]]) -> dict[str, Any]:
 
 
 def _safe_relative_source(value: str) -> bool:
-    if not value or "\\" in value or "\x00" in value:
+    if (
+        not value
+        or value.startswith("./")
+        or value.endswith("/")
+        or "//" in value
+        or "\\" in value
+        or ":" in value
+        or any(ord(character) < 32 or ord(character) == 127 for character in value)
+    ):
+        return False
+    raw_segments = value.split("/")
+    if any(segment in {"", ".", ".."} for segment in raw_segments):
         return False
     posix = PurePosixPath(value)
     windows = PureWindowsPath(value)
-    return (
-        not posix.is_absolute()
-        and not windows.is_absolute()
-        and not windows.drive
-        and ".." not in posix.parts
-        and "." not in posix.parts
-    )
+    if posix.is_absolute() or windows.is_absolute() or windows.drive or any(part in {"", ".", ".."} for part in posix.parts):
+        return False
+    if any(part.endswith((".", " ")) or _is_dos_device(part) for part in posix.parts):
+        return False
+    return posix.suffix.casefold() in {".txt", ".md"}
+
+
+def _is_dos_device(segment: str) -> bool:
+    base = segment.split(".", 1)[0].rstrip(" .").casefold()
+    return base in {"con", "prn", "aux", "nul"} or re.fullmatch(r"(?:com|lpt)[1-9]", base) is not None
 
 
 def _ensure_json_numbers_finite(value: Any) -> None:

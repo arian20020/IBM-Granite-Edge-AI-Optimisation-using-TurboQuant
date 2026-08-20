@@ -2,14 +2,19 @@ import json
 import math
 import tempfile
 import unittest
-from dataclasses import FrozenInstanceError
+from dataclasses import FrozenInstanceError, replace
 from pathlib import Path
 
 from granite_turbovec.benchmark import (
     BenchmarkEvidence,
+    ColdWarmTimings,
+    GateCriterion,
     GateMetrics,
+    GateResult,
+    RankingMetrics,
     RouteEvidence,
     StorageEvidence,
+    TimingSummary,
     aggregate_timings,
     build_matched_evidence,
     calculate_ratio,
@@ -22,6 +27,7 @@ from granite_turbovec.benchmark import (
     summarize_cold_warm,
 )
 from granite_turbovec.contracts import ResearchError
+from granite_turbovec.text_pipeline import chunk_document, discover_documents
 
 
 FIXTURE = Path(__file__).parent / "fixtures" / "evaluation.json"
@@ -99,6 +105,11 @@ class TimingTests(unittest.TestCase):
         self.assertEqual(0.01, result.min_seconds)
         self.assertEqual(0.50, result.max_seconds)
 
+    def test_even_sample_median_averages_the_middle_pair(self):
+        result = aggregate_timings([1, 1, 1, 100, 100, 100])
+        self.assertEqual(50.5, result.median_seconds)
+        self.assertEqual(100, result.p95_seconds)
+
     def test_cold_and_warm_are_separate_and_release_requires_five_warm(self):
         summary = summarize_cold_warm([0.8], [0.1, 0.2, 0.3, 0.4, 0.5])
         self.assertEqual(1, summary.cold.count)
@@ -145,8 +156,52 @@ class GateTests(unittest.TestCase):
                 evaluate_gate(metrics)
             self.assertEqual("gate-metrics-invalid", context.exception.code)
 
+    def test_derived_twenty_query_hit_boundary_tolerates_float_rounding_only(self):
+        exact = [list(range(index * 10, index * 10 + 10)) for index in range(20)]
+        relevant = [{row[0]} if index < 18 else set() for index, row in enumerate(exact)]
+        passing = [row.copy() for row in exact]
+        passing[17] = passing[17][1:6] + passing[17][0:1] + passing[17][6:]
+        failing = [row.copy() for row in passing]
+        failing[16] = failing[16][1:6] + failing[16][0:1] + failing[16][6:]
+        timing = summarize_cold_warm([1], [1] * 5)
+
+        def evidence(candidate):
+            return build_matched_evidence(
+                exact, candidate, relevant,
+                baseline_timings=timing, candidate_timings=timing,
+                float32_vector_bytes=400, candidate_persisted_bytes=100,
+                requested_backend="turbovec", actual_backend="turbovec",
+                requested_provider="cpu", actual_provider="CPUExecutionProvider",
+            )
+
+        passing_hit = next(item for item in evidence(passing).gate.criteria if item.name == "hit_at_5_delta")
+        failing_hit = next(item for item in evidence(failing).gate.criteria if item.name == "hit_at_5_delta")
+        self.assertAlmostEqual(-0.05, passing_hit.value)
+        self.assertTrue(passing_hit.passed)
+        self.assertFalse(failing_hit.passed)
+
 
 class FixtureAndEvidenceTests(unittest.TestCase):
+    def test_fixture_corpus_exercises_default_recall_at_ten_pipeline(self):
+        fixture = load_evaluation_fixture(FIXTURE)
+        documents = discover_documents(FIXTURE.parent / "knowledge")
+        chunks = [chunk for document in documents for chunk in chunk_document(document)]
+        self.assertGreaterEqual(len(chunks), fixture.top_k)
+        self.assertEqual(len(chunks), len({chunk.chunk_id for chunk in chunks}))
+        by_source = {document.relative_path: document.text.casefold() for document in documents}
+        keyed_terms = {
+            ("q01", "granite.txt"): ("granite", "language models"),
+            ("q02", "granite.txt"): ("open source",),
+            ("q03", "retrieval.md"): ("retrieval", "relevant chunks"),
+            ("q04", "retrieval.md"): ("relevant chunks",),
+            ("q05", "granite.txt"): ("granite",),
+            ("q05", "retrieval.md"): ("retrieval",),
+        }
+        for query in fixture.queries:
+            for source in query.relevant_sources:
+                self.assertIn(source, by_source)
+                for term in keyed_terms[(query.id, source)]:
+                    self.assertIn(term, by_source[source])
     def test_builds_gate_inputs_from_one_matched_run(self):
         baseline = [list(range(10)), list(range(10, 20))]
         candidate = [list(range(10)), list(range(10, 20))]
@@ -189,6 +244,20 @@ class FixtureAndEvidenceTests(unittest.TestCase):
             )
         self.assertEqual("metric-baseline-zero", context.exception.code)
 
+        with self.assertRaises(ResearchError) as context:
+            build_matched_evidence(
+                baseline, baseline, [{0}],
+                baseline_timings=timings_candidate,
+                candidate_timings=timings_candidate,
+                float32_vector_bytes=40,
+                candidate_persisted_bytes=0,
+                requested_backend="turbovec",
+                actual_backend="turbovec",
+                requested_provider="cpu",
+                actual_provider="CPUExecutionProvider",
+            )
+        self.assertEqual("storage-bytes-invalid", context.exception.code)
+
     def test_checked_in_fixture_is_valid_and_useful(self):
         fixture = load_evaluation_fixture(FIXTURE)
         self.assertEqual(1, fixture.schema_version)
@@ -210,6 +279,19 @@ class FixtureAndEvidenceTests(unittest.TestCase):
             valid.replace('"granite.txt"', '"../private.txt"', 1),
             valid.replace('"granite.txt"', '"C:/private.txt"', 1),
             valid.replace('"granite.txt"', '"C:private.txt"', 1),
+            valid.replace('"granite.txt"', '"./granite.txt"', 1),
+            valid.replace('"granite.txt"', '"folder//granite.txt"', 1),
+            valid.replace('"granite.txt"', '"folder/./granite.txt"', 1),
+            valid.replace('"granite.txt"', '"folder\\\\granite.txt"', 1),
+            valid.replace('"granite.txt"', '"folder/granite.txt."', 1),
+            valid.replace('"granite.txt"', '"folder/granite.txt "', 1),
+            valid.replace('"granite.txt"', '"folder/granite.txt:ads"', 1),
+            valid.replace('"granite.txt"', '"CON.txt"', 1),
+            valid.replace('"granite.txt"', '"CON .txt"', 1),
+            valid.replace('"granite.txt"', '"folder/Lpt1.md"', 1),
+            valid.replace('"granite.txt"', '"//server/share.txt"', 1),
+            valid.replace('"granite.txt"', '"granite.json"', 1),
+            valid.replace('"granite.txt"', '"folder/\u0001granite.txt"', 1),
         ]
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "evaluation.json"
@@ -219,6 +301,19 @@ class FixtureAndEvidenceTests(unittest.TestCase):
                     load_evaluation_fixture(path)
                 self.assertEqual("evaluation-fixture-invalid", context.exception.code)
 
+    def test_fixture_sources_are_casefold_unique(self):
+        payload = {
+            "schema_version": 1,
+            "top_k": 10,
+            "queries": [{"id": "q01", "text": "x", "relevant_sources": ["A.txt", "a.TXT"]}],
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "evaluation.json"
+            path.write_text(json.dumps(payload), encoding="utf-8")
+            with self.assertRaises(ResearchError) as context:
+                load_evaluation_fixture(path)
+        self.assertEqual("evaluation-fixture-invalid", context.exception.code)
+
     def test_fixture_loader_enforces_query_identity_length_and_count_caps(self):
         base = {
             "schema_version": 1,
@@ -226,16 +321,22 @@ class FixtureAndEvidenceTests(unittest.TestCase):
             "queries": [{"id": "q01", "text": "x", "relevant_sources": []}],
         }
         invalid = []
+        wrong_top_k = dict(base)
+        wrong_top_k["top_k"] = 9
+        invalid.append(wrong_top_k)
         duplicate = dict(base)
         duplicate["queries"] = base["queries"] * 2
         invalid.append(duplicate)
         too_long = json.loads(json.dumps(base))
         too_long["queries"][0]["text"] = "x" * 501
         invalid.append(too_long)
+        long_id = json.loads(json.dumps(base))
+        long_id["queries"][0]["id"] = "q001"
+        invalid.append(long_id)
         too_many = dict(base)
         too_many["queries"] = [
-            {"id": f"q{index:03d}", "text": "x", "relevant_sources": []}
-            for index in range(257)
+            {"id": f"q{index:02d}", "text": "x", "relevant_sources": []}
+            for index in range(100)
         ]
         invalid.append(too_many)
         with tempfile.TemporaryDirectory() as directory:
@@ -260,20 +361,14 @@ class FixtureAndEvidenceTests(unittest.TestCase):
         self.assertEqual("evaluation-fixture-invalid", context.exception.code)
 
     def test_evidence_serialization_and_markdown_are_deterministic_and_private(self):
-        comparison = compare_matched_routes(
-            [[1, 2, 3, 4, 5]], [[1, 2, 3, 4, 5]], [{1}], 5,
-            exact_route="float32", candidate_route="turbovec-4bit",
-        )
+        rankings = [list(range(10))]
         timings = summarize_cold_warm([0.2], [0.1] * 5)
-        gate = evaluate_gate(GateMetrics(1, 1, 0, 0.2, 1))
-        evidence = BenchmarkEvidence(
-            schema_version=1,
-            query_count=1,
-            top_k=5,
-            baseline=RouteEvidence("float32", "float32", "float32", "fastembed", "fastembed", comparison.exact, timings),
-            candidate=RouteEvidence("turbovec-4bit", "turbovec", "turbovec", "fastembed", "fastembed", comparison.candidate, timings),
-            storage=StorageEvidence(100, 20, 0.2),
-            gate=gate,
+        evidence = build_matched_evidence(
+            rankings, rankings, [{0}],
+            baseline_timings=timings, candidate_timings=timings,
+            float32_vector_bytes=100, candidate_persisted_bytes=20,
+            requested_backend="turbovec", actual_backend="turbovec",
+            requested_provider="fastembed", actual_provider="fastembed",
         )
         first = canonical_json(evidence)
         second = canonical_json(evidence)
@@ -290,23 +385,55 @@ class FixtureAndEvidenceTests(unittest.TestCase):
         with self.assertRaises(FrozenInstanceError):
             evidence.schema_version = 2
 
-        invalid_route = RouteEvidence(
-            "private/path", "float32", "float32", "cpu", "cpu",
-            comparison.exact, timings,
-        )
-        invalid = BenchmarkEvidence(1, 1, 5, invalid_route, evidence.candidate, evidence.storage, gate)
         with self.assertRaises(ResearchError) as context:
-            canonical_json(invalid)
+            replace(evidence.baseline, route="private/path")
         self.assertEqual("benchmark-evidence-invalid", context.exception.code)
 
-        nonfinite_route = RouteEvidence(
-            "float32", "float32", "float32", "cpu", "cpu",
-            type(comparison.exact)(math.nan, 1, 1), timings,
-        )
-        nonfinite = BenchmarkEvidence(1, 1, 5, nonfinite_route, evidence.candidate, evidence.storage, gate)
         with self.assertRaises(ResearchError) as context:
-            render_markdown(nonfinite)
+            replace(evidence.baseline.metrics, recall_at_k=math.nan)
         self.assertEqual("benchmark-evidence-invalid", context.exception.code)
+
+    def test_forged_evidence_contradictions_fail_at_construction(self):
+        rankings = [list(range(10))]
+        timing = summarize_cold_warm([1], [1] * 5)
+        evidence = build_matched_evidence(
+            rankings, rankings, [{0}],
+            baseline_timings=timing, candidate_timings=timing,
+            float32_vector_bytes=100, candidate_persisted_bytes=20,
+            requested_backend="turbovec", actual_backend="turbovec",
+            requested_provider="cpu", actual_provider="CPUExecutionProvider",
+        )
+
+        contradictions = [
+            lambda: TimingSummary(0, 1, 1, 1, 1),
+            lambda: TimingSummary(1, -1, 1, 0, 1),
+            lambda: RankingMetrics(1.01, 1, 1),
+            lambda: ColdWarmTimings(None, evidence.baseline.timings.warm),
+            lambda: replace(evidence.baseline, metrics=None),
+            lambda: replace(evidence.baseline, requested_backend="C:private"),
+            lambda: replace(evidence, baseline=replace(evidence.baseline, query_count=2)),
+            lambda: replace(evidence.baseline, top_k=0),
+            lambda: StorageEvidence(100, 0, 0),
+            lambda: GateCriterion("recall_at_10", 0.9, 0.85, "<=", True),
+            lambda: GateCriterion("recall_at_10", 0.9, 0.85, ">=", False),
+            lambda: GateResult(True, evidence.gate.criteria[:-1]),
+            lambda: GateResult(False, evidence.gate.criteria),
+            lambda: replace(evidence, query_count=2),
+            lambda: replace(evidence, baseline=None),
+            lambda: replace(
+                evidence,
+                top_k=5,
+                baseline=replace(evidence.baseline, top_k=5),
+                candidate=replace(evidence.candidate, top_k=5),
+            ),
+            lambda: replace(evidence, candidate=replace(evidence.candidate, route="float32")),
+            lambda: replace(evidence, gate=evaluate_gate(GateMetrics(0.9, 1, 0, 0.2, 1))),
+        ]
+        for index, forge in enumerate(contradictions):
+            with self.subTest(index=index):
+                with self.assertRaises(ResearchError) as context:
+                    forge()
+                self.assertEqual("benchmark-evidence-invalid", context.exception.code)
 
 
 if __name__ == "__main__":

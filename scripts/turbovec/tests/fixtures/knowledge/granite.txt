@@ -1,1 +1,35 @@
-Granite is a family of open source language models.
+Granite model family
+
+Granite is a family of open source language models intended for practical enterprise use. The family includes models for language understanding, generation, coding, and other focused workloads. Open source availability lets teams inspect model information, test behavior in controlled environments, and adapt deployment choices to their own requirements. This fixture repeats the key phrase "Granite language models" deliberately so exact lookup and paraphrase queries have an unambiguous source while unrelated questions remain unsupported.
+
+Local operation
+
+A Granite model can be evaluated locally when a compatible runtime and model artifact are available. Local execution keeps prompts on the selected machine for the duration of that run. This statement describes execution location only; it does not claim that every model, quantization, or accelerator combination is supported. A benchmark should report the actual backend and provider instead of assuming that the requested route was used.
+
+Model identity
+
+Evidence should bind a model run to explicit identity fields. Useful identity includes the requested model, the artifact actually loaded, and the runtime that performed inference. Those fields are safer and more reproducible than a screenshot or an informal label. This controlled corpus intentionally does not specify a Granite parameter count, release date, benchmark score, or product price. Questions asking for those absent details are no-supported-answer cases.
+
+Quantized evaluation
+
+Quantization stores model or vector values with fewer bits. It may reduce persisted size, but a smaller representation can change ranking quality or execution speed. A controlled comparison therefore uses the same inputs for a float32 baseline and a candidate route. It measures quality, storage, and latency separately. The candidate is accepted only when every declared gate passes; one strong metric cannot compensate for a failed safety or quality criterion.
+
+Privacy and reporting
+
+Benchmark reports contain aggregate values and approved identity labels. They do not include raw prompt text, document content, absolute file paths, credentials, or machine-specific private directories. Expected failures use fixed error codes rather than exception details that could reveal local state. The evaluation fixture may contain bounded public test questions, while the generated evidence records only query identifiers, counts, routes, timings, storage totals, and gate outcomes.
+
+Deterministic controls
+
+A useful controlled run fixes the corpus, chunking settings, embedding model, provider, rankings, and top-k value. Stable unsigned identifiers connect vector results back to chunks without copying content into the report. Repeated runs should serialize the same logical evidence in the same field order. Distractor passages are retained because a retrieval system must distinguish relevant Granite language model facts from nearby statements about timing, storage, or generic software testing.
+
+Open source clarification
+
+The phrase open source describes the availability terms of the Granite family in this fixture. It does not mean that every dependency, model artifact, or external dataset has identical licensing. A release decision must record the exact approved inputs. This passage supports paraphrases such as "Can the model family be inspected?" and "Is Granite openly available?" without introducing facts beyond the controlled statement that Granite is a family of open source language models.
+
+Unsupported facts
+
+No passage here names a capital city, a chief executive, a current stock price, or a weather forecast. No passage gives an exact number of parameters for a Granite model. Those deliberate omissions make no-answer evaluation executable: judged relevance remains empty, MRR and Hit are zero, and the benchmark must not fabricate a supporting source merely because a distractor shares common words with the question.
+
+Controlled summary
+
+For this fixture, the supported conclusion is deliberately narrow: Granite is a family of open source language models. The remaining paragraphs explain how that statement can participate in a reproducible local retrieval comparison. They provide nearby technical distractors about quantization, identities, privacy, and deterministic evidence. A lookup query should find the direct statement, a paraphrase should connect to the clarification, and an unsupported question should retain an empty relevance judgement instead of borrowing an unrelated passage.
