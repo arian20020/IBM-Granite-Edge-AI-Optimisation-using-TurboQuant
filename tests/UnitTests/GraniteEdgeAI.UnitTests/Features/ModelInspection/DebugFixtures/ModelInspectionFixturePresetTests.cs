@@ -1601,7 +1601,8 @@ public sealed class ModelInspectionFixturePresetTests
             Assert.AreEqual(28d, body.FontSize);
             Assert.AreEqual(24d, helper.FontSize);
             Assert.AreEqual(20d, label.FontSize);
-            Assert.AreEqual(20d, section.Margin.Top);
+            Assert.AreEqual(18d, section.Margin.Top,
+                "Preview200 consumes the approved terminal-card outer inset");
             Assert.IsTrue(
                 section.ActualHeight + 1d < section.DesiredSize.Height,
                 "The named heading must retain its margin-bearing desired " +
