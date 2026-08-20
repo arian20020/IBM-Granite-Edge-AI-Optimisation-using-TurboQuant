@@ -45,15 +45,18 @@ public sealed class InspectionActionCardTests
             AssertActionStyle(
                 control,
                 secondaryOne,
-                "InspectionSecondaryActionButtonStyle");
+                "InspectionSecondaryActionButtonStyle",
+                "DefaultButtonStyle");
             AssertActionStyle(
                 control,
                 secondaryTwo,
-                "InspectionSecondaryActionButtonStyle");
+                "InspectionSecondaryActionButtonStyle",
+                "DefaultButtonStyle");
             AssertActionStyle(
                 control,
                 primary,
-                "InspectionPrimaryActionButtonStyle");
+                "InspectionPrimaryActionButtonStyle",
+                "AccentButtonStyle");
             AssertActionLabel(
                 secondaryOne,
                 presentation.SecondaryActionOne.Text);
@@ -61,6 +64,8 @@ public sealed class InspectionActionCardTests
                 secondaryTwo,
                 presentation.SecondaryActionTwo.Text);
             AssertActionLabel(primary, presentation.PrimaryAction.Text);
+            Assert.IsTrue(secondaryOne.Focus(FocusState.Keyboard));
+            Assert.AreEqual(FocusState.Keyboard, secondaryOne.FocusState);
             Assert.AreEqual(840d, control.ActualWidth, 0.01);
             Border result = (Border)control.FindName("ResultView");
             Assert.AreEqual(0d, result.MinHeight, 0.01d,
@@ -171,7 +176,8 @@ public sealed class InspectionActionCardTests
             AssertActionStyle(
                 control,
                 cancel,
-                "InspectionSecondaryActionButtonStyle");
+                "InspectionSecondaryActionButtonStyle",
+                "DefaultButtonStyle");
             Assert.AreEqual(new Thickness(24d), inspecting.Padding,
                 "inspecting action card padding");
             Assert.AreEqual(12d, inspecting.CornerRadius.TopLeft, 0.01d);
@@ -375,7 +381,8 @@ public sealed class InspectionActionCardTests
     private static void AssertActionStyle(
         InspectionActionCard control,
         Button button,
-        string resourceKey)
+        string resourceKey,
+        string expectedNativeStyleResourceKey)
     {
         Assert.IsTrue(
             control.Resources.ContainsKey(resourceKey),
@@ -385,9 +392,10 @@ public sealed class InspectionActionCardTests
 
         Assert.AreSame(style, button.Style);
         Assert.AreEqual(typeof(Button), style.TargetType);
-        Assert.IsNotNull(
+        Assert.AreSame(
+            Application.Current.Resources[expectedNativeStyleResourceKey],
             style.BasedOn,
-            $"{resourceKey} must retain the native WinUI button template");
+            $"{resourceKey} must derive from {expectedNativeStyleResourceKey}");
         Assert.IsTrue(button.UseSystemFocusVisuals);
     }
 
