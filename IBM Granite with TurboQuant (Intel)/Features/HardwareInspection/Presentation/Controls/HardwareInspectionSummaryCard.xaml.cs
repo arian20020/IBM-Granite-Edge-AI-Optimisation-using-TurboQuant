@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace GraniteEdgeAI.Features.HardwareInspection.Presentation.Controls;
 
@@ -17,13 +18,30 @@ public sealed partial class HardwareInspectionSummaryCard : UserControl
     internal IReadOnlyList<HardwareFactPresentation> FactItems { get; private set; } =
         Array.Empty<HardwareFactPresentation>();
 
-    internal void Apply(HardwareSummaryPresentation summary)
+    internal string CardTitle { get; private set; } = "This computer";
+
+    internal void Apply(HardwareSummaryPresentation summary) =>
+        Apply(summary, "This computer", includedGroups: null);
+
+    internal void Apply(
+        HardwareSummaryPresentation summary,
+        string title,
+        IEnumerable<string>? includedGroups)
     {
         ArgumentNullException.ThrowIfNull(summary);
-        FactItems = summary.Facts;
+        ArgumentException.ThrowIfNullOrWhiteSpace(title);
+        HashSet<string>? groupSet = includedGroups is null
+            ? null
+            : new HashSet<string>(includedGroups, StringComparer.Ordinal);
+        HardwareFactPresentation[] selected = summary.Facts
+            .Where(fact => groupSet is null || groupSet.Contains(fact.Group))
+            .ToArray();
+        CardTitle = title;
+        TitleTextBlock.Text = title;
+        FactItems = Array.AsReadOnly(selected);
         FactsPanel.Children.Clear();
         string? currentGroup = null;
-        foreach (HardwareFactPresentation fact in summary.Facts)
+        foreach (HardwareFactPresentation fact in selected)
         {
             if (!string.Equals(currentGroup, fact.Group, StringComparison.Ordinal))
             {
