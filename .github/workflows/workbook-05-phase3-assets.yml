@@ -10,6 +10,7 @@ on:
       - 'docs/testing/workbook05/**'
       - 'docs/superpowers/**'
       - 'experiments/granite_turboquant_intel/configurations/workbook05/**'
+      - 'experiments/granite_turboquant_intel/manifests/campaigns/GTQ-WB05-MF-v1/**'
       - 'experiments/granite_turboquant_intel/manifests/templates/workbook05/**'
       - 'experiments/granite_turboquant_intel/schemas/workbook05/**'
       - 'scripts/testing/**'
@@ -17,7 +18,7 @@ on:
   workflow_dispatch:
     inputs:
       operation:
-        description: 'Repository-safe offline fixture, or the later accepted live asset lock.'
+        description: 'Repository-safe offline fixture or the accepted live Granite 4.1 3B asset lock.'
         required: true
         type: choice
         default: offline-fixture
@@ -25,12 +26,12 @@ on:
           - offline-fixture
           - live-asset-lock
       confirm_live_asset_lock:
-        description: 'Required only for live asset locking after dependency-preflight acceptance.'
+        description: 'Required only for the accepted live model acquisition and conversion.'
         required: false
         type: boolean
         default: false
       accepted_dependency_preflight_sha256:
-        description: 'Lowercase SHA-256 of the independently accepted dependency-preflight decision.'
+        description: 'Exact lowercase SHA-256 of the independently accepted dependency decision.'
         required: false
         type: string
         default: ''
@@ -76,9 +77,8 @@ jobs:
           python-version: '3.12.10'
           check-latest: false
 
-      # Keep the one repository-pinned schema validator outside the checkout and
-      # outside the hosted Python installation. Later steps inherit only this
-      # job-local PYTHONPATH; no model or conversion dependency is installed.
+      # Keep the repository-pinned schema validator outside the checkout and
+      # outside the hosted Python installation.
       - name: Install pinned Phase 3 validation dependency
         shell: powershell
         run: |
@@ -111,9 +111,6 @@ jobs:
           }
           "PYTHONPATH=$dependencyDirectory" | Add-Content -LiteralPath $env:GITHUB_ENV
 
-      # Run the previously unbounded fixture by itself first. A stalled child
-      # now fails within five minutes and its stage markers remain in one small
-      # step instead of consuming the complete 45-minute repository gate.
       - name: Run focused dependency-fixture diagnostic
         timeout-minutes: 5
         shell: powershell
@@ -123,8 +120,7 @@ jobs:
               -RepositoryRoot $env:GITHUB_WORKSPACE `
               -PythonPath 'python'
 
-      # This job has no model path, model dependency environment, or self-hosted
-      # runner access. Pull requests can reach only this repository contract.
+      # Pull requests can reach only this hosted repository contract.
       - name: Run the complete Phase 3 repository gate
         shell: powershell
         run: |
@@ -171,7 +167,7 @@ jobs:
             scripts/testing
             tests/testing/workbook05
 
-      - name: Verify pinned machine Python and live-input boundary
+      - name: Verify pinned machine Python and manual-input boundary
         id: boundary
         run: |
           $ErrorActionPreference = 'Stop'
@@ -185,26 +181,33 @@ jobs:
           }
 
           $operation = '${{ inputs.operation }}'
+          $confirmed = '${{ inputs.confirm_live_asset_lock }}'
+          $digest = '${{ inputs.accepted_dependency_preflight_sha256 }}'
+          $acceptedDigest = '429b90548ce2b4c8463941c5b2983c8ff0cf6cc3ea3865375c8cae78d7193b49'
+
+          if ($operation -notin @('offline-fixture', 'live-asset-lock')) {
+              throw "Unsupported Phase 3 asset operation: $operation"
+          }
           if ($operation -eq 'live-asset-lock') {
-              $confirmed = '${{ inputs.confirm_live_asset_lock }}'
-              $digest = '${{ inputs.accepted_dependency_preflight_sha256 }}'
               if ($confirmed -ne 'true') {
-                  throw 'Live asset locking is blocked until explicit confirmation is true.'
+                  throw 'Live asset locking requires explicit confirmation.'
               }
               if ($digest -notmatch '^[0-9a-f]{64}$') {
-                  throw 'Live asset locking is blocked until an accepted lowercase preflight SHA-256 is supplied.'
+                  throw 'Live asset locking requires a lowercase dependency decision SHA-256.'
               }
-              throw (
-                  'Live asset locking is blocked in this revision because the clean ' +
-                  'Windows dependency-preflight lock has not yet been accepted into main.'
-              )
+              if ($digest -ne $acceptedDigest) {
+                  throw 'The supplied dependency decision is not the independently accepted C1 prerequisite.'
+              }
+          }
+          elseif ($confirmed -eq 'true' -or -not [string]::IsNullOrEmpty($digest)) {
+              throw 'Offline fixture mode must not receive live asset-lock authority inputs.'
           }
 
           "python_path=$pythonPath" | Add-Content -LiteralPath $env:GITHUB_OUTPUT
+          "operation=$operation" | Add-Content -LiteralPath $env:GITHUB_OUTPUT
 
-      # The self-hosted machine-wide interpreter remains unchanged. The package
-      # exists only beneath this attempt's RUNNER_TEMP and is exposed through the
-      # job environment for the gate and the later C1 fixture collector.
+      # This job-local dependency is used only by repository and evidence
+      # validators. It is never installed into the accepted conversion venv.
       - name: Install pinned Phase 3 validation dependency
         run: |
           $ErrorActionPreference = 'Stop'
@@ -241,9 +244,30 @@ jobs:
               -RepositoryRoot $env:GITHUB_WORKSPACE `
               -PythonPath '${{ steps.boundary.outputs.python_path }}'
 
-      # The current safe operation is an offline fixture. It proves workflow,
-      # ordering, atomic evidence, and hosted validation without network/model use.
+      - name: Verify accepted dependency binding before model access
+        if: ${{ inputs.operation == 'live-asset-lock' }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $proof = Join-Path $env:RUNNER_TEMP 'workbook05-c1-dependency-proof.json'
+          if (Test-Path -LiteralPath $proof) {
+              throw "Unexpected dependency proof destination: $proof"
+          }
+
+          & '${{ steps.boundary.outputs.python_path }}' `
+              -m scripts.testing.workbook05.phase3.dependency_acceptance `
+              --repository-root $env:GITHUB_WORKSPACE `
+              --accepted-decision-sha256 '${{ inputs.accepted_dependency_preflight_sha256 }}' `
+              --output $proof
+          if ($LASTEXITCODE -ne 0) {
+              throw "Accepted dependency verification exited with code $LASTEXITCODE."
+          }
+          if (-not (Test-Path -LiteralPath $proof -PathType Leaf)) {
+              throw 'Accepted dependency verification did not publish its proof.'
+          }
+
+      # The offline route remains deterministic, network-free, and model-free.
       - name: Collect text-only offline fixture evidence
+        if: ${{ inputs.operation == 'offline-fixture' }}
         run: |
           $ErrorActionPreference = 'Stop'
           $workspace = Join-Path $env:RUNNER_TEMP 'workbook-05-phase3-assets'
@@ -262,6 +286,60 @@ jobs:
               -ModelRoot $modelRoot `
               -PythonPath '${{ steps.boundary.outputs.python_path }}' `
               -OfflineFixtureMode
+
+      # Live C1 re-verifies the accepted dependency inside the controlled script
+      # before C:\w5m is created or the Hub is contacted.
+      - name: Collect accepted live Granite 4.1 3B asset evidence
+        if: ${{ inputs.operation == 'live-asset-lock' }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & '.\scripts\testing\workbook05\Invoke-Workbook05Phase3AssetLockLive.ps1' `
+              -RepositoryRoot $env:GITHUB_WORKSPACE `
+              -RunId '${{ github.run_id }}' `
+              -RunAttempt ${{ github.run_attempt }} `
+              -AcceptedDependencyDecisionSha256 '${{ inputs.accepted_dependency_preflight_sha256 }}' `
+              -BasePythonPath '${{ steps.boundary.outputs.python_path }}'
+
+      # Upload only the text evidence subtree. Model weights and OpenVINO IR
+      # remain outside the artifact under the retained C:\w5m model root.
+      - name: Stage live text-only C1 evidence for upload
+        if: ${{ always() && inputs.operation == 'live-asset-lock' }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $source = (
+              'C:\w5c\phase3-assets-${{ github.run_id }}-' +
+              '${{ github.run_attempt }}\evidence'
+          )
+          $destination = Join-Path $env:RUNNER_TEMP 'workbook-05-phase3-assets'
+
+          if (-not (Test-Path -LiteralPath $source -PathType Container)) {
+              throw "Live C1 evidence root is missing: $source"
+          }
+          if (Test-Path -LiteralPath $destination) {
+              throw "Unexpected staged C1 evidence destination: $destination"
+          }
+          $sourceItem = Get-Item -LiteralPath $source -Force -ErrorAction Stop
+          if (($sourceItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+              throw "Live C1 evidence root is a reparse point: $source"
+          }
+
+          $forbidden = @(
+              '.7z', '.bin', '.ckpt', '.dll', '.exe', '.gguf', '.gz',
+              '.lib', '.onnx', '.pt', '.pth', '.pyd', '.safetensors',
+              '.so', '.tar', '.tgz', '.whl', '.xml', '.zip'
+          )
+          foreach ($item in Get-ChildItem -LiteralPath $source -Recurse -Force) {
+              if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+                  throw "Live C1 evidence contains a reparse point: $($item.FullName)"
+              }
+              if (-not $item.PSIsContainer -and $item.Extension.ToLowerInvariant() -in $forbidden) {
+                  throw "Live C1 evidence contains a forbidden payload: $($item.FullName)"
+              }
+          }
+
+          New-Item -ItemType Directory -Path $destination -Force:$false | Out-Null
+          Get-ChildItem -LiteralPath $source -Force |
+              Copy-Item -Destination $destination -Recurse -ErrorAction Stop
 
       - name: Upload exact text-only C1 evidence
         if: ${{ always() }}
@@ -305,8 +383,6 @@ jobs:
           python-version: '3.12.10'
           check-latest: false
 
-      # Independent validation uses its own clean dependency directory rather
-      # than trusting anything retained by the self-hosted collection job.
       - name: Install pinned Phase 3 validation dependency
         shell: powershell
         run: |
@@ -360,7 +436,14 @@ jobs:
           $bundle = Join-Path $env:RUNNER_TEMP 'workbook-05-phase3-assets'
           $report = Join-Path $env:RUNNER_TEMP 'workbook-05-phase3-assets-validation.md'
 
-          python -m scripts.testing.workbook05.phase3.asset_bundle_validation `
+          $validator = if ('${{ inputs.operation }}' -eq 'live-asset-lock') {
+              'scripts.testing.workbook05.phase3.live_asset_bundle_validation'
+          }
+          else {
+              'scripts.testing.workbook05.phase3.asset_bundle_validation'
+          }
+
+          & python -m $validator `
               --bundle-root $bundle `
               --repository-root $env:GITHUB_WORKSPACE `
               --report $report

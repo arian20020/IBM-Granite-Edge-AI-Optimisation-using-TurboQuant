@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Mapping
+from typing import TYPE_CHECKING, Any, Mapping
 
-from jsonschema import Draft202012Validator, FormatChecker
-from jsonschema.exceptions import ValidationError
+if TYPE_CHECKING:
+    # Type-only imports keep editor and checker support without making live C1
+    # acquisition depend on the repository-only schema-validation environment.
+    from jsonschema.exceptions import ValidationError
 
-from scripts.testing.workbook05.schema_validation import ValidationIssue
+    from scripts.testing.workbook05.schema_validation import ValidationIssue
 
 
 SCHEMA_NAMES: dict[str, str] = {
@@ -57,6 +59,20 @@ def validate_phase3_record(
     repository_root: Path,
 ) -> list[ValidationIssue]:
     """Return every schema problem in stable path/message order."""
+
+    # Schema validation belongs to the repository-validation environment. Delay
+    # both the jsonschema package and its ValidationIssue adapter so importing a
+    # live acquisition subcommand does not pull jsonschema transitively into the
+    # independently accepted conversion environment.
+    try:
+        from jsonschema import Draft202012Validator, FormatChecker
+
+        from scripts.testing.workbook05.schema_validation import ValidationIssue
+    except ImportError as error:
+        raise ValueError(
+            "Phase 3 schema validation requires the repository validator "
+            "environment with jsonschema installed."
+        ) from error
 
     schema_path = _schema_path(record_type, repository_root)
     schema = json.loads(schema_path.read_text(encoding="utf-8-sig"))

@@ -50,15 +50,18 @@ class Phase3RunbookContractTests(unittest.TestCase):
             self.assertIn(value, self.runbook)
             self.assertIn(value, self.workflow)
 
-    def test_runbook_keeps_live_operation_blocked_before_preflight_acceptance(
-        self,
-    ) -> None:
-        self.assertIn(
-            "the only permitted operation until the clean Windows",
-            self.runbook,
-        )
-        self.assertIn("deliberately\nfails closed", self.runbook)
-        self.assertIn("Live asset locking is blocked", self.workflow)
+    def test_runbook_records_the_exact_accepted_dependency_binding(self) -> None:
+        for value in (
+            "32211117536",
+            "9350956534",
+            "b68a4f8af8c57a9f5d71347d2485855796f4d0dce0291c50b596512c309c0c21",
+            "429b90548ce2b4c8463941c5b2983c8ff0cf6cc3ea3865375c8cae78d7193b49",
+            r"C:\w5c\dependency-preflight-32211117536-1",
+            "Verify accepted dependency binding before model access",
+        ):
+            self.assertIn(value, self.runbook)
+        self.assertNotIn("The repository currently keeps this operation blocked", self.runbook)
+        self.assertNotIn("Live asset locking is blocked", self.workflow)
 
     def test_runbook_preserves_exact_stage_order(self) -> None:
         expected = [
