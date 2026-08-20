@@ -1,10 +1,13 @@
 import hashlib
+import os
+import subprocess
 import tempfile
 import unittest
 from dataclasses import FrozenInstanceError
 from pathlib import Path
 from unittest import mock
 
+import granite_turbovec.text_pipeline as text_pipeline
 from granite_turbovec.contracts import Chunk, Document, ResearchError
 from granite_turbovec.text_pipeline import (
     _derive_chunk_id,
@@ -81,6 +84,22 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual("BOM.MD", documents[0].relative_path)
         self.assertEqual("hello\r\nworld", documents[0].text)
         self.assertEqual(hashlib.sha256(original).hexdigest(), documents[0].sha256)
+
+    @unittest.skipUnless(os.name == "nt", "NTFS case-insensitive identity is Windows-specific")
+    def test_direct_file_uses_filesystem_casing_for_stable_identity(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            actual = Path(temporary_directory) / "ActualCase.TXT"
+            actual.write_text("same file", encoding="utf-8")
+
+            canonical = discover_documents(actual)
+            differently_cased = discover_documents(actual.with_name("actualcase.txt"))
+
+        self.assertEqual("ActualCase.TXT", canonical[0].relative_path)
+        self.assertEqual(canonical, differently_cased)
+        self.assertEqual(
+            chunk_document(canonical[0]),
+            chunk_document(differently_cased[0]),
+        )
 
     def test_nested_relative_paths_are_portable_and_case_insensitively_sorted(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -197,7 +216,7 @@ class DiscoveryTests(unittest.TestCase):
 
             with mock.patch(
                 "granite_turbovec.text_pipeline._discover_directory",
-                return_value=candidates,
+                return_value=(candidates, str(root)),
             ):
                 documents = discover_documents(root)
 
@@ -209,14 +228,26 @@ class DiscoveryTests(unittest.TestCase):
             path = Path(temporary_directory) / f"{private_name}.txt"
             path.write_text("secret", encoding="utf-8")
 
-            original_open = Path.open
+            if os.name == "nt":
+                original_handle_open = text_pipeline._validated_windows_handle
 
-            def deny_target(candidate: Path, *args: object, **kwargs: object):
-                if candidate == path:
-                    raise PermissionError("private operating system detail")
-                return original_open(candidate, *args, **kwargs)
+                def deny_target(candidate: Path, *, read: bool, allowed_root: str | None):
+                    if candidate == path and read:
+                        raise PermissionError("private operating system detail")
+                    return original_handle_open(candidate, read=read, allowed_root=allowed_root)
 
-            with mock.patch.object(Path, "open", deny_target):
+                patcher = mock.patch.object(text_pipeline, "_validated_windows_handle", deny_target)
+            else:
+                original_open = Path.open
+
+                def deny_path(candidate: Path, *args: object, **kwargs: object):
+                    if candidate == path:
+                        raise PermissionError("private operating system detail")
+                    return original_open(candidate, *args, **kwargs)
+
+                patcher = mock.patch.object(Path, "open", deny_path)
+
+            with patcher:
                 with self.assertRaises(ResearchError) as context:
                     discover_documents(path)
 
@@ -227,18 +258,32 @@ class DiscoveryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary_directory:
             path = Path(temporary_directory) / "changing.txt"
             path.write_text("before", encoding="utf-8")
-            original_open = Path.open
             mutated = False
+            if os.name == "nt":
+                original_handle_open = text_pipeline._validated_windows_handle
 
-            def mutate_target(candidate: Path, *args: object, **kwargs: object):
-                nonlocal mutated
-                if candidate == path and not mutated:
-                    mutated = True
-                    with original_open(candidate, "wb") as output:
-                        output.write(b"after-growth")
-                return original_open(candidate, *args, **kwargs)
+                def mutate_target(candidate: Path, *, read: bool, allowed_root: str | None):
+                    nonlocal mutated
+                    if candidate == path and read and not mutated:
+                        mutated = True
+                        candidate.write_bytes(b"after-growth")
+                    return original_handle_open(candidate, read=read, allowed_root=allowed_root)
 
-            with mock.patch.object(Path, "open", mutate_target):
+                patcher = mock.patch.object(text_pipeline, "_validated_windows_handle", mutate_target)
+            else:
+                original_open = Path.open
+
+                def mutate_path(candidate: Path, *args: object, **kwargs: object):
+                    nonlocal mutated
+                    if candidate == path and not mutated:
+                        mutated = True
+                        with original_open(candidate, "wb") as output:
+                            output.write(b"after-growth")
+                    return original_open(candidate, *args, **kwargs)
+
+                patcher = mock.patch.object(Path, "open", mutate_path)
+
+            with patcher:
                 with self.assertRaises(ResearchError) as context:
                     discover_documents(path)
 
@@ -287,6 +332,43 @@ class DiscoveryTests(unittest.TestCase):
                 discover_documents(link)
 
         self.assertEqual("input-unsafe-link", context.exception.code)
+
+    @unittest.skipUnless(os.name == "nt", "junction swap validation is Windows-specific")
+    def test_directory_replaced_during_enumeration_cannot_return_outside_content(self) -> None:
+        with tempfile.TemporaryDirectory() as root_directory, tempfile.TemporaryDirectory() as outside_directory:
+            root = Path(root_directory)
+            outside = Path(outside_directory)
+            inner = root / "inner"
+            parked = root / "parked"
+            inner.mkdir()
+            (inner / "inside.txt").write_text("inside", encoding="utf-8")
+            (outside / "outside.txt").write_text("outside-secret", encoding="utf-8")
+            original_scandir = os.scandir
+            replaced = False
+
+            def replace_then_enumerate(path: object):
+                nonlocal replaced
+                if not replaced and isinstance(path, (str, os.PathLike)) and Path(path) == inner:
+                    replaced = True
+                    inner.rename(parked)
+                    if os.name == "nt":
+                        result = subprocess.run(
+                            ["cmd", "/c", "mklink", "/J", str(inner), str(outside)],
+                            capture_output=True,
+                            check=False,
+                        )
+                        if result.returncode != 0:
+                            self.skipTest("junction creation unavailable")
+                    else:
+                        inner.symlink_to(outside, target_is_directory=True)
+                return original_scandir(path)
+
+            with mock.patch("granite_turbovec.text_pipeline.os.scandir", side_effect=replace_then_enumerate):
+                with self.assertRaises(ResearchError) as context:
+                    discover_documents(root)
+
+        self.assertIn(context.exception.code, {"input-race-detected", "input-unsafe-link"})
+        self.assertNotIn("outside", str(context.exception))
 
     def test_validate_extension_accepts_only_txt_and_md(self) -> None:
         for supported in ("note.txt", "NOTE.MD", "nested/path/file.TxT"):
@@ -363,6 +445,23 @@ class ChunkingTests(unittest.TestCase):
                 chunk_document(document, max_chars=12, overlap_chars=3)
 
         self.assertEqual("chunk-id-collision", context.exception.code)
+
+    def test_chunk_count_limit_allows_boundary_and_rejects_one_more(self) -> None:
+        with mock.patch("granite_turbovec.text_pipeline.MAX_CHUNKS_PER_DOCUMENT", 3):
+            chunks = chunk_document(
+                Document("bounded.txt", "x" * 42),
+                max_chars=18,
+                overlap_chars=6,
+            )
+            with self.assertRaises(ResearchError) as context:
+                chunk_document(
+                    Document("too-many.txt", "x" * 43),
+                    max_chars=18,
+                    overlap_chars=6,
+                )
+
+        self.assertEqual(3, len(chunks))
+        self.assertEqual("chunk-limit-exceeded", context.exception.code)
 
 
 if __name__ == "__main__":
