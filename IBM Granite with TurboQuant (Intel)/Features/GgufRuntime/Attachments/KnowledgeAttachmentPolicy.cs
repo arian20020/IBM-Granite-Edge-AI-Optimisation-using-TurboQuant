@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Text;
 
 namespace GraniteEdgeAI.Features.GgufRuntime.Attachments;
 
@@ -7,6 +9,7 @@ internal static class KnowledgeAttachmentPolicy
 {
     private const int MaximumAttachmentCount = 8;
     private const long MaximumAttachmentSizeInBytes = 8L * 1024 * 1024;
+    private const int MaximumSafeFileNameLength = 255;
 
     internal static KnowledgeAttachmentValidationResult Validate(
         IReadOnlyList<KnowledgeFileCandidate> selected,
@@ -25,13 +28,15 @@ internal static class KnowledgeAttachmentPolicy
 
         foreach (KnowledgeFileCandidate? candidate in selected)
         {
-            if (candidate is null || !TryGetFileName(candidate.Path, out string fileName))
+            string? path = candidate?.Path;
+            if (candidate is null ||
+                !TryValidateFilePath(path, out string fileName, out string normalizedPath))
             {
-                rejections.Add(new KnowledgeAttachmentRejection("attachment-invalid", string.Empty));
+                rejections.Add(new KnowledgeAttachmentRejection("attachment-invalid", GetSafeFileName(path)));
             }
-            else if (candidate.SizeInBytes < 0)
+            else if (!knownPaths.Add(normalizedPath))
             {
-                rejections.Add(new KnowledgeAttachmentRejection("attachment-invalid", fileName));
+                rejections.Add(new KnowledgeAttachmentRejection("attachment-duplicate", fileName));
             }
             else if (!candidate.IsAccessible)
             {
@@ -41,13 +46,13 @@ internal static class KnowledgeAttachmentPolicy
             {
                 rejections.Add(new KnowledgeAttachmentRejection("attachment-unsupported-type", fileName));
             }
-            else if (knownPaths.Contains(candidate.Path))
-            {
-                rejections.Add(new KnowledgeAttachmentRejection("attachment-duplicate", fileName));
-            }
             else if (candidate.SizeInBytes == 0)
             {
                 rejections.Add(new KnowledgeAttachmentRejection("attachment-empty", fileName));
+            }
+            else if (candidate.SizeInBytes < 0)
+            {
+                rejections.Add(new KnowledgeAttachmentRejection("attachment-invalid", fileName));
             }
             else if (candidate.SizeInBytes > MaximumAttachmentSizeInBytes)
             {
@@ -59,8 +64,7 @@ internal static class KnowledgeAttachmentPolicy
             }
             else
             {
-                accepted.Add(new KnowledgeAttachment(candidate.Path));
-                knownPaths.Add(candidate.Path);
+                accepted.Add(new KnowledgeAttachment(path!));
             }
         }
 
@@ -78,9 +82,10 @@ internal static class KnowledgeAttachmentPolicy
 
         foreach (KnowledgeAttachment? attachment in existing)
         {
-            if (attachment is not null && TryGetFileName(attachment.Path, out _))
+            if (attachment is not null &&
+                TryValidateFilePath(attachment.Path, out _, out string normalizedPath))
             {
-                knownPaths.Add(attachment.Path);
+                knownPaths.Add(normalizedPath);
             }
         }
     }
@@ -89,22 +94,119 @@ internal static class KnowledgeAttachmentPolicy
         fileName.EndsWith(".txt", StringComparison.OrdinalIgnoreCase) ||
         fileName.EndsWith(".md", StringComparison.OrdinalIgnoreCase);
 
-    private static bool TryGetFileName(string? path, out string fileName)
+    private static bool TryValidateFilePath(
+        string? path,
+        out string fileName,
+        out string normalizedPath)
     {
         fileName = string.Empty;
+        normalizedPath = string.Empty;
 
-        if (string.IsNullOrWhiteSpace(path) || path.IndexOf('\0') >= 0)
+        if (string.IsNullOrWhiteSpace(path))
         {
             return false;
+        }
+
+        try
+        {
+            if (path.IndexOfAny(Path.GetInvalidPathChars()) >= 0 ||
+                !Path.IsPathFullyQualified(path) ||
+                Path.EndsInDirectorySeparator(path))
+            {
+                return false;
+            }
+
+            normalizedPath = Path.GetFullPath(path);
+            string? root = Path.GetPathRoot(normalizedPath);
+            fileName = Path.GetFileName(path);
+
+            if (string.IsNullOrWhiteSpace(fileName) ||
+                fileName is "." or ".." ||
+                IsRootPath(normalizedPath, root) ||
+                ContainsInvalidFileNameCharacter(path))
+            {
+                fileName = string.Empty;
+                normalizedPath = string.Empty;
+                return false;
+            }
+
+            return true;
+        }
+        catch (ArgumentException)
+        {
+            fileName = string.Empty;
+            normalizedPath = string.Empty;
+            return false;
+        }
+        catch (NotSupportedException)
+        {
+            fileName = string.Empty;
+            normalizedPath = string.Empty;
+            return false;
+        }
+        catch (PathTooLongException)
+        {
+            fileName = string.Empty;
+            normalizedPath = string.Empty;
+            return false;
+        }
+    }
+
+    private static bool IsRootPath(string fullPath, string? root) =>
+        !string.IsNullOrEmpty(root) &&
+        string.Equals(
+            Path.TrimEndingDirectorySeparator(fullPath),
+            Path.TrimEndingDirectorySeparator(root),
+            StringComparison.OrdinalIgnoreCase);
+
+    private static bool ContainsInvalidFileNameCharacter(string path)
+    {
+        int start = HasDrivePrefix(path) ? 2 : 0;
+        char[] invalidFileNameCharacters = Path.GetInvalidFileNameChars();
+
+        foreach (string segment in path[start..].Split(new[] { '\\', '/' }, StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (segment.IndexOfAny(invalidFileNameCharacters) >= 0)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static string GetSafeFileName(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return string.Empty;
         }
 
         int separatorIndex = Math.Max(path.LastIndexOf('\\'), path.LastIndexOf('/'));
-        if (separatorIndex == path.Length - 1)
+        string fileName = path[(separatorIndex + 1)..];
+        if (HasDrivePrefix(fileName))
         {
-            return false;
+            fileName = fileName[2..];
         }
 
-        fileName = path[(separatorIndex + 1)..];
-        return !string.IsNullOrWhiteSpace(fileName);
+        char[] invalidFileNameCharacters = Path.GetInvalidFileNameChars();
+        var safeFileName = new StringBuilder(Math.Min(fileName.Length, MaximumSafeFileNameLength));
+        foreach (char character in fileName)
+        {
+            if (safeFileName.Length == MaximumSafeFileNameLength)
+            {
+                break;
+            }
+
+            if (!char.IsControl(character) && Array.IndexOf(invalidFileNameCharacters, character) < 0)
+            {
+                safeFileName.Append(character);
+            }
+        }
+
+        return safeFileName.ToString();
     }
+
+    private static bool HasDrivePrefix(string path) =>
+        path.Length >= 2 && char.IsAsciiLetter(path[0]) && path[1] == ':';
 }

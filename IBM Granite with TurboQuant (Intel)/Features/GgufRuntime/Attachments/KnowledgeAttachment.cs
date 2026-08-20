@@ -8,7 +8,7 @@ internal sealed record KnowledgeAttachment(string Path)
     internal string StateText => "Not indexed";
 }
 
-internal sealed record KnowledgeFileCandidate(string Path, long SizeInBytes, bool IsAccessible);
+internal sealed record KnowledgeFileCandidate(string? Path, long SizeInBytes, bool IsAccessible);
 
 internal sealed record KnowledgeAttachmentRejection(string Code, string FileName);
 
