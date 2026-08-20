@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -10,6 +9,7 @@ namespace GraniteEdgeAI.Features.OpenVinoRoute.Inspection;
 
 public sealed class OpenVinoStaticPackageInspector
 {
+    private readonly OpenVinoPackageSnapshotter snapshotter;
     private static readonly UTF8Encoding StrictUtf8 = new(false, true);
     private static readonly JsonDocumentOptions JsonOptions = new()
     {
@@ -52,10 +52,46 @@ public sealed class OpenVinoStaticPackageInspector
         "attention_dropout", "initializer_range", "residual_multiplier", "rope_theta"
     };
 
-    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "The instance boundary permits operation-scoped inspector composition.")]
+    private static readonly HashSet<string> TokenizerJsonProperties = new(StringComparer.Ordinal)
+    {
+        "added_tokens", "model", "version"
+    };
+
+    private static readonly HashSet<string> TokenizerModelProperties = new(StringComparer.Ordinal)
+    {
+        "byte_fallback", "continuing_subword_prefix", "dropout", "end_of_word_suffix", "fuse_unk",
+        "ignore_merges", "merges", "type", "unk_token", "vocab"
+    };
+
+    private static readonly HashSet<string> AddedTokenProperties = new(StringComparer.Ordinal)
+    {
+        "content", "id", "lstrip", "normalized", "rstrip", "single_word", "special"
+    };
+
+    private static readonly HashSet<string> SpecialTokenObjectProperties = new(StringComparer.Ordinal)
+    {
+        "content", "lstrip", "normalized", "rstrip", "single_word"
+    };
+
+    private static readonly HashSet<string> SpecialTokenMapProperties = new(StringComparer.Ordinal)
+    {
+        "additional_special_tokens", "bos_token", "cls_token", "eos_token", "mask_token",
+        "pad_token", "sep_token", "unk_token"
+    };
+
+    public OpenVinoStaticPackageInspector()
+        : this(new OpenVinoPackageSnapshotter())
+    {
+    }
+
+    internal OpenVinoStaticPackageInspector(OpenVinoPackageSnapshotter snapshotter)
+    {
+        this.snapshotter = snapshotter ?? throw new ArgumentNullException(nameof(snapshotter));
+    }
+
     public OpenVinoStaticPackageInspectionResult Inspect(string packageRoot)
     {
-        OpenVinoPackageSnapshotCapture capture = new OpenVinoPackageSnapshotter().Capture(packageRoot);
+        OpenVinoPackageSnapshotCapture capture = snapshotter.Capture(packageRoot);
         if (capture.Snapshot is null)
         {
             return RejectSnapshotFailure(capture.Failure);
@@ -80,11 +116,19 @@ public sealed class OpenVinoStaticPackageInspector
             using JsonDocument config = ReadJson(snapshot, "config.json", ConfigProperties);
             using JsonDocument generation = ReadJson(snapshot, "generation_config.json", GenerationProperties);
             using JsonDocument tokenizer = ReadJson(snapshot, "tokenizer_config.json", TokenizerProperties);
+            long vocabularySize = RequiredPositiveInt64(config.RootElement, "vocab_size");
             foreach (OpenVinoPackageSnapshotEntry optionalJson in snapshot.Entries.Where(static entry =>
                 OpenVinoPackagePolicy.IsJsonResource(entry.RelativeName) &&
                 !OpenVinoPackagePolicy.IsRequiredResource(entry.RelativeName)))
             {
-                using JsonDocument _ = ReadJson(optionalJson, allowedProperties: null);
+                using JsonDocument document = ReadJson(optionalJson, allowedProperties: null);
+                ValidateOptionalJson(optionalJson.RelativeName, document.RootElement, vocabularySize);
+            }
+
+            foreach (OpenVinoPackageSnapshotEntry textResource in snapshot.Entries.Where(static entry =>
+                entry.RelativeName is "chat_template.jinja" or "merges.txt"))
+            {
+                ValidateStrictText(textResource);
             }
 
             JsonElement configRoot = config.RootElement;
@@ -135,9 +179,19 @@ public sealed class OpenVinoStaticPackageInspector
                 return OpenVinoStaticPackageInspectionResult.Rejected(OpenVinoSupportCode.TokenizerUnsupported);
             }
 
-            if (!ValidateXml(snapshot, "openvino_model.xml", "openvino_model.bin", ["Parameter", "Select", "Result"]) ||
-                !ValidateXml(snapshot, "openvino_tokenizer.xml", "openvino_tokenizer.bin", ["Parameter", "StringTensorUnpack", "Result"]) ||
-                !ValidateXml(snapshot, "openvino_detokenizer.xml", "openvino_detokenizer.bin", ["Parameter", "VocabDecoder", "Result"]))
+            string irPrecision = precision switch
+            {
+                "float32" => "FP32",
+                "float16" => "FP16",
+                "bfloat16" => "BF16",
+                _ => throw new InvalidDataException("Configured precision is unsupported.")
+            };
+            if (!ValidateXml(snapshot, "openvino_model.xml", "openvino_model.bin", ["Parameter", "Select", "Result"],
+                    [new ExpectedPort("logits", irPrecision, vocabularySize)]) ||
+                !ValidateXml(snapshot, "openvino_tokenizer.xml", "openvino_tokenizer.bin", ["Parameter", "StringTensorUnpack", "Result"],
+                    [new ExpectedPort("input_ids", "I64", null), new ExpectedPort("attention_mask", "I64", null)]) ||
+                !ValidateXml(snapshot, "openvino_detokenizer.xml", "openvino_detokenizer.bin", ["Parameter", "VocabDecoder", "Result"],
+                    [new ExpectedPort("string_output", "STRING", null)]))
             {
                 return OpenVinoStaticPackageInspectionResult.Rejected(OpenVinoSupportCode.PackageInconsistentResource);
             }
@@ -145,6 +199,13 @@ public sealed class OpenVinoStaticPackageInspector
             OpenVinoPackageSnapshotEntry model = GetRequired(snapshot, "openvino_model.bin");
             bool hasChatTemplate = snapshot.TryGetEntry("chat_template.json", out _) ||
                 snapshot.TryGetEntry("chat_template.jinja", out _);
+            snapshot.Notify(OpenVinoPackageCaptureStage.BeforeInspectorFinalValidation);
+            OpenVinoSnapshotFailure finalValidation = snapshot.ValidateStillCurrent();
+            if (finalValidation != OpenVinoSnapshotFailure.None)
+            {
+                return RejectSnapshotFailure(finalValidation);
+            }
+
             return OpenVinoStaticPackageInspectionResult.NativeValidationRequired(new OpenVinoStaticPackageEvidence(
                 OpenVinoPackagePolicy.PolicyVersion,
                 ComputeManifestDigest(snapshot.Entries),
@@ -181,7 +242,8 @@ public sealed class OpenVinoStaticPackageInspector
             OpenVinoSnapshotFailure.DepthLimitExceeded => OpenVinoSupportCode.PackageUnsafePath,
             OpenVinoSnapshotFailure.UnrecognizedResource or
             OpenVinoSnapshotFailure.JsonTooLarge or
-            OpenVinoSnapshotFailure.XmlTooLarge => OpenVinoSupportCode.PackageInconsistentResource,
+            OpenVinoSnapshotFailure.XmlTooLarge or
+            OpenVinoSnapshotFailure.TextTooLarge => OpenVinoSupportCode.PackageInconsistentResource,
             _ => OpenVinoSupportCode.PackageInconsistentResource
         });
 
@@ -282,13 +344,255 @@ public sealed class OpenVinoStaticPackageInspector
         }
     }
 
+    private static void ValidateOptionalJson(string resourceName, JsonElement root, long vocabularySize)
+    {
+        switch (resourceName)
+        {
+            case "vocab.json":
+                ValidateIdentifierMap(root, vocabularySize, requireFullVocabulary: true);
+                break;
+            case "added_tokens.json":
+                ValidateIdentifierMap(root, vocabularySize, requireFullVocabulary: false);
+                break;
+            case "special_tokens_map.json":
+                ValidateSpecialTokensMap(root);
+                break;
+            case "chat_template.json":
+                ValidateClosedObject(root, new HashSet<string>(["chat_template"], StringComparer.Ordinal));
+                _ = RequiredString(root, "chat_template");
+                break;
+            case "tokenizer.json":
+                ValidateTokenizerJson(root, vocabularySize);
+                break;
+            default:
+                throw new InvalidDataException("Optional JSON resource has no version-one schema.");
+        }
+    }
+
+    private static void ValidateTokenizerJson(JsonElement root, long vocabularySize)
+    {
+        ValidateClosedObject(root, TokenizerJsonProperties);
+        if (!string.Equals(RequiredString(root, "version"), "1.0", StringComparison.Ordinal))
+        {
+            throw new InvalidDataException("Tokenizer JSON version is unsupported.");
+        }
+
+        if (!root.TryGetProperty("added_tokens", out JsonElement addedTokens) || addedTokens.ValueKind != JsonValueKind.Array)
+        {
+            throw new InvalidDataException("Tokenizer added tokens must be an array.");
+        }
+
+        HashSet<long> addedTokenIds = [];
+        foreach (JsonElement token in addedTokens.EnumerateArray())
+        {
+            ValidateClosedObject(token, AddedTokenProperties);
+            long id = RequiredBoundedIdentifier(token, "id", vocabularySize);
+            if (!addedTokenIds.Add(id))
+            {
+                throw new InvalidDataException("Tokenizer added-token identifiers must be unique.");
+            }
+
+            _ = RequiredString(token, "content");
+            foreach (string property in new[] { "single_word", "lstrip", "rstrip", "normalized", "special" })
+            {
+                RequireBoolean(token, property);
+            }
+        }
+
+        if (!root.TryGetProperty("model", out JsonElement model))
+        {
+            throw new InvalidDataException("Tokenizer model is missing.");
+        }
+
+        ValidateClosedObject(model, TokenizerModelProperties);
+        if (!string.Equals(RequiredString(model, "type"), "BPE", StringComparison.Ordinal))
+        {
+            throw new InvalidDataException("Tokenizer model type is unsupported by policy version one.");
+        }
+
+        if (!model.TryGetProperty("vocab", out JsonElement vocabulary))
+        {
+            throw new InvalidDataException("Tokenizer vocabulary is missing.");
+        }
+
+        ValidateIdentifierMap(vocabulary, vocabularySize, requireFullVocabulary: true);
+        if (!model.TryGetProperty("merges", out JsonElement merges) || merges.ValueKind != JsonValueKind.Array)
+        {
+            throw new InvalidDataException("Tokenizer merges must be an array.");
+        }
+
+        foreach (JsonElement merge in merges.EnumerateArray())
+        {
+            if (merge.ValueKind == JsonValueKind.String)
+            {
+                _ = RequiredString(merge);
+                continue;
+            }
+
+            if (merge.ValueKind != JsonValueKind.Array || merge.GetArrayLength() != 2 ||
+                merge.EnumerateArray().Any(static item => item.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(item.GetString())))
+            {
+                throw new InvalidDataException("Tokenizer merge must be a string or two-item string array.");
+            }
+        }
+
+        ValidateOptionalString(model, "unk_token");
+        ValidateOptionalString(model, "continuing_subword_prefix");
+        ValidateOptionalString(model, "end_of_word_suffix");
+        ValidateOptionalBoolean(model, "fuse_unk");
+        ValidateOptionalBoolean(model, "byte_fallback");
+        ValidateOptionalBoolean(model, "ignore_merges");
+        if (model.TryGetProperty("dropout", out JsonElement dropout) &&
+            (dropout.ValueKind != JsonValueKind.Number || !dropout.TryGetDouble(out double value) || !double.IsFinite(value) || value < 0 || value > 1))
+        {
+            throw new InvalidDataException("Tokenizer dropout must be a finite probability.");
+        }
+    }
+
+    private static void ValidateIdentifierMap(JsonElement root, long vocabularySize, bool requireFullVocabulary)
+    {
+        if (root.ValueKind != JsonValueKind.Object)
+        {
+            throw new InvalidDataException("Token identifier map must be an object.");
+        }
+
+        HashSet<long> identifiers = [];
+        int count = 0;
+        foreach (JsonProperty property in root.EnumerateObject())
+        {
+            if (string.IsNullOrEmpty(property.Name) || property.Value.ValueKind != JsonValueKind.Number ||
+                !property.Value.TryGetInt64(out long identifier) || identifier < 0 || identifier >= vocabularySize ||
+                !identifiers.Add(identifier))
+            {
+                throw new InvalidDataException("Token identifier map is invalid.");
+            }
+
+            count++;
+        }
+
+        if (requireFullVocabulary && count != vocabularySize)
+        {
+            throw new InvalidDataException("Token identifier map must agree with configured vocabulary size.");
+        }
+    }
+
+    private static void ValidateSpecialTokensMap(JsonElement root)
+    {
+        ValidateClosedObject(root, SpecialTokenMapProperties);
+        foreach (JsonProperty property in root.EnumerateObject())
+        {
+            if (property.Name == "additional_special_tokens")
+            {
+                if (property.Value.ValueKind != JsonValueKind.Array)
+                {
+                    throw new InvalidDataException("Additional special tokens must be an array.");
+                }
+
+                foreach (JsonElement token in property.Value.EnumerateArray())
+                {
+                    ValidateSpecialToken(token);
+                }
+            }
+            else
+            {
+                ValidateSpecialToken(property.Value);
+            }
+        }
+    }
+
+    private static void ValidateSpecialToken(JsonElement token)
+    {
+        if (token.ValueKind == JsonValueKind.String)
+        {
+            _ = RequiredString(token);
+            return;
+        }
+
+        ValidateClosedObject(token, SpecialTokenObjectProperties);
+        _ = RequiredString(token, "content");
+        foreach (string property in new[] { "single_word", "lstrip", "rstrip", "normalized" })
+        {
+            RequireBoolean(token, property);
+        }
+    }
+
+    private static void ValidateClosedObject(JsonElement value, HashSet<string> allowedProperties)
+    {
+        if (value.ValueKind != JsonValueKind.Object)
+        {
+            throw new InvalidDataException("JSON schema requires an object.");
+        }
+
+        foreach (JsonProperty property in value.EnumerateObject())
+        {
+            if (!allowedProperties.Contains(property.Name))
+            {
+                throw new InvalidDataException("JSON schema contains an unrecognized property.");
+            }
+        }
+    }
+
+    private static long RequiredBoundedIdentifier(JsonElement parent, string propertyName, long upperExclusive)
+    {
+        long value = RequireNonNegativeToken(parent, propertyName);
+        if (value >= upperExclusive)
+        {
+            throw new InvalidDataException("Token identifier is outside configured vocabulary.");
+        }
+
+        return value;
+    }
+
+    private static void ValidateOptionalString(JsonElement parent, string propertyName)
+    {
+        if (parent.TryGetProperty(propertyName, out JsonElement value))
+        {
+            _ = RequiredString(value);
+        }
+    }
+
+    private static void ValidateOptionalBoolean(JsonElement parent, string propertyName)
+    {
+        if (parent.TryGetProperty(propertyName, out JsonElement value) && value.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+        {
+            throw new InvalidDataException("JSON property must be a boolean.");
+        }
+    }
+
+    private static void ValidateStrictText(OpenVinoPackageSnapshotEntry entry)
+    {
+        if (entry.Length <= 0 || entry.Length > OpenVinoPackagePolicy.MaximumTextBytes)
+        {
+            throw new InvalidDataException("Text resource length is invalid.");
+        }
+
+        entry.Stream.Position = 0;
+        using StreamReader reader = new(entry.Stream, StrictUtf8, detectEncodingFromByteOrderMarks: false, 64 * 1024, leaveOpen: true);
+        char[] buffer = new char[64 * 1024];
+        while (reader.Read(buffer, 0, buffer.Length) > 0)
+        {
+        }
+
+        entry.Stream.Position = 0;
+    }
+
     private static void ValidateConfigurationShape(JsonElement config, JsonElement generation, JsonElement tokenizer)
     {
         ValidateConfigPropertyTypes(config);
         _ = RequiredString(config, "model_type");
         _ = RequiredSingleString(config, "architectures");
-        _ = RequiredPositiveInt64(config, "vocab_size");
-        _ = RequiredPositiveInt64(config, "max_position_embeddings");
+        _ = RequiredPositiveBoundedInt64(config, "vocab_size", 100_000_000);
+        _ = RequiredPositiveBoundedInt64(config, "max_position_embeddings", OpenVinoPackagePolicy.MaximumContextLength);
+        long hiddenSize = RequiredPositiveBoundedInt64(config, "hidden_size", 1_048_576);
+        _ = RequiredPositiveBoundedInt64(config, "intermediate_size", 16_777_216);
+        long attentionHeads = RequiredPositiveBoundedInt64(config, "num_attention_heads", 65_536);
+        long keyValueHeads = RequiredPositiveBoundedInt64(config, "num_key_value_heads", 65_536);
+        _ = RequiredPositiveBoundedInt64(config, "num_hidden_layers", 65_536);
+        if (keyValueHeads > attentionHeads || attentionHeads % keyValueHeads != 0 || hiddenSize % attentionHeads != 0)
+        {
+            throw new InvalidDataException("Granite attention dimensions are inconsistent.");
+        }
+
         _ = RequiredString(config, "torch_dtype");
         RequireNonNegativeToken(config, "bos_token_id");
         RequireNonNegativeToken(config, "eos_token_id");
@@ -416,6 +720,17 @@ public sealed class OpenVinoStaticPackageInspector
         return result;
     }
 
+    private static long RequiredPositiveBoundedInt64(JsonElement parent, string propertyName, long maximum)
+    {
+        long result = RequiredPositiveInt64(parent, propertyName);
+        if (result > maximum)
+        {
+            throw new InvalidDataException("JSON property exceeds the policy bound.");
+        }
+
+        return result;
+    }
+
     private static long RequireNonNegativeToken(JsonElement parent, string propertyName)
     {
         if (!parent.TryGetProperty(propertyName, out JsonElement value) ||
@@ -442,7 +757,8 @@ public sealed class OpenVinoStaticPackageInspector
         OpenVinoPackageSnapshot snapshot,
         string xmlName,
         string binName,
-        IReadOnlyCollection<string> requiredLayerTypes)
+        IReadOnlyCollection<string> requiredLayerTypes,
+        IReadOnlyCollection<ExpectedPort> requiredPorts)
     {
         OpenVinoPackageSnapshotEntry xml = GetRequired(snapshot, xmlName);
         OpenVinoPackageSnapshotEntry binary = GetRequired(snapshot, binName);
@@ -463,8 +779,13 @@ public sealed class OpenVinoStaticPackageInspector
             XmlResolver = null
         };
         HashSet<string> observedTypes = new(StringComparer.Ordinal);
+        List<ObservedPort> observedPorts = [];
         bool validRoot = false;
         bool insideConstant = false;
+        string[]? currentPortNames = null;
+        string? currentPortPrecision = null;
+        long? currentPortLastDimension = null;
+        bool insideNamedPortDimension = false;
         xml.Stream.Position = 0;
         using StreamReader text = new(xml.Stream, StrictUtf8, detectEncodingFromByteOrderMarks: false, 64 * 1024, leaveOpen: true);
         using XmlReader reader = XmlReader.Create(text, settings);
@@ -516,6 +837,45 @@ public sealed class OpenVinoStaticPackageInspector
                         return false;
                     }
                 }
+
+                if (string.Equals(reader.LocalName, "port", StringComparison.Ordinal))
+                {
+                    string? names = reader.GetAttribute("names");
+                    currentPortNames = string.IsNullOrWhiteSpace(names)
+                        ? null
+                        : names.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+                    currentPortPrecision = reader.GetAttribute("precision");
+                    currentPortLastDimension = null;
+                }
+                else if (currentPortNames is not null && string.Equals(reader.LocalName, "dim", StringComparison.Ordinal))
+                {
+                    insideNamedPortDimension = true;
+                }
+            }
+            else if (reader.NodeType is XmlNodeType.Text or XmlNodeType.CDATA && insideNamedPortDimension)
+            {
+                if (!long.TryParse(reader.Value, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out long dimension))
+                {
+                    return false;
+                }
+
+                currentPortLastDimension = dimension;
+            }
+            else if (reader.NodeType == XmlNodeType.EndElement && string.Equals(reader.LocalName, "dim", StringComparison.Ordinal))
+            {
+                insideNamedPortDimension = false;
+            }
+            else if (reader.NodeType == XmlNodeType.EndElement && string.Equals(reader.LocalName, "port", StringComparison.Ordinal))
+            {
+                if (currentPortNames is not null && !string.IsNullOrWhiteSpace(currentPortPrecision))
+                {
+                    observedPorts.AddRange(currentPortNames.Select(name => new ObservedPort(name, currentPortPrecision, currentPortLastDimension)));
+                }
+
+                currentPortNames = null;
+                currentPortPrecision = null;
+                currentPortLastDimension = null;
+                insideNamedPortDimension = false;
             }
             else if (reader.NodeType == XmlNodeType.EndElement && string.Equals(reader.LocalName, "layer", StringComparison.Ordinal))
             {
@@ -524,8 +884,17 @@ public sealed class OpenVinoStaticPackageInspector
         }
 
         xml.Stream.Position = 0;
-        return validRoot && requiredLayerTypes.All(observedTypes.Contains);
+        return validRoot &&
+            requiredLayerTypes.All(observedTypes.Contains) &&
+            requiredPorts.All(expected => observedPorts.Any(observed =>
+                string.Equals(observed.Name, expected.Name, StringComparison.Ordinal) &&
+                string.Equals(observed.Precision, expected.Precision, StringComparison.Ordinal) &&
+                (expected.FinalDimension is null || observed.FinalDimension == expected.FinalDimension)));
     }
+
+    private sealed record ExpectedPort(string Name, string Precision, long? FinalDimension);
+
+    private sealed record ObservedPort(string Name, string Precision, long? FinalDimension);
 
     private static OpenVinoPackageSnapshotEntry GetRequired(OpenVinoPackageSnapshot snapshot, string name)
     {

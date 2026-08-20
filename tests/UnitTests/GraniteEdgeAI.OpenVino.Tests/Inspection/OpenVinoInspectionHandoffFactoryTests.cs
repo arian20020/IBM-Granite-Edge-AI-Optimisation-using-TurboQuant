@@ -33,12 +33,18 @@ public sealed class OpenVinoInspectionHandoffFactoryTests
     }
 
     [TestMethod]
-    public void NativeProofMustMatchTheStaticManifestAndModelIdentity()
+    [DataRow("manifest")]
+    [DataRow("model-digest")]
+    [DataRow("model-length")]
+    public void NativeProofMustMatchEveryStaticPackageIdentityField(string mismatch)
     {
         OpenVinoStaticPackageInspectionResult staticResult = StaticResult();
-        OpenVinoNativeValidationEvidence mismatched = NativeEvidence() with
+        OpenVinoNativeValidationEvidence mismatched = mismatch switch
         {
-            PackageManifestDigest = new string('a', 64)
+            "manifest" => NativeEvidence() with { PackageManifestDigest = new string('a', 64) },
+            "model-digest" => NativeEvidence() with { ModelSha256 = new string('b', 64) },
+            "model-length" => NativeEvidence() with { ModelLengthBytes = 89 },
+            _ => throw new AssertFailedException("Unknown mismatch case.")
         };
 
         Assert.ThrowsExactly<InvalidOperationException>(() =>
@@ -63,9 +69,11 @@ public sealed class OpenVinoInspectionHandoffFactoryTests
         Assert.AreEqual(88L, handoff.ModelLengthBytes);
         Assert.IsTrue(IsUuidV4(handoff.ModelInspectionHandoffId));
         Assert.IsTrue(payload.Length <= ModelInspectionHandoffV2.MaximumCanonicalUtf8Bytes);
-        CollectionAssert.AreEquivalent(
+        CollectionAssert.AreEqual(
             HandoffFieldNames,
             System.Text.Json.JsonDocument.Parse(payload).RootElement.EnumerateObject().Select(static property => property.Name).ToArray());
+        string expectedCanonical = $"{{\"schemaVersion\":2,\"modelInspectionHandoffId\":\"{handoff.ModelInspectionHandoffId:D}\",\"modelInspectionRunId\":\"{RunId:D}\",\"outcome\":\"{outcome}\",\"modelSha256\":\"{ModelDigest}\",\"modelLengthBytes\":88}}";
+        Assert.AreEqual(expectedCanonical, System.Text.Encoding.UTF8.GetString(payload));
         Assert.IsFalse(System.Text.Encoding.UTF8.GetString(payload).Contains("manifest", StringComparison.OrdinalIgnoreCase));
         Assert.AreEqual(handoff, ModelInspectionHandoffV2.Parse(payload));
     }
@@ -84,15 +92,23 @@ public sealed class OpenVinoInspectionHandoffFactoryTests
     }
 
     [TestMethod]
-    public void CanonicalPayloadOver512BytesIsRejected()
+    [DataRow((ModelInspectionOutcome)999, ModelDigest, 88L)]
+    [DataRow(ModelInspectionOutcome.Ready, "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", 88L)]
+    [DataRow(ModelInspectionOutcome.Ready, ModelDigest, 0L)]
+    public void FactoryRejectsInvalidNativeEvidenceBeforeCanonicalIssuance(
+        ModelInspectionOutcome outcome,
+        string modelDigest,
+        long modelLength)
     {
-        ModelInspectionHandoffV2 handoff = new OpenVinoInspectionHandoffFactory().Create(StaticResult(), NativeEvidence(), RunId);
-        byte[] canonical = handoff.ToCanonicalUtf8Json();
-        byte[] oversized = new byte[ModelInspectionHandoffV2.MaximumCanonicalUtf8Bytes + 1];
-        canonical.CopyTo(oversized, 0);
-        Array.Fill(oversized, (byte)' ', canonical.Length, oversized.Length - canonical.Length);
+        OpenVinoNativeValidationEvidence invalid = NativeEvidence() with
+        {
+            Outcome = outcome,
+            ModelSha256 = modelDigest,
+            ModelLengthBytes = modelLength
+        };
 
-        Assert.ThrowsExactly<OpenVinoProtocolException>(() => ModelInspectionHandoffV2.Parse(oversized));
+        Assert.ThrowsExactly<InvalidOperationException>(() =>
+            new OpenVinoInspectionHandoffFactory().Create(StaticResult(), invalid, RunId));
     }
 
     [TestMethod]

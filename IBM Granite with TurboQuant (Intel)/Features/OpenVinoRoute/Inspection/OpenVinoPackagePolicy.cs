@@ -8,6 +8,7 @@ public static class OpenVinoPackagePolicy
     public const int MaximumEntries = 4_096;
     public const int MaximumDepth = 16;
     public const int MaximumJsonBytes = 16 * 1024 * 1024;
+    public const int MaximumTextBytes = 16 * 1024 * 1024;
     public const long MaximumXmlBytes = 256L * 1024 * 1024;
     public const int MaximumJsonDepth = 32;
     public const long MaximumContextLength = 1_048_576;
@@ -50,6 +51,12 @@ public static class OpenVinoPackagePolicy
 
     internal static bool IsXmlResource(string relativeName) =>
         relativeName.EndsWith(".xml", StringComparison.Ordinal);
+
+    internal static bool IsTextResource(string relativeName) =>
+        IsJsonResource(relativeName) ||
+        IsXmlResource(relativeName) ||
+        relativeName.Equals("chat_template.jinja", StringComparison.Ordinal) ||
+        relativeName.Equals("merges.txt", StringComparison.Ordinal);
 
     internal static bool IsExecutableOrScriptName(string relativeName)
     {

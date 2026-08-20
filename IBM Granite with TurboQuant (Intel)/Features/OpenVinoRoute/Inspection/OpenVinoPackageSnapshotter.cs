@@ -22,8 +22,17 @@ internal enum OpenVinoSnapshotFailure
     UnrecognizedResource,
     JsonTooLarge,
     XmlTooLarge,
+    TextTooLarge,
     Changed,
     Unreadable
+}
+
+internal enum OpenVinoPackageCaptureStage
+{
+    BeforeAcquireFile,
+    AfterAllHandlesAcquired,
+    AfterHashesCompleted,
+    BeforeInspectorFinalValidation
 }
 
 internal sealed record OpenVinoPackageSnapshotCapture(
@@ -32,6 +41,17 @@ internal sealed record OpenVinoPackageSnapshotCapture(
 
 internal sealed class OpenVinoPackageSnapshotter
 {
+    private readonly Func<string, IEnumerable<string>> enumerateEntries;
+    private readonly Action<OpenVinoPackageCaptureStage, string?> observer;
+
+    internal OpenVinoPackageSnapshotter(
+        Func<string, IEnumerable<string>>? enumerateEntries = null,
+        Action<OpenVinoPackageCaptureStage, string?>? observer = null)
+    {
+        this.enumerateEntries = enumerateEntries ?? Directory.EnumerateFileSystemEntries;
+        this.observer = observer ?? ((_, _) => { });
+    }
+
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "The instance boundary permits operation-scoped snapshotter composition.")]
     public OpenVinoPackageSnapshotCapture Capture(string packageRoot)
     {
@@ -43,28 +63,216 @@ internal sealed class OpenVinoPackageSnapshotter
         string root;
         try
         {
-            root = Path.GetFullPath(packageRoot);
-            if (!Directory.Exists(root))
-            {
-                return Failed(OpenVinoSnapshotFailure.RootMissing);
-            }
+            root = Path.GetFullPath(packageRoot).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        }
+        catch (Exception exception) when (exception is ArgumentException or NotSupportedException)
+        {
+            return Failed(OpenVinoSnapshotFailure.RootMissing);
+        }
 
-            if ((File.GetAttributes(root) & FileAttributes.ReparsePoint) != 0)
+        SafeFileHandle rootHandle = OpenPath(
+            root,
+            FileReadAttributes | FileListDirectory,
+            FileShareRead,
+            FileFlagBackupSemantics | FileFlagOpenReparsePoint);
+        if (rootHandle.IsInvalid)
+        {
+            int error = Marshal.GetLastWin32Error();
+            rootHandle.Dispose();
+            return Failed(error is ErrorFileNotFound or ErrorPathNotFound
+                ? OpenVinoSnapshotFailure.RootMissing
+                : OpenVinoSnapshotFailure.Unreadable);
+        }
+
+        List<AcquiredEntry> acquired = [];
+        try
+        {
+            FileIdentity rootIdentity = GetIdentity(rootHandle);
+            if ((rootIdentity.Attributes & FileAttributes.ReparsePoint) != 0)
             {
                 return Failed(OpenVinoSnapshotFailure.ReparsePoint);
             }
 
+            if ((rootIdentity.Attributes & FileAttributes.Directory) == 0)
+            {
+                return Failed(OpenVinoSnapshotFailure.RootMissing);
+            }
+
+            string rootFinalPath = GetFinalPath(rootHandle);
             if (HasAlternateDataStream(root))
             {
                 return Failed(OpenVinoSnapshotFailure.AlternateDataStream);
             }
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
-        {
-            return Failed(OpenVinoSnapshotFailure.Unreadable);
-        }
 
-        string rootPrefix = root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            TopologyCapture discovery = DiscoverTopology(root, rootFinalPath, repeatCapture: false);
+            if (discovery.Failure != OpenVinoSnapshotFailure.None)
+            {
+                return Failed(discovery.Failure);
+            }
+
+            OpenVinoSnapshotFailure policyFailure = ValidateDiscoveredPolicy(discovery.Items);
+            if (policyFailure != OpenVinoSnapshotFailure.None)
+            {
+                return Failed(policyFailure);
+            }
+
+            foreach (DiscoveredItem item in discovery.Items.OrderBy(static item => item.RelativeName, StringComparer.Ordinal))
+            {
+                observer(OpenVinoPackageCaptureStage.BeforeAcquireFile, item.RelativeName);
+                SafeFileHandle handle = OpenPath(
+                    item.FullPath,
+                    GenericRead,
+                    FileShareRead,
+                    FileFlagOpenReparsePoint | FileFlagSequentialScan);
+                if (handle.IsInvalid)
+                {
+                    int error = Marshal.GetLastWin32Error();
+                    handle.Dispose();
+                    DisposeEntries(acquired);
+                    return Failed(error switch
+                    {
+                        ErrorFileNotFound or ErrorPathNotFound => OpenVinoSnapshotFailure.Changed,
+                        ErrorSharingViolation => CanOpenWithPermissiveSharing(item.FullPath)
+                            ? OpenVinoSnapshotFailure.Changed
+                            : OpenVinoSnapshotFailure.Unreadable,
+                        _ => OpenVinoSnapshotFailure.Unreadable
+                    });
+                }
+
+                FileIdentity identity;
+                string finalPath;
+                try
+                {
+                    identity = GetIdentity(handle);
+                    finalPath = GetFinalPath(handle);
+                }
+                catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or Win32Exception)
+                {
+                    handle.Dispose();
+                    DisposeEntries(acquired);
+                    return Failed(OpenVinoSnapshotFailure.Changed);
+                }
+
+                if ((identity.Attributes & FileAttributes.ReparsePoint) != 0 ||
+                    !IsDescendant(rootFinalPath, finalPath))
+                {
+                    handle.Dispose();
+                    DisposeEntries(acquired);
+                    return Failed((identity.Attributes & FileAttributes.ReparsePoint) != 0
+                        ? OpenVinoSnapshotFailure.ReparsePoint
+                        : OpenVinoSnapshotFailure.EscapedRoot);
+                }
+
+                if ((identity.Attributes & (FileAttributes.Directory | FileAttributes.Device)) != 0)
+                {
+                    handle.Dispose();
+                    DisposeEntries(acquired);
+                    return Failed(OpenVinoSnapshotFailure.NonRegularArtifact);
+                }
+
+                if (!identity.SameObjectAndContentMetadata(item.Identity) ||
+                    !string.Equals(finalPath, item.FinalPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    handle.Dispose();
+                    DisposeEntries(acquired);
+                    return Failed(OpenVinoSnapshotFailure.Changed);
+                }
+
+                try
+                {
+                    FileStream stream = new(handle, FileAccess.Read, 128 * 1024, isAsync: false);
+                    acquired.Add(new AcquiredEntry(item, stream, identity));
+                }
+                catch
+                {
+                    handle.Dispose();
+                    DisposeEntries(acquired);
+                    throw;
+                }
+            }
+
+            observer(OpenVinoPackageCaptureStage.AfterAllHandlesAcquired, null);
+            OpenVinoSnapshotFailure validation = ValidateCurrentTopology(
+                root,
+                rootFinalPath,
+                rootIdentity,
+                rootHandle,
+                discovery.Items,
+                acquired);
+            if (validation != OpenVinoSnapshotFailure.None)
+            {
+                DisposeEntries(acquired);
+                return Failed(validation);
+            }
+
+            List<OpenVinoPackageSnapshotEntry> entries = [];
+            foreach (AcquiredEntry item in acquired)
+            {
+                OpenVinoSnapshotFailure contentFailure = ValidateLengthAndMagic(item);
+                if (contentFailure != OpenVinoSnapshotFailure.None)
+                {
+                    DisposeEntries(acquired);
+                    return Failed(contentFailure);
+                }
+
+                string firstDigest = Hash(item.Stream);
+                FileIdentity afterFirstHash = GetIdentity(item.Stream.SafeFileHandle);
+                string secondDigest = Hash(item.Stream);
+                FileIdentity afterSecondHash = GetIdentity(item.Stream.SafeFileHandle);
+                if (!item.Identity.SameObjectAndContentMetadata(afterFirstHash) ||
+                    !item.Identity.SameObjectAndContentMetadata(afterSecondHash) ||
+                    !string.Equals(firstDigest, secondDigest, StringComparison.Ordinal))
+                {
+                    DisposeEntries(acquired);
+                    return Failed(OpenVinoSnapshotFailure.Changed);
+                }
+
+                entries.Add(new OpenVinoPackageSnapshotEntry(
+                    item.Discovered.RelativeName,
+                    item.Stream,
+                    item.Identity.Length,
+                    firstDigest,
+                    item.Discovered.FinalPath,
+                    item.Identity));
+            }
+
+            acquired.Clear();
+            observer(OpenVinoPackageCaptureStage.AfterHashesCompleted, null);
+            validation = ValidateCurrentTopology(root, rootFinalPath, rootIdentity, rootHandle, discovery.Items, entries);
+            if (validation != OpenVinoSnapshotFailure.None)
+            {
+                DisposeEntries(entries);
+                return Failed(validation);
+            }
+
+            SafeFileHandle retainedRoot = rootHandle;
+            rootHandle = new SafeFileHandle(IntPtr.Zero, ownsHandle: false);
+            return new OpenVinoPackageSnapshotCapture(
+                new OpenVinoPackageSnapshot(
+                    root,
+                    rootFinalPath,
+                    rootIdentity,
+                    retainedRoot,
+                    discovery.Items,
+                    entries,
+                    ValidateCurrentTopology,
+                    observer),
+                OpenVinoSnapshotFailure.None);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or Win32Exception or CryptographicException)
+        {
+            DisposeEntries(acquired);
+            return Failed(OpenVinoSnapshotFailure.Changed);
+        }
+        finally
+        {
+            rootHandle.Dispose();
+        }
+    }
+
+    private TopologyCapture DiscoverTopology(string root, string rootFinalPath, bool repeatCapture)
+    {
+        string rootPrefix = root + Path.DirectorySeparatorChar;
         List<DiscoveredItem> discovered = [];
         Queue<DirectoryToVisit> directories = new();
         directories.Enqueue(new DirectoryToVisit(root, 0));
@@ -74,182 +282,259 @@ internal sealed class OpenVinoPackageSnapshotter
             while (directories.Count > 0)
             {
                 DirectoryToVisit directory = directories.Dequeue();
-                foreach (string path in Directory.EnumerateFileSystemEntries(directory.FullPath))
+                foreach (string path in enumerateEntries(directory.FullPath))
                 {
                     if (discovered.Count == OpenVinoPackagePolicy.MaximumEntries)
                     {
-                        return Failed(OpenVinoSnapshotFailure.EntryLimitExceeded);
+                        return TopologyCapture.Failed(OpenVinoSnapshotFailure.EntryLimitExceeded);
                     }
 
                     string canonicalPath = Path.GetFullPath(path);
                     if (!canonicalPath.StartsWith(rootPrefix, StringComparison.OrdinalIgnoreCase))
                     {
-                        return Failed(OpenVinoSnapshotFailure.EscapedRoot);
+                        return TopologyCapture.Failed(OpenVinoSnapshotFailure.EscapedRoot);
                     }
 
-                    string relativeName = Path.GetRelativePath(root, canonicalPath)
-                        .Replace(Path.DirectorySeparatorChar, '/');
-                    if (Path.IsPathRooted(relativeName) ||
-                        relativeName.Equals("..", StringComparison.Ordinal) ||
-                        relativeName.StartsWith("../", StringComparison.Ordinal))
+                    string relativeName = Path.GetRelativePath(root, canonicalPath).Replace(Path.DirectorySeparatorChar, '/');
+                    if (Path.IsPathRooted(relativeName) || relativeName == ".." || relativeName.StartsWith("../", StringComparison.Ordinal))
                     {
-                        return Failed(OpenVinoSnapshotFailure.EscapedRoot);
+                        return TopologyCapture.Failed(OpenVinoSnapshotFailure.EscapedRoot);
                     }
 
-                    FileAttributes attributes = File.GetAttributes(canonicalPath);
-                    if ((attributes & FileAttributes.ReparsePoint) != 0)
+                    SafeFileHandle handle = OpenPath(
+                        canonicalPath,
+                        FileReadAttributes,
+                        FileShareRead | FileShareWrite | FileShareDelete,
+                        FileFlagBackupSemantics | FileFlagOpenReparsePoint);
+                    if (handle.IsInvalid)
                     {
-                        return Failed(OpenVinoSnapshotFailure.ReparsePoint);
+                        handle.Dispose();
+                        return TopologyCapture.Failed(repeatCapture
+                            ? OpenVinoSnapshotFailure.Changed
+                            : OpenVinoSnapshotFailure.Unreadable);
                     }
 
-                    if (HasAlternateDataStream(canonicalPath))
+                    using (handle)
                     {
-                        return Failed(OpenVinoSnapshotFailure.AlternateDataStream);
-                    }
+                        FileIdentity identity = GetIdentity(handle);
+                        if ((identity.Attributes & FileAttributes.ReparsePoint) != 0)
+                        {
+                            return TopologyCapture.Failed(OpenVinoSnapshotFailure.ReparsePoint);
+                        }
 
-                    bool isDirectory = (attributes & FileAttributes.Directory) != 0;
-                    int depth = directory.Depth + 1;
-                    if (depth > OpenVinoPackagePolicy.MaximumDepth)
-                    {
-                        return Failed(OpenVinoSnapshotFailure.DepthLimitExceeded);
-                    }
+                        string finalPath = GetFinalPath(handle);
+                        if (!IsDescendant(rootFinalPath, finalPath))
+                        {
+                            return TopologyCapture.Failed(OpenVinoSnapshotFailure.EscapedRoot);
+                        }
 
-                    discovered.Add(new DiscoveredItem(canonicalPath, relativeName, isDirectory, attributes));
-                    if (isDirectory)
-                    {
-                        directories.Enqueue(new DirectoryToVisit(canonicalPath, depth));
+                        if (HasAlternateDataStream(canonicalPath))
+                        {
+                            return TopologyCapture.Failed(OpenVinoSnapshotFailure.AlternateDataStream);
+                        }
+
+                        int depth = directory.Depth + 1;
+                        if (depth > OpenVinoPackagePolicy.MaximumDepth)
+                        {
+                            return TopologyCapture.Failed(OpenVinoSnapshotFailure.DepthLimitExceeded);
+                        }
+
+                        bool isDirectory = (identity.Attributes & FileAttributes.Directory) != 0;
+                        discovered.Add(new DiscoveredItem(canonicalPath, finalPath, relativeName, isDirectory, identity));
+                        if (isDirectory)
+                        {
+                            directories.Enqueue(new DirectoryToVisit(canonicalPath, depth));
+                        }
                     }
                 }
             }
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException or Win32Exception)
         {
-            return Failed(OpenVinoSnapshotFailure.Unreadable);
+            return TopologyCapture.Failed(repeatCapture ? OpenVinoSnapshotFailure.Changed : OpenVinoSnapshotFailure.Unreadable);
         }
 
-        OpenVinoSnapshotFailure relativeNameFailure = ValidateRelativeNames(
-            discovered.Select(static item => item.RelativeName));
-        if (relativeNameFailure != OpenVinoSnapshotFailure.None)
-        {
-            return Failed(relativeNameFailure);
-        }
+        OpenVinoSnapshotFailure nameFailure = ValidateRelativeNames(discovered.Select(static item => item.RelativeName));
+        return nameFailure == OpenVinoSnapshotFailure.None
+            ? new TopologyCapture(discovered, OpenVinoSnapshotFailure.None)
+            : TopologyCapture.Failed(nameFailure);
+    }
 
-        foreach (DiscoveredItem item in discovered)
+    private OpenVinoSnapshotFailure ValidateCurrentTopology(
+        string root,
+        string rootFinalPath,
+        FileIdentity rootIdentity,
+        SafeFileHandle retainedRoot,
+        IReadOnlyCollection<DiscoveredItem> expected,
+        IReadOnlyCollection<AcquiredEntry> lockedEntries)
+    {
+        return ValidateCurrentTopology(root, rootFinalPath, rootIdentity, retainedRoot, expected, lockedEntries.Cast<ILockedSnapshotEntry>().ToArray());
+    }
+
+    private OpenVinoSnapshotFailure ValidateCurrentTopology(
+        string root,
+        string rootFinalPath,
+        FileIdentity rootIdentity,
+        SafeFileHandle retainedRoot,
+        IReadOnlyCollection<DiscoveredItem> expected,
+        IReadOnlyCollection<OpenVinoPackageSnapshotEntry> lockedEntries)
+    {
+        return ValidateCurrentTopology(root, rootFinalPath, rootIdentity, retainedRoot, expected, lockedEntries.Cast<ILockedSnapshotEntry>().ToArray());
+    }
+
+    private OpenVinoSnapshotFailure ValidateCurrentTopology(
+        string root,
+        string rootFinalPath,
+        FileIdentity rootIdentity,
+        SafeFileHandle retainedRoot,
+        IReadOnlyCollection<DiscoveredItem> expected,
+        IReadOnlyCollection<ILockedSnapshotEntry> lockedEntries)
+    {
+        try
         {
-            if (item.IsDirectory)
+            FileIdentity retainedIdentity = GetIdentity(retainedRoot);
+            if (!retainedIdentity.SameObjectAndContentMetadata(rootIdentity) ||
+                (retainedIdentity.Attributes & FileAttributes.ReparsePoint) != 0 ||
+                !string.Equals(GetFinalPath(retainedRoot), rootFinalPath, StringComparison.OrdinalIgnoreCase))
             {
-                return Failed(OpenVinoSnapshotFailure.NonRegularArtifact);
+                return OpenVinoSnapshotFailure.Changed;
             }
 
-            if ((item.Attributes & FileAttributes.Device) != 0)
+            using SafeFileHandle currentRoot = OpenPath(
+                root,
+                FileReadAttributes | FileListDirectory,
+                FileShareRead | FileShareWrite | FileShareDelete,
+                FileFlagBackupSemantics | FileFlagOpenReparsePoint);
+            if (currentRoot.IsInvalid)
             {
-                return Failed(OpenVinoSnapshotFailure.NonRegularArtifact);
+                return OpenVinoSnapshotFailure.Changed;
+            }
+
+            FileIdentity currentRootIdentity = GetIdentity(currentRoot);
+            if ((currentRootIdentity.Attributes & FileAttributes.ReparsePoint) != 0)
+            {
+                return OpenVinoSnapshotFailure.ReparsePoint;
+            }
+
+            if (!currentRootIdentity.SameObjectAndContentMetadata(rootIdentity) ||
+                !string.Equals(GetFinalPath(currentRoot), rootFinalPath, StringComparison.OrdinalIgnoreCase))
+            {
+                return OpenVinoSnapshotFailure.Changed;
+            }
+
+            if (HasAlternateDataStream(root))
+            {
+                return OpenVinoSnapshotFailure.AlternateDataStream;
+            }
+
+            TopologyCapture current = DiscoverTopology(root, rootFinalPath, repeatCapture: true);
+            if (current.Failure != OpenVinoSnapshotFailure.None)
+            {
+                return current.Failure;
+            }
+
+            Dictionary<string, DiscoveredItem> expectedByName = expected.ToDictionary(static item => item.RelativeName, StringComparer.Ordinal);
+            if (current.Items.Count != expectedByName.Count)
+            {
+                return OpenVinoSnapshotFailure.Changed;
+            }
+
+            foreach (DiscoveredItem item in current.Items)
+            {
+                if (!expectedByName.TryGetValue(item.RelativeName, out DiscoveredItem? original) ||
+                    !item.Identity.SameObjectAndContentMetadata(original.Identity) ||
+                    item.IsDirectory != original.IsDirectory ||
+                    !string.Equals(item.FinalPath, original.FinalPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    return OpenVinoSnapshotFailure.Changed;
+                }
+            }
+
+            foreach (ILockedSnapshotEntry entry in lockedEntries)
+            {
+                FileIdentity identity = GetIdentity(entry.Stream.SafeFileHandle);
+                if (!identity.SameObjectAndContentMetadata(entry.Identity))
+                {
+                    return OpenVinoSnapshotFailure.Changed;
+                }
+
+                if ((identity.Attributes & FileAttributes.ReparsePoint) != 0)
+                {
+                    return OpenVinoSnapshotFailure.ReparsePoint;
+                }
+
+                if ((identity.Attributes & (FileAttributes.Directory | FileAttributes.Device)) != 0)
+                {
+                    return OpenVinoSnapshotFailure.NonRegularArtifact;
+                }
+
+                if (!IsDescendant(rootFinalPath, GetFinalPath(entry.Stream.SafeFileHandle)))
+                {
+                    return OpenVinoSnapshotFailure.EscapedRoot;
+                }
+
+                if (HasAlternateDataStream(Path.Combine(root, entry.RelativeName)))
+                {
+                    return OpenVinoSnapshotFailure.AlternateDataStream;
+                }
+            }
+
+            return OpenVinoSnapshotFailure.None;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or Win32Exception)
+        {
+            return OpenVinoSnapshotFailure.Changed;
+        }
+    }
+
+    private static OpenVinoSnapshotFailure ValidateDiscoveredPolicy(IEnumerable<DiscoveredItem> discovered)
+    {
+        foreach (DiscoveredItem item in discovered)
+        {
+            if (item.IsDirectory || (item.Identity.Attributes & FileAttributes.Device) != 0)
+            {
+                return OpenVinoSnapshotFailure.NonRegularArtifact;
             }
 
             if (OpenVinoPackagePolicy.IsExecutableOrScriptName(item.RelativeName))
             {
-                return Failed(OpenVinoSnapshotFailure.ExecutableOrScript);
+                return OpenVinoSnapshotFailure.ExecutableOrScript;
             }
 
             if (!OpenVinoPackagePolicy.IsAllowedResource(item.RelativeName))
             {
-                return Failed(OpenVinoSnapshotFailure.UnrecognizedResource);
+                return OpenVinoSnapshotFailure.UnrecognizedResource;
             }
         }
 
-        List<OpenVinoPackageSnapshotEntry> entries = [];
-        try
+        return OpenVinoSnapshotFailure.None;
+    }
+
+    private static OpenVinoSnapshotFailure ValidateLengthAndMagic(AcquiredEntry entry)
+    {
+        if (entry.Identity.Length <= 0)
         {
-            foreach (DiscoveredItem item in discovered.OrderBy(static item => item.RelativeName, StringComparer.Ordinal))
-            {
-                FileStream stream;
-                try
-                {
-                    stream = new FileStream(
-                        item.FullPath,
-                        FileMode.Open,
-                        FileAccess.Read,
-                        FileShare.Read,
-                        128 * 1024,
-                        FileOptions.SequentialScan);
-                }
-                catch (IOException)
-                {
-                    DisposeEntries(entries);
-                    return Failed(CanOpenWithPermissiveSharing(item.FullPath)
-                        ? OpenVinoSnapshotFailure.Changed
-                        : OpenVinoSnapshotFailure.Unreadable);
-                }
-                catch (UnauthorizedAccessException)
-                {
-                    DisposeEntries(entries);
-                    return Failed(OpenVinoSnapshotFailure.Unreadable);
-                }
-
-                FileIdentity before;
-                try
-                {
-                    before = GetIdentity(stream.SafeFileHandle);
-                    if (before.Length <= 0)
-                    {
-                        stream.Dispose();
-                        DisposeEntries(entries);
-                        return Failed(OpenVinoSnapshotFailure.NonRegularArtifact);
-                    }
-
-                    if (OpenVinoPackagePolicy.IsJsonResource(item.RelativeName) && before.Length > OpenVinoPackagePolicy.MaximumJsonBytes)
-                    {
-                        stream.Dispose();
-                        DisposeEntries(entries);
-                        return Failed(OpenVinoSnapshotFailure.JsonTooLarge);
-                    }
-
-                    if (OpenVinoPackagePolicy.IsXmlResource(item.RelativeName) && before.Length > OpenVinoPackagePolicy.MaximumXmlBytes)
-                    {
-                        stream.Dispose();
-                        DisposeEntries(entries);
-                        return Failed(OpenVinoSnapshotFailure.XmlTooLarge);
-                    }
-
-                    if (HasExecutableOrScriptMagic(stream))
-                    {
-                        stream.Dispose();
-                        DisposeEntries(entries);
-                        return Failed(OpenVinoSnapshotFailure.ExecutableOrScript);
-                    }
-
-                    string firstDigest = Hash(stream);
-                    FileIdentity afterFirstHash = GetIdentity(stream.SafeFileHandle);
-                    string secondDigest = Hash(stream);
-                    FileIdentity afterSecondHash = GetIdentity(stream.SafeFileHandle);
-                    if (before != afterFirstHash || before != afterSecondHash || !string.Equals(firstDigest, secondDigest, StringComparison.Ordinal))
-                    {
-                        stream.Dispose();
-                        DisposeEntries(entries);
-                        return Failed(OpenVinoSnapshotFailure.Changed);
-                    }
-
-                    entries.Add(new OpenVinoPackageSnapshotEntry(
-                        item.RelativeName,
-                        stream,
-                        before.Length,
-                        firstDigest));
-                }
-                catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or Win32Exception or CryptographicException)
-                {
-                    stream.Dispose();
-                    DisposeEntries(entries);
-                    return Failed(OpenVinoSnapshotFailure.Changed);
-                }
-            }
-
-            return new OpenVinoPackageSnapshotCapture(new OpenVinoPackageSnapshot(entries), OpenVinoSnapshotFailure.None);
+            return OpenVinoSnapshotFailure.NonRegularArtifact;
         }
-        catch
+
+        if (OpenVinoPackagePolicy.IsJsonResource(entry.Discovered.RelativeName) && entry.Identity.Length > OpenVinoPackagePolicy.MaximumJsonBytes)
         {
-            DisposeEntries(entries);
-            throw;
+            return OpenVinoSnapshotFailure.JsonTooLarge;
         }
+
+        if (OpenVinoPackagePolicy.IsXmlResource(entry.Discovered.RelativeName) && entry.Identity.Length > OpenVinoPackagePolicy.MaximumXmlBytes)
+        {
+            return OpenVinoSnapshotFailure.XmlTooLarge;
+        }
+
+        if (OpenVinoPackagePolicy.IsTextResource(entry.Discovered.RelativeName) && entry.Identity.Length > OpenVinoPackagePolicy.MaximumTextBytes)
+        {
+            return OpenVinoSnapshotFailure.TextTooLarge;
+        }
+
+        return HasExecutableOrScriptMagic(entry.Stream)
+            ? OpenVinoSnapshotFailure.ExecutableOrScript
+            : OpenVinoSnapshotFailure.None;
     }
 
     private static OpenVinoPackageSnapshotCapture Failed(OpenVinoSnapshotFailure failure) => new(null, failure);
@@ -268,24 +553,11 @@ internal sealed class OpenVinoPackageSnapshotter
         return OpenVinoSnapshotFailure.None;
     }
 
-    private static void DisposeEntries(IEnumerable<OpenVinoPackageSnapshotEntry> entries)
+    private static void DisposeEntries<T>(IEnumerable<T> entries) where T : IDisposable
     {
-        foreach (OpenVinoPackageSnapshotEntry entry in entries)
+        foreach (T entry in entries)
         {
             entry.Dispose();
-        }
-    }
-
-    private static bool CanOpenWithPermissiveSharing(string path)
-    {
-        try
-        {
-            using FileStream _ = new(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-            return true;
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
-            return false;
         }
     }
 
@@ -300,6 +572,19 @@ internal sealed class OpenVinoPackageSnapshotter
             (length >= 4 && prefix[0] == 0x7f && prefix[1] == (byte)'E' && prefix[2] == (byte)'L' && prefix[3] == (byte)'F');
     }
 
+    private static bool CanOpenWithPermissiveSharing(string path)
+    {
+        try
+        {
+            using FileStream stream = new(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            return stream.CanRead;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
     private static string Hash(FileStream stream)
     {
         stream.Position = 0;
@@ -309,13 +594,11 @@ internal sealed class OpenVinoPackageSnapshotter
         return Convert.ToHexString(hash).ToLowerInvariant();
     }
 
-    private static FileIdentity GetIdentity(SafeFileHandle handle)
-    {
-        if (!OperatingSystem.IsWindows())
-        {
-            throw new PlatformNotSupportedException("OpenVINO package identity validation requires Windows.");
-        }
+    private static SafeFileHandle OpenPath(string path, uint access, uint share, uint flags) =>
+        CreateFileW(path, access, share, IntPtr.Zero, OpenExisting, flags, IntPtr.Zero);
 
+    internal static FileIdentity GetIdentity(SafeFileHandle handle)
+    {
         if (!GetFileInformationByHandle(handle, out ByHandleFileInformation information))
         {
             throw new Win32Exception(Marshal.GetLastWin32Error());
@@ -324,16 +607,46 @@ internal sealed class OpenVinoPackageSnapshotter
         long length = ((long)information.FileSizeHigh << 32) | information.FileSizeLow;
         long lastWrite = ((long)information.LastWriteTimeHigh << 32) | information.LastWriteTimeLow;
         ulong fileIndex = ((ulong)information.FileIndexHigh << 32) | information.FileIndexLow;
-        return new FileIdentity(information.VolumeSerialNumber, fileIndex, length, lastWrite);
+        return new FileIdentity(information.VolumeSerialNumber, fileIndex, length, lastWrite, information.FileAttributes);
+    }
+
+    private static string GetFinalPath(SafeFileHandle handle)
+    {
+        char[] buffer = new char[512];
+        uint length = GetFinalPathNameByHandleW(handle, buffer, (uint)buffer.Length, 0);
+        if (length == 0)
+        {
+            throw new Win32Exception(Marshal.GetLastWin32Error());
+        }
+
+        if (length >= (uint)buffer.Length)
+        {
+            buffer = new char[checked((int)length + 1)];
+            length = GetFinalPathNameByHandleW(handle, buffer, (uint)buffer.Length, 0);
+            if (length == 0 || length >= (uint)buffer.Length)
+            {
+                throw new Win32Exception(Marshal.GetLastWin32Error());
+            }
+        }
+
+        string path = new(buffer, 0, checked((int)length));
+        const string uncPrefix = @"\\?\UNC\";
+        const string extendedPrefix = @"\\?\";
+        return path.StartsWith(uncPrefix, StringComparison.OrdinalIgnoreCase)
+            ? @"\\" + path[uncPrefix.Length..]
+            : path.StartsWith(extendedPrefix, StringComparison.OrdinalIgnoreCase)
+                ? path[extendedPrefix.Length..]
+                : path;
+    }
+
+    private static bool IsDescendant(string root, string candidate)
+    {
+        string prefix = root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        return candidate.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool HasAlternateDataStream(string path)
     {
-        if (!OperatingSystem.IsWindows())
-        {
-            throw new PlatformNotSupportedException("OpenVINO package stream validation requires Windows.");
-        }
-
         IntPtr handle = FindFirstStreamW(path, 0, out FindStreamData data, 0);
         if (handle == InvalidFindHandle)
         {
@@ -371,22 +684,42 @@ internal sealed class OpenVinoPackageSnapshotter
         }
     }
 
+    private const uint GenericRead = 0x80000000;
+    private const uint FileReadAttributes = 0x00000080;
+    private const uint FileListDirectory = 0x00000001;
+    private const uint FileShareRead = 0x00000001;
+    private const uint FileShareWrite = 0x00000002;
+    private const uint FileShareDelete = 0x00000004;
+    private const uint OpenExisting = 3;
+    private const uint FileFlagSequentialScan = 0x08000000;
+    private const uint FileFlagBackupSemantics = 0x02000000;
+    private const uint FileFlagOpenReparsePoint = 0x00200000;
+    private const int ErrorFileNotFound = 2;
+    private const int ErrorPathNotFound = 3;
+    private const int ErrorSharingViolation = 32;
     private const int ErrorNoMoreFiles = 18;
     private const int ErrorHandleEof = 38;
     private static readonly IntPtr InvalidFindHandle = new(-1);
 
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern SafeFileHandle CreateFileW(
+        string fileName,
+        uint desiredAccess,
+        uint shareMode,
+        IntPtr securityAttributes,
+        uint creationDisposition,
+        uint flagsAndAttributes,
+        IntPtr templateFile);
+
     [DllImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool GetFileInformationByHandle(
-        SafeFileHandle file,
-        out ByHandleFileInformation information);
+    private static extern bool GetFileInformationByHandle(SafeFileHandle file, out ByHandleFileInformation information);
 
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-    private static extern IntPtr FindFirstStreamW(
-        string fileName,
-        int informationLevel,
-        out FindStreamData data,
-        uint flags);
+    private static extern uint GetFinalPathNameByHandleW(SafeFileHandle file, [Out] char[] path, uint pathLength, uint flags);
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern IntPtr FindFirstStreamW(string fileName, int informationLevel, out FindStreamData data, uint flags);
 
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -398,13 +731,47 @@ internal sealed class OpenVinoPackageSnapshotter
 
     private sealed record DirectoryToVisit(string FullPath, int Depth);
 
-    private sealed record DiscoveredItem(
+    internal sealed record DiscoveredItem(
         string FullPath,
+        string FinalPath,
         string RelativeName,
         bool IsDirectory,
-        FileAttributes Attributes);
+        FileIdentity Identity);
 
-    private sealed record FileIdentity(uint VolumeSerialNumber, ulong FileIndex, long Length, long LastWriteTime);
+    internal sealed record FileIdentity(
+        uint VolumeSerialNumber,
+        ulong FileIndex,
+        long Length,
+        long LastWriteTime,
+        FileAttributes Attributes)
+    {
+        public bool SameObjectAndContentMetadata(FileIdentity other) =>
+            VolumeSerialNumber == other.VolumeSerialNumber &&
+            FileIndex == other.FileIndex &&
+            Length == other.Length &&
+            LastWriteTime == other.LastWriteTime;
+    }
+
+    private sealed record TopologyCapture(IReadOnlyCollection<DiscoveredItem> Items, OpenVinoSnapshotFailure Failure)
+    {
+        public static TopologyCapture Failed(OpenVinoSnapshotFailure failure) => new([], failure);
+    }
+
+    internal interface ILockedSnapshotEntry
+    {
+        string RelativeName { get; }
+
+        FileStream Stream { get; }
+
+        FileIdentity Identity { get; }
+    }
+
+    private sealed record AcquiredEntry(DiscoveredItem Discovered, FileStream Stream, FileIdentity Identity) : IDisposable, ILockedSnapshotEntry
+    {
+        public string RelativeName => Discovered.RelativeName;
+
+        public void Dispose() => Stream.Dispose();
+    }
 
     [StructLayout(LayoutKind.Sequential)]
     private struct FileTime
@@ -441,17 +808,43 @@ internal sealed class OpenVinoPackageSnapshotter
 
 internal sealed class OpenVinoPackageSnapshot : IDisposable
 {
+    private readonly string root;
+    private readonly string rootFinalPath;
+    private readonly OpenVinoPackageSnapshotter.FileIdentity rootIdentity;
+    private readonly SafeFileHandle rootHandle;
+    private readonly IReadOnlyCollection<OpenVinoPackageSnapshotter.DiscoveredItem> discovery;
     private readonly Dictionary<string, OpenVinoPackageSnapshotEntry> entries;
+    private readonly Func<string, string, OpenVinoPackageSnapshotter.FileIdentity, SafeFileHandle, IReadOnlyCollection<OpenVinoPackageSnapshotter.DiscoveredItem>, IReadOnlyCollection<OpenVinoPackageSnapshotEntry>, OpenVinoSnapshotFailure> validator;
+    private readonly Action<OpenVinoPackageCaptureStage, string?> observer;
 
-    public OpenVinoPackageSnapshot(IEnumerable<OpenVinoPackageSnapshotEntry> entries)
+    public OpenVinoPackageSnapshot(
+        string root,
+        string rootFinalPath,
+        OpenVinoPackageSnapshotter.FileIdentity rootIdentity,
+        SafeFileHandle rootHandle,
+        IReadOnlyCollection<OpenVinoPackageSnapshotter.DiscoveredItem> discovery,
+        IEnumerable<OpenVinoPackageSnapshotEntry> entries,
+        Func<string, string, OpenVinoPackageSnapshotter.FileIdentity, SafeFileHandle, IReadOnlyCollection<OpenVinoPackageSnapshotter.DiscoveredItem>, IReadOnlyCollection<OpenVinoPackageSnapshotEntry>, OpenVinoSnapshotFailure> validator,
+        Action<OpenVinoPackageCaptureStage, string?> observer)
     {
+        this.root = root;
+        this.rootFinalPath = rootFinalPath;
+        this.rootIdentity = rootIdentity;
+        this.rootHandle = rootHandle;
+        this.discovery = discovery;
         this.entries = entries.ToDictionary(static entry => entry.RelativeName, StringComparer.Ordinal);
+        this.validator = validator;
+        this.observer = observer;
     }
 
     public IReadOnlyCollection<OpenVinoPackageSnapshotEntry> Entries => entries.Values;
 
-    public bool TryGetEntry(string relativeName, out OpenVinoPackageSnapshotEntry entry) =>
-        entries.TryGetValue(relativeName, out entry!);
+    public bool TryGetEntry(string relativeName, out OpenVinoPackageSnapshotEntry entry) => entries.TryGetValue(relativeName, out entry!);
+
+    public void Notify(OpenVinoPackageCaptureStage stage) => observer(stage, null);
+
+    public OpenVinoSnapshotFailure ValidateStillCurrent() =>
+        validator(root, rootFinalPath, rootIdentity, rootHandle, discovery, entries.Values);
 
     public void Dispose()
     {
@@ -459,17 +852,27 @@ internal sealed class OpenVinoPackageSnapshot : IDisposable
         {
             entry.Dispose();
         }
+
+        rootHandle.Dispose();
     }
 }
 
-internal sealed class OpenVinoPackageSnapshotEntry : IDisposable
+internal sealed class OpenVinoPackageSnapshotEntry : IDisposable, OpenVinoPackageSnapshotter.ILockedSnapshotEntry
 {
-    public OpenVinoPackageSnapshotEntry(string relativeName, FileStream stream, long length, string sha256)
+    public OpenVinoPackageSnapshotEntry(
+        string relativeName,
+        FileStream stream,
+        long length,
+        string sha256,
+        string finalPath,
+        OpenVinoPackageSnapshotter.FileIdentity identity)
     {
         RelativeName = relativeName;
         Stream = stream;
         Length = length;
         Sha256 = sha256;
+        FinalPath = finalPath;
+        Identity = identity;
     }
 
     public string RelativeName { get; }
@@ -479,6 +882,12 @@ internal sealed class OpenVinoPackageSnapshotEntry : IDisposable
     public long Length { get; }
 
     public string Sha256 { get; }
+
+    internal string FinalPath { get; }
+
+    internal OpenVinoPackageSnapshotter.FileIdentity Identity { get; }
+
+    OpenVinoPackageSnapshotter.FileIdentity OpenVinoPackageSnapshotter.ILockedSnapshotEntry.Identity => Identity;
 
     public void Dispose() => Stream.Dispose();
 }
