@@ -48,17 +48,10 @@ public sealed class GgufChatVisualContractTests
 
     private static readonly string[] KnowledgeFilePickerOnlyAddOperation = ["Add"];
 
-    private static readonly string[] KnowledgeFilePickerCandidateReturnExpressions =
-        ["candidates.AsReadOnly()"];
+    private static readonly string[] KnowledgeFilePickerExtensions = [".txt", ".md"];
 
-    private static readonly string[] KnowledgeFilePickerCatchTypes =
-    [
-        "IOException",
-        "UnauthorizedAccessException",
-        "System.Security.SecurityException",
-        "ArgumentException",
-        "NotSupportedException",
-    ];
+    private static readonly string[] KnowledgeFilePickerNativeTypes =
+        ["PickFileResult", "FileOpenPicker", "picker", "result"];
 
     private static readonly string[] KnowledgeFilePickerProhibitedPatterns =
     [
@@ -150,11 +143,17 @@ public sealed class GgufChatVisualContractTests
             1,
             Regex.Count(adapter, @"PickMultipleFilesAsync\s*\("),
             "The adapter must make exactly one multi-select picker call.");
-        Assert.IsTrue(
-            Regex.IsMatch(
-                adapter,
-                """private static readonly IReadOnlyList<string> AllowedFileTypes\s*=\s*Array\.AsReadOnly\s*\(\s*new\[\]\s*\{\s*".txt"\s*,\s*".md"\s*\}\s*\)\s*;"""),
-            "Allowed file types must be an immutable .txt/.md list in deterministic order.");
+        Match allowedFileTypes = Regex.Match(
+            adapter,
+            @"private\s+static\s+readonly\s+[^;]+\s+AllowedFileTypes\s*=\s*(?<initialization>[^;]+);");
+        Assert.IsTrue(allowedFileTypes.Success, "Allowed file types must be declared as static readonly.");
+        MatchCollection allowedExtensions = Regex.Matches(
+            allowedFileTypes.Groups["initialization"].Value,
+            "\"(?<extension>\\.[^\"]+)\"");
+        CollectionAssert.AreEqual(
+            KnowledgeFilePickerExtensions,
+            allowedExtensions.Select(match => match.Groups["extension"].Value).ToArray(),
+            "Allowed file types must be exactly .txt followed by .md.");
         Assert.AreEqual(
             1,
             Regex.Count(adapter, @"FileTypeFilter\s*\.\s*Add\s*\("),
@@ -182,52 +181,19 @@ public sealed class GgufChatVisualContractTests
         Assert.IsTrue(
             Regex.IsMatch(
                 adapter,
-                @"foreach\s*\(\s*PickFileResult\s+result\s+in\s+results\s*\)\s*\{\s*candidates\.Add\s*\(\s*ToCandidate\s*\(\s*result\?\.Path\s*\)\s*\)\s*;\s*\}"),
-            "Picker results must be appended in their returned order.");
-        MatchCollection candidateOperations = Regex.Matches(
+                @"foreach\s*\(\s*PickFileResult\s+result\s+in\s+results\s*\)\s*\{\s*paths\.Add\s*\(\s*result\?\.Path\s*\)\s*;\s*\}"),
+            "Picker result paths must be snapshotted in their returned order before background work.");
+        Match taskRun = Regex.Match(
             adapter,
-            @"candidates\s*\.\s*(?<operation>Add|AddRange|Insert|Remove|RemoveAt|RemoveAll|RemoveRange|Clear|Reverse|Sort)\b");
-        CollectionAssert.AreEquivalent(
-            KnowledgeFilePickerOnlyAddOperation,
-            candidateOperations.Select(match => match.Groups["operation"].Value).ToArray(),
-            "Candidates may only be appended in the picker result loop.");
-        Assert.IsFalse(
-            Regex.IsMatch(
-                adapter,
-                @"\b(?:Reverse|Sort|Order(?:By(?:Descending)?)?|ThenBy(?:Descending)?)\s*\("),
-            "Picker selections must not be reordered.");
-        Assert.IsFalse(
-            Regex.IsMatch(
-                adapter,
-                @"\b(?:results|candidates)\s*\["),
-            "Picker results and candidates must not use index-based mutation or reversal.");
-        Assert.IsFalse(
-            Regex.IsMatch(adapter, @"\bSwap\s*\("),
-            "Picker selections must not be manually swapped.");
-        MatchCollection candidateReturns = Regex.Matches(
-            adapter,
-            @"return\s+(?<expression>[^;]*\bcandidates\b[^;]*)\s*;");
-        CollectionAssert.AreEqual(
-            KnowledgeFilePickerCandidateReturnExpressions,
-            candidateReturns
-                .Select(match => Regex.Replace(match.Groups["expression"].Value, @"\s+", string.Empty))
-                .ToArray(),
-            "Candidates must be returned immediately as a read-only natural-order collection.");
-        StringAssert.Contains(adapter, "string.IsNullOrWhiteSpace(path)");
-        StringAssert.Contains(adapter, "new FileInfo(path).Length");
-        StringAssert.Contains(adapter, "new KnowledgeFileCandidate(path, sizeInBytes, true)");
-        StringAssert.Contains(adapter, "new KnowledgeFileCandidate(path, 0, false)");
-        MatchCollection catches = Regex.Matches(
-            adapter,
-            @"catch\s*(?:\(\s*(?<type>[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)\s*(?:[A-Za-z_]\w*)?\s*\))?");
-        CollectionAssert.AreEquivalent(
-            KnowledgeFilePickerCatchTypes,
-            catches.Select(match => match.Groups["type"].Value).ToArray(),
-            "Only expected metadata exceptions may be caught.");
-        StringAssert.Contains(
-            adapter,
-            "PathTooLongException is covered by IOException",
-            "PathTooLongException must be intentionally covered by the IOException catch.");
+            @"Task\.Run\s*\(\s*\(\s*\)\s*=>\s*(?<body>[^;]+)\s*\)");
+        Assert.IsTrue(taskRun.Success, "Metadata mapping must run on the thread pool.");
+        StringAssert.Contains(taskRun.Groups["body"].Value, "KnowledgeFileCandidateMapper.Map(paths)");
+        foreach (string nativePickerType in KnowledgeFilePickerNativeTypes)
+        {
+            Assert.IsFalse(
+                taskRun.Groups["body"].Value.Contains(nativePickerType, StringComparison.Ordinal),
+                "Task.Run may capture only the path snapshot, not picker-native objects.");
+        }
 
         foreach (string prohibitedPattern in KnowledgeFilePickerProhibitedPatterns)
         {
