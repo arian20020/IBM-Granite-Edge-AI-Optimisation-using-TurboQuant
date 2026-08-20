@@ -28,6 +28,23 @@ public sealed class KnowledgeAttachmentPolicyTests
     }
 
     [TestMethod]
+    public void Validate_AcceptsSupportedExtendedLengthWindowsPaths()
+    {
+        KnowledgeAttachmentValidationResult result = KnowledgeAttachmentPolicy.Validate(
+            new[]
+            {
+                Candidate(@"\\?\C:\Knowledge\guide.txt", 12),
+                Candidate(@"\\?\UNC\server\share\notes.md", 24)
+            },
+            Array.Empty<KnowledgeAttachment>());
+
+        Assert.AreEqual(2, result.Accepted.Count);
+        Assert.AreEqual("guide.txt", result.Accepted[0].FileName);
+        Assert.AreEqual("notes.md", result.Accepted[1].FileName);
+        Assert.AreEqual(0, result.Rejections.Count);
+    }
+
+    [TestMethod]
     public void Validate_RejectsUnsupportedExtensionUsingOnlyFileName()
     {
         KnowledgeAttachmentValidationResult result = KnowledgeAttachmentPolicy.Validate(

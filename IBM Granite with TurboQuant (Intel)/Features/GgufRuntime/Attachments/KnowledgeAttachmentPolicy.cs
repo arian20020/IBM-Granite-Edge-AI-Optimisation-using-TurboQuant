@@ -10,6 +10,8 @@ internal static class KnowledgeAttachmentPolicy
     private const int MaximumAttachmentCount = 8;
     private const long MaximumAttachmentSizeInBytes = 8L * 1024 * 1024;
     private const int MaximumSafeFileNameLength = 255;
+    private const string ExtendedPathPrefix = "\\\\?\\";
+    private const string ExtendedUncPathPrefix = "\\\\?\\UNC\\";
 
     internal static KnowledgeAttachmentValidationResult Validate(
         IReadOnlyList<KnowledgeFileCandidate> selected,
@@ -161,7 +163,7 @@ internal static class KnowledgeAttachmentPolicy
 
     private static bool ContainsInvalidFileNameCharacter(string path)
     {
-        int start = HasDrivePrefix(path) ? 2 : 0;
+        int start = GetPathSegmentStart(path);
         char[] invalidFileNameCharacters = Path.GetInvalidFileNameChars();
 
         foreach (string segment in path[start..].Split(new[] { '\\', '/' }, StringSplitOptions.RemoveEmptyEntries))
@@ -209,4 +211,20 @@ internal static class KnowledgeAttachmentPolicy
 
     private static bool HasDrivePrefix(string path) =>
         path.Length >= 2 && char.IsAsciiLetter(path[0]) && path[1] == ':';
+
+    private static int GetPathSegmentStart(string path)
+    {
+        if (path.StartsWith(ExtendedUncPathPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return ExtendedUncPathPrefix.Length;
+        }
+
+        if (path.StartsWith(ExtendedPathPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            int prefixLength = ExtendedPathPrefix.Length;
+            return HasDrivePrefix(path[prefixLength..]) ? prefixLength + 2 : prefixLength;
+        }
+
+        return HasDrivePrefix(path) ? 2 : 0;
+    }
 }
