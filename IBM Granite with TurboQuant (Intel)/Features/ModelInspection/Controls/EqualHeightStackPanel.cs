@@ -57,10 +57,10 @@ public sealed class EqualHeightStackPanel : Panel
 /// The inspection progress list is deliberately small, so all rows are measured
 /// together to keep their visual rhythm and accessibility geometry consistent.
 /// </summary>
-public sealed class EqualHeightStackLayout : VirtualizingLayout
+public sealed class EqualHeightStackLayout : NonVirtualizingLayout
 {
     protected override Size MeasureOverride(
-        VirtualizingLayoutContext context,
+        NonVirtualizingLayoutContext context,
         Size availableSize)
     {
         double rowWidth = double.IsInfinity(availableSize.Width)
@@ -69,33 +69,29 @@ public sealed class EqualHeightStackLayout : VirtualizingLayout
         double rowHeight = 0d;
         double desiredWidth = 0d;
 
-        for (int index = 0; index < context.ItemCount; index++)
+        foreach (UIElement child in context.Children)
         {
-            UIElement child = context.GetOrCreateElementAt(index);
             child.Measure(new Size(rowWidth, double.PositiveInfinity));
             desiredWidth = Math.Max(desiredWidth, child.DesiredSize.Width);
             rowHeight = Math.Max(rowHeight, child.DesiredSize.Height);
         }
 
-        return new Size(desiredWidth, rowHeight * context.ItemCount);
+        return new Size(desiredWidth, rowHeight * context.Children.Count);
     }
 
     protected override Size ArrangeOverride(
-        VirtualizingLayoutContext context,
+        NonVirtualizingLayoutContext context,
         Size finalSize)
     {
         double rowHeight = 0d;
-        for (int index = 0; index < context.ItemCount; index++)
+        foreach (UIElement child in context.Children)
         {
-            rowHeight = Math.Max(
-                rowHeight,
-                context.GetOrCreateElementAt(index).DesiredSize.Height);
+            rowHeight = Math.Max(rowHeight, child.DesiredSize.Height);
         }
 
         double y = 0d;
-        for (int index = 0; index < context.ItemCount; index++)
+        foreach (UIElement child in context.Children)
         {
-            UIElement child = context.GetOrCreateElementAt(index);
             child.Arrange(new Rect(0d, y, finalSize.Width, rowHeight));
             y += rowHeight;
         }
