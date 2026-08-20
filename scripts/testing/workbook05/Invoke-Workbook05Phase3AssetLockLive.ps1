@@ -102,6 +102,29 @@ function Assert-RegularFile {
     return $Item.FullName
 }
 
+function Assert-StrictDescendantPath {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)][string] $Root,
+        [Parameter(Mandatory = $true)][string] $Candidate
+    )
+
+    # A managed cache must stay inside this exact create-once C1 attempt.
+    $NormalRoot = [IO.Path]::GetFullPath($Root).TrimEnd(
+        [IO.Path]::DirectorySeparatorChar,
+        [IO.Path]::AltDirectorySeparatorChar
+    )
+    $NormalCandidate = [IO.Path]::GetFullPath($Candidate)
+    $RequiredPrefix = $NormalRoot + [IO.Path]::DirectorySeparatorChar
+    if (-not $NormalCandidate.StartsWith(
+        $RequiredPrefix,
+        [StringComparison]::OrdinalIgnoreCase
+    )) {
+        throw "Unexpected Hugging Face cache root: $NormalCandidate"
+    }
+    return $NormalCandidate
+}
+
 function Write-AtomicJson {
     [CmdletBinding()]
     param(
@@ -224,6 +247,11 @@ if (Test-Path -LiteralPath $AttemptRoot) {
 }
 New-Item -ItemType Directory -Path $AttemptRoot -Force:$false | Out-Null
 $AttemptRoot = Assert-NormalDirectory -Path $AttemptRoot -Label 'C1 attempt'
+$HfHome = Join-Path $AttemptRoot 'hf-home'
+$HfHome = Assert-StrictDescendantPath -Root $AttemptRoot -Candidate $HfHome
+if (Test-Path -LiteralPath $HfHome) {
+    throw "Hugging Face cache already exists and will not be reused: $HfHome"
+}
 $EvidenceRoot = Join-Path $AttemptRoot 'evidence'
 $CommandDirectory = Join-Path $EvidenceRoot 'commands'
 $LogDirectory = Join-Path $EvidenceRoot 'logs'
@@ -255,8 +283,16 @@ Import-Module $ProcessModulePath -Force -ErrorAction Stop
 # Preserve the workflow process environment. Accepted-environment children must
 # not inherit the temporary hosted/repository validator PYTHONPATH.
 $OriginalPythonPath = $env:PYTHONPATH
-$OriginalHfTelemetry = $env:HF_HUB_DISABLE_TELEMETRY
-$OriginalTokenizersParallelism = $env:TOKENIZERS_PARALLELISM
+$OriginalEnvironment = @{
+    'HF_TOKEN' = $env:HF_TOKEN
+    'HUGGING_FACE_HUB_TOKEN' = $env:HUGGING_FACE_HUB_TOKEN
+    'HUGGINGFACE_HUB_TOKEN' = $env:HUGGINGFACE_HUB_TOKEN
+    'HF_TOKEN_PATH' = $env:HF_TOKEN_PATH
+    'HF_HOME' = $env:HF_HOME
+    'HF_HUB_CACHE' = $env:HF_HUB_CACHE
+    'HF_HUB_DISABLE_TELEMETRY' = $env:HF_HUB_DISABLE_TELEMETRY
+    'TOKENIZERS_PARALLELISM' = $env:TOKENIZERS_PARALLELISM
+}
 
 try {
     Start-ApprovedStage -Stage 'prerequisite-verification'
@@ -347,6 +383,10 @@ try {
 
     Start-ApprovedStage -Stage 'path-root-verification'
 
+    # Create one normal, empty Hub home only after every prerequisite passed.
+    New-Item -ItemType Directory -Path $HfHome -Force:$false | Out-Null
+    $HfHome = Assert-NormalDirectory -Path $HfHome -Label 'Hugging Face cache root'
+
     # Create only the approved normal model root. No prior asset child is reused.
     if (-not (Test-Path -LiteralPath 'C:\w5m')) {
         New-Item -ItemType Directory -Path 'C:\w5m' -Force:$false | Out-Null
@@ -356,6 +396,12 @@ try {
     Start-ApprovedStage -Stage 'disk-preflight'
 
     Remove-Item Env:PYTHONPATH -ErrorAction SilentlyContinue
+    Remove-Item Env:HF_TOKEN -ErrorAction SilentlyContinue
+    Remove-Item Env:HUGGING_FACE_HUB_TOKEN -ErrorAction SilentlyContinue
+    Remove-Item Env:HUGGINGFACE_HUB_TOKEN -ErrorAction SilentlyContinue
+    Remove-Item Env:HF_TOKEN_PATH -ErrorAction SilentlyContinue
+    $env:HF_HOME = $HfHome
+    $env:HF_HUB_CACHE = Join-Path $HfHome 'hub'
     $env:HF_HUB_DISABLE_TELEMETRY = '1'
     $env:TOKENIZERS_PARALLELISM = 'false'
     $DiskResult = Invoke-Wb05ControlledLoggedProcess `
@@ -650,18 +696,14 @@ finally {
     else {
         $env:PYTHONPATH = $OriginalPythonPath
     }
-    if ($null -eq $OriginalHfTelemetry) {
-        Remove-Item Env:HF_HUB_DISABLE_TELEMETRY -ErrorAction SilentlyContinue
-    }
-    else {
-        $env:HF_HUB_DISABLE_TELEMETRY = $OriginalHfTelemetry
-    }
-    if ($null -eq $OriginalTokenizersParallelism) {
-        Remove-Item Env:TOKENIZERS_PARALLELISM -ErrorAction SilentlyContinue
-    }
-    else {
-        $env:TOKENIZERS_PARALLELISM = $OriginalTokenizersParallelism
-    }
+    $env:HF_TOKEN = $OriginalEnvironment['HF_TOKEN']
+    $env:HUGGING_FACE_HUB_TOKEN = $OriginalEnvironment['HUGGING_FACE_HUB_TOKEN']
+    $env:HUGGINGFACE_HUB_TOKEN = $OriginalEnvironment['HUGGINGFACE_HUB_TOKEN']
+    $env:HF_TOKEN_PATH = $OriginalEnvironment['HF_TOKEN_PATH']
+    $env:HF_HOME = $OriginalEnvironment['HF_HOME']
+    $env:HF_HUB_CACHE = $OriginalEnvironment['HF_HUB_CACHE']
+    $env:HF_HUB_DISABLE_TELEMETRY = $OriginalEnvironment['HF_HUB_DISABLE_TELEMETRY']
+    $env:TOKENIZERS_PARALLELISM = $OriginalEnvironment['TOKENIZERS_PARALLELISM']
     Remove-Module 'Workbook05.ControlledProcess' -Force -ErrorAction SilentlyContinue
     Remove-Module 'Workbook05.Build' -Force -ErrorAction SilentlyContinue
 }
