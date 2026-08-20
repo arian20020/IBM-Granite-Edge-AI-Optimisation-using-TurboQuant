@@ -24,6 +24,7 @@ namespace GraniteEdgeAI.Features.ModelImport
         {
             ArgumentNullException.ThrowIfNull(input);
 
+            CancelDownloadedModelSearch();
             ClearSelectionAnnouncement();
 
             ModelSelectionOperation next = new();
@@ -147,6 +148,7 @@ namespace GraniteEdgeAI.Features.ModelImport
 
         internal void CancelSelection()
         {
+            CancelDownloadedModelSearch();
             RetireActiveSelectionOperation();
             ResetToAwaitingSelection();
         }
@@ -154,6 +156,7 @@ namespace GraniteEdgeAI.Features.ModelImport
         // Keeps navigation retirement deterministic without requiring a Frame in tests.
         internal void RetireSelectionForNavigation()
         {
+            CancelDownloadedModelSearch();
             RetireActiveSelectionOperation();
             ResetToAwaitingSelection();
         }

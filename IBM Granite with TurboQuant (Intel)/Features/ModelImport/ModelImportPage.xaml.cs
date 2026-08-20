@@ -1,5 +1,6 @@
 using GraniteEdgeAI.Features.ModelImport.Controls;
 using GraniteEdgeAI.Features.ModelImport.DragDropRoute;
+using GraniteEdgeAI.Features.ModelImport.DownloadedModels;
 using GraniteEdgeAI.Features.ModelImport.FileImport;
 using GraniteEdgeAI.Features.ModelImport.FileImport.PickerRoute;
 using GraniteEdgeAI.Features.ModelImport.QuickScan;
@@ -55,7 +56,8 @@ namespace GraniteEdgeAI.Features.ModelImport
                 Task<ModelQuickScanResult>>? scanModelAsync = null,
             CultureInfo? displayCulture = null,
             Action<ModelQuickScanFailureDiagnostic>? recordScanFailure = null,
-            IModelSelectionClassifier? classifier = null)
+            IModelSelectionClassifier? classifier = null,
+            IDownloadedModelFinder? downloadedModelFinder = null)
         {
             InitializeComponent();
 
@@ -78,6 +80,7 @@ namespace GraniteEdgeAI.Features.ModelImport
             _recordScanFailure =
                 recordScanFailure ?? WriteFailureDiagnosticToTrace;
             _classifier = classifier ?? new BoundedModelSelectionClassifier();
+            _downloadedModelFinder = downloadedModelFinder ?? new BoundedDownloadedModelFinder();
             _dropHandler = new ModelImportDropHandler(
                 new ModelSelectionInputNormalizer());
         }

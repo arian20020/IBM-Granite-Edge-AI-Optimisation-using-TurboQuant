@@ -81,6 +81,13 @@
                             Text="or"
                             TextAlignment="Center" />
 
+                        <Button
+                            x:Name="FindDownloadedModelsButton"
+                            HorizontalAlignment="Center"
+                            Click="FindDownloadedModelsButton_Click"
+                            Content="Find downloaded models"
+                            AutomationProperties.HelpText="Search Downloads, Documents, and Desktop only after you approve the one-time search." />
+
                         <modelDownload:ModelDownloadCard
                             x:Name="RecommendedModelDownloadCard"
                             Margin="0,4,0,0"
