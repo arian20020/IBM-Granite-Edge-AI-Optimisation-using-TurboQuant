@@ -1,58 +1,62 @@
-# ADR-TurboVec: TurboVec First-Release Decision
+# ADR-TurboVec: TurboVec release role
 
-**Status:** Accepted — full application integration deferred  
-**Date:** 2026-07-14  
-**Decision owner:** Arian B  
-**Related IDs:** R-M02, R-M13, F-M25, F-M26, F-M27, TV-01 to TV-04  
-**Related change:** CHG-013 / CR-013  
+**Status:** Accepted — Command-line demonstrator only
+
+**Date:** 2026-08-21
+
+**Decision owner:** Arian B
+
+**Related IDs:** R-M02, R-M13, F-M25, F-M26, F-M27, TV-01 to TV-04
+
+**Related change:** CHG-013 / CR-013
 
 ## Context
 
-The project considered a bounded TurboVec-assisted knowledge-file workflow covering document import, text extraction, chunking, embeddings, vector optimisation, indexing, retrieval and Granite chat integration.
+The project evaluated the exact TurboVec `1.0.0` Windows x64 wheel from upstream
+commit `ccab9f325e6ce2a270a87daf01ae4e443bcf2d49` under its MIT licence. A
+controlled, offline command-line workflow now creates a matched float32/2-bit/
+4-bit index, reloads both persisted TurboVec routes, executes bounded retrieval,
+and atomically retains gate evidence.
 
-The exact TurboVec implementation, repository, commit, licence, Windows build process, input/output contract and matched uncompressed baseline have not yet passed the technical gate. Implementing the full subsystem would also compete with the core WinUI, Granite, llama.cpp, Intel hardware, TurboQuant and evidence work.
+The controlled run used an AMD Ryzen 7 8845HS and
+`CPUExecutionProvider`, not Intel hardware. Four-bit retrieval quality passed,
+but persisted-size and warm median search-latency gates failed. The simultaneous
+release gate therefore failed.
 
 ## Decision
 
-1. Keep **R-M02** and **TV-01** active as the mandatory decision gate.
-2. Identify and pin the exact implementation, review provenance/licence and record the build/run result and contract.
-3. Record one release-role decision: **Implement**, **Command-line demonstrator only**, **Defer**, or **Exclude**.
-4. Defer **F-M25**, **F-M26**, **F-M27**, **R-M13**, **TV-02**, **TV-03** and **TV-04** from the first release.
-5. Do not present the deferred knowledge-file, embedding, vector, index, retrieval or chat integration as implemented.
-6. Reactivation requires a new approved change after the technical gate passes and the core Must Haves are stable.
+**Command-line demonstrator only.**
 
-## Reasons
+Retain the explicit offline research CLI and its reproducible evidence workflow.
+Do not integrate TurboVec into the WinUI application or Granite chat path in
+this release. Knowledge-file attachments remain selection-only and display
+`Not indexed`; no document text or retrieved context is injected into Granite
+prompts.
 
-- The implementation and licence are not yet pinned.
-- Windows/Intel compatibility is not established.
-- No matched uncompressed retrieval baseline is controlled.
-- Full integration is a separate substantial subsystem.
-- Deferral protects the project’s essential application and TurboQuant contribution.
-- R-M02 still permits a useful evidence-based feasibility conclusion.
+Promotion to product implementation requires a new approved change and fresh
+evidence on representative Intel hardware that passes every existing quality,
+storage, and latency criterion without relaxing thresholds.
+
+## Evidence
+
+The controlled run is indexed in
+`docs/evidence/turbovec/controlled-evidence-index.json`; reproduction details and
+limitations are in `docs/evidence/turbovec/README.md`.
+
+- Windows x64 doctor, dependency/model/wheel identity, and CPU provider: pass.
+- Persist/load/query for both 2-bit and 4-bit routes: pass.
+- Recall@10 `0.9571428571428573`: pass.
+- MRR ratio `1.0`: pass.
+- Hit@5 delta `0.0`: pass.
+- Four-bit storage ratio `13.352716619318182`: fail.
+- Four-bit warm median latency ratio `2.383012969628705`: fail.
+- Intel hardware behavior/performance: unknown.
 
 ## Consequences
 
-### Benefits
-
-- The first-release boundary becomes realistic.
-- The project still answers the TurboVec feasibility question.
-- No unsupported integration claim is made.
-- Future work retains stable IDs and evidence locations.
-
-### Costs
-
-- The first release will not provide a TurboVec-assisted knowledge-file UI.
-- EXP-TV-COMP-001 remains conditional and may not run.
-- The report must clearly distinguish the feasibility decision from application integration.
-
-## Evidence gate
-
-The decision may be reviewed only after all of the following exist:
-
-- repository, commit/version and licence;
-- Windows build/run instructions;
-- minimal run result with raw evidence;
-- requested and actual device/backend state;
-- input/output/vector/retrieval contract;
-- matched uncompressed baseline;
-- schedule assessment showing no displacement of core Must work.
+The repository contains a useful, auditable research demonstrator with no
+automatic model or package downloads during ordinary operation. It does not
+claim TurboVec product readiness, Intel performance, knowledge-file indexing,
+retrieval-augmented generation, or application integration. Future experiments
+can reuse the pinned contracts and compare new hardware or larger corpora while
+preserving the current release boundary.

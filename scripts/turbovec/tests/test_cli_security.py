@@ -3,6 +3,7 @@ import csv
 import hashlib
 import io
 import json
+import os
 import tempfile
 import unittest
 import zipfile
@@ -20,6 +21,12 @@ def _record_hash(data: bytes) -> str:
 
 
 class CliSecurityTests(unittest.TestCase):
+    @unittest.skipUnless(os.name == "nt", "Windows process-memory evidence only")
+    def test_peak_working_set_uses_pointer_width_safe_windows_handles(self):
+        from granite_turbovec.cli import _peak_working_set_bytes
+
+        self.assertGreater(_peak_working_set_bytes(), 0)
+
     def _wheel_fixture(self, root: Path):
         installed = root / "site"; package = installed / "turbovec"; package.mkdir(parents=True)
         package_bytes = b"VERSION = 'approved'\n"; extension_bytes = b"native"

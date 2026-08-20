@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "run_id": "amd-20260821",
+  "decision": "Command-line demonstrator only",
+  "hardware": {
+    "cpu": "AMD Ryzen 7 8845HS with Radeon 780M Graphics",
+    "cores": 8,
+    "logical_processors": 16,
+    "architecture": "AMD64",
+    "os": "Microsoft Windows 11 Pro 10.0.26200",
+    "provider": "CPUExecutionProvider"
+  },
+  "upstream": {
+    "name": "TurboVec",
+    "version": "1.0.0",
+    "commit": "ccab9f325e6ce2a270a87daf01ae4e443bcf2d49",
+    "license": "MIT",
+    "wheel": "turbovec-1.0.0-cp39-abi3-win_amd64.whl",
+    "wheel_sha256": "cd855e0b318a57dc57c733f9a62ae98de5192f4f6c2c760e305523e8ceb1b090"
+  },
+  "model": {
+    "identity": "BAAI/bge-small-en-v1.5",
+    "dimension": 384,
+    "license": "MIT",
+    "manifest_sha256": "d4225dc08ed94bfaf627930d30e6f446a10f80b3192ddc16a95f92078627b10a"
+  },
+  "dependencies": {
+    "python": "3.12.10",
+    "fastembed": "0.8.0",
+    "numpy": "2.5.2",
+    "onnxruntime": "1.29.0",
+    "turbovec": "1.0.0",
+    "lock_sha256": "438b20b685916055f02e9a207d6bb1466ed30669cb0404bbfa1661e409bd7b35"
+  },
+  "commands": {
+    "doctor_exit": 0,
+    "index_exit": 0,
+    "query_2bit_exit": 0,
+    "query_4bit_exit": 0,
+    "benchmark_exit": 40
+  },
+  "benchmark": {
+    "gate_passed": false,
+    "query_count": 7,
+    "top_k": 10,
+    "chunk_count": 22,
+    "peak_working_set_bytes": 249491456,
+    "criteria": {
+      "recall_at_10": { "value": 0.9571428571428573, "threshold": 0.85, "passed": true },
+      "mrr_ratio": { "value": 1.0, "threshold": 0.9, "passed": true },
+      "hit_at_5_delta": { "value": 0.0, "threshold": -0.05, "passed": true },
+      "size_ratio": { "value": 13.352716619318182, "threshold": 0.25, "passed": false },
+      "latency_ratio": { "value": 2.383012969628705, "threshold": 1.0, "passed": false }
+    },
+    "storage_bytes": {
+      "float32_raw": 33792,
+      "float32_npy": 33920,
+      "turbovec_2bit": 248559,
+      "turbovec_4bit": 451215
+    },
+    "timings_seconds": {
+      "document_embedding": 9.788840799999889,
+      "index_end_to_end": 12.502798000001349,
+      "query_embedding": 0.2757184999936726,
+      "benchmark_end_to_end": 2.986802700004773,
+      "float32_warm_median_search": 0.00006239999493118376,
+      "turbovec_2bit_warm_median_search": 0.0001514999894425273,
+      "turbovec_4bit_warm_median_search": 0.00014869999722577631
+    }
+  },
+  "raw_artifacts": [
+    { "filename": "doctor.json", "sha256": "0263d779a1e5cff8f5f20c46a34382165ebcdd48c54d2b3e4fbe1d34304d1b49", "bytes": 2756 },
+    { "filename": "index.json", "sha256": "d261dd7ee1479aa78c28ea891f6709b597c3f4d5c9ff3257e8f7c2373fd4fc57", "bytes": 210 },
+    { "filename": "query-4bit.json", "sha256": "a36acc9fa48ebb422b0cb450f8b8e300da4d6b624dff461005ad5753970dfdba", "bytes": 4458 },
+    { "filename": "results.json", "sha256": "d2935f09e64e37e36e0a8bbd39e99c8706fb2d89783b3d5d4d3c1991fb14d1e5", "bytes": 5437 },
+    { "filename": "summary.md", "sha256": "ab38ed29e8f405c26cce00290ba16ddeca9b53d76612b18c56ea156aeecacc8e", "bytes": 1005 },
+    { "filename": "manifest.json", "sha256": "396a0aec1f00892434f79af0834d40b03854fae545c6eeb7a651c1b214686aa2", "bytes": 3654 }
+  ],
+  "tests": {
+    "deterministic": { "passed": 166, "failed": 0, "skipped": 1 },
+    "controlled_full": { "passed": 167, "failed": 0, "skipped": 0 },
+    "gguf_release_verification": {
+      "passed": 60,
+      "failed": 0,
+      "skipped": 1,
+      "application_build_warnings": 0,
+      "application_build_errors": 0
+    }
+  },
+  "boundaries": {
+    "intel_evidence": "unknown",
+    "application_integration": false,
+    "attachment_state": "Not indexed",
+    "granite_prompt_injection": false
+  }
+}

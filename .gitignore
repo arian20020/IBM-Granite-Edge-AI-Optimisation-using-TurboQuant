@@ -523,6 +523,9 @@ cache/
 # Local isolated implementation worktrees
 .worktrees/
 
+# Machine-local controlled research inputs and raw evidence
+.controlled/
+
 # === Controlled testing evidence exceptions ===
 
 # Formal testing logs are controlled evidence and must remain visible to Git.
