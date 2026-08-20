@@ -43,6 +43,8 @@ class WrapperContractTests(unittest.TestCase):
             "$repoRoot",
             "'-m'",
             "'granite_turbovec.cli'",
+            "PYTHONSAFEPATH",
+            "'-P'",
         ):
             self.assertIn(required, source)
 
@@ -78,6 +80,7 @@ output.write_text(json.dumps({
     'TRANSFORMERS_OFFLINE': os.environ.get('TRANSFORMERS_OFFLINE'),
     'HF_HUB_DISABLE_TELEMETRY': os.environ.get('HF_HUB_DISABLE_TELEMETRY'),
     'PYTHONPATH': os.environ.get('PYTHONPATH'),
+    'PYTHONSAFEPATH': os.environ.get('PYTHONSAFEPATH'),
 }), encoding='utf-8')
 raise SystemExit(exit_code)
 """,
@@ -104,16 +107,15 @@ raise SystemExit(exit_code)
 
             self.assertEqual(7, result.returncode)
             captured = json.loads(output.read_text(encoding="utf-8"))
-            self.assertEqual(["-m", "granite_turbovec.cli", "--output"], captured["args"][:3])
-            self.assertEqual("capture.json", Path(captured["args"][3]).name)
-            self.assertEqual(["--exit-code", "7", untrusted_argument], captured["args"][4:])
+            self.assertEqual(["-P", "-m", "granite_turbovec.cli", "--output"], captured["args"][:4])
+            self.assertEqual("capture.json", Path(captured["args"][4]).name)
+            self.assertEqual(["--exit-code", "7", untrusted_argument], captured["args"][5:])
             self.assertEqual("1", captured["HF_HUB_OFFLINE"])
             self.assertEqual("1", captured["TRANSFORMERS_OFFLINE"])
             self.assertEqual("1", captured["HF_HUB_DISABLE_TELEMETRY"])
-            self.assertEqual(
-                f"{PACKAGE_ROOT}{os.pathsep}existing-pythonpath-marker",
-                captured["PYTHONPATH"],
-            )
+            self.assertEqual(str(PACKAGE_ROOT), captured["PYTHONPATH"])
+            self.assertNotIn("existing-pythonpath-marker", captured["PYTHONPATH"])
+            self.assertEqual("1", captured["PYTHONSAFEPATH"])
 
     def test_environment_interpreter_is_used_when_parameter_is_omitted(self) -> None:
         with tempfile.TemporaryDirectory(prefix="turbovec env wrapper ") as temporary_directory:
@@ -151,7 +153,7 @@ pathlib.Path(os.environ['GRANITE_TURBOVEC_CAPTURE']).write_text(
 
             self.assertEqual(0, result.returncode)
             self.assertEqual(
-                ["-m", "granite_turbovec.cli", "doctor"],
+                ["-P", "-m", "granite_turbovec.cli", "doctor"],
                 json.loads(output.read_text(encoding="utf-8")),
             )
 

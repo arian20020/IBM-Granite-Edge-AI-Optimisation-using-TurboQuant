@@ -27,13 +27,9 @@ $env:HF_HUB_OFFLINE = '1'
 $env:TRANSFORMERS_OFFLINE = '1'
 $env:HF_HUB_DISABLE_TELEMETRY = '1'
 
-if ([string]::IsNullOrEmpty($env:PYTHONPATH)) {
-    $env:PYTHONPATH = $packageRoot
-}
-else {
-    $env:PYTHONPATH = $packageRoot + [IO.Path]::PathSeparator + $env:PYTHONPATH
-}
+$env:PYTHONPATH = $packageRoot
+$env:PYTHONSAFEPATH = '1'
 
-$pythonArguments = @('-m', 'granite_turbovec.cli') + @($RemainingArgs)
+$pythonArguments = @('-P', '-m', 'granite_turbovec.cli') + @($RemainingArgs)
 & $resolvedPython @pythonArguments
 exit $LASTEXITCODE
