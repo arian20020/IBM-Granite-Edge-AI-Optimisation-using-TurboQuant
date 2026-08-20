@@ -48,6 +48,26 @@ public sealed class GgufChatVisualContractTests
 
     private static readonly string[] KnowledgeFilePickerExtensions = [".txt", ".md"];
 
+    private static readonly string[] KnowledgeFilePickerCatchTypes =
+    [
+        "IOException",
+        "UnauthorizedAccessException",
+        "System.Security.SecurityException",
+        "ArgumentException",
+        "NotSupportedException",
+    ];
+
+    private static readonly string[] KnowledgeFilePickerProhibitedPatterns =
+    [
+        @"\bFile\s*\.\s*(?:ReadLines|ReadAllLines|ReadAllText|ReadAllBytes|Open|OpenRead|OpenText)\s*\(",
+        @"\bnew\s+(?:FileStream|MemoryStream|BufferedStream)\b",
+        @"\bStreamReader\b",
+        @"\bReadToEnd(?:Async)?\s*\(",
+        @"\b(?:Console|Debug|Trace)\s*\.\s*[A-Za-z_]\w*",
+        @"\b(?:ILogger|Logger|logger|Log|log|Log[A-Z]\w*|Telemetry\w*|telemetry\w*|EventSource|NLog|Serilog|ApplicationInsights)\b",
+        @"\b(?:MessageBox|Clipboard|ToastNotification|AppNotification|OutputDebugString)\b",
+    ];
+
     private static readonly (string State, string Background, string Foreground, string Border)[] PrimaryStateResourcePairs =
     [
         ("Normal", "GgufChatPrimaryGradientBrush", "GgufChatPrimaryForegroundBrush", "GgufChatPrimaryBrush"),
@@ -128,47 +148,56 @@ public sealed class GgufChatVisualContractTests
             1,
             Regex.Count(adapter, @"PickMultipleFilesAsync\s*\("),
             "The adapter must make exactly one multi-select picker call.");
+        Assert.AreEqual(
+            2,
+            Regex.Count(adapter, @"FileTypeFilter\.Add\s*\("),
+            "The adapter must add exactly two file filters.");
 
         MatchCollection extensionFilters = Regex.Matches(
             adapter,
             """FileTypeFilter\.Add\s*\(\s*\"(?<extension>[^\"]+)\"\s*\)""");
-        CollectionAssert.AreEquivalent(
+        CollectionAssert.AreEqual(
             KnowledgeFilePickerExtensions,
             extensionFilters.Select(match => match.Groups["extension"].Value).ToArray(),
-            "Only the text and Markdown file filters are allowed.");
+            "The only file filters must be .txt followed by .md.");
 
         StringAssert.Contains(adapter, "selected is null || selected.Count == 0");
+        Assert.IsTrue(
+            Regex.IsMatch(
+                adapter,
+                @"foreach\s*\(\s*PickFileResult\s+result\s+in\s+selected\s*\)\s*\{\s*candidates\.Add\s*\(\s*ToCandidate\s*\(\s*result\?\.Path\s*\)\s*\)\s*;\s*\}"),
+            "Picker results must be appended in their returned order.");
+        Assert.IsFalse(
+            Regex.IsMatch(
+                adapter,
+                @"\b(?:Reverse|Sort|OrderBy(?:Descending)?|ThenBy(?:Descending)?)\s*\("),
+            "Picker selections must not be reordered.");
+        Assert.IsFalse(
+            Regex.IsMatch(
+                adapter,
+                @"selected\s*\[\s*selected\.Count\s*-"),
+            "Picker selections must not be indexed in reverse order.");
         StringAssert.Contains(adapter, "string.IsNullOrWhiteSpace(path)");
         StringAssert.Contains(adapter, "new FileInfo(path).Length");
         StringAssert.Contains(adapter, "new KnowledgeFileCandidate(path, sizeInBytes, true)");
         StringAssert.Contains(adapter, "new KnowledgeFileCandidate(path, 0, false)");
-        StringAssert.Contains(adapter, "catch (IOException)");
-        StringAssert.Contains(adapter, "catch (UnauthorizedAccessException)");
-        StringAssert.Contains(adapter, "catch (System.Security.SecurityException)");
-        StringAssert.Contains(adapter, "catch (ArgumentException)");
-        StringAssert.Contains(adapter, "catch (NotSupportedException)");
+        MatchCollection catches = Regex.Matches(
+            adapter,
+            @"catch\s*(?:\(\s*(?<type>[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)\s*(?:[A-Za-z_]\w*)?\s*\))?");
+        CollectionAssert.AreEquivalent(
+            KnowledgeFilePickerCatchTypes,
+            catches.Select(match => match.Groups["type"].Value).ToArray(),
+            "Only expected metadata exceptions may be caught.");
         StringAssert.Contains(
             adapter,
             "PathTooLongException is covered by IOException",
             "PathTooLongException must be intentionally covered by the IOException catch.");
 
-        foreach (string prohibitedContentAccess in new[]
-                 {
-                     "ReadAllText",
-                     "ReadAllBytes",
-                     "OpenRead",
-                     "StreamReader",
-                     "File.Open",
-                     "Console.",
-                     "Debug.",
-                     "Trace.",
-                     "ILogger",
-                     "WriteLine",
-                 })
+        foreach (string prohibitedPattern in KnowledgeFilePickerProhibitedPatterns)
         {
             Assert.IsFalse(
-                adapter.Contains(prohibitedContentAccess, StringComparison.Ordinal),
-                $"The picker adapter must not read or output selected file content or paths ({prohibitedContentAccess}).");
+                Regex.IsMatch(adapter, prohibitedPattern),
+                $"The picker adapter must not read or output selected file content or paths ({prohibitedPattern}).");
         }
     }
 
