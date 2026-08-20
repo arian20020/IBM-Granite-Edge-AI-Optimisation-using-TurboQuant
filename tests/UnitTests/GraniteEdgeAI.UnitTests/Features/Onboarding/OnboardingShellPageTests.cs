@@ -38,4 +38,16 @@ public sealed class OnboardingShellPageTests
         Assert.AreEqual(shell.CurrentStage, stageIndicator.CurrentStage);
         Assert.AreNotSame(stageIndicator, stageFrame.Content);
     }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void Constructor_ExposesLocalChatPreviewEntry()
+    {
+        var shell = new OnboardingShellPage();
+
+        var button = shell.FindName("ChatPreviewButton") as Button;
+
+        Assert.IsNotNull(button);
+        Assert.AreEqual("Preview Chat", button.Content);
+    }
 }

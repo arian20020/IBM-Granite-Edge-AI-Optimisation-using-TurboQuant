@@ -23,6 +23,8 @@ namespace GraniteEdgeAI.Features.Onboarding
         private readonly Func<Frame, ModelInspectionRequest, bool>
             _modelInspectionNavigator;
 
+        public event EventHandler? ChatPreviewRequested;
+
         /// <summary>
         /// Creates the onboarding shell and displays the first stage.
         /// </summary>
@@ -236,6 +238,13 @@ namespace GraniteEdgeAI.Features.Onboarding
             }
 
             StageIndicator.InspectionStatus = eventArguments.Status;
+        }
+
+        private void ChatPreviewButton_Click(
+            object sender,
+            Microsoft.UI.Xaml.RoutedEventArgs eventArguments)
+        {
+            ChatPreviewRequested?.Invoke(this, EventArgs.Empty);
         }
 
         /// <summary>

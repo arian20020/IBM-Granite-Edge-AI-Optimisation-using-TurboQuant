@@ -1,5 +1,7 @@
+using GraniteEdgeAI.Features.GgufRuntime;
 using GraniteEdgeAI.Features.Onboarding;
 using Microsoft.UI.Xaml;
+using System;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -11,13 +13,62 @@ namespace GraniteEdgeAI
     /// </summary>
     public sealed partial class MainWindow : Window
     {
+        private ChatDemoController? _chatDemoController;
+
         public MainWindow()
         {
             // Loads MainWindow.xaml and creates its named controls, including rootFrame.
             InitializeComponent();
 
             // Loads OnboardingShellPage inside rootFrame when the window is created.
+            ShowOnboarding();
+        }
+
+        private void ShowOnboarding()
+        {
             rootFrame.Navigate(typeof(OnboardingShellPage));
+            if (rootFrame.Content is OnboardingShellPage onboarding)
+            {
+                onboarding.ChatPreviewRequested += Onboarding_ChatPreviewRequested;
+            }
+        }
+
+        private async void Onboarding_ChatPreviewRequested(
+            object? sender,
+            EventArgs eventArguments)
+        {
+            if (sender is OnboardingShellPage onboarding)
+            {
+                onboarding.ChatPreviewRequested -= Onboarding_ChatPreviewRequested;
+            }
+
+            rootFrame.Navigate(typeof(ChatPage));
+            if (rootFrame.Content is not ChatPage chatPage)
+            {
+                return;
+            }
+
+            chatPage.ImportModelRequested += ChatPage_ImportModelRequested;
+            _chatDemoController = new ChatDemoController(chatPage);
+            await _chatDemoController.InitializeAsync();
+        }
+
+        private async void ChatPage_ImportModelRequested(
+            object? sender,
+            EventArgs eventArguments)
+        {
+            if (sender is ChatPage chatPage)
+            {
+                chatPage.ImportModelRequested -= ChatPage_ImportModelRequested;
+            }
+
+            if (_chatDemoController is not null)
+            {
+                await _chatDemoController.DisposeAsync();
+                _chatDemoController = null;
+            }
+
+            ShowOnboarding();
         }
     }
 }

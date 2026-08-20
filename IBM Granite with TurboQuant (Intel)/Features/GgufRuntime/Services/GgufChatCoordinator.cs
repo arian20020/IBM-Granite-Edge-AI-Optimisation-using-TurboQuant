@@ -29,6 +29,8 @@ internal sealed class GgufChatCoordinator : IAsyncDisposable
 
     internal IReadOnlyList<ChatConversation> Conversations => conversations;
 
+    internal event EventHandler? ConversationChanged;
+
     internal IReadOnlyList<ChatHistoryGroup> Groups => ChatHistoryGrouper.Group(
         conversations,
         clock.GetUtcNow(),
@@ -45,6 +47,7 @@ internal sealed class GgufChatCoordinator : IAsyncDisposable
         conversations.Clear();
         conversations.AddRange(ChatHistoryPolicy.ApplyRetention(loaded, clock.GetUtcNow()));
         SelectedConversation = conversations.FirstOrDefault();
+        ConversationChanged?.Invoke(this, EventArgs.Empty);
     }
 
     internal async Task<ChatConversation> NewChatAsync(
@@ -65,6 +68,7 @@ internal sealed class GgufChatCoordinator : IAsyncDisposable
         conversations.Insert(0, conversation);
         SelectedConversation = conversation;
         await store.SaveAsync(conversation, cancellationToken).ConfigureAwait(false);
+        ConversationChanged?.Invoke(this, EventArgs.Empty);
         return conversation;
     }
 
@@ -76,6 +80,7 @@ internal sealed class GgufChatCoordinator : IAsyncDisposable
         }
 
         SelectedConversation = conversations.Single(item => item.Id == conversationId);
+        ConversationChanged?.Invoke(this, EventArgs.Empty);
     }
 
     internal async Task SendAsync(string prompt, CancellationToken cancellationToken)
@@ -150,5 +155,6 @@ internal sealed class GgufChatCoordinator : IAsyncDisposable
         conversations[index] = conversation;
         SelectedConversation = conversation;
         await store.SaveAsync(conversation, cancellationToken).ConfigureAwait(false);
+        ConversationChanged?.Invoke(this, EventArgs.Empty);
     }
 }

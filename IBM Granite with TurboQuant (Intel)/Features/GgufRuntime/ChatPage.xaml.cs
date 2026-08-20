@@ -38,6 +38,8 @@ public sealed partial class ChatPage : Page
         });
     }
 
+    public void ClearHistory() => ChatHistoryList.Items.Clear();
+
     public void AddHistoryConversation(Guid id, string title)
     {
         var item = new ChatHistoryItem { Title = title };

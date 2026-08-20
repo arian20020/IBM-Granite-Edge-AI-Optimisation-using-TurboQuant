@@ -36,6 +36,17 @@
             HorizontalAlignment="Stretch"
             VerticalAlignment="Stretch" />
 
+        <Button
+            x:Name="ChatPreviewButton"
+            Grid.Row="0"
+            Margin="0,16,20,0"
+            Padding="16,8"
+            HorizontalAlignment="Right"
+            VerticalAlignment="Top"
+            Content="Preview Chat"
+            AutomationProperties.Name="Open the local chat preview"
+            Click="ChatPreviewButton_Click" />
+
         <!--
             Remains outside StageFrame navigation so it stays visible
             while onboarding pages change.
