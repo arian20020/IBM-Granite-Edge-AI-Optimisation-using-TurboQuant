@@ -62,8 +62,7 @@
                 Margin="0,28,0,12"
                 HorizontalAlignment="Stretch"
                 HorizontalContentAlignment="Center"
-                Background="{ThemeResource GgufChatPrimaryBrush}"
-                Foreground="White"
+                Style="{StaticResource GgufChatPrimaryButtonStyle}"
                 FontWeight="SemiBold"
                 Content="+  New Chat"
                 AutomationProperties.Name="Start a new chat"
@@ -75,6 +74,7 @@
                 Margin="0,0,0,20"
                 HorizontalAlignment="Stretch"
                 HorizontalContentAlignment="Center"
+                Style="{StaticResource GgufChatSecondaryButtonStyle}"
                 Content="Import Model"
                 AutomationProperties.Name="Import another model"
                 Click="ImportModelButton_Click" />
@@ -105,15 +105,21 @@
                 Height="48"
                 HorizontalAlignment="Stretch"
                 HorizontalContentAlignment="Left"
+                Style="{StaticResource GgufChatSecondaryButtonStyle}"
                 Content="Settings"
                 AutomationProperties.Name="Settings" />
         </Grid>
 
         <Grid Grid.Column="1" Padding="20">
             <Border
+                x:Name="ConversationPanel"
                 Background="{ThemeResource GgufChatSurfaceBrush}"
+                BorderBrush="{ThemeResource GgufChatPanelBorderBrush}"
+                BorderThickness="1"
                 CornerRadius="24"
-                Padding="28">
+                Padding="28"
+                Shadow="{ThemeResource GgufChatPanelShadow}"
+                Translation="0,0,12">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />

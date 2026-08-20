@@ -297,11 +297,52 @@ public sealed class GgufChatVisualContractTests
         Assert.AreEqual(
             "Center",
             importButton.Attribute("HorizontalContentAlignment")?.Value);
+        Assert.AreEqual(
+            "{StaticResource GgufChatSecondaryButtonStyle}",
+            importButton.Attribute("Style")?.Value);
+
+        XElement newChatButton = page.Descendants(presentation + "Button")
+            .Single(element => element.Attribute(x + "Name")?.Value == "NewChatButton");
+        Assert.AreEqual(
+            "{StaticResource GgufChatPrimaryButtonStyle}",
+            newChatButton.Attribute("Style")?.Value);
+        Assert.AreEqual(
+            "Center",
+            newChatButton.Attribute("HorizontalContentAlignment")?.Value);
+
+        XElement settingsButton = page.Descendants(presentation + "Button")
+            .Single(element => element.Attribute("AutomationProperties.Name")?.Value == "Settings");
+        Assert.AreEqual(
+            "{StaticResource GgufChatSecondaryButtonStyle}",
+            settingsButton.Attribute("Style")?.Value);
+        Assert.AreEqual(
+            "Left",
+            settingsButton.Attribute("HorizontalContentAlignment")?.Value);
+
         XElement brandImage = page.Descendants(presentation + "Image")
             .Single(element => element.Attribute(x + "Name")?.Value == "BrandLockup");
-        StringAssert.Contains(
-            brandImage.ToString(),
-            "granite-edge-ai-lockup.svg");
+        Assert.AreEqual(
+            "ms-appx:///Assets/Branding/granite-edge-ai-lockup.svg",
+            brandImage.Attribute("Source")?.Value);
+        Assert.AreEqual("Left", brandImage.Attribute("HorizontalAlignment")?.Value);
+        Assert.AreEqual("Uniform", brandImage.Attribute("Stretch")?.Value);
+        AssertDimensionIsWithinRange(brandImage, "Width", 220, 232);
+        AssertDimensionIsWithinRange(brandImage, "Height", 56, 64);
+
+        XElement conversationPanel = page.Descendants(presentation + "Border")
+            .Single(element => element.Attribute(x + "Name")?.Value == "ConversationPanel");
+        Assert.AreEqual(
+            "{ThemeResource GgufChatSurfaceBrush}",
+            conversationPanel.Attribute("Background")?.Value);
+        Assert.AreEqual(
+            "{ThemeResource GgufChatPanelBorderBrush}",
+            conversationPanel.Attribute("BorderBrush")?.Value);
+        Assert.AreEqual("1", conversationPanel.Attribute("BorderThickness")?.Value);
+        Assert.AreEqual("24", conversationPanel.Attribute("CornerRadius")?.Value);
+        Assert.AreEqual(
+            "{ThemeResource GgufChatPanelShadow}",
+            conversationPanel.Attribute("Shadow")?.Value);
+        AssertHasNonzeroZTranslation(conversationPanel);
 
         XElement prompt = composer.Descendants(presentation + "TextBox")
             .Single(element => element.Attribute(x + "Name")?.Value == "PromptTextBox");
@@ -317,12 +358,18 @@ public sealed class GgufChatVisualContractTests
             "ChatPage.xaml.cs"));
         StringAssert.Contains(pageCode, "Margin = new Thickness(0, 14, 0, 6)");
 
-        string project = File.ReadAllText(Path.Combine(
+        XDocument project = XDocument.Load(Path.Combine(
             root,
             "IBM Granite with TurboQuant (Intel)",
             "IBM Granite with TurboQuant (Intel).csproj"));
-        StringAssert.Contains(project, "docs\\Logo\\granite-edge-ai-lockup.svg");
-        StringAssert.Contains(project, "CopyToOutputDirectory");
+        XElement lockupContent = project.Descendants("Content")
+            .Single(element => element.Attribute("Include")?.Value
+                == "..\\docs\\Logo\\granite-edge-ai-lockup.svg");
+        Assert.AreEqual(
+            "Assets\\Branding\\granite-edge-ai-lockup.svg",
+            lockupContent.Element("Link")?.Value);
+        Assert.AreEqual("PreserveNewest", lockupContent.Element("CopyToOutputDirectory")?.Value);
+        Assert.AreEqual("PreserveNewest", lockupContent.Element("CopyToPublishDirectory")?.Value);
     }
 
     private static string FindRepositoryRoot()
@@ -583,5 +630,30 @@ public sealed class GgufChatVisualContractTests
             Assert.AreEqual("StaticResource", resource.Name.LocalName);
             Assert.AreEqual(systemResourceKey, resource.Attribute("ResourceKey")?.Value);
         }
+    }
+
+    private static void AssertDimensionIsWithinRange(
+        XElement element,
+        string attributeName,
+        int minimum,
+        int maximum)
+    {
+        bool parsed = int.TryParse(element.Attribute(attributeName)?.Value, out int dimension);
+        Assert.IsTrue(parsed, $"{attributeName} must be a numeric value.");
+        Assert.IsTrue(
+            dimension >= minimum && dimension <= maximum,
+            $"{attributeName} must be between {minimum} and {maximum}.");
+    }
+
+    private static void AssertHasNonzeroZTranslation(XElement element)
+    {
+        string? translation = element.Attribute("Translation")?.Value;
+        Assert.IsNotNull(translation, "The conversation surface must be translated for ThemeShadow.");
+
+        string[] components = translation.Split(',');
+        Assert.AreEqual(3, components.Length, "Translation must have X, Y, and Z components.");
+        bool parsed = double.TryParse(components[2], out double z);
+        Assert.IsTrue(parsed, "The ThemeShadow Z translation must be numeric.");
+        Assert.IsTrue(z > 0, "The conversation surface must have a nonzero ThemeShadow Z translation.");
     }
 }
