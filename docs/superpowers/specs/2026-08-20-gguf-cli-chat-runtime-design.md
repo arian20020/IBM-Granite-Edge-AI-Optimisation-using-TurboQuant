@@ -397,4 +397,40 @@ The MVP is accepted when all of the following are demonstrated:
 
 ## 14. Implementation Planning Rule
 
-The implementation plan derived from this specification must use test-driven, small, reviewable tasks with exact paths, commands, expected results, and commit boundaries. It must distinguish G1-owned work from I0 integration handoffs and must stop at planning: this approval does not authorize production implementation, model downloads, workflow dispatch, pushes, pull requests, or merges.
+The implementation plan derived from this specification must use test-driven,
+small, reviewable tasks with exact paths, commands, expected results, and commit
+boundaries. The user authorized implementation on 2026-08-20. That authorization
+does not permit downloading or inventing a runtime/model artifact, publishing a
+branch, opening a pull request, or merging without a separate explicit request.
+
+## 15. Executable Preview and Production Closure
+
+The repository must always provide a self-contained x64 preview launcher. Preview
+mode exercises the approved WinUI layout, streaming, Stop, multiple chats, dated
+history, and restart restoration without acquiring external artifacts. Its model
+header must identify it as a deterministic preview so it cannot be mistaken for
+real Granite inference.
+
+Production mode is enabled only when all of these inputs are supplied locally:
+
+- a fixed runtime-package root containing the protected supervisor and pinned
+  CPU CLI dependency closure;
+- a complete versioned manifest whose members pass containment, length, hash,
+  architecture, role, build-provenance, and license checks;
+- an inference-capable GGUF model already accepted by Model Inspection; and
+- a complete C1 runtime configuration matching the verified runtime and model.
+
+The application selects production mode through an explicit immutable launch
+request. It never discovers executables through `PATH`, downloads a runtime or
+model, or silently falls back to preview. A rejected production request remains
+on a recoverable error surface and does not start any process.
+
+Build integration publishes the G1 supervisor into a fixed package subtree and
+copies a CLI package only from an explicit local input root. Normal preview builds
+remain possible without that input. Production/package builds that opt into the
+real runtime fail closed when the input or manifest is absent or invalid.
+
+The final evidence must distinguish three independent results: deterministic UI
+preview, protected fake-CLI process integration, and controlled real-model smoke.
+Only the first two can pass without external artifacts; the third must report an
+explicit skip until approved local inputs are configured.
