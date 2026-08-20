@@ -21,8 +21,12 @@ public sealed class ModelImportDropAccessibilityTests
     {
         var card = new ImportModelCard();
         var border = card.FindName("AwaitingSelectionBorder") as Rectangle;
+        var surface = card.FindName("DropCardSurface") as Rectangle;
 
         Assert.IsNotNull(border);
+        Assert.IsNotNull(surface);
+        Assert.IsNotNull(surface.Fill);
+        Assert.IsNotNull(border.Stroke);
         Assert.IsTrue(border.StrokeDashArray.Count > 0);
         Assert.IsTrue(border.RadiusX > 0);
         Assert.IsTrue(border.RadiusY > 0);
@@ -41,6 +45,11 @@ public sealed class ModelImportDropAccessibilityTests
         Assert.AreEqual("Drop model now", GetDropStatus(card).Text);
         Assert.AreEqual(Visibility.Visible, GetDropIcon(card).Visibility);
         Assert.AreEqual("Valid drop target", AutomationProperties.GetName(GetDropIcon(card)));
+        Assert.AreEqual(
+            0.16d,
+            GetRectangle(card, "DropCardValidTint").Opacity,
+            0.001d);
+        Assert.AreEqual(2d, GetRectangle(card, "AwaitingSelectionBorder").StrokeThickness);
     }
 
     [UITestMethod]
@@ -170,6 +179,9 @@ public sealed class ModelImportDropAccessibilityTests
 
     private static FrameworkElement GetDropStatusPanel(ImportModelCard card) =>
         (FrameworkElement)card.FindName("DropValidationStatusPanel");
+
+    private static Rectangle GetRectangle(ImportModelCard card, string name) =>
+        (Rectangle)card.FindName(name);
 
     private sealed class AcceptedFolderClassifier : IModelSelectionClassifier
     {

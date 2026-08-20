@@ -59,6 +59,12 @@ namespace GraniteEdgeAI.Features.ModelImport.Controls
                 this,
                 isValid ? "ValidDropCardState" : "InvalidDropCardState",
                 useTransitions: false);
+            // The same values are set by the XAML visual state for a loaded control.
+            // Keep them explicit as well so the feedback remains immediate while the
+            // native drag event is being routed into the card.
+            DropCardValidTint.Opacity = isValid ? 0.16 : 0;
+            DropCardInvalidTint.Opacity = isValid ? 0 : 0.12;
+            AwaitingSelectionBorder.StrokeThickness = 2;
             DropValidationStatusPanel.Opacity = 1;
             DropValidationStatusTextBlock.Text = isValid
                 ? "Drop model now"
@@ -81,6 +87,9 @@ namespace GraniteEdgeAI.Features.ModelImport.Controls
                 "DefaultDropCardState",
                 useTransitions: false);
             DropValidationStatusPanel.Opacity = 0;
+            DropCardValidTint.Opacity = 0;
+            DropCardInvalidTint.Opacity = 0;
+            AwaitingSelectionBorder.StrokeThickness = 1.5;
             DropValidationStatusTextBlock.Text = string.Empty;
             AutomationProperties.SetName(DropValidationStatusIcon, string.Empty);
         }
@@ -219,6 +228,9 @@ namespace GraniteEdgeAI.Features.ModelImport.Controls
         private void ClearDragValidationPresentation()
         {
             DropValidationStatusPanel.Opacity = 0;
+            DropCardValidTint.Opacity = 0;
+            DropCardInvalidTint.Opacity = 0;
+            AwaitingSelectionBorder.StrokeThickness = 1.5;
             DropValidationStatusTextBlock.Text = string.Empty;
             AutomationProperties.SetName(DropValidationStatusIcon, string.Empty);
             VisualStateManager.GoToState(

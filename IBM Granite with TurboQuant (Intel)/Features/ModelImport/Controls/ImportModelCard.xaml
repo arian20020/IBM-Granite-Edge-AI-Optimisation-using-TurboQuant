@@ -13,7 +13,7 @@
             <VisualState x:Name="DefaultDropCardState" />
             <VisualState x:Name="ValidDropCardState">
                 <VisualState.Setters>
-                    <Setter Target="DropCardValidTint.Opacity" Value="0.12" />
+                    <Setter Target="DropCardValidTint.Opacity" Value="0.16" />
                     <Setter Target="AwaitingSelectionBorder.Stroke" Value="{ThemeResource SystemControlHighlightAccentBrush}" />
                     <Setter Target="AwaitingSelectionBorder.StrokeThickness" Value="2" />
                 </VisualState.Setters>
@@ -40,14 +40,23 @@
             Visibility="Visible">
 
             <Rectangle
+                x:Name="DropCardSurface"
+                HorizontalAlignment="Stretch"
+                VerticalAlignment="Stretch"
+                Fill="{ThemeResource SystemControlBackgroundChromeMediumLowBrush}"
+                IsHitTestVisible="False"
+                RadiusX="20"
+                RadiusY="20" />
+
+            <Rectangle
                 x:Name="AwaitingSelectionBorder"
                 HorizontalAlignment="Stretch"
                 VerticalAlignment="Stretch"
-                Fill="{ThemeResource SystemControlBackgroundBaseLowBrush}"
+                Fill="Transparent"
                 IsHitTestVisible="False"
                 RadiusX="20"
                 RadiusY="20"
-                Stroke="{ThemeResource SystemControlForegroundBaseMediumBrush}"
+                Stroke="{ThemeResource SystemControlForegroundBaseHighBrush}"
                 StrokeDashArray="6,5"
                 StrokeDashCap="Round"
                 StrokeThickness="1.5" />
