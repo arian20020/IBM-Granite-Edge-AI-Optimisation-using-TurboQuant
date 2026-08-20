@@ -9,6 +9,7 @@ namespace GraniteEdgeAI.Features.ModelImport.Controls
     public enum ImportModelCardState
     {
         AwaitingSelection,
+        SelectionAccepted,
         Scanning,
         ScanSucceeded,
         ScanFailed

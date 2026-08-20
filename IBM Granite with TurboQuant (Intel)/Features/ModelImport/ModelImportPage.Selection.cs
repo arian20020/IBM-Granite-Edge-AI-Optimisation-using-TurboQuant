@@ -23,6 +23,8 @@ namespace GraniteEdgeAI.Features.ModelImport
         {
             ArgumentNullException.ThrowIfNull(input);
 
+            ClearSelectionAnnouncement();
+
             ModelSelectionOperation next = new();
             ModelSelectionOperation? retired = Interlocked.Exchange(
                 ref _activeOperation, next);
@@ -101,6 +103,7 @@ namespace GraniteEdgeAI.Features.ModelImport
                 _acceptedFolderOperationId = operation.Id;
                 _acceptedFolderDisplayName = result.DisplayName;
                 _acceptedFolderLocalPath = input.LocalPath;
+                ImportModelCardControl.ShowFolderAccepted(result.DisplayName);
                 return;
             }
 
@@ -111,6 +114,7 @@ namespace GraniteEdgeAI.Features.ModelImport
                 _acceptedFolderOperationId = operation.Id;
                 _acceptedFolderDisplayName = result.DisplayName;
                 _acceptedFolderLocalPath = input.LocalPath;
+                ImportModelCardControl.ShowFolderAccepted(result.DisplayName);
                 return;
             }
 

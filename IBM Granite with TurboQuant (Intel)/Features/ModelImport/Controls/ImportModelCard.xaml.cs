@@ -1,4 +1,5 @@
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using System;
 
@@ -13,6 +14,8 @@ namespace GraniteEdgeAI.Features.ModelImport.Controls
         }
 
         public event RoutedEventHandler? BrowseFilesRequested;
+
+        public event RoutedEventHandler? ChooseModelFolderRequested;
 
         public event RoutedEventHandler? CancelScanRequested;
 
@@ -35,6 +38,34 @@ namespace GraniteEdgeAI.Features.ModelImport.Controls
 
             SetVisibleState(ImportModelCardState.Scanning);
             ScanningFileNameTextBlock.Text = selectedFileName;
+        }
+
+        internal void ShowFolderAccepted(string folderName)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(folderName);
+
+            SetVisibleState(ImportModelCardState.SelectionAccepted);
+            FolderAcceptedNameTextBlock.Text = folderName;
+        }
+
+        // Static validation text deliberately avoids animation for reduced-motion users.
+        internal void ShowDragValidation(bool isValid)
+        {
+            DropValidationStatusPanel.Visibility = Visibility.Visible;
+            DropValidationStatusTextBlock.Text = isValid
+                ? "Model file or folder can be dropped here."
+                : "Drop one model file or model folder.";
+            DropValidationStatusIcon.Glyph = isValid ? "\uE73E" : "\uE711";
+            AutomationProperties.SetName(
+                DropValidationStatusIcon,
+                isValid ? "Valid drop target" : "Invalid drop target");
+        }
+
+        internal void ClearDragValidation()
+        {
+            DropValidationStatusPanel.Visibility = Visibility.Collapsed;
+            DropValidationStatusTextBlock.Text = string.Empty;
+            AutomationProperties.SetName(DropValidationStatusIcon, string.Empty);
         }
 
         /// <summary>
@@ -99,6 +130,10 @@ namespace GraniteEdgeAI.Features.ModelImport.Controls
                     ShowAwaitingSelection();
                     return;
 
+                case ImportModelCardState.SelectionAccepted:
+                    ShowFolderAccepted(selectedFileName ?? string.Empty);
+                    return;
+
                 case ImportModelCardState.Scanning:
                     ShowScanning(selectedFileName ?? string.Empty);
                     return;
@@ -142,10 +177,16 @@ namespace GraniteEdgeAI.Features.ModelImport.Controls
                 state == ImportModelCardState.ScanFailed
                     ? Visibility.Visible
                     : Visibility.Collapsed;
+            FolderAcceptedView.Visibility =
+                state == ImportModelCardState.SelectionAccepted
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
 
+            ClearDragValidation();
             ClearScanningValues();
             ClearFailureValues();
             ClearSuccessValues();
+            FolderAcceptedNameTextBlock.Text = string.Empty;
         }
 
         private void ClearScanningValues()
@@ -176,6 +217,13 @@ namespace GraniteEdgeAI.Features.ModelImport.Controls
             RoutedEventArgs e)
         {
             BrowseFilesRequested?.Invoke(this, e);
+        }
+
+        private void ChooseModelFolderButton_Click(
+            object sender,
+            RoutedEventArgs e)
+        {
+            ChooseModelFolderRequested?.Invoke(this, e);
         }
 
         private void CancelScanButton_Click(

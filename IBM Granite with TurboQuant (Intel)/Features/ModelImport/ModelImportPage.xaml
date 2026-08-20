@@ -17,6 +17,7 @@
 
         <!--  Allows the page to scroll when the available window height is limited.  -->
         <ScrollViewer
+            x:Name="ModelImportPageScrollViewer"
             HorizontalContentAlignment="Stretch"
             HorizontalScrollBarVisibility="Disabled"
             HorizontalScrollMode="Disabled"
@@ -53,19 +54,26 @@
                             TextTrimming="None"
                             TextWrapping="WrapWholeWords" />
 
-                        <!--
-                            Creates the complete model-file drop target.
-                            
-                            TODO(FILE IMPORT):
-                            This area will later receive drag-and-drop events and pass
-                            the selected files to the model-import service.
-                        -->
-
-                        <controls:ImportModelCard
-                            x:Name="ImportModelCardControl"
-                            HorizontalAlignment="Stretch"
-                            BrowseFilesRequested="ImportModelCard_BrowseFilesRequested"
-                            CancelScanRequested="ImportModelCard_CancelScanRequested" />
+                        <Grid
+                            x:Name="ModelDropTarget"
+                            AllowDrop="True"
+                            Background="Transparent"
+                            AutomationProperties.HelpText="Optional. Choose model file or Choose model folder provides the same selection options."
+                            AutomationProperties.Name="Model drop area"
+                            DragLeave="ModelDropTarget_DragLeave"
+                            DragOver="ModelDropTarget_DragOver"
+                            Drop="ModelDropTarget_Drop">
+                            <controls:ImportModelCard
+                                x:Name="ImportModelCardControl"
+                                HorizontalAlignment="Stretch"
+                                BrowseFilesRequested="ImportModelCard_BrowseFilesRequested"
+                                CancelScanRequested="ImportModelCard_CancelScanRequested"
+                                ChooseModelFolderRequested="ImportModelCard_ChooseModelFolderRequested" />
+                        </Grid>
+                        <TextBlock
+                            x:Name="SelectionAnnouncement"
+                            AutomationProperties.LiveSetting="Polite"
+                            Visibility="Collapsed" />
                         <TextBlock
                             HorizontalAlignment="Center"
                             FontSize="13"

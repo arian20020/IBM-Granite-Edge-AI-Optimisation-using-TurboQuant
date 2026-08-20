@@ -17,17 +17,17 @@
         <Grid
             x:Name="AwaitingSelectionView"
             HorizontalAlignment="Stretch"
-            Background="Transparent"
+            Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
             Visibility="Visible">
 
             <Rectangle
                 HorizontalAlignment="Stretch"
                 VerticalAlignment="Stretch"
-                Fill="#FAFBFD"
+                Fill="{ThemeResource SystemControlBackgroundBaseLowBrush}"
                 IsHitTestVisible="False"
                 RadiusX="20"
                 RadiusY="20"
-                Stroke="#C7D2E1"
+                Stroke="{ThemeResource SystemControlForegroundBaseMediumBrush}"
                 StrokeDashArray="6,5"
                 StrokeDashCap="Round"
                 StrokeThickness="1.5" />
@@ -75,19 +75,20 @@
                     TextWrapping="Wrap" />
 
                 <Button
-                    x:Name="BrowseFilesButton"
+                    x:Name="ChooseModelFileButton"
                     Width="220"
                     Height="46"
+                    MinHeight="44"
                     Margin="0,7,0,0"
                     HorizontalAlignment="Center"
                     HorizontalContentAlignment="Center"
                     VerticalContentAlignment="Center"
-                    AutomationProperties.Name="Browse for a model file"
+                    AutomationProperties.Name="Choose model file"
                     Background="#2563EB"
                     BorderBrush="#2563EB"
                     BorderThickness="1"
                     Click="BrowseFilesButton_Click"
-                    Content="Browse files"
+                    Content="Choose model file"
                     CornerRadius="11"
                     FontWeight="SemiBold"
                     Foreground="White"
@@ -137,9 +138,58 @@
 
                 </Button>
 
+                <Button
+                    x:Name="ChooseModelFolderButton"
+                    Width="220"
+                    Height="46"
+                    MinHeight="44"
+                    HorizontalAlignment="Center"
+                    HorizontalContentAlignment="Center"
+                    VerticalContentAlignment="Center"
+                    AutomationProperties.Name="Choose model folder"
+                    AutomationProperties.HelpText="Choose an OpenVINO or source model folder"
+                    Click="ChooseModelFolderButton_Click"
+                    Content="Choose model folder"
+                    UseSystemFocusVisuals="True" />
+
+                <StackPanel
+                    x:Name="DropValidationStatusPanel"
+                    Margin="0,4,0,0"
+                    HorizontalAlignment="Center"
+                    Orientation="Horizontal"
+                    Spacing="8"
+                    Visibility="Collapsed">
+                    <FontIcon
+                        x:Name="DropValidationStatusIcon"
+                        AutomationProperties.Name=""
+                        FontSize="16"
+                        Glyph="&#xE73E;" />
+                    <TextBlock
+                        x:Name="DropValidationStatusTextBlock"
+                        AutomationProperties.LiveSetting="Polite"
+                        Foreground="{ThemeResource SystemControlForegroundBaseHighBrush}"
+                        TextWrapping="Wrap" />
+                </StackPanel>
+
             </StackPanel>
 
         </Grid>
+
+        <Border
+            x:Name="FolderAcceptedView"
+            Padding="24"
+            HorizontalAlignment="Stretch"
+            Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
+            BorderBrush="{ThemeResource SystemControlForegroundBaseMediumBrush}"
+            BorderThickness="1"
+            CornerRadius="20"
+            Visibility="Collapsed">
+            <StackPanel Spacing="6">
+                <TextBlock FontSize="18" FontWeight="SemiBold" Text="Model folder selected" />
+                <TextBlock x:Name="FolderAcceptedNameTextBlock" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
+                <TextBlock Text="The folder is ready for model inspection." TextWrapping="Wrap" />
+            </StackPanel>
+        </Border>
 
         <!--  STATE 2: GGUF QUICK SCAN IN PROGRESS  -->
         <Border
