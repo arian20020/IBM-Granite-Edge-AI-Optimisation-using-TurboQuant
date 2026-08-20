@@ -409,7 +409,16 @@
 		<Content Include="Assets\Wide310x150Logo.scale-200.png" />
 
 		<!-- Granite Edge AI branding used inside the application UI. -->
-		<Content Include="Assets\Branding\granite-edge-ai-icon.svg" />
+		<Content Include="Assets\Branding\granite-edge-ai-icon.svg">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="..\docs\Logo\granite-edge-ai-lockup.svg">
+      <Link>Assets\Branding\granite-edge-ai-lockup.svg</Link>
+      <TargetPath>Assets\Branding\granite-edge-ai-lockup.svg</TargetPath>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
 
 		<!-- Licensed Inter 4.1 faces and immutable provenance for Model Inspection. -->
 		<Content Update="Assets\Fonts\Inter-Regular.ttf" />

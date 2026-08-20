@@ -31,7 +31,7 @@ public sealed partial class ChatPage : Page
         ChatHistoryList.Items.Add(new TextBlock
         {
             Text = label,
-            Margin = new Thickness(8, 14, 8, 6),
+            Margin = new Thickness(0, 14, 0, 6),
             FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
             Foreground = (Microsoft.UI.Xaml.Media.Brush)
                 Application.Current.Resources["GgufChatMutedBrush"],
