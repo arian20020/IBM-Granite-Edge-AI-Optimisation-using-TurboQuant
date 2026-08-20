@@ -5,6 +5,7 @@ using GraniteEdgeAI.Features.GgufRuntime.Controls;
 using GraniteEdgeAI.UnitTests.Features.ModelInspection.Visual;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
+using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Shapes;
@@ -41,6 +42,34 @@ public sealed class ChatComposerTests
         composer.PromptText = "first line\nsecond line";
         Assert.AreEqual(VerticalAlignment.Top, prompt.VerticalContentAlignment);
         composer.PromptText = "one line";
+        Assert.AreEqual(VerticalAlignment.Center, prompt.VerticalContentAlignment);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task WrappedParagraphGrowsAndTopAlignsThenShrinksAndCenters()
+    {
+        var composer = new ChatComposer();
+        TextBox prompt = Assert.IsInstanceOfType<TextBox>(
+            composer.FindName("PromptTextBox"));
+        await using WinUiRenderHost host =
+            await WinUiRenderHost.ShowAsync(composer, 360, 260);
+
+        composer.PromptText =
+            "This long single paragraph intentionally wraps across several visual lines " +
+            "inside a constrained composer width without containing any explicit newline " +
+            "characters, so layout rather than text parsing must move content to the top.";
+        await WaitForLayoutAsync(prompt);
+
+        Assert.IsFalse(composer.PromptText.Contains('\r'));
+        Assert.IsFalse(composer.PromptText.Contains('\n'));
+        Assert.IsGreaterThan(prompt.MinHeight, prompt.ActualHeight);
+        Assert.AreEqual(VerticalAlignment.Top, prompt.VerticalContentAlignment);
+
+        composer.PromptText = "Short message";
+        await WaitForLayoutAsync(prompt);
+
+        Assert.IsLessThanOrEqualTo(prompt.MinHeight + 1, prompt.ActualHeight);
         Assert.AreEqual(VerticalAlignment.Center, prompt.VerticalContentAlignment);
     }
 
@@ -128,6 +157,40 @@ public sealed class ChatComposerTests
 
         Assert.AreEqual(0, GetAttachments(composer).Count);
         Assert.AreEqual(Visibility.Collapsed, GetAttachmentItems(composer).Visibility);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task AttachmentAutomationTreeNeverExposesPrivatePath()
+    {
+        const string privateDirectory = @"C:\Private Knowledge\Customer Alpha";
+        const string privatePath = privateDirectory + @"\private-notes.md";
+        var picker = new SequenceKnowledgeFilePicker(new[]
+        {
+            Candidate(privatePath)
+        });
+        var composer = new ChatComposer(picker);
+        await composer.AddKnowledgeFilesAsync();
+        await using WinUiRenderHost host =
+            await WinUiRenderHost.ShowAsync(composer, 700, 220);
+        ItemsControl attachmentItems = GetAttachmentItems(composer);
+
+        string[] automationValues = DescendantsAndSelf<FrameworkElement>(attachmentItems)
+            .SelectMany(GetAutomationValues)
+            .Where(value => !string.IsNullOrEmpty(value))
+            .ToArray();
+
+        CollectionAssert.Contains(automationValues, "Selected knowledge files");
+        CollectionAssert.Contains(automationValues, "Remove private-notes.md");
+        Assert.IsTrue(automationValues.Any(value => value.Contains(
+            "private-notes.md",
+            StringComparison.Ordinal)));
+        foreach (string value in automationValues)
+        {
+            Assert.IsFalse(value.Contains(privatePath, StringComparison.OrdinalIgnoreCase));
+            Assert.IsFalse(value.Contains(privateDirectory, StringComparison.OrdinalIgnoreCase));
+            Assert.IsFalse(value.Contains(@"C:\", StringComparison.OrdinalIgnoreCase));
+        }
     }
 
     [UITestMethod]
@@ -255,6 +318,36 @@ public sealed class ChatComposerTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
+    public async Task PickerCancellationExceptionLeavesStateUnchangedAndGateReusable()
+    {
+        var picker = new CancellingThenSuccessfulKnowledgeFilePicker(
+            new[] { Candidate(@"C:\Knowledge\after-cancel.md") });
+        var composer = new ChatComposer(picker)
+        {
+            PromptText = "Draft remains"
+        };
+        TextBlock summary = Assert.IsInstanceOfType<TextBlock>(
+            composer.FindName("RejectionSummaryText"));
+
+        await composer.AddKnowledgeFilesAsync();
+
+        Assert.AreEqual(1, picker.InvocationCount);
+        Assert.AreEqual(0, GetAttachments(composer).Count);
+        Assert.AreEqual("Draft remains", composer.PromptText);
+        Assert.AreEqual(string.Empty, summary.Text);
+        Assert.AreEqual(Visibility.Collapsed, summary.Visibility);
+        Assert.IsTrue(
+            Assert.IsInstanceOfType<Button>(composer.FindName("AttachmentButton")).IsEnabled);
+
+        await composer.AddKnowledgeFilesAsync();
+
+        Assert.AreEqual(2, picker.InvocationCount);
+        Assert.AreEqual(1, GetAttachments(composer).Count);
+        AssertAttachment(GetAttachments(composer)[0], "after-cancel.md");
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
     public void StopSquareHasItsOwnCenteredLayoutCell()
     {
         var composer = new ChatComposer { IsGenerating = true };
@@ -322,6 +415,64 @@ public sealed class ChatComposerTests
         }
     }
 
+    private static IEnumerable<T> DescendantsAndSelf<T>(DependencyObject root)
+        where T : DependencyObject
+    {
+        if (root is T match)
+        {
+            yield return match;
+        }
+
+        foreach (T descendant in Descendants<T>(root))
+        {
+            yield return descendant;
+        }
+    }
+
+    private static IEnumerable<string> GetAutomationValues(FrameworkElement element)
+    {
+        yield return AutomationProperties.GetName(element);
+        yield return AutomationProperties.GetHelpText(element);
+        yield return AutomationProperties.GetItemStatus(element);
+
+        AutomationPeer peer =
+            FrameworkElementAutomationPeer.FromElement(element) ??
+            FrameworkElementAutomationPeer.CreatePeerForElement(element) ??
+            new FrameworkElementAutomationPeer(element);
+        yield return peer.GetName();
+        yield return peer.GetHelpText();
+        yield return peer.GetItemStatus();
+    }
+
+    private static async Task WaitForLayoutAsync(FrameworkElement element)
+    {
+        for (int pass = 0; pass < 2; pass++)
+        {
+            var completion = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            void OnLayoutUpdated(object? sender, object eventArguments) =>
+                completion.TrySetResult(true);
+
+            element.LayoutUpdated += OnLayoutUpdated;
+            try
+            {
+                element.InvalidateMeasure();
+                element.InvalidateArrange();
+                if (!element.DispatcherQueue.TryEnqueue(() => element.UpdateLayout()))
+                {
+                    throw new InvalidOperationException(
+                        "The UI dispatcher rejected a layout pass.");
+                }
+
+                await completion.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            }
+            finally
+            {
+                element.LayoutUpdated -= OnLayoutUpdated;
+            }
+        }
+    }
+
     private sealed class SequenceKnowledgeFilePicker : IKnowledgeFilePicker
     {
         private readonly Queue<IReadOnlyList<KnowledgeFileCandidate>> selections;
@@ -357,5 +508,20 @@ public sealed class ChatComposerTests
     {
         public Task<IReadOnlyList<KnowledgeFileCandidate>> PickAsync() =>
             Task.FromException<IReadOnlyList<KnowledgeFileCandidate>>(exception);
+    }
+
+    private sealed class CancellingThenSuccessfulKnowledgeFilePicker(
+        IReadOnlyList<KnowledgeFileCandidate> successfulSelection) : IKnowledgeFilePicker
+    {
+        internal int InvocationCount { get; private set; }
+
+        public Task<IReadOnlyList<KnowledgeFileCandidate>> PickAsync()
+        {
+            InvocationCount++;
+            return InvocationCount == 1
+                ? Task.FromException<IReadOnlyList<KnowledgeFileCandidate>>(
+                    new OperationCanceledException())
+                : Task.FromResult(successfulSelection);
+        }
     }
 }
