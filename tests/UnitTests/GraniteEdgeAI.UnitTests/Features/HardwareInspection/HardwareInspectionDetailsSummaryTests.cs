@@ -37,6 +37,8 @@ public sealed class HardwareInspectionDetailsSummaryTests
         Assert.AreEqual("This computer", ((TextBlock)card.FindName("TitleTextBlock")).Text);
         Assert.AreEqual(summary.Facts.Count, card.FactItems.Count);
         Assert.AreEqual(summary.Facts[0].Value, card.FactItems[0].Value);
+        Grid factGrid = (Grid)card.FindName("FactsPanel");
+        Assert.AreEqual(2, factGrid.ColumnDefinitions.Count);
     }
 
     [UITestMethod]

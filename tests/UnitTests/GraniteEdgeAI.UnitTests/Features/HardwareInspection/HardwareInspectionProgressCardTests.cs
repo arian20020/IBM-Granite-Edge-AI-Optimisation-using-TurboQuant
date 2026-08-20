@@ -27,6 +27,9 @@ public sealed class HardwareInspectionProgressCardTests
             Text(card, "BodyTextBlock").Text);
         Assert.AreEqual("0 of 7", Text(card, "CountTextBlock").Text);
         Assert.AreEqual("checks complete", Text(card, "CountLabelTextBlock").Text);
+        Grid header = (Grid)card.FindName("ProgressHeaderGrid");
+        Assert.IsNotNull(header);
+        Assert.AreEqual(1, Grid.GetColumn(Text(card, "CountTextBlock")));
         Assert.AreEqual(7, card.Rows.Count);
         Assert.AreEqual(1, card.Rows.Count(row => row.ActiveVisibility == Visibility.Visible));
         Assert.AreEqual(0, card.Rows.Count(row => row.CompletedVisibility == Visibility.Visible));

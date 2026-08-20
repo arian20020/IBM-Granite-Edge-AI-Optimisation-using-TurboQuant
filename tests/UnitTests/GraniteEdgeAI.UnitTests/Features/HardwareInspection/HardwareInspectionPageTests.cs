@@ -18,6 +18,16 @@ public sealed class HardwareInspectionPageTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
+    public void Page_DefaultsToApprovedLightPresentationAndProvidesShellFooterSlot()
+    {
+        HardwareInspectionPage page = new();
+
+        Assert.AreEqual(ElementTheme.Light, page.RequestedTheme);
+        Assert.IsNotNull(page.FindName("FooterPresenter"));
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
     public void Apply_ActiveShowsOnlyExactProgressSurface()
     {
         HardwareInspectionPage page = new();
@@ -30,6 +40,32 @@ public sealed class HardwareInspectionPageTests
         Assert.AreEqual(Visibility.Visible, Element(page, "ProgressCard").Visibility);
         Assert.AreEqual(Visibility.Collapsed, Element(page, "TerminalPanel").Visibility);
         Assert.AreEqual(state.Title, ((HardwareInspectionProgressCard)Element(page, "ProgressCard")).CurrentState?.Title);
+        HardwareInspectionActionCard activeActions =
+            (HardwareInspectionActionCard)Element(page, "ActiveActionCard");
+        Assert.AreEqual(Visibility.Visible, activeActions.Visibility);
+        CollectionAssert.AreEqual(
+            new[] { "Cancel inspection" },
+            ((StackPanel)activeActions.FindName("ActionsPanel")).Children
+                .Cast<Button>()
+                .Select(button => button.Content?.ToString())
+                .ToArray());
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void Apply_WarningUsesFullFactsCompositionAndReviewSection()
+    {
+        HardwareInspectionPage page = new();
+        HardwareInspectionPresentationState state = _factory.CreateTerminal(
+            HardwareInspectionOutcome.CompletedWithWarnings);
+        HardwareSummaryPresentation summary = HardwareSummaryPresentationFactory.Create(
+            HardwareInspectionContractTests.CreateUsableSnapshotForPresentation());
+
+        page.Apply(state, summary, HardwareInspectionDetailsSummaryTests.CreateDetails());
+
+        Assert.AreEqual(Visibility.Visible, Element(page, "SummaryGrid").Visibility);
+        Assert.AreEqual(Visibility.Visible, Element(page, "ReviewPanel").Visibility);
+        Assert.AreEqual("What needs review", Text(page, "ReviewHeadingTextBlock").Text);
     }
 
     [UITestMethod]
