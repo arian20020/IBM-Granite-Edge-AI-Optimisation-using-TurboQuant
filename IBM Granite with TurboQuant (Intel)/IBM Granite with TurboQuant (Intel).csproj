@@ -444,6 +444,12 @@
     <ProjectReference
       Include="..\infrastructure\GraniteEdgeAI.ModelInspection.WorkerClient\GraniteEdgeAI.ModelInspection.WorkerClient.csproj"
       Condition="'$(Platform)' == 'x64'" />
+    <ProjectReference
+      Include="..\shared\GraniteEdgeAI.GgufRuntime.Contracts\GraniteEdgeAI.GgufRuntime.Contracts.csproj"
+      Condition="'$(Platform)' == 'x64'" />
+    <ProjectReference
+      Include="..\infrastructure\GraniteEdgeAI.GgufRuntime.WorkerClient\GraniteEdgeAI.GgufRuntime.WorkerClient.csproj"
+      Condition="'$(Platform)' == 'x64'" />
   </ItemGroup>
   <ItemGroup Condition="'$(Platform)' != 'x64'">
     <Compile Remove="Features\ModelInspection\Infrastructure\**\*.cs" />
