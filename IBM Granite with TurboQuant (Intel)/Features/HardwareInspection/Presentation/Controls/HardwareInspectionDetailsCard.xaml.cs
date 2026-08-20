@@ -13,7 +13,7 @@ public sealed partial class HardwareInspectionDetailsCard : UserControl
         InitializeComponent();
     }
 
-    internal ObservableCollection<HardwareInspectionDetailRow> DetailRows { get; } = [];
+    internal ObservableCollection<HardwareInspectionDetailRowViewData> DetailRows { get; } = [];
     internal ObservableCollection<HardwareInspectionTechnicalGroup> TechnicalGroups { get; } = [];
 
     internal void Apply(HardwareInspectionDetailsState state, bool preserveDisclosureState)
@@ -29,7 +29,7 @@ public sealed partial class HardwareInspectionDetailsCard : UserControl
         DetailRows.Clear();
         foreach (HardwareInspectionDetailRow row in state.Rows)
         {
-            DetailRows.Add(row);
+            DetailRows.Add(new HardwareInspectionDetailRowViewData(row));
         }
         TechnicalGroups.Clear();
         foreach (HardwareInspectionTechnicalGroup group in state.TechnicalGroups)
@@ -40,4 +40,29 @@ public sealed partial class HardwareInspectionDetailsCard : UserControl
         DetailsExpander.IsExpanded = outerExpanded;
         TechnicalExpander.IsExpanded = technicalExpanded;
     }
+}
+
+internal sealed class HardwareInspectionDetailRowViewData
+{
+    internal HardwareInspectionDetailRowViewData(HardwareInspectionDetailRow row)
+    {
+        Title = row.Title;
+        Sentence = row.Sentence;
+        Status = row.Status;
+        AccessibleName = row.AccessibleName;
+        Glyph = row.Status switch
+        {
+            "Completed" or "Report created" => "✓",
+            "Completed with note" or "Could not check" => "!",
+            "Could not confirm" or "Stopped here" => "×",
+            "Cancelled here" or "Not started" or "Not used in report" => "–",
+            _ => "•",
+        };
+    }
+
+    public string Title { get; }
+    public string Sentence { get; }
+    public string Status { get; }
+    public string AccessibleName { get; }
+    public string Glyph { get; }
 }

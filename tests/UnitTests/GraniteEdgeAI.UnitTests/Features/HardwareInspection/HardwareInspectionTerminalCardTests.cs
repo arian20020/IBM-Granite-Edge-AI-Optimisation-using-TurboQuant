@@ -79,11 +79,11 @@ public sealed class HardwareInspectionTerminalCardTests
 
         Button[] buttons = Buttons(card);
         CollectionAssert.AreEqual(
-            new[] { "Continue to compatibility", "Run inspection again" },
+            new[] { "Run inspection again", "Continue to compatibility" },
             buttons.Select(button => button.Content?.ToString()).ToArray());
-        Assert.IsFalse(buttons[0].IsEnabled);
-        Assert.IsTrue(buttons[1].IsEnabled);
-        Assert.AreEqual(HardwareInspectionCopyCatalog.ContinueUnavailableHelp, card.ActionItems[0].AccessibleHelp);
+        Assert.IsTrue(buttons[0].IsEnabled);
+        Assert.IsFalse(buttons[1].IsEnabled);
+        Assert.AreEqual(HardwareInspectionCopyCatalog.ContinueUnavailableHelp, card.ActionItems[1].AccessibleHelp);
     }
 
     [UITestMethod]
@@ -97,12 +97,12 @@ public sealed class HardwareInspectionTerminalCardTests
             HardwareInspectionFailureClass.TransientOperation));
 
         CollectionAssert.AreEqual(
-            new[] { "Try again", "Back" },
+            new[] { "Back", "Try again" },
             Buttons(card).Select(button => button.Content?.ToString()).ToArray());
 
         HardwareInspectionActionKind? requested = null;
         card.ActionRequested += (_, args) => requested = args.Kind;
-        Button tryAgain = Buttons(card)[0];
+        Button tryAgain = Buttons(card)[1];
         IInvokeProvider invoke = (IInvokeProvider)new ButtonAutomationPeer(tryAgain).GetPattern(PatternInterface.Invoke)!;
         invoke.Invoke();
         Assert.AreEqual(HardwareInspectionActionKind.TryAgain, requested);

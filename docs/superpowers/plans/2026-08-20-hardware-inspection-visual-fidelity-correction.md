@@ -20,9 +20,9 @@
 - Modify: `tests/UnitTests/GraniteEdgeAI.UnitTests/Features/HardwareInspection/HardwareInspectionDetailsSummaryTests.cs`
 - Modify: `tests/testing/hardware_inspection/test_hardware_inspection_theme_contract.py`
 
-- [ ] Add failing tests requiring the page's initial light presentation, active Cancel action, the approved count/header geometry, visible footer slot, completed fact-tile hierarchy, warning/recovery section, and compact single-column reflow.
-- [ ] Run the focused packaged and Python tests and record failures caused by the current missing surfaces/layout.
-- [ ] Commit only the RED tests with `test(hardware-inspection): lock approved visual fidelity`.
+- [x] Add failing tests requiring the page's initial light presentation, active Cancel action, the approved count/header geometry, visible footer slot, completed fact-tile hierarchy, warning/recovery section, and compact single-column reflow.
+- [x] Run the focused packaged and Python tests and record failures caused by the current missing surfaces/layout.
+- [x] Commit only the RED tests with `test(hardware-inspection): lock approved visual fidelity`.
 
 ### Task 2: Correct the progress screen
 
@@ -32,10 +32,10 @@
 - Modify: `IBM Granite with TurboQuant (Intel)/Features/HardwareInspection/HardwareInspectionPage.xaml`
 - Modify: `IBM Granite with TurboQuant (Intel)/Features/HardwareInspection/HardwareInspectionPage.xaml.cs`
 
-- [ ] Move `N of 7` and `checks complete` into the approved right-aligned progress header while retaining truthful completed-stage counting.
-- [ ] Add row separators, compact 48-pixel row rhythm, one active orbit, completed tick, waiting number, and non-colour status text.
-- [ ] Render the active `Cancel inspection` action centred below the progress card through the existing typed action surface.
-- [ ] Keep the active screen free of hardware facts, report details, percentages, or terminal conclusions.
+- [x] Move `N of 7` and `checks complete` into the approved right-aligned progress header while retaining truthful completed-stage counting.
+- [x] Add row separators, compact row rhythm, one active orbit, completed tick, waiting number, and non-colour status text.
+- [x] Render the active `Cancel inspection` action centred below the progress card through the existing typed action surface.
+- [x] Keep the active screen free of hardware facts, report details, percentages, or terminal conclusions.
 - [ ] Run focused tests, then commit with `fix(hardware-inspection): match approved progress screen`.
 
 ### Task 3: Correct completed and warning composition
@@ -48,10 +48,10 @@
 - Modify: `IBM Granite with TurboQuant (Intel)/Features/HardwareInspection/HardwareInspectionPage.xaml`
 - Modify: `IBM Granite with TurboQuant (Intel)/Features/HardwareInspection/HardwareInspectionPage.xaml.cs`
 
-- [ ] Replace the long label/value stream with bordered fact tiles using two columns only when each tile remains readable and one column below the approved breakpoint.
-- [ ] Preserve the exact Direction B order: outcome, `This computer`, `Local AI tools`, `Information sources`, details, actions.
-- [ ] Add the warning-only `What needs review` section with exactly one unresolved review item and one resolved informational note; clean Completed contains no warning language.
-- [ ] Preserve dedicated/shared GPU memory and installed/usable/available memory as distinct facts.
+- [x] Replace the long label/value stream with bordered fact tiles using two columns only when each tile remains readable and one column below the approved breakpoint.
+- [x] Preserve the exact Direction B order: outcome, `This computer`, `Local AI tools`, `Information sources`, details, actions.
+- [x] Add the warning-only `What needs review` section with exactly one unresolved review item and one resolved informational note; clean Completed contains no warning language.
+- [x] Preserve dedicated/shared GPU memory and installed/usable/available memory as distinct facts.
 - [ ] Run focused tests and commit with `fix(hardware-inspection): match approved completed composition`.
 
 ### Task 4: Correct recovery and details surfaces
@@ -65,9 +65,9 @@
 - Modify: `IBM Granite with TurboQuant (Intel)/Features/HardwareInspection/HardwareInspectionPage.xaml`
 - Modify: `IBM Granite with TurboQuant (Intel)/Features/HardwareInspection/HardwareInspectionPage.xaml.cs`
 
-- [ ] Implement the exact critical/transient/repair/stopping/cancelled content hierarchy from recovery v2 without changing service outcomes.
-- [ ] Render `Inspection details` as a compact native disclosure with report/no-report badge, seven bordered stage rows, and a separately collapsed `Technical information for IT` disclosure.
-- [ ] Keep ordinary records in the page's natural scroll; add no nested main viewport or fixed card height.
+- [x] Implement the exact critical/transient/repair/stopping/cancelled content hierarchy from recovery v2 without changing service outcomes.
+- [x] Render `Inspection details` as a compact native disclosure with report/no-report badge, seven bordered stage rows, and a separately collapsed `Technical information for IT` disclosure.
+- [x] Keep ordinary records in the page's natural scroll; add no nested main viewport or fixed card height.
 - [ ] Run focused tests and commit with `fix(hardware-inspection): match approved recovery details`.
 
 ### Task 5: Align page theme, responsiveness, and footer seam
@@ -78,10 +78,10 @@
 - Modify: `IBM Granite with TurboQuant (Intel)/Features/HardwareInspection/Presentation/HardwareInspectionTheme.xaml`
 - Modify: `tests/UnitTests/GraniteEdgeAI.UnitTests/Features/HardwareInspection/HardwareInspectionPageTests.cs`
 
-- [ ] Default the page to the current production shell's approved Light presentation while allowing explicit Dark and High Contrast overrides for the required matrix.
-- [ ] Apply 24-pixel desktop/medium gutters, 16-pixel compact gutters, 840-pixel maximum content width, 12-pixel radii, and approved 888/600 breakpoints.
-- [ ] Provide a dedicated footer content slot owned by the shell integration; test its placement after actions and natural content, without duplicating or importing Model semantics into Hardware.
-- [ ] Ensure focus, keyboard targets, disclosure states, wrapping, and no-horizontal-overflow behavior remain intact.
+- [x] Default the page to the current production shell's approved Light presentation while allowing explicit Dark and High Contrast overrides for the required matrix.
+- [x] Apply 24-pixel desktop/medium gutters, 16-pixel compact gutters, 840-pixel maximum content width, 12-pixel radii, and approved 888/600 breakpoints.
+- [x] Provide a dedicated footer content slot owned by the shell integration; test its placement after actions and natural content, without duplicating or importing Model semantics into Hardware.
+- [x] Ensure focus, keyboard targets, disclosure states, wrapping, and no-horizontal-overflow behavior remain intact.
 - [ ] Run focused tests and commit with `fix(hardware-inspection): align approved responsive shell`.
 
 ### Task 6: Native capture and final verification
@@ -89,10 +89,9 @@
 **Files:**
 - Create only ignored/local evidence under: `TestResults/HardwareInspectionVisualFidelity/`
 
-- [ ] Build the packaged x64 Debug test app with zero errors.
-- [ ] Run the complete packaged suite; expect at least the current 169 tests plus all new fidelity tests to pass.
-- [ ] Run both Hardware Python contract modules.
+- [x] Build the packaged x64 Debug test app with zero errors.
+- [x] Run the complete packaged suite; expect at least the current 169 tests plus all new fidelity tests to pass.
+- [x] Run both Hardware Python contract modules.
 - [ ] Capture native Light screens at 1440x1100, 900x1000, 480x900, and 720x900 with 200-percent text; compare reading order, card hierarchy, actions, footer placement, wrapping, and scroll reachability against the pinned artifacts.
 - [ ] Capture representative Dark and High Contrast states separately; never substitute them for the Light reference comparison.
 - [ ] Run `git diff --check`, confirm a clean worktree, and record exact commit and capture hashes for the merge coordinator.
-

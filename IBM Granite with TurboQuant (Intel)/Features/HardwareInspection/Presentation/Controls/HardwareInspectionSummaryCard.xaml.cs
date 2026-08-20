@@ -13,6 +13,13 @@ public sealed partial class HardwareInspectionSummaryCard : UserControl
     public HardwareInspectionSummaryCard()
     {
         InitializeComponent();
+        SizeChanged += (_, args) =>
+        {
+            if (args.NewSize.Width > 0)
+            {
+                ApplyAvailableWidth(args.NewSize.Width);
+            }
+        };
     }
 
     internal IReadOnlyList<HardwareFactPresentation> FactItems { get; private set; } =
@@ -38,39 +45,78 @@ public sealed partial class HardwareInspectionSummaryCard : UserControl
             .ToArray();
         CardTitle = title;
         TitleTextBlock.Text = title;
+        HelperTextBlock.Visibility = string.Equals(title, "This computer", StringComparison.Ordinal)
+            ? Visibility.Visible
+            : Visibility.Collapsed;
         FactItems = Array.AsReadOnly(selected);
+        BuildFacts(compact: ActualWidth > 0 && ActualWidth < 600);
+    }
+
+    internal void ApplyAvailableWidth(double width)
+    {
+        bool compact = width > 0 && width < 600;
+        SummaryBorder.Padding = compact
+            ? new Thickness(16)
+            : new Thickness(24);
+        BuildFacts(compact);
+    }
+
+    private void BuildFacts(bool compact)
+    {
         FactsPanel.Children.Clear();
-        string? currentGroup = null;
-        foreach (HardwareFactPresentation fact in selected)
+        FactsPanel.RowDefinitions.Clear();
+        FactsPanel.ColumnDefinitions.Clear();
+        int columnCount = compact ? 1 : 2;
+        for (int column = 0; column < columnCount; column++)
         {
-            if (!string.Equals(currentGroup, fact.Group, StringComparison.Ordinal))
+            FactsPanel.ColumnDefinitions.Add(new ColumnDefinition
             {
-                currentGroup = fact.Group;
-                FactsPanel.Children.Add(new TextBlock
-                {
-                    Text = currentGroup,
-                    FontSize = 14,
-                    FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-                    Foreground = (Brush)Resources["HardwareInspectionTextPrimaryBrush"],
-                });
+                Width = new GridLength(1, GridUnitType.Star),
+            });
+        }
+
+        int row = -1;
+        int itemColumn = 0;
+        foreach (IGrouping<string, HardwareFactPresentation> group in FactItems.GroupBy(fact => fact.Group))
+        {
+            if (itemColumn == 0)
+            {
+                row++;
+                FactsPanel.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             }
 
-            StackPanel tile = new() { Spacing = 2 };
-            tile.Children.Add(new TextBlock
+            HardwareFactPresentation primary = group.First();
+            StackPanel content = new() { Spacing = 4 };
+            content.Children.Add(new TextBlock
             {
-                Text = fact.Label,
-                FontSize = 12,
-                Foreground = (Brush)Resources["HardwareInspectionTextMutedBrush"],
-                TextWrapping = TextWrapping.Wrap,
+                Text = group.Key.ToUpperInvariant(),
+                Style = (Style)Resources["HardwareInspectionFactGroupStyle"],
             });
-            tile.Children.Add(new TextBlock
+            content.Children.Add(new TextBlock
             {
-                Text = fact.Value,
-                FontSize = 14,
-                Foreground = (Brush)Resources["HardwareInspectionTextPrimaryBrush"],
-                TextWrapping = TextWrapping.WrapWholeWords,
+                Text = primary.Value,
+                Style = (Style)Resources["HardwareInspectionFactValueStyle"],
             });
+            string helper = string.Join(
+                " · ",
+                group.Skip(1).Select(fact => $"{fact.Label}: {fact.Value}"));
+            if (!string.IsNullOrWhiteSpace(helper))
+            {
+                content.Children.Add(new TextBlock
+                {
+                    Text = helper,
+                    Style = (Style)Resources["HardwareInspectionFactHelperStyle"],
+                });
+            }
+            Border tile = new()
+            {
+                Style = (Style)Resources["HardwareInspectionFactTileStyle"],
+                Child = content,
+            };
+            Grid.SetRow(tile, row);
+            Grid.SetColumn(tile, itemColumn);
             FactsPanel.Children.Add(tile);
+            itemColumn = (itemColumn + 1) % columnCount;
         }
     }
 }

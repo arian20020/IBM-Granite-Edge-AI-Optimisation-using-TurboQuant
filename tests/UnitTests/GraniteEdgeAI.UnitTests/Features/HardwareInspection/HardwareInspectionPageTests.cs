@@ -21,9 +21,12 @@ public sealed class HardwareInspectionPageTests
     public void Page_DefaultsToApprovedLightPresentationAndProvidesShellFooterSlot()
     {
         HardwareInspectionPage page = new();
+        TextBlock footer = new() { Text = "MODEL SETUP · STEP 3 OF 5" };
+        page.FooterContent = footer;
 
         Assert.AreEqual(ElementTheme.Light, page.RequestedTheme);
         Assert.IsNotNull(page.FindName("FooterPresenter"));
+        Assert.AreSame(footer, ((ContentPresenter)page.FindName("FooterPresenter")).Content);
     }
 
     [UITestMethod]
@@ -66,6 +69,11 @@ public sealed class HardwareInspectionPageTests
         Assert.AreEqual(Visibility.Visible, Element(page, "SummaryGrid").Visibility);
         Assert.AreEqual(Visibility.Visible, Element(page, "ReviewPanel").Visibility);
         Assert.AreEqual("What needs review", Text(page, "ReviewHeadingTextBlock").Text);
+        Assert.AreEqual(Visibility.Visible, Element(page, "LimitationPanel").Visibility);
+        HardwareInspectionOutcomeCard outcome =
+            (HardwareInspectionOutcomeCard)Element(page, "OutcomeCard");
+        Assert.AreEqual(Visibility.Visible, ((FrameworkElement)outcome.FindName("ReviewCountPanel")).Visibility);
+        Assert.AreEqual("1", ((TextBlock)outcome.FindName("ReviewCountTextBlock")).Text);
     }
 
     [UITestMethod]
@@ -109,6 +117,28 @@ public sealed class HardwareInspectionPageTests
         Button[] actions = ((StackPanel)((HardwareInspectionActionCard)Element(page, "ActionCard"))
             .FindName("ActionsPanel")).Children.Cast<Button>().ToArray();
         CollectionAssert.AreEqual(new[] { "Back to model inspection" }, actions.Select(b => b.Content?.ToString()).ToArray());
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void Apply_RecoveryStatesUseApprovedGuidanceAndStoppingStaysBounded()
+    {
+        HardwareInspectionPage page = new();
+        page.Apply(
+            _factory.CreateTerminal(
+                HardwareInspectionOutcome.Failed,
+                HardwareInspectionFailureClass.TransientOperation),
+            details: HardwareInspectionDetailsSummaryTests.CreateDetails());
+
+        HardwareInspectionRecoveryCard recovery =
+            (HardwareInspectionRecoveryCard)Element(page, "RecoveryPanel");
+        Assert.AreEqual(Visibility.Visible, recovery.Visibility);
+        Assert.AreEqual("What you can do", ((TextBlock)recovery.FindName("RecoveryHeadingTextBlock")).Text);
+
+        page.Apply(_factory.CreateStopping());
+        Assert.AreEqual("Why this may take a moment", ((TextBlock)recovery.FindName("RecoveryHeadingTextBlock")).Text);
+        Assert.AreEqual(Visibility.Collapsed, Element(page, "DetailsCard").Visibility);
+        Assert.AreEqual(Visibility.Visible, Element(page, "ActionCard").Visibility);
     }
 
     [UITestMethod]

@@ -120,11 +120,11 @@ public sealed class HardwareInspectionPresentationFactory
         bool canContinue = hasUsableHandoff && block3RouteRegistered;
         List<HardwareInspectionAction> actions =
         [
+            Action(HardwareInspectionActionKind.RunInspectionAgain),
             Action(
                 HardwareInspectionActionKind.ContinueToCompatibility,
                 enabled: canContinue,
                 accessibleHelp: canContinue ? null : HardwareInspectionCopyCatalog.ContinueUnavailableHelp),
-            Action(HardwareInspectionActionKind.RunInspectionAgain),
         ];
 
         if (withWarnings)
@@ -187,7 +187,7 @@ public sealed class HardwareInspectionPresentationFactory
                 "Hardware inspection could not start. Try again is available.",
                 "TryAgain",
                 [],
-                [Action(HardwareInspectionActionKind.TryAgain), Action(HardwareInspectionActionKind.Back)],
+                [Action(HardwareInspectionActionKind.Back), Action(HardwareInspectionActionKind.TryAgain)],
                 detailsAvailable: true),
             HardwareInspectionFailureClass.ApplicationRepairRequired => State(
                 HardwareInspectionPresentationKind.FailedApplicationRepairRequired,
@@ -213,7 +213,7 @@ public sealed class HardwareInspectionPresentationFactory
             "Hardware inspection cancelled. No hardware report was created.",
             "OutcomeTitle",
             [],
-            [Action(HardwareInspectionActionKind.RunInspectionAgain), Action(HardwareInspectionActionKind.Back)],
+            [Action(HardwareInspectionActionKind.Back), Action(HardwareInspectionActionKind.RunInspectionAgain)],
             detailsAvailable: true);
 
     private static HardwareInspectionAction Action(

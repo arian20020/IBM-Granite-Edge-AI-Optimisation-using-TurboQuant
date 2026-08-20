@@ -36,6 +36,10 @@ public sealed partial class HardwareInspectionOutcomeCard : UserControl
         KickerTextBlock.Text = state.Kicker;
         TitleTextBlock.Text = state.Title;
         BodyTextBlock.Text = state.Body;
+        ReviewCountTextBlock.Text = state.UnresolvedReviewCount.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        ReviewCountPanel.Visibility = state.UnresolvedReviewCount > 0
+            ? Visibility.Visible
+            : Visibility.Collapsed;
         AccessibleAnnouncement = state.Announcement;
         AutomationProperties.SetName(OutcomeBorder, state.Announcement);
         GlyphTextBlock.Text = CurrentTone switch

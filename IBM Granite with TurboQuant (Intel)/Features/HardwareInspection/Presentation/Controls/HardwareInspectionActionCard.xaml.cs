@@ -63,6 +63,13 @@ public sealed partial class HardwareInspectionActionCard : UserControl
             ActionsPanel.Children.Add(button);
         }
 
+        if (state.Kind is not HardwareInspectionPresentationKind.Active
+            and not HardwareInspectionPresentationKind.Stopping
+            && ActionsPanel.Children.LastOrDefault() is Button primary)
+        {
+            primary.Style = (Style)Resources["HardwareInspectionPrimaryActionStyle"];
+        }
+
         ApplyAvailableWidth(ActualWidth);
     }
 

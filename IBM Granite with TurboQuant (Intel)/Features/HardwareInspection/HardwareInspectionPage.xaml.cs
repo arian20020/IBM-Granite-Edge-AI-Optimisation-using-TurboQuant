@@ -19,10 +19,17 @@ public sealed partial class HardwareInspectionPage : Page
     public HardwareInspectionPage()
     {
         InitializeComponent();
+        ActiveActionCard.ActionRequested += (_, args) => ActionRequested?.Invoke(this, args);
         ActionCard.ActionRequested += (_, args) => ActionRequested?.Invoke(this, args);
     }
 
     public event EventHandler<HardwareInspectionActionRequestedEventArgs>? ActionRequested;
+
+    public object? FooterContent
+    {
+        get => FooterPresenter.Content;
+        set => FooterPresenter.Content = value;
+    }
 
     internal HardwareInspectionPresentationState? CurrentState { get; private set; }
 
@@ -50,13 +57,36 @@ public sealed partial class HardwareInspectionPage : Page
         {
             ProgressCard.Apply(state);
             ProgressCard.Visibility = Visibility.Visible;
+            ActiveActionCard.Apply(state);
+            ActiveActionCard.Visibility = Visibility.Visible;
             TerminalPanel.Visibility = Visibility.Collapsed;
             return;
         }
 
         ProgressCard.Visibility = Visibility.Collapsed;
+        ActiveActionCard.Visibility = Visibility.Collapsed;
         TerminalPanel.Visibility = Visibility.Visible;
         OutcomeCard.Apply(state);
+        bool hasRecovery = state.Kind is HardwareInspectionPresentationKind.FailedCriticalEvidence
+            or HardwareInspectionPresentationKind.FailedTransientOperation
+            or HardwareInspectionPresentationKind.FailedApplicationRepairRequired
+            or HardwareInspectionPresentationKind.Cancelled
+            or HardwareInspectionPresentationKind.Stopping;
+        if (hasRecovery)
+        {
+            RecoveryPanel.Apply(state);
+            RecoveryPanel.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            RecoveryPanel.Visibility = Visibility.Collapsed;
+        }
+        ReviewPanel.Visibility = state.Kind == HardwareInspectionPresentationKind.CompletedWithWarnings
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        LimitationPanel.Visibility = isCompleted
+            ? Visibility.Visible
+            : Visibility.Collapsed;
         ActionCard.Apply(state);
         ActionCard.Visibility = state.Actions.Count > 0
             ? Visibility.Visible

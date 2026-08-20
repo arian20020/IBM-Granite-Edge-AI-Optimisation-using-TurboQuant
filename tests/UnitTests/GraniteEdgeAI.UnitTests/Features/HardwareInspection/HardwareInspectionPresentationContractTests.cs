@@ -178,7 +178,7 @@ public sealed class HardwareInspectionPresentationContractTests
             HardwareInspectionFailureClass.TransientOperation);
         Assert.AreEqual("The inspection could not start", transient.Title);
         CollectionAssert.AreEqual(
-            new[] { HardwareInspectionActionKind.TryAgain, HardwareInspectionActionKind.Back },
+            new[] { HardwareInspectionActionKind.Back, HardwareInspectionActionKind.TryAgain },
             transient.Actions.Select(action => action.Kind).ToArray());
 
         HardwareInspectionPresentationState repair = _factory.CreateTerminal(
@@ -207,7 +207,7 @@ public sealed class HardwareInspectionPresentationContractTests
         Assert.AreEqual("No hardware report was created", state.Title);
         Assert.AreEqual("You stopped the inspection. This does not indicate a problem with the computer.", state.Body);
         CollectionAssert.AreEqual(
-            new[] { HardwareInspectionActionKind.RunInspectionAgain, HardwareInspectionActionKind.Back },
+            new[] { HardwareInspectionActionKind.Back, HardwareInspectionActionKind.RunInspectionAgain },
             state.Actions.Select(action => action.Kind).ToArray());
         Assert.IsFalse(state.ReportCreated);
     }

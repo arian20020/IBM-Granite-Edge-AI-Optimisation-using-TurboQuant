@@ -67,6 +67,7 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="44" />
                     <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <Border
                     x:Name="GlyphBorder"
@@ -100,6 +101,28 @@
                         FontFamily="{ThemeResource HardwareInspectionFontFamilyRegular}"
                         FontSize="{ThemeResource HardwareInspectionBodyFontSize}"
                         Foreground="{ThemeResource HardwareInspectionTextSecondaryBrush}"
+                        TextWrapping="WrapWholeWords" />
+                </StackPanel>
+                <StackPanel
+                    x:Name="ReviewCountPanel"
+                    Grid.Column="2"
+                    MinWidth="88"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Center"
+                    Spacing="2"
+                    Visibility="Collapsed">
+                    <TextBlock
+                        x:Name="ReviewCountTextBlock"
+                        HorizontalAlignment="Right"
+                        FontFamily="{ThemeResource HardwareInspectionFontFamilyBold}"
+                        FontSize="24"
+                        FontWeight="{ThemeResource HardwareInspectionFontWeightBold}"
+                        Foreground="{ThemeResource HardwareInspectionWarningTextBrush}" />
+                    <TextBlock
+                        HorizontalAlignment="Right"
+                        FontSize="{ThemeResource HardwareInspectionLabelFontSize}"
+                        Foreground="{ThemeResource HardwareInspectionTextSecondaryBrush}"
+                        Text="detail needs review"
                         TextWrapping="WrapWholeWords" />
                 </StackPanel>
             </Grid>

@@ -11,6 +11,10 @@
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="ms-appx:///Features/HardwareInspection/Presentation/HardwareInspectionTheme.xaml" />
             </ResourceDictionary.MergedDictionaries>
+            <Style
+                x:Key="HardwareInspectionPrimaryActionStyle"
+                BasedOn="{StaticResource AccentButtonStyle}"
+                TargetType="Button" />
         </ResourceDictionary>
     </UserControl.Resources>
     <StackPanel

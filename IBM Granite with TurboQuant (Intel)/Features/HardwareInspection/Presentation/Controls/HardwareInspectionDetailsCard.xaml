@@ -10,9 +10,15 @@
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </UserControl.Resources>
-    <Expander
-        x:Name="DetailsExpander"
-        HorizontalAlignment="Stretch">
+    <Border
+        x:Name="DetailsSurfaceBorder"
+        Background="{ThemeResource HardwareInspectionSurfaceBrush}"
+        BorderBrush="{ThemeResource HardwareInspectionBorderStrongBrush}"
+        BorderThickness="{ThemeResource HardwareInspectionBorderThickness}"
+        CornerRadius="{ThemeResource HardwareInspectionCardCornerRadius}">
+      <Expander
+          x:Name="DetailsExpander"
+          HorizontalAlignment="Stretch">
         <Expander.Header>
             <StackPanel Spacing="2">
                 <TextBlock
@@ -47,35 +53,66 @@
                     x:Name="ReportBadgeTextBlock"
                     Foreground="{ThemeResource HardwareInspectionSuccessTextBrush}" />
             </Border>
-            <ItemsControl ItemsSource="{x:Bind DetailRows, Mode=OneWay}">
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <Grid
-                            MinHeight="44"
-                            Padding="0,8"
-                            ColumnSpacing="12"
-                            AutomationProperties.Name="{Binding AccessibleName}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel Spacing="2">
-                                <TextBlock Text="{Binding Title}" TextWrapping="WrapWholeWords" />
-                                <TextBlock
-                                    FontSize="12"
-                                    Foreground="{ThemeResource HardwareInspectionTextSecondaryBrush}"
-                                    Text="{Binding Sentence}"
-                                    TextWrapping="WrapWholeWords" />
-                            </StackPanel>
-                            <TextBlock
-                                Grid.Column="1"
-                                VerticalAlignment="Center"
-                                Foreground="{ThemeResource HardwareInspectionTextMutedBrush}"
-                                Text="{Binding Status}" />
-                        </Grid>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
+            <Border
+                x:Name="StageRowsBorder"
+                BorderBrush="{ThemeResource HardwareInspectionBorderBrush}"
+                BorderThickness="1"
+                CornerRadius="8">
+                <ItemsControl ItemsSource="{x:Bind DetailRows, Mode=OneWay}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border
+                                Padding="12,8"
+                                BorderBrush="{ThemeResource HardwareInspectionBorderBrush}"
+                                BorderThickness="0,0,0,1">
+                                <Grid
+                                    MinHeight="44"
+                                    ColumnSpacing="12"
+                                    AutomationProperties.Name="{Binding AccessibleName}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="24" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border
+                                        Width="20"
+                                        Height="20"
+                                        VerticalAlignment="Top"
+                                        Background="{ThemeResource HardwareInspectionSuccessSurfaceBrush}"
+                                        CornerRadius="10">
+                                        <TextBlock
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            FontSize="10"
+                                            FontWeight="Bold"
+                                            Foreground="{ThemeResource HardwareInspectionSuccessTextBrush}"
+                                            Text="{Binding Glyph}" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Spacing="2">
+                                        <TextBlock
+                                            FontWeight="SemiBold"
+                                            Foreground="{ThemeResource HardwareInspectionTextPrimaryBrush}"
+                                            Text="{Binding Title}"
+                                            TextWrapping="WrapWholeWords" />
+                                        <TextBlock
+                                            FontSize="12"
+                                            Foreground="{ThemeResource HardwareInspectionTextSecondaryBrush}"
+                                            Text="{Binding Sentence}"
+                                            TextWrapping="WrapWholeWords" />
+                                    </StackPanel>
+                                    <TextBlock
+                                        Grid.Column="2"
+                                        VerticalAlignment="Center"
+                                        FontSize="{ThemeResource HardwareInspectionLabelFontSize}"
+                                        FontWeight="Bold"
+                                        Foreground="{ThemeResource HardwareInspectionTextMutedBrush}"
+                                        Text="{Binding Status}" />
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Border>
             <Expander x:Name="TechnicalExpander">
                 <Expander.Header>
                     <StackPanel Spacing="2">
@@ -122,5 +159,6 @@
                 </ItemsControl>
             </Expander>
         </StackPanel>
-    </Expander>
+      </Expander>
+    </Border>
 </UserControl>

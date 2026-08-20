@@ -1,6 +1,7 @@
 using GraniteEdgeAI.Features.HardwareInspection.Presentation.Controls;
 using GraniteEdgeAI.Features.HardwareInspection.Presentation.Factories;
 using GraniteEdgeAI.Features.HardwareInspection.Presentation.State;
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
 
@@ -39,6 +40,14 @@ public sealed class HardwareInspectionDetailsSummaryTests
         Assert.AreEqual(summary.Facts[0].Value, card.FactItems[0].Value);
         Grid factGrid = (Grid)card.FindName("FactsPanel");
         Assert.AreEqual(2, factGrid.ColumnDefinitions.Count);
+        Assert.AreEqual(
+            summary.Facts.Select(fact => fact.Group).Distinct().Count(),
+            factGrid.Children.OfType<Border>().Count());
+
+        card.ApplyAvailableWidth(448);
+        Assert.AreEqual(1, factGrid.ColumnDefinitions.Count);
+        card.ApplyAvailableWidth(840);
+        Assert.AreEqual(2, factGrid.ColumnDefinitions.Count);
     }
 
     [UITestMethod]
@@ -56,6 +65,9 @@ public sealed class HardwareInspectionDetailsSummaryTests
         Assert.IsFalse(((Expander)card.FindName("DetailsExpander")).IsExpanded);
         Assert.IsFalse(((Expander)card.FindName("TechnicalExpander")).IsExpanded);
         Assert.AreEqual("Report created", ((TextBlock)card.FindName("ReportBadgeTextBlock")).Text);
+        Assert.IsNotNull(card.FindName("DetailsSurfaceBorder"));
+        Assert.IsNotNull(card.FindName("StageRowsBorder"));
+        Assert.AreEqual(0, Descendants<ScrollViewer>(card).Count());
     }
 
     [UITestMethod]
@@ -97,5 +109,23 @@ public sealed class HardwareInspectionDetailsSummaryTests
                     "Safe run metadata",
                     [new HardwareInspectionTechnicalItem("Policy", "hardware-policy-v1")]),
             ]);
+    }
+
+    private static IEnumerable<T> Descendants<T>(DependencyObject root)
+        where T : DependencyObject
+    {
+        for (int index = 0; index < Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChildrenCount(root); index++)
+        {
+            DependencyObject child = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(root, index);
+            if (child is T match)
+            {
+                yield return match;
+            }
+
+            foreach (T descendant in Descendants<T>(child))
+            {
+                yield return descendant;
+            }
+        }
     }
 }

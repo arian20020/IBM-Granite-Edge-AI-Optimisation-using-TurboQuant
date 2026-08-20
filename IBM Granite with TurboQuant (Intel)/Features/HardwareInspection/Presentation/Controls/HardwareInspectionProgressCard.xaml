@@ -24,45 +24,51 @@
         BorderThickness="{ThemeResource HardwareInspectionBorderThickness}"
         CornerRadius="{ThemeResource HardwareInspectionCardCornerRadius}">
         <StackPanel Spacing="{ThemeResource HardwareInspectionMajorGap}">
-            <StackPanel Spacing="6">
-                <TextBlock
-                    x:Name="KickerTextBlock"
-                    FontFamily="{ThemeResource HardwareInspectionFontFamilyBold}"
-                    FontSize="{ThemeResource HardwareInspectionLabelFontSize}"
-                    FontWeight="{ThemeResource HardwareInspectionFontWeightBold}"
-                    Foreground="{ThemeResource HardwareInspectionAccentBrush}"
-                    Text="Inspection in progress"
-                    TextWrapping="Wrap" />
-                <TextBlock
-                    x:Name="TitleTextBlock"
-                    FontFamily="{ThemeResource HardwareInspectionFontFamilyBold}"
-                    FontSize="{ThemeResource HardwareInspectionSectionTitleFontSize}"
-                    FontWeight="{ThemeResource HardwareInspectionFontWeightBold}"
-                    Foreground="{ThemeResource HardwareInspectionTextPrimaryBrush}"
-                    TextWrapping="WrapWholeWords" />
-                <TextBlock
-                    x:Name="BodyTextBlock"
-                    FontFamily="{ThemeResource HardwareInspectionFontFamilyRegular}"
-                    FontSize="{ThemeResource HardwareInspectionBodyFontSize}"
-                    Foreground="{ThemeResource HardwareInspectionTextSecondaryBrush}"
-                    TextWrapping="WrapWholeWords" />
-            </StackPanel>
-
-            <Grid ColumnSpacing="8">
+            <Grid x:Name="ProgressHeaderGrid" ColumnSpacing="24" RowSpacing="2">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <StackPanel Grid.RowSpan="2" Spacing="6">
+                    <TextBlock
+                        x:Name="KickerTextBlock"
+                        FontFamily="{ThemeResource HardwareInspectionFontFamilyBold}"
+                        FontSize="{ThemeResource HardwareInspectionLabelFontSize}"
+                        FontWeight="{ThemeResource HardwareInspectionFontWeightBold}"
+                        Foreground="{ThemeResource HardwareInspectionAccentBrush}"
+                        Text="Inspection in progress"
+                        TextWrapping="Wrap" />
+                    <TextBlock
+                        x:Name="TitleTextBlock"
+                        FontFamily="{ThemeResource HardwareInspectionFontFamilyBold}"
+                        FontSize="{ThemeResource HardwareInspectionSectionTitleFontSize}"
+                        FontWeight="{ThemeResource HardwareInspectionFontWeightBold}"
+                        Foreground="{ThemeResource HardwareInspectionTextPrimaryBrush}"
+                        TextWrapping="WrapWholeWords" />
+                    <TextBlock
+                        x:Name="BodyTextBlock"
+                        FontFamily="{ThemeResource HardwareInspectionFontFamilyRegular}"
+                        FontSize="{ThemeResource HardwareInspectionBodyFontSize}"
+                        Foreground="{ThemeResource HardwareInspectionTextSecondaryBrush}"
+                        TextWrapping="WrapWholeWords" />
+                </StackPanel>
                 <TextBlock
                     x:Name="CountTextBlock"
+                    Grid.Column="1"
+                    HorizontalAlignment="Right"
                     FontFamily="{ThemeResource HardwareInspectionFontFamilyBold}"
-                    FontSize="{ThemeResource HardwareInspectionBodyFontSize}"
+                    FontSize="{ThemeResource HardwareInspectionSectionTitleFontSize}"
                     FontWeight="{ThemeResource HardwareInspectionFontWeightBold}"
                     Foreground="{ThemeResource HardwareInspectionTextPrimaryBrush}" />
                 <TextBlock
                     x:Name="CountLabelTextBlock"
+                    Grid.Row="1"
                     Grid.Column="1"
-                    VerticalAlignment="Center"
+                    HorizontalAlignment="Right"
                     FontFamily="{ThemeResource HardwareInspectionFontFamilyRegular}"
                     FontSize="{ThemeResource HardwareInspectionHelperFontSize}"
                     Foreground="{ThemeResource HardwareInspectionTextMutedBrush}"
@@ -77,10 +83,14 @@
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Grid
-                            MinHeight="{ThemeResource HardwareInspectionMinimumTargetSize}"
-                            ColumnSpacing="12"
-                            AutomationProperties.Name="{Binding AccessibleName}">
+                        <Border
+                            Padding="0,4"
+                            BorderBrush="{ThemeResource HardwareInspectionBorderBrush}"
+                            BorderThickness="0,0,0,1">
+                          <Grid
+                              MinHeight="{ThemeResource HardwareInspectionMinimumTargetSize}"
+                              ColumnSpacing="12"
+                              AutomationProperties.Name="{Binding AccessibleName}">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="44" />
                                 <ColumnDefinition Width="*" />
@@ -148,7 +158,8 @@
                                 FontSize="{ThemeResource HardwareInspectionHelperFontSize}"
                                 Foreground="{ThemeResource HardwareInspectionTextMutedBrush}"
                                 Text="{Binding Status}" />
-                        </Grid>
+                          </Grid>
+                        </Border>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
