@@ -13,6 +13,7 @@ namespace GraniteEdgeAI.Features.ModelImport
         private ModelSelectionOperation? _activeOperation;
         private ModelSelectionOperationId? _acceptedFolderOperationId;
         private string? _acceptedFolderDisplayName;
+        private string? _acceptedFolderLocalPath;
 
         /// <summary>
         /// Submits one normalized candidate from either a picker or the future
@@ -33,6 +34,7 @@ namespace GraniteEdgeAI.Features.ModelImport
             CurrentRoute = null;
             _acceptedFolderOperationId = null;
             _acceptedFolderDisplayName = null;
+            _acceptedFolderLocalPath = null;
             HasValidatedModel = false;
             ContinueToModelInspectionButton.IsEnabled = false;
             ImportModelCardControl.ShowScanning(input.DisplayName);
@@ -98,6 +100,7 @@ namespace GraniteEdgeAI.Features.ModelImport
                 ContinueToModelInspectionButton.IsEnabled = true;
                 _acceptedFolderOperationId = operation.Id;
                 _acceptedFolderDisplayName = result.DisplayName;
+                _acceptedFolderLocalPath = input.LocalPath;
                 return;
             }
 
@@ -107,6 +110,7 @@ namespace GraniteEdgeAI.Features.ModelImport
                 ContinueToModelInspectionButton.IsEnabled = true;
                 _acceptedFolderOperationId = operation.Id;
                 _acceptedFolderDisplayName = result.DisplayName;
+                _acceptedFolderLocalPath = input.LocalPath;
                 return;
             }
 
@@ -153,23 +157,71 @@ namespace GraniteEdgeAI.Features.ModelImport
                 CurrentRoute is not (ModelSelectionRoute.OpenVinoDirectory or ModelSelectionRoute.SourceModelDirectory) ||
                 active is null || active.Token.IsCancellationRequested ||
                 _acceptedFolderOperationId != active.Id ||
-                string.IsNullOrWhiteSpace(_acceptedFolderDisplayName))
+                string.IsNullOrWhiteSpace(_acceptedFolderDisplayName) ||
+                string.IsNullOrWhiteSpace(_acceptedFolderLocalPath))
             {
                 return false;
             }
 
             string displayName = _acceptedFolderDisplayName;
-            _acceptedFolderOperationId = null;
-            _acceptedFolderDisplayName = null;
             if (CurrentRoute == ModelSelectionRoute.OpenVinoDirectory)
             {
-                OpenVinoInspectionRequested?.Invoke(this, new OpenVinoInspectionRequestedEventArgs(active.Id, displayName));
+                var eventArguments = new OpenVinoInspectionRequestedEventArgs(active.Id, displayName);
+                OpenVinoInspectionRequested?.Invoke(this, eventArguments);
+                return CompleteFolderInspectionRequest(eventArguments.NavigationAccepted);
             }
-            else
+
+            var sourceEventArguments = new SourceModelInspectionRequestedEventArgs(active.Id, displayName);
+            SourceModelInspectionRequested?.Invoke(this, sourceEventArguments);
+            return CompleteFolderInspectionRequest(sourceEventArguments.NavigationAccepted);
+        }
+
+        private bool CompleteFolderInspectionRequest(bool navigationAccepted)
+        {
+            if (!navigationAccepted)
             {
-                SourceModelInspectionRequested?.Invoke(this, new SourceModelInspectionRequestedEventArgs(active.Id, displayName));
+                return false;
             }
+
+            _acceptedFolderOperationId = null;
+            _acceptedFolderDisplayName = null;
+            _acceptedFolderLocalPath = null;
             return true;
+        }
+
+        // This is intentionally not an event payload. The shell obtains it
+        // only while handling the active page's opaque operation token.
+        internal bool TryGetAcceptedFolderLocalPath(
+            ModelSelectionOperationId operationId,
+            out string? localPath)
+        {
+            localPath = null;
+            ModelSelectionOperation? active = Volatile.Read(ref _activeOperation);
+            if (active is null || active.Token.IsCancellationRequested ||
+                _acceptedFolderOperationId != operationId ||
+                _acceptedFolderOperationId != active.Id ||
+                string.IsNullOrWhiteSpace(_acceptedFolderLocalPath))
+            {
+                return false;
+            }
+
+            localPath = _acceptedFolderLocalPath;
+            return true;
+        }
+
+        // A missing route implementation must fail closed without exposing the
+        // selected folder path in UI text, diagnostics, or event payloads.
+        internal void RejectFolderRoute(string failureCode, string userMessage)
+        {
+            string displayName = _acceptedFolderDisplayName ?? "selected folder";
+            RetireActiveSelectionOperation();
+            _acceptedFolderOperationId = null;
+            _acceptedFolderDisplayName = null;
+            _acceptedFolderLocalPath = null;
+            CurrentRoute = null;
+            HasValidatedModel = false;
+            ContinueToModelInspectionButton.IsEnabled = false;
+            ImportModelCardControl.ShowFailure(displayName, failureCode, userMessage);
         }
 
         protected override void OnNavigatedFrom(NavigationEventArgs e)

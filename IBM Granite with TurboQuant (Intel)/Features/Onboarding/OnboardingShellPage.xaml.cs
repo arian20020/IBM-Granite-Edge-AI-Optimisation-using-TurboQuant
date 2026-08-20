@@ -60,6 +60,9 @@ namespace GraniteEdgeAI.Features.Onboarding
         /// </summary>
         public OnboardingStage CurrentStage { get; private set; }
 
+        internal event EventHandler<SourceModelConversionRequestedEventArgs>?
+            SourceModelConversionRequested;
+
         /// <summary>
         /// Subscribes the shell to one Model Import page.
         /// </summary>
@@ -86,6 +89,10 @@ namespace GraniteEdgeAI.Features.Onboarding
             // Listen for the page's request to begin model inspection.
             _attachedModelImportPage.ModelInspectionRequested +=
                 ModelImportPage_ModelInspectionRequested;
+            _attachedModelImportPage.OpenVinoInspectionRequested +=
+                ModelImportPage_OpenVinoInspectionRequested;
+            _attachedModelImportPage.SourceModelInspectionRequested +=
+                ModelImportPage_SourceModelInspectionRequested;
         }
 
         /// <summary>
@@ -210,6 +217,46 @@ namespace GraniteEdgeAI.Features.Onboarding
             NavigateToModelInspection(eventArguments.Request);
         }
 
+        private void ModelImportPage_OpenVinoInspectionRequested(
+            object? sender,
+            OpenVinoInspectionRequestedEventArgs eventArguments)
+        {
+            if (sender is ModelImportPage page &&
+                ReferenceEquals(page, _attachedModelImportPage))
+            {
+                // O1 has no frozen inspection invocation port in this build.
+                // Do not navigate to a placeholder or imply that inspection ran.
+                page.RejectFolderRoute(
+                    "openvino-inspection-unavailable",
+                    "OpenVINO folder inspection is not available in this build.");
+            }
+        }
+
+        private void ModelImportPage_SourceModelInspectionRequested(
+            object? sender,
+            SourceModelInspectionRequestedEventArgs eventArguments)
+        {
+            if (sender is not ModelImportPage page ||
+                !ReferenceEquals(page, _attachedModelImportPage))
+            {
+                return;
+            }
+
+            var conversionRequest = new SourceModelConversionRequestedEventArgs(
+                eventArguments.OperationId,
+                eventArguments.DisplayName);
+            SourceModelConversionRequested?.Invoke(this, conversionRequest);
+            if (conversionRequest.NavigationAccepted)
+            {
+                eventArguments.AcceptNavigation();
+                return;
+            }
+
+            page.RejectFolderRoute(
+                "source-model-conversion-unavailable",
+                "Source-model conversion is not available in this build.");
+        }
+
         /// <summary>
         /// Responds only to the currently active inspection page and starts a
         /// fresh model-selection journey.
@@ -287,6 +334,10 @@ namespace GraniteEdgeAI.Features.Onboarding
             // Remove the event subscription to avoid retaining an inactive page.
             _attachedModelImportPage.ModelInspectionRequested -=
                 ModelImportPage_ModelInspectionRequested;
+            _attachedModelImportPage.OpenVinoInspectionRequested -=
+                ModelImportPage_OpenVinoInspectionRequested;
+            _attachedModelImportPage.SourceModelInspectionRequested -=
+                ModelImportPage_SourceModelInspectionRequested;
 
             // Release the reference to the old page.
             _attachedModelImportPage = null;
@@ -308,5 +359,6 @@ namespace GraniteEdgeAI.Features.Onboarding
                 ModelInspectionPage_FooterStatusChanged;
             _attachedModelInspectionPage = null;
         }
+
     }
 }

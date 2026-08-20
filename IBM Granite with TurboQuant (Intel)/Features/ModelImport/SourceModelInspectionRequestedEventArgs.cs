@@ -13,4 +13,8 @@ internal sealed class SourceModelInspectionRequestedEventArgs : EventArgs
 
     internal ModelSelectionOperationId OperationId { get; }
     internal string DisplayName { get; }
+
+    internal bool NavigationAccepted { get; private set; }
+
+    internal void AcceptNavigation() => NavigationAccepted = true;
 }

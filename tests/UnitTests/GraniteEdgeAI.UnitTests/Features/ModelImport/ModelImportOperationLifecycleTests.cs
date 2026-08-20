@@ -36,7 +36,11 @@ public sealed class ModelImportOperationLifecycleTests
     {
         var page = CreatePage(new ImmediateClassifier(ModelSelectionRoute.OpenVinoDirectory));
         int requestCount = 0;
-        page.OpenVinoInspectionRequested += (_, _) => requestCount++;
+        page.OpenVinoInspectionRequested += (_, eventArguments) =>
+        {
+            requestCount++;
+            eventArguments.AcceptNavigation();
+        };
 
         await page.SubmitInputAsync(new ModelSelectionInput(@"C:\Models\openvino", "openvino", true));
 

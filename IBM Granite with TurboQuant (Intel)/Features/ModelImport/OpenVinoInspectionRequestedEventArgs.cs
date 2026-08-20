@@ -13,4 +13,10 @@ internal sealed class OpenVinoInspectionRequestedEventArgs : EventArgs
 
     internal ModelSelectionOperationId OperationId { get; }
     internal string DisplayName { get; }
+
+    // The shell marks this only after its destination page exists and has
+    // accepted the corresponding app-private folder selection.
+    internal bool NavigationAccepted { get; private set; }
+
+    internal void AcceptNavigation() => NavigationAccepted = true;
 }

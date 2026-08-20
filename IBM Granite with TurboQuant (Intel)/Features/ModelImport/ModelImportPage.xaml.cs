@@ -261,6 +261,9 @@ namespace GraniteEdgeAI.Features.ModelImport
             SelectedModelPath = null;
             ValidatedScanResult = null;
             CurrentRoute = null;
+            _acceptedFolderOperationId = null;
+            _acceptedFolderDisplayName = null;
+            _acceptedFolderLocalPath = null;
             HasValidatedModel = false;
             ContinueToModelInspectionButton.IsEnabled = false;
             ImportModelCardControl.ShowAwaitingSelection();
