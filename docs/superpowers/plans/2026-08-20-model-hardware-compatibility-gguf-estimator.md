@@ -105,6 +105,18 @@ Task 10 also relocates the two existing test files that sit one level too shallo
 components that nothing yet assesses. Extending `FitPolicy` to all three pools belongs with mode
 selection, where a candidate's device route first drives a decision. Do not widen `FitPolicy` here.
 
+`FitPolicy` gating system memory only, concretely: a discrete-GPU full-offload candidate whose
+weights exceed the card's own memory still returns `Safe`, because nothing compares the
+`DedicatedDeviceMemory` component against `AvailableResources.DedicatedDeviceMemory`. That
+resource field and `AvailableResources.Storage` have no consumer yet; `FitLimitingReason
+.InsufficientDedicatedDeviceMemory` and `.InsufficientStorage` have no producer yet. Both need to
+exist before a discrete-GPU route can be trusted to refuse an over-budget candidate.
+
+`InspectedModelFacts.DeclaredContextLimit` is stored, validated at construction and covered by
+`InspectedModelFactsTests`, but nothing reads it once stored. It is the input
+`FitLimitingReason.ContextExceedsModelLimit` will need: comparing a candidate's requested context
+against the model's own declared limit is not implemented yet.
+
 ---
 
 ### Task 1: Alignment and fractional byte arithmetic
