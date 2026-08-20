@@ -55,6 +55,15 @@ The additional completed OpenVINO-with-TurboQuant workbook is a legacy evidence/
 - `Cross-Route-Comparison-Register.csv` — matched, partially matched and non-comparable results.
 - `Decision-Log.md` — testing and interpretation decisions.
 
+## Hardware Inspection Intel runner controls
+
+- [Stage 0 operator runbook](runbooks/Hardware-Inspection-Intel-Runner-Stage-0-Runbook.md) - hosted repository-identity validation only.
+- [Stage A operator runbook](runbooks/Hardware-Inspection-Intel-Runner-Stage-A-Runbook.md) - separately authorised, permission-gated deterministic evidence on one ephemeral UCL-approved runner.
+- [Stage A context validator](../../scripts/hardware-inspection/Validate-HardwareInspectionIntelRunnerStageA.ps1) - validates the fixed dispatch, manifest, runner, checkout, and output boundary.
+- [Stage A deterministic runner](../../scripts/hardware-inspection/Invoke-HardwareInspectionIntelRunnerStageA.ps1) - owns contained local restore/build/test, strict TRX validation, cleanup, and privacy-safe summaries.
+
+Stage A is not hardware, candidate, trusted-Intel, offline, or Gate 1 evidence. It does not change any current evidence claim: `F-M07`, `HE-01`, and `HE-02` are not verified, Gate 1 remains Blocked, and Gate 2 and Stage B remain prohibited without separate approval.
+
 ## Evidence root
 
 Formal campaign evidence belongs under:
