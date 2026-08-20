@@ -31,6 +31,7 @@ internal sealed class ModelSelectionDiagnostic
             char current = value[index];
 
             if (index < value.Length - 2 &&
+                StartsStandalonePathToken(value, index) &&
                 char.IsLetter(current) &&
                 value[index + 1] == ':' &&
                 (value[index + 2] == '\\' || value[index + 2] == '/'))
@@ -39,9 +40,7 @@ internal sealed class ModelSelectionDiagnostic
             }
 
             if (current is '\\' or '/' &&
-                (index == 0 ||
-                 (index < value.Length - 1 && current == value[index + 1]) ||
-                 !IsPathSegmentCharacter(value[index - 1])))
+                StartsStandalonePathToken(value, index))
             {
                 return true;
             }
@@ -50,8 +49,10 @@ internal sealed class ModelSelectionDiagnostic
         return false;
     }
 
-    private static bool IsPathSegmentCharacter(char value)
+    private static bool StartsStandalonePathToken(string value, int index)
     {
-        return char.IsLetterOrDigit(value) || value is '_' or '.';
+        return index == 0 ||
+               char.IsWhiteSpace(value[index - 1]) ||
+               value[index - 1] is '\'' or '"' or '(' or '[' or '{' or '<';
     }
 }

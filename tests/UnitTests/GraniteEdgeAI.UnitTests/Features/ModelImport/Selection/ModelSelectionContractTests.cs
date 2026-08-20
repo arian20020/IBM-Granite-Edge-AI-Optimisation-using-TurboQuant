@@ -105,6 +105,20 @@ public sealed class ModelSelectionContractTests
     }
 
     [TestMethod]
+    public void Diagnostic_AcceptsSafeUrlsAndRelativeFilenameText()
+    {
+        var urlDiagnostic = new ModelSelectionDiagnostic(
+            "selection-help",
+            "See https://example.com/help for details.");
+        var fileDiagnostic = new ModelSelectionDiagnostic(
+            "selection-help",
+            "Review model.gguf and try again.");
+
+        Assert.AreEqual("See https://example.com/help for details.", urlDiagnostic.Message);
+        Assert.AreEqual("Review model.gguf and try again.", fileDiagnostic.Message);
+    }
+
+    [TestMethod]
     public void Contracts_RejectNullOrWhitespaceSafeValuesAndMissingFailureDiagnostic()
     {
         ModelSelectionOperationId operationId = ModelSelectionOperationId.CreateNew();
