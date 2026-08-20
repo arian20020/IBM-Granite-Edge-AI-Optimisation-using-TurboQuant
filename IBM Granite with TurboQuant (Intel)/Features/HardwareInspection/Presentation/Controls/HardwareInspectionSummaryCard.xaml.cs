@@ -49,12 +49,12 @@ public sealed partial class HardwareInspectionSummaryCard : UserControl
             ? Visibility.Visible
             : Visibility.Collapsed;
         FactItems = Array.AsReadOnly(selected);
-        BuildFacts(compact: ActualWidth > 0 && ActualWidth < 520);
+        BuildFacts(compact: ActualWidth > 0 && ActualWidth < 480);
     }
 
     internal void ApplyAvailableWidth(double width)
     {
-        bool compact = width > 0 && width < 520;
+        bool compact = width > 0 && width < 480;
         SummaryBorder.Padding = compact
             ? new Thickness(16)
             : new Thickness(24);
