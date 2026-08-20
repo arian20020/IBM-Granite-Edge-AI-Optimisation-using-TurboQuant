@@ -70,17 +70,17 @@ public sealed class HardwareInspectionContractTests
     {
         List<HardwareEvidenceEntry> incomplete = CreateRequiredEvidence().Take(3).ToList();
 
-        Assert.ThrowsException<ArgumentException>(() =>
+        Assert.Throws<ArgumentException>(() =>
             CreateSnapshot(["avx2"], [], incomplete));
 
-        Assert.ThrowsException<ArgumentOutOfRangeException>(() =>
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
             new MemoryFacts(
                 physicallyInstalledBytes: 16,
                 osUsablePhysicalBytes: 15,
                 availablePhysicalBytes: 16,
                 availableCapturedAtUtc: CapturedAtUtc));
 
-        Assert.ThrowsException<ArgumentException>(() =>
+        Assert.Throws<ArgumentException>(() =>
             new AvailableMemorySnapshot(1, DateTimeOffset.Now));
     }
 
@@ -90,10 +90,10 @@ public sealed class HardwareInspectionContractTests
     {
         HardwareEvidenceEntry first = CreateRequiredEvidence()[0];
 
-        Assert.ThrowsException<ArgumentException>(() =>
+        Assert.Throws<ArgumentException>(() =>
             new HardwareEvidenceManifest([first, first]));
 
-        Assert.ThrowsException<ArgumentException>(() =>
+        Assert.Throws<ArgumentException>(() =>
             new HardwareEvidenceEntry(
                 "processor.name",
                 EvidenceSourceKind.Windows,
@@ -122,15 +122,15 @@ public sealed class HardwareInspectionContractTests
         Assert.AreEqual(inspectionId, completed.InspectionId);
         Assert.AreSame(usable, completed.Snapshot);
         Assert.AreSame(usable, warning.Snapshot);
-        Assert.ThrowsException<ArgumentException>(() => HardwareInspectionHandoff.Create(
+        Assert.Throws<ArgumentException>(() => HardwareInspectionHandoff.Create(
             inspectionId,
             HardwareInspectionOutcome.Failed,
             usable));
-        Assert.ThrowsException<ArgumentException>(() => HardwareInspectionHandoff.Create(
+        Assert.Throws<ArgumentException>(() => HardwareInspectionHandoff.Create(
             inspectionId,
             HardwareInspectionOutcome.Cancelled,
             usable));
-        Assert.ThrowsException<ArgumentException>(() => HardwareInspectionHandoff.Create(
+        Assert.Throws<ArgumentException>(() => HardwareInspectionHandoff.Create(
             Guid.Empty,
             HardwareInspectionOutcome.Completed,
             usable));
