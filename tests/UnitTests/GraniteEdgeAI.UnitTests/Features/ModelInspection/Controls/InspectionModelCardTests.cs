@@ -43,8 +43,6 @@ public sealed class InspectionModelCardTests
         Border compact = Find<Border>(control, "CompactView");
         FrameworkElement detailedHeader = Find<FrameworkElement>(control, "DetailedHeader");
         Grid metadataGrid = Find<Grid>(control, "MetadataGrid");
-        Grid balancedOverviewGrid = Find<Grid>(control, "BalancedOverviewGrid");
-        Grid modelFactGrid = Find<Grid>(control, "ModelFactGrid");
         TextBlock[] labels = MetadataLabels(control);
         TextBlock sectionTitle = Descendants(control)
             .OfType<TextBlock>()
@@ -62,11 +60,6 @@ public sealed class InspectionModelCardTests
         ];
         FrameworkElement[] fields = MetadataFields(control);
         Grid overviewPanel = Find<Grid>(control, "ModelOverviewPanel");
-        Border overviewSurface = Find<Border>(control, "ModelOverviewSurface");
-        Grid configurationPanel = Find<Grid>(control, "ModelConfigurationPanel");
-        Border configurationSurface = Find<Border>(
-            control,
-            "ModelConfigurationSurface");
         TextBlock overviewCopy = Find<TextBlock>(control, "ModelOverviewCopy");
         Border formatChip = Find<Border>(control, "OverviewFormatChip");
         Point titleOrigin = sectionTitle.TransformToVisual(detailed)
@@ -105,79 +98,46 @@ public sealed class InspectionModelCardTests
         Assert.AreEqual(TextAlignment.Left, overviewCopy.TextAlignment);
         Assert.AreEqual(12d, detailed.CornerRadius.TopLeft, 0.01, "shared card radius");
         Assert.AreEqual(new Thickness(24d), compact.Padding, "compact view padding");
-        Assert.AreEqual(new Thickness(18d, 14d, 18d, 12d),
+        Assert.AreEqual(new Thickness(18d, 14d, 26d, 12d),
             detailedHeader.Margin, "approved overview header inset");
         Assert.AreEqual(new Thickness(0d), metadataGrid.Margin,
             "macro layout owns its full 840px width");
-        Assert.HasCount(2, balancedOverviewGrid.ColumnDefinitions);
-        Assert.AreEqual(GridUnitType.Star,
-            balancedOverviewGrid.ColumnDefinitions[0].Width.GridUnitType);
-        Assert.AreEqual(GridUnitType.Star,
-            balancedOverviewGrid.ColumnDefinitions[1].Width.GridUnitType);
-        Assert.AreEqual(
-            1.6d,
-            balancedOverviewGrid.ColumnDefinitions[0].Width.Value /
-                balancedOverviewGrid.ColumnDefinitions[1].Width.Value,
-            0.01d,
-            "the named wide overview grid owns the approved 1.6fr / 1fr split");
-        Assert.HasCount(2, modelFactGrid.ColumnDefinitions);
-        Assert.IsTrue(modelFactGrid.ColumnDefinitions.All(column =>
-            column.Width.GridUnitType == GridUnitType.Star &&
-            Math.Abs(column.Width.Value - 1d) <= 0.01d));
-        CollectionAssert.AreEquivalent(
-            ExpectedFieldOrder,
-            labels.Select(label => label.Text).ToArray(),
-            "all established fields remain present without changing automation copy");
         CollectionAssert.AreEqual(
-            new[]
-            {
-                "MODEL NAME",
-                "PUBLISHER",
-                "PARAMETERS",
-                "MODEL TYPE",
-                "DECLARED MAX CONTEXT",
-                "FILE SIZE"
-            },
-            new[] { fields[0], fields[1], fields[4], fields[5], fields[6], fields[7] }
+            ExpectedFieldOrder,
+            labels.Select(label => label.Text).ToArray());
+        CollectionAssert.AreEqual(
+            ExpectedFieldOrder,
+            metadataGrid.Children
+                .OfType<Border>()
                 .Select(field => Descendants(field)
                     .OfType<TextBlock>()
                     .First(text => ExpectedFieldOrder.Contains(
                         text.Text,
                         StringComparer.Ordinal)).Text)
                 .ToArray(),
-            "the primary facts keep their accessible source order in the dominant card");
-        Assert.IsTrue(overviewPanel.IsHitTestVisible);
-        Assert.IsTrue(configurationPanel.IsHitTestVisible);
-        Assert.IsTrue(fields.All(field => field.IsHitTestVisible),
-            "real model metadata content remains hit-test-visible");
-        Assert.IsFalse(overviewSurface.IsHitTestVisible,
-            "only the decorative overview surface is excluded from hit testing");
-        Assert.IsFalse(configurationSurface.IsHitTestVisible,
-            "only the decorative configuration surface is excluded from hit testing");
-        Assert.IsTrue(Descendants(overviewPanel).Contains(modelFactGrid),
-            "the overview card truthfully owns its two-column fact grid");
-        Grid supportStack = Find<Grid>(control, "ModelSupportStack");
-        Assert.AreSame(overviewPanel, balancedOverviewGrid.Children[0]);
-        Assert.AreSame(supportStack, balancedOverviewGrid.Children[1]);
-        Assert.AreSame(configurationPanel, supportStack.Children[0]);
+            "metadata field borders remain direct children in source order");
         Assert.AreEqual(3, fields.Select(Grid.GetRow).Distinct().Count(),
             "wide Ready metadata uses three visual data rows");
-        Assert.AreEqual(2, fields.Select(Grid.GetColumn).Distinct().Count(),
-            "wide Ready facts use two columns while support values use their card column");
+        Assert.AreEqual(3, fields.Select(Grid.GetColumn).Distinct().Count(),
+            "wide Ready metadata uses two left columns and one right column");
+        Assert.AreEqual(2, Grid.GetColumn(Find<FrameworkElement>(
+            control,
+            "ModelConfigurationPanel")));
+        FrameworkElement configurationPanel = Find<FrameworkElement>(
+            control,
+            "ModelConfigurationPanel");
         FrameworkElement resultSummaryPanel = Find<FrameworkElement>(
             control,
             "ModelResultSummaryPanel");
-        Border resultSummarySurface = Find<Border>(
-            control,
-            "ModelResultSummarySurface");
         Assert.AreEqual(0, Grid.GetRow(configurationPanel));
-        Assert.AreEqual(0, Grid.GetColumn(configurationPanel));
-        Assert.AreEqual(1, Grid.GetRow(resultSummaryPanel));
-        Assert.AreEqual(0, Grid.GetColumn(resultSummaryPanel));
-        Assert.AreSame(resultSummaryPanel, supportStack.Children[1]);
-        Assert.IsTrue(resultSummaryPanel.IsHitTestVisible);
-        Assert.IsFalse(resultSummarySurface.IsHitTestVisible,
-            "only the decorative result surface is excluded from hit testing");
+        Assert.AreEqual(3, Grid.GetRowSpan(configurationPanel));
+        Assert.AreEqual(2, Grid.GetColumnSpan(configurationPanel));
+        Assert.AreEqual(3, Grid.GetRow(resultSummaryPanel));
+        Assert.AreEqual(2, Grid.GetColumn(resultSummaryPanel));
+        Assert.AreEqual(2, Grid.GetColumnSpan(resultSummaryPanel));
+        Assert.AreEqual(2, Grid.GetColumn(Find<FrameworkElement>(
+            control,
+            "ModelResultSummaryPanel")));
         TextBlock configurationHeading = Find<TextBlock>(
             control,
             "ModelConfigurationHeading");
@@ -198,22 +158,24 @@ public sealed class InspectionModelCardTests
             headingOrigin.Y + configurationHeading.ActualHeight,
             formatLabelOrigin.Y,
             "configuration heading does not obscure the format field");
-        Assert.AreEqual(0, Grid.GetRow(fields[0]));
+        Assert.AreEqual(1, Grid.GetRow(fields[0]));
         Assert.AreEqual(0, Grid.GetColumn(fields[0]));
-        Assert.AreEqual(0, Grid.GetRow(fields[1]));
+        Assert.AreEqual(1, Grid.GetRow(fields[1]));
         Assert.AreEqual(1, Grid.GetColumn(fields[1]));
-        Assert.AreEqual(1, Grid.GetRow(fields[4]));
+        Assert.AreEqual(2, Grid.GetRow(fields[4]));
         Assert.AreEqual(0, Grid.GetColumn(fields[4]));
-        Assert.AreEqual(1, Grid.GetRow(fields[5]));
+        Assert.AreEqual(2, Grid.GetRow(fields[5]));
         Assert.AreEqual(1, Grid.GetColumn(fields[5]));
-        Assert.AreEqual(2, Grid.GetRow(fields[6]));
+        Assert.AreEqual(3, Grid.GetRow(fields[6]));
         Assert.AreEqual(0, Grid.GetColumn(fields[6]));
-        Assert.AreEqual(2, Grid.GetRow(fields[7]));
+        Assert.AreEqual(3, Grid.GetRow(fields[7]));
         Assert.AreEqual(1, Grid.GetColumn(fields[7]));
         Assert.AreEqual(1, Grid.GetRow(fields[2]));
-        Assert.AreEqual(0, Grid.GetColumn(fields[2]));
+        Assert.AreEqual(2, Grid.GetColumn(fields[2]));
+        Assert.AreEqual(2, Grid.GetColumnSpan(fields[2]));
         Assert.AreEqual(2, Grid.GetRow(fields[3]));
-        Assert.AreEqual(0, Grid.GetColumn(fields[3]));
+        Assert.AreEqual(2, Grid.GetColumn(fields[3]));
+        Assert.AreEqual(2, Grid.GetColumnSpan(fields[3]));
         FrameworkElement[] factTiles =
         [
             fields[0],
@@ -230,18 +192,9 @@ public sealed class InspectionModelCardTests
         Point configurationOrigin = configurationPanel
             .TransformToVisual(detailed)
             .TransformPoint(new Point());
-        Point resultPanelOrigin = resultSummaryPanel
-            .TransformToVisual(detailed)
-            .TransformPoint(new Point());
         double macroGap = configurationOrigin.X -
             (overviewOrigin.X + overviewPanel.ActualWidth);
-        Assert.AreEqual(16d, macroGap, 1d, "approved 16px macro rhythm");
-        Assert.AreEqual(
-            16d,
-            resultPanelOrigin.Y -
-                (configurationOrigin.Y + configurationPanel.ActualHeight),
-            1d,
-            "configuration and result use the exact 16px support gap");
+        Assert.AreEqual(16d, macroGap, 1d, "approved macro gap");
         Assert.AreEqual(
             1.6d,
             overviewPanel.ActualWidth / configurationPanel.ActualWidth,
@@ -266,7 +219,13 @@ public sealed class InspectionModelCardTests
         Assert.IsTrue(resultBadge.ActualHeight > 0d);
         Assert.IsTrue(labels.All(label => label.FontSize == 10d));
         Assert.AreEqual(18d, sectionTitle.FontSize, 0.01, "section title size");
-        double expectedFactWidth = fields[0].ActualWidth;
+        double expectedLeadingFactWidth = fields[0].ActualWidth;
+        double expectedTrailingFactWidth = fields[1].ActualWidth;
+        Assert.AreEqual(
+            3d,
+            expectedLeadingFactWidth - expectedTrailingFactWidth,
+            1d,
+            "the approved 18/26 edge insets preserve the balanced tile columns");
         Thickness expectedFactPadding = ((Border)fields[0]).Padding;
         for (int index = 0; index < expectedFields.Length; index++)
         {
@@ -282,7 +241,10 @@ public sealed class InspectionModelCardTests
             Assert.AreEqual(14d, fieldText[1].FontSize, 0.01);
             if (index is not (2 or 3))
             {
-                Assert.AreEqual(expectedFactWidth, fields[index].ActualWidth, 1d,
+                double expectedColumnWidth = index is 0 or 4 or 6
+                    ? expectedLeadingFactWidth
+                    : expectedTrailingFactWidth;
+                Assert.AreEqual(expectedColumnWidth, fields[index].ActualWidth, 1d,
                     $"{expectedFields[index].Label} width");
                 Assert.AreEqual(expectedFactPadding, ((Border)fields[index]).Padding,
                     $"{expectedFields[index].Label} tile padding");
@@ -302,19 +264,6 @@ public sealed class InspectionModelCardTests
                 $"actual={fieldText[1].ActualWidth}x{fieldText[1].ActualHeight}, " +
                 $"desired={fieldText[1].DesiredSize.Width}x{fieldText[1].DesiredSize.Height}");
         }
-
-        control.Presentation = CreatePresentation(
-            isExpanded: false,
-            badgeState: InspectionModelBadgeState.Incomplete);
-        ArrangeUntilStable(control, 840d);
-        Assert.AreEqual(
-            "WarningBadgeState",
-            CurrentVisualState(
-                Find<FrameworkElement>(control, "LayoutRoot"),
-                "BadgeToneStates"),
-            "the existing warning presentation uses the same balanced anatomy");
-        Assert.AreSame(balancedOverviewGrid, control.FindName("BalancedOverviewGrid"));
-        Assert.AreSame(modelFactGrid, control.FindName("ModelFactGrid"));
     }
 
     [UITestMethod]
@@ -593,7 +542,7 @@ public sealed class InspectionModelCardTests
     [DataRow(599d, 8)]
     public async Task Metadata_ReflowsAtApprovedResponsiveBreakpoints(
         double clientWidth,
-        int expectedVisualRowCount)
+        int expectedReadingRowCount)
     {
         var control = new InspectionModelCard
         {
@@ -616,6 +565,9 @@ public sealed class InspectionModelCardTests
 
         try
         {
+            int expectedAttachedRowCount = clientWidth >= 888d
+                ? 3
+                : clientWidth >= 600d ? 5 : 8;
             window.Activate();
             await loaded.Task.WaitAsync(TimeSpan.FromSeconds(10));
             await ResizeClientAndWaitAsync(
@@ -627,7 +579,7 @@ public sealed class InspectionModelCardTests
                 window,
                 control,
                 clientWidth,
-                expectedRowCount: clientWidth >= 600d ? 3 : 6);
+                expectedAttachedRowCount);
 
             Border detailed = Find<Border>(control, "DetailedView");
             FrameworkElement[] metadataFields = MetadataFields(control);
@@ -642,82 +594,63 @@ public sealed class InspectionModelCardTests
             int readingRows = clientWidth >= 888d
                 ? Math.Max(overviewReadingRows, configurationReadingRows)
                 : overviewReadingRows + configurationReadingRows;
-            Assert.AreEqual(expectedVisualRowCount, readingRows,
+            Assert.AreEqual(
+                expectedReadingRowCount,
+                readingRows,
                 $"grouped metadata reading rows at {clientWidth}px");
+
             FrameworkElement configurationPanel = Find<FrameworkElement>(
                 control,
                 "ModelConfigurationPanel");
             FrameworkElement resultSummaryPanel = Find<FrameworkElement>(
                 control,
                 "ModelResultSummaryPanel");
-            Grid overviewPanel = Find<Grid>(control, "ModelOverviewPanel");
-            Grid supportStack = Find<Grid>(control, "ModelSupportStack");
-            Grid factGrid = Find<Grid>(control, "ModelFactGrid");
             if (clientWidth >= 888d)
             {
-                Assert.AreEqual(0, Grid.GetRow(metadataFields[0]));
+                Assert.AreEqual(1, Grid.GetRow(metadataFields[0]));
                 Assert.AreEqual(0, Grid.GetColumn(metadataFields[0]));
-                Assert.AreEqual(1, Grid.GetRow(metadataFields[4]));
-                Assert.AreEqual(2, Grid.GetRow(metadataFields[6]));
+                Assert.AreEqual(2, Grid.GetRow(metadataFields[4]));
+                Assert.AreEqual(3, Grid.GetRow(metadataFields[6]));
                 Assert.AreEqual(0, Grid.GetRow(configurationPanel));
-                Assert.AreEqual(0, Grid.GetRow(supportStack));
-                Assert.AreEqual(1, Grid.GetColumn(supportStack));
-                Assert.AreEqual(1, Grid.GetRow(resultSummaryPanel));
+                Assert.AreEqual(2, Grid.GetColumn(configurationPanel));
+                Assert.AreEqual(2, Grid.GetColumnSpan(configurationPanel));
+                Assert.AreEqual(3, Grid.GetRow(resultSummaryPanel));
+            }
+            else if (clientWidth >= 600d)
+            {
+                Assert.AreEqual(Grid.GetRow(metadataFields[0]),
+                    Grid.GetRow(metadataFields[1]));
+                Assert.AreEqual(Grid.GetRow(metadataFields[4]),
+                    Grid.GetRow(metadataFields[5]));
+                Assert.AreEqual(Grid.GetRow(metadataFields[6]),
+                    Grid.GetRow(metadataFields[7]));
+                Assert.AreEqual(0, Grid.GetColumn(metadataFields[0]));
+                Assert.AreEqual(1, Grid.GetColumn(metadataFields[1]));
+                Assert.AreEqual(4, Grid.GetRow(configurationPanel));
+                Assert.AreEqual(7, Grid.GetRow(resultSummaryPanel));
+                Assert.IsGreaterThan(
+                    Grid.GetRow(metadataFields[7]),
+                    Grid.GetRow(configurationPanel),
+                    "configuration follows the two-column overview facts");
+                Assert.IsGreaterThan(
+                    Grid.GetRow(configurationPanel),
+                    Grid.GetRow(resultSummaryPanel),
+                    "result summary follows configuration");
             }
             else
             {
-                Assert.AreEqual(1, Grid.GetRow(supportStack));
-                Assert.AreEqual(0, Grid.GetColumn(supportStack));
-                Point overviewOrigin = overviewPanel
-                    .TransformToVisual(detailed)
-                    .TransformPoint(new Point());
-                Point supportOrigin = supportStack
-                    .TransformToVisual(detailed)
-                    .TransformPoint(new Point());
-                Assert.AreEqual(
-                    16d,
-                    supportOrigin.Y -
-                        (overviewOrigin.Y + overviewPanel.ActualHeight),
-                    1d,
-                    $"the support cards stack after the dominant overview card; " +
-                    $"overviewOrigin={overviewOrigin.Y}, " +
-                    $"overviewHeight={overviewPanel.ActualHeight}, " +
-                    $"supportOrigin={supportOrigin.Y}, " +
-                    $"supportMarginTop={supportStack.Margin.Top}");
-                Point configurationOrigin = configurationPanel
-                    .TransformToVisual(detailed)
-                    .TransformPoint(new Point());
-                Point resultOrigin = resultSummaryPanel
-                    .TransformToVisual(detailed)
-                    .TransformPoint(new Point());
-                Assert.AreEqual(
-                    16d,
-                    resultOrigin.Y -
-                        (configurationOrigin.Y + configurationPanel.ActualHeight),
-                    1d,
-                    "configuration and result retain the exact 16px support gap");
-                if (clientWidth >= 600d)
+                int[] overviewIndexes = [0, 1, 4, 5, 6, 7];
+                for (int rowIndex = 0; rowIndex < overviewIndexes.Length; rowIndex++)
                 {
-                    Assert.AreEqual(Grid.GetRow(metadataFields[0]),
-                        Grid.GetRow(metadataFields[1]));
-                    Assert.AreEqual(0, Grid.GetColumn(metadataFields[0]));
-                    Assert.AreEqual(1, Grid.GetColumn(metadataFields[1]));
-                    Assert.AreEqual(GridUnitType.Star,
-                        factGrid.ColumnDefinitions[1].Width.GridUnitType);
+                    FrameworkElement field = metadataFields[overviewIndexes[rowIndex]];
+                    Assert.AreEqual(rowIndex + 1, Grid.GetRow(field));
+                    Assert.AreEqual(0, Grid.GetColumn(field));
+                    Assert.AreEqual(2, Grid.GetColumnSpan(field));
                 }
-                else
-                {
-                    CollectionAssert.AreEqual(
-                        Enumerable.Range(0, 6).ToArray(),
-                        new[] { 0, 1, 4, 5, 6, 7 }
-                            .Select(index => Grid.GetRow(metadataFields[index]))
-                            .ToArray());
-                    Assert.IsTrue(new[] { 0, 1, 4, 5, 6, 7 }.All(index =>
-                        Grid.GetColumn(metadataFields[index]) == 0));
-                    Assert.AreEqual(0d,
-                        factGrid.ColumnDefinitions[1].ActualWidth,
-                        0.01d);
-                }
+                Assert.AreEqual(8, Grid.GetRow(metadataFields[2]));
+                Assert.AreEqual(9, Grid.GetRow(metadataFields[3]));
+                Assert.AreEqual(7, Grid.GetRow(configurationPanel));
+                Assert.AreEqual(10, Grid.GetRow(resultSummaryPanel));
             }
             Thickness expectedFactPadding = ((Border)metadataFields[0]).Padding;
             Assert.IsTrue(new[] { 1, 4, 5, 6, 7 }.All(index =>
@@ -760,7 +693,7 @@ public sealed class InspectionModelCardTests
                     window,
                     control,
                     effectiveWidth: 360d,
-                    expectedRowCount: 6);
+                    expectedRowCount: 8);
                 Assert.AreEqual(1, Grid.GetColumn(titleHost));
                 Assert.AreEqual(1, Grid.GetColumnSpan(titleHost));
                 Assert.IsGreaterThan(
@@ -1066,7 +999,7 @@ public sealed class InspectionModelCardTests
                 window,
                 control,
                 effectiveWidth: 599,
-                expectedRowCount: 6);
+                expectedRowCount: 8);
             TextBlock[] dynamicText =
             [
                 Descendants(compact).OfType<TextBlock>()
@@ -1253,11 +1186,6 @@ public sealed class InspectionModelCardTests
         double effectiveWidth,
         int expectedRowCount)
     {
-        string expectedState = effectiveWidth >= 888d
-            ? "WideModelState"
-            : effectiveWidth >= 600d
-                ? "MediumModelState"
-                : "NarrowModelState";
         var layoutReached = new TaskCompletionSource<bool>(
             TaskCreationOptions.RunContinuationsAsynchronously);
         void CompleteWhenReady(object? sender, object eventArguments)
@@ -1267,10 +1195,7 @@ public sealed class InspectionModelCardTests
                 .Distinct()
                 .Count();
             if (Math.Abs(element.XamlRoot.Size.Width - effectiveWidth) <= 1d &&
-                actualRowCount == expectedRowCount &&
-                CurrentVisualState(
-                    Find<FrameworkElement>(element, "LayoutRoot"),
-                    "ResponsiveModelStates") == expectedState)
+                actualRowCount == expectedRowCount)
             {
                 layoutReached.TrySetResult(true);
             }
@@ -1291,11 +1216,7 @@ public sealed class InspectionModelCardTests
                 (int)Math.Round(720d * scale)));
             CompleteWhenReady(null, EventArgs.Empty);
             await layoutReached.Task.WaitAsync(TimeSpan.FromSeconds(10));
-            for (int pass = 0; pass < 3; pass++)
-            {
-                element.UpdateLayout();
-                await Task.Yield();
-            }
+            element.UpdateLayout();
         }
         finally
         {

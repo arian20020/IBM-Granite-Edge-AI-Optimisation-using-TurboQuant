@@ -928,7 +928,9 @@ public sealed class ModelInspectionRenderedStateTests
                 Element<FrameworkElement>(model, "DeclaredContextField"),
                 Element<FrameworkElement>(model, "FileSizeField")
             ];
-            int expectedColumns = width >= 888d ? 3 : 2;
+            int expectedColumns = width >= 888d
+                ? 3
+                : width >= 600d ? 2 : 1;
             Assert.AreEqual(
                 expectedColumns,
                 metadata.Select(Grid.GetColumn).Distinct().Count(),
@@ -1635,7 +1637,9 @@ public sealed class ModelInspectionRenderedStateTests
             double expectedInset = width < 600d ? 16d : 24d;
             bool responsiveStateApplied = Math.Abs(
                 contentHost.Margin.Left - expectedInset) <= 0.1d;
-            int expectedMetadataColumns = width >= 888d ? 3 : 2;
+            int expectedMetadataColumns = width >= 888d
+                ? 3
+                : width >= 600d ? 2 : 1;
             bool modelStateApplied = metadata
                 .Select(Grid.GetColumn)
                 .Distinct()
@@ -1850,6 +1854,13 @@ public sealed class ModelInspectionRenderedStateTests
             Assert.IsTrue(
                 text.FontSize is 10d or 12d or 14d or 18d or 32d,
                 $"Unexpected Inter role size {text.FontSize}: {text.Text}");
+            if (HasAncestor<InspectionActionCard>(text) &&
+                HasAncestor<Button>(text))
+            {
+                Assert.AreEqual(600, text.FontWeight.Weight, text.Text);
+                continue;
+            }
+
             if (source.Contains("Inter-Bold.ttf", StringComparison.Ordinal))
             {
                 Assert.AreEqual(700, text.FontWeight.Weight, text.Text);
