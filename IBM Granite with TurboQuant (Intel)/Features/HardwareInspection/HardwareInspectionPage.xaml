@@ -169,6 +169,24 @@
                             </Grid>
                         </StackPanel>
                     </Border>
+                    <Grid x:Name="SummaryGrid" Visibility="Collapsed">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition x:Name="PrimaryColumn" Width="2*" />
+                            <ColumnDefinition x:Name="SupportColumn" Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <controls:HardwareInspectionSummaryCard x:Name="ComputerSummaryCard" />
+                        <StackPanel
+                            x:Name="SupportPanel"
+                            Grid.Column="1"
+                            Spacing="{ThemeResource HardwareInspectionMajorGap}">
+                            <controls:HardwareInspectionSummaryCard x:Name="RuntimeSummaryCard" />
+                            <controls:HardwareInspectionSummaryCard x:Name="SourcesSummaryCard" />
+                        </StackPanel>
+                    </Grid>
                     <Border
                         x:Name="LimitationPanel"
                         Padding="14,12"
@@ -191,24 +209,6 @@
                                 TextWrapping="WrapWholeWords" />
                         </StackPanel>
                     </Border>
-                    <Grid x:Name="SummaryGrid" Visibility="Collapsed">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition x:Name="PrimaryColumn" Width="2*" />
-                            <ColumnDefinition x:Name="SupportColumn" Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
-                        <controls:HardwareInspectionSummaryCard x:Name="ComputerSummaryCard" />
-                        <StackPanel
-                            x:Name="SupportPanel"
-                            Grid.Column="1"
-                            Spacing="{ThemeResource HardwareInspectionMajorGap}">
-                            <controls:HardwareInspectionSummaryCard x:Name="RuntimeSummaryCard" />
-                            <controls:HardwareInspectionSummaryCard x:Name="SourcesSummaryCard" />
-                        </StackPanel>
-                    </Grid>
                     <controls:HardwareInspectionDetailsCard
                         x:Name="DetailsCard"
                         Visibility="Collapsed" />

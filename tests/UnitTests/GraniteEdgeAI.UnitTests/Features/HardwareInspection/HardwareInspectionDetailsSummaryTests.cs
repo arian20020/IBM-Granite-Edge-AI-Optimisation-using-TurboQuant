@@ -46,6 +46,8 @@ public sealed class HardwareInspectionDetailsSummaryTests
 
         card.ApplyAvailableWidth(448);
         Assert.AreEqual(1, factGrid.ColumnDefinitions.Count);
+        card.ApplyAvailableWidth(549);
+        Assert.AreEqual(2, factGrid.ColumnDefinitions.Count);
         card.ApplyAvailableWidth(840);
         Assert.AreEqual(2, factGrid.ColumnDefinitions.Count);
     }
