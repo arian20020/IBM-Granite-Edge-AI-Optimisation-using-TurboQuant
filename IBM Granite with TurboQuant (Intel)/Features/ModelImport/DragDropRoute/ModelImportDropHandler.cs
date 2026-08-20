@@ -75,6 +75,8 @@ internal sealed class ModelImportDropHandler
         IModelImportDropDeferral deferral = request.GetDeferral();
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             if (!request.HasStorageItems)
             {
                 await DispatchTerminalCallbackAsync(

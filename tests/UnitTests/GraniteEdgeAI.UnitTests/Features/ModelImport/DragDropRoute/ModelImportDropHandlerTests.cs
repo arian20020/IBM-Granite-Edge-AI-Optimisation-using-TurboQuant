@@ -231,6 +231,34 @@ public sealed class ModelImportDropHandlerTests
     }
 
     [TestMethod]
+    public async Task HandleDropAsync_PreCancelledStorageItemsRequest_DoesNotReadItemsOrDispatch()
+    {
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        var request = new FakeDropRequest(
+            hasStorageItems: true,
+            [ModelImportDroppedItem.File(@"C:\Models\granite.gguf")],
+            failIfItemsRead: true);
+        var handler = new ModelImportDropHandler(new ModelSelectionInputNormalizer());
+        var terminalCallbackCount = 0;
+
+        await handler.HandleDropAsync(request, _ =>
+        {
+            terminalCallbackCount++;
+            return Task.CompletedTask;
+        }, _ =>
+        {
+            terminalCallbackCount++;
+            return Task.CompletedTask;
+        }, cancellation.Token);
+
+        Assert.AreEqual(1, request.Deferral.CompleteCount);
+        Assert.AreEqual(0, request.GetStorageItemsCallCount);
+        Assert.AreEqual(0, terminalCallbackCount);
+        Assert.AreEqual(ModelImportDropOperation.None, request.AcceptedOperation);
+    }
+
+    [TestMethod]
     public async Task HandleDropAsync_WorkerCompletion_DispatchesTerminalWorkThroughCapturedDispatcher()
     {
         var request = new FakeDropRequest(
@@ -268,19 +296,22 @@ public sealed class ModelImportDropHandlerTests
         private readonly Action? _onGetItems;
         private readonly Exception? _getItemsException;
         private readonly bool _completeItemsOnWorker;
+        private readonly bool _failIfItemsRead;
 
         internal FakeDropRequest(
             bool hasStorageItems,
             IReadOnlyList<ModelImportDroppedItem> items,
             Action? onGetItems = null,
             Exception? getItemsException = null,
-            bool completeItemsOnWorker = false)
+            bool completeItemsOnWorker = false,
+            bool failIfItemsRead = false)
         {
             HasStorageItems = hasStorageItems;
             _items = items;
             _onGetItems = onGetItems;
             _getItemsException = getItemsException;
             _completeItemsOnWorker = completeItemsOnWorker;
+            _failIfItemsRead = failIfItemsRead;
         }
 
         internal FakeDeferral Deferral { get; } = new();
@@ -289,12 +320,20 @@ public sealed class ModelImportDropHandlerTests
 
         internal bool CompletedItemsOnWorker { get; private set; }
 
+        internal int GetStorageItemsCallCount { get; private set; }
+
         public bool HasStorageItems { get; }
 
         public IModelImportDropDeferral GetDeferral() => Deferral;
 
         public Task<IReadOnlyList<ModelImportDroppedItem>> GetStorageItemsAsync()
         {
+            GetStorageItemsCallCount++;
+            if (_failIfItemsRead)
+            {
+                throw new AssertFailedException("Cancellation must prevent StorageItems retrieval.");
+            }
+
             _onGetItems?.Invoke();
             if (_getItemsException is not null)
             {
