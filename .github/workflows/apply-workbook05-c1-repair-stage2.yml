@@ -1,4 +1,4 @@
-name: Apply Workbook 05 C1 repair stage 2
+name: Create Workbook 05 C1 workflow blob
 
 on:
   pull_request:
@@ -11,142 +11,132 @@ permissions:
   contents: write
 
 concurrency:
-  group: apply-workbook05-c1-repair-stage2-${{ github.event.pull_request.number }}
+  group: create-workbook05-c1-workflow-blob-stage2-${{ github.event.pull_request.number }}
   cancel-in-progress: false
 
 jobs:
-  apply-repair:
-    name: Push tested non-workflow C1 repair files
+  create-blob:
+    name: Create exact reviewed C1 workflow blob
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.head_ref == 'feature/workbook-05-c1-live-asset-lock'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
 
     steps:
       - name: Check out the exact pull-request branch
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
-          persist-credentials: true
+          persist-credentials: false
           ref: feature/workbook-05-c1-live-asset-lock
           fetch-depth: 0
 
-      - name: Verify the stage-2 controller commit
+      - name: Verify controller and source identities
         shell: bash
         run: |
           set -euo pipefail
-          expected_parent='8c2a96a7a7aa7738fae0b68a71a6bc08fda45d88'
+          expected_parent='330a0b7f44e3396c3e28def1a736eaffdda885d6'
           observed_parent="$(git rev-parse HEAD^)"
           if [[ "$observed_parent" != "$expected_parent" ]]; then
-            echo "Expected stage-2 parent $expected_parent, found $observed_parent." >&2
+            echo "Expected controller parent $expected_parent, found $observed_parent." >&2
             exit 1
           fi
           mapfile -t changed < <(git diff-tree --no-commit-id --name-only -r HEAD)
           if [[ "${#changed[@]}" -ne 1 || "${changed[0]}" != '.github/workflows/apply-workbook05-c1-repair-stage2.yml' ]]; then
-            printf 'Unexpected stage-2 controller paths:\n%s\n' "${changed[*]}" >&2
+            printf 'Unexpected controller paths:\n%s\n' "${changed[*]}" >&2
             exit 1
           fi
-          if [[ -n "$(git status --porcelain)" ]]; then
-            echo 'The stage-2 checkout is not clean.' >&2
+          observed="$(git rev-parse HEAD:.github/workflows/workbook-05-phase3-assets.yml)"
+          expected='db05f0e5243327986d4de97b1342948ecb0dc7d1'
+          if [[ "$observed" != "$expected" ]]; then
+            echo "Expected unpatched workflow blob $expected, found $observed." >&2
             exit 1
           fi
 
-      - name: Set up Python 3.12.10
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
-        with:
-          python-version: '3.12.10'
-          check-latest: false
-
-      - name: Recover and verify the reviewed repair bundle
+      - name: Create and verify the patched workflow blob
+        id: blob
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           python - <<'PY'
+          from __future__ import annotations
+
           import base64
-          import hashlib
-          import re
+          import json
+          import os
+          import urllib.request
           from pathlib import Path
 
-          controller = Path('.github/workflows/apply-workbook05-c1-repair.yml')
-          text = controller.read_text(encoding='utf-8')
-          match = re.search(
-              r'(?m)^\s*REPAIR_ZIP_BASE64:\s*([A-Za-z0-9+/=]+)\s*$',
-              text,
+          source = Path('.github/workflows/workbook-05-phase3-assets.yml')
+          text = source.read_text(encoding='utf-8').replace('\r\n', '\n')
+          old = '\n'.join([
+              '          python -m scripts.testing.workbook05.phase3.asset_bundle_validation `',
+              '              --bundle-root $bundle `',
+              '              --repository-root $env:GITHUB_WORKSPACE `',
+              '              --report $report',
+              '',
+          ])
+          expression = '$' + '{{ inputs.operation }}'
+          new = '\n'.join([
+              "          $validator = if ('" + expression + "' -eq 'live-asset-lock') {",
+              "              'scripts.testing.workbook05.phase3.live_asset_bundle_validation'",
+              '          }',
+              '          else {',
+              "              'scripts.testing.workbook05.phase3.asset_bundle_validation'",
+              '          }',
+              '',
+              '          & python -m $validator `',
+              '              --bundle-root $bundle `',
+              '              --repository-root $env:GITHUB_WORKSPACE `',
+              '              --report $report',
+              '',
+          ])
+          count = text.count(old)
+          if count != 1:
+              raise SystemExit(f'Expected one workflow fragment, found {count}.')
+          patched = text.replace(old, new, 1)
+          if patched.count('live_asset_bundle_validation') != 1:
+              raise SystemExit('Live-validator routing is missing or duplicated.')
+          if expression not in patched:
+              raise SystemExit('Literal workflow input expression was not preserved.')
+
+          repository = os.environ['GITHUB_REPOSITORY']
+          headers = {
+              'Authorization': f"Bearer {os.environ['GH_TOKEN']}",
+              'Accept': 'application/vnd.github+json',
+              'X-GitHub-Api-Version': '2022-11-28',
+              'Content-Type': 'application/json',
+          }
+          create_request = urllib.request.Request(
+              f'https://api.github.com/repos/{repository}/git/blobs',
+              data=json.dumps(
+                  {'content': patched, 'encoding': 'utf-8'}
+              ).encode('utf-8'),
+              method='POST',
+              headers=headers,
           )
-          if match is None:
-              raise SystemExit('The reviewed repair payload is absent from stage 1.')
-          payload = base64.b64decode(match.group(1), validate=True)
-          expected = '24bb3fea0a82c65e11c84820497a40ba87caa245cf2723db6cce993375f3e2aa'
-          observed = hashlib.sha256(payload).hexdigest()
-          if observed != expected:
-              raise SystemExit(f'Repair ZIP digest mismatch: {observed} != {expected}')
-          path = Path('/tmp/workbook05-c1-repair.zip')
-          path.write_bytes(payload)
-          print(path)
-          PY
-          rm -rf /tmp/workbook05-c1-repair
-          python -m zipfile -e /tmp/workbook05-c1-repair.zip /tmp/workbook05-c1-repair
+          with urllib.request.urlopen(create_request, timeout=60) as response:
+              created = json.loads(response.read().decode('utf-8'))
+          sha = created.get('sha')
+          if not isinstance(sha, str) or len(sha) != 40:
+              raise SystemExit(f'Invalid blob response: {created!r}')
 
-      - name: Apply the repair to this exact controller head
-        shell: bash
-        run: |
-          set -euo pipefail
-          current_head="$(git rev-parse HEAD)"
-          python - /tmp/workbook05-c1-repair/c1fix/apply_c1_fix.py "$current_head" <<'PY'
-          from pathlib import Path
-          import sys
-
-          path = Path(sys.argv[1])
-          current = sys.argv[2]
-          text = path.read_text(encoding='utf-8')
-          old = 'EXPECTED_HEAD = "4b388cdd6ce5669bb55565b77b2fbcf752b872cb"'
-          new = f'EXPECTED_HEAD = "{current}"'
-          if text.count(old) != 1:
-              raise SystemExit('The repair script head guard is missing or ambiguous.')
-          path.write_text(text.replace(old, new, 1), encoding='utf-8', newline='\n')
-          PY
-          python /tmp/workbook05-c1-repair/c1fix/apply_c1_fix.py "$GITHUB_WORKSPACE"
-
-      - name: Install the pinned repository validation dependency
-        shell: bash
-        run: |
-          set -euo pipefail
-          python -m pip install \
-            --disable-pip-version-check \
-            -r scripts/testing/workbook05/requirements.txt
-
-      - name: Run focused C1 repair tests
-        shell: bash
-        run: |
-          set -euo pipefail
-          python -m unittest -v \
-            tests.testing.workbook05.test_phase3_live_asset_bundle_validation \
-            tests.testing.workbook05.test_phase3_live_asset_environment_contract
-
-      - name: Commit and push only the tested non-workflow repair
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          # GitHub's job token cannot update workflow files. The workflow routing
-          # correction is applied separately through the reviewed repository API.
-          git checkout -- .github/workflows/workbook-05-phase3-assets.yml
-
-          mapfile -t changed < <(git status --short | sed -E 's/^.. //')
-          expected=(
-            'scripts/testing/workbook05/Invoke-Workbook05Phase3AssetLockLive.ps1'
-            'scripts/testing/workbook05/phase3/live_asset_bundle_validation.py'
+          fetch_request = urllib.request.Request(
+              f'https://api.github.com/repos/{repository}/git/blobs/{sha}',
+              headers={key: value for key, value in headers.items() if key != 'Content-Type'},
           )
-          mapfile -t sorted_changed < <(printf '%s\n' "${changed[@]}" | sort)
-          mapfile -t sorted_expected < <(printf '%s\n' "${expected[@]}" | sort)
-          if [[ "$(printf '%s\n' "${sorted_changed[@]}")" != "$(printf '%s\n' "${sorted_expected[@]}")" ]]; then
-            printf 'Unexpected non-workflow repair paths:\n%s\n' "${changed[*]}" >&2
-            exit 1
-          fi
+          with urllib.request.urlopen(fetch_request, timeout=60) as response:
+              fetched = json.loads(response.read().decode('utf-8'))
+          decoded = base64.b64decode(fetched['content']).decode('utf-8')
+          if decoded != patched:
+              raise SystemExit('Fetched workflow blob differs from patched bytes.')
 
-          git diff --check
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -- "${expected[@]}"
-          git commit -m 'fix(workbook05): isolate live C1 evidence and Hub state'
-          git push origin HEAD:feature/workbook-05-c1-live-asset-lock
+          print(f'PATCHED_WORKFLOW_BLOB_SHA={sha}')
+          with Path(os.environ['GITHUB_OUTPUT']).open('a', encoding='utf-8') as stream:
+              stream.write(f'sha={sha}\n')
+          with Path(os.environ['GITHUB_STEP_SUMMARY']).open('a', encoding='utf-8') as stream:
+              stream.write('# Workbook 05 C1 workflow blob\n\n')
+              stream.write(f'Patched workflow blob SHA: `{sha}`\n')
+          PY
