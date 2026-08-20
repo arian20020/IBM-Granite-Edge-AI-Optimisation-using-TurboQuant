@@ -1,5 +1,6 @@
 using GraniteEdgeAI.ModelInspection.WorkerClient;
 using GraniteEdgeAI.ModelInspection.WorkerClient.ProtectedWorker;
+using GraniteEdgeAI.ModelInspection.Transport;
 using GraniteEdgeAI.OpenVino.Contracts;
 
 namespace GraniteEdgeAI.OpenVino.WorkerClient;
@@ -16,14 +17,17 @@ public sealed class OpenVinoConversation : IAsyncDisposable
     private readonly DateTimeOffset _sessionStartedUtc = DateTimeOffset.UtcNow;
     private readonly SemaphoreSlim _operationGate = new(1, 1);
     private readonly object _stateLock = new();
-    private readonly TaskCompletionSource<bool> _sessionTerminal = new(
-        TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly CancellationTokenSource _watchdogCancellation = new();
+    private readonly Task _watchdogTask;
+    private readonly OpenVinoTerminalCleanup _terminalCleanup;
 
     private DateTimeOffset _lastActivityUtc = DateTimeOffset.UtcNow;
     private Guid? _activeTurnId;
     private bool _generationStarted;
     private bool _stopSent;
     private bool _cancelSent;
+    private DateTimeOffset? _cancelDeadlineUtc;
+    private OpenVinoWorkerClientException? _cancellationOutcome;
     private bool _disposed;
 
     internal OpenVinoConversation(
@@ -40,6 +44,12 @@ public sealed class OpenVinoConversation : IAsyncDisposable
         _validator = validator;
         _sessionId = sessionId;
         _options = options;
+        _terminalCleanup = new OpenVinoTerminalCleanup(
+            session,
+            processExit,
+            options.CleanupTimeout,
+            _watchdogCancellation.Cancel);
+        _watchdogTask = RunWatchdogAsync();
     }
 
     public Guid SessionId => _sessionId;
@@ -60,11 +70,19 @@ public sealed class OpenVinoConversation : IAsyncDisposable
             .WaitAsync(TimeSpan.Zero, cancellationToken)
             .ConfigureAwait(false))
         {
+            if (IsCancellationInProgress())
+            {
+                await AwaitTerminalCleanupOrForceAsync().ConfigureAwait(false);
+                throw GetCancellationOutcome();
+            }
+
             throw OpenVinoWorkerClient.ProtocolFailure();
         }
         try
         {
             ThrowIfDisposed();
+            DateTimeOffset turnDeadline =
+                DateTimeOffset.UtcNow + _options.TurnTimeout;
             RequireSessionWithinBounds();
             lock (_stateLock)
             {
@@ -72,14 +90,14 @@ public sealed class OpenVinoConversation : IAsyncDisposable
                 _activeTurnId = command.TurnId;
                 _generationStarted = false;
                 _stopSent = false;
+                _lastActivityUtc = DateTimeOffset.UtcNow;
             }
 
-            await _session.StandardInput.WriteLineAsync(
-                    OpenVinoProtocolJson.Serialize(command),
+            await WriteCommandWithDeadlineAsync(
+                    command,
+                    turnDeadline,
                     cancellationToken)
                 .ConfigureAwait(false);
-            DateTimeOffset turnDeadline =
-                DateTimeOffset.UtcNow + _options.TurnTimeout;
 
             while (true)
             {
@@ -104,7 +122,6 @@ public sealed class OpenVinoConversation : IAsyncDisposable
                     throw OpenVinoWorkerClient.CancellationFailure();
                 }
 
-                _lastActivityUtc = DateTimeOffset.UtcNow;
                 if (IsStale(@event, command.TurnId))
                 {
                     continue;
@@ -113,6 +130,7 @@ public sealed class OpenVinoConversation : IAsyncDisposable
                 lock (_stateLock)
                 {
                     _validator.Accept(@event);
+                    _lastActivityUtc = DateTimeOffset.UtcNow;
                     if (@event is GenerationStartedEvent)
                     {
                         _generationStarted = true;
@@ -139,14 +157,27 @@ public sealed class OpenVinoConversation : IAsyncDisposable
                 if (@event is SessionCancelledEvent or
                     SessionFailedEvent or SessionCompletedEvent)
                 {
-                    _sessionTerminal.TrySetResult(true);
-                    await FinalizeTerminalAsync().ConfigureAwait(false);
+                    await _terminalCleanup.CompleteAsync(
+                            GetCancellationDeadline(),
+                            force: false)
+                        .ConfigureAwait(false);
+                    if (@event is SessionCancelledEvent)
+                    {
+                        throw GetCancellationOutcome();
+                    }
+
                     return @event;
                 }
             }
         }
         catch (Exception error) when (OpenVinoWorkerClient.IsControlled(error))
         {
+            if (IsCancellationInProgress())
+            {
+                await AwaitTerminalCleanupOrForceAsync().ConfigureAwait(false);
+                throw GetCancellationOutcome();
+            }
+
             throw await FailAndMapAsync(error, cancellationToken)
                 .ConfigureAwait(false);
         }
@@ -171,6 +202,7 @@ public sealed class OpenVinoConversation : IAsyncDisposable
             command = new StopTurnCommand(_sessionId, turnId);
             _validator.Accept(command);
             _stopSent = true;
+            _lastActivityUtc = DateTimeOffset.UtcNow;
         }
 
         try
@@ -191,49 +223,36 @@ public sealed class OpenVinoConversation : IAsyncDisposable
     public async Task CancelAsync(CancellationToken cancellationToken)
     {
         ThrowIfDisposed();
+        cancellationToken.ThrowIfCancellationRequested();
         await CancelCoreAsync(cancellationToken).ConfigureAwait(false);
-        if (_operationGate.CurrentCount == 0)
+        if (HasActiveTurn())
         {
-            await _sessionTerminal.Task
-                .WaitAsync(_options.CancellationGrace, cancellationToken)
-                .ConfigureAwait(false);
+            await AwaitTerminalCleanupOrForceAsync().ConfigureAwait(false);
             return;
         }
 
-        await _operationGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        await _operationGate.WaitAsync(CancellationToken.None)
+            .ConfigureAwait(false);
         try
         {
-            while (!_sessionTerminal.Task.IsCompleted)
-            {
-                IOpenVinoEvent @event = await OpenVinoWorkerClient
-                    .ReadEventWithDeadlineAsync(
-                        _session,
-                        _processExit,
-                        _options.CancellationGrace,
-                        cancellationToken)
-                    .ConfigureAwait(false);
-                if (IsStale(@event, _activeTurnId))
-                {
-                    continue;
-                }
-
-                lock (_stateLock)
-                {
-                    _validator.Accept(@event);
-                }
-
-                if (@event is SessionCancelledEvent or SessionFailedEvent)
-                {
-                    _sessionTerminal.TrySetResult(true);
-                }
-            }
-
-            await FinalizeTerminalAsync().ConfigureAwait(false);
+            await ReadCancellationTerminalAsOwnerAsync().ConfigureAwait(false);
         }
         catch (Exception error) when (OpenVinoWorkerClient.IsControlled(error))
         {
-            throw await FailAndMapAsync(error, cancellationToken)
+            OpenVinoWorkerClientException mapped = error switch
+            {
+                OpenVinoWorkerClientException known => known,
+                TimeoutException => OpenVinoWorkerClient.TimeoutFailure(),
+                OpenVinoProtocolException or ProtocolStreamException =>
+                    OpenVinoWorkerClient.ProtocolFailure(),
+                _ => OpenVinoWorkerClient.TimeoutFailure()
+            };
+            SetCancellationOutcome(mapped);
+            await _terminalCleanup.CompleteAsync(
+                    deadlineUtc: null,
+                    force: true)
                 .ConfigureAwait(false);
+            throw mapped;
         }
         finally
         {
@@ -250,7 +269,9 @@ public sealed class OpenVinoConversation : IAsyncDisposable
 
         try
         {
-            if (!_sessionTerminal.Task.IsCompleted)
+            _watchdogCancellation.Cancel();
+            await _watchdogTask.ConfigureAwait(false);
+            if (!_terminalCleanup.Completion.IsCompleted)
             {
                 try
                 {
@@ -260,7 +281,9 @@ public sealed class OpenVinoConversation : IAsyncDisposable
                 catch (Exception error) when (
                     OpenVinoWorkerClient.IsControlled(error))
                 {
-                    _ = await _session.TerminateAndVerifyEmptyAsync()
+                    await _terminalCleanup.CompleteAsync(
+                            deadlineUtc: null,
+                            force: true)
                         .ConfigureAwait(false);
                 }
             }
@@ -268,7 +291,9 @@ public sealed class OpenVinoConversation : IAsyncDisposable
         finally
         {
             _disposed = true;
+            _watchdogCancellation.Dispose();
             _operationGate.Dispose();
+            _terminalCleanup.Dispose();
             await _session.DisposeAsync().ConfigureAwait(false);
         }
     }
@@ -278,11 +303,14 @@ public sealed class OpenVinoConversation : IAsyncDisposable
         CancelSessionCommand? command = null;
         lock (_stateLock)
         {
-            if (!_cancelSent && !_sessionTerminal.Task.IsCompleted)
+            if (!_cancelSent && !_terminalCleanup.Completion.IsCompleted)
             {
                 command = new CancelSessionCommand(_sessionId);
                 _validator.Accept(command);
                 _cancelSent = true;
+                _cancelDeadlineUtc =
+                    DateTimeOffset.UtcNow + _options.CancellationGrace;
+                _lastActivityUtc = DateTimeOffset.UtcNow;
             }
         }
 
@@ -290,20 +318,26 @@ public sealed class OpenVinoConversation : IAsyncDisposable
         {
             await _session.StandardInput.WriteLineAsync(
                     OpenVinoProtocolJson.Serialize(command),
-                    cancellationToken)
+                    CancellationToken.None)
                 .ConfigureAwait(false);
         }
     }
 
     private async Task AwaitCancellationTerminalAsync()
     {
-        while (!_sessionTerminal.Task.IsCompleted)
+        await ReadCancellationTerminalAsOwnerAsync().ConfigureAwait(false);
+    }
+
+    private async Task ReadCancellationTerminalAsOwnerAsync()
+    {
+        while (!_terminalCleanup.Completion.IsCompleted)
         {
+            TimeSpan remaining = RemainingCancellationGrace();
             IOpenVinoEvent @event = await OpenVinoWorkerClient
                 .ReadEventWithDeadlineAsync(
                     _session,
                     _processExit,
-                    _options.CancellationGrace,
+                    remaining,
                     CancellationToken.None)
                 .ConfigureAwait(false);
             if (IsStale(@event, _activeTurnId))
@@ -314,25 +348,16 @@ public sealed class OpenVinoConversation : IAsyncDisposable
             lock (_stateLock)
             {
                 _validator.Accept(@event);
+                _lastActivityUtc = DateTimeOffset.UtcNow;
             }
 
             if (@event is SessionCancelledEvent or SessionFailedEvent)
             {
-                _sessionTerminal.TrySetResult(true);
+                await _terminalCleanup.CompleteAsync(
+                        GetCancellationDeadline(),
+                        force: false)
+                    .ConfigureAwait(false);
             }
-        }
-
-        await FinalizeTerminalAsync().ConfigureAwait(false);
-    }
-
-    private async Task FinalizeTerminalAsync()
-    {
-        await _session.CompleteInputAsync().ConfigureAwait(false);
-        await _processExit.WaitAsync(_options.CleanupTimeout)
-            .ConfigureAwait(false);
-        if (!await _session.WaitForTreeEmptyAsync().ConfigureAwait(false))
-        {
-            throw OpenVinoWorkerClient.ProtocolFailure();
         }
     }
 
@@ -347,32 +372,206 @@ public sealed class OpenVinoConversation : IAsyncDisposable
                     _stderrTask,
                     callerToken)
                 .ConfigureAwait(false);
-        _sessionTerminal.TrySetResult(true);
+        _terminalCleanup.MarkCompleted();
         return mapped;
+    }
+
+    private async Task WriteCommandWithDeadlineAsync(
+        IOpenVinoCommand command,
+        DateTimeOffset turnDeadline,
+        CancellationToken cancellationToken)
+    {
+        TimeSpan remaining = MinimumRemaining(turnDeadline);
+        using CancellationTokenSource deadlineCancellation = new(remaining);
+        using CancellationTokenSource linked =
+            CancellationTokenSource.CreateLinkedTokenSource(
+                cancellationToken,
+                deadlineCancellation.Token);
+        try
+        {
+            await _session.StandardInput.WriteLineAsync(
+                    OpenVinoProtocolJson.Serialize(command),
+                    linked.Token)
+                .ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+            when (!cancellationToken.IsCancellationRequested &&
+                deadlineCancellation.IsCancellationRequested)
+        {
+            throw OpenVinoWorkerClient.TimeoutFailure();
+        }
+    }
+
+    private async Task RunWatchdogAsync()
+    {
+        CancellationToken cancellationToken = _watchdogCancellation.Token;
+        try
+        {
+            while (!_terminalCleanup.Completion.IsCompleted)
+            {
+                TimeSpan remaining = RemainingIdleOrSessionLifetime();
+                await Task.Delay(remaining, cancellationToken)
+                    .ConfigureAwait(false);
+                if (_terminalCleanup.Completion.IsCompleted)
+                {
+                    return;
+                }
+
+                lock (_stateLock)
+                {
+                    DateTimeOffset now = DateTimeOffset.UtcNow;
+                    bool expired =
+                        now - _lastActivityUtc >= _options.IdleTimeout ||
+                        now - _sessionStartedUtc >= _options.SessionTimeout;
+                    if (!expired)
+                    {
+                        continue;
+                    }
+
+                    _cancellationOutcome ??=
+                        OpenVinoWorkerClient.TimeoutFailure();
+                }
+
+                try
+                {
+                    await CancelAsync(CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
+                catch (Exception error) when (
+                    OpenVinoWorkerClient.IsControlled(error))
+                {
+                    if (!_terminalCleanup.Completion.IsCompleted)
+                    {
+                        await _terminalCleanup.CompleteAsync(
+                                deadlineUtc: null,
+                                force: true)
+                            .ConfigureAwait(false);
+                    }
+                }
+
+                return;
+            }
+        }
+        catch (OperationCanceledException)
+            when (cancellationToken.IsCancellationRequested)
+        {
+        }
+    }
+
+    private TimeSpan RemainingIdleOrSessionLifetime()
+    {
+        lock (_stateLock)
+        {
+            DateTimeOffset now = DateTimeOffset.UtcNow;
+            TimeSpan idle = _lastActivityUtc + _options.IdleTimeout - now;
+            TimeSpan session =
+                _sessionStartedUtc + _options.SessionTimeout - now;
+            TimeSpan remaining = idle < session ? idle : session;
+            return remaining > TimeSpan.Zero
+                ? remaining
+                : TimeSpan.FromTicks(1);
+        }
+    }
+
+    private async Task AwaitTerminalCleanupOrForceAsync()
+    {
+        try
+        {
+            await _terminalCleanup.Completion
+                .WaitAsync(RemainingCancellationGrace(), CancellationToken.None)
+                .ConfigureAwait(false);
+        }
+        catch (TimeoutException)
+        {
+            OpenVinoWorkerClientException timeout =
+                OpenVinoWorkerClient.TimeoutFailure();
+            SetCancellationOutcome(timeout);
+            await _terminalCleanup.CompleteAsync(
+                    deadlineUtc: null,
+                    force: true)
+                .ConfigureAwait(false);
+            throw timeout;
+        }
+    }
+
+    private bool HasActiveTurn()
+    {
+        lock (_stateLock)
+        {
+            return _activeTurnId is not null;
+        }
+    }
+
+    private bool IsCancellationInProgress()
+    {
+        lock (_stateLock)
+        {
+            return _cancelSent;
+        }
+    }
+
+    private DateTimeOffset? GetCancellationDeadline()
+    {
+        lock (_stateLock)
+        {
+            return _cancelDeadlineUtc;
+        }
+    }
+
+    private TimeSpan RemainingCancellationGrace()
+    {
+        DateTimeOffset deadline = GetCancellationDeadline()
+            ?? DateTimeOffset.UtcNow;
+        TimeSpan remaining = deadline - DateTimeOffset.UtcNow;
+        return remaining > TimeSpan.Zero ? remaining : TimeSpan.FromTicks(1);
+    }
+
+    private void SetCancellationOutcome(OpenVinoWorkerClientException outcome)
+    {
+        lock (_stateLock)
+        {
+            _cancellationOutcome ??= outcome;
+        }
+    }
+
+    private OpenVinoWorkerClientException GetCancellationOutcome()
+    {
+        lock (_stateLock)
+        {
+            return _cancellationOutcome ??
+                OpenVinoWorkerClient.CancellationFailure();
+        }
     }
 
     private TimeSpan MinimumRemaining(DateTimeOffset turnDeadline)
     {
-        DateTimeOffset now = DateTimeOffset.UtcNow;
-        TimeSpan turn = turnDeadline - now;
-        TimeSpan idle = _lastActivityUtc + _options.IdleTimeout - now;
-        TimeSpan session = _sessionStartedUtc + _options.SessionTimeout - now;
-        TimeSpan minimum = new[] { turn, idle, session }.Min();
-        if (minimum <= TimeSpan.Zero)
+        lock (_stateLock)
         {
-            throw OpenVinoWorkerClient.TimeoutFailure();
-        }
+            DateTimeOffset now = DateTimeOffset.UtcNow;
+            TimeSpan turn = turnDeadline - now;
+            TimeSpan idle = _lastActivityUtc + _options.IdleTimeout - now;
+            TimeSpan session =
+                _sessionStartedUtc + _options.SessionTimeout - now;
+            TimeSpan minimum = new[] { turn, idle, session }.Min();
+            if (minimum <= TimeSpan.Zero)
+            {
+                throw OpenVinoWorkerClient.TimeoutFailure();
+            }
 
-        return minimum;
+            return minimum;
+        }
     }
 
     private void RequireSessionWithinBounds()
     {
-        DateTimeOffset now = DateTimeOffset.UtcNow;
-        if (now - _lastActivityUtc >= _options.IdleTimeout ||
-            now - _sessionStartedUtc >= _options.SessionTimeout)
+        lock (_stateLock)
         {
-            throw OpenVinoWorkerClient.TimeoutFailure();
+            DateTimeOffset now = DateTimeOffset.UtcNow;
+            if (now - _lastActivityUtc >= _options.IdleTimeout ||
+                now - _sessionStartedUtc >= _options.SessionTimeout)
+            {
+                throw OpenVinoWorkerClient.TimeoutFailure();
+            }
         }
     }
 

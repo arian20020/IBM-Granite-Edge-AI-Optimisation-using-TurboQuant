@@ -61,6 +61,8 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
         Task<StandardErrorSnapshot>? stderrTask = null;
         try
         {
+            DateTimeOffset startupDeadline =
+                DateTimeOffset.UtcNow + _options.StartupTimeout;
             (session, stderrTask) = await StartProtectedAsync(cancellationToken)
                 .ConfigureAwait(false);
             Task processExit = session.WaitForExitAsync(CancellationToken.None);
@@ -68,12 +70,17 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
             HelloEvent hello = await ReadHelloAsync(
                     session,
                     processExit,
+                    startupDeadline,
                     cancellationToken)
                 .ConfigureAwait(false);
             validator.Accept(hello);
             validator.Accept(command);
-            await session.StandardInput.WriteLineAsync(
+            DateTimeOffset operationDeadline =
+                DateTimeOffset.UtcNow + _options.TurnTimeout;
+            await WriteWithDeadlineAsync(
+                    session,
                     OpenVinoProtocolJson.Serialize(command),
+                    operationDeadline,
                     cancellationToken)
                 .ConfigureAwait(false);
 
@@ -82,6 +89,7 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
                     processExit,
                     validator,
                     command.InspectionRunId,
+                    operationDeadline,
                     cancellationToken)
                 .ConfigureAwait(false);
             await session.CompleteInputAsync().ConfigureAwait(false);
@@ -117,6 +125,8 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
         Task<StandardErrorSnapshot>? stderrTask = null;
         try
         {
+            DateTimeOffset startupDeadline =
+                DateTimeOffset.UtcNow + _options.StartupTimeout;
             (session, stderrTask) = await StartProtectedAsync(cancellationToken)
                 .ConfigureAwait(false);
             Task processExit = session.WaitForExitAsync(CancellationToken.None);
@@ -124,19 +134,22 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
             HelloEvent hello = await ReadHelloAsync(
                     session,
                     processExit,
+                    startupDeadline,
                     cancellationToken)
                 .ConfigureAwait(false);
             validator.Accept(hello);
             validator.Accept(command);
-            await session.StandardInput.WriteLineAsync(
+            await WriteWithDeadlineAsync(
+                    session,
                     OpenVinoProtocolJson.Serialize(command),
+                    startupDeadline,
                     cancellationToken)
                 .ConfigureAwait(false);
 
             IOpenVinoEvent started = await ReadEventWithDeadlineAsync(
                     session,
                     processExit,
-                    _options.StartupTimeout,
+                    RemainingUntil(startupDeadline),
                     cancellationToken)
                 .ConfigureAwait(false);
             validator.Accept(started);
@@ -202,12 +215,13 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
     private async Task<HelloEvent> ReadHelloAsync(
         ProtectedWorkerSession session,
         Task processExit,
+        DateTimeOffset startupDeadline,
         CancellationToken cancellationToken)
     {
         IOpenVinoEvent first = await ReadEventWithDeadlineAsync(
                 session,
                 processExit,
-                _options.StartupTimeout,
+                RemainingUntil(startupDeadline),
                 cancellationToken)
             .ConfigureAwait(false);
         if (first is not HelloEvent hello ||
@@ -222,14 +236,14 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
         return hello;
     }
 
-    private async Task<IOpenVinoEvent> ReadInspectionTerminalAsync(
+    private static async Task<IOpenVinoEvent> ReadInspectionTerminalAsync(
         ProtectedWorkerSession session,
         Task processExit,
         OpenVinoConversationValidator validator,
         Guid inspectionRunId,
+        DateTimeOffset deadline,
         CancellationToken cancellationToken)
     {
-        DateTimeOffset deadline = DateTimeOffset.UtcNow + _options.TurnTimeout;
         while (true)
         {
             TimeSpan remaining = deadline - DateTimeOffset.UtcNow;
@@ -258,6 +272,42 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
                 return @event;
             }
         }
+    }
+
+    private static async Task WriteWithDeadlineAsync(
+        ProtectedWorkerSession session,
+        ReadOnlyMemory<byte> payload,
+        DateTimeOffset deadline,
+        CancellationToken cancellationToken)
+    {
+        using CancellationTokenSource deadlineCancellation = new(
+            RemainingUntil(deadline));
+        using CancellationTokenSource linked =
+            CancellationTokenSource.CreateLinkedTokenSource(
+                cancellationToken,
+                deadlineCancellation.Token);
+        try
+        {
+            await session.StandardInput.WriteLineAsync(payload, linked.Token)
+                .ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+            when (!cancellationToken.IsCancellationRequested &&
+                deadlineCancellation.IsCancellationRequested)
+        {
+            throw TimeoutFailure();
+        }
+    }
+
+    private static TimeSpan RemainingUntil(DateTimeOffset deadline)
+    {
+        TimeSpan remaining = deadline - DateTimeOffset.UtcNow;
+        if (remaining <= TimeSpan.Zero)
+        {
+            throw TimeoutFailure();
+        }
+
+        return remaining;
     }
 
     internal static async Task<IOpenVinoEvent> ReadEventWithDeadlineAsync(

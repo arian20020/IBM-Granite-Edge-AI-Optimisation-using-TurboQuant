@@ -12,6 +12,7 @@ public sealed class ProtocolContainmentTests
     private const string Digest =
         "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
     private static readonly string[] ExpectedText = ["one", "two"];
+    private static readonly string[] ExpectedInventoryRoles = ["root", "child"];
     private static string? s_publishedFixture;
 
     [ClassInitialize]
@@ -158,6 +159,103 @@ public sealed class ProtocolContainmentTests
     }
 
     [TestMethod]
+    public async Task CancelWaitsForTerminalExitAndVerifiedTreeCleanup()
+    {
+        await using FixtureRun fixture = CreateFixture("cancel-delayed-exit");
+        OpenVinoWorkerClient client = CreateClient(fixture.Root);
+        await using OpenVinoConversation conversation = await client.StartSessionAsync(
+            StartSession(), CancellationToken.None);
+
+        await conversation.CancelAsync(CancellationToken.None);
+
+        Assert.IsTrue(File.Exists(fixture.MarkerPath("cancel-exited")));
+        await AssertNoFixtureProcessAsync();
+    }
+
+    [TestMethod]
+    public async Task IgnoredCancelForcesCleanupAndMapsBoundedTimeout()
+    {
+        await using FixtureRun fixture = CreateFixture("active-ignore-cancel");
+        OpenVinoWorkerClient client = CreateClient(
+            fixture.Root,
+            cancellationGraceMs: 150);
+        await using OpenVinoConversation conversation = await client.StartSessionAsync(
+            StartSession(), CancellationToken.None);
+        Task<IOpenVinoEvent> prompt = conversation.PromptAsync(
+            Prompt(conversation.SessionId, "ignored-cancel"),
+            null,
+            CancellationToken.None);
+        await WaitForFileAsync(fixture.MarkerPath("generation-started"));
+
+        OpenVinoWorkerClientException error =
+            await Assert.ThrowsExactlyAsync<OpenVinoWorkerClientException>(() =>
+                conversation.CancelAsync(CancellationToken.None));
+
+        Assert.AreEqual(OpenVinoSupportCode.RuntimeTimedOut, error.SupportCode);
+        _ = await Assert.ThrowsExactlyAsync<OpenVinoWorkerClientException>(
+            () => prompt);
+        await AssertNoFixtureProcessAsync();
+    }
+
+    [TestMethod]
+    public async Task ActivePromptCancellationReturnsNoActionableOutputOrTokenText()
+    {
+        await using FixtureRun fixture = CreateFixture("active-external-cancel");
+        OpenVinoWorkerClient client = CreateClient(fixture.Root);
+        await using OpenVinoConversation conversation = await client.StartSessionAsync(
+            StartSession(), CancellationToken.None);
+        List<string> text = [];
+        Task<IOpenVinoEvent> prompt = conversation.PromptAsync(
+            Prompt(conversation.SessionId, "cancel-owned"),
+            new ImmediateProgress<TokenEvent>(token => text.Add(token.Text)),
+            CancellationToken.None);
+        await WaitForFileAsync(fixture.MarkerPath("generation-started"));
+
+        await conversation.CancelAsync(CancellationToken.None);
+        Assert.IsTrue(File.Exists(fixture.MarkerPath("cancel-exited")));
+        OpenVinoWorkerClientException promptError =
+            await Assert.ThrowsExactlyAsync<OpenVinoWorkerClientException>(
+                () => prompt);
+
+        Assert.AreEqual(
+            OpenVinoSupportCode.OperationCancelled,
+            promptError.SupportCode);
+        Assert.IsEmpty(text);
+        await AssertNoFixtureProcessAsync();
+    }
+
+    [TestMethod]
+    public async Task CancellationTerminalWithSlowExitMapsTimeoutBeforeWakingCaller()
+    {
+        await using FixtureRun fixture = CreateFixture("active-slow-cancel-exit");
+        OpenVinoWorkerClient client = CreateClient(
+            fixture.Root,
+            cancellationGraceMs: 150);
+        await using OpenVinoConversation conversation = await client.StartSessionAsync(
+            StartSession(), CancellationToken.None);
+        Task<IOpenVinoEvent> prompt = conversation.PromptAsync(
+            Prompt(conversation.SessionId, "slow-exit"),
+            null,
+            CancellationToken.None);
+        await WaitForFileAsync(fixture.MarkerPath("generation-started"));
+
+        OpenVinoWorkerClientException cancelError =
+            await Assert.ThrowsExactlyAsync<OpenVinoWorkerClientException>(() =>
+                conversation.CancelAsync(CancellationToken.None));
+        OpenVinoWorkerClientException promptError =
+            await Assert.ThrowsExactlyAsync<OpenVinoWorkerClientException>(
+                () => prompt);
+
+        Assert.AreEqual(
+            OpenVinoSupportCode.RuntimeTimedOut,
+            cancelError.SupportCode);
+        Assert.AreEqual(
+            OpenVinoSupportCode.RuntimeTimedOut,
+            promptError.SupportCode);
+        await AssertNoFixtureProcessAsync();
+    }
+
+    [TestMethod]
     public async Task CallerCancellationOfActiveTurnCancelsOwningSession()
     {
         await using FixtureRun fixture = CreateFixture("active-cancel");
@@ -191,6 +289,26 @@ public sealed class ProtocolContainmentTests
             CancellationToken.None);
 
         Assert.IsInstanceOfType<InspectionCompletedEvent>(result);
+        fixture.AssertInventoryProcessesExited();
+        await AssertNoFixtureProcessAsync();
+    }
+
+    [TestMethod]
+    public async Task SessionTerminalRejectsAnyFollowingStdoutLine()
+    {
+        await using FixtureRun fixture =
+            CreateFixture("session-stdout-after-terminal");
+        OpenVinoWorkerClient client = CreateClient(fixture.Root);
+        await using OpenVinoConversation conversation = await client.StartSessionAsync(
+            StartSession(), CancellationToken.None);
+
+        OpenVinoWorkerClientException error =
+            await Assert.ThrowsExactlyAsync<OpenVinoWorkerClientException>(() =>
+                conversation.CancelAsync(CancellationToken.None));
+
+        Assert.AreEqual(
+            OpenVinoSupportCode.RuntimeProtocolFailed,
+            error.SupportCode);
         await AssertNoFixtureProcessAsync();
     }
 
@@ -214,10 +332,15 @@ public sealed class ProtocolContainmentTests
                     new StartInspectionCommand(Guid.NewGuid()),
                     CancellationToken.None));
 
-        Assert.IsTrue(error.SupportCode is
-            OpenVinoSupportCode.RuntimeProtocolFailed or
-            OpenVinoSupportCode.RuntimeIntegrityFailed);
+        Assert.AreEqual(
+            OpenVinoSupportCode.RuntimeProtocolFailed,
+            error.SupportCode);
         Assert.IsFalse(error.Message.Contains(secret, StringComparison.Ordinal));
+        if (scenario == "child-escape-attempt")
+        {
+            fixture.AssertInventoryProcessesExited();
+        }
+
         await AssertNoFixtureProcessAsync();
     }
 
@@ -286,13 +409,100 @@ public sealed class ProtocolContainmentTests
         await AssertNoFixtureProcessAsync();
     }
 
+    [TestMethod]
+    [DataRow(150, 2000)]
+    [DataRow(2000, 150)]
+    public async Task IdleAndSessionWatchdogsExpireWithoutCallerActivity(
+        int idleMs,
+        int sessionMs)
+    {
+        await using FixtureRun fixture = CreateFixture("watchdog-timeout");
+        OpenVinoWorkerClient client = CreateClient(
+            fixture.Root,
+            idleMs: idleMs,
+            sessionMs: sessionMs);
+        await using OpenVinoConversation conversation = await client.StartSessionAsync(
+            StartSession(), CancellationToken.None);
+
+        await AssertNoFixtureProcessAsync();
+        OpenVinoWorkerClientException error =
+            await Assert.ThrowsExactlyAsync<OpenVinoWorkerClientException>(() =>
+                conversation.PromptAsync(
+                    Prompt(conversation.SessionId, "expired"),
+                    null,
+                    CancellationToken.None));
+
+        Assert.AreEqual(OpenVinoSupportCode.RuntimeTimedOut, error.SupportCode);
+    }
+
+    [TestMethod]
+    public async Task StaleEventsNeverRefreshIdleActivity()
+    {
+        await using FixtureRun fixture = CreateFixture("stale-idle-timeout");
+        OpenVinoWorkerClient client = CreateClient(
+            fixture.Root,
+            idleMs: 150,
+            turnMs: 2000);
+        await using OpenVinoConversation conversation = await client.StartSessionAsync(
+            StartSession(), CancellationToken.None);
+
+        OpenVinoWorkerClientException error =
+            await Assert.ThrowsExactlyAsync<OpenVinoWorkerClientException>(() =>
+                conversation.PromptAsync(
+                    Prompt(conversation.SessionId, "stale"),
+                    null,
+                    CancellationToken.None));
+
+        Assert.AreEqual(OpenVinoSupportCode.RuntimeTimedOut, error.SupportCode);
+        Assert.IsFalse(File.Exists(fixture.MarkerPath("stale-kept-alive")));
+        await AssertNoFixtureProcessAsync();
+    }
+
+    [TestMethod]
+    public async Task HelloAndSessionStartedShareOneAbsoluteStartupDeadline()
+    {
+        await using FixtureRun fixture = CreateFixture("split-startup-timeout");
+        OpenVinoWorkerClient client = CreateClient(fixture.Root, startupMs: 3000);
+
+        OpenVinoWorkerClientException error =
+            await Assert.ThrowsExactlyAsync<OpenVinoWorkerClientException>(() =>
+                client.StartSessionAsync(StartSession(), CancellationToken.None));
+
+        Assert.AreEqual(OpenVinoSupportCode.RuntimeTimedOut, error.SupportCode);
+        await AssertNoFixtureProcessAsync();
+    }
+
+    [TestMethod]
+    public async Task TurnDeadlineStartsBeforeBlockedPromptWrite()
+    {
+        await using FixtureRun fixture = CreateFixture("blocked-prompt-write");
+        OpenVinoWorkerClient client = CreateClient(
+            fixture.Root,
+            turnMs: 150,
+            idleMs: 2000);
+        await using OpenVinoConversation conversation = await client.StartSessionAsync(
+            StartSession(), CancellationToken.None);
+        PromptCommand prompt = Prompt(
+            conversation.SessionId,
+            new string('p', OpenVinoProtocol.MaximumPromptUtf8Bytes));
+
+        OpenVinoWorkerClientException error =
+            await Assert.ThrowsExactlyAsync<OpenVinoWorkerClientException>(() =>
+                conversation.PromptAsync(prompt, null, CancellationToken.None)
+                    .WaitAsync(TimeSpan.FromSeconds(3)));
+
+        Assert.AreEqual(OpenVinoSupportCode.RuntimeTimedOut, error.SupportCode);
+        await AssertNoFixtureProcessAsync();
+    }
+
     private static OpenVinoWorkerClient CreateClient(
         string root,
         int startupMs = 2000,
         int turnMs = 2000,
         int idleMs = 2000,
         int sessionMs = 5000,
-        int stderrBytes = 4096)
+        int stderrBytes = 4096,
+        int cancellationGraceMs = 1000)
     {
         OpenVinoWorkerInstallation installation = new(
             root,
@@ -304,7 +514,7 @@ public sealed class ProtocolContainmentTests
             TimeSpan.FromMilliseconds(turnMs),
             TimeSpan.FromMilliseconds(idleMs),
             TimeSpan.FromMilliseconds(sessionMs),
-            TimeSpan.FromSeconds(1),
+            TimeSpan.FromMilliseconds(cancellationGraceMs),
             TimeSpan.FromSeconds(2),
             stderrBytes,
             OpenVinoProtocol.MaximumLineBytes);
@@ -338,6 +548,22 @@ public sealed class ProtocolContainmentTests
         }
 
         Assert.Fail("The expected process condition was not reached.");
+    }
+
+    private static async Task WaitForFileAsync(string path)
+    {
+        DateTimeOffset deadline = DateTimeOffset.UtcNow.AddSeconds(3);
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            if (File.Exists(path))
+            {
+                return;
+            }
+
+            await Task.Delay(25);
+        }
+
+        Assert.Fail("The expected fixture milestone was not reached.");
     }
 
     private static async Task AssertNoFixtureProcessAsync()
@@ -396,11 +622,51 @@ public sealed class ProtocolContainmentTests
 
         internal string Root { get; }
 
+        internal string MarkerPath(string name) =>
+            Path.Combine(Root, name + ".marker");
+
+        internal void AssertInventoryProcessesExited()
+        {
+            string inventoryPath = Path.Combine(Root, "process-inventory.txt");
+            Assert.IsTrue(File.Exists(inventoryPath));
+            string[] inventory = File.ReadAllLines(inventoryPath);
+            Assert.HasCount(2, inventory);
+            CollectionAssert.AreEquivalent(
+                ExpectedInventoryRoles,
+                inventory
+                    .Select(static line => line.Split('=')[0])
+                    .ToArray());
+            foreach (string entry in inventory)
+            {
+                string[] fields = entry.Split('=');
+                Assert.HasCount(2, fields);
+                Assert.IsTrue(int.TryParse(fields[1], out int processId));
+                try
+                {
+                    using Process process = Process.GetProcessById(processId);
+                    Assert.Fail(
+                        $"Operation-owned process {processId} remained alive.");
+                }
+                catch (ArgumentException)
+                {
+                }
+            }
+        }
+
         public ValueTask DisposeAsync()
         {
-            if (Directory.Exists(Root))
+            try
             {
-                Directory.Delete(Root, recursive: true);
+                if (Directory.Exists(Root))
+                {
+                    Directory.Delete(Root, recursive: true);
+                }
+            }
+            catch (IOException)
+            {
+            }
+            catch (UnauthorizedAccessException)
+            {
             }
 
             return ValueTask.CompletedTask;

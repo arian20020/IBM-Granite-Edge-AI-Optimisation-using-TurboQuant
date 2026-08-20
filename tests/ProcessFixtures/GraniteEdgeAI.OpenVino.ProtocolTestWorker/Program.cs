@@ -16,10 +16,25 @@ internal static class FixtureProgram
             return 64;
         }
 
+        if (Environment.GetEnvironmentVariable("GRANITE_OPENVINO_FIXTURE_CHILD") ==
+            "1")
+        {
+            await Task.Delay(TimeSpan.FromMinutes(5)).ConfigureAwait(false);
+            return 0;
+        }
+
         string scenario = ReadScenario();
+        Process? cleanupInventoryChild = scenario == "cleanup-inventory"
+            ? StartContainedChildAndWriteInventory()
+            : null;
         if (scenario == "startup-timeout")
         {
             await Task.Delay(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+        }
+
+        if (scenario == "split-startup-timeout")
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(1800)).ConfigureAwait(false);
         }
 
         await using Stream input = Console.OpenStandardInput();
@@ -64,12 +79,7 @@ internal static class FixtureProgram
 
         if (scenario == "child-escape-attempt")
         {
-            _ = Process.Start(new ProcessStartInfo("cmd.exe")
-            {
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                Arguments = "/d /c ping.exe -t 127.0.0.1 >nul"
-            });
+            using Process child = StartContainedChildAndWriteInventory();
             await WriteRawAsync(output, Encoding.UTF8.GetBytes("{\n"))
                 .ConfigureAwait(false);
             return 0;
@@ -85,6 +95,14 @@ internal static class FixtureProgram
         IOpenVinoCommand first = OpenVinoProtocolJson.DeserializeCommand(firstLine);
         if (first is StartInspectionCommand inspection)
         {
+            if (cleanupInventoryChild is not null)
+            {
+                cleanupInventoryChild.Kill();
+                await cleanupInventoryChild.WaitForExitAsync()
+                    .ConfigureAwait(false);
+                cleanupInventoryChild.Dispose();
+            }
+
             await WriteAsync(
                     writer,
                     new InspectionCompletedEvent(inspection.InspectionRunId))
@@ -105,8 +123,18 @@ internal static class FixtureProgram
             return 66;
         }
 
+        if (scenario == "split-startup-timeout")
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(1800)).ConfigureAwait(false);
+        }
+
         await WriteAsync(writer, new SessionStartedEvent(start.SessionId))
             .ConfigureAwait(false);
+        if (scenario == "blocked-prompt-write")
+        {
+            await Task.Delay(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            return 0;
+        }
         if (scenario == "session-timeout")
         {
             await Task.Delay(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
@@ -126,8 +154,29 @@ internal static class FixtureProgram
             IOpenVinoCommand command = OpenVinoProtocolJson.DeserializeCommand(line);
             if (command is CancelSessionCommand cancel)
             {
+                if (scenario == "ignore-cancel")
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    return 0;
+                }
+
                 await WriteAsync(writer, new SessionCancelledEvent(cancel.SessionId))
                     .ConfigureAwait(false);
+                if (scenario == "session-stdout-after-terminal")
+                {
+                    await WriteAsync(
+                            writer,
+                            new SessionCancelledEvent(cancel.SessionId))
+                        .ConfigureAwait(false);
+                }
+
+                if (scenario == "cancel-delayed-exit")
+                {
+                    await Task.Delay(TimeSpan.FromMilliseconds(400))
+                        .ConfigureAwait(false);
+                    WriteMarker("cancel-exited");
+                }
+
                 return 0;
             }
 
@@ -140,8 +189,88 @@ internal static class FixtureProgram
                     writer,
                     new GenerationStartedEvent(prompt.SessionId, prompt.TurnId))
                 .ConfigureAwait(false);
+            if (scenario is "active-external-cancel" or
+                "active-slow-cancel-exit")
+            {
+                WriteMarker("generation-started");
+                byte[]? cancelLine = await reader
+                    .ReadLineAsync(CancellationToken.None)
+                    .ConfigureAwait(false);
+                if (cancelLine is null ||
+                    OpenVinoProtocolJson.DeserializeCommand(cancelLine) is not
+                        CancelSessionCommand externalCancel)
+                {
+                    return 68;
+                }
+
+                await WriteAsync(
+                        writer,
+                        new SessionCancelledEvent(externalCancel.SessionId))
+                    .ConfigureAwait(false);
+                TimeSpan exitDelay = scenario == "active-slow-cancel-exit"
+                    ? TimeSpan.FromSeconds(5)
+                    : TimeSpan.FromMilliseconds(400);
+                await Task.Delay(exitDelay)
+                    .ConfigureAwait(false);
+                WriteMarker("cancel-exited");
+                return 0;
+            }
+
+            if (scenario == "active-ignore-cancel")
+            {
+                WriteMarker("generation-started");
+                _ = await reader.ReadLineAsync(CancellationToken.None)
+                    .ConfigureAwait(false);
+                await Task.Delay(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                return 0;
+            }
+
             if (scenario is "turn-timeout" or "idle-timeout")
             {
+                await Task.Delay(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                return 0;
+            }
+
+            if (scenario == "stale-idle-timeout")
+            {
+                Task<byte[]?> cancelRead = reader
+                    .ReadLineAsync(CancellationToken.None)
+                    .AsTask();
+                for (int stale = 0; stale < 8; stale++)
+                {
+                    Task tick = Task.Delay(TimeSpan.FromMilliseconds(75));
+                    Task winner = await Task.WhenAny(cancelRead, tick)
+                        .ConfigureAwait(false);
+                    if (winner == cancelRead)
+                    {
+                        byte[]? cancelPayload = await cancelRead.ConfigureAwait(false);
+                        if (cancelPayload is not null &&
+                            OpenVinoProtocolJson.DeserializeCommand(cancelPayload) is
+                                CancelSessionCommand staleCancel)
+                        {
+                            await WriteAsync(
+                                    writer,
+                                    new SessionCancelledEvent(staleCancel.SessionId))
+                                .ConfigureAwait(false);
+                        }
+
+                        return 0;
+                    }
+
+                    await WriteAsync(
+                            writer,
+                            new TokenEvent(
+                                Guid.NewGuid(),
+                                Guid.NewGuid(),
+                                0,
+                                "stale"))
+                        .ConfigureAwait(false);
+                    if (stale == 4)
+                    {
+                        WriteMarker("stale-kept-alive");
+                    }
+                }
+
                 await Task.Delay(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
                 return 0;
             }
@@ -218,6 +347,35 @@ internal static class FixtureProgram
     {
         string path = Path.Combine(AppContext.BaseDirectory, "scenario.txt");
         return File.Exists(path) ? File.ReadAllText(path).Trim() : "valid-two-turn-stale";
+    }
+
+    private static void WriteMarker(string name) => File.WriteAllText(
+        Path.Combine(AppContext.BaseDirectory, name + ".marker"),
+        "complete");
+
+    private static Process StartContainedChildAndWriteInventory()
+    {
+        string executable = Environment.ProcessPath
+            ?? throw new InvalidOperationException(
+                "The fixture process path is unavailable.");
+        ProcessStartInfo childStart = new(executable)
+        {
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        childStart.ArgumentList.Add("--protocol");
+        childStart.ArgumentList.Add(OpenVinoProtocol.OfficialProtocolId);
+        childStart.Environment["GRANITE_OPENVINO_FIXTURE_CHILD"] = "1";
+        Process child = Process.Start(childStart)
+            ?? throw new InvalidOperationException(
+                "The contained fixture child did not start.");
+        File.WriteAllLines(
+            Path.Combine(AppContext.BaseDirectory, "process-inventory.txt"),
+            [
+                "root=" + Environment.ProcessId,
+                "child=" + child.Id
+            ]);
+        return child;
     }
 
     private static ValueTask WriteAsync(
