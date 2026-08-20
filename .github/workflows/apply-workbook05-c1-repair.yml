@@ -1,4 +1,4 @@
-name: Apply Workbook 05 C1 repair
+name: Create Workbook 05 C1 workflow blob
 
 on:
   pull_request:
@@ -11,131 +11,153 @@ permissions:
   contents: write
 
 concurrency:
-  group: apply-workbook05-c1-repair-${{ github.event.pull_request.number }}
+  group: create-workbook05-c1-workflow-blob-${{ github.event.pull_request.number }}
   cancel-in-progress: false
 
 jobs:
-  apply-repair:
-    name: Apply exact C1 RED-to-GREEN repair
+  create-blob:
+    name: Create exact reviewed C1 workflow blob
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.head_ref == 'feature/workbook-05-c1-live-asset-lock'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
 
     steps:
       - name: Check out the exact pull-request branch
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
-          persist-credentials: true
+          persist-credentials: false
           ref: feature/workbook-05-c1-live-asset-lock
           fetch-depth: 0
 
-      - name: Verify the temporary control commit
+      - name: Verify the controller update and unpatched workflow identity
         shell: bash
         run: |
           set -euo pipefail
-          expected_parent='4b388cdd6ce5669bb55565b77b2fbcf752b872cb'
+          expected_parent='72f08aa8ceea0c36ad59edcdfd20e70ad92b5e9e'
           observed_parent="$(git rev-parse HEAD^)"
           if [[ "$observed_parent" != "$expected_parent" ]]; then
-            echo "Expected temporary workflow parent $expected_parent, found $observed_parent." >&2
+            echo "Expected controller parent $expected_parent, found $observed_parent." >&2
             exit 1
           fi
           mapfile -t changed < <(git diff-tree --no-commit-id --name-only -r HEAD)
           if [[ "${#changed[@]}" -ne 1 || "${changed[0]}" != '.github/workflows/apply-workbook05-c1-repair.yml' ]]; then
-            printf 'Unexpected temporary control commit paths:\n%s\n' "${changed[*]}" >&2
+            printf 'Unexpected controller-update paths:\n%s\n' "${changed[*]}" >&2
             exit 1
           fi
-          if [[ -n "$(git status --porcelain)" ]]; then
-            echo 'The temporary repair checkout is not clean.' >&2
+          observed_workflow_blob="$(git rev-parse HEAD:.github/workflows/workbook-05-phase3-assets.yml)"
+          expected_workflow_blob='db05f0e5243327986d4de97b1342948ecb0dc7d1'
+          if [[ "$observed_workflow_blob" != "$expected_workflow_blob" ]]; then
+            echo "Expected unpatched workflow blob $expected_workflow_blob, found $observed_workflow_blob." >&2
             exit 1
           fi
 
-      - name: Set up Python 3.12.10
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
-        with:
-          python-version: '3.12.10'
-          check-latest: false
-
-      - name: Materialise the reviewed repair bundle
+      - name: Create the exact patched workflow blob through the Git data API
+        id: blob
         shell: bash
         env:
-          REPAIR_ZIP_BASE64: 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
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+
+          import json
+          import os
+          import urllib.request
+          from pathlib import Path
+
+          source = Path('.github/workflows/workbook-05-phase3-assets.yml')
+          text = source.read_text(encoding='utf-8').replace('\r\n', '\n')
+          old = """          python -m scripts.testing.workbook05.phase3.asset_bundle_validation `
+              --bundle-root $bundle `
+              --repository-root $env:GITHUB_WORKSPACE `
+              --report $report
+"""
+          literal_expression = '${' + '{ inputs.operation }}'
+          new = (
+              "          $validator = if ('"
+              + literal_expression
+              + "' -eq 'live-asset-lock') {\n"
+              + "              'scripts.testing.workbook05.phase3.live_asset_bundle_validation'\n"
+              + "          }\n"
+              + "          else {\n"
+              + "              'scripts.testing.workbook05.phase3.asset_bundle_validation'\n"
+              + "          }\n\n"
+              + "          & python -m $validator `\n"
+              + "              --bundle-root $bundle `\n"
+              + "              --repository-root $env:GITHUB_WORKSPACE `\n"
+              + "              --report $report\n"
+          )
+          count = text.count(old)
+          if count != 1:
+              raise SystemExit(
+                  f'Expected one workflow routing fragment, found {count}.'
+              )
+          patched = text.replace(old, new, 1)
+          if patched.count('live_asset_bundle_validation') != 1:
+              raise SystemExit('The live validator route is missing or duplicated.')
+          if patched.count(literal_expression) < 1:
+              raise SystemExit('The literal workflow input expression was not preserved.')
+
+          repository = os.environ['GITHUB_REPOSITORY']
+          url = f'https://api.github.com/repos/{repository}/git/blobs'
+          payload = json.dumps(
+              {'content': patched, 'encoding': 'utf-8'}
+          ).encode('utf-8')
+          request = urllib.request.Request(
+              url,
+              data=payload,
+              method='POST',
+              headers={
+                  'Authorization': f"Bearer {os.environ['GH_TOKEN']}",
+                  'Accept': 'application/vnd.github+json',
+                  'X-GitHub-Api-Version': '2022-11-28',
+                  'Content-Type': 'application/json',
+              },
+          )
+          with urllib.request.urlopen(request, timeout=60) as response:
+              result = json.loads(response.read().decode('utf-8'))
+          sha = result.get('sha')
+          if not isinstance(sha, str) or len(sha) != 40:
+              raise SystemExit(f'GitHub returned an invalid blob response: {result!r}')
+
+          print(f'PATCHED_WORKFLOW_BLOB_SHA={sha}')
+          with Path(os.environ['GITHUB_OUTPUT']).open('a', encoding='utf-8') as stream:
+              stream.write(f'sha={sha}\n')
+          with Path(os.environ['GITHUB_STEP_SUMMARY']).open('a', encoding='utf-8') as stream:
+              stream.write('# Workbook 05 C1 workflow blob\n\n')
+              stream.write(f'Patched workflow blob SHA: `{sha}`\n')
+          PY
+
+      - name: Confirm the blob can be fetched unchanged
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PATCHED_SHA: ${{ steps.blob.outputs.sha }}
         run: |
           set -euo pipefail
           python - <<'PY'
           import base64
-          import hashlib
+          import json
           import os
-          from pathlib import Path
+          import urllib.request
 
-          expected = '24bb3fea0a82c65e11c84820497a40ba87caa245cf2723db6cce993375f3e2aa'
-          payload = base64.b64decode(os.environ['REPAIR_ZIP_BASE64'], validate=True)
-          observed = hashlib.sha256(payload).hexdigest()
-          if observed != expected:
-              raise SystemExit(f'Repair ZIP digest mismatch: {observed} != {expected}')
-          path = Path(os.environ['RUNNER_TEMP']) / 'workbook05-c1-repair.zip'
-          path.write_bytes(payload)
-          print(path)
-          PY
-          python -m zipfile -e "$RUNNER_TEMP/workbook05-c1-repair.zip" "$RUNNER_TEMP/workbook05-c1-repair"
-
-      - name: Apply the repair to the exact temporary head
-        shell: bash
-        run: |
-          set -euo pipefail
-          current_head="$(git rev-parse HEAD)"
-          python - "$RUNNER_TEMP/workbook05-c1-repair/c1fix/apply_c1_fix.py" "$current_head" <<'PY'
-          from pathlib import Path
-          import sys
-
-          path = Path(sys.argv[1])
-          current = sys.argv[2]
-          text = path.read_text(encoding='utf-8')
-          old = 'EXPECTED_HEAD = "4b388cdd6ce5669bb55565b77b2fbcf752b872cb"'
-          new = f'EXPECTED_HEAD = "{current}"'
-          if text.count(old) != 1:
-              raise SystemExit('The reviewed repair script head guard is missing or ambiguous.')
-          path.write_text(text.replace(old, new, 1), encoding='utf-8', newline='\n')
-          PY
-          python "$RUNNER_TEMP/workbook05-c1-repair/c1fix/apply_c1_fix.py" "$GITHUB_WORKSPACE"
-
-      - name: Install the pinned repository validation dependency
-        shell: bash
-        run: |
-          set -euo pipefail
-          python -m pip install \
-            --disable-pip-version-check \
-            -r scripts/testing/workbook05/requirements.txt
-
-      - name: Run focused C1 repair tests
-        shell: bash
-        run: |
-          set -euo pipefail
-          python -m unittest -v \
-            tests.testing.workbook05.test_phase3_live_asset_bundle_validation \
-            tests.testing.workbook05.test_phase3_live_asset_environment_contract
-
-      - name: Verify and commit only the reviewed production files
-        shell: bash
-        run: |
-          set -euo pipefail
-          git diff --check
-          mapfile -t changed < <(git status --short | sed -E 's/^.. //')
-          expected=(
-            '.github/workflows/workbook-05-phase3-assets.yml'
-            'scripts/testing/workbook05/Invoke-Workbook05Phase3AssetLockLive.ps1'
-            'scripts/testing/workbook05/phase3/live_asset_bundle_validation.py'
+          repository = os.environ['GITHUB_REPOSITORY']
+          sha = os.environ['PATCHED_SHA']
+          request = urllib.request.Request(
+              f'https://api.github.com/repos/{repository}/git/blobs/{sha}',
+              headers={
+                  'Authorization': f"Bearer {os.environ['GH_TOKEN']}",
+                  'Accept': 'application/vnd.github+json',
+                  'X-GitHub-Api-Version': '2022-11-28',
+              },
           )
-          mapfile -t sorted_changed < <(printf '%s\n' "${changed[@]}" | sort)
-          mapfile -t sorted_expected < <(printf '%s\n' "${expected[@]}" | sort)
-          if [[ "$(printf '%s\n' "${sorted_changed[@]}")" != "$(printf '%s\n' "${sorted_expected[@]}")" ]]; then
-            printf 'Unexpected repair paths:\n%s\n' "${changed[*]}" >&2
-            exit 1
-          fi
-
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -- "${expected[@]}"
-          git commit -m 'fix(workbook05): close live C1 validation boundaries'
-          git push origin HEAD:feature/workbook-05-c1-live-asset-lock
+          with urllib.request.urlopen(request, timeout=60) as response:
+              result = json.loads(response.read().decode('utf-8'))
+          content = base64.b64decode(result['content']).decode('utf-8')
+          if 'scripts.testing.workbook05.phase3.live_asset_bundle_validation' not in content:
+              raise SystemExit('Fetched blob does not contain the live validator route.')
+          print(f'VERIFIED_PATCHED_WORKFLOW_BLOB_SHA={sha}')
+          PY
