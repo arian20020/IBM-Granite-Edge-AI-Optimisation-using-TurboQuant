@@ -111,8 +111,8 @@ internal sealed class BoundedModelSelectionClassifier : IModelSelectionClassifie
             return Failure(operationId, input.DisplayName, "selection-access-denied", AccessMessage);
         }
 
-        DirectorySnapshot snapshot = DirectorySnapshot.Capture(input.LocalPath, attributesReader);
         string[] children = EnumerateDirectChildren(input.LocalPath, token, stopwatch);
+        DirectorySnapshot snapshot = DirectorySnapshot.Capture(input.LocalPath, children, attributesReader);
         ThrowIfTimedOut(stopwatch, token);
 
         var xmlStems = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -164,7 +164,7 @@ internal sealed class BoundedModelSelectionClassifier : IModelSelectionClassifie
 
         if (pairs.Length == 1 && pairs.Length == xmlStems.Count && pairs.Length == binStems.Count)
         {
-            EnsureUnchanged(snapshot, input.LocalPath);
+            EnsureUnchanged(snapshot, input.LocalPath, token, stopwatch);
             return ModelSelectionResult.Accepted(operationId, ModelSelectionRoute.OpenVinoDirectory, input.DisplayName);
         }
 
@@ -234,7 +234,7 @@ internal sealed class BoundedModelSelectionClassifier : IModelSelectionClassifie
             }
         }
 
-        EnsureUnchanged(snapshot, input.LocalPath);
+        EnsureUnchanged(snapshot, input.LocalPath, token, stopwatch);
         return ModelSelectionResult.Accepted(operationId, ModelSelectionRoute.SourceModelDirectory, input.DisplayName);
     }
 
@@ -268,6 +268,8 @@ internal sealed class BoundedModelSelectionClassifier : IModelSelectionClassifie
             ThrowIfTimedOut(stopwatch, token);
             int count = Math.Min(buffer.Length, remainingBudget - total + 1);
             int read = await stream.ReadAsync(buffer.AsMemory(0, count), token).ConfigureAwait(false);
+            token.ThrowIfCancellationRequested();
+            ThrowIfTimedOut(stopwatch, token);
             if (read == 0) break;
             total += read;
             if (total > remainingBudget) throw new JsonException();
@@ -318,10 +320,11 @@ internal sealed class BoundedModelSelectionClassifier : IModelSelectionClassifie
         return null;
     }
 
-    private void EnsureUnchanged(DirectorySnapshot snapshot, string path)
+    private void EnsureUnchanged(DirectorySnapshot snapshot, string path, CancellationToken token, Stopwatch stopwatch)
     {
         beforeContinuityCheck?.Invoke();
-        if (!snapshot.Equals(DirectorySnapshot.Capture(path, attributesReader))) throw new CandidateChangedException();
+        string[] children = EnumerateDirectChildren(path, token, stopwatch);
+        if (!snapshot.Equals(DirectorySnapshot.Capture(path, children, attributesReader))) throw new CandidateChangedException();
     }
 
     private static bool IsRelevantName(string name) =>
@@ -339,11 +342,11 @@ internal sealed class BoundedModelSelectionClassifier : IModelSelectionClassifie
 
     private readonly record struct DirectorySnapshot(FileAttributes Attributes, DateTime LastWriteTimeUtc, long ChildState)
     {
-        internal static DirectorySnapshot Capture(string path, Func<string, FileAttributes> attributesReader)
+        internal static DirectorySnapshot Capture(string path, IEnumerable<string> children, Func<string, FileAttributes> attributesReader)
         {
             DirectoryInfo info = new(path);
             long childState = 17;
-            foreach (string child in Directory.EnumerateFileSystemEntries(path, "*", SearchOption.TopDirectoryOnly).OrderBy(value => value, StringComparer.OrdinalIgnoreCase))
+            foreach (string child in children.OrderBy(value => value, StringComparer.OrdinalIgnoreCase))
             {
                 if (Directory.Exists(child))
                 {

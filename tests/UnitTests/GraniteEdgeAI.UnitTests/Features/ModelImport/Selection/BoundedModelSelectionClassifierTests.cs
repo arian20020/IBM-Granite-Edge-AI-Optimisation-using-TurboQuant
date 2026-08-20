@@ -222,6 +222,19 @@ public sealed class BoundedModelSelectionClassifierTests
     }
 
     [TestMethod]
+    public async Task ClassifyAsync_MapsTimeoutRaisedDuringFolderEnumeration()
+    {
+        using var directory = new TemporaryDirectory();
+        for (int index = 0; index < 8; index++) directory.WriteFile($"entry-{index}.txt", "x");
+        int checks = 0;
+        var classifier = new BoundedModelSelectionClassifier(timeoutReached: () => ++checks > 3);
+
+        ModelSelectionResult result = await classifier.ClassifyAsync(ModelSelectionOperationId.CreateNew(), new ModelSelectionInput(directory.Path, "folder", true), CancellationToken.None);
+
+        Assert.AreEqual("selection-timeout", result.Diagnostic!.Code);
+    }
+
+    [TestMethod]
     public async Task ClassifyAsync_RejectsNestedOnlySourceArtifacts()
     {
         using var directory = new TemporaryDirectory();
