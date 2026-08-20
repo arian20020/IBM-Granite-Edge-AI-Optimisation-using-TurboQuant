@@ -1,4 +1,7 @@
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Candidates;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Contracts;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Estimation;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.FitAssessment;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.Gguf;
 
@@ -67,9 +70,75 @@ public sealed class EnumExhaustivenessTests
         }
     }
 
+    // Regression guard: the previous version of this test put a limitation
+    // into a HashSet, handed it to ResourceEstimate.Established, and asserted
+    // the result contained it - that proves set-copy semantics, nothing about
+    // whether any real estimator configuration ever produces the limitation.
+    // This version drives GgufResourceEstimator itself and records, for each
+    // non-Unspecified limitation, a real configuration that emits it. All four
+    // are producible today (each is already exercised individually in
+    // GgufResourceEstimatorTests); if a future limitation had no producer,
+    // this fails loudly rather than passing on set-copy semantics alone.
     [TestMethod]
-    public void EveryLimitation_IsAcceptedByAnEstablishedEstimate()
+    public void EveryLimitation_IsProducedByARealEstimatorConfiguration()
     {
+        InspectedModelFacts facts = InspectedModelFacts.Create(
+            ByteCount.FromBytes(4_000_000_000),
+            layerCount: 32,
+            embeddingSize: 4096,
+            attentionHeadCount: 32,
+            keyValueHeadCount: 8,
+            declaredContextLimit: 32768,
+            fileType: 15,
+            quantisationVersion: 2);
+
+        // Baseline: imported weights, no conversion. Producer of
+        // WeightsDerivedFromFileLength (every estimate carries it),
+        // SingleSequenceAssumed (every estimate carries it) and
+        // UncalibratedEstimatorPolicy (ProvisionalV1 is not Calibrated).
+        CompatibilityCandidate baselineCandidate = CompatibilityCandidate.Create(
+            GgufRouteConfiguration.Create(
+                GgufWeightFormat.Imported,
+                GgufKvCacheFormat.F16,
+                CompatibilityBackend.Cpu,
+                DeviceRouteId.Cpu,
+                GpuOffloadLevel.None),
+            ContextTokenCount.FromTokens(4096),
+            CandidatePreparation.None,
+            supportEntryId: "entry-1",
+            isExperimental: false,
+            isBaseline: true);
+
+        ResourceEstimate baselineEstimate = GgufResourceEstimator.Estimate(
+            facts, baselineCandidate, EstimatorPolicy.ProvisionalV1());
+
+        // A weight-format conversion. Producer of
+        // WeightsScaledAcrossQuantisation, which only fires when the target
+        // format differs from the imported encoding.
+        CompatibilityCandidate convertedCandidate = CompatibilityCandidate.Create(
+            GgufRouteConfiguration.Create(
+                GgufWeightFormat.Q8_0,
+                GgufKvCacheFormat.F16,
+                CompatibilityBackend.Cpu,
+                DeviceRouteId.Cpu,
+                GpuOffloadLevel.None),
+            ContextTokenCount.FromTokens(4096),
+            CandidatePreparation.WeightConversionRequired,
+            supportEntryId: "entry-2",
+            isExperimental: false,
+            isBaseline: false);
+
+        ResourceEstimate convertedEstimate = GgufResourceEstimator.Estimate(
+            facts, convertedCandidate, EstimatorPolicy.ProvisionalV1());
+
+        Dictionary<EstimationLimitation, ResourceEstimate> producers = new()
+        {
+            [EstimationLimitation.WeightsDerivedFromFileLength] = baselineEstimate,
+            [EstimationLimitation.SingleSequenceAssumed] = baselineEstimate,
+            [EstimationLimitation.UncalibratedEstimatorPolicy] = baselineEstimate,
+            [EstimationLimitation.WeightsScaledAcrossQuantisation] = convertedEstimate
+        };
+
         foreach (EstimationLimitation limitation in Enum.GetValues<EstimationLimitation>())
         {
             if (limitation == EstimationLimitation.Unspecified)
@@ -77,17 +146,107 @@ public sealed class EnumExhaustivenessTests
                 continue;
             }
 
-            ResourceEstimate estimate = ResourceEstimate.Established(
-                [
-                    ResourceComponent.Create(
-                        ResourceComponentKind.Weights,
-                        ResourceTarget.SystemMemory,
-                        ByteCount.FromBytes(1024),
-                        new HashSet<LifecyclePhase> { LifecyclePhase.Load })
-                ],
-                new HashSet<EstimationLimitation> { limitation });
+            Assert.IsTrue(
+                producers.TryGetValue(limitation, out ResourceEstimate? estimate),
+                $"{limitation} has no real estimator configuration recorded as its "
+                + "producer. Either a configuration that emits it exists and must "
+                + "be added here, or none does - which is itself a finding to "
+                + "report, not a reason to weaken this test.");
 
-            Assert.IsTrue(estimate.Limitations.Contains(limitation));
+            Assert.AreEqual(
+                nameof(EstimationStatus.Established), estimate!.Status.ToString(), limitation.ToString());
+            Assert.IsTrue(estimate.Limitations.Contains(limitation), limitation.ToString());
+        }
+    }
+
+    // Regression guard: GgufResourceEstimator's policy guard must have a
+    // defined outcome for every PolicyProvenance member, not just the ones
+    // named explicitly in the guard's condition. Driven from Enum.GetValues so
+    // a future member is swept automatically rather than silently falling
+    // through to whichever branch its ordinal happens to satisfy.
+    [TestMethod]
+    public void EveryPolicyProvenance_HasADefinedEstimatorOutcome()
+    {
+        InspectedModelFacts facts = InspectedModelFacts.Create(
+            ByteCount.FromBytes(4_000_000_000),
+            layerCount: 32,
+            embeddingSize: 4096,
+            attentionHeadCount: 32,
+            keyValueHeadCount: 8,
+            declaredContextLimit: 32768,
+            fileType: 15,
+            quantisationVersion: 2);
+
+        CompatibilityCandidate candidate = CompatibilityCandidate.Create(
+            GgufRouteConfiguration.Create(
+                GgufWeightFormat.Imported,
+                GgufKvCacheFormat.F16,
+                CompatibilityBackend.Cpu,
+                DeviceRouteId.Cpu,
+                GpuOffloadLevel.None),
+            ContextTokenCount.FromTokens(4096),
+            CandidatePreparation.None,
+            supportEntryId: "entry-1",
+            isExperimental: false,
+            isBaseline: true);
+
+        // EstimatorPolicy exposes only two factories today: ProvisionalV1
+        // (Provenance = Provisional) and Absent (Provenance = Absent).
+        // PolicyProvenance.Calibrated has no factory by design (see the
+        // fix note on SafetyPolicy/EstimatorPolicy: adding one is deferred),
+        // and Unspecified exists only as the enum's unset default, never
+        // returned by any factory. Both are therefore unreachable through the
+        // public API, which is asserted explicitly below instead of being
+        // skipped without comment.
+        Dictionary<string, EstimatorPolicy> reachable = new()
+        {
+            [nameof(PolicyProvenance.Provisional)] = EstimatorPolicy.ProvisionalV1(),
+            [nameof(PolicyProvenance.Absent)] = EstimatorPolicy.Absent()
+        };
+
+        foreach (PolicyProvenance provenance in Enum.GetValues<PolicyProvenance>())
+        {
+            string name = provenance.ToString();
+
+            if (!reachable.TryGetValue(name, out EstimatorPolicy? policy))
+            {
+                Assert.IsTrue(
+                    provenance is PolicyProvenance.Calibrated or PolicyProvenance.Unspecified,
+                    $"{name} is not constructible through EstimatorPolicy's public "
+                    + "factories and is not one of the members explicitly recorded as "
+                    + "unreachable. Add a factory or account for it above.");
+                continue;
+            }
+
+            ResourceEstimate estimate = GgufResourceEstimator.Estimate(facts, candidate, policy);
+
+            if (provenance == PolicyProvenance.Provisional)
+            {
+                Assert.AreEqual(
+                    nameof(EstimationStatus.Established), estimate.Status.ToString(), name);
+            }
+            else
+            {
+                Assert.AreEqual(
+                    nameof(EstimationStatus.NotEstablished), estimate.Status.ToString(), name);
+                Assert.AreEqual(
+                    nameof(EstimationUnavailableReason.EstimatorPolicyUnavailable),
+                    estimate.Reason.ToString(),
+                    name);
+            }
+
+            // The invariant the guard exists to protect: an Established
+            // estimate built on a non-Calibrated policy always records
+            // UncalibratedEstimatorPolicy. Nothing here can present an
+            // unvalidated policy's numbers as if they were calibrated.
+            if (estimate.Status == EstimationStatus.Established
+                && provenance != PolicyProvenance.Calibrated)
+            {
+                Assert.IsTrue(
+                    estimate.Limitations.Contains(EstimationLimitation.UncalibratedEstimatorPolicy),
+                    $"{name} produced an Established estimate without "
+                    + "UncalibratedEstimatorPolicy while not Calibrated.");
+            }
         }
     }
 

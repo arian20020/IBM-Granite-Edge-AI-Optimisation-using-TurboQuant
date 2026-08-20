@@ -46,7 +46,12 @@ internal static class GgufResourceEstimator
         ArgumentNullException.ThrowIfNull(candidate);
         ArgumentNullException.ThrowIfNull(policy);
 
-        if (policy.Provenance is PolicyProvenance.Absent or PolicyProvenance.Unspecified)
+        // Refuse anything that is not a known-good provenance, rather than
+        // naming the provenances that refuse. A future PolicyProvenance member
+        // that fell between Absent/Unspecified and Provisional/Calibrated would
+        // otherwise proceed with no limitation recorded, presenting an
+        // unvalidated policy as if it were calibrated.
+        if (policy.Provenance is not (PolicyProvenance.Provisional or PolicyProvenance.Calibrated))
         {
             return ResourceEstimate.NotEstablished(
                 EstimationUnavailableReason.EstimatorPolicyUnavailable);
