@@ -1,0 +1,11 @@
+# closureStatus: converter_closure_unresolved
+# The exact planned train is intentionally not installable: optimum-intel==2.1.0
+# requires optimum~=2.3.0, which conflicts with optimum==2.1.0. No wheel hash is
+# claimed because pip resolved no complete closure.
+# Resolver: pip download --only-binary=:all: --platform win_amd64 --python-version 313 --implementation cp --abi cp313
+optimum-intel==2.1.0
+optimum==2.1.0
+transformers==5.5.4
+openvino==2026.3.0
+openvino-genai==2026.3.0.0
+nncf==3.3.0

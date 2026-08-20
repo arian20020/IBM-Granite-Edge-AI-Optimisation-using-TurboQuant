@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "closureStatus": "unresolved",
+  "supportCode": "converter_closure_unresolved",
+  "resolver": {
+    "command": "pip download --only-binary=:all: --platform win_amd64 --python-version 313 --implementation cp --abi cp313",
+    "error": "optimum-intel==2.1.0 requires optimum~=2.3.0, conflicting with the planned optimum==2.1.0."
+  },
+  "requestedPackages": [
+    { "name": "optimum-intel", "version": "2.1.0" },
+    { "name": "optimum", "version": "2.1.0" },
+    { "name": "transformers", "version": "5.5.4" },
+    { "name": "openvino", "version": "2026.3.0" },
+    { "name": "openvino-genai", "version": "2026.3.0.0" },
+    { "name": "nncf", "version": "3.3.0" }
+  ],
+  "wheels": [],
+  "reviews": [
+    {
+      "gate": "DEP-01",
+      "reviewer": "arian20020 <arian20020@outlook.com>",
+      "reviewedAtUtc": "2026-08-20T15:37:23Z",
+      "disposition": "approved-official-archive-integrity"
+    },
+    {
+      "gate": "DEP-02",
+      "reviewer": "arian20020 <arian20020@outlook.com>",
+      "reviewedAtUtc": "2026-08-20T15:37:23Z",
+      "disposition": "unresolved-exact-converter-train-conflict"
+    },
+    {
+      "gate": "LIC-01",
+      "reviewer": "arian20020 <arian20020@outlook.com>",
+      "reviewedAtUtc": "2026-08-20T15:37:23Z",
+      "disposition": "reviewed-license-notices-required"
+    }
+  ]
+}

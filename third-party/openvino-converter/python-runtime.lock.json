@@ -1,0 +1,32 @@
+{
+    "schemaVersion":  1,
+    "component":  "cpython-embed",
+    "version":  "3.13.15",
+    "platform":  "windows-amd64",
+    "sourceUrl":  "https://www.python.org/ftp/python/3.13.15/python-3.13.15-embed-amd64.zip",
+    "filename":  "python-3.13.15-embed-amd64.zip",
+    "length":  11009825,
+    "sha256":  "d1f04d990aee1253d8569e8e5104e30fa9f5fa830899f14843448872d936a2cf",
+    "license":  "PSF-2.0",
+    "disposition":  "include-python-license-from-runtime-archive",
+    "reviews":  [
+                    {
+                        "gate":  "DEP-01",
+                        "reviewer":  "arian20020 \u003carian20020@outlook.com\u003e",
+                        "reviewedAtUtc":  "2026-08-20T13:34:05Z",
+                        "disposition":  "approved-official-archive-integrity"
+                    },
+                    {
+                        "gate":  "DEP-02",
+                        "reviewer":  "arian20020 \u003carian20020@outlook.com\u003e",
+                        "reviewedAtUtc":  "2026-08-20T13:34:05Z",
+                        "disposition":  "unresolved-exact-converter-train-conflict"
+                    },
+                    {
+                        "gate":  "LIC-01",
+                        "reviewer":  "arian20020 \u003carian20020@outlook.com\u003e",
+                        "reviewedAtUtc":  "2026-08-20T13:34:05Z",
+                        "disposition":  "reviewed-license-notices-required"
+                    }
+                ]
+}

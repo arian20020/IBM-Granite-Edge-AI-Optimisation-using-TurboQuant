@@ -1,0 +1,64 @@
+{
+    "schemaVersion":  1,
+    "component":  "openvino-tokenizers",
+    "platform":  "windows-x86_64",
+    "release":  {
+                    "tag":  "2026.3.0.0",
+                    "commit":  "183c6f25cda2a469cba5eff8b72022d2d51ba0ca",
+                    "sourceUrl":  "https://github.com/openvinotoolkit/openvino_tokenizers/releases/tag/2026.3.0.0"
+                },
+    "archive":  {
+                    "fileName":  "openvino_tokenizers_windows_2026.3.0.0_x86_64.zip",
+                    "length":  5458557,
+                    "sha256":  "4724214920485771d271c3fdcca9988bd2dd4e07c7f0437a36e38ee69e15b61f",
+                    "sourceUrl":  "https://storage.openvinotoolkit.org/repositories/openvino_tokenizers/packages/2026.3.0.0/openvino_tokenizers_windows_2026.3.0.0_x86_64.zip"
+                },
+    "files":  [
+                  {
+                      "path":  "docs/openvino_tokenizers/LICENSE",
+                      "length":  11357
+                  },
+                  {
+                      "path":  "docs/openvino_tokenizers/README.md",
+                      "length":  28006
+                  },
+                  {
+                      "path":  "docs/openvino_tokenizers/third-party-programs.txt",
+                      "length":  55016
+                  },
+                  {
+                      "path":  "runtime/bin/intel64/Debug/openvino_tokenizersd.dll",
+                      "length":  14040848
+                  },
+                  {
+                      "path":  "runtime/bin/intel64/Release/openvino_tokenizers.dll",
+                      "length":  3474192
+                  }
+              ],
+    "licenses":  [
+                     {
+                         "name":  "Apache-2.0",
+                         "disposition":  "include-upstream-license-and-third-party-notice"
+                     }
+                 ],
+    "reviews":  [
+                    {
+                        "gate":  "DEP-01",
+                        "reviewer":  "arian20020 \u003carian20020@outlook.com\u003e",
+                        "reviewedAtUtc":  "2026-08-20T13:34:05Z",
+                        "disposition":  "approved-official-archive-integrity"
+                    },
+                    {
+                        "gate":  "DEP-02",
+                        "reviewer":  "arian20020 \u003carian20020@outlook.com\u003e",
+                        "reviewedAtUtc":  "2026-08-20T13:34:05Z",
+                        "disposition":  "unresolved-exact-converter-train-conflict"
+                    },
+                    {
+                        "gate":  "LIC-01",
+                        "reviewer":  "arian20020 \u003carian20020@outlook.com\u003e",
+                        "reviewedAtUtc":  "2026-08-20T13:34:05Z",
+                        "disposition":  "reviewed-license-notices-required"
+                    }
+                ]
+}
