@@ -1,4 +1,5 @@
 using System.Xml.Linq;
+using System.Text.RegularExpressions;
 
 namespace GraniteEdgeAI.GgufRuntime.WorkerProcess.Tests;
 
@@ -44,6 +45,8 @@ public sealed class GgufChatVisualContractTests
         "Disabled",
         "Focused",
     ];
+
+    private static readonly string[] KnowledgeFilePickerExtensions = [".txt", ".md"];
 
     private static readonly (string State, string Background, string Foreground, string Border)[] PrimaryStateResourcePairs =
     [
@@ -92,6 +95,82 @@ public sealed class GgufChatVisualContractTests
         ("GgufChatSecondaryDisabledTextBrush", "ButtonForegroundDisabled"),
         ("GgufChatSecondaryDisabledBorderBrush", "ButtonBorderBrushDisabled"),
     ];
+
+    [TestMethod]
+    public void KnowledgeFilePickerUsesTheWindowsMultiSelectBoundaryWithoutReadingContent()
+    {
+        string root = FindRepositoryRoot();
+        string attachmentsDirectory = Path.Combine(
+            root,
+            "IBM Granite with TurboQuant (Intel)",
+            "Features",
+            "GgufRuntime",
+            "Attachments");
+        string contract = File.ReadAllText(Path.Combine(
+            attachmentsDirectory,
+            "IKnowledgeFilePicker.cs"));
+        string adapter = File.ReadAllText(Path.Combine(
+            attachmentsDirectory,
+            "WindowsKnowledgeFilePicker.cs"));
+
+        StringAssert.Contains(contract, "internal interface IKnowledgeFilePicker");
+        StringAssert.Contains(
+            contract,
+            "Task<IReadOnlyList<KnowledgeFileCandidate>> PickAsync()");
+
+        StringAssert.Contains(adapter, "using Microsoft.Windows.Storage.Pickers;");
+        StringAssert.Contains(
+            adapter,
+            "new FileOpenPicker(App.MainWindow.AppWindow.Id)");
+        StringAssert.Contains(adapter, "Title = \"Add knowledge files\"");
+        StringAssert.Contains(adapter, "CommitButtonText = \"Attach\"");
+        Assert.AreEqual(
+            1,
+            Regex.Count(adapter, @"PickMultipleFilesAsync\s*\("),
+            "The adapter must make exactly one multi-select picker call.");
+
+        MatchCollection extensionFilters = Regex.Matches(
+            adapter,
+            """FileTypeFilter\.Add\s*\(\s*\"(?<extension>[^\"]+)\"\s*\)""");
+        CollectionAssert.AreEquivalent(
+            KnowledgeFilePickerExtensions,
+            extensionFilters.Select(match => match.Groups["extension"].Value).ToArray(),
+            "Only the text and Markdown file filters are allowed.");
+
+        StringAssert.Contains(adapter, "selected is null || selected.Count == 0");
+        StringAssert.Contains(adapter, "string.IsNullOrWhiteSpace(path)");
+        StringAssert.Contains(adapter, "new FileInfo(path).Length");
+        StringAssert.Contains(adapter, "new KnowledgeFileCandidate(path, sizeInBytes, true)");
+        StringAssert.Contains(adapter, "new KnowledgeFileCandidate(path, 0, false)");
+        StringAssert.Contains(adapter, "catch (IOException)");
+        StringAssert.Contains(adapter, "catch (UnauthorizedAccessException)");
+        StringAssert.Contains(adapter, "catch (System.Security.SecurityException)");
+        StringAssert.Contains(adapter, "catch (ArgumentException)");
+        StringAssert.Contains(adapter, "catch (NotSupportedException)");
+        StringAssert.Contains(
+            adapter,
+            "PathTooLongException is covered by IOException",
+            "PathTooLongException must be intentionally covered by the IOException catch.");
+
+        foreach (string prohibitedContentAccess in new[]
+                 {
+                     "ReadAllText",
+                     "ReadAllBytes",
+                     "OpenRead",
+                     "StreamReader",
+                     "File.Open",
+                     "Console.",
+                     "Debug.",
+                     "Trace.",
+                     "ILogger",
+                     "WriteLine",
+                 })
+        {
+            Assert.IsFalse(
+                adapter.Contains(prohibitedContentAccess, StringComparison.Ordinal),
+                $"The picker adapter must not read or output selected file content or paths ({prohibitedContentAccess}).");
+        }
+    }
 
     [TestMethod]
     public void ChatThemeDefinesSoftModernSurfaceAndControlResources()
