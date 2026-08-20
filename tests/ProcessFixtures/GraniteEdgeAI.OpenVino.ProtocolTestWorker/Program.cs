@@ -130,6 +130,12 @@ internal static class FixtureProgram
 
         await WriteAsync(writer, new SessionStartedEvent(start.SessionId))
             .ConfigureAwait(false);
+        if (scenario == "blocked-cancel-write")
+        {
+            WriteMarker("stdin-abandoned");
+            await Task.Delay(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            return 0;
+        }
         if (scenario == "blocked-prompt-write")
         {
             await Task.Delay(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
@@ -190,7 +196,8 @@ internal static class FixtureProgram
                     new GenerationStartedEvent(prompt.SessionId, prompt.TurnId))
                 .ConfigureAwait(false);
             if (scenario is "active-external-cancel" or
-                "active-slow-cancel-exit")
+                "active-slow-cancel-exit" or
+                "active-failed-cancel")
             {
                 WriteMarker("generation-started");
                 byte[]? cancelLine = await reader
@@ -203,10 +210,17 @@ internal static class FixtureProgram
                     return 68;
                 }
 
-                await WriteAsync(
-                        writer,
-                        new SessionCancelledEvent(externalCancel.SessionId))
-                    .ConfigureAwait(false);
+                IOpenVinoEvent terminal = scenario == "active-failed-cancel"
+                    ? new SessionFailedEvent(
+                        externalCancel.SessionId,
+                        OpenVinoSupportCode.RuntimeProtocolFailed)
+                    : new SessionCancelledEvent(externalCancel.SessionId);
+                await WriteAsync(writer, terminal).ConfigureAwait(false);
+                if (scenario == "active-failed-cancel")
+                {
+                    return 0;
+                }
+
                 TimeSpan exitDelay = scenario == "active-slow-cancel-exit"
                     ? TimeSpan.FromSeconds(5)
                     : TimeSpan.FromMilliseconds(400);

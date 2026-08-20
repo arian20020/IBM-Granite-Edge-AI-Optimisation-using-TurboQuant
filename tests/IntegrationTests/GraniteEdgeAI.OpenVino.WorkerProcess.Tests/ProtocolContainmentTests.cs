@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Reflection;
+using GraniteEdgeAI.ModelInspection.WorkerClient.ProtectedWorker;
 using GraniteEdgeAI.OpenVino.Contracts;
 using GraniteEdgeAI.OpenVino.WorkerClient;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -252,6 +254,97 @@ public sealed class ProtocolContainmentTests
         Assert.AreEqual(
             OpenVinoSupportCode.RuntimeTimedOut,
             promptError.SupportCode);
+        await AssertNoFixtureProcessAsync();
+    }
+
+    [TestMethod]
+    public async Task BlockedCancelWriteUsesGraceAndForcesVerifiedCleanup()
+    {
+        await using FixtureRun fixture = CreateFixture("blocked-cancel-write");
+        OpenVinoWorkerClient client = CreateClient(
+            fixture.Root,
+            turnMs: 5000,
+            cancellationGraceMs: 150);
+        await using OpenVinoConversation conversation = await client.StartSessionAsync(
+            StartSession(), CancellationToken.None);
+        await WaitForFileAsync(fixture.MarkerPath("stdin-abandoned"));
+        ProtectedWorkerSession session = GetProtectedSession(conversation);
+        Task blockedWrite = session.StandardInput.WriteLineAsync(
+                new byte[OpenVinoProtocol.MaximumLineBytes],
+                CancellationToken.None)
+            .AsTask();
+        await Task.Delay(100);
+        Assert.IsFalse(blockedWrite.IsCompleted);
+
+        OpenVinoWorkerClientException cancelError =
+            await Assert.ThrowsExactlyAsync<OpenVinoWorkerClientException>(() =>
+                conversation.CancelAsync(CancellationToken.None)
+                    .WaitAsync(TimeSpan.FromSeconds(2)));
+
+        Assert.AreEqual(
+            OpenVinoSupportCode.RuntimeTimedOut,
+            cancelError.SupportCode);
+        await IgnoreExpectedPipeClosureAsync(blockedWrite);
+        await AssertNoFixtureProcessAsync();
+    }
+
+    [TestMethod]
+    public async Task SessionFailedAfterCancelCannotEscapeAsPromptOutput()
+    {
+        await using FixtureRun fixture = CreateFixture("active-failed-cancel");
+        OpenVinoWorkerClient client = CreateClient(fixture.Root);
+        await using OpenVinoConversation conversation = await client.StartSessionAsync(
+            StartSession(), CancellationToken.None);
+        List<string> text = [];
+        Task<IOpenVinoEvent> prompt = conversation.PromptAsync(
+            Prompt(conversation.SessionId, "cancel-failed"),
+            new ImmediateProgress<TokenEvent>(token => text.Add(token.Text)),
+            CancellationToken.None);
+        await WaitForFileAsync(fixture.MarkerPath("generation-started"));
+
+        await conversation.CancelAsync(CancellationToken.None);
+        OpenVinoWorkerClientException promptError =
+            await Assert.ThrowsExactlyAsync<OpenVinoWorkerClientException>(
+                () => prompt);
+
+        Assert.AreEqual(
+            OpenVinoSupportCode.OperationCancelled,
+            promptError.SupportCode);
+        Assert.IsEmpty(text);
+        await AssertNoFixtureProcessAsync();
+    }
+
+    [TestMethod]
+    public async Task PublishedWatchdogOutcomeWinsBusyGateRace()
+    {
+        await using FixtureRun fixture = CreateFixture("active-external-cancel");
+        OpenVinoWorkerClient client = CreateClient(fixture.Root);
+        await using OpenVinoConversation conversation = await client.StartSessionAsync(
+            StartSession(), CancellationToken.None);
+        Task<IOpenVinoEvent> active = conversation.PromptAsync(
+            Prompt(conversation.SessionId, "watchdog-owned"),
+            null,
+            CancellationToken.None);
+        await WaitForFileAsync(fixture.MarkerPath("generation-started"));
+        PublishWatchdogTimeoutOutcome(conversation);
+
+        OpenVinoWorkerClientException busyError =
+            await Assert.ThrowsExactlyAsync<OpenVinoWorkerClientException>(() =>
+                conversation.PromptAsync(
+                    Prompt(conversation.SessionId, "must-see-timeout"),
+                    null,
+                    CancellationToken.None));
+
+        Assert.AreEqual(
+            OpenVinoSupportCode.RuntimeTimedOut,
+            busyError.SupportCode);
+        await conversation.CancelAsync(CancellationToken.None);
+        OpenVinoWorkerClientException activeError =
+            await Assert.ThrowsExactlyAsync<OpenVinoWorkerClientException>(
+                () => active);
+        Assert.AreEqual(
+            OpenVinoSupportCode.RuntimeTimedOut,
+            activeError.SupportCode);
         await AssertNoFixtureProcessAsync();
     }
 
@@ -519,6 +612,63 @@ public sealed class ProtocolContainmentTests
             stderrBytes,
             OpenVinoProtocol.MaximumLineBytes);
         return new OpenVinoWorkerClient(options);
+    }
+
+    private static void PublishWatchdogTimeoutOutcome(
+        OpenVinoConversation conversation)
+    {
+        // Reproduce the exact published watchdog state without relying on the
+        // scheduler to pause between publication and the next busy-gate call.
+        const BindingFlags PrivateInstance =
+            BindingFlags.Instance | BindingFlags.NonPublic;
+        const BindingFlags PrivateStatic =
+            BindingFlags.Static | BindingFlags.NonPublic;
+        object stateLock = typeof(OpenVinoConversation)
+            .GetField("_stateLock", PrivateInstance)!
+            .GetValue(conversation)!;
+        OpenVinoWorkerClientException timeout =
+            (OpenVinoWorkerClientException)typeof(OpenVinoWorkerClient)
+                .GetMethod("TimeoutFailure", PrivateStatic)!
+                .Invoke(null, null)!;
+        FieldInfo stateField = typeof(OpenVinoConversation)
+            .GetField("_cancellationState", PrivateInstance)!;
+        Type stateType = stateField.FieldType;
+        object state = stateType
+            .GetConstructors(
+                BindingFlags.Instance |
+                BindingFlags.Public |
+                BindingFlags.NonPublic)
+            .Single()
+            .Invoke(
+            [
+                true,
+                DateTimeOffset.UtcNow.AddSeconds(1),
+                timeout
+            ]);
+        lock (stateLock)
+        {
+            stateField.SetValue(conversation, state);
+        }
+    }
+
+    private static ProtectedWorkerSession GetProtectedSession(
+        OpenVinoConversation conversation) =>
+        (ProtectedWorkerSession)typeof(OpenVinoConversation)
+            .GetField(
+                "_session",
+                BindingFlags.Instance | BindingFlags.NonPublic)!
+            .GetValue(conversation)!;
+
+    private static async Task IgnoreExpectedPipeClosureAsync(Task write)
+    {
+        try
+        {
+            await write.ConfigureAwait(false);
+        }
+        catch (Exception error) when (
+            error is IOException or OperationCanceledException)
+        {
+        }
     }
 
     private static StartSessionCommand StartSession() => new(

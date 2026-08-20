@@ -45,20 +45,16 @@ internal sealed class OpenVinoTerminalCleanup : IDisposable
                 return;
             }
 
-            if (!_inputCompleted)
-            {
-                await _session.CompleteInputAsync().ConfigureAwait(false);
-                _inputCompleted = true;
-            }
-
             bool timedOut = false;
             if (force)
             {
                 _ = await _session.TerminateAndVerifyEmptyAsync()
                     .ConfigureAwait(false);
+                await CompleteInputOnceAsync().ConfigureAwait(false);
             }
             else
             {
+                await CompleteInputOnceAsync().ConfigureAwait(false);
                 try
                 {
                     await _processExit.WaitAsync(
@@ -111,6 +107,17 @@ internal sealed class OpenVinoTerminalCleanup : IDisposable
     }
 
     public void Dispose() => _gate.Dispose();
+
+    private async Task CompleteInputOnceAsync()
+    {
+        if (_inputCompleted)
+        {
+            return;
+        }
+
+        await _session.CompleteInputAsync().ConfigureAwait(false);
+        _inputCompleted = true;
+    }
 
     private TimeSpan Remaining(DateTimeOffset? deadlineUtc)
     {
