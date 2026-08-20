@@ -221,6 +221,7 @@ class RouteEvidence:
         }.get(self.route)
         if (
             route_identity is None
+            or (self.bits is not None and type(self.bits) is not int)
             or (self.bits, self.requested_backend) != route_identity
             or self.actual_backend != route_identity[1]
             or not all(
@@ -265,6 +266,7 @@ class StorageEvidence:
         expected_bits = {"turbovec-2bit": 2, "turbovec-4bit": 4}.get(self.route)
         if (
             expected_bits is None
+            or type(self.bits) is not int
             or self.bits != expected_bits
             or type(self.float32_vector_bytes) is not int
             or self.float32_vector_bytes <= 0

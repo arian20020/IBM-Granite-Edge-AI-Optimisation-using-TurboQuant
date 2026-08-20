@@ -509,6 +509,46 @@ class FixtureAndEvidenceTests(unittest.TestCase):
                     forge()
                 self.assertEqual("benchmark-evidence-invalid", context.exception.code)
 
+    def test_route_and_storage_bits_require_exact_integer_types(self):
+        rankings = [list(range(10))]
+        timing = summarize_cold_warm([1], [1] * 5)
+        evidence = _build_suite(
+            rankings, rankings, [{0}],
+            baseline_timings=timing, four_bit_timings=timing,
+            float32_vector_bytes=100, four_bit_persisted_bytes=20,
+        )
+
+        route_cases = (
+            (evidence.two_bit, 2.0),
+            (evidence.two_bit, 4.0),
+            (evidence.two_bit, True),
+            (evidence.two_bit, False),
+            (evidence.four_bit, 4.0),
+            (evidence.four_bit, 2.0),
+            (evidence.four_bit, True),
+            (evidence.four_bit, False),
+        )
+        storage_cases = (
+            (evidence.two_bit_storage, 2.0),
+            (evidence.two_bit_storage, 4.0),
+            (evidence.two_bit_storage, True),
+            (evidence.two_bit_storage, False),
+            (evidence.four_bit_storage, 4.0),
+            (evidence.four_bit_storage, 2.0),
+            (evidence.four_bit_storage, True),
+            (evidence.four_bit_storage, False),
+        )
+        for item, bits in route_cases + storage_cases:
+            with self.subTest(kind=type(item).__name__, route=item.route, bits=bits):
+                with self.assertRaises(ResearchError) as context:
+                    replace(item, bits=bits)
+                self.assertEqual("benchmark-evidence-invalid", context.exception.code)
+
+        payload = json.loads(canonical_json(evidence))
+        serialized_bits = [item["bits"] for item in payload["candidates"] + payload["storage"]]
+        self.assertEqual([2, 4, 2, 4], serialized_bits)
+        self.assertTrue(all(type(bits) is int for bits in serialized_bits))
+
 
 if __name__ == "__main__":
     unittest.main()
