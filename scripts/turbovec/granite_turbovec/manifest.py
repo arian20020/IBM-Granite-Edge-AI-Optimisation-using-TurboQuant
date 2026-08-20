@@ -87,6 +87,18 @@ _WINDOWS_RESERVED = {
     *(f"LPT{number}" for number in range(1, 10)),
 }
 
+MANIFEST_MISMATCH_GROUPS = (
+    (("embedding_model", "embedding_model_manifest_sha256", "embedding_model_license"), "index-embedding-mismatch"),
+    (("dimension",), "index-dimension-mismatch"),
+    (("chunking_algorithm", "chunking_version", "chunk_max_chars", "chunk_overlap"), "index-chunking-mismatch"),
+    (("requested_backend", "actual_backend"), "index-backend-mismatch"),
+    (("index_format",), "index-format-mismatch"),
+    (("bit_width",), "index-bit-width-mismatch"),
+    (("python_version",), "index-python-mismatch"),
+    (("turbovec_version", "turbovec_source_commit", "turbovec_wheel_sha256", "turbovec_license", "dependency_lock_sha256", "requested_provider", "actual_provider"), "index-package-mismatch"),
+)
+MANIFEST_MISMATCH_CODES = frozenset(code for _, code in MANIFEST_MISMATCH_GROUPS)
+
 
 @dataclass(frozen=True)
 class IndexIdentity:
@@ -1032,43 +1044,7 @@ def _legacy_canonical_json(value: IndexManifest) -> str:
 
 
 def _compare_identity(actual: IndexIdentity, expected: IndexIdentity) -> None:
-    groups = (
-        (
-            (
-                "embedding_model",
-                "embedding_model_manifest_sha256",
-                "embedding_model_license",
-            ),
-            "index-embedding-mismatch",
-        ),
-        (("dimension",), "index-dimension-mismatch"),
-        (
-            (
-                "chunking_algorithm",
-                "chunking_version",
-                "chunk_max_chars",
-                "chunk_overlap",
-            ),
-            "index-chunking-mismatch",
-        ),
-        (("requested_backend", "actual_backend"), "index-backend-mismatch"),
-        (("index_format",), "index-format-mismatch"),
-        (("bit_width",), "index-bit-width-mismatch"),
-        (("python_version",), "index-python-mismatch"),
-        (
-            (
-                "turbovec_version",
-                "turbovec_source_commit",
-                "turbovec_wheel_sha256",
-                "turbovec_license",
-                "dependency_lock_sha256",
-                "requested_provider",
-                "actual_provider",
-            ),
-            "index-package-mismatch",
-        ),
-    )
-    for fields, code in groups:
+    for fields, code in MANIFEST_MISMATCH_GROUPS:
         if any(getattr(actual, field) != getattr(expected, field) for field in fields):
             raise ResearchError(code)
 

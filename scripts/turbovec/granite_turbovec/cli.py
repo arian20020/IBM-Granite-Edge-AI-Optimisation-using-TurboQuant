@@ -101,6 +101,7 @@ ERROR_EXIT = {
     "index-promotion-unsupported": 30,
     # index / manifest / corruption
     "index-manifest-invalid": 31, "index-manifest-corrupt": 31,
+    "index-package-mismatch": 31,
     "index-route-mismatch": 31,
     "index-manifest-write-failed": 31, "index-embedding-mismatch": 31,
     "index-dimension-mismatch": 31, "index-chunking-mismatch": 31,
@@ -145,6 +146,7 @@ ERROR_EXIT = {
     "relevance-id-invalid": 40, "storage-bytes-invalid": 40,
 }
 EXIT_CODES = ERROR_EXIT
+FIXED_RESEARCH_ERROR_CODES = frozenset(ERROR_EXIT) | {"research-argument-error"}
 DEFAULT_EXPECTED_EXIT = 30
 
 
@@ -282,6 +284,7 @@ def _doctor(namespace: argparse.Namespace, deps: CliDependencies) -> Mapping[str
 
 
 def _index(namespace: argparse.Namespace, deps: CliDependencies) -> Mapping[str, Any]:
+    index_start = deps.perf_counter()
     widths = [int(value) for value in namespace.bits]
     if len(widths) != len(set(widths)):
         raise ResearchError("research-argument-error")
@@ -295,23 +298,35 @@ def _index(namespace: argparse.Namespace, deps: CliDependencies) -> Mapping[str,
     if not chunks:
         raise ResearchError("input-empty")
     embedder = _validated_embedder(approval, deps)
+    embedding_start = deps.perf_counter()
     vectors = validate_vectors(embedder.embed_documents([chunk.text for chunk in chunks]), dimension=embedder.dimension, expected_count=len(chunks))
+    document_embedding_seconds = deps.perf_counter() - embedding_start
     import numpy as np
     ids = validate_ids(np.asarray([chunk.chunk_id for chunk in chunks], dtype=np.uint64), expected_count=len(chunks))
+    float_build_start = deps.perf_counter()
+    Float32Index(vectors, ids)
+    float32_index_build_seconds = deps.perf_counter() - float_build_start
     identity = _identity(approval, actual, embedder, dimension=vectors.shape[1])
     sources = tuple(SourceRecord(item.relative_path, item.sha256) for item in documents)
     chunk_records = tuple(ChunkRecord(item.chunk_id, item.relative_path, item.start, item.end) for item in chunks)
 
     def writer(staging: Path) -> None:
         _write_chunks(staging / "chunks.jsonl", chunks)
+        float_save_start = deps.perf_counter()
         with (staging / "vectors-float32.npy").open("xb") as stream:
             np.save(stream, vectors, allow_pickle=False)
         with (staging / "ids.npy").open("xb") as stream:
             np.save(stream, ids, allow_pickle=False)
-        save_timings = {}
+        build_timings = {
+            "document_embedding_seconds": document_embedding_seconds,
+            "float32_index_build_seconds": float32_index_build_seconds,
+            "float32_index_save_seconds": deps.perf_counter() - float_save_start,
+        }
         for width in bits:
+            build_start = deps.perf_counter()
             index = deps.make_turbovec(vectors.shape[1], width)
             index.add_with_ids(vectors, ids)
+            build_timings[f"{width}bit_index_build_seconds"] = deps.perf_counter() - build_start
             raw = staging / f"raw-{width}bit-{uuid.uuid4().hex}.tmp"
             raw_identity = None
             save_start = deps.perf_counter()
@@ -327,12 +342,16 @@ def _index(namespace: argparse.Namespace, deps: CliDependencies) -> Mapping[str,
                     if raw_identity is None:
                         raw_metadata = raw.lstat(); raw_identity = (raw_metadata.st_dev, raw_metadata.st_ino)
                     _unlink_owned_file(raw, raw_identity)
-            save_timings[f"{width}bit"] = deps.perf_counter() - save_start
+            build_timings[f"{width}bit_index_save_seconds"] = deps.perf_counter() - save_start
+        build_timings["index_end_to_end_seconds"] = deps.perf_counter() - index_start
+        _validate_timing_mapping(build_timings)
         (staging / "baseline-results.json").write_bytes(_json_bytes({
             "schema_version": 1, "route": "float32", "count": len(chunks),
             "dimension": vectors.shape[1], "available_routes": ["float32", *(f"{item}bit" for item in bits)],
             "turbovec": {"version": approval["turbovec_version"], "source_commit": approval["turbovec_source_commit"], "wheel_sha256": approval["turbovec_wheel_sha256"], "license": "MIT"},
-            "save_timings_seconds": save_timings,
+            "vector_count": len(chunks),
+            "actual_providers": list(embedder.providers),
+            "build_timings_seconds": build_timings,
         }))
 
     def factory(staging: Path) -> IndexManifest:
@@ -415,13 +434,8 @@ def _benchmark(namespace: argparse.Namespace, deps: CliDependencies) -> tuple[Ma
     import numpy as np
     ids = validate_ids(np.load(root / "ids.npy", allow_pickle=False), expected_count=len(chunks))
     metadata = json.loads((root / "baseline-results.json").read_text(encoding="utf-8"))
-    phase_timings = {
-        "document_embedding_seconds": 0.0,
-        "query_embedding_seconds": query_embedding_seconds,
-        "index_build_from_existing_seconds": 0.0,
-    }
-    for bits in (2, 4):
-        phase_timings[f"{bits}bit_index_save_seconds"] = float(metadata["save_timings_seconds"][f"{bits}bit"])
+    phase_timings = dict(metadata["build_timings_seconds"])
+    phase_timings["query_embedding_seconds"] = query_embedding_seconds
     with contextlib.ExitStack() as stack:
         routes = {}
         load_start = deps.perf_counter()
@@ -451,7 +465,7 @@ def _benchmark(namespace: argparse.Namespace, deps: CliDependencies) -> tuple[Ma
         evidence = build_matched_suite(
             rankings["float32"], rankings["2bit"], rankings["4bit"], relevant,
             baseline_timings=timings["float32"], two_bit_timings=timings["2bit"], four_bit_timings=timings["4bit"],
-            float32_vector_bytes=(root / route_records["float32"].filename).stat().st_size,
+            float32_vector_bytes=_raw_float32_bytes(vectors),
             two_bit_persisted_bytes=(root / route_records["2bit"].filename).stat().st_size,
             four_bit_persisted_bytes=(root / route_records["4bit"].filename).stat().st_size,
             baseline_requested_provider="CPUExecutionProvider", baseline_actual_provider=_provider(embedder),
@@ -459,7 +473,13 @@ def _benchmark(namespace: argparse.Namespace, deps: CliDependencies) -> tuple[Ma
             four_bit_requested_provider="CPUExecutionProvider", four_bit_actual_provider=_provider(embedder),
         )
         phase_timings["end_to_end_seconds"] = deps.perf_counter() - end_to_end_start
-        evidence_document = _build_evidence_document(evidence, phase_timings, approval, actual, deps, manifest, fixture_path)
+        storage_files = {
+            "float32_raw_vector_bytes": _raw_float32_bytes(vectors),
+            "float32_persisted_npy_bytes": route_records["float32"].size,
+            "2bit_persisted_bytes": route_records["2bit"].size,
+            "4bit_persisted_bytes": route_records["4bit"].size,
+        }
+        evidence_document = _build_evidence_document(evidence, phase_timings, storage_files, approval, actual, deps, manifest, fixture_path)
         _write_evidence_atomic(output, evidence, evidence_document)
         payload = {"schema_version": 1, "evidence": output.name, "gate_passed": evidence.gate.passed}
         return payload, evidence.gate.passed
@@ -603,24 +623,32 @@ def _validate_artifact(path: Path, record: ArtifactRecord, manifest: IndexManife
             if index.dimension != record.dimension or index.bits != expected_bits or getattr(index, "_count", len(getattr(index, "ids", ()))) != record.count:
                 raise ResearchError("index-artifact-invalid")
     elif record.filename == "baseline-results.json":
-        value = json.loads(path.read_text(encoding="utf-8"))
+        value = json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=lambda pairs: _unique_mapping(pairs, "index-artifact-invalid"), parse_constant=lambda _: (_ for _ in ()).throw(ValueError()))
+        available_routes = ["float32", *(route for route in ("2bit", "4bit") if any(item.route == route for item in manifest.artifacts))]
+        required_timings = {"document_embedding_seconds", "float32_index_build_seconds", "float32_index_save_seconds", "index_end_to_end_seconds", *(f"{route}_index_{phase}_seconds" for route in available_routes[1:] for phase in ("build", "save"))}
         if (
             type(value) is not dict
+            or set(value) != {"schema_version", "route", "count", "dimension", "available_routes", "turbovec", "vector_count", "actual_providers", "build_timings_seconds"}
             or value.get("schema_version") != 1
             or value.get("route") != "float32"
             or value.get("count") != record.count
             or value.get("dimension") != record.dimension
-            or type(value.get("available_routes")) is not list
-            or value.get("available_routes", [None])[0] != "float32"
+            or value.get("available_routes") != available_routes
+            or value.get("vector_count") != record.count
+            or value.get("actual_providers") != ["CPUExecutionProvider"]
             or type(value.get("turbovec")) is not dict
             or value["turbovec"].get("version") != "1.0.0"
             or value["turbovec"].get("source_commit") != TURBOVEC_COMMIT
             or value["turbovec"].get("license") != "MIT"
             or not _HASH.fullmatch(str(value["turbovec"].get("wheel_sha256", "")))
-            or type(value.get("save_timings_seconds")) is not dict
-            or any(type(name) is not str or not isinstance(seconds, (int, float)) or isinstance(seconds, bool) or not math.isfinite(float(seconds)) or seconds < 0 for name, seconds in value.get("save_timings_seconds", {}).items())
+            or type(value.get("build_timings_seconds")) is not dict
+            or set(value.get("build_timings_seconds", {})) != required_timings
         ):
             raise ResearchError("index-artifact-invalid")
+        try:
+            _validate_timing_mapping(value["build_timings_seconds"])
+        except ResearchError:
+            raise ResearchError("index-artifact-invalid") from None
     else:
         raise ResearchError("index-artifact-invalid")
     return True
@@ -649,9 +677,28 @@ def _verify_all_artifacts(root: Path, manifest: IndexManifest, deps: CliDependen
         raise ResearchError("index-artifact-invalid") from None
 
 
-def _build_evidence_document(evidence: Any, phase_timings: Mapping[str, float], approval: Mapping[str, Any], actual: Mapping[str, Any], deps: CliDependencies, manifest: IndexManifest, fixture_path: Path) -> Mapping[str, Any]:
-    if any(type(name) is not str or not name or not isinstance(value, (int, float)) or isinstance(value, bool) or not math.isfinite(float(value)) or value < 0 for name, value in phase_timings.items()):
+def _validate_timing_mapping(value: Mapping[str, float]) -> None:
+    if type(value) is not dict or any(
+        type(name) is not str
+        or not name
+        or not isinstance(seconds, (int, float))
+        or isinstance(seconds, bool)
+        or not math.isfinite(float(seconds))
+        or seconds < 0
+        for name, seconds in value.items()
+    ):
         raise ResearchError("timing-samples-invalid")
+
+
+def _raw_float32_bytes(vectors: Any) -> int:
+    import numpy as np
+    if not isinstance(vectors, np.ndarray) or vectors.dtype != np.float32 or vectors.ndim != 2 or vectors.size == 0:
+        raise ResearchError("vectors-type-invalid")
+    return int(vectors.nbytes)
+
+
+def _build_evidence_document(evidence: Any, phase_timings: Mapping[str, float], storage_files: Mapping[str, int], approval: Mapping[str, Any], actual: Mapping[str, Any], deps: CliDependencies, manifest: IndexManifest, fixture_path: Path) -> Mapping[str, Any]:
+    _validate_timing_mapping(phase_timings)
     info = deps.platform_info()
     peak = deps.peak_working_set()
     if type(peak) is not int or peak <= 0:
@@ -688,6 +735,7 @@ def _build_evidence_document(evidence: Any, phase_timings: Mapping[str, float], 
         "source_hashes": [{"relative_path": item.relative_path, "sha256": item.sha256} for item in manifest.sources],
         "evaluation_fixture_sha256": fixture_hash,
         "phase_timings": {name: float(value) for name, value in sorted(phase_timings.items())},
+        "storage_files": dict(sorted(storage_files.items())),
         "peak_working_set_bytes": peak,
     }
     _validate_evidence_document(document, evidence)
@@ -695,7 +743,7 @@ def _build_evidence_document(evidence: Any, phase_timings: Mapping[str, float], 
 
 
 def _validate_evidence_document(document: Mapping[str, Any], evidence: Any) -> None:
-    if type(document) is not dict or set(document) != {"schema_version", "benchmark", "environment", "index_manifest_sha256", "source_hashes", "evaluation_fixture_sha256", "phase_timings", "peak_working_set_bytes"}:
+    if type(document) is not dict or set(document) != {"schema_version", "benchmark", "environment", "index_manifest_sha256", "source_hashes", "evaluation_fixture_sha256", "phase_timings", "storage_files", "peak_working_set_bytes"}:
         raise ResearchError("benchmark-evidence-invalid")
     if document["schema_version"] != 1 or document["benchmark"] != evidence.to_dict() or not _HASH.fullmatch(str(document["index_manifest_sha256"])) or not _HASH.fullmatch(str(document["evaluation_fixture_sha256"])):
         raise ResearchError("benchmark-evidence-invalid")
@@ -713,8 +761,19 @@ def _validate_evidence_document(document: Mapping[str, Any], evidence: Any) -> N
     if type(sources) is not list or not sources or any(type(item) is not dict or set(item) != {"relative_path", "sha256"} or not _safe_relative(item["relative_path"]) or not _HASH.fullmatch(str(item["sha256"])) for item in sources):
         raise ResearchError("benchmark-evidence-invalid")
     timings = document["phase_timings"]
-    required = {"document_embedding_seconds", "query_embedding_seconds", "index_build_from_existing_seconds", "float32_index_load_seconds", "2bit_index_load_seconds", "4bit_index_load_seconds", "2bit_index_save_seconds", "4bit_index_save_seconds", "end_to_end_seconds"}
+    required = {"document_embedding_seconds", "float32_index_build_seconds", "float32_index_save_seconds", "2bit_index_build_seconds", "4bit_index_build_seconds", "2bit_index_save_seconds", "4bit_index_save_seconds", "index_end_to_end_seconds", "query_embedding_seconds", "float32_index_load_seconds", "2bit_index_load_seconds", "4bit_index_load_seconds", "end_to_end_seconds"}
     if type(timings) is not dict or set(timings) != required or any(not isinstance(value, (int, float)) or isinstance(value, bool) or not math.isfinite(float(value)) or value < 0 for value in timings.values()):
+        raise ResearchError("benchmark-evidence-invalid")
+    storage = document["storage_files"]
+    storage_keys = {"float32_raw_vector_bytes", "float32_persisted_npy_bytes", "2bit_persisted_bytes", "4bit_persisted_bytes"}
+    if type(storage) is not dict or set(storage) != storage_keys or any(type(value) is not int or value <= 0 for value in storage.values()):
+        raise ResearchError("benchmark-evidence-invalid")
+    if (
+        storage["float32_raw_vector_bytes"] != evidence.two_bit_storage.float32_vector_bytes
+        or storage["2bit_persisted_bytes"] != evidence.two_bit_storage.candidate_persisted_bytes
+        or storage["4bit_persisted_bytes"] != evidence.four_bit_storage.candidate_persisted_bytes
+        or storage["float32_persisted_npy_bytes"] <= storage["float32_raw_vector_bytes"]
+    ):
         raise ResearchError("benchmark-evidence-invalid")
     benchmark_json(document)
 

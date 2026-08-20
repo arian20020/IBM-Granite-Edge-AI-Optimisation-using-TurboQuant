@@ -10,9 +10,9 @@ from unittest import mock
 
 import numpy as np
 
-from granite_turbovec.cli import EXIT_CODES, LOCKED_VERSIONS, CliDependencies, main, run_cli
+from granite_turbovec.cli import FIXED_RESEARCH_ERROR_CODES, EXIT_CODES, LOCKED_VERSIONS, CliDependencies, _raw_float32_bytes, main, run_cli
 from granite_turbovec.contracts import ResearchError
-from granite_turbovec.manifest import IndexIdentity
+from granite_turbovec.manifest import MANIFEST_MISMATCH_CODES, IndexIdentity
 
 
 def approved(root: Path, *, model_hash: str = "1" * 64) -> Path:
@@ -169,11 +169,26 @@ class CliTests(unittest.TestCase):
         self.assertEqual(32, EXIT_CODES["vectors-nonfinite"])
         self.assertEqual(33, EXIT_CODES["index-search-failed"])
         self.assertEqual(31, EXIT_CODES["index-embedding-mismatch"])
+        self.assertEqual(31, EXIT_CODES["index-package-mismatch"])
+        self.assertTrue(MANIFEST_MISMATCH_CODES <= set(EXIT_CODES))
+        self.assertEqual(set(EXIT_CODES) | {"research-argument-error"}, set(FIXED_RESEARCH_ERROR_CODES))
         source = (package / "cli.py").read_text(encoding="utf-8")
         tree = ast.parse(source)
         mapping = next(node.value for node in tree.body if isinstance(node, ast.Assign) and any(isinstance(target, ast.Name) and target.id == "ERROR_EXIT" for target in node.targets))
         keys = [key.value for key in mapping.keys if isinstance(key, ast.Constant)]
         self.assertEqual(len(keys), len(set(keys)), "ERROR_EXIT must not contain duplicate literal codes")
+
+    def test_stored_index_package_mismatch_returns_exact_exit_31(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary); approval = approved(root); source = root / "a.txt"; source.write_text("granite")
+            index = root / "index"; deps = dependencies(root)
+            self.assertEqual(0, run_cli(["index", "--approved-input", str(approval), "--input", str(source), "--output", str(index)], dependencies=deps).exit_code)
+            manifest_path = index / "manifest.json"; payload = json.loads(manifest_path.read_text())
+            payload["identity"]["dependency_lock_sha256"] = "9" * 64
+            manifest_path.write_text(json.dumps(payload, ensure_ascii=False, allow_nan=False, separators=(",", ":"), sort_keys=True))
+            result = run_cli(["query", "--approved-input", str(approval), "--index", str(index), "--text", "x", "--top-k", "1"], dependencies=deps)
+        self.assertEqual(31, result.exit_code)
+        self.assertEqual("index-package-mismatch", result.payload["code"])
 
     def test_argument_errors_are_one_json_diagnostic_without_usage(self):
         code, stdout, stderr = invoke(["query"], dependencies(Path(".")))
@@ -442,10 +457,54 @@ class CliTests(unittest.TestCase):
             self.assertEqual(document_calls, embedder.document_calls, "benchmark must reuse stored document embeddings")
             self.assertEqual(1, embedder.query_calls, "all routes must reuse one query embedding batch")
             summary = (output / "summary.md").read_text()
-            for phase in ("document_embedding_seconds", "query_embedding_seconds", "index_build_from_existing_seconds", "4bit_index_load_seconds", "end_to_end_seconds"):
+            for phase in ("document_embedding_seconds", "query_embedding_seconds", "float32_index_build_seconds", "4bit_index_load_seconds", "end_to_end_seconds"):
                 self.assertIn(phase, summary)
             again = run_cli(["benchmark", "--approved-input", str(approval), "--fixture", str(fixture), "--index", str(index), "--output", str(output)], dependencies=deps)
-        self.assertEqual(22, again.exit_code)
+            self.assertEqual(22, again.exit_code)
+
+    def test_measured_index_timings_flow_from_metadata_into_benchmark_evidence(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary); approval = approved(root); embedder = FakeEmbedder(); deps = dependencies(root, embedder)
+            tick = {"value": 0}
+            def clock():
+                tick["value"] += 1
+                return float(tick["value"] ** 2)
+            deps.perf_counter = clock
+            fixture, index = self._build_benchmark_index(root, approval, deps)
+            metadata = json.loads((index / "baseline-results.json").read_text())
+            measured = metadata["build_timings_seconds"]
+            required = {"document_embedding_seconds", "float32_index_build_seconds", "float32_index_save_seconds", "2bit_index_build_seconds", "4bit_index_build_seconds", "2bit_index_save_seconds", "4bit_index_save_seconds", "index_end_to_end_seconds"}
+            self.assertEqual(required, set(measured))
+            self.assertTrue(all(value > 0 for value in measured.values()))
+            self.assertGreater(len(set(measured.values())), 3)
+            output = root / "timing-evidence"
+            result = run_cli(["benchmark", "--approved-input", str(approval), "--fixture", str(fixture), "--index", str(index), "--output", str(output)], dependencies=deps)
+            self.assertIn(result.exit_code, (0, 40))
+            phases = json.loads((output / "results.json").read_text())["phase_timings"]
+            for name, value in measured.items():
+                self.assertEqual(value, phases[name])
+            self.assertEqual(0, metadata["vector_count"] - len(json.loads((index / "manifest.json").read_text())["chunks"]))
+            self.assertEqual(384, metadata["dimension"])
+            self.assertEqual(["CPUExecutionProvider"], metadata["actual_providers"])
+            storage = json.loads((output / "results.json").read_text())["storage_files"]
+            self.assertEqual(metadata["vector_count"] * metadata["dimension"] * 4, storage["float32_raw_vector_bytes"])
+            self.assertGreater(storage["float32_persisted_npy_bytes"], storage["float32_raw_vector_bytes"])
+            routed_storage = json.loads((output / "results.json").read_text())["benchmark"]["storage"]
+            self.assertTrue(all(item["float32_vector_bytes"] == storage["float32_raw_vector_bytes"] for item in routed_storage))
+
+    def test_storage_gate_denominator_excludes_npy_header_bytes(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            vectors = np.zeros((1, 25), dtype=np.float32)
+            path = Path(temporary) / "vectors.npy"
+            with path.open("xb") as stream:
+                np.save(stream, vectors, allow_pickle=False)
+            raw_bytes = _raw_float32_bytes(vectors)
+            persisted_bytes = path.stat().st_size
+        candidate_bytes = 40
+        self.assertEqual(100, raw_bytes)
+        self.assertGreater(persisted_bytes, raw_bytes)
+        self.assertGreater(candidate_bytes / raw_bytes, 0.25, "raw vectors must fail the <=25% gate")
+        self.assertLessEqual(candidate_bytes / persisted_bytes, 0.25, "NPY header would incorrectly pass the gate")
 
     def test_benchmark_pass_returns_safe_success_after_persisting_evidence(self):
         class TinyTurbo(FakeTurbo):
