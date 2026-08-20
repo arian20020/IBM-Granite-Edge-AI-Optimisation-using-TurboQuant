@@ -25,6 +25,14 @@ public sealed record OpenVinoGenerationLimits(int MaximumContextTokens, int Maxi
     }
 }
 
+public sealed record StartInspectionCommand(Guid InspectionRunId) : IOpenVinoCommand
+{
+    [JsonPropertyName("commandType")]
+    public string CommandType => "startInspection";
+
+    public void Validate() => OpenVinoProtocol.RequireUuid(InspectionRunId, nameof(InspectionRunId));
+}
+
 public sealed record StartSessionCommand(
     Guid SessionId,
     Guid InspectionRunId,

@@ -1,57 +1,122 @@
 namespace GraniteEdgeAI.OpenVino.Contracts;
 
-/// <summary>Validates the only legal event order for one bounded OpenVINO session.</summary>
-public sealed class OpenVinoSessionSequenceValidator
+/// <summary>
+/// Validates the closed command and event conversation for one OpenVINO
+/// inspection or bounded generation operation.
+/// </summary>
+public sealed class OpenVinoConversationValidator
 {
-    private readonly Guid _sessionId;
-    private SessionState _state = SessionState.AwaitingHello;
-    private Guid? _turnId;
+    private ConversationState _state = ConversationState.AwaitingHello;
+    private Guid? _sessionId;
+    private Guid? _inspectionRunId;
+    private Guid? _pendingTurnId;
+    private Guid? _activeTurnId;
     private long _nextSequence;
     private int _turnCount;
     private int _operationTextBytes;
 
-    public OpenVinoSessionSequenceValidator(Guid sessionId)
-    {
-        OpenVinoProtocol.RequireUuid(sessionId, nameof(sessionId));
-        _sessionId = sessionId;
-    }
+    public bool IsTerminal => _state == ConversationState.Terminal;
 
-    public bool IsTerminal => _state == SessionState.Terminal;
-
-    public void Accept(IOpenVinoEvent @event)
+    /// <summary>Accepts exactly one approved command or event in legal order.</summary>
+    public void Accept(object value)
     {
-        if (@event is null)
+        if (value is null)
         {
-            throw new OpenVinoProtocolException("event must be present.");
+            throw new OpenVinoProtocolException("protocol value must be present.");
         }
 
-        @event.Validate();
+        switch (value)
+        {
+            case IOpenVinoCommand command:
+                command.Validate();
+                AcceptCommand(command);
+                return;
+            case IOpenVinoEvent @event:
+                @event.Validate();
+                AcceptEvent(@event);
+                return;
+            default:
+                throw new OpenVinoProtocolException("only approved OpenVINO commands and events may enter a conversation.");
+        }
+    }
 
+    private void AcceptCommand(IOpenVinoCommand command)
+    {
+        switch (command)
+        {
+            case StartInspectionCommand startInspection:
+                RequireState(ConversationState.AwaitingStart, "startInspection requires hello and occurs once");
+                _inspectionRunId = startInspection.InspectionRunId;
+                _state = ConversationState.Inspecting;
+                break;
+            case StartSessionCommand startSession:
+                RequireState(ConversationState.AwaitingStart, "startSession requires hello and occurs once");
+                _sessionId = startSession.SessionId;
+                _inspectionRunId = startSession.InspectionRunId;
+                _state = ConversationState.AwaitingSessionStarted;
+                break;
+            case PromptCommand prompt:
+                RequireState(ConversationState.SessionReady, "prompt requires a ready session");
+                RequireSession(prompt.SessionId);
+                OpenVinoProtocol.Require(_turnCount < OpenVinoProtocol.MaximumTurns, "session exceeds the maximum turn count.");
+                _pendingTurnId = prompt.TurnId;
+                _turnCount++;
+                _state = ConversationState.PromptAccepted;
+                break;
+            case StopTurnCommand stop:
+                RequireState(ConversationState.Generating, "stopTurn requires an active generation");
+                RequireSession(stop.SessionId);
+                RequireActiveTurn(stop.TurnId);
+                _state = ConversationState.Stopping;
+                break;
+            case CancelSessionCommand cancel:
+                RequireStateOneOf(
+                    "cancelSession requires an active session",
+                    ConversationState.AwaitingSessionStarted,
+                    ConversationState.SessionReady,
+                    ConversationState.PromptAccepted,
+                    ConversationState.Generating,
+                    ConversationState.Stopping);
+                RequireSession(cancel.SessionId);
+                _state = ConversationState.Cancelling;
+                break;
+            default:
+                throw new OpenVinoProtocolException("command type is not approved by the OpenVINO protocol.");
+        }
+    }
+
+    private void AcceptEvent(IOpenVinoEvent @event)
+    {
         switch (@event)
         {
-            case HelloEvent hello:
-                RequireState(SessionState.AwaitingHello, "hello must be first and occur once");
-                hello.Validate();
-                _state = SessionState.AwaitingSessionStarted;
+            case HelloEvent:
+                RequireState(ConversationState.AwaitingHello, "hello must be first and occur once");
+                _state = ConversationState.AwaitingStart;
+                break;
+            case InspectionCompletedEvent completed:
+                CompleteInspection(completed.InspectionRunId);
+                break;
+            case InspectionFailedEvent failed:
+                CompleteInspection(failed.InspectionRunId);
                 break;
             case SessionStartedEvent started:
-                RequireState(SessionState.AwaitingSessionStarted, "sessionStarted requires hello and occurs once");
+                RequireState(ConversationState.AwaitingSessionStarted, "sessionStarted requires one startSession command");
                 RequireSession(started.SessionId);
-                _state = SessionState.SessionReady;
+                _state = ConversationState.SessionReady;
                 break;
             case GenerationStartedEvent generation:
-                RequireState(SessionState.SessionReady, "generationStarted requires a ready session");
+                RequireState(ConversationState.PromptAccepted, "generationStarted requires one accepted prompt");
                 RequireSession(generation.SessionId);
-                OpenVinoProtocol.Require(_turnCount < OpenVinoProtocol.MaximumTurns, "session exceeds the maximum turn count.");
-                _turnId = generation.TurnId;
+                RequirePendingTurn(generation.TurnId);
+                _pendingTurnId = null;
+                _activeTurnId = generation.TurnId;
                 _nextSequence = 0;
-                _turnCount++;
-                _state = SessionState.Generating;
+                _state = ConversationState.Generating;
                 break;
             case TokenEvent token:
-                RequireState(SessionState.Generating, "token requires an active generation");
+                RequireState(ConversationState.Generating, "token requires an active generation");
                 RequireSession(token.SessionId);
-                RequireTurn(token.TurnId);
+                RequireActiveTurn(token.TurnId);
                 OpenVinoProtocol.Require(token.Sequence == _nextSequence, "token sequence must be contiguous and monotonic.");
                 checked
                 {
@@ -67,55 +132,82 @@ public sealed class OpenVinoSessionSequenceValidator
                 CompleteTurn(failed.SessionId, failed.TurnId);
                 break;
             case SessionCompletedEvent completed:
-                CompleteSession(completed.SessionId);
+                RequireState(ConversationState.SessionReady, "sessionCompleted requires a ready session");
+                RequireSession(completed.SessionId);
+                _state = ConversationState.Terminal;
                 break;
             case SessionFailedEvent failed:
-                CompleteSession(failed.SessionId);
+                RequireStateOneOf(
+                    "sessionFailed requires an active session",
+                    ConversationState.AwaitingSessionStarted,
+                    ConversationState.SessionReady,
+                    ConversationState.PromptAccepted,
+                    ConversationState.Generating,
+                    ConversationState.Stopping,
+                    ConversationState.Cancelling);
+                RequireSession(failed.SessionId);
+                _state = ConversationState.Terminal;
                 break;
             case SessionCancelledEvent cancelled:
-                RequireStateOneOf("sessionCancelled requires an active session", SessionState.SessionReady, SessionState.Generating);
+                RequireState(ConversationState.Cancelling, "sessionCancelled requires one cancelSession command");
                 RequireSession(cancelled.SessionId);
-                _state = SessionState.Terminal;
+                _state = ConversationState.Terminal;
                 break;
             default:
                 throw new OpenVinoProtocolException("event type is not approved by the OpenVINO protocol.");
         }
     }
 
-    private void CompleteTurn(Guid sessionId, Guid turnId)
+    private void CompleteInspection(Guid inspectionRunId)
     {
-        RequireState(SessionState.Generating, "turn terminal event requires an active generation");
-        RequireSession(sessionId);
-        RequireTurn(turnId);
-        _turnId = null;
-        _state = SessionState.SessionReady;
+        RequireState(ConversationState.Inspecting, "inspection terminal event requires startInspection");
+        OpenVinoProtocol.Require(
+            _inspectionRunId == inspectionRunId,
+            "inspectionRunId must match the active OpenVINO inspection.");
+        _state = ConversationState.Terminal;
     }
 
-    private void CompleteSession(Guid sessionId)
+    private void CompleteTurn(Guid sessionId, Guid turnId)
     {
-        RequireState(SessionState.SessionReady, "session terminal event requires a ready session");
+        RequireStateOneOf(
+            "turn terminal event requires an active generation or stop request",
+            ConversationState.Generating,
+            ConversationState.Stopping);
         RequireSession(sessionId);
-        _state = SessionState.Terminal;
+        RequireActiveTurn(turnId);
+        _activeTurnId = null;
+        _state = ConversationState.SessionReady;
     }
 
     private void RequireSession(Guid sessionId) => OpenVinoProtocol.Require(
-        sessionId == _sessionId,
+        _sessionId == sessionId,
         "sessionId must match the active OpenVINO session.");
 
-    private void RequireTurn(Guid turnId) => OpenVinoProtocol.Require(
-        _turnId == turnId,
+    private void RequirePendingTurn(Guid turnId) => OpenVinoProtocol.Require(
+        _pendingTurnId == turnId,
+        "turnId must match the accepted OpenVINO prompt.");
+
+    private void RequireActiveTurn(Guid turnId) => OpenVinoProtocol.Require(
+        _activeTurnId == turnId,
         "turnId must match the active OpenVINO turn.");
 
-    private void RequireState(SessionState expected, string message) => OpenVinoProtocol.Require(_state == expected, message + ".");
+    private void RequireState(ConversationState expected, string message) =>
+        OpenVinoProtocol.Require(_state == expected, message + ".");
 
-    private void RequireStateOneOf(string message, params SessionState[] expected) => OpenVinoProtocol.Require(expected.Contains(_state), message + ".");
+    private void RequireStateOneOf(string message, params ConversationState[] expected) =>
+        OpenVinoProtocol.Require(expected.Contains(_state), message + ".");
 
-    private enum SessionState
+    private enum ConversationState
     {
         AwaitingHello,
+        AwaitingStart,
+        Inspecting,
         AwaitingSessionStarted,
         SessionReady,
+        PromptAccepted,
         Generating,
+        Stopping,
+        Cancelling,
         Terminal
     }
 }

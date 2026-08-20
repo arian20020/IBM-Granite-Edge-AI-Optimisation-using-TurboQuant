@@ -11,11 +11,14 @@ namespace GraniteEdgeAI.OpenVino.Contracts;
     ReadCommentHandling = JsonCommentHandling.Disallow,
     UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
     MaxDepth = OpenVinoProtocol.MaximumJsonDepth)]
+[JsonSerializable(typeof(StartInspectionCommand))]
 [JsonSerializable(typeof(StartSessionCommand))]
 [JsonSerializable(typeof(PromptCommand))]
 [JsonSerializable(typeof(StopTurnCommand))]
 [JsonSerializable(typeof(CancelSessionCommand))]
 [JsonSerializable(typeof(HelloEvent))]
+[JsonSerializable(typeof(InspectionCompletedEvent))]
+[JsonSerializable(typeof(InspectionFailedEvent))]
 [JsonSerializable(typeof(SessionStartedEvent))]
 [JsonSerializable(typeof(GenerationStartedEvent))]
 [JsonSerializable(typeof(TokenEvent))]

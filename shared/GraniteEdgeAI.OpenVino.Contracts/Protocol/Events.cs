@@ -19,6 +19,26 @@ public sealed record HelloEvent(string ProtocolId) : IOpenVinoEvent
         nameof(ProtocolId) + " must be an approved OpenVINO protocol identity.");
 }
 
+public sealed record InspectionCompletedEvent(Guid InspectionRunId) : IOpenVinoEvent
+{
+    [JsonPropertyName("eventType")]
+    public string EventType => "inspectionCompleted";
+
+    public void Validate() => OpenVinoProtocol.RequireUuid(InspectionRunId, nameof(InspectionRunId));
+}
+
+public sealed record InspectionFailedEvent(Guid InspectionRunId, OpenVinoSupportCode SupportCode) : IOpenVinoEvent
+{
+    [JsonPropertyName("eventType")]
+    public string EventType => "inspectionFailed";
+
+    public void Validate()
+    {
+        OpenVinoProtocol.RequireUuid(InspectionRunId, nameof(InspectionRunId));
+        SupportCode.Validate();
+    }
+}
+
 public sealed record SessionStartedEvent(Guid SessionId) : IOpenVinoEvent
 {
     [JsonPropertyName("eventType")]

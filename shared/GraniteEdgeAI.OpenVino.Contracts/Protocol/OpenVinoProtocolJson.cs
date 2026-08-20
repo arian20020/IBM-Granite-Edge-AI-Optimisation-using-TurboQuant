@@ -130,6 +130,7 @@ public static class OpenVinoProtocolJson
 
     private static IOpenVinoCommand DeserializeCommandByType(string commandType, string json) => commandType switch
     {
+        "startInspection" => DeserializeAndValidate(json, OpenVinoProtocolJsonContext.Default.StartInspectionCommand),
         "startSession" => DeserializeAndValidate(json, OpenVinoProtocolJsonContext.Default.StartSessionCommand),
         "prompt" => DeserializeAndValidate(json, OpenVinoProtocolJsonContext.Default.PromptCommand),
         "stopTurn" => DeserializeAndValidate(json, OpenVinoProtocolJsonContext.Default.StopTurnCommand),
@@ -140,6 +141,8 @@ public static class OpenVinoProtocolJson
     private static IOpenVinoEvent DeserializeEventByType(string eventType, string json) => eventType switch
     {
         "hello" => DeserializeAndValidate(json, OpenVinoProtocolJsonContext.Default.HelloEvent),
+        "inspectionCompleted" => DeserializeAndValidate(json, OpenVinoProtocolJsonContext.Default.InspectionCompletedEvent),
+        "inspectionFailed" => DeserializeAndValidate(json, OpenVinoProtocolJsonContext.Default.InspectionFailedEvent),
         "sessionStarted" => DeserializeAndValidate(json, OpenVinoProtocolJsonContext.Default.SessionStartedEvent),
         "generationStarted" => DeserializeAndValidate(json, OpenVinoProtocolJsonContext.Default.GenerationStartedEvent),
         "token" => DeserializeAndValidate(json, OpenVinoProtocolJsonContext.Default.TokenEvent),
@@ -182,11 +185,14 @@ public static class OpenVinoProtocolJson
         }
     }
 
-    private static JsonTypeInfo GetTypeInfo(Type type) => type == typeof(StartSessionCommand) ? OpenVinoProtocolJsonContext.Default.StartSessionCommand :
+    private static JsonTypeInfo GetTypeInfo(Type type) => type == typeof(StartInspectionCommand) ? OpenVinoProtocolJsonContext.Default.StartInspectionCommand :
+        type == typeof(StartSessionCommand) ? OpenVinoProtocolJsonContext.Default.StartSessionCommand :
         type == typeof(PromptCommand) ? OpenVinoProtocolJsonContext.Default.PromptCommand :
         type == typeof(StopTurnCommand) ? OpenVinoProtocolJsonContext.Default.StopTurnCommand :
         type == typeof(CancelSessionCommand) ? OpenVinoProtocolJsonContext.Default.CancelSessionCommand :
         type == typeof(HelloEvent) ? OpenVinoProtocolJsonContext.Default.HelloEvent :
+        type == typeof(InspectionCompletedEvent) ? OpenVinoProtocolJsonContext.Default.InspectionCompletedEvent :
+        type == typeof(InspectionFailedEvent) ? OpenVinoProtocolJsonContext.Default.InspectionFailedEvent :
         type == typeof(SessionStartedEvent) ? OpenVinoProtocolJsonContext.Default.SessionStartedEvent :
         type == typeof(GenerationStartedEvent) ? OpenVinoProtocolJsonContext.Default.GenerationStartedEvent :
         type == typeof(TokenEvent) ? OpenVinoProtocolJsonContext.Default.TokenEvent :

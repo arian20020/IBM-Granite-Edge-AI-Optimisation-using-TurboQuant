@@ -8,15 +8,20 @@ namespace GraniteEdgeAI.OpenVino.Contracts.Tests;
 public sealed class ProtocolSequenceTests
 {
     private static readonly Guid SessionId = Guid.Parse("e39d252d-2144-4624-a055-0350c93f6728");
+    private static readonly Guid RunId = Guid.Parse("3d2d12c1-b7e2-430d-a550-a5b839011ce2");
     private static readonly Guid TurnId = Guid.Parse("f77fb13c-263d-49a1-8d93-d908968c5832");
+    private const string Digest = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 
     [TestMethod]
-    public void SequenceAcceptsHelloStartGenerationTokensTurnCompletionAndSessionCompletionInThatOrder()
+    public void ConversationAcceptsExactlyOneStartSessionThenOrderedPromptGenerationAndTerminalEvents()
     {
-        OpenVinoSessionSequenceValidator validator = new(SessionId);
+        OpenVinoConversationValidator validator = new();
 
         validator.Accept(new HelloEvent(OpenVinoProtocol.OfficialProtocolId));
+        validator.Accept(StartSession());
+        Assert.ThrowsExactly<OpenVinoProtocolException>(() => validator.Accept(StartSession()));
         validator.Accept(new SessionStartedEvent(SessionId));
+        validator.Accept(new PromptCommand(SessionId, TurnId, "first user prompt", 128));
         validator.Accept(new GenerationStartedEvent(SessionId, TurnId));
         validator.Accept(new TokenEvent(SessionId, TurnId, 0, "first"));
         validator.Accept(new TokenEvent(SessionId, TurnId, 1, "second"));
@@ -27,57 +32,112 @@ public sealed class ProtocolSequenceTests
     }
 
     [TestMethod]
-    public void SequenceRejectsTokenBeforeGenerationInsteadOfPermittingAnOutOfOrderStream()
+    public void ConversationRejectsSessionStartWithoutExactlyOnePrecedingStartCommand()
     {
-        OpenVinoSessionSequenceValidator validator = new(SessionId);
+        OpenVinoConversationValidator validator = new();
         validator.Accept(new HelloEvent(OpenVinoProtocol.OfficialProtocolId));
-        validator.Accept(new SessionStartedEvent(SessionId));
 
         Assert.ThrowsExactly<OpenVinoProtocolException>(() =>
-            validator.Accept(new TokenEvent(SessionId, TurnId, 0, "late")));
+            validator.Accept(new SessionStartedEvent(SessionId)));
     }
 
     [TestMethod]
-    public void SequenceRejectsThirtyThirdTurnInsteadOfRetainingUnboundedConversationState()
+    public void ConversationRejectsPromptAndGenerationWithStaleSessionOrTurnIdentity()
     {
-        OpenVinoSessionSequenceValidator validator = new(SessionId);
-        validator.Accept(new HelloEvent(OpenVinoProtocol.OfficialProtocolId));
-        validator.Accept(new SessionStartedEvent(SessionId));
+        OpenVinoConversationValidator validator = StartedSession();
 
-        for (int turn = 0; turn < OpenVinoProtocol.MaximumTurns; turn++)
-        {
-            Guid id = Guid.NewGuid();
-            validator.Accept(new GenerationStartedEvent(SessionId, id));
-            validator.Accept(new TurnCompletedEvent(SessionId, id));
-        }
-
+        Assert.ThrowsExactly<OpenVinoProtocolException>(() =>
+            validator.Accept(new PromptCommand(Guid.NewGuid(), TurnId, "stale session", 1)));
         Assert.ThrowsExactly<OpenVinoProtocolException>(() =>
             validator.Accept(new GenerationStartedEvent(SessionId, Guid.NewGuid())));
     }
 
     [TestMethod]
-    public void SequenceRejectsStaleSessionUuidInsteadOfApplyingAPreviousOperationEvent()
+    public void ConversationRejectsConcurrentOrUnpairedPromptTurnsInsteadOfAllowingMultipleActiveTurns()
     {
-        OpenVinoSessionSequenceValidator validator = new(SessionId);
-        validator.Accept(new HelloEvent(OpenVinoProtocol.OfficialProtocolId));
+        OpenVinoConversationValidator validator = StartedSession();
+        validator.Accept(new PromptCommand(SessionId, TurnId, "active", 1));
 
         Assert.ThrowsExactly<OpenVinoProtocolException>(() =>
-            validator.Accept(new SessionStartedEvent(Guid.NewGuid())));
+            validator.Accept(new PromptCommand(SessionId, Guid.NewGuid(), "second", 1)));
+        Assert.ThrowsExactly<OpenVinoProtocolException>(() =>
+            validator.Accept(new GenerationStartedEvent(SessionId, Guid.NewGuid())));
     }
 
     [TestMethod]
-    public void SequenceRejectsOperationTextSplitAcrossTurnsInsteadOfResettingTheFourMiBOperationBudget()
+    public void ConversationAllowsTheSeparateInspectionStartAndTerminalPath()
     {
-        OpenVinoSessionSequenceValidator validator = new(SessionId);
+        OpenVinoConversationValidator validator = new();
+
         validator.Accept(new HelloEvent(OpenVinoProtocol.OfficialProtocolId));
-        validator.Accept(new SessionStartedEvent(SessionId));
+        validator.Accept(new StartInspectionCommand(RunId));
+        validator.Accept(new InspectionCompletedEvent(RunId));
+
+        Assert.IsTrue(validator.IsTerminal);
+    }
+
+    [TestMethod]
+    public void ConversationRejectsStopAndCancelOutsideTheirActiveStatesAndRejectsTerminalReuse()
+    {
+        OpenVinoConversationValidator validator = StartedSession();
+        Assert.ThrowsExactly<OpenVinoProtocolException>(() =>
+            validator.Accept(new StopTurnCommand(SessionId, TurnId)));
+
+        validator.Accept(new PromptCommand(SessionId, TurnId, "stop me", 1));
         validator.Accept(new GenerationStartedEvent(SessionId, TurnId));
-        validator.Accept(new TokenEvent(SessionId, TurnId, 0, new string('a', 3 * 1024 * 1024)));
+        validator.Accept(new StopTurnCommand(SessionId, TurnId));
+        Assert.ThrowsExactly<OpenVinoProtocolException>(() =>
+            validator.Accept(new TokenEvent(SessionId, TurnId, 0, "late token")));
         validator.Accept(new TurnCompletedEvent(SessionId, TurnId));
-        Guid nextTurnId = Guid.NewGuid();
-        validator.Accept(new GenerationStartedEvent(SessionId, nextTurnId));
+        validator.Accept(new CancelSessionCommand(SessionId));
+        validator.Accept(new SessionCancelledEvent(SessionId));
 
         Assert.ThrowsExactly<OpenVinoProtocolException>(() =>
-            validator.Accept(new TokenEvent(SessionId, nextTurnId, 0, new string('b', 2 * 1024 * 1024))));
+            validator.Accept(new PromptCommand(SessionId, Guid.NewGuid(), "terminal reuse", 1)));
     }
+
+    [TestMethod]
+    public void ConversationRejectsThirtyThirdPromptAndCumulativeOperationTextAcrossTurns()
+    {
+        OpenVinoConversationValidator validator = StartedSession();
+
+        for (int turn = 0; turn < OpenVinoProtocol.MaximumTurns; turn++)
+        {
+            Guid id = Guid.NewGuid();
+            validator.Accept(new PromptCommand(SessionId, id, "turn", 1));
+            validator.Accept(new GenerationStartedEvent(SessionId, id));
+            validator.Accept(new TurnCompletedEvent(SessionId, id));
+        }
+
+        Assert.ThrowsExactly<OpenVinoProtocolException>(() =>
+            validator.Accept(new PromptCommand(SessionId, Guid.NewGuid(), "turn thirty three", 1)));
+
+        OpenVinoConversationValidator textValidator = StartedSession();
+        textValidator.Accept(new PromptCommand(SessionId, TurnId, "first", 1));
+        textValidator.Accept(new GenerationStartedEvent(SessionId, TurnId));
+        textValidator.Accept(new TokenEvent(SessionId, TurnId, 0, new string('a', 3 * 1024 * 1024)));
+        textValidator.Accept(new TurnCompletedEvent(SessionId, TurnId));
+        Guid nextTurnId = Guid.NewGuid();
+        textValidator.Accept(new PromptCommand(SessionId, nextTurnId, "second", 1));
+        textValidator.Accept(new GenerationStartedEvent(SessionId, nextTurnId));
+
+        Assert.ThrowsExactly<OpenVinoProtocolException>(() =>
+            textValidator.Accept(new TokenEvent(SessionId, nextTurnId, 0, new string('b', 2 * 1024 * 1024))));
+    }
+
+    private static OpenVinoConversationValidator StartedSession()
+    {
+        OpenVinoConversationValidator validator = new();
+        validator.Accept(new HelloEvent(OpenVinoProtocol.OfficialProtocolId));
+        validator.Accept(StartSession());
+        validator.Accept(new SessionStartedEvent(SessionId));
+        return validator;
+    }
+
+    private static StartSessionCommand StartSession() => new(
+        SessionId,
+        RunId,
+        Digest,
+        new OpenVinoDeviceRequest("CPU"),
+        new OpenVinoGenerationLimits(1024, 128));
 }
