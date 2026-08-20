@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -188,6 +189,109 @@ public sealed class FixtureContractTests
         AssertScriptFailure(temporary.Path);
     }
 
+    [TestMethod]
+    public void VerifierRejectsSemanticSourceTensorMutation()
+    {
+        using TemporaryDirectory temporary = CopyCommittedFixture();
+        string sourcePath = Path.Combine(temporary.Path, "source", "fixture-spec.json");
+        JsonObject source = ReadJsonObject(sourcePath);
+        JsonArray tensors = source["model"]!.AsObject()["sourceTensors"]!.AsArray();
+        JsonArray values = tensors[3]!.AsObject()["values"]!.AsArray();
+        values[2] = 9;
+        WriteJsonObject(sourcePath, source);
+
+        AssertScriptFailure(temporary.Path);
+    }
+
+    [TestMethod]
+    public void VerifierRejectsForbiddenDecodedSourceValue()
+    {
+        using TemporaryDirectory temporary = CopyCommittedFixture();
+        string sourcePath = Path.Combine(temporary.Path, "source", "fixture-spec.json");
+        JsonObject source = ReadJsonObject(sourcePath);
+        source["generation"]!.AsObject()["expectedText"] =
+            "https://fixture.invalid/api_key=credential";
+        WriteJsonObject(sourcePath, source);
+
+        AssertScriptFailure(temporary.Path);
+    }
+
+    [TestMethod]
+    [DataRow("source/fixture-spec.json", false)]
+    [DataRow("source/fixture-spec.json", true)]
+    [DataRow("manifest.json", false)]
+    [DataRow("manifest.json", true)]
+    public void VerifierRejectsUnknownOrDuplicatePropertiesInClosedJsonSchemas(
+        string relativePath,
+        bool duplicate)
+    {
+        using TemporaryDirectory temporary = CopyCommittedFixture();
+        string path = Path.Combine(
+            temporary.Path,
+            relativePath.Replace('/', Path.DirectorySeparatorChar));
+        if (duplicate)
+        {
+            string json = File.ReadAllText(path);
+            int rootStart = json.IndexOf('{');
+            Assert.IsTrue(rootStart >= 0);
+            File.WriteAllText(path, json.Insert(rootStart + 1, "\n  \"schemaVersion\": 1,"));
+        }
+        else
+        {
+            JsonObject root = ReadJsonObject(path);
+            root["unexpectedProperty"] = true;
+            WriteJsonObject(path, root);
+        }
+
+        AssertScriptFailure(temporary.Path);
+    }
+
+    [TestMethod]
+    public void VerifierRejectsCoordinatedWeakLicenseReplacement()
+    {
+        using TemporaryDirectory temporary = CopyCommittedFixture();
+        const string weakLicense =
+            "SPDX-License-Identifier: MIT\n\n" +
+            "Copyright (c) 2026 GraniteEdgeAI contributors\n" +
+            "Permission is granted.\n" +
+            "Redistribution is permitted.\n" +
+            "Warranty is disclaimed.\n";
+        string sourcePath = Path.Combine(temporary.Path, "source", "fixture-spec.json");
+        JsonObject source = ReadJsonObject(sourcePath);
+        source["licenseText"] = weakLicense;
+        WriteJsonObject(sourcePath, source);
+        File.WriteAllText(Path.Combine(temporary.Path, "LICENSE.txt"), weakLicense);
+
+        AssertScriptFailure(temporary.Path);
+    }
+
+    [TestMethod]
+    [DataRow("")]
+    [DataRow("package")]
+    [DataRow("source")]
+    public void VerifierRejectsAlternateDataStreamsOnFixtureDirectories(string relativeDirectory)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            Assert.Inconclusive("Alternate data streams are a Windows-only topology check.");
+        }
+
+        using TemporaryDirectory temporary = CopyCommittedFixture();
+        string directory = relativeDirectory.Length == 0
+            ? temporary.Path
+            : Path.Combine(temporary.Path, relativeDirectory);
+        try
+        {
+            File.WriteAllText(directory + ":unexpected", "unsafe");
+        }
+        catch (IOException exception)
+        {
+            Assert.Inconclusive($"Directory alternate data streams are unavailable: {exception.Message}");
+        }
+
+        AssertScriptFailure(temporary.Path);
+    }
+
     private static TemporaryDirectory CopyCommittedFixture()
     {
         TemporaryDirectory temporary = TemporaryDirectory.Create();
@@ -279,6 +383,14 @@ public sealed class FixtureContractTests
 
     private static string HashFile(string path) =>
         Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))).ToLowerInvariant();
+
+    private static JsonObject ReadJsonObject(string path) =>
+        JsonNode.Parse(File.ReadAllText(path))!.AsObject();
+
+    private static void WriteJsonObject(string path, JsonObject value) =>
+        File.WriteAllText(
+            path,
+            value.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
 
     private static bool IsSentinel(string value) =>
         new[] { "TBD", "N/A", "unverified", "unknown", "pending" }

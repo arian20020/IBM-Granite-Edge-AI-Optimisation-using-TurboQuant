@@ -6,6 +6,10 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$expectedSourceSpecLength = 66339L
+$expectedSourceSpecSha256 = '5b35c5a754398067e56912e99847821842309945de9f23f4ab251ca43f161402'
+$expectedLicenseLength = 1100L
+$expectedLicenseSha256 = '3eaf75208e7fcc688aed39dce511cce3350557776ca4cba1dc251ef579b32652'
 
 function Stop-Invalid {
     [Console]::Out.WriteLine('fixture_invalid')
@@ -28,6 +32,369 @@ function Get-LowerSha256Bytes {
     finally {
         $sha.Dispose()
     }
+}
+
+function Get-StaticTensorBytes {
+    param([Parameter(Mandatory)][object[]]$Tensors)
+
+    if (-not [BitConverter]::IsLittleEndian -or $Tensors.Count -ne 5) {
+        throw 'The reviewed tensor set is invalid.'
+    }
+
+    $bytes = New-Object 'System.Collections.Generic.List[byte]'
+    $names = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::Ordinal)
+    foreach ($tensor in @($Tensors | Sort-Object { [Int64]$_.offset })) {
+        if (-not $names.Add([string]$tensor.name) -or
+            $bytes.Count -ne [Int64]$tensor.offset) {
+            throw 'The reviewed tensor layout is invalid.'
+        }
+
+        $valueCount = 1L
+        foreach ($dimension in @($tensor.shape)) {
+            if ([Int64]$dimension -le 0) {
+                throw 'The reviewed tensor shape is invalid.'
+            }
+            $valueCount *= [Int64]$dimension
+        }
+        $values = @($tensor.values)
+        if ($values.Count -ne $valueCount) {
+            throw 'The reviewed tensor value count is invalid.'
+        }
+
+        foreach ($value in $values) {
+            $encoded = switch ([string]$tensor.elementType) {
+                'i64' { [BitConverter]::GetBytes([Int64]$value); break }
+                'f32' { [BitConverter]::GetBytes([Single]$value); break }
+                default { throw 'The reviewed tensor element type is invalid.' }
+            }
+            foreach ($byte in $encoded) {
+                $bytes.Add($byte)
+            }
+        }
+    }
+
+    return $bytes.ToArray()
+}
+
+function Test-ForbiddenText {
+    param([AllowEmptyString()][string]$Text)
+
+    return $Text -match '(?i)(https?://|file://|(?<![A-Z0-9])[A-Z]:[\\/]|\.\.[\\/]|api[_-]?key|access[_-]?token|password|credential|authorization)'
+}
+
+function Test-ForbiddenDecodedValue {
+    param([AllowNull()][object]$Value)
+
+    if ($null -eq $Value) {
+        return $false
+    }
+    if ($Value -is [string]) {
+        return Test-ForbiddenText $Value
+    }
+    if ($Value -is [System.Management.Automation.PSCustomObject]) {
+        foreach ($property in $Value.PSObject.Properties) {
+            if (Test-ForbiddenDecodedValue $property.Value) {
+                return $true
+            }
+        }
+        return $false
+    }
+    if ($Value -is [System.Collections.IEnumerable]) {
+        foreach ($item in $Value) {
+            if (Test-ForbiddenDecodedValue $item) {
+                return $true
+            }
+        }
+    }
+    return $false
+}
+
+function Read-StrictJsonDocument {
+    param([Parameter(Mandatory)][string]$Path)
+
+    Add-Type -AssemblyName System.Runtime.Serialization
+    $bytes = [System.IO.File]::ReadAllBytes($Path)
+    $quotas = New-Object System.Xml.XmlDictionaryReaderQuotas
+    $quotas.MaxDepth = 64
+    $quotas.MaxStringContentLength = 1048576
+    $quotas.MaxArrayLength = 1048576
+    $quotas.MaxBytesPerRead = 4096
+    $quotas.MaxNameTableCharCount = 16384
+    $reader = [System.Runtime.Serialization.Json.JsonReaderWriterFactory]::CreateJsonReader(
+        $bytes,
+        0,
+        $bytes.Length,
+        [System.Text.Encoding]::UTF8,
+        $quotas,
+        $null)
+    $document = New-Object System.Xml.XmlDocument
+    $document.XmlResolver = $null
+    try {
+        $document.Load($reader)
+    }
+    finally {
+        $reader.Dispose()
+    }
+    return $document
+}
+
+function Test-JsonObjectSchema {
+    param(
+        [AllowNull()][System.Xml.XmlElement]$Element,
+        [Parameter(Mandatory)][string[]]$Properties
+    )
+
+    if ($null -eq $Element -or $Element.GetAttribute('type') -cne 'object') {
+        return $false
+    }
+    $children = @($Element.ChildNodes | Where-Object { $_.NodeType -eq [System.Xml.XmlNodeType]::Element })
+    if ($children.Count -ne $Properties.Count) {
+        return $false
+    }
+    foreach ($property in $Properties) {
+        if (@($children | Where-Object { $_.LocalName -ceq $property }).Count -ne 1) {
+            return $false
+        }
+    }
+    return $true
+}
+
+function Test-JsonPropertyType {
+    param(
+        [Parameter(Mandatory)][System.Xml.XmlElement]$Element,
+        [Parameter(Mandatory)][string]$Property,
+        [Parameter(Mandatory)][string]$Type
+    )
+
+    $child = $Element.SelectSingleNode($Property)
+    return $null -ne $child -and $child.GetAttribute('type') -ceq $Type
+}
+
+function Test-JsonArray {
+    param(
+        [AllowNull()][System.Xml.XmlElement]$Element,
+        [Parameter(Mandatory)][string]$ItemType
+    )
+
+    if ($null -eq $Element -or $Element.GetAttribute('type') -cne 'array') {
+        return $false
+    }
+    foreach ($item in @($Element.ChildNodes)) {
+        if ($item.NodeType -ne [System.Xml.XmlNodeType]::Element -or
+            $item.LocalName -cne 'item' -or
+            $item.GetAttribute('type') -cne $ItemType) {
+            return $false
+        }
+    }
+    return $true
+}
+
+function Test-SourceJsonSchema {
+    param([Parameter(Mandatory)][System.Xml.XmlDocument]$Document)
+
+    $root = $Document.DocumentElement
+    if (-not (Test-JsonObjectSchema $root @('schemaVersion', 'fixtureId', 'purpose', 'license', 'generation', 'model', 'tokenizer', 'toolchain', 'packageArtifacts', 'licenseText'))) {
+        return $false
+    }
+    foreach ($property in @('schemaVersion')) {
+        if (-not (Test-JsonPropertyType $root $property 'number')) { return $false }
+    }
+    foreach ($property in @('fixtureId', 'purpose', 'license', 'licenseText')) {
+        if (-not (Test-JsonPropertyType $root $property 'string')) { return $false }
+    }
+
+    $generation = $root.SelectSingleNode('generation')
+    if (-not (Test-JsonObjectSchema $generation @('offline', 'deterministic', 'maxNewTokens', 'expectedText', 'productConverterClosureUsed', 'productConverterGate'))) {
+        return $false
+    }
+    foreach ($property in @('offline', 'deterministic', 'productConverterClosureUsed')) {
+        if (-not (Test-JsonPropertyType $generation $property 'boolean')) { return $false }
+    }
+    if (-not (Test-JsonPropertyType $generation 'maxNewTokens' 'number')) { return $false }
+    foreach ($property in @('expectedText', 'productConverterGate')) {
+        if (-not (Test-JsonPropertyType $generation $property 'string')) { return $false }
+    }
+
+    $model = $root.SelectSingleNode('model')
+    if (-not (Test-JsonObjectSchema $model @('architecture', 'modelType', 'task', 'dense', 'vocabSize', 'maxPositionEmbeddings', 'inputs', 'output', 'sourceTensors'))) {
+        return $false
+    }
+    foreach ($property in @('architecture', 'modelType', 'task')) {
+        if (-not (Test-JsonPropertyType $model $property 'string')) { return $false }
+    }
+    if (-not (Test-JsonPropertyType $model 'dense' 'boolean')) { return $false }
+    foreach ($property in @('vocabSize', 'maxPositionEmbeddings')) {
+        if (-not (Test-JsonPropertyType $model $property 'number')) { return $false }
+    }
+    $inputs = $model.SelectSingleNode('inputs')
+    if (-not (Test-JsonArray $inputs 'object')) { return $false }
+    foreach ($item in @($inputs.ChildNodes)) {
+        if (-not (Test-JsonObjectSchema $item @('name', 'type', 'shape'))) { return $false }
+        foreach ($property in @('name', 'type', 'shape')) {
+            if (-not (Test-JsonPropertyType $item $property 'string')) { return $false }
+        }
+    }
+    $output = $model.SelectSingleNode('output')
+    if (-not (Test-JsonObjectSchema $output @('name', 'type', 'shape', 'policy'))) { return $false }
+    foreach ($property in @('name', 'type', 'shape', 'policy')) {
+        if (-not (Test-JsonPropertyType $output $property 'string')) { return $false }
+    }
+    $sourceTensors = $model.SelectSingleNode('sourceTensors')
+    if (-not (Test-JsonArray $sourceTensors 'object')) { return $false }
+    foreach ($item in @($sourceTensors.ChildNodes)) {
+        if (-not (Test-JsonObjectSchema $item @('name', 'elementType', 'shape', 'values', 'offset')) -or
+            -not (Test-JsonPropertyType $item 'name' 'string') -or
+            -not (Test-JsonPropertyType $item 'elementType' 'string') -or
+            -not (Test-JsonArray $item.SelectSingleNode('shape') 'number') -or
+            -not (Test-JsonArray $item.SelectSingleNode('values') 'number') -or
+            -not (Test-JsonPropertyType $item 'offset' 'number')) {
+            return $false
+        }
+    }
+
+    $tokenizer = $root.SelectSingleNode('tokenizer')
+    if (-not (Test-JsonObjectSchema $tokenizer @('implementation', 'preTokenizer', 'decoder', 'vocabulary', 'padTokenId', 'bosTokenId', 'eosTokenId', 'fixtureTokenId', 'unknownTokenId'))) {
+        return $false
+    }
+    foreach ($property in @('implementation', 'preTokenizer', 'decoder')) {
+        if (-not (Test-JsonPropertyType $tokenizer $property 'string')) { return $false }
+    }
+    if (-not (Test-JsonArray $tokenizer.SelectSingleNode('vocabulary') 'string')) { return $false }
+    foreach ($property in @('padTokenId', 'bosTokenId', 'eosTokenId', 'fixtureTokenId', 'unknownTokenId')) {
+        if (-not (Test-JsonPropertyType $tokenizer $property 'number')) { return $false }
+    }
+
+    $toolchain = $root.SelectSingleNode('toolchain')
+    if (-not (Test-JsonArray $toolchain 'object')) { return $false }
+    foreach ($item in @($toolchain.ChildNodes)) {
+        if (-not (Test-JsonObjectSchema $item @('component', 'version', 'length', 'sha256')) -or
+            -not (Test-JsonPropertyType $item 'component' 'string') -or
+            -not (Test-JsonPropertyType $item 'version' 'string') -or
+            -not (Test-JsonPropertyType $item 'length' 'number') -or
+            -not (Test-JsonPropertyType $item 'sha256' 'string')) {
+            return $false
+        }
+    }
+    $artifacts = $root.SelectSingleNode('packageArtifacts')
+    if (-not (Test-JsonArray $artifacts 'object')) { return $false }
+    foreach ($item in @($artifacts.ChildNodes)) {
+        if (-not (Test-JsonObjectSchema $item @('path', 'length', 'sha256', 'encoding', 'data')) -or
+            -not (Test-JsonPropertyType $item 'path' 'string') -or
+            -not (Test-JsonPropertyType $item 'length' 'number') -or
+            -not (Test-JsonPropertyType $item 'sha256' 'string') -or
+            -not (Test-JsonPropertyType $item 'encoding' 'string') -or
+            -not (Test-JsonPropertyType $item 'data' 'string')) {
+            return $false
+        }
+    }
+    return $true
+}
+
+function Test-ManifestJsonSchema {
+    param([Parameter(Mandatory)][System.Xml.XmlDocument]$Document)
+
+    $root = $Document.DocumentElement
+    if (-not (Test-JsonObjectSchema $root @('schemaVersion', 'fixtureId', 'license', 'files')) -or
+        -not (Test-JsonPropertyType $root 'schemaVersion' 'number') -or
+        -not (Test-JsonPropertyType $root 'fixtureId' 'string') -or
+        -not (Test-JsonPropertyType $root 'license' 'string')) {
+        return $false
+    }
+    $files = $root.SelectSingleNode('files')
+    if (-not (Test-JsonArray $files 'object')) { return $false }
+    foreach ($item in @($files.ChildNodes)) {
+        if (-not (Test-JsonObjectSchema $item @('path', 'length', 'sha256')) -or
+            -not (Test-JsonPropertyType $item 'path' 'string') -or
+            -not (Test-JsonPropertyType $item 'length' 'number') -or
+            -not (Test-JsonPropertyType $item 'sha256' 'string')) {
+            return $false
+        }
+    }
+    return $true
+}
+
+function Get-WindowsStreamNames {
+    param([Parameter(Mandatory)][string]$Path)
+
+    if (-not ('GraniteEdgeAIFixtureStreams' -as [type])) {
+        Add-Type -TypeDefinition @'
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Runtime.InteropServices;
+
+public static class GraniteEdgeAIFixtureStreams
+{
+    private const int ErrorNoMoreFiles = 18;
+    private const int ErrorHandleEof = 38;
+    private static readonly IntPtr InvalidHandle = new IntPtr(-1);
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    private struct FindStreamData
+    {
+        public long StreamSize;
+
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 296)]
+        public string StreamName;
+    }
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern IntPtr FindFirstStreamW(
+        string fileName,
+        int infoLevel,
+        out FindStreamData data,
+        uint flags);
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool FindNextStreamW(IntPtr handle, out FindStreamData data);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool FindClose(IntPtr handle);
+
+    public static string[] GetNames(string path)
+    {
+        var names = new List<string>();
+        FindStreamData data;
+        IntPtr handle = FindFirstStreamW(path, 0, out data, 0);
+        if (handle == InvalidHandle)
+        {
+            int firstError = Marshal.GetLastWin32Error();
+            if (firstError == ErrorNoMoreFiles || firstError == ErrorHandleEof)
+            {
+                return names.ToArray();
+            }
+
+            throw new Win32Exception(firstError);
+        }
+
+        try
+        {
+            names.Add(data.StreamName);
+            while (FindNextStreamW(handle, out data))
+            {
+                names.Add(data.StreamName);
+            }
+
+            int nextError = Marshal.GetLastWin32Error();
+            if (nextError != ErrorNoMoreFiles && nextError != ErrorHandleEof)
+            {
+                throw new Win32Exception(nextError);
+            }
+        }
+        finally
+        {
+            FindClose(handle);
+        }
+
+        return names.ToArray();
+    }
+}
+'@
+    }
+
+    return @([GraniteEdgeAIFixtureStreams]::GetNames($Path))
 }
 
 function Get-ControlledRelativePath {
@@ -149,20 +516,34 @@ try {
     }
 
     $isWindowsPlatform = [System.Environment]::OSVersion.Platform -eq [System.PlatformID]::Win32NT
-    foreach ($file in Get-ChildItem -LiteralPath $root -Force -File -Recurse) {
-        if ($file.Length -le 0) {
+    foreach ($item in $items) {
+        if (-not $item.PSIsContainer -and $item.Length -le 0) {
             Stop-Invalid
         }
         if ($isWindowsPlatform) {
-            $streams = @(Get-Item -LiteralPath $file.FullName -Stream * -ErrorAction Stop)
-            if (@($streams | Where-Object { $_.Stream -cne ':$DATA' }).Count -ne 0) {
+            $streams = @(Get-WindowsStreamNames $item.FullName)
+            if (@($streams | Where-Object { $_ -cne '::$DATA' }).Count -ne 0) {
                 Stop-Invalid
             }
         }
     }
 
     $sourceSpecPath = Join-Path $root 'source\fixture-spec.json'
-    $sourceSpec = Get-Content -LiteralPath $sourceSpecPath -Raw | ConvertFrom-Json
+    $sourceSpecFile = Get-Item -LiteralPath $sourceSpecPath
+    if ($sourceSpecFile.Length -ne $expectedSourceSpecLength -or
+        (Get-LowerSha256 $sourceSpecPath) -cne $expectedSourceSpecSha256) {
+        Stop-Invalid
+    }
+    $sourceDocument = Read-StrictJsonDocument $sourceSpecPath
+    if (-not (Test-SourceJsonSchema $sourceDocument)) {
+        Stop-Invalid
+    }
+    $sourceText = [System.IO.File]::ReadAllText($sourceSpecPath)
+    $sourceSpec = $sourceText | ConvertFrom-Json
+    if ((Test-ForbiddenText $sourceText) -or
+        (Test-ForbiddenDecodedValue $sourceSpec)) {
+        Stop-Invalid
+    }
     if ($sourceSpec.schemaVersion -ne 1 -or
         $sourceSpec.fixtureId -cne 'TinySyntheticV1' -or
         $sourceSpec.license -cne 'MIT' -or
@@ -183,7 +564,17 @@ try {
         Stop-Invalid
     }
 
-    $manifest = Get-Content -LiteralPath (Join-Path $root 'manifest.json') -Raw | ConvertFrom-Json
+    $manifestPath = Join-Path $root 'manifest.json'
+    $manifestDocument = Read-StrictJsonDocument $manifestPath
+    if (-not (Test-ManifestJsonSchema $manifestDocument)) {
+        Stop-Invalid
+    }
+    $manifestText = [System.IO.File]::ReadAllText($manifestPath)
+    $manifest = $manifestText | ConvertFrom-Json
+    if ((Test-ForbiddenText $manifestText) -or
+        (Test-ForbiddenDecodedValue $manifest)) {
+        Stop-Invalid
+    }
     if ($manifest.schemaVersion -ne 1 -or
         $manifest.fixtureId -cne 'TinySyntheticV1' -or
         $manifest.license -cne 'MIT') {
@@ -234,13 +625,28 @@ try {
         }
     }
 
-    $licenseLines = @(Get-Content -LiteralPath (Join-Path $root 'LICENSE.txt'))
+    [byte[]]$rebuiltModelBytes = Get-StaticTensorBytes @($sourceSpec.model.sourceTensors)
+    $modelBinPath = Join-Path $root 'package\openvino_model.bin'
+    if ($rebuiltModelBytes.LongLength -ne (Get-Item -LiteralPath $modelBinPath).Length -or
+        (Get-LowerSha256Bytes $rebuiltModelBytes) -cne (Get-LowerSha256 $modelBinPath)) {
+        Stop-Invalid
+    }
+
+    $licensePath = Join-Path $root 'LICENSE.txt'
+    $licenseFile = Get-Item -LiteralPath $licensePath
+    $licenseText = [System.IO.File]::ReadAllText($licensePath)
+    if ($licenseFile.Length -ne $expectedLicenseLength -or
+        (Get-LowerSha256 $licensePath) -cne $expectedLicenseSha256 -or
+        (Test-ForbiddenText $licenseText)) {
+        Stop-Invalid
+    }
+    $licenseLines = @(Get-Content -LiteralPath $licensePath)
     if ($licenseLines.Count -lt 5 -or
         $licenseLines[0] -cne 'SPDX-License-Identifier: MIT' -or
         @($licenseLines | Where-Object { $_ -match '(?i)\b(TBD|N/A|unverified|unknown|pending)\b' }).Count -ne 0) {
         Stop-Invalid
     }
-    if ([System.IO.File]::ReadAllText((Join-Path $root 'LICENSE.txt')) -cne [string]$sourceSpec.licenseText) {
+    if ($licenseText -cne [string]$sourceSpec.licenseText) {
         Stop-Invalid
     }
 
@@ -264,7 +670,7 @@ try {
     $textFiles = @('config.json', 'generation_config.json', 'tokenizer_config.json', 'openvino_model.xml', 'openvino_tokenizer.xml', 'openvino_detokenizer.xml')
     foreach ($name in $textFiles) {
         $text = Get-Content -LiteralPath (Join-Path $package $name) -Raw
-        if ($text -match '(?i)(https?://|file://|[A-Z]:[\\/]|\.\.[\\/]|api[_-]?key|access[_-]?token|password|credential|authorization)') {
+        if (Test-ForbiddenText $text) {
             Stop-Invalid
         }
     }
