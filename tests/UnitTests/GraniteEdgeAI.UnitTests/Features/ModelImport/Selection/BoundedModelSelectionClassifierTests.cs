@@ -235,6 +235,31 @@ public sealed class BoundedModelSelectionClassifierTests
     }
 
     [TestMethod]
+    public async Task ClassifyAsync_MapsTimeoutRaisedDuringSnapshot()
+    {
+        using var directory = new TemporaryDirectory();
+        directory.WriteFile("one.txt", "x");
+        int checks = 0;
+        var classifier = new BoundedModelSelectionClassifier(timeoutReached: () => ++checks > 2);
+
+        ModelSelectionResult result = await classifier.ClassifyAsync(ModelSelectionOperationId.CreateNew(), new ModelSelectionInput(directory.Path, "folder", true), CancellationToken.None);
+
+        Assert.AreEqual("selection-timeout", result.Diagnostic!.Code);
+    }
+
+    [TestMethod]
+    public async Task ClassifyAsync_ObservesCancellationRaisedAfterMetadataRead()
+    {
+        using var directory = new TemporaryDirectory();
+        directory.WriteFile("config.json", "{\"model_type\":\"granite\",\"architectures\":[\"GraniteForCausalLM\"]}");
+        directory.WriteFile("model.safetensors", "weights");
+        using var cancellation = new CancellationTokenSource();
+        var classifier = new BoundedModelSelectionClassifier(afterMetadataRead: cancellation.Cancel);
+
+        await Assert.ThrowsExactlyAsync<OperationCanceledException>(() => classifier.ClassifyAsync(ModelSelectionOperationId.CreateNew(), new ModelSelectionInput(directory.Path, "model", true), cancellation.Token));
+    }
+
+    [TestMethod]
     public async Task ClassifyAsync_RejectsNestedOnlySourceArtifacts()
     {
         using var directory = new TemporaryDirectory();

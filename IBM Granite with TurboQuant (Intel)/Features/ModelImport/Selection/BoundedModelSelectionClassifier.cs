@@ -17,12 +17,14 @@ internal sealed class BoundedModelSelectionClassifier : IModelSelectionClassifie
     private readonly Func<string, FileAttributes> attributesReader;
     private readonly Action? beforeContinuityCheck;
     private readonly Func<bool>? timeoutReached;
+    private readonly Action? afterMetadataRead;
 
-    internal BoundedModelSelectionClassifier(Func<string, FileAttributes>? attributesReader = null, Action? beforeContinuityCheck = null, Func<bool>? timeoutReached = null)
+    internal BoundedModelSelectionClassifier(Func<string, FileAttributes>? attributesReader = null, Action? beforeContinuityCheck = null, Func<bool>? timeoutReached = null, Action? afterMetadataRead = null)
     {
         this.attributesReader = attributesReader ?? File.GetAttributes;
         this.beforeContinuityCheck = beforeContinuityCheck;
         this.timeoutReached = timeoutReached;
+        this.afterMetadataRead = afterMetadataRead;
     }
 
     public async Task<ModelSelectionResult> ClassifyAsync(
@@ -112,7 +114,7 @@ internal sealed class BoundedModelSelectionClassifier : IModelSelectionClassifie
         }
 
         string[] children = EnumerateDirectChildren(input.LocalPath, token, stopwatch);
-        DirectorySnapshot snapshot = DirectorySnapshot.Capture(input.LocalPath, children, attributesReader);
+        DirectorySnapshot snapshot = DirectorySnapshot.Capture(input.LocalPath, children, attributesReader, token, stopwatch, timeoutReached);
         ThrowIfTimedOut(stopwatch, token);
 
         var xmlStems = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -268,6 +270,7 @@ internal sealed class BoundedModelSelectionClassifier : IModelSelectionClassifie
             ThrowIfTimedOut(stopwatch, token);
             int count = Math.Min(buffer.Length, remainingBudget - total + 1);
             int read = await stream.ReadAsync(buffer.AsMemory(0, count), token).ConfigureAwait(false);
+            afterMetadataRead?.Invoke();
             token.ThrowIfCancellationRequested();
             ThrowIfTimedOut(stopwatch, token);
             if (read == 0) break;
@@ -324,7 +327,7 @@ internal sealed class BoundedModelSelectionClassifier : IModelSelectionClassifie
     {
         beforeContinuityCheck?.Invoke();
         string[] children = EnumerateDirectChildren(path, token, stopwatch);
-        if (!snapshot.Equals(DirectorySnapshot.Capture(path, children, attributesReader))) throw new CandidateChangedException();
+        if (!snapshot.Equals(DirectorySnapshot.Capture(path, children, attributesReader, token, stopwatch, timeoutReached))) throw new CandidateChangedException();
     }
 
     private static bool IsRelevantName(string name) =>
@@ -342,12 +345,13 @@ internal sealed class BoundedModelSelectionClassifier : IModelSelectionClassifie
 
     private readonly record struct DirectorySnapshot(FileAttributes Attributes, DateTime LastWriteTimeUtc, long ChildState)
     {
-        internal static DirectorySnapshot Capture(string path, IEnumerable<string> children, Func<string, FileAttributes> attributesReader)
+        internal static DirectorySnapshot Capture(string path, IEnumerable<string> children, Func<string, FileAttributes> attributesReader, CancellationToken token, Stopwatch stopwatch, Func<bool>? timeoutReached)
         {
             DirectoryInfo info = new(path);
             long childState = 17;
             foreach (string child in children.OrderBy(value => value, StringComparer.OrdinalIgnoreCase))
             {
+                ThrowIfStopped(token, stopwatch, timeoutReached);
                 if (Directory.Exists(child))
                 {
                     childState = HashCode.Combine(childState, Path.GetFileName(child), attributesReader(child), new DirectoryInfo(child).LastWriteTimeUtc.Ticks);
@@ -357,8 +361,15 @@ internal sealed class BoundedModelSelectionClassifier : IModelSelectionClassifie
                     FileInfo childInfo = new(child);
                     childState = HashCode.Combine(childState, Path.GetFileName(child), attributesReader(child), childInfo.Length, childInfo.LastWriteTimeUtc.Ticks);
                 }
+                ThrowIfStopped(token, stopwatch, timeoutReached);
             }
             return new DirectorySnapshot(attributesReader(path), info.LastWriteTimeUtc, childState);
+        }
+
+        private static void ThrowIfStopped(CancellationToken token, Stopwatch stopwatch, Func<bool>? timeoutReached)
+        {
+            token.ThrowIfCancellationRequested();
+            if (timeoutReached?.Invoke() == true || stopwatch.Elapsed > ModelSelectionLimits.MaximumElapsed) throw new OperationCanceledException(token);
         }
     }
 
