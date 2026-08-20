@@ -35,6 +35,12 @@ internal enum EstimationUnavailableReason
     /// </summary>
     UnsupportedCacheFormat,
 
+    /// <summary>
+    /// The requested weight format has no canonical encoding. A newly added
+    /// format lands here rather than being sized against a guessed bit width.
+    /// </summary>
+    UnsupportedWeightFormat,
+
     /// <summary>The arithmetic overflowed rather than wrapping to a smaller value.</summary>
     QuantitiesExceedRepresentableRange
 }
