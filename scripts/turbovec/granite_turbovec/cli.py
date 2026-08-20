@@ -3,9 +3,14 @@
 from __future__ import annotations
 
 import argparse
+import ast
+import base64
 import contextlib
+import csv
 import hashlib
+import importlib
 import importlib.metadata
+import importlib.util
 import json
 import io
 import math
@@ -16,6 +21,7 @@ import sys
 import time
 import traceback
 import uuid
+import zipfile
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any, Callable, Mapping, Sequence
@@ -36,12 +42,11 @@ from .manifest import (
     IndexIdentity,
     IndexManifest,
     SourceRecord,
+    SUITE_ARTIFACT_IDENTITIES,
     canonical_sha256 as manifest_sha256,
     load_and_validate_manifest,
     promote_staged_index,
     _unlink_owned_file,
-    _require_plain_directory,
-    _require_same_directory,
 )
 from .text_pipeline import chunk_document, discover_documents
 from .tvim_container import extract_validated_payload, write_container
@@ -52,6 +57,11 @@ MAX_QUERY_CHARS = 8_192
 MAX_CHUNKS_BYTES = 64 * 1024 * 1024
 MAX_MODEL_FILES = 4_096
 MAX_MODEL_BYTES = 16 * 1024 * 1024 * 1024
+MAX_WHEEL_BYTES = 512 * 1024 * 1024
+MAX_WHEEL_ENTRIES = 4096
+MAX_WHEEL_ENTRY_BYTES = 128 * 1024 * 1024
+MAX_NPY_HEADER_BYTES = 16 * 1024
+MAX_NPY_BODY_BYTES = 16 * 1024 * 1024 * 1024
 REQUIREMENTS_LOCK = Path(__file__).resolve().parents[1] / "requirements.lock.txt"
 try:
     LOCKED_VERSIONS = {
@@ -349,7 +359,9 @@ def _index(namespace: argparse.Namespace, deps: CliDependencies) -> Mapping[str,
             "schema_version": 1, "route": "float32", "count": len(chunks),
             "dimension": vectors.shape[1], "available_routes": ["float32", *(f"{item}bit" for item in bits)],
             "turbovec": {"version": approval["turbovec_version"], "source_commit": approval["turbovec_source_commit"], "wheel_sha256": approval["turbovec_wheel_sha256"], "license": "MIT"},
+            "embedding_model": {"identity": approval["embedding_model"], "manifest_sha256": approval["embedding_model_manifest_sha256"], "license": approval["embedding_model_license"]},
             "vector_count": len(chunks),
+            "raw_vector_bytes": _raw_float32_bytes(vectors),
             "actual_providers": list(embedder.providers),
             "build_timings_seconds": build_timings,
         }))
@@ -363,6 +375,8 @@ def _index(namespace: argparse.Namespace, deps: CliDependencies) -> Mapping[str,
 
 
 def _query(namespace: argparse.Namespace, deps: CliDependencies) -> Mapping[str, Any]:
+    end_to_end_start = deps.perf_counter()
+    validation_start = deps.perf_counter()
     text = _validate_query_text(namespace.text)
     if type(namespace.top_k) is not int or namespace.top_k <= 0:
         raise ResearchError("query-top-k-invalid")
@@ -376,25 +390,27 @@ def _query(namespace: argparse.Namespace, deps: CliDependencies) -> Mapping[str,
         raise ResearchError("index-route-mismatch")
     if namespace.top_k > len(manifest.chunks):
         raise ResearchError("query-top-k-invalid")
+    validation_approval_seconds = deps.perf_counter() - validation_start
+    model_start = deps.perf_counter()
     embedder = _validated_embedder(approval, deps)
+    model_init_seconds = deps.perf_counter() - model_start
+    artifact_start = deps.perf_counter()
     _verify_all_artifacts(root, manifest, deps)
     chunks = _load_chunks(root / "chunks.jsonl", manifest)
     import numpy as np
-    ids = np.load(root / "ids.npy", allow_pickle=False)
-    start = deps.perf_counter()
-    embed_start = deps.perf_counter()
-    query_vector = validate_vectors(embedder.embed_queries([text]), dimension=manifest.identity.dimension, expected_count=1)
-    embedding_seconds = deps.perf_counter() - embed_start
-    load_start = deps.perf_counter()
+    ids = _load_validated_npy(root / "ids.npy", dtype=np.dtype("<u8"), shape=(len(manifest.chunks),))
     with contextlib.ExitStack() as stack:
         if namespace.route == "float32":
-            vectors = np.load(root / "vectors-float32.npy", allow_pickle=False)
+            vectors = _load_validated_npy(root / "vectors-float32.npy", dtype=np.dtype("<f4"), shape=(len(manifest.chunks), manifest.identity.dimension))
             index = Float32Index(vectors, ids)
         else:
             record = next(item for item in manifest.artifacts if item.route == namespace.route)
             raw_path = stack.enter_context(extract_validated_payload(root / record.filename, bits=record.bit_width, dimension=record.dimension, count=record.count))
             index = deps.load_turbovec(raw_path)
-        load_seconds = deps.perf_counter() - load_start
+        artifact_load_seconds = deps.perf_counter() - artifact_start
+        embed_start = deps.perf_counter()
+        query_vector = validate_vectors(embedder.embed_queries([text]), dimension=manifest.identity.dimension, expected_count=1)
+        embedding_seconds = deps.perf_counter() - embed_start
         search_start = deps.perf_counter()
         scores, result_ids = index.search(query_vector, namespace.top_k)
     search_seconds = deps.perf_counter() - search_start
@@ -405,10 +421,11 @@ def _query(namespace: argparse.Namespace, deps: CliDependencies) -> Mapping[str,
         if chunk is None or not math.isfinite(float(score)):
             raise ResearchError("index-search-result-invalid")
         results.append({"rank": rank, "chunk_id": chunk.chunk_id, "score": float(score), "source": chunk.relative_path, "start": chunk.start, "end": chunk.end, "excerpt": _excerpt(chunk.text)})
-    end_to_end_seconds = deps.perf_counter() - start
-    if any(not math.isfinite(value) or value < 0 for value in (embedding_seconds, load_seconds, search_seconds, end_to_end_seconds)):
+    end_to_end_seconds = deps.perf_counter() - end_to_end_start
+    phase_values = (validation_approval_seconds, model_init_seconds, artifact_load_seconds, embedding_seconds, search_seconds)
+    if any(not math.isfinite(value) or value < 0 for value in (*phase_values, end_to_end_seconds)) or end_to_end_seconds + 1e-12 < sum(phase_values):
         raise ResearchError("index-search-result-invalid")
-    return {"schema_version": 1, "route": namespace.route, "provider": list(getattr(embedder, "providers", ())), "model": approval["embedding_model"], "results": results, "timings": {"embedding_seconds": embedding_seconds, "index_load_seconds": load_seconds, "search_seconds": search_seconds, "end_to_end_seconds": end_to_end_seconds}}
+    return {"schema_version": 1, "route": namespace.route, "provider": list(getattr(embedder, "providers", ())), "model": approval["embedding_model"], "results": results, "timings": {"validation_approval_seconds": validation_approval_seconds, "model_init_seconds": model_init_seconds, "artifact_load_seconds": artifact_load_seconds, "embedding_seconds": embedding_seconds, "search_seconds": search_seconds, "end_to_end_seconds": end_to_end_seconds}}
 
 
 def _benchmark(namespace: argparse.Namespace, deps: CliDependencies) -> tuple[Mapping[str, Any], bool]:
@@ -432,14 +449,14 @@ def _benchmark(namespace: argparse.Namespace, deps: CliDependencies) -> tuple[Ma
     query_vectors = validate_vectors(embedder.embed_queries([item.text for item in fixture.queries]), dimension=embedder.dimension, expected_count=len(fixture.queries))
     query_embedding_seconds = deps.perf_counter() - query_embedding_start
     import numpy as np
-    ids = validate_ids(np.load(root / "ids.npy", allow_pickle=False), expected_count=len(chunks))
+    ids = validate_ids(_load_validated_npy(root / "ids.npy", dtype=np.dtype("<u8"), shape=(len(chunks),)), expected_count=len(chunks))
     metadata = json.loads((root / "baseline-results.json").read_text(encoding="utf-8"))
     phase_timings = dict(metadata["build_timings_seconds"])
     phase_timings["query_embedding_seconds"] = query_embedding_seconds
     with contextlib.ExitStack() as stack:
         routes = {}
         load_start = deps.perf_counter()
-        vectors = validate_vectors(np.load(root / "vectors-float32.npy", allow_pickle=False), dimension=384, expected_count=len(chunks))
+        vectors = validate_vectors(_load_validated_npy(root / "vectors-float32.npy", dtype=np.dtype("<f4"), shape=(len(chunks), 384)), dimension=384, expected_count=len(chunks))
         routes["float32"] = Float32Index(vectors, ids)
         phase_timings["float32_index_load_seconds"] = deps.perf_counter() - load_start
         for bits in (2, 4):
@@ -480,7 +497,7 @@ def _benchmark(namespace: argparse.Namespace, deps: CliDependencies) -> tuple[Ma
             "4bit_persisted_bytes": route_records["4bit"].size,
         }
         evidence_document = _build_evidence_document(evidence, phase_timings, storage_files, approval, actual, deps, manifest, fixture_path)
-        _write_evidence_atomic(output, evidence, evidence_document)
+        _write_evidence_atomic(output, evidence, evidence_document, deps, manifest)
         payload = {"schema_version": 1, "evidence": output.name, "gate_passed": evidence.gate.passed}
         return payload, evidence.gate.passed
 
@@ -553,7 +570,7 @@ def _load_chunks(path: Path, manifest: IndexManifest) -> tuple[Chunk, ...]:
     try:
         if path.stat().st_size > MAX_CHUNKS_BYTES:
             raise ResearchError("chunks-artifact-limit")
-        with path.open("rb") as stream:
+        with _open_binary_no_follow(path) as stream:
             raw = stream.read(MAX_CHUNKS_BYTES + 1)
         if len(raw) > MAX_CHUNKS_BYTES:
             raise ResearchError("chunks-artifact-limit")
@@ -580,39 +597,26 @@ def _load_chunks(path: Path, manifest: IndexManifest) -> tuple[Chunk, ...]:
 
 def _record(path: Path, count: int, dimension: int) -> ArtifactRecord:
     name = path.name
-    if name == "vectors-float32.npy":
-        magic, route, backend, index_format, bit_width = "NPY", "float32", "float32", "float32-npy-v1", None
-    elif name.endswith(".tvim"):
-        bit_width = 2 if "-2bit" in name else 4
-        magic, route, backend, index_format = "GTVI", f"{bit_width}bit", "turbovec", "gtvi-turbovec-v1"
-    elif name == "ids.npy":
-        magic, route, backend, index_format, bit_width = "NPY", "metadata", "metadata", "npy-ids-v1", None
-    elif name == "chunks.jsonl":
-        magic, route, backend, index_format, bit_width = "JSONL", "metadata", "metadata", "canonical-jsonl-v1", None
-    else:
-        magic, route, backend, index_format, bit_width = "JSON", "metadata", "metadata", "canonical-json-v1", None
-    return ArtifactRecord(name, _sha256_file(path), path.stat().st_size, count, magic, 1, dimension, route, backend, index_format, bit_width)
+    identity = SUITE_ARTIFACT_IDENTITIES.get(name)
+    if identity is None:
+        raise ResearchError("index-artifact-invalid")
+    magic, route, backend, index_format, bit_width, dtype = identity
+    return ArtifactRecord(name, _sha256_file(path), path.stat().st_size, count, magic, 1, dimension, route, backend, index_format, bit_width, dtype)
 
 
 def _validate_artifact(path: Path, record: ArtifactRecord, manifest: IndexManifest, deps: CliDependencies) -> bool:
     import numpy as np
-    expected_magic = {
-        "chunks.jsonl": "JSONL", "vectors-float32.npy": "NPY", "ids.npy": "NPY",
-        "baseline-results.json": "JSON", "index-2bit.tvim": "GTVI", "index-4bit.tvim": "GTVI",
-    }.get(record.filename)
-    if expected_magic is None or record.magic != expected_magic or record.version != 1:
+    expected_identity = SUITE_ARTIFACT_IDENTITIES.get(record.filename)
+    actual_identity = (record.magic, record.route, record.backend, record.index_format, record.bit_width, record.dtype)
+    if expected_identity is None or actual_identity != expected_identity or record.version != 1:
         raise ResearchError("index-artifact-invalid")
     if record.filename == "chunks.jsonl":
         _load_chunks(path, manifest)
     elif record.filename == "vectors-float32.npy":
-        if _npy_version(path) != (1, 0):
-            raise ResearchError("index-artifact-invalid")
-        value = np.load(path, allow_pickle=False)
+        value = _load_validated_npy(path, dtype=np.dtype("<f4"), shape=(record.count, record.dimension))
         validate_vectors(value, dimension=record.dimension, expected_count=record.count)
     elif record.filename == "ids.npy":
-        if _npy_version(path) != (1, 0):
-            raise ResearchError("index-artifact-invalid")
-        value = np.load(path, allow_pickle=False)
+        value = _load_validated_npy(path, dtype=np.dtype("<u8"), shape=(record.count,))
         stable = validate_ids(value, expected_count=record.count)
         if tuple(int(x) for x in stable) != tuple(item.chunk_id for item in manifest.chunks):
             raise ResearchError("ids-count-invalid")
@@ -628,19 +632,18 @@ def _validate_artifact(path: Path, record: ArtifactRecord, manifest: IndexManife
         required_timings = {"document_embedding_seconds", "float32_index_build_seconds", "float32_index_save_seconds", "index_end_to_end_seconds", *(f"{route}_index_{phase}_seconds" for route in available_routes[1:] for phase in ("build", "save"))}
         if (
             type(value) is not dict
-            or set(value) != {"schema_version", "route", "count", "dimension", "available_routes", "turbovec", "vector_count", "actual_providers", "build_timings_seconds"}
+            or set(value) != {"schema_version", "route", "count", "dimension", "available_routes", "turbovec", "embedding_model", "vector_count", "raw_vector_bytes", "actual_providers", "build_timings_seconds"}
             or value.get("schema_version") != 1
             or value.get("route") != "float32"
             or value.get("count") != record.count
             or value.get("dimension") != record.dimension
             or value.get("available_routes") != available_routes
             or value.get("vector_count") != record.count
-            or value.get("actual_providers") != ["CPUExecutionProvider"]
+            or value.get("raw_vector_bytes") != record.count * record.dimension * 4
+            or value.get("actual_providers") != [manifest.identity.actual_provider]
             or type(value.get("turbovec")) is not dict
-            or value["turbovec"].get("version") != "1.0.0"
-            or value["turbovec"].get("source_commit") != TURBOVEC_COMMIT
-            or value["turbovec"].get("license") != "MIT"
-            or not _HASH.fullmatch(str(value["turbovec"].get("wheel_sha256", "")))
+            or value["turbovec"] != {"version": manifest.identity.turbovec_version, "source_commit": manifest.identity.turbovec_source_commit, "wheel_sha256": manifest.identity.turbovec_wheel_sha256, "license": manifest.identity.turbovec_license}
+            or value.get("embedding_model") != {"identity": manifest.identity.embedding_model, "manifest_sha256": manifest.identity.embedding_model_manifest_sha256, "license": manifest.identity.embedding_model_license}
             or type(value.get("build_timings_seconds")) is not dict
             or set(value.get("build_timings_seconds", {})) != required_timings
         ):
@@ -778,51 +781,46 @@ def _validate_evidence_document(document: Mapping[str, Any], evidence: Any) -> N
     benchmark_json(document)
 
 
-def _write_evidence_atomic(destination: Path, evidence: Any, document: Mapping[str, Any]) -> None:
-    parent = destination.parent
-    if not _safe_identity(destination.name):
-        raise ResearchError("index-path-invalid")
-    if not parent.is_dir() or any(_is_link_or_reparse(item) for item in (parent, *parent.parents)):
-        raise ResearchError("index-path-invalid")
-    if destination.exists() or destination.is_symlink():
-        raise ResearchError("evidence-destination-exists")
-    staging = parent / f".{destination.name}.staging-{uuid.uuid4().hex}"
-    staging_identity = None
-    owned_files = []
-    published = False
+def _write_evidence_atomic(destination: Path, evidence: Any, document: Mapping[str, Any], deps: CliDependencies, source_manifest: IndexManifest) -> None:
+    timing_lines = ["", "## Orchestration timings", "", "| Phase | Seconds |", "|---|---:|", *(f"| {name} | {float(value):.9g} |" for name, value in sorted(document["phase_timings"].items()))]
+    payloads = {
+        "results.json": benchmark_json(document).encode("utf-8"),
+        "summary.md": (render_markdown(evidence) + "\n".join(timing_lines) + "\n").encode("utf-8"),
+    }
+
+    def writer(staging: Path) -> None:
+        for name, payload in payloads.items():
+            with (staging / name).open("xb") as stream:
+                stream.write(payload); stream.flush(); os.fsync(stream.fileno())
+
+    def factory(staging: Path) -> IndexManifest:
+        records = tuple(_record(staging / name, len(source_manifest.chunks), source_manifest.identity.dimension) for name in sorted(payloads))
+        return IndexManifest(source_manifest.identity, source_manifest.sources, source_manifest.chunks, deps.now_utc(), records)
+
+    def validator(path: Path, record: ArtifactRecord, manifest: IndexManifest) -> bool:
+        expected = payloads.get(record.filename)
+        expected_identity = SUITE_ARTIFACT_IDENTITIES.get(record.filename)
+        actual_identity = (record.magic, record.route, record.backend, record.index_format, record.bit_width, record.dtype)
+        expected_sources = [{"relative_path": item.relative_path, "sha256": item.sha256} for item in source_manifest.sources]
+        if (
+            expected is None
+            or expected_identity != actual_identity
+            or path.read_bytes() != expected
+            or manifest.identity != source_manifest.identity
+            or document.get("index_manifest_sha256") != manifest_sha256(source_manifest)
+            or document.get("source_hashes") != expected_sources
+            or document.get("environment", {}).get("turbovec_wheel_sha256") != source_manifest.identity.turbovec_wheel_sha256
+            or document.get("environment", {}).get("model_manifest_sha256") != source_manifest.identity.embedding_model_manifest_sha256
+        ):
+            raise ResearchError("benchmark-evidence-invalid")
+        return True
+
     try:
-        staging.mkdir()
-        staging_identity = _require_plain_directory(staging)
-        results_path = staging / "results.json"
-        with results_path.open("xb") as stream:
-            stream.write(benchmark_json(document).encode("utf-8")); stream.flush(); os.fsync(stream.fileno())
-            metadata = os.fstat(stream.fileno()); owned_files.append((results_path, (metadata.st_dev, metadata.st_ino)))
-        timing_lines = ["", "## Orchestration timings", "", "| Phase | Seconds |", "|---|---:|", *(f"| {name} | {float(value):.9g} |" for name, value in sorted(document["phase_timings"].items()))]
-        summary_path = staging / "summary.md"
-        with summary_path.open("xb") as stream:
-            stream.write((render_markdown(evidence) + "\n".join(timing_lines) + "\n").encode("utf-8")); stream.flush(); os.fsync(stream.fileno())
-            metadata = os.fstat(stream.fileno()); owned_files.append((summary_path, (metadata.st_dev, metadata.st_ino)))
-        _require_same_directory(staging, staging_identity)
-        if destination.exists() or destination.is_symlink():
-            raise ResearchError("evidence-destination-exists")
-        os.rename(staging, destination)
-        _require_same_directory(destination, staging_identity)
-        published = True
-    except FileExistsError:
-        raise ResearchError("evidence-destination-exists") from None
-    except ResearchError:
+        promote_staged_index(destination, None, writer, validator, operation_id=uuid.uuid4().hex, manifest_factory=factory)
+    except ResearchError as error:
+        if error.code == "index-destination-exists":
+            raise ResearchError("evidence-destination-exists") from None
         raise
-    except Exception:
-        raise ResearchError("index-promotion-failed") from None
-    finally:
-        if not published and staging_identity is not None:
-            for path, identity in owned_files:
-                _unlink_owned_file(path, identity)
-            try:
-                _require_same_directory(staging, staging_identity)
-                staging.rmdir()
-            except Exception:
-                pass
 
 
 def _safe_machine_label(value: Any) -> str:
@@ -902,15 +900,73 @@ def _unique_mapping(pairs, code: str):
 
 def _sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
-    with path.open("rb") as stream:
+    with _open_binary_no_follow(path) as stream:
         while block := stream.read(1024 * 1024):
             digest.update(block)
     return digest.hexdigest()
 
 
+def _load_validated_npy(path: Path, *, dtype: Any, shape: tuple[int, ...], loader: Callable[..., Any] | None = None):
+    """Preflight an NPY container completely before permitting NumPy parsing."""
+    import numpy as np
+    loader = np.load if loader is None else loader
+    expected_dtype = np.dtype(dtype)
+    try:
+        if _is_link_or_reparse(path):
+            raise ResearchError("index-artifact-invalid")
+        with _open_binary_no_follow(path) as stream:
+            before = os.fstat(stream.fileno())
+            prefix = stream.read(8)
+            if len(prefix) != 8 or prefix[:6] != b"\x93NUMPY" or tuple(prefix[6:8]) not in {(1, 0), (2, 0), (3, 0)}:
+                raise ResearchError("index-artifact-invalid")
+            length_size = 2 if prefix[6] == 1 else 4
+            encoded_length = stream.read(length_size)
+            if len(encoded_length) != length_size:
+                raise ResearchError("index-artifact-invalid")
+            header_length = int.from_bytes(encoded_length, "little")
+            if header_length <= 0 or header_length > MAX_NPY_HEADER_BYTES:
+                raise ResearchError("index-artifact-invalid")
+            encoded_header = stream.read(header_length)
+            if len(encoded_header) != header_length:
+                raise ResearchError("index-artifact-invalid")
+            encoding = "utf-8" if prefix[6] == 3 else "latin1"
+            header = ast.literal_eval(encoded_header.decode(encoding).strip())
+            if type(header) is not dict or set(header) != {"descr", "fortran_order", "shape"}:
+                raise ResearchError("index-artifact-invalid")
+            parsed_dtype = np.dtype(header["descr"])
+            parsed_shape = header["shape"]
+            if (
+                parsed_dtype.fields is not None
+                or parsed_dtype.subdtype is not None
+                or parsed_dtype.hasobject
+                or parsed_dtype.str != expected_dtype.str
+                or header["fortran_order"] is not False
+                or type(parsed_shape) is not tuple
+                or parsed_shape != shape
+                or any(type(item) is not int or item <= 0 for item in parsed_shape)
+            ):
+                raise ResearchError("index-artifact-invalid")
+            count = math.prod(parsed_shape)
+            body_bytes = count * parsed_dtype.itemsize
+            header_end = 8 + length_size + header_length
+            if body_bytes <= 0 or body_bytes > MAX_NPY_BODY_BYTES or before.st_size != header_end + body_bytes:
+                raise ResearchError("index-artifact-invalid")
+            stream.seek(0)
+            value = loader(stream, allow_pickle=False)
+            after = os.fstat(stream.fileno())
+            current = path.stat()
+            if _stable_signature(before) != _stable_signature(after) or _stable_signature(before) != _stable_signature(current):
+                raise ResearchError("index-artifact-invalid")
+            return value
+    except ResearchError:
+        raise
+    except Exception:
+        raise ResearchError("index-artifact-invalid") from None
+
+
 def _npy_version(path: Path) -> tuple[int, int]:
     try:
-        with path.open("rb") as stream:
+        with _open_binary_no_follow(path) as stream:
             header = stream.read(8)
         if len(header) != 8 or header[:6] != b"\x93NUMPY":
             raise ResearchError("index-artifact-invalid")
@@ -930,23 +986,77 @@ def _is_link_or_reparse(path: Path) -> bool:
 
 
 def _model_manifest_sha256(root: Path) -> str:
-    records = []
-    total = 0
-    for path in sorted(root.rglob("*"), key=lambda item: item.relative_to(root).as_posix()):
-        if _is_link_or_reparse(path):
+    try:
+        root = root.resolve(strict=True)
+        if _is_link_or_reparse(root) or not root.is_dir():
             raise ResearchError("approval-mismatch")
-        if not path.is_file():
-            continue
-        if len(records) >= MAX_MODEL_FILES:
+        root_identity = root.stat()
+        pending = [root]
+        files = []
+        portable_names = set()
+        total = 0
+        while pending:
+            directory = pending.pop()
+            before_directory = directory.stat()
+            entries = sorted(os.scandir(directory), key=lambda item: item.name.casefold())
+            for entry in entries:
+                path = Path(entry.path)
+                relative = path.relative_to(root).as_posix()
+                portable = relative.casefold()
+                if portable in portable_names:
+                    raise ResearchError("approval-mismatch")
+                portable_names.add(portable)
+                if _is_link_or_reparse(path):
+                    raise ResearchError("approval-mismatch")
+                resolved = path.resolve(strict=True)
+                if os.path.commonpath((str(root).casefold(), str(resolved).casefold())) != str(root).casefold():
+                    raise ResearchError("approval-mismatch")
+                if entry.is_dir(follow_symlinks=False):
+                    pending.append(path)
+                elif entry.is_file(follow_symlinks=False):
+                    if len(files) >= MAX_MODEL_FILES:
+                        raise ResearchError("approval-mismatch")
+                    digest, size = _hash_stable_file(path, MAX_MODEL_BYTES - total)
+                    total += size
+                    files.append({"path": relative, "size": size, "sha256": digest})
+                else:
+                    raise ResearchError("approval-mismatch")
+            after_directory = directory.stat()
+            if _stable_signature(before_directory) != _stable_signature(after_directory):
+                raise ResearchError("approval-mismatch")
+        after_root = root.stat()
+        if _stable_signature(root_identity) != _stable_signature(after_root) or not files:
             raise ResearchError("approval-mismatch")
-        size = path.stat().st_size
-        total += size
-        if total > MAX_MODEL_BYTES:
-            raise ResearchError("approval-mismatch")
-        records.append({"path": path.relative_to(root).as_posix(), "size": size, "sha256": _sha256_file(path)})
-    if not records:
+        files.sort(key=lambda item: item["path"].casefold())
+        return hashlib.sha256(_json_bytes({"files": files, "schema_version": 1})).hexdigest()
+    except ResearchError:
+        raise
+    except Exception:
+        raise ResearchError("approval-mismatch") from None
+
+
+def _hash_stable_file(path: Path, remaining: int) -> tuple[str, int]:
+    if remaining <= 0:
         raise ResearchError("approval-mismatch")
-    return hashlib.sha256(_json_bytes({"files": records, "schema_version": 1})).hexdigest()
+    flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0)
+    descriptor = _open_descriptor_no_follow(path, flags)
+    try:
+        before = os.fstat(descriptor)
+        if before.st_size < 0 or before.st_size > remaining:
+            raise ResearchError("approval-mismatch")
+        digest = hashlib.sha256(); read = 0
+        while block := os.read(descriptor, min(1024 * 1024, remaining - read + 1)):
+            read += len(block)
+            if read > remaining:
+                raise ResearchError("approval-mismatch")
+            digest.update(block)
+        after = os.fstat(descriptor); current = path.stat()
+        identity = _stable_signature(before)
+        if read != before.st_size or identity != _stable_signature(after) or identity != _stable_signature(current):
+            raise ResearchError("approval-mismatch")
+        return digest.hexdigest(), read
+    finally:
+        os.close(descriptor)
 
 
 def _installed_locked_versions() -> Mapping[str, str]:
@@ -975,11 +1085,112 @@ def _configured_wheel_sha256() -> str:
         path = Path(wheel)
         if not path.is_absolute() or path.suffix.casefold() != ".whl" or not path.is_file() or any(_is_link_or_reparse(item) for item in (path, *path.parents)):
             raise ResearchError("approval-mismatch")
-        return _sha256_file(path)
+        distribution = importlib.metadata.distribution("turbovec")
+        spec = importlib.util.find_spec("turbovec")
+        digest = _verify_wheel_distribution(path, distribution=distribution, module_spec=spec)
+        imported = importlib.import_module("turbovec")
+        verified = _verify_wheel_distribution(path, distribution=distribution, module_spec=spec, imported_module=imported)
+        if digest != verified:
+            raise ResearchError("environment-mismatch")
+        return digest
     except ResearchError:
         raise
     except Exception:
         raise ResearchError("approval-mismatch") from None
+
+
+def _verify_wheel_distribution(path: Path, *, distribution: Any, module_spec: Any, imported_module: Any | None = None) -> str:
+    """Bind installed/imported TurboVec executable files to the approved wheel."""
+    relevant_suffixes = {".py", ".pyd", ".dll"}
+    try:
+        if not path.is_absolute() or path.suffix.casefold() != ".whl" or _is_link_or_reparse(path):
+            raise ResearchError("environment-mismatch")
+        with _open_binary_no_follow(path) as wheel_stream:
+            before = os.fstat(wheel_stream.fileno())
+            if before.st_size <= 0 or before.st_size > MAX_WHEEL_BYTES:
+                raise ResearchError("environment-mismatch")
+            digest = hashlib.sha256()
+            while block := wheel_stream.read(1024 * 1024):
+                digest.update(block)
+            wheel_stream.seek(0)
+            with zipfile.ZipFile(wheel_stream) as archive:
+                infos = archive.infolist()
+                if not infos or len(infos) > MAX_WHEEL_ENTRIES:
+                    raise ResearchError("environment-mismatch")
+                names = set()
+                total = 0
+                for info in infos:
+                    pure = PurePosixPath(info.filename)
+                    if info.filename in names or pure.is_absolute() or "\\" in info.filename or any(part in {"", ".", ".."} for part in pure.parts):
+                        raise ResearchError("environment-mismatch")
+                    names.add(info.filename); total += info.file_size
+                    if info.is_dir() or info.file_size > MAX_WHEEL_ENTRY_BYTES or total > MAX_WHEEL_BYTES or (info.compress_size == 0 and info.file_size) or (info.compress_size and info.file_size > info.compress_size * 100):
+                        raise ResearchError("environment-mismatch")
+                metadata_names = [name for name in names if name.endswith(".dist-info/METADATA")]
+                record_names = [name for name in names if name.endswith(".dist-info/RECORD")]
+                if len(metadata_names) != 1 or len(record_names) != 1:
+                    raise ResearchError("environment-mismatch")
+                metadata_text = archive.read(metadata_names[0]).decode("utf-8", "strict")
+                metadata_fields = {}
+                for line in metadata_text.splitlines():
+                    if ":" in line:
+                        key, value = line.split(":", 1); metadata_fields.setdefault(key.casefold(), value.strip())
+                if metadata_fields.get("name", "").casefold() != "turbovec" or metadata_fields.get("version") != "1.0.0" or str(distribution.metadata.get("Name", "")).casefold() != "turbovec" or str(distribution.version) != "1.0.0":
+                    raise ResearchError("environment-mismatch")
+                records = {}
+                for row in csv.reader(io.StringIO(archive.read(record_names[0]).decode("utf-8", "strict"))):
+                    if len(row) != 3 or row[0] in records:
+                        raise ResearchError("environment-mismatch")
+                    records[row[0]] = (row[1], row[2])
+                relevant = sorted(name for name in names if name.startswith("turbovec/") and PurePosixPath(name).suffix.casefold() in relevant_suffixes)
+                if not relevant:
+                    raise ResearchError("environment-mismatch")
+                installed_entries = getattr(distribution, "files", None)
+                if installed_entries is None:
+                    raise ResearchError("environment-mismatch")
+                installed_relevant = {
+                    PurePosixPath(str(item).replace("\\", "/")).as_posix()
+                    for item in installed_entries
+                    if str(item).replace("\\", "/").startswith("turbovec/")
+                    and PurePosixPath(str(item)).suffix.casefold() in relevant_suffixes
+                    and PurePosixPath(str(item)).suffix.casefold() != ".pyc"
+                }
+                if installed_relevant != set(relevant):
+                    raise ResearchError("environment-mismatch")
+                verified_paths = set()
+                verified_roots = set()
+                for name in relevant:
+                    encoded_hash, encoded_size = records.get(name, (None, None))
+                    payload = archive.read(name)
+                    expected_hash = "sha256=" + base64.urlsafe_b64encode(hashlib.sha256(payload).digest()).rstrip(b"=").decode("ascii")
+                    if encoded_hash != expected_hash or encoded_size != str(len(payload)):
+                        raise ResearchError("environment-mismatch")
+                    installed = Path(distribution.locate_file(name)).resolve(strict=True)
+                    installed_hash, installed_size = _hash_stable_file(installed, MAX_WHEEL_ENTRY_BYTES)
+                    if _is_link_or_reparse(installed) or installed_size != len(payload) or installed_hash != hashlib.sha256(payload).hexdigest():
+                        raise ResearchError("environment-mismatch")
+                    verified_paths.add(installed)
+                    verified_roots.add(installed.parent)
+            after = os.fstat(wheel_stream.fileno())
+            current = path.stat()
+            if _stable_signature(before) != _stable_signature(after) or _stable_signature(before) != _stable_signature(current):
+                raise ResearchError("environment-mismatch")
+        if module_spec is None or not getattr(module_spec, "origin", None):
+            raise ResearchError("environment-mismatch")
+        origin = Path(module_spec.origin).resolve(strict=True)
+        locations = [Path(item).resolve(strict=True) for item in (getattr(module_spec, "submodule_search_locations", None) or ())]
+        if origin not in verified_paths or not locations or any(location not in verified_roots for location in locations):
+            raise ResearchError("environment-mismatch")
+        if imported_module is not None:
+            imported_origin = Path(getattr(imported_module, "__file__", "")).resolve(strict=True)
+            imported_locations = [Path(item).resolve(strict=True) for item in getattr(imported_module, "__path__", ())]
+            if imported_origin not in verified_paths or not imported_locations or any(location not in verified_roots for location in imported_locations):
+                raise ResearchError("environment-mismatch")
+        return digest.hexdigest()
+    except ResearchError:
+        raise
+    except Exception:
+        raise ResearchError("environment-mismatch") from None
 
 
 def _provider(embedder: Any) -> str:
@@ -987,8 +1198,67 @@ def _provider(embedder: Any) -> str:
     return providers[0] if providers else "unknown"
 
 
+def _stable_signature(metadata: os.stat_result) -> tuple[int, int, int, int]:
+    return (metadata.st_dev, metadata.st_ino, metadata.st_size, metadata.st_mtime_ns)
+
+
+@contextlib.contextmanager
+def _open_binary_no_follow(path: Path):
+    flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0)
+    descriptor = _open_descriptor_no_follow(path, flags)
+    with os.fdopen(descriptor, "rb", closefd=True) as stream:
+        yield stream
+
+
+def _open_descriptor_no_follow(path: Path, flags: int) -> int:
+    if os.name != "nt":
+        return os.open(path, flags)
+    import ctypes
+    import msvcrt
+    from ctypes import wintypes
+
+    class FileAttributeTagInfo(ctypes.Structure):
+        _fields_ = [("FileAttributes", wintypes.DWORD), ("ReparseTag", wintypes.DWORD)]
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    create_file = kernel32.CreateFileW
+    create_file.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, wintypes.LPVOID, wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE]
+    create_file.restype = wintypes.HANDLE
+    get_information = kernel32.GetFileInformationByHandleEx
+    get_information.argtypes = [wintypes.HANDLE, ctypes.c_int, wintypes.LPVOID, wintypes.DWORD]
+    get_information.restype = wintypes.BOOL
+    close_handle = kernel32.CloseHandle
+    close_handle.argtypes = [wintypes.HANDLE]
+    close_handle.restype = wintypes.BOOL
+    handle = create_file(str(path), 0x80000000, 0x00000001, None, 3, 0x00200000 | 0x00000080, None)
+    invalid = ctypes.c_void_p(-1).value
+    if handle == invalid:
+        raise OSError(ctypes.get_last_error(), "CreateFileW failed")
+    try:
+        tag = FileAttributeTagInfo()
+        if not get_information(handle, 9, ctypes.byref(tag), ctypes.sizeof(tag)) or tag.FileAttributes & 0x400:
+            raise OSError(ctypes.get_last_error(), "reparse-point file rejected")
+        return msvcrt.open_osfhandle(int(handle), flags)
+    except Exception:
+        close_handle(handle)
+        raise
+
+
 def _validated_embedder(approval: Mapping[str, Any], deps: CliDependencies):
-    embedder = deps.make_embedder(Path(approval["model_cache_root"]))
+    cache = Path(approval["model_cache_root"])
+    try:
+        before = deps.model_manifest_sha256(cache)
+    except Exception:
+        raise ResearchError("environment-mismatch") from None
+    if before != approval["embedding_model_manifest_sha256"]:
+        raise ResearchError("environment-mismatch")
+    embedder = deps.make_embedder(cache)
+    try:
+        after = deps.model_manifest_sha256(cache)
+    except Exception:
+        raise ResearchError("environment-mismatch") from None
+    if after != before:
+        raise ResearchError("environment-mismatch")
     if getattr(embedder, "model_identity", None) != approval["embedding_model"] or getattr(embedder, "dimension", None) != 384:
         raise ResearchError("approval-mismatch")
     if list(getattr(embedder, "providers", ())) != ["CPUExecutionProvider"]:

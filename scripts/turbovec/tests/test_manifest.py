@@ -111,9 +111,9 @@ class CanonicalManifestTests(unittest.TestCase):
         value = manifest(
             identity=suite_identity(),
             artifacts=(
-                ArtifactRecord("vectors-float32.npy", HASH_A, 12, 1, "NPY", 1, 384, "float32", "float32", "float32-npy-v1", None),
-                ArtifactRecord("index-2bit.tvim", HASH_B, 12, 1, "GTVI", 1, 384, "2bit", "turbovec", "gtvi-turbovec-v1", 2),
-                ArtifactRecord("index-4bit.tvim", HASH_A, 12, 1, "GTVI", 1, 384, "4bit", "turbovec", "gtvi-turbovec-v1", 4),
+                ArtifactRecord("vectors-float32.npy", HASH_A, 12, 1, "NPY", 1, 384, "float32", "float32", "float32-npy-v1", None, "<f4"),
+                ArtifactRecord("index-2bit.tvim", HASH_B, 12, 1, "GTVI", 1, 384, "2bit", "turbovec", "gtvi-turbovec-v1", 2, None),
+                ArtifactRecord("index-4bit.tvim", HASH_A, 12, 1, "GTVI", 1, 384, "4bit", "turbovec", "gtvi-turbovec-v1", 4, None),
             ),
         )
         payload = json.loads(canonical_json(value))
@@ -141,7 +141,7 @@ class CanonicalManifestTests(unittest.TestCase):
             path = Path(directory) / "manifest.json"; expected = manifest()
             payload = json.loads(canonical_json(expected))
             for artifact in payload["artifacts"]:
-                for field in ("route", "backend", "index_format", "bit_width"):
+                for field in ("route", "backend", "index_format", "bit_width", "dtype"):
                     artifact.pop(field)
             path.write_text(json.dumps(payload, ensure_ascii=False, allow_nan=False, separators=(",", ":"), sort_keys=True), encoding="utf-8")
             loaded = load_and_validate_manifest(path, expected.identity)

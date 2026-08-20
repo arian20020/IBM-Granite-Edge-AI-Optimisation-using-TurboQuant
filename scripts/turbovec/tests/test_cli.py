@@ -155,6 +155,20 @@ class CliTests(unittest.TestCase):
         self.assertNotIn(str(Path.home()), stdout)
         self.assertEqual(1, stdout.count("\n"))
 
+    def test_model_cache_mutation_during_embedder_initialization_fails_closed(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary); approval = approved(root); deps = dependencies(root)
+            cache_file = root / "cache" / "model.onnx"
+            def mutate_then_load(_cache):
+                cache_file.write_bytes(b"mutated")
+                return FakeEmbedder()
+            deps.make_embedder = mutate_then_load
+            snapshots = iter(("1" * 64, "1" * 64, "9" * 64))
+            deps.model_manifest_sha256 = lambda _cache: next(snapshots)
+            result = run_cli(["doctor", "--approved-input", str(approval)], dependencies=deps)
+        self.assertEqual(30, result.exit_code)
+        self.assertEqual("environment-mismatch", result.payload["code"])
+
     def test_every_fixed_research_error_has_one_reviewed_exit_mapping(self):
         package = Path(__file__).parents[1] / "granite_turbovec"
         emitted = set()
@@ -263,6 +277,24 @@ class CliTests(unittest.TestCase):
         self.assertEqual(1, len(answer.payload["results"]))
         self.assertLessEqual(len(answer.payload["results"][0]["excerpt"]), 240)
         self.assertEqual("4bit", answer.payload["route"])
+
+    def test_query_reports_nonoverlapping_validation_model_load_embed_search_and_total_timings(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary); approval = approved(root); source = root / "a.txt"; source.write_text("granite")
+            deps = dependencies(root); index = root / "index"
+            self.assertEqual(0, run_cli(["index", "--approved-input", str(approval), "--input", str(source), "--output", str(index)], dependencies=deps).exit_code)
+            tick = {"value": 0}
+            def clock():
+                tick["value"] += 1
+                return tick["value"] / 10
+            deps.perf_counter = clock
+            result = run_cli(["query", "--approved-input", str(approval), "--index", str(index), "--text", "granite", "--top-k", "1"], dependencies=deps)
+        self.assertEqual(0, result.exit_code)
+        timings = result.payload["timings"]
+        phases = {"validation_approval_seconds", "model_init_seconds", "artifact_load_seconds", "embedding_seconds", "search_seconds", "end_to_end_seconds"}
+        self.assertEqual(phases, set(timings))
+        self.assertTrue(all(isinstance(value, float) and value >= 0 for value in timings.values()))
+        self.assertGreaterEqual(timings["end_to_end_seconds"], sum(value for name, value in timings.items() if name != "end_to_end_seconds"))
 
     def test_manifest_identity_mismatch_precedes_embedding_or_index_load(self):
         class Spies:
@@ -394,6 +426,27 @@ class CliTests(unittest.TestCase):
         self.assertEqual(31, corrupt.exit_code)
         self.assertEqual("index-artifact-mismatch", corrupt.payload["code"])
 
+    def test_cli_rejects_metadata_wheel_mismatch_and_manifest_format_swap(self):
+        import hashlib
+        for mutation in ("metadata-wheel", "format-swap"):
+            with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary); approval = approved(root); source = root / "a.txt"; source.write_text("granite")
+                deps = dependencies(root); index = root / "index"
+                self.assertEqual(0, run_cli(["index", "--approved-input", str(approval), "--input", str(source), "--output", str(index)], dependencies=deps).exit_code)
+                manifest_path = index / "manifest.json"; manifest = json.loads(manifest_path.read_text())
+                if mutation == "metadata-wheel":
+                    metadata_path = index / "baseline-results.json"; metadata = json.loads(metadata_path.read_text())
+                    metadata["turbovec"]["wheel_sha256"] = "9" * 64
+                    metadata_path.write_text(json.dumps(metadata, ensure_ascii=False, allow_nan=False, separators=(",", ":"), sort_keys=True))
+                    for artifact in manifest["artifacts"]:
+                        if artifact["filename"] == metadata_path.name:
+                            artifact["sha256"] = hashlib.sha256(metadata_path.read_bytes()).hexdigest(); artifact["size"] = metadata_path.stat().st_size
+                else:
+                    next(item for item in manifest["artifacts"] if item["filename"] == "chunks.jsonl")["index_format"] = "npy-ids-v1"
+                manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, allow_nan=False, separators=(",", ":"), sort_keys=True))
+                result = run_cli(["query", "--approved-input", str(approval), "--index", str(index), "--text", "x", "--top-k", "1"], dependencies=deps)
+            self.assertEqual(31, result.exit_code)
+
     def test_duplicate_chunk_keys_are_index_corruption_not_approved_input_errors(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary); approval = approved(root)
@@ -454,6 +507,9 @@ class CliTests(unittest.TestCase):
             self.assertEqual({"float32", "turbovec-2bit", "turbovec-4bit"}, {evidence["baseline"]["route"], *(item["route"] for item in evidence["candidates"])})
             self.assertTrue(all(route["timings"]["warm"]["count"] >= 5 for route in [evidence["baseline"], *evidence["candidates"]]))
             self.assertTrue((output / "summary.md").is_file())
+            evidence_manifest = json.loads((output / "manifest.json").read_text())
+            self.assertEqual({"results.json", "summary.md"}, {item["filename"] for item in evidence_manifest["artifacts"]})
+            self.assertEqual(document["environment"]["turbovec_wheel_sha256"], evidence_manifest["identity"]["turbovec_wheel_sha256"])
             self.assertEqual(document_calls, embedder.document_calls, "benchmark must reuse stored document embeddings")
             self.assertEqual(1, embedder.query_calls, "all routes must reuse one query embedding batch")
             summary = (output / "summary.md").read_text()
