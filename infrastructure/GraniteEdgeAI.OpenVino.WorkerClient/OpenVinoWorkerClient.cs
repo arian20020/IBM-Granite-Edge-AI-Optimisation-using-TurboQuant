@@ -399,6 +399,11 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
         OpenVinoSupportCode.OperationCancelled,
         CancellationMessage);
 
+    internal static OpenVinoWorkerClientException WorkerReportedFailure(
+        OpenVinoSupportCode supportCode) => new(
+        supportCode,
+        RuntimeFailureMessage);
+
     internal static bool IsControlled(Exception error) =>
         error is OpenVinoWorkerClientException or
         OpenVinoProtocolException or

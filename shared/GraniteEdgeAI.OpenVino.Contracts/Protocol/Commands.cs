@@ -25,18 +25,50 @@ public sealed record OpenVinoGenerationLimits(int MaximumContextTokens, int Maxi
     }
 }
 
-public sealed record StartInspectionCommand(Guid InspectionRunId) : IOpenVinoCommand
+public sealed record StartInspectionCommand(
+    Guid InspectionRunId,
+    string PackagePath,
+    string PackageManifestDigest,
+    string ModelSha256,
+    long ModelLengthBytes) : IOpenVinoCommand
 {
     [JsonPropertyName("commandType")]
     public string CommandType => "startInspection";
 
-    public void Validate() => OpenVinoProtocol.RequireUuid(InspectionRunId, nameof(InspectionRunId));
+    public void Validate()
+    {
+        OpenVinoProtocol.RequireUuid(InspectionRunId, nameof(InspectionRunId));
+        ValidatePackageIdentity(
+            PackagePath,
+            PackageManifestDigest,
+            ModelSha256,
+            ModelLengthBytes);
+    }
+
+    internal static void ValidatePackageIdentity(
+        string packagePath,
+        string packageManifestDigest,
+        string modelSha256,
+        long modelLengthBytes)
+    {
+        OpenVinoProtocol.RequirePackagePath(packagePath, nameof(PackagePath));
+        OpenVinoProtocol.RequireSha256(
+            packageManifestDigest,
+            nameof(PackageManifestDigest));
+        OpenVinoProtocol.RequireSha256(modelSha256, nameof(ModelSha256));
+        OpenVinoProtocol.Require(
+            modelLengthBytes > 0,
+            nameof(ModelLengthBytes) + " must be positive.");
+    }
 }
 
 public sealed record StartSessionCommand(
     Guid SessionId,
     Guid InspectionRunId,
+    string PackagePath,
     string PackageManifestDigest,
+    string ModelSha256,
+    long ModelLengthBytes,
     OpenVinoDeviceRequest Device,
     OpenVinoGenerationLimits Limits) : IOpenVinoCommand
 {
@@ -47,9 +79,11 @@ public sealed record StartSessionCommand(
     {
         OpenVinoProtocol.RequireUuid(SessionId, nameof(SessionId));
         OpenVinoProtocol.RequireUuid(InspectionRunId, nameof(InspectionRunId));
-        OpenVinoProtocol.Require(
-            PackageManifestDigest is not null && OpenVinoProtocol.LowercaseSha256.IsMatch(PackageManifestDigest),
-            nameof(PackageManifestDigest) + " must be a lowercase SHA-256 digest.");
+        StartInspectionCommand.ValidatePackageIdentity(
+            PackagePath,
+            PackageManifestDigest,
+            ModelSha256,
+            ModelLengthBytes);
         if (Device is null)
         {
             throw new OpenVinoProtocolException(nameof(Device) + " must be present.");
@@ -103,4 +137,13 @@ public sealed record CancelSessionCommand(Guid SessionId) : IOpenVinoCommand
     public string CommandType => "cancelSession";
 
     public void Validate() => OpenVinoProtocol.RequireUuid(SessionId, nameof(SessionId));
+}
+
+public sealed record CloseSessionCommand(Guid SessionId) : IOpenVinoCommand
+{
+    [JsonPropertyName("commandType")]
+    public string CommandType => "closeSession";
+
+    public void Validate() =>
+        OpenVinoProtocol.RequireUuid(SessionId, nameof(SessionId));
 }

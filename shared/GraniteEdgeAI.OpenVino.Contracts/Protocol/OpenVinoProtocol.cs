@@ -11,6 +11,10 @@ public static class OpenVinoProtocol
     public const int MaximumJsonDepth = 32;
     public const int MaximumLineBytes = 1024 * 1024;
     public const int MaximumPromptUtf8Bytes = 64 * 1024;
+    public const int MaximumPackagePathUtf8Bytes = 32 * 1024;
+    public const int MaximumBuildIdentityUtf8Bytes = 256;
+    public const int MaximumDeviceIdentityUtf8Bytes = 128;
+    public const int MaximumActualExecutionDevices = 8;
     public const int MaximumNewTokens = 512;
     public const int MaximumOperationTextUtf8Bytes = 4 * 1024 * 1024;
     public const int MaximumTurns = 32;
@@ -44,6 +48,20 @@ public static class OpenVinoProtocol
             throw new OpenVinoProtocolException(name + " must be valid UTF-8 text.");
         }
     }
+
+    internal static void RequirePackagePath(string? value, string name)
+    {
+        RequireUtf8Limit(value, MaximumPackagePathUtf8Bytes, name);
+        Require(
+            Path.IsPathFullyQualified(value!) &&
+            !value!.Any(char.IsControl),
+            name + " must be an absolute control-free path.");
+    }
+
+    internal static void RequireSha256(string? value, string name) =>
+        Require(
+            value is not null && LowercaseSha256.IsMatch(value),
+            name + " must be a lowercase SHA-256 digest.");
 }
 
 /// <summary>Reports a safe, typed rejection at the OpenVINO protocol boundary.</summary>

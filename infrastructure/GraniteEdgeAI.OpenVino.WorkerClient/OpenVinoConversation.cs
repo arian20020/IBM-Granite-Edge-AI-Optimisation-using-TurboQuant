@@ -25,6 +25,7 @@ public sealed class OpenVinoConversation : IAsyncDisposable
     private Guid? _activeTurnId;
     private bool _generationStarted;
     private bool _stopSent;
+    private bool _closeSent;
     private TerminalCancellationState _cancellationState;
     private bool _disposed;
 
@@ -225,6 +226,96 @@ public sealed class OpenVinoConversation : IAsyncDisposable
             OpenVinoWorkerClient.CancellationFailure(),
             cancellationToken);
 
+    /// <summary>Gracefully closes one idle session and verifies terminal cleanup.</summary>
+    public async Task CloseAsync(CancellationToken cancellationToken)
+    {
+        ThrowIfDisposed();
+        cancellationToken.ThrowIfCancellationRequested();
+        if (_terminalCleanup.Completion.IsCompleted)
+        {
+            return;
+        }
+
+        await _operationGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            if (_terminalCleanup.Completion.IsCompleted)
+            {
+                return;
+            }
+
+            DateTimeOffset deadline =
+                DateTimeOffset.UtcNow + _options.CancellationGrace;
+            CloseSessionCommand? command = null;
+            lock (_stateLock)
+            {
+                if (!_closeSent)
+                {
+                    command = new CloseSessionCommand(_sessionId);
+                    _validator.Accept(command);
+                    _closeSent = true;
+                    _lastActivityUtc = DateTimeOffset.UtcNow;
+                }
+            }
+
+            if (command is not null)
+            {
+                await WriteCommandWithDeadlineAsync(
+                        command,
+                        deadline,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
+            while (!_terminalCleanup.Completion.IsCompleted)
+            {
+                IOpenVinoEvent @event = await OpenVinoWorkerClient
+                    .ReadEventWithDeadlineAsync(
+                        _session,
+                        _processExit,
+                        RemainingUntil(deadline),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                if (IsStale(@event, turnId: null))
+                {
+                    continue;
+                }
+
+                lock (_stateLock)
+                {
+                    _validator.Accept(@event);
+                    _lastActivityUtc = DateTimeOffset.UtcNow;
+                }
+
+                if (@event is SessionCompletedEvent)
+                {
+                    await _terminalCleanup.CompleteAsync(deadline, force: false)
+                        .ConfigureAwait(false);
+                    return;
+                }
+
+                if (@event is SessionFailedEvent failed)
+                {
+                    await _terminalCleanup.CompleteAsync(deadline, force: false)
+                        .ConfigureAwait(false);
+                    throw OpenVinoWorkerClient.WorkerReportedFailure(
+                        failed.SupportCode);
+                }
+
+                throw OpenVinoWorkerClient.ProtocolFailure();
+            }
+        }
+        catch (Exception error) when (OpenVinoWorkerClient.IsControlled(error))
+        {
+            throw await FailAndMapAsync(error, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        finally
+        {
+            _operationGate.Release();
+        }
+    }
+
     private async Task CancelOwnedSessionAsync(
         OpenVinoWorkerClientException requestedOutcome,
         CancellationToken cancellationToken)
@@ -288,8 +379,16 @@ public sealed class OpenVinoConversation : IAsyncDisposable
             {
                 try
                 {
-                    await CancelAsync(CancellationToken.None)
-                        .ConfigureAwait(false);
+                    if (HasActiveTurn() || IsCancellationInProgress())
+                    {
+                        await CancelAsync(CancellationToken.None)
+                            .ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        await CloseAsync(CancellationToken.None)
+                            .ConfigureAwait(false);
+                    }
                 }
                 catch (Exception error) when (
                     OpenVinoWorkerClient.IsControlled(error))

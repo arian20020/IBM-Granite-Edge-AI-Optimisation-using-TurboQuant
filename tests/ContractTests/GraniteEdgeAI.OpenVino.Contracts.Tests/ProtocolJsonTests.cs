@@ -12,27 +12,33 @@ public sealed class ProtocolJsonTests
     private static readonly Guid RunId = Guid.Parse("6e1ff10c-fd83-4b03-9a12-d35247e5a6a3");
     private static readonly Guid TurnId = Guid.Parse("2ff65f3b-4ee0-4e04-8c48-73f95af43a6f");
     private const string Digest = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+    private const string ModelDigest = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";
+    private const string WorkerDigest = "1111111111111111111111111111111111111111111111111111111111111111";
+    private const string PackagePath = @"C:\operation\package";
 
     [TestMethod]
     public void SerializationMatchesHandWrittenClosedWireLiteralsInsteadOfOnlyRoundTrippingClrTypes()
     {
         (IOpenVinoCommand Value, string Json)[] commands =
         [
-            (new StartInspectionCommand(RunId), """{"inspectionRunId":"6e1ff10c-fd83-4b03-9a12-d35247e5a6a3","commandType":"startInspection"}"""),
-            (StartCommand(), """{"sessionId":"9d86e640-2f8f-4f35-8f51-c7e2bc3d07c0","inspectionRunId":"6e1ff10c-fd83-4b03-9a12-d35247e5a6a3","packageManifestDigest":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef","device":{"deviceId":"CPU"},"limits":{"maximumContextTokens":1024,"maximumNewTokens":128},"commandType":"startSession"}"""),
+            (StartInspection(), """{"inspectionRunId":"6e1ff10c-fd83-4b03-9a12-d35247e5a6a3","packagePath":"C:\\operation\\package","packageManifestDigest":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef","modelSha256":"abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789","modelLengthBytes":88,"commandType":"startInspection"}"""),
+            (StartCommand(), """{"sessionId":"9d86e640-2f8f-4f35-8f51-c7e2bc3d07c0","inspectionRunId":"6e1ff10c-fd83-4b03-9a12-d35247e5a6a3","packagePath":"C:\\operation\\package","packageManifestDigest":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef","modelSha256":"abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789","modelLengthBytes":88,"device":{"deviceId":"CPU"},"limits":{"maximumContextTokens":1024,"maximumNewTokens":128},"commandType":"startSession"}"""),
             (new PromptCommand(SessionId, TurnId, "independent prompt literal", 128), """{"sessionId":"9d86e640-2f8f-4f35-8f51-c7e2bc3d07c0","turnId":"2ff65f3b-4ee0-4e04-8c48-73f95af43a6f","prompt":"independent prompt literal","requestedNewTokens":128,"commandType":"prompt"}"""),
             (new StopTurnCommand(SessionId, TurnId), """{"sessionId":"9d86e640-2f8f-4f35-8f51-c7e2bc3d07c0","turnId":"2ff65f3b-4ee0-4e04-8c48-73f95af43a6f","commandType":"stopTurn"}"""),
-            (new CancelSessionCommand(SessionId), """{"sessionId":"9d86e640-2f8f-4f35-8f51-c7e2bc3d07c0","commandType":"cancelSession"}""")
+            (new CancelSessionCommand(SessionId), """{"sessionId":"9d86e640-2f8f-4f35-8f51-c7e2bc3d07c0","commandType":"cancelSession"}"""),
+            (new CloseSessionCommand(SessionId), """{"sessionId":"9d86e640-2f8f-4f35-8f51-c7e2bc3d07c0","commandType":"closeSession"}""")
         ];
         (IOpenVinoEvent Value, string Json)[] events =
         [
             (new HelloEvent("openvino.official/1"), """{"protocolId":"openvino.official/1","eventType":"hello"}"""),
-            (new InspectionCompletedEvent(RunId), """{"inspectionRunId":"6e1ff10c-fd83-4b03-9a12-d35247e5a6a3","eventType":"inspectionCompleted"}"""),
+            (new InspectionStartedEvent(RunId), """{"inspectionRunId":"6e1ff10c-fd83-4b03-9a12-d35247e5a6a3","eventType":"inspectionStarted"}"""),
+            (new InspectionProgressEvent(RunId, OpenVinoInspectionStage.ManifestVerified), """{"inspectionRunId":"6e1ff10c-fd83-4b03-9a12-d35247e5a6a3","stage":"manifestVerified","eventType":"inspectionProgress"}"""),
+            (InspectionCompleted(), """{"inspectionRunId":"6e1ff10c-fd83-4b03-9a12-d35247e5a6a3","packageManifestDigest":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef","modelSha256":"abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789","modelLengthBytes":88,"mainModelParsed":true,"tokenizerParsed":true,"detokenizerParsed":true,"buildEvidence":{"runtimeBuild":"2026.3.0-22451-8a17657b995-releases/2026/3","genAiBuild":"2026.3.0.0-3277-bd8d6542e3c","tokenizersBuild":"2026.3.0.0-703-183c6f25cda","workerManifestDigest":"1111111111111111111111111111111111111111111111111111111111111111"},"eventType":"inspectionCompleted"}"""),
             (new InspectionFailedEvent(RunId, OpenVinoSupportCode.PackageUnreadable), """{"inspectionRunId":"6e1ff10c-fd83-4b03-9a12-d35247e5a6a3","supportCode":"package_unreadable","eventType":"inspectionFailed"}"""),
-            (new SessionStartedEvent(SessionId), """{"sessionId":"9d86e640-2f8f-4f35-8f51-c7e2bc3d07c0","eventType":"sessionStarted"}"""),
+            (SessionStarted(), """{"sessionId":"9d86e640-2f8f-4f35-8f51-c7e2bc3d07c0","requestedDevice":"CPU","actualExecutionDevices":["CPU"],"protocolId":"openvino.official/1","buildEvidence":{"runtimeBuild":"2026.3.0-22451-8a17657b995-releases/2026/3","genAiBuild":"2026.3.0.0-3277-bd8d6542e3c","tokenizersBuild":"2026.3.0.0-703-183c6f25cda","workerManifestDigest":"1111111111111111111111111111111111111111111111111111111111111111"},"eventType":"sessionStarted"}"""),
             (new GenerationStartedEvent(SessionId, TurnId), """{"sessionId":"9d86e640-2f8f-4f35-8f51-c7e2bc3d07c0","turnId":"2ff65f3b-4ee0-4e04-8c48-73f95af43a6f","eventType":"generationStarted"}"""),
             (new TokenEvent(SessionId, TurnId, 0, "token"), """{"sessionId":"9d86e640-2f8f-4f35-8f51-c7e2bc3d07c0","turnId":"2ff65f3b-4ee0-4e04-8c48-73f95af43a6f","sequence":0,"text":"token","eventType":"token"}"""),
-            (new TurnCompletedEvent(SessionId, TurnId), """{"sessionId":"9d86e640-2f8f-4f35-8f51-c7e2bc3d07c0","turnId":"2ff65f3b-4ee0-4e04-8c48-73f95af43a6f","eventType":"turnCompleted"}"""),
+            (new TurnCompletedEvent(SessionId, TurnId, 4, 1, OpenVinoTurnDisposition.Completed), """{"sessionId":"9d86e640-2f8f-4f35-8f51-c7e2bc3d07c0","turnId":"2ff65f3b-4ee0-4e04-8c48-73f95af43a6f","promptTokenCount":4,"generatedTokenCount":1,"disposition":"completed","eventType":"turnCompleted"}"""),
             (new TurnFailedEvent(SessionId, TurnId, OpenVinoSupportCode.RuntimeTimedOut), """{"sessionId":"9d86e640-2f8f-4f35-8f51-c7e2bc3d07c0","turnId":"2ff65f3b-4ee0-4e04-8c48-73f95af43a6f","supportCode":"runtime_timed_out","eventType":"turnFailed"}"""),
             (new SessionCompletedEvent(SessionId), """{"sessionId":"9d86e640-2f8f-4f35-8f51-c7e2bc3d07c0","eventType":"sessionCompleted"}"""),
             (new SessionFailedEvent(SessionId, OpenVinoSupportCode.RuntimeLoadFailed), """{"sessionId":"9d86e640-2f8f-4f35-8f51-c7e2bc3d07c0","supportCode":"runtime_load_failed","eventType":"sessionFailed"}"""),
@@ -48,7 +54,11 @@ public sealed class ProtocolJsonTests
         foreach ((IOpenVinoEvent value, string json) in events)
         {
             Assert.AreEqual(json, Encoding.UTF8.GetString(OpenVinoProtocolJson.Serialize(value)));
-            Assert.AreEqual(value, OpenVinoProtocolJson.DeserializeEvent(Encoding.UTF8.GetBytes(json)));
+            IOpenVinoEvent parsed = OpenVinoProtocolJson.DeserializeEvent(
+                Encoding.UTF8.GetBytes(json));
+            Assert.AreEqual(
+                json,
+                Encoding.UTF8.GetString(OpenVinoProtocolJson.Serialize(parsed)));
         }
     }
 
@@ -175,7 +185,40 @@ public sealed class ProtocolJsonTests
     private static StartSessionCommand StartCommand() => new(
         SessionId,
         RunId,
+        PackagePath,
         Digest,
+        ModelDigest,
+        88,
         new OpenVinoDeviceRequest("CPU"),
         new OpenVinoGenerationLimits(1024, 128));
+
+    private static StartInspectionCommand StartInspection() => new(
+        RunId,
+        PackagePath,
+        Digest,
+        ModelDigest,
+        88);
+
+    private static OpenVinoBuildEvidence BuildEvidence() => new(
+        "2026.3.0-22451-8a17657b995-releases/2026/3",
+        "2026.3.0.0-3277-bd8d6542e3c",
+        "2026.3.0.0-703-183c6f25cda",
+        WorkerDigest);
+
+    private static InspectionCompletedEvent InspectionCompleted() => new(
+        RunId,
+        Digest,
+        ModelDigest,
+        88,
+        true,
+        true,
+        true,
+        BuildEvidence());
+
+    private static SessionStartedEvent SessionStarted() => new(
+        SessionId,
+        "CPU",
+        ["CPU"],
+        OpenVinoProtocol.OfficialProtocolId,
+        BuildEvidence());
 }

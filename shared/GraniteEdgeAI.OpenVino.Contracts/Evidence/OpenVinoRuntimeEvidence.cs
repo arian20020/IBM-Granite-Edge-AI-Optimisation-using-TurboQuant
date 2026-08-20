@@ -1,14 +1,28 @@
 namespace GraniteEdgeAI.OpenVino.Contracts;
 
-/// <summary>Safe factual runtime evidence; it deliberately has no diagnostic or path field.</summary>
-public sealed record OpenVinoRuntimeEvidence(string RequestedDevice, string ActualDevice, string ProtocolId)
+/// <summary>Exact path-free build identities for the verified worker closure.</summary>
+public sealed record OpenVinoBuildEvidence(
+    string RuntimeBuild,
+    string GenAiBuild,
+    string TokenizersBuild,
+    string WorkerManifestDigest)
 {
     public void Validate()
     {
-        OpenVinoProtocol.RequireText(RequestedDevice, nameof(RequestedDevice));
-        OpenVinoProtocol.RequireText(ActualDevice, nameof(ActualDevice));
-        OpenVinoProtocol.Require(
-            ProtocolId is OpenVinoProtocol.OfficialProtocolId or OpenVinoProtocol.TurboQuantProtocolId,
-            nameof(ProtocolId) + " must be an approved OpenVINO protocol identity.");
+        OpenVinoProtocol.RequireUtf8Limit(
+            RuntimeBuild,
+            OpenVinoProtocol.MaximumBuildIdentityUtf8Bytes,
+            nameof(RuntimeBuild));
+        OpenVinoProtocol.RequireUtf8Limit(
+            GenAiBuild,
+            OpenVinoProtocol.MaximumBuildIdentityUtf8Bytes,
+            nameof(GenAiBuild));
+        OpenVinoProtocol.RequireUtf8Limit(
+            TokenizersBuild,
+            OpenVinoProtocol.MaximumBuildIdentityUtf8Bytes,
+            nameof(TokenizersBuild));
+        OpenVinoProtocol.RequireSha256(
+            WorkerManifestDigest,
+            nameof(WorkerManifestDigest));
     }
 }

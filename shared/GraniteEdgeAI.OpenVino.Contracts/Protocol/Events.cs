@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using System.Text.Json;
 
 namespace GraniteEdgeAI.OpenVino.Contracts;
 
@@ -19,12 +20,98 @@ public sealed record HelloEvent(string ProtocolId) : IOpenVinoEvent
         nameof(ProtocolId) + " must be an approved OpenVINO protocol identity.");
 }
 
-public sealed record InspectionCompletedEvent(Guid InspectionRunId) : IOpenVinoEvent
+public enum OpenVinoInspectionStage
+{
+    ManifestVerified,
+    MainModelParsed,
+    TokenizerParsed,
+    DetokenizerParsed
+}
+
+public enum OpenVinoTurnDisposition
+{
+    Completed,
+    Stopped
+}
+
+public sealed class OpenVinoInspectionStageJsonConverter :
+    JsonStringEnumConverter<OpenVinoInspectionStage>
+{
+    public OpenVinoInspectionStageJsonConverter()
+        : base(JsonNamingPolicy.CamelCase, allowIntegerValues: false)
+    {
+    }
+}
+
+public sealed class OpenVinoTurnDispositionJsonConverter :
+    JsonStringEnumConverter<OpenVinoTurnDisposition>
+{
+    public OpenVinoTurnDispositionJsonConverter()
+        : base(JsonNamingPolicy.CamelCase, allowIntegerValues: false)
+    {
+    }
+}
+
+public sealed record InspectionStartedEvent(Guid InspectionRunId) : IOpenVinoEvent
+{
+    [JsonPropertyName("eventType")]
+    public string EventType => "inspectionStarted";
+
+    public void Validate() =>
+        OpenVinoProtocol.RequireUuid(InspectionRunId, nameof(InspectionRunId));
+}
+
+public sealed record InspectionProgressEvent(
+    Guid InspectionRunId,
+    [property: JsonConverter(typeof(OpenVinoInspectionStageJsonConverter))]
+    OpenVinoInspectionStage Stage) : IOpenVinoEvent
+{
+    [JsonPropertyName("eventType")]
+    public string EventType => "inspectionProgress";
+
+    public void Validate()
+    {
+        OpenVinoProtocol.RequireUuid(InspectionRunId, nameof(InspectionRunId));
+        OpenVinoProtocol.Require(
+            Enum.IsDefined(Stage),
+            nameof(Stage) + " must be a fixed inspection stage.");
+    }
+}
+
+public sealed record InspectionCompletedEvent(
+    Guid InspectionRunId,
+    string PackageManifestDigest,
+    string ModelSha256,
+    long ModelLengthBytes,
+    bool MainModelParsed,
+    bool TokenizerParsed,
+    bool DetokenizerParsed,
+    OpenVinoBuildEvidence BuildEvidence) : IOpenVinoEvent
 {
     [JsonPropertyName("eventType")]
     public string EventType => "inspectionCompleted";
 
-    public void Validate() => OpenVinoProtocol.RequireUuid(InspectionRunId, nameof(InspectionRunId));
+    public void Validate()
+    {
+        OpenVinoProtocol.RequireUuid(InspectionRunId, nameof(InspectionRunId));
+        OpenVinoProtocol.RequireSha256(
+            PackageManifestDigest,
+            nameof(PackageManifestDigest));
+        OpenVinoProtocol.RequireSha256(ModelSha256, nameof(ModelSha256));
+        OpenVinoProtocol.Require(
+            ModelLengthBytes > 0,
+            nameof(ModelLengthBytes) + " must be positive.");
+        OpenVinoProtocol.Require(
+            MainModelParsed && TokenizerParsed && DetokenizerParsed,
+            "inspection completion requires all three native parse facts.");
+        if (BuildEvidence is null)
+        {
+            throw new OpenVinoProtocolException(
+                nameof(BuildEvidence) + " must be present.");
+        }
+
+        BuildEvidence.Validate();
+    }
 }
 
 public sealed record InspectionFailedEvent(Guid InspectionRunId, OpenVinoSupportCode SupportCode) : IOpenVinoEvent
@@ -39,12 +126,55 @@ public sealed record InspectionFailedEvent(Guid InspectionRunId, OpenVinoSupport
     }
 }
 
-public sealed record SessionStartedEvent(Guid SessionId) : IOpenVinoEvent
+public sealed record SessionStartedEvent(
+    Guid SessionId,
+    string RequestedDevice,
+    IReadOnlyList<string> ActualExecutionDevices,
+    string ProtocolId,
+    OpenVinoBuildEvidence BuildEvidence) : IOpenVinoEvent
 {
     [JsonPropertyName("eventType")]
     public string EventType => "sessionStarted";
 
-    public void Validate() => OpenVinoProtocol.RequireUuid(SessionId, nameof(SessionId));
+    public void Validate()
+    {
+        OpenVinoProtocol.RequireUuid(SessionId, nameof(SessionId));
+        OpenVinoProtocol.RequireUtf8Limit(
+            RequestedDevice,
+            OpenVinoProtocol.MaximumDeviceIdentityUtf8Bytes,
+            nameof(RequestedDevice));
+        OpenVinoProtocol.Require(
+            ProtocolId is OpenVinoProtocol.OfficialProtocolId or
+                OpenVinoProtocol.TurboQuantProtocolId,
+            nameof(ProtocolId) + " must be an approved OpenVINO protocol identity.");
+        if (ActualExecutionDevices is null ||
+            ActualExecutionDevices.Count is not (> 0 and <=
+                OpenVinoProtocol.MaximumActualExecutionDevices))
+        {
+            throw new OpenVinoProtocolException(
+                nameof(ActualExecutionDevices) +
+                " must be a bounded nonempty list.");
+        }
+        HashSet<string> distinct = new(StringComparer.Ordinal);
+        foreach (string device in ActualExecutionDevices)
+        {
+            OpenVinoProtocol.RequireUtf8Limit(
+                device,
+                OpenVinoProtocol.MaximumDeviceIdentityUtf8Bytes,
+                nameof(ActualExecutionDevices));
+            OpenVinoProtocol.Require(
+                distinct.Add(device),
+                nameof(ActualExecutionDevices) + " must be distinct.");
+        }
+
+        if (BuildEvidence is null)
+        {
+            throw new OpenVinoProtocolException(
+                nameof(BuildEvidence) + " must be present.");
+        }
+
+        BuildEvidence.Validate();
+    }
 }
 
 public sealed record GenerationStartedEvent(Guid SessionId, Guid TurnId) : IOpenVinoEvent
@@ -73,7 +203,13 @@ public sealed record TokenEvent(Guid SessionId, Guid TurnId, long Sequence, stri
     }
 }
 
-public sealed record TurnCompletedEvent(Guid SessionId, Guid TurnId) : IOpenVinoEvent
+public sealed record TurnCompletedEvent(
+    Guid SessionId,
+    Guid TurnId,
+    long PromptTokenCount,
+    long GeneratedTokenCount,
+    [property: JsonConverter(typeof(OpenVinoTurnDispositionJsonConverter))]
+    OpenVinoTurnDisposition Disposition) : IOpenVinoEvent
 {
     [JsonPropertyName("eventType")]
     public string EventType => "turnCompleted";
@@ -82,6 +218,15 @@ public sealed record TurnCompletedEvent(Guid SessionId, Guid TurnId) : IOpenVino
     {
         OpenVinoProtocol.RequireUuid(SessionId, nameof(SessionId));
         OpenVinoProtocol.RequireUuid(TurnId, nameof(TurnId));
+        OpenVinoProtocol.Require(
+            PromptTokenCount > 0,
+            nameof(PromptTokenCount) + " must be positive.");
+        OpenVinoProtocol.Require(
+            GeneratedTokenCount >= 0,
+            nameof(GeneratedTokenCount) + " must not be negative.");
+        OpenVinoProtocol.Require(
+            Enum.IsDefined(Disposition),
+            nameof(Disposition) + " must be a fixed turn disposition.");
     }
 }
 

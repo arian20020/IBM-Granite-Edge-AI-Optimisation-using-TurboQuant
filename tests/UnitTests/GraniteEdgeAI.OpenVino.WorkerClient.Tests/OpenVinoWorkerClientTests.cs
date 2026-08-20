@@ -10,6 +10,9 @@ public sealed class OpenVinoWorkerClientTests
     private static readonly string[] BoundaryMethods =
         ["InspectAsync", "StartSessionAsync"];
 
+    private static readonly string[] ConversationLifecycleMethods =
+        ["CancelAsync", "CloseAsync", "DisposeAsync", "PromptAsync", "StopAsync"];
+
     [TestMethod]
     public void PublicBoundaryExposesInspectionAndManagedSessionOperations()
     {
@@ -18,6 +21,21 @@ public sealed class OpenVinoWorkerClientTests
         CollectionAssert.AreEquivalent(
             BoundaryMethods,
             boundary.GetMethods().Select(static method => method.Name).ToArray());
+    }
+
+    [TestMethod]
+    public void ConversationExposesExplicitGracefulCloseAlongsideCancellation()
+    {
+        CollectionAssert.AreEquivalent(
+            ConversationLifecycleMethods,
+            typeof(OpenVinoConversation)
+                .GetMethods()
+                .Where(static method =>
+                    method.DeclaringType == typeof(OpenVinoConversation) &&
+                    !method.IsSpecialName)
+                .Select(static method => method.Name)
+                .Distinct(StringComparer.Ordinal)
+                .ToArray());
     }
 
     [TestMethod]

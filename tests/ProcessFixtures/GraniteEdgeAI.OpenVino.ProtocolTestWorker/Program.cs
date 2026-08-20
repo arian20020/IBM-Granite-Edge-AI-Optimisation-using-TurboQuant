@@ -103,15 +103,13 @@ internal static class FixtureProgram
                 cleanupInventoryChild.Dispose();
             }
 
-            await WriteAsync(
-                    writer,
-                    new InspectionCompletedEvent(inspection.InspectionRunId))
+            await WriteInspectionSuccessAsync(writer, inspection)
                 .ConfigureAwait(false);
             if (scenario == "stdout-after-terminal")
             {
                 await WriteAsync(
                         writer,
-                        new InspectionCompletedEvent(inspection.InspectionRunId))
+                        InspectionCompleted(inspection))
                     .ConfigureAwait(false);
             }
 
@@ -128,7 +126,14 @@ internal static class FixtureProgram
             await Task.Delay(TimeSpan.FromMilliseconds(1800)).ConfigureAwait(false);
         }
 
-        await WriteAsync(writer, new SessionStartedEvent(start.SessionId))
+        await WriteAsync(
+                writer,
+                new SessionStartedEvent(
+                    start.SessionId,
+                    start.Device.DeviceId,
+                    [start.Device.DeviceId],
+                    OpenVinoProtocol.OfficialProtocolId,
+                    BuildEvidence()))
             .ConfigureAwait(false);
         if (scenario == "blocked-cancel-write")
         {
@@ -183,6 +188,14 @@ internal static class FixtureProgram
                     WriteMarker("cancel-exited");
                 }
 
+                return 0;
+            }
+
+            if (command is CloseSessionCommand close)
+            {
+                await WriteAsync(writer, new SessionCompletedEvent(close.SessionId))
+                    .ConfigureAwait(false);
+                WriteMarker("close-exited");
                 return 0;
             }
 
@@ -311,7 +324,12 @@ internal static class FixtureProgram
 
                 await WriteAsync(
                         writer,
-                        new TurnCompletedEvent(prompt.SessionId, prompt.TurnId))
+                        new TurnCompletedEvent(
+                            prompt.SessionId,
+                            prompt.TurnId,
+                            1,
+                            0,
+                            OpenVinoTurnDisposition.Stopped))
                     .ConfigureAwait(false);
                 turn++;
                 continue;
@@ -351,7 +369,12 @@ internal static class FixtureProgram
 
             await WriteAsync(
                     writer,
-                    new TurnCompletedEvent(prompt.SessionId, prompt.TurnId))
+                    new TurnCompletedEvent(
+                        prompt.SessionId,
+                        prompt.TurnId,
+                        1,
+                        1,
+                        OpenVinoTurnDisposition.Completed))
                 .ConfigureAwait(false);
             turn++;
         }
@@ -398,6 +421,51 @@ internal static class FixtureProgram
         writer.WriteLineAsync(
             OpenVinoProtocolJson.Serialize(@event),
             CancellationToken.None);
+
+    private static async Task WriteInspectionSuccessAsync(
+        BoundedUtf8LineWriter writer,
+        StartInspectionCommand inspection)
+    {
+        await WriteAsync(
+                writer,
+                new InspectionStartedEvent(inspection.InspectionRunId))
+            .ConfigureAwait(false);
+        foreach (OpenVinoInspectionStage stage in new[]
+        {
+            OpenVinoInspectionStage.ManifestVerified,
+            OpenVinoInspectionStage.MainModelParsed,
+            OpenVinoInspectionStage.TokenizerParsed,
+            OpenVinoInspectionStage.DetokenizerParsed
+        })
+        {
+            await WriteAsync(
+                    writer,
+                    new InspectionProgressEvent(
+                        inspection.InspectionRunId,
+                        stage))
+                .ConfigureAwait(false);
+        }
+
+        await WriteAsync(writer, InspectionCompleted(inspection))
+            .ConfigureAwait(false);
+    }
+
+    private static InspectionCompletedEvent InspectionCompleted(
+        StartInspectionCommand inspection) => new(
+        inspection.InspectionRunId,
+        inspection.PackageManifestDigest,
+        inspection.ModelSha256,
+        inspection.ModelLengthBytes,
+        true,
+        true,
+        true,
+        BuildEvidence());
+
+    private static OpenVinoBuildEvidence BuildEvidence() => new(
+        "fixture-runtime-2026.3.0",
+        "fixture-genai-2026.3.0.0",
+        "fixture-tokenizers-2026.3.0.0",
+        "1111111111111111111111111111111111111111111111111111111111111111");
 
     private static async Task WriteRawAsync(Stream output, byte[] payload)
     {

@@ -13,6 +13,9 @@ public sealed class ProtocolContainmentTests
 {
     private const string Digest =
         "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+    private const string ModelDigest =
+        "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";
+    private const string PackagePath = @"C:\operation\package";
     private static readonly string[] ExpectedText = ["one", "two"];
     private static readonly string[] ExpectedInventoryRoles = ["root", "child"];
     private static string? s_publishedFixture;
@@ -157,6 +160,36 @@ public sealed class ProtocolContainmentTests
         await conversation.CancelAsync(CancellationToken.None);
         await conversation.DisposeAsync();
 
+        await AssertNoFixtureProcessAsync();
+    }
+
+    [TestMethod]
+    public async Task ExplicitCloseWaitsForSessionCompletedExitAndTreeCleanup()
+    {
+        await using FixtureRun fixture = CreateFixture("graceful-close");
+        OpenVinoWorkerClient client = CreateClient(fixture.Root);
+        OpenVinoConversation conversation = await client.StartSessionAsync(
+            StartSession(), CancellationToken.None);
+
+        await conversation.CloseAsync(CancellationToken.None);
+        await conversation.CloseAsync(CancellationToken.None);
+        await conversation.DisposeAsync();
+
+        Assert.IsTrue(File.Exists(fixture.MarkerPath("close-exited")));
+        await AssertNoFixtureProcessAsync();
+    }
+
+    [TestMethod]
+    public async Task DisposingIdleSessionUsesGracefulCloseInsteadOfCancellation()
+    {
+        await using FixtureRun fixture = CreateFixture("graceful-close");
+        OpenVinoWorkerClient client = CreateClient(fixture.Root);
+        OpenVinoConversation conversation = await client.StartSessionAsync(
+            StartSession(), CancellationToken.None);
+
+        await conversation.DisposeAsync();
+
+        Assert.IsTrue(File.Exists(fixture.MarkerPath("close-exited")));
         await AssertNoFixtureProcessAsync();
     }
 
@@ -378,7 +411,7 @@ public sealed class ProtocolContainmentTests
         OpenVinoWorkerClient client = CreateClient(fixture.Root);
 
         IOpenVinoEvent result = await client.InspectAsync(
-            new StartInspectionCommand(Guid.NewGuid()),
+            StartInspection(),
             CancellationToken.None);
 
         Assert.IsInstanceOfType<InspectionCompletedEvent>(result);
@@ -422,7 +455,7 @@ public sealed class ProtocolContainmentTests
         OpenVinoWorkerClientException error =
             await Assert.ThrowsExactlyAsync<OpenVinoWorkerClientException>(() =>
                 client.InspectAsync(
-                    new StartInspectionCommand(Guid.NewGuid()),
+                    StartInspection(),
                     CancellationToken.None));
 
         Assert.AreEqual(
@@ -448,7 +481,7 @@ public sealed class ProtocolContainmentTests
         OpenVinoWorkerClientException error =
             await Assert.ThrowsExactlyAsync<OpenVinoWorkerClientException>(() =>
                 client.InspectAsync(
-                    new StartInspectionCommand(Guid.NewGuid()),
+                    StartInspection(),
                     CancellationToken.None));
 
         Assert.IsTrue(error.StandardErrorTruncated);
@@ -674,9 +707,19 @@ public sealed class ProtocolContainmentTests
     private static StartSessionCommand StartSession() => new(
         Guid.NewGuid(),
         Guid.NewGuid(),
+        PackagePath,
         Digest,
+        ModelDigest,
+        88,
         new OpenVinoDeviceRequest("CPU"),
         new OpenVinoGenerationLimits(1024, 32));
+
+    private static StartInspectionCommand StartInspection() => new(
+        Guid.NewGuid(),
+        PackagePath,
+        Digest,
+        ModelDigest,
+        88);
 
     private static PromptCommand Prompt(Guid sessionId, string prompt) =>
         new(sessionId, Guid.NewGuid(), prompt, 8);

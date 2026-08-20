@@ -11,6 +11,12 @@ public sealed class OpenVinoConversationValidator
     private Guid? _inspectionRunId;
     private Guid? _pendingTurnId;
     private Guid? _activeTurnId;
+    private string? _protocolId;
+    private string? _packageManifestDigest;
+    private string? _modelSha256;
+    private long _modelLengthBytes;
+    private string? _requestedDevice;
+    private OpenVinoInspectionStage? _nextInspectionStage;
     private long _nextSequence;
     private int _turnCount;
     private int _operationTextBytes;
@@ -47,12 +53,21 @@ public sealed class OpenVinoConversationValidator
             case StartInspectionCommand startInspection:
                 RequireState(ConversationState.AwaitingStart, "startInspection requires hello and occurs once");
                 _inspectionRunId = startInspection.InspectionRunId;
-                _state = ConversationState.Inspecting;
+                CapturePackageIdentity(
+                    startInspection.PackageManifestDigest,
+                    startInspection.ModelSha256,
+                    startInspection.ModelLengthBytes);
+                _state = ConversationState.AwaitingInspectionStarted;
                 break;
             case StartSessionCommand startSession:
                 RequireState(ConversationState.AwaitingStart, "startSession requires hello and occurs once");
                 _sessionId = startSession.SessionId;
                 _inspectionRunId = startSession.InspectionRunId;
+                _requestedDevice = startSession.Device.DeviceId;
+                CapturePackageIdentity(
+                    startSession.PackageManifestDigest,
+                    startSession.ModelSha256,
+                    startSession.ModelLengthBytes);
                 _state = ConversationState.AwaitingSessionStarted;
                 break;
             case PromptCommand prompt:
@@ -80,6 +95,13 @@ public sealed class OpenVinoConversationValidator
                 RequireSession(cancel.SessionId);
                 _state = ConversationState.Cancelling;
                 break;
+            case CloseSessionCommand close:
+                RequireState(
+                    ConversationState.SessionReady,
+                    "closeSession requires an idle ready session");
+                RequireSession(close.SessionId);
+                _state = ConversationState.Closing;
+                break;
             default:
                 throw new OpenVinoProtocolException("command type is not approved by the OpenVINO protocol.");
         }
@@ -89,19 +111,68 @@ public sealed class OpenVinoConversationValidator
     {
         switch (@event)
         {
-            case HelloEvent:
+            case HelloEvent hello:
                 RequireState(ConversationState.AwaitingHello, "hello must be first and occur once");
+                _protocolId = hello.ProtocolId;
                 _state = ConversationState.AwaitingStart;
                 break;
+            case InspectionStartedEvent started:
+                RequireState(
+                    ConversationState.AwaitingInspectionStarted,
+                    "inspectionStarted requires one startInspection command");
+                RequireInspection(started.InspectionRunId);
+                _nextInspectionStage = OpenVinoInspectionStage.ManifestVerified;
+                _state = ConversationState.Inspecting;
+                break;
+            case InspectionProgressEvent progress:
+                RequireState(
+                    ConversationState.Inspecting,
+                    "inspectionProgress requires an active inspection");
+                RequireInspection(progress.InspectionRunId);
+                OpenVinoProtocol.Require(
+                    progress.Stage == _nextInspectionStage,
+                    "inspectionProgress stage must be ordered and occur once.");
+                _nextInspectionStage = progress.Stage switch
+                {
+                    OpenVinoInspectionStage.ManifestVerified =>
+                        OpenVinoInspectionStage.MainModelParsed,
+                    OpenVinoInspectionStage.MainModelParsed =>
+                        OpenVinoInspectionStage.TokenizerParsed,
+                    OpenVinoInspectionStage.TokenizerParsed =>
+                        OpenVinoInspectionStage.DetokenizerParsed,
+                    OpenVinoInspectionStage.DetokenizerParsed => null,
+                    _ => throw new OpenVinoProtocolException(
+                        "inspectionProgress stage is not approved.")
+                };
+                break;
             case InspectionCompletedEvent completed:
-                CompleteInspection(completed.InspectionRunId);
+                CompleteInspection(completed);
                 break;
             case InspectionFailedEvent failed:
-                CompleteInspection(failed.InspectionRunId);
+                RequireState(
+                    ConversationState.Inspecting,
+                    "inspection failure requires inspectionStarted");
+                RequireInspection(failed.InspectionRunId);
+                _state = ConversationState.Terminal;
                 break;
             case SessionStartedEvent started:
                 RequireState(ConversationState.AwaitingSessionStarted, "sessionStarted requires one startSession command");
                 RequireSession(started.SessionId);
+                OpenVinoProtocol.Require(
+                    string.Equals(
+                        started.RequestedDevice,
+                        _requestedDevice,
+                        StringComparison.Ordinal) &&
+                    string.Equals(
+                        started.ProtocolId,
+                        _protocolId,
+                        StringComparison.Ordinal) &&
+                    started.ActualExecutionDevices.Count == 1 &&
+                    string.Equals(
+                        started.ActualExecutionDevices[0],
+                        _requestedDevice,
+                        StringComparison.Ordinal),
+                    "sessionStarted runtime evidence must match the request.");
                 _state = ConversationState.SessionReady;
                 break;
             case GenerationStartedEvent generation:
@@ -126,13 +197,22 @@ public sealed class OpenVinoConversationValidator
                 _nextSequence++;
                 break;
             case TurnCompletedEvent completed:
+                OpenVinoProtocol.Require(
+                    completed.GeneratedTokenCount == _nextSequence,
+                    "turnCompleted generated token count must match the stream.");
+                OpenVinoProtocol.Require(
+                    completed.Disposition ==
+                        (_state == ConversationState.Stopping
+                            ? OpenVinoTurnDisposition.Stopped
+                            : OpenVinoTurnDisposition.Completed),
+                    "turnCompleted disposition must match stop ownership.");
                 CompleteTurn(completed.SessionId, completed.TurnId);
                 break;
             case TurnFailedEvent failed:
                 CompleteTurn(failed.SessionId, failed.TurnId);
                 break;
             case SessionCompletedEvent completed:
-                RequireState(ConversationState.SessionReady, "sessionCompleted requires a ready session");
+                RequireState(ConversationState.Closing, "sessionCompleted requires closeSession");
                 RequireSession(completed.SessionId);
                 _state = ConversationState.Terminal;
                 break;
@@ -144,7 +224,8 @@ public sealed class OpenVinoConversationValidator
                     ConversationState.PromptAccepted,
                     ConversationState.Generating,
                     ConversationState.Stopping,
-                    ConversationState.Cancelling);
+                    ConversationState.Cancelling,
+                    ConversationState.Closing);
                 RequireSession(failed.SessionId);
                 _state = ConversationState.Terminal;
                 break;
@@ -160,11 +241,30 @@ public sealed class OpenVinoConversationValidator
 
     private void CompleteInspection(Guid inspectionRunId)
     {
-        RequireState(ConversationState.Inspecting, "inspection terminal event requires startInspection");
+        RequireState(
+            ConversationState.Inspecting,
+            "inspection terminal event requires inspectionStarted");
+        RequireInspection(inspectionRunId);
         OpenVinoProtocol.Require(
-            _inspectionRunId == inspectionRunId,
-            "inspectionRunId must match the active OpenVINO inspection.");
+            _nextInspectionStage is null,
+            "inspection completion requires every ordered progress stage.");
         _state = ConversationState.Terminal;
+    }
+
+    private void CompleteInspection(InspectionCompletedEvent completed)
+    {
+        OpenVinoProtocol.Require(
+            string.Equals(
+                completed.PackageManifestDigest,
+                _packageManifestDigest,
+                StringComparison.Ordinal) &&
+            string.Equals(
+                completed.ModelSha256,
+                _modelSha256,
+                StringComparison.Ordinal) &&
+            completed.ModelLengthBytes == _modelLengthBytes,
+            "inspection completion identity must match the request.");
+        CompleteInspection(completed.InspectionRunId);
     }
 
     private void CompleteTurn(Guid sessionId, Guid turnId)
@@ -182,6 +282,21 @@ public sealed class OpenVinoConversationValidator
     private void RequireSession(Guid sessionId) => OpenVinoProtocol.Require(
         _sessionId == sessionId,
         "sessionId must match the active OpenVINO session.");
+
+    private void RequireInspection(Guid inspectionRunId) =>
+        OpenVinoProtocol.Require(
+            _inspectionRunId == inspectionRunId,
+            "inspectionRunId must match the active OpenVINO inspection.");
+
+    private void CapturePackageIdentity(
+        string packageManifestDigest,
+        string modelSha256,
+        long modelLengthBytes)
+    {
+        _packageManifestDigest = packageManifestDigest;
+        _modelSha256 = modelSha256;
+        _modelLengthBytes = modelLengthBytes;
+    }
 
     private void RequirePendingTurn(Guid turnId) => OpenVinoProtocol.Require(
         _pendingTurnId == turnId,
@@ -201,6 +316,7 @@ public sealed class OpenVinoConversationValidator
     {
         AwaitingHello,
         AwaitingStart,
+        AwaitingInspectionStarted,
         Inspecting,
         AwaitingSessionStarted,
         SessionReady,
@@ -208,6 +324,7 @@ public sealed class OpenVinoConversationValidator
         Generating,
         Stopping,
         Cancelling,
+        Closing,
         Terminal
     }
 }

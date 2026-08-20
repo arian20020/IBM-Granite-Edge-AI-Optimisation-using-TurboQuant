@@ -16,7 +16,10 @@ namespace GraniteEdgeAI.OpenVino.Contracts;
 [JsonSerializable(typeof(PromptCommand))]
 [JsonSerializable(typeof(StopTurnCommand))]
 [JsonSerializable(typeof(CancelSessionCommand))]
+[JsonSerializable(typeof(CloseSessionCommand))]
 [JsonSerializable(typeof(HelloEvent))]
+[JsonSerializable(typeof(InspectionStartedEvent))]
+[JsonSerializable(typeof(InspectionProgressEvent))]
 [JsonSerializable(typeof(InspectionCompletedEvent))]
 [JsonSerializable(typeof(InspectionFailedEvent))]
 [JsonSerializable(typeof(SessionStartedEvent))]
@@ -28,6 +31,7 @@ namespace GraniteEdgeAI.OpenVino.Contracts;
 [JsonSerializable(typeof(SessionFailedEvent))]
 [JsonSerializable(typeof(SessionCancelledEvent))]
 [JsonSerializable(typeof(ModelInspectionHandoffV2))]
+[JsonSerializable(typeof(OpenVinoBuildEvidence))]
 internal sealed partial class OpenVinoProtocolJsonContext : JsonSerializerContext
 {
 }
