@@ -18,6 +18,7 @@ from granite_turbovec.manifest import (
     canonical_json,
     canonical_sha256,
     load_and_validate_manifest,
+    list_retained_staging,
     promote_staged_index,
     write_manifest_atomic,
 )
@@ -50,6 +51,7 @@ def identity(**changes):
         dependency_lock_sha256=HASH_A,
         requested_provider="CPUExecutionProvider",
         actual_provider="CPUExecutionProvider",
+        python_version="3.12.10",
     )
     return replace(value, **changes)
 
@@ -151,6 +153,7 @@ class CanonicalManifestTests(unittest.TestCase):
             ({"bit_width": 2}, "index-bit-width-mismatch"),
             ({"turbovec_version": "1.0.1"}, "index-package-mismatch"),
             ({"actual_provider": "OtherProvider"}, "index-package-mismatch"),
+            ({"python_version": "3.13.0"}, "index-python-mismatch"),
         )
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "manifest.json"
@@ -219,6 +222,8 @@ class CanonicalManifestTests(unittest.TestCase):
             replace(manifest(), identity=replace(identity(), schema_version=2)),
             replace(manifest(), identity=replace(identity(), requested_backend="unknown")),
             replace(manifest(), identity=replace(identity(), index_format="float32-npy-v1")),
+            replace(manifest(), identity=replace(identity(), python_version="3.12")),
+            replace(manifest(), identity=replace(identity(), python_version="03.12.10")),
             replace(manifest(), identity=replace(identity(), requested_backend="float32")),
             replace(manifest(), identity=float_identity(requested_backend="turbovec")),
             replace(manifest(), artifacts=(
@@ -314,8 +319,9 @@ class StagedPromotionTests(unittest.TestCase):
             def writer(_):
                 nonlocal called
                 called = True
-            with self.assertRaises(ResearchError):
+            with self.assertRaises(ResearchError) as context:
                 promote_staged_index(target, promotable_manifest(), writer, validate_index, operation_id="exists")
+            self.assertEqual("index-destination-exists", context.exception.code)
             self.assertFalse(called)
             self.assertEqual("keep", (target / "marker").read_text(encoding="utf-8"))
 
@@ -356,7 +362,7 @@ class StagedPromotionTests(unittest.TestCase):
             target = Path(directory) / "knowledge-index"
             def raises(*_):
                 raise OSError("private")
-            for number, validator in enumerate((lambda *_: None, lambda *_: 1, lambda *_: "true", raises)):
+            for number, validator in enumerate((lambda *_: None, lambda *_: 1, raises)):
                 with self.subTest(number=number), self.assertRaises(ResearchError) as context:
                     promote_staged_index(target, promotable_manifest(), write_index, validator, operation_id=f"validator-{number}")
                 self.assertEqual("index-artifact-invalid", context.exception.code)
@@ -475,8 +481,95 @@ class StagedPromotionTests(unittest.TestCase):
             for thread in threads:
                 thread.join(timeout=10)
             self.assertEqual(1, results.count("ok"))
-            self.assertEqual(1, len([item for item in results if item != "ok"]))
+            self.assertEqual(["index-destination-exists"], [item for item in results if item != "ok"])
             self.assertEqual(b"TVEC", (target / "index.tv").read_bytes())
+
+    def test_promotion_seam_never_publishes_swapped_unvalidated_directory(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            target = root / "knowledge-index"
+            moved = root / "validated-original"
+
+            def swap(staging):
+                staging.rename(moved)
+                staging.mkdir()
+                (staging / "index.tv").write_bytes(b"EVIL")
+
+            with mock.patch("granite_turbovec.manifest._promotion_race_hook", side_effect=swap):
+                failure = None
+                try:
+                    promote_staged_index(target, promotable_manifest(), write_index, validate_index, operation_id="promotion-seam")
+                except ResearchError as error:
+                    failure = error
+            if target.exists():
+                self.assertEqual(b"TVEC", (target / "index.tv").read_bytes())
+            elif failure is None:
+                self.fail("promotion returned success without publishing validated content")
+            self.assertNotEqual(b"EVIL", (target / "index.tv").read_bytes() if target.exists() else b"")
+            attacker = root / "knowledge-index.staging-promotion-seam" / "index.tv"
+            self.assertEqual(b"EVIL", attacker.read_bytes())
+
+    def test_durability_failure_never_reports_success(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "knowledge-index"
+            with mock.patch("granite_turbovec.manifest._fsync_file", side_effect=ResearchError("index-durability-failed")):
+                with self.assertRaises(ResearchError) as context:
+                    promote_staged_index(target, promotable_manifest(), write_index, validate_index, operation_id="durability")
+            self.assertEqual("index-durability-failed", context.exception.code)
+            self.assertFalse(target.exists())
+
+        calls = 0
+        def fail_first_directory_flush(_):
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                raise ResearchError("index-durability-failed")
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "knowledge-index"
+            with mock.patch("granite_turbovec.manifest._flush_windows_directory", side_effect=fail_first_directory_flush):
+                with self.assertRaises(ResearchError) as context:
+                    promote_staged_index(target, promotable_manifest(), write_index, validate_index, operation_id="directory-durability")
+            self.assertEqual("index-durability-failed", context.exception.code)
+            self.assertFalse(target.exists())
+
+    def test_retention_cap_blocks_repeated_failed_builds_and_lists_quarantines(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "knowledge-index"
+            for number in range(3):
+                with self.assertRaises(ResearchError) as context:
+                    promote_staged_index(target, promotable_manifest(), write_index, lambda *_: False, operation_id=f"retained-{number}")
+                self.assertEqual("index-artifact-invalid", context.exception.code)
+            retained = list_retained_staging(target)
+            self.assertEqual(3, len(retained))
+            target.mkdir()
+            with self.assertRaises(ResearchError) as context:
+                promote_staged_index(target, promotable_manifest(), write_index, validate_index, operation_id="existing-before-cap")
+            self.assertEqual("index-destination-exists", context.exception.code)
+            target.rmdir()
+            with self.assertRaises(ResearchError) as context:
+                promote_staged_index(target, promotable_manifest(), write_index, validate_index, operation_id="blocked")
+            self.assertEqual("index-maintenance-required", context.exception.code)
+            self.assertEqual(retained, list_retained_staging(target))
+
+    def test_writer_sparse_oversize_is_bounded_and_retained_count_stays_finite(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            target = root / "knowledge-index"
+
+            def sparse_writer(staging):
+                with (staging / "undeclared.bin").open("wb") as stream:
+                    stream.seek(1024)
+                    stream.write(b"x")
+
+            with mock.patch("granite_turbovec.manifest._MAX_STAGING_BYTES", 1024):
+                for number in range(3):
+                    with self.assertRaises(ResearchError) as context:
+                        promote_staged_index(target, promotable_manifest(), sparse_writer, validate_index, operation_id=f"sparse-{number}")
+                    self.assertEqual("index-staging-limit-exceeded", context.exception.code)
+            self.assertEqual(3, len(list_retained_staging(target)))
+            with self.assertRaises(ResearchError) as context:
+                promote_staged_index(target, promotable_manifest(), sparse_writer, validate_index, operation_id="sparse-blocked")
+            self.assertEqual("index-maintenance-required", context.exception.code)
 
     def test_symlink_artifact_is_rejected_when_platform_allows_creation(self):
         with tempfile.TemporaryDirectory() as directory:

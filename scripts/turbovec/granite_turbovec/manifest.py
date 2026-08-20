@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ctypes
+import errno
 import hashlib
 import json
 import os
@@ -15,6 +16,45 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
 
+if os.name == "nt":
+    from ctypes import wintypes
+
+    _KERNEL32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    _INVALID_HANDLE_VALUE = ctypes.c_void_p(-1).value
+    _DELETE = 0x00010000
+    _GENERIC_WRITE = 0x40000000
+    _FILE_READ_ATTRIBUTES = 0x0080
+    _FILE_TRAVERSE = 0x0020
+    _SYNCHRONIZE = 0x00100000
+    _FILE_SHARE_ALL = 0x00000007
+    _OPEN_EXISTING = 3
+    _FILE_FLAG_WRITE_THROUGH = 0x80000000
+    _FILE_FLAG_BACKUP_SEMANTICS = 0x02000000
+    _FILE_FLAG_OPEN_REPARSE_POINT = 0x00200000
+    _FILE_RENAME_INFO_CLASS = 3
+
+    class _ByHandleFileInformation(ctypes.Structure):
+        _fields_ = [
+            ("file_attributes", wintypes.DWORD),
+            ("creation_time", wintypes.FILETIME),
+            ("last_access_time", wintypes.FILETIME),
+            ("last_write_time", wintypes.FILETIME),
+            ("volume_serial_number", wintypes.DWORD),
+            ("file_size_high", wintypes.DWORD),
+            ("file_size_low", wintypes.DWORD),
+            ("number_of_links", wintypes.DWORD),
+            ("file_index_high", wintypes.DWORD),
+            ("file_index_low", wintypes.DWORD),
+        ]
+
+    class _FileRenameInfo(ctypes.Structure):
+        _fields_ = [
+            ("replace_if_exists", wintypes.BOOLEAN),
+            ("root_directory", wintypes.HANDLE),
+            ("file_name_length", wintypes.DWORD),
+            ("file_name", wintypes.WCHAR * 1),
+        ]
+
 from .contracts import ResearchError
 
 
@@ -24,6 +64,10 @@ _UTC = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?Z\Z")
 _MAX_MANIFEST_BYTES = 4 * 1024 * 1024
 _MAX_ARTIFACT_BYTES = 16 * 1024 * 1024 * 1024
 _MAX_ARTIFACT_COUNT = 6_400_000
+_MAX_STAGING_ENTRIES = 128
+_MAX_STAGING_BYTES = _MAX_ARTIFACT_BYTES
+_MAX_RETAINED_STAGING = 3
+_MAX_PARENT_SCAN_ENTRIES = 1024
 _REPARSE_POINT = 0x400
 _UINT64_MAX = (1 << 64) - 1
 _WINDOWS_RESERVED = {
@@ -58,6 +102,7 @@ class IndexIdentity:
     dependency_lock_sha256: str
     requested_provider: str
     actual_provider: str
+    python_version: str
 
 
 @dataclass(frozen=True)
@@ -203,27 +248,46 @@ def promote_staged_index(
     staging = parent / f"{target.name}.staging-{operation}"
     owned = False
     staging_identity = None
+    promotion_handle = None
+    parent_handle = None
     try:
         parent_identity = _create_plain_directory(parent)
         _validate_destination_name(target)
-        _require_safe_leaf(target, may_not_exist=True, must_not_exist=True)
+        _require_destination_absent(target)
+        _ensure_maintenance_capacity(target)
         _require_safe_leaf(staging, may_not_exist=True, must_not_exist=True)
         staging.mkdir()
         owned = True
         staging_identity = _require_plain_directory(staging)
         writer(staging)
+        _scan_staging_bounded(staging)
         _require_same_directory(parent, parent_identity)
         _require_same_directory(staging, staging_identity)
+        parent_handle = _open_validated_directory_handle(parent, parent_identity)
+        promotion_handle = _open_validated_directory_handle(
+            staging, staging_identity, delete_access=True, write_through=True
+        )
+
+        _fsync_declared_artifacts(staging, expected)
 
         write_manifest_atomic(
             staging / "manifest.json", expected, operation_id=operation
         )
         loaded = load_and_validate_manifest(staging / "manifest.json", expected)
         _validate_artifacts(staging, loaded, artifact_validator)
+        _fsync_declared_artifacts(staging, loaded)
+        _fsync_directory(staging)
+        _fsync_directory(parent)
         _require_same_directory(parent, parent_identity)
         _require_same_directory(staging, staging_identity)
-        _rename_directory_no_replace(staging, target)
+        _validate_open_handle_matches_path(promotion_handle, staging)
+        _validate_open_handle_matches_path(parent_handle, parent)
+        _promotion_race_hook(staging)
+        _promote_validated_handle(
+            promotion_handle, parent_handle, target, staging_identity
+        )
         owned = False
+        _validate_open_handle_matches_path(promotion_handle, target)
         _fsync_directory(parent)
         return target
     except ResearchError:
@@ -238,6 +302,71 @@ def promote_staged_index(
         ):
             raise ResearchError("index-quarantine-failed") from None
         raise ResearchError("index-promotion-failed") from None
+    finally:
+        _close_native_handle(promotion_handle)
+        _close_native_handle(parent_handle)
+
+
+def list_retained_staging(destination: str | Path) -> tuple[Path, ...]:
+    """List retained staging/quarantine entries for deliberate manual maintenance."""
+    target = Path(destination)
+    _validate_destination_name(target)
+    parent = target.parent
+    if not parent.exists():
+        return ()
+    _require_plain_directory(parent)
+    return _retained_staging_entries(target)
+
+
+def _ensure_maintenance_capacity(target: Path) -> None:
+    if len(_retained_staging_entries(target)) >= _MAX_RETAINED_STAGING:
+        raise ResearchError("index-maintenance-required")
+
+
+def _retained_staging_entries(target: Path) -> tuple[Path, ...]:
+    prefix = f"{target.name}.staging-".casefold()
+    retained = []
+    scanned = 0
+    try:
+        with os.scandir(target.parent) as entries:
+            for entry in entries:
+                scanned += 1
+                if scanned > _MAX_PARENT_SCAN_ENTRIES:
+                    raise ResearchError("index-maintenance-required")
+                if entry.name.casefold().startswith(prefix):
+                    retained.append(target.parent / entry.name)
+                    if len(retained) > _MAX_RETAINED_STAGING:
+                        raise ResearchError("index-maintenance-required")
+    except ResearchError:
+        raise
+    except Exception:
+        raise ResearchError("index-maintenance-required") from None
+    return tuple(sorted(retained, key=lambda item: (item.name.casefold(), item.name)))
+
+
+def _scan_staging_bounded(staging: Path) -> None:
+    pending = [staging]
+    entries = 0
+    total_bytes = 0
+    try:
+        while pending:
+            directory = pending.pop()
+            with os.scandir(directory) as children:
+                for child in children:
+                    entries += 1
+                    if entries > _MAX_STAGING_ENTRIES:
+                        raise ResearchError("index-staging-limit-exceeded")
+                    info = child.stat(follow_symlinks=False)
+                    if stat.S_ISREG(info.st_mode):
+                        total_bytes += info.st_size
+                        if total_bytes > _MAX_STAGING_BYTES:
+                            raise ResearchError("index-staging-limit-exceeded")
+                    elif stat.S_ISDIR(info.st_mode) and not _is_reparse(info):
+                        pending.append(Path(child.path))
+    except ResearchError:
+        raise
+    except Exception:
+        raise ResearchError("index-staging-limit-exceeded") from None
 
 
 def _validate_manifest(value: object) -> IndexManifest:
@@ -297,6 +426,11 @@ def _validate_identity(value: object) -> IndexIdentity:
     _hash(value.dependency_lock_sha256)
     _text(value.requested_provider)
     _text(value.actual_provider)
+    if type(value.python_version) is not str or re.fullmatch(
+        r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)",
+        value.python_version,
+    ) is None:
+        raise ResearchError("index-manifest-invalid")
     if value.requested_backend not in ("float32", "turbovec"):
         raise ResearchError("index-manifest-invalid")
     if value.requested_backend != value.actual_backend:
@@ -421,6 +555,7 @@ def _compare_identity(actual: IndexIdentity, expected: IndexIdentity) -> None:
         (("requested_backend", "actual_backend"), "index-backend-mismatch"),
         (("index_format",), "index-format-mismatch"),
         (("bit_width",), "index-bit-width-mismatch"),
+        (("python_version",), "index-python-mismatch"),
         (
             (
                 "turbovec_version",
@@ -738,6 +873,16 @@ def _validate_destination_name(path: Path) -> None:
         raise ResearchError("index-path-invalid")
 
 
+def _require_destination_absent(path: Path) -> None:
+    try:
+        path.stat(follow_symlinks=False)
+    except FileNotFoundError:
+        return
+    except Exception:
+        raise ResearchError("index-path-invalid") from None
+    raise ResearchError("index-destination-exists")
+
+
 def _unlink_owned_file(path: Path, identity: tuple[int, int]) -> None:
     try:
         info = path.stat(follow_symlinks=False)
@@ -778,6 +923,10 @@ def _quarantine_race_hook(path: Path) -> None:
     """Test seam immediately before the final ownership check and rename."""
 
 
+def _promotion_race_hook(path: Path) -> None:
+    """Test seam after final validation and immediately before handle rename."""
+
+
 def _require_no_reparse_chain(path: Path) -> None:
     """Reject any existing symlink/junction in an intended directory chain."""
     try:
@@ -792,25 +941,233 @@ def _require_no_reparse_chain(path: Path) -> None:
         raise ResearchError("index-path-invalid") from None
 
 
+def _fsync_declared_artifacts(staging: Path, manifest: IndexManifest) -> None:
+    for artifact in manifest.artifacts:
+        _fsync_file(staging / artifact.filename)
+
+
+def _fsync_file(path: Path) -> None:
+    try:
+        _require_plain_file(path)
+        with path.open("r+b") as stream:
+            os.fsync(stream.fileno())
+    except ResearchError:
+        raise
+    except Exception:
+        raise ResearchError("index-durability-failed") from None
+
+
 def _fsync_directory(path: Path) -> None:
+    if os.name == "nt":
+        _flush_windows_directory(path)
+        return
     try:
         descriptor = os.open(path, os.O_RDONLY)
         try:
             os.fsync(descriptor)
         finally:
             os.close(descriptor)
-    except OSError:
-        pass
+    except OSError as error:
+        unsupported = {errno.EINVAL, errno.EBADF}
+        if hasattr(errno, "ENOTSUP"):
+            unsupported.add(errno.ENOTSUP)
+        if hasattr(errno, "EOPNOTSUPP"):
+            unsupported.add(errno.EOPNOTSUPP)
+        if error.errno not in unsupported:
+            raise ResearchError("index-durability-failed") from None
+
+
+def _open_validated_directory_handle(
+    path: Path,
+    identity: tuple[int, int],
+    *,
+    delete_access: bool = False,
+    write_through: bool = False,
+):
+    if os.name != "nt":
+        raise ResearchError("index-promotion-unsupported")
+    _require_same_directory(path, identity)
+    access = _FILE_READ_ATTRIBUTES | _FILE_TRAVERSE | _SYNCHRONIZE
+    if delete_access:
+        access |= _DELETE
+    if write_through:
+        access |= _GENERIC_WRITE
+    flags = _FILE_FLAG_BACKUP_SEMANTICS | _FILE_FLAG_OPEN_REPARSE_POINT
+    if write_through:
+        flags |= _FILE_FLAG_WRITE_THROUGH
+    handle = _create_windows_directory_handle(path, access, flags)
+    try:
+        _require_same_directory(path, identity)
+        _validate_open_handle_matches_path(handle, path)
+        return handle
+    except Exception:
+        _close_native_handle(handle)
+        raise
+
+
+def _create_windows_directory_handle(
+    path: Path,
+    access: int,
+    flags: int,
+    *,
+    failure_code: str = "index-promotion-unsupported",
+):
+    create_file = _KERNEL32.CreateFileW
+    create_file.argtypes = [
+        wintypes.LPCWSTR,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.LPVOID,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.HANDLE,
+    ]
+    create_file.restype = wintypes.HANDLE
+    ctypes.set_last_error(0)
+    handle = create_file(
+        str(path.absolute()),
+        access,
+        _FILE_SHARE_ALL,
+        None,
+        _OPEN_EXISTING,
+        flags,
+        None,
+    )
+    if handle == _INVALID_HANDLE_VALUE:
+        error = ctypes.get_last_error()
+        if failure_code == "index-directory-fsync-unsupported" and error in (
+            1,
+            5,
+            6,
+            50,
+        ):
+            raise ResearchError("index-directory-fsync-unsupported")
+        raise ResearchError(failure_code)
+    return handle
+
+
+def _native_handle_identity(handle) -> tuple[int, int]:
+    information = _ByHandleFileInformation()
+    get_information = _KERNEL32.GetFileInformationByHandle
+    get_information.argtypes = [
+        wintypes.HANDLE,
+        ctypes.POINTER(_ByHandleFileInformation),
+    ]
+    get_information.restype = wintypes.BOOL
+    ctypes.set_last_error(0)
+    if not get_information(handle, ctypes.byref(information)):
+        raise ResearchError("index-promotion-failed")
+    file_index = (information.file_index_high << 32) | information.file_index_low
+    return information.volume_serial_number, file_index
+
+
+def _validate_open_handle_matches_path(handle, path: Path) -> None:
+    if os.name != "nt" or handle is None:
+        raise ResearchError("index-promotion-unsupported")
+    probe = _create_windows_directory_handle(
+        path,
+        _FILE_READ_ATTRIBUTES,
+        _FILE_FLAG_BACKUP_SEMANTICS | _FILE_FLAG_OPEN_REPARSE_POINT,
+    )
+    try:
+        if _native_handle_identity(handle) != _native_handle_identity(probe):
+            raise ResearchError("index-path-invalid")
+    finally:
+        _close_native_handle(probe)
+
+
+def _promote_validated_handle(
+    source_handle,
+    parent_handle,
+    destination: Path,
+    expected_identity: tuple[int, int],
+) -> None:
+    if os.name != "nt":
+        raise ResearchError("index-promotion-unsupported")
+    _native_handle_identity(parent_handle)
+    _require_destination_absent(destination)
+    file_name = str(destination.absolute()).encode("utf-16-le")
+    offset = _FileRenameInfo.file_name.offset
+    buffer = ctypes.create_string_buffer(offset + len(file_name) + 2)
+    information = _FileRenameInfo.from_buffer(buffer)
+    information.replace_if_exists = False
+    information.root_directory = None
+    information.file_name_length = len(file_name)
+    ctypes.memmove(ctypes.addressof(buffer) + offset, file_name, len(file_name))
+    set_information = _KERNEL32.SetFileInformationByHandle
+    set_information.argtypes = [
+        wintypes.HANDLE,
+        ctypes.c_int,
+        wintypes.LPVOID,
+        wintypes.DWORD,
+    ]
+    set_information.restype = wintypes.BOOL
+    ctypes.set_last_error(0)
+    if not set_information(
+        source_handle,
+        _FILE_RENAME_INFO_CLASS,
+        ctypes.byref(buffer),
+        offset + len(file_name),
+    ):
+        error = ctypes.get_last_error()
+        if error in (80, 183) or _path_entry_exists(destination):
+            raise ResearchError("index-destination-exists")
+        raise ResearchError("index-promotion-failed")
+    current = destination.stat(follow_symlinks=False)
+    if (current.st_dev, current.st_ino) != expected_identity:
+        raise ResearchError("index-promotion-failed")
+
+
+def _path_entry_exists(path: Path) -> bool:
+    try:
+        path.stat(follow_symlinks=False)
+        return True
+    except FileNotFoundError:
+        return False
+    except Exception:
+        return False
+
+
+def _close_native_handle(handle) -> None:
+    if os.name == "nt" and handle not in (None, _INVALID_HANDLE_VALUE):
+        _KERNEL32.CloseHandle(handle)
+
+
+def _flush_windows_directory(path: Path) -> None:
+    handle = None
+    try:
+        handle = _create_windows_directory_handle(
+            path,
+            _GENERIC_WRITE | _FILE_READ_ATTRIBUTES,
+            _FILE_FLAG_BACKUP_SEMANTICS
+            | _FILE_FLAG_OPEN_REPARSE_POINT
+            | _FILE_FLAG_WRITE_THROUGH,
+            failure_code="index-directory-fsync-unsupported",
+        )
+        flush = _KERNEL32.FlushFileBuffers
+        flush.argtypes = [wintypes.HANDLE]
+        flush.restype = wintypes.BOOL
+        ctypes.set_last_error(0)
+        if not flush(handle):
+            error = ctypes.get_last_error()
+            if error not in (1, 5, 6, 50):
+                raise ResearchError("index-durability-failed")
+    except ResearchError as error:
+        if error.code != "index-directory-fsync-unsupported":
+            raise
+        # Directory flush is not supported uniformly on Windows filesystems.
+    finally:
+        _close_native_handle(handle)
 
 
 def _rename_directory_no_replace(source: Path, destination: Path) -> None:
     if sys.platform == "win32":
         ctypes.set_last_error(0)
-        move_file = ctypes.windll.kernel32.MoveFileW
+        move_file = _KERNEL32.MoveFileW
         move_file.argtypes = [ctypes.c_wchar_p, ctypes.c_wchar_p]
         move_file.restype = ctypes.c_int
         if not move_file(str(source.absolute()), str(destination.absolute())):
-            if ctypes.get_last_error() in (80, 183):
+            if ctypes.get_last_error() in (80, 183) or _path_entry_exists(destination):
                 raise ResearchError("index-destination-exists")
             raise ResearchError("index-promotion-failed")
         return
