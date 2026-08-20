@@ -194,11 +194,13 @@ class FixtureAndEvidenceTests(unittest.TestCase):
         self.assertEqual(1, fixture.schema_version)
         self.assertEqual(10, fixture.top_k)
         self.assertGreaterEqual(len(fixture.queries), 6)
-        self.assertEqual(len(fixture.queries), len({query.query_id for query in fixture.queries}))
+        self.assertEqual(len(fixture.queries), len({query.id for query in fixture.queries}))
         self.assertTrue(any(not query.relevant_sources for query in fixture.queries))
         sources = {source for query in fixture.queries for source in query.relevant_sources}
         self.assertIn("granite.txt", sources)
         self.assertIn("retrieval.md", sources)
+        raw = json.loads(FIXTURE.read_text(encoding="utf-8"))
+        self.assertTrue(all(set(query) == {"id", "text", "relevant_sources"} for query in raw["queries"]))
 
     def test_fixture_loader_rejects_unknown_duplicate_and_unsafe_paths(self):
         valid = FIXTURE.read_text(encoding="utf-8")
@@ -221,18 +223,18 @@ class FixtureAndEvidenceTests(unittest.TestCase):
         base = {
             "schema_version": 1,
             "top_k": 10,
-            "queries": [{"query_id": "q01", "question": "x", "relevant_sources": []}],
+            "queries": [{"id": "q01", "text": "x", "relevant_sources": []}],
         }
         invalid = []
         duplicate = dict(base)
         duplicate["queries"] = base["queries"] * 2
         invalid.append(duplicate)
         too_long = json.loads(json.dumps(base))
-        too_long["queries"][0]["question"] = "x" * 501
+        too_long["queries"][0]["text"] = "x" * 501
         invalid.append(too_long)
         too_many = dict(base)
         too_many["queries"] = [
-            {"query_id": f"q{index:03d}", "question": "x", "relevant_sources": []}
+            {"id": f"q{index:03d}", "text": "x", "relevant_sources": []}
             for index in range(257)
         ]
         invalid.append(too_many)
@@ -243,6 +245,19 @@ class FixtureAndEvidenceTests(unittest.TestCase):
                 with self.assertRaises(ResearchError) as context:
                     load_evaluation_fixture(path)
                 self.assertEqual("evaluation-fixture-invalid", context.exception.code)
+
+    def test_fixture_loader_rejects_legacy_per_query_field_names(self):
+        payload = {
+            "schema_version": 1,
+            "top_k": 10,
+            "queries": [{"query_id": "q01", "question": "legacy", "relevant_sources": []}],
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "evaluation.json"
+            path.write_text(json.dumps(payload), encoding="utf-8")
+            with self.assertRaises(ResearchError) as context:
+                load_evaluation_fixture(path)
+        self.assertEqual("evaluation-fixture-invalid", context.exception.code)
 
     def test_evidence_serialization_and_markdown_are_deterministic_and_private(self):
         comparison = compare_matched_routes(

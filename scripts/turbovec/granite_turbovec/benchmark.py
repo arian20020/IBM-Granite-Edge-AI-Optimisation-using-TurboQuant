@@ -203,15 +203,15 @@ class BenchmarkEvidence:
 
 @dataclass(frozen=True)
 class EvaluationQuery:
-    query_id: str
-    question: str
+    id: str
+    text: str
     relevant_sources: tuple[str, ...]
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "query_id": self.query_id,
-            "question": self.question,
+            "id": self.id,
             "relevant_sources": list(self.relevant_sources),
+            "text": self.text,
         }
 
 
@@ -413,10 +413,10 @@ def load_evaluation_fixture(path: str | Path) -> EvaluationFixture:
         parsed: list[EvaluationQuery] = []
         seen: set[str] = set()
         for item in queries:
-            if type(item) is not dict or set(item) != {"query_id", "question", "relevant_sources"}:
+            if type(item) is not dict or set(item) != {"id", "text", "relevant_sources"}:
                 raise ValueError
-            query_id = item["query_id"]
-            question = item["question"]
+            query_id = item["id"]
+            question = item["text"]
             sources = item["relevant_sources"]
             if type(query_id) is not str or not _QUERY_ID.fullmatch(query_id) or query_id in seen:
                 raise ValueError
