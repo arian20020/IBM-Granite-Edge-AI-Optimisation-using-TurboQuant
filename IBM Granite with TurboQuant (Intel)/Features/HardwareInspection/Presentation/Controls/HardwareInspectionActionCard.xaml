@@ -14,7 +14,31 @@
             <Style
                 x:Key="HardwareInspectionPrimaryActionStyle"
                 BasedOn="{StaticResource AccentButtonStyle}"
-                TargetType="Button" />
+                TargetType="Button">
+                <Setter Property="MinWidth" Value="44" />
+                <Setter Property="MinHeight" Value="44" />
+                <Setter Property="Padding" Value="18,10" />
+                <Setter Property="CornerRadius" Value="10" />
+                <Setter Property="FontFamily" Value="{ThemeResource HardwareInspectionFontFamilyBold}" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="UseSystemFocusVisuals" Value="True" />
+            </Style>
+            <Style
+                x:Key="HardwareInspectionSecondaryActionStyle"
+                BasedOn="{StaticResource DefaultButtonStyle}"
+                TargetType="Button">
+                <Setter Property="MinWidth" Value="44" />
+                <Setter Property="MinHeight" Value="44" />
+                <Setter Property="Padding" Value="18,10" />
+                <Setter Property="CornerRadius" Value="10" />
+                <Setter Property="FontFamily" Value="{ThemeResource HardwareInspectionFontFamilyBold}" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="Background" Value="{ThemeResource HardwareInspectionSurfaceBrush}" />
+                <Setter Property="BorderBrush" Value="{ThemeResource HardwareInspectionBorderStrongBrush}" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="Foreground" Value="{ThemeResource HardwareInspectionTextPrimaryBrush}" />
+                <Setter Property="UseSystemFocusVisuals" Value="True" />
+            </Style>
         </ResourceDictionary>
     </UserControl.Resources>
     <StackPanel

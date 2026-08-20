@@ -47,11 +47,8 @@ public sealed partial class HardwareInspectionActionCard : UserControl
             {
                 Content = action.Label,
                 IsEnabled = action.IsEnabled,
-                MinHeight = 44,
-                MinWidth = 44,
-                Padding = new Thickness(18, 10, 18, 10),
+                Style = (Style)Resources["HardwareInspectionSecondaryActionStyle"],
                 Tag = action.Kind,
-                UseSystemFocusVisuals = true,
             };
             AutomationProperties.SetName(button, action.Label);
             if (!string.IsNullOrWhiteSpace(action.AccessibleHelp))

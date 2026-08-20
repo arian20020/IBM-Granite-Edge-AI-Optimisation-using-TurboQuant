@@ -114,6 +114,37 @@ public sealed class HardwareInspectionTerminalCardTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
+    public void ActionCard_UsesApprovedModernPrimaryAndSecondaryStyles()
+    {
+        HardwareInspectionActionCard card = new();
+        card.Apply(_factory.CreateTerminal(
+            HardwareInspectionOutcome.Completed,
+            hasUsableHandoff: true,
+            block3RouteRegistered: true));
+
+        Style primaryStyle = (Style)card.Resources["HardwareInspectionPrimaryActionStyle"];
+        Style secondaryStyle = (Style)card.Resources["HardwareInspectionSecondaryActionStyle"];
+        Assert.IsNotNull(primaryStyle.BasedOn);
+        Assert.IsNotNull(secondaryStyle.BasedOn);
+        Assert.AreNotSame(primaryStyle, secondaryStyle);
+
+        AssertStyleSetter(primaryStyle, Control.MinHeightProperty, 44d);
+        AssertStyleSetter(primaryStyle, Control.PaddingProperty, new Thickness(18, 10, 18, 10));
+        AssertStyleSetter(primaryStyle, Control.CornerRadiusProperty, new CornerRadius(10));
+        AssertStyleSetter(secondaryStyle, Control.MinHeightProperty, 44d);
+        AssertStyleSetter(secondaryStyle, Control.PaddingProperty, new Thickness(18, 10, 18, 10));
+        AssertStyleSetter(secondaryStyle, Control.CornerRadiusProperty, new CornerRadius(10));
+
+        Button[] buttons = Buttons(card);
+        Assert.AreSame(secondaryStyle, buttons[0].Style);
+        Assert.AreSame(primaryStyle, buttons[1].Style);
+        CollectionAssert.AreEqual(
+            new[] { "Run inspection again", "Continue to compatibility" },
+            buttons.Select(button => button.Content?.ToString()).ToArray());
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
     public void ActionCard_ReplacesStaleButtonsAndRaisesTypedRequest()
     {
         HardwareInspectionActionCard card = new();
@@ -167,4 +198,10 @@ public sealed class HardwareInspectionTerminalCardTests
 
     private static Button[] Buttons(HardwareInspectionActionCard card) =>
         ((StackPanel)card.FindName("ActionsPanel")).Children.Cast<Button>().ToArray();
+
+    private static void AssertStyleSetter(Style style, DependencyProperty property, object expected)
+    {
+        Setter setter = style.Setters.OfType<Setter>().Single(item => item.Property == property);
+        Assert.AreEqual(expected, setter.Value);
+    }
 }
