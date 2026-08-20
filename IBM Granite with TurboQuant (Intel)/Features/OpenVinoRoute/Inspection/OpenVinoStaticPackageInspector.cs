@@ -368,14 +368,18 @@ public sealed class OpenVinoStaticPackageInspector
                 _ = RequiredString(root, "chat_template");
                 break;
             case "tokenizer.json":
-                (facts.TokenizerVocabulary, facts.TokenizerAddedTokens) = ValidateTokenizerJson(root, vocabularySize);
+                (facts.TokenizerVocabulary, facts.TokenizerAddedTokens, facts.TokenizerUnknownToken) =
+                    ValidateTokenizerJson(root, vocabularySize);
                 break;
             default:
                 throw new InvalidDataException("Optional JSON resource has no version-one schema.");
         }
     }
 
-    private static (Dictionary<string, long> Vocabulary, Dictionary<string, long> AddedTokens) ValidateTokenizerJson(
+    private static (
+        Dictionary<string, long> Vocabulary,
+        Dictionary<string, long> AddedTokens,
+        string? UnknownToken) ValidateTokenizerJson(
         JsonElement root,
         long vocabularySize)
     {
@@ -449,7 +453,9 @@ public sealed class OpenVinoStaticPackageInspector
             }
         }
 
-        ValidateOptionalString(model, "unk_token");
+        string? unknownToken = model.TryGetProperty("unk_token", out _)
+            ? RequiredString(model, "unk_token")
+            : null;
         ValidateOptionalString(model, "continuing_subword_prefix");
         ValidateOptionalString(model, "end_of_word_suffix");
         ValidateOptionalBoolean(model, "fuse_unk");
@@ -461,7 +467,7 @@ public sealed class OpenVinoStaticPackageInspector
             throw new InvalidDataException("Tokenizer dropout must be a finite probability.");
         }
 
-        return (vocabularyFacts, addedTokenFacts);
+        return (vocabularyFacts, addedTokenFacts, unknownToken);
     }
 
     private static Dictionary<string, long> ValidateIdentifierMap(
@@ -769,6 +775,28 @@ public sealed class OpenVinoStaticPackageInspector
             }
         }
 
+        if (optional.TokenizerVocabulary is not null)
+        {
+            if (optional.TokenizerUnknownToken is null)
+            {
+                return false;
+            }
+
+            HashSet<long> unknownTokenIdentifiers = [];
+            foreach (Dictionary<string, long> tokenMap in vocabularies.Concat(addedTokenSets))
+            {
+                if (tokenMap.TryGetValue(optional.TokenizerUnknownToken, out long identifier))
+                {
+                    unknownTokenIdentifiers.Add(identifier);
+                }
+            }
+
+            if (unknownTokenIdentifiers.Count != 1)
+            {
+                return false;
+            }
+        }
+
         if (optional.SpecialTokens is not null)
         {
             HashSet<string> uniqueSpecialTokens = new(StringComparer.Ordinal);
@@ -788,6 +816,13 @@ public sealed class OpenVinoStaticPackageInspector
                 };
                 if (requiredProperty is not null &&
                     !string.Equals(specialToken.Content, RequiredString(tokenizer, requiredProperty), StringComparison.Ordinal))
+                {
+                    return false;
+                }
+
+                if (specialToken.Role == "unk_token" &&
+                    optional.TokenizerUnknownToken is not null &&
+                    !string.Equals(specialToken.Content, optional.TokenizerUnknownToken, StringComparison.Ordinal))
                 {
                     return false;
                 }
@@ -946,9 +981,10 @@ public sealed class OpenVinoStaticPackageInspector
         HashSet<string> observedTypes = new(StringComparer.Ordinal);
         List<ObservedPort> observedPorts = [];
         List<GraphEdge> graphEdges = [];
-        Dictionary<string, HashSet<string>> resultLayers = new(StringComparer.Ordinal);
+        Dictionary<string, ResultLayer> resultLayers = new(StringComparer.Ordinal);
         bool validRoot = false;
         bool insideConstant = false;
+        bool insideLayerInput = false;
         bool insideLayerOutput = false;
         string? currentLayerId = null;
         string? currentLayerType = null;
@@ -1005,7 +1041,12 @@ public sealed class OpenVinoStaticPackageInspector
                     if (string.Equals(layerType, "Result", StringComparison.Ordinal) &&
                         !string.IsNullOrWhiteSpace(currentLayerId))
                     {
-                        resultLayers[currentLayerId] = SplitNames(reader.GetAttribute("output_names"));
+                        if (!resultLayers.TryAdd(
+                            currentLayerId,
+                            new ResultLayer(currentLayerId, SplitNames(reader.GetAttribute("output_names")), [])))
+                        {
+                            return false;
+                        }
                     }
                 }
                 else if (insideConstant && string.Equals(reader.LocalName, "data", StringComparison.Ordinal))
@@ -1018,6 +1059,11 @@ public sealed class OpenVinoStaticPackageInspector
                     }
                 }
 
+                if (string.Equals(reader.LocalName, "input", StringComparison.Ordinal) && currentLayerId is not null)
+                {
+                    insideLayerInput = true;
+                }
+
                 if (string.Equals(reader.LocalName, "output", StringComparison.Ordinal) && currentLayerId is not null)
                 {
                     insideLayerOutput = true;
@@ -1028,12 +1074,16 @@ public sealed class OpenVinoStaticPackageInspector
                     string? fromLayer = reader.GetAttribute("from-layer");
                     string? fromPort = reader.GetAttribute("from-port");
                     string? toLayer = reader.GetAttribute("to-layer");
-                    if (string.IsNullOrWhiteSpace(fromLayer) || string.IsNullOrWhiteSpace(fromPort) || string.IsNullOrWhiteSpace(toLayer))
+                    string? toPort = reader.GetAttribute("to-port");
+                    if (string.IsNullOrWhiteSpace(fromLayer) ||
+                        string.IsNullOrWhiteSpace(fromPort) ||
+                        string.IsNullOrWhiteSpace(toLayer) ||
+                        string.IsNullOrWhiteSpace(toPort))
                     {
                         return false;
                     }
 
-                    graphEdges.Add(new GraphEdge(fromLayer, fromPort, toLayer));
+                    graphEdges.Add(new GraphEdge(fromLayer, fromPort, toLayer, toPort));
                 }
 
                 if (string.Equals(reader.LocalName, "port", StringComparison.Ordinal))
@@ -1046,6 +1096,18 @@ public sealed class OpenVinoStaticPackageInspector
                     currentPortPrecision = reader.GetAttribute("precision");
                     currentPortLastDimension = null;
                     currentPortIsOutput = insideLayerOutput;
+                    if (insideLayerInput &&
+                        string.Equals(currentLayerType, "Result", StringComparison.Ordinal) &&
+                        currentLayerId is not null)
+                    {
+                        if (string.IsNullOrWhiteSpace(currentPortId))
+                        {
+                            return false;
+                        }
+
+                        resultLayers[currentLayerId].InputPortIds.Add(currentPortId);
+                    }
+
                     if (reader.IsEmptyElement)
                     {
                         if (currentPortNames is not null && !string.IsNullOrWhiteSpace(currentPortPrecision))
@@ -1110,9 +1172,14 @@ public sealed class OpenVinoStaticPackageInspector
             {
                 insideLayerOutput = false;
             }
+            else if (reader.NodeType == XmlNodeType.EndElement && string.Equals(reader.LocalName, "input", StringComparison.Ordinal))
+            {
+                insideLayerInput = false;
+            }
             else if (reader.NodeType == XmlNodeType.EndElement && string.Equals(reader.LocalName, "layer", StringComparison.Ordinal))
             {
                 insideConstant = false;
+                insideLayerInput = false;
                 insideLayerOutput = false;
                 currentLayerId = null;
                 currentLayerType = null;
@@ -1122,14 +1189,34 @@ public sealed class OpenVinoStaticPackageInspector
         xml.Stream.Position = 0;
         return validRoot &&
             requiredLayerTypes.All(observedTypes.Contains) &&
+            ResultDestinationsAreValid(graphEdges, resultLayers) &&
             requiredPorts.All(expected => IsUniqueResultConnectedOutput(expected, observedPorts, graphEdges, resultLayers));
+    }
+
+    private static bool ResultDestinationsAreValid(
+        IReadOnlyCollection<GraphEdge> graphEdges,
+        IReadOnlyDictionary<string, ResultLayer> resultLayers)
+    {
+        foreach (GraphEdge edge in graphEdges)
+        {
+            if (resultLayers.TryGetValue(edge.ToLayer, out ResultLayer? result) &&
+                result.InputPortIds.Count(port => string.Equals(port, edge.ToPort, StringComparison.Ordinal)) != 1)
+            {
+                return false;
+            }
+        }
+
+        return resultLayers.Values.All(result => result.InputPortIds.All(inputPort =>
+            graphEdges.Count(edge =>
+                string.Equals(edge.ToLayer, result.LayerId, StringComparison.Ordinal) &&
+                string.Equals(edge.ToPort, inputPort, StringComparison.Ordinal)) == 1));
     }
 
     private static bool IsUniqueResultConnectedOutput(
         ExpectedPort expected,
         IReadOnlyCollection<ObservedPort> observedPorts,
         IReadOnlyCollection<GraphEdge> graphEdges,
-        IReadOnlyDictionary<string, HashSet<string>> resultLayers)
+        IReadOnlyDictionary<string, ResultLayer> resultLayers)
     {
         ObservedPort[] candidates = observedPorts.Where(observed =>
             string.Equals(observed.Name, expected.Name, StringComparison.Ordinal) &&
@@ -1149,14 +1236,22 @@ public sealed class OpenVinoStaticPackageInspector
             return false;
         }
 
-        string[] correspondingResults = resultLayers
-            .Where(pair => pair.Value.Contains(expected.Name))
-            .Select(static pair => pair.Key)
+        ResultLayer[] correspondingResults = resultLayers.Values
+            .Where(result => result.OutputNames.Contains(expected.Name))
             .ToArray();
-        return correspondingResults.Length == 1 && graphEdges.Any(edge =>
-            string.Equals(edge.FromLayer, candidate.LayerId, StringComparison.Ordinal) &&
-            string.Equals(edge.FromPort, candidate.PortId, StringComparison.Ordinal) &&
-            string.Equals(edge.ToLayer, correspondingResults[0], StringComparison.Ordinal));
+        if (correspondingResults.Length != 1 || correspondingResults[0].InputPortIds.Count != 1)
+        {
+            return false;
+        }
+
+        ResultLayer result = correspondingResults[0];
+        string inputPort = result.InputPortIds[0];
+        GraphEdge[] destinationEdges = graphEdges.Where(edge =>
+            string.Equals(edge.ToLayer, result.LayerId, StringComparison.Ordinal) &&
+            string.Equals(edge.ToPort, inputPort, StringComparison.Ordinal)).ToArray();
+        return destinationEdges.Length == 1 &&
+            string.Equals(destinationEdges[0].FromLayer, candidate.LayerId, StringComparison.Ordinal) &&
+            string.Equals(destinationEdges[0].FromPort, candidate.PortId, StringComparison.Ordinal);
     }
 
     private static HashSet<string> SplitNames(string? names) =>
@@ -1176,7 +1271,9 @@ public sealed class OpenVinoStaticPackageInspector
         string? PortId,
         bool IsOutput);
 
-    private sealed record GraphEdge(string FromLayer, string FromPort, string ToLayer);
+    private sealed record GraphEdge(string FromLayer, string FromPort, string ToLayer, string ToPort);
+
+    private sealed record ResultLayer(string LayerId, HashSet<string> OutputNames, List<string> InputPortIds);
 
     private sealed record SpecialTokenFact(string Role, string Content);
 
@@ -1189,6 +1286,8 @@ public sealed class OpenVinoStaticPackageInspector
         public Dictionary<string, long>? TokenizerVocabulary { get; set; }
 
         public Dictionary<string, long>? TokenizerAddedTokens { get; set; }
+
+        public string? TokenizerUnknownToken { get; set; }
 
         public List<SpecialTokenFact>? SpecialTokens { get; set; }
     }

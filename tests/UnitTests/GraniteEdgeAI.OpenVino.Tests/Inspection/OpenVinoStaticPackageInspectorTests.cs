@@ -214,7 +214,7 @@ public sealed class OpenVinoStaticPackageInspectorTests
         using TemporaryPackage package = TemporaryPackage.CopyFixture();
         package.Write("vocab.json", "{\"<|pad|>\":0,\"<|bos|>\":1,\"<|eos|>\":2,\"<unk>\":3,\"a\":4,\"b\":5,\"c\":6,\"d\":7}");
         package.Write("added_tokens.json", "{\"<|pad|>\":0,\"<|bos|>\":1,\"<|eos|>\":2}");
-        package.Write("special_tokens_map.json", "{\"bos_token\":{\"content\":\"<|bos|>\",\"lstrip\":false,\"normalized\":false,\"rstrip\":false,\"single_word\":false},\"eos_token\":\"<|eos|>\",\"pad_token\":\"<|pad|>\",\"additional_special_tokens\":[\"<unk>\"]}");
+        package.Write("special_tokens_map.json", "{\"bos_token\":{\"content\":\"<|bos|>\",\"lstrip\":false,\"normalized\":false,\"rstrip\":false,\"single_word\":false},\"eos_token\":\"<|eos|>\",\"pad_token\":\"<|pad|>\",\"unk_token\":\"<unk>\"}");
         package.Write("chat_template.json", "{\"chat_template\":\"{% for message in messages %}{{ message.content }}{% endfor %}\"}");
         package.Write("tokenizer.json", "{\"version\":\"1.0\",\"added_tokens\":[{\"id\":0,\"content\":\"<|pad|>\",\"single_word\":false,\"lstrip\":false,\"rstrip\":false,\"normalized\":false,\"special\":true}],\"model\":{\"type\":\"BPE\",\"vocab\":{\"<|pad|>\":0,\"<|bos|>\":1,\"<|eos|>\":2,\"<unk>\":3,\"a\":4,\"b\":5,\"c\":6,\"d\":7},\"merges\":[\"a b\"],\"unk_token\":\"<unk>\",\"fuse_unk\":false,\"byte_fallback\":false,\"ignore_merges\":false}}");
 
@@ -745,6 +745,35 @@ public sealed class OpenVinoStaticPackageInspectorTests
     }
 
     [TestMethod]
+    [DataRow("missing")]
+    [DataRow("unresolved")]
+    [DataRow("special-map-mismatch")]
+    public void TokenizerUnknownTokenMustBePresentResolvableAndConsistent(string mutation)
+    {
+        using TemporaryPackage package = TemporaryPackage.CopyFixture();
+        const string vocabulary = "{\"<|pad|>\":0,\"<|bos|>\":1,\"<|eos|>\":2,\"<unk>\":3,\"a\":4,\"b\":5,\"c\":6,\"d\":7}";
+        const string tokenizerJson = "{\"version\":\"1.0\",\"added_tokens\":[],\"model\":{\"type\":\"BPE\",\"vocab\":" + vocabulary + ",\"merges\":[],\"unk_token\":\"<unk>\"}}";
+        switch (mutation)
+        {
+            case "missing":
+                package.Write("tokenizer.json", tokenizerJson.Replace(",\"unk_token\":\"<unk>\"", "", StringComparison.Ordinal));
+                break;
+            case "unresolved":
+                package.Write("tokenizer.json", tokenizerJson.Replace("\"unk_token\":\"<unk>\"", "\"unk_token\":\"<missing>\"", StringComparison.Ordinal));
+                break;
+            case "special-map-mismatch":
+                package.Write("tokenizer.json", tokenizerJson);
+                package.Write("special_tokens_map.json", "{\"unk_token\":\"a\"}");
+                break;
+            default:
+                Assert.Fail("Unknown tokenizer unknown-token mutation.");
+                break;
+        }
+
+        AssertRejected(package, OpenVinoSupportCode.TokenizerUnsupported);
+    }
+
+    [TestMethod]
     [DataRow("max_position_embeddings", "0")]
     [DataRow("max_position_embeddings", "1048577")]
     [DataRow("torch_dtype", "float64")]
@@ -823,6 +852,19 @@ public sealed class OpenVinoStaticPackageInspectorTests
     {
         using TemporaryPackage package = TemporaryPackage.CopyFixture();
         package.AddDisconnectedDecoyGraphOutput(resource, portName, precision, finalDimension);
+
+        AssertRejected(package, OpenVinoSupportCode.PackageInconsistentResource);
+    }
+
+    [TestMethod]
+    [DataRow("missing")]
+    [DataRow("wrong")]
+    [DataRow("extra-wrong")]
+    [DataRow("duplicate")]
+    public void ResultDestinationPortMustBeDeclaredAndUniquelyConnected(string mutation)
+    {
+        using TemporaryPackage package = TemporaryPackage.CopyFixture();
+        package.MutateResultDestinationEdge("openvino_model.xml", "logits", mutation);
 
         AssertRejected(package, OpenVinoSupportCode.PackageInconsistentResource);
     }
@@ -1063,6 +1105,46 @@ public sealed class OpenVinoStaticPackageInspectorTests
                 {
                     dimension.Value = finalDimension;
                 }
+            }
+
+            System.IO.File.WriteAllText(path, document.ToString(SaveOptions.DisableFormatting), new UTF8Encoding(false));
+        }
+
+        public void MutateResultDestinationEdge(string relativeName, string portName, string mutation)
+        {
+            string path = File(relativeName);
+            XDocument document = XDocument.Load(path, LoadOptions.PreserveWhitespace);
+            XElement producerPort = document.Descendants("port").Single(element =>
+                ((string?)element.Attribute("names"))?.Split(',').Contains(portName, StringComparer.Ordinal) == true);
+            XElement producerLayer = producerPort.Ancestors("layer").Single();
+            XElement resultLayer = document.Descendants("layer").Single(element =>
+                (string?)element.Attribute("type") == "Result" &&
+                ((string?)element.Attribute("output_names"))?.Split(',').Contains(portName, StringComparer.Ordinal) == true);
+            XElement resultInputPort = resultLayer.Element("input")!.Elements("port").Single();
+            XElement edge = document.Descendants("edge").Single(element =>
+                (string?)element.Attribute("from-layer") == (string?)producerLayer.Attribute("id") &&
+                (string?)element.Attribute("from-port") == (string?)producerPort.Attribute("id") &&
+                (string?)element.Attribute("to-layer") == (string?)resultLayer.Attribute("id") &&
+                (string?)element.Attribute("to-port") == (string?)resultInputPort.Attribute("id"));
+            switch (mutation)
+            {
+                case "missing":
+                    edge.Attribute("to-port")!.Remove();
+                    break;
+                case "wrong":
+                    edge.SetAttributeValue("to-port", "nonexistent");
+                    break;
+                case "extra-wrong":
+                    XElement wrongDestination = new(edge);
+                    wrongDestination.SetAttributeValue("to-port", "nonexistent");
+                    edge.AddAfterSelf(wrongDestination);
+                    break;
+                case "duplicate":
+                    edge.AddAfterSelf(new XElement(edge));
+                    break;
+                default:
+                    Assert.Fail("Unknown Result-edge mutation.");
+                    break;
             }
 
             System.IO.File.WriteAllText(path, document.ToString(SaveOptions.DisableFormatting), new UTF8Encoding(false));
