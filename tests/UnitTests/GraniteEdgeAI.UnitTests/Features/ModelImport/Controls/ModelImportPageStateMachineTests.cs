@@ -2,6 +2,7 @@ using GraniteEdgeAI.Features.ModelImport;
 using GraniteEdgeAI.Features.ModelImport.Controls;
 using GraniteEdgeAI.Features.ModelImport.FileImport;
 using GraniteEdgeAI.Features.ModelImport.QuickScan;
+using GraniteEdgeAI.Features.ModelImport.Selection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Automation.Provider;
@@ -23,7 +24,8 @@ public sealed class ModelImportPageStateMachineTests
             () => Task.FromResult(ModelFormatSelection.Gguf),
             () => Task.FromResult<string?>(selectedPath),
             (format, path, cancellationToken) =>
-                Task.FromResult(ModelQuickScanResult.CreateCancelled()));
+                Task.FromResult(ModelQuickScanResult.CreateCancelled()),
+            classifier: new AcceptedGgufClassifier());
 
         await page.BrowseFilesAsync();
 
@@ -84,7 +86,8 @@ public sealed class ModelImportPageStateMachineTests
 
                 Assert.AreEqual(secondPath, path);
                 return Task.FromResult(secondScanResult);
-            });
+            },
+            classifier: new AcceptedGgufClassifier());
 
         Task firstBrowse = page.BrowseFilesAsync();
         await firstScanStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
@@ -131,7 +134,8 @@ public sealed class ModelImportPageStateMachineTests
             {
                 scanToken = cancellationToken;
                 return scanCompletion.Task;
-            });
+            },
+            classifier: new AcceptedGgufClassifier());
 
         Task browseTask = page.BrowseFilesAsync();
         var card = (ImportModelCard)page.FindName("ImportModelCardControl");
@@ -185,7 +189,8 @@ public sealed class ModelImportPageStateMachineTests
                         userMessage,
                         technicalMessage)),
             recordScanFailure: diagnostic =>
-                capturedDiagnostic = diagnostic);
+                capturedDiagnostic = diagnostic,
+            classifier: new AcceptedGgufClassifier());
 
         await page.BrowseFilesAsync();
 
@@ -217,7 +222,8 @@ public sealed class ModelImportPageStateMachineTests
                         "The selected file is not a valid GGUF model.",
                         "Expected GGUF magic at file offset zero.")),
             recordScanFailure: diagnostic =>
-                throw new InvalidOperationException("Test diagnostic failure."));
+                throw new InvalidOperationException("Test diagnostic failure."),
+            classifier: new AcceptedGgufClassifier());
 
         await page.BrowseFilesAsync();
 
@@ -272,6 +278,31 @@ public sealed class ModelImportPageStateMachineTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
+    public async Task BrowseFilesAsync_WithInjectedAcceptedClassifier_RunsInjectedScannerForSyntheticPath()
+    {
+        const string selectedPath = @"C:\Models\injected-scanner.gguf";
+        int scannerCalls = 0;
+        var page = new ModelImportPage(
+            () => Task.FromResult(ModelFormatSelection.Gguf),
+            () => Task.FromResult<string?>(selectedPath),
+            (_, path, _) =>
+            {
+                scannerCalls++;
+                Assert.AreEqual(selectedPath, path);
+                return Task.FromResult(ModelQuickScanResult.CreateCancelled());
+            },
+            classifier: new AcceptedGgufClassifier());
+
+        await page.BrowseFilesAsync();
+
+        Assert.AreEqual(1, scannerCalls);
+        Assert.AreEqual(
+            ImportModelCardState.AwaitingSelection,
+            ((ImportModelCard)page.FindName("ImportModelCardControl")).CurrentState);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
     public void ScanSucceeded_WithoutCardData_IsRejected()
     {
         var card = new ImportModelCard();
@@ -303,5 +334,18 @@ public sealed class ModelImportPageStateMachineTests
         string elementName)
     {
         return (TextBlock)card.FindName(elementName);
+    }
+
+    private sealed class AcceptedGgufClassifier : IModelSelectionClassifier
+    {
+        public Task<ModelSelectionResult> ClassifyAsync(
+            ModelSelectionOperationId id,
+            ModelSelectionInput input,
+            CancellationToken token) =>
+            Task.FromResult(
+                ModelSelectionResult.Accepted(
+                    id,
+                    ModelSelectionRoute.Gguf,
+                    input.DisplayName));
     }
 }
