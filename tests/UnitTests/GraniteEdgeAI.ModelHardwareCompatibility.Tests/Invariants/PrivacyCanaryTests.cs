@@ -37,7 +37,6 @@ public sealed class PrivacyCanaryTests
                 .Where(property => property.PropertyType == typeof(string))
                 .Select(property => $"{type.Name}.{property.Name}"))
             .Where(name => !AllowedStringMembers.Contains(name))
-            .Where(name => !name.Contains("EqualityContract", StringComparison.Ordinal))
             .Order()
             .ToArray();
 

@@ -95,11 +95,36 @@ public sealed class RegressionGuardTests
     // reset of that flag inside the catch block is never exercised. This drives
     // overflow through a converted target so the flag is true right before the
     // overflow and must be observed false afterward.
+    //
+    // fileLength = ulong.MaxValue does not exercise this: for target Q8_0 the
+    // scaled payload (~3.26e19) itself exceeds ulong.MaxValue, so the overflow
+    // is thrown by MultiplyByFraction's (ulong)Math.Ceiling(...) cast on the
+    // line before `scaledAcrossQuantisation = true` runs, and the flag never
+    // becomes true in the first place. The input below is derived to let the
+    // scaling succeed and instead overflow the +3% overhead addition, so the
+    // flag really is true when the catch block resets it.
+    //
+    // Derivation: ratio = 8.5m / 4.8125m = 136/77 exactly (BitsPerWeight for
+    // Q8_0 over Q4_K_M). The scaled payload is
+    // ceiling(fileLength * 136/77); it fits in ulong exactly when
+    //   fileLength <= floor(ulong.MaxValue * 77 / 136).
+    // ulong.MaxValue * 77 = 1,420,399,293,675,635,474,355 (exact integer
+    // arithmetic), and floor(that / 136) = 10,444,112,453,497,319,664. At this
+    // fileLength the scaled payload lands exactly on ulong.MaxValue
+    // (18,446,744,073,709,551,615), verified against the same decimal
+    // arithmetic C# uses:
+    //   ratio        = 1.7662337662337662337662337662m
+    //   payloadExact = 18,446,744,073,709,551,614.337662337m
+    //   payload      = ceiling(payloadExact) = 18,446,744,073,709,551,615  (= ulong.MaxValue)
+    //   overhead     = ceiling(payload * 0.03m) = 553,402,322,211,286,549
+    // payload is already ulong.MaxValue and overhead is strictly positive, so
+    // the checked `payload.Add(overhead)` inside ByteCount.Add necessarily
+    // overflows - scaling has already succeeded and set the flag true by then.
     [TestMethod]
     public void OverflowOnAConvertedTarget_ResetsTheScalingFlag()
     {
         InspectedModelFacts facts = InspectedModelFacts.Create(
-            ByteCount.FromBytes(ulong.MaxValue),
+            ByteCount.FromBytes(10_444_112_453_497_319_664UL),
             layerCount: 32,
             embeddingSize: 4096,
             attentionHeadCount: 32,

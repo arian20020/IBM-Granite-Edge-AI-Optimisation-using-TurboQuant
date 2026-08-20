@@ -106,13 +106,25 @@ public sealed class EnumExhaustivenessTests
     // member fails loudly instead of silently falling through a switch arm.
     // Driven from Enum.GetValues over both enums rather than a fixed list, so
     // a new device or offload level is swept automatically.
+    //
+    // The switch's default arm mirrors GgufPoolRouter's own default arm, so on
+    // its own a newly added enum member would silently match "refuse,
+    // UnsupportedDeviceRoute" on both sides and pass without anyone updating
+    // this table. The pairing count below closes that hole: it is fixed at 20
+    // for the current 5 DeviceRouteId x 4 GpuOffloadLevel members, so a new
+    // member changes the total and fails this assertion, forcing the table to
+    // be reviewed by hand rather than silently accepted by a matching default.
     [TestMethod]
     public void EveryDeviceAndOffloadPairing_RoutesToItsExpectedOutcome()
     {
+        int pairingsVisited = 0;
+
         foreach (DeviceRouteId device in Enum.GetValues<DeviceRouteId>())
         {
             foreach (GpuOffloadLevel offload in Enum.GetValues<GpuOffloadLevel>())
             {
+                pairingsVisited++;
+
                 bool resolved = GgufPoolRouter.TryResolve(
                     device,
                     offload,
@@ -168,5 +180,12 @@ public sealed class EnumExhaustivenessTests
                 }
             }
         }
+
+        Assert.AreEqual(
+            20,
+            pairingsVisited,
+            "The DeviceRouteId x GpuOffloadLevel pairing count changed, which means an "
+            + "enum member was added or removed. Update the expected-outcome table above "
+            + "for the new member, then update this expected total.");
     }
 }

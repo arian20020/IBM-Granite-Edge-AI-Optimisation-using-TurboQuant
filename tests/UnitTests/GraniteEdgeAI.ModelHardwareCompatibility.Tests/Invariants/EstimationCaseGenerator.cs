@@ -27,6 +27,20 @@ internal static class EstimationCaseGenerator
     private static readonly GgufKvCacheFormat[] KvFormats =
         [GgufKvCacheFormat.F16, GgufKvCacheFormat.Q8_0, GgufKvCacheFormat.TurboQuant3Bit];
 
+    // Every generated case sets fileType 15 / quantisationVersion 2 (Q4_K_M), so
+    // any non-Imported target here scales rather than refusing. Varying this is
+    // what gives ChangingTheKvFormatCanNeverAlterTheWeightPayload teeth: with a
+    // single constant weight format, both branches of that property called the
+    // same pure function with identical inputs.
+    private static readonly GgufWeightFormat[] WeightFormats =
+    [
+        GgufWeightFormat.Imported,
+        GgufWeightFormat.Q8_0,
+        GgufWeightFormat.Q6K,
+        GgufWeightFormat.Q4KM,
+        GgufWeightFormat.Q3KM
+    ];
+
     private static readonly (DeviceRouteId Device, CompatibilityBackend Backend, GpuOffloadLevel Offload)[] Routes =
     [
         (DeviceRouteId.Cpu, CompatibilityBackend.Cpu, GpuOffloadLevel.None),
@@ -40,40 +54,51 @@ internal static class EstimationCaseGenerator
 
         for (int index = 0; index < count; index++)
         {
-            ulong caseSeed = random.NextUInt64();
-            DeterministicRandom local = new(caseSeed);
-
-            int attentionHeads = local.Pick(AttentionHeadCounts);
-            int headDimension = local.Pick(HeadDimensions);
-            int divisor = local.Pick(GroupDivisors);
-            int keyValueHeads = Math.Max(1, attentionHeads / divisor);
-
-            InspectedModelFacts facts = InspectedModelFacts.Create(
-                ByteCount.FromBytes((ulong)local.Next(200, 60_000) * 1024 * 1024),
-                layerCount: local.Pick(LayerCounts),
-                embeddingSize: attentionHeads * headDimension,
-                attentionHeadCount: attentionHeads,
-                keyValueHeadCount: keyValueHeads,
-                declaredContextLimit: 32768,
-                fileType: 15,
-                quantisationVersion: 2);
-
-            (DeviceRouteId device, CompatibilityBackend backend, GpuOffloadLevel offload) =
-                local.Pick(Routes);
-
-            GgufRouteConfiguration configuration = GgufRouteConfiguration.Create(
-                GgufWeightFormat.Imported,
-                local.Pick(KvFormats),
-                backend,
-                device,
-                offload);
-
-            yield return new EstimationCase(
-                caseSeed,
-                facts,
-                configuration,
-                ContextTokenCount.FromTokens(local.Pick(Contexts)));
+            yield return FromSeed(random.NextUInt64());
         }
+    }
+
+    /// <summary>
+    /// Builds the one case a seed deterministically produces. Cases(count, seed)
+    /// treats its seed as the outer generator seed and derives a different
+    /// per-case seed for each element, so a seed printed from a failing
+    /// assertion is only replayable through this method - calling
+    /// Cases(1, printedSeed) reproduces a different case entirely.
+    /// </summary>
+    internal static EstimationCase FromSeed(ulong caseSeed)
+    {
+        DeterministicRandom local = new(caseSeed);
+
+        int attentionHeads = local.Pick(AttentionHeadCounts);
+        int headDimension = local.Pick(HeadDimensions);
+        int divisor = local.Pick(GroupDivisors);
+        int keyValueHeads = Math.Max(1, attentionHeads / divisor);
+
+        InspectedModelFacts facts = InspectedModelFacts.Create(
+            ByteCount.FromBytes((ulong)local.Next(200, 60_000) * 1024 * 1024),
+            layerCount: local.Pick(LayerCounts),
+            embeddingSize: attentionHeads * headDimension,
+            attentionHeadCount: attentionHeads,
+            keyValueHeadCount: keyValueHeads,
+            declaredContextLimit: 32768,
+            fileType: 15,
+            quantisationVersion: 2);
+
+        (DeviceRouteId device, CompatibilityBackend backend, GpuOffloadLevel offload) =
+            local.Pick(Routes);
+
+        GgufRouteConfiguration configuration = GgufRouteConfiguration.Create(
+            local.Pick(WeightFormats),
+            local.Pick(KvFormats),
+            backend,
+            device,
+            offload);
+
+        return new EstimationCase(
+            caseSeed,
+            facts,
+            configuration,
+            ContextTokenCount.FromTokens(local.Pick(Contexts)));
     }
 
     internal static CompatibilityCandidate Candidate(

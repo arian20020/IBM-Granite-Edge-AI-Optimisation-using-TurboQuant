@@ -7,6 +7,22 @@ using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.Gguf;
 
 namespace GraniteEdgeAI.ModelHardwareCompatibility.Tests.Invariants;
 
+/// <summary>
+/// A forward-looking canary, not a regression guard over existing behaviour. It
+/// cannot currently fail: every figure compared here is pure decimal/ulong
+/// arithmetic with no formatting in its path, and the fingerprint is built with
+/// <c>string.Create(CultureInfo.InvariantCulture, ...)</c> over an
+/// interpolated <c>int</c> under the culture-invariant "G" format (no group
+/// separator) and <c>Convert.ToHexString</c> (digits 0-9 and letters A-F,
+/// neither of which is the dotted/dotless I that trips Turkish casing). Culture
+/// independence therefore holds today by construction rather than by this
+/// test's enforcement. It is kept and asserted anyway so that if a later
+/// change threads a culture-sensitive format (a percentage, a locale-formatted
+/// count) into the calculation or fingerprint path, this pins the expectation
+/// before that happens rather than after. A reader must not mistake a pass
+/// here for evidence that the current code has been exercised against a bug
+/// class it structurally cannot exhibit.
+/// </summary>
 [TestClass]
 public sealed class CultureInvarianceTests
 {

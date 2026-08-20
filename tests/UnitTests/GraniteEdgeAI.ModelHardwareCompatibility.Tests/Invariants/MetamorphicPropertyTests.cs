@@ -54,14 +54,22 @@ public sealed class MetamorphicPropertyTests
                 ResourceComponentKind.KvCache);
 
             Assert.IsTrue(
-                larger >= smaller,
-                $"Case {generated.Seed:x16}: 8192 tokens produced a smaller cache than 1024.");
+                larger > smaller,
+                $"Case {generated.Seed:x16}: 8192 tokens did not strictly grow the cache over 1024.");
         }
     }
 
     [TestMethod]
     public void AddingALiveComponentCanNeverReduceItsPhaseRequirement()
     {
+        // Left non-strict deliberately: see the code review response in
+        // task-10-report.md for why >= is correct here, not >=-as-a-shortcut.
+        // A discrete-GPU route's LoadOnly staging buffer (>= 64 MiB by policy)
+        // already exceeds the tiny 1024-byte component this test adds to
+        // SteadyStateGeneration, so the composed peak for those generated cases
+        // stays at the Load-phase figure - unchanged, not reduced. Tightening
+        // to > makes this fail on those cases regardless of weight-format
+        // variety, so it is not the item-1 interaction the reviewer asked about.
         foreach (EstimationCase generated in EstimationCaseGenerator.Cases(CaseCount, Seed))
         {
             ResourceEstimate estimate = EstimateFor(generated);
