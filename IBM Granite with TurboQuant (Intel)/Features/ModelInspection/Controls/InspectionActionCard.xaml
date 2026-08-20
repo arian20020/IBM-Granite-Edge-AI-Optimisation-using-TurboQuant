@@ -17,6 +17,8 @@
             <Setter Property="FontSize" Value="{ThemeResource InspectionBodyFontSize}" />
             <Setter Property="FontWeight" Value="{StaticResource InspectionStrongBodyFontWeight}" />
             <Setter Property="Foreground" Value="{ThemeResource InspectionTextPrimaryBrush}" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="MaxWidth" Value="640" />
             <Setter Property="TextAlignment" Value="Center" />
             <Setter Property="TextWrapping" Value="WrapWholeWords" />
         </Style>
@@ -24,6 +26,8 @@
             <Setter Property="FontFamily" Value="{StaticResource InspectionHelperFontFamily}" />
             <Setter Property="FontSize" Value="{ThemeResource InspectionHelperFontSize}" />
             <Setter Property="Foreground" Value="{ThemeResource InspectionTextSecondaryMutedBrush}" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="MaxWidth" Value="640" />
             <Setter Property="TextAlignment" Value="Center" />
             <Setter Property="TextWrapping" Value="WrapWholeWords" />
         </Style>
@@ -66,7 +70,7 @@
             <Setter Property="UseSystemFocusVisuals" Value="True" />
         </Style>
         <Style x:Key="InspectionFutureHelpStyle" TargetType="TextBlock">
-            <Setter Property="Margin" Value="0,4,0,0" />
+            <Setter Property="Margin" Value="{StaticResource InspectionActionFutureHelpMargin}" />
             <Setter Property="FontFamily" Value="{StaticResource InspectionHelperFontFamily}" />
             <Setter Property="FontSize" Value="{ThemeResource InspectionLabelFontSize}" />
             <Setter Property="Foreground" Value="{ThemeResource InspectionTextMutedBrush}" />
@@ -134,7 +138,7 @@
 
         <Border
             x:Name="ResultView"
-            Padding="20,17"
+            Padding="{StaticResource InspectionResultActionPadding}"
             HorizontalAlignment="Stretch"
             Background="{ThemeResource InspectionSurfaceMutedBrush}"
             BorderBrush="{ThemeResource InspectionBorderLightBrush}"
@@ -152,7 +156,7 @@
                     Text="{x:Bind Presentation.Title, Mode=OneWay}" />
                 <TextBlock
                     Grid.Row="1"
-                    Margin="0,6,0,0"
+                    Margin="{StaticResource InspectionActionMessageMargin}"
                     Style="{StaticResource InspectionActionMessageStyle}"
                     Text="{x:Bind Presentation.Message, Mode=OneWay}" />
 
@@ -160,7 +164,7 @@
                     x:Name="ResultButtonPanel"
                     Grid.Row="2"
                     MaxWidth="760"
-                    Margin="0,14,0,0"
+                    Margin="{StaticResource InspectionActionPanelMargin}"
                     HorizontalAlignment="Stretch"
                     ColumnSpacing="0"
                     RowSpacing="0">

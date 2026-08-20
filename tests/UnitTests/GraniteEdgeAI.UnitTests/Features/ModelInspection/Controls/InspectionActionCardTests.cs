@@ -6,6 +6,7 @@ using GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
 
@@ -41,6 +42,22 @@ public sealed class InspectionActionCardTests
             Button secondaryOne = FindButton(control, "SecondaryActionOneButton");
             Button secondaryTwo = FindButton(control, "SecondaryActionTwoButton");
             Button primary = FindButton(control, "PrimaryActionButton");
+            Border result = Assert.IsInstanceOfType<Border>(
+                control.FindName("ResultView"));
+            Grid resultLayout = Assert.IsInstanceOfType<Grid>(
+                VisualTreeHelper.GetChild(result, 0));
+            TextBlock heading = EnumerateDescendants(resultLayout)
+                .OfType<TextBlock>()
+                .Single(text =>
+                    ReferenceEquals(VisualTreeHelper.GetParent(text), resultLayout) &&
+                    Grid.GetRow(text) == 0);
+            TextBlock helper = EnumerateDescendants(resultLayout)
+                .OfType<TextBlock>()
+                .Single(text =>
+                    ReferenceEquals(VisualTreeHelper.GetParent(text), resultLayout) &&
+                    Grid.GetRow(text) == 1);
+            Grid panel = Assert.IsInstanceOfType<Grid>(
+                control.FindName("ResultButtonPanel"));
 
             AssertActionStyle(
                 control,
@@ -67,11 +84,24 @@ public sealed class InspectionActionCardTests
             Assert.IsTrue(secondaryOne.Focus(FocusState.Keyboard));
             Assert.AreEqual(FocusState.Keyboard, secondaryOne.FocusState);
             Assert.AreEqual(840d, control.ActualWidth, 0.01);
-            Border result = (Border)control.FindName("ResultView");
             Assert.AreEqual(0d, result.MinHeight, 0.01d,
                 "the action surface must use its natural content height");
-            Assert.AreEqual(new Thickness(20d, 17d, 20d, 17d), result.Padding,
-                "compact result action padding");
+            Assert.AreEqual(new Thickness(20d, 18d, 20d, 18d), result.Padding,
+                "balanced result action padding");
+            Assert.AreEqual(6d, VerticalGap(heading, helper, result), 1d,
+                "heading to recovery guidance");
+            Assert.AreEqual(12d, VerticalGap(helper, panel, result), 1d,
+                "recovery guidance to actions");
+            Assert.AreEqual(
+                result.ActualWidth / 2d,
+                HorizontalCentre(heading, result),
+                1d,
+                "result heading is centred");
+            Assert.AreEqual(
+                result.ActualWidth / 2d,
+                HorizontalCentre(helper, result),
+                1d,
+                "result guidance is centred");
             Assert.IsGreaterThanOrEqualTo(44d, secondaryOne.MinHeight);
             Assert.AreEqual(46d, secondaryOne.MinHeight, 0.01);
             Assert.AreEqual(46d, secondaryTwo.MinHeight, 0.01);
@@ -99,6 +129,11 @@ public sealed class InspectionActionCardTests
                 });
             Assert.AreEqual(secondaryOne.ActualWidth, secondaryTwo.ActualWidth, 1d);
             Assert.AreEqual(secondaryOne.ActualWidth, primary.ActualWidth, 1d);
+            AssertFutureHelpGeometry(
+                control,
+                "SecondaryActionTwo",
+                secondaryTwo);
+            AssertFutureHelpGeometry(control, "PrimaryAction", primary);
         }
         finally
         {
@@ -268,6 +303,16 @@ public sealed class InspectionActionCardTests
                     {
                         AssertVerticalActionLayout(panel, visible);
                     }
+
+                    Border result = Assert.IsInstanceOfType<Border>(
+                        control.FindName("ResultView"));
+                    foreach (FrameworkElement visibleHost in visible)
+                    {
+                        AssertElementContained(
+                            visibleHost,
+                            result,
+                            $"action host at width={width}, count={count}");
+                    }
                 }
             }
 
@@ -377,6 +422,77 @@ public sealed class InspectionActionCardTests
 
     private static Button FindButton(InspectionActionCard control, string name) =>
         (Button)control.FindName(name);
+
+    private static void AssertFutureHelpGeometry(
+        InspectionActionCard control,
+        string slot,
+        Button button)
+    {
+        TextBlock help = Assert.IsInstanceOfType<TextBlock>(
+            control.FindName($"{slot}FutureHelpText"));
+        StackPanel host = Assert.IsInstanceOfType<StackPanel>(
+            control.FindName($"{slot}Host"));
+
+        Assert.AreEqual(Visibility.Visible, help.Visibility);
+        Assert.AreEqual(4d, VerticalGap(button, help, host), 1d,
+            $"{slot} button-to-help gap");
+        Assert.AreEqual(
+            host.ActualWidth / 2d,
+            HorizontalCentre(help, host),
+            1d,
+            $"{slot} future help is centred");
+    }
+
+    private static IEnumerable<DependencyObject> EnumerateDescendants(
+        DependencyObject root)
+    {
+        int count = VisualTreeHelper.GetChildrenCount(root);
+        for (int index = 0; index < count; index++)
+        {
+            DependencyObject child = VisualTreeHelper.GetChild(root, index);
+            yield return child;
+            foreach (DependencyObject descendant in EnumerateDescendants(child))
+            {
+                yield return descendant;
+            }
+        }
+    }
+
+    private static double VerticalGap(
+        FrameworkElement upper,
+        FrameworkElement lower,
+        UIElement root)
+    {
+        Windows.Foundation.Point upperOrigin = upper.TransformToVisual(root)
+            .TransformPoint(default);
+        Windows.Foundation.Point lowerOrigin = lower.TransformToVisual(root)
+            .TransformPoint(default);
+        return lowerOrigin.Y - (upperOrigin.Y + upper.ActualHeight);
+    }
+
+    private static double HorizontalCentre(
+        FrameworkElement element,
+        UIElement root)
+    {
+        Windows.Foundation.Point origin = element.TransformToVisual(root)
+            .TransformPoint(default);
+        return origin.X + (element.ActualWidth / 2d);
+    }
+
+    private static void AssertElementContained(
+        FrameworkElement element,
+        FrameworkElement container,
+        string context)
+    {
+        Windows.Foundation.Point origin = element.TransformToVisual(container)
+            .TransformPoint(default);
+        Assert.IsTrue(origin.X >= -0.01d && origin.Y >= -0.01d,
+            $"{context} begins inside its result card");
+        Assert.IsTrue(
+            origin.X + element.ActualWidth <= container.ActualWidth + 0.01d &&
+            origin.Y + element.ActualHeight <= container.ActualHeight + 0.01d,
+            $"{context} ends inside its result card");
+    }
 
     private static void AssertActionStyle(
         InspectionActionCard control,
