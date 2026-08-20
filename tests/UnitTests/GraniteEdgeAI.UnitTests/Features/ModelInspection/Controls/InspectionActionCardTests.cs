@@ -19,12 +19,14 @@ public sealed class InspectionActionCardTests
     [TestCategory("WinUI")]
     public async Task ResultActions_KeepApprovedSlotOrderAndTargetSizes()
     {
+        InspectionActionCardPresentation presentation =
+            CreateResultPresentation();
         var control = new InspectionActionCard
         {
             Width = 840,
             HorizontalAlignment = HorizontalAlignment.Left,
             VerticalAlignment = VerticalAlignment.Top,
-            Presentation = CreateResultPresentation()
+            Presentation = presentation
         };
         var loaded = new TaskCompletionSource<bool>(
             TaskCreationOptions.RunContinuationsAsynchronously);
@@ -50,6 +52,19 @@ public sealed class InspectionActionCardTests
             Assert.AreEqual(46d, secondaryOne.MinHeight, 0.01);
             Assert.AreEqual(46d, secondaryTwo.MinHeight, 0.01);
             Assert.AreEqual(46d, primary.MinHeight, 0.01);
+            AssertActionGeometry(secondaryOne);
+            AssertActionGeometry(secondaryTwo);
+            AssertActionGeometry(primary);
+            AssertSecondaryActionSemantics(secondaryOne);
+            AssertSecondaryActionSemantics(secondaryTwo);
+            AssertPrimaryActionSemantics(primary);
+            AssertActionBinding(
+                secondaryOne,
+                presentation.SecondaryActionOne);
+            AssertActionBinding(
+                secondaryTwo,
+                presentation.SecondaryActionTwo);
+            AssertActionBinding(primary, presentation.PrimaryAction);
             CollectionAssert.AreEqual(
                 new[] { 0, 1, 2 },
                 new[]
@@ -153,6 +168,9 @@ public sealed class InspectionActionCardTests
                 1d,
                 "cancel action is centred in the inspecting card");
             Assert.IsGreaterThanOrEqualTo(44d, cancel.ActualHeight);
+            AssertActionGeometry(cancel);
+            AssertSecondaryActionSemantics(cancel);
+            AssertActionBinding(cancel, page.ActionCard.CancelAction);
             Assert.IsFalse(cancel.IsEnabled);
             Assert.AreEqual(string.Empty, AutomationProperties.GetHelpText(cancel));
             Assert.IsNull(ToolTipService.GetToolTip(cancel));
@@ -226,6 +244,33 @@ public sealed class InspectionActionCardTests
             Assert.AreSame(secondaryOne, control.FindName("SecondaryActionOneHost"));
             Assert.AreSame(secondaryTwo, control.FindName("SecondaryActionTwoHost"));
             Assert.AreSame(primary, control.FindName("PrimaryActionHost"));
+
+            control.Presentation = CreateResultPresentation();
+            await ResizeClientAndWaitAsync(window, control, 260d);
+            Button[] buttons =
+            [
+                FindButton(control, "SecondaryActionOneButton"),
+                FindButton(control, "SecondaryActionTwoButton"),
+                FindButton(control, "PrimaryActionButton")
+            ];
+            foreach (Button button in buttons)
+            {
+                TextBlock label = Assert.IsInstanceOfType<TextBlock>(
+                    button.Content);
+                label.FontSize *= 2d;
+            }
+            control.UpdateLayout();
+            await Task.Yield();
+            control.UpdateLayout();
+
+            AssertVerticalActionLayout(panel, allHosts);
+            Assert.IsTrue(buttons.Any(button =>
+                    button.ActualHeight > button.MinHeight + 1d),
+                "representative 200% labels must grow rather than clip");
+            foreach (Button button in buttons)
+            {
+                AssertButtonContentContained(button);
+            }
         }
         finally
         {
@@ -242,17 +287,22 @@ public sealed class InspectionActionCardTests
             Title = "Next step",
             Message = "Choose what to do next.",
             SecondaryActionOne = visibleCount >= 1
-                ? VisibleAction("Choose another", enabled: true)
+                ? VisibleAction(
+                    "Choose another",
+                    "secondary-one",
+                    enabled: true)
                 : InspectionActionPresentation.Hidden,
             SecondaryActionTwo = visibleCount >= 2
                 ? VisibleAction(
                     "View technical report",
+                    "secondary-two",
                     enabled: false,
                     help: "Coming later")
                 : InspectionActionPresentation.Hidden,
             PrimaryAction = visibleCount >= 3
                 ? VisibleAction(
                     "Check hardware fit",
+                    "primary",
                     enabled: false,
                     help: "Coming later")
                 : InspectionActionPresentation.Hidden
@@ -260,12 +310,16 @@ public sealed class InspectionActionCardTests
 
     private static InspectionActionPresentation VisibleAction(
         string text,
+        string actionId,
         bool enabled,
         string help = "") =>
         new()
         {
             Text = text,
+            Command = PresentationTestData.CreateCommand(enabled),
+            CommandParameter = $"{actionId}-parameter",
             AutomationName = text,
+            ActionId = actionId,
             AutomationHelpText = help,
             IsEnabled = enabled,
             Visibility = Visibility.Visible
@@ -293,6 +347,102 @@ public sealed class InspectionActionCardTests
 
     private static Button FindButton(InspectionActionCard control, string name) =>
         (Button)control.FindName(name);
+
+    private static void AssertActionGeometry(Button button)
+    {
+        CornerRadius expectedCornerRadius =
+            (CornerRadius)Application.Current.Resources[
+                "InspectionActionCornerRadius"];
+        Thickness expectedPadding =
+            (Thickness)Application.Current.Resources[
+                "InspectionActionPadding"];
+
+        Assert.AreEqual(expectedCornerRadius, button.CornerRadius);
+        Assert.AreEqual(new CornerRadius(10d), button.CornerRadius);
+        Assert.AreEqual(expectedPadding, button.Padding);
+        Assert.AreEqual(new Thickness(18d, 10d, 18d, 10d), button.Padding);
+        Assert.IsGreaterThanOrEqualTo(44d, button.MinHeight);
+    }
+
+    private static void AssertSecondaryActionSemantics(Button button)
+    {
+        AssertUsesResource(
+            "InspectionSurfaceBrush",
+            button.Background,
+            $"{button.Name} secondary background");
+        AssertUsesResource(
+            "InspectionBorderControlBrush",
+            button.BorderBrush,
+            $"{button.Name} secondary border");
+        AssertUsesResource(
+            "InspectionTextSecondaryStrongBrush",
+            button.Foreground,
+            $"{button.Name} secondary foreground");
+    }
+
+    private static void AssertPrimaryActionSemantics(Button button)
+    {
+        AssertUsesResource(
+            "InspectionPrimaryBlueBrush",
+            button.Background,
+            "primary background");
+        AssertUsesResource(
+            "InspectionPrimaryBlueBrush",
+            button.BorderBrush,
+            "primary border");
+        AssertUsesResource(
+            "InspectionSurfaceBrush",
+            button.Foreground,
+            "primary foreground");
+    }
+
+    private static void AssertUsesResource(
+        string resourceKey,
+        object? actual,
+        string message)
+    {
+        Assert.AreSame(
+            Application.Current.Resources[resourceKey],
+            actual,
+            message);
+    }
+
+    private static void AssertActionBinding(
+        Button button,
+        InspectionActionPresentation presentation)
+    {
+        Assert.AreSame(presentation.Command, button.Command);
+        Assert.AreEqual(
+            presentation.CommandParameter,
+            button.CommandParameter);
+        Assert.AreEqual(presentation.ActionId, button.Tag);
+        Assert.AreEqual(presentation.IsEnabled, button.IsEnabled);
+        Assert.AreEqual(presentation.Visibility, button.Visibility);
+        Assert.AreEqual(
+            presentation.AutomationName,
+            AutomationProperties.GetName(button));
+        Assert.AreEqual(
+            presentation.AutomationHelpText,
+            AutomationProperties.GetHelpText(button));
+    }
+
+    private static void AssertButtonContentContained(Button button)
+    {
+        TextBlock label = Assert.IsInstanceOfType<TextBlock>(button.Content);
+        Windows.Foundation.Point origin = label.TransformToVisual(button)
+            .TransformPoint(default);
+
+        Assert.IsGreaterThanOrEqualTo(0d, origin.X);
+        Assert.IsGreaterThanOrEqualTo(0d, origin.Y);
+        Assert.IsLessThanOrEqualTo(
+            button.ActualWidth,
+            origin.X + label.ActualWidth,
+            $"{button.Name} doubled label horizontal containment");
+        Assert.IsLessThanOrEqualTo(
+            button.ActualHeight,
+            origin.Y + label.ActualHeight,
+            $"{button.Name} doubled label vertical containment");
+    }
 
     private static void AssertHostGridPosition(
         FrameworkElement host,
@@ -356,10 +506,19 @@ public sealed class InspectionActionCardTests
         FrameworkElement panel,
         FrameworkElement[] visible)
     {
+        double previousBottom = 0d;
         for (int index = 0; index < visible.Length; index++)
         {
             AssertHostGridPosition(visible[index], row: index, column: 0, span: 3);
             Assert.IsGreaterThan(panel.ActualWidth * 0.9d, visible[index].ActualWidth);
+            Windows.Foundation.Point origin = visible[index]
+                .TransformToVisual(panel)
+                .TransformPoint(default);
+            Assert.IsGreaterThanOrEqualTo(
+                previousBottom,
+                origin.Y,
+                $"compact action {index} must not overlap its predecessor");
+            previousBottom = origin.Y + visible[index].ActualHeight;
         }
 
         Assert.AreEqual(
