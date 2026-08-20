@@ -12,8 +12,16 @@ public sealed class GgufChatVisualContractTests
         "GgufChatPrimaryHoverBrush",
         "GgufChatPrimaryPressedBrush",
         "GgufChatPrimaryForegroundBrush",
+        "GgufChatPrimaryHoverForegroundBrush",
+        "GgufChatPrimaryPressedForegroundBrush",
+        "GgufChatPrimaryDisabledBrush",
+        "GgufChatPrimaryDisabledForegroundBrush",
+        "GgufChatPrimaryDisabledBorderBrush",
         "GgufChatPanelBorderBrush",
         "GgufChatSecondarySurfaceBrush",
+        "GgufChatSecondaryDisabledSurfaceBrush",
+        "GgufChatSecondaryDisabledTextBrush",
+        "GgufChatSecondaryDisabledBorderBrush",
         "GgufChatFocusBrush",
         "GgufChatHistoryHoverBrush",
         "GgufChatSurfaceBrush",
@@ -27,6 +35,14 @@ public sealed class GgufChatVisualContractTests
         "Pressed",
         "Disabled",
         "Focused",
+    ];
+
+    private static readonly (string State, string Background, string Foreground, string Border)[] PrimaryStateResourcePairs =
+    [
+        ("Normal", "GgufChatPrimaryGradientBrush", "GgufChatPrimaryForegroundBrush", "GgufChatPrimaryBrush"),
+        ("PointerOver", "GgufChatPrimaryHoverBrush", "GgufChatPrimaryHoverForegroundBrush", "GgufChatPrimaryHoverBrush"),
+        ("Pressed", "GgufChatPrimaryPressedBrush", "GgufChatPrimaryPressedForegroundBrush", "GgufChatPrimaryPressedBrush"),
+        ("Disabled", "GgufChatPrimaryDisabledBrush", "GgufChatPrimaryDisabledForegroundBrush", "GgufChatPrimaryDisabledBorderBrush"),
     ];
 
     [TestMethod]
@@ -119,6 +135,89 @@ public sealed class GgufChatVisualContractTests
         StringAssert.Contains(
             foregroundSetter.Attribute("Value")?.Value,
             "GgufChatPrimaryForegroundBrush");
+    }
+
+    [TestMethod]
+    public void ChatThemePrimaryButtonsMeetContrastAndHighContrastTemplateContracts()
+    {
+        string root = FindRepositoryRoot();
+        XNamespace presentation =
+            "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
+        XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
+        XDocument theme = XDocument.Load(Path.Combine(
+            root,
+            "IBM Granite with TurboQuant (Intel)",
+            "Features",
+            "GgufRuntime",
+            "Presentation",
+            "GgufChatTheme.xaml"));
+
+        XElement primaryButtonStyle = AssertRootResource(theme, x, "GgufChatPrimaryButtonStyle");
+        foreach ((string stateName, string backgroundKey, string foregroundKey, string borderKey)
+                 in PrimaryStateResourcePairs)
+        {
+            AssertPrimaryStateUsesResources(
+                primaryButtonStyle,
+                presentation,
+                x,
+                stateName,
+                backgroundKey,
+                foregroundKey,
+                borderKey);
+        }
+
+        foreach (string themeKey in new[] { "Light", "Dark" })
+        {
+            XElement themeDictionary = GetThemeDictionary(theme, presentation, x, themeKey);
+            foreach ((_, string backgroundKey, string foregroundKey, _) in PrimaryStateResourcePairs)
+            {
+                XElement background = AssertThemeResource(
+                    themeDictionary,
+                    x,
+                    backgroundKey,
+                    themeKey);
+                XElement foreground = AssertThemeResource(
+                    themeDictionary,
+                    x,
+                    foregroundKey,
+                    themeKey);
+                AssertPrimaryContrast(background, foreground, themeKey, backgroundKey);
+            }
+        }
+
+        foreach (string styleKey in new[]
+                 {
+                     "GgufChatPrimaryButtonStyle",
+                     "GgufChatSecondaryButtonStyle",
+                 })
+        {
+            XElement style = AssertRootResource(theme, x, styleKey);
+            XElement contentPresenter = style.Descendants(presentation + "ContentPresenter")
+                .Single();
+            Assert.AreEqual(
+                "{TemplateBinding Foreground}",
+                contentPresenter.Attribute("Foreground")?.Value);
+            Assert.AreEqual(
+                "Raw",
+                contentPresenter.Attribute("AutomationProperties.AccessibilityView")?.Value);
+        }
+
+        XElement highContrast = GetThemeDictionary(theme, presentation, x, "HighContrast");
+        foreach (string styleKey in new[]
+                 {
+                     "GgufChatPrimaryButtonStyle",
+                     "GgufChatSecondaryButtonStyle",
+                 })
+        {
+            XElement highContrastStyle = AssertThemeResource(highContrast, x, styleKey, "HighContrast");
+            Assert.AreEqual("{StaticResource DefaultButtonStyle}", highContrastStyle.Attribute("BasedOn")?.Value);
+            Assert.IsFalse(
+                highContrastStyle.Descendants(presentation + "Setter")
+                    .Any(setter => setter.Attribute("Target")?.Value?.EndsWith(
+                        ".Opacity",
+                        StringComparison.Ordinal) == true),
+                "High Contrast must inherit the system disabled visuals instead of applying opacity.");
+        }
     }
 
     [TestMethod]
@@ -284,4 +383,94 @@ public sealed class GgufChatVisualContractTests
                         or "RootBorder.BorderBrush"),
             $"The '{stateName}' visual state must change the control surface.");
     }
+
+    private static void AssertPrimaryContrast(
+        XElement background,
+        XElement foreground,
+        string themeKey,
+        string backgroundKey)
+    {
+        IEnumerable<string?> backgroundColors = background.Name.LocalName == "LinearGradientBrush"
+            ? background.Elements().Select(stop => stop.Attribute("Color")?.Value)
+            : [background.Attribute("Color")?.Value];
+        string foregroundColor = foreground.Attribute("Color")?.Value
+            ?? throw new AssertFailedException("Primary foreground must use a static colour.");
+
+        foreach (string? backgroundColor in backgroundColors)
+        {
+            Assert.IsNotNull(backgroundColor, "Primary backgrounds must specify a colour.");
+            double ratio = ContrastRatio(backgroundColor!, foregroundColor);
+            Assert.IsTrue(
+                ratio >= 4.5,
+                $"{themeKey} {backgroundKey} contrast is {ratio:F2}:1; expected at least 4.5:1.");
+        }
+    }
+
+    private static void AssertPrimaryStateUsesResources(
+        XElement style,
+        XNamespace presentation,
+        XNamespace x,
+        string stateName,
+        string backgroundKey,
+        string foregroundKey,
+        string borderKey)
+    {
+        XElement state = style.Descendants(presentation + "VisualState")
+            .Single(element => element.Attribute(x + "Name")?.Value == stateName);
+        AssertStateSetterUsesThemeResource(
+            state,
+            presentation,
+            "RootBorder.Background",
+            backgroundKey);
+        AssertStateSetterUsesThemeResource(
+            state,
+            presentation,
+            "ContentPresenter.Foreground",
+            foregroundKey);
+        AssertStateSetterUsesThemeResource(
+            state,
+            presentation,
+            "RootBorder.BorderBrush",
+            borderKey);
+    }
+
+    private static void AssertStateSetterUsesThemeResource(
+        XElement state,
+        XNamespace presentation,
+        string target,
+        string resourceKey)
+    {
+        XElement setter = state.Descendants(presentation + "Setter")
+            .Single(element => element.Attribute("Target")?.Value == target);
+        Assert.AreEqual(
+            $"{{ThemeResource {resourceKey}}}",
+            setter.Attribute("Value")?.Value,
+            $"{target} must use the {resourceKey} resource.");
+    }
+
+    private static double ContrastRatio(string firstColor, string secondColor)
+    {
+        double firstLuminance = RelativeLuminance(firstColor);
+        double secondLuminance = RelativeLuminance(secondColor);
+        return (Math.Max(firstLuminance, secondLuminance) + 0.05)
+            / (Math.Min(firstLuminance, secondLuminance) + 0.05);
+    }
+
+    private static double RelativeLuminance(string color)
+    {
+        string hex = color.TrimStart('#');
+        if (hex.Length == 8)
+        {
+            hex = hex[2..];
+        }
+
+        Assert.AreEqual(6, hex.Length, $"'{color}' must be an RGB hex colour.");
+        return (0.2126 * Linearize(Convert.ToByte(hex[..2], 16) / 255d))
+            + (0.7152 * Linearize(Convert.ToByte(hex.Substring(2, 2), 16) / 255d))
+            + (0.0722 * Linearize(Convert.ToByte(hex.Substring(4, 2), 16) / 255d));
+    }
+
+    private static double Linearize(double channel) => channel <= 0.04045
+        ? channel / 12.92
+        : Math.Pow((channel + 0.055) / 1.055, 2.4);
 }
