@@ -1,6 +1,9 @@
 ﻿<!-- IXN-EVIDENCE-STRUCTURE: GENERATED -->
 # Work-Package Evidence Map
 
+> [!WARNING]
+> **Historical snapshot — not a current status ledger.** This file was created on 2026-07-13 by commit `3bdfb03d` from the pre-reconciliation evidence structure. The repository contains no reproducible source or generator for this marked generated file, so its rows have not been silently hand-repaired. Current status is authoritative only in the [generated Active Task Catalogue](../../traceability/generated/Active-Task-Catalogue.md) and [task catalogue JSON](../../traceability/data/task-catalogue.json), regenerated on 2026-08-21 from the controlled RTM. In particular, `TV-01` is **Verified**; see its [current evidence record](TV-01/README.md).
+
 > Work packages should point to the same controlled requirement/test/experiment artefacts rather than copying evidence into multiple folders.
 
 | WP | Phase | Work package | Definition of Done | Expected evidence output | Status |

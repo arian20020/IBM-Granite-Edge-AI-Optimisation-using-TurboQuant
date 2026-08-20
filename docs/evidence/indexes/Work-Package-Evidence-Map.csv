@@ -8,7 +8,7 @@ PD-06,P0,P0,Architecture views and ADRs,Context/component/process/deployment vie
 PD-07,P0,P0,Application contracts/states/diagnostics,Stable data/state/error contracts support independent UI and service work.,Schemas/contracts,Not Started,0,Ch. 5/6
 PD-08,P0,P0,Repository/test/evidence preparation,Clean build/test and evidence structure exist.,Build log/repo tree,In Progress,0.25,Ch. 3/6/7
 PD-09,P0,P1,App-specific evaluation addendum,Remaining experiments map to RQs and frozen evidence schemas.,Evaluation matrix,In Progress,0.25,Ch. 4
-PD-10,P0,P1,TurboVec and LLM Fit decision,Both items have explicit Implement/Defer decisions.,Scope ADR,In Progress,0.25,Ch. 1/3/9
+PD-10,P0,P1,TurboVec and LLM Fit decision,Both items have explicit Implement/Defer decisions.,Scope ADR,In Progress,0.5,Ch. 1/3/9
 IM-01,P1,P0,Finish existing ModelImportPage layout/navigation,Page launches and matches the core import workflow.,Screenshots/commit,In Progress,0.25,Ch. 6
 IM-02,P1,P0,ViewModel + file/folder picker,Real file/folder selection produces a testable state object.,Tests/screenshots,Not Started,0,Ch. 6/7
 IM-03,P1,P0,"Drag/drop, validation, progress/cancel",Input edge cases and cancellation recover safely.,Failure tests,Not Started,0,Ch. 6/7
@@ -44,7 +44,7 @@ FR-05,P6,P0,Release freeze/evidence audit,"Tag, backups, final status and eviden
 DL-01,P1,P0,Freeze approved model catalogue/source/licence/hash manifest,"At least one model has approved source, licence, revision, expected size, SHA-256 and destination policy.",Approved model manifest,Not Started,0,Ch. 3/6
 DL-02,P1,P0,Implement model download/progress/cancel/disk/hash service,"Approved model downloads safely; partials cannot pass; progress, cancellation, disk and SHA-256 checks work.",Download tests/logs,Not Started,0,Ch. 6
 DL-03,P1,P0,Download-to-inspection end-to-end and failure tests,Verified download enters inspection; interrupted/corrupt/low-disk cases are handled and evidenced.,E2E evidence,Not Started,0,Ch. 6/7
-TV-01,P0,P0,Identify and pin exact TurboVec implementation and contract,Repository/version/licence/platform/input/output/vector/retrieval contract and go/no-go are recorded.,TurboVec ADR/contract,In Progress,0.25,Ch. 3/5
+TV-01,P0,P0,Identify and pin exact TurboVec implementation and contract,Repository/version/licence/platform/input/output/vector/retrieval contract and go/no-go are recorded.,docs/evidence/work-packages/TV-01/README.md,Verified,1,Ch. 3/5
 TV-02,P4,P0,"Knowledge-file import, text extraction, chunking and embedding baseline","One supported file is preserved, extracted, chunked and embedded into a versioned uncompressed baseline.",Baseline artefacts/tests,Not Started,0,Ch. 6/8
 TV-03,P4,P0,TurboVec vector compression/index/retrieval integration,"Compressed/optimised vectors are produced, indexed and queried with exact versions and evidence.",TurboVec adapter/results,Not Started,0,Ch. 6/8
 TV-04,P4,P0,Granite retrieval-chat integration and matched TurboVec evaluation,Retrieved sections feed Granite chat and compressed/uncompressed routes are compared on fixed queries.,EXP-TV-COMP-001,Not Started,0,Ch. 8/9
