@@ -75,7 +75,7 @@ public sealed class HardwareInspectionDetailsSummaryTests
         Assert.IsFalse(((Expander)card.FindName("TechnicalExpander")).IsExpanded);
     }
 
-    private static HardwareInspectionDetailsState CreateDetails()
+    internal static HardwareInspectionDetailsState CreateDetails()
     {
         HardwareInspectionDetailRow[] rows = Enum.GetValues<HardwareInspectionStage>()
             .Select(stage => new HardwareInspectionDetailRow(
