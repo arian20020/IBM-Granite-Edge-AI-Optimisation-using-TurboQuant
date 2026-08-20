@@ -66,4 +66,16 @@ public sealed class ModelSelectionOperationTests
         Assert.IsTrue(token.IsCancellationRequested);
         operation.Retire();
     }
+
+    [TestMethod]
+    public void Dispose_IsIdempotent()
+    {
+        var operation = new ModelSelectionOperation();
+        CancellationToken token = operation.Token;
+
+        operation.Dispose();
+        operation.Dispose();
+
+        Assert.IsTrue(token.IsCancellationRequested);
+    }
 }
