@@ -45,6 +45,20 @@ public sealed class KnowledgeAttachmentPolicyTests
     }
 
     [TestMethod]
+    public void Validate_RejectsExtendedPathsContainingDotSegments()
+    {
+        KnowledgeAttachmentValidationResult result = KnowledgeAttachmentPolicy.Validate(
+            new[]
+            {
+                Candidate(@"\\?\C:\Knowledge\docs\..\guide.txt", 12),
+                Candidate(@"\\?\UNC\server\share\docs\..\notes.md", 12)
+            },
+            Array.Empty<KnowledgeAttachment>());
+
+        AssertRejectionCodes(result, "attachment-invalid", "attachment-invalid");
+    }
+
+    [TestMethod]
     public void Validate_RejectsUnsupportedExtensionUsingOnlyFileName()
     {
         KnowledgeAttachmentValidationResult result = KnowledgeAttachmentPolicy.Validate(
@@ -72,6 +86,66 @@ public sealed class KnowledgeAttachmentPolicyTests
             new[] { new KnowledgeAttachment(@"C:\Knowledge\guide.txt") });
 
         AssertSingleRejection(result, "attachment-duplicate", "guide.txt");
+    }
+
+    [TestMethod]
+    public void Validate_DeduplicatesOrdinaryAndExtendedDrivePathsAgainstExistingAttachments()
+    {
+        AssertSingleRejection(
+            KnowledgeAttachmentPolicy.Validate(
+                new[] { Candidate(@"\\?\c:\Knowledge\guide.txt", 12) },
+                new[] { new KnowledgeAttachment(@"C:\Knowledge\GUIDE.TXT") }),
+            "attachment-duplicate",
+            "guide.txt");
+        AssertSingleRejection(
+            KnowledgeAttachmentPolicy.Validate(
+                new[] { Candidate(@"c:\knowledge\guide.txt", 12) },
+                new[] { new KnowledgeAttachment(@"\\?\C:\Knowledge\GUIDE.TXT") }),
+            "attachment-duplicate",
+            "guide.txt");
+    }
+
+    [TestMethod]
+    public void Validate_DeduplicatesOrdinaryAndExtendedDrivePathsWithinBatch()
+    {
+        AssertWithinBatchDuplicate(
+            @"C:\Knowledge\guide.txt",
+            @"\\?\c:\knowledge\GUIDE.TXT",
+            "GUIDE.TXT");
+        AssertWithinBatchDuplicate(
+            @"\\?\C:\Knowledge\guide.txt",
+            @"c:\knowledge\GUIDE.TXT",
+            "GUIDE.TXT");
+    }
+
+    [TestMethod]
+    public void Validate_DeduplicatesOrdinaryAndExtendedUncPathsAgainstExistingAttachments()
+    {
+        AssertSingleRejection(
+            KnowledgeAttachmentPolicy.Validate(
+                new[] { Candidate(@"\\?\UNC\server\share\guide.txt", 12) },
+                new[] { new KnowledgeAttachment(@"\\SERVER\SHARE\GUIDE.TXT") }),
+            "attachment-duplicate",
+            "guide.txt");
+        AssertSingleRejection(
+            KnowledgeAttachmentPolicy.Validate(
+                new[] { Candidate(@"\\server\share\guide.txt", 12) },
+                new[] { new KnowledgeAttachment(@"\\?\UNC\SERVER\SHARE\GUIDE.TXT") }),
+            "attachment-duplicate",
+            "guide.txt");
+    }
+
+    [TestMethod]
+    public void Validate_DeduplicatesOrdinaryAndExtendedUncPathsWithinBatch()
+    {
+        AssertWithinBatchDuplicate(
+            @"\\server\share\guide.txt",
+            @"\\?\UNC\SERVER\SHARE\GUIDE.TXT",
+            "GUIDE.TXT");
+        AssertWithinBatchDuplicate(
+            @"\\?\UNC\server\share\guide.txt",
+            @"\\SERVER\SHARE\GUIDE.TXT",
+            "GUIDE.TXT");
     }
 
     [TestMethod]
@@ -230,6 +304,69 @@ public sealed class KnowledgeAttachmentPolicyTests
     }
 
     [TestMethod]
+    public void Validate_RejectsDeviceAndGlobalRootNamespaces()
+    {
+        KnowledgeAttachmentValidationResult result = KnowledgeAttachmentPolicy.Validate(
+            new[]
+            {
+                Candidate(@"\\.\pipe\secret.txt", 12),
+                Candidate(@"\\.\PhysicalDrive0.txt", 12),
+                Candidate(@"\\?\GLOBALROOT\Device\HarddiskVolume1\secret.txt", 12),
+                Candidate(@"\\?\Volume{00000000-0000-0000-0000-000000000000}\secret.txt", 12),
+                Candidate(@"\\?\Device\HarddiskVolume1\secret.txt", 12),
+                Candidate(@"\\?\UNC\.\pipe\secret.txt", 12),
+                Candidate(@"\\?\UNC\.\PhysicalDrive0.txt", 12)
+            },
+            Array.Empty<KnowledgeAttachment>());
+
+        AssertRejectionCodes(
+            result,
+            "attachment-invalid",
+            "attachment-invalid",
+            "attachment-invalid",
+            "attachment-invalid",
+            "attachment-invalid",
+            "attachment-invalid",
+            "attachment-invalid");
+    }
+
+    [TestMethod]
+    public void Validate_DoesNotExposeMalformedUncRootNames()
+    {
+        KnowledgeAttachmentValidationResult result = KnowledgeAttachmentPolicy.Validate(
+            new[]
+            {
+                Candidate(@"\\private-server", 12),
+                Candidate(@"\\server\secret-share", 12),
+                Candidate(@"\\?\UNC\private-server", 12),
+                Candidate(@"\\?\UNC\server\secret-share", 12)
+            },
+            Array.Empty<KnowledgeAttachment>());
+
+        AssertRejectionCodes(
+            result,
+            "attachment-invalid",
+            "attachment-invalid",
+            "attachment-invalid",
+            "attachment-invalid");
+        Assert.IsTrue(result.Rejections.All(rejection => rejection.FileName == string.Empty));
+    }
+
+    [TestMethod]
+    public void Validate_TreatsNullSelectedAndExistingListsAsEmpty()
+    {
+        KnowledgeAttachmentValidationResult noLists = KnowledgeAttachmentPolicy.Validate(null, null);
+        KnowledgeAttachmentValidationResult noExisting = KnowledgeAttachmentPolicy.Validate(
+            new[] { Candidate(@"C:\Knowledge\guide.txt", 12) },
+            null);
+
+        Assert.AreEqual(0, noLists.Accepted.Count);
+        Assert.AreEqual(0, noLists.Rejections.Count);
+        Assert.AreEqual(1, noExisting.Accepted.Count);
+        Assert.AreEqual(0, noExisting.Rejections.Count);
+    }
+
+    [TestMethod]
     public void Validate_UsesPrivacySafeLeafNamesForEveryRejection()
     {
         string unsupportedPath = @"C:\Private\unsupported.pdf";
@@ -363,6 +500,21 @@ public sealed class KnowledgeAttachmentPolicyTests
         CollectionAssert.AreEqual(
             expectedCodes,
             result.Rejections.Select(rejection => rejection.Code).ToArray());
+    }
+
+    private static void AssertWithinBatchDuplicate(
+        string firstPath,
+        string secondPath,
+        string secondFileName)
+    {
+        KnowledgeAttachmentValidationResult result = KnowledgeAttachmentPolicy.Validate(
+            new[] { Candidate(firstPath, 12), Candidate(secondPath, 12) },
+            Array.Empty<KnowledgeAttachment>());
+
+        Assert.AreEqual(1, result.Accepted.Count);
+        Assert.AreEqual(1, result.Rejections.Count);
+        Assert.AreEqual("attachment-duplicate", result.Rejections[0].Code);
+        Assert.AreEqual(secondFileName, result.Rejections[0].FileName);
     }
 
     private static void AssertSingleRejection(

@@ -12,14 +12,16 @@ internal static class KnowledgeAttachmentPolicy
     private const int MaximumSafeFileNameLength = 255;
     private const string ExtendedPathPrefix = "\\\\?\\";
     private const string ExtendedUncPathPrefix = "\\\\?\\UNC\\";
+    private const string DevicePathPrefix = "\\\\.\\";
 
     internal static KnowledgeAttachmentValidationResult Validate(
-        IReadOnlyList<KnowledgeFileCandidate> selected,
-        IReadOnlyList<KnowledgeAttachment> existing)
+        IReadOnlyList<KnowledgeFileCandidate>? selected,
+        IReadOnlyList<KnowledgeAttachment>? existing)
     {
         var accepted = new List<KnowledgeAttachment>();
         var rejections = new List<KnowledgeAttachmentRejection>();
         var knownPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        int existingCount = existing?.Count ?? 0;
 
         AddExistingPaths(existing, knownPaths);
 
@@ -60,7 +62,7 @@ internal static class KnowledgeAttachmentPolicy
             {
                 rejections.Add(new KnowledgeAttachmentRejection("attachment-too-large", fileName));
             }
-            else if (existing.Count + accepted.Count >= MaximumAttachmentCount)
+            else if (existingCount + accepted.Count >= MaximumAttachmentCount)
             {
                 rejections.Add(new KnowledgeAttachmentRejection("attachment-count-exceeded", fileName));
             }
@@ -74,7 +76,7 @@ internal static class KnowledgeAttachmentPolicy
     }
 
     private static void AddExistingPaths(
-        IReadOnlyList<KnowledgeAttachment> existing,
+        IReadOnlyList<KnowledgeAttachment>? existing,
         ISet<string> knownPaths)
     {
         if (existing is null)
@@ -113,25 +115,28 @@ internal static class KnowledgeAttachmentPolicy
         {
             if (path.IndexOfAny(Path.GetInvalidPathChars()) >= 0 ||
                 !Path.IsPathFullyQualified(path) ||
-                Path.EndsInDirectorySeparator(path))
+                Path.EndsInDirectorySeparator(path) ||
+                !TryGetAttachmentPathKind(path, out AttachmentPathKind pathKind) ||
+                ContainsExtendedDotSegment(path, pathKind))
             {
                 return false;
             }
 
-            normalizedPath = Path.GetFullPath(path);
-            string? root = Path.GetPathRoot(normalizedPath);
+            string fullPath = Path.GetFullPath(path);
+            string? root = Path.GetPathRoot(fullPath);
             fileName = Path.GetFileName(path);
 
             if (string.IsNullOrWhiteSpace(fileName) ||
                 fileName is "." or ".." ||
-                IsRootPath(normalizedPath, root) ||
-                ContainsInvalidFileNameCharacter(path))
+                IsRootPath(fullPath, root) ||
+                ContainsInvalidFileNameCharacter(path, pathKind))
             {
                 fileName = string.Empty;
                 normalizedPath = string.Empty;
                 return false;
             }
 
+            normalizedPath = NormalizeAttachmentPathKey(fullPath);
             return true;
         }
         catch (ArgumentException)
@@ -161,9 +166,47 @@ internal static class KnowledgeAttachmentPolicy
             Path.TrimEndingDirectorySeparator(root),
             StringComparison.OrdinalIgnoreCase);
 
-    private static bool ContainsInvalidFileNameCharacter(string path)
+    private static bool TryGetAttachmentPathKind(string path, out AttachmentPathKind pathKind)
     {
-        int start = GetPathSegmentStart(path);
+        if (path.StartsWith(ExtendedUncPathPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            pathKind = AttachmentPathKind.ExtendedUnc;
+            return HasUncServerShareAndLeaf(path, ExtendedUncPathPrefix.Length);
+        }
+
+        if (path.StartsWith(ExtendedPathPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            pathKind = AttachmentPathKind.ExtendedDrive;
+            return HasDriveRoot(path, ExtendedPathPrefix.Length);
+        }
+
+        if (path.StartsWith(DevicePathPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            pathKind = default;
+            return false;
+        }
+
+        if (path.StartsWith("\\\\", StringComparison.Ordinal))
+        {
+            pathKind = AttachmentPathKind.Unc;
+            return HasUncServerShareAndLeaf(path, 2);
+        }
+
+        pathKind = AttachmentPathKind.Drive;
+        return HasDriveRoot(path, 0);
+    }
+
+    private static bool HasDriveRoot(string path, int start) =>
+        path.Length > start + 3 &&
+        HasDrivePrefix(path[start..]) &&
+        IsDirectorySeparator(path[start + 2]);
+
+    private static bool HasUncServerShareAndLeaf(string path, int start) =>
+        path[start..].Split(new[] { '\\', '/' }, StringSplitOptions.RemoveEmptyEntries).Length >= 3;
+
+    private static bool ContainsInvalidFileNameCharacter(string path, AttachmentPathKind pathKind)
+    {
+        int start = GetPathSegmentStart(pathKind);
         char[] invalidFileNameCharacters = Path.GetInvalidFileNameChars();
 
         foreach (string segment in path[start..].Split(new[] { '\\', '/' }, StringSplitOptions.RemoveEmptyEntries))
@@ -177,9 +220,44 @@ internal static class KnowledgeAttachmentPolicy
         return false;
     }
 
+    private static bool ContainsExtendedDotSegment(string path, AttachmentPathKind pathKind)
+    {
+        if (pathKind is not AttachmentPathKind.ExtendedDrive and not AttachmentPathKind.ExtendedUnc)
+        {
+            return false;
+        }
+
+        foreach (string segment in path[GetPathSegmentStart(pathKind)..]
+                     .Split(new[] { '\\', '/' }, StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (segment is "." or "..")
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static string NormalizeAttachmentPathKey(string normalizedPath)
+    {
+        if (normalizedPath.StartsWith(ExtendedUncPathPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return "\\\\" + normalizedPath[ExtendedUncPathPrefix.Length..];
+        }
+
+        if (normalizedPath.StartsWith(ExtendedPathPrefix, StringComparison.OrdinalIgnoreCase) &&
+            HasDrivePrefix(normalizedPath[ExtendedPathPrefix.Length..]))
+        {
+            return normalizedPath[ExtendedPathPrefix.Length..];
+        }
+
+        return normalizedPath;
+    }
+
     private static string GetSafeFileName(string? path)
     {
-        if (string.IsNullOrWhiteSpace(path))
+        if (string.IsNullOrWhiteSpace(path) || IsUncRootWithoutLeaf(path))
         {
             return string.Empty;
         }
@@ -212,19 +290,42 @@ internal static class KnowledgeAttachmentPolicy
     private static bool HasDrivePrefix(string path) =>
         path.Length >= 2 && char.IsAsciiLetter(path[0]) && path[1] == ':';
 
-    private static int GetPathSegmentStart(string path)
+    private static bool IsDirectorySeparator(char character) => character is '\\' or '/';
+
+    private static bool IsUncRootWithoutLeaf(string path)
     {
+        int start;
         if (path.StartsWith(ExtendedUncPathPrefix, StringComparison.OrdinalIgnoreCase))
         {
-            return ExtendedUncPathPrefix.Length;
+            start = ExtendedUncPathPrefix.Length;
         }
-
-        if (path.StartsWith(ExtendedPathPrefix, StringComparison.OrdinalIgnoreCase))
+        else if (path.StartsWith("\\\\", StringComparison.Ordinal) &&
+                 !path.StartsWith(ExtendedPathPrefix, StringComparison.OrdinalIgnoreCase))
         {
-            int prefixLength = ExtendedPathPrefix.Length;
-            return HasDrivePrefix(path[prefixLength..]) ? prefixLength + 2 : prefixLength;
+            start = 2;
+        }
+        else
+        {
+            return false;
         }
 
-        return HasDrivePrefix(path) ? 2 : 0;
+        return path[start..].Split(new[] { '\\', '/' }, StringSplitOptions.RemoveEmptyEntries).Length <= 2;
+    }
+
+    private static int GetPathSegmentStart(AttachmentPathKind pathKind) => pathKind switch
+    {
+        AttachmentPathKind.Drive => 2,
+        AttachmentPathKind.Unc => 2,
+        AttachmentPathKind.ExtendedDrive => ExtendedPathPrefix.Length + 2,
+        AttachmentPathKind.ExtendedUnc => ExtendedUncPathPrefix.Length,
+        _ => 0
+    };
+
+    private enum AttachmentPathKind
+    {
+        Drive,
+        Unc,
+        ExtendedDrive,
+        ExtendedUnc
     }
 }
