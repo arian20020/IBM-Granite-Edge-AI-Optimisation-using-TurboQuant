@@ -1,0 +1,98 @@
+name: Workbook 05 C1 one-shot dispatcher
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workbook05-c1-live-trigger.json'
+
+# The temporary dispatcher can start an existing workflow, but it cannot write
+# repository contents or receive any broader repository authority.
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: workbook-05-c1-one-shot-dispatch
+  cancel-in-progress: false
+
+jobs:
+  dispatch-live-c1:
+    name: Dispatch exact live C1 asset lock
+    if: >-
+      github.repository == 'arian20020/IBM-Granite-Edge-AI-Optimisation-using-TurboQuant'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      # Read only the immutable trigger record and enough Git history to verify
+      # that this commit was integrated directly after the reviewed main head.
+      - name: Check out the exact one-shot authority
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+          sparse-checkout: |
+            .github/workbook05-c1-live-trigger.json
+
+      - name: Validate the exact owner-authorised trigger
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          expected_parent='1dc0a0480f3d8ead58dd6c0430b10aa8a2bb305f'
+          observed_parent="$(git rev-parse HEAD^1)"
+
+          if [[ "${GITHUB_REF}" != 'refs/heads/main' ]]; then
+            echo 'The C1 one-shot dispatcher may run only from main.' >&2
+            exit 1
+          fi
+          if [[ "${observed_parent}" != "${expected_parent}" ]]; then
+            echo 'The one-shot trigger was not merged immediately after the reviewed main head.' >&2
+            exit 1
+          fi
+
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          trigger_path = Path('.github/workbook05-c1-live-trigger.json')
+          observed = json.loads(trigger_path.read_text(encoding='utf-8'))
+          expected = {
+              'schema_version': '1.0',
+              'record_type': 'workbook05-c1-one-shot-dispatch',
+              'repository': (
+                  'arian20020/IBM-Granite-Edge-AI-Optimisation-using-TurboQuant'
+              ),
+              'authorised_main_parent': (
+                  '1dc0a0480f3d8ead58dd6c0430b10aa8a2bb305f'
+              ),
+              'operation': 'live-asset-lock',
+              'confirm_live_asset_lock': True,
+              'accepted_dependency_preflight_sha256': (
+                  '429b90548ce2b4c8463941c5b2983c8ff0cf6cc3ea3865375c8cae78d7193b49'
+              ),
+              'one_time_nonce': 'wb05-c1-live-20260820-a',
+              'owner_authorised': True,
+          }
+          if observed != expected:
+              raise SystemExit('The one-shot C1 trigger record differs from the reviewed authority.')
+          PY
+
+      # Dispatch the existing reviewed workflow.  The temporary control plane
+      # does not perform acquisition, conversion, or evidence validation itself.
+      - name: Dispatch the accepted live C1 operation
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          gh api \
+            --method POST \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/workbook-05-phase3-assets.yml/dispatches" \
+            -f 'ref=main' \
+            -f 'inputs[operation]=live-asset-lock' \
+            -f 'inputs[confirm_live_asset_lock]=true' \
+            -f 'inputs[accepted_dependency_preflight_sha256]=429b90548ce2b4c8463941c5b2983c8ff0cf6cc3ea3865375c8cae78d7193b49'
