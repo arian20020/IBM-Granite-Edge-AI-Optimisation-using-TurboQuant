@@ -1,0 +1,78 @@
+using GraniteEdgeAI.OpenVino.Contracts;
+using GraniteEdgeAI.OpenVino.WorkerClient;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+
+namespace GraniteEdgeAI.OpenVino.WorkerClient.Tests;
+
+[TestClass]
+public sealed class OpenVinoWorkerClientTests
+{
+    private static readonly string[] BoundaryMethods =
+        ["InspectAsync", "StartSessionAsync"];
+
+    [TestMethod]
+    public void PublicBoundaryExposesInspectionAndManagedSessionOperations()
+    {
+        Type boundary = typeof(IOpenVinoWorkerClient);
+
+        CollectionAssert.AreEquivalent(
+            BoundaryMethods,
+            boundary.GetMethods().Select(static method => method.Name).ToArray());
+    }
+
+    [TestMethod]
+    public void ProductionDefaultsEnforceEveryReviewedBound()
+    {
+        OpenVinoWorkerInstallation installation = new(
+            Path.GetFullPath("worker-root"),
+            "OpenVino.Worker.exe",
+            OpenVinoProtocol.OfficialProtocolId);
+
+        OpenVinoWorkerClientOptions options =
+            OpenVinoWorkerClientOptions.CreateDefault(installation);
+
+        Assert.AreEqual(TimeSpan.FromSeconds(5), options.StartupTimeout);
+        Assert.AreEqual(TimeSpan.FromMinutes(10), options.TurnTimeout);
+        Assert.AreEqual(TimeSpan.FromMinutes(5), options.IdleTimeout);
+        Assert.AreEqual(TimeSpan.FromMinutes(60), options.SessionTimeout);
+        Assert.AreEqual(TimeSpan.FromSeconds(5), options.CancellationGrace);
+        Assert.AreEqual(TimeSpan.FromSeconds(5), options.CleanupTimeout);
+        Assert.AreEqual(256 * 1024, options.MaximumRetainedStandardErrorBytes);
+        Assert.AreEqual(OpenVinoProtocol.MaximumLineBytes, options.MaximumLineBytes);
+    }
+
+    [TestMethod]
+    public void InstallationKeepsOfficialAndTurboQuantIdentitiesDistinct()
+    {
+        string root = Path.GetFullPath("worker-root");
+        OpenVinoWorkerInstallation official = new(
+            root,
+            "Official.exe",
+            OpenVinoProtocol.OfficialProtocolId);
+        OpenVinoWorkerInstallation turboQuant = new(
+            root,
+            "TurboQuant.exe",
+            OpenVinoProtocol.TurboQuantProtocolId);
+
+        official.Validate();
+        turboQuant.Validate();
+
+        Assert.AreNotEqual(official.ExpectedProtocolId, turboQuant.ExpectedProtocolId);
+    }
+
+    [TestMethod]
+    public void TestPoliciesMayShortenButCannotRelaxReviewedCeilings()
+    {
+        OpenVinoWorkerInstallation installation = new(
+            Path.GetFullPath("worker-root"),
+            "OpenVino.Worker.exe",
+            OpenVinoProtocol.OfficialProtocolId);
+        OpenVinoWorkerClientOptions relaxed =
+            OpenVinoWorkerClientOptions.CreateDefault(installation) with
+            {
+                TurnTimeout = TimeSpan.FromMinutes(11)
+            };
+
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(relaxed.Validate);
+    }
+}
