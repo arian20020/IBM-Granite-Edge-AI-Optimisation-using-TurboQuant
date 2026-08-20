@@ -601,30 +601,50 @@
             HeaderMinHeight="68"
             Visibility="{x:Bind Presentation.DisclosureVisibility, Mode=OneWay}">
             <local:InspectionDisclosure.HeaderContent>
-                <Grid Padding="23,0,23,0" ColumnSpacing="12">
+                <Grid
+                    x:Name="DisclosureHeaderLayout"
+                    Padding="23,0,23,0"
+                    ColumnSpacing="12">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="22" />
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <Viewbox Width="20" Height="20" VerticalAlignment="Center" Stretch="Uniform" StretchDirection="DownOnly">
+                    <Viewbox
+                        x:Name="DisclosureInformationGlyphHost"
+                        Width="20"
+                        Height="20"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Stretch="Uniform"
+                        StretchDirection="DownOnly">
                         <local:InspectionStatusGlyph
+                            x:Name="DisclosureInformationGlyph"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
                             Kind="{x:Bind local:InspectionContentCard.GetStatusGlyphKind(Presentation.DisclosureStatus), Mode=OneWay}"
                             SurfaceSize="22"
                             Visibility="{x:Bind local:InspectionContentCard.GetStatusGlyphVisibility(Presentation.DisclosureStatus), Mode=OneWay}" />
                     </Viewbox>
                     <TextBlock
+                        x:Name="DisclosureTitleText"
                         Grid.Column="1"
+                        MinWidth="0"
                         VerticalAlignment="Center"
                         Style="{StaticResource ContentPrimaryTextStyle}"
                         Text="{x:Bind Presentation.DisclosureSummary, Mode=OneWay}" />
-                    <TextBlock
-                        x:Name="FindingsDisclosureActionText"
+                    <Grid
+                        x:Name="DisclosureActionText"
                         Grid.Column="2"
                         Margin="12,0,0,0"
-                        VerticalAlignment="Center"
-                        Style="{StaticResource ContentPrimaryTextStyle}"
-                        Text="{x:Bind local:InspectionContentCard.GetDisclosureText(Presentation.CollapsedDisclosureText, Presentation.ExpandedDisclosureText, Presentation.IsExpanded), Mode=OneWay}" />
+                        MinWidth="0"
+                        VerticalAlignment="Center">
+                        <TextBlock
+                            x:Name="FindingsDisclosureActionText"
+                            VerticalAlignment="Center"
+                            Style="{StaticResource ContentPrimaryTextStyle}"
+                            Text="{x:Bind local:InspectionContentCard.GetDisclosureText(Presentation.CollapsedDisclosureText, Presentation.ExpandedDisclosureText, Presentation.IsExpanded), Mode=OneWay}" />
+                    </Grid>
                 </Grid>
             </local:InspectionDisclosure.HeaderContent>
             <local:InspectionDisclosure.ViewportContent>

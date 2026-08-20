@@ -447,23 +447,74 @@ public sealed class InspectionDisclosureTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
-    public void Header_RestoresSemanticTopDivider()
+    public async Task Header_RestoresSemanticTopDivider()
     {
-        var disclosure = CreateDisclosure();
-        var surface = (Border)disclosure.FindName("DisclosureCardSurface");
-        var button = (Button)disclosure.FindName("DisclosureToggleButton");
-        var viewportHost = (Border)disclosure.FindName("DisclosureViewportHost");
-        var divider = (Border)disclosure.FindName("DisclosureDivider");
+        var header = new TextBlock
+        {
+            Text = "Inspection details remain readable beside an absolute action",
+            TextWrapping = TextWrapping.WrapWholeWords
+        };
+        var disclosure = new InspectionDisclosure
+        {
+            Width = 480d,
+            HeaderContent = header,
+            ViewportContent = new TextBlock { Text = "Safe report" }
+        };
+        var loaded = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        disclosure.Loaded += (_, _) => loaded.TrySetResult(true);
+        var window = new Window { Content = disclosure };
 
-        Assert.AreEqual(new Thickness(1d), surface.BorderThickness);
-        Assert.AreEqual(12d, surface.CornerRadius.TopLeft, 0.001d);
-        Assert.IsNotNull(surface.Background);
-        Assert.IsNotNull(surface.BorderBrush);
-        Assert.AreEqual(new Thickness(0d), button.BorderThickness);
-        Assert.AreEqual(new Thickness(0d), viewportHost.BorderThickness);
-        Assert.AreEqual(1d, divider.Height, 0.001d);
-        Assert.AreSame(surface.BorderBrush, divider.Background);
-        Assert.AreSame(VisualTreeHelper.GetParent(button), VisualTreeHelper.GetParent(viewportHost));
+        try
+        {
+            window.Activate();
+            await loaded.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            disclosure.UpdateLayout();
+            var surface = (Border)disclosure.FindName("DisclosureCardSurface");
+            var button = (Button)disclosure.FindName("DisclosureToggleButton");
+            var viewportHost = (Border)disclosure.FindName("DisclosureViewportHost");
+            var divider = (Border)disclosure.FindName("DisclosureDivider");
+            Grid headerLayout = Assert.IsInstanceOfType<Grid>(
+                disclosure.FindName("DisclosureHeaderShell"));
+            ContentPresenter contentPresenter =
+                Assert.IsInstanceOfType<ContentPresenter>(
+                    disclosure.FindName("DisclosureHeaderContentPresenter"));
+            Grid actionHost = Assert.IsInstanceOfType<Grid>(
+                disclosure.FindName("DisclosureHeaderActionHost"));
+
+            Assert.AreEqual(new Thickness(1d), surface.BorderThickness);
+            Assert.AreEqual(12d, surface.CornerRadius.TopLeft, 0.001d);
+            Assert.IsNotNull(surface.Background);
+            Assert.IsNotNull(surface.BorderBrush);
+            Assert.AreEqual(new Thickness(0d), button.BorderThickness);
+            Assert.AreEqual(new Thickness(0d), viewportHost.BorderThickness);
+            Assert.AreEqual(1d, divider.Height, 0.001d);
+            Assert.AreSame(surface.BorderBrush, divider.Background);
+            Assert.AreSame(
+                VisualTreeHelper.GetParent(button),
+                VisualTreeHelper.GetParent(viewportHost));
+            Assert.AreEqual(2, headerLayout.ColumnDefinitions.Count);
+            Assert.AreEqual(new GridLength(44d), headerLayout.ColumnDefinitions[1].Width);
+            Assert.AreEqual(44d, actionHost.ActualWidth, 0.01d);
+            Assert.AreEqual(44d, actionHost.ActualHeight, 0.01d);
+
+            header.FontSize *= 2d;
+            disclosure.UpdateLayout();
+
+            Assert.AreEqual(44d, actionHost.ActualWidth, 0.01d,
+                "the disclosure action target stays fixed at 200% text");
+            Assert.IsTrue(
+                contentPresenter.ActualWidth + actionHost.ActualWidth <=
+                    headerLayout.ActualWidth + 0.01d,
+                "the wrapping header and absolute action cannot intersect");
+            Assert.IsTrue(header.ActualHeight + 1d >= header.DesiredSize.Height,
+                "scaled header copy must grow vertically instead of clipping");
+        }
+        finally
+        {
+            window.Content = null;
+            window.Close();
+        }
     }
 
     private static InspectionDisclosure CreateDisclosure() =>

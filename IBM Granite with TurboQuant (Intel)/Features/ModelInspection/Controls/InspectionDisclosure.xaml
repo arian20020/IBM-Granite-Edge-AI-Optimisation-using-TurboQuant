@@ -37,29 +37,40 @@
             CornerRadius="0"
             IsTabStop="False"
             UseSystemFocusVisuals="True">
-            <Grid ColumnSpacing="12">
+            <Grid
+                x:Name="DisclosureHeaderShell"
+                ColumnSpacing="12">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="44" />
                 </Grid.ColumnDefinitions>
                 <ContentPresenter
+                    x:Name="DisclosureHeaderContentPresenter"
                     HorizontalAlignment="Stretch"
                     VerticalAlignment="Stretch"
                     Content="{x:Bind HeaderContent, Mode=OneWay}" />
                 <Grid
-                    x:Name="DisclosureChevron"
+                    x:Name="DisclosureHeaderActionHost"
                     Grid.Column="1"
                     Width="44"
                     Height="44"
                     HorizontalAlignment="Center"
                     VerticalAlignment="Center"
                     AutomationProperties.AccessibilityView="Raw">
-                    <FontIcon
+                    <Grid
+                        x:Name="DisclosureChevron"
+                        Width="44"
+                        Height="44"
                         HorizontalAlignment="Center"
                         VerticalAlignment="Center"
-                        FontSize="12"
-                        Foreground="{ThemeResource InspectionTextSecondaryStrongBrush}"
-                        Glyph="&#xE70D;" />
+                        AutomationProperties.AccessibilityView="Raw">
+                        <FontIcon
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            FontSize="12"
+                            Foreground="{ThemeResource InspectionTextSecondaryStrongBrush}"
+                            Glyph="&#xE70D;" />
+                    </Grid>
                 </Grid>
             </Grid>
         </Button>

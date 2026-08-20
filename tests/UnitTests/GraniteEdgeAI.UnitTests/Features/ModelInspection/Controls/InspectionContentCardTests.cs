@@ -231,13 +231,50 @@ public sealed class InspectionContentCardTests
                 "DisclosureToggleButton");
             Border disclosureSurface = (Border)disclosure.FindName(
                 "DisclosureCardSurface");
-            InspectionStatusGlyph disclosureGlyph = EnumerateDescendants(header)
-                .OfType<InspectionStatusGlyph>()
-                .Single(IsEffectivelyVisible);
+            Grid disclosureHeader = Assert.IsInstanceOfType<Grid>(
+                control.FindName("DisclosureHeaderLayout"));
+            Viewbox disclosureGlyphHost = Assert.IsInstanceOfType<Viewbox>(
+                control.FindName("DisclosureInformationGlyphHost"));
+            InspectionStatusGlyph disclosureGlyph =
+                Assert.IsInstanceOfType<InspectionStatusGlyph>(
+                    control.FindName("DisclosureInformationGlyph"));
+            TextBlock disclosureTitle = Assert.IsInstanceOfType<TextBlock>(
+                control.FindName("DisclosureTitleText"));
+            Grid disclosureActionHost = Assert.IsInstanceOfType<Grid>(
+                control.FindName("DisclosureActionText"));
+            TextBlock disclosureAction = Assert.IsInstanceOfType<TextBlock>(
+                control.FindName("FindingsDisclosureActionText"));
             double collapsedHeight = control.ActualHeight;
             Assert.AreEqual(0d, shell.MinHeight, 0.01d);
+            Assert.AreEqual(3, disclosureHeader.ColumnDefinitions.Count);
+            Assert.AreEqual(22d, disclosureHeader.ColumnDefinitions[0].ActualWidth, 0.01d,
+                "the disclosure reserves the same fixed icon column as status rows");
+            Assert.AreEqual(20d, disclosureGlyphHost.ActualWidth, 0.01d);
+            Assert.AreEqual(20d, disclosureGlyphHost.ActualHeight, 0.01d);
             Assert.AreEqual(22d, disclosureGlyph.SurfaceSize, 0.01d,
                 "the disclosure information glyph aligns with the row glyphs");
+            Assert.AreEqual(InspectionStatusGlyphKind.Information, disclosureGlyph.Kind);
+            Canvas informationRoot = EnumerateDescendants(disclosureGlyph)
+                .OfType<Canvas>()
+                .Single(canvas => string.Equals(
+                    canvas.Tag as string,
+                    "GlyphKind:Information",
+                    StringComparison.Ordinal));
+            Microsoft.UI.Xaml.Shapes.Path informationStem =
+                EnumerateDescendants(informationRoot)
+                .OfType<Microsoft.UI.Xaml.Shapes.Path>()
+                .Single(path => string.Equals(
+                    path.Tag as string,
+                    "Mark:InformationStem",
+                    StringComparison.Ordinal));
+            Assert.IsTrue(informationStem.Data.Bounds.Left >= 0d);
+            Assert.IsTrue(informationStem.Data.Bounds.Top >= 0d);
+            Assert.IsTrue(informationStem.Data.Bounds.Right <= informationRoot.Width);
+            Assert.IsTrue(informationStem.Data.Bounds.Bottom <= informationRoot.Height);
+            Assert.IsFalse(EnumerateDescendants(informationRoot).OfType<TextBlock>().Any(),
+                "the information mark must be fixed vector geometry, never a font glyph");
+            Assert.AreEqual(1, Grid.GetColumn(disclosureTitle));
+            Assert.AreEqual(2, Grid.GetColumn(disclosureActionHost));
             Assert.AreEqual(
                 header.ActualHeight + disclosureSurface.BorderThickness.Top +
                     disclosureSurface.BorderThickness.Bottom,
@@ -308,12 +345,42 @@ public sealed class InspectionContentCardTests
                 ScrollAmount.SmallIncrement);
             control.UpdateLayout();
             Assert.IsGreaterThan(initialOffset, report.VerticalOffset);
+
+            disclosureTitle.FontSize *= 2d;
+            disclosureAction.FontSize *= 2d;
+            control.Width = 480d;
+            control.UpdateLayout();
+
+            Rect glyphBounds = ElementBounds(disclosureGlyphHost, header);
+            Rect titleBounds = ElementBounds(disclosureTitle, header);
+            Rect actionBounds = ElementBounds(disclosureActionHost, header);
+            Assert.AreEqual(20d, glyphBounds.Width, 0.01d,
+                "the vector host stays fixed at representative 200% text");
+            Assert.AreEqual(20d, glyphBounds.Height, 0.01d,
+                "the vector host stays fixed at representative 200% text");
+            Assert.AreEqual(22d, disclosureHeader.ColumnDefinitions[0].ActualWidth, 0.01d,
+                "text scaling cannot consume the reserved icon column");
+            Assert.IsTrue(glyphBounds.Left >= -0.01d && glyphBounds.Right <= header.ActualWidth + 0.01d,
+                "the information glyph remains horizontally unclipped");
+            Assert.IsTrue(titleBounds.Right <= actionBounds.Left + 0.01d,
+                "wrapped disclosure copy cannot intersect the absolute action column");
+            Assert.IsTrue(actionBounds.Right <= header.ActualWidth + 0.01d,
+                "the absolute action remains inside the header at 200% text");
         }
         finally
         {
             window.Content = null;
             window.Close();
         }
+    }
+
+    private static Rect ElementBounds(
+        FrameworkElement element,
+        UIElement relativeTo)
+    {
+        Point origin = element.TransformToVisual(relativeTo)
+            .TransformPoint(new Point());
+        return new Rect(origin.X, origin.Y, element.ActualWidth, element.ActualHeight);
     }
 
     [UITestMethod]
@@ -1173,7 +1240,7 @@ public sealed class InspectionContentCardTests
             SectionTitle = "Inspection warnings",
             Items = Array.AsReadOnly(new[] { finding }),
             DisclosureVisibility = Visibility.Visible,
-            DisclosureStatus = InspectionContentStatus.Warning,
+            DisclosureStatus = InspectionContentStatus.Information,
             DisclosureSummary = "4 checks passed, 1 warning",
             CollapsedDisclosureText = "View full details",
             ExpandedDisclosureText = "Hide full details",
