@@ -42,7 +42,22 @@ No global package was installed or updated.
 This is AMD feasibility evidence. Intel behavior, acceleration, and performance
 remain unknown.
 
-## Reproduction
+## Retained ignored evidence
+
+The following locations are relative to `$ControlledRoot`; none is committed:
+
+- `approved-input.json` — actual approved input and local cache binding.
+- `artifacts/turbovec-1.0.0-cp39-abi3-win_amd64.whl` — pinned wheel.
+- `model-cache/` — materialized approved BGE cache.
+- `runs/fixture-index-final/` — matched float32, 2-bit, and 4-bit index package.
+- `runs/query-2bit.json` and `runs/query-4bit.json` — successful persisted-route queries.
+- `runs/benchmark-final2/results.json` — canonical benchmark evidence.
+- `runs/benchmark-final2/summary.md` — evidence summary.
+- `runs/benchmark-final2/manifest.json` — atomic evidence artifact manifest.
+- `runs/sha256-manifest.json` — hashes and controlled-root-relative paths for
+  the retained doctor, index, both queries, index package, and benchmark files.
+
+## Reproduction with new destinations
 
 Run setup from a repository PowerShell. `$ApprovedFastEmbedCache` must point to
 the already reviewed BGE cache and `$Python` to the locked Python 3.12 virtual
@@ -84,8 +99,8 @@ $env:GRANITE_TURBOVEC_PYTHON = $Python
 $env:GRANITE_TURBOVEC_WHEEL = $Wheel
 $Wrapper = Join-Path $RepoRoot 'scripts\turbovec\Invoke-TurboVecResearch.ps1'
 $Approval = Join-Path $ControlledRoot 'approved-input.json'
-$Index = Join-Path $Runs 'fixture-index'
-$Evidence = Join-Path $Runs 'benchmark'
+$Index = Join-Path $Runs 'fixture-index-reproduction'
+$Evidence = Join-Path $Runs 'benchmark-reproduction'
 
 powershell -NoProfile -ExecutionPolicy Bypass -File $Wrapper doctor `
     --approved-input $Approval
@@ -144,18 +159,21 @@ its self-contained application build succeeded with zero warnings and errors.
 
 ## Promotion gates and limitations
 
-| Promotion gate | State |
-|---|---|
-| Exact upstream version, commit, wheel and MIT licence | pass |
-| Locked Python/dependencies and model manifest identity | pass |
-| Windows x64 offline doctor with actual CPU provider | pass |
-| Persist, load, and query 2-bit and 4-bit routes | pass |
-| Retrieval quality criteria | pass |
-| Storage criterion | fail |
-| Latency criterion | fail |
-| Simultaneous release gate | fail |
-| Intel hardware evidence | unknown |
-| WinUI/Granite integration | not approved / not run |
+| # | Approved promotion gate | State |
+|---:|---|:---:|
+| 1 | Exact upstream, runtime, dependency, and wheel identity lock | Pass |
+| 2 | Controlled embedding model identity, cache manifest, licence, and provider | Pass |
+| 3 | Offline Windows x64 persistence, reload, and query for both TurboVec routes | Pass |
+| 4 | Intended Intel hardware evidence | Unknown |
+| 5 | Recall, MRR ratio, and Hit@5 quality thresholds | Pass |
+| 6 | Four-bit persisted-size threshold | Fail |
+| 7 | Four-bit warm median latency threshold | Fail |
+| 8 | Failure, privacy, corruption, and index-identity mismatch tests | Pass |
+| 9 | Stable GGUF route remains verified and undisplaced | Pass |
+| 10 | ADR updated to an allowed release-role outcome | Pass |
+
+Because gates 6 and 7 fail and gate 4 is unknown, the outcome remains exactly
+**Command-line demonstrator only**.
 
 The fixture is deliberately small (22 chunks and seven queries), and sub-
 millisecond vector-search ratios are sensitive to host scheduling. One cold and

@@ -69,12 +69,20 @@
     }
   },
   "raw_artifacts": [
-    { "filename": "doctor.json", "sha256": "0263d779a1e5cff8f5f20c46a34382165ebcdd48c54d2b3e4fbe1d34304d1b49", "bytes": 2756 },
-    { "filename": "index.json", "sha256": "d261dd7ee1479aa78c28ea891f6709b597c3f4d5c9ff3257e8f7c2373fd4fc57", "bytes": 210 },
-    { "filename": "query-4bit.json", "sha256": "a36acc9fa48ebb422b0cb450f8b8e300da4d6b624dff461005ad5753970dfdba", "bytes": 4458 },
-    { "filename": "results.json", "sha256": "d2935f09e64e37e36e0a8bbd39e99c8706fb2d89783b3d5d4d3c1991fb14d1e5", "bytes": 5437 },
-    { "filename": "summary.md", "sha256": "ab38ed29e8f405c26cce00290ba16ddeca9b53d76612b18c56ea156aeecacc8e", "bytes": 1005 },
-    { "filename": "manifest.json", "sha256": "396a0aec1f00892434f79af0834d40b03854fae545c6eeb7a651c1b214686aa2", "bytes": 3654 }
+    { "kind": "doctor", "path": "runs/doctor.json", "route": null, "sha256": "0263d779a1e5cff8f5f20c46a34382165ebcdd48c54d2b3e4fbe1d34304d1b49", "bytes": 2756 },
+    { "kind": "index-output", "path": "runs/index.json", "route": null, "sha256": "d261dd7ee1479aa78c28ea891f6709b597c3f4d5c9ff3257e8f7c2373fd4fc57", "bytes": 210 },
+    { "kind": "query", "path": "runs/query-2bit.json", "route": "2bit", "sha256": "a5658032fc5e3dd972fc65edc5f6ebb46c2871ba51100a3b5bc7d9ac8a3fcf08", "bytes": 4462 },
+    { "kind": "query", "path": "runs/query-4bit.json", "route": "4bit", "sha256": "a36acc9fa48ebb422b0cb450f8b8e300da4d6b624dff461005ad5753970dfdba", "bytes": 4458 },
+    { "kind": "index-artifact", "path": "runs/fixture-index-final/baseline-results.json", "route": "metadata", "sha256": "c92f0393a2b15398aa5d9ae700015d45097a4fdbd733685d14fe73e89dcffab2", "bytes": 950 },
+    { "kind": "index-artifact", "path": "runs/fixture-index-final/chunks.jsonl", "route": "metadata", "sha256": "23e3e45ba3abe60e035f3ca4334b3756e30898d563859edf97e2c29161fc3fb1", "bytes": 24969 },
+    { "kind": "index-artifact", "path": "runs/fixture-index-final/ids.npy", "route": "metadata", "sha256": "f027e75fef2708e342b8afd963e6c48c01ba2fa5529b9716e6e2da4eee1ac584", "bytes": 304 },
+    { "kind": "index-artifact", "path": "runs/fixture-index-final/index-2bit.tvim", "route": "2bit", "sha256": "bcdc6608003fefb9782f46fdac6863cc0abb822c66eb54559e4fb29c3b051781", "bytes": 248559 },
+    { "kind": "index-artifact", "path": "runs/fixture-index-final/index-4bit.tvim", "route": "4bit", "sha256": "81d2700518ea0705c98305873b4017e757d7efbfec88ab674c6d073f68e17826", "bytes": 451215 },
+    { "kind": "index-artifact", "path": "runs/fixture-index-final/manifest.json", "route": "manifest", "sha256": "5b9be9984472586c4eace8e5570011675dd6b86bf51b55769461d8a62afa2768", "bytes": 4726 },
+    { "kind": "index-artifact", "path": "runs/fixture-index-final/vectors-float32.npy", "route": "float32", "sha256": "41a6f7c354d0242bd30e0fe8478cbd47363a4a83bd64204af122479ddf9a1f8d", "bytes": 33920 },
+    { "kind": "benchmark-artifact", "path": "runs/benchmark-final2/results.json", "route": null, "sha256": "d2935f09e64e37e36e0a8bbd39e99c8706fb2d89783b3d5d4d3c1991fb14d1e5", "bytes": 5437 },
+    { "kind": "benchmark-artifact", "path": "runs/benchmark-final2/summary.md", "route": null, "sha256": "ab38ed29e8f405c26cce00290ba16ddeca9b53d76612b18c56ea156aeecacc8e", "bytes": 1005 },
+    { "kind": "benchmark-artifact", "path": "runs/benchmark-final2/manifest.json", "route": "manifest", "sha256": "396a0aec1f00892434f79af0834d40b03854fae545c6eeb7a651c1b214686aa2", "bytes": 3654 }
   ],
   "tests": {
     "deterministic": { "passed": 166, "failed": 0, "skipped": 1 },
@@ -92,5 +100,17 @@
     "application_integration": false,
     "attachment_state": "Not indexed",
     "granite_prompt_injection": false
-  }
+  },
+  "promotion_gates": [
+    { "id": 1, "gate": "Exact upstream, runtime, dependency, and wheel identity lock", "state": "Pass" },
+    { "id": 2, "gate": "Controlled embedding model identity, cache manifest, licence, and provider", "state": "Pass" },
+    { "id": 3, "gate": "Offline Windows x64 persistence, reload, and query for both TurboVec routes", "state": "Pass" },
+    { "id": 4, "gate": "Intended Intel hardware evidence", "state": "Unknown" },
+    { "id": 5, "gate": "Recall, MRR ratio, and Hit at 5 quality thresholds", "state": "Pass" },
+    { "id": 6, "gate": "Four-bit persisted-size threshold", "state": "Fail" },
+    { "id": 7, "gate": "Four-bit warm median latency threshold", "state": "Fail" },
+    { "id": 8, "gate": "Failure, privacy, corruption, and index-identity mismatch tests", "state": "Pass" },
+    { "id": 9, "gate": "Stable GGUF route remains verified and undisplaced", "state": "Pass" },
+    { "id": 10, "gate": "ADR updated to an allowed release-role outcome", "state": "Pass" }
+  ]
 }
