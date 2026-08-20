@@ -15,16 +15,26 @@ internal sealed class BoundedModelSelectionClassifier : IModelSelectionClassifie
     private const string UnsupportedFileMessage = "This model format is not supported here. Choose a GGUF file or a supported model folder.";
     private const string UnsupportedFolderMessage = "This folder does not contain a supported model at its top level. Choose another folder.";
     private readonly Func<string, FileAttributes> attributesReader;
+    private readonly Func<string, bool> directoryExists;
     private readonly Action? beforeContinuityCheck;
     private readonly Func<bool>? timeoutReached;
     private readonly Action? afterMetadataRead;
+    private readonly TimeSpan maximumElapsed;
 
-    internal BoundedModelSelectionClassifier(Func<string, FileAttributes>? attributesReader = null, Action? beforeContinuityCheck = null, Func<bool>? timeoutReached = null, Action? afterMetadataRead = null)
+    internal BoundedModelSelectionClassifier(
+        Func<string, FileAttributes>? attributesReader = null,
+        Action? beforeContinuityCheck = null,
+        Func<bool>? timeoutReached = null,
+        Action? afterMetadataRead = null,
+        Func<string, bool>? directoryExists = null,
+        TimeSpan? maximumElapsed = null)
     {
         this.attributesReader = attributesReader ?? File.GetAttributes;
+        this.directoryExists = directoryExists ?? Directory.Exists;
         this.beforeContinuityCheck = beforeContinuityCheck;
         this.timeoutReached = timeoutReached;
         this.afterMetadataRead = afterMetadataRead;
+        this.maximumElapsed = maximumElapsed ?? ModelSelectionLimits.MaximumElapsed;
     }
 
     public async Task<ModelSelectionResult> ClassifyAsync(
@@ -35,18 +45,45 @@ internal sealed class BoundedModelSelectionClassifier : IModelSelectionClassifie
         ArgumentNullException.ThrowIfNull(input);
         cancellationToken.ThrowIfCancellationRequested();
 
-        using var timeout = new CancellationTokenSource(ModelSelectionLimits.MaximumElapsed);
+        using var timeout = new CancellationTokenSource(maximumElapsed);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeout.Token);
         CancellationToken token = linked.Token;
         var stopwatch = Stopwatch.StartNew();
+        Task<ModelSelectionResult> worker = Task.Run(
+            () => ClassifyCoreAsync(operationId, input, cancellationToken, token, stopwatch),
+            CancellationToken.None);
 
+        try
+        {
+            return await worker.WaitAsync(maximumElapsed, cancellationToken).ConfigureAwait(false);
+        }
+        catch (TimeoutException)
+        {
+            linked.Cancel();
+            ObserveLateFailure(worker);
+            return Failure(operationId, input.DisplayName, "selection-timeout", "This model took too long to check safely. Choose a more specific item.");
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            await AwaitCooperativeCancellationOrObserveLateFailureAsync(worker).ConfigureAwait(false);
+            throw new OperationCanceledException(cancellationToken);
+        }
+    }
+
+    private async Task<ModelSelectionResult> ClassifyCoreAsync(
+        ModelSelectionOperationId operationId,
+        ModelSelectionInput input,
+        CancellationToken callerToken,
+        CancellationToken token,
+        Stopwatch stopwatch)
+    {
         try
         {
             return input.IsFolder
                 ? await ClassifyFolderAsync(operationId, input, token, stopwatch).ConfigureAwait(false)
                 : ClassifyFile(operationId, input, token, stopwatch);
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException) when (callerToken.IsCancellationRequested)
         {
             throw;
         }
@@ -61,6 +98,10 @@ internal sealed class BoundedModelSelectionClassifier : IModelSelectionClassifie
         catch (CandidateChangedException)
         {
             return Failure(operationId, input.DisplayName, "model-selection-changed", "The selected model changed after validation. Choose the model again.");
+        }
+        catch (UnsafeCandidateException unsafeCandidate)
+        {
+            return ModelSelectionResult.Failure(operationId, input.DisplayName, unsafeCandidate.Diagnostic);
         }
         catch (UnauthorizedAccessException)
         {
@@ -108,13 +149,13 @@ internal sealed class BoundedModelSelectionClassifier : IModelSelectionClassifie
             return ModelSelectionResult.Failure(operationId, input.DisplayName, unsafeDiagnostic);
         }
 
-        if (!Directory.Exists(input.LocalPath))
+        if (!directoryExists(input.LocalPath))
         {
             return Failure(operationId, input.DisplayName, "selection-access-denied", AccessMessage);
         }
 
         string[] children = EnumerateDirectChildren(input.LocalPath, token, stopwatch);
-        DirectorySnapshot snapshot = DirectorySnapshot.Capture(input.LocalPath, children, attributesReader, token, stopwatch, timeoutReached);
+        DirectorySnapshot snapshot = DirectorySnapshot.Capture(input.LocalPath, children, attributesReader, directoryExists, token, stopwatch, timeoutReached, maximumElapsed);
         ThrowIfTimedOut(stopwatch, token);
 
         var xmlStems = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -139,7 +180,7 @@ internal sealed class BoundedModelSelectionClassifier : IModelSelectionClassifie
                 return Failure(operationId, input.DisplayName, "selection-enumeration-limit", "This folder has too many model entries to check safely. Choose a more specific folder.");
             }
 
-            if (Directory.Exists(child))
+            if (directoryExists(child))
             {
                 continue;
             }
@@ -327,7 +368,7 @@ internal sealed class BoundedModelSelectionClassifier : IModelSelectionClassifie
     {
         beforeContinuityCheck?.Invoke();
         string[] children = EnumerateDirectChildren(path, token, stopwatch);
-        if (!snapshot.Equals(DirectorySnapshot.Capture(path, children, attributesReader, token, stopwatch, timeoutReached))) throw new CandidateChangedException();
+        if (!snapshot.Equals(DirectorySnapshot.Capture(path, children, attributesReader, directoryExists, token, stopwatch, timeoutReached, maximumElapsed))) throw new CandidateChangedException();
     }
 
     private static bool IsRelevantName(string name) =>
@@ -337,39 +378,86 @@ internal sealed class BoundedModelSelectionClassifier : IModelSelectionClassifie
 
     private void ThrowIfTimedOut(Stopwatch stopwatch, CancellationToken token)
     {
-        if (timeoutReached?.Invoke() == true || stopwatch.Elapsed > ModelSelectionLimits.MaximumElapsed) throw new OperationCanceledException(token);
+        if (timeoutReached?.Invoke() == true || stopwatch.Elapsed > maximumElapsed) throw new OperationCanceledException(token);
     }
 
     private static ModelSelectionResult Failure(ModelSelectionOperationId id, string displayName, string code, string message) =>
         ModelSelectionResult.Failure(id, displayName, new ModelSelectionDiagnostic(code, message));
 
+    private static void ObserveLateFailure(Task worker)
+    {
+        // A synchronous file-system call may continue read-only after the caller receives its deadline result.
+        // Observe any late fault without allowing that abandoned worker to publish a selection result.
+        _ = worker.ContinueWith(
+            completed => _ = completed.Exception,
+            CancellationToken.None,
+            TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
+    }
+
+    private static async Task AwaitCooperativeCancellationOrObserveLateFailureAsync(Task worker)
+    {
+        if (await Task.WhenAny(worker, Task.Delay(TimeSpan.FromMilliseconds(100))).ConfigureAwait(false) != worker)
+        {
+            ObserveLateFailure(worker);
+            return;
+        }
+
+        try
+        {
+            await worker.ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception) { }
+    }
+
     private readonly record struct DirectorySnapshot(FileAttributes Attributes, DateTime LastWriteTimeUtc, long ChildState)
     {
-        internal static DirectorySnapshot Capture(string path, IEnumerable<string> children, Func<string, FileAttributes> attributesReader, CancellationToken token, Stopwatch stopwatch, Func<bool>? timeoutReached)
+        internal static DirectorySnapshot Capture(
+            string path,
+            IEnumerable<string> children,
+            Func<string, FileAttributes> attributesReader,
+            Func<string, bool> directoryExists,
+            CancellationToken token,
+            Stopwatch stopwatch,
+            Func<bool>? timeoutReached,
+            TimeSpan maximumElapsed)
         {
-            DirectoryInfo info = new(path);
-            long childState = 17;
+            var validatedChildren = new List<(string Path, FileAttributes Attributes)>();
             foreach (string child in children.OrderBy(value => value, StringComparer.OrdinalIgnoreCase))
             {
-                ThrowIfStopped(token, stopwatch, timeoutReached);
-                if (Directory.Exists(child))
+                ThrowIfStopped(token, stopwatch, timeoutReached, maximumElapsed);
+                FileAttributes attributes = attributesReader(child);
+                if ((attributes & FileAttributes.ReparsePoint) != 0)
                 {
-                    childState = HashCode.Combine(childState, Path.GetFileName(child), attributesReader(child), new DirectoryInfo(child).LastWriteTimeUtc.Ticks);
+                    throw new UnsafeCandidateException(new ModelSelectionDiagnostic("selection-reparse-point", "Choose an ordinary local item."));
+                }
+                validatedChildren.Add((child, attributes));
+            }
+
+            DirectoryInfo info = new(path);
+            long childState = 17;
+            foreach ((string child, FileAttributes attributes) in validatedChildren)
+            {
+                ThrowIfStopped(token, stopwatch, timeoutReached, maximumElapsed);
+                if (directoryExists(child))
+                {
+                    childState = HashCode.Combine(childState, Path.GetFileName(child), attributes, new DirectoryInfo(child).LastWriteTimeUtc.Ticks);
                 }
                 else
                 {
                     FileInfo childInfo = new(child);
-                    childState = HashCode.Combine(childState, Path.GetFileName(child), attributesReader(child), childInfo.Length, childInfo.LastWriteTimeUtc.Ticks);
+                    childState = HashCode.Combine(childState, Path.GetFileName(child), attributes, childInfo.Length, childInfo.LastWriteTimeUtc.Ticks);
                 }
-                ThrowIfStopped(token, stopwatch, timeoutReached);
+                ThrowIfStopped(token, stopwatch, timeoutReached, maximumElapsed);
             }
             return new DirectorySnapshot(attributesReader(path), info.LastWriteTimeUtc, childState);
         }
 
-        private static void ThrowIfStopped(CancellationToken token, Stopwatch stopwatch, Func<bool>? timeoutReached)
+        private static void ThrowIfStopped(CancellationToken token, Stopwatch stopwatch, Func<bool>? timeoutReached, TimeSpan maximumElapsed)
         {
             token.ThrowIfCancellationRequested();
-            if (timeoutReached?.Invoke() == true || stopwatch.Elapsed > ModelSelectionLimits.MaximumElapsed) throw new OperationCanceledException(token);
+            if (timeoutReached?.Invoke() == true || stopwatch.Elapsed > maximumElapsed) throw new OperationCanceledException(token);
         }
     }
 
@@ -377,4 +465,9 @@ internal sealed class BoundedModelSelectionClassifier : IModelSelectionClassifie
 
     private sealed class DirectoryTooLargeException : IOException { }
     private sealed class CandidateChangedException : IOException { }
+    private sealed class UnsafeCandidateException : IOException
+    {
+        internal UnsafeCandidateException(ModelSelectionDiagnostic diagnostic) => Diagnostic = diagnostic;
+        internal ModelSelectionDiagnostic Diagnostic { get; }
+    }
 }

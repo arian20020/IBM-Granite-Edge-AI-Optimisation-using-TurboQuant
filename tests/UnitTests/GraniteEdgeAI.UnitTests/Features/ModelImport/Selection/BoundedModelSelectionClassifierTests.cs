@@ -1,6 +1,7 @@
 using GraniteEdgeAI.Features.ModelImport.Selection;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -234,6 +235,68 @@ public sealed class BoundedModelSelectionClassifierTests
 
         Assert.AreEqual("selection-reparse-point", reparseResult.Diagnostic!.Code);
         Assert.AreEqual("selection-not-local", offlineResult.Diagnostic!.Code);
+    }
+
+    [TestMethod]
+    public async Task ClassifyAsync_RejectsReparseDirectChildBeforeInspectingAnyChildMetadata()
+    {
+        using var directory = new TemporaryDirectory();
+        string reparseChild = Directory.CreateDirectory(System.IO.Path.Combine(directory.Path, "reparse-child")).FullName;
+        var classifier = new BoundedModelSelectionClassifier(
+            attributesReader: path => string.Equals(path, reparseChild, StringComparison.OrdinalIgnoreCase)
+                ? FileAttributes.ReparsePoint
+                : FileAttributes.Normal,
+            directoryExists: path =>
+            {
+                if (string.Equals(path, reparseChild, StringComparison.OrdinalIgnoreCase))
+                {
+                    Assert.Fail("A reparse child must be rejected before Directory.Exists is queried.");
+                }
+
+                return Directory.Exists(path);
+            });
+
+        ModelSelectionResult result = await classifier.ClassifyAsync(
+            ModelSelectionOperationId.CreateNew(),
+            new ModelSelectionInput(directory.Path, "folder", true),
+            CancellationToken.None);
+
+        Assert.AreEqual("selection-reparse-point", result.Diagnostic!.Code);
+    }
+
+    [TestMethod]
+    public async Task ClassifyAsync_ReturnsTimeoutWhenSynchronousValidationStalls()
+    {
+        using var directory = new TemporaryDirectory();
+        string file = directory.WriteFile("model.gguf", "gguf");
+        using var entered = new ManualResetEventSlim();
+        using var release = new ManualResetEventSlim();
+        var classifier = new BoundedModelSelectionClassifier(
+            attributesReader: _ =>
+            {
+                entered.Set();
+                release.Wait();
+                return FileAttributes.Normal;
+            },
+            maximumElapsed: TimeSpan.FromMilliseconds(100));
+
+        Stopwatch stopwatch = Stopwatch.StartNew();
+        Task<ModelSelectionResult> classification = classifier.ClassifyAsync(
+            ModelSelectionOperationId.CreateNew(),
+            new ModelSelectionInput(file, "model.gguf", false),
+            CancellationToken.None);
+        Assert.IsTrue(entered.Wait(TimeSpan.FromSeconds(1)), "The deterministic worker did not enter the blocking file-system operation.");
+
+        try
+        {
+            ModelSelectionResult result = await classification;
+            Assert.AreEqual("selection-timeout", result.Diagnostic!.Code);
+            Assert.IsTrue(stopwatch.Elapsed < TimeSpan.FromSeconds(1), "The caller should observe the policy deadline while the file-system operation remains blocked.");
+        }
+        finally
+        {
+            release.Set();
+        }
     }
 
     [TestMethod]
