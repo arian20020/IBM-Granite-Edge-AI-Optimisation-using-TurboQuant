@@ -56,7 +56,7 @@ public sealed class HardwareInspectionDetailsSummaryTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
-    public void DetailsCard_RendersSevenRowsAndTwoCollapsedLevels()
+    public async Task DetailsCard_RendersSevenRowsAndTwoCollapsedLevels()
     {
         HardwareInspectionDetailsState state = CreateDetails();
         HardwareInspectionDetailsCard card = new();
@@ -77,7 +77,21 @@ public sealed class HardwareInspectionDetailsSummaryTests
         ItemsControl rows = (ItemsControl)card.FindName("DetailRowsItemsControl");
         Border rowSurface = (Border)rows.ItemTemplate.LoadContent();
         Assert.IsInstanceOfType<FontIcon>(rowSurface.FindName("StageStatusFontIcon"));
+        Grid rowLayout = Assert.IsInstanceOfType<Grid>(rowSurface.Child);
+        Border glyphSurface = Assert.IsInstanceOfType<Border>(rowLayout.Children[0]);
+        Assert.AreEqual(VerticalAlignment.Center, glyphSurface.VerticalAlignment);
+        Assert.IsInstanceOfType<FontIcon>(card.FindName("TechnicalInformationGlyph"));
+        Grid technicalHeader = Assert.IsInstanceOfType<Grid>(
+            card.FindName("TechnicalHeaderGrid"));
+        Assert.AreEqual(HorizontalAlignment.Stretch, technicalHeader.HorizontalAlignment);
+        Assert.AreEqual(3, technicalHeader.ColumnDefinitions.Count);
+        Assert.AreEqual(new GridLength(28), technicalHeader.ColumnDefinitions[0].Width);
+        Expander technicalExpander = (Expander)card.FindName("TechnicalExpander");
+        Assert.AreEqual(HorizontalAlignment.Stretch, technicalExpander.HorizontalAlignment);
         Assert.AreEqual(0, Descendants<ScrollViewer>(card).Count());
+
+        await AssertLoadedDetailsGeometryAsync(card, 840d);
+        await AssertLoadedDetailsGeometryAsync(card, 480d);
     }
 
     [UITestMethod]
@@ -138,6 +152,61 @@ public sealed class HardwareInspectionDetailsSummaryTests
             {
                 yield return descendant;
             }
+        }
+    }
+
+    private static async Task AssertLoadedDetailsGeometryAsync(
+        HardwareInspectionDetailsCard card,
+        double width)
+    {
+        card.Width = width;
+        Expander details = (Expander)card.FindName("DetailsExpander");
+        details.IsExpanded = true;
+        var loaded = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        card.Loaded += (_, _) => loaded.TrySetResult(true);
+        Window window = new() { Content = card };
+        try
+        {
+            window.Activate();
+            await loaded.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            card.UpdateLayout();
+            await Task.Yield();
+            card.UpdateLayout();
+
+            Expander technical = (Expander)card.FindName("TechnicalExpander");
+            Grid header = (Grid)card.FindName("TechnicalHeaderGrid");
+            Assert.IsGreaterThanOrEqualTo(
+                technical.ActualWidth - 80d,
+                header.ActualWidth,
+                $"technical header content must fill the native content slot at {width}px");
+            Microsoft.UI.Xaml.Controls.Primitives.ButtonBase headerTarget =
+                Descendants<Microsoft.UI.Xaml.Controls.Primitives.ButtonBase>(technical)
+                    .OrderByDescending(button => button.ActualWidth)
+                    .First();
+            Assert.IsGreaterThanOrEqualTo(
+                technical.ActualWidth - 2d,
+                headerTarget.ActualWidth,
+                $"the native disclosure target must span the full bar at {width}px");
+
+            FontIcon firstStageIcon = Descendants<FontIcon>(card)
+                .First(icon => icon.Name == "StageStatusFontIcon");
+            Border glyph = Assert.IsInstanceOfType<Border>(
+                Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(firstStageIcon));
+            Grid row = Assert.IsInstanceOfType<Grid>(
+                Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(glyph));
+            double glyphCentre = glyph.TransformToVisual(row)
+                .TransformPoint(new Windows.Foundation.Point()).Y + glyph.ActualHeight / 2d;
+            Assert.AreEqual(
+                row.ActualHeight / 2d,
+                glyphCentre,
+                1d,
+                $"stage glyph must be vertically centred at {width}px");
+        }
+        finally
+        {
+            window.Content = null;
+            window.Close();
         }
     }
 }

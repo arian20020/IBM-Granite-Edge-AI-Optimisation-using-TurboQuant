@@ -111,7 +111,7 @@
                                     <Border
                                         Width="20"
                                         Height="20"
-                                        VerticalAlignment="Top"
+                                        VerticalAlignment="Center"
                                         Background="{ThemeResource HardwareInspectionSuccessSurfaceBrush}"
                                         CornerRadius="10">
                                         <FontIcon
@@ -150,14 +150,35 @@
             </Border>
             <Expander
                 x:Name="TechnicalExpander"
+                HorizontalAlignment="Stretch"
                 HorizontalContentAlignment="Stretch">
                 <Expander.Header>
-                    <Grid MinHeight="44" ColumnSpacing="12">
+                    <Grid
+                        x:Name="TechnicalHeaderGrid"
+                        MinHeight="52"
+                        HorizontalAlignment="Stretch"
+                        ColumnSpacing="12">
                         <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="28" />
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
-                        <StackPanel VerticalAlignment="Center" Spacing="2">
+                        <Border
+                            Width="28"
+                            Height="28"
+                            VerticalAlignment="Center"
+                            Background="{ThemeResource HardwareInspectionAccentSurfaceBrush}"
+                            CornerRadius="14">
+                            <FontIcon
+                                x:Name="TechnicalInformationGlyph"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                FontFamily="Segoe Fluent Icons"
+                                FontSize="13"
+                                Foreground="{ThemeResource HardwareInspectionAccentBrush}"
+                                Glyph="&#xE946;" />
+                        </Border>
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
                             <TextBlock
                                 x:Name="TechnicalTitleTextBlock"
                                 FontFamily="{ThemeResource HardwareInspectionFontFamilyBold}"
@@ -172,7 +193,7 @@
                         </StackPanel>
                         <TextBlock
                             x:Name="TechnicalActionTextBlock"
-                            Grid.Column="1"
+                            Grid.Column="2"
                             Margin="12,0,4,0"
                             VerticalAlignment="Center"
                             FontSize="{ThemeResource HardwareInspectionHelperFontSize}"

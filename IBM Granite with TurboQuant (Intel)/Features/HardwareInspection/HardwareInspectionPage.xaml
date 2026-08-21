@@ -70,17 +70,21 @@
                 <StackPanel Spacing="6">
                     <TextBlock
                         x:Name="PageTitleTextBlock"
+                        HorizontalAlignment="Stretch"
                         FontFamily="{ThemeResource HardwareInspectionFontFamilyBold}"
                         FontSize="{ThemeResource HardwareInspectionPageTitleFontSize}"
                         FontWeight="{ThemeResource HardwareInspectionFontWeightBold}"
                         Foreground="{ThemeResource HardwareInspectionTextPrimaryBrush}"
                         Text="Hardware inspection"
+                        TextAlignment="Center"
                         TextWrapping="WrapWholeWords" />
                     <TextBlock
                         x:Name="PageSubtitleTextBlock"
+                        HorizontalAlignment="Stretch"
                         FontFamily="{ThemeResource HardwareInspectionFontFamilyRegular}"
                         FontSize="{ThemeResource HardwareInspectionBodyFontSize}"
                         Foreground="{ThemeResource HardwareInspectionTextSecondaryBrush}"
+                        TextAlignment="Center"
                         TextWrapping="WrapWholeWords" />
                 </StackPanel>
 

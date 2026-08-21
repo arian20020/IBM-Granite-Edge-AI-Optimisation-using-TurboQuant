@@ -30,6 +30,12 @@ public sealed class HardwareInspectionPageTests
         Assert.AreEqual(ElementTheme.Light, page.RequestedTheme);
         Assert.IsNotNull(page.FindName("FooterPresenter"));
         Assert.AreSame(footer, ((ContentPresenter)page.FindName("FooterPresenter")).Content);
+        TextBlock title = Text(page, "PageTitleTextBlock");
+        TextBlock subtitle = Text(page, "PageSubtitleTextBlock");
+        Assert.AreEqual(TextAlignment.Center, title.TextAlignment);
+        Assert.AreEqual(TextAlignment.Center, subtitle.TextAlignment);
+        Assert.AreEqual(HorizontalAlignment.Stretch, title.HorizontalAlignment);
+        Assert.AreEqual(HorizontalAlignment.Stretch, subtitle.HorizontalAlignment);
     }
 
     [UITestMethod]
