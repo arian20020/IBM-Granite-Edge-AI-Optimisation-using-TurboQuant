@@ -11,7 +11,7 @@
             BorderBrush="{ThemeResource GgufChatBorderBrush}"
             BorderThickness="1"
             CornerRadius="20"
-            Padding="6,5">
+            Padding="6,3">
             <Grid RowSpacing="0">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
@@ -89,7 +89,7 @@
                 <Grid
                     x:Name="PromptRow"
                     Grid.Row="1"
-                    MinHeight="40"
+                    MinHeight="36"
                     ColumnSpacing="10"
                     VerticalAlignment="Center">
                     <Grid.ColumnDefinitions>
@@ -99,8 +99,9 @@
                     </Grid.ColumnDefinitions>
                     <Button
                         x:Name="AttachmentButton"
-                        Width="40"
-                        Height="40"
+                        Width="36"
+                        Height="36"
+                        MinHeight="36"
                         Padding="0"
                         VerticalAlignment="Center"
                         Style="{StaticResource GgufChatSecondaryButtonStyle}"
@@ -158,7 +159,7 @@
                     <TextBox
                         x:Name="PromptTextBox"
                         Grid.Column="1"
-                        MinHeight="36"
+                        MinHeight="32"
                         MaxHeight="160"
                         AcceptsReturn="True"
                         Padding="10,0"
@@ -187,8 +188,9 @@
                     <Button
                         x:Name="SendButton"
                         Grid.Column="2"
-                        Width="52"
-                        Height="40"
+                        Width="46"
+                        Height="36"
+                        MinHeight="36"
                         Padding="0"
                         VerticalAlignment="Center"
                         Style="{StaticResource GgufChatPrimaryButtonStyle}"
@@ -199,8 +201,9 @@
                     <Button
                         x:Name="StopButton"
                         Grid.Column="2"
-                        MinWidth="92"
-                        Height="40"
+                        MinWidth="84"
+                        Height="36"
+                        MinHeight="36"
                         VerticalAlignment="Center"
                         Style="{StaticResource GgufChatPrimaryButtonStyle}"
                         AutomationProperties.Name="Stop generation"

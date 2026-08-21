@@ -54,21 +54,21 @@ public sealed class ChatComposerTests
         Assert.AreEqual("Add files", AutomationProperties.GetName(add));
         Assert.AreEqual("Text or Markdown · Not indexed", hint.Text);
         Assert.IsTrue(add.IsEnabled);
-        Assert.AreEqual(new Thickness(6, 5, 6, 5), surface.Padding);
+        Assert.AreEqual(new Thickness(6, 3, 6, 3), surface.Padding);
         Assert.AreEqual(0, contentGrid.RowSpacing);
         Assert.AreEqual(new Thickness(0, 0, 0, 8), attachmentPresentation.Margin);
         Assert.AreEqual(new CornerRadius(20), surface.CornerRadius);
-        Assert.AreEqual(40, promptRow.MinHeight);
-        Assert.AreEqual(40, attachment.Width);
-        Assert.AreEqual(40, attachment.Height);
-        Assert.AreEqual(36, prompt.MinHeight);
+        Assert.AreEqual(36, promptRow.MinHeight);
+        Assert.AreEqual(36, attachment.Width);
+        Assert.AreEqual(36, attachment.Height);
+        Assert.AreEqual(32, prompt.MinHeight);
         Assert.AreEqual(160, prompt.MaxHeight);
-        Assert.AreEqual(40, send.Height);
+        Assert.AreEqual(36, send.Height);
         Assert.AreEqual(
             "\uE724",
             Assert.IsInstanceOfType<FontIcon>(send.Content).Glyph);
         Assert.IsFalse(send.IsEnabled);
-        Assert.AreEqual(40, stop.Height);
+        Assert.AreEqual(36, stop.Height);
         Assert.AreSame(
             Application.Current.Resources["GgufChatPrimaryButtonStyle"],
             stop.Style);
@@ -104,7 +104,7 @@ public sealed class ChatComposerTests
         composer.Measure(new Windows.Foundation.Size(700, double.PositiveInfinity));
         double compactHeight = surface.DesiredSize.Height;
 
-        Assert.IsLessThanOrEqualTo(53, compactHeight);
+        Assert.IsLessThanOrEqualTo(45, compactHeight);
 
         await composer.AddKnowledgeFilesAsync();
         composer.InvalidateMeasure();
