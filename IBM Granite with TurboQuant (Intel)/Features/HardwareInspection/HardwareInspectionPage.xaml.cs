@@ -1,6 +1,7 @@
 using GraniteEdgeAI.Features.HardwareInspection.Presentation.Controls;
 using GraniteEdgeAI.Features.HardwareInspection.Presentation.State;
 using GraniteEdgeAI.Features.HardwareInspection.ViewModels;
+using GraniteEdgeAI.Features.ModelInspection.Handoff;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using System;
@@ -19,6 +20,8 @@ public sealed partial class HardwareInspectionPage : Page
     ];
     private readonly HardwareInspectionViewModel? _viewModel;
     private bool _isActive;
+    private bool _isLoaded;
+    private bool _startAuthorized;
     private long _appliedRevision = -1;
     private long _appliedAttemptGeneration = -1;
 
@@ -27,14 +30,31 @@ public sealed partial class HardwareInspectionPage : Page
         InitializeComponent();
         ActiveActionCard.ActionRequested += OnActionRequested;
         ActionCard.ActionRequested += OnActionRequested;
+        Loaded += OnLoaded;
+        Unloaded += OnUnloaded;
     }
 
     public HardwareInspectionPage(HardwareInspectionViewModel viewModel)
+        : this(viewModel, opaqueModelHandoff: null, startAuthorized: true)
+    {
+    }
+
+    internal HardwareInspectionPage(
+        HardwareInspectionViewModel viewModel,
+        ModelInspectionHandoff opaqueModelHandoff)
+        : this(viewModel, opaqueModelHandoff, startAuthorized: false)
+    {
+    }
+
+    private HardwareInspectionPage(
+        HardwareInspectionViewModel viewModel,
+        ModelInspectionHandoff? opaqueModelHandoff,
+        bool startAuthorized)
         : this()
     {
         _viewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
-        Loaded += OnLoaded;
-        Unloaded += OnUnloaded;
+        OpaqueModelHandoff = opaqueModelHandoff;
+        _startAuthorized = startAuthorized;
     }
 
     public event EventHandler<HardwareInspectionActionRequestedEventArgs>? ActionRequested;
@@ -47,9 +67,33 @@ public sealed partial class HardwareInspectionPage : Page
 
     internal HardwareInspectionPresentationState? CurrentState { get; private set; }
 
+    internal ModelInspectionHandoff? OpaqueModelHandoff { get; }
+
+    internal bool IsStartAuthorized => _startAuthorized;
+
+    internal void AuthorizeStart()
+    {
+        if (_viewModel is null || _startAuthorized)
+        {
+            return;
+        }
+
+        _startAuthorized = true;
+        StartIfReady();
+    }
+
     private void OnLoaded(object sender, RoutedEventArgs args)
     {
-        if (_viewModel is null || _isActive)
+        _isLoaded = true;
+        StartIfReady();
+    }
+
+    private void StartIfReady()
+    {
+        if (_viewModel is null ||
+            !_isLoaded ||
+            !_startAuthorized ||
+            _isActive)
         {
             return;
         }
@@ -62,6 +106,7 @@ public sealed partial class HardwareInspectionPage : Page
 
     private void OnUnloaded(object sender, RoutedEventArgs args)
     {
+        _isLoaded = false;
         if (_viewModel is null || !_isActive)
         {
             return;

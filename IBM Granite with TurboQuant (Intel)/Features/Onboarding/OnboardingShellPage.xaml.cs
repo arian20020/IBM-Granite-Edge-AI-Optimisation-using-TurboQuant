@@ -1,6 +1,10 @@
+using GraniteEdgeAI.Features.HardwareInspection;
+using GraniteEdgeAI.Features.HardwareInspection.Application;
+using GraniteEdgeAI.Features.HardwareInspection.ViewModels;
 using GraniteEdgeAI.Features.ModelImport;
 using GraniteEdgeAI.Features.ModelInspection;
 using GraniteEdgeAI.Features.ModelInspection.Contracts;
+using GraniteEdgeAI.Features.ModelInspection.Handoff;
 using GraniteEdgeAI.Features.ModelInspection.Presentation;
 using Microsoft.UI.Xaml.Controls;
 using System;
@@ -22,6 +26,13 @@ namespace GraniteEdgeAI.Features.Onboarding
 
         private readonly Func<Frame, ModelInspectionRequest, bool>
             _modelInspectionNavigator;
+        private readonly IHardwareInspectionService? _hardwareInspectionService;
+        private readonly Func<
+            Frame,
+            HardwareInspectionViewModel,
+            ModelInspectionHandoff,
+            bool> _hardwareInspectionNavigator;
+        private readonly ModelInspectionHandoffRegistry _handoffRegistry = new();
 
         /// <summary>
         /// Creates the onboarding shell and displays the first stage.
@@ -29,15 +40,61 @@ namespace GraniteEdgeAI.Features.Onboarding
         public OnboardingShellPage()
             : this(static (frame, request) => frame.Navigate(
                 typeof(ModelInspectionPage),
-                request))
+                request),
+                hardwareInspectionService: null,
+                hardwareInspectionNavigator: null,
+                initialize: true)
         {
         }
 
         internal OnboardingShellPage(
             Func<Frame, ModelInspectionRequest, bool> modelInspectionNavigator)
+            : this(
+                modelInspectionNavigator,
+                hardwareInspectionService: null,
+                hardwareInspectionNavigator: null,
+                initialize: true)
+        {
+        }
+
+        internal OnboardingShellPage(
+            Func<Frame, ModelInspectionRequest, bool> modelInspectionNavigator,
+            IHardwareInspectionService hardwareInspectionService,
+            Func<
+                Frame,
+                HardwareInspectionViewModel,
+                ModelInspectionHandoff,
+                bool>? hardwareInspectionNavigator = null)
+            : this(
+                modelInspectionNavigator,
+                hardwareInspectionService ?? throw new ArgumentNullException(
+                    nameof(hardwareInspectionService)),
+                hardwareInspectionNavigator,
+                initialize: true)
+        {
+        }
+
+        private OnboardingShellPage(
+            Func<Frame, ModelInspectionRequest, bool> modelInspectionNavigator,
+            IHardwareInspectionService? hardwareInspectionService,
+            Func<
+                Frame,
+                HardwareInspectionViewModel,
+                ModelInspectionHandoff,
+                bool>? hardwareInspectionNavigator,
+            bool initialize)
         {
             _modelInspectionNavigator = modelInspectionNavigator ??
                 throw new ArgumentNullException(nameof(modelInspectionNavigator));
+            _hardwareInspectionService = hardwareInspectionService;
+            _hardwareInspectionNavigator = hardwareInspectionNavigator ??
+                (static (frame, viewModel, handoff) =>
+                {
+                    frame.Content = new HardwareInspectionPage(
+                        viewModel,
+                        handoff);
+                    return true;
+                });
 
             // Create all controls declared in OnboardingShellPage.xaml.
             InitializeComponent();
@@ -113,6 +170,10 @@ namespace GraniteEdgeAI.Features.Onboarding
                 ModelInspectionPage_ChooseAnotherModelRequested;
             _attachedModelInspectionPage.FooterStatusChanged +=
                 ModelInspectionPage_FooterStatusChanged;
+            _attachedModelInspectionPage.HardwareInspectionRequested +=
+                ModelInspectionPage_HardwareInspectionRequested;
+            _attachedModelInspectionPage.SetHardwareRouteAvailable(
+                _hardwareInspectionService is not null);
 
             // Navigation has already completed by the time the Frame hands
             // ownership to the shell, so sample the authoritative status now.
@@ -238,6 +299,93 @@ namespace GraniteEdgeAI.Features.Onboarding
             StageIndicator.InspectionStatus = eventArguments.Status;
         }
 
+        private void ModelInspectionPage_HardwareInspectionRequested(
+            object? sender,
+            HardwareInspectionRequestedEventArgs eventArguments)
+        {
+            if (sender is ModelInspectionPage sourcePage)
+            {
+                NavigateToHardwareInspection(sourcePage, eventArguments.Handoff);
+            }
+        }
+
+        internal bool NavigateToHardwareInspection(
+            ModelInspectionPage sourcePage,
+            ModelInspectionHandoff handoff)
+        {
+            ArgumentNullException.ThrowIfNull(sourcePage);
+            ArgumentNullException.ThrowIfNull(handoff);
+            if (_hardwareInspectionService is null ||
+                !ReferenceEquals(sourcePage, _attachedModelInspectionPage))
+            {
+                return false;
+            }
+
+            _handoffRegistry.ActivateModelRun(handoff.ModelInspectionRunId);
+            if (!_handoffRegistry.TryRegisterIssued(handoff))
+            {
+                return false;
+            }
+
+            Guid hardwareRunId = Guid.NewGuid();
+            if (!_handoffRegistry.TryBindToHardwareRun(
+                handoff,
+                handoff.ModelInspectionRunId,
+                hardwareRunId,
+                out ModelInspectionHandoffClaim claim))
+            {
+                _handoffRegistry.Invalidate(handoff.ModelInspectionHandoffId);
+                return false;
+            }
+
+            object? previousContent = StageFrame.Content;
+            bool navigationSucceeded;
+            try
+            {
+                navigationSucceeded = _hardwareInspectionNavigator(
+                    StageFrame,
+                    new HardwareInspectionViewModel(_hardwareInspectionService),
+                    handoff);
+            }
+            catch
+            {
+                navigationSucceeded = false;
+            }
+
+            if (!navigationSucceeded ||
+                ReferenceEquals(StageFrame.Content, previousContent) ||
+                StageFrame.Content is not HardwareInspectionPage hardwarePage ||
+                !ReferenceEquals(hardwarePage.OpaqueModelHandoff, handoff))
+            {
+                _handoffRegistry.TryRollbackBeforeHardwareStart(claim);
+                if (!ReferenceEquals(StageFrame.Content, previousContent))
+                {
+                    StageFrame.Content = previousContent;
+                }
+
+                return false;
+            }
+
+            if (!_handoffRegistry.TryMarkHardwareStarted(claim))
+            {
+                _handoffRegistry.Invalidate(handoff.ModelInspectionHandoffId);
+                StageFrame.Content = previousContent;
+                return false;
+            }
+
+            hardwarePage.AuthorizeStart();
+            StageFrame.BackStack.Clear();
+            StageFrame.ForwardStack.Clear();
+            DetachModelInspectionPage();
+            CurrentStage = OnboardingStage.CheckHardwareFit;
+            StageIndicator.CurrentStage = CurrentStage;
+            return true;
+        }
+
+        internal ModelInspectionHandoffLifecycleState? GetModelHandoffState(
+            Guid modelInspectionHandoffId) =>
+            _handoffRegistry.GetState(modelInspectionHandoffId);
+
         /// <summary>
         /// Replaces the inspection page with a new Model Import page without
         /// retaining Frame back-stack state as the active journey.
@@ -306,6 +454,9 @@ namespace GraniteEdgeAI.Features.Onboarding
                 ModelInspectionPage_ChooseAnotherModelRequested;
             _attachedModelInspectionPage.FooterStatusChanged -=
                 ModelInspectionPage_FooterStatusChanged;
+            _attachedModelInspectionPage.HardwareInspectionRequested -=
+                ModelInspectionPage_HardwareInspectionRequested;
+            _attachedModelInspectionPage.SetHardwareRouteAvailable(false);
             _attachedModelInspectionPage = null;
         }
     }
