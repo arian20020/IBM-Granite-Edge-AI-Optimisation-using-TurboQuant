@@ -6,6 +6,7 @@ using GraniteEdgeAI.Features.ModelInspection.Presentation;
 using GraniteEdgeAI.Features.ModelInspection.Services;
 using GraniteEdgeAI.Features.ModelInspection.ViewModels;
 using GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation;
+using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
@@ -2109,15 +2110,30 @@ public sealed class ModelInspectionRenderedStateTests
                 "InspectionBorderLightBrush",
                 resultSurface.BorderBrush);
             Button primary = Element<Button>(actions, "PrimaryActionButton");
-            AssertBrushColor("InspectionPrimaryBlueBrush", primary.Background);
-            AssertBrushColor("InspectionPrimaryBlueBrush", primary.BorderBrush);
-            AssertBrushColor("InspectionSurfaceBrush", primary.Foreground);
+            AssertBrushColor(
+                ColorHelper.FromArgb(0xFF, 0x25, 0x63, 0xEB),
+                primary.Background,
+                "shared primary background");
+            AssertBrushColor(
+                ColorHelper.FromArgb(0xFF, 0x25, 0x63, 0xEB),
+                primary.BorderBrush,
+                "shared primary border");
+            AssertBrushColor(
+                Colors.White,
+                primary.Foreground,
+                "shared primary foreground");
         }
         else
         {
             Button cancel = Element<Button>(actions, "CancelActionButton");
-            AssertBrushColor("InspectionSurfaceBrush", cancel.Background);
-            AssertBrushColor("InspectionBorderControlBrush", cancel.BorderBrush);
+            AssertBrushColor(
+                Colors.White,
+                cancel.Background,
+                "shared secondary background");
+            AssertBrushColor(
+                ColorHelper.FromArgb(0xFF, 0xC9, 0xD7, 0xE8),
+                cancel.BorderBrush,
+                "shared secondary border");
         }
     }
 
@@ -2261,6 +2277,15 @@ public sealed class ModelInspectionRenderedStateTests
             LightThemeResource(resourceKey));
         SolidColorBrush observed = Assert.IsInstanceOfType<SolidColorBrush>(actual);
         Assert.AreEqual(expected.Color, observed.Color, context ?? resourceKey);
+    }
+
+    private static void AssertBrushColor(
+        Windows.UI.Color expected,
+        Brush? actual,
+        string context)
+    {
+        SolidColorBrush observed = Assert.IsInstanceOfType<SolidColorBrush>(actual);
+        Assert.AreEqual(expected, observed.Color, context);
     }
 
     private static object LightThemeResource(string resourceKey)

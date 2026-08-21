@@ -531,16 +531,7 @@ public sealed class InspectionActionCardTests
 
     private static void AssertActionGeometry(Button button)
     {
-        CornerRadius expectedCornerRadius =
-            (CornerRadius)Application.Current.Resources[
-                "InspectionActionCornerRadius"];
-        Thickness expectedPadding =
-            (Thickness)Application.Current.Resources[
-                "InspectionActionPadding"];
-
-        Assert.AreEqual(expectedCornerRadius, button.CornerRadius);
         Assert.AreEqual(new CornerRadius(11d), button.CornerRadius);
-        Assert.AreEqual(expectedPadding, button.Padding);
         Assert.AreEqual(new Thickness(18d, 10d, 18d, 10d), button.Padding);
         Assert.IsGreaterThanOrEqualTo(44d, button.MinHeight);
         Assert.AreEqual(46d, button.MinHeight, 0.01d);
@@ -572,45 +563,63 @@ public sealed class InspectionActionCardTests
 
     private static void AssertSecondaryActionSemantics(Button button)
     {
-        AssertUsesResource(
-            "InspectionSurfaceBrush",
-            button.Background,
+        AssertBrushColor(Colors.White, button.Background,
             $"{button.Name} secondary background");
-        AssertUsesResource(
-            "InspectionBorderControlBrush",
+        AssertBrushColor(
+            ColorHelper.FromArgb(0xFF, 0xC9, 0xD7, 0xE8),
             button.BorderBrush,
             $"{button.Name} secondary border");
-        AssertUsesResource(
-            "InspectionTextSecondaryStrongBrush",
+        AssertBrushColor(
+            ColorHelper.FromArgb(0xFF, 0x11, 0x18, 0x27),
             button.Foreground,
             $"{button.Name} secondary foreground");
+        AssertButtonResourceColor(button, "ButtonBackgroundPointerOver", 0xF8, 0xFA, 0xFC);
+        AssertButtonResourceColor(button, "ButtonBackgroundPressed", 0xEE, 0xF2, 0xF7);
+        AssertButtonResourceColor(button, "ButtonBackgroundDisabled", 0xE5, 0xE7, 0xEB);
+        AssertButtonResourceColor(button, "ButtonForegroundDisabled", 0x9C, 0xA3, 0xAF);
+        AssertButtonResourceColor(button, "ButtonBorderBrushDisabled", 0xD1, 0xD5, 0xDB);
     }
 
     private static void AssertPrimaryActionSemantics(Button button)
     {
-        AssertUsesResource(
-            "InspectionPrimaryBlueBrush",
+        AssertBrushColor(
+            ColorHelper.FromArgb(0xFF, 0x25, 0x63, 0xEB),
             button.Background,
             "primary background");
-        AssertUsesResource(
-            "InspectionPrimaryBlueBrush",
+        AssertBrushColor(
+            ColorHelper.FromArgb(0xFF, 0x25, 0x63, 0xEB),
             button.BorderBrush,
             "primary border");
-        AssertUsesResource(
-            "InspectionSurfaceBrush",
-            button.Foreground,
-            "primary foreground");
+        AssertBrushColor(Colors.White, button.Foreground, "primary foreground");
+        AssertButtonResourceColor(button, "ButtonBackgroundPointerOver", 0x1D, 0x4E, 0xD8);
+        AssertButtonResourceColor(button, "ButtonBackgroundPressed", 0x1E, 0x40, 0xAF);
+        AssertButtonResourceColor(button, "ButtonBackgroundDisabled", 0xE5, 0xE7, 0xEB);
+        AssertButtonResourceColor(button, "ButtonForegroundDisabled", 0x9C, 0xA3, 0xAF);
+        AssertButtonResourceColor(button, "ButtonBorderBrushDisabled", 0xD1, 0xD5, 0xDB);
     }
 
-    private static void AssertUsesResource(
-        string resourceKey,
+    private static void AssertBrushColor(
+        Windows.UI.Color expected,
         object? actual,
         string message)
     {
-        Assert.AreSame(
-            Application.Current.Resources[resourceKey],
-            actual,
-            message);
+        SolidColorBrush brush = Assert.IsInstanceOfType<SolidColorBrush>(actual);
+        Assert.AreEqual(expected, brush.Color, message);
+    }
+
+    private static void AssertButtonResourceColor(
+        Button button,
+        string key,
+        byte red,
+        byte green,
+        byte blue)
+    {
+        SolidColorBrush brush = Assert.IsInstanceOfType<SolidColorBrush>(
+            button.Resources[key]);
+        Assert.AreEqual(
+            ColorHelper.FromArgb(0xFF, red, green, blue),
+            brush.Color,
+            $"{button.Name} {key}");
     }
 
     private static void AssertActionBinding(
