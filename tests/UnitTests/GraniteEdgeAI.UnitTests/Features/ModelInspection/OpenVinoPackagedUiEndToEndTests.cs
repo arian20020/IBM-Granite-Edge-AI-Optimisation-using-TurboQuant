@@ -63,6 +63,10 @@ public sealed class OpenVinoPackagedUiEndToEndTests
 
         input.Text = "hello";
         InvokeButton(send, "STOP prompt Send");
+        await WaitForPromptStateAsync(
+            page,
+            state => state.ActiveTurnId is not null,
+            "worker-confirmed STOP ownership");
         InvokeButton(stop, "STOP");
         await Require(page.CurrentOpenVinoPromptTask)
             .WaitAsync(TimeSpan.FromSeconds(30));
@@ -87,9 +91,10 @@ public sealed class OpenVinoPackagedUiEndToEndTests
         InvokeButton(send, "active CANCEL prompt Send");
         PromptSurfaceState generating = await WaitForPromptStateAsync(
             page,
-            state => state.LastEventKind == PromptEventKind.GeneratingTurn &&
-                state.ActiveTurnId is not null,
-            "native generation ownership");
+            state => state.ActiveTurnId is not null &&
+                state.LastEventKind is PromptEventKind.GenerationConfirmed or
+                    PromptEventKind.TextDelta,
+            "worker-confirmed native generation ownership");
         Guid cancelledTurnId = generating.ActiveTurnId!.Value;
         InvokeButton(cancel, "Cancel session");
         await Require(page.CurrentOpenVinoCancelTask)

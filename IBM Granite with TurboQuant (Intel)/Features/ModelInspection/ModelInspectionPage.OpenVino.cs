@@ -463,7 +463,17 @@ public sealed partial class ModelInspectionPage
     {
         try
         {
-            await session.CancelAsync(CancellationToken.None);
+            Guid? activeTurnId = _promptPresenter?.State.ActiveTurnId;
+            if (activeTurnId is Guid confirmedTurnId)
+            {
+                await session.CancelActiveTurnAsync(
+                    confirmedTurnId,
+                    CancellationToken.None);
+            }
+            else
+            {
+                await session.CancelAsync(CancellationToken.None);
+            }
         }
         catch (Exception)
         {

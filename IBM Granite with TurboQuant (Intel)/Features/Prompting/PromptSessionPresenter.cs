@@ -50,6 +50,14 @@ public sealed class PromptSessionPresenter
             PromptEventKind.GeneratingTurn => State with
             {
                 ResponseText = string.Empty,
+                Announcement = "Starting local generation.",
+                SendEnabled = false,
+                StopEnabled = false,
+                CancelEnabled = false,
+                ActiveTurnId = null
+            },
+            PromptEventKind.GenerationConfirmed => State with
+            {
                 Announcement = "Generating locally.",
                 SendEnabled = false,
                 StopEnabled = true,

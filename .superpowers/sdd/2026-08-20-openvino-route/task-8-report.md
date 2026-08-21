@@ -476,3 +476,79 @@ and only the packaged harness requests 32. The policy-retained verified stage at
 remains unchanged and was not removed through another shell.
 
 Task 8 remains in progress after fix round 2/5 awaiting scoped re-review.
+
+## Independent review fix round 3/5
+
+All three findings were confirmed against the round-2 code before production
+edits. The focused RED/GREEN sequence was:
+
+- **Concurrent teardown join:** the new slow-disposal test was authored with
+  the worker-confirmation test before implementation; the first focused command
+  failed compilation because the required confirmation-aware channel member did
+  not exist. The completed adapter test holds channel disposal behind a
+  controllable gate, starts concurrent Cancel and Dispose, and proves both tasks
+  remain incomplete until release, both then complete, the throwing terminal
+  observer does not escape, terminal state/event occurs once, and underlying
+  cancellation/disposal counts are exactly one. All adapter plus neutral
+  presenter tests passed 24/24.
+- **Worker-confirmed active ownership:** the managed conversation now forwards
+  the validated real `generationStarted` protocol event; the route adapter
+  correlates its session and turn IDs before publishing route-neutral
+  `GenerationConfirmed`. Local pre-call `GeneratingTurn` keeps Stop/Cancel
+  disabled and owns no active turn. A second test-first compile produced two
+  missing `CancelActiveTurnAsync` errors. The neutral session API now carries the
+  worker-confirmed turn ID; the official adapter atomically validates that ID
+  against its confirmed active snapshot before beginning cancellation. The
+  focused test rejects a wrong ID before channel contact and accepts the exact
+  ID with one cancel/dispose. The packaged native E2E waits for this real
+  confirmation for both STOP and CANCEL, then retains post-STOP reuse, exact
+  cancelled terminal, no TurnCompleted/result, no late text/revision, default
+  missing/tampered composition, and zero residue.
+- **Retirement-failure recovery:** the injected slow then throwing retirement
+  test failed 0/1 because the exception escaped after Frame navigation. The
+  shell now catches only retirement failure after the old page has left the
+  Frame, commits the visible fresh import page as the controlled recovery owner,
+  restores frame/page interaction, aligns subscriptions and stage, and returns
+  false. The test proves the recovery page can immediately raise the next real
+  inspection request and app-close joins the already completed owner without a
+  second retirement. It passed with the exact two native E2Es, 3/3.
+
+The first packaged run after introducing confirmation passed the navigation
+recovery but failed canonical STOP because the old test invoked STOP before the
+worker acknowledgment and the controller correctly kept it disabled. That
+assertion aborted its journey; the following negative test then failed its
+zero-worker precondition. No process remained by the cleanup audit. After STOP
+was changed to await the same real acknowledgment, the exact three methods
+passed 3/3 in 11 seconds.
+
+### Fix-round 3 verification
+
+| Gate | Result |
+|---|---|
+| Approved-stage OpenVINO route/unit/packaging suite | 164/164 passed in 30.898 s. |
+| OpenVINO contract suite | 60/60 passed in 32.852 s. |
+| OpenVINO worker-client suite | 13/13 passed in 3.991 s. |
+| Official process suite with approved Task 7 stages A+B | 39/39 passed in 1 m 04.087 s; the unrelated legacy delayed-handshake suite was not invoked. |
+| Exact recovery plus packaged native E2Es | 3/3 passed in 11 s. |
+| Affected packaged navigation/onboarding/OpenVINO import/prompt/native partition | 65/65 passed in 25 s. |
+| Release x64 app build with caller-pinned stage/digest | MSBuild exited 0 after `worker_manifest_valid` and `worker_manifest_digest_valid`. |
+| Independent closure verifiers | Manifest `worker_manifest_valid`; official dependency locks `dependency_lock_valid`; canonical GenAI fixture `fixture_valid`. |
+
+The Release output again contains exactly 17 official worker files, 17 recipe
+entries, manifest SHA-256
+`0f656f6f2afe0b7246d0746f458ad6ed02e23be943145779b0160dd69aff2ebe`,
+worker SHA-256
+`51f5c5579251b2d9a81bb1c743acdc3f361abd6e297782701d04ea4691311c94`,
+and the caller-pinned digest in the app DLL. Round-1/2 closures remain intact:
+no raw path entered the neutral acknowledgment/session/presenter, evidence,
+capability, or diagnostics; no public arbitrary worker root exists; default/max
+tokens remain 128; one shared `ModelInspectionPage` remains; and no Task 9,
+GPU, conversion, or TurboQuant work was performed. The policy-retained stage
+`C:\Users\Arian\AppData\Local\Temp\granite-o1-task8-fix-round1-final`
+remains untouched.
+
+The final audit found zero OpenVINO worker or repository test/build processes,
+4,585 tracked files, zero tracked binary/archive/build artifacts, and
+`git diff --check` exited 0.
+
+Task 8 remains in progress after fix round 3/5 awaiting scoped re-review.

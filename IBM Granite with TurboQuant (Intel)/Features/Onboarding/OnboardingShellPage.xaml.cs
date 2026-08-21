@@ -323,18 +323,30 @@ namespace GraniteEdgeAI.Features.Onboarding
                 // Frame navigation starts the page's one retirement task. The
                 // shell owns that same completion boundary and keeps the new
                 // destination inert until every owner has transferred.
-                await page.RetireForNavigationAsync();
+                try
+                {
+                    await page.RetireForNavigationAsync();
+                }
+                catch (Exception)
+                {
+                    if (ReferenceEquals(StageFrame.Content, modelImportPage))
+                    {
+                        // The old page has already left the Frame and cannot
+                        // be authoritative again. Commit a safe, interactive
+                        // import recovery owner and report controlled failure.
+                        CommitFreshModelImportOwnership(modelImportPage);
+                        ownershipCommitted = true;
+                        return false;
+                    }
+
+                    throw;
+                }
                 if (!ReferenceEquals(StageFrame.Content, modelImportPage))
                 {
                     return false;
                 }
 
-                StageFrame.BackStack.Clear();
-                StageFrame.ForwardStack.Clear();
-                AttachModelImportPage(modelImportPage);
-                DetachModelInspectionPage();
-                CurrentStage = OnboardingStage.ImportModel;
-                StageIndicator.CurrentStage = CurrentStage;
+                CommitFreshModelImportOwnership(modelImportPage);
                 ownershipCommitted = true;
                 return true;
             }
@@ -344,12 +356,19 @@ namespace GraniteEdgeAI.Features.Onboarding
                 {
                     modelImportPage.IsEnabled = ownershipCommitted;
                 }
-                if (ownershipCommitted ||
-                    ReferenceEquals(StageFrame.Content, previousContent))
-                {
-                    StageFrame.IsHitTestVisible = priorHitTestVisibility;
-                }
+                StageFrame.IsHitTestVisible = priorHitTestVisibility;
             }
+        }
+
+        private void CommitFreshModelImportOwnership(
+            ModelImportPage modelImportPage)
+        {
+            StageFrame.BackStack.Clear();
+            StageFrame.ForwardStack.Clear();
+            AttachModelImportPage(modelImportPage);
+            DetachModelInspectionPage();
+            CurrentStage = OnboardingStage.ImportModel;
+            StageIndicator.CurrentStage = CurrentStage;
         }
 
         internal Task<bool> ReturnToModelImportAsync()

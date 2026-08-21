@@ -16,6 +16,7 @@ public enum PromptEventKind
     Loading,
     SessionReady,
     GeneratingTurn,
+    GenerationConfirmed,
     TextDelta,
     StoppingTurn,
     TurnCompleted,
@@ -92,6 +93,16 @@ public interface IPromptRouteSession : IAsyncDisposable
     Task StopAsync(CancellationToken cancellationToken);
 
     Task CancelAsync(CancellationToken cancellationToken);
+
+    Task CancelActiveTurnAsync(
+        Guid workerConfirmedTurnId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentOutOfRangeException.ThrowIfEqual(
+            workerConfirmedTurnId,
+            Guid.Empty);
+        return CancelAsync(cancellationToken);
+    }
 
     Task CloseAsync(CancellationToken cancellationToken);
 }

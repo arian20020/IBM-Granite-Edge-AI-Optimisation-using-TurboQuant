@@ -261,6 +261,58 @@ public sealed class OnboardingModelInspectionNavigationTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
+    public async Task ThrowingRetirementCommitsInteractiveOwnedRecoveryDestination()
+    {
+        TaskCompletionSource retirementStarted = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        TaskCompletionSource releaseRetirement = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        int retirementCount = 0;
+        ModelInspectionPage page = new();
+        page.NavigationRetirementOverride = async () =>
+        {
+            Interlocked.Increment(ref retirementCount);
+            retirementStarted.TrySetResult();
+            await releaseRetirement.Task;
+            throw new InvalidOperationException("controlled retirement failure");
+        };
+        ControlledInspectionFrameNavigator navigator = new(page, new());
+        OnboardingShellPage shell = new(navigator.Navigate);
+        Frame frame = (Frame)shell.FindName("StageFrame");
+        Assert.IsTrue(shell.NavigateToModelInspection(
+            CreateRequest(@"C:\Models\retirement-failure.gguf")));
+
+        Task<bool> navigation = shell.ReturnToModelImportAsync();
+        await retirementStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        ModelImportPage destination =
+            Assert.IsInstanceOfType<ModelImportPage>(frame.Content);
+        Assert.IsFalse(destination.IsEnabled);
+        releaseRetirement.SetResult();
+
+        Assert.IsFalse(await navigation.WaitAsync(TimeSpan.FromSeconds(5)),
+            "A controlled recovery destination must report retirement failure.");
+        Assert.AreEqual(1, Volatile.Read(ref retirementCount));
+        Assert.AreSame(destination, frame.Content);
+        Assert.IsTrue(frame.IsHitTestVisible);
+        Assert.IsTrue(destination.IsEnabled);
+        Assert.AreEqual(OnboardingStage.ImportModel, shell.CurrentStage);
+        Assert.IsNull(shell.ActiveInspectionPageForTesting);
+
+        ModelInspectionRequest next = CreateRequest(
+            @"C:\Models\recovered-next.gguf");
+        RaiseModelInspectionRequested(destination, next);
+        Assert.AreEqual(OnboardingStage.InspectModel, shell.CurrentStage,
+            "The visible recovery destination must own the live subscription.");
+        Assert.AreSame(
+            next,
+            Assert.IsInstanceOfType<ModelInspectionPage>(frame.Content).Request);
+
+        await shell.ShutdownAsync().WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.AreEqual(1, Volatile.Read(ref retirementCount));
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
     public async Task ShutdownOwnerAwaitsActiveInspectionRetirement()
     {
         TaskCompletionSource releaseRetirement = new(

@@ -190,6 +190,7 @@ public sealed class OpenVinoRouteServiceTests
         public Task<IOpenVinoEvent> PromptAsync(
             PromptCommand command,
             IProgress<TokenEvent>? progress,
+            Action<GenerationStartedEvent>? generationStarted,
             CancellationToken cancellationToken) =>
             throw new AssertFailedException("prompt is not part of activation");
 

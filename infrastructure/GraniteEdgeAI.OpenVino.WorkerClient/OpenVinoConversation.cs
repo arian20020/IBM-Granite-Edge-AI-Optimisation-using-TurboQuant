@@ -59,6 +59,17 @@ public sealed class OpenVinoConversation : IAsyncDisposable
     public async Task<IOpenVinoEvent> PromptAsync(
         PromptCommand command,
         IProgress<TokenEvent>? tokens,
+        CancellationToken cancellationToken) =>
+        await PromptAsync(
+            command,
+            tokens,
+            generationStarted: null,
+            cancellationToken).ConfigureAwait(false);
+
+    public async Task<IOpenVinoEvent> PromptAsync(
+        PromptCommand command,
+        IProgress<TokenEvent>? tokens,
+        IProgress<GenerationStartedEvent>? generationStarted,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(command);
@@ -139,6 +150,12 @@ public sealed class OpenVinoConversation : IAsyncDisposable
                     {
                         _generationStarted = true;
                     }
+                }
+
+                if (@event is GenerationStartedEvent started)
+                {
+                    generationStarted?.Report(started);
+                    continue;
                 }
 
                 if (@event is TokenEvent token)

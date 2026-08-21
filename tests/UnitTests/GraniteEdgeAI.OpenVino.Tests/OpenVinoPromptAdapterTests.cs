@@ -267,6 +267,131 @@ public sealed class OpenVinoPromptAdapterTests
     }
 
     [TestMethod]
+    public async Task ConcurrentCancelAndDisposeBothJoinOneSlowChannelDisposal()
+    {
+        TaskCompletionSource disposalStarted = NewSignal();
+        TaskCompletionSource releaseDisposal = NewSignal();
+        FakeChannel channel = SuccessfulChannel();
+        channel.DisposeAction = async () =>
+        {
+            disposalStarted.TrySetResult();
+            await releaseDisposal.Task;
+        };
+        List<PromptEvent> events = [];
+        OpenVinoRouteSession session = await StartSessionAsync(
+            channel,
+            promptEvent =>
+            {
+                events.Add(promptEvent);
+                if (promptEvent.Kind == PromptEventKind.Cancelled)
+                {
+                    throw new InvalidOperationException("terminal observer failed");
+                }
+            });
+
+        Task cancellation = session.CancelAsync(CancellationToken.None);
+        await disposalStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Task disposal = session.DisposeAsync().AsTask();
+
+        Assert.IsFalse(cancellation.IsCompleted);
+        Assert.IsFalse(disposal.IsCompleted,
+            "Every disposer must join the in-flight channel disposal task.");
+        Assert.AreEqual(1, channel.DisposeCount);
+
+        releaseDisposal.SetResult();
+        await Task.WhenAll(cancellation, disposal)
+            .WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.AreEqual(OpenVinoRouteState.Cancelled, session.Snapshot.State);
+        Assert.HasCount(1, events.Where(item =>
+            item.Kind == PromptEventKind.Cancelled));
+        Assert.AreEqual(1, channel.CancelCount);
+        Assert.AreEqual(1, channel.DisposeCount);
+    }
+
+    [TestMethod]
+    public async Task WorkerConfirmationOwnsTheExactTurnBeforeActiveCancellationIsEnabled()
+    {
+        TaskCompletionSource promptStarted = NewSignal();
+        TaskCompletionSource releasePrompt = NewSignal();
+        FakeChannel channel = new(async (command, _, _) =>
+        {
+            promptStarted.TrySetResult();
+            await releasePrompt.Task;
+            return new TurnCompletedEvent(
+                command.SessionId,
+                command.TurnId,
+                1,
+                1,
+                OpenVinoTurnDisposition.Completed);
+        })
+        {
+            AutoConfirmGeneration = false
+        };
+        (OpenVinoRouteSession session, List<PromptEvent> events) =
+            await StartSessionAsync(channel);
+
+        Task<PromptTurnResult> generation = session.GenerateAsync(
+            "confirm me", 8, CancellationToken.None);
+        await promptStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        PromptEvent pending = events.Last();
+
+        Assert.AreEqual(PromptEventKind.GeneratingTurn, pending.Kind);
+        Assert.IsFalse(events.Any(item =>
+            item.Kind == PromptEventKind.GenerationConfirmed));
+
+        channel.ConfirmGeneration();
+        PromptEvent confirmed = events.Single(item =>
+            item.Kind == PromptEventKind.GenerationConfirmed);
+        Assert.AreEqual(pending.TurnId, confirmed.TurnId);
+
+        releasePrompt.SetResult();
+        Assert.AreEqual(
+            PromptTurnStatus.Completed,
+            (await generation.WaitAsync(TimeSpan.FromSeconds(5))).Status);
+    }
+
+    [TestMethod]
+    public async Task ActiveCancelAtomicallyRequiresTheWorkerConfirmedTurnId()
+    {
+        TaskCompletionSource promptStarted = NewSignal();
+        TaskCompletionSource cancellationReleased = NewSignal();
+        FakeChannel channel = new(async (_, _, _) =>
+        {
+            promptStarted.TrySetResult();
+            await cancellationReleased.Task;
+            throw new OpenVinoRouteWorkerFailureException(
+                OpenVinoSupportCode.OperationCancelled,
+                "confirmed active turn cancelled");
+        });
+        channel.CancelAction = () => cancellationReleased.TrySetResult();
+        (OpenVinoRouteSession session, List<PromptEvent> events) =
+            await StartSessionAsync(channel);
+
+        Task<PromptTurnResult> generation = session.GenerateAsync(
+            "cancel confirmed", 8, CancellationToken.None);
+        await promptStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Guid confirmedTurnId = events.Single(item =>
+            item.Kind == PromptEventKind.GenerationConfirmed).TurnId!.Value;
+
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
+            session.CancelActiveTurnAsync(
+                Guid.NewGuid(),
+                CancellationToken.None));
+        Assert.AreEqual(0, channel.CancelCount);
+
+        await session.CancelActiveTurnAsync(
+            confirmedTurnId,
+            CancellationToken.None);
+        await Assert.ThrowsExactlyAsync<OperationCanceledException>(
+            async () => await generation);
+
+        Assert.AreEqual(OpenVinoRouteState.Cancelled, session.Snapshot.State);
+        Assert.AreEqual(1, channel.CancelCount);
+        Assert.AreEqual(1, channel.DisposeCount);
+    }
+
+    [TestMethod]
     public async Task CloseAwaitsChannelCleanupAndMakesLateOperationsInactionable()
     {
         FakeChannel channel = SuccessfulChannel();
@@ -377,21 +502,35 @@ public sealed class OpenVinoPromptAdapterTests
         internal Action? StopAction { get; set; }
         internal Action? CancelAction { get; set; }
         internal Exception? CancelFailure { get; set; }
+        internal Func<ValueTask>? DisposeAction { get; set; }
+        internal bool AutoConfirmGeneration { get; set; } = true;
         internal Guid SessionId { get; set; }
         internal int PromptCount { get; private set; }
         internal bool CloseCalled { get; private set; }
         internal bool DisposeCalled => DisposeCount != 0;
         internal int CancelCount { get; private set; }
         internal int DisposeCount { get; private set; }
+        private Action<GenerationStartedEvent>? generationStarted;
+        private Guid activeTurnId;
 
         public async Task<IOpenVinoEvent> PromptAsync(
             PromptCommand command,
             IProgress<TokenEvent>? progress,
+            Action<GenerationStartedEvent>? generationStarted,
             CancellationToken cancellationToken)
         {
             PromptCount++;
+            this.generationStarted = generationStarted;
+            activeTurnId = command.TurnId;
+            if (AutoConfirmGeneration)
+            {
+                ConfirmGeneration();
+            }
             return await prompt(command, progress, cancellationToken);
         }
+
+        internal void ConfirmGeneration() => generationStarted?.Invoke(
+            new GenerationStartedEvent(SessionId, activeTurnId));
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
@@ -419,7 +558,7 @@ public sealed class OpenVinoPromptAdapterTests
         public ValueTask DisposeAsync()
         {
             DisposeCount++;
-            return ValueTask.CompletedTask;
+            return DisposeAction?.Invoke() ?? ValueTask.CompletedTask;
         }
     }
 }

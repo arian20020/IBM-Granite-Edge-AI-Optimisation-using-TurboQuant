@@ -111,10 +111,14 @@ public sealed class PromptRouteContractRedTests
 
         presenter.Apply(Event(PromptEventKind.GeneratingTurn, turnId));
 
-        Assert.AreEqual(turnId, presenter.State.ActiveTurnId);
+        Assert.IsNull(presenter.State.ActiveTurnId);
+        Assert.IsFalse(presenter.State.CancelEnabled);
         Assert.AreEqual(
             PromptEventKind.GeneratingTurn,
             presenter.State.LastEventKind);
+        presenter.Apply(Event(PromptEventKind.GenerationConfirmed, turnId));
+        Assert.AreEqual(turnId, presenter.State.ActiveTurnId);
+        Assert.IsTrue(presenter.State.CancelEnabled);
         long generatingRevision = presenter.State.EventRevision;
 
         presenter.Apply(Event(PromptEventKind.CancellingSession, turnId));
