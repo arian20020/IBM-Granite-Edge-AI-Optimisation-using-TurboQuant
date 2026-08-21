@@ -25,7 +25,8 @@ public sealed class ModeSelectorTests
         bool isBaseline = false,
         bool requiresEvidence = false,
         EvidenceGrade evidence = EvidenceGrade.Estimated,
-        ulong headroom = 1_000_000)
+        ulong headroom = 1_000_000,
+        WeightQuantisation quantisation = WeightQuantisation.Q4_K_M)
     {
         CompatibilityCandidate candidate = CompatibilityCandidate.Create(
             GgufRouteConfiguration.Create(
@@ -63,7 +64,7 @@ public sealed class ModeSelectorTests
                 ByteCount.FromBytes(1024),
                 ByteCount.FromBytes(headroom),
                 PressureRatio: 0.5m),
-            WeightQuantisation.Q4_K_M,
+            quantisation,
             evidence,
             PerformanceIndicator.NotEstablished(),
             ByteCount.Zero);
@@ -261,6 +262,54 @@ public sealed class ModeSelectorTests
                 reversedReason,
                 $"{mode} depended on candidate order for its reported reason.");
         }
+    }
+
+    // Proves ModeSelector actually threads the best admitted quality tier into
+    // ModeComparers.For, rather than merely computing it and dropping it.
+    // Candidate() previously hardcoded one quantisation for every candidate, so
+    // this wiring could be deleted from ModeSelector without any test failing.
+    //
+    // Three admitted candidates, all preserving the requested context so the
+    // first Balanced factor ties: bestFit at F16 (the best tier present, so
+    // it is in band), oneTierLower at Q8_0 (adjacent to F16, so also in band)
+    // with far more headroom, and twoTiersLower at Q6_K (two ladder positions
+    // from F16, so out of band) with even more headroom still.
+    //
+    // With the band wired in, QualityBand outranks Headroom: the two in-band
+    // candidates are compared on headroom before the out-of-band one is even
+    // considered, so oneTierLower (more headroom, in band) beats both bestFit
+    // (less headroom, in band) and twoTiersLower (out of band regardless of
+    // its headroom). Without the wiring - bestAdmittedTier always null - every
+    // candidate reads as out of band, QualityBand ties for all three, and the
+    // winner would fall straight through to raw headroom, making
+    // twoTiersLower win instead. That difference is what this test pins.
+    [TestMethod]
+    public void SelectAll_BalancedPrefersAnInBandLowerTierOverAHigherHeadroomOutOfBandOne()
+    {
+        EvaluatedCandidate bestFit = Candidate(
+            kv: GgufKvCacheFormat.F16, quantisation: WeightQuantisation.F16, headroom: 1);
+
+        EvaluatedCandidate oneTierLower = Candidate(
+            kv: GgufKvCacheFormat.Q8_0, quantisation: WeightQuantisation.Q8_0, headroom: 100_000_000);
+
+        EvaluatedCandidate twoTiersLower = Candidate(
+            kv: GgufKvCacheFormat.TurboQuant3Bit,
+            quantisation: WeightQuantisation.Q6_K,
+            headroom: 1_000_000_000);
+
+        ModeSelectionOutcome outcome = Select([bestFit, oneTierLower, twoTiersLower]);
+
+        CompatibilityModeSelection balanced =
+            outcome.Selections.Single(s => s.Mode == CompatibilityMode.Balanced);
+
+        Assert.AreEqual(ModeAvailability.Available, balanced.Availability);
+        Assert.AreEqual(
+            oneTierLower.Fingerprint.Value,
+            balanced.SelectedFingerprint?.Value,
+            "Balanced must prefer the in-band, higher-headroom candidate over both the "
+            + "best tier with less headroom and the out-of-band candidate with even more "
+            + "headroom - proving the quality band ModeSelector computes is the one "
+            + "actually driving the comparison.");
     }
 
     [TestMethod]

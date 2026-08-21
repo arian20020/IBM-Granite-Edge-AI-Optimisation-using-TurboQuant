@@ -2,6 +2,7 @@ using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Candidates;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Contracts;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Estimation;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.FitAssessment;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.ModeSelection;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.Gguf;
 
@@ -347,5 +348,32 @@ public sealed class EnumExhaustivenessTests
             "The DeviceRouteId x GpuOffloadLevel pairing count changed, which means an "
             + "enum member was added or removed. Update the expected-outcome table above "
             + "for the new member, then update this expected total.");
+    }
+
+    // Regression guard: ModeSelector.RefusalPrecedence names a stable,
+    // most-fundamental-first order for reporting a refusal reason when
+    // candidates fail different admission gates. It is a fixed array, not
+    // something driven from Enum.GetValues, so a future ModeAdmissionReason
+    // member added without a precedence entry would fall through
+    // RefusalPrecedence.FirstOrDefault to ModeAdmissionReason.None - which
+    // CompatibilityModeSelection.Unavailable then rejects, turning a
+    // reportable refusal into a crash. Driven from Enum.GetValues so a new
+    // member is swept automatically rather than silently missed.
+    [TestMethod]
+    public void EveryModeAdmissionReason_HasAPlaceInTheRefusalPrecedenceOrder()
+    {
+        foreach (ModeAdmissionReason reason in Enum.GetValues<ModeAdmissionReason>())
+        {
+            if (reason == ModeAdmissionReason.None)
+            {
+                continue;
+            }
+
+            Assert.IsTrue(
+                ModeSelector.RefusalPrecedenceForTests.Contains(reason),
+                $"{reason} has no place in ModeSelector's RefusalPrecedence order, so a "
+                + "run refused only for this reason would report no reason at all. Add "
+                + "it to the array.");
+        }
     }
 }

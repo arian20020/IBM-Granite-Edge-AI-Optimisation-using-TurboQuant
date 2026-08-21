@@ -97,6 +97,14 @@ internal static class ModeSelector
         ModeAdmissionReason.BackendMismatch
     ];
 
+    /// <summary>
+    /// Test-only window onto <see cref="RefusalPrecedence"/>, so an
+    /// exhaustiveness sweep can catch a future <see cref="ModeAdmissionReason"/>
+    /// member added without a precedence entry, without widening the array's
+    /// own visibility.
+    /// </summary>
+    internal static IReadOnlyList<ModeAdmissionReason> RefusalPrecedenceForTests => RefusalPrecedence;
+
     internal static ModeSelectionOutcome SelectAll(ModeSelectionRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -122,6 +130,23 @@ internal static class ModeSelector
         // shown to a user does not depend on candidate order.
         ModeAdmissionReason stableRefusal = RefusalPrecedence.FirstOrDefault(
             refusals.Contains, ModeAdmissionReason.None);
+
+        // Every refusal actually produced today is one of the four entries in
+        // RefusalPrecedence (EnumExhaustivenessTests pins this). If a refusal
+        // reached here that the array does not name, falling through silently
+        // would hand ModeAdmissionReason.None to Unavailable below, which
+        // throws an ArgumentException that talks about naming a reason rather
+        // than about the precedence array missing an entry. Failing loudly
+        // here instead - with a message that points at the actual gap - never
+        // fires for any input reachable today, since refusals is always a
+        // subset of RefusalPrecedence's members.
+        if (refusals.Count > 0 && stableRefusal == ModeAdmissionReason.None)
+        {
+            throw new InvalidOperationException(
+                $"A refusal reason ({string.Join(", ", refusals)}) was produced that "
+                + $"{nameof(RefusalPrecedence)} does not name. Add it to the precedence "
+                + "order in ModeSelector so a stable reason can still be reported.");
+        }
 
         WeightQuantisation? bestAdmittedTier = admitted.Count == 0
             ? null
