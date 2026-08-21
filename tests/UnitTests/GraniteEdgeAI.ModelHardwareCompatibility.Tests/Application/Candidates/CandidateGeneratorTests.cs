@@ -45,7 +45,7 @@ public sealed class CandidateGeneratorTests
     {
         SupportMatrix resolved = matrix ?? SupportMatrix.ProvisionalV1();
 
-        return CandidateGenerator.Generate(new CandidateGenerationRequest(
+        return CandidateGenerator.Generate(CandidateGenerationRequest.Create(
             resolved,
             installation ?? AllInstalled(resolved),
             facts ?? Facts(),
@@ -112,7 +112,7 @@ public sealed class CandidateGeneratorTests
 
         Assert.AreEqual(0, result.Candidates.Count);
         Assert.AreEqual(
-            nameof(BaselineExclusionReason.NoAdmittedEntryMatchesTheBaseline),
+            nameof(BaselineExclusionReason.BaselineEntryNotInstalled),
             result.BaselineExclusionReason.ToString());
     }
 

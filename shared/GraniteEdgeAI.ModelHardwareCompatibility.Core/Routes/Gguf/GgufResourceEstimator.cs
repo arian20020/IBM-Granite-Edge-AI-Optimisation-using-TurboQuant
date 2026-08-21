@@ -173,6 +173,17 @@ internal static class GgufResourceEstimator
                 limitations.Add(EstimationLimitation.UncalibratedEstimatorPolicy);
             }
 
+            // The storage charge above covers the artifact a conversion writes,
+            // but not the trusted higher-precision source it reads from — which
+            // is larger than both the imported file and the target, and coexists
+            // with the target for the whole conversion. TrustedSourceAvailability
+            // carries no size yet, so the omission is recorded rather than
+            // guessed at.
+            if (candidate.Preparation == CandidatePreparation.WeightConversionRequired)
+            {
+                limitations.Add(EstimationLimitation.ConversionSourceStorageNotCounted);
+            }
+
             return ResourceEstimate.Established(components, limitations);
         }
         catch (OverflowException)

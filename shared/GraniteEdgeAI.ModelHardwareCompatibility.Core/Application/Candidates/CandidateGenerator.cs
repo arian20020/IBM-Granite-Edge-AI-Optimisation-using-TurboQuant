@@ -24,7 +24,19 @@ internal static class CandidateGenerator
             or PolicyProvenance.Unspecified)
         {
             return new CandidateGenerationResult(
-                [], false, BaselineExclusionReason.SupportMatrixUnavailable);
+                [], BaselineExclusionReason.SupportMatrixUnavailable);
+        }
+
+        // A model whose trained context limit is unknown gives no safe basis for
+        // a default: substituting an entry's declared maximum in its place would
+        // give such a model no model-side context constraint at all, and no
+        // candidate would carry any marker that the limit was never established.
+        // Consistent with PlanningContextPolicy.Resolve, which refuses the same
+        // unknown rather than guessing at it.
+        if (request.Facts.DeclaredContextLimit is null)
+        {
+            return new CandidateGenerationResult(
+                [], BaselineExclusionReason.ModelContextLimitNotEstablished);
         }
 
         WeightQuantisation source = WeightQuantisationMap.FromGgufFileType(
@@ -41,22 +53,15 @@ internal static class CandidateGenerator
         // from "an entry matches, but not at this context".
         bool baselineConfigurationAdmitted = false;
 
+        // Tracks whether an entry declaring the baseline's exact configuration
+        // shape exists in the matrix at all, regardless of whether its
+        // installation state let it through. Set before the availability
+        // filter below so "not installed" and "not supported" cannot be
+        // confused with each other.
+        bool baselineEntryNotInstalled = false;
+
         foreach (CompatibilitySupportEntry entry in request.Matrix.Entries)
         {
-            InstallationState installation =
-                request.InstallationStates.TryGetValue(entry.EntryId, out InstallationState state)
-                    ? state
-                    : InstallationState.Unknown;
-
-            SupportAvailability availability =
-                SupportMatrixResolver.Resolve(entry.Level, installation);
-
-            if (availability is not (SupportAvailability.Available
-                or SupportAvailability.ExperimentalAvailable))
-            {
-                continue;
-            }
-
             if (!TryResolvePreparationKind(
                 entry, source, request.TrustedSource, out bool converts, out GgufWeightFormat effectiveWeights))
             {
@@ -71,16 +76,35 @@ internal static class CandidateGenerator
             GgufRouteConfiguration configuration = GgufRouteConfiguration.Create(
                 effectiveWeights, entry.KvCache, entry.Backend, entry.Device, entry.Offload);
 
-            if (configuration == request.BaselineConfiguration)
+            bool isBaselineConfiguration = configuration == request.BaselineConfiguration;
+
+            InstallationState installation =
+                request.InstallationStates.TryGetValue(entry.EntryId, out InstallationState state)
+                    ? state
+                    : InstallationState.Unknown;
+
+            SupportAvailability availability =
+                SupportMatrixResolver.Resolve(entry.Level, installation);
+
+            if (availability is not (SupportAvailability.Available
+                or SupportAvailability.ExperimentalAvailable))
+            {
+                if (isBaselineConfiguration)
+                {
+                    baselineEntryNotInstalled = true;
+                }
+
+                continue;
+            }
+
+            if (isBaselineConfiguration)
             {
                 baselineConfigurationAdmitted = true;
             }
 
             foreach (ContextTokenCount context in AdmittedContexts(entry, request))
             {
-                bool isBaselineShape =
-                    configuration == request.BaselineConfiguration
-                    && context == request.BaselineContext;
+                bool isBaselineShape = isBaselineConfiguration && context == request.BaselineContext;
 
                 CandidatePreparation preparation = converts
                     ? CandidatePreparation.WeightConversionRequired
@@ -96,6 +120,13 @@ internal static class CandidateGenerator
                     isExperimental: availability == SupportAvailability.ExperimentalAvailable,
                     isBaseline: isBaselineShape);
 
+                // Safe only because CandidateFingerprint.Compute covers
+                // (configuration, context, preparation) while isBaselineShape
+                // above covers (configuration, context): the two agree on every
+                // axis fingerprint dedup can collide on, so deduping here can
+                // never silently discard a candidate that isBaselineShape would
+                // have told apart. A future change narrowing what Compute covers
+                // must revisit this.
                 if (!seenFingerprints.Add(candidate.Fingerprint.Value))
                 {
                     continue;
@@ -113,18 +144,19 @@ internal static class CandidateGenerator
 
         if (baseline is null)
         {
-            return new CandidateGenerationResult(
-                candidates,
-                false,
-                baselineConfigurationAdmitted
-                    ? BaselineExclusionReason.BaselineContextOutsideEntryBounds
-                    : BaselineExclusionReason.NoAdmittedEntryMatchesTheBaseline);
+            BaselineExclusionReason reason = baselineConfigurationAdmitted
+                ? BaselineExclusionReason.BaselineContextOutsideEntryBounds
+                : baselineEntryNotInstalled
+                    ? BaselineExclusionReason.BaselineEntryNotInstalled
+                    : BaselineExclusionReason.NoAdmittedEntryMatchesTheBaseline;
+
+            return new CandidateGenerationResult(candidates, reason);
         }
 
         // The baseline is always evaluated first: it is what the user already
         // has, and every alternative is judged relative to it.
         return new CandidateGenerationResult(
-            [baseline, .. candidates], true, BaselineExclusionReason.None);
+            [baseline, .. candidates], BaselineExclusionReason.None);
     }
 
     /// <summary>
@@ -166,7 +198,17 @@ internal static class CandidateGenerator
         }
 
         // Converting upward never restores quality already discarded, so it is
-        // never generated as an upgrade.
+        // never generated as an upgrade. This compares the target against the
+        // imported file's own encoding, not against the trusted source's
+        // precision, and it is checked before the trusted-source availability
+        // below is even consulted. That ordering is deliberate and
+        // over-restrictive by choice: TrustedSourceAvailability records only
+        // whether a higher-precision source exists, not its actual precision,
+        // so an entry asking for Q8_0 is refused here as an "upward" request
+        // even on a machine with a genuine F16 trusted source that could have
+        // legitimately produced it. Refusing every such case is the
+        // conservative failure mode given that the source's own precision is
+        // not known to this function.
         if (WeightQuantisationMap.BitsPerWeight(target)
             > WeightQuantisationMap.BitsPerWeight(source))
         {
@@ -186,7 +228,9 @@ internal static class CandidateGenerator
         CompatibilitySupportEntry entry,
         CandidateGenerationRequest request)
     {
-        int modelLimit = request.Facts.DeclaredContextLimit ?? entry.MaximumContextTokens;
+        // DeclaredContextLimit is guaranteed non-null here: Generate refuses
+        // with ModelContextLimitNotEstablished before this is ever called.
+        int modelLimit = request.Facts.DeclaredContextLimit!.Value;
 
         IReadOnlyList<ContextTokenCount> ladder = ContextLadderPolicy.Build(
             request.PreservationTarget,

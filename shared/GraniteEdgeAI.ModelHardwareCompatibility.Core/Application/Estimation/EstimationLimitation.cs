@@ -34,5 +34,17 @@ internal enum EstimationLimitation
     /// One sequence was assumed. Nothing in a candidate declares parallel
     /// sequences yet, so a batched server workload is out of scope of this number.
     /// </summary>
-    SingleSequenceAssumed
+    SingleSequenceAssumed,
+
+    /// <summary>
+    /// A weight-conversion candidate charges only the converted artifact's size
+    /// to storage. The trusted higher-precision source it converts from is
+    /// larger than both the imported file and the target, must exist on disk
+    /// to be read, and coexists with the target for the duration of the
+    /// conversion - so peak storage is understated by roughly the source's
+    /// size. <see cref="TrustedSourceAvailability"/> carries no size today, so
+    /// there is no figure to charge; this limitation names the omission rather
+    /// than inventing one.
+    /// </summary>
+    ConversionSourceStorageNotCounted
 }

@@ -143,7 +143,4 @@ internal sealed record CompatibilitySupportEntry
             level,
             requiresEvidence);
     }
-
-    internal GgufRouteConfiguration ToRouteConfiguration() =>
-        GgufRouteConfiguration.Create(Weights, KvCache, Backend, Device, Offload);
 }

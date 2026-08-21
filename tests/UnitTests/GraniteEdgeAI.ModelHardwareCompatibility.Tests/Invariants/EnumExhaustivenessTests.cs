@@ -136,7 +136,8 @@ public sealed class EnumExhaustivenessTests
             [EstimationLimitation.WeightsDerivedFromFileLength] = baselineEstimate,
             [EstimationLimitation.SingleSequenceAssumed] = baselineEstimate,
             [EstimationLimitation.UncalibratedEstimatorPolicy] = baselineEstimate,
-            [EstimationLimitation.WeightsScaledAcrossQuantisation] = convertedEstimate
+            [EstimationLimitation.WeightsScaledAcrossQuantisation] = convertedEstimate,
+            [EstimationLimitation.ConversionSourceStorageNotCounted] = convertedEstimate
         };
 
         foreach (EstimationLimitation limitation in Enum.GetValues<EstimationLimitation>())

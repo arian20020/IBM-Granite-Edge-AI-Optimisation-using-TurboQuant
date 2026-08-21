@@ -30,7 +30,7 @@ public sealed class GenerationInvariantTests
     {
         SupportMatrix matrix = SupportMatrix.ProvisionalV1();
 
-        return CandidateGenerator.Generate(new CandidateGenerationRequest(
+        return CandidateGenerator.Generate(CandidateGenerationRequest.Create(
             matrix,
             matrix.Entries.ToDictionary(
                 entry => entry.EntryId,
@@ -171,7 +171,7 @@ public sealed class GenerationInvariantTests
                 ? InstallationState.VerifiedAndOptedIn
                 : InstallationState.InstalledAndVerified);
 
-        CandidateGenerationRequest Request(SupportMatrix matrix) => new(
+        CandidateGenerationRequest Request(SupportMatrix matrix) => CandidateGenerationRequest.Create(
             matrix,
             installation,
             Facts(),

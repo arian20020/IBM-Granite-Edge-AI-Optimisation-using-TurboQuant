@@ -128,13 +128,4 @@ public sealed class CompatibilitySupportEntryTests
                 requiresEvidence: false));
     }
 
-    [TestMethod]
-    public void ToRouteConfiguration_ProducesTheEntrysExactShape()
-    {
-        GgufRouteConfiguration configuration = Create().ToRouteConfiguration();
-
-        Assert.AreEqual(nameof(GgufWeightFormat.Imported), configuration.Weights.ToString());
-        Assert.AreEqual(nameof(GgufKvCacheFormat.F16), configuration.KvCache.ToString());
-        Assert.AreEqual(nameof(DeviceRouteId.Cpu), configuration.Device.ToString());
-    }
 }

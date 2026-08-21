@@ -45,7 +45,7 @@ public sealed class ModeSelectionInvariantTests
         SupportMatrix matrix = SupportMatrix.ProvisionalV1();
 
         CandidateGenerationResult generated = CandidateGenerator.Generate(
-            new CandidateGenerationRequest(
+            CandidateGenerationRequest.Create(
                 matrix,
                 matrix.Entries.ToDictionary(
                     entry => entry.EntryId,
