@@ -424,3 +424,128 @@ no compiled-model property; Task 10 must separately prove GPU actual-device
 selection. `DEP-02` remains unresolved and Task 8 remains pending.
 The round-1 fixes are implemented and verified, but Task 7 remains in progress until
 independent re-review accepts them.
+
+## Independent review fix round 2/5
+
+Round 2 began from clean commit `4625eeca` and is implemented by `1a0ac799`.
+The review was accepted as three
+concrete implementation defects: namespace-to-handle gaps and incomplete module
+membership, a first-fragment CANCEL publication race, and subset-only binary
+machine policy. No Task 8 files or behavior were changed.
+
+### RED evidence
+
+The managed closure tests first ran 5 cases with 3 passing and 2 failing:
+`ChildInsertedAfterAcquisitionInvalidatesTheClosedInventory` accepted an inserted
+child, and `BinaryOmittedFromCallerPolicyInvalidatesTheClosure` accepted a manifest
+binary omitted from caller policy. The desired exact machine-map API then produced
+the expected `CS0246` compile RED for `OpenVinoWorkerBinaryMachine`. Native desired
+observer/identity/cancellation tests produced compile REDs `C2660` (the runtime and
+package acquisitions lacked the path-open observer overload), `C2664` (module
+verification lacked a runtime identity context), and `C2039`
+(`turn_control.first_fragment_buffered` did not exist). The review's independent
+official run supplied the behavioral cancellation RED: 5/6, with one token
+published where immediate CANCEL required zero.
+
+The first compiled native behavior tests correctly exposed the test-fixture gap:
+the original directory handle access denied the intended rename before the reparse
+swap could occur. Reducing directory access to `FILE_READ_ATTRIBUTES` allowed the
+actual junction swap and proved that the handle-first check rejects it. The full
+fake-process compatibility run initially failed 0/33 at startup with the same fixed
+`RuntimeIntegrityFailed` outcome. Direct PE header inspection isolated a test-policy
+error: `Platform=x64` publishes the route's two project IL assemblies with COFF
+machine `0x8664`, while only `Microsoft.Windows.SDK.NET.dll` and `WinRT.Runtime.dll`
+are `0x014c`. Correcting those exact fixture identities made a representative
+two-turn process test pass before the complete suite was rerun.
+
+### Handle-first closure and topology membership
+
+The caller policy is now an exact, closed relative-path-to-COFF-machine map.
+Manifest `.exe`/`.dll` inventory must equal it exactly; omission, extra declaration,
+or machine mismatch is rejected. Official binaries are all required to be AMD64;
+the managed process fixture explicitly declares each published PE's real machine.
+
+Managed runtime resolution opens the root, manifest, every directory, and every
+manifest file with `CreateFileW` plus `FILE_FLAG_OPEN_REPARSE_POINT`, denies
+write/delete sharing, then validates `FileAttributeTagInfo`, final-path containment,
+ADS, identity, length, hash, and PE machine from that retained handle. Both topology
+scans reopen every enumerated entry handle-first and compare its file identity with
+the retained approved identity, including the manifest. The verified executable is
+constructed from its already-retained manifest-entry handle. Deterministic tests
+cover a directory path-to-junction swap between enumeration/open, child insertion,
+accepted-file removal/restoration denial, and exact binary omission/addition/machine
+mismatch.
+
+The native runtime and package acquisitions use the same open-reparse/deny-write-
+delete/validate-exact-handle ordering for roots, manifests, directories, and files.
+They retain every accepted handle and identity for the complete inspection or
+session lifetime. Exact topology is rescanned immediately before and after the
+Tokenizers extension load, all three `read_model` calls, Runtime/GenAI/Tokenizers
+identity loads, and every validation/per-turn `LLMPipeline` construction. Exceptional
+load exits also perform the post scan before propagating the failure. The native
+tests deterministically exercise namespace-to-junction swaps, child insertion at a
+load boundary, and replacement/removal denial at tokenizer, model, and pipeline
+boundaries.
+
+Loaded non-system modules are no longer accepted by worker-root prefix. Their
+volume serial and file ID must equal one of the retained approved manifest-file
+identities. The behavior test loads a copied but unlisted DLL inside the staged root
+and proves exact membership rejects it as `runtime_integrity_failed`.
+
+### Deterministic first-fragment ownership
+
+The real GenAI string callback buffers its first nonempty fragment before
+publication and signals a bounded handoff. It holds the control mutex for up to
+100 ms so an already-sent or immediate CANCEL can acquire ownership; on CANCEL the
+real fragment is discarded and the callback returns `CANCEL`. Once published, the
+separate bounded canonical-fixture handoff remains available for a test to observe
+the real fragment and send STOP. Nothing synthesizes text, generation policy and
+fixture bytes remain unchanged, and all waits remain bounded.
+
+Three fresh sequential official runs passed 6/6 each (18/18 aggregate). Each run
+proved that STOP follows at least one nonempty native fragment, returns a partial
+`turnCompleted` with `stopped`, and permits a subsequent completed `fixture` prompt;
+immediate CANCEL published exactly zero token events and terminated with
+`OperationCancelled`.
+
+### Independent clean A/B proof and exact identities
+
+The review-2 build and stage roots began absent and remained outside tracked paths.
+Both scripts rebuilt Release x64 from only the Task 1 official archive closure,
+generated and verified a new closed manifest, and passed native CTest 5/5.
+
+| Closure | Native result | Worker identity | Manifest identity |
+| --- | --- | --- | --- |
+| Review 2 A (`granite-o1-task7-review2-build-a` / `...stage-a`) | 5/5 in 9.93s; `official_worker_built`; `worker_manifest_valid` | 412,672 bytes; `7b8121c6e8ca519e76fdd43cda09c8ed568222d5584d5984063a2637753ebd6b` | 4,059 bytes; `fa7687cffaf0352b9d1ced01cdd8d69d7579e6ec3594513859dacba3ccccc2ab` |
+| Review 2 B (`granite-o1-task7-review2-build-b` / `...stage-b`) | 5/5 in 9.85s; `official_worker_built`; `worker_manifest_valid` | 412,672 bytes; `dd72937b7979a4c40e75a8c250d8f4bcacf14f9c84d9838a51193517824bcddd` | 4,059 bytes; `3422c5d18ac2a999a554b03aab01c99d5a684028f31f9ee0a756cff1a87f3360` |
+
+The runtime identities remain exactly Runtime
+`2026.3.0-22451-8a17657b995-releases/2026/3`, GenAI
+`2026.3.0.0-3277-bd8d6542e3c`, and Tokenizers
+`2026.3.0.0-703-183c6f25cda`.
+
+### Round-2 verification
+
+| Verification | Result |
+| --- | --- |
+| Focused native suite after exceptional post-rescan hardening | 5/5 passed in 10.27s |
+| Clean review-2 A / B native CTest | 5/5 in 9.93s / 5/5 in 9.85s |
+| Official managed stability runs | 6/6, 6/6, 6/6; 18/18 aggregate |
+| OpenVINO contracts, Release | 60/60 passed in 40.48s |
+| OpenVINO managed client, Release | 13/13 passed in 2.80s |
+| Full fake process containment | 33/33 passed in 45.81s |
+| Full OpenVINO process suite, Release | 39/39 passed in 74.65s |
+| Task 6/static OpenVINO suite | 124/124 passed in 21.50s |
+| Legacy ModelInspection managed client | 119/119 passed in 10.99s |
+| Legacy ModelInspection process suite | 31/32; sole documented delayed-handshake timing failure, expected exit 3/actual 2; not rerun |
+| Task 1 official dependency verifier | `dependency_lock_valid` |
+| Task 5 fixture verifier | `fixture_valid` |
+| Review-2 A and B manifest verifiers | `worker_manifest_valid` for each |
+| Process and tracked-artifact audit | zero official/fake workers; no build, stage, archive, or binary artifact tracked; `git diff --check` clean |
+
+`FIX-01` remains closed by the two independent clean native closures and identical
+managed proof. The protocol-governance ruling remains unchanged: the atomic,
+pre-approved correction stays `openvino.official/1` because this feature-branch
+contract has no released compatibility consumer. `DEP-02` is untouched. Task 7
+remains in progress until independent round-2 re-review accepts these fixes, and
+Task 8 remains pending with no dependent work performed.
