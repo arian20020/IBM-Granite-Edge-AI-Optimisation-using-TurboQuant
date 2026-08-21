@@ -13,6 +13,7 @@ from scripts.testing.workbook05.phase3.asset_bundle_validation import (
     validate_asset_bundle,
 )
 from scripts.testing.workbook05.phase3.c1_resume import (
+    CONVERSION_MINIMUM_FREE_BYTES,
     EXPECTED_DEPENDENCY_DECISION_SHA256,
     EXPECTED_MODEL_SHA256,
     EXPECTED_PARTIAL_CONVERSION_DIRECTORY,
@@ -53,6 +54,9 @@ RESUME_STAGE_ORDER = (
     "schema-validation",
     "manifest-generation",
 )
+RESUME_OPERATION = "controlled-source-resume"
+RESOURCE_MINIMUM_AVAILABLE_BYTES = 4 * 1024 * 1024 * 1024
+RESOURCE_MAXIMUM_COMMIT_PERCENT = 70
 _CLAIM_KEYS = {
     "model_download_authorised",
     "granite_model_test_authorised",
@@ -119,6 +123,18 @@ def _sha256(path: Path) -> str:
         for chunk in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def _is_integer(value: object) -> bool:
+    """Reject booleans even though Python represents them as integers."""
+
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def _is_number(value: object) -> bool:
+    """Accept a real numeric observation but reject Boolean lookalikes."""
+
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
 
 
 def _check_identity_record(
@@ -201,12 +217,129 @@ def _check_stage_order(
     record: Mapping[str, Any],
     issues: list[BundleIssue],
 ) -> None:
-    if record.get("status") != "Passed" or record.get("stages") != list(RESUME_STAGE_ORDER):
+    drifted: list[str] = []
+    if record.get("status") != "Passed":
+        drifted.append("status")
+    if record.get("operation") != RESUME_OPERATION:
+        drifted.append("operation")
+    if record.get("stages") != list(RESUME_STAGE_ORDER):
+        drifted.append("stages")
+    if drifted:
         _add(
             issues,
             "STAGE_ORDER_RELATIONSHIP",
             "stage-order.json",
-            "Expected the exact controlled C1 source-resume stage order and status Passed.",
+            "Expected the exact controlled C1 source-resume operation, stage order, "
+            "and status Passed; drifted at: " + ", ".join(sorted(drifted)),
+        )
+
+
+def _check_resource_preflight(
+    record: Mapping[str, Any],
+    issues: list[BundleIssue],
+) -> None:
+    """Verify that a Passed resource preflight is supported by its observations."""
+
+    drifted: list[str] = []
+    minimum = record.get("minimum_available_memory_bytes")
+    maximum_commit = record.get("maximum_commit_percent")
+    available = record.get("available_memory_bytes")
+    commit = record.get("commit_percent")
+    conflicts = record.get("conflicting_processes")
+
+    if record.get("status") != "Passed":
+        drifted.append("status")
+    if minimum != RESOURCE_MINIMUM_AVAILABLE_BYTES:
+        drifted.append("minimum_available_memory_bytes")
+    if maximum_commit != RESOURCE_MAXIMUM_COMMIT_PERCENT:
+        drifted.append("maximum_commit_percent")
+    if not _is_integer(available) or available < RESOURCE_MINIMUM_AVAILABLE_BYTES:
+        drifted.append("available_memory_bytes")
+    if not _is_number(commit) or float(commit) > RESOURCE_MAXIMUM_COMMIT_PERCENT:
+        drifted.append("commit_percent")
+    if not isinstance(conflicts, list) or conflicts:
+        drifted.append("conflicting_processes")
+
+    if drifted:
+        _add(
+            issues,
+            "RESOURCE_PREFLIGHT",
+            "resource-preflight.json",
+            "A Passed resource preflight must prove at least 4 GiB available "
+            "physical memory, commit at or below 70 percent, no conflicting "
+            "processes, and the exact reviewed thresholds; drifted at: "
+            + ", ".join(sorted(set(drifted))),
+        )
+
+
+def _check_disk_preflight(
+    record: Mapping[str, Any],
+    issues: list[BundleIssue],
+) -> None:
+    """Verify conversion-only capacity and the non-destructive recovery boundary."""
+
+    drifted: list[str] = []
+    minimum = record.get("minimum_free_bytes_for_conversion_resume")
+    free_bytes = record.get("free_bytes")
+    if record.get("status") != "Passed":
+        drifted.append("status")
+    if minimum != CONVERSION_MINIMUM_FREE_BYTES:
+        drifted.append("minimum_free_bytes_for_conversion_resume")
+    if not _is_integer(free_bytes) or free_bytes < CONVERSION_MINIMUM_FREE_BYTES:
+        drifted.append("free_bytes")
+    if drifted:
+        _add(
+            issues,
+            "DISK_PREFLIGHT",
+            "disk-preflight.json",
+            "A Passed conversion-only disk preflight must prove the exact 20 GiB "
+            "reserve and sufficient observed free space; drifted at: "
+            + ", ".join(sorted(set(drifted))),
+        )
+
+    download_drift = [
+        key
+        for key in ("source_download_required", "source_download_authorised")
+        if record.get(key) is not False
+    ]
+    if download_drift:
+        _add(
+            issues,
+            "DOWNLOAD_AUTHORITY",
+            "disk-preflight.json",
+            "Controlled source resume must neither require nor authorise another "
+            "model download; drifted at: " + ", ".join(sorted(download_drift)),
+        )
+
+    deletion_drift = [
+        key
+        for key in ("deletion_authorised", "deletion_performed")
+        if record.get(key) is not False
+    ]
+    if deletion_drift:
+        _add(
+            issues,
+            "DELETION_AUTHORITY",
+            "disk-preflight.json",
+            "Controlled source resume must neither authorise nor perform deletion; "
+            "drifted at: " + ", ".join(sorted(deletion_drift)),
+        )
+
+    preservation_drift = [
+        key
+        for key in (
+            "prior_failed_workspace_preserved",
+            "prior_partial_conversion_preserved",
+        )
+        if record.get(key) is not True
+    ]
+    if preservation_drift:
+        _add(
+            issues,
+            "PRESERVATION",
+            "disk-preflight.json",
+            "The failed evidence workspace and partial conversion must remain "
+            "preserved; drifted at: " + ", ".join(sorted(preservation_drift)),
         )
 
 
@@ -404,15 +537,10 @@ def validate_c1_resume_bundle(
         _check_prior_proof(prior_proof, issues)
     if source_proof is not None:
         _check_source_proof(source_proof, issues)
-    if resource_preflight is not None and resource_preflight.get("status") != "Passed":
-        _add(issues, "RESOURCE_PREFLIGHT", "resource-preflight.json", "Resource preflight is not Passed.")
+    if resource_preflight is not None:
+        _check_resource_preflight(resource_preflight, issues)
     if disk_preflight is not None:
-        if disk_preflight.get("status") != "Passed":
-            _add(issues, "DISK_PREFLIGHT", "disk-preflight.json", "Conversion-only disk preflight is not Passed.")
-        if disk_preflight.get("source_download_required") is not False:
-            _add(issues, "DOWNLOAD_AUTHORITY", "disk-preflight.json", "Resume must not require a source download.")
-        if disk_preflight.get("deletion_authorised") is not False:
-            _add(issues, "DELETION_AUTHORITY", "disk-preflight.json", "Resume must not authorise deletion.")
+        _check_disk_preflight(disk_preflight, issues)
     if stage_order is not None:
         _check_stage_order(stage_order, issues)
     if dependency_proof is not None:
