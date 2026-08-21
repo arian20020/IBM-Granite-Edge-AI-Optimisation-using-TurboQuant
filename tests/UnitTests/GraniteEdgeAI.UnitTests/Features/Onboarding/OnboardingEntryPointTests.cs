@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
+using System.Reflection;
 
 namespace GraniteEdgeAI.UnitTests;
 
@@ -22,7 +23,13 @@ public sealed class OnboardingEntryPointTests
 
             var rootFrame = windowContent.FindName("rootFrame") as Frame;
             Assert.IsNotNull(rootFrame);
-            Assert.IsInstanceOfType<OnboardingShellPage>(rootFrame.Content);
+            var shell = rootFrame.Content as OnboardingShellPage;
+            Assert.IsNotNull(shell);
+            PropertyInfo? routeProperty = typeof(OnboardingShellPage).GetProperty(
+                "IsHardwareRouteRegistered",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.IsNotNull(routeProperty);
+            Assert.IsTrue((bool)routeProperty.GetValue(shell)!);
         }
         finally
         {

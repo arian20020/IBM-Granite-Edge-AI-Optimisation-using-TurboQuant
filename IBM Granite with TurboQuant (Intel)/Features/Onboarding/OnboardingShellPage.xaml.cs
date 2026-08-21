@@ -46,7 +46,8 @@ namespace GraniteEdgeAI.Features.Onboarding
             : this(static (frame, request) => frame.Navigate(
                 typeof(ModelInspectionPage),
                 request),
-                hardwareInspectionService: null,
+                hardwareInspectionService:
+                    UnavailableHardwareInspectionService.Instance,
                 hardwareInspectionNavigator: null,
                 initialize: true)
         {
@@ -121,6 +122,9 @@ namespace GraniteEdgeAI.Features.Onboarding
         /// Gets the onboarding stage currently displayed by the shell.
         /// </summary>
         public OnboardingStage CurrentStage { get; private set; }
+
+        internal bool IsHardwareRouteRegistered =>
+            _hardwareInspectionService is not null;
 
         /// <summary>
         /// Subscribes the shell to one Model Import page.
