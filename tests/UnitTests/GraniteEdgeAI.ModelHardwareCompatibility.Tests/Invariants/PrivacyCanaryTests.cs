@@ -19,6 +19,7 @@ public sealed class PrivacyCanaryTests
         "SafetyPolicy.PolicyVersion",
         "EstimatorPolicy.PolicyVersion",
         "CompatibilityCandidate.SupportEntryId",
+        "CompatibilitySupportEntry.EntryId",
         "RouteConfiguration.CanonicalDescriptor",
         "GgufRouteConfiguration.CanonicalDescriptor",
         "CandidateFingerprint.Value",
