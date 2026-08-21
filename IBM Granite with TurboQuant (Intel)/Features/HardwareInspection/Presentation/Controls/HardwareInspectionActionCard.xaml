@@ -10,17 +10,24 @@
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="ms-appx:///Features/HardwareInspection/Presentation/HardwareInspectionTheme.xaml" />
+                <ResourceDictionary Source="ms-appx:///Features/Onboarding/Presentation/GraniteJourneyActionPalette.xaml" />
             </ResourceDictionary.MergedDictionaries>
             <Style
                 x:Key="HardwareInspectionPrimaryActionStyle"
                 BasedOn="{StaticResource AccentButtonStyle}"
                 TargetType="Button">
                 <Setter Property="MinWidth" Value="44" />
-                <Setter Property="MinHeight" Value="44" />
-                <Setter Property="Padding" Value="18,10" />
-                <Setter Property="CornerRadius" Value="10" />
+                <Setter Property="MinHeight" Value="{StaticResource GraniteJourneyActionHeight}" />
+                <Setter Property="Padding" Value="{StaticResource GraniteJourneyActionPadding}" />
+                <Setter Property="CornerRadius" Value="{StaticResource GraniteJourneyActionCornerRadius}" />
                 <Setter Property="FontFamily" Value="{ThemeResource HardwareInspectionFontFamilyBold}" />
                 <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="HorizontalContentAlignment" Value="Center" />
+                <Setter Property="VerticalContentAlignment" Value="Center" />
+                <Setter Property="Background" Value="{StaticResource GraniteJourneyPrimaryBackgroundBrush}" />
+                <Setter Property="BorderBrush" Value="{StaticResource GraniteJourneyPrimaryBackgroundBrush}" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="Foreground" Value="{StaticResource GraniteJourneyPrimaryForegroundBrush}" />
                 <Setter Property="UseSystemFocusVisuals" Value="True" />
             </Style>
             <Style
@@ -28,15 +35,17 @@
                 BasedOn="{StaticResource DefaultButtonStyle}"
                 TargetType="Button">
                 <Setter Property="MinWidth" Value="44" />
-                <Setter Property="MinHeight" Value="44" />
-                <Setter Property="Padding" Value="18,10" />
-                <Setter Property="CornerRadius" Value="10" />
+                <Setter Property="MinHeight" Value="{StaticResource GraniteJourneyActionHeight}" />
+                <Setter Property="Padding" Value="{StaticResource GraniteJourneyActionPadding}" />
+                <Setter Property="CornerRadius" Value="{StaticResource GraniteJourneyActionCornerRadius}" />
                 <Setter Property="FontFamily" Value="{ThemeResource HardwareInspectionFontFamilyBold}" />
                 <Setter Property="FontWeight" Value="SemiBold" />
-                <Setter Property="Background" Value="{ThemeResource HardwareInspectionSurfaceBrush}" />
-                <Setter Property="BorderBrush" Value="{ThemeResource HardwareInspectionBorderStrongBrush}" />
+                <Setter Property="HorizontalContentAlignment" Value="Center" />
+                <Setter Property="VerticalContentAlignment" Value="Center" />
+                <Setter Property="Background" Value="{StaticResource GraniteJourneySecondaryBackgroundBrush}" />
+                <Setter Property="BorderBrush" Value="{StaticResource GraniteJourneySecondaryBorderBrush}" />
                 <Setter Property="BorderThickness" Value="1" />
-                <Setter Property="Foreground" Value="{ThemeResource HardwareInspectionTextPrimaryBrush}" />
+                <Setter Property="Foreground" Value="{StaticResource GraniteJourneySecondaryForegroundBrush}" />
                 <Setter Property="UseSystemFocusVisuals" Value="True" />
             </Style>
         </ResourceDictionary>

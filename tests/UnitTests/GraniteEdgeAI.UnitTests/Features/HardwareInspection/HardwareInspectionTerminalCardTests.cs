@@ -119,10 +119,11 @@ public sealed class HardwareInspectionTerminalCardTests
     public void ActionCard_UsesApprovedModernPrimaryAndSecondaryStyles()
     {
         HardwareInspectionActionCard card = new();
-        card.Apply(_factory.CreateTerminal(
+        HardwareInspectionPresentationState completed = _factory.CreateTerminal(
             HardwareInspectionOutcome.Completed,
             hasUsableHandoff: true,
-            block3RouteRegistered: true));
+            block3RouteRegistered: true);
+        card.Apply(completed);
 
         Style primaryStyle = (Style)card.Resources["HardwareInspectionPrimaryActionStyle"];
         Style secondaryStyle = (Style)card.Resources["HardwareInspectionSecondaryActionStyle"];
@@ -145,6 +146,52 @@ public sealed class HardwareInspectionTerminalCardTests
         CollectionAssert.AreEqual(
             new[] { "Run inspection again", "Continue to compatibility" },
             buttons.Select(button => button.Content?.ToString()).ToArray());
+
+        HardwareInspectionPresentationState[] allStates =
+        [
+            _factory.CreateInvalidHandoff(),
+            .. Enum.GetValues<HardwareInspectionStage>()
+                .Select(_factory.CreateActive),
+            _factory.CreateStopping(),
+            completed,
+            _factory.CreateTerminal(HardwareInspectionOutcome.CompletedWithWarnings),
+            _factory.CreateTerminal(
+                HardwareInspectionOutcome.Failed,
+                HardwareInspectionFailureClass.CriticalEvidence,
+                criticalFailureRetryable: true),
+            _factory.CreateTerminal(
+                HardwareInspectionOutcome.Failed,
+                HardwareInspectionFailureClass.TransientOperation),
+            _factory.CreateTerminal(
+                HardwareInspectionOutcome.Failed,
+                HardwareInspectionFailureClass.ApplicationRepairRequired),
+            _factory.CreateTerminal(HardwareInspectionOutcome.Cancelled),
+        ];
+        Assert.HasCount(15, allStates);
+
+        foreach (HardwareInspectionPresentationState state in allStates)
+        {
+            card.Apply(state);
+            Button[] stateButtons = Buttons(card);
+            CollectionAssert.AreEqual(
+                state.Actions.Where(action => action.IsVisible)
+                    .Select(action => action.Label)
+                    .ToArray(),
+                stateButtons.Select(button => button.Content?.ToString()).ToArray(),
+                state.Kind.ToString());
+            foreach (Button button in stateButtons)
+            {
+                Assert.AreEqual(46d, button.MinHeight, 0.01d, state.Kind.ToString());
+                Assert.AreEqual(new CornerRadius(11), button.CornerRadius, state.Kind.ToString());
+                Assert.AreEqual((ushort)600, button.FontWeight.Weight, state.Kind.ToString());
+                Assert.IsTrue(button.UseSystemFocusVisuals, state.Kind.ToString());
+                Assert.IsNotNull(button.Resources["ButtonBackgroundPointerOver"]);
+                Assert.IsNotNull(button.Resources["ButtonBackgroundPressed"]);
+                Assert.IsNotNull(button.Resources["ButtonBackgroundDisabled"]);
+                Assert.IsNotNull(button.Resources["ButtonForegroundDisabled"]);
+                Assert.IsNotNull(button.Resources["ButtonBorderBrushDisabled"]);
+            }
+        }
     }
 
     [UITestMethod]

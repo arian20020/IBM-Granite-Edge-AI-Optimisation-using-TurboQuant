@@ -50,6 +50,7 @@ public sealed partial class HardwareInspectionActionCard : UserControl
                 Style = (Style)Resources["HardwareInspectionSecondaryActionStyle"],
                 Tag = action.Kind,
             };
+            ApplyNativeStatePalette(button, primary: false);
             AutomationProperties.SetName(button, action.Label);
             if (!string.IsNullOrWhiteSpace(action.AccessibleHelp))
             {
@@ -65,6 +66,7 @@ public sealed partial class HardwareInspectionActionCard : UserControl
             && ActionsPanel.Children.LastOrDefault() is Button primary)
         {
             primary.Style = (Style)Resources["HardwareInspectionPrimaryActionStyle"];
+            ApplyNativeStatePalette(primary, primary: true);
         }
 
         ApplyAvailableWidth(ActualWidth);
@@ -91,5 +93,32 @@ public sealed partial class HardwareInspectionActionCard : UserControl
         {
             ActionRequested?.Invoke(this, new HardwareInspectionActionRequestedEventArgs(kind));
         }
+    }
+
+    private void ApplyNativeStatePalette(Button button, bool primary)
+    {
+        ArgumentNullException.ThrowIfNull(button);
+        button.Resources["ButtonBackgroundPointerOver"] = Resources[
+            primary
+                ? "GraniteJourneyPrimaryPointerOverBrush"
+                : "GraniteJourneySecondaryPointerOverBrush"];
+        button.Resources["ButtonBorderBrushPointerOver"] = Resources[
+            primary
+                ? "GraniteJourneyPrimaryPointerOverBrush"
+                : "GraniteJourneySecondaryPointerOverBorderBrush"];
+        button.Resources["ButtonBackgroundPressed"] = Resources[
+            primary
+                ? "GraniteJourneyPrimaryPressedBrush"
+                : "GraniteJourneySecondaryPressedBrush"];
+        button.Resources["ButtonBorderBrushPressed"] = Resources[
+            primary
+                ? "GraniteJourneyPrimaryPressedBrush"
+                : "GraniteJourneySecondaryPressedBorderBrush"];
+        button.Resources["ButtonBackgroundDisabled"] =
+            Resources["GraniteJourneyDisabledBackgroundBrush"];
+        button.Resources["ButtonForegroundDisabled"] =
+            Resources["GraniteJourneyDisabledForegroundBrush"];
+        button.Resources["ButtonBorderBrushDisabled"] =
+            Resources["GraniteJourneyDisabledBorderBrush"];
     }
 }
