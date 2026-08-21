@@ -3,17 +3,28 @@
     x:Class="GraniteEdgeAI.Features.GgufRuntime.Controls.ChatHistoryItem"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <Button
-        x:Name="HistoryButton"
-        HorizontalAlignment="Stretch"
-        HorizontalContentAlignment="Left"
-        Background="Transparent"
-        Padding="14,12"
-        Click="HistoryButton_Click">
-        <TextBlock
-            x:Name="TitleText"
-            Text="{x:Bind Title, Mode=OneWay}"
-            TextTrimming="CharacterEllipsis"
-            TextWrapping="NoWrap" />
-    </Button>
+    <Grid>
+        <Button
+            x:Name="HistoryButton"
+            HorizontalAlignment="Stretch"
+            Style="{StaticResource GgufChatNavigationButtonStyle}"
+            Click="HistoryButton_Click">
+            <TextBlock
+                x:Name="TitleText"
+                Text="{x:Bind Title, Mode=OneWay}"
+                TextTrimming="CharacterEllipsis"
+                TextWrapping="NoWrap" />
+        </Button>
+        <Border
+            x:Name="SelectionIndicator"
+            Width="3"
+            Height="22"
+            Margin="2,0,0,0"
+            HorizontalAlignment="Left"
+            VerticalAlignment="Center"
+            Background="{ThemeResource GgufChatPrimaryBrush}"
+            CornerRadius="2"
+            IsHitTestVisible="False"
+            Visibility="Collapsed" />
+    </Grid>
 </UserControl>

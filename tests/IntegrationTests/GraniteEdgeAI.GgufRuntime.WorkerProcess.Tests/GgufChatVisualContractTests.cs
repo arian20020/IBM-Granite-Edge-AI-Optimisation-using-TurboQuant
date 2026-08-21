@@ -361,6 +361,34 @@ public sealed class GgufChatVisualContractTests
     }
 
     [TestMethod]
+    public void SelectedConversationFlowsIntoTheRenderedHistoryRow()
+    {
+        string root = FindRepositoryRoot();
+        string controller = File.ReadAllText(Path.Combine(
+            root,
+            "IBM Granite with TurboQuant (Intel)",
+            "Features",
+            "GgufRuntime",
+            "ChatDemoController.cs"));
+        string page = File.ReadAllText(Path.Combine(
+            root,
+            "IBM Granite with TurboQuant (Intel)",
+            "Features",
+            "GgufRuntime",
+            "ChatPage.xaml.cs"));
+
+        StringAssert.Contains(
+            controller,
+            "Guid? selectedId = coordinator.SelectedConversation?.Id;");
+        Assert.IsTrue(Regex.IsMatch(
+            controller,
+            @"page\.AddHistoryConversation\s*\(\s*conversation\.Id\s*,\s*conversation\.Title\s*,\s*conversation\.Id\s*==\s*selectedId\s*\)\s*;"));
+        StringAssert.Contains(
+            page,
+            "AddHistoryConversation(Guid id, string title, bool isSelected)");
+    }
+
+    [TestMethod]
     public void ChatThemeUsesSystemHighlightTextForHighContrastPrimaryButtons()
     {
         string root = FindRepositoryRoot();
@@ -516,13 +544,13 @@ public sealed class GgufChatVisualContractTests
             "Center",
             importButton.Attribute("HorizontalContentAlignment")?.Value);
         Assert.AreEqual(
-            "{StaticResource GgufChatSecondaryButtonStyle}",
+            "{StaticResource GgufChatNavigationButtonStyle}",
             importButton.Attribute("Style")?.Value);
 
         XElement newChatButton = page.Descendants(presentation + "Button")
             .Single(element => element.Attribute(x + "Name")?.Value == "NewChatButton");
         Assert.AreEqual(
-            "{StaticResource GgufChatPrimaryButtonStyle}",
+            "{StaticResource GgufChatNavigationButtonStyle}",
             newChatButton.Attribute("Style")?.Value);
         Assert.AreEqual(
             "Center",
@@ -531,7 +559,7 @@ public sealed class GgufChatVisualContractTests
         XElement settingsButton = page.Descendants(presentation + "Button")
             .Single(element => element.Attribute("AutomationProperties.Name")?.Value == "Settings");
         Assert.AreEqual(
-            "{StaticResource GgufChatSecondaryButtonStyle}",
+            "{StaticResource GgufChatNavigationButtonStyle}",
             settingsButton.Attribute("Style")?.Value);
         Assert.AreEqual(
             "Left",

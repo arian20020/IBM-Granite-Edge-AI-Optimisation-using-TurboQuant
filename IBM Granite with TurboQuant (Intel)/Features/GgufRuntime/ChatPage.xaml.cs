@@ -34,15 +34,19 @@ public sealed partial class ChatPage : Page
             Margin = new Thickness(0, 14, 0, 6),
             FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
             Foreground = (Microsoft.UI.Xaml.Media.Brush)
-                Application.Current.Resources["GgufChatMutedBrush"],
+                Application.Current.Resources["GgufChatDateHeadingBrush"],
         });
     }
 
     public void ClearHistory() => ChatHistoryList.Items.Clear();
 
-    public void AddHistoryConversation(Guid id, string title)
+    public void AddHistoryConversation(Guid id, string title, bool isSelected)
     {
-        var item = new ChatHistoryItem { Title = title };
+        var item = new ChatHistoryItem
+        {
+            Title = title,
+            IsSelected = isSelected,
+        };
         item.Selected += (_, _) => ConversationSelected?.Invoke(this, id);
         ChatHistoryList.Items.Add(item);
     }

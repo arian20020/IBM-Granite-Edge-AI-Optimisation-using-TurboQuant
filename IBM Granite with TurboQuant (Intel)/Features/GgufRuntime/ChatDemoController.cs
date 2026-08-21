@@ -121,12 +121,16 @@ internal sealed class ChatDemoController : IAsyncDisposable
     private void Render()
     {
         page.ClearHistory();
+        Guid? selectedId = coordinator.SelectedConversation?.Id;
         foreach (ChatHistoryGroup group in coordinator.Groups)
         {
             page.AddHistoryGroup(group.Label);
             foreach (ChatConversation conversation in group.Conversations)
             {
-                page.AddHistoryConversation(conversation.Id, conversation.Title);
+                page.AddHistoryConversation(
+                    conversation.Id,
+                    conversation.Title,
+                    conversation.Id == selectedId);
             }
         }
 

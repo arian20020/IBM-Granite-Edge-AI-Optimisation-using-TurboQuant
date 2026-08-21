@@ -1,5 +1,6 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 
 namespace GraniteEdgeAI.Features.GgufRuntime.Controls;
 
@@ -54,8 +55,13 @@ public sealed partial class ChatMessageBubble : UserControl
         BubbleBorder.HorizontalAlignment = IsUser
             ? HorizontalAlignment.Right
             : HorizontalAlignment.Left;
-        BubbleBorder.Background = IsUser
-            ? (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["GgufChatUserBubbleBrush"]
-            : (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["GgufChatSurfaceBrush"];
+        string surfaceKey = IsUser
+            ? "GgufChatUserBubbleBrush"
+            : "GgufChatAssistantBubbleBrush";
+        string textKey = IsUser
+            ? "GgufChatUserBubbleTextBrush"
+            : "GgufChatAssistantBubbleTextBrush";
+        BubbleBorder.Background = (Brush)Application.Current.Resources[surfaceKey];
+        MessageText.Foreground = (Brush)Application.Current.Resources[textKey];
     }
 }
