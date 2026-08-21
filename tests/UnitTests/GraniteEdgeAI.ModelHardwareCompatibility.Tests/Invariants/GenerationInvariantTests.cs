@@ -25,10 +25,43 @@ public sealed class GenerationInvariantTests
             fileType: 15,
             quantisationVersion: 2);
 
+    /// <summary>
+    /// ProvisionalV1 plus one genuine downward-conversion entry (Q4_K_M -&gt;
+    /// Q3_K_M). ProvisionalV1 alone has no entry that survives generation as
+    /// anything other than Imported: its lone non-Imported entry
+    /// ("gguf-cpu-q4km-f16") names the same encoding the Q4_K_M source file
+    /// already has, so TryResolvePreparationKind normalises it straight back
+    /// to Imported and it dedupes onto the baseline. Every conversion-focused
+    /// invariant below needs a candidate that actually converts, or its loop
+    /// body never runs.
+    /// </summary>
+    private static SupportMatrix MatrixWithADownwardConversionEntry()
+    {
+        SupportMatrix baseline = SupportMatrix.ProvisionalV1();
+
+        CompatibilitySupportEntry downwardConversion = CompatibilitySupportEntry.Create(
+            "gguf-cpu-q3km-f16",
+            RuntimeRouteId.LlamaCpp,
+            CompatibilityBackend.Cpu,
+            DeviceRouteId.Cpu,
+            GpuOffloadLevel.None,
+            GgufWeightFormat.Q3KM,
+            GgufKvCacheFormat.F16,
+            minimumContextTokens: 1024,
+            maximumContextTokens: 32768,
+            SupportLevel.DeclaredSupported,
+            requiresEvidence: false);
+
+        return SupportMatrix.FromEntries(
+            baseline.MatrixVersion,
+            baseline.Provenance,
+            [.. baseline.Entries, downwardConversion]);
+    }
+
     private static CandidateGenerationResult GenerateAll(
         TrustedSourceAvailability? trustedSource = null)
     {
-        SupportMatrix matrix = SupportMatrix.ProvisionalV1();
+        SupportMatrix matrix = MatrixWithADownwardConversionEntry();
 
         return CandidateGenerator.Generate(CandidateGenerationRequest.Create(
             matrix,
@@ -57,6 +90,8 @@ public sealed class GenerationInvariantTests
         // quality already discarded.
         decimal sourceBits = WeightQuantisationMap.BitsPerWeight(WeightQuantisation.Q4_K_M);
 
+        bool sawNonImportedCandidate = false;
+
         foreach (CompatibilityCandidate candidate in GenerateAll().Candidates)
         {
             GgufRouteConfiguration configuration =
@@ -67,6 +102,8 @@ public sealed class GenerationInvariantTests
                 continue;
             }
 
+            sawNonImportedCandidate = true;
+
             WeightQuantisation target =
                 GgufWeightFormatMap.ToCanonical(configuration.Weights);
 
@@ -74,6 +111,13 @@ public sealed class GenerationInvariantTests
                 WeightQuantisationMap.BitsPerWeight(target) <= sourceBits,
                 $"{candidate.SupportEntryId} converts upward to {target}.");
         }
+
+        // Guards against this invariant going vacuous again: without at least
+        // one non-Imported candidate, the loop above never runs its body and
+        // the test passes no matter what the generator does.
+        Assert.IsTrue(
+            sawNonImportedCandidate,
+            "No non-Imported candidate was generated; this invariant checked nothing.");
     }
 
     [TestMethod]
@@ -97,7 +141,7 @@ public sealed class GenerationInvariantTests
     public void EveryCandidateNamesAnEntryThatExistsInTheMatrix()
     {
         HashSet<string> entryIds =
-            [.. SupportMatrix.ProvisionalV1().Entries.Select(entry => entry.EntryId)];
+            [.. MatrixWithADownwardConversionEntry().Entries.Select(entry => entry.EntryId)];
 
         Assert.IsTrue(GenerateAll().Candidates.All(
             candidate => entryIds.Contains(candidate.SupportEntryId)));
@@ -106,6 +150,8 @@ public sealed class GenerationInvariantTests
     [TestMethod]
     public void EveryConversionCandidateDeclaresWeightConversionRequired()
     {
+        bool sawAConversionCandidate = false;
+
         foreach (CompatibilityCandidate candidate in GenerateAll().Candidates)
         {
             GgufRouteConfiguration configuration =
@@ -118,12 +164,21 @@ public sealed class GenerationInvariantTests
 
             if (changesEncoding)
             {
+                sawAConversionCandidate = true;
+
                 Assert.AreEqual(
                     CandidatePreparation.WeightConversionRequired,
                     candidate.Preparation,
                     $"{candidate.SupportEntryId} writes a new file without saying so.");
             }
         }
+
+        // Guards against this invariant going vacuous again: without at least
+        // one encoding-changing candidate, the loop above never runs its
+        // Assert.AreEqual and the test passes no matter what the generator does.
+        Assert.IsTrue(
+            sawAConversionCandidate,
+            "No encoding-changing candidate was generated; this invariant checked nothing.");
     }
 
     [TestMethod]
@@ -137,12 +192,23 @@ public sealed class GenerationInvariantTests
                 candidate.Preparation,
                 $"{candidate.SupportEntryId} converts with no trusted source.");
         }
+
+        // Guards against this invariant going vacuous again: it is only
+        // meaningful if, with a trusted source available, the same matrix
+        // and facts DO produce a WeightConversionRequired candidate. Without
+        // that, "no candidate converts without a trusted source" would be
+        // true merely because no candidate ever converts at all.
+        Assert.IsTrue(
+            GenerateAll(TrustedSourceAvailability.HigherPrecisionAvailable()).Candidates.Any(
+                candidate => candidate.Preparation == CandidatePreparation.WeightConversionRequired),
+            "No candidate ever declares WeightConversionRequired even with a trusted "
+            + "source available; this invariant checked nothing.");
     }
 
     [TestMethod]
     public void ExperimentalEntriesProduceOnlyExperimentalCandidates()
     {
-        Dictionary<string, SupportLevel> levels = SupportMatrix.ProvisionalV1().Entries
+        Dictionary<string, SupportLevel> levels = MatrixWithADownwardConversionEntry().Entries
             .ToDictionary(entry => entry.EntryId, entry => entry.Level);
 
         foreach (CompatibilityCandidate candidate in GenerateAll().Candidates)

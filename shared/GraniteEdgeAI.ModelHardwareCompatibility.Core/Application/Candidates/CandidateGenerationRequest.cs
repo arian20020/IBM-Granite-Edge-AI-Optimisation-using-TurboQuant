@@ -42,6 +42,20 @@ internal sealed record CandidateGenerationRequest
 
     internal InspectedModelFacts Facts { get; }
 
+    /// <summary>
+    /// The as-imported runtime shape the generator matches admitted entries
+    /// against to find the baseline. Callers must pass this with
+    /// <c>Weights == GgufWeightFormat.Imported</c>: the generator's
+    /// baseline-matching path (see <c>CandidateGenerator.Generate</c>)
+    /// compares each entry's effective configuration - normalised back to
+    /// Imported whenever an entry names the encoding the file already has -
+    /// against this value. An adapter that passed the file's actual encoding
+    /// instead (say, <c>Q4KM</c> for a Q4_K_M file) would never equal a
+    /// normalised entry configuration, so the baseline would silently go
+    /// missing with reason
+    /// <see cref="BaselineExclusionReason.NoAdmittedEntryMatchesTheBaseline"/>
+    /// even though a matching entry exists.
+    /// </summary>
     internal GgufRouteConfiguration BaselineConfiguration { get; }
 
     internal ContextTokenCount BaselineContext { get; }

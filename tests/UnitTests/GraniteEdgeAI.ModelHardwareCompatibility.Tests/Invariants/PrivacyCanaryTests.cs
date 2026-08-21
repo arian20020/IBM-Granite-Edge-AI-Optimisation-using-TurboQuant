@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Capabilities;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Estimation;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.FitAssessment;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
@@ -132,7 +133,8 @@ public sealed class PrivacyCanaryTests
     /// <summary>
     /// True only when a method's entire body is "load the one argument, call a
     /// single property getter, return the result" - the exact IL shape the
-    /// compiler emits for a lambda like <c>entry => entry.EntryId</c>.
+    /// compiler emits for a lambda like <c>entry => entry.EntryId</c> - AND
+    /// that getter is declared in the very assembly being scanned.
     ///
     /// This exists because every lambda, whether it merely forwards an
     /// already-reviewed property or computes brand-new content (say,
@@ -146,6 +148,17 @@ public sealed class PrivacyCanaryTests
     /// computes something new. See
     /// <see cref="MethodScan_StillCatchesAComputingLambdaDespiteTheForwardingExemption"/>
     /// for the regression test that exercises this distinction end to end.
+    ///
+    /// The "own already-scanned return value" reasoning only holds when the
+    /// getter itself lives in the assembly this canary scans: that is the
+    /// only case where the getter's return value is guaranteed to have been
+    /// walked by <see cref="NoUnreviewedStringMemberExistsInTheCompatibilityCore"/>
+    /// already. A lambda forwarding an external getter - for example
+    /// <c>files.Select(f => f.FullName)</c> on a <see cref="System.IO.FileInfo"/> -
+    /// has the identical single-callvirt IL shape but returns content this
+    /// canary has never reviewed, so it must not be exempted. See
+    /// <see cref="MethodScan_DoesNotExemptAForwardOverAnExternalGetter"/> for
+    /// the regression test that exercises this distinction end to end.
     /// </summary>
     private static bool IsForwardingLambdaOverAReviewedGetter(MethodInfo method)
     {
@@ -161,7 +174,8 @@ public sealed class PrivacyCanaryTests
 
         return target is MethodInfo getter
             && getter.Name.StartsWith("get_", StringComparison.Ordinal)
-            && CarriesString(getter.ReturnType);
+            && CarriesString(getter.ReturnType)
+            && getter.DeclaringType?.Assembly == method.DeclaringType?.Assembly;
     }
 
     /// <summary>
@@ -334,8 +348,38 @@ public sealed class PrivacyCanaryTests
             "A lambda that only forwards an existing property must remain exempt.");
     }
 
+    [TestMethod]
+    public void MethodScan_DoesNotExemptAForwardOverAnExternalGetter()
+    {
+        // The missing-conjunct regression: ExternalForwardingLambdaHolder's
+        // lambda has the exact same "single callvirt to a get_* returning
+        // string" IL shape as ForwardingLambdaHolder's above, but the getter
+        // it calls (FileInfo.FullName) lives outside this assembly and has
+        // never been walked by the property/field scan. Exempting it on
+        // shape alone - as the helper did before the assembly check was
+        // added - would let files.Select(f => f.FullName) through unnoticed
+        // and return an absolute path. It must still be caught.
+        string[] found = ScanMethodsForUnexemptedStrings(
+            NestedTypesOf(typeof(ExternalForwardingLambdaHolder)));
+
+        Assert.IsTrue(
+            found.Length > 0,
+            "A lambda forwarding an external (out-of-assembly) getter must not "
+            + "be exempted merely because its IL shape matches a reviewed forward.");
+    }
+
     private static IEnumerable<Type> NestedTypesOf(Type outer) =>
         new[] { outer }.Concat(outer.GetNestedTypes(AllMembers));
+
+    private static class ExternalForwardingLambdaHolder
+    {
+        // Same shape as ForwardingLambdaHolder.DistinctNameCount, but the
+        // lambda forwards System.IO.FileInfo.FullName - a getter declared in
+        // an assembly this canary never scans - instead of an in-assembly
+        // property.
+        internal static int DistinctFullNameCount(IEnumerable<FileInfo> files) =>
+            files.Select(file => file.FullName).Distinct().Count();
+    }
 
     private static class ComputingLambdaHolder
     {
@@ -364,10 +408,20 @@ public sealed class PrivacyCanaryTests
     {
         string[] forbidden = ["\\", "/", ":", ".gguf", ".."];
 
+        SupportMatrix matrix = SupportMatrix.ProvisionalV1();
+
+        // Entry ids are hand-authored strings in a list explicitly designed
+        // to be extended by people - nothing stops someone writing
+        // Entry("C:/models/granite-q4.gguf-cpu", ...). Every allowed string
+        // value is sampled here, not just the two policy versions, so a
+        // future entry id (or matrix version) carrying path-like content is
+        // caught the same way.
         string[] samples =
         [
             SafetyPolicy.ProvisionalV1().PolicyVersion,
-            EstimatorPolicy.ProvisionalV1().PolicyVersion
+            EstimatorPolicy.ProvisionalV1().PolicyVersion,
+            matrix.MatrixVersion,
+            .. matrix.Entries.Select(entry => entry.EntryId)
         ];
 
         foreach (string sample in samples)
