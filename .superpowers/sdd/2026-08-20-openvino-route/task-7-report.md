@@ -736,6 +736,14 @@ documented directory-handle notification buffer semantics: the replacement
 request is registered before the old request is retired, eliminating a watcher
 registration gap rather than adding a timing window.
 
+The timeout, wait-error, overflow, and I/O-error monitor cases above are
+deterministic instance-scoped fault-injection tests; they are not claims that a
+real filesystem driver produced those faults during this run. Genuine
+kernel/integration coverage is provided by clean overlapped cancellation, the
+real create/delete mutation caught across a double-buffer handoff, transient
+runtime DLL load/unload and package namespace mutation tests, and the staged
+native worker/process integration suites.
+
 ### Exact round-4 native closures
 
 Both closures were built independently by the scripted Release/x64 builder from
@@ -772,9 +780,11 @@ identities remain Runtime `2026.3.0-22451-8a17657b995-releases/2026/3`, GenAI
 | Review-4 A and B manifest verifiers | `worker_manifest_valid` for each |
 | Residue/tracked-artifact audit | zero official worker processes; no tracked build, stage, archive, DLL, or worker executable; `git diff --check` clean |
 
-`FIX-01` remains closed by the two independent real native closures and three
-identical managed proof runs. `DEP-02` remains unresolved and untouched. The
-correctness-first per-turn reconstruction remains a known latency concern, and
-Task 10 must still establish explicit GPU actual-device proof. Task 7 remains
-in progress pending independent round-4 re-review; Task 8 remains pending and
-no dependent work was performed.
+Independent round-4 rereview was APPROVED with no Critical or Important
+findings. The reviewer independently verified native 7/7, official CPU 6/6,
+managed client 13/13, and contracts 60/60. `FIX-01` remains closed by the two
+independent real native closures and three identical managed proof runs.
+`DEP-02` remains unresolved and untouched. The correctness-first per-turn
+reconstruction remains a known latency concern, and Task 10 must still
+establish explicit GPU actual-device proof. Task 7 is complete; Task 8 remains
+pending and no dependent work was performed.
