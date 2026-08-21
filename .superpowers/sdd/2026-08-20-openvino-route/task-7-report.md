@@ -671,3 +671,110 @@ concern for later measured optimization, and Task 10 must still establish
 explicit GPU actual-device evidence before GPU exposure. Task 7 remains in
 progress until independent round-3 re-review accepts these fixes; Task 8 remains
 pending with no dependent work performed.
+
+## Independent review fix round 4/5
+
+Round 4 was received and re-evaluated against the native implementation at
+`a0a90317`. Both Important findings and the named-stream hardening finding were
+technically valid. No Task 8 work, protocol change, fixture change, dependency
+change, or UI/registration work was performed. The scoped implementation commit
+is `aff60a55`.
+
+### Round-4 RED evidence
+
+Strict TDD established the missing behavior before production changes:
+
+| Finding | RED evidence |
+| --- | --- |
+| Safe overlapped teardown | The new ownership tests initially failed to compile because no instance-scoped lifecycle/fault seam, terminal barrier, or safe-detach behavior existed. Source inspection confirmed the destructor closed the directory/event and freed OVERLAPPED/buffer storage after a 5-second `WAIT_TIMEOUT`. |
+| Final terminal integrity | Three real-package publication cases initially failed to compile because there was no terminal-publication gate. After the gate first compiled, a transient insert/delete was detected but exposed that `package_changed` was incorrectly nonfatal. |
+| Named-stream fallback | The existing constructor retried without stream flags on every `ERROR_INVALID_PARAMETER`, without proving the volume lacked named streams. Desired supported-volume rejection and unsupported-volume fallback cases initially had no API or behavior. |
+
+The final RED/GREEN matrix contains nine monitor behaviors plus three terminal
+publication behaviors. The terminal cases cover inspection return and genuine
+canonical-fixture normal/stopped `official_session.generate` returns; both turn
+cases emitted the real `fixture` fragment before the test mutated the namespace
+between the earlier native boundary and terminal publication.
+
+### Round-4 implementation
+
+- Replaced default `unique_ptr` teardown with explicit heap-state ownership. A
+  monitor request is destroyed only after `CancelIoEx` and a terminal
+  `GetOverlappedResult` outcome. Timeout, wait error, or still-pending completion
+  makes integrity sticky-fatal and intentionally detaches the complete state,
+  handles, events, OVERLAPPED objects, and buffers until process termination.
+  Move assignment uses the same safe release path. Capacity is reserved before
+  arming requests so allocation failure cannot destroy kernel-owned storage.
+- Added instance-scoped lifecycle and fault options with no mutable global hook.
+  Tests prove normal cancellation destroys/closes exactly once, while forced
+  shutdown timeout/error records a detach and performs zero state/handle/event
+  destruction.
+- Replaced the former 50ms notification wait with a continuous double-buffer
+  handoff. A new event/OVERLAPPED/buffer request is armed on the same validated
+  root before the old request is cancelled and terminally consumed. Exact
+  topology is scanned while the replacement is already armed, then a second
+  handoff consumes changes from the scan interval. Notifications, overflow,
+  errors, or delayed terminal completion are sticky failures. A deterministic
+  create/delete between handoffs proves the replacement catches the mutation.
+- `GetVolumeInformationByHandleW` now supplies the authoritative
+  `FILE_NAMED_STREAMS` capability. `ERROR_INVALID_PARAMETER` from stream-filter
+  registration fails closed on a named-stream-capable volume; base-filter
+  fallback is permitted only when that handle proves named streams unsupported.
+- Added `verify_terminal_topology` to package/runtime leases and
+  `verify_terminal_integrity` to sessions. The terminal publication helper runs
+  every supplied package/runtime/module check independently, buffers the event,
+  and calls `write_event` only after all checks succeed. Inspection retains its
+  package lease through the write. Hello, SessionStarted, InspectionCompleted,
+  SessionCompleted, SessionCancelled, and completed/stopped TurnCompleted now
+  use the gate. A failing package monitor is fatal `package_changed`, producing
+  the existing single typed inspection/session failure and nonzero worker exit,
+  never the success event.
+
+The Windows API contract requires OVERLAPPED storage to remain valid until
+cancellation completion is observed. The double-buffer design also uses the
+documented directory-handle notification buffer semantics: the replacement
+request is registered before the old request is retired, eliminating a watcher
+registration gap rather than adding a timing window.
+
+### Exact round-4 native closures
+
+Both closures were built independently by the scripted Release/x64 builder from
+absent build/stage roots and only the Task 1 verified official archives. The
+final post-build test strengthening changed test source only; the staged worker
+production source was unchanged, so no production rebuild was required by the
+root ruling.
+
+| Closure | Native CTest | Worker executable | Manifest |
+| --- | --- | --- | --- |
+| Review 4 A (`granite-o1-task7-review4-build-a` / `...stage-a`) | 7/7 in 10.99s | 436,736 bytes; `3d4e5254ff1dc061366fb2a45de7a536f60daafd575ff1f31d8d8871c902095c` | 4,059 bytes; `b09feb0c73969d5e13a1d755937fc580d1507ee5c5f0397ebd44d305dfb6613b` |
+| Review 4 B (`granite-o1-task7-review4-build-b` / `...stage-b`) | 7/7 in 11.03s | 436,736 bytes; `51f5c5579251b2d9a81bb1c743acdc3f361abd6e297782701d04ea4691311c94` | 4,059 bytes; `0f656f6f2afe0b7246d0746f458ad6ed02e23be943145779b0160dd69aff2ebe` |
+
+Each closure has exactly 17 files and 16 closed manifest entries. Pinned build
+identities remain Runtime `2026.3.0-22451-8a17657b995-releases/2026/3`, GenAI
+`2026.3.0.0-3277-bd8d6542e3c`, and Tokenizers
+`2026.3.0.0-703-183c6f25cda`.
+
+### Round-4 verification
+
+| Verification | Result |
+| --- | --- |
+| Current-source native CTest, including strengthened real-turn terminal seam | 7/7 in 13.45s |
+| Exact clean review-4 A / B native CTest | 7/7 in 10.99s / 7/7 in 11.03s |
+| Official managed stability runs | 6/6, 6/6, 6/6; 18/18 aggregate |
+| OpenVINO contracts, Release | 60/60 in 35.747s |
+| OpenVINO managed client, Release | 13/13 in 3.417s |
+| Full OpenVINO process suite, Release | 39/39 in 63.490s |
+| Task 6/static OpenVINO suite | 124/124 in 17.830s |
+| Legacy ModelInspection managed client | 119/119 in 8.598s |
+| Legacy ModelInspection process suite | 31/31 in 97.105s with only the documented delayed-handshake timing case excluded and not rerun |
+| Task 1 official dependency verifier | `dependency_lock_valid` |
+| Task 5 fixture verifier | `fixture_valid` |
+| Review-4 A and B manifest verifiers | `worker_manifest_valid` for each |
+| Residue/tracked-artifact audit | zero official worker processes; no tracked build, stage, archive, DLL, or worker executable; `git diff --check` clean |
+
+`FIX-01` remains closed by the two independent real native closures and three
+identical managed proof runs. `DEP-02` remains unresolved and untouched. The
+correctness-first per-turn reconstruction remains a known latency concern, and
+Task 10 must still establish explicit GPU actual-device proof. Task 7 remains
+in progress pending independent round-4 re-review; Task 8 remains pending and
+no dependent work was performed.
