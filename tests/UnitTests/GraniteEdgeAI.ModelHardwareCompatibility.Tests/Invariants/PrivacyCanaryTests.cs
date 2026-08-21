@@ -18,6 +18,7 @@ public sealed class PrivacyCanaryTests
     [
         "SafetyPolicy.PolicyVersion",
         "EstimatorPolicy.PolicyVersion",
+        "SupportMatrix.MatrixVersion",
         "CompatibilityCandidate.SupportEntryId",
         "CompatibilitySupportEntry.EntryId",
         "RouteConfiguration.CanonicalDescriptor",
@@ -106,7 +107,15 @@ public sealed class PrivacyCanaryTests
             && type.GetGenericArguments().Contains(typeof(string)));
 
     private static bool IsCompilerGenerated(MemberInfo member) =>
-        member.IsDefined(typeof(CompilerGeneratedAttribute), inherit: false);
+        member.IsDefined(typeof(CompilerGeneratedAttribute), inherit: false)
+        // A lambda compiled into a cached static delegate lands on the compiler's
+        // "<>c" closure class, which itself carries the attribute, but Roslyn does
+        // not additionally stamp the generated method. Without this check every
+        // lambda that happens to return a string (e.g. a Select projecting a
+        // property already reviewed on its declaring type) would look like a new,
+        // unreviewed place for a string to enter, when it is only forwarding a
+        // value this canary already covers.
+        || (member.DeclaringType?.IsDefined(typeof(CompilerGeneratedAttribute), inherit: false) ?? false);
 
     [TestMethod]
     public void EveryAllowedStringValue_IsFreeOfPathLikeContent()
