@@ -35,6 +35,17 @@ public sealed class GgufChatVisualContractTests
         "GgufChatHistoryHoverBrush",
         "GgufChatSurfaceBrush",
         "GgufChatTextBrush",
+        "GgufChatAssistantBubbleBrush",
+        "GgufChatAssistantBubbleTextBrush",
+        "GgufChatUserBubbleTextBrush",
+        "GgufChatNavigationRestBrush",
+        "GgufChatNavigationHoverBrush",
+        "GgufChatNavigationPressedBrush",
+        "GgufChatNavigationSelectedBrush",
+        "GgufChatComposerBrush",
+        "GgufChatComposerFocusedBorderBrush",
+        "GgufChatFlyoutBrush",
+        "GgufChatDateHeadingBrush",
     ];
 
     private static readonly string[] RequiredButtonVisualStates =
@@ -250,6 +261,88 @@ public sealed class GgufChatVisualContractTests
         AssertStyleHasVisualStates(secondaryButtonStyle, presentation, x);
         AssertStyleHasVisualStates(primaryButtonStyle, presentation, x);
         AssertButtonStylesAreDefinedOnlyAtRoot(theme, presentation, x);
+    }
+
+    [TestMethod]
+    public void ChatThemeDefinesCalmFluentNavigationComposerAndBubbleContracts()
+    {
+        string root = FindRepositoryRoot();
+        XNamespace presentation =
+            "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
+        XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
+        XDocument theme = XDocument.Load(Path.Combine(
+            root,
+            "IBM Granite with TurboQuant (Intel)",
+            "Features",
+            "GgufRuntime",
+            "Presentation",
+            "GgufChatTheme.xaml"));
+        XElement light = GetThemeDictionary(theme, presentation, x, "Light");
+        var expected = new Dictionary<string, string>
+        {
+            ["GgufChatAssistantBubbleBrush"] = "#F4F7FB",
+            ["GgufChatAssistantBubbleTextBrush"] = "#172033",
+            ["GgufChatUserBubbleBrush"] = "#EAF2FF",
+            ["GgufChatUserBubbleTextBrush"] = "#16345F",
+            ["GgufChatNavigationRestBrush"] = "#00FFFFFF",
+            ["GgufChatNavigationHoverBrush"] = "#EEF4FF",
+            ["GgufChatNavigationPressedBrush"] = "#E2ECFA",
+            ["GgufChatNavigationSelectedBrush"] = "#E8F0FF",
+            ["GgufChatComposerBrush"] = "#FFFFFFFF",
+            ["GgufChatComposerFocusedBorderBrush"] = "#2563EB",
+            ["GgufChatFlyoutBrush"] = "#FFFFFFFF",
+            ["GgufChatDateHeadingBrush"] = "#526174",
+        };
+
+        foreach ((string resourceKey, string expectedColor) in expected)
+        {
+            Assert.AreEqual(
+                expectedColor,
+                AssertThemeResource(light, x, resourceKey, "Light").Attribute("Color")?.Value,
+                resourceKey);
+        }
+
+        Assert.IsTrue(
+            ContrastRatio(expected["GgufChatAssistantBubbleBrush"], expected["GgufChatAssistantBubbleTextBrush"]) >= 4.5);
+        Assert.IsTrue(
+            ContrastRatio(expected["GgufChatUserBubbleBrush"], expected["GgufChatUserBubbleTextBrush"]) >= 4.5);
+
+        XElement navigation = AssertRootResource(theme, x, "GgufChatNavigationButtonStyle");
+        AssertStyleHasVisualStates(navigation, presentation, x);
+        Assert.IsNotNull(navigation.Descendants(presentation + "VisualState")
+            .SingleOrDefault(state => state.Attribute(x + "Name")?.Value == "Unfocused"));
+        Assert.AreEqual(
+            "{ThemeResource GgufChatNavigationRestBrush}",
+            navigation.Elements(presentation + "Setter")
+                .Single(setter => setter.Attribute("Property")?.Value == "Background")
+                .Attribute("Value")?.Value);
+        Assert.AreEqual(
+            "0",
+            navigation.Elements(presentation + "Setter")
+                .Single(setter => setter.Attribute("Property")?.Value == "BorderThickness")
+                .Attribute("Value")?.Value);
+
+        XElement editor = AssertRootResource(theme, x, "GgufChatComposerTextBoxStyle");
+        Assert.AreEqual(
+            "0",
+            editor.Elements(presentation + "Setter")
+                .Single(setter => setter.Attribute("Property")?.Value == "BorderThickness")
+                .Attribute("Value")?.Value);
+        Assert.AreEqual(
+            "12,0",
+            editor.Elements(presentation + "Setter")
+                .Single(setter => setter.Attribute("Property")?.Value == "Padding")
+                .Attribute("Value")?.Value);
+        Assert.AreEqual(
+            "Center",
+            editor.Elements(presentation + "Setter")
+                .Single(setter => setter.Attribute("Property")?.Value == "VerticalContentAlignment")
+                .Attribute("Value")?.Value);
+
+        XElement flyoutAction = AssertRootResource(theme, x, "GgufChatFlyoutActionStyle");
+        Assert.AreEqual(
+            "{StaticResource GgufChatNavigationButtonStyle}",
+            flyoutAction.Attribute("BasedOn")?.Value);
     }
 
     [TestMethod]
