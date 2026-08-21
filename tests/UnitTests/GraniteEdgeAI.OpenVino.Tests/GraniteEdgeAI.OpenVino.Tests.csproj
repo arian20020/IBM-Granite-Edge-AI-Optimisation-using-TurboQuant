@@ -24,8 +24,11 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\shared\GraniteEdgeAI.OpenVino.Contracts\GraniteEdgeAI.OpenVino.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\infrastructure\GraniteEdgeAI.OpenVino.WorkerClient\GraniteEdgeAI.OpenVino.WorkerClient.csproj" />
     <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\OpenVinoRoute\Inspection\*.cs"
              Link="Production\%(Filename)%(Extension)" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\OpenVinoRoute\*.cs"
+             Link="Production\Route\%(Filename)%(Extension)" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="..\..\TestFixtures\OpenVINO\GenAI\TinySyntheticV1\package\**\*">
