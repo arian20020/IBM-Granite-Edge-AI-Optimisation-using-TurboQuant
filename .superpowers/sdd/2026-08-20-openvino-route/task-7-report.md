@@ -549,3 +549,125 @@ pre-approved correction stays `openvino.official/1` because this feature-branch
 contract has no released compatibility consumer. `DEP-02` is untouched. Task 7
 remains in progress until independent round-2 re-review accepts these fixes, and
 Task 8 remains pending with no dependent work performed.
+
+## Independent review fix round 3/5
+
+Round 3 was received and evaluated against the native code at `d68a3068`.
+The three Important findings were technically valid. No Task 8 work was
+started, no protocol shape changed, and the official protocol remains the
+approved unpublished atomic `openvino.official/1` contract. The scoped
+implementation commit is `1cdc4507`.
+
+### Round-3 RED evidence
+
+Strict TDD established the missing behavior before production edits:
+
+| Finding | RED evidence |
+| --- | --- |
+| Transient namespace/module changes | A real copied system DLL was inserted, loaded, unloaded, deleted, and exact final topology restored inside the runtime load observer. The existing boundary accepted both return/throw variants. The analogous package insert/delete observer was also accepted (`0/1`, `transient package mutation escaped the load boundary`). Desired runtime observer/classifier APIs initially failed to link with two `LNK2019` errors. |
+| Deterministic CANCEL ownership | With the first genuine decoded fragment buffered and the input pump delayed 250ms, the old fixed 100ms wait published `fixture`; the regression failed `first-fragment cancellation leaked output`. |
+| System-module exception | The prior classifier admitted every module below the broad Windows directory. The new behavior test required only validated System32 and WinSxS roots and rejected a copied DLL below a sibling `Windows\\Temp` tree. |
+
+### Round-3 implementation
+
+- Added an overlapped Windows `ReadDirectoryChangesW` namespace monitor owned
+  for the complete runtime/package lease lifetime. It is armed on a separately
+  opened, identity-matched root handle before closed enumeration, monitors the
+  subtree and file/directory name, size, write, creation, security, and NTFS
+  stream changes, and makes any notification, overflow, API error, or
+  termination sticky-fatal. `CancelIoEx` plus bounded event completion closes
+  the already-armed request without a watcher-thread scheduling gap.
+- The first implementation reused the deny-delete root handle, which blocked a
+  valid directory-rename test. The evidence-driven correction retains the
+  deny-write/delete lease handle and arms a second share-delete monitor handle
+  only after validating its final path, attributes, and file identity against
+  the retained root.
+- Each initial-acquisition finalization, native pre/post load boundary, success
+  path, catch path, and cleanup checks the sticky monitor plus exact topology;
+  module membership is independently checked even if another integrity check
+  already failed. A 50ms wait is used only once per monitor at completed
+  boundaries to drain the request already registered with the kernel; pre-load
+  checks remain nonblocking. This reduced native CTest from the initial 27s
+  implementation to 15-16s without changing any deadline.
+- Runtime behavior tests now insert and load a real unlisted DLL, unload/delete
+  it, restore exact topology, then exercise both return and throw variants.
+  Package tests exercise the analogous transient insert/delete return/throw
+  variants. All fail with the fixed integrity result despite a clean final
+  scan/module set.
+- Replaced the fixed 100ms first-fragment publication window with an explicit
+  mutex/condition-variable handshake. The real callback buffers the first
+  genuine fragment. Production main first drains ready control input; CANCEL
+  takes ownership and discards the fragment, while an observed-empty pipe
+  explicitly releases it. The existing post-publication STOP handoff remains
+  separate, so STOP after one observed real fragment completes a partial turn
+  and the session remains reusable. The deterministic native test records
+  CANCEL as already written, delays the input pump 250ms, and proves zero
+  streamed output with no deadlock.
+- Removed the broad `%WINDIR%` module exemption. Every candidate module and
+  allowed root is opened and validated by final handle. Only exact System32 and
+  canonical WinSxS component-boundary descendants are exempt; all other
+  non-system modules must match an approved retained manifest file identity.
+- Hardened official test cleanup so every recursively deleted root must be a
+  strict descendant of the system temp root and can be neither equal to nor an
+  ancestor/descendant of its source. A/B boundary failure diagnostics remain
+  path-free.
+
+### Systematic debugging notes
+
+The first continuous monitor missed immediate create/delete completion when
+polled at zero timeout. A bounded wait on the already-armed OVERLAPPED event
+proved the kernel notification and made both transient return/throw variants
+deterministic. A subsequent blanket drain at every nested check made the real
+5-second startup gate fail; limiting the drain to one per monitor at completed
+boundaries restored the unchanged real deadline.
+
+During final stability, the first clean B stage was externally reduced after a
+successful 6/6 run to only its executable and manifest. The managed resolver
+correctly failed closed with `RuntimeIntegrityFailed` before launch. Raw A,
+retained-lease raw launch, and retained-lease protected launch were each green;
+a new clean B was then tested method-by-method. Canonical and each other
+official method left the replacement B at exactly 17 files and
+`worker_manifest_valid`. Three subsequent guarded full official runs also
+preserved that exact inventory. No test-owned source-stage deletion reproduced;
+the damaged stage is excluded from acceptance evidence.
+
+### Exact final native closures
+
+Both accepted closures were built independently by the scripted Release/x64
+builder from absent build/stage roots and only the Task 1 verified official
+archives.
+
+| Closure | Native CTest | Worker executable | Manifest |
+| --- | --- | --- | --- |
+| Review 3 A (`granite-o1-task7-review3-release-build-a` / `...release-stage-a`) | 5/5 in 16.20s | 413,184 bytes; `37b166a13ac3eec05fb43e69e29c9ddef20caa840831ca131484fc65d3442eaa` | 4,059 bytes; `65fa9a4bbad5d6c832d7a2ab0f5edfb8ab11d52bad1bf6de54f7502406fb2bd3` |
+| Review 3 B (`granite-o1-task7-review3-release2-build-b` / `...release2-stage-b`) | 5/5 in 16.22s | 413,184 bytes; `fb5c1803a7d3c5f1431c61cfab9ba21bd64b5311ac5ba4a09a29a52c358622c9` | 4,059 bytes; `9e24fce8f982f512a2677f1ba5a40beacd3fe3c429f89e66560deef995b559b2` |
+
+The pinned build identities remain exactly Runtime
+`2026.3.0-22451-8a17657b995-releases/2026/3`, GenAI
+`2026.3.0.0-3277-bd8d6542e3c`, and Tokenizers
+`2026.3.0.0-703-183c6f25cda`.
+
+### Round-3 verification
+
+| Verification | Result |
+| --- | --- |
+| Current-source focused native CTest after final exceptional-path audit | 5/5 in 16.28s |
+| Exact clean review-3 A / B native CTest | 5/5 in 16.20s / 5/5 in 16.22s |
+| Guarded official managed stability runs | 6/6, 6/6, 6/6; 18/18 aggregate; B stayed 17 files and manifest-valid after every run |
+| Final full OpenVINO process suite | 39/39 in 80.703s |
+| OpenVINO contracts, Release | 60/60 in 36.311s |
+| OpenVINO managed client, Release | 13/13 in 3.976s |
+| Task 6/static OpenVINO suite | 124/124 in 21.019s |
+| Legacy ModelInspection managed client | 119/119 in 10.650s |
+| Legacy ModelInspection process suite | 31/32; sole documented delayed-handshake timing failure, expected exit 3/actual 2; not rerun |
+| Task 1 official dependency verifier | `dependency_lock_valid` |
+| Task 5 fixture verifier | `fixture_valid` |
+| Exact-final A and B manifest verifiers | `worker_manifest_valid` for each |
+
+`FIX-01` remains closed by these two independent clean native closures and the
+identical managed proof. `DEP-02` remains unresolved and untouched. The
+correctness-first per-turn pipeline reconstruction remains a known load-latency
+concern for later measured optimization, and Task 10 must still establish
+explicit GPU actual-device evidence before GPU exposure. Task 7 remains in
+progress until independent round-3 re-review accepts these fixes; Task 8 remains
+pending with no dependent work performed.
