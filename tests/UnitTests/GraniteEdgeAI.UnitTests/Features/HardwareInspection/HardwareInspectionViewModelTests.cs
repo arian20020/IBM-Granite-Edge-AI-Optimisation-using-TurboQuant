@@ -92,6 +92,31 @@ public sealed class HardwareInspectionViewModelTests
     }
 
     [TestMethod]
+    public async Task CompletedResultWithoutAllStages_FailsClosedWithoutHandoff()
+    {
+        ManualHardwareInspectionService service = new();
+        HardwareInspectionViewModel viewModel = Create(service);
+        Task run = viewModel.ActivateAsync();
+        ManualRun call = service.Calls[0];
+        call.Report(1, HardwareInspectionRunStage.StartingHardwareInspection);
+        call.Complete(HardwareInspectionRunResult.CreateCompleted(
+            call.InspectionId,
+            HardwareInspectionOutcome.Completed,
+            HardwareInspectionContractTests.CreateUsableSnapshotForPresentation()));
+
+        await run;
+
+        Assert.AreEqual(
+            HardwareInspectionPresentationKind.FailedApplicationRepairRequired,
+            viewModel.Snapshot.Presentation.Kind);
+        Assert.AreEqual(
+            "HI-STAGE-SEQUENCE-INCOMPLETE",
+            viewModel.Snapshot.SafeDiagnosticCode);
+        Assert.IsNull(viewModel.Snapshot.Handoff);
+        Assert.IsNull(viewModel.Snapshot.Summary);
+    }
+
+    [TestMethod]
     public async Task FailureAndServiceException_AreSafeAndNeverExposeHandoff()
     {
         foreach ((HardwareInspectionFailureKind failure,

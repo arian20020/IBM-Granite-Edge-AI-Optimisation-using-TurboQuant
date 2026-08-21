@@ -169,6 +169,17 @@ public sealed class HardwareInspectionViewModel
                     return;
                 }
 
+                if (result.Outcome is HardwareInspectionOutcome.Completed
+                        or HardwareInspectionOutcome.CompletedWithWarnings
+                    && owner.LastReceivedStage
+                        != (int)HardwareInspectionRunStage.CreatingHardwareReport)
+                {
+                    result = HardwareInspectionRunResult.CreateFailed(
+                        owner.InspectionId,
+                        HardwareInspectionFailureKind.ApplicationRepairRequired,
+                        "HI-STAGE-SEQUENCE-INCOMPLETE");
+                }
+
                 PublishTerminalLocked(owner, result);
                 owner.IsActive = false;
             }
