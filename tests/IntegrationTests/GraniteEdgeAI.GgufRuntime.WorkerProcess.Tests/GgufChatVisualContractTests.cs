@@ -762,6 +762,29 @@ public sealed class GgufChatVisualContractTests
             settingsButton.Attribute("HorizontalContentAlignment")?.Value);
         Assert.AreEqual("4,8", settingsButton.Attribute("Padding")?.Value);
 
+        XElement historyRegion = page.Descendants(presentation + "Grid")
+            .Single(element => element.Attribute(x + "Name")?.Value == "HistoryRegion");
+        XElement[] historyRows = historyRegion
+            .Element(presentation + "Grid.RowDefinitions")!
+            .Elements(presentation + "RowDefinition")
+            .ToArray();
+        Assert.AreEqual(2, historyRows.Length);
+        Assert.AreEqual("Auto", historyRows[0].Attribute("Height")?.Value);
+        Assert.AreEqual("*", historyRows[1].Attribute("Height")?.Value);
+        XElement historyList = historyRegion.Elements(presentation + "ListView")
+            .Single(element => element.Attribute(x + "Name")?.Value == "ChatHistoryList");
+        Assert.AreEqual("1", historyList.Attribute("Grid.Row")?.Value);
+        Assert.AreEqual(
+            presentation + "Grid",
+            historyList.Parent?.Name,
+            "The history list must be constrained by a star-sized Grid row.");
+
+        XElement settingsFooter = page.Descendants(presentation + "Border")
+            .Single(element => element.Attribute(x + "Name")?.Value == "SettingsFooter");
+        Assert.AreEqual("0,12,0,0", settingsFooter.Attribute("Margin")?.Value);
+        Assert.AreEqual("0,12,0,0", settingsFooter.Attribute("Padding")?.Value);
+        Assert.AreEqual("0,1,0,0", settingsFooter.Attribute("BorderThickness")?.Value);
+
         XElement transcript = page.Descendants(presentation + "ListView")
             .Single(element => element.Attribute(x + "Name")?.Value == "TranscriptList");
         XElement transcriptMargin = transcript.Descendants(presentation + "Setter")

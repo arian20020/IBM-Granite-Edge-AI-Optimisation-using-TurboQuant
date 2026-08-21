@@ -135,6 +135,31 @@ public sealed class ChatPageTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
+    public void HistoryScrollsInsideItsRegionAndSettingsHasASeparatedFooter()
+    {
+        var page = new ChatPage();
+        Grid historyRegion = Assert.IsInstanceOfType<Grid>(
+            page.FindName("HistoryRegion"));
+        Border settingsFooter = Assert.IsInstanceOfType<Border>(
+            page.FindName("SettingsFooter"));
+        ListView history = Assert.IsInstanceOfType<ListView>(
+            page.FindName("ChatHistoryList"));
+
+        Assert.AreEqual(2, historyRegion.RowDefinitions.Count);
+        Assert.AreEqual(
+            GridUnitType.Auto,
+            historyRegion.RowDefinitions[0].Height.GridUnitType);
+        Assert.AreEqual(
+            GridUnitType.Star,
+            historyRegion.RowDefinitions[1].Height.GridUnitType);
+        Assert.AreEqual(1, Grid.GetRow(history));
+        Assert.AreEqual(new Thickness(0, 12, 0, 0), settingsFooter.Margin);
+        Assert.AreEqual(new Thickness(0, 1, 0, 0), settingsFooter.BorderThickness);
+        Assert.AreEqual(new Thickness(0, 12, 0, 0), settingsFooter.Padding);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
     public void TranscriptTurnsKeepResponsiveVerticalSeparation()
     {
         var page = new ChatPage();
