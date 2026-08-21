@@ -25,17 +25,21 @@ defaults:
 
 env:
   OPENVINO_UCL_01_AUTHORIZED: ${{ vars.OPENVINO_UCL_01_AUTHORIZED }}
+  OPENVINO_UCL_AUTHORIZATION: ${{ inputs.authorization }}
   OPENVINO_EVIDENCE_COMMIT: ${{ inputs.target_commit }}
   OPENVINO_ARCHIVES: ${{ vars.OPENVINO_UCL_ARCHIVE_DIRECTORY }}
   OPENVINO_CONTROLLED_FIXTURE: ${{ vars.OPENVINO_UCL_FIXTURE_ROOT }}
   OPENVINO_EXPECTED_MODEL_LENGTH: ${{ vars.OPENVINO_UCL_MODEL_LENGTH }}
   OPENVINO_EXPECTED_MODEL_SHA256: ${{ vars.OPENVINO_UCL_MODEL_SHA256 }}
+  OPENVINO_EXPECTED_FIXTURE_MANIFEST_SHA256: dc5ef5060a0e8242291d98701ab2b65286169c863a12e573dd1ad7921ac92648
+  OPENVINO_UCL_ENVIRONMENT: openvino-ucl-01
   OPENVINO_BUILD_A: ${{ runner.temp }}/openvino-ucl-build-a
   OPENVINO_BUILD_B: ${{ runner.temp }}/openvino-ucl-build-b
   OPENVINO_STAGE_A: ${{ runner.temp }}/openvino-ucl-stage-a
   OPENVINO_STAGE_B: ${{ runner.temp }}/openvino-ucl-stage-b
   OPENVINO_RESULTS: ${{ runner.temp }}/openvino-ucl-results
-  OPENVINO_EVIDENCE: artifacts/openvino/evidence
+  OPENVINO_MEASUREMENTS: ${{ runner.temp }}/openvino-ucl-results/measurements.json
+  OPENVINO_EVIDENCE_FILE: artifacts/openvino/evidence/ucl.json
 
 jobs:
   trusted-intel-cpu:
@@ -54,7 +58,7 @@ jobs:
         timeout-minutes: 2
         run: |
           if ($env:OPENVINO_UCL_01_AUTHORIZED -cne 'UCL-01-approved' -or
-              '${{ inputs.authorization }}' -cne 'UCL-01') {
+              $env:OPENVINO_UCL_AUTHORIZATION -cne 'UCL-01') {
             throw 'UCL-01 authorization is absent.'
           }
           if ($env:OPENVINO_EVIDENCE_COMMIT -cnotmatch '^[0-9a-f]{40}$') {
@@ -73,7 +77,7 @@ jobs:
       - name: Check out the exact reviewed commit without retained credentials
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
-          ref: ${{ inputs.target_commit }}
+          ref: ${{ env.OPENVINO_EVIDENCE_COMMIT }}
           fetch-depth: 1
           persist-credentials: false
 
@@ -95,37 +99,15 @@ jobs:
             throw 'The trusted CPU is not GenuineIntel.'
           }
 
-          $workspace = [IO.Path]::GetFullPath($env:GITHUB_WORKSPACE).TrimEnd('\')
-          $workspacePrefix = $workspace + '\'
-          $fixture = [IO.Path]::GetFullPath($env:OPENVINO_CONTROLLED_FIXTURE)
-          $archives = [IO.Path]::GetFullPath($env:OPENVINO_ARCHIVES)
-          $ModelOutsideWorkspace = -not $fixture.StartsWith(
-            $workspacePrefix, [StringComparison]::OrdinalIgnoreCase)
-          if (-not $ModelOutsideWorkspace -or
-              $archives.StartsWith($workspacePrefix,[StringComparison]::OrdinalIgnoreCase)) {
-            throw 'Controlled UCL inputs must remain outside the repository workspace.'
-          }
-          $modelPath = Join-Path $fixture 'package/openvino_model.bin'
-          $model = Get-Item -LiteralPath $modelPath -Force
-          $ExpectedModelLength = [long]$env:OPENVINO_EXPECTED_MODEL_LENGTH
-          $ExpectedModelSha256 = $env:OPENVINO_EXPECTED_MODEL_SHA256
-          $IsReadOnly = $model.IsReadOnly
-          $actualModelSha = (Get-FileHash -LiteralPath $modelPath -Algorithm SHA256).Hash.ToLowerInvariant()
-          if (-not $IsReadOnly -or $model.Length -ne $ExpectedModelLength -or
-              $ExpectedModelSha256 -cnotmatch '^[0-9a-f]{64}$' -or
-              $actualModelSha -cne $ExpectedModelSha256) {
-            throw 'The controlled model failed read-only length/SHA-256 verification.'
-          }
-          foreach ($entry in Get-ChildItem -LiteralPath $fixture -Recurse -Force) {
-            if (($entry.Attributes -band [IO.FileAttributes]::ReparsePoint) -or
-                (-not $entry.PSIsContainer -and -not $entry.IsReadOnly)) {
-              throw 'The controlled fixture is not a closed read-only tree.'
-            }
-          }
-          foreach ($archive in Get-ChildItem -LiteralPath $archives -File -Force) {
-            if (-not $archive.IsReadOnly) {
-              throw 'Every controlled dependency archive must be read-only.'
-            }
+          $trusted = & powershell.exe -NoLogo -NoProfile -NonInteractive `
+            -ExecutionPolicy Bypass -File scripts/openvino/Test-OpenVinoTrustedInputs.ps1 `
+            -WorkspaceRoot $env:GITHUB_WORKSPACE -ArchiveRoot $env:OPENVINO_ARCHIVES `
+            -FixtureRoot $env:OPENVINO_CONTROLLED_FIXTURE `
+            -ExpectedModelLength ([long]$env:OPENVINO_EXPECTED_MODEL_LENGTH) `
+            -ExpectedModelSha256 $env:OPENVINO_EXPECTED_MODEL_SHA256 `
+            -ExpectedFixtureManifestSha256 $env:OPENVINO_EXPECTED_FIXTURE_MANIFEST_SHA256
+          if ($LASTEXITCODE -ne 0 -or [string]$trusted -cne 'trusted_inputs_valid') {
+            throw 'Controlled UCL inputs failed final-handle integrity verification.'
           }
 
       - name: Set up repository .NET SDK
@@ -155,13 +137,15 @@ jobs:
       - name: Build independent reviewed Release x64 closure A
         timeout-minutes: 35
         run: |
-          foreach ($owned in @($env:OPENVINO_BUILD_A,$env:OPENVINO_STAGE_A,$env:OPENVINO_RESULTS)) {
+          foreach ($owned in @($env:OPENVINO_BUILD_A,$env:OPENVINO_STAGE_A,$env:OPENVINO_RESULTS,(Split-Path -Parent $env:OPENVINO_EVIDENCE_FILE))) {
             if (Test-Path -LiteralPath $owned) { throw 'An operation-owned UCL path already exists.' }
           }
           New-Item -ItemType Directory -Path $env:OPENVINO_RESULTS | Out-Null
           & powershell.exe -NoLogo -NoProfile -NonInteractive `
             -ExecutionPolicy Bypass -File scripts/openvino/Build-OpenVinoOfficialWorker.ps1 `
             -OfficialArchiveDirectory $env:OPENVINO_ARCHIVES `
+            -FixtureRoot $env:OPENVINO_CONTROLLED_FIXTURE `
+            -ExpectedFixtureManifestSha256 $env:OPENVINO_EXPECTED_FIXTURE_MANIFEST_SHA256 `
             -BuildDirectory $env:OPENVINO_BUILD_A -StageDirectory $env:OPENVINO_STAGE_A
           if ($LASTEXITCODE -ne 0) { throw 'Trusted native closure A failed.' }
 
@@ -174,10 +158,12 @@ jobs:
           & powershell.exe -NoLogo -NoProfile -NonInteractive `
             -ExecutionPolicy Bypass -File scripts/openvino/Build-OpenVinoOfficialWorker.ps1 `
             -OfficialArchiveDirectory $env:OPENVINO_ARCHIVES `
+            -FixtureRoot $env:OPENVINO_CONTROLLED_FIXTURE `
+            -ExpectedFixtureManifestSha256 $env:OPENVINO_EXPECTED_FIXTURE_MANIFEST_SHA256 `
             -BuildDirectory $env:OPENVINO_BUILD_B -StageDirectory $env:OPENVINO_STAGE_B
           if ($LASTEXITCODE -ne 0) { throw 'Trusted native closure B failed.' }
 
-      - name: Record trusted native unit count
+      - name: Record and validate trusted native unit count
         timeout-minutes: 8
         run: |
           $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
@@ -189,6 +175,14 @@ jobs:
             -C Release --output-on-failure `
             --output-junit (Join-Path $env:OPENVINO_RESULTS 'native.xml')
           if ($LASTEXITCODE -ne 0) { throw 'Trusted native unit evidence failed.' }
+          $native = & powershell.exe -NoLogo -NoProfile -NonInteractive `
+            -ExecutionPolicy Bypass -File scripts/openvino/Test-OpenVinoNativeJUnit.ps1 `
+            -ResultsPath (Join-Path $env:OPENVINO_RESULTS 'native.xml') -MinimumCount 7
+          if ($LASTEXITCODE -ne 0 -or
+              [string]$native -cnotmatch '^native_junit_valid:([1-9][0-9]{0,5})$' -or
+              [int]$Matches[1] -lt 7) {
+            throw 'Trusted native count did not meet the reviewed floor.'
+          }
 
       - name: Run reviewed contract static adapter and tamper partitions
         timeout-minutes: 30
@@ -221,6 +215,8 @@ jobs:
         env:
           OPENVINO_OFFICIAL_WORKER_STAGE_A: ${{ env.OPENVINO_STAGE_A }}
           OPENVINO_OFFICIAL_WORKER_STAGE_B: ${{ env.OPENVINO_STAGE_B }}
+          OPENVINO_UCL_CONTROLLED_FIXTURE_ROOT: ${{ env.OPENVINO_CONTROLLED_FIXTURE }}
+          OPENVINO_UCL_CONTROLLED_FIXTURE_MANIFEST_SHA256: ${{ env.OPENVINO_EXPECTED_FIXTURE_MANIFEST_SHA256 }}
         run: |
           dotnet test --project tests/UnitTests/GraniteEdgeAI.OpenVino.WorkerClient.Tests/GraniteEdgeAI.OpenVino.WorkerClient.Tests.csproj `
             --configuration Release -p:Platform=x64 --minimum-expected-tests 13 `
@@ -230,11 +226,18 @@ jobs:
           foreach ($run in 1..3) {
             $watch = [Diagnostics.Stopwatch]::StartNew()
             dotnet test --project tests/IntegrationTests/GraniteEdgeAI.OpenVino.WorkerProcess.Tests/GraniteEdgeAI.OpenVino.WorkerProcess.Tests.csproj `
-              --configuration Release -p:Platform=x64 --minimum-expected-tests 40 `
+              --configuration Release -p:Platform=x64 --minimum-expected-tests 41 `
               --results-directory $env:OPENVINO_RESULTS --report-trx `
               --report-trx-filename "process-containment-$run.trx"
             $watch.Stop()
             if ($LASTEXITCODE -ne 0) { throw 'Trusted protected process tests failed.' }
+            $fixtureConsumption = & powershell.exe -NoLogo -NoProfile -NonInteractive `
+              -ExecutionPolicy Bypass -File scripts/openvino/Test-OpenVinoUclFixtureConsumption.ps1 `
+              -ResultsPath (Join-Path $env:OPENVINO_RESULTS "process-containment-$run.trx") `
+              -ExpectedFixtureManifestSha256 $env:OPENVINO_EXPECTED_FIXTURE_MANIFEST_SHA256
+            if ($LASTEXITCODE -ne 0 -or [string]$fixtureConsumption -cne 'ucl_fixture_consumption_valid') {
+              throw 'Trusted process campaign did not consume the controlled external fixture.'
+            }
             $durations.Add($watch.ElapsedMilliseconds)
           }
           Copy-Item -LiteralPath (Join-Path $env:OPENVINO_RESULTS 'process-containment-3.trx') `
@@ -258,6 +261,19 @@ jobs:
             /property:OpenVinoOfficialWorkerManifestSha256=$manifestSha
           if ($LASTEXITCODE -ne 0) { throw 'Trusted Release x64 app build failed.' }
 
+      - name: Create closed trusted measured evidence inputs
+        timeout-minutes: 5
+        run: |
+          $measurements = & powershell.exe -NoLogo -NoProfile -NonInteractive `
+            -ExecutionPolicy Bypass -File scripts/openvino/New-OpenVinoEvidenceMeasurements.ps1 `
+            -TestResultsDirectory $env:OPENVINO_RESULTS `
+            -NativeResultsPath (Join-Path $env:OPENVINO_RESULTS 'native.xml') `
+            -PerformanceDurationsMilliseconds $env:OPENVINO_PERFORMANCE_MS `
+            -MeasurementsPath $env:OPENVINO_MEASUREMENTS
+          if ($LASTEXITCODE -ne 0 -or [string]$measurements -cne 'openvino_measurements_created') {
+            throw 'Closed trusted measured evidence inputs failed validation.'
+          }
+
       - name: Create typed sanitized UCL Intel evidence
         id: evidence
         timeout-minutes: 5
@@ -268,12 +284,12 @@ jobs:
             -OfficialArchiveDirectory $env:OPENVINO_ARCHIVES `
             -WorkerStageDirectory $env:OPENVINO_STAGE_B `
             -FixtureRoot $env:OPENVINO_CONTROLLED_FIXTURE `
-            -TestResultsDirectory $env:OPENVINO_RESULTS `
-            -NativeResultsPath (Join-Path $env:OPENVINO_RESULTS 'native.xml') `
-            -CpuVendor Intel -PerformanceDurationsMilliseconds $env:OPENVINO_PERFORMANCE_MS `
+            -CpuVendor Intel `
+            -MeasurementsPath $env:OPENVINO_MEASUREMENTS `
             -ExpectedModelLength ([long]$env:OPENVINO_EXPECTED_MODEL_LENGTH) `
             -ExpectedModelSha256 $env:OPENVINO_EXPECTED_MODEL_SHA256 `
-            -EvidencePath (Join-Path $env:OPENVINO_EVIDENCE 'ucl.json')
+            -ExpectedFixtureManifestSha256 $env:OPENVINO_EXPECTED_FIXTURE_MANIFEST_SHA256 `
+            -EvidencePath $env:OPENVINO_EVIDENCE_FILE
           if ($LASTEXITCODE -ne 0) { throw 'Trusted UCL evidence generation failed.' }
 
       - name: Verify pre-post integrity zero residue and clean operation-owned state
@@ -297,12 +313,14 @@ jobs:
             -ExecutionPolicy Bypass -File scripts/openvino/Test-OpenVinoGenAiFixture.ps1 `
             -FixtureRoot $env:OPENVINO_CONTROLLED_FIXTURE
           if ($LASTEXITCODE -ne 0 -or [string]$fixture -cne 'fixture_valid') { $failed = $true }
-          $modelPath = Join-Path $env:OPENVINO_CONTROLLED_FIXTURE 'package/openvino_model.bin'
-          $model = Get-Item -LiteralPath $modelPath -Force -ErrorAction SilentlyContinue
-          $postHash = (Get-FileHash -LiteralPath $modelPath -Algorithm SHA256 -ErrorAction SilentlyContinue).Hash.ToLowerInvariant()
-          if ($null -eq $model -or -not $model.IsReadOnly -or
-              $model.Length -ne [long]$env:OPENVINO_EXPECTED_MODEL_LENGTH -or
-              $postHash -cne $env:OPENVINO_EXPECTED_MODEL_SHA256) { $failed = $true }
+          $trusted = & powershell.exe -NoLogo -NoProfile -NonInteractive `
+            -ExecutionPolicy Bypass -File scripts/openvino/Test-OpenVinoTrustedInputs.ps1 `
+            -WorkspaceRoot $env:GITHUB_WORKSPACE -ArchiveRoot $env:OPENVINO_ARCHIVES `
+            -FixtureRoot $env:OPENVINO_CONTROLLED_FIXTURE `
+            -ExpectedModelLength ([long]$env:OPENVINO_EXPECTED_MODEL_LENGTH) `
+            -ExpectedModelSha256 $env:OPENVINO_EXPECTED_MODEL_SHA256 `
+            -ExpectedFixtureManifestSha256 $env:OPENVINO_EXPECTED_FIXTURE_MANIFEST_SHA256
+          if ($LASTEXITCODE -ne 0 -or [string]$trusted -cne 'trusted_inputs_valid') { $failed = $true }
           $remaining = @(Get-Process -Name 'OpenVinoOfficial.Worker','GraniteEdgeAI.OpenVino.ProtocolTestWorker','GraniteEdgeAI.OpenVino.ParentExitFixture' -ErrorAction SilentlyContinue)
           if ($remaining.Count -ne 0) {
             $remaining | Stop-Process -Force -ErrorAction SilentlyContinue
@@ -317,14 +335,18 @@ jobs:
           }
           if ($failed) { throw 'Trusted UCL integrity or zero-residue cleanup failed.' }
 
-      - name: Privacy-check sanitized UCL evidence
+      - name: Privacy-check exact sanitized UCL evidence
         id: privacy
         if: ${{ always() }}
         timeout-minutes: 3
         run: |
+          $evidenceFiles = @(Get-ChildItem -LiteralPath (Split-Path -Parent $env:OPENVINO_EVIDENCE_FILE) -File -Force)
+          if ($evidenceFiles.Count -ne 1 -or $evidenceFiles[0].FullName -cne [IO.Path]::GetFullPath($env:OPENVINO_EVIDENCE_FILE)) {
+            throw 'The operation-owned evidence set is not exactly the expected file.'
+          }
           & powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
-            -File scripts/openvino/Test-OpenVinoEvidencePrivacy.ps1 `
-            -EvidencePath (Join-Path $env:OPENVINO_EVIDENCE 'ucl.json')
+            -File scripts/openvino/Test-OpenVinoEvidenceArtifactSet.ps1 `
+            -EvidencePath $env:OPENVINO_EVIDENCE_FILE
           if ($LASTEXITCODE -ne 0) { throw 'Trusted evidence privacy verification failed.' }
 
       - name: Upload sanitized UCL evidence only
@@ -332,6 +354,28 @@ jobs:
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
         with:
           name: openvino-ucl-intel-${{ env.OPENVINO_EVIDENCE_COMMIT }}
-          path: artifacts/openvino/evidence/*.json
+          path: artifacts/openvino/evidence/ucl.json
           if-no-files-found: error
           retention-days: 30
+
+      - name: Remove operation-owned local evidence residue
+        if: ${{ always() }}
+        timeout-minutes: 2
+        run: |
+          $workspace = [IO.Path]::GetFullPath($env:GITHUB_WORKSPACE).TrimEnd('\')
+          $expected = Join-Path $workspace 'artifacts\openvino\evidence\ucl.json'
+          $evidence = [IO.Path]::GetFullPath($env:OPENVINO_EVIDENCE_FILE)
+          if ($evidence -ine $expected) { throw 'The evidence cleanup target is not exact.' }
+          if (Test-Path -LiteralPath $evidence -PathType Leaf) {
+            Remove-Item -LiteralPath $evidence -Force
+          }
+          foreach ($directory in @(
+            (Split-Path -Parent $evidence),
+            (Split-Path -Parent (Split-Path -Parent $evidence)),
+            (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $evidence))))) {
+            if ((Test-Path -LiteralPath $directory -PathType Container) -and
+                @(Get-ChildItem -LiteralPath $directory -Force).Count -eq 0) {
+              Remove-Item -LiteralPath $directory -Force
+            }
+          }
+          if (Test-Path -LiteralPath $evidence) { throw 'Local evidence residue remains.' }

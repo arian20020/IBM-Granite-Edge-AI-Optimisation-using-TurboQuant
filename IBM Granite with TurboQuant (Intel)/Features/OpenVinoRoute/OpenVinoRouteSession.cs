@@ -32,14 +32,16 @@ public sealed class OpenVinoRouteSession : IPromptRouteSession
         OpenVinoRouteStateMachine stateMachine,
         OpenVinoSessionDescriptor descriptor,
         Action<PromptEvent> eventSink,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Action<Guid>? promptTerminalWaitObserver = null)
     {
         OpenVinoPromptAdapter adapter = await OpenVinoPromptAdapter.CreateAsync(
             channelFactory,
             stateMachine,
             descriptor,
             eventSink,
-            cancellationToken).ConfigureAwait(false);
+            cancellationToken,
+            promptTerminalWaitObserver).ConfigureAwait(false);
         return new OpenVinoRouteSession(adapter);
     }
 

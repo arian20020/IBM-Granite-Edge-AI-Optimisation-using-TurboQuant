@@ -5,30 +5,62 @@ on:
     branches: [main]
     paths:
       - 'IBM Granite with TurboQuant (Intel)/Features/OpenVinoRoute/**'
+      - 'IBM Granite with TurboQuant (Intel)/**'
       - 'infrastructure/GraniteEdgeAI.OpenVino.WorkerClient/**'
+      - 'infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/**'
       - 'shared/GraniteEdgeAI.OpenVino.Contracts/**'
+      - 'shared/GraniteEdgeAI.ModelInspection.Contracts/**'
+      - 'shared/GraniteEdgeAI.ModelInspection.Transport/**'
       - 'workers/OpenVinoOfficial.Worker/**'
+      - 'third-party/openvino-official/**'
       - 'scripts/openvino/**'
       - 'tests/ContractTests/GraniteEdgeAI.OpenVino.Contracts.Tests/**'
       - 'tests/IntegrationTests/GraniteEdgeAI.OpenVino.WorkerProcess.Tests/**'
+      - 'tests/ProcessFixtures/GraniteEdgeAI.OpenVino.ProtocolTestWorker/**'
+      - 'tests/ProcessFixtures/GraniteEdgeAI.OpenVino.ParentExitFixture/**'
       - 'tests/UnitTests/GraniteEdgeAI.OpenVino.Tests/**'
       - 'tests/UnitTests/GraniteEdgeAI.OpenVino.WorkerClient.Tests/**'
       - 'tests/TestFixtures/OpenVINO/**'
+      - 'IBM Granite with TurboQuant (Intel)/IBM Granite with TurboQuant (Intel).csproj'
+      - 'IBM Granite with TurboQuant (Intel)/OpenVino.WorkerPackaging.targets'
+      - 'global.json'
+      - '.gitattributes'
+      - 'Directory.Build.*'
+      - '**/*.slnx'
+      - '**/*.csproj'
+      - '**/*.props'
+      - '**/*.targets'
       - '.github/workflows/openvino-official-ci.yml'
       - '.github/workflows/openvino-ucl-intel.yml'
   pull_request:
     branches: [main]
     paths:
       - 'IBM Granite with TurboQuant (Intel)/Features/OpenVinoRoute/**'
+      - 'IBM Granite with TurboQuant (Intel)/**'
       - 'infrastructure/GraniteEdgeAI.OpenVino.WorkerClient/**'
+      - 'infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/**'
       - 'shared/GraniteEdgeAI.OpenVino.Contracts/**'
+      - 'shared/GraniteEdgeAI.ModelInspection.Contracts/**'
+      - 'shared/GraniteEdgeAI.ModelInspection.Transport/**'
       - 'workers/OpenVinoOfficial.Worker/**'
+      - 'third-party/openvino-official/**'
       - 'scripts/openvino/**'
       - 'tests/ContractTests/GraniteEdgeAI.OpenVino.Contracts.Tests/**'
       - 'tests/IntegrationTests/GraniteEdgeAI.OpenVino.WorkerProcess.Tests/**'
+      - 'tests/ProcessFixtures/GraniteEdgeAI.OpenVino.ProtocolTestWorker/**'
+      - 'tests/ProcessFixtures/GraniteEdgeAI.OpenVino.ParentExitFixture/**'
       - 'tests/UnitTests/GraniteEdgeAI.OpenVino.Tests/**'
       - 'tests/UnitTests/GraniteEdgeAI.OpenVino.WorkerClient.Tests/**'
       - 'tests/TestFixtures/OpenVINO/**'
+      - 'IBM Granite with TurboQuant (Intel)/IBM Granite with TurboQuant (Intel).csproj'
+      - 'IBM Granite with TurboQuant (Intel)/OpenVino.WorkerPackaging.targets'
+      - 'global.json'
+      - '.gitattributes'
+      - 'Directory.Build.*'
+      - '**/*.slnx'
+      - '**/*.csproj'
+      - '**/*.props'
+      - '**/*.targets'
       - '.github/workflows/openvino-official-ci.yml'
       - '.github/workflows/openvino-ucl-intel.yml'
   workflow_dispatch:
@@ -52,7 +84,8 @@ env:
   OPENVINO_STAGE_A: ${{ runner.temp }}/openvino-official-stage-a
   OPENVINO_STAGE_B: ${{ runner.temp }}/openvino-official-stage-b
   OPENVINO_RESULTS: ${{ runner.temp }}/openvino-official-results
-  OPENVINO_EVIDENCE: artifacts/openvino/evidence
+  OPENVINO_MEASUREMENTS: ${{ runner.temp }}/openvino-official-results/measurements.json
+  OPENVINO_EVIDENCE_FILE: artifacts/openvino/evidence/official.json
 
 jobs:
   official-cpu:
@@ -97,7 +130,8 @@ jobs:
             $env:OPENVINO_BUILD_A,
             $env:OPENVINO_BUILD_B,
             $env:OPENVINO_STAGE_A,
-            $env:OPENVINO_STAGE_B)) {
+            $env:OPENVINO_STAGE_B,
+            (Split-Path -Parent $env:OPENVINO_EVIDENCE_FILE))) {
             if (Test-Path -LiteralPath $path) {
               throw 'An operation-owned OpenVINO path already exists.'
             }
@@ -153,7 +187,7 @@ jobs:
             -StageDirectory $env:OPENVINO_STAGE_B
           if ($LASTEXITCODE -ne 0) { throw 'Native closure B failed.' }
 
-      - name: Record the exact native unit count
+      - name: Record and validate native unit count
         timeout-minutes: 8
         run: |
           $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
@@ -165,6 +199,14 @@ jobs:
             -C Release --output-on-failure `
             --output-junit (Join-Path $env:OPENVINO_RESULTS 'native.xml')
           if ($LASTEXITCODE -ne 0) { throw 'Native CTest evidence failed.' }
+          $native = & powershell.exe -NoLogo -NoProfile -NonInteractive `
+            -ExecutionPolicy Bypass -File scripts/openvino/Test-OpenVinoNativeJUnit.ps1 `
+            -ResultsPath (Join-Path $env:OPENVINO_RESULTS 'native.xml') -MinimumCount 7
+          if ($LASTEXITCODE -ne 0 -or
+              [string]$native -cnotmatch '^native_junit_valid:([1-9][0-9]{0,5})$' -or
+              [int]$Matches[1] -lt 7) {
+            throw 'Native CTest count did not meet the reviewed floor.'
+          }
 
       - name: Run contracts and static route tests with nonzero floors
         timeout-minutes: 25
@@ -213,7 +255,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'OpenVINO WorkerClient tests failed.' }
           $watch = [Diagnostics.Stopwatch]::StartNew()
           dotnet test --project tests/IntegrationTests/GraniteEdgeAI.OpenVino.WorkerProcess.Tests/GraniteEdgeAI.OpenVino.WorkerProcess.Tests.csproj `
-            --configuration Release -p:Platform=x64 --minimum-expected-tests 40 `
+            --configuration Release -p:Platform=x64 --minimum-expected-tests 41 `
             --results-directory $env:OPENVINO_RESULTS --report-trx `
             --report-trx-filename process-containment.trx
           $watch.Stop()
@@ -238,7 +280,20 @@ jobs:
             /property:OpenVinoOfficialWorkerManifestSha256=$manifestSha
           if ($LASTEXITCODE -ne 0) { throw 'Release x64 app build failed.' }
 
-      - name: Create typed sanitized hosted evidence
+      - name: Create closed measured evidence inputs
+        timeout-minutes: 5
+        run: |
+          $measurements = & powershell.exe -NoLogo -NoProfile -NonInteractive `
+            -ExecutionPolicy Bypass -File scripts/openvino/New-OpenVinoEvidenceMeasurements.ps1 `
+            -TestResultsDirectory $env:OPENVINO_RESULTS `
+            -NativeResultsPath (Join-Path $env:OPENVINO_RESULTS 'native.xml') `
+            -PerformanceDurationsMilliseconds $env:OPENVINO_PERFORMANCE_MS `
+            -MeasurementsPath $env:OPENVINO_MEASUREMENTS
+          if ($LASTEXITCODE -ne 0 -or [string]$measurements -cne 'openvino_measurements_created') {
+            throw 'Closed measured evidence inputs failed validation.'
+          }
+
+      - name: Create typed sanitized official CPU evidence
         id: evidence
         timeout-minutes: 5
         run: |
@@ -250,14 +305,12 @@ jobs:
             -OfficialArchiveDirectory $env:OPENVINO_ARCHIVES `
             -WorkerStageDirectory $env:OPENVINO_STAGE_B `
             -FixtureRoot tests/TestFixtures/OpenVINO/GenAI/TinySyntheticV1 `
-            -TestResultsDirectory $env:OPENVINO_RESULTS `
-            -NativeResultsPath (Join-Path $env:OPENVINO_RESULTS 'native.xml') `
             -CpuVendor $vendor `
-            -PerformanceDurationsMilliseconds $env:OPENVINO_PERFORMANCE_MS `
-            -EvidencePath (Join-Path $env:OPENVINO_EVIDENCE 'hosted.json')
+            -MeasurementsPath $env:OPENVINO_MEASUREMENTS `
+            -EvidencePath $env:OPENVINO_EVIDENCE_FILE
           if ($LASTEXITCODE -ne 0) { throw 'Hosted evidence generation failed.' }
 
-      - name: Verify integrity, zero residue, and clean operation-owned inputs
+      - name: Verify post-run integrity and clean operation-owned state
         id: integrity
         if: ${{ always() }}
         timeout-minutes: 12
@@ -288,14 +341,18 @@ jobs:
           }
           if ($failed) { throw 'OpenVINO integrity or cleanup failed.' }
 
-      - name: Privacy-check sanitized evidence
+      - name: Privacy-check exact sanitized official evidence
         id: privacy
         if: ${{ always() }}
         timeout-minutes: 3
         run: |
+          $evidenceFiles = @(Get-ChildItem -LiteralPath (Split-Path -Parent $env:OPENVINO_EVIDENCE_FILE) -File -Force)
+          if ($evidenceFiles.Count -ne 1 -or $evidenceFiles[0].FullName -cne [IO.Path]::GetFullPath($env:OPENVINO_EVIDENCE_FILE)) {
+            throw 'The operation-owned evidence set is not exactly the expected file.'
+          }
           & powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
-            -File scripts/openvino/Test-OpenVinoEvidencePrivacy.ps1 `
-            -EvidencePath (Join-Path $env:OPENVINO_EVIDENCE 'hosted.json')
+            -File scripts/openvino/Test-OpenVinoEvidenceArtifactSet.ps1 `
+            -EvidencePath $env:OPENVINO_EVIDENCE_FILE
           if ($LASTEXITCODE -ne 0) { throw 'Hosted evidence privacy verification failed.' }
 
       - name: Upload sanitized hosted evidence only
@@ -303,6 +360,28 @@ jobs:
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
         with:
           name: openvino-official-cpu-${{ env.OPENVINO_EVIDENCE_COMMIT }}
-          path: artifacts/openvino/evidence/*.json
+          path: artifacts/openvino/evidence/official.json
           if-no-files-found: error
           retention-days: 30
+
+      - name: Remove operation-owned local evidence residue
+        if: ${{ always() }}
+        timeout-minutes: 2
+        run: |
+          $workspace = [IO.Path]::GetFullPath($env:GITHUB_WORKSPACE).TrimEnd('\')
+          $expected = Join-Path $workspace 'artifacts\openvino\evidence\official.json'
+          $evidence = [IO.Path]::GetFullPath($env:OPENVINO_EVIDENCE_FILE)
+          if ($evidence -ine $expected) { throw 'The evidence cleanup target is not exact.' }
+          if (Test-Path -LiteralPath $evidence -PathType Leaf) {
+            Remove-Item -LiteralPath $evidence -Force
+          }
+          foreach ($directory in @(
+            (Split-Path -Parent $evidence),
+            (Split-Path -Parent (Split-Path -Parent $evidence)),
+            (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $evidence))))) {
+            if ((Test-Path -LiteralPath $directory -PathType Container) -and
+                @(Get-ChildItem -LiteralPath $directory -Force).Count -eq 0) {
+              Remove-Item -LiteralPath $directory -Force
+            }
+          }
+          if (Test-Path -LiteralPath $evidence) { throw 'Local evidence residue remains.' }

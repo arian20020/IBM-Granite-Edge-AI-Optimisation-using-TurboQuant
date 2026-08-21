@@ -10,7 +10,11 @@ param(
 
     [Parameter(Mandatory)]
     [ValidateNotNullOrEmpty()]
-    [string]$StageDirectory
+    [string]$StageDirectory,
+
+    [string]$FixtureRoot = '',
+
+    [string]$ExpectedFixtureManifestSha256 = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -67,7 +71,37 @@ try {
     }
 
     $nativeBuild = Join-Path $buildRoot 'native'
-    $fixturePackage = Join-Path $repositoryRoot 'tests\TestFixtures\OpenVINO\GenAI\TinySyntheticV1\package'
+    if ([string]::IsNullOrWhiteSpace($FixtureRoot)) {
+        $fixtureRootPath = Join-Path $repositoryRoot 'tests\TestFixtures\OpenVINO\GenAI\TinySyntheticV1'
+    }
+    else {
+        $fixtureRootPath = [IO.Path]::GetFullPath($FixtureRoot)
+        $repositoryPrefix = $repositoryRoot.TrimEnd('\', '/') +
+            [IO.Path]::DirectorySeparatorChar
+        if ($fixtureRootPath -ieq $repositoryRoot -or
+            $fixtureRootPath.StartsWith(
+                $repositoryPrefix,
+                [StringComparison]::OrdinalIgnoreCase) -or
+            -not (Test-Path -LiteralPath $fixtureRootPath -PathType Container) -or
+            ((Get-Item -LiteralPath $fixtureRootPath -Force).Attributes -band
+                [IO.FileAttributes]::ReparsePoint)) {
+            Stop-Build
+        }
+        if ($ExpectedFixtureManifestSha256 -cnotmatch '^[0-9a-f]{64}$' -or
+            (Get-FileHash -LiteralPath (Join-Path $fixtureRootPath 'manifest.json') `
+                -Algorithm SHA256).Hash.ToLowerInvariant() -cne
+                $ExpectedFixtureManifestSha256) {
+            Stop-Build
+        }
+        $fixtureOutput = & $windowsPowerShell -NoLogo -NoProfile -NonInteractive `
+            -ExecutionPolicy Bypass `
+            -File (Join-Path $PSScriptRoot 'Test-OpenVinoGenAiFixture.ps1') `
+            -FixtureRoot $fixtureRootPath
+        if ($LASTEXITCODE -ne 0 -or [string]$fixtureOutput -cne 'fixture_valid') {
+            Stop-Build
+        }
+    }
+    $fixturePackage = Join-Path $fixtureRootPath 'package'
     & $cmake -S (Join-Path $repositoryRoot 'workers\OpenVinoOfficial.Worker') -B $nativeBuild -G 'Visual Studio 17 2022' -A x64 "-DCMAKE_PREFIX_PATH=$runtime" "-DNLOHMANN_JSON_INCLUDE_DIR=$jsonInclude" "-DOFFICIAL_FIXTURE_PACKAGE=$fixturePackage" "-DOFFICIAL_WORKER_STAGE=$stageRoot"
     if ($LASTEXITCODE -ne 0) { Stop-Build }
     & $cmake --build $nativeBuild --config Release --parallel

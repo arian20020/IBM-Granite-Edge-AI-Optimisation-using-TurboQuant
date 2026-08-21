@@ -24,6 +24,52 @@ public sealed class OfficialCpuFixtureTests
     private const string ExpectedTokenizers =
         "2026.3.0.0-703-183c6f25cda";
 
+    public TestContext TestContext { get; set; } = null!;
+
+    [TestMethod]
+    public void UclOverrideRejectsRepositoryFixtureAndRecordsExactExternalIdentity()
+    {
+        string? originalRoot = Environment.GetEnvironmentVariable(
+            "OPENVINO_UCL_CONTROLLED_FIXTURE_ROOT");
+        string? originalIdentity = Environment.GetEnvironmentVariable(
+            "OPENVINO_UCL_CONTROLLED_FIXTURE_MANIFEST_SHA256");
+        string repositoryFixture = Path.Combine(
+            FindRepositoryRoot(),
+            "tests",
+            "TestFixtures",
+            "OpenVINO",
+            "GenAI",
+            "TinySyntheticV1");
+        string repositoryManifest = Path.Combine(repositoryFixture, "manifest.json");
+        try
+        {
+            Environment.SetEnvironmentVariable(
+                "OPENVINO_UCL_CONTROLLED_FIXTURE_ROOT",
+                repositoryFixture);
+            Environment.SetEnvironmentVariable(
+                "OPENVINO_UCL_CONTROLLED_FIXTURE_MANIFEST_SHA256",
+                Convert.ToHexString(SHA256.HashData(
+                    File.ReadAllBytes(repositoryManifest))).ToLowerInvariant());
+            Assert.ThrowsExactly<InvalidOperationException>(LocateCanonicalPackage);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(
+                "OPENVINO_UCL_CONTROLLED_FIXTURE_ROOT",
+                originalRoot);
+            Environment.SetEnvironmentVariable(
+                "OPENVINO_UCL_CONTROLLED_FIXTURE_MANIFEST_SHA256",
+                originalIdentity);
+        }
+
+        if (!string.IsNullOrWhiteSpace(originalRoot))
+        {
+            _ = LocateCanonicalPackage();
+            TestContext.WriteLine(
+                "OPENVINO_UCL_FIXTURE_CONSUMED_SHA256=" + originalIdentity);
+        }
+    }
+
     [TestMethod]
     public async Task CanonicalFixtureInspectsAndGeneratesFromTwoCleanClosures()
     {
@@ -36,8 +82,19 @@ public sealed class OfficialCpuFixtureTests
             "FIX-01 requires independent staged closures.");
 
         string package = LocateCanonicalPackage();
-        await VerifyClosureAsync("A", stageA, package).ConfigureAwait(false);
-        await VerifyClosureAsync("B", stageB, package).ConfigureAwait(false);
+        OpenVinoBuildEvidence evidenceA = await VerifyClosureAsync(
+            "A", stageA, package).ConfigureAwait(false);
+        OpenVinoBuildEvidence evidenceB = await VerifyClosureAsync(
+            "B", stageB, package).ConfigureAwait(false);
+        Assert.AreEqual(evidenceA.RuntimeBuild, evidenceB.RuntimeBuild);
+        Assert.AreEqual(evidenceA.GenAiBuild, evidenceB.GenAiBuild);
+        Assert.AreEqual(evidenceA.TokenizersBuild, evidenceB.TokenizersBuild);
+        TestContext.WriteLine("OPENVINO_MEASURED_REQUESTED_DEVICE=CPU");
+        TestContext.WriteLine("OPENVINO_MEASURED_ACTUAL_EXECUTION_DEVICES=CPU");
+        TestContext.WriteLine("OPENVINO_MEASURED_RUNTIME_BUILD=" + evidenceA.RuntimeBuild);
+        TestContext.WriteLine("OPENVINO_MEASURED_GENAI_BUILD=" + evidenceA.GenAiBuild);
+        TestContext.WriteLine(
+            "OPENVINO_MEASURED_TOKENIZERS_BUILD=" + evidenceA.TokenizersBuild);
     }
 
     [TestMethod]
@@ -117,6 +174,8 @@ public sealed class OfficialCpuFixtureTests
         }
 
         await AssertNoOfficialWorkerProcessAsync().ConfigureAwait(false);
+        TestContext.WriteLine("OPENVINO_MEASURED_CANCELLATION_DISPOSITION=passed");
+        TestContext.WriteLine("OPENVINO_MEASURED_CLEANUP_DISPOSITION=zero_residue");
     }
 
     [TestMethod]
@@ -290,7 +349,7 @@ public sealed class OfficialCpuFixtureTests
         await AssertNoOfficialWorkerProcessAsync().ConfigureAwait(false);
     }
 
-    private static async Task VerifyClosureAsync(
+    private static async Task<OpenVinoBuildEvidence> VerifyClosureAsync(
         string closureLabel,
         string stage,
         string package)
@@ -364,6 +423,7 @@ public sealed class OfficialCpuFixtureTests
         }
 
         await conversation.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+        return inspection.BuildEvidence;
     }
 
     private static async Task<OpenVinoConversation> StartConversationAsync(
@@ -446,6 +506,45 @@ public sealed class OfficialCpuFixtureTests
 
     private static string LocateCanonicalPackage()
     {
+        string? controlledRoot = Environment.GetEnvironmentVariable(
+            "OPENVINO_UCL_CONTROLLED_FIXTURE_ROOT");
+        if (!string.IsNullOrWhiteSpace(controlledRoot))
+        {
+            string fixtureRoot = Path.GetFullPath(controlledRoot);
+            string repositoryRoot = Path.GetFullPath(FindRepositoryRoot())
+                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            string repositoryPrefix = repositoryRoot + Path.DirectorySeparatorChar;
+            string? expectedManifestSha = Environment.GetEnvironmentVariable(
+                "OPENVINO_UCL_CONTROLLED_FIXTURE_MANIFEST_SHA256");
+            string manifestPath = Path.Combine(fixtureRoot, "manifest.json");
+            string packagePath = Path.Combine(fixtureRoot, "package");
+            if (fixtureRoot.Equals(repositoryRoot, StringComparison.OrdinalIgnoreCase) ||
+                fixtureRoot.StartsWith(repositoryPrefix, StringComparison.OrdinalIgnoreCase) ||
+                expectedManifestSha is null ||
+                !System.Text.RegularExpressions.Regex.IsMatch(
+                    expectedManifestSha,
+                    "^[0-9a-f]{64}$",
+                    System.Text.RegularExpressions.RegexOptions.CultureInvariant) ||
+                !File.Exists(manifestPath) ||
+                !Directory.Exists(packagePath))
+            {
+                throw new InvalidOperationException(
+                    "The UCL controlled fixture override is invalid.");
+            }
+
+            string actualManifestSha = Convert.ToHexString(SHA256.HashData(
+                File.ReadAllBytes(manifestPath))).ToLowerInvariant();
+            if (!actualManifestSha.Equals(
+                    expectedManifestSha,
+                    StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    "The UCL controlled fixture identity is invalid.");
+            }
+
+            return packagePath;
+        }
+
         DirectoryInfo? cursor = new(AppContext.BaseDirectory);
         while (cursor is not null)
         {
@@ -577,6 +676,9 @@ public sealed class OfficialCpuFixtureTests
                     System.IO.Path.GetRelativePath(source, file));
                 Directory.CreateDirectory(System.IO.Path.GetDirectoryName(destination)!);
                 File.Copy(file, destination);
+                File.SetAttributes(
+                    destination,
+                    File.GetAttributes(destination) & ~FileAttributes.ReadOnly);
             }
             return new TemporaryPackage(System.IO.Path.GetFullPath(root));
         }
@@ -618,6 +720,9 @@ public sealed class OfficialCpuFixtureTests
                     System.IO.Path.GetRelativePath(source, file));
                 Directory.CreateDirectory(System.IO.Path.GetDirectoryName(destination)!);
                 File.Copy(file, destination);
+                File.SetAttributes(
+                    destination,
+                    File.GetAttributes(destination) & ~FileAttributes.ReadOnly);
             }
             return result;
         }

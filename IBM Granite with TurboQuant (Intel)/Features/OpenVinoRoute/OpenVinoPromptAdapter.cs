@@ -60,19 +60,24 @@ public sealed class OpenVinoPromptAdapter : IAsyncDisposable
     private readonly OpenVinoRouteStateMachine stateMachine;
     private readonly IOpenVinoPromptChannel channel;
     private readonly Action<PromptEvent> eventSink;
+    private readonly Action<Guid>? promptTerminalWaitObserver;
     private bool disposed;
     private Task? terminalTeardownTask;
+    private Task? pendingTurnCancellationTask;
+    private Guid? pendingTurnCancellationId;
     private Task? channelDisposalTask;
     private long nextSequence;
 
     private OpenVinoPromptAdapter(
         OpenVinoRouteStateMachine stateMachine,
         IOpenVinoPromptChannel channel,
-        Action<PromptEvent> eventSink)
+        Action<PromptEvent> eventSink,
+        Action<Guid>? promptTerminalWaitObserver)
     {
         this.stateMachine = stateMachine;
         this.channel = channel;
         this.eventSink = eventSink;
+        this.promptTerminalWaitObserver = promptTerminalWaitObserver;
     }
 
     public OpenVinoRouteSnapshot Snapshot => stateMachine.Snapshot;
@@ -82,7 +87,8 @@ public sealed class OpenVinoPromptAdapter : IAsyncDisposable
         OpenVinoRouteStateMachine stateMachine,
         OpenVinoSessionDescriptor descriptor,
         Action<PromptEvent> eventSink,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Action<Guid>? promptTerminalWaitObserver = null)
     {
         ArgumentNullException.ThrowIfNull(channelFactory);
         ArgumentNullException.ThrowIfNull(stateMachine);
@@ -139,7 +145,8 @@ public sealed class OpenVinoPromptAdapter : IAsyncDisposable
         OpenVinoPromptAdapter adapter = new(
             stateMachine,
             channel,
-            eventSink);
+            eventSink,
+            promptTerminalWaitObserver);
         adapter.Emit(PromptEventKind.SessionReady, turnId: null,
             requestedDevice: OpenVinoRouteCapability.Device,
             actualExecutionDevices: CpuExecutionDevices);
@@ -363,6 +370,11 @@ public sealed class OpenVinoPromptAdapter : IAsyncDisposable
                 return terminalTeardownTask;
             }
 
+            if (pendingTurnCancellationTask is not null)
+            {
+                return pendingTurnCancellationTask;
+            }
+
             if (channelDisposalTask is not null)
             {
                 return channelDisposalTask;
@@ -413,6 +425,17 @@ public sealed class OpenVinoPromptAdapter : IAsyncDisposable
                 return terminalTeardownTask;
             }
 
+            if (pendingTurnCancellationTask is not null)
+            {
+                if (pendingTurnCancellationId != confirmedTurnId)
+                {
+                    throw new InvalidOperationException(
+                        "The confirmed generation turn is no longer active.");
+                }
+
+                return pendingTurnCancellationTask;
+            }
+
             lock (stateLock)
             {
                 OpenVinoRouteSnapshot snapshot = Snapshot;
@@ -425,16 +448,90 @@ public sealed class OpenVinoPromptAdapter : IAsyncDisposable
                 }
 
                 completion = NewCompletionSource();
-                teardown = terminalTeardownTask = completion.Task;
+                teardown = pendingTurnCancellationTask = completion.Task;
+                pendingTurnCancellationId = confirmedTurnId;
             }
         }
 
-        _ = CompletePublishedTaskAsync(
+        _ = CompletePendingTurnCancellationAsync(
             completion,
-            () => CancelCoreAsync(
-                confirmedTurnId,
-                cancellationToken));
+            confirmedTurnId,
+            cancellationToken);
         return teardown;
+    }
+
+    private async Task CompletePendingTurnCancellationAsync(
+        TaskCompletionSource completion,
+        Guid confirmedTurnId,
+        CancellationToken cancellationToken)
+    {
+        bool promoted = false;
+        try
+        {
+            await turnTerminalGate.WaitAsync(CancellationToken.None)
+                .ConfigureAwait(false);
+            try
+            {
+                Guid operationId;
+                lock (stateLock)
+                {
+                    OpenVinoRouteSnapshot snapshot = Snapshot;
+                    operationId = snapshot.Identity.OperationId;
+                    if (!stateMachine.TryBeginConfirmedTurnCancellation(
+                            operationId,
+                            confirmedTurnId))
+                    {
+                        throw new InvalidOperationException(
+                            "The confirmed generation turn is no longer active.");
+                    }
+                }
+
+                lock (teardownLock)
+                {
+                    if (pendingTurnCancellationTask != completion.Task ||
+                        pendingTurnCancellationId != confirmedTurnId ||
+                        terminalTeardownTask is not null)
+                    {
+                        throw new InvalidOperationException(
+                            "The confirmed generation turn cancellation lost ownership.");
+                    }
+
+                    terminalTeardownTask = completion.Task;
+                    pendingTurnCancellationTask = null;
+                    pendingTurnCancellationId = null;
+                    promoted = true;
+                }
+
+                await CompleteCancellationAfterClaimAsync(
+                        operationId,
+                        confirmedTurnId,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                turnTerminalGate.Release();
+            }
+
+            completion.TrySetResult();
+        }
+        catch (Exception error)
+        {
+            if (!promoted)
+            {
+                lock (teardownLock)
+                {
+                    if (pendingTurnCancellationTask == completion.Task &&
+                        pendingTurnCancellationId == confirmedTurnId)
+                    {
+                        pendingTurnCancellationTask = null;
+                        pendingTurnCancellationId = null;
+                    }
+                }
+            }
+
+            completion.TrySetException(error);
+        }
     }
 
     private async Task CancelCoreAsync(
@@ -475,60 +572,72 @@ public sealed class OpenVinoPromptAdapter : IAsyncDisposable
                         : "The route session cannot be cancelled from its current state.");
             }
 
-            Emit(PromptEventKind.CancellingSession, confirmedTurnId);
-            PromptFailure? failure = null;
-            try
-            {
-                await channel.CancelAsync(cancellationToken).ConfigureAwait(false);
-            }
-            catch (OpenVinoRouteWorkerFailureException workerFailure)
-            {
-                if (workerFailure.SupportCode != OpenVinoSupportCode.OperationCancelled)
-                {
-                    failure = MapFailure(workerFailure.SupportCode);
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                // Caller cancellation still owns a terminal channel teardown.
-            }
-            catch (Exception)
-            {
-                failure = MapFailure(OpenVinoSupportCode.RuntimeProtocolFailed);
-            }
-            finally
-            {
-                bool publishTerminal;
-                lock (stateLock)
-                {
-                    if (failure is null)
-                    {
-                        publishTerminal = stateMachine.TryMarkCancelled(operationId);
-                    }
-                    else
-                    {
-                        publishTerminal =
-                            stateMachine.TryFail(operationId, failure.SupportCode);
-                    }
-                }
-
-                // Resource retirement is authoritative. A presentation observer
-                // cannot run before or preempt the exactly-once channel disposal.
-                await DisposeChannelAsync().ConfigureAwait(false);
-
-                if (publishTerminal && failure is null)
-                {
-                    Emit(PromptEventKind.Cancelled, turnId: null);
-                }
-                else if (publishTerminal)
-                {
-                    Emit(PromptEventKind.Failed, turnId: null, failure: failure);
-                }
-            }
+            await CompleteCancellationAfterClaimAsync(
+                    operationId,
+                    confirmedTurnId,
+                    cancellationToken)
+                .ConfigureAwait(false);
         }
         finally
         {
             turnTerminalGate.Release();
+        }
+    }
+
+    private async Task CompleteCancellationAfterClaimAsync(
+        Guid operationId,
+        Guid? confirmedTurnId,
+        CancellationToken cancellationToken)
+    {
+        Emit(PromptEventKind.CancellingSession, confirmedTurnId);
+        PromptFailure? failure = null;
+        try
+        {
+            await channel.CancelAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (OpenVinoRouteWorkerFailureException workerFailure)
+        {
+            if (workerFailure.SupportCode != OpenVinoSupportCode.OperationCancelled)
+            {
+                failure = MapFailure(workerFailure.SupportCode);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Caller cancellation still owns a terminal channel teardown.
+        }
+        catch (Exception)
+        {
+            failure = MapFailure(OpenVinoSupportCode.RuntimeProtocolFailed);
+        }
+        finally
+        {
+            bool publishTerminal;
+            lock (stateLock)
+            {
+                if (failure is null)
+                {
+                    publishTerminal = stateMachine.TryMarkCancelled(operationId);
+                }
+                else
+                {
+                    publishTerminal =
+                        stateMachine.TryFail(operationId, failure.SupportCode);
+                }
+            }
+
+            // Resource retirement is authoritative. A presentation observer
+            // cannot run before or preempt the exactly-once channel disposal.
+            await DisposeChannelAsync().ConfigureAwait(false);
+
+            if (publishTerminal && failure is null)
+            {
+                Emit(PromptEventKind.Cancelled, turnId: null);
+            }
+            else if (publishTerminal)
+            {
+                Emit(PromptEventKind.Failed, turnId: null, failure: failure);
+            }
         }
     }
 
@@ -562,6 +671,11 @@ public sealed class OpenVinoPromptAdapter : IAsyncDisposable
             if (terminalTeardownTask is not null)
             {
                 return new ValueTask(terminalTeardownTask);
+            }
+
+            if (pendingTurnCancellationTask is not null)
+            {
+                return new ValueTask(pendingTurnCancellationTask);
             }
 
             if (channelDisposalTask is not null)
@@ -664,6 +778,7 @@ public sealed class OpenVinoPromptAdapter : IAsyncDisposable
         Guid operationId,
         Guid turnId)
     {
+        ObservePromptTerminalWait(turnId);
         await turnTerminalGate.WaitAsync(CancellationToken.None)
             .ConfigureAwait(false);
         try
@@ -686,6 +801,7 @@ public sealed class OpenVinoPromptAdapter : IAsyncDisposable
         Guid turnId,
         OpenVinoSupportCode supportCode)
     {
+        ObservePromptTerminalWait(turnId);
         await turnTerminalGate.WaitAsync(CancellationToken.None)
             .ConfigureAwait(false);
         try
@@ -695,6 +811,18 @@ public sealed class OpenVinoPromptAdapter : IAsyncDisposable
         finally
         {
             turnTerminalGate.Release();
+        }
+    }
+
+    private void ObservePromptTerminalWait(Guid turnId)
+    {
+        try
+        {
+            promptTerminalWaitObserver?.Invoke(turnId);
+        }
+        catch (Exception)
+        {
+            // Internal observation is test-only and cannot own route state.
         }
     }
 
