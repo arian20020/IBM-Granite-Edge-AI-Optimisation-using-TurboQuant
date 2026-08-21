@@ -54,7 +54,7 @@
                     HorizontalAlignment="Left"
                     Stretch="Uniform"
                     AutomationProperties.AccessibilityView="Raw"
-                    Source="ms-appx:///Assets/Branding/granite-edge-ai-lockup.svg" />
+                    Source="ms-appx:///Assets/Branding/granite-edge-ai-lockup-outlined.svg" />
             </Grid>
             <Button
                 x:Name="NewChatButton"

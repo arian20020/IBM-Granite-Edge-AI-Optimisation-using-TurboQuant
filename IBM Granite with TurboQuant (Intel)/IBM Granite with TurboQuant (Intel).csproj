@@ -413,9 +413,7 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
-    <Content Include="..\docs\Logo\granite-edge-ai-lockup.svg">
-      <Link>Assets\Branding\granite-edge-ai-lockup.svg</Link>
-      <TargetPath>Assets\Branding\granite-edge-ai-lockup.svg</TargetPath>
+    <Content Include="Assets\Branding\granite-edge-ai-lockup-outlined.svg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>

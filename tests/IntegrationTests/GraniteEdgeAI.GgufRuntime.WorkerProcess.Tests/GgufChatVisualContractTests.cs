@@ -568,7 +568,7 @@ public sealed class GgufChatVisualContractTests
         XElement brandImage = page.Descendants(presentation + "Image")
             .Single(element => element.Attribute(x + "Name")?.Value == "BrandLockup");
         Assert.AreEqual(
-            "ms-appx:///Assets/Branding/granite-edge-ai-lockup.svg",
+            "ms-appx:///Assets/Branding/granite-edge-ai-lockup-outlined.svg",
             brandImage.Attribute("Source")?.Value);
         Assert.AreEqual("Left", brandImage.Attribute("HorizontalAlignment")?.Value);
         Assert.AreEqual("Uniform", brandImage.Attribute("Stretch")?.Value);
@@ -610,12 +610,30 @@ public sealed class GgufChatVisualContractTests
             "IBM Granite with TurboQuant (Intel).csproj"));
         XElement lockupContent = project.Descendants("Content")
             .Single(element => element.Attribute("Include")?.Value
-                == "..\\docs\\Logo\\granite-edge-ai-lockup.svg");
+                == "Assets\\Branding\\granite-edge-ai-lockup-outlined.svg");
         Assert.AreEqual(
-            "Assets\\Branding\\granite-edge-ai-lockup.svg",
-            lockupContent.Element("Link")?.Value);
-        Assert.AreEqual("PreserveNewest", lockupContent.Element("CopyToOutputDirectory")?.Value);
-        Assert.AreEqual("PreserveNewest", lockupContent.Element("CopyToPublishDirectory")?.Value);
+            "PreserveNewest",
+            lockupContent.Element("CopyToOutputDirectory")?.Value);
+        Assert.AreEqual(
+            "PreserveNewest",
+            lockupContent.Element("CopyToPublishDirectory")?.Value);
+
+        XDocument outlinedLockup = XDocument.Load(Path.Combine(
+            root,
+            "IBM Granite with TurboQuant (Intel)",
+            "Assets",
+            "Branding",
+            "granite-edge-ai-lockup-outlined.svg"));
+        XNamespace svg = "http://www.w3.org/2000/svg";
+        Assert.AreEqual(0, outlinedLockup.Descendants(svg + "text").Count());
+        Assert.AreEqual(0, outlinedLockup.Descendants(svg + "tspan").Count());
+        Assert.IsGreaterThan(9, outlinedLockup.Descendants(svg + "path").Count());
+
+        XElement centerMark = page.Descendants(presentation + "Image")
+            .Single(element => element.Attribute(x + "Name")?.Value == "EmptyStateBrandMark");
+        Assert.AreEqual(
+            "ms-appx:///Assets/Branding/granite-edge-ai-icon.svg",
+            centerMark.Attribute("Source")?.Value);
     }
 
     private static string FindRepositoryRoot()
