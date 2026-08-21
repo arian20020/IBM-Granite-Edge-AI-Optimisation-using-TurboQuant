@@ -114,7 +114,18 @@ Task 8: fix round 4/5 implemented and verified (reentrant Cancel/Dispose joins a
 Task 8: fix round 5/5 implemented and verified (all worker turn events validate exact session/turn identity; STOP carries the expected confirmed ID through the protected conversation and holds one async terminal-operation gate through dispatch; shutdown publishes one lifecycle owner before joining navigation and deterministically rejects later Return publication while retiring/detaching the exact owned page once; focused/full, protected process, packaged recovery/native, affected navigation, pinned Release, verifier, and audit evidence are recorded in `task-8-report.md`; prior closures remain closed; the retained policy-owned temp-stage residue is documented and untouched; awaiting scoped rereview; Task 9/GPU/conversion/TurboQuant remain untouched).
 Task 8: Ruling: the round-5 reviewer confirmed exact worker-event identity, exact STOP propagation, and shutdown/navigation publication, but found one real load-bearing residual: CANCEL can claim terminal ownership without joining the `turnTerminalGate` already held by an in-flight STOP. The five-round breaker is reached, so no sixth Task 8 fix round is authorized. Task 9 must begin with a focused TDD correction that makes STOP, CANCEL, prompt completion, and prompt failure share the same exact-turn terminal-operation gate before any hosted or UCL evidence may be generated; if wrong, a STOP/CANCEL race could misclassify or cross turn ownership and all Task 9 evidence would be invalid.
 Task 8: complete (commits 875e6c08..ade05c7e, five reviewed fix rounds, 1 load-bearing finding carried by ruling into Task 9; all other Task 8 findings addressed; final implementation evidence 360/360 plus Release/verifier gates).
-Task 9: pending
+Task 9: prerequisite correction complete (`e7f803b6` - STOP, exact-ID CANCEL,
+prompt completion, and prompt failure now share one exact-turn async terminal
+gate through external dispatch/settlement; deterministic completion/failure RED
+0/2 and GREEN 2/2; route 177/177, contracts 60/60, client 13/13, process 40/40;
+no monitor lock held across async I/O).
+Task 9: in progress after implementation (`b125e5c3` - hosted and manual-only
+trusted UCL CPU workflows, closed typed evidence generator, hostile privacy
+verifier, and workflow contracts; final local gates contracts 84/84, route
+177/177, native 7/7, client 13/13, process 40/40, adapter 35/35, tamper 5/5,
+workflow/privacy 24/24, YAML 2/2; UCL local gate exit 1/no output). Independent
+review is required; hosted/UCL dispatch and publication are pending external
+authorization, `UCL-01` remains open, and MVP/UCL acceptance is not claimed.
 Task 10: pending
 Task 11: pending
 Task 12: pending
