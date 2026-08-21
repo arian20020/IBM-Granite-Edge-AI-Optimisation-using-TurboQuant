@@ -17,17 +17,17 @@ Make the chat composer materially smaller vertically and prevent the conversatio
 
 ### Composer geometry
 
-The composer surface will use a 36-pixel single-line control row with 3 pixels of vertical surface padding and a 1-pixel border, producing an approximately 44-pixel outer height. The prompt remains vertically centered for one line and grows upward to the existing multiline maximum. Horizontal spacing will be tightened only as needed to keep the controls balanced.
+The composer surface will use a 40-pixel single-line control row with 1 pixel of vertical surface padding and a 1-pixel border, producing an approximately 44-pixel outer height while preserving 40-pixel action targets. The prompt remains vertically centered for one line and grows upward to the existing multiline maximum. Horizontal spacing will be tightened only as needed to keep the controls balanced.
 
 ### Stable transcript rendering
 
-`ChatPage` will continue updating message bubbles in place by stable message ID. It will stop calling `ListView.ScrollIntoView` directly for every synchronized update. Instead, it will request one deferred bottom-scroll through the UI dispatcher, coalescing additional requests while one is pending. The deferred callback will use the transcript's existing `ScrollViewer` and scroll only when overflow exists.
+`ChatPage` will continue updating message bubbles in place by stable message ID. It will stop calling `ListView.ScrollIntoView` directly for every synchronized update. Instead, it will coalesce follow requests behind a one-shot `LayoutUpdated` subscription so the existing `ScrollViewer` moves only after natural layout establishes overflow. The follow request records its originating offset, resets that origin when switching conversations, and cancels if the user moves upward before layout completes.
 
 The empty state and transcript visibility will change only when the selected conversation truly has zero messages. Sending and streaming within the same conversation will not reset or hide the transcript.
 
 ### Failure and lifecycle behavior
 
-A rejected dispatcher enqueue clears the pending-scroll flag so a later request can retry. A callback that runs after the page is unloaded becomes harmless. No animation or opacity mask will be used to conceal layout churn.
+Page unload removes any pending layout subscription and clears follow state. The implementation will not call `UpdateLayout`, and it will not use an animation or opacity mask to conceal layout churn.
 
 ## Testing
 

@@ -309,6 +309,36 @@ public sealed class ChatPageTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
+    public async Task SwitchingOverflowingConversationFollowsTheNewTranscript()
+    {
+        var page = new ChatPage();
+        ChatMessage[] firstMessages = CreateLongMessages();
+        ChatMessage[] secondMessages = CreateLongMessages();
+        await using WinUiRenderHost host =
+            await WinUiRenderHost.ShowAsync(page, 900, 520);
+
+        page.SynchronizeTranscript(Guid.NewGuid(), firstMessages, forceFollowLatest: true);
+        await host.CaptureAsync();
+        ListView transcript = Assert.IsInstanceOfType<ListView>(
+            page.FindName("TranscriptList"));
+        ScrollViewer? scrollViewerCandidate = FindDescendant<ScrollViewer>(transcript);
+        Assert.IsNotNull(scrollViewerCandidate);
+        ScrollViewer scrollViewer = scrollViewerCandidate;
+        Assert.IsLessThanOrEqualTo(
+            1,
+            scrollViewer.ScrollableHeight - scrollViewer.VerticalOffset);
+
+        page.SynchronizeTranscript(Guid.NewGuid(), secondMessages, forceFollowLatest: true);
+        await host.CaptureAsync();
+
+        Assert.IsGreaterThan(0, scrollViewer.ScrollableHeight);
+        Assert.IsLessThanOrEqualTo(
+            1,
+            scrollViewer.ScrollableHeight - scrollViewer.VerticalOffset);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
     public void SelectingAnotherConversationResetsTranscriptAndEmptyState()
     {
         var page = new ChatPage();

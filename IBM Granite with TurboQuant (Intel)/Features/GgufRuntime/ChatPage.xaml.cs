@@ -10,19 +10,16 @@ namespace GraniteEdgeAI.Features.GgufRuntime;
 
 public sealed partial class ChatPage : Page
 {
-    private readonly ChatRenderScheduler transcriptScrollScheduler;
     private readonly Dictionary<Guid, ChatMessageBubble> transcriptBubbles = [];
     private readonly List<Guid> renderedMessageIds = [];
     private Guid? renderedConversationId;
     private bool transcriptFollowRequested;
+    private bool transcriptFollowAwaitingLayout;
     private double transcriptFollowOriginOffset;
 
     public ChatPage()
     {
         InitializeComponent();
-        transcriptScrollScheduler = new ChatRenderScheduler(
-            callback => DispatcherQueue.TryEnqueue(() => callback()),
-            ScrollTranscriptToEnd);
         Unloaded += ChatPage_Unloaded;
     }
 
@@ -104,14 +101,14 @@ public sealed partial class ChatPage : Page
         bool shouldFollowLatest = forceFollowLatest ||
             scrollViewer is null ||
             ShouldFollowOutput(scrollViewer.VerticalOffset, scrollViewer.ScrollableHeight);
-        if (!shouldFollowLatest)
-        {
-            transcriptFollowRequested = false;
-        }
-
-        if (RequiresTranscriptReset(conversationId, messages))
+        bool requiresTranscriptReset = RequiresTranscriptReset(conversationId, messages);
+        if (requiresTranscriptReset)
         {
             ResetTranscript(conversationId);
+        }
+        else if (!shouldFollowLatest)
+        {
+            CancelTranscriptFollow();
         }
 
         for (int index = 0; index < messages.Count; index++)
@@ -135,7 +132,7 @@ public sealed partial class ChatPage : Page
 
         if (messages.Count == 0)
         {
-            transcriptFollowRequested = false;
+            CancelTranscriptFollow();
             EmptyConversationState.Visibility = Visibility.Visible;
             TranscriptList.Visibility = Visibility.Collapsed;
             return;
@@ -144,7 +141,8 @@ public sealed partial class ChatPage : Page
         ShowConversation();
         if (shouldFollowLatest)
         {
-            RequestTranscriptFollow(scrollViewer?.VerticalOffset ?? 0);
+            RequestTranscriptFollow(
+                requiresTranscriptReset ? 0 : scrollViewer?.VerticalOffset ?? 0);
         }
     }
 
@@ -186,6 +184,7 @@ public sealed partial class ChatPage : Page
 
     private void ResetTranscript(Guid? conversationId)
     {
+        CancelTranscriptFollow();
         TranscriptList.Items.Clear();
         transcriptBubbles.Clear();
         renderedMessageIds.Clear();
@@ -217,7 +216,6 @@ public sealed partial class ChatPage : Page
 
     private void ScrollTranscriptToEnd()
     {
-        TranscriptList.UpdateLayout();
         ScrollViewer? scrollViewer = FindDescendant<ScrollViewer>(TranscriptList);
         bool shouldApplyFollow = transcriptFollowRequested &&
             scrollViewer is not null &&
@@ -237,13 +235,34 @@ public sealed partial class ChatPage : Page
     {
         transcriptFollowRequested = true;
         transcriptFollowOriginOffset = verticalOffset;
-        transcriptScrollScheduler.Request();
+        if (!transcriptFollowAwaitingLayout)
+        {
+            transcriptFollowAwaitingLayout = true;
+            TranscriptList.LayoutUpdated += TranscriptList_LayoutUpdated;
+        }
+    }
+
+    private void CancelTranscriptFollow()
+    {
+        transcriptFollowRequested = false;
+        if (transcriptFollowAwaitingLayout)
+        {
+            TranscriptList.LayoutUpdated -= TranscriptList_LayoutUpdated;
+            transcriptFollowAwaitingLayout = false;
+        }
+    }
+
+    private void TranscriptList_LayoutUpdated(object? sender, object eventArguments)
+    {
+        TranscriptList.LayoutUpdated -= TranscriptList_LayoutUpdated;
+        transcriptFollowAwaitingLayout = false;
+        ScrollTranscriptToEnd();
     }
 
     private void ChatPage_Unloaded(object sender, RoutedEventArgs eventArguments)
     {
         Unloaded -= ChatPage_Unloaded;
-        transcriptScrollScheduler.Dispose();
+        CancelTranscriptFollow();
     }
 
     public void SetGenerating(bool isGenerating) => Composer.IsGenerating = isGenerating;

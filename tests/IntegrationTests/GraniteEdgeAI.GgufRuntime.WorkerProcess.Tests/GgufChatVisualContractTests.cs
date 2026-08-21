@@ -465,11 +465,13 @@ public sealed class GgufChatVisualContractTests
         StringAssert.Contains(page, "transcriptBubbles.TryGetValue");
         Assert.IsFalse(
             page.Contains("TranscriptList.ScrollIntoView", StringComparison.Ordinal));
-        StringAssert.Contains(page, "transcriptScrollScheduler.Request();");
+        StringAssert.Contains(
+            page,
+            "TranscriptList.LayoutUpdated += TranscriptList_LayoutUpdated;");
         StringAssert.Contains(page, "scrollViewer.ChangeView(");
         StringAssert.Contains(page, "ScrollableHeight > 0");
         StringAssert.Contains(page, "transcriptFollowOriginOffset");
-        StringAssert.Contains(page, "TranscriptList.UpdateLayout();");
+        Assert.IsFalse(page.Contains("UpdateLayout()", StringComparison.Ordinal));
     }
 
     [TestMethod]

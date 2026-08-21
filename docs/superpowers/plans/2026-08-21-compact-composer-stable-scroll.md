@@ -41,17 +41,17 @@ if ($LASTEXITCODE -ne 0) { throw 'Packaged test run failed.' }
 
 - [ ] **Step 1: Write failing geometry tests**
 
-Update the packaged geometry assertions to require `PromptRow.MinHeight`, attachment/send/stop heights, and prompt minimum height of `36`, `36`, `36`, `36`, and `32` respectively. Require `ComposerSurface.Padding` to equal `6,3`, and tighten the measured empty-surface assertion to `45` pixels or less.
+Update the packaged geometry assertions to require `PromptRow.MinHeight`, attachment/send/stop heights, and prompt minimum height of `40`, `40`, `40`, `40`, and `32` respectively. Require `ComposerSurface.Padding` to equal `6,1`, and tighten the measured empty-surface assertion to `45` pixels or less.
 
 Update the source contract to require the same XAML values:
 
 ```csharp
-Assert.AreEqual("36", promptRow.Attribute("MinHeight")?.Value);
-Assert.AreEqual("36", attachmentButton.Attribute("Height")?.Value);
+Assert.AreEqual("40", promptRow.Attribute("MinHeight")?.Value);
+Assert.AreEqual("40", attachmentButton.Attribute("Height")?.Value);
 Assert.AreEqual("32", prompt.Attribute("MinHeight")?.Value);
-Assert.AreEqual("36", sendButton.Attribute("Height")?.Value);
-Assert.AreEqual("36", stopButton.Attribute("Height")?.Value);
-Assert.AreEqual("6,3", composerSurface.Attribute("Padding")?.Value);
+Assert.AreEqual("40", sendButton.Attribute("Height")?.Value);
+Assert.AreEqual("40", stopButton.Attribute("Height")?.Value);
+Assert.AreEqual("6,1", composerSurface.Attribute("Padding")?.Value);
 ```
 
 - [ ] **Step 2: Run tests and verify RED**
@@ -70,14 +70,14 @@ Expected: failures report the current 40/36 dimensions, `6,5` padding, and appro
 In `ChatComposer.xaml`, set:
 
 ```xml
-Padding="6,3"
+Padding="6,1"
 ...
-<Grid x:Name="PromptRow" MinHeight="36" ...>
+<Grid x:Name="PromptRow" MinHeight="40" ...>
 ...
-<Button x:Name="AttachmentButton" Width="36" Height="36" ... />
+<Button x:Name="AttachmentButton" Width="40" Height="40" ... />
 <TextBox x:Name="PromptTextBox" MinHeight="32" ... />
-<Button x:Name="SendButton" Width="46" Height="36" ... />
-<Button x:Name="StopButton" MinWidth="84" Height="36" ... />
+<Button x:Name="SendButton" Width="46" Height="40" ... />
+<Button x:Name="StopButton" MinWidth="84" Height="40" ... />
 ```
 
 Keep the multiline `MaxHeight`, attachment presentation, keyboard behavior, and centered alignments unchanged.
@@ -108,9 +108,9 @@ Extend `StreamingRenderingIsIncrementalAndDispatcherCoalesced` with:
 
 ```csharp
 Assert.IsFalse(page.Contains("TranscriptList.ScrollIntoView", StringComparison.Ordinal));
-StringAssert.Contains(page, "transcriptScrollScheduler.Request();");
+StringAssert.Contains(page, "TranscriptList.LayoutUpdated += TranscriptList_LayoutUpdated;");
 StringAssert.Contains(page, "scrollViewer.ChangeView(");
-StringAssert.Contains(page, "scrollViewer.ScrollableHeight > 0");
+Assert.IsFalse(page.Contains("UpdateLayout()", StringComparison.Ordinal));
 ```
 
 - [ ] **Step 2: Run tests and verify RED**
@@ -122,49 +122,46 @@ dotnet run --project 'tests\IntegrationTests\GraniteEdgeAI.GgufRuntime.WorkerPro
 $filter = 'FullyQualifiedName~GraniteEdgeAI.UnitTests.Features.GgufRuntime.ChatPageTests|FullyQualifiedName~GraniteEdgeAI.UnitTests.Features.GgufRuntime.ChatRenderSchedulerTests'
 ```
 
-Expected: the source contract fails because `ChatPage` still calls `TranscriptList.ScrollIntoView` directly and has no deferred scroll scheduler.
+Expected: the source contract fails because `ChatPage` still calls `TranscriptList.ScrollIntoView` directly and has no natural-layout follow path.
 
 - [ ] **Step 3: Implement deferred overflow-only scrolling**
 
-Add a `ChatRenderScheduler transcriptScrollScheduler` field. Initialize it after `InitializeComponent()`:
+Track one pending follow request and subscribe to natural layout only once:
 
 ```csharp
-transcriptScrollScheduler = new ChatRenderScheduler(
-    callback => DispatcherQueue.TryEnqueue(() => callback()),
-    ScrollTranscriptToEnd);
-Unloaded += ChatPage_Unloaded;
+transcriptFollowRequested = true;
+transcriptFollowOriginOffset = requiresTranscriptReset
+    ? 0
+    : scrollViewer?.VerticalOffset ?? 0;
+if (!transcriptFollowAwaitingLayout)
+{
+    transcriptFollowAwaitingLayout = true;
+    TranscriptList.LayoutUpdated += TranscriptList_LayoutUpdated;
+}
 ```
 
-Replace both direct `TranscriptList.ScrollIntoView` sites with `transcriptScrollScheduler.Request()`. Add:
+Replace both direct `TranscriptList.ScrollIntoView` sites with this coalesced request. In the one-shot layout callback, unsubscribe before applying the follow and require the current offset not to be below the recorded origin:
 
 ```csharp
 private void ScrollTranscriptToEnd()
 {
     ScrollViewer? scrollViewer = FindDescendant<ScrollViewer>(TranscriptList);
-    if (scrollViewer is null || scrollViewer.ScrollableHeight <= 0)
+    bool shouldApplyFollow = transcriptFollowRequested &&
+        scrollViewer is not null &&
+        scrollViewer.VerticalOffset + 0.5 >= transcriptFollowOriginOffset;
+    transcriptFollowRequested = false;
+    if (shouldApplyFollow && scrollViewer!.ScrollableHeight > 0)
     {
-        return;
+        scrollViewer.ChangeView(null, scrollViewer.ScrollableHeight, null, true);
     }
-
-    scrollViewer.ChangeView(
-        horizontalOffset: null,
-        verticalOffset: scrollViewer.ScrollableHeight,
-        zoomFactor: null,
-        disableAnimation: true);
-}
-
-private void ChatPage_Unloaded(object sender, RoutedEventArgs eventArguments)
-{
-    Unloaded -= ChatPage_Unloaded;
-    transcriptScrollScheduler.Dispose();
 }
 ```
 
-The existing `ShouldFollowOutput` check remains the gate for requesting a follow operation.
+The existing `ShouldFollowOutput` check remains the gate for requesting a follow operation. Conversation resets use an origin of zero; later non-following synchronizations and page unload remove the pending layout handler.
 
 - [ ] **Step 4: Run focused tests and verify GREEN**
 
-Run the Task 2 source and packaged commands. Expected: page and scheduler tests pass with no direct per-update `ScrollIntoView` contract violation.
+Run the Task 2 source and packaged commands. Expected: page tests pass for fresh overflow, manual scroll-away, and switching overflowing conversations, with no direct `ScrollIntoView` or forced `UpdateLayout` contract violation.
 
 - [ ] **Step 5: Commit**
 
@@ -205,4 +202,4 @@ git diff --check
 git status --short
 ```
 
-Review against `docs/superpowers/specs/2026-08-21-compact-composer-stable-scroll-design.md`, focusing on composer height, transcript visibility, scroll coalescing, dispatcher rejection, unload safety, and regressions.
+Review against `docs/superpowers/specs/2026-08-21-compact-composer-stable-scroll-design.md`, focusing on composer height, transcript visibility, natural-layout scroll coalescing, manual-scroll cancellation, conversation switching, unload safety, and regressions.
