@@ -36,8 +36,30 @@ public sealed class GgufChatCoordinatorTests
         Assert.AreEqual(
             ChatCompletionStatus.Completed,
             coordinator.SelectedConversation.Messages[1].Status);
-        Assert.IsTrue(store.SaveCount >= 5);
+        Assert.AreEqual(4, store.SaveCount);
         Assert.IsFalse(coordinator.IsGenerating);
+    }
+
+    [TestMethod]
+    public async Task UnexpectedSessionFailurePersistsLatestPartialResponseOnce()
+    {
+        var store = new MemoryStore();
+        var coordinator = new GgufChatCoordinator(
+            store,
+            new ThrowingSession(),
+            TimeProvider.System,
+            TimeZoneInfo.Utc);
+        await coordinator.NewChatAsync("model", "cpu", CancellationToken.None);
+
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
+            coordinator.SendAsync("long answer", CancellationToken.None));
+
+        Assert.AreEqual(4, store.SaveCount);
+        Assert.IsNotNull(store.LastSaved);
+        Assert.AreEqual("partial", store.LastSaved.Messages[1].Content);
+        Assert.AreEqual(
+            ChatCompletionStatus.Streaming,
+            store.LastSaved.Messages[1].Status);
     }
 
     [TestMethod]
@@ -109,10 +131,29 @@ public sealed class GgufChatCoordinatorTests
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 
+    private sealed class ThrowingSession : IGgufChatSession
+    {
+        public async IAsyncEnumerable<GgufChatEvent> GenerateAsync(
+            string prompt,
+            [System.Runtime.CompilerServices.EnumeratorCancellation]
+            CancellationToken cancellationToken)
+        {
+            yield return new GgufChatDelta("partial");
+            await Task.Yield();
+            throw new InvalidOperationException("runtime failed unexpectedly");
+        }
+
+        public ValueTask StopAsync(CancellationToken cancellationToken) =>
+            ValueTask.CompletedTask;
+
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
+
     private sealed class MemoryStore : IChatHistoryStore
     {
         private readonly Dictionary<Guid, ChatConversation> records = [];
         internal int SaveCount { get; private set; }
+        internal ChatConversation? LastSaved { get; private set; }
 
         public Task<IReadOnlyList<ChatConversation>> LoadAsync(CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<ChatConversation>>(records.Values.ToArray());
@@ -120,6 +161,7 @@ public sealed class GgufChatCoordinatorTests
         public Task SaveAsync(ChatConversation conversation, CancellationToken cancellationToken)
         {
             records[conversation.Id] = conversation;
+            LastSaved = conversation;
             SaveCount++;
             return Task.CompletedTask;
         }

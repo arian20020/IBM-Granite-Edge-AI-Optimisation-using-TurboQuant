@@ -92,17 +92,18 @@ internal sealed class GgufChatCoordinator : IAsyncDisposable
         }
 
         IsGenerating = true;
+        ChatConversation? unpersistedConversation = null;
         try
         {
             ChatConversation current = SelectedConversation.Append(
                 ChatMessage.User(prompt, clock.GetUtcNow()));
-            await PublishAsync(current, cancellationToken).ConfigureAwait(false);
+            await PublishAsync(current, persist: true, cancellationToken).ConfigureAwait(false);
             ChatMessage assistant = ChatMessage.Assistant(
                 string.Empty,
                 ChatCompletionStatus.Pending,
                 clock.GetUtcNow());
             current = current.Append(assistant);
-            await PublishAsync(current, cancellationToken).ConfigureAwait(false);
+            await PublishAsync(current, persist: true, cancellationToken).ConfigureAwait(false);
 
             await foreach (GgufChatEvent runtimeEvent in
                 session.GenerateAsync(prompt, cancellationToken).ConfigureAwait(false))
@@ -126,11 +127,21 @@ internal sealed class GgufChatCoordinator : IAsyncDisposable
                     _ => throw new InvalidOperationException("The chat event is unsupported."),
                 };
                 current = current.ReplaceMessage(assistant);
-                await PublishAsync(current, cancellationToken).ConfigureAwait(false);
+                bool persist = runtimeEvent is GgufChatCompleted or
+                    GgufChatStopped or GgufChatFailed;
+                await PublishAsync(current, persist, cancellationToken).ConfigureAwait(false);
+                unpersistedConversation = persist ? null : current;
             }
         }
         finally
         {
+            if (unpersistedConversation is not null)
+            {
+                await store.SaveAsync(
+                    unpersistedConversation,
+                    CancellationToken.None).ConfigureAwait(false);
+            }
+
             IsGenerating = false;
         }
     }
@@ -144,6 +155,7 @@ internal sealed class GgufChatCoordinator : IAsyncDisposable
 
     private async Task PublishAsync(
         ChatConversation conversation,
+        bool persist,
         CancellationToken cancellationToken)
     {
         int index = conversations.FindIndex(item => item.Id == conversation.Id);
@@ -154,7 +166,11 @@ internal sealed class GgufChatCoordinator : IAsyncDisposable
 
         conversations[index] = conversation;
         SelectedConversation = conversation;
-        await store.SaveAsync(conversation, cancellationToken).ConfigureAwait(false);
+        if (persist)
+        {
+            await store.SaveAsync(conversation, cancellationToken).ConfigureAwait(false);
+        }
+
         ConversationChanged?.Invoke(this, EventArgs.Empty);
     }
 }

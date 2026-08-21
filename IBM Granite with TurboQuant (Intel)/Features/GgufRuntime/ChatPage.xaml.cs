@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using GraniteEdgeAI.Features.GgufRuntime.Controls;
+using GraniteEdgeAI.Features.GgufRuntime.History;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
@@ -7,6 +9,10 @@ namespace GraniteEdgeAI.Features.GgufRuntime;
 
 public sealed partial class ChatPage : Page
 {
+    private readonly Dictionary<Guid, ChatMessageBubble> transcriptBubbles = [];
+    private readonly List<Guid> renderedMessageIds = [];
+    private Guid? renderedConversationId;
+
     public ChatPage()
     {
         InitializeComponent();
@@ -57,12 +63,7 @@ public sealed partial class ChatPage : Page
         TranscriptList.Visibility = Visibility.Visible;
     }
 
-    public void ClearTranscript()
-    {
-        TranscriptList.Items.Clear();
-        EmptyConversationState.Visibility = Visibility.Visible;
-        TranscriptList.Visibility = Visibility.Collapsed;
-    }
+    public void ClearTranscript() => ResetTranscript(null);
 
     public void AddMessage(string content, bool isUser, string statusText = "")
     {
@@ -75,6 +76,96 @@ public sealed partial class ChatPage : Page
         });
         ShowConversation();
         TranscriptList.ScrollIntoView(TranscriptList.Items[^1]);
+    }
+
+    internal void SynchronizeTranscript(
+        Guid conversationId,
+        IReadOnlyList<ChatMessage> messages,
+        bool forceFollowLatest)
+    {
+        ArgumentNullException.ThrowIfNull(messages);
+        if (conversationId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "A conversation identifier is required.",
+                nameof(conversationId));
+        }
+
+        if (RequiresTranscriptReset(conversationId, messages))
+        {
+            ResetTranscript(conversationId);
+        }
+
+        for (int index = 0; index < messages.Count; index++)
+        {
+            ChatMessage message = messages[index];
+            if (!transcriptBubbles.TryGetValue(message.Id, out ChatMessageBubble? bubble))
+            {
+                bubble = new ChatMessageBubble
+                {
+                    HorizontalAlignment = HorizontalAlignment.Stretch,
+                };
+                transcriptBubbles.Add(message.Id, bubble);
+                renderedMessageIds.Add(message.Id);
+                TranscriptList.Items.Add(bubble);
+            }
+
+            bubble.MessageContent = message.Content;
+            bubble.IsUser = message.Role == ChatMessageRole.User;
+            bubble.StatusText = FormatStatus(message.Status);
+        }
+
+        if (messages.Count == 0)
+        {
+            EmptyConversationState.Visibility = Visibility.Visible;
+            TranscriptList.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        ShowConversation();
+        _ = forceFollowLatest;
+        TranscriptList.ScrollIntoView(TranscriptList.Items[^1]);
+    }
+
+    internal static string FormatStatus(ChatCompletionStatus status) => status switch
+    {
+        ChatCompletionStatus.Pending => "Thinking…",
+        ChatCompletionStatus.Streaming => "Generating…",
+        ChatCompletionStatus.Stopped => "Stopped",
+        ChatCompletionStatus.Incomplete => "Incomplete",
+        ChatCompletionStatus.Failed => "Failed",
+        _ => string.Empty,
+    };
+
+    private bool RequiresTranscriptReset(
+        Guid conversationId,
+        IReadOnlyList<ChatMessage> messages)
+    {
+        if (renderedConversationId != conversationId ||
+            renderedMessageIds.Count > messages.Count)
+        {
+            return true;
+        }
+
+        for (int index = 0; index < renderedMessageIds.Count; index++)
+        {
+            if (renderedMessageIds[index] != messages[index].Id)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void ResetTranscript(Guid? conversationId)
+    {
+        TranscriptList.Items.Clear();
+        transcriptBubbles.Clear();
+        renderedMessageIds.Clear();
+        renderedConversationId = conversationId;
+        EmptyConversationState.Visibility = Visibility.Visible;
+        TranscriptList.Visibility = Visibility.Collapsed;
     }
 
     public void SetGenerating(bool isGenerating) => Composer.IsGenerating = isGenerating;

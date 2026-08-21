@@ -1,5 +1,6 @@
 using GraniteEdgeAI.Features.GgufRuntime;
 using GraniteEdgeAI.Features.GgufRuntime.Controls;
+using GraniteEdgeAI.Features.GgufRuntime.History;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
@@ -172,6 +173,79 @@ public sealed class ChatPageTests
             .Single(setter => setter.Property == FrameworkElement.MarginProperty);
 
         Assert.AreEqual(new Thickness(0, 0, 0, 12), marginSetter.Value);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void StreamingContentUpdatesTheExistingAssistantBubbleInPlace()
+    {
+        var page = new ChatPage();
+        Guid conversationId = Guid.NewGuid();
+        Guid userId = Guid.NewGuid();
+        Guid assistantId = Guid.NewGuid();
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        ChatMessage[] initialMessages =
+        [
+            new(userId, ChatMessageRole.User, "Hello", ChatCompletionStatus.Completed, now),
+            new(assistantId, ChatMessageRole.Assistant, "Hello ", ChatCompletionStatus.Streaming, now)
+        ];
+        ChatMessage[] updatedMessages =
+        [
+            initialMessages[0],
+            new(assistantId, ChatMessageRole.Assistant, "Hello there", ChatCompletionStatus.Streaming, now)
+        ];
+
+        page.SynchronizeTranscript(conversationId, initialMessages, forceFollowLatest: false);
+        ListView transcript = Assert.IsInstanceOfType<ListView>(
+            page.FindName("TranscriptList"));
+        ChatMessageBubble firstAssistant = Assert.IsInstanceOfType<ChatMessageBubble>(
+            transcript.Items[1]);
+
+        page.SynchronizeTranscript(conversationId, updatedMessages, forceFollowLatest: false);
+
+        Assert.AreSame(firstAssistant, transcript.Items[1]);
+        Assert.AreEqual("Hello there", firstAssistant.MessageContent);
+        Assert.AreEqual("Generating…", firstAssistant.StatusText);
+        Assert.AreEqual(2, transcript.Items.Count);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void SelectingAnotherConversationResetsTranscriptAndEmptyState()
+    {
+        var page = new ChatPage();
+        var first = new ChatMessage(
+            Guid.NewGuid(),
+            ChatMessageRole.User,
+            "First",
+            ChatCompletionStatus.Completed,
+            DateTimeOffset.UtcNow);
+        var second = new ChatMessage(
+            Guid.NewGuid(),
+            ChatMessageRole.User,
+            "Second",
+            ChatCompletionStatus.Completed,
+            DateTimeOffset.UtcNow);
+        ListView transcript = Assert.IsInstanceOfType<ListView>(
+            page.FindName("TranscriptList"));
+
+        page.SynchronizeTranscript(Guid.NewGuid(), [first], forceFollowLatest: false);
+        object firstBubble = transcript.Items[0];
+        page.SynchronizeTranscript(Guid.NewGuid(), [second], forceFollowLatest: false);
+
+        Assert.AreEqual(1, transcript.Items.Count);
+        Assert.AreNotSame(firstBubble, transcript.Items[0]);
+        Assert.AreEqual(
+            "Second",
+            Assert.IsInstanceOfType<ChatMessageBubble>(transcript.Items[0]).MessageContent);
+
+        page.SynchronizeTranscript(Guid.NewGuid(), [], forceFollowLatest: false);
+
+        Assert.AreEqual(0, transcript.Items.Count);
+        Assert.AreEqual(Visibility.Visible,
+            Assert.IsInstanceOfType<FrameworkElement>(
+                page.FindName("EmptyConversationState")).Visibility);
+        Assert.AreEqual(Visibility.Collapsed, transcript.Visibility);
     }
 
     private static void AssertRoleColors(
