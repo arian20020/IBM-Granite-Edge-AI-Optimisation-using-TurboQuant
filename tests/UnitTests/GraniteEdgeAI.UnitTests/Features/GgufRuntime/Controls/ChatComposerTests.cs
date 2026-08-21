@@ -43,7 +43,11 @@ public sealed class ChatComposerTests
             composer.FindName("AddFilesHintText"));
 
         Assert.IsTrue(attachment.IsEnabled);
-        Assert.AreEqual("Add files", AutomationProperties.GetName(attachment));
+        Assert.AreEqual("Attach files", AutomationProperties.GetName(attachment));
+        Assert.AreEqual("Attach files", ToolTipService.GetToolTip(attachment));
+        Assert.AreEqual(
+            "\uE723",
+            Assert.IsInstanceOfType<FontIcon>(attachment.Content).Glyph);
         Assert.AreEqual("Add files", AutomationProperties.GetName(add));
         Assert.AreEqual("Text or Markdown · Not indexed", hint.Text);
         Assert.IsTrue(add.IsEnabled);
@@ -54,6 +58,10 @@ public sealed class ChatComposerTests
         Assert.AreEqual(40, prompt.MinHeight);
         Assert.AreEqual(160, prompt.MaxHeight);
         Assert.AreEqual(44, send.Height);
+        Assert.AreEqual(
+            "\uE724",
+            Assert.IsInstanceOfType<FontIcon>(send.Content).Glyph);
+        Assert.IsFalse(send.IsEnabled);
         Assert.AreEqual(44, stop.Height);
         Assert.AreSame(
             Application.Current.Resources["GgufChatPrimaryButtonStyle"],
@@ -74,6 +82,32 @@ public sealed class ChatComposerTests
         Assert.AreEqual(VerticalAlignment.Top, prompt.VerticalContentAlignment);
         composer.PromptText = "one line";
         Assert.AreEqual(VerticalAlignment.Center, prompt.VerticalContentAlignment);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void SendAvailabilityTracksTrimmedPromptAndGenerationState()
+    {
+        var composer = new ChatComposer();
+        Button send = Assert.IsInstanceOfType<Button>(composer.FindName("SendButton"));
+
+        Assert.IsFalse(send.IsEnabled);
+
+        composer.PromptText = "   ";
+        Assert.IsFalse(send.IsEnabled);
+
+        composer.PromptText = "Explain this model";
+        Assert.IsTrue(send.IsEnabled);
+
+        composer.IsGenerating = true;
+        Assert.IsFalse(send.IsEnabled);
+
+        composer.IsGenerating = false;
+        Assert.IsTrue(send.IsEnabled);
+
+        InvokeClickHandler(composer, "SendButton_Click", send);
+        Assert.AreEqual(string.Empty, composer.PromptText);
+        Assert.IsFalse(send.IsEnabled);
     }
 
     [UITestMethod]

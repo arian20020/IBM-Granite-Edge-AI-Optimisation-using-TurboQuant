@@ -103,7 +103,8 @@
                         Padding="0"
                         VerticalAlignment="Center"
                         Style="{StaticResource GgufChatSecondaryButtonStyle}"
-                        AutomationProperties.Name="Add files">
+                        AutomationProperties.Name="Attach files"
+                        ToolTipService.ToolTip="Attach files">
                         <Button.Flyout>
                             <Flyout Placement="TopEdgeAlignedLeft">
                                 <Flyout.FlyoutPresenterStyle>
@@ -151,7 +152,7 @@
                                 </Border>
                             </Flyout>
                         </Button.Flyout>
-                        <FontIcon Glyph="&#xE710;" FontSize="16" />
+                        <FontIcon Glyph="&#xE723;" FontSize="16" />
                     </Button>
                     <TextBox
                         x:Name="PromptTextBox"
@@ -191,7 +192,7 @@
                         Style="{StaticResource GgufChatPrimaryButtonStyle}"
                         AutomationProperties.Name="Send message"
                         Click="SendButton_Click">
-                        <FontIcon Glyph="&#xE72A;" />
+                        <FontIcon Glyph="&#xE724;" />
                     </Button>
                     <Button
                         x:Name="StopButton"

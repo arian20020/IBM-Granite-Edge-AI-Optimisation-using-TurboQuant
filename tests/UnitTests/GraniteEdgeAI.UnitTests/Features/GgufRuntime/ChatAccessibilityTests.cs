@@ -49,6 +49,7 @@ public sealed class ChatAccessibilityTests
     public async Task ComposerActionsExposeUniqueNamesAndAcceptKeyboardFocus()
     {
         var composer = new ChatComposer();
+        composer.PromptText = "Ready to send";
         await using WinUiRenderHost host = await WinUiRenderHost.ShowAsync(composer, 700, 220);
         Button attachment = FindButton(composer, "AttachmentButton");
         Button send = FindButton(composer, "SendButton");
@@ -61,7 +62,7 @@ public sealed class ChatAccessibilityTests
         Button stop = FindButton(composer, "StopButton");
 
         CollectionAssert.AreEquivalent(
-            new[] { "Add files", "Send message", "Stop generation" },
+            new[] { "Attach files", "Send message", "Stop generation" },
             new[]
             {
                 AutomationProperties.GetName(attachment),

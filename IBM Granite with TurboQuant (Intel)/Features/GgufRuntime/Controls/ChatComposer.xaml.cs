@@ -54,6 +54,7 @@ public sealed partial class ChatComposer : UserControl
         {
             PromptTextBox.Text = value ?? string.Empty;
             UpdatePromptVerticalAlignment();
+            UpdateSubmissionState();
         }
     }
 
@@ -75,6 +76,7 @@ public sealed partial class ChatComposer : UserControl
         bool canSelectKnowledgeFiles = !IsGenerating && !isPickingKnowledgeFiles;
         AttachmentButton.IsEnabled = canSelectKnowledgeFiles;
         AddFilesFlyoutButton.IsEnabled = canSelectKnowledgeFiles;
+        UpdateSubmissionState();
     }
 
     private async void AddKnowledgeFiles_Click(object sender, RoutedEventArgs eventArguments)
@@ -227,8 +229,11 @@ public sealed partial class ChatComposer : UserControl
         return 0;
     }
 
-    private void PromptTextBox_TextChanged(object sender, TextChangedEventArgs eventArguments) =>
+    private void PromptTextBox_TextChanged(object sender, TextChangedEventArgs eventArguments)
+    {
         UpdatePromptVerticalAlignment();
+        UpdateSubmissionState();
+    }
 
     private void PromptTextBox_SizeChanged(object sender, SizeChangedEventArgs eventArguments) =>
         UpdatePromptVerticalAlignment();
@@ -253,6 +258,17 @@ public sealed partial class ChatComposer : UserControl
         }
     }
 
+    private void UpdateSubmissionState()
+    {
+        if (SendButton is null || PromptTextBox is null)
+        {
+            return;
+        }
+
+        SendButton.IsEnabled = !IsGenerating &&
+            PromptTextBox.Text.Trim().Length > 0;
+    }
+
     private void SendButton_Click(object sender, RoutedEventArgs eventArguments)
     {
         string prompt = PromptTextBox.Text.Trim();
@@ -262,6 +278,7 @@ public sealed partial class ChatComposer : UserControl
         }
 
         PromptTextBox.Text = string.Empty;
+        UpdateSubmissionState();
         SendRequested?.Invoke(this, prompt);
     }
 

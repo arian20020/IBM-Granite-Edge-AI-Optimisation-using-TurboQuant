@@ -636,12 +636,22 @@ public sealed class GgufChatVisualContractTests
             .Single(element => element.Attribute(x + "Name")?.Value == "PromptRow");
         XElement attachmentButton = composer.Descendants(presentation + "Button")
             .Single(element => element.Attribute(x + "Name")?.Value == "AttachmentButton");
+        XElement sendButton = composer.Descendants(presentation + "Button")
+            .Single(element => element.Attribute(x + "Name")?.Value == "SendButton");
         XElement stopButton = composer.Descendants(presentation + "Button")
             .Single(element => element.Attribute(x + "Name")?.Value == "StopButton");
         Assert.AreEqual("12,6", composerSurface.Attribute("Padding")?.Value);
         Assert.AreEqual("44", promptRow.Attribute("MinHeight")?.Value);
         Assert.AreEqual("40", attachmentButton.Attribute("Width")?.Value);
         Assert.AreEqual("40", attachmentButton.Attribute("Height")?.Value);
+        Assert.AreEqual("Attach files", attachmentButton.Attribute("AutomationProperties.Name")?.Value);
+        Assert.AreEqual("Attach files", attachmentButton.Attribute("ToolTipService.ToolTip")?.Value);
+        Assert.AreEqual(
+            "\uE723",
+            attachmentButton.Element(presentation + "FontIcon")?.Attribute("Glyph")?.Value);
+        Assert.AreEqual(
+            "\uE724",
+            sendButton.Element(presentation + "FontIcon")?.Attribute("Glyph")?.Value);
         Assert.AreEqual("40", prompt.Attribute("MinHeight")?.Value);
         Assert.AreEqual(
             "Center",
@@ -658,6 +668,21 @@ public sealed class GgufChatVisualContractTests
             "GgufRuntime",
             "ChatPage.xaml.cs"));
         StringAssert.Contains(pageCode, "Margin = new Thickness(0, 14, 0, 6)");
+
+        string composerCode = File.ReadAllText(Path.Combine(
+            root,
+            "IBM Granite with TurboQuant (Intel)",
+            "Features",
+            "GgufRuntime",
+            "Controls",
+            "ChatComposer.xaml.cs"));
+        StringAssert.Contains(composerCode, "private void UpdateSubmissionState()");
+        StringAssert.Contains(
+            composerCode,
+            "SendButton.IsEnabled = !IsGenerating &&");
+        StringAssert.Contains(
+            composerCode,
+            "PromptTextBox.Text.Trim().Length > 0;");
 
         XDocument project = XDocument.Load(Path.Combine(
             root,
