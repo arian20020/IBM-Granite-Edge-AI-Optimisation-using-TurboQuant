@@ -32,6 +32,11 @@ public sealed class PrivacyCanaryTests
         // string content of its own.
         "CandidateGenerationRequest.InstallationStates",
 
+        // The same admitted support-entry ids again (CompatibilitySupportEntry.EntryId),
+        // this time carried as a set of ids requiring evidence rather than a lookup
+        // dictionary. No new string content originates here.
+        "ModeSelectionRequest.EvidenceRequiringEntryIds",
+
         // Hand-written ToString overrides surfaced once the scan widened to
         // cover methods. Each formats an already-reviewed numeric value (or,
         // for CandidateFingerprint, delegates to the already-allowed Value
