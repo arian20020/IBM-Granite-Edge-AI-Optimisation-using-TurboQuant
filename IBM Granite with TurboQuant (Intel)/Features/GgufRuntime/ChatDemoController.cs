@@ -132,8 +132,9 @@ internal sealed class ChatDemoController : IAsyncDisposable
 
     private void Render()
     {
-        RenderHistoryIfChanged();
-        if (coordinator.SelectedConversation is not ChatConversation selected)
+        ChatCoordinatorSnapshot snapshot = coordinator.CaptureSnapshot();
+        RenderHistoryIfChanged(snapshot);
+        if (snapshot.SelectedConversation is not ChatConversation selected)
         {
             return;
         }
@@ -146,11 +147,11 @@ internal sealed class ChatDemoController : IAsyncDisposable
             consumeFollowLatest);
     }
 
-    private void RenderHistoryIfChanged()
+    private void RenderHistoryIfChanged(ChatCoordinatorSnapshot snapshot)
     {
-        Guid? selectedId = coordinator.SelectedConversation?.Id;
+        Guid? selectedId = snapshot.SelectedConversation?.Id;
         var currentHistory = new List<HistoryRenderKey>();
-        foreach (ChatHistoryGroup group in coordinator.Groups)
+        foreach (ChatHistoryGroup group in snapshot.Groups)
         {
             foreach (ChatConversation conversation in group.Conversations)
             {

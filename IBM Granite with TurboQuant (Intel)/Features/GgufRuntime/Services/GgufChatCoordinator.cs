@@ -9,11 +9,14 @@ namespace GraniteEdgeAI.Features.GgufRuntime.Services;
 
 internal sealed class GgufChatCoordinator : IAsyncDisposable
 {
+    private readonly object stateSync = new();
     private readonly IChatHistoryStore store;
     private readonly IGgufChatSession session;
     private readonly TimeProvider clock;
     private readonly TimeZoneInfo timeZone;
     private readonly List<ChatConversation> conversations = [];
+    private ChatConversation? selectedConversation;
+    private bool isGenerating;
 
     internal GgufChatCoordinator(
         IChatHistoryStore store,
@@ -27,26 +30,68 @@ internal sealed class GgufChatCoordinator : IAsyncDisposable
         this.timeZone = timeZone ?? throw new ArgumentNullException(nameof(timeZone));
     }
 
-    internal IReadOnlyList<ChatConversation> Conversations => conversations;
+    internal IReadOnlyList<ChatConversation> Conversations
+    {
+        get
+        {
+            lock (stateSync)
+            {
+                return conversations.ToArray();
+            }
+        }
+    }
 
     internal event EventHandler? ConversationChanged;
 
-    internal IReadOnlyList<ChatHistoryGroup> Groups => ChatHistoryGrouper.Group(
-        conversations,
-        clock.GetUtcNow(),
-        timeZone);
+    internal IReadOnlyList<ChatHistoryGroup> Groups => CaptureSnapshot().Groups;
 
-    internal ChatConversation? SelectedConversation { get; private set; }
+    internal ChatConversation? SelectedConversation
+    {
+        get
+        {
+            lock (stateSync)
+            {
+                return selectedConversation;
+            }
+        }
+    }
 
-    internal bool IsGenerating { get; private set; }
+    internal bool IsGenerating
+    {
+        get
+        {
+            lock (stateSync)
+            {
+                return isGenerating;
+            }
+        }
+    }
+
+    internal ChatCoordinatorSnapshot CaptureSnapshot()
+    {
+        lock (stateSync)
+        {
+            return new ChatCoordinatorSnapshot(
+                ChatHistoryGrouper.Group(
+                    conversations.ToArray(),
+                    clock.GetUtcNow(),
+                    timeZone),
+                selectedConversation,
+                isGenerating);
+        }
+    }
 
     internal async Task InitializeAsync(CancellationToken cancellationToken)
     {
         IReadOnlyList<ChatConversation> loaded = await store.LoadAsync(cancellationToken)
             .ConfigureAwait(false);
-        conversations.Clear();
-        conversations.AddRange(ChatHistoryPolicy.ApplyRetention(loaded, clock.GetUtcNow()));
-        SelectedConversation = conversations.FirstOrDefault();
+        lock (stateSync)
+        {
+            conversations.Clear();
+            conversations.AddRange(ChatHistoryPolicy.ApplyRetention(loaded, clock.GetUtcNow()));
+            selectedConversation = conversations.FirstOrDefault();
+        }
+
         ConversationChanged?.Invoke(this, EventArgs.Empty);
     }
 
@@ -55,9 +100,12 @@ internal sealed class GgufChatCoordinator : IAsyncDisposable
         string profileId,
         CancellationToken cancellationToken)
     {
-        if (IsGenerating)
+        lock (stateSync)
         {
-            throw new InvalidOperationException("A new chat cannot replace an active generation.");
+            if (isGenerating)
+            {
+                throw new InvalidOperationException("A new chat cannot replace an active generation.");
+            }
         }
 
         ChatConversation conversation = ChatConversation.Create(
@@ -65,8 +113,12 @@ internal sealed class GgufChatCoordinator : IAsyncDisposable
             modelId,
             profileId,
             clock.GetUtcNow());
-        conversations.Insert(0, conversation);
-        SelectedConversation = conversation;
+        lock (stateSync)
+        {
+            conversations.Insert(0, conversation);
+            selectedConversation = conversation;
+        }
+
         await store.SaveAsync(conversation, cancellationToken).ConfigureAwait(false);
         ConversationChanged?.Invoke(this, EventArgs.Empty);
         return conversation;
@@ -74,28 +126,38 @@ internal sealed class GgufChatCoordinator : IAsyncDisposable
 
     internal void Select(Guid conversationId)
     {
-        if (IsGenerating)
+        lock (stateSync)
         {
-            throw new InvalidOperationException("History cannot change during generation.");
+            if (isGenerating)
+            {
+                throw new InvalidOperationException("History cannot change during generation.");
+            }
+
+            selectedConversation = conversations.Single(item => item.Id == conversationId);
         }
 
-        SelectedConversation = conversations.Single(item => item.Id == conversationId);
         ConversationChanged?.Invoke(this, EventArgs.Empty);
     }
 
     internal async Task SendAsync(string prompt, CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(prompt);
-        if (IsGenerating || SelectedConversation is null)
+        ChatConversation current;
+        lock (stateSync)
         {
-            throw new InvalidOperationException("The selected chat is not ready.");
+            if (isGenerating || selectedConversation is null)
+            {
+                throw new InvalidOperationException("The selected chat is not ready.");
+            }
+
+            isGenerating = true;
+            current = selectedConversation;
         }
 
-        IsGenerating = true;
         ChatConversation? unpersistedConversation = null;
         try
         {
-            ChatConversation current = SelectedConversation.Append(
+            current = current.Append(
                 ChatMessage.User(prompt, clock.GetUtcNow()));
             await PublishAsync(current, persist: true, cancellationToken).ConfigureAwait(false);
             ChatMessage assistant = ChatMessage.Assistant(
@@ -142,7 +204,10 @@ internal sealed class GgufChatCoordinator : IAsyncDisposable
                     CancellationToken.None).ConfigureAwait(false);
             }
 
-            IsGenerating = false;
+            lock (stateSync)
+            {
+                isGenerating = false;
+            }
         }
     }
 
@@ -158,14 +223,18 @@ internal sealed class GgufChatCoordinator : IAsyncDisposable
         bool persist,
         CancellationToken cancellationToken)
     {
-        int index = conversations.FindIndex(item => item.Id == conversation.Id);
-        if (index < 0)
+        lock (stateSync)
         {
-            throw new InvalidOperationException("The conversation is not active.");
+            int index = conversations.FindIndex(item => item.Id == conversation.Id);
+            if (index < 0)
+            {
+                throw new InvalidOperationException("The conversation is not active.");
+            }
+
+            conversations[index] = conversation;
+            selectedConversation = conversation;
         }
 
-        conversations[index] = conversation;
-        SelectedConversation = conversation;
         if (persist)
         {
             await store.SaveAsync(conversation, cancellationToken).ConfigureAwait(false);
@@ -174,3 +243,8 @@ internal sealed class GgufChatCoordinator : IAsyncDisposable
         ConversationChanged?.Invoke(this, EventArgs.Empty);
     }
 }
+
+internal sealed record ChatCoordinatorSnapshot(
+    IReadOnlyList<ChatHistoryGroup> Groups,
+    ChatConversation? SelectedConversation,
+    bool IsGenerating);

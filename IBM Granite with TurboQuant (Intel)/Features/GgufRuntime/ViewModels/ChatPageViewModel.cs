@@ -59,15 +59,16 @@ internal sealed class ChatPageViewModel : INotifyPropertyChanged, IAsyncDisposab
 
     private void Refresh()
     {
+        ChatCoordinatorSnapshot snapshot = coordinator.CaptureSnapshot();
         HistoryGroups.Clear();
-        foreach (var group in coordinator.Groups)
+        foreach (var group in snapshot.Groups)
         {
             HistoryGroups.Add(new ChatHistoryGroupViewModel(group));
         }
 
-        SelectedConversation = coordinator.SelectedConversation is null
+        SelectedConversation = snapshot.SelectedConversation is null
             ? null
-            : new ChatConversationViewModel(coordinator.SelectedConversation);
+            : new ChatConversationViewModel(snapshot.SelectedConversation);
         OnStateChanged();
     }
 

@@ -26,22 +26,18 @@ internal sealed class ChatRenderScheduler : IDisposable
             }
 
             isPending = true;
-        }
-
-        bool accepted;
-        try
-        {
-            accepted = enqueue(Drain);
-        }
-        catch
-        {
-            ClearPending();
-            throw;
-        }
-
-        if (!accepted)
-        {
-            ClearPending();
+            try
+            {
+                if (!enqueue(Drain))
+                {
+                    isPending = false;
+                }
+            }
+            catch
+            {
+                isPending = false;
+                throw;
+            }
         }
     }
 
@@ -63,16 +59,8 @@ internal sealed class ChatRenderScheduler : IDisposable
             {
                 return;
             }
-        }
 
-        render();
-    }
-
-    private void ClearPending()
-    {
-        lock (sync)
-        {
-            isPending = false;
+            render();
         }
     }
 }

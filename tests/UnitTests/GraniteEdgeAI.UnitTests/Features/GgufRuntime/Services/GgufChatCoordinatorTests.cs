@@ -84,6 +84,35 @@ public sealed class GgufChatCoordinatorTests
     }
 
     [TestMethod]
+    public async Task SnapshotKeepsSelectedConversationAndHistoryCoherent()
+    {
+        var coordinator = new GgufChatCoordinator(
+            new MemoryStore(),
+            new FakeSession(),
+            TimeProvider.System,
+            TimeZoneInfo.Utc);
+        ChatConversation first = await coordinator.NewChatAsync(
+            "first",
+            "cpu",
+            CancellationToken.None);
+        ChatConversation second = await coordinator.NewChatAsync(
+            "second",
+            "cpu",
+            CancellationToken.None);
+        coordinator.Select(first.Id);
+
+        ChatCoordinatorSnapshot snapshot = coordinator.CaptureSnapshot();
+
+        Assert.AreEqual(first.Id, snapshot.SelectedConversation!.Id);
+        CollectionAssert.AreEquivalent(
+            new[] { first.Id, second.Id },
+            snapshot.Groups
+                .SelectMany(group => group.Conversations)
+                .Select(conversation => conversation.Id)
+                .ToArray());
+    }
+
+    [TestMethod]
     public async Task PreviewSessionExplainsItsBoundaryWithoutDeveloperTerminology()
     {
         await using var session = new DemoGgufChatSession();

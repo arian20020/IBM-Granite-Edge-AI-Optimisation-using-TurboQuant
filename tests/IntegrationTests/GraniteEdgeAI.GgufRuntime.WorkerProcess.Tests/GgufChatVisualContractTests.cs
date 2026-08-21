@@ -422,7 +422,11 @@ public sealed class GgufChatVisualContractTests
 
         StringAssert.Contains(
             controller,
-            "Guid? selectedId = coordinator.SelectedConversation?.Id;");
+            "ChatCoordinatorSnapshot snapshot = coordinator.CaptureSnapshot();");
+        StringAssert.Contains(
+            controller,
+            "Guid? selectedId = snapshot.SelectedConversation?.Id;");
+        StringAssert.Contains(controller, "foreach (ChatHistoryGroup group in snapshot.Groups)");
         Assert.IsTrue(Regex.IsMatch(
             controller,
             @"currentHistory\.Add\s*\(\s*new HistoryRenderKey\s*\(\s*group\.Label\s*,\s*conversation\.Id\s*,\s*conversation\.Title\s*,\s*conversation\.Id\s*==\s*selectedId\s*\)\s*\)\s*;"));
