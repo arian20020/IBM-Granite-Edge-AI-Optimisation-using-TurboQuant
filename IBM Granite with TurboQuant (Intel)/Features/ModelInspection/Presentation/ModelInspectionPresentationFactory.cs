@@ -829,7 +829,7 @@ internal static class ModelInspectionPresentationFactory
         string automationName,
         ICommand? command)
     {
-        return command is null
+        return command is null || !command.CanExecute(parameter: null)
             ? CreateFutureAction(actionId, text, automationName)
             : CreateActiveAction(
                 actionId,
