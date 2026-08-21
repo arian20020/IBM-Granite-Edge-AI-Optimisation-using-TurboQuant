@@ -38,14 +38,14 @@
             <SolidColorBrush x:Key="GgufChatSecondaryPressedForegroundBrush" Color="#111827" />
             <SolidColorBrush x:Key="GgufChatSecondaryPressedBorderBrush" Color="#1E40AF" />
             <SolidColorBrush x:Key="GgufChatHistoryHoverBrush" Color="#F3F4F6" />
-            <SolidColorBrush x:Key="GgufChatAssistantBubbleBrush" Color="#F4F7FB" />
-            <SolidColorBrush x:Key="GgufChatAssistantBubbleTextBrush" Color="#172033" />
-            <SolidColorBrush x:Key="GgufChatUserBubbleBrush" Color="#EAF2FF" />
-            <SolidColorBrush x:Key="GgufChatUserBubbleTextBrush" Color="#16345F" />
+            <SolidColorBrush x:Key="GgufChatAssistantBubbleBrush" Color="#EAF2FF" />
+            <SolidColorBrush x:Key="GgufChatAssistantBubbleTextBrush" Color="#102E6B" />
+            <SolidColorBrush x:Key="GgufChatUserBubbleBrush" Color="#2563EB" />
+            <SolidColorBrush x:Key="GgufChatUserBubbleTextBrush" Color="#FFFFFF" />
             <SolidColorBrush x:Key="GgufChatNavigationRestBrush" Color="#00FFFFFF" />
             <SolidColorBrush x:Key="GgufChatNavigationHoverBrush" Color="#EEF4FF" />
             <SolidColorBrush x:Key="GgufChatNavigationPressedBrush" Color="#E2ECFA" />
-            <SolidColorBrush x:Key="GgufChatNavigationSelectedBrush" Color="#E8F0FF" />
+            <SolidColorBrush x:Key="GgufChatNavigationSelectedBrush" Color="#2563EB" />
             <SolidColorBrush x:Key="GgufChatComposerBrush" Color="#FFFFFFFF" />
             <SolidColorBrush x:Key="GgufChatComposerFocusedBorderBrush" Color="#2563EB" />
             <SolidColorBrush x:Key="GgufChatFlyoutBrush" Color="#FFFFFFFF" />
@@ -86,14 +86,14 @@
             <SolidColorBrush x:Key="GgufChatSecondaryPressedForegroundBrush" Color="#F9FAFB" />
             <SolidColorBrush x:Key="GgufChatSecondaryPressedBorderBrush" Color="#1E40AF" />
             <SolidColorBrush x:Key="GgufChatHistoryHoverBrush" Color="#273449" />
-            <SolidColorBrush x:Key="GgufChatAssistantBubbleBrush" Color="#243044" />
-            <SolidColorBrush x:Key="GgufChatAssistantBubbleTextBrush" Color="#F9FAFB" />
-            <SolidColorBrush x:Key="GgufChatUserBubbleBrush" Color="#1E3A5F" />
-            <SolidColorBrush x:Key="GgufChatUserBubbleTextBrush" Color="#F9FAFB" />
+            <SolidColorBrush x:Key="GgufChatAssistantBubbleBrush" Color="#EAF2FF" />
+            <SolidColorBrush x:Key="GgufChatAssistantBubbleTextBrush" Color="#102E6B" />
+            <SolidColorBrush x:Key="GgufChatUserBubbleBrush" Color="#2563EB" />
+            <SolidColorBrush x:Key="GgufChatUserBubbleTextBrush" Color="#FFFFFF" />
             <SolidColorBrush x:Key="GgufChatNavigationRestBrush" Color="#00FFFFFF" />
             <SolidColorBrush x:Key="GgufChatNavigationHoverBrush" Color="#273449" />
             <SolidColorBrush x:Key="GgufChatNavigationPressedBrush" Color="#334155" />
-            <SolidColorBrush x:Key="GgufChatNavigationSelectedBrush" Color="#1E3A5F" />
+            <SolidColorBrush x:Key="GgufChatNavigationSelectedBrush" Color="#2563EB" />
             <SolidColorBrush x:Key="GgufChatComposerBrush" Color="#1F2937" />
             <SolidColorBrush x:Key="GgufChatComposerFocusedBorderBrush" Color="#BFDBFE" />
             <SolidColorBrush x:Key="GgufChatFlyoutBrush" Color="#263247" />

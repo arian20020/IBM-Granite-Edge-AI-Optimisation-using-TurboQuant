@@ -1,6 +1,7 @@
 using System;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 
 namespace GraniteEdgeAI.Features.GgufRuntime.Controls;
 
@@ -46,10 +47,14 @@ public sealed partial class ChatHistoryItem : UserControl
             return;
         }
 
-        HistoryButton.Background = (Microsoft.UI.Xaml.Media.Brush)
+        HistoryButton.Background = (Brush)
             Application.Current.Resources[IsSelected
                 ? "GgufChatNavigationSelectedBrush"
                 : "GgufChatNavigationRestBrush"];
+        HistoryButton.Foreground = (Brush)
+            Application.Current.Resources[IsSelected
+                ? "GgufChatPrimaryForegroundBrush"
+                : "GgufChatTextBrush"];
         SelectionIndicator.Visibility = IsSelected
             ? Visibility.Visible
             : Visibility.Collapsed;

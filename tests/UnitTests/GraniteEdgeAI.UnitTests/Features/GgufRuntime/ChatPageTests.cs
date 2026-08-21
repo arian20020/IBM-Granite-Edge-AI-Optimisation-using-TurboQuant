@@ -40,6 +40,25 @@ public sealed class ChatPageTests
             user,
             "GgufChatUserBubbleBrush",
             "GgufChatUserBubbleTextBrush");
+
+        Assert.AreEqual(
+            Assert.IsInstanceOfType<SolidColorBrush>(
+                Application.Current.Resources["GgufChatPrimaryBrush"]).Color,
+            Assert.IsInstanceOfType<SolidColorBrush>(
+                Application.Current.Resources["GgufChatUserBubbleBrush"]).Color);
+        Assert.AreEqual(
+            Assert.IsInstanceOfType<SolidColorBrush>(
+                Application.Current.Resources["GgufChatPrimaryForegroundBrush"]).Color,
+            Assert.IsInstanceOfType<SolidColorBrush>(
+                Application.Current.Resources["GgufChatUserBubbleTextBrush"]).Color);
+        Assert.AreEqual(
+            Windows.UI.Color.FromArgb(255, 234, 242, 255),
+            Assert.IsInstanceOfType<SolidColorBrush>(
+                Application.Current.Resources["GgufChatAssistantBubbleBrush"]).Color);
+        Assert.AreEqual(
+            Windows.UI.Color.FromArgb(255, 16, 46, 107),
+            Assert.IsInstanceOfType<SolidColorBrush>(
+                Application.Current.Resources["GgufChatAssistantBubbleTextBrush"]).Color);
     }
 
     [UITestMethod]
