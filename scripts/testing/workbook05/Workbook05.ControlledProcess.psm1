@@ -163,6 +163,122 @@ function Stop-Wb05ControlledProcessTree {
     }
 }
 
+function Get-Wb05ControlledPressureDecision {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [int64]$AvailableMemoryBytes,
+
+        [Parameter(Mandatory = $true)]
+        [double]$CommitPercent,
+
+        [Parameter(Mandatory = $true)]
+        [int64]$MinimumAvailableMemoryBytes,
+
+        [ValidateRange(1, 100)]
+        [double]$LowMemoryCommitPercent = 80,
+
+        [ValidateRange(1, 100)]
+        [double]$MaximumCommitPercent = 90,
+
+        [ValidateRange(0, [int]::MaxValue)]
+        [int]$LowMemorySamples = 0,
+
+        [ValidateRange(0, [int]::MaxValue)]
+        [int]$HighCommitSamples = 0,
+
+        [ValidateRange(1, 100)]
+        [int]$ConsecutiveSafetySamples = 5,
+
+        [ValidateRange(1, 60)]
+        [int]$SampleIntervalSeconds = 2,
+
+        [switch]$RequireHighCommitForLowMemoryStop
+    )
+
+    # The fresh Runtime/GenAI/C1 paths retain the original independent low-RAM
+    # stop. The controlled C1 resume can opt into a narrower combined-pressure
+    # rule because its failed evidence showed low free RAM while commit stayed
+    # safely below the hard 90 percent boundary.
+    if (
+        $RequireHighCommitForLowMemoryStop -and
+        $LowMemoryCommitPercent -ge $MaximumCommitPercent
+    ) {
+        throw (
+            'LowMemoryCommitPercent must remain below ' +
+            'MaximumCommitPercent for the combined-pressure policy.'
+        )
+    }
+
+    $lowMemoryObserved = (
+        $AvailableMemoryBytes -lt $MinimumAvailableMemoryBytes
+    )
+    if ($RequireHighCommitForLowMemoryStop) {
+        $lowMemoryObserved = (
+            $lowMemoryObserved -and
+            $CommitPercent -gt $LowMemoryCommitPercent
+        )
+    }
+
+    if ($lowMemoryObserved) {
+        $LowMemorySamples++
+    }
+    else {
+        $LowMemorySamples = 0
+    }
+
+    if ($CommitPercent -gt $MaximumCommitPercent) {
+        $HighCommitSamples++
+    }
+    else {
+        $HighCommitSamples = 0
+    }
+
+    $durationSeconds = (
+        $ConsecutiveSafetySamples * $SampleIntervalSeconds
+    )
+    $safetyStopTriggered = $false
+    $safetyStopReason = $null
+
+    if ($LowMemorySamples -ge $ConsecutiveSafetySamples) {
+        $safetyStopTriggered = $true
+        if ($RequireHighCommitForLowMemoryStop) {
+            $safetyStopReason = (
+                'Available memory and Windows commit usage remained beyond ' +
+                "the controlled resume thresholds for $durationSeconds " +
+                'seconds (combined memory pressure).'
+            )
+        }
+        elseif ($MinimumAvailableMemoryBytes -eq 1610612736) {
+            # Preserve the established evidence wording for every existing caller.
+            $safetyStopReason = (
+                'Available memory remained below 1.5 GiB ' +
+                "for $durationSeconds seconds."
+            )
+        }
+        else {
+            $safetyStopReason = (
+                "Available memory remained below $MinimumAvailableMemoryBytes " +
+                "bytes for $durationSeconds seconds."
+            )
+        }
+    }
+    elseif ($HighCommitSamples -ge $ConsecutiveSafetySamples) {
+        $safetyStopTriggered = $true
+        $safetyStopReason = (
+            "Windows commit usage remained above $MaximumCommitPercent " +
+            "percent for $durationSeconds seconds."
+        )
+    }
+
+    return [pscustomobject]@{
+        low_memory_samples = $LowMemorySamples
+        high_commit_samples = $HighCommitSamples
+        safety_stop_triggered = $safetyStopTriggered
+        safety_stop_reason = $safetyStopReason
+    }
+}
+
 function Invoke-Wb05ControlledLoggedProcess {
     [CmdletBinding()]
     param(
@@ -212,10 +328,15 @@ function Invoke-Wb05ControlledLoggedProcess {
         [int64]$MinimumAvailableMemoryBytes = 1610612736,
 
         [ValidateRange(1, 100)]
+        [double]$LowMemoryCommitPercent = 80,
+
+        [ValidateRange(1, 100)]
         [double]$MaximumCommitPercent = 90,
 
         [ValidateRange(1, 100)]
-        [int]$ConsecutiveSafetySamples = 5
+        [int]$ConsecutiveSafetySamples = 5,
+
+        [switch]$RequireHighCommitForLowMemoryStop
     )
 
     if (-not (Test-Path -LiteralPath $FilePath -PathType Leaf)) {
@@ -226,6 +347,15 @@ function Invoke-Wb05ControlledLoggedProcess {
     }
     if (-not (Test-Path -LiteralPath $EvidenceDirectory -PathType Container)) {
         New-Item -ItemType Directory -Path $EvidenceDirectory -Force | Out-Null
+    }
+    if (
+        $RequireHighCommitForLowMemoryStop -and
+        $LowMemoryCommitPercent -ge $MaximumCommitPercent
+    ) {
+        throw (
+            'LowMemoryCommitPercent must remain below ' +
+            'MaximumCommitPercent for the combined-pressure policy.'
+        )
     }
 
     $safeId = $CommandId -replace '[^A-Za-z0-9._-]', '-'
@@ -336,18 +466,19 @@ function Invoke-Wb05ControlledLoggedProcess {
                     $commitPercent
                 )
 
-                if ($availableMemory -lt $MinimumAvailableMemoryBytes) {
-                    $lowMemorySamples++
-                }
-                else {
-                    $lowMemorySamples = 0
-                }
-                if ($commitPercent -gt $MaximumCommitPercent) {
-                    $highCommitSamples++
-                }
-                else {
-                    $highCommitSamples = 0
-                }
+                $pressureDecision = Get-Wb05ControlledPressureDecision `
+                    -AvailableMemoryBytes $availableMemory `
+                    -CommitPercent $commitPercent `
+                    -MinimumAvailableMemoryBytes $MinimumAvailableMemoryBytes `
+                    -LowMemoryCommitPercent $LowMemoryCommitPercent `
+                    -MaximumCommitPercent $MaximumCommitPercent `
+                    -LowMemorySamples $lowMemorySamples `
+                    -HighCommitSamples $highCommitSamples `
+                    -ConsecutiveSafetySamples $ConsecutiveSafetySamples `
+                    -SampleIntervalSeconds $SampleIntervalSeconds `
+                    -RequireHighCommitForLowMemoryStop:$RequireHighCommitForLowMemoryStop
+                $lowMemorySamples = [int]$pressureDecision.low_memory_samples
+                $highCommitSamples = [int]$pressureDecision.high_commit_samples
 
                 [pscustomobject]@{
                     timestamp_utc = [DateTime]::UtcNow.ToString('o')
@@ -365,25 +496,9 @@ function Invoke-Wb05ControlledLoggedProcess {
                         -Append:$csvExists
                 $csvExists = $true
 
-                if (
-                    $lowMemorySamples -ge
-                    $ConsecutiveSafetySamples
-                ) {
+                if ($pressureDecision.safety_stop_triggered) {
                     $safetyStopTriggered = $true
-                    $safetyStopReason = (
-                        'Available memory remained below 1.5 GiB ' +
-                        'for 10 seconds.'
-                    )
-                }
-                elseif (
-                    $highCommitSamples -ge
-                    $ConsecutiveSafetySamples
-                ) {
-                    $safetyStopTriggered = $true
-                    $safetyStopReason = (
-                        'Windows commit usage remained above 90 ' +
-                        'percent for 10 seconds.'
-                    )
+                    $safetyStopReason = [string]$pressureDecision.safety_stop_reason
                 }
                 elseif (
                     $elapsedSeconds -ge $MaximumElapsedSeconds
