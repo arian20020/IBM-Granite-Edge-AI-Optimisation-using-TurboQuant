@@ -1,4 +1,5 @@
 using GraniteEdgeAI.Features.ModelInspection.Contracts;
+using GraniteEdgeAI.Features.ModelInspection.Handoff;
 using GraniteEdgeAI.Features.ModelInspection.Controls;
 using GraniteEdgeAI.Features.ModelInspection.Models;
 using GraniteEdgeAI.Features.ModelInspection.Presentation;
@@ -163,6 +164,9 @@ public sealed partial class ModelInspectionPage : Page
     internal event EventHandler<InspectionFooterStatusChangedEventArgs>?
         FooterStatusChanged;
 
+    internal event EventHandler<HardwareInspectionRequestedEventArgs>?
+        HardwareInspectionRequested;
+
     internal ModelInspectionRequest? Request { get; private set; }
 
     internal ModelInspectionViewModel? ViewModel { get; private set; }
@@ -239,7 +243,8 @@ public sealed partial class ModelInspectionPage : Page
             var commands = new ModelInspectionPresentationCommands(
                 viewModel.CancelCommand,
                 viewModel.RetryCommand,
-                viewModel.ChooseAnotherCommand);
+                viewModel.ChooseAnotherCommand,
+                viewModel.CheckHardwareCommand);
 
             long lifetime = checked(_navigationLifetime + 1);
             var motionSettingsRegistration = new MotionSettingsChangeRegistration(
@@ -429,12 +434,30 @@ public sealed partial class ModelInspectionPage : Page
     {
         viewModel.PropertyChanged += ViewModel_PropertyChanged;
         viewModel.ChooseAnotherRequested += ViewModel_ChooseAnotherRequested;
+        viewModel.HardwareInspectionRequested +=
+            ViewModel_HardwareInspectionRequested;
     }
 
     private void Unsubscribe(ModelInspectionViewModel viewModel)
     {
         viewModel.PropertyChanged -= ViewModel_PropertyChanged;
         viewModel.ChooseAnotherRequested -= ViewModel_ChooseAnotherRequested;
+        viewModel.HardwareInspectionRequested -=
+            ViewModel_HardwareInspectionRequested;
+    }
+
+    internal void SetHardwareRouteAvailable(bool isAvailable) =>
+        ViewModel?.SetHardwareRouteAvailable(isAvailable);
+
+    private void ViewModel_HardwareInspectionRequested(
+        object? sender,
+        HardwareInspectionRequestedEventArgs eventArguments)
+    {
+        if (sender is ModelInspectionViewModel viewModel &&
+            ReferenceEquals(viewModel, ViewModel))
+        {
+            HardwareInspectionRequested?.Invoke(this, eventArguments);
+        }
     }
 
     private void ViewModel_PropertyChanged(
@@ -1545,6 +1568,7 @@ public sealed partial class ModelInspectionPage : Page
 
         _navigationLifetime = retiredLifetime;
         FooterStatusChanged = null;
+        HardwareInspectionRequested = null;
         Request = null;
         ViewModel = null;
         _startedViewModel = null;

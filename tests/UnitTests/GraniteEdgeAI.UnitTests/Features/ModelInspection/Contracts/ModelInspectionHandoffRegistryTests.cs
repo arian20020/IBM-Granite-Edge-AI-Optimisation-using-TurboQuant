@@ -47,6 +47,23 @@ public sealed class ModelInspectionHandoffRegistryTests
     }
 
     [TestMethod]
+    public void RegisterIssued_AcceptsOnlyAnExactCurrentProjectedHandoff()
+    {
+        var registry = new ModelInspectionHandoffRegistry();
+        Assert.IsTrue(ModelInspectionHandoffProjector.TryProject(
+            ModelRunId,
+            ModelRunId,
+            CreateReadyTerminal(),
+            out ModelInspectionHandoff? handoff));
+        Assert.IsNotNull(handoff);
+
+        Assert.IsFalse(registry.TryRegisterIssued(handoff));
+        registry.ActivateModelRun(ModelRunId);
+        Assert.IsTrue(registry.TryRegisterIssued(handoff));
+        Assert.IsFalse(registry.TryRegisterIssued(handoff));
+    }
+
+    [TestMethod]
     public void Bind_IsAtomicAndRejectsDuplicateWrongOrAlteredClaims()
     {
         (ModelInspectionHandoffRegistry registry, ModelInspectionHandoff handoff) =

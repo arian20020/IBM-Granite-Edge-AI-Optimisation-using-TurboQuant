@@ -1,4 +1,5 @@
 using GraniteEdgeAI.Features.ModelInspection.Contracts;
+using GraniteEdgeAI.Features.ModelInspection.Handoff;
 using GraniteEdgeAI.Features.ModelInspection.Services;
 using System;
 using System.ComponentModel;
@@ -27,12 +28,14 @@ internal sealed class ModelInspectionViewModel : INotifyPropertyChanged, IDispos
     private readonly DelegateCommand cancelCommand;
     private readonly DelegateCommand retryCommand;
     private readonly DelegateCommand chooseAnotherCommand;
+    private readonly DelegateCommand checkHardwareCommand;
 
     private InspectionAttempt? activeAttempt;
     private ModelInspectionViewSnapshot snapshot =
         ModelInspectionViewSnapshot.Initial;
     private long nextAttemptGeneration;
     private bool lifecycleInvalidated;
+    private bool hardwareRouteAvailable;
     private bool disposed;
 
     internal ModelInspectionViewModel(
@@ -64,11 +67,17 @@ internal sealed class ModelInspectionViewModel : INotifyPropertyChanged, IDispos
         chooseAnotherCommand = new DelegateCommand(
             _ => ChooseAnother(),
             _ => CanChooseAnother());
+        checkHardwareCommand = new DelegateCommand(
+            _ => RequestHardwareInspection(),
+            _ => CanCheckHardware());
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
     internal event EventHandler? ChooseAnotherRequested;
+
+    internal event EventHandler<HardwareInspectionRequestedEventArgs>?
+        HardwareInspectionRequested;
 
     internal ModelInspectionRequest Request { get; }
 
@@ -94,6 +103,23 @@ internal sealed class ModelInspectionViewModel : INotifyPropertyChanged, IDispos
     internal ICommand RetryCommand => retryCommand;
 
     internal ICommand ChooseAnotherCommand => chooseAnotherCommand;
+
+    internal ICommand CheckHardwareCommand => checkHardwareCommand;
+
+    internal void SetHardwareRouteAvailable(bool isAvailable)
+    {
+        lock (stateLock)
+        {
+            if (disposed || hardwareRouteAvailable == isAvailable)
+            {
+                return;
+            }
+
+            hardwareRouteAvailable = isAvailable;
+        }
+
+        checkHardwareCommand.RaiseCanExecuteChanged();
+    }
 
     /// <summary>
     /// Starts a fresh attempt for the exact immutable navigation request.
@@ -287,6 +313,7 @@ internal sealed class ModelInspectionViewModel : INotifyPropertyChanged, IDispos
         RaiseCommandStates();
         invalidatedAttempt?.Cancel();
         ChooseAnotherRequested = null;
+        HardwareInspectionRequested = null;
     }
 
     private void PublishProgress(
@@ -469,11 +496,54 @@ internal sealed class ModelInspectionViewModel : INotifyPropertyChanged, IDispos
         }
     }
 
+    private bool CanCheckHardware()
+    {
+        lock (stateLock)
+        {
+            return CanCheckHardwareLocked();
+        }
+    }
+
+    private bool CanCheckHardwareLocked()
+    {
+        return !disposed &&
+            hardwareRouteAvailable &&
+            activeAttempt is null &&
+            ModelInspectionHandoff.IsUuidV4(snapshot.ModelInspectionRunId) &&
+            snapshot.TerminalResult is
+            {
+                Status: ModelInspectionExecutionStatus.Completed,
+                Result.CanContinueToHardwareFit: true
+            };
+    }
+
+    private void RequestHardwareInspection()
+    {
+        ModelInspectionHandoff? handoff;
+        lock (stateLock)
+        {
+            if (!CanCheckHardwareLocked() ||
+                !ModelInspectionHandoffProjector.TryProject(
+                    snapshot.ModelInspectionRunId,
+                    snapshot.ModelInspectionRunId,
+                    snapshot.TerminalResult!,
+                    out handoff))
+            {
+                return;
+            }
+        }
+
+        HardwareInspectionRequested?.Invoke(
+            this,
+            new HardwareInspectionRequestedEventArgs(handoff!));
+    }
+
     private void RaiseCommandStates()
     {
         cancelCommand.RaiseCanExecuteChanged();
         retryCommand.RaiseCanExecuteChanged();
         chooseAnotherCommand.RaiseCanExecuteChanged();
+        checkHardwareCommand.RaiseCanExecuteChanged();
     }
 
     private long GetNextAttemptGenerationLocked()

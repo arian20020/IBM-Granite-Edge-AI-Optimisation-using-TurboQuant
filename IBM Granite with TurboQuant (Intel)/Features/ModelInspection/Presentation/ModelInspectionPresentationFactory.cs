@@ -699,10 +699,11 @@ internal static class ModelInspectionPresentationFactory
                 AutomationName = "Actions after model inspection",
                 SecondaryActionOne = choose,
                 SecondaryActionTwo = report,
-                PrimaryAction = CreateFutureAction(
+                PrimaryAction = CreateHardwareAction(
                     "hardware-fit",
                     "Check hardware fit",
-                    "Check model hardware fit")
+                    "Check model hardware fit",
+                    commands.CheckHardware)
             },
             ModelInspectionOutcome.ReadyWithWarnings => new()
             {
@@ -712,10 +713,11 @@ internal static class ModelInspectionPresentationFactory
                 AutomationName = "Actions after model inspection",
                 SecondaryActionOne = choose,
                 SecondaryActionTwo = report,
-                PrimaryAction = CreateFutureAction(
+                PrimaryAction = CreateHardwareAction(
                     "continue-hardware",
                     "Continue to hardware check",
-                    "Continue to model hardware check")
+                    "Continue to model hardware check",
+                    commands.CheckHardware)
             },
             ModelInspectionOutcome.ConversionRequired => new()
             {
@@ -819,6 +821,21 @@ internal static class ModelInspectionPresentationFactory
             ActionId = actionId,
             AutomationHelpText = ComingLater
         };
+    }
+
+    private static InspectionActionPresentation CreateHardwareAction(
+        string actionId,
+        string text,
+        string automationName,
+        ICommand? command)
+    {
+        return command is null
+            ? CreateFutureAction(actionId, text, automationName)
+            : CreateActiveAction(
+                actionId,
+                text,
+                automationName,
+                command);
     }
 
     private static ModelInspectionRegionKey CreateActionsRegionKey(

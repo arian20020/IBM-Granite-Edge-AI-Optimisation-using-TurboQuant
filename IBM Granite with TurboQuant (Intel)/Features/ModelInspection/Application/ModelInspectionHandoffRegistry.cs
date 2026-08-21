@@ -111,6 +111,25 @@ internal sealed class ModelInspectionHandoffRegistry : IDisposable
         }
     }
 
+    internal bool TryRegisterIssued(ModelInspectionHandoff handoff)
+    {
+        ArgumentNullException.ThrowIfNull(handoff);
+        lock (gate)
+        {
+            if (disposed ||
+                currentModelRunId == Guid.Empty ||
+                handoff.ModelInspectionRunId != currentModelRunId ||
+                entries.ContainsKey(handoff.ModelInspectionHandoffId) ||
+                HasLiveHandoffLocked(currentModelRunId))
+            {
+                return false;
+            }
+
+            entries.Add(handoff.ModelInspectionHandoffId, new Entry(handoff));
+            return true;
+        }
+    }
+
     internal bool TryBindToHardwareRun(
         ModelInspectionHandoff handoff,
         Guid expectedModelInspectionRunId,
