@@ -97,7 +97,7 @@ GenAI installation:
 C:\w5a\phase2-31661571860-1\i-genai
 
 GenAI decision:
-C:\w5a\accepted-route-a-genai-31656417607-1\decision.json
+C:\w5a\accepted-route-a-genai-31661571860-1\decision.json
 ```
 
 Accepted identities:
