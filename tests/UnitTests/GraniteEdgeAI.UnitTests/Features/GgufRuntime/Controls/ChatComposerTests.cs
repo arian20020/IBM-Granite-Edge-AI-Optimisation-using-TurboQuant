@@ -7,6 +7,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Shapes;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
@@ -18,9 +19,13 @@ public sealed class ChatComposerTests
 {
     [UITestMethod]
     [TestCategory("WinUI")]
-    public void ComposerExposesKnowledgeAttachmentActionAndCenteredGrowingPrompt()
+    public void ComposerUsesSingleSurfaceAndCenteredGrowingPrompt()
     {
         var composer = new ChatComposer();
+        Border surface = Assert.IsInstanceOfType<Border>(
+            composer.FindName("ComposerSurface"));
+        Border focusVisual = Assert.IsInstanceOfType<Border>(
+            composer.FindName("ComposerFocusVisual"));
         Button attachment = Assert.IsInstanceOfType<Button>(
             composer.FindName("AttachmentButton"));
         TextBox prompt = Assert.IsInstanceOfType<TextBox>(
@@ -35,14 +40,48 @@ public sealed class ChatComposerTests
         Assert.AreEqual(44, prompt.MinHeight);
         Assert.AreEqual(160, prompt.MaxHeight);
         Assert.IsTrue(double.IsNaN(prompt.Height), "The prompt must be free to grow.");
+        Assert.AreEqual(0, prompt.BorderThickness.Left);
+        Assert.AreEqual(new Thickness(12, 0, 12, 0), prompt.Padding);
         Assert.AreEqual(VerticalAlignment.Center, prompt.VerticalAlignment);
         Assert.AreEqual(VerticalAlignment.Center, prompt.VerticalContentAlignment);
         Assert.AreEqual("Type a message...", prompt.PlaceholderText);
+        Assert.AreEqual(Visibility.Collapsed, focusVisual.Visibility);
+        Assert.AreEqual(1, surface.BorderThickness.Left);
 
         composer.PromptText = "first line\nsecond line";
         Assert.AreEqual(VerticalAlignment.Top, prompt.VerticalContentAlignment);
         composer.PromptText = "one line";
         Assert.AreEqual(VerticalAlignment.Center, prompt.VerticalContentAlignment);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task PromptFocusUsesOnlyTheOuterComposerFocusVisual()
+    {
+        var composer = new ChatComposer();
+        TextBox prompt = Assert.IsInstanceOfType<TextBox>(
+            composer.FindName("PromptTextBox"));
+        Border focusVisual = Assert.IsInstanceOfType<Border>(
+            composer.FindName("ComposerFocusVisual"));
+        Button attachment = Assert.IsInstanceOfType<Button>(
+            composer.FindName("AttachmentButton"));
+        int gettingFocusCount = 0;
+        int losingFocusCount = 0;
+        prompt.GettingFocus += (_, _) => gettingFocusCount++;
+        prompt.LosingFocus += (_, _) => losingFocusCount++;
+        await using WinUiRenderHost host =
+            await WinUiRenderHost.ShowAsync(composer, 700, 180);
+
+        Assert.IsTrue(prompt.Focus(FocusState.Keyboard));
+        await WaitForLayoutAsync(prompt);
+        Assert.AreSame(prompt, FocusManager.GetFocusedElement(composer.XamlRoot));
+        Assert.AreEqual(1, gettingFocusCount);
+        Assert.AreEqual(0, losingFocusCount);
+        Assert.AreEqual(Visibility.Visible, focusVisual.Visibility);
+
+        Assert.IsTrue(attachment.Focus(FocusState.Keyboard));
+        await WaitForLayoutAsync(attachment);
+        Assert.AreEqual(Visibility.Collapsed, focusVisual.Visibility);
     }
 
     [UITestMethod]

@@ -6,7 +6,8 @@
     xmlns:attachments="using:GraniteEdgeAI.Features.GgufRuntime.Attachments">
     <Grid x:Name="ComposerRoot">
         <Border
-            Background="{ThemeResource GgufChatSurfaceBrush}"
+            x:Name="ComposerSurface"
+            Background="{ThemeResource GgufChatComposerBrush}"
             BorderBrush="{ThemeResource GgufChatBorderBrush}"
             BorderThickness="1"
             CornerRadius="22"
@@ -120,13 +121,27 @@
                         MaxHeight="160"
                         AcceptsReturn="True"
                         Padding="12,0"
+                        Style="{StaticResource GgufChatComposerTextBoxStyle}"
                         VerticalAlignment="Center"
                         VerticalContentAlignment="Center"
                         TextWrapping="Wrap"
                         PlaceholderText="Type a message..."
                         AutomationProperties.Name="Message"
+                        GettingFocus="PromptTextBox_GettingFocus"
+                        LosingFocus="PromptTextBox_LosingFocus"
                         TextChanged="PromptTextBox_TextChanged"
-                        SizeChanged="PromptTextBox_SizeChanged" />
+                        SizeChanged="PromptTextBox_SizeChanged">
+                        <TextBox.Resources>
+                            <SolidColorBrush x:Key="TextControlBackground" Color="Transparent" />
+                            <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="Transparent" />
+                            <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="Transparent" />
+                            <SolidColorBrush x:Key="TextControlBackgroundDisabled" Color="Transparent" />
+                            <SolidColorBrush x:Key="TextControlBorderBrush" Color="Transparent" />
+                            <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="Transparent" />
+                            <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="Transparent" />
+                            <SolidColorBrush x:Key="TextControlBorderBrushDisabled" Color="Transparent" />
+                        </TextBox.Resources>
+                    </TextBox>
                     <Button
                         x:Name="SendButton"
                         Grid.Column="2"
@@ -174,5 +189,13 @@
                 </Grid>
             </Grid>
         </Border>
+        <Border
+            x:Name="ComposerFocusVisual"
+            Margin="-2"
+            BorderBrush="{ThemeResource GgufChatComposerFocusedBorderBrush}"
+            BorderThickness="2"
+            CornerRadius="24"
+            IsHitTestVisible="False"
+            Visibility="Collapsed" />
     </Grid>
 </UserControl>

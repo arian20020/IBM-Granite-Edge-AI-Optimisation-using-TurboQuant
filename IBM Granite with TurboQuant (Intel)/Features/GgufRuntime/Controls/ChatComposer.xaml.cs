@@ -7,6 +7,7 @@ using GraniteEdgeAI.Features.GgufRuntime.Attachments;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 
 namespace GraniteEdgeAI.Features.GgufRuntime.Controls;
 
@@ -228,6 +229,12 @@ public sealed partial class ChatComposer : UserControl
 
     private void PromptTextBox_SizeChanged(object sender, SizeChangedEventArgs eventArguments) =>
         UpdatePromptVerticalAlignment();
+
+    private void PromptTextBox_GettingFocus(object sender, GettingFocusEventArgs eventArguments) =>
+        ComposerFocusVisual.Visibility = Visibility.Visible;
+
+    private void PromptTextBox_LosingFocus(object sender, LosingFocusEventArgs eventArguments) =>
+        ComposerFocusVisual.Visibility = Visibility.Collapsed;
 
     private void UpdatePromptVerticalAlignment()
     {
