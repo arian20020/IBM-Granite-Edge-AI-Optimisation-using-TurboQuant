@@ -66,9 +66,11 @@ public sealed class ModeComparerTests
     }
 
     private static IComparer<EvaluatedCandidate> Comparer(
-        CompatibilityMode mode, int preservation = 4096) =>
+        CompatibilityMode mode,
+        int preservation = 4096,
+        WeightQuantisation? bestAdmittedTier = null) =>
         ModeComparers.For(
-            mode, ContextTokenCount.FromTokens(preservation), Configuration());
+            mode, ContextTokenCount.FromTokens(preservation), Configuration(), bestAdmittedTier);
 
     private static void AssertPrefers(
         IComparer<EvaluatedCandidate> comparer,
@@ -106,6 +108,15 @@ public sealed class ModeComparerTests
             Comparer(CompatibilityMode.Quality),
             Candidate(context: 4096, quantisation: WeightQuantisation.Q3_K_M),
             Candidate(context: 2048, quantisation: WeightQuantisation.Q8_0));
+    }
+
+    [TestMethod]
+    public void Quality_PrefersAHigherEvidenceGradeOnceQualityTiers()
+    {
+        AssertPrefers(
+            Comparer(CompatibilityMode.Quality),
+            Candidate(evidence: EvidenceGrade.Verified),
+            Candidate(evidence: EvidenceGrade.Estimated));
     }
 
     [TestMethod]
@@ -201,6 +212,42 @@ public sealed class ModeComparerTests
             Comparer(CompatibilityMode.Balanced),
             Candidate(headroom: 8_000_000),
             Candidate(headroom: 1_000_000));
+    }
+
+    [TestMethod]
+    public void Balanced_TradesOneTierOfQualityForSubstantiallyMoreHeadroom()
+    {
+        // The trade that distinguishes Balanced from Quality: a candidate one
+        // tier below the best admitted tier, with far more headroom, must beat
+        // a top-tier candidate that barely fits. F16 and Q8_0 are adjacent
+        // positions in the declared WeightQuantisation ladder.
+        AssertPrefers(
+            Comparer(CompatibilityMode.Balanced, bestAdmittedTier: WeightQuantisation.F16),
+            Candidate(quantisation: WeightQuantisation.Q8_0, headroom: 9_000_000),
+            Candidate(quantisation: WeightQuantisation.F16, headroom: 100_000));
+    }
+
+    [TestMethod]
+    public void Balanced_RefusesTheTradeAcrossTwoTiers()
+    {
+        // Two tiers below the best (F16 -> Q6_K, distance 2) is out of band, so
+        // no amount of headroom buys it a win over an in-band top-tier candidate.
+        AssertPrefers(
+            Comparer(CompatibilityMode.Balanced, bestAdmittedTier: WeightQuantisation.F16),
+            Candidate(quantisation: WeightQuantisation.F16, headroom: 100_000),
+            Candidate(quantisation: WeightQuantisation.Q6_K, headroom: 9_000_000));
+    }
+
+    [TestMethod]
+    public void Quality_RefusesTheHeadroomTradeThatBalancedMakes()
+    {
+        // The same pair Balanced above accepts a headroom trade over. Quality
+        // must not: its ordering ranks quality tier strictly ahead of headroom,
+        // so the same inputs must produce the opposite winner.
+        AssertPrefers(
+            Comparer(CompatibilityMode.Quality),
+            Candidate(quantisation: WeightQuantisation.F16, headroom: 100_000),
+            Candidate(quantisation: WeightQuantisation.Q8_0, headroom: 9_000_000));
     }
 
     [TestMethod]

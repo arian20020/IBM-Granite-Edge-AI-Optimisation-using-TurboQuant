@@ -94,7 +94,7 @@ public sealed class ModeSelectionInvariantTests
                 .Select(entry => entry.EntryId)];
 
         return (
-            ModeSelector.SelectAll(new ModeSelectionRequest(
+            ModeSelector.SelectAll(ModeSelectionRequest.Create(
                 evaluated,
                 evidenceRequiring,
                 ContextTokenCount.FromTokens(4096),
@@ -105,16 +105,26 @@ public sealed class ModeSelectionInvariantTests
     [TestMethod]
     public void EveryModeIsAlwaysAccountedFor()
     {
-        foreach (ulong memory in new ulong[] { 64, 8, 2 })
-        {
-            (ModeSelectionOutcome outcome, _) = RunSpine(memory);
+        // At 64 GiB the support matrix's candidates fit comfortably, so every
+        // mode must resolve to an actual selection. At 2 GiB none of them do,
+        // so every mode must be unavailable for the specific reason that they
+        // do not fit - not merely present with a null-fingerprint placeholder.
+        (ModeSelectionOutcome ample, _) = RunSpine(64);
 
-            Assert.AreEqual(4, outcome.Selections.Count, $"at {memory} GiB");
-            Assert.IsTrue(
-                outcome.Selections.All(s => s.Availability != ModeAvailability.NotEstablished
-                    || s.SelectedFingerprint is null),
-                "a not-established mode must carry no selection");
-        }
+        Assert.AreEqual(4, ample.Selections.Count, "at 64 GiB");
+        Assert.IsTrue(
+            ample.Selections.All(s => s.Availability == ModeAvailability.Available
+                && s.SelectedFingerprint is not null),
+            "every mode must be available with a selection when memory is ample");
+
+        (ModeSelectionOutcome scarce, _) = RunSpine(2);
+
+        Assert.AreEqual(4, scarce.Selections.Count, "at 2 GiB");
+        Assert.IsTrue(
+            scarce.Selections.All(s => s.Availability == ModeAvailability.Unavailable
+                && s.Reason == ModeAdmissionReason.FitStateNotSafeOrNarrow
+                && s.SelectedFingerprint is null),
+            "every mode must be unavailable for not fitting when memory is scarce");
     }
 
     [TestMethod]
@@ -180,7 +190,7 @@ public sealed class ModeSelectionInvariantTests
         HashSet<string> requiring = [];
 
         ModeSelectionOutcome Run(IReadOnlyList<EvaluatedCandidate> order) =>
-            ModeSelector.SelectAll(new ModeSelectionRequest(
+            ModeSelector.SelectAll(ModeSelectionRequest.Create(
                 order, requiring, ContextTokenCount.FromTokens(4096), Baseline()));
 
         ModeSelectionOutcome forward = Run(evaluated);
@@ -196,22 +206,11 @@ public sealed class ModeSelectionInvariantTests
         }
     }
 
-    [TestMethod]
-    public void AnUnavailableModeAlwaysNamesItsReason()
-    {
-        (ModeSelectionOutcome outcome, _) = RunSpine(2);
-
-        foreach (CompatibilityModeSelection selection in outcome.Selections)
-        {
-            if (selection.Availability == ModeAvailability.Unavailable)
-            {
-                Assert.AreNotEqual(
-                    ModeAdmissionReason.None,
-                    selection.Reason,
-                    $"{selection.Mode} is unavailable but explains nothing.");
-            }
-        }
-    }
+    // AnUnavailableModeAlwaysNamesItsReason previously restated a guarantee
+    // CompatibilityModeSelection.Unavailable already throws on (it cannot
+    // construct an unavailable selection with ModeAdmissionReason.None), so the
+    // assertion could never fail. EveryModeIsAlwaysAccountedFor above now
+    // asserts the specific reason expected at 2 GiB, which subsumes it.
 
     [TestMethod]
     public void UseCurrentModelTracksTheBaselinesOwnFitAndNothingElse()

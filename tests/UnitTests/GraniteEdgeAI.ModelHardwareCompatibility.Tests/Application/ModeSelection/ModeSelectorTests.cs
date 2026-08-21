@@ -72,7 +72,7 @@ public sealed class ModeSelectorTests
     private static ModeSelectionOutcome Select(
         IReadOnlyList<EvaluatedCandidate> candidates,
         IReadOnlySet<string>? evidenceRequiringEntries = null) =>
-        ModeSelector.SelectAll(new ModeSelectionRequest(
+        ModeSelector.SelectAll(ModeSelectionRequest.Create(
             candidates,
             evidenceRequiringEntries ?? new HashSet<string>(),
             ContextTokenCount.FromTokens(4096),
@@ -156,13 +156,19 @@ public sealed class ModeSelectorTests
     [TestMethod]
     public void SelectAll_QualityPrefersThePreservedContext()
     {
+        EvaluatedCandidate preservedContext = Candidate(context: 4096);
+
         ModeSelectionOutcome outcome = Select(
-            [Candidate(kv: GgufKvCacheFormat.Q8_0, context: 2048), Candidate(context: 4096)]);
+            [Candidate(kv: GgufKvCacheFormat.Q8_0, context: 2048), preservedContext]);
 
         CompatibilityModeSelection quality =
             outcome.Selections.Single(s => s.Mode == CompatibilityMode.Quality);
 
         Assert.AreEqual(ModeAvailability.Available, quality.Availability);
+        Assert.AreEqual(
+            preservedContext.Fingerprint.Value,
+            quality.SelectedFingerprint?.Value,
+            "Quality must select the candidate that preserves the requested context.");
     }
 
     [TestMethod]
@@ -215,6 +221,46 @@ public sealed class ModeSelectorTests
     public void SelectAll_WithholdsUseCurrentModelWhenThereIsNoBaseline()
     {
         Assert.IsFalse(Select([Candidate(isBaseline: false)]).UseCurrentModelAvailable);
+    }
+
+    [TestMethod]
+    public void SelectAll_ReportsTheSameStableReasonRegardlessOfCandidateOrder()
+    {
+        // A mixed failure set: one candidate refused for not fitting, the other
+        // for evidence below the admission level. Reversing the input must not
+        // change which reason is reported - the explanation shown to a user
+        // cannot depend on the order candidates happened to arrive in.
+        EvaluatedCandidate doesNotFit = Candidate(state: CompatibilityFitState.DoesNotFit);
+        EvaluatedCandidate needsEvidence = Candidate(
+            kv: GgufKvCacheFormat.Q8_0, requiresEvidence: true, evidence: EvidenceGrade.Estimated);
+
+        IReadOnlySet<string> evidenceRequiring = new HashSet<string> { "needs-evidence" };
+
+        ModeSelectionOutcome forward = Select([doesNotFit, needsEvidence], evidenceRequiring);
+        ModeSelectionOutcome reversed = Select([needsEvidence, doesNotFit], evidenceRequiring);
+
+        foreach (CompatibilityMode mode in new[]
+        {
+            CompatibilityMode.Automatic,
+            CompatibilityMode.Quality,
+            CompatibilityMode.Balanced,
+            CompatibilityMode.Efficiency
+        })
+        {
+            ModeAdmissionReason forwardReason =
+                forward.Selections.Single(s => s.Mode == mode).Reason;
+            ModeAdmissionReason reversedReason =
+                reversed.Selections.Single(s => s.Mode == mode).Reason;
+
+            Assert.AreEqual(
+                ModeAdmissionReason.FitStateNotSafeOrNarrow,
+                forwardReason,
+                $"{mode} did not report the highest-precedence reason.");
+            Assert.AreEqual(
+                forwardReason,
+                reversedReason,
+                $"{mode} depended on candidate order for its reported reason.");
+        }
     }
 
     [TestMethod]

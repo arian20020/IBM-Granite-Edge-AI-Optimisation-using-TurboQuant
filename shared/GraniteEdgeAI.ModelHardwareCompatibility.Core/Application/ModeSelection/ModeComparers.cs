@@ -46,9 +46,10 @@ internal static class ModeComparers
             CompatibilityMode.Balanced =>
             [
                 SelectionFactor.PreservesRequestedContext,
-                SelectionFactor.QualityTier,
+                SelectionFactor.QualityBand,
                 SelectionFactor.Headroom,
                 SelectionFactor.PerformanceNotEstablished,
+                SelectionFactor.QualityTier,
                 SelectionFactor.LeastDestructivePreparation,
                 SelectionFactor.Fingerprint
             ],
@@ -71,20 +72,23 @@ internal static class ModeComparers
     internal static IComparer<EvaluatedCandidate> For(
         CompatibilityMode mode,
         ContextTokenCount preservationTarget,
-        GgufRouteConfiguration baselineConfiguration)
+        GgufRouteConfiguration baselineConfiguration,
+        WeightQuantisation? bestAdmittedTier = null)
     {
         ArgumentNullException.ThrowIfNull(baselineConfiguration);
 
         // Validates the mode and gives the comparer its ordering.
         IReadOnlyList<SelectionFactor> factors = FactorsFor(mode);
 
-        return new FactorComparer(factors, preservationTarget, baselineConfiguration);
+        return new FactorComparer(
+            factors, preservationTarget, baselineConfiguration, bestAdmittedTier);
     }
 
     private sealed class FactorComparer(
         IReadOnlyList<SelectionFactor> factors,
         ContextTokenCount preservationTarget,
-        GgufRouteConfiguration baselineConfiguration)
+        GgufRouteConfiguration baselineConfiguration,
+        WeightQuantisation? bestAdmittedTier)
         : IComparer<EvaluatedCandidate>
     {
         public int Compare(EvaluatedCandidate? left, EvaluatedCandidate? right)
@@ -118,6 +122,12 @@ internal static class ModeComparers
                 // Higher is better.
                 SelectionFactor.QualityTier =>
                     Bits(b).CompareTo(Bits(a)),
+
+                // Boolean band membership computed against the admitted set's
+                // best tier, not a pairwise comparison: true (in band) sorts
+                // ahead of false (out of band).
+                SelectionFactor.QualityBand =>
+                    Flag(InBand(a), InBand(b)),
 
                 SelectionFactor.EvidenceGrade =>
                     b.Evidence.CompareTo(a.Evidence),
@@ -156,6 +166,30 @@ internal static class ModeComparers
             candidate.EffectiveQuantisation == WeightQuantisation.Unknown
                 ? 0m
                 : WeightQuantisationMap.BitsPerWeight(candidate.EffectiveQuantisation);
+
+        /// <summary>
+        /// Whether a candidate sits within one <c>WeightQuantisation</c> ladder
+        /// position of the best tier among the admitted set. "One tier" is
+        /// adjacent-position distance in the declared ladder (which is ordered
+        /// highest to lowest quality), not a bits-per-weight delta: BF16 and F16
+        /// are both 16 bits but are distinct tiers. A candidate whose effective
+        /// quantisation is <see cref="WeightQuantisation.Unknown"/>, or a set
+        /// with no established best tier at all, is treated as outside any band.
+        /// </summary>
+        private bool InBand(EvaluatedCandidate candidate)
+        {
+            if (bestAdmittedTier is not { } best
+                || best == WeightQuantisation.Unknown
+                || candidate.EffectiveQuantisation == WeightQuantisation.Unknown)
+            {
+                return false;
+            }
+
+            int distance = Math.Abs(
+                (int)candidate.EffectiveQuantisation - (int)best);
+
+            return distance <= 1;
+        }
 
         private static int Destructiveness(EvaluatedCandidate candidate) =>
             candidate.Preparation switch

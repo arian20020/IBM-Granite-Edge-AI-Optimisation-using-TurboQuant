@@ -20,6 +20,15 @@ internal enum ModeAdmissionReason
     /// </summary>
     EvidenceBelowAdmissionLevel,
 
-    /// <summary>The requested backend is not the one the candidate binds.</summary>
+    /// <summary>
+    /// The requested backend is not the one the candidate binds.
+    ///
+    /// Deferred, not forgotten: nothing produces this reason yet because nothing
+    /// upstream of mode selection carries a <em>requested</em> backend to
+    /// compare against — that arrives with the orchestrator (spec section 11's
+    /// fourth hard gate). The member exists now so <see cref="ModeAdmission"/>
+    /// and <see cref="ModeSelector"/> have somewhere to report it the day the
+    /// orchestrator supplies one.
+    /// </summary>
     BackendMismatch
 }
