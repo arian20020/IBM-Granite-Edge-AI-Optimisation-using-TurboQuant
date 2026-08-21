@@ -36,8 +36,8 @@ public sealed class OfficialCpuFixtureTests
             "FIX-01 requires independent staged closures.");
 
         string package = LocateCanonicalPackage();
-        await VerifyClosureAsync(stageA, package).ConfigureAwait(false);
-        await VerifyClosureAsync(stageB, package).ConfigureAwait(false);
+        await VerifyClosureAsync("A", stageA, package).ConfigureAwait(false);
+        await VerifyClosureAsync("B", stageB, package).ConfigureAwait(false);
     }
 
     [TestMethod]
@@ -283,18 +283,34 @@ public sealed class OfficialCpuFixtureTests
         await AssertNoOfficialWorkerProcessAsync().ConfigureAwait(false);
     }
 
-    private static async Task VerifyClosureAsync(string stage, string package)
+    private static async Task VerifyClosureAsync(
+        string closureLabel,
+        string stage,
+        string package)
     {
         OpenVinoWorkerClient client = CreateClient(stage);
         Guid inspectionRunId = Guid.NewGuid();
-        IOpenVinoEvent inspected = await client.InspectAsync(
-            new StartInspectionCommand(
-                inspectionRunId,
-                package,
-                PackageDigest,
-                ModelDigest,
-                ModelLength),
-            CancellationToken.None).ConfigureAwait(false);
+        IOpenVinoEvent inspected;
+        try
+        {
+            inspected = await client.InspectAsync(
+                new StartInspectionCommand(
+                    inspectionRunId,
+                    package,
+                    PackageDigest,
+                    ModelDigest,
+                    ModelLength),
+                CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (OpenVinoWorkerClientException error)
+        {
+            Assert.Fail(
+                $"Closure {closureLabel} inspection boundary failed with " +
+                $"{error.SupportCode}; " +
+                $"stderr='{error.RetainedStandardError}', " +
+                $"truncated={error.StandardErrorTruncated}.");
+            throw;
+        }
 
         InspectionCompletedEvent inspection =
             Assert.IsInstanceOfType<InspectionCompletedEvent>(inspected);
@@ -499,6 +515,38 @@ public sealed class OfficialCpuFixtureTests
         Assert.Fail("An official OpenVINO worker process remained after cleanup.");
     }
 
+    private static string CreateOperationTempRoot(string prefix)
+    {
+        string root = Path.GetFullPath(
+            Directory.CreateTempSubdirectory(prefix).FullName);
+        Assert.IsTrue(
+            IsStrictDescendant(Path.GetTempPath(), root),
+            "Operation-owned cleanup root escaped the system temp root.");
+        return root;
+    }
+
+    private static void AssertCleanupSeparatedFromSource(
+        string source,
+        string cleanupRoot)
+    {
+        string fullSource = Path.GetFullPath(source);
+        string fullCleanup = Path.GetFullPath(cleanupRoot);
+        Assert.AreNotEqual(fullSource, fullCleanup, ignoreCase: true);
+        Assert.IsFalse(IsStrictDescendant(fullSource, fullCleanup));
+        Assert.IsFalse(IsStrictDescendant(fullCleanup, fullSource));
+    }
+
+    private static bool IsStrictDescendant(string parent, string candidate)
+    {
+        string fullParent = Path.GetFullPath(parent)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) +
+            Path.DirectorySeparatorChar;
+        string fullCandidate = Path.GetFullPath(candidate);
+        return fullCandidate.Length > fullParent.Length &&
+            fullCandidate.StartsWith(
+                fullParent, StringComparison.OrdinalIgnoreCase);
+    }
+
     private sealed class TemporaryPackage : IDisposable
     {
         private TemporaryPackage(string path) => Path = path;
@@ -506,7 +554,9 @@ public sealed class OfficialCpuFixtureTests
 
         public static TemporaryPackage CopyFrom(string source)
         {
-            string root = Directory.CreateTempSubdirectory("GraniteEdgeAI-OpenVino-Official-").FullName;
+            string root = CreateOperationTempRoot(
+                "GraniteEdgeAI-OpenVino-Official-");
+            AssertCleanupSeparatedFromSource(source, root);
             foreach (string directory in Directory.EnumerateDirectories(source, "*", SearchOption.AllDirectories))
             {
                 Directory.CreateDirectory(System.IO.Path.Combine(
@@ -524,7 +574,11 @@ public sealed class OfficialCpuFixtureTests
             return new TemporaryPackage(System.IO.Path.GetFullPath(root));
         }
 
-        public void Dispose() => Directory.Delete(Path, recursive: true);
+        public void Dispose()
+        {
+            Assert.IsTrue(IsStrictDescendant(System.IO.Path.GetTempPath(), Path));
+            Directory.Delete(Path, recursive: true);
+        }
     }
 
     private sealed class TemporaryTree : IDisposable
@@ -536,11 +590,12 @@ public sealed class OfficialCpuFixtureTests
         public string Path { get; }
 
         public static TemporaryTree CreateEmpty(string prefix) => new(
-            Directory.CreateTempSubdirectory(prefix).FullName);
+            CreateOperationTempRoot(prefix));
 
         public static TemporaryTree CopyFrom(string source, string prefix)
         {
             TemporaryTree result = CreateEmpty(prefix);
+            AssertCleanupSeparatedFromSource(source, result.Path);
             foreach (string directory in Directory.EnumerateDirectories(
                 source, "*", SearchOption.AllDirectories))
             {
@@ -562,6 +617,7 @@ public sealed class OfficialCpuFixtureTests
 
         public void DeleteAndAssert()
         {
+            Assert.IsTrue(IsStrictDescendant(System.IO.Path.GetTempPath(), Path));
             Directory.Delete(Path, recursive: true);
             Assert.IsFalse(Directory.Exists(Path));
             _deleted = true;
@@ -571,6 +627,7 @@ public sealed class OfficialCpuFixtureTests
         {
             if (!_deleted && Directory.Exists(Path))
             {
+                Assert.IsTrue(IsStrictDescendant(System.IO.Path.GetTempPath(), Path));
                 Directory.Delete(Path, recursive: true);
             }
         }

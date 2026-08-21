@@ -1,5 +1,6 @@
 #include "runtime_evidence.hpp"
 
+#include "namespace_monitor.hpp"
 #include "protocol.hpp"
 
 #include <windows.h>
@@ -14,6 +15,7 @@
 #include <array>
 #include <cwctype>
 #include <cstring>
+#include <exception>
 #include <fstream>
 #include <iomanip>
 #include <set>
@@ -25,6 +27,8 @@ namespace granite::official_worker {
 namespace {
 
 using json = nlohmann::json;
+
+void verify_loaded_module_membership_only(const runtime_context& runtime);
 
 class algorithm_handle final {
 public:
@@ -51,23 +55,6 @@ public:
 private:
     BCRYPT_HASH_HANDLE value_{};
 };
-
-std::wstring lower_path(std::filesystem::path path) {
-    std::wstring value = std::filesystem::weakly_canonical(std::move(path)).wstring();
-    std::transform(value.begin(), value.end(), value.begin(), [](wchar_t item) {
-        return static_cast<wchar_t>(std::towlower(item));
-    });
-    if (!value.empty() && value.back() != L'\\') value.push_back(L'\\');
-    return value;
-}
-
-bool starts_with_path(const std::filesystem::path& path, const std::wstring& root) {
-    std::wstring value = std::filesystem::weakly_canonical(path).wstring();
-    std::transform(value.begin(), value.end(), value.begin(), [](wchar_t item) {
-        return static_cast<wchar_t>(std::towlower(item));
-    });
-    return value.size() >= root.size() && value.compare(0, root.size(), root) == 0;
-}
 
 [[noreturn]] void integrity_failure() {
     throw protocol_error("runtime integrity failed");
@@ -103,12 +90,28 @@ private:
     HANDLE value_;
 };
 
-HANDLE open_runtime_path(const std::filesystem::path& path, bool directory) {
-    const DWORD flags = FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_RANDOM_ACCESS |
-        (directory ? FILE_FLAG_BACKUP_SEMANTICS : 0U);
+HANDLE open_runtime_path(
+    const std::filesystem::path& path,
+    bool directory) {
+    const DWORD flags = FILE_FLAG_OPEN_REPARSE_POINT |
+        (directory ? FILE_FLAG_BACKUP_SEMANTICS : FILE_FLAG_RANDOM_ACCESS);
     const HANDLE handle = CreateFileW(
         path.c_str(), directory ? FILE_READ_ATTRIBUTES : GENERIC_READ,
         FILE_SHARE_READ, nullptr, OPEN_EXISTING, flags, nullptr);
+    if (handle == INVALID_HANDLE_VALUE) integrity_failure();
+    return handle;
+}
+
+HANDLE open_runtime_monitor_path(const std::filesystem::path& path) {
+    const HANDLE handle = CreateFileW(
+        path.c_str(),
+        FILE_READ_ATTRIBUTES | FILE_LIST_DIRECTORY,
+        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+        nullptr,
+        OPEN_EXISTING,
+        FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS |
+            FILE_FLAG_OVERLAPPED,
+        nullptr);
     if (handle == INVALID_HANDLE_VALUE) integrity_failure();
     return handle;
 }
@@ -507,7 +510,8 @@ runtime_context::runtime_context(runtime_context&& other) noexcept
       root_identity_(other.root_identity_),
       manifest_identity_(other.manifest_identity_),
       entries_(std::move(other.entries_)),
-      handles_(std::move(other.handles_)) {
+      handles_(std::move(other.handles_)),
+      monitor_(std::move(other.monitor_)) {
     other.handles_.clear();
 }
 
@@ -520,6 +524,7 @@ runtime_context& runtime_context::operator=(runtime_context&& other) noexcept {
         manifest_identity_ = other.manifest_identity_;
         entries_ = std::move(other.entries_);
         handles_ = std::move(other.handles_);
+        monitor_ = std::move(other.monitor_);
         other.handles_.clear();
     }
     return *this;
@@ -528,10 +533,18 @@ runtime_context& runtime_context::operator=(runtime_context&& other) noexcept {
 const runtime_evidence& runtime_context::evidence() const noexcept { return evidence_; }
 const std::filesystem::path& runtime_context::root() const noexcept { return root_; }
 
-void runtime_context::verify_topology() const {
+void runtime_context::verify_topology(bool drain_notifications) const {
     try {
+        if (monitor_ == nullptr || monitor_->changed()) {
+            throw worker_failure(
+                "runtime_integrity_failed", true, "runtime namespace changed");
+        }
         require_exact_topology(
             root_, root_identity_, manifest_identity_, entries_);
+        if (monitor_->changed(drain_notifications)) {
+            throw worker_failure(
+                "runtime_integrity_failed", true, "runtime namespace changed");
+        }
     } catch (const worker_failure&) {
         throw;
     } catch (...) {
@@ -547,10 +560,12 @@ bool runtime_context::contains_approved_file(
     });
 }
 
-runtime_context initialize_verified_runtime_at(
+runtime_context runtime_context::initialize(
     const std::filesystem::path& worker_root,
     const native_path_open_observer& before_path_open,
-    const std::function<void()>& after_handles_acquired) {
+    const std::function<void()>& after_handles_acquired,
+    const runtime_load_observer& load_observer,
+    bool verify_modules) {
     runtime_context context;
     const std::filesystem::path root =
         std::filesystem::absolute(worker_root).lexically_normal();
@@ -562,45 +577,71 @@ runtime_context initialize_verified_runtime_at(
         context.root_ = root;
         context.root_identity_ = file_identity(root_handle.get());
         context.handles_.push_back(root_handle.release());
+        scoped_runtime_handle monitor_handle(open_runtime_monitor_path(root));
+        require_handle_kind(monitor_handle.get(), true);
+        require_final_contained(root, monitor_handle.get(), true);
+        if (file_identity(monitor_handle.get()) != context.root_identity_) {
+            integrity_failure();
+        }
+        context.monitor_ =
+            std::make_unique<namespace_monitor>(monitor_handle.release());
 
         const std::filesystem::path manifest = root / L"worker-manifest.json";
         verified_manifest verified = verify_manifest(
             root, manifest, context.handles_, before_path_open);
         context.manifest_identity_ = verified.identity;
         context.entries_ = std::move(verified.entries);
-        context.verify_topology();
+        context.verify_topology(true);
         if (after_handles_acquired) after_handles_acquired();
-        context.verify_topology();
+        context.verify_topology(true);
 
         if (!SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_SYSTEM32 | LOAD_LIBRARY_SEARCH_USER_DIRS) ||
             !SetDllDirectoryW(L"") || AddDllDirectory(root.c_str()) == nullptr) {
             throw protocol_error("runtime loader hardening failed");
         }
+        const auto verify_integrity = [&](bool drain_notifications) {
+            std::exception_ptr first_failure;
+            const auto capture = [&](const auto& check) {
+                try {
+                    check();
+                } catch (...) {
+                    if (first_failure == nullptr) first_failure = std::current_exception();
+                }
+            };
+            capture([&] { context.verify_topology(drain_notifications); });
+            if (verify_modules) {
+                capture([&] { verify_loaded_module_membership_only(context); });
+            }
+            if (first_failure != nullptr) std::rethrow_exception(first_failure);
+        };
         ov::Version runtime{};
         try {
-            context.verify_topology();
+            verify_integrity(false);
+            if (load_observer) load_observer(runtime_load_stage::runtime_version);
             runtime = ov::get_openvino_version();
-            context.verify_topology();
+            verify_integrity(true);
         } catch (...) {
-            context.verify_topology();
+            verify_integrity(true);
             throw;
         }
         ov::Version genai{};
         try {
-            context.verify_topology();
+            verify_integrity(false);
+            if (load_observer) load_observer(runtime_load_stage::genai_version);
             genai = ov::genai::get_version();
-            context.verify_topology();
+            verify_integrity(true);
         } catch (...) {
-            context.verify_topology();
+            verify_integrity(true);
             throw;
         }
         std::string tokenizers;
         try {
-            context.verify_topology();
+            verify_integrity(false);
+            if (load_observer) load_observer(runtime_load_stage::tokenizers_version);
             tokenizers = product_version(root / L"openvino_tokenizers.dll");
-            context.verify_topology();
+            verify_integrity(true);
         } catch (...) {
-            context.verify_topology();
+            verify_integrity(true);
             throw;
         }
         context.evidence_ = {
@@ -614,18 +655,59 @@ runtime_context initialize_verified_runtime_at(
             context.evidence_.tokenizers_build != "2026.3.0.0-703-183c6f25cda") {
             throw protocol_error("runtime identity mismatch");
         }
+        verify_integrity(true);
         return context;
     } catch (...) {
+        const std::exception_ptr original_failure = std::current_exception();
+        std::exception_ptr integrity_check_failure;
+        const auto capture_integrity = [&](const auto& check) {
+            try {
+                check();
+            } catch (...) {
+                if (integrity_check_failure == nullptr) {
+                    integrity_check_failure = std::current_exception();
+                }
+            }
+        };
+        if (context.monitor_ != nullptr) {
+            capture_integrity([&] { context.verify_topology(true); });
+            if (verify_modules) {
+                capture_integrity(
+                    [&] { verify_loaded_module_membership_only(context); });
+            }
+        }
         close_runtime_handles(context.handles_);
-        throw;
+        if (integrity_check_failure != nullptr) {
+            std::rethrow_exception(integrity_check_failure);
+        }
+        std::rethrow_exception(original_failure);
     }
 }
 
-runtime_context initialize_verified_runtime() {
-    return initialize_verified_runtime_at(executable_directory(), {}, {});
+runtime_context initialize_verified_runtime_at(
+    const std::filesystem::path& worker_root,
+    const native_path_open_observer& before_path_open,
+    const std::function<void()>& after_handles_acquired) {
+    return runtime_context::initialize(
+        worker_root, before_path_open, after_handles_acquired, {}, false);
 }
 
-void verify_loaded_module_closure(const runtime_context& runtime) {
+runtime_context initialize_verified_runtime_at(
+    const std::filesystem::path& worker_root,
+    const native_path_open_observer& before_path_open,
+    const std::function<void()>& after_handles_acquired,
+    const runtime_load_observer& load_observer) {
+    return runtime_context::initialize(
+        worker_root, before_path_open, after_handles_acquired, load_observer, false);
+}
+
+runtime_context initialize_verified_runtime() {
+    return runtime_context::initialize(executable_directory(), {}, {}, {}, true);
+}
+
+namespace {
+
+void verify_loaded_module_membership_only(const runtime_context& runtime) {
     const auto fail = []() -> void {
         throw worker_failure(
             "runtime_integrity_failed", true, "module escaped verified closure");
@@ -637,12 +719,18 @@ void verify_loaded_module_closure(const runtime_context& runtime) {
         required > sizeof(modules)) {
         fail();
     }
+    wchar_t system_buffer[MAX_PATH]{};
     wchar_t windows_buffer[MAX_PATH]{};
+    const UINT system_length = GetSystemDirectoryW(system_buffer, MAX_PATH);
     const UINT windows_length = GetWindowsDirectoryW(windows_buffer, MAX_PATH);
-    if (windows_length == 0 || windows_length >= MAX_PATH) fail();
-    const std::wstring windows_root = lower_path(std::filesystem::path(windows_buffer));
+    if (system_length == 0 || system_length >= MAX_PATH ||
+        windows_length == 0 || windows_length >= MAX_PATH) {
+        fail();
+    }
+    const std::vector<std::filesystem::path> os_roots{
+        std::filesystem::path(system_buffer),
+        std::filesystem::path(windows_buffer) / L"WinSxS"};
     try {
-        runtime.verify_topology();
         const std::size_t count = required / sizeof(HMODULE);
         std::wstring path_buffer(32768U, L'\0');
         for (std::size_t index = 0; index < count; ++index) {
@@ -653,14 +741,57 @@ void verify_loaded_module_closure(const runtime_context& runtime) {
             path_buffer.resize(length);
             const std::filesystem::path module(path_buffer);
             path_buffer.resize(32768U);
-            if (starts_with_path(module, windows_root)) continue;
+            if (is_module_in_validated_os_roots(module, os_roots)) continue;
             verify_module_file_membership(runtime, module);
         }
-        runtime.verify_topology();
     } catch (const worker_failure&) {
         throw;
     } catch (...) {
         fail();
+    }
+}
+
+}  // namespace
+
+void verify_loaded_module_closure(const runtime_context& runtime) {
+    std::exception_ptr first_failure;
+    const auto capture = [&](const auto& check) {
+        try {
+            check();
+        } catch (...) {
+            if (first_failure == nullptr) first_failure = std::current_exception();
+        }
+    };
+    capture([&] { runtime.verify_topology(); });
+    capture([&] { verify_loaded_module_membership_only(runtime); });
+    capture([&] { runtime.verify_topology(); });
+    if (first_failure != nullptr) std::rethrow_exception(first_failure);
+}
+
+bool is_module_in_validated_os_roots(
+    const std::filesystem::path& module,
+    const std::vector<std::filesystem::path>& roots) {
+    try {
+        scoped_runtime_handle module_handle(open_runtime_path(module, false));
+        require_handle_kind(module_handle.get(), false);
+        std::wstring module_final = final_path(module_handle.get());
+        std::transform(
+            module_final.begin(), module_final.end(), module_final.begin(), towlower);
+        for (const auto& root : roots) {
+            scoped_runtime_handle root_handle(open_runtime_path(root, true));
+            require_handle_kind(root_handle.get(), true);
+            std::wstring root_final = final_path(root_handle.get());
+            std::transform(
+                root_final.begin(), root_final.end(), root_final.begin(), towlower);
+            if (!root_final.ends_with(L'\\')) root_final.push_back(L'\\');
+            if (module_final.size() > root_final.size() &&
+                module_final.compare(0U, root_final.size(), root_final) == 0) {
+                return true;
+            }
+        }
+        return false;
+    } catch (...) {
+        return false;
     }
 }
 

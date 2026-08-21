@@ -40,6 +40,7 @@ struct turn_control final {
     std::atomic_bool stop{false};
     std::atomic_bool cancel{false};
     std::atomic_bool first_fragment_buffered{false};
+    std::atomic_bool first_fragment_release{false};
     std::mutex mutex;
     std::condition_variable changed;
 
@@ -75,6 +76,7 @@ public:
         const std::string& prompt,
         std::size_t requested_tokens,
         turn_control& control);
+    void verify_integrity(bool drain_notifications = false) const;
 
 private:
     package_lease package_;

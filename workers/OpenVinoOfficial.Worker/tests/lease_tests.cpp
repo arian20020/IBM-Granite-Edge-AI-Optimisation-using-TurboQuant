@@ -54,6 +54,7 @@ int main(int argc, char** argv) {
     const std::filesystem::path copy = std::filesystem::temp_directory_path() /
         (L"GraniteEdgeAI-NativeLease-" + std::to_wstring(GetCurrentProcessId()));
     try {
+        std::size_t transient_package_rejections = 0U;
         std::filesystem::copy(source, copy, std::filesystem::copy_options::recursive);
         const std::filesystem::path swapped_path = copy / L"empty-review-directory";
         const std::filesystem::path displaced_path = copy / L"empty-review-directory.original";
@@ -116,6 +117,42 @@ int main(int argc, char** argv) {
         }
 
         {
+            const std::filesystem::path transient =
+                copy / L"transient-package-boundary.tmp";
+            std::size_t rejected_variants = 0U;
+            for (const bool throw_after_restore : {false, true}) {
+                package_lease topology = acquire_package(
+                    copy, std::string(package_digest), std::string(model_digest), 88U);
+                try {
+                    runtime_context runtime =
+                        initialize_verified_runtime_at(runtime_stage, {}, {});
+                    (void)inspect_package(
+                        topology,
+                        runtime,
+                        [&](native_load_stage stage) {
+                            if (stage != native_load_stage::main_model) return;
+                            std::ofstream(transient) << "transient";
+                            std::filesystem::remove(transient);
+                            if (throw_after_restore) {
+                                throw std::runtime_error(
+                                    "synthetic package load failure");
+                            }
+                        });
+                } catch (const worker_failure& failure) {
+                    if (failure.support_code() == "package_changed") {
+                        ++rejected_variants;
+                    } else {
+                        std::cerr << "transient_package_variant="
+                                  << (throw_after_restore ? "throw" : "return")
+                                  << " code=" << failure.support_code() << '\n';
+                    }
+                }
+            }
+            std::filesystem::remove(transient);
+            transient_package_rejections = rejected_variants;
+        }
+
+        {
             package_lease cancellation_package = acquire_package(
                 copy, std::string(package_digest), std::string(model_digest), 88U);
             runtime_context runtime = initialize_verified_runtime_at(runtime_stage, {}, {});
@@ -123,8 +160,9 @@ int main(int argc, char** argv) {
             official_session cancellation_session(
                 std::move(cancellation_package), runtime, 64U, 64U);
             turn_control cancellation_control;
+            std::atomic_bool cancel_command_written{false};
             bool fragment_observed = false;
-            std::thread canceller([&] {
+            std::thread delayed_input_pump([&] {
                 std::unique_lock lock(cancellation_control.mutex);
                 fragment_observed = cancellation_control.changed.wait_for(
                     lock,
@@ -134,21 +172,33 @@ int main(int argc, char** argv) {
                             std::memory_order_acquire);
                     });
                 if (fragment_observed) {
-                    cancellation_control.cancel.store(true, std::memory_order_release);
+                    lock.unlock();
+                    std::this_thread::sleep_for(std::chrono::milliseconds(250));
+                    lock.lock();
+                    if (cancel_command_written.load(std::memory_order_acquire)) {
+                        cancellation_control.cancel.store(
+                            true, std::memory_order_release);
+                    }
                     cancellation_control.notify();
                 }
             });
+            cancel_command_written.store(true, std::memory_order_release);
             const turn_result cancelled = cancellation_session.generate(
                 "e39d252d-2144-4624-a055-0350c93f6728",
                 "f77fb13c-263d-49a1-8d93-d908968c5832",
                 "hello",
                 2U,
                 cancellation_control);
-            canceller.join();
+            delayed_input_pump.join();
             if (!fragment_observed || !cancelled.cancelled ||
                 cancelled.streamed_fragments != 0U || !cancelled.answer.empty()) {
                 throw std::runtime_error("first-fragment cancellation leaked output");
             }
+        }
+        if (transient_package_rejections != 2U) {
+            throw std::runtime_error(
+                "transient package mutation escaped the load boundary: " +
+                std::to_string(transient_package_rejections));
         }
 
         std::size_t denied = 0U;
@@ -174,6 +224,19 @@ int main(int argc, char** argv) {
             (void)inspect_package(lease, runtime, observer);
             official_session session(std::move(lease), runtime, 64U, 64U, observer);
             turn_control control;
+            std::jthread input_pump([&] {
+                std::unique_lock lock(control.mutex);
+                if (control.changed.wait_for(
+                        lock,
+                        std::chrono::seconds(5),
+                        [&] {
+                            return control.first_fragment_buffered.load(
+                                std::memory_order_acquire);
+                        })) {
+                    control.first_fragment_release.store(true, std::memory_order_release);
+                    control.notify();
+                }
+            });
             const turn_result result = session.generate(
                 "e39d252d-2144-4624-a055-0350c93f6728",
                 "f77fb13c-263d-49a1-8d93-d908968c5832",

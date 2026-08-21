@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <functional>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -46,7 +47,7 @@ public:
 
     [[nodiscard]] const std::filesystem::path& root() const noexcept;
     [[nodiscard]] const package_evidence& evidence() const noexcept;
-    void verify_topology() const;
+    void verify_topology(bool drain_notifications = false) const;
 
 private:
     friend package_lease acquire_package(
@@ -61,6 +62,7 @@ private:
     package_evidence evidence_;
     std::vector<retained_package_entry> entries_;
     std::vector<void*> handles_;
+    std::unique_ptr<namespace_monitor> monitor_;
 };
 
 package_lease acquire_package(

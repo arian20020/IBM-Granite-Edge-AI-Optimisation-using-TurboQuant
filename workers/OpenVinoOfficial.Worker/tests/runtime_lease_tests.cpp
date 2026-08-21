@@ -3,9 +3,11 @@
 
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <iostream>
 #include <stdexcept>
 #include <cstdlib>
+#include <vector>
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -65,6 +67,84 @@ int main(int argc, char** argv) {
             throw std::runtime_error("runtime reparse swap was accepted");
         }
 
+        wchar_t system[MAX_PATH]{};
+        if (GetSystemDirectoryW(system, MAX_PATH) == 0U) {
+            throw std::runtime_error("system directory unavailable");
+        }
+
+        std::size_t transient_runtime_rejections = 0U;
+        for (const bool throw_after_restore : {false, true}) {
+            const std::filesystem::path transient = stage /
+                (throw_after_restore
+                    ? L"transient-runtime-throw.dll"
+                    : L"transient-runtime-return.dll");
+            try {
+                (void)granite::official_worker::initialize_verified_runtime_at(
+                    stage,
+                    {},
+                    {},
+                    [&](granite::official_worker::runtime_load_stage load_stage) {
+                        if (load_stage !=
+                            granite::official_worker::runtime_load_stage::runtime_version) {
+                            return;
+                        }
+                        std::filesystem::copy_file(
+                            std::filesystem::path(system) / L"version.dll",
+                            transient,
+                            std::filesystem::copy_options::overwrite_existing);
+                        const HMODULE module = LoadLibraryW(transient.c_str());
+                        if (module == nullptr) {
+                            throw std::runtime_error("transient runtime module did not load");
+                        }
+                        FreeLibrary(module);
+                        std::filesystem::remove(transient);
+                        if (throw_after_restore) {
+                            throw std::runtime_error("synthetic runtime load failure");
+                        }
+                    });
+            } catch (const granite::official_worker::worker_failure& error) {
+                if (error.support_code() == "runtime_integrity_failed") {
+                    ++transient_runtime_rejections;
+                }
+            }
+            std::filesystem::remove(transient);
+        }
+        if (transient_runtime_rejections != 2U) {
+            throw std::runtime_error(
+                "transient runtime module escaped the load boundary");
+        }
+
+        const std::filesystem::path os_fixture =
+            std::filesystem::temp_directory_path() /
+            (L"GraniteEdgeAI-SystemRoots-" + std::to_wstring(GetCurrentProcessId()));
+        const std::filesystem::path system32 = os_fixture / L"Windows" / L"System32";
+        const std::filesystem::path winsxs = os_fixture / L"Windows" / L"WinSxS";
+        const std::filesystem::path windows_temp = os_fixture / L"Windows" / L"Temp";
+        std::filesystem::create_directories(system32);
+        std::filesystem::create_directories(winsxs / L"amd64_fixture");
+        std::filesystem::create_directories(windows_temp);
+        const std::filesystem::path source_module =
+            std::filesystem::path(system) / L"version.dll";
+        const std::filesystem::path system_module = system32 / L"version.dll";
+        const std::filesystem::path winsxs_module =
+            winsxs / L"amd64_fixture" / L"version.dll";
+        const std::filesystem::path temp_module = windows_temp / L"version.dll";
+        std::filesystem::copy_file(source_module, system_module);
+        std::filesystem::copy_file(source_module, winsxs_module);
+        std::filesystem::copy_file(source_module, temp_module);
+        const std::vector<std::filesystem::path> allowed_roots{system32, winsxs};
+        const bool roots_classified =
+            granite::official_worker::is_module_in_validated_os_roots(
+                system_module, allowed_roots) &&
+            granite::official_worker::is_module_in_validated_os_roots(
+                winsxs_module, allowed_roots) &&
+            !granite::official_worker::is_module_in_validated_os_roots(
+                temp_module, allowed_roots);
+        std::filesystem::remove_all(os_fixture);
+        if (!roots_classified) {
+            throw std::runtime_error("Windows subtree received a system-module exemption");
+        }
+
         const std::filesystem::path inserted = stage / L"unlisted-after-acquisition.txt";
         bool insertion_rejected = false;
         try {
@@ -101,10 +181,6 @@ int main(int argc, char** argv) {
                 throw std::runtime_error("runtime lease evidence was incomplete");
             }
 
-            wchar_t system[MAX_PATH]{};
-            if (GetSystemDirectoryW(system, MAX_PATH) == 0U) {
-                throw std::runtime_error("system directory unavailable");
-            }
             const std::filesystem::path unlisted = stage / L"unlisted-module.dll";
             std::filesystem::copy_file(
                 std::filesystem::path(system) / L"version.dll",

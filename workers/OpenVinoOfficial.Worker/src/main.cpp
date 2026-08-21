@@ -159,7 +159,7 @@ void run_session_body(const json& command, const runtime_context& runtime) {
         lease, runtime, {}, [&] { verify_loaded_module_closure(runtime); });
     lease.verify_topology();
     const std::size_t model_context = model_context_limit(package);
-    lease.verify_topology();
+    lease.verify_topology(true);
     official_session session(
         std::move(lease), runtime, model_context, c1_context, {},
         [&] { verify_loaded_module_closure(runtime); });
@@ -179,10 +179,12 @@ void run_session_body(const json& command, const runtime_context& runtime) {
         validate_id(command_session);
         if (command_session != session_id) throw protocol_error("session identifier mismatch");
         if (type == "closeSession") {
+            session.verify_integrity(true);
             write_event({{"sessionId", session_id}, {"eventType", "sessionCompleted"}});
             return;
         }
         if (type == "cancelSession") {
+            session.verify_integrity(true);
             write_event({{"sessionId", session_id}, {"eventType", "sessionCancelled"}});
             return;
         }
@@ -209,9 +211,22 @@ void run_session_body(const json& command, const runtime_context& runtime) {
         bool cancelled = false;
         while (generation.wait_for(std::chrono::milliseconds(2)) != std::future_status::ready) {
             const input_pipe_state input = probe_input_pipe(GetStdHandle(STD_INPUT_HANDLE));
-            if (input == input_pipe_state::empty) continue;
+            if (input == input_pipe_state::empty) {
+                if (control.first_fragment_buffered.load(std::memory_order_acquire) &&
+                    !control.first_fragment_release.load(std::memory_order_acquire)) {
+                    {
+                        std::lock_guard lock(control.mutex);
+                        control.first_fragment_release.store(true, std::memory_order_release);
+                    }
+                    control.notify();
+                }
+                continue;
+            }
             if (input == input_pipe_state::closed) {
-                control.cancel.store(true, std::memory_order_release);
+                {
+                    std::lock_guard lock(control.mutex);
+                    control.cancel.store(true, std::memory_order_release);
+                }
                 control.notify();
                 cancelled = true;
                 continue;
@@ -259,6 +274,7 @@ void run_session_body(const json& command, const runtime_context& runtime) {
                 "runtime_load_failed", true, "native generation failed");
         }
         if (cancelled || result.cancelled) {
+            session.verify_integrity(true);
             write_event({{"sessionId", session_id}, {"eventType", "sessionCancelled"}});
             return;
         }

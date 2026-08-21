@@ -1,5 +1,6 @@
 #include "package_inspector.hpp"
 
+#include "namespace_monitor.hpp"
 #include "protocol.hpp"
 #include "runtime_evidence.hpp"
 
@@ -10,6 +11,7 @@
 
 #include <algorithm>
 #include <array>
+#include <exception>
 #include <iomanip>
 #include <set>
 #include <sstream>
@@ -188,13 +190,29 @@ void require_no_streams(const std::filesystem::path& path) {
     }
 }
 
-scoped_handle open_leased(const std::filesystem::path& path, bool directory) {
+scoped_handle open_leased(
+    const std::filesystem::path& path,
+    bool directory) {
     const DWORD flags = FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT |
         (directory ? 0U : FILE_FLAG_SEQUENTIAL_SCAN);
     scoped_handle result(CreateFileW(
         path.c_str(), directory ? FILE_READ_ATTRIBUTES : GENERIC_READ,
         FILE_SHARE_READ, nullptr, OPEN_EXISTING, flags, nullptr));
     if (result.get() == INVALID_HANDLE_VALUE) fail("package unreadable");
+    return result;
+}
+
+scoped_handle open_package_monitor(const std::filesystem::path& path) {
+    scoped_handle result(CreateFileW(
+        path.c_str(),
+        FILE_READ_ATTRIBUTES | FILE_LIST_DIRECTORY,
+        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+        nullptr,
+        OPEN_EXISTING,
+        FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT |
+            FILE_FLAG_OVERLAPPED,
+        nullptr));
+    if (result.get() == INVALID_HANDLE_VALUE) fail("package unavailable");
     return result;
 }
 
@@ -324,7 +342,8 @@ package_lease::package_lease(package_lease&& other) noexcept
       root_identity_(other.root_identity_),
       evidence_(std::move(other.evidence_)),
       entries_(std::move(other.entries_)),
-      handles_(std::move(other.handles_)) {
+      handles_(std::move(other.handles_)),
+      monitor_(std::move(other.monitor_)) {
     other.handles_.clear();
 }
 
@@ -336,6 +355,7 @@ package_lease& package_lease::operator=(package_lease&& other) noexcept {
         evidence_ = std::move(other.evidence_);
         entries_ = std::move(other.entries_);
         handles_ = std::move(other.handles_);
+        monitor_ = std::move(other.monitor_);
         other.handles_.clear();
     }
     return *this;
@@ -344,8 +364,10 @@ package_lease& package_lease::operator=(package_lease&& other) noexcept {
 const std::filesystem::path& package_lease::root() const noexcept { return root_; }
 const package_evidence& package_lease::evidence() const noexcept { return evidence_; }
 
-void package_lease::verify_topology() const {
+void package_lease::verify_topology(bool drain_notifications) const {
+    if (monitor_ == nullptr || monitor_->changed()) fail("package changed");
     verify_package_topology(root_, root_identity_, entries_);
+    if (monitor_->changed(drain_notifications)) fail("package changed");
 }
 
 package_lease acquire_package(
@@ -363,6 +385,17 @@ package_lease acquire_package(
         require_no_streams(lease.root_);
         lease.root_identity_ = identity_of(root.get());
         lease.handles_.push_back(root.release());
+        scoped_handle monitor = open_package_monitor(lease.root_);
+        if (!handle_is_directory(monitor.get()) ||
+            identity_of(monitor.get()) != lease.root_identity_) {
+            fail("package changed");
+        }
+        require_contained(lease.root_, monitor.get(), true);
+        try {
+            lease.monitor_ = std::make_unique<namespace_monitor>(monitor.release());
+        } catch (...) {
+            fail("package changed");
+        }
 
         std::vector<snapshot_entry> entries;
         std::vector<std::filesystem::path> pending{std::filesystem::path{}};
@@ -406,7 +439,7 @@ package_lease acquire_package(
             fail("package identity mismatch");
         }
         lease.evidence_ = {digest, model.digest, model.length};
-        lease.verify_topology();
+        lease.verify_topology(true);
         return lease;
     } catch (...) {
         close_all(lease.handles_);
@@ -419,22 +452,32 @@ package_evidence inspect_package(
     const runtime_context& runtime,
     const native_load_observer& observer,
     const native_module_verifier& module_verifier) {
+    const auto verify_integrity = [&](bool drain_notifications) {
+        std::exception_ptr first_failure;
+        const auto capture = [&](const auto& check) {
+            try {
+                check();
+            } catch (...) {
+                if (first_failure == nullptr) first_failure = std::current_exception();
+            }
+        };
+        capture([&] { package.verify_topology(drain_notifications); });
+        capture([&] { runtime.verify_topology(drain_notifications); });
+        if (module_verifier) capture(module_verifier);
+        if (first_failure != nullptr) std::rethrow_exception(first_failure);
+    };
     try {
         ov::Core core;
         const auto boundary = [&](native_load_stage stage, const auto& load) {
             if (observer) observer(stage);
-            package.verify_topology();
-            runtime.verify_topology();
+            verify_integrity(false);
             try {
                 load();
             } catch (...) {
-                package.verify_topology();
-                runtime.verify_topology();
+                verify_integrity(true);
                 throw;
             }
-            package.verify_topology();
-            runtime.verify_topology();
-            if (module_verifier) module_verifier();
+            verify_integrity(true);
         };
         boundary(native_load_stage::tokenizer_extension, [&] {
             core.add_extension(runtime.root() / L"openvino_tokenizers.dll");
@@ -450,8 +493,10 @@ package_evidence inspect_package(
         });
         return package.evidence();
     } catch (const worker_failure&) {
+        verify_integrity(true);
         throw;
     } catch (...) {
+        verify_integrity(true);
         throw worker_failure(
             "package_inconsistent_resource", false, "package parse failed");
     }

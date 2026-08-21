@@ -7,6 +7,7 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -49,14 +50,30 @@ int main(int argc, char** argv) {
                     runtime_stage, {}, {});
             granite::official_worker::official_session session(
                 std::move(lease), runtime, 64U, 64U);
-            granite::official_worker::turn_control control;
-            const auto generate = [&] {
+            const auto generate_turn = [&](const std::string& turn_id) {
+                granite::official_worker::turn_control control;
+                std::jthread input_pump([&] {
+                    std::unique_lock lock(control.mutex);
+                    if (control.changed.wait_for(
+                            lock,
+                            std::chrono::seconds(5),
+                            [&] {
+                                return control.first_fragment_buffered.load(
+                                    std::memory_order_acquire);
+                            })) {
+                        control.first_fragment_release.store(true, std::memory_order_release);
+                        control.notify();
+                    }
+                });
                 return session.generate(
                     "e39d252d-2144-4624-a055-0350c93f6728",
-                    "f77fb13c-263d-49a1-8d93-d908968c5832",
+                    turn_id,
                     "hello",
                     2U,
                     control);
+            };
+            const auto generate = [&] {
+                return generate_turn("f77fb13c-263d-49a1-8d93-d908968c5832");
             };
             const granite::official_worker::turn_result result = mode == "official-async"
                 ? std::async(std::launch::async, generate).get()
@@ -65,12 +82,8 @@ int main(int argc, char** argv) {
                       << ":generated:" << result.generated_tokens
                       << ":fragments:" << result.streamed_fragments << '\n';
             if (mode == "official-two") {
-                const granite::official_worker::turn_result second = session.generate(
-                    "e39d252d-2144-4624-a055-0350c93f6728",
-                    "4b29875f-7880-4ee9-a2e0-131dbb3779d2",
-                    "hello",
-                    2U,
-                    control);
+                const granite::official_worker::turn_result second = generate_turn(
+                    "4b29875f-7880-4ee9-a2e0-131dbb3779d2");
                 std::cout << "official-second:" << second.answer
                           << ":input:" << second.prompt_tokens
                           << ":generated:" << second.generated_tokens

@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <exception>
 #include <functional>
 #include <stdexcept>
 #include <utility>
@@ -81,24 +82,35 @@ official_session::official_session(
       module_verifier_(std::move(module_verifier)),
       model_context_(model_context),
       c1_context_(c1_context) {
-    if (observer_) observer_(native_load_stage::pipeline_construction);
-    package_.verify_topology();
-    runtime_.verify_topology();
     try {
+        if (observer_) observer_(native_load_stage::pipeline_construction);
+        verify_integrity(false);
         ov::genai::LLMPipeline validation_pipeline(
             package_.root(), "CPU", ov::AnyMap{{"ATTENTION_BACKEND", std::string("SDPA")}});
         validation_pipeline.get_tokenizer().set_chat_template(std::string(route_chat_template));
+        verify_integrity(true);
     } catch (...) {
-        package_.verify_topology();
-        runtime_.verify_topology();
+        verify_integrity(true);
         throw;
     }
-    package_.verify_topology();
-    runtime_.verify_topology();
-    if (module_verifier_) module_verifier_();
 }
 
 official_session::~official_session() = default;
+
+void official_session::verify_integrity(bool drain_notifications) const {
+    std::exception_ptr first_failure;
+    const auto capture = [&](const auto& check) {
+        try {
+            check();
+        } catch (...) {
+            if (first_failure == nullptr) first_failure = std::current_exception();
+        }
+    };
+    capture([&] { package_.verify_topology(drain_notifications); });
+    capture([&] { runtime_.verify_topology(drain_notifications); });
+    if (module_verifier_) capture(module_verifier_);
+    if (first_failure != nullptr) std::rethrow_exception(first_failure);
+}
 
 turn_result official_session::generate(
     const std::string& session_id,
@@ -109,20 +121,16 @@ turn_result official_session::generate(
     history_.push_back({{"role", std::string("user")}, {"content", prompt}});
     try {
         if (observer_) observer_(native_load_stage::pipeline_construction);
-        package_.verify_topology();
-        runtime_.verify_topology();
+        verify_integrity(false);
         std::unique_ptr<ov::genai::LLMPipeline> pipeline = [&] {
             try {
                 auto value = std::make_unique<ov::genai::LLMPipeline>(
                     package_.root(), "CPU",
                     ov::AnyMap{{"ATTENTION_BACKEND", std::string("SDPA")}});
-                package_.verify_topology();
-                runtime_.verify_topology();
-                if (module_verifier_) module_verifier_();
+                verify_integrity(true);
                 return value;
             } catch (...) {
-                package_.verify_topology();
-                runtime_.verify_topology();
+                verify_integrity(true);
                 throw;
             }
         }();
@@ -159,13 +167,20 @@ turn_result official_session::generate(
                     publication_lock.lock();
                     control.first_fragment_buffered.store(true, std::memory_order_release);
                     control.notify();
-                    (void)control.changed.wait_for(
+                    control.changed.wait(
                         publication_lock,
-                        std::chrono::milliseconds(100),
-                        [&] { return control.cancel.load(std::memory_order_acquire); });
+                        [&] {
+                            return control.cancel.load(std::memory_order_acquire) ||
+                                control.first_fragment_release.load(
+                                    std::memory_order_acquire);
+                        });
                     if (control.cancel.load(std::memory_order_acquire)) {
                         result.cancelled = true;
                         return ov::genai::StreamingStatus::CANCEL;
+                    }
+                    if (control.stop.load(std::memory_order_acquire)) {
+                        result.stopped = true;
+                        return ov::genai::StreamingStatus::STOP;
                     }
                 }
                 if (fragment.size() > maximum_operation_text_bytes - result.answer.size()) {
@@ -204,6 +219,7 @@ turn_result official_session::generate(
         ov::genai::ChatHistory generation_history(history_.get_messages());
         ov::genai::DecodedResults generated = pipeline->generate(
             generation_history, config, streamer);
+        verify_integrity(true);
         result.prompt_tokens = generated.perf_metrics.get_num_input_tokens();
         result.generated_tokens = generated.perf_metrics.get_num_generated_tokens();
         if (result.output_exceeded) {
@@ -227,6 +243,7 @@ turn_result official_session::generate(
         return result;
     } catch (...) {
         if (!history_.empty()) history_.pop_back();
+        verify_integrity(true);
         throw;
     }
 }

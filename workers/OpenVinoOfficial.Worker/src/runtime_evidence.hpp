@@ -4,12 +4,15 @@
 #include <cstdint>
 #include <filesystem>
 #include <functional>
+#include <memory>
 #include <string>
 #include <vector>
 
 #include <nlohmann/json.hpp>
 
 namespace granite::official_worker {
+
+class namespace_monitor;
 
 struct runtime_evidence final {
     std::string runtime_build;
@@ -36,6 +39,14 @@ struct retained_runtime_entry final {
 using native_path_open_observer =
     std::function<void(const std::filesystem::path&, bool)>;
 
+enum class runtime_load_stage {
+    runtime_version,
+    genai_version,
+    tokenizers_version
+};
+
+using runtime_load_observer = std::function<void(runtime_load_stage)>;
+
 std::filesystem::path executable_directory();
 std::string sha256_file(const std::filesystem::path& path);
 
@@ -50,22 +61,34 @@ public:
 
     [[nodiscard]] const runtime_evidence& evidence() const noexcept;
     [[nodiscard]] const std::filesystem::path& root() const noexcept;
-    void verify_topology() const;
+    void verify_topology(bool drain_notifications = false) const;
     [[nodiscard]] bool contains_approved_file(
         const native_file_identity& identity) const noexcept;
 
 private:
+    static runtime_context initialize(
+        const std::filesystem::path&,
+        const native_path_open_observer&,
+        const std::function<void()>&,
+        const runtime_load_observer&,
+        bool verify_modules);
     friend runtime_context initialize_verified_runtime();
     friend runtime_context initialize_verified_runtime_at(
         const std::filesystem::path&,
         const native_path_open_observer&,
         const std::function<void()>&);
+    friend runtime_context initialize_verified_runtime_at(
+        const std::filesystem::path&,
+        const native_path_open_observer&,
+        const std::function<void()>&,
+        const runtime_load_observer&);
     runtime_evidence evidence_;
     std::filesystem::path root_;
     native_file_identity root_identity_;
     native_file_identity manifest_identity_;
     std::vector<retained_runtime_entry> entries_;
     std::vector<void*> handles_;
+    std::unique_ptr<namespace_monitor> monitor_;
 };
 
 runtime_context initialize_verified_runtime();
@@ -73,9 +96,17 @@ runtime_context initialize_verified_runtime_at(
     const std::filesystem::path& worker_root,
     const native_path_open_observer& before_path_open,
     const std::function<void()>& after_handles_acquired);
+runtime_context initialize_verified_runtime_at(
+    const std::filesystem::path& worker_root,
+    const native_path_open_observer& before_path_open,
+    const std::function<void()>& after_handles_acquired,
+    const runtime_load_observer& load_observer);
 void verify_loaded_module_closure(const runtime_context& runtime);
 void verify_module_file_membership(
     const runtime_context& runtime,
     const std::filesystem::path& module);
+bool is_module_in_validated_os_roots(
+    const std::filesystem::path& module,
+    const std::vector<std::filesystem::path>& roots);
 
 }  // namespace granite::official_worker

@@ -13,6 +13,7 @@ find_package(OpenVINO CONFIG REQUIRED COMPONENTS Runtime)
 find_package(OpenVINOGenAI CONFIG REQUIRED)
 
 add_library(openvino_official_core STATIC
+    src/namespace_monitor.cpp
     src/protocol.cpp
     src/package_inspector.cpp
     src/session.cpp
