@@ -103,15 +103,35 @@ internal enum BaselineExclusionReason
     BaselineContextOutsideEntryBounds,
 
     /// <summary>
-    /// An admitted entry declares the baseline's exact configuration shape, but
-    /// its installation state is not one the matrix resolves as available (for
-    /// example <see cref="InstallationState.NotInstalled"/> or
-    /// <see cref="InstallationState.Unknown"/>). This is reported in preference
-    /// to <see cref="NoAdmittedEntryMatchesTheBaseline"/> because it is
-    /// actionable: the fix is installing the named backend, not accepting that
-    /// the configuration is unsupported.
+    /// An admitted entry declares the baseline's exact configuration shape, and
+    /// the support matrix resolves it as
+    /// <see cref="Domain.SupportAvailability.Unavailable"/>: the named backend
+    /// is genuinely not installed (see
+    /// <see cref="Capabilities.SupportMatrixResolver.Resolve"/> -
+    /// <see cref="Domain.SupportLevel.DeclaredSupported"/> paired with
+    /// <see cref="Domain.InstallationState.NotInstalled"/>). This is reported in
+    /// preference to <see cref="NoAdmittedEntryMatchesTheBaseline"/> because it
+    /// is actionable: the fix is installing the named backend.
     /// </summary>
     BaselineEntryNotInstalled,
+
+    /// <summary>
+    /// An admitted entry declares the baseline's exact configuration shape and
+    /// its <see cref="Domain.SupportLevel"/> is
+    /// <see cref="Domain.SupportLevel.Experimental"/>, but the resolved
+    /// availability is
+    /// <see cref="Domain.SupportAvailability.Unsupported"/> rather than
+    /// <see cref="Domain.SupportAvailability.ExperimentalAvailable"/> - most
+    /// notably when the entry is installed and verified but the user has not
+    /// opted in (see <see cref="Capabilities.SupportMatrixResolver.Resolve"/>:
+    /// an experimental route requires
+    /// <see cref="Domain.InstallationState.VerifiedAndOptedIn"/>, not merely
+    /// <see cref="Domain.InstallationState.InstalledAndVerified"/>). This is
+    /// reported in preference to <see cref="NoAdmittedEntryMatchesTheBaseline"/>
+    /// because it is actionable: the fix is opting in to the experimental
+    /// route, not installing anything.
+    /// </summary>
+    BaselineEntryRequiresExperimentalOptIn,
 
     /// <summary>
     /// The model's trained context limit could not be established, so no

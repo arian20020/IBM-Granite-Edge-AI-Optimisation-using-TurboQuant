@@ -54,11 +54,17 @@ internal static class CandidateGenerator
         bool baselineConfigurationAdmitted = false;
 
         // Tracks whether an entry declaring the baseline's exact configuration
-        // shape exists in the matrix at all, regardless of whether its
-        // installation state let it through. Set before the availability
-        // filter below so "not installed" and "not supported" cannot be
-        // confused with each other.
+        // shape resolved to Unavailable (genuinely not installed) versus
+        // Unsupported on an Experimental entry (installed, but the user has not
+        // opted in). Set before the availability filter below so the two
+        // cannot be confused with each other, or with "no admitted entry
+        // matches the baseline shape at all". When more than one baseline-
+        // matching entry fails to admit, BaselineEntryNotInstalled takes
+        // precedence: "install the backend" is the simpler, more fundamental
+        // fix, and reporting the opt-in reason instead could send the user to
+        // opt in to a route that would still refuse to start.
         bool baselineEntryNotInstalled = false;
+        bool baselineEntryRequiresExperimentalOptIn = false;
 
         foreach (CompatibilitySupportEntry entry in request.Matrix.Entries)
         {
@@ -91,7 +97,14 @@ internal static class CandidateGenerator
             {
                 if (isBaselineConfiguration)
                 {
-                    baselineEntryNotInstalled = true;
+                    if (availability == SupportAvailability.Unavailable)
+                    {
+                        baselineEntryNotInstalled = true;
+                    }
+                    else if (entry.Level == SupportLevel.Experimental)
+                    {
+                        baselineEntryRequiresExperimentalOptIn = true;
+                    }
                 }
 
                 continue;
@@ -148,7 +161,9 @@ internal static class CandidateGenerator
                 ? BaselineExclusionReason.BaselineContextOutsideEntryBounds
                 : baselineEntryNotInstalled
                     ? BaselineExclusionReason.BaselineEntryNotInstalled
-                    : BaselineExclusionReason.NoAdmittedEntryMatchesTheBaseline;
+                    : baselineEntryRequiresExperimentalOptIn
+                        ? BaselineExclusionReason.BaselineEntryRequiresExperimentalOptIn
+                        : BaselineExclusionReason.NoAdmittedEntryMatchesTheBaseline;
 
             return new CandidateGenerationResult(candidates, reason);
         }

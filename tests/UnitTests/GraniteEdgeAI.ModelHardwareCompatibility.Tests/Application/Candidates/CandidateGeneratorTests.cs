@@ -103,7 +103,11 @@ public sealed class CandidateGeneratorTests
     public void Generate_SkipsEntriesWhoseInstallationIsUnknown()
     {
         // An entry with no reported installation state resolves to Unsupported,
-        // so nothing from it may be offered.
+        // so nothing from it may be offered. Unknown is not the same claim as
+        // "declared supported but genuinely not installed" (which resolves to
+        // Unavailable, not Unsupported), so this must not be reported as
+        // BaselineEntryNotInstalled either: nothing here establishes that the
+        // backend is absent, only that its state was never reported.
         SupportMatrix matrix = SupportMatrix.ProvisionalV1();
 
         CandidateGenerationResult result = Generate(
@@ -112,7 +116,148 @@ public sealed class CandidateGeneratorTests
 
         Assert.AreEqual(0, result.Candidates.Count);
         Assert.AreEqual(
+            nameof(BaselineExclusionReason.NoAdmittedEntryMatchesTheBaseline),
+            result.BaselineExclusionReason.ToString());
+    }
+
+    [TestMethod]
+    public void Generate_ReportsBaselineEntryNotInstalledWhenDeclaredSupportedButNotInstalled()
+    {
+        // The baseline-matching entry is DeclaredSupported and its installation
+        // state is explicitly NotInstalled, which SupportMatrixResolver
+        // resolves to Unavailable: the backend is genuinely absent, and the
+        // fix is installing it.
+        SupportMatrix matrix = SupportMatrix.FromEntries(
+            "v-baseline-not-installed",
+            PolicyProvenance.Provisional,
+            [
+                CompatibilitySupportEntry.Create(
+                    "baseline-not-installed",
+                    RuntimeRouteId.LlamaCpp,
+                    CompatibilityBackend.Cpu,
+                    DeviceRouteId.Cpu,
+                    GpuOffloadLevel.None,
+                    GgufWeightFormat.Imported,
+                    GgufKvCacheFormat.F16,
+                    1024,
+                    32768,
+                    SupportLevel.DeclaredSupported,
+                    requiresEvidence: false)
+            ]);
+
+        CandidateGenerationResult result = Generate(
+            matrix: matrix,
+            installation: new Dictionary<string, InstallationState>
+            {
+                ["baseline-not-installed"] = InstallationState.NotInstalled
+            });
+
+        Assert.AreEqual(0, result.Candidates.Count);
+        Assert.IsFalse(result.BaselineIncluded);
+        Assert.AreEqual(
             nameof(BaselineExclusionReason.BaselineEntryNotInstalled),
+            result.BaselineExclusionReason.ToString());
+    }
+
+    [TestMethod]
+    public void Generate_ReportsBaselineEntryRequiresExperimentalOptInWhenInstalledButNotOptedIn()
+    {
+        // The baseline-matching entry is Experimental and is installed and
+        // verified, but the user has not opted in: SupportMatrixResolver
+        // resolves this to Unsupported, not ExperimentalAvailable, because an
+        // experimental route needs explicit opt-in, not merely installation.
+        // The actionable fix here is opting in, not installing anything, so
+        // this must be distinguished from BaselineEntryNotInstalled.
+        SupportMatrix matrix = SupportMatrix.FromEntries(
+            "v-baseline-needs-optin",
+            PolicyProvenance.Provisional,
+            [
+                CompatibilitySupportEntry.Create(
+                    "baseline-needs-optin",
+                    RuntimeRouteId.LlamaCpp,
+                    CompatibilityBackend.Cpu,
+                    DeviceRouteId.Cpu,
+                    GpuOffloadLevel.None,
+                    GgufWeightFormat.Imported,
+                    GgufKvCacheFormat.F16,
+                    1024,
+                    32768,
+                    SupportLevel.Experimental,
+                    requiresEvidence: true)
+            ]);
+
+        CandidateGenerationResult result = Generate(
+            matrix: matrix,
+            installation: new Dictionary<string, InstallationState>
+            {
+                ["baseline-needs-optin"] = InstallationState.InstalledAndVerified
+            });
+
+        Assert.AreEqual(0, result.Candidates.Count);
+        Assert.IsFalse(result.BaselineIncluded);
+        Assert.AreEqual(
+            nameof(BaselineExclusionReason.BaselineEntryRequiresExperimentalOptIn),
+            result.BaselineExclusionReason.ToString());
+    }
+
+    [TestMethod]
+    public void Generate_ReportsNoAdmittedEntryMatchesTheBaselineWhenNoEntryConfigurationMatchesIt()
+    {
+        // Every entry in this matrix is on a different device to the baseline
+        // (which is Cpu), so no entry's configuration ever equals the
+        // baseline's - not "matched but excluded", but no match at all.
+        SupportMatrix matrix = SupportMatrix.FromEntries(
+            "v-no-matching-configuration",
+            PolicyProvenance.Provisional,
+            [
+                CompatibilitySupportEntry.Create(
+                    "igpu-only",
+                    RuntimeRouteId.LlamaCpp,
+                    CompatibilityBackend.IntelSycl,
+                    DeviceRouteId.IntelIntegratedGpu,
+                    GpuOffloadLevel.Full,
+                    GgufWeightFormat.Imported,
+                    GgufKvCacheFormat.F16,
+                    1024,
+                    32768,
+                    SupportLevel.DeclaredSupported,
+                    requiresEvidence: false)
+            ]);
+
+        CandidateGenerationResult result = Generate(
+            matrix: matrix, installation: AllInstalled(matrix));
+
+        // The igpu entry still yields candidates of its own; what matters is
+        // that none of them is the baseline, and that the reason names a
+        // configuration mismatch rather than an installation problem.
+        Assert.IsFalse(result.Candidates.Any(candidate => candidate.IsBaseline));
+        Assert.IsFalse(result.BaselineIncluded);
+        Assert.AreEqual(
+            nameof(BaselineExclusionReason.NoAdmittedEntryMatchesTheBaseline),
+            result.BaselineExclusionReason.ToString());
+    }
+
+    [TestMethod]
+    public void Generate_RefusesWithModelContextLimitNotEstablishedWhenTheLimitIsUnknown()
+    {
+        // A model whose trained context limit is unknown gives no safe basis
+        // for a default: this is the refusal branch, and it must actually
+        // refuse rather than silently substituting a limit.
+        CandidateGenerationResult result = Generate(
+            facts: InspectedModelFacts.Create(
+                ByteCount.FromBytes(4_000_000_000),
+                layerCount: 32,
+                embeddingSize: 4096,
+                attentionHeadCount: 32,
+                keyValueHeadCount: 8,
+                declaredContextLimit: null,
+                fileType: 15,
+                quantisationVersion: 2));
+
+        Assert.AreEqual(0, result.Candidates.Count);
+        Assert.IsFalse(result.BaselineIncluded);
+        Assert.AreEqual(
+            nameof(BaselineExclusionReason.ModelContextLimitNotEstablished),
             result.BaselineExclusionReason.ToString());
     }
 
