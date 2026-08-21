@@ -126,6 +126,17 @@ verifier, and workflow contracts; final local gates contracts 84/84, route
 workflow/privacy 24/24, YAML 2/2; UCL local gate exit 1/no output). Independent
 review is required; hosted/UCL dispatch and publication are pending external
 authorization, `UCL-01` remains open, and MVP/UCL acceptance is not claimed.
+Task 9: fix round 1/5 implemented and locally verified (`dbfc5a45` - dispatch
+inputs isolated through environment nodes; exact single-file evidence lifecycle;
+closed measured results and native floor 7; external read-only fixture consumed
+by native/managed UCL gates; final-handle path closure; exact typed privacy;
+GitHub/protected-environment provenance; structural YAML/path contracts; inverse
+terminal reservation race corrected). Final gates: contracts 131/131, workflow
+71/71, privacy/evidence 62/62, route 179/179, terminal arbitration 4/4, client
+13/13, hosted process 41/41, clean external-fixture process 41/41, native 7/7,
+app Release x64 passed, worker residue zero. Awaiting independent re-review;
+hosted/UCL dispatch and upload remain pending external authorization, `UCL-01`
+remains open, no acceptance is claimed, and Task 10 remains pending.
 Task 10: pending
 Task 11: pending
 Task 12: pending

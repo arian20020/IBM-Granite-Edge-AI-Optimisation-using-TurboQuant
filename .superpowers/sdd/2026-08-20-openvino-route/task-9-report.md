@@ -318,3 +318,199 @@ not blind-rerun. No Model Inspection legacy production file changed.
   worker-process residue are both zero.
 
 Task 9 remains in progress pending independent review.
+
+## Fix round 1/5 - receiving-code-review verification and correction
+
+Implementation commit: `dbfc5a454a1af857331603585187950c58ee467e`.
+
+The ten review findings were checked against the exact workflow, script, and
+adapter code before changes. All were reproducible:
+
+1. the UCL authorization input was interpolated inside a quoted PowerShell
+   `run` block and the checkout ref consumed the dispatch input directly;
+2. privacy checked one JSON file while upload selected an unrestricted JSON
+   wildcard;
+3. the external controlled UCL fixture was audited but neither native CTest nor
+   the managed campaign consumed it;
+4. an exact CANCEL published permanent teardown ownership before it waited for
+   an already-paused STOP terminal gate;
+5. UCL-shaped evidence could be generated locally and several evidence values
+   were constants rather than measured results;
+6. Windows PowerShell JSON coercion admitted a Boolean schema version and a
+   scalar one-element actual-device value;
+7. the native floor was one rather than the reviewed seven;
+8. outside-workspace checks were lexical and did not close reparse/final-handle
+   substitution;
+9. hosted path filters omitted dependency locks and influential application,
+   protected-launcher, process-fixture, build, and packaging inputs; and
+10. workflow tests were substring checks rather than YAML-node contracts.
+
+### Focused RED/GREEN chronology
+
+The inverse terminal-race test was written first. With STOP paused in dispatch,
+completion-first poisoned the cached exact-CANCEL task and failure-first was not
+deterministically ordered. The focused test was 0/2 at RED. A test-only
+non-owning terminal-wait observer made both branches deterministic. Exact
+CANCEL now publishes only a turn-scoped pending reservation, waits the same
+`turnTerminalGate` as STOP/completion/failure, promotes to permanent teardown
+only after it claims the exact active turn, and clears a losing reservation.
+It never holds `stateLock` or `teardownLock` across channel I/O. The inverse
+test passed 2/2 and the combined STOP/CANCEL/completion/failure matrix passed
+4/4. Completion permits the next turn and a fresh exact cancellation; failure
+permits unpoisoned disposal. Both branches prove one terminal event, no wrong
+turn command, late output suppression, and one channel disposal.
+
+Structural workflow tests using the exact pinned `YamlDotNet` `18.1.0` parser
+were then added. The initial structural set passed only 1/3: exact evidence
+selection, influential path filters, and correct-node requirements failed.
+Adversarial valid YAML with a quote/newline dispatch payload, misleading
+comments, wrong-node values, and misplaced `always()` is rejected. The final
+workflow partition passes 71/71 and verifies parsed triggers, job labels,
+permissions, timeouts, step ownership/order, environment indirection, exact
+upload path, cleanup, native floor, fixture override, and the complete hosted
+path set. Unit tests do not shell out to parse YAML. The only accepted action
+identities are the four reviewed full-SHA pins.
+
+The exact evidence-set test was RED while its verifier was absent, then passed
+1/1. The generator requires an initially absent operation-owned evidence
+directory and exact `official.json` or `ucl.json`, creates it only after all
+other validation, privacy-checks that exact file, and removes its partial
+output on failure. Both workflows count the directory immediately before
+privacy validation, upload the exact filename without a glob, then always
+remove the exact local file and empty operation-owned parents after upload.
+A second hostile JSON makes selection fail.
+
+The native JUnit boundary was test-first: six tests are rejected and exactly
+seven accepted. The first implementation exposed an arithmetic implementation
+error and was corrected. A later real CTest 7/7 JUnit file supplied a second
+RED because CTest legitimately omits the optional `errors` attribute. The
+parser now accepts the actual closed CTest shape, requires exact passing
+suite/testcase counts, rejects failure/error/skipped/disabled content, and
+retains a minimum rather than an exact count. Synthetic 6/7 and real 7/7 gates
+are green.
+
+The exact-type hostile matrix initially rejected 17/19 cases: Boolean
+`schemaVersion` and scalar `actualExecutionDevices` were accepted. Exact
+integer/string/Boolean/array/object validation and recursively closed objects
+made the original matrix 19/19. A separate every-node matrix passes 35/35,
+including every object/leaf/array element, nonfinite input, and Int64 overflow.
+The final privacy/evidence-focused partition passes 62/62, including Windows,
+UNC, and POSIX absolute paths, account/machine labels, prompts/generated text,
+environment/secrets, raw stdout/stderr, model bytes, duplicates, unexpected
+fields, ordering, types, count bounds, and performance bounds.
+
+The trusted-path verifier was absent at RED, then passed its focused 1/1
+matrix. It opens roots and descendants with Win32 handles, normalizes final
+paths, uses component-boundary containment, rejects equality and containment in
+either direction, rejects root/descendant/file reparse points, requires every
+controlled file read-only, and checks the exact model length/SHA-256 and exact
+fixture-manifest SHA-256. Junction/symlink root, descendant link, model-file
+substitution, and final-path-to-workspace cases fail closed. The clean external
+fixture and controlled archive probe returned `trusted_inputs_valid` both
+before and after the managed campaign.
+
+The UCL fixture override first failed 0/1 because the repository fixture was
+accepted. After adding the override, an external-environment execution exposed
+two additional real REDs: the self-test incorrectly derived its repository
+path through the active override, and read-only source attributes propagated
+into operation-owned mutable test copies. The repository path is now resolved
+independently, copied test files have only their copy's read-only bit cleared,
+and the controlled source remains unchanged. Native builds receive both the
+external fixture root and its expected manifest SHA; the CMake/CTest package
+argument therefore uses that exact external package. The managed campaign
+requires the same external root and emits only the exact fixture-manifest SHA
+marker. A closed TRX verifier accepts that marker once for the exact named
+passing test. Repository-fixture override rejection is green, and a clean
+read-only external-fixture campaign passes 41/41 with pre/post integrity and
+`ucl_fixture_consumption_valid`.
+
+The closed measurement builder was absent at RED and then derived requested
+CPU, actual CPU, all three runtime builds, seven test counts, bounded sorted
+duration aggregates, cancellation, and cleanup solely from passing JUnit/TRX
+inputs. A missing measured marker fails and creates no output. An added raw-log
+file produced a focused RED; the builder now accepts only the exact seven hosted
+inputs or those seven plus the exact three UCL campaign TRXs, and requires the
+canonical UCL result to be byte-identical to campaign three. The closed hosted
+and three-run UCL forms pass; partial, extra, and substituted inputs fail.
+
+UCL evidence generation was locally forgeable at RED. It now also requires the
+exact GitHub Actions event, repository/workflow ref, workflow SHA, checkout SHA,
+numeric run ID and attempt, exact job, protected-environment authorization,
+explicit dispatch authorization, X64 runner, and Intel manufacturer. The UCL
+mode performs final controlled-input verification again before writing. Local
+mode and partial GitHub context both return `official_evidence_failed`, exit 1,
+and produce no UCL JSON. These checks bind claims to expected GitHub workflow
+context and protected-environment state; they are not claimed to be
+cryptographic attestation, because a local actor can spoof all environment
+variables.
+
+### Final local verification after fix commit
+
+| Gate / command shape | Result |
+| --- | --- |
+| `dotnet test` full OpenVINO contracts, Release x64 | 131/131 |
+| Parsed workflow partition | 71/71 |
+| Privacy/type/artifact/native/path/provenance partition | 62/62 |
+| Exact terminal arbitration regression | 4/4 |
+| Full OpenVINO route/static/app/package suite | 179/179 |
+| Explicit app adapter/state partition | 37/37 |
+| Explicit package-tamper partition | 5/5 |
+| Managed OpenVINO WorkerClient | 13/13 |
+| Hosted canonical protected process campaign | 41/41 |
+| Clean read-only external-fixture protected process campaign | 41/41 |
+| Native CTest and real JUnit verifier | 7/7; `native_junit_valid:7` |
+| Release x64 app build against pinned stage manifest | passed |
+| PowerShell AST parse | 0 errors across 8 affected scripts |
+| Worker-process residue | zero |
+| UCL local provenance gate | exit 1; no output |
+
+The real closed result set produced measured counts
+`131/179/7/13/41/37/5` for contracts/static/native/client/process/adapter/tamper,
+and only the expected CPU, runtime, cancellation, and zero-residue markers.
+After the fix commit, a local hosted-shaped smoke document at exact commit
+`dbfc5a454a1af857331603585187950c58ee467e` was 1,206 bytes, had SHA-256
+`de223572c7ecfb0f269de1d2bb0863aafde95b2367c056aece6845f9ebc66efb`,
+and returned both `official_evidence_created` and
+`evidence_artifact_set_valid`. It was not uploaded and is not hosted execution
+evidence.
+
+### Exact identities retained by the correction
+
+| Identity | Value |
+| --- | --- |
+| Runtime lock | `418233649c425e98da8776b0c03da5426dc60611aa1ace9a82f2c905ac4395d7` |
+| GenAI lock | `ce57013587d098e3f1dc672e4a47565669a6a5316a89924153371aed3ba7c32f` |
+| Tokenizers lock | `1b7f3c66b14cba56c3934249d1548ee4f8e9c930ee121ea094703813923320e5` |
+| Fixture manifest | `dc5ef5060a0e8242291d98701ab2b65286169c863a12e573dd1ad7921ac92648` |
+| Model | length `88`; SHA-256 `894dd0aac21e588d5cf78994d90aa0dcba8284626c976a4e0c89c0273b452c1c` |
+| Local reviewed stage A manifest | `b09feb0c73969d5e13a1d755937fc580d1507ee5c5f0397ebd44d305dfb6613b` |
+| Local reviewed stage B manifest | `0f656f6f2afe0b7246d0746f458ad6ed02e23be943145779b0160dd69aff2ebe` |
+| Runtime build | `2026.3.0-22451-8a17657b995-releases/2026/3` |
+| GenAI build | `2026.3.0.0-3277-bd8d6542e3c` |
+| Tokenizers build | `2026.3.0.0-703-183c6f25cda` |
+
+### Privacy and residue audit
+
+Evidence remains the same closed fourteen-field schema named in the Task 9
+brief. No provenance environment, repository/account identity, runner/machine
+identity, processor model, username, hostname, credential, proxy, path,
+prompt, generated text, raw stdout/stderr, model bytes, archive, build output,
+TRX, JUnit, or log is in the JSON or selected by either artifact upload. The
+only CPU identity is sanitized `X64` plus coarse vendor. Artifacts retain for
+30 days and upload only after evidence, integrity, and privacy succeed.
+
+Repository evidence residue is zero, tracked binaries/downloads are zero, and
+worker-process residue is zero. Nine round-one operation-owned test directories
+remain under system temp because the command safety policy rejected their exact
+recursive cleanup: the initial/clean controlled fixtures, dummy controlled
+archive root, failed and passing process-result roots, clean UCL campaign
+results, and pre/post-commit evidence/result roots. None is tracked, uploaded,
+or consumed by a workflow. The three previously reported Task 9 temp roots also
+remain. An authorized operator may remove those exact temp directories.
+
+The legacy delayed-handshake ruling is unchanged; no deadline or budget was
+weakened and no blind rerun was performed. Hosted dispatch/upload and trusted
+UCL dispatch remain pending external authorization. `UCL-01` remains open,
+this local campaign is not UCL evidence, and neither MVP nor UCL acceptance is
+claimed. Task 9 remains in progress awaiting independent re-review; Task 10 was
+not started.
