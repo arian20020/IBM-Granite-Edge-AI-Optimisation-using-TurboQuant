@@ -226,7 +226,7 @@ $app = 'IBM Granite with TurboQuant (Intel)\IBM Granite with TurboQuant (Intel).
 $tests = 'tests\UnitTests\GraniteEdgeAI.UnitTests\GraniteEdgeAI.UnitTests.csproj'
 & $msbuild $app /target:Restore,Build /maxCpuCount /verbosity:minimal /property:Configuration=Debug /property:Platform=x64
 if ($LASTEXITCODE -ne 0) { throw 'App build failed.' }
-dotnet build $tests --configuration Debug --runtime win-x64 -p:Platform=x64 --no-restore --verbosity minimal
+dotnet build $tests --configuration Debug --runtime win-x64 -p:Platform=x64 --verbosity minimal
 if ($LASTEXITCODE -ne 0) { throw 'Test build failed.' }
 ```
 
