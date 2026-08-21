@@ -12,68 +12,96 @@ if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) {
 Add-Type -AssemblyName PresentationCore
 Add-Type -AssemblyName WindowsBase
 
-function ConvertTo-SvgPathData {
-    param(
-        [Parameter(Mandatory)]
-        [string]$Text,
-        [Parameter(Mandatory)]
-        [double]$OriginX,
-        [Parameter(Mandatory)]
-        [double]$OriginY
-    )
+$sourcePath = Join-Path $RepositoryRoot 'docs\Logo\granite-edge-ai-lockup.svg'
+$outputPath = Join-Path $RepositoryRoot 'IBM Granite with TurboQuant (Intel)\Assets\Branding\granite-edge-ai-lockup-outlined.svg'
+[xml]$source = Get-Content -LiteralPath $sourcePath -Raw
+$namespace = [Xml.XmlNamespaceManager]::new($source.NameTable)
+$namespace.AddNamespace('svg', 'http://www.w3.org/2000/svg')
 
-    $culture = [Globalization.CultureInfo]::InvariantCulture
-    $typeface = [Windows.Media.Typeface]::new(
-        [Windows.Media.FontFamily]::new('Segoe UI'),
-        [Windows.FontStyles]::Normal,
-        [Windows.FontWeights]::SemiBold,
-        [Windows.FontStretches]::Normal)
-    $formatted = [Windows.Media.FormattedText]::new(
-        $Text,
-        $culture,
-        [Windows.FlowDirection]::LeftToRight,
-        $typeface,
-        138,
-        [Windows.Media.Brushes]::Black,
-        1.0)
-    $geometry = $formatted.BuildGeometry([Windows.Point]::new($OriginX, $OriginY))
-    $pathData = $geometry.GetFlattenedPathGeometry().ToString($culture)
+$root = $source.SelectSingleNode('/svg:svg', $namespace)
+$sourceText = $source.SelectSingleNode('/svg:svg/svg:text', $namespace)
+$sourceTspan = $source.SelectSingleNode('/svg:svg/svg:text/svg:tspan', $namespace)
+$sourcePaths = @($source.SelectNodes('/svg:svg/svg:g/svg:g/svg:path', $namespace))
+$sourceGradient = $source.SelectSingleNode('/svg:svg/svg:defs/svg:linearGradient[@id="graniteBlue"]', $namespace)
 
-    [pscustomobject]@{
-        Data = $pathData -replace '^F1', ''
-        Width = $formatted.WidthIncludingTrailingWhitespace
-    }
+if ($null -eq $root -or $null -eq $sourceText -or $null -eq $sourceTspan -or
+    $null -eq $sourceGradient -or $sourcePaths.Count -ne 9) {
+    throw 'The source Granite lockup has an unexpected structure.'
 }
 
-$wordmark = ConvertTo-SvgPathData -Text 'Granite Edge' -OriginX 360 -OriginY 107
-$ai = ConvertTo-SvgPathData -Text 'AI' -OriginX (372 + $wordmark.Width) -OriginY 107
+$wordmarkText = $sourceText.InnerText
+$sourceX = [double]::Parse($sourceText.GetAttribute('x'), [Globalization.CultureInfo]::InvariantCulture)
+$sourceBaseline = [double]::Parse($sourceText.GetAttribute('y'), [Globalization.CultureInfo]::InvariantCulture)
+$fontSize = [double]::Parse($sourceText.GetAttribute('font-size'), [Globalization.CultureInfo]::InvariantCulture)
+$letterSpacing = [double]::Parse($sourceText.GetAttribute('letter-spacing'), [Globalization.CultureInfo]::InvariantCulture)
 
-$svg = @"
-<?xml version="1.0" encoding="UTF-8"?>
-<!-- Path-outlined WinUI derivative of docs/Logo/granite-edge-ai-lockup.svg. -->
-<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="420" viewBox="0 0 1400 420" fill="none">
-  <defs>
-    <linearGradient id="graniteBlue" x1="48" y1="256" x2="420" y2="256" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#0F62FE"/>
-      <stop offset="1" stop-color="#003A9F"/>
-    </linearGradient>
-  </defs>
-  <g transform="translate(20 12) scale(0.75)" data-brand-element="Granite Edge AI G monogram">
-    <path d="M151 72H420L393 108H119C128 91 139 79 151 72Z" fill="url(#graniteBlue)"/>
-    <path d="M100 126H386L359 162H77C83 148 91 136 100 126Z" fill="url(#graniteBlue)"/>
-    <path d="M68 180H169L142 216H55C58 203 62 191 68 180Z" fill="url(#graniteBlue)"/>
-    <path d="M50 234H137V270H48C47 258 48 246 50 234Z" fill="url(#graniteBlue)"/>
-    <path d="M50 288H142L169 324H61C56 313 52 301 50 288Z" fill="url(#graniteBlue)"/>
-    <path d="M77 342H359L386 378H100C91 368 83 356 77 342Z" fill="url(#graniteBlue)"/>
-    <path d="M119 396H393L420 432H151C139 425 128 413 119 396Z" fill="url(#graniteBlue)"/>
-    <path d="M228 234H420V270H196L228 234Z" fill="url(#graniteBlue)"/>
-    <path d="M267 288H420V324H235L267 288Z" fill="url(#graniteBlue)"/>
-  </g>
-  <path d="$($wordmark.Data)" fill="#102E6B" data-brand-element="Granite Edge wordmark"/>
-  <path d="$($ai.Data)" fill="#0F62FE" data-brand-element="AI wordmark"/>
-</svg>
-"@
+if ($wordmarkText -ne 'Granite Edge AI' -or $fontSize -ne 138 -or
+    $letterSpacing -ne -4 -or $sourceText.GetAttribute('font-weight') -ne '600') {
+    throw 'The source Granite wordmark typography has changed; review the outlined conversion.'
+}
 
-$outputPath = Join-Path $RepositoryRoot 'IBM Granite with TurboQuant (Intel)\Assets\Branding\granite-edge-ai-lockup-outlined.svg'
-[IO.File]::WriteAllText($outputPath, $svg, [Text.UTF8Encoding]::new($false))
-Write-Host "Generated $outputPath"
+$culture = [Globalization.CultureInfo]::InvariantCulture
+$typeface = [Windows.Media.Typeface]::new(
+    [Windows.Media.FontFamily]::new('Segoe UI'),
+    [Windows.FontStyles]::Normal,
+    [Windows.FontWeights]::SemiBold,
+    [Windows.FontStretches]::Normal)
+$formatted = [Windows.Media.FormattedText]::new(
+    $wordmarkText,
+    $culture,
+    [Windows.FlowDirection]::LeftToRight,
+    $typeface,
+    $fontSize,
+    [Windows.Media.Brushes]::Black,
+    1.0)
+$originY = $sourceBaseline - $formatted.Baseline
+$geometry = $formatted.BuildGeometry([Windows.Point]::new($sourceX, $originY))
+$glyphs = @($geometry.Children[0].Children)
+$characterIndices = @(for ($index = 0; $index -lt $wordmarkText.Length; $index++) {
+    if (-not [char]::IsWhiteSpace($wordmarkText[$index])) {
+        $index
+    }
+})
+
+if ($glyphs.Count -ne $characterIndices.Count) {
+    throw 'The outlined wordmark glyph count does not match the source text.'
+}
+
+$sourceHash = (Get-FileHash -LiteralPath $sourcePath -Algorithm SHA256).Hash.ToLowerInvariant()
+$lines = [Collections.Generic.List[string]]::new()
+$lines.Add('<?xml version="1.0" encoding="UTF-8"?>')
+$lines.Add('<!-- Path-outlined WinUI derivative of docs/Logo/granite-edge-ai-lockup.svg. -->')
+$lines.Add(('<svg xmlns="http://www.w3.org/2000/svg" width="{0}" height="{1}" viewBox="{2}" fill="none" data-source-sha256="{3}">' -f
+    $root.GetAttribute('width'), $root.GetAttribute('height'), $root.GetAttribute('viewBox'), $sourceHash))
+$lines.Add('  <defs>')
+$lines.Add(('    <linearGradient id="graniteBlue" x1="{0}" y1="{1}" x2="{2}" y2="{3}" gradientUnits="{4}">' -f
+    $sourceGradient.GetAttribute('x1'), $sourceGradient.GetAttribute('y1'),
+    $sourceGradient.GetAttribute('x2'), $sourceGradient.GetAttribute('y2'),
+    $sourceGradient.GetAttribute('gradientUnits')))
+foreach ($stop in @($sourceGradient.SelectNodes('svg:stop', $namespace))) {
+    $lines.Add(('      <stop offset="{0}" stop-color="{1}"/>' -f
+        $stop.GetAttribute('offset'), $stop.GetAttribute('stop-color')))
+}
+$lines.Add('    </linearGradient>')
+$lines.Add('  </defs>')
+$lines.Add('  <g transform="translate(20 12) scale(0.75)" data-brand-element="Granite Edge AI G monogram">')
+foreach ($path in $sourcePaths) {
+    $lines.Add(('    <path d="{0}" fill="{1}"/>' -f $path.GetAttribute('d'), $path.GetAttribute('fill')))
+}
+$lines.Add('  </g>')
+for ($glyphIndex = 0; $glyphIndex -lt $glyphs.Count; $glyphIndex++) {
+    $characterIndex = $characterIndices[$glyphIndex]
+    $trackingOffset = $letterSpacing * $characterIndex
+    $pathData = $glyphs[$glyphIndex].GetFlattenedPathGeometry().ToString($culture) -replace '^F1', ''
+    $fill = if ($characterIndex -ge $wordmarkText.IndexOf('AI')) {
+        $sourceTspan.GetAttribute('fill')
+    } else {
+        $sourceText.GetAttribute('fill')
+    }
+    $lines.Add(('  <path d="{0}" fill="{1}" transform="translate({2} 0)" data-source-char-index="{3}"/>' -f
+        $pathData, $fill, $trackingOffset.ToString($culture), $characterIndex))
+}
+$lines.Add('</svg>')
+
+[IO.File]::WriteAllText($outputPath, ($lines -join "`n") + "`n", [Text.UTF8Encoding]::new($false))
+Write-Host "Generated $outputPath from $sourcePath"

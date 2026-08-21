@@ -618,16 +618,51 @@ public sealed class GgufChatVisualContractTests
             "PreserveNewest",
             lockupContent.Element("CopyToPublishDirectory")?.Value);
 
-        XDocument outlinedLockup = XDocument.Load(Path.Combine(
+        string sourceLockupPath = Path.Combine(
+            root,
+            "docs",
+            "Logo",
+            "granite-edge-ai-lockup.svg");
+        string outlinedLockupPath = Path.Combine(
             root,
             "IBM Granite with TurboQuant (Intel)",
             "Assets",
             "Branding",
-            "granite-edge-ai-lockup-outlined.svg"));
+            "granite-edge-ai-lockup-outlined.svg");
+        XDocument sourceLockup = XDocument.Load(sourceLockupPath);
+        XDocument outlinedLockup = XDocument.Load(outlinedLockupPath);
         XNamespace svg = "http://www.w3.org/2000/svg";
         Assert.AreEqual(0, outlinedLockup.Descendants(svg + "text").Count());
         Assert.AreEqual(0, outlinedLockup.Descendants(svg + "tspan").Count());
         Assert.IsGreaterThan(9, outlinedLockup.Descendants(svg + "path").Count());
+        Assert.AreEqual(
+            Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+                File.ReadAllBytes(sourceLockupPath))).ToLowerInvariant(),
+            outlinedLockup.Root?.Attribute("data-source-sha256")?.Value);
+
+        string[] sourceMonogramPaths = sourceLockup.Descendants(svg + "path")
+            .Select(path => path.Attribute("d")?.Value ?? string.Empty)
+            .ToArray();
+        string[] outlinedMonogramPaths = outlinedLockup.Descendants(svg + "g")
+            .Single(group => group.Attribute("data-brand-element")?.Value
+                == "Granite Edge AI G monogram")
+            .Elements(svg + "path")
+            .Select(path => path.Attribute("d")?.Value ?? string.Empty)
+            .ToArray();
+        CollectionAssert.AreEqual(sourceMonogramPaths, outlinedMonogramPaths);
+
+        XElement[] outlinedGlyphs = outlinedLockup.Descendants(svg + "path")
+            .Where(path => path.Attribute("data-source-char-index") is not null)
+            .ToArray();
+        int[] expectedCharacterIndices = [0, 1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 13, 14];
+        CollectionAssert.AreEqual(
+            expectedCharacterIndices,
+            outlinedGlyphs.Select(path => int.Parse(
+                path.Attribute("data-source-char-index")!.Value,
+                System.Globalization.CultureInfo.InvariantCulture)).ToArray());
+        CollectionAssert.AreEqual(
+            expectedCharacterIndices.Select(index => $"translate({-4 * index} 0)").ToArray(),
+            outlinedGlyphs.Select(path => path.Attribute("transform")?.Value).ToArray());
 
         XElement centerMark = page.Descendants(presentation + "Image")
             .Single(element => element.Attribute(x + "Name")?.Value == "EmptyStateBrandMark");
