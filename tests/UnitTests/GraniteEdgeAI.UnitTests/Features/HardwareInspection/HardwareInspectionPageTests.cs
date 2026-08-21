@@ -3,11 +3,14 @@ using GraniteEdgeAI.Features.HardwareInspection.Application;
 using GraniteEdgeAI.Features.HardwareInspection.Presentation.Controls;
 using GraniteEdgeAI.Features.HardwareInspection.Presentation.Factories;
 using GraniteEdgeAI.Features.HardwareInspection.Presentation.State;
+using GraniteEdgeAI.Features.HardwareInspection.ViewModels;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Automation.Provider;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GraniteEdgeAI.UnitTests.Features.HardwareInspection;
 
@@ -196,6 +199,101 @@ public sealed class HardwareInspectionPageTests
         IInvokeProvider invoke = (IInvokeProvider)new ButtonAutomationPeer(button).GetPattern(PatternInterface.Invoke)!;
         invoke.Invoke();
         Assert.AreEqual(HardwareInspectionActionKind.BackToModelInspection, requested);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task LoadedViewModel_StartsOnceAndAppliesAcceptedProgress()
+    {
+        ManualHardwareInspectionService service = new();
+        HardwareInspectionViewModel viewModel = new(
+            service,
+            new ImmediateHardwareInspectionStagePacer());
+        HardwareInspectionPage page = new(viewModel);
+        Window window = await ShowAsync(page);
+        try
+        {
+            await WaitForAsync(() => service.Calls.Count == 1);
+            ManualRun run = service.Calls[0];
+            run.Report(1, HardwareInspectionRunStage.StartingHardwareInspection);
+            run.Report(2, HardwareInspectionRunStage.ReadingProcessorInformation);
+            await WaitForAsync(() =>
+                ((HardwareInspectionProgressCard)Element(page, "ProgressCard"))
+                    .CurrentState?.Title == "Reading processor information");
+
+            Assert.AreEqual(1, service.Calls.Count);
+            Assert.AreEqual(Visibility.Visible, Element(page, "ProgressCard").Visibility);
+            run.Complete(HardwareInspectionRunResult.CreateCancelled(run.InspectionId));
+            await WaitForAsync(() => Element(page, "TerminalPanel").Visibility
+                == Visibility.Visible);
+        }
+        finally
+        {
+            window.Content = null;
+            window.Close();
+        }
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task TypedRunActions_CancelThenRetryWithANewIdentity()
+    {
+        ManualHardwareInspectionService service = new();
+        HardwareInspectionViewModel viewModel = new(
+            service,
+            new ImmediateHardwareInspectionStagePacer());
+        HardwareInspectionPage page = new(viewModel);
+        Window window = await ShowAsync(page);
+        try
+        {
+            await WaitForAsync(() => service.Calls.Count == 1);
+            ManualRun first = service.Calls[0];
+            Button cancel = ((StackPanel)((HardwareInspectionActionCard)Element(
+                page, "ActiveActionCard")).FindName("ActionsPanel"))
+                .Children.Cast<Button>().Single();
+            ((IInvokeProvider)new ButtonAutomationPeer(cancel)
+                .GetPattern(PatternInterface.Invoke)!).Invoke();
+            await WaitForAsync(() => viewModel.Snapshot.Presentation.Kind
+                == HardwareInspectionPresentationKind.Stopping);
+            Assert.IsTrue(first.CancellationToken.IsCancellationRequested);
+
+            first.Complete(HardwareInspectionRunResult.CreateCancelled(first.InspectionId));
+            await WaitForAsync(() => viewModel.Snapshot.Presentation.Kind
+                == HardwareInspectionPresentationKind.Cancelled);
+            Button retry = ((StackPanel)((HardwareInspectionActionCard)Element(
+                page, "ActionCard")).FindName("ActionsPanel"))
+                .Children.Cast<Button>()
+                .Single(button => button.Content?.ToString() == "Run inspection again");
+            ((IInvokeProvider)new ButtonAutomationPeer(retry)
+                .GetPattern(PatternInterface.Invoke)!).Invoke();
+
+            await WaitForAsync(() => service.Calls.Count == 2);
+            Assert.AreNotEqual(first.InspectionId, service.Calls[1].InspectionId);
+            service.Calls[1].Complete(HardwareInspectionRunResult.CreateCancelled(
+                service.Calls[1].InspectionId));
+        }
+        finally
+        {
+            window.Content = null;
+            window.Close();
+        }
+    }
+
+    private static async Task<Window> ShowAsync(HardwareInspectionPage page)
+    {
+        Window window = new() { Content = page };
+        window.Activate();
+        await WaitForAsync(() => page.XamlRoot is not null);
+        return window;
+    }
+
+    private static async Task WaitForAsync(Func<bool> predicate)
+    {
+        using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(5));
+        while (!predicate())
+        {
+            await Task.Delay(10, timeout.Token);
+        }
     }
 
     private static FrameworkElement Element(HardwareInspectionPage page, string name) =>

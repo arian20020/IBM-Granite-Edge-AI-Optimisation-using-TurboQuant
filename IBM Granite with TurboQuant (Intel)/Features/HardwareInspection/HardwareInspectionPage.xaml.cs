@@ -1,8 +1,10 @@
 using GraniteEdgeAI.Features.HardwareInspection.Presentation.Controls;
 using GraniteEdgeAI.Features.HardwareInspection.Presentation.State;
+using GraniteEdgeAI.Features.HardwareInspection.ViewModels;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using System;
+using System.Threading.Tasks;
 
 namespace GraniteEdgeAI.Features.HardwareInspection;
 
@@ -15,12 +17,24 @@ public sealed partial class HardwareInspectionPage : Page
         "Graphics",
         "Storage",
     ];
+    private readonly HardwareInspectionViewModel? _viewModel;
+    private bool _isActive;
+    private long _appliedRevision = -1;
+    private long _appliedAttemptGeneration = -1;
 
     public HardwareInspectionPage()
     {
         InitializeComponent();
-        ActiveActionCard.ActionRequested += (_, args) => ActionRequested?.Invoke(this, args);
-        ActionCard.ActionRequested += (_, args) => ActionRequested?.Invoke(this, args);
+        ActiveActionCard.ActionRequested += OnActionRequested;
+        ActionCard.ActionRequested += OnActionRequested;
+    }
+
+    public HardwareInspectionPage(HardwareInspectionViewModel viewModel)
+        : this()
+    {
+        _viewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
+        Loaded += OnLoaded;
+        Unloaded += OnUnloaded;
     }
 
     public event EventHandler<HardwareInspectionActionRequestedEventArgs>? ActionRequested;
@@ -32,6 +46,107 @@ public sealed partial class HardwareInspectionPage : Page
     }
 
     internal HardwareInspectionPresentationState? CurrentState { get; private set; }
+
+    private void OnLoaded(object sender, RoutedEventArgs args)
+    {
+        if (_viewModel is null || _isActive)
+        {
+            return;
+        }
+
+        _isActive = true;
+        _viewModel.SnapshotChanged += OnSnapshotChanged;
+        _ = ObserveAsync(_viewModel.ActivateAsync());
+        ApplyLatestSnapshot();
+    }
+
+    private void OnUnloaded(object sender, RoutedEventArgs args)
+    {
+        if (_viewModel is null || !_isActive)
+        {
+            return;
+        }
+
+        _isActive = false;
+        _viewModel.SnapshotChanged -= OnSnapshotChanged;
+        _viewModel.Deactivate();
+    }
+
+    private void OnSnapshotChanged(object? sender, EventArgs args)
+    {
+        if (!_isActive)
+        {
+            return;
+        }
+
+        if (DispatcherQueue.HasThreadAccess)
+        {
+            ApplyLatestSnapshot();
+        }
+        else
+        {
+            _ = DispatcherQueue.TryEnqueue(ApplyLatestSnapshot);
+        }
+    }
+
+    private void ApplyLatestSnapshot()
+    {
+        if (_viewModel is null || !_isActive)
+        {
+            return;
+        }
+
+        HardwareInspectionViewState snapshot = _viewModel.Snapshot;
+        if (snapshot.Revision <= _appliedRevision)
+        {
+            return;
+        }
+
+        bool preserveDisclosureState = _appliedAttemptGeneration
+            == snapshot.AttemptGeneration;
+        Apply(
+            snapshot.Presentation,
+            snapshot.Summary,
+            snapshot.Details,
+            preserveDisclosureState);
+        _appliedAttemptGeneration = snapshot.AttemptGeneration;
+        _appliedRevision = snapshot.Revision;
+    }
+
+    private void OnActionRequested(
+        object? sender,
+        HardwareInspectionActionRequestedEventArgs args)
+    {
+        if (_viewModel is not null)
+        {
+            switch (args.Kind)
+            {
+                case HardwareInspectionActionKind.CancelInspection:
+                    _viewModel.Cancel();
+                    return;
+                case HardwareInspectionActionKind.RunInspectionAgain:
+                case HardwareInspectionActionKind.TryAgain:
+                    _ = ObserveAsync(_viewModel.RetryAsync());
+                    return;
+                case HardwareInspectionActionKind.Stopping:
+                    return;
+            }
+        }
+
+        ActionRequested?.Invoke(this, args);
+    }
+
+    private static async Task ObserveAsync(Task task)
+    {
+        try
+        {
+            await task;
+        }
+        catch
+        {
+            // The ViewModel maps service failures to privacy-safe terminal state.
+        }
+    }
 
     internal void Apply(
         HardwareInspectionPresentationState state,
