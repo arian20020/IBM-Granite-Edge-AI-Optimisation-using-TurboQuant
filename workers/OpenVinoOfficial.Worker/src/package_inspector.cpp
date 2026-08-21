@@ -67,7 +67,8 @@ private:
                reason.find("hash") != std::string_view::npos) {
         code = "package_unreadable";
     }
-    throw worker_failure(std::move(code), false, std::string(reason));
+    const bool fatal = code == "package_changed";
+    throw worker_failure(std::move(code), fatal, std::string(reason));
 }
 
 std::string digest_hex(const std::array<UCHAR, 32>& digest) {
@@ -365,9 +366,21 @@ const std::filesystem::path& package_lease::root() const noexcept { return root_
 const package_evidence& package_lease::evidence() const noexcept { return evidence_; }
 
 void package_lease::verify_topology(bool drain_notifications) const {
+    if (drain_notifications) {
+        verify_terminal_topology();
+        return;
+    }
     if (monitor_ == nullptr || monitor_->changed()) fail("package changed");
     verify_package_topology(root_, root_identity_, entries_);
-    if (monitor_->changed(drain_notifications)) fail("package changed");
+    if (monitor_->changed()) fail("package changed");
+}
+
+void package_lease::verify_terminal_topology(
+    const std::function<void()>& during_rescan) const {
+    if (monitor_ == nullptr || monitor_->terminal_barrier()) fail("package changed");
+    if (during_rescan) during_rescan();
+    verify_package_topology(root_, root_identity_, entries_);
+    if (monitor_->terminal_barrier()) fail("package changed");
 }
 
 package_lease acquire_package(

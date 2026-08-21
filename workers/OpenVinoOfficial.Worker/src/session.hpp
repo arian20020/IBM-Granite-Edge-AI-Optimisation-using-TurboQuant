@@ -77,6 +77,7 @@ public:
         std::size_t requested_tokens,
         turn_control& control);
     void verify_integrity(bool drain_notifications = false) const;
+    void verify_terminal_integrity() const;
 
 private:
     package_lease package_;

@@ -112,6 +112,21 @@ void official_session::verify_integrity(bool drain_notifications) const {
     if (first_failure != nullptr) std::rethrow_exception(first_failure);
 }
 
+void official_session::verify_terminal_integrity() const {
+    std::exception_ptr first_failure;
+    const auto capture = [&](const auto& check) {
+        try {
+            check();
+        } catch (...) {
+            if (first_failure == nullptr) first_failure = std::current_exception();
+        }
+    };
+    capture([&] { package_.verify_terminal_topology(); });
+    capture([&] { runtime_.verify_terminal_topology(); });
+    if (module_verifier_) capture(module_verifier_);
+    if (first_failure != nullptr) std::rethrow_exception(first_failure);
+}
+
 turn_result official_session::generate(
     const std::string& session_id,
     const std::string& turn_id,

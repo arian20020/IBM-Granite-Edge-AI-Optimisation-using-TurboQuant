@@ -62,6 +62,8 @@ public:
     [[nodiscard]] const runtime_evidence& evidence() const noexcept;
     [[nodiscard]] const std::filesystem::path& root() const noexcept;
     void verify_topology(bool drain_notifications = false) const;
+    void verify_terminal_topology(
+        const std::function<void()>& during_rescan = {}) const;
     [[nodiscard]] bool contains_approved_file(
         const native_file_identity& identity) const noexcept;
 

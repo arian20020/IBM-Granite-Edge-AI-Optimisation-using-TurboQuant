@@ -534,6 +534,10 @@ const runtime_evidence& runtime_context::evidence() const noexcept { return evid
 const std::filesystem::path& runtime_context::root() const noexcept { return root_; }
 
 void runtime_context::verify_topology(bool drain_notifications) const {
+    if (drain_notifications) {
+        verify_terminal_topology();
+        return;
+    }
     try {
         if (monitor_ == nullptr || monitor_->changed()) {
             throw worker_failure(
@@ -541,7 +545,28 @@ void runtime_context::verify_topology(bool drain_notifications) const {
         }
         require_exact_topology(
             root_, root_identity_, manifest_identity_, entries_);
-        if (monitor_->changed(drain_notifications)) {
+        if (monitor_->changed()) {
+            throw worker_failure(
+                "runtime_integrity_failed", true, "runtime namespace changed");
+        }
+    } catch (const worker_failure&) {
+        throw;
+    } catch (...) {
+        throw worker_failure(
+            "runtime_integrity_failed", true, "runtime topology changed");
+    }
+}
+
+void runtime_context::verify_terminal_topology(
+    const std::function<void()>& during_rescan) const {
+    try {
+        if (monitor_ == nullptr || monitor_->terminal_barrier()) {
+            throw worker_failure(
+                "runtime_integrity_failed", true, "runtime namespace changed");
+        }
+        if (during_rescan) during_rescan();
+        require_exact_topology(root_, root_identity_, manifest_identity_, entries_);
+        if (monitor_->terminal_barrier()) {
             throw worker_failure(
                 "runtime_integrity_failed", true, "runtime namespace changed");
         }

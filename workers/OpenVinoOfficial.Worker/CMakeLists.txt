@@ -17,7 +17,8 @@ add_library(openvino_official_core STATIC
     src/protocol.cpp
     src/package_inspector.cpp
     src/session.cpp
-    src/runtime_evidence.cpp)
+    src/runtime_evidence.cpp
+    src/terminal_publication.cpp)
 target_compile_features(openvino_official_core PUBLIC cxx_std_20)
 target_compile_definitions(openvino_official_core PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
 target_include_directories(openvino_official_core PUBLIC src PRIVATE "${NLOHMANN_JSON_INCLUDE_DIR}")
@@ -37,6 +38,19 @@ endif()
 
 include(CTest)
 if(BUILD_TESTING)
+    add_executable(openvino_official_namespace_monitor_tests
+        tests/namespace_monitor_tests.cpp
+        src/namespace_monitor.cpp)
+    target_compile_features(openvino_official_namespace_monitor_tests PRIVATE cxx_std_20)
+    target_compile_definitions(openvino_official_namespace_monitor_tests PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
+    target_include_directories(openvino_official_namespace_monitor_tests PRIVATE src)
+    if(MSVC)
+        target_compile_options(openvino_official_namespace_monitor_tests PRIVATE /W4 /WX /utf-8)
+    endif()
+    add_test(
+        NAME openvino_official_namespace_monitor_tests
+        COMMAND openvino_official_namespace_monitor_tests)
+
     add_executable(openvino_official_protocol_tests tests/protocol_tests.cpp)
     target_compile_features(openvino_official_protocol_tests PRIVATE cxx_std_20)
     target_include_directories(openvino_official_protocol_tests PRIVATE src "${NLOHMANN_JSON_INCLUDE_DIR}")
@@ -86,6 +100,26 @@ if(BUILD_TESTING)
             NAME openvino_official_lease_tests
             COMMAND openvino_official_lease_tests "${OFFICIAL_FIXTURE_PACKAGE}" "${OFFICIAL_WORKER_STAGE}")
         set_tests_properties(openvino_official_lease_tests PROPERTIES
+            ENVIRONMENT_MODIFICATION
+                "PATH=path_list_prepend:${official_runtime_root}/bin/intel64/Release;PATH=path_list_prepend:${official_runtime_root}/3rdparty/tbb/bin")
+
+        add_executable(openvino_official_terminal_publication_tests
+            tests/terminal_publication_tests.cpp)
+        target_compile_features(openvino_official_terminal_publication_tests PRIVATE cxx_std_20)
+        target_include_directories(openvino_official_terminal_publication_tests PRIVATE src "${NLOHMANN_JSON_INCLUDE_DIR}")
+        target_link_libraries(openvino_official_terminal_publication_tests PRIVATE openvino_official_core)
+        if(MSVC)
+            target_compile_options(openvino_official_terminal_publication_tests PRIVATE /W4 /WX /utf-8)
+        endif()
+        add_custom_command(TARGET openvino_official_terminal_publication_tests POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                "${official_runtime_root}/bin/intel64/Release/openvino_tokenizers.dll"
+                "$<TARGET_FILE_DIR:openvino_official_terminal_publication_tests>/openvino_tokenizers.dll"
+            VERBATIM)
+        add_test(
+            NAME openvino_official_terminal_publication_tests
+            COMMAND openvino_official_terminal_publication_tests "${OFFICIAL_FIXTURE_PACKAGE}" "${OFFICIAL_WORKER_STAGE}")
+        set_tests_properties(openvino_official_terminal_publication_tests PROPERTIES
             ENVIRONMENT_MODIFICATION
                 "PATH=path_list_prepend:${official_runtime_root}/bin/intel64/Release;PATH=path_list_prepend:${official_runtime_root}/3rdparty/tbb/bin")
 

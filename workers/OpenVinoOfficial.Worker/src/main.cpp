@@ -2,6 +2,7 @@
 #include "protocol.hpp"
 #include "runtime_evidence.hpp"
 #include "session.hpp"
+#include "terminal_publication.hpp"
 
 #define NOMINMAX
 #define WIN32_LEAN_AND_MEAN
@@ -112,15 +113,21 @@ void run_inspection(const json& command, const runtime_context& runtime) {
         write_event({{"inspectionRunId", run_id}, {"stage", "mainModelParsed"}, {"eventType", "inspectionProgress"}});
         write_event({{"inspectionRunId", run_id}, {"stage", "tokenizerParsed"}, {"eventType", "inspectionProgress"}});
         write_event({{"inspectionRunId", run_id}, {"stage", "detokenizerParsed"}, {"eventType", "inspectionProgress"}});
-        write_event({{"inspectionRunId", run_id},
-                     {"packageManifestDigest", evidence.package_digest},
-                     {"modelSha256", evidence.model_digest},
-                     {"modelLengthBytes", evidence.model_length},
-                     {"mainModelParsed", true},
-                     {"tokenizerParsed", true},
-                     {"detokenizerParsed", true},
-                     {"buildEvidence", runtime.evidence().to_json()},
-                     {"eventType", "inspectionCompleted"}});
+        publish_terminal_event(
+            {{"inspectionRunId", run_id},
+             {"packageManifestDigest", evidence.package_digest},
+             {"modelSha256", evidence.model_digest},
+             {"modelLengthBytes", evidence.model_length},
+             {"mainModelParsed", true},
+             {"tokenizerParsed", true},
+             {"detokenizerParsed", true},
+             {"buildEvidence", runtime.evidence().to_json()},
+             {"eventType", "inspectionCompleted"}},
+            {
+                [&] { lease.verify_terminal_topology(); },
+                [&] { runtime.verify_terminal_topology(); },
+                [&] { verify_loaded_module_closure(runtime); },
+            });
     } catch (const worker_failure& failure) {
         write_event({{"inspectionRunId", run_id},
                      {"supportCode", failure.support_code()},
@@ -164,12 +171,14 @@ void run_session_body(const json& command, const runtime_context& runtime) {
         std::move(lease), runtime, model_context, c1_context, {},
         [&] { verify_loaded_module_closure(runtime); });
     verify_loaded_module_closure(runtime);
-    write_event({{"sessionId", session_id},
-                 {"requestedDevice", "CPU"},
-                 {"actualExecutionDevices", json::array({"CPU"})},
-                 {"protocolId", official_protocol},
-                 {"buildEvidence", runtime.evidence().to_json()},
-                 {"eventType", "sessionStarted"}});
+    publish_terminal_event(
+        {{"sessionId", session_id},
+         {"requestedDevice", "CPU"},
+         {"actualExecutionDevices", json::array({"CPU"})},
+         {"protocolId", official_protocol},
+         {"buildEvidence", runtime.evidence().to_json()},
+         {"eventType", "sessionStarted"}},
+        {[&] { session.verify_terminal_integrity(); }});
 
     std::size_t turn_count = 0;
     while (true) {
@@ -179,13 +188,15 @@ void run_session_body(const json& command, const runtime_context& runtime) {
         validate_id(command_session);
         if (command_session != session_id) throw protocol_error("session identifier mismatch");
         if (type == "closeSession") {
-            session.verify_integrity(true);
-            write_event({{"sessionId", session_id}, {"eventType", "sessionCompleted"}});
+            publish_terminal_event(
+                {{"sessionId", session_id}, {"eventType", "sessionCompleted"}},
+                {[&] { session.verify_terminal_integrity(); }});
             return;
         }
         if (type == "cancelSession") {
-            session.verify_integrity(true);
-            write_event({{"sessionId", session_id}, {"eventType", "sessionCancelled"}});
+            publish_terminal_event(
+                {{"sessionId", session_id}, {"eventType", "sessionCancelled"}},
+                {[&] { session.verify_terminal_integrity(); }});
             return;
         }
         if (type != "prompt" || ++turn_count > 32U) throw protocol_error("session command rejected");
@@ -274,16 +285,19 @@ void run_session_body(const json& command, const runtime_context& runtime) {
                 "runtime_load_failed", true, "native generation failed");
         }
         if (cancelled || result.cancelled) {
-            session.verify_integrity(true);
-            write_event({{"sessionId", session_id}, {"eventType", "sessionCancelled"}});
+            publish_terminal_event(
+                {{"sessionId", session_id}, {"eventType", "sessionCancelled"}},
+                {[&] { session.verify_terminal_integrity(); }});
             return;
         }
-        write_event({{"sessionId", session_id},
-                     {"turnId", turn_id},
-                     {"promptTokenCount", result.prompt_tokens},
-                     {"generatedTokenCount", result.generated_tokens},
-                     {"disposition", result.stopped ? "stopped" : "completed"},
-                     {"eventType", "turnCompleted"}});
+        publish_terminal_event(
+            {{"sessionId", session_id},
+             {"turnId", turn_id},
+             {"promptTokenCount", result.prompt_tokens},
+             {"generatedTokenCount", result.generated_tokens},
+             {"disposition", result.stopped ? "stopped" : "completed"},
+             {"eventType", "turnCompleted"}},
+            {[&] { session.verify_terminal_integrity(); }});
     }
 }
 
@@ -319,10 +333,14 @@ int main(int argc, char** argv) {
         for (int index = 0; index < argc; ++index) arguments.emplace_back(argv[index]);
         (void)parse_arguments(arguments);
         const runtime_context runtime = initialize_verified_runtime();
-        verify_loaded_module_closure(runtime);
-        write_event({{"protocolId", official_protocol},
-                     {"buildEvidence", runtime.evidence().to_json()},
-                     {"eventType", "hello"}});
+        publish_terminal_event(
+            {{"protocolId", official_protocol},
+             {"buildEvidence", runtime.evidence().to_json()},
+             {"eventType", "hello"}},
+            {
+                [&] { runtime.verify_terminal_topology(); },
+                [&] { verify_loaded_module_closure(runtime); },
+            });
         const nlohmann::json command = parse_json_line(read_bounded_line());
         const std::string type = command.at("commandType").get<std::string>();
         if (type == "startInspection") {

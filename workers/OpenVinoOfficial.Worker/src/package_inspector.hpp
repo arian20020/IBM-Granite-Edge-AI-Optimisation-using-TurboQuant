@@ -48,6 +48,8 @@ public:
     [[nodiscard]] const std::filesystem::path& root() const noexcept;
     [[nodiscard]] const package_evidence& evidence() const noexcept;
     void verify_topology(bool drain_notifications = false) const;
+    void verify_terminal_topology(
+        const std::function<void()>& during_rescan = {}) const;
 
 private:
     friend package_lease acquire_package(
