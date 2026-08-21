@@ -124,6 +124,82 @@ public sealed class OpenVinoRouteStateMachineTests
         Assert.IsFalse(machine.TryBeginTurn(operationId, out _));
     }
 
+    [TestMethod]
+    public void ConfirmedTurnGateGivesCancellationOrCompletionExactlyOneOwner()
+    {
+        OpenVinoRouteStateMachine cancellationFirst = ReadyMachine();
+        Guid cancelledOperation =
+            cancellationFirst.Snapshot.Identity.OperationId;
+        Assert.IsTrue(cancellationFirst.TryBeginTurn(
+            cancelledOperation,
+            out Guid cancelledTurn));
+        Assert.IsTrue(cancellationFirst.TryConfirmGeneration(
+            cancelledOperation,
+            cancelledTurn));
+
+        Assert.IsTrue(cancellationFirst.TryBeginConfirmedTurnCancellation(
+            cancelledOperation,
+            cancelledTurn));
+        Assert.IsTrue(cancellationFirst.TryMarkCancelled(cancelledOperation));
+        Assert.AreEqual(
+            OpenVinoTurnTerminalOwner.Cancellation,
+            cancellationFirst.ResolveCompletedTurn(
+                cancelledOperation,
+                cancelledTurn));
+        Assert.AreEqual(
+            OpenVinoRouteState.Cancelled,
+            cancellationFirst.Snapshot.State);
+
+        OpenVinoRouteStateMachine completionFirst = ReadyMachine();
+        Guid completedOperation = completionFirst.Snapshot.Identity.OperationId;
+        Assert.IsTrue(completionFirst.TryBeginTurn(
+            completedOperation,
+            out Guid completedTurn));
+        Assert.IsTrue(completionFirst.TryConfirmGeneration(
+            completedOperation,
+            completedTurn));
+
+        Assert.AreEqual(
+            OpenVinoTurnTerminalOwner.Prompt,
+            completionFirst.ResolveCompletedTurn(
+                completedOperation,
+                completedTurn));
+        Assert.AreEqual(
+            OpenVinoRouteState.SessionReady,
+            completionFirst.Snapshot.State);
+        Assert.IsFalse(completionFirst.TryBeginConfirmedTurnCancellation(
+            completedOperation,
+            completedTurn));
+        Assert.AreEqual(
+            OpenVinoTurnTerminalOwner.None,
+            completionFirst.ResolveCompletedTurn(
+                completedOperation,
+                completedTurn));
+    }
+
+    [TestMethod]
+    public void ConfirmedTurnGateSuppressesPromptFailureAfterCancellationOwnership()
+    {
+        OpenVinoRouteStateMachine machine = ReadyMachine();
+        Guid operationId = machine.Snapshot.Identity.OperationId;
+        Assert.IsTrue(machine.TryBeginTurn(operationId, out Guid turnId));
+        Assert.IsTrue(machine.TryConfirmGeneration(operationId, turnId));
+        Assert.IsTrue(machine.TryBeginConfirmedTurnCancellation(
+            operationId,
+            turnId));
+
+        Assert.AreEqual(
+            OpenVinoTurnTerminalOwner.Cancellation,
+            machine.ResolveFailedTurn(
+                operationId,
+                turnId,
+                "runtime_protocol_failed"));
+        Assert.AreEqual(
+            OpenVinoRouteState.CancellingSession,
+            machine.Snapshot.State);
+        Assert.IsNull(machine.Snapshot.FailureCode);
+    }
+
     private static OpenVinoRouteStateMachine ReadyMachine()
     {
         OpenVinoRouteStateMachine machine = new();

@@ -52,6 +52,13 @@ public sealed class OpenVinoRouteSession : IPromptRouteSession
     public Task StopAsync(CancellationToken cancellationToken) =>
         adapter.StopAsync(cancellationToken);
 
+    public Task StopActiveTurnAsync(
+        Guid workerConfirmedTurnId,
+        CancellationToken cancellationToken) =>
+        adapter.StopActiveTurnAsync(
+            workerConfirmedTurnId,
+            cancellationToken);
+
     public Task CancelAsync(CancellationToken cancellationToken) =>
         adapter.CancelAsync(cancellationToken);
 

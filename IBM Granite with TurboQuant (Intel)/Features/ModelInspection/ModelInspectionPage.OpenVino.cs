@@ -437,7 +437,12 @@ public sealed partial class ModelInspectionPage
     {
         try
         {
-            await session.StopAsync(CancellationToken.None);
+            Guid confirmedTurnId = _promptPresenter?.State.ActiveTurnId ??
+                throw new InvalidOperationException(
+                    "No worker-confirmed generation turn is active.");
+            await session.StopActiveTurnAsync(
+                confirmedTurnId,
+                CancellationToken.None);
         }
         catch (Exception)
         {

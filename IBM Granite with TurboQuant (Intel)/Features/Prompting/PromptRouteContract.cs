@@ -92,6 +92,16 @@ public interface IPromptRouteSession : IAsyncDisposable
 
     Task StopAsync(CancellationToken cancellationToken);
 
+    Task StopActiveTurnAsync(
+        Guid workerConfirmedTurnId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentOutOfRangeException.ThrowIfEqual(
+            workerConfirmedTurnId,
+            Guid.Empty);
+        return StopAsync(cancellationToken);
+    }
+
     Task CancelAsync(CancellationToken cancellationToken);
 
     Task CancelActiveTurnAsync(

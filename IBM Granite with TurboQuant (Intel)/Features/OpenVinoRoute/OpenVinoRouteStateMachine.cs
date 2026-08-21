@@ -42,6 +42,13 @@ public sealed record OpenVinoRouteSnapshot(
     Guid? ActiveTurnId,
     string? FailureCode);
 
+internal enum OpenVinoTurnTerminalOwner
+{
+    None,
+    Prompt,
+    Cancellation
+}
+
 /// <summary>
 /// Owns the route-local identity and legal lifecycle independently of the
 /// worker protocol state machine.
@@ -51,6 +58,8 @@ public sealed class OpenVinoRouteStateMachine
     private readonly object stateLock = new();
     private readonly Func<Guid> identityFactory;
     private OpenVinoRouteSnapshot snapshot;
+    private Guid? confirmedTurnId;
+    private Guid? cancellationOwnedTurnId;
 
     public OpenVinoRouteStateMachine()
         : this(Guid.NewGuid)
@@ -143,6 +152,8 @@ public sealed class OpenVinoRouteStateMachine
             }
 
             turnId = NextIdentity();
+            confirmedTurnId = null;
+            cancellationOwnedTurnId = null;
             snapshot = snapshot with
             {
                 State = OpenVinoRouteState.GeneratingTurn,
@@ -157,6 +168,58 @@ public sealed class OpenVinoRouteStateMachine
         lock (stateLock)
         {
             if (!IsCurrentTurn(operationId, turnId) ||
+                snapshot.State != OpenVinoRouteState.GeneratingTurn)
+            {
+                return false;
+            }
+
+            snapshot = snapshot with { State = OpenVinoRouteState.StoppingTurn };
+            return true;
+        }
+    }
+
+    internal bool TryConfirmGeneration(Guid operationId, Guid turnId)
+    {
+        lock (stateLock)
+        {
+            if (!IsCurrentTurn(operationId, turnId) ||
+                snapshot.State != OpenVinoRouteState.GeneratingTurn ||
+                confirmedTurnId is not null)
+            {
+                return false;
+            }
+
+            confirmedTurnId = turnId;
+            return true;
+        }
+    }
+
+    internal bool IsConfirmedTurnActive(Guid operationId, Guid turnId)
+    {
+        lock (stateLock)
+        {
+            return IsCurrentTurn(operationId, turnId) &&
+                confirmedTurnId == turnId &&
+                snapshot.State is (
+                    OpenVinoRouteState.GeneratingTurn or
+                    OpenVinoRouteState.StoppingTurn);
+        }
+    }
+
+    internal bool IsTurnCancellationOwned(Guid operationId, Guid turnId)
+    {
+        lock (stateLock)
+        {
+            return IsCancellationOwner(operationId, turnId);
+        }
+    }
+
+    internal bool TryBeginConfirmedStopping(Guid operationId, Guid turnId)
+    {
+        lock (stateLock)
+        {
+            if (!IsCurrentTurn(operationId, turnId) ||
+                confirmedTurnId != turnId ||
                 snapshot.State != OpenVinoRouteState.GeneratingTurn)
             {
                 return false;
@@ -184,7 +247,74 @@ public sealed class OpenVinoRouteStateMachine
                 State = OpenVinoRouteState.TurnCompleted,
                 ActiveTurnId = null
             };
+            confirmedTurnId = null;
+            cancellationOwnedTurnId = null;
             return true;
+        }
+    }
+
+    internal OpenVinoTurnTerminalOwner ResolveCompletedTurn(
+        Guid operationId,
+        Guid turnId)
+    {
+        lock (stateLock)
+        {
+            if (IsCancellationOwner(operationId, turnId))
+            {
+                return OpenVinoTurnTerminalOwner.Cancellation;
+            }
+
+            if (!IsCurrentTurn(operationId, turnId) ||
+                confirmedTurnId != turnId ||
+                snapshot.State is not (
+                    OpenVinoRouteState.GeneratingTurn or
+                    OpenVinoRouteState.StoppingTurn))
+            {
+                return OpenVinoTurnTerminalOwner.None;
+            }
+
+            snapshot = snapshot with
+            {
+                State = OpenVinoRouteState.TurnCompleted,
+                ActiveTurnId = null
+            };
+            snapshot = snapshot with { State = OpenVinoRouteState.SessionReady };
+            confirmedTurnId = null;
+            cancellationOwnedTurnId = null;
+            return OpenVinoTurnTerminalOwner.Prompt;
+        }
+    }
+
+    internal OpenVinoTurnTerminalOwner ResolveFailedTurn(
+        Guid operationId,
+        Guid turnId,
+        string failureCode)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(failureCode);
+        lock (stateLock)
+        {
+            if (IsCancellationOwner(operationId, turnId))
+            {
+                return OpenVinoTurnTerminalOwner.Cancellation;
+            }
+
+            if (!IsCurrentTurn(operationId, turnId) ||
+                snapshot.State is not (
+                    OpenVinoRouteState.GeneratingTurn or
+                    OpenVinoRouteState.StoppingTurn))
+            {
+                return OpenVinoTurnTerminalOwner.None;
+            }
+
+            snapshot = snapshot with
+            {
+                State = OpenVinoRouteState.Failed,
+                ActiveTurnId = null,
+                FailureCode = failureCode
+            };
+            confirmedTurnId = null;
+            cancellationOwnedTurnId = null;
+            return OpenVinoTurnTerminalOwner.Prompt;
         }
     }
 
@@ -206,6 +336,34 @@ public sealed class OpenVinoRouteStateMachine
                 return false;
             }
 
+            cancellationOwnedTurnId = snapshot.ActiveTurnId;
+            confirmedTurnId = null;
+            snapshot = snapshot with
+            {
+                State = OpenVinoRouteState.CancellingSession,
+                ActiveTurnId = null
+            };
+            return true;
+        }
+    }
+
+    internal bool TryBeginConfirmedTurnCancellation(
+        Guid operationId,
+        Guid turnId)
+    {
+        lock (stateLock)
+        {
+            if (!IsCurrentTurn(operationId, turnId) ||
+                confirmedTurnId != turnId ||
+                snapshot.State is not (
+                    OpenVinoRouteState.GeneratingTurn or
+                    OpenVinoRouteState.StoppingTurn))
+            {
+                return false;
+            }
+
+            cancellationOwnedTurnId = turnId;
+            confirmedTurnId = null;
             snapshot = snapshot with
             {
                 State = OpenVinoRouteState.CancellingSession,
@@ -239,6 +397,7 @@ public sealed class OpenVinoRouteStateMachine
                 ActiveTurnId = null,
                 FailureCode = failureCode
             };
+            confirmedTurnId = null;
             return true;
         }
     }
@@ -257,6 +416,8 @@ public sealed class OpenVinoRouteStateMachine
                     "Only a terminal route operation can be reset.");
             }
 
+            confirmedTurnId = null;
+            cancellationOwnedTurnId = null;
             snapshot = FreshSnapshot();
             return snapshot.Identity;
         }
@@ -286,6 +447,11 @@ public sealed class OpenVinoRouteStateMachine
         IsCurrent(operationId) &&
         turnId != Guid.Empty &&
         snapshot.ActiveTurnId == turnId;
+
+    private bool IsCancellationOwner(Guid operationId, Guid turnId) =>
+        IsCurrent(operationId) &&
+        turnId != Guid.Empty &&
+        cancellationOwnedTurnId == turnId;
 
     private OpenVinoRouteSnapshot FreshSnapshot()
     {

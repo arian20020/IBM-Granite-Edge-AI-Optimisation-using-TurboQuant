@@ -310,6 +310,56 @@ public sealed class OpenVinoPromptAdapterTests
     }
 
     [TestMethod]
+    public async Task CancellingObserverReentrantDisposeJoinsPublishedSlowTeardown()
+    {
+        TaskCompletionSource disposalStarted = NewSignal();
+        TaskCompletionSource releaseDisposal = NewSignal();
+        FakeChannel channel = SuccessfulChannel();
+        channel.DisposeAction = async () =>
+        {
+            disposalStarted.TrySetResult();
+            await releaseDisposal.Task;
+        };
+        List<PromptEvent> events = [];
+        Task? reentrantDisposal = null;
+        OpenVinoRouteSession? session = null;
+        session = await StartSessionAsync(
+            channel,
+            promptEvent =>
+            {
+                events.Add(promptEvent);
+                if (promptEvent.Kind == PromptEventKind.CancellingSession)
+                {
+                    reentrantDisposal = session!.DisposeAsync().AsTask();
+                }
+            });
+
+        Task cancellation = session.CancelAsync(CancellationToken.None);
+        await disposalStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.IsNotNull(reentrantDisposal);
+        Assert.AreSame(cancellation, reentrantDisposal,
+            "Reentrant disposal must observe the exact published teardown task.");
+        Assert.IsFalse(cancellation.IsCompleted);
+        Assert.IsFalse(reentrantDisposal.IsCompleted,
+            "Reentrant disposal must join the already-published teardown task.");
+        Assert.AreEqual(1, channel.CancelCount);
+        Assert.AreEqual(1, channel.DisposeCount);
+
+        releaseDisposal.SetResult();
+        await Task.WhenAll(cancellation, reentrantDisposal)
+            .WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.AreEqual(OpenVinoRouteState.Cancelled, session.Snapshot.State);
+        Assert.HasCount(1, events.Where(item =>
+            item.Kind == PromptEventKind.CancellingSession));
+        Assert.HasCount(1, events.Where(item =>
+            item.Kind == PromptEventKind.Cancelled));
+        Assert.AreEqual(1, channel.CancelCount);
+        Assert.AreEqual(1, channel.DisposeCount);
+    }
+
+    [TestMethod]
     public async Task WorkerConfirmationOwnsTheExactTurnBeforeActiveCancellationIsEnabled()
     {
         TaskCompletionSource promptStarted = NewSignal();
@@ -352,6 +402,89 @@ public sealed class OpenVinoPromptAdapterTests
     }
 
     [TestMethod]
+    public async Task StopBeforeWorkerConfirmationFailsBeforeTheChannel()
+    {
+        TaskCompletionSource promptStarted = NewSignal();
+        TaskCompletionSource releasePrompt = NewSignal();
+        FakeChannel channel = new(async (command, _, _) =>
+        {
+            promptStarted.TrySetResult();
+            await releasePrompt.Task;
+            return new TurnCompletedEvent(
+                command.SessionId,
+                command.TurnId,
+                1,
+                1,
+                OpenVinoTurnDisposition.Completed);
+        })
+        {
+            AutoConfirmGeneration = false
+        };
+        (OpenVinoRouteSession session, _) = await StartSessionAsync(channel);
+
+        Task<PromptTurnResult> generation = session.GenerateAsync(
+            "not confirmed", 8, CancellationToken.None);
+        await promptStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
+            session.StopAsync(CancellationToken.None));
+        Assert.AreEqual(0, channel.StopCount);
+
+        channel.ConfirmGeneration();
+        releasePrompt.SetResult();
+        Assert.AreEqual(
+            PromptTurnStatus.Completed,
+            (await generation.WaitAsync(TimeSpan.FromSeconds(5))).Status);
+    }
+
+    [TestMethod]
+    public async Task ActiveStopAtomicallyRequiresTheWorkerConfirmedTurnId()
+    {
+        TaskCompletionSource promptStarted = NewSignal();
+        TaskCompletionSource stopObserved = NewSignal();
+        FakeChannel channel = new(async (command, _, _) =>
+        {
+            promptStarted.TrySetResult();
+            await stopObserved.Task;
+            return new TurnCompletedEvent(
+                command.SessionId,
+                command.TurnId,
+                1,
+                1,
+                OpenVinoTurnDisposition.Stopped);
+        });
+        channel.StopAction = () => stopObserved.TrySetResult();
+        (OpenVinoRouteSession session, List<PromptEvent> events) =
+            await StartSessionAsync(channel);
+
+        Task<PromptTurnResult> generation = session.GenerateAsync(
+            "stop confirmed", 8, CancellationToken.None);
+        await promptStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Guid confirmedTurnId = events.Single(item =>
+            item.Kind == PromptEventKind.GenerationConfirmed).TurnId!.Value;
+
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
+            session.StopActiveTurnAsync(
+                Guid.NewGuid(),
+                CancellationToken.None));
+        Assert.AreEqual(0, channel.StopCount);
+
+        await session.StopActiveTurnAsync(
+            confirmedTurnId,
+            CancellationToken.None);
+        Assert.AreEqual(
+            PromptTurnStatus.Stopped,
+            (await generation.WaitAsync(TimeSpan.FromSeconds(5))).Status);
+        Assert.AreEqual(1, channel.StopCount);
+
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
+            session.StopActiveTurnAsync(
+                confirmedTurnId,
+                CancellationToken.None));
+        Assert.AreEqual(1, channel.StopCount);
+    }
+
+    [TestMethod]
     public async Task ActiveCancelAtomicallyRequiresTheWorkerConfirmedTurnId()
     {
         TaskCompletionSource promptStarted = NewSignal();
@@ -389,6 +522,127 @@ public sealed class OpenVinoPromptAdapterTests
         Assert.AreEqual(OpenVinoRouteState.Cancelled, session.Snapshot.State);
         Assert.AreEqual(1, channel.CancelCount);
         Assert.AreEqual(1, channel.DisposeCount);
+    }
+
+    [TestMethod]
+    [DataRow(false)]
+    [DataRow(true)]
+    public async Task CancellationClaimAtPromptTerminalBoundarySuppressesPromptTerminal(
+        bool workerReturnsFailure)
+    {
+        TaskCompletionSource terminalBoundaryReached = NewSignal();
+        TaskCompletionSource releaseTerminal = NewSignal();
+        FakeChannel channel = new(async (command, progress, _) =>
+        {
+            terminalBoundaryReached.TrySetResult();
+            await releaseTerminal.Task;
+            progress?.Report(new TokenEvent(
+                command.SessionId,
+                command.TurnId,
+                0,
+                "late"));
+            return workerReturnsFailure
+                ? new TurnFailedEvent(
+                    command.SessionId,
+                    command.TurnId,
+                    OpenVinoSupportCode.RuntimeProtocolFailed)
+                : new TurnCompletedEvent(
+                    command.SessionId,
+                    command.TurnId,
+                    1,
+                    1,
+                    OpenVinoTurnDisposition.Completed);
+        });
+        channel.CancelAction = () => releaseTerminal.TrySetResult();
+        (OpenVinoRouteSession session, List<PromptEvent> events) =
+            await StartSessionAsync(channel);
+
+        Task<PromptTurnResult> generation = session.GenerateAsync(
+            "terminal race", 8, CancellationToken.None);
+        await terminalBoundaryReached.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Guid confirmedTurnId = events.Single(item =>
+            item.Kind == PromptEventKind.GenerationConfirmed).TurnId!.Value;
+
+        await session.CancelActiveTurnAsync(
+            confirmedTurnId,
+            CancellationToken.None);
+        await Assert.ThrowsExactlyAsync<OperationCanceledException>(
+            async () => await generation);
+        int eventCountAtCancellation = events.Count;
+        await session.DisposeAsync();
+
+        Assert.AreEqual(eventCountAtCancellation, events.Count,
+            "No event revision may follow cancellation ownership.");
+        Assert.HasCount(1, events.Where(item =>
+            item.Kind == PromptEventKind.Cancelled));
+        Assert.IsFalse(events.Any(item =>
+            item.Kind is PromptEventKind.TurnCompleted or PromptEventKind.Failed));
+        Assert.IsFalse(events.Any(item => item.Text == "late"));
+        Assert.AreEqual(OpenVinoRouteState.Cancelled, session.Snapshot.State);
+        Assert.AreEqual(1, channel.CancelCount);
+        Assert.AreEqual(1, channel.DisposeCount);
+    }
+
+    [TestMethod]
+    public async Task PromptTerminalClaimFirstRejectsStaleActiveCancellationBeforeChannel()
+    {
+        TaskCompletionSource terminalBoundaryReached = NewSignal();
+        TaskCompletionSource releaseTerminal = NewSignal();
+        FakeChannel channel = new(async (command, _, _) =>
+        {
+            terminalBoundaryReached.TrySetResult();
+            await releaseTerminal.Task;
+            return new TurnCompletedEvent(
+                command.SessionId,
+                command.TurnId,
+                1,
+                1,
+                OpenVinoTurnDisposition.Completed);
+        });
+        List<PromptEvent> events = [];
+        OpenVinoRouteSession? session = null;
+        Exception? reentrantCancellationError = null;
+        session = await StartSessionAsync(
+            channel,
+            promptEvent =>
+            {
+                events.Add(promptEvent);
+                if (promptEvent.Kind == PromptEventKind.TurnCompleted)
+                {
+                    try
+                    {
+                        _ = session!.CancelActiveTurnAsync(
+                            promptEvent.TurnId!.Value,
+                            CancellationToken.None);
+                    }
+                    catch (Exception error)
+                    {
+                        reentrantCancellationError = error;
+                    }
+                }
+            });
+
+        Task<PromptTurnResult> generation = session.GenerateAsync(
+            "prompt wins", 8, CancellationToken.None);
+        await terminalBoundaryReached.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Guid confirmedTurnId = events.Single(item =>
+            item.Kind == PromptEventKind.GenerationConfirmed).TurnId!.Value;
+        releaseTerminal.SetResult();
+        Assert.AreEqual(
+            PromptTurnStatus.Completed,
+            (await generation.WaitAsync(TimeSpan.FromSeconds(5))).Status);
+
+        Assert.IsInstanceOfType<InvalidOperationException>(
+            reentrantCancellationError,
+            "The prompt-owned terminal boundary must reject active cancellation " +
+            "before the terminal observer returns.");
+        PromptEvent completion = events.Single(item =>
+            item.Kind == PromptEventKind.TurnCompleted);
+        Assert.AreEqual(confirmedTurnId, completion.TurnId);
+        Assert.IsFalse(events.Any(item =>
+            item.Kind is PromptEventKind.Cancelled or PromptEventKind.Failed));
+        Assert.AreEqual(OpenVinoRouteState.SessionReady, session.Snapshot.State);
+        Assert.AreEqual(0, channel.CancelCount);
     }
 
     [TestMethod]
@@ -509,6 +763,7 @@ public sealed class OpenVinoPromptAdapterTests
         internal bool CloseCalled { get; private set; }
         internal bool DisposeCalled => DisposeCount != 0;
         internal int CancelCount { get; private set; }
+        internal int StopCount { get; private set; }
         internal int DisposeCount { get; private set; }
         private Action<GenerationStartedEvent>? generationStarted;
         private Guid activeTurnId;
@@ -534,6 +789,7 @@ public sealed class OpenVinoPromptAdapterTests
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
+            StopCount++;
             StopAction?.Invoke();
             return Task.CompletedTask;
         }

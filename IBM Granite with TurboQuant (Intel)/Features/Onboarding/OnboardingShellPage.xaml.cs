@@ -21,6 +21,9 @@ namespace GraniteEdgeAI.Features.Onboarding
         // shell is currently listening to.
         private ModelInspectionPage? _attachedModelInspectionPage;
 
+        private readonly object _navigationTransactionLock = new();
+        private Task<bool>? _navigationTransactionTask;
+
         internal Task CurrentNavigationTask { get; private set; } =
             Task.CompletedTask;
 
@@ -373,20 +376,106 @@ namespace GraniteEdgeAI.Features.Onboarding
 
         internal Task<bool> ReturnToModelImportAsync()
         {
-            ModelInspectionPage? page = _attachedModelInspectionPage;
-            if (page is null)
+            ModelInspectionPage page;
+            TaskCompletionSource<bool> completion;
+            Task<bool> transaction;
+            lock (_navigationTransactionLock)
             {
-                return Task.FromResult(false);
+                if (_navigationTransactionTask is { IsCompleted: false } active)
+                {
+                    return active;
+                }
+
+                ModelInspectionPage? attachedPage =
+                    _attachedModelInspectionPage;
+                if (attachedPage is null)
+                {
+                    return Task.FromResult(false);
+                }
+                page = attachedPage;
+
+                completion = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                transaction = completion.Task;
+                _navigationTransactionTask = transaction;
+                CurrentNavigationTask = transaction;
             }
 
-            Task<bool> navigation = NavigateToFreshModelImportAsync(page);
-            CurrentNavigationTask = navigation;
-            return navigation;
+            _ = CompleteNavigationTransactionAsync(
+                page,
+                transaction,
+                completion);
+            return transaction;
+        }
+
+        private async Task CompleteNavigationTransactionAsync(
+            ModelInspectionPage page,
+            Task<bool> transaction,
+            TaskCompletionSource<bool> completion)
+        {
+            bool result = false;
+            try
+            {
+                result = await NavigateToFreshModelImportAsync(page);
+            }
+            catch (Exception)
+            {
+                try
+                {
+                    RecoverVisibleNavigationOwner(page);
+                }
+                catch (Exception)
+                {
+                    // Recovery is best-effort, but the published transaction
+                    // must still settle with a controlled result.
+                }
+            }
+            finally
+            {
+                completion.TrySetResult(result);
+                lock (_navigationTransactionLock)
+                {
+                    if (ReferenceEquals(
+                        _navigationTransactionTask,
+                        transaction))
+                    {
+                        _navigationTransactionTask = null;
+                    }
+                }
+            }
+        }
+
+        private void RecoverVisibleNavigationOwner(ModelInspectionPage source)
+        {
+            if (StageFrame.Content is ModelImportPage destination)
+            {
+                try
+                {
+                    CommitFreshModelImportOwnership(destination);
+                }
+                catch (Exception)
+                {
+                    // The transaction still completes with a controlled false
+                    // result. Input is restored below so no visible page is
+                    // stranded behind the failed transition.
+                }
+                destination.IsEnabled = true;
+            }
+            else if (ReferenceEquals(StageFrame.Content, source))
+            {
+                source.IsEnabled = true;
+            }
+            StageFrame.IsHitTestVisible = true;
         }
 
         internal async Task ShutdownAsync()
         {
-            Task navigation = CurrentNavigationTask;
+            Task navigation;
+            lock (_navigationTransactionLock)
+            {
+                navigation = _navigationTransactionTask ??
+                    CurrentNavigationTask;
+            }
             if (!navigation.IsCompleted)
             {
                 await navigation;

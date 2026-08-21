@@ -552,3 +552,96 @@ The final audit found zero OpenVINO worker or repository test/build processes,
 `git diff --check` exited 0.
 
 Task 8 remains in progress after fix round 3/5 awaiting scoped re-review.
+
+## Independent review fix round 4/5
+
+The three remaining findings were verified against exact head
+`02566af84025a8042df57c78013825de4a874781` before production edits. The
+focused test-first RED/GREEN sequence was:
+
+- **Reentrant teardown publication:**
+  `GRANITE_OPENVINO_OFFICIAL_WORKER_STAGE=<approved stage B>; dotnet test
+  --project tests/UnitTests/GraniteEdgeAI.OpenVino.Tests/GraniteEdgeAI.OpenVino.Tests.csproj
+  --configuration Release
+  --filter FullyQualifiedName~CancellingObserverReentrantDisposeJoinsPublishedSlowTeardown
+  --no-restore` failed 0/1: reentrant Dispose completed while the authoritative
+  slow channel disposal was still blocked. Cancel/Dispose and channel disposal
+  now publish `RunContinuationsAsynchronously` completion placeholders under
+  the teardown lock before starting cancellation, observer publication, or
+  underlying disposal. The same command passed 1/1; both returned operations
+  remained incomplete until release, then completed successfully with one
+  cancelling event, one cancelled event, one cancel, and one channel disposal.
+  Presentation observers still run outside the teardown lock and cannot escape.
+- **Exact-turn terminal arbitration and STOP:** the pre-ack STOP regression
+  first failed 0/1 because STOP reached the channel from a merely local turn.
+  The exact-turn STOP test then failed compilation with three missing API
+  errors, and the terminal-owner state tests failed compilation with fourteen
+  missing owner/gate errors. A single state-machine gate now records the real,
+  correlated `GenerationStarted` turn and atomically arbitrates confirmed STOP,
+  confirmed active cancellation, prompt completion, and prompt failure. Wrong,
+  stale, or unconfirmed STOP/CANCEL IDs fail before channel contact. The
+  cancellation-first success/failure boundary tests suppress late token,
+  `Failed`, and `TurnCompleted` publication and map generation to cancellation;
+  the prompt-first test reenters exact active cancellation from the terminal
+  observer after the atomic prompt claim and rejects it before channel contact.
+  The focused adapter/state partition passed 30/30.
+- **Reentrant navigation transaction publication:** the exact two-test packaged
+  command initially failed 0/2. A `Frame.Navigating` reentrant Return observed
+  an old completed task, and retirement-callback reentry created another async
+  task box. The shell now publishes one cached completion placeholder and
+  `CurrentNavigationTask` under a private navigation lock before `Frame.Navigate`
+  or retirement can call application code. Reentrant/concurrent Return calls and
+  shutdown join that task; one destination, navigation, and retirement occur.
+  Slow success remains inert until commit. Slow throwing retirement returns
+  controlled false, leaves the visible import page interactive and subscribed,
+  and the wrapper settles the published transaction even if recovery itself
+  encounters an unexpected exception. The exact pair passed 2/2; completed
+  transactions are cleared so the existing cancelled-navigation retry remains a
+  legitimate new transaction.
+
+### Fix-round 4 verification
+
+The approved stage variables remained:
+
+```powershell
+$env:GRANITE_OPENVINO_OFFICIAL_WORKER_STAGE = 'C:\Users\Arian\AppData\Local\Temp\granite-o1-task7-review4-stage-b'
+$env:OPENVINO_OFFICIAL_WORKER_STAGE_A = 'C:\Users\Arian\AppData\Local\Temp\granite-o1-task7-review4-stage-a'
+$env:OPENVINO_OFFICIAL_WORKER_STAGE_B = 'C:\Users\Arian\AppData\Local\Temp\granite-o1-task7-review4-stage-b'
+```
+
+| Gate and exact command | Result |
+| --- | --- |
+| `dotnet test --project tests/UnitTests/GraniteEdgeAI.OpenVino.Tests/GraniteEdgeAI.OpenVino.Tests.csproj --configuration Release --no-restore` | 172/172 passed in 29.515 s, including all packaging tests and 30/30 adapter/state arbitration tests. |
+| `dotnet test --project tests/ContractTests/GraniteEdgeAI.OpenVino.Contracts.Tests/GraniteEdgeAI.OpenVino.Contracts.Tests.csproj --configuration Release --no-restore` | 60/60 passed in 32.987 s. |
+| `dotnet test --project tests/UnitTests/GraniteEdgeAI.OpenVino.WorkerClient.Tests/GraniteEdgeAI.OpenVino.WorkerClient.Tests.csproj --configuration Release --no-restore` | 13/13 passed in 3.462 s. |
+| `dotnet test --project tests/IntegrationTests/GraniteEdgeAI.OpenVino.WorkerProcess.Tests/GraniteEdgeAI.OpenVino.WorkerProcess.Tests.csproj --configuration Release --no-restore` with approved stages A+B | 39/39 passed in 1 m 06.266 s; the unrelated legacy delayed-handshake suite was not invoked. |
+| `vstest.console.exe <packaged appxrecipe> /Platform:x64 "/TestCaseFilter:ClassName=GraniteEdgeAI.UnitTests.Features.ModelInspection.OpenVinoPackagedUiEndToEndTests\|FullyQualifiedName~ReentrantConcurrentReturnAndShutdownJoinOnePublishedNavigationTransaction\|FullyQualifiedName~ThrowingRetirementCommitsInteractiveOwnedRecoveryDestination" "/Logger:console;Verbosity=minimal"` | Exact recovery plus native E2Es: 4/4 passed in 10 s. The real STOP and CANCEL paths wait for the correlated worker acknowledgment; reuse, cancelled-without-completion, no-late-revision, default negative composition, and residue assertions remain green. |
+| `vstest.console.exe <packaged appxrecipe> /Platform:x64 "/TestCaseFilter:FullyQualifiedName~ModelInspectionPageNavigationTests\|FullyQualifiedName~OnboardingModelInspectionNavigationTests\|FullyQualifiedName~OpenVinoModelImportIntegrationTests\|FullyQualifiedName~OpenVinoPromptSurfaceTests\|FullyQualifiedName~OpenVinoPackagedUiEndToEndTests" "/Logger:console;Verbosity=minimal"` | Affected packaged navigation/onboarding/OpenVINO import/prompt/native partition: 66/66 passed in 23 s. |
+| Release x64 app `MSBuild.exe` with `Configuration=Release`, `Platform=x64`, `RuntimeIdentifier=win-x64`, approved stage B, and caller-pinned manifest digest | Exit 0 after `worker_manifest_valid` and `worker_manifest_digest_valid`. |
+| Independent manifest, official dependency-lock, and canonical GenAI fixture verifiers | Exit 0 with `worker_manifest_valid`, `dependency_lock_valid`, and `fixture_valid`. |
+
+The final Release output contains exactly 17 official worker files. Its manifest
+SHA-256 is
+`0f656f6f2afe0b7246d0746f458ad6ed02e23be943145779b0160dd69aff2ebe` and
+worker SHA-256 is
+`51f5c5579251b2d9a81bb1c743acdc3f361abd6e297782701d04ea4691311c94`.
+Both Release x64 app recipes contain exactly 17
+`OpenVino\Official\Worker` entries, and the compiled app DLL contains the exact
+caller-pinned manifest digest.
+
+The final audit found zero OpenVINO worker processes, zero repository test/build
+processes, 4,585 tracked files, zero tracked ZIP/wheel/DLL/EXE/PDB/LIB/OBJ
+artifacts, and `git diff --check` exited 0. Prior closures remain intact: the
+production picker and revocable raw-path lease were not broadened; registry,
+presenter, capability/evidence, and diagnostics remain route-neutral/path-free;
+the fixed installed 17-file root and caller pin remain the only production
+composition; there is one `ModelInspectionPage`; default/max requested tokens
+remain 128 and the canonical packaged smoke remains at most 32; no Task 9, GPU,
+conversion, or TurboQuant work was performed.
+
+The policy-retained directory
+`C:\Users\Arian\AppData\Local\Temp\granite-o1-task8-fix-round1-final` is still
+the sole `granite-o1-task8*` temp entry. It remains untouched; no alternate shell
+or cleanup-policy bypass was used.
+
+Task 8 remains in progress after fix round 4/5 awaiting scoped re-review.
