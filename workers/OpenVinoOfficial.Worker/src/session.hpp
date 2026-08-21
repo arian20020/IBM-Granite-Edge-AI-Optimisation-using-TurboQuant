@@ -39,6 +39,7 @@ private:
 struct turn_control final {
     std::atomic_bool stop{false};
     std::atomic_bool cancel{false};
+    std::atomic_bool first_fragment_buffered{false};
     std::mutex mutex;
     std::condition_variable changed;
 
@@ -59,9 +60,11 @@ class official_session final {
 public:
     official_session(
         package_lease package,
+        const runtime_context& runtime,
         std::size_t model_context,
         std::size_t c1_context,
-        native_load_observer observer = {});
+        native_load_observer observer = {},
+        native_module_verifier module_verifier = {});
     ~official_session();
     official_session(const official_session&) = delete;
     official_session& operator=(const official_session&) = delete;
@@ -75,7 +78,9 @@ public:
 
 private:
     package_lease package_;
+    const runtime_context& runtime_;
     native_load_observer observer_;
+    native_module_verifier module_verifier_;
     ov::genai::ChatHistory history_;
     std::size_t model_context_;
     std::size_t c1_context_;

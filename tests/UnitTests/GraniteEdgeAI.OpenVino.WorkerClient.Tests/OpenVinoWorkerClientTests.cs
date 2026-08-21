@@ -46,7 +46,7 @@ public sealed class OpenVinoWorkerClientTests
             "OpenVino.Worker.exe",
             OpenVinoProtocol.OfficialProtocolId,
             BuildEvidence(),
-            ["OpenVino.Worker.exe"]);
+            Amd64Policy("OpenVino.Worker.exe"));
 
         OpenVinoWorkerClientOptions options =
             OpenVinoWorkerClientOptions.CreateDefault(installation);
@@ -70,13 +70,13 @@ public sealed class OpenVinoWorkerClientTests
             "Official.exe",
             OpenVinoProtocol.OfficialProtocolId,
             BuildEvidence(),
-            ["Official.exe"]);
+            Amd64Policy("Official.exe"));
         OpenVinoWorkerInstallation turboQuant = new(
             root,
             "TurboQuant.exe",
             OpenVinoProtocol.TurboQuantProtocolId,
             BuildEvidence(),
-            ["TurboQuant.exe"]);
+            Amd64Policy("TurboQuant.exe"));
 
         official.Validate();
         turboQuant.Validate();
@@ -92,7 +92,7 @@ public sealed class OpenVinoWorkerClientTests
             "OpenVino.Worker.exe",
             OpenVinoProtocol.OfficialProtocolId,
             BuildEvidence(),
-            ["OpenVino.Worker.exe"]);
+            Amd64Policy("OpenVino.Worker.exe"));
         OpenVinoWorkerClientOptions relaxed =
             OpenVinoWorkerClientOptions.CreateDefault(installation) with
             {
@@ -107,4 +107,11 @@ public sealed class OpenVinoWorkerClientTests
         "genai-test-build",
         "tokenizers-test-build",
         new string('1', 64));
+
+    private static Dictionary<string, OpenVinoWorkerBinaryMachine> Amd64Policy(
+        string executable) => new Dictionary<string, OpenVinoWorkerBinaryMachine>(
+            StringComparer.Ordinal)
+        {
+            [executable] = OpenVinoWorkerBinaryMachine.Amd64
+        };
 }

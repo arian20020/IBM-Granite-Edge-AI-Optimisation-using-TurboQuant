@@ -20,6 +20,17 @@ public sealed class ProtocolContainmentTests
     private const string PackagePath = @"C:\operation\package";
     private static readonly string[] ExpectedText = ["one", "two"];
     private static readonly string[] ExpectedInventoryRoles = ["root", "child"];
+    private static readonly IReadOnlyDictionary<string, OpenVinoWorkerBinaryMachine>
+        FixtureBinaryMachines = new Dictionary<string, OpenVinoWorkerBinaryMachine>(
+            StringComparer.Ordinal)
+        {
+            ["GraniteEdgeAI.ModelInspection.Transport.dll"] = OpenVinoWorkerBinaryMachine.Amd64,
+            ["GraniteEdgeAI.OpenVino.Contracts.dll"] = OpenVinoWorkerBinaryMachine.Amd64,
+            ["GraniteEdgeAI.OpenVino.ProtocolTestWorker.dll"] = OpenVinoWorkerBinaryMachine.Amd64,
+            ["GraniteEdgeAI.OpenVino.ProtocolTestWorker.exe"] = OpenVinoWorkerBinaryMachine.Amd64,
+            ["Microsoft.Windows.SDK.NET.dll"] = OpenVinoWorkerBinaryMachine.I386,
+            ["WinRT.Runtime.dll"] = OpenVinoWorkerBinaryMachine.I386
+        };
     private static string? s_publishedFixture;
 
     [ClassInitialize]
@@ -638,7 +649,7 @@ public sealed class ProtocolContainmentTests
             "GraniteEdgeAI.OpenVino.ProtocolTestWorker.exe",
             OpenVinoProtocol.OfficialProtocolId,
             FixtureBuildEvidence(root),
-            ["GraniteEdgeAI.OpenVino.ProtocolTestWorker.exe"]);
+            FixtureBinaryMachines);
         OpenVinoWorkerClientOptions options = new(
             installation,
             TimeSpan.FromMilliseconds(startupMs),

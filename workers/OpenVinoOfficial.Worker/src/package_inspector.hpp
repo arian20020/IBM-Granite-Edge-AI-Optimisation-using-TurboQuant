@@ -6,6 +6,8 @@
 #include <string>
 #include <vector>
 
+#include "runtime_evidence.hpp"
+
 namespace granite::official_worker {
 
 struct package_evidence final {
@@ -15,6 +17,7 @@ struct package_evidence final {
 };
 
 enum class native_load_stage {
+    tokenizer_extension,
     main_model,
     tokenizer_model,
     detokenizer_model,
@@ -22,6 +25,15 @@ enum class native_load_stage {
 };
 
 using native_load_observer = std::function<void(native_load_stage)>;
+using native_module_verifier = std::function<void()>;
+using package_path_open_observer =
+    std::function<void(const std::filesystem::path&, bool)>;
+
+struct retained_package_entry final {
+    std::filesystem::path relative;
+    bool directory{};
+    native_file_identity identity;
+};
 
 class package_lease final {
 public:
@@ -34,16 +46,20 @@ public:
 
     [[nodiscard]] const std::filesystem::path& root() const noexcept;
     [[nodiscard]] const package_evidence& evidence() const noexcept;
+    void verify_topology() const;
 
 private:
     friend package_lease acquire_package(
         const std::filesystem::path&,
         const std::string&,
         const std::string&,
-        std::uintmax_t);
+        std::uintmax_t,
+        const package_path_open_observer&);
 
     std::filesystem::path root_;
+    native_file_identity root_identity_;
     package_evidence evidence_;
+    std::vector<retained_package_entry> entries_;
     std::vector<void*> handles_;
 };
 
@@ -51,10 +67,14 @@ package_lease acquire_package(
     const std::filesystem::path& package,
     const std::string& expected_package_digest,
     const std::string& expected_model_digest,
-    std::uintmax_t expected_model_length);
+    std::uintmax_t expected_model_length,
+    const package_path_open_observer& before_path_open = {});
 
 package_evidence inspect_package(
     package_lease& package,
-    const native_load_observer& observer = {});
+    const runtime_context& runtime,
+    const native_load_observer& observer = {},
+    const native_module_verifier& module_verifier = {});
 
 }  // namespace granite::official_worker
+#include <array>

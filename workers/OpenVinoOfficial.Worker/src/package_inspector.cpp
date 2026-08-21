@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <array>
 #include <iomanip>
+#include <set>
 #include <sstream>
 #include <utility>
 
@@ -188,13 +189,98 @@ void require_no_streams(const std::filesystem::path& path) {
 }
 
 scoped_handle open_leased(const std::filesystem::path& path, bool directory) {
-    const DWORD flags = directory
-        ? FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT
-        : FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN;
+    const DWORD flags = FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT |
+        (directory ? 0U : FILE_FLAG_SEQUENTIAL_SCAN);
     scoped_handle result(CreateFileW(
-        path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, flags, nullptr));
+        path.c_str(), directory ? FILE_READ_ATTRIBUTES : GENERIC_READ,
+        FILE_SHARE_READ, nullptr, OPEN_EXISTING, flags, nullptr));
     if (result.get() == INVALID_HANDLE_VALUE) fail("package unreadable");
     return result;
+}
+
+bool handle_is_directory(HANDLE handle) {
+    FILE_ATTRIBUTE_TAG_INFO info{};
+    if (!GetFileInformationByHandleEx(
+            handle, FileAttributeTagInfo, &info, sizeof(info)) ||
+        (info.FileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0 ||
+        info.ReparseTag != 0U) {
+        fail("package unsafe");
+    }
+    return (info.FileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
+}
+
+native_file_identity identity_of(HANDLE handle) {
+    FILE_ID_INFO info{};
+    if (!GetFileInformationByHandleEx(handle, FileIdInfo, &info, sizeof(info))) {
+        fail("package unavailable");
+    }
+    native_file_identity result{};
+    result.volume_serial = info.VolumeSerialNumber;
+    std::copy(
+        std::begin(info.FileId.Identifier),
+        std::end(info.FileId.Identifier),
+        result.file_id.begin());
+    return result;
+}
+
+std::filesystem::path safe_relative(
+    const std::filesystem::path& root,
+    const std::filesystem::path& path) {
+    const std::filesystem::path relative = path.lexically_relative(root).lexically_normal();
+    if (relative.empty() || relative.is_absolute()) fail("package unsafe");
+    for (const auto& component : relative) {
+        if (component == L".." || component == L".") fail("package unsafe");
+    }
+    return relative;
+}
+
+void verify_package_topology(
+    const std::filesystem::path& root,
+    const native_file_identity& root_identity,
+    const std::vector<retained_package_entry>& entries) {
+    scoped_handle current_root = open_leased(root, true);
+    if (!handle_is_directory(current_root.get()) ||
+        identity_of(current_root.get()) != root_identity) {
+        fail("package changed");
+    }
+    require_contained(root, current_root.get(), true);
+
+    std::set<std::wstring, std::less<>> expected_files;
+    std::set<std::wstring, std::less<>> expected_directories;
+    std::vector<std::filesystem::path> parents{std::filesystem::path{}};
+    for (const auto& entry : entries) {
+        const std::wstring relative = entry.relative.generic_wstring();
+        (entry.directory ? expected_directories : expected_files).insert(relative);
+        if (entry.directory) parents.push_back(entry.relative);
+    }
+    std::set<std::wstring, std::less<>> actual_files;
+    std::set<std::wstring, std::less<>> actual_directories;
+    for (const auto& parent : parents) {
+        for (const auto& item : std::filesystem::directory_iterator(root / parent)) {
+            const DWORD attributes = GetFileAttributesW(item.path().c_str());
+            if (attributes == INVALID_FILE_ATTRIBUTES ||
+                (attributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0) {
+                fail("package changed");
+            }
+            const std::wstring relative = safe_relative(root, item.path()).generic_wstring();
+            ((attributes & FILE_ATTRIBUTE_DIRECTORY) != 0
+                ? actual_directories
+                : actual_files).insert(relative);
+        }
+    }
+    if (actual_files != expected_files || actual_directories != expected_directories) {
+        fail("package changed");
+    }
+    for (const auto& entry : entries) {
+        const std::filesystem::path full = root / entry.relative;
+        scoped_handle handle = open_leased(full, entry.directory);
+        if (handle_is_directory(handle.get()) != entry.directory ||
+            identity_of(handle.get()) != entry.identity) {
+            fail("package changed");
+        }
+        require_contained(root, handle.get(), false);
+        require_no_streams(full);
+    }
 }
 
 std::string manifest_digest(const std::vector<snapshot_entry>& entries) {
@@ -235,7 +321,9 @@ package_lease::~package_lease() { close_all(handles_); }
 
 package_lease::package_lease(package_lease&& other) noexcept
     : root_(std::move(other.root_)),
+      root_identity_(other.root_identity_),
       evidence_(std::move(other.evidence_)),
+      entries_(std::move(other.entries_)),
       handles_(std::move(other.handles_)) {
     other.handles_.clear();
 }
@@ -244,7 +332,9 @@ package_lease& package_lease::operator=(package_lease&& other) noexcept {
     if (this != &other) {
         close_all(handles_);
         root_ = std::move(other.root_);
+        root_identity_ = other.root_identity_;
         evidence_ = std::move(other.evidence_);
+        entries_ = std::move(other.entries_);
         handles_ = std::move(other.handles_);
         other.handles_.clear();
     }
@@ -254,47 +344,56 @@ package_lease& package_lease::operator=(package_lease&& other) noexcept {
 const std::filesystem::path& package_lease::root() const noexcept { return root_; }
 const package_evidence& package_lease::evidence() const noexcept { return evidence_; }
 
+void package_lease::verify_topology() const {
+    verify_package_topology(root_, root_identity_, entries_);
+}
+
 package_lease acquire_package(
     const std::filesystem::path& package,
     const std::string& expected_package_digest,
     const std::string& expected_model_digest,
-    std::uintmax_t expected_model_length) {
+    std::uintmax_t expected_model_length,
+    const package_path_open_observer& before_path_open) {
     package_lease lease;
     lease.root_ = std::filesystem::absolute(package).lexically_normal();
     try {
-        const DWORD root_attributes = GetFileAttributesW(lease.root_.c_str());
-        if (root_attributes == INVALID_FILE_ATTRIBUTES ||
-            (root_attributes & FILE_ATTRIBUTE_DIRECTORY) == 0 ||
-            (root_attributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0) {
-            fail("package unavailable");
-        }
-        require_no_streams(lease.root_);
         scoped_handle root = open_leased(lease.root_, true);
+        if (!handle_is_directory(root.get())) fail("package unavailable");
         require_contained(lease.root_, root.get(), true);
+        require_no_streams(lease.root_);
+        lease.root_identity_ = identity_of(root.get());
         lease.handles_.push_back(root.release());
 
         std::vector<snapshot_entry> entries;
-        for (const auto& item : std::filesystem::recursive_directory_iterator(lease.root_)) {
-            const DWORD attributes = GetFileAttributesW(item.path().c_str());
-            if (attributes == INVALID_FILE_ATTRIBUTES ||
-                (attributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0 ||
-                (!item.is_regular_file() && !item.is_directory())) {
-                fail("package unsafe");
-            }
-            require_no_streams(item.path());
-            scoped_handle handle = open_leased(item.path(), item.is_directory());
-            require_contained(lease.root_, handle.get(), false);
-            if (item.is_regular_file()) {
-                const std::string relative = wide_to_utf8(
-                    std::filesystem::relative(item.path(), lease.root_).generic_wstring());
+        std::vector<std::filesystem::path> pending{std::filesystem::path{}};
+        for (std::size_t index = 0U; index < pending.size(); ++index) {
+            const std::filesystem::path parent = pending[index];
+            for (const auto& item : std::filesystem::directory_iterator(lease.root_ / parent)) {
+                const std::filesystem::path relative_path =
+                    safe_relative(lease.root_, item.path());
+                const DWORD observed_attributes = GetFileAttributesW(item.path().c_str());
+                const bool observed_directory = observed_attributes != INVALID_FILE_ATTRIBUTES &&
+                    (observed_attributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
+                if (before_path_open) before_path_open(relative_path, observed_directory);
+                scoped_handle handle = open_leased(item.path(), observed_directory);
+                const bool directory = handle_is_directory(handle.get());
+                require_contained(lease.root_, handle.get(), false);
+                require_no_streams(item.path());
+                lease.entries_.push_back(
+                    {relative_path, directory, identity_of(handle.get())});
+                if (directory) {
+                    pending.push_back(relative_path);
+                } else {
+                    const std::string relative = wide_to_utf8(relative_path.generic_wstring());
                 if (relative.empty() || relative.find("..") != std::string::npos ||
                     relative.find(':') != std::string::npos) {
                     fail("package unsafe");
                 }
                 const auto [length, digest] = sha256_handle(handle.get());
                 entries.push_back({relative, length, digest});
+                }
+                lease.handles_.push_back(handle.release());
             }
-            lease.handles_.push_back(handle.release());
         }
         std::sort(entries.begin(), entries.end(), [](const auto& left, const auto& right) {
             return left.relative < right.relative;
@@ -307,6 +406,7 @@ package_lease acquire_package(
             fail("package identity mismatch");
         }
         lease.evidence_ = {digest, model.digest, model.length};
+        lease.verify_topology();
         return lease;
     } catch (...) {
         close_all(lease.handles_);
@@ -316,16 +416,38 @@ package_lease acquire_package(
 
 package_evidence inspect_package(
     package_lease& package,
-    const native_load_observer& observer) {
+    const runtime_context& runtime,
+    const native_load_observer& observer,
+    const native_module_verifier& module_verifier) {
     try {
         ov::Core core;
-        core.add_extension(executable_directory() / L"openvino_tokenizers.dll");
-        if (observer) observer(native_load_stage::main_model);
-        (void)core.read_model(package.root() / L"openvino_model.xml");
-        if (observer) observer(native_load_stage::tokenizer_model);
-        (void)core.read_model(package.root() / L"openvino_tokenizer.xml");
-        if (observer) observer(native_load_stage::detokenizer_model);
-        (void)core.read_model(package.root() / L"openvino_detokenizer.xml");
+        const auto boundary = [&](native_load_stage stage, const auto& load) {
+            if (observer) observer(stage);
+            package.verify_topology();
+            runtime.verify_topology();
+            try {
+                load();
+            } catch (...) {
+                package.verify_topology();
+                runtime.verify_topology();
+                throw;
+            }
+            package.verify_topology();
+            runtime.verify_topology();
+            if (module_verifier) module_verifier();
+        };
+        boundary(native_load_stage::tokenizer_extension, [&] {
+            core.add_extension(runtime.root() / L"openvino_tokenizers.dll");
+        });
+        boundary(native_load_stage::main_model, [&] {
+            (void)core.read_model(package.root() / L"openvino_model.xml");
+        });
+        boundary(native_load_stage::tokenizer_model, [&] {
+            (void)core.read_model(package.root() / L"openvino_tokenizer.xml");
+        });
+        boundary(native_load_stage::detokenizer_model, [&] {
+            (void)core.read_model(package.root() / L"openvino_detokenizer.xml");
+        });
         return package.evidence();
     } catch (const worker_failure&) {
         throw;

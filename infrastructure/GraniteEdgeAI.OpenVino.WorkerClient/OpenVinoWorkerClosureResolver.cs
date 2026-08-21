@@ -15,9 +15,9 @@ namespace GraniteEdgeAI.OpenVino.WorkerClient;
 /// </summary>
 internal sealed class OpenVinoWorkerClosureResolver
 {
-    private const ushort Amd64Machine = 0x8664;
     private const int MaximumManifestBytes = 1024 * 1024;
     private const int MaximumManifestFiles = 128;
+    private const uint GenericRead = 0x80000000;
     private const uint GenericReadAttributes = 0x00000080;
     private const uint ShareRead = 0x00000001;
     private const uint OpenExisting = 3;
@@ -32,10 +32,14 @@ internal sealed class OpenVinoWorkerClosureResolver
         [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar];
 
     private readonly Action? _afterHandlesAcquired;
+    private readonly Action<string>? _beforePathHandleOpened;
 
-    internal OpenVinoWorkerClosureResolver(Action? afterHandlesAcquired = null)
+    internal OpenVinoWorkerClosureResolver(
+        Action? afterHandlesAcquired = null,
+        Action<string>? beforePathHandleOpened = null)
     {
         _afterHandlesAcquired = afterHandlesAcquired;
+        _beforePathHandleOpened = beforePathHandleOpened;
     }
 
     internal VerifiedOpenVinoWorkerClosure Resolve(
@@ -43,43 +47,43 @@ internal sealed class OpenVinoWorkerClosureResolver
     {
         ArgumentNullException.ThrowIfNull(installation);
         installation.Validate();
-        string[] expectedAmd64Binaries =
-            installation.ExpectedAmd64Binaries.ToArray();
+        Dictionary<string, OpenVinoWorkerBinaryMachine> expectedBinaryMachines =
+            installation.ExpectedBinaryMachines.ToDictionary(
+                static item => item.Key,
+                static item => item.Value,
+                StringComparer.Ordinal);
         VerifiedWorkerExecutable? executable = null;
         List<SafeFileHandle> handles = [];
+        Dictionary<string, OpenVinoWorkerFileIdentity> identities = new(
+            StringComparer.Ordinal);
         try
         {
             string root = Path.TrimEndingDirectorySeparator(
                 Path.GetFullPath(installation.ApprovedWorkerRoot));
-            RequireNotReparse(root);
-            executable = new WorkerExecutableResolver(
-                installation.WorkerExecutableRelativePath).Resolve(root);
-
             SafeFileHandle rootHandle = OpenDirectory(root);
             handles.Add(rootHandle);
+            RequireHandleKind(rootHandle, directory: true);
             RequireFinalContained(root, GetFinalPath(rootHandle), allowRoot: true);
             RequireNoAlternateStreams(root);
 
             string manifestPath = Path.Combine(root, "worker-manifest.json");
             RequireContained(root, manifestPath);
-            RequireNotReparse(manifestPath);
+            _beforePathHandleOpened?.Invoke("worker-manifest.json");
             SafeFileHandle manifestHandle = OpenFile(manifestPath);
             handles.Add(manifestHandle);
+            RequireHandleKind(manifestHandle, directory: false);
             RequireFinalContained(root, GetFinalPath(manifestHandle));
             RequireNoAlternateStreams(manifestPath);
             byte[] manifestBytes = ReadBounded(manifestHandle, MaximumManifestBytes);
+            identities.Add("worker-manifest.json", GetIdentity(manifestHandle));
             RequireDigest(
                 manifestBytes,
                 installation.ExpectedBuildEvidence.WorkerManifestDigest);
             IReadOnlyList<ManifestFile> manifest = ParseManifest(manifestBytes);
-            if (!expectedAmd64Binaries.All(expected =>
-                manifest.Any(file => string.Equals(
-                    file.Path,
-                    expected,
-                    StringComparison.Ordinal))))
-            {
-                throw Untrusted();
-            }
+            RequireSetEqual(
+                expectedBinaryMachines.Keys,
+                manifest.Where(static file => IsBinaryPath(file.Path))
+                    .Select(static file => file.Path));
 
             HashSet<string> expectedDirectories = new(
                 StringComparer.OrdinalIgnoreCase);
@@ -93,34 +97,23 @@ internal sealed class OpenVinoWorkerClosureResolver
                 }
             }
 
-            string[] actualDirectories = Directory
-                .EnumerateDirectories(root, "*", SearchOption.AllDirectories)
-                .Select(path => NormalizeRelative(root, path))
-                .Order(StringComparer.Ordinal)
+            string[] orderedDirectories = expectedDirectories
+                .OrderBy(static path => path.Count(static value => value == '/'))
+                .ThenBy(static path => path, StringComparer.Ordinal)
                 .ToArray();
-            RequireSetEqual(expectedDirectories, actualDirectories);
-            foreach (string relativeDirectory in actualDirectories)
+            foreach (string relativeDirectory in orderedDirectories)
             {
                 string directoryPath = Path.Combine(
                     root,
                     relativeDirectory.Replace('/', Path.DirectorySeparatorChar));
-                RequireNotReparse(directoryPath);
-                RequireNoAlternateStreams(directoryPath);
+                _beforePathHandleOpened?.Invoke(relativeDirectory);
                 SafeFileHandle directoryHandle = OpenDirectory(directoryPath);
                 handles.Add(directoryHandle);
+                RequireHandleKind(directoryHandle, directory: true);
                 RequireFinalContained(root, GetFinalPath(directoryHandle));
+                RequireNoAlternateStreams(directoryPath);
+                identities.Add(relativeDirectory + "/", GetIdentity(directoryHandle));
             }
-
-            string[] actualFiles = Directory
-                .EnumerateFiles(root, "*", SearchOption.AllDirectories)
-                .Where(path => !string.Equals(
-                    NormalizeRelative(root, path),
-                    "worker-manifest.json",
-                    StringComparison.OrdinalIgnoreCase))
-                .Select(path => NormalizeRelative(root, path))
-                .Order(StringComparer.Ordinal)
-                .ToArray();
-            RequireSetEqual(manifest.Select(file => file.Path), actualFiles);
 
             foreach (ManifestFile file in manifest)
             {
@@ -128,11 +121,12 @@ internal sealed class OpenVinoWorkerClosureResolver
                     root,
                     file.Path.Replace('/', Path.DirectorySeparatorChar));
                 RequireContained(root, fullPath);
-                RequireNotReparse(fullPath);
-                RequireNoAlternateStreams(fullPath);
+                _beforePathHandleOpened?.Invoke(file.Path);
                 SafeFileHandle handle = OpenFile(fullPath);
                 handles.Add(handle);
+                RequireHandleKind(handle, directory: false);
                 RequireFinalContained(root, GetFinalPath(handle));
+                RequireNoAlternateStreams(fullPath);
                 long actualLength = RandomAccess.GetLength(handle);
                 if (actualLength != file.Length ||
                     !string.Equals(Hash(handle), file.Sha256,
@@ -141,27 +135,41 @@ internal sealed class OpenVinoWorkerClosureResolver
                     throw Untrusted();
                 }
 
-                if (expectedAmd64Binaries.Contains(
+                if (expectedBinaryMachines.TryGetValue(
                     file.Path,
-                    StringComparer.Ordinal))
+                    out OpenVinoWorkerBinaryMachine expectedMachine))
                 {
-                    RequireAmd64(handle);
+                    RequireMachine(handle, expectedMachine);
+                }
+
+                identities.Add(file.Path, GetIdentity(handle));
+                if (string.Equals(
+                    file.Path,
+                    installation.WorkerExecutableRelativePath.Replace('\\', '/'),
+                    StringComparison.Ordinal))
+                {
+                    VerifiedWorkerExecutable verifiedExecutable = new(
+                        GetFinalPath(rootHandle),
+                        GetFinalPath(handle),
+                        handle);
+                    handles.RemoveAt(handles.Count - 1);
+                    executable = verifiedExecutable;
                 }
             }
 
-            string[] finalFiles = Directory
-                .EnumerateFiles(root, "*", SearchOption.AllDirectories)
-                .Where(path => !string.Equals(
-                    NormalizeRelative(root, path),
-                    "worker-manifest.json",
-                    StringComparison.OrdinalIgnoreCase))
-                .Select(path => NormalizeRelative(root, path))
-                .Order(StringComparer.Ordinal)
-                .ToArray();
-            RequireSetEqual(manifest.Select(file => file.Path), finalFiles);
-            _afterHandlesAcquired?.Invoke();
+            if (executable is null)
+            {
+                throw Untrusted();
+            }
 
-            VerifiedOpenVinoWorkerClosure result = new(executable, handles);
+            RequireClosedTopology(root, manifest, expectedDirectories, identities);
+            _afterHandlesAcquired?.Invoke();
+            RequireClosedTopology(root, manifest, expectedDirectories, identities);
+
+            VerifiedOpenVinoWorkerClosure result = new(
+                executable,
+                handles,
+                identities);
             executable = null;
             handles = [];
             return result;
@@ -331,7 +339,9 @@ internal sealed class OpenVinoWorkerClosureResolver
         value.Length == 64 && value.All(character =>
             character is >= '0' and <= '9' or >= 'a' and <= 'f');
 
-    private static void RequireAmd64(SafeFileHandle handle)
+    private static void RequireMachine(
+        SafeFileHandle handle,
+        OpenVinoWorkerBinaryMachine expected)
     {
         Span<byte> header = stackalloc byte[64];
         if (RandomAccess.Read(handle, header, 0) < header.Length ||
@@ -345,28 +355,32 @@ internal sealed class OpenVinoWorkerClosureResolver
         if (peOffset < header.Length ||
             RandomAccess.Read(handle, pe, peOffset) != pe.Length ||
             BitConverter.ToUInt32(pe) != PortableExecutableSignature ||
-            BitConverter.ToUInt16(pe[4..]) != Amd64Machine)
+            BitConverter.ToUInt16(pe[4..]) != (ushort)expected)
         {
             throw Untrusted();
         }
     }
 
-    private static SafeFileHandle OpenFile(string path) => File.OpenHandle(
-        path,
-        FileMode.Open,
-        FileAccess.Read,
-        FileShare.Read,
-        FileOptions.RandomAccess);
+    private static bool IsBinaryPath(string path) =>
+        string.Equals(Path.GetExtension(path), ".exe", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(Path.GetExtension(path), ".dll", StringComparison.OrdinalIgnoreCase);
 
-    private static SafeFileHandle OpenDirectory(string path)
+    private static SafeFileHandle OpenFile(string path) =>
+        OpenPath(path, directory: false);
+
+    private static SafeFileHandle OpenDirectory(string path) =>
+        OpenPath(path, directory: true);
+
+    private static SafeFileHandle OpenPath(string path, bool directory)
     {
         SafeFileHandle handle = NativeMethods.CreateFile(
             path,
-            GenericReadAttributes,
+            directory ? GenericReadAttributes : GenericRead,
             ShareRead,
             IntPtr.Zero,
             OpenExisting,
-            BackupSemantics | OpenReparsePoint,
+            OpenReparsePoint |
+                (directory ? BackupSemantics : (uint)FileOptions.RandomAccess),
             IntPtr.Zero);
         if (handle.IsInvalid)
         {
@@ -378,12 +392,39 @@ internal sealed class OpenVinoWorkerClosureResolver
         return handle;
     }
 
-    private static void RequireNotReparse(string path)
+    private static void RequireHandleKind(
+        SafeFileHandle handle,
+        bool directory)
     {
-        if ((File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0)
+        if (!NativeMethods.GetFileInformationByHandleEx(
+                handle,
+                9,
+                out FileAttributeTagInfo info,
+                Marshal.SizeOf<FileAttributeTagInfo>()))
+        {
+            throw new Win32Exception(Marshal.GetLastPInvokeError());
+        }
+
+        bool isDirectory = (info.FileAttributes & FileAttributes.Directory) != 0;
+        if (isDirectory != directory ||
+            (info.FileAttributes & FileAttributes.ReparsePoint) != 0 ||
+            info.ReparseTag != 0)
         {
             throw Untrusted();
         }
+    }
+
+    private static OpenVinoWorkerFileIdentity GetIdentity(SafeFileHandle handle)
+    {
+        if (!NativeMethods.GetFileInformationByHandle(handle, out
+            ByHandleFileInformation info))
+        {
+            throw new Win32Exception(Marshal.GetLastPInvokeError());
+        }
+
+        return new OpenVinoWorkerFileIdentity(
+            info.VolumeSerialNumber,
+            ((ulong)info.FileIndexHigh << 32) | info.FileIndexLow);
     }
 
     private static void RequireNoAlternateStreams(string path)
@@ -486,6 +527,64 @@ internal sealed class OpenVinoWorkerClosureResolver
         }
     }
 
+    private static void RequireClosedTopology(
+        string root,
+        IReadOnlyList<ManifestFile> manifest,
+        HashSet<string> expectedDirectories,
+        Dictionary<string, OpenVinoWorkerFileIdentity> identities)
+    {
+        HashSet<string> actualFiles = new(StringComparer.Ordinal);
+        HashSet<string> actualDirectories = new(StringComparer.Ordinal);
+        IEnumerable<string> parents = new[] { string.Empty }.Concat(
+            expectedDirectories
+                .OrderBy(static path => path.Count(static value => value == '/'))
+                .ThenBy(static path => path, StringComparer.Ordinal));
+        foreach (string parent in parents)
+        {
+            string parentPath = string.IsNullOrEmpty(parent)
+                ? root
+                : Path.Combine(
+                    root,
+                    parent.Replace('/', Path.DirectorySeparatorChar));
+            foreach (string entry in Directory.EnumerateFileSystemEntries(
+                parentPath,
+                "*",
+                SearchOption.TopDirectoryOnly))
+            {
+                string relative = NormalizeRelative(root, entry);
+                bool expectedDirectory = expectedDirectories.Contains(relative);
+                string identityKey = expectedDirectory ? relative + "/" : relative;
+                using SafeFileHandle handle = expectedDirectory
+                    ? OpenDirectory(entry)
+                    : OpenFile(entry);
+                RequireHandleKind(handle, expectedDirectory);
+                RequireFinalContained(root, GetFinalPath(handle));
+                RequireNoAlternateStreams(entry);
+                if (!identities.TryGetValue(identityKey, out
+                    OpenVinoWorkerFileIdentity expectedIdentity) ||
+                    GetIdentity(handle) != expectedIdentity)
+                {
+                    throw Untrusted();
+                }
+
+                if (expectedDirectory)
+                {
+                    actualDirectories.Add(relative);
+                }
+                else if (!string.Equals(
+                    relative,
+                    "worker-manifest.json",
+                    StringComparison.Ordinal))
+                {
+                    actualFiles.Add(relative);
+                }
+            }
+        }
+
+        RequireSetEqual(expectedDirectories, actualDirectories);
+        RequireSetEqual(manifest.Select(static file => file.Path), actualFiles);
+    }
+
     private static string NormalizeRelative(string root, string path) =>
         Path.GetRelativePath(root, path).Replace('\\', '/');
 
@@ -506,6 +605,35 @@ internal sealed class OpenVinoWorkerClosureResolver
             "The OpenVINO worker closure could not be trusted.");
 
     private sealed record ManifestFile(string Path, long Length, string Sha256);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct FileAttributeTagInfo
+    {
+        internal FileAttributes FileAttributes;
+        internal uint ReparseTag;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NativeFileTime
+    {
+        internal uint LowDateTime;
+        internal uint HighDateTime;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct ByHandleFileInformation
+    {
+        internal uint FileAttributes;
+        internal NativeFileTime CreationTime;
+        internal NativeFileTime LastAccessTime;
+        internal NativeFileTime LastWriteTime;
+        internal uint VolumeSerialNumber;
+        internal uint FileSizeHigh;
+        internal uint FileSizeLow;
+        internal uint NumberOfLinks;
+        internal uint FileIndexHigh;
+        internal uint FileIndexLow;
+    }
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private struct FindStreamData
@@ -529,6 +657,24 @@ internal sealed class OpenVinoWorkerClosureResolver
             uint creationDisposition,
             uint flagsAndAttributes,
             IntPtr templateFile);
+
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+        [DllImport("kernel32.dll", EntryPoint = "GetFileInformationByHandleEx",
+            ExactSpelling = true, SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool GetFileInformationByHandleEx(
+            SafeFileHandle file,
+            int informationClass,
+            out FileAttributeTagInfo information,
+            int informationSize);
+
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+        [DllImport("kernel32.dll", EntryPoint = "GetFileInformationByHandle",
+            ExactSpelling = true, SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool GetFileInformationByHandle(
+            SafeFileHandle file,
+            out ByHandleFileInformation information);
 
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [DllImport("kernel32.dll", EntryPoint = "GetFinalPathNameByHandleW",

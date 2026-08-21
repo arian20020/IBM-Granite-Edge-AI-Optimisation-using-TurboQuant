@@ -92,7 +92,7 @@ void emit_session_failure(const std::string& session_id, std::string_view code) 
     write_event({{"sessionId", session_id}, {"supportCode", code}, {"eventType", "sessionFailed"}});
 }
 
-void run_inspection(const json& command, const runtime_evidence& runtime) {
+void run_inspection(const json& command, const runtime_context& runtime) {
     const std::string run_id = required_string(command, "inspectionRunId", 36U);
     validate_id(run_id);
     const std::filesystem::path package = required_package_path(command);
@@ -106,7 +106,8 @@ void run_inspection(const json& command, const runtime_evidence& runtime) {
     try {
         package_lease lease = acquire_package(
             package, package_digest, model_digest, model_length);
-        const package_evidence evidence = inspect_package(lease);
+        const package_evidence evidence = inspect_package(
+            lease, runtime, {}, [&] { verify_loaded_module_closure(runtime); });
         write_event({{"inspectionRunId", run_id}, {"stage", "manifestVerified"}, {"eventType", "inspectionProgress"}});
         write_event({{"inspectionRunId", run_id}, {"stage", "mainModelParsed"}, {"eventType", "inspectionProgress"}});
         write_event({{"inspectionRunId", run_id}, {"stage", "tokenizerParsed"}, {"eventType", "inspectionProgress"}});
@@ -118,7 +119,7 @@ void run_inspection(const json& command, const runtime_evidence& runtime) {
                      {"mainModelParsed", true},
                      {"tokenizerParsed", true},
                      {"detokenizerParsed", true},
-                     {"buildEvidence", runtime.to_json()},
+                     {"buildEvidence", runtime.evidence().to_json()},
                      {"eventType", "inspectionCompleted"}});
     } catch (const worker_failure& failure) {
         write_event({{"inspectionRunId", run_id},
@@ -133,7 +134,7 @@ void run_inspection(const json& command, const runtime_evidence& runtime) {
     }
 }
 
-void run_session_body(const json& command, const runtime_evidence& runtime) {
+void run_session_body(const json& command, const runtime_context& runtime) {
     const std::string session_id = required_string(command, "sessionId", 36U);
     const std::string inspection_id = required_string(command, "inspectionRunId", 36U);
     validate_id(session_id);
@@ -154,15 +155,20 @@ void run_session_body(const json& command, const runtime_evidence& runtime) {
 
     package_lease lease = acquire_package(
         package, package_digest, model_digest, model_length);
-    (void)inspect_package(lease);
+    (void)inspect_package(
+        lease, runtime, {}, [&] { verify_loaded_module_closure(runtime); });
+    lease.verify_topology();
     const std::size_t model_context = model_context_limit(package);
-    official_session session(std::move(lease), model_context, c1_context);
-    verify_loaded_module_closure(executable_directory());
+    lease.verify_topology();
+    official_session session(
+        std::move(lease), runtime, model_context, c1_context, {},
+        [&] { verify_loaded_module_closure(runtime); });
+    verify_loaded_module_closure(runtime);
     write_event({{"sessionId", session_id},
                  {"requestedDevice", "CPU"},
                  {"actualExecutionDevices", json::array({"CPU"})},
                  {"protocolId", official_protocol},
-                 {"buildEvidence", runtime.to_json()},
+                 {"buildEvidence", runtime.evidence().to_json()},
                  {"eventType", "sessionStarted"}});
 
     std::size_t turn_count = 0;
@@ -197,7 +203,7 @@ void run_session_body(const json& command, const runtime_evidence& runtime) {
         turn_control control;
         std::future<turn_result> generation = std::async(std::launch::async, [&] {
             turn_result result = session.generate(session_id, turn_id, prompt, requested, control);
-            verify_loaded_module_closure(executable_directory());
+            verify_loaded_module_closure(runtime);
             return result;
         });
         bool cancelled = false;
@@ -219,10 +225,16 @@ void run_session_body(const json& command, const runtime_evidence& runtime) {
                 const std::string control_turn = required_string(control_command, "turnId", 36U);
                 validate_id(control_turn);
                 if (control_turn != turn_id) throw protocol_error("turn identifier mismatch");
-                control.stop.store(true, std::memory_order_release);
+                {
+                    std::lock_guard lock(control.mutex);
+                    control.stop.store(true, std::memory_order_release);
+                }
                 control.notify();
             } else if (control_type == "cancelSession") {
-                control.cancel.store(true, std::memory_order_release);
+                {
+                    std::lock_guard lock(control.mutex);
+                    control.cancel.store(true, std::memory_order_release);
+                }
                 control.notify();
                 cancelled = true;
             } else {
@@ -259,7 +271,7 @@ void run_session_body(const json& command, const runtime_evidence& runtime) {
     }
 }
 
-void run_session(const json& command, const runtime_evidence& runtime) {
+void run_session(const json& command, const runtime_context& runtime) {
     const std::string session_id = required_string(command, "sessionId", 36U);
     validate_id(session_id);
     try {
@@ -291,15 +303,16 @@ int main(int argc, char** argv) {
         for (int index = 0; index < argc; ++index) arguments.emplace_back(argv[index]);
         (void)parse_arguments(arguments);
         const runtime_context runtime = initialize_verified_runtime();
+        verify_loaded_module_closure(runtime);
         write_event({{"protocolId", official_protocol},
                      {"buildEvidence", runtime.evidence().to_json()},
                      {"eventType", "hello"}});
         const nlohmann::json command = parse_json_line(read_bounded_line());
         const std::string type = command.at("commandType").get<std::string>();
         if (type == "startInspection") {
-            run_inspection(command, runtime.evidence());
+            run_inspection(command, runtime);
         } else if (type == "startSession") {
-            run_session(command, runtime.evidence());
+            run_session(command, runtime);
         } else {
             throw protocol_error("initial command rejected");
         }

@@ -1,4 +1,5 @@
 #include "package_inspector.hpp"
+#include "protocol.hpp"
 #include "session.hpp"
 
 #define WIN32_LEAN_AND_MEAN
@@ -8,6 +9,9 @@
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
+#include <thread>
+#include <chrono>
+#include <cstdlib>
 
 namespace {
 
@@ -16,11 +20,22 @@ constexpr std::string_view package_digest =
 constexpr std::string_view model_digest =
     "894dd0aac21e588d5cf78994d90aa0dcba8284626c976a4e0c89c0273b452c1c";
 
+void create_junction(
+    const std::filesystem::path& link,
+    const std::filesystem::path& target) {
+    const std::wstring command = L"cmd.exe /d /c mklink /J \"" + link.wstring() +
+        L"\" \"" + target.wstring() + L"\" >nul";
+    if (_wsystem(command.c_str()) != 0) {
+        throw std::runtime_error("directory junction fixture unavailable");
+    }
+}
+
 std::filesystem::path resource_for(
     const std::filesystem::path& root,
     granite::official_worker::native_load_stage stage) {
     using granite::official_worker::native_load_stage;
     switch (stage) {
+        case native_load_stage::tokenizer_extension: return root / L"openvino_model.bin";
         case native_load_stage::main_model: return root / L"openvino_model.xml";
         case native_load_stage::tokenizer_model: return root / L"openvino_tokenizer.xml";
         case native_load_stage::detokenizer_model: return root / L"openvino_detokenizer.xml";
@@ -33,23 +48,131 @@ std::filesystem::path resource_for(
 
 int main(int argc, char** argv) {
     using namespace granite::official_worker;
-    if (argc != 2) return 2;
+    if (argc != 3) return 2;
     const std::filesystem::path source = std::filesystem::absolute(argv[1]);
+    const std::filesystem::path runtime_stage = std::filesystem::absolute(argv[2]);
     const std::filesystem::path copy = std::filesystem::temp_directory_path() /
         (L"GraniteEdgeAI-NativeLease-" + std::to_wstring(GetCurrentProcessId()));
     try {
         std::filesystem::copy(source, copy, std::filesystem::copy_options::recursive);
+        const std::filesystem::path swapped_path = copy / L"empty-review-directory";
+        const std::filesystem::path displaced_path = copy / L"empty-review-directory.original";
+        std::filesystem::create_directory(swapped_path);
+        bool swapped = false;
+        bool reparse_rejected = false;
+        try {
+            (void)acquire_package(
+                copy,
+                std::string(package_digest),
+                std::string(model_digest),
+                88U,
+                [&](const std::filesystem::path& relative, bool directory) {
+                    if (!swapped && directory && relative == L"empty-review-directory") {
+                        std::filesystem::rename(swapped_path, displaced_path);
+                        create_junction(swapped_path, displaced_path);
+                        swapped = true;
+                    }
+                });
+        } catch (const std::exception&) {
+            if (!swapped) {
+                std::error_code restore_error;
+                std::filesystem::remove(swapped_path, restore_error);
+                if (std::filesystem::exists(displaced_path)) {
+                    std::filesystem::rename(displaced_path, swapped_path);
+                }
+                throw;
+            }
+            reparse_rejected = swapped;
+        }
+        std::error_code ignored;
+        std::filesystem::remove(swapped_path, ignored);
+        if (std::filesystem::exists(displaced_path)) {
+            std::filesystem::rename(displaced_path, swapped_path);
+        }
+        std::filesystem::remove(swapped_path);
+        if (!reparse_rejected) {
+            throw std::runtime_error("package reparse swap was accepted");
+        }
+
+        {
+            package_lease topology = acquire_package(
+                copy, std::string(package_digest), std::string(model_digest), 88U);
+            const std::filesystem::path inserted = copy / L"unlisted-after-acquisition.txt";
+            bool insertion_rejected = false;
+            try {
+                runtime_context runtime = initialize_verified_runtime_at(runtime_stage, {}, {});
+                (void)inspect_package(topology, runtime, [&](native_load_stage stage) {
+                    if (stage == native_load_stage::main_model) {
+                        std::ofstream(inserted) << "inserted";
+                    }
+                });
+            } catch (const worker_failure& failure) {
+                insertion_rejected = failure.support_code() == "package_changed";
+            }
+            std::filesystem::remove(inserted);
+            if (!insertion_rejected) {
+                throw std::runtime_error("package child insertion was accepted");
+            }
+        }
+
+        {
+            package_lease cancellation_package = acquire_package(
+                copy, std::string(package_digest), std::string(model_digest), 88U);
+            runtime_context runtime = initialize_verified_runtime_at(runtime_stage, {}, {});
+            (void)inspect_package(cancellation_package, runtime);
+            official_session cancellation_session(
+                std::move(cancellation_package), runtime, 64U, 64U);
+            turn_control cancellation_control;
+            bool fragment_observed = false;
+            std::thread canceller([&] {
+                std::unique_lock lock(cancellation_control.mutex);
+                fragment_observed = cancellation_control.changed.wait_for(
+                    lock,
+                    std::chrono::seconds(5),
+                    [&] {
+                        return cancellation_control.first_fragment_buffered.load(
+                            std::memory_order_acquire);
+                    });
+                if (fragment_observed) {
+                    cancellation_control.cancel.store(true, std::memory_order_release);
+                    cancellation_control.notify();
+                }
+            });
+            const turn_result cancelled = cancellation_session.generate(
+                "e39d252d-2144-4624-a055-0350c93f6728",
+                "f77fb13c-263d-49a1-8d93-d908968c5832",
+                "hello",
+                2U,
+                cancellation_control);
+            canceller.join();
+            if (!fragment_observed || !cancelled.cancelled ||
+                cancelled.streamed_fragments != 0U || !cancelled.answer.empty()) {
+                throw std::runtime_error("first-fragment cancellation leaked output");
+            }
+        }
+
         std::size_t denied = 0U;
+        std::size_t removal_denied = 0U;
         auto observer = [&](native_load_stage stage) {
-            std::ofstream replacement(resource_for(copy, stage), std::ios::binary | std::ios::trunc);
+            const std::filesystem::path resource = resource_for(copy, stage);
+            const std::filesystem::path displaced = resource.wstring() + L".displaced";
+            std::error_code rename_error;
+            std::filesystem::rename(resource, displaced, rename_error);
+            if (!rename_error) {
+                std::filesystem::rename(displaced, resource);
+                throw std::runtime_error("resource removal was not denied");
+            }
+            ++removal_denied;
+            std::ofstream replacement(resource, std::ios::binary | std::ios::trunc);
             if (replacement) throw std::runtime_error("resource replacement was not denied");
             ++denied;
         };
         {
             package_lease lease = acquire_package(
                 copy, std::string(package_digest), std::string(model_digest), 88U);
-            (void)inspect_package(lease, observer);
-            official_session session(std::move(lease), 64U, 64U, observer);
+            runtime_context runtime = initialize_verified_runtime_at(runtime_stage, {}, {});
+            (void)inspect_package(lease, runtime, observer);
+            official_session session(std::move(lease), runtime, 64U, 64U, observer);
             turn_control control;
             const turn_result result = session.generate(
                 "e39d252d-2144-4624-a055-0350c93f6728",
@@ -57,7 +180,8 @@ int main(int argc, char** argv) {
                 "hello",
                 2U,
                 control);
-            if (result.answer != "fixture" || result.generated_tokens != 2U || denied < 5U) {
+            if (result.answer != "fixture" || result.generated_tokens != 2U || denied < 5U ||
+                removal_denied < 5U) {
                 throw std::runtime_error("real leased load evidence was incomplete");
             }
         }

@@ -398,16 +398,17 @@ public sealed class OfficialCpuFixtureTests
                 Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(
                     Path.Combine(stage, "worker-manifest.json"))))
                     .ToLowerInvariant()),
-            [
-                "OpenVinoOfficial.Worker.exe",
-                "openvino.dll",
-                "openvino_genai.dll",
-                "openvino_intel_cpu_plugin.dll",
-                "openvino_ir_frontend.dll",
-                "openvino_tokenizers.dll",
-                "tbb12.dll",
-                "tbbbind_2_5.dll"
-            ]);
+            new Dictionary<string, OpenVinoWorkerBinaryMachine>(StringComparer.Ordinal)
+            {
+                ["OpenVinoOfficial.Worker.exe"] = OpenVinoWorkerBinaryMachine.Amd64,
+                ["openvino.dll"] = OpenVinoWorkerBinaryMachine.Amd64,
+                ["openvino_genai.dll"] = OpenVinoWorkerBinaryMachine.Amd64,
+                ["openvino_intel_cpu_plugin.dll"] = OpenVinoWorkerBinaryMachine.Amd64,
+                ["openvino_ir_frontend.dll"] = OpenVinoWorkerBinaryMachine.Amd64,
+                ["openvino_tokenizers.dll"] = OpenVinoWorkerBinaryMachine.Amd64,
+                ["tbb12.dll"] = OpenVinoWorkerBinaryMachine.Amd64,
+                ["tbbbind_2_5.dll"] = OpenVinoWorkerBinaryMachine.Amd64
+            });
 
     private static string RequireStage(string variable)
     {

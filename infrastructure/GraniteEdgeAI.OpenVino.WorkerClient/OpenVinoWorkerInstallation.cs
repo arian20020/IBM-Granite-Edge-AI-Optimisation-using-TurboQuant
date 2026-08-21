@@ -2,13 +2,20 @@ using GraniteEdgeAI.OpenVino.Contracts;
 
 namespace GraniteEdgeAI.OpenVino.WorkerClient;
 
+/// <summary>Closed COFF machine values accepted for one worker binary.</summary>
+public enum OpenVinoWorkerBinaryMachine : ushort
+{
+    I386 = 0x014c,
+    Amd64 = 0x8664
+}
+
 /// <summary>Identifies one controlled route-specific worker installation.</summary>
 public sealed record OpenVinoWorkerInstallation(
     string ApprovedWorkerRoot,
     string WorkerExecutableRelativePath,
     string ExpectedProtocolId,
     OpenVinoBuildEvidence ExpectedBuildEvidence,
-    IReadOnlyList<string> ExpectedAmd64Binaries)
+    IReadOnlyDictionary<string, OpenVinoWorkerBinaryMachine> ExpectedBinaryMachines)
 {
     public void Validate()
     {
@@ -39,29 +46,33 @@ public sealed record OpenVinoWorkerInstallation(
 
         ArgumentNullException.ThrowIfNull(ExpectedBuildEvidence);
         ExpectedBuildEvidence.Validate();
-        ArgumentNullException.ThrowIfNull(ExpectedAmd64Binaries);
-        if (ExpectedAmd64Binaries.Count == 0 ||
-            !ExpectedAmd64Binaries.Contains(
-                WorkerExecutableRelativePath.Replace('\\', '/'),
-                StringComparer.Ordinal))
+        ArgumentNullException.ThrowIfNull(ExpectedBinaryMachines);
+        string executable = WorkerExecutableRelativePath.Replace('\\', '/');
+        if (ExpectedBinaryMachines.Count == 0 ||
+            !ExpectedBinaryMachines.TryGetValue(executable, out
+                OpenVinoWorkerBinaryMachine executableMachine) ||
+            executableMachine != OpenVinoWorkerBinaryMachine.Amd64)
         {
             throw new ArgumentException(
-                "The AMD64 binary policy must include the worker executable.",
-                nameof(ExpectedAmd64Binaries));
+                "The exact binary policy must include the AMD64 worker executable.",
+                nameof(ExpectedBinaryMachines));
         }
 
         HashSet<string> binaries = new(StringComparer.Ordinal);
-        foreach (string binary in ExpectedAmd64Binaries)
+        foreach ((string binary, OpenVinoWorkerBinaryMachine machine) in
+            ExpectedBinaryMachines)
         {
             if (string.IsNullOrWhiteSpace(binary) ||
                 Path.IsPathRooted(binary) || binary.Contains('\\') ||
                 binary.Contains('\0') || binary.Split('/').Any(segment =>
                     string.IsNullOrEmpty(segment) || segment is "." or "..") ||
-                !binaries.Add(binary))
+                !binaries.Add(binary) ||
+                machine is not OpenVinoWorkerBinaryMachine.I386 and
+                    not OpenVinoWorkerBinaryMachine.Amd64)
             {
                 throw new ArgumentException(
-                    "The AMD64 binary policy must be a closed relative list.",
-                    nameof(ExpectedAmd64Binaries));
+                    "The binary policy must be an exact relative path-to-machine map.",
+                    nameof(ExpectedBinaryMachines));
             }
         }
     }

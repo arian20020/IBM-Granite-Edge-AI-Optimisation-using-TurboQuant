@@ -10,17 +10,23 @@ namespace GraniteEdgeAI.OpenVino.WorkerClient;
 internal sealed class VerifiedOpenVinoWorkerClosure : IDisposable
 {
     private readonly IReadOnlyList<SafeFileHandle> _handles;
+    private readonly IReadOnlyDictionary<string, OpenVinoWorkerFileIdentity> _identities;
     private bool _disposed;
 
     internal VerifiedOpenVinoWorkerClosure(
         VerifiedWorkerExecutable executable,
-        IReadOnlyList<SafeFileHandle> handles)
+        IReadOnlyList<SafeFileHandle> handles,
+        IReadOnlyDictionary<string, OpenVinoWorkerFileIdentity> identities)
     {
         Executable = executable;
         _handles = handles;
+        _identities = identities;
     }
 
     internal VerifiedWorkerExecutable Executable { get; }
+
+    internal IReadOnlyDictionary<string, OpenVinoWorkerFileIdentity> Identities =>
+        _identities;
 
     public void Dispose()
     {
@@ -39,3 +45,7 @@ internal sealed class VerifiedOpenVinoWorkerClosure : IDisposable
         GC.SuppressFinalize(this);
     }
 }
+
+internal readonly record struct OpenVinoWorkerFileIdentity(
+    uint VolumeSerialNumber,
+    ulong FileIndex);

@@ -35,16 +35,20 @@ public:
 }  // namespace
 
 int main(int argc, char** argv) {
-    if (argc != 3) return 2;
+    if (argc != 4) return 2;
     try {
         const std::filesystem::path package = std::filesystem::absolute(argv[1]);
         const std::string mode = argv[2];
+        const std::filesystem::path runtime_stage = std::filesystem::absolute(argv[3]);
         if (mode == "official" || mode == "official-async" || mode == "official-two") {
             granite::official_worker::package_lease lease =
                 granite::official_worker::acquire_package(
                     package, std::string(package_digest), std::string(model_digest), 88U);
+            granite::official_worker::runtime_context runtime =
+                granite::official_worker::initialize_verified_runtime_at(
+                    runtime_stage, {}, {});
             granite::official_worker::official_session session(
-                std::move(lease), 64U, 64U);
+                std::move(lease), runtime, 64U, 64U);
             granite::official_worker::turn_control control;
             const auto generate = [&] {
                 return session.generate(

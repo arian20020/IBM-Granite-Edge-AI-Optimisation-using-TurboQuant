@@ -70,17 +70,32 @@ bool session_state::is_terminal() const noexcept { return state_ == value::termi
 
 official_session::official_session(
     package_lease package,
+    const runtime_context& runtime,
     std::size_t model_context,
     std::size_t c1_context,
-    native_load_observer observer)
+    native_load_observer observer,
+    native_module_verifier module_verifier)
     : package_(std::move(package)),
+      runtime_(runtime),
       observer_(std::move(observer)),
+      module_verifier_(std::move(module_verifier)),
       model_context_(model_context),
       c1_context_(c1_context) {
     if (observer_) observer_(native_load_stage::pipeline_construction);
-    ov::genai::LLMPipeline validation_pipeline(
-        package_.root(), "CPU", ov::AnyMap{{"ATTENTION_BACKEND", std::string("SDPA")}});
-    validation_pipeline.get_tokenizer().set_chat_template(std::string(route_chat_template));
+    package_.verify_topology();
+    runtime_.verify_topology();
+    try {
+        ov::genai::LLMPipeline validation_pipeline(
+            package_.root(), "CPU", ov::AnyMap{{"ATTENTION_BACKEND", std::string("SDPA")}});
+        validation_pipeline.get_tokenizer().set_chat_template(std::string(route_chat_template));
+    } catch (...) {
+        package_.verify_topology();
+        runtime_.verify_topology();
+        throw;
+    }
+    package_.verify_topology();
+    runtime_.verify_topology();
+    if (module_verifier_) module_verifier_();
 }
 
 official_session::~official_session() = default;
@@ -94,9 +109,24 @@ turn_result official_session::generate(
     history_.push_back({{"role", std::string("user")}, {"content", prompt}});
     try {
         if (observer_) observer_(native_load_stage::pipeline_construction);
-        ov::genai::LLMPipeline pipeline(
-            package_.root(), "CPU", ov::AnyMap{{"ATTENTION_BACKEND", std::string("SDPA")}});
-        ov::genai::Tokenizer tokenizer = pipeline.get_tokenizer();
+        package_.verify_topology();
+        runtime_.verify_topology();
+        std::unique_ptr<ov::genai::LLMPipeline> pipeline = [&] {
+            try {
+                auto value = std::make_unique<ov::genai::LLMPipeline>(
+                    package_.root(), "CPU",
+                    ov::AnyMap{{"ATTENTION_BACKEND", std::string("SDPA")}});
+                package_.verify_topology();
+                runtime_.verify_topology();
+                if (module_verifier_) module_verifier_();
+                return value;
+            } catch (...) {
+                package_.verify_topology();
+                runtime_.verify_topology();
+                throw;
+            }
+        }();
+        ov::genai::Tokenizer tokenizer = pipeline->get_tokenizer();
         tokenizer.set_chat_template(std::string(route_chat_template));
         const std::string rendered = tokenizer.apply_chat_template(history_, true);
         const ov::genai::TokenizedInputs encoded = tokenizer.encode(
@@ -108,7 +138,7 @@ turn_result official_session::generate(
                 "runtime_context_exceeded", false, "runtime context exceeded");
         }
 
-        ov::genai::GenerationConfig config = pipeline.get_generation_config();
+        ov::genai::GenerationConfig config = pipeline->get_generation_config();
         config.max_new_tokens = requested_tokens;
         config.do_sample = false;
         config.apply_chat_template = true;
@@ -124,6 +154,20 @@ turn_result official_session::generate(
                     return ov::genai::StreamingStatus::STOP;
                 }
                 if (fragment.empty()) return ov::genai::StreamingStatus::RUNNING;
+                std::unique_lock publication_lock(control.mutex, std::defer_lock);
+                if (result.streamed_fragments == 0U) {
+                    publication_lock.lock();
+                    control.first_fragment_buffered.store(true, std::memory_order_release);
+                    control.notify();
+                    (void)control.changed.wait_for(
+                        publication_lock,
+                        std::chrono::milliseconds(100),
+                        [&] { return control.cancel.load(std::memory_order_acquire); });
+                    if (control.cancel.load(std::memory_order_acquire)) {
+                        result.cancelled = true;
+                        return ov::genai::StreamingStatus::CANCEL;
+                    }
+                }
                 if (fragment.size() > maximum_operation_text_bytes - result.answer.size()) {
                     result.output_exceeded = true;
                     return ov::genai::StreamingStatus::CANCEL;
@@ -135,6 +179,7 @@ turn_result official_session::generate(
                              {"eventType", "token"}});
                 ++result.streamed_fragments;
                 result.answer.append(fragment);
+                if (publication_lock.owns_lock()) publication_lock.unlock();
                 if (result.streamed_fragments == 1U &&
                     package_.evidence().model_digest == canonical_fixture_model_digest) {
                     std::unique_lock lock(control.mutex);
@@ -157,7 +202,8 @@ turn_result official_session::generate(
                 return ov::genai::StreamingStatus::RUNNING;
             });
         ov::genai::ChatHistory generation_history(history_.get_messages());
-        ov::genai::DecodedResults generated = pipeline.generate(generation_history, config, streamer);
+        ov::genai::DecodedResults generated = pipeline->generate(
+            generation_history, config, streamer);
         result.prompt_tokens = generated.perf_metrics.get_num_input_tokens();
         result.generated_tokens = generated.perf_metrics.get_num_generated_tokens();
         if (result.output_exceeded) {

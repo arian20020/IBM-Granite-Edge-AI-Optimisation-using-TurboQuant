@@ -59,7 +59,7 @@ if(BUILD_TESTING)
         get_filename_component(official_runtime_root "${OpenVINO_DIR}/.." ABSOLUTE)
         add_test(
             NAME openvino_official_two_turn_fixture
-            COMMAND openvino_official_api_probe "${OFFICIAL_FIXTURE_PACKAGE}" official-two)
+            COMMAND openvino_official_api_probe "${OFFICIAL_FIXTURE_PACKAGE}" official-two "${OFFICIAL_WORKER_STAGE}")
         set_tests_properties(openvino_official_two_turn_fixture PROPERTIES
             ENVIRONMENT_MODIFICATION
                 "PATH=path_list_prepend:${official_runtime_root}/bin/intel64/Release;PATH=path_list_prepend:${official_runtime_root}/3rdparty/tbb/bin")
@@ -83,7 +83,7 @@ if(BUILD_TESTING)
             VERBATIM)
         add_test(
             NAME openvino_official_lease_tests
-            COMMAND openvino_official_lease_tests "${OFFICIAL_FIXTURE_PACKAGE}")
+            COMMAND openvino_official_lease_tests "${OFFICIAL_FIXTURE_PACKAGE}" "${OFFICIAL_WORKER_STAGE}")
         set_tests_properties(openvino_official_lease_tests PROPERTIES
             ENVIRONMENT_MODIFICATION
                 "PATH=path_list_prepend:${official_runtime_root}/bin/intel64/Release;PATH=path_list_prepend:${official_runtime_root}/3rdparty/tbb/bin")

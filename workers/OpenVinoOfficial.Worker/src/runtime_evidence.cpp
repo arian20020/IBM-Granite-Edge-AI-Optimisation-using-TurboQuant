@@ -69,27 +69,73 @@ bool starts_with_path(const std::filesystem::path& path, const std::wstring& roo
     return value.size() >= root.size() && value.compare(0, root.size(), root) == 0;
 }
 
-void require_regular_no_reparse(const std::filesystem::path& path) {
-    const DWORD attributes = GetFileAttributesW(path.c_str());
-    if (attributes == INVALID_FILE_ATTRIBUTES ||
-        (attributes & FILE_ATTRIBUTE_DIRECTORY) != 0 ||
-        (attributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0) {
-        throw protocol_error("runtime integrity failed");
-    }
-}
-
 [[noreturn]] void integrity_failure() {
     throw protocol_error("runtime integrity failed");
 }
 
+class scoped_runtime_handle final {
+public:
+    explicit scoped_runtime_handle(HANDLE value = INVALID_HANDLE_VALUE) noexcept
+        : value_(value) {}
+    ~scoped_runtime_handle() { reset(); }
+    scoped_runtime_handle(scoped_runtime_handle&& other) noexcept
+        : value_(other.release()) {}
+    scoped_runtime_handle& operator=(scoped_runtime_handle&& other) noexcept {
+        if (this != &other) {
+            reset();
+            value_ = other.release();
+        }
+        return *this;
+    }
+    scoped_runtime_handle(const scoped_runtime_handle&) = delete;
+    scoped_runtime_handle& operator=(const scoped_runtime_handle&) = delete;
+    [[nodiscard]] HANDLE get() const noexcept { return value_; }
+    [[nodiscard]] HANDLE release() noexcept {
+        const HANDLE result = value_;
+        value_ = INVALID_HANDLE_VALUE;
+        return result;
+    }
+private:
+    void reset() noexcept {
+        if (value_ != INVALID_HANDLE_VALUE && value_ != nullptr) CloseHandle(value_);
+        value_ = INVALID_HANDLE_VALUE;
+    }
+    HANDLE value_;
+};
+
 HANDLE open_runtime_path(const std::filesystem::path& path, bool directory) {
-    const DWORD flags = directory
-        ? FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT
-        : FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS;
+    const DWORD flags = FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_RANDOM_ACCESS |
+        (directory ? FILE_FLAG_BACKUP_SEMANTICS : 0U);
     const HANDLE handle = CreateFileW(
-        path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, flags, nullptr);
+        path.c_str(), directory ? FILE_READ_ATTRIBUTES : GENERIC_READ,
+        FILE_SHARE_READ, nullptr, OPEN_EXISTING, flags, nullptr);
     if (handle == INVALID_HANDLE_VALUE) integrity_failure();
     return handle;
+}
+
+void require_handle_kind(HANDLE handle, bool directory) {
+    FILE_ATTRIBUTE_TAG_INFO info{};
+    if (!GetFileInformationByHandleEx(
+            handle, FileAttributeTagInfo, &info, sizeof(info)) ||
+        ((info.FileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0) != directory ||
+        (info.FileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0 ||
+        info.ReparseTag != 0U) {
+        integrity_failure();
+    }
+}
+
+native_file_identity file_identity(HANDLE handle) {
+    FILE_ID_INFO info{};
+    if (!GetFileInformationByHandleEx(handle, FileIdInfo, &info, sizeof(info))) {
+        integrity_failure();
+    }
+    native_file_identity result{};
+    result.volume_serial = info.VolumeSerialNumber;
+    std::copy(
+        std::begin(info.FileId.Identifier),
+        std::end(info.FileId.Identifier),
+        result.file_id.begin());
+    return result;
 }
 
 std::wstring final_path(HANDLE handle) {
@@ -140,24 +186,86 @@ void require_no_alternate_streams(const std::filesystem::path& path) {
     }
 }
 
-void require_amd64(const std::filesystem::path& path) {
-    std::ifstream stream(path, std::ios::binary);
+void require_amd64(HANDLE handle) {
     std::array<unsigned char, 64> header{};
-    stream.read(reinterpret_cast<char*>(header.data()), header.size());
-    if (stream.gcount() != static_cast<std::streamsize>(header.size()) ||
+    LARGE_INTEGER origin{};
+    DWORD read = 0U;
+    if (!SetFilePointerEx(handle, origin, nullptr, FILE_BEGIN) ||
+        !ReadFile(handle, header.data(), static_cast<DWORD>(header.size()), &read, nullptr) ||
+        read != header.size() ||
         header[0] != 'M' || header[1] != 'Z') {
         integrity_failure();
     }
     std::uint32_t offset = 0;
     std::memcpy(&offset, header.data() + 0x3cU, sizeof(offset));
-    stream.seekg(offset);
     std::array<unsigned char, 6> pe{};
-    stream.read(reinterpret_cast<char*>(pe.data()), pe.size());
+    LARGE_INTEGER pe_offset{};
+    pe_offset.QuadPart = offset;
+    read = 0U;
+    if (!SetFilePointerEx(handle, pe_offset, nullptr, FILE_BEGIN) ||
+        !ReadFile(handle, pe.data(), static_cast<DWORD>(pe.size()), &read, nullptr) ||
+        read != pe.size()) {
+        integrity_failure();
+    }
     std::uint32_t signature = 0;
     std::uint16_t machine = 0;
     std::memcpy(&signature, pe.data(), sizeof(signature));
     std::memcpy(&machine, pe.data() + 4U, sizeof(machine));
-    if (!stream || signature != 0x00004550U || machine != 0x8664U) integrity_failure();
+    if (signature != 0x00004550U || machine != 0x8664U) integrity_failure();
+}
+
+std::pair<std::uintmax_t, std::string> digest_handle(HANDLE file) {
+    LARGE_INTEGER size{};
+    if (!GetFileSizeEx(file, &size) || size.QuadPart <= 0) integrity_failure();
+    algorithm_handle algorithm;
+    hash_handle hash(algorithm);
+    std::array<unsigned char, 64U * 1024U> buffer{};
+    LARGE_INTEGER origin{};
+    if (!SetFilePointerEx(file, origin, nullptr, FILE_BEGIN)) integrity_failure();
+    std::uintmax_t total = 0U;
+    for (;;) {
+        DWORD read = 0U;
+        if (!ReadFile(file, buffer.data(), static_cast<DWORD>(buffer.size()), &read, nullptr)) {
+            integrity_failure();
+        }
+        if (read == 0U) break;
+        if (BCryptHashData(hash, buffer.data(), read, 0) < 0) integrity_failure();
+        total += read;
+    }
+    std::array<UCHAR, 32> digest{};
+    if (BCryptFinishHash(hash, digest.data(), static_cast<ULONG>(digest.size()), 0) < 0 ||
+        total != static_cast<std::uintmax_t>(size.QuadPart)) {
+        integrity_failure();
+    }
+    std::ostringstream encoded;
+    encoded << std::hex << std::setfill('0');
+    for (UCHAR byte : digest) encoded << std::setw(2) << static_cast<unsigned>(byte);
+    return {total, encoded.str()};
+}
+
+std::string read_bounded_text(HANDLE handle, std::uintmax_t maximum) {
+    LARGE_INTEGER size{};
+    if (!GetFileSizeEx(handle, &size) || size.QuadPart <= 0 ||
+        static_cast<std::uintmax_t>(size.QuadPart) > maximum) {
+        integrity_failure();
+    }
+    std::string result(static_cast<std::size_t>(size.QuadPart), '\0');
+    LARGE_INTEGER origin{};
+    if (!SetFilePointerEx(handle, origin, nullptr, FILE_BEGIN)) integrity_failure();
+    std::size_t total = 0U;
+    while (total < result.size()) {
+        DWORD read = 0U;
+        if (!ReadFile(
+                handle,
+                result.data() + total,
+                static_cast<DWORD>(result.size() - total),
+                &read,
+                nullptr) || read == 0U) {
+            integrity_failure();
+        }
+        total += read;
+    }
+    return result;
 }
 
 std::string product_version(const std::filesystem::path& path) {
@@ -188,29 +296,107 @@ std::string product_version(const std::filesystem::path& path) {
     return wide_to_utf8(std::wstring(value, value_length - 1U));
 }
 
-void verify_manifest(
+struct verified_manifest final {
+    std::string digest;
+    native_file_identity identity;
+    std::vector<retained_runtime_entry> entries;
+};
+
+std::filesystem::path relative_path(
+    const std::filesystem::path& root,
+    const std::filesystem::path& path) {
+    const std::filesystem::path relative = path.lexically_relative(root);
+    if (relative.empty() || relative.is_absolute()) integrity_failure();
+    return relative.lexically_normal();
+}
+
+void require_exact_topology(
+    const std::filesystem::path& root,
+    const native_file_identity& root_identity,
+    const native_file_identity& manifest_identity,
+    const std::vector<retained_runtime_entry>& entries) {
+    scoped_runtime_handle current_root(open_runtime_path(root, true));
+    require_handle_kind(current_root.get(), true);
+    require_final_contained(root, current_root.get(), true);
+    if (file_identity(current_root.get()) != root_identity) integrity_failure();
+
+    std::set<std::string, std::less<>> expected_files;
+    std::set<std::string, std::less<>> expected_directories;
+    for (const auto& entry : entries) {
+        const std::string relative = wide_to_utf8(entry.relative.generic_wstring());
+        (entry.directory ? expected_directories : expected_files).insert(relative);
+    }
+    std::set<std::string, std::less<>> actual_files;
+    std::set<std::string, std::less<>> actual_directories;
+    std::vector<std::filesystem::path> parents{std::filesystem::path{}};
+    for (const auto& entry : entries) {
+        if (entry.directory) parents.push_back(entry.relative);
+    }
+    for (const auto& parent : parents) {
+        const std::filesystem::path full_parent = root / parent;
+        for (const auto& item : std::filesystem::directory_iterator(full_parent)) {
+            const DWORD attributes = GetFileAttributesW(item.path().c_str());
+            if (attributes == INVALID_FILE_ATTRIBUTES ||
+                (attributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0) {
+                integrity_failure();
+            }
+            const std::string relative = wide_to_utf8(
+                relative_path(root, item.path()).generic_wstring());
+            if ((attributes & FILE_ATTRIBUTE_DIRECTORY) != 0) {
+                actual_directories.insert(relative);
+            } else if (relative != "worker-manifest.json") {
+                actual_files.insert(relative);
+            }
+        }
+    }
+    if (actual_files != expected_files || actual_directories != expected_directories) {
+        integrity_failure();
+    }
+
+    scoped_runtime_handle manifest(open_runtime_path(root / L"worker-manifest.json", false));
+    require_handle_kind(manifest.get(), false);
+    require_final_contained(root, manifest.get());
+    if (file_identity(manifest.get()) != manifest_identity) integrity_failure();
+    require_no_alternate_streams(root / L"worker-manifest.json");
+
+    for (const auto& entry : entries) {
+        const std::filesystem::path full = root / entry.relative;
+        scoped_runtime_handle handle(open_runtime_path(full, entry.directory));
+        require_handle_kind(handle.get(), entry.directory);
+        require_final_contained(root, handle.get());
+        if (file_identity(handle.get()) != entry.identity) integrity_failure();
+        require_no_alternate_streams(full);
+    }
+}
+
+verified_manifest verify_manifest(
     const std::filesystem::path& root,
     const std::filesystem::path& manifest,
-    std::vector<void*>& handles) {
-    require_regular_no_reparse(manifest);
+    std::vector<void*>& handles,
+    const native_path_open_observer& before_path_open) {
+    if (before_path_open) before_path_open(L"worker-manifest.json", false);
+    scoped_runtime_handle manifest_handle(open_runtime_path(manifest, false));
+    require_handle_kind(manifest_handle.get(), false);
+    require_final_contained(root, manifest_handle.get());
     require_no_alternate_streams(manifest);
-    const HANDLE manifest_handle = open_runtime_path(manifest, false);
-    handles.push_back(manifest_handle);
-    require_final_contained(root, manifest_handle);
-    std::ifstream input(manifest, std::ios::binary);
+    const std::string manifest_text = read_bounded_text(manifest_handle.get(), 1024U * 1024U);
+    const auto [manifest_length, manifest_digest] = digest_handle(manifest_handle.get());
+    (void)manifest_length;
     json document;
-    try {
-        input >> document;
-    } catch (const json::exception&) {
-        throw protocol_error("runtime integrity failed");
-    }
+    try { document = json::parse(manifest_text); }
+    catch (const json::exception&) { integrity_failure(); }
     if (!document.is_object() || document.size() != 2U ||
         document.value("schemaVersion", 0) != 1 || !document.contains("files") ||
         !document["files"].is_array()) {
         throw protocol_error("runtime integrity failed");
     }
 
-    std::set<std::string, std::less<>> expected;
+    struct manifest_entry final {
+        std::string relative;
+        std::uintmax_t length{};
+        std::string digest;
+    };
+    std::vector<manifest_entry> manifest_entries;
     std::set<std::string, std::less<>> expected_directories;
     std::string previous;
     for (const json& entry : document["files"]) {
@@ -226,54 +412,59 @@ void verify_manifest(
         if (relative.empty() || relative == "worker-manifest.json" ||
             relative.find("..") != std::string::npos || relative.find(':') != std::string::npos ||
             relative.front() == '/' || relative.front() == '\\' || length == 0 ||
-            !is_lower_sha256(digest) || (!previous.empty() && previous >= relative) ||
-            !expected.insert(relative).second) {
+            !is_lower_sha256(digest) || (!previous.empty() && previous >= relative)) {
             throw protocol_error("runtime integrity failed");
         }
         previous = relative;
-        const std::filesystem::path file = root / utf8_to_wide(relative);
-        require_regular_no_reparse(file);
-        require_no_alternate_streams(file);
-        const HANDLE handle = open_runtime_path(file, false);
-        handles.push_back(handle);
-        require_final_contained(root, handle);
-        if (std::filesystem::file_size(file) != length || sha256_file(file) != digest) {
-            throw protocol_error("runtime integrity failed");
-        }
-        if (file.extension() == L".exe" || file.extension() == L".dll") require_amd64(file);
+        manifest_entries.push_back({relative, length, digest});
         std::filesystem::path parent = std::filesystem::path(utf8_to_wide(relative)).parent_path();
         while (!parent.empty()) {
             expected_directories.insert(wide_to_utf8(parent.generic_wstring()));
             parent = parent.parent_path();
         }
     }
-    if (expected.empty()) throw protocol_error("runtime integrity failed");
+    if (manifest_entries.empty()) integrity_failure();
 
-    std::set<std::string, std::less<>> actual;
-    std::set<std::string, std::less<>> actual_directories;
-    for (const auto& item : std::filesystem::recursive_directory_iterator(root)) {
-        const DWORD attributes = GetFileAttributesW(item.path().c_str());
-        if (attributes == INVALID_FILE_ATTRIBUTES || (attributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0) {
-            throw protocol_error("runtime integrity failed");
-        }
-        if (item.is_regular_file()) {
-            std::string relative = wide_to_utf8(std::filesystem::relative(item.path(), root).generic_wstring());
-            if (relative != "worker-manifest.json") actual.insert(relative);
-        } else if (item.is_directory()) {
-            const std::string relative = wide_to_utf8(
-                std::filesystem::relative(item.path(), root).generic_wstring());
-            actual_directories.insert(relative);
-            require_no_alternate_streams(item.path());
-            const HANDLE handle = open_runtime_path(item.path(), true);
-            handles.push_back(handle);
-            require_final_contained(root, handle);
-        } else {
-            throw protocol_error("runtime integrity failed");
-        }
+    verified_manifest result{};
+    result.digest = manifest_digest;
+    result.identity = file_identity(manifest_handle.get());
+    handles.push_back(manifest_handle.release());
+
+    std::vector<std::string> ordered_directories(
+        expected_directories.begin(), expected_directories.end());
+    std::sort(ordered_directories.begin(), ordered_directories.end(), [](const auto& left, const auto& right) {
+        const auto left_depth = std::count(left.begin(), left.end(), '/');
+        const auto right_depth = std::count(right.begin(), right.end(), '/');
+        return left_depth == right_depth ? left < right : left_depth < right_depth;
+    });
+    for (const std::string& relative : ordered_directories) {
+        const std::filesystem::path relative_path_value = utf8_to_wide(relative);
+        if (before_path_open) before_path_open(relative_path_value, true);
+        const std::filesystem::path full = root / relative_path_value;
+        scoped_runtime_handle handle(open_runtime_path(full, true));
+        require_handle_kind(handle.get(), true);
+        require_final_contained(root, handle.get());
+        require_no_alternate_streams(full);
+        result.entries.push_back({relative_path_value, true, file_identity(handle.get())});
+        handles.push_back(handle.release());
     }
-    if (actual != expected || actual_directories != expected_directories) {
-        throw protocol_error("runtime integrity failed");
+    for (const manifest_entry& entry : manifest_entries) {
+        const std::filesystem::path relative = utf8_to_wide(entry.relative);
+        if (before_path_open) before_path_open(relative, false);
+        const std::filesystem::path full = root / relative;
+        scoped_runtime_handle handle(open_runtime_path(full, false));
+        require_handle_kind(handle.get(), false);
+        require_final_contained(root, handle.get());
+        require_no_alternate_streams(full);
+        const auto [length, digest] = digest_handle(handle.get());
+        if (length != entry.length || digest != entry.digest) integrity_failure();
+        if (full.extension() == L".exe" || full.extension() == L".dll") {
+            require_amd64(handle.get());
+        }
+        result.entries.push_back({relative, false, file_identity(handle.get())});
+        handles.push_back(handle.release());
     }
+    return result;
 }
 
 void close_runtime_handles(std::vector<void*>& handles) noexcept {
@@ -303,35 +494,19 @@ std::filesystem::path executable_directory() {
 }
 
 std::string sha256_file(const std::filesystem::path& path) {
-    require_regular_no_reparse(path);
-    algorithm_handle algorithm;
-    hash_handle hash(algorithm);
-    std::ifstream input(path, std::ios::binary);
-    if (!input) throw protocol_error("file unreadable");
-    std::array<char, 64U * 1024U> buffer{};
-    while (input) {
-        input.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
-        const std::streamsize count = input.gcount();
-        if (count > 0 && BCryptHashData(hash,
-                reinterpret_cast<PUCHAR>(buffer.data()), static_cast<ULONG>(count), 0) < 0) {
-            throw protocol_error("hash failed");
-        }
-    }
-    if (!input.eof()) throw protocol_error("file unreadable");
-    std::array<UCHAR, 32> digest{};
-    if (BCryptFinishHash(hash, digest.data(), static_cast<ULONG>(digest.size()), 0) < 0) {
-        throw protocol_error("hash failed");
-    }
-    std::ostringstream encoded;
-    encoded << std::hex << std::setfill('0');
-    for (UCHAR byte : digest) encoded << std::setw(2) << static_cast<unsigned>(byte);
-    return encoded.str();
+    scoped_runtime_handle handle(open_runtime_path(path, false));
+    require_handle_kind(handle.get(), false);
+    return digest_handle(handle.get()).second;
 }
 
 runtime_context::~runtime_context() { close_runtime_handles(handles_); }
 
 runtime_context::runtime_context(runtime_context&& other) noexcept
     : evidence_(std::move(other.evidence_)),
+      root_(std::move(other.root_)),
+      root_identity_(other.root_identity_),
+      manifest_identity_(other.manifest_identity_),
+      entries_(std::move(other.entries_)),
       handles_(std::move(other.handles_)) {
     other.handles_.clear();
 }
@@ -340,6 +515,10 @@ runtime_context& runtime_context::operator=(runtime_context&& other) noexcept {
     if (this != &other) {
         close_runtime_handles(handles_);
         evidence_ = std::move(other.evidence_);
+        root_ = std::move(other.root_);
+        root_identity_ = other.root_identity_;
+        manifest_identity_ = other.manifest_identity_;
+        entries_ = std::move(other.entries_);
         handles_ = std::move(other.handles_);
         other.handles_.clear();
     }
@@ -347,40 +526,88 @@ runtime_context& runtime_context::operator=(runtime_context&& other) noexcept {
 }
 
 const runtime_evidence& runtime_context::evidence() const noexcept { return evidence_; }
+const std::filesystem::path& runtime_context::root() const noexcept { return root_; }
+
+void runtime_context::verify_topology() const {
+    try {
+        require_exact_topology(
+            root_, root_identity_, manifest_identity_, entries_);
+    } catch (const worker_failure&) {
+        throw;
+    } catch (...) {
+        throw worker_failure(
+            "runtime_integrity_failed", true, "runtime topology changed");
+    }
+}
+
+bool runtime_context::contains_approved_file(
+    const native_file_identity& identity) const noexcept {
+    return std::any_of(entries_.begin(), entries_.end(), [&](const auto& entry) {
+        return !entry.directory && entry.identity == identity;
+    });
+}
 
 runtime_context initialize_verified_runtime_at(
     const std::filesystem::path& worker_root,
+    const native_path_open_observer& before_path_open,
     const std::function<void()>& after_handles_acquired) {
     runtime_context context;
     const std::filesystem::path root =
         std::filesystem::absolute(worker_root).lexically_normal();
     try {
+        scoped_runtime_handle root_handle(open_runtime_path(root, true));
+        require_handle_kind(root_handle.get(), true);
+        require_final_contained(root, root_handle.get(), true);
+        require_no_alternate_streams(root);
+        context.root_ = root;
+        context.root_identity_ = file_identity(root_handle.get());
+        context.handles_.push_back(root_handle.release());
+
+        const std::filesystem::path manifest = root / L"worker-manifest.json";
+        verified_manifest verified = verify_manifest(
+            root, manifest, context.handles_, before_path_open);
+        context.manifest_identity_ = verified.identity;
+        context.entries_ = std::move(verified.entries);
+        context.verify_topology();
+        if (after_handles_acquired) after_handles_acquired();
+        context.verify_topology();
+
         if (!SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_SYSTEM32 | LOAD_LIBRARY_SEARCH_USER_DIRS) ||
             !SetDllDirectoryW(L"") || AddDllDirectory(root.c_str()) == nullptr) {
             throw protocol_error("runtime loader hardening failed");
         }
-        const DWORD root_attributes = GetFileAttributesW(root.c_str());
-        if (root_attributes == INVALID_FILE_ATTRIBUTES ||
-            (root_attributes & FILE_ATTRIBUTE_DIRECTORY) == 0 ||
-            (root_attributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0) {
-            integrity_failure();
+        ov::Version runtime{};
+        try {
+            context.verify_topology();
+            runtime = ov::get_openvino_version();
+            context.verify_topology();
+        } catch (...) {
+            context.verify_topology();
+            throw;
         }
-        require_no_alternate_streams(root);
-        const HANDLE root_handle = open_runtime_path(root, true);
-        context.handles_.push_back(root_handle);
-        require_final_contained(root, root_handle, true);
-
-        const std::filesystem::path manifest = root / L"worker-manifest.json";
-        verify_manifest(root, manifest, context.handles_);
-        if (after_handles_acquired) after_handles_acquired();
-
-        const ov::Version runtime = ov::get_openvino_version();
-        const ov::Version genai = ov::genai::get_version();
+        ov::Version genai{};
+        try {
+            context.verify_topology();
+            genai = ov::genai::get_version();
+            context.verify_topology();
+        } catch (...) {
+            context.verify_topology();
+            throw;
+        }
+        std::string tokenizers;
+        try {
+            context.verify_topology();
+            tokenizers = product_version(root / L"openvino_tokenizers.dll");
+            context.verify_topology();
+        } catch (...) {
+            context.verify_topology();
+            throw;
+        }
         context.evidence_ = {
             runtime.buildNumber == nullptr ? "" : runtime.buildNumber,
             genai.buildNumber == nullptr ? "" : genai.buildNumber,
-            product_version(root / L"openvino_tokenizers.dll"),
-            sha256_file(manifest)};
+            tokenizers,
+            verified.digest};
         if (context.evidence_.runtime_build !=
                 "2026.3.0-22451-8a17657b995-releases/2026/3" ||
             context.evidence_.genai_build != "2026.3.0.0-3277-bd8d6542e3c" ||
@@ -395,10 +622,10 @@ runtime_context initialize_verified_runtime_at(
 }
 
 runtime_context initialize_verified_runtime() {
-    return initialize_verified_runtime_at(executable_directory(), {});
+    return initialize_verified_runtime_at(executable_directory(), {}, {});
 }
 
-void verify_loaded_module_closure(const std::filesystem::path& worker_root) {
+void verify_loaded_module_closure(const runtime_context& runtime) {
     const auto fail = []() -> void {
         throw worker_failure(
             "runtime_integrity_failed", true, "module escaped verified closure");
@@ -414,19 +641,45 @@ void verify_loaded_module_closure(const std::filesystem::path& worker_root) {
     const UINT windows_length = GetWindowsDirectoryW(windows_buffer, MAX_PATH);
     if (windows_length == 0 || windows_length >= MAX_PATH) fail();
     const std::wstring windows_root = lower_path(std::filesystem::path(windows_buffer));
-    const std::wstring closure_root = lower_path(worker_root);
-    const std::size_t count = required / sizeof(HMODULE);
-    std::wstring path_buffer(32768U, L'\0');
-    for (std::size_t index = 0; index < count; ++index) {
-        const DWORD length = GetModuleFileNameExW(GetCurrentProcess(), modules[index], path_buffer.data(),
-                                                  static_cast<DWORD>(path_buffer.size()));
-        if (length == 0 || length >= path_buffer.size()) fail();
-        path_buffer.resize(length);
-        const std::filesystem::path module(path_buffer);
-        path_buffer.resize(32768U);
-        if (!starts_with_path(module, windows_root) && !starts_with_path(module, closure_root)) {
-            fail();
+    try {
+        runtime.verify_topology();
+        const std::size_t count = required / sizeof(HMODULE);
+        std::wstring path_buffer(32768U, L'\0');
+        for (std::size_t index = 0; index < count; ++index) {
+            const DWORD length = GetModuleFileNameExW(
+                GetCurrentProcess(), modules[index], path_buffer.data(),
+                static_cast<DWORD>(path_buffer.size()));
+            if (length == 0 || length >= path_buffer.size()) fail();
+            path_buffer.resize(length);
+            const std::filesystem::path module(path_buffer);
+            path_buffer.resize(32768U);
+            if (starts_with_path(module, windows_root)) continue;
+            verify_module_file_membership(runtime, module);
         }
+        runtime.verify_topology();
+    } catch (const worker_failure&) {
+        throw;
+    } catch (...) {
+        fail();
+    }
+}
+
+void verify_module_file_membership(
+    const runtime_context& runtime,
+    const std::filesystem::path& module) {
+    try {
+        scoped_runtime_handle handle(open_runtime_path(module, false));
+        require_handle_kind(handle.get(), false);
+        require_final_contained(runtime.root(), handle.get());
+        if (!runtime.contains_approved_file(file_identity(handle.get()))) {
+            throw worker_failure(
+                "runtime_integrity_failed", true, "module escaped verified closure");
+        }
+    } catch (const worker_failure&) {
+        throw;
+    } catch (...) {
+        throw worker_failure(
+            "runtime_integrity_failed", true, "module escaped verified closure");
     }
 }
 
