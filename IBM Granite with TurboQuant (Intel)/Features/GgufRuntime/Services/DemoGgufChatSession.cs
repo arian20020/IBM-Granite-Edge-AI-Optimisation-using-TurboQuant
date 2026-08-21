@@ -17,11 +17,11 @@ internal sealed class DemoGgufChatSession : IGgufChatSession
         stopRequested = false;
         string[] chunks =
         [
-            "This is a local preview response to “",
+            "Preview mode is active. I received “",
             prompt,
             "”. ",
-            "The production path uses the protected GGUF CLI supervisor; ",
-            "this preview lets you test streaming, Stop, and dated history without downloading a model.",
+            "Import a compatible GGUF model to run local generation. ",
+            "This preview currently demonstrates streaming, Stop, attachments, and dated history.",
         ];
         foreach (string chunk in chunks)
         {

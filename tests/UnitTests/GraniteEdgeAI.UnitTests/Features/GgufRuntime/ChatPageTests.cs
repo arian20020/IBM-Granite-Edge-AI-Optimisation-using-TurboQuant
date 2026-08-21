@@ -31,6 +31,14 @@ public sealed class ChatPageTests
     {
         var assistant = new ChatMessageBubble { MessageContent = "Assistant", IsUser = false };
         var user = new ChatMessageBubble { MessageContent = "User", IsUser = true };
+        TextBlock assistantIdentity = Assert.IsInstanceOfType<TextBlock>(
+            assistant.FindName("AssistantIdentityText"));
+        TextBlock userIdentity = Assert.IsInstanceOfType<TextBlock>(
+            user.FindName("AssistantIdentityText"));
+
+        Assert.AreEqual("Granite Edge AI", assistantIdentity.Text);
+        Assert.AreEqual(Visibility.Visible, assistantIdentity.Visibility);
+        Assert.AreEqual(Visibility.Collapsed, userIdentity.Visibility);
 
         AssertRoleColors(
             assistant,

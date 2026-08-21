@@ -13,6 +13,12 @@
             HorizontalAlignment="Left">
             <StackPanel Spacing="6">
                 <TextBlock
+                    x:Name="AssistantIdentityText"
+                    Text="Granite Edge AI"
+                    FontSize="12"
+                    FontWeight="SemiBold"
+                    Foreground="{ThemeResource GgufChatAssistantBubbleTextBrush}" />
+                <TextBlock
                     x:Name="MessageText"
                     Text="{x:Bind MessageContent, Mode=OneWay}"
                     TextWrapping="WrapWholeWords"

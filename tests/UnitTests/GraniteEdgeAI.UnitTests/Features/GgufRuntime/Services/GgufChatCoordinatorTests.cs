@@ -61,6 +61,33 @@ public sealed class GgufChatCoordinatorTests
         Assert.AreEqual(ChatCompletionStatus.Incomplete, assistant.Status);
     }
 
+    [TestMethod]
+    public async Task PreviewSessionExplainsItsBoundaryWithoutDeveloperTerminology()
+    {
+        await using var session = new DemoGgufChatSession();
+        var output = new System.Text.StringBuilder();
+
+        await foreach (GgufChatEvent runtimeEvent in session.GenerateAsync(
+                           "Explain this model",
+                           CancellationToken.None))
+        {
+            if (runtimeEvent is GgufChatDelta delta)
+            {
+                output.Append(delta.Text);
+            }
+        }
+
+        string response = output.ToString();
+        StringAssert.Contains(response, "Preview mode is active");
+        StringAssert.Contains(response, "Explain this model");
+        StringAssert.Contains(
+            response,
+            "Import a compatible GGUF model to run local generation");
+        Assert.IsFalse(response.Contains("deterministic demo runtime", StringComparison.Ordinal));
+        Assert.IsFalse(response.Contains("production path uses", StringComparison.Ordinal));
+        Assert.IsFalse(response.Contains("protected GGUF CLI supervisor", StringComparison.Ordinal));
+    }
+
     private sealed class FakeSession(params GgufChatEvent[] events) : IGgufChatSession
     {
         public async IAsyncEnumerable<GgufChatEvent> GenerateAsync(

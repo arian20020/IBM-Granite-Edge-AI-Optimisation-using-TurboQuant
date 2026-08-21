@@ -63,5 +63,8 @@ public sealed partial class ChatMessageBubble : UserControl
             : "GgufChatAssistantBubbleTextBrush";
         BubbleBorder.Background = (Brush)Application.Current.Resources[surfaceKey];
         MessageText.Foreground = (Brush)Application.Current.Resources[textKey];
+        AssistantIdentityText.Visibility = IsUser
+            ? Visibility.Collapsed
+            : Visibility.Visible;
     }
 }

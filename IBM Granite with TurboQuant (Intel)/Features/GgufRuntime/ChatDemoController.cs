@@ -32,7 +32,7 @@ internal sealed class ChatDemoController : IAsyncDisposable
         page.SendRequested += Page_SendRequested;
         page.StopRequested += Page_StopRequested;
         page.ConversationSelected += Page_ConversationSelected;
-        page.SetModelHeader("Granite local preview", "deterministic demo runtime");
+        page.SetModelHeader("Preview mode", "No model loaded");
     }
 
     internal async Task InitializeAsync()

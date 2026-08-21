@@ -395,6 +395,57 @@ public sealed class GgufChatVisualContractTests
     }
 
     [TestMethod]
+    public void PreviewCopyAndAssistantIdentityStayTruthfulAndUserFacing()
+    {
+        string root = FindRepositoryRoot();
+        string controller = File.ReadAllText(Path.Combine(
+            root,
+            "IBM Granite with TurboQuant (Intel)",
+            "Features",
+            "GgufRuntime",
+            "ChatDemoController.cs"));
+        string session = File.ReadAllText(Path.Combine(
+            root,
+            "IBM Granite with TurboQuant (Intel)",
+            "Features",
+            "GgufRuntime",
+            "Services",
+            "DemoGgufChatSession.cs"));
+        XNamespace presentation =
+            "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
+        XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
+        XDocument bubble = XDocument.Load(Path.Combine(
+            root,
+            "IBM Granite with TurboQuant (Intel)",
+            "Features",
+            "GgufRuntime",
+            "Controls",
+            "ChatMessageBubble.xaml"));
+
+        StringAssert.Contains(
+            controller,
+            "page.SetModelHeader(\"Preview mode\", \"No model loaded\");");
+        StringAssert.Contains(session, "Preview mode is active");
+        StringAssert.Contains(
+            session,
+            "Import a compatible GGUF model to run local generation");
+        foreach (string prohibited in new[]
+                 {
+                     "deterministic demo runtime",
+                     "production path uses",
+                     "protected GGUF CLI supervisor",
+                 })
+        {
+            Assert.IsFalse(controller.Contains(prohibited, StringComparison.Ordinal));
+            Assert.IsFalse(session.Contains(prohibited, StringComparison.Ordinal));
+        }
+
+        XElement identity = bubble.Descendants(presentation + "TextBlock")
+            .Single(element => element.Attribute(x + "Name")?.Value == "AssistantIdentityText");
+        Assert.AreEqual("Granite Edge AI", identity.Attribute("Text")?.Value);
+    }
+
+    [TestMethod]
     public void ChatThemeUsesSystemHighlightTextForHighContrastPrimaryButtons()
     {
         string root = FindRepositoryRoot();
