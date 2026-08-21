@@ -231,6 +231,18 @@ public sealed class OpenVinoPromptAdapter : IAsyncDisposable
                 Failure: null);
         }
         catch (OpenVinoRouteWorkerFailureException failure)
+            when (failure.SupportCode == OpenVinoSupportCode.OperationCancelled)
+        {
+            stateMachine.TryBeginCancellation(operationId);
+            if (stateMachine.TryMarkCancelled(operationId))
+            {
+                Emit(PromptEventKind.Cancelled, turnId: null);
+            }
+            throw new OperationCanceledException(
+                "The OpenVINO prompt session was cancelled.",
+                failure);
+        }
+        catch (OpenVinoRouteWorkerFailureException failure)
         {
             return Fail(operationId, turnId, failure.SupportCode);
         }
@@ -239,8 +251,10 @@ public sealed class OpenVinoPromptAdapter : IAsyncDisposable
             if (Snapshot.State != OpenVinoRouteState.Cancelled)
             {
                 stateMachine.TryBeginCancellation(operationId);
-                stateMachine.TryMarkCancelled(operationId);
-                Emit(PromptEventKind.Cancelled, turnId: null);
+                if (stateMachine.TryMarkCancelled(operationId))
+                {
+                    Emit(PromptEventKind.Cancelled, turnId: null);
+                }
             }
 
             throw;
@@ -327,18 +341,29 @@ public sealed class OpenVinoPromptAdapter : IAsyncDisposable
         }
         finally
         {
+            bool publishTerminal;
             if (failure is null)
             {
-                stateMachine.TryMarkCancelled(operationId);
-                Emit(PromptEventKind.Cancelled, turnId: null);
+                publishTerminal = stateMachine.TryMarkCancelled(operationId);
             }
             else
             {
-                stateMachine.TryFail(operationId, failure.SupportCode);
-                Emit(PromptEventKind.Failed, turnId: null, failure: failure);
+                publishTerminal =
+                    stateMachine.TryFail(operationId, failure.SupportCode);
             }
 
+            // Resource retirement is authoritative. A presentation observer
+            // cannot run before or preempt the exactly-once channel disposal.
             await DisposeChannelAsync().ConfigureAwait(false);
+
+            if (publishTerminal && failure is null)
+            {
+                Emit(PromptEventKind.Cancelled, turnId: null);
+            }
+            else if (publishTerminal)
+            {
+                Emit(PromptEventKind.Failed, turnId: null, failure: failure);
+            }
         }
     }
 
@@ -459,16 +484,26 @@ public sealed class OpenVinoPromptAdapter : IAsyncDisposable
         string? text = null,
         PromptFailure? failure = null,
         string? requestedDevice = null,
-        IReadOnlyList<string>? actualExecutionDevices = null) =>
-        sink(new PromptEvent(
-            kind,
-            snapshot.Identity.OperationId,
-            snapshot.Identity.SessionId,
-            turnId,
-            text,
-            failure,
-            requestedDevice,
-            actualExecutionDevices ?? Array.Empty<string>()));
+        IReadOnlyList<string>? actualExecutionDevices = null)
+    {
+        try
+        {
+            sink(new PromptEvent(
+                kind,
+                snapshot.Identity.OperationId,
+                snapshot.Identity.SessionId,
+                turnId,
+                text,
+                failure,
+                requestedDevice,
+                actualExecutionDevices ?? Array.Empty<string>()));
+        }
+        catch (Exception)
+        {
+            // Event observers are presentation-only. Protocol state and
+            // native resource ownership must never depend on their behavior.
+        }
+    }
 
     private Task DisposeChannelAsync()
     {

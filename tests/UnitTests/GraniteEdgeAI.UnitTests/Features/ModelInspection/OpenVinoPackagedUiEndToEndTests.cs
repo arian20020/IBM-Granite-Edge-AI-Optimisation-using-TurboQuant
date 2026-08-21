@@ -82,16 +82,41 @@ public sealed class OpenVinoPackagedUiEndToEndTests
 
         page.RequestedOpenVinoNewTokens = 32;
         input.Text = "hello";
+        int completedTurnsBeforeCancellation =
+            Require(page.CurrentPromptSurfaceState).CompletedTurnCount;
         InvokeButton(send, "active CANCEL prompt Send");
+        PromptSurfaceState generating = await WaitForPromptStateAsync(
+            page,
+            state => state.LastEventKind == PromptEventKind.GeneratingTurn &&
+                state.ActiveTurnId is not null,
+            "native generation ownership");
+        Guid cancelledTurnId = generating.ActiveTurnId!.Value;
         InvokeButton(cancel, "Cancel session");
         await Require(page.CurrentOpenVinoCancelTask)
             .WaitAsync(TimeSpan.FromSeconds(30));
         await Require(page.CurrentOpenVinoPromptTask)
             .WaitAsync(TimeSpan.FromSeconds(30));
+        PromptSurfaceState cancelled = await WaitForPromptStateAsync(
+            page,
+            state => state.LastEventKind == PromptEventKind.Cancelled &&
+                state.ActiveTurnId is null,
+            "cancelled session terminal");
+        Assert.AreNotEqual(Guid.Empty, cancelledTurnId);
+        Assert.AreEqual(
+            completedTurnsBeforeCancellation,
+            cancelled.CompletedTurnCount,
+            "An actively cancelled native turn cannot publish TurnCompleted.");
+        Assert.IsNull(page.LastOpenVinoTurnResult,
+            "An actively cancelled turn has no successful turn result.");
         string responseAtCancellation = response.Text;
+        long revisionAtCancellation = cancelled.EventRevision;
         await Task.Delay(250);
         Assert.AreEqual(responseAtCancellation, response.Text,
             "A cancelled native turn must not publish late output.");
+        Assert.AreEqual(
+            revisionAtCancellation,
+            Require(page.CurrentPromptSurfaceState).EventRevision,
+            "No token, text, or completion event may arrive after cancellation ownership.");
         Assert.IsFalse(send.IsEnabled);
         Assert.IsFalse(stop.IsEnabled);
         Assert.IsFalse(cancel.IsEnabled);
@@ -272,6 +297,30 @@ public sealed class OpenVinoPackagedUiEndToEndTests
     {
         Assert.IsNotNull(value);
         return value!;
+    }
+
+    private static async Task<PromptSurfaceState> WaitForPromptStateAsync(
+        ModelInspectionPage page,
+        Func<PromptSurfaceState, bool> predicate,
+        string operation)
+    {
+        DateTimeOffset deadline = DateTimeOffset.UtcNow.AddSeconds(10);
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            PromptSurfaceState? state = page.CurrentPromptSurfaceState;
+            if (state is not null && predicate(state))
+            {
+                return state;
+            }
+            await Task.Delay(10);
+        }
+
+        PromptSurfaceState? last = page.CurrentPromptSurfaceState;
+        Assert.Fail(
+            $"Timed out waiting for {operation}; last event was " +
+            $"{last?.LastEventKind}, active turn {last?.ActiveTurnId}, " +
+            $"response '{last?.ResponseText}'.");
+        throw new InvalidOperationException("Unreachable assertion path.");
     }
 
     private static async Task AssertNoOfficialWorkerProcessAsync()

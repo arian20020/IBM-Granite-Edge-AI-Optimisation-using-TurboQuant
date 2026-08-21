@@ -213,6 +213,54 @@ public sealed class OnboardingModelInspectionNavigationTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
+    public async Task NavigationAndShutdownShareOneRetirementAndCommitDestinationOwnershipAtomically()
+    {
+        TaskCompletionSource retirementStarted = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        TaskCompletionSource releaseRetirement = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        int retirementCount = 0;
+        ModelInspectionPage page = new();
+        page.NavigationRetirementOverride = async () =>
+        {
+            Interlocked.Increment(ref retirementCount);
+            retirementStarted.TrySetResult();
+            await releaseRetirement.Task;
+        };
+        ControlledInspectionFrameNavigator navigator = new(page, new());
+        OnboardingShellPage shell = new(navigator.Navigate);
+        Frame frame = (Frame)shell.FindName("StageFrame");
+        Assert.IsTrue(shell.NavigateToModelInspection(
+            CreateRequest(@"C:\Models\atomic-cleanup.gguf")));
+
+        Task<bool> navigation = shell.ReturnToModelImportAsync();
+        await retirementStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        ModelImportPage destination =
+            Assert.IsInstanceOfType<ModelImportPage>(frame.Content);
+        Task shutdown = shell.ShutdownAsync();
+        await Task.Yield();
+
+        Assert.AreEqual(1, Volatile.Read(ref retirementCount),
+            "Navigation and app close must await the same retirement owner.");
+        Assert.IsFalse(frame.IsHitTestVisible,
+            "The destination frame cannot accept input before ownership commits.");
+        Assert.IsFalse(destination.IsEnabled,
+            "The fresh import page cannot accept input before subscriptions attach.");
+        Assert.AreEqual(OnboardingStage.InspectModel, shell.CurrentStage);
+
+        releaseRetirement.SetResult();
+        Assert.IsTrue(await navigation.WaitAsync(TimeSpan.FromSeconds(5)));
+        await shutdown.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.AreEqual(1, Volatile.Read(ref retirementCount));
+        Assert.IsTrue(frame.IsHitTestVisible);
+        Assert.IsTrue(destination.IsEnabled);
+        Assert.AreEqual(OnboardingStage.ImportModel, shell.CurrentStage);
+        Assert.IsNull(shell.ActiveInspectionPageForTesting);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
     public async Task ShutdownOwnerAwaitsActiveInspectionRetirement()
     {
         TaskCompletionSource releaseRetirement = new(
@@ -555,6 +603,12 @@ public sealed class OnboardingModelInspectionNavigationTests
         Assert.IsTrue(shell.NavigateToModelInspection(
             CreateRequest(@"C:\Models\granite.gguf")));
         var inspectionPage = (ModelInspectionPage)stageFrame.Content;
+        int retirementCount = 0;
+        inspectionPage.NavigationRetirementOverride = () =>
+        {
+            retirementCount++;
+            return Task.CompletedTask;
+        };
 
         NavigatingCancelEventHandler cancelImportNavigation =
             (_, eventArguments) =>
@@ -570,6 +624,9 @@ public sealed class OnboardingModelInspectionNavigationTests
 
         Assert.AreSame(inspectionPage, stageFrame.Content);
         Assert.AreEqual(OnboardingStage.InspectModel, shell.CurrentStage);
+        Assert.AreEqual(0, retirementCount);
+        Assert.IsTrue(stageFrame.IsHitTestVisible);
+        Assert.IsTrue(inspectionPage.IsEnabled);
 
         stageFrame.Navigating -= cancelImportNavigation;
         inspectionPage.ViewModel.ChooseAnotherCommand.Execute(null);

@@ -10,7 +10,11 @@ public sealed record PromptSurfaceState(
     string Announcement,
     bool SendEnabled,
     bool StopEnabled,
-    bool CancelEnabled);
+    bool CancelEnabled,
+    Guid? ActiveTurnId,
+    PromptEventKind? LastEventKind,
+    long EventRevision,
+    int CompletedTurnCount);
 
 /// <summary>
 /// Reduces route-neutral prompt events into one shared prompt-surface state.
@@ -29,7 +33,11 @@ public sealed class PromptSessionPresenter
             presentation.ReadyAnnouncement,
             SendEnabled: true,
             StopEnabled: false,
-            CancelEnabled: true);
+            CancelEnabled: true,
+            ActiveTurnId: null,
+            LastEventKind: null,
+            EventRevision: 0,
+            CompletedTurnCount: 0);
     }
 
     public PromptSurfaceState State { get; private set; }
@@ -37,7 +45,7 @@ public sealed class PromptSessionPresenter
     public void Apply(PromptEvent promptEvent)
     {
         ArgumentNullException.ThrowIfNull(promptEvent);
-        State = promptEvent.Kind switch
+        PromptSurfaceState next = promptEvent.Kind switch
         {
             PromptEventKind.GeneratingTurn => State with
             {
@@ -45,7 +53,8 @@ public sealed class PromptSessionPresenter
                 Announcement = "Generating locally.",
                 SendEnabled = false,
                 StopEnabled = true,
-                CancelEnabled = true
+                CancelEnabled = true,
+                ActiveTurnId = promptEvent.TurnId
             },
             PromptEventKind.TextDelta => State with
             {
@@ -64,7 +73,12 @@ public sealed class PromptSessionPresenter
                     Announcement = "Local session ready.",
                     SendEnabled = true,
                     StopEnabled = false,
-                    CancelEnabled = true
+                    CancelEnabled = true,
+                    ActiveTurnId = null,
+                    CompletedTurnCount = promptEvent.Kind ==
+                        PromptEventKind.TurnCompleted
+                            ? checked(State.CompletedTurnCount + 1)
+                            : State.CompletedTurnCount
                 },
             PromptEventKind.CancellingSession => State with
             {
@@ -79,17 +93,27 @@ public sealed class PromptSessionPresenter
                     Announcement = "Local session closed.",
                     SendEnabled = false,
                     StopEnabled = false,
-                    CancelEnabled = false
+                    CancelEnabled = false,
+                    ActiveTurnId = null
                 },
             PromptEventKind.Failed => FailedState(promptEvent.Failure),
             _ => State
+        };
+        State = next with
+        {
+            LastEventKind = promptEvent.Kind,
+            EventRevision = checked(State.EventRevision + 1)
         };
     }
 
     public void ApplyFailure(PromptFailure failure)
     {
         ArgumentNullException.ThrowIfNull(failure);
-        State = FailedState(failure);
+        State = FailedState(failure) with
+        {
+            LastEventKind = PromptEventKind.Failed,
+            EventRevision = checked(State.EventRevision + 1)
+        };
     }
 
     private PromptSurfaceState FailedState(PromptFailure? failure)
@@ -108,7 +132,8 @@ public sealed class PromptSessionPresenter
             Announcement = $"{safeFailure.Message} {safeFailure.RecoveryAction}",
             SendEnabled = false,
             StopEnabled = false,
-            CancelEnabled = false
+            CancelEnabled = false,
+            ActiveTurnId = null
         };
     }
 

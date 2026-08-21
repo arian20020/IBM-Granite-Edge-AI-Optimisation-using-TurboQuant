@@ -344,7 +344,7 @@ public sealed partial class ModelInspectionPage : Page
 
     protected override void OnNavigatedFrom(NavigationEventArgs eventArguments)
     {
-        RetireOpenVinoLifetime();
+        _ = RetireOpenVinoLifetime();
         RetirePageLifetime();
         base.OnNavigatedFrom(eventArguments);
     }

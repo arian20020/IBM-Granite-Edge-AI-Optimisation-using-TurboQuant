@@ -99,6 +99,37 @@ public sealed class PromptRouteContractRedTests
     }
 
     [TestMethod]
+    public void PresenterOwnsActiveTurnAndPublishesExactCancellationTerminal()
+    {
+        PromptSessionPresenter presenter = new(new PromptRoutePresentation(
+            "Test route",
+            "Requested CPU Â· Running CPU",
+            "Test evidence",
+            "Ready"));
+        Guid turnId = Guid.NewGuid();
+        int completedBefore = presenter.State.CompletedTurnCount;
+
+        presenter.Apply(Event(PromptEventKind.GeneratingTurn, turnId));
+
+        Assert.AreEqual(turnId, presenter.State.ActiveTurnId);
+        Assert.AreEqual(
+            PromptEventKind.GeneratingTurn,
+            presenter.State.LastEventKind);
+        long generatingRevision = presenter.State.EventRevision;
+
+        presenter.Apply(Event(PromptEventKind.CancellingSession, turnId));
+        presenter.Apply(Event(PromptEventKind.Cancelled, turnId: null));
+
+        Assert.IsNull(presenter.State.ActiveTurnId);
+        Assert.AreEqual(PromptEventKind.Cancelled, presenter.State.LastEventKind);
+        Assert.AreEqual(completedBefore, presenter.State.CompletedTurnCount);
+        Assert.IsGreaterThan(generatingRevision, presenter.State.EventRevision);
+        Assert.IsFalse(presenter.State.SendEnabled);
+        Assert.IsFalse(presenter.State.StopEnabled);
+        Assert.IsFalse(presenter.State.CancelEnabled);
+    }
+
+    [TestMethod]
     public void SharedPromptTemplateUsesOnlyRouteNeutralPresentationFields()
     {
         string repositoryRoot = FindRepositoryRoot();
@@ -215,6 +246,16 @@ public sealed class PromptRouteContractRedTests
             4_096,
             128,
             128);
+
+    private static PromptEvent Event(PromptEventKind kind, Guid? turnId) => new(
+        kind,
+        Guid.NewGuid(),
+        Guid.NewGuid(),
+        turnId,
+        null,
+        null,
+        "CPU",
+        ["CPU"]);
 
     private static IEnumerable<Type> PublicApiTypes(Type type)
     {

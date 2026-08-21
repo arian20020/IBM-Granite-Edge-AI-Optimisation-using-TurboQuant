@@ -20,6 +20,9 @@ public sealed partial class ModelInspectionPage
     private CancellationTokenSource? _openVinoCancellation;
     private IPromptRouteSession? _promptSession;
     private PromptSessionPresenter? _promptPresenter;
+    private readonly object _openVinoRetirementLock = new();
+    private readonly object _navigationRetirementLock = new();
+    private Task? _navigationRetirementTask;
     private long _openVinoLifetime;
     private int _requestedOpenVinoNewTokens =
         OpenVinoRouteCapability.DefaultRequestedNewTokens;
@@ -29,6 +32,8 @@ public sealed partial class ModelInspectionPage
     internal Task? CurrentOpenVinoStopTask { get; private set; }
     internal Task? CurrentOpenVinoCancelTask { get; private set; }
     internal Task? CurrentOpenVinoCleanupTask { get; private set; }
+    internal PromptSurfaceState? CurrentPromptSurfaceState =>
+        _promptPresenter?.State;
     internal Func<Task>? NavigationRetirementOverride { get; set; }
     internal PromptTurnResult? LastOpenVinoTurnResult { get; private set; }
     internal int RequestedOpenVinoNewTokens
@@ -516,30 +521,41 @@ public sealed partial class ModelInspectionPage
     private bool IsCurrentOpenVinoLifetime(long lifetime) =>
         lifetime == _openVinoLifetime && _openVinoCancellation is not null;
 
-    private void RetireOpenVinoLifetime()
+    private Task RetireOpenVinoLifetime()
     {
-        CancellationTokenSource? cancellation =
-            Interlocked.Exchange(ref _openVinoCancellation, null);
-        IPromptRouteSession? session =
-            Interlocked.Exchange(ref _promptSession, null);
-        _promptPresenter = null;
-        Task? inspectionTask = CurrentOpenVinoInspectionTask;
-        Task? promptTask = CurrentOpenVinoPromptTask;
-        Task? stopTask = CurrentOpenVinoStopTask;
-        Task? cancelTask = CurrentOpenVinoCancelTask;
-        OpenVinoRequest = null;
-        checked
+        lock (_openVinoRetirementLock)
         {
-            _openVinoLifetime++;
+            if (_openVinoCancellation is null &&
+                _promptSession is null &&
+                OpenVinoRequest is null)
+            {
+                return CurrentOpenVinoCleanupTask ?? Task.CompletedTask;
+            }
+
+            CancellationTokenSource? cancellation =
+                Interlocked.Exchange(ref _openVinoCancellation, null);
+            IPromptRouteSession? session =
+                Interlocked.Exchange(ref _promptSession, null);
+            _promptPresenter = null;
+            Task? inspectionTask = CurrentOpenVinoInspectionTask;
+            Task? promptTask = CurrentOpenVinoPromptTask;
+            Task? stopTask = CurrentOpenVinoStopTask;
+            Task? cancelTask = CurrentOpenVinoCancelTask;
+            OpenVinoRequest = null;
+            checked
+            {
+                _openVinoLifetime++;
+            }
+            cancellation?.Cancel();
+            CurrentOpenVinoCleanupTask = CleanupOpenVinoAsync(
+                session,
+                cancellation,
+                inspectionTask,
+                promptTask,
+                stopTask,
+                cancelTask);
+            return CurrentOpenVinoCleanupTask;
         }
-        cancellation?.Cancel();
-        CurrentOpenVinoCleanupTask = CleanupOpenVinoAsync(
-            session,
-            cancellation,
-            inspectionTask,
-            promptTask,
-            stopTask,
-            cancelTask);
     }
 
     private static async Task CleanupOpenVinoAsync(
@@ -596,22 +612,28 @@ public sealed partial class ModelInspectionPage
 
     internal async Task RetireOpenVinoInspectionAsync()
     {
-        RetireOpenVinoLifetime();
-        if (CurrentOpenVinoCleanupTask is not null)
+        await RetireOpenVinoLifetime();
+    }
+
+    internal Task RetireForNavigationAsync()
+    {
+        lock (_navigationRetirementLock)
         {
-            await CurrentOpenVinoCleanupTask;
+            return _navigationRetirementTask ??=
+                RetireForNavigationCoreAsync();
         }
     }
 
-    internal async Task RetireForNavigationAsync()
+    private async Task RetireForNavigationCoreAsync()
     {
         if (NavigationRetirementOverride is not null)
         {
             await NavigationRetirementOverride();
-            return;
         }
-
-        await RetireOpenVinoInspectionAsync();
+        else
+        {
+            await RetireOpenVinoInspectionAsync();
+        }
         RetirePageLifetime();
     }
 }

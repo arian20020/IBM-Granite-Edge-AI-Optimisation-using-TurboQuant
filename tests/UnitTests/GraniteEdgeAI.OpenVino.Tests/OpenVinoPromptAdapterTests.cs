@@ -143,6 +143,39 @@ public sealed class OpenVinoPromptAdapterTests
     }
 
     [TestMethod]
+    public async Task ActiveCancellationOutcomeCannotRaceSessionIntoFailedState()
+    {
+        TaskCompletionSource promptStarted = NewSignal();
+        TaskCompletionSource cancellationReleased = NewSignal();
+        FakeChannel channel = new(async (_, _, _) =>
+        {
+            promptStarted.TrySetResult();
+            await cancellationReleased.Task;
+            throw new OpenVinoRouteWorkerFailureException(
+                OpenVinoSupportCode.OperationCancelled,
+                "active native turn cancelled");
+        });
+        channel.CancelAction = () => cancellationReleased.TrySetResult();
+        (OpenVinoRouteSession session, List<PromptEvent> events) =
+            await StartSessionAsync(channel);
+
+        Task<PromptTurnResult> generation = session.GenerateAsync(
+            "cancel me", 8, CancellationToken.None);
+        await promptStarted.Task;
+        await session.CancelAsync(CancellationToken.None);
+        await Assert.ThrowsExactlyAsync<OperationCanceledException>(
+            async () => await generation);
+        await session.DisposeAsync();
+
+        Assert.AreEqual(OpenVinoRouteState.Cancelled, session.Snapshot.State);
+        Assert.IsFalse(events.Any(item => item.Kind == PromptEventKind.Failed));
+        Assert.HasCount(1, events.Where(item =>
+            item.Kind == PromptEventKind.Cancelled));
+        Assert.AreEqual(1, channel.CancelCount);
+        Assert.AreEqual(1, channel.DisposeCount);
+    }
+
+    [TestMethod]
     [DataRow(OpenVinoSupportCode.RuntimeTimedOut, "runtime_timed_out")]
     [DataRow(OpenVinoSupportCode.RuntimeProtocolFailed, "runtime_protocol_failed")]
     public async Task CancellationFailureTerminalizesAndDisposesExactlyOnce(
@@ -167,6 +200,68 @@ public sealed class OpenVinoPromptAdapterTests
         Assert.AreEqual(expectedCode, failure.Failure!.SupportCode);
         Assert.IsFalse(failure.Failure.Message.Contains(
             "secret", StringComparison.OrdinalIgnoreCase));
+        Assert.AreEqual(1, channel.CancelCount);
+        Assert.AreEqual(1, channel.DisposeCount);
+    }
+
+    [TestMethod]
+    [DataRow(PromptEventKind.CancellingSession)]
+    [DataRow(PromptEventKind.Cancelled)]
+    public async Task ThrowingCancellationObserverCannotPreemptTerminalTeardown(
+        PromptEventKind throwingKind)
+    {
+        FakeChannel channel = SuccessfulChannel();
+        List<PromptEvent> events = [];
+        OpenVinoRouteSession session = await StartSessionAsync(
+            channel,
+            promptEvent =>
+            {
+                events.Add(promptEvent);
+                if (promptEvent.Kind == throwingKind)
+                {
+                    throw new InvalidOperationException("observer failed");
+                }
+            });
+
+        await session.CancelAsync(CancellationToken.None);
+        await session.CancelAsync(CancellationToken.None);
+        await session.DisposeAsync();
+
+        Assert.AreEqual(OpenVinoRouteState.Cancelled, session.Snapshot.State);
+        Assert.IsTrue(events.Any(item =>
+            item.Kind == PromptEventKind.CancellingSession));
+        Assert.IsTrue(events.Any(item => item.Kind == PromptEventKind.Cancelled));
+        Assert.AreEqual(1, channel.CancelCount);
+        Assert.AreEqual(1, channel.DisposeCount);
+    }
+
+    [TestMethod]
+    [DataRow(OpenVinoSupportCode.RuntimeTimedOut, "runtime_timed_out")]
+    [DataRow(OpenVinoSupportCode.RuntimeProtocolFailed, "runtime_protocol_failed")]
+    public async Task ThrowingFailureObserverCannotPreemptFailedCancellationTeardown(
+        OpenVinoSupportCode supportCode,
+        string expectedCode)
+    {
+        FakeChannel channel = SuccessfulChannel();
+        channel.CancelFailure = new OpenVinoRouteWorkerFailureException(
+            supportCode,
+            "private cancellation failure C:\\secret\\package");
+        OpenVinoRouteSession session = await StartSessionAsync(
+            channel,
+            promptEvent =>
+            {
+                if (promptEvent.Kind == PromptEventKind.Failed)
+                {
+                    throw new InvalidOperationException("terminal observer failed");
+                }
+            });
+
+        await session.CancelAsync(CancellationToken.None);
+        await session.CancelAsync(CancellationToken.None);
+        await session.DisposeAsync();
+
+        Assert.AreEqual(OpenVinoRouteState.Failed, session.Snapshot.State);
+        Assert.AreEqual(expectedCode, session.Snapshot.FailureCode);
         Assert.AreEqual(1, channel.CancelCount);
         Assert.AreEqual(1, channel.DisposeCount);
     }
@@ -224,6 +319,24 @@ public sealed class OpenVinoPromptAdapterTests
             events.Add,
             CancellationToken.None);
         return (session, events);
+    }
+
+    private static async Task<OpenVinoRouteSession> StartSessionAsync(
+        FakeChannel channel,
+        Action<PromptEvent> eventSink)
+    {
+        OpenVinoRouteStateMachine machine = new();
+        Guid operationId = machine.Snapshot.Identity.OperationId;
+        Assert.IsTrue(machine.TryBeginInspection(operationId));
+        Assert.IsTrue(machine.TryCompleteInspection(operationId,
+            OpenVinoRouteInspectionOutcome.Ready));
+        Assert.IsTrue(machine.TryAwaitConfiguration(operationId));
+        return await OpenVinoRouteSession.StartAsync(
+            new FakeChannelFactory(channel),
+            machine,
+            Descriptor(),
+            eventSink,
+            CancellationToken.None);
     }
 
     private static OpenVinoSessionDescriptor Descriptor() => new(

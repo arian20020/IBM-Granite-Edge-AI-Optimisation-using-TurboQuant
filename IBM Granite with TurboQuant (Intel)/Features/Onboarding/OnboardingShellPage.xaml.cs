@@ -302,30 +302,54 @@ namespace GraniteEdgeAI.Features.Onboarding
             }
 
             object? previousContent = StageFrame.Content;
-            bool navigationSucceeded = StageFrame.Navigate(typeof(ModelImportPage));
-            if (!navigationSucceeded ||
-                ReferenceEquals(StageFrame.Content, previousContent) ||
-                StageFrame.Content is not ModelImportPage modelImportPage)
+            bool priorHitTestVisibility = StageFrame.IsHitTestVisible;
+            StageFrame.IsHitTestVisible = false;
+            bool ownershipCommitted = false;
+            ModelImportPage? modelImportPage = null;
+            try
             {
-                return false;
-            }
+                bool navigationSucceeded =
+                    StageFrame.Navigate(typeof(ModelImportPage));
+                if (!navigationSucceeded ||
+                    ReferenceEquals(StageFrame.Content, previousContent) ||
+                    StageFrame.Content is not ModelImportPage destination)
+                {
+                    StageFrame.IsHitTestVisible = priorHitTestVisibility;
+                    return false;
+                }
+                modelImportPage = destination;
+                modelImportPage.IsEnabled = false;
 
-            // Frame navigation starts the page's retirement. The shell owns
-            // the completion boundary and does not publish the next stage or
-            // transfer subscriptions until every retirement owner finishes.
-            await page.RetireForNavigationAsync();
-            if (!ReferenceEquals(StageFrame.Content, modelImportPage))
+                // Frame navigation starts the page's one retirement task. The
+                // shell owns that same completion boundary and keeps the new
+                // destination inert until every owner has transferred.
+                await page.RetireForNavigationAsync();
+                if (!ReferenceEquals(StageFrame.Content, modelImportPage))
+                {
+                    return false;
+                }
+
+                StageFrame.BackStack.Clear();
+                StageFrame.ForwardStack.Clear();
+                AttachModelImportPage(modelImportPage);
+                DetachModelInspectionPage();
+                CurrentStage = OnboardingStage.ImportModel;
+                StageIndicator.CurrentStage = CurrentStage;
+                ownershipCommitted = true;
+                return true;
+            }
+            finally
             {
-                return false;
+                if (modelImportPage is not null)
+                {
+                    modelImportPage.IsEnabled = ownershipCommitted;
+                }
+                if (ownershipCommitted ||
+                    ReferenceEquals(StageFrame.Content, previousContent))
+                {
+                    StageFrame.IsHitTestVisible = priorHitTestVisibility;
+                }
             }
-
-            StageFrame.BackStack.Clear();
-            StageFrame.ForwardStack.Clear();
-            AttachModelImportPage(modelImportPage);
-            DetachModelInspectionPage();
-            CurrentStage = OnboardingStage.ImportModel;
-            StageIndicator.CurrentStage = CurrentStage;
-            return true;
         }
 
         internal Task<bool> ReturnToModelImportAsync()
@@ -343,6 +367,12 @@ namespace GraniteEdgeAI.Features.Onboarding
 
         internal async Task ShutdownAsync()
         {
+            Task navigation = CurrentNavigationTask;
+            if (!navigation.IsCompleted)
+            {
+                await navigation;
+            }
+
             ModelInspectionPage? page = _attachedModelInspectionPage;
             if (page is not null)
             {

@@ -404,3 +404,75 @@ entry is the policy-retained verified stage documented below.
   when policy permits.
 
 Task 8 remains in progress after fix round 1/5 awaiting scoped re-review.
+
+## Independent review fix round 2/5
+
+The three open findings were verified against the exact implementation before
+production edits. Focused RED/GREEN evidence was:
+
+- **Observer-independent cancellation teardown:**
+  `dotnet test tests/UnitTests/GraniteEdgeAI.OpenVino.Tests/GraniteEdgeAI.OpenVino.Tests.csproj -c Release --filter FullyQualifiedName~OpenVinoPromptAdapterTests.Throwing --no-restore`
+  failed 0/4 because exceptions from both `CancellingSession` and terminal
+  observers escaped. Publication is now contained, state terminalization occurs
+  independently, and exactly-once channel disposal completes before terminal
+  publication. The complete adapter class passed 13/13, including throwing
+  initial/terminal observers, timeout and protocol cancellation failures,
+  repeated Cancel/Dispose, and the active native cancellation race.
+- **One shell-owned navigation transaction:** the new external slow-retirement
+  test initially failed 1/2 with retirement count 2. The page now preserves one
+  OpenVINO cleanup task, navigation and app-close share the shell's current
+  transaction, and the frame plus fresh import page remain inert until
+  subscription/stage ownership commits. Cancelled Frame navigation stays live,
+  enabled, subscribed, and performs zero retirement. The focused pair passed
+  2/2. A broader navigation run then correctly exposed two synchronous page
+  lifecycle regressions (41/43); restoring synchronous non-OpenVINO retirement
+  while retaining the one cached OpenVINO task produced 64/64 across page
+  navigation, onboarding ownership, OpenVINO import/prompt surface, and both
+  packaged native E2Es.
+- **Deterministic active-CANCEL ownership:** the route-neutral presenter test
+  first failed compilation with eight missing-member errors. It now exposes
+  `ActiveTurnId`, `LastEventKind`, `EventRevision`, and `CompletedTurnCount` and
+  the neutral contract class passed 8/8. The strengthened native E2E first
+  passed 1/2 and reported exact terminal `Failed`: the active worker's
+  `operation_cancelled` outcome raced through the adapter's generic failure
+  mapping. A focused unit reproduction failed 0/1 because generation returned a
+  failed result instead of throwing cancellation. The adapter now maps that
+  outcome to exactly one cancelled terminal without a failed event. The exact
+  packaged E2E class then passed 2/2 in 11 seconds: it observed a nonempty active
+  turn ID before Cancel, exact `Cancelled`, no `TurnCompleted`, no turn result,
+  no late text/event revision, disabled terminal actions, post-STOP reuse, and
+  zero worker residue. The missing/tampered default-composition journey remained
+  green and launched no worker.
+
+### Fix-round 2 verification
+
+| Gate | Result |
+|---|---|
+| Approved-stage OpenVINO route/unit/packaging suite | 161/161 passed in 32.420 s. |
+| OpenVINO contract suite | 60/60 passed in 33.607 s. |
+| OpenVINO worker-client suite | 13/13 passed in 3.362 s. |
+| Official process suite with approved Task 7 stages A+B | 39/39 passed in 1 m 05.433 s; the unrelated legacy delayed-handshake suite was not invoked. |
+| Exact packaged OpenVINO E2E class | 2/2 passed in 11 s. |
+| Affected packaged page-navigation/onboarding/OpenVINO import/prompt/native partition | 64/64 passed in 29 s. |
+| Release x64 app build with caller-pinned stage/digest | MSBuild exited 0 after `worker_manifest_valid` and `worker_manifest_digest_valid`. |
+| Independent closure verifiers | Manifest `worker_manifest_valid`; official dependency locks `dependency_lock_valid`; canonical GenAI fixture `fixture_valid`. |
+
+The final app output contains exactly 17 official worker files, manifest SHA-256
+`0f656f6f2afe0b7246d0746f458ad6ed02e23be943145779b0160dd69aff2ebe`,
+worker SHA-256
+`51f5c5579251b2d9a81bb1c743acdc3f361abd6e297782701d04ea4691311c94`,
+17 appxrecipe entries, and the compiled app DLL contains the caller-pinned
+manifest digest. The final audit found zero OpenVINO worker or repository
+test/build processes, 4,585 tracked files, zero tracked binary/archive/build
+artifacts, and `git diff --check` exited 0.
+
+Round-1 closures remain intact: the production picker and revocable raw-path
+lease were not broadened; no path entered presenter state, evidence, capability,
+or diagnostics; the registry/presenter remain route-neutral; default composition
+still resolves only the fixed installed worker root against the caller-pinned
+digest; there is one `ModelInspectionPage`; default/max generation remains 128
+and only the packaged harness requests 32. The policy-retained verified stage at
+`C:\Users\Arian\AppData\Local\Temp\granite-o1-task8-fix-round1-final`
+remains unchanged and was not removed through another shell.
+
+Task 8 remains in progress after fix round 2/5 awaiting scoped re-review.
