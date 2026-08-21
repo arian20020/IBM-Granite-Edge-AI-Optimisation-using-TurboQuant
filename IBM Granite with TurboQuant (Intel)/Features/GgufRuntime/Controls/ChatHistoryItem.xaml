@@ -7,6 +7,8 @@
         <Button
             x:Name="HistoryButton"
             HorizontalAlignment="Stretch"
+            HorizontalContentAlignment="Left"
+            Padding="4,8"
             Style="{StaticResource GgufChatNavigationButtonStyle}"
             Click="HistoryButton_Click">
             <TextBlock
@@ -15,16 +17,5 @@
                 TextTrimming="CharacterEllipsis"
                 TextWrapping="NoWrap" />
         </Button>
-        <Border
-            x:Name="SelectionIndicator"
-            Width="3"
-            Height="22"
-            Margin="2,0,0,0"
-            HorizontalAlignment="Left"
-            VerticalAlignment="Center"
-            Background="{ThemeResource GgufChatPrimaryBrush}"
-            CornerRadius="2"
-            IsHitTestVisible="False"
-            Visibility="Collapsed" />
     </Grid>
 </UserControl>

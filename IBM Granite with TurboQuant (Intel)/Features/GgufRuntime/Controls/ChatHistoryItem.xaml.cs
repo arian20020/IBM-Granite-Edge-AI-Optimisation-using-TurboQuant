@@ -55,9 +55,6 @@ public sealed partial class ChatHistoryItem : UserControl
             Application.Current.Resources[IsSelected
                 ? "GgufChatPrimaryForegroundBrush"
                 : "GgufChatTextBrush"];
-        SelectionIndicator.Visibility = IsSelected
-            ? Visibility.Visible
-            : Visibility.Collapsed;
     }
 
     private void HistoryButton_Click(object sender, RoutedEventArgs eventArguments) =>

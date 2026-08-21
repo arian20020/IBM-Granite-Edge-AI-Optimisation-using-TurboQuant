@@ -15,7 +15,7 @@
                     </VisualState.StateTriggers>
                     <VisualState.Setters>
                         <Setter Target="HistoryRail.Visibility" Value="Visible" />
-                        <Setter Target="HistoryColumn.Width" Value="300" />
+                        <Setter Target="HistoryColumn.Width" Value="256" />
                     </VisualState.Setters>
                 </VisualState>
                 <VisualState x:Name="NarrowState">
@@ -30,7 +30,7 @@
             </VisualStateGroup>
         </VisualStateManager.VisualStateGroups>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition x:Name="HistoryColumn" Width="300" />
+            <ColumnDefinition x:Name="HistoryColumn" Width="256" />
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
@@ -154,16 +154,16 @@
             </Button>
         </Grid>
 
-        <Grid Grid.Column="1" Padding="20">
+        <Grid Grid.Column="1" Padding="16">
             <Border
                 x:Name="ConversationPanel"
                 Background="{ThemeResource GgufChatSurfaceBrush}"
                 BorderBrush="{ThemeResource GgufChatPanelBorderBrush}"
                 BorderThickness="1"
-                CornerRadius="24"
-                Padding="28"
-                Shadow="{ThemeResource GgufChatPanelShadow}"
-                Translation="0,0,12">
+                CornerRadius="14"
+                Padding="24"
+                Shadow="{StaticResource GgufChatSubtlePanelShadow}"
+                Translation="0,0,2">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />

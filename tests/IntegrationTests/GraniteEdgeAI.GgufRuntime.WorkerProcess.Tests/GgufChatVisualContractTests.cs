@@ -276,6 +276,9 @@ public sealed class GgufChatVisualContractTests
         AssertStyleHasVisualStates(secondaryButtonStyle, presentation, x);
         AssertStyleHasVisualStates(primaryButtonStyle, presentation, x);
         AssertButtonStylesAreDefinedOnlyAtRoot(theme, presentation, x);
+        Assert.AreEqual(
+            presentation + "ThemeShadow",
+            AssertRootResource(theme, x, "GgufChatSubtlePanelShadow").Name);
     }
 
     [TestMethod]
@@ -321,6 +324,9 @@ public sealed class GgufChatVisualContractTests
             ContrastRatio(expected["GgufChatAssistantBubbleBrush"], expected["GgufChatAssistantBubbleTextBrush"]) >= 4.5);
         Assert.IsTrue(
             ContrastRatio(expected["GgufChatUserBubbleBrush"], expected["GgufChatUserBubbleTextBrush"]) >= 4.5);
+        Assert.IsTrue(
+            ContrastRatio("#FFFFFFFF", expected["GgufChatDateHeadingBrush"]) >= 4.5,
+            "Light-theme date headings must meet normal-text contrast on the white rail.");
 
         XElement navigation = AssertRootResource(theme, x, "GgufChatNavigationButtonStyle");
         AssertStyleHasVisualStates(navigation, presentation, x);
@@ -593,11 +599,34 @@ public sealed class GgufChatVisualContractTests
             "{ThemeResource GgufChatPanelBorderBrush}",
             conversationPanel.Attribute("BorderBrush")?.Value);
         Assert.AreEqual("1", conversationPanel.Attribute("BorderThickness")?.Value);
-        Assert.AreEqual("24", conversationPanel.Attribute("CornerRadius")?.Value);
+        Assert.AreEqual("14", conversationPanel.Attribute("CornerRadius")?.Value);
+        Assert.AreEqual("24", conversationPanel.Attribute("Padding")?.Value);
         Assert.AreEqual(
-            "{ThemeResource GgufChatPanelShadow}",
+            "{StaticResource GgufChatSubtlePanelShadow}",
             conversationPanel.Attribute("Shadow")?.Value);
-        AssertHasNonzeroZTranslation(conversationPanel);
+        Assert.AreEqual("0,0,2", conversationPanel.Attribute("Translation")?.Value);
+
+        XElement historyColumn = page.Descendants(presentation + "ColumnDefinition")
+            .Single(element => element.Attribute(x + "Name")?.Value == "HistoryColumn");
+        Assert.AreEqual("256", historyColumn.Attribute("Width")?.Value);
+        XElement wideState = page.Descendants(presentation + "VisualState")
+            .Single(element => element.Attribute(x + "Name")?.Value == "WideState");
+        XElement wideHistoryWidth = wideState.Descendants(presentation + "Setter")
+            .Single(element => element.Attribute("Target")?.Value == "HistoryColumn.Width");
+        Assert.AreEqual("256", wideHistoryWidth.Attribute("Value")?.Value);
+
+        XDocument historyItem = XDocument.Load(Path.Combine(
+            root,
+            "IBM Granite with TurboQuant (Intel)",
+            "Features",
+            "GgufRuntime",
+            "Controls",
+            "ChatHistoryItem.xaml"));
+        Assert.IsFalse(historyItem.Descendants()
+            .Any(element => element.Attribute(x + "Name")?.Value == "SelectionIndicator"));
+        XElement historyButton = historyItem.Descendants(presentation + "Button").Single();
+        Assert.AreEqual("Left", historyButton.Attribute("HorizontalContentAlignment")?.Value);
+        Assert.AreEqual("4,8", historyButton.Attribute("Padding")?.Value);
 
         XElement prompt = composer.Descendants(presentation + "TextBox")
             .Single(element => element.Attribute(x + "Name")?.Value == "PromptTextBox");

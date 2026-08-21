@@ -12,19 +12,19 @@ public sealed class ChatHistoryItemTests
 {
     [UITestMethod]
     [TestCategory("WinUI")]
-    public void SelectedConversationShowsIndicatorAndSelectedSurface()
+    public void SelectedConversationUsesOneReadableBlueSurface()
     {
         var item = new ChatHistoryItem();
         PropertyInfo? selectedProperty = typeof(ChatHistoryItem).GetProperty("IsSelected");
         Assert.IsNotNull(selectedProperty, "History items require an explicit selected state.");
-        Border indicator = Assert.IsInstanceOfType<Border>(
-            item.FindName("SelectionIndicator"));
         Button button = Assert.IsInstanceOfType<Button>(item.FindName("HistoryButton"));
+
+        Assert.IsNull(
+            item.FindName("SelectionIndicator"),
+            "A filled selected row must not also render a redundant accent bar.");
 
         selectedProperty.SetValue(item, true);
 
-        Assert.AreEqual(Visibility.Visible, indicator.Visibility);
-        Assert.AreEqual(3, indicator.Width);
         Assert.AreSame(
             Application.Current.Resources["GgufChatNavigationSelectedBrush"],
             button.Background);
@@ -39,7 +39,6 @@ public sealed class ChatHistoryItemTests
 
         selectedProperty.SetValue(item, false);
 
-        Assert.AreEqual(Visibility.Collapsed, indicator.Visibility);
         Assert.AreSame(
             Application.Current.Resources["GgufChatNavigationRestBrush"],
             button.Background);

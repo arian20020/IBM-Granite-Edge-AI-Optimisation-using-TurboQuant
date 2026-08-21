@@ -94,6 +94,27 @@ public sealed class ChatPageTests
         Button historyButton = Assert.IsInstanceOfType<Button>(
             historyItem.FindName("HistoryButton"));
         Assert.AreSame(expected, historyButton.Style);
+        Assert.AreEqual(
+            HorizontalAlignment.Left,
+            historyButton.HorizontalContentAlignment);
+        Assert.AreEqual(new Thickness(4, 8, 4, 8), historyButton.Padding);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void RestrainedDesktopShellUsesCompactRailAndPanelGeometry()
+    {
+        var page = new ChatPage();
+        ColumnDefinition historyColumn = Assert.IsInstanceOfType<ColumnDefinition>(
+            page.FindName("HistoryColumn"));
+        Border panel = Assert.IsInstanceOfType<Border>(
+            page.FindName("ConversationPanel"));
+
+        Assert.AreEqual(new GridLength(256), historyColumn.Width);
+        Assert.AreEqual(new CornerRadius(14), panel.CornerRadius);
+        Assert.AreEqual(new Thickness(24), panel.Padding);
+        Assert.AreEqual(new Thickness(1), panel.BorderThickness);
+        Assert.AreEqual(2, panel.Translation.Z);
     }
 
     [UITestMethod]

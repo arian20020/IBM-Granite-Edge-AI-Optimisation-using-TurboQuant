@@ -147,6 +147,7 @@
     </ResourceDictionary.ThemeDictionaries>
 
     <ThemeShadow x:Key="GgufChatPanelShadow" />
+    <ThemeShadow x:Key="GgufChatSubtlePanelShadow" />
 
     <Style x:Key="GgufChatNavigationButtonStyle" TargetType="Button">
         <Setter Property="Background" Value="{ThemeResource GgufChatNavigationRestBrush}" />
