@@ -55,7 +55,13 @@ public sealed class PrivacyCanaryTests
         // produced a number (e.g. "estimator", "v1") — never a path, filename
         // or model name.
         "PolicyIdentity.PolicyName",
-        "PolicyIdentity.Version"
+        "PolicyIdentity.Version",
+
+        // Run identities for the claimed handoffs, not paths or model names —
+        // they identify which upstream run's facts were claimed, for
+        // correlation and stale-claim detection.
+        "HandoffClaim.ModelInspectionRunId",
+        "HandoffClaim.ProductHardwareRunId"
     ];
 
     private static readonly BindingFlags AllMembers =
