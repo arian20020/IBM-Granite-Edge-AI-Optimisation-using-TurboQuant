@@ -5,25 +5,27 @@ using System.Threading.Tasks;
 using GraniteEdgeAI.Features.OpenVinoRoute.Inspection;
 using GraniteEdgeAI.OpenVino.Contracts;
 using GraniteEdgeAI.OpenVino.WorkerClient;
+using GraniteEdgeAI.Features.Prompting;
 
 namespace GraniteEdgeAI.Features.OpenVinoRoute;
 
 public sealed record OpenVinoRouteInspectionResult(
     OpenVinoRouteInspectionOutcome Outcome,
     ModelInspectionHandoffV2? Handoff,
-    OpenVinoPromptFailure? Failure,
+    PromptFailure? Failure,
     OpenVinoConfigurationCandidate? Configuration);
 
 /// <summary>
 /// Owns OpenVINO directory inspection and the local path registry. Raw paths
 /// never enter its presentation-facing results.
 /// </summary>
-public sealed class OpenVinoRouteService
+public sealed class OpenVinoRouteService : IPromptRouteAdapter
 {
     private readonly OpenVinoStaticPackageInspector staticInspector;
     private readonly OpenVinoInspectionHandoffFactory handoffFactory;
     private readonly IOpenVinoWorkerClient workerClient;
     private readonly IOpenVinoPromptChannelFactory channelFactory;
+    private readonly OpenVinoBuildEvidence? expectedBuildEvidence;
     private readonly ConcurrentDictionary<Guid, RegisteredPackage> packages =
         new();
 
@@ -32,7 +34,20 @@ public sealed class OpenVinoRouteService
             new OpenVinoStaticPackageInspector(),
             new OpenVinoInspectionHandoffFactory(),
             workerClient,
-            new OpenVinoWorkerPromptChannelFactory(workerClient))
+            new OpenVinoWorkerPromptChannelFactory(workerClient),
+            expectedBuildEvidence: null)
+    {
+    }
+
+    internal OpenVinoRouteService(
+        IOpenVinoWorkerClient workerClient,
+        OpenVinoBuildEvidence expectedBuildEvidence)
+        : this(
+            new OpenVinoStaticPackageInspector(),
+            new OpenVinoInspectionHandoffFactory(),
+            workerClient,
+            new OpenVinoWorkerPromptChannelFactory(workerClient),
+            expectedBuildEvidence)
     {
     }
 
@@ -41,6 +56,21 @@ public sealed class OpenVinoRouteService
         OpenVinoInspectionHandoffFactory handoffFactory,
         IOpenVinoWorkerClient workerClient,
         IOpenVinoPromptChannelFactory channelFactory)
+        : this(
+            staticInspector,
+            handoffFactory,
+            workerClient,
+            channelFactory,
+            expectedBuildEvidence: null)
+    {
+    }
+
+    private OpenVinoRouteService(
+        OpenVinoStaticPackageInspector staticInspector,
+        OpenVinoInspectionHandoffFactory handoffFactory,
+        IOpenVinoWorkerClient workerClient,
+        IOpenVinoPromptChannelFactory channelFactory,
+        OpenVinoBuildEvidence? expectedBuildEvidence)
     {
         this.staticInspector = staticInspector ??
             throw new ArgumentNullException(nameof(staticInspector));
@@ -50,7 +80,15 @@ public sealed class OpenVinoRouteService
             throw new ArgumentNullException(nameof(workerClient));
         this.channelFactory = channelFactory ??
             throw new ArgumentNullException(nameof(channelFactory));
+        expectedBuildEvidence?.Validate();
+        this.expectedBuildEvidence = expectedBuildEvidence;
     }
+
+    internal OpenVinoBuildEvidence? ExpectedBuildEvidence =>
+        expectedBuildEvidence;
+
+    public PromptRouteCapability Capability =>
+        OpenVinoRouteCapability.PromptCapability;
 
     public async Task<OpenVinoRouteInspectionResult> InspectAsync(
         string packageDirectory,
@@ -179,7 +217,7 @@ public sealed class OpenVinoRouteService
 
     public async Task<OpenVinoRouteSession> StartSessionAsync(
         ModelInspectionHandoffV2 handoff,
-        Action<OpenVinoPromptEvent> eventSink,
+        Action<PromptEvent> eventSink,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(handoff);

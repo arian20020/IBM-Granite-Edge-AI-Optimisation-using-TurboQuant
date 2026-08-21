@@ -22,22 +22,39 @@ namespace GraniteEdgeAI.Features.Onboarding
 
         private readonly Func<Frame, ModelInspectionRequest, bool>
             _modelInspectionNavigator;
+        private readonly Func<Frame, OpenVinoInspectionRequestedEventArgs, bool>
+            _openVinoInspectionNavigator;
 
         /// <summary>
         /// Creates the onboarding shell and displays the first stage.
         /// </summary>
         public OnboardingShellPage()
-            : this(static (frame, request) => frame.Navigate(
-                typeof(ModelInspectionPage),
-                request))
+            : this(
+                static (frame, request) => frame.Navigate(
+                    typeof(ModelInspectionPage), request),
+                static (frame, request) => frame.Navigate(
+                    typeof(ModelInspectionPage), request))
         {
         }
 
         internal OnboardingShellPage(
             Func<Frame, ModelInspectionRequest, bool> modelInspectionNavigator)
+            : this(
+                modelInspectionNavigator,
+                static (frame, request) => frame.Navigate(
+                    typeof(ModelInspectionPage), request))
+        {
+        }
+
+        internal OnboardingShellPage(
+            Func<Frame, ModelInspectionRequest, bool> modelInspectionNavigator,
+            Func<Frame, OpenVinoInspectionRequestedEventArgs, bool>
+                openVinoInspectionNavigator)
         {
             _modelInspectionNavigator = modelInspectionNavigator ??
                 throw new ArgumentNullException(nameof(modelInspectionNavigator));
+            _openVinoInspectionNavigator = openVinoInspectionNavigator ??
+                throw new ArgumentNullException(nameof(openVinoInspectionNavigator));
 
             // Create all controls declared in OnboardingShellPage.xaml.
             InitializeComponent();
@@ -86,6 +103,8 @@ namespace GraniteEdgeAI.Features.Onboarding
             // Listen for the page's request to begin model inspection.
             _attachedModelImportPage.ModelInspectionRequested +=
                 ModelImportPage_ModelInspectionRequested;
+            _attachedModelImportPage.OpenVinoInspectionRequested +=
+                ModelImportPage_OpenVinoInspectionRequested;
         }
 
         /// <summary>
@@ -172,6 +191,30 @@ namespace GraniteEdgeAI.Features.Onboarding
             return true;
         }
 
+        internal bool NavigateToOpenVinoInspection(
+            OpenVinoInspectionRequestedEventArgs request)
+        {
+            ArgumentNullException.ThrowIfNull(request);
+            object? previousContent = StageFrame.Content;
+            bool navigationSucceeded = _openVinoInspectionNavigator(
+                StageFrame,
+                request);
+            if (!navigationSucceeded ||
+                ReferenceEquals(StageFrame.Content, previousContent) ||
+                StageFrame.Content is not ModelInspectionPage modelInspectionPage ||
+                !ReferenceEquals(modelInspectionPage.OpenVinoRequest, request))
+            {
+                return false;
+            }
+
+            StageFrame.BackStack.Clear();
+            AttachModelInspectionPage(modelInspectionPage);
+            DetachModelImportPage();
+            CurrentStage = OnboardingStage.InspectModel;
+            StageIndicator.CurrentStage = CurrentStage;
+            return true;
+        }
+
         /// <summary>
         /// Displays ModelImportPage inside the shell's StageFrame.
         /// </summary>
@@ -208,6 +251,13 @@ namespace GraniteEdgeAI.Features.Onboarding
         {
             // Forward the exact immutable request without reconstructing it.
             NavigateToModelInspection(eventArguments.Request);
+        }
+
+        private void ModelImportPage_OpenVinoInspectionRequested(
+            object? sender,
+            OpenVinoInspectionRequestedEventArgs eventArguments)
+        {
+            NavigateToOpenVinoInspection(eventArguments);
         }
 
         /// <summary>
@@ -287,6 +337,8 @@ namespace GraniteEdgeAI.Features.Onboarding
             // Remove the event subscription to avoid retaining an inactive page.
             _attachedModelImportPage.ModelInspectionRequested -=
                 ModelImportPage_ModelInspectionRequested;
+            _attachedModelImportPage.OpenVinoInspectionRequested -=
+                ModelImportPage_OpenVinoInspectionRequested;
 
             // Release the reference to the old page.
             _attachedModelImportPage = null;

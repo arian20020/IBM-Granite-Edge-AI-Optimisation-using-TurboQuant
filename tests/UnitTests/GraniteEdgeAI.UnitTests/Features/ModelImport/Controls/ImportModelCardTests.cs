@@ -133,7 +133,8 @@ public sealed class ImportModelCardTests
                         failureCode,
                         userMessage,
                         technicalMessage));
-            });
+            },
+            classifier: new GgufSelectionTestClassifier());
 
         await page.BrowseFilesAsync();
 
@@ -173,7 +174,8 @@ public sealed class ImportModelCardTests
                     ModelQuickScanResult.CreateFailure(
                         "GGUF_INVALID_MAGIC",
                         "The selected file does not contain a valid GGUF header.",
-                        "Unexpected bytes at offset zero.")));
+                        "Unexpected bytes at offset zero.")),
+            classifier: new GgufSelectionTestClassifier());
         await page.BrowseFilesAsync();
         var card = (ImportModelCard)page.FindName(
             "ImportModelCardControl");
@@ -223,7 +225,8 @@ public sealed class ImportModelCardTests
             {
                 scanCancellationToken = cancellationToken;
                 return scanCompletion.Task;
-            });
+            },
+            classifier: new GgufSelectionTestClassifier());
 
         Task browseTask = page.BrowseFilesAsync();
         var card = (ImportModelCard)page.FindName(
@@ -404,7 +407,8 @@ public sealed class ImportModelCardTests
 
                 return Task.FromResult(
                     successfulResult);
-            });
+            },
+            classifier: new GgufSelectionTestClassifier());
 
         await page.BrowseFilesAsync();
 
@@ -483,7 +487,8 @@ public sealed class ImportModelCardTests
                         contextLength:
                             131_072UL,
                         ggufVersion:
-                            3)));
+                            3)),
+            classifier: new GgufSelectionTestClassifier());
 
         await page.BrowseFilesAsync();
 

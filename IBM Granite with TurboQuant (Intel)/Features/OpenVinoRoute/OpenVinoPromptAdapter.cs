@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using GraniteEdgeAI.OpenVino.Contracts;
 using GraniteEdgeAI.OpenVino.WorkerClient;
+using GraniteEdgeAI.Features.Prompting;
 
 namespace GraniteEdgeAI.Features.OpenVinoRoute;
 
@@ -53,14 +54,14 @@ public sealed class OpenVinoPromptAdapter : IAsyncDisposable
     private readonly object stateLock = new();
     private readonly OpenVinoRouteStateMachine stateMachine;
     private readonly IOpenVinoPromptChannel channel;
-    private readonly Action<OpenVinoPromptEvent> eventSink;
+    private readonly Action<PromptEvent> eventSink;
     private bool disposed;
     private long nextSequence;
 
     private OpenVinoPromptAdapter(
         OpenVinoRouteStateMachine stateMachine,
         IOpenVinoPromptChannel channel,
-        Action<OpenVinoPromptEvent> eventSink)
+        Action<PromptEvent> eventSink)
     {
         this.stateMachine = stateMachine;
         this.channel = channel;
@@ -73,7 +74,7 @@ public sealed class OpenVinoPromptAdapter : IAsyncDisposable
         IOpenVinoPromptChannelFactory channelFactory,
         OpenVinoRouteStateMachine stateMachine,
         OpenVinoSessionDescriptor descriptor,
-        Action<OpenVinoPromptEvent> eventSink,
+        Action<PromptEvent> eventSink,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(channelFactory);
@@ -92,7 +93,7 @@ public sealed class OpenVinoPromptAdapter : IAsyncDisposable
 
         Publish(
             eventSink,
-            OpenVinoPromptEventKind.Loading,
+            PromptEventKind.Loading,
             stateMachine.Snapshot,
             turnId: null);
         StartSessionCommand command = new(
@@ -132,13 +133,13 @@ public sealed class OpenVinoPromptAdapter : IAsyncDisposable
             stateMachine,
             channel,
             eventSink);
-        adapter.Emit(OpenVinoPromptEventKind.SessionReady, turnId: null,
+        adapter.Emit(PromptEventKind.SessionReady, turnId: null,
             requestedDevice: OpenVinoRouteCapability.Device,
             actualExecutionDevices: CpuExecutionDevices);
         return adapter;
     }
 
-    public async Task<OpenVinoTurnResult> GenerateAsync(
+    public async Task<PromptTurnResult> GenerateAsync(
         string prompt,
         int requestedNewTokens,
         CancellationToken cancellationToken)
@@ -156,7 +157,7 @@ public sealed class OpenVinoPromptAdapter : IAsyncDisposable
         {
             nextSequence = 0;
         }
-        Emit(OpenVinoPromptEventKind.GeneratingTurn, turnId);
+        Emit(PromptEventKind.GeneratingTurn, turnId);
         StringBuilder text = new();
         var progress = new InlineProgress<TokenEvent>(token =>
             AcceptToken(operationId, turnId, token, text));
@@ -188,7 +189,7 @@ public sealed class OpenVinoPromptAdapter : IAsyncDisposable
             {
                 stateMachine.TryBeginCancellation(operationId);
                 stateMachine.TryMarkCancelled(operationId);
-                Emit(OpenVinoPromptEventKind.Cancelled, turnId: null);
+                Emit(PromptEventKind.Cancelled, turnId: null);
                 throw new OperationCanceledException(
                     "The OpenVINO prompt session was cancelled.");
             }
@@ -204,11 +205,11 @@ public sealed class OpenVinoPromptAdapter : IAsyncDisposable
                     OpenVinoSupportCode.RuntimeProtocolFailed);
             }
 
-            OpenVinoTurnStatus status = completed.Disposition ==
+            PromptTurnStatus status = completed.Disposition ==
                 OpenVinoTurnDisposition.Stopped
-                ? OpenVinoTurnStatus.Stopped
-                : OpenVinoTurnStatus.Completed;
-            Emit(OpenVinoPromptEventKind.TurnCompleted, turnId, text.ToString());
+                ? PromptTurnStatus.Stopped
+                : PromptTurnStatus.Completed;
+            Emit(PromptEventKind.TurnCompleted, turnId, text.ToString());
             if (!stateMachine.TryReturnToSessionReady(operationId))
             {
                 return Fail(
@@ -216,10 +217,10 @@ public sealed class OpenVinoPromptAdapter : IAsyncDisposable
                     turnId,
                     OpenVinoSupportCode.RuntimeProtocolFailed);
             }
-            Emit(OpenVinoPromptEventKind.SessionReady, turnId: null,
+            Emit(PromptEventKind.SessionReady, turnId: null,
                 requestedDevice: OpenVinoRouteCapability.Device,
                 actualExecutionDevices: CpuExecutionDevices);
-            return new OpenVinoTurnResult(
+            return new PromptTurnResult(
                 status,
                 text.ToString(),
                 completed.PromptTokenCount,
@@ -236,7 +237,7 @@ public sealed class OpenVinoPromptAdapter : IAsyncDisposable
             {
                 stateMachine.TryBeginCancellation(operationId);
                 stateMachine.TryMarkCancelled(operationId);
-                Emit(OpenVinoPromptEventKind.Cancelled, turnId: null);
+                Emit(PromptEventKind.Cancelled, turnId: null);
             }
 
             throw;
@@ -253,7 +254,7 @@ public sealed class OpenVinoPromptAdapter : IAsyncDisposable
             return;
         }
 
-        Emit(OpenVinoPromptEventKind.StoppingTurn, turnId);
+        Emit(PromptEventKind.StoppingTurn, turnId);
         try
         {
             await channel.StopAsync(cancellationToken).ConfigureAwait(false);
@@ -279,7 +280,7 @@ public sealed class OpenVinoPromptAdapter : IAsyncDisposable
                 "The route session cannot be cancelled from its current state.");
         }
 
-        Emit(OpenVinoPromptEventKind.CancellingSession, turnId: null);
+        Emit(PromptEventKind.CancellingSession, turnId: null);
         try
         {
             await channel.CancelAsync(cancellationToken).ConfigureAwait(false);
@@ -292,7 +293,7 @@ public sealed class OpenVinoPromptAdapter : IAsyncDisposable
         }
 
         stateMachine.TryMarkCancelled(operationId);
-        Emit(OpenVinoPromptEventKind.Cancelled, turnId: null);
+        Emit(PromptEventKind.Cancelled, turnId: null);
         await DisposeChannelAsync().ConfigureAwait(false);
     }
 
@@ -312,7 +313,7 @@ public sealed class OpenVinoPromptAdapter : IAsyncDisposable
             throw new InvalidOperationException(
                 "The session became stale while closing.");
         }
-        Emit(OpenVinoPromptEventKind.SessionCompleted, turnId: null);
+        Emit(PromptEventKind.SessionCompleted, turnId: null);
         await DisposeChannelAsync().ConfigureAwait(false);
     }
 
@@ -368,20 +369,20 @@ public sealed class OpenVinoPromptAdapter : IAsyncDisposable
                 nextSequence++;
             }
             text.Append(token.Text);
-            Emit(OpenVinoPromptEventKind.TextDelta, turnId, token.Text);
+            Emit(PromptEventKind.TextDelta, turnId, token.Text);
         }
     }
 
-    private OpenVinoTurnResult Fail(
+    private PromptTurnResult Fail(
         Guid operationId,
         Guid turnId,
         OpenVinoSupportCode supportCode)
     {
-        OpenVinoPromptFailure failure = MapFailure(supportCode);
+        PromptFailure failure = MapFailure(supportCode);
         stateMachine.TryFail(operationId, failure.SupportCode);
-        Emit(OpenVinoPromptEventKind.Failed, turnId, failure: failure);
-        return new OpenVinoTurnResult(
-            OpenVinoTurnStatus.Failed,
+        Emit(PromptEventKind.Failed, turnId, failure: failure);
+        return new PromptTurnResult(
+            PromptTurnStatus.Failed,
             string.Empty,
             0,
             0,
@@ -389,10 +390,10 @@ public sealed class OpenVinoPromptAdapter : IAsyncDisposable
     }
 
     private void Emit(
-        OpenVinoPromptEventKind kind,
+        PromptEventKind kind,
         Guid? turnId,
         string? text = null,
-        OpenVinoPromptFailure? failure = null,
+        PromptFailure? failure = null,
         string? requestedDevice = null,
         IReadOnlyList<string>? actualExecutionDevices = null) =>
         Publish(
@@ -406,15 +407,15 @@ public sealed class OpenVinoPromptAdapter : IAsyncDisposable
             actualExecutionDevices);
 
     private static void Publish(
-        Action<OpenVinoPromptEvent> sink,
-        OpenVinoPromptEventKind kind,
+        Action<PromptEvent> sink,
+        PromptEventKind kind,
         OpenVinoRouteSnapshot snapshot,
         Guid? turnId,
         string? text = null,
-        OpenVinoPromptFailure? failure = null,
+        PromptFailure? failure = null,
         string? requestedDevice = null,
         IReadOnlyList<string>? actualExecutionDevices = null) =>
-        sink(new OpenVinoPromptEvent(
+        sink(new PromptEvent(
             kind,
             snapshot.Identity.OperationId,
             snapshot.Identity.SessionId,
@@ -478,7 +479,7 @@ public sealed class OpenVinoPromptAdapter : IAsyncDisposable
                 OpenVinoRouteCapability.MaximumRequestedNewTokens)).Validate();
     }
 
-    internal static OpenVinoPromptFailure MapFailure(
+    internal static PromptFailure MapFailure(
         OpenVinoSupportCode supportCode)
     {
         supportCode.Validate();

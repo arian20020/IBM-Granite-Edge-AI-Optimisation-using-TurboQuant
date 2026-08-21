@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using GraniteEdgeAI.Features.Prompting;
 
 namespace GraniteEdgeAI.Features.OpenVinoRoute;
 
@@ -36,4 +37,15 @@ public static class OpenVinoRouteCapability
             DefaultRequestedNewTokens,
             MaximumRequestedNewTokens)
     ];
+
+    public static PromptRouteCapability PromptCapability { get; } = new(
+        PromptRouteKind.OpenVino,
+        RouteId,
+        ConfigurationId,
+        BackendLabel,
+        Device,
+        Maturity,
+        MaximumContextTokens,
+        DefaultRequestedNewTokens,
+        MaximumRequestedNewTokens);
 }

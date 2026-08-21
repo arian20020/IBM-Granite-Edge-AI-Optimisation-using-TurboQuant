@@ -259,6 +259,9 @@ namespace GraniteEdgeAI.Features.ModelImport
         private void ResetToAwaitingSelection()
         {
             SelectedModelPath = null;
+            _selectedOpenVinoDirectory = null;
+            _selectedOpenVinoDisplayName = null;
+            _selectedOpenVinoOperationId = null;
             ValidatedScanResult = null;
             CurrentRoute = null;
             HasValidatedModel = false;
@@ -343,6 +346,25 @@ namespace GraniteEdgeAI.Features.ModelImport
         /// </returns>
         internal bool TryRequestModelInspection()
         {
+            if (CurrentRoute == ModelSelectionRoute.OpenVinoDirectory)
+            {
+                if (!HasValidatedModel ||
+                    _selectedOpenVinoOperationId is not ModelSelectionOperationId operationId ||
+                    string.IsNullOrWhiteSpace(_selectedOpenVinoDirectory) ||
+                    string.IsNullOrWhiteSpace(_selectedOpenVinoDisplayName))
+                {
+                    return false;
+                }
+
+                OpenVinoInspectionRequested?.Invoke(
+                    this,
+                    new OpenVinoInspectionRequestedEventArgs(
+                        operationId,
+                        _selectedOpenVinoDirectory,
+                        _selectedOpenVinoDisplayName));
+                return true;
+            }
+
             // Copy the current state into locals so one coherent validated
             // selection is used throughout this boundary method.
             string? selectedModelPath = SelectedModelPath;

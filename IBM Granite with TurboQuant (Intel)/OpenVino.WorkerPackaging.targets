@@ -1,0 +1,92 @@
+<Project>
+  <PropertyGroup>
+    <OpenVinoOfficialWorkerPackageRelativeDirectory>OpenVino\Official\Worker</OpenVinoOfficialWorkerPackageRelativeDirectory>
+    <_OpenVinoRepositoryRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..'))</_OpenVinoRepositoryRoot>
+    <_OpenVinoWorkerManifestVerifier>$(_OpenVinoRepositoryRoot)\scripts\openvino\Test-OpenVinoOfficialWorkerManifest.ps1</_OpenVinoWorkerManifestVerifier>
+    <_OpenVinoPowerShell>$(SystemRoot)\System32\WindowsPowerShell\v1.0\powershell.exe</_OpenVinoPowerShell>
+  </PropertyGroup>
+
+  <Target
+    Name="VerifyAndPackageOpenVinoOfficialWorker"
+    BeforeTargets="AssignTargetPaths"
+    Condition="'$(Platform)' == 'x64' and '$(DesignTimeBuild)' != 'true'">
+    <Error
+      Condition="'$(OpenVinoOfficialWorkerStageDirectory)' == ''"
+      Text="OpenVinoOfficialWorkerStageDirectory is required for x64 builds." />
+    <Error
+      Condition="'$(OpenVinoOfficialWorkerManifestSha256)' == '' or !$([System.Text.RegularExpressions.Regex]::IsMatch('$(OpenVinoOfficialWorkerManifestSha256)', '^[0-9a-f]{64}$'))"
+      Text="OpenVinoOfficialWorkerManifestSha256 must be a caller-supplied lowercase SHA-256 digest." />
+    <PropertyGroup>
+      <_OpenVinoOfficialWorkerStage>$([System.IO.Path]::GetFullPath('$(OpenVinoOfficialWorkerStageDirectory)'))</_OpenVinoOfficialWorkerStage>
+      <_OpenVinoOfficialWorkerManifest>$(_OpenVinoOfficialWorkerStage)\worker-manifest.json</_OpenVinoOfficialWorkerManifest>
+    </PropertyGroup>
+    <Error
+      Condition="!Exists('$(_OpenVinoOfficialWorkerManifest)')"
+      Text="The verified OpenVINO official worker manifest is missing." />
+
+    <Exec
+      Command="&quot;$(_OpenVinoPowerShell)&quot; -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(_OpenVinoWorkerManifestVerifier)&quot; -StageDirectory &quot;$(_OpenVinoOfficialWorkerStage)&quot;" />
+    <Exec
+      Command="&quot;$(_OpenVinoPowerShell)&quot; -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command &quot;$actual=(Get-FileHash -LiteralPath '$(_OpenVinoOfficialWorkerManifest)' -Algorithm SHA256).Hash.ToLowerInvariant(); if ($actual -cne '$(OpenVinoOfficialWorkerManifestSha256)') { Write-Output 'worker_manifest_digest_mismatch'; exit 1 }; Write-Output 'worker_manifest_digest_valid'&quot;" />
+
+    <ItemGroup>
+      <_OpenVinoOfficialWorkerFile Include="$(_OpenVinoOfficialWorkerStage)\OpenVinoOfficial.Worker.exe">
+        <PackagePath>OpenVinoOfficial.Worker.exe</PackagePath>
+      </_OpenVinoOfficialWorkerFile>
+      <_OpenVinoOfficialWorkerFile Include="$(_OpenVinoOfficialWorkerStage)\openvino.dll">
+        <PackagePath>openvino.dll</PackagePath>
+      </_OpenVinoOfficialWorkerFile>
+      <_OpenVinoOfficialWorkerFile Include="$(_OpenVinoOfficialWorkerStage)\openvino_genai.dll">
+        <PackagePath>openvino_genai.dll</PackagePath>
+      </_OpenVinoOfficialWorkerFile>
+      <_OpenVinoOfficialWorkerFile Include="$(_OpenVinoOfficialWorkerStage)\openvino_intel_cpu_plugin.dll">
+        <PackagePath>openvino_intel_cpu_plugin.dll</PackagePath>
+      </_OpenVinoOfficialWorkerFile>
+      <_OpenVinoOfficialWorkerFile Include="$(_OpenVinoOfficialWorkerStage)\openvino_ir_frontend.dll">
+        <PackagePath>openvino_ir_frontend.dll</PackagePath>
+      </_OpenVinoOfficialWorkerFile>
+      <_OpenVinoOfficialWorkerFile Include="$(_OpenVinoOfficialWorkerStage)\openvino_tokenizers.dll">
+        <PackagePath>openvino_tokenizers.dll</PackagePath>
+      </_OpenVinoOfficialWorkerFile>
+      <_OpenVinoOfficialWorkerFile Include="$(_OpenVinoOfficialWorkerStage)\tbb12.dll">
+        <PackagePath>tbb12.dll</PackagePath>
+      </_OpenVinoOfficialWorkerFile>
+      <_OpenVinoOfficialWorkerFile Include="$(_OpenVinoOfficialWorkerStage)\tbbbind_2_5.dll">
+        <PackagePath>tbbbind_2_5.dll</PackagePath>
+      </_OpenVinoOfficialWorkerFile>
+      <_OpenVinoOfficialWorkerFile Include="$(_OpenVinoOfficialWorkerStage)\licenses\Apache_license.txt">
+        <PackagePath>licenses\Apache_license.txt</PackagePath>
+      </_OpenVinoOfficialWorkerFile>
+      <_OpenVinoOfficialWorkerFile Include="$(_OpenVinoOfficialWorkerStage)\licenses\LICENSE-GENAI.txt">
+        <PackagePath>licenses\LICENSE-GENAI.txt</PackagePath>
+      </_OpenVinoOfficialWorkerFile>
+      <_OpenVinoOfficialWorkerFile Include="$(_OpenVinoOfficialWorkerStage)\licenses\nlohmann-json-LICENSE.MIT.txt">
+        <PackagePath>licenses\nlohmann-json-LICENSE.MIT.txt</PackagePath>
+      </_OpenVinoOfficialWorkerFile>
+      <_OpenVinoOfficialWorkerFile Include="$(_OpenVinoOfficialWorkerStage)\licenses\openvino-tokenizers-LICENSE.txt">
+        <PackagePath>licenses\openvino-tokenizers-LICENSE.txt</PackagePath>
+      </_OpenVinoOfficialWorkerFile>
+      <_OpenVinoOfficialWorkerFile Include="$(_OpenVinoOfficialWorkerStage)\licenses\openvino-tokenizers-third-party-programs.txt">
+        <PackagePath>licenses\openvino-tokenizers-third-party-programs.txt</PackagePath>
+      </_OpenVinoOfficialWorkerFile>
+      <_OpenVinoOfficialWorkerFile Include="$(_OpenVinoOfficialWorkerStage)\licenses\runtime-third-party-programs.txt">
+        <PackagePath>licenses\runtime-third-party-programs.txt</PackagePath>
+      </_OpenVinoOfficialWorkerFile>
+      <_OpenVinoOfficialWorkerFile Include="$(_OpenVinoOfficialWorkerStage)\licenses\TBB-LICENSE.txt">
+        <PackagePath>licenses\TBB-LICENSE.txt</PackagePath>
+      </_OpenVinoOfficialWorkerFile>
+      <_OpenVinoOfficialWorkerFile Include="$(_OpenVinoOfficialWorkerStage)\licenses\third-party-programs-genai.txt">
+        <PackagePath>licenses\third-party-programs-genai.txt</PackagePath>
+      </_OpenVinoOfficialWorkerFile>
+      <_OpenVinoOfficialWorkerFile Include="$(_OpenVinoOfficialWorkerManifest)">
+        <PackagePath>worker-manifest.json</PackagePath>
+      </_OpenVinoOfficialWorkerFile>
+      <Content Include="@(_OpenVinoOfficialWorkerFile)">
+        <Link>$(OpenVinoOfficialWorkerPackageRelativeDirectory)\%(_OpenVinoOfficialWorkerFile.PackagePath)</Link>
+        <TargetPath>$(OpenVinoOfficialWorkerPackageRelativeDirectory)\%(_OpenVinoOfficialWorkerFile.PackagePath)</TargetPath>
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </Content>
+    </ItemGroup>
+  </Target>
+</Project>

@@ -23,7 +23,8 @@ public sealed class ModelImportPageStateMachineTests
             () => Task.FromResult(ModelFormatSelection.Gguf),
             () => Task.FromResult<string?>(selectedPath),
             (format, path, cancellationToken) =>
-                Task.FromResult(ModelQuickScanResult.CreateCancelled()));
+                Task.FromResult(ModelQuickScanResult.CreateCancelled()),
+            classifier: new GgufSelectionTestClassifier());
 
         await page.BrowseFilesAsync();
 
@@ -84,7 +85,8 @@ public sealed class ModelImportPageStateMachineTests
 
                 Assert.AreEqual(secondPath, path);
                 return Task.FromResult(secondScanResult);
-            });
+            },
+            classifier: new GgufSelectionTestClassifier());
 
         Task firstBrowse = page.BrowseFilesAsync();
         await firstScanStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
@@ -131,7 +133,8 @@ public sealed class ModelImportPageStateMachineTests
             {
                 scanToken = cancellationToken;
                 return scanCompletion.Task;
-            });
+            },
+            classifier: new GgufSelectionTestClassifier());
 
         Task browseTask = page.BrowseFilesAsync();
         var card = (ImportModelCard)page.FindName("ImportModelCardControl");
@@ -185,7 +188,8 @@ public sealed class ModelImportPageStateMachineTests
                         userMessage,
                         technicalMessage)),
             recordScanFailure: diagnostic =>
-                capturedDiagnostic = diagnostic);
+                capturedDiagnostic = diagnostic,
+            classifier: new GgufSelectionTestClassifier());
 
         await page.BrowseFilesAsync();
 
@@ -217,7 +221,8 @@ public sealed class ModelImportPageStateMachineTests
                         "The selected file is not a valid GGUF model.",
                         "Expected GGUF magic at file offset zero.")),
             recordScanFailure: diagnostic =>
-                throw new InvalidOperationException("Test diagnostic failure."));
+                throw new InvalidOperationException("Test diagnostic failure."),
+            classifier: new GgufSelectionTestClassifier());
 
         await page.BrowseFilesAsync();
 

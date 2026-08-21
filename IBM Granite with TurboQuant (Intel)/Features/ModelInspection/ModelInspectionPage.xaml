@@ -82,6 +82,8 @@
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
 
                         <StackPanel
@@ -190,6 +192,91 @@
                             Grid.Row="8"
                             HorizontalAlignment="Stretch"
                             AutomationProperties.Name="Model inspection actions" />
+
+                        <Border
+                            x:Name="ActionToPromptGap"
+                            Grid.Row="9"
+                            Height="{StaticResource InspectionCardGap}"
+                            AutomationProperties.AccessibilityView="Raw"
+                            IsHitTestVisible="False"
+                            Visibility="Collapsed" />
+
+                        <Border
+                            x:Name="PromptSurface"
+                            Grid.Row="10"
+                            Padding="{StaticResource InspectionCardPadding}"
+                            Background="{ThemeResource InspectionSurfaceBrush}"
+                            BorderBrush="{ThemeResource InspectionBorderLightBrush}"
+                            BorderThickness="1"
+                            CornerRadius="{StaticResource InspectionCardCornerRadius}"
+                            Visibility="Collapsed">
+                            <StackPanel Spacing="16">
+                                <StackPanel Spacing="4">
+                                    <TextBlock
+                                        FontFamily="{StaticResource InspectionPageTitleFontFamily}"
+                                        FontSize="20"
+                                        FontWeight="SemiBold"
+                                        Foreground="{ThemeResource InspectionTextPrimaryBrush}"
+                                        Text="Prompt this model"
+                                        TextWrapping="WrapWholeWords" />
+                                    <TextBlock
+                                        x:Name="PromptCapabilitySummary"
+                                        Foreground="{ThemeResource InspectionTextSecondaryMutedBrush}"
+                                        Text="OpenVINO GenAI · CPU · Official MVP"
+                                        TextWrapping="WrapWholeWords" />
+                                    <TextBlock
+                                        x:Name="OpenVinoExecutionEvidenceText"
+                                        AutomationProperties.Name="OpenVINO requested and actual execution device"
+                                        Foreground="{ThemeResource InspectionTextSecondaryMutedBrush}"
+                                        TextWrapping="WrapWholeWords" />
+                                    <TextBlock
+                                        x:Name="OpenVinoBuildEvidenceText"
+                                        AutomationProperties.Name="Verified OpenVINO worker build evidence"
+                                        Foreground="{ThemeResource InspectionTextSecondaryMutedBrush}"
+                                        TextWrapping="WrapWholeWords" />
+                                </StackPanel>
+                                <TextBlock
+                                    x:Name="PromptResponseText"
+                                    MinHeight="72"
+                                    AutomationProperties.LiveSetting="Polite"
+                                    AutomationProperties.Name="Generated response"
+                                    Foreground="{ThemeResource InspectionTextPrimaryBrush}"
+                                    TextWrapping="WrapWholeWords" />
+                                <TextBox
+                                    x:Name="PromptInput"
+                                    AcceptsReturn="True"
+                                    AutomationProperties.Name="Prompt for the local model"
+                                    Header="Prompt"
+                                    IsTextScaleFactorEnabled="True"
+                                    PlaceholderText="Ask something about this model"
+                                    TextWrapping="Wrap"
+                                    UseSystemFocusVisuals="True" />
+                                <StackPanel
+                                    HorizontalAlignment="Right"
+                                    Orientation="Horizontal"
+                                    Spacing="8">
+                                    <Button
+                                        x:Name="PromptCancelButton"
+                                        AutomationProperties.Name="Cancel local session"
+                                        Click="PromptCancelButton_Click"
+                                        Content="Cancel session"
+                                        UseSystemFocusVisuals="True" />
+                                    <Button
+                                        x:Name="PromptStopButton"
+                                        AutomationProperties.Name="Stop generation"
+                                        Click="PromptStopButton_Click"
+                                        Content="Stop"
+                                        IsEnabled="False"
+                                        UseSystemFocusVisuals="True" />
+                                    <Button
+                                        x:Name="PromptSendButton"
+                                        AutomationProperties.Name="Send prompt"
+                                        Click="PromptSendButton_Click"
+                                        Content="Send"
+                                        UseSystemFocusVisuals="True" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
                     </Grid>
                 </Grid>
             </Grid>

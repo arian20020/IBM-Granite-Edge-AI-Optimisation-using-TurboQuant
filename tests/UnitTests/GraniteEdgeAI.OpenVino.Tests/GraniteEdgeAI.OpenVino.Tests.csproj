@@ -29,6 +29,8 @@
              Link="Production\%(Filename)%(Extension)" />
     <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\OpenVinoRoute\*.cs"
              Link="Production\Route\%(Filename)%(Extension)" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\Prompting\*.cs"
+             Link="Production\Prompting\%(Filename)%(Extension)" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="..\..\TestFixtures\OpenVINO\GenAI\TinySyntheticV1\package\**\*">

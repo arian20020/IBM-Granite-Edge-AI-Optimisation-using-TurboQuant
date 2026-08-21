@@ -1,7 +1,7 @@
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using GraniteEdgeAI.Features.Prompting;
 
 namespace GraniteEdgeAI.Features.OpenVinoRoute;
 
@@ -12,51 +12,8 @@ internal sealed record OpenVinoSessionDescriptor(
     string ModelSha256,
     long ModelLengthBytes);
 
-public enum OpenVinoPromptEventKind
-{
-    Loading,
-    SessionReady,
-    GeneratingTurn,
-    TextDelta,
-    StoppingTurn,
-    TurnCompleted,
-    CancellingSession,
-    SessionCompleted,
-    Failed,
-    Cancelled
-}
-
-public enum OpenVinoTurnStatus
-{
-    Completed,
-    Stopped,
-    Failed
-}
-
-public sealed record OpenVinoPromptFailure(
-    string SupportCode,
-    string Message,
-    string RecoveryAction);
-
-public sealed record OpenVinoPromptEvent(
-    OpenVinoPromptEventKind Kind,
-    Guid OperationId,
-    Guid SessionId,
-    Guid? TurnId,
-    string? Text,
-    OpenVinoPromptFailure? Failure,
-    string? RequestedDevice,
-    IReadOnlyList<string> ActualExecutionDevices);
-
-public sealed record OpenVinoTurnResult(
-    OpenVinoTurnStatus Status,
-    string Text,
-    long PromptTokenCount,
-    long GeneratedTokenCount,
-    OpenVinoPromptFailure? Failure);
-
 /// <summary>Owns one app-visible OpenVINO prompt session.</summary>
-public sealed class OpenVinoRouteSession : IAsyncDisposable
+public sealed class OpenVinoRouteSession : IPromptRouteSession
 {
     private readonly OpenVinoPromptAdapter adapter;
 
@@ -67,11 +24,14 @@ public sealed class OpenVinoRouteSession : IAsyncDisposable
 
     public OpenVinoRouteSnapshot Snapshot => adapter.Snapshot;
 
+    public PromptRouteCapability Capability =>
+        OpenVinoRouteCapability.PromptCapability;
+
     internal static async Task<OpenVinoRouteSession> StartAsync(
         IOpenVinoPromptChannelFactory channelFactory,
         OpenVinoRouteStateMachine stateMachine,
         OpenVinoSessionDescriptor descriptor,
-        Action<OpenVinoPromptEvent> eventSink,
+        Action<PromptEvent> eventSink,
         CancellationToken cancellationToken)
     {
         OpenVinoPromptAdapter adapter = await OpenVinoPromptAdapter.CreateAsync(
@@ -83,7 +43,7 @@ public sealed class OpenVinoRouteSession : IAsyncDisposable
         return new OpenVinoRouteSession(adapter);
     }
 
-    public Task<OpenVinoTurnResult> GenerateAsync(
+    public Task<PromptTurnResult> GenerateAsync(
         string prompt,
         int requestedNewTokens,
         CancellationToken cancellationToken) =>

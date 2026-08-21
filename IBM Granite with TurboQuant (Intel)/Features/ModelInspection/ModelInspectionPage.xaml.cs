@@ -4,6 +4,7 @@ using GraniteEdgeAI.Features.ModelInspection.Models;
 using GraniteEdgeAI.Features.ModelInspection.Presentation;
 using GraniteEdgeAI.Features.ModelInspection.Services;
 using GraniteEdgeAI.Features.ModelInspection.ViewModels;
+using GraniteEdgeAI.Features.ModelImport;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
@@ -165,6 +166,9 @@ public sealed partial class ModelInspectionPage : Page
 
     internal ModelInspectionRequest? Request { get; private set; }
 
+    internal OpenVinoInspectionRequestedEventArgs? OpenVinoRequest
+        { get; private set; }
+
     internal ModelInspectionViewModel? ViewModel { get; private set; }
 
     internal Task? CurrentInspectionTask { get; private set; }
@@ -189,6 +193,16 @@ public sealed partial class ModelInspectionPage : Page
     {
         base.OnNavigatedTo(eventArguments);
 
+        if (eventArguments.Parameter is OpenVinoInspectionRequestedEventArgs
+            openVinoRequest)
+        {
+            RetirePageLifetime();
+            Request = null;
+            OpenVinoRequest = openVinoRequest;
+            BeginOpenVinoInspection(openVinoRequest);
+            return;
+        }
+
         if (eventArguments.Parameter is not ModelInspectionRequest request)
         {
             throw new ArgumentException(
@@ -202,6 +216,7 @@ public sealed partial class ModelInspectionPage : Page
     private void ActivateRequest(ModelInspectionRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
+        OpenVinoRequest = null;
         if (_retirementInProgress)
         {
             throw new InvalidOperationException(
@@ -329,6 +344,7 @@ public sealed partial class ModelInspectionPage : Page
 
     protected override void OnNavigatedFrom(NavigationEventArgs eventArguments)
     {
+        RetireOpenVinoLifetime();
         RetirePageLifetime();
         base.OnNavigatedFrom(eventArguments);
     }
@@ -1546,6 +1562,7 @@ public sealed partial class ModelInspectionPage : Page
         _navigationLifetime = retiredLifetime;
         FooterStatusChanged = null;
         Request = null;
+        OpenVinoRequest = null;
         ViewModel = null;
         _startedViewModel = null;
         CurrentInspectionTask = null;

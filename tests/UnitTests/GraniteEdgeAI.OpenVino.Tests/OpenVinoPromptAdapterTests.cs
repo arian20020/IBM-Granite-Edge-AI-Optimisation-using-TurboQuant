@@ -1,5 +1,6 @@
 using System.Text;
 using GraniteEdgeAI.Features.OpenVinoRoute;
+using GraniteEdgeAI.Features.Prompting;
 using GraniteEdgeAI.OpenVino.Contracts;
 
 namespace GraniteEdgeAI.OpenVino.Tests;
@@ -25,10 +26,10 @@ public sealed class OpenVinoPromptAdapterTests
                 2,
                 OpenVinoTurnDisposition.Completed);
         });
-        (OpenVinoRouteSession session, List<OpenVinoPromptEvent> events) =
+        (OpenVinoRouteSession session, List<PromptEvent> events) =
             await StartSessionAsync(channel);
 
-        OpenVinoTurnResult result = await session.GenerateAsync(
+        PromptTurnResult result = await session.GenerateAsync(
             "hello",
             requestedNewTokens: 8,
             CancellationToken.None);
@@ -36,11 +37,11 @@ public sealed class OpenVinoPromptAdapterTests
         Assert.AreEqual("local answer", result.Text);
         CollectionAssert.AreEqual(
             OrderedText,
-            events.Where(item => item.Kind == OpenVinoPromptEventKind.TextDelta)
+            events.Where(item => item.Kind == PromptEventKind.TextDelta)
                 .Select(item => item.Text)
                 .ToArray());
-        OpenVinoPromptEvent ready = events.First(item =>
-            item.Kind == OpenVinoPromptEventKind.SessionReady);
+        PromptEvent ready = events.First(item =>
+            item.Kind == PromptEventKind.SessionReady);
         Assert.AreEqual("CPU", ready.RequestedDevice);
         CollectionAssert.AreEqual(
             CpuExecutionDevices,
@@ -96,17 +97,17 @@ public sealed class OpenVinoPromptAdapterTests
         channel.StopAction = () => stopObserved.TrySetResult();
         (OpenVinoRouteSession session, _) = await StartSessionAsync(channel);
 
-        Task<OpenVinoTurnResult> first = session.GenerateAsync(
+        Task<PromptTurnResult> first = session.GenerateAsync(
             "first", 8, CancellationToken.None);
         await firstFragment.Task;
         await session.StopAsync(CancellationToken.None);
-        OpenVinoTurnResult stopped = await first;
-        OpenVinoTurnResult second = await session.GenerateAsync(
+        PromptTurnResult stopped = await first;
+        PromptTurnResult second = await session.GenerateAsync(
             "second", 8, CancellationToken.None);
 
-        Assert.AreEqual(OpenVinoTurnStatus.Stopped, stopped.Status);
+        Assert.AreEqual(PromptTurnStatus.Stopped, stopped.Status);
         Assert.AreEqual("partial", stopped.Text);
-        Assert.AreEqual(OpenVinoTurnStatus.Completed, second.Status);
+        Assert.AreEqual(PromptTurnStatus.Completed, second.Status);
         Assert.AreEqual("second", second.Text);
         Assert.AreEqual(2, channel.PromptCount);
     }
@@ -125,10 +126,10 @@ public sealed class OpenVinoPromptAdapterTests
             return new SessionCancelledEvent(command.SessionId);
         });
         channel.CancelAction = () => cancelObserved.TrySetResult();
-        (OpenVinoRouteSession session, List<OpenVinoPromptEvent> events) =
+        (OpenVinoRouteSession session, List<PromptEvent> events) =
             await StartSessionAsync(channel);
 
-        Task<OpenVinoTurnResult> generation = session.GenerateAsync(
+        Task<PromptTurnResult> generation = session.GenerateAsync(
             "cancel me", 8, CancellationToken.None);
         await firstFragment.Task;
         await session.CancelAsync(CancellationToken.None);
@@ -163,13 +164,13 @@ public sealed class OpenVinoPromptAdapterTests
             throw new OpenVinoRouteWorkerFailureException(
                 OpenVinoSupportCode.RuntimeLoadFailed,
                 "raw path C:\\secret\\model and native exception"));
-        (OpenVinoRouteSession session, List<OpenVinoPromptEvent> events) =
+        (OpenVinoRouteSession session, List<PromptEvent> events) =
             await StartSessionAsync(channel);
 
-        OpenVinoTurnResult result = await session.GenerateAsync(
+        PromptTurnResult result = await session.GenerateAsync(
             "hello", 8, CancellationToken.None);
 
-        Assert.AreEqual(OpenVinoTurnStatus.Failed, result.Status);
+        Assert.AreEqual(PromptTurnStatus.Failed, result.Status);
         Assert.AreEqual("runtime_load_failed", result.Failure!.SupportCode);
         Assert.AreEqual("Try loading the session again.", result.Failure.RecoveryAction);
         Assert.IsFalse(result.Failure.Message.Contains("secret", StringComparison.Ordinal));
@@ -177,7 +178,7 @@ public sealed class OpenVinoPromptAdapterTests
             item.Failure?.Message.Contains("native", StringComparison.Ordinal) == true));
     }
 
-    private static async Task<(OpenVinoRouteSession, List<OpenVinoPromptEvent>)>
+    private static async Task<(OpenVinoRouteSession, List<PromptEvent>)>
         StartSessionAsync(FakeChannel channel)
     {
         OpenVinoRouteStateMachine machine = new();
@@ -186,7 +187,7 @@ public sealed class OpenVinoPromptAdapterTests
         Assert.IsTrue(machine.TryCompleteInspection(operationId,
             OpenVinoRouteInspectionOutcome.Ready));
         Assert.IsTrue(machine.TryAwaitConfiguration(operationId));
-        List<OpenVinoPromptEvent> events = [];
+        List<PromptEvent> events = [];
         OpenVinoRouteSession session = await OpenVinoRouteSession.StartAsync(
             new FakeChannelFactory(channel),
             machine,

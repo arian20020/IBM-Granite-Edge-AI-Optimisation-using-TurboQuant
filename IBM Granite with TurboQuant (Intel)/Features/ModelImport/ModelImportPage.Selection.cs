@@ -11,6 +11,9 @@ namespace GraniteEdgeAI.Features.ModelImport
     {
         private readonly IModelSelectionClassifier _classifier;
         private ModelSelectionOperation? _activeOperation;
+        private string? _selectedOpenVinoDirectory;
+        private string? _selectedOpenVinoDisplayName;
+        private ModelSelectionOperationId? _selectedOpenVinoOperationId;
 
         /// <summary>
         /// Submits one normalized candidate from either a picker or the future
@@ -27,6 +30,9 @@ namespace GraniteEdgeAI.Features.ModelImport
             retired?.Dispose();
 
             SelectedModelPath = input.IsFolder ? null : input.LocalPath;
+            _selectedOpenVinoDirectory = null;
+            _selectedOpenVinoDisplayName = null;
+            _selectedOpenVinoOperationId = null;
             ValidatedScanResult = null;
             CurrentRoute = null;
             HasValidatedModel = false;
@@ -82,10 +88,11 @@ namespace GraniteEdgeAI.Features.ModelImport
             CurrentRoute = result.Route;
             if (result.Route == ModelSelectionRoute.OpenVinoDirectory)
             {
+                _selectedOpenVinoDirectory = input.LocalPath;
+                _selectedOpenVinoDisplayName = result.DisplayName;
+                _selectedOpenVinoOperationId = operation.Id;
                 HasValidatedModel = true;
                 ContinueToModelInspectionButton.IsEnabled = true;
-                OpenVinoInspectionRequested?.Invoke(this,
-                    new OpenVinoInspectionRequestedEventArgs(operation.Id, result.DisplayName));
                 return;
             }
 
