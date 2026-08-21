@@ -34,6 +34,7 @@ CONVERTED_DIRECTORY = (
 )
 MODEL_SHA256 = "a" * 64
 TOKENIZER_SHA256 = "b" * 64
+CONVERSION_MINIMUM_FREE_BYTES = 20 * 1024 * 1024 * 1024
 
 
 def _refresh_manifest(bundle: Path) -> None:
@@ -212,9 +213,14 @@ def _create_resume_bundle(bundle: Path) -> str:
     disk.update(
         {
             "status": "Passed",
+            "free_bytes": CONVERSION_MINIMUM_FREE_BYTES,
+            "minimum_free_bytes_for_conversion_resume": (
+                CONVERSION_MINIMUM_FREE_BYTES
+            ),
             "source_download_required": False,
             "source_download_authorised": False,
             "deletion_authorised": False,
+            "deletion_performed": False,
             "prior_failed_workspace_preserved": True,
             "prior_partial_conversion_preserved": True,
         }
