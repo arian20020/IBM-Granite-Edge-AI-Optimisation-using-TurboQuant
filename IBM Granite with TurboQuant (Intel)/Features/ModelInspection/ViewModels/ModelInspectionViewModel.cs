@@ -109,6 +109,7 @@ internal sealed class ModelInspectionViewModel : INotifyPropertyChanged, IDispos
 
     internal void SetHardwareRouteAvailable(bool isAvailable)
     {
+        bool snapshotChanged = false;
         lock (stateLock)
         {
             if (disposed || hardwareRouteAvailable == isAvailable)
@@ -117,6 +118,22 @@ internal sealed class ModelInspectionViewModel : INotifyPropertyChanged, IDispos
             }
 
             hardwareRouteAvailable = isAvailable;
+            if (snapshot.TerminalResult is not null)
+            {
+                snapshot = new ModelInspectionViewSnapshot(
+                    NextRevisionKeyLocked(),
+                    isRunActive: false,
+                    isCancellationRequested: false,
+                    progress: null,
+                    terminalResult: snapshot.TerminalResult,
+                    modelInspectionRunId: snapshot.ModelInspectionRunId);
+                snapshotChanged = true;
+            }
+        }
+
+        if (snapshotChanged)
+        {
+            PublishSnapshotChanged();
         }
 
         checkHardwareCommand.RaiseCanExecuteChanged();

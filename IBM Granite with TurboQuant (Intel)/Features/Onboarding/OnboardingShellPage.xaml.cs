@@ -1,5 +1,7 @@
 using GraniteEdgeAI.Features.HardwareInspection;
 using GraniteEdgeAI.Features.HardwareInspection.Application;
+using GraniteEdgeAI.Features.HardwareInspection.Presentation.Controls;
+using GraniteEdgeAI.Features.HardwareInspection.Presentation.State;
 using GraniteEdgeAI.Features.HardwareInspection.ViewModels;
 using GraniteEdgeAI.Features.ModelImport;
 using GraniteEdgeAI.Features.ModelInspection;
@@ -23,6 +25,9 @@ namespace GraniteEdgeAI.Features.Onboarding
         // Stores the Model Inspection page whose choose-another request the
         // shell is currently listening to.
         private ModelInspectionPage? _attachedModelInspectionPage;
+        private HardwareInspectionPage? _attachedHardwareInspectionPage;
+        private ModelInspectionPage? _modelInspectionPageForHardwareReturn;
+        private Guid _activeModelHandoffId;
 
         private readonly Func<Frame, ModelInspectionRequest, bool>
             _modelInspectionNavigator;
@@ -376,10 +381,55 @@ namespace GraniteEdgeAI.Features.Onboarding
             hardwarePage.AuthorizeStart();
             StageFrame.BackStack.Clear();
             StageFrame.ForwardStack.Clear();
+            _attachedHardwareInspectionPage = hardwarePage;
+            _attachedHardwareInspectionPage.ActionRequested +=
+                HardwareInspectionPage_ActionRequested;
+            _modelInspectionPageForHardwareReturn = sourcePage;
+            _activeModelHandoffId = handoff.ModelInspectionHandoffId;
             DetachModelInspectionPage();
             CurrentStage = OnboardingStage.CheckHardwareFit;
             StageIndicator.CurrentStage = CurrentStage;
             return true;
+        }
+
+        private void HardwareInspectionPage_ActionRequested(
+            object? sender,
+            HardwareInspectionActionRequestedEventArgs eventArguments)
+        {
+            if (!ReferenceEquals(sender, _attachedHardwareInspectionPage) ||
+                eventArguments.Kind is not (
+                    HardwareInspectionActionKind.Back or
+                    HardwareInspectionActionKind.BackToModelInspection))
+            {
+                return;
+            }
+
+            ReturnToModelInspection();
+        }
+
+        private void ReturnToModelInspection()
+        {
+            ModelInspectionPage? modelPage = _modelInspectionPageForHardwareReturn;
+            if (modelPage is null || _attachedHardwareInspectionPage is null)
+            {
+                return;
+            }
+
+            if (_activeModelHandoffId != Guid.Empty)
+            {
+                _handoffRegistry.Invalidate(_activeModelHandoffId);
+            }
+
+            DetachHardwareInspectionPage();
+            _modelInspectionPageForHardwareReturn = null;
+            _activeModelHandoffId = Guid.Empty;
+            StageFrame.Content = modelPage;
+            StageFrame.BackStack.Clear();
+            StageFrame.ForwardStack.Clear();
+            AttachModelInspectionPage(modelPage);
+            modelPage.SetHardwareRouteAvailable(false);
+            CurrentStage = OnboardingStage.InspectModel;
+            StageIndicator.CurrentStage = CurrentStage;
         }
 
         internal ModelInspectionHandoffLifecycleState? GetModelHandoffState(
@@ -415,6 +465,13 @@ namespace GraniteEdgeAI.Features.Onboarding
             // Transfer event ownership only after the new page exists.
             AttachModelImportPage(modelImportPage);
             DetachModelInspectionPage();
+            if (_activeModelHandoffId != Guid.Empty)
+            {
+                _handoffRegistry.Invalidate(_activeModelHandoffId);
+            }
+            DetachHardwareInspectionPage();
+            _modelInspectionPageForHardwareReturn = null;
+            _activeModelHandoffId = Guid.Empty;
 
             CurrentStage = OnboardingStage.ImportModel;
             StageIndicator.CurrentStage = CurrentStage;
@@ -458,6 +515,18 @@ namespace GraniteEdgeAI.Features.Onboarding
                 ModelInspectionPage_HardwareInspectionRequested;
             _attachedModelInspectionPage.SetHardwareRouteAvailable(false);
             _attachedModelInspectionPage = null;
+        }
+
+        private void DetachHardwareInspectionPage()
+        {
+            if (_attachedHardwareInspectionPage is null)
+            {
+                return;
+            }
+
+            _attachedHardwareInspectionPage.ActionRequested -=
+                HardwareInspectionPage_ActionRequested;
+            _attachedHardwareInspectionPage = null;
         }
     }
 }

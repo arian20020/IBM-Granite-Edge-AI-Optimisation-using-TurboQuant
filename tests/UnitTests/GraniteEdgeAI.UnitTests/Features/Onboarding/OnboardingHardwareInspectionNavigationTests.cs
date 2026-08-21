@@ -1,5 +1,7 @@
 using GraniteEdgeAI.Features.HardwareInspection;
 using GraniteEdgeAI.Features.HardwareInspection.Application;
+using GraniteEdgeAI.Features.HardwareInspection.Presentation.Controls;
+using GraniteEdgeAI.Features.HardwareInspection.Presentation.Factories;
 using GraniteEdgeAI.Features.HardwareInspection.ViewModels;
 using GraniteEdgeAI.Features.ModelInspection;
 using GraniteEdgeAI.Features.ModelInspection.Contracts;
@@ -7,6 +9,8 @@ using GraniteEdgeAI.Features.ModelInspection.Handoff;
 using GraniteEdgeAI.Features.Onboarding;
 using GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Automation.Peers;
+using Microsoft.UI.Xaml.Automation.Provider;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
 
@@ -43,6 +47,24 @@ public sealed class OnboardingHardwareInspectionNavigationTests
         Assert.IsTrue(hardwarePage.IsStartAuthorized);
         Assert.AreEqual(
             ModelInspectionHandoffLifecycleState.BoundToHardwareRun,
+            shell.GetModelHandoffState(handoff.ModelInspectionHandoffId));
+
+        hardwarePage.Apply(
+            new HardwareInspectionPresentationFactory().CreateInvalidHandoff());
+        var actionCard = (HardwareInspectionActionCard)hardwarePage.FindName(
+            "ActionCard");
+        Button back = ((StackPanel)actionCard.FindName("ActionsPanel"))
+            .Children.Cast<Button>()
+            .Single();
+        var invoke = (IInvokeProvider)new ButtonAutomationPeer(back)
+            .GetPattern(PatternInterface.Invoke)!;
+
+        invoke.Invoke();
+
+        Assert.AreSame(source, frame.Content);
+        Assert.AreEqual(OnboardingStage.InspectModel, shell.CurrentStage);
+        Assert.AreEqual(
+            ModelInspectionHandoffLifecycleState.Invalidated,
             shell.GetModelHandoffState(handoff.ModelInspectionHandoffId));
     }
 

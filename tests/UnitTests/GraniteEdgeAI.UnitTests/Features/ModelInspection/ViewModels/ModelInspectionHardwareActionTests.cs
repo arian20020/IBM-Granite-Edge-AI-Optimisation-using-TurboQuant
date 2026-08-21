@@ -25,8 +25,12 @@ public sealed class ModelInspectionHardwareActionTests
         await viewModel.StartAsync();
 
         Assert.IsTrue(viewModel.CheckHardwareCommand.CanExecute(null));
+        ModelInspectionRenderKey enabledKey = viewModel.Snapshot.RenderKey;
         viewModel.SetHardwareRouteAvailable(false);
         Assert.IsFalse(viewModel.CheckHardwareCommand.CanExecute(null));
+        Assert.IsTrue(
+            viewModel.Snapshot.RenderKey.PresentationRevision >
+            enabledKey.PresentationRevision);
     }
 
     [TestMethod]
