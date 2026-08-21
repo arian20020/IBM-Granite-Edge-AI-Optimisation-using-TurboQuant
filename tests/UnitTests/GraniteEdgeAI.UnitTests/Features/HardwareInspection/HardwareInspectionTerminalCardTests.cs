@@ -2,10 +2,12 @@ using GraniteEdgeAI.Features.HardwareInspection.Application;
 using GraniteEdgeAI.Features.HardwareInspection.Presentation.Controls;
 using GraniteEdgeAI.Features.HardwareInspection.Presentation.Factories;
 using GraniteEdgeAI.Features.HardwareInspection.Presentation.State;
+using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Automation.Provider;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
 
 namespace GraniteEdgeAI.UnitTests.Features.HardwareInspection;
@@ -128,12 +130,14 @@ public sealed class HardwareInspectionTerminalCardTests
         Assert.IsNotNull(secondaryStyle.BasedOn);
         Assert.AreNotSame(primaryStyle, secondaryStyle);
 
-        AssertStyleSetter(primaryStyle, Control.MinHeightProperty, 44d);
+        AssertSharedJourneyPalette(card);
+
+        AssertStyleSetter(primaryStyle, Control.MinHeightProperty, 46d);
         AssertStyleSetter(primaryStyle, Control.PaddingProperty, new Thickness(18, 10, 18, 10));
-        AssertStyleSetter(primaryStyle, Control.CornerRadiusProperty, new CornerRadius(10));
-        AssertStyleSetter(secondaryStyle, Control.MinHeightProperty, 44d);
+        AssertStyleSetter(primaryStyle, Control.CornerRadiusProperty, new CornerRadius(11));
+        AssertStyleSetter(secondaryStyle, Control.MinHeightProperty, 46d);
         AssertStyleSetter(secondaryStyle, Control.PaddingProperty, new Thickness(18, 10, 18, 10));
-        AssertStyleSetter(secondaryStyle, Control.CornerRadiusProperty, new CornerRadius(10));
+        AssertStyleSetter(secondaryStyle, Control.CornerRadiusProperty, new CornerRadius(11));
 
         Button[] buttons = Buttons(card);
         Assert.AreSame(secondaryStyle, buttons[0].Style);
@@ -198,6 +202,30 @@ public sealed class HardwareInspectionTerminalCardTests
 
     private static Button[] Buttons(HardwareInspectionActionCard card) =>
         ((StackPanel)card.FindName("ActionsPanel")).Children.Cast<Button>().ToArray();
+
+    private static void AssertSharedJourneyPalette(FrameworkElement owner)
+    {
+        Assert.AreEqual(
+            ColorHelper.FromArgb(0xFF, 0x25, 0x63, 0xEB),
+            ((SolidColorBrush)owner.Resources[
+                "GraniteJourneyPrimaryBackgroundBrush"]).Color);
+        Assert.AreEqual(
+            ColorHelper.FromArgb(0xFF, 0x1D, 0x4E, 0xD8),
+            ((SolidColorBrush)owner.Resources[
+                "GraniteJourneyPrimaryPointerOverBrush"]).Color);
+        Assert.AreEqual(
+            ColorHelper.FromArgb(0xFF, 0x1E, 0x40, 0xAF),
+            ((SolidColorBrush)owner.Resources[
+                "GraniteJourneyPrimaryPressedBrush"]).Color);
+        Assert.AreEqual(
+            Colors.White,
+            ((SolidColorBrush)owner.Resources[
+                "GraniteJourneySecondaryBackgroundBrush"]).Color);
+        Assert.AreEqual(
+            ColorHelper.FromArgb(0xFF, 0xC9, 0xD7, 0xE8),
+            ((SolidColorBrush)owner.Resources[
+                "GraniteJourneySecondaryBorderBrush"]).Color);
+    }
 
     private static void AssertStyleSetter(Style style, DependencyProperty property, object expected)
     {

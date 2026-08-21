@@ -3,6 +3,7 @@ using GraniteEdgeAI.Features.ModelInspection.Models;
 using GraniteEdgeAI.Features.ModelInspection.Presentation;
 using GraniteEdgeAI.Features.ModelInspection.ViewModels;
 using GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation;
+using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
@@ -58,6 +59,8 @@ public sealed class InspectionActionCardTests
                     Grid.GetRow(text) == 1);
             Grid panel = Assert.IsInstanceOfType<Grid>(
                 control.FindName("ResultButtonPanel"));
+
+            AssertSharedJourneyPalette(control);
 
             AssertActionStyle(
                 control,
@@ -536,10 +539,35 @@ public sealed class InspectionActionCardTests
                 "InspectionActionPadding"];
 
         Assert.AreEqual(expectedCornerRadius, button.CornerRadius);
-        Assert.AreEqual(new CornerRadius(10d), button.CornerRadius);
+        Assert.AreEqual(new CornerRadius(11d), button.CornerRadius);
         Assert.AreEqual(expectedPadding, button.Padding);
         Assert.AreEqual(new Thickness(18d, 10d, 18d, 10d), button.Padding);
         Assert.IsGreaterThanOrEqualTo(44d, button.MinHeight);
+        Assert.AreEqual(46d, button.MinHeight, 0.01d);
+    }
+
+    private static void AssertSharedJourneyPalette(FrameworkElement owner)
+    {
+        Assert.AreEqual(
+            ColorHelper.FromArgb(0xFF, 0x25, 0x63, 0xEB),
+            ((SolidColorBrush)owner.Resources[
+                "GraniteJourneyPrimaryBackgroundBrush"]).Color);
+        Assert.AreEqual(
+            ColorHelper.FromArgb(0xFF, 0x1D, 0x4E, 0xD8),
+            ((SolidColorBrush)owner.Resources[
+                "GraniteJourneyPrimaryPointerOverBrush"]).Color);
+        Assert.AreEqual(
+            ColorHelper.FromArgb(0xFF, 0x1E, 0x40, 0xAF),
+            ((SolidColorBrush)owner.Resources[
+                "GraniteJourneyPrimaryPressedBrush"]).Color);
+        Assert.AreEqual(
+            Colors.White,
+            ((SolidColorBrush)owner.Resources[
+                "GraniteJourneySecondaryBackgroundBrush"]).Color);
+        Assert.AreEqual(
+            ColorHelper.FromArgb(0xFF, 0xC9, 0xD7, 0xE8),
+            ((SolidColorBrush)owner.Resources[
+                "GraniteJourneySecondaryBorderBrush"]).Color);
     }
 
     private static void AssertSecondaryActionSemantics(Button button)

@@ -394,6 +394,7 @@
     <None Remove="Features\ModelInspection\Controls\InspectionOutcomeCard.xaml" />
     <None Remove="Features\ModelInspection\Presentation\ModelInspectionTheme.xaml" />
     <None Remove="Features\ModelInspection\ModelInspectionPage.xaml" />
+    <None Remove="Features\Onboarding\Presentation\GraniteJourneyActionPalette.xaml" />
     <None Remove="Features\Onboarding\Controls\OnboardingStageIndicator.xaml" />
     <None Remove="Features\Onboarding\OnboardingShellPage.xaml" />
   </ItemGroup>
@@ -473,6 +474,11 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Features\ModelImport\FileImport\DragDropRoute\" />
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Features\Onboarding\Presentation\GraniteJourneyActionPalette.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
   </ItemGroup>
   <ItemGroup>
     <Page Update="Features\Onboarding\Controls\OnboardingStageIndicator.xaml">
