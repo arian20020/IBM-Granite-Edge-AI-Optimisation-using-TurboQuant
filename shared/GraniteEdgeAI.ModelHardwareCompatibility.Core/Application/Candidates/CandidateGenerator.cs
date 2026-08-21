@@ -34,6 +34,13 @@ internal static class CandidateGenerator
         HashSet<string> seenFingerprints = [];
         CompatibilityCandidate? baseline = null;
 
+        // Tracks whether any admitted entry produced a configuration equal to
+        // the baseline's, even if no admitted context for that entry equalled
+        // the baseline context. That distinction is what lets the exclusion
+        // reason below tell "no entry matches the baseline shape at all" apart
+        // from "an entry matches, but not at this context".
+        bool baselineConfigurationAdmitted = false;
+
         foreach (CompatibilitySupportEntry entry in request.Matrix.Entries)
         {
             InstallationState installation =
@@ -50,12 +57,24 @@ internal static class CandidateGenerator
                 continue;
             }
 
-            if (!TryResolvePreparationKind(entry, source, request.TrustedSource, out bool converts))
+            if (!TryResolvePreparationKind(
+                entry, source, request.TrustedSource, out bool converts, out GgufWeightFormat effectiveWeights))
             {
                 continue;
             }
 
-            GgufRouteConfiguration configuration = entry.ToRouteConfiguration();
+            // Built from the effective weight format, not entry.Weights directly:
+            // an entry naming the encoding the file already has is normalised back
+            // to Imported here, so it collapses onto the same configuration as the
+            // Imported entry describing the same runtime shape instead of being
+            // offered as a separate, falsely-labelled "conversion".
+            GgufRouteConfiguration configuration = GgufRouteConfiguration.Create(
+                effectiveWeights, entry.KvCache, entry.Backend, entry.Device, entry.Offload);
+
+            if (configuration == request.BaselineConfiguration)
+            {
+                baselineConfigurationAdmitted = true;
+            }
 
             foreach (ContextTokenCount context in AdmittedContexts(entry, request))
             {
@@ -97,7 +116,9 @@ internal static class CandidateGenerator
             return new CandidateGenerationResult(
                 candidates,
                 false,
-                BaselineExclusionReason.NoAdmittedEntryMatchesTheBaseline);
+                baselineConfigurationAdmitted
+                    ? BaselineExclusionReason.BaselineContextOutsideEntryBounds
+                    : BaselineExclusionReason.NoAdmittedEntryMatchesTheBaseline);
         }
 
         // The baseline is always evaluated first: it is what the user already
@@ -108,16 +129,19 @@ internal static class CandidateGenerator
 
     /// <summary>
     /// Decides whether an entry's weight format is reachable from the imported
-    /// file, and whether reaching it writes a new artifact. Returns false when the
+    /// file, whether reaching it writes a new artifact, and the weight format the
+    /// resulting configuration is actually built from. Returns false when the
     /// entry must not be offered at all.
     /// </summary>
     private static bool TryResolvePreparationKind(
         CompatibilitySupportEntry entry,
         WeightQuantisation source,
         TrustedSourceAvailability trustedSource,
-        out bool converts)
+        out bool converts,
+        out GgufWeightFormat effectiveWeights)
     {
         converts = false;
+        effectiveWeights = entry.Weights;
 
         if (entry.Weights == GgufWeightFormat.Imported)
         {
@@ -131,9 +155,13 @@ internal static class CandidateGenerator
             return false;
         }
 
-        // Asking for the encoding the file already has is a no-op, not a conversion.
+        // Asking for the encoding the file already has is a no-op, not a
+        // conversion, so it must be indistinguishable from the Imported entry
+        // that describes the same runtime shape: normalise back to Imported
+        // rather than let the two produce separate, duplicate configurations.
         if (target == source)
         {
+            effectiveWeights = GgufWeightFormat.Imported;
             return true;
         }
 

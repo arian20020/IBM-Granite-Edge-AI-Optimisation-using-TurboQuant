@@ -148,6 +148,110 @@ public sealed class CandidateGeneratorTests
     }
 
     [TestMethod]
+    public void Generate_NeverOffersTheSameConfigurationTwice()
+    {
+        // With the default ProvisionalV1 matrix and a Q4_K_M source,
+        // gguf-cpu-q4km-f16 names the encoding the file already has: it must
+        // normalise back to the same runtime configuration as
+        // gguf-cpu-imported-f16 rather than being offered as a second,
+        // falsely-labelled "conversion" to a configuration that is really
+        // identical.
+        IReadOnlyList<CompatibilityCandidate> candidates = Generate().Candidates;
+
+        var shapes = candidates
+            .Select(candidate => (candidate.Configuration, candidate.Context))
+            .ToList();
+
+        Assert.AreEqual(shapes.Count, shapes.Distinct().Count());
+    }
+
+    [TestMethod]
+    public void Generate_ReportsBaselineContextOutsideEntryBoundsWhenTheEntryMatchesButNoAdmittedContextDoes()
+    {
+        // The entry's configuration is exactly the baseline's, so the
+        // baseline shape is admitted in principle. But the entry's minimum
+        // context (8192) sits above the baseline context (4096), so no
+        // admitted context for this entry ever equals the baseline context.
+        // The caller must be told the entry matched and the context did not,
+        // not that nothing matched the baseline at all.
+        SupportMatrix matrix = SupportMatrix.FromEntries(
+            "v-baseline-context-oob",
+            PolicyProvenance.Provisional,
+            [
+                CompatibilitySupportEntry.Create(
+                    "baseline-high-minimum",
+                    RuntimeRouteId.LlamaCpp,
+                    CompatibilityBackend.Cpu,
+                    DeviceRouteId.Cpu,
+                    GpuOffloadLevel.None,
+                    GgufWeightFormat.Imported,
+                    GgufKvCacheFormat.F16,
+                    minimumContextTokens: 8192,
+                    maximumContextTokens: 32768,
+                    SupportLevel.DeclaredSupported,
+                    requiresEvidence: false)
+            ]);
+
+        CandidateGenerationResult result =
+            Generate(matrix: matrix, installation: AllInstalled(matrix));
+
+        Assert.IsFalse(result.BaselineIncluded);
+        Assert.AreEqual(
+            nameof(BaselineExclusionReason.BaselineContextOutsideEntryBounds),
+            result.BaselineExclusionReason.ToString());
+    }
+
+    [TestMethod]
+    public void Generate_RefusesAQuantisedEntryWhenTheSourceEncodingIsUnknown()
+    {
+        // The source encoding could not be established (no file type). Without
+        // it there is no way to tell whether Q4_K_M would be an upgrade, a
+        // no-op, or a genuine downward conversion, so nothing may be offered
+        // from an entry asking for it. This guard is also what stops
+        // WeightQuantisationMap.BitsPerWeight being asked for the bit width of
+        // Unknown.
+        SupportMatrix matrix = SupportMatrix.FromEntries(
+            "v-unknown-source-quantised",
+            PolicyProvenance.Provisional,
+            [
+                CompatibilitySupportEntry.Create(
+                    "quantised-q4km",
+                    RuntimeRouteId.LlamaCpp,
+                    CompatibilityBackend.Cpu,
+                    DeviceRouteId.Cpu,
+                    GpuOffloadLevel.None,
+                    GgufWeightFormat.Q4KM,
+                    GgufKvCacheFormat.F16,
+                    1024,
+                    32768,
+                    SupportLevel.DeclaredSupported,
+                    requiresEvidence: false)
+            ]);
+
+        CandidateGenerationResult result = Generate(
+            matrix: matrix,
+            installation: AllInstalled(matrix),
+            facts: Facts(fileType: null),
+            trustedSource: TrustedSourceAvailability.HigherPrecisionAvailable());
+
+        Assert.AreEqual(0, result.Candidates.Count);
+    }
+
+    [TestMethod]
+    public void Generate_StillAdmitsTheImportedEntryWhenTheSourceEncodingIsUnknown()
+    {
+        // A file whose type could not be read must not lose every candidate:
+        // the Imported entry describes the file as it already is, so it does
+        // not depend on knowing the source encoding at all. A future refactor
+        // that moved the Imported early-return below the Unknown check would
+        // otherwise silently kill every candidate for such a file.
+        CandidateGenerationResult result = Generate(facts: Facts(fileType: null));
+
+        Assert.IsTrue(result.Candidates.Count > 0);
+        Assert.IsTrue(result.BaselineIncluded);
+    }
+
+    [TestMethod]
     public void Generate_DoesNotRequantiseWithoutATrustedHigherPrecisionSource()
     {
         // Source Q4_K_M, entry asks for Q3_K_M. That is a real downward
@@ -224,6 +328,13 @@ public sealed class CandidateGeneratorTests
     [TestMethod]
     public void Generate_NeverFallsBelowAnEntrysMinimumContext()
     {
+        // The preservation target (2048) sits below the entry's minimum
+        // (4096). ContextLadderPolicy adds the preservation target to the
+        // ladder unconditionally, regardless of the entry minimum, so it is
+        // AdmittedContexts' own filter that must exclude it here - unlike a
+        // preservation target at or above the minimum, which every standard
+        // rung already respects on its own and would leave this assertion
+        // green even without the filter.
         SupportMatrix matrix = SupportMatrix.FromEntries(
             "v-min",
             PolicyProvenance.Provisional,
@@ -243,7 +354,7 @@ public sealed class CandidateGeneratorTests
             ]);
 
         Assert.IsTrue(
-            Generate(matrix: matrix, installation: AllInstalled(matrix))
+            Generate(matrix: matrix, installation: AllInstalled(matrix), preservationTokens: 2048)
                 .Candidates.All(candidate => candidate.Context.Tokens >= 4096));
     }
 
