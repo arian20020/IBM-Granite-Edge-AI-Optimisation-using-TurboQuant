@@ -4,7 +4,7 @@
 
 **Goal:** Reduce the chat composer to an approximately 44-pixel empty height and remove transcript virtualization flashes during send and streaming.
 
-**Architecture:** Preserve the existing WinUI `ListView` and stable message-bubble synchronization. Tighten only the composer geometry, then reuse `ChatRenderScheduler` to defer and coalesce bottom-scroll work, replacing direct per-update `ScrollIntoView` calls with `ScrollViewer.ChangeView` only when overflow exists.
+**Architecture:** Preserve the existing WinUI `ListView` and stable message-bubble synchronization. Tighten only the composer geometry, then coalesce bottom-scroll work behind a one-shot natural `LayoutUpdated` handler, replacing direct per-update `ScrollIntoView` calls with `ScrollViewer.ChangeView` only after layout establishes overflow.
 
 **Tech Stack:** C# 12, .NET 8, WinUI 3, Windows App SDK 2.2, XAML, MSTest 4.3.2, packaged Visual Studio test runner, PowerShell 5.1.
 
@@ -13,7 +13,7 @@
 ## File map
 
 - Modify `IBM Granite with TurboQuant (Intel)/Features/GgufRuntime/Controls/ChatComposer.xaml`: compact surface, row, text box, and action-button dimensions.
-- Modify `IBM Granite with TurboQuant (Intel)/Features/GgufRuntime/ChatPage.xaml.cs`: coalesce deferred overflow-only bottom scrolling and dispose it on unload.
+- Modify `IBM Granite with TurboQuant (Intel)/Features/GgufRuntime/ChatPage.xaml.cs`: coalesce deferred overflow-only bottom scrolling and cancel its pending layout handler on unload.
 - Modify `tests/UnitTests/GraniteEdgeAI.UnitTests/Features/GgufRuntime/Controls/ChatComposerTests.cs`: require the new compact dimensions and measured height.
 - Modify `tests/UnitTests/GraniteEdgeAI.UnitTests/Features/GgufRuntime/ChatPageTests.cs`: require non-empty transcript visibility through repeated synchronization.
 - Modify `tests/IntegrationTests/GraniteEdgeAI.GgufRuntime.WorkerProcess.Tests/GgufChatVisualContractTests.cs`: enforce compact XAML values and reject direct transcript `ScrollIntoView` calls.
