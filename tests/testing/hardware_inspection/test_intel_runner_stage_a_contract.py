@@ -84,13 +84,13 @@ ONE_RUN_DEPENDENCY_DIRECTORIES = {
     "NUGET_SCRATCH": "nuget-scratch",
 }
 RUNNER_LABEL = re.compile(r"\Ahardware-gate1-[0-9a-f]{16}\Z")
-EXPECTED_WORKFLOW_SHA256 = "953167cdfcb983ae6d0ca00831d35fcdf826570001ab7721f1b835ab423c37a5"
+EXPECTED_WORKFLOW_SHA256 = "3fec298991af8397f56b3776532a23304a05d87c57058e536a8a8e9b9e30d5b3"
 EXPECTED_RUNBOOK_SHA256 = "cfef60a33c09e11fbd913a406c25852cad4ca263011fe42091f28059e9f1a51c"
 STAGEA_POWERSHELL_SHELL = (
     r'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe '
     r'-NoLogo -NoProfile -NonInteractive '
     '-Command "$ErrorActionPreference = \'Stop\'; $global:LASTEXITCODE = 0; & \'{0}\'; '
-    'if (-not $?) { if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; exit 1 }; '
+    'if (-not $?) {{ if ($LASTEXITCODE -ne 0) {{ exit $LASTEXITCODE }}; exit 1 }}; '
     'exit $LASTEXITCODE"'
 )
 GIT_INVALID_STDERR = (
@@ -972,6 +972,9 @@ def _validator_arguments(control_root, **changes):
 
 def _validator_environment():
     environment = os.environ.copy()
+    for name in tuple(environment):
+        if name.upper().startswith("GIT_"):
+            environment.pop(name, None)
     for name in (
         "GRANITE_LLMFIT_CANDIDATE_ROOT",
         "GRANITE_LLMFIT_TRUSTED_OUTPUT",
@@ -1232,6 +1235,19 @@ class IntelRunnerStageAContractTests(unittest.TestCase):
                     inline_powershell=job_name + ":" + str(step.get("name", ""))
                 ):
                     self.assertEqual(step.get("shell"), STAGEA_POWERSHELL_SHELL)
+                    self.assertIn(
+                        "if (-not $?) {{ if ($LASTEXITCODE -ne 0) "
+                        "{{ exit $LASTEXITCODE }}; exit 1 }}",
+                        step["shell"],
+                    )
+                    formatted_shell = step["shell"].format(
+                        r"C:\runner\_work\_temp\stage-a-step.ps1"
+                    )
+                    self.assertIn(
+                        "if (-not $?) { if ($LASTEXITCODE -ne 0) "
+                        "{ exit $LASTEXITCODE }; exit 1 }",
+                        formatted_shell,
+                    )
                     _powershell_text_ast(self, str(step.get("run", "")))
         self.assertEqual(len(inline_steps), 11)
         self.assertNotIn("shell: powershell", raw.decode("utf-8"))
