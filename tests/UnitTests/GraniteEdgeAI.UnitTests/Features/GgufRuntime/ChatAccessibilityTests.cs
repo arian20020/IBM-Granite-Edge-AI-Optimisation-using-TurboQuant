@@ -61,7 +61,7 @@ public sealed class ChatAccessibilityTests
         Button stop = FindButton(composer, "StopButton");
 
         CollectionAssert.AreEquivalent(
-            new[] { "Add knowledge files", "Send message", "Stop generation" },
+            new[] { "Add files", "Send message", "Stop generation" },
             new[]
             {
                 AutomationProperties.GetName(attachment),

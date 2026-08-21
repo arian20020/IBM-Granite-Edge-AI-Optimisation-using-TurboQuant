@@ -148,7 +148,7 @@ public sealed class GgufChatVisualContractTests
         StringAssert.Contains(
             adapter,
             "new FileOpenPicker(App.MainWindow.AppWindow.Id)");
-        StringAssert.Contains(adapter, "Title = \"Add knowledge files\"");
+        StringAssert.Contains(adapter, "Title = \"Add files\"");
         StringAssert.Contains(adapter, "CommitButtonText = \"Attach\"");
         Assert.AreEqual(
             1,
@@ -211,6 +211,21 @@ public sealed class GgufChatVisualContractTests
             Assert.IsFalse(
                 Regex.IsMatch(adapter, prohibitedPattern),
                 $"The picker adapter must not read or output selected file content or paths ({prohibitedPattern}).");
+        }
+
+        string runtimeRoot = Path.GetFullPath(Path.Combine(attachmentsDirectory, ".."));
+        foreach (string productionFile in Directory.EnumerateFiles(
+                     runtimeRoot,
+                     "*.*",
+                     SearchOption.AllDirectories)
+                 .Where(path => path.EndsWith(".cs", StringComparison.OrdinalIgnoreCase)
+                     || path.EndsWith(".xaml", StringComparison.OrdinalIgnoreCase)))
+        {
+            Assert.IsFalse(
+                File.ReadAllText(productionFile).Contains(
+                    "Add knowledge files",
+                    StringComparison.Ordinal),
+                $"Obsolete attachment copy remains in {Path.GetRelativePath(root, productionFile)}.");
         }
     }
 

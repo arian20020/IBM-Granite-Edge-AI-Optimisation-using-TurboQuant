@@ -14,7 +14,7 @@ internal sealed class WindowsKnowledgeFilePicker : IKnowledgeFilePicker
     {
         FileOpenPicker picker = new FileOpenPicker(App.MainWindow.AppWindow.Id)
         {
-            Title = "Add knowledge files",
+            Title = "Add files",
             CommitButtonText = "Attach",
         };
         foreach (string fileType in AllowedFileTypes)

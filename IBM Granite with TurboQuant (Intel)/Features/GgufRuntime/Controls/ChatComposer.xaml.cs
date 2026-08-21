@@ -74,11 +74,14 @@ public sealed partial class ChatComposer : UserControl
         PromptTextBox.IsEnabled = !IsGenerating;
         bool canSelectKnowledgeFiles = !IsGenerating && !isPickingKnowledgeFiles;
         AttachmentButton.IsEnabled = canSelectKnowledgeFiles;
-        AddKnowledgeFilesMenuItem.IsEnabled = canSelectKnowledgeFiles;
+        AddFilesFlyoutButton.IsEnabled = canSelectKnowledgeFiles;
     }
 
-    private async void AddKnowledgeFiles_Click(object sender, RoutedEventArgs eventArguments) =>
+    private async void AddKnowledgeFiles_Click(object sender, RoutedEventArgs eventArguments)
+    {
+        AttachmentButton.Flyout?.Hide();
         await AddKnowledgeFilesAsync();
+    }
 
     internal async Task AddKnowledgeFilesAsync()
     {

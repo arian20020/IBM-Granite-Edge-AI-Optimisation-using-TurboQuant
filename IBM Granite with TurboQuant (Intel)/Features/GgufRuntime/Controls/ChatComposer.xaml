@@ -103,14 +103,53 @@
                         Padding="0"
                         VerticalAlignment="Center"
                         Style="{StaticResource GgufChatSecondaryButtonStyle}"
-                        AutomationProperties.Name="Add knowledge files">
+                        AutomationProperties.Name="Add files">
                         <Button.Flyout>
-                            <MenuFlyout>
-                                <MenuFlyoutItem
-                                    x:Name="AddKnowledgeFilesMenuItem"
-                                    Text="Add knowledge files..."
-                                    Click="AddKnowledgeFiles_Click" />
-                            </MenuFlyout>
+                            <Flyout Placement="TopEdgeAlignedLeft">
+                                <Flyout.FlyoutPresenterStyle>
+                                    <Style TargetType="FlyoutPresenter">
+                                        <Setter Property="Padding" Value="0" />
+                                        <Setter Property="BorderThickness" Value="0" />
+                                        <Setter Property="CornerRadius" Value="14" />
+                                    </Style>
+                                </Flyout.FlyoutPresenterStyle>
+                                <Border
+                                    MinWidth="260"
+                                    Padding="8"
+                                    Background="{ThemeResource GgufChatFlyoutBrush}"
+                                    CornerRadius="14"
+                                    Shadow="{ThemeResource GgufChatPanelShadow}"
+                                    Translation="0,0,12">
+                                    <Button
+                                        x:Name="AddFilesFlyoutButton"
+                                        HorizontalAlignment="Stretch"
+                                        Style="{StaticResource GgufChatFlyoutActionStyle}"
+                                        AutomationProperties.Name="Add files"
+                                        Click="AddKnowledgeFiles_Click">
+                                        <Grid ColumnSpacing="12">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="32" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <FontIcon
+                                                HorizontalAlignment="Center"
+                                                VerticalAlignment="Center"
+                                                Glyph="&#xE8B7;"
+                                                FontSize="16" />
+                                            <StackPanel Grid.Column="1" Spacing="2">
+                                                <TextBlock
+                                                    Text="Add files"
+                                                    FontWeight="SemiBold" />
+                                                <TextBlock
+                                                    x:Name="AddFilesHintText"
+                                                    Text="Text or Markdown · Not indexed"
+                                                    FontSize="12"
+                                                    Foreground="{ThemeResource GgufChatMutedBrush}" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Button>
+                                </Border>
+                            </Flyout>
                         </Button.Flyout>
                         <FontIcon Glyph="&#xE710;" FontSize="16" />
                     </Button>

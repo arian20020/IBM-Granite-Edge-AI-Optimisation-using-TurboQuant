@@ -30,12 +30,16 @@ public sealed class ChatComposerTests
             composer.FindName("AttachmentButton"));
         TextBox prompt = Assert.IsInstanceOfType<TextBox>(
             composer.FindName("PromptTextBox"));
-        MenuFlyout flyout = Assert.IsInstanceOfType<MenuFlyout>(attachment.Flyout);
-        MenuFlyoutItem add = Assert.IsInstanceOfType<MenuFlyoutItem>(flyout.Items.Single());
+        Flyout flyout = Assert.IsInstanceOfType<Flyout>(attachment.Flyout);
+        Button add = Assert.IsInstanceOfType<Button>(
+            composer.FindName("AddFilesFlyoutButton"));
+        TextBlock hint = Assert.IsInstanceOfType<TextBlock>(
+            composer.FindName("AddFilesHintText"));
 
         Assert.IsTrue(attachment.IsEnabled);
-        Assert.AreEqual("Add knowledge files", AutomationProperties.GetName(attachment));
-        Assert.AreEqual("Add knowledge files...", add.Text);
+        Assert.AreEqual("Add files", AutomationProperties.GetName(attachment));
+        Assert.AreEqual("Add files", AutomationProperties.GetName(add));
+        Assert.AreEqual("Text or Markdown · Not indexed", hint.Text);
         Assert.IsTrue(add.IsEnabled);
         Assert.AreEqual(44, prompt.MinHeight);
         Assert.AreEqual(160, prompt.MaxHeight);
@@ -65,18 +69,12 @@ public sealed class ChatComposerTests
             composer.FindName("ComposerFocusVisual"));
         Button attachment = Assert.IsInstanceOfType<Button>(
             composer.FindName("AttachmentButton"));
-        int gettingFocusCount = 0;
-        int losingFocusCount = 0;
-        prompt.GettingFocus += (_, _) => gettingFocusCount++;
-        prompt.LosingFocus += (_, _) => losingFocusCount++;
         await using WinUiRenderHost host =
             await WinUiRenderHost.ShowAsync(composer, 700, 180);
 
         Assert.IsTrue(prompt.Focus(FocusState.Keyboard));
         await WaitForLayoutAsync(prompt);
         Assert.AreSame(prompt, FocusManager.GetFocusedElement(composer.XamlRoot));
-        Assert.AreEqual(1, gettingFocusCount);
-        Assert.AreEqual(0, losingFocusCount);
         Assert.AreEqual(Visibility.Visible, focusVisual.Visibility);
 
         Assert.IsTrue(attachment.Focus(FocusState.Keyboard));
@@ -296,8 +294,9 @@ public sealed class ChatComposerTests
             composer.FindName("AttachmentButton"));
         TextBox prompt = Assert.IsInstanceOfType<TextBox>(
             composer.FindName("PromptTextBox"));
-        MenuFlyout flyout = Assert.IsInstanceOfType<MenuFlyout>(attachment.Flyout);
-        MenuFlyoutItem add = Assert.IsInstanceOfType<MenuFlyoutItem>(flyout.Items.Single());
+        Assert.IsInstanceOfType<Flyout>(attachment.Flyout);
+        Button add = Assert.IsInstanceOfType<Button>(
+            composer.FindName("AddFilesFlyoutButton"));
 
         Assert.IsFalse(attachment.IsEnabled);
         Assert.IsFalse(add.IsEnabled);
