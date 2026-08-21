@@ -1,5 +1,6 @@
 using GraniteEdgeAI.Features.OpenVinoRoute;
 using GraniteEdgeAI.Features.OpenVinoRoute.Inspection;
+using GraniteEdgeAI.Features.Prompting;
 using GraniteEdgeAI.OpenVino.Contracts;
 using GraniteEdgeAI.OpenVino.WorkerClient;
 
@@ -30,12 +31,87 @@ public sealed class OpenVinoRouteServiceTests
         Assert.IsTrue(result.Outcome is OpenVinoRouteInspectionOutcome.Ready or
             OpenVinoRouteInspectionOutcome.ReadyWithWarnings);
         Assert.IsNotNull(result.Handoff);
+        Assert.IsNotNull(result.HandoffLease);
         Assert.AreEqual((ushort)2, result.Handoff.SchemaVersion);
         Assert.IsNotNull(result.Configuration);
         Assert.AreEqual("CPU", result.Configuration.Device);
         string publicResult = result.ToString();
         Assert.IsFalse(publicResult.Contains(package.Root, StringComparison.OrdinalIgnoreCase));
         Assert.AreEqual(1, worker.InspectCount);
+    }
+
+    [TestMethod]
+    public async Task AbandonedReadyHandoffRevokesItsPathBearingDescriptor()
+    {
+        using TemporaryPackage package = TemporaryPackage.CopyFixture();
+        FakeWorkerClient worker = new(command => new InspectionCompletedEvent(
+            command.InspectionRunId,
+            command.PackageManifestDigest,
+            command.ModelSha256,
+            command.ModelLengthBytes,
+            true,
+            true,
+            true,
+            BuildEvidence()));
+        OpenVinoRouteService service = Service(worker);
+        OpenVinoRouteInspectionResult result = await service.InspectAsync(
+            package.Root,
+            CancellationToken.None);
+        OpenVinoRouteHandoffLease lease = result.HandoffLease!;
+
+        lease.Dispose();
+
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
+            service.StartSessionAsync(
+                lease,
+                _ => { },
+                CancellationToken.None));
+        Assert.IsFalse(lease.HasPathBearingDescriptor);
+    }
+
+    [TestMethod]
+    public async Task RegistryActivatesOfficialSessionAndReturnsNeutralPresentation()
+    {
+        using TemporaryPackage package = TemporaryPackage.CopyFixture();
+        FakeWorkerClient worker = new(command => new InspectionCompletedEvent(
+            command.InspectionRunId,
+            command.PackageManifestDigest,
+            command.ModelSha256,
+            command.ModelLengthBytes,
+            true,
+            true,
+            true,
+            BuildEvidence()));
+        ReadyChannel channel = new();
+        OpenVinoRouteService service = new(
+            new OpenVinoStaticPackageInspector(),
+            new OpenVinoInspectionHandoffFactory(),
+            worker,
+            new ReadyChannelFactory(channel));
+        OpenVinoRouteInspectionResult inspection = await service.InspectAsync(
+            package.Root,
+            CancellationToken.None);
+        PromptRouteRegistry registry = new([service]);
+
+        PromptRouteSessionActivation active = await registry.ActivateAsync(
+            inspection.HandoffLease!,
+            _ => { },
+            CancellationToken.None);
+
+        Assert.AreEqual(PromptRouteKind.OpenVino, active.Session.Capability.Kind);
+        Assert.AreEqual(
+            "OpenVINO GenAI · CPU · Official MVP",
+            active.Presentation.CapabilitySummary);
+        Assert.AreEqual(
+            "Requested CPU · Running CPU",
+            active.Presentation.ExecutionEvidence);
+        Assert.AreEqual(
+            "Verified official worker build",
+            active.Presentation.BuildEvidence);
+        Assert.IsFalse(inspection.HandoffLease!.HasPathBearingDescriptor);
+        await active.Session.CancelAsync(CancellationToken.None);
+        await active.Session.DisposeAsync();
+        Assert.IsTrue(channel.DisposeCalled);
     }
 
     [TestMethod]
@@ -53,6 +129,7 @@ public sealed class OpenVinoRouteServiceTests
         Assert.IsFalse(result.Outcome is OpenVinoRouteInspectionOutcome.Ready or
             OpenVinoRouteInspectionOutcome.ReadyWithWarnings);
         Assert.IsNull(result.Handoff);
+        Assert.IsNull(result.HandoffLease);
         Assert.IsNull(result.Configuration);
         Assert.AreEqual(0, worker.InspectCount);
     }
@@ -95,6 +172,41 @@ public sealed class OpenVinoRouteServiceTests
             StartSessionCommand command,
             CancellationToken cancellationToken) =>
             throw new AssertFailedException("channel is not part of inspection");
+    }
+
+    private sealed class ReadyChannelFactory(ReadyChannel channel) :
+        IOpenVinoPromptChannelFactory
+    {
+        public Task<IOpenVinoPromptChannel> StartAsync(
+            StartSessionCommand command,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IOpenVinoPromptChannel>(channel);
+    }
+
+    private sealed class ReadyChannel : IOpenVinoPromptChannel
+    {
+        internal bool DisposeCalled { get; private set; }
+
+        public Task<IOpenVinoEvent> PromptAsync(
+            PromptCommand command,
+            IProgress<TokenEvent>? progress,
+            CancellationToken cancellationToken) =>
+            throw new AssertFailedException("prompt is not part of activation");
+
+        public Task StopAsync(CancellationToken cancellationToken) =>
+            Task.CompletedTask;
+
+        public Task CancelAsync(CancellationToken cancellationToken) =>
+            Task.CompletedTask;
+
+        public Task CloseAsync(CancellationToken cancellationToken) =>
+            Task.CompletedTask;
+
+        public ValueTask DisposeAsync()
+        {
+            DisposeCalled = true;
+            return ValueTask.CompletedTask;
+        }
     }
 
     private sealed class TemporaryPackage : IDisposable

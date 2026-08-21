@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GraniteEdgeAI.Features.Prompting;
 
@@ -35,6 +37,19 @@ public sealed class PromptRouteRegistry
             ? adapter
             : throw new KeyNotFoundException(
                 $"No prompt adapter is registered for route '{kind}'.");
+
+    public Task<PromptRouteSessionActivation> ActivateAsync(
+        IPromptRouteActivation activation,
+        Action<PromptEvent> eventSink,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(activation);
+        ArgumentNullException.ThrowIfNull(eventSink);
+        return GetRequired(activation.Kind).ActivateAsync(
+            activation,
+            eventSink,
+            cancellationToken);
+    }
 
     private static void Validate(PromptRouteCapability capability)
     {

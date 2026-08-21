@@ -1,6 +1,7 @@
 using GraniteEdgeAI.Features.ModelImport;
 using GraniteEdgeAI.Features.ModelImport.FileImport;
 using GraniteEdgeAI.Features.ModelImport.FileImport.PickerRoute;
+using GraniteEdgeAI.Features.ModelImport.Selection;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
 
@@ -132,25 +133,54 @@ public sealed class ModelFilePickerTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
-    public async Task OpenVinoSelection_CurrentlyDeferred_DoesNotOpenGgufPicker()
+    public async Task OpenVinoSelection_UsesFolderPickerAndNormalSelectionRoute()
     {
-        var pickerInteractionCount = 0;
+        const string selectedDirectory = @"C:\Models\OpenVINO Granite";
+        var ggufPickerInteractionCount = 0;
+        var openVinoPickerInteractionCount = 0;
         var page = new ModelImportPage(
             () => Task.FromResult(ModelFormatSelection.OpenVino),
             () =>
             {
-                pickerInteractionCount++;
+                ggufPickerInteractionCount++;
                 return Task.FromResult<string?>(null);
+            },
+            classifier: new AcceptingOpenVinoClassifier(),
+            pickOpenVinoPathAsync: () =>
+            {
+                openVinoPickerInteractionCount++;
+                return Task.FromResult<string?>(selectedDirectory);
             });
 
         await page.BrowseFilesAsync();
 
-        Assert.AreEqual(0, pickerInteractionCount);
+        Assert.AreEqual(0, ggufPickerInteractionCount);
+        Assert.AreEqual(1, openVinoPickerInteractionCount);
         Assert.IsNull(page.SelectedModelPath);
+        Assert.AreEqual(ModelSelectionRoute.OpenVinoDirectory, page.CurrentRoute);
+        Assert.IsTrue(page.HasValidatedModel);
+        Assert.IsTrue(GetContinueButton(page).IsEnabled);
     }
 
     private static Button GetContinueButton(ModelImportPage page)
     {
         return (Button)page.FindName("ContinueToModelInspectionButton");
+    }
+
+    private sealed class AcceptingOpenVinoClassifier : IModelSelectionClassifier
+    {
+        public Task<ModelSelectionResult> ClassifyAsync(
+            ModelSelectionOperationId operationId,
+            ModelSelectionInput input,
+            CancellationToken cancellationToken)
+        {
+            Assert.AreEqual(@"C:\Models\OpenVINO Granite", input.LocalPath);
+            Assert.AreEqual("OpenVINO Granite", input.DisplayName);
+            Assert.IsTrue(input.IsFolder);
+            return Task.FromResult(ModelSelectionResult.Accepted(
+                operationId,
+                ModelSelectionRoute.OpenVinoDirectory,
+                input.DisplayName));
+        }
     }
 }

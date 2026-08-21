@@ -1,7 +1,9 @@
 using System.Diagnostics;
 using GraniteEdgeAI.Features.ModelImport;
+using GraniteEdgeAI.Features.ModelImport.FileImport;
 using GraniteEdgeAI.Features.ModelImport.Selection;
 using GraniteEdgeAI.Features.ModelInspection;
+using GraniteEdgeAI.Features.ModelInspection.Controls;
 using GraniteEdgeAI.Features.ModelInspection.Services;
 using GraniteEdgeAI.Features.Onboarding;
 using GraniteEdgeAI.Features.Prompting;
@@ -38,9 +40,8 @@ public sealed class OpenVinoPackagedUiEndToEndTests
             PromptTurnStatus.Failed,
             Require(failedJourney.Page.LastOpenVinoTurnResult).Status);
         await AssertNoOfficialWorkerProcessAsync();
-        Assert.IsTrue(failedJourney.Frame.Navigate(typeof(ModelImportPage)));
-        await Require(failedJourney.Page.CurrentOpenVinoCleanupTask)
-            .WaitAsync(TimeSpan.FromSeconds(30));
+        Assert.IsTrue(await failedJourney.Shell.ReturnToModelImportAsync());
+        Assert.IsInstanceOfType<ModelImportPage>(failedJourney.Frame.Content);
 
         PageJourney journey = await NavigateCanonicalAsync(package);
         ModelInspectionPage page = journey.Page;
@@ -70,15 +71,33 @@ public sealed class OpenVinoPackagedUiEndToEndTests
             Require(page.LastOpenVinoTurnResult).Status);
         Assert.IsTrue(send.IsEnabled, "STOP must return the same session to ready.");
 
+        input.Text = "hello";
+        InvokeButton(send, "post-STOP prompt Send");
+        await Require(page.CurrentOpenVinoPromptTask)
+            .WaitAsync(TimeSpan.FromSeconds(30));
+        Assert.AreEqual("fixture", response.Text);
+        Assert.AreEqual(
+            PromptTurnStatus.Completed,
+            Require(page.LastOpenVinoTurnResult).Status);
+
+        page.RequestedOpenVinoNewTokens = 32;
+        input.Text = "hello";
+        InvokeButton(send, "active CANCEL prompt Send");
         InvokeButton(cancel, "Cancel session");
         await Require(page.CurrentOpenVinoCancelTask)
             .WaitAsync(TimeSpan.FromSeconds(30));
+        await Require(page.CurrentOpenVinoPromptTask)
+            .WaitAsync(TimeSpan.FromSeconds(30));
+        string responseAtCancellation = response.Text;
+        await Task.Delay(250);
+        Assert.AreEqual(responseAtCancellation, response.Text,
+            "A cancelled native turn must not publish late output.");
         Assert.IsFalse(send.IsEnabled);
         Assert.IsFalse(stop.IsEnabled);
+        Assert.IsFalse(cancel.IsEnabled);
 
-        Assert.IsTrue(journey.Frame.Navigate(typeof(ModelImportPage)));
-        await Require(page.CurrentOpenVinoCleanupTask)
-            .WaitAsync(TimeSpan.FromSeconds(30));
+        Assert.IsTrue(await journey.Shell.ReturnToModelImportAsync());
+        Assert.IsInstanceOfType<ModelImportPage>(journey.Frame.Content);
         await AssertNoOfficialWorkerProcessAsync();
     }
 
@@ -87,12 +106,14 @@ public sealed class OpenVinoPackagedUiEndToEndTests
     {
         OnboardingShellPage shell = new();
         Frame frame = (Frame)shell.FindName("StageFrame");
-        ModelImportPage import =
-            Assert.IsInstanceOfType<ModelImportPage>(frame.Content);
-        await import.SubmitInputAsync(new ModelSelectionInput(
-            package,
-            "TinySyntheticV1",
-            isFolder: true));
+        ModelImportPage import = new(
+            () => Task.FromResult(ModelFormatSelection.OpenVino),
+            () => throw new AssertFailedException(
+                "OpenVINO selection must not invoke the GGUF picker."),
+            pickOpenVinoPathAsync: () => Task.FromResult<string?>(package));
+        frame.Content = import;
+        shell.AttachModelImportPage(import);
+        await import.BrowseFilesAsync();
         InvokeButton(
             (Button)import.FindName("ContinueToModelInspectionButton"),
             "OpenVINO Continue");
@@ -107,14 +128,14 @@ public sealed class OpenVinoPackagedUiEndToEndTests
             ((Border)page.FindName("PromptSurface")).Visibility);
         Assert.AreEqual(
             "Requested CPU · Running CPU",
-            ((TextBlock)page.FindName("OpenVinoExecutionEvidenceText")).Text);
+            ((TextBlock)page.FindName("PromptExecutionEvidenceText")).Text);
         Assert.AreEqual(
             "Runtime 2026.3.0-22451-8a17657b995-releases/2026/3 · " +
             "GenAI 2026.3.0.0-3277-bd8d6542e3c · " +
             "Tokenizers 2026.3.0.0-703-183c6f25cda · " +
             "Worker manifest 0f656f6f2afe0b7246d0746f458ad6ed02e23be943145779b0160dd69aff2ebe",
-            ((TextBlock)page.FindName("OpenVinoBuildEvidenceText")).Text);
-        return new PageJourney(frame, page);
+            ((TextBlock)page.FindName("PromptBuildEvidenceText")).Text);
+        return new PageJourney(shell, frame, page);
     }
 
     [UITestMethod]
@@ -124,46 +145,43 @@ public sealed class OpenVinoPackagedUiEndToEndTests
     {
         await AssertNoOfficialWorkerProcessAsync();
         string package = PackagedCanonicalFixture();
-        string sourceWorker = PackagedWorkerRoot();
-        string operationRoot = Path.Combine(
-            Path.GetTempPath(),
-            $"granite-o1-task8-worker-negative-{Guid.NewGuid():N}");
+        string workerRoot = PackagedWorkerRoot();
+        string manifest = Path.Combine(workerRoot, "worker-manifest.json");
+        string manifestBackup = manifest + $".task8-backup-{Guid.NewGuid():N}";
+        string license = Path.Combine(workerRoot, "licenses", "Apache_license.txt");
+        byte[] originalLicense = await File.ReadAllBytesAsync(license);
         try
         {
-            CopyDirectory(sourceWorker, operationRoot);
-            File.Delete(Path.Combine(operationRoot, "worker-manifest.json"));
-            await AssertControlledRecoveryAsync(operationRoot, package);
+            File.Move(manifest, manifestBackup);
+            await AssertDefaultControlledRecoveryAsync(package, workerRoot);
+            File.Move(manifestBackup, manifest);
 
-            CopyDirectory(sourceWorker, operationRoot, overwrite: true);
-            await File.AppendAllTextAsync(
-                Path.Combine(operationRoot, "licenses", "Apache_license.txt"),
-                "tampered");
-            await AssertControlledRecoveryAsync(operationRoot, package);
+            await File.AppendAllTextAsync(license, "tampered");
+            await AssertDefaultControlledRecoveryAsync(package, workerRoot);
         }
         finally
         {
-            if (Directory.Exists(operationRoot))
+            await File.WriteAllBytesAsync(license, originalLicense);
+            if (File.Exists(manifestBackup))
             {
-                Directory.Delete(operationRoot, recursive: true);
+                if (File.Exists(manifest))
+                {
+                    File.Delete(manifest);
+                }
+                File.Move(manifestBackup, manifest);
             }
         }
 
         await AssertNoOfficialWorkerProcessAsync();
-        Assert.IsFalse(Directory.Exists(operationRoot));
+        Assert.IsFalse(File.Exists(manifestBackup));
     }
 
-    private static async Task AssertControlledRecoveryAsync(
-        string workerRoot,
-        string package)
+    private static async Task AssertDefaultControlledRecoveryAsync(
+        string package,
+        string workerRoot)
     {
-        ModelInspectionPage page = new();
-        page.OpenVinoRouteServiceFactory = () =>
-            ModelInspectionServiceComposition.CreateOpenVinoRouteService(
-                workerRoot);
-        page.ActivateOpenVinoInspection(new OpenVinoInspectionRequestedEventArgs(
-            ModelSelectionOperationId.CreateNew(),
-            package,
-            "TinySyntheticV1"));
+        PageJourney journey = await StartJourneyAsync(package);
+        ModelInspectionPage page = journey.Page;
 
         await Require(page.CurrentOpenVinoInspectionTask)
             .WaitAsync(TimeSpan.FromSeconds(30));
@@ -171,8 +189,40 @@ public sealed class OpenVinoPackagedUiEndToEndTests
         Assert.IsFalse(((Button)page.FindName("PromptSendButton")).IsEnabled);
         Assert.IsFalse(response.Text.Contains(package, StringComparison.OrdinalIgnoreCase));
         Assert.IsFalse(response.Text.Contains(workerRoot, StringComparison.OrdinalIgnoreCase));
-        await page.RetireOpenVinoInspectionAsync();
+        InspectionContentCard content = (InspectionContentCard)page.FindName(
+            "InspectionContentCardControl");
+        string recoveryEvidence = response.Text + " " +
+            content.Presentation.DiagnosticCode;
+        Assert.IsTrue(
+            recoveryEvidence.Contains("runtime_load_failed", StringComparison.Ordinal) ||
+            recoveryEvidence.Contains("runtime_manifest_invalid", StringComparison.Ordinal) ||
+            recoveryEvidence.Contains("runtime_integrity_failed", StringComparison.Ordinal),
+            $"Expected a fixed path-free recovery code, actual: {recoveryEvidence}");
+        Assert.IsFalse(recoveryEvidence.Contains('\\'));
+        Assert.IsFalse(recoveryEvidence.Contains(":/", StringComparison.Ordinal));
+        await journey.Shell.ShutdownAsync();
         await AssertNoOfficialWorkerProcessAsync();
+    }
+
+    private static async Task<PageJourney> StartJourneyAsync(string package)
+    {
+        OnboardingShellPage shell = new();
+        Frame frame = (Frame)shell.FindName("StageFrame");
+        ModelImportPage import = new(
+            () => Task.FromResult(ModelFormatSelection.OpenVino),
+            () => throw new AssertFailedException(
+                "OpenVINO selection must not invoke the GGUF picker."),
+            pickOpenVinoPathAsync: () => Task.FromResult<string?>(package));
+        frame.Content = import;
+        shell.AttachModelImportPage(import);
+        await import.BrowseFilesAsync();
+        InvokeButton(
+            (Button)import.FindName("ContinueToModelInspectionButton"),
+            "OpenVINO Continue");
+        return new PageJourney(
+            shell,
+            frame,
+            Assert.IsInstanceOfType<ModelInspectionPage>(frame.Content));
     }
 
     private static string PackagedCanonicalFixture()
@@ -224,30 +274,6 @@ public sealed class OpenVinoPackagedUiEndToEndTests
         return value!;
     }
 
-    private static void CopyDirectory(
-        string source,
-        string destination,
-        bool overwrite = false)
-    {
-        Directory.CreateDirectory(destination);
-        foreach (string directory in Directory.EnumerateDirectories(
-                     source, "*", SearchOption.AllDirectories))
-        {
-            Directory.CreateDirectory(Path.Combine(
-                destination,
-                Path.GetRelativePath(source, directory)));
-        }
-        foreach (string file in Directory.EnumerateFiles(
-                     source, "*", SearchOption.AllDirectories))
-        {
-            string target = Path.Combine(
-                destination,
-                Path.GetRelativePath(source, file));
-            Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-            File.Copy(file, target, overwrite);
-        }
-    }
-
     private static async Task AssertNoOfficialWorkerProcessAsync()
     {
         DateTimeOffset deadline = DateTimeOffset.UtcNow.AddSeconds(3);
@@ -275,5 +301,8 @@ public sealed class OpenVinoPackagedUiEndToEndTests
         Assert.Fail("An official OpenVINO worker process remained after UI cleanup.");
     }
 
-    private sealed record PageJourney(Frame Frame, ModelInspectionPage Page);
+    private sealed record PageJourney(
+        OnboardingShellPage Shell,
+        Frame Frame,
+        ModelInspectionPage Page);
 }

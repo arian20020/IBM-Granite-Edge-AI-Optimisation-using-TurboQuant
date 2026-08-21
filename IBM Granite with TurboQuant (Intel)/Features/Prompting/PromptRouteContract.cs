@@ -65,6 +65,21 @@ public sealed record PromptRouteCapability(
     int DefaultRequestedNewTokens,
     int MaximumRequestedNewTokens);
 
+public interface IPromptRouteActivation
+{
+    PromptRouteKind Kind { get; }
+}
+
+public sealed record PromptRoutePresentation(
+    string CapabilitySummary,
+    string ExecutionEvidence,
+    string BuildEvidence,
+    string ReadyAnnouncement);
+
+public sealed record PromptRouteSessionActivation(
+    IPromptRouteSession Session,
+    PromptRoutePresentation Presentation);
+
 public interface IPromptRouteSession : IAsyncDisposable
 {
     PromptRouteCapability Capability { get; }
@@ -84,4 +99,11 @@ public interface IPromptRouteSession : IAsyncDisposable
 public interface IPromptRouteAdapter
 {
     PromptRouteCapability Capability { get; }
+
+    Task<PromptRouteSessionActivation> ActivateAsync(
+        IPromptRouteActivation activation,
+        Action<PromptEvent> eventSink,
+        CancellationToken cancellationToken) =>
+        throw new NotSupportedException(
+            $"Prompt route '{Capability.RouteId}' does not support session activation.");
 }

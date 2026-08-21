@@ -16,10 +16,10 @@ namespace GraniteEdgeAI.Features.ModelInspection;
 public sealed partial class ModelInspectionPage
 {
     private OpenVinoRouteService? _openVinoRouteService;
-    private Func<OpenVinoRouteService> _openVinoRouteServiceFactory =
-        ModelInspectionServiceComposition.CreateDefaultOpenVinoRouteService;
+    private PromptRouteRegistry? _promptRouteRegistry;
     private CancellationTokenSource? _openVinoCancellation;
-    private OpenVinoRouteSession? _openVinoSession;
+    private IPromptRouteSession? _promptSession;
+    private PromptSessionPresenter? _promptPresenter;
     private long _openVinoLifetime;
     private int _requestedOpenVinoNewTokens =
         OpenVinoRouteCapability.DefaultRequestedNewTokens;
@@ -29,6 +29,7 @@ public sealed partial class ModelInspectionPage
     internal Task? CurrentOpenVinoStopTask { get; private set; }
     internal Task? CurrentOpenVinoCancelTask { get; private set; }
     internal Task? CurrentOpenVinoCleanupTask { get; private set; }
+    internal Func<Task>? NavigationRetirementOverride { get; set; }
     internal PromptTurnResult? LastOpenVinoTurnResult { get; private set; }
     internal int RequestedOpenVinoNewTokens
     {
@@ -43,15 +44,6 @@ public sealed partial class ModelInspectionPage
         }
     }
 
-    // Internal-only injection lets packaged tests exercise a damaged
-    // operation-owned closure without mutating the installed app package.
-    internal Func<OpenVinoRouteService> OpenVinoRouteServiceFactory
-    {
-        get => _openVinoRouteServiceFactory;
-        set => _openVinoRouteServiceFactory = value ??
-            throw new ArgumentNullException(nameof(value));
-    }
-
     private void BeginOpenVinoInspection(
         OpenVinoInspectionRequestedEventArgs request)
     {
@@ -59,7 +51,9 @@ public sealed partial class ModelInspectionPage
         try
         {
             service = _openVinoRouteService ??=
-                _openVinoRouteServiceFactory();
+                ModelInspectionServiceComposition.CreateDefaultOpenVinoRouteService();
+            _promptRouteRegistry ??=
+                ModelInspectionServiceComposition.CreatePromptRouteRegistry(service);
         }
         catch (Exception)
         {
@@ -87,11 +81,13 @@ public sealed partial class ModelInspectionPage
         long lifetime,
         CancellationToken cancellationToken)
     {
+        OpenVinoRouteHandoffLease? handoffLease = null;
         try
         {
             OpenVinoRouteInspectionResult result = await Task.Run(
                 () => service.InspectAsync(request.DirectoryPath, cancellationToken),
                 cancellationToken);
+            handoffLease = result.HandoffLease;
             if (!IsCurrentOpenVinoLifetime(lifetime))
             {
                 return;
@@ -100,27 +96,29 @@ public sealed partial class ModelInspectionPage
             if (result.Outcome is not (
                     OpenVinoRouteInspectionOutcome.Ready or
                     OpenVinoRouteInspectionOutcome.ReadyWithWarnings) ||
-                result.Handoff is null)
+                handoffLease is null)
             {
                 ApplyOpenVinoNonReadyPresentation(result);
                 return;
             }
 
-            OpenVinoRouteSession session = await service.StartSessionAsync(
-                result.Handoff,
-                promptEvent => ApplyOpenVinoPromptEvent(lifetime, promptEvent),
+            PromptRouteSessionActivation active = await _promptRouteRegistry!
+                .ActivateAsync(
+                handoffLease,
+                promptEvent => ApplyPromptEvent(lifetime, promptEvent),
                 cancellationToken);
             if (!IsCurrentOpenVinoLifetime(lifetime))
             {
-                await session.CancelAsync(CancellationToken.None);
-                await session.DisposeAsync();
+                await active.Session.CancelAsync(CancellationToken.None);
+                await active.Session.DisposeAsync();
                 return;
             }
 
-            _openVinoSession = session;
+            _promptSession = active.Session;
+            _promptPresenter = new PromptSessionPresenter(active.Presentation);
             ApplyOpenVinoReadyPresentation(
                 result,
-                service.ExpectedBuildEvidence);
+                active.Presentation);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -137,6 +135,14 @@ public sealed partial class ModelInspectionPage
                     "runtime_load_failed",
                     "The OpenVINO runtime could not load the model package.",
                     "Choose the package again or retry loading.");
+            }
+        }
+        finally
+        {
+            handoffLease?.Dispose();
+            if (IsCurrentOpenVinoLifetime(lifetime))
+            {
+                OpenVinoRequest = null;
             }
         }
     }
@@ -182,13 +188,14 @@ public sealed partial class ModelInspectionPage
             InspectionOutcomePresentation.Hidden;
         SetPromptSurfaceVisible(false);
         SetPromptControlsEnabled(send: false, stop: false, cancel: false);
-        OpenVinoExecutionEvidenceText.Text = string.Empty;
-        OpenVinoBuildEvidenceText.Text = string.Empty;
+        PromptCapabilitySummary.Text = string.Empty;
+        PromptExecutionEvidenceText.Text = string.Empty;
+        PromptBuildEvidenceText.Text = string.Empty;
     }
 
     private void ApplyOpenVinoReadyPresentation(
         OpenVinoRouteInspectionResult result,
-        OpenVinoBuildEvidence? buildEvidence)
+        PromptRoutePresentation promptPresentation)
     {
         bool warnings = result.Outcome ==
             OpenVinoRouteInspectionOutcome.ReadyWithWarnings;
@@ -221,18 +228,12 @@ public sealed partial class ModelInspectionPage
         InspectionActionCardControl.Presentation =
             InspectionActionCardPresentation.Hidden;
         SetPromptSurfaceVisible(true);
-        PromptSendButton.IsEnabled = true;
-        PromptStopButton.IsEnabled = false;
-        PromptCancelButton.IsEnabled = true;
-        OpenVinoExecutionEvidenceText.Text = "Requested CPU · Running CPU";
-        OpenVinoBuildEvidenceText.Text = buildEvidence is null
-            ? "Verified official worker build"
-            : $"Runtime {buildEvidence.RuntimeBuild} · " +
-              $"GenAI {buildEvidence.GenAiBuild} · " +
-              $"Tokenizers {buildEvidence.TokenizersBuild} · " +
-              $"Worker manifest {buildEvidence.WorkerManifestDigest}";
+        PromptCapabilitySummary.Text = promptPresentation.CapabilitySummary;
+        PromptExecutionEvidenceText.Text = promptPresentation.ExecutionEvidence;
+        PromptBuildEvidenceText.Text = promptPresentation.BuildEvidence;
+        ApplyPromptSurfaceState(_promptPresenter!.State);
         PromptInput.Focus(FocusState.Programmatic);
-        AnnouncePromptStatus("OpenVINO CPU session ready.");
+        AnnouncePromptStatus(promptPresentation.ReadyAnnouncement);
     }
 
     private void ApplyOpenVinoNonReadyPresentation(
@@ -329,65 +330,31 @@ public sealed partial class ModelInspectionPage
         string message,
         string recovery)
     {
+        PromptFailure failure = new(supportCode, message, recovery);
+        _promptPresenter ??= new PromptSessionPresenter(
+            new PromptRoutePresentation(
+                string.Empty,
+                string.Empty,
+                string.Empty,
+                string.Empty));
+        _promptPresenter.ApplyFailure(failure);
         SetPromptSurfaceVisible(true);
-        PromptSendButton.IsEnabled = false;
-        PromptStopButton.IsEnabled = false;
-        PromptCancelButton.IsEnabled = false;
-        PromptResponseText.Text = $"{message} {recovery}";
+        ApplyPromptSurfaceState(_promptPresenter.State);
         PromptInput.Focus(FocusState.Programmatic);
-        AnnouncePromptStatus($"{message} {recovery}");
     }
 
-    private void ApplyOpenVinoPromptEvent(long lifetime, PromptEvent promptEvent)
+    private void ApplyPromptEvent(long lifetime, PromptEvent promptEvent)
     {
         void Apply()
         {
-            if (!IsCurrentOpenVinoLifetime(lifetime))
+            if (!IsCurrentOpenVinoLifetime(lifetime) ||
+                _promptPresenter is null)
             {
                 return;
             }
 
-            switch (promptEvent.Kind)
-            {
-                case PromptEventKind.GeneratingTurn:
-                    PromptResponseText.Text = string.Empty;
-                    PromptSendButton.IsEnabled = false;
-                    PromptStopButton.IsEnabled = true;
-                    break;
-                case PromptEventKind.TextDelta:
-                    PromptResponseText.Text += promptEvent.Text;
-                    break;
-                case PromptEventKind.StoppingTurn:
-                    PromptStopButton.IsEnabled = false;
-                    AnnouncePromptStatus("Stopping generation.");
-                    break;
-                case PromptEventKind.TurnCompleted:
-                case PromptEventKind.SessionReady:
-                    PromptSendButton.IsEnabled = true;
-                    PromptStopButton.IsEnabled = false;
-                    PromptInput.Focus(FocusState.Programmatic);
-                    break;
-                case PromptEventKind.Failed:
-                    ApplyOpenVinoFailurePresentation(
-                        promptEvent.Failure?.SupportCode ?? "runtime_protocol_failed",
-                        promptEvent.Failure?.Message ??
-                            "The local OpenVINO operation could not continue.",
-                        promptEvent.Failure?.RecoveryAction ??
-                            "Close the session and choose the package again.");
-                    break;
-                case PromptEventKind.CancellingSession:
-                    PromptSendButton.IsEnabled = false;
-                    PromptStopButton.IsEnabled = false;
-                    AnnouncePromptStatus("Cancelling local session.");
-                    break;
-                case PromptEventKind.Cancelled:
-                case PromptEventKind.SessionCompleted:
-                    PromptSendButton.IsEnabled = false;
-                    PromptStopButton.IsEnabled = false;
-                    PromptInput.Focus(FocusState.Programmatic);
-                    AnnouncePromptStatus("Local session closed.");
-                    break;
-            }
+            _promptPresenter.Apply(promptEvent);
+            ApplyPromptSurfaceState(_promptPresenter.State);
         }
 
         if (DispatcherQueue.HasThreadAccess)
@@ -402,7 +369,7 @@ public sealed partial class ModelInspectionPage
 
     private async void PromptSendButton_Click(object sender, RoutedEventArgs e)
     {
-        OpenVinoRouteSession? session = _openVinoSession;
+        IPromptRouteSession? session = _promptSession;
         string prompt = PromptInput.Text;
         if (session is null || string.IsNullOrWhiteSpace(prompt))
         {
@@ -419,7 +386,7 @@ public sealed partial class ModelInspectionPage
     }
 
     private async Task GenerateOpenVinoPromptAsync(
-        OpenVinoRouteSession session,
+        IPromptRouteSession session,
         string prompt,
         CancellationToken cancellationToken)
     {
@@ -432,7 +399,7 @@ public sealed partial class ModelInspectionPage
             if (LastOpenVinoTurnResult.Status == PromptTurnStatus.Failed)
             {
                 Interlocked.CompareExchange(
-                    ref _openVinoSession,
+                    ref _promptSession,
                     null,
                     session);
                 await session.DisposeAsync();
@@ -446,22 +413,22 @@ public sealed partial class ModelInspectionPage
         {
             ApplyOpenVinoFailurePresentation(
                 "runtime_protocol_failed",
-                "The local OpenVINO prompt could not continue.",
-                "Close the session and inspect the package again.");
+                "The local prompt could not continue.",
+                "Close the session and inspect the model again.");
         }
     }
 
     private async void PromptStopButton_Click(object sender, RoutedEventArgs e)
     {
-        if (_openVinoSession is not null)
+        if (_promptSession is not null)
         {
             CurrentOpenVinoStopTask = StopOpenVinoPromptAsync(
-                _openVinoSession);
+                _promptSession);
             await CurrentOpenVinoStopTask;
         }
     }
 
-    private async Task StopOpenVinoPromptAsync(OpenVinoRouteSession session)
+    private async Task StopOpenVinoPromptAsync(IPromptRouteSession session)
     {
         try
         {
@@ -471,23 +438,23 @@ public sealed partial class ModelInspectionPage
         {
             ApplyOpenVinoFailurePresentation(
                 "runtime_protocol_failed",
-                "The local OpenVINO prompt could not be stopped safely.",
-                "Close the session and inspect the package again.");
+                "The local prompt could not be stopped safely.",
+                "Close the session and inspect the model again.");
         }
     }
 
     private async void PromptCancelButton_Click(object sender, RoutedEventArgs e)
     {
-        if (_openVinoSession is not null)
+        if (_promptSession is not null)
         {
             CurrentOpenVinoCancelTask = CancelOpenVinoSessionAsync(
-                _openVinoSession);
+                _promptSession);
             await CurrentOpenVinoCancelTask;
         }
         PromptInput.Focus(FocusState.Programmatic);
     }
 
-    private async Task CancelOpenVinoSessionAsync(OpenVinoRouteSession session)
+    private async Task CancelOpenVinoSessionAsync(IPromptRouteSession session)
     {
         try
         {
@@ -497,8 +464,8 @@ public sealed partial class ModelInspectionPage
         {
             ApplyOpenVinoFailurePresentation(
                 "runtime_protocol_failed",
-                "The local OpenVINO session could not be cancelled safely.",
-                "Close this page and inspect the package again.");
+                "The local session could not be cancelled safely.",
+                "Close this page and inspect the model again.");
         }
     }
 
@@ -516,6 +483,27 @@ public sealed partial class ModelInspectionPage
         PromptCancelButton.IsEnabled = cancel;
     }
 
+    private void ApplyPromptSurfaceState(PromptSurfaceState state)
+    {
+        PromptCapabilitySummary.Text = state.CapabilitySummary;
+        PromptExecutionEvidenceText.Text = state.ExecutionEvidence;
+        PromptBuildEvidenceText.Text = state.BuildEvidence;
+        PromptResponseText.Text = state.ResponseText;
+        SetPromptControlsEnabled(
+            state.SendEnabled,
+            state.StopEnabled,
+            state.CancelEnabled);
+        if (state.SendEnabled ||
+            (!state.SendEnabled && !state.StopEnabled && !state.CancelEnabled))
+        {
+            PromptInput.Focus(FocusState.Programmatic);
+        }
+        if (!string.IsNullOrWhiteSpace(state.Announcement))
+        {
+            AnnouncePromptStatus(state.Announcement);
+        }
+    }
+
     private void AnnouncePromptStatus(string text)
     {
         AutomationProperties.SetName(PromptResponseText, text);
@@ -526,14 +514,15 @@ public sealed partial class ModelInspectionPage
     }
 
     private bool IsCurrentOpenVinoLifetime(long lifetime) =>
-        lifetime == _openVinoLifetime && OpenVinoRequest is not null;
+        lifetime == _openVinoLifetime && _openVinoCancellation is not null;
 
     private void RetireOpenVinoLifetime()
     {
         CancellationTokenSource? cancellation =
             Interlocked.Exchange(ref _openVinoCancellation, null);
-        OpenVinoRouteSession? session =
-            Interlocked.Exchange(ref _openVinoSession, null);
+        IPromptRouteSession? session =
+            Interlocked.Exchange(ref _promptSession, null);
+        _promptPresenter = null;
         Task? inspectionTask = CurrentOpenVinoInspectionTask;
         Task? promptTask = CurrentOpenVinoPromptTask;
         Task? stopTask = CurrentOpenVinoStopTask;
@@ -554,7 +543,7 @@ public sealed partial class ModelInspectionPage
     }
 
     private static async Task CleanupOpenVinoAsync(
-        OpenVinoRouteSession? session,
+        IPromptRouteSession? session,
         CancellationTokenSource? cancellation,
         params Task?[] activeTasks)
     {
@@ -578,21 +567,14 @@ public sealed partial class ModelInspectionPage
 
             if (session is not null)
             {
-                OpenVinoRouteState state = session.Snapshot.State;
-                if (state is not (
-                        OpenVinoRouteState.SessionCompleted or
-                        OpenVinoRouteState.Failed or
-                        OpenVinoRouteState.Cancelled))
+                try
                 {
-                    try
-                    {
-                        await session.CancelAsync(CancellationToken.None)
-                            .ConfigureAwait(false);
-                    }
-                    catch (Exception)
-                    {
-                        // Disposal still owns the terminal resource release.
-                    }
+                    await session.CancelAsync(CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
+                catch (Exception)
+                {
+                    // Disposal still owns the terminal resource release.
                 }
                 await session.DisposeAsync().ConfigureAwait(false);
             }
@@ -619,5 +601,17 @@ public sealed partial class ModelInspectionPage
         {
             await CurrentOpenVinoCleanupTask;
         }
+    }
+
+    internal async Task RetireForNavigationAsync()
+    {
+        if (NavigationRetirementOverride is not null)
+        {
+            await NavigationRetirementOverride();
+            return;
+        }
+
+        await RetireOpenVinoInspectionAsync();
+        RetirePageLifetime();
     }
 }

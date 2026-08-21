@@ -7,6 +7,144 @@ namespace GraniteEdgeAI.OpenVino.Tests;
 public sealed class PromptRouteContractRedTests
 {
     [TestMethod]
+    public async Task RegistryActivatesTestGgufSessionThroughNeutralPresenter()
+    {
+        FakeSession session = new(Capability(PromptRouteKind.Gguf, "gguf.local"));
+        FakeActivation activation = new(PromptRouteKind.Gguf);
+        FakeActivatingAdapter adapter = new(session);
+        PromptRouteRegistry registry = new([adapter]);
+
+        PromptRouteSessionActivation active = await registry.ActivateAsync(
+            activation,
+            _ => { },
+            CancellationToken.None);
+        PromptSessionPresenter presenter = new(active.Presentation);
+        presenter.Apply(new PromptEvent(
+            PromptEventKind.GeneratingTurn,
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            null,
+            null,
+            "CPU",
+            ["CPU"]));
+        presenter.Apply(new PromptEvent(
+            PromptEventKind.TextDelta,
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "fixture",
+            null,
+            "CPU",
+            ["CPU"]));
+        presenter.Apply(new PromptEvent(
+            PromptEventKind.TurnCompleted,
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            null,
+            null,
+            "CPU",
+            ["CPU"]));
+
+        Assert.AreSame(session, active.Session);
+        Assert.AreSame(activation, adapter.Activation);
+        Assert.AreEqual("GGUF test adapter", presenter.State.CapabilitySummary);
+        Assert.AreEqual("fixture", presenter.State.ResponseText);
+        Assert.IsTrue(presenter.State.SendEnabled);
+        Assert.IsFalse(presenter.State.StopEnabled);
+        Assert.IsTrue(presenter.State.CancelEnabled);
+    }
+
+    [TestMethod]
+    public void TerminalEventsDisableEveryPromptActionAndSurfaceSafeSupportCode()
+    {
+        PromptSessionPresenter presenter = new(new PromptRoutePresentation(
+            "OpenVINO GenAI · CPU · Official MVP",
+            "Requested CPU · Running CPU",
+            "Verified official worker build",
+            "Local CPU session ready."));
+        presenter.Apply(new PromptEvent(
+            PromptEventKind.Failed,
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            null,
+            null,
+            new PromptFailure(
+                "runtime_protocol_failed",
+                "The local prompt could not continue.",
+                "Choose the package again."),
+            "CPU",
+            ["CPU"]));
+
+        Assert.IsFalse(presenter.State.SendEnabled);
+        Assert.IsFalse(presenter.State.StopEnabled);
+        Assert.IsFalse(presenter.State.CancelEnabled);
+        StringAssert.Contains(
+            presenter.State.ResponseText,
+            "Support code: runtime_protocol_failed");
+        Assert.IsFalse(presenter.State.ResponseText.Contains('\\'));
+        Assert.IsFalse(presenter.State.ResponseText.Contains(":/", StringComparison.Ordinal));
+
+        presenter.Apply(new PromptEvent(
+            PromptEventKind.SessionCompleted,
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            null,
+            null,
+            null,
+            "CPU",
+            ["CPU"]));
+        Assert.IsFalse(presenter.State.CancelEnabled);
+    }
+
+    [TestMethod]
+    public void SharedPromptTemplateUsesOnlyRouteNeutralPresentationFields()
+    {
+        string repositoryRoot = FindRepositoryRoot();
+        string xaml = File.ReadAllText(Path.Combine(
+            repositoryRoot,
+            "IBM Granite with TurboQuant (Intel)",
+            "Features",
+            "ModelInspection",
+            "ModelInspectionPage.xaml"));
+        int promptStart = xaml.IndexOf("x:Name=\"PromptSurface\"", StringComparison.Ordinal);
+        Assert.IsTrue(promptStart >= 0);
+        string promptTemplate = xaml[promptStart..];
+
+        StringAssert.Contains(promptTemplate, "x:Name=\"PromptExecutionEvidenceText\"");
+        StringAssert.Contains(promptTemplate, "x:Name=\"PromptBuildEvidenceText\"");
+        Assert.IsFalse(promptTemplate.Contains("OpenVINO", StringComparison.OrdinalIgnoreCase));
+        Assert.IsFalse(promptTemplate.Contains("OpenVino", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [TestMethod]
+    public void ProductionCompositionExposesNoArbitraryVerifiedWorkerRootSeam()
+    {
+        string repositoryRoot = FindRepositoryRoot();
+        string page = File.ReadAllText(Path.Combine(
+            repositoryRoot,
+            "IBM Granite with TurboQuant (Intel)",
+            "Features",
+            "ModelInspection",
+            "ModelInspectionPage.OpenVino.cs"));
+        string composition = File.ReadAllText(Path.Combine(
+            repositoryRoot,
+            "IBM Granite with TurboQuant (Intel)",
+            "Features",
+            "ModelInspection",
+            "Services",
+            "ModelInspectionServiceComposition.cs"));
+
+        Assert.IsFalse(page.Contains(
+            "OpenVinoRouteServiceFactory",
+            StringComparison.Ordinal));
+        Assert.IsFalse(composition.Contains(
+            "internal static OpenVinoRouteService CreateOpenVinoRouteService",
+            StringComparison.Ordinal));
+    }
+
+    [TestMethod]
     public void RegistryAcceptsBothRouteKindsWithoutRuntimeSpecificContractTypes()
     {
         PromptRouteRegistry registry = new(
@@ -106,5 +244,69 @@ public sealed class PromptRouteContractRedTests
         IPromptRouteAdapter
     {
         public PromptRouteCapability Capability { get; } = capability;
+    }
+
+    private sealed record FakeActivation(PromptRouteKind Kind) :
+        IPromptRouteActivation;
+
+    private sealed class FakeActivatingAdapter(FakeSession session) :
+        IPromptRouteAdapter
+    {
+        public PromptRouteCapability Capability => session.Capability;
+
+        public IPromptRouteActivation? Activation { get; private set; }
+
+        public Task<PromptRouteSessionActivation> ActivateAsync(
+            IPromptRouteActivation activation,
+            Action<PromptEvent> eventSink,
+            CancellationToken cancellationToken)
+        {
+            Activation = activation;
+            return Task.FromResult(new PromptRouteSessionActivation(
+                session,
+                new PromptRoutePresentation(
+                    "GGUF test adapter",
+                    "Requested CPU · Running CPU",
+                    "Test-only evidence",
+                    "GGUF test session ready.")));
+        }
+    }
+
+    private sealed class FakeSession(PromptRouteCapability capability) :
+        IPromptRouteSession
+    {
+        public PromptRouteCapability Capability { get; } = capability;
+
+        public Task<PromptTurnResult> GenerateAsync(
+            string prompt,
+            int requestedNewTokens,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task StopAsync(CancellationToken cancellationToken) =>
+            Task.CompletedTask;
+
+        public Task CancelAsync(CancellationToken cancellationToken) =>
+            Task.CompletedTask;
+
+        public Task CloseAsync(CancellationToken cancellationToken) =>
+            Task.CompletedTask;
+
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
+
+    private static string FindRepositoryRoot()
+    {
+        DirectoryInfo? current = new(AppContext.BaseDirectory);
+        while (current is not null)
+        {
+            if (File.Exists(Path.Combine(
+                    current.FullName,
+                    "IBM Granite with TurboQuant (Intel).slnx")))
+            {
+                return current.FullName;
+            }
+            current = current.Parent;
+        }
+        throw new DirectoryNotFoundException("Repository root was not found.");
     }
 }

@@ -222,16 +222,15 @@
                                     <TextBlock
                                         x:Name="PromptCapabilitySummary"
                                         Foreground="{ThemeResource InspectionTextSecondaryMutedBrush}"
-                                        Text="OpenVINO GenAI · CPU · Official MVP"
                                         TextWrapping="WrapWholeWords" />
                                     <TextBlock
-                                        x:Name="OpenVinoExecutionEvidenceText"
-                                        AutomationProperties.Name="OpenVINO requested and actual execution device"
+                                        x:Name="PromptExecutionEvidenceText"
+                                        AutomationProperties.Name="Requested and actual local execution device"
                                         Foreground="{ThemeResource InspectionTextSecondaryMutedBrush}"
                                         TextWrapping="WrapWholeWords" />
                                     <TextBlock
-                                        x:Name="OpenVinoBuildEvidenceText"
-                                        AutomationProperties.Name="Verified OpenVINO worker build evidence"
+                                        x:Name="PromptBuildEvidenceText"
+                                        AutomationProperties.Name="Verified local runtime build evidence"
                                         Foreground="{ThemeResource InspectionTextSecondaryMutedBrush}"
                                         TextWrapping="WrapWholeWords" />
                                 </StackPanel>

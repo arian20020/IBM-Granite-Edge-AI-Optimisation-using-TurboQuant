@@ -44,9 +44,7 @@ internal static class ModelInspectionServiceComposition
 #endif
     }
 
-    // Internal so packaged tests can exercise fail-closed resolution from an
-    // operation-owned copy without making arbitrary worker roots an app API.
-    internal static OpenVinoRouteService CreateOpenVinoRouteService(
+    private static OpenVinoRouteService CreateOpenVinoRouteService(
         string workerRoot)
     {
 #if MODEL_INSPECTION_X64

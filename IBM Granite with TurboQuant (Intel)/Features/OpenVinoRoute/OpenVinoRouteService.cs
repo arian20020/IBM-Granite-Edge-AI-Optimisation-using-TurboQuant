@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
 using GraniteEdgeAI.Features.OpenVinoRoute.Inspection;
@@ -11,9 +10,55 @@ namespace GraniteEdgeAI.Features.OpenVinoRoute;
 
 public sealed record OpenVinoRouteInspectionResult(
     OpenVinoRouteInspectionOutcome Outcome,
-    ModelInspectionHandoffV2? Handoff,
+    OpenVinoRouteHandoffLease? HandoffLease,
     PromptFailure? Failure,
-    OpenVinoConfigurationCandidate? Configuration);
+    OpenVinoConfigurationCandidate? Configuration)
+{
+    public ModelInspectionHandoffV2? Handoff => HandoffLease?.Handoff;
+}
+
+internal sealed record OpenVinoRouteLeasePayload(
+    Guid ServiceIdentity,
+    OpenVinoRouteStateMachine StateMachine,
+    OpenVinoSessionDescriptor Descriptor);
+
+/// <summary>
+/// Owns the revocable path-bearing state behind one public path-free handoff.
+/// </summary>
+public sealed class OpenVinoRouteHandoffLease : IDisposable, IPromptRouteActivation
+{
+    private OpenVinoRouteLeasePayload? payload;
+
+    internal OpenVinoRouteHandoffLease(
+        ModelInspectionHandoffV2 handoff,
+        OpenVinoRouteLeasePayload payload)
+    {
+        Handoff = handoff ?? throw new ArgumentNullException(nameof(handoff));
+        this.payload = payload ?? throw new ArgumentNullException(nameof(payload));
+    }
+
+    public ModelInspectionHandoffV2 Handoff { get; }
+
+    public PromptRouteKind Kind => PromptRouteKind.OpenVino;
+
+    internal bool HasPathBearingDescriptor =>
+        Volatile.Read(ref payload) is not null;
+
+    internal OpenVinoRouteLeasePayload Consume(Guid serviceIdentity)
+    {
+        OpenVinoRouteLeasePayload? current = Volatile.Read(ref payload);
+        if (current is null || current.ServiceIdentity != serviceIdentity ||
+            Interlocked.CompareExchange(ref payload, null, current) != current)
+        {
+            throw new InvalidOperationException(
+                "The model inspection handoff lease is stale, consumed, or invalid.");
+        }
+
+        return current;
+    }
+
+    public void Dispose() => Interlocked.Exchange(ref payload, null);
+}
 
 /// <summary>
 /// Owns OpenVINO directory inspection and the local path registry. Raw paths
@@ -26,8 +71,7 @@ public sealed class OpenVinoRouteService : IPromptRouteAdapter
     private readonly IOpenVinoWorkerClient workerClient;
     private readonly IOpenVinoPromptChannelFactory channelFactory;
     private readonly OpenVinoBuildEvidence? expectedBuildEvidence;
-    private readonly ConcurrentDictionary<Guid, RegisteredPackage> packages =
-        new();
+    private readonly Guid serviceIdentity = Guid.NewGuid();
 
     public OpenVinoRouteService(IOpenVinoWorkerClient workerClient)
         : this(
@@ -114,7 +158,7 @@ public sealed class OpenVinoRouteService : IPromptRouteAdapter
             stateMachine.TryCompleteInspection(operationId, outcome);
             return new OpenVinoRouteInspectionResult(
                 outcome,
-                Handoff: null,
+                HandoffLease: null,
                 OpenVinoPromptAdapter.MapFailure(code),
                 Configuration: null);
         }
@@ -140,7 +184,7 @@ public sealed class OpenVinoRouteService : IPromptRouteAdapter
             stateMachine.TryCompleteInspection(operationId, outcome);
             return new OpenVinoRouteInspectionResult(
                 outcome,
-                Handoff: null,
+                HandoffLease: null,
                 OpenVinoPromptAdapter.MapFailure(failure.SupportCode),
                 Configuration: null);
         }
@@ -152,7 +196,7 @@ public sealed class OpenVinoRouteService : IPromptRouteAdapter
             stateMachine.TryCompleteInspection(operationId, outcome);
             return new OpenVinoRouteInspectionResult(
                 outcome,
-                Handoff: null,
+                HandoffLease: null,
                 OpenVinoPromptAdapter.MapFailure(failed.SupportCode),
                 Configuration: null);
         }
@@ -165,7 +209,7 @@ public sealed class OpenVinoRouteService : IPromptRouteAdapter
                 OpenVinoRouteInspectionOutcome.Invalid);
             return new OpenVinoRouteInspectionResult(
                 OpenVinoRouteInspectionOutcome.Invalid,
-                Handoff: null,
+                HandoffLease: null,
                 OpenVinoPromptAdapter.MapFailure(code),
                 Configuration: null);
         }
@@ -194,39 +238,38 @@ public sealed class OpenVinoRouteService : IPromptRouteAdapter
                 "The inspection result became stale before publication.");
         }
 
-        RegisteredPackage package = new(
-            stateMachine,
-            new OpenVinoSessionDescriptor(
+        OpenVinoRouteHandoffLease lease = new(
+            handoff,
+            new OpenVinoRouteLeasePayload(
+                serviceIdentity,
+                stateMachine,
+                new OpenVinoSessionDescriptor(
                 inspectionRunId,
                 packageDirectory,
                 evidence.PackageManifestDigest,
                 evidence.ModelSha256,
-                evidence.ModelLengthBytes));
-        if (!packages.TryAdd(handoff.ModelInspectionHandoffId, package))
-        {
-            throw new InvalidOperationException(
-                "The model handoff identity is already registered.");
-        }
+                evidence.ModelLengthBytes)));
 
         return new OpenVinoRouteInspectionResult(
             readyOutcome,
-            handoff,
+            lease,
             Failure: null,
             OpenVinoRouteCapability.Candidates[0]);
     }
 
     public async Task<OpenVinoRouteSession> StartSessionAsync(
-        ModelInspectionHandoffV2 handoff,
+        OpenVinoRouteHandoffLease handoffLease,
         Action<PromptEvent> eventSink,
         CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(handoffLease);
+        ModelInspectionHandoffV2 handoff = handoffLease.Handoff;
         ArgumentNullException.ThrowIfNull(handoff);
         handoff.Validate();
         ArgumentNullException.ThrowIfNull(eventSink);
-        if (!packages.TryRemove(
-                handoff.ModelInspectionHandoffId,
-                out RegisteredPackage? package) ||
-            package.Descriptor.InspectionRunId != handoff.ModelInspectionRunId ||
+        OpenVinoRouteLeasePayload package =
+            handoffLease.Consume(serviceIdentity);
+        if (package.Descriptor.InspectionRunId != handoff.ModelInspectionRunId ||
             package.Descriptor.ModelSha256 != handoff.ModelSha256 ||
             package.Descriptor.ModelLengthBytes != handoff.ModelLengthBytes ||
             !package.StateMachine.TryAwaitConfiguration(
@@ -244,6 +287,37 @@ public sealed class OpenVinoRouteService : IPromptRouteAdapter
             cancellationToken).ConfigureAwait(false);
     }
 
+    public async Task<PromptRouteSessionActivation> ActivateAsync(
+        IPromptRouteActivation activation,
+        Action<PromptEvent> eventSink,
+        CancellationToken cancellationToken)
+    {
+        if (activation is not OpenVinoRouteHandoffLease lease)
+        {
+            throw new ArgumentException(
+                "The activation does not belong to the official OpenVINO route.",
+                nameof(activation));
+        }
+
+        OpenVinoRouteSession session = await StartSessionAsync(
+            lease,
+            eventSink,
+            cancellationToken).ConfigureAwait(false);
+        string buildEvidence = expectedBuildEvidence is null
+            ? "Verified official worker build"
+            : $"Runtime {expectedBuildEvidence.RuntimeBuild} · " +
+              $"GenAI {expectedBuildEvidence.GenAiBuild} · " +
+              $"Tokenizers {expectedBuildEvidence.TokenizersBuild} · " +
+              $"Worker manifest {expectedBuildEvidence.WorkerManifestDigest}";
+        return new PromptRouteSessionActivation(
+            session,
+            new PromptRoutePresentation(
+                $"{Capability.BackendLabel} · {Capability.Device} · {Capability.Maturity}",
+                $"Requested {Capability.Device} · Running {Capability.Device}",
+                buildEvidence,
+                $"{Capability.BackendLabel} {Capability.Device} session ready."));
+    }
+
     private static OpenVinoRouteInspectionOutcome InspectionOutcome(
         OpenVinoSupportCode supportCode) => supportCode switch
     {
@@ -256,8 +330,4 @@ public sealed class OpenVinoRouteService : IPromptRouteAdapter
             OpenVinoRouteInspectionOutcome.Unsupported,
         _ => OpenVinoRouteInspectionOutcome.Invalid
     };
-
-    private sealed record RegisteredPackage(
-        OpenVinoRouteStateMachine StateMachine,
-        OpenVinoSessionDescriptor Descriptor);
 }

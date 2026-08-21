@@ -52,10 +52,13 @@ public sealed class OpenVinoPromptAdapter : IAsyncDisposable
 {
     private static readonly IReadOnlyList<string> CpuExecutionDevices = ["CPU"];
     private readonly object stateLock = new();
+    private readonly object teardownLock = new();
     private readonly OpenVinoRouteStateMachine stateMachine;
     private readonly IOpenVinoPromptChannel channel;
     private readonly Action<PromptEvent> eventSink;
     private bool disposed;
+    private Task? terminalTeardownTask;
+    private Task? channelDisposalTask;
     private long nextSequence;
 
     private OpenVinoPromptAdapter(
@@ -265,14 +268,35 @@ public sealed class OpenVinoPromptAdapter : IAsyncDisposable
         }
     }
 
-    public async Task CancelAsync(CancellationToken cancellationToken)
+    public Task CancelAsync(CancellationToken cancellationToken)
     {
-        ThrowIfDisposed();
+        lock (teardownLock)
+        {
+            if (terminalTeardownTask is not null)
+            {
+                return terminalTeardownTask;
+            }
+
+            if (disposed)
+            {
+                return Task.CompletedTask;
+            }
+
+            terminalTeardownTask = CancelCoreAsync(cancellationToken);
+            return terminalTeardownTask;
+        }
+    }
+
+    private async Task CancelCoreAsync(CancellationToken cancellationToken)
+    {
         Guid operationId = Snapshot.Identity.OperationId;
         if (!stateMachine.TryBeginCancellation(operationId))
         {
-            if (Snapshot.State == OpenVinoRouteState.Cancelled)
+            if (Snapshot.State is OpenVinoRouteState.Cancelled or
+                OpenVinoRouteState.Failed or
+                OpenVinoRouteState.SessionCompleted)
             {
+                await DisposeChannelAsync().ConfigureAwait(false);
                 return;
             }
 
@@ -281,20 +305,41 @@ public sealed class OpenVinoPromptAdapter : IAsyncDisposable
         }
 
         Emit(PromptEventKind.CancellingSession, turnId: null);
+        PromptFailure? failure = null;
         try
         {
             await channel.CancelAsync(cancellationToken).ConfigureAwait(false);
         }
-        catch (OpenVinoRouteWorkerFailureException failure)
-            when (failure.SupportCode == OpenVinoSupportCode.OperationCancelled)
+        catch (OpenVinoRouteWorkerFailureException workerFailure)
         {
-            // The protected client reports the owned cancellation as a fixed
-            // outcome after it has verified terminal cleanup.
+            if (workerFailure.SupportCode != OpenVinoSupportCode.OperationCancelled)
+            {
+                failure = MapFailure(workerFailure.SupportCode);
+            }
         }
+        catch (OperationCanceledException)
+        {
+            // Caller cancellation still owns a terminal channel teardown.
+        }
+        catch (Exception)
+        {
+            failure = MapFailure(OpenVinoSupportCode.RuntimeProtocolFailed);
+        }
+        finally
+        {
+            if (failure is null)
+            {
+                stateMachine.TryMarkCancelled(operationId);
+                Emit(PromptEventKind.Cancelled, turnId: null);
+            }
+            else
+            {
+                stateMachine.TryFail(operationId, failure.SupportCode);
+                Emit(PromptEventKind.Failed, turnId: null, failure: failure);
+            }
 
-        stateMachine.TryMarkCancelled(operationId);
-        Emit(PromptEventKind.Cancelled, turnId: null);
-        await DisposeChannelAsync().ConfigureAwait(false);
+            await DisposeChannelAsync().ConfigureAwait(false);
+        }
     }
 
     public async Task CloseAsync(CancellationToken cancellationToken)
@@ -425,15 +470,19 @@ public sealed class OpenVinoPromptAdapter : IAsyncDisposable
             requestedDevice,
             actualExecutionDevices ?? Array.Empty<string>()));
 
-    private async Task DisposeChannelAsync()
+    private Task DisposeChannelAsync()
     {
-        if (disposed)
+        lock (teardownLock)
         {
-            return;
-        }
+            if (channelDisposalTask is not null)
+            {
+                return channelDisposalTask;
+            }
 
-        disposed = true;
-        await channel.DisposeAsync().ConfigureAwait(false);
+            disposed = true;
+            channelDisposalTask = channel.DisposeAsync().AsTask();
+            return channelDisposalTask;
+        }
     }
 
     private void ThrowIfDisposed()

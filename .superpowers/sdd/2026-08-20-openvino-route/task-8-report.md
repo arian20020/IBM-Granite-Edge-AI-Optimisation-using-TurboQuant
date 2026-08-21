@@ -276,3 +276,131 @@ Two diagnostic invocations are explicitly excluded from green evidence:
   probe.
 
 Task 8 intentionally remains in progress pending that review.
+
+## Independent review fix round 1/5
+
+The round-1 findings were verified against the exact production paths before
+editing. Work remained inside Task 8: no GPU, conversion, TurboQuant, Task 9,
+protocol, Task 7 native, or deadline changes were made.
+
+### Focused RED/GREEN evidence
+
+- **Production picker:** the first authored picker/E2E changes produced two
+  `CS1739` errors for the absent `pickOpenVinoPathAsync` seam. The page now
+  routes the OpenVINO selection through `OpenVINOFolderPicker`, normalizes the
+  folder, and submits it through the ordinary classifier path. The focused
+  picker class passed 9/9 and the real packaged E2E enters through Browse and
+  Continue rather than `SubmitInputAsync`.
+- **Fail-safe cancellation:** two parameterized cancellation tests failed 2/2
+  because `runtime_timed_out` and `runtime_protocol_failed` escaped. One
+  idempotent terminal teardown now maps every cancellation outcome, terminalizes
+  the route, and disposes the channel in `finally`; the cancellation/close
+  focus passed 4/4. The native E2E cancels an active turn, observes no late
+  output, disables every terminal prompt action, and leaves zero worker residue.
+- **Revocable raw-path lifetime:** the lease tests first produced four missing-
+  API compiler errors and the import test failed 1/1 because a transferred
+  directory remained reusable. Ready handoffs are now disposable, single-use
+  leases; the service retains no path registry, stale/abandoned leases revoke
+  their descriptor, the page disposes every unconsumed lease, Continue clears
+  import state before raising the request, and navigation clears an untransferred
+  selection. Service tests passed 3/3, the original import/onboarding focus
+  passed 17/17, and the added navigation-away lifetime test passed 1/1.
+- **Route-neutral activation/presentation:** the first contract test produced
+  four missing-type compiler errors; official activation then produced the
+  expected lease-to-neutral-activation compiler error; the XAML contract failed
+  0/1 on the OpenVINO-named evidence controls. `PromptRouteRegistry` now
+  activates `IPromptRouteSession` through `IPromptRouteActivation`, returns
+  route-neutral presentation data, and the shared page uses
+  `PromptSessionPresenter` for events, response, actions, support codes, and
+  evidence. A test-only GGUF adapter drives the same presenter without adding a
+  GGUF runtime. Combined neutral/service tests passed 10/10; prompt XAML tests
+  passed 2/2. A source contract also failed before and passed after removal of
+  the arbitrary internal verified-root factory seam.
+- **Async transition/app-close ownership:** the first two tests produced seven
+  missing-API compiler errors, then passed 2/2 after the shell and main window
+  gained awaitable retirement owners. The first broad affected run exposed a
+  valid existing regression: a cancelled Frame navigation had already retired
+  its inspection page. Navigation now validates the Frame transition first and
+  awaits all retirement before publishing the next stage/subscription owner;
+  cancelled navigation leaves the original page live. The two new owner tests
+  plus the existing cancelled-navigation regression passed 3/3.
+- **Packaged end-to-end closure:** the strengthened canonical method sends a
+  successful real turn after STOP, cancels a subsequent active native turn with
+  no late output, and returns through the shell-owned transition. Missing and
+  tampered installed closure variants enter the same default production
+  composition, never use an injected worker root, show fixed path-free recovery
+  codes, and launch no worker. The first combined run passed canonical but used
+  an over-specific negative assertion; after correcting that test-only
+  classifier to the controlled inspection diagnostic surface, the exact class
+  passed 2/2 in 19 seconds.
+
+### Fix-round verification
+
+| Gate | Result |
+|---|---|
+| `GRANITE_OPENVINO_OFFICIAL_WORKER_STAGE=<approved stage B>; dotnet test --project tests/UnitTests/GraniteEdgeAI.OpenVino.Tests/GraniteEdgeAI.OpenVino.Tests.csproj --configuration Release --no-restore` | 155/155 passed in 34.965 s, including all five packaging tests. |
+| OpenVINO contract suite | 60/60 passed in 34.114 s. |
+| OpenVINO worker-client suite | 13/13 passed in 3.591 s. |
+| Official process suite with approved stage A+B | 39/39 passed in 1 m 03.947 s; the legacy delayed-handshake test was not invoked. |
+| Exact packaged OpenVINO E2E class | 2/2 passed in 19 s. |
+| ModelImport/onboarding/GGUF affected partition | 165/165 passed. |
+| Model Inspection controls partition | 78/78 passed. |
+| Navigation/layout/prompt/native-E2E partition | 43/43 passed. |
+| Model Inspection visual partition | 32/32 passed. |
+| Presentation/runtime/service/view-model/contracts partition | 330/330 passed. |
+| Classifier/composition partition | 18/18 passed. |
+
+The first monolithic affected run retained its two diagnostics: the valid
+cancelled-navigation regression above and one downstream closed render-window
+error; after six minutes it was terminated and its exact orphaned test process
+was removed. After the fix, a second monolithic host passed 531 tests with zero
+failures and then lost communication; a ModelInspection-only host similarly
+passed 384 with zero failures before losing communication. No process survived
+either abort. Clean smaller packaged hosts cover the affected filters above and
+all terminate green; the infrastructure aborts are retained, not counted as
+green evidence.
+
+The final Release x64 app build used an operation-owned copy of approved Task 7
+stage B with exactly 17 files, manifest SHA-256
+`0f656f6f2afe0b7246d0746f458ad6ed02e23be943145779b0160dd69aff2ebe`,
+and worker SHA-256
+`51f5c5579251b2d9a81bb1c743acdc3f361abd6e297782701d04ea4691311c94`.
+MSBuild exited 0 after `worker_manifest_valid` and
+`worker_manifest_digest_valid`. The output contains the same 17 files and
+hashes, its appxrecipe contains 17 worker entries, and the app DLL contains the
+caller-pinned manifest digest. Independent manifest, official dependency-lock,
+and GenAI fixture verifiers each exited 0.
+
+The final audit found zero OpenVINO worker or `C:\openvino-o1` test/build
+processes, 4,584 tracked files, zero tracked ZIP/wheel/DLL/EXE/PDB/LIB/OBJ
+artifacts, and `git diff --check` exited 0. The only `granite-o1-task8*` temp
+entry is the policy-retained verified stage documented below.
+
+### Round-1 self-review and retained concern
+
+- The raw directory now exists only from ModelImport through the private
+  OpenVINO inspection/lease/session boundary. It is revoked on transfer,
+  selection reset, navigation, stale result, non-ready result, lease abandonment,
+  and session activation; presentation, capability, hardware, build evidence,
+  support copy, and neutral contracts contain no path.
+- The expected manifest digest remains caller-pinned build metadata. Runtime
+  composition hashes the installed manifest only for comparison with that pin;
+  no mutable closure can self-authenticate. Both unpackaged/MSIX resolution keep
+  the same fixed relative 17-file root and no arbitrary verified-root API exists.
+- The shared controller consumes only neutral sessions/events/presentation.
+  OpenVINO handoff plumbing remains private to inspection, the GGUF test adapter
+  is test-only, and there is still exactly one `ModelInspectionPage`.
+- Cancellation is one idempotent teardown; timeout, protocol failure, ordinary
+  cancellation, navigation, shutdown, close, and disposal all terminalize and
+  dispose. UI updates marshal through the dispatcher and late events are
+  lifetime-filtered.
+- **Retained operation-owned temp residue:** policy rejected two native
+  `Remove-Item -LiteralPath ... -Recurse` attempts before process creation even
+  after both the implementer and parent independently resolved the exact target.
+  The verified copy remains at
+  `C:\Users\Arian\AppData\Local\Temp\granite-o1-task8-fix-round1-final`.
+  No alternate shell or policy bypass was used. This is not tracked or consumed
+  by the app build after verification, but independent review should remove it
+  when policy permits.
+
+Task 8 remains in progress after fix round 1/5 awaiting scoped re-review.

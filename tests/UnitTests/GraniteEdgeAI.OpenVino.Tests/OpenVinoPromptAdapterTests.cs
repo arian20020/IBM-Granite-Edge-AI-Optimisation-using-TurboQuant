@@ -143,6 +143,35 @@ public sealed class OpenVinoPromptAdapterTests
     }
 
     [TestMethod]
+    [DataRow(OpenVinoSupportCode.RuntimeTimedOut, "runtime_timed_out")]
+    [DataRow(OpenVinoSupportCode.RuntimeProtocolFailed, "runtime_protocol_failed")]
+    public async Task CancellationFailureTerminalizesAndDisposesExactlyOnce(
+        OpenVinoSupportCode supportCode,
+        string expectedCode)
+    {
+        FakeChannel channel = SuccessfulChannel();
+        channel.CancelFailure = new OpenVinoRouteWorkerFailureException(
+            supportCode,
+            "private cancellation failure C:\\secret\\package");
+        (OpenVinoRouteSession session, List<PromptEvent> events) =
+            await StartSessionAsync(channel);
+
+        await session.CancelAsync(CancellationToken.None);
+        await session.CancelAsync(CancellationToken.None);
+        await session.DisposeAsync();
+
+        Assert.AreEqual(OpenVinoRouteState.Failed, session.Snapshot.State);
+        Assert.AreEqual(expectedCode, session.Snapshot.FailureCode);
+        PromptEvent failure = events.Single(item =>
+            item.Kind == PromptEventKind.Failed);
+        Assert.AreEqual(expectedCode, failure.Failure!.SupportCode);
+        Assert.IsFalse(failure.Failure.Message.Contains(
+            "secret", StringComparison.OrdinalIgnoreCase));
+        Assert.AreEqual(1, channel.CancelCount);
+        Assert.AreEqual(1, channel.DisposeCount);
+    }
+
+    [TestMethod]
     public async Task CloseAwaitsChannelCleanupAndMakesLateOperationsInactionable()
     {
         FakeChannel channel = SuccessfulChannel();
@@ -234,10 +263,13 @@ public sealed class OpenVinoPromptAdapterTests
     {
         internal Action? StopAction { get; set; }
         internal Action? CancelAction { get; set; }
+        internal Exception? CancelFailure { get; set; }
         internal Guid SessionId { get; set; }
         internal int PromptCount { get; private set; }
         internal bool CloseCalled { get; private set; }
-        internal bool DisposeCalled { get; private set; }
+        internal bool DisposeCalled => DisposeCount != 0;
+        internal int CancelCount { get; private set; }
+        internal int DisposeCount { get; private set; }
 
         public async Task<IOpenVinoEvent> PromptAsync(
             PromptCommand command,
@@ -256,7 +288,12 @@ public sealed class OpenVinoPromptAdapterTests
 
         public Task CancelAsync(CancellationToken cancellationToken)
         {
+            CancelCount++;
             CancelAction?.Invoke();
+            if (CancelFailure is not null)
+            {
+                throw CancelFailure;
+            }
             return Task.CompletedTask;
         }
 
@@ -268,7 +305,7 @@ public sealed class OpenVinoPromptAdapterTests
 
         public ValueTask DisposeAsync()
         {
-            DisposeCalled = true;
+            DisposeCount++;
             return ValueTask.CompletedTask;
         }
     }

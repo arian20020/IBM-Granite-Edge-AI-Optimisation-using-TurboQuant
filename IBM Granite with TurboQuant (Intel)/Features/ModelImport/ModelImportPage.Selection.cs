@@ -132,6 +132,7 @@ namespace GraniteEdgeAI.Features.ModelImport
         {
             RetireActiveSelectionOperation();
             CancelActiveScan();
+            ResetToAwaitingSelection();
             base.OnNavigatedFrom(e);
         }
     }

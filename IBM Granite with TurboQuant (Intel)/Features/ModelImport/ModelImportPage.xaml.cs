@@ -25,6 +25,7 @@ namespace GraniteEdgeAI.Features.ModelImport
         // Delegate seams keep native UI and scanner dependencies replaceable in tests.
         private readonly Func<Task<ModelFormatSelection>> _selectModelFormatAsync;
         private readonly Func<Task<string?>> _pickGgufPathAsync;
+        private readonly Func<Task<string?>> _pickOpenVinoPathAsync;
         private readonly Func<
             ModelFormatSelection,
             string,
@@ -52,7 +53,8 @@ namespace GraniteEdgeAI.Features.ModelImport
                 Task<ModelQuickScanResult>>? scanModelAsync = null,
             CultureInfo? displayCulture = null,
             Action<ModelQuickScanFailureDiagnostic>? recordScanFailure = null,
-            IModelSelectionClassifier? classifier = null)
+            IModelSelectionClassifier? classifier = null,
+            Func<Task<string?>>? pickOpenVinoPathAsync = null)
         {
             InitializeComponent();
 
@@ -60,6 +62,8 @@ namespace GraniteEdgeAI.Features.ModelImport
                 selectModelFormatAsync ?? ShowModelFormatSelectionAsync;
             _pickGgufPathAsync =
                 pickGgufPathAsync ?? PickGgufPathAsync;
+            _pickOpenVinoPathAsync =
+                pickOpenVinoPathAsync ?? PickOpenVinoPathAsync;
 
             if (scanModelAsync is null)
             {
@@ -95,22 +99,23 @@ namespace GraniteEdgeAI.Features.ModelImport
             ModelFormatSelection selectedFormat =
                 await _selectModelFormatAsync();
 
-            if (selectedFormat != ModelFormatSelection.Gguf)
+            if (selectedFormat == ModelFormatSelection.None)
             {
                 return;
             }
 
-            string? selectedPath = await _pickGgufPathAsync();
+            bool isFolder = selectedFormat == ModelFormatSelection.OpenVino;
+            string? selectedPath = isFolder
+                ? await _pickOpenVinoPathAsync()
+                : await _pickGgufPathAsync();
             if (selectedPath is null)
             {
                 return;
             }
 
-            await SubmitInputAsync(
-                new ModelSelectionInput(
-                    selectedPath,
-                    Path.GetFileName(selectedPath),
-                    isFolder: false));
+            ModelSelectionInput input = new ModelSelectionInputNormalizer()
+                .FromPickerPath(selectedPath, isFolder);
+            await SubmitInputAsync(input);
         }
 
         private void PrepareForScan(
@@ -323,6 +328,14 @@ namespace GraniteEdgeAI.Features.ModelImport
             return selectedFile?.Path;
         }
 
+        private static async Task<string?> PickOpenVinoPathAsync()
+        {
+            OpenVINOFolderPicker folderPicker = new();
+            PickFolderResult? selectedFolder =
+                await folderPicker.PickOpenVINOAsync();
+            return selectedFolder?.Path;
+        }
+
         private async void ImportModelCard_BrowseFilesRequested(
             object sender,
             RoutedEventArgs e)
@@ -356,12 +369,17 @@ namespace GraniteEdgeAI.Features.ModelImport
                     return false;
                 }
 
-                OpenVinoInspectionRequested?.Invoke(
-                    this,
-                    new OpenVinoInspectionRequestedEventArgs(
-                        operationId,
-                        _selectedOpenVinoDirectory,
-                        _selectedOpenVinoDisplayName));
+                OpenVinoInspectionRequestedEventArgs openVinoRequest = new(
+                    operationId,
+                    _selectedOpenVinoDirectory,
+                    _selectedOpenVinoDisplayName);
+                _selectedOpenVinoDirectory = null;
+                _selectedOpenVinoDisplayName = null;
+                _selectedOpenVinoOperationId = null;
+                CurrentRoute = null;
+                HasValidatedModel = false;
+                ContinueToModelInspectionButton.IsEnabled = false;
+                OpenVinoInspectionRequested?.Invoke(this, openVinoRequest);
                 return true;
             }
 

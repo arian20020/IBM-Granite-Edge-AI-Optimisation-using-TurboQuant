@@ -6,6 +6,7 @@ using GraniteEdgeAI.Features.Onboarding;
 using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Automation.Provider;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Navigation;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
 
 namespace GraniteEdgeAI.UnitTests;
@@ -23,7 +24,12 @@ public sealed class OpenVinoModelImportIntegrationTests
         {
             ModelImportPage page = CreatePage(ModelSelectionRoute.OpenVinoDirectory);
             object? request = null;
-            page.OpenVinoInspectionRequested += (_, eventArguments) => request = eventArguments;
+            int requestCount = 0;
+            page.OpenVinoInspectionRequested += (_, eventArguments) =>
+            {
+                request = eventArguments;
+                requestCount++;
+            };
 
             await page.SubmitInputAsync(new ModelSelectionInput(
                 directory,
@@ -42,6 +48,11 @@ public sealed class OpenVinoModelImportIntegrationTests
             Assert.AreEqual(directory, carriedDirectory);
             Assert.IsNull(page.SelectedModelPath,
                 "the directory must not enter the GGUF file-path property");
+            Assert.AreEqual(1, requestCount);
+            Assert.IsFalse(page.TryRequestModelInspection(),
+                "a transferred raw directory must not remain reusable");
+            Assert.AreEqual(1, requestCount);
+            Assert.IsNull(page.CurrentRoute);
         }
         finally
         {
@@ -75,6 +86,46 @@ public sealed class OpenVinoModelImportIntegrationTests
             {
                 await inspection;
             }
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task NavigationAwayRevokesUntransferredOpenVinoDirectory()
+    {
+        string directory = Path.Combine(
+            Path.GetTempPath(),
+            $"ov-import-retire-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directory);
+        try
+        {
+            ModelImportPage page = CreatePage(ModelSelectionRoute.OpenVinoDirectory);
+            int requests = 0;
+            page.OpenVinoInspectionRequested += (_, _) => requests++;
+            await page.SubmitInputAsync(new ModelSelectionInput(
+                directory,
+                "OpenVINO package",
+                isFolder: true));
+
+            NavigationEventArgs? navigation = null;
+            Frame frame = new();
+            frame.Navigated += (_, eventArguments) => navigation = eventArguments;
+            Assert.IsTrue(frame.Navigate(typeof(Page)));
+            Assert.IsNotNull(navigation);
+            typeof(ModelImportPage).GetMethod(
+                "OnNavigatedFrom",
+                System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.NonPublic)!
+                .Invoke(page, [navigation]);
+
+            Assert.IsFalse(page.TryRequestModelInspection());
+            Assert.AreEqual(0, requests);
+            Assert.IsNull(page.CurrentRoute);
+            Assert.IsFalse(page.HasValidatedModel);
         }
         finally
         {

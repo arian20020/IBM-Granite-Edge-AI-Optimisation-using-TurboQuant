@@ -24,6 +24,12 @@ public sealed class OpenVinoPromptSurfaceTests
         Button cancel = Assert.IsInstanceOfType<Button>(page.FindName("PromptCancelButton"));
         TextBlock response = Assert.IsInstanceOfType<TextBlock>(
             page.FindName("PromptResponseText"));
+        TextBlock capability = Assert.IsInstanceOfType<TextBlock>(
+            page.FindName("PromptCapabilitySummary"));
+        TextBlock executionEvidence = Assert.IsInstanceOfType<TextBlock>(
+            page.FindName("PromptExecutionEvidenceText"));
+        TextBlock buildEvidence = Assert.IsInstanceOfType<TextBlock>(
+            page.FindName("PromptBuildEvidenceText"));
 
         Assert.AreEqual(Visibility.Collapsed, surface.Visibility);
         Assert.AreEqual("Prompt for the local model", AutomationProperties.GetName(prompt));
@@ -32,6 +38,13 @@ public sealed class OpenVinoPromptSurfaceTests
         Assert.AreEqual("Cancel local session", AutomationProperties.GetName(cancel));
         Assert.AreEqual(AutomationLiveSetting.Polite,
             AutomationProperties.GetLiveSetting(response));
+        Assert.AreEqual(string.Empty, capability.Text);
+        Assert.AreEqual(
+            "Requested and actual local execution device",
+            AutomationProperties.GetName(executionEvidence));
+        Assert.AreEqual(
+            "Verified local runtime build evidence",
+            AutomationProperties.GetName(buildEvidence));
         Assert.IsTrue(prompt.AcceptsReturn);
         Assert.AreEqual(TextWrapping.Wrap, prompt.TextWrapping);
         Assert.IsTrue(prompt.UseSystemFocusVisuals);

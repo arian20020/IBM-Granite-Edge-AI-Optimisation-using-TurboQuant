@@ -178,6 +178,62 @@ public sealed class OnboardingModelInspectionNavigationTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
+    public async Task ChooseAnotherOwnerAwaitsRetirementBeforeChangingFrameContent()
+    {
+        TaskCompletionSource retirementStarted = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        TaskCompletionSource releaseRetirement = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        ModelInspectionPage page = new();
+        page.NavigationRetirementOverride = async () =>
+        {
+            retirementStarted.SetResult();
+            await releaseRetirement.Task;
+        };
+        ControlledInspectionFrameNavigator navigator = new(page, new());
+        OnboardingShellPage shell = new(navigator.Navigate);
+        Frame frame = (Frame)shell.FindName("StageFrame");
+        Assert.IsTrue(shell.NavigateToModelInspection(
+            CreateRequest(@"C:\Models\owned-cleanup.gguf")));
+
+        page.ViewModel!.ChooseAnotherCommand.Execute(null);
+        await retirementStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.IsInstanceOfType<ModelImportPage>(frame.Content);
+        Assert.AreEqual(OnboardingStage.InspectModel, shell.CurrentStage);
+        Assert.IsNotNull(shell.CurrentNavigationTask);
+        Assert.IsFalse(shell.CurrentNavigationTask.IsCompleted);
+
+        releaseRetirement.SetResult();
+        await shell.CurrentNavigationTask.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.IsInstanceOfType<ModelImportPage>(frame.Content);
+        Assert.AreEqual(OnboardingStage.ImportModel, shell.CurrentStage);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task ShutdownOwnerAwaitsActiveInspectionRetirement()
+    {
+        TaskCompletionSource releaseRetirement = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        ModelInspectionPage page = new();
+        page.NavigationRetirementOverride = () => releaseRetirement.Task;
+        ControlledInspectionFrameNavigator navigator = new(page, new());
+        OnboardingShellPage shell = new(navigator.Navigate);
+        Assert.IsTrue(shell.NavigateToModelInspection(
+            CreateRequest(@"C:\Models\close-cleanup.gguf")));
+
+        Task shutdown = shell.ShutdownAsync();
+
+        Assert.IsFalse(shutdown.IsCompleted);
+        releaseRetirement.SetResult();
+        await shutdown.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.IsNull(shell.ActiveInspectionPageForTesting);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
     public void ChooseAnother_AttachesFreshImportPageForNextExactRequest()
     {
         var shell = new OnboardingShellPage();

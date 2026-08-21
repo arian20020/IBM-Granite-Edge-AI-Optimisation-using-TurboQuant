@@ -4,6 +4,7 @@ using GraniteEdgeAI.Features.ModelInspection.Contracts;
 using GraniteEdgeAI.Features.ModelInspection.Presentation;
 using Microsoft.UI.Xaml.Controls;
 using System;
+using System.Threading.Tasks;
 
 namespace GraniteEdgeAI.Features.Onboarding
 {
@@ -19,6 +20,12 @@ namespace GraniteEdgeAI.Features.Onboarding
         // Stores the Model Inspection page whose choose-another request the
         // shell is currently listening to.
         private ModelInspectionPage? _attachedModelInspectionPage;
+
+        internal Task CurrentNavigationTask { get; private set; } =
+            Task.CompletedTask;
+
+        internal ModelInspectionPage? ActiveInspectionPageForTesting =>
+            _attachedModelInspectionPage;
 
         private readonly Func<Frame, ModelInspectionRequest, bool>
             _modelInspectionNavigator;
@@ -264,16 +271,88 @@ namespace GraniteEdgeAI.Features.Onboarding
         /// Responds only to the currently active inspection page and starts a
         /// fresh model-selection journey.
         /// </summary>
-        private void ModelInspectionPage_ChooseAnotherModelRequested(
+        private async void ModelInspectionPage_ChooseAnotherModelRequested(
             object? sender,
             EventArgs eventArguments)
         {
-            if (!ReferenceEquals(sender, _attachedModelInspectionPage))
+            if (sender is not ModelInspectionPage page ||
+                !ReferenceEquals(page, _attachedModelInspectionPage))
             {
                 return;
             }
 
-            NavigateToFreshModelImport();
+            Task<bool> navigation = ReturnToModelImportAsync();
+            try
+            {
+                await navigation;
+            }
+            catch (Exception)
+            {
+                // The owner task retains the cleanup/navigation failure for
+                // diagnostics while the current page remains authoritative.
+            }
+        }
+
+        private async Task<bool> NavigateToFreshModelImportAsync(
+            ModelInspectionPage page)
+        {
+            if (!ReferenceEquals(page, _attachedModelInspectionPage))
+            {
+                return false;
+            }
+
+            object? previousContent = StageFrame.Content;
+            bool navigationSucceeded = StageFrame.Navigate(typeof(ModelImportPage));
+            if (!navigationSucceeded ||
+                ReferenceEquals(StageFrame.Content, previousContent) ||
+                StageFrame.Content is not ModelImportPage modelImportPage)
+            {
+                return false;
+            }
+
+            // Frame navigation starts the page's retirement. The shell owns
+            // the completion boundary and does not publish the next stage or
+            // transfer subscriptions until every retirement owner finishes.
+            await page.RetireForNavigationAsync();
+            if (!ReferenceEquals(StageFrame.Content, modelImportPage))
+            {
+                return false;
+            }
+
+            StageFrame.BackStack.Clear();
+            StageFrame.ForwardStack.Clear();
+            AttachModelImportPage(modelImportPage);
+            DetachModelInspectionPage();
+            CurrentStage = OnboardingStage.ImportModel;
+            StageIndicator.CurrentStage = CurrentStage;
+            return true;
+        }
+
+        internal Task<bool> ReturnToModelImportAsync()
+        {
+            ModelInspectionPage? page = _attachedModelInspectionPage;
+            if (page is null)
+            {
+                return Task.FromResult(false);
+            }
+
+            Task<bool> navigation = NavigateToFreshModelImportAsync(page);
+            CurrentNavigationTask = navigation;
+            return navigation;
+        }
+
+        internal async Task ShutdownAsync()
+        {
+            ModelInspectionPage? page = _attachedModelInspectionPage;
+            if (page is not null)
+            {
+                await page.RetireForNavigationAsync();
+                if (ReferenceEquals(page, _attachedModelInspectionPage))
+                {
+                    DetachModelInspectionPage();
+                }
+            }
+            DetachModelImportPage();
         }
 
         private void ModelInspectionPage_FooterStatusChanged(
@@ -286,41 +365,6 @@ namespace GraniteEdgeAI.Features.Onboarding
             }
 
             StageIndicator.InspectionStatus = eventArguments.Status;
-        }
-
-        /// <summary>
-        /// Replaces the inspection page with a new Model Import page without
-        /// retaining Frame back-stack state as the active journey.
-        /// </summary>
-        private bool NavigateToFreshModelImport()
-        {
-            object? previousContent = StageFrame.Content;
-            bool navigationSucceeded =
-                StageFrame.Navigate(typeof(ModelImportPage));
-
-            // Frame.Navigate can report true after a cancelled Navigating
-            // event, so the expected content is the completion boundary.
-            if (!navigationSucceeded ||
-                ReferenceEquals(StageFrame.Content, previousContent) ||
-                StageFrame.Content is not ModelImportPage modelImportPage)
-            {
-                return false;
-            }
-
-
-            // A new selection is a new journey. Remove the inspection page
-            // and its request from the Frame journal before exposing the new
-            // active stage.
-            StageFrame.BackStack.Clear();
-            StageFrame.ForwardStack.Clear();
-
-            // Transfer event ownership only after the new page exists.
-            AttachModelImportPage(modelImportPage);
-            DetachModelInspectionPage();
-
-            CurrentStage = OnboardingStage.ImportModel;
-            StageIndicator.CurrentStage = CurrentStage;
-            return true;
         }
 
         /// <summary>
