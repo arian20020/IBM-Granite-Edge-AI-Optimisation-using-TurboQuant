@@ -54,7 +54,8 @@ internal sealed record ModelInspectionViewSnapshot
         bool isRunActive,
         bool isCancellationRequested,
         ModelInspectionProgress? progress,
-        ModelInspectionExecutionResult? terminalResult)
+        ModelInspectionExecutionResult? terminalResult,
+        Guid modelInspectionRunId = default)
     {
         if (isRunActive && terminalResult is not null)
         {
@@ -89,6 +90,7 @@ internal sealed record ModelInspectionViewSnapshot
         IsCancellationRequested = isCancellationRequested;
         Progress = progress;
         TerminalResult = terminalResult;
+        ModelInspectionRunId = modelInspectionRunId;
     }
 
     internal ModelInspectionRenderKey RenderKey { get; }
@@ -100,4 +102,10 @@ internal sealed record ModelInspectionViewSnapshot
     internal ModelInspectionProgress? Progress { get; }
 
     internal ModelInspectionExecutionResult? TerminalResult { get; }
+
+    /// <summary>
+    /// Gets the application-owned identity of the Model Inspection attempt.
+    /// The initial and explicitly invalidated snapshots use <see cref="Guid.Empty"/>.
+    /// </summary>
+    internal Guid ModelInspectionRunId { get; }
 }

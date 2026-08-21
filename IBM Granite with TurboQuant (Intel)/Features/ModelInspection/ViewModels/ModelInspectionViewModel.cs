@@ -115,7 +115,8 @@ internal sealed class ModelInspectionViewModel : INotifyPropertyChanged, IDispos
                 isRunActive: true,
                 isCancellationRequested: false,
                 progress: null,
-                terminalResult: null);
+                terminalResult: null,
+                modelInspectionRunId: attempt.RunId);
             replacedAttempt = activeAttempt;
 
             // Publish the new identity first. Synchronous cancellation callbacks
@@ -311,7 +312,8 @@ internal sealed class ModelInspectionViewModel : INotifyPropertyChanged, IDispos
                 isRunActive: true,
                 isCancellationRequested: snapshot.IsCancellationRequested,
                 progress: value,
-                terminalResult: null);
+                terminalResult: null,
+                modelInspectionRunId: attempt.RunId);
         }
 
         PublishSnapshotChanged();
@@ -335,7 +337,8 @@ internal sealed class ModelInspectionViewModel : INotifyPropertyChanged, IDispos
                 isRunActive: false,
                 isCancellationRequested: false,
                 progress: null,
-                terminalResult: execution);
+                terminalResult: execution,
+                modelInspectionRunId: attempt.RunId);
 
             // Retire before notifying observers. Any already-queued progress
             // callback therefore fails the attempt-identity check.
@@ -366,7 +369,8 @@ internal sealed class ModelInspectionViewModel : INotifyPropertyChanged, IDispos
                 isRunActive: true,
                 isCancellationRequested: true,
                 progress: snapshot.Progress,
-                terminalResult: null);
+                terminalResult: null,
+                modelInspectionRunId: attempt.RunId);
             attempt.CancellationRequested = true;
             snapshot = cancellationSnapshot;
         }
@@ -536,9 +540,12 @@ internal sealed class ModelInspectionViewModel : INotifyPropertyChanged, IDispos
         internal InspectionAttempt(long id)
         {
             Id = id;
+            RunId = Guid.NewGuid();
         }
 
         internal long Id { get; }
+
+        internal Guid RunId { get; }
 
         internal bool CancellationRequested { get; set; }
 
