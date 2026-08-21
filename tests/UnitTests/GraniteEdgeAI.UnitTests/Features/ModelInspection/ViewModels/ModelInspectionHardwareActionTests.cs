@@ -38,19 +38,29 @@ public sealed class ModelInspectionHardwareActionTests
             service,
             PresentationTestData.CreateRequest());
         ModelInspectionHandoff? requested = null;
+        ModelInspectionHandoff? repeated = null;
         int eventCount = 0;
         viewModel.HardwareInspectionRequested += (_, args) =>
         {
             eventCount++;
-            requested = args.Handoff;
+            if (requested is null)
+            {
+                requested = args.Handoff;
+            }
+            else
+            {
+                repeated = args.Handoff;
+            }
         };
         viewModel.SetHardwareRouteAvailable(true);
         await viewModel.StartAsync();
 
         viewModel.CheckHardwareCommand.Execute(null);
+        viewModel.CheckHardwareCommand.Execute(null);
 
-        Assert.AreEqual(1, eventCount);
+        Assert.AreEqual(2, eventCount);
         Assert.IsNotNull(requested);
+        Assert.AreSame(requested, repeated);
         Assert.AreEqual(
             viewModel.Snapshot.ModelInspectionRunId,
             requested.ModelInspectionRunId);

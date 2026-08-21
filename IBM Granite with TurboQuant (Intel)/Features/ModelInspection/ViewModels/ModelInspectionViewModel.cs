@@ -36,6 +36,7 @@ internal sealed class ModelInspectionViewModel : INotifyPropertyChanged, IDispos
     private long nextAttemptGeneration;
     private bool lifecycleInvalidated;
     private bool hardwareRouteAvailable;
+    private ModelInspectionHandoff? issuedHardwareHandoff;
     private bool disposed;
 
     internal ModelInspectionViewModel(
@@ -150,6 +151,7 @@ internal sealed class ModelInspectionViewModel : INotifyPropertyChanged, IDispos
             nextAttemptGeneration = nextGeneration;
             activeAttempt = attempt;
             lifecycleInvalidated = false;
+            issuedHardwareHandoff = null;
             snapshot = startSnapshot;
         }
 
@@ -296,6 +298,7 @@ internal sealed class ModelInspectionViewModel : INotifyPropertyChanged, IDispos
                 nextAttemptGeneration = nextGeneration;
                 activeAttempt = null;
                 lifecycleInvalidated = true;
+                issuedHardwareHandoff = null;
                 snapshot = invalidatedSnapshot;
             }
             else
@@ -433,6 +436,7 @@ internal sealed class ModelInspectionViewModel : INotifyPropertyChanged, IDispos
             invalidatedAttempt = activeAttempt;
             nextAttemptGeneration = nextGeneration;
             activeAttempt = null;
+            issuedHardwareHandoff = null;
             snapshot = invalidatedSnapshot;
         }
 
@@ -460,6 +464,7 @@ internal sealed class ModelInspectionViewModel : INotifyPropertyChanged, IDispos
             nextAttemptGeneration = nextGeneration;
             activeAttempt = null;
             lifecycleInvalidated = true;
+            issuedHardwareHandoff = null;
             snapshot = invalidatedSnapshot;
         }
 
@@ -522,15 +527,26 @@ internal sealed class ModelInspectionViewModel : INotifyPropertyChanged, IDispos
         ModelInspectionHandoff? handoff;
         lock (stateLock)
         {
-            if (!CanCheckHardwareLocked() ||
-                !ModelInspectionHandoffProjector.TryProject(
+            if (!CanCheckHardwareLocked())
+            {
+                return;
+            }
+
+            if (issuedHardwareHandoff is null)
+            {
+                if (!ModelInspectionHandoffProjector.TryProject(
                     snapshot.ModelInspectionRunId,
                     snapshot.ModelInspectionRunId,
                     snapshot.TerminalResult!,
                     out handoff))
-            {
-                return;
+                {
+                    return;
+                }
+
+                issuedHardwareHandoff = handoff;
             }
+
+            handoff = issuedHardwareHandoff;
         }
 
         HardwareInspectionRequested?.Invoke(
