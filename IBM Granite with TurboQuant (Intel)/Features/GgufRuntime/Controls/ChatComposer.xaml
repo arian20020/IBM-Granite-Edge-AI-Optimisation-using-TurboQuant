@@ -11,7 +11,7 @@
             BorderBrush="{ThemeResource GgufChatBorderBrush}"
             BorderThickness="1"
             CornerRadius="20"
-            Padding="6,3">
+            Padding="6,1">
             <Grid RowSpacing="0">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
@@ -89,7 +89,7 @@
                 <Grid
                     x:Name="PromptRow"
                     Grid.Row="1"
-                    MinHeight="36"
+                    MinHeight="40"
                     ColumnSpacing="10"
                     VerticalAlignment="Center">
                     <Grid.ColumnDefinitions>
@@ -99,9 +99,9 @@
                     </Grid.ColumnDefinitions>
                     <Button
                         x:Name="AttachmentButton"
-                        Width="36"
-                        Height="36"
-                        MinHeight="36"
+                        Width="40"
+                        Height="40"
+                        MinHeight="40"
                         Padding="0"
                         VerticalAlignment="Center"
                         Style="{StaticResource GgufChatSecondaryButtonStyle}"
@@ -189,8 +189,8 @@
                         x:Name="SendButton"
                         Grid.Column="2"
                         Width="46"
-                        Height="36"
-                        MinHeight="36"
+                        Height="40"
+                        MinHeight="40"
                         Padding="0"
                         VerticalAlignment="Center"
                         Style="{StaticResource GgufChatPrimaryButtonStyle}"
@@ -202,8 +202,8 @@
                         x:Name="StopButton"
                         Grid.Column="2"
                         MinWidth="84"
-                        Height="36"
-                        MinHeight="36"
+                        Height="40"
+                        MinHeight="40"
                         VerticalAlignment="Center"
                         Style="{StaticResource GgufChatPrimaryButtonStyle}"
                         AutomationProperties.Name="Stop generation"

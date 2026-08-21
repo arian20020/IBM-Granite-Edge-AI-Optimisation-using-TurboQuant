@@ -1,6 +1,7 @@
 using GraniteEdgeAI.Features.GgufRuntime;
 using GraniteEdgeAI.Features.GgufRuntime.Controls;
 using GraniteEdgeAI.Features.GgufRuntime.History;
+using GraniteEdgeAI.UnitTests.Features.ModelInspection.Visual;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
@@ -246,6 +247,68 @@ public sealed class ChatPageTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
+    public async Task DeferredFollowScrollsOverflowAfterLayout()
+    {
+        var page = new ChatPage();
+        Guid conversationId = Guid.NewGuid();
+        ChatMessage[] messages = CreateLongMessages();
+        await using WinUiRenderHost host =
+            await WinUiRenderHost.ShowAsync(page, 900, 520);
+
+        page.SynchronizeTranscript(conversationId, messages, forceFollowLatest: true);
+        await host.CaptureAsync();
+        ListView transcript = Assert.IsInstanceOfType<ListView>(
+            page.FindName("TranscriptList"));
+        ScrollViewer? scrollViewerCandidate = FindDescendant<ScrollViewer>(transcript);
+        Assert.IsNotNull(scrollViewerCandidate);
+        ScrollViewer scrollViewer = scrollViewerCandidate;
+        Assert.IsGreaterThan(0, scrollViewer.ScrollableHeight);
+        Assert.IsLessThanOrEqualTo(
+            1,
+            scrollViewer.ScrollableHeight - scrollViewer.VerticalOffset);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task PendingFollowDoesNotOverrideManualScrollAway()
+    {
+        var page = new ChatPage();
+        Guid conversationId = Guid.NewGuid();
+        ChatMessage[] messages = CreateLongMessages();
+        await using WinUiRenderHost host =
+            await WinUiRenderHost.ShowAsync(page, 900, 520);
+
+        page.SynchronizeTranscript(conversationId, messages, forceFollowLatest: false);
+        await host.CaptureAsync();
+        ListView transcript = Assert.IsInstanceOfType<ListView>(
+            page.FindName("TranscriptList"));
+        ScrollViewer? scrollViewerCandidate = FindDescendant<ScrollViewer>(transcript);
+        Assert.IsNotNull(scrollViewerCandidate);
+        ScrollViewer scrollViewer = scrollViewerCandidate;
+        Assert.IsGreaterThan(0, scrollViewer.ScrollableHeight);
+        scrollViewer.ChangeView(
+            horizontalOffset: null,
+            verticalOffset: scrollViewer.ScrollableHeight,
+            zoomFactor: null,
+            disableAnimation: true);
+        await host.CaptureAsync();
+        Assert.IsLessThanOrEqualTo(
+            1,
+            scrollViewer.ScrollableHeight - scrollViewer.VerticalOffset);
+
+        page.SynchronizeTranscript(conversationId, messages, forceFollowLatest: true);
+        Assert.IsTrue(scrollViewer.ChangeView(
+            horizontalOffset: null,
+            verticalOffset: 0,
+            zoomFactor: null,
+            disableAnimation: true));
+        await host.CaptureAsync();
+
+        Assert.IsLessThanOrEqualTo(1, scrollViewer.VerticalOffset);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
     public void SelectingAnotherConversationResetsTranscriptAndEmptyState()
     {
         var page = new ChatPage();
@@ -315,5 +378,39 @@ public sealed class ChatPageTests
             Assert.IsInstanceOfType<SolidColorBrush>(
                 Application.Current.Resources[expectedTextKey]).Color,
             Assert.IsInstanceOfType<SolidColorBrush>(text.Foreground).Color);
+    }
+
+    private static ChatMessage[] CreateLongMessages()
+    {
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        return Enumerable.Range(0, 30)
+            .Select(index => new ChatMessage(
+                Guid.NewGuid(),
+                ChatMessageRole.Assistant,
+                $"Message {index}: {new string('x', 180)}",
+                ChatCompletionStatus.Completed,
+                now.AddSeconds(index)))
+            .ToArray();
+    }
+
+    private static T? FindDescendant<T>(DependencyObject root)
+        where T : DependencyObject
+    {
+        for (int index = 0; index < VisualTreeHelper.GetChildrenCount(root); index++)
+        {
+            DependencyObject child = VisualTreeHelper.GetChild(root, index);
+            if (child is T match)
+            {
+                return match;
+            }
+
+            T? descendant = FindDescendant<T>(child);
+            if (descendant is not null)
+            {
+                return descendant;
+            }
+        }
+
+        return null;
     }
 }

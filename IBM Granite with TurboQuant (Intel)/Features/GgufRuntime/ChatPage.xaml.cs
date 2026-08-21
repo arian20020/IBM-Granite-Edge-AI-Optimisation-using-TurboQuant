@@ -14,6 +14,8 @@ public sealed partial class ChatPage : Page
     private readonly Dictionary<Guid, ChatMessageBubble> transcriptBubbles = [];
     private readonly List<Guid> renderedMessageIds = [];
     private Guid? renderedConversationId;
+    private bool transcriptFollowRequested;
+    private double transcriptFollowOriginOffset;
 
     public ChatPage()
     {
@@ -81,7 +83,8 @@ public sealed partial class ChatPage : Page
             HorizontalAlignment = HorizontalAlignment.Stretch,
         });
         ShowConversation();
-        transcriptScrollScheduler.Request();
+        RequestTranscriptFollow(
+            FindDescendant<ScrollViewer>(TranscriptList)?.VerticalOffset ?? 0);
     }
 
     internal void SynchronizeTranscript(
@@ -101,6 +104,10 @@ public sealed partial class ChatPage : Page
         bool shouldFollowLatest = forceFollowLatest ||
             scrollViewer is null ||
             ShouldFollowOutput(scrollViewer.VerticalOffset, scrollViewer.ScrollableHeight);
+        if (!shouldFollowLatest)
+        {
+            transcriptFollowRequested = false;
+        }
 
         if (RequiresTranscriptReset(conversationId, messages))
         {
@@ -128,6 +135,7 @@ public sealed partial class ChatPage : Page
 
         if (messages.Count == 0)
         {
+            transcriptFollowRequested = false;
             EmptyConversationState.Visibility = Visibility.Visible;
             TranscriptList.Visibility = Visibility.Collapsed;
             return;
@@ -136,7 +144,7 @@ public sealed partial class ChatPage : Page
         ShowConversation();
         if (shouldFollowLatest)
         {
-            transcriptScrollScheduler.Request();
+            RequestTranscriptFollow(scrollViewer?.VerticalOffset ?? 0);
         }
     }
 
@@ -209,8 +217,13 @@ public sealed partial class ChatPage : Page
 
     private void ScrollTranscriptToEnd()
     {
+        TranscriptList.UpdateLayout();
         ScrollViewer? scrollViewer = FindDescendant<ScrollViewer>(TranscriptList);
-        if (scrollViewer is not null && scrollViewer.ScrollableHeight > 0)
+        bool shouldApplyFollow = transcriptFollowRequested &&
+            scrollViewer is not null &&
+            scrollViewer.VerticalOffset + 0.5 >= transcriptFollowOriginOffset;
+        transcriptFollowRequested = false;
+        if (shouldApplyFollow && scrollViewer!.ScrollableHeight > 0)
         {
             scrollViewer.ChangeView(
                 horizontalOffset: null,
@@ -218,6 +231,13 @@ public sealed partial class ChatPage : Page
                 zoomFactor: null,
                 disableAnimation: true);
         }
+    }
+
+    private void RequestTranscriptFollow(double verticalOffset)
+    {
+        transcriptFollowRequested = true;
+        transcriptFollowOriginOffset = verticalOffset;
+        transcriptScrollScheduler.Request();
     }
 
     private void ChatPage_Unloaded(object sender, RoutedEventArgs eventArguments)

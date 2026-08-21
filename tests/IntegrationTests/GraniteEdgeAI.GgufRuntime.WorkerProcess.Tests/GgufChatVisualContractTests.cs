@@ -467,7 +467,9 @@ public sealed class GgufChatVisualContractTests
             page.Contains("TranscriptList.ScrollIntoView", StringComparison.Ordinal));
         StringAssert.Contains(page, "transcriptScrollScheduler.Request();");
         StringAssert.Contains(page, "scrollViewer.ChangeView(");
-        StringAssert.Contains(page, "scrollViewer.ScrollableHeight > 0");
+        StringAssert.Contains(page, "ScrollableHeight > 0");
+        StringAssert.Contains(page, "transcriptFollowOriginOffset");
+        StringAssert.Contains(page, "TranscriptList.UpdateLayout();");
     }
 
     [TestMethod]
@@ -912,14 +914,14 @@ public sealed class GgufChatVisualContractTests
             .Single(element => element.Attribute(x + "Name")?.Value == "AttachmentPresentation");
         XElement focusVisual = composer.Descendants(presentation + "Border")
             .Single(element => element.Attribute(x + "Name")?.Value == "ComposerFocusVisual");
-        Assert.AreEqual("6,3", composerSurface.Attribute("Padding")?.Value);
+        Assert.AreEqual("6,1", composerSurface.Attribute("Padding")?.Value);
         Assert.AreEqual("20", composerSurface.Attribute("CornerRadius")?.Value);
         Assert.AreEqual("0", composerContent.Attribute("RowSpacing")?.Value);
         Assert.AreEqual("0,0,0,8", attachmentPresentation.Attribute("Margin")?.Value);
         Assert.AreEqual("22", focusVisual.Attribute("CornerRadius")?.Value);
-        Assert.AreEqual("36", promptRow.Attribute("MinHeight")?.Value);
-        Assert.AreEqual("36", attachmentButton.Attribute("Width")?.Value);
-        Assert.AreEqual("36", attachmentButton.Attribute("Height")?.Value);
+        Assert.AreEqual("40", promptRow.Attribute("MinHeight")?.Value);
+        Assert.AreEqual("40", attachmentButton.Attribute("Width")?.Value);
+        Assert.AreEqual("40", attachmentButton.Attribute("Height")?.Value);
         Assert.AreEqual("Attach files", attachmentButton.Attribute("AutomationProperties.Name")?.Value);
         Assert.AreEqual("Attach files", attachmentButton.Attribute("ToolTipService.ToolTip")?.Value);
         Assert.AreEqual(
@@ -931,8 +933,8 @@ public sealed class GgufChatVisualContractTests
         Assert.AreEqual("32", prompt.Attribute("MinHeight")?.Value);
         Assert.AreEqual("10,0", prompt.Attribute("Padding")?.Value);
         Assert.AreEqual("PromptTextBox_KeyDown", prompt.Attribute("KeyDown")?.Value);
-        Assert.AreEqual("36", sendButton.Attribute("Height")?.Value);
-        Assert.AreEqual("36", stopButton.Attribute("Height")?.Value);
+        Assert.AreEqual("40", sendButton.Attribute("Height")?.Value);
+        Assert.AreEqual("40", stopButton.Attribute("Height")?.Value);
         Assert.AreEqual(
             "Center",
             prompt.Attribute("VerticalContentAlignment")?.Value);
