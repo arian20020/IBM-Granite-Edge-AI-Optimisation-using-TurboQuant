@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Estimation;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.FitAssessment;
@@ -71,16 +72,7 @@ public sealed class PrivacyCanaryTests
                 .Select(field => $"{type.Name}.{field.Name}"))
             .ToArray();
 
-        string[] methods = typeof(ByteCount).Assembly
-            .GetTypes()
-            .SelectMany(type => type
-                .GetMethods(AllMembers)
-                .Where(method =>
-                    !method.IsSpecialName
-                    && CarriesString(method.ReturnType)
-                    && !IsCompilerGenerated(method))
-                .Select(method => $"{type.Name}.{method.Name}"))
-            .ToArray();
+        string[] methods = ScanMethodsForUnexemptedStrings(typeof(ByteCount).Assembly.GetTypes());
 
         string[] found = properties
             .Concat(fields)
@@ -98,6 +90,23 @@ public sealed class PrivacyCanaryTests
             + string.Join(", ", found));
     }
 
+    /// <summary>
+    /// The method half of the scan, factored out so the regression test below
+    /// can run the real pipeline against a hand-built type instead of asserting
+    /// on an exemption helper in isolation.
+    /// </summary>
+    private static string[] ScanMethodsForUnexemptedStrings(IEnumerable<Type> types) =>
+        types
+            .SelectMany(type => type
+                .GetMethods(AllMembers)
+                .Where(method =>
+                    !method.IsSpecialName
+                    && CarriesString(method.ReturnType)
+                    && !IsCompilerGenerated(method)
+                    && !IsForwardingLambdaOverAReviewedGetter(method))
+                .Select(method => $"{type.Name}.{method.Name}"))
+            .ToArray();
+
     private static bool CarriesString(Type type) =>
         type == typeof(string)
         || type == typeof(string[])
@@ -107,15 +116,237 @@ public sealed class PrivacyCanaryTests
             && type.GetGenericArguments().Contains(typeof(string)));
 
     private static bool IsCompilerGenerated(MemberInfo member) =>
-        member.IsDefined(typeof(CompilerGeneratedAttribute), inherit: false)
-        // A lambda compiled into a cached static delegate lands on the compiler's
-        // "<>c" closure class, which itself carries the attribute, but Roslyn does
-        // not additionally stamp the generated method. Without this check every
-        // lambda that happens to return a string (e.g. a Select projecting a
-        // property already reviewed on its declaring type) would look like a new,
-        // unreviewed place for a string to enter, when it is only forwarding a
-        // value this canary already covers.
-        || (member.DeclaringType?.IsDefined(typeof(CompilerGeneratedAttribute), inherit: false) ?? false);
+        member.IsDefined(typeof(CompilerGeneratedAttribute), inherit: false);
+
+    /// <summary>
+    /// True only when a method's entire body is "load the one argument, call a
+    /// single property getter, return the result" - the exact IL shape the
+    /// compiler emits for a lambda like <c>entry => entry.EntryId</c>.
+    ///
+    /// This exists because every lambda, whether it merely forwards an
+    /// already-reviewed property or computes brand-new content (say,
+    /// <c>x => Path.GetFileName(x)</c>), is compiled onto the same
+    /// compiler-generated "&lt;&gt;c" closure class. Exempting by declaring
+    /// type alone (an earlier version of this check did exactly that) would
+    /// therefore exempt both alike, silently widening the canary's blind spot
+    /// to any lambda anywhere in Core. Decoding the IL instead lets a
+    /// genuine forward through - it introduces no content beyond the getter's
+    /// own already-scanned return value - while still catching a lambda that
+    /// computes something new. See
+    /// <see cref="MethodScan_StillCatchesAComputingLambdaDespiteTheForwardingExemption"/>
+    /// for the regression test that exercises this distinction end to end.
+    /// </summary>
+    private static bool IsForwardingLambdaOverAReviewedGetter(MethodInfo method)
+    {
+        if (method.GetParameters().Length != 1)
+        {
+            return false;
+        }
+
+        if (!TryGetSoleCallTarget(method, out MethodBase? target))
+        {
+            return false;
+        }
+
+        return target is MethodInfo getter
+            && getter.Name.StartsWith("get_", StringComparison.Ordinal)
+            && CarriesString(getter.ReturnType);
+    }
+
+    /// <summary>
+    /// Decodes a method body's IL and returns its single call/callvirt target,
+    /// or false if the body contains anything other than exactly one such call
+    /// (branches, multiple calls, field access, arithmetic, string
+    /// concatenation, and so on all fail this and are treated conservatively as
+    /// "not a proven simple forward").
+    /// </summary>
+    private static bool TryGetSoleCallTarget(MethodInfo method, out MethodBase? target)
+    {
+        target = null;
+
+        byte[]? il = method.GetMethodBody()?.GetILAsByteArray();
+        if (il is null)
+        {
+            return false;
+        }
+
+        List<int> callTokens = [];
+        int i = 0;
+
+        while (i < il.Length)
+        {
+            OpCode code;
+
+            if (il[i] == 0xFE)
+            {
+                if (i + 1 >= il.Length
+                    || !TwoByteOpCodes.TryGetValue((short)(0xFE00 | il[i + 1]), out code))
+                {
+                    return false;
+                }
+
+                i += 2;
+            }
+            else
+            {
+                if (!SingleByteOpCodes.TryGetValue(il[i], out code))
+                {
+                    return false;
+                }
+
+                i += 1;
+            }
+
+            switch (code.OperandType)
+            {
+                case OperandType.InlineNone:
+                    break;
+
+                case OperandType.ShortInlineBrTarget:
+                case OperandType.ShortInlineI:
+                case OperandType.ShortInlineVar:
+                    i += 1;
+                    break;
+
+                case OperandType.InlineVar:
+                    i += 2;
+                    break;
+
+                case OperandType.InlineSwitch:
+                    if (i + 4 > il.Length)
+                    {
+                        return false;
+                    }
+
+                    int caseCount = BitConverter.ToInt32(il, i);
+                    i += 4 + (caseCount * 4);
+                    break;
+
+                case OperandType.InlineMethod:
+                    if (i + 4 > il.Length)
+                    {
+                        return false;
+                    }
+
+                    callTokens.Add(BitConverter.ToInt32(il, i));
+                    i += 4;
+                    break;
+
+                case OperandType.InlineBrTarget:
+                case OperandType.InlineField:
+                case OperandType.InlineI:
+                case OperandType.InlineSig:
+                case OperandType.InlineString:
+                case OperandType.InlineTok:
+                case OperandType.InlineType:
+                case OperandType.ShortInlineR:
+                    i += 4;
+                    break;
+
+                case OperandType.InlineI8:
+                case OperandType.InlineR:
+                    i += 8;
+                    break;
+
+                default:
+                    // An operand shape this decoder does not know is treated as
+                    // disqualifying rather than guessed at.
+                    return false;
+            }
+        }
+
+        if (callTokens.Count != 1)
+        {
+            return false;
+        }
+
+        try
+        {
+            target = method.Module.ResolveMethod(callTokens[0]);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static readonly Dictionary<short, OpCode> SingleByteOpCodes = BuildOpCodeTable(size: 1);
+
+    private static readonly Dictionary<short, OpCode> TwoByteOpCodes = BuildOpCodeTable(size: 2);
+
+    private static Dictionary<short, OpCode> BuildOpCodeTable(int size)
+    {
+        Dictionary<short, OpCode> table = [];
+
+        foreach (FieldInfo field in typeof(OpCodes).GetFields(BindingFlags.Public | BindingFlags.Static))
+        {
+            if (field.GetValue(null) is OpCode code && code.Size == size)
+            {
+                table[code.Value] = code;
+            }
+        }
+
+        return table;
+    }
+
+    [TestMethod]
+    public void MethodScan_StillCatchesAComputingLambdaDespiteTheForwardingExemption()
+    {
+        // Regression guard for IsForwardingLambdaOverAReviewedGetter: it must
+        // not widen into "any lambda is exempt". ComputingLambdaHolder's lambda
+        // sits on the exact same kind of compiler-generated "<>c" closure class
+        // as a genuine forwarding lambda would, so only structural IL analysis -
+        // never the declaring type - can tell the two apart. This runs the real
+        // method-scan pipeline (not the exemption helper in isolation) against a
+        // hand-built type to prove the distinction holds end to end.
+        string[] found = ScanMethodsForUnexemptedStrings(NestedTypesOf(typeof(ComputingLambdaHolder)));
+
+        Assert.IsTrue(
+            found.Length > 0,
+            "A lambda that computes new string content (rather than forwarding an "
+            + "already-reviewed property) must still be caught by the scan.");
+    }
+
+    [TestMethod]
+    public void MethodScan_DoesNotFlagAGenuineForwardingLambda()
+    {
+        // The positive control for the same distinction: a lambda that only
+        // returns an already-reviewed property must still be exempt, or every
+        // Select(x => x.SomeProperty) in Core would need an unstable
+        // compiler-generated name added to the allowlist.
+        string[] found = ScanMethodsForUnexemptedStrings(NestedTypesOf(typeof(ForwardingLambdaHolder)));
+
+        Assert.AreEqual(
+            0,
+            found.Length,
+            "A lambda that only forwards an existing property must remain exempt.");
+    }
+
+    private static IEnumerable<Type> NestedTypesOf(Type outer) =>
+        new[] { outer }.Concat(outer.GetNestedTypes(AllMembers));
+
+    private static class ComputingLambdaHolder
+    {
+        // Deliberately not a forwarding lambda: it derives new string content
+        // (a file name) rather than returning an existing property, so the scan
+        // must still catch it even though it is compiler-generated. The outer
+        // method returns int, not a string-carrying type, so only the lambda
+        // itself is under test here - matching the shape SupportMatrix.FromEntries
+        // actually uses (Select(...).Distinct().Count()).
+        internal static int DistinctFileNameCount(IEnumerable<string> paths) =>
+            paths.Select(path => Path.GetFileName(path)).Distinct().Count();
+    }
+
+    private static class ForwardingLambdaHolder
+    {
+        internal sealed record Item(string Name);
+
+        // The positive control: same shape as ComputingLambdaHolder above, but
+        // the lambda only forwards Item.Name rather than computing anything new.
+        internal static int DistinctNameCount(IEnumerable<Item> items) =>
+            items.Select(item => item.Name).Distinct().Count();
+    }
 
     [TestMethod]
     public void EveryAllowedStringValue_IsFreeOfPathLikeContent()
