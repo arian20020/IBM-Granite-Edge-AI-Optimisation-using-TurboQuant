@@ -307,7 +307,8 @@ internal static class FixtureProgram
                 return 0;
             }
 
-            if (scenario == "partial-stop-next" && turn == 0)
+            if ((scenario == "partial-stop-next" && turn == 0) ||
+                scenario == "partial-stop-each")
             {
                 while (true)
                 {

@@ -645,3 +645,126 @@ the sole `granite-o1-task8*` temp entry. It remains untouched; no alternate shel
 or cleanup-policy bypass was used.
 
 Task 8 remains in progress after fix round 4/5 awaiting scoped re-review.
+
+## Independent review fix round 5/5
+
+The two final findings were verified against exact clean head
+`67890505cd7bfc2e6162f2fc78837c570bd55e2c` before production edits. Scope
+remained within Task 8: no Task 9, GPU, conversion, TurboQuant, native worker,
+protocol-version, product-limit, or deadline work was added.
+
+### Root causes and focused RED
+
+- **Exact worker failure identity and STOP ownership:** `TurnFailedEvent` was
+  the only returned turn terminal that bypassed adapter session/turn identity
+  checks. Separately, route state entered `StoppingTurn` and then awaited an
+  unscoped channel STOP. Prompt completion could therefore move the route to
+  `SessionReady` while the STOP write remained paused, allowing a subsequent
+  turn to begin before that write. The focused adapter command covering a wrong
+  session, a stale prior turn, and the paused STOP race failed 0/3: both wrong
+  failures surfaced the attacker-selected `runtime_load_failed`, and the first
+  generation completed before paused STOP dispatch. The worker-client API test
+  failed 0/1 because `StopAsync` exposed only `CancellationToken`; the focused
+  process build then failed with the expected missing exact-turn overload
+  errors.
+- **Shutdown/navigation publication:** `ShutdownAsync` read the current
+  navigation task under the Return lock but published no shutdown owner or
+  flag. A Return reentered from retirement after that snapshot and could publish
+  another navigation transaction. The first diagnostic deliberately reentered
+  shutdown at the same pre-publication boundary and caused the packaged test
+  host to abort through recursive retirement; it is retained as diagnostic, not
+  green evidence. The revised barrier test cancelled any attempted Frame
+  navigation so it produced a clean 0/1 RED: the throwing retirement escaped
+  `ShutdownAsync`, while attempted Return publication and distinct task
+  ownership remained observable.
+
+### Fixes and focused GREEN
+
+- `IOpenVinoPromptChannel.StopAsync` and the public protected
+  `OpenVinoConversation.StopAsync` now require the expected worker-confirmed
+  turn ID. The conversation validates that ID against its protected active turn
+  before constructing or writing `StopTurnCommand`; an exact pre-confirmation
+  call is an inactionable no-op, no active turn is an idempotent no-op, and a
+  different active ID fails closed as `runtime_protocol_failed` before worker
+  contact. A new real process scenario stops turn one, starts and confirms turn
+  two, rejects a stale turn-one STOP, proves turn two remains active, and then
+  stops turn two with its exact ID.
+- The adapter now uses an async turn-terminal operation gate. Confirmed STOP
+  owns that gate from state claim through channel dispatch; prompt completion,
+  prompt failure, and prompt cancellation resolve through the same gate. Route
+  state therefore remains `StoppingTurn` while dispatch is paused, so no next
+  prompt can start and the prior prompt cannot release ownership early. No
+  external operation is awaited under a monitor lock. The neutral unscoped
+  convenience method still derives the current confirmed ID and immediately
+  enters this exact-ID path.
+- Every worker turn event used by the adapter validates exact identity before
+  effects: `GenerationStartedEvent`, `TokenEvent`, `TurnCompletedEvent`, and now
+  `TurnFailedEvent`. A wrong/stale failure cannot supply the current failure
+  code; it fails closed as the fixed path-free protocol taxonomy. Once one
+  terminal owner settles, late fragments and competing failure/completion paths
+  cannot publish another terminal event.
+- The shell now has one lifecycle lock for Return and shutdown publication.
+  `ShutdownAsync` publishes one asynchronously continued completion task and
+  shutdown flag before reading any active navigation or calling application
+  code. Reentrant/concurrent shutdown callers receive that same task. Return
+  calls continue joining an already-published active navigation task, including
+  after shutdown publication; with no active transaction, all later Returns
+  receive one shared `false` task and cannot call `Frame.Navigate`.
+- Shutdown first joins any active navigation, then snapshots and retires the
+  exact inspection page still owned, once. Retirement failure is contained,
+  subscriptions are detached, and the visible content plus Frame remain
+  disabled/non-hit-testable for close. Active navigation retains its original
+  result semantics while its destination is kept inert after shutdown. The
+  deterministic tests cover reentrant/concurrent Return, an already-active
+  transaction, a throwing retirement, one destination, one retirement, exact
+  task identity/results, stale subscription rejection, and no deadlock.
+
+Focused GREEN evidence was:
+
+| Gate | Result |
+| --- | --- |
+| Wrong/stale failure plus paused exact-STOP race | 3/3 passed. The race uses synchronous continuation barriers rather than a timing sleep. |
+| Complete adapter/state arbitration partition | 33/33 passed. |
+| Exact worker-client STOP API contract | 1/1 passed. |
+| Protected stale-STOP process scenario | 1/1 passed in 4.663 s. |
+| Shutdown/navigation lifecycle focus, including throwing retirement | 5/5 passed in 1 s. |
+
+### Fix-round 5 verification
+
+All final verification commands were run sequentially with approved Task 7
+stage B for route/build/package tests and approved stages A+B for process tests.
+
+| Gate | Result |
+| --- | --- |
+| `dotnet test --project tests/UnitTests/GraniteEdgeAI.OpenVino.Tests/GraniteEdgeAI.OpenVino.Tests.csproj --configuration Release --no-restore` | Fresh final run: 175/175 passed in 29.279 s, including packaging and 33/33 adapter/state tests. |
+| OpenVINO contract suite | 60/60 passed in 31.502 s. |
+| OpenVINO worker-client suite | 13/13 passed in 2.096 s. |
+| Official protected-process suite with approved Task 7 stages A+B | 40/40 passed in 1 m 02.935 s, including the new exact stale-STOP scenario; the unrelated legacy delayed-handshake suite was not invoked. |
+| Packaged recovery/native E2E plus the three lifecycle race/recovery methods | 5/5 passed in 11 s. Canonical STOP/reuse, exact CANCEL, no late revision, negative default composition, and residue checks remained green. |
+| Affected packaged Model Inspection navigation/onboarding/OpenVINO import/prompt/native partition | 67/67 passed in 23 s. |
+| Standalone Release x64 app build with approved stage B and caller-pinned manifest digest | MSBuild 18.7.8 exited 0 after `worker_manifest_valid` and `worker_manifest_digest_valid`. |
+| Independent installed-manifest, official dependency-lock, and canonical GenAI fixture verifiers | Exit 0 with `worker_manifest_valid`, `dependency_lock_valid`, and `fixture_valid`. |
+
+The Release output contains exactly 17 official worker files. Manifest SHA-256
+is `0f656f6f2afe0b7246d0746f458ad6ed02e23be943145779b0160dd69aff2ebe`;
+worker SHA-256 is
+`51f5c5579251b2d9a81bb1c743acdc3f361abd6e297782701d04ea4691311c94`.
+Both Release x64 app recipes contain exactly 17
+`OpenVino\Official\Worker` package entries, and the compiled app DLL contains
+the exact caller-pinned manifest digest.
+
+The final audit found zero OpenVINO/protocol-fixture worker processes, zero
+repository test/build processes, 4,585 tracked files, zero tracked
+ZIP/wheel/DLL/EXE/PDB/LIB/OBJ artifacts, and `git diff --check` exited 0. Prior
+closures remain intact: the production picker and revocable raw-path lease were
+not broadened; registry, presenter, capability/evidence, and diagnostics remain
+route-neutral/path-free; the fixed installed 17-file root and caller pin remain
+the only production composition; there is one `ModelInspectionPage`;
+default/max requested tokens remain 128 and the canonical packaged smoke remains
+at most 32; no Task 9, GPU, conversion, or TurboQuant work was performed.
+
+The policy-retained directory
+`C:\Users\Arian\AppData\Local\Temp\granite-o1-task8-fix-round1-final` remains
+the sole `granite-o1-task8*` temp entry. It was not touched, consumed, or removed
+through another shell. No functional concern remains from this fix round, but
+Task 8 stays in progress after the final round awaiting scoped re-review.

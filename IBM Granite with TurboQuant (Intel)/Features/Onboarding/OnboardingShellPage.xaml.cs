@@ -21,8 +21,11 @@ namespace GraniteEdgeAI.Features.Onboarding
         // shell is currently listening to.
         private ModelInspectionPage? _attachedModelInspectionPage;
 
-        private readonly object _navigationTransactionLock = new();
+        private readonly object _shellLifecycleLock = new();
         private Task<bool>? _navigationTransactionTask;
+        private Task? _shutdownTask;
+        private readonly Task<bool> _shutdownRejectedNavigationTask =
+            Task.FromResult(false);
 
         internal Task CurrentNavigationTask { get; private set; } =
             Task.CompletedTask;
@@ -163,6 +166,10 @@ namespace GraniteEdgeAI.Features.Onboarding
         {
             // Never navigate without the validated request created by Model Import.
             ArgumentNullException.ThrowIfNull(request);
+            if (IsShuttingDown())
+            {
+                return false;
+            }
 
             object? previousContent = StageFrame.Content;
 
@@ -205,6 +212,10 @@ namespace GraniteEdgeAI.Features.Onboarding
             OpenVinoInspectionRequestedEventArgs request)
         {
             ArgumentNullException.ThrowIfNull(request);
+            if (IsShuttingDown())
+            {
+                return false;
+            }
             object? previousContent = StageFrame.Content;
             bool navigationSucceeded = _openVinoInspectionNavigator(
                 StageFrame,
@@ -355,11 +366,14 @@ namespace GraniteEdgeAI.Features.Onboarding
             }
             finally
             {
+                bool shuttingDown = IsShuttingDown();
                 if (modelImportPage is not null)
                 {
-                    modelImportPage.IsEnabled = ownershipCommitted;
+                    modelImportPage.IsEnabled =
+                        ownershipCommitted && !shuttingDown;
                 }
-                StageFrame.IsHitTestVisible = priorHitTestVisibility;
+                StageFrame.IsHitTestVisible =
+                    shuttingDown ? false : priorHitTestVisibility;
             }
         }
 
@@ -379,11 +393,15 @@ namespace GraniteEdgeAI.Features.Onboarding
             ModelInspectionPage page;
             TaskCompletionSource<bool> completion;
             Task<bool> transaction;
-            lock (_navigationTransactionLock)
+            lock (_shellLifecycleLock)
             {
                 if (_navigationTransactionTask is { IsCompleted: false } active)
                 {
                     return active;
+                }
+                if (_shutdownTask is not null)
+                {
+                    return _shutdownRejectedNavigationTask;
                 }
 
                 ModelInspectionPage? attachedPage =
@@ -433,7 +451,7 @@ namespace GraniteEdgeAI.Features.Onboarding
             finally
             {
                 completion.TrySetResult(result);
-                lock (_navigationTransactionLock)
+                lock (_shellLifecycleLock)
                 {
                     if (ReferenceEquals(
                         _navigationTransactionTask,
@@ -447,6 +465,7 @@ namespace GraniteEdgeAI.Features.Onboarding
 
         private void RecoverVisibleNavigationOwner(ModelInspectionPage source)
         {
+            bool interactive = !IsShuttingDown();
             if (StageFrame.Content is ModelImportPage destination)
             {
                 try
@@ -459,38 +478,116 @@ namespace GraniteEdgeAI.Features.Onboarding
                     // result. Input is restored below so no visible page is
                     // stranded behind the failed transition.
                 }
-                destination.IsEnabled = true;
+                destination.IsEnabled = interactive;
             }
             else if (ReferenceEquals(StageFrame.Content, source))
             {
-                source.IsEnabled = true;
+                source.IsEnabled = interactive;
             }
-            StageFrame.IsHitTestVisible = true;
+            StageFrame.IsHitTestVisible = interactive;
         }
 
-        internal async Task ShutdownAsync()
+        internal Task ShutdownAsync()
         {
             Task navigation;
-            lock (_navigationTransactionLock)
+            TaskCompletionSource completion;
+            Task shutdown;
+            lock (_shellLifecycleLock)
             {
+                if (_shutdownTask is not null)
+                {
+                    return _shutdownTask;
+                }
+
+                completion = new TaskCompletionSource(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                shutdown = completion.Task;
+                _shutdownTask = shutdown;
                 navigation = _navigationTransactionTask ??
                     CurrentNavigationTask;
             }
-            if (!navigation.IsCompleted)
-            {
-                await navigation;
-            }
 
-            ModelInspectionPage? page = _attachedModelInspectionPage;
-            if (page is not null)
+            _ = CompleteShutdownAsync(navigation, completion);
+            return shutdown;
+        }
+
+        private async Task CompleteShutdownAsync(
+            Task navigation,
+            TaskCompletionSource completion)
+        {
+            ModelInspectionPage? ownedPage = null;
+            try
             {
-                await page.RetireForNavigationAsync();
-                if (ReferenceEquals(page, _attachedModelInspectionPage))
+                DisableShellInput();
+                try
                 {
-                    DetachModelInspectionPage();
+                    await navigation;
+                }
+                catch (Exception)
+                {
+                    // Shutdown still owns the currently published page and
+                    // must retire/detach it after a failed navigation owner.
+                }
+
+                lock (_shellLifecycleLock)
+                {
+                    ownedPage = _attachedModelInspectionPage;
+                }
+                if (ownedPage is not null)
+                {
+                    try
+                    {
+                        await ownedPage.RetireForNavigationAsync();
+                    }
+                    catch (Exception)
+                    {
+                        // App close is terminal. Retirement failure cannot
+                        // republish navigation or leave live subscriptions.
+                    }
                 }
             }
-            DetachModelImportPage();
+            catch (Exception)
+            {
+                // The published owner always settles below. MainWindow can
+                // close without an async-void cleanup exception escaping.
+            }
+            finally
+            {
+                try
+                {
+                    if (ownedPage is not null && ReferenceEquals(
+                            ownedPage,
+                            _attachedModelInspectionPage))
+                    {
+                        DetachModelInspectionPage();
+                    }
+                    DetachModelImportPage();
+                    DisableShellInput();
+                }
+                catch (Exception)
+                {
+                    // Completion publication remains authoritative even if a
+                    // UI element is already being destroyed by window close.
+                }
+                completion.TrySetResult();
+            }
+        }
+
+        private bool IsShuttingDown()
+        {
+            lock (_shellLifecycleLock)
+            {
+                return _shutdownTask is not null;
+            }
+        }
+
+        private void DisableShellInput()
+        {
+            StageFrame.IsHitTestVisible = false;
+            if (StageFrame.Content is Control content)
+            {
+                content.IsEnabled = false;
+            }
         }
 
         private void ModelInspectionPage_FooterStatusChanged(

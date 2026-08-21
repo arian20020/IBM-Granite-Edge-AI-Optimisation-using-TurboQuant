@@ -36,6 +36,19 @@ public sealed class OpenVinoWorkerClientTests
                 .Select(static method => method.Name)
                 .Distinct(StringComparer.Ordinal)
                 .ToArray());
+
+        System.Reflection.MethodInfo stop = typeof(OpenVinoConversation)
+            .GetMethods()
+            .Single(static method =>
+                method.DeclaringType == typeof(OpenVinoConversation) &&
+                method.Name == "StopAsync");
+        CollectionAssert.AreEqual(
+            new[] { typeof(Guid), typeof(CancellationToken) },
+            stop.GetParameters()
+                .Select(static parameter => parameter.ParameterType)
+                .ToArray(),
+            "STOP must carry the caller-confirmed turn identity to the " +
+            "protected conversation boundary.");
     }
 
     [TestMethod]

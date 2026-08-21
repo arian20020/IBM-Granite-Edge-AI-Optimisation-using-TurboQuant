@@ -646,6 +646,169 @@ public sealed class OpenVinoPromptAdapterTests
     }
 
     [TestMethod]
+    [DataRow(false)]
+    [DataRow(true)]
+    public async Task WrongOrStaleTurnFailureCannotClaimTheCurrentWorkerFailure(
+        bool wrongSession)
+    {
+        Guid firstTurnId = Guid.Empty;
+        int promptNumber = 0;
+        FakeChannel channel = new((command, _, _) =>
+        {
+            if (Interlocked.Increment(ref promptNumber) == 1)
+            {
+                firstTurnId = command.TurnId;
+                return Task.FromResult<IOpenVinoEvent>(new TurnCompletedEvent(
+                    command.SessionId,
+                    command.TurnId,
+                    1,
+                    1,
+                    OpenVinoTurnDisposition.Completed));
+            }
+
+            return Task.FromResult<IOpenVinoEvent>(new TurnFailedEvent(
+                wrongSession ? Guid.NewGuid() : command.SessionId,
+                wrongSession ? command.TurnId : firstTurnId,
+                OpenVinoSupportCode.RuntimeLoadFailed));
+        });
+        (OpenVinoRouteSession session, List<PromptEvent> events) =
+            await StartSessionAsync(channel);
+
+        Assert.AreEqual(
+            PromptTurnStatus.Completed,
+            (await session.GenerateAsync(
+                "establish stale identity",
+                8,
+                CancellationToken.None)).Status);
+        PromptTurnResult result = await session.GenerateAsync(
+            "reject wrong terminal",
+            8,
+            CancellationToken.None);
+
+        Assert.AreEqual(PromptTurnStatus.Failed, result.Status);
+        Assert.AreEqual(
+            OpenVinoSupportCode.RuntimeProtocolFailed.ToProtocolValue(),
+            result.Failure!.SupportCode,
+            "A mismatched terminal event must fail closed as a protocol error, " +
+            "not claim the current turn with the attacker's support code.");
+        PromptEvent failure = events.Single(item =>
+            item.Kind == PromptEventKind.Failed);
+        Assert.AreEqual(result.Failure.SupportCode, failure.Failure!.SupportCode);
+        Assert.AreNotEqual(firstTurnId, failure.TurnId,
+            "A stale turn identity must never be published as the current terminal.");
+        Assert.IsFalse(events.Any(item =>
+            item.Failure?.SupportCode ==
+                OpenVinoSupportCode.RuntimeLoadFailed.ToProtocolValue()));
+    }
+
+    [TestMethod]
+    public async Task StopDispatchOwnsExactTurnUntilPromptTerminalSettles()
+    {
+        TaskCompletionSource firstPromptStarted = NewSignal();
+        TaskCompletionSource<IOpenVinoEvent> firstTerminal = new();
+        TaskCompletionSource stopDispatchEntered = NewSignal();
+        TaskCompletionSource releaseStopDispatch = NewSignal();
+        IProgress<TokenEvent>? firstProgress = null;
+        int promptNumber = 0;
+        FakeChannel channel = new(async (command, progress, _) =>
+        {
+            if (Interlocked.Increment(ref promptNumber) == 1)
+            {
+                firstProgress = progress;
+                firstPromptStarted.TrySetResult();
+                return await firstTerminal.Task.ConfigureAwait(false);
+            }
+
+            return new TurnCompletedEvent(
+                command.SessionId,
+                command.TurnId,
+                1,
+                1,
+                OpenVinoTurnDisposition.Completed);
+        });
+        channel.StopAsyncAction = async (_, _) =>
+        {
+            stopDispatchEntered.TrySetResult();
+            await releaseStopDispatch.Task;
+        };
+        (OpenVinoRouteSession session, List<PromptEvent> events) =
+            await StartSessionAsync(channel);
+
+        Task<PromptTurnResult> first = session.GenerateAsync(
+            "stop exact turn",
+            8,
+            CancellationToken.None);
+        await firstPromptStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Guid firstTurnId = events.Single(item =>
+            item.Kind == PromptEventKind.GenerationConfirmed).TurnId!.Value;
+
+        Task stop = session.StopActiveTurnAsync(
+            firstTurnId,
+            CancellationToken.None);
+        await stopDispatchEntered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        firstTerminal.TrySetResult(new TurnCompletedEvent(
+            session.Snapshot.Identity.SessionId,
+            firstTurnId,
+            1,
+            0,
+            OpenVinoTurnDisposition.Stopped));
+
+        bool firstCompletedBeforeStopDispatch = first.IsCompleted;
+        Exception? overlappingPromptError = null;
+        try
+        {
+            _ = await session.GenerateAsync(
+                "must not start during stop dispatch",
+                8,
+                CancellationToken.None);
+        }
+        catch (Exception error)
+        {
+            overlappingPromptError = error;
+        }
+        int promptCountBeforeStopDispatch = channel.PromptCount;
+
+        releaseStopDispatch.TrySetResult();
+        await stop.WaitAsync(TimeSpan.FromSeconds(5));
+        PromptTurnResult stopped = await first.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.IsFalse(firstCompletedBeforeStopDispatch,
+            "Prompt completion cannot release turn ownership while its STOP " +
+            "dispatch is still paused.");
+        Assert.IsInstanceOfType<InvalidOperationException>(
+            overlappingPromptError,
+            "A next prompt cannot start until the original STOP dispatch and " +
+            "terminal arbitration have settled.");
+        Assert.AreEqual(1, promptCountBeforeStopDispatch);
+        Assert.AreEqual(PromptTurnStatus.Stopped, stopped.Status);
+        CollectionAssert.AreEqual(
+            new[] { firstTurnId },
+            channel.StopTurnIds.ToArray(),
+            "The expected worker-confirmed turn must cross the channel boundary.");
+        Assert.HasCount(1, events.Where(item =>
+            item.Kind is PromptEventKind.TurnCompleted or
+                PromptEventKind.Failed or
+                PromptEventKind.Cancelled));
+
+        int eventCountAfterTerminal = events.Count;
+        firstProgress!.Report(new TokenEvent(
+            session.Snapshot.Identity.SessionId,
+            firstTurnId,
+            1,
+            "late"));
+        Assert.AreEqual(eventCountAfterTerminal, events.Count,
+            "A late fragment from the settled turn must remain inactionable.");
+
+        PromptTurnResult reused = await session.GenerateAsync(
+            "next turn",
+            8,
+            CancellationToken.None);
+        Assert.AreEqual(PromptTurnStatus.Completed, reused.Status);
+        Assert.AreEqual(2, channel.PromptCount);
+        Assert.AreEqual(1, channel.StopCount);
+    }
+
+    [TestMethod]
     public async Task CloseAwaitsChannelCleanupAndMakesLateOperationsInactionable()
     {
         FakeChannel channel = SuccessfulChannel();
@@ -754,6 +917,7 @@ public sealed class OpenVinoPromptAdapterTests
             Task<IOpenVinoEvent>> prompt) : IOpenVinoPromptChannel
     {
         internal Action? StopAction { get; set; }
+        internal Func<Guid, CancellationToken, Task>? StopAsyncAction { get; set; }
         internal Action? CancelAction { get; set; }
         internal Exception? CancelFailure { get; set; }
         internal Func<ValueTask>? DisposeAction { get; set; }
@@ -764,6 +928,7 @@ public sealed class OpenVinoPromptAdapterTests
         internal bool DisposeCalled => DisposeCount != 0;
         internal int CancelCount { get; private set; }
         internal int StopCount { get; private set; }
+        internal List<Guid> StopTurnIds { get; } = [];
         internal int DisposeCount { get; private set; }
         private Action<GenerationStartedEvent>? generationStarted;
         private Guid activeTurnId;
@@ -787,11 +952,15 @@ public sealed class OpenVinoPromptAdapterTests
         internal void ConfirmGeneration() => generationStarted?.Invoke(
             new GenerationStartedEvent(SessionId, activeTurnId));
 
-        public Task StopAsync(CancellationToken cancellationToken)
+        public Task StopAsync(
+            Guid expectedTurnId,
+            CancellationToken cancellationToken)
         {
             StopCount++;
+            StopTurnIds.Add(expectedTurnId);
             StopAction?.Invoke();
-            return Task.CompletedTask;
+            return StopAsyncAction?.Invoke(expectedTurnId, cancellationToken) ??
+                Task.CompletedTask;
         }
 
         public Task CancelAsync(CancellationToken cancellationToken)

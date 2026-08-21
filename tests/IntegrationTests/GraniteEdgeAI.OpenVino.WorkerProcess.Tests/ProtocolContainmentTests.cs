@@ -112,16 +112,23 @@ public sealed class ProtocolContainmentTests
         OpenVinoWorkerClient client = CreateClient(fixture.Root);
         await using OpenVinoConversation conversation = await client.StartSessionAsync(
             StartSession(), CancellationToken.None);
+        PromptCommand stoppedCommand = Prompt(
+            conversation.SessionId,
+            "stop-sensitive");
         Task<IOpenVinoEvent> active = conversation.PromptAsync(
-            Prompt(conversation.SessionId, "stop-sensitive"),
+            stoppedCommand,
             new ImmediateProgress<TokenEvent>(_ => { }),
             CancellationToken.None);
         await WaitUntilAsync(async () =>
         {
-            await conversation.StopAsync(CancellationToken.None);
+            await conversation.StopAsync(
+                stoppedCommand.TurnId,
+                CancellationToken.None);
             return active.IsCompleted;
         });
-        await conversation.StopAsync(CancellationToken.None);
+        await conversation.StopAsync(
+            stoppedCommand.TurnId,
+            CancellationToken.None);
         Assert.IsInstanceOfType<TurnCompletedEvent>(await active);
 
         IOpenVinoEvent next = await conversation.PromptAsync(
@@ -138,8 +145,9 @@ public sealed class ProtocolContainmentTests
         OpenVinoWorkerClient client = CreateClient(fixture.Root);
         await using OpenVinoConversation conversation = await client.StartSessionAsync(
             StartSession(), CancellationToken.None);
+        PromptCommand activeCommand = Prompt(conversation.SessionId, "active");
         Task<IOpenVinoEvent> active = conversation.PromptAsync(
-            Prompt(conversation.SessionId, "active"),
+            activeCommand,
             null,
             CancellationToken.None);
         using CancellationTokenSource queuedDeadline =
@@ -155,10 +163,64 @@ public sealed class ProtocolContainmentTests
         Assert.AreEqual(OpenVinoSupportCode.RuntimeProtocolFailed, error.SupportCode);
         await WaitUntilAsync(async () =>
         {
-            await conversation.StopAsync(CancellationToken.None);
+            await conversation.StopAsync(
+                activeCommand.TurnId,
+                CancellationToken.None);
             return active.IsCompleted;
         });
         _ = await active;
+    }
+
+    [TestMethod]
+    public async Task StaleStopTurnIdCannotReachAConfirmedSubsequentTurn()
+    {
+        await using FixtureRun fixture = CreateFixture("partial-stop-each");
+        OpenVinoWorkerClient client = CreateClient(fixture.Root);
+        await using OpenVinoConversation conversation = await client.StartSessionAsync(
+            StartSession(), CancellationToken.None);
+
+        PromptCommand firstCommand = Prompt(conversation.SessionId, "first");
+        Task<IOpenVinoEvent> first = conversation.PromptAsync(
+            firstCommand,
+            null,
+            CancellationToken.None);
+        await WaitUntilAsync(async () =>
+        {
+            await conversation.StopAsync(
+                firstCommand.TurnId,
+                CancellationToken.None);
+            return first.IsCompleted;
+        });
+        Assert.IsInstanceOfType<TurnCompletedEvent>(await first);
+
+        TaskCompletionSource secondConfirmed = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        PromptCommand secondCommand = Prompt(conversation.SessionId, "second");
+        Task<IOpenVinoEvent> second = conversation.PromptAsync(
+            secondCommand,
+            null,
+            new ImmediateProgress<GenerationStartedEvent>(_ =>
+                secondConfirmed.TrySetResult()),
+            CancellationToken.None);
+        await secondConfirmed.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        OpenVinoWorkerClientException staleStop =
+            await Assert.ThrowsExactlyAsync<OpenVinoWorkerClientException>(() =>
+                conversation.StopAsync(
+                    firstCommand.TurnId,
+                    CancellationToken.None));
+        Assert.AreEqual(
+            OpenVinoSupportCode.RuntimeProtocolFailed,
+            staleStop.SupportCode);
+        Assert.IsFalse(second.IsCompleted,
+            "A rejected stale STOP must not reach the worker's current turn.");
+
+        await conversation.StopAsync(
+            secondCommand.TurnId,
+            CancellationToken.None);
+        TurnCompletedEvent terminal = Assert.IsInstanceOfType<TurnCompletedEvent>(
+            await second.WaitAsync(TimeSpan.FromSeconds(5)));
+        Assert.AreEqual(OpenVinoTurnDisposition.Stopped, terminal.Disposition);
     }
 
     [TestMethod]

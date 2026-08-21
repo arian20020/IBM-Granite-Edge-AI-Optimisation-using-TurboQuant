@@ -24,7 +24,9 @@ internal interface IOpenVinoPromptChannel : IAsyncDisposable
         Action<GenerationStartedEvent>? generationStarted,
         CancellationToken cancellationToken);
 
-    Task StopAsync(CancellationToken cancellationToken);
+    Task StopAsync(
+        Guid expectedTurnId,
+        CancellationToken cancellationToken);
 
     Task CancelAsync(CancellationToken cancellationToken);
 
@@ -54,6 +56,7 @@ public sealed class OpenVinoPromptAdapter : IAsyncDisposable
     private static readonly IReadOnlyList<string> CpuExecutionDevices = ["CPU"];
     private readonly object stateLock = new();
     private readonly object teardownLock = new();
+    private readonly SemaphoreSlim turnTerminalGate = new(1, 1);
     private readonly OpenVinoRouteStateMachine stateMachine;
     private readonly IOpenVinoPromptChannel channel;
     private readonly Action<PromptEvent> eventSink;
@@ -184,23 +187,35 @@ public sealed class OpenVinoPromptAdapter : IAsyncDisposable
 
             if (terminal is TurnFailedEvent turnFailed)
             {
-                return ResolveFailedTurn(
+                if (turnFailed.SessionId != identity.SessionId ||
+                    turnFailed.TurnId != turnId)
+                {
+                    return await ResolveFailedTurnAsync(
+                        operationId,
+                        turnId,
+                        OpenVinoSupportCode.RuntimeProtocolFailed)
+                        .ConfigureAwait(false);
+                }
+
+                return await ResolveFailedTurnAsync(
                     operationId,
                     turnId,
-                    turnFailed.SupportCode);
+                    turnFailed.SupportCode).ConfigureAwait(false);
             }
 
             if (terminal is SessionCancelledEvent cancelled)
             {
                 if (cancelled.SessionId != identity.SessionId)
                 {
-                    return ResolveFailedTurn(
+                    return await ResolveFailedTurnAsync(
                         operationId,
                         turnId,
-                        OpenVinoSupportCode.RuntimeProtocolFailed);
+                        OpenVinoSupportCode.RuntimeProtocolFailed)
+                        .ConfigureAwait(false);
                 }
 
-                ObservePromptCancellation(operationId, turnId);
+                await ObservePromptCancellationAsync(operationId, turnId)
+                    .ConfigureAwait(false);
                 throw new OperationCanceledException(
                     "The OpenVINO prompt session was cancelled.");
             }
@@ -209,19 +224,16 @@ public sealed class OpenVinoPromptAdapter : IAsyncDisposable
                 completed.SessionId != identity.SessionId ||
                 completed.TurnId != turnId)
             {
-                return ResolveFailedTurn(
+                return await ResolveFailedTurnAsync(
                     operationId,
                     turnId,
-                    OpenVinoSupportCode.RuntimeProtocolFailed);
+                    OpenVinoSupportCode.RuntimeProtocolFailed)
+                    .ConfigureAwait(false);
             }
 
-            OpenVinoTurnTerminalOwner terminalOwner;
-            lock (stateLock)
-            {
-                terminalOwner = stateMachine.ResolveCompletedTurn(
-                    operationId,
-                    turnId);
-            }
+            OpenVinoTurnTerminalOwner terminalOwner =
+                await ResolveCompletedTurnAsync(operationId, turnId)
+                    .ConfigureAwait(false);
             if (terminalOwner == OpenVinoTurnTerminalOwner.Cancellation)
             {
                 throw new OperationCanceledException(
@@ -229,10 +241,11 @@ public sealed class OpenVinoPromptAdapter : IAsyncDisposable
             }
             if (terminalOwner != OpenVinoTurnTerminalOwner.Prompt)
             {
-                return ResolveFailedTurn(
+                return await ResolveFailedTurnAsync(
                     operationId,
                     turnId,
-                    OpenVinoSupportCode.RuntimeProtocolFailed);
+                    OpenVinoSupportCode.RuntimeProtocolFailed)
+                    .ConfigureAwait(false);
             }
 
             PromptTurnStatus status = completed.Disposition ==
@@ -253,18 +266,23 @@ public sealed class OpenVinoPromptAdapter : IAsyncDisposable
         catch (OpenVinoRouteWorkerFailureException failure)
             when (failure.SupportCode == OpenVinoSupportCode.OperationCancelled)
         {
-            ObservePromptCancellation(operationId, turnId);
+            await ObservePromptCancellationAsync(operationId, turnId)
+                .ConfigureAwait(false);
             throw new OperationCanceledException(
                 "The OpenVINO prompt session was cancelled.",
                 failure);
         }
         catch (OpenVinoRouteWorkerFailureException failure)
         {
-            return ResolveFailedTurn(operationId, turnId, failure.SupportCode);
+            return await ResolveFailedTurnAsync(
+                operationId,
+                turnId,
+                failure.SupportCode).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
-            ObservePromptCancellation(operationId, turnId);
+            await ObservePromptCancellationAsync(operationId, turnId)
+                .ConfigureAwait(false);
             throw;
         }
     }
@@ -296,31 +314,41 @@ public sealed class OpenVinoPromptAdapter : IAsyncDisposable
     {
         ArgumentOutOfRangeException.ThrowIfEqual(confirmedTurnId, Guid.Empty);
         ThrowIfDisposed();
-        OpenVinoRouteSnapshot snapshot;
-        lock (stateLock)
-        {
-            snapshot = Snapshot;
-            if (snapshot.ActiveTurnId != confirmedTurnId ||
-                !stateMachine.TryBeginConfirmedStopping(
-                    snapshot.Identity.OperationId,
-                    confirmedTurnId))
-            {
-                throw new InvalidOperationException(
-                    "The worker-confirmed generation turn is no longer active.");
-            }
-        }
-
-        Emit(PromptEventKind.StoppingTurn, confirmedTurnId);
+        await turnTerminalGate.WaitAsync(cancellationToken)
+            .ConfigureAwait(false);
         try
         {
-            await channel.StopAsync(cancellationToken).ConfigureAwait(false);
+            OpenVinoRouteSnapshot snapshot;
+            lock (stateLock)
+            {
+                snapshot = Snapshot;
+                if (snapshot.ActiveTurnId != confirmedTurnId ||
+                    !stateMachine.TryBeginConfirmedStopping(
+                        snapshot.Identity.OperationId,
+                        confirmedTurnId))
+                {
+                    throw new InvalidOperationException(
+                        "The worker-confirmed generation turn is no longer active.");
+                }
+            }
+
+            Emit(PromptEventKind.StoppingTurn, confirmedTurnId);
+            try
+            {
+                await channel.StopAsync(confirmedTurnId, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (OpenVinoRouteWorkerFailureException failure)
+            {
+                ResolveFailedTurnCore(
+                    snapshot.Identity.OperationId,
+                    confirmedTurnId,
+                    failure.SupportCode);
+            }
         }
-        catch (OpenVinoRouteWorkerFailureException failure)
+        finally
         {
-            ResolveFailedTurn(
-                snapshot.Identity.OperationId,
-                confirmedTurnId,
-                failure.SupportCode);
+            turnTerminalGate.Release();
         }
     }
 
@@ -632,7 +660,45 @@ public sealed class OpenVinoPromptAdapter : IAsyncDisposable
         }
     }
 
-    private PromptTurnResult ResolveFailedTurn(
+    private async Task<OpenVinoTurnTerminalOwner> ResolveCompletedTurnAsync(
+        Guid operationId,
+        Guid turnId)
+    {
+        await turnTerminalGate.WaitAsync(CancellationToken.None)
+            .ConfigureAwait(false);
+        try
+        {
+            lock (stateLock)
+            {
+                return stateMachine.ResolveCompletedTurn(
+                    operationId,
+                    turnId);
+            }
+        }
+        finally
+        {
+            turnTerminalGate.Release();
+        }
+    }
+
+    private async Task<PromptTurnResult> ResolveFailedTurnAsync(
+        Guid operationId,
+        Guid turnId,
+        OpenVinoSupportCode supportCode)
+    {
+        await turnTerminalGate.WaitAsync(CancellationToken.None)
+            .ConfigureAwait(false);
+        try
+        {
+            return ResolveFailedTurnCore(operationId, turnId, supportCode);
+        }
+        finally
+        {
+            turnTerminalGate.Release();
+        }
+    }
+
+    private PromptTurnResult ResolveFailedTurnCore(
         Guid operationId,
         Guid turnId,
         OpenVinoSupportCode supportCode)
@@ -663,20 +729,32 @@ public sealed class OpenVinoPromptAdapter : IAsyncDisposable
             failure);
     }
 
-    private void ObservePromptCancellation(Guid operationId, Guid turnId)
+    private async Task ObservePromptCancellationAsync(
+        Guid operationId,
+        Guid turnId)
     {
-        bool publishTerminal = false;
-        lock (stateLock)
+        await turnTerminalGate.WaitAsync(CancellationToken.None)
+            .ConfigureAwait(false);
+        bool publishTerminal;
+        try
         {
-            if (stateMachine.IsTurnCancellationOwned(operationId, turnId))
+            publishTerminal = false;
+            lock (stateLock)
             {
-                return;
-            }
+                if (stateMachine.IsTurnCancellationOwned(operationId, turnId))
+                {
+                    return;
+                }
 
-            if (stateMachine.TryBeginCancellation(operationId))
-            {
-                publishTerminal = stateMachine.TryMarkCancelled(operationId);
+                if (stateMachine.TryBeginCancellation(operationId))
+                {
+                    publishTerminal = stateMachine.TryMarkCancelled(operationId);
+                }
             }
+        }
+        finally
+        {
+            turnTerminalGate.Release();
         }
 
         if (publishTerminal)
@@ -898,11 +976,14 @@ internal sealed class OpenVinoWorkerPromptChannel(
         }
     }
 
-    public async Task StopAsync(CancellationToken cancellationToken)
+    public async Task StopAsync(
+        Guid expectedTurnId,
+        CancellationToken cancellationToken)
     {
         try
         {
-            await conversation.StopAsync(cancellationToken).ConfigureAwait(false);
+            await conversation.StopAsync(expectedTurnId, cancellationToken)
+                .ConfigureAwait(false);
         }
         catch (OpenVinoWorkerClientException failure)
         {

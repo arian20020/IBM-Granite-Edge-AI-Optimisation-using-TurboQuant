@@ -209,18 +209,33 @@ public sealed class OpenVinoConversation : IAsyncDisposable
     }
 
     /// <summary>Sends at most one stop for the active generation.</summary>
-    public async Task StopAsync(CancellationToken cancellationToken)
+    public async Task StopAsync(
+        Guid expectedTurnId,
+        CancellationToken cancellationToken)
     {
+        ArgumentOutOfRangeException.ThrowIfEqual(expectedTurnId, Guid.Empty);
         StopTurnCommand? command;
         lock (_stateLock)
         {
             ThrowIfDisposed();
-            if (_stopSent || !_generationStarted || _activeTurnId is not Guid turnId)
+            if (_activeTurnId is null)
+            {
+                return;
+            }
+            if (_activeTurnId != expectedTurnId)
+            {
+                throw OpenVinoWorkerClient.ProtocolFailure();
+            }
+            if (!_generationStarted)
+            {
+                return;
+            }
+            if (_stopSent)
             {
                 return;
             }
 
-            command = new StopTurnCommand(_sessionId, turnId);
+            command = new StopTurnCommand(_sessionId, expectedTurnId);
             _validator.Accept(command);
             _stopSent = true;
             _lastActivityUtc = DateTimeOffset.UtcNow;

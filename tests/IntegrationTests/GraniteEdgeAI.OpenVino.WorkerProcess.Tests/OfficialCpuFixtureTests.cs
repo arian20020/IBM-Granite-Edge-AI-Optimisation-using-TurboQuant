@@ -52,8 +52,13 @@ public sealed class OfficialCpuFixtureTests
             List<TokenEvent> stoppedTokens = [];
             TaskCompletionSource firstFragment = new(
                 TaskCreationOptions.RunContinuationsAsynchronously);
+            PromptCommand stoppedCommand = new(
+                stopped.SessionId,
+                Guid.NewGuid(),
+                "hello",
+                2);
             Task<IOpenVinoEvent> active = stopped.PromptAsync(
-                new PromptCommand(stopped.SessionId, Guid.NewGuid(), "hello", 2),
+                stoppedCommand,
                 new InlineProgress<TokenEvent>(token =>
                 {
                     stoppedTokens.Add(token);
@@ -61,7 +66,9 @@ public sealed class OfficialCpuFixtureTests
                 }),
                 CancellationToken.None);
             await firstFragment.Task.WaitAsync(TimeSpan.FromSeconds(2)).ConfigureAwait(false);
-            await stopped.StopAsync(CancellationToken.None).ConfigureAwait(false);
+            await stopped.StopAsync(
+                stoppedCommand.TurnId,
+                CancellationToken.None).ConfigureAwait(false);
             TurnCompletedEvent terminal = Assert.IsInstanceOfType<TurnCompletedEvent>(
                 await active.ConfigureAwait(false));
             Assert.AreEqual(OpenVinoTurnDisposition.Stopped, terminal.Disposition);

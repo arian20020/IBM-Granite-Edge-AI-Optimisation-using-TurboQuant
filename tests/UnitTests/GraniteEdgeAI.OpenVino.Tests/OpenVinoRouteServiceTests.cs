@@ -194,7 +194,9 @@ public sealed class OpenVinoRouteServiceTests
             CancellationToken cancellationToken) =>
             throw new AssertFailedException("prompt is not part of activation");
 
-        public Task StopAsync(CancellationToken cancellationToken) =>
+        public Task StopAsync(
+            Guid expectedTurnId,
+            CancellationToken cancellationToken) =>
             Task.CompletedTask;
 
         public Task CancelAsync(CancellationToken cancellationToken) =>
