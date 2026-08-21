@@ -60,7 +60,17 @@ public sealed class ModelInspectionHandoffRegistryTests
         Assert.IsFalse(registry.TryRegisterIssued(handoff));
         registry.ActivateModelRun(ModelRunId);
         Assert.IsTrue(registry.TryRegisterIssued(handoff));
-        Assert.IsFalse(registry.TryRegisterIssued(handoff));
+        Assert.IsTrue(
+            registry.TryRegisterIssued(handoff),
+            "Re-registering the exact current Issued value must support one explicit navigation retry.");
+        var altered = new ModelInspectionHandoff(
+            handoff.SchemaVersion,
+            handoff.ModelInspectionHandoffId,
+            handoff.ModelInspectionRunId,
+            handoff.Outcome,
+            "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            handoff.ModelLengthBytes);
+        Assert.IsFalse(registry.TryRegisterIssued(altered));
     }
 
     [TestMethod]
@@ -85,6 +95,11 @@ public sealed class ModelInspectionHandoffRegistryTests
             altered,
             ModelRunId,
             HardwareRunId,
+            out _));
+        Assert.IsFalse(registry.TryBindToHardwareRun(
+            handoff,
+            ModelRunId,
+            handoff.ModelInspectionHandoffId,
             out _));
         Assert.IsTrue(registry.TryBindToHardwareRun(
             handoff,
@@ -141,17 +156,15 @@ public sealed class ModelInspectionHandoffRegistryTests
         Assert.IsTrue(registry.TryMarkHardwareStarted(claim));
         Assert.IsFalse(registry.TryMarkHardwareStarted(claim));
         Assert.IsFalse(registry.TryRollbackBeforeHardwareStart(claim));
-        Assert.IsTrue(registry.TryTransferToBlock3(
-            handoff.ModelInspectionHandoffId,
-            ModelRunId,
-            HardwareRunId));
         Assert.AreEqual(
-            ModelInspectionHandoffLifecycleState.Transferred,
+            ModelInspectionHandoffLifecycleState.BoundToHardwareRun,
             registry.GetState(handoff.ModelInspectionHandoffId));
-        Assert.IsFalse(registry.TryTransferToBlock3(
-            handoff.ModelInspectionHandoffId,
-            ModelRunId,
-            HardwareRunId));
+        Assert.IsNull(
+            typeof(ModelInspectionHandoffRegistry).GetMethod(
+                "TryTransferToBlock3",
+                System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.NonPublic),
+            "Block 3 transfer must not exist before the full route predicate is implemented.");
     }
 
     [TestMethod]
@@ -185,13 +198,16 @@ public sealed class ModelInspectionHandoffRegistryTests
             out ModelInspectionHandoffClaim claim));
         Assert.IsTrue(registry.TryMarkHardwareStarted(claim));
 
-        Assert.IsTrue(registry.TryReissue(
-            handoff.ModelInspectionHandoffId,
+        Assert.IsTrue(ModelInspectionHandoffProjector.TryProject(
+            ModelRunId,
             ModelRunId,
             CreateReadyTerminal(),
             out ModelInspectionHandoff? replacement));
-
         Assert.IsNotNull(replacement);
+        Assert.IsTrue(registry.TryAcceptReissue(
+            handoff.ModelInspectionHandoffId,
+            replacement));
+
         Assert.AreNotEqual(
             handoff.ModelInspectionHandoffId,
             replacement.ModelInspectionHandoffId);

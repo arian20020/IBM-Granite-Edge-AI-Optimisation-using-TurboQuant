@@ -13,6 +13,7 @@ using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Automation.Provider;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
+using System.Reflection;
 
 namespace GraniteEdgeAI.UnitTests;
 
@@ -27,11 +28,26 @@ public sealed class OnboardingHardwareInspectionNavigationTests
     public void ValidTypedHandoff_ClaimsNavigatesThenAuthorizesOneRun()
     {
         var service = new RecordingHardwareService();
+        int navigationAttempts = 0;
         var shell = new OnboardingShellPage(
             static (frame, request) => frame.Navigate(
                 typeof(ModelInspectionPage),
                 request),
-            service);
+            service,
+            (frame, viewModel, retryHandoff) =>
+            {
+                navigationAttempts++;
+                if (navigationAttempts == 2)
+                {
+                    return false;
+                }
+
+                frame.Content = new HardwareInspectionPage(
+                    viewModel,
+                    retryHandoff);
+                return true;
+            },
+            hardwareHandoffReissuer: static _ => CreateHandoff());
         var source = new ModelInspectionPage();
         shell.AttachModelInspectionPage(source);
         ModelInspectionHandoff handoff = CreateHandoff();
@@ -45,13 +61,55 @@ public sealed class OnboardingHardwareInspectionNavigationTests
         Assert.IsNotNull(hardwarePage);
         Assert.AreSame(handoff, hardwarePage.OpaqueModelHandoff);
         Assert.IsTrue(hardwarePage.IsStartAuthorized);
+        PropertyInfo? currentRunProperty = typeof(OnboardingShellPage).GetProperty(
+            "CurrentProductHardwareRunId",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        PropertyInfo? configuredRunProperty = typeof(HardwareInspectionPage).GetProperty(
+            "ConfiguredInspectionId",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsNotNull(currentRunProperty);
+        Assert.IsNotNull(configuredRunProperty);
+        Guid firstHardwareRunId = (Guid)currentRunProperty.GetValue(shell)!;
+        Assert.AreNotEqual(Guid.Empty, firstHardwareRunId);
+        Assert.AreEqual(
+            firstHardwareRunId,
+            (Guid)configuredRunProperty.GetValue(hardwarePage)!);
+        Load(hardwarePage);
+        Assert.AreEqual(firstHardwareRunId, service.LastInspectionId);
         Assert.AreEqual(
             ModelInspectionHandoffLifecycleState.BoundToHardwareRun,
             shell.GetModelHandoffState(handoff.ModelInspectionHandoffId));
 
-        hardwarePage.Apply(
+        MethodInfo? retryMethod = typeof(OnboardingShellPage).GetMethod(
+            "RetryHardwareInspection",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsNotNull(retryMethod);
+        Assert.IsFalse((bool)retryMethod.Invoke(shell, [hardwarePage])!);
+        Assert.AreSame(hardwarePage, frame.Content);
+        Assert.AreEqual(1, service.CallCount);
+        Assert.IsTrue((bool)retryMethod.Invoke(shell, [hardwarePage])!);
+        var retriedPage = frame.Content as HardwareInspectionPage;
+        Assert.IsNotNull(retriedPage);
+        Assert.AreNotSame(hardwarePage, retriedPage);
+        Guid retryHardwareRunId = (Guid)currentRunProperty.GetValue(shell)!;
+        Assert.AreNotEqual(firstHardwareRunId, retryHardwareRunId);
+        Assert.AreEqual(
+            retryHardwareRunId,
+            (Guid)configuredRunProperty.GetValue(retriedPage)!);
+        Load(retriedPage);
+        Assert.AreEqual(retryHardwareRunId, service.LastInspectionId);
+        Assert.AreNotSame(handoff, retriedPage.OpaqueModelHandoff);
+        Assert.AreEqual(
+            ModelInspectionHandoffLifecycleState.Invalidated,
+            shell.GetModelHandoffState(handoff.ModelInspectionHandoffId));
+        Assert.AreEqual(
+            ModelInspectionHandoffLifecycleState.BoundToHardwareRun,
+            shell.GetModelHandoffState(
+                retriedPage.OpaqueModelHandoff!.ModelInspectionHandoffId));
+
+        retriedPage.Apply(
             new HardwareInspectionPresentationFactory().CreateInvalidHandoff());
-        var actionCard = (HardwareInspectionActionCard)hardwarePage.FindName(
+        var actionCard = (HardwareInspectionActionCard)retriedPage.FindName(
             "ActionCard");
         Button back = ((StackPanel)actionCard.FindName("ActionsPanel"))
             .Children.Cast<Button>()
@@ -65,7 +123,8 @@ public sealed class OnboardingHardwareInspectionNavigationTests
         Assert.AreEqual(OnboardingStage.InspectModel, shell.CurrentStage);
         Assert.AreEqual(
             ModelInspectionHandoffLifecycleState.Invalidated,
-            shell.GetModelHandoffState(handoff.ModelInspectionHandoffId));
+            shell.GetModelHandoffState(
+                retriedPage.OpaqueModelHandoff.ModelInspectionHandoffId));
     }
 
     [UITestMethod]
@@ -73,12 +132,25 @@ public sealed class OnboardingHardwareInspectionNavigationTests
     public void FailedNavigation_RollsBackWithoutAuthorizingOrStartingHardware()
     {
         var service = new RecordingHardwareService();
+        int navigationAttempts = 0;
         var shell = new OnboardingShellPage(
             static (frame, request) => frame.Navigate(
                 typeof(ModelInspectionPage),
                 request),
             service,
-            static (_, _, _) => false);
+            (frame, viewModel, retryHandoff) =>
+            {
+                navigationAttempts++;
+                if (navigationAttempts == 1)
+                {
+                    return false;
+                }
+
+                frame.Content = new HardwareInspectionPage(
+                    viewModel,
+                    retryHandoff);
+                return true;
+            });
         var source = new ModelInspectionPage();
         shell.AttachModelInspectionPage(source);
         ModelInspectionHandoff handoff = CreateHandoff();
@@ -91,6 +163,11 @@ public sealed class OnboardingHardwareInspectionNavigationTests
             ModelInspectionHandoffLifecycleState.Issued,
             shell.GetModelHandoffState(handoff.ModelInspectionHandoffId));
         Assert.AreEqual(OnboardingStage.ImportModel, shell.CurrentStage);
+
+        Assert.IsTrue(shell.NavigateToHardwareInspection(source, handoff));
+        Load((HardwareInspectionPage)((Frame)shell.FindName("StageFrame")).Content);
+        Assert.AreEqual(1, service.CallCount);
+        Assert.AreEqual(OnboardingStage.CheckHardwareFit, shell.CurrentStage);
     }
 
     [UITestMethod]
@@ -111,6 +188,18 @@ public sealed class OnboardingHardwareInspectionNavigationTests
         Assert.IsFalse(shell.NavigateToHardwareInspection(stale, handoff));
         Assert.IsTrue(shell.NavigateToHardwareInspection(active, handoff));
         Assert.IsFalse(shell.NavigateToHardwareInspection(active, handoff));
+
+        var frame = (Frame)shell.FindName("StageFrame");
+        var hardwarePage = (HardwareInspectionPage)frame.Content;
+        MethodInfo? unloaded = typeof(HardwareInspectionPage).GetMethod(
+            "OnUnloaded",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsNotNull(unloaded);
+        unloaded.Invoke(hardwarePage, [hardwarePage, new Microsoft.UI.Xaml.RoutedEventArgs()]);
+        Assert.AreEqual(
+            ModelInspectionHandoffLifecycleState.Invalidated,
+            shell.GetModelHandoffState(handoff.ModelInspectionHandoffId));
+        Assert.AreEqual(Guid.Empty, shell.CurrentProductHardwareRunId);
     }
 
     private static ModelInspectionHandoff CreateHandoff()
@@ -125,9 +214,20 @@ public sealed class OnboardingHardwareInspectionNavigationTests
         return handoff;
     }
 
+    private static void Load(HardwareInspectionPage page)
+    {
+        MethodInfo? loaded = typeof(HardwareInspectionPage).GetMethod(
+            "OnLoaded",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsNotNull(loaded);
+        loaded.Invoke(page, [page, new Microsoft.UI.Xaml.RoutedEventArgs()]);
+    }
+
     private sealed class RecordingHardwareService : IHardwareInspectionService
     {
         internal int CallCount { get; private set; }
+
+        internal Guid LastInspectionId { get; private set; }
 
         public Task<HardwareInspectionRunResult> RunAsync(
             Guid inspectionId,
@@ -135,6 +235,7 @@ public sealed class OnboardingHardwareInspectionNavigationTests
             CancellationToken cancellationToken)
         {
             CallCount++;
+            LastInspectionId = inspectionId;
             return Task.FromResult(
                 HardwareInspectionRunResult.CreateCancelled(inspectionId));
         }

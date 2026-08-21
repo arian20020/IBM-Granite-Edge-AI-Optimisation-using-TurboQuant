@@ -94,6 +94,20 @@ public sealed class ModelInspectionHardwareActionTests
             propertyNames,
             "Result",
             StringComparison.Ordinal);
+
+        Assert.IsTrue(viewModel.TryReissueHardwareHandoff(
+            out ModelInspectionHandoff? replacement));
+        Assert.IsNotNull(replacement);
+        Assert.AreNotEqual(
+            requested.ModelInspectionHandoffId,
+            replacement.ModelInspectionHandoffId);
+        Assert.AreEqual(
+            requested.ModelInspectionRunId,
+            replacement.ModelInspectionRunId);
+        Assert.AreEqual(requested.ModelSha256, replacement.ModelSha256);
+        Assert.AreEqual(
+            requested.ModelLengthBytes,
+            replacement.ModelLengthBytes);
     }
 
     [TestMethod]

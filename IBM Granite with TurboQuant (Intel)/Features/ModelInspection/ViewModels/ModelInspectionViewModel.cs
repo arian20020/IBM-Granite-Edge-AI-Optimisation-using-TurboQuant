@@ -571,6 +571,30 @@ internal sealed class ModelInspectionViewModel : INotifyPropertyChanged, IDispos
             new HardwareInspectionRequestedEventArgs(handoff!));
     }
 
+    internal bool TryReissueHardwareHandoff(
+        out ModelInspectionHandoff? replacement)
+    {
+        lock (stateLock)
+        {
+            replacement = null;
+            if (disposed ||
+                activeAttempt is not null ||
+                issuedHardwareHandoff is null ||
+                snapshot.TerminalResult is null ||
+                !ModelInspectionHandoffProjector.TryProject(
+                    snapshot.ModelInspectionRunId,
+                    snapshot.ModelInspectionRunId,
+                    snapshot.TerminalResult,
+                    out replacement))
+            {
+                return false;
+            }
+
+            issuedHardwareHandoff = replacement;
+            return true;
+        }
+    }
+
     private void RaiseCommandStates()
     {
         cancelCommand.RaiseCanExecuteChanged();

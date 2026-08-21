@@ -22,6 +22,7 @@ public sealed partial class HardwareInspectionPage : Page
     private bool _isActive;
     private bool _isLoaded;
     private bool _startAuthorized;
+    private bool _hasStarted;
     private long _appliedRevision = -1;
     private long _appliedAttemptGeneration = -1;
 
@@ -59,6 +60,8 @@ public sealed partial class HardwareInspectionPage : Page
 
     public event EventHandler<HardwareInspectionActionRequestedEventArgs>? ActionRequested;
 
+    internal event EventHandler? JourneyAbandoned;
+
     public object? FooterContent
     {
         get => FooterPresenter.Content;
@@ -70,6 +73,9 @@ public sealed partial class HardwareInspectionPage : Page
     internal ModelInspectionHandoff? OpaqueModelHandoff { get; }
 
     internal bool IsStartAuthorized => _startAuthorized;
+
+    internal Guid ConfiguredInspectionId =>
+        _viewModel?.InitialInspectionId ?? Guid.Empty;
 
     internal void AuthorizeStart()
     {
@@ -93,12 +99,14 @@ public sealed partial class HardwareInspectionPage : Page
         if (_viewModel is null ||
             !_isLoaded ||
             !_startAuthorized ||
-            _isActive)
+            _isActive ||
+            _hasStarted)
         {
             return;
         }
 
         _isActive = true;
+        _hasStarted = true;
         _viewModel.SnapshotChanged += OnSnapshotChanged;
         _ = ObserveAsync(_viewModel.ActivateAsync());
         ApplyLatestSnapshot();
@@ -107,14 +115,17 @@ public sealed partial class HardwareInspectionPage : Page
     private void OnUnloaded(object sender, RoutedEventArgs args)
     {
         _isLoaded = false;
-        if (_viewModel is null || !_isActive)
+        if (_viewModel is not null && _isActive)
         {
-            return;
+            _isActive = false;
+            _viewModel.SnapshotChanged -= OnSnapshotChanged;
+            _viewModel.Deactivate();
         }
 
-        _isActive = false;
-        _viewModel.SnapshotChanged -= OnSnapshotChanged;
-        _viewModel.Deactivate();
+        if (OpaqueModelHandoff is not null)
+        {
+            JourneyAbandoned?.Invoke(this, EventArgs.Empty);
+        }
     }
 
     private void OnSnapshotChanged(object? sender, EventArgs args)
@@ -171,8 +182,13 @@ public sealed partial class HardwareInspectionPage : Page
                     return;
                 case HardwareInspectionActionKind.RunInspectionAgain:
                 case HardwareInspectionActionKind.TryAgain:
-                    _ = ObserveAsync(_viewModel.RetryAsync());
-                    return;
+                    if (OpaqueModelHandoff is null)
+                    {
+                        _ = ObserveAsync(_viewModel.RetryAsync());
+                        return;
+                    }
+
+                    break;
                 case HardwareInspectionActionKind.Stopping:
                     return;
             }

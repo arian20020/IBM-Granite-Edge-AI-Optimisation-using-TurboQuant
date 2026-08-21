@@ -8,7 +8,6 @@ internal enum ModelInspectionHandoffLifecycleState
 {
     Issued,
     BoundToHardwareRun,
-    Transferred,
     Invalidated
 }
 
@@ -118,9 +117,21 @@ internal sealed class ModelInspectionHandoffRegistry : IDisposable
         {
             if (disposed ||
                 currentModelRunId == Guid.Empty ||
-                handoff.ModelInspectionRunId != currentModelRunId ||
-                entries.ContainsKey(handoff.ModelInspectionHandoffId) ||
-                HasLiveHandoffLocked(currentModelRunId))
+                handoff.ModelInspectionRunId != currentModelRunId)
+            {
+                return false;
+            }
+
+            if (entries.TryGetValue(
+                handoff.ModelInspectionHandoffId,
+                out Entry? existing))
+            {
+                return existing.State ==
+                        ModelInspectionHandoffLifecycleState.Issued &&
+                    Matches(existing.Handoff, handoff);
+            }
+
+            if (HasLiveHandoffLocked(currentModelRunId))
             {
                 return false;
             }
@@ -143,6 +154,7 @@ internal sealed class ModelInspectionHandoffRegistry : IDisposable
             if (disposed ||
                 !ModelInspectionHandoff.IsUuidV4(productHardwareRunId) ||
                 productHardwareRunId == expectedModelInspectionRunId ||
+                productHardwareRunId == handoff.ModelInspectionHandoffId ||
                 expectedModelInspectionRunId != currentModelRunId ||
                 !entries.TryGetValue(
                     handoff.ModelInspectionHandoffId,
@@ -203,61 +215,33 @@ internal sealed class ModelInspectionHandoffRegistry : IDisposable
         }
     }
 
-    internal bool TryReissue(
+    internal bool TryAcceptReissue(
         Guid priorModelInspectionHandoffId,
-        Guid terminalModelInspectionRunId,
-        ModelInspectionExecutionResult terminal,
-        out ModelInspectionHandoff? replacement)
+        ModelInspectionHandoff replacement)
     {
-        ArgumentNullException.ThrowIfNull(terminal);
+        ArgumentNullException.ThrowIfNull(replacement);
         lock (gate)
         {
-            replacement = null;
             if (disposed ||
-                terminalModelInspectionRunId != currentModelRunId ||
                 !entries.TryGetValue(priorModelInspectionHandoffId, out Entry? prior) ||
                 prior.Handoff.ModelInspectionRunId != currentModelRunId ||
                 prior.State !=
                     ModelInspectionHandoffLifecycleState.BoundToHardwareRun ||
                 !prior.HardwareStarted ||
-                !ModelInspectionHandoffProjector.TryProject(
-                    currentModelRunId,
-                    terminalModelInspectionRunId,
-                    terminal,
-                    out ModelInspectionHandoff? candidate))
+                replacement.ModelInspectionHandoffId ==
+                    prior.Handoff.ModelInspectionHandoffId ||
+                replacement.ModelInspectionHandoffId ==
+                    prior.ProductHardwareRunId ||
+                entries.ContainsKey(replacement.ModelInspectionHandoffId) ||
+                !MatchesReissue(prior.Handoff, replacement))
             {
                 return false;
             }
 
             prior.Invalidate();
             entries.Add(
-                candidate!.ModelInspectionHandoffId,
-                new Entry(candidate));
-            replacement = candidate;
-            return true;
-        }
-    }
-
-    internal bool TryTransferToBlock3(
-        Guid modelInspectionHandoffId,
-        Guid expectedModelInspectionRunId,
-        Guid expectedProductHardwareRunId)
-    {
-        lock (gate)
-        {
-            if (disposed ||
-                !entries.TryGetValue(modelInspectionHandoffId, out Entry? entry) ||
-                entry.State !=
-                    ModelInspectionHandoffLifecycleState.BoundToHardwareRun ||
-                !entry.HardwareStarted ||
-                entry.Handoff.ModelInspectionRunId != expectedModelInspectionRunId ||
-                entry.ProductHardwareRunId != expectedProductHardwareRunId)
-            {
-                return false;
-            }
-
-            entry.State = ModelInspectionHandoffLifecycleState.Transferred;
-            entry.ClaimToken = Guid.Empty;
+                replacement.ModelInspectionHandoffId,
+                new Entry(replacement));
             return true;
         }
     }
@@ -296,10 +280,7 @@ internal sealed class ModelInspectionHandoffRegistry : IDisposable
 
             foreach (Entry entry in entries.Values)
             {
-                if (entry.State != ModelInspectionHandoffLifecycleState.Transferred)
-                {
-                    entry.Invalidate();
-                }
+                entry.Invalidate();
             }
 
             disposed = true;
@@ -356,6 +337,18 @@ internal sealed class ModelInspectionHandoffRegistry : IDisposable
             actual.ModelSha256,
             StringComparison.Ordinal) &&
         expected.ModelLengthBytes == actual.ModelLengthBytes;
+
+    private static bool MatchesReissue(
+        ModelInspectionHandoff prior,
+        ModelInspectionHandoff replacement) =>
+        prior.SchemaVersion == replacement.SchemaVersion &&
+        prior.ModelInspectionRunId == replacement.ModelInspectionRunId &&
+        prior.Outcome == replacement.Outcome &&
+        string.Equals(
+            prior.ModelSha256,
+            replacement.ModelSha256,
+            StringComparison.Ordinal) &&
+        prior.ModelLengthBytes == replacement.ModelLengthBytes;
 
     private sealed class Entry
     {

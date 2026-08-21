@@ -449,6 +449,14 @@ public sealed partial class ModelInspectionPage : Page
     internal void SetHardwareRouteAvailable(bool isAvailable) =>
         ViewModel?.SetHardwareRouteAvailable(isAvailable);
 
+    internal ModelInspectionHandoff? ReissueHardwareHandoff()
+    {
+        return ViewModel?.TryReissueHardwareHandoff(
+            out ModelInspectionHandoff? replacement) == true
+            ? replacement
+            : null;
+    }
+
     private void ViewModel_HardwareInspectionRequested(
         object? sender,
         HardwareInspectionRequestedEventArgs eventArguments)

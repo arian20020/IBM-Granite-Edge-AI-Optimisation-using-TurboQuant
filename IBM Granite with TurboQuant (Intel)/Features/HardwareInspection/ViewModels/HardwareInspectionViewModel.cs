@@ -3,6 +3,7 @@ using GraniteEdgeAI.Features.HardwareInspection.Presentation.Factories;
 using GraniteEdgeAI.Features.HardwareInspection.Presentation.State;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -18,16 +19,44 @@ public sealed class HardwareInspectionViewModel
     private RunOwner? _current;
     private long _revision;
     private long _attemptGeneration;
+    private Guid? _nextInspectionId;
 
     public HardwareInspectionViewModel(
         IHardwareInspectionService service,
         IHardwareInspectionStagePacer? pacer = null,
         HardwareInspectionPresentationFactory? presentationFactory = null)
+        : this(service, initialInspectionId: null, pacer, presentationFactory)
     {
+    }
+
+    internal HardwareInspectionViewModel(
+        IHardwareInspectionService service,
+        Guid initialInspectionId,
+        IHardwareInspectionStagePacer? pacer = null,
+        HardwareInspectionPresentationFactory? presentationFactory = null)
+        : this(service, (Guid?)initialInspectionId, pacer, presentationFactory)
+    {
+    }
+
+    private HardwareInspectionViewModel(
+        IHardwareInspectionService service,
+        Guid? initialInspectionId,
+        IHardwareInspectionStagePacer? pacer,
+        HardwareInspectionPresentationFactory? presentationFactory)
+    {
+        if (initialInspectionId is Guid configuredId && !IsUuidV4(configuredId))
+        {
+            throw new ArgumentException(
+                "Initial Hardware run identity must be UUID version 4.",
+                nameof(initialInspectionId));
+        }
+
         _service = service ?? throw new ArgumentNullException(nameof(service));
         _pacer = pacer ?? new HardwareInspectionStagePacer();
         _presentationFactory = presentationFactory
             ?? new HardwareInspectionPresentationFactory();
+        InitialInspectionId = initialInspectionId ?? Guid.Empty;
+        _nextInspectionId = initialInspectionId;
         Snapshot = new HardwareInspectionViewState(
             0,
             0,
@@ -41,6 +70,8 @@ public sealed class HardwareInspectionViewModel
     }
 
     public event EventHandler? SnapshotChanged;
+
+    internal Guid InitialInspectionId { get; }
 
     public HardwareInspectionViewState Snapshot { get; private set; }
 
@@ -99,7 +130,9 @@ public sealed class HardwareInspectionViewModel
 
     private Task StartRunLocked()
     {
-        RunOwner owner = new(Guid.NewGuid(), ++_attemptGeneration);
+        Guid inspectionId = _nextInspectionId ?? Guid.NewGuid();
+        _nextInspectionId = null;
+        RunOwner owner = new(inspectionId, ++_attemptGeneration);
         _current = owner;
         PublishLocked(
             owner,
@@ -421,6 +454,18 @@ public sealed class HardwareInspectionViewModel
                 HardwareInspectionStage.CreatingHardwareReport,
             _ => throw new ArgumentOutOfRangeException(nameof(stage)),
         };
+
+    private static bool IsUuidV4(Guid value)
+    {
+        if (value == Guid.Empty)
+        {
+            return false;
+        }
+
+        string canonical = value.ToString("D", CultureInfo.InvariantCulture);
+        char variant = canonical[19];
+        return canonical[14] == '4' && variant is '8' or '9' or 'a' or 'b';
+    }
 
     private sealed class RunOwner
     {

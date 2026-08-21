@@ -28,6 +28,9 @@ namespace GraniteEdgeAI.Features.Onboarding
         private HardwareInspectionPage? _attachedHardwareInspectionPage;
         private ModelInspectionPage? _modelInspectionPageForHardwareReturn;
         private Guid _activeModelHandoffId;
+        private Guid _activeProductHardwareRunId;
+        private ModelInspectionHandoff? _pendingHardwareRetryHandoff;
+        private bool _isHardwareNavigationTransaction;
 
         private readonly Func<Frame, ModelInspectionRequest, bool>
             _modelInspectionNavigator;
@@ -37,6 +40,8 @@ namespace GraniteEdgeAI.Features.Onboarding
             HardwareInspectionViewModel,
             ModelInspectionHandoff,
             bool> _hardwareInspectionNavigator;
+        private readonly Func<ModelInspectionPage, ModelInspectionHandoff?>
+            _hardwareHandoffReissuer;
         private readonly ModelInspectionHandoffRegistry _handoffRegistry = new();
 
         /// <summary>
@@ -49,6 +54,7 @@ namespace GraniteEdgeAI.Features.Onboarding
                 hardwareInspectionService:
                     UnavailableHardwareInspectionService.Instance,
                 hardwareInspectionNavigator: null,
+                hardwareHandoffReissuer: null,
                 initialize: true)
         {
         }
@@ -59,6 +65,7 @@ namespace GraniteEdgeAI.Features.Onboarding
                 modelInspectionNavigator,
                 hardwareInspectionService: null,
                 hardwareInspectionNavigator: null,
+                hardwareHandoffReissuer: null,
                 initialize: true)
         {
         }
@@ -70,12 +77,15 @@ namespace GraniteEdgeAI.Features.Onboarding
                 Frame,
                 HardwareInspectionViewModel,
                 ModelInspectionHandoff,
-                bool>? hardwareInspectionNavigator = null)
+                bool>? hardwareInspectionNavigator = null,
+            Func<ModelInspectionPage, ModelInspectionHandoff?>?
+                hardwareHandoffReissuer = null)
             : this(
                 modelInspectionNavigator,
                 hardwareInspectionService ?? throw new ArgumentNullException(
                     nameof(hardwareInspectionService)),
                 hardwareInspectionNavigator,
+                hardwareHandoffReissuer,
                 initialize: true)
         {
         }
@@ -88,6 +98,8 @@ namespace GraniteEdgeAI.Features.Onboarding
                 HardwareInspectionViewModel,
                 ModelInspectionHandoff,
                 bool>? hardwareInspectionNavigator,
+            Func<ModelInspectionPage, ModelInspectionHandoff?>?
+                hardwareHandoffReissuer,
             bool initialize)
         {
             _modelInspectionNavigator = modelInspectionNavigator ??
@@ -101,6 +113,8 @@ namespace GraniteEdgeAI.Features.Onboarding
                         handoff);
                     return true;
                 });
+            _hardwareHandoffReissuer = hardwareHandoffReissuer ??
+                (static page => page.ReissueHardwareHandoff());
 
             // Create all controls declared in OnboardingShellPage.xaml.
             InitializeComponent();
@@ -125,6 +139,9 @@ namespace GraniteEdgeAI.Features.Onboarding
 
         internal bool IsHardwareRouteRegistered =>
             _hardwareInspectionService is not null;
+
+        internal Guid CurrentProductHardwareRunId =>
+            _activeProductHardwareRunId;
 
         /// <summary>
         /// Subscribes the shell to one Model Import page.
@@ -351,14 +368,21 @@ namespace GraniteEdgeAI.Features.Onboarding
             bool navigationSucceeded;
             try
             {
+                _isHardwareNavigationTransaction = true;
                 navigationSucceeded = _hardwareInspectionNavigator(
                     StageFrame,
-                    new HardwareInspectionViewModel(_hardwareInspectionService),
+                    new HardwareInspectionViewModel(
+                        _hardwareInspectionService,
+                        hardwareRunId),
                     handoff);
             }
             catch
             {
                 navigationSucceeded = false;
+            }
+            finally
+            {
+                _isHardwareNavigationTransaction = false;
             }
 
             if (!navigationSucceeded ||
@@ -388,8 +412,12 @@ namespace GraniteEdgeAI.Features.Onboarding
             _attachedHardwareInspectionPage = hardwarePage;
             _attachedHardwareInspectionPage.ActionRequested +=
                 HardwareInspectionPage_ActionRequested;
+            _attachedHardwareInspectionPage.JourneyAbandoned +=
+                HardwareInspectionPage_JourneyAbandoned;
             _modelInspectionPageForHardwareReturn = sourcePage;
             _activeModelHandoffId = handoff.ModelInspectionHandoffId;
+            _activeProductHardwareRunId = hardwareRunId;
+            _pendingHardwareRetryHandoff = null;
             DetachModelInspectionPage();
             CurrentStage = OnboardingStage.CheckHardwareFit;
             StageIndicator.CurrentStage = CurrentStage;
@@ -400,15 +428,144 @@ namespace GraniteEdgeAI.Features.Onboarding
             object? sender,
             HardwareInspectionActionRequestedEventArgs eventArguments)
         {
-            if (!ReferenceEquals(sender, _attachedHardwareInspectionPage) ||
-                eventArguments.Kind is not (
-                    HardwareInspectionActionKind.Back or
-                    HardwareInspectionActionKind.BackToModelInspection))
+            if (sender is not HardwareInspectionPage sourcePage ||
+                !ReferenceEquals(sourcePage, _attachedHardwareInspectionPage))
             {
                 return;
             }
 
-            ReturnToModelInspection();
+            if (eventArguments.Kind is
+                HardwareInspectionActionKind.RunInspectionAgain or
+                HardwareInspectionActionKind.TryAgain)
+            {
+                RetryHardwareInspection(sourcePage);
+                return;
+            }
+
+            if (eventArguments.Kind is
+                HardwareInspectionActionKind.Back or
+                HardwareInspectionActionKind.BackToModelInspection)
+            {
+                ReturnToModelInspection();
+            }
+        }
+
+        internal bool RetryHardwareInspection(HardwareInspectionPage sourcePage)
+        {
+            ArgumentNullException.ThrowIfNull(sourcePage);
+            ModelInspectionPage? modelPage = _modelInspectionPageForHardwareReturn;
+            if (_hardwareInspectionService is null ||
+                !ReferenceEquals(sourcePage, _attachedHardwareInspectionPage) ||
+                modelPage is null ||
+                _activeModelHandoffId == Guid.Empty)
+            {
+                return false;
+            }
+
+            ModelInspectionHandoff? replacement = _pendingHardwareRetryHandoff;
+            if (replacement is null)
+            {
+                replacement = _hardwareHandoffReissuer(modelPage);
+                if (replacement is null ||
+                    !_handoffRegistry.TryAcceptReissue(
+                        _activeModelHandoffId,
+                        replacement))
+                {
+                    return false;
+                }
+
+                _pendingHardwareRetryHandoff = replacement;
+            }
+
+            Guid hardwareRunId = Guid.NewGuid();
+            if (!_handoffRegistry.TryBindToHardwareRun(
+                replacement,
+                replacement.ModelInspectionRunId,
+                hardwareRunId,
+                out ModelInspectionHandoffClaim claim))
+            {
+                return false;
+            }
+
+            object? previousContent = StageFrame.Content;
+            bool navigationSucceeded;
+            sourcePage.JourneyAbandoned -=
+                HardwareInspectionPage_JourneyAbandoned;
+            try
+            {
+                _isHardwareNavigationTransaction = true;
+                navigationSucceeded = _hardwareInspectionNavigator(
+                    StageFrame,
+                    new HardwareInspectionViewModel(
+                        _hardwareInspectionService,
+                        hardwareRunId),
+                    replacement);
+            }
+            catch
+            {
+                navigationSucceeded = false;
+            }
+            finally
+            {
+                _isHardwareNavigationTransaction = false;
+            }
+
+            if (!navigationSucceeded ||
+                ReferenceEquals(StageFrame.Content, previousContent) ||
+                StageFrame.Content is not HardwareInspectionPage hardwarePage ||
+                !ReferenceEquals(
+                    hardwarePage.OpaqueModelHandoff,
+                    replacement))
+            {
+                _handoffRegistry.TryRollbackBeforeHardwareStart(claim);
+                sourcePage.JourneyAbandoned +=
+                    HardwareInspectionPage_JourneyAbandoned;
+                if (!ReferenceEquals(StageFrame.Content, previousContent))
+                {
+                    StageFrame.Content = previousContent;
+                }
+
+                return false;
+            }
+
+            if (!_handoffRegistry.TryMarkHardwareStarted(claim))
+            {
+                _handoffRegistry.Invalidate(
+                    replacement.ModelInspectionHandoffId);
+                sourcePage.JourneyAbandoned +=
+                    HardwareInspectionPage_JourneyAbandoned;
+                StageFrame.Content = previousContent;
+                return false;
+            }
+
+            DetachHardwareInspectionPage();
+            _attachedHardwareInspectionPage = hardwarePage;
+            _attachedHardwareInspectionPage.ActionRequested +=
+                HardwareInspectionPage_ActionRequested;
+            _attachedHardwareInspectionPage.JourneyAbandoned +=
+                HardwareInspectionPage_JourneyAbandoned;
+            _activeModelHandoffId = replacement.ModelInspectionHandoffId;
+            _activeProductHardwareRunId = hardwareRunId;
+            _pendingHardwareRetryHandoff = null;
+            hardwarePage.AuthorizeStart();
+            StageFrame.BackStack.Clear();
+            StageFrame.ForwardStack.Clear();
+            return true;
+        }
+
+        private void HardwareInspectionPage_JourneyAbandoned(
+            object? sender,
+            EventArgs eventArguments)
+        {
+            if (_isHardwareNavigationTransaction ||
+                !ReferenceEquals(sender, _attachedHardwareInspectionPage))
+            {
+                return;
+            }
+
+            InvalidateActiveHardwareJourney();
+            DetachHardwareInspectionPage();
+            _modelInspectionPageForHardwareReturn = null;
         }
 
         private void ReturnToModelInspection()
@@ -419,14 +576,10 @@ namespace GraniteEdgeAI.Features.Onboarding
                 return;
             }
 
-            if (_activeModelHandoffId != Guid.Empty)
-            {
-                _handoffRegistry.Invalidate(_activeModelHandoffId);
-            }
+            InvalidateActiveHardwareJourney();
 
             DetachHardwareInspectionPage();
             _modelInspectionPageForHardwareReturn = null;
-            _activeModelHandoffId = Guid.Empty;
             StageFrame.Content = modelPage;
             StageFrame.BackStack.Clear();
             StageFrame.ForwardStack.Clear();
@@ -434,6 +587,24 @@ namespace GraniteEdgeAI.Features.Onboarding
             modelPage.SetHardwareRouteAvailable(false);
             CurrentStage = OnboardingStage.InspectModel;
             StageIndicator.CurrentStage = CurrentStage;
+        }
+
+        private void InvalidateActiveHardwareJourney()
+        {
+            if (_activeModelHandoffId != Guid.Empty)
+            {
+                _handoffRegistry.Invalidate(_activeModelHandoffId);
+            }
+
+            if (_pendingHardwareRetryHandoff is not null)
+            {
+                _handoffRegistry.Invalidate(
+                    _pendingHardwareRetryHandoff.ModelInspectionHandoffId);
+            }
+
+            _activeModelHandoffId = Guid.Empty;
+            _activeProductHardwareRunId = Guid.Empty;
+            _pendingHardwareRetryHandoff = null;
         }
 
         internal ModelInspectionHandoffLifecycleState? GetModelHandoffState(
@@ -469,13 +640,9 @@ namespace GraniteEdgeAI.Features.Onboarding
             // Transfer event ownership only after the new page exists.
             AttachModelImportPage(modelImportPage);
             DetachModelInspectionPage();
-            if (_activeModelHandoffId != Guid.Empty)
-            {
-                _handoffRegistry.Invalidate(_activeModelHandoffId);
-            }
+            InvalidateActiveHardwareJourney();
             DetachHardwareInspectionPage();
             _modelInspectionPageForHardwareReturn = null;
-            _activeModelHandoffId = Guid.Empty;
 
             CurrentStage = OnboardingStage.ImportModel;
             StageIndicator.CurrentStage = CurrentStage;
@@ -530,6 +697,8 @@ namespace GraniteEdgeAI.Features.Onboarding
 
             _attachedHardwareInspectionPage.ActionRequested -=
                 HardwareInspectionPage_ActionRequested;
+            _attachedHardwareInspectionPage.JourneyAbandoned -=
+                HardwareInspectionPage_JourneyAbandoned;
             _attachedHardwareInspectionPage = null;
         }
     }
