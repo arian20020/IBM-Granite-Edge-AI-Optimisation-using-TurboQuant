@@ -211,14 +211,6 @@
                                 <VisualState.StateTriggers>
                                     <AdaptiveTrigger MinWindowWidth="0" />
                                 </VisualState.StateTriggers>
-                                <VisualState.Setters>
-                                    <Setter Target="ProgressGlyphHost.(Grid.RowSpan)" Value="2" />
-                                    <Setter Target="ProgressCopyPanel.(Grid.ColumnSpan)" Value="3" />
-                                    <Setter Target="ProgressStatusOwner.(Grid.Row)" Value="1" />
-                                    <Setter Target="ProgressStatusOwner.Margin" Value="18,4,0,7" />
-                                    <Setter Target="ProgressFractionText.(Grid.Row)" Value="1" />
-                                    <Setter Target="ProgressFractionText.Margin" Value="8,4,0,7" />
-                                </VisualState.Setters>
                             </VisualState>
                         </VisualStateGroup>
                     </VisualStateManager.VisualStateGroups>

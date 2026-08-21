@@ -837,16 +837,18 @@ public sealed class ModelInspectionRenderedStateTests
                         .GetVisualStateGroups(rowStateHost)
                         .First(group => group.Name == "ProgressRowWidthStates")
                         .CurrentState?.Name ?? "<none>";
-                    Assert.AreEqual(1, Grid.GetRow(statusOwner),
+                    Assert.AreEqual(0, Grid.GetRow(statusOwner),
                         $"{state}/{preview200}/{width}: {rowWidthState}");
-                    Assert.AreEqual(1, Grid.GetRow(fraction));
-                    Assert.AreEqual(3, Grid.GetColumnSpan(copy));
-                    Assert.AreEqual(2, Grid.GetRowSpan(glyphHost));
+                    Assert.AreEqual(0, Grid.GetRow(fraction));
+                    Assert.AreEqual(1, Grid.GetColumnSpan(copy));
+                    Assert.AreEqual(1, Grid.GetRowSpan(glyphHost));
                     Rect copyBounds = Bounds(page, copy);
                     Rect statusBounds = Bounds(page, statusOwner);
-                    Assert.IsTrue(
-                        copyBounds.Bottom <= statusBounds.Y + 1d,
-                        $"{state}/{preview200}/{width}: status reflows below copy");
+                    Assert.AreEqual(
+                        copyBounds.Y + (copyBounds.Height / 2d),
+                        statusBounds.Y + (statusBounds.Height / 2d),
+                        1d,
+                        $"{state}/{preview200}/{width}: status and copy share a vertical centre");
                 }
 
                 Rect rowBounds = Bounds(page, row);

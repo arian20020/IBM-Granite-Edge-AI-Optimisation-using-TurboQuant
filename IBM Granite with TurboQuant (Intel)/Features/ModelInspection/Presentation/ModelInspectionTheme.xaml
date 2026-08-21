@@ -154,7 +154,7 @@
     <Thickness x:Key="InspectionTerminalTitleMargin">24,18,24,0</Thickness>
     <Thickness x:Key="InspectionTerminalRowsMargin">24,12,24,0</Thickness>
     <Thickness x:Key="InspectionTerminalElementMargin">24,8,24,0</Thickness>
-    <Thickness x:Key="InspectionTerminalDiagnosticMargin">72,8,24,0</Thickness>
+    <Thickness x:Key="InspectionTerminalDiagnosticMargin">24,8,24,0</Thickness>
     <CornerRadius x:Key="InspectionCardCornerRadius">12</CornerRadius>
     <CornerRadius x:Key="InspectionActionCornerRadius">10</CornerRadius>
 </ResourceDictionary>

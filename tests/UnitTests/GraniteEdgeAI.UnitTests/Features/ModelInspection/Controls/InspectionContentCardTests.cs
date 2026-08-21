@@ -195,6 +195,26 @@ public sealed class InspectionContentCardTests
             Assert.AreEqual(
                 page.ActionCard.CancelAction.AutomationName,
                 AutomationProperties.GetName(cancel));
+
+            host.Width = 480d;
+            content.Width = 480d;
+            actions.Width = 480d;
+            await ResizeClientAndWaitAsync(window, content, 480d);
+            Grid[] compactRows = ProgressRows(content);
+            foreach (Grid row in compactRows)
+            {
+                StackPanel copy = EnumerateDescendants(row)
+                    .OfType<StackPanel>()
+                    .Single(candidate => candidate.Name == "ProgressCopyPanel");
+                Grid status = EnumerateDescendants(row)
+                    .OfType<Grid>()
+                    .Single(candidate => candidate.Name == "ProgressStatusOwner");
+
+                Assert.AreEqual(0, Grid.GetRow(status),
+                    "compact progress status stays beside its stage name");
+                AssertVerticallyCentred(row, copy, "compact progress copy");
+                AssertVerticallyCentred(row, status, "compact progress status");
+            }
         }
         finally
         {
@@ -537,6 +557,11 @@ public sealed class InspectionContentCardTests
                         : rowsSurface;
                 Assert.AreEqual(8d, VerticalGap(previous, diagnostic, shell), 1d,
                     "helper copy to diagnostic code");
+                Assert.AreEqual(
+                    ElementBounds(sectionTitle, shell).Left,
+                    ElementBounds(diagnostic, shell).Left,
+                    1d,
+                    "diagnostic code starts on the terminal card's text edge");
             }
 
             Border[] findingRows = EnumerateDescendants(rowsSurface)
