@@ -28,8 +28,14 @@ public sealed class ChatComposerTests
             composer.FindName("ComposerFocusVisual"));
         Button attachment = Assert.IsInstanceOfType<Button>(
             composer.FindName("AttachmentButton"));
+        Grid promptRow = Assert.IsInstanceOfType<Grid>(
+            composer.FindName("PromptRow"));
         TextBox prompt = Assert.IsInstanceOfType<TextBox>(
             composer.FindName("PromptTextBox"));
+        Button send = Assert.IsInstanceOfType<Button>(
+            composer.FindName("SendButton"));
+        Button stop = Assert.IsInstanceOfType<Button>(
+            composer.FindName("StopButton"));
         Flyout flyout = Assert.IsInstanceOfType<Flyout>(attachment.Flyout);
         Button add = Assert.IsInstanceOfType<Button>(
             composer.FindName("AddFilesFlyoutButton"));
@@ -41,8 +47,20 @@ public sealed class ChatComposerTests
         Assert.AreEqual("Add files", AutomationProperties.GetName(add));
         Assert.AreEqual("Text or Markdown · Not indexed", hint.Text);
         Assert.IsTrue(add.IsEnabled);
-        Assert.AreEqual(44, prompt.MinHeight);
+        Assert.AreEqual(new Thickness(12, 6, 12, 6), surface.Padding);
+        Assert.AreEqual(44, promptRow.MinHeight);
+        Assert.AreEqual(40, attachment.Width);
+        Assert.AreEqual(40, attachment.Height);
+        Assert.AreEqual(40, prompt.MinHeight);
         Assert.AreEqual(160, prompt.MaxHeight);
+        Assert.AreEqual(44, send.Height);
+        Assert.AreEqual(44, stop.Height);
+        Assert.AreSame(
+            Application.Current.Resources["GgufChatPrimaryButtonStyle"],
+            stop.Style);
+        Assert.AreSame(
+            Application.Current.Resources["GgufChatPrimaryGradientBrush"],
+            stop.Background);
         Assert.IsTrue(double.IsNaN(prompt.Height), "The prompt must be free to grow.");
         Assert.AreEqual(0, prompt.BorderThickness.Left);
         Assert.AreEqual(new Thickness(12, 0, 12, 0), prompt.Padding);

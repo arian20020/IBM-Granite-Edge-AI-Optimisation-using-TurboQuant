@@ -11,7 +11,7 @@
             BorderBrush="{ThemeResource GgufChatBorderBrush}"
             BorderThickness="1"
             CornerRadius="22"
-            Padding="12,10">
+            Padding="12,6">
             <Grid RowSpacing="8">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
@@ -88,7 +88,7 @@
                 <Grid
                     x:Name="PromptRow"
                     Grid.Row="1"
-                    MinHeight="52"
+                    MinHeight="44"
                     ColumnSpacing="10"
                     VerticalAlignment="Center">
                     <Grid.ColumnDefinitions>
@@ -98,8 +98,8 @@
                     </Grid.ColumnDefinitions>
                     <Button
                         x:Name="AttachmentButton"
-                        Width="42"
-                        Height="42"
+                        Width="40"
+                        Height="40"
                         Padding="0"
                         VerticalAlignment="Center"
                         Style="{StaticResource GgufChatSecondaryButtonStyle}"
@@ -156,7 +156,7 @@
                     <TextBox
                         x:Name="PromptTextBox"
                         Grid.Column="1"
-                        MinHeight="44"
+                        MinHeight="40"
                         MaxHeight="160"
                         AcceptsReturn="True"
                         Padding="12,0"
@@ -199,8 +199,7 @@
                         MinWidth="92"
                         Height="44"
                         VerticalAlignment="Center"
-                        Background="#111827"
-                        Foreground="White"
+                        Style="{StaticResource GgufChatPrimaryButtonStyle}"
                         AutomationProperties.Name="Stop generation"
                         Visibility="Collapsed"
                         Click="StopButton_Click">

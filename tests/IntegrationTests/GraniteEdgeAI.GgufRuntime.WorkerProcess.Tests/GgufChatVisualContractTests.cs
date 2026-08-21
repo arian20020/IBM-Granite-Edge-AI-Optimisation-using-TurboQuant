@@ -601,9 +601,26 @@ public sealed class GgufChatVisualContractTests
 
         XElement prompt = composer.Descendants(presentation + "TextBox")
             .Single(element => element.Attribute(x + "Name")?.Value == "PromptTextBox");
+        XElement composerSurface = composer.Descendants(presentation + "Border")
+            .Single(element => element.Attribute(x + "Name")?.Value == "ComposerSurface");
+        XElement promptRow = composer.Descendants(presentation + "Grid")
+            .Single(element => element.Attribute(x + "Name")?.Value == "PromptRow");
+        XElement attachmentButton = composer.Descendants(presentation + "Button")
+            .Single(element => element.Attribute(x + "Name")?.Value == "AttachmentButton");
+        XElement stopButton = composer.Descendants(presentation + "Button")
+            .Single(element => element.Attribute(x + "Name")?.Value == "StopButton");
+        Assert.AreEqual("12,6", composerSurface.Attribute("Padding")?.Value);
+        Assert.AreEqual("44", promptRow.Attribute("MinHeight")?.Value);
+        Assert.AreEqual("40", attachmentButton.Attribute("Width")?.Value);
+        Assert.AreEqual("40", attachmentButton.Attribute("Height")?.Value);
+        Assert.AreEqual("40", prompt.Attribute("MinHeight")?.Value);
         Assert.AreEqual(
             "Center",
             prompt.Attribute("VerticalContentAlignment")?.Value);
+        Assert.AreEqual(
+            "{StaticResource GgufChatPrimaryButtonStyle}",
+            stopButton.Attribute("Style")?.Value);
+        Assert.IsNull(stopButton.Attribute("Background"));
 
         string pageCode = File.ReadAllText(Path.Combine(
             root,
