@@ -809,6 +809,108 @@ public sealed class OpenVinoPromptAdapterTests
     }
 
     [TestMethod]
+    [DataRow(false)]
+    [DataRow(true)]
+    public async Task PausedStopConcurrentExactCancelAndPromptTerminalShareOneTurnGate(
+        bool workerReturnsFailure)
+    {
+        TaskCompletionSource firstPromptStarted = NewSignal();
+        TaskCompletionSource<IOpenVinoEvent> firstTerminal = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        TaskCompletionSource stopDispatchEntered = NewSignal();
+        TaskCompletionSource releaseStopDispatch = NewSignal();
+        IProgress<TokenEvent>? firstProgress = null;
+        FakeChannel channel = new(async (command, progress, _) =>
+        {
+            firstProgress = progress;
+            firstPromptStarted.TrySetResult();
+            return await firstTerminal.Task.ConfigureAwait(false);
+        });
+        channel.StopAsyncAction = async (_, _) =>
+        {
+            stopDispatchEntered.TrySetResult();
+            await releaseStopDispatch.Task.ConfigureAwait(false);
+        };
+        (OpenVinoRouteSession session, List<PromptEvent> events) =
+            await StartSessionAsync(channel);
+
+        Task<PromptTurnResult> generation = session.GenerateAsync(
+            "one exact turn", 8, CancellationToken.None);
+        await firstPromptStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Guid turnId = events.Single(item =>
+            item.Kind == PromptEventKind.GenerationConfirmed).TurnId!.Value;
+
+        Task stop = session.StopActiveTurnAsync(turnId, CancellationToken.None);
+        await stopDispatchEntered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
+            session.CancelActiveTurnAsync(Guid.NewGuid(), CancellationToken.None));
+
+        Task cancel = session.CancelActiveTurnAsync(
+            turnId,
+            CancellationToken.None);
+        Assert.IsFalse(cancel.IsCompleted,
+            "Exact cancellation must join the gate held by the paused STOP.");
+        Assert.AreEqual(0, channel.CancelCount,
+            "CANCEL must not cross the channel while STOP owns the turn gate.");
+
+        firstTerminal.TrySetResult(workerReturnsFailure
+            ? new TurnFailedEvent(
+                session.Snapshot.Identity.SessionId,
+                turnId,
+                OpenVinoSupportCode.RuntimeLoadFailed)
+            : new TurnCompletedEvent(
+                session.Snapshot.Identity.SessionId,
+                turnId,
+                1,
+                0,
+                OpenVinoTurnDisposition.Stopped));
+
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
+            session.GenerateAsync(
+                "must not cross turns",
+                8,
+                CancellationToken.None));
+        Assert.AreEqual(1, channel.PromptCount,
+            "No next-turn command may cross the channel before settlement.");
+        Assert.IsFalse(generation.IsCompleted,
+            "Prompt terminal handling must also wait behind the paused STOP.");
+
+        releaseStopDispatch.TrySetResult();
+        await stop.WaitAsync(TimeSpan.FromSeconds(5));
+        await cancel.WaitAsync(TimeSpan.FromSeconds(5));
+        await Assert.ThrowsExactlyAsync<OperationCanceledException>(
+            async () => await generation.WaitAsync(TimeSpan.FromSeconds(5)));
+
+        Assert.HasCount(1, events.Where(item =>
+            item.Kind is PromptEventKind.TurnCompleted or
+                PromptEventKind.Failed or
+                PromptEventKind.Cancelled));
+        Assert.HasCount(1, events.Where(item =>
+            item.Kind == PromptEventKind.Cancelled));
+        Assert.IsFalse(events.Any(item =>
+            item.Kind is PromptEventKind.TurnCompleted or PromptEventKind.Failed));
+        Assert.AreEqual(OpenVinoRouteState.Cancelled, session.Snapshot.State);
+        Assert.AreEqual(1, channel.StopCount);
+        CollectionAssert.AreEqual(new[] { turnId }, channel.StopTurnIds.ToArray());
+        Assert.AreEqual(1, channel.CancelCount);
+        Assert.AreEqual(1, channel.DisposeCount);
+
+        int eventCountAfterTerminal = events.Count;
+        firstProgress!.Report(new TokenEvent(
+            session.Snapshot.Identity.SessionId,
+            turnId,
+            0,
+            "late"));
+        Assert.AreEqual(eventCountAfterTerminal, events.Count,
+            "Late output from the settled turn must remain inactionable.");
+        await session.CancelActiveTurnAsync(turnId, CancellationToken.None);
+        Assert.AreEqual(1, channel.CancelCount,
+            "A repeated owning-ID CANCEL must join teardown without crossing " +
+            "the channel again.");
+        Assert.AreEqual(1, channel.PromptCount);
+    }
+
+    [TestMethod]
     public async Task CloseAwaitsChannelCleanupAndMakesLateOperationsInactionable()
     {
         FakeChannel channel = SuccessfulChannel();

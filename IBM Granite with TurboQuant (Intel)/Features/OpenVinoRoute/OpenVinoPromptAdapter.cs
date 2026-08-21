@@ -380,7 +380,6 @@ public sealed class OpenVinoPromptAdapter : IAsyncDisposable
         _ = CompletePublishedTaskAsync(
             completion,
             () => CancelCoreAsync(
-                cancellationAlreadyBegun: false,
                 confirmedTurnId: null,
                 cancellationToken));
         return teardown;
@@ -427,107 +426,109 @@ public sealed class OpenVinoPromptAdapter : IAsyncDisposable
 
                 completion = NewCompletionSource();
                 teardown = terminalTeardownTask = completion.Task;
-                if (!stateMachine.TryBeginConfirmedTurnCancellation(
-                        snapshot.Identity.OperationId,
-                        confirmedTurnId))
-                {
-                    terminalTeardownTask = null;
-                    throw new InvalidOperationException(
-                        "The confirmed generation turn is no longer active.");
-                }
             }
         }
 
         _ = CompletePublishedTaskAsync(
             completion,
             () => CancelCoreAsync(
-                cancellationAlreadyBegun: true,
                 confirmedTurnId,
                 cancellationToken));
         return teardown;
     }
 
     private async Task CancelCoreAsync(
-        bool cancellationAlreadyBegun,
         Guid? confirmedTurnId,
         CancellationToken cancellationToken)
     {
-        Guid operationId;
-        bool cancellationBegan = cancellationAlreadyBegun;
-        OpenVinoRouteState state;
-        lock (stateLock)
-        {
-            OpenVinoRouteSnapshot snapshot = Snapshot;
-            operationId = snapshot.Identity.OperationId;
-            if (!cancellationAlreadyBegun)
-            {
-                cancellationBegan = stateMachine.TryBeginCancellation(operationId);
-            }
-            state = Snapshot.State;
-        }
-        if (!cancellationBegan)
-        {
-            if (state is OpenVinoRouteState.Cancelled or
-                OpenVinoRouteState.Failed or
-                OpenVinoRouteState.SessionCompleted)
-            {
-                await DisposeChannelAsync().ConfigureAwait(false);
-                return;
-            }
-
-            throw new InvalidOperationException(
-                "The route session cannot be cancelled from its current state.");
-        }
-
-        Emit(PromptEventKind.CancellingSession, confirmedTurnId);
-        PromptFailure? failure = null;
+        await turnTerminalGate.WaitAsync(CancellationToken.None)
+            .ConfigureAwait(false);
         try
         {
-            await channel.CancelAsync(cancellationToken).ConfigureAwait(false);
-        }
-        catch (OpenVinoRouteWorkerFailureException workerFailure)
-        {
-            if (workerFailure.SupportCode != OpenVinoSupportCode.OperationCancelled)
+            Guid operationId;
+            bool cancellationBegan;
+            OpenVinoRouteState state;
+            lock (stateLock)
             {
-                failure = MapFailure(workerFailure.SupportCode);
+                OpenVinoRouteSnapshot snapshot = Snapshot;
+                operationId = snapshot.Identity.OperationId;
+                cancellationBegan = confirmedTurnId is Guid exactTurnId
+                    ? stateMachine.TryBeginConfirmedTurnCancellation(
+                        operationId,
+                        exactTurnId)
+                    : stateMachine.TryBeginCancellation(operationId);
+                state = Snapshot.State;
             }
-        }
-        catch (OperationCanceledException)
-        {
-            // Caller cancellation still owns a terminal channel teardown.
-        }
-        catch (Exception)
-        {
-            failure = MapFailure(OpenVinoSupportCode.RuntimeProtocolFailed);
+            if (!cancellationBegan)
+            {
+                if (state is OpenVinoRouteState.Cancelled or
+                    OpenVinoRouteState.Failed or
+                    OpenVinoRouteState.SessionCompleted)
+                {
+                    await DisposeChannelAsync().ConfigureAwait(false);
+                    return;
+                }
+
+                throw new InvalidOperationException(
+                    confirmedTurnId.HasValue
+                        ? "The confirmed generation turn is no longer active."
+                        : "The route session cannot be cancelled from its current state.");
+            }
+
+            Emit(PromptEventKind.CancellingSession, confirmedTurnId);
+            PromptFailure? failure = null;
+            try
+            {
+                await channel.CancelAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (OpenVinoRouteWorkerFailureException workerFailure)
+            {
+                if (workerFailure.SupportCode != OpenVinoSupportCode.OperationCancelled)
+                {
+                    failure = MapFailure(workerFailure.SupportCode);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Caller cancellation still owns a terminal channel teardown.
+            }
+            catch (Exception)
+            {
+                failure = MapFailure(OpenVinoSupportCode.RuntimeProtocolFailed);
+            }
+            finally
+            {
+                bool publishTerminal;
+                lock (stateLock)
+                {
+                    if (failure is null)
+                    {
+                        publishTerminal = stateMachine.TryMarkCancelled(operationId);
+                    }
+                    else
+                    {
+                        publishTerminal =
+                            stateMachine.TryFail(operationId, failure.SupportCode);
+                    }
+                }
+
+                // Resource retirement is authoritative. A presentation observer
+                // cannot run before or preempt the exactly-once channel disposal.
+                await DisposeChannelAsync().ConfigureAwait(false);
+
+                if (publishTerminal && failure is null)
+                {
+                    Emit(PromptEventKind.Cancelled, turnId: null);
+                }
+                else if (publishTerminal)
+                {
+                    Emit(PromptEventKind.Failed, turnId: null, failure: failure);
+                }
+            }
         }
         finally
         {
-            bool publishTerminal;
-            lock (stateLock)
-            {
-                if (failure is null)
-                {
-                    publishTerminal = stateMachine.TryMarkCancelled(operationId);
-                }
-                else
-                {
-                    publishTerminal =
-                        stateMachine.TryFail(operationId, failure.SupportCode);
-                }
-            }
-
-            // Resource retirement is authoritative. A presentation observer
-            // cannot run before or preempt the exactly-once channel disposal.
-            await DisposeChannelAsync().ConfigureAwait(false);
-
-            if (publishTerminal && failure is null)
-            {
-                Emit(PromptEventKind.Cancelled, turnId: null);
-            }
-            else if (publishTerminal)
-            {
-                Emit(PromptEventKind.Failed, turnId: null, failure: failure);
-            }
+            turnTerminalGate.Release();
         }
     }
 
@@ -590,7 +591,6 @@ public sealed class OpenVinoPromptAdapter : IAsyncDisposable
             completion,
             cancelSession
                 ? () => CancelCoreAsync(
-                    cancellationAlreadyBegun: false,
                     confirmedTurnId: null,
                     CancellationToken.None)
                 : () => channel.DisposeAsync().AsTask());
