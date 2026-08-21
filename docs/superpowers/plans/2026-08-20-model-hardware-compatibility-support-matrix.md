@@ -519,6 +519,7 @@ Create `tests/UnitTests/GraniteEdgeAI.ModelHardwareCompatibility.Tests/Applicati
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Capabilities;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.FitAssessment;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.Gguf;
 
 namespace GraniteEdgeAI.ModelHardwareCompatibility.Tests.Application.Capabilities;
 
@@ -638,7 +639,7 @@ public sealed class SupportMatrixResolverTests
         Assert.IsTrue(
             SupportMatrix.ProvisionalV1().Entries.Any(entry =>
                 entry.Device == DeviceRouteId.Cpu
-                && entry.Weights == Routes.Gguf.GgufWeightFormat.Imported
+                && entry.Weights == GgufWeightFormat.Imported
                 && entry.Level == SupportLevel.DeclaredSupported));
     }
 
@@ -659,9 +660,9 @@ public sealed class SupportMatrixResolverTests
             RuntimeRouteId.LlamaCpp,
             CompatibilityBackend.Cpu,
             DeviceRouteId.Cpu,
-            Routes.Gguf.GpuOffloadLevel.None,
-            Routes.Gguf.GgufWeightFormat.Imported,
-            Routes.Gguf.GgufKvCacheFormat.F16,
+            GpuOffloadLevel.None,
+            GgufWeightFormat.Imported,
+            GgufKvCacheFormat.F16,
             1024,
             32768,
             SupportLevel.DeclaredSupported,
@@ -685,9 +686,9 @@ public sealed class SupportMatrixResolverTests
             RuntimeRouteId.LlamaCpp,
             CompatibilityBackend.Cpu,
             DeviceRouteId.Cpu,
-            Routes.Gguf.GpuOffloadLevel.None,
-            Routes.Gguf.GgufWeightFormat.Imported,
-            Routes.Gguf.GgufKvCacheFormat.F16,
+            GpuOffloadLevel.None,
+            GgufWeightFormat.Imported,
+            GgufKvCacheFormat.F16,
             1024,
             32768,
             SupportLevel.DeclaredSupported,
