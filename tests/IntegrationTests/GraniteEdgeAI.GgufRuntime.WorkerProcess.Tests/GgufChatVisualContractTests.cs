@@ -446,6 +446,99 @@ public sealed class GgufChatVisualContractTests
     }
 
     [TestMethod]
+    public void WindowsIdentityAndGeneratedIconsComeFromTheApprovedGraniteSymbol()
+    {
+        string root = FindRepositoryRoot();
+        string appRoot = Path.Combine(root, "IBM Granite with TurboQuant (Intel)");
+        XNamespace foundation =
+            "http://schemas.microsoft.com/appx/manifest/foundation/windows10";
+        XNamespace uap = "http://schemas.microsoft.com/appx/manifest/uap/windows10";
+        XDocument package = XDocument.Load(Path.Combine(appRoot, "Package.appxmanifest"));
+        Assert.AreEqual(
+            "Granite Edge AI",
+            package.Root?.Element(foundation + "Properties")?
+                .Element(foundation + "DisplayName")?.Value);
+        XElement visualElements = package.Descendants(uap + "VisualElements").Single();
+        Assert.AreEqual("Granite Edge AI", visualElements.Attribute("DisplayName")?.Value);
+        Assert.AreEqual("Granite Edge AI", visualElements.Attribute("Description")?.Value);
+
+        string mainWindow = File.ReadAllText(Path.Combine(appRoot, "MainWindow.xaml.cs"));
+        StringAssert.Contains(mainWindow, "Title = \"Granite Edge AI\";");
+        StringAssert.Contains(mainWindow, "AppWindow.SetIcon(iconPath);");
+        StringAssert.Contains(mainWindow, "\"granite-edge-ai.ico\"");
+
+        string generatorPath = Path.Combine(
+            root,
+            "scripts",
+            "branding",
+            "Generate-WindowsAppBranding.ps1");
+        Assert.IsTrue(File.Exists(generatorPath), "The Windows branding generator is required.");
+        string generator = File.ReadAllText(generatorPath);
+        StringAssert.Contains(generator, "docs\\Logo\\granite-edge-ai-icon.svg");
+        StringAssert.Contains(generator, "Windows.Media.Geometry]::Parse");
+        StringAssert.Contains(generator, "windows-icon-manifest.json");
+
+        string evidencePath = Path.Combine(
+            appRoot,
+            "Assets",
+            "Branding",
+            "windows-icon-manifest.json");
+        Assert.IsTrue(File.Exists(evidencePath), "Generated icon evidence is required.");
+        using System.Text.Json.JsonDocument evidence =
+            System.Text.Json.JsonDocument.Parse(File.ReadAllText(evidencePath));
+        System.Text.Json.JsonElement document = evidence.RootElement;
+        Assert.AreEqual(1, document.GetProperty("schemaVersion").GetInt32());
+
+        string sourceRelative = "docs/Logo/granite-edge-ai-icon.svg";
+        string sourcePath = Path.Combine(root, sourceRelative.Replace('/', Path.DirectorySeparatorChar));
+        System.Text.Json.JsonElement source = document.GetProperty("source");
+        Assert.AreEqual(sourceRelative, source.GetProperty("path").GetString());
+        Assert.AreEqual(FileHash(sourcePath), source.GetProperty("sha256").GetString());
+
+        var expectedPngs = new Dictionary<string, (int Width, int Height)>(StringComparer.Ordinal)
+        {
+            ["IBM Granite with TurboQuant (Intel)/Assets/LockScreenLogo.scale-200.png"] = (48, 48),
+            ["IBM Granite with TurboQuant (Intel)/Assets/SplashScreen.scale-200.png"] = (1240, 600),
+            ["IBM Granite with TurboQuant (Intel)/Assets/Square150x150Logo.scale-200.png"] = (300, 300),
+            ["IBM Granite with TurboQuant (Intel)/Assets/Square44x44Logo.scale-200.png"] = (88, 88),
+            ["IBM Granite with TurboQuant (Intel)/Assets/Square44x44Logo.targetsize-24_altform-unplated.png"] = (24, 24),
+            ["IBM Granite with TurboQuant (Intel)/Assets/StoreLogo.png"] = (50, 50),
+            ["IBM Granite with TurboQuant (Intel)/Assets/Wide310x150Logo.scale-200.png"] = (620, 300),
+        };
+        System.Text.Json.JsonElement[] pngEntries = document.GetProperty("pngs")
+            .EnumerateArray()
+            .ToArray();
+        Assert.AreEqual(expectedPngs.Count, pngEntries.Length);
+        foreach (System.Text.Json.JsonElement entry in pngEntries)
+        {
+            string? relativeValue = entry.GetProperty("path").GetString();
+            Assert.IsNotNull(relativeValue);
+            string relative = relativeValue;
+            Assert.IsTrue(expectedPngs.Remove(relative, out (int Width, int Height) expected));
+            string outputPath = Path.Combine(root, relative.Replace('/', Path.DirectorySeparatorChar));
+            Assert.AreEqual(FileHash(outputPath), entry.GetProperty("sha256").GetString());
+            Assert.AreEqual(new FileInfo(outputPath).Length, entry.GetProperty("bytes").GetInt64());
+            Assert.AreEqual(expected.Width, entry.GetProperty("width").GetInt32());
+            Assert.AreEqual(expected.Height, entry.GetProperty("height").GetInt32());
+            AssertPngDimensions(outputPath, expected.Width, expected.Height);
+        }
+        Assert.AreEqual(0, expectedPngs.Count);
+
+        System.Text.Json.JsonElement ico = document.GetProperty("ico");
+        string? icoRelativeValue = ico.GetProperty("path").GetString();
+        Assert.IsNotNull(icoRelativeValue);
+        string icoRelative = icoRelativeValue;
+        string icoPath = Path.Combine(root, icoRelative.Replace('/', Path.DirectorySeparatorChar));
+        Assert.AreEqual(FileHash(icoPath), ico.GetProperty("sha256").GetString());
+        Assert.AreEqual(new FileInfo(icoPath).Length, ico.GetProperty("bytes").GetInt64());
+        int[] expectedSizes = [16, 24, 32, 48, 64, 128, 256];
+        CollectionAssert.AreEqual(
+            expectedSizes,
+            ico.GetProperty("sizes").EnumerateArray().Select(item => item.GetInt32()).ToArray());
+        AssertIcoPngFrames(icoPath, expectedSizes);
+    }
+
+    [TestMethod]
     public void ChatThemeUsesSystemHighlightTextForHighContrastPrimaryButtons()
     {
         string root = FindRepositoryRoot();
@@ -800,6 +893,66 @@ public sealed class GgufChatVisualContractTests
         Assert.AreEqual(
             "ms-appx:///Assets/Branding/granite-edge-ai-icon.svg",
             centerMark.Attribute("Source")?.Value);
+    }
+
+    private static string FileHash(string path) => Convert.ToHexString(
+        System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(path)))
+        .ToLowerInvariant();
+
+    private static void AssertPngDimensions(string path, int expectedWidth, int expectedHeight)
+    {
+        byte[] bytes = File.ReadAllBytes(path);
+        byte[] pngSignature = [137, 80, 78, 71, 13, 10, 26, 10];
+        CollectionAssert.AreEqual(pngSignature, bytes[..8], path);
+        Assert.AreEqual(
+            expectedWidth,
+            System.Buffers.Binary.BinaryPrimitives.ReadInt32BigEndian(bytes.AsSpan(16, 4)),
+            path);
+        Assert.AreEqual(
+            expectedHeight,
+            System.Buffers.Binary.BinaryPrimitives.ReadInt32BigEndian(bytes.AsSpan(20, 4)),
+            path);
+    }
+
+    private static void AssertIcoPngFrames(string path, int[] expectedSizes)
+    {
+        using var stream = File.OpenRead(path);
+        using var reader = new BinaryReader(stream);
+        Assert.AreEqual(0, reader.ReadUInt16(), "ICO reserved field");
+        Assert.AreEqual(1, reader.ReadUInt16(), "ICO type");
+        ushort count = reader.ReadUInt16();
+        Assert.AreEqual(expectedSizes.Length, count);
+        var frames = new List<(int Size, uint Bytes, uint Offset)>();
+        for (int index = 0; index < count; index++)
+        {
+            byte width = reader.ReadByte();
+            byte height = reader.ReadByte();
+            reader.ReadByte();
+            reader.ReadByte();
+            reader.ReadUInt16();
+            reader.ReadUInt16();
+            uint bytes = reader.ReadUInt32();
+            uint offset = reader.ReadUInt32();
+            int decodedWidth = width == 0 ? 256 : width;
+            int decodedHeight = height == 0 ? 256 : height;
+            Assert.AreEqual(decodedWidth, decodedHeight);
+            frames.Add((decodedWidth, bytes, offset));
+        }
+
+        CollectionAssert.AreEqual(expectedSizes.ToArray(), frames.Select(frame => frame.Size).ToArray());
+        foreach ((int size, uint bytes, uint offset) in frames)
+        {
+            stream.Position = offset;
+            byte[] png = reader.ReadBytes(checked((int)bytes));
+            byte[] pngSignature = [137, 80, 78, 71, 13, 10, 26, 10];
+            CollectionAssert.AreEqual(pngSignature, png[..8]);
+            Assert.AreEqual(
+                size,
+                System.Buffers.Binary.BinaryPrimitives.ReadInt32BigEndian(png.AsSpan(16, 4)));
+            Assert.AreEqual(
+                size,
+                System.Buffers.Binary.BinaryPrimitives.ReadInt32BigEndian(png.AsSpan(20, 4)));
+        }
     }
 
     private static string FindRepositoryRoot()

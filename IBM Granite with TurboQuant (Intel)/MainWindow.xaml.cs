@@ -2,6 +2,7 @@ using GraniteEdgeAI.Features.GgufRuntime;
 using GraniteEdgeAI.Features.Onboarding;
 using Microsoft.UI.Xaml;
 using System;
+using System.IO;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -19,6 +20,13 @@ namespace GraniteEdgeAI
         {
             // Loads MainWindow.xaml and creates its named controls, including rootFrame.
             InitializeComponent();
+            Title = "Granite Edge AI";
+            string iconPath = Path.Combine(
+                AppContext.BaseDirectory,
+                "Assets",
+                "Branding",
+                "granite-edge-ai.ico");
+            AppWindow.SetIcon(iconPath);
 
             // Loads OnboardingShellPage inside rootFrame when the window is created.
             ShowOnboarding();
