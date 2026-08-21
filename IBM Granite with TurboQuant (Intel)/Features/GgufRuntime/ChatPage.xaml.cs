@@ -10,6 +10,7 @@ namespace GraniteEdgeAI.Features.GgufRuntime;
 
 public sealed partial class ChatPage : Page
 {
+    private readonly ChatRenderScheduler transcriptScrollScheduler;
     private readonly Dictionary<Guid, ChatMessageBubble> transcriptBubbles = [];
     private readonly List<Guid> renderedMessageIds = [];
     private Guid? renderedConversationId;
@@ -17,6 +18,10 @@ public sealed partial class ChatPage : Page
     public ChatPage()
     {
         InitializeComponent();
+        transcriptScrollScheduler = new ChatRenderScheduler(
+            callback => DispatcherQueue.TryEnqueue(() => callback()),
+            ScrollTranscriptToEnd);
+        Unloaded += ChatPage_Unloaded;
     }
 
     public event EventHandler? NewChatRequested;
@@ -76,7 +81,7 @@ public sealed partial class ChatPage : Page
             HorizontalAlignment = HorizontalAlignment.Stretch,
         });
         ShowConversation();
-        TranscriptList.ScrollIntoView(TranscriptList.Items[^1]);
+        transcriptScrollScheduler.Request();
     }
 
     internal void SynchronizeTranscript(
@@ -131,7 +136,7 @@ public sealed partial class ChatPage : Page
         ShowConversation();
         if (shouldFollowLatest)
         {
-            TranscriptList.ScrollIntoView(TranscriptList.Items[^1]);
+            transcriptScrollScheduler.Request();
         }
     }
 
@@ -200,6 +205,25 @@ public sealed partial class ChatPage : Page
         }
 
         return null;
+    }
+
+    private void ScrollTranscriptToEnd()
+    {
+        ScrollViewer? scrollViewer = FindDescendant<ScrollViewer>(TranscriptList);
+        if (scrollViewer is not null && scrollViewer.ScrollableHeight > 0)
+        {
+            scrollViewer.ChangeView(
+                horizontalOffset: null,
+                verticalOffset: scrollViewer.ScrollableHeight,
+                zoomFactor: null,
+                disableAnimation: true);
+        }
+    }
+
+    private void ChatPage_Unloaded(object sender, RoutedEventArgs eventArguments)
+    {
+        Unloaded -= ChatPage_Unloaded;
+        transcriptScrollScheduler.Dispose();
     }
 
     public void SetGenerating(bool isGenerating) => Composer.IsGenerating = isGenerating;

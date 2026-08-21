@@ -211,6 +211,41 @@ public sealed class ChatPageTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
+    public void RepeatedStreamingSynchronizationKeepsTranscriptVisible()
+    {
+        var page = new ChatPage();
+        Guid conversationId = Guid.NewGuid();
+        Guid assistantId = Guid.NewGuid();
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        var first = new ChatMessage(
+            assistantId,
+            ChatMessageRole.Assistant,
+            "First chunk",
+            ChatCompletionStatus.Streaming,
+            now);
+        var second = new ChatMessage(
+            assistantId,
+            ChatMessageRole.Assistant,
+            "First chunk and second chunk",
+            ChatCompletionStatus.Streaming,
+            now);
+
+        page.SynchronizeTranscript(conversationId, [first], forceFollowLatest: true);
+        ListView transcript = Assert.IsInstanceOfType<ListView>(
+            page.FindName("TranscriptList"));
+        object bubble = transcript.Items[0];
+        page.SynchronizeTranscript(conversationId, [second], forceFollowLatest: true);
+
+        Assert.AreEqual(Visibility.Visible, transcript.Visibility);
+        Assert.AreEqual(
+            Visibility.Collapsed,
+            Assert.IsInstanceOfType<FrameworkElement>(
+                page.FindName("EmptyConversationState")).Visibility);
+        Assert.AreSame(bubble, transcript.Items[0]);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
     public void SelectingAnotherConversationResetsTranscriptAndEmptyState()
     {
         var page = new ChatPage();

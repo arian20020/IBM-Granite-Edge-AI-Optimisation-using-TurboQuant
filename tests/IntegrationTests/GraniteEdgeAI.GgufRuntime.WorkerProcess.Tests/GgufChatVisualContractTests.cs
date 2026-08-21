@@ -463,6 +463,11 @@ public sealed class GgufChatVisualContractTests
             @"if\s*\(\s*renderedHistory\.SequenceEqual\(currentHistory\)\s*\)\s*\{\s*return;\s*\}\s*page\.ClearHistory\(\);"));
         StringAssert.Contains(page, "ShouldFollowOutput(");
         StringAssert.Contains(page, "transcriptBubbles.TryGetValue");
+        Assert.IsFalse(
+            page.Contains("TranscriptList.ScrollIntoView", StringComparison.Ordinal));
+        StringAssert.Contains(page, "transcriptScrollScheduler.Request();");
+        StringAssert.Contains(page, "scrollViewer.ChangeView(");
+        StringAssert.Contains(page, "scrollViewer.ScrollableHeight > 0");
     }
 
     [TestMethod]
