@@ -339,18 +339,30 @@ public sealed class GgufChatVisualContractTests
             x,
             "GgufChatSelectedNavigationButtonStyle");
         AssertStyleHasVisualStates(selectedNavigation, presentation, x);
+        XElement selectedPointerOver = selectedNavigation.Descendants(presentation + "VisualState")
+            .Single(state => state.Attribute(x + "Name")?.Value == "PointerOver");
         AssertStateSetterUsesThemeResource(
-            selectedNavigation.Descendants(presentation + "VisualState")
-                .Single(state => state.Attribute(x + "Name")?.Value == "PointerOver"),
+            selectedPointerOver,
             presentation,
             "RootBorder.Background",
             "GgufChatNavigationSelectedHoverBrush");
         AssertStateSetterUsesThemeResource(
-            selectedNavigation.Descendants(presentation + "VisualState")
-                .Single(state => state.Attribute(x + "Name")?.Value == "Pressed"),
+            selectedPointerOver,
+            presentation,
+            "ContentPresenter.Foreground",
+            "GgufChatPrimaryHoverForegroundBrush");
+        XElement selectedPressed = selectedNavigation.Descendants(presentation + "VisualState")
+            .Single(state => state.Attribute(x + "Name")?.Value == "Pressed");
+        AssertStateSetterUsesThemeResource(
+            selectedPressed,
             presentation,
             "RootBorder.Background",
             "GgufChatNavigationSelectedPressedBrush");
+        AssertStateSetterUsesThemeResource(
+            selectedPressed,
+            presentation,
+            "ContentPresenter.Foreground",
+            "GgufChatPrimaryPressedForegroundBrush");
         Assert.IsTrue(
             ContrastRatio(expected["GgufChatNavigationSelectedHoverBrush"], "#FFFFFF") >= 4.5);
         Assert.IsTrue(

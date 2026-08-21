@@ -268,11 +268,13 @@
                                 <VisualState x:Name="PointerOver">
                                     <VisualState.Setters>
                                         <Setter Target="RootBorder.Background" Value="{ThemeResource GgufChatNavigationSelectedHoverBrush}" />
+                                        <Setter Target="ContentPresenter.Foreground" Value="{ThemeResource GgufChatPrimaryHoverForegroundBrush}" />
                                     </VisualState.Setters>
                                 </VisualState>
                                 <VisualState x:Name="Pressed">
                                     <VisualState.Setters>
                                         <Setter Target="RootBorder.Background" Value="{ThemeResource GgufChatNavigationSelectedPressedBrush}" />
+                                        <Setter Target="ContentPresenter.Foreground" Value="{ThemeResource GgufChatPrimaryPressedForegroundBrush}" />
                                     </VisualState.Setters>
                                 </VisualState>
                                 <VisualState x:Name="Disabled">
