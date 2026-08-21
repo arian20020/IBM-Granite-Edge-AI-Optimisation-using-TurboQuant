@@ -20,20 +20,48 @@ $brandingRoot = Join-Path $appRoot 'Assets\Branding'
 $icoRelativePath = "$appRelativeRoot/Assets/Branding/granite-edge-ai.ico"
 $icoPath = Join-Path $RepositoryRoot ($icoRelativePath -replace '/', '\')
 $manifestPath = Join-Path $brandingRoot 'windows-icon-manifest.json'
+$approvedSourceSha256 = 'b392df072100e16675c21987070b7e1063f5e891c1a4bedb920e90e679691ba2'
+$actualSourceSha256 = (Get-FileHash -LiteralPath $sourcePath -Algorithm SHA256).Hash.ToLowerInvariant()
+if ($actualSourceSha256 -ne $approvedSourceSha256) {
+    throw 'The approved Granite symbol bytes have changed; review and repin branding intentionally.'
+}
 
 [xml]$source = Get-Content -LiteralPath $sourcePath -Raw
 $namespace = [Xml.XmlNamespaceManager]::new($source.NameTable)
 $namespace.AddNamespace('svg', 'http://www.w3.org/2000/svg')
 $root = $source.SelectSingleNode('/svg:svg', $namespace)
+$gradient = $source.SelectSingleNode('/svg:svg/svg:defs/svg:linearGradient[@id="graniteBlue"]', $namespace)
+$group = $source.SelectSingleNode('/svg:svg/svg:g', $namespace)
 $paths = @($source.SelectNodes('/svg:svg/svg:g/svg:path', $namespace))
 $stops = @($source.SelectNodes('/svg:svg/svg:defs/svg:linearGradient[@id="graniteBlue"]/svg:stop', $namespace))
+$rootElements = @($root.ChildNodes | Where-Object NodeType -eq Element)
+$definitionElements = @($rootElements[0].ChildNodes | Where-Object NodeType -eq Element)
+$groupElements = @($rootElements[1].ChildNodes | Where-Object NodeType -eq Element)
 
-if ($null -eq $root -or $root.GetAttribute('viewBox') -ne '0 0 512 512' -or
+if ($null -eq $root -or $null -eq $gradient -or $null -eq $group -or
+    $root.GetAttribute('width') -ne '512' -or
+    $root.GetAttribute('height') -ne '512' -or
+    $root.GetAttribute('viewBox') -ne '0 0 512 512' -or
+    $root.GetAttribute('fill') -ne 'none' -or
+    $rootElements.Count -ne 2 -or
+    $rootElements[0].LocalName -ne 'defs' -or
+    $rootElements[1].LocalName -ne 'g' -or
+    $definitionElements.Count -ne 1 -or
+    $definitionElements[0].LocalName -ne 'linearGradient' -or
+    $groupElements.Count -ne 9 -or
+    @($groupElements | Where-Object LocalName -ne 'path').Count -ne 0 -or
+    $group.GetAttribute('transform') -ne 'translate(0 0)' -or
+    $group.GetAttribute('data-brand-element') -ne 'Granite Edge AI G monogram' -or
     $paths.Count -ne 9 -or $stops.Count -ne 2) {
     throw 'The approved Granite symbol has an unexpected structure.'
 }
 
-if ($stops[0].GetAttribute('offset') -ne '0' -or
+if ($gradient.GetAttribute('x1') -ne '48' -or
+    $gradient.GetAttribute('y1') -ne '256' -or
+    $gradient.GetAttribute('x2') -ne '420' -or
+    $gradient.GetAttribute('y2') -ne '256' -or
+    $gradient.GetAttribute('gradientUnits') -ne 'userSpaceOnUse' -or
+    $stops[0].GetAttribute('offset') -ne '0' -or
     $stops[0].GetAttribute('stop-color') -ne '#0F62FE' -or
     $stops[1].GetAttribute('offset') -ne '1' -or
     $stops[1].GetAttribute('stop-color') -ne '#003A9F') {

@@ -42,6 +42,8 @@ public sealed class GgufChatVisualContractTests
         "GgufChatNavigationHoverBrush",
         "GgufChatNavigationPressedBrush",
         "GgufChatNavigationSelectedBrush",
+        "GgufChatNavigationSelectedHoverBrush",
+        "GgufChatNavigationSelectedPressedBrush",
         "GgufChatComposerBrush",
         "GgufChatComposerFocusedBorderBrush",
         "GgufChatFlyoutBrush",
@@ -306,6 +308,8 @@ public sealed class GgufChatVisualContractTests
             ["GgufChatNavigationHoverBrush"] = "#EEF4FF",
             ["GgufChatNavigationPressedBrush"] = "#E2ECFA",
             ["GgufChatNavigationSelectedBrush"] = "#2563EB",
+            ["GgufChatNavigationSelectedHoverBrush"] = "#1D4ED8",
+            ["GgufChatNavigationSelectedPressedBrush"] = "#1E40AF",
             ["GgufChatComposerBrush"] = "#FFFFFFFF",
             ["GgufChatComposerFocusedBorderBrush"] = "#2563EB",
             ["GgufChatFlyoutBrush"] = "#FFFFFFFF",
@@ -330,6 +334,27 @@ public sealed class GgufChatVisualContractTests
 
         XElement navigation = AssertRootResource(theme, x, "GgufChatNavigationButtonStyle");
         AssertStyleHasVisualStates(navigation, presentation, x);
+        XElement selectedNavigation = AssertRootResource(
+            theme,
+            x,
+            "GgufChatSelectedNavigationButtonStyle");
+        AssertStyleHasVisualStates(selectedNavigation, presentation, x);
+        AssertStateSetterUsesThemeResource(
+            selectedNavigation.Descendants(presentation + "VisualState")
+                .Single(state => state.Attribute(x + "Name")?.Value == "PointerOver"),
+            presentation,
+            "RootBorder.Background",
+            "GgufChatNavigationSelectedHoverBrush");
+        AssertStateSetterUsesThemeResource(
+            selectedNavigation.Descendants(presentation + "VisualState")
+                .Single(state => state.Attribute(x + "Name")?.Value == "Pressed"),
+            presentation,
+            "RootBorder.Background",
+            "GgufChatNavigationSelectedPressedBrush");
+        Assert.IsTrue(
+            ContrastRatio(expected["GgufChatNavigationSelectedHoverBrush"], "#FFFFFF") >= 4.5);
+        Assert.IsTrue(
+            ContrastRatio(expected["GgufChatNavigationSelectedPressedBrush"], "#FFFFFF") >= 4.5);
         Assert.IsNotNull(navigation.Descendants(presentation + "VisualState")
             .SingleOrDefault(state => state.Attribute(x + "Name")?.Value == "Unfocused"));
         Assert.AreEqual(
@@ -491,6 +516,13 @@ public sealed class GgufChatVisualContractTests
 
         string sourceRelative = "docs/Logo/granite-edge-ai-icon.svg";
         string sourcePath = Path.Combine(root, sourceRelative.Replace('/', Path.DirectorySeparatorChar));
+        const string approvedSourceSha256 =
+            "b392df072100e16675c21987070b7e1063f5e891c1a4bedb920e90e679691ba2";
+        Assert.AreEqual(approvedSourceSha256, FileHash(sourcePath));
+        StringAssert.Contains(generator, approvedSourceSha256);
+        StringAssert.Contains(generator, "GetAttribute('transform') -ne 'translate(0 0)'");
+        StringAssert.Contains(generator, "GetAttribute('x1') -ne '48'");
+        StringAssert.Contains(generator, "GetAttribute('gradientUnits') -ne 'userSpaceOnUse'");
         System.Text.Json.JsonElement source = document.GetProperty("source");
         Assert.AreEqual(sourceRelative, source.GetProperty("path").GetString());
         Assert.AreEqual(FileHash(sourcePath), source.GetProperty("sha256").GetString());
@@ -771,6 +803,21 @@ public sealed class GgufChatVisualContractTests
         XElement historyButton = historyItem.Descendants(presentation + "Button").Single();
         Assert.AreEqual("Left", historyButton.Attribute("HorizontalContentAlignment")?.Value);
         Assert.AreEqual("4,8", historyButton.Attribute("Padding")?.Value);
+        XElement? historyContentCandidate = historyButton.Element(presentation + "Grid");
+        Assert.IsNotNull(historyContentCandidate, "History rows require the shared icon/text grid.");
+        XElement historyContent = historyContentCandidate;
+        Assert.AreEqual("HistoryContentGrid", historyContent.Attribute(x + "Name")?.Value);
+        Assert.AreEqual("12", historyContent.Attribute("ColumnSpacing")?.Value);
+        XElement[] historyColumns = historyContent
+            .Element(presentation + "Grid.ColumnDefinitions")!
+            .Elements(presentation + "ColumnDefinition")
+            .ToArray();
+        Assert.AreEqual(2, historyColumns.Length);
+        Assert.AreEqual("20", historyColumns[0].Attribute("Width")?.Value);
+        Assert.AreEqual("*", historyColumns[1].Attribute("Width")?.Value);
+        Assert.AreEqual(
+            "1",
+            historyContent.Element(presentation + "TextBlock")?.Attribute("Grid.Column")?.Value);
 
         XElement prompt = composer.Descendants(presentation + "TextBox")
             .Single(element => element.Attribute(x + "Name")?.Value == "PromptTextBox");

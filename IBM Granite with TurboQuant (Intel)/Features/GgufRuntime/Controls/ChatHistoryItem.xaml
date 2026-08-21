@@ -11,11 +11,18 @@
             Padding="4,8"
             Style="{StaticResource GgufChatNavigationButtonStyle}"
             Click="HistoryButton_Click">
-            <TextBlock
-                x:Name="TitleText"
-                Text="{x:Bind Title, Mode=OneWay}"
-                TextTrimming="CharacterEllipsis"
-                TextWrapping="NoWrap" />
+            <Grid x:Name="HistoryContentGrid" ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="20" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock
+                    x:Name="TitleText"
+                    Grid.Column="1"
+                    Text="{x:Bind Title, Mode=OneWay}"
+                    TextTrimming="CharacterEllipsis"
+                    TextWrapping="NoWrap" />
+            </Grid>
         </Button>
     </Grid>
 </UserControl>

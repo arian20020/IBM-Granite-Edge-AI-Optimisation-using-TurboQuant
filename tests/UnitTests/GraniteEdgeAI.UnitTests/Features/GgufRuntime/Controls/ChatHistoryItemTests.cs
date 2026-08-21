@@ -26,6 +26,9 @@ public sealed class ChatHistoryItemTests
         selectedProperty.SetValue(item, true);
 
         Assert.AreSame(
+            Application.Current.Resources["GgufChatSelectedNavigationButtonStyle"],
+            button.Style);
+        Assert.AreSame(
             Application.Current.Resources["GgufChatNavigationSelectedBrush"],
             button.Background);
         Assert.AreEqual(
@@ -39,6 +42,9 @@ public sealed class ChatHistoryItemTests
 
         selectedProperty.SetValue(item, false);
 
+        Assert.AreSame(
+            Application.Current.Resources["GgufChatNavigationButtonStyle"],
+            button.Style);
         Assert.AreSame(
             Application.Current.Resources["GgufChatNavigationRestBrush"],
             button.Background);

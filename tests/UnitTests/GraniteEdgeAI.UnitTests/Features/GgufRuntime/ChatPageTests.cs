@@ -106,6 +106,14 @@ public sealed class ChatPageTests
             HorizontalAlignment.Left,
             historyButton.HorizontalContentAlignment);
         Assert.AreEqual(new Thickness(4, 8, 4, 8), historyButton.Padding);
+        Grid historyContent = Assert.IsInstanceOfType<Grid>(
+            historyItem.FindName("HistoryContentGrid"));
+        TextBlock historyTitle = Assert.IsInstanceOfType<TextBlock>(
+            historyItem.FindName("TitleText"));
+        Assert.AreEqual(12, historyContent.ColumnSpacing);
+        Assert.AreEqual(new GridLength(20), historyContent.ColumnDefinitions[0].Width);
+        Assert.AreEqual(new GridLength(1, GridUnitType.Star), historyContent.ColumnDefinitions[1].Width);
+        Assert.AreEqual(1, Grid.GetColumn(historyTitle));
     }
 
     [UITestMethod]
