@@ -4,10 +4,13 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
 using GraniteEdgeAI.Features.GgufRuntime.Attachments;
+using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Windows.System;
+using Windows.UI.Core;
 
 namespace GraniteEdgeAI.Features.GgufRuntime.Controls;
 
@@ -244,6 +247,25 @@ public sealed partial class ChatComposer : UserControl
     private void PromptTextBox_LosingFocus(object sender, LosingFocusEventArgs eventArguments) =>
         ComposerFocusVisual.Visibility = Visibility.Collapsed;
 
+    internal static bool IsSendKey(VirtualKey key, bool isShiftPressed) =>
+        key == VirtualKey.Enter && !isShiftPressed;
+
+    private void PromptTextBox_KeyDown(
+        object sender,
+        KeyRoutedEventArgs eventArguments)
+    {
+        bool isShiftPressed = InputKeyboardSource
+            .GetKeyStateForCurrentThread(VirtualKey.Shift)
+            .HasFlag(CoreVirtualKeyStates.Down);
+        if (!IsSendKey(eventArguments.Key, isShiftPressed))
+        {
+            return;
+        }
+
+        eventArguments.Handled = true;
+        TrySubmitPrompt();
+    }
+
     private void UpdatePromptVerticalAlignment()
     {
         bool hasExplicitLineBreak =
@@ -269,18 +291,22 @@ public sealed partial class ChatComposer : UserControl
             PromptTextBox.Text.Trim().Length > 0;
     }
 
-    private void SendButton_Click(object sender, RoutedEventArgs eventArguments)
+    private bool TrySubmitPrompt()
     {
         string prompt = PromptTextBox.Text.Trim();
-        if (prompt.Length == 0)
+        if (IsGenerating || prompt.Length == 0)
         {
-            return;
+            return false;
         }
 
         PromptTextBox.Text = string.Empty;
         UpdateSubmissionState();
         SendRequested?.Invoke(this, prompt);
+        return true;
     }
+
+    private void SendButton_Click(object sender, RoutedEventArgs eventArguments) =>
+        TrySubmitPrompt();
 
     private void StopButton_Click(object sender, RoutedEventArgs eventArguments) =>
         StopRequested?.Invoke(this, EventArgs.Empty);

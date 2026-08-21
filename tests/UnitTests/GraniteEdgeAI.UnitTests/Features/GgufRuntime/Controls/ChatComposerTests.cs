@@ -141,6 +141,44 @@ public sealed class ChatComposerTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
+    public void PlainEnterIsTheOnlyKeyboardSubmissionGesture()
+    {
+        Assert.IsTrue(ChatComposer.IsSendKey(
+            Windows.System.VirtualKey.Enter,
+            isShiftPressed: false));
+        Assert.IsFalse(ChatComposer.IsSendKey(
+            Windows.System.VirtualKey.Enter,
+            isShiftPressed: true));
+        Assert.IsFalse(ChatComposer.IsSendKey(
+            Windows.System.VirtualKey.Space,
+            isShiftPressed: false));
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void SharedSubmissionPathTrimsAndGuardsKeyboardAndPointerInput()
+    {
+        var composer = new ChatComposer();
+        var prompts = new List<string>();
+        composer.SendRequested += (_, prompt) => prompts.Add(prompt);
+
+        composer.PromptText = "  explain this  ";
+        Assert.IsTrue(InvokeTrySubmitPrompt(composer));
+        CollectionAssert.AreEqual(new[] { "explain this" }, prompts);
+        Assert.AreEqual(string.Empty, composer.PromptText);
+
+        composer.PromptText = "   ";
+        Assert.IsFalse(InvokeTrySubmitPrompt(composer));
+        Assert.AreEqual(1, prompts.Count);
+
+        composer.PromptText = "blocked while generating";
+        composer.IsGenerating = true;
+        Assert.IsFalse(InvokeTrySubmitPrompt(composer));
+        Assert.AreEqual(1, prompts.Count);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
     public async Task PromptFocusUsesOnlyTheOuterComposerFocusVisual()
     {
         var composer = new ChatComposer();
@@ -501,6 +539,15 @@ public sealed class ChatComposerTests
             BindingFlags.Instance | BindingFlags.NonPublic);
         Assert.IsNotNull(method);
         method.Invoke(composer, new object[] { sender, new RoutedEventArgs() });
+    }
+
+    private static bool InvokeTrySubmitPrompt(ChatComposer composer)
+    {
+        MethodInfo? method = typeof(ChatComposer).GetMethod(
+            "TrySubmitPrompt",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsNotNull(method);
+        return Assert.IsInstanceOfType<bool>(method.Invoke(composer, null));
     }
 
     private static ItemsControl GetAttachmentItems(ChatComposer composer) =>
