@@ -295,14 +295,14 @@ public sealed class GgufChatVisualContractTests
         XElement light = GetThemeDictionary(theme, presentation, x, "Light");
         var expected = new Dictionary<string, string>
         {
-            ["GgufChatAssistantBubbleBrush"] = "#F4F7FB",
-            ["GgufChatAssistantBubbleTextBrush"] = "#172033",
-            ["GgufChatUserBubbleBrush"] = "#EAF2FF",
-            ["GgufChatUserBubbleTextBrush"] = "#16345F",
+            ["GgufChatAssistantBubbleBrush"] = "#EAF2FF",
+            ["GgufChatAssistantBubbleTextBrush"] = "#102E6B",
+            ["GgufChatUserBubbleBrush"] = "#2563EB",
+            ["GgufChatUserBubbleTextBrush"] = "#FFFFFF",
             ["GgufChatNavigationRestBrush"] = "#00FFFFFF",
             ["GgufChatNavigationHoverBrush"] = "#EEF4FF",
             ["GgufChatNavigationPressedBrush"] = "#E2ECFA",
-            ["GgufChatNavigationSelectedBrush"] = "#E8F0FF",
+            ["GgufChatNavigationSelectedBrush"] = "#2563EB",
             ["GgufChatComposerBrush"] = "#FFFFFFFF",
             ["GgufChatComposerFocusedBorderBrush"] = "#2563EB",
             ["GgufChatFlyoutBrush"] = "#FFFFFFFF",
@@ -541,8 +541,9 @@ public sealed class GgufChatVisualContractTests
         XElement importButton = page.Descendants(presentation + "Button")
             .Single(element => element.Attribute(x + "Name")?.Value == "ImportModelButton");
         Assert.AreEqual(
-            "Center",
+            "Left",
             importButton.Attribute("HorizontalContentAlignment")?.Value);
+        Assert.AreEqual("4,8", importButton.Attribute("Padding")?.Value);
         Assert.AreEqual(
             "{StaticResource GgufChatNavigationButtonStyle}",
             importButton.Attribute("Style")?.Value);
@@ -553,8 +554,9 @@ public sealed class GgufChatVisualContractTests
             "{StaticResource GgufChatNavigationButtonStyle}",
             newChatButton.Attribute("Style")?.Value);
         Assert.AreEqual(
-            "Center",
+            "Left",
             newChatButton.Attribute("HorizontalContentAlignment")?.Value);
+        Assert.AreEqual("4,8", newChatButton.Attribute("Padding")?.Value);
 
         XElement settingsButton = page.Descendants(presentation + "Button")
             .Single(element => element.Attribute("AutomationProperties.Name")?.Value == "Settings");
@@ -564,6 +566,13 @@ public sealed class GgufChatVisualContractTests
         Assert.AreEqual(
             "Left",
             settingsButton.Attribute("HorizontalContentAlignment")?.Value);
+        Assert.AreEqual("4,8", settingsButton.Attribute("Padding")?.Value);
+
+        XElement transcript = page.Descendants(presentation + "ListView")
+            .Single(element => element.Attribute(x + "Name")?.Value == "TranscriptList");
+        XElement transcriptMargin = transcript.Descendants(presentation + "Setter")
+            .Single(element => element.Attribute("Property")?.Value == "Margin");
+        Assert.AreEqual("0,0,0,12", transcriptMargin.Attribute("Value")?.Value);
 
         XElement brandImage = page.Descendants(presentation + "Image")
             .Single(element => element.Attribute(x + "Name")?.Value == "BrandLockup");

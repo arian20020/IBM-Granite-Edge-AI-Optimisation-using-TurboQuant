@@ -62,7 +62,8 @@
                 Height="46"
                 Margin="0,28,0,12"
                 HorizontalAlignment="Stretch"
-                HorizontalContentAlignment="Center"
+                HorizontalContentAlignment="Left"
+                Padding="4,8"
                 Style="{StaticResource GgufChatNavigationButtonStyle}"
                 AutomationProperties.Name="Start a new chat"
                 Click="NewChatButton_Click">
@@ -87,7 +88,8 @@
                 Height="46"
                 Margin="0,0,0,20"
                 HorizontalAlignment="Stretch"
-                HorizontalContentAlignment="Center"
+                HorizontalContentAlignment="Left"
+                Padding="4,8"
                 Style="{StaticResource GgufChatNavigationButtonStyle}"
                 AutomationProperties.Name="Import another model"
                 Click="ImportModelButton_Click">
@@ -133,6 +135,7 @@
                 Height="46"
                 HorizontalAlignment="Stretch"
                 HorizontalContentAlignment="Left"
+                Padding="4,8"
                 Style="{StaticResource GgufChatNavigationButtonStyle}"
                 AutomationProperties.Name="Settings">
                 <Grid ColumnSpacing="12">
@@ -208,7 +211,15 @@
                             SelectionMode="None"
                             Visibility="Collapsed"
                             AutomationProperties.Name="Conversation messages"
-                            AutomationProperties.LiveSetting="Polite" />
+                            AutomationProperties.LiveSetting="Polite">
+                            <ListView.ItemContainerStyle>
+                                <Style TargetType="ListViewItem">
+                                    <Setter Property="Padding" Value="0" />
+                                    <Setter Property="Margin" Value="0,0,0,12" />
+                                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                </Style>
+                            </ListView.ItemContainerStyle>
+                        </ListView>
                     </Grid>
                     <controls:ChatComposer
                         x:Name="Composer"

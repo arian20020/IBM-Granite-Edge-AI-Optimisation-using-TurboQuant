@@ -76,19 +76,40 @@ public sealed class ChatPageTests
         }
 
         Assert.AreEqual(
-            HorizontalAlignment.Center,
+            HorizontalAlignment.Left,
             Assert.IsInstanceOfType<Button>(page.FindName("NewChatButton")).HorizontalContentAlignment);
         Assert.AreEqual(
-            HorizontalAlignment.Center,
+            HorizontalAlignment.Left,
             Assert.IsInstanceOfType<Button>(page.FindName("ImportModelButton")).HorizontalContentAlignment);
         Assert.AreEqual(
             HorizontalAlignment.Left,
             Assert.IsInstanceOfType<Button>(page.FindName("SettingsButton")).HorizontalContentAlignment);
+        foreach (string name in new[] { "NewChatButton", "ImportModelButton", "SettingsButton" })
+        {
+            Button action = Assert.IsInstanceOfType<Button>(page.FindName(name));
+            Assert.AreEqual(new Thickness(4, 8, 4, 8), action.Padding, name);
+        }
 
         var historyItem = new ChatHistoryItem();
         Button historyButton = Assert.IsInstanceOfType<Button>(
             historyItem.FindName("HistoryButton"));
         Assert.AreSame(expected, historyButton.Style);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void TranscriptTurnsKeepResponsiveVerticalSeparation()
+    {
+        var page = new ChatPage();
+        ListView transcript = Assert.IsInstanceOfType<ListView>(
+            page.FindName("TranscriptList"));
+        Assert.IsNotNull(transcript.ItemContainerStyle);
+        Style containerStyle = transcript.ItemContainerStyle;
+        Setter marginSetter = containerStyle.Setters
+            .OfType<Setter>()
+            .Single(setter => setter.Property == FrameworkElement.MarginProperty);
+
+        Assert.AreEqual(new Thickness(0, 0, 0, 12), marginSetter.Value);
     }
 
     private static void AssertRoleColors(
