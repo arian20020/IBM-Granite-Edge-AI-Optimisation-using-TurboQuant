@@ -866,8 +866,19 @@ public sealed class GgufChatVisualContractTests
             .Single(element => element.Attribute(x + "Name")?.Value == "SendButton");
         XElement stopButton = composer.Descendants(presentation + "Button")
             .Single(element => element.Attribute(x + "Name")?.Value == "StopButton");
-        Assert.AreEqual("12,6", composerSurface.Attribute("Padding")?.Value);
-        Assert.AreEqual("44", promptRow.Attribute("MinHeight")?.Value);
+        XElement? composerContentCandidate = composerSurface.Element(presentation + "Grid");
+        Assert.IsNotNull(composerContentCandidate);
+        XElement composerContent = composerContentCandidate;
+        XElement attachmentPresentation = composer.Descendants(presentation + "StackPanel")
+            .Single(element => element.Attribute(x + "Name")?.Value == "AttachmentPresentation");
+        XElement focusVisual = composer.Descendants(presentation + "Border")
+            .Single(element => element.Attribute(x + "Name")?.Value == "ComposerFocusVisual");
+        Assert.AreEqual("6,5", composerSurface.Attribute("Padding")?.Value);
+        Assert.AreEqual("20", composerSurface.Attribute("CornerRadius")?.Value);
+        Assert.AreEqual("0", composerContent.Attribute("RowSpacing")?.Value);
+        Assert.AreEqual("0,0,0,8", attachmentPresentation.Attribute("Margin")?.Value);
+        Assert.AreEqual("22", focusVisual.Attribute("CornerRadius")?.Value);
+        Assert.AreEqual("40", promptRow.Attribute("MinHeight")?.Value);
         Assert.AreEqual("40", attachmentButton.Attribute("Width")?.Value);
         Assert.AreEqual("40", attachmentButton.Attribute("Height")?.Value);
         Assert.AreEqual("Attach files", attachmentButton.Attribute("AutomationProperties.Name")?.Value);
@@ -878,7 +889,10 @@ public sealed class GgufChatVisualContractTests
         Assert.AreEqual(
             "\uE724",
             sendButton.Element(presentation + "FontIcon")?.Attribute("Glyph")?.Value);
-        Assert.AreEqual("40", prompt.Attribute("MinHeight")?.Value);
+        Assert.AreEqual("36", prompt.Attribute("MinHeight")?.Value);
+        Assert.AreEqual("10,0", prompt.Attribute("Padding")?.Value);
+        Assert.AreEqual("40", sendButton.Attribute("Height")?.Value);
+        Assert.AreEqual("40", stopButton.Attribute("Height")?.Value);
         Assert.AreEqual(
             "Center",
             prompt.Attribute("VerticalContentAlignment")?.Value);
