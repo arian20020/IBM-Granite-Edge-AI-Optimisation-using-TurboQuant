@@ -248,6 +248,23 @@ public sealed class ChatPageTests
         Assert.AreEqual(Visibility.Collapsed, transcript.Visibility);
     }
 
+    [TestMethod]
+    public void OutputFollowsOnlyWhenViewportIsNearBottom()
+    {
+        Assert.IsTrue(ChatPage.ShouldFollowOutput(
+            verticalOffset: 500,
+            scrollableHeight: 520));
+        Assert.IsTrue(ChatPage.ShouldFollowOutput(
+            verticalOffset: 520,
+            scrollableHeight: 520));
+        Assert.IsFalse(ChatPage.ShouldFollowOutput(
+            verticalOffset: 300,
+            scrollableHeight: 520));
+        Assert.IsTrue(ChatPage.ShouldFollowOutput(
+            verticalOffset: 0,
+            scrollableHeight: 0));
+    }
+
     private static void AssertRoleColors(
         ChatMessageBubble bubble,
         string expectedSurfaceKey,

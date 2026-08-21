@@ -425,10 +425,40 @@ public sealed class GgufChatVisualContractTests
             "Guid? selectedId = coordinator.SelectedConversation?.Id;");
         Assert.IsTrue(Regex.IsMatch(
             controller,
-            @"page\.AddHistoryConversation\s*\(\s*conversation\.Id\s*,\s*conversation\.Title\s*,\s*conversation\.Id\s*==\s*selectedId\s*\)\s*;"));
+            @"currentHistory\.Add\s*\(\s*new HistoryRenderKey\s*\(\s*group\.Label\s*,\s*conversation\.Id\s*,\s*conversation\.Title\s*,\s*conversation\.Id\s*==\s*selectedId\s*\)\s*\)\s*;"));
+        Assert.IsTrue(Regex.IsMatch(
+            controller,
+            @"page\.AddHistoryConversation\s*\(\s*item\.ConversationId\s*,\s*item\.Title\s*,\s*item\.IsSelected\s*\)\s*;"));
         StringAssert.Contains(
             page,
             "AddHistoryConversation(Guid id, string title, bool isSelected)");
+    }
+
+    [TestMethod]
+    public void StreamingRenderingIsIncrementalAndDispatcherCoalesced()
+    {
+        string root = FindRepositoryRoot();
+        string controller = File.ReadAllText(Path.Combine(
+            root,
+            "IBM Granite with TurboQuant (Intel)",
+            "Features",
+            "GgufRuntime",
+            "ChatDemoController.cs"));
+        string page = File.ReadAllText(Path.Combine(
+            root,
+            "IBM Granite with TurboQuant (Intel)",
+            "Features",
+            "GgufRuntime",
+            "ChatPage.xaml.cs"));
+
+        StringAssert.Contains(controller, "ChatRenderScheduler");
+        StringAssert.Contains(controller, "page.SynchronizeTranscript(");
+        Assert.IsFalse(controller.Contains("page.ClearTranscript();", StringComparison.Ordinal));
+        Assert.IsTrue(Regex.IsMatch(
+            controller,
+            @"if\s*\(\s*renderedHistory\.SequenceEqual\(currentHistory\)\s*\)\s*\{\s*return;\s*\}\s*page\.ClearHistory\(\);"));
+        StringAssert.Contains(page, "ShouldFollowOutput(");
+        StringAssert.Contains(page, "transcriptBubbles.TryGetValue");
     }
 
     [TestMethod]

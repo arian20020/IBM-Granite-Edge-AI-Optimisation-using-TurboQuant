@@ -4,6 +4,7 @@ using GraniteEdgeAI.Features.GgufRuntime.Controls;
 using GraniteEdgeAI.Features.GgufRuntime.History;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 
 namespace GraniteEdgeAI.Features.GgufRuntime;
 
@@ -91,6 +92,11 @@ public sealed partial class ChatPage : Page
                 nameof(conversationId));
         }
 
+        ScrollViewer? scrollViewer = FindDescendant<ScrollViewer>(TranscriptList);
+        bool shouldFollowLatest = forceFollowLatest ||
+            scrollViewer is null ||
+            ShouldFollowOutput(scrollViewer.VerticalOffset, scrollViewer.ScrollableHeight);
+
         if (RequiresTranscriptReset(conversationId, messages))
         {
             ResetTranscript(conversationId);
@@ -123,9 +129,16 @@ public sealed partial class ChatPage : Page
         }
 
         ShowConversation();
-        _ = forceFollowLatest;
-        TranscriptList.ScrollIntoView(TranscriptList.Items[^1]);
+        if (shouldFollowLatest)
+        {
+            TranscriptList.ScrollIntoView(TranscriptList.Items[^1]);
+        }
     }
+
+    internal static bool ShouldFollowOutput(
+        double verticalOffset,
+        double scrollableHeight) =>
+        scrollableHeight <= 0 || scrollableHeight - verticalOffset <= 48;
 
     internal static string FormatStatus(ChatCompletionStatus status) => status switch
     {
@@ -166,6 +179,27 @@ public sealed partial class ChatPage : Page
         renderedConversationId = conversationId;
         EmptyConversationState.Visibility = Visibility.Visible;
         TranscriptList.Visibility = Visibility.Collapsed;
+    }
+
+    private static T? FindDescendant<T>(DependencyObject root)
+        where T : DependencyObject
+    {
+        for (int index = 0; index < VisualTreeHelper.GetChildrenCount(root); index++)
+        {
+            DependencyObject child = VisualTreeHelper.GetChild(root, index);
+            if (child is T match)
+            {
+                return match;
+            }
+
+            T? descendant = FindDescendant<T>(child);
+            if (descendant is not null)
+            {
+                return descendant;
+            }
+        }
+
+        return null;
     }
 
     public void SetGenerating(bool isGenerating) => Composer.IsGenerating = isGenerating;

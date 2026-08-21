@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using GraniteEdgeAI.Features.GgufRuntime.History;
@@ -13,6 +15,9 @@ internal sealed class ChatDemoController : IAsyncDisposable
     private const string DemoProfileId = "local-preview";
     private readonly ChatPage page;
     private readonly GgufChatCoordinator coordinator;
+    private readonly ChatRenderScheduler renderScheduler;
+    private List<HistoryRenderKey> renderedHistory = [];
+    private bool followLatest;
     private bool disposed;
 
     internal ChatDemoController(ChatPage page)
@@ -27,6 +32,9 @@ internal sealed class ChatDemoController : IAsyncDisposable
             new DemoGgufChatSession(),
             TimeProvider.System,
             TimeZoneInfo.Local);
+        renderScheduler = new ChatRenderScheduler(
+            callback => page.DispatcherQueue.TryEnqueue(() => callback()),
+            Render);
         coordinator.ConversationChanged += Coordinator_ConversationChanged;
         page.NewChatRequested += Page_NewChatRequested;
         page.SendRequested += Page_SendRequested;
@@ -57,6 +65,7 @@ internal sealed class ChatDemoController : IAsyncDisposable
         }
 
         disposed = true;
+        renderScheduler.Dispose();
         coordinator.ConversationChanged -= Coordinator_ConversationChanged;
         page.NewChatRequested -= Page_NewChatRequested;
         page.SendRequested -= Page_SendRequested;
@@ -72,6 +81,7 @@ internal sealed class ChatDemoController : IAsyncDisposable
             return;
         }
 
+        followLatest = true;
         await coordinator.NewChatAsync(
             DemoModelId,
             DemoProfileId,
@@ -85,6 +95,7 @@ internal sealed class ChatDemoController : IAsyncDisposable
             return;
         }
 
+        followLatest = true;
         page.SetGenerating(true);
         try
         {
@@ -93,7 +104,7 @@ internal sealed class ChatDemoController : IAsyncDisposable
         finally
         {
             page.SetGenerating(false);
-            Render();
+            renderScheduler.Request();
         }
     }
 
@@ -112,50 +123,72 @@ internal sealed class ChatDemoController : IAsyncDisposable
             return;
         }
 
+        followLatest = true;
         coordinator.Select(conversationId);
     }
 
     private void Coordinator_ConversationChanged(object? sender, EventArgs eventArguments) =>
-        page.DispatcherQueue.TryEnqueue(Render);
+        renderScheduler.Request();
 
     private void Render()
     {
-        page.ClearHistory();
-        Guid? selectedId = coordinator.SelectedConversation?.Id;
-        foreach (ChatHistoryGroup group in coordinator.Groups)
-        {
-            page.AddHistoryGroup(group.Label);
-            foreach (ChatConversation conversation in group.Conversations)
-            {
-                page.AddHistoryConversation(
-                    conversation.Id,
-                    conversation.Title,
-                    conversation.Id == selectedId);
-            }
-        }
-
-        page.ClearTranscript();
+        RenderHistoryIfChanged();
         if (coordinator.SelectedConversation is not ChatConversation selected)
         {
             return;
         }
 
-        foreach (ChatMessage message in selected.Messages)
-        {
-            page.AddMessage(
-                message.Content,
-                message.Role == ChatMessageRole.User,
-                FormatStatus(message.Status));
-        }
+        bool consumeFollowLatest = followLatest;
+        followLatest = false;
+        page.SynchronizeTranscript(
+            selected.Id,
+            selected.Messages,
+            consumeFollowLatest);
     }
 
-    private static string FormatStatus(ChatCompletionStatus status) => status switch
+    private void RenderHistoryIfChanged()
     {
-        ChatCompletionStatus.Pending => "Thinking…",
-        ChatCompletionStatus.Streaming => "Generating…",
-        ChatCompletionStatus.Stopped => "Stopped",
-        ChatCompletionStatus.Incomplete => "Incomplete",
-        ChatCompletionStatus.Failed => "Failed",
-        _ => string.Empty,
-    };
+        Guid? selectedId = coordinator.SelectedConversation?.Id;
+        var currentHistory = new List<HistoryRenderKey>();
+        foreach (ChatHistoryGroup group in coordinator.Groups)
+        {
+            foreach (ChatConversation conversation in group.Conversations)
+            {
+                currentHistory.Add(new HistoryRenderKey(
+                    group.Label,
+                    conversation.Id,
+                    conversation.Title,
+                    conversation.Id == selectedId));
+            }
+        }
+
+        if (renderedHistory.SequenceEqual(currentHistory))
+        {
+            return;
+        }
+
+        page.ClearHistory();
+        string? renderedGroup = null;
+        foreach (HistoryRenderKey item in currentHistory)
+        {
+            if (!string.Equals(renderedGroup, item.GroupLabel, StringComparison.Ordinal))
+            {
+                page.AddHistoryGroup(item.GroupLabel);
+                renderedGroup = item.GroupLabel;
+            }
+
+            page.AddHistoryConversation(
+                item.ConversationId,
+                item.Title,
+                item.IsSelected);
+        }
+
+        renderedHistory = currentHistory;
+    }
+
+    private readonly record struct HistoryRenderKey(
+        string GroupLabel,
+        Guid ConversationId,
+        string Title,
+        bool IsSelected);
 }
