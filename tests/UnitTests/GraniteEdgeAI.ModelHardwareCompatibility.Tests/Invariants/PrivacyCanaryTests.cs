@@ -26,6 +26,12 @@ public sealed class PrivacyCanaryTests
         "GgufRouteConfiguration.CanonicalDescriptor",
         "CandidateFingerprint.Value",
 
+        // Keyed by the same admitted support-entry id already allowed above
+        // (CompatibilitySupportEntry.EntryId); this member only looks that id
+        // up against an observed installation state and introduces no new
+        // string content of its own.
+        "CandidateGenerationRequest.InstallationStates",
+
         // Hand-written ToString overrides surfaced once the scan widened to
         // cover methods. Each formats an already-reviewed numeric value (or,
         // for CandidateFingerprint, delegates to the already-allowed Value

@@ -1,0 +1,302 @@
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Candidates;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Capabilities;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Contracts;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.FitAssessment;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.Gguf;
+
+namespace GraniteEdgeAI.ModelHardwareCompatibility.Tests.Application.Candidates;
+
+[TestClass]
+public sealed class CandidateGeneratorTests
+{
+    private static InspectedModelFacts Facts(int? fileType = 15) =>
+        InspectedModelFacts.Create(
+            ByteCount.FromBytes(4_000_000_000),
+            layerCount: 32,
+            embeddingSize: 4096,
+            attentionHeadCount: 32,
+            keyValueHeadCount: 8,
+            declaredContextLimit: 8192,
+            fileType,
+            quantisationVersion: 2);
+
+    private static GgufRouteConfiguration Baseline() =>
+        GgufRouteConfiguration.Create(
+            GgufWeightFormat.Imported,
+            GgufKvCacheFormat.F16,
+            CompatibilityBackend.Cpu,
+            DeviceRouteId.Cpu,
+            GpuOffloadLevel.None);
+
+    private static Dictionary<string, InstallationState> AllInstalled(SupportMatrix matrix) =>
+        matrix.Entries.ToDictionary(
+            entry => entry.EntryId,
+            entry => entry.Level == SupportLevel.Experimental
+                ? InstallationState.VerifiedAndOptedIn
+                : InstallationState.InstalledAndVerified);
+
+    private static CandidateGenerationResult Generate(
+        SupportMatrix? matrix = null,
+        IReadOnlyDictionary<string, InstallationState>? installation = null,
+        InspectedModelFacts? facts = null,
+        TrustedSourceAvailability? trustedSource = null,
+        int preservationTokens = 4096)
+    {
+        SupportMatrix resolved = matrix ?? SupportMatrix.ProvisionalV1();
+
+        return CandidateGenerator.Generate(new CandidateGenerationRequest(
+            resolved,
+            installation ?? AllInstalled(resolved),
+            facts ?? Facts(),
+            Baseline(),
+            ContextTokenCount.FromTokens(4096),
+            ContextTokenCount.FromTokens(preservationTokens),
+            trustedSource ?? TrustedSourceAvailability.None()));
+    }
+
+    [TestMethod]
+    public void Generate_PutsTheBaselineFirst()
+    {
+        CandidateGenerationResult result = Generate();
+
+        Assert.IsTrue(result.Candidates.Count > 0);
+        Assert.IsTrue(result.Candidates[0].IsBaseline);
+        Assert.IsTrue(result.BaselineIncluded);
+        Assert.AreEqual(
+            nameof(BaselineExclusionReason.None), result.BaselineExclusionReason.ToString());
+    }
+
+    [TestMethod]
+    public void Generate_MarksExactlyOneCandidateAsTheBaseline()
+    {
+        Assert.AreEqual(1, Generate().Candidates.Count(candidate => candidate.IsBaseline));
+    }
+
+    [TestMethod]
+    public void Generate_ProducesNoDuplicateFingerprints()
+    {
+        IReadOnlyList<CompatibilityCandidate> candidates = Generate().Candidates;
+
+        Assert.AreEqual(
+            candidates.Count,
+            candidates.Select(candidate => candidate.Fingerprint.Value).Distinct().Count());
+    }
+
+    [TestMethod]
+    public void Generate_AdmitsNothingFromAnAbsentMatrix()
+    {
+        // An absent matrix means we do not know what this machine supports.
+        // Offering anything would be inventing a capability.
+        CandidateGenerationResult result = Generate(
+            matrix: SupportMatrix.Absent(),
+            installation: new Dictionary<string, InstallationState>());
+
+        Assert.AreEqual(0, result.Candidates.Count);
+        Assert.IsFalse(result.BaselineIncluded);
+        Assert.AreEqual(
+            nameof(BaselineExclusionReason.SupportMatrixUnavailable),
+            result.BaselineExclusionReason.ToString());
+    }
+
+    [TestMethod]
+    public void Generate_SkipsEntriesWhoseInstallationIsUnknown()
+    {
+        // An entry with no reported installation state resolves to Unsupported,
+        // so nothing from it may be offered.
+        SupportMatrix matrix = SupportMatrix.ProvisionalV1();
+
+        CandidateGenerationResult result = Generate(
+            matrix: matrix,
+            installation: new Dictionary<string, InstallationState>());
+
+        Assert.AreEqual(0, result.Candidates.Count);
+        Assert.AreEqual(
+            nameof(BaselineExclusionReason.NoAdmittedEntryMatchesTheBaseline),
+            result.BaselineExclusionReason.ToString());
+    }
+
+    [TestMethod]
+    public void Generate_NeverOffersAnUpwardConversion()
+    {
+        // The source is Q4_K_M. An entry asking for Q8_0 would be an upgrade that
+        // cannot restore quality already discarded, so it is never generated.
+        SupportMatrix matrix = SupportMatrix.FromEntries(
+            "v-upward",
+            PolicyProvenance.Provisional,
+            [
+                CompatibilitySupportEntry.Create(
+                    "upward-q8",
+                    RuntimeRouteId.LlamaCpp,
+                    CompatibilityBackend.Cpu,
+                    DeviceRouteId.Cpu,
+                    GpuOffloadLevel.None,
+                    GgufWeightFormat.Q8_0,
+                    GgufKvCacheFormat.F16,
+                    1024,
+                    32768,
+                    SupportLevel.DeclaredSupported,
+                    requiresEvidence: false)
+            ]);
+
+        CandidateGenerationResult result = Generate(
+            matrix: matrix,
+            installation: AllInstalled(matrix),
+            trustedSource: TrustedSourceAvailability.HigherPrecisionAvailable());
+
+        Assert.AreEqual(0, result.Candidates.Count);
+    }
+
+    [TestMethod]
+    public void Generate_DoesNotRequantiseWithoutATrustedHigherPrecisionSource()
+    {
+        // Source Q4_K_M, entry asks for Q3_K_M. That is a real downward
+        // conversion, but requantising an already-quantised file compounds loss,
+        // so it needs a trusted higher-precision source to convert from.
+        SupportMatrix matrix = SupportMatrix.FromEntries(
+            "v-downward",
+            PolicyProvenance.Provisional,
+            [
+                CompatibilitySupportEntry.Create(
+                    "downward-q3",
+                    RuntimeRouteId.LlamaCpp,
+                    CompatibilityBackend.Cpu,
+                    DeviceRouteId.Cpu,
+                    GpuOffloadLevel.None,
+                    GgufWeightFormat.Q3KM,
+                    GgufKvCacheFormat.F16,
+                    1024,
+                    32768,
+                    SupportLevel.DeclaredSupported,
+                    requiresEvidence: false)
+            ]);
+
+        Assert.AreEqual(
+            0,
+            Generate(
+                matrix: matrix,
+                installation: AllInstalled(matrix),
+                trustedSource: TrustedSourceAvailability.None()).Candidates.Count);
+
+        IReadOnlyList<CompatibilityCandidate> withSource = Generate(
+            matrix: matrix,
+            installation: AllInstalled(matrix),
+            trustedSource: TrustedSourceAvailability.HigherPrecisionAvailable()).Candidates;
+
+        Assert.IsTrue(withSource.Count > 0);
+        Assert.IsTrue(withSource.All(candidate =>
+            candidate.Preparation == CandidatePreparation.WeightConversionRequired));
+    }
+
+    [TestMethod]
+    public void Generate_LabelsASettingsOnlyChangeAsRuntimeProfileOnly()
+    {
+        // Same weights, different KV format: no new file is written, so the user
+        // must not be warned about a conversion that is not happening.
+        CompatibilityCandidate candidate = Generate().Candidates.First(candidate =>
+            candidate.Configuration is GgufRouteConfiguration configuration
+            && configuration.KvCache == GgufKvCacheFormat.Q8_0
+            && configuration.Device == DeviceRouteId.Cpu);
+
+        Assert.AreEqual(
+            nameof(CandidatePreparation.RuntimeProfileOnly),
+            candidate.Preparation.ToString());
+    }
+
+    [TestMethod]
+    public void Generate_LabelsTheBaselineAsNeedingNoPreparation()
+    {
+        Assert.AreEqual(
+            nameof(CandidatePreparation.None),
+            Generate().Candidates[0].Preparation.ToString());
+    }
+
+    [TestMethod]
+    public void Generate_NeverExceedsTheModelsDeclaredContextLimit()
+    {
+        // The model declares 8192. A 32768 rung would be an automatic extension
+        // beyond the trained limit, which is excluded.
+        Assert.IsTrue(
+            Generate(preservationTokens: 32768).Candidates.All(
+                candidate => candidate.Context.Tokens <= 8192));
+    }
+
+    [TestMethod]
+    public void Generate_NeverFallsBelowAnEntrysMinimumContext()
+    {
+        SupportMatrix matrix = SupportMatrix.FromEntries(
+            "v-min",
+            PolicyProvenance.Provisional,
+            [
+                CompatibilitySupportEntry.Create(
+                    "high-minimum",
+                    RuntimeRouteId.LlamaCpp,
+                    CompatibilityBackend.Cpu,
+                    DeviceRouteId.Cpu,
+                    GpuOffloadLevel.None,
+                    GgufWeightFormat.Imported,
+                    GgufKvCacheFormat.F16,
+                    minimumContextTokens: 4096,
+                    maximumContextTokens: 32768,
+                    SupportLevel.DeclaredSupported,
+                    requiresEvidence: false)
+            ]);
+
+        Assert.IsTrue(
+            Generate(matrix: matrix, installation: AllInstalled(matrix))
+                .Candidates.All(candidate => candidate.Context.Tokens >= 4096));
+    }
+
+    [TestMethod]
+    public void Generate_NeverExceedsAnEntrysMaximumContext()
+    {
+        SupportMatrix matrix = SupportMatrix.FromEntries(
+            "v-max",
+            PolicyProvenance.Provisional,
+            [
+                CompatibilitySupportEntry.Create(
+                    "low-maximum",
+                    RuntimeRouteId.LlamaCpp,
+                    CompatibilityBackend.Cpu,
+                    DeviceRouteId.Cpu,
+                    GpuOffloadLevel.None,
+                    GgufWeightFormat.Imported,
+                    GgufKvCacheFormat.F16,
+                    minimumContextTokens: 1024,
+                    maximumContextTokens: 2048,
+                    SupportLevel.DeclaredSupported,
+                    requiresEvidence: false)
+            ]);
+
+        Assert.IsTrue(
+            Generate(matrix: matrix, installation: AllInstalled(matrix))
+                .Candidates.All(candidate => candidate.Context.Tokens <= 2048));
+    }
+
+    [TestMethod]
+    public void Generate_FlagsExperimentalCandidatesAsExperimental()
+    {
+        IReadOnlyList<CompatibilityCandidate> experimental =
+            [.. Generate().Candidates.Where(candidate => candidate.IsExperimental)];
+
+        Assert.IsTrue(experimental.Count > 0);
+        Assert.IsTrue(experimental.All(candidate =>
+            candidate.SupportEntryId == "gguf-dgpu-sycl-imported-tq3"));
+    }
+
+    [TestMethod]
+    public void Generate_IsDeterministicAcrossRuns()
+    {
+        string[] first = [.. Generate().Candidates.Select(c => c.Fingerprint.Value)];
+        string[] second = [.. Generate().Candidates.Select(c => c.Fingerprint.Value)];
+
+        CollectionAssert.AreEqual(first, second);
+    }
+
+    [TestMethod]
+    public void Generate_CarriesTheEntryIdOnEveryCandidate()
+    {
+        Assert.IsTrue(Generate().Candidates.All(
+            candidate => !string.IsNullOrWhiteSpace(candidate.SupportEntryId)));
+    }
+}
