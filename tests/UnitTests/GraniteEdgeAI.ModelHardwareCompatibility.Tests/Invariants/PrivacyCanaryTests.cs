@@ -44,7 +44,18 @@ public sealed class PrivacyCanaryTests
         // property) and introduces no new content of its own.
         "ByteCount.ToString",
         "ContextTokenCount.ToString",
-        "CandidateFingerprint.ToString"
+        "CandidateFingerprint.ToString",
+
+        // Formats the run's Guid value (already reviewed via CompatibilityRunId's
+        // only field) for logging/diagnostics; carries no path, filename or
+        // model name.
+        "CompatibilityRunId.ToString",
+
+        // A policy name and version tag identifying which versioned policy
+        // produced a number (e.g. "estimator", "v1") — never a path, filename
+        // or model name.
+        "PolicyIdentity.PolicyName",
+        "PolicyIdentity.Version"
     ];
 
     private static readonly BindingFlags AllMembers =
