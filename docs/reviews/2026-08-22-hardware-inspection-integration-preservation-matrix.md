@@ -51,6 +51,12 @@ The package contained 86 manifest-listed non-manifest files. Before implementati
 | Debug hardware fixture increment | Test-first 15-scenario catalogue, real-page preview gallery, onboarding entry/close path, and Release assembly token audit | PASS: fixture type is present in Debug and absent from Release; all five packaged fixture-gallery tests execute successfully in the WinUI app container |
 | Post-increment Stage 0/A regression | Process-scoped `PSExecutionPolicyPreference=Bypass`; `python -m unittest tests.testing.hardware_inspection.test_intel_runner_stage0_contract tests.testing.hardware_inspection.test_intel_runner_stage_a_contract -v` | PASS, 24/24 in 93.297s |
 | Native Debug/x64 visual/accessibility QA | Not run yet | PENDING |
+| Gate 2 foundation and security boundary | Candidate-neutral Windows snapshot, retained trusted-package custody, suspended Job-assigned process launch, bounded output/timeout/cancellation, and inactive x64 app adapter | PASS at `de3e56a`; independent review found no remaining Critical, Important, or Minor findings |
+| Gate 2 foundation tests | Physical short worktree, Debug/x64, authoritative TRX `TestResults/HardwareInspection/Gate2FinalFoundation/gate2-foundation.trx` | PASS, 50/50, zero failed/skipped; build 0 warnings/errors |
+| Gate 2 Gate-1 regression | Release/win-x64 deterministic category with the approved harmless controlled fixture root and portable SDK on child `PATH` | PASS, 174/174, zero failed/skipped |
+| Gate 2 packaged regression | Debug/x64 app-container VSTest; Hardware Inspection, model-handoff registry/codec, and onboarding scopes | PASS, 114/114, zero failed/skipped; the previously noted 131 total was not reproducible from its documented filter, so the fresh TRX count is authoritative |
+| Gate 2 repository contracts | Process-scoped `PSExecutionPolicyPreference=Bypass`; Stage A separately, then Stage 0/acquisition/public-contract/theme | PASS, 12/12 and 18/18 |
+| Gate 2 app builds | Portable SDK 10.0.301, Debug/x64 and Release/x64 | PASS, zero errors; one known `NETSDK1198` missing publish-profile warning per build |
 
 ## Functional merge audit
 
@@ -71,3 +77,13 @@ The package contained 86 manifest-listed non-manifest files. Before implementati
 - The deterministic catalogue covers all nine presentation kinds and all seven active stages. It renders through `HardwareInspectionPage.Apply` and contains no service, provider, external-process, model-handoff, GGUF, or OpenVINO dependency.
 - Both completed fixtures use the existing presentation factory with `hasUsableHandoff: false` and `block3RouteRegistered: false`; their Compatibility Continue actions are disabled with accessible help.
 - The onboarding debug entry invalidates and detaches any active hardware journey before showing the gallery, retains the Import Model stage, and closes to a fresh Model Import page.
+
+## Gate 2 foundation audit
+
+- Production composition still constructs `UnavailableHardwareInspectionService`; the Windows available-memory adapter is present but inactive.
+- The app-container output contains no `llmfit.exe`, Gate TRX, trusted/offline capture, or Gate evidence artifact. No such artifact was added by the Gate 2 commit range. The repository's older EP-018 documentation TRX predates and is outside this feature scope.
+- The foundation contains no `Process.Start`, shell, PowerShell, command interpreter, model contract, GGUF, OpenVINO, compatibility, network, or listening-service dependency.
+- Directory/member reparse state is inspected from the same retained no-follow handles used for custody and executable hashing. The verified path hierarchy and exact package members remain deny-write/delete locked through execution.
+- Child inheritance is restricted with `STARTUPINFOEX` to the standard input/output/error pipe handles. The root is created suspended, assigned to and verified against the runner's private kill-on-close Job Object, then resumed.
+- Independent review of the final native trust boundary reported no remaining Critical, Important, or Minor findings and marked it ready to merge from the code-review perspective.
+- Gate 3 is next: add the LLM Fit command builder, infrastructure DTO, tolerant parser, validation mapping, and `LlmFitHardwareEvidence` behind this boundary. Production collection remains unavailable until the later policy/orchestrator gates.
