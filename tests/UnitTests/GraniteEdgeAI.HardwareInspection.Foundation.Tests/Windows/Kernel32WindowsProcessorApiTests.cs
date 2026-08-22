@@ -51,6 +51,24 @@ public sealed class Kernel32WindowsProcessorApiTests
     }
 
     [TestMethod]
+    public void TopologyParserValidatesGroupCountAgainstRecordSize()
+    {
+        byte[] zeroGroups = CreateCoreRecords(1);
+        BinaryPrimitives.WriteUInt16LittleEndian(zeroGroups.AsSpan(30, 2), 0);
+        Assert.IsFalse(WindowsProcessorTopologyParser.TryCountPhysicalCores(zeroGroups, out _));
+
+        byte[] undersizedTwoGroups = CreateCoreRecords(1);
+        BinaryPrimitives.WriteUInt16LittleEndian(undersizedTwoGroups.AsSpan(30, 2), 2);
+        Assert.IsFalse(
+            WindowsProcessorTopologyParser.TryCountPhysicalCores(undersizedTwoGroups, out _));
+
+        byte[] validTwoGroups = CreateCoreRecord(groupCount: 2);
+        Assert.IsTrue(
+            WindowsProcessorTopologyParser.TryCountPhysicalCores(validTwoGroups, out int cores));
+        Assert.AreEqual(1, cores);
+    }
+
+    [TestMethod]
     [DataRow((ushort)0, (int)WindowsProcessorApiArchitecture.X86)]
     [DataRow((ushort)9, (int)WindowsProcessorApiArchitecture.X64)]
     [DataRow((ushort)12, (int)WindowsProcessorApiArchitecture.Arm64)]
@@ -116,6 +134,34 @@ public sealed class Kernel32WindowsProcessorApiTests
     }
 
     [TestMethod]
+    public void NativeAdapterMapsExpectedAvailabilityExceptionsToClosedStatus()
+    {
+        FakeKernel32ProcessorNative architectureFailure = new(CreateCoreRecords(1), 9, 2)
+        {
+            ArchitectureException = new DllNotFoundException("private native detail"),
+        };
+        FakeKernel32ProcessorNative queryFailure = new(CreateCoreRecords(1), 9, 2)
+        {
+            QueryException = new EntryPointNotFoundException("private native detail"),
+        };
+        FakeKernel32ProcessorNative activeCountFailure = new(CreateCoreRecords(1), 9, 2)
+        {
+            ActiveCountException = new PlatformNotSupportedException("private native detail"),
+        };
+
+        foreach (FakeKernel32ProcessorNative native in
+            new[] { architectureFailure, queryFailure, activeCountFailure })
+        {
+            WindowsProcessorApiResult result = new Kernel32WindowsProcessorApi(
+                new FakeProcessorNameSource("Fixture"),
+                native).Capture();
+
+            Assert.AreEqual(WindowsProcessorApiStatus.NativeApiUnavailable, result.Status);
+            Assert.IsNull(result.Name);
+        }
+    }
+
+    [TestMethod]
     public void RegistryNameSourceRejectsMissingWrongTypeUnsafeOversizedAndReadFailure()
     {
         Assert.IsFalse(new RegistryProcessorNameSource(new FakeRegistry(null)).TryGetName(out _));
@@ -143,9 +189,20 @@ public sealed class Kernel32WindowsProcessorApiTests
             Span<byte> record = buffer.AsSpan(index * recordSize, recordSize);
             BinaryPrimitives.WriteInt32LittleEndian(record[..4], 0);
             BinaryPrimitives.WriteUInt32LittleEndian(record.Slice(4, 4), recordSize);
+            BinaryPrimitives.WriteUInt16LittleEndian(record.Slice(30, 2), 1);
         }
 
         return buffer;
+    }
+
+    private static byte[] CreateCoreRecord(ushort groupCount)
+    {
+        int recordSize = checked(32 + (groupCount * 16));
+        byte[] record = new byte[recordSize];
+        BinaryPrimitives.WriteInt32LittleEndian(record.AsSpan(0, 4), 0);
+        BinaryPrimitives.WriteUInt32LittleEndian(record.AsSpan(4, 4), checked((uint)recordSize));
+        BinaryPrimitives.WriteUInt16LittleEndian(record.AsSpan(30, 2), groupCount);
+        return record;
     }
 
     private sealed class FakeProcessorNameSource(string? name) : IProcessorNameSource
@@ -164,20 +221,38 @@ public sealed class Kernel32WindowsProcessorApiTests
     {
         internal uint? FirstRequiredLength { get; init; }
 
+        internal Exception? ArchitectureException { get; init; }
+
+        internal Exception? QueryException { get; init; }
+
+        internal Exception? ActiveCountException { get; init; }
+
         internal int QueryCalls { get; private set; }
 
         internal ushort RequestedGroup { get; private set; }
 
-        public ushort GetNativeProcessorArchitecture() => architecture;
+        public ushort GetNativeProcessorArchitecture() => ArchitectureException is null
+            ? architecture
+            : throw ArchitectureException;
 
         public uint GetActiveProcessorCount(ushort groupNumber)
         {
+            if (ActiveCountException is not null)
+            {
+                throw ActiveCountException;
+            }
+
             RequestedGroup = groupNumber;
             return logicalProcessorCount;
         }
 
         public ProcessorBufferQueryStatus QueryProcessorCoreInformation(IntPtr buffer, ref uint length)
         {
+            if (QueryException is not null)
+            {
+                throw QueryException;
+            }
+
             QueryCalls++;
             if (buffer == IntPtr.Zero)
             {

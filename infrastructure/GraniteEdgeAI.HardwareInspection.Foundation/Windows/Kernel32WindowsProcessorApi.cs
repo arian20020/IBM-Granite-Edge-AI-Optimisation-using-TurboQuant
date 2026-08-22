@@ -42,6 +42,18 @@ internal sealed class Kernel32WindowsProcessorApi : IWindowsProcessorApi
 
     public WindowsProcessorApiResult Capture()
     {
+        try
+        {
+            return CaptureCore();
+        }
+        catch (Exception exception) when (WindowsNativeAvailability.IsExpected(exception))
+        {
+            return Failure(WindowsProcessorApiStatus.NativeApiUnavailable);
+        }
+    }
+
+    private WindowsProcessorApiResult CaptureCore()
+    {
         if (!_nameSource.TryGetName(out string? name))
         {
             return Failure(WindowsProcessorApiStatus.NameUnavailable);
@@ -191,6 +203,10 @@ internal static class WindowsProcessorTopologyParser
 {
     private const int HeaderSize = 8;
     private const int MinimumProcessorCoreRecordSize = 48;
+    private const int GroupCountOffset = 30;
+    private const uint ProcessorRelationshipPrefixSize = 32;
+    private const uint GroupAffinitySize = 16;
+    private const ushort MaximumProcessorGroups = 64;
     private const int ProcessorCoreRelationship = 0;
     private const int MaximumPhysicalCores = 4096;
 
@@ -212,6 +228,15 @@ internal static class WindowsProcessorTopologyParser
             if (relationship != ProcessorCoreRelationship ||
                 recordSize < MinimumProcessorCoreRecordSize ||
                 recordSize > remaining)
+            {
+                return false;
+            }
+
+            ushort groupCount = BinaryPrimitives.ReadUInt16LittleEndian(
+                buffer.Slice(offset + GroupCountOffset, sizeof(ushort)));
+            uint requiredRecordSize = checked(
+                ProcessorRelationshipPrefixSize + (groupCount * GroupAffinitySize));
+            if (groupCount is 0 or > MaximumProcessorGroups || recordSize < requiredRecordSize)
             {
                 return false;
             }

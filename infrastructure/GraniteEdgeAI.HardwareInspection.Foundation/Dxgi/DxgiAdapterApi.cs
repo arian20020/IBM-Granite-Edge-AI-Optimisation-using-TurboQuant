@@ -30,9 +30,16 @@ internal sealed class DxgiAdapterApi : IDxgiAdapterApi
             List<DxgiAdapterApiEntry> adapters = new(capacity: checked((int)MaximumAdapters));
             for (uint index = 0; ; index++)
             {
-                DxgiAdapterEnumerationStatus enumeration = factory.TryGetAdapter(
-                    index,
-                    out IDxgiAdapterHandle? adapter);
+                DxgiAdapterEnumerationStatus enumeration;
+                IDxgiAdapterHandle? adapter;
+                try
+                {
+                    enumeration = factory.TryGetAdapter(index, out adapter);
+                }
+                catch (Exception exception) when (DxgiInteropAvailability.IsExpected(exception))
+                {
+                    return Failure(DxgiAdapterApiStatus.EnumerationFailed);
+                }
                 if (enumeration == DxgiAdapterEnumerationStatus.NotFound)
                 {
                     adapter?.Dispose();
@@ -52,7 +59,15 @@ internal sealed class DxgiAdapterApi : IDxgiAdapterApi
                         return Failure(DxgiAdapterApiStatus.AdapterLimitExceeded);
                     }
 
-                    if (!adapter.TryGetDescription(out DxgiNativeAdapterDescription description))
+                    DxgiNativeAdapterDescription description;
+                    try
+                    {
+                        if (!adapter.TryGetDescription(out description))
+                        {
+                            return Failure(DxgiAdapterApiStatus.InvalidDescription);
+                        }
+                    }
+                    catch (Exception exception) when (DxgiInteropAvailability.IsExpected(exception))
                     {
                         return Failure(DxgiAdapterApiStatus.InvalidDescription);
                     }

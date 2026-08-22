@@ -39,6 +39,18 @@ internal interface IDxgiAdapterHandle : IDisposable
     bool TryGetDescription(out DxgiNativeAdapterDescription description);
 }
 
+internal static class DxgiInteropAvailability
+{
+    internal static bool IsExpected(Exception exception) => exception is
+        COMException or
+        InvalidComObjectException or
+        MarshalDirectiveException or
+        DllNotFoundException or
+        EntryPointNotFoundException or
+        BadImageFormatException or
+        PlatformNotSupportedException;
+}
+
 internal sealed class DxgiInterop : IDxgiInterop
 {
     private static readonly Guid FactoryInterfaceId = typeof(IDxgiFactory1).GUID;
@@ -60,11 +72,7 @@ internal sealed class DxgiInterop : IDxgiInterop
             factory = new DxgiFactoryHandle(nativeFactory);
             return DxgiFactoryCreateStatus.Success;
         }
-        catch (Exception exception) when (exception is
-            DllNotFoundException or
-            EntryPointNotFoundException or
-            BadImageFormatException or
-            COMException)
+        catch (Exception exception) when (DxgiInteropAvailability.IsExpected(exception))
         {
             ReleaseComObject(nativeFactory);
             return DxgiFactoryCreateStatus.Unavailable;
@@ -73,9 +81,15 @@ internal sealed class DxgiInterop : IDxgiInterop
 
     private static void ReleaseComObject(object? value)
     {
-        if (value is not null && Marshal.IsComObject(value))
+        try
         {
-            _ = Marshal.ReleaseComObject(value);
+            if (value is not null && Marshal.IsComObject(value))
+            {
+                _ = Marshal.ReleaseComObject(value);
+            }
+        }
+        catch (Exception exception) when (DxgiInteropAvailability.IsExpected(exception))
+        {
         }
     }
 
@@ -101,7 +115,16 @@ internal sealed class DxgiInterop : IDxgiInterop
             }
 
             IDXGIAdapter1? nativeAdapter = null;
-            int result = current.EnumAdapters1(index, out nativeAdapter);
+            int result;
+            try
+            {
+                result = current.EnumAdapters1(index, out nativeAdapter);
+            }
+            catch (Exception exception) when (DxgiInteropAvailability.IsExpected(exception))
+            {
+                ReleaseComObject(nativeAdapter);
+                return DxgiAdapterEnumerationStatus.Failed;
+            }
             if (result == DxgiErrorNotFound)
             {
                 ReleaseComObject(nativeAdapter);
@@ -133,7 +156,20 @@ internal sealed class DxgiInterop : IDxgiInterop
         {
             description = default;
             IDXGIAdapter1? current = _adapter;
-            if (current is null || current.GetDesc1(out DxgiAdapterDescription1 native) < 0)
+            if (current is null)
+            {
+                return false;
+            }
+
+            DxgiAdapterDescription1 native;
+            try
+            {
+                if (current.GetDesc1(out native) < 0)
+                {
+                    return false;
+                }
+            }
+            catch (Exception exception) when (DxgiInteropAvailability.IsExpected(exception))
             {
                 return false;
             }

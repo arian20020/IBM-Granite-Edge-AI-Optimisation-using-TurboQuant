@@ -1,4 +1,5 @@
 using GraniteEdgeAI.HardwareInspection.Foundation.Dxgi;
+using System.Runtime.InteropServices;
 
 namespace GraniteEdgeAI.HardwareInspection.Foundation.Tests.Dxgi;
 
@@ -148,6 +149,35 @@ public sealed class DxgiAdapterApiTests
         Assert.AreEqual(65, factory.EnumCalls);
     }
 
+    [TestMethod]
+    public void ExpectedComExceptionsFailClosedAndReleaseAcquiredResources()
+    {
+        FakeDxgiFactory enumerationFailure = new([])
+        {
+            EnumerationException = new FixtureComException(),
+        };
+        Assert.AreEqual(
+            DxgiAdapterApiStatus.EnumerationFailed,
+            new DxgiAdapterApi(new FakeDxgiInterop(
+                DxgiFactoryCreateStatus.Success,
+                enumerationFailure)).Capture().Status);
+        Assert.AreEqual(1, enumerationFailure.ReleaseCalls);
+
+        FakeDxgiAdapter descriptionFailure = new(Description("Fixture"))
+        {
+            DescriptionException = new FixtureComException(),
+        };
+        FakeDxgiFactory factory = new(
+            [new(DxgiAdapterEnumerationStatus.Found, descriptionFailure)]);
+        Assert.AreEqual(
+            DxgiAdapterApiStatus.InvalidDescription,
+            new DxgiAdapterApi(new FakeDxgiInterop(
+                DxgiFactoryCreateStatus.Success,
+                factory)).Capture().Status);
+        Assert.AreEqual(1, descriptionFailure.ReleaseCalls);
+        Assert.AreEqual(1, factory.ReleaseCalls);
+    }
+
     private static DxgiNativeAdapterDescription Description(
         string name,
         uint flags = 0,
@@ -177,10 +207,17 @@ public sealed class DxgiAdapterApiTests
 
         internal int ReleaseCalls { get; private set; }
 
+        internal Exception? EnumerationException { get; init; }
+
         public DxgiAdapterEnumerationStatus TryGetAdapter(
             uint index,
             out IDxgiAdapterHandle? adapter)
         {
+            if (EnumerationException is not null)
+            {
+                throw EnumerationException;
+            }
+
             EnumCalls++;
             if (index >= enumerations.Count)
             {
@@ -200,12 +237,23 @@ public sealed class DxgiAdapterApiTests
     {
         internal int ReleaseCalls { get; private set; }
 
+        internal Exception? DescriptionException { get; init; }
+
         public bool TryGetDescription(out DxgiNativeAdapterDescription value)
         {
+            if (DescriptionException is not null)
+            {
+                throw DescriptionException;
+            }
+
             value = description ?? default;
             return description.HasValue;
         }
 
         public void Dispose() => ReleaseCalls++;
+    }
+
+    private sealed class FixtureComException : COMException
+    {
     }
 }

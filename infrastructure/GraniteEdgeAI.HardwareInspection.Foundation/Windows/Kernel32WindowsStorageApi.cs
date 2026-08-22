@@ -30,6 +30,18 @@ internal sealed class Kernel32WindowsStorageApi : IWindowsStorageApi
 
     public WindowsStorageApiResult Capture()
     {
+        try
+        {
+            return CaptureCore();
+        }
+        catch (Exception exception) when (WindowsNativeAvailability.IsExpected(exception))
+        {
+            return Failure(WindowsStorageApiStatus.NativeApiUnavailable);
+        }
+    }
+
+    private WindowsStorageApiResult CaptureCore()
+    {
         char[] systemDirectory = new char[MaximumSystemDirectoryCharacters];
         uint copiedLength = _native.GetSystemWindowsDirectory(
             systemDirectory,

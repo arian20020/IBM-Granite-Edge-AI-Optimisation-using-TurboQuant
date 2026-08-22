@@ -166,6 +166,26 @@ public sealed class WindowsStorageEvidenceProviderTests
             new Kernel32WindowsStorageApi(diskFailure).Capture().Status);
     }
 
+    [TestMethod]
+    public void NativeAdapterMapsExpectedAvailabilityExceptionsToClosedStatus()
+    {
+        FakeKernel32StorageNative directoryFailure = new(@"C:\Windows", 0, 0)
+        {
+            DirectoryException = new DllNotFoundException("private native detail"),
+        };
+        FakeKernel32StorageNative diskFailure = new(@"C:\Windows", 0, 0)
+        {
+            DiskException = new PlatformNotSupportedException("private native detail"),
+        };
+
+        Assert.AreEqual(
+            WindowsStorageApiStatus.NativeApiUnavailable,
+            new Kernel32WindowsStorageApi(directoryFailure).Capture().Status);
+        Assert.AreEqual(
+            WindowsStorageApiStatus.NativeApiUnavailable,
+            new Kernel32WindowsStorageApi(diskFailure).Capture().Status);
+    }
+
     private sealed class FakeWindowsStorageApi(WindowsStorageApiResult result) : IWindowsStorageApi
     {
         internal int Calls { get; private set; }
@@ -184,12 +204,21 @@ public sealed class WindowsStorageEvidenceProviderTests
     {
         internal uint? ReturnedDirectoryLength { get; init; }
 
+        internal Exception? DirectoryException { get; init; }
+
+        internal Exception? DiskException { get; init; }
+
         internal bool DiskSucceeds { get; init; } = true;
 
         internal string? ObservedRoot { get; private set; }
 
         public uint GetSystemWindowsDirectory(char[] buffer, uint capacityCharacters)
         {
+            if (DirectoryException is not null)
+            {
+                throw DirectoryException;
+            }
+
             if (systemDirectory is null)
             {
                 return 0;
@@ -204,6 +233,11 @@ public sealed class WindowsStorageEvidenceProviderTests
             out ulong availableToCallerBytes,
             out ulong capacityBytes)
         {
+            if (DiskException is not null)
+            {
+                throw DiskException;
+            }
+
             ObservedRoot = volumeRoot;
             availableToCallerBytes = available;
             capacityBytes = capacity;
