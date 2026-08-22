@@ -42,7 +42,8 @@ public sealed class DebugModelInspectionServiceTests
         Assert.IsFalse(run.IsCompleted);
 
         await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
-            Task.Run(() => service.ReleaseServiceCheckpoint(1, "wrong")));
+            StartBlockingOperation(() =>
+                service.ReleaseServiceCheckpoint(1, "wrong")));
         Assert.IsFalse(run.IsCompleted);
 
         bool continuationRanOnReleaseThread = false;
@@ -768,7 +769,7 @@ public sealed class DebugModelInspectionServiceTests
             plan.Request,
             progress,
             cancellation.Token);
-        Task release = Task.Run(() =>
+        Task release = StartBlockingOperation(() =>
             service.ReleaseServiceCheckpoint(1, "fraction-25"));
         Task<bool>? retirement = null;
         Task? disposal = null;
@@ -781,7 +782,7 @@ public sealed class DebugModelInspectionServiceTests
                 prepared.Wait(TimeSpan.FromSeconds(1)),
                 "The prepared progress delivery did not reach its barrier.");
             Assert.AreEqual(0, progress.Values.Count);
-            retirement = Task.Run(() =>
+            retirement = StartBlockingOperation(() =>
             {
                 try
                 {
@@ -793,7 +794,7 @@ public sealed class DebugModelInspectionServiceTests
                 }
             });
             AssertRetirementBegan(service);
-            disposal = Task.Run(() =>
+            disposal = StartBlockingOperation(() =>
             {
                 try
                 {
@@ -900,7 +901,7 @@ public sealed class DebugModelInspectionServiceTests
                 session.Request,
                 progress,
                 cancellation.Token);
-        Task release = Task.Run(() =>
+        Task release = StartBlockingOperation(() =>
             session.Service.ReleaseServiceCheckpoint(1, "fraction-25"));
         Task<bool>? externalLifetime = null;
         bool callbackReached = false;
@@ -911,7 +912,7 @@ public sealed class DebugModelInspectionServiceTests
             callbackReached = callbackEntered.Wait(TimeSpan.FromSeconds(1));
             if (callbackReached)
             {
-                externalLifetime = Task.Run(() =>
+                externalLifetime = StartBlockingOperation(() =>
                 {
                     try
                     {
@@ -1068,7 +1069,7 @@ public sealed class DebugModelInspectionServiceTests
                 session.Request,
                 progress,
                 cancellation.Token);
-        Task release = Task.Run(() =>
+        Task release = StartBlockingOperation(() =>
             session.Service.ReleaseServiceCheckpoint(1, "fraction-25"));
         Task<bool>? externalLifetime = null;
         bool callbackReached = false;
@@ -1088,7 +1089,7 @@ public sealed class DebugModelInspectionServiceTests
 
             if (reentrantReturnedWithoutRecovery)
             {
-                externalLifetime = Task.Run(() =>
+                externalLifetime = StartBlockingOperation(() =>
                 {
                     externalStarted.Set();
                     try
@@ -1197,7 +1198,7 @@ public sealed class DebugModelInspectionServiceTests
         ModelInspectionFixtureOperationDrain first = new();
         ModelInspectionFixtureOperationDrain second = new();
         int cleanupCount = 0;
-        Task firstLease = Task.Run(() =>
+        Task firstLease = StartBlockingOperation(() =>
         {
             using ModelInspectionFixtureOperationDrain.Lease lease =
                 first.Enter();
@@ -1206,7 +1207,7 @@ public sealed class DebugModelInspectionServiceTests
         });
         Assert.IsTrue(firstLeaseEntered.Wait(TimeSpan.FromSeconds(1)));
         bool closeEscapedOtherDomain = false;
-        Task observer = Task.Run(() =>
+        Task observer = StartBlockingOperation(() =>
         {
             observerReady.Set();
             closeEscapedOtherDomain = closeReturned.Wait(
@@ -1263,7 +1264,7 @@ public sealed class DebugModelInspectionServiceTests
             plan.Request,
             new RecordingProgress(),
             cancellation.Token);
-        Task release = Task.Run(() =>
+        Task release = StartBlockingOperation(() =>
             service.ReleaseServiceCheckpoint(1, "terminal"));
         Task<bool>? retirement = null;
         Task? disposal = null;
@@ -1276,7 +1277,7 @@ public sealed class DebugModelInspectionServiceTests
                 prepared.Wait(TimeSpan.FromSeconds(1)),
                 "The prepared terminal delivery did not reach its barrier.");
             Assert.IsFalse(pending.IsCompleted);
-            retirement = Task.Run(() =>
+            retirement = StartBlockingOperation(() =>
             {
                 try
                 {
@@ -1288,7 +1289,7 @@ public sealed class DebugModelInspectionServiceTests
                 }
             });
             AssertRetirementBegan(service);
-            disposal = Task.Run(() =>
+            disposal = StartBlockingOperation(() =>
             {
                 try
                 {
@@ -1386,7 +1387,7 @@ public sealed class DebugModelInspectionServiceTests
                 session.Request,
                 new RecordingProgress(),
                 cancellation.Token);
-        Task<bool> release = Task.Run(() => ReleaseCallback(
+        Task<bool> release = StartBlockingOperation(() => ReleaseCallback(
             session,
             kind,
             ownerAttempt: 1,
@@ -1402,7 +1403,7 @@ public sealed class DebugModelInspectionServiceTests
                 prepared.Wait(TimeSpan.FromSeconds(1)),
                 $"The marked {kind} delivery did not reach its barrier.");
             Assert.AreEqual(0, callbackCount, id);
-            retirement = Task.Run(() =>
+            retirement = StartBlockingOperation(() =>
             {
                 try
                 {
@@ -1414,7 +1415,7 @@ public sealed class DebugModelInspectionServiceTests
                 }
             });
             AssertRetirementBegan(session);
-            disposal = Task.Run(() =>
+            disposal = StartBlockingOperation(() =>
             {
                 try
                 {
@@ -1575,8 +1576,9 @@ public sealed class DebugModelInspectionServiceTests
                 session.Request,
                 new RecordingProgress(),
                 cancellation.Token);
-        Task<IModelInspectionAnimationDriver> creation = Task.Run(() =>
-            session.CreateAnimationDriver());
+        Task<IModelInspectionAnimationDriver> creation =
+            StartBlockingOperation(() =>
+                session.CreateAnimationDriver());
         Task<bool>? externalLifetime = null;
         bool factoryReached = false;
         bool reentrantReturnedWithoutRecovery = false;
@@ -1595,7 +1597,7 @@ public sealed class DebugModelInspectionServiceTests
 
             if (reentrantReturnedWithoutRecovery)
             {
-                externalLifetime = Task.Run(() =>
+                externalLifetime = StartBlockingOperation(() =>
                 {
                     externalStarted.Set();
                     try
@@ -1903,6 +1905,20 @@ public sealed class DebugModelInspectionServiceTests
                 TimeSpan.FromSeconds(1)),
             "Retirement did not close admission within the bounded barrier.");
     }
+
+    private static Task StartBlockingOperation(Action operation) =>
+        Task.Factory.StartNew(
+            operation,
+            CancellationToken.None,
+            TaskCreationOptions.LongRunning,
+            TaskScheduler.Default);
+
+    private static Task<T> StartBlockingOperation<T>(Func<T> operation) =>
+        Task.Factory.StartNew(
+            operation,
+            CancellationToken.None,
+            TaskCreationOptions.LongRunning,
+            TaskScheduler.Default);
 
     private static Type RequireType(Assembly assembly, string fullName)
     {
