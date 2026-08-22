@@ -42,6 +42,11 @@ public sealed class DxgiGraphicsEvidenceProvider
     private readonly IDxgiAdapterApi _adapterApi;
     private readonly TimeProvider _timeProvider;
 
+    public DxgiGraphicsEvidenceProvider()
+        : this(new DxgiAdapterApi(new DxgiInterop()), TimeProvider.System)
+    {
+    }
+
     internal DxgiGraphicsEvidenceProvider(
         IDxgiAdapterApi adapterApi,
         TimeProvider timeProvider)
