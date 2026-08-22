@@ -2,7 +2,10 @@ using System.Linq;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Candidates;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Contracts;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.FitAssessment;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Estimation;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.ModeSelection;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.Gguf;
 
 namespace GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation;
 
@@ -46,8 +49,10 @@ public sealed record CompatibilityScreenModel
         IReadOnlyList<CompatibilityModeView> modes,
         BaselineExclusionReason baselineExclusionReason,
         bool useCurrentModelAvailable,
-        bool continueEnabled)
+        bool continueEnabled,
+        CompatibilitySetupView? setup)
     {
+        Setup = setup;
         State = state;
         Findings = findings;
         Modes = modes;
@@ -84,6 +89,16 @@ public sealed record CompatibilityScreenModel
     public bool ContinueEnabled { get; }
 
     /// <summary>
+    /// The setup the screen is describing, or null when nothing was evaluated.
+    ///
+    /// This is the configuration a user would actually get if they continued:
+    /// the balanced choice where one exists, and otherwise the best-fitting
+    /// candidate found. A screen showing figures from a setup nobody would be
+    /// given would be describing a decision that was never made.
+    /// </summary>
+    public CompatibilitySetupView? Setup { get; }
+
+    /// <summary>
     /// Builds a screen model directly, for Debug fixtures and tests that need to
     /// render a state without an engine run behind it.
     ///
@@ -99,7 +114,8 @@ public sealed record CompatibilityScreenModel
         IReadOnlyList<CompatibilityModeView> modes,
         BaselineExclusionReason baselineExclusionReason,
         bool useCurrentModelAvailable,
-        bool continueEnabled)
+        bool continueEnabled,
+        CompatibilitySetupView? setup = null)
     {
         ArgumentNullException.ThrowIfNull(findings);
         ArgumentNullException.ThrowIfNull(modes);
@@ -116,7 +132,8 @@ public sealed record CompatibilityScreenModel
             [.. modes],
             baselineExclusionReason,
             useCurrentModelAvailable,
-            continueEnabled);
+            continueEnabled,
+            setup);
     }
 
     internal static CompatibilityScreenModel From(CompatibilityRunResult result)
@@ -148,7 +165,156 @@ public sealed record CompatibilityScreenModel
             result.Assessment?.BaselineExclusionReason ?? BaselineExclusionReason.None,
             result.Assessment?.UseCurrentModelAvailable ?? false,
             state is CompatibilityScreenState.EstimatedCompatible
-                or CompatibilityScreenState.OptimisationRequired);
+                or CompatibilityScreenState.OptimisationRequired,
+            DescribeSetup(result.Assessment));
+    }
+
+    /// <summary>
+    /// Picks the setup the screen speaks for and flattens it.
+    ///
+    /// Balanced is preferred because it is what a user who expresses no
+    /// preference is given. Where no mode resolved, the best-fitting evaluated
+    /// candidate stands in, so a screen saying nothing fits can still show how
+    /// close the closest attempt came.
+    /// </summary>
+    private static CompatibilitySetupView? DescribeSetup(CompatibilityAssessment? assessment)
+    {
+        if (assessment is null || assessment.EvaluatedCandidates.Count == 0)
+        {
+            return null;
+        }
+
+        CandidateFingerprint? preferred = assessment.ModeSelections
+            .FirstOrDefault(selection =>
+                selection.Mode == CompatibilityMode.Balanced
+                && selection.SelectedFingerprint is not null)
+            ?.SelectedFingerprint
+            ?? assessment.ModeSelections
+                .FirstOrDefault(selection => selection.SelectedFingerprint is not null)
+                ?.SelectedFingerprint;
+
+        EvaluatedCandidate? chosen = preferred is { } fingerprint
+            ? assessment.EvaluatedCandidates
+                .FirstOrDefault(candidate => candidate.Fingerprint == fingerprint)
+            : null;
+
+        // Nothing was admitted, so the screen is explaining a refusal. The
+        // candidate that came closest is the one worth showing, because it is
+        // the one whose figures tell the user what would have to change.
+        chosen ??= assessment.EvaluatedCandidates
+            .OrderBy(candidate => Rank(candidate.Fit.State))
+            .ThenBy(candidate => candidate.Fit.PressureRatio)
+            .First();
+
+        return Describe(chosen);
+    }
+
+    /// <summary>
+    /// How close a fit state came to being usable, best first.
+    ///
+    /// Ranked explicitly rather than by the enum's own order, which is written
+    /// for readability and would otherwise silently decide which setup a user
+    /// is shown.
+    /// </summary>
+    /// <summary>
+    /// The gap between what the components come to and what the fit policy
+    /// demanded. Saturates at zero so a policy that stops adding a margin
+    /// cannot produce a negative segment.
+    /// </summary>
+    private static ulong Allowance(EvaluatedCandidate candidate)
+    {
+        ulong peak = candidate.Peaks.SystemMemoryPressure.Bytes;
+        ulong required = candidate.Fit.RequiredBytes.Bytes;
+
+        return required > peak ? required - peak : 0;
+    }
+
+    private static int Rank(CompatibilityFitState state) => state switch
+    {
+        CompatibilityFitState.Safe => 0,
+        CompatibilityFitState.Narrow => 1,
+        CompatibilityFitState.DoesNotFit => 2,
+        CompatibilityFitState.Unsupported => 3,
+        _ => 4
+    };
+
+    private static CompatibilitySetupView Describe(EvaluatedCandidate candidate)
+    {
+        GgufRouteConfiguration? gguf = candidate.Candidate.Configuration as GgufRouteConfiguration;
+
+        return new CompatibilitySetupView(
+            candidate.Candidate.RouteId,
+            gguf?.Backend ?? CompatibilityBackend.Unspecified,
+            gguf?.Device ?? DeviceRouteId.Unspecified,
+            candidate.EffectiveQuantisation,
+            candidate.Context.Tokens,
+            candidate.Fit.State,
+            candidate.Fit.RequiredBytes.Bytes,
+            candidate.Fit.SafeBudget.Bytes,
+            candidate.Fit.Headroom.Bytes,
+            Allowance(candidate),
+            candidate.IsExperimental,
+            candidate.Preparation == CandidatePreparation.WeightConversionRequired,
+            BreakDown(candidate.Estimate.Components));
+    }
+
+    /// <summary>
+    /// The components that are live at the moment memory pressure peaks.
+    ///
+    /// A component only counts when it is present in the phase that decided the
+    /// peak, so these sum to the requirement rather than exceeding it. Listing
+    /// every component regardless of phase would produce a breakdown larger
+    /// than the total it claims to explain.
+    /// </summary>
+    private static IReadOnlyList<CompatibilityComponentView> BreakDown(
+        IReadOnlyList<ResourceComponent> components)
+    {
+        ResourceTarget[] charged =
+        [
+            ResourceTarget.SystemMemory,
+            ResourceTarget.SharedDeviceMemory
+        ];
+
+        LifecyclePhase[] phases =
+        [
+            LifecyclePhase.Load,
+            LifecyclePhase.Compile,
+            LifecyclePhase.SteadyStateGeneration
+        ];
+
+        LifecyclePhase peak = LifecyclePhase.SteadyStateGeneration;
+        ulong largest = 0;
+
+        foreach (LifecyclePhase phase in phases)
+        {
+            ulong total = 0;
+
+            foreach (ResourceComponent component in components)
+            {
+                if (charged.Contains(component.Target) && component.Phases.Contains(phase))
+                {
+                    total += component.Bytes.Bytes;
+                }
+            }
+
+            if (total > largest)
+            {
+                largest = total;
+                peak = phase;
+            }
+        }
+
+        return
+        [
+            .. components
+                .Where(component =>
+                    charged.Contains(component.Target) && component.Phases.Contains(peak))
+                .GroupBy(component => component.Kind)
+                .Select(group => new CompatibilityComponentView(
+                    group.Key,
+                    group.Aggregate(0UL, (sum, component) => sum + component.Bytes.Bytes)))
+                .OrderByDescending(view => view.Bytes)
+        ];
     }
 
     private static CompatibilityScreenState DecideState(CompatibilityRunResult result)

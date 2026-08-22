@@ -4,7 +4,7 @@ namespace GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
 /// The execution backend a configuration binds to. Each value belongs to
 /// exactly one runtime route.
 /// </summary>
-internal enum CompatibilityBackend
+public enum CompatibilityBackend
 {
     Unspecified = 0,
     Cpu,

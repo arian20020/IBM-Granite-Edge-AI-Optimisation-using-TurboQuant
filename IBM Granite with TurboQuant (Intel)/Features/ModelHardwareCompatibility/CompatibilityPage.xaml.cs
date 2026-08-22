@@ -80,6 +80,7 @@ internal sealed partial class CompatibilityPage : Page
 
         ApplyOutcome(presentation);
         ApplyFacts(presentation.Facts);
+        ApplyBudget(presentation.Budget);
 
         RuntimeCardTitleText.Text = presentation.RuntimeCardTitle;
         ApplyRows(RuntimeRows, presentation.RuntimeRows);
@@ -213,6 +214,26 @@ internal sealed partial class CompatibilityPage : Page
             Grid.SetRow(tile, index / 2);
             FactsGrid.Children.Add(tile);
         }
+    }
+
+    /// <summary>
+    /// Shows the memory bar, or hides it when there is nothing to draw.
+    ///
+    /// Hiding matters more than it looks. A bar with no segments renders as an
+    /// empty track, and an empty track beside the words "we could not work this
+    /// out" reads as a model that needs no memory at all.
+    /// </summary>
+    private void ApplyBudget(CompatibilityBudget budget)
+    {
+        Visibility visibility = budget.Segments.Count == 0
+            ? Visibility.Collapsed
+            : Visibility.Visible;
+
+        BudgetDiagram.Budget = budget;
+        BudgetDiagram.Visibility = visibility;
+
+        BudgetLegend.Budget = budget;
+        BudgetLegend.Visibility = visibility;
     }
 
     private void ApplyRows(Panel host, IReadOnlyList<CompatibilityRow> rows)

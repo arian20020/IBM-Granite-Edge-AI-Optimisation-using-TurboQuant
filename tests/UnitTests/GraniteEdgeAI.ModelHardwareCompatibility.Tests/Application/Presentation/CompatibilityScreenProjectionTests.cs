@@ -228,4 +228,135 @@ public sealed class CompatibilityScreenProjectionTests
                 $"{outcome} maps to no screen.");
         }
     }
+
+    [TestMethod]
+    public void ConcludedRun_CarriesTheSetupItConcludedAbout()
+    {
+        // A verdict with no figures under it asks the user to trust a number
+        // they are never shown.
+        CompatibilitySetupView? setup = CompatibilityScreenModel.From(RunWith(64)).Setup;
+
+        Assert.IsNotNull(setup, "A completed run described no setup.");
+        Assert.AreEqual(RuntimeRouteId.LlamaCpp, setup.Route);
+        Assert.AreEqual(CompatibilityBackend.Cpu, setup.Backend);
+        Assert.AreEqual(DeviceRouteId.Cpu, setup.Device);
+        Assert.AreEqual(4096, setup.ContextTokens);
+        Assert.IsTrue(setup.RequiredBytes > 0, "A setup that needs nothing is not a setup.");
+    }
+
+    [TestMethod]
+    public void SetupBreakdown_SumsToTheRequirementItExplains()
+    {
+        // Components are live in different phases; listing them all would
+        // produce a breakdown larger than the total it claims to explain, and a
+        // bar whose parts overflow its own length.
+        CompatibilitySetupView setup = CompatibilityScreenModel.From(RunWith(64)).Setup!;
+
+        ulong total = setup.Components.Aggregate(0UL, (sum, part) => sum + part.Bytes)
+            + setup.UncertaintyAllowanceBytes;
+
+        Assert.AreEqual(setup.RequiredBytes, total);
+    }
+
+    [TestMethod]
+    public void UncalibratedEstimate_DemandsAnAllowanceOnTopOfTheParts()
+    {
+        // Every figure today comes from documented defaults rather than
+        // measurement. An allowance of zero would mean the engine considers its
+        // own arithmetic exact, which is the false-safe this design forbids.
+        CompatibilitySetupView setup = CompatibilityScreenModel.From(RunWith(64)).Setup!;
+
+        Assert.IsTrue(
+            setup.UncertaintyAllowanceBytes > 0,
+            "An uncalibrated estimate claimed to need no margin.");
+    }
+
+    [TestMethod]
+    public void SetupBreakdown_IsOrderedLargestFirst()
+    {
+        // A user facing "it does not fit" needs the responsible part at the top.
+        CompatibilitySetupView setup = CompatibilityScreenModel.From(RunWith(64)).Setup!;
+
+        CollectionAssert.AreEqual(
+            setup.Components.Select(part => part.Bytes).OrderByDescending(bytes => bytes).ToList(),
+            setup.Components.Select(part => part.Bytes).ToList());
+    }
+
+    [TestMethod]
+    public void SetupBreakdown_NamesEachComponent()
+    {
+        // Unspecified would reach presentation as "Other", hiding the very cost
+        // the breakdown exists to expose.
+        CompatibilitySetupView setup = CompatibilityScreenModel.From(RunWith(64)).Setup!;
+
+        Assert.IsFalse(
+            setup.Components.Any(part => part.Kind == ResourceComponentKind.Unspecified));
+    }
+
+    [TestMethod]
+    public void RunThatEstablishedNothing_DescribesNoSetup()
+    {
+        // Figures drawn at zero would read as a model that costs nothing, which
+        // is the opposite of what "we could not work this out" means.
+        Assert.IsNull(CompatibilityScreenModel.From(NotEstablishedResult()).Setup);
+    }
+
+    [TestMethod]
+    public void SetupHeadroom_IsConsistentWithTheBudgetAndRequirement()
+    {
+        // Presentation subtracts nothing of its own, so these three figures have
+        // to agree or the page will contradict itself.
+        CompatibilitySetupView setup = CompatibilityScreenModel.From(RunWith(64)).Setup!;
+
+        Assert.AreEqual(
+            setup.SafeBudgetBytes - setup.RequiredBytes,
+            setup.HeadroomBytes);
+    }
+
+    [TestMethod]
+    public void SetupUnderMemoryPressure_ReportsTheClosestAttempt()
+    {
+        // Nothing was admitted, so the screen is explaining a refusal. Showing
+        // the nearest miss is what tells the user how much has to change.
+        CompatibilityScreenModel model = CompatibilityScreenModel.From(RunWith(2));
+
+        if (model.State != CompatibilityScreenState.NoEstimatedSafeConfiguration)
+        {
+            Assert.Inconclusive("This machine fits at 2 GiB, so there is no refusal to describe.");
+        }
+
+        Assert.IsNotNull(model.Setup, "A refusal described no setup, so it explained nothing.");
+        Assert.AreEqual(CompatibilityFitState.DoesNotFit, model.Setup.Fit);
+        Assert.AreEqual(0UL, model.Setup.HeadroomBytes);
+    }
+
+    [TestMethod]
+    public void SetupForPresentation_CopiesItsComponents()
+    {
+        // A fixture handing in a list it still holds could rewrite a screen's
+        // figures after the screen was built.
+        List<CompatibilityComponentView> components =
+        [
+            new(ResourceComponentKind.Weights, 4 * Gibibyte)
+        ];
+
+        CompatibilitySetupView setup = CompatibilitySetupView.ForPresentation(
+            RuntimeRouteId.LlamaCpp,
+            CompatibilityBackend.Cpu,
+            DeviceRouteId.Cpu,
+            WeightQuantisation.Q4_K_M,
+            4096,
+            CompatibilityFitState.Safe,
+            4 * Gibibyte,
+            8 * Gibibyte,
+            4 * Gibibyte,
+            0,
+            isExperimental: false,
+            requiresConversion: false,
+            components);
+
+        components.Clear();
+
+        Assert.AreEqual(1, setup.Components.Count);
+    }
 }

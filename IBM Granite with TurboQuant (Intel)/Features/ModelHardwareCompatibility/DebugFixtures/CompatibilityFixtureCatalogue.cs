@@ -4,7 +4,9 @@ using GraniteEdgeAI.Features.ModelHardwareCompatibility.Presentation;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Candidates;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Contracts;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.ModeSelection;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.FitAssessment;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
 
 namespace GraniteEdgeAI.Features.ModelHardwareCompatibility.DebugFixtures;
 
@@ -130,7 +132,89 @@ internal static class CompatibilityFixtureCatalogue
             ],
             baseline,
             useCurrentModel,
-            continueEnabled);
+            continueEnabled,
+            Setup(state));
+
+    /// <summary>
+    /// Figures for a screen to draw, shaped like a mid-sized model on a laptop
+    /// with integrated graphics.
+    ///
+    /// The three cases differ only in how much context is asked for and how the
+    /// weights are stored, which is the honest picture: the same model on the
+    /// same machine moves between comfortable, marginal and impossible on those
+    /// two choices alone. Components sum exactly to the requirement so the bar
+    /// a reviewer sees is arithmetic, not a sketch.
+    /// </summary>
+    private static CompatibilitySetupView Setup(CompatibilityScreenState state) => state switch
+    {
+        CompatibilityScreenState.OptimisationRequired => Setup(
+            CompatibilityFitState.Narrow,
+            contextTokens: 32768,
+            WeightQuantisation.Q4_K_M,
+            weights: 4_697_620_480,
+            kvCache: 4_294_967_296,
+            compute: 536_870_912),
+
+        CompatibilityScreenState.NoEstimatedSafeConfiguration => Setup(
+            CompatibilityFitState.DoesNotFit,
+            contextTokens: 32768,
+            WeightQuantisation.Q8_0,
+            weights: 8_589_934_592,
+            kvCache: 4_294_967_296,
+            compute: 536_870_912),
+
+        _ => Setup(
+            CompatibilityFitState.Safe,
+            contextTokens: 4096,
+            WeightQuantisation.Q4_K_M,
+            weights: 4_697_620_480,
+            kvCache: 536_870_912,
+            compute: 268_435_456)
+    };
+
+    private static CompatibilitySetupView Setup(
+        CompatibilityFitState fit,
+        int contextTokens,
+        WeightQuantisation quantisation,
+        ulong weights,
+        ulong kvCache,
+        ulong compute)
+    {
+        const ulong Backend = 67_108_864;
+        const ulong Application = 33_554_432;
+        const ulong SafeBudget = 9_663_676_416;
+
+        ulong parts = weights + kvCache + compute + Backend + Application;
+
+        // A tenth on top, standing in for the margin an uncalibrated estimator
+        // demands. Present so the bar a reviewer sees has the same shape as a
+        // real one, where the allowance is a visible slice rather than a
+        // rounding difference nobody can account for.
+        ulong allowance = parts / 10;
+        ulong required = parts + allowance;
+
+        return CompatibilitySetupView.ForPresentation(
+            RuntimeRouteId.LlamaCpp,
+            CompatibilityBackend.IntelSycl,
+            DeviceRouteId.IntelIntegratedGpu,
+            quantisation,
+            contextTokens,
+            fit,
+            required,
+            SafeBudget,
+            required < SafeBudget ? SafeBudget - required : 0,
+            allowance,
+            isExperimental: false,
+            requiresConversion: false,
+            [
+                new CompatibilityComponentView(ResourceComponentKind.Weights, weights),
+                new CompatibilityComponentView(ResourceComponentKind.KvCache, kvCache),
+                new CompatibilityComponentView(ResourceComponentKind.ComputeBuffer, compute),
+                new CompatibilityComponentView(ResourceComponentKind.BackendAllocation, Backend),
+                new CompatibilityComponentView(
+                    ResourceComponentKind.ApplicationOverhead, Application)
+            ]);
+    }
 
     private static CompatibilityModeView Mode(
         CompatibilityMode mode,

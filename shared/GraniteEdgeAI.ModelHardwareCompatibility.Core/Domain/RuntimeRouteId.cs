@@ -5,7 +5,7 @@ namespace GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
 /// routes: a GGUF candidate cannot carry OpenVINO precision or device values,
 /// and the absence of one route is never evidence about the other.
 /// </summary>
-internal enum RuntimeRouteId
+public enum RuntimeRouteId
 {
     Unspecified = 0,
     LlamaCpp,

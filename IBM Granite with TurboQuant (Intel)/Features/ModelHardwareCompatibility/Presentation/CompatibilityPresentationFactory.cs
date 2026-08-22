@@ -156,13 +156,39 @@ internal static class CompatibilityPresentationFactory
 
         return model.State switch
         {
-            CompatibilityScreenState.EstimatedCompatible => EstimatedCompatible(model),
-            CompatibilityScreenState.OptimisationRequired => OnlyJustFits(model),
-            CompatibilityScreenState.NoEstimatedSafeConfiguration => NothingFits(model),
+            CompatibilityScreenState.EstimatedCompatible =>
+                WithSetup(EstimatedCompatible(model), model),
+            CompatibilityScreenState.OptimisationRequired =>
+                WithSetup(OnlyJustFits(model), model),
+            CompatibilityScreenState.NoEstimatedSafeConfiguration =>
+                WithSetup(NothingFits(model), model),
             CompatibilityScreenState.Cancelled => Cancelled(),
             _ => NotEstablished(model)
         };
     }
+
+    /// <summary>
+    /// Adds the figures behind a verdict.
+    ///
+    /// A concluded screen without them states a conclusion and hides its
+    /// working, which is exactly the shape of claim this design set out not to
+    /// make. When no setup was evaluated the cards stay empty rather than
+    /// filling with zeros, because a zero here would read as a model that costs
+    /// nothing.
+    /// </summary>
+    private static CompatibilityPresentation WithSetup(
+        CompatibilityPresentation presentation, CompatibilityScreenModel model) =>
+        model.Setup is not { } setup
+            ? presentation
+            : presentation with
+            {
+                Facts = CompatibilitySetupNarrative.Facts(setup),
+                Budget = CompatibilitySetupNarrative.Budget(setup),
+                RuntimeCardTitle = "What would run",
+                RuntimeRows = CompatibilitySetupNarrative.RuntimeRows(setup),
+                ChecksCardTitle = "What we checked",
+                CheckRows = CompatibilitySetupNarrative.CheckRows(setup)
+            };
 
     private static CompatibilityPresentation EstimatedCompatible(CompatibilityScreenModel model) =>
         CompatibilityPresentation.Empty with

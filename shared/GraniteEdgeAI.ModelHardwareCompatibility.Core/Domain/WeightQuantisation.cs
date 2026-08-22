@@ -5,7 +5,7 @@ namespace GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
 /// quantisation version rather than from any display string. Declared highest to
 /// lowest quality.
 /// </summary>
-internal enum WeightQuantisation
+public enum WeightQuantisation
 {
     /// <summary>
     /// The encoding could not be established. This is a typed absence and is

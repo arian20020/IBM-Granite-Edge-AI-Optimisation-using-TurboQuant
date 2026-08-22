@@ -5,7 +5,7 @@ namespace GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.FitAssessmen
 /// NotEstablished is distinct from DoesNotFit: the first means the question
 /// could not be answered, the second means it was answered negatively.
 /// </summary>
-internal enum CompatibilityFitState
+public enum CompatibilityFitState
 {
     Unspecified = 0,
     Safe,

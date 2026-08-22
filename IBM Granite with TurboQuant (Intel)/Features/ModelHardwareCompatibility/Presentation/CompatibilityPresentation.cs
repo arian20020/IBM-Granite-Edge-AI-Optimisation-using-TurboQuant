@@ -64,6 +64,14 @@ internal sealed record CompatibilityPresentation
 
     internal required IReadOnlyList<CompatibilityFact> Facts { get; init; }
 
+    /// <summary>
+    /// The memory picture: what this setup needs, against what it was allowed.
+    /// Empty when no setup was evaluated, in which case the diagram is hidden
+    /// rather than drawn at zero — an empty bar reads as a model that costs
+    /// nothing, which is the opposite of "we could not work this out".
+    /// </summary>
+    internal required CompatibilityBudget Budget { get; init; }
+
     internal required string RuntimeCardTitle { get; init; }
 
     internal required IReadOnlyList<CompatibilityRow> RuntimeRows { get; init; }
@@ -108,6 +116,7 @@ internal sealed record CompatibilityPresentation
         OutcomeDetail = "This has not finished yet.",
         OutcomeBadge = string.Empty,
         Facts = [],
+        Budget = CompatibilityBudget.Empty,
         RuntimeCardTitle = "Runtime",
         RuntimeRows = [],
         ChecksCardTitle = "Checks",

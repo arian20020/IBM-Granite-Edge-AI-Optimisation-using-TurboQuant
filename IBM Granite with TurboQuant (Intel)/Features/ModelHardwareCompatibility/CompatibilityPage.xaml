@@ -25,6 +25,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:controls="using:GraniteEdgeAI.Features.ModelHardwareCompatibility.Controls"
     d:DesignHeight="1024"
     d:DesignWidth="1440"
     mc:Ignorable="d">
@@ -217,6 +218,18 @@
                                     <RowDefinition Height="*" />
                                 </Grid.RowDefinitions>
                             </Grid>
+
+                            <!--
+                                The memory picture, under the tiles it explains.
+                                Collapsed when nothing was evaluated: a bar drawn
+                                at zero reads as a model that costs nothing, which
+                                is the opposite of what an unanswered check means.
+                            -->
+                            <controls:CompatibilityBudgetDiagram
+                                x:Name="BudgetDiagram"
+                                Margin="0,12,0,0"
+                                ShowLegend="False"
+                                Visibility="Collapsed" />
                         </StackPanel>
                     </Border>
 
@@ -306,12 +319,25 @@
                                 FontWeight="SemiBold"
                                 Foreground="{ThemeResource CompatibilityTextPrimaryBrush}" />
                         </Expander.Header>
-                        <TextBlock
-                            x:Name="DisclosureDetailText"
-                            FontSize="{StaticResource CompatibilityOutcomeBodyFontSize}"
-                            Foreground="{ThemeResource CompatibilityTextMutedBrush}"
-                            Margin="0,0,0,12"
-                            TextWrapping="Wrap" />
+                        <StackPanel Margin="0,0,0,12">
+                            <TextBlock
+                                x:Name="DisclosureDetailText"
+                                FontSize="{StaticResource CompatibilityOutcomeBodyFontSize}"
+                                Foreground="{ThemeResource CompatibilityTextMutedBrush}"
+                                TextWrapping="Wrap" />
+
+                            <!--
+                                The same bar with its key shown. The key lives here
+                                rather than beside the bar so the surface stays
+                                readable at a glance, and the breakdown is there for
+                                whoever wants to know which part is the large one.
+                            -->
+                            <controls:CompatibilityBudgetDiagram
+                                x:Name="BudgetLegend"
+                                Margin="0,14,0,0"
+                                ShowLegend="True"
+                                Visibility="Collapsed" />
+                        </StackPanel>
                     </Expander>
                 </Border>
 

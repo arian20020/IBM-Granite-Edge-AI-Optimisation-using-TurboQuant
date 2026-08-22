@@ -4,7 +4,7 @@ namespace GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
 /// What a component represents. Each mandatory kind has exactly one owning
 /// provider so a requirement can never be counted twice.
 /// </summary>
-internal enum ResourceComponentKind
+public enum ResourceComponentKind
 {
     Unspecified = 0,
     Weights,
