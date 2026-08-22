@@ -367,11 +367,18 @@ internal static class CompatibilityRunCoordinator
 
             // Only publish the baseline's fingerprint if it survived estimation;
             // naming one absent from the evaluated set would point at nothing.
-            CandidateFingerprint? baselineFingerprint =
-                generated.BaselineIncluded
-                && evaluated.Any(candidate => candidate.Candidate.IsBaseline)
-                    ? generated.Candidates[0].Fingerprint
-                    : null;
+            //
+            // Read off the baseline candidate itself rather than the first
+            // generated one. The generator does put the baseline at index 0, but
+            // that is a promise in another file with nothing holding it: if it
+            // ever changed, this would publish a stranger's fingerprint as the
+            // user's current setup, and "use what I have" would silently mean
+            // something else.
+            CandidateFingerprint? baselineFingerprint = generated.BaselineIncluded
+                ? evaluated
+                    .FirstOrDefault(candidate => candidate.Candidate.IsBaseline)
+                    ?.Fingerprint
+                : null;
 
             CompatibilityAssessment assessment = CompatibilityAssessment.Create(
                 evaluated,
@@ -396,7 +403,7 @@ internal static class CompatibilityRunCoordinator
             // surfacing, so the exception itself is deliberately not recorded —
             // only that the run failed.
             return Stop(
-                CompatibilityRunOutcome.Failed, CompatibilityFindingCode.HandoffClaimFailed);
+                CompatibilityRunOutcome.Failed, CompatibilityFindingCode.UnexpectedFailure);
         }
         finally
         {

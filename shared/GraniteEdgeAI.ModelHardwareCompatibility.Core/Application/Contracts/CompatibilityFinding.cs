@@ -34,6 +34,17 @@ public enum CompatibilityFindingCode
     NoSafeConfigurationFound,
 
     /// <summary>
+    /// Something threw where nothing was expected to.
+    ///
+    /// Distinct from <see cref="HandoffClaimFailed"/> on purpose. Reusing that
+    /// code for any escaping exception told the user to fix a handoff that had
+    /// already succeeded, which is a wrong instruction rather than a vague one.
+    /// The cause is still withheld: section 14 forbids a native error reaching
+    /// a screen.
+    /// </summary>
+    UnexpectedFailure,
+
+    /// <summary>
     /// The as-imported configuration is not among the candidates. The assessment
     /// carries the exact reason; this finding only flags that it happened.
     /// </summary>

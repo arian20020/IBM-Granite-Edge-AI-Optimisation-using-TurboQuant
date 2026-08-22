@@ -83,6 +83,10 @@ internal static class CompatibilityFixtureCatalogue
             CompatibilityPresentationFactory.From(NotEstablished(
                 CompatibilityFindingCode.FreshMemoryUnavailable))),
 
+        new("CMP-043", "No answer yet — something broke on our side",
+            CompatibilityPresentationFactory.From(
+                NotEstablished(CompatibilityFindingCode.UnexpectedFailure))),
+
         new("CMP-050", "Testing — step 1 of 4",
             CompatibilityPresentationFactory.Verifying(0)),
         new("CMP-051", "Testing — step 4 of 4",

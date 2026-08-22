@@ -353,6 +353,11 @@ internal static class CompatibilityPresentationFactory
                     "The model check and the hardware check have to come from the same "
                     + "session. We couldn't pair them."),
 
+                CompatibilityFindingCode.UnexpectedFailure => new CompatibilityRecovery(
+                    "Something went wrong on our side",
+                    "This is our fault, not a problem with your computer or your model. "
+                    + "Nothing was changed. Trying again is worth doing."),
+
                 _ => new CompatibilityRecovery(
                     "Try the check again",
                     "Something we needed wasn't there.")

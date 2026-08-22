@@ -359,4 +359,124 @@ public sealed class CompatibilityScreenProjectionTests
 
         Assert.AreEqual(1, setup.Components.Count);
     }
+
+    [TestMethod]
+    public void RunWhoseAdapterThrows_ReportsAnUnexpectedFailureNotAClaimFailure()
+    {
+        // Reusing HandoffClaimFailed for anything that threw told the user to
+        // fix a handoff that had already succeeded. A wrong instruction is worse
+        // than a vague one.
+        CompatibilityRunResult result = CompatibilityRunCoordinator.Execute(
+            new CompatibilityRunRequest(CompatibilityContextRequest.ApplicationDefault()),
+            CompatibilityRunDependencies.Create(
+                new ThrowingGateway(),
+                new Facts(ModelFacts()),
+                new Machine(HardwareFacts.Create(
+                    ByteCount.FromBytes(64 * Gibibyte),
+                    ByteCount.FromBytes(8 * Gibibyte),
+                    ByteCount.FromBytes(500 * Gibibyte),
+                    new HashSet<DeviceRouteId> { DeviceRouteId.Cpu },
+                    new HashSet<CompatibilityBackend> { CompatibilityBackend.Cpu })),
+                new MemoryProbe(64),
+                SupportMatrix.ProvisionalV1(),
+                EstimatorPolicy.ProvisionalV1(),
+                SafetyPolicy.ProvisionalV1(),
+                new HashSet<string>(),
+                TrustedSourceAvailability.None(),
+                GgufRouteConfiguration.Create(
+                    GgufWeightFormat.Imported,
+                    GgufKvCacheFormat.F16,
+                    CompatibilityBackend.Cpu,
+                    DeviceRouteId.Cpu,
+                    GpuOffloadLevel.None),
+                ContextTokenCount.FromTokens(4096),
+                TimeProvider.System),
+            CancellationToken.None);
+
+        Assert.AreEqual(CompatibilityRunOutcome.Failed, result.Outcome);
+        Assert.IsTrue(
+            result.Findings.Any(finding =>
+                finding.Code == CompatibilityFindingCode.UnexpectedFailure),
+            "A throwing adapter was reported as a failed handoff claim.");
+    }
+
+    [TestMethod]
+    public void ThrowingAdapter_StillReleasesTheClaim()
+    {
+        // The rollback lives in a finally, and an exception is the one exit that
+        // most easily skips cleanup. A held claim blocks every later run.
+        ThrowingGateway gateway = new();
+
+        _ = CompatibilityRunCoordinator.Execute(
+            new CompatibilityRunRequest(CompatibilityContextRequest.ApplicationDefault()),
+            CompatibilityRunDependencies.Create(
+                gateway,
+                new Facts(ModelFacts()),
+                new Machine(HardwareFacts.Create(
+                    ByteCount.FromBytes(64 * Gibibyte),
+                    ByteCount.FromBytes(8 * Gibibyte),
+                    ByteCount.FromBytes(500 * Gibibyte),
+                    new HashSet<DeviceRouteId> { DeviceRouteId.Cpu },
+                    new HashSet<CompatibilityBackend> { CompatibilityBackend.Cpu })),
+                new MemoryProbe(64),
+                SupportMatrix.ProvisionalV1(),
+                EstimatorPolicy.ProvisionalV1(),
+                SafetyPolicy.ProvisionalV1(),
+                new HashSet<string>(),
+                TrustedSourceAvailability.None(),
+                GgufRouteConfiguration.Create(
+                    GgufWeightFormat.Imported,
+                    GgufKvCacheFormat.F16,
+                    CompatibilityBackend.Cpu,
+                    DeviceRouteId.Cpu,
+                    GpuOffloadLevel.None),
+                ContextTokenCount.FromTokens(4096),
+                TimeProvider.System),
+            CancellationToken.None);
+
+        Assert.IsTrue(gateway.RolledBack, "A throwing run kept the claim it took.");
+    }
+
+    [TestMethod]
+    public void PublishedBaselineFingerprint_BelongsToTheBaselineCandidate()
+    {
+        // This fingerprint is what "use what I already have" resolves against.
+        // Reading it off a position in another file's output rather than off the
+        // baseline itself would let it name a stranger's configuration.
+        CompatibilityRunResult result = RunWith(64);
+
+        if (result.Assessment is not { BaselineFingerprint: { } published })
+        {
+            Assert.Inconclusive("This run published no baseline to check.");
+            return;
+        }
+
+        EvaluatedCandidate baseline = result.Assessment.EvaluatedCandidates
+            .Single(candidate => candidate.Candidate.IsBaseline);
+
+        Assert.AreEqual(baseline.Fingerprint, published);
+    }
+
+    [TestMethod]
+    public void EngineDoor_NeverThrows()
+    {
+        // The public door builds its adapters outside the coordinator's guard.
+        // Every one of them becomes something that touches the machine, and an
+        // engine that can throw is an app that can disappear.
+        CompatibilityScreenModel model = CompatibilityEngine.RunWithAvailableAdapters();
+
+        Assert.AreNotEqual(CompatibilityScreenState.Unspecified, model.State);
+    }
+
+    private sealed class ThrowingGateway : ICompatibilityInputGateway
+    {
+        internal bool RolledBack { get; private set; }
+
+        public HandoffClaim Claim() =>
+            throw new InvalidOperationException("An adapter failed the way adapters do.");
+
+        public void Rollback() => RolledBack = true;
+
+        public bool Commit(CompatibilityRunId runId) => true;
+    }
 }
