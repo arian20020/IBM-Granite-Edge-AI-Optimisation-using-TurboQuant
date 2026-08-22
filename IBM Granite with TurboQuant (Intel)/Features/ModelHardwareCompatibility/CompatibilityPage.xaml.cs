@@ -34,7 +34,21 @@ internal sealed partial class CompatibilityPage : Page
         InitializeComponent();
         BuildStepper();
         Apply(CompatibilityPresentation.Empty);
+
+        ViewModel.PresentationChanged += (_, presentation) => Apply(presentation);
+        PrimaryAction.Command = ViewModel.ContinueCommand;
+        SecondaryAction.Command = ViewModel.BackCommand;
+
+        // One automatic attempt per navigation: arriving here starts the check,
+        // because that is the only reason to be on this page.
+        Loaded += async (_, _) => await ViewModel.StartAsync();
     }
+
+    /// <summary>
+    /// Owned by the page for the lifetime of one navigation, so a check started
+    /// here cannot outlive the screen that asked for it.
+    /// </summary>
+    internal ViewModels.CompatibilityViewModel ViewModel { get; } = new();
 
     /// <summary>
     /// Applies a snapshot. Safe to call with the same value twice.

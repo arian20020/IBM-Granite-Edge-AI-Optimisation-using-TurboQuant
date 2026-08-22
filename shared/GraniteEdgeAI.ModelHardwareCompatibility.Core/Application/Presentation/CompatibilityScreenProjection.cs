@@ -83,6 +83,42 @@ public sealed record CompatibilityScreenModel
     /// </summary>
     public bool ContinueEnabled { get; }
 
+    /// <summary>
+    /// Builds a screen model directly, for Debug fixtures and tests that need to
+    /// render a state without an engine run behind it.
+    ///
+    /// This exists so all ten screens can be looked at and tested before the
+    /// owner adapters land — otherwise nine of them would be unreachable and
+    /// therefore unreviewable. It is not a way to fabricate a conclusion: what
+    /// it produces is presentation input, never a run result, and nothing
+    /// downstream can mistake one for the other.
+    /// </summary>
+    public static CompatibilityScreenModel ForPresentation(
+        CompatibilityScreenState state,
+        IReadOnlyList<CompatibilityFindingView> findings,
+        IReadOnlyList<CompatibilityModeView> modes,
+        BaselineExclusionReason baselineExclusionReason,
+        bool useCurrentModelAvailable,
+        bool continueEnabled)
+    {
+        ArgumentNullException.ThrowIfNull(findings);
+        ArgumentNullException.ThrowIfNull(modes);
+
+        if (state == CompatibilityScreenState.Unspecified)
+        {
+            throw new ArgumentException(
+                "A screen model must name the state it renders.", nameof(state));
+        }
+
+        return new CompatibilityScreenModel(
+            state,
+            [.. findings],
+            [.. modes],
+            baselineExclusionReason,
+            useCurrentModelAvailable,
+            continueEnabled);
+    }
+
     internal static CompatibilityScreenModel From(CompatibilityRunResult result)
     {
         ArgumentNullException.ThrowIfNull(result);
