@@ -6,6 +6,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include <nlohmann/json.hpp>
@@ -49,6 +50,20 @@ using runtime_load_observer = std::function<void(runtime_load_stage)>;
 
 std::filesystem::path executable_directory();
 std::string sha256_file(const std::filesystem::path& path);
+
+struct verified_execution_device final {
+    std::string requested;
+    std::vector<std::string> actual;
+};
+
+bool is_explicit_execution_device(std::string_view device) noexcept;
+void require_execution_device_match(
+    std::string_view requested,
+    const std::vector<std::string>& actual);
+verified_execution_device verify_execution_device(
+    const std::filesystem::path& model_path,
+    const std::string& requested,
+    const std::function<void()>& module_verifier = {});
 
 class runtime_context final {
 public:

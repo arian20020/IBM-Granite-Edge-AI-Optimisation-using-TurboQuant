@@ -153,7 +153,7 @@ void run_session_body(const json& command, const runtime_context& runtime) {
     validate_digest(model_digest);
     const std::uintmax_t model_length = required_positive_u64(command, "modelLengthBytes");
     const std::string device = required_string(command.at("device"), "deviceId", 128U);
-    if (device != "CPU") throw protocol_error("device rejected");
+    if (!is_explicit_execution_device(device)) throw protocol_error("device rejected");
     const std::size_t c1_context = static_cast<std::size_t>(
         required_positive_u64(command.at("limits"), "maximumContextTokens"));
     const std::size_t session_new_tokens = static_cast<std::size_t>(
@@ -167,14 +167,19 @@ void run_session_body(const json& command, const runtime_context& runtime) {
     lease.verify_topology();
     const std::size_t model_context = model_context_limit(package);
     lease.verify_topology(true);
+    const verified_execution_device execution = verify_execution_device(
+        package / L"openvino_model.xml",
+        device,
+        [&] { verify_loaded_module_closure(runtime); });
+    lease.verify_topology(true);
     official_session session(
-        std::move(lease), runtime, model_context, c1_context, {},
+        std::move(lease), runtime, device, model_context, c1_context, {},
         [&] { verify_loaded_module_closure(runtime); });
     verify_loaded_module_closure(runtime);
     publish_terminal_event(
         {{"sessionId", session_id},
-         {"requestedDevice", "CPU"},
-         {"actualExecutionDevices", json::array({"CPU"})},
+         {"requestedDevice", execution.requested},
+         {"actualExecutionDevices", execution.actual},
          {"protocolId", official_protocol},
          {"buildEvidence", runtime.evidence().to_json()},
          {"eventType", "sessionStarted"}},

@@ -168,7 +168,15 @@ is claimed.
 Task 9: complete locally (implementation and fail-closed gates are ready;
 external hosted/UCL execution remains an explicit acceptance prerequisite, not
 a local implementation blocker).
-Task 10: pending
+Task 10: complete locally (explicit CPU/GPU/GPU.n grammar; exact native device
+enumeration, compile probe, execution-device equality, and no CPU fallback;
+GPU plugin sealed into worker/app packaging; optional GPU-01 UCL evidence binds
+commit, measured device, Intel adapter/driver, plugin/runtime/config, named
+negative/positive tests, cancellation, and cleanup. Final Release gates:
+contracts 162/162, route 181/181, client 13/13, process 42 passed plus one
+deliberately skipped physical-GPU test, native A/B 7/7, packaged app build
+passed, parser/diff/residue checks clean. This host has no Intel GPU, so GPU-01
+remains open, GPU stays app-hidden, and no physical GPU acceptance is claimed.)
 Task 11: pending
 Task 12: pending
 Task 13: pending

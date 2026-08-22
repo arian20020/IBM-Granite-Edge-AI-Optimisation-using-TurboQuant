@@ -11,6 +11,16 @@ on:
         description: Explicit UCL gate identifier
         required: true
         type: string
+      gpu_authorization:
+        description: Optional exact GPU gate identifier; use GPU-01 only after prerequisite approval
+        required: false
+        default: ''
+        type: string
+      gpu_device:
+        description: Optional exact OpenVINO Intel GPU identity (GPU or GPU.n)
+        required: false
+        default: ''
+        type: string
 
 permissions:
   contents: read
@@ -26,6 +36,10 @@ defaults:
 env:
   OPENVINO_UCL_01_AUTHORIZED: ${{ vars.OPENVINO_UCL_01_AUTHORIZED }}
   OPENVINO_UCL_AUTHORIZATION: ${{ inputs.authorization }}
+  OPENVINO_UCL_GPU_AUTHORIZATION: ${{ inputs.gpu_authorization }}
+  OPENVINO_UCL_GPU_DEVICE: ${{ inputs.gpu_device }}
+  OPENVINO_UCL_GPU_NAME: ${{ vars.OPENVINO_UCL_GPU_NAME }}
+  OPENVINO_UCL_GPU_DRIVER_VERSION: ${{ vars.OPENVINO_UCL_GPU_DRIVER_VERSION }}
   OPENVINO_EVIDENCE_COMMIT: ${{ inputs.target_commit }}
   OPENVINO_ARCHIVES: ${{ vars.OPENVINO_UCL_ARCHIVE_DIRECTORY }}
   OPENVINO_CONTROLLED_FIXTURE: ${{ vars.OPENVINO_UCL_FIXTURE_ROOT }}
@@ -38,6 +52,7 @@ env:
   OPENVINO_STAGE_B: ${{ runner.temp }}/openvino-ucl-stage-b
   OPENVINO_RESULTS: ${{ runner.temp }}/openvino-ucl-results
   OPENVINO_EVIDENCE_FILE: artifacts/openvino/evidence/cpu.json
+  OPENVINO_GPU_EVIDENCE_FILE: artifacts/openvino/gpu-evidence/gpu.json
 
 jobs:
   trusted-intel-cpu:
@@ -68,6 +83,15 @@ jobs:
               throw 'A controlled UCL input is unavailable.'
             }
           }
+          $gpuRequested = -not [string]::IsNullOrWhiteSpace($env:OPENVINO_UCL_GPU_AUTHORIZATION) -or
+            -not [string]::IsNullOrWhiteSpace($env:OPENVINO_UCL_GPU_DEVICE)
+          if ($gpuRequested -and
+              ($env:OPENVINO_UCL_GPU_AUTHORIZATION -cne 'GPU-01' -or
+               $env:OPENVINO_UCL_GPU_DEVICE -cnotmatch '^GPU(?:\.(?:0|[1-9][0-9]*))?$' -or
+               [string]::IsNullOrWhiteSpace($env:OPENVINO_UCL_GPU_NAME) -or
+               [string]::IsNullOrWhiteSpace($env:OPENVINO_UCL_GPU_DRIVER_VERSION))) {
+            throw 'GPU-01 authorization or its fixed driver prerequisite is invalid.'
+          }
 
       - name: Check out the exact reviewed commit without retained credentials
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
@@ -88,6 +112,16 @@ jobs:
         id: evidence
         timeout-minutes: 105
         run: |
+          $gpuArguments = @()
+          if (-not [string]::IsNullOrWhiteSpace($env:OPENVINO_UCL_GPU_AUTHORIZATION) -or
+              -not [string]::IsNullOrWhiteSpace($env:OPENVINO_UCL_GPU_DEVICE)) {
+            $gpuArguments = @(
+              '-GpuAuthorization', $env:OPENVINO_UCL_GPU_AUTHORIZATION,
+              '-GpuDevice', $env:OPENVINO_UCL_GPU_DEVICE,
+              '-ExpectedGpuName', $env:OPENVINO_UCL_GPU_NAME,
+              '-ExpectedGpuDriverVersion', $env:OPENVINO_UCL_GPU_DRIVER_VERSION,
+              '-GpuEvidencePath', $env:OPENVINO_GPU_EVIDENCE_FILE)
+          }
           & powershell.exe -NoLogo -NoProfile -NonInteractive `
             -ExecutionPolicy Bypass -File scripts/openvino/Invoke-OpenVinoUclCampaign.ps1 `
             -WorkspaceRoot $env:GITHUB_WORKSPACE `
@@ -102,8 +136,24 @@ jobs:
             -StageDirectoryA $env:OPENVINO_STAGE_A `
             -StageDirectoryB $env:OPENVINO_STAGE_B `
             -ResultsDirectory $env:OPENVINO_RESULTS `
-            -EvidencePath $env:OPENVINO_EVIDENCE_FILE
+            -EvidencePath $env:OPENVINO_EVIDENCE_FILE @gpuArguments
           if ($LASTEXITCODE -ne 0) { throw 'Retained trusted UCL campaign failed.' }
+
+      - name: Verify explicitly authorized GPU evidence before cleanup
+        id: gpuprivacy
+        if: ${{ inputs.gpu_authorization == 'GPU-01' && steps.evidence.outcome == 'success' }}
+        timeout-minutes: 3
+        run: |
+          & powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
+            -File scripts/openvino/Test-OpenVinoGpuEvidence.ps1 `
+            -EvidencePath $env:OPENVINO_GPU_EVIDENCE_FILE `
+            -StageDirectory $env:OPENVINO_STAGE_B `
+            -ResultsPath (Join-Path $env:OPENVINO_RESULTS 'gpu.trx') `
+            -ExpectedCommitSha $env:OPENVINO_EVIDENCE_COMMIT `
+            -ExpectedDevice $env:OPENVINO_UCL_GPU_DEVICE `
+            -ExpectedGpuName $env:OPENVINO_UCL_GPU_NAME `
+            -ExpectedDriverVersion $env:OPENVINO_UCL_GPU_DRIVER_VERSION
+          if ($LASTEXITCODE -ne 0) { throw 'Trusted GPU evidence verification failed.' }
 
       - name: Clean operation-owned outputs after retained campaign
         id: integrity
@@ -158,6 +208,33 @@ jobs:
           path: artifacts/openvino/evidence/cpu.json
           if-no-files-found: error
           retention-days: 30
+
+      - name: Upload explicitly authorized sanitized GPU evidence only
+        if: ${{ always() && inputs.gpu_authorization == 'GPU-01' && steps.evidence.outcome == 'success' && steps.gpuprivacy.outcome == 'success' && steps.integrity.outcome == 'success' && steps.privacy.outcome == 'success' }}
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+        with:
+          name: openvino-ucl-intel-gpu-evidence
+          path: artifacts/openvino/gpu-evidence/gpu.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Remove operation-owned local GPU evidence residue
+        if: ${{ always() }}
+        timeout-minutes: 2
+        run: |
+          $workspace = [IO.Path]::GetFullPath($env:GITHUB_WORKSPACE).TrimEnd('\')
+          $expected = Join-Path $workspace 'artifacts\openvino\gpu-evidence\gpu.json'
+          $evidence = [IO.Path]::GetFullPath($env:OPENVINO_GPU_EVIDENCE_FILE)
+          if ($evidence -ine $expected) { throw 'The GPU evidence cleanup target is not exact.' }
+          if (Test-Path -LiteralPath $evidence -PathType Leaf) {
+            Remove-Item -LiteralPath $evidence -Force
+          }
+          $directory = Split-Path -Parent $evidence
+          if ((Test-Path -LiteralPath $directory -PathType Container) -and
+              @(Get-ChildItem -LiteralPath $directory -Force).Count -eq 0) {
+            Remove-Item -LiteralPath $directory -Force
+          }
+          if (Test-Path -LiteralPath $evidence) { throw 'Local GPU evidence residue remains.' }
 
       - name: Remove operation-owned local evidence residue
         if: ${{ always() }}

@@ -49,7 +49,7 @@ int main(int argc, char** argv) {
                 granite::official_worker::initialize_verified_runtime_at(
                     runtime_stage, {}, {});
             granite::official_worker::official_session session(
-                std::move(lease), runtime, 64U, 64U);
+                std::move(lease), runtime, "CPU", 64U, 64U);
             const auto generate_turn = [&](const std::string& turn_id) {
                 granite::official_worker::turn_control control;
                 std::jthread input_pump([&] {

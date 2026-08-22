@@ -48,7 +48,7 @@ void require_terminal_mutation_rejected(
         std::unique_ptr<official_session> session;
         if (turn) {
             session = std::make_unique<official_session>(
-                std::move(package), runtime, 64U, 64U);
+                std::move(package), runtime, "CPU", 64U, 64U);
             turn_control control;
             bool fragment_buffered = false;
             std::jthread pump([&] {

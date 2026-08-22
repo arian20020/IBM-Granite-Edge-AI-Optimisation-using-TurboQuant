@@ -13,11 +13,11 @@ namespace GraniteEdgeAI.OpenVino.WorkerProcess.Tests;
 [DoNotParallelize]
 public sealed class OfficialCpuFixtureTests
 {
-    private const string PackageDigest =
+    internal const string PackageDigest =
         "b5316ac62e1e846b33ec92e5ad555859238af70ffd6b75aa50500995fbe15372";
-    private const string ModelDigest =
+    internal const string ModelDigest =
         "894dd0aac21e588d5cf78994d90aa0dcba8284626c976a4e0c89c0273b452c1c";
-    private const long ModelLength = 88;
+    internal const long ModelLength = 88;
     private const string ExpectedRuntime =
         "2026.3.0-22451-8a17657b995-releases/2026/3";
     private const string ExpectedGenAi = "2026.3.0.0-3277-bd8d6542e3c";
@@ -463,7 +463,7 @@ public sealed class OfficialCpuFixtureTests
         Assert.AreEqual(expectedManifestDigest, evidence.WorkerManifestDigest);
     }
 
-    private static OpenVinoWorkerClient CreateClient(string stage)
+    internal static OpenVinoWorkerClient CreateClient(string stage)
     {
         OpenVinoWorkerInstallation installation = CreateInstallation(stage);
         return new OpenVinoWorkerClient(
@@ -487,13 +487,14 @@ public sealed class OfficialCpuFixtureTests
                 ["openvino.dll"] = OpenVinoWorkerBinaryMachine.Amd64,
                 ["openvino_genai.dll"] = OpenVinoWorkerBinaryMachine.Amd64,
                 ["openvino_intel_cpu_plugin.dll"] = OpenVinoWorkerBinaryMachine.Amd64,
+                ["openvino_intel_gpu_plugin.dll"] = OpenVinoWorkerBinaryMachine.Amd64,
                 ["openvino_ir_frontend.dll"] = OpenVinoWorkerBinaryMachine.Amd64,
                 ["openvino_tokenizers.dll"] = OpenVinoWorkerBinaryMachine.Amd64,
                 ["tbb12.dll"] = OpenVinoWorkerBinaryMachine.Amd64,
                 ["tbbbind_2_5.dll"] = OpenVinoWorkerBinaryMachine.Amd64
             });
 
-    private static string RequireStage(string variable)
+    internal static string RequireStage(string variable)
     {
         string? value = Environment.GetEnvironmentVariable(variable);
         if (string.IsNullOrWhiteSpace(value))
@@ -504,7 +505,7 @@ public sealed class OfficialCpuFixtureTests
         return value!;
     }
 
-    private static string LocateCanonicalPackage()
+    internal static string LocateCanonicalPackage()
     {
         string? controlledRoot = Environment.GetEnvironmentVariable(
             "OPENVINO_UCL_CONTROLLED_FIXTURE_ROOT");
@@ -596,7 +597,7 @@ public sealed class OfficialCpuFixtureTests
             new FileInfo(model).Length);
     }
 
-    private static async Task AssertNoOfficialWorkerProcessAsync()
+    internal static async Task AssertNoOfficialWorkerProcessAsync()
     {
         DateTimeOffset deadline = DateTimeOffset.UtcNow.AddSeconds(3);
         while (DateTimeOffset.UtcNow < deadline)

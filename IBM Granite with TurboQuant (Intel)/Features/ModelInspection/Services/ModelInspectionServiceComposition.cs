@@ -102,6 +102,7 @@ internal static class ModelInspectionServiceComposition
             ["openvino.dll"] = OpenVinoWorkerBinaryMachine.Amd64,
             ["openvino_genai.dll"] = OpenVinoWorkerBinaryMachine.Amd64,
             ["openvino_intel_cpu_plugin.dll"] = OpenVinoWorkerBinaryMachine.Amd64,
+            ["openvino_intel_gpu_plugin.dll"] = OpenVinoWorkerBinaryMachine.Amd64,
             ["openvino_ir_frontend.dll"] = OpenVinoWorkerBinaryMachine.Amd64,
             ["openvino_tokenizers.dll"] = OpenVinoWorkerBinaryMachine.Amd64,
             ["tbb12.dll"] = OpenVinoWorkerBinaryMachine.Amd64,

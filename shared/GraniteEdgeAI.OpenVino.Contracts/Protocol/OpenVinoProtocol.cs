@@ -21,6 +21,9 @@ public static class OpenVinoProtocol
 
     internal static readonly UTF8Encoding StrictUtf8 = new(false, true);
     internal static readonly Regex LowercaseSha256 = new("^[0-9a-f]{64}$", RegexOptions.CultureInvariant);
+    internal static readonly Regex ExplicitDeviceIdentity = new(
+        "^(?:CPU|GPU(?:\\.(?:0|[1-9][0-9]*))?)$",
+        RegexOptions.CultureInvariant);
 
     internal static void Require(bool condition, string message)
     {
@@ -62,6 +65,14 @@ public static class OpenVinoProtocol
         Require(
             value is not null && LowercaseSha256.IsMatch(value),
             name + " must be a lowercase SHA-256 digest.");
+
+    internal static void RequireExplicitDeviceIdentity(string? value, string name)
+    {
+        RequireUtf8Limit(value, MaximumDeviceIdentityUtf8Bytes, name);
+        Require(
+            value is not null && ExplicitDeviceIdentity.IsMatch(value),
+            name + " must be CPU, GPU, or a canonical enumerated GPU.n identity.");
+    }
 }
 
 /// <summary>Reports a safe, typed rejection at the OpenVINO protocol boundary.</summary>

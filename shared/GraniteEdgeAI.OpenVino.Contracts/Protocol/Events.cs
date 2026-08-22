@@ -151,9 +151,8 @@ public sealed record SessionStartedEvent(
     public void Validate()
     {
         OpenVinoProtocol.RequireUuid(SessionId, nameof(SessionId));
-        OpenVinoProtocol.RequireUtf8Limit(
+        OpenVinoProtocol.RequireExplicitDeviceIdentity(
             RequestedDevice,
-            OpenVinoProtocol.MaximumDeviceIdentityUtf8Bytes,
             nameof(RequestedDevice));
         OpenVinoProtocol.Require(
             ProtocolId is OpenVinoProtocol.OfficialProtocolId or
@@ -170,9 +169,8 @@ public sealed record SessionStartedEvent(
         HashSet<string> distinct = new(StringComparer.Ordinal);
         foreach (string device in ActualExecutionDevices)
         {
-            OpenVinoProtocol.RequireUtf8Limit(
+            OpenVinoProtocol.RequireExplicitDeviceIdentity(
                 device,
-                OpenVinoProtocol.MaximumDeviceIdentityUtf8Bytes,
                 nameof(ActualExecutionDevices));
             OpenVinoProtocol.Require(
                 distinct.Add(device),

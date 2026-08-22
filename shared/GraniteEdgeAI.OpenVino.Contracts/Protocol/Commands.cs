@@ -11,7 +11,8 @@ public interface IOpenVinoCommand
 
 public sealed record OpenVinoDeviceRequest(string DeviceId)
 {
-    public void Validate() => OpenVinoProtocol.RequireText(DeviceId, nameof(DeviceId));
+    public void Validate() =>
+        OpenVinoProtocol.RequireExplicitDeviceIdentity(DeviceId, nameof(DeviceId));
 }
 
 public sealed record OpenVinoGenerationLimits(int MaximumContextTokens, int MaximumNewTokens)

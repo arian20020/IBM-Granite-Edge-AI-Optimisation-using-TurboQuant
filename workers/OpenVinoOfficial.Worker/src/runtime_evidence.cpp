@@ -28,6 +28,10 @@ namespace {
 
 using json = nlohmann::json;
 
+bool is_gpu_device(std::string_view device) noexcept {
+    return device == "GPU" || device.starts_with("GPU.");
+}
+
 void verify_loaded_module_membership_only(const runtime_context& runtime);
 
 class algorithm_handle final {
@@ -480,6 +484,70 @@ void close_runtime_handles(std::vector<void*>& handles) noexcept {
 }
 
 }  // namespace
+
+bool is_explicit_execution_device(std::string_view device) noexcept {
+    if (device == "CPU" || device == "GPU") return true;
+    constexpr std::string_view prefix = "GPU.";
+    if (!device.starts_with(prefix) || device.size() == prefix.size()) return false;
+    const std::string_view index = device.substr(prefix.size());
+    if (index.size() > 1U && index.front() == '0') return false;
+    return std::all_of(index.begin(), index.end(), [](unsigned char value) {
+        return value >= static_cast<unsigned char>('0') &&
+            value <= static_cast<unsigned char>('9');
+    });
+}
+
+void require_execution_device_match(
+    std::string_view requested,
+    const std::vector<std::string>& actual) {
+    if (actual.size() != 1U || actual.front() != requested) {
+        throw worker_failure(
+            "runtime_device_mismatch", true, "execution device mismatch");
+    }
+}
+
+verified_execution_device verify_execution_device(
+    const std::filesystem::path& model_path,
+    const std::string& requested,
+    const std::function<void()>& module_verifier) {
+    if (!is_explicit_execution_device(requested)) {
+        throw protocol_error("device rejected");
+    }
+
+    try {
+        ov::Core core;
+        const std::vector<std::string> available = core.get_available_devices();
+        if (module_verifier) module_verifier();
+        const bool present = std::find(
+            available.begin(), available.end(), requested) != available.end();
+        const bool unqualified_gpu_present = requested == "GPU" &&
+            std::any_of(available.begin(), available.end(), [](const std::string& value) {
+                return value == "GPU" || value.starts_with("GPU.");
+            });
+        if (!present && !unqualified_gpu_present) {
+            throw worker_failure(
+                "runtime_device_unavailable", true, "requested device unavailable");
+        }
+
+        std::shared_ptr<ov::Model> model = core.read_model(model_path);
+        ov::CompiledModel compiled = core.compile_model(model, requested);
+        if (module_verifier) module_verifier();
+        std::vector<std::string> actual =
+            compiled.get_property(ov::execution_devices);
+        require_execution_device_match(requested, actual);
+        return {requested, std::move(actual)};
+    } catch (const worker_failure&) {
+        throw;
+    } catch (const protocol_error&) {
+        throw;
+    } catch (...) {
+        if (is_gpu_device(requested)) {
+            throw worker_failure(
+                "runtime_device_unavailable", true, "requested device unavailable");
+        }
+        throw;
+    }
+}
 
 nlohmann::ordered_json runtime_evidence::to_json() const {
     return {{"runtimeBuild", runtime_build},

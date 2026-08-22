@@ -12,7 +12,12 @@ param(
     [Parameter(Mandatory)][string]$StageDirectoryA,
     [Parameter(Mandatory)][string]$StageDirectoryB,
     [Parameter(Mandatory)][string]$ResultsDirectory,
-    [Parameter(Mandatory)][string]$EvidencePath
+    [Parameter(Mandatory)][string]$EvidencePath,
+    [string]$GpuAuthorization = '',
+    [string]$GpuDevice = '',
+    [string]$ExpectedGpuName = '',
+    [string]$ExpectedGpuDriverVersion = '',
+    [string]$GpuEvidencePath = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -50,6 +55,19 @@ try {
     $stageB = [IO.Path]::GetFullPath($StageDirectoryB)
     $results = [IO.Path]::GetFullPath($ResultsDirectory)
     $evidence = [IO.Path]::GetFullPath($EvidencePath)
+    $gpuRequested = -not [string]::IsNullOrWhiteSpace($GpuAuthorization) -or
+        -not [string]::IsNullOrWhiteSpace($GpuDevice)
+    $gpuEvidence = $null
+    if ($gpuRequested) {
+        if ($GpuAuthorization -cne 'GPU-01' -or
+            $GpuDevice -cnotmatch '^GPU(?:\.(?:0|[1-9][0-9]*))?$' -or
+            [string]::IsNullOrWhiteSpace($ExpectedGpuName) -or
+            [string]::IsNullOrWhiteSpace($ExpectedGpuDriverVersion) -or
+            [string]::IsNullOrWhiteSpace($GpuEvidencePath)) {
+            throw 'campaign-gpu-authorization-invalid'
+        }
+        $gpuEvidence = [IO.Path]::GetFullPath($GpuEvidencePath)
+    }
     $measurements = Join-Path $results 'measurements.json'
     foreach ($output in @($buildA,$buildB,$stageA,$stageB,$results,$evidence)) {
         if ((Test-EqualOrContained $output $archives) -or
@@ -57,8 +75,15 @@ try {
             throw 'campaign-output-overlaps-trusted-input'
         }
     }
+    if ($gpuRequested -and ((Test-EqualOrContained $gpuEvidence $archives) -or
+        (Test-EqualOrContained $gpuEvidence $fixture))) {
+        throw 'campaign-gpu-output-overlaps-trusted-input'
+    }
     foreach ($absent in @($buildA,$buildB,$stageA,$stageB,$results,(Split-Path -Parent $evidence))) {
         if (Test-Path -LiteralPath $absent) { throw 'campaign-output-not-absent' }
+    }
+    if ($gpuRequested -and (Test-Path -LiteralPath (Split-Path -Parent $gpuEvidence))) {
+        throw 'campaign-gpu-output-not-absent'
     }
     $actualCommit = [string](& git -C $workspace rev-parse HEAD)
     if ($LASTEXITCODE -ne 0 -or $actualCommit.Trim().ToLowerInvariant() -cne $ExpectedCommitSha -or
@@ -160,6 +185,70 @@ try {
     }
     Copy-Item -LiteralPath (Join-Path $results 'process-containment-3.trx') `
         -Destination (Join-Path $results 'process-containment.trx')
+
+    if ($gpuRequested) {
+        $intelAdapters = @(Get-CimInstance Win32_VideoController | Where-Object {
+            $_.PNPDeviceID -match '^PCI\\VEN_8086&' -and
+            $_.Name -ceq $ExpectedGpuName -and
+            $_.DriverVersion -ceq $ExpectedGpuDriverVersion
+        })
+        if ($intelAdapters.Count -ne 1) { throw 'campaign-gpu-driver-prerequisite-mismatch' }
+        $env:OPENVINO_UCL_GPU_DEVICE = $GpuDevice
+        Invoke-DotNetGate @('test','--project',
+            'tests/IntegrationTests/GraniteEdgeAI.OpenVino.WorkerProcess.Tests/GraniteEdgeAI.OpenVino.WorkerProcess.Tests.csproj',
+            '--configuration','Release','-p:Platform=x64','--filter',
+            'FullyQualifiedName~OfficialGpuTests','--minimum-expected-tests','2',
+            '--results-directory',$results,'--report-trx','--report-trx-filename','gpu.trx') 'gpu'
+        $configuration = '{"ATTENTION_BACKEND":"SDPA"}'
+        $algorithm = [Security.Cryptography.SHA256]::Create()
+        try {
+            $configSha = -join @($algorithm.ComputeHash(
+                [Text.Encoding]::UTF8.GetBytes($configuration)) | ForEach-Object {
+                    $_.ToString('x2')
+                })
+        }
+        finally { $algorithm.Dispose() }
+        $gpuDocument = [ordered]@{
+            schemaVersion = 1
+            commitSha = $ExpectedCommitSha
+            requestedDevice = $GpuDevice
+            actualExecutionDevices = @($GpuDevice)
+            gpuIdentity = [ordered]@{
+                vendor = 'Intel'; name = $ExpectedGpuName
+                driverVersion = $ExpectedGpuDriverVersion
+            }
+            pluginIdentity = [ordered]@{
+                fileName = 'openvino_intel_gpu_plugin.dll'
+                sha256 = (Get-FileHash -LiteralPath (Join-Path $stageB 'openvino_intel_gpu_plugin.dll') `
+                    -Algorithm SHA256).Hash.ToLowerInvariant()
+            }
+            runtimeIdentity = [ordered]@{
+                runtime = '2026.3.0-22451-8a17657b995-releases/2026/3'
+                genAi = '2026.3.0.0-3277-bd8d6542e3c'
+                tokenizers = '2026.3.0.0-703-183c6f25cda'
+            }
+            configIdentity = [ordered]@{ attentionBackend = 'SDPA'; sha256 = $configSha }
+            forcedNegatives = [ordered]@{
+                nonexistentDevice = 'runtime_device_unavailable'
+                cpuResolutionMismatch = 'runtime_device_mismatch'
+            }
+            testDispositions = [ordered]@{
+                oneTurn = 'passed'; twoTurn = 'passed'; cancellation = 'passed'
+                cleanup = 'zero_residue'
+            }
+        }
+        New-Item -ItemType Directory -Path (Split-Path -Parent $gpuEvidence) | Out-Null
+        [IO.File]::WriteAllText($gpuEvidence,
+            ($gpuDocument | ConvertTo-Json -Depth 8 -Compress),
+            [Text.UTF8Encoding]::new($false))
+        Invoke-ExactScript (Join-Path $PSScriptRoot 'Test-OpenVinoGpuEvidence.ps1') `
+            @('-EvidencePath',$gpuEvidence,'-StageDirectory',$stageB,
+              '-ResultsPath',(Join-Path $results 'gpu.trx'),
+              '-ExpectedCommitSha',$ExpectedCommitSha,'-ExpectedDevice',$GpuDevice,
+              '-ExpectedGpuName',$ExpectedGpuName,
+              '-ExpectedDriverVersion',$ExpectedGpuDriverVersion) 'gpu_evidence_valid'
+        Assert-OpenVinoTrustedInputLeaseUnchanged -Lease $lease
+    }
 
     $manifestSha = (Get-FileHash -LiteralPath (Join-Path $stageB 'worker-manifest.json') `
         -Algorithm SHA256).Hash.ToLowerInvariant()

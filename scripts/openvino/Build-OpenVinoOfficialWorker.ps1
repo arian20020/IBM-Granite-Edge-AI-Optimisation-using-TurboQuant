@@ -113,6 +113,7 @@ try {
         (Join-Path $releaseBin 'openvino_genai.dll') = 'openvino_genai.dll'
         (Join-Path $releaseBin 'openvino_tokenizers.dll') = 'openvino_tokenizers.dll'
         (Join-Path $releaseBin 'openvino_intel_cpu_plugin.dll') = 'openvino_intel_cpu_plugin.dll'
+        (Join-Path $releaseBin 'openvino_intel_gpu_plugin.dll') = 'openvino_intel_gpu_plugin.dll'
         (Join-Path $releaseBin 'openvino_ir_frontend.dll') = 'openvino_ir_frontend.dll'
         (Join-Path $runtime '3rdparty\tbb\bin\tbb12.dll') = 'tbb12.dll'
         (Join-Path $runtime '3rdparty\tbb\bin\tbbbind_2_5.dll') = 'tbbbind_2_5.dll'

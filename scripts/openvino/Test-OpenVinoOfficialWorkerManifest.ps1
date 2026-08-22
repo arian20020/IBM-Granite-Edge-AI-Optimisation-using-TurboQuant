@@ -103,6 +103,7 @@ try {
         'openvino.dll',
         'openvino_genai.dll',
         'openvino_intel_cpu_plugin.dll',
+        'openvino_intel_gpu_plugin.dll',
         'openvino_ir_frontend.dll',
         'openvino_tokenizers.dll',
         'tbb12.dll',

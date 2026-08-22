@@ -42,6 +42,9 @@
       <_OpenVinoOfficialWorkerFile Include="$(_OpenVinoOfficialWorkerStage)\openvino_intel_cpu_plugin.dll">
         <PackagePath>openvino_intel_cpu_plugin.dll</PackagePath>
       </_OpenVinoOfficialWorkerFile>
+      <_OpenVinoOfficialWorkerFile Include="$(_OpenVinoOfficialWorkerStage)\openvino_intel_gpu_plugin.dll">
+        <PackagePath>openvino_intel_gpu_plugin.dll</PackagePath>
+      </_OpenVinoOfficialWorkerFile>
       <_OpenVinoOfficialWorkerFile Include="$(_OpenVinoOfficialWorkerStage)\openvino_ir_frontend.dll">
         <PackagePath>openvino_ir_frontend.dll</PackagePath>
       </_OpenVinoOfficialWorkerFile>

@@ -158,7 +158,7 @@ int main(int argc, char** argv) {
             runtime_context runtime = initialize_verified_runtime_at(runtime_stage, {}, {});
             (void)inspect_package(cancellation_package, runtime);
             official_session cancellation_session(
-                std::move(cancellation_package), runtime, 64U, 64U);
+                std::move(cancellation_package), runtime, "CPU", 64U, 64U);
             turn_control cancellation_control;
             std::atomic_bool cancel_command_written{false};
             bool fragment_observed = false;
@@ -222,7 +222,8 @@ int main(int argc, char** argv) {
                 copy, std::string(package_digest), std::string(model_digest), 88U);
             runtime_context runtime = initialize_verified_runtime_at(runtime_stage, {}, {});
             (void)inspect_package(lease, runtime, observer);
-            official_session session(std::move(lease), runtime, 64U, 64U, observer);
+            official_session session(
+                std::move(lease), runtime, "CPU", 64U, 64U, observer);
             turn_control control;
             std::jthread input_pump([&] {
                 std::unique_lock lock(control.mutex);

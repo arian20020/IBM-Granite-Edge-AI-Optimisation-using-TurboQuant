@@ -1,4 +1,6 @@
 #include "session.hpp"
+#include "runtime_evidence.hpp"
+#include "protocol.hpp"
 
 #include <iostream>
 #include <stdexcept>
@@ -6,6 +8,27 @@
 int main() {
     using namespace granite::official_worker;
     try {
+        for (std::string_view device : {"CPU", "GPU", "GPU.0", "GPU.12"}) {
+            if (!is_explicit_execution_device(device)) {
+                throw std::runtime_error("explicit device was rejected");
+            }
+        }
+        for (std::string_view device : {
+                 "AUTO", "HETERO", "MULTI", "NPU", "gpu", "GPU.",
+                 "GPU.-1", "GPU.01", " GPU", "GPU "}) {
+            if (is_explicit_execution_device(device)) {
+                throw std::runtime_error("implicit or malformed device was accepted");
+            }
+        }
+        bool mismatch_rejected = false;
+        try {
+            require_execution_device_match("GPU.0", {"CPU"});
+        } catch (const worker_failure& failure) {
+            mismatch_rejected = failure.support_code() == "runtime_device_mismatch";
+        }
+        if (!mismatch_rejected) {
+            throw std::runtime_error("CPU resolution mismatch was not typed");
+        }
         if (!fits_context(4, 2, 64, 64)) {
             throw std::runtime_error("valid context was rejected");
         }

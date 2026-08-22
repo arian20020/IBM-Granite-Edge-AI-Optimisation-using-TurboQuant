@@ -72,6 +72,7 @@ bool session_state::is_terminal() const noexcept { return state_ == value::termi
 official_session::official_session(
     package_lease package,
     const runtime_context& runtime,
+    std::string device,
     std::size_t model_context,
     std::size_t c1_context,
     native_load_observer observer,
@@ -80,13 +81,14 @@ official_session::official_session(
       runtime_(runtime),
       observer_(std::move(observer)),
       module_verifier_(std::move(module_verifier)),
+      device_(std::move(device)),
       model_context_(model_context),
       c1_context_(c1_context) {
     try {
         if (observer_) observer_(native_load_stage::pipeline_construction);
         verify_integrity(false);
         ov::genai::LLMPipeline validation_pipeline(
-            package_.root(), "CPU", ov::AnyMap{{"ATTENTION_BACKEND", std::string("SDPA")}});
+            package_.root(), device_, ov::AnyMap{{"ATTENTION_BACKEND", std::string("SDPA")}});
         validation_pipeline.get_tokenizer().set_chat_template(std::string(route_chat_template));
         verify_integrity(true);
     } catch (...) {
@@ -140,7 +142,7 @@ turn_result official_session::generate(
         std::unique_ptr<ov::genai::LLMPipeline> pipeline = [&] {
             try {
                 auto value = std::make_unique<ov::genai::LLMPipeline>(
-                    package_.root(), "CPU",
+                    package_.root(), device_,
                     ov::AnyMap{{"ATTENTION_BACKEND", std::string("SDPA")}});
                 verify_integrity(true);
                 return value;

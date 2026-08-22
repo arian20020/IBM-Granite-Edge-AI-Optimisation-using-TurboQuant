@@ -11,6 +11,126 @@ namespace GraniteEdgeAI.OpenVino.Contracts.Tests;
 [TestClass]
 public sealed class WorkflowContractTests
 {
+    [TestMethod]
+    public void TaskTenGpuEvidenceBoundaryIsExplicitAndOptional()
+    {
+        string verifier = RepoPath("scripts/openvino/Test-OpenVinoGpuEvidence.ps1");
+        Assert.IsTrue(File.Exists(verifier));
+        string workflow = UclWorkflow();
+        foreach (string required in new[]
+        {
+            "gpu_device",
+            "gpu_authorization",
+            "GPU-01",
+            "OPENVINO_UCL_GPU_DEVICE",
+            "Test-OpenVinoGpuEvidence.ps1",
+            "artifacts/openvino/gpu-evidence/gpu.json"
+        })
+        {
+            StringAssert.Contains(workflow, required);
+        }
+    }
+
+    [TestMethod]
+    public void GpuEvidenceVerifierBindsExactDeviceDriverPluginRuntimeAndNegatives()
+    {
+        using TemporaryDirectory temporary = TemporaryDirectory.Create();
+        string stage = Path.Combine(temporary.Path, "stage");
+        Directory.CreateDirectory(stage);
+        string plugin = Path.Combine(stage, "openvino_intel_gpu_plugin.dll");
+        File.WriteAllBytes(plugin, [1, 2, 3, 4]);
+        string evidence = Path.Combine(temporary.Path, "gpu.json");
+        string results = Path.Combine(temporary.Path, "gpu.trx");
+        const string commit = "0123456789abcdef0123456789abcdef01234567";
+        string configSha = Convert.ToHexString(SHA256.HashData(
+            "{\"ATTENTION_BACKEND\":\"SDPA\"}"u8)).ToLowerInvariant();
+        object document = new
+        {
+            schemaVersion = 1,
+            commitSha = commit,
+            requestedDevice = "GPU.0",
+            actualExecutionDevices = new[] { "GPU.0" },
+            gpuIdentity = new
+            {
+                vendor = "Intel",
+                name = "Intel Test GPU",
+                driverVersion = "31.0.101.9999"
+            },
+            pluginIdentity = new
+            {
+                fileName = "openvino_intel_gpu_plugin.dll",
+                sha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(plugin)))
+                    .ToLowerInvariant()
+            },
+            runtimeIdentity = new
+            {
+                runtime = "2026.3.0-22451-8a17657b995-releases/2026/3",
+                genAi = "2026.3.0.0-3277-bd8d6542e3c",
+                tokenizers = "2026.3.0.0-703-183c6f25cda"
+            },
+            configIdentity = new { attentionBackend = "SDPA", sha256 = configSha },
+            forcedNegatives = new
+            {
+                nonexistentDevice = "runtime_device_unavailable",
+                cpuResolutionMismatch = "runtime_device_mismatch"
+            },
+            testDispositions = new
+            {
+                oneTurn = "passed",
+                twoTurn = "passed",
+                cancellation = "passed",
+                cleanup = "zero_residue"
+            }
+        };
+        File.WriteAllText(evidence, JsonSerializer.Serialize(document));
+        File.WriteAllText(
+            results,
+            "<TestRun><Results><UnitTestResult outcome=\"Passed\" " +
+            "testName=\"AuthorizedPhysicalIntelGpuCompilesAndGeneratesOnExactDevice\">" +
+            "<Output><StdOut>" +
+            "OPENVINO_MEASURED_REQUESTED_DEVICE=GPU.0\n" +
+            "OPENVINO_MEASURED_ACTUAL_EXECUTION_DEVICES=GPU.0\n" +
+            "OPENVINO_MEASURED_ATTENTION_BACKEND=SDPA\n" +
+            "OPENVINO_MEASURED_GPU_ONE_TURN=passed\n" +
+            "OPENVINO_MEASURED_GPU_TWO_TURN=passed\n" +
+            "OPENVINO_MEASURED_GPU_CANCELLATION=passed\n" +
+            "OPENVINO_MEASURED_GPU_CLEANUP=zero_residue" +
+            "</StdOut></Output></UnitTestResult>" +
+            "<UnitTestResult outcome=\"Passed\" " +
+            "testName=\"NonexistentExplicitGpuFailsUnavailableWithoutCpuFallback\" /></Results>" +
+            "<ResultSummary><Counters total=\"2\" executed=\"2\" passed=\"2\" " +
+            "failed=\"0\" notExecuted=\"0\" /></ResultSummary></TestRun>");
+
+        ScriptResult valid = RunPowerShellScript(
+            "scripts/openvino/Test-OpenVinoGpuEvidence.ps1",
+            "-EvidencePath", evidence,
+            "-StageDirectory", stage,
+            "-ResultsPath", results,
+            "-ExpectedCommitSha", commit,
+            "-ExpectedDevice", "GPU.0",
+            "-ExpectedGpuName", "Intel Test GPU",
+            "-ExpectedDriverVersion", "31.0.101.9999");
+        Assert.AreEqual(0, valid.ExitCode, valid.StandardError);
+        Assert.AreEqual("gpu_evidence_valid", valid.StandardOutput.Trim());
+
+        string hostile = File.ReadAllText(evidence).Replace(
+            "\"actualExecutionDevices\":[\"GPU.0\"]",
+            "\"actualExecutionDevices\":[\"CPU\"]",
+            StringComparison.Ordinal);
+        File.WriteAllText(evidence, hostile);
+        ScriptResult mismatch = RunPowerShellScript(
+            "scripts/openvino/Test-OpenVinoGpuEvidence.ps1",
+            "-EvidencePath", evidence,
+            "-StageDirectory", stage,
+            "-ResultsPath", results,
+            "-ExpectedCommitSha", commit,
+            "-ExpectedDevice", "GPU.0",
+            "-ExpectedGpuName", "Intel Test GPU",
+            "-ExpectedDriverVersion", "31.0.101.9999");
+        Assert.AreNotEqual(0, mismatch.ExitCode);
+        Assert.AreEqual("gpu_evidence_invalid", mismatch.StandardOutput.Trim());
+    }
+
     private const string CheckoutSha =
         "9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0";
     private const string SetupDotNetSha =
@@ -1331,7 +1451,15 @@ public sealed class WorkflowContractTests
         StringAssert.Contains(privacyRun, "Count -ne 1");
         StringAssert.Contains(privacyRun, "Test-OpenVinoEvidenceArtifactSet.ps1");
 
-        YamlMappingNode upload = StepUsing(steps, $"actions/upload-artifact@{UploadArtifactSha}");
+        YamlMappingNode[] cpuUploads = steps
+            .Where(step => step.Children.TryGetValue(
+                    new YamlScalarNode("uses"),
+                    out YamlNode? uses) &&
+                Scalar(uses) == $"actions/upload-artifact@{UploadArtifactSha}")
+            .Where(step => Scalar(Mapping(step, "with"), "path") == expectedFile)
+            .ToArray();
+        Assert.HasCount(1, cpuUploads);
+        YamlMappingNode upload = cpuUploads[0];
         YamlMappingNode uploadWith = Mapping(upload, "with");
         Assert.AreEqual(expectedFile, Scalar(uploadWith, "path"));
         Assert.IsFalse(Scalar(uploadWith, "path").Contains('*'));
