@@ -2248,7 +2248,13 @@ public sealed class ModelInspectionFixturePresetTests
             }
         }
 
+        void ObserveRoot(
+            XamlRoot sender,
+            XamlRootChangedEventArgs eventArguments) =>
+            Observe(sender, eventArguments);
+
         root.LayoutUpdated += Observe;
+        root.XamlRoot.Changed += ObserveRoot;
         try
         {
             double scale = root.XamlRoot.RasterizationScale;
@@ -2262,6 +2268,7 @@ public sealed class ModelInspectionFixturePresetTests
         finally
         {
             root.LayoutUpdated -= Observe;
+            root.XamlRoot.Changed -= ObserveRoot;
         }
     }
 
