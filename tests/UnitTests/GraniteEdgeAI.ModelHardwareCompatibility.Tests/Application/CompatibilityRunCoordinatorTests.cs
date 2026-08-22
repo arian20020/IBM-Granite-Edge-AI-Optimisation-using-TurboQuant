@@ -19,13 +19,35 @@ public sealed class CompatibilityRunCoordinatorTests
     {
         internal int RollbackCount { get; private set; }
 
+        internal int CommitCount { get; private set; }
+
         public HandoffClaim Claim() => claims
             ? HandoffClaim.Claimed("model-run-1", "hardware-run-1")
             : HandoffClaim.Refused(PortUnavailableReason.HandoffUnavailable);
 
         public void Rollback() => RollbackCount++;
 
-        public bool Commit(CompatibilityRunId runId) => true;
+        public bool Commit(CompatibilityRunId runId)
+        {
+            CommitCount++;
+            return true;
+        }
+    }
+
+    /// <summary>
+    /// Takes the claim and then throws, which is what an adapter handing back a
+    /// path-shaped identity would do.
+    /// </summary>
+    private sealed class ThrowingGateway : ICompatibilityInputGateway
+    {
+        internal int RollbackCount { get; private set; }
+
+        public HandoffClaim Claim() =>
+            throw new InvalidOperationException("adapter failure");
+
+        public void Rollback() => RollbackCount++;
+
+        public bool Commit(CompatibilityRunId runId) => false;
     }
 
     private sealed class StubModelFacts(InspectedModelFacts? facts) : IInspectedModelFactsSource
@@ -340,6 +362,116 @@ public sealed class CompatibilityRunCoordinatorTests
 
         Assert.IsNotNull(result.Assessment);
         Assert.IsTrue(result.Assessment!.UseCurrentModelAvailable);
+    }
+
+    [TestMethod]
+    public void Execute_IsNotEstablishedWhenNoCandidateCouldBeSized()
+    {
+        // A model whose architecture was not read yields UnknownArchitecture for
+        // every candidate. Reporting "nothing fits" there would tell the user we
+        // checked their machine when no requirement was ever computed — the
+        // difference between screen 05 and screen 06.
+        CompatibilityRunResult result = Run(Dependencies(
+            modelFacts: InspectedModelFacts.Create(
+                ByteCount.FromBytes(3 * Gibibyte),
+                layerCount: null,
+                embeddingSize: null,
+                attentionHeadCount: null,
+                keyValueHeadCount: null,
+                declaredContextLimit: 8192,
+                fileType: 15,
+                quantisationVersion: 2)));
+
+        Assert.AreEqual(
+            nameof(CompatibilityRunOutcome.NotEstablished), result.Outcome.ToString());
+        Assert.IsNull(result.Assessment);
+        Assert.IsTrue(result.Findings.Any(finding =>
+            finding.Code == CompatibilityFindingCode.NoCandidateCouldBeEstimated));
+        Assert.IsFalse(result.Findings.Any(finding =>
+            finding.Code == CompatibilityFindingCode.NoSafeConfigurationFound));
+    }
+
+    [TestMethod]
+    public void Execute_DoesNotProbeWhenNothingCouldBeSized()
+    {
+        // The probe exists to serve the fit gate. Reaching it with nothing to
+        // gate would burn a reading for no reason.
+        CountingProbe probe = new(64);
+
+        Run(Dependencies(
+            probe: probe,
+            modelFacts: InspectedModelFacts.Create(
+                ByteCount.FromBytes(3 * Gibibyte),
+                null, null, null, null, 8192, 15, 2)));
+
+        Assert.AreEqual(0, probe.ProbeCount);
+    }
+
+    [TestMethod]
+    public void Execute_PreservesTheBaselinesExclusionReason()
+    {
+        // Section 10 requires the exact reason. The recovery action differs per
+        // reason, so they are not interchangeable.
+        CompatibilityRunResult result = Run(Dependencies(
+            machineFacts: HardwareFacts.Create(
+                ByteCount.FromBytes(64 * Gibibyte),
+                ByteCount.FromBytes(8 * Gibibyte),
+                ByteCount.FromBytes(500 * Gibibyte),
+                new HashSet<DeviceRouteId> { DeviceRouteId.IntelDiscreteGpu },
+                new HashSet<CompatibilityBackend> { CompatibilityBackend.IntelSycl })));
+
+        Assert.IsNotNull(result.Assessment);
+        Assert.IsNull(result.Assessment!.BaselineFingerprint);
+        Assert.AreNotEqual(
+            BaselineExclusionReason.None, result.Assessment.BaselineExclusionReason);
+        Assert.IsTrue(result.Findings.Any(finding =>
+            finding.Code == CompatibilityFindingCode.BaselineConfigurationUnavailable));
+    }
+
+    [TestMethod]
+    public void Execute_ReportsTheBaselineReasonAsNoneWhenTheBaselineIsPresent()
+    {
+        CompatibilityRunResult result = Run();
+
+        Assert.IsNotNull(result.Assessment);
+        Assert.IsNotNull(result.Assessment!.BaselineFingerprint);
+        Assert.AreEqual(
+            nameof(BaselineExclusionReason.None),
+            result.Assessment.BaselineExclusionReason.ToString());
+    }
+
+    [TestMethod]
+    public void Execute_TurnsAThrowingAdapterIntoAFailedResultRatherThanAnException()
+    {
+        // Adapters are written by other teams. A native exception reaching the
+        // ViewModel would also be a section 14 exposure.
+        CompatibilityRunResult result = Run(Dependencies(gateway: new ThrowingGateway()));
+
+        Assert.AreEqual(nameof(CompatibilityRunOutcome.Failed), result.Outcome.ToString());
+        Assert.IsNull(result.Assessment);
+    }
+
+    [TestMethod]
+    public void Execute_ReleasesTheClaimWhenTheAdapterThrowsAfterTakingIt()
+    {
+        // A claim taken and never released blocks every later run.
+        ThrowingGateway gateway = new();
+
+        Run(Dependencies(gateway: gateway));
+
+        Assert.AreEqual(1, gateway.RollbackCount);
+    }
+
+    [TestMethod]
+    public void Execute_NeverCommits()
+    {
+        // This feature selects a plan; it never executes one. The transfer
+        // commits when the user confirms, on a later screen.
+        StubGateway gateway = new(claims: true);
+
+        Run(Dependencies(gateway: gateway));
+
+        Assert.AreEqual(0, gateway.CommitCount);
     }
 
     [TestMethod]

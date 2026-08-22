@@ -1,3 +1,4 @@
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Candidates;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Contracts;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.FitAssessment;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.ModeSelection;
@@ -24,6 +25,7 @@ public sealed class CompatibilityRunResultTests
             [],
             [CompatibilityModeSelection.NotEstablished(CompatibilityMode.Automatic)],
             baselineFingerprint: null,
+            BaselineExclusionReason.None,
             useCurrentModelAvailable: false);
 
     [TestMethod]
@@ -141,7 +143,7 @@ public sealed class CompatibilityRunResultTests
         // All four modes are always accounted for, even when unavailable.
         Assert.ThrowsExactly<ArgumentException>(
             () => CompatibilityAssessment.Create(
-                [], [], baselineFingerprint: null, useCurrentModelAvailable: false));
+                [], [], baselineFingerprint: null, BaselineExclusionReason.None, useCurrentModelAvailable: false));
     }
 
     [TestMethod]
@@ -151,7 +153,7 @@ public sealed class CompatibilityRunResultTests
             [CompatibilityModeSelection.NotEstablished(CompatibilityMode.Automatic)];
 
         CompatibilityAssessment assessment = CompatibilityAssessment.Create(
-            [], modes, baselineFingerprint: null, useCurrentModelAvailable: false);
+            [], modes, baselineFingerprint: null, BaselineExclusionReason.None, useCurrentModelAvailable: false);
 
         modes.Add(CompatibilityModeSelection.NotEstablished(CompatibilityMode.Quality));
 

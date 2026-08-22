@@ -174,17 +174,20 @@ internal static class CompatibilityRunCoordinator
             };
         }
 
-        HandoffClaim claim = dependencies.Gateway.Claim();
-
-        if (!claim.IsClaimed)
-        {
-            dependencies.Gateway.Rollback();
-            return Stop(
-                CompatibilityRunOutcome.Failed, CompatibilityFindingCode.HandoffClaimFailed);
-        }
-
         try
         {
+            // The claim is inside the boundary because building one can throw: an
+            // adapter that takes the claim and then hands back a path-shaped
+            // identity would otherwise leave the claim held and block every later
+            // run.
+            HandoffClaim claim = dependencies.Gateway.Claim();
+
+            if (!claim.IsClaimed)
+            {
+                return Stop(
+                    CompatibilityRunOutcome.Failed, CompatibilityFindingCode.HandoffClaimFailed);
+            }
+
             if (cancellationToken.IsCancellationRequested)
             {
                 return Stop(CompatibilityRunOutcome.Cancelled, null);
@@ -264,6 +267,45 @@ internal static class CompatibilityRunCoordinator
                 return Stop(CompatibilityRunOutcome.Cancelled, null);
             }
 
+            WeightQuantisation importedEncoding = WeightQuantisationMap.FromGgufFileType(
+                modelFacts.FileType, modelFacts.QuantisationVersion);
+
+            // Estimation first, then one probe, then the gate. Spec section 6 puts
+            // the reading immediately before the gate so the figure the budget is
+            // compared against is as fresh as it can be.
+            List<(CompatibilityCandidate Candidate, ResourceEstimate Estimate,
+                ResourcePeakProfile Peaks)> sized = [];
+
+            foreach (CompatibilityCandidate candidate in generated.Candidates)
+            {
+                ResourceEstimate estimate = GgufResourceEstimator.Estimate(
+                    modelFacts, candidate, dependencies.EstimatorPolicy);
+
+                if (estimate.Status != EstimationStatus.Established)
+                {
+                    continue;
+                }
+
+                sized.Add((
+                    candidate, estimate, ResourcePhaseComposer.Compose(estimate.Components)));
+            }
+
+            // Nothing sized is a different answer from everything sized and
+            // nothing fitting. Reporting the second when the first happened would
+            // tell the user we checked their machine when we never computed a
+            // requirement to check it against.
+            if (sized.Count == 0)
+            {
+                return Stop(
+                    CompatibilityRunOutcome.NotEstablished,
+                    CompatibilityFindingCode.NoCandidateCouldBeEstimated);
+            }
+
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return Stop(CompatibilityRunOutcome.Cancelled, null);
+            }
+
             // One observation, taken here and shared by every candidate below.
             // Probing per candidate would let two candidates be judged against
             // different machines, and the comparison between them would be a lie.
@@ -276,34 +318,18 @@ internal static class CompatibilityRunCoordinator
                     CompatibilityFindingCode.FreshMemoryUnavailable);
             }
 
-            WeightQuantisation importedEncoding = WeightQuantisationMap.FromGgufFileType(
-                modelFacts.FileType, modelFacts.QuantisationVersion);
-
-            List<EvaluatedCandidate> evaluated = [];
-
-            foreach (CompatibilityCandidate candidate in generated.Candidates)
-            {
-                ResourceEstimate estimate = GgufResourceEstimator.Estimate(
-                    modelFacts, candidate, dependencies.EstimatorPolicy);
-
-                if (estimate.Status != EstimationStatus.Established)
-                {
-                    continue;
-                }
-
-                ResourcePeakProfile peaks =
-                    ResourcePhaseComposer.Compose(estimate.Components);
-
-                evaluated.Add(EvaluatedCandidate.Create(
-                    candidate,
-                    estimate,
-                    peaks,
-                    FitPolicy.Assess(peaks, available, dependencies.SafetyPolicy),
-                    EffectiveEncoding(candidate, importedEncoding),
+            List<EvaluatedCandidate> evaluated =
+            [
+                .. sized.Select(entry => EvaluatedCandidate.Create(
+                    entry.Candidate,
+                    entry.Estimate,
+                    entry.Peaks,
+                    FitPolicy.Assess(entry.Peaks, available, dependencies.SafetyPolicy),
+                    EffectiveEncoding(entry.Candidate, importedEncoding),
                     EvidenceGrade.Estimated,
                     PerformanceIndicator.NotEstablished(),
-                    peaks.PeakFor(ResourceTarget.Storage)));
-            }
+                    entry.Peaks.PeakFor(ResourceTarget.Storage)))
+            ];
 
             IReadOnlySet<string> evidenceRequiring =
                 new HashSet<string>(dependencies.Matrix.Entries
@@ -317,6 +343,13 @@ internal static class CompatibilityRunCoordinator
                     preservationTarget,
                     dependencies.BaselineConfiguration));
 
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return Stop(CompatibilityRunOutcome.Cancelled, null);
+            }
+
+            // Every candidate was sized and compared, and none fit. That is a
+            // real conclusion, unlike the empty case handled above.
             if (!modes.Selections.Any(selection =>
                 selection.Availability == ModeAvailability.Available))
             {
@@ -325,10 +358,26 @@ internal static class CompatibilityRunCoordinator
                     FindingSeverity.Warning));
             }
 
+            if (!generated.BaselineIncluded)
+            {
+                findings.Add(CompatibilityFinding.Create(
+                    CompatibilityFindingCode.BaselineConfigurationUnavailable,
+                    FindingSeverity.Warning));
+            }
+
+            // Only publish the baseline's fingerprint if it survived estimation;
+            // naming one absent from the evaluated set would point at nothing.
+            CandidateFingerprint? baselineFingerprint =
+                generated.BaselineIncluded
+                && evaluated.Any(candidate => candidate.Candidate.IsBaseline)
+                    ? generated.Candidates[0].Fingerprint
+                    : null;
+
             CompatibilityAssessment assessment = CompatibilityAssessment.Create(
                 evaluated,
                 modes.Selections,
-                generated.BaselineIncluded ? generated.Candidates[0].Fingerprint : null,
+                baselineFingerprint,
+                generated.BaselineExclusionReason,
                 modes.UseCurrentModelAvailable);
 
             return CompatibilityRunResult.Completed(
@@ -338,6 +387,16 @@ internal static class CompatibilityRunCoordinator
                 policies,
                 startedAt,
                 dependencies.Clock.GetUtcNow());
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            // An adapter written by another team, or any arithmetic that escapes
+            // its own guard, becomes a Failed result rather than a native
+            // exception reaching the ViewModel. Section 14 forbids a native error
+            // surfacing, so the exception itself is deliberately not recorded —
+            // only that the run failed.
+            return Stop(
+                CompatibilityRunOutcome.Failed, CompatibilityFindingCode.HandoffClaimFailed);
         }
         finally
         {
