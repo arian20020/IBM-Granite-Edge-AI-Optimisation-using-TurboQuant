@@ -1,10 +1,21 @@
 name: Workbook 05 post-C workbook bootstrap
 
-# Owner-authorised materialisation trigger: 2026-08-22.
 on:
   push:
     branches:
       - feature/workbook-05-post-c-workbook-pack
+    paths:
+      - '.github/workflows/workbook-05-post-c-bootstrap.yml'
+      - '.github/workflows/workbook-05-post-c-workbooks.yml'
+      - 'scripts/testing/Generate-Controlled-Workbooks.py'
+      - 'scripts/testing/Validate-Workbook05-PostC-Workbooks.ps1'
+      - 'scripts/testing/workbook05/bootstrap_post_c_workbooks.py'
+      - 'scripts/testing/workbook05/post_c_workbook_pack.py'
+      - 'tests/testing/workbook05/test_post_c_workbook_pack.py'
+      - '.bootstrap/workbook05-post-c-source.b64.part-*'
+  pull_request:
+    branches:
+      - main
     paths:
       - '.github/workflows/workbook-05-post-c-bootstrap.yml'
       - '.github/workflows/workbook-05-post-c-workbooks.yml'
@@ -30,6 +41,9 @@ concurrency:
 jobs:
   materialise-post-c-workbook-pack:
     name: Materialise and validate all seven workbooks
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository
     runs-on: windows-latest
     timeout-minutes: 60
     outputs:
@@ -40,7 +54,7 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
           persist-credentials: true
-          ref: ${{ github.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 1
           sparse-checkout: |
             .bootstrap
@@ -188,6 +202,8 @@ jobs:
       - name: Commit the deterministic workbook pack to the feature branch
         id: commit-pack
         shell: powershell
+        env:
+          TARGET_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
@@ -219,7 +235,7 @@ jobs:
               if ($LASTEXITCODE -ne 0) {
                   throw "git commit exited with code $LASTEXITCODE."
               }
-              git push origin "HEAD:${{ github.ref_name }}"
+              git push origin "HEAD:$env:TARGET_BRANCH"
               if ($LASTEXITCODE -ne 0) {
                   throw "git push exited with code $LASTEXITCODE."
               }
