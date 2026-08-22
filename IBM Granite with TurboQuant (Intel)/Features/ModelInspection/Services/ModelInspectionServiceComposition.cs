@@ -5,6 +5,7 @@ using System.Security.Cryptography;
 using System.Reflection;
 using GraniteEdgeAI.Features.OpenVinoRoute;
 using GraniteEdgeAI.Features.OpenVinoRoute.Conversion;
+using GraniteEdgeAI.Features.OpenVinoRoute.Optimization;
 using GraniteEdgeAI.Features.Prompting;
 using GraniteEdgeAI.OpenVino.Contracts;
 using GraniteEdgeAI.OpenVino.WorkerClient;
@@ -100,11 +101,38 @@ internal static class ModelInspectionServiceComposition
     {
 #if MODEL_INSPECTION_X64
         ArgumentNullException.ThrowIfNull(routeService);
+        (string converterRoot, string expectedDigest) = ResolveApprovedConverter();
+        return new OpenVinoConversionService(new SealedOpenVinoConversionPipeline(
+            converterRoot,
+            expectedDigest,
+            routeService));
+#else
+        throw new PlatformNotSupportedException(
+            "OpenVINO conversion is available only on Windows x64.");
+#endif
+    }
+
+    internal static OpenVinoOptimizationService CreateDefaultOpenVinoOptimizationService(
+        OpenVinoRouteService routeService)
+    {
+#if MODEL_INSPECTION_X64
+        ArgumentNullException.ThrowIfNull(routeService);
+        (string converterRoot, string expectedDigest) = ResolveApprovedConverter();
+        return new OpenVinoOptimizationService(new SealedOpenVinoOptimizationPipeline(
+            converterRoot,
+            expectedDigest,
+            routeService));
+#else
+        throw new PlatformNotSupportedException(
+            "OpenVINO optimization is available only on Windows x64.");
+#endif
+    }
+
+#if MODEL_INSPECTION_X64
+    private static (string Root, string Digest) ResolveApprovedConverter()
+    {
         string converterRoot = Path.GetFullPath(Path.Combine(
-            AppContext.BaseDirectory,
-            "OpenVino",
-            "Converter",
-            "Worker"));
+            AppContext.BaseDirectory, "OpenVino", "Converter", "Worker"));
         string manifestPath = Path.Combine(converterRoot, "converter-manifest.json");
         string packagedDigest = Convert.ToHexString(
             SHA256.HashData(File.ReadAllBytes(manifestPath))).ToLowerInvariant();
@@ -122,15 +150,9 @@ internal static class ModelInspectionServiceComposition
             throw new InvalidOperationException(
                 "The packaged converter does not match the app-approved identity.");
         }
-        return new OpenVinoConversionService(new SealedOpenVinoConversionPipeline(
-            converterRoot,
-            expectedDigest,
-            routeService));
-#else
-        throw new PlatformNotSupportedException(
-            "OpenVINO conversion is available only on Windows x64.");
-#endif
+        return (converterRoot, expectedDigest);
     }
+#endif
 
     private static IReadOnlyDictionary<string, OpenVinoWorkerBinaryMachine>
         OfficialBinaryMachines() =>
