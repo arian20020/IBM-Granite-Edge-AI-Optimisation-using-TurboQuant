@@ -39,7 +39,7 @@ jobs:
     steps:
       - name: Reject debug controls before runner eligibility
         timeout-minutes: 2
-        shell: 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command "$ErrorActionPreference = ''Stop''; $global:LASTEXITCODE = 0; & ''{0}''; if (-not $?) { if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; exit 1 }; exit $LASTEXITCODE"'
+        shell: 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command "$ErrorActionPreference = ''Stop''; $global:LASTEXITCODE = 0; & ''{0}''; if (-not $?) {{ if ($LASTEXITCODE -ne 0) {{ exit $LASTEXITCODE }}; exit 1 }}; exit $LASTEXITCODE"'
         env:
           STAGEA_RUNNER_DEBUG: ${{ runner.debug }}
         run: |
@@ -111,7 +111,7 @@ jobs:
           python-version: '3.12.10'
 
       - name: Run Stage 0 and Stage A control contracts
-        shell: 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command "$ErrorActionPreference = ''Stop''; $global:LASTEXITCODE = 0; & ''{0}''; if (-not $?) { if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; exit 1 }; exit $LASTEXITCODE"'
+        shell: 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command "$ErrorActionPreference = ''Stop''; $global:LASTEXITCODE = 0; & ''{0}''; if (-not $?) {{ if ($LASTEXITCODE -ne 0) {{ exit $LASTEXITCODE }}; exit 1 }}; exit $LASTEXITCODE"'
         working-directory: control
         run: >-
           python -m unittest -v
@@ -120,7 +120,7 @@ jobs:
 
       - name: Parse the default-branch llmfit-gate1-approved-source.json approval manifest
         id: approval
-        shell: 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command "$ErrorActionPreference = ''Stop''; $global:LASTEXITCODE = 0; & ''{0}''; if (-not $?) { if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; exit 1 }; exit $LASTEXITCODE"'
+        shell: 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command "$ErrorActionPreference = ''Stop''; $global:LASTEXITCODE = 0; & ''{0}''; if (-not $?) {{ if ($LASTEXITCODE -ne 0) {{ exit $LASTEXITCODE }}; exit 1 }}; exit $LASTEXITCODE"'
         env:
           STAGE0_WORKFLOW_REF: ${{ github.ref }}
           STAGE0_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
@@ -155,7 +155,7 @@ jobs:
 
       - name: Validate approved source and runner label
         id: validated
-        shell: 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command "$ErrorActionPreference = ''Stop''; $global:LASTEXITCODE = 0; & ''{0}''; if (-not $?) { if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; exit 1 }; exit $LASTEXITCODE"'
+        shell: 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command "$ErrorActionPreference = ''Stop''; $global:LASTEXITCODE = 0; & ''{0}''; if (-not $?) {{ if ($LASTEXITCODE -ne 0) {{ exit $LASTEXITCODE }}; exit 1 }}; exit $LASTEXITCODE"'
         env:
           STAGEA_WORKFLOW_REF: ${{ github.ref }}
           STAGEA_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
@@ -195,7 +195,7 @@ jobs:
     steps:
       - name: Reject debug controls and mask runner metadata
         timeout-minutes: 2
-        shell: 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command "$ErrorActionPreference = ''Stop''; $global:LASTEXITCODE = 0; & ''{0}''; if (-not $?) { if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; exit 1 }; exit $LASTEXITCODE"'
+        shell: 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command "$ErrorActionPreference = ''Stop''; $global:LASTEXITCODE = 0; & ''{0}''; if (-not $?) {{ if ($LASTEXITCODE -ne 0) {{ exit $LASTEXITCODE }}; exit 1 }}; exit $LASTEXITCODE"'
         env:
           STAGEA_RUNNER_DEBUG: ${{ runner.debug }}
         run: |
@@ -275,7 +275,7 @@ jobs:
           sparse-checkout-cone-mode: true
 
       - name: Validate runner context before evaluated checkout
-        shell: 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command "$ErrorActionPreference = ''Stop''; $global:LASTEXITCODE = 0; & ''{0}''; if (-not $?) { if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; exit 1 }; exit $LASTEXITCODE"'
+        shell: 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command "$ErrorActionPreference = ''Stop''; $global:LASTEXITCODE = 0; & ''{0}''; if (-not $?) {{ if ($LASTEXITCODE -ne 0) {{ exit $LASTEXITCODE }}; exit 1 }}; exit $LASTEXITCODE"'
         env:
           STAGEA_WORKFLOW_REF: ${{ github.ref }}
           STAGEA_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
@@ -313,7 +313,7 @@ jobs:
           persist-credentials: false
 
       - name: Validate evaluated source before execution
-        shell: 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command "$ErrorActionPreference = ''Stop''; $global:LASTEXITCODE = 0; & ''{0}''; if (-not $?) { if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; exit 1 }; exit $LASTEXITCODE"'
+        shell: 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command "$ErrorActionPreference = ''Stop''; $global:LASTEXITCODE = 0; & ''{0}''; if (-not $?) {{ if ($LASTEXITCODE -ne 0) {{ exit $LASTEXITCODE }}; exit 1 }}; exit $LASTEXITCODE"'
         env:
           STAGEA_WORKFLOW_REF: ${{ github.ref }}
           STAGEA_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
@@ -345,7 +345,7 @@ jobs:
           global-json-file: evaluated/global.json
 
       - name: Run authorised deterministic validation
-        shell: 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command "$ErrorActionPreference = ''Stop''; $global:LASTEXITCODE = 0; & ''{0}''; if (-not $?) { if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; exit 1 }; exit $LASTEXITCODE"'
+        shell: 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command "$ErrorActionPreference = ''Stop''; $global:LASTEXITCODE = 0; & ''{0}''; if (-not $?) {{ if ($LASTEXITCODE -ne 0) {{ exit $LASTEXITCODE }}; exit 1 }}; exit $LASTEXITCODE"'
         working-directory: ${{ github.workspace }}
         env:
           STAGEA_APPROVED_SHA: ${{ needs.hosted-preflight.outputs.approved_sha }}
@@ -420,7 +420,7 @@ jobs:
           }
 
       - name: Validate Stage A summary artifacts before upload
-        shell: 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command "$ErrorActionPreference = ''Stop''; $global:LASTEXITCODE = 0; & ''{0}''; if (-not $?) { if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; exit 1 }; exit $LASTEXITCODE"'
+        shell: 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command "$ErrorActionPreference = ''Stop''; $global:LASTEXITCODE = 0; & ''{0}''; if (-not $?) {{ if ($LASTEXITCODE -ne 0) {{ exit $LASTEXITCODE }}; exit 1 }}; exit $LASTEXITCODE"'
         env:
           STAGEA_APPROVED_SHA: ${{ needs.hosted-preflight.outputs.approved_sha }}
         run: |
@@ -467,7 +467,7 @@ jobs:
           include-hidden-files: false
 
       - name: Publish validated Stage A summary
-        shell: 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command "$ErrorActionPreference = ''Stop''; $global:LASTEXITCODE = 0; & ''{0}''; if (-not $?) { if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; exit 1 }; exit $LASTEXITCODE"'
+        shell: 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command "$ErrorActionPreference = ''Stop''; $global:LASTEXITCODE = 0; & ''{0}''; if (-not $?) {{ if ($LASTEXITCODE -ne 0) {{ exit $LASTEXITCODE }}; exit 1 }}; exit $LASTEXITCODE"'
         env:
           STAGEA_APPROVED_SHA: ${{ needs.hosted-preflight.outputs.approved_sha }}
         run: |
@@ -510,7 +510,7 @@ jobs:
       - name: Check Stage A residue
         if: ${{ always() }}
         timeout-minutes: 2
-        shell: 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command "$ErrorActionPreference = ''Stop''; $global:LASTEXITCODE = 0; & ''{0}''; if (-not $?) { if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; exit 1 }; exit $LASTEXITCODE"'
+        shell: 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command "$ErrorActionPreference = ''Stop''; $global:LASTEXITCODE = 0; & ''{0}''; if (-not $?) {{ if ($LASTEXITCODE -ne 0) {{ exit $LASTEXITCODE }}; exit 1 }}; exit $LASTEXITCODE"'
         run: |
           $ErrorActionPreference = 'Stop'
           $failure = 'HI-RUNNER-STAGEA-RESIDUE-INVALID: fixed residue check failed.'

@@ -286,7 +286,7 @@ The workflow digest recorded before these hardening changes is superseded. After
 python -c "from pathlib import Path; import hashlib; b=Path('.github/workflows/hardware-inspection-intel-runner-stage-a.yml').read_bytes(); assert not b.startswith(b'\xef\xbb\xbf') and b'\r' not in b; print(hashlib.sha256(b).hexdigest())"
 ```
 
-Canonical Stage A workflow SHA-256: `953167cdfcb983ae6d0ca00831d35fcdf826570001ab7721f1b835ab423c37a5`.
+Canonical Stage A workflow SHA-256: `3fec298991af8397f56b3776532a23304a05d87c57058e536a8a8e9b9e30d5b3`.
 
 Self-hosted execution order is fixed:
 
