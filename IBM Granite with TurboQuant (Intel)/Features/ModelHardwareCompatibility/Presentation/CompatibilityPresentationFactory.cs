@@ -119,8 +119,8 @@ internal static class CompatibilityPresentationFactory
             [
                 new CompatibilityRecovery(
                     "Try a smaller setup",
-                    "A shorter chat length, or a smaller way of storing it, leaves more "
-                    + "memory spare than we allowed for."),
+                    "A shorter context, or a smaller way of storing it, leaves more memory "
+                    + "spare than we allowed for."),
                 new CompatibilityRecovery(
                     "Close other apps",
                     "What matters is the memory free right now, and that changes as you "
@@ -200,9 +200,8 @@ internal static class CompatibilityPresentationFactory
             Recoveries =
             [
                 new CompatibilityRecovery(
-                    "Try a shorter chat length",
-                    "The longer the chat it can remember, the more memory it needs while "
-                    + "it runs."),
+                    "Try a shorter context",
+                    "The longer the context, the more memory it needs while it runs."),
                 .. BaselineRecoveries(model)
             ],
             PrimaryActionText = "Continue",
@@ -319,9 +318,9 @@ internal static class CompatibilityPresentationFactory
                     "None of the setups we support work for this model on this computer."),
 
                 CompatibilityFindingCode.PlanningContextNotEstablished => new CompatibilityRecovery(
-                    "We don't know how much this model can remember",
-                    "Memory for the chat history depends on it. We won't guess a number "
-                    + "the model may not handle."),
+                    "We don't know this model's context limit",
+                    "Memory for the context depends on it. We won't guess a number the "
+                    + "model may not handle."),
 
                 CompatibilityFindingCode.HandoffClaimFailed => new CompatibilityRecovery(
                     "The earlier steps don't match up",
@@ -363,8 +362,8 @@ internal static class CompatibilityPresentationFactory
             BaselineExclusionReason.BaselineContextOutsideEntryBounds =>
             [
                 new CompatibilityRecovery(
-                    "Your current chat length is out of range",
-                    "The setup works, but not at the chat length you've picked.")
+                    "Your current context is out of range",
+                    "The setup works, but not at the context length you've picked.")
             ],
             BaselineExclusionReason.ModelContextLimitNotEstablished =>
             [
@@ -385,8 +384,8 @@ internal static class CompatibilityPresentationFactory
     private static string DisclosureText(CompatibilityScreenModel model)
     {
         string basis =
-            "We work out the memory needed from the model's size and shape, the chat "
-            + "length you picked, and how it would run. We compare that with the memory "
+            "We work out the memory needed from the model's size and shape, the "
+            + "context length you picked, and how it would run. We compare that with the memory "
             + "free right now, minus some we set aside for Windows and your other apps.";
 
         bool uncalibrated = model.Findings.Any(finding =>
