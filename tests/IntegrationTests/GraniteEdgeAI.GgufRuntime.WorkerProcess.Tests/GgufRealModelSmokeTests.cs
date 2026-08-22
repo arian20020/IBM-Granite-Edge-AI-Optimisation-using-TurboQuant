@@ -53,13 +53,10 @@ public sealed class GgufRealModelSmokeTests
         Assert.IsTrue(second.OfType<TextDeltaEvent>().Any());
         string firstText = string.Concat(
             first.OfType<TextDeltaEvent>().Select(delta => delta.Text));
-        Assert.IsFalse(string.IsNullOrWhiteSpace(firstText));
-        Assert.IsFalse(Regex.IsMatch(
-            firstText,
-            @"(?im)^\s*(?:me|user|assistant)\s*:"));
-        Assert.IsFalse(Regex.IsMatch(
-            firstText,
-            @"(?m)(?:^\s*```\s*$\r?\n){2,}"));
+        string secondText = string.Concat(
+            second.OfType<TextDeltaEvent>().Select(delta => delta.Text));
+        AssertSingleAssistantTurn(firstText);
+        AssertSingleAssistantTurn(secondText);
 
         var stoppedEvents = new List<GgufRuntimeEvent>();
         bool stopRequested = false;
@@ -83,6 +80,17 @@ public sealed class GgufRealModelSmokeTests
         Assert.IsTrue(stoppedEvents.OfType<ResponseStoppedEvent>().Any());
         await session.CloseAsync(timeout.Token);
         AssertFileDigest(controlled.ModelFile, controlled.ModelSha256);
+    }
+
+    private static void AssertSingleAssistantTurn(string text)
+    {
+        Assert.IsFalse(string.IsNullOrWhiteSpace(text));
+        Assert.IsFalse(Regex.IsMatch(
+            text,
+            @"(?im)^\s*(?:me|user|assistant)\s*:"));
+        Assert.IsFalse(Regex.IsMatch(
+            text,
+            @"(?m)(?:^\s*```\s*$\r?\n){2,}"));
     }
 
     private static async Task<IReadOnlyList<GgufRuntimeEvent>> CollectAsync(

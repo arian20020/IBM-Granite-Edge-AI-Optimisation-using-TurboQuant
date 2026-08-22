@@ -284,8 +284,8 @@ public sealed partial class ChatPage : Page
 
     private void ChatPage_Unloaded(object sender, RoutedEventArgs eventArguments)
     {
-        Unloaded -= ChatPage_Unloaded;
         copyChatFeedbackTimer.Stop();
+        ResetCopyChatFeedback();
         CancelTranscriptFollow();
     }
 

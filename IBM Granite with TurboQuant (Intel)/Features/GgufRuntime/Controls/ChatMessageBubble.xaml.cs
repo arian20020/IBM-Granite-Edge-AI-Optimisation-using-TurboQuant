@@ -150,6 +150,11 @@ public sealed partial class ChatMessageBubble : UserControl
         object eventArguments)
     {
         sender.Stop();
+        ResetCopyFeedback();
+    }
+
+    private void ResetCopyFeedback()
+    {
         CopyMessageGlyph.Glyph = "\uE8C8";
         AutomationProperties.SetName(CopyMessageButton, CopyMessageLabel);
         ToolTipService.SetToolTip(CopyMessageButton, CopyMessageLabel);
@@ -169,5 +174,6 @@ public sealed partial class ChatMessageBubble : UserControl
         RoutedEventArgs eventArguments)
     {
         copyFeedbackTimer.Stop();
+        ResetCopyFeedback();
     }
 }

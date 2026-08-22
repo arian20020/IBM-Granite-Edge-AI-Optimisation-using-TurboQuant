@@ -102,6 +102,31 @@ public sealed class ChatPageTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
+    public async Task MessageCopyFeedbackResetsAcrossUnloadAndReload()
+    {
+        var bubble = new ChatMessageBubble { MessageContent = "Copy me" };
+        var root = new Grid();
+        root.Children.Add(bubble);
+        await using WinUiRenderHost host =
+            await WinUiRenderHost.ShowAsync(root, 480, 240);
+        Button copy = Assert.IsInstanceOfType<Button>(
+            bubble.FindName("CopyMessageButton"));
+        bubble.ShowCopyResult(succeeded: true);
+        Assert.AreEqual("Copied", AutomationProperties.GetName(copy));
+
+        var unloaded = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        bubble.Unloaded += (_, _) => unloaded.TrySetResult(true);
+        root.Children.Remove(bubble);
+        await unloaded.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        root.Children.Add(bubble);
+        await host.CaptureAsync();
+
+        Assert.AreEqual("Copy message", AutomationProperties.GetName(copy));
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
     public void SidebarActionsAndHistoryUseGhostNavigationRows()
     {
         var page = new ChatPage();
@@ -301,6 +326,35 @@ public sealed class ChatPageTests
             $"{Environment.NewLine}Granite Edge AI:{Environment.NewLine}Partial",
             clipboard.Text);
         Assert.AreEqual("Copied", AutomationProperties.GetName(copy));
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task CopyChatFeedbackResetsAcrossUnloadAndReload()
+    {
+        var page = new ChatPage(new RecordingClipboard());
+        page.SynchronizeTranscript(
+            Guid.NewGuid(),
+            [ChatMessage.User("Question", DateTimeOffset.UtcNow)],
+            forceFollowLatest: false);
+        var root = new Grid();
+        root.Children.Add(page);
+        await using WinUiRenderHost host =
+            await WinUiRenderHost.ShowAsync(root, 900, 520);
+        Button copy = Assert.IsInstanceOfType<Button>(
+            page.FindName("CopyChatButton"));
+        Invoke(copy);
+        Assert.AreEqual("Copied", AutomationProperties.GetName(copy));
+
+        var unloaded = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        page.Unloaded += (_, _) => unloaded.TrySetResult(true);
+        root.Children.Remove(page);
+        await unloaded.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        root.Children.Add(page);
+        await host.CaptureAsync();
+
+        Assert.AreEqual("Copy chat", AutomationProperties.GetName(copy));
     }
 
     [UITestMethod]
