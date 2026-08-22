@@ -125,6 +125,41 @@ public sealed class WindowsSystemSnapshotProviderTests
     }
 
     [TestMethod]
+    [DataRow("")]
+    [DataRow(" leading")]
+    [DataRow("trailing ")]
+    [DataRow("control\u0085")]
+    [DataRow("format\u2066control")]
+    [DataRow("line\u2028separator")]
+    [DataRow("paragraph\u2029separator")]
+    public void SnapshotRejectsUnsafeOperatingSystemText(string unsafeText)
+    {
+        Assert.ThrowsExactly<ArgumentException>(() => CreateSnapshot(unsafeText, "10.0.26200", "x64"));
+        Assert.ThrowsExactly<ArgumentException>(() => CreateSnapshot("Windows 11", unsafeText, "x64"));
+        Assert.ThrowsExactly<ArgumentException>(() => CreateSnapshot("Windows 11", "10.0.26200", unsafeText));
+    }
+
+    [TestMethod]
+    public void SnapshotRejectsInvalidOrOversizedOperatingSystemText()
+    {
+        string unpairedSurrogate = string.Concat("Windows", new string('\ud800', 1));
+        string oversized = new('x', 257);
+
+        Assert.ThrowsExactly<ArgumentException>(() => CreateSnapshot(unpairedSurrogate, "10.0.26200", "x64"));
+        Assert.ThrowsExactly<ArgumentException>(() => CreateSnapshot("Windows 11", oversized, "x64"));
+    }
+
+    [TestMethod]
+    public void SnapshotAcceptsSafeUnicodeWithoutNormalization()
+    {
+        const string name = "Windows Cafe\u0301 \uE000";
+
+        WindowsSystemSnapshot snapshot = CreateSnapshot(name, "10.0.26200", "x64");
+
+        Assert.AreEqual(name, snapshot.OperatingSystemName);
+    }
+
+    [TestMethod]
     [TestCategory("WindowsIntegration")]
     public async Task RealProviderReturnsStructurallyConsistentPrivateSafeSnapshot()
     {
@@ -145,6 +180,19 @@ public sealed class WindowsSystemSnapshotProviderTests
             api,
             new FixedTimeProvider(CapturedAtUtc),
             new FakeOperatingSystemInfo());
+
+    private static WindowsSystemSnapshot CreateSnapshot(
+        string name,
+        string version,
+        string architecture) =>
+        new(
+            2,
+            1,
+            0,
+            CapturedAtUtc,
+            name,
+            version,
+            architecture);
 
     private sealed class FakeWindowsMemoryApi(
         ulong installedKilobytes,

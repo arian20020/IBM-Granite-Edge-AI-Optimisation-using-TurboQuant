@@ -180,6 +180,10 @@ public sealed class LlmFitContractTests
     [DataRow(" leading")]
     [DataRow("trailing ")]
     [DataRow("control\u0001")]
+    [DataRow("format\u200Econtrol")]
+    [DataRow("bidi\u202Econtrol")]
+    [DataRow("line\u2028separator")]
+    [DataRow("paragraph\u2029separator")]
     public void ReportedGpuRejectsUnsafeNames(string name)
     {
         Assert.ThrowsExactly<ArgumentException>(() => new LlmFitReportedGpu(name, 1));
@@ -191,6 +195,36 @@ public sealed class LlmFitContractTests
         string name = string.Concat("broken", new string('\ud800', 1));
 
         Assert.ThrowsExactly<ArgumentException>(() => new LlmFitReportedGpu(name, 1));
+    }
+
+    [TestMethod]
+    public void ReportedGpuCountsUnicodeScalarsAndRejectsMoreThanMaximum()
+    {
+        string supplementaryCharacter = char.ConvertFromUtf32(0x1F5A5);
+
+        _ = new LlmFitReportedGpu(string.Concat(Enumerable.Repeat(supplementaryCharacter, 256)), 1);
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            new LlmFitReportedGpu(string.Concat(Enumerable.Repeat(supplementaryCharacter, 257)), 1));
+    }
+
+    [TestMethod]
+    public void HardwareNamesAcceptSafeUnicodeWithoutNormalization()
+    {
+        const string name = "Cafe\u0301 \uE000 Processor";
+
+        LlmFitHardwareEvidence evidence = LlmFitHardwareEvidence.Available(
+            "llmfit",
+            "1.1.9",
+            CapturedAtUtc,
+            name,
+            16,
+            32,
+            16,
+            LlmFitGpuDetectionState.NotReported,
+            [],
+            new string('a', 64));
+
+        Assert.AreEqual(name, evidence.CpuName);
     }
 
     [TestMethod]

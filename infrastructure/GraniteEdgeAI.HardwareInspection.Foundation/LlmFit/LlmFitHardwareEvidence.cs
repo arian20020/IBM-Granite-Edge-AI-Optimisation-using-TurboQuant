@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using GraniteEdgeAI.HardwareInspection.Foundation.Validation;
 
 namespace GraniteEdgeAI.HardwareInspection.Foundation.LlmFit;
 
@@ -412,49 +413,7 @@ public sealed class LlmFitHardwareEvidence
 internal static class LlmFitContractValidation
 {
     internal static void ValidateSafeName(string name, string parameterName)
-    {
-        ArgumentNullException.ThrowIfNull(name, parameterName);
-        if (!IsSafeName(name))
-        {
-            throw new ArgumentException("The name is not a safe bounded hardware name.", parameterName);
-        }
-    }
+        => HardwareText.Validate(name, 256, parameterName);
 
-    internal static bool IsSafeName(string? name)
-    {
-        if (string.IsNullOrEmpty(name) || char.IsWhiteSpace(name[0]) || char.IsWhiteSpace(name[^1]))
-        {
-            return false;
-        }
-
-        int scalarCount = 0;
-        for (int index = 0; index < name.Length; index++)
-        {
-            char character = name[index];
-            if (character == '\0' || char.IsControl(character))
-            {
-                return false;
-            }
-
-            if (char.IsHighSurrogate(character))
-            {
-                if (index + 1 >= name.Length || !char.IsLowSurrogate(name[++index]))
-                {
-                    return false;
-                }
-            }
-            else if (char.IsLowSurrogate(character))
-            {
-                return false;
-            }
-
-            scalarCount++;
-            if (scalarCount > 256)
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
+    internal static bool IsSafeName(string? name) => HardwareText.IsSafe(name, 256);
 }

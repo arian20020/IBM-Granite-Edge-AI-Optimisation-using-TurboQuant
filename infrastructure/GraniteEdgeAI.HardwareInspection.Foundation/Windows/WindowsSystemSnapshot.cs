@@ -1,3 +1,5 @@
+using GraniteEdgeAI.HardwareInspection.Foundation.Validation;
+
 namespace GraniteEdgeAI.HardwareInspection.Foundation.Windows;
 
 public sealed class WindowsSystemSnapshot
@@ -22,9 +24,9 @@ public sealed class WindowsSystemSnapshot
             throw new ArgumentException("Capture time must be UTC.", nameof(capturedAtUtc));
         }
 
-        ArgumentException.ThrowIfNullOrWhiteSpace(operatingSystemName);
-        ArgumentException.ThrowIfNullOrWhiteSpace(operatingSystemVersion);
-        ArgumentException.ThrowIfNullOrWhiteSpace(operatingSystemArchitecture);
+        HardwareText.Validate(operatingSystemName, 256, nameof(operatingSystemName));
+        HardwareText.Validate(operatingSystemVersion, 256, nameof(operatingSystemVersion));
+        HardwareText.Validate(operatingSystemArchitecture, 256, nameof(operatingSystemArchitecture));
 
         PhysicallyInstalledBytes = physicallyInstalledBytes;
         OsUsablePhysicalBytes = osUsablePhysicalBytes;
