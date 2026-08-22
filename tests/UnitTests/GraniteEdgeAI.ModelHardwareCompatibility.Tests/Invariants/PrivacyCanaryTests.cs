@@ -38,6 +38,12 @@ public sealed class PrivacyCanaryTests
         // dictionary. No new string content originates here.
         "ModeSelectionRequest.EvidenceRequiringEntryIds",
 
+        // Returns a dictionary keyed by CompatibilitySupportEntry.EntryId, already
+        // allowed above. The projection reads entry ids out of the matrix and
+        // pairs each with an observed installation state; it never constructs a
+        // string of its own, so nothing new can enter here.
+        "CapabilityProjection.Project",
+
         // Hand-written ToString overrides surfaced once the scan widened to
         // cover methods. Each formats an already-reviewed numeric value (or,
         // for CandidateFingerprint, delegates to the already-allowed Value
