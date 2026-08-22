@@ -31,7 +31,8 @@ internal sealed class LlamaSharpInferenceEngine(GgufAdapterOptions options)
         _session = new ChatSession(executor, CreateHistory(initialHistory))
             .WithHistoryTransform(new PromptTemplateTransformer(
                 _weights,
-                withAssistant: true));
+                withAssistant: true))
+            .WithOutputTransform(new GraniteTurnBoundaryTextTransform());
     }
 
     public async IAsyncEnumerable<string> GenerateAsync(
@@ -40,13 +41,7 @@ internal sealed class LlamaSharpInferenceEngine(GgufAdapterOptions options)
     {
         ChatSession session = _session
             ?? throw new InvalidOperationException("The inference engine is not initialized.");
-        var inference = new InferenceParams
-        {
-            MaxTokens = Math.Min(
-                options.MaximumGeneratedTokens,
-                checked((int)options.ContextSize / 2)),
-            SamplingPipeline = new DefaultSamplingPipeline(),
-        };
+        InferenceParams inference = CreateInferenceParameters(options);
         var message = new ChatHistory.Message(AuthorRole.User, prompt);
         await foreach (string chunk in session.ChatAsync(
                            message,
@@ -99,6 +94,27 @@ internal sealed class LlamaSharpInferenceEngine(GgufAdapterOptions options)
             TypeK = MapCacheType(configuration.KeyCacheType),
             TypeV = MapCacheType(configuration.ValueCacheType),
             FlashAttention = configuration.FlashAttention,
+        };
+    }
+
+    internal static InferenceParams CreateInferenceParameters(
+        GgufAdapterOptions configuration)
+    {
+        ArgumentNullException.ThrowIfNull(configuration);
+        return new InferenceParams
+        {
+            MaxTokens = Math.Min(
+                configuration.MaximumGeneratedTokens,
+                checked((int)configuration.ContextSize / 2)),
+            SamplingPipeline = new GreedySamplingPipeline(),
+            AntiPrompts =
+            [
+                "\nUser:", "\nuser:",
+                "\nAssistant:", "\nassistant:",
+                "\nMe:", "\nme:",
+                "\n```\n```", "\r\n```\r\n```",
+                "\n```\n\n```", "\r\n```\r\n\r\n```",
+            ],
         };
     }
 

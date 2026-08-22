@@ -1,5 +1,6 @@
 using LLama.Common;
 using LLama.Native;
+using LLama.Sampling;
 using GraniteEdgeAI.GgufRuntime.NativeAdapter;
 
 namespace GraniteEdgeAI.GgufRuntime.NativeAdapter.Tests;
@@ -51,5 +52,30 @@ public sealed class LlamaSharpInferenceEngineTests
         Assert.AreEqual(GGMLType.GGML_TYPE_Q4_0, parameters.TypeV);
         Assert.AreEqual(false, parameters.FlashAttention);
         Assert.AreEqual(64, options.MaximumGeneratedTokens);
+    }
+
+    [TestMethod]
+    public void CreateInferenceParametersUsesGreedyTurnBoundaries()
+    {
+        InferenceParams inference = LlamaSharpInferenceEngine.CreateInferenceParameters(
+            new GgufAdapterOptions(
+                "C:\\Models\\granite.gguf",
+                2048,
+                GgufAdapterCacheType.F16,
+                GgufAdapterCacheType.F16,
+                0,
+                4,
+                256,
+                false,
+                512));
+
+        Assert.AreEqual(512, inference.MaxTokens);
+        Assert.IsInstanceOfType<GreedySamplingPipeline>(inference.SamplingPipeline);
+        CollectionAssert.Contains(inference.AntiPrompts.ToList(), "\nUser:");
+        CollectionAssert.Contains(inference.AntiPrompts.ToList(), "\nuser:");
+        CollectionAssert.Contains(inference.AntiPrompts.ToList(), "\nAssistant:");
+        CollectionAssert.Contains(inference.AntiPrompts.ToList(), "\nassistant:");
+        CollectionAssert.Contains(inference.AntiPrompts.ToList(), "\nMe:");
+        CollectionAssert.Contains(inference.AntiPrompts.ToList(), "\nme:");
     }
 }
