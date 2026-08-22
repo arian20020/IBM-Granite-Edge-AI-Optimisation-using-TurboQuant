@@ -531,6 +531,10 @@ jobs:
 
       - name: Run unit and WinUI UI-thread tests
         run: |
+          msbuild "$env:APP_PROJECT" /target:Restore,Build /property:Configuration=Release /property:Platform=x64 /property:RuntimeIdentifier=win-x64
+          if ($LASTEXITCODE -ne 0) { throw 'Release app rebuild after the Debug fixture gallery failed.' }
+          dotnet build "$env:TEST_PROJECT" --configuration Release --runtime win-x64 -p:Platform=x64
+          if ($LASTEXITCODE -ne 0) { throw 'Release test-package rebuild after the Debug fixture gallery failed.' }
           $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
           $vstest = & $vswhere -latest -products * -find '**\Common7\IDE\CommonExtensions\Microsoft\TestWindow\vstest.console.exe' | Select-Object -First 1
           if (-not $vstest) {
@@ -554,7 +558,7 @@ jobs:
           [xml]$trx = Get-Content -LiteralPath $trxPath -Raw
           $counters = $trx.TestRun.ResultSummary.Counters
           $minimumExpectedTests = 686
-          $measuredExpectedTests = 717
+          $measuredExpectedTests = 844
           if ([int]$counters.total -lt $minimumExpectedTests -or [int]$counters.executed -lt $minimumExpectedTests) {
             throw "The packaged unit-test run fell below the $minimumExpectedTests-test floor."
           }
@@ -593,10 +597,10 @@ jobs:
             'GraniteEdgeAI.UnitTests.DelegateCommandTests' = 2
             'GraniteEdgeAI.UnitTests.ModelInspectionViewModelTests' = 24
             'GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation.InspectionProgressPresentationFactoryTests' = 13
-            'GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation.ModelInspectionPresentationFactoryTests' = 18
+            'GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation.ModelInspectionPresentationFactoryTests' = 20
             'GraniteEdgeAI.UnitTests.InspectionVisualStateGuardTests' = 13
-            'GraniteEdgeAI.UnitTests.ModelInspectionPageNavigationTests' = 39
-            'GraniteEdgeAI.UnitTests.OnboardingModelInspectionNavigationTests' = 14
+            'GraniteEdgeAI.UnitTests.ModelInspectionPageNavigationTests' = 41
+            'GraniteEdgeAI.UnitTests.OnboardingModelInspectionNavigationTests' = 15
             'GraniteEdgeAI.UnitTests.ModelInspectionWorkerCompositionTests' = 13
             'GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation.ModelInspectionAssetContractTests' = 3
             'GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation.ModelInspectionDisplayTextPolicyTests' = 46

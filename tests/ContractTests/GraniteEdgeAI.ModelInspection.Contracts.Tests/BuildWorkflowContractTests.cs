@@ -15,13 +15,13 @@ public sealed class BuildWorkflowContractTests
 
     private const int HostedPackagedFloor = 686;
 
-    private const int HostedPackagedExpectedTotal = 717;
+    private const int HostedPackagedExpectedTotal = 844;
 
     private const string HostedPackagedFilter =
         "/TestCaseFilter:\"TestCategory!=ModelInspectionVisualRegression&TestCategory!=ModelInspectionControlledOs\"";
 
     private const string HostedPackagedStepSha256 =
-        "F0B831F9748896AF341F62DD776F9A99293F97724C8B1BF18F6D79C95A0F8DE4";
+        "EE0FBBE0EAA3B280409BC735CFD7163E12A806D5792B672ECBF067FE68887DE0";
 
     private const string ControlledWorkflowSha256 =
         "5A58BE19B9B7F0A6E56ECF6DA136AE138AC1F74A7FDEFAA72BEFC58B353CFEC7";
@@ -40,10 +40,10 @@ public sealed class BuildWorkflowContractTests
             ("GraniteEdgeAI.UnitTests.DelegateCommandTests", 2),
             ("GraniteEdgeAI.UnitTests.ModelInspectionViewModelTests", 24),
             ("GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation.InspectionProgressPresentationFactoryTests", 13),
-            ("GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation.ModelInspectionPresentationFactoryTests", 18),
+            ("GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation.ModelInspectionPresentationFactoryTests", 20),
             ("GraniteEdgeAI.UnitTests.InspectionVisualStateGuardTests", 13),
-            ("GraniteEdgeAI.UnitTests.ModelInspectionPageNavigationTests", 39),
-            ("GraniteEdgeAI.UnitTests.OnboardingModelInspectionNavigationTests", 14),
+            ("GraniteEdgeAI.UnitTests.ModelInspectionPageNavigationTests", 41),
+            ("GraniteEdgeAI.UnitTests.OnboardingModelInspectionNavigationTests", 15),
             ("GraniteEdgeAI.UnitTests.ModelInspectionWorkerCompositionTests", 13),
             ("GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation.ModelInspectionAssetContractTests", 3),
             ("GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation.ModelInspectionDisplayTextPolicyTests", 46),
@@ -318,7 +318,7 @@ public sealed class BuildWorkflowContractTests
             "The permanent workflow must protect the current packaged application floor.");
         StringAssert.Contains(
             workflow,
-            "$measuredExpectedTests = 717",
+            "$measuredExpectedTests = 844",
             "The permanent workflow must pin the measured hosted-equivalent total.");
         string[] protectedApplicationClassFragments =
         [
@@ -333,10 +333,10 @@ public sealed class BuildWorkflowContractTests
             "DelegateCommandTests' = 2",
             "ModelInspectionViewModelTests' = 24",
             "InspectionProgressPresentationFactoryTests' = 13",
-            "ModelInspectionPresentationFactoryTests' = 18",
+            "ModelInspectionPresentationFactoryTests' = 20",
             "InspectionVisualStateGuardTests' = 13",
-            "ModelInspectionPageNavigationTests' = 39",
-            "OnboardingModelInspectionNavigationTests' = 14",
+            "ModelInspectionPageNavigationTests' = 41",
+            "OnboardingModelInspectionNavigationTests' = 15",
             "ModelInspectionWorkerCompositionTests' = 13",
             "ModelInspectionAssetContractTests' = 3",
             "ModelInspectionDisplayTextPolicyTests' = 46",
@@ -530,8 +530,8 @@ public sealed class BuildWorkflowContractTests
                 "$minimumExpectedTests = 685",
                 StringComparison.Ordinal),
             workflow.Replace(
-                "$measuredExpectedTests = 717",
-                "$measuredExpectedTests = 716",
+                "$measuredExpectedTests = 844",
+                "$measuredExpectedTests = 843",
                 StringComparison.Ordinal),
             workflow.Replace(
                 "'GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation.ModelInspectionAssetContractTests' = 3",
@@ -551,8 +551,8 @@ public sealed class BuildWorkflowContractTests
                 "$minimumExpectedTests = 686\n          $minimumExpectedTests = 1",
                 StringComparison.Ordinal),
             workflow.Replace(
-                "$measuredExpectedTests = 717",
-                "$measuredExpectedTests = 717\n          $measuredExpectedTests = 1",
+                "$measuredExpectedTests = 844",
+                "$measuredExpectedTests = 844\n          $measuredExpectedTests = 1",
                 StringComparison.Ordinal),
             workflow.Replace(
                 "if ([int]$counters.total -ne $measuredExpectedTests -or [int]$counters.executed -ne $measuredExpectedTests)",
@@ -1313,6 +1313,29 @@ public sealed class BuildWorkflowContractTests
             errors.Add("The packaged step must use the exact hosted-equivalent two-category exclusion once.");
         }
 
+        const string ReleaseAppRebuild =
+            "msbuild \"$env:APP_PROJECT\" /target:Restore,Build /property:Configuration=Release /property:Platform=x64 /property:RuntimeIdentifier=win-x64";
+        const string ReleaseTestRebuild =
+            "dotnet build \"$env:TEST_PROJECT\" --configuration Release --runtime win-x64 -p:Platform=x64";
+        int releaseAppRebuildIndex = executableStep.IndexOf(
+            ReleaseAppRebuild,
+            StringComparison.Ordinal);
+        int releaseTestRebuildIndex = executableStep.IndexOf(
+            ReleaseTestRebuild,
+            StringComparison.Ordinal);
+        int vstestIndex = executableStep.IndexOf(
+            "& $vstest `",
+            StringComparison.Ordinal);
+        if (CountOccurrences(executableStep, ReleaseAppRebuild) != 1 ||
+            CountOccurrences(executableStep, ReleaseTestRebuild) != 1 ||
+            releaseAppRebuildIndex < 0 ||
+            releaseTestRebuildIndex <= releaseAppRebuildIndex ||
+            vstestIndex <= releaseTestRebuildIndex)
+        {
+            errors.Add(
+                "The packaged step must rebuild the Release app and test package, in order, immediately before VSTest.");
+        }
+
         string floor = $"$minimumExpectedTests = {HostedPackagedFloor}";
         System.Text.RegularExpressions.MatchCollection floorAssignments =
             System.Text.RegularExpressions.Regex.Matches(
@@ -1609,7 +1632,7 @@ public sealed class BuildWorkflowContractTests
             "FullyQualifiedName~ModelInspectionFixtureInteractionTests|FullyQualifiedName~ModelInspectionFixtureLifetimeTests",
             "TestCategory=ModelInspectionFixtureGallery",
             "TestCategory!=ModelInspectionVisualRegression&TestCategory!=ModelInspectionControlledOs",
-            "HostedRelease = 717",
+            "HostedRelease = 844",
             "GraniteEdgeAI.UnitTests.ModelInspectionPageNavigationTests.PackagedN001_PageJourneyCompletesAllFiveStagesAsReady",
             "Test-ModelInspectionFixtureReleaseIsolation.ps1",
             "TestResults\\ModelInspectionFixtures\\ReleaseIsolation",

@@ -17,7 +17,7 @@ public sealed class GgufTwoTurnConversationTests
         string modelFile = Path.GetTempFileName();
         try
         {
-            GgufRuntimeClient client = GgufRuntimeClient.CreateForTestFixture(
+            GgufRuntimeClient client = GgufRuntimeClient.CreateForTesting(
                 ResolveExecutable(typeof(GgufWorkerMarker)),
                 ResolveExecutable(typeof(FakeCliMarker)),
                 modelFile,

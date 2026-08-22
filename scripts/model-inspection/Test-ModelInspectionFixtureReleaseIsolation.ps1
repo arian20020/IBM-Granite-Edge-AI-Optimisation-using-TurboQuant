@@ -935,8 +935,8 @@ function Assert-SnapshotBuildPathIsolation {
         -Recurse `
         -File `
         -Filter '*.csproj')
-    if ($projects.Count -ne 19) {
-        throw "Fresh source snapshot contains $($projects.Count) projects; expected 19."
+    if ($projects.Count -ne 34) {
+        throw "Fresh source snapshot contains $($projects.Count) projects; expected 34."
     }
 
     $names = New-Object 'System.Collections.Generic.HashSet[string]' (

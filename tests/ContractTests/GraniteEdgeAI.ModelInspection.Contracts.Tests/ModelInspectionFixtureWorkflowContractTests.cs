@@ -30,9 +30,9 @@ public sealed class ModelInspectionFixtureWorkflowContractTests
         "Check out required build inputs";
 
     private const string HostedReleaseStepSha256 =
-        "F0B831F9748896AF341F62DD776F9A99293F97724C8B1BF18F6D79C95A0F8DE4";
+        "EE0FBBE0EAA3B280409BC735CFD7163E12A806D5792B672ECBF067FE68887DE0";
 
-    private const int HostedReleaseExpectedTotal = 717;
+    private const int HostedReleaseExpectedTotal = 844;
 
     // This sentinel stays invalid evidence for mutation-baseline validation.
     private const int UnmeasuredTrxCount = -1;
@@ -129,8 +129,8 @@ public sealed class ModelInspectionFixtureWorkflowContractTests
                 "FixtureCategory = 220",
                 "FixtureCategory = 219"),
             ("hosted Release measured total",
-                "HostedRelease = 717",
-                "HostedRelease = 716")
+                "HostedRelease = 844",
+                "HostedRelease = 843")
         ];
         foreach ((string name, string original, string replacement) in gateMutations)
         {
@@ -287,8 +287,8 @@ public sealed class ModelInspectionFixtureWorkflowContractTests
                 "$minimumExpectedTests = 685",
                 StringComparison.Ordinal)),
             ("measured Release total", workflow.Replace(
-                "$measuredExpectedTests = 717",
-                "$measuredExpectedTests = 716",
+                "$measuredExpectedTests = 844",
+                "$measuredExpectedTests = 843",
                 StringComparison.Ordinal)),
             ("duplicate campaign step", workflow + "\n      " +
                 ExtractWorkflowStep(workflow, CampaignStepName)),
@@ -930,8 +930,8 @@ public sealed class ModelInspectionFixtureWorkflowContractTests
             "Worker = 77",
             "InteractionLifetime = 19",
             "FixtureCategory = 220",
-            "FocusedPolish = 322",
-            "HostedRelease = 717",
+            "FocusedPolish = 326",
+            "HostedRelease = 844",
             "N001 = 1",
             "Contracts = 357"
         ];

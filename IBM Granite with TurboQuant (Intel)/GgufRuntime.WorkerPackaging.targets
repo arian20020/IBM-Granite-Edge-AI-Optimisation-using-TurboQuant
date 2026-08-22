@@ -4,11 +4,13 @@
     <GgufRuntimeWorkerPackageRelativeDirectory>GgufRuntime\Worker</GgufRuntimeWorkerPackageRelativeDirectory>
     <GgufRuntimeAdapterPackageRelativeDirectory>GgufRuntime\Adapter</GgufRuntimeAdapterPackageRelativeDirectory>
     <_GgufRuntimeRepositoryRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..'))</_GgufRuntimeRepositoryRoot>
-    <_GgufRuntimeStageRoot>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\$(BaseIntermediateOutputPath)gguf-runtime\$(Configuration)'))</_GgufRuntimeStageRoot>
+    <_GgufRuntimeIntermediateRoot Condition="$([System.IO.Path]::IsPathRooted('$(BaseIntermediateOutputPath)'))">$(BaseIntermediateOutputPath)</_GgufRuntimeIntermediateRoot>
+    <_GgufRuntimeIntermediateRoot Condition="'$(_GgufRuntimeIntermediateRoot)' == ''">$(MSBuildProjectDirectory)\$(BaseIntermediateOutputPath)</_GgufRuntimeIntermediateRoot>
+    <_GgufRuntimeStageRoot>$([System.IO.Path]::GetFullPath('$(_GgufRuntimeIntermediateRoot)\gguf-runtime\$(Configuration)'))</_GgufRuntimeStageRoot>
     <_GgufRuntimeWorkerRoot>$(_GgufRuntimeStageRoot)\Worker</_GgufRuntimeWorkerRoot>
     <_GgufRuntimeAdapterRoot>$(_GgufRuntimeStageRoot)\Adapter</_GgufRuntimeAdapterRoot>
-    <_GgufRuntimeArtifactsRoot>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\$(BaseIntermediateOutputPath)gguf-runtime-artifacts\$(Configuration)'))</_GgufRuntimeArtifactsRoot>
-    <_GgufRuntimeManifestPath>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\$(BaseIntermediateOutputPath)gguf-runtime-manifest\$(Configuration)\runtime-manifest.json'))</_GgufRuntimeManifestPath>
+    <_GgufRuntimeArtifactsRoot>$([System.IO.Path]::GetFullPath('$(_GgufRuntimeIntermediateRoot)\gguf-runtime-artifacts\$(Configuration)'))</_GgufRuntimeArtifactsRoot>
+    <_GgufRuntimeManifestPath>$([System.IO.Path]::GetFullPath('$(_GgufRuntimeIntermediateRoot)\gguf-runtime-manifest\$(Configuration)\runtime-manifest.json'))</_GgufRuntimeManifestPath>
     <_GgufRuntimeWorkerProject>$(MSBuildThisFileDirectory)..\workers\GraniteEdgeAI.GgufRuntime.Worker\GraniteEdgeAI.GgufRuntime.Worker.csproj</_GgufRuntimeWorkerProject>
     <_GgufRuntimeAdapterProject>$(MSBuildThisFileDirectory)..\runtime\GraniteEdgeAI.GgufRuntime.NativeAdapter\GraniteEdgeAI.GgufRuntime.NativeAdapter.csproj</_GgufRuntimeAdapterProject>
     <_GgufRuntimeManifestGenerator>$(MSBuildThisFileDirectory)..\scripts\gguf-runtime\New-GgufRuntimeManifest.ps1</_GgufRuntimeManifestGenerator>

@@ -25,23 +25,23 @@ public sealed class ModelInspectionVisualSourceContractTests
         "_ModelInspectionWorkerPublishRoot";
 
     private const string WorkerPublishRootPropertyValue =
-        "$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\\$(BaseIntermediateOutputPath)model-inspection-worker\\$(Configuration)\\win-x64'))";
+        "$([System.IO.Path]::GetFullPath('$(_ModelInspectionWorkerIntermediateRoot)\\model-inspection-worker\\$(Configuration)\\win-x64'))";
 
     private const string WorkerManifestPathPropertyName =
         "_ModelInspectionWorkerManifestPath";
 
     private const string WorkerManifestPathPropertyValue =
-        "$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\\$(BaseIntermediateOutputPath)model-inspection-worker\\$(Configuration)\\worker-manifest.json'))";
+        "$([System.IO.Path]::GetFullPath('$(_ModelInspectionWorkerIntermediateRoot)\\model-inspection-worker\\$(Configuration)\\worker-manifest.json'))";
 
     private const string GgufPublishedFilesItemName = "_GgufRuntimePublishedFiles";
     private const string GgufPublishedFilesRootExpression =
         "$(_GgufRuntimeStageRoot)\\**\\*";
     private const string GgufPublishRootPropertyName = "_GgufRuntimeStageRoot";
     private const string GgufPublishRootPropertyValue =
-        "$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\\$(BaseIntermediateOutputPath)gguf-runtime\\$(Configuration)'))";
+        "$([System.IO.Path]::GetFullPath('$(_GgufRuntimeIntermediateRoot)\\gguf-runtime\\$(Configuration)'))";
     private const string GgufManifestPathPropertyName = "_GgufRuntimeManifestPath";
     private const string GgufManifestPathPropertyValue =
-        "$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\\$(BaseIntermediateOutputPath)gguf-runtime-manifest\\$(Configuration)\\runtime-manifest.json'))";
+        "$([System.IO.Path]::GetFullPath('$(_GgufRuntimeIntermediateRoot)\\gguf-runtime-manifest\\$(Configuration)\\runtime-manifest.json'))";
 
     private static readonly HashSet<string> WorkerPackagePathPropertyNames =
         new(StringComparer.OrdinalIgnoreCase)

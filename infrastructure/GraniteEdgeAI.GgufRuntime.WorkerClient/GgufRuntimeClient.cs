@@ -27,7 +27,7 @@ public sealed class GgufRuntimeClient
             cliArgumentsOverride);
     }
 
-    internal static GgufRuntimeClient CreateForTestFixture(
+    internal static GgufRuntimeClient CreateForTesting(
         string workerExecutable,
         string cliExecutable,
         string modelFile,
