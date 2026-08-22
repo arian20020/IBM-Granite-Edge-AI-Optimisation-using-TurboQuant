@@ -2071,11 +2071,12 @@ public sealed class ModelInspectionFixturePresetTests
         try
         {
             await loaded;
-            await ResizeClientAndWaitForXamlRootAsync(
+            await ResizeClientAndWaitForNarrowXamlRootAsync(
                 window,
                 horizontalScroll,
-                width: 360d,
-                height: 800d);
+                requestedWidth: 360d,
+                requestedHeight: 800d,
+                maximumRootWidth: applier.HostWidth);
             Assert.IsLessThan(applier.HostWidth, page.XamlRoot.Size.Width,
                 "The real XamlRoot must stay narrower than the fixed desktop preview.");
             Assert.AreEqual(3, applier.ActiveHandlerCount);
@@ -2231,18 +2232,20 @@ public sealed class ModelInspectionFixturePresetTests
         }
     }
 
-    private static async Task ResizeClientAndWaitForXamlRootAsync(
+    private static async Task ResizeClientAndWaitForNarrowXamlRootAsync(
         Window window,
         FrameworkElement root,
-        double width,
-        double height)
+        double requestedWidth,
+        double requestedHeight,
+        double maximumRootWidth)
     {
         var resized = new TaskCompletionSource<bool>(
             TaskCreationOptions.RunContinuationsAsynchronously);
         void Observe(object? sender, object args)
         {
-            if (Math.Abs(root.XamlRoot.Size.Width - width) <= 1d &&
-                Math.Abs(root.XamlRoot.Size.Height - height) <= 1d)
+            if (root.XamlRoot.Size.Width > 0d &&
+                root.XamlRoot.Size.Width < maximumRootWidth &&
+                root.XamlRoot.Size.Height > 0d)
             {
                 resized.TrySetResult(true);
             }
@@ -2259,8 +2262,8 @@ public sealed class ModelInspectionFixturePresetTests
         {
             double scale = root.XamlRoot.RasterizationScale;
             window.AppWindow.ResizeClient(new Windows.Graphics.SizeInt32(
-                (int)Math.Round(width * scale),
-                (int)Math.Round(height * scale)));
+                (int)Math.Round(requestedWidth * scale),
+                (int)Math.Round(requestedHeight * scale)));
             Observe(null, EventArgs.Empty);
             await resized.Task.WaitAsync(TimeSpan.FromSeconds(10));
             root.UpdateLayout();
