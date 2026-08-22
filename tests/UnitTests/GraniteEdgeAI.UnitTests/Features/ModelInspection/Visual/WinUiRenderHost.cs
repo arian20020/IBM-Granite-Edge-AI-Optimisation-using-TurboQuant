@@ -119,7 +119,13 @@ public sealed class WinUiRenderHost : IAsyncDisposable
             }
         }
 
+        void ObserveRoot(
+            XamlRoot sender,
+            XamlRootChangedEventArgs eventArguments) =>
+            ObserveLayout(sender, eventArguments);
+
         root.LayoutUpdated += ObserveLayout;
+        root.XamlRoot.Changed += ObserveRoot;
         try
         {
             double scale = root.XamlRoot.RasterizationScale;
@@ -133,6 +139,7 @@ public sealed class WinUiRenderHost : IAsyncDisposable
         finally
         {
             root.LayoutUpdated -= ObserveLayout;
+            root.XamlRoot.Changed -= ObserveRoot;
         }
     }
 

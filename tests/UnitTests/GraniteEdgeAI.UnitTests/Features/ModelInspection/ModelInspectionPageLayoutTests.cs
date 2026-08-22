@@ -316,7 +316,13 @@ public sealed class ModelInspectionPageLayoutTests
             }
         }
 
+        void CompleteWhenRootChanges(
+            XamlRoot sender,
+            XamlRootChangedEventArgs eventArguments) =>
+            CompleteWhenReady(sender, eventArguments);
+
         page.LayoutUpdated += CompleteWhenReady;
+        page.XamlRoot.Changed += CompleteWhenRootChanges;
         try
         {
             double scale = page.XamlRoot.RasterizationScale;
@@ -330,6 +336,7 @@ public sealed class ModelInspectionPageLayoutTests
         finally
         {
             page.LayoutUpdated -= CompleteWhenReady;
+            page.XamlRoot.Changed -= CompleteWhenRootChanges;
         }
     }
 
