@@ -358,9 +358,17 @@ internal static class LlmFitContractValidation
     internal static void ValidateSafeName(string name, string parameterName)
     {
         ArgumentNullException.ThrowIfNull(name, parameterName);
-        if (name.Length == 0 || char.IsWhiteSpace(name[0]) || char.IsWhiteSpace(name[^1]))
+        if (!IsSafeName(name))
         {
-            throw new ArgumentException("A nonblank name without boundary whitespace is required.", parameterName);
+            throw new ArgumentException("The name is not a safe bounded hardware name.", parameterName);
+        }
+    }
+
+    internal static bool IsSafeName(string? name)
+    {
+        if (string.IsNullOrEmpty(name) || char.IsWhiteSpace(name[0]) || char.IsWhiteSpace(name[^1]))
+        {
+            return false;
         }
 
         int scalarCount = 0;
@@ -369,26 +377,28 @@ internal static class LlmFitContractValidation
             char character = name[index];
             if (character == '\0' || char.IsControl(character))
             {
-                throw new ArgumentException("Names cannot contain control characters.", parameterName);
+                return false;
             }
 
             if (char.IsHighSurrogate(character))
             {
                 if (index + 1 >= name.Length || !char.IsLowSurrogate(name[++index]))
                 {
-                    throw new ArgumentException("Names must contain valid Unicode scalar values.", parameterName);
+                    return false;
                 }
             }
             else if (char.IsLowSurrogate(character))
             {
-                throw new ArgumentException("Names must contain valid Unicode scalar values.", parameterName);
+                return false;
             }
 
             scalarCount++;
             if (scalarCount > 256)
             {
-                throw new ArgumentException("Names cannot exceed 256 Unicode scalar values.", parameterName);
+                return false;
             }
         }
+
+        return true;
     }
 }
