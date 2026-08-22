@@ -3,6 +3,9 @@ using GraniteEdgeAI.Features.GgufRuntime.Controls;
 using GraniteEdgeAI.Features.GgufRuntime.History;
 using GraniteEdgeAI.UnitTests.Features.ModelInspection.Visual;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
+using Microsoft.UI.Xaml.Automation.Peers;
+using Microsoft.UI.Xaml.Automation.Provider;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
@@ -69,6 +72,31 @@ public sealed class ChatPageTests
             Windows.UI.Color.FromArgb(255, 16, 46, 107),
             Assert.IsInstanceOfType<SolidColorBrush>(
                 Application.Current.Resources["GgufChatAssistantBubbleTextBrush"]).Color);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void MessageTextIsSelectableAndCopyRaisesExactVisibleContent()
+    {
+        var bubble = new ChatMessageBubble
+        {
+            MessageContent = "Line one\r\nLine two",
+            IsUser = false,
+        };
+        TextBlock text = Assert.IsInstanceOfType<TextBlock>(
+            bubble.FindName("MessageText"));
+        Button copy = Assert.IsInstanceOfType<Button>(
+            bubble.FindName("CopyMessageButton"));
+        string? requested = null;
+        bubble.CopyRequested += (_, content) => requested = content;
+
+        Assert.IsTrue(text.IsTextSelectionEnabled);
+        Assert.AreEqual("Copy message", AutomationProperties.GetName(copy));
+        Invoke(copy);
+        Assert.AreEqual("Line one\r\nLine two", requested);
+
+        bubble.ShowCopyResult(succeeded: true);
+        Assert.AreEqual("Copied", AutomationProperties.GetName(copy));
     }
 
     [UITestMethod]
@@ -442,5 +470,13 @@ public sealed class ChatPageTests
         }
 
         return null;
+    }
+
+    private static void Invoke(Button button)
+    {
+        var peer = new ButtonAutomationPeer(button);
+        var provider = Assert.IsInstanceOfType<IInvokeProvider>(
+            peer.GetPattern(PatternInterface.Invoke));
+        provider.Invoke();
     }
 }
