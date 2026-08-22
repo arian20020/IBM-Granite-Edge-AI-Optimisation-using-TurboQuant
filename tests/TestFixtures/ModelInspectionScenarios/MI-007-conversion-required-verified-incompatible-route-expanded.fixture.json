@@ -1,0 +1,379 @@
+{
+  "$schema": "model-inspection-fixture.schema.json",
+  "schemaVersion": 1,
+  "id": "MI-007",
+  "targetCondition": "conversion-required-verified-incompatible-route",
+  "variant": "expanded",
+  "title": "MI-007 conversion required verified incompatible route",
+  "category": "screen",
+  "coverage": {
+    "figmaStates": [
+      "conversionRequiredExpanded"
+    ],
+    "stages": [],
+    "stageStatuses": [],
+    "outcomes": [
+      "conversionRequired"
+    ],
+    "interactions": [
+      "expand",
+      "collapse",
+      "chooseAnother",
+      "reset"
+    ],
+    "lifecycleTags": [],
+    "failureProfiles": [],
+    "stressTags": []
+  },
+  "input": {
+    "request": {
+      "displayName": "Granite Fixture Model",
+      "displayFileName": "granite-fixture.gguf",
+      "evidenceProfile": "verifiedIncompatible"
+    },
+    "attempts": [
+      {
+        "attempt": 1,
+        "serviceSteps": [
+          {
+            "trigger": {
+              "kind": "checkpoint",
+              "checkpoint": "terminal"
+            },
+            "effect": {
+              "kind": "completed",
+              "progress": null,
+              "outcome": "conversionRequired",
+              "evidenceProfile": "verifiedIncompatible",
+              "failureProfile": null,
+              "failureDetailProfile": null,
+              "deferredCheckpoint": null
+            }
+          }
+        ]
+      }
+    ],
+    "setupSteps": [
+      {
+        "kind": "release-service-checkpoint",
+        "attempt": 1,
+        "checkpoint": "terminal",
+        "interactionId": null
+      },
+      {
+        "kind": "invoke-disclosure",
+        "attempt": null,
+        "checkpoint": null,
+        "interactionId": "expand"
+      },
+      {
+        "kind": "observe",
+        "attempt": null,
+        "checkpoint": "expanded",
+        "interactionId": null
+      }
+    ],
+    "observationCheckpoint": "expanded"
+  },
+  "expected": {
+    "figma": {
+      "state": "conversionRequiredExpanded",
+      "geometryProfile": "canonical"
+    },
+    "outcome": {
+      "visible": true,
+      "kind": "conversionRequired",
+      "tone": "information",
+      "badge": null,
+      "title": {
+        "copyKey": "fixture.outcome.conversion.title",
+        "defaultText": "Conversion required"
+      },
+      "supportingText": {
+        "copyKey": "fixture.outcome.conversion.supporting",
+        "defaultText": "The selected model requires conversion before it can continue."
+      }
+    },
+    "model": {
+      "visible": true,
+      "mode": "compact",
+      "badge": "sourceModel",
+      "displayName": {
+        "copyKey": "fixture.model.name",
+        "defaultText": "Granite Fixture Model"
+      },
+      "displayFileName": {
+        "copyKey": "fixture.model.file",
+        "defaultText": "granite-fixture.gguf"
+      },
+      "metadata": [],
+      "checks": [],
+      "disclosureExpanded": false
+    },
+    "content": {
+      "visible": true,
+      "mode": "conversionRequired",
+      "disclosureExpanded": true,
+      "heading": {
+        "copyKey": "fixture.content.conversion.heading",
+        "defaultText": "Conversion required"
+      },
+      "rows": [
+        {
+          "id": "conversion-required-row",
+          "primaryText": {
+            "copyKey": "fixture.content.conversion.row",
+            "defaultText": "Conversion required"
+          },
+          "secondaryText": {
+            "copyKey": "fixture.content.conversion.detail",
+            "defaultText": "Choose another model or review the expected converted output."
+          },
+          "status": "information"
+        }
+      ]
+    },
+    "actions": {
+      "visible": true,
+      "mode": "result",
+      "items": [
+        {
+          "id": "choose-another",
+          "label": {
+            "copyKey": "fixture.action.choose-another",
+            "defaultText": "Choose another model"
+          },
+          "visible": true,
+          "enabled": true,
+          "helpText": null
+        },
+        {
+          "id": "technical-report",
+          "label": {
+            "copyKey": "fixture.action.technical-report",
+            "defaultText": "View technical report"
+          },
+          "visible": true,
+          "enabled": false,
+          "helpText": {
+            "copyKey": "fixture.action.coming-later",
+            "defaultText": "Coming later"
+          }
+        },
+        {
+          "id": "conversion-format",
+          "label": {
+            "copyKey": "fixture.action.conversion-format",
+            "defaultText": "Choose conversion format"
+          },
+          "visible": true,
+          "enabled": false,
+          "helpText": {
+            "copyKey": "fixture.action.coming-later",
+            "defaultText": "Coming later"
+          }
+        }
+      ]
+    },
+    "footer": {
+      "status": "notComplete"
+    },
+    "focus": {
+      "target": "findings-disclosure"
+    },
+    "automation": {
+      "controls": [
+        {
+          "id": "model-card",
+          "accessibleName": {
+            "copyKey": "fixture.model.name",
+            "defaultText": "Granite Fixture Model"
+          },
+          "controlType": "group",
+          "liveSetting": "off",
+          "helpText": null
+        },
+        {
+          "id": "choose-another",
+          "accessibleName": {
+            "copyKey": "fixture.automation.action.choose-another",
+            "defaultText": "Choose another model"
+          },
+          "controlType": "button",
+          "liveSetting": "off",
+          "helpText": null
+        },
+        {
+          "id": "technical-report",
+          "accessibleName": {
+            "copyKey": "fixture.automation.action.technical-report",
+            "defaultText": "View technical inspection report"
+          },
+          "controlType": "button",
+          "liveSetting": "off",
+          "helpText": {
+            "copyKey": "fixture.action.coming-later",
+            "defaultText": "Coming later"
+          }
+        },
+        {
+          "id": "conversion-format",
+          "accessibleName": {
+            "copyKey": "fixture.automation.action.conversion-format",
+            "defaultText": "Choose model conversion format"
+          },
+          "controlType": "button",
+          "liveSetting": "off",
+          "helpText": {
+            "copyKey": "fixture.action.coming-later",
+            "defaultText": "Coming later"
+          }
+        },
+        {
+          "id": "findings-disclosure",
+          "accessibleName": {
+            "copyKey": "fixture.automation.conversion-disclosure",
+            "defaultText": "Expected conversion output"
+          },
+          "controlType": "group",
+          "liveSetting": "off",
+          "helpText": null
+        },
+        {
+          "id": "content-list",
+          "accessibleName": {
+            "copyKey": "fixture.content.conversion.heading",
+            "defaultText": "Conversion required"
+          },
+          "controlType": "list",
+          "liveSetting": "polite",
+          "helpText": null
+        },
+        {
+          "id": "conversion-required-row",
+          "accessibleName": {
+            "copyKey": "fixture.content.conversion.row",
+            "defaultText": "Conversion required"
+          },
+          "controlType": "listItem",
+          "liveSetting": "off",
+          "helpText": {
+            "copyKey": "fixture.content.conversion.detail",
+            "defaultText": "Choose another model or review the expected converted output."
+          }
+        }
+      ]
+    },
+    "announcements": {
+      "count": 1,
+      "items": [
+        {
+          "copyKey": "fixture.announcement.conversion",
+          "defaultText": "Model conversion is required."
+        }
+      ]
+    },
+    "rowsAndScroll": {
+      "orderedRowIds": [
+        "conversion-required-row"
+      ],
+      "scrollOwner": "content-list"
+    },
+    "retainedIdentities": {
+      "ids": [
+        "model-card",
+        "content-list",
+        "conversion-required-row",
+        "choose-another",
+        "technical-report",
+        "conversion-format",
+        "findings-disclosure"
+      ]
+    }
+  },
+  "presetExpectations": {
+    "P01": {
+      "responsiveLayout": "desktop",
+      "minimumContentColumnWidth": 480,
+      "maximumContentColumnWidth": 960,
+      "noClipping": true,
+      "noOverlap": true,
+      "allRequiredContentReachable": true,
+      "textRoles": [
+        {
+          "id": "conversion-required-row",
+          "behavior": "wrap"
+        }
+      ],
+      "scrollOwner": "content-list",
+      "minimumPointerTargetWidth": 44,
+      "minimumPointerTargetHeight": 44,
+      "logicalReadingOrder": [
+        "model-card",
+        "choose-another",
+        "technical-report",
+        "conversion-format",
+        "findings-disclosure",
+        "content-list",
+        "conversion-required-row"
+      ],
+      "tabOrder": [
+        "findings-disclosure",
+        "choose-another"
+      ],
+      "focusTarget": "findings-disclosure",
+      "resources": "light",
+      "textScale": "standard100",
+      "motion": "normal",
+      "semanticBrushesResolvedWithoutColorOnlyMeaning": true,
+      "finalGeometryAndSemanticsEquivalentToNormalMotion": true,
+      "minimumAnimationStarts": 2,
+      "maximumAnimationStarts": 2
+    }
+  },
+  "interactions": [
+    {
+      "id": "expand",
+      "kind": "expand",
+      "sourceCheckpoint": "terminal",
+      "target": "expanded",
+      "expectedFocus": "findings-disclosure",
+      "expectedAnnouncementCount": 0,
+      "expectedFooterStatus": "notComplete",
+      "lifetimeEffect": "none"
+    },
+    {
+      "id": "collapse",
+      "kind": "collapse",
+      "sourceCheckpoint": "expanded",
+      "target": "MI-006",
+      "expectedFocus": "findings-disclosure",
+      "expectedAnnouncementCount": 0,
+      "expectedFooterStatus": "notComplete",
+      "lifetimeEffect": "none"
+    },
+    {
+      "id": "choose-another",
+      "kind": "chooseAnother",
+      "sourceCheckpoint": "expanded",
+      "target": "gallery:no-active-fixture",
+      "expectedFocus": null,
+      "expectedAnnouncementCount": 0,
+      "expectedFooterStatus": "notComplete",
+      "lifetimeEffect": "noActiveFixture"
+    },
+    {
+      "id": "reset",
+      "kind": "reset",
+      "sourceCheckpoint": "expanded",
+      "target": "MI-007",
+      "expectedFocus": "findings-disclosure",
+      "expectedAnnouncementCount": 0,
+      "expectedFooterStatus": "notComplete",
+      "lifetimeEffect": "retirePage"
+    }
+  ],
+  "presets": [
+    "P01"
+  ]
+}

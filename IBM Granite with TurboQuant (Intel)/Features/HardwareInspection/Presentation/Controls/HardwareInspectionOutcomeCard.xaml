@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="GraniteEdgeAI.Features.HardwareInspection.Presentation.Controls.HardwareInspectionOutcomeCard"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="ms-appx:///Features/HardwareInspection/Presentation/HardwareInspectionTheme.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <Grid>
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup x:Name="OutcomeToneStates">
+                <VisualState x:Name="Neutral">
+                    <VisualState.Setters>
+                        <Setter Target="OutcomeBorder.Background" Value="{ThemeResource HardwareInspectionSurfaceSubtleBrush}" />
+                        <Setter Target="OutcomeBorder.BorderBrush" Value="{ThemeResource HardwareInspectionBorderStrongBrush}" />
+                        <Setter Target="GlyphBorder.Background" Value="{ThemeResource HardwareInspectionAccentSurfaceBrush}" />
+                        <Setter Target="GlyphFontIcon.Foreground" Value="{ThemeResource HardwareInspectionAccentBrush}" />
+                        <Setter Target="KickerTextBlock.Foreground" Value="{ThemeResource HardwareInspectionAccentBrush}" />
+                    </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="Success">
+                    <VisualState.Setters>
+                        <Setter Target="OutcomeBorder.Background" Value="{ThemeResource HardwareInspectionSuccessSurfaceBrush}" />
+                        <Setter Target="OutcomeBorder.BorderBrush" Value="{ThemeResource HardwareInspectionSuccessBorderBrush}" />
+                        <Setter Target="GlyphBorder.Background" Value="{ThemeResource HardwareInspectionSurfaceBrush}" />
+                        <Setter Target="GlyphFontIcon.Foreground" Value="{ThemeResource HardwareInspectionSuccessTextBrush}" />
+                        <Setter Target="KickerTextBlock.Foreground" Value="{ThemeResource HardwareInspectionSuccessTextBrush}" />
+                    </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="Warning">
+                    <VisualState.Setters>
+                        <Setter Target="OutcomeBorder.Background" Value="{ThemeResource HardwareInspectionWarningSurfaceBrush}" />
+                        <Setter Target="OutcomeBorder.BorderBrush" Value="{ThemeResource HardwareInspectionWarningBorderBrush}" />
+                        <Setter Target="GlyphBorder.Background" Value="{ThemeResource HardwareInspectionSurfaceBrush}" />
+                        <Setter Target="GlyphFontIcon.Foreground" Value="{ThemeResource HardwareInspectionWarningTextBrush}" />
+                        <Setter Target="KickerTextBlock.Foreground" Value="{ThemeResource HardwareInspectionWarningTextBrush}" />
+                    </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="Error">
+                    <VisualState.Setters>
+                        <Setter Target="OutcomeBorder.Background" Value="{ThemeResource HardwareInspectionErrorSurfaceBrush}" />
+                        <Setter Target="OutcomeBorder.BorderBrush" Value="{ThemeResource HardwareInspectionErrorBorderBrush}" />
+                        <Setter Target="GlyphBorder.Background" Value="{ThemeResource HardwareInspectionSurfaceBrush}" />
+                        <Setter Target="GlyphFontIcon.Foreground" Value="{ThemeResource HardwareInspectionErrorTextBrush}" />
+                        <Setter Target="KickerTextBlock.Foreground" Value="{ThemeResource HardwareInspectionErrorTextBrush}" />
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
+
+        <Border
+            x:Name="OutcomeBorder"
+            MaxWidth="{ThemeResource HardwareInspectionContentColumnWidth}"
+            Padding="{ThemeResource HardwareInspectionCardPadding}"
+            HorizontalAlignment="Stretch"
+            BorderThickness="{ThemeResource HardwareInspectionBorderThickness}"
+            CornerRadius="{ThemeResource HardwareInspectionCardCornerRadius}">
+            <Grid ColumnSpacing="16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="44" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Border
+                    x:Name="GlyphBorder"
+                    Width="44"
+                    Height="44"
+                    CornerRadius="22">
+                    <Grid>
+                        <FontIcon
+                            x:Name="GlyphFontIcon"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            FontFamily="Segoe Fluent Icons"
+                            FontSize="17" />
+                        <ProgressRing
+                            x:Name="OutcomeProgressRing"
+                            Width="22"
+                            Height="22"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Foreground="{ThemeResource HardwareInspectionAccentBrush}"
+                            IsActive="False"
+                            Visibility="Collapsed" />
+                    </Grid>
+                </Border>
+                <StackPanel Grid.Column="1" Spacing="6">
+                    <TextBlock
+                        x:Name="KickerTextBlock"
+                        FontFamily="{ThemeResource HardwareInspectionFontFamilyBold}"
+                        FontSize="{ThemeResource HardwareInspectionLabelFontSize}"
+                        FontWeight="{ThemeResource HardwareInspectionFontWeightBold}"
+                        TextWrapping="Wrap" />
+                    <TextBlock
+                        x:Name="TitleTextBlock"
+                        FontFamily="{ThemeResource HardwareInspectionFontFamilyBold}"
+                        FontSize="{ThemeResource HardwareInspectionSectionTitleFontSize}"
+                        FontWeight="{ThemeResource HardwareInspectionFontWeightBold}"
+                        Foreground="{ThemeResource HardwareInspectionTextPrimaryBrush}"
+                        TextWrapping="WrapWholeWords" />
+                    <TextBlock
+                        x:Name="BodyTextBlock"
+                        FontFamily="{ThemeResource HardwareInspectionFontFamilyRegular}"
+                        FontSize="{ThemeResource HardwareInspectionBodyFontSize}"
+                        Foreground="{ThemeResource HardwareInspectionTextSecondaryBrush}"
+                        TextWrapping="WrapWholeWords" />
+                </StackPanel>
+                <StackPanel
+                    x:Name="ReviewCountPanel"
+                    Grid.Column="2"
+                    MinWidth="104"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Spacing="4"
+                    Visibility="Collapsed">
+                    <TextBlock
+                        x:Name="ReviewCountTextBlock"
+                        HorizontalAlignment="Center"
+                        FontFamily="{ThemeResource HardwareInspectionFontFamilyBold}"
+                        FontSize="24"
+                        FontWeight="{ThemeResource HardwareInspectionFontWeightBold}"
+                        Foreground="{ThemeResource HardwareInspectionWarningTextBrush}" />
+                    <TextBlock
+                        x:Name="ReviewCountLabelTextBlock"
+                        MaxWidth="104"
+                        HorizontalAlignment="Center"
+                        FontSize="{ThemeResource HardwareInspectionLabelFontSize}"
+                        Foreground="{ThemeResource HardwareInspectionTextSecondaryBrush}"
+                        Text="detail needs review"
+                        TextAlignment="Center"
+                        TextWrapping="WrapWholeWords" />
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

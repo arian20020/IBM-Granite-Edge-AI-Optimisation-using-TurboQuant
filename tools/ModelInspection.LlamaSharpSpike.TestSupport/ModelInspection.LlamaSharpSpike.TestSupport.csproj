@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike.TestSupport</RootNamespace>
+    <AssemblyName>GraniteEdgeAI.ModelInspection.LlamaSharpSpike.TestSupport</AssemblyName>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+</Project>

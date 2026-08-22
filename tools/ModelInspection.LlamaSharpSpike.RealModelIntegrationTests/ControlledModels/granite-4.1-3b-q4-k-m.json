@@ -1,0 +1,20 @@
+{
+  "id": "granite-4.1-3b-q4-k-m",
+  "fileName": "granite-4.1-3b-Q4_K_M.gguf",
+  "sha256": "662b0626cd58f443baea23559b469df6576a81d349649c59413b36a9fb32eb29",
+  "lengthBytes": 2099501664,
+  "architecture": "granite",
+  "modelName": "Granite 4.1 3b",
+  "fileType": "15",
+  "quantizationVersion": "2",
+  "tokenizerModel": "gpt2",
+  "contextSize": 131072,
+  "embeddingSize": 2560,
+  "layerCount": 40,
+  "headCount": 40,
+  "kvHeadCount": 8,
+  "metadataCount": 31,
+  "vocabularyCount": 100352,
+  "chatTemplatePresent": true,
+  "tokenizerSmokeTokenCount": 1
+}

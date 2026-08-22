@@ -9,16 +9,15 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
-    <Grid>
-
+    <Grid
+        x:Name="CardLayoutRoot">
         <!--
             TODO(THEMING):
             Move repeated colours, spacing and corner radii into shared theme resources.
             This will eventually support consistent styling and dark mode.
         -->
         <Border
-            MinHeight="220"
-            Padding="24"
+            Padding="20"
             Background="#F9FAFB"
             BorderBrush="#D1D5DB"
             BorderThickness="1"
@@ -26,26 +25,7 @@
 
             <!--  Arranges the card content vertically.  -->
             <StackPanel
-                Spacing="12">
-
-                <!--
-                    STATIC UI:
-                    This badge describes the type of card rather than the selected model.
-                    It can remain part of ModelCard unless the product wording changes.
-                -->
-                <Border
-                    Padding="10,5"
-                    HorizontalAlignment="Left"
-                    Background="#E8F0FE"
-                    CornerRadius="6">
-
-                    <TextBlock
-                        FontSize="12"
-                        FontWeight="SemiBold"
-                        Foreground="#2563EB"
-                        Text="IBM GRANITE · MODEL PROFILE" />
-
-                </Border>
+                Spacing="8">
 
                 <!--
                     TODO(MODEL DATA):
@@ -58,6 +38,7 @@
                     → these TextBlock bindings.
                 -->
                 <Grid
+                    x:Name="ModelHeaderGrid"
                     ColumnSpacing="12">
 
                     <Grid.ColumnDefinitions>
@@ -72,18 +53,27 @@
 
                     </Grid.ColumnDefinitions>
 
+                    <Grid.RowDefinitions>
+                        <RowDefinition
+                            Height="Auto" />
+                        <RowDefinition
+                            Height="Auto" />
+                    </Grid.RowDefinitions>
+
                     <!--
                         TEMPORARY SEED VALUE:
                         Future source: ModelProfile.DisplayName.
                     -->
                     <TextBlock
+                        x:Name="ModelNameText"
                         Grid.Column="0"
                         VerticalAlignment="Center"
                         FontSize="24"
                         FontWeight="SemiBold"
                         Foreground="#111827"
                         Text="Granite 4.0 H-Micro"
-                        TextWrapping="Wrap" />
+                        TextTrimming="None"
+                        TextWrapping="WrapWholeWords" />
 
                     <!--
                         TEMPORARY SEED VALUES:
@@ -92,12 +82,15 @@
                         ModelCard should never calculate or guess the download size.
                     -->
                     <TextBlock
+                        x:Name="ModelPackageSummaryText"
                         Grid.Column="1"
                         VerticalAlignment="Center"
                         FontSize="14"
                         Foreground="#6B7280"
                         Text="3B parameters · 1.94 GB download"
-                        TextAlignment="Right" />
+                        TextAlignment="Right"
+                        TextTrimming="None"
+                        TextWrapping="WrapWholeWords" />
 
                 </Grid>
 
@@ -107,19 +100,16 @@
                     The model catalogue will provide this description.
                 -->
                 <TextBlock
+                    x:Name="ModelDescriptionText"
                     FontSize="14"
                     Foreground="#6B7280"
                     Text="Long-context Granite model for instruction following, question answering, summarisation, coding and tool use."
-                    TextWrapping="Wrap" />
+                    TextTrimming="None"
+                    TextWrapping="WrapWholeWords" />
 
-                <!--
-                    TODO(RESPONSIVE UI):
-                    The four-column layout works at the current page width.
-                    Later, adaptive visual states may change this to two columns
-                    when the application window becomes narrow.
-                -->
                 <Grid
-                    Margin="0,8,0,0"
+                    x:Name="ModelFactsGrid"
+                    Margin="0,4,0,0"
                     ColumnSpacing="16"
                     RowSpacing="4">
 
@@ -130,13 +120,19 @@
                         <ColumnDefinition
                             Width="*" />
                         <ColumnDefinition
+                            x:Name="FactsColumn2"
                             Width="*" />
                         <ColumnDefinition
+                            x:Name="FactsColumn3"
                             Width="*" />
                     </Grid.ColumnDefinitions>
 
-                    <!--  Creates one row for labels and another for values.  -->
+                    <!--  Supports one wide label/value pair or two stacked narrow pairs.  -->
                     <Grid.RowDefinitions>
+                        <RowDefinition
+                            Height="Auto" />
+                        <RowDefinition
+                            Height="Auto" />
                         <RowDefinition
                             Height="Auto" />
                         <RowDefinition
@@ -164,6 +160,7 @@
                         Text="QUANTIZATION" />
 
                     <TextBlock
+                        x:Name="EstimatedMemoryLabelText"
                         Grid.Row="0"
                         Grid.Column="2"
                         FontSize="11"
@@ -173,6 +170,7 @@
                         TextWrapping="Wrap" />
 
                     <TextBlock
+                        x:Name="ContextLengthLabelText"
                         Grid.Row="0"
                         Grid.Column="3"
                         FontSize="11"
@@ -213,13 +211,15 @@
                         DeviceProfileService and the project's Intel hardware benchmarks.
                     -->
                     <TextBlock
+                        x:Name="EstimatedMemoryValueText"
                         Grid.Row="1"
                         Grid.Column="2"
                         FontSize="14"
                         FontWeight="SemiBold"
                         Foreground="#111827"
                         Text="Pending benchmark"
-                        TextWrapping="Wrap" />
+                        TextTrimming="None"
+                        TextWrapping="WrapWholeWords" />
 
                     <!--
                         TEMPORARY SEED VALUE:
@@ -227,26 +227,29 @@
                         This should come from verified model configuration metadata.
                     -->
                     <TextBlock
+                        x:Name="ContextLengthValueText"
                         Grid.Row="1"
                         Grid.Column="3"
                         FontSize="14"
                         FontWeight="SemiBold"
                         Foreground="#111827"
-                        Text="128K tokens" />
+                        Text="128K tokens"
+                        TextTrimming="None"
+                        TextWrapping="WrapWholeWords" />
 
                 </Grid>
 
                 <!--  Separates the model details from the model-preference control.  -->
                 <Rectangle
                     Height="1"
-                    Margin="0,4,0,0"
+                    Margin="0,2,0,0"
                     HorizontalAlignment="Stretch"
                     Fill="#E5E7EB" />
 
                 <!--  Groups the slider heading, control and endpoint labels.  -->
                 <StackPanel
-                    Margin="0,4,0,0"
-                    Spacing="4">
+                    Margin="0,2,0,0"
+                    Spacing="2">
 
                     <!--  Displays the slider heading and current preference.  -->
                     <Grid>
@@ -411,19 +414,25 @@
                         </Grid.ColumnDefinitions>
 
                         <TextBlock
+                            x:Name="EfficiencyEndpointText"
                             Grid.Column="0"
                             HorizontalAlignment="Left"
                             FontSize="12"
                             Foreground="#6B7280"
-                            Text="Maximum efficiency" />
+                            Text="Maximum efficiency"
+                            TextTrimming="None"
+                            TextWrapping="WrapWholeWords" />
 
                         <TextBlock
+                            x:Name="CapabilityEndpointText"
                             Grid.Column="1"
                             HorizontalAlignment="Right"
                             FontSize="12"
                             Foreground="#6B7280"
                             Text="Maximum capability"
-                            TextAlignment="Right" />
+                            TextAlignment="Right"
+                            TextTrimming="None"
+                            TextWrapping="WrapWholeWords" />
 
                     </Grid>
 
@@ -440,7 +449,7 @@
                 <Button
                     x:Name="DownloadModelButton"
                     Height="48"
-                    Margin="0,8,0,0"
+                    Margin="0,4,0,0"
                     HorizontalAlignment="Stretch"
                     HorizontalContentAlignment="Center"
                     VerticalContentAlignment="Center"
@@ -521,6 +530,68 @@
 
         </Border>
 
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup
+                x:Name="CardLayoutStates">
+
+                <VisualState
+                    x:Name="NarrowLayout">
+
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger
+                            MinWindowWidth="0" />
+                    </VisualState.StateTriggers>
+
+                    <VisualState.Setters>
+                        <Setter Target="ModelPackageSummaryText.(Grid.Row)" Value="1" />
+                        <Setter Target="ModelPackageSummaryText.(Grid.Column)" Value="0" />
+                        <Setter Target="ModelPackageSummaryText.HorizontalAlignment" Value="Left" />
+                        <Setter Target="ModelPackageSummaryText.TextAlignment" Value="Left" />
+                        <Setter Target="ModelPackageSummaryText.Margin" Value="0,4,0,0" />
+                        <Setter Target="FactsColumn2.Width" Value="0" />
+                        <Setter Target="FactsColumn3.Width" Value="0" />
+                        <Setter Target="EstimatedMemoryLabelText.(Grid.Row)" Value="2" />
+                        <Setter Target="EstimatedMemoryLabelText.(Grid.Column)" Value="0" />
+                        <Setter Target="EstimatedMemoryValueText.(Grid.Row)" Value="3" />
+                        <Setter Target="EstimatedMemoryValueText.(Grid.Column)" Value="0" />
+                        <Setter Target="ContextLengthLabelText.(Grid.Row)" Value="2" />
+                        <Setter Target="ContextLengthLabelText.(Grid.Column)" Value="1" />
+                        <Setter Target="ContextLengthValueText.(Grid.Row)" Value="3" />
+                        <Setter Target="ContextLengthValueText.(Grid.Column)" Value="1" />
+                    </VisualState.Setters>
+
+                </VisualState>
+
+                <VisualState
+                    x:Name="WideLayout">
+
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger
+                            MinWindowWidth="720" />
+                    </VisualState.StateTriggers>
+
+                    <VisualState.Setters>
+                        <Setter Target="ModelPackageSummaryText.(Grid.Row)" Value="0" />
+                        <Setter Target="ModelPackageSummaryText.(Grid.Column)" Value="1" />
+                        <Setter Target="ModelPackageSummaryText.HorizontalAlignment" Value="Right" />
+                        <Setter Target="ModelPackageSummaryText.TextAlignment" Value="Right" />
+                        <Setter Target="ModelPackageSummaryText.Margin" Value="0" />
+                        <Setter Target="FactsColumn2.Width" Value="*" />
+                        <Setter Target="FactsColumn3.Width" Value="*" />
+                        <Setter Target="EstimatedMemoryLabelText.(Grid.Row)" Value="0" />
+                        <Setter Target="EstimatedMemoryLabelText.(Grid.Column)" Value="2" />
+                        <Setter Target="EstimatedMemoryValueText.(Grid.Row)" Value="1" />
+                        <Setter Target="EstimatedMemoryValueText.(Grid.Column)" Value="2" />
+                        <Setter Target="ContextLengthLabelText.(Grid.Row)" Value="0" />
+                        <Setter Target="ContextLengthLabelText.(Grid.Column)" Value="3" />
+                        <Setter Target="ContextLengthValueText.(Grid.Row)" Value="1" />
+                        <Setter Target="ContextLengthValueText.(Grid.Column)" Value="3" />
+                    </VisualState.Setters>
+
+                </VisualState>
+
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
     </Grid>
 
 </UserControl>

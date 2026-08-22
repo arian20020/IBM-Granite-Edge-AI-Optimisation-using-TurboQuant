@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike</RootNamespace>
+    <AssemblyName>GraniteEdgeAI.ModelInspection.LlamaSharpSpike</AssemblyName>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <RuntimeIdentifiers>win-x64;linux-x64</RuntimeIdentifiers>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\runtime\GraniteEdgeAI.ModelInspection.LlamaSharp\GraniteEdgeAI.ModelInspection.LlamaSharp.csproj" />
+  </ItemGroup>
+
+</Project>

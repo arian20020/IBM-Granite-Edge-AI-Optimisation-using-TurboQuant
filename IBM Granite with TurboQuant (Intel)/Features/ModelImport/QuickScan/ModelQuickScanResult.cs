@@ -12,6 +12,7 @@
         public string? ParameterSizeLabel { get; }
         public string? Quantization { get; }
         public long? FileSizeBytes { get; }
+        public System.DateTimeOffset? FileLastWriteTimeUtc { get; }
         public ulong? ContextLength { get; }
         public uint? GgufVersion { get; }
 
@@ -28,6 +29,7 @@
             string? parameterSizeLabel = null,
             string? quantization = null,
             long? fileSizeBytes = null,
+            System.DateTimeOffset? fileLastWriteTimeUtc = null,
             ulong? contextLength = null,
             uint? ggufVersion = null,
             string? failureCode = null,
@@ -43,6 +45,7 @@
             ParameterSizeLabel = parameterSizeLabel;
             Quantization = quantization;
             FileSizeBytes = fileSizeBytes;
+            FileLastWriteTimeUtc = fileLastWriteTimeUtc;
             ContextLength = contextLength;
             GgufVersion = ggufVersion;
 
@@ -68,7 +71,8 @@
             string? quantization,
             long fileSizeBytes,
             ulong? contextLength,
-            uint ggufVersion)
+            uint ggufVersion,
+            System.DateTimeOffset? fileLastWriteTimeUtc = null)
         {
             // A successful result must have a usable model name.
             System.ArgumentException.ThrowIfNullOrWhiteSpace(modelName);
@@ -82,6 +86,15 @@
             // A successful result must record a supported GGUF version.
             System.ArgumentOutOfRangeException.ThrowIfZero(ggufVersion);
 
+            // A supplied scan-time file timestamp must be expressed in UTC.
+            if (fileLastWriteTimeUtc is System.DateTimeOffset timestamp &&
+                timestamp.Offset != System.TimeSpan.Zero)
+            {
+                throw new System.ArgumentException(
+                    "The model file last-write time must use the UTC offset.",
+                    nameof(fileLastWriteTimeUtc));
+            }
+
             // Pass the successful outcome and discovered metadata to the constructor.
             return new ModelQuickScanResult(
                 outcome: ModelQuickScanOutcome.Success,
@@ -90,6 +103,7 @@
                 parameterSizeLabel: parameterSizeLabel,
                 quantization: quantization,
                 fileSizeBytes: fileSizeBytes,
+                fileLastWriteTimeUtc: fileLastWriteTimeUtc,
                 contextLength: contextLength,
                 ggufVersion: ggufVersion);
         }

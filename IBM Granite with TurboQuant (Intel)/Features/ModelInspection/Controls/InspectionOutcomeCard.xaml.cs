@@ -1,0 +1,205 @@
+using GraniteEdgeAI.Features.ModelInspection.Models;
+using GraniteEdgeAI.Features.ModelInspection.Presentation;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
+using Microsoft.UI.Xaml.Automation.Peers;
+using Microsoft.UI.Xaml.Controls;
+using System;
+using System.Collections.Generic;
+
+namespace GraniteEdgeAI.Features.ModelInspection.Controls
+{
+    /// <summary>
+    /// Displays the high-level result of model inspection.
+    /// </summary>
+    public sealed partial class InspectionOutcomeCard : UserControl
+    {
+#if MODEL_INSPECTION_FIXTURE_GALLERY
+        private readonly List<string> _liveRegionAnnouncementHistory = [];
+#endif
+        // visual states are unavailable until InitializeComponent builds the xaml tree
+        private bool _isInitialized;
+
+        /// <summary>
+        /// Identifies the bindable Presentation dependency property.
+        /// </summary>
+        public static readonly DependencyProperty PresentationProperty =
+            DependencyProperty.Register(
+                nameof(Presentation),
+                typeof(InspectionOutcomePresentation),
+                typeof(InspectionOutcomeCard),
+                new PropertyMetadata(
+                    InspectionOutcomePresentation.Hidden,
+                    OnPresentationChanged));
+
+        /// <summary>
+        /// Identifies the internally controlled CardVisibility dependency property.
+        /// </summary>
+        public static readonly DependencyProperty CardVisibilityProperty =
+            DependencyProperty.Register(
+                nameof(CardVisibility),
+                typeof(Visibility),
+                typeof(InspectionOutcomeCard),
+                new PropertyMetadata(Visibility.Collapsed));
+
+        /// <summary>
+        /// Creates the control and loads its XAML visual tree.
+        /// </summary>
+        public InspectionOutcomeCard()
+        {
+            InitializeComponent();
+            _isInitialized = true;
+            ApplyPresentation(Presentation);
+        }
+
+        /// <summary>
+        /// Gets or sets the outcome presentation displayed by this card.
+        /// </summary>
+        public InspectionOutcomePresentation Presentation
+        {
+            get => (InspectionOutcomePresentation)GetValue(PresentationProperty);
+            set => SetValue(
+                PresentationProperty,
+                value ?? InspectionOutcomePresentation.Hidden);
+        }
+
+        /// <summary>
+        /// Gets whether the outcome banner participates in page layout.
+        /// </summary>
+        public Visibility CardVisibility
+        {
+            get => (Visibility)GetValue(CardVisibilityProperty);
+            private set => SetValue(CardVisibilityProperty, value);
+        }
+
+        internal int LiveRegionChangeNotificationCount { get; private set; }
+
+#if MODEL_INSPECTION_FIXTURE_GALLERY
+        internal IReadOnlyList<string> LiveRegionAnnouncementHistory =>
+            _liveRegionAnnouncementHistory;
+#endif
+
+        internal FrameworkElement FocusTarget => OutcomeFocusTarget;
+
+        internal bool FocusOutcome()
+        {
+            bool wasTabStop = OutcomeFocusTarget.IsTabStop;
+            OutcomeFocusTarget.IsTabStop = true;
+            try
+            {
+                return OutcomeFocusTarget.Focus(FocusState.Programmatic);
+            }
+            finally
+            {
+                OutcomeFocusTarget.IsTabStop = wasTabStop;
+            }
+        }
+
+        internal void AnnounceOutcome(string automationName)
+        {
+            ValidateAnnouncement(automationName, nameof(automationName));
+            AutomationProperties.SetName(this, automationName);
+            RaiseLiveRegionChanged(automationName);
+        }
+
+        /// <summary>
+        /// Responds whenever the page or ViewModel replaces Presentation.
+        /// </summary>
+        private static void OnPresentationChanged(
+            DependencyObject dependencyObject,
+            DependencyPropertyChangedEventArgs eventArguments)
+        {
+            InspectionOutcomeCard control =
+                (InspectionOutcomeCard)dependencyObject;
+            InspectionOutcomePresentation presentation =
+                eventArguments.NewValue as InspectionOutcomePresentation
+                ?? InspectionOutcomePresentation.Hidden;
+
+            control.ApplyPresentation(presentation);
+        }
+
+        /// <summary>
+        /// Converts the semantic presentation into visibility and a tone state.
+        /// </summary>
+        private void ApplyPresentation(
+            InspectionOutcomePresentation presentation)
+        {
+            CardVisibility =
+                presentation.Kind == InspectionOutcomePresentationKind.Hidden
+                    ? Visibility.Collapsed
+                    : Visibility.Visible;
+
+            // xaml visual states are unavailable during dependency-property initialization
+            if (!_isInitialized)
+            {
+                return;
+            }
+
+            LayoutRoot.Visibility = CardVisibility;
+
+            if (CardVisibility == Visibility.Collapsed)
+            {
+                return;
+            }
+
+            // Presentation is a dependency property rather than an observable
+            // DTO. Refresh every bound text/icon before applying its tone.
+            Bindings.Update();
+
+            string stateName = presentation.Tone switch
+            {
+                InspectionOutcomeTone.Success => "SuccessTone",
+                InspectionOutcomeTone.Warning => "WarningTone",
+                InspectionOutcomeTone.Information => "InformationTone",
+                InspectionOutcomeTone.Error => "ErrorTone",
+                InspectionOutcomeTone.Neutral => "NeutralTone",
+                _ => throw new ArgumentOutOfRangeException(
+                    nameof(presentation),
+                    presentation.Tone,
+                    "Unknown inspection outcome tone.")
+            };
+
+            bool stateApplied = VisualStateManager.GoToState(
+                this,
+                stateName,
+                false);
+
+            // fail fast if xaml and code-behind state contracts drift apart
+            if (!stateApplied)
+            {
+                throw new InvalidOperationException(
+                    $"The outcome-card visual state '{stateName}' was not found.");
+            }
+
+            AutomationProperties.SetName(this, presentation.AutomationName);
+        }
+
+        private static void ValidateAnnouncement(
+            string automationName,
+            string parameterName)
+        {
+            ArgumentNullException.ThrowIfNull(automationName);
+            string projected = ModelInspectionDisplayTextPolicy.ProjectRequiredDetail(
+                automationName,
+                "Inspection outcome unavailable.");
+            if (!string.Equals(projected, automationName, StringComparison.Ordinal))
+            {
+                throw new ArgumentException(
+                    "Announcement text must already be bounded display-safe text.",
+                    parameterName);
+            }
+        }
+
+        private void RaiseLiveRegionChanged(string automationName)
+        {
+            AutomationPeer peer =
+                FrameworkElementAutomationPeer.FromElement(this) ??
+                FrameworkElementAutomationPeer.CreatePeerForElement(this);
+            peer.RaiseAutomationEvent(AutomationEvents.LiveRegionChanged);
+            LiveRegionChangeNotificationCount++;
+#if MODEL_INSPECTION_FIXTURE_GALLERY
+            _liveRegionAnnouncementHistory.Add(automationName);
+#endif
+        }
+    }
+}

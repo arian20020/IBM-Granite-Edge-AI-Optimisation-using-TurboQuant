@@ -1,0 +1,49 @@
+<Project>
+  <PropertyGroup>
+    <ModelInspectionWorkerPackageRelativeDirectory>ModelInspection\Worker</ModelInspectionWorkerPackageRelativeDirectory>
+    <_ModelInspectionWorkerPublishRoot>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\$(BaseIntermediateOutputPath)model-inspection-worker\$(Configuration)\win-x64'))</_ModelInspectionWorkerPublishRoot>
+    <_ModelInspectionWorkerArtifactsRoot>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\$(BaseIntermediateOutputPath)model-inspection-worker-artifacts\$(Configuration)'))</_ModelInspectionWorkerArtifactsRoot>
+    <_ModelInspectionWorkerManifestPath>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\$(BaseIntermediateOutputPath)model-inspection-worker\$(Configuration)\worker-manifest.json'))</_ModelInspectionWorkerManifestPath>
+    <_ModelInspectionRepositoryRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..'))</_ModelInspectionRepositoryRoot>
+    <_ModelInspectionWorkerProject>$(MSBuildThisFileDirectory)..\workers\GraniteEdgeAI.ModelInspection.Worker\GraniteEdgeAI.ModelInspection.Worker.csproj</_ModelInspectionWorkerProject>
+    <_ModelInspectionWorkerManifestGenerator>$(MSBuildThisFileDirectory)..\scripts\model-inspection\New-ModelInspectionWorkerManifest.ps1</_ModelInspectionWorkerManifestGenerator>
+    <_ModelInspectionWorkerManifestVerifier>$(MSBuildThisFileDirectory)..\scripts\model-inspection\Test-ModelInspectionWorkerManifest.ps1</_ModelInspectionWorkerManifestVerifier>
+    <_ModelInspectionDotNetHost Condition="'$(DotNetHostPath)' != ''">$(DotNetHostPath)</_ModelInspectionDotNetHost>
+    <_ModelInspectionDotNetHost Condition="'$(_ModelInspectionDotNetHost)' == ''">dotnet</_ModelInspectionDotNetHost>
+  </PropertyGroup>
+
+  <Target
+    Name="PublishModelInspectionWorkerForApplication"
+    BeforeTargets="AssignTargetPaths"
+    Condition="'$(Platform)' == 'x64' and '$(DesignTimeBuild)' != 'true'">
+    <RemoveDir Directories="$(_ModelInspectionWorkerPublishRoot)" />
+    <RemoveDir Directories="$(_ModelInspectionWorkerArtifactsRoot)" />
+    <Delete Files="$(_ModelInspectionWorkerManifestPath)" />
+    <MakeDir Directories="$(_ModelInspectionWorkerPublishRoot)" />
+
+    <Exec WorkingDirectory="$(_ModelInspectionRepositoryRoot)" Command="&quot;$(_ModelInspectionDotNetHost)&quot; restore &quot;$(_ModelInspectionWorkerProject)&quot; --runtime win-x64 --artifacts-path &quot;$(_ModelInspectionWorkerArtifactsRoot)&quot; -p:Configuration=Release -p:Platform=x64" />
+    <Exec WorkingDirectory="$(_ModelInspectionRepositoryRoot)" Command="&quot;$(_ModelInspectionDotNetHost)&quot; publish &quot;$(_ModelInspectionWorkerProject)&quot; --configuration Release --runtime win-x64 --self-contained false --no-restore --artifacts-path &quot;$(_ModelInspectionWorkerArtifactsRoot)&quot; --output &quot;$(_ModelInspectionWorkerPublishRoot)&quot; -p:Configuration=Release -p:Platform=x64 -p:UseAppHost=true -p:PublishTrimmed=false -p:PublishReadyToRun=false -p:DebugSymbols=false -p:DebugType=None -p:CopyDebugSymbolToPublishDirectory=false" />
+
+    <Exec Command="&quot;$(SystemRoot)\System32\WindowsPowerShell\v1.0\powershell.exe&quot; -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(_ModelInspectionWorkerManifestGenerator)&quot; -WorkerDirectory &quot;$(_ModelInspectionWorkerPublishRoot)&quot; -ManifestPath &quot;$(_ModelInspectionWorkerManifestPath)&quot;" />
+    <Exec Command="&quot;$(SystemRoot)\System32\WindowsPowerShell\v1.0\powershell.exe&quot; -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(_ModelInspectionWorkerManifestVerifier)&quot; -WorkerDirectory &quot;$(_ModelInspectionWorkerPublishRoot)&quot; -ManifestPath &quot;$(_ModelInspectionWorkerManifestPath)&quot;" />
+
+    <ItemGroup>
+      <_ModelInspectionWorkerPublishedFiles Include="$(_ModelInspectionWorkerPublishRoot)\**\*" />
+      <Content Include="@(_ModelInspectionWorkerPublishedFiles)">
+        <Link>$(ModelInspectionWorkerPackageRelativeDirectory)\%(RecursiveDir)%(Filename)%(Extension)</Link>
+        <TargetPath>$(ModelInspectionWorkerPackageRelativeDirectory)\%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </Content>
+      <Content Include="$(_ModelInspectionWorkerManifestPath)">
+        <Link>ModelInspection\worker-manifest.json</Link>
+        <TargetPath>ModelInspection\worker-manifest.json</TargetPath>
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </Content>
+      <EmbeddedResource Include="$(_ModelInspectionWorkerManifestPath)">
+        <LogicalName>GraniteEdgeAI.ModelInspection.WorkerManifest.json</LogicalName>
+      </EmbeddedResource>
+    </ItemGroup>
+  </Target>
+</Project>

@@ -1,0 +1,362 @@
+name: LLamaSharp trusted real-model integration
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: llamasharp-real-model-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
+
+env:
+  SPIKE_PROJECT: 'tools/ModelInspection.LlamaSharpSpike/ModelInspection.LlamaSharpSpike.csproj'
+  REAL_MODEL_TEST_PROJECT: 'tools/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests.csproj'
+  GRANITE_TEST_MODEL_PATH: ${{ vars.GRANITE_TEST_MODEL_PATH }}
+  CONTROLLED_MODEL_SHA256: '662b0626cd58f443baea23559b469df6576a81d349649c59413b36a9fb32eb29'
+  CONTROLLED_MODEL_LENGTH: '2099501664'
+
+jobs:
+  trusted-real-model-tests:
+    name: Granite VocabOnly, cancellation, hostile-input and privacy tests
+    runs-on:
+      - self-hosted
+      - Windows
+      - X64
+      - workbook05
+      - intel-target
+    timeout-minutes: 60
+
+    steps:
+      - name: Check out trusted test inputs
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+
+      - name: Set up .NET SDK from global.json
+        uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d
+        with:
+          global-json-file: global.json
+
+      - name: Prepare trusted evidence and publish directories
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $publishDirectory = Join-Path `
+            $env:RUNNER_TEMP `
+            'llamasharp-real-model-publish'
+          $evidenceDirectory = Join-Path `
+            $env:GITHUB_WORKSPACE `
+            'artifacts\model-inspection\llamasharp\real-model'
+
+          foreach ($directory in @($publishDirectory, $evidenceDirectory)) {
+            if (Test-Path -LiteralPath $directory) {
+              Remove-Item `
+                -LiteralPath $directory `
+                -Recurse `
+                -Force
+            }
+
+            New-Item `
+              -ItemType Directory `
+              -Path $directory `
+              -Force |
+              Out-Null
+          }
+
+          "LLAMASHARP_SPIKE_PUBLISH_DIR=$publishDirectory" |
+            Out-File `
+              -FilePath $env:GITHUB_ENV `
+              -Encoding utf8 `
+              -Append
+          "LLAMASHARP_REAL_MODEL_EVIDENCE_DIR=$evidenceDirectory" |
+            Out-File `
+              -FilePath $env:GITHUB_ENV `
+              -Encoding utf8 `
+              -Append
+
+      - name: Validate controlled Granite model before native testing
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          if ([string]::IsNullOrWhiteSpace($env:GRANITE_TEST_MODEL_PATH)) {
+            throw (
+              'Repository or environment variable GRANITE_TEST_MODEL_PATH ' +
+              'must point to the staged controlled Granite model.'
+            )
+          }
+
+          $modelPath = [IO.Path]::GetFullPath(
+            $env:GRANITE_TEST_MODEL_PATH
+          )
+
+          if (-not (Test-Path -LiteralPath $modelPath -PathType Leaf)) {
+            throw "Controlled Granite model not found: $modelPath"
+          }
+
+          $workspace = (
+            [IO.Path]::GetFullPath($env:GITHUB_WORKSPACE)
+          ).TrimEnd(
+            [IO.Path]::DirectorySeparatorChar,
+            [IO.Path]::AltDirectorySeparatorChar
+          )
+          $workspacePrefix = `
+            $workspace + [IO.Path]::DirectorySeparatorChar
+
+          if ($modelPath.StartsWith(
+              $workspacePrefix,
+              [StringComparison]::OrdinalIgnoreCase
+          )) {
+            throw 'The controlled model must remain outside the repository workspace.'
+          }
+
+          $model = Get-Item -LiteralPath $modelPath
+          if ($model.Name -ne 'granite-4.1-3b-Q4_K_M.gguf') {
+            throw "Unexpected controlled model filename: $($model.Name)"
+          }
+
+          if ($model.Length -ne [int64]$env:CONTROLLED_MODEL_LENGTH) {
+            throw (
+              "Unexpected controlled model length: $($model.Length); " +
+              "expected $env:CONTROLLED_MODEL_LENGTH"
+            )
+          }
+
+          if (-not $model.IsReadOnly) {
+            throw 'The staged controlled model must be marked read-only.'
+          }
+
+          $actualHash = (
+            Get-FileHash `
+              -LiteralPath $modelPath `
+              -Algorithm SHA256
+          ).Hash.ToLowerInvariant()
+
+          if ($actualHash -ne $env:CONTROLLED_MODEL_SHA256) {
+            throw (
+              "Controlled model SHA-256 mismatch. Actual: $actualHash"
+            )
+          }
+
+          $preconditionReport = [ordered]@{
+            GeneratedAtUtc = [DateTime]::UtcNow.ToString('o')
+            FileName = $model.Name
+            LengthBytes = $model.Length
+            Sha256 = $actualHash
+            IsReadOnly = $model.IsReadOnly
+            RunnerName = [string]$env:RUNNER_NAME
+            ComputerName = [string]$env:COMPUTERNAME
+            RunnerArchitecture = [string]$env:RUNNER_ARCH
+            ModelOutsideWorkspace = $true
+          }
+
+          $reportPath = Join-Path `
+            $env:LLAMASHARP_REAL_MODEL_EVIDENCE_DIR `
+            'controlled-model-preconditions.json'
+
+          $preconditionReport |
+            ConvertTo-Json -Depth 5 |
+            Set-Content `
+              -LiteralPath $reportPath `
+              -Encoding UTF8
+
+      - name: Display .NET information
+        run: dotnet --info
+
+      - name: Restore trusted test and feasibility projects
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          dotnet restore "$env:SPIKE_PROJECT" `
+            --runtime win-x64
+          if ($LASTEXITCODE -ne 0) {
+            throw "Feasibility project restore failed: $LASTEXITCODE"
+          }
+
+          dotnet restore "$env:REAL_MODEL_TEST_PROJECT" `
+            --runtime win-x64
+          if ($LASTEXITCODE -ne 0) {
+            throw "Real-model test restore failed: $LASTEXITCODE"
+          }
+
+      - name: Publish the exact Windows x64 feasibility tool
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          dotnet publish "$env:SPIKE_PROJECT" `
+            --configuration Release `
+            --no-restore `
+            --runtime win-x64 `
+            --self-contained false `
+            --output "$env:LLAMASHARP_SPIKE_PUBLISH_DIR"
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "Feasibility tool publish failed: $LASTEXITCODE"
+          }
+
+      - name: Run trusted LLamaSharp real-model suite
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          dotnet test "$env:REAL_MODEL_TEST_PROJECT" `
+            --configuration Release `
+            --no-restore `
+            --runtime win-x64 `
+            --filter "TestCategory=RealModelIntegration" `
+            --minimum-expected-tests 20
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "Trusted real-model tests failed: $LASTEXITCODE"
+          }
+
+      - name: Verify controlled model remained unchanged
+        id: model_integrity
+        if: ${{ always() }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          if ([string]::IsNullOrWhiteSpace($env:GRANITE_TEST_MODEL_PATH)) {
+            throw 'GRANITE_TEST_MODEL_PATH is unavailable for the final integrity gate.'
+          }
+
+          $actualHash = (
+            Get-FileHash `
+              -LiteralPath $env:GRANITE_TEST_MODEL_PATH `
+              -Algorithm SHA256
+          ).Hash.ToLowerInvariant()
+
+          if ($actualHash -ne $env:CONTROLLED_MODEL_SHA256) {
+            throw (
+              "Controlled model changed during testing. Actual: $actualHash"
+            )
+          }
+
+          [ordered]@{
+            VerifiedAtUtc = [DateTime]::UtcNow.ToString('o')
+            Sha256 = $actualHash
+            Preserved = $true
+          } |
+            ConvertTo-Json |
+            Set-Content `
+              -LiteralPath (
+                Join-Path `
+                  $env:LLAMASHARP_REAL_MODEL_EVIDENCE_DIR `
+                  'controlled-model-final-integrity.json'
+              ) `
+              -Encoding UTF8
+
+      - name: Scan retained evidence before upload
+        id: artifact_scan
+        if: ${{ always() }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $evidenceRoot = $env:LLAMASHARP_REAL_MODEL_EVIDENCE_DIR
+          if (-not (Test-Path -LiteralPath $evidenceRoot -PathType Container)) {
+            throw "Trusted evidence directory was not created: $evidenceRoot"
+          }
+
+          $evidenceRootFullPath = (
+            [IO.Path]::GetFullPath($evidenceRoot)
+          ).TrimEnd(
+            [IO.Path]::DirectorySeparatorChar,
+            [IO.Path]::AltDirectorySeparatorChar
+          )
+          $evidenceRootPrefix = `
+            $evidenceRootFullPath + [IO.Path]::DirectorySeparatorChar
+
+          $findings = @()
+          $maximumEvidenceBytes = 100MB
+
+          foreach ($file in Get-ChildItem `
+              -LiteralPath $evidenceRoot `
+              -File `
+              -Recurse `
+              -ErrorAction Stop) {
+            $fileFullPath = [IO.Path]::GetFullPath($file.FullName)
+
+            if (-not $fileFullPath.StartsWith(
+                $evidenceRootPrefix,
+                [StringComparison]::OrdinalIgnoreCase
+            )) {
+              $findings += [pscustomobject]@{
+                RelativePath = $fileFullPath
+                Reason = 'File resolved outside the evidence root.'
+              }
+              continue
+            }
+
+            $relativePath = $fileFullPath.Substring(
+              $evidenceRootPrefix.Length
+            )
+
+            if ($file.Extension -ieq '.gguf') {
+              $findings += [pscustomobject]@{
+                RelativePath = $relativePath
+                Reason = 'GGUF model file found in evidence.'
+              }
+            }
+
+            if ($file.Length -eq [int64]$env:CONTROLLED_MODEL_LENGTH) {
+              $findings += [pscustomobject]@{
+                RelativePath = $relativePath
+                Reason = 'File length matches controlled model.'
+              }
+            }
+
+            if ($file.Length -gt $maximumEvidenceBytes) {
+              $findings += [pscustomobject]@{
+                RelativePath = $relativePath
+                Reason = "Evidence file exceeds $maximumEvidenceBytes bytes."
+              }
+              continue
+            }
+
+            $fileHash = (
+              Get-FileHash `
+                -LiteralPath $file.FullName `
+                -Algorithm SHA256
+            ).Hash.ToLowerInvariant()
+
+            if ($fileHash -eq $env:CONTROLLED_MODEL_SHA256) {
+              $findings += [pscustomobject]@{
+                RelativePath = $relativePath
+                Reason = 'File SHA-256 matches controlled model.'
+              }
+            }
+          }
+
+          $scanReportPath = Join-Path `
+            $evidenceRoot `
+            'pre-upload-artifact-scan.json'
+
+          [ordered]@{
+            ScannedAtUtc = [DateTime]::UtcNow.ToString('o')
+            MaximumEvidenceFileBytes = [int64]$maximumEvidenceBytes
+            FindingCount = $findings.Count
+            Findings = $findings
+            Passed = ($findings.Count -eq 0)
+          } |
+            ConvertTo-Json -Depth 8 |
+            Set-Content `
+              -LiteralPath $scanReportPath `
+              -Encoding UTF8
+
+          if ($findings.Count -gt 0) {
+            throw (
+              "Trusted evidence privacy scan failed:`n" +
+              (($findings | Format-Table -AutoSize | Out-String).Trim())
+            )
+          }
+
+      - name: Upload privacy-scanned trusted evidence
+        if: ${{ always() && steps.model_integrity.outcome == 'success' && steps.artifact_scan.outcome == 'success' }}
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+        with:
+          name: llamasharp-real-model-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/model-inspection/llamasharp/real-model/**
+          if-no-files-found: error
+          retention-days: 30

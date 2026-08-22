@@ -159,6 +159,11 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
             {
                 try
                 {
+                    // Capture the scan-time write timestamp while the open
+                    // read handle continues to exclude writers and replacement.
+                    DateTimeOffset fileLastWriteTimeUtc = new(
+                        File.GetLastWriteTimeUtc(modelFilePath));
+
                     if (_scanStartedCheckpointAsync is not null)
                     {
                         await _scanStartedCheckpointAsync();
@@ -167,6 +172,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                     return await ScanOpenedFileAsync(
                         stream,
                         modelFilePath,
+                        fileLastWriteTimeUtc,
                         cancellationToken);
                 }
                 catch (GgufFormatException exception)
@@ -183,6 +189,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
         private static async Task<ModelQuickScanResult> ScanOpenedFileAsync(
             FileStream stream,
             string modelFilePath,
+            DateTimeOffset fileLastWriteTimeUtc,
             CancellationToken cancellationToken)
         {
             // Read and validate all 24 bytes of the fixed GGUF header.
@@ -256,7 +263,12 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
             string modelName = string.IsNullOrWhiteSpace(scanState.ModelName)
                 ? Path.GetFileName(modelFilePath)
                 : scanState.ModelName;
-            return CreateSuccessResult(stream, header, scanState, modelName);
+            return CreateSuccessResult(
+                stream,
+                header,
+                scanState,
+                modelName,
+                fileLastWriteTimeUtc);
         }
 
         /// <summary>
@@ -1295,7 +1307,8 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
             FileStream stream,
             GgufHeader header,
             GgufScanState scanState,
-            string modelName)
+            string modelName,
+            DateTimeOffset fileLastWriteTimeUtc)
         {
             return ModelQuickScanResult.CreateSuccess(
                 modelName,
@@ -1306,7 +1319,8 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                     : null,
                 stream.Length,
                 scanState.ContextLength,
-                header.Version);
+                header.Version,
+                fileLastWriteTimeUtc);
         }
 
         /// <summary>

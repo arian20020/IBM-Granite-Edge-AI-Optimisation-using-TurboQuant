@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <x:Double x:Key="GraniteJourneyActionHeight">46</x:Double>
+    <Thickness x:Key="GraniteJourneyActionPadding">18,10,18,10</Thickness>
+    <CornerRadius x:Key="GraniteJourneyActionCornerRadius">11</CornerRadius>
+
+    <SolidColorBrush x:Key="GraniteJourneyPrimaryBackgroundBrush" Color="#2563EB" />
+    <SolidColorBrush x:Key="GraniteJourneyPrimaryPointerOverBrush" Color="#1D4ED8" />
+    <SolidColorBrush x:Key="GraniteJourneyPrimaryPressedBrush" Color="#1E40AF" />
+    <SolidColorBrush x:Key="GraniteJourneyPrimaryForegroundBrush" Color="#FFFFFF" />
+
+    <SolidColorBrush x:Key="GraniteJourneySecondaryBackgroundBrush" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="GraniteJourneySecondaryPointerOverBrush" Color="#F8FAFC" />
+    <SolidColorBrush x:Key="GraniteJourneySecondaryPressedBrush" Color="#EEF2F7" />
+    <SolidColorBrush x:Key="GraniteJourneySecondaryForegroundBrush" Color="#111827" />
+    <SolidColorBrush x:Key="GraniteJourneySecondaryBorderBrush" Color="#C9D7E8" />
+    <SolidColorBrush x:Key="GraniteJourneySecondaryPointerOverBorderBrush" Color="#94A3B8" />
+    <SolidColorBrush x:Key="GraniteJourneySecondaryPressedBorderBrush" Color="#64748B" />
+
+    <SolidColorBrush x:Key="GraniteJourneyDisabledBackgroundBrush" Color="#E5E7EB" />
+    <SolidColorBrush x:Key="GraniteJourneyDisabledForegroundBrush" Color="#9CA3AF" />
+    <SolidColorBrush x:Key="GraniteJourneyDisabledBorderBrush" Color="#D1D5DB" />
+</ResourceDictionary>

@@ -1,0 +1,524 @@
+<?xml version="1.0" encoding="utf-8" ?>
+
+<UserControl
+    x:Class="GraniteEdgeAI.Features.Onboarding.Controls.OnboardingStageIndicator"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:inspectionControls="using:GraniteEdgeAI.Features.ModelInspection.Controls"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    MinHeight="128"
+    HorizontalAlignment="Stretch"
+    HorizontalContentAlignment="Stretch"
+    VerticalContentAlignment="Stretch"
+    d:DesignHeight="128"
+    d:DesignWidth="1000"
+    AutomationProperties.HelpText="Shows progress through the five-stage model setup process."
+    AutomationProperties.LiveSetting="Polite"
+    IsHitTestVisible="False"
+    IsTabStop="False"
+    UseLayoutRounding="True"
+    mc:Ignorable="d">
+
+    <UserControl.Resources>
+
+        <!--
+            Local design tokens keep the approved onboarding colours
+            in one place instead of repeating hexadecimal values.
+        -->
+        <SolidColorBrush
+            x:Key="OnboardingIndicatorSurfaceBrush"
+            Color="#FFFFFF" />
+
+        <SolidColorBrush
+            x:Key="OnboardingIndicatorActiveBrush"
+            Color="#2563EB" />
+
+        <SolidColorBrush
+            x:Key="OnboardingIndicatorInactiveSurfaceBrush"
+            Color="#F8FAFC" />
+
+        <SolidColorBrush
+            x:Key="OnboardingIndicatorInactiveBorderBrush"
+            Color="#CBD5E1" />
+
+        <SolidColorBrush
+            x:Key="OnboardingIndicatorConnectorBrush"
+            Color="#D8E0EA" />
+
+        <SolidColorBrush
+            x:Key="OnboardingIndicatorPrimaryTextBrush"
+            Color="#111827" />
+
+        <SolidColorBrush
+            x:Key="OnboardingIndicatorSecondaryTextBrush"
+            Color="#6B7280" />
+
+        <SolidColorBrush
+            x:Key="OnboardingIndicatorMutedTextBrush"
+            Color="#98A2B3" />
+
+        <StaticResource
+            x:Key="OnboardingIndicatorErrorBrush"
+            ResourceKey="InspectionErrorTextBrush" />
+
+        <StaticResource
+            x:Key="OnboardingIndicatorSuccessSurfaceBrush"
+            ResourceKey="InspectionSuccessSurfaceBrush" />
+
+        <StaticResource
+            x:Key="OnboardingIndicatorSuccessBorderBrush"
+            ResourceKey="InspectionSuccessBorderBrush" />
+
+        <StaticResource
+            x:Key="OnboardingIndicatorNotCompleteSurfaceBrush"
+            ResourceKey="InspectionSurfaceMutedBrush" />
+
+        <StaticResource
+            x:Key="OnboardingIndicatorNotCompleteBorderBrush"
+            ResourceKey="InspectionBorderMutedBrush" />
+
+        <!--  Shared appearance for every numbered stage box.  -->
+        <Style
+            x:Key="OnboardingStepBoxStyle"
+            TargetType="Border">
+
+            <Setter Property="Width" Value="36" />
+
+            <Setter Property="Height" Value="36" />
+
+            <Setter Property="HorizontalAlignment" Value="Center" />
+
+            <Setter Property="VerticalAlignment" Value="Center" />
+
+            <Setter Property="Background" Value="{StaticResource OnboardingIndicatorInactiveSurfaceBrush}" />
+
+            <Setter Property="BorderBrush" Value="{StaticResource OnboardingIndicatorInactiveBorderBrush}" />
+
+            <Setter Property="BorderThickness" Value="1" />
+
+            <Setter Property="CornerRadius" Value="10" />
+
+        </Style>
+
+        <!--  Shared appearance for the number or checkmark inside each box.  -->
+        <Style
+            x:Key="OnboardingStepValueStyle"
+            TargetType="TextBlock">
+
+            <Setter Property="HorizontalAlignment" Value="Center" />
+
+            <Setter Property="VerticalAlignment" Value="Center" />
+
+            <Setter Property="FontSize" Value="14" />
+
+            <Setter Property="FontWeight" Value="SemiBold" />
+
+            <Setter Property="Foreground" Value="{StaticResource OnboardingIndicatorMutedTextBrush}" />
+
+            <Setter Property="TextAlignment" Value="Center" />
+
+        </Style>
+
+        <!--  Shared appearance for the five stage labels.  -->
+        <Style
+            x:Key="OnboardingStepLabelStyle"
+            TargetType="TextBlock">
+
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+
+            <Setter Property="VerticalAlignment" Value="Center" />
+
+            <Setter Property="FontSize" Value="10" />
+
+            <Setter Property="Foreground" Value="{StaticResource OnboardingIndicatorSecondaryTextBrush}" />
+
+            <Setter Property="TextAlignment" Value="Center" />
+
+            <Setter Property="TextTrimming" Value="None" />
+
+            <Setter Property="TextWrapping" Value="WrapWholeWords" />
+
+        </Style>
+
+        <!--  Shared appearance for the permanent grey connector lines.  -->
+        <Style
+            x:Key="OnboardingConnectorStyle"
+            TargetType="Rectangle">
+
+            <Setter Property="Height" Value="3" />
+
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+
+            <Setter Property="VerticalAlignment" Value="Center" />
+
+            <Setter Property="Fill" Value="{StaticResource OnboardingIndicatorConnectorBrush}" />
+
+            <Setter Property="RadiusX" Value="1.5" />
+
+            <Setter Property="RadiusY" Value="1.5" />
+
+        </Style>
+
+        <!--
+            Blue connector overlays use the same geometry as the base lines.
+            Their ScaleTransform starts at zero and will be animated later.
+        -->
+        <Style
+            x:Key="OnboardingConnectorFillStyle"
+            BasedOn="{StaticResource OnboardingConnectorStyle}"
+            TargetType="Rectangle">
+
+            <Setter Property="Fill" Value="{StaticResource OnboardingIndicatorActiveBrush}" />
+
+        </Style>
+
+    </UserControl.Resources>
+
+    <!--  Provides the approved white surface behind the indicator.  -->
+    <Grid
+        Background="{StaticResource OnboardingIndicatorSurfaceBrush}">
+
+        <!--
+            Ten equal columns keep every two-column stage span centred while
+            the overlapping connector spans join adjacent stage centres.
+        -->
+        <Grid
+            x:Name="IndicatorLayoutGrid"
+            MaxWidth="900"
+            Margin="0"
+            HorizontalAlignment="Stretch">
+
+            <Grid.RowDefinitions>
+
+                <!--  Top divider.  -->
+                <RowDefinition
+                    Height="1" />
+
+                <!--  Space before the eyebrow.  -->
+                <RowDefinition
+                    Height="9" />
+
+                <!--  Current-stage eyebrow.  -->
+                <RowDefinition
+                    Height="28" />
+
+                <!--  Space between the eyebrow and stages.  -->
+                <RowDefinition
+                    Height="7" />
+
+                <!--  Stage boxes and connectors.  -->
+                <RowDefinition
+                    Height="36" />
+
+                <!--  Space before stage labels.  -->
+                <RowDefinition
+                    Height="7" />
+
+                <!--  Stage labels.  -->
+                <RowDefinition
+                    Height="Auto"
+                    MinHeight="28" />
+
+                <!--  Remaining lower space.  -->
+                <RowDefinition
+                    Height="8" />
+
+            </Grid.RowDefinitions>
+
+            <Grid.ColumnDefinitions>
+
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+
+            </Grid.ColumnDefinitions>
+
+            <!--  Separates the current page from the persistent indicator.  -->
+            <Rectangle
+                Grid.Row="0"
+                Grid.Column="0"
+                Grid.ColumnSpan="10"
+                Fill="{StaticResource OnboardingIndicatorConnectorBrush}" />
+
+            <!--  Updated by the code-behind whenever the active stage changes.  -->
+            <TextBlock
+                x:Name="StageEyebrowText"
+                Grid.Row="2"
+                Grid.Column="0"
+                Grid.ColumnSpan="10"
+                HorizontalAlignment="Stretch"
+                VerticalAlignment="Center"
+                FontSize="11"
+                FontWeight="SemiBold"
+                Foreground="{StaticResource OnboardingIndicatorSecondaryTextBrush}"
+                Text="MODEL SETUP · STEP 1 OF 5"
+                TextAlignment="Center" />
+
+            <!--  Connector between Choose model and Inspect.  -->
+            <Grid
+                Grid.Row="4"
+                Grid.Column="1"
+                Grid.ColumnSpan="2"
+                Margin="20,0">
+
+                <Rectangle
+                    Style="{StaticResource OnboardingConnectorStyle}" />
+
+                <Rectangle
+                    RenderTransformOrigin="0,0.5"
+                    Style="{StaticResource OnboardingConnectorFillStyle}">
+
+                    <Rectangle.RenderTransform>
+
+                        <!--
+                            ScaleX will animate from 0 to 1.
+                            This avoids repeatedly changing the element's layout width.
+                        -->
+                        <ScaleTransform x:Name="ChooseToInspectConnectorScale" ScaleX="0" ScaleY="1" />
+
+                    </Rectangle.RenderTransform>
+
+                </Rectangle>
+
+            </Grid>
+
+            <!--  Connector between Inspect and Check fit.  -->
+            <Grid
+                Grid.Row="4"
+                Grid.Column="3"
+                Grid.ColumnSpan="2"
+                Margin="20,0">
+
+                <Rectangle
+                    Style="{StaticResource OnboardingConnectorStyle}" />
+
+                <Rectangle
+                    RenderTransformOrigin="0,0.5"
+                    Style="{StaticResource OnboardingConnectorFillStyle}">
+
+                    <Rectangle.RenderTransform>
+
+                        <ScaleTransform x:Name="InspectToFitConnectorScale" ScaleX="0" ScaleY="1" />
+
+                    </Rectangle.RenderTransform>
+
+                </Rectangle>
+
+            </Grid>
+
+            <!--  Connector between Check fit and Configure.  -->
+            <Grid
+                Grid.Row="4"
+                Grid.Column="5"
+                Grid.ColumnSpan="2"
+                Margin="20,0">
+
+                <Rectangle
+                    Style="{StaticResource OnboardingConnectorStyle}" />
+
+                <Rectangle
+                    RenderTransformOrigin="0,0.5"
+                    Style="{StaticResource OnboardingConnectorFillStyle}">
+
+                    <Rectangle.RenderTransform>
+
+                        <ScaleTransform x:Name="FitToConfigureConnectorScale" ScaleX="0" ScaleY="1" />
+
+                    </Rectangle.RenderTransform>
+
+                </Rectangle>
+
+            </Grid>
+
+            <!--  Connector between Configure and Ready to chat.  -->
+            <Grid
+                Grid.Row="4"
+                Grid.Column="7"
+                Grid.ColumnSpan="2"
+                Margin="20,0">
+
+                <Rectangle
+                    Style="{StaticResource OnboardingConnectorStyle}" />
+
+                <Rectangle
+                    RenderTransformOrigin="0,0.5"
+                    Style="{StaticResource OnboardingConnectorFillStyle}">
+
+                    <Rectangle.RenderTransform>
+
+                        <ScaleTransform x:Name="ConfigureToReadyConnectorScale" ScaleX="0" ScaleY="1" />
+
+                    </Rectangle.RenderTransform>
+
+                </Rectangle>
+
+            </Grid>
+
+            <!--  Stage 1 begins as the active stage.  -->
+            <Border
+                x:Name="ChooseModelStepBox"
+                Grid.Row="4"
+                Grid.Column="0"
+                Grid.ColumnSpan="2"
+                Background="{StaticResource OnboardingIndicatorActiveBrush}"
+                BorderBrush="{StaticResource OnboardingIndicatorActiveBrush}"
+                Style="{StaticResource OnboardingStepBoxStyle}">
+
+                <Grid>
+                    <TextBlock
+                        x:Name="ChooseModelStepValue"
+                        Foreground="White"
+                        Style="{StaticResource OnboardingStepValueStyle}"
+                        Text="1" />
+                    <inspectionControls:InspectionStatusGlyph
+                        x:Name="ChooseModelStepGlyph"
+                        Kind="Success"
+                        SurfaceSize="36"
+                        Visibility="Collapsed" />
+                </Grid>
+
+            </Border>
+
+            <TextBlock
+                x:Name="ChooseModelStepLabel"
+                Grid.Row="6"
+                Grid.Column="0"
+                Grid.ColumnSpan="2"
+                FontWeight="SemiBold"
+                Foreground="{StaticResource OnboardingIndicatorPrimaryTextBrush}"
+                Style="{StaticResource OnboardingStepLabelStyle}"
+                Text="Choose model" />
+
+            <!--  Stage 2 begins in its future-stage state.  -->
+            <Border
+                x:Name="InspectModelStepBox"
+                Grid.Row="4"
+                Grid.Column="2"
+                Grid.ColumnSpan="2"
+                Style="{StaticResource OnboardingStepBoxStyle}">
+
+                <Grid>
+                    <TextBlock
+                        x:Name="InspectModelStepValue"
+                        Style="{StaticResource OnboardingStepValueStyle}"
+                        Text="2" />
+                    <inspectionControls:InspectionStatusGlyph
+                        x:Name="InspectModelStepGlyph"
+                        Kind="Success"
+                        SurfaceSize="36"
+                        Visibility="Collapsed" />
+                </Grid>
+
+            </Border>
+
+            <TextBlock
+                x:Name="InspectModelStepLabel"
+                Grid.Row="6"
+                Grid.Column="2"
+                Grid.ColumnSpan="2"
+                Style="{StaticResource OnboardingStepLabelStyle}"
+                Text="Inspect model" />
+
+            <!--  Stage 3 begins in its future-stage state.  -->
+            <Border
+                x:Name="CheckFitStepBox"
+                Grid.Row="4"
+                Grid.Column="4"
+                Grid.ColumnSpan="2"
+                Style="{StaticResource OnboardingStepBoxStyle}">
+
+                <Grid>
+                    <TextBlock
+                        x:Name="CheckFitStepValue"
+                        Style="{StaticResource OnboardingStepValueStyle}"
+                        Text="3" />
+                    <inspectionControls:InspectionStatusGlyph
+                        x:Name="CheckFitStepGlyph"
+                        Kind="Success"
+                        SurfaceSize="36"
+                        Visibility="Collapsed" />
+                </Grid>
+
+            </Border>
+
+            <TextBlock
+                x:Name="CheckFitStepLabel"
+                Grid.Row="6"
+                Grid.Column="4"
+                Grid.ColumnSpan="2"
+                Style="{StaticResource OnboardingStepLabelStyle}"
+                Text="Check hardware fit" />
+
+            <!--  Stage 4 begins in its future-stage state.  -->
+            <Border
+                x:Name="ConfigureModelStepBox"
+                Grid.Row="4"
+                Grid.Column="6"
+                Grid.ColumnSpan="2"
+                Style="{StaticResource OnboardingStepBoxStyle}">
+
+                <Grid>
+                    <TextBlock
+                        x:Name="ConfigureModelStepValue"
+                        Style="{StaticResource OnboardingStepValueStyle}"
+                        Text="4" />
+                    <inspectionControls:InspectionStatusGlyph
+                        x:Name="ConfigureModelStepGlyph"
+                        Kind="Success"
+                        SurfaceSize="36"
+                        Visibility="Collapsed" />
+                </Grid>
+
+            </Border>
+
+            <TextBlock
+                x:Name="ConfigureModelStepLabel"
+                Grid.Row="6"
+                Grid.Column="6"
+                Grid.ColumnSpan="2"
+                Style="{StaticResource OnboardingStepLabelStyle}"
+                Text="Configure model" />
+
+            <!--  Stage 5 begins in its future-stage state.  -->
+            <Border
+                x:Name="ReadyToChatStepBox"
+                Grid.Row="4"
+                Grid.Column="8"
+                Grid.ColumnSpan="2"
+                Style="{StaticResource OnboardingStepBoxStyle}">
+
+                <Grid>
+                    <TextBlock
+                        x:Name="ReadyToChatStepValue"
+                        Style="{StaticResource OnboardingStepValueStyle}"
+                        Text="5" />
+                    <inspectionControls:InspectionStatusGlyph
+                        x:Name="ReadyToChatStepGlyph"
+                        Kind="Success"
+                        SurfaceSize="36"
+                        Visibility="Collapsed" />
+                </Grid>
+
+            </Border>
+
+            <TextBlock
+                x:Name="ReadyToChatStepLabel"
+                Grid.Row="6"
+                Grid.Column="8"
+                Grid.ColumnSpan="2"
+                Style="{StaticResource OnboardingStepLabelStyle}"
+                Text="Ready to chat" />
+
+        </Grid>
+
+    </Grid>
+
+</UserControl>

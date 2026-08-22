@@ -1,0 +1,158 @@
+name: Model Inspection worker host tests
+
+# Run the production worker lifecycle tests whenever the host, shared protocol,
+# transport, tests, or this workflow changes.
+on:
+  push:
+    paths:
+      - 'workers/GraniteEdgeAI.ModelInspection.Worker/**'
+      - 'runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/**'
+      - 'shared/GraniteEdgeAI.ModelInspection.Contracts/**'
+      - 'shared/GraniteEdgeAI.ModelInspection.Transport/**'
+      - 'tests/UnitTests/GraniteEdgeAI.ModelInspection.Worker.Tests/**'
+      - '.github/workflows/model-inspection-worker-tests.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'workers/GraniteEdgeAI.ModelInspection.Worker/**'
+      - 'runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/**'
+      - 'shared/GraniteEdgeAI.ModelInspection.Contracts/**'
+      - 'shared/GraniteEdgeAI.ModelInspection.Transport/**'
+      - 'tests/UnitTests/GraniteEdgeAI.ModelInspection.Worker.Tests/**'
+      - '.github/workflows/model-inspection-worker-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: model-inspection-worker-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: pwsh
+    working-directory: D:\s
+
+jobs:
+  worker-tests:
+    name: Run protected worker host tests
+    runs-on: windows-latest
+    timeout-minutes: 12
+
+    steps:
+      - name: Check out worker host inputs
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          sparse-checkout: |
+            workers/GraniteEdgeAI.ModelInspection.Worker
+            runtime/GraniteEdgeAI.ModelInspection.LlamaSharp
+            shared/GraniteEdgeAI.ModelInspection.Contracts
+            shared/GraniteEdgeAI.ModelInspection.Transport
+            tests/UnitTests/GraniteEdgeAI.ModelInspection.Worker.Tests
+
+      - name: Stage worker host inputs at a short path
+        working-directory: ${{ github.workspace }}
+        run: |
+          $buildRoot = 'D:\s'
+          if (Test-Path -LiteralPath $buildRoot) {
+            Remove-Item -LiteralPath $buildRoot -Recurse -Force
+          }
+
+          robocopy $env:GITHUB_WORKSPACE $buildRoot /E /XD .git
+          if ($LASTEXITCODE -ge 8) {
+            throw "Failed to stage worker host inputs at $buildRoot."
+          }
+          $global:LASTEXITCODE = 0
+
+          if (-not (Test-Path (Join-Path $buildRoot 'global.json'))) {
+            throw 'The staged checkout is incomplete: global.json was not found.'
+          }
+
+      - name: Set up repository .NET SDK
+        uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d
+        with:
+          global-json-file: D:/s/global.json
+
+      - name: Run worker lifecycle tests
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $resultsDirectory = 'TestResults/Worker'
+          New-Item -ItemType Directory -Force -Path $resultsDirectory |
+            Out-Null
+          dotnet test tests/UnitTests/GraniteEdgeAI.ModelInspection.Worker.Tests/GraniteEdgeAI.ModelInspection.Worker.Tests.csproj --configuration Release --filter "FullyQualifiedName~WorkerHostTests|FullyQualifiedName~LlamaSharpInspectionEngineTests" --minimum-expected-tests 77 --results-directory $resultsDirectory --report-trx --report-trx-filename 'worker-engine.trx' -p:Platform=x64
+          if ($LASTEXITCODE -ne 0) {
+            throw "Worker lifecycle tests failed: $LASTEXITCODE"
+          }
+
+      - name: Verify exact worker engine test identities
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $trxPath = 'TestResults/Worker/worker-engine.trx'
+          if (-not (Test-Path -LiteralPath $trxPath -PathType Leaf)) {
+            throw "Worker TRX was not produced: $trxPath"
+          }
+
+          [xml]$trx = Get-Content -LiteralPath $trxPath -Raw
+          $definitions = @($trx.TestRun.TestDefinitions.UnitTest)
+          $results = @($trx.TestRun.Results.UnitTestResult)
+          $requiredClass = 'GraniteEdgeAI.ModelInspection.Worker.Tests.LlamaSharpInspectionEngineTests'
+          $expectedMethodCounts = [ordered]@{
+            'ProgramCreatesProductionLlamaSharpInspectionEngine' = 1
+            'InspectAsyncForwardsExactRequestAndReportsOrderedSuccessfulProgress' = 1
+            'InspectAsyncMapsCompleteEvidenceAndNumericSpecialTokenValues' = 1
+            'InspectAsyncMapsAllowlistedFailureToFixedMessageWithoutDetailLeak' = 10
+            'InspectAsyncMapsUnknownFailureAndEscapedExceptionToFixedGenericFailure' = 1
+            'InspectAsyncReturnsCancelledAndFinalizesCurrentStage' = 1
+            'InspectAsyncIntegrityFailureTakesPrecedenceOverCancellation' = 1
+            'InspectAsyncMissingIntegrityEvidenceTakesVerificationFailurePrecedence' = 6
+            'InspectAsyncSerializesConcurrentNativeProgressCallbacks' = 1
+            'InspectAsyncRejectsImpossibleRuntimeProgressFacts' = 1
+            'InspectAsyncRejectsIncompleteOrUnsafeSuccessfulResult' = 41
+            'InspectAsyncCompletesWithNullableFindingsAndOmitsUnsafeDetail' = 1
+            'InspectAsyncDoesNotFillUnavailableRuntimeEvidenceFromQuickScan' = 1
+          }
+          $classDefinitions = @($definitions |
+            Where-Object { $_.TestMethod.className -eq $requiredClass })
+          if ($classDefinitions.Count -ne 67) {
+            throw "Expected exactly 67 worker engine cases, found $($classDefinitions.Count)."
+          }
+
+          $actualMethods = @($classDefinitions |
+            Group-Object { $_.TestMethod.name })
+          $unexpectedMethods = @($actualMethods |
+            Where-Object { -not $expectedMethodCounts.Contains($_.Name) })
+          if (
+            $actualMethods.Count -ne $expectedMethodCounts.Count -or
+            $unexpectedMethods.Count -ne 0
+          ) {
+            throw 'Worker engine TRX contains a missing or unexpected method.'
+          }
+
+          foreach ($entry in $expectedMethodCounts.GetEnumerator()) {
+            $methodDefinitions = @($classDefinitions |
+              Where-Object { $_.TestMethod.name -eq $entry.Key })
+            if ($methodDefinitions.Count -ne $entry.Value) {
+              throw (
+                "Worker engine case count drifted for $($entry.Key): " +
+                "expected $($entry.Value), found $($methodDefinitions.Count)."
+              )
+            }
+
+            foreach ($definition in $methodDefinitions) {
+              $testResults = @($results |
+                Where-Object { $_.testId -eq $definition.id })
+              if (
+                $testResults.Count -ne 1 -or
+                $testResults[0].outcome -ne 'Passed'
+              ) {
+                throw "Worker engine case did not pass exactly once: $($definition.name)"
+              }
+            }
+          }
+
+          $counters = $trx.TestRun.ResultSummary.Counters
+          if ($null -eq $counters -or [int]$counters.notExecuted -ne 0) {
+            throw 'Worker host evidence contains skipped tests.'
+          }

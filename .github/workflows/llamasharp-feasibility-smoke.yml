@@ -1,0 +1,351 @@
+name: LLamaSharp Tier 1 runtime tests
+
+on:
+  push:
+    paths:
+      - '.github/workflows/llamasharp-feasibility-smoke.yml'
+      - '.github/workflows/llamasharp-real-model-integration.yml'
+      - 'runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/**'
+      - 'tools/ModelInspection.LlamaSharpSpike/**'
+      - 'tools/ModelInspection.LlamaSharpSpike.Tests/**'
+      - 'tools/ModelInspection.LlamaSharpSpike.TestSupport/**'
+      - 'tools/ModelInspection.LlamaSharpSpike.NativeIntegrationTests/**'
+      - 'tools/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests/**'
+      - 'docs/testing/LLamaSharp-Runtime-Test-Coverage-Matrix.md'
+      - 'IBM Granite with TurboQuant (Intel)/IBM Granite with TurboQuant (Intel).csproj'
+      - 'global.json'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/llamasharp-feasibility-smoke.yml'
+      - '.github/workflows/llamasharp-real-model-integration.yml'
+      - 'runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/**'
+      - 'tools/ModelInspection.LlamaSharpSpike/**'
+      - 'tools/ModelInspection.LlamaSharpSpike.Tests/**'
+      - 'tools/ModelInspection.LlamaSharpSpike.TestSupport/**'
+      - 'tools/ModelInspection.LlamaSharpSpike.NativeIntegrationTests/**'
+      - 'tools/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests/**'
+      - 'docs/testing/LLamaSharp-Runtime-Test-Coverage-Matrix.md'
+      - 'IBM Granite with TurboQuant (Intel)/IBM Granite with TurboQuant (Intel).csproj'
+      - 'global.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: llamasharp-tier1-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: pwsh
+
+env:
+  SPIKE_PROJECT: 'tools/ModelInspection.LlamaSharpSpike/ModelInspection.LlamaSharpSpike.csproj'
+  SPIKE_TEST_PROJECT: 'tools/ModelInspection.LlamaSharpSpike.Tests/ModelInspection.LlamaSharpSpike.Tests.csproj'
+  NATIVE_INTEGRATION_PROJECT: 'tools/ModelInspection.LlamaSharpSpike.NativeIntegrationTests/ModelInspection.LlamaSharpSpike.NativeIntegrationTests.csproj'
+  REAL_MODEL_TEST_PROJECT: 'tools/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests.csproj'
+  EVIDENCE_PATH: 'artifacts/model-inspection/llamasharp/runtime-smoke.json'
+  DETERMINISTIC_RESULTS: 'TestResults/LLamaSharpDeterministic'
+
+jobs:
+  tier1-runtime-coverage:
+    name: Deterministic contracts and contained CPU-native tests
+    runs-on: windows-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out Tier 1 inputs
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          sparse-checkout: |
+            IBM Granite with TurboQuant (Intel)
+            runtime/GraniteEdgeAI.ModelInspection.LlamaSharp
+            tools/ModelInspection.LlamaSharpSpike
+            tools/ModelInspection.LlamaSharpSpike.Tests
+            tools/ModelInspection.LlamaSharpSpike.TestSupport
+            tools/ModelInspection.LlamaSharpSpike.NativeIntegrationTests
+            tools/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests
+            docs/testing/LLamaSharp-Runtime-Test-Coverage-Matrix.md
+
+      - name: Set up .NET SDK from global.json
+        uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d
+        with:
+          global-json-file: global.json
+
+      - name: Display .NET information
+        run: dotnet --info
+
+      - name: Restore all model-free verification projects
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          dotnet restore "$env:SPIKE_TEST_PROJECT" `
+            --runtime win-x64
+          if ($LASTEXITCODE -ne 0) {
+            throw "Deterministic test restore failed: $LASTEXITCODE"
+          }
+
+          dotnet restore "$env:NATIVE_INTEGRATION_PROJECT" `
+            --runtime win-x64
+          if ($LASTEXITCODE -ne 0) {
+            throw "Native integration restore failed: $LASTEXITCODE"
+          }
+
+          dotnet restore "$env:REAL_MODEL_TEST_PROJECT" `
+            --runtime win-x64
+          if ($LASTEXITCODE -ne 0) {
+            throw "Trusted test project restore failed: $LASTEXITCODE"
+          }
+
+      - name: Run deterministic LLamaSharp contracts with MTP
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          dotnet test "$env:SPIKE_TEST_PROJECT" `
+            --configuration Release `
+            --no-restore `
+            --runtime win-x64 `
+            --filter "TestCategory=Deterministic" `
+            --minimum-expected-tests 181 `
+            --results-directory "$env:DETERMINISTIC_RESULTS" `
+            --report-trx `
+            --report-trx-filename 'deterministic-llamasharp.trx'
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "Deterministic LLamaSharp tests failed: $LASTEXITCODE"
+          }
+
+          $trxPath = Join-Path `
+            $env:DETERMINISTIC_RESULTS `
+            'deterministic-llamasharp.trx'
+          [xml]$trx = Get-Content -LiteralPath $trxPath -Raw
+          $definitions = @($trx.TestRun.TestDefinitions.UnitTest)
+          $results = @($trx.TestRun.Results.UnitTestResult)
+          $requiredClass = 'GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike.Tests.ProductionRuntimeArchitectureTests'
+          $expectedArchitectureTests = @(
+            "$requiredClass.ProductionRuntimeProjectOwnsExactCpuPackages"
+            "$requiredClass.ProductionRuntimeProjectHasExactBuildAndDependencyBoundary"
+            "$requiredClass.ProductionRuntimeBoundaryDocumentationExists"
+            "$requiredClass.SpikeProjectOwnsNoLlamaPackagesAndReferencesRuntime"
+            "$requiredClass.VocabOnlyProbeBelongsToProductionRuntimeAssembly"
+            "$requiredClass.ProductionRuntimePhysicallyOwnsProbeConfigurationAndEvidenceSources"
+          )
+          $architectureDefinitions = @($definitions |
+            Where-Object { $_.TestMethod.className -eq $requiredClass })
+          $actualArchitectureTests = @($architectureDefinitions |
+            ForEach-Object {
+              "$($_.TestMethod.className).$($_.TestMethod.name)"
+            })
+          $missingArchitectureTests = @($expectedArchitectureTests |
+            Where-Object { $_ -notin $actualArchitectureTests })
+          $unexpectedArchitectureTests = @($actualArchitectureTests |
+            Where-Object { $_ -notin $expectedArchitectureTests })
+          $duplicateArchitectureTests = @($actualArchitectureTests |
+            Group-Object |
+            Where-Object { $_.Count -ne 1 })
+          if (
+            $actualArchitectureTests.Count -ne 6 -or
+            $missingArchitectureTests.Count -ne 0 -or
+            $unexpectedArchitectureTests.Count -ne 0 -or
+            $duplicateArchitectureTests.Count -ne 0
+          ) {
+            throw (
+              'Deterministic evidence did not contain the exact six ' +
+              'production-runtime architecture definitions.'
+            )
+          }
+
+          foreach ($expectedTest in $expectedArchitectureTests) {
+            $definition = @($architectureDefinitions |
+              Where-Object {
+                "$($_.TestMethod.className).$($_.TestMethod.name)" -eq
+                  $expectedTest
+              })
+            if ($definition.Count -ne 1) {
+              throw "Architecture definition count was not one: $expectedTest"
+            }
+
+            $testResults = @($results |
+              Where-Object { $_.testId -eq $definition[0].id })
+            if (
+              $testResults.Count -ne 1 -or
+              $testResults[0].outcome -ne 'Passed'
+            ) {
+              throw "Architecture test did not pass exactly once: $expectedTest"
+            }
+          }
+
+          $counters = $trx.TestRun.ResultSummary.Counters
+          if (
+            $null -eq $counters -or
+            [int]$counters.notExecuted -ne 0
+          ) {
+            throw 'Deterministic evidence contains skipped tests.'
+          }
+
+      - name: Compile trusted real-model tests without executing them
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          dotnet build "$env:REAL_MODEL_TEST_PROJECT" `
+            --configuration Release `
+            --no-restore `
+            --runtime win-x64
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "Trusted real-model test compilation failed: $LASTEXITCODE"
+          }
+
+      - name: Build and publish the Windows x64 feasibility tool
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          dotnet build "$env:SPIKE_PROJECT" `
+            --configuration Release `
+            --no-restore `
+            --runtime win-x64
+          if ($LASTEXITCODE -ne 0) {
+            throw "Feasibility tool build failed: $LASTEXITCODE"
+          }
+
+          $publishDirectory = Join-Path `
+            $env:RUNNER_TEMP `
+            'llamasharp-spike-publish'
+
+          dotnet publish "$env:SPIKE_PROJECT" `
+            --configuration Release `
+            --no-restore `
+            --runtime win-x64 `
+            --self-contained false `
+            --output $publishDirectory
+          if ($LASTEXITCODE -ne 0) {
+            throw "Feasibility tool publish failed: $LASTEXITCODE"
+          }
+
+          "LLAMASHARP_SPIKE_PUBLISH_DIR=$publishDirectory" |
+            Out-File `
+              -FilePath $env:GITHUB_ENV `
+              -Encoding utf8 `
+              -Append
+
+      - name: Produce direct CPU runtime-smoke evidence
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          dotnet run `
+            --project "$env:SPIKE_PROJECT" `
+            --configuration Release `
+            --no-build `
+            --runtime win-x64 `
+            -- `
+            --output "$env:EVIDENCE_PATH"
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "Direct CPU runtime smoke failed: $LASTEXITCODE"
+          }
+
+      - name: Validate direct runtime-smoke evidence
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          if (-not (Test-Path -LiteralPath $env:EVIDENCE_PATH -PathType Leaf)) {
+            throw "Runtime-smoke evidence was not created: $env:EVIDENCE_PATH"
+          }
+
+          $report = Get-Content `
+            -LiteralPath $env:EVIDENCE_PATH `
+            -Raw |
+            ConvertFrom-Json
+
+          if (-not $report.succeeded) {
+            throw "LLamaSharp dry run failed: $($report.failureCode) $($report.failureMessage)"
+          }
+          if ($report.schemaVersion -ne '1.0') {
+            throw "Unexpected runtime-smoke schema: $($report.schemaVersion)"
+          }
+          if ($report.managedPackageVersion -ne '0.27.0') {
+            throw "Unexpected LLamaSharp version: $($report.managedPackageVersion)"
+          }
+          if ($report.backendPackageVersion -ne '0.27.0') {
+            throw "Unexpected CPU backend version: $($report.backendPackageVersion)"
+          }
+          if (
+            $report.expectedLlamaCppCommit -ne
+            '3f7c29d318e317b63f54c558bc69803963d7d88c'
+          ) {
+            throw "Unexpected mapped llama.cpp commit: $($report.expectedLlamaCppCommit)"
+          }
+          if ($report.processArchitecture -ne 'X64') {
+            throw "Unexpected process architecture: $($report.processArchitecture)"
+          }
+          if ($null -eq $report.selectedBackend) {
+            throw 'The report did not record the selected native backend.'
+          }
+          if ($report.selectedBackend.usesCuda -ne $false) {
+            throw 'Tier 1 CPU gate must not select CUDA.'
+          }
+          if ($report.selectedBackend.usesVulkan -ne $false) {
+            throw 'Tier 1 CPU gate must not select Vulkan.'
+          }
+          if (
+            [string]::IsNullOrWhiteSpace(
+              [string]$report.selectedBackend.nativeLibraryName
+            )
+          ) {
+            throw 'The report did not identify the selected native library.'
+          }
+
+      - name: Run contained native backend integration tests
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          dotnet test "$env:NATIVE_INTEGRATION_PROJECT" `
+            --configuration Release `
+            --no-restore `
+            --runtime win-x64 `
+            --filter "TestCategory=NativeIntegration" `
+            --minimum-expected-tests 4
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "Hosted native integration tests failed: $LASTEXITCODE"
+          }
+
+      - name: Prove uploaded evidence contains no GGUF model
+        id: artifact_scan
+        if: ${{ always() }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $artifactRoot = 'artifacts/model-inspection/llamasharp'
+          if (-not (Test-Path -LiteralPath $artifactRoot)) {
+            Write-Host 'No LLamaSharp artifact directory exists.'
+            exit 0
+          }
+
+          $ggufFiles = @(
+            Get-ChildItem `
+              -LiteralPath $artifactRoot `
+              -Filter '*.gguf' `
+              -File `
+              -Recurse `
+              -ErrorAction Stop
+          )
+
+          if ($ggufFiles.Count -gt 0) {
+            throw (
+              'Model files must never be uploaded: ' +
+              (($ggufFiles.FullName | Sort-Object) -join ', ')
+            )
+          }
+
+      - name: Upload model-free Tier 1 evidence
+        if: ${{ always() && steps.artifact_scan.outcome == 'success' }}
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+        with:
+          name: llamasharp-tier1-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/model-inspection/llamasharp/**
+          if-no-files-found: warn
+          retention-days: 30

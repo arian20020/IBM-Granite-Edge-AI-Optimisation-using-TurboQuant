@@ -7,6 +7,9 @@
 scripts/testing/workbook05/requirements.phase3-bootstrap.in text eol=lf
 scripts/testing/workbook05/requirements.phase3-bootstrap.txt text eol=lf
 *.ps1 text eol=crlf
+# Immutable third-party/source assets are verified by exact byte hash.
+"IBM Granite with TurboQuant (Intel)/Assets/Fonts/OFL.txt" -text
+docs/ux/screenshots/model-inspection/reference/model-inspection-complete-ordered-board-v2.svg -text
 # BEGIN IXN CONTROLLED EXPERIMENT EVIDENCE
 # Machine-generated evidence is immutable. Do not normalize line endings.
 experiments/granite_turboquant_intel/logs/** -text whitespace=-blank-at-eol,-blank-at-eof

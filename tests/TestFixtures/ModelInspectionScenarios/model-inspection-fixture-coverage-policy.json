@@ -1,0 +1,1252 @@
+{
+  "$schema": "model-inspection-fixture.schema.json",
+  "schemaVersion": 1,
+  "fixtures": [
+    {
+      "id": "MI-001",
+      "fileName": "MI-001-inspection-progress-initial.fixture.json",
+      "targetCondition": "inspection-progress-initial",
+      "variant": null,
+      "pairedWithId": null,
+      "canonicalFigmaState": "inspectionProgress",
+      "requiredCoverageTags": [
+        "figma.inspection-progress",
+        "progress.initial"
+      ],
+      "requiredInteractions": [
+        "reset"
+      ],
+      "requiredPresets": [
+        "P01"
+      ]
+    },
+    {
+      "id": "MI-002",
+      "fileName": "MI-002-ready-clean-compatible-model-collapsed.fixture.json",
+      "targetCondition": "ready-clean-compatible-model",
+      "variant": "collapsed",
+      "pairedWithId": "MI-003",
+      "canonicalFigmaState": "readyCollapsed",
+      "requiredCoverageTags": [
+        "figma.ready-collapsed",
+        "outcome.ready"
+      ],
+      "requiredInteractions": [
+        "expand",
+        "chooseAnother",
+        "reset"
+      ],
+      "requiredPresets": [
+        "P01"
+      ]
+    },
+    {
+      "id": "MI-003",
+      "fileName": "MI-003-ready-clean-compatible-model-expanded.fixture.json",
+      "targetCondition": "ready-clean-compatible-model",
+      "variant": "expanded",
+      "pairedWithId": "MI-002",
+      "canonicalFigmaState": "readyExpanded",
+      "requiredCoverageTags": [
+        "figma.ready-expanded",
+        "outcome.ready"
+      ],
+      "requiredInteractions": [
+        "expand",
+        "collapse",
+        "chooseAnother",
+        "reset"
+      ],
+      "requiredPresets": [
+        "P01",
+        "P09"
+      ]
+    },
+    {
+      "id": "MI-004",
+      "fileName": "MI-004-ready-with-warnings-chat-template-missing-collapsed.fixture.json",
+      "targetCondition": "ready-with-warnings-chat-template-missing",
+      "variant": "collapsed",
+      "pairedWithId": "MI-005",
+      "canonicalFigmaState": "readyWithWarningsCollapsed",
+      "requiredCoverageTags": [
+        "figma.ready-with-warnings-collapsed",
+        "outcome.ready-with-warnings"
+      ],
+      "requiredInteractions": [
+        "expand",
+        "chooseAnother",
+        "reset"
+      ],
+      "requiredPresets": [
+        "P01"
+      ]
+    },
+    {
+      "id": "MI-005",
+      "fileName": "MI-005-ready-with-warnings-chat-template-missing-expanded.fixture.json",
+      "targetCondition": "ready-with-warnings-chat-template-missing",
+      "variant": "expanded",
+      "pairedWithId": "MI-004",
+      "canonicalFigmaState": "readyWithWarningsExpanded",
+      "requiredCoverageTags": [
+        "figma.ready-with-warnings-expanded",
+        "outcome.ready-with-warnings"
+      ],
+      "requiredInteractions": [
+        "expand",
+        "collapse",
+        "chooseAnother",
+        "reset"
+      ],
+      "requiredPresets": [
+        "P01"
+      ]
+    },
+    {
+      "id": "MI-006",
+      "fileName": "MI-006-conversion-required-verified-incompatible-route-collapsed.fixture.json",
+      "targetCondition": "conversion-required-verified-incompatible-route",
+      "variant": "collapsed",
+      "pairedWithId": "MI-007",
+      "canonicalFigmaState": "conversionRequiredCollapsed",
+      "requiredCoverageTags": [
+        "figma.conversion-required-collapsed",
+        "outcome.conversion-required"
+      ],
+      "requiredInteractions": [
+        "expand",
+        "chooseAnother",
+        "reset"
+      ],
+      "requiredPresets": [
+        "P01"
+      ]
+    },
+    {
+      "id": "MI-007",
+      "fileName": "MI-007-conversion-required-verified-incompatible-route-expanded.fixture.json",
+      "targetCondition": "conversion-required-verified-incompatible-route",
+      "variant": "expanded",
+      "pairedWithId": "MI-006",
+      "canonicalFigmaState": "conversionRequiredExpanded",
+      "requiredCoverageTags": [
+        "figma.conversion-required-expanded",
+        "outcome.conversion-required"
+      ],
+      "requiredInteractions": [
+        "expand",
+        "collapse",
+        "chooseAnother",
+        "reset"
+      ],
+      "requiredPresets": [
+        "P01"
+      ]
+    },
+    {
+      "id": "MI-008",
+      "fileName": "MI-008-incomplete-package-missing-package-member.fixture.json",
+      "targetCondition": "incomplete-package-missing-package-member",
+      "variant": null,
+      "pairedWithId": null,
+      "canonicalFigmaState": "incompletePackage",
+      "requiredCoverageTags": [
+        "figma.incomplete-package",
+        "outcome.incomplete-package"
+      ],
+      "requiredInteractions": [
+        "chooseAnother",
+        "reset"
+      ],
+      "requiredPresets": [
+        "P01"
+      ]
+    },
+    {
+      "id": "MI-009",
+      "fileName": "MI-009-unsupported-model-architecture.fixture.json",
+      "targetCondition": "unsupported-model-architecture",
+      "variant": null,
+      "pairedWithId": null,
+      "canonicalFigmaState": "unsupported",
+      "requiredCoverageTags": [
+        "figma.unsupported",
+        "outcome.unsupported"
+      ],
+      "requiredInteractions": [
+        "chooseAnother",
+        "reset"
+      ],
+      "requiredPresets": [
+        "P01"
+      ]
+    },
+    {
+      "id": "MI-010",
+      "fileName": "MI-010-invalid-cross-source-evidence-contradiction-collapsed.fixture.json",
+      "targetCondition": "invalid-cross-source-evidence-contradiction",
+      "variant": "collapsed",
+      "pairedWithId": "MI-011",
+      "canonicalFigmaState": "invalidCollapsed",
+      "requiredCoverageTags": [
+        "figma.invalid-collapsed",
+        "outcome.invalid"
+      ],
+      "requiredInteractions": [
+        "expand",
+        "chooseAnother",
+        "reset"
+      ],
+      "requiredPresets": [
+        "P01"
+      ]
+    },
+    {
+      "id": "MI-011",
+      "fileName": "MI-011-invalid-cross-source-evidence-contradiction-expanded.fixture.json",
+      "targetCondition": "invalid-cross-source-evidence-contradiction",
+      "variant": "expanded",
+      "pairedWithId": "MI-010",
+      "canonicalFigmaState": "invalidExpanded",
+      "requiredCoverageTags": [
+        "figma.invalid-expanded",
+        "outcome.invalid"
+      ],
+      "requiredInteractions": [
+        "expand",
+        "collapse",
+        "chooseAnother",
+        "reset"
+      ],
+      "requiredPresets": [
+        "P01"
+      ]
+    },
+    {
+      "id": "MI-012",
+      "fileName": "MI-012-cancelled-cooperative-user-cancellation.fixture.json",
+      "targetCondition": "cancelled-cooperative-user-cancellation",
+      "variant": null,
+      "pairedWithId": null,
+      "canonicalFigmaState": "cancelled",
+      "requiredCoverageTags": [
+        "figma.cancelled",
+        "terminal.cancelled",
+        "lifecycle.cancellation-requested",
+        "lifecycle.cooperative-cancellation"
+      ],
+      "requiredInteractions": [
+        "cancel",
+        "restart",
+        "chooseAnother",
+        "reset"
+      ],
+      "requiredPresets": [
+        "P01"
+      ]
+    },
+    {
+      "id": "MI-013",
+      "fileName": "MI-013-operational-failure-worker-start-failure.fixture.json",
+      "targetCondition": "operational-failure-worker-start-failure",
+      "variant": null,
+      "pairedWithId": null,
+      "canonicalFigmaState": "operationalFailure",
+      "requiredCoverageTags": [
+        "figma.operational-failure",
+        "failure.worker-start-failure"
+      ],
+      "requiredInteractions": [
+        "retry",
+        "chooseAnother",
+        "reset"
+      ],
+      "requiredPresets": [
+        "P01"
+      ]
+    },
+    {
+      "id": "MI-014",
+      "fileName": "MI-014-progress-check-model-package-active-fractionless.fixture.json",
+      "targetCondition": "progress-check-model-package-active-fractionless",
+      "variant": null,
+      "pairedWithId": null,
+      "canonicalFigmaState": "inspectionProgress",
+      "requiredCoverageTags": [
+        "figma.inspection-progress",
+        "progress.check-model-package.active"
+      ],
+      "requiredInteractions": [
+        "cancel",
+        "reset"
+      ],
+      "requiredPresets": [
+        "P01"
+      ]
+    },
+    {
+      "id": "MI-015",
+      "fileName": "MI-015-progress-check-model-package-completed.fixture.json",
+      "targetCondition": "progress-check-model-package-completed",
+      "variant": null,
+      "pairedWithId": null,
+      "canonicalFigmaState": "inspectionProgress",
+      "requiredCoverageTags": [
+        "figma.inspection-progress",
+        "progress.check-model-package.completed"
+      ],
+      "requiredInteractions": [
+        "cancel",
+        "reset"
+      ],
+      "requiredPresets": [
+        "P01"
+      ]
+    },
+    {
+      "id": "MI-016",
+      "fileName": "MI-016-progress-read-model-configuration-active.fixture.json",
+      "targetCondition": "progress-read-model-configuration-active",
+      "variant": null,
+      "pairedWithId": null,
+      "canonicalFigmaState": "inspectionProgress",
+      "requiredCoverageTags": [
+        "figma.inspection-progress",
+        "progress.read-model-configuration.active"
+      ],
+      "requiredInteractions": [
+        "cancel",
+        "reset"
+      ],
+      "requiredPresets": [
+        "P01"
+      ]
+    },
+    {
+      "id": "MI-017",
+      "fileName": "MI-017-progress-read-model-configuration-completed.fixture.json",
+      "targetCondition": "progress-read-model-configuration-completed",
+      "variant": null,
+      "pairedWithId": null,
+      "canonicalFigmaState": "inspectionProgress",
+      "requiredCoverageTags": [
+        "figma.inspection-progress",
+        "progress.read-model-configuration.completed"
+      ],
+      "requiredInteractions": [
+        "cancel",
+        "reset"
+      ],
+      "requiredPresets": [
+        "P01"
+      ]
+    },
+    {
+      "id": "MI-018",
+      "fileName": "MI-018-progress-validate-tokenizer-chat-setup-active.fixture.json",
+      "targetCondition": "progress-validate-tokenizer-chat-setup-active",
+      "variant": null,
+      "pairedWithId": null,
+      "canonicalFigmaState": "inspectionProgress",
+      "requiredCoverageTags": [
+        "figma.inspection-progress",
+        "progress.validate-tokenizer-and-chat-setup.active"
+      ],
+      "requiredInteractions": [
+        "cancel",
+        "reset"
+      ],
+      "requiredPresets": [
+        "P01"
+      ]
+    },
+    {
+      "id": "MI-019",
+      "fileName": "MI-019-progress-validate-tokenizer-chat-setup-completed.fixture.json",
+      "targetCondition": "progress-validate-tokenizer-chat-setup-completed",
+      "variant": null,
+      "pairedWithId": null,
+      "canonicalFigmaState": "inspectionProgress",
+      "requiredCoverageTags": [
+        "figma.inspection-progress",
+        "progress.validate-tokenizer-and-chat-setup.completed"
+      ],
+      "requiredInteractions": [
+        "cancel",
+        "reset"
+      ],
+      "requiredPresets": [
+        "P01"
+      ]
+    },
+    {
+      "id": "MI-020",
+      "fileName": "MI-020-progress-validate-model-structure-active.fixture.json",
+      "targetCondition": "progress-validate-model-structure-active",
+      "variant": null,
+      "pairedWithId": null,
+      "canonicalFigmaState": "inspectionProgress",
+      "requiredCoverageTags": [
+        "figma.inspection-progress",
+        "progress.validate-model-structure.active"
+      ],
+      "requiredInteractions": [
+        "cancel",
+        "reset"
+      ],
+      "requiredPresets": [
+        "P01"
+      ]
+    },
+    {
+      "id": "MI-021",
+      "fileName": "MI-021-progress-validate-model-structure-completed.fixture.json",
+      "targetCondition": "progress-validate-model-structure-completed",
+      "variant": null,
+      "pairedWithId": null,
+      "canonicalFigmaState": "inspectionProgress",
+      "requiredCoverageTags": [
+        "figma.inspection-progress",
+        "progress.validate-model-structure.completed"
+      ],
+      "requiredInteractions": [
+        "cancel",
+        "reset"
+      ],
+      "requiredPresets": [
+        "P01"
+      ]
+    },
+    {
+      "id": "MI-022",
+      "fileName": "MI-022-progress-confirm-runtime-compatibility-active.fixture.json",
+      "targetCondition": "progress-confirm-runtime-compatibility-active",
+      "variant": null,
+      "pairedWithId": null,
+      "canonicalFigmaState": "inspectionProgress",
+      "requiredCoverageTags": [
+        "figma.inspection-progress",
+        "progress.confirm-core-runtime-compatibility.active"
+      ],
+      "requiredInteractions": [
+        "cancel",
+        "reset"
+      ],
+      "requiredPresets": [
+        "P01"
+      ]
+    },
+    {
+      "id": "MI-023",
+      "fileName": "MI-023-progress-confirm-runtime-compatibility-completed.fixture.json",
+      "targetCondition": "progress-confirm-runtime-compatibility-completed",
+      "variant": null,
+      "pairedWithId": null,
+      "canonicalFigmaState": "inspectionProgress",
+      "requiredCoverageTags": [
+        "figma.inspection-progress",
+        "progress.confirm-core-runtime-compatibility.completed"
+      ],
+      "requiredInteractions": [
+        "cancel",
+        "reset"
+      ],
+      "requiredPresets": [
+        "P01"
+      ]
+    },
+    {
+      "id": "MI-024",
+      "fileName": "MI-024-progress-cancel-requested.fixture.json",
+      "targetCondition": "progress-cancel-requested",
+      "variant": null,
+      "pairedWithId": null,
+      "canonicalFigmaState": "inspectionProgress",
+      "requiredCoverageTags": [
+        "figma.inspection-progress",
+        "progress.check-model-package.active",
+        "lifecycle.cancellation-requested"
+      ],
+      "requiredInteractions": [
+        "cancel",
+        "reset"
+      ],
+      "requiredPresets": [
+        "P01"
+      ]
+    },
+    {
+      "id": "MI-025",
+      "fileName": "MI-025-progress-chat-setup-warning.fixture.json",
+      "targetCondition": "progress-chat-setup-warning",
+      "variant": null,
+      "pairedWithId": null,
+      "canonicalFigmaState": "inspectionProgress",
+      "requiredCoverageTags": [
+        "figma.inspection-progress",
+        "progress.validate-tokenizer-and-chat-setup.warning",
+        "outcome.ready-with-warnings"
+      ],
+      "requiredInteractions": [
+        "cancel",
+        "reset"
+      ],
+      "requiredPresets": [
+        "P01"
+      ]
+    },
+    {
+      "id": "MI-026",
+      "fileName": "MI-026-progress-model-structure-failed.fixture.json",
+      "targetCondition": "progress-model-structure-failed",
+      "variant": null,
+      "pairedWithId": null,
+      "canonicalFigmaState": "inspectionProgress",
+      "requiredCoverageTags": [
+        "figma.inspection-progress",
+        "progress.validate-model-structure.failed",
+        "outcome.invalid"
+      ],
+      "requiredInteractions": [
+        "cancel",
+        "reset"
+      ],
+      "requiredPresets": [
+        "P01"
+      ]
+    },
+    {
+      "id": "MI-027",
+      "fileName": "MI-027-progress-runtime-compatibility-cancelled.fixture.json",
+      "targetCondition": "progress-runtime-compatibility-cancelled",
+      "variant": null,
+      "pairedWithId": null,
+      "canonicalFigmaState": "inspectionProgress",
+      "requiredCoverageTags": [
+        "figma.inspection-progress",
+        "progress.confirm-core-runtime-compatibility.cancelled",
+        "terminal.cancelled"
+      ],
+      "requiredInteractions": [
+        "cancel",
+        "reset"
+      ],
+      "requiredPresets": [
+        "P01"
+      ]
+    },
+    {
+      "id": "MI-028",
+      "fileName": "MI-028-progress-read-model-configuration-active-bounded-fraction.fixture.json",
+      "targetCondition": "progress-read-model-configuration-active-bounded-fraction",
+      "variant": null,
+      "pairedWithId": null,
+      "canonicalFigmaState": "inspectionProgress",
+      "requiredCoverageTags": [
+        "figma.inspection-progress",
+        "progress.read-model-configuration.active",
+        "progress.bounded-fraction"
+      ],
+      "requiredInteractions": [
+        "cancel",
+        "reset"
+      ],
+      "requiredPresets": [
+        "P01"
+      ]
+    },
+    {
+      "id": "MI-029",
+      "fileName": "MI-029-cancellation-requested-cooperative-cancelled.fixture.json",
+      "targetCondition": "cancellation-requested-cooperative-cancelled",
+      "variant": null,
+      "pairedWithId": null,
+      "canonicalFigmaState": "cancelled",
+      "requiredCoverageTags": [
+        "figma.cancelled",
+        "terminal.cancelled",
+        "lifecycle.cancellation-requested",
+        "lifecycle.cooperative-cancellation"
+      ],
+      "requiredInteractions": [
+        "cancel",
+        "restart",
+        "chooseAnother",
+        "reset"
+      ],
+      "requiredPresets": [
+        "P01"
+      ]
+    },
+    {
+      "id": "MI-030",
+      "fileName": "MI-030-cancellation-forced-operational-failure.fixture.json",
+      "targetCondition": "cancellation-forced-operational-failure",
+      "variant": null,
+      "pairedWithId": null,
+      "canonicalFigmaState": "operationalFailure",
+      "requiredCoverageTags": [
+        "figma.operational-failure",
+        "failure.cancellation-unconfirmed",
+        "lifecycle.cancellation-requested",
+        "lifecycle.forced-cancellation"
+      ],
+      "requiredInteractions": [
+        "cancel",
+        "retry",
+        "chooseAnother",
+        "reset"
+      ],
+      "requiredPresets": [
+        "P01"
+      ]
+    },
+    {
+      "id": "MI-031",
+      "fileName": "MI-031-retry-after-cancellation.fixture.json",
+      "targetCondition": "retry-after-cancellation",
+      "variant": null,
+      "pairedWithId": null,
+      "canonicalFigmaState": "readyCollapsed",
+      "requiredCoverageTags": [
+        "figma.ready-collapsed",
+        "outcome.ready",
+        "lifecycle.retry-after-cancellation"
+      ],
+      "requiredInteractions": [
+        "restart",
+        "expand",
+        "chooseAnother",
+        "reset"
+      ],
+      "requiredPresets": [
+        "P01"
+      ]
+    },
+    {
+      "id": "MI-032",
+      "fileName": "MI-032-retry-after-operational-failure.fixture.json",
+      "targetCondition": "retry-after-operational-failure",
+      "variant": null,
+      "pairedWithId": null,
+      "canonicalFigmaState": "readyCollapsed",
+      "requiredCoverageTags": [
+        "figma.ready-collapsed",
+        "outcome.ready",
+        "failure.worker-start-failure",
+        "lifecycle.retry-after-operational-failure"
+      ],
+      "requiredInteractions": [
+        "retry",
+        "expand",
+        "chooseAnother",
+        "reset"
+      ],
+      "requiredPresets": [
+        "P01"
+      ]
+    },
+    {
+      "id": "MI-033",
+      "fileName": "MI-033-retry-stale-progress-rejected.fixture.json",
+      "targetCondition": "retry-stale-progress-rejected",
+      "variant": null,
+      "pairedWithId": null,
+      "canonicalFigmaState": "readyCollapsed",
+      "requiredCoverageTags": [
+        "figma.ready-collapsed",
+        "outcome.ready",
+        "failure.worker-timeout",
+        "lifecycle.stale-progress-rejected"
+      ],
+      "requiredInteractions": [
+        "retry",
+        "expand",
+        "chooseAnother",
+        "reset"
+      ],
+      "requiredPresets": [
+        "P01"
+      ]
+    },
+    {
+      "id": "MI-034",
+      "fileName": "MI-034-retry-stale-result-rejected.fixture.json",
+      "targetCondition": "retry-stale-result-rejected",
+      "variant": null,
+      "pairedWithId": null,
+      "canonicalFigmaState": "readyCollapsed",
+      "requiredCoverageTags": [
+        "figma.ready-collapsed",
+        "outcome.ready",
+        "failure.worker-start-failure",
+        "lifecycle.stale-result-rejected"
+      ],
+      "requiredInteractions": [
+        "retry",
+        "expand",
+        "chooseAnother",
+        "reset"
+      ],
+      "requiredPresets": [
+        "P01"
+      ]
+    },
+    {
+      "id": "MI-035",
+      "fileName": "MI-035-retry-stale-motion-completion-rejected.fixture.json",
+      "targetCondition": "retry-stale-motion-completion-rejected",
+      "variant": null,
+      "pairedWithId": null,
+      "canonicalFigmaState": "readyCollapsed",
+      "requiredCoverageTags": [
+        "figma.ready-collapsed",
+        "outcome.ready",
+        "failure.worker-start-failure",
+        "lifecycle.stale-motion-rejected"
+      ],
+      "requiredInteractions": [
+        "retry",
+        "expand",
+        "chooseAnother",
+        "reset"
+      ],
+      "requiredPresets": [
+        "P01"
+      ]
+    },
+    {
+      "id": "MI-036",
+      "fileName": "MI-036-retry-stale-announcement-rejected.fixture.json",
+      "targetCondition": "retry-stale-announcement-rejected",
+      "variant": null,
+      "pairedWithId": null,
+      "canonicalFigmaState": "readyCollapsed",
+      "requiredCoverageTags": [
+        "figma.ready-collapsed",
+        "outcome.ready",
+        "failure.worker-start-failure",
+        "lifecycle.stale-announcement-rejected"
+      ],
+      "requiredInteractions": [
+        "retry",
+        "expand",
+        "chooseAnother",
+        "reset"
+      ],
+      "requiredPresets": [
+        "P01"
+      ]
+    },
+    {
+      "id": "MI-037",
+      "fileName": "MI-037-choose-another-page-retired.fixture.json",
+      "targetCondition": "choose-another-page-retired",
+      "variant": null,
+      "pairedWithId": null,
+      "canonicalFigmaState": "readyCollapsed",
+      "requiredCoverageTags": [
+        "figma.ready-collapsed",
+        "outcome.ready",
+        "lifecycle.choose-another-retired"
+      ],
+      "requiredInteractions": [
+        "expand",
+        "chooseAnother",
+        "reset"
+      ],
+      "requiredPresets": [
+        "P01"
+      ]
+    },
+    {
+      "id": "MI-038",
+      "fileName": "MI-038-gallery-switch-old-session-retired.fixture.json",
+      "targetCondition": "gallery-switch-old-session-retired",
+      "variant": null,
+      "pairedWithId": null,
+      "canonicalFigmaState": "readyCollapsed",
+      "requiredCoverageTags": [
+        "figma.ready-collapsed",
+        "outcome.ready",
+        "lifecycle.gallery-switch-retired"
+      ],
+      "requiredInteractions": [
+        "expand",
+        "chooseAnother",
+        "reset"
+      ],
+      "requiredPresets": [
+        "P01"
+      ]
+    },
+    {
+      "id": "MI-039",
+      "fileName": "MI-039-operational-failure-worker-timeout.fixture.json",
+      "targetCondition": "operational-failure-worker-timeout",
+      "variant": null,
+      "pairedWithId": null,
+      "canonicalFigmaState": "operationalFailure",
+      "requiredCoverageTags": [
+        "figma.operational-failure",
+        "failure.worker-timeout"
+      ],
+      "requiredInteractions": [
+        "retry",
+        "chooseAnother",
+        "reset"
+      ],
+      "requiredPresets": [
+        "P01"
+      ]
+    },
+    {
+      "id": "MI-040",
+      "fileName": "MI-040-operational-failure-worker-crash-early-exit.fixture.json",
+      "targetCondition": "operational-failure-worker-crash-early-exit",
+      "variant": null,
+      "pairedWithId": null,
+      "canonicalFigmaState": "operationalFailure",
+      "requiredCoverageTags": [
+        "figma.operational-failure",
+        "failure.worker-crash-early-exit"
+      ],
+      "requiredInteractions": [
+        "retry",
+        "chooseAnother",
+        "reset"
+      ],
+      "requiredPresets": [
+        "P01"
+      ]
+    },
+    {
+      "id": "MI-041",
+      "fileName": "MI-041-operational-failure-malformed-worker-response.fixture.json",
+      "targetCondition": "operational-failure-malformed-worker-response",
+      "variant": null,
+      "pairedWithId": null,
+      "canonicalFigmaState": "operationalFailure",
+      "requiredCoverageTags": [
+        "figma.operational-failure",
+        "failure.malformed-worker-response"
+      ],
+      "requiredInteractions": [
+        "retry",
+        "chooseAnother",
+        "reset"
+      ],
+      "requiredPresets": [
+        "P01"
+      ]
+    },
+    {
+      "id": "MI-042",
+      "fileName": "MI-042-operational-failure-cancellation-unconfirmed.fixture.json",
+      "targetCondition": "operational-failure-cancellation-unconfirmed",
+      "variant": null,
+      "pairedWithId": null,
+      "canonicalFigmaState": "operationalFailure",
+      "requiredCoverageTags": [
+        "figma.operational-failure",
+        "failure.cancellation-unconfirmed"
+      ],
+      "requiredInteractions": [
+        "retry",
+        "chooseAnother",
+        "reset"
+      ],
+      "requiredPresets": [
+        "P01"
+      ]
+    },
+    {
+      "id": "MI-043",
+      "fileName": "MI-043-ready-model-name-maximum-collapsed.fixture.json",
+      "targetCondition": "ready-model-name-maximum",
+      "variant": "collapsed",
+      "pairedWithId": null,
+      "canonicalFigmaState": "readyCollapsed",
+      "requiredCoverageTags": [
+        "figma.ready-collapsed",
+        "outcome.ready",
+        "stress.maximum-model-name"
+      ],
+      "requiredInteractions": [
+        "expand",
+        "chooseAnother",
+        "reset"
+      ],
+      "requiredPresets": [
+        "P01",
+        "P02"
+      ]
+    },
+    {
+      "id": "MI-044",
+      "fileName": "MI-044-ready-missing-optional-metadata-not-reported-collapsed.fixture.json",
+      "targetCondition": "ready-missing-optional-metadata-not-reported",
+      "variant": "collapsed",
+      "pairedWithId": null,
+      "canonicalFigmaState": "readyCollapsed",
+      "requiredCoverageTags": [
+        "figma.ready-collapsed",
+        "outcome.ready",
+        "stress.missing-optional-metadata"
+      ],
+      "requiredInteractions": [
+        "expand",
+        "chooseAnother",
+        "reset"
+      ],
+      "requiredPresets": [
+        "P01",
+        "P03"
+      ]
+    },
+    {
+      "id": "MI-045",
+      "fileName": "MI-045-ready-check-rows-current-maximum-expanded.fixture.json",
+      "targetCondition": "ready-check-rows-current-maximum",
+      "variant": "expanded",
+      "pairedWithId": null,
+      "canonicalFigmaState": "readyExpanded",
+      "requiredCoverageTags": [
+        "figma.ready-expanded",
+        "outcome.ready",
+        "stress.maximum-check-rows"
+      ],
+      "requiredInteractions": [
+        "expand",
+        "collapse",
+        "chooseAnother",
+        "reset"
+      ],
+      "requiredPresets": [
+        "P01",
+        "P04"
+      ]
+    },
+    {
+      "id": "MI-046",
+      "fileName": "MI-046-ready-with-warnings-finding-rows-current-maximum-expanded.fixture.json",
+      "targetCondition": "ready-with-warnings-finding-rows-current-maximum",
+      "variant": "expanded",
+      "pairedWithId": null,
+      "canonicalFigmaState": "readyWithWarningsExpanded",
+      "requiredCoverageTags": [
+        "figma.ready-with-warnings-expanded",
+        "outcome.ready-with-warnings",
+        "stress.maximum-finding-rows"
+      ],
+      "requiredInteractions": [
+        "expand",
+        "collapse",
+        "chooseAnother",
+        "reset"
+      ],
+      "requiredPresets": [
+        "P01",
+        "P05"
+      ]
+    },
+    {
+      "id": "MI-047",
+      "fileName": "MI-047-invalid-report-rows-current-maximum-expanded.fixture.json",
+      "targetCondition": "invalid-report-rows-current-maximum",
+      "variant": "expanded",
+      "pairedWithId": null,
+      "canonicalFigmaState": "invalidExpanded",
+      "requiredCoverageTags": [
+        "figma.invalid-expanded",
+        "outcome.invalid",
+        "stress.maximum-report-rows"
+      ],
+      "requiredInteractions": [
+        "expand",
+        "collapse",
+        "chooseAnother",
+        "reset"
+      ],
+      "requiredPresets": [
+        "P01",
+        "P06"
+      ]
+    },
+    {
+      "id": "MI-048",
+      "fileName": "MI-048-progress-detail-copy-maximum.fixture.json",
+      "targetCondition": "progress-detail-copy-maximum",
+      "variant": null,
+      "pairedWithId": null,
+      "canonicalFigmaState": "inspectionProgress",
+      "requiredCoverageTags": [
+        "figma.inspection-progress",
+        "progress.read-model-configuration.active",
+        "stress.maximum-detail-copy"
+      ],
+      "requiredInteractions": [
+        "cancel",
+        "reset"
+      ],
+      "requiredPresets": [
+        "P01",
+        "P07"
+      ]
+    },
+    {
+      "id": "MI-049",
+      "fileName": "MI-049-operational-failure-detail-copy-maximum.fixture.json",
+      "targetCondition": "operational-failure-detail-copy-maximum",
+      "variant": null,
+      "pairedWithId": null,
+      "canonicalFigmaState": "operationalFailure",
+      "requiredCoverageTags": [
+        "figma.operational-failure",
+        "failure.worker-start-failure",
+        "stress.maximum-detail-copy"
+      ],
+      "requiredInteractions": [
+        "retry",
+        "chooseAnother",
+        "reset"
+      ],
+      "requiredPresets": [
+        "P01",
+        "P08"
+      ]
+    },
+    {
+      "id": "MI-050",
+      "fileName": "MI-050-progress-starting-secure-inspection.fixture.json",
+      "targetCondition": "progress-starting-secure-inspection",
+      "variant": null,
+      "pairedWithId": null,
+      "canonicalFigmaState": "inspectionProgress",
+      "requiredCoverageTags": [
+        "figma.inspection-progress",
+        "progress.starting-secure-inspection"
+      ],
+      "requiredInteractions": [
+        "cancel",
+        "reset"
+      ],
+      "requiredPresets": [
+        "P01"
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "id": "P01",
+      "width": "desktop1440",
+      "resources": "light",
+      "text": "standard100",
+      "motion": "normal"
+    },
+    {
+      "id": "P02",
+      "width": "desktop1440",
+      "resources": "dark",
+      "text": "preview200",
+      "motion": "reduced"
+    },
+    {
+      "id": "P03",
+      "width": "desktop1440",
+      "resources": "highContrastPreview",
+      "text": "standard100",
+      "motion": "reduced"
+    },
+    {
+      "id": "P04",
+      "width": "medium600",
+      "resources": "light",
+      "text": "preview200",
+      "motion": "normal"
+    },
+    {
+      "id": "P05",
+      "width": "medium600",
+      "resources": "dark",
+      "text": "standard100",
+      "motion": "reduced"
+    },
+    {
+      "id": "P06",
+      "width": "medium600",
+      "resources": "highContrastPreview",
+      "text": "preview200",
+      "motion": "reduced"
+    },
+    {
+      "id": "P07",
+      "width": "narrow360",
+      "resources": "light",
+      "text": "standard100",
+      "motion": "reduced"
+    },
+    {
+      "id": "P08",
+      "width": "narrow360",
+      "resources": "dark",
+      "text": "preview200",
+      "motion": "normal"
+    },
+    {
+      "id": "P09",
+      "width": "narrow360",
+      "resources": "highContrastPreview",
+      "text": "standard100",
+      "motion": "normal"
+    }
+  ],
+  "disclosurePairs": [
+    {
+      "collapsedId": "MI-002",
+      "expandedId": "MI-003"
+    },
+    {
+      "collapsedId": "MI-004",
+      "expandedId": "MI-005"
+    },
+    {
+      "collapsedId": "MI-006",
+      "expandedId": "MI-007"
+    },
+    {
+      "collapsedId": "MI-010",
+      "expandedId": "MI-011"
+    }
+  ],
+  "gallerySwitchPairs": [
+    {
+      "sourceId": "MI-038",
+      "destinationId": "MI-039"
+    }
+  ],
+  "copyRegistry": {
+    "fixture.action.cancel": "Cancel inspection",
+    "fixture.action.choose-another": "Choose another model",
+    "fixture.action.coming-later": "Coming later",
+    "fixture.action.continue-hardware": "Continue to hardware check",
+    "fixture.action.conversion-format": "Choose conversion format",
+    "fixture.action.hardware-fit": "Check hardware fit",
+    "fixture.action.locate-missing": "Locate missing file",
+    "fixture.action.restart": "Restart inspection",
+    "fixture.action.retry": "Retry inspection",
+    "fixture.action.technical-report": "View technical report",
+    "fixture.announcement.cancelled": "Model inspection was cancelled.",
+    "fixture.announcement.conversion": "Model conversion is required.",
+    "fixture.announcement.failure": "Model inspection could not be completed.",
+    "fixture.announcement.incomplete": "Model package is incomplete.",
+    "fixture.announcement.invalid": "Model is invalid.",
+    "fixture.announcement.ready": "Model inspection complete.",
+    "fixture.announcement.starting": "Model inspection is starting.",
+    "fixture.announcement.unsupported": "Model is not supported.",
+    "fixture.announcement.warning": "Model inspected with warnings.",
+    "fixture.automation.action.cancel": "Cancel model inspection",
+    "fixture.automation.action.choose-another": "Choose another model",
+    "fixture.automation.action.continue-hardware": "Continue to model hardware check",
+    "fixture.automation.action.conversion-format": "Choose model conversion format",
+    "fixture.automation.action.hardware-fit": "Check model hardware fit",
+    "fixture.automation.action.locate-missing": "Locate missing model file",
+    "fixture.automation.action.restart": "Restart model inspection",
+    "fixture.automation.action.retry": "Retry model inspection",
+    "fixture.automation.action.technical-report": "View technical inspection report",
+    "fixture.automation.conversion-disclosure": "Expected conversion output",
+    "fixture.automation.invalid-disclosure": "Model validation report",
+    "fixture.automation.model-disclosure.hide": "Hide model inspection details",
+    "fixture.automation.model-disclosure.view": "View model inspection details",
+    "fixture.automation.warning-disclosure": "Inspection warning details",
+    "fixture.check.configuration": "Architecture llama; 32 layers; quantisation Q4_K_M; 8 billion parameters.",
+    "fixture.check.package": "GGUF version 3; package boundaries validated and source integrity preserved.",
+    "fixture.check.runtime": "CPU X64 VocabOnly inspection completed with llama.dll using the approved profile.",
+    "fixture.check.structure": "Model structure validation completed using reported configuration evidence.",
+    "fixture.check.tokenizer": "Tokenizer sentencepiece; smoke check passed with 4 tokens; chat template present.",
+    "fixture.content.cancelled.heading": "Inspection cancelled",
+    "fixture.content.cancelled.row": "Inspection stopped",
+    "fixture.content.conversion.detail": "Choose another model or review the expected converted output.",
+    "fixture.content.conversion.heading": "Conversion required",
+    "fixture.content.conversion.row": "Conversion required",
+    "fixture.content.failure.heading": "Inspection did not complete",
+    "fixture.content.failure.row": "Model result unavailable",
+    "fixture.content.incomplete.detail": "Locate the missing file or choose another model.",
+    "fixture.content.incomplete.heading": "Incomplete model package",
+    "fixture.content.incomplete.row": "Required package content was not reported.",
+    "fixture.content.invalid.detail": "Choose another model.",
+    "fixture.content.invalid.heading": "Invalid model",
+    "fixture.content.invalid.row": "Structural validation did not produce a usable model result.",
+    "fixture.content.progress.heading": "Inspection progress",
+    "fixture.content.unsupported.detail": "Choose another model.",
+    "fixture.content.unsupported.heading": "Unsupported model",
+    "fixture.content.unsupported.row": "Runtime support was not reported for this model.",
+    "fixture.content.warning.heading": "Inspection warnings",
+    "fixture.failure.cancellation-unconfirmed": "Cancellation could not be confirmed safely.",
+    "fixture.failure.detail.maximum": "Operational failure detail remains bounded for deterministic maximum-copy validation. Operational failure detail remains bounded for deterministic maximum-copy validation. Operational failure detail remains bounded for deterministic maximum-copy validation. Operational failure detail remains bounded for deterministic maximum-copy validation. Operational failure detail remains bounded for deterministic maximum-copy validation. Operational failure detail remains bounded for deterministic maximum-copy validati",
+    "fixture.failure.malformed-worker-response": "The inspection worker returned an invalid response.",
+    "fixture.failure.worker-crash-early-exit": "The inspection worker exited before completing.",
+    "fixture.failure.worker-start-failure": "The inspection worker could not be started.",
+    "fixture.failure.worker-timeout": "The inspection worker did not respond in time.",
+    "fixture.metadata.context.label": "DECLARED MAX CONTEXT",
+    "fixture.metadata.context.value": "8,192 tokens",
+    "fixture.metadata.file-size.label": "FILE SIZE",
+    "fixture.metadata.file-size.value": "1.50 GB",
+    "fixture.metadata.format.label": "FORMAT",
+    "fixture.metadata.format.value": "GGUF",
+    "fixture.metadata.model-type.label": "MODEL TYPE",
+    "fixture.metadata.parameters.label": "PARAMETERS",
+    "fixture.metadata.parameters.value": "8 billion",
+    "fixture.metadata.publisher.label": "PUBLISHER",
+    "fixture.metadata.quantisation.label": "QUANTISATION",
+    "fixture.metadata.quantisation.value": "Q4_K_M",
+    "fixture.model.file": "granite-fixture.gguf",
+    "fixture.model.name": "Granite Fixture Model",
+    "fixture.model.name.maximum": "MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM",
+    "fixture.not-reported": "Not reported",
+    "fixture.outcome.cancelled.supporting": "No model result was produced because inspection was cancelled.",
+    "fixture.outcome.cancelled.title": "Inspection cancelled",
+    "fixture.outcome.conversion.supporting": "The selected model requires conversion before it can continue.",
+    "fixture.outcome.conversion.title": "Conversion required",
+    "fixture.outcome.failure.title": "Inspection could not be completed",
+    "fixture.outcome.incomplete.supporting": "The model package is missing required content.",
+    "fixture.outcome.incomplete.title": "Model package is incomplete",
+    "fixture.outcome.invalid.supporting": "The model package did not pass structural validation.",
+    "fixture.outcome.invalid.title": "Model is invalid",
+    "fixture.outcome.ready.supporting": "The model passed all lightweight inspection checks.",
+    "fixture.outcome.ready.title": "Model inspection complete",
+    "fixture.outcome.unsupported.supporting": "The selected model is not supported by this inspection route.",
+    "fixture.outcome.unsupported.title": "Model is not supported",
+    "fixture.outcome.warning.supporting": "Inspection completed with a non-blocking warning.",
+    "fixture.outcome.warning.title": "Model inspected with warnings",
+    "fixture.progress.check-model-package.detail": "Checking the model package.",
+    "fixture.progress.check-model-package.label": "Check model package",
+    "fixture.progress.confirm-runtime.detail": "Confirming core runtime compatibility.",
+    "fixture.progress.confirm-runtime.label": "Confirm core runtime compatibility",
+    "fixture.progress.detail.maximum": "Inspection progress detail remains bounded for deterministic maximum-copy validation. Inspection progress detail remains bounded for deterministic maximum-copy validation. Inspection progress detail remains bounded for deterministic maximum-copy validation. Inspection progress detail remains bounded for deterministic maximum-copy validation. Inspection progress detail remains bounded for deterministic maximum-copy validation. Inspection progress detail remains bounded for deterministic maximum-copy validati",
+    "fixture.progress.read-configuration.detail": "Reading model configuration.",
+    "fixture.progress.read-configuration.label": "Read model configuration",
+    "fixture.progress.starting": "Starting secure inspection…",
+    "fixture.progress.validate-structure.detail": "Validating model structure.",
+    "fixture.progress.validate-structure.label": "Validate model structure",
+    "fixture.progress.validate-tokenizer.detail": "Validating tokenizer and chat setup.",
+    "fixture.progress.validate-tokenizer.label": "Validate tokenizer and chat setup",
+    "fixture.warning.chat-template-missing.detail": "The model does not report a chat template. Chat formatting may require manual configuration.",
+    "fixture.warning.chat-template-missing.title": "Chat template not reported"
+  },
+  "externalEvidenceLinks": [
+    {
+      "fixtureId": "MI-002",
+      "evidenceId": "N-001",
+      "sourcePath": "tests/TestFixtures/GGUF/N-001-vocab-only-spm.gguf",
+      "journeyTest": "PackagedN001_PageJourneyCompletesAllFiveStagesAsReady"
+    },
+    {
+      "fixtureId": "MI-003",
+      "evidenceId": "N-001",
+      "sourcePath": "tests/TestFixtures/GGUF/N-001-vocab-only-spm.gguf",
+      "journeyTest": "PackagedN001_PageJourneyCompletesAllFiveStagesAsReady"
+    }
+  ]
+}
