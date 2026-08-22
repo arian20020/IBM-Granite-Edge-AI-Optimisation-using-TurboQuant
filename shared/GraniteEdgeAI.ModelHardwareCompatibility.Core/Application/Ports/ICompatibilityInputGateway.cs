@@ -92,5 +92,22 @@ internal interface ICompatibilityInputGateway
     /// <summary>Safe to call whether or not a claim succeeded.</summary>
     void Rollback();
 
+    /// <summary>
+    /// Commits the transfer for a run the user has confirmed.
+    ///
+    /// Two preconditions the type cannot enforce on its own.
+    ///
+    /// The id must be a real one. CompatibilityRunId is a struct, so default(T)
+    /// sidesteps the guard in From and arrives as an empty Guid; an
+    /// implementation that committed against it would commit against no run at
+    /// all. Reject it - IsEmpty says so - rather than treating it as a run.
+    ///
+    /// Rollback and Commit are not ordered by this interface. A run always
+    /// rolls back on the way out, including when it succeeded, because the
+    /// transfer commits only when the user confirms a choice on a later screen.
+    /// So a commit legitimately follows the rollback of the run that produced
+    /// its result, and an implementation that treated rollback as final would
+    /// make confirmation impossible.
+    /// </summary>
     bool Commit(CompatibilityRunId runId);
 }

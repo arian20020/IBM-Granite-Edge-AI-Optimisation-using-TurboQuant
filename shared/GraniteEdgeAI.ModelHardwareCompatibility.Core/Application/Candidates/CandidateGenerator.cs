@@ -63,8 +63,7 @@ internal static class CandidateGenerator
         // precedence: "install the backend" is the simpler, more fundamental
         // fix, and reporting the opt-in reason instead could send the user to
         // opt in to a route that would still refuse to start.
-        bool baselineEntryNotInstalled = false;
-        bool baselineEntryRequiresExperimentalOptIn = false;
+        BaselineExclusionReason baselineEntryFailure = BaselineExclusionReason.None;
 
         foreach (CompatibilitySupportEntry entry in request.Matrix.Entries)
         {
@@ -97,14 +96,8 @@ internal static class CandidateGenerator
             {
                 if (isBaselineConfiguration)
                 {
-                    if (availability == SupportAvailability.Unavailable)
-                    {
-                        baselineEntryNotInstalled = true;
-                    }
-                    else if (entry.Level == SupportLevel.Experimental)
-                    {
-                        baselineEntryRequiresExperimentalOptIn = true;
-                    }
+                    baselineEntryFailure = MoreActionable(
+                        baselineEntryFailure, WhyNotAdmitted(entry.Level, installation));
                 }
 
                 continue;
@@ -159,11 +152,9 @@ internal static class CandidateGenerator
         {
             BaselineExclusionReason reason = baselineConfigurationAdmitted
                 ? BaselineExclusionReason.BaselineContextOutsideEntryBounds
-                : baselineEntryNotInstalled
-                    ? BaselineExclusionReason.BaselineEntryNotInstalled
-                    : baselineEntryRequiresExperimentalOptIn
-                        ? BaselineExclusionReason.BaselineEntryRequiresExperimentalOptIn
-                        : BaselineExclusionReason.NoAdmittedEntryMatchesTheBaseline;
+                : baselineEntryFailure != BaselineExclusionReason.None
+                    ? baselineEntryFailure
+                    : BaselineExclusionReason.NoAdmittedEntryMatchesTheBaseline;
 
             return new CandidateGenerationResult(candidates, reason);
         }
@@ -260,4 +251,53 @@ internal static class CandidateGenerator
             && rung.Tokens <= entry.MaximumContextTokens
             && rung.Tokens <= modelLimit);
     }
+
+    /// <summary>
+    /// Why a baseline-matching entry did not admit.
+    ///
+    /// Keyed on the installation state rather than on the resolved availability,
+    /// because availability collapses several distinct situations into
+    /// Unsupported and the message a user needs differs in each. An
+    /// experimental entry that is not installed was previously told to opt in,
+    /// which is advice they cannot act on until the backend is there at all.
+    /// </summary>
+    private static BaselineExclusionReason WhyNotAdmitted(
+        SupportLevel level, InstallationState installation) =>
+        installation switch
+        {
+            InstallationState.NotInstalled =>
+                BaselineExclusionReason.BaselineEntryNotInstalled,
+
+            // Installed and working, and the only thing left is consent. That is
+            // the one case where "opt in" is the whole of the fix.
+            InstallationState.InstalledAndVerified when level == SupportLevel.Experimental =>
+                BaselineExclusionReason.BaselineEntryRequiresExperimentalOptIn,
+
+            InstallationState.Unknown =>
+                BaselineExclusionReason.BaselineEntrySupportStateUnknown,
+
+            // Every other pairing is an entry that matched but could not be
+            // admitted for a reason the installation state does not explain.
+            _ => BaselineExclusionReason.BaselineEntrySupportStateUnknown
+        };
+
+    /// <summary>
+    /// Keeps the reason a user can most directly act on.
+    ///
+    /// More than one entry can match the baseline shape, and they can fail for
+    /// different reasons. Installing a backend is more fundamental than opting
+    /// in to one, and both beat reporting that we could not tell - which is
+    /// true but leaves the user with nothing to do.
+    /// </summary>
+    private static BaselineExclusionReason MoreActionable(
+        BaselineExclusionReason held, BaselineExclusionReason candidate) =>
+        Rank(candidate) < Rank(held) ? candidate : held;
+
+    private static int Rank(BaselineExclusionReason reason) => reason switch
+    {
+        BaselineExclusionReason.BaselineEntryNotInstalled => 0,
+        BaselineExclusionReason.BaselineEntryRequiresExperimentalOptIn => 1,
+        BaselineExclusionReason.BaselineEntrySupportStateUnknown => 2,
+        _ => 3
+    };
 }

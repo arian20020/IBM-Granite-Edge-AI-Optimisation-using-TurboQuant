@@ -30,5 +30,19 @@ public enum ModeAdmissionReason
     /// and <see cref="ModeSelector"/> have somewhere to report it the day the
     /// orchestrator supplies one.
     /// </summary>
+    /// <summary>
+    /// The candidate's backend is not the one that was asked for.
+    ///
+    /// Declared and never produced, and that is not an oversight. Spec section
+    /// 11 lists "no requested-versus-actual backend mismatch" as one of four
+    /// hard gates, but nothing can request a backend yet: the run request
+    /// carries the user's context intent and nothing else, so there is no
+    /// requested value for an actual one to differ from.
+    ///
+    /// Kept rather than deleted so the gate is visibly missing instead of
+    /// invisibly absent. When a requested backend becomes an input, this is the
+    /// reason that gate reports - and until then, nothing should be read into
+    /// its silence, because it is not enforcing anything.
+    /// </summary>
     BackendMismatch
 }

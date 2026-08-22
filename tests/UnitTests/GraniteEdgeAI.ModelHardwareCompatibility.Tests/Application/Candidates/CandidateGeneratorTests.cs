@@ -106,8 +106,13 @@ public sealed class CandidateGeneratorTests
         // so nothing from it may be offered. Unknown is not the same claim as
         // "declared supported but genuinely not installed" (which resolves to
         // Unavailable, not Unsupported), so this must not be reported as
-        // BaselineEntryNotInstalled either: nothing here establishes that the
-        // backend is absent, only that its state was never reported.
+        // BaselineEntryNotInstalled: nothing here establishes that the backend
+        // is absent, only that its state was never reported.
+        //
+        // Nor is it "nothing matches". An entry does describe what the user
+        // has - we simply could not read its state - and telling them no
+        // supported setup matches theirs would send them to change something
+        // that was never the problem.
         SupportMatrix matrix = SupportMatrix.ProvisionalV1();
 
         CandidateGenerationResult result = Generate(
@@ -116,7 +121,47 @@ public sealed class CandidateGeneratorTests
 
         Assert.AreEqual(0, result.Candidates.Count);
         Assert.AreEqual(
-            nameof(BaselineExclusionReason.NoAdmittedEntryMatchesTheBaseline),
+            nameof(BaselineExclusionReason.BaselineEntrySupportStateUnknown),
+            result.BaselineExclusionReason.ToString());
+    }
+
+    [TestMethod]
+    public void Generate_ReportsNotInstalledForAnExperimentalEntryThatIsAbsent()
+    {
+        // The old rule keyed on support level alone, so any experimental entry
+        // that failed to admit was reported as needing an opt-in. For one that
+        // is not installed at all that is advice the user cannot act on:
+        // opting in to a backend that is not there changes nothing. Installing
+        // it is the fix, and it is the same fix as for a declared-supported
+        // entry in the same state.
+        SupportMatrix matrix = SupportMatrix.FromEntries(
+            "v-experimental-absent",
+            PolicyProvenance.Provisional,
+            [
+                CompatibilitySupportEntry.Create(
+                    "experimental-absent",
+                    RuntimeRouteId.LlamaCpp,
+                    CompatibilityBackend.Cpu,
+                    DeviceRouteId.Cpu,
+                    GpuOffloadLevel.None,
+                    GgufWeightFormat.Imported,
+                    GgufKvCacheFormat.F16,
+                    1024,
+                    32768,
+                    SupportLevel.Experimental,
+                    requiresEvidence: false)
+            ]);
+
+        CandidateGenerationResult result = Generate(
+            matrix: matrix,
+            installation: new Dictionary<string, InstallationState>
+            {
+                ["experimental-absent"] = InstallationState.NotInstalled
+            });
+
+        Assert.IsFalse(result.BaselineIncluded);
+        Assert.AreEqual(
+            nameof(BaselineExclusionReason.BaselineEntryNotInstalled),
             result.BaselineExclusionReason.ToString());
     }
 

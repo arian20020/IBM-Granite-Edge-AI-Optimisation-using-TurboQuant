@@ -54,6 +54,13 @@ internal static class CompatibilityFixtureCatalogue
                 useCurrentModel: false,
                 baseline: BaselineExclusionReason.BaselineEntryRequiresExperimentalOptIn))),
 
+        new("CMP-012", "Yes, but we could not check your current setup",
+            CompatibilityPresentationFactory.From(Concluded(
+                CompatibilityScreenState.EstimatedCompatible,
+                continueEnabled: true,
+                useCurrentModel: false,
+                baseline: BaselineExclusionReason.BaselineEntrySupportStateUnknown))),
+
         new("CMP-020", "Runs, but very little memory spare",
             CompatibilityPresentationFactory.From(Concluded(
                 CompatibilityScreenState.OptimisationRequired,

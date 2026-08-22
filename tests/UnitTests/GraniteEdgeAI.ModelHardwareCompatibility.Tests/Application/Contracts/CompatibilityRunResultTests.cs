@@ -20,10 +20,23 @@ public sealed class CompatibilityRunResultTests
         PolicyIdentity.Create("estimator", "estimator-policy-v1", PolicyProvenance.Provisional)
     ];
 
+    /// <summary>
+    /// All four modes accounted for and none of them resolved. Assessments are
+    /// required to name every mode, so a test fixture naming one would be
+    /// building something the type refuses to produce.
+    /// </summary>
+    private static IReadOnlyList<CompatibilityModeSelection> AllModesUnresolved() =>
+    [
+        CompatibilityModeSelection.NotEstablished(CompatibilityMode.Automatic),
+        CompatibilityModeSelection.NotEstablished(CompatibilityMode.Quality),
+        CompatibilityModeSelection.NotEstablished(CompatibilityMode.Balanced),
+        CompatibilityModeSelection.NotEstablished(CompatibilityMode.Efficiency)
+    ];
+
     private static CompatibilityAssessment EmptyAssessment() =>
         CompatibilityAssessment.Create(
             [],
-            [CompatibilityModeSelection.NotEstablished(CompatibilityMode.Automatic)],
+            AllModesUnresolved(),
             baselineFingerprint: null,
             BaselineExclusionReason.None,
             useCurrentModelAvailable: false);
@@ -147,16 +160,68 @@ public sealed class CompatibilityRunResultTests
     }
 
     [TestMethod]
+    public void Assessment_RejectsAModeListMissingAMode()
+    {
+        // Non-empty is not the promise. A screen disables an option it was told
+        // about and omits one it was not, so three of four reaches the user as
+        // a choice that never existed rather than one they cannot take.
+        List<CompatibilityModeSelection> incomplete =
+            [.. AllModesUnresolved().Where(
+                selection => selection.Mode != CompatibilityMode.Efficiency)];
+
+        Assert.ThrowsExactly<ArgumentException>(
+            () => CompatibilityAssessment.Create(
+                [],
+                incomplete,
+                baselineFingerprint: null,
+                BaselineExclusionReason.None,
+                useCurrentModelAvailable: false));
+    }
+
+    [TestMethod]
+    public void Assessment_RejectsTheSameModeTwice()
+    {
+        // Duplicated rather than missing: the count still looks right, and the
+        // screen would offer one mode twice while another vanished.
+        List<CompatibilityModeSelection> duplicated =
+        [
+            CompatibilityModeSelection.NotEstablished(CompatibilityMode.Automatic),
+            CompatibilityModeSelection.NotEstablished(CompatibilityMode.Automatic),
+            CompatibilityModeSelection.NotEstablished(CompatibilityMode.Quality),
+            CompatibilityModeSelection.NotEstablished(CompatibilityMode.Balanced)
+        ];
+
+        Assert.ThrowsExactly<ArgumentException>(
+            () => CompatibilityAssessment.Create(
+                [],
+                duplicated,
+                baselineFingerprint: null,
+                BaselineExclusionReason.None,
+                useCurrentModelAvailable: false));
+    }
+
+    [TestMethod]
     public void Assessment_CopiesItsCollections()
     {
-        List<CompatibilityModeSelection> modes =
-            [CompatibilityModeSelection.NotEstablished(CompatibilityMode.Automatic)];
+        // Both collections, not one of the pair. A copy test that exercises the
+        // first argument and assumes the second proves nothing about the
+        // second, and the two are copied by separate expressions.
+        List<EvaluatedCandidate> candidates = [];
+        List<CompatibilityModeSelection> modes = [.. AllModesUnresolved()];
 
         CompatibilityAssessment assessment = CompatibilityAssessment.Create(
-            [], modes, baselineFingerprint: null, BaselineExclusionReason.None, useCurrentModelAvailable: false);
+            candidates,
+            modes,
+            baselineFingerprint: null,
+            BaselineExclusionReason.None,
+            useCurrentModelAvailable: false);
+
+        int candidateCount = assessment.EvaluatedCandidates.Count;
+        int modeCount = assessment.ModeSelections.Count;
 
         modes.Add(CompatibilityModeSelection.NotEstablished(CompatibilityMode.Quality));
 
-        Assert.AreEqual(1, assessment.ModeSelections.Count);
+        Assert.AreEqual(modeCount, assessment.ModeSelections.Count);
+        Assert.AreEqual(candidateCount, assessment.EvaluatedCandidates.Count);
     }
 }

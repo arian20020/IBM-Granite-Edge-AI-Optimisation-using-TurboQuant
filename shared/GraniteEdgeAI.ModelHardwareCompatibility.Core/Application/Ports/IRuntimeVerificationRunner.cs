@@ -44,5 +44,12 @@ internal sealed record VerificationOutcome
 /// </summary>
 internal interface IRuntimeVerificationRunner
 {
+    /// <summary>
+    /// Tries the chosen setup for real.
+    ///
+    /// The id must be a real one. CompatibilityRunId is a struct, so default(T)
+    /// sidesteps the guard in From and arrives as an empty Guid, which names no
+    /// run and cannot be attributed to one. Reject it - IsEmpty says so.
+    /// </summary>
     VerificationOutcome Verify(CompatibilityRunId runId);
 }

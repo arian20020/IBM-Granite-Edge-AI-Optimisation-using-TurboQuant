@@ -402,6 +402,13 @@ internal static class CompatibilityPresentationFactory
                     "We don't know this model's limit",
                     "We'd rather offer nothing than guess a limit the model may not handle.")
             ],
+            BaselineExclusionReason.BaselineEntrySupportStateUnknown =>
+            [
+                new CompatibilityRecovery(
+                    "We couldn't check your current setup",
+                    "Your setup is one we know about, but we couldn't tell whether what "
+                    + "it needs is installed. That's not the same as it being missing.")
+            ],
             BaselineExclusionReason.SupportMatrixUnavailable
                 or BaselineExclusionReason.NoAdmittedEntryMatchesTheBaseline =>
             [

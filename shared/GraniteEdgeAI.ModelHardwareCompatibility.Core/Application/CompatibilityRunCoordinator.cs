@@ -422,13 +422,23 @@ internal static class CompatibilityRunCoordinator
         CompatibilityCandidate candidate,
         WeightQuantisation importedEncoding)
     {
-        if (candidate.Configuration is not GgufRouteConfiguration configuration
-            || configuration.Weights == GgufWeightFormat.Imported)
+        // A route this method does not understand is not a route whose weights
+        // happen to be the imported ones. Returning the imported encoding for
+        // it would state a quality tier nothing established, and that tier
+        // orders every mode - so the wrong answer here does not look wrong, it
+        // just quietly ranks a setup above one that deserved to win.
+        //
+        // Unknown is the honest value. Comparers already treat it as carrying
+        // no bits rather than as a tier, and it keeps this dormant while GGUF
+        // is the only route.
+        if (candidate.Configuration is not GgufRouteConfiguration configuration)
         {
-            return importedEncoding;
+            return WeightQuantisation.Unknown;
         }
 
-        return GgufWeightFormatMap.ToCanonical(configuration.Weights);
+        return configuration.Weights == GgufWeightFormat.Imported
+            ? importedEncoding
+            : GgufWeightFormatMap.ToCanonical(configuration.Weights);
     }
 
     private static bool IsProvisional(CompatibilityRunDependencies dependencies) =>

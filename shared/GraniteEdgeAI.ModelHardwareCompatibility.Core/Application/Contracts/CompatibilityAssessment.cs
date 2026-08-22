@@ -54,11 +54,38 @@ internal sealed record CompatibilityAssessment
         ArgumentNullException.ThrowIfNull(evaluatedCandidates);
         ArgumentNullException.ThrowIfNull(modeSelections);
 
-        if (modeSelections.Count == 0)
+        // Checked mode by mode, not merely non-empty. "Every mode is accounted
+        // for" is the promise a screen relies on to disable an option rather
+        // than omit it, and a list carrying three of the four, or one of them
+        // twice, would satisfy a count check while breaking exactly that
+        // promise. A hidden option looks like one that never existed.
+        CompatibilityMode[] required =
+        [
+            CompatibilityMode.Automatic,
+            CompatibilityMode.Quality,
+            CompatibilityMode.Balanced,
+            CompatibilityMode.Efficiency
+        ];
+
+        foreach (CompatibilityMode mode in required)
+        {
+            int occurrences = modeSelections.Count(selection => selection.Mode == mode);
+
+            if (occurrences != 1)
+            {
+                throw new ArgumentException(
+                    $"{mode} is accounted for {occurrences} times; every mode must "
+                    + "appear exactly once so a screen can disable an option rather "
+                    + "than omit it.",
+                    nameof(modeSelections));
+            }
+        }
+
+        if (modeSelections.Count != required.Length)
         {
             throw new ArgumentException(
-                "Every mode is always accounted for, even when unavailable; an "
-                + "empty list would hide a mode rather than disabling it.",
+                "A selection was supplied for a mode that is not one of the four; it "
+                + "would reach a screen as an option nobody defined.",
                 nameof(modeSelections));
         }
 

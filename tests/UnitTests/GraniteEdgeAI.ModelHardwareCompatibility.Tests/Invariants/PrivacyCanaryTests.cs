@@ -432,6 +432,43 @@ public sealed class PrivacyCanaryTests
     }
 
     [TestMethod]
+    public void NoTwoTypesShareAShortName()
+    {
+        // The allowlist is keyed "TypeName.MemberName". That is readable, and
+        // it is only sound while a short type name identifies one type.
+        //
+        // Two types with the same short name in different namespaces would make
+        // one allowlist entry exempt both, so reviewing a harmless
+        // Foo.Descriptor would silently clear a second Foo.Descriptor that
+        // returns a filesystem path. Nothing about the scan would look wrong.
+        //
+        // Rather than making every entry namespace-qualified and unreadable,
+        // the ambiguity itself is what is forbidden. A future type that would
+        // collide fails here, with the reason, instead of quietly widening what
+        // the canary lets through.
+        string[] collisions = typeof(ByteCount).Assembly
+            .GetTypes()
+            .Where(type => !IsCompilerGenerated(type))
+            .GroupBy(type => type.Name, StringComparer.Ordinal)
+            .Where(group => group.Select(type => type.FullName)
+                .Distinct(StringComparer.Ordinal)
+                .Count() > 1)
+            .Select(group => $"{group.Key} ({string.Join(" / ", group
+                .Select(type => type.Namespace)
+                .Distinct(StringComparer.Ordinal)
+                .Order(StringComparer.Ordinal))})")
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.AreEqual(
+            0,
+            collisions.Length,
+            "Two types share a short name, so one allowlist entry would exempt both "
+            + "and an unreviewed string could enter unnoticed. Rename one, or make "
+            + "the allowlist namespace-qualified: " + string.Join(", ", collisions));
+    }
+
+    [TestMethod]
     public void EveryAllowedStringValue_IsFreeOfPathLikeContent()
     {
         string[] forbidden = ["\\", "/", ":", ".gguf", ".."];

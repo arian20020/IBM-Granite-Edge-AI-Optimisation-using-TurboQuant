@@ -134,6 +134,16 @@ public enum BaselineExclusionReason
     BaselineEntryRequiresExperimentalOptIn,
 
     /// <summary>
+    /// An entry does describe what the user already has, but whether the backend
+    /// behind it is installed could not be determined.
+    ///
+    /// Distinct from "nothing matches" on purpose. Telling a user no supported
+    /// setup matches theirs, when one does and we simply could not read its
+    /// state, sends them to change something that was never the problem.
+    /// </summary>
+    BaselineEntrySupportStateUnknown,
+
+    /// <summary>
     /// The model's trained context limit could not be established, so no
     /// candidate can be safely bounded against it. Substituting an entry's
     /// declared maximum in place of the real limit would give a model with an

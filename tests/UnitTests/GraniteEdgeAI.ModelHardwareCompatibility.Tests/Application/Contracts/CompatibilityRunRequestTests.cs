@@ -24,23 +24,75 @@ public sealed class CompatibilityRunRequestTests
     }
 
     [TestMethod]
-    [DataRow("RunId")]
-    [DataRow("Id")]
-    [DataRow("AvailableMemory")]
-    [DataRow("SystemMemory")]
-    [DataRow("PolicyVersion")]
-    [DataRow("Progress")]
-    [DataRow("CancellationToken")]
-    [DataRow("Hardware")]
-    [DataRow("Model")]
-    [DataRow("Handoff")]
-    public void Request_CarriesNoProhibitedMember(string prohibited)
+    public void Request_ReachesNoProhibitedType()
     {
-        bool present = typeof(CompatibilityRunRequest)
-            .GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
-            .Any(property => property.Name.Contains(prohibited, StringComparison.OrdinalIgnoreCase));
+        // Matching on member names let a prohibited thing through under an
+        // innocent name: a CancellationToken called Token passed every check
+        // above. Types cannot be renamed out of a test, so the ban is on what a
+        // member IS rather than on what it is called.
+        //
+        // Followed through the whole reachable graph, because a banned type
+        // nested one level inside the context request would be just as smuggled
+        // in as one sitting on the request itself.
+        Type[] prohibited =
+        [
+            typeof(CancellationToken),
+            typeof(CompatibilityRunId),
+            typeof(ByteCount),
+            typeof(IProgress<>),
+            typeof(TimeProvider)
+        ];
 
-        Assert.IsFalse(present, $"The request must not carry {prohibited}.");
+        HashSet<Type> seen = [];
+        List<string> offences = [];
+
+        Walk(typeof(CompatibilityRunRequest), "CompatibilityRunRequest");
+
+        Assert.AreEqual(
+            0,
+            offences.Count,
+            "The request reaches something it must resolve through a port instead: "
+            + string.Join(", ", offences));
+
+        void Walk(Type type, string path)
+        {
+            if (!seen.Add(type))
+            {
+                return;
+            }
+
+            foreach (PropertyInfo property in type.GetProperties(
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
+            {
+                if (property.Name == "EqualityContract")
+                {
+                    continue;
+                }
+
+                Type carried = property.PropertyType;
+                string here = $"{path}.{property.Name}";
+
+                if (prohibited.Any(banned => Matches(banned, carried)))
+                {
+                    offences.Add($"{here} carries {carried.Name}");
+                    continue;
+                }
+
+                // Only our own types are walked into. Following the framework's
+                // would wander the whole BCL and prove nothing about this
+                // contract.
+                if (carried.Assembly == typeof(CompatibilityRunRequest).Assembly)
+                {
+                    Walk(carried, here);
+                }
+            }
+        }
+
+        static bool Matches(Type banned, Type carried) =>
+            banned.IsGenericTypeDefinition
+                ? carried.IsGenericType
+                    && carried.GetGenericTypeDefinition() == banned
+                : banned.IsAssignableFrom(carried);
     }
 
     [TestMethod]
