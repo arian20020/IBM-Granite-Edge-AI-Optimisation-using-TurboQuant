@@ -36,6 +36,7 @@ public sealed partial class ModelInspectionPage : Page
     private readonly Func<IModelInspectionMilestoneScheduler>
         _milestoneSchedulerFactory;
     private readonly bool _startInspectionOnLoaded;
+    private readonly bool _supportsProductionChat;
     private readonly HashSet<(long AttemptGeneration, ModelInspectionFigmaState Outcome)>
         _announcedTerminalOutcomes = [];
 
@@ -78,6 +79,7 @@ public sealed partial class ModelInspectionPage : Page
             () => new UiSettingsModelInspectionMotionSettings(),
             CreateProductionMilestoneScheduler,
             startInspectionOnLoaded: true,
+            supportsProductionChat: true,
             configureResourcesBeforeInitialize: null)
     {
     }
@@ -98,6 +100,7 @@ public sealed partial class ModelInspectionPage : Page
             () => new UiSettingsModelInspectionMotionSettings(),
             CreateProductionMilestoneScheduler,
             startInspectionOnLoaded: true,
+            supportsProductionChat: true,
             configureResourcesBeforeInitialize:
                 configureResourcesBeforeInitialize ??
                 throw new ArgumentNullException(
@@ -119,6 +122,7 @@ public sealed partial class ModelInspectionPage : Page
             motionSettingsFactory,
             milestoneSchedulerFactory,
             startInspectionOnLoaded: true,
+            supportsProductionChat: true,
             configureResourcesBeforeInitialize: null)
     {
     }
@@ -133,6 +137,7 @@ public sealed partial class ModelInspectionPage : Page
         Func<IModelInspectionMotionSettings> motionSettingsFactory,
         Func<IModelInspectionMilestoneScheduler> milestoneSchedulerFactory,
         bool startInspectionOnLoaded,
+        bool supportsProductionChat,
         Action<ResourceDictionary>? configureResourcesBeforeInitialize)
     {
         _service = service ?? throw new ArgumentNullException(nameof(service));
@@ -147,6 +152,7 @@ public sealed partial class ModelInspectionPage : Page
         _milestoneSchedulerFactory = milestoneSchedulerFactory ??
             throw new ArgumentNullException(nameof(milestoneSchedulerFactory));
         _startInspectionOnLoaded = startInspectionOnLoaded;
+        _supportsProductionChat = supportsProductionChat;
 
         configureResourcesBeforeInitialize?.Invoke(Resources);
         InitializeComponent();
@@ -241,16 +247,25 @@ public sealed partial class ModelInspectionPage : Page
                 request,
                 startupBarrier);
             long lifetime = checked(_navigationLifetime + 1);
-            var commands = new ModelInspectionPresentationCommands(
-                viewModel.CancelCommand,
-                viewModel.RetryCommand,
-                viewModel.ChooseAnotherCommand,
-                new DelegateCommand(
-                    _ => RequestProductionChat(lifetime, request, viewModel),
-                    _ => CanRequestProductionChat(
-                        lifetime,
-                        request,
-                        viewModel)));
+            ModelInspectionPresentationCommands commands =
+                _supportsProductionChat
+                    ? new ModelInspectionPresentationCommands(
+                        viewModel.CancelCommand,
+                        viewModel.RetryCommand,
+                        viewModel.ChooseAnotherCommand,
+                        new DelegateCommand(
+                            _ => RequestProductionChat(
+                                lifetime,
+                                request,
+                                viewModel),
+                            _ => CanRequestProductionChat(
+                                lifetime,
+                                request,
+                                viewModel)))
+                    : new ModelInspectionPresentationCommands(
+                        viewModel.CancelCommand,
+                        viewModel.RetryCommand,
+                        viewModel.ChooseAnotherCommand);
 
             var motionSettingsRegistration = new MotionSettingsChangeRegistration(
                 lifetime,

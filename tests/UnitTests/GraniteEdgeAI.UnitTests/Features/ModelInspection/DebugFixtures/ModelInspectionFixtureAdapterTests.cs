@@ -681,6 +681,7 @@ public sealed class ModelInspectionFixtureAdapterTests
                 typeof(Func<IModelInspectionMotionSettings>),
                 typeof(Func<IModelInspectionMilestoneScheduler>),
                 typeof(bool),
+                typeof(bool),
                 typeof(Action<ResourceDictionary>)
             ]));
         ConstructorInfo? zeroArgument = typeof(ModelInspectionPage)
@@ -866,6 +867,7 @@ public sealed class ModelInspectionFixtureAdapterTests
             typeof(Func<IModelInspectionAnimationDriver>),
             typeof(Func<IModelInspectionMotionSettings>),
             typeof(Func<IModelInspectionMilestoneScheduler>),
+            typeof(bool),
             typeof(bool),
             typeof(Action<ResourceDictionary>)
         ];

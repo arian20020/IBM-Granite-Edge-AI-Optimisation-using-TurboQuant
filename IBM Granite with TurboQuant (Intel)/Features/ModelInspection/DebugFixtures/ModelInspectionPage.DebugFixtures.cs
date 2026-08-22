@@ -29,6 +29,7 @@ public sealed partial class ModelInspectionPage
             session.CreateMotionSettings,
             session.CreateMilestoneScheduler,
             startInspectionOnLoaded,
+            supportsProductionChat: false,
             configureResourcesBeforeInitialize);
         page._fixtureSession = session;
         page.ActivateRequest(session.Request);
