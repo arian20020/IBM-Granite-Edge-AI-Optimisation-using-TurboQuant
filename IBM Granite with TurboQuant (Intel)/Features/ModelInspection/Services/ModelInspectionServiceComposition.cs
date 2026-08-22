@@ -4,6 +4,7 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Reflection;
 using GraniteEdgeAI.Features.OpenVinoRoute;
+using GraniteEdgeAI.Features.OpenVinoRoute.Conversion;
 using GraniteEdgeAI.Features.Prompting;
 using GraniteEdgeAI.OpenVino.Contracts;
 using GraniteEdgeAI.OpenVino.WorkerClient;
@@ -93,6 +94,43 @@ internal static class ModelInspectionServiceComposition
     internal static PromptRouteRegistry CreatePromptRouteRegistry(
         OpenVinoRouteService openVinoRouteService) =>
         new([openVinoRouteService]);
+
+    internal static OpenVinoConversionService CreateDefaultOpenVinoConversionService(
+        OpenVinoRouteService routeService)
+    {
+#if MODEL_INSPECTION_X64
+        ArgumentNullException.ThrowIfNull(routeService);
+        string converterRoot = Path.GetFullPath(Path.Combine(
+            AppContext.BaseDirectory,
+            "OpenVino",
+            "Converter",
+            "Worker"));
+        string manifestPath = Path.Combine(converterRoot, "converter-manifest.json");
+        string packagedDigest = Convert.ToHexString(
+            SHA256.HashData(File.ReadAllBytes(manifestPath))).ToLowerInvariant();
+        string expectedDigest = typeof(ModelInspectionServiceComposition)
+            .Assembly
+            .GetCustomAttributes<AssemblyMetadataAttribute>()
+            .SingleOrDefault(attribute => string.Equals(
+                attribute.Key,
+                "OpenVinoConverterManifestSha256",
+                StringComparison.Ordinal))?.Value ??
+            throw new InvalidOperationException(
+                "The app does not contain an approved OpenVINO converter manifest identity.");
+        if (!string.Equals(packagedDigest, expectedDigest, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                "The packaged converter does not match the app-approved identity.");
+        }
+        return new OpenVinoConversionService(new SealedOpenVinoConversionPipeline(
+            converterRoot,
+            expectedDigest,
+            routeService));
+#else
+        throw new PlatformNotSupportedException(
+            "OpenVINO conversion is available only on Windows x64.");
+#endif
+    }
 
     private static IReadOnlyDictionary<string, OpenVinoWorkerBinaryMachine>
         OfficialBinaryMachines() =>

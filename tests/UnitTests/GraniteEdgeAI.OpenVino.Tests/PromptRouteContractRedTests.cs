@@ -180,6 +180,26 @@ public sealed class PromptRouteContractRedTests
     }
 
     [TestMethod]
+    public void SharedPageExposesBoundedConversionCancelAndRetryActions()
+    {
+        string repositoryRoot = FindRepositoryRoot();
+        string page = File.ReadAllText(Path.Combine(
+            repositoryRoot,
+            "IBM Granite with TurboQuant (Intel)",
+            "Features",
+            "ModelInspection",
+            "ModelInspectionPage.OpenVino.cs"));
+
+        StringAssert.Contains(page, "ActionId = \"convert-openvino\"");
+        StringAssert.Contains(page, "ActionId = \"cancel-openvino-conversion\"");
+        StringAssert.Contains(page, "ActionId = \"retry-openvino-conversion\"");
+        StringAssert.Contains(page, "The source will not be changed.");
+        StringAssert.Contains(page, "No package was published.");
+        StringAssert.Contains(page, "Hardware check failed");
+        StringAssert.Contains(page, "Conversion cancelled");
+    }
+
+    [TestMethod]
     public void RegistryAcceptsBothRouteKindsWithoutRuntimeSpecificContractTypes()
     {
         PromptRouteRegistry registry = new(

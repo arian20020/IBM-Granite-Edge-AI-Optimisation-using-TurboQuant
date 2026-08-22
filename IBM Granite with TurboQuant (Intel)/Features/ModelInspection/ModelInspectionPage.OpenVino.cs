@@ -3,6 +3,7 @@ using GraniteEdgeAI.Features.ModelInspection.Models;
 using GraniteEdgeAI.Features.ModelInspection.Services;
 using GraniteEdgeAI.Features.ModelInspection.ViewModels;
 using GraniteEdgeAI.Features.OpenVinoRoute;
+using GraniteEdgeAI.Features.OpenVinoRoute.Conversion;
 using GraniteEdgeAI.Features.Prompting;
 using GraniteEdgeAI.OpenVino.Contracts;
 using Microsoft.UI.Xaml;
@@ -20,6 +21,9 @@ public sealed partial class ModelInspectionPage
     private CancellationTokenSource? _openVinoCancellation;
     private IPromptRouteSession? _promptSession;
     private PromptSessionPresenter? _promptPresenter;
+    private OpenVinoConversionOffer? _conversionOffer;
+    private OpenVinoConversionService? _conversionService;
+    private OpenVinoInspectionRequestedEventArgs? _openVinoConversionSourceRequest;
     private readonly object _openVinoRetirementLock = new();
     private readonly object _navigationRetirementLock = new();
     private Task? _navigationRetirementTask;
@@ -28,6 +32,7 @@ public sealed partial class ModelInspectionPage
         OpenVinoRouteCapability.DefaultRequestedNewTokens;
 
     internal Task? CurrentOpenVinoInspectionTask { get; private set; }
+    internal Task? CurrentOpenVinoConversionTask { get; private set; }
     internal Task? CurrentOpenVinoPromptTask { get; private set; }
     internal Task? CurrentOpenVinoStopTask { get; private set; }
     internal Task? CurrentOpenVinoCancelTask { get; private set; }
@@ -87,14 +92,27 @@ public sealed partial class ModelInspectionPage
         CancellationToken cancellationToken)
     {
         OpenVinoRouteHandoffLease? handoffLease = null;
+        OpenVinoConversionOffer? conversionOffer = null;
         try
         {
             OpenVinoRouteInspectionResult result = await Task.Run(
                 () => service.InspectAsync(request.DirectoryPath, cancellationToken),
                 cancellationToken);
             handoffLease = result.HandoffLease;
+            conversionOffer = result.ConversionOffer;
             if (!IsCurrentOpenVinoLifetime(lifetime))
             {
+                return;
+            }
+
+            if (result.Outcome == OpenVinoRouteInspectionOutcome.ConversionRequired &&
+                conversionOffer is not null)
+            {
+                _conversionOffer?.Dispose();
+                _conversionOffer = conversionOffer;
+                _openVinoConversionSourceRequest = request;
+                conversionOffer = null;
+                ApplyOpenVinoNonReadyPresentation(result);
                 return;
             }
 
@@ -145,6 +163,7 @@ public sealed partial class ModelInspectionPage
         finally
         {
             handoffLease?.Dispose();
+            conversionOffer?.Dispose();
             if (IsCurrentOpenVinoLifetime(lifetime))
             {
                 OpenVinoRequest = null;
@@ -264,13 +283,16 @@ public sealed partial class ModelInspectionPage
                     InspectionContentCardMode.Invalid,
                     "Invalid package")
         };
-        string message = result.Failure?.Message ??
-            "The selected package cannot continue to local prompting.";
+        bool conversion = result.Outcome ==
+            OpenVinoRouteInspectionOutcome.ConversionRequired;
+        string message = result.Failure?.Message ?? (conversion
+            ? "This supported Granite source must be converted before local prompting."
+            : "The selected package cannot continue to local prompting.");
         InspectionOutcomeCardControl.Presentation = new InspectionOutcomePresentation
         {
             Kind = kind,
-            Tone = InspectionOutcomeTone.Error,
-            GlyphKind = InspectionStatusGlyphKind.Error,
+            Tone = conversion ? InspectionOutcomeTone.Warning : InspectionOutcomeTone.Error,
+            GlyphKind = conversion ? InspectionStatusGlyphKind.Warning : InspectionStatusGlyphKind.Error,
             Title = title,
             Message = message,
             AutomationName = $"OpenVINO inspection. {title}. {message}"
@@ -282,13 +304,302 @@ public sealed partial class ModelInspectionPage
             SupportingText = result.Failure?.RecoveryAction ??
                 "Choose another model package.",
             SupportingTextVisibility = Visibility.Visible,
-            DiagnosticCode = result.Failure?.SupportCode ?? "package_invalid",
+            DiagnosticCode = result.Failure?.SupportCode ??
+                (conversion ? "conversion_required" : "package_invalid"),
             DiagnosticCodeVisibility = Visibility.Visible,
-            DiagnosticStatus = InspectionContentStatus.Error
+            DiagnosticStatus = conversion
+                ? InspectionContentStatus.Warning
+                : InspectionContentStatus.Error
         };
-        ApplyChooseAnotherAction(title);
+        if (conversion) ApplyOpenVinoConversionAction();
+        else ApplyChooseAnotherAction(title);
         SetPromptSurfaceVisible(false);
         SetPromptControlsEnabled(send: false, stop: false, cancel: false);
+    }
+
+    private void ApplyOpenVinoConversionAction()
+    {
+        InspectionActionCardControl.Presentation = new InspectionActionCardPresentation
+        {
+            Mode = InspectionActionCardMode.Result,
+            Title = "Prepare this model",
+            Message = "Create a verified FP16 OpenVINO package beside the selected source.",
+            AutomationName = "OpenVINO conversion actions",
+            SecondaryActionOne = new InspectionActionPresentation
+            {
+                Text = "Choose another model",
+                AutomationName = "Choose another model",
+                ActionId = "choose-another-model",
+                Visibility = Visibility.Visible,
+                Command = new DelegateCommand(_ =>
+                    ChooseAnotherModelRequested?.Invoke(this, EventArgs.Empty))
+            },
+            PrimaryAction = new InspectionActionPresentation
+            {
+                Text = "Convert to OpenVINO",
+                AutomationName = "Convert model to OpenVINO",
+                ActionId = "convert-openvino",
+                Visibility = Visibility.Visible,
+                Command = new DelegateCommand(_ => BeginOpenVinoConversion())
+            }
+        };
+    }
+
+    private async void BeginOpenVinoConversion()
+    {
+        OpenVinoConversionOffer? offer = _conversionOffer;
+        if (offer is null || _openVinoRouteService is null ||
+            _openVinoCancellation is null)
+        {
+            return;
+        }
+        ContentDialog confirmation = new()
+        {
+            XamlRoot = XamlRoot,
+            Title = "Create an OpenVINO package?",
+            Content = "A new FP16 package will be created beside the selected source. The source will not be changed.",
+            PrimaryButtonText = "Convert",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Primary
+        };
+        if (await confirmation.ShowAsync() != ContentDialogResult.Primary)
+        {
+            return;
+        }
+
+        _conversionOffer = null;
+        long lifetime = _openVinoLifetime;
+        try
+        {
+            _conversionService ??=
+                ModelInspectionServiceComposition.CreateDefaultOpenVinoConversionService(
+                    _openVinoRouteService);
+        }
+        catch (Exception)
+        {
+            offer.Dispose();
+            ApplyOpenVinoConversionFailure(OpenVinoSupportCode.RuntimeIntegrityFailed);
+            return;
+        }
+        ApplyOpenVinoConvertingPresentation();
+        CurrentOpenVinoConversionTask = ConvertAndActivateOpenVinoAsync(
+            offer,
+            lifetime,
+            _openVinoCancellation.Token);
+        await CurrentOpenVinoConversionTask;
+    }
+
+    private async Task ConvertAndActivateOpenVinoAsync(
+        OpenVinoConversionOffer offer,
+        long lifetime,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            OpenVinoConversionResult converted = await _conversionService!.ConvertAsync(
+                offer,
+                confirmed: true,
+                new Progress<OpenVinoConversionProgress>(value =>
+                {
+                    if (IsCurrentOpenVinoLifetime(lifetime))
+                    {
+                        ApplyOpenVinoConversionProgress(value.Stage);
+                    }
+                }),
+                cancellationToken);
+            if (!IsCurrentOpenVinoLifetime(lifetime)) return;
+            if (converted.Status == OpenVinoConversionStatus.Cancelled)
+            {
+                ApplyOpenVinoConversionFailure(OpenVinoSupportCode.OperationCancelled);
+                return;
+            }
+            if (converted.Status != OpenVinoConversionStatus.Published ||
+                converted.PublishedDirectory is null)
+            {
+                ApplyOpenVinoConversionFailure(converted.SupportCode ??
+                    OpenVinoSupportCode.ConversionFailed);
+                return;
+            }
+
+            OpenVinoRouteInspectionResult inspection = await _openVinoRouteService!
+                .InspectAsync(converted.PublishedDirectory, cancellationToken);
+            OpenVinoRouteHandoffLease? lease = inspection.HandoffLease;
+            try
+            {
+                if (inspection.Outcome is not (OpenVinoRouteInspectionOutcome.Ready or
+                    OpenVinoRouteInspectionOutcome.ReadyWithWarnings) || lease is null)
+                {
+                    ApplyOpenVinoConversionFailure(OpenVinoSupportCode.ConversionOutputInvalid);
+                    return;
+                }
+                PromptRouteSessionActivation active = await _promptRouteRegistry!.ActivateAsync(
+                    lease,
+                    promptEvent => ApplyPromptEvent(lifetime, promptEvent),
+                    cancellationToken);
+                lease = null;
+                if (!IsCurrentOpenVinoLifetime(lifetime))
+                {
+                    await active.Session.CancelAsync(CancellationToken.None);
+                    await active.Session.DisposeAsync();
+                    return;
+                }
+                _promptSession = active.Session;
+                _promptPresenter = new PromptSessionPresenter(active.Presentation);
+                _openVinoConversionSourceRequest = null;
+                ApplyOpenVinoReadyPresentation(inspection, active.Presentation);
+            }
+            finally
+            {
+                lease?.Dispose();
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            if (IsCurrentOpenVinoLifetime(lifetime))
+                ApplyOpenVinoConversionFailure(OpenVinoSupportCode.OperationCancelled);
+        }
+        catch (Exception)
+        {
+            if (IsCurrentOpenVinoLifetime(lifetime))
+                ApplyOpenVinoConversionFailure(OpenVinoSupportCode.ConversionFailed);
+        }
+        finally
+        {
+            offer.Dispose();
+        }
+    }
+
+    private void ApplyOpenVinoConvertingPresentation()
+    {
+        InspectionOutcomeCardControl.Presentation = InspectionOutcomePresentation.Hidden;
+        InspectionContentCardControl.Presentation = new InspectionContentCardPresentation
+        {
+            Mode = InspectionContentCardMode.Progress,
+            SectionTitle = "Preparing OpenVINO package",
+            Startup = new InspectionStartupPresentation
+            {
+                Visibility = Visibility.Visible,
+                Summary = "Running verified offline conversion",
+                AutomationName = "Preparing OpenVINO package. Running verified offline conversion."
+            }
+        };
+        InspectionActionCardControl.Presentation = new InspectionActionCardPresentation
+        {
+            Mode = InspectionActionCardMode.Inspecting,
+            Message = "Conversion runs locally and leaves the source unchanged.",
+            CancelAction = new InspectionActionPresentation
+            {
+                Text = "Cancel",
+                AutomationName = "Cancel OpenVINO conversion",
+                ActionId = "cancel-openvino-conversion",
+                Visibility = Visibility.Visible,
+                Command = new DelegateCommand(_ => _openVinoCancellation?.Cancel())
+            }
+        };
+    }
+
+    private void ApplyOpenVinoConversionProgress(OpenVinoConversionStage stage)
+    {
+        string summary = stage switch
+        {
+            OpenVinoConversionStage.Preflight => "Checking source and destination",
+            OpenVinoConversionStage.Converting => "Converting model and tokenizer",
+            OpenVinoConversionStage.ValidatingOutput => "Validating converted package",
+            OpenVinoConversionStage.SmokeTesting => "Running official CPU smoke test",
+            OpenVinoConversionStage.Publishing => "Publishing complete package",
+            OpenVinoConversionStage.Reinspecting => "Reinspecting published package",
+            _ => "Finishing conversion"
+        };
+        InspectionContentCardControl.Presentation = new InspectionContentCardPresentation
+        {
+            Mode = InspectionContentCardMode.Progress,
+            SectionTitle = "Preparing OpenVINO package",
+            Startup = new InspectionStartupPresentation
+            {
+                Visibility = Visibility.Visible,
+                Summary = summary,
+                AutomationName = "Preparing OpenVINO package. " + summary + "."
+            }
+        };
+    }
+
+    private void ApplyOpenVinoConversionFailure(OpenVinoSupportCode supportCode)
+    {
+        bool cancelled = supportCode == OpenVinoSupportCode.OperationCancelled;
+        bool hardware = supportCode is OpenVinoSupportCode.RuntimeLoadFailed or
+            OpenVinoSupportCode.RuntimeDeviceUnavailable or
+            OpenVinoSupportCode.RuntimeDeviceMismatch;
+        string title = cancelled ? "Conversion cancelled" :
+            hardware ? "Hardware check failed" : "Conversion failed";
+        string recovery = cancelled
+            ? "Inspect the source again to start a new conversion."
+            : hardware
+                ? "The source is suitable, but the official CPU smoke test could not complete. Retry or check the runtime installation."
+                : "No package was published. Inspect the source again and retry.";
+        InspectionOutcomeCardControl.Presentation = new InspectionOutcomePresentation
+        {
+            Kind = cancelled ? InspectionOutcomePresentationKind.Cancelled :
+                InspectionOutcomePresentationKind.Invalid,
+            Tone = cancelled ? InspectionOutcomeTone.Neutral : InspectionOutcomeTone.Error,
+            GlyphKind = cancelled ? InspectionStatusGlyphKind.NotComplete :
+                InspectionStatusGlyphKind.Error,
+            Title = title,
+            Message = recovery,
+            AutomationName = title + ". " + recovery
+        };
+        InspectionContentCardControl.Presentation = new InspectionContentCardPresentation
+        {
+            Mode = cancelled ? InspectionContentCardMode.Cancelled :
+                InspectionContentCardMode.Invalid,
+            SectionTitle = title,
+            SupportingText = recovery,
+            SupportingTextVisibility = Visibility.Visible,
+            DiagnosticCode = supportCode.ToProtocolValue(),
+            DiagnosticCodeVisibility = Visibility.Visible,
+            DiagnosticStatus = cancelled ? InspectionContentStatus.Neutral :
+                InspectionContentStatus.Error
+        };
+        ApplyOpenVinoConversionRecoveryAction(title);
+    }
+
+    private void ApplyOpenVinoConversionRecoveryAction(string title)
+    {
+        InspectionActionCardControl.Presentation = new InspectionActionCardPresentation
+        {
+            Mode = InspectionActionCardMode.Result,
+            Title = title,
+            Message = "Retry the verified conversion or choose another model.",
+            SecondaryActionOne = new InspectionActionPresentation
+            {
+                Text = "Choose another model",
+                AutomationName = "Choose another model",
+                ActionId = "choose-another-model",
+                Visibility = Visibility.Visible,
+                Command = new DelegateCommand(_ =>
+                    ChooseAnotherModelRequested?.Invoke(this, EventArgs.Empty))
+            },
+            PrimaryAction = new InspectionActionPresentation
+            {
+                Text = "Retry conversion",
+                AutomationName = "Retry OpenVINO conversion",
+                ActionId = "retry-openvino-conversion",
+                Visibility = _openVinoConversionSourceRequest is null
+                    ? Visibility.Collapsed
+                    : Visibility.Visible,
+                Command = new DelegateCommand(_ => RetryOpenVinoConversion())
+            }
+        };
+    }
+
+    private async void RetryOpenVinoConversion()
+    {
+        OpenVinoInspectionRequestedEventArgs? request = _openVinoConversionSourceRequest;
+        if (request is null)
+        {
+            return;
+        }
+        await RetireOpenVinoLifetime();
+        ActivateOpenVinoInspection(request);
     }
 
     private void ApplyOpenVinoCancelledPresentation()
@@ -553,10 +864,13 @@ public sealed partial class ModelInspectionPage
                 Interlocked.Exchange(ref _promptSession, null);
             _promptPresenter = null;
             Task? inspectionTask = CurrentOpenVinoInspectionTask;
+            Task? conversionTask = CurrentOpenVinoConversionTask;
             Task? promptTask = CurrentOpenVinoPromptTask;
             Task? stopTask = CurrentOpenVinoStopTask;
             Task? cancelTask = CurrentOpenVinoCancelTask;
             OpenVinoRequest = null;
+            _openVinoConversionSourceRequest = null;
+            Interlocked.Exchange(ref _conversionOffer, null)?.Dispose();
             checked
             {
                 _openVinoLifetime++;
@@ -566,6 +880,7 @@ public sealed partial class ModelInspectionPage
                 session,
                 cancellation,
                 inspectionTask,
+                conversionTask,
                 promptTask,
                 stopTask,
                 cancelTask);
