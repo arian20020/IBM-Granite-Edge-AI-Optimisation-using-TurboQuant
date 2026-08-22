@@ -123,6 +123,24 @@ public sealed class HardwareInspectionJourneyTests
         Assert.IsNull(unavailableResult.Snapshot);
         Assert.IsNull(unavailableResult.Handoff);
     }
+
+    [TestMethod]
+    public void PackagedTestBoundaryContainsNoCandidateOrGateEvidence()
+    {
+        string[] packagedFiles = Directory.GetFiles(
+            AppContext.BaseDirectory,
+            "*",
+            SearchOption.AllDirectories);
+
+        Assert.IsFalse(packagedFiles.Any(path =>
+            Path.GetFileName(path).Equals("llmfit.exe", StringComparison.OrdinalIgnoreCase)));
+        Assert.IsFalse(packagedFiles.Any(path =>
+            Path.GetExtension(path).Equals(".trx", StringComparison.OrdinalIgnoreCase)));
+        Assert.IsFalse(packagedFiles.Any(path =>
+            Path.GetFileName(path).Contains(
+                "hardware-inspection-gate1",
+                StringComparison.OrdinalIgnoreCase)));
+    }
 }
 
 internal sealed class DeterministicHardwareInspectionService

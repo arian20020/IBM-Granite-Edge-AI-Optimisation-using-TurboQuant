@@ -456,8 +456,12 @@
     <ProjectReference
       Include="..\infrastructure\GraniteEdgeAI.ModelInspection.WorkerClient\GraniteEdgeAI.ModelInspection.WorkerClient.csproj"
       Condition="'$(Platform)' == 'x64'" />
+    <ProjectReference
+      Include="..\infrastructure\GraniteEdgeAI.HardwareInspection.Foundation\GraniteEdgeAI.HardwareInspection.Foundation.csproj"
+      Condition="'$(Platform)' == 'x64'" />
   </ItemGroup>
   <ItemGroup Condition="'$(Platform)' != 'x64'">
+    <Compile Remove="Features\HardwareInspection\Infrastructure\**\*.cs" />
     <Compile Remove="Features\ModelInspection\Infrastructure\**\*.cs" />
     <Compile Remove="Features\ModelInspection\Runtime\WorkerRequestMapper.cs" />
     <Compile Remove="Features\ModelInspection\Runtime\WorkerResultMapper.cs" />
