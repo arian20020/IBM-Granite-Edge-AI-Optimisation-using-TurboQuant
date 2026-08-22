@@ -1,9 +1,15 @@
 # Generated controlled workbooks
 
-Generate the six Word workbooks from the canonical Markdown templates with:
+Generate all thirteen controlled Word workbooks from canonical Markdown with:
 
 ```powershell
 python .\scripts\testing\Generate-Controlled-Workbooks.py
 ```
 
-Revision 1.1 expands WB-04, WB-05 and WB-06 for official TurboQuant, experimental QJL and PolarQuant coverage. Generated DOCX files are working artefacts; the Markdown templates remain the Git-reviewable source of truth.
+Generate only the repository-safe post-C set, WB-07 through WB-13, with:
+
+```powershell
+python .\scripts\testing\Generate-Controlled-Workbooks.py --post-c-only
+```
+
+The generator normalises DOCX member order, ZIP timestamps and document metadata. The post-C gate generates the seven new documents twice and requires byte-identical SHA-256 results. These DOCX files are editable working/reporting artefacts; the Markdown templates, CSV controls and JSON pack manifest remain the Git-reviewable sources of truth.

@@ -1,0 +1,159 @@
+{
+  "allowed_statuses": [
+    "Not started",
+    "Blocked pending predecessor",
+    "Passed",
+    "Failed",
+    "Blocked",
+    "Not applicable",
+    "Skipped by frontier",
+    "Infrastructure interrupted"
+  ],
+  "base_contract_sha": "fa6606f7c8fa03350fc780f13b5c801c9e0d91dd",
+  "campaign_id": "GTQ-WB05-MF-v1",
+  "pack_id": "GTQ-WB05-POST-C-v1",
+  "pack_status": "Initialised",
+  "schema_version": "1.0",
+  "scientific_results_authorised": false,
+  "shared_controls": {
+    "configuration_matrix": "docs/testing/Workbook-05-Post-C-Configuration-Matrix-v1.csv",
+    "evidence_register": "docs/testing/Workbook-05-Post-C-Evidence-Register-v1.csv",
+    "execution_index": "docs/testing/Workbook-05-Post-C-Execution-Index-v1.csv",
+    "revision_register": "docs/testing/Workbook-05-Post-C-Revision-Register-v1.csv"
+  },
+  "stage_dependencies": {
+    "D1": [
+      "C1",
+      "C2",
+      "C3",
+      "C4",
+      "C5"
+    ],
+    "D2": [
+      "D1"
+    ],
+    "E1": [
+      "D2"
+    ],
+    "E2": [
+      "E1"
+    ],
+    "E3": [
+      "D2",
+      "E1"
+    ],
+    "E4": [
+      "D2",
+      "E1"
+    ],
+    "F": [
+      "D1",
+      "D2",
+      "E1",
+      "E2",
+      "E3",
+      "E4"
+    ]
+  },
+  "workbook_closure_authorised": false,
+  "workbooks": [
+    {
+      "generated_path": "docs/testing/workbooks/generated/07_Workbook_05_D1_Codec_Conformance_Controlled_Workbook_v1.docx",
+      "live_authority": false,
+      "minimum_table_count": 5,
+      "purpose": "Codec conformance and verified packed-storage decisions",
+      "required_headings": [
+        "Purpose",
+        "Control boundary",
+        "Initial revision record"
+      ],
+      "stage_id": "D1",
+      "template_path": "docs/testing/workbooks/text-templates/07_Workbook_05_D1_Codec_Conformance_Controlled_Workbook_v1.md",
+      "workbook_id": "WB-07"
+    },
+    {
+      "generated_path": "docs/testing/workbooks/generated/08_Workbook_05_D2_Diagnostic_KV_Sweep_Controlled_Workbook_v1.docx",
+      "live_authority": false,
+      "minimum_table_count": 5,
+      "purpose": "Diagnostic ordered K/V capability sweep and memory ranking",
+      "required_headings": [
+        "Purpose",
+        "Control boundary",
+        "Initial revision record"
+      ],
+      "stage_id": "D2",
+      "template_path": "docs/testing/workbooks/text-templates/08_Workbook_05_D2_Diagnostic_KV_Sweep_Controlled_Workbook_v1.md",
+      "workbook_id": "WB-08"
+    },
+    {
+      "generated_path": "docs/testing/workbooks/generated/09_Workbook_05_E1_Granite_3B_Frontier_Formal_Controlled_Workbook_v1.docx",
+      "live_authority": false,
+      "minimum_table_count": 5,
+      "purpose": "Granite 3B context frontier and matched formal evaluation",
+      "required_headings": [
+        "Purpose",
+        "Control boundary",
+        "Initial revision record"
+      ],
+      "stage_id": "E1",
+      "template_path": "docs/testing/workbooks/text-templates/09_Workbook_05_E1_Granite_3B_Frontier_Formal_Controlled_Workbook_v1.md",
+      "workbook_id": "WB-09"
+    },
+    {
+      "generated_path": "docs/testing/workbooks/generated/10_Workbook_05_E2_Granite_8B_Feasibility_Controlled_Workbook_v1.docx",
+      "live_authority": false,
+      "minimum_table_count": 5,
+      "purpose": "Granite 8B safety and feasibility gate",
+      "required_headings": [
+        "Purpose",
+        "Control boundary",
+        "Initial revision record"
+      ],
+      "stage_id": "E2",
+      "template_path": "docs/testing/workbooks/text-templates/10_Workbook_05_E2_Granite_8B_Feasibility_Controlled_Workbook_v1.md",
+      "workbook_id": "WB-10"
+    },
+    {
+      "generated_path": "docs/testing/workbooks/generated/11_Workbook_05_E3_Granite_30B_Bounded_Feasibility_Controlled_Workbook_v1.docx",
+      "live_authority": false,
+      "minimum_table_count": 5,
+      "purpose": "Granite 30B lowest-weight-first bounded feasibility extension",
+      "required_headings": [
+        "Purpose",
+        "Control boundary",
+        "Initial revision record"
+      ],
+      "stage_id": "E3",
+      "template_path": "docs/testing/workbooks/text-templates/11_Workbook_05_E3_Granite_30B_Bounded_Feasibility_Controlled_Workbook_v1.md",
+      "workbook_id": "WB-11"
+    },
+    {
+      "generated_path": "docs/testing/workbooks/generated/12_Workbook_05_E4_Cross_Family_Repeatability_Controlled_Workbook_v1.docx",
+      "live_authority": false,
+      "minimum_table_count": 5,
+      "purpose": "Asymmetric, cross-family, ablation, repeatability and negative paths",
+      "required_headings": [
+        "Purpose",
+        "Control boundary",
+        "Initial revision record"
+      ],
+      "stage_id": "E4",
+      "template_path": "docs/testing/workbooks/text-templates/12_Workbook_05_E4_Cross_Family_Repeatability_Controlled_Workbook_v1.md",
+      "workbook_id": "WB-12"
+    },
+    {
+      "generated_path": "docs/testing/workbooks/generated/13_Workbook_05_F_Evidence_Closure_Controlled_Workbook_v1.docx",
+      "live_authority": false,
+      "minimum_table_count": 5,
+      "purpose": "Independent evidence ingestion and final workbook closure",
+      "required_headings": [
+        "Purpose",
+        "Control boundary",
+        "Initial revision record"
+      ],
+      "stage_id": "F",
+      "template_path": "docs/testing/workbooks/text-templates/13_Workbook_05_F_Evidence_Closure_Controlled_Workbook_v1.md",
+      "workbook_id": "WB-13"
+    }
+  ]
+}

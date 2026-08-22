@@ -1,0 +1,8 @@
+Evidence_Record_ID,Stage_ID,Batch_or_Execution_ID,Workflow_Run_ID,Run_Attempt,Artifact_ID,Artifact_Name,Artifact_SHA256,Repository_Head_SHA,Model_Asset_Lock_SHA256,Configuration_SHA256,Prompt_Set_SHA256,Rubric_SHA256,Manifest_SHA256,Independent_Validation_Status,Evidence_Path,Ingestion_Status,Notes
+PC-EV-001,D1,D1-BATCH-001,,,,,,,,,,,,Not started,,Not started,Append-only stage intake row; add rows for further batches
+PC-EV-002,D2,D2-BATCH-001,,,,,,,,,,,,Not started,,Not started,Append-only stage intake row; add rows for further batches
+PC-EV-003,E1,E1-BATCH-001,,,,,,,,,,,,Not started,,Not started,Append-only stage intake row; add rows for further batches
+PC-EV-004,E2,E2-BATCH-001,,,,,,,,,,,,Not started,,Not started,Append-only stage intake row; add rows for further batches
+PC-EV-005,E3,E3-BATCH-001,,,,,,,,,,,,Not started,,Not started,Append-only stage intake row; add rows for further batches
+PC-EV-006,E4,E4-BATCH-001,,,,,,,,,,,,Not started,,Not started,Append-only stage intake row; add rows for further batches
+PC-EV-007,F,F-BATCH-001,,,,,,,,,,,,Not started,,Not started,Append-only stage intake row; add rows for further batches
