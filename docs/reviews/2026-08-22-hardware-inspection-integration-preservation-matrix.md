@@ -57,6 +57,14 @@ The package contained 86 manifest-listed non-manifest files. Before implementati
 | Gate 2 packaged regression | Debug/x64 app-container VSTest; Hardware Inspection, model-handoff registry/codec, and onboarding scopes | PASS, 114/114, zero failed/skipped; the previously noted 131 total was not reproducible from its documented filter, so the fresh TRX count is authoritative |
 | Gate 2 repository contracts | Process-scoped `PSExecutionPolicyPreference=Bypass`; Stage A separately, then Stage 0/acquisition/public-contract/theme | PASS, 12/12 and 18/18 |
 | Gate 2 app builds | Portable SDK 10.0.301, Debug/x64 and Release/x64 | PASS, zero errors; one known `NETSDK1198` missing publish-profile warning per build |
+| Gate 3 implementation head | Physical short worktree at `789e6be`; exact range after Gate 2 documentation is `05ad17a..789e6be` | PASS; command, evidence, parser, provider, real-boundary, contradictory-GPU, and review-fix slices are independently committed |
+| Gate 3 foundation tests | Debug/x64 final-head authoritative TRX `TestResults/HardwareInspection/Gate3FinalFoundationReviewed/gate3-foundation-reviewed.trx` | PASS, 96/96, zero failed/skipped; the 8-test real-process class also passed three consecutive physical-worktree repetitions before the contract-only review fixes |
+| Gate 3 Gate-1 regression | Release/win-x64 deterministic category, approved harmless controlled fixture, portable SDK on child `PATH`; final-head TRX `TestResults/HardwareInspection/Gate3FinalDeterministicReviewed/gate3-deterministic-reviewed.trx` | PASS, 174/174, zero failed/skipped |
+| Gate 3 packaged regression | Debug/x64 app-container VSTest with the Gate 2 authoritative Hardware Inspection, handoff, and onboarding filter; final-head TRX `TestResults/HardwareInspection/Gate3FinalPackagedReviewed/gate3-packaged-reviewed.trx` | PASS, 114/114, zero failed/skipped |
+| Gate 3 repository contracts | Process-scoped `PSExecutionPolicyPreference=Bypass`; Stage A separately, then Stage 0/acquisition/public-contract/theme | PASS, 12/12 and 18/18 |
+| Gate 3 builds | Packaged Debug/x64 test project, then app Debug/x64 and Release/win-x64 with the ReadyToRun runtime pack restored for the declared Release setting | PASS, zero errors; packaged build reproduced 14 pre-existing `NETSDK1198`, `CS8602`, and `MSTEST0044` warnings; each app build reproduced only the known `NETSDK1198` warning |
+| Gate 3 boundary/package audit | Source scan, exact commit-range inventory, recursive Debug AppX filename scan, machine-path/URL scan, and production-composition check | PASS; no candidate executable, TRX, raw capture, trusted/offline evidence, candidate URL, username, or absolute machine path was added or packaged; `UnavailableHardwareInspectionService` remains composed |
+| Gate 3 independent review | Exact range `05ad17a..789e6be`, with review findings fixed test-first and independently re-reviewed | PASS; no remaining Critical, Important, or Minor findings; ready to proceed from the code-review perspective |
 
 ## Functional merge audit
 
@@ -86,4 +94,14 @@ The package contained 86 manifest-listed non-manifest files. Before implementati
 - Directory/member reparse state is inspected from the same retained no-follow handles used for custody and executable hashing. The verified path hierarchy and exact package members remain deny-write/delete locked through execution.
 - Child inheritance is restricted with `STARTUPINFOEX` to the standard input/output/error pipe handles. The root is created suspended, assigned to and verified against the runner's private kill-on-close Job Object, then resumed.
 - Independent review of the final native trust boundary reported no remaining Critical, Important, or Minor findings and marked it ready to merge from the code-review perspective.
-- Gate 3 is next: add the LLM Fit command builder, infrastructure DTO, tolerant parser, validation mapping, and `LlmFitHardwareEvidence` behind this boundary. Production collection remains unavailable until the later policy/orchestrator gates.
+- Gate 3 has now added the LLM Fit command builder, infrastructure DTO, tolerant parser, validation mapping, and `LlmFitHardwareEvidence` behind this boundary. Production collection remains unavailable until the later policy/orchestrator gates.
+
+## Gate 3 LLM Fit provider audit
+
+- The provider accepts only exact verified `llmfit` v1.1.9 identity and the two exact manifest commands. Version and system invocations run once through the Gate 2 runner with 5-second/4 KiB and 15-second/256 KiB per-stream bounds respectively.
+- The maximum-depth-16 parser rejects comments, trailing commas, duplicate root/system/GPU properties, case-changed required names, unsafe strings, invalid CPU/RAM values, and contradictory GPU shapes. Additive unknown properties remain tolerated.
+- Available, invalid, and unavailable evidence states have closed invariants and diagnostics. Invalid output retains only individually validated facts; raw stdout/stderr, exit codes, paths, exception messages, and arbitrary diagnostic text are absent.
+- The accepted Gate 1 Windows Intel fixture maps 31.72/18.40 GiB, 16 logical processors, and one synthetic Intel GPU. The harmless real-process fixture proves success, version mismatch, invalid JSON, non-zero exit, output overflow, timeout, cancellation-token propagation, and root-process cleanup without executing the unsigned candidate.
+- The candidate remains `FunctionalPassWithPackagingConcern`. No candidate binary, acquisition, redistribution, production registration, service activation, model data, compatibility logic, or raw-output persistence was introduced.
+- Independent review initially identified misleading mismatch identity and unbounded public enumerable consumption. Commit `789e6be` records the observed verified identity, stops GPU/diagnostic enumeration at closed bounds, rejects undefined diagnostics, and passed re-review with no remaining findings.
+- Gate 4 is next: Windows processor/memory/OS, DXGI graphics, storage, and provisional NPU enrichment. Gate 6 later owns authority, unit normalization, tolerance, freshness, consistency, and canonical resolution.
