@@ -207,5 +207,10 @@ official native regression 7/7, tamper rejection, and synthetic-fixture
 activation rejection. No UCL dispatch occurred; real pinned-Granite matched
 quality/memory/performance evidence and external security/licence approval
 remain open, so registration and any Active claim stay forbidden.)
-Task 17: pending
+Task 17: complete locally (gated `openvino.turboquant` Experimental adapter,
+exact tuple/campaign activation policy, bounded evidence, and explicit
+single-use official/GGUF fallback; central registration and TurboQuant
+packaging remain intentionally absent because the pinned-Granite UCL campaign
+and external security/licence approvals are open, so `F-M21`, `F-M22`,
+`N-M11`, and `DR-WF-011` are not claimed closed.)
 Task 18: pending

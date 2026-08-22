@@ -81,6 +81,9 @@ public sealed class OpenVinoRouteHandoffLease : IDisposable, IPromptRouteActivat
     internal bool HasPathBearingDescriptor =>
         Volatile.Read(ref payload) is not null;
 
+    internal string? RetainedPackageManifestDigest =>
+        Volatile.Read(ref payload)?.Descriptor.PackageManifestDigest;
+
     internal OpenVinoRouteLeasePayload Consume(Guid serviceIdentity)
     {
         OpenVinoRouteLeasePayload? current = Volatile.Read(ref payload);

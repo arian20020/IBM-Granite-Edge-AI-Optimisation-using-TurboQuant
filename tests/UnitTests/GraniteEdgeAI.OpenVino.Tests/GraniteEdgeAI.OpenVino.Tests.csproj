@@ -33,6 +33,8 @@
              Link="Production\Conversion\%(Filename)%(Extension)" />
     <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\OpenVinoRoute\Optimization\*.cs"
              Link="Production\Optimization\%(Filename)%(Extension)" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\OpenVinoRoute\TurboQuant\*.cs"
+             Link="Production\TurboQuant\%(Filename)%(Extension)" />
     <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\Prompting\*.cs"
              Link="Production\Prompting\%(Filename)%(Extension)" />
   </ItemGroup>
