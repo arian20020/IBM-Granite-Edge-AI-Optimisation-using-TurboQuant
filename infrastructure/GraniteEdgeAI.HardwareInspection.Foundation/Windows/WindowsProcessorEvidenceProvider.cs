@@ -37,6 +37,11 @@ public sealed class WindowsProcessorEvidenceProvider
     private readonly IWindowsProcessorApi _processorApi;
     private readonly TimeProvider _timeProvider;
 
+    public WindowsProcessorEvidenceProvider()
+        : this(new Kernel32WindowsProcessorApi(), TimeProvider.System)
+    {
+    }
+
     internal WindowsProcessorEvidenceProvider(
         IWindowsProcessorApi processorApi,
         TimeProvider timeProvider)
