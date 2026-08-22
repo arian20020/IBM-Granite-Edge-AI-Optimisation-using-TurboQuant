@@ -12,6 +12,8 @@ public enum GgufCacheType
     F16,
     Q8Zero,
     Q4Zero,
+    Turbo3,
+    Turbo4,
 }
 
 public sealed record GgufRuntimeConfiguration
@@ -31,7 +33,8 @@ public sealed record GgufRuntimeConfiguration
         int threadCount,
         int batchSize,
         string evidenceGrade,
-        string profileId)
+        string profileId,
+        int maximumGeneratedTokens = 512)
     {
         ModelId = RequireText(modelId, nameof(modelId));
         ModelSha256 = RequireExactLength(modelSha256, 64, nameof(modelSha256));
@@ -53,6 +56,9 @@ public sealed record GgufRuntimeConfiguration
         BatchSize = RequirePositive(batchSize, nameof(batchSize));
         EvidenceGrade = RequireText(evidenceGrade, nameof(evidenceGrade));
         ProfileId = RequireText(profileId, nameof(profileId));
+        MaximumGeneratedTokens = RequirePositive(
+            maximumGeneratedTokens,
+            nameof(maximumGeneratedTokens));
     }
 
     public string ModelId { get; }
@@ -84,6 +90,8 @@ public sealed record GgufRuntimeConfiguration
     public string EvidenceGrade { get; }
 
     public string ProfileId { get; }
+
+    public int MaximumGeneratedTokens { get; }
 
     private static string RequireText(string value, string parameterName)
     {

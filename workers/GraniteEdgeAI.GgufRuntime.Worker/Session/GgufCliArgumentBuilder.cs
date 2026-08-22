@@ -42,9 +42,10 @@ internal static class GgufCliArgumentBuilder
             Format(configuration.ThreadCount),
             "--batch-size",
             Format(configuration.BatchSize),
-            "--simple-io",
-            "--conversation",
-            "--no-display-prompt",
+            "--flash-attention",
+            configuration.FlashAttention ? "on" : "off",
+            "--max-tokens",
+            configuration.MaximumGeneratedTokens.ToString(CultureInfo.InvariantCulture),
         ];
     }
 
@@ -60,6 +61,8 @@ internal static class GgufCliArgumentBuilder
             GgufCacheType.F16 => "f16",
             GgufCacheType.Q8Zero => "q8_0",
             GgufCacheType.Q4Zero => "q4_0",
+            GgufCacheType.Turbo3 => "turbo3",
+            GgufCacheType.Turbo4 => "turbo4",
             _ => throw new ArgumentOutOfRangeException(nameof(cacheType)),
         };
     }

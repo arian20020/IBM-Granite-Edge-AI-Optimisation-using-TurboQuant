@@ -31,9 +31,10 @@ public sealed class GgufSessionCoordinatorTests
             "hello");
         ResponseStartedEvent responseStarted =
             await coordinator.SubmitPromptAsync(submit, CancellationToken.None);
-        TextDeltaEvent delta = (TextDeltaEvent)coordinator.HandleStandardOutput("answer")!;
+        TextDeltaEvent delta =
+            (TextDeltaEvent)coordinator.HandleStandardOutput("G1DELTA YW5zd2Vy")!;
         ResponseCompletedEvent completed =
-            (ResponseCompletedEvent)coordinator.HandleStandardOutput("__G1_RESPONSE_DONE__")!;
+            (ResponseCompletedEvent)coordinator.HandleStandardOutput("G1DONE")!;
 
         Assert.AreEqual(GgufSessionState.Ready, coordinator.State);
         Assert.HasCount(2, startEvents);

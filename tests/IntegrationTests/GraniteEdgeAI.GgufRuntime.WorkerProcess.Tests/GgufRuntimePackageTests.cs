@@ -38,7 +38,7 @@ public sealed class GgufRuntimePackageTests
     }
 
     [TestMethod]
-    public void PackagingRequiresExplicitLocalRuntimeAndContainsNoNetworkAcquisition()
+    public void PackagingPublishesTheOwnedAdapterAndContainsNoNetworkAcquisition()
     {
         string root = FindRepositoryRoot();
         string targetPath = Path.Combine(
@@ -74,9 +74,11 @@ public sealed class GgufRuntimePackageTests
             File.ReadAllText(verifierPath),
             File.ReadAllText(closurePath));
 
-        StringAssert.Contains(combined, "GgufRuntimeInputRoot");
+        StringAssert.Contains(combined, "GraniteEdgeAI.GgufRuntime.NativeAdapter.csproj");
         StringAssert.Contains(combined, "GgufRuntime\\Worker");
-        StringAssert.Contains(combined, "GgufRuntime\\Cli");
+        StringAssert.Contains(combined, "GgufRuntime\\Adapter");
+        Assert.IsFalse(combined.Contains("GgufRuntimeInputRoot", StringComparison.Ordinal));
+        Assert.IsFalse(combined.Contains("llama-cli.exe", StringComparison.OrdinalIgnoreCase));
         Assert.IsFalse(combined.Contains("Invoke-WebRequest", StringComparison.OrdinalIgnoreCase));
         Assert.IsFalse(combined.Contains("Start-BitsTransfer", StringComparison.OrdinalIgnoreCase));
         Assert.IsFalse(combined.Contains("curl.exe", StringComparison.OrdinalIgnoreCase));

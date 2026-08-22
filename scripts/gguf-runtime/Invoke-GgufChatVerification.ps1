@@ -9,6 +9,7 @@ $projects = @(
     'tests\ContractTests\GraniteEdgeAI.GgufRuntime.Contracts.Tests\GraniteEdgeAI.GgufRuntime.Contracts.Tests.csproj',
     'tests\UnitTests\GraniteEdgeAI.GgufRuntime.Transport.Tests\GraniteEdgeAI.GgufRuntime.Transport.Tests.csproj',
     'tests\UnitTests\GraniteEdgeAI.GgufRuntime.Capabilities.Tests\GraniteEdgeAI.GgufRuntime.Capabilities.Tests.csproj',
+    'tests\UnitTests\GraniteEdgeAI.GgufRuntime.NativeAdapter.Tests\GraniteEdgeAI.GgufRuntime.NativeAdapter.Tests.csproj',
     'tests\UnitTests\GraniteEdgeAI.GgufRuntime.Worker.Tests\GraniteEdgeAI.GgufRuntime.Worker.Tests.csproj',
     'tests\UnitTests\GraniteEdgeAI.GgufRuntime.WorkerClient.Tests\GraniteEdgeAI.GgufRuntime.WorkerClient.Tests.csproj',
     'tests\IntegrationTests\GraniteEdgeAI.GgufRuntime.WorkerProcess.Tests\GraniteEdgeAI.GgufRuntime.WorkerProcess.Tests.csproj'

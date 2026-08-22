@@ -17,7 +17,7 @@ public sealed class GgufRuntimeManifestVerifierTests
         Assert.AreEqual(
             Path.GetFullPath(package.SupervisorPath),
             result.SupervisorExecutable);
-        Assert.AreEqual(Path.GetFullPath(package.CliPath), result.CliExecutable);
+        Assert.AreEqual(Path.GetFullPath(package.AdapterPath), result.AdapterExecutable);
         Assert.AreEqual(package.Manifest.RuntimeBuildId, result.RuntimeBuildId);
     }
 
@@ -95,6 +95,30 @@ public sealed class GgufRuntimeManifestVerifierTests
         Assert.AreEqual(package.SupervisorPath, result.SupervisorExecutable);
     }
 
+    [TestMethod]
+    public void VerifyAcceptsHashedArchitectureNeutralManagedDependency()
+    {
+        using var package = TemporaryRuntimePackage.Create();
+        string dependencyPath = Path.Combine(package.Root, "managed.deps.json");
+        File.WriteAllText(dependencyPath, "{\"runtimeTarget\":{}}");
+        GgufRuntimeManifestEntry dependency = TemporaryRuntimePackage.CreateEntry(
+            dependencyPath,
+            "managed.deps.json",
+            GgufRuntimeFileRole.Dependency) with
+        {
+            Architecture = GgufRuntimeArchitecture.Any,
+        };
+        GgufRuntimeManifest manifest = package.Manifest with
+        {
+            Files = [.. package.Manifest.Files, dependency],
+        };
+
+        VerifiedGgufRuntimePackage result =
+            GgufRuntimeManifestVerifier.Verify(package.Root, manifest);
+
+        Assert.AreEqual(package.AdapterPath, result.AdapterExecutable);
+    }
+
     internal sealed class TemporaryRuntimePackage : IDisposable
     {
         private TemporaryRuntimePackage(
@@ -105,7 +129,7 @@ public sealed class GgufRuntimeManifestVerifierTests
         {
             Root = root;
             SupervisorPath = supervisorPath;
-            CliPath = cliPath;
+            AdapterPath = cliPath;
             Manifest = manifest;
         }
 
@@ -113,7 +137,7 @@ public sealed class GgufRuntimeManifestVerifierTests
 
         public string SupervisorPath { get; }
 
-        public string CliPath { get; }
+        public string AdapterPath { get; }
 
         public GgufRuntimeManifest Manifest { get; }
 
@@ -127,7 +151,7 @@ public sealed class GgufRuntimeManifestVerifierTests
             string source = Environment.ProcessPath
                 ?? throw new InvalidOperationException("The test host path is unavailable.");
             string supervisor = Path.Combine(root, "gguf-worker.exe");
-            string cli = Path.Combine(root, "llama-cli.exe");
+            string cli = Path.Combine(root, "granite-edge-stdio-adapter.exe");
             File.Copy(source, supervisor);
             File.Copy(source, cli);
             GgufRuntimeManifestEntry supervisorEntry = CreateEntry(
@@ -136,8 +160,8 @@ public sealed class GgufRuntimeManifestVerifierTests
                 GgufRuntimeFileRole.Supervisor);
             GgufRuntimeManifestEntry cliEntry = CreateEntry(
                 cli,
-                "llama-cli.exe",
-                GgufRuntimeFileRole.Cli);
+                "granite-edge-stdio-adapter.exe",
+                GgufRuntimeFileRole.Adapter);
             var manifest = new GgufRuntimeManifest(
                 SchemaVersion: 1,
                 RuntimeBuildId: "cpu-test-build",

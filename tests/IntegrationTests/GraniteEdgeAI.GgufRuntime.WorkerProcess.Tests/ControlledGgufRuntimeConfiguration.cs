@@ -51,7 +51,8 @@ internal sealed record ControlledGgufRuntimeConfiguration(
                 payload.ThreadCount,
                 payload.BatchSize,
                 payload.EvidenceGrade,
-                payload.ProfileId);
+                payload.ProfileId,
+                payload.MaximumGeneratedTokens);
             return new ControlledGgufRuntimeConfiguration(
                 Path.GetFullPath(payload.PackageRoot),
                 payload.ManifestSha256.ToUpperInvariant(),
@@ -106,5 +107,6 @@ internal sealed record ControlledGgufRuntimeConfiguration(
         int ThreadCount,
         int BatchSize,
         string EvidenceGrade,
-        string ProfileId);
+        string ProfileId,
+        int MaximumGeneratedTokens = 512);
 }

@@ -33,11 +33,23 @@ public sealed class ModelInspectionVisualSourceContractTests
     private const string WorkerManifestPathPropertyValue =
         "$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\\$(BaseIntermediateOutputPath)model-inspection-worker\\$(Configuration)\\worker-manifest.json'))";
 
+    private const string GgufPublishedFilesItemName = "_GgufRuntimePublishedFiles";
+    private const string GgufPublishedFilesRootExpression =
+        "$(_GgufRuntimeStageRoot)\\**\\*";
+    private const string GgufPublishRootPropertyName = "_GgufRuntimeStageRoot";
+    private const string GgufPublishRootPropertyValue =
+        "$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\\$(BaseIntermediateOutputPath)gguf-runtime\\$(Configuration)'))";
+    private const string GgufManifestPathPropertyName = "_GgufRuntimeManifestPath";
+    private const string GgufManifestPathPropertyValue =
+        "$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\\$(BaseIntermediateOutputPath)gguf-runtime-manifest\\$(Configuration)\\runtime-manifest.json'))";
+
     private static readonly HashSet<string> WorkerPackagePathPropertyNames =
         new(StringComparer.OrdinalIgnoreCase)
         {
             WorkerPublishRootPropertyName,
-            WorkerManifestPathPropertyName
+            WorkerManifestPathPropertyName,
+            GgufPublishRootPropertyName,
+            GgufManifestPathPropertyName
         };
 
     private static readonly HashSet<string> PackageRelevantItemNames =
@@ -328,7 +340,7 @@ public sealed class ModelInspectionVisualSourceContractTests
                 projectPath,
                 appProjectPath,
                 StringComparison.OrdinalIgnoreCase)
-                    ? 3
+                    ? 6
                     : 0;
             Assert.AreEqual(
                 expectedControlledImportItems,
@@ -339,7 +351,7 @@ public sealed class ModelInspectionVisualSourceContractTests
                 projectPath,
                 appProjectPath,
                 StringComparison.OrdinalIgnoreCase)
-                    ? 1
+                    ? 2
                     : 0;
             Assert.AreEqual(
                 expectedControlledBackingItems,
@@ -350,7 +362,7 @@ public sealed class ModelInspectionVisualSourceContractTests
                 projectPath,
                 appProjectPath,
                 StringComparison.OrdinalIgnoreCase)
-                    ? 2
+                    ? 4
                     : 0;
             Assert.AreEqual(
                 expectedControlledPathProperties,
@@ -1489,10 +1501,7 @@ public sealed class ModelInspectionVisualSourceContractTests
                      .Descendants()
                      .Where(item =>
                          PackageRelevantItemNames.Contains(item.Name.LocalName) ||
-                         string.Equals(
-                             item.Name.LocalName,
-                             WorkerPublishedFilesItemName,
-                             StringComparison.OrdinalIgnoreCase) ||
+                          IsPublishedFilesItemName(item.Name.LocalName) ||
                          WorkerPackagePathPropertyNames.Contains(
                              item.Name.LocalName)))
         {
@@ -1592,6 +1601,9 @@ public sealed class ModelInspectionVisualSourceContractTests
             ("Content", "@(_ModelInspectionWorkerPublishedFiles)") => true,
             ("Content", "$(_ModelInspectionWorkerManifestPath)") => true,
             ("EmbeddedResource", "$(_ModelInspectionWorkerManifestPath)") => true,
+            ("Content", "@(_GgufRuntimePublishedFiles)") => true,
+            ("Content", "$(_GgufRuntimeManifestPath)") => true,
+            ("EmbeddedResource", "$(_GgufRuntimeManifestPath)") => true,
             _ => false
         };
     }
@@ -1601,14 +1613,22 @@ public sealed class ModelInspectionVisualSourceContractTests
         string itemName,
         string itemSpec) =>
         IsWorkerPackagingTarget(sourcePath) &&
-        string.Equals(
-            itemName,
-            WorkerPublishedFilesItemName,
-            StringComparison.Ordinal) &&
-        string.Equals(
-            itemSpec,
-            WorkerPublishedFilesRootExpression,
-            StringComparison.Ordinal);
+        ((string.Equals(
+              itemName,
+              WorkerPublishedFilesItemName,
+              StringComparison.Ordinal) &&
+          string.Equals(
+              itemSpec,
+              WorkerPublishedFilesRootExpression,
+              StringComparison.Ordinal)) ||
+         (string.Equals(
+              itemName,
+              GgufPublishedFilesItemName,
+              StringComparison.Ordinal) &&
+          string.Equals(
+              itemSpec,
+              GgufPublishedFilesRootExpression,
+              StringComparison.Ordinal)));
 
     private static bool IsControlledWorkerPackagePathPropertyDefinition(
         string sourcePath,
@@ -1624,6 +1644,8 @@ public sealed class ModelInspectionVisualSourceContractTests
         {
             (WorkerPublishRootPropertyName, WorkerPublishRootPropertyValue) => true,
             (WorkerManifestPathPropertyName, WorkerManifestPathPropertyValue) => true,
+            (GgufPublishRootPropertyName, GgufPublishRootPropertyValue) => true,
+            (GgufManifestPathPropertyName, GgufManifestPathPropertyValue) => true,
             _ => false
         };
     }
@@ -1632,12 +1654,20 @@ public sealed class ModelInspectionVisualSourceContractTests
     {
         string relativeSource = NormalizeProjectPath(
             Path.GetRelativePath(Root, sourcePath))!;
-        return string.Equals(
-            relativeSource,
-            "IBM Granite with TurboQuant (Intel)/" +
-            "ModelInspection.WorkerPackaging.targets",
-            StringComparison.Ordinal);
+        return relativeSource is
+            "IBM Granite with TurboQuant (Intel)/ModelInspection.WorkerPackaging.targets" or
+            "IBM Granite with TurboQuant (Intel)/GgufRuntime.WorkerPackaging.targets";
     }
+
+    private static bool IsPublishedFilesItemName(string itemName) =>
+        string.Equals(
+            itemName,
+            WorkerPublishedFilesItemName,
+            StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(
+            itemName,
+            GgufPublishedFilesItemName,
+            StringComparison.OrdinalIgnoreCase);
 
     private static bool ContainsMsBuildExpression(string value) =>
         value.Contains("$(", StringComparison.Ordinal) ||

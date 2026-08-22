@@ -470,6 +470,9 @@ tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/WorkerFailureAc
 tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/WorkerHandshakeValidatorTests.cs
 tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/WorkerInstallationLayoutTests.cs
 tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/WorkerPolicyDiagnosticPrivacyTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/GgufRuntime/ChatAccessibilityTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/GgufRuntime/ChatPageTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/GgufRuntime/Controls/ChatComposerTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/Controls/ImportModelCardTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/Controls/ModelImportPageStateMachineTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/FileImport/ModelFilePickerTests.cs

@@ -19,10 +19,10 @@ selections are presentation-only: every selected file is labelled **Not
 indexed**, and its contents do not influence prompts or model context yet.
 Only the file name is shown in the chat interface.
 
-The protected command-line runtime is implemented and exercised against a
-deterministic fake CLI. Real GGUF inference still requires an authorized local
-`llama.cpp` CPU build and an inference-capable GGUF model; neither artifact is
-downloaded or committed by this repository.
+The protected command-line runtime packages an owned port-free stdio adapter,
+LLamaSharp 0.27.0, and its pinned llama.cpp CPU backend. The build does not
+download a model. A controlled Granite 4.1 3B GGUF test covers load, two streamed
+turns, Stop/reload, Close, package verification, and unchanged model hashing.
 
 Production chat is composed from an explicit `GgufChatLaunchRequest` containing
 the verified package root, trusted manifest snapshot, inspected model path, and
@@ -41,6 +41,12 @@ Run all local verification with:
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\gguf-runtime\Invoke-GgufChatVerification.ps1
 ```
 
-Production packaging is opt-in through `GgufRuntimeInputRoot` plus the exact
-source commit, build identity, and build flags. The controlled real-model test
-must pass before a staged CLI build is described as supported.
+Production packaging is automatic for x64 builds and records the exact upstream
+source commit, LLamaSharp build identity, build flags, hashes, architecture,
+roles, and license references. The standard package supports F16, Q8_0, and
+Q4_0 KV cache. Turbo3/Turbo4 remain a gated AtomicBot-fork package variant and
+are rejected by the standard backend rather than silently falling back.
+
+`OpenProductionChatAsync` is the trusted application handoff for an inspected
+model. The current onboarding button labelled **Preview Chat** intentionally
+opens the deterministic preview; it must not be described as real inference.

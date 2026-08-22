@@ -25,7 +25,7 @@ $listed = [System.Collections.Generic.HashSet[string]]::new(
 $roleCounts = @{}
 foreach ($entry in @($manifest.files)) {
     if ([string]::IsNullOrWhiteSpace($entry.relativePath) -or
-        [System.IO.Path]::IsPathFullyQualified($entry.relativePath) -or
+        [System.IO.Path]::IsPathRooted($entry.relativePath) -or
         $entry.relativePath.Contains('..')) {
         throw 'The runtime manifest contains an unsafe path.'
     }
@@ -55,7 +55,7 @@ $actual = @(Get-ChildItem -LiteralPath $root -File -Recurse | ForEach-Object Ful
 if ($actual.Count -ne $listed.Count -or @($actual | Where-Object { -not $listed.Contains($_) }).Count -ne 0) {
     throw 'The runtime package contains an unlisted member.'
 }
-if ($roleCounts['Supervisor'] -ne 1 -or $roleCounts['Cli'] -ne 1 -or $roleCounts['License'] -lt 1) {
+if ($roleCounts['Supervisor'] -ne 1 -or $roleCounts['Adapter'] -ne 1 -or $roleCounts['License'] -lt 1) {
     throw 'The runtime package roles are incomplete.'
 }
 

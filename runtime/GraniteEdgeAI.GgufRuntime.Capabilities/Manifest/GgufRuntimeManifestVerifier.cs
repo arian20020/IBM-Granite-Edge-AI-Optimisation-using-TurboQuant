@@ -31,7 +31,7 @@ public static class GgufRuntimeManifestVerifier
             : root + Path.DirectorySeparatorChar;
         var listedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         string? supervisor = null;
-        string? cli = null;
+        string? adapter = null;
 
         foreach (GgufRuntimeManifestEntry entry in manifest.Files)
         {
@@ -48,11 +48,11 @@ public static class GgufRuntimeManifestVerifier
                 case GgufRuntimeFileRole.Supervisor when supervisor is null:
                     supervisor = fullPath;
                     break;
-                case GgufRuntimeFileRole.Cli when cli is null:
-                    cli = fullPath;
+                case GgufRuntimeFileRole.Adapter when adapter is null:
+                    adapter = fullPath;
                     break;
                 case GgufRuntimeFileRole.Supervisor:
-                case GgufRuntimeFileRole.Cli:
+                case GgufRuntimeFileRole.Adapter:
                     throw new GgufRuntimeTrustException("runtime-manifest-role-duplicate");
             }
         }
@@ -76,14 +76,14 @@ public static class GgufRuntimeManifestVerifier
             }
         }
 
-        if (supervisor is null || cli is null)
+        if (supervisor is null || adapter is null)
         {
             throw new GgufRuntimeTrustException("runtime-manifest-role-missing");
         }
 
         return new VerifiedGgufRuntimePackage(
             supervisor,
-            cli,
+            adapter,
             manifest.RuntimeBuildId,
             manifest.RuntimeSourceCommit,
             manifest.BuildFlags.ToArray());
@@ -109,6 +109,9 @@ public static class GgufRuntimeManifestVerifier
             entry.Sha256?.Length != 64 ||
             !Enum.IsDefined(entry.Architecture) ||
             !Enum.IsDefined(entry.Role) ||
+            (entry.Architecture == GgufRuntimeArchitecture.Any &&
+             entry.Role != GgufRuntimeFileRole.Dependency &&
+             entry.Role != GgufRuntimeFileRole.License) ||
             string.IsNullOrWhiteSpace(entry.LicenseReference))
         {
             throw new GgufRuntimeTrustException("runtime-manifest-entry-invalid");
@@ -168,6 +171,11 @@ public static class GgufRuntimeManifestVerifier
         }
 
         if (entry.Role == GgufRuntimeFileRole.License)
+        {
+            return;
+        }
+
+        if (entry.Architecture == GgufRuntimeArchitecture.Any)
         {
             return;
         }

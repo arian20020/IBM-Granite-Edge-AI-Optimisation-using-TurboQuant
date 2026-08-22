@@ -22,9 +22,10 @@ public sealed class GgufCliArgumentBuilderTests
         "8",
         "--batch-size",
         "512",
-        "--simple-io",
-        "--conversation",
-        "--no-display-prompt",
+        "--flash-attention",
+        "off",
+        "--max-tokens",
+        "64",
     ];
 
     [TestMethod]
@@ -63,6 +64,7 @@ public sealed class GgufCliArgumentBuilderTests
             8,
             512,
             "controlled",
-            "cpu-safe");
+            "cpu-safe",
+            64);
     }
 }

@@ -32,6 +32,9 @@
   </Folder>
 
   <Folder Name="/runtime/">
+    <Project Path="runtime/GraniteEdgeAI.GgufRuntime.NativeAdapter/GraniteEdgeAI.GgufRuntime.NativeAdapter.csproj">
+      <Platform Solution="*|x64" Project="x64" />
+    </Project>
     <Project Path="runtime/GraniteEdgeAI.GgufRuntime.Capabilities/GraniteEdgeAI.GgufRuntime.Capabilities.csproj">
       <Platform Solution="*|x64" Project="AnyCPU" />
     </Project>
@@ -168,6 +171,10 @@
 
   <Folder Name="/tests/UnitTests/">
     <File Path="tests/UnitTests/README.md" />
+
+    <Project Path="tests/UnitTests/GraniteEdgeAI.GgufRuntime.NativeAdapter.Tests/GraniteEdgeAI.GgufRuntime.NativeAdapter.Tests.csproj">
+      <Platform Solution="*|x64" Project="x64" />
+    </Project>
 
     <Project Path="tests/UnitTests/GraniteEdgeAI.GgufRuntime.Capabilities.Tests/GraniteEdgeAI.GgufRuntime.Capabilities.Tests.csproj">
       <Platform Solution="*|x64" Project="AnyCPU" />

@@ -64,16 +64,22 @@ internal sealed class GgufCliSession : IGgufCliProcess
         _diagnosticDrain = DrainDiagnosticsAsync(
             _process.StandardError,
             CancellationToken.None);
-        string? ready = await _output.ReadLineAsync(cancellationToken)
-            .ConfigureAwait(false);
-        if (!string.Equals(ready, "__G1_READY__", StringComparison.Ordinal))
+        foreach (string frame in GgufAdapterProtocol.EncodeInitialTurns(initialTurns))
         {
-            throw new InvalidOperationException("The CLI did not become ready.");
+            await _input.WriteLineAsync(frame.AsMemory(), cancellationToken)
+                .ConfigureAwait(false);
         }
 
-        // The real pinned adapter will replay approved initial turns using its
-        // exact chat template. The deterministic fixture starts with no history.
-        _ = initialTurns;
+        await _input.FlushAsync(cancellationToken).ConfigureAwait(false);
+        string? ready = await _output.ReadLineAsync(cancellationToken)
+            .ConfigureAwait(false);
+        if (ready is null ||
+            GgufCliOutputParser.Parse(
+                ready,
+                GgufCliOutputSource.StandardOutput).Kind != GgufCliOutputKind.Ready)
+        {
+            throw new InvalidOperationException("The adapter did not become ready.");
+        }
     }
 
     public async ValueTask WritePromptAsync(
@@ -82,7 +88,8 @@ internal sealed class GgufCliSession : IGgufCliProcess
     {
         StreamWriter input = _input
             ?? throw new InvalidOperationException("The CLI is not running.");
-        await input.WriteLineAsync(content.AsMemory(), cancellationToken)
+        string frame = GgufAdapterProtocol.EncodePrompt(content);
+        await input.WriteLineAsync(frame.AsMemory(), cancellationToken)
             .ConfigureAwait(false);
         await input.FlushAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -102,7 +109,8 @@ internal sealed class GgufCliSession : IGgufCliProcess
             return false;
         }
 
-        await _input.WriteLineAsync("__G1_STOP__".AsMemory(), cancellationToken)
+        string frame = GgufAdapterProtocol.EncodeStop();
+        await _input.WriteLineAsync(frame.AsMemory(), cancellationToken)
             .ConfigureAwait(false);
         await _input.FlushAsync(cancellationToken).ConfigureAwait(false);
         return true;

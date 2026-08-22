@@ -18,13 +18,21 @@ if ($files.Count -eq 0) {
     throw 'The GGUF runtime package is empty.'
 }
 
+function Get-PackageRelativePath {
+    param([Parameter(Mandatory)] [string]$BasePath, [Parameter(Mandatory)] [string]$FullPath)
+
+    $baseUri = [Uri](([System.IO.Path]::GetFullPath($BasePath).TrimEnd('\') + '\'))
+    $fileUri = [Uri][System.IO.Path]::GetFullPath($FullPath)
+    return [Uri]::UnescapeDataString($baseUri.MakeRelativeUri($fileUri).ToString())
+}
+
 $entries = foreach ($file in $files) {
-    $relative = [System.IO.Path]::GetRelativePath($root, $file.FullName).Replace('\', '/')
+    $relative = Get-PackageRelativePath -BasePath $root -FullPath $file.FullName
     $role = if ($relative -ceq 'Worker/GraniteEdgeAI.GgufRuntime.Worker.exe') {
         'Supervisor'
-    } elseif ($relative -ceq 'Cli/llama-cli.exe') {
-        'Cli'
-    } elseif ($file.Name -match '^(LICENSE|COPYING|NOTICE)') {
+    } elseif ($relative -ceq 'Adapter/GraniteEdgeAI.GgufRuntime.NativeAdapter.exe') {
+        'Adapter'
+    } elseif ($file.Name -match '(LICENSE|COPYING|NOTICE)') {
         'License'
     } else {
         'Dependency'
@@ -34,20 +42,20 @@ $entries = foreach ($file in $files) {
         relativePath = $relative
         length = $file.Length
         sha256 = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash
-        architecture = 'X64'
+        architecture = if ($role -in @('Supervisor', 'Adapter')) { 'X64' } else { 'Any' }
         role = $role
-        licenseReference = 'Cli/LICENSE.txt'
+        licenseReference = 'Adapter/LICENSE.llama.cpp.txt'
     }
 }
 
 if (@($entries | Where-Object role -eq 'Supervisor').Count -ne 1) {
     throw 'The package must contain exactly one protected supervisor.'
 }
-if (@($entries | Where-Object role -eq 'Cli').Count -ne 1) {
-    throw 'The package must contain exactly one llama-cli.exe.'
+if (@($entries | Where-Object role -eq 'Adapter').Count -ne 1) {
+    throw 'The package must contain exactly one Granite Edge stdio adapter.'
 }
 if (@($entries | Where-Object role -eq 'License').Count -lt 1) {
-    throw 'The package must contain CLI license material.'
+    throw 'The package must contain adapter runtime license material.'
 }
 
 $manifest = [ordered]@{

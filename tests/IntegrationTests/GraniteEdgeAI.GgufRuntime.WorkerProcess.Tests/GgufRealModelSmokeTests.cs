@@ -41,22 +41,30 @@ public sealed class GgufRealModelSmokeTests
             timeout.Token);
 
         IReadOnlyList<GgufRuntimeEvent> first = await CollectAsync(
-            session.GenerateAsync("controlled-turn-one", timeout.Token));
+            session.GenerateAsync(
+                "Reply with exactly one word: READY",
+                timeout.Token));
         IReadOnlyList<GgufRuntimeEvent> second = await CollectAsync(
-            session.GenerateAsync("controlled-turn-two", timeout.Token));
+            session.GenerateAsync(
+                "Reply with exactly one word: CONTINUE",
+                timeout.Token));
         Assert.IsTrue(first.OfType<TextDeltaEvent>().Any());
         Assert.IsTrue(second.OfType<TextDeltaEvent>().Any());
 
         var stoppedEvents = new List<GgufRuntimeEvent>();
+        bool stopRequested = false;
         await using (IAsyncEnumerator<GgufRuntimeEvent> enumerator =
-            session.GenerateAsync("controlled-stop-turn", timeout.Token)
+            session.GenerateAsync(
+                    "Count upward forever, one number at a time.",
+                    timeout.Token)
                 .GetAsyncEnumerator(timeout.Token))
         {
             while (await enumerator.MoveNextAsync())
             {
                 stoppedEvents.Add(enumerator.Current);
-                if (enumerator.Current is TextDeltaEvent)
+                if (!stopRequested && enumerator.Current is TextDeltaEvent)
                 {
+                    stopRequested = true;
                     await session.StopAsync(timeout.Token);
                 }
             }

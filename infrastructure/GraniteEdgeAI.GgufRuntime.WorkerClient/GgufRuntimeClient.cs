@@ -46,7 +46,7 @@ public sealed class GgufRuntimeClient
             package.SupervisorExecutable,
             nameof(package));
         string cli = RequireExistingAbsoluteFile(
-            package.CliExecutable,
+            package.AdapterExecutable,
             nameof(package));
         string model = RequireExistingAbsoluteFile(modelFile, nameof(modelFile));
         return new GgufRuntimeClient(supervisor, cli, model, []);

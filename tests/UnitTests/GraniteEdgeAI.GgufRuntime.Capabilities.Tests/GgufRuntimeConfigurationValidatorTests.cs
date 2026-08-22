@@ -56,9 +56,27 @@ public sealed class GgufRuntimeConfigurationValidatorTests
         Assert.AreEqual("runtime-gpu-offload-unsupported", result.Failure?.Code);
     }
 
+    [TestMethod]
+    public void ValidateTurboQuantCacheRejectsThePinnedUpstreamBaseline()
+    {
+        GgufRuntimeConfiguration configuration = CreateConfiguration(
+            GgufRuntimeBackend.Cpu,
+            cacheType: GgufCacheType.Turbo3);
+        var matrix = GgufCapabilityMatrix.CpuOnly(
+            runtimeBuildId: "cpu-test-build",
+            maxContextSize: 8192);
+
+        GgufCapabilityValidationResult result =
+            GgufRuntimeConfigurationValidator.Validate(configuration, matrix);
+
+        Assert.IsFalse(result.IsSupported);
+        Assert.AreEqual("turboquant-runtime-required", result.Failure?.Code);
+    }
+
     private static GgufRuntimeConfiguration CreateConfiguration(
         GgufRuntimeBackend backend,
-        int gpuLayerCount = 0)
+        int gpuLayerCount = 0,
+        GgufCacheType cacheType = GgufCacheType.F16)
     {
         return new GgufRuntimeConfiguration(
             "granite-3b",
@@ -68,8 +86,8 @@ public sealed class GgufRuntimeConfigurationValidatorTests
             backend,
             backend == GgufRuntimeBackend.Cpu ? "cpu" : "gpu0",
             4096,
-            GgufCacheType.F16,
-            GgufCacheType.F16,
+            cacheType,
+            cacheType,
             gpuLayerCount,
             false,
             8,

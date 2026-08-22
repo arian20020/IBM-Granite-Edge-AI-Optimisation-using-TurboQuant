@@ -22,12 +22,20 @@ internal sealed record GgufCliOutput(
 
 internal static class GgufCliOutputParser
 {
+    private const int MaximumFrameCharacters = 400_000;
+
     internal static GgufCliOutput Parse(string line, GgufCliOutputSource source)
     {
         ArgumentNullException.ThrowIfNull(line);
         if (!Enum.IsDefined(source))
         {
             throw new ArgumentOutOfRangeException(nameof(source));
+        }
+
+        if (line.Length == 0 || line.Length > MaximumFrameCharacters)
+        {
+            throw new InvalidOperationException(
+                "The adapter emitted an invalid output frame.");
         }
 
         if (source == GgufCliOutputSource.StandardError)
@@ -39,12 +47,17 @@ internal static class GgufCliOutputParser
 
         return line switch
         {
-            "__G1_READY__" => new GgufCliOutput(GgufCliOutputKind.Ready),
-            "__G1_RESPONSE_START__" => new GgufCliOutput(
+            "G1READY" => new GgufCliOutput(GgufCliOutputKind.Ready),
+            "G1RESPONSE" => new GgufCliOutput(
                 GgufCliOutputKind.ResponseStarted),
-            "__G1_RESPONSE_DONE__" => new GgufCliOutput(
+            "G1DONE" => new GgufCliOutput(
                 GgufCliOutputKind.ResponseCompleted),
-            _ => new GgufCliOutput(GgufCliOutputKind.TextDelta, line),
+            _ when line.StartsWith("G1DELTA ", StringComparison.Ordinal) =>
+                new GgufCliOutput(
+                    GgufCliOutputKind.TextDelta,
+                    GgufAdapterProtocol.DecodeContent(line[8..])),
+            _ => throw new InvalidOperationException(
+                "The adapter emitted an unrecognized output frame."),
         };
     }
 }

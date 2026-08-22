@@ -23,7 +23,7 @@ public sealed class GgufRuntimePackageLoaderTests
             trusted,
             detached);
 
-        Assert.AreEqual(package.CliPath, verified.CliExecutable);
+        Assert.AreEqual(package.AdapterPath, verified.AdapterExecutable);
 
         File.AppendAllText(detached, " ");
         GgufRuntimeTrustException exception =

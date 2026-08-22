@@ -11,7 +11,27 @@ if (options!.Scenario == FakeCliScenario.EarlyExit)
 }
 
 Console.OutputEncoding = System.Text.Encoding.UTF8;
-Console.WriteLine("__G1_READY__");
+var historyRoles = new System.Text.StringBuilder();
+while (await Console.In.ReadLineAsync() is { } startFrame)
+{
+    if (startFrame.Equals("G1START", StringComparison.Ordinal))
+    {
+        break;
+    }
+
+    string[] parts = startFrame.Split(' ', 3, StringSplitOptions.None);
+    if (parts.Length != 3 ||
+        !parts[0].Equals("G1TURN", StringComparison.Ordinal) ||
+        (parts[1] != "U" && parts[1] != "A"))
+    {
+        return 65;
+    }
+
+    _ = Decode(parts[2]);
+    historyRoles.Append(parts[1]);
+}
+
+Console.WriteLine("G1READY");
 Console.Out.Flush();
 
 if (options.Scenario == FakeCliScenario.Hang)
@@ -22,7 +42,7 @@ if (options.Scenario == FakeCliScenario.Hang)
 
 if (options.Scenario == FakeCliScenario.MalformedOutput)
 {
-    Console.WriteLine("__G1_UNKNOWN_CONTROL__");
+    Console.WriteLine("G1UNKNOWN");
     Console.Out.Flush();
     return 24;
 }
@@ -38,36 +58,52 @@ if (options.Scenario == FakeCliScenario.StandardErrorFlood)
 }
 
 int turn = 0;
-while (await Console.In.ReadLineAsync() is { } prompt)
+while (await Console.In.ReadLineAsync() is { } frame)
 {
-    if (prompt.Equals("__G1_STOP__", StringComparison.Ordinal) &&
+    if (frame.Equals("G1STOP", StringComparison.Ordinal) &&
         options.Scenario != FakeCliScenario.IgnoreStop)
     {
-        Console.WriteLine("__G1_RESPONSE_DONE__");
+        Console.WriteLine("G1DONE");
         Console.Out.Flush();
         continue;
     }
 
+    if (!frame.StartsWith("G1PROMPT ", StringComparison.Ordinal))
+    {
+        return 66;
+    }
+
+    string prompt = Decode(frame[9..]);
+
     turn++;
-    Console.WriteLine("__G1_RESPONSE_START__");
+    Console.WriteLine("G1RESPONSE");
     Console.Out.Flush();
     if (options.Scenario is FakeCliScenario.Slow or FakeCliScenario.IgnoreStop)
     {
         for (int chunk = 0; chunk < 20; chunk++)
         {
-            Console.WriteLine($"slow-{turn:D2}-{chunk:D2}");
+            WriteDelta($"slow-{turn:D2}-{chunk:D2}");
             Console.Out.Flush();
             await Task.Delay(50);
         }
     }
     else
     {
-        Console.WriteLine($"fake-response-{turn:D2}:{prompt}");
+        string history = historyRoles.Length == 0
+            ? string.Empty
+            : $"history={historyRoles}:";
+        WriteDelta($"fake-response-{turn:D2}:{history}{prompt}");
         Console.Out.Flush();
     }
 
-    Console.WriteLine("__G1_RESPONSE_DONE__");
+    Console.WriteLine("G1DONE");
     Console.Out.Flush();
 }
 
 return 0;
+
+static string Decode(string content) =>
+    System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(content));
+
+static void WriteDelta(string content) => Console.WriteLine(
+    $"G1DELTA {Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(content))}");

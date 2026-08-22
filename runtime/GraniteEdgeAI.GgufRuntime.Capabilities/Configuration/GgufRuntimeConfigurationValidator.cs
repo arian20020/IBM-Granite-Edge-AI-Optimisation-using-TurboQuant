@@ -27,6 +27,14 @@ public static class GgufRuntimeConfigurationValidator
         {
             failureCode = "runtime-context-unsupported";
         }
+        else if (!matrix.CacheTypes.Contains(configuration.KeyCacheType) ||
+                 !matrix.CacheTypes.Contains(configuration.ValueCacheType))
+        {
+            failureCode = IsTurboQuant(configuration.KeyCacheType) ||
+                          IsTurboQuant(configuration.ValueCacheType)
+                ? "turboquant-runtime-required"
+                : "runtime-cache-type-unsupported";
+        }
         else if (configuration.Backend == GgufRuntimeBackend.Cpu &&
                  configuration.GpuLayerCount != 0)
         {
@@ -50,4 +58,7 @@ public static class GgufRuntimeConfigurationValidator
                 GgufRuntimeFailureCategory.UnsupportedConfiguration,
                 failureCode));
     }
+
+    private static bool IsTurboQuant(GgufCacheType cacheType) =>
+        cacheType is GgufCacheType.Turbo3 or GgufCacheType.Turbo4;
 }

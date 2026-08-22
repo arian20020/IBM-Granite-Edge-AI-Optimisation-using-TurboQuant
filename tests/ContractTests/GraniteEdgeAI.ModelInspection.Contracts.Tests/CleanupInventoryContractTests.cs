@@ -73,8 +73,8 @@ public sealed class CleanupInventoryContractTests
             "model-inspection-cleanup-inventory.md");
         string[] inventoryRows = File.ReadAllLines(inventoryPath);
         string header = inventoryRows.Single(line =>
-            line.StartsWith(
-                "This ledger records one review disposition",
+            line.Contains(
+                "supersedes the earlier historical cardinality",
                 StringComparison.Ordinal));
         StringAssert.Contains(
             header,
@@ -121,8 +121,8 @@ public sealed class CleanupInventoryContractTests
                 "docs",
                 "reviews",
                 "model-inspection-cleanup-inventory.md"))
-            .Single(line => line.StartsWith(
-                "This ledger records one review disposition",
+            .Single(line => line.Contains(
+                "supersedes the earlier historical cardinality",
                 StringComparison.Ordinal));
 
         List<string> failures = [];

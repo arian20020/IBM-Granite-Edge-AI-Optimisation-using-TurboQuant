@@ -2,6 +2,7 @@ namespace GraniteEdgeAI.GgufRuntime.Capabilities.Manifest;
 
 public enum GgufRuntimeArchitecture
 {
+    Any,
     X64,
     Arm64,
 }
@@ -9,7 +10,7 @@ public enum GgufRuntimeArchitecture
 public enum GgufRuntimeFileRole
 {
     Supervisor,
-    Cli,
+    Adapter,
     Dependency,
     License,
 }

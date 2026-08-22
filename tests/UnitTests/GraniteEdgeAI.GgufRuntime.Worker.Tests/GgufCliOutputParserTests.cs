@@ -9,13 +9,13 @@ public sealed class GgufCliOutputParserTests
     public void ParseExactControlMarkersReturnsLifecycleKindsWithoutText()
     {
         GgufCliOutput ready = GgufCliOutputParser.Parse(
-            "__G1_READY__",
+            "G1READY",
             GgufCliOutputSource.StandardOutput);
         GgufCliOutput started = GgufCliOutputParser.Parse(
-            "__G1_RESPONSE_START__",
+            "G1RESPONSE",
             GgufCliOutputSource.StandardOutput);
         GgufCliOutput completed = GgufCliOutputParser.Parse(
-            "__G1_RESPONSE_DONE__",
+            "G1DONE",
             GgufCliOutputSource.StandardOutput);
 
         Assert.AreEqual(GgufCliOutputKind.Ready, ready.Kind);
@@ -30,7 +30,7 @@ public sealed class GgufCliOutputParserTests
     public void ParseStandardOutputTextReturnsDeltaUnchanged()
     {
         GgufCliOutput result = GgufCliOutputParser.Parse(
-            "assistant text",
+            "G1DELTA YXNzaXN0YW50IHRleHQ=",
             GgufCliOutputSource.StandardOutput);
 
         Assert.AreEqual(GgufCliOutputKind.TextDelta, result.Kind);
@@ -47,5 +47,16 @@ public sealed class GgufCliOutputParserTests
         Assert.AreEqual(GgufCliOutputKind.Diagnostic, result.Kind);
         Assert.IsNull(result.Text);
         Assert.AreEqual("cli-stderr", result.DiagnosticCode);
+    }
+
+    [TestMethod]
+    public void ParseOversizedStandardOutputFrameFailsClosed()
+    {
+        string oversized = "G1DELTA " + new string('A', 400_004);
+
+        Assert.ThrowsExactly<InvalidOperationException>(() =>
+            GgufCliOutputParser.Parse(
+                oversized,
+                GgufCliOutputSource.StandardOutput));
     }
 }

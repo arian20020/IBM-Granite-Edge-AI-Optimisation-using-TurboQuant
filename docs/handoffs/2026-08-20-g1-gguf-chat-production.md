@@ -21,20 +21,30 @@ Run the complete local verification set:
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\gguf-runtime\Invoke-GgufChatVerification.ps1
 ```
 
-## Production inputs still required
+## Packaged production runtime
 
-1. An approved reproducible Windows x64 CPU llama.cpp build.
-2. Its exact 40-character source commit, build flags, dependency closure, and
-   license material.
-3. An approved inference-capable Granite GGUF model and SHA-256.
-4. Controlled evidence that the pinned CLI's real `--simple-io` boundaries are
-   compatible with the supervisor parser.
+The x64 application build now publishes:
 
-The build never downloads or searches for these inputs. Supplying a directory
-through `GgufRuntimeInputRoot` opts into packaging; missing provenance fields or
-closure members fail the build.
+- the protected supervisor;
+- the Granite Edge stdio adapter;
+- LLamaSharp 0.27.0 and its CPU native backend;
+- exact manifest hashes, roles, source commit, build flags, and licenses.
+
+The baseline source identity is upstream llama.cpp commit
+`3f7c29d318e317b63f54c558bc69803963d7d88c`. It accepts F16, Q8_0, and Q4_0 KV
+cache and uses no server or listener. A local inference-capable GGUF model is
+still user-supplied and is hashed before launch; the repository never downloads
+one.
+
+The controlled Granite 4.1 3B run passed direct adapter load plus packaged
+two-turn streaming, Stop/reload, Close, and model-integrity checks. The regular
+verification suite skips this gate when its external model/config variables are
+not present.
 
 ## Explicitly deferred
 
-Vulkan, SYCL, TurboQuant, artifact quantization, attachments, and cross-route
-ranking remain outside the CPU chat MVP.
+Vulkan, SYCL, artifact quantization, attachment ingestion, and cross-route
+ranking remain outside the CPU chat MVP. Turbo3/Turbo4 are represented as an
+explicit gated runtime seam based on the researched AtomicBot fork at commit
+`519f0c594a8e31467d2e2f2cf17054c9e7e11536`; the upstream package rejects them
+with `turboquant-runtime-required` and never reports false activation.

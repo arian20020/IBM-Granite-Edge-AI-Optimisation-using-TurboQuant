@@ -2,41 +2,40 @@
   <PropertyGroup>
     <GgufRuntimePackageRelativeDirectory>GgufRuntime</GgufRuntimePackageRelativeDirectory>
     <GgufRuntimeWorkerPackageRelativeDirectory>GgufRuntime\Worker</GgufRuntimeWorkerPackageRelativeDirectory>
-    <GgufRuntimeCliPackageRelativeDirectory>GgufRuntime\Cli</GgufRuntimeCliPackageRelativeDirectory>
+    <GgufRuntimeAdapterPackageRelativeDirectory>GgufRuntime\Adapter</GgufRuntimeAdapterPackageRelativeDirectory>
     <_GgufRuntimeRepositoryRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..'))</_GgufRuntimeRepositoryRoot>
     <_GgufRuntimeStageRoot>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\$(BaseIntermediateOutputPath)gguf-runtime\$(Configuration)'))</_GgufRuntimeStageRoot>
     <_GgufRuntimeWorkerRoot>$(_GgufRuntimeStageRoot)\Worker</_GgufRuntimeWorkerRoot>
-    <_GgufRuntimeCliRoot>$(_GgufRuntimeStageRoot)\Cli</_GgufRuntimeCliRoot>
+    <_GgufRuntimeAdapterRoot>$(_GgufRuntimeStageRoot)\Adapter</_GgufRuntimeAdapterRoot>
     <_GgufRuntimeArtifactsRoot>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\$(BaseIntermediateOutputPath)gguf-runtime-artifacts\$(Configuration)'))</_GgufRuntimeArtifactsRoot>
     <_GgufRuntimeManifestPath>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\$(BaseIntermediateOutputPath)gguf-runtime-manifest\$(Configuration)\runtime-manifest.json'))</_GgufRuntimeManifestPath>
     <_GgufRuntimeWorkerProject>$(MSBuildThisFileDirectory)..\workers\GraniteEdgeAI.GgufRuntime.Worker\GraniteEdgeAI.GgufRuntime.Worker.csproj</_GgufRuntimeWorkerProject>
+    <_GgufRuntimeAdapterProject>$(MSBuildThisFileDirectory)..\runtime\GraniteEdgeAI.GgufRuntime.NativeAdapter\GraniteEdgeAI.GgufRuntime.NativeAdapter.csproj</_GgufRuntimeAdapterProject>
     <_GgufRuntimeManifestGenerator>$(MSBuildThisFileDirectory)..\scripts\gguf-runtime\New-GgufRuntimeManifest.ps1</_GgufRuntimeManifestGenerator>
     <_GgufRuntimeManifestVerifier>$(MSBuildThisFileDirectory)..\scripts\gguf-runtime\Test-GgufRuntimeManifest.ps1</_GgufRuntimeManifestVerifier>
     <_GgufRuntimeDotNetHost Condition="'$(DotNetHostPath)' != ''">$(DotNetHostPath)</_GgufRuntimeDotNetHost>
     <_GgufRuntimeDotNetHost Condition="'$(_GgufRuntimeDotNetHost)' == ''">dotnet</_GgufRuntimeDotNetHost>
+    <GgufRuntimeSourceCommit Condition="'$(GgufRuntimeSourceCommit)' == ''">3f7c29d318e317b63f54c558bc69803963d7d88c</GgufRuntimeSourceCommit>
+    <GgufRuntimeBuildId Condition="'$(GgufRuntimeBuildId)' == ''">llamasharp-0.27.0-cpu</GgufRuntimeBuildId>
+    <GgufRuntimeBuildFlags Condition="'$(GgufRuntimeBuildFlags)' == ''">LLamaSharp=0.27.0,Backend=CPU,Runtime=win-x64</GgufRuntimeBuildFlags>
   </PropertyGroup>
 
   <Target
     Name="PublishGgufRuntimeForApplication"
     BeforeTargets="AssignTargetPaths"
-    Condition="'$(Platform)' == 'x64' and '$(DesignTimeBuild)' != 'true' and '$(GgufRuntimeInputRoot)' != ''">
-    <Error Condition="!Exists('$(GgufRuntimeInputRoot)\llama-cli.exe')" Text="GgufRuntimeInputRoot must contain llama-cli.exe." />
-    <Error Condition="!Exists('$(GgufRuntimeInputRoot)\LICENSE.txt')" Text="GgufRuntimeInputRoot must contain LICENSE.txt." />
+    Condition="'$(Platform)' == 'x64' and '$(DesignTimeBuild)' != 'true'">
     <Error Condition="'$(GgufRuntimeSourceCommit)' == ''" Text="GgufRuntimeSourceCommit is required." />
     <Error Condition="'$(GgufRuntimeBuildId)' == ''" Text="GgufRuntimeBuildId is required." />
     <Error Condition="'$(GgufRuntimeBuildFlags)' == ''" Text="GgufRuntimeBuildFlags is required." />
 
     <RemoveDir Directories="$(_GgufRuntimeStageRoot);$(_GgufRuntimeArtifactsRoot)" />
     <Delete Files="$(_GgufRuntimeManifestPath)" />
-    <MakeDir Directories="$(_GgufRuntimeWorkerRoot);$(_GgufRuntimeCliRoot)" />
+    <MakeDir Directories="$(_GgufRuntimeWorkerRoot);$(_GgufRuntimeAdapterRoot)" />
 
     <Exec WorkingDirectory="$(_GgufRuntimeRepositoryRoot)" Command="&quot;$(_GgufRuntimeDotNetHost)&quot; restore &quot;$(_GgufRuntimeWorkerProject)&quot; --runtime win-x64 --artifacts-path &quot;$(_GgufRuntimeArtifactsRoot)&quot; -p:Configuration=Release -p:Platform=x64" />
     <Exec WorkingDirectory="$(_GgufRuntimeRepositoryRoot)" Command="&quot;$(_GgufRuntimeDotNetHost)&quot; publish &quot;$(_GgufRuntimeWorkerProject)&quot; --configuration Release --runtime win-x64 --self-contained false --no-restore --artifacts-path &quot;$(_GgufRuntimeArtifactsRoot)&quot; --output &quot;$(_GgufRuntimeWorkerRoot)&quot; -p:Configuration=Release -p:Platform=x64 -p:UseAppHost=true -p:PublishTrimmed=false -p:PublishReadyToRun=false -p:DebugSymbols=false -p:DebugType=None -p:CopyDebugSymbolToPublishDirectory=false" />
-
-    <ItemGroup>
-      <_GgufRuntimeInputFiles Include="$(GgufRuntimeInputRoot)\**\*" Exclude="$(GgufRuntimeInputRoot)\**\*.pdb;$(GgufRuntimeInputRoot)\**\*.log" />
-    </ItemGroup>
-    <Copy SourceFiles="@(_GgufRuntimeInputFiles)" DestinationFiles="@(_GgufRuntimeInputFiles-&gt;'$(_GgufRuntimeCliRoot)\%(RecursiveDir)%(Filename)%(Extension)')" />
+    <Exec WorkingDirectory="$(_GgufRuntimeRepositoryRoot)" Command="&quot;$(_GgufRuntimeDotNetHost)&quot; restore &quot;$(_GgufRuntimeAdapterProject)&quot; --runtime win-x64 --artifacts-path &quot;$(_GgufRuntimeArtifactsRoot)\Adapter&quot; -p:Configuration=Release -p:Platform=x64" />
+    <Exec WorkingDirectory="$(_GgufRuntimeRepositoryRoot)" Command="&quot;$(_GgufRuntimeDotNetHost)&quot; publish &quot;$(_GgufRuntimeAdapterProject)&quot; --configuration Release --runtime win-x64 --self-contained false --no-restore --artifacts-path &quot;$(_GgufRuntimeArtifactsRoot)\Adapter&quot; --output &quot;$(_GgufRuntimeAdapterRoot)&quot; -p:Configuration=Release -p:Platform=x64 -p:UseAppHost=true -p:PublishTrimmed=false -p:PublishReadyToRun=false -p:DebugSymbols=false -p:DebugType=None -p:CopyDebugSymbolToPublishDirectory=false" />
 
     <Exec Command="&quot;$(SystemRoot)\System32\WindowsPowerShell\v1.0\powershell.exe&quot; -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(_GgufRuntimeManifestGenerator)&quot; -PackageRoot &quot;$(_GgufRuntimeStageRoot)&quot; -ManifestPath &quot;$(_GgufRuntimeManifestPath)&quot; -RuntimeSourceCommit &quot;$(GgufRuntimeSourceCommit)&quot; -RuntimeBuildId &quot;$(GgufRuntimeBuildId)&quot; -BuildFlags &quot;$(GgufRuntimeBuildFlags)&quot;" />
     <Exec Command="&quot;$(SystemRoot)\System32\WindowsPowerShell\v1.0\powershell.exe&quot; -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(_GgufRuntimeManifestVerifier)&quot; -PackageRoot &quot;$(_GgufRuntimeStageRoot)&quot; -ManifestPath &quot;$(_GgufRuntimeManifestPath)&quot;" />
