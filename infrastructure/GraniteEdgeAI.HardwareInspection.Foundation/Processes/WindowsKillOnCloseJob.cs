@@ -55,6 +55,11 @@ internal sealed class WindowsKillOnCloseJob : IDisposable
     internal bool TryAssign(IntPtr processHandle) =>
         processHandle != IntPtr.Zero && AssignProcessToJobObject(_handle, processHandle);
 
+    internal bool ContainsProcess(IntPtr processHandle) =>
+        processHandle != IntPtr.Zero &&
+        IsProcessInJob(processHandle, _handle, out bool inJob) &&
+        inJob;
+
     internal bool TryTerminate() => TerminateJobObject(_handle, 1);
 
     internal async Task<bool> WaitForEmptyAsync(TimeSpan timeout)
@@ -87,6 +92,14 @@ internal sealed class WindowsKillOnCloseJob : IDisposable
     private static extern bool AssignProcessToJobObject(
         SafeJobHandle job,
         IntPtr process);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool IsProcessInJob(
+        IntPtr process,
+        SafeJobHandle job,
+        [MarshalAs(UnmanagedType.Bool)] out bool result);
 
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
