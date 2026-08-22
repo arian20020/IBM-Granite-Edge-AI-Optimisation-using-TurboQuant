@@ -365,18 +365,31 @@ public sealed class ExternalProcessRunnerTests
                 StringComparison.OrdinalIgnoreCase)
                 ? "Release"
                 : "Debug";
-            string builtRoot = Path.Combine(
+            string projectRoot = Path.Combine(
                 repositoryRoot,
                 "tests",
                 "ProcessFixtures",
-                "GraniteEdgeAI.HardwareInspection.LlmFitFakeTool",
-                "bin",
-                configuration,
-                "net8.0-windows10.0.19041.0",
-                "win-x64");
-            if (!File.Exists(Path.Combine(
-                    builtRoot,
-                    "GraniteEdgeAI.HardwareInspection.LlmFitFakeTool.exe")))
+                "GraniteEdgeAI.HardwareInspection.LlmFitFakeTool");
+            string[] candidates =
+            [
+                Path.Combine(
+                    projectRoot,
+                    "bin",
+                    "x64",
+                    configuration,
+                    "net8.0-windows10.0.19041.0",
+                    "win-x64"),
+                Path.Combine(
+                    projectRoot,
+                    "bin",
+                    configuration,
+                    "net8.0-windows10.0.19041.0",
+                    "win-x64"),
+            ];
+            string? builtRoot = candidates.FirstOrDefault(candidate => File.Exists(Path.Combine(
+                candidate,
+                "GraniteEdgeAI.HardwareInspection.LlmFitFakeTool.exe")));
+            if (builtRoot is null)
             {
                 throw new InvalidOperationException("The harmless fake tool fixture was not built.");
             }
