@@ -1,5 +1,6 @@
 name: Workbook 05 post-C workbook bootstrap
 
+# Owner-authorised materialisation trigger: 2026-08-22.
 on:
   push:
     branches:
