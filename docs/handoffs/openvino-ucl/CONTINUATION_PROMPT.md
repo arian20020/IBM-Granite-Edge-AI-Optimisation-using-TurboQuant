@@ -51,8 +51,8 @@ result is `openvino_release_blocked`.
 - Converter input archive was created from final Task 13 converter Stage P,
   containing 23,758 files in the transfer input (the earlier measured scan
   described 23,756 payload files before its enclosing manifest accounting).
-- `handoff-state.json` is operational reconstruction state only. It is not
-  trusted UCL evidence.
+- `handoff-state.json` is operational reconstruction state only.
+  It is not trusted UCL evidence.
 
 Before doing anything else:
 
