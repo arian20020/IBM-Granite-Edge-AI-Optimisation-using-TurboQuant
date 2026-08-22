@@ -23,6 +23,20 @@
 - Modify `IBM Granite with TurboQuant (Intel)/Features/GgufRuntime/ChatPage.xaml` and `.xaml.cs` for whole-chat copy and clipboard coordination.
 - Modify `tests/UnitTests/GraniteEdgeAI.UnitTests/Features/GgufRuntime/ChatPageTests.cs` for WinUI structure, accessibility, clipboard success/failure, and stable streaming controls.
 
+For every packaged WinUI test step below, set `$filter` as shown and run:
+
+```powershell
+$configuration='Release'
+$testProject='tests\UnitTests\GraniteEdgeAI.UnitTests\GraniteEdgeAI.UnitTests.csproj'
+dotnet build $testProject -c $configuration -p:Platform=x64 -p:RuntimeIdentifier=win-x64 --nologo
+if ($LASTEXITCODE -ne 0) { throw 'Packaged test build failed.' }
+$recipe=(Resolve-Path "tests\UnitTests\GraniteEdgeAI.UnitTests\bin\x64\$configuration\net8.0-windows10.0.19041.0\win-x64\GraniteEdgeAI.UnitTests.build.appxrecipe").Path
+$vswhere=Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+$vstest=& $vswhere -latest -products * -find '**\Common7\IDE\CommonExtensions\Microsoft\TestWindow\vstest.console.exe' | Select-Object -First 1
+& $vstest $recipe '/Platform:x64' '/Logger:Console;Verbosity=minimal' "/TestCaseFilter:$filter"
+if ($LASTEXITCODE -ne 0) { throw 'Packaged test run failed.' }
+```
+
 ### Task 1: Activate the model-native chat template
 
 **Files:**
@@ -173,9 +187,8 @@ public sealed class ChatTranscriptFormatterTests
 
 Run:
 
-```powershell
-dotnet run --project 'tests\UnitTests\GraniteEdgeAI.UnitTests\GraniteEdgeAI.UnitTests.csproj' -c Release -p:Platform=x64 -p:RuntimeIdentifier=win-x64 -- --filter FullyQualifiedName~ChatTranscriptFormatterTests
-```
+Set `$filter = 'FullyQualifiedName~ChatTranscriptFormatterTests'` and run the
+packaged WinUI command above.
 
 Expected: FAIL because `ChatTranscriptFormatter` does not exist.
 
@@ -323,9 +336,8 @@ private static void Invoke(Button button)
 
 Run:
 
-```powershell
-dotnet run --project 'tests\UnitTests\GraniteEdgeAI.UnitTests\GraniteEdgeAI.UnitTests.csproj' -c Release -p:Platform=x64 -p:RuntimeIdentifier=win-x64 -- --filter FullyQualifiedName~MessageTextIsSelectableAndCopyRaisesExactVisibleContent
-```
+Set `$filter = 'FullyQualifiedName~MessageTextIsSelectableAndCopyRaisesExactVisibleContent'`
+and run the packaged WinUI command above.
 
 Expected: FAIL because the copy control/event and selection flag do not exist.
 
@@ -386,9 +398,8 @@ accessible name, tooltip, and hover/focus opacity. Stop that timer on `Unloaded`
 
 Run:
 
-```powershell
-dotnet run --project 'tests\UnitTests\GraniteEdgeAI.UnitTests\GraniteEdgeAI.UnitTests.csproj' -c Release -p:Platform=x64 -p:RuntimeIdentifier=win-x64 -- --filter "FullyQualifiedName~ChatPageTests.Message|FullyQualifiedName~ChatPageTests.Streaming"
-```
+Set `$filter = 'FullyQualifiedName~ChatPageTests.Message|FullyQualifiedName~ChatPageTests.Streaming'`
+and run the packaged WinUI command above.
 
 Expected: selectable/copy tests and existing role-surface/in-place streaming tests pass.
 
@@ -455,9 +466,8 @@ page with `new RecordingClipboard(false)` and assert both controls expose
 
 Run:
 
-```powershell
-dotnet run --project 'tests\UnitTests\GraniteEdgeAI.UnitTests\GraniteEdgeAI.UnitTests.csproj' -c Release -p:Platform=x64 -p:RuntimeIdentifier=win-x64 -- --filter "FullyQualifiedName~CopyChat|FullyQualifiedName~CopyMessage"
-```
+Set `$filter = 'FullyQualifiedName~CopyChat|FullyQualifiedName~CopyMessage'` and
+run the packaged WinUI command above.
 
 Expected: FAIL because injection, header action, and page-level routing do not exist.
 
@@ -541,9 +551,8 @@ ordinary streaming updates.
 
 Run:
 
-```powershell
-dotnet run --project 'tests\UnitTests\GraniteEdgeAI.UnitTests\GraniteEdgeAI.UnitTests.csproj' -c Release -p:Platform=x64 -p:RuntimeIdentifier=win-x64 -- --filter "FullyQualifiedName~GraniteEdgeAI.UnitTests.Features.GgufRuntime.ChatPageTests"
-```
+Set `$filter = 'FullyQualifiedName~GraniteEdgeAI.UnitTests.Features.GgufRuntime.ChatPageTests'`
+and run the packaged WinUI command above.
 
 Expected: all `ChatPageTests` pass, including exact clipboard payloads and
 `Assert.AreSame` checks for streamed bubble instances.
@@ -654,9 +663,8 @@ without configured inputs are skipped, and the Release/x64 app build succeeds.
 
 - [ ] **Step 2: Run the packaged WinUI chat tests**
 
-```powershell
-dotnet run --project 'tests\UnitTests\GraniteEdgeAI.UnitTests\GraniteEdgeAI.UnitTests.csproj' -c Release -p:Platform=x64 -p:RuntimeIdentifier=win-x64 -- --filter "FullyQualifiedName~Features.GgufRuntime"
-```
+Set `$filter = 'FullyQualifiedName~Features.GgufRuntime'` and run the packaged
+WinUI command above.
 
 Expected: all GGUF chat UI/history/controller tests pass with zero failures.
 
