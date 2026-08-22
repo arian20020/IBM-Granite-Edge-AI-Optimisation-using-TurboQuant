@@ -1,0 +1,275 @@
+name: Workbook 05 C2 process-harness bootstrap repair
+
+on:
+  pull_request:
+    branches:
+      - main
+      - fix/workbook-05-c1-controlled-source-resume
+    paths:
+      - '.github/workflows/workbook-05-c2-bootstrap-repair.yml'
+  workflow_dispatch:
+
+# One-time hosted repair. It restores the reviewed payload, runs the same
+# complete Phase 3 gate with every required sparse-checkout input present,
+# commits the verified implementation, and deletes all bootstrap material.
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: workbook-05-c2-bootstrap-repair-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  materialise-repaired-c2:
+    name: Materialise the repaired C2 process harness
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: windows-latest
+    timeout-minutes: 90
+    outputs:
+      generated_sha: ${{ steps.commit-c2.outputs.generated_sha }}
+
+    steps:
+      - name: Check out the exact C2 repair revision
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: true
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+          sparse-checkout: |
+            .bootstrap-c2
+            .github/workflows
+            docs/superpowers
+            docs/testing
+            experiments/granite_turboquant_intel/configurations/workbook05
+            experiments/granite_turboquant_intel/manifests/campaigns/GTQ-WB05-MF-v1
+            experiments/granite_turboquant_intel/manifests/templates/workbook05
+            experiments/granite_turboquant_intel/prompts
+            experiments/granite_turboquant_intel/rubrics
+            experiments/granite_turboquant_intel/schemas/workbook05
+            scripts/testing
+            tests/testing/workbook05
+
+      - name: Set up Python 3.12.10
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.10'
+          check-latest: false
+
+      - name: Restore and verify the reviewed C2 payload
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $parts = @(
+              Get-ChildItem `
+                  -LiteralPath '.\.bootstrap-c2' `
+                  -Filter 'workbook05-c2-source.b64.part-*' `
+                  -File |
+                  Sort-Object Name
+          )
+          if ($parts.Count -ne 6) {
+              throw "Expected exactly six reviewed C2 payload parts; found $($parts.Count)."
+          }
+
+          $encoded = [string]::Concat(@(
+              $parts | ForEach-Object {
+                  Get-Content -LiteralPath $_.FullName -Raw -Encoding utf8
+              }
+          ))
+          $archivePath = Join-Path $env:RUNNER_TEMP 'workbook05-c2-source.tar.gz'
+          [IO.File]::WriteAllBytes(
+              $archivePath,
+              [Convert]::FromBase64String($encoded)
+          )
+
+          $expectedDigest = '86d65d644cd2d6e3e69dbc324c0d11895ae4139e060648e552baccb796806e72'
+          $actualDigest = (
+              Get-FileHash -LiteralPath $archivePath -Algorithm SHA256
+          ).Hash.ToLowerInvariant()
+          if ($actualDigest -cne $expectedDigest) {
+              throw "Reviewed C2 payload digest mismatch. Expected $expectedDigest; observed $actualDigest."
+          }
+
+          python -c "import pathlib,sys,tarfile; tarfile.open(sys.argv[1], 'r:gz').extractall(pathlib.Path(sys.argv[2]), filter='data')" `
+              $archivePath `
+              $env:GITHUB_WORKSPACE
+          if ($LASTEXITCODE -ne 0) {
+              throw "C2 payload extraction exited with code $LASTEXITCODE."
+          }
+
+          Get-ChildItem `
+              -LiteralPath '.\tests\testing\workbook05\fixtures\phase3\process' `
+              -Directory `
+              -Filter '__pycache__' `
+              -Recurse `
+              -ErrorAction SilentlyContinue |
+              Remove-Item -Recurse -Force
+          Get-ChildItem `
+              -LiteralPath '.\tests\testing\workbook05\fixtures\phase3\process' `
+              -File `
+              -Filter '*.pyc' `
+              -Recurse `
+              -ErrorAction SilentlyContinue |
+              Remove-Item -Force
+
+      - name: Install the pinned Phase 3 validation dependency
+        shell: powershell
+        run: >-
+          python -m pip install
+          --disable-pip-version-check
+          -r '.\scripts\testing\workbook05\requirements.txt'
+
+      - name: Run the complete Phase 3 repository gate
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & '.\scripts\testing\Validate-Workbook05-Phase3.ps1' `
+              -RepositoryRoot $env:GITHUB_WORKSPACE `
+              -PythonPath 'python'
+
+      - name: Verify only reviewed C2 surfaces changed
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          git diff --check
+          if ($LASTEXITCODE -ne 0) {
+              throw "git diff --check exited with code $LASTEXITCODE."
+          }
+
+          $allowedPrefixes = @(
+              '.bootstrap-c2/',
+              '.github/workflows/workbook-05-c2-bootstrap.yml',
+              '.github/workflows/workbook-05-c2-bootstrap-repair.yml',
+              '.github/workflows/workbook-05-phase3-harness-tests.yml',
+              'docs/testing/workbook05/phase3-harness-runbook.md',
+              'experiments/granite_turboquant_intel/manifests/templates/workbook05/phase3-checkpoint-template.json',
+              'experiments/granite_turboquant_intel/manifests/templates/workbook05/process-attempt-template.json',
+              'experiments/granite_turboquant_intel/manifests/templates/workbook05/resource-summary-template.json',
+              'experiments/granite_turboquant_intel/schemas/workbook05/phase3-checkpoint.schema.json',
+              'experiments/granite_turboquant_intel/schemas/workbook05/process-attempt.schema.json',
+              'experiments/granite_turboquant_intel/schemas/workbook05/resource-summary.schema.json',
+              'scripts/testing/workbook05/Invoke-Workbook05Phase3HarnessFixture.ps1',
+              'scripts/testing/workbook05/Workbook05.Run.psm1',
+              'scripts/testing/workbook05/phase3/checkpoint.py',
+              'scripts/testing/workbook05/phase3/contracts.py',
+              'scripts/testing/workbook05/phase3/process_bundle_validation.py',
+              'scripts/testing/workbook05/phase3/process_policy.py',
+              'tests/testing/workbook05/fixtures/phase3/process/',
+              'tests/testing/workbook05/fixtures/phase3/process-bundles/valid/'
+          )
+          $changed = @(
+              git status --porcelain=v1 --untracked-files=all |
+                  ForEach-Object { $_.Substring(3).Replace('\', '/') }
+          )
+          $unexpected = @(
+              $changed |
+                  Where-Object {
+                      $path = $_
+                      -not ($allowedPrefixes | Where-Object { $path.StartsWith($_) })
+                  }
+          )
+          if ($unexpected.Count -ne 0) {
+              throw (
+                  "Files outside the reviewed C2 implementation changed:`n" +
+                  ($unexpected -join "`n")
+              )
+          }
+
+      - name: Remove all one-time C2 bootstrap material
+        shell: powershell
+        run: |
+          Remove-Item -LiteralPath '.\.bootstrap-c2' -Recurse -Force
+          Remove-Item `
+              -LiteralPath '.\.github\workflows\workbook-05-c2-bootstrap.yml' `
+              -Force
+          Remove-Item `
+              -LiteralPath '.\.github\workflows\workbook-05-c2-bootstrap-repair.yml' `
+              -Force
+
+      - name: Commit the verified C2 implementation to the PR branch
+        id: commit-c2
+        shell: powershell
+        env:
+          TARGET_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          if (-not (git diff --cached --quiet)) {
+              git commit -m 'feat(workbook05): implement C2 process harness'
+              if ($LASTEXITCODE -ne 0) {
+                  throw "git commit exited with code $LASTEXITCODE."
+              }
+              git push origin "HEAD:$env:TARGET_BRANCH"
+              if ($LASTEXITCODE -ne 0) {
+                  throw "git push exited with code $LASTEXITCODE."
+              }
+          }
+
+          $generatedSha = (git rev-parse HEAD).Trim()
+          "generated_sha=$generatedSha" | Out-File `
+              -FilePath $env:GITHUB_OUTPUT `
+              -Encoding utf8 `
+              -Append
+          Write-Host "Verified C2 implementation head: $generatedSha"
+
+  independently-verify-repaired-c2:
+    name: Independently verify the repaired C2 harness
+    needs: materialise-repaired-c2
+    runs-on: windows-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Check out the exact generated C2 revision
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+          ref: ${{ needs.materialise-repaired-c2.outputs.generated_sha }}
+          fetch-depth: 1
+          sparse-checkout: |
+            .github/workflows
+            docs/superpowers
+            docs/testing
+            experiments/granite_turboquant_intel/configurations/workbook05
+            experiments/granite_turboquant_intel/manifests/campaigns/GTQ-WB05-MF-v1
+            experiments/granite_turboquant_intel/manifests/templates/workbook05
+            experiments/granite_turboquant_intel/prompts
+            experiments/granite_turboquant_intel/rubrics
+            experiments/granite_turboquant_intel/schemas/workbook05
+            scripts/testing
+            tests/testing/workbook05
+
+      - name: Set up independent Python 3.12.10
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.10'
+          check-latest: false
+
+      - name: Install the pinned validation dependency
+        shell: powershell
+        run: >-
+          python -m pip install
+          --disable-pip-version-check
+          -r '.\scripts\testing\workbook05\requirements.txt'
+
+      - name: Re-run the complete Phase 3 gate independently
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & '.\scripts\testing\Validate-Workbook05-Phase3.ps1' `
+              -RepositoryRoot $env:GITHUB_WORKSPACE `
+              -PythonPath 'python'
+
+      - name: Validate the committed C2 bundle as untrusted data
+        shell: powershell
+        run: |
+          python -m scripts.testing.workbook05.phase3.process_bundle_validation `
+              --bundle '.\tests\testing\workbook05\fixtures\phase3\process-bundles\valid' `
+              --repository-root $env:GITHUB_WORKSPACE
+          if ($LASTEXITCODE -ne 0) {
+              throw "Independent bundle validation exited with code $LASTEXITCODE."
+          }
+          Write-Host 'WORKBOOK05_C2_BOOTSTRAP_REPAIR_INDEPENDENT_PASS'
