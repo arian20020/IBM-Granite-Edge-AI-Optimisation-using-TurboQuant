@@ -23,6 +23,8 @@ _REQUEST_FIELDS = frozenset(
         "sourcePath",
         "destinationPath",
         "sourceManifestSha256",
+        "operation",
+        "weightPrecision",
     }
 )
 
@@ -37,6 +39,8 @@ class ConvertRequest:
     source_path: str
     destination_path: str
     source_manifest_sha256: str
+    operation: str
+    weight_precision: str
 
 
 def reject_unknown_fields(value: dict[str, object], allowed: frozenset[str]) -> None:
@@ -70,11 +74,21 @@ def read_request() -> ConvertRequest:
     source = _absolute_path(value["sourcePath"])
     destination = _absolute_path(value["destinationPath"])
     digest = value["sourceManifestSha256"]
+    operation = value["operation"]
+    weight_precision = value["weightPrecision"]
     if os.path.normcase(source) == os.path.normcase(destination):
         _fail()
     if not isinstance(digest, str) or _DIGEST.fullmatch(digest) is None:
         _fail()
-    return ConvertRequest(operation_id, source, destination, digest)
+    if operation not in {"convert", "optimize"} or weight_precision not in {
+        "fp16", "int8", "int4"
+    }:
+        _fail()
+    if operation == "convert" and weight_precision != "fp16":
+        _fail()
+    return ConvertRequest(
+        operation_id, source, destination, digest, operation, weight_precision
+    )
 
 
 def write_event(event: dict[str, object]) -> None:

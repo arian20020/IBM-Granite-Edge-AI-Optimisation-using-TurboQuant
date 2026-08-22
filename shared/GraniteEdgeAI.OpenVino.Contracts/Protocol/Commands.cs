@@ -63,6 +63,18 @@ public sealed record StartInspectionCommand(
     }
 }
 
+public sealed record OpenVinoRuntimeOptions(string KvCachePrecision)
+{
+    public static OpenVinoRuntimeOptions ReleasedDefault { get; } = new("released-default");
+
+    public static OpenVinoRuntimeOptions U8 { get; } = new("u8");
+
+    public void Validate() => OpenVinoProtocol.Require(
+        KvCachePrecision is "released-default" or "u8",
+        nameof(KvCachePrecision) + " must be an approved runtime KV-cache precision.");
+}
+
+[method: JsonConstructor]
 public sealed record StartSessionCommand(
     Guid SessionId,
     Guid InspectionRunId,
@@ -71,8 +83,31 @@ public sealed record StartSessionCommand(
     string ModelSha256,
     long ModelLengthBytes,
     OpenVinoDeviceRequest Device,
-    OpenVinoGenerationLimits Limits) : IOpenVinoCommand
+    OpenVinoGenerationLimits Limits,
+    OpenVinoRuntimeOptions Runtime) : IOpenVinoCommand
 {
+    public StartSessionCommand(
+        Guid sessionId,
+        Guid inspectionRunId,
+        string packagePath,
+        string packageManifestDigest,
+        string modelSha256,
+        long modelLengthBytes,
+        OpenVinoDeviceRequest device,
+        OpenVinoGenerationLimits limits)
+        : this(
+            sessionId,
+            inspectionRunId,
+            packagePath,
+            packageManifestDigest,
+            modelSha256,
+            modelLengthBytes,
+            device,
+            limits,
+            OpenVinoRuntimeOptions.ReleasedDefault)
+    {
+    }
+
     [JsonPropertyName("commandType")]
     public string CommandType => "startSession";
 
@@ -95,8 +130,14 @@ public sealed record StartSessionCommand(
             throw new OpenVinoProtocolException(nameof(Limits) + " must be present.");
         }
 
+        if (Runtime is null)
+        {
+            throw new OpenVinoProtocolException(nameof(Runtime) + " must be present.");
+        }
+
         Device.Validate();
         Limits.Validate();
+        Runtime.Validate();
     }
 }
 

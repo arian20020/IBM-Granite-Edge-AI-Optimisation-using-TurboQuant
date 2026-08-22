@@ -17,6 +17,7 @@ public sealed class OpenVinoConversationValidator
     private string? _modelSha256;
     private long _modelLengthBytes;
     private string? _requestedDevice;
+    private string? _requestedKvCachePrecision;
     private OpenVinoInspectionStage? _nextInspectionStage;
     private long _nextSequence;
     private int _maximumContextTokens;
@@ -67,6 +68,7 @@ public sealed class OpenVinoConversationValidator
                 _sessionId = startSession.SessionId;
                 _inspectionRunId = startSession.InspectionRunId;
                 _requestedDevice = startSession.Device.DeviceId;
+                _requestedKvCachePrecision = startSession.Runtime.KvCachePrecision;
                 _maximumContextTokens = startSession.Limits.MaximumContextTokens;
                 CapturePackageIdentity(
                     startSession.PackageManifestDigest,
@@ -172,6 +174,14 @@ public sealed class OpenVinoConversationValidator
                     string.Equals(
                         started.ProtocolId,
                         _protocolId,
+                        StringComparison.Ordinal) &&
+                    string.Equals(
+                        started.RequestedKvCachePrecision,
+                        _requestedKvCachePrecision,
+                        StringComparison.Ordinal) &&
+                    string.Equals(
+                        started.ActualKvCachePrecision,
+                        _requestedKvCachePrecision,
                         StringComparison.Ordinal) &&
                     started.ActualExecutionDevices.Count == 1 &&
                     string.Equals(

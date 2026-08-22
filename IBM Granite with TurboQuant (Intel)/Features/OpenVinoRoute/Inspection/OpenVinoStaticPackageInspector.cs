@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Xml;
 using GraniteEdgeAI.OpenVino.Contracts;
 using GraniteEdgeAI.Features.OpenVinoRoute.Conversion;
+using GraniteEdgeAI.Features.OpenVinoRoute.Optimization;
 
 namespace GraniteEdgeAI.Features.OpenVinoRoute.Inspection;
 
@@ -388,6 +389,9 @@ public sealed class OpenVinoStaticPackageInspector
                 break;
             case OpenVinoProvenance.FileName:
                 OpenVinoProvenance.ValidateJson(root, snapshot);
+                break;
+            case OpenVinoOptimizationProvenance.FileName:
+                OpenVinoOptimizationProvenance.ValidateJson(root, snapshot);
                 break;
             default:
                 throw new InvalidDataException("Optional JSON resource has no version-one schema.");

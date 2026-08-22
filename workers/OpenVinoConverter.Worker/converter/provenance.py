@@ -24,11 +24,11 @@ def package_versions() -> dict[str, str]:
     return result
 
 
-def fixed_options() -> dict[str, object]:
+def fixed_options(weight_precision: str) -> dict[str, object]:
     return {
         "library": "transformers",
         "localFilesOnly": True,
         "task": "text-generation-with-past",
         "trustRemoteCode": False,
-        "weightFormat": "fp16",
+        "weightFormat": weight_precision,
     }

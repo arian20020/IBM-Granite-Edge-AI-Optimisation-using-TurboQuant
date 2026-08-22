@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using GraniteEdgeAI.Features.Prompting;
+using GraniteEdgeAI.OpenVino.Contracts;
 
 namespace GraniteEdgeAI.Features.OpenVinoRoute;
 
@@ -24,6 +25,8 @@ public sealed class OpenVinoRouteSession : IPromptRouteSession
 
     public OpenVinoRouteSnapshot Snapshot => adapter.Snapshot;
 
+    internal SessionStartedEvent? StartupEvidence => adapter.StartupEvidence;
+
     public PromptRouteCapability Capability =>
         OpenVinoRouteCapability.PromptCapability;
 
@@ -33,7 +36,8 @@ public sealed class OpenVinoRouteSession : IPromptRouteSession
         OpenVinoSessionDescriptor descriptor,
         Action<PromptEvent> eventSink,
         CancellationToken cancellationToken,
-        Action<Guid>? promptTerminalWaitObserver = null)
+        Action<Guid>? promptTerminalWaitObserver = null,
+        OpenVinoRuntimeOptions? runtimeOptions = null)
     {
         OpenVinoPromptAdapter adapter = await OpenVinoPromptAdapter.CreateAsync(
             channelFactory,
@@ -41,7 +45,8 @@ public sealed class OpenVinoRouteSession : IPromptRouteSession
             descriptor,
             eventSink,
             cancellationToken,
-            promptTerminalWaitObserver).ConfigureAwait(false);
+            promptTerminalWaitObserver,
+            runtimeOptions).ConfigureAwait(false);
         return new OpenVinoRouteSession(adapter);
     }
 

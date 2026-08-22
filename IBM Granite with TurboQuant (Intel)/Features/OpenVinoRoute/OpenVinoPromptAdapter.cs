@@ -18,6 +18,8 @@ internal interface IOpenVinoPromptChannelFactory
 
 internal interface IOpenVinoPromptChannel : IAsyncDisposable
 {
+    SessionStartedEvent? StartupEvidence => null;
+
     Task<IOpenVinoEvent> PromptAsync(
         PromptCommand command,
         IProgress<TokenEvent>? progress,
@@ -82,19 +84,24 @@ public sealed class OpenVinoPromptAdapter : IAsyncDisposable
 
     public OpenVinoRouteSnapshot Snapshot => stateMachine.Snapshot;
 
+    internal SessionStartedEvent? StartupEvidence => channel.StartupEvidence;
+
     internal static async Task<OpenVinoPromptAdapter> CreateAsync(
         IOpenVinoPromptChannelFactory channelFactory,
         OpenVinoRouteStateMachine stateMachine,
         OpenVinoSessionDescriptor descriptor,
         Action<PromptEvent> eventSink,
         CancellationToken cancellationToken,
-        Action<Guid>? promptTerminalWaitObserver = null)
+        Action<Guid>? promptTerminalWaitObserver = null,
+        OpenVinoRuntimeOptions? runtimeOptions = null)
     {
         ArgumentNullException.ThrowIfNull(channelFactory);
         ArgumentNullException.ThrowIfNull(stateMachine);
         ArgumentNullException.ThrowIfNull(descriptor);
         ArgumentNullException.ThrowIfNull(eventSink);
         ValidateDescriptor(descriptor);
+        runtimeOptions ??= OpenVinoRuntimeOptions.ReleasedDefault;
+        runtimeOptions.Validate();
 
         OpenVinoRouteSnapshot snapshot = stateMachine.Snapshot;
         Guid operationId = snapshot.Identity.OperationId;
@@ -119,7 +126,8 @@ public sealed class OpenVinoPromptAdapter : IAsyncDisposable
             new OpenVinoDeviceRequest(OpenVinoRouteCapability.Device),
             new OpenVinoGenerationLimits(
                 OpenVinoRouteCapability.MaximumContextTokens,
-                OpenVinoRouteCapability.MaximumRequestedNewTokens));
+                OpenVinoRouteCapability.MaximumRequestedNewTokens),
+            runtimeOptions);
         IOpenVinoPromptChannel channel;
         try
         {
@@ -1107,6 +1115,8 @@ internal sealed class OpenVinoWorkerPromptChannelFactory(
 internal sealed class OpenVinoWorkerPromptChannel(
     OpenVinoConversation conversation) : IOpenVinoPromptChannel
 {
+    public SessionStartedEvent StartupEvidence => conversation.StartupEvidence;
+
     public async Task<IOpenVinoEvent> PromptAsync(
         PromptCommand command,
         IProgress<TokenEvent>? progress,

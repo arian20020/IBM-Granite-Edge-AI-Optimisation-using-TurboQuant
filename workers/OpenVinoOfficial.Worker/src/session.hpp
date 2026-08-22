@@ -66,7 +66,8 @@ public:
         std::size_t model_context,
         std::size_t c1_context,
         native_load_observer observer = {},
-        native_module_verifier module_verifier = {});
+        native_module_verifier module_verifier = {},
+        std::string kv_cache_precision = "released-default");
     ~official_session();
     official_session(const official_session&) = delete;
     official_session& operator=(const official_session&) = delete;
@@ -86,6 +87,7 @@ private:
     native_load_observer observer_;
     native_module_verifier module_verifier_;
     std::string device_;
+    std::string kv_cache_precision_;
     ov::genai::ChatHistory history_;
     std::size_t model_context_;
     std::size_t c1_context_;

@@ -161,7 +161,7 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
                 throw WorkerReportedFailure(failed.SupportCode);
             }
 
-            if (started is not SessionStartedEvent)
+            if (started is not SessionStartedEvent startupEvidence)
             {
                 throw ProtocolFailure();
             }
@@ -172,6 +172,7 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
                 processExit,
                 validator,
                 command.SessionId,
+                startupEvidence,
                 _options,
                 closure);
             session = null;

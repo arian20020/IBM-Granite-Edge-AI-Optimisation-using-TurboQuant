@@ -43,6 +43,10 @@ int main() {
             [] { (void)parse_json_line(R"({"commandType":"closeSession","sessionId":"00000000-0000-0000-0000-000000000001","extra":true})"); },
             "unknown fields were accepted");
         require_protocol_error(
+            [] { (void)parse_json_line(R"({"sessionId":"00000000-0000-0000-0000-000000000001","inspectionRunId":"00000000-0000-0000-0000-000000000002","packagePath":"C:\\operation\\package","packageManifestDigest":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef","modelSha256":"abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789","modelLengthBytes":1,"device":{"deviceId":"CPU"},"limits":{"maximumContextTokens":64,"maximumNewTokens":1},"commandType":"startSession"})"); },
+            "startSession without a runtime policy was accepted");
+        (void)parse_json_line(R"({"sessionId":"00000000-0000-0000-0000-000000000001","inspectionRunId":"00000000-0000-0000-0000-000000000002","packagePath":"C:\\operation\\package","packageManifestDigest":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef","modelSha256":"abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789","modelLengthBytes":1,"device":{"deviceId":"CPU"},"limits":{"maximumContextTokens":64,"maximumNewTokens":1},"runtime":{"kvCachePrecision":"u8"},"commandType":"startSession"})");
+        require_protocol_error(
             [] { (void)parse_json_line(R"({"commandType":"closeSession","sessionId":"00000000-0000-0000-0000-000000000001","sessionId":"00000000-0000-0000-0000-000000000002"})"); },
             "duplicate fields were accepted");
         require_protocol_error(

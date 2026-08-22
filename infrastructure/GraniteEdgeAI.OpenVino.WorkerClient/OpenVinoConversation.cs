@@ -13,6 +13,7 @@ public sealed class OpenVinoConversation : IAsyncDisposable
     private readonly Task _processExit;
     private readonly OpenVinoConversationValidator _validator;
     private readonly Guid _sessionId;
+    private readonly SessionStartedEvent _startupEvidence;
     private readonly OpenVinoWorkerClientOptions _options;
     private readonly DateTimeOffset _sessionStartedUtc = DateTimeOffset.UtcNow;
     private readonly SemaphoreSlim _operationGate = new(1, 1);
@@ -36,6 +37,7 @@ public sealed class OpenVinoConversation : IAsyncDisposable
         Task processExit,
         OpenVinoConversationValidator validator,
         Guid sessionId,
+        SessionStartedEvent startupEvidence,
         OpenVinoWorkerClientOptions options,
         VerifiedOpenVinoWorkerClosure closure)
     {
@@ -44,6 +46,7 @@ public sealed class OpenVinoConversation : IAsyncDisposable
         _processExit = processExit;
         _validator = validator;
         _sessionId = sessionId;
+        _startupEvidence = startupEvidence;
         _options = options;
         _closure = closure;
         _terminalCleanup = new OpenVinoTerminalCleanup(
@@ -55,6 +58,8 @@ public sealed class OpenVinoConversation : IAsyncDisposable
     }
 
     public Guid SessionId => _sessionId;
+
+    public SessionStartedEvent StartupEvidence => _startupEvidence;
 
     public async Task<IOpenVinoEvent> PromptAsync(
         PromptCommand command,

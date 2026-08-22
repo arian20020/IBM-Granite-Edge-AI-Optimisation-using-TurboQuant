@@ -12,6 +12,16 @@
 namespace granite::official_worker {
 namespace {
 
+ov::AnyMap pipeline_properties(const std::string& kv_cache_precision) {
+    ov::AnyMap properties{{"ATTENTION_BACKEND", std::string("SDPA")}};
+    if (kv_cache_precision == "u8") {
+        properties.emplace(ov::hint::kv_cache_precision.name(), ov::element::u8);
+    } else if (kv_cache_precision != "released-default") {
+        throw std::invalid_argument("unsupported KV-cache precision");
+    }
+    return properties;
+}
+
 constexpr std::string_view route_chat_template =
     "{{ bos_token }}{% for message in messages %}{{ message['content'] }}{% endfor %}";
 constexpr std::string_view canonical_fixture_model_digest =
@@ -76,19 +86,21 @@ official_session::official_session(
     std::size_t model_context,
     std::size_t c1_context,
     native_load_observer observer,
-    native_module_verifier module_verifier)
+    native_module_verifier module_verifier,
+    std::string kv_cache_precision)
     : package_(std::move(package)),
       runtime_(runtime),
       observer_(std::move(observer)),
       module_verifier_(std::move(module_verifier)),
       device_(std::move(device)),
+      kv_cache_precision_(std::move(kv_cache_precision)),
       model_context_(model_context),
       c1_context_(c1_context) {
     try {
         if (observer_) observer_(native_load_stage::pipeline_construction);
         verify_integrity(false);
         ov::genai::LLMPipeline validation_pipeline(
-            package_.root(), device_, ov::AnyMap{{"ATTENTION_BACKEND", std::string("SDPA")}});
+            package_.root(), device_, pipeline_properties(kv_cache_precision_));
         validation_pipeline.get_tokenizer().set_chat_template(std::string(route_chat_template));
         verify_integrity(true);
     } catch (...) {
@@ -142,8 +154,7 @@ turn_result official_session::generate(
         std::unique_ptr<ov::genai::LLMPipeline> pipeline = [&] {
             try {
                 auto value = std::make_unique<ov::genai::LLMPipeline>(
-                    package_.root(), device_,
-                    ov::AnyMap{{"ATTENTION_BACKEND", std::string("SDPA")}});
+                    package_.root(), device_, pipeline_properties(kv_cache_precision_));
                 verify_integrity(true);
                 return value;
             } catch (...) {

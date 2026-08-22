@@ -25,6 +25,7 @@ public sealed class ConverterIsolationTests
         string main = Read(Path.Combine(worker, "__main__.py"));
         string protocol = Read(Path.Combine(worker, "protocol.py"));
         string export = Read(Path.Combine(worker, "export.py"));
+        string optimize = Read(Path.Combine(worker, "optimize.py"));
 
         StringAssert.Contains(main, "sys.flags.isolated");
         StringAssert.Contains(main, "sys.flags.no_site");
@@ -45,6 +46,11 @@ public sealed class ConverterIsolationTests
         StringAssert.Contains(export, "library_name=\"transformers\"");
         StringAssert.Contains(export, "weight_format");
         StringAssert.Contains(export, "\"fp16\"");
+        StringAssert.Contains(main, "optimize_model");
+        StringAssert.Contains(optimize, "nncf.compress_weights");
+        StringAssert.Contains(optimize, "CompressWeightsMode.INT8_ASYM");
+        StringAssert.Contains(optimize, "CompressWeightsMode.INT4_ASYM");
+        StringAssert.Contains(optimize, "ov.save_model");
     }
 
     [TestMethod]
@@ -256,7 +262,9 @@ public sealed class ConverterIsolationTests
                 ["operationId"] = operationId,
                 ["sourcePath"] = source,
                 ["destinationPath"] = destination,
-                ["sourceManifestSha256"] = digest
+                ["sourceManifestSha256"] = digest,
+                ["operation"] = "convert",
+                ["weightPrecision"] = "fp16"
             });
             await process.StandardInput.WriteLineAsync(request);
             process.StandardInput.Close();

@@ -159,6 +159,11 @@ void run_session_body(const json& command, const runtime_context& runtime) {
     const std::size_t session_new_tokens = static_cast<std::size_t>(
         required_positive_u64(command.at("limits"), "maximumNewTokens"));
     if (session_new_tokens > 512U) throw protocol_error("generation limit rejected");
+    const std::string kv_cache_precision = required_string(
+        command.at("runtime"), "kvCachePrecision", 32U);
+    if (kv_cache_precision != "released-default" && kv_cache_precision != "u8") {
+        throw protocol_error("KV-cache precision rejected");
+    }
 
     package_lease lease = acquire_package(
         package, package_digest, model_digest, model_length);
@@ -174,12 +179,14 @@ void run_session_body(const json& command, const runtime_context& runtime) {
     lease.verify_topology(true);
     official_session session(
         std::move(lease), runtime, device, model_context, c1_context, {},
-        [&] { verify_loaded_module_closure(runtime); });
+        [&] { verify_loaded_module_closure(runtime); }, kv_cache_precision);
     verify_loaded_module_closure(runtime);
     publish_terminal_event(
         {{"sessionId", session_id},
          {"requestedDevice", execution.requested},
          {"actualExecutionDevices", execution.actual},
+         {"requestedKvCachePrecision", kv_cache_precision},
+         {"actualKvCachePrecision", kv_cache_precision},
          {"protocolId", official_protocol},
          {"buildEvidence", runtime.evidence().to_json()},
          {"eventType", "sessionStarted"}},

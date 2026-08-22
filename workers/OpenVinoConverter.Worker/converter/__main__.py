@@ -5,10 +5,12 @@ from __future__ import annotations
 import os
 import socket
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 from . import PROTOCOL, PROTOCOL_VERSION
 from .export import export_model
+from .optimize import optimize_model
 from .protocol import ProtocolError, read_request, write_event
 from .provenance import fixed_options, package_versions
 
@@ -56,6 +58,20 @@ def _suppress_stderr() -> None:
         os.dup2(descriptor, sys.stderr.fileno())
     finally:
         os.close(descriptor)
+
+
+def _run_with_stdout_suppressed(action: Callable[[], None]) -> None:
+    saved = os.dup(sys.stdout.fileno())
+    descriptor = os.open(os.devnull, os.O_WRONLY)
+    try:
+        sys.stdout.flush()
+        os.dup2(descriptor, sys.stdout.fileno())
+        action()
+        sys.stdout.flush()
+    finally:
+        os.dup2(saved, sys.stdout.fileno())
+        os.close(descriptor)
+        os.close(saved)
 
 
 def assert_closed_module_paths(runtime_root: Path) -> None:
@@ -130,13 +146,24 @@ def main() -> int:
         operation_id = request.operation_id
         _assert_source_not_importable(request.source_path)
         write_event({"type": "started", "operationId": operation_id})
-        export_model(request.source_path, request.destination_path)
+        if request.operation == "convert":
+            _run_with_stdout_suppressed(
+                lambda: export_model(request.source_path, request.destination_path)
+            )
+        else:
+            _run_with_stdout_suppressed(
+                lambda: optimize_model(
+                    request.source_path,
+                    request.destination_path,
+                    request.weight_precision,
+                )
+            )
         write_event(
             {
                 "type": "completed",
                 "operationId": operation_id,
                 "sourceManifestSha256": request.source_manifest_sha256,
-                "options": fixed_options(),
+                "options": fixed_options(request.weight_precision),
                 "versions": package_versions(),
             }
         )

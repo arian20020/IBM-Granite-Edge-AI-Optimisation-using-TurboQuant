@@ -138,13 +138,33 @@ public sealed record InspectionFailedEvent(Guid InspectionRunId, OpenVinoSupport
     }
 }
 
+[method: JsonConstructor]
 public sealed record SessionStartedEvent(
     Guid SessionId,
     string RequestedDevice,
     IReadOnlyList<string> ActualExecutionDevices,
+    string RequestedKvCachePrecision,
+    string ActualKvCachePrecision,
     string ProtocolId,
     OpenVinoBuildEvidence BuildEvidence) : IOpenVinoEvent
 {
+    public SessionStartedEvent(
+        Guid sessionId,
+        string requestedDevice,
+        IReadOnlyList<string> actualExecutionDevices,
+        string protocolId,
+        OpenVinoBuildEvidence buildEvidence)
+        : this(
+            sessionId,
+            requestedDevice,
+            actualExecutionDevices,
+            OpenVinoRuntimeOptions.ReleasedDefault.KvCachePrecision,
+            OpenVinoRuntimeOptions.ReleasedDefault.KvCachePrecision,
+            protocolId,
+            buildEvidence)
+    {
+    }
+
     [JsonPropertyName("eventType")]
     public string EventType => "sessionStarted";
 
@@ -158,6 +178,16 @@ public sealed record SessionStartedEvent(
             ProtocolId is OpenVinoProtocol.OfficialProtocolId or
                 OpenVinoProtocol.TurboQuantProtocolId,
             nameof(ProtocolId) + " must be an approved OpenVINO protocol identity.");
+        OpenVinoRuntimeOptions requestedRuntime = new(RequestedKvCachePrecision);
+        OpenVinoRuntimeOptions actualRuntime = new(ActualKvCachePrecision);
+        requestedRuntime.Validate();
+        actualRuntime.Validate();
+        OpenVinoProtocol.Require(
+            string.Equals(
+                RequestedKvCachePrecision,
+                ActualKvCachePrecision,
+                StringComparison.Ordinal),
+            "actual KV-cache precision must match the requested precision.");
         if (ActualExecutionDevices is null ||
             ActualExecutionDevices.Count is not (> 0 and <=
                 OpenVinoProtocol.MaximumActualExecutionDevices))

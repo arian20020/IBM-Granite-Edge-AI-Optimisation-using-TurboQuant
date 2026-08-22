@@ -10,6 +10,7 @@ namespace GraniteEdgeAI.Features.OpenVinoRoute.Conversion;
 
 internal sealed class SealedOpenVinoConversionPipeline : IOpenVinoConversionPipeline
 {
+    internal const int SmokeRequestedTokens = 2;
     private static readonly string[] FixedArguments =
         ["-I", "-s", "-E", "-S", "-B", "-m", "converter"];
     private static readonly IReadOnlyDictionary<string, string> RequiredVersions =
@@ -42,11 +43,41 @@ internal sealed class SealedOpenVinoConversionPipeline : IOpenVinoConversionPipe
         this.sessionFactory = sessionFactory ?? new ProtectedWorkerSessionFactory();
     }
 
-    public async Task<OpenVinoConverterCompletion> ConvertAsync(
+    public Task<OpenVinoConverterCompletion> ConvertAsync(
         OpenVinoConverterInvocation invocation,
+        CancellationToken cancellationToken) =>
+        RunWorkerAsync(invocation, "convert", "fp16", cancellationToken);
+
+    internal Task<OpenVinoConverterCompletion> OptimizePackageAsync(
+        Guid operationId,
+        string sourceDirectory,
+        string stagingDirectory,
+        string sourceManifestSha256,
+        string weightPrecision,
+        CancellationToken cancellationToken) =>
+        RunWorkerAsync(
+            new OpenVinoConverterInvocation(
+                operationId,
+                sourceDirectory,
+                stagingDirectory,
+                sourceManifestSha256),
+            "optimize",
+            weightPrecision,
+            cancellationToken);
+
+    private async Task<OpenVinoConverterCompletion> RunWorkerAsync(
+        OpenVinoConverterInvocation invocation,
+        string operationName,
+        string weightPrecision,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(invocation);
+        if (operationName is not ("convert" or "optimize") ||
+            weightPrecision is not ("fp16" or "int8" or "int4") ||
+            operationName == "convert" && weightPrecision != "fp16")
+        {
+            throw new OpenVinoConversionException(OpenVinoSupportCode.OptimizationUnsupported);
+        }
         using ConverterClosureLease closure = ConverterClosureLease.Verify(
             converterRoot,
             expectedManifestSha256,
@@ -100,7 +131,9 @@ internal sealed class SealedOpenVinoConversionPipeline : IOpenVinoConversionPipe
                 ["operationId"] = invocation.OperationId.ToString(),
                 ["sourcePath"] = invocation.SourceDirectory,
                 ["destinationPath"] = invocation.StagingDirectory,
-                ["sourceManifestSha256"] = invocation.SourceManifestSha256
+                ["sourceManifestSha256"] = invocation.SourceManifestSha256,
+                ["operation"] = operationName,
+                ["weightPrecision"] = weightPrecision
             });
             await session.StandardInput.WriteLineAsync(request, operation.Token).ConfigureAwait(false);
             JsonElement started = await ReadEventAsync(session, operation.Token).ConfigureAwait(false);
@@ -130,7 +163,7 @@ internal sealed class SealedOpenVinoConversionPipeline : IOpenVinoConversionPipe
             {
                 throw ProtocolFailure();
             }
-            ValidateOptions(terminal.GetProperty("options"));
+            ValidateOptions(terminal.GetProperty("options"), weightPrecision);
             IReadOnlyDictionary<string, string> versions =
                 ValidateVersions(terminal.GetProperty("versions"));
             await session.CompleteInputAsync().ConfigureAwait(false);
@@ -205,21 +238,38 @@ internal sealed class SealedOpenVinoConversionPipeline : IOpenVinoConversionPipe
         string stagingDirectory,
         CancellationToken cancellationToken)
     {
+        _ = await SmokeAsync(
+            validation,
+            stagingDirectory,
+            OpenVinoRuntimeOptions.ReleasedDefault,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    internal async Task<(SessionStartedEvent Startup, PromptTurnResult Turn)> SmokeAsync(
+        OpenVinoConversionValidation validation,
+        string stagingDirectory,
+        OpenVinoRuntimeOptions runtimeOptions,
+        CancellationToken cancellationToken)
+    {
         ArgumentNullException.ThrowIfNull(validation);
         OpenVinoRouteHandoffLease lease = validation.ConsumeLease();
         await using OpenVinoRouteSession session = await routeService.StartSessionAsync(
             lease,
             static _ => { },
+            runtimeOptions,
             cancellationToken).ConfigureAwait(false);
         PromptTurnResult result = await session.GenerateAsync(
             "Hello",
-            requestedNewTokens: 1,
+            requestedNewTokens: SmokeRequestedTokens,
             cancellationToken).ConfigureAwait(false);
         if (result.Status != PromptTurnStatus.Completed || result.GeneratedTokenCount <= 0)
         {
             throw new OpenVinoConversionException(OpenVinoSupportCode.RuntimeLoadFailed);
         }
+        SessionStartedEvent startup = session.StartupEvidence ??
+            throw new OpenVinoConversionException(OpenVinoSupportCode.RuntimeProtocolFailed);
         await session.CloseAsync(cancellationToken).ConfigureAwait(false);
+        return (startup, result);
     }
 
     public void BeforePublish()
@@ -327,7 +377,7 @@ internal sealed class SealedOpenVinoConversionPipeline : IOpenVinoConversionPipe
         }
     }
 
-    private static void ValidateOptions(JsonElement options)
+    private static void ValidateOptions(JsonElement options, string weightPrecision)
     {
         string[] fields = ["library", "localFilesOnly", "task", "trustRemoteCode",
             "weightFormat"];
@@ -339,7 +389,7 @@ internal sealed class SealedOpenVinoConversionPipeline : IOpenVinoConversionPipe
             options.GetProperty("localFilesOnly").ValueKind != JsonValueKind.True ||
             !StringEquals(options.GetProperty("task"), "text-generation-with-past") ||
             options.GetProperty("trustRemoteCode").ValueKind != JsonValueKind.False ||
-            !StringEquals(options.GetProperty("weightFormat"), "fp16"))
+            !StringEquals(options.GetProperty("weightFormat"), weightPrecision))
         {
             throw ProtocolFailure();
         }

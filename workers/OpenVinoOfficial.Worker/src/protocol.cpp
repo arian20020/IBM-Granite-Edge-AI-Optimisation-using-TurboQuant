@@ -32,9 +32,10 @@ void validate_command_shape(const json& value) {
     if (type == "startInspection") {
         require_exact_keys(value, {"inspectionRunId", "packagePath", "packageManifestDigest", "modelSha256", "modelLengthBytes", "commandType"});
     } else if (type == "startSession") {
-        require_exact_keys(value, {"sessionId", "inspectionRunId", "packagePath", "packageManifestDigest", "modelSha256", "modelLengthBytes", "device", "limits", "commandType"});
+        require_exact_keys(value, {"sessionId", "inspectionRunId", "packagePath", "packageManifestDigest", "modelSha256", "modelLengthBytes", "device", "limits", "runtime", "commandType"});
         require_exact_keys(value.at("device"), {"deviceId"});
         require_exact_keys(value.at("limits"), {"maximumContextTokens", "maximumNewTokens"});
+        require_exact_keys(value.at("runtime"), {"kvCachePrecision"});
     } else if (type == "prompt") {
         require_exact_keys(value, {"sessionId", "turnId", "prompt", "requestedNewTokens", "commandType"});
     } else if (type == "stopTurn") {

@@ -98,6 +98,39 @@ public sealed class OfficialCpuFixtureTests
     }
 
     [TestMethod]
+    public async Task RealCpuU8KvCacheRequestIsAppliedAndReportedBeforeGeneration()
+    {
+        string stage = RequireStage("OPENVINO_OFFICIAL_WORKER_STAGE_A");
+        string package = LocateCanonicalPackage();
+        await using OpenVinoConversation conversation = await CreateClient(stage)
+            .StartSessionAsync(
+                new StartSessionCommand(
+                    Guid.NewGuid(),
+                    Guid.NewGuid(),
+                    package,
+                    PackageDigest,
+                    ModelDigest,
+                    ModelLength,
+                    new OpenVinoDeviceRequest("CPU"),
+                    new OpenVinoGenerationLimits(64, 2),
+                    OpenVinoRuntimeOptions.U8),
+                CancellationToken.None).ConfigureAwait(false);
+
+        Assert.AreEqual("u8", conversation.StartupEvidence.RequestedKvCachePrecision);
+        Assert.AreEqual("u8", conversation.StartupEvidence.ActualKvCachePrecision);
+        List<TokenEvent> tokens = [];
+        TurnCompletedEvent completed = Assert.IsInstanceOfType<TurnCompletedEvent>(
+            await conversation.PromptAsync(
+                new PromptCommand(conversation.SessionId, Guid.NewGuid(), "hello", 2),
+                new InlineProgress<TokenEvent>(tokens.Add),
+                CancellationToken.None).ConfigureAwait(false));
+        Assert.AreEqual(OpenVinoTurnDisposition.Completed, completed.Disposition);
+        Assert.AreEqual("fixture", string.Concat(tokens.Select(static token => token.Text)));
+        await conversation.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+        await AssertNoOfficialWorkerProcessAsync().ConfigureAwait(false);
+    }
+
+    [TestMethod]
     public async Task RealCpuStopCancellationAndContextFailureAreBoundedAndLeaveNoResidue()
     {
         string stage = RequireStage("OPENVINO_OFFICIAL_WORKER_STAGE_A");

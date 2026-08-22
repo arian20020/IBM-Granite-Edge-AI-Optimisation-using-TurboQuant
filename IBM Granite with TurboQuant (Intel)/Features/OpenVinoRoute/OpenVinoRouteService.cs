@@ -315,6 +315,17 @@ public sealed class OpenVinoRouteService : IPromptRouteAdapter
     public async Task<OpenVinoRouteSession> StartSessionAsync(
         OpenVinoRouteHandoffLease handoffLease,
         Action<PromptEvent> eventSink,
+        CancellationToken cancellationToken) =>
+        await StartSessionAsync(
+            handoffLease,
+            eventSink,
+            OpenVinoRuntimeOptions.ReleasedDefault,
+            cancellationToken).ConfigureAwait(false);
+
+    internal async Task<OpenVinoRouteSession> StartSessionAsync(
+        OpenVinoRouteHandoffLease handoffLease,
+        Action<PromptEvent> eventSink,
+        OpenVinoRuntimeOptions runtimeOptions,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(handoffLease);
@@ -322,6 +333,8 @@ public sealed class OpenVinoRouteService : IPromptRouteAdapter
         ArgumentNullException.ThrowIfNull(handoff);
         handoff.Validate();
         ArgumentNullException.ThrowIfNull(eventSink);
+        ArgumentNullException.ThrowIfNull(runtimeOptions);
+        runtimeOptions.Validate();
         OpenVinoRouteLeasePayload package =
             handoffLease.Consume(serviceIdentity);
         if (package.Descriptor.InspectionRunId != handoff.ModelInspectionRunId ||
@@ -339,7 +352,8 @@ public sealed class OpenVinoRouteService : IPromptRouteAdapter
             package.StateMachine,
             package.Descriptor,
             eventSink,
-            cancellationToken).ConfigureAwait(false);
+            cancellationToken,
+            runtimeOptions: runtimeOptions).ConfigureAwait(false);
     }
 
     public async Task<PromptRouteSessionActivation> ActivateAsync(
