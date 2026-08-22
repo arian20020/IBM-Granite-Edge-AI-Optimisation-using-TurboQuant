@@ -149,6 +149,7 @@ public static class OpenVinoProtocolJson
         "sessionStarted" => DeserializeAndValidate(json, OpenVinoProtocolJsonContext.Default.SessionStartedEvent),
         "generationStarted" => DeserializeAndValidate(json, OpenVinoProtocolJsonContext.Default.GenerationStartedEvent),
         "token" => DeserializeAndValidate(json, OpenVinoProtocolJsonContext.Default.TokenEvent),
+        "turboQuantActivation" => DeserializeAndValidate(json, OpenVinoProtocolJsonContext.Default.TurboQuantActivationEvent),
         "turnCompleted" => DeserializeAndValidate(json, OpenVinoProtocolJsonContext.Default.TurnCompletedEvent),
         "turnFailed" => DeserializeAndValidate(json, OpenVinoProtocolJsonContext.Default.TurnFailedEvent),
         "sessionCompleted" => DeserializeAndValidate(json, OpenVinoProtocolJsonContext.Default.SessionCompletedEvent),
@@ -202,6 +203,7 @@ public static class OpenVinoProtocolJson
         type == typeof(SessionStartedEvent) ? OpenVinoProtocolJsonContext.Default.SessionStartedEvent :
         type == typeof(GenerationStartedEvent) ? OpenVinoProtocolJsonContext.Default.GenerationStartedEvent :
         type == typeof(TokenEvent) ? OpenVinoProtocolJsonContext.Default.TokenEvent :
+        type == typeof(TurboQuantActivationEvent) ? OpenVinoProtocolJsonContext.Default.TurboQuantActivationEvent :
         type == typeof(TurnCompletedEvent) ? OpenVinoProtocolJsonContext.Default.TurnCompletedEvent :
         type == typeof(TurnFailedEvent) ? OpenVinoProtocolJsonContext.Default.TurnFailedEvent :
         type == typeof(SessionCompletedEvent) ? OpenVinoProtocolJsonContext.Default.SessionCompletedEvent :

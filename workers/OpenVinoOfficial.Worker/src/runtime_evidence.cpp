@@ -550,10 +550,18 @@ verified_execution_device verify_execution_device(
 }
 
 nlohmann::ordered_json runtime_evidence::to_json() const {
-    return {{"runtimeBuild", runtime_build},
+    nlohmann::ordered_json result = {{"runtimeBuild", runtime_build},
             {"genAiBuild", genai_build},
             {"tokenizersBuild", tokenizers_build},
             {"workerManifestDigest", worker_manifest_digest}};
+#if defined(GRANITE_TURBOQUANT_WORKER)
+    result["turboQuantBuild"] = {
+        {"sourceCommit", "8a17657b995fd3b4a52f8484acfcf2bb61214623"},
+        {"implementationCommit", "b9a1f201c109e0bed74763934f79483cf6c4cbf4"},
+        {"patchSeriesDigest", sha256_file(executable_directory() / L"patch-manifest.json")},
+        {"runtimeManifestDigest", sha256_file(executable_directory() / L"turboquant-runtime.manifest.json")}};
+#endif
+    return result;
 }
 
 std::filesystem::path executable_directory() {

@@ -48,6 +48,17 @@ internal static class FixtureProgram
         OpenVinoBuildEvidence helloEvidence = scenario == "wrong-build-evidence"
             ? BuildEvidence() with { WorkerManifestDigest = new string('2', 64) }
             : BuildEvidence();
+        if (scenario == "wrong-protocol")
+        {
+            helloEvidence = helloEvidence with
+            {
+                TurboQuantBuild = new TurboQuantBuildEvidence(
+                    new string('a', 40),
+                    new string('b', 40),
+                    new string('c', 64),
+                    new string('d', 64))
+            };
+        }
         await WriteAsync(writer, new HelloEvent(helloProtocol, helloEvidence))
             .ConfigureAwait(false);
 

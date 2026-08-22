@@ -14,7 +14,11 @@ namespace granite::official_worker {
 inline constexpr std::size_t maximum_line_bytes = 1024U * 1024U;
 inline constexpr std::size_t maximum_json_depth = 32U;
 inline constexpr std::size_t maximum_operation_text_bytes = 4U * 1024U * 1024U;
+#if defined(GRANITE_TURBOQUANT_WORKER)
+inline constexpr std::string_view official_protocol = "openvino.turboquant/1";
+#else
 inline constexpr std::string_view official_protocol = "openvino.official/1";
+#endif
 
 class protocol_error final : public std::runtime_error {
 public:

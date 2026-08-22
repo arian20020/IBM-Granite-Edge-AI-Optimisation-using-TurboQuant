@@ -46,6 +46,13 @@ public sealed record OpenVinoWorkerInstallation(
 
         ArgumentNullException.ThrowIfNull(ExpectedBuildEvidence);
         ExpectedBuildEvidence.Validate();
+        if ((ExpectedProtocolId == OpenVinoProtocol.TurboQuantProtocolId) !=
+            (ExpectedBuildEvidence.TurboQuantBuild is not null))
+        {
+            throw new ArgumentException(
+                "TurboQuant build identity must match the selected worker protocol.",
+                nameof(ExpectedBuildEvidence));
+        }
         ArgumentNullException.ThrowIfNull(ExpectedBinaryMachines);
         string executable = WorkerExecutableRelativePath.Replace('\\', '/');
         if (ExpectedBinaryMachines.Count == 0 ||

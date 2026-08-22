@@ -3,6 +3,9 @@
 #include "runtime_evidence.hpp"
 #include "session.hpp"
 #include "terminal_publication.hpp"
+#if defined(GRANITE_TURBOQUANT_WORKER)
+#include "activation_evidence.hpp"
+#endif
 
 #define NOMINMAX
 #define WIN32_LEAN_AND_MEAN
@@ -161,7 +164,11 @@ void run_session_body(const json& command, const runtime_context& runtime) {
     if (session_new_tokens > 512U) throw protocol_error("generation limit rejected");
     const std::string kv_cache_precision = required_string(
         command.at("runtime"), "kvCachePrecision", 32U);
+#if defined(GRANITE_TURBOQUANT_WORKER)
+    if (kv_cache_precision != "tbq4") {
+#else
     if (kv_cache_precision != "released-default" && kv_cache_precision != "u8") {
+#endif
         throw protocol_error("KV-cache precision rejected");
     }
 
@@ -180,6 +187,10 @@ void run_session_body(const json& command, const runtime_context& runtime) {
     official_session session(
         std::move(lease), runtime, device, model_context, c1_context, {},
         [&] { verify_loaded_module_closure(runtime); }, kv_cache_precision);
+#if defined(GRANITE_TURBOQUANT_WORKER)
+    const turboquant_activation_evidence activation = measure_turboquant_activation(
+        package / L"openvino_model.xml");
+#endif
     verify_loaded_module_closure(runtime);
     publish_terminal_event(
         {{"sessionId", session_id},
@@ -302,6 +313,9 @@ void run_session_body(const json& command, const runtime_context& runtime) {
                 {[&] { session.verify_terminal_integrity(); }});
             return;
         }
+#if defined(GRANITE_TURBOQUANT_WORKER)
+        write_event(activation.to_json(session_id, turn_id));
+#endif
         publish_terminal_event(
             {{"sessionId", session_id},
              {"turnId", turn_id},

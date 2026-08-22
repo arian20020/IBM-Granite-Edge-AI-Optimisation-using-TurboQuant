@@ -1,0 +1,202 @@
+name: OpenVINO TurboQuant trusted UCL evidence
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_commit:
+        description: Exact reviewed lowercase 40-character commit SHA
+        required: true
+        type: string
+      authorization:
+        description: Explicit TurboQuant UCL gate identifier
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: openvino-turboquant-ucl
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: pwsh
+
+env:
+  OPENVINO_EVIDENCE_COMMIT: ${{ inputs.target_commit }}
+  TURBOQUANT_AUTHORIZATION: ${{ inputs.authorization }}
+  TURBOQUANT_PROTOCOL: openvino.turboquant/1
+  TURBOQUANT_APPROVED: ${{ vars.OPENVINO_TURBOQUANT_UCL_AUTHORIZED }}
+  OPENVINO_ARCHIVES: ${{ vars.OPENVINO_UCL_ARCHIVE_DIRECTORY }}
+  OPENVINO_TURBOQUANT_SOURCE_ROOT: ${{ vars.OPENVINO_TURBOQUANT_SOURCE_ROOT }}
+  OPENVINO_TURBOQUANT_PACKAGE_ROOT: ${{ vars.OPENVINO_TURBOQUANT_PACKAGE_ROOT }}
+  OPENVINO_TURBOQUANT_PACKAGE_MANIFEST_SHA256: ${{ vars.OPENVINO_TURBOQUANT_PACKAGE_MANIFEST_SHA256 }}
+  OPENVINO_TURBOQUANT_MODEL_SHA256: ${{ vars.OPENVINO_TURBOQUANT_MODEL_SHA256 }}
+  OPENVINO_TURBOQUANT_MODEL_LENGTH: ${{ vars.OPENVINO_TURBOQUANT_MODEL_LENGTH }}
+  TURBOQUANT_RUNTIME_BUILD: ${{ runner.temp }}/turboquant-runtime-build
+  TURBOQUANT_RUNTIME_STAGE: ${{ runner.temp }}/turboquant-runtime-stage
+  TURBOQUANT_WORKER_BUILD: ${{ runner.temp }}/turboquant-worker-build
+  OPENVINO_TURBOQUANT_WORKER_STAGE: ${{ runner.temp }}/turboquant-worker-stage
+  OPENVINO_TURBOQUANT_EVIDENCE_PATH: artifacts/openvino/turboquant/activation.json
+  TURBOQUANT_RESULTS: ${{ runner.temp }}/turboquant-results
+
+jobs:
+  trusted-turboquant-cpu:
+    name: Controlled Intel CPU TBQ4 route
+    environment: openvino-turboquant-ucl
+    runs-on:
+      - self-hosted
+      - Windows
+      - X64
+      - workbook05
+      - intel-target
+    timeout-minutes: 210
+
+    steps:
+      - name: Fail closed before repository code
+        timeout-minutes: 2
+        run: |
+          if ($env:TURBOQUANT_APPROVED -cne 'TURBOQUANT-UCL-approved' -or
+              $env:TURBOQUANT_AUTHORIZATION -cne 'TURBOQUANT-UCL' -or
+              $env:TURBOQUANT_PROTOCOL -cne 'openvino.turboquant/1') {
+            throw 'TurboQuant UCL authorization is absent.'
+          }
+          if ($env:OPENVINO_EVIDENCE_COMMIT -cnotmatch '^[0-9a-f]{40}$' -or
+              $env:OPENVINO_TURBOQUANT_MODEL_SHA256 -cnotmatch '^[0-9a-f]{64}$' -or
+              $env:OPENVINO_TURBOQUANT_PACKAGE_MANIFEST_SHA256 -cnotmatch '^[0-9a-f]{64}$' -or
+              $env:OPENVINO_TURBOQUANT_MODEL_LENGTH -cnotmatch '^[1-9][0-9]*$') {
+            throw 'A pinned TurboQuant identity is malformed.'
+          }
+          foreach ($value in @($env:OPENVINO_ARCHIVES,
+              $env:OPENVINO_TURBOQUANT_SOURCE_ROOT,
+              $env:OPENVINO_TURBOQUANT_PACKAGE_ROOT)) {
+            if ([string]::IsNullOrWhiteSpace($value)) {
+              throw 'A controlled TurboQuant input is unavailable.'
+            }
+          }
+
+      - name: Check out exact reviewed commit without retained credentials
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          ref: ${{ env.OPENVINO_EVIDENCE_COMMIT }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify exact checked-out commit
+        timeout-minutes: 1
+        run: |
+          $actual = (& git rev-parse HEAD).Trim()
+          if ($LASTEXITCODE -ne 0 -or $actual -cne $env:OPENVINO_EVIDENCE_COMMIT) {
+            throw 'Checked-out commit does not match the reviewed identity.'
+          }
+
+      - name: Set up repository .NET SDK
+        uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d
+        with:
+          global-json-file: global.json
+
+      - name: Set up Visual Studio MSBuild
+        uses: microsoft/setup-msbuild@30375c66a4eea26614e0d39710365f22f8b0af57
+
+      - name: Build sealed runtime and separate worker
+        timeout-minutes: 90
+        run: |
+          & powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
+            -File scripts/openvino/Build-OpenVinoTurboQuantRuntime.ps1 `
+            -SourceRoot $env:OPENVINO_TURBOQUANT_SOURCE_ROOT `
+            -OfficialArchiveDirectory $env:OPENVINO_ARCHIVES `
+            -BuildDirectory $env:TURBOQUANT_RUNTIME_BUILD `
+            -StageDirectory $env:TURBOQUANT_RUNTIME_STAGE
+          if ($LASTEXITCODE -ne 0) { throw 'TurboQuant runtime build failed.' }
+          & powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
+            -File scripts/openvino/Build-OpenVinoTurboQuantWorker.ps1 `
+            -SourceRoot $env:OPENVINO_TURBOQUANT_SOURCE_ROOT `
+            -OfficialArchiveDirectory $env:OPENVINO_ARCHIVES `
+            -RuntimeStageDirectory $env:TURBOQUANT_RUNTIME_STAGE `
+            -BuildDirectory $env:TURBOQUANT_WORKER_BUILD `
+            -StageDirectory $env:OPENVINO_TURBOQUANT_WORKER_STAGE
+          if ($LASTEXITCODE -ne 0) { throw 'TurboQuant worker build failed.' }
+
+      - name: Run typed two-turn activation campaign
+        id: activation
+        timeout-minutes: 90
+        run: |
+          New-Item -ItemType Directory -Path $env:TURBOQUANT_RESULTS | Out-Null
+          dotnet test --project tests/IntegrationTests/GraniteEdgeAI.OpenVino.WorkerProcess.Tests/GraniteEdgeAI.OpenVino.WorkerProcess.Tests.csproj `
+            --configuration Release -p:Platform=x64 `
+            --filter 'FullyQualifiedName~TurboQuantWorkerTests' `
+            --results-directory $env:TURBOQUANT_RESULTS `
+            --report-trx --report-trx-filename turboquant.trx `
+            --minimum-expected-tests 8
+          if ($LASTEXITCODE -ne 0) { throw 'TurboQuant activation campaign failed.' }
+          & powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
+            -File scripts/openvino/Test-OpenVinoTurboQuantActivation.ps1 `
+            -EvidencePath $env:OPENVINO_TURBOQUANT_EVIDENCE_PATH `
+            -StageDirectory $env:OPENVINO_TURBOQUANT_WORKER_STAGE `
+            -ExpectedCommitSha $env:OPENVINO_EVIDENCE_COMMIT `
+            -ExpectedPackageManifestSha256 $env:OPENVINO_TURBOQUANT_PACKAGE_MANIFEST_SHA256 `
+            -ExpectedModelSha256 $env:OPENVINO_TURBOQUANT_MODEL_SHA256 `
+            -ExpectedModelLength $env:OPENVINO_TURBOQUANT_MODEL_LENGTH
+          if ($LASTEXITCODE -ne 0) { throw 'TurboQuant activation was not verified.' }
+
+      - name: Prove forced activation negative
+        id: negative
+        timeout-minutes: 3
+        run: |
+          $negative = Join-Path $env:RUNNER_TEMP 'turboquant-negative.json'
+          $value = Get-Content -LiteralPath $env:OPENVINO_TURBOQUANT_EVIDENCE_PATH -Raw | ConvertFrom-Json
+          $value.runtimeDispatchCount = 0
+          [IO.File]::WriteAllText($negative, ($value | ConvertTo-Json -Depth 8), [Text.UTF8Encoding]::new($false))
+          & powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
+            -File scripts/openvino/Test-OpenVinoTurboQuantActivation.ps1 `
+            -EvidencePath $negative `
+            -StageDirectory $env:OPENVINO_TURBOQUANT_WORKER_STAGE `
+            -ExpectedCommitSha $env:OPENVINO_EVIDENCE_COMMIT `
+            -ExpectedPackageManifestSha256 $env:OPENVINO_TURBOQUANT_PACKAGE_MANIFEST_SHA256 `
+            -ExpectedModelSha256 $env:OPENVINO_TURBOQUANT_MODEL_SHA256 `
+            -ExpectedModelLength $env:OPENVINO_TURBOQUANT_MODEL_LENGTH
+          if ($LASTEXITCODE -eq 0) { throw 'Forced activation negative was accepted.' }
+          Remove-Item -LiteralPath $negative -Force
+
+      - name: Clean operation-owned runtime state
+        id: cleanup
+        if: ${{ always() }}
+        timeout-minutes: 15
+        run: |
+          $failed = $false
+          $remaining = @(Get-Process -Name 'OpenVinoTurboQuant.Worker' -ErrorAction SilentlyContinue)
+          if ($remaining.Count -ne 0) {
+            $remaining | Stop-Process -Force -ErrorAction SilentlyContinue
+            $failed = $true
+          }
+          $tempPrefix = [IO.Path]::GetFullPath($env:RUNNER_TEMP).TrimEnd('\') + '\'
+          foreach ($owned in @($env:TURBOQUANT_RUNTIME_BUILD,$env:TURBOQUANT_RUNTIME_STAGE,
+              $env:TURBOQUANT_WORKER_BUILD,$env:OPENVINO_TURBOQUANT_WORKER_STAGE,$env:TURBOQUANT_RESULTS)) {
+            $full = [IO.Path]::GetFullPath($owned)
+            if (-not $full.StartsWith($tempPrefix,[StringComparison]::OrdinalIgnoreCase)) {
+              $failed = $true
+              continue
+            }
+            if (Test-Path -LiteralPath $full) { Remove-Item -LiteralPath $full -Recurse -Force }
+            if (Test-Path -LiteralPath $full) { $failed = $true }
+          }
+          if ($failed) { throw 'TurboQuant cleanup failed.' }
+
+      - name: Upload sanitized typed activation only
+        if: ${{ always() && steps.activation.outcome == 'success' && steps.negative.outcome == 'success' && steps.cleanup.outcome == 'success' }}
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+        with:
+          name: openvino-turboquant-ucl-evidence
+          path: artifacts/openvino/turboquant/activation.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Remove local evidence residue
+        if: ${{ always() }}
+        timeout-minutes: 2
+        run: |
+          $evidence = [IO.Path]::GetFullPath($env:OPENVINO_TURBOQUANT_EVIDENCE_PATH)
+          $expected = [IO.Path]::GetFullPath((Join-Path $env:GITHUB_WORKSPACE 'artifacts\openvino\turboquant\activation.json'))
+          if ($evidence -ine $expected) { throw 'TurboQuant evidence cleanup target is not exact.' }
+          if (Test-Path -LiteralPath $evidence) { Remove-Item -LiteralPath $evidence -Force }

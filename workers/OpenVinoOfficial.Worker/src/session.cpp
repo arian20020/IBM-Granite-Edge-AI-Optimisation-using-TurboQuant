@@ -14,11 +14,22 @@ namespace {
 
 ov::AnyMap pipeline_properties(const std::string& kv_cache_precision) {
     ov::AnyMap properties{{"ATTENTION_BACKEND", std::string("SDPA")}};
+#if defined(GRANITE_TURBOQUANT_WORKER)
+    if (kv_cache_precision == "tbq4") {
+        properties.emplace("KEY_CACHE_PRECISION", std::string("u4"));
+        properties.emplace("VALUE_CACHE_PRECISION", std::string("u4"));
+        properties.emplace("KEY_CACHE_QUANT_ALG", std::string("TURBO"));
+        properties.emplace("VALUE_CACHE_QUANT_ALG", std::string("TURBO"));
+    } else {
+        throw std::invalid_argument("TurboQuant worker requires TBQ4 cache mode");
+    }
+#else
     if (kv_cache_precision == "u8") {
         properties.emplace(ov::hint::kv_cache_precision.name(), ov::element::u8);
     } else if (kv_cache_precision != "released-default") {
         throw std::invalid_argument("unsupported KV-cache precision");
     }
+#endif
     return properties;
 }
 

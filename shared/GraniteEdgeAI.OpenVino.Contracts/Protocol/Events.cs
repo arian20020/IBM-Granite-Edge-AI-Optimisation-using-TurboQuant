@@ -29,6 +29,11 @@ public sealed record HelloEvent(
         }
 
         BuildEvidence.Validate();
+        OpenVinoProtocol.Require(
+            ProtocolId == OpenVinoProtocol.TurboQuantProtocolId
+                ? BuildEvidence.TurboQuantBuild is not null
+                : BuildEvidence.TurboQuantBuild is null,
+            "TurboQuant build identity must occur only on the TurboQuant protocol.");
     }
 }
 
@@ -240,6 +245,106 @@ public sealed record TokenEvent(Guid SessionId, Guid TurnId, long Sequence, stri
         OpenVinoProtocol.RequireUuid(TurnId, nameof(TurnId));
         OpenVinoProtocol.Require(Sequence >= 0, nameof(Sequence) + " must not be negative.");
         OpenVinoProtocol.RequireUtf8Limit(Text, OpenVinoProtocol.MaximumOperationTextUtf8Bytes, nameof(Text));
+    }
+}
+
+public enum TurboQuantCodec
+{
+    Tbq4,
+    ScalarU4
+}
+
+public enum TurboQuantAttentionPath
+{
+    Sdpa
+}
+
+public enum TurboQuantEvidenceOrigin
+{
+    OpenVinoProfilingApi,
+    ParsedConsoleText
+}
+
+public sealed class TurboQuantCodecJsonConverter : JsonStringEnumConverter<TurboQuantCodec>
+{
+    public TurboQuantCodecJsonConverter()
+        : base(JsonNamingPolicy.CamelCase, allowIntegerValues: false) { }
+}
+
+public sealed class TurboQuantAttentionPathJsonConverter : JsonStringEnumConverter<TurboQuantAttentionPath>
+{
+    public TurboQuantAttentionPathJsonConverter()
+        : base(JsonNamingPolicy.CamelCase, allowIntegerValues: false) { }
+}
+
+public sealed class TurboQuantEvidenceOriginJsonConverter : JsonStringEnumConverter<TurboQuantEvidenceOrigin>
+{
+    public TurboQuantEvidenceOriginJsonConverter()
+        : base(JsonNamingPolicy.CamelCase, allowIntegerValues: false) { }
+}
+
+public sealed record TurboQuantActivationEvent(
+    Guid SessionId,
+    Guid TurnId,
+    [property: JsonConverter(typeof(TurboQuantCodecJsonConverter))]
+    TurboQuantCodec RequestedKeyCodec,
+    [property: JsonConverter(typeof(TurboQuantCodecJsonConverter))]
+    TurboQuantCodec RequestedValueCodec,
+    [property: JsonConverter(typeof(TurboQuantCodecJsonConverter))]
+    TurboQuantCodec ActualKeyCodec,
+    [property: JsonConverter(typeof(TurboQuantCodecJsonConverter))]
+    TurboQuantCodec ActualValueCodec,
+    [property: JsonConverter(typeof(TurboQuantAttentionPathJsonConverter))]
+    TurboQuantAttentionPath AttentionPath,
+    int HeadDimension,
+    long RuntimeDispatchCount,
+    long EncodedRecordCount,
+    long ModelSdpaNodeCount,
+    int PackedBytesPerRecord,
+    int FullPrecisionBytesPerRecord,
+    long PackedCacheBytes,
+    long FullPrecisionCacheBytes,
+    [property: JsonConverter(typeof(TurboQuantEvidenceOriginJsonConverter))]
+    TurboQuantEvidenceOrigin EvidenceOrigin,
+    bool ForcedScalarNegative) : IOpenVinoEvent
+{
+    [JsonPropertyName("eventType")]
+    public string EventType => "turboQuantActivation";
+
+    public void Validate()
+    {
+        OpenVinoProtocol.RequireUuid(SessionId, nameof(SessionId));
+        OpenVinoProtocol.RequireUuid(TurnId, nameof(TurnId));
+        OpenVinoProtocol.Require(
+            RequestedKeyCodec == TurboQuantCodec.Tbq4 &&
+            RequestedValueCodec == TurboQuantCodec.Tbq4 &&
+            ActualKeyCodec == RequestedKeyCodec &&
+            ActualValueCodec == RequestedValueCodec,
+            "actual TurboQuant codecs must match the exact TBQ4/TBQ4 request.");
+        OpenVinoProtocol.Require(
+            AttentionPath == TurboQuantAttentionPath.Sdpa && HeadDimension == 64,
+            "TurboQuant activation requires CPU SDPA head dimension 64.");
+        OpenVinoProtocol.Require(
+            RuntimeDispatchCount > 0 && EncodedRecordCount > 0,
+            "TurboQuant activation requires nonzero runtime dispatch and encoded-record counts.");
+        OpenVinoProtocol.Require(
+            ModelSdpaNodeCount >= 0,
+            "TurboQuant model SDPA node count must not be negative.");
+        OpenVinoProtocol.Require(
+            PackedBytesPerRecord == 32 && FullPrecisionBytesPerRecord == 128,
+            "TurboQuant record widths must match TBQ4 and f16 reference storage.");
+        OpenVinoProtocol.Require(
+            EncodedRecordCount <= long.MaxValue / FullPrecisionBytesPerRecord &&
+            PackedCacheBytes == EncodedRecordCount * PackedBytesPerRecord &&
+            FullPrecisionCacheBytes == EncodedRecordCount * FullPrecisionBytesPerRecord &&
+            PackedCacheBytes < FullPrecisionCacheBytes,
+            "TurboQuant cache byte accounting is inconsistent.");
+        OpenVinoProtocol.Require(
+            EvidenceOrigin == TurboQuantEvidenceOrigin.OpenVinoProfilingApi,
+            "TurboQuant activation must originate from the typed OpenVINO profiling API.");
+        OpenVinoProtocol.Require(
+            ForcedScalarNegative,
+            "TurboQuant activation requires a successful forced-scalar negative control.");
     }
 }
 

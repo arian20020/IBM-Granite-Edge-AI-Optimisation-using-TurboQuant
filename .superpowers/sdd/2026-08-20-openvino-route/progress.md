@@ -198,6 +198,14 @@ Task 15: complete locally (exact released upstream recovery; empty patch ledger;
 sealed MSVC x64 runtime closure; codec and real two-turn stateful CPU-SDPA
 conformance; external security/license approval and Granite activation evidence
 remain open and prevent registration).
-Task 16: pending
+Task 16: complete locally (distinct `openvino.turboquant/1` worker and sealed
+runtime closure; typed TBQ4/TBQ4 activation/build evidence; real two-turn
+stateful CPU-SDPA probe; exact nested manifest binding; strict activation and
+forced-negative gates; manual trusted UCL workflow. Final local evidence:
+Release worker/native 1/1, contracts 167/167, client 13/13, TurboQuant 8/8,
+official native regression 7/7, tamper rejection, and synthetic-fixture
+activation rejection. No UCL dispatch occurred; real pinned-Granite matched
+quality/memory/performance evidence and external security/licence approval
+remain open, so registration and any Active claim stay forbidden.)
 Task 17: pending
 Task 18: pending

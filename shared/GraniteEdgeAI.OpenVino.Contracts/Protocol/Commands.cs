@@ -69,8 +69,10 @@ public sealed record OpenVinoRuntimeOptions(string KvCachePrecision)
 
     public static OpenVinoRuntimeOptions U8 { get; } = new("u8");
 
+    public static OpenVinoRuntimeOptions Tbq4 { get; } = new("tbq4");
+
     public void Validate() => OpenVinoProtocol.Require(
-        KvCachePrecision is "released-default" or "u8",
+        KvCachePrecision is "released-default" or "u8" or "tbq4",
         nameof(KvCachePrecision) + " must be an approved runtime KV-cache precision.");
 }
 

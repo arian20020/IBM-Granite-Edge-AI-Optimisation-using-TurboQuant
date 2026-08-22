@@ -1,5 +1,8 @@
+using System.Diagnostics;
+using System.Security.Cryptography;
 using System.Text.Json;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using YamlDotNet.RepresentationModel;
 
 namespace GraniteEdgeAI.OpenVino.Contracts.Tests;
 
@@ -96,6 +99,138 @@ public sealed class TurboQuantSourceContractTests
         Assert.IsFalse(buildScript.Contains("QJL", StringComparison.Ordinal));
         Assert.IsFalse(buildScript.Contains("PolarQuant", StringComparison.Ordinal));
     }
+
+    [TestMethod]
+    public void TrustedWorkflowIsValidManualOnlyYaml()
+    {
+        string path = Path.Combine(Root, ".github/workflows/openvino-turboquant-ucl.yml");
+        using StreamReader reader = File.OpenText(path);
+        YamlStream yaml = new();
+        yaml.Load(reader);
+        Assert.HasCount(1, yaml.Documents);
+        YamlMappingNode root = Assert.IsInstanceOfType<YamlMappingNode>(
+            yaml.Documents[0].RootNode);
+        YamlMappingNode triggers = Assert.IsInstanceOfType<YamlMappingNode>(
+            root.Children[new YamlScalarNode("on")]);
+        Assert.IsTrue(triggers.Children.ContainsKey(new YamlScalarNode("workflow_dispatch")));
+        Assert.IsFalse(triggers.Children.ContainsKey(new YamlScalarNode("push")));
+        Assert.IsFalse(triggers.Children.ContainsKey(new YamlScalarNode("pull_request")));
+    }
+
+    [TestMethod]
+    public void WorkerManifestCannotRebaseAChangedRuntimeClosure()
+    {
+        string stage = Path.Combine(
+            Path.GetTempPath(),
+            "granite-turboquant-manifest-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(Path.Combine(stage, "licenses"));
+        try
+        {
+            Write(stage, "runtime.bin", "original");
+            Write(stage, "OpenVinoTurboQuant.Worker.exe", "worker");
+            Write(stage, "OpenVinoTurboQuant.Probe.dll", "probe");
+            Write(stage, "licenses/nlohmann-json-LICENSE.MIT.txt", "license");
+            File.WriteAllBytes(
+                Path.Combine(stage, "turboquant-runtime.manifest.json"),
+                JsonSerializer.SerializeToUtf8Bytes(new
+                {
+                    schemaVersion = 1,
+                    component = "openvino-turboquant-runtime",
+                    platform = "windows-x86_64",
+                    configuration = "Release",
+                    sourceCommit = "8a17657b995fd3b4a52f8484acfcf2bb61214623",
+                    implementationCommit = "b9a1f201c109e0bed74763934f79483cf6c4cbf4",
+                    genAiCommit = "bd8d6542e3ca1ac30042d5d8d4202ce00b5f4af0",
+                    acceptedTuple = new
+                    {
+                        codec = "TBQ4/TBQ4",
+                        device = "CPU",
+                        attention = "SDPA",
+                        headDimension = 64
+                    },
+                    files = new[] { ManifestEntry(stage, "runtime.bin", "runtime-binary") }
+                }));
+
+            // Preserve the runtime file length, then deliberately make the outer
+            // worker manifest agree with the changed bytes. The inner runtime
+            // manifest must still make the complete closure fail closed.
+            Write(stage, "runtime.bin", "tampered");
+            string[] workerFiles =
+            [
+                "runtime.bin",
+                "turboquant-runtime.manifest.json",
+                "OpenVinoTurboQuant.Worker.exe",
+                "OpenVinoTurboQuant.Probe.dll",
+                "licenses/nlohmann-json-LICENSE.MIT.txt"
+            ];
+            File.WriteAllBytes(
+                Path.Combine(stage, "worker-manifest.json"),
+                JsonSerializer.SerializeToUtf8Bytes(new
+                {
+                    schemaVersion = 1,
+                    files = workerFiles.Select(path => ManifestEntry(stage, path)).ToArray()
+                }));
+
+            ProcessStartInfo start = new("powershell.exe")
+            {
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true
+            };
+            start.ArgumentList.Add("-NoLogo");
+            start.ArgumentList.Add("-NoProfile");
+            start.ArgumentList.Add("-NonInteractive");
+            start.ArgumentList.Add("-ExecutionPolicy");
+            start.ArgumentList.Add("Bypass");
+            start.ArgumentList.Add("-File");
+            start.ArgumentList.Add(Path.Combine(
+                Root,
+                "scripts/openvino/Test-OpenVinoTurboQuantWorkerManifest.ps1"));
+            start.ArgumentList.Add("-StageDirectory");
+            start.ArgumentList.Add(stage);
+            using Process process = Process.Start(start)
+                ?? throw new InvalidOperationException("PowerShell did not start.");
+            string output = process.StandardOutput.ReadToEnd().Trim();
+            _ = process.StandardError.ReadToEnd();
+            process.WaitForExit();
+            Assert.AreEqual(1, process.ExitCode);
+            Assert.AreEqual("turboquant_worker_manifest_invalid", output);
+        }
+        finally
+        {
+            Directory.Delete(stage, recursive: true);
+        }
+    }
+
+    private static object ManifestEntry(
+        string root,
+        string relativePath,
+        string? kind = null)
+    {
+        string fullPath = Path.Combine(root, relativePath.Replace('/', Path.DirectorySeparatorChar));
+        if (kind is not null)
+        {
+            return new
+            {
+                path = relativePath,
+                length = new FileInfo(fullPath).Length,
+                sha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(fullPath))).ToLowerInvariant(),
+                kind
+            };
+        }
+        return new
+        {
+            path = relativePath,
+            length = new FileInfo(fullPath).Length,
+            sha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(fullPath))).ToLowerInvariant()
+        };
+    }
+
+    private static void Write(string root, string relativePath, string value) =>
+        File.WriteAllText(
+            Path.Combine(root, relativePath.Replace('/', Path.DirectorySeparatorChar)),
+            value);
 
     private static void AssertLowercaseSha256(string? value)
     {

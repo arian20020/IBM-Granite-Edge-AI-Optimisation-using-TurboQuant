@@ -2,7 +2,10 @@
 param(
     [Parameter(Mandatory)]
     [ValidateNotNullOrEmpty()]
-    [string]$StageDirectory
+    [string]$StageDirectory,
+
+    [ValidateNotNullOrEmpty()]
+    [string]$AllowedDirectoryList = 'licenses'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -82,12 +85,19 @@ try {
         -not (Test-NoAlternateStreams $root)) {
         Stop-Invalid
     }
-    $directories = @(Get-ChildItem -LiteralPath $root -Directory -Recurse)
-    if ($directories.Count -ne 1 -or
-        $directories[0].FullName -cne (Join-Path $root 'licenses') -or
-        ($directories[0].Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or
-        -not (Test-NoAlternateStreams $directories[0].FullName)) {
+    [string[]]$expectedDirectories = @($AllowedDirectoryList.Split(',') | Sort-Object)
+    [string[]]$actualDirectories = @(Get-ChildItem -LiteralPath $root -Directory -Recurse | ForEach-Object {
+        $_.FullName.Substring($root.Length).TrimStart('\').Replace('\', '/')
+    } | Sort-Object)
+    if (($actualDirectories -join "`n") -cne ($expectedDirectories -join "`n")) {
         Stop-Invalid
+    }
+    foreach ($relativeDirectory in $actualDirectories) {
+        $directory = Get-Item -LiteralPath (Join-Path $root $relativeDirectory.Replace('/', '\'))
+        if (($directory.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or
+            -not (Test-NoAlternateStreams $directory.FullName)) {
+            Stop-Invalid
+        }
     }
 
     $manifestPath = Join-Path $root 'worker-manifest.json'

@@ -24,6 +24,7 @@ public sealed class OpenVinoConversationValidator
     private int _requestedNewTokens;
     private int _turnCount;
     private int _operationTextBytes;
+    private bool _turboQuantActivationSeen;
 
     public bool IsTerminal => _state == ConversationState.Terminal;
 
@@ -65,6 +66,11 @@ public sealed class OpenVinoConversationValidator
                 break;
             case StartSessionCommand startSession:
                 RequireState(ConversationState.AwaitingStart, "startSession requires hello and occurs once");
+                OpenVinoProtocol.Require(
+                    _protocolId == OpenVinoProtocol.TurboQuantProtocolId
+                        ? startSession.Runtime.KvCachePrecision == "tbq4"
+                        : startSession.Runtime.KvCachePrecision is "released-default" or "u8",
+                    "runtime KV-cache mode must match the selected worker protocol.");
                 _sessionId = startSession.SessionId;
                 _inspectionRunId = startSession.InspectionRunId;
                 _requestedDevice = startSession.Device.DeviceId;
@@ -199,6 +205,7 @@ public sealed class OpenVinoConversationValidator
                 _pendingTurnId = null;
                 _activeTurnId = generation.TurnId;
                 _nextSequence = 0;
+                _turboQuantActivationSeen = false;
                 _state = ConversationState.Generating;
                 break;
             case TokenEvent token:
@@ -213,7 +220,26 @@ public sealed class OpenVinoConversationValidator
                 OpenVinoProtocol.Require(_operationTextBytes <= OpenVinoProtocol.MaximumOperationTextUtf8Bytes, "operation text exceeds the permitted UTF-8 length.");
                 _nextSequence++;
                 break;
+            case TurboQuantActivationEvent activation:
+                RequireStateOneOf(
+                    "TurboQuant activation requires an active generation or stop request",
+                    ConversationState.Generating,
+                    ConversationState.Stopping);
+                OpenVinoProtocol.Require(
+                    _protocolId == OpenVinoProtocol.TurboQuantProtocolId,
+                    "TurboQuant activation is forbidden on the official protocol.");
+                RequireSession(activation.SessionId);
+                RequireActiveTurn(activation.TurnId);
+                OpenVinoProtocol.Require(
+                    !_turboQuantActivationSeen,
+                    "TurboQuant activation may occur only once per turn.");
+                _turboQuantActivationSeen = true;
+                break;
             case TurnCompletedEvent completed:
+                OpenVinoProtocol.Require(
+                    _protocolId != OpenVinoProtocol.TurboQuantProtocolId ||
+                    _turboQuantActivationSeen,
+                    "TurboQuant turn completion requires activation evidence.");
                 OpenVinoProtocol.Require(
                     completed.PromptTokenCount <= _maximumContextTokens,
                     "turnCompleted prompt token count must fit the session context limit.");
@@ -304,6 +330,7 @@ public sealed class OpenVinoConversationValidator
         RequireSession(sessionId);
         RequireActiveTurn(turnId);
         _activeTurnId = null;
+        _turboQuantActivationSeen = false;
         _requestedNewTokens = 0;
         _state = ConversationState.SessionReady;
     }

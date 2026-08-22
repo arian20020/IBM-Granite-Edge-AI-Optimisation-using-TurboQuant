@@ -30,6 +30,7 @@ public sealed class OpenVinoConversation : IAsyncDisposable
     private bool _closeSent;
     private TerminalCancellationState _cancellationState;
     private bool _disposed;
+    private TurboQuantActivationEvent? _latestTurboQuantActivation;
 
     internal OpenVinoConversation(
         ProtectedWorkerSession session,
@@ -60,6 +61,9 @@ public sealed class OpenVinoConversation : IAsyncDisposable
     public Guid SessionId => _sessionId;
 
     public SessionStartedEvent StartupEvidence => _startupEvidence;
+
+    public TurboQuantActivationEvent? LatestTurboQuantActivation =>
+        _latestTurboQuantActivation;
 
     public async Task<IOpenVinoEvent> PromptAsync(
         PromptCommand command,
@@ -108,6 +112,7 @@ public sealed class OpenVinoConversation : IAsyncDisposable
                 _activeTurnId = command.TurnId;
                 _generationStarted = false;
                 _stopSent = false;
+                _latestTurboQuantActivation = null;
                 _lastActivityUtc = DateTimeOffset.UtcNow;
             }
 
@@ -166,6 +171,12 @@ public sealed class OpenVinoConversation : IAsyncDisposable
                 if (@event is TokenEvent token)
                 {
                     tokens?.Report(token);
+                    continue;
+                }
+
+                if (@event is TurboQuantActivationEvent activation)
+                {
+                    _latestTurboQuantActivation = activation;
                     continue;
                 }
 
@@ -812,6 +823,8 @@ public sealed class OpenVinoConversation : IAsyncDisposable
         GenerationStartedEvent value =>
             value.SessionId != _sessionId || value.TurnId != turnId,
         TokenEvent value =>
+            value.SessionId != _sessionId || value.TurnId != turnId,
+        TurboQuantActivationEvent value =>
             value.SessionId != _sessionId || value.TurnId != turnId,
         TurnCompletedEvent value =>
             value.SessionId != _sessionId || value.TurnId != turnId,

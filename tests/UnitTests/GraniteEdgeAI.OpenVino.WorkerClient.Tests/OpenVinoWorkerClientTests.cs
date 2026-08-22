@@ -88,7 +88,14 @@ public sealed class OpenVinoWorkerClientTests
             root,
             "TurboQuant.exe",
             OpenVinoProtocol.TurboQuantProtocolId,
-            BuildEvidence(),
+            BuildEvidence() with
+            {
+                TurboQuantBuild = new TurboQuantBuildEvidence(
+                    new string('a', 40),
+                    new string('b', 40),
+                    new string('c', 64),
+                    new string('d', 64))
+            },
             Amd64Policy("TurboQuant.exe"));
 
         official.Validate();
