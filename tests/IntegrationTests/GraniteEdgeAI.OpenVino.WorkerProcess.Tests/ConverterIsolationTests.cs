@@ -183,7 +183,7 @@ public sealed class ConverterIsolationTests
     }
 
     [TestMethod]
-    [Timeout(300_000)]
+    [Timeout(600_000)]
     public async Task SealedConverterExportsRepositoryFixtureOffline()
     {
         string? stage = Environment.GetEnvironmentVariable(

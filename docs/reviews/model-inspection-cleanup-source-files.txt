@@ -13,6 +13,7 @@ IBM Granite with TurboQuant (Intel)/Features/ModelImport/FileImport/PickerRoute/
 IBM Granite with TurboQuant (Intel)/Features/ModelImport/FileImport/README.md
 IBM Granite with TurboQuant (Intel)/Features/ModelImport/ModelDownload/ModelDownloadCard.xaml
 IBM Granite with TurboQuant (Intel)/Features/ModelImport/ModelDownload/README.md
+IBM Granite with TurboQuant (Intel)/Features/ModelImport/ModelImportPage.Selection.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelImport/ModelImportPage.xaml
 IBM Granite with TurboQuant (Intel)/Features/ModelImport/ModelImportPage.xaml.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelImport/ModelInspectionRequestFactory.cs
@@ -21,6 +22,7 @@ IBM Granite with TurboQuant (Intel)/Features/ModelImport/QuickScan/GgufQuickScan
 IBM Granite with TurboQuant (Intel)/Features/ModelImport/QuickScan/ModelQuickScanResult.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelImport/QuickScan/README.md
 IBM Granite with TurboQuant (Intel)/Features/ModelImport/README.md
+IBM Granite with TurboQuant (Intel)/Features/ModelImport/SourceModelInspectionRequestedEventArgs.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Classification/IModelInspectionClassifier.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Classification/ModelInspectionClassifier.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Classification/README.md
@@ -84,6 +86,7 @@ IBM Granite with TurboQuant (Intel)/Features/ModelInspection/DebugFixtures/Runti
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Infrastructure/ManifestVerifyingInspectionWorkerClient.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Infrastructure/ModelInspectionWorkerComposition.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Infrastructure/README.md
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/ModelInspectionPage.OpenVino.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/ModelInspectionPage.xaml
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/ModelInspectionPage.xaml.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Models/InspectionActionCardMode.cs
@@ -222,6 +225,10 @@ infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/GraniteEdgeAI.ModelIns
 infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/IInspectionWorkerClient.cs
 infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/IWorkerExecutableFileSystem.cs
 infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/InspectionWorkerClient.cs
+infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/ProtectedWorker/IProtectedWorkerSessionFactory.cs
+infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/ProtectedWorker/ProtectedWorkerLaunchSpec.cs
+infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/ProtectedWorker/ProtectedWorkerSession.cs
+infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/ProtectedWorker/ProtectedWorkerSessionFactory.cs
 infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/README.md
 infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/StandardErrorSnapshot.cs
 infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/VerifiedWorkerExecutable.cs
@@ -454,6 +461,7 @@ tests/UnitTests/GraniteEdgeAI.ModelInspection.Worker.Tests/WorkerHostTests.cs
 tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/BoundedStandardErrorCollectorTests.cs
 tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests.csproj
 tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/NativeLayoutTests.cs
+tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/ProtectedWorkerSessionFactoryTests.cs
 tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/SafeAttributeListBufferTests.cs
 tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/WindowsEnvironmentBlockTests.cs
 tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/WindowsJobObjectTests.cs
@@ -477,6 +485,7 @@ tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/ModelDownload/Model
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/ModelImportNavigationRequestTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/ModelImportPageCompositionTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/ModelInspectionRequestFactoryTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/OpenVinoModelImportIntegrationTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/QuickScan/GgufQuickScannerTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/QuickScan/ModelQuickScanResultTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Classification/ModelInspectionClassifierTests.cs
@@ -505,6 +514,8 @@ tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/ModelInspection
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/ModelInspectionPageLayoutTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/ModelInspectionPageNavigationTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Models/InspectionContentCardPresentationTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/OpenVinoPackagedUiEndToEndTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/OpenVinoPromptSurfaceTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Presentation/InspectionProgressPresentationFactoryTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Presentation/InspectionProgressRowsTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Presentation/ModelInspectionAssetContractTests.cs

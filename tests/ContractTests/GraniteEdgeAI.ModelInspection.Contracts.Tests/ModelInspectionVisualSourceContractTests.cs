@@ -328,7 +328,7 @@ public sealed class ModelInspectionVisualSourceContractTests
                 projectPath,
                 appProjectPath,
                 StringComparison.OrdinalIgnoreCase)
-                    ? 3
+                    ? 4
                     : 0;
             Assert.AreEqual(
                 expectedControlledImportItems,
@@ -1592,6 +1592,7 @@ public sealed class ModelInspectionVisualSourceContractTests
             ("Content", "@(_ModelInspectionWorkerPublishedFiles)") => true,
             ("Content", "$(_ModelInspectionWorkerManifestPath)") => true,
             ("EmbeddedResource", "$(_ModelInspectionWorkerManifestPath)") => true,
+            ("Content", "@(_OpenVinoOfficialWorkerFile)") => true,
             _ => false
         };
     }
@@ -1632,11 +1633,9 @@ public sealed class ModelInspectionVisualSourceContractTests
     {
         string relativeSource = NormalizeProjectPath(
             Path.GetRelativePath(Root, sourcePath))!;
-        return string.Equals(
-            relativeSource,
-            "IBM Granite with TurboQuant (Intel)/" +
-            "ModelInspection.WorkerPackaging.targets",
-            StringComparison.Ordinal);
+        return relativeSource is
+            "IBM Granite with TurboQuant (Intel)/ModelInspection.WorkerPackaging.targets" or
+            "IBM Granite with TurboQuant (Intel)/OpenVino.WorkerPackaging.targets";
     }
 
     private static bool ContainsMsBuildExpression(string value) =>

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Security.Cryptography;
 using GraniteEdgeAI.Features.ModelImport;
 using GraniteEdgeAI.Features.ModelImport.FileImport;
 using GraniteEdgeAI.Features.ModelImport.Selection;
@@ -163,7 +164,7 @@ public sealed class OpenVinoPackagedUiEndToEndTests
             "Runtime 2026.3.0-22451-8a17657b995-releases/2026/3 · " +
             "GenAI 2026.3.0.0-3277-bd8d6542e3c · " +
             "Tokenizers 2026.3.0.0-703-183c6f25cda · " +
-            "Worker manifest 0f656f6f2afe0b7246d0746f458ad6ed02e23be943145779b0160dd69aff2ebe",
+            $"Worker manifest {PackagedWorkerManifestSha256()}",
             ((TextBlock)page.FindName("PromptBuildEvidenceText")).Text);
         return new PageJourney(shell, frame, page);
     }
@@ -279,6 +280,11 @@ public sealed class OpenVinoPackagedUiEndToEndTests
         Assert.IsTrue(File.Exists(Path.Combine(path, "worker-manifest.json")));
         return path;
     }
+
+    private static string PackagedWorkerManifestSha256() =>
+        Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(Path.Combine(
+            PackagedWorkerRoot(),
+            "worker-manifest.json")))).ToLowerInvariant();
 
     private static void InvokeButton(Button button, string operation)
     {

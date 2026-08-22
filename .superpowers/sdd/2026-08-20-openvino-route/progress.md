@@ -213,4 +213,14 @@ single-use official/GGUF fallback; central registration and TurboQuant
 packaging remain intentionally absent because the pinned-Granite UCL campaign
 and external security/licence approvals are open, so `F-M21`, `F-M22`,
 `N-M11`, and `DR-WF-011` are not claimed closed.)
-Task 18: pending
+Task 18: complete locally (ordered fail-closed release orchestration; bounded
+artifact-privacy and exact-owned-root cleanup scanners; architecture,
+packaging, accessibility, lifecycle, and evidence-admission contracts; cleanup
+ledger reconciled at 638/638. Final local gates include OpenVINO contracts
+187/187, Model Inspection contracts 357/357, OpenVINO app 272/272, final
+process integration 61 passed/zero failed/one physical-GPU skip, and packaged
+affected WinUI 580/580. With external evidence absent the gate returns exactly
+`openvino_release_blocked`; hosted/UCL candidate evidence, real pinned-Granite
+TurboQuant campaign, external security/license approval, optional GPU-01, and
+I0-controlled 398-atom RTM regeneration remain open, so release acceptance,
+central TurboQuant registration, and TurboQuant packaging are not claimed.)

@@ -88,7 +88,9 @@ public sealed class Gate2ArchitectureFitnessTests
                     "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Infrastructure/ManifestVerifyingInspectionWorkerClient.cs",
                     "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Infrastructure/ModelInspectionWorkerComposition.cs",
                     "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Runtime/WorkerProcessLlamaModelProbe.cs",
-                    "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Runtime/WorkerResultMapper.cs"
+                    "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Runtime/WorkerResultMapper.cs",
+                    "IBM Granite with TurboQuant (Intel)/Features/OpenVinoRoute/Conversion/SealedOpenVinoConversionPipeline.cs",
+                    "IBM Granite with TurboQuant (Intel)/Features/OpenVinoRoute/Optimization/SealedOpenVinoOptimizationPipeline.cs"
                 ];
                 CollectionAssert.Contains(
                     approvedCompositionSources,
