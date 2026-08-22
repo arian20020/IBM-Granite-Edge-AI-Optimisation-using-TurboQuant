@@ -363,7 +363,10 @@ function Copy-StreamToNewFile {
         [Parameter(Mandatory = $true)][string] $DestinationPath
     )
 
-    $SourceStream.Position = 0
+    if ($SourceStream.CanSeek) {
+        $SourceStream.Position = 0
+    }
+
     $outputStream = [System.IO.File]::Open(
         $DestinationPath,
         [System.IO.FileMode]::CreateNew,
