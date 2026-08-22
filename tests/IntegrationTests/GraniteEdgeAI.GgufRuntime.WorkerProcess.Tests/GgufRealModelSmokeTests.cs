@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using System.Text.RegularExpressions;
 using GraniteEdgeAI.GgufRuntime.Contracts.Events;
 using GraniteEdgeAI.GgufRuntime.WorkerClient;
 
@@ -50,6 +51,15 @@ public sealed class GgufRealModelSmokeTests
                 timeout.Token));
         Assert.IsTrue(first.OfType<TextDeltaEvent>().Any());
         Assert.IsTrue(second.OfType<TextDeltaEvent>().Any());
+        string firstText = string.Concat(
+            first.OfType<TextDeltaEvent>().Select(delta => delta.Text));
+        Assert.IsFalse(string.IsNullOrWhiteSpace(firstText));
+        Assert.IsFalse(Regex.IsMatch(
+            firstText,
+            @"(?im)^\s*(?:me|user|assistant)\s*:"));
+        Assert.IsFalse(Regex.IsMatch(
+            firstText,
+            @"(?m)(?:^\s*```\s*$\r?\n){2,}"));
 
         var stoppedEvents = new List<GgufRuntimeEvent>();
         bool stopRequested = false;
