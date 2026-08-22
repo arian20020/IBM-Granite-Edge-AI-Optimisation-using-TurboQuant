@@ -1,0 +1,23 @@
+{
+  "record_type": "phase3-checkpoint",
+  "schema_version": "1.0",
+  "generation": 0,
+  "identity": {
+    "repository_head": "1111111111111111111111111111111111111111",
+    "prerequisite_proof_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "asset_lock_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "executable_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "request_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "configuration_sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "prompt_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "rubric_sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+  },
+  "steps": [
+    {
+      "step_id": "prepare",
+      "status": "Pending",
+      "evidence_path": null,
+      "evidence_sha256": null
+    }
+  ]
+}

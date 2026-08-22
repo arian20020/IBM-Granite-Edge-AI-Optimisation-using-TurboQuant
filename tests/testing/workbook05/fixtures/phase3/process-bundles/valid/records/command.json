@@ -1,0 +1,10 @@
+{
+  "executable": "python",
+  "arguments": [
+    "normal_child.py",
+    "--workspace",
+    "fixture"
+  ],
+  "working_directory": ".",
+  "environment": {}
+}

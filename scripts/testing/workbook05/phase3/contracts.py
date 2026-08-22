@@ -18,6 +18,9 @@ SCHEMA_NAMES: dict[str, str] = {
     "prerequisite-proof": "phase3-prerequisite-proof.schema.json",
     "model-asset-lock": "model-asset-lock.schema.json",
     "model-conversion-record": "model-conversion-record.schema.json",
+    "process-attempt": "process-attempt.schema.json",
+    "resource-summary": "resource-summary.schema.json",
+    "phase3-checkpoint": "phase3-checkpoint.schema.json",
 }
 
 

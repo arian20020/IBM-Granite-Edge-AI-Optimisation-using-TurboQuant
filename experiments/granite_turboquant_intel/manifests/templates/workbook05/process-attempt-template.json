@@ -1,0 +1,36 @@
+{
+  "record_type": "process-attempt",
+  "schema_version": "1.0",
+  "attempt_id": "fixture-attempt-1",
+  "attempt_number": 1,
+  "retry_of_attempt_id": null,
+  "classification": "Passed",
+  "failure_ids": [],
+  "execution": {
+    "executable": "python",
+    "arguments": [
+      "fixture.py"
+    ],
+    "working_directory": ".",
+    "exit_code": 0,
+    "started_utc": "2026-08-22T00:00:00Z",
+    "ended_utc": "2026-08-22T00:00:01Z",
+    "elapsed_ms": 1000
+  },
+  "watchdog": {
+    "safety_stop_triggered": false,
+    "safety_stop_reason": null,
+    "timeout_triggered": false,
+    "heartbeat_stale": false
+  },
+  "evidence": {
+    "stdout_path": "logs/stdout.txt",
+    "stderr_path": "logs/stderr.txt",
+    "events_path": "events/events.jsonl",
+    "raw_output_path": "outputs/raw.txt",
+    "raw_output_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "termination_proof_path": "proof/termination.json",
+    "resource_summary_path": "records/resource-summary.json",
+    "command_path": "records/command.json"
+  }
+}

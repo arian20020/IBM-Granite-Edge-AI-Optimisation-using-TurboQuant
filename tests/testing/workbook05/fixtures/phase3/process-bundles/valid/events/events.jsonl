@@ -1,0 +1,4 @@
+{"event":"started","sequence":1}
+{"event":"first_token","sequence":2}
+{"event":"token","sequence":3,"token_index":1}
+{"event":"completed","sequence":4}

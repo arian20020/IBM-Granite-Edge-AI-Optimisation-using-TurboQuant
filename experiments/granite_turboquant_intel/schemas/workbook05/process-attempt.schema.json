@@ -1,0 +1,303 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://granite-edge-ai.local/schemas/workbook05/process-attempt.schema.json",
+  "title": "Workbook 05 process attempt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_type",
+    "schema_version",
+    "attempt_id",
+    "attempt_number",
+    "retry_of_attempt_id",
+    "classification",
+    "failure_ids",
+    "execution",
+    "watchdog",
+    "evidence"
+  ],
+  "properties": {
+    "record_type": {
+      "const": "process-attempt"
+    },
+    "schema_version": {
+      "const": "1.0"
+    },
+    "attempt_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+    },
+    "attempt_number": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "retry_of_attempt_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "classification": {
+      "enum": [
+        "Pending",
+        "Passed",
+        "IntegrityFailure",
+        "ResourceSafetyStop",
+        "Timeout",
+        "OutputIntegrityFailure",
+        "ModelCompatibilityFailure",
+        "ActivationUnproven",
+        "StorageMismatch",
+        "InfrastructureInterrupted",
+        "NativeProcessFailure"
+      ]
+    },
+    "failure_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Z0-9][A-Z0-9._-]{0,127}$"
+      },
+      "uniqueItems": true
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "executable",
+        "arguments",
+        "working_directory",
+        "exit_code",
+        "started_utc",
+        "ended_utc",
+        "elapsed_ms"
+      ],
+      "properties": {
+        "executable": {
+          "type": "string",
+          "minLength": 1
+        },
+        "arguments": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "working_directory": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?![A-Za-z]:)(?![\\\\/])(?!.*(?:^|[\\\\/])\\.\\.(?:[\\\\/]|$)).+$"
+        },
+        "exit_code": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "started_utc": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "ended_utc": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "elapsed_ms": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "watchdog": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "safety_stop_triggered",
+        "safety_stop_reason",
+        "timeout_triggered",
+        "heartbeat_stale"
+      ],
+      "properties": {
+        "safety_stop_triggered": {
+          "type": "boolean"
+        },
+        "safety_stop_reason": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "timeout_triggered": {
+          "type": "boolean"
+        },
+        "heartbeat_stale": {
+          "type": "boolean"
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stdout_path",
+        "stderr_path",
+        "events_path",
+        "raw_output_path",
+        "raw_output_sha256",
+        "termination_proof_path",
+        "resource_summary_path",
+        "command_path"
+      ],
+      "properties": {
+        "stdout_path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?![A-Za-z]:)(?![\\\\/])(?!.*(?:^|[\\\\/])\\.\\.(?:[\\\\/]|$)).+$"
+        },
+        "stderr_path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?![A-Za-z]:)(?![\\\\/])(?!.*(?:^|[\\\\/])\\.\\.(?:[\\\\/]|$)).+$"
+        },
+        "events_path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?![A-Za-z]:)(?![\\\\/])(?!.*(?:^|[\\\\/])\\.\\.(?:[\\\\/]|$)).+$"
+        },
+        "raw_output_path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?![A-Za-z]:)(?![\\\\/])(?!.*(?:^|[\\\\/])\\.\\.(?:[\\\\/]|$)).+$"
+        },
+        "raw_output_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "termination_proof_path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?![A-Za-z]:)(?![\\\\/])(?!.*(?:^|[\\\\/])\\.\\.(?:[\\\\/]|$)).+$"
+        },
+        "resource_summary_path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?![A-Za-z]:)(?![\\\\/])(?!.*(?:^|[\\\\/])\\.\\.(?:[\\\\/]|$)).+$"
+        },
+        "command_path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?![A-Za-z]:)(?![\\\\/])(?!.*(?:^|[\\\\/])\\.\\.(?:[\\\\/]|$)).+$"
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "classification": {
+            "const": "Passed"
+          }
+        },
+        "required": [
+          "classification"
+        ]
+      },
+      "then": {
+        "properties": {
+          "failure_ids": {
+            "maxItems": 0
+          },
+          "execution": {
+            "properties": {
+              "exit_code": {
+                "const": 0
+              }
+            }
+          },
+          "watchdog": {
+            "properties": {
+              "safety_stop_triggered": {
+                "const": false
+              },
+              "safety_stop_reason": {
+                "type": "null"
+              },
+              "timeout_triggered": {
+                "const": false
+              },
+              "heartbeat_stale": {
+                "const": false
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "attempt_number": {
+            "minimum": 2
+          }
+        },
+        "required": [
+          "attempt_number"
+        ]
+      },
+      "then": {
+        "properties": {
+          "retry_of_attempt_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "watchdog": {
+            "properties": {
+              "safety_stop_triggered": {
+                "const": true
+              }
+            },
+            "required": [
+              "safety_stop_triggered"
+            ]
+          }
+        },
+        "required": [
+          "watchdog"
+        ]
+      },
+      "then": {
+        "properties": {
+          "watchdog": {
+            "properties": {
+              "safety_stop_reason": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

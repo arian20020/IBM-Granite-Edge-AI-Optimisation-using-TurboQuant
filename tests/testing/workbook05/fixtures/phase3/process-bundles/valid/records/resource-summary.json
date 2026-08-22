@@ -1,0 +1,12 @@
+{
+  "record_type": "resource-summary",
+  "schema_version": "1.0",
+  "attempt_id": "fixture-attempt-1",
+  "sample_count": 1,
+  "peak_working_set_bytes": 1048576,
+  "peak_private_bytes": 1048576,
+  "minimum_available_memory_bytes": 4294967296,
+  "maximum_commit_percent": 50.0,
+  "mean_cpu_percent": 1.0,
+  "maximum_cpu_percent": 2.0
+}

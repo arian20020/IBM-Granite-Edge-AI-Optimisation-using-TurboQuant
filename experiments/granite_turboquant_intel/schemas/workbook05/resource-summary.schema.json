@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://granite-edge-ai.local/schemas/workbook05/resource-summary.schema.json",
+  "title": "Workbook 05 process resource summary",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_type",
+    "schema_version",
+    "attempt_id",
+    "sample_count",
+    "peak_working_set_bytes",
+    "peak_private_bytes",
+    "minimum_available_memory_bytes",
+    "maximum_commit_percent",
+    "mean_cpu_percent",
+    "maximum_cpu_percent"
+  ],
+  "properties": {
+    "record_type": {
+      "const": "resource-summary"
+    },
+    "schema_version": {
+      "const": "1.0"
+    },
+    "attempt_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sample_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "peak_working_set_bytes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "peak_private_bytes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "minimum_available_memory_bytes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "maximum_commit_percent": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "mean_cpu_percent": {
+      "type": "number",
+      "minimum": 0
+    },
+    "maximum_cpu_percent": {
+      "type": "number",
+      "minimum": 0
+    }
+  }
+}
