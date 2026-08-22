@@ -3,6 +3,7 @@ using LLama;
 using LLama.Common;
 using LLama.Native;
 using LLama.Sampling;
+using LLama.Transformers;
 
 namespace GraniteEdgeAI.GgufRuntime.NativeAdapter;
 
@@ -27,7 +28,10 @@ internal sealed class LlamaSharpInferenceEngine(GgufAdapterOptions options)
             .ConfigureAwait(false);
         _context = _weights.CreateContext(parameters);
         var executor = new InteractiveExecutor(_context);
-        _session = new ChatSession(executor, CreateHistory(initialHistory));
+        _session = new ChatSession(executor, CreateHistory(initialHistory))
+            .WithHistoryTransform(new PromptTemplateTransformer(
+                _weights,
+                withAssistant: true));
     }
 
     public async IAsyncEnumerable<string> GenerateAsync(
