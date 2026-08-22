@@ -205,6 +205,7 @@ public sealed class LlmFitSystemJsonParserTests
             ValidSystemJson(gpuCount: "2", gpus: "[{\"name\":\"GPU\",\"count\":1},{\"name\":\"gpu\",\"count\":1}]"),
             ValidSystemJson(gpus: "[{\"name\":\" unsafe\",\"count\":1}]"),
             ValidSystemJson(gpuName: "42"),
+            ValidSystemJson(hasGpu: "false", gpuCount: "0", gpuName: "\"Contradictory GPU\"", gpus: "[]"),
         ];
 
         foreach (string json in missingShape)

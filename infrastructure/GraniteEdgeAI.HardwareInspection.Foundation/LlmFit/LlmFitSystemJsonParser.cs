@@ -145,7 +145,12 @@ internal static class LlmFitSystemJsonParser
         }
 
         FieldState topLevelNameState = ReadSafeName(system, "gpu_name", allowNull: true, out _);
-        bool topLevelNameValid = topLevelNameState is FieldState.Valid or FieldState.Missing;
+        bool falseGpuHasReportedName = !hasGpu &&
+            system.TryGetProperty("gpu_name", out JsonElement topLevelName) &&
+            topLevelName.ValueKind != JsonValueKind.Null;
+        bool topLevelNameValid =
+            (topLevelNameState is FieldState.Valid or FieldState.Missing) &&
+            !falseGpuHasReportedName;
         bool consistent = topLevelNameValid &&
             hasGpu == (expectedCount > 0) &&
             expectedCount == reportedCount &&
