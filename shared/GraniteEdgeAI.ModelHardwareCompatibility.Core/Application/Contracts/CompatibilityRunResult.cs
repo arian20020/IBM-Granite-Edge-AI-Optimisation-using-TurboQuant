@@ -9,6 +9,13 @@ namespace GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Contracts;
 /// not retain one: partial work that survived into a result would be read as a
 /// conclusion about whether the model runs, which is precisely the claim the run
 /// failed to make.
+///
+/// Recorded deviation from spec section 7. That section lists a separate
+/// <c>Failure?</c> member alongside the findings. This carries the failure in
+/// <see cref="Findings"/> instead, as a code with Blocking severity, because a
+/// parallel member would give a reader two places to look for the same fact and
+/// two ways for them to disagree. Every failed and not-established run is
+/// required to carry at least one finding, so no failure can go unexplained.
 /// </summary>
 internal sealed record CompatibilityRunResult
 {
@@ -124,6 +131,18 @@ internal sealed record CompatibilityRunResult
     {
         ArgumentNullException.ThrowIfNull(findings);
         ArgumentNullException.ThrowIfNull(policyIdentities);
+
+        // A record struct cannot forbid default construction, so the factory's
+        // empty-value rejection is not enough on its own. Every defaulted id
+        // compares equal to every other, so a result carrying one would match any
+        // other defaulted run — the confusion stale-run rejection exists to stop.
+        if (runId.IsEmpty)
+        {
+            throw new ArgumentException(
+                "A result must carry a run id that came from a factory; a defaulted "
+                + "id matches every other defaulted id.",
+                nameof(runId));
+        }
 
         if (policyIdentities.Count == 0)
         {

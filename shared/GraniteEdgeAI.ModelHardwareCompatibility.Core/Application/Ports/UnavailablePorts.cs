@@ -26,13 +26,13 @@ internal static class UnavailablePorts
     private sealed class UnavailableModelFacts : IInspectedModelFactsSource
     {
         public ModelFactsResolution Resolve(string modelInspectionRunId) =>
-            new(false, null, PortUnavailableReason.AdapterNotImplemented);
+            ModelFactsResolution.Unavailable(PortUnavailableReason.AdapterNotImplemented);
     }
 
     private sealed class UnavailableHardwareFacts : IHardwareFactsSource
     {
         public HardwareFactsResolution Resolve(string productHardwareRunId) =>
-            new(false, null, PortUnavailableReason.AdapterNotImplemented);
+            HardwareFactsResolution.Unavailable(PortUnavailableReason.AdapterNotImplemented);
     }
 
     private sealed class UnavailableMemoryProbe : IFreshSystemMemoryProbe
@@ -41,13 +41,13 @@ internal static class UnavailablePorts
         // indistinguishable from a machine with no free memory, and the gate
         // would then refuse for the wrong reason.
         public FreshMemoryReading Probe() =>
-            new(false, null, PortUnavailableReason.AdapterNotImplemented);
+            FreshMemoryReading.Unavailable(PortUnavailableReason.AdapterNotImplemented);
     }
 
     private sealed class UnavailableGateway : ICompatibilityInputGateway
     {
         public HandoffClaim Claim() =>
-            new(false, string.Empty, string.Empty, PortUnavailableReason.AdapterNotImplemented);
+            HandoffClaim.Refused(PortUnavailableReason.AdapterNotImplemented);
 
         public void Rollback()
         {
@@ -61,6 +61,6 @@ internal static class UnavailablePorts
     private sealed class UnavailableVerificationRunner : IRuntimeVerificationRunner
     {
         public VerificationOutcome Verify(CompatibilityRunId runId) =>
-            new(false, false, PortUnavailableReason.RunnerNotRegistered);
+            VerificationOutcome.Unavailable(PortUnavailableReason.RunnerNotRegistered);
     }
 }
