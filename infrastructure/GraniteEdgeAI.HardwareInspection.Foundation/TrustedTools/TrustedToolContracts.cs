@@ -158,15 +158,19 @@ public sealed class TrustedToolPackageManifest
         value.IndexOfAny([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar]) < 0;
 }
 
-public sealed class VerifiedTrustedTool
+public sealed class VerifiedTrustedTool : IDisposable
 {
+    private readonly IDisposable _custody;
+    private int _disposed;
+
     internal VerifiedTrustedTool(
         string toolId,
         string version,
         string packageRoot,
         string executablePath,
         TrustedToolPackageDisposition disposition,
-        IReadOnlyDictionary<string, TrustedToolCommand> commands)
+        IReadOnlyDictionary<string, TrustedToolCommand> commands,
+        IDisposable custody)
     {
         ToolId = toolId;
         Version = version;
@@ -174,6 +178,7 @@ public sealed class VerifiedTrustedTool
         ExecutablePath = executablePath;
         Disposition = disposition;
         Commands = commands;
+        _custody = custody;
     }
 
     public string ToolId { get; }
@@ -187,6 +192,27 @@ public sealed class VerifiedTrustedTool
     public TrustedToolPackageDisposition Disposition { get; }
 
     internal IReadOnlyDictionary<string, TrustedToolCommand> Commands { get; }
+
+    internal bool IsDisposed => Volatile.Read(ref _disposed) != 0;
+
+    internal bool TryAcquireExecutionCustody(out IDisposable? lease)
+    {
+        if (IsDisposed || _custody is not TrustedToolCustody trustedCustody)
+        {
+            lease = null;
+            return false;
+        }
+
+        return trustedCustody.TryAcquire(out lease);
+    }
+
+    public void Dispose()
+    {
+        if (Interlocked.Exchange(ref _disposed, 1) == 0)
+        {
+            _custody.Dispose();
+        }
+    }
 }
 
 public sealed record TrustedToolVerificationResult

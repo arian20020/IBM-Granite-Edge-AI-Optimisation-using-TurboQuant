@@ -366,6 +366,10 @@
     </Content>
   </ItemGroup>
 
+  <ItemGroup Condition="'$(Platform)' != 'x64'">
+    <Compile Remove="Features\HardwareInspection\WindowsAvailableMemoryProviderTests.cs" />
+  </ItemGroup>
+
   <ItemGroup>
     <Page Remove="UnitTestApp.xaml" />
     <ApplicationDefinition Include="UnitTestApp.xaml" />

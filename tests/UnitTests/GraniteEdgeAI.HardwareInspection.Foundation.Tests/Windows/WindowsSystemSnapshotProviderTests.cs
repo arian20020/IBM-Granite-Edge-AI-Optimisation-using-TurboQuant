@@ -95,6 +95,22 @@ public sealed class WindowsSystemSnapshotProviderTests
     }
 
     [TestMethod]
+    public async Task CaptureMapsNonUtcClockOutputToClosedDiagnostic()
+    {
+        WindowsSystemSnapshotProvider provider = new(
+            new FakeWindowsMemoryApi(1024, 1024 * 1024, 0),
+            new FixedTimeProvider(
+                new DateTimeOffset(2026, 8, 22, 13, 30, 0, TimeSpan.FromHours(1))),
+            new FakeOperatingSystemInfo());
+
+        WindowsSystemSnapshotException error =
+            await Assert.ThrowsExactlyAsync<WindowsSystemSnapshotException>(
+                async () => await provider.CaptureAsync(CancellationToken.None));
+
+        Assert.AreEqual("HI-WINDOWS-MEMORY-INCONSISTENT", error.DiagnosticCode);
+    }
+
+    [TestMethod]
     public void SnapshotRejectsNonUtcCaptureTime()
     {
         Assert.ThrowsExactly<ArgumentException>(() =>
@@ -116,12 +132,8 @@ public sealed class WindowsSystemSnapshotProviderTests
             await new WindowsSystemSnapshotProvider().CaptureAsync(CancellationToken.None);
 
         Assert.IsGreaterThan(0UL, snapshot.PhysicallyInstalledBytes);
-        Assert.IsGreaterThanOrEqualTo(
-            snapshot.OsUsablePhysicalBytes,
-            snapshot.PhysicallyInstalledBytes);
-        Assert.IsGreaterThanOrEqualTo(
-            snapshot.AvailablePhysicalBytes,
-            snapshot.OsUsablePhysicalBytes);
+        Assert.IsTrue(snapshot.PhysicallyInstalledBytes >= snapshot.OsUsablePhysicalBytes);
+        Assert.IsTrue(snapshot.OsUsablePhysicalBytes >= snapshot.AvailablePhysicalBytes);
         Assert.AreEqual(TimeSpan.Zero, snapshot.CapturedAtUtc.Offset);
         Assert.IsFalse(string.IsNullOrWhiteSpace(snapshot.OperatingSystemName));
         Assert.IsFalse(string.IsNullOrWhiteSpace(snapshot.OperatingSystemVersion));

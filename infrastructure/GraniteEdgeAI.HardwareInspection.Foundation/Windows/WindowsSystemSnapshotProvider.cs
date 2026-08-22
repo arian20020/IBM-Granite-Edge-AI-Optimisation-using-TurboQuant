@@ -67,12 +67,18 @@ public sealed class WindowsSystemSnapshotProvider
             throw new WindowsSystemSnapshotException(MemoryInconsistentCode);
         }
 
+        DateTimeOffset capturedAtUtc = _timeProvider.GetUtcNow();
+        if (capturedAtUtc.Offset != TimeSpan.Zero)
+        {
+            throw new WindowsSystemSnapshotException(MemoryInconsistentCode);
+        }
+
         (string name, string version, string architecture) = _operatingSystemInfo.Capture();
         WindowsSystemSnapshot snapshot = new(
             installedBytes,
             usableBytes,
             availableBytes,
-            _timeProvider.GetUtcNow(),
+            capturedAtUtc,
             name,
             version,
             architecture);

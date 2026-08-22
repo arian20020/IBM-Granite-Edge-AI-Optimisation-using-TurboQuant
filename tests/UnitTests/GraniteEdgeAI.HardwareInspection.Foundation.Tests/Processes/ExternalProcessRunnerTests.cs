@@ -96,7 +96,7 @@ public sealed class ExternalProcessRunnerTests
 
         ExternalProcessResult result = await new ExternalProcessRunner().RunAsync(
             fixture.Tool,
-            Request("system", timeout: TimeSpan.FromMilliseconds(200)),
+            Request("system", timeout: TimeSpan.FromSeconds(2)),
             CancellationToken.None);
 
         Assert.AreEqual(ExternalProcessTerminationReason.TimedOut, result.TerminationReason);
@@ -126,10 +126,27 @@ public sealed class ExternalProcessRunnerTests
     }
 
     [TestMethod]
-    public async Task RunReturnsStartFailedWhenVerifiedExecutableDisappears()
+    public async Task RunJobCustodyKillsChildThatOutlivesNormallyExitedParent()
+    {
+        using VerifiedFixture fixture = VerifiedFixture.Create("spawn-child-exit");
+
+        ExternalProcessResult result = await new ExternalProcessRunner().RunAsync(
+            fixture.Tool,
+            Request("system"),
+            CancellationToken.None);
+
+        Assert.AreEqual(ExternalProcessTerminationReason.Exited, result.TerminationReason);
+        Assert.AreEqual(0, result.ExitCode);
+        int childId = await WaitForProcessIdAsync(
+            Path.Combine(fixture.PackageRoot, "spawn-child-ready.txt"));
+        await AssertProcessExitedAsync(childId);
+    }
+
+    [TestMethod]
+    public async Task RunReturnsStartFailedWhenVerifiedCustodyWasDisposed()
     {
         using VerifiedFixture fixture = VerifiedFixture.Create("success");
-        File.Delete(fixture.Tool.ExecutablePath);
+        fixture.Tool.Dispose();
 
         ExternalProcessResult result = await new ExternalProcessRunner().RunAsync(
             fixture.Tool,
@@ -140,6 +157,28 @@ public sealed class ExternalProcessRunnerTests
         Assert.IsNull(result.ExitCode);
         Assert.AreEqual(string.Empty, result.StandardOutput);
         Assert.AreEqual(string.Empty, result.StandardError);
+    }
+
+    [TestMethod]
+    public async Task RunRetainsExecutionCustodyAfterOwnerIsDisposed()
+    {
+        using VerifiedFixture fixture = VerifiedFixture.Create("sleep");
+        string executablePath = fixture.Tool.ExecutablePath;
+        using CancellationTokenSource cancellation = new();
+        Task<ExternalProcessResult> execution = new ExternalProcessRunner().RunAsync(
+            fixture.Tool,
+            Request("system", timeout: TimeSpan.FromSeconds(10)),
+            cancellation.Token);
+        await WaitForProcessIdAsync(Path.Combine(fixture.PackageRoot, "owned-root-ready.txt"));
+
+        fixture.Tool.Dispose();
+        Assert.Throws<IOException>(() => OpenForWrite(executablePath));
+
+        cancellation.Cancel();
+        ExternalProcessResult result = await execution;
+
+        Assert.AreEqual(ExternalProcessTerminationReason.Cancelled, result.TerminationReason);
+        await OpenForWriteWhenReleasedAsync(executablePath);
     }
 
     [TestMethod]
@@ -212,6 +251,27 @@ public sealed class ExternalProcessRunnerTests
         Assert.Fail("A harmless fixture process remained after bounded cleanup.");
     }
 
+    private static void OpenForWrite(string path)
+    {
+        using FileStream ignored = new(path, FileMode.Open, FileAccess.Write, FileShare.Read);
+    }
+
+    private static async Task OpenForWriteWhenReleasedAsync(string path)
+    {
+        for (int attempt = 0; attempt < 100; attempt++)
+        {
+            try
+            {
+                OpenForWrite(path);
+                return;
+            }
+            catch (IOException) when (attempt < 99)
+            {
+                await Task.Delay(20);
+            }
+        }
+    }
+
     private sealed class VerifiedFixture : IDisposable
     {
         private VerifiedFixture(string root, string packageRoot, VerifiedTrustedTool tool)
@@ -270,9 +330,23 @@ public sealed class ExternalProcessRunnerTests
 
         public void Dispose()
         {
-            if (Directory.Exists(Root))
+            Tool.Dispose();
+            for (int attempt = 0; attempt < 100 && Directory.Exists(Root); attempt++)
             {
-                Directory.Delete(Root, recursive: true);
+                try
+                {
+                    Directory.Delete(Root, recursive: true);
+                }
+                catch (Exception error) when (
+                    error is IOException or UnauthorizedAccessException)
+                {
+                    if (attempt == 99)
+                    {
+                        throw;
+                    }
+
+                    Thread.Sleep(20);
+                }
             }
         }
 

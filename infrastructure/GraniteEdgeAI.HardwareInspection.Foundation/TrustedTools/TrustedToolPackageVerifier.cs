@@ -56,19 +56,36 @@ public sealed class TrustedToolPackageVerifier
             return Reject(TrustedToolVerificationFailure.PackageRootInvalid);
         }
 
-        if (HasReparsePointInPath(approvedFullPath) ||
-            HasReparsePointFromApprovedRoot(approvedFullPath, packageFullPath))
+        ReparseInspection directoryInspection = InspectDirectoryPath(
+            approvedFullPath,
+            packageFullPath);
+        if (directoryInspection == ReparseInspection.Unavailable)
+        {
+            return Reject(TrustedToolVerificationFailure.FileUnavailable);
+        }
+
+        if (directoryInspection == ReparseInspection.ReparsePoint)
         {
             return Reject(TrustedToolVerificationFailure.ReparsePoint);
         }
 
+        if (!TrustedToolCustody.TryAcquireDirectories(
+                approvedFullPath,
+                packageFullPath,
+                out IReadOnlyList<Microsoft.Win32.SafeHandles.SafeFileHandle> directoryHandles))
+        {
+            return Reject(TrustedToolVerificationFailure.FileUnavailable);
+        }
+
         if (!TryCaptureFlatInventory(packageFullPath, out string[] initialInventory))
         {
+            DisposeResources(directoryHandles);
             return Reject(TrustedToolVerificationFailure.FileUnavailable);
         }
 
         if (!InventoryMatches(initialInventory, manifest.RequiredMembers))
         {
+            DisposeResources(directoryHandles);
             return Reject(TrustedToolVerificationFailure.InventoryMismatch);
         }
 
@@ -78,14 +95,23 @@ public sealed class TrustedToolPackageVerifier
             StringComparer.OrdinalIgnoreCase);
         if (actualMembers.Count != initialInventory.Length)
         {
+            DisposeResources(directoryHandles);
             return Reject(TrustedToolVerificationFailure.InventoryMismatch);
         }
 
         foreach (string member in initialInventory)
         {
             string memberPath = Path.Combine(packageFullPath, member);
-            if (IsReparsePoint(memberPath))
+            ReparseInspection memberInspection = InspectReparsePoint(memberPath);
+            if (memberInspection == ReparseInspection.Unavailable)
             {
+                DisposeResources(directoryHandles);
+                return Reject(TrustedToolVerificationFailure.FileUnavailable);
+            }
+
+            if (memberInspection == ReparseInspection.ReparsePoint)
+            {
+                DisposeResources(directoryHandles);
                 return Reject(TrustedToolVerificationFailure.ReparsePoint);
             }
         }
@@ -99,9 +125,11 @@ public sealed class TrustedToolPackageVerifier
             {
                 string actualMember = actualMembers[requiredMember];
                 string memberPath = Path.Combine(packageFullPath, actualMember);
-                if (IsReparsePoint(memberPath))
+                ReparseInspection memberInspection = InspectReparsePoint(memberPath);
+                if (memberInspection != ReparseInspection.Clear)
                 {
-                    DisposeStreams(streams.Values);
+                    DisposeResources(streams.Values);
+                    DisposeResources(directoryHandles);
                     return Reject(TrustedToolVerificationFailure.PackageChangedDuringVerification);
                 }
 
@@ -118,57 +146,66 @@ public sealed class TrustedToolPackageVerifier
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException)
         {
-            DisposeStreams(streams.Values);
+            DisposeResources(streams.Values);
+            DisposeResources(directoryHandles);
             return Reject(TrustedToolVerificationFailure.PackageChangedDuringVerification);
         }
 
-        using (new StreamCollectionLease(streams.Values))
+        FileStream executable = streams[manifest.ExecutableRelativePath];
+        byte[] actualHash;
+        try
         {
-            FileStream executable = streams[manifest.ExecutableRelativePath];
-            byte[] actualHash;
-            try
-            {
-                executable.Position = 0;
-                actualHash = SHA256.HashData(executable);
-            }
-            catch (IOException)
-            {
-                return Reject(TrustedToolVerificationFailure.FileUnavailable);
-            }
-
-            byte[] requiredHash = Convert.FromHexString(manifest.ExecutableSha256);
-            if (!CryptographicOperations.FixedTimeEquals(actualHash, requiredHash))
-            {
-                return Reject(TrustedToolVerificationFailure.HashMismatch);
-            }
-
-            TrustedToolVerificationFailure? peFailure =
-                PeImageInspector.Inspect(executable, manifest.RequiredMachine);
-            if (peFailure is not null)
-            {
-                return Reject(peFailure.Value);
-            }
-
-            if (!TryCaptureFlatInventory(packageFullPath, out string[] finalInventory) ||
-                !initialInventory.Order(StringComparer.Ordinal)
-                    .SequenceEqual(finalInventory.Order(StringComparer.Ordinal), StringComparer.Ordinal))
-            {
-                return Reject(TrustedToolVerificationFailure.PackageChangedDuringVerification);
-            }
-
-            Dictionary<string, TrustedToolCommand> commands = manifest.Commands.ToDictionary(
-                command => command.Identity,
-                command => command,
-                StringComparer.OrdinalIgnoreCase);
-            VerifiedTrustedTool tool = new(
-                manifest.ToolId,
-                manifest.Version,
-                packageFullPath,
-                Path.Combine(packageFullPath, actualMembers[manifest.ExecutableRelativePath]),
-                manifest.Disposition,
-                new ReadOnlyDictionary<string, TrustedToolCommand>(commands));
-            return TrustedToolVerificationResult.Verified(tool);
+            executable.Position = 0;
+            actualHash = SHA256.HashData(executable);
         }
+        catch (IOException)
+        {
+            DisposeResources(streams.Values);
+            DisposeResources(directoryHandles);
+            return Reject(TrustedToolVerificationFailure.FileUnavailable);
+        }
+
+        byte[] requiredHash = Convert.FromHexString(manifest.ExecutableSha256);
+        if (!CryptographicOperations.FixedTimeEquals(actualHash, requiredHash))
+        {
+            DisposeResources(streams.Values);
+            DisposeResources(directoryHandles);
+            return Reject(TrustedToolVerificationFailure.HashMismatch);
+        }
+
+        TrustedToolVerificationFailure? peFailure =
+            PeImageInspector.Inspect(executable, manifest.RequiredMachine);
+        if (peFailure is not null)
+        {
+            DisposeResources(streams.Values);
+            DisposeResources(directoryHandles);
+            return Reject(peFailure.Value);
+        }
+
+        if (!TryCaptureFlatInventory(packageFullPath, out string[] finalInventory) ||
+            !initialInventory.Order(StringComparer.Ordinal)
+                .SequenceEqual(finalInventory.Order(StringComparer.Ordinal), StringComparer.Ordinal))
+        {
+            DisposeResources(streams.Values);
+            DisposeResources(directoryHandles);
+            return Reject(TrustedToolVerificationFailure.PackageChangedDuringVerification);
+        }
+
+        Dictionary<string, TrustedToolCommand> commands = manifest.Commands.ToDictionary(
+            command => command.Identity,
+            command => command,
+            StringComparer.OrdinalIgnoreCase);
+        TrustedToolCustody custody = new(
+            directoryHandles.Cast<IDisposable>().Concat(streams.Values));
+        VerifiedTrustedTool tool = new(
+            manifest.ToolId,
+            manifest.Version,
+            packageFullPath,
+            Path.Combine(packageFullPath, actualMembers[manifest.ExecutableRelativePath]),
+            manifest.Disposition,
+            new ReadOnlyDictionary<string, TrustedToolCommand>(commands),
+            custody);
+        return TrustedToolVerificationResult.Verified(tool);
     }
 
     private static TrustedToolVerificationResult Reject(TrustedToolVerificationFailure failure) =>
@@ -240,67 +277,63 @@ public sealed class TrustedToolPackageVerifier
             .SetEquals(required);
     }
 
-    private static bool HasReparsePointInPath(string path)
+    private static ReparseInspection InspectDirectoryPath(string approvedRoot, string packageRoot)
     {
-        DirectoryInfo? current = new(path);
+        DirectoryInfo? current = new(approvedRoot);
         while (current is not null)
         {
-            if (IsReparsePoint(current.FullName))
+            ReparseInspection inspection = InspectReparsePoint(current.FullName);
+            if (inspection != ReparseInspection.Clear)
             {
-                return true;
+                return inspection;
             }
 
             current = current.Parent;
         }
 
-        return false;
-    }
-
-    private static bool HasReparsePointFromApprovedRoot(string approvedRoot, string packageRoot)
-    {
-        if (IsReparsePoint(approvedRoot))
-        {
-            return true;
-        }
-
         string relative = Path.GetRelativePath(approvedRoot, packageRoot);
-        string current = approvedRoot;
+        string currentPath = approvedRoot;
         foreach (string segment in relative.Split(
                      [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
                      StringSplitOptions.RemoveEmptyEntries))
         {
-            current = Path.Combine(current, segment);
-            if (IsReparsePoint(current))
+            currentPath = Path.Combine(currentPath, segment);
+            ReparseInspection inspection = InspectReparsePoint(currentPath);
+            if (inspection != ReparseInspection.Clear)
             {
-                return true;
+                return inspection;
             }
         }
 
-        return false;
+        return ReparseInspection.Clear;
     }
 
-    private static bool IsReparsePoint(string path)
+    private static ReparseInspection InspectReparsePoint(string path)
     {
         try
         {
-            return (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0;
+            return (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0
+                ? ReparseInspection.ReparsePoint
+                : ReparseInspection.Clear;
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException)
         {
-            return false;
+            return ReparseInspection.Unavailable;
         }
     }
 
-    private static void DisposeStreams(IEnumerable<FileStream> streams)
+    private static void DisposeResources(IEnumerable<IDisposable> resources)
     {
-        foreach (FileStream stream in streams)
+        foreach (IDisposable resource in resources)
         {
-            stream.Dispose();
+            resource.Dispose();
         }
     }
 
-    private sealed class StreamCollectionLease(IEnumerable<FileStream> streams) : IDisposable
+    private enum ReparseInspection
     {
-        public void Dispose() => DisposeStreams(streams);
+        Clear,
+        ReparsePoint,
+        Unavailable,
     }
 }

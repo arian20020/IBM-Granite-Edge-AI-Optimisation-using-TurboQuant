@@ -40,6 +40,7 @@ static async Task<int> RunAsync(string[] arguments)
         "large-output" => await WriteLargeOutputAsync().ConfigureAwait(false),
         "sleep" => await SleepAsync().ConfigureAwait(false),
         "spawn-child" => await SpawnChildAsync().ConfigureAwait(false),
+        "spawn-child-exit" => await SpawnChildAndExitAsync().ConfigureAwait(false),
         "sleep-child" => await SleepAsync().ConfigureAwait(false),
         "dashboard" => await ListenOnDashboardPortAsync().ConfigureAwait(false),
         _ => 64,
@@ -130,6 +131,47 @@ static async Task<int> SpawnChildAsync()
             child.Id.ToString(CultureInfo.InvariantCulture))
         .ConfigureAwait(false);
     await Task.Delay(TimeSpan.FromMinutes(5)).ConfigureAwait(false);
+    return 0;
+}
+
+static async Task<int> SpawnChildAndExitAsync()
+{
+    string? processPath = Environment.ProcessPath;
+    if (string.IsNullOrWhiteSpace(processPath))
+    {
+        return 64;
+    }
+
+    string childDirectory = Path.Combine(
+        Directory.GetCurrentDirectory(),
+        "owned-child-" + Guid.NewGuid().ToString("N"));
+    Directory.CreateDirectory(childDirectory);
+    await File.WriteAllTextAsync(
+            Path.Combine(childDirectory, "fake-mode.txt"),
+            "sleep-child")
+        .ConfigureAwait(false);
+
+    var startInfo = new ProcessStartInfo
+    {
+        FileName = processPath,
+        WorkingDirectory = childDirectory,
+        UseShellExecute = false,
+        CreateNoWindow = true,
+    };
+    startInfo.ArgumentList.Add("--no-dashboard");
+    startInfo.ArgumentList.Add("--json");
+    startInfo.ArgumentList.Add("system");
+
+    using var child = new Process { StartInfo = startInfo };
+    if (!child.Start())
+    {
+        return 64;
+    }
+
+    await File.WriteAllTextAsync(
+            Path.Combine(Directory.GetCurrentDirectory(), "spawn-child-ready.txt"),
+            child.Id.ToString(CultureInfo.InvariantCulture))
+        .ConfigureAwait(false);
     return 0;
 }
 

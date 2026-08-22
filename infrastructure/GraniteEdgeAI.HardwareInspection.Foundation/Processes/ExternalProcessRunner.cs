@@ -26,6 +26,41 @@ public sealed class ExternalProcessRunner : IExternalProcessRunner
             return CreateResult(ExternalProcessTerminationReason.StartFailed, elapsed);
         }
 
+        if (!tool.TryAcquireExecutionCustody(out IDisposable? executionCustody))
+        {
+            return CreateResult(ExternalProcessTerminationReason.StartFailed, elapsed);
+        }
+
+        using (executionCustody)
+        {
+            if (!WindowsKillOnCloseJob.TryCreate(out WindowsKillOnCloseJob job))
+            {
+                return CreateResult(ExternalProcessTerminationReason.StartFailed, elapsed);
+            }
+
+            using (job)
+            {
+                return await RunInJobAsync(
+                        tool,
+                        command,
+                        request,
+                        elapsed,
+                        job,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+            }
+        }
+    }
+
+    private static async Task<ExternalProcessResult> RunInJobAsync(
+        VerifiedTrustedTool tool,
+        TrustedToolCommand command,
+        ExternalProcessRequest request,
+        Stopwatch elapsed,
+        WindowsKillOnCloseJob job,
+        CancellationToken cancellationToken)
+    {
+
         using Process process = new()
         {
             StartInfo = CreateStartInfo(tool, command),
@@ -40,6 +75,12 @@ public sealed class ExternalProcessRunner : IExternalProcessRunner
         catch (Exception error) when (error is Win32Exception or InvalidOperationException)
         {
             return CreateResult(ExternalProcessTerminationReason.StartFailed, elapsed);
+        }
+
+        if (!job.TryAssign(process))
+        {
+            await KillAndWaitAsync(process, job).ConfigureAwait(false);
+            return CreateResult(ExternalProcessTerminationReason.CleanupFailed, elapsed);
         }
 
         BoundedProcessOutput standardOutput = BoundedProcessOutput.Start(
@@ -94,9 +135,18 @@ public sealed class ExternalProcessRunner : IExternalProcessRunner
         }
 
         if (reason != ExternalProcessTerminationReason.Exited &&
-            !await KillAndWaitAsync(process).ConfigureAwait(false))
+            !await KillAndWaitAsync(process, job).ConfigureAwait(false))
         {
             return CreateResult(ExternalProcessTerminationReason.CleanupFailed, elapsed);
+        }
+
+        else if (reason == ExternalProcessTerminationReason.Exited)
+        {
+            if (!job.TryTerminate() ||
+                !await job.WaitForEmptyAsync(CleanupDeadline).ConfigureAwait(false))
+            {
+                return CreateResult(ExternalProcessTerminationReason.CleanupFailed, elapsed);
+            }
         }
 
         BoundedProcessOutputResult[] captures;
@@ -110,7 +160,7 @@ public sealed class ExternalProcessRunner : IExternalProcessRunner
         {
             if (reason == ExternalProcessTerminationReason.Exited)
             {
-                await KillAndWaitAsync(process).ConfigureAwait(false);
+                await KillAndWaitAsync(process, job).ConfigureAwait(false);
             }
 
             return CreateResult(ExternalProcessTerminationReason.CleanupFailed, elapsed);
@@ -164,11 +214,14 @@ public sealed class ExternalProcessRunner : IExternalProcessRunner
         return startInfo;
     }
 
-    private static async Task<bool> KillAndWaitAsync(Process process)
+    private static async Task<bool> KillAndWaitAsync(
+        Process process,
+        WindowsKillOnCloseJob job)
     {
         try
         {
-            if (!process.HasExited)
+            bool jobTerminated = job.TryTerminate();
+            if (!jobTerminated && !process.HasExited)
             {
                 process.Kill(entireProcessTree: true);
             }
@@ -176,7 +229,7 @@ public sealed class ExternalProcessRunner : IExternalProcessRunner
             await process.WaitForExitAsync(CancellationToken.None)
                 .WaitAsync(CleanupDeadline)
                 .ConfigureAwait(false);
-            return true;
+            return await job.WaitForEmptyAsync(CleanupDeadline).ConfigureAwait(false);
         }
         catch (Exception error) when (
             error is InvalidOperationException or Win32Exception or TimeoutException)

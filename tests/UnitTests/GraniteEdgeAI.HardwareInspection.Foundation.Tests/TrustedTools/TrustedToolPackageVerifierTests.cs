@@ -30,6 +30,7 @@ public sealed class TrustedToolPackageVerifierTests
             result.Tool.Disposition);
         Assert.IsTrue(result.Tool.Commands.ContainsKey("version"));
         Assert.IsNull(result.Failure);
+        result.Tool.Dispose();
     }
 
     [TestMethod]
@@ -82,6 +83,7 @@ public sealed class TrustedToolPackageVerifierTests
             fixture.Manifest);
 
         Assert.IsTrue(result.IsVerified);
+        result.Tool!.Dispose();
     }
 
     [TestMethod]
@@ -185,6 +187,25 @@ public sealed class TrustedToolPackageVerifierTests
         Assert.AreEqual(
             TrustedToolVerificationFailure.PackageChangedDuringVerification,
             result.Failure);
+    }
+
+    [TestMethod]
+    public void VerifiedToolRetainsDenyWriteDeleteCustodyUntilDisposed()
+    {
+        using PackageFixture fixture = PackageFixture.Create();
+        TrustedToolVerificationResult result = new TrustedToolPackageVerifier().Verify(
+            fixture.ApprovedRoot,
+            fixture.PackageRoot,
+            fixture.Manifest);
+        Assert.IsNotNull(result.Tool);
+        string executable = result.Tool.ExecutablePath;
+
+        Assert.ThrowsExactly<IOException>(() => File.WriteAllBytes(executable, CreatePeImage()));
+        Assert.ThrowsExactly<IOException>(() =>
+            Directory.Move(fixture.PackageRoot, fixture.PackageRoot + "-moved"));
+
+        result.Tool.Dispose();
+        File.WriteAllBytes(executable, CreatePeImage());
     }
 
     private static void AssertFailure(
