@@ -326,7 +326,7 @@ def _assert_stage0_inventory(test_case, repository_paths):
     paths = set(repository_paths)
     workflow_paths = {path for path in paths if path.casefold().startswith(".github/workflows/")}
     test_case.assertEqual(workflow_paths, {
-        ".github/workflows/build-and-test.yml", ".github/workflows/hardware-inspection-intel-runner-stage0.yml", ".github/workflows/hardware-inspection-intel-runner-stage-a.yml", ".github/workflows/traceability-validation.yml", ".github/workflows/workbook-05-documented-build.yml", ".github/workflows/workbook-05-phase3-assets.yml", ".github/workflows/workbook-05-phase3-dependency-preflight.yml", ".github/workflows/workbook-05-preflight.yml", ".github/workflows/workbook-05-route-b-repair.yml", ".github/workflows/workbook-05-runner-smoke.yml", ".github/workflows/workbook-05-runtime-resume.yml", ".github/workflows/workbook-05-source-admission.yml",
+        ".github/workflows/build-and-test.yml", ".github/workflows/hardware-inspection-intel-runner-stage0.yml", ".github/workflows/hardware-inspection-intel-runner-stage-a.yml", ".github/workflows/hardware-inspection-llmfit-spike.yml", ".github/workflows/traceability-validation.yml", ".github/workflows/workbook-05-documented-build.yml", ".github/workflows/workbook-05-phase3-assets.yml", ".github/workflows/workbook-05-phase3-dependency-preflight.yml", ".github/workflows/workbook-05-preflight.yml", ".github/workflows/workbook-05-route-b-repair.yml", ".github/workflows/workbook-05-runner-smoke.yml", ".github/workflows/workbook-05-runtime-resume.yml", ".github/workflows/workbook-05-source-admission.yml",
     })
     stage_workflows = {
         path for path in paths if _is_stage0_workflow_alias(path)
@@ -336,6 +336,7 @@ def _assert_stage0_inventory(test_case, repository_paths):
         {
             ".github/workflows/hardware-inspection-intel-runner-stage0.yml",
             ".github/workflows/hardware-inspection-intel-runner-stage-a.yml",
+            ".github/workflows/hardware-inspection-llmfit-spike.yml",
         },
     )
     hardware_scripts = {
@@ -349,6 +350,9 @@ def _assert_stage0_inventory(test_case, repository_paths):
             "scripts/hardware-inspection/Validate-HardwareInspectionIntelRunnerStage0.ps1",
             "scripts/hardware-inspection/Validate-HardwareInspectionIntelRunnerStageA.ps1",
             "scripts/hardware-inspection/Invoke-HardwareInspectionIntelRunnerStageA.ps1",
+            "scripts/hardware-inspection/Acquire-HardwareInspectionLlmFitCandidate.ps1",
+            "scripts/hardware-inspection/Capture-HardwareInspectionWindowsReference.ps1",
+            "scripts/hardware-inspection/Write-HardwareInspectionLlmFitGate1Report.ps1",
         },
     )
     gate1_runbooks = {
@@ -356,7 +360,9 @@ def _assert_stage0_inventory(test_case, repository_paths):
         for path in paths
         if _is_stage0_gate1_runbook_candidate(path)
     }
-    test_case.assertEqual(gate1_runbooks, set())
+    test_case.assertEqual(gate1_runbooks, {
+        "docs/testing/runbooks/Hardware-Inspection-LLM-Fit-Gate-1-Runbook.md",
+    })
     for forbidden_path in (
         ".github/workflows/hardware-inspection-intel-runner-stage-b.yml",
         ".github/workflows/hardware-inspection-intel-runner-stage-d.yml",
@@ -1322,7 +1328,6 @@ on:
             "scripts/runner-tools/Invoke-Gate-Hardware-Review-1.ps1",
             "scripts/hardware-tools/Invoke-Offline-Intel.ps1",
             "scripts/runner-tools/Invoke-Intel-Hardware-Stage-C.ps1",
-            "docs/testing/runbooks/Hardware-Inspection-LLM-Fit-Gate-1-Runbook.md",
             "docs/testing/runbooks/hardware_inspection_llm_fit_gate_1_runbook.md",
             "docs/testing/runbooks/Hardware-Inspection-Gate-1-Runbook.md",
             "docs/testing/runbooks/Gate-Runbook-Hardware-1-Inspection.md",

@@ -1,8 +1,8 @@
 # Project engineering tools
 
-**Status:** LLamaSharp Tier 1 and local trusted Tier 2 verified  
-**Last reviewed:** 2026-08-05  
-**Current branch:** `feature/model-inspection`
+**Status:** LLamaSharp Tier 1/Tier 2 verified; Hardware Inspection Gate 1 evaluation in progress
+**Last reviewed:** 2026-08-16
+**Current tool scopes:** Model Inspection and Hardware Inspection
 
 ## Purpose
 
@@ -36,7 +36,17 @@ tools/
 - [Hosted native integration tests](./ModelInspection.LlamaSharpSpike.NativeIntegrationTests/README.md)
 - [Trusted real-model integration tests](./ModelInspection.LlamaSharpSpike.RealModelIntegrationTests/README.md)
 
-The runtime tool supports:
+## Hardware Inspection Gate 1 tool chain
+
+- [LLM Fit v1.1.9 Gate 1 spike](./HardwareInspection.LlmFitSpike/README.md)
+- [Deterministic Gate 1 tests](./HardwareInspection.LlmFitSpike.Tests/README.md)
+- [Trusted Windows Intel and offline gates](./HardwareInspection.LlmFitSpike.IntegrationTests/README.md)
+
+This chain is an isolated candidate-evaluation boundary. It does not implement
+the Hardware Inspection UI or production `HardwareSnapshot`, approve a binary
+for redistribution, or verify the complete Block 2 requirements.
+
+The LLamaSharp runtime tool supports:
 
 ```text
 Native CPU backend smoke

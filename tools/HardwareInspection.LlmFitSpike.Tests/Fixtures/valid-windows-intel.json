@@ -1,0 +1,23 @@
+{
+  "system": {
+    "total_ram_gb": 31.72,
+    "available_ram_gb": 18.40,
+    "cpu_cores": 16,
+    "cpu_name": "Fixture Intel CPU",
+    "has_gpu": true,
+    "gpu_vram_gb": 1.00,
+    "gpu_available_gb": null,
+    "gpu_name": "Fixture Intel Arc Graphics",
+    "gpu_count": 1,
+    "unified_memory": false,
+    "backend": "SYCL",
+    "gpus": [{
+      "name": "Fixture Intel Arc Graphics",
+      "vram_gb": 1.00,
+      "backend": "SYCL",
+      "count": 1,
+      "unified_memory": false,
+      "memory_bandwidth_gbps": null
+    }]
+  }
+}
