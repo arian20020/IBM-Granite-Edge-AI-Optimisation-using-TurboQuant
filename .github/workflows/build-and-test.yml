@@ -48,6 +48,13 @@ jobs:
     timeout-minutes: 45
 
     steps:
+      # The repository contains retained research paths longer than Git for
+      # Windows accepts by default. Enable long paths before checkout so the
+      # build can reach the staged short-path copy below.
+      - name: Enable Git long paths
+        working-directory: C:/
+        run: git config --global core.longpaths true
+
       # Pinned immutable commit for actions/checkout v7.0.0.
       - name: Check out required build inputs
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
