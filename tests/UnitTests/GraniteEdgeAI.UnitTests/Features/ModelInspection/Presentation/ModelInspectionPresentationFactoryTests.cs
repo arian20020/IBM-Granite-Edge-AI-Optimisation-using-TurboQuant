@@ -209,8 +209,8 @@ public sealed class ModelInspectionPresentationFactoryTests
 
     [TestMethod]
     [TestCategory("WinUI")]
-    [DataRow((int)ModelInspectionOutcome.Ready, 1, 2)]
-    [DataRow((int)ModelInspectionOutcome.ReadyWithWarnings, 1, 2)]
+    [DataRow((int)ModelInspectionOutcome.Ready, 2, 1)]
+    [DataRow((int)ModelInspectionOutcome.ReadyWithWarnings, 2, 1)]
     [DataRow((int)ModelInspectionOutcome.ConversionRequired, 1, 2)]
     [DataRow((int)ModelInspectionOutcome.IncompletePackage, 2, 1)]
     [DataRow((int)ModelInspectionOutcome.Unsupported, 1, 1)]
@@ -246,15 +246,32 @@ public sealed class ModelInspectionPresentationFactoryTests
             .ToArray();
 
         Assert.AreEqual(expectedActiveCount, active.Length);
-        Assert.IsTrue(active.All(action =>
-            ReferenceEquals(chooseCommand, action.Command) &&
-            action.IsEnabled));
+        Assert.IsTrue(active.All(action => action.IsEnabled));
+        Assert.IsTrue(active.Any(action =>
+            ReferenceEquals(chooseCommand, action.Command)));
         Assert.AreEqual(expectedFutureCount, future.Length);
         Assert.IsTrue(future.All(action =>
             action.Visibility == Visibility.Visible &&
             !action.IsEnabled &&
             action.AutomationHelpText == "Coming later"));
         Assert.IsTrue(visible.All(action => !ReferenceEquals(retryCommand, action.Command)));
+    }
+
+    [TestMethod]
+    [TestCategory("WinUI")]
+    [DataRow((int)ModelInspectionOutcome.Ready)]
+    [DataRow((int)ModelInspectionOutcome.ReadyWithWarnings)]
+    public void Create_ReadyOutcomeOffersActiveOpenInChat(int outcomeValue)
+    {
+        ModelInspectionPagePresentation presentation = CreateTerminal(
+            ModelInspectionExecutionResult.Completed(
+                PresentationTestData.CreateResult(
+                    (ModelInspectionOutcome)outcomeValue)));
+
+        Assert.AreEqual("open-chat", presentation.ActionCard.PrimaryAction.ActionId);
+        Assert.AreEqual("Open in Chat", presentation.ActionCard.PrimaryAction.Text);
+        Assert.IsNotNull(presentation.ActionCard.PrimaryAction.Command);
+        Assert.IsTrue(presentation.ActionCard.PrimaryAction.IsEnabled);
     }
 
     [UITestMethod]
@@ -369,7 +386,8 @@ public sealed class ModelInspectionPresentationFactoryTests
             new ModelInspectionPresentationCommands(
                 PresentationTestData.CreateCommand(),
                 retryCommand ?? PresentationTestData.CreateCommand(),
-                chooseCommand ?? PresentationTestData.CreateCommand()),
+                chooseCommand ?? PresentationTestData.CreateCommand(),
+                PresentationTestData.CreateCommand()),
             isDisclosureExpanded: false,
             new InspectionProgressRows());
     }

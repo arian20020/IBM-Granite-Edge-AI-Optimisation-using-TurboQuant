@@ -10,9 +10,12 @@ From the repository root, run:
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Run-ChatPreview.ps1
 ```
 
-When Granite Edge AI opens, select **Preview Chat** in the upper-right corner.
-The preview runtime is deterministic and does not require a downloaded model.
-Its history is stored under `%LOCALAPPDATA%\GraniteEdgeAI\ChatHistory`.
+For real local generation, import a compatible GGUF model, wait for Model
+Inspection to finish, and select **Open in Chat**. The inspected file identity
+is carried into the packaged command-line runtime and checked again before the
+model loads. **Preview Chat** remains a deterministic UI-only preview that does
+not require or run a downloaded model. Chat history is stored under
+`%LOCALAPPDATA%\GraniteEdgeAI\ChatHistory`.
 
 The message composer can select `.txt` and `.md` knowledge files. These
 selections are presentation-only: every selected file is labelled **Not
@@ -47,6 +50,6 @@ roles, and license references. The standard package supports F16, Q8_0, and
 Q4_0 KV cache. Turbo3/Turbo4 remain a gated AtomicBot-fork package variant and
 are rejected by the standard backend rather than silently falling back.
 
-`OpenProductionChatAsync` is the trusted application handoff for an inspected
-model. The current onboarding button labelled **Preview Chat** intentionally
-opens the deterministic preview; it must not be described as real inference.
+`OpenProductionChatAsync` is the trusted application handoff for a Ready
+inspection. **Open in Chat** uses that handoff; **Preview Chat** intentionally
+opens the deterministic preview and must not be described as real inference.

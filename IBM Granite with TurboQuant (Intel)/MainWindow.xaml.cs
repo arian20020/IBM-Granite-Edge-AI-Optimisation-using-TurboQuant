@@ -1,7 +1,13 @@
 using GraniteEdgeAI.Features.GgufRuntime;
+using GraniteEdgeAI.Features.ModelInspection.Presentation;
 using GraniteEdgeAI.Features.Onboarding;
+using GraniteEdgeAI.GgufRuntime.Capabilities.Manifest;
+using GraniteEdgeAI.GgufRuntime.Transport;
+using GraniteEdgeAI.GgufRuntime.WorkerClient;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using System;
+using System.ComponentModel;
 using System.IO;
 using System.Threading.Tasks;
 
@@ -16,6 +22,7 @@ namespace GraniteEdgeAI
     public sealed partial class MainWindow : Window
     {
         private ChatDemoController? _chatDemoController;
+        private bool _productionChatOpenInProgress;
 
         public MainWindow()
         {
@@ -39,7 +46,93 @@ namespace GraniteEdgeAI
             if (rootFrame.Content is OnboardingShellPage onboarding)
             {
                 onboarding.ChatPreviewRequested += Onboarding_ChatPreviewRequested;
+                onboarding.ProductionChatRequested +=
+                    Onboarding_ProductionChatRequested;
             }
+        }
+
+        private async void Onboarding_ProductionChatRequested(
+            object? sender,
+            ModelInspectionChatRequestedEventArgs eventArguments)
+        {
+            if (_productionChatOpenInProgress)
+            {
+                eventArguments.ReportLaunchFailed();
+                return;
+            }
+
+            _productionChatOpenInProgress = true;
+            try
+            {
+                GgufChatLaunchRequest request =
+                    GgufInspectedModelLaunchFactory.Create(
+                        eventArguments.Request,
+                        eventArguments.Execution,
+                        GetPackagedGgufRuntimeRoot(AppContext.BaseDirectory));
+                if (sender is OnboardingShellPage onboarding)
+                {
+                    onboarding.ChatPreviewRequested -=
+                        Onboarding_ChatPreviewRequested;
+                    onboarding.ProductionChatRequested -=
+                        Onboarding_ProductionChatRequested;
+                }
+
+                await OpenProductionChatAsync(request);
+            }
+            catch (Exception exception) when (
+                IsExpectedProductionChatFailure(exception))
+            {
+                eventArguments.ReportLaunchFailed();
+                await ShowProductionChatFailureAsync();
+            }
+            catch
+            {
+                eventArguments.ReportLaunchFailed();
+                throw;
+            }
+            finally
+            {
+                _productionChatOpenInProgress = false;
+            }
+        }
+
+        internal static string GetPackagedGgufRuntimeRoot(
+            string appBaseDirectory)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(appBaseDirectory);
+            return Path.Combine(appBaseDirectory, "GgufRuntime");
+        }
+
+        private static bool IsExpectedProductionChatFailure(
+            Exception exception) => exception is
+                GgufChatLaunchException or
+                GgufRuntimeTrustException or
+                GgufTransportException or
+                GgufWorkerPolicyException or
+                IOException or
+                UnauthorizedAccessException or
+                Win32Exception or
+                TimeoutException or
+                OperationCanceledException;
+
+        private async Task ShowProductionChatFailureAsync()
+        {
+            if (rootFrame.Content is not FrameworkElement content ||
+                content.XamlRoot is null)
+            {
+                return;
+            }
+
+            var dialog = new ContentDialog
+            {
+                Title = "Could not open this model",
+                Content =
+                    "Granite Edge AI could not start local generation. " +
+                    "The model was not opened and the preview response was not used.",
+                CloseButtonText = "Close",
+                XamlRoot = content.XamlRoot
+            };
+            await dialog.ShowAsync();
         }
 
         private async void Onboarding_ChatPreviewRequested(
@@ -76,8 +169,8 @@ namespace GraniteEdgeAI
             if (rootFrame.Content is not ChatPage chatPage)
             {
                 ShowOnboarding();
-                throw new InvalidOperationException(
-                    "The application could not display the local chat page.");
+                throw new GgufChatLaunchException(
+                    "chat-page-navigation-failed");
             }
 
             chatPage.ImportModelRequested += ChatPage_ImportModelRequested;

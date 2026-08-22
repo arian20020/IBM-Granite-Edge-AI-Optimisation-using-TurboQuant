@@ -33,6 +33,15 @@ public sealed class OnboardingEntryPointTests
         }
     }
 
+    [TestMethod]
+    public void PackagedRuntimeRoot_IsTheGgufRuntimeChildDirectory()
+    {
+        string root = MainWindow.GetPackagedGgufRuntimeRoot(
+            @"C:\GraniteEdgeAI");
+
+        Assert.AreEqual(@"C:\GraniteEdgeAI\GgufRuntime", root);
+    }
+
     [UITestMethod]
     [TestCategory("WinUI")]
     public async Task UntrustedProductionChatRequestReturnsToOnboardingWithoutPreviewFallback()

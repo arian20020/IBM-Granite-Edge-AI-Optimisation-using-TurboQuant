@@ -571,6 +571,69 @@ public sealed class ModelInspectionPageNavigationTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
+    public async Task OpenInChatCommand_ForwardsExactReadyInspectionOnce()
+    {
+        var service = new ControlledInspectionService();
+        ModelInspectionExecutionResult execution =
+            ModelInspectionExecutionResult.Completed(CreateReadyResult());
+        service.QueueCall(execution);
+        ModelInspectionRequest request = CreateRequest();
+        var page = CreatePage(service, request);
+        ModelInspectionChatRequestedEventArgs? received = null;
+        int eventCount = 0;
+        page.ProductionChatRequested += (_, eventArguments) =>
+        {
+            eventCount++;
+            received = eventArguments;
+        };
+
+        await page.StartInspectionIfReadyAsync()!;
+        await DrainDispatcherAsync(page);
+        InspectionActionPresentation action =
+            AssertCompleteSnapshotApplied(page).ActionCard.PrimaryAction;
+
+        action.Command!.Execute(null);
+
+        Assert.AreEqual(1, eventCount);
+        Assert.IsNotNull(received);
+        Assert.AreSame(request, received.Request);
+        Assert.AreSame(execution, received.Execution);
+
+        action.Command.Execute(null);
+        Assert.AreEqual(1, eventCount);
+
+        received.ReportLaunchFailed();
+        await DrainDispatcherAsync(page);
+        action.Command.Execute(null);
+        Assert.AreEqual(2, eventCount);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task RetiredOpenInChatCommand_CannotLaunchReplacementRequest()
+    {
+        var service = new ControlledInspectionService();
+        service.QueueCall(ModelInspectionExecutionResult.Completed(
+            CreateReadyResult()));
+        var page = CreatePage(service, CreateRequest());
+        int eventCount = 0;
+        page.ProductionChatRequested += (_, _) => eventCount++;
+        await page.StartInspectionIfReadyAsync()!;
+        await DrainDispatcherAsync(page);
+        var retiredCommand = AssertCompleteSnapshotApplied(page)
+            .ActionCard.PrimaryAction.Command!;
+
+        InvokeNavigation(
+            page,
+            "OnNavigatedTo",
+            CreateRequest(@"C:\Models\replacement.gguf"));
+        retiredCommand.Execute(null);
+
+        Assert.AreEqual(0, eventCount);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
     public async Task NewNavigation_RetiresPriorViewModelBeforeStaleCallbacks()
     {
         var service = new ControlledInspectionService();

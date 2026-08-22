@@ -29,5 +29,7 @@ if (-not (Test-Path -LiteralPath $applicationPath -PathType Leaf)) {
     throw "The chat preview executable was not found. Run this script without -SkipBuild first."
 }
 
-Write-Host 'Opening Granite Edge AI. Select Preview Chat in the upper-right corner.'
+Write-Host 'Opening Granite Edge AI.'
+Write-Host 'For real local AI output: import a GGUF model, wait for inspection, then select Open in Chat.'
+Write-Host 'Preview Chat remains a deterministic UI-only preview and does not run a model.'
 Start-Process -FilePath $applicationPath -WorkingDirectory $outputRoot

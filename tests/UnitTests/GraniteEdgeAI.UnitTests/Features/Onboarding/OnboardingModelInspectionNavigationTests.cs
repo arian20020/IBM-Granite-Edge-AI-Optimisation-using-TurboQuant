@@ -424,6 +424,32 @@ public sealed class OnboardingModelInspectionNavigationTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
+    public void ActiveInspectionPage_ForwardsExactProductionChatEvidence()
+    {
+        var shell = new OnboardingShellPage();
+        var stageFrame = (Frame)shell.FindName("StageFrame");
+        ModelInspectionRequest request = CreateRequest(
+            @"C:\Models\ready.gguf");
+        Assert.IsTrue(shell.NavigateToModelInspection(request));
+        var page = (ModelInspectionPage)stageFrame.Content;
+        ModelInspectionExecutionResult execution =
+            CreateFailureResult("forwarding-sentinel");
+        var expected = new ModelInspectionChatRequestedEventArgs(
+            request,
+            execution);
+        ModelInspectionChatRequestedEventArgs? received = null;
+        shell.ProductionChatRequested += (_, eventArguments) =>
+            received = eventArguments;
+
+        RaiseProductionChatRequested(page, page, expected);
+
+        Assert.AreSame(expected, received);
+        Assert.AreSame(request, received!.Request);
+        Assert.AreSame(execution, received.Execution);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
     public void InactiveImportPage_CannotReplaceActiveInspection()
     {
         var shell = new OnboardingShellPage();
@@ -615,6 +641,22 @@ public sealed class OnboardingModelInspectionNavigationTests
         var eventHandler = eventField.GetValue(modelInspectionPage)
             as EventHandler;
         eventHandler?.Invoke(modelInspectionPage, EventArgs.Empty);
+    }
+
+    private static void RaiseProductionChatRequested(
+        ModelInspectionPage modelInspectionPage,
+        object sender,
+        ModelInspectionChatRequestedEventArgs eventArguments)
+    {
+        FieldInfo? eventField = typeof(ModelInspectionPage).GetField(
+            "ProductionChatRequested",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsNotNull(eventField);
+
+        var eventHandler = eventField.GetValue(modelInspectionPage) as
+            EventHandler<ModelInspectionChatRequestedEventArgs>;
+        Assert.IsNotNull(eventHandler);
+        eventHandler.Invoke(sender, eventArguments);
     }
 
     private static EventHandler CaptureChooseAnotherModelRequested(

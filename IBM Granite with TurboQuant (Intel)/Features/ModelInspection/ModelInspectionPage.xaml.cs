@@ -54,6 +54,7 @@ public sealed partial class ModelInspectionPage : Page
     private PendingSemanticFocusReclaim? _pendingSemanticFocusReclaim;
     private PendingCancelFocusRecovery? _pendingCancelFocusRecovery;
     private IDisposable? _activeDisclosureOperationAudit;
+    private bool _productionChatRequestPending;
 
     /// <summary>
     /// Creates the production page with the approved x64 Model Inspection
@@ -163,6 +164,9 @@ public sealed partial class ModelInspectionPage : Page
     internal event EventHandler<InspectionFooterStatusChangedEventArgs>?
         FooterStatusChanged;
 
+    internal event EventHandler<ModelInspectionChatRequestedEventArgs>?
+        ProductionChatRequested;
+
     internal ModelInspectionRequest? Request { get; private set; }
 
     internal ModelInspectionViewModel? ViewModel { get; private set; }
@@ -236,12 +240,18 @@ public sealed partial class ModelInspectionPage : Page
                 _service,
                 request,
                 startupBarrier);
+            long lifetime = checked(_navigationLifetime + 1);
             var commands = new ModelInspectionPresentationCommands(
                 viewModel.CancelCommand,
                 viewModel.RetryCommand,
-                viewModel.ChooseAnotherCommand);
+                viewModel.ChooseAnotherCommand,
+                new DelegateCommand(
+                    _ => RequestProductionChat(lifetime, request, viewModel),
+                    _ => CanRequestProductionChat(
+                        lifetime,
+                        request,
+                        viewModel)));
 
-            long lifetime = checked(_navigationLifetime + 1);
             var motionSettingsRegistration = new MotionSettingsChangeRegistration(
                 lifetime,
                 motionSettings,
@@ -506,6 +516,70 @@ public sealed partial class ModelInspectionPage : Page
         {
             ChooseAnotherModelRequested?.Invoke(this, EventArgs.Empty);
         }
+    }
+
+    private bool CanRequestProductionChat(
+        long lifetime,
+        ModelInspectionRequest request,
+        ModelInspectionViewModel viewModel)
+    {
+        ModelInspectionExecutionResult? execution = viewModel.Result;
+        return !_productionChatRequestPending &&
+            _hasActiveLifetime &&
+            _navigationLifetime == lifetime &&
+            ReferenceEquals(Request, request) &&
+            ReferenceEquals(ViewModel, viewModel) &&
+            execution?.Status == ModelInspectionExecutionStatus.Completed &&
+            execution.Result?.CanContinueToHardwareFit == true;
+    }
+
+    private void RequestProductionChat(
+        long lifetime,
+        ModelInspectionRequest request,
+        ModelInspectionViewModel viewModel)
+    {
+        ModelInspectionExecutionResult? execution = viewModel.Result;
+        if (execution is null ||
+            !CanRequestProductionChat(lifetime, request, viewModel))
+        {
+            return;
+        }
+
+        _productionChatRequestPending = true;
+        _coordinator?.RequestRender(viewModel.Snapshot);
+        EventHandler<ModelInspectionChatRequestedEventArgs>? handler =
+            ProductionChatRequested;
+        if (handler is null)
+        {
+            ReleaseProductionChatRequest(lifetime, request, viewModel);
+            return;
+        }
+
+        handler.Invoke(
+            this,
+            new ModelInspectionChatRequestedEventArgs(
+                request,
+                execution,
+                () => ReleaseProductionChatRequest(
+                    lifetime,
+                    request,
+                    viewModel)));
+    }
+
+    private void ReleaseProductionChatRequest(
+        long lifetime,
+        ModelInspectionRequest request,
+        ModelInspectionViewModel viewModel)
+    {
+        if (_navigationLifetime != lifetime ||
+            !ReferenceEquals(Request, request) ||
+            !ReferenceEquals(ViewModel, viewModel))
+        {
+            return;
+        }
+
+        _productionChatRequestPending = false;
+        _coordinator?.RequestRender(viewModel.Snapshot);
     }
 
     private void DisclosureToggleRequested(
@@ -1544,7 +1618,9 @@ public sealed partial class ModelInspectionPage : Page
             Interlocked.Exchange(ref _motionSettingsRegistration, null);
 
         _navigationLifetime = retiredLifetime;
+        _productionChatRequestPending = false;
         FooterStatusChanged = null;
+        ProductionChatRequested = null;
         Request = null;
         ViewModel = null;
         _startedViewModel = null;

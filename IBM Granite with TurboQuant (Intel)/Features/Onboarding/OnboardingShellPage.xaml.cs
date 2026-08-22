@@ -25,6 +25,9 @@ namespace GraniteEdgeAI.Features.Onboarding
 
         public event EventHandler? ChatPreviewRequested;
 
+        internal event EventHandler<ModelInspectionChatRequestedEventArgs>?
+            ProductionChatRequested;
+
         /// <summary>
         /// Creates the onboarding shell and displays the first stage.
         /// </summary>
@@ -115,6 +118,8 @@ namespace GraniteEdgeAI.Features.Onboarding
                 ModelInspectionPage_ChooseAnotherModelRequested;
             _attachedModelInspectionPage.FooterStatusChanged +=
                 ModelInspectionPage_FooterStatusChanged;
+            _attachedModelInspectionPage.ProductionChatRequested +=
+                ModelInspectionPage_ProductionChatRequested;
 
             // Navigation has already completed by the time the Frame hands
             // ownership to the shell, so sample the authoritative status now.
@@ -240,6 +245,26 @@ namespace GraniteEdgeAI.Features.Onboarding
             StageIndicator.InspectionStatus = eventArguments.Status;
         }
 
+        private void ModelInspectionPage_ProductionChatRequested(
+            object? sender,
+            ModelInspectionChatRequestedEventArgs eventArguments)
+        {
+            if (!ReferenceEquals(sender, _attachedModelInspectionPage))
+            {
+                return;
+            }
+
+            EventHandler<ModelInspectionChatRequestedEventArgs>? handler =
+                ProductionChatRequested;
+            if (handler is null)
+            {
+                eventArguments.ReportLaunchFailed();
+                return;
+            }
+
+            handler.Invoke(this, eventArguments);
+        }
+
         private void ChatPreviewButton_Click(
             object sender,
             Microsoft.UI.Xaml.RoutedEventArgs eventArguments)
@@ -315,6 +340,8 @@ namespace GraniteEdgeAI.Features.Onboarding
                 ModelInspectionPage_ChooseAnotherModelRequested;
             _attachedModelInspectionPage.FooterStatusChanged -=
                 ModelInspectionPage_FooterStatusChanged;
+            _attachedModelInspectionPage.ProductionChatRequested -=
+                ModelInspectionPage_ProductionChatRequested;
             _attachedModelInspectionPage = null;
         }
     }

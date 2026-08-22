@@ -695,27 +695,39 @@ internal static class ModelInspectionPresentationFactory
             {
                 Mode = InspectionActionCardMode.Result,
                 Title = "Model is ready",
-                Message = "Choose another model or review future next steps.",
+                Message = "Open this model in chat or choose another model.",
                 AutomationName = "Actions after model inspection",
                 SecondaryActionOne = choose,
                 SecondaryActionTwo = report,
-                PrimaryAction = CreateFutureAction(
-                    "hardware-fit",
-                    "Check hardware fit",
-                    "Check model hardware fit")
+                PrimaryAction = commands.SupportsOpenChat
+                    ? CreateActiveAction(
+                        "open-chat",
+                        "Open in Chat",
+                        "Open inspected model in chat",
+                        commands.OpenChat)
+                    : CreateFutureAction(
+                        "hardware-fit",
+                        "Check hardware fit",
+                        "Check model hardware fit")
             },
             ModelInspectionOutcome.ReadyWithWarnings => new()
             {
                 Mode = InspectionActionCardMode.Result,
                 Title = "Model is ready with warnings",
-                Message = "Choose another model or review future next steps.",
+                Message = "Open this model in chat or choose another model.",
                 AutomationName = "Actions after model inspection",
                 SecondaryActionOne = choose,
                 SecondaryActionTwo = report,
-                PrimaryAction = CreateFutureAction(
-                    "continue-hardware",
-                    "Continue to hardware check",
-                    "Continue to model hardware check")
+                PrimaryAction = commands.SupportsOpenChat
+                    ? CreateActiveAction(
+                        "open-chat",
+                        "Open in Chat",
+                        "Open inspected model in chat",
+                        commands.OpenChat)
+                    : CreateFutureAction(
+                        "continue-hardware",
+                        "Continue to hardware check",
+                        "Continue to model hardware check")
             },
             ModelInspectionOutcome.ConversionRequired => new()
             {
