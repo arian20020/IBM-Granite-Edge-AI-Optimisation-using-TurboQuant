@@ -248,7 +248,7 @@ function Get-OpenVinoClosedJsonText {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)][string]$Path,
-        [Parameter(Mandatory)][ValidateRange(1, 1048576)][int]$MaximumBytes,
+        [Parameter(Mandatory)][ValidateRange(1, 8388608)][int]$MaximumBytes,
         [Parameter(Mandatory)][ValidateRange(1, 64)][int]$MaximumDepth
     )
 

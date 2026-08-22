@@ -13,6 +13,7 @@ namespace GraniteEdgeAI.OpenVino.WorkerProcess.Tests;
 public sealed class ConversionEndToEndTests
 {
     [TestMethod]
+    [TestCategory("StableRouteAcceptance")]
     [Timeout(30_000)]
     public async Task CancellationInterruptsLargeClosureVerificationBeforeWorkerLaunch()
     {
@@ -53,6 +54,7 @@ public sealed class ConversionEndToEndTests
     }
 
     [TestMethod]
+    [TestCategory("StableRouteAcceptance")]
     [Timeout(600_000)]
     public async Task ProtectedOfflineConversionPublishesAnIndependentlyReadyPackage()
     {

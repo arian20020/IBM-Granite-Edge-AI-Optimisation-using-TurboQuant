@@ -21,6 +21,7 @@ public sealed class OptimizationEndToEndTests
     ];
 
     [TestMethod]
+    [TestCategory("StableRouteAcceptance")]
     [Timeout(600_000)]
     public async Task SealedWorkerProducesDistinctFp16Int8Int4PackagesOffline()
     {
@@ -86,6 +87,7 @@ public sealed class OptimizationEndToEndTests
     }
 
     [TestMethod]
+    [TestCategory("StableRouteAcceptance")]
     [Timeout(600_000)]
     public async Task RegisteredCandidatesPublishValidatedPackagesWithActualRuntimeEvidence()
     {

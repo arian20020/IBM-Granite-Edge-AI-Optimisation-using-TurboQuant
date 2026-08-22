@@ -71,6 +71,7 @@ public sealed class OfficialCpuFixtureTests
     }
 
     [TestMethod]
+    [TestCategory("StableRouteAcceptance")]
     public async Task CanonicalFixtureInspectsAndGeneratesFromTwoCleanClosures()
     {
         string stageA = RequireStage("OPENVINO_OFFICIAL_WORKER_STAGE_A");
@@ -98,6 +99,7 @@ public sealed class OfficialCpuFixtureTests
     }
 
     [TestMethod]
+    [TestCategory("StableRouteAcceptance")]
     public async Task RealCpuU8KvCacheRequestIsAppliedAndReportedBeforeGeneration()
     {
         string stage = RequireStage("OPENVINO_OFFICIAL_WORKER_STAGE_A");
@@ -131,6 +133,7 @@ public sealed class OfficialCpuFixtureTests
     }
 
     [TestMethod]
+    [TestCategory("StableRouteAcceptance")]
     public async Task RealCpuStopCancellationAndContextFailureAreBoundedAndLeaveNoResidue()
     {
         string stage = RequireStage("OPENVINO_OFFICIAL_WORKER_STAGE_A");
@@ -212,6 +215,7 @@ public sealed class OfficialCpuFixtureTests
     }
 
     [TestMethod]
+    [TestCategory("StableRouteAcceptance")]
     public async Task CorruptMainAndTokenizerModelsFailWithFixedPathFreeInspectionEvidence()
     {
         string stage = RequireStage("OPENVINO_OFFICIAL_WORKER_STAGE_A");
@@ -239,6 +243,7 @@ public sealed class OfficialCpuFixtureTests
     }
 
     [TestMethod]
+    [TestCategory("StableRouteAcceptance")]
     public async Task CorruptPackageSessionStartupEmitsOneTypedFailureAndLeavesNoResidue()
     {
         string stage = RequireStage("OPENVINO_OFFICIAL_WORKER_STAGE_A");
@@ -267,6 +272,7 @@ public sealed class OfficialCpuFixtureTests
     }
 
     [TestMethod]
+    [TestCategory("StableRouteAcceptance")]
     public async Task TerminationReleasesAllOwnedResourcesAndCreatesNoListenerOrTempArtifacts()
     {
         string sourceStage = RequireStage("OPENVINO_OFFICIAL_WORKER_STAGE_A");
@@ -327,6 +333,7 @@ public sealed class OfficialCpuFixtureTests
     }
 
     [TestMethod]
+    [TestCategory("StableRouteAcceptance")]
     public async Task RealWorkerExitsWhenItsManagedParentClosesPipesDuringGeneration()
     {
         string stage = RequireStage("OPENVINO_OFFICIAL_WORKER_STAGE_A");

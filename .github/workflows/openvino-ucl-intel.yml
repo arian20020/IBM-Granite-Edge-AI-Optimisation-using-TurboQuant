@@ -43,6 +43,7 @@ env:
   OPENVINO_EVIDENCE_COMMIT: ${{ inputs.target_commit }}
   OPENVINO_ARCHIVES: ${{ vars.OPENVINO_UCL_ARCHIVE_DIRECTORY }}
   OPENVINO_CONTROLLED_FIXTURE: ${{ vars.OPENVINO_UCL_FIXTURE_ROOT }}
+  OPENVINO_CONVERTER_CLOSURE: ${{ vars.OPENVINO_UCL_CONVERTER_CLOSURE }}
   OPENVINO_EXPECTED_MODEL_LENGTH: ${{ vars.OPENVINO_UCL_MODEL_LENGTH }}
   OPENVINO_EXPECTED_MODEL_SHA256: ${{ vars.OPENVINO_UCL_MODEL_SHA256 }}
   OPENVINO_EXPECTED_FIXTURE_MANIFEST_SHA256: dc5ef5060a0e8242291d98701ab2b65286169c863a12e573dd1ad7921ac92648
@@ -51,6 +52,9 @@ env:
   OPENVINO_STAGE_A: ${{ runner.temp }}/openvino-ucl-stage-a
   OPENVINO_STAGE_B: ${{ runner.temp }}/openvino-ucl-stage-b
   OPENVINO_RESULTS: ${{ runner.temp }}/openvino-ucl-results
+  OPENVINO_CONVERTER_BUILD: ${{ runner.temp }}/openvino-ucl-converter-build
+  OPENVINO_CONVERTER_STAGE: ${{ runner.temp }}/openvino-ucl-converter-stage
+  GRANITE_OPENVINO_CONVERTER_STAGE: ${{ runner.temp }}/openvino-ucl-converter-stage
   OPENVINO_EVIDENCE_FILE: artifacts/openvino/evidence/cpu.json
   OPENVINO_GPU_EVIDENCE_FILE: artifacts/openvino/gpu-evidence/gpu.json
 
@@ -64,7 +68,7 @@ jobs:
       - X64
       - workbook05
       - intel-target
-    timeout-minutes: 120
+    timeout-minutes: 210
 
     steps:
       - name: Fail closed before repository code on UCL-01 and immutable inputs
@@ -78,6 +82,7 @@ jobs:
             throw 'The reviewed target commit is not an exact lowercase SHA.'
           }
           foreach ($value in @($env:OPENVINO_ARCHIVES,$env:OPENVINO_CONTROLLED_FIXTURE,
+              $env:OPENVINO_CONVERTER_CLOSURE,
               $env:OPENVINO_EXPECTED_MODEL_LENGTH,$env:OPENVINO_EXPECTED_MODEL_SHA256)) {
             if ([string]::IsNullOrWhiteSpace($value)) {
               throw 'A controlled UCL input is unavailable.'
@@ -110,8 +115,9 @@ jobs:
 
       - name: Run retained trusted UCL CPU campaign
         id: evidence
-        timeout-minutes: 105
+        timeout-minutes: 180
         run: |
+          # Invoke-OpenVinoStableAcceptance.ps1 runs inside the sole retained-input campaign owner.
           $gpuArguments = @()
           if (-not [string]::IsNullOrWhiteSpace($env:OPENVINO_UCL_GPU_AUTHORIZATION) -or
               -not [string]::IsNullOrWhiteSpace($env:OPENVINO_UCL_GPU_DEVICE)) {
@@ -135,6 +141,9 @@ jobs:
             -BuildDirectoryB $env:OPENVINO_BUILD_B `
             -StageDirectoryA $env:OPENVINO_STAGE_A `
             -StageDirectoryB $env:OPENVINO_STAGE_B `
+            -ConverterClosureDirectory $env:OPENVINO_CONVERTER_CLOSURE `
+            -ConverterBuildDirectory $env:OPENVINO_CONVERTER_BUILD `
+            -ConverterStageDirectory $env:OPENVINO_CONVERTER_STAGE `
             -ResultsDirectory $env:OPENVINO_RESULTS `
             -EvidencePath $env:OPENVINO_EVIDENCE_FILE @gpuArguments
           if ($LASTEXITCODE -ne 0) { throw 'Retained trusted UCL campaign failed.' }
@@ -163,12 +172,16 @@ jobs:
           $ErrorActionPreference = 'Continue'
           $failed = $false
           $remaining = @(Get-Process -Name 'OpenVinoOfficial.Worker','GraniteEdgeAI.OpenVino.ProtocolTestWorker','GraniteEdgeAI.OpenVino.ParentExitFixture' -ErrorAction SilentlyContinue)
+          $converterPrefix = [IO.Path]::GetFullPath($env:OPENVINO_CONVERTER_STAGE).TrimEnd('\') + '\'
+          $remaining += @(Get-Process -Name 'python' -ErrorAction SilentlyContinue |
+            Where-Object { $_.Path -and [IO.Path]::GetFullPath($_.Path).StartsWith(
+              $converterPrefix,[StringComparison]::OrdinalIgnoreCase) })
           if ($remaining.Count -ne 0) {
             $remaining | Stop-Process -Force -ErrorAction SilentlyContinue
             $failed = $true
           }
           $tempRoot = [IO.Path]::GetFullPath($env:RUNNER_TEMP).TrimEnd('\') + '\'
-          foreach ($owned in @($env:OPENVINO_BUILD_A,$env:OPENVINO_BUILD_B,$env:OPENVINO_STAGE_A,$env:OPENVINO_STAGE_B,$env:OPENVINO_RESULTS)) {
+          foreach ($owned in @($env:OPENVINO_BUILD_A,$env:OPENVINO_BUILD_B,$env:OPENVINO_STAGE_A,$env:OPENVINO_STAGE_B,$env:OPENVINO_RESULTS,$env:OPENVINO_CONVERTER_BUILD,$env:OPENVINO_CONVERTER_STAGE)) {
             $full = [IO.Path]::GetFullPath($owned)
             if (-not $full.StartsWith($tempRoot,[StringComparison]::OrdinalIgnoreCase)) {
               $failed = $true

@@ -11,6 +11,9 @@ param(
     [Parameter(Mandatory)][string]$BuildDirectoryB,
     [Parameter(Mandatory)][string]$StageDirectoryA,
     [Parameter(Mandatory)][string]$StageDirectoryB,
+    [Parameter(Mandatory)][string]$ConverterClosureDirectory,
+    [Parameter(Mandatory)][string]$ConverterBuildDirectory,
+    [Parameter(Mandatory)][string]$ConverterStageDirectory,
     [Parameter(Mandatory)][string]$ResultsDirectory,
     [Parameter(Mandatory)][string]$EvidencePath,
     [string]$GpuAuthorization = '',
@@ -53,6 +56,9 @@ try {
     $buildB = [IO.Path]::GetFullPath($BuildDirectoryB)
     $stageA = [IO.Path]::GetFullPath($StageDirectoryA)
     $stageB = [IO.Path]::GetFullPath($StageDirectoryB)
+    $converterClosure = [IO.Path]::GetFullPath($ConverterClosureDirectory)
+    $converterBuild = [IO.Path]::GetFullPath($ConverterBuildDirectory)
+    $converterStage = [IO.Path]::GetFullPath($ConverterStageDirectory)
     $results = [IO.Path]::GetFullPath($ResultsDirectory)
     $evidence = [IO.Path]::GetFullPath($EvidencePath)
     $gpuRequested = -not [string]::IsNullOrWhiteSpace($GpuAuthorization) -or
@@ -69,17 +75,21 @@ try {
         $gpuEvidence = [IO.Path]::GetFullPath($GpuEvidencePath)
     }
     $measurements = Join-Path $results 'measurements.json'
-    foreach ($output in @($buildA,$buildB,$stageA,$stageB,$results,$evidence)) {
+    foreach ($output in @($buildA,$buildB,$stageA,$stageB,$converterBuild,
+        $converterStage,$results,$evidence)) {
         if ((Test-EqualOrContained $output $archives) -or
-            (Test-EqualOrContained $output $fixture)) {
+            (Test-EqualOrContained $output $fixture) -or
+            (Test-EqualOrContained $output $converterClosure)) {
             throw 'campaign-output-overlaps-trusted-input'
         }
     }
     if ($gpuRequested -and ((Test-EqualOrContained $gpuEvidence $archives) -or
-        (Test-EqualOrContained $gpuEvidence $fixture))) {
+        (Test-EqualOrContained $gpuEvidence $fixture) -or
+        (Test-EqualOrContained $gpuEvidence $converterClosure))) {
         throw 'campaign-gpu-output-overlaps-trusted-input'
     }
-    foreach ($absent in @($buildA,$buildB,$stageA,$stageB,$results,(Split-Path -Parent $evidence))) {
+    foreach ($absent in @($buildA,$buildB,$stageA,$stageB,$converterBuild,
+        $converterStage,$results,(Split-Path -Parent $evidence))) {
         if (Test-Path -LiteralPath $absent) { throw 'campaign-output-not-absent' }
     }
     if ($gpuRequested -and (Test-Path -LiteralPath (Split-Path -Parent $gpuEvidence))) {
@@ -96,7 +106,7 @@ try {
     if ($manufacturer -notmatch 'GenuineIntel|Intel') { throw 'campaign-cpu-not-intel' }
 
     Import-Module (Join-Path $PSScriptRoot 'OpenVinoTrustedInputLease.psm1') -Force
-    [string[]]$roots = @($archives, $fixture)
+    [string[]]$roots = @($archives, $fixture, $converterClosure)
     $snapshot = @(Get-OpenVinoTrustedInputSnapshot -Roots $roots)
     $lease = New-OpenVinoTrustedInputLease -Snapshot $snapshot
 
@@ -111,6 +121,16 @@ try {
     Invoke-ExactScript (Join-Path $PSScriptRoot 'Test-OpenVinoGenAiFixture.ps1') `
         @('-FixtureRoot',$fixture) 'fixture_valid'
     Assert-OpenVinoTrustedInputLeaseUnchanged -Lease $lease
+
+    Invoke-ExactScript (Join-Path $PSScriptRoot 'Test-OpenVinoDependencyLocks.ps1') `
+        @('-ClosureDirectory',$converterClosure,'-Scope','Converter') 'dependency_lock_valid'
+    & powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
+        -File (Join-Path $PSScriptRoot 'Build-OpenVinoConverterWorker.ps1') `
+        -ClosureDirectory $converterClosure -BuildDirectory $converterBuild `
+        -StageDirectory $converterStage
+    if ($LASTEXITCODE -ne 0) { throw 'campaign-converter-build-failed' }
+    Assert-OpenVinoTrustedInputLeaseUnchanged -Lease $lease
+    Assert-OpenVinoTrustedInputSnapshot -Roots $roots -Expected $snapshot
 
     New-Item -ItemType Directory -Path $results | Out-Null
     foreach ($closure in @(
@@ -161,6 +181,7 @@ try {
 
     $env:OPENVINO_OFFICIAL_WORKER_STAGE_A = $stageA
     $env:OPENVINO_OFFICIAL_WORKER_STAGE_B = $stageB
+    $env:GRANITE_OPENVINO_CONVERTER_STAGE = $converterStage
     $env:OPENVINO_UCL_CONTROLLED_FIXTURE_ROOT = $fixture
     $env:OPENVINO_UCL_CONTROLLED_FIXTURE_MANIFEST_SHA256 = $ExpectedFixtureManifestSha256
     Invoke-DotNetGate @('test','--project',
@@ -185,6 +206,13 @@ try {
     }
     Copy-Item -LiteralPath (Join-Path $results 'process-containment-3.trx') `
         -Destination (Join-Path $results 'process-containment.trx')
+    Invoke-DotNetGate @('test','--project',
+        'tests/IntegrationTests/GraniteEdgeAI.OpenVino.WorkerProcess.Tests/GraniteEdgeAI.OpenVino.WorkerProcess.Tests.csproj',
+        '--configuration','Release','-p:Platform=x64','--filter',
+        'TestCategory=StableRouteAcceptance','--minimum-expected-tests','12',
+        '--results-directory',$results,'--report-trx','--report-trx-filename',
+        'stable-route-acceptance.trx') 'stable-acceptance'
+    Assert-OpenVinoTrustedInputLeaseUnchanged -Lease $lease
 
     if ($gpuRequested) {
         $intelAdapters = @(Get-CimInstance Win32_VideoController | Where-Object {
@@ -282,6 +310,31 @@ try {
         @('-FixtureRoot',$fixture) 'fixture_valid'
     Invoke-ExactScript (Join-Path $PSScriptRoot 'Test-OpenVinoEvidenceArtifactSet.ps1') `
         @('-EvidencePath',$evidence) 'evidence_artifact_set_valid'
+    $configurationIdentity = (Get-FileHash -LiteralPath (Join-Path $workspace `
+        'IBM Granite with TurboQuant (Intel)/Features/OpenVinoRoute/Optimization/OpenVinoOptimizationCandidate.cs') `
+        -Algorithm SHA256).Hash.ToLowerInvariant()
+    $driverIdentity = if ($gpuRequested) {
+        $ExpectedGpuDriverVersion
+    } else {
+        'windows-' + [string](Get-CimInstance Win32_OperatingSystem).BuildNumber
+    }
+    $stableArguments = @(
+        '-ExpectedCommitSha',$ExpectedCommitSha,
+        '-OfficialStageA',$stageA,'-OfficialStageB',$stageB,
+        '-ConverterStage',$converterStage,'-ResultsDirectory',$results,
+        '-CpuEvidencePath',$evidence,'-ModelIdentity',$ExpectedModelSha256,
+        '-ModelIdentityPath',(Join-Path $fixture 'package/openvino_model.bin'),
+        '-ConfigurationIdentity',$configurationIdentity,
+        '-ConfigurationIdentityPath',(Join-Path $workspace `
+            'IBM Granite with TurboQuant (Intel)/Features/OpenVinoRoute/Optimization/OpenVinoOptimizationCandidate.cs'),
+        '-GpuDisposition',$(if ($gpuRequested) { 'proven' } else { 'runtime_device_unavailable' }),
+        '-driverIdentity',$driverIdentity)
+    if ($gpuRequested) {
+        $stableArguments += @('-GpuEvidencePath',$gpuEvidence,
+            '-ExpectedGpuDevice',$GpuDevice,'-ExpectedGpuName',$ExpectedGpuName)
+    }
+    Invoke-ExactScript (Join-Path $PSScriptRoot 'Invoke-OpenVinoStableAcceptance.ps1') `
+        $stableArguments 'stable_route_accepted'
     Assert-OpenVinoTrustedInputLeaseUnchanged -Lease $lease
     Assert-OpenVinoTrustedInputSnapshot -Roots $roots -Expected $snapshot
 
