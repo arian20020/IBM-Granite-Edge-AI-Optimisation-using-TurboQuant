@@ -19,6 +19,14 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
     <DefineConstants>$(DefineConstants);MODEL_INSPECTION_FIXTURE_GALLERY</DefineConstants>
   </PropertyGroup>
+
+  <!-- Opt-in reviewer build: opens onto the compatibility screen gallery so
+       every state can be looked at. Off unless asked for, so a normal build
+       behaves exactly as before.
+         dotnet build ... -p:CompatibilityFixtureGallery=true -->
+  <PropertyGroup Condition="'$(CompatibilityFixtureGallery)' == 'true'">
+    <DefineConstants>$(DefineConstants);COMPATIBILITY_FIXTURE_GALLERY</DefineConstants>
+  </PropertyGroup>
   <ItemGroup>
     <Compile Remove="Features\ModelInspection\DebugFixtures\**" />
     <Page Remove="Features\ModelInspection\DebugFixtures\**" />

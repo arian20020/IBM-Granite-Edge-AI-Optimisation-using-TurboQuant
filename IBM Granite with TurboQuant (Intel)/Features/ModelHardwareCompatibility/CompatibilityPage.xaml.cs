@@ -41,8 +41,21 @@ internal sealed partial class CompatibilityPage : Page
 
         // One automatic attempt per navigation: arriving here starts the check,
         // because that is the only reason to be on this page.
-        Loaded += async (_, _) => await ViewModel.StartAsync();
+        Loaded += async (_, _) =>
+        {
+            if (StartAutomatically)
+            {
+                await ViewModel.StartAsync();
+            }
+        };
     }
+
+    /// <summary>
+    /// False only when something else is driving what this page shows — the
+    /// fixture gallery, which would otherwise have its chosen state immediately
+    /// replaced by a real attempt.
+    /// </summary>
+    internal bool StartAutomatically { get; set; } = true;
 
     /// <summary>
     /// Owned by the page for the lifetime of one navigation, so a check started
