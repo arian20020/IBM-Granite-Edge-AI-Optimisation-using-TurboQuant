@@ -12,6 +12,32 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+function Get-Sha256 {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path
+    )
+
+    $stream = [System.IO.File]::Open(
+        $Path,
+        [System.IO.FileMode]::Open,
+        [System.IO.FileAccess]::Read,
+        [System.IO.FileShare]::Read)
+    try {
+        $algorithm = [System.Security.Cryptography.SHA256]::Create()
+        try {
+            return ([System.BitConverter]::ToString(
+                $algorithm.ComputeHash($stream))).Replace('-', '').ToLowerInvariant()
+        }
+        finally {
+            $algorithm.Dispose()
+        }
+    }
+    finally {
+        $stream.Dispose()
+    }
+}
+
 function Test-IsWithinDirectory {
     param(
         [Parameter(Mandatory = $true)]
@@ -125,9 +151,7 @@ foreach ($relativePath in $sortedRelativePaths) {
     $entries.Add([ordered]@{
         path = $relativePath
         length = [long]$fileInfo.Length
-        sha256 = (Get-FileHash `
-            -LiteralPath $fullPath `
-            -Algorithm SHA256).Hash.ToLowerInvariant()
+        sha256 = Get-Sha256 -Path $fullPath
     })
 }
 
