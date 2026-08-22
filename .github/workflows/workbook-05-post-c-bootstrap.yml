@@ -1,35 +1,16 @@
 name: Workbook 05 post-C workbook bootstrap
 
 on:
-  push:
-    branches:
-      - feature/workbook-05-post-c-workbook-pack
-    paths:
-      - '.github/workflows/workbook-05-post-c-bootstrap.yml'
-      - '.github/workflows/workbook-05-post-c-workbooks.yml'
-      - 'scripts/testing/Generate-Controlled-Workbooks.py'
-      - 'scripts/testing/Validate-Workbook05-PostC-Workbooks.ps1'
-      - 'scripts/testing/workbook05/bootstrap_post_c_workbooks.py'
-      - 'scripts/testing/workbook05/post_c_workbook_pack.py'
-      - 'tests/testing/workbook05/test_post_c_workbook_pack.py'
-      - '.bootstrap/workbook05-post-c-source.b64.part-*'
   pull_request:
     branches:
       - main
     paths:
       - '.github/workflows/workbook-05-post-c-bootstrap.yml'
-      - '.github/workflows/workbook-05-post-c-workbooks.yml'
-      - 'scripts/testing/Generate-Controlled-Workbooks.py'
-      - 'scripts/testing/Validate-Workbook05-PostC-Workbooks.ps1'
-      - 'scripts/testing/workbook05/bootstrap_post_c_workbooks.py'
-      - 'scripts/testing/workbook05/post_c_workbook_pack.py'
-      - 'tests/testing/workbook05/test_post_c_workbook_pack.py'
       - '.bootstrap/workbook05-post-c-source.b64.part-*'
   workflow_dispatch:
 
-# This is a one-time materialisation workflow. It may write only the reviewed
-# post-C workbook pack back to its dedicated feature branch. It cannot reach a
-# self-hosted runner, download a model, or execute an inference workload.
+# This workflow exists only to materialise the reviewed source payload once.
+# It is deleted together with that payload in the generated pack commit.
 permissions:
   contents: write
   actions: read
@@ -72,6 +53,7 @@ jobs:
       - name: Restore and verify the reviewed source payload
         shell: powershell
         run: |
+          $ErrorActionPreference = 'Stop'
           $parts = @(
               Get-ChildItem `
                   -LiteralPath '.\.bootstrap' `
@@ -80,8 +62,9 @@ jobs:
                   Sort-Object Name
           )
           if ($parts.Count -ne 3) {
-              throw "Expected exactly three reviewed source-payload parts; found $($parts.Count)."
+              throw "Expected exactly three source-payload parts; found $($parts.Count)."
           }
+
           $encoded = [string]::Concat(@(
               $parts | ForEach-Object {
                   Get-Content -LiteralPath $_.FullName -Raw -Encoding utf8
@@ -92,32 +75,84 @@ jobs:
               $archivePath,
               [Convert]::FromBase64String($encoded)
           )
+
           $expectedDigest = 'fa2bfe925a95fcf9849941bad568cbd5638eb71a58d9fc6aafa621928c48bc0e'
           $actualDigest = (
               Get-FileHash -LiteralPath $archivePath -Algorithm SHA256
           ).Hash.ToLowerInvariant()
           if ($actualDigest -cne $expectedDigest) {
-              throw "Reviewed source-payload digest mismatch. Expected $expectedDigest; observed $actualDigest."
+              throw "Payload digest mismatch. Expected $expectedDigest; observed $actualDigest."
           }
+
           python -c "import pathlib,sys,tarfile; tarfile.open(sys.argv[1], 'r:gz').extractall(pathlib.Path(sys.argv[2]), filter='data')" `
               $archivePath `
               $env:GITHUB_WORKSPACE
           if ($LASTEXITCODE -ne 0) {
               throw "Source-payload extraction exited with code $LASTEXITCODE."
           }
-          $requiredSources = @(
-              '.\.github\workflows\workbook-05-post-c-workbooks.yml',
-              '.\scripts\testing\Generate-Controlled-Workbooks.py',
-              '.\scripts\testing\Validate-Workbook05-PostC-Workbooks.ps1',
-              '.\scripts\testing\workbook05\bootstrap_post_c_workbooks.py',
-              '.\scripts\testing\workbook05\post_c_workbook_pack.py',
-              '.\tests\testing\workbook05\test_post_c_workbook_pack.py'
-          )
-          foreach ($requiredSource in $requiredSources) {
-              if (-not (Test-Path -LiteralPath $requiredSource -PathType Leaf)) {
-                  throw "Restored source is missing: $requiredSource"
+
+      - name: Apply the Windows PowerShell relative-path compatibility repair
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $validatorPath = '.\scripts\testing\Validate-Workbook05-PostC-Workbooks.ps1'
+          $text = [IO.File]::ReadAllText($validatorPath)
+          $needle = '[IO.Path]::GetRelativePath'
+          if (-not $text.Contains($needle)) {
+              throw "Expected compatibility boundary was not found in $validatorPath."
+          }
+
+          $helper = @'
+          if (-not ('Wb05PathCompat' -as [type])) {
+              Add-Type -TypeDefinition @"
+          using System;
+          using System.IO;
+
+          public static class Wb05PathCompat
+          {
+              public static string GetRelativePath(string relativeTo, string path)
+              {
+                  if (string.IsNullOrWhiteSpace(relativeTo))
+                  {
+                      throw new ArgumentException("A base path is required.", "relativeTo");
+                  }
+                  if (string.IsNullOrWhiteSpace(path))
+                  {
+                      throw new ArgumentException("A target path is required.", "path");
+                  }
+
+                  string basePath = Path.GetFullPath(relativeTo);
+                  if (!basePath.EndsWith(Path.DirectorySeparatorChar.ToString(), StringComparison.Ordinal))
+                  {
+                      basePath += Path.DirectorySeparatorChar;
+                  }
+
+                  Uri baseUri = new Uri(basePath, UriKind.Absolute);
+                  Uri targetUri = new Uri(Path.GetFullPath(path), UriKind.Absolute);
+                  if (!string.Equals(baseUri.Scheme, targetUri.Scheme, StringComparison.OrdinalIgnoreCase))
+                  {
+                      return targetUri.LocalPath;
+                  }
+
+                  string value = Uri.UnescapeDataString(
+                      baseUri.MakeRelativeUri(targetUri).ToString()
+                  );
+                  return value.Replace('/', Path.DirectorySeparatorChar);
               }
           }
+          "@
+          }
+
+          '@
+          $repaired = $helper + $text.Replace(
+              $needle,
+              '[Wb05PathCompat]::GetRelativePath'
+          )
+          [IO.File]::WriteAllText(
+              $validatorPath,
+              $repaired,
+              [Text.UTF8Encoding]::new($false)
+          )
 
       - name: Install the pinned workbook toolchain
         shell: powershell
@@ -135,6 +170,7 @@ jobs:
       - name: Run the complete pack gate in one batch
         shell: powershell
         run: |
+          $ErrorActionPreference = 'Stop'
           $artifactDirectory = Join-Path `
               $env:RUNNER_TEMP `
               'workbook-05-post-c-pack'
@@ -146,12 +182,13 @@ jobs:
           )
           $gateOutput | ForEach-Object { Write-Host $_ }
           if ($gateOutput -notcontains 'WORKBOOK05_POST_C_WORKBOOK_PACK_PASS') {
-              throw 'The complete post-C workbook PASS marker was not emitted.'
+              throw 'The controlled PASS marker was not emitted.'
           }
 
-      - name: Verify only the intended workbook pack changed
+      - name: Verify only reviewed workbook-pack paths changed
         shell: powershell
         run: |
+          $ErrorActionPreference = 'Stop'
           git diff --check
           if ($LASTEXITCODE -ne 0) {
               throw "git diff --check exited with code $LASTEXITCODE."
@@ -186,51 +223,31 @@ jobs:
           )
           if ($unexpected.Count -ne 0) {
               throw (
-                  "Bootstrap changed files outside the reviewed workbook pack:`n" +
+                  "Files outside the reviewed pack changed:`n" +
                   ($unexpected -join "`n")
               )
           }
 
-      - name: Remove the one-time encoded source payload
+      - name: Remove one-time bootstrap material
         shell: powershell
         run: |
+          Remove-Item -LiteralPath '.\.bootstrap' -Recurse -Force
           Remove-Item `
-              -LiteralPath '.\.bootstrap' `
-              -Recurse `
+              -LiteralPath '.\.github\workflows\workbook-05-post-c-bootstrap.yml' `
               -Force
 
-      - name: Commit the deterministic workbook pack to the feature branch
+      - name: Commit the deterministic workbook pack to the PR branch
         id: commit-pack
         shell: powershell
         env:
           TARGET_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
         run: |
+          $ErrorActionPreference = 'Stop'
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
 
-          git add -A -- `
-              '.bootstrap' `
-              '.github/workflows/workbook-05-post-c-workbooks.yml' `
-              'docs/superpowers/plans/2026-08-22-workbook-05-post-c-workbook-pack.md' `
-              'docs/testing/Workbook-05-Post-C-Configuration-Matrix-v1.csv' `
-              'docs/testing/Workbook-05-Post-C-Evidence-Register-v1.csv' `
-              'docs/testing/Workbook-05-Post-C-Execution-Index-v1.csv' `
-              'docs/testing/Workbook-05-Post-C-Revision-Register-v1.csv' `
-              'docs/testing/workbooks/Controlled-Workbook-Manifest.csv' `
-              'docs/testing/workbooks/README.md' `
-              'docs/testing/workbooks/Workbook-05-Post-C-Pack-Manifest-v1.json' `
-              'docs/testing/workbooks/generated' `
-              'docs/testing/workbooks/text-templates' `
-              'scripts/testing/Generate-Controlled-Workbooks.py' `
-              'scripts/testing/Validate-Workbook05-PostC-Workbooks.ps1' `
-              'scripts/testing/workbook05/bootstrap_post_c_workbooks.py' `
-              'scripts/testing/workbook05/post_c_workbook_pack.py' `
-              'tests/testing/workbook05/test_post_c_workbook_pack.py'
-
-          if (git diff --cached --quiet) {
-              Write-Host 'The deterministic workbook pack was already current.'
-          }
-          else {
+          if (-not (git diff --cached --quiet)) {
               git commit -m 'chore(workbook05): materialise post-C workbook pack'
               if ($LASTEXITCODE -ne 0) {
                   throw "git commit exited with code $LASTEXITCODE."
@@ -295,13 +312,13 @@ jobs:
           name: workbook-05-post-c-pack-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}\workbook-05-post-c-pack
 
-      - name: Re-run all focused workbook contracts
+      - name: Re-run focused workbook contracts
         shell: powershell
         run: >-
           python -m unittest -v
           tests.testing.workbook05.test_post_c_workbook_pack
 
-      - name: Validate the uploaded artifact as untrusted data
+      - name: Validate the artifact as untrusted data
         shell: powershell
         run: |
           $artifactRoot = Join-Path `
