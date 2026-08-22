@@ -55,7 +55,7 @@ public sealed class LlamaSharpInferenceEngineTests
     }
 
     [TestMethod]
-    public void CreateInferenceParametersUsesGreedyTurnBoundaries()
+    public void CreateInferenceParametersUsesRepeatResistantTurnBoundaries()
     {
         InferenceParams inference = LlamaSharpInferenceEngine.CreateInferenceParameters(
             new GgufAdapterOptions(
@@ -70,12 +70,18 @@ public sealed class LlamaSharpInferenceEngineTests
                 512));
 
         Assert.AreEqual(512, inference.MaxTokens);
-        Assert.IsInstanceOfType<GreedySamplingPipeline>(inference.SamplingPipeline);
+        DefaultSamplingPipeline sampling = Assert.IsInstanceOfType<DefaultSamplingPipeline>(
+            inference.SamplingPipeline);
+        Assert.AreEqual(42u, sampling.Seed);
+        Assert.AreEqual(0.2f, sampling.Temperature);
+        Assert.AreEqual(1.1f, sampling.RepeatPenalty);
         CollectionAssert.Contains(inference.AntiPrompts.ToList(), "\nUser:");
         CollectionAssert.Contains(inference.AntiPrompts.ToList(), "\nuser:");
         CollectionAssert.Contains(inference.AntiPrompts.ToList(), "\nAssistant:");
         CollectionAssert.Contains(inference.AntiPrompts.ToList(), "\nassistant:");
-        CollectionAssert.Contains(inference.AntiPrompts.ToList(), "\nMe:");
-        CollectionAssert.Contains(inference.AntiPrompts.ToList(), "\nme:");
+        CollectionAssert.DoesNotContain(inference.AntiPrompts.ToList(), "\nMe:");
+        CollectionAssert.DoesNotContain(inference.AntiPrompts.ToList(), "\nme:");
+        CollectionAssert.DoesNotContain(inference.AntiPrompts.ToList(), "\n```\n```");
+        CollectionAssert.DoesNotContain(inference.AntiPrompts.ToList(), "\r\n```\r\n```");
     }
 }

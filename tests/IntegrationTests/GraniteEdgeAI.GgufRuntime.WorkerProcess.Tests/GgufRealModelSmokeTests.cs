@@ -10,6 +10,7 @@ public sealed class GgufRealModelSmokeTests
 {
     private const string ConfigurationVariable =
         "GRANITE_GGUF_RUNTIME_TEST_CONFIG";
+    private static readonly TimeSpan RegexTimeout = TimeSpan.FromSeconds(1);
 
     [TestMethod]
     [TestCategory("ControlledRuntime")]
@@ -43,11 +44,11 @@ public sealed class GgufRealModelSmokeTests
 
         IReadOnlyList<GgufRuntimeEvent> first = await CollectAsync(
             session.GenerateAsync(
-                "Reply with exactly one word: READY",
+                "Hello!",
                 timeout.Token));
         IReadOnlyList<GgufRuntimeEvent> second = await CollectAsync(
             session.GenerateAsync(
-                "Reply with exactly one word: CONTINUE",
+                "How are you?",
                 timeout.Token));
         Assert.IsTrue(first.OfType<TextDeltaEvent>().Any());
         Assert.IsTrue(second.OfType<TextDeltaEvent>().Any());
@@ -87,10 +88,14 @@ public sealed class GgufRealModelSmokeTests
         Assert.IsFalse(string.IsNullOrWhiteSpace(text));
         Assert.IsFalse(Regex.IsMatch(
             text,
-            @"(?im)^\s*(?:me|user|assistant)\s*:"));
+            @"(?im)^\s*(?:me|user|assistant)\s*:",
+            RegexOptions.None,
+            RegexTimeout));
         Assert.IsFalse(Regex.IsMatch(
             text,
-            @"(?m)(?:^\s*```\s*$\r?\n){2,}"));
+            @"(?ms)^\s*```\s*$\s*^\s*```\s*$",
+            RegexOptions.None,
+            RegexTimeout));
     }
 
     private static async Task<IReadOnlyList<GgufRuntimeEvent>> CollectAsync(

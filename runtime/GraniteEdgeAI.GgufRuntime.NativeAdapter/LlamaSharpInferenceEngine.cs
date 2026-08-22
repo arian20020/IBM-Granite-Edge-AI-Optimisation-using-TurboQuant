@@ -106,14 +106,16 @@ internal sealed class LlamaSharpInferenceEngine(GgufAdapterOptions options)
             MaxTokens = Math.Min(
                 configuration.MaximumGeneratedTokens,
                 checked((int)configuration.ContextSize / 2)),
-            SamplingPipeline = new GreedySamplingPipeline(),
+            SamplingPipeline = new DefaultSamplingPipeline
+            {
+                Seed = 42,
+                Temperature = 0.2f,
+                RepeatPenalty = 1.1f,
+            },
             AntiPrompts =
             [
                 "\nUser:", "\nuser:",
                 "\nAssistant:", "\nassistant:",
-                "\nMe:", "\nme:",
-                "\n```\n```", "\r\n```\r\n```",
-                "\n```\n\n```", "\r\n```\r\n\r\n```",
             ],
         };
     }
