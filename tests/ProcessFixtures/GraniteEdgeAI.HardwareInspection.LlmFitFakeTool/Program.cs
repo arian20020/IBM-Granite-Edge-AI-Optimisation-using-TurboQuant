@@ -8,9 +8,16 @@ return await RunAsync(args).ConfigureAwait(false);
 
 static async Task<int> RunAsync(string[] arguments)
 {
+    string modePath = Path.Combine(Directory.GetCurrentDirectory(), "fake-mode.txt");
+    if (!File.Exists(modePath))
+    {
+        return 64;
+    }
+
+    string mode = await File.ReadAllTextAsync(modePath).ConfigureAwait(false);
     if (arguments.SequenceEqual(["--version"], StringComparer.Ordinal))
     {
-        Console.Out.WriteLine("llmfit 1.1.9");
+        Console.Out.WriteLine(mode == "version-mismatch" ? "llmfit 9.9.9" : "llmfit 1.1.9");
         return 0;
     }
 
@@ -19,13 +26,6 @@ static async Task<int> RunAsync(string[] arguments)
         return 64;
     }
 
-    string modePath = Path.Combine(Directory.GetCurrentDirectory(), "fake-mode.txt");
-    if (!File.Exists(modePath))
-    {
-        return 64;
-    }
-
-    string mode = await File.ReadAllTextAsync(modePath).ConfigureAwait(false);
     if (mode is "sleep" or "sleep-child")
     {
         await File.WriteAllTextAsync(
@@ -37,6 +37,7 @@ static async Task<int> RunAsync(string[] arguments)
     return mode switch
     {
         "success" => WriteSuccess(),
+        "invalid-json" => WriteInvalidJson(),
         "nonzero" => WriteNonzero(),
         "large-output" => await WriteLargeOutputAsync().ConfigureAwait(false),
         "sleep" => await SleepAsync().ConfigureAwait(false),
@@ -133,6 +134,12 @@ static async Task<int> SpawnChildAsync()
             child.Id.ToString(CultureInfo.InvariantCulture))
         .ConfigureAwait(false);
     await Task.Delay(TimeSpan.FromMinutes(5)).ConfigureAwait(false);
+    return 0;
+}
+
+static int WriteInvalidJson()
+{
+    Console.Out.WriteLine("{\"system\":");
     return 0;
 }
 
