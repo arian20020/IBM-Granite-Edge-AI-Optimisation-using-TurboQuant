@@ -25,6 +25,22 @@ public static class WorkerEnvironmentPolicy
         "DOTNET_ROOT_X64"
     ];
 
+    private static readonly string[] ConverterPathKeys =
+    [
+        "SystemRoot", "WINDIR", "TEMP", "TMP", "HOME", "USERPROFILE",
+        "APPDATA", "LOCALAPPDATA", "HF_HOME", "XDG_CACHE_HOME", "TORCH_HOME",
+        "GRANITE_CONVERTER_ROOT", "GRANITE_CONVERTER_SCRATCH"
+    ];
+
+    private static readonly string[] ConverterFlagKeys =
+        ["HF_HUB_OFFLINE", "TRANSFORMERS_OFFLINE"];
+
+    private static readonly string[] ConverterScratchPathKeys =
+    [
+        "TEMP", "TMP", "HOME", "USERPROFILE", "APPDATA", "LOCALAPPDATA",
+        "HF_HOME", "XDG_CACHE_HOME", "TORCH_HOME"
+    ];
+
     private static readonly ReadOnlyDictionary<string, string>
         RequiredDiagnosticValues = new ReadOnlyDictionary<string, string>(
             new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -138,6 +154,61 @@ public static class WorkerEnvironmentPolicy
             IOException or
             UnauthorizedAccessException or
             NotSupportedException)
+        {
+            throw Failure();
+        }
+    }
+
+    internal static ReadOnlyDictionary<string, string>
+        ValidateOpenVinoConverterChild(
+        IReadOnlyDictionary<string, string> environment)
+    {
+        ArgumentNullException.ThrowIfNull(environment);
+        try
+        {
+            if (environment.Count != ConverterPathKeys.Length + ConverterFlagKeys.Length)
+            {
+                throw Failure();
+            }
+            Dictionary<string, string> snapshot =
+                new(StringComparer.OrdinalIgnoreCase);
+            foreach (string key in ConverterPathKeys)
+            {
+                if (!environment.TryGetValue(key, out string? value))
+                {
+                    throw Failure();
+                }
+                snapshot.Add(key, ValidateExistingAbsolutePath(value));
+            }
+            foreach (string key in ConverterFlagKeys)
+            {
+                if (!environment.TryGetValue(key, out string? value) || value != "1")
+                {
+                    throw Failure();
+                }
+                snapshot.Add(key, value);
+            }
+            string scratch = snapshot["GRANITE_CONVERTER_SCRATCH"];
+            foreach (string key in ConverterScratchPathKeys)
+            {
+                string candidate = snapshot[key];
+                string prefix = scratch.TrimEnd(
+                    Path.DirectorySeparatorChar,
+                    Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+                if (!string.Equals(candidate, scratch, StringComparison.OrdinalIgnoreCase) &&
+                    !candidate.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                {
+                    throw Failure();
+                }
+            }
+            return new ReadOnlyDictionary<string, string>(snapshot);
+        }
+        catch (WorkerClientPolicyException)
+        {
+            throw;
+        }
+        catch (Exception error) when (error is ArgumentException or IOException or
+                                      UnauthorizedAccessException or NotSupportedException)
         {
             throw Failure();
         }

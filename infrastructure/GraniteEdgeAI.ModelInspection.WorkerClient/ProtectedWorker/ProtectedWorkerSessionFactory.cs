@@ -16,6 +16,8 @@ public sealed class ProtectedWorkerSessionFactory :
         TimeSpan.FromSeconds(5);
     private const string InvalidArgumentsMessage =
         "The protected worker fixed arguments are invalid.";
+    private static readonly string[] OpenVinoConverterArguments =
+        ["-I", "-s", "-E", "-S", "-B", "-m", "converter"];
 
     private readonly IWindowsWorkerProcessPlatform _platform;
 
@@ -42,7 +44,9 @@ public sealed class ProtectedWorkerSessionFactory :
         ReadOnlyCollection<string> fixedArguments =
             ValidateAndSnapshotFixedArguments(spec.FixedArguments);
         ReadOnlyDictionary<string, string> environment =
-            WorkerEnvironmentPolicy.ValidateChild(spec.Environment);
+            IsOpenVinoConverterArguments(fixedArguments)
+                ? WorkerEnvironmentPolicy.ValidateOpenVinoConverterChild(spec.Environment)
+                : WorkerEnvironmentPolicy.ValidateChild(spec.Environment);
         WindowsProcessLaunchRequest request = new(
             spec.Executable,
             environment,
@@ -96,6 +100,11 @@ public sealed class ProtectedWorkerSessionFactory :
             return Array.AsReadOnly(Array.Empty<string>());
         }
 
+        if (IsOpenVinoConverterArguments(arguments))
+        {
+            return Array.AsReadOnly(arguments.ToArray());
+        }
+
         if (arguments.Count != 2)
         {
             throw InvalidArguments();
@@ -114,6 +123,15 @@ public sealed class ProtectedWorkerSessionFactory :
         }
 
         return Array.AsReadOnly([selector, identifier]);
+    }
+
+    private static bool IsOpenVinoConverterArguments(
+        IReadOnlyList<string> arguments)
+    {
+        return arguments.Count == OpenVinoConverterArguments.Length &&
+            arguments.Select((value, index) => string.Equals(
+                value, OpenVinoConverterArguments[index], StringComparison.Ordinal))
+                .All(static value => value);
     }
 
     private static bool IsCanonicalProtocolIdentifier(string? value)

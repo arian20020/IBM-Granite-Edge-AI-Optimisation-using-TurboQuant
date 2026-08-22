@@ -12,7 +12,12 @@ def export_model(source_path: str, destination_path: str) -> None:
 
     source = Path(source_path)
     destination = Path(destination_path)
-    if not source.is_dir() or destination.exists() or not destination.parent.is_dir():
+    if (
+        not source.is_dir()
+        or not destination.is_dir()
+        or any(destination.iterdir())
+        or not destination.parent.is_dir()
+    ):
         raise RuntimeError("conversion_preflight_failed")
 
     weight_format = "fp16"

@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using System.Xml;
 using GraniteEdgeAI.OpenVino.Contracts;
+using GraniteEdgeAI.Features.OpenVinoRoute.Conversion;
 
 namespace GraniteEdgeAI.Features.OpenVinoRoute.Inspection;
 
@@ -21,25 +22,27 @@ public sealed class OpenVinoStaticPackageInspector
     private static readonly HashSet<string> ConfigProperties = new(StringComparer.Ordinal)
     {
         "architectures", "attention_bias", "attention_dropout", "auto_map", "bos_token_id", "eos_token_id",
-        "hidden_size", "initializer_range", "intermediate_size", "max_position_embeddings", "mlp_bias",
+        "attention_multiplier", "dtype", "embedding_multiplier", "hidden_act", "hidden_size",
+        "initializer_range", "intermediate_size", "logits_scaling", "max_position_embeddings", "mlp_bias",
         "model_type", "num_attention_heads", "num_hidden_layers", "num_key_value_heads", "pad_token_id",
-        "residual_multiplier", "rope_theta", "task", "tie_word_embeddings", "torch_dtype", "trust_remote_code",
+        "residual_multiplier", "rms_norm_eps", "rope_parameters", "rope_theta", "task", "tie_word_embeddings", "torch_dtype", "trust_remote_code",
         "transformers_version", "use_cache", "vocab_size"
     };
 
     private static readonly HashSet<string> GenerationProperties = new(StringComparer.Ordinal)
     {
-        "bos_token_id", "do_sample", "eos_token_id", "max_new_tokens", "pad_token_id"
+        "bos_token_id", "do_sample", "eos_token_id", "max_new_tokens", "pad_token_id", "transformers_version"
     };
 
     private static readonly HashSet<string> TokenizerProperties = new(StringComparer.Ordinal)
     {
-        "add_bos_token", "add_eos_token", "bos_token", "eos_token", "model_max_length", "pad_token", "tokenizer_class"
+        "add_bos_token", "add_eos_token", "backend", "bos_token", "eos_token", "is_local",
+        "model_max_length", "pad_token", "tokenizer_class", "unk_token"
     };
 
     private static readonly HashSet<string> ConfigStringProperties = new(StringComparer.Ordinal)
     {
-        "model_type", "task", "torch_dtype", "transformers_version"
+        "dtype", "hidden_act", "model_type", "task", "torch_dtype", "transformers_version"
     };
 
     private static readonly HashSet<string> ConfigBooleanProperties = new(StringComparer.Ordinal)
@@ -49,12 +52,14 @@ public sealed class OpenVinoStaticPackageInspector
 
     private static readonly HashSet<string> ConfigFloatingPointProperties = new(StringComparer.Ordinal)
     {
-        "attention_dropout", "initializer_range", "residual_multiplier", "rope_theta"
+        "attention_dropout", "attention_multiplier", "embedding_multiplier", "initializer_range",
+        "logits_scaling", "residual_multiplier", "rms_norm_eps", "rope_theta"
     };
 
     private static readonly HashSet<string> TokenizerJsonProperties = new(StringComparer.Ordinal)
     {
-        "added_tokens", "model", "version"
+        "added_tokens", "decoder", "model", "normalizer", "padding", "post_processor",
+        "pre_tokenizer", "truncation", "version"
     };
 
     private static readonly HashSet<string> TokenizerModelProperties = new(StringComparer.Ordinal)
@@ -122,8 +127,12 @@ public sealed class OpenVinoStaticPackageInspector
                 OpenVinoPackagePolicy.IsJsonResource(entry.RelativeName) &&
                 !OpenVinoPackagePolicy.IsRequiredResource(entry.RelativeName)))
             {
-                using JsonDocument document = ReadJson(optionalJson, allowedProperties: null);
-                ValidateOptionalJson(optionalJson.RelativeName, document.RootElement, vocabularySize, optionalTokenizerFacts);
+                using JsonDocument document = ReadJson(
+                    optionalJson,
+                    allowedProperties: null,
+                    allowNullValues: optionalJson.RelativeName == "tokenizer.json");
+                ValidateOptionalJson(optionalJson.RelativeName, document.RootElement,
+                    vocabularySize, optionalTokenizerFacts, snapshot);
             }
 
             foreach (OpenVinoPackageSnapshotEntry textResource in snapshot.Entries.Where(static entry =>
@@ -160,7 +169,7 @@ public sealed class OpenVinoStaticPackageInspector
             }
 
             long contextLength = RequiredPositiveInt64(configRoot, "max_position_embeddings");
-            string precision = RequiredString(configRoot, "torch_dtype");
+            string precision = GetConfiguredDataType(configRoot);
             if (contextLength > OpenVinoPackagePolicy.MaximumContextLength ||
                 precision is not ("float32" or "float16" or "bfloat16"))
             {
@@ -169,14 +178,16 @@ public sealed class OpenVinoStaticPackageInspector
 
             string tokenizerClass = RequiredString(tokenizerRoot, "tokenizer_class");
             long tokenizerContext = RequiredPositiveInt64(tokenizerRoot, "model_max_length");
-            if (tokenizerClass is not ("PreTrainedTokenizerFast" or "GPT2TokenizerFast") || tokenizerContext != contextLength)
+            if (tokenizerClass is not ("PreTrainedTokenizerFast" or "GPT2TokenizerFast" or "TokenizersBackend") ||
+                tokenizerContext != contextLength)
             {
                 return OpenVinoStaticPackageInspectionResult.Rejected(OpenVinoSupportCode.TokenizerUnsupported);
             }
 
             if (!TokenIdentifiersAgree(configRoot, generationRoot) ||
                 !TokenizerFactsAgree(configRoot, tokenizerRoot, optionalTokenizerFacts) ||
-                RequiredPositiveInt64(generationRoot, "max_new_tokens") > 512)
+                (generationRoot.TryGetProperty("max_new_tokens", out JsonElement maximumTokens) &&
+                 (!maximumTokens.TryGetInt64(out long requested) || requested <= 0 || requested > 512)))
             {
                 return OpenVinoStaticPackageInspectionResult.Rejected(OpenVinoSupportCode.TokenizerUnsupported);
             }
@@ -257,7 +268,10 @@ public sealed class OpenVinoStaticPackageInspector
         return ReadJson(GetRequired(snapshot, name), allowedProperties);
     }
 
-    private static JsonDocument ReadJson(OpenVinoPackageSnapshotEntry entry, HashSet<string>? allowedProperties)
+    private static JsonDocument ReadJson(
+        OpenVinoPackageSnapshotEntry entry,
+        HashSet<string>? allowedProperties,
+        bool allowNullValues = false)
     {
         if (entry.Length <= 0 || entry.Length > OpenVinoPackagePolicy.MaximumJsonBytes || entry.Length > int.MaxValue)
         {
@@ -278,7 +292,7 @@ public sealed class OpenVinoStaticPackageInspector
             }
 
             RejectDuplicateProperties(document.RootElement);
-            RejectNullValues(document.RootElement);
+            if (!allowNullValues) RejectNullValues(document.RootElement);
             if (allowedProperties is not null)
             {
                 foreach (JsonProperty property in document.RootElement.EnumerateObject())
@@ -350,7 +364,8 @@ public sealed class OpenVinoStaticPackageInspector
         string resourceName,
         JsonElement root,
         long vocabularySize,
-        OptionalTokenizerFacts facts)
+        OptionalTokenizerFacts facts,
+        OpenVinoPackageSnapshot snapshot)
     {
         switch (resourceName)
         {
@@ -371,6 +386,9 @@ public sealed class OpenVinoStaticPackageInspector
                 (facts.TokenizerVocabulary, facts.TokenizerAddedTokens, facts.TokenizerUnknownToken) =
                     ValidateTokenizerJson(root, vocabularySize);
                 break;
+            case OpenVinoProvenance.FileName:
+                OpenVinoProvenance.ValidateJson(root, snapshot);
+                break;
             default:
                 throw new InvalidDataException("Optional JSON resource has no version-one schema.");
         }
@@ -387,6 +405,18 @@ public sealed class OpenVinoStaticPackageInspector
         if (!string.Equals(RequiredString(root, "version"), "1.0", StringComparison.Ordinal))
         {
             throw new InvalidDataException("Tokenizer JSON version is unsupported.");
+        }
+
+        foreach (string component in new[]
+        {
+            "truncation", "padding", "normalizer", "pre_tokenizer", "post_processor", "decoder"
+        })
+        {
+            if (root.TryGetProperty(component, out JsonElement componentValue) &&
+                componentValue.ValueKind is not (JsonValueKind.Null or JsonValueKind.Object))
+            {
+                throw new InvalidDataException("Tokenizer component is invalid.");
+            }
         }
 
         if (!root.TryGetProperty("added_tokens", out JsonElement addedTokens) || addedTokens.ValueKind != JsonValueKind.Array)
@@ -422,7 +452,8 @@ public sealed class OpenVinoStaticPackageInspector
         }
 
         ValidateClosedObject(model, TokenizerModelProperties);
-        if (!string.Equals(RequiredString(model, "type"), "BPE", StringComparison.Ordinal))
+        string tokenizerModelType = RequiredString(model, "type");
+        if (tokenizerModelType is not ("BPE" or "WordLevel"))
         {
             throw new InvalidDataException("Tokenizer model type is unsupported by policy version one.");
         }
@@ -433,23 +464,28 @@ public sealed class OpenVinoStaticPackageInspector
         }
 
         Dictionary<string, long> vocabularyFacts = ValidateIdentifierMap(vocabulary, vocabularySize, requireFullVocabulary: true);
-        if (!model.TryGetProperty("merges", out JsonElement merges) || merges.ValueKind != JsonValueKind.Array)
+        if (tokenizerModelType == "BPE" &&
+            (!model.TryGetProperty("merges", out JsonElement merges) ||
+             merges.ValueKind != JsonValueKind.Array))
         {
             throw new InvalidDataException("Tokenizer merges must be an array.");
         }
 
-        foreach (JsonElement merge in merges.EnumerateArray())
+        if (tokenizerModelType == "BPE")
         {
-            if (merge.ValueKind == JsonValueKind.String)
+            foreach (JsonElement merge in model.GetProperty("merges").EnumerateArray())
             {
-                _ = RequiredString(merge);
-                continue;
-            }
+                if (merge.ValueKind == JsonValueKind.String)
+                {
+                    _ = RequiredString(merge);
+                    continue;
+                }
 
-            if (merge.ValueKind != JsonValueKind.Array || merge.GetArrayLength() != 2 ||
-                merge.EnumerateArray().Any(static item => item.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(item.GetString())))
-            {
-                throw new InvalidDataException("Tokenizer merge must be a string or two-item string array.");
+                if (merge.ValueKind != JsonValueKind.Array || merge.GetArrayLength() != 2 ||
+                    merge.EnumerateArray().Any(static item => item.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(item.GetString())))
+                {
+                    throw new InvalidDataException("Tokenizer merge must be a string or two-item string array.");
+                }
             }
         }
 
@@ -625,13 +661,16 @@ public sealed class OpenVinoStaticPackageInspector
             throw new InvalidDataException("Granite attention dimensions are inconsistent.");
         }
 
-        _ = RequiredString(config, "torch_dtype");
+        _ = GetConfiguredDataType(config);
         RequireNonNegativeToken(config, "bos_token_id");
         RequireNonNegativeToken(config, "eos_token_id");
         RequireNonNegativeToken(config, "pad_token_id");
 
-        _ = RequiredPositiveInt64(generation, "max_new_tokens");
-        RequireBoolean(generation, "do_sample");
+        if (generation.TryGetProperty("max_new_tokens", out _))
+        {
+            _ = RequiredPositiveInt64(generation, "max_new_tokens");
+        }
+        if (generation.TryGetProperty("do_sample", out _)) RequireBoolean(generation, "do_sample");
         RequireNonNegativeToken(generation, "bos_token_id");
         RequireNonNegativeToken(generation, "eos_token_id");
         RequireNonNegativeToken(generation, "pad_token_id");
@@ -641,8 +680,15 @@ public sealed class OpenVinoStaticPackageInspector
         _ = RequiredString(tokenizer, "bos_token");
         _ = RequiredString(tokenizer, "eos_token");
         _ = RequiredString(tokenizer, "pad_token");
-        RequireBoolean(tokenizer, "add_bos_token");
-        RequireBoolean(tokenizer, "add_eos_token");
+        if (tokenizer.TryGetProperty("add_bos_token", out _)) RequireBoolean(tokenizer, "add_bos_token");
+        if (tokenizer.TryGetProperty("add_eos_token", out _)) RequireBoolean(tokenizer, "add_eos_token");
+        if (tokenizer.TryGetProperty("backend", out _) &&
+            RequiredString(tokenizer, "backend") != "tokenizers")
+        {
+            throw new InvalidDataException("Tokenizer backend is unsupported.");
+        }
+        if (tokenizer.TryGetProperty("is_local", out _)) RequireBoolean(tokenizer, "is_local");
+        ValidateOptionalString(tokenizer, "unk_token");
     }
 
     private static void ValidateConfigPropertyTypes(JsonElement config)
@@ -653,6 +699,17 @@ public sealed class OpenVinoStaticPackageInspector
             if (string.Equals(property.Name, "architectures", StringComparison.Ordinal))
             {
                 _ = RequiredSingleString(config, property.Name);
+            }
+            else if (string.Equals(property.Name, "rope_parameters", StringComparison.Ordinal))
+            {
+                ValidateClosedObject(value,
+                    new HashSet<string>(["rope_theta", "rope_type"], StringComparer.Ordinal));
+                if (!value.GetProperty("rope_theta").TryGetDouble(out double theta) ||
+                    !double.IsFinite(theta) || theta <= 0 ||
+                    RequiredString(value, "rope_type") != "default")
+                {
+                    throw new InvalidDataException("RoPE parameters are invalid.");
+                }
             }
             else if (ConfigStringProperties.Contains(property.Name))
             {
@@ -679,6 +736,22 @@ public sealed class OpenVinoStaticPackageInspector
                 throw new InvalidDataException("JSON configuration integer has an invalid type.");
             }
         }
+    }
+
+    private static string GetConfiguredDataType(JsonElement config)
+    {
+        bool hasTorch = config.TryGetProperty("torch_dtype", out JsonElement torch);
+        bool hasDtype = config.TryGetProperty("dtype", out JsonElement dtype);
+        if (!hasTorch && !hasDtype)
+        {
+            throw new InvalidDataException("Configured data type is missing.");
+        }
+        string value = RequiredString(hasTorch ? torch : dtype);
+        if (hasTorch && hasDtype && RequiredString(dtype) != value)
+        {
+            throw new InvalidDataException("Configured data types disagree.");
+        }
+        return value;
     }
 
     private static bool TokenIdentifiersAgree(JsonElement config, JsonElement generation)

@@ -5,6 +5,7 @@ using GraniteEdgeAI.Features.OpenVinoRoute.Inspection;
 using GraniteEdgeAI.OpenVino.Contracts;
 using GraniteEdgeAI.OpenVino.WorkerClient;
 using GraniteEdgeAI.Features.Prompting;
+using GraniteEdgeAI.Features.OpenVinoRoute.Conversion;
 
 namespace GraniteEdgeAI.Features.OpenVinoRoute;
 
@@ -12,9 +13,45 @@ public sealed record OpenVinoRouteInspectionResult(
     OpenVinoRouteInspectionOutcome Outcome,
     OpenVinoRouteHandoffLease? HandoffLease,
     PromptFailure? Failure,
-    OpenVinoConfigurationCandidate? Configuration)
+    OpenVinoConfigurationCandidate? Configuration,
+    OpenVinoConversionOffer? ConversionOffer = null)
 {
     public ModelInspectionHandoffV2? Handoff => HandoffLease?.Handoff;
+}
+
+public sealed class OpenVinoConversionOffer : IDisposable
+{
+    private SourceModelInspectionResult? source;
+    private string? sourceDirectory;
+
+    internal OpenVinoConversionOffer(
+        SourceModelInspectionResult source,
+        string sourceDirectory)
+    {
+        this.source = source;
+        this.sourceDirectory = Path.GetFullPath(sourceDirectory);
+        Evidence = source.Evidence ?? throw new ArgumentException(
+            "A conversion offer requires accepted source evidence.", nameof(source));
+    }
+
+    public SourceModelEvidence Evidence { get; }
+
+    internal (SourceModelInspectionResult Source, string SourceDirectory) Consume()
+    {
+        SourceModelInspectionResult? retained = Interlocked.Exchange(ref source, null);
+        string? path = Interlocked.Exchange(ref sourceDirectory, null);
+        if (retained is null || path is null)
+        {
+            throw new InvalidOperationException("The conversion offer is stale or consumed.");
+        }
+        return (retained, path);
+    }
+
+    public void Dispose()
+    {
+        Interlocked.Exchange(ref source, null)?.Dispose();
+        Interlocked.Exchange(ref sourceDirectory, null);
+    }
 }
 
 internal sealed record OpenVinoRouteLeasePayload(
@@ -67,6 +104,7 @@ public sealed class OpenVinoRouteHandoffLease : IDisposable, IPromptRouteActivat
 public sealed class OpenVinoRouteService : IPromptRouteAdapter
 {
     private readonly OpenVinoStaticPackageInspector staticInspector;
+    private readonly SourceModelInspector sourceInspector;
     private readonly OpenVinoInspectionHandoffFactory handoffFactory;
     private readonly IOpenVinoWorkerClient workerClient;
     private readonly IOpenVinoPromptChannelFactory channelFactory;
@@ -118,6 +156,7 @@ public sealed class OpenVinoRouteService : IPromptRouteAdapter
     {
         this.staticInspector = staticInspector ??
             throw new ArgumentNullException(nameof(staticInspector));
+        sourceInspector = new SourceModelInspector();
         this.handoffFactory = handoffFactory ??
             throw new ArgumentNullException(nameof(handoffFactory));
         this.workerClient = workerClient ??
@@ -152,6 +191,22 @@ public sealed class OpenVinoRouteService : IPromptRouteAdapter
                 OpenVinoStaticInspectionStatus.NativeValidationRequired ||
             staticResult.Evidence is null)
         {
+            SourceModelInspectionResult sourceResult =
+                sourceInspector.Inspect(packageDirectory);
+            if (sourceResult.Status == SourceModelInspectionStatus.ConversionRequired &&
+                sourceResult.Evidence is not null)
+            {
+                stateMachine.TryCompleteInspection(
+                    operationId,
+                    OpenVinoRouteInspectionOutcome.ConversionRequired);
+                return new OpenVinoRouteInspectionResult(
+                    OpenVinoRouteInspectionOutcome.ConversionRequired,
+                    HandoffLease: null,
+                    Failure: null,
+                    Configuration: null,
+                    new OpenVinoConversionOffer(sourceResult, packageDirectory));
+            }
+            sourceResult.Dispose();
             OpenVinoSupportCode code = staticResult.SupportCode ??
                 OpenVinoSupportCode.PackageInconsistentResource;
             OpenVinoRouteInspectionOutcome outcome = InspectionOutcome(code);

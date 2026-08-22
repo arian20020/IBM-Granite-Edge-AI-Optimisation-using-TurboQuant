@@ -70,6 +70,8 @@ public sealed class ConverterIsolationTests
         StringAssert.Contains(script, "*.pyc");
         StringAssert.Contains(script, "$stageFiles");
         StringAssert.Contains(script, "Get-FileHash");
+        StringAssert.Contains(script, "wheelManifestSha256");
+        StringAssert.Contains(script, "requirementsLockSha256");
         StringAssert.Contains(script, "converter-manifest.json");
         foreach (string name in ForbiddenEnvironmentNames)
         {
@@ -196,6 +198,7 @@ public sealed class ConverterIsolationTests
         string scratch = Path.Combine(operationRoot, "scratch");
         string destination = Path.Combine(operationRoot, "output");
         PrepareScratch(scratch);
+        Directory.CreateDirectory(destination);
         try
         {
             ProcessStartInfo info = new(Path.Combine(stage, "python.exe"))

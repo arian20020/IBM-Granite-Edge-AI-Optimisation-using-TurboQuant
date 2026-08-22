@@ -32,6 +32,7 @@ public static class OpenVinoPackagePolicy
             "added_tokens.json",
             "chat_template.jinja",
             "chat_template.json",
+            "granite-openvino-provenance.json",
             "merges.txt",
             "special_tokens_map.json",
             "tokenizer.json",

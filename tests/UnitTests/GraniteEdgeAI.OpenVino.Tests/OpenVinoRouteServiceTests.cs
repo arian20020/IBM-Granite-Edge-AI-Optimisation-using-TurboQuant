@@ -1,4 +1,5 @@
 using GraniteEdgeAI.Features.OpenVinoRoute;
+using GraniteEdgeAI.Features.OpenVinoRoute.Conversion;
 using GraniteEdgeAI.Features.OpenVinoRoute.Inspection;
 using GraniteEdgeAI.Features.Prompting;
 using GraniteEdgeAI.OpenVino.Contracts;
@@ -134,6 +135,30 @@ public sealed class OpenVinoRouteServiceTests
         Assert.AreEqual(0, worker.InspectCount);
     }
 
+    [TestMethod]
+    public async Task AcceptedGraniteSourceProducesAPathFreeOneTimeConversionOffer()
+    {
+        using TemporarySource source = TemporarySource.CopyFixture();
+        FakeWorkerClient worker = new(_ => throw new AssertFailedException(
+            "source conversion offer must not start native inspection"));
+
+        OpenVinoRouteInspectionResult result = await Service(worker).InspectAsync(
+            source.Root,
+            CancellationToken.None);
+
+        Assert.AreEqual(OpenVinoRouteInspectionOutcome.ConversionRequired, result.Outcome);
+        Assert.IsNull(result.HandoffLease);
+        Assert.IsNull(result.Failure);
+        Assert.IsNull(result.Configuration);
+        Assert.IsNotNull(result.ConversionOffer);
+        Assert.AreEqual("GraniteForCausalLM", result.ConversionOffer.Evidence.Architecture);
+        Assert.IsFalse(result.ToString().Contains(source.Root, StringComparison.OrdinalIgnoreCase));
+        Assert.AreEqual(0, worker.InspectCount);
+
+        result.ConversionOffer.Dispose();
+        Assert.ThrowsExactly<InvalidOperationException>(() => result.ConversionOffer.Consume());
+    }
+
     private static OpenVinoRouteService Service(FakeWorkerClient worker) => new(
         new OpenVinoStaticPackageInspector(),
         new OpenVinoInspectionHandoffFactory(),
@@ -239,5 +264,44 @@ public sealed class OpenVinoRouteServiceTests
         }
 
         public void Dispose() => Directory.Delete(Root, recursive: true);
+    }
+
+    private sealed class TemporarySource : IDisposable
+    {
+        private TemporarySource(string root) => Root = root;
+
+        internal string Root { get; }
+
+        internal static TemporarySource CopyFixture()
+        {
+            string repository = FindRepositoryRoot();
+            string fixture = Path.Combine(
+                repository, "tests", "TestFixtures", "OpenVINO", "Converter",
+                "TinyGraniteV1", "source");
+            string root = Path.Combine(Path.GetTempPath(), $"ov-source-{Guid.NewGuid():N}");
+            Directory.CreateDirectory(root);
+            foreach (string file in Directory.EnumerateFiles(fixture))
+            {
+                File.Copy(file, Path.Combine(root, Path.GetFileName(file)));
+            }
+            return new TemporarySource(root);
+        }
+
+        public void Dispose() => Directory.Delete(Root, recursive: true);
+    }
+
+    private static string FindRepositoryRoot()
+    {
+        DirectoryInfo? directory = new(AppContext.BaseDirectory);
+        while (directory is not null)
+        {
+            if (File.Exists(Path.Combine(directory.FullName,
+                    "IBM Granite with TurboQuant (Intel).slnx")))
+            {
+                return directory.FullName;
+            }
+            directory = directory.Parent;
+        }
+        throw new InvalidOperationException("Repository root was not found.");
     }
 }

@@ -27,4 +27,14 @@
     <ProjectReference Include="..\..\..\tests\ProcessFixtures\GraniteEdgeAI.OpenVino.ProtocolTestWorker\GraniteEdgeAI.OpenVino.ProtocolTestWorker.csproj" />
     <ProjectReference Include="..\..\..\tests\ProcessFixtures\GraniteEdgeAI.OpenVino.ParentExitFixture\GraniteEdgeAI.OpenVino.ParentExitFixture.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\OpenVinoRoute\Inspection\*.cs"
+             Link="Production\Inspection\%(Filename)%(Extension)" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\OpenVinoRoute\Conversion\*.cs"
+             Link="Production\Conversion\%(Filename)%(Extension)" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\OpenVinoRoute\*.cs"
+             Link="Production\Route\%(Filename)%(Extension)" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\Prompting\*.cs"
+             Link="Production\Prompting\%(Filename)%(Extension)" />
+  </ItemGroup>
 </Project>

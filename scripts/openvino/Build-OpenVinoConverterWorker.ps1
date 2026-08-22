@@ -86,11 +86,16 @@ try {
     $pathFile = Join-Path $stageRoot 'python313._pth'
     @('python313.zip', '.', 'packages') | Set-Content -LiteralPath $pathFile -Encoding ascii
     $runtimeIdentity = (Get-FileHash -LiteralPath $runtimeArchive -Algorithm SHA256).Hash.ToLowerInvariant()
+    $requirementsLockPath = Join-Path $repositoryRoot 'third-party\openvino-converter\requirements.lock'
+    $wheelManifestIdentity = (Get-FileHash -LiteralPath $manifestPath -Algorithm SHA256).Hash.ToLowerInvariant()
+    $requirementsLockIdentity = (Get-FileHash -LiteralPath $requirementsLockPath -Algorithm SHA256).Hash.ToLowerInvariant()
     $stageManifest = [ordered]@{
         schemaVersion = 1
         protocol = 'granite.openvino.converter'
         protocolVersion = 1
         pythonSha256 = $runtimeIdentity
+        wheelManifestSha256 = $wheelManifestIdentity
+        requirementsLockSha256 = $requirementsLockIdentity
         wheelLockStatus = [string]$manifest.closureStatus
         maximumOperationMinutes = 120
         launchArguments = @('-I', '-s', '-E', '-S', '-B', '-m', 'converter')
