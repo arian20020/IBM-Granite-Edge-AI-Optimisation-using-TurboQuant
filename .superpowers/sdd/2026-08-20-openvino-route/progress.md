@@ -177,7 +177,15 @@ contracts 162/162, route 181/181, client 13/13, process 42 passed plus one
 deliberately skipped physical-GPU test, native A/B 7/7, packaged app build
 passed, parser/diff/residue checks clean. This host has no Intel GPU, so GPU-01
 remains open, GPU stays app-hidden, and no physical GPU acceptance is claimed.)
-Task 11: pending
+Task 11: complete locally (dense Granite source inspection with retained
+snapshot leases and exact Safetensors/tokenizer validation; approved
+`optimum==2.3.0` correction closes `DEP-02` with a verified 55-wheel CPython
+3.13 Windows x64 closure; isolated/offline/socket-denied converter exports
+complete FP16 model/tokenizer/detokenizer IR; final Stage J contains 23,756
+manifested files and passes a real repository-fixture export. Final gates:
+source 15/15, dependency contracts 6/6, route 196/196, process 47/47 applicable
+with only physical GPU-01 skipped, and Release x64 app build passed. Inline
+security review corrected fixture ignore/byte preservation and root overlap.)
 Task 12: pending
 Task 13: pending
 Task 14: pending

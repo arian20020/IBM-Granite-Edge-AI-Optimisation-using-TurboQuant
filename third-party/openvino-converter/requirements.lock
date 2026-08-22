@@ -1,11 +1,57 @@
-# closureStatus: converter_closure_unresolved
-# The exact planned train is intentionally not installable: optimum-intel==2.1.0
-# requires optimum~=2.3.0, which conflicts with optimum==2.1.0. No wheel hash is
-# claimed because pip resolved no complete closure.
-# Resolver: pip download --only-binary=:all: --platform win_amd64 --python-version 313 --implementation cp --abi cp313
-optimum-intel==2.1.0
-optimum==2.1.0
-transformers==5.5.4
-openvino==2026.3.0
-openvino-genai==2026.3.0.0
-nncf==3.3.0
+# Binary-only CPython 3.13 / Windows x64 closure. Generated from wheel-manifest.json.
+# Resolver: pip download --only-binary=:all: --platform win_amd64 --python-version 313 --implementation cp --abi cp313 --require-hashes
+regex==2026.7.19 --hash=sha256:d51ffd3427640fa2da6ade574ceba932f210ad095f65fcc450a2b0a0d454868e
+pyyaml==6.0.3 --hash=sha256:79005a0d97d5ddabfeeea4cf676af11e647e41d81c9a7722a193022accdb6b7c
+pyparsing==3.3.2 --hash=sha256:850ba148bd908d7e2411587e247a1e4f0327839c40e2e5e6d05a007ecc69911d
+safetensors==0.7.0 --hash=sha256:d1239932053f56f3456f32eb9625590cc7582e905021f94636202a864d470755
+rich==15.0.0 --hash=sha256:33bd4ef74232fb73fe9279a257718407f169c09b78a87ad3d296f548e27de0bb
+requests==2.34.2 --hash=sha256:2a0d60c172f83ac6ab31e4554906c0f3b3588d37b5cb939b1c061f4907e278e0
+pygments==2.21.0 --hash=sha256:2363c69b61c4a97c838da3b130dcd6468f4848992b21a82f2a63ec34377137d9
+optimum==2.3.0 --hash=sha256:3e9b217b4ab21fd4cf894a987002ee7d3626114e009592babf084c2f1a0f3b5f
+optimum-intel==2.1.0 --hash=sha256:e028c39b66552c7c977968e0df3c160b695fe5cc82d7143f0939576ecb4bb483
+openvino==2026.3.0 --hash=sha256:1c41f2d1072d600c260741b350aaf4a09d53f821a9a8fc8989bdc79a46b50a2c
+pydot==3.0.4 --hash=sha256:bfa9c3fc0c44ba1d132adce131802d7df00429d1a79cc0346b0a5cd374dbe9c6
+psutil==7.2.2 --hash=sha256:eb7e81434c8d223ec4a219b5fc1c47d0417b12be7ea866e24fb5ad6e84b3d988
+packaging==26.3 --hash=sha256:d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c
+scikit-learn==1.9.0 --hash=sha256:5808d98f15c6bf6d9d96d2348c1997392a5888ce7097e664105f930c4bca1277
+transformers==5.5.4 --hash=sha256:0bd6281b82966fe5a7a16f553ea517a9db1dee6284d7cb224dfd88fc0dd1c167
+tqdm==4.70.0 --hash=sha256:7f585706bfddbdebf89daac705b2dfcc16890130727d3197ca62c732b4310953
+torch==2.13.0 --hash=sha256:49b58f1e2c52440abb6f17c28f0335fe6c6d01ad1a7f55b0183b81e4b34d64e6
+urllib3==2.7.0 --hash=sha256:9fb4c81ebbb1ce9531cce37674bbc6f1360472bc18ca9a553ede278ef7276897
+typing-extensions==4.16.0 --hash=sha256:481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8
+typer==0.25.1 --hash=sha256:75caa44ed46a03fb2dab8808753ffacdbfea88495e74c85a28c5eefcf5f39c89
+tokenizers==0.22.2 --hash=sha256:c9ea31edff2968b44a88f97d784c2f16dc0729b8b143ed004699ebca91f05c48
+shellingham==1.5.4 --hash=sha256:7ecfff8f2fd72616f7481040475a65b2bf8af90a56c89140852d1120324e8686
+setuptools==84.0.0 --hash=sha256:51a52592b3b99e102b609654876bd65f19f999935166d1352678931132b0c670
+scipy==1.18.1 --hash=sha256:559ed65f60c1af5a03f3912605a1b5114f522c7c32fb23c3376ae8f03219fe28
+threadpoolctl==3.6.0 --hash=sha256:43a0b8fd5a2928500110039e43a5eed8480b918967083ea48dc3ab9f13c4a7fb
+tabulate==0.10.0 --hash=sha256:f0b0622e567335c8fabaaa659f1b33bcb6ddfe2e496071b743aa113f8774f2d3
+sympy==1.14.0 --hash=sha256:e091cc3e99d2141a0ba2847328f5479b05d94a6635cb96148ccb3f34671bd8f5
+openvino-tokenizers==2026.3.0.0 --hash=sha256:7c6fb2f1e9b6c3c4b2bdb992e69ef97869787d8486b193d155d24aaa9cd5fed0
+hf-xet==1.6.0 --hash=sha256:fb4fadde1b2b70bf4c0c14a6dccbe7194b1c28947fefd5bbe3fed9d940676c3b
+h11==0.16.0 --hash=sha256:63cf8bbe7522de3bf65932fda1d9c2772064ffb3dae62d55932da54b31cb6c86
+fsspec==2026.7.0 --hash=sha256:b57ddbafedfaef7018c1ecab32aa200a9d7ca26b77965f64e48b70061249d279
+huggingface-hub==1.21.0 --hash=sha256:eadaa3678c512c82aea69e8675d90a184861e68de32f1105668628b4dce0e7cd
+httpx==0.28.1 --hash=sha256:d909fcccc110f8c7faf814ca82a9a4d816bc5a6dbfea25d6591d6985b8ba59ad
+httpcore==1.0.9 --hash=sha256:2d400746a40668fc9dec9810239072b40b4484b640a8c38fd654a024c7a1bf55
+filelock==3.32.3 --hash=sha256:7f0ca4bcc0e181c60dbbd8aa9ab5b120ebb99e4e064e83636340056f833a1f09
+certifi==2026.7.22 --hash=sha256:62f22742b58a1a33014a2b6b706588a8d7e2a88ae7bd1a6ebe8c992928483775
+anyio==4.14.2 --hash=sha256:9f505dda5ac9f0c8309b5e8bd445a8c2bf7246f3ce950121e45ea15bc41d1494
+annotated-doc==0.0.5 --hash=sha256:117bac03a25ede5df5440e855b32d556049ca169ead221505badf432fed4b101
+colorama==0.4.6 --hash=sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6
+click==8.4.2 --hash=sha256:e6f9f66136c816745b9d65817da91d61d957fb16e02e4dcd0552553c5a197b76
+charset-normalizer==3.5.1 --hash=sha256:aea996a6aba25260827c9ea511d1addfde2da9eb686ac961838509086188b7e6
+idna==3.19 --hash=sha256:815e7be7a7806d54abb586dc943addc79e8b2ee16915059658cbeff4b1b43bf4
+nncf==3.3.0 --hash=sha256:855f1e7099f01ff3a9868cf6d56850e1149691ab0db5ac76ab812ae8b0fba338
+ninja==1.13.0 --hash=sha256:fb8ee8719f8af47fed145cced4a85f0755dd55d45b2bddaf7431fa89803c5f3e
+networkx==3.6.1 --hash=sha256:d47fbf302e7d9cbbb9e2555a0d267983d2aa476bac30e90dfbe5669bd57f3762
+openvino-telemetry==2025.2.0 --hash=sha256:bcb667e83a44f202ecf4cfa49281715c6d7e21499daec04ff853b7f964833599
+openvino-genai==2026.3.0.0 --hash=sha256:08411eb51bd0bddc717e2d97c541cc5cc946bde70e74da6dd7428149e5e0cdbb
+numpy==2.4.6 --hash=sha256:c4fc99836233ea196540b17ab0983aff60ed07941751930f5f4d05bc3b3b7359
+narwhals==2.25.0 --hash=sha256:1f0f403e8c7e4463cde9bfe78b12fdd809e3ae3dda6d9b2f802934fb9c7a6a8f
+markdown-it-py==4.2.0 --hash=sha256:9f7ebbcd14fe59494226453aed97c1070d83f8d24b6fc3a3bcf9a38092641c4a
+joblib==1.5.3 --hash=sha256:5fc3c5039fc5ca8c0276333a188bbd59d6b7ab37fe6632daa76bc7f9ec18e713
+jinja2==3.1.6 --hash=sha256:85ece4451f492d0c13c5dd7c13a64681a86afae63a5f347908daf103ce6d2f67
+mpmath==1.3.0 --hash=sha256:a0b2b9fe80bbcd81a6647ff13108738cfb482d481d826cc0e02f5b35e5c88d2c
+mdurl==0.1.2 --hash=sha256:84008a41e51615a49fc9966191ff91509e3c40b939176e643fd50a5c2196b8f8
+markupsafe==3.0.3 --hash=sha256:9a1abfdc021a164803f4d485104931fb8f8c1efd55bc6b748d2f5774e78b62c5

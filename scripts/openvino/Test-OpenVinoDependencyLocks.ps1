@@ -177,6 +177,42 @@ function Test-ConverterClosure {
         return $false
     }
 
+    $wheels = @($manifest.wheels)
+    if ($wheels.Count -eq 0) {
+        return $false
+    }
+    $requirementLines = @(
+        Get-Content -LiteralPath (Join-Path $lockDirectory 'requirements.lock') |
+            ForEach-Object { $_.Trim() } |
+            Where-Object { $_ -and -not $_.StartsWith('#', [StringComparison]::Ordinal) }
+    )
+    if ($requirementLines.Count -ne $wheels.Count) {
+        return $false
+    }
+    $wheelNames = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    $packageNames = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    foreach ($wheel in $wheels) {
+        $sourceUri = $null
+        $requirement = '{0}=={1} --hash=sha256:{2}' -f `
+            $wheel.package, $wheel.version, $wheel.sha256
+        if ([string]$wheel.filename -cnotmatch '^[^\\/:*?"<>|]+\.whl$' -or
+            [string]$wheel.package -cnotmatch '^[a-z0-9]+(?:-[a-z0-9]+)*$' -or
+            [string]::IsNullOrWhiteSpace([string]$wheel.version) -or
+            [Int64]$wheel.length -le 0 -or
+            [string]$wheel.sha256 -cnotmatch '^[0-9a-f]{64}$' -or
+            [string]$wheel.pythonAbi -notin @('cp313', 'abi3', 'py3') -or
+            [string]$wheel.platform -notin @('win_amd64', 'any') -or
+            [string]::IsNullOrWhiteSpace([string]$wheel.license) -or
+            [string]$wheel.redistributionDisposition -cne 'include-wheel-license-files' -or
+            -not [Uri]::TryCreate([string]$wheel.sourceUrl, [UriKind]::Absolute, [ref]$sourceUri) -or
+            $sourceUri.Scheme -cne 'https' -or
+            -not $wheelNames.Add([string]$wheel.filename) -or
+            -not $packageNames.Add([string]$wheel.package) -or
+            @($requirementLines | Where-Object { $_ -ceq $requirement }).Count -ne 1) {
+            return $false
+        }
+    }
+
     $runtime = Get-Lock (Join-Path $lockDirectory 'python-runtime.lock.json')
     $runtimePath = Join-Path $Directory $runtime.filename
     $runtimeFile = Get-Item -LiteralPath $runtimePath
@@ -188,7 +224,7 @@ function Test-ConverterClosure {
         return $false
     }
 
-    $expected = @($runtime.filename) + @($manifest.wheels | ForEach-Object { $_.filename })
+    $expected = @($runtime.filename) + @($wheels | ForEach-Object { $_.filename })
     $actual = @(Get-ChildItem -LiteralPath $Directory -File)
     if (@($actual | Where-Object { $_.Extension -ne '.whl' -and $_.Name -ne $runtime.filename }).Count -ne 0 -or
         $actual.Count -ne $expected.Count) {
@@ -201,7 +237,7 @@ function Test-ConverterClosure {
         }
     }
 
-    foreach ($wheel in $manifest.wheels) {
+    foreach ($wheel in $wheels) {
         $file = Get-Item -LiteralPath (Join-Path $Directory $wheel.filename)
         if ($file.Length -ne [Int64]$wheel.length -or
             $wheel.sha256 -notmatch '^[0-9a-f]{64}$' -or

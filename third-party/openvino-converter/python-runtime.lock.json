@@ -19,14 +19,14 @@
                     {
                         "gate":  "DEP-02",
                         "reviewer":  "arian20020 \u003carian20020@outlook.com\u003e",
-                        "reviewedAtUtc":  "2026-08-20T13:34:05Z",
-                        "disposition":  "unresolved-exact-converter-train-conflict"
+                        "reviewedAtUtc":  "2026-08-22T15:01:05Z",
+                        "disposition":  "approved-compatible-optimum-2.3.0-wheel-closure"
                     },
                     {
                         "gate":  "LIC-01",
                         "reviewer":  "arian20020 \u003carian20020@outlook.com\u003e",
-                        "reviewedAtUtc":  "2026-08-20T13:34:05Z",
-                        "disposition":  "reviewed-license-notices-required"
+                        "reviewedAtUtc":  "2026-08-22T15:01:05Z",
+                        "disposition":  "reviewed-include-runtime-license-file"
                     }
                 ]
 }

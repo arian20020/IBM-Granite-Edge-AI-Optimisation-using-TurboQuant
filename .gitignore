@@ -505,6 +505,7 @@ models/*
 downloads/
 *.gguf
 *.safetensors
+!tests/TestFixtures/OpenVINO/Converter/TinyGraniteV1/source/model.safetensors
 *.onnx
 *.pt
 *.pth

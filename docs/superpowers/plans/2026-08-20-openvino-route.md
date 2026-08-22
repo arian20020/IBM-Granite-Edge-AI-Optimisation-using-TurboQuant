@@ -6,7 +6,7 @@
 
 **Architecture:** WinUI owns route-neutral user interaction and operation state; format adapters translate that state into closed, versioned JSON-line protocols. Official OpenVINO, sealed conversion, and experimental TurboQuant run in separate protected processes. All route clients share the existing hardened Windows process/job-object boundary, but protocols, native dependency closures, device rules, manifests, evidence, and executables remain isolated. Inspection and publication are manifest-bound transactions, and only typed sanitized evidence crosses into UI or CI artifacts.
 
-**Tech Stack:** .NET 10 SDK with `net8.0`/MSTest 4.3.2/Microsoft.Testing.Platform; WinUI 3; C++20/CMake/MSVC x64; OpenVINO Runtime 2026.3.0; OpenVINO GenAI and Tokenizers 2026.3.0.0; sealed CPython 3.13.15 converter with Optimum Intel 2.1.0, Optimum 2.1.0, Transformers 5.5.4, OpenVINO Python 2026.3.0, OpenVINO GenAI Python 2026.3.0.0, and NNCF 3.3.0; PowerShell build/evidence scripts; GitHub Actions hosted Windows and trusted UCL Intel self-hosted runner.
+**Tech Stack:** .NET 10 SDK with `net8.0`/MSTest 4.3.2/Microsoft.Testing.Platform; WinUI 3; C++20/CMake/MSVC x64; OpenVINO Runtime 2026.3.0; OpenVINO GenAI and Tokenizers 2026.3.0.0; sealed CPython 3.13.15 converter with Optimum Intel 2.1.0, Optimum 2.3.0, Transformers 5.5.4, OpenVINO Python 2026.3.0, OpenVINO GenAI Python 2026.3.0.0, and NNCF 3.3.0; PowerShell build/evidence scripts; GitHub Actions hosted Windows and trusted UCL Intel self-hosted runner.
 
 **Spec:** [Approved OpenVINO route design](../specs/2026-08-20-openvino-route-design.md)
 

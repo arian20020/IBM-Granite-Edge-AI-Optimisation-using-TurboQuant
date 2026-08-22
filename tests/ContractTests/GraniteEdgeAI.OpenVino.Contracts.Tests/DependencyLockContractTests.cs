@@ -34,7 +34,7 @@ public sealed class DependencyLockContractTests
     }
 
     [TestMethod]
-    public void ConverterClosureFailsClosedWhenTheExactTrainCannotResolve()
+    public void ConverterClosureIsPinnedAndResolved()
     {
         string runtimePath = Path.Combine(
             Root,
@@ -58,22 +58,37 @@ public sealed class DependencyLockContractTests
 
         string requirements = File.ReadAllText(requirementsPath);
         StringAssert.Contains(requirements, "optimum-intel==2.1.0");
-        StringAssert.Contains(requirements, "optimum==2.1.0");
+        StringAssert.Contains(requirements, "optimum==2.3.0");
         StringAssert.Contains(requirements, "transformers==5.5.4");
         StringAssert.Contains(requirements, "openvino==2026.3.0");
         StringAssert.Contains(requirements, "openvino-genai==2026.3.0.0");
         StringAssert.Contains(requirements, "nncf==3.3.0");
-        StringAssert.Contains(requirements, "converter_closure_unresolved");
+        Assert.IsFalse(requirements.Contains(
+            "converter_closure_unresolved",
+            StringComparison.Ordinal));
 
         using JsonDocument manifest = JsonDocument.Parse(File.ReadAllBytes(manifestPath));
         Assert.AreEqual(
-            "unresolved",
+            "resolved",
             manifest.RootElement.GetProperty("closureStatus").GetString());
-        Assert.AreEqual(
-            "converter_closure_unresolved",
-            manifest.RootElement.GetProperty("supportCode").GetString());
         JsonElement wheels = manifest.RootElement.GetProperty("wheels");
-        Assert.AreEqual(0, wheels.GetArrayLength());
+        Assert.IsTrue(wheels.GetArrayLength() > 6);
+        foreach (JsonElement wheel in wheels.EnumerateArray())
+        {
+            Assert.IsTrue(wheel.GetProperty("length").GetInt64() > 0);
+            AssertLowercaseSha256(wheel.GetProperty("sha256").GetString());
+            Assert.IsFalse(string.IsNullOrWhiteSpace(wheel.GetProperty("filename").GetString()));
+            Assert.IsFalse(string.IsNullOrWhiteSpace(wheel.GetProperty("package").GetString()));
+            Assert.IsFalse(string.IsNullOrWhiteSpace(wheel.GetProperty("version").GetString()));
+            Assert.IsFalse(string.IsNullOrWhiteSpace(wheel.GetProperty("license").GetString()));
+            Assert.AreEqual(
+                "include-wheel-license-files",
+                wheel.GetProperty("redistributionDisposition").GetString());
+            Assert.IsTrue(Uri.TryCreate(
+                wheel.GetProperty("sourceUrl").GetString(),
+                UriKind.Absolute,
+                out _));
+        }
         AssertReviewed(manifest.RootElement);
 
         JsonElement requestedPackages = manifest.RootElement.GetProperty("requestedPackages");
@@ -365,6 +380,7 @@ public sealed class DependencyLockContractTests
                 Encoding.UTF8.GetBytes("converter-wheel"));
             FileInfo pythonRuntime = new(pythonRuntimePath);
             FileInfo wheel = new(Path.Combine(converterClosure, "converter-wheel.whl"));
+            string wheelHash = HashFile(wheel.FullName);
             WriteJson(
                 Path.Combine(converterLocks, "python-runtime.lock.json"),
                 new
@@ -385,12 +401,22 @@ public sealed class DependencyLockContractTests
                     {
                         new
                         {
+                            package = "converter-wheel",
+                            version = "1.0.0",
                             filename = wheel.Name,
                             length = wheel.Length,
-                            sha256 = HashFile(wheel.FullName)
+                            sha256 = wheelHash,
+                            pythonAbi = "py3",
+                            platform = "any",
+                            license = "MIT",
+                            sourceUrl = "https://packages.example.test/converter-wheel.whl",
+                            redistributionDisposition = "include-wheel-license-files"
                         }
                     }
                 });
+            File.WriteAllText(
+                Path.Combine(converterLocks, "requirements.lock"),
+                $"converter-wheel==1.0.0 --hash=sha256:{wheelHash}\n");
 
             return new VerifierFixture(
                 root,

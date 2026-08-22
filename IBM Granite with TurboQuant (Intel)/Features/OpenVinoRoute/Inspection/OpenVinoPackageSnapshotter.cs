@@ -40,17 +40,47 @@ internal sealed record OpenVinoPackageSnapshotCapture(
     OpenVinoPackageSnapshot? Snapshot,
     OpenVinoSnapshotFailure Failure);
 
+internal sealed record OpenVinoSnapshotPolicy(
+    int MaximumEntries,
+    int MaximumDepth,
+    int MaximumJsonBytes,
+    long MaximumXmlBytes,
+    int MaximumTextBytes,
+    long MaximumFileBytes,
+    Func<string, bool> IsAllowedResource,
+    Func<string, bool> IsExecutableOrScriptName,
+    Func<string, bool> IsJsonResource,
+    Func<string, bool> IsXmlResource,
+    Func<string, bool> IsTextResource)
+{
+    public static OpenVinoSnapshotPolicy Package { get; } = new(
+        OpenVinoPackagePolicy.MaximumEntries,
+        OpenVinoPackagePolicy.MaximumDepth,
+        OpenVinoPackagePolicy.MaximumJsonBytes,
+        OpenVinoPackagePolicy.MaximumXmlBytes,
+        OpenVinoPackagePolicy.MaximumTextBytes,
+        long.MaxValue,
+        OpenVinoPackagePolicy.IsAllowedResource,
+        OpenVinoPackagePolicy.IsExecutableOrScriptName,
+        OpenVinoPackagePolicy.IsJsonResource,
+        OpenVinoPackagePolicy.IsXmlResource,
+        OpenVinoPackagePolicy.IsTextResource);
+}
+
 internal sealed class OpenVinoPackageSnapshotter
 {
     private readonly Func<string, IEnumerable<string>> enumerateEntries;
     private readonly Action<OpenVinoPackageCaptureStage, string?> observer;
+    private readonly OpenVinoSnapshotPolicy policy;
 
     internal OpenVinoPackageSnapshotter(
         Func<string, IEnumerable<string>>? enumerateEntries = null,
-        Action<OpenVinoPackageCaptureStage, string?>? observer = null)
+        Action<OpenVinoPackageCaptureStage, string?>? observer = null,
+        OpenVinoSnapshotPolicy? policy = null)
     {
         this.enumerateEntries = enumerateEntries ?? Directory.EnumerateFileSystemEntries;
         this.observer = observer ?? ((_, _) => { });
+        this.policy = policy ?? OpenVinoSnapshotPolicy.Package;
     }
 
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "The instance boundary permits operation-scoped snapshotter composition.")]
@@ -288,7 +318,7 @@ internal sealed class OpenVinoPackageSnapshotter
                 DirectoryToVisit directory = directories.Dequeue();
                 foreach (string path in enumerateEntries(directory.FullPath))
                 {
-                    if (discovered.Count == OpenVinoPackagePolicy.MaximumEntries)
+                    if (discovered.Count == policy.MaximumEntries)
                     {
                         return TopologyCapture.Failed(OpenVinoSnapshotFailure.EntryLimitExceeded);
                     }
@@ -340,7 +370,7 @@ internal sealed class OpenVinoPackageSnapshotter
                         }
 
                         int depth = directory.Depth + 1;
-                        if (depth > OpenVinoPackagePolicy.MaximumDepth)
+                        if (depth > policy.MaximumDepth)
                         {
                             return TopologyCapture.Failed(OpenVinoSnapshotFailure.DepthLimitExceeded);
                         }
@@ -493,7 +523,7 @@ internal sealed class OpenVinoPackageSnapshotter
         }
     }
 
-    private static OpenVinoSnapshotFailure ValidateDiscoveredPolicy(IEnumerable<DiscoveredItem> discovered)
+    private OpenVinoSnapshotFailure ValidateDiscoveredPolicy(IEnumerable<DiscoveredItem> discovered)
     {
         foreach (DiscoveredItem item in discovered)
         {
@@ -502,12 +532,12 @@ internal sealed class OpenVinoPackageSnapshotter
                 return OpenVinoSnapshotFailure.NonRegularArtifact;
             }
 
-            if (OpenVinoPackagePolicy.IsExecutableOrScriptName(item.RelativeName))
+            if (policy.IsExecutableOrScriptName(item.RelativeName))
             {
                 return OpenVinoSnapshotFailure.ExecutableOrScript;
             }
 
-            if (!OpenVinoPackagePolicy.IsAllowedResource(item.RelativeName))
+            if (!policy.IsAllowedResource(item.RelativeName))
             {
                 return OpenVinoSnapshotFailure.UnrecognizedResource;
             }
@@ -516,24 +546,29 @@ internal sealed class OpenVinoPackageSnapshotter
         return OpenVinoSnapshotFailure.None;
     }
 
-    private static OpenVinoSnapshotFailure ValidateLengthAndMagic(AcquiredEntry entry)
+    private OpenVinoSnapshotFailure ValidateLengthAndMagic(AcquiredEntry entry)
     {
         if (entry.Identity.Length <= 0)
         {
             return OpenVinoSnapshotFailure.NonRegularArtifact;
         }
 
-        if (OpenVinoPackagePolicy.IsJsonResource(entry.Discovered.RelativeName) && entry.Identity.Length > OpenVinoPackagePolicy.MaximumJsonBytes)
+        if (entry.Identity.Length > policy.MaximumFileBytes)
+        {
+            return OpenVinoSnapshotFailure.NonRegularArtifact;
+        }
+
+        if (policy.IsJsonResource(entry.Discovered.RelativeName) && entry.Identity.Length > policy.MaximumJsonBytes)
         {
             return OpenVinoSnapshotFailure.JsonTooLarge;
         }
 
-        if (OpenVinoPackagePolicy.IsXmlResource(entry.Discovered.RelativeName) && entry.Identity.Length > OpenVinoPackagePolicy.MaximumXmlBytes)
+        if (policy.IsXmlResource(entry.Discovered.RelativeName) && entry.Identity.Length > policy.MaximumXmlBytes)
         {
             return OpenVinoSnapshotFailure.XmlTooLarge;
         }
 
-        if (OpenVinoPackagePolicy.IsTextResource(entry.Discovered.RelativeName) && entry.Identity.Length > OpenVinoPackagePolicy.MaximumTextBytes)
+        if (policy.IsTextResource(entry.Discovered.RelativeName) && entry.Identity.Length > policy.MaximumTextBytes)
         {
             return OpenVinoSnapshotFailure.TextTooLarge;
         }

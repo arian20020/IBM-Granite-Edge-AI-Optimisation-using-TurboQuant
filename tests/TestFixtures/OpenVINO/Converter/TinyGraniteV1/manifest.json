@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "fixtureId": "TinyGraniteV1",
+  "license": "MIT",
+  "files": [
+    {
+      "path": "source/chat_template.jinja",
+      "length": 97,
+      "sha256": "fcb430af6c4bcc7ffc760c9f299605ff945197f91c06c0ca2b6f03fe98688537"
+    },
+    {
+      "path": "source/config.json",
+      "length": 691,
+      "sha256": "648d2c211894d2f56dd666621d364c1a4ebbbb4bb1708a9402540d32390e766d"
+    },
+    {
+      "path": "source/generation_config.json",
+      "length": 107,
+      "sha256": "56b16cce78c2736b114b87e965d8f77a73ad2f536254d201b34cfbd80dca0d91"
+    },
+    {
+      "path": "source/model.safetensors",
+      "length": 11600,
+      "sha256": "bd0a129dfa8aa17f4f2c1fb42f483b70c603592b4d50d142268e5620f842f25d"
+    },
+    {
+      "path": "source/special_tokens_map.json",
+      "length": 58,
+      "sha256": "81d1c01f220223d32504ff3cb9f372ed75b725b381076d269b61e3c67937c6c6"
+    },
+    {
+      "path": "source/tokenizer.json",
+      "length": 1524,
+      "sha256": "e58b64ff6fc3a26d65242f238147c235500cbed3eaa2c48f14c69ab98de935bb"
+    },
+    {
+      "path": "source/tokenizer_config.json",
+      "length": 200,
+      "sha256": "48d8d416faa06bcb733c92b86169691e37d14319b95db84aafeb292ec94cd43a"
+    }
+  ]
+}

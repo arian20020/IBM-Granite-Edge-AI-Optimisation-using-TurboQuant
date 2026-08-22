@@ -182,13 +182,13 @@ The OpenVINO projects use Apache-2.0. I0 packaging must include all applicable l
 | --- | --- |
 | CPython x64 | `3.13.15` |
 | Optimum Intel | `2.1.0` |
-| Optimum | `2.1.0` |
+| Optimum | `2.3.0` |
 | Transformers | `5.5.4` |
 | OpenVINO Python | `2026.3.0` |
 | OpenVINO GenAI Python | `2026.3.0.0` |
 | NNCF | `3.3.0` |
 
-Optimum Intel 2.1.0 was released with validation against OpenVINO 2026.3, OpenVINO GenAI 2026.3, and NNCF 3.3. Transformers 5.5.4 is within the published `>=4.51,<5.6` compatibility range. Every transitive wheel must still be exact-version and SHA-256 locked; a version range is never a production lock.
+Optimum Intel 2.1.0 was released with validation against OpenVINO 2026.3, OpenVINO GenAI 2026.3, and NNCF 3.3. It requires `optimum~=2.3.0`, so the originally proposed incompatible Optimum 2.1.0 pin was replaced with the user-approved exact Optimum 2.3.0 pin on 2026-08-22. Transformers 5.5.4 is within the published `>=4.51,<5.6` compatibility range. Every transitive wheel must still be exact-version and SHA-256 locked; a version range is never a production lock.
 
 The converter lock review must record wheel origin, version, file name, SHA-256, license, Python ABI, Windows x64 availability, and redistribution decision. Absence of a reviewed complete offline closure is a conversion stop condition.
 
