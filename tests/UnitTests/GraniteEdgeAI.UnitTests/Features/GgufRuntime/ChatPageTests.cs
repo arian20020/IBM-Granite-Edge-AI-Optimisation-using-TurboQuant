@@ -1,4 +1,5 @@
 using GraniteEdgeAI.Features.GgufRuntime;
+using GraniteEdgeAI.Features.GgufRuntime.Clipboard;
 using GraniteEdgeAI.Features.GgufRuntime.Controls;
 using GraniteEdgeAI.Features.GgufRuntime.History;
 using GraniteEdgeAI.UnitTests.Features.ModelInspection.Visual;
@@ -275,6 +276,101 @@ public sealed class ChatPageTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
+    public void CopyChatWritesOnlyTheOpenConversationInApprovedFormat()
+    {
+        var clipboard = new RecordingClipboard();
+        var page = new ChatPage(clipboard);
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        page.SynchronizeTranscript(
+            Guid.NewGuid(),
+            [
+                ChatMessage.User("Question", now),
+                ChatMessage.Assistant(
+                    "Partial",
+                    ChatCompletionStatus.Streaming,
+                    now),
+            ],
+            forceFollowLatest: false);
+        Button copy = Assert.IsInstanceOfType<Button>(
+            page.FindName("CopyChatButton"));
+
+        Invoke(copy);
+
+        Assert.AreEqual(
+            $"You:{Environment.NewLine}Question{Environment.NewLine}" +
+            $"{Environment.NewLine}Granite Edge AI:{Environment.NewLine}Partial",
+            clipboard.Text);
+        Assert.AreEqual("Copied", AutomationProperties.GetName(copy));
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void CopyMessageWritesOnlyThatMessagesVisibleContent()
+    {
+        var clipboard = new RecordingClipboard();
+        var page = new ChatPage(clipboard);
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        page.SynchronizeTranscript(
+            Guid.NewGuid(),
+            [ChatMessage.User("Only this message", now)],
+            forceFollowLatest: false);
+        ListView transcript = Assert.IsInstanceOfType<ListView>(
+            page.FindName("TranscriptList"));
+        ChatMessageBubble bubble = Assert.IsInstanceOfType<ChatMessageBubble>(
+            transcript.Items[0]);
+        Button copy = Assert.IsInstanceOfType<Button>(
+            bubble.FindName("CopyMessageButton"));
+
+        Invoke(copy);
+
+        Assert.AreEqual("Only this message", clipboard.Text);
+        Assert.AreEqual("Copied", AutomationProperties.GetName(copy));
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void ClipboardFailureProvidesFeedbackWithoutChangingTranscript()
+    {
+        var clipboard = new RecordingClipboard(succeeds: false);
+        var page = new ChatPage(clipboard);
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        page.SynchronizeTranscript(
+            Guid.NewGuid(),
+            [ChatMessage.User("Still visible", now)],
+            forceFollowLatest: false);
+        ListView transcript = Assert.IsInstanceOfType<ListView>(
+            page.FindName("TranscriptList"));
+        ChatMessageBubble bubble = Assert.IsInstanceOfType<ChatMessageBubble>(
+            transcript.Items[0]);
+        Button copyMessage = Assert.IsInstanceOfType<Button>(
+            bubble.FindName("CopyMessageButton"));
+        Button copyChat = Assert.IsInstanceOfType<Button>(
+            page.FindName("CopyChatButton"));
+
+        Invoke(copyMessage);
+        Invoke(copyChat);
+
+        Assert.AreEqual("Couldn't copy", AutomationProperties.GetName(copyMessage));
+        Assert.AreEqual("Couldn't copy", AutomationProperties.GetName(copyChat));
+        Assert.AreEqual("Still visible", bubble.MessageContent);
+        Assert.AreSame(bubble, transcript.Items[0]);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void CopyChatIsDisabledWhenTheOpenConversationHasNoVisibleContent()
+    {
+        var page = new ChatPage(new RecordingClipboard());
+        Button copy = Assert.IsInstanceOfType<Button>(
+            page.FindName("CopyChatButton"));
+
+        Assert.IsFalse(copy.IsEnabled);
+        page.SynchronizeTranscript(Guid.NewGuid(), [], forceFollowLatest: false);
+        Assert.IsFalse(copy.IsEnabled);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
     public async Task DeferredFollowScrollsOverflowAfterLayout()
     {
         var page = new ChatPage();
@@ -478,5 +574,16 @@ public sealed class ChatPageTests
         var provider = Assert.IsInstanceOfType<IInvokeProvider>(
             peer.GetPattern(PatternInterface.Invoke));
         provider.Invoke();
+    }
+
+    private sealed class RecordingClipboard(bool succeeds = true) : IChatClipboard
+    {
+        internal string? Text { get; private set; }
+
+        public bool TrySetText(string text)
+        {
+            Text = text;
+            return succeeds;
+        }
     }
 }

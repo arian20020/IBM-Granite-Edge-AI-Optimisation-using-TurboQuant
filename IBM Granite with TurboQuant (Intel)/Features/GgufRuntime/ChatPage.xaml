@@ -183,18 +183,46 @@
                         <RowDefinition Height="*" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
-                    <StackPanel Margin="4,0,4,20" Spacing="6">
-                        <TextBlock
-                            Text="Chat"
-                            FontSize="28"
-                            FontWeight="Bold"
-                            Foreground="{ThemeResource GgufChatTextBrush}" />
-                        <TextBlock
-                            x:Name="ModelNameText"
-                            Text="No model selected"
-                            Foreground="{ThemeResource GgufChatMutedBrush}"
-                            TextWrapping="Wrap" />
-                    </StackPanel>
+                    <Grid Margin="4,0,4,20" ColumnSpacing="16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Spacing="6">
+                            <TextBlock
+                                Text="Chat"
+                                FontSize="28"
+                                FontWeight="Bold"
+                                Foreground="{ThemeResource GgufChatTextBrush}" />
+                            <TextBlock
+                                x:Name="ModelNameText"
+                                Text="No model selected"
+                                Foreground="{ThemeResource GgufChatMutedBrush}"
+                                TextWrapping="Wrap" />
+                        </StackPanel>
+                        <Button
+                            x:Name="CopyChatButton"
+                            Grid.Column="1"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Top"
+                            Padding="10,7"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            IsEnabled="False"
+                            AutomationProperties.Name="Copy chat"
+                            ToolTipService.ToolTip="Copy chat"
+                            Click="CopyChatButton_Click">
+                            <StackPanel Orientation="Horizontal" Spacing="7">
+                                <FontIcon
+                                    x:Name="CopyChatGlyph"
+                                    FontSize="14"
+                                    Glyph="&#xE8C8;" />
+                                <TextBlock
+                                    x:Name="CopyChatLabel"
+                                    Text="Copy chat" />
+                            </StackPanel>
+                        </Button>
+                    </Grid>
                     <Rectangle
                         Grid.Row="1"
                         Fill="{ThemeResource GgufChatBorderBrush}" />

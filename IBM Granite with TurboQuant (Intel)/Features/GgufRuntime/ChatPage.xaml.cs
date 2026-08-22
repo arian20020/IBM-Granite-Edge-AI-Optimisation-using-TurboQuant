@@ -1,8 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using GraniteEdgeAI.Features.GgufRuntime.Clipboard;
 using GraniteEdgeAI.Features.GgufRuntime.Controls;
 using GraniteEdgeAI.Features.GgufRuntime.History;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 
@@ -10,16 +13,28 @@ namespace GraniteEdgeAI.Features.GgufRuntime;
 
 public sealed partial class ChatPage : Page
 {
+    private const string CopyChatActionLabel = "Copy chat";
+    private readonly IChatClipboard clipboard;
     private readonly Dictionary<Guid, ChatMessageBubble> transcriptBubbles = [];
     private readonly List<Guid> renderedMessageIds = [];
+    private readonly Microsoft.UI.Dispatching.DispatcherQueueTimer copyChatFeedbackTimer;
+    private IReadOnlyList<ChatMessage> currentMessages = [];
     private Guid? renderedConversationId;
     private bool transcriptFollowRequested;
     private bool transcriptFollowAwaitingLayout;
     private double transcriptFollowOriginOffset;
 
-    public ChatPage()
+    public ChatPage() : this(new WindowsChatClipboard())
     {
+    }
+
+    internal ChatPage(IChatClipboard clipboard)
+    {
+        this.clipboard = clipboard ?? throw new ArgumentNullException(nameof(clipboard));
         InitializeComponent();
+        copyChatFeedbackTimer = DispatcherQueue.CreateTimer();
+        copyChatFeedbackTimer.Interval = TimeSpan.FromSeconds(1.5);
+        copyChatFeedbackTimer.Tick += CopyChatFeedbackTimer_Tick;
         Unloaded += ChatPage_Unloaded;
     }
 
@@ -72,13 +87,11 @@ public sealed partial class ChatPage : Page
 
     public void AddMessage(string content, bool isUser, string statusText = "")
     {
-        TranscriptList.Items.Add(new ChatMessageBubble
-        {
-            MessageContent = content,
-            IsUser = isUser,
-            StatusText = statusText,
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-        });
+        ChatMessageBubble bubble = CreateMessageBubble();
+        bubble.MessageContent = content;
+        bubble.IsUser = isUser;
+        bubble.StatusText = statusText;
+        TranscriptList.Items.Add(bubble);
         ShowConversation();
         RequestTranscriptFollow(
             FindDescendant<ScrollViewer>(TranscriptList)?.VerticalOffset ?? 0);
@@ -116,10 +129,7 @@ public sealed partial class ChatPage : Page
             ChatMessage message = messages[index];
             if (!transcriptBubbles.TryGetValue(message.Id, out ChatMessageBubble? bubble))
             {
-                bubble = new ChatMessageBubble
-                {
-                    HorizontalAlignment = HorizontalAlignment.Stretch,
-                };
+                bubble = CreateMessageBubble();
                 transcriptBubbles.Add(message.Id, bubble);
                 renderedMessageIds.Add(message.Id);
                 TranscriptList.Items.Add(bubble);
@@ -129,6 +139,10 @@ public sealed partial class ChatPage : Page
             bubble.IsUser = message.Role == ChatMessageRole.User;
             bubble.StatusText = FormatStatus(message.Status);
         }
+
+        currentMessages = messages.ToArray();
+        CopyChatButton.IsEnabled = currentMessages.Any(
+            message => !string.IsNullOrWhiteSpace(message.Content));
 
         if (messages.Count == 0)
         {
@@ -185,10 +199,19 @@ public sealed partial class ChatPage : Page
     private void ResetTranscript(Guid? conversationId)
     {
         CancelTranscriptFollow();
+        foreach (ChatMessageBubble bubble in TranscriptList.Items
+            .OfType<ChatMessageBubble>())
+        {
+            bubble.CopyRequested -= MessageBubble_CopyRequested;
+        }
+
         TranscriptList.Items.Clear();
         transcriptBubbles.Clear();
         renderedMessageIds.Clear();
         renderedConversationId = conversationId;
+        currentMessages = [];
+        CopyChatButton.IsEnabled = false;
+        ResetCopyChatFeedback();
         EmptyConversationState.Visibility = Visibility.Visible;
         TranscriptList.Visibility = Visibility.Collapsed;
     }
@@ -262,6 +285,7 @@ public sealed partial class ChatPage : Page
     private void ChatPage_Unloaded(object sender, RoutedEventArgs eventArguments)
     {
         Unloaded -= ChatPage_Unloaded;
+        copyChatFeedbackTimer.Stop();
         CancelTranscriptFollow();
     }
 
@@ -278,4 +302,65 @@ public sealed partial class ChatPage : Page
 
     private void Composer_StopRequested(object? sender, EventArgs eventArguments) =>
         StopRequested?.Invoke(this, EventArgs.Empty);
+
+    private ChatMessageBubble CreateMessageBubble()
+    {
+        var bubble = new ChatMessageBubble
+        {
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+        };
+        bubble.CopyRequested += MessageBubble_CopyRequested;
+        return bubble;
+    }
+
+    private void MessageBubble_CopyRequested(object? sender, string content)
+    {
+        if (sender is ChatMessageBubble bubble)
+        {
+            bubble.ShowCopyResult(clipboard.TrySetText(content));
+        }
+    }
+
+    private void CopyChatButton_Click(
+        object sender,
+        RoutedEventArgs eventArguments)
+    {
+        string text = ChatTranscriptFormatter.Format(currentMessages);
+        if (!string.IsNullOrEmpty(text))
+        {
+            ShowCopyChatResult(clipboard.TrySetText(text));
+        }
+    }
+
+    private void ShowCopyChatResult(bool succeeded)
+    {
+        copyChatFeedbackTimer.Stop();
+        CopyChatGlyph.Glyph = succeeded ? "\uE73E" : "\uE783";
+        string label = succeeded ? "Copied" : "Couldn't copy";
+        CopyChatLabel.Text = label;
+        AutomationProperties.SetName(CopyChatButton, label);
+        ToolTipService.SetToolTip(CopyChatButton, label);
+        copyChatFeedbackTimer.Start();
+    }
+
+    private void CopyChatFeedbackTimer_Tick(
+        Microsoft.UI.Dispatching.DispatcherQueueTimer sender,
+        object eventArguments)
+    {
+        sender.Stop();
+        ResetCopyChatFeedback();
+    }
+
+    private void ResetCopyChatFeedback()
+    {
+        if (CopyChatButton is null)
+        {
+            return;
+        }
+
+        CopyChatGlyph.Glyph = "\uE8C8";
+        CopyChatLabel.Text = CopyChatActionLabel;
+        AutomationProperties.SetName(CopyChatButton, CopyChatActionLabel);
+        ToolTipService.SetToolTip(CopyChatButton, CopyChatActionLabel);
+    }
 }
