@@ -1,0 +1,149 @@
+name: Workbook 05 repository-safe C2-F completion
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/workbook-05-repository-safe-completion.yml'
+      - 'docs/testing/Workbook-05-Post-C-*.csv'
+      - 'docs/testing/workbooks/**'
+      - 'experiments/granite_turboquant_intel/manifests/templates/workbook05/**'
+      - 'experiments/granite_turboquant_intel/schemas/workbook05/**'
+      - 'scripts/testing/Validate-Workbook05-RepositorySafeCompletion.ps1'
+      - 'scripts/testing/workbook05/phase3/**'
+      - 'tests/testing/workbook05/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: workbook-05-repository-safe-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  produce-stage-fixtures:
+    name: Produce model-free ${{ matrix.stage }} fixture
+    runs-on: windows-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        stage: [C2, C3, C4, C5, D1, D2, E1, E2, E3, E4, F]
+
+    steps:
+      - name: Check out the exact repository-safe revision
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+          sparse-checkout: |
+            .github/workflows
+            docs/testing
+            experiments/granite_turboquant_intel/manifests/templates/workbook05
+            experiments/granite_turboquant_intel/schemas/workbook05
+            scripts/testing
+            tests/testing/workbook05
+
+      - name: Set up Python 3.12.10
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.10'
+
+      - name: Install pinned validation dependencies
+        shell: powershell
+        run: >-
+          python -m pip install
+          --disable-pip-version-check
+          -r '.\scripts\testing\workbook05\requirements.txt'
+
+      - name: Build the stage fixture without model access
+        shell: powershell
+        env:
+          STAGE_ID: ${{ matrix.stage }}
+        run: |
+          $Bundle = Join-Path $env:RUNNER_TEMP ("workbook05-stage-" + $env:STAGE_ID)
+          python -m scripts.testing.workbook05.phase3.stage_bundle_builder `
+              --stage $env:STAGE_ID `
+              --repository-root $env:GITHUB_WORKSPACE `
+              --bundle $Bundle
+          if ($LASTEXITCODE -ne 0) {
+              throw "Stage fixture builder exited with code $LASTEXITCODE."
+          }
+          python -m scripts.testing.workbook05.phase3.stage_bundle_validation `
+              --stage $env:STAGE_ID `
+              --repository-root $env:GITHUB_WORKSPACE `
+              --bundle $Bundle `
+              --report (Join-Path $Bundle 'producer-validation.json')
+          if ($LASTEXITCODE -ne 0) {
+              throw "Producer validation exited with code $LASTEXITCODE."
+          }
+
+      - name: Upload the exact model-free stage fixture
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+        with:
+          name: workbook05-repository-safe-${{ matrix.stage }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}\workbook05-stage-${{ matrix.stage }}
+          if-no-files-found: error
+          retention-days: 30
+          include-hidden-files: false
+
+  independently-validate-stage-fixtures:
+    name: Independently validate ${{ matrix.stage }} fixture
+    needs: produce-stage-fixtures
+    runs-on: windows-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        stage: [C2, C3, C4, C5, D1, D2, E1, E2, E3, E4, F]
+
+    steps:
+      - name: Check out the exact validator revision
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+          sparse-checkout: |
+            docs/testing
+            experiments/granite_turboquant_intel/schemas/workbook05
+            scripts/testing/workbook05
+            tests/testing/workbook05
+
+      - name: Set up independent Python 3.12.10
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.10'
+
+      - name: Install pinned independent-validator dependencies
+        shell: powershell
+        run: >-
+          python -m pip install
+          --disable-pip-version-check
+          -r '.\scripts\testing\workbook05\requirements.txt'
+
+      - name: Download the exact same-attempt stage artifact
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
+        with:
+          name: workbook05-repository-safe-${{ matrix.stage }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}\workbook05-stage-${{ matrix.stage }}
+
+      - name: Validate downloaded data without executing it
+        shell: powershell
+        env:
+          STAGE_ID: ${{ matrix.stage }}
+        run: |
+          $Bundle = Join-Path $env:RUNNER_TEMP ("workbook05-stage-" + $env:STAGE_ID)
+          python -m scripts.testing.workbook05.phase3.stage_bundle_validation `
+              --stage $env:STAGE_ID `
+              --repository-root $env:GITHUB_WORKSPACE `
+              --bundle $Bundle `
+              --report (Join-Path $env:RUNNER_TEMP ("independent-" + $env:STAGE_ID + '.json'))
+          if ($LASTEXITCODE -ne 0) {
+              throw "Independent stage validation exited with code $LASTEXITCODE."
+          }
+          Write-Host ("WORKBOOK05_REPOSITORY_SAFE_" + $env:STAGE_ID + "_PASS")
