@@ -41,7 +41,13 @@ The package contained 86 manifest-listed non-manifest files. Before implementati
 | Integration isolation | Dedicated ignored worktree on `integration/hardware-inspection-intel-completion-v1` | PASS |
 | Tool discovery | Python 3.12.10 and Visual Studio 18.7 MSBuild 18.7.8 are available. No .NET SDK is registered with the bundled host, `dotnet` is not on PATH, and `vstest.console.exe` was not found. | PARTIAL |
 | Mainline Stage 0/A baseline | `PSExecutionPolicyPreference=Bypass` scoped to the test process; `python -m unittest tests.testing.hardware_inspection.test_intel_runner_stage0_contract tests.testing.hardware_inspection.test_intel_runner_stage_a_contract -v` | PASS, 24/24 in 92.758s |
-| Functional merge | Not merged yet | PENDING |
+| Functional merge | Merge commit `de59d95`; seven legacy Model Inspection workflows absent from pinned mainline were then removed because the repaired Stage 0/A inventory guards reject any extra workflow inventory | PASS, post-merge Python contracts 28/28 in 91.620s |
 | Gate merge | Not merged yet | PENDING |
 | Combined deterministic tests | Not run yet | PENDING |
 | Native Debug/x64 visual/accessibility QA | Not run yet | PENDING |
+
+## Functional merge audit
+
+- `IBM Granite with TurboQuant (Intel)/Features/HardwareInspection` contains no GGUF or OpenVINO interpretation and refers to the model handoff only as `OpaqueModelHandoff` on the page boundary.
+- The only product implementation of `IHardwareInspectionService` introduced by the functional history is `UnavailableHardwareInspectionService`; no production coordinator was invented or activated.
+- The seven removed workflow files existed at the pinned functional SHA and did not exist at the pinned mainline SHA. Their reintroduction caused the intended repository-wide Stage 0/A inventory tests to fail; the focused guards passed after their exact removal.
