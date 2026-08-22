@@ -5,7 +5,7 @@ namespace GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.ModeSelectio
 /// one of them: it is a separate action that creates a runtime profile rather
 /// than choosing between alternatives.
 /// </summary>
-internal enum CompatibilityMode
+public enum CompatibilityMode
 {
     Unspecified = 0,
     Automatic,

@@ -4,7 +4,7 @@ namespace GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.ModeSelectio
 /// Why a candidate never reached a mode's comparison. Stable codes, never free
 /// text, so a disabled mode can explain itself without leaking anything.
 /// </summary>
-internal enum ModeAdmissionReason
+public enum ModeAdmissionReason
 {
     None = 0,
 

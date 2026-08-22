@@ -7,7 +7,7 @@ namespace GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation
 /// as work progresses, not by a finished result, so nothing here produces them.
 /// Everything else is a projection of what the engine concluded.
 /// </summary>
-internal enum CompatibilityScreenState
+public enum CompatibilityScreenState
 {
     Unspecified = 0,
 

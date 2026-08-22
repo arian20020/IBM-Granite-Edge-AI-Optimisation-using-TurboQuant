@@ -178,8 +178,8 @@ public sealed class CompatibilityScreenProjectionTests
     public void EveryConcludedScreen_CarriesAllFourModes()
     {
         // An unavailable mode is disabled with its reason, never hidden.
-        Assert.AreEqual(4, CompatibilityScreenModel.From(RunWith(64)).ModeSelections.Count);
-        Assert.AreEqual(4, CompatibilityScreenModel.From(RunWith(4)).ModeSelections.Count);
+        Assert.AreEqual(4, CompatibilityScreenModel.From(RunWith(64)).Modes.Count);
+        Assert.AreEqual(4, CompatibilityScreenModel.From(RunWith(4)).Modes.Count);
     }
 
     [TestMethod]
@@ -187,7 +187,7 @@ public sealed class CompatibilityScreenProjectionTests
     {
         // Nothing was assessed, so there is nothing to disable with a reason.
         Assert.AreEqual(
-            0, CompatibilityScreenModel.From(NotEstablishedResult()).ModeSelections.Count);
+            0, CompatibilityScreenModel.From(NotEstablishedResult()).Modes.Count);
     }
 
     [TestMethod]

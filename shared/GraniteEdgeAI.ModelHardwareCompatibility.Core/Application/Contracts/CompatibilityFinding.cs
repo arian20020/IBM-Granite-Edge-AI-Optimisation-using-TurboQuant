@@ -4,7 +4,7 @@ namespace GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Contracts;
 /// What a finding is about. Stable codes only — section 14 forbids any free-form
 /// payload reaching a result, and presentation owns the wording anyway.
 /// </summary>
-internal enum CompatibilityFindingCode
+public enum CompatibilityFindingCode
 {
     Unspecified = 0,
 
@@ -40,7 +40,7 @@ internal enum CompatibilityFindingCode
     BaselineConfigurationUnavailable
 }
 
-internal enum FindingSeverity
+public enum FindingSeverity
 {
     Unspecified = 0,
     Information,

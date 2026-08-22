@@ -4,7 +4,7 @@ namespace GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.ModeSelectio
 /// Whether a mode could pick anything. A mode is never silently missing: it is
 /// available with a candidate, unavailable with a reason, or not established.
 /// </summary>
-internal enum ModeAvailability
+public enum ModeAvailability
 {
     NotEstablished = 0,
     Available,

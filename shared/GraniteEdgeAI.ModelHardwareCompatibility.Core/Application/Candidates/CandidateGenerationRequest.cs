@@ -95,7 +95,7 @@ internal sealed record CandidateGenerationRequest
 /// 10 requires the exact reason be preserved rather than the baseline silently
 /// going missing.
 /// </summary>
-internal enum BaselineExclusionReason
+public enum BaselineExclusionReason
 {
     None = 0,
     SupportMatrixUnavailable,
