@@ -102,14 +102,15 @@ jobs:
           }
           $moduleText = Get-Content -LiteralPath $modulePath -Raw -Encoding utf8
           if ($moduleText -notmatch '\[AllowEmptyCollection\(\)\]') {
-              $pattern = '(?m)^(?<indent>\s*)\[int\[\]\]\s*\$RemainingProcessIds,'
+              $pattern = '(?m)^(?<indent>\s*)\[Parameter\(Mandatory\)\]\[int\[\]\]\s*\$RemainingProcessIds,'
               $matches = [regex]::Matches($moduleText, $pattern)
               if ($matches.Count -ne 1) {
-                  throw "Expected exactly one RemainingProcessIds declaration; found $($matches.Count)."
+                  throw "Expected exactly one mandatory RemainingProcessIds declaration; found $($matches.Count)."
               }
               $moduleText = [regex]::Replace(
                   $moduleText,
                   $pattern,
+                  '${indent}[Parameter(Mandatory)]' + "`n" +
                   '${indent}[AllowEmptyCollection()]' + "`n" +
                   '${indent}[int[]] $RemainingProcessIds,',
                   1
@@ -122,7 +123,7 @@ jobs:
           }
           $repairedText = Get-Content -LiteralPath $modulePath -Raw -Encoding utf8
           if (
-              $repairedText -notmatch '(?s)\[AllowEmptyCollection\(\)\]\s*\[int\[\]\]\s*\$RemainingProcessIds,'
+              $repairedText -notmatch '(?s)\[Parameter\(Mandatory\)\]\s*\[AllowEmptyCollection\(\)\]\s*\[int\[\]\]\s*\$RemainingProcessIds,'
           ) {
               throw 'The exact empty-descendant cooldown repair was not materialised.'
           }
