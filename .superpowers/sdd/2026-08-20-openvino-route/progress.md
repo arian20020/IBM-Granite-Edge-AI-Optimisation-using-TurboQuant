@@ -186,10 +186,18 @@ manifested files and passes a real repository-fixture export. Final gates:
 source 15/15, dependency contracts 6/6, route 196/196, process 47/47 applicable
 with only physical GPU-01 skipped, and Release x64 app build passed. Inline
 security review corrected fixture ignore/byte preservation and root overlap.)
-Task 12: pending
-Task 13: pending
-Task 14: pending
-Task 15: pending
+Task 12: complete locally (`97e2d65f`, `c814d362`, `62a83f31` - sealed offline
+conversion, atomic publication, and shared UI conversion action; external hosted
+and UCL evidence remains a release prerequisite).
+Task 13: complete locally (`0fc4c287`, `a4e1652f` - independently published
+FP16/INT8/INT4 optimization and evidence-gated standard candidates).
+Task 14: complete locally (`9cb832c2` - stable official-route acceptance filter,
+closed typed evidence binding, and hosted/UCL workflow integration; workflows
+were not externally dispatched).
+Task 15: complete locally (exact released upstream recovery; empty patch ledger;
+sealed MSVC x64 runtime closure; codec and real two-turn stateful CPU-SDPA
+conformance; external security/license approval and Granite activation evidence
+remain open and prevent registration).
 Task 16: pending
 Task 17: pending
 Task 18: pending
