@@ -44,6 +44,11 @@ public sealed class PrivacyCanaryTests
         // string of its own, so nothing new can enter here.
         "CapabilityProjection.Project",
 
+        // The same admitted support-entry ids once more, carried as the set the
+        // user has opted in to. A caller supplies these to name matrix entries;
+        // an id that is not in the matrix simply matches nothing.
+        "CompatibilityRunDependencies.OptedInExperimentalEntryIds",
+
         // Hand-written ToString overrides surfaced once the scan widened to
         // cover methods. Each formats an already-reviewed numeric value (or,
         // for CandidateFingerprint, delegates to the already-allowed Value
