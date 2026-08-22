@@ -8,6 +8,30 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+function Get-Sha256 {
+    param([Parameter(Mandatory)] [string]$Path)
+
+    $stream = [System.IO.File]::Open(
+        $Path,
+        [System.IO.FileMode]::Open,
+        [System.IO.FileAccess]::Read,
+        [System.IO.FileShare]::Read)
+    try {
+        $algorithm = [System.Security.Cryptography.SHA256]::Create()
+        try {
+            return ([System.BitConverter]::ToString(
+                $algorithm.ComputeHash($stream))).Replace('-', '')
+        }
+        finally {
+            $algorithm.Dispose()
+        }
+    }
+    finally {
+        $stream.Dispose()
+    }
+}
+
 $root = [System.IO.Path]::GetFullPath($PackageRoot)
 if (-not (Test-Path -LiteralPath $root -PathType Container)) {
     throw 'The GGUF runtime package root does not exist.'
@@ -41,7 +65,7 @@ $entries = foreach ($file in $files) {
     [ordered]@{
         relativePath = $relative
         length = $file.Length
-        sha256 = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash
+        sha256 = Get-Sha256 -Path $file.FullName
         architecture = if ($role -in @('Supervisor', 'Adapter')) { 'X64' } else { 'Any' }
         role = $role
         licenseReference = 'Adapter/LICENSE.llama.cpp.txt'
