@@ -176,6 +176,16 @@ internal static class ModeComparers
         /// quantisation is <see cref="WeightQuantisation.Unknown"/>, or a set
         /// with no established best tier at all, is treated as outside any band.
         /// </summary>
+        /// <summary>
+        /// Whether this candidate is within one quality tier of the best that
+        /// was admitted.
+        ///
+        /// Tier distance is the gap between enum values, which only measures
+        /// quality because WeightQuantisation is declared from most bits to
+        /// fewest. That coupling is invisible here, so an invariant test pins
+        /// the order rather than leaving a reordering to change the band in
+        /// silence.
+        /// </summary>
         private bool InBand(EvaluatedCandidate candidate)
         {
             if (bestAdmittedTier is not { } best

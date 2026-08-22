@@ -230,4 +230,53 @@ public sealed class ModeSelectionInvariantTests
             Assert.AreEqual(expected, outcome.UseCurrentModelAvailable, $"at {memory} GiB");
         }
     }
+
+    [TestMethod]
+    public void WeightQuantisationOrder_DescendsInQuality()
+    {
+        // Balanced admits candidates "within one tier" of the best, and it
+        // measures that tier gap by subtracting enum values. That only means
+        // anything while the declaration order runs from most bits to fewest.
+        //
+        // Nothing else enforces it. Inserting a new quantisation in the wrong
+        // place would quietly redraw the band — admitting a setup two real
+        // tiers down, or excluding one that is a neighbour — with no test
+        // failing and no visible change at the call site.
+        WeightQuantisation[] ordered =
+        [
+            .. Enum.GetValues<WeightQuantisation>()
+                .Where(quantisation => quantisation != WeightQuantisation.Unknown)
+                .OrderBy(quantisation => (int)quantisation)
+        ];
+
+        for (int index = 1; index < ordered.Length; index++)
+        {
+            decimal previous = WeightQuantisationMap.BitsPerWeight(ordered[index - 1]);
+            decimal current = WeightQuantisationMap.BitsPerWeight(ordered[index]);
+
+            Assert.IsTrue(
+                current <= previous,
+                $"{ordered[index]} is declared after {ordered[index - 1]} but carries "
+                + $"more bits ({current} > {previous}), so tier distance no longer "
+                + "means quality distance.");
+        }
+    }
+
+    [TestMethod]
+    public void EveryQuantisationExceptUnknown_HasABitWidth()
+    {
+        // A tier with no width cannot be ranked, so it would sort as though it
+        // were the lowest quality available.
+        foreach (WeightQuantisation quantisation in Enum.GetValues<WeightQuantisation>())
+        {
+            if (quantisation == WeightQuantisation.Unknown)
+            {
+                continue;
+            }
+
+            Assert.IsTrue(
+                WeightQuantisationMap.BitsPerWeight(quantisation) > 0m,
+                $"{quantisation} has no bit width to rank it by.");
+        }
+    }
 }
