@@ -1645,7 +1645,7 @@ Choose exactly one evidence disposition:
 The evidence record must state these non-claims:
 
 - no production binary has been approved or committed;
-- no WinUI or HardwareSnapshot implementation exists;
+- Gate 1 does not approve any WinUI or HardwareSnapshot implementation;
 - no Windows Intel dedicated/shared GPU memory conclusion was established;
 - no Intel NPU presence or absence was established;
 - no model compatibility conclusion was made;

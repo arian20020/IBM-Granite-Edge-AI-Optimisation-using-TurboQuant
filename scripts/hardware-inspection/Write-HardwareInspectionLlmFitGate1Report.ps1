@@ -1242,7 +1242,7 @@ if ($hasFullReference) {
 [void]$builder.AppendLine('## Exact non-claims')
 [void]$builder.AppendLine()
 [void]$builder.AppendLine('- No production binary has been approved or committed.')
-[void]$builder.AppendLine('- No WinUI or `HardwareSnapshot` implementation exists.')
+[void]$builder.AppendLine('- Gate 1 does not approve any WinUI or `HardwareSnapshot` implementation.')
 [void]$builder.AppendLine('- No Windows Intel dedicated/shared GPU memory conclusion was established.')
 [void]$builder.AppendLine('- No Intel NPU presence or absence was established.')
 [void]$builder.AppendLine('- No model compatibility conclusion was made.')
