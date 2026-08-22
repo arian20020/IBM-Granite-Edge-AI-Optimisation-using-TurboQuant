@@ -2,6 +2,8 @@ using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
+using System.ComponentModel;
+using System.Runtime.InteropServices;
 using Windows.Foundation;
 using Windows.Graphics;
 using Windows.Storage.Streams;
@@ -11,6 +13,9 @@ namespace GraniteEdgeAI.UnitTests.Features.ModelInspection.Visual;
 public sealed class WinUiRenderHost : IAsyncDisposable
 {
     private static readonly TimeSpan UiTimeout = TimeSpan.FromSeconds(10);
+    private const uint SwpNoActivate = 0x0010;
+    private const uint SwpNoMove = 0x0002;
+    private const uint SwpNoZOrder = 0x0004;
 
     private readonly Window _window;
     private bool _disposed;
@@ -129,9 +134,34 @@ public sealed class WinUiRenderHost : IAsyncDisposable
         try
         {
             double scale = root.XamlRoot.RasterizationScale;
-            window.AppWindow.ResizeClient(new SizeInt32(
-                (int)Math.Round(width * scale),
-                (int)Math.Round(height * scale)));
+            int currentClientWidth = (int)Math.Round(
+                root.XamlRoot.Size.Width * scale);
+            int currentClientHeight = (int)Math.Round(
+                root.XamlRoot.Size.Height * scale);
+            SizeInt32 currentOuterSize = window.AppWindow.Size;
+            int desiredOuterWidth = checked(
+                (int)Math.Round(width * scale) +
+                Math.Max(0, currentOuterSize.Width - currentClientWidth));
+            int desiredOuterHeight = checked(
+                (int)Math.Round(height * scale) +
+                Math.Max(0, currentOuterSize.Height - currentClientHeight));
+
+            // AppWindow.ResizeClient clamps oversized windows to the monitor work
+            // area on hosted runners. SetWindowPos permits an off-screen extent,
+            // preserving the requested XamlRoot size for responsive render tests.
+            nint windowHandle = WinRT.Interop.WindowNative.GetWindowHandle(window);
+            if (!SetWindowPos(
+                    windowHandle,
+                    0,
+                    0,
+                    0,
+                    desiredOuterWidth,
+                    desiredOuterHeight,
+                    SwpNoActivate | SwpNoMove | SwpNoZOrder))
+            {
+                throw new Win32Exception(Marshal.GetLastWin32Error());
+            }
+
             ObserveLayout(null, EventArgs.Empty);
             await arranged.Task.WaitAsync(UiTimeout);
             root.UpdateLayout();
@@ -177,4 +207,16 @@ public sealed class WinUiRenderHost : IAsyncDisposable
             CompositionTarget.Rendering -= OnRendering;
         }
     }
+
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [DllImport("user32.dll", ExactSpelling = true, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetWindowPos(
+        nint windowHandle,
+        nint insertAfter,
+        int x,
+        int y,
+        int width,
+        int height,
+        uint flags);
 }
