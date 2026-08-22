@@ -166,7 +166,7 @@ internal sealed partial class CompatibilityPage : Page
             TextBlock label = new()
             {
                 Text = fact.Label.ToUpperInvariant(),
-                FontSize = (double)Resources["CompatibilityFactLabelFontSize"],
+                FontSize = Size("CompatibilityFactLabelFontSize"),
                 FontWeight = Microsoft.UI.Text.FontWeights.Bold,
                 Foreground = Brush("CompatibilityTextMutedBrush"),
                 TextTrimming = TextTrimming.CharacterEllipsis
@@ -175,7 +175,7 @@ internal sealed partial class CompatibilityPage : Page
             TextBlock value = new()
             {
                 Text = fact.Value,
-                FontSize = (double)Resources["CompatibilityFactValueFontSize"],
+                FontSize = Size("CompatibilityFactValueFontSize"),
                 FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
                 Foreground = Brush("CompatibilityTextPrimaryBrush"),
                 Margin = new Thickness(0, 5, 0, 0),
@@ -185,7 +185,7 @@ internal sealed partial class CompatibilityPage : Page
             TextBlock detail = new()
             {
                 Text = fact.Detail,
-                FontSize = (double)Resources["CompatibilityFactDetailFontSize"],
+                FontSize = Size("CompatibilityFactDetailFontSize"),
                 Foreground = Brush("CompatibilityTextMutedBrush"),
                 VerticalAlignment = VerticalAlignment.Bottom,
                 Margin = new Thickness(0, 4, 0, 0),
@@ -204,8 +204,8 @@ internal sealed partial class CompatibilityPage : Page
                 Background = Brush("CompatibilityCanvasBrush"),
                 BorderBrush = Brush("CompatibilityBorderLightBrush"),
                 BorderThickness = new Thickness(1),
-                CornerRadius = (CornerRadius)Resources["CompatibilityFactRadius"],
-                Padding = (Thickness)Resources["CompatibilityFactPadding"],
+                CornerRadius = Radius("CompatibilityFactRadius"),
+                Padding = Pad("CompatibilityFactPadding"),
                 Child = content
             };
 
@@ -237,7 +237,7 @@ internal sealed partial class CompatibilityPage : Page
             text.Children.Add(new TextBlock
             {
                 Text = row.Title,
-                FontSize = (double)Resources["CompatibilityRowTitleFontSize"],
+                FontSize = Size("CompatibilityRowTitleFontSize"),
                 FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
                 Foreground = Brush("CompatibilityTextPrimaryBrush"),
                 TextTrimming = TextTrimming.CharacterEllipsis
@@ -248,7 +248,7 @@ internal sealed partial class CompatibilityPage : Page
                 text.Children.Add(new TextBlock
                 {
                     Text = row.Subtitle,
-                    FontSize = (double)Resources["CompatibilityRowSubFontSize"],
+                    FontSize = Size("CompatibilityRowSubFontSize"),
                     Foreground = Brush("CompatibilityTextMutedBrush"),
                     TextTrimming = TextTrimming.CharacterEllipsis
                 });
@@ -262,7 +262,7 @@ internal sealed partial class CompatibilityPage : Page
                 : new TextBlock
                 {
                     Text = row.Value,
-                    FontSize = (double)Resources["CompatibilityRowTitleFontSize"],
+                    FontSize = Size("CompatibilityRowTitleFontSize"),
                     FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
                     Foreground = Brush("CompatibilityTextPrimaryBrush"),
                     VerticalAlignment = VerticalAlignment.Center
@@ -302,13 +302,13 @@ internal sealed partial class CompatibilityPage : Page
             Background = surface,
             BorderBrush = border,
             BorderThickness = new Thickness(1),
-            CornerRadius = (CornerRadius)Resources["CompatibilityPillRadius"],
+            CornerRadius = Radius("CompatibilityPillRadius"),
             Padding = new Thickness(7, 4, 7, 4),
             VerticalAlignment = VerticalAlignment.Center,
             Child = new TextBlock
             {
                 Text = row.Value,
-                FontSize = (double)Resources["CompatibilityPillFontSize"],
+                FontSize = Size("CompatibilityPillFontSize"),
                 FontWeight = Microsoft.UI.Text.FontWeights.Bold,
                 Foreground = accent
             }
@@ -330,7 +330,7 @@ internal sealed partial class CompatibilityPage : Page
             item.Children.Add(new TextBlock
             {
                 Text = recovery.Title,
-                FontSize = (double)Resources["CompatibilityRowTitleFontSize"],
+                FontSize = Size("CompatibilityRowTitleFontSize"),
                 FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
                 Foreground = Brush("CompatibilityTextPrimaryBrush"),
                 TextWrapping = TextWrapping.Wrap
@@ -339,7 +339,7 @@ internal sealed partial class CompatibilityPage : Page
             item.Children.Add(new TextBlock
             {
                 Text = recovery.Detail,
-                FontSize = (double)Resources["CompatibilityOutcomeBodyFontSize"],
+                FontSize = Size("CompatibilityOutcomeBodyFontSize"),
                 Foreground = Brush("CompatibilityTextMutedBrush"),
                 TextWrapping = TextWrapping.Wrap
             });
@@ -375,7 +375,7 @@ internal sealed partial class CompatibilityPage : Page
             step.Children.Add(new TextBlock
             {
                 Text = StepLabels[index],
-                FontSize = (double)Resources["CompatibilityStepLabelFontSize"],
+                FontSize = Size("CompatibilityStepLabelFontSize"),
                 HorizontalAlignment = HorizontalAlignment.Center,
                 Margin = new Thickness(0, 5, 0, 0),
                 TextAlignment = TextAlignment.Center,
@@ -420,5 +420,15 @@ internal sealed partial class CompatibilityPage : Page
         }
     }
 
-    private Brush Brush(string key) => (Brush)Resources[key];
+    private Brush Brush(string key) =>
+        CompatibilityResources.Brush(this, key);
+
+    private double Size(string key) =>
+        CompatibilityResources.Value(this, key, 10d);
+
+    private Thickness Pad(string key) =>
+        CompatibilityResources.Value(this, key, new Thickness(8));
+
+    private CornerRadius Radius(string key) =>
+        CompatibilityResources.Value(this, key, new CornerRadius(8));
 }

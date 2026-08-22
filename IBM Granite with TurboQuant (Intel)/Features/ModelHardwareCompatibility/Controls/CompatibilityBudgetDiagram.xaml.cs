@@ -330,5 +330,5 @@ internal sealed partial class CompatibilityBudgetDiagram : UserControl
         }
     }
 
-    private Brush Brush(string key) => (Brush)Resources[key];
+    private Brush Brush(string key) => CompatibilityResources.Brush(this, key);
 }
