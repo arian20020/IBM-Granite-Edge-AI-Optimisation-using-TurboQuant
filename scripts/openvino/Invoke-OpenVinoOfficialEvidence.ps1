@@ -1,16 +1,12 @@
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory)][ValidateSet('hosted', 'ucl')][string]$EvidenceKind,
     [Parameter(Mandatory)][ValidatePattern('^[0-9a-f]{40}$')][string]$ExpectedCommitSha,
     [Parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$OfficialArchiveDirectory,
     [Parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$WorkerStageDirectory,
     [Parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$FixtureRoot,
     [Parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$MeasurementsPath,
     [Parameter(Mandatory)][ValidateSet('Intel', 'AMD', 'Other')][string]$CpuVendor,
-    [Parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$EvidencePath,
-    [long]$ExpectedModelLength = 0,
-    [string]$ExpectedModelSha256 = '',
-    [string]$ExpectedFixtureManifestSha256 = ''
+    [Parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$EvidencePath
 )
 
 $ErrorActionPreference = 'Stop'
@@ -69,31 +65,10 @@ try {
 
     $destination = [IO.Path]::GetFullPath($EvidencePath)
     $destinationDirectory = Split-Path -Parent $destination
-    $expectedName = if ($EvidenceKind -ceq 'ucl') { 'ucl.json' } else { 'official.json' }
-    if ((Split-Path -Leaf $destination) -cne $expectedName -or
+    if ((Split-Path -Leaf $destination) -cne 'cpu.json' -or
         (Test-Path -LiteralPath $destinationDirectory) -or
         (Test-Path -LiteralPath $destination)) {
         throw 'evidence-directory-not-initially-absent'
-    }
-
-    if ($EvidenceKind -ceq 'ucl') {
-        $expectedWorkflowRef = [string]$env:GITHUB_REPOSITORY +
-            '/.github/workflows/openvino-ucl-intel.yml@' + [string]$env:GITHUB_REF
-        if ($env:GITHUB_ACTIONS -cne 'true' -or
-            $env:GITHUB_EVENT_NAME -cne 'workflow_dispatch' -or
-            $env:GITHUB_WORKFLOW_REF -cne $expectedWorkflowRef -or
-            $env:GITHUB_WORKFLOW_SHA -cne $ExpectedCommitSha -or
-            $env:GITHUB_SHA -cne $ExpectedCommitSha -or
-            $env:GITHUB_RUN_ID -cnotmatch '^[1-9][0-9]{0,19}$' -or
-            $env:GITHUB_RUN_ATTEMPT -cnotmatch '^[1-9][0-9]{0,9}$' -or
-            $env:GITHUB_JOB -cne 'trusted-intel-cpu' -or
-            $env:OPENVINO_UCL_ENVIRONMENT -cne 'openvino-ucl-01' -or
-            $env:OPENVINO_UCL_01_AUTHORIZED -cne 'UCL-01-approved' -or
-            $env:OPENVINO_UCL_AUTHORIZATION -cne 'UCL-01' -or
-            $env:GITHUB_REPOSITORY -cnotmatch '^[A-Za-z0-9_.-]{1,100}/[A-Za-z0-9_.-]{1,100}$' -or
-            $env:GITHUB_REF -cnotmatch '^refs/(heads|tags)/[^\r\n]{1,240}$') {
-            throw 'ucl-github-provenance-invalid'
-        }
     }
 
     $archiveRoot = [IO.Path]::GetFullPath($OfficialArchiveDirectory)
@@ -116,34 +91,14 @@ try {
     Invoke-ClosedVerifier (Join-Path $PSScriptRoot 'Test-OpenVinoGenAiFixture.ps1') `
         @('-FixtureRoot', $fixtureFullRoot) 'fixture_valid'
 
-    if ($EvidenceKind -ceq 'ucl') {
-        $manufacturer = [string](Get-CimInstance Win32_Processor |
-            Select-Object -First 1 -ExpandProperty Manufacturer)
-        if ($ExpectedModelLength -le 0 -or
-            $ExpectedModelSha256 -cnotmatch '^[0-9a-f]{64}$' -or
-            $ExpectedFixtureManifestSha256 -cnotmatch '^[0-9a-f]{64}$' -or
-            $CpuVendor -cne 'Intel' -or
-            $env:RUNNER_ARCH -cne 'X64' -or
-            $manufacturer -notmatch 'GenuineIntel|Intel') {
-            throw 'ucl-controlled-input-identity-invalid'
-        }
-        Invoke-ClosedVerifier (Join-Path $PSScriptRoot 'Test-OpenVinoTrustedInputs.ps1') `
-            @('-WorkspaceRoot', $repositoryRoot,
-                '-ArchiveRoot', $archiveRoot,
-                '-FixtureRoot', $fixtureFullRoot,
-                '-ExpectedModelLength', [string]$ExpectedModelLength,
-                '-ExpectedModelSha256', $ExpectedModelSha256,
-                '-ExpectedFixtureManifestSha256', $ExpectedFixtureManifestSha256) `
-            'trusted_inputs_valid'
-    }
-
     $measurementFile = Get-Item -LiteralPath $measurementFullPath -Force
     if ($measurementFile.Length -le 0 -or $measurementFile.Length -gt 8192 -or
         ($measurementFile.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
         throw 'measurement-file-invalid'
     }
-    $strictUtf8 = New-Object Text.UTF8Encoding($false, $true)
-    $measurementRaw = $strictUtf8.GetString([IO.File]::ReadAllBytes($measurementFullPath))
+    Import-Module (Join-Path $PSScriptRoot 'OpenVinoClosedJson.psm1') -Force
+    $measurementRaw = Get-OpenVinoClosedJsonText -Path $measurementFullPath `
+        -MaximumBytes 8192 -MaximumDepth 8
     $measurement = $measurementRaw | ConvertFrom-Json -ErrorAction Stop
     $rootNames = @('schemaVersion', 'requestedDevice', 'actualExecutionDevices',
         'runtimeBuildIdentity', 'testCounts', 'performanceAggregates',
@@ -216,7 +171,6 @@ try {
     $lockRoot = Join-Path $repositoryRoot 'third-party\openvino-official'
     $evidence = [ordered]@{
         schemaVersion = 1
-        evidenceKind = $EvidenceKind
         commitSha = $ExpectedCommitSha
         dependencyLockIdentities = [ordered]@{
             runtimeLockSha256 = Get-LowerSha256 (Join-Path $lockRoot 'openvino-runtime.lock.json')

@@ -85,7 +85,7 @@ env:
   OPENVINO_STAGE_B: ${{ runner.temp }}/openvino-official-stage-b
   OPENVINO_RESULTS: ${{ runner.temp }}/openvino-official-results
   OPENVINO_MEASUREMENTS: ${{ runner.temp }}/openvino-official-results/measurements.json
-  OPENVINO_EVIDENCE_FILE: artifacts/openvino/evidence/official.json
+  OPENVINO_EVIDENCE_FILE: artifacts/openvino/evidence/cpu.json
 
 jobs:
   official-cpu:
@@ -301,7 +301,7 @@ jobs:
           $vendor = if ($manufacturer -match 'Intel') { 'Intel' } elseif ($manufacturer -match 'AMD') { 'AMD' } else { 'Other' }
           & powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
             -File scripts/openvino/Invoke-OpenVinoOfficialEvidence.ps1 `
-            -EvidenceKind hosted -ExpectedCommitSha $env:OPENVINO_EVIDENCE_COMMIT `
+            -ExpectedCommitSha $env:OPENVINO_EVIDENCE_COMMIT `
             -OfficialArchiveDirectory $env:OPENVINO_ARCHIVES `
             -WorkerStageDirectory $env:OPENVINO_STAGE_B `
             -FixtureRoot tests/TestFixtures/OpenVINO/GenAI/TinySyntheticV1 `
@@ -360,7 +360,7 @@ jobs:
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
         with:
           name: openvino-official-cpu-${{ env.OPENVINO_EVIDENCE_COMMIT }}
-          path: artifacts/openvino/evidence/official.json
+          path: artifacts/openvino/evidence/cpu.json
           if-no-files-found: error
           retention-days: 30
 
@@ -369,7 +369,7 @@ jobs:
         timeout-minutes: 2
         run: |
           $workspace = [IO.Path]::GetFullPath($env:GITHUB_WORKSPACE).TrimEnd('\')
-          $expected = Join-Path $workspace 'artifacts\openvino\evidence\official.json'
+          $expected = Join-Path $workspace 'artifacts\openvino\evidence\cpu.json'
           $evidence = [IO.Path]::GetFullPath($env:OPENVINO_EVIDENCE_FILE)
           if ($evidence -ine $expected) { throw 'The evidence cleanup target is not exact.' }
           if (Test-Path -LiteralPath $evidence -PathType Leaf) {

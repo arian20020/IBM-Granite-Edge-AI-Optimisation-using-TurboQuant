@@ -1021,6 +1021,92 @@ public sealed class OpenVinoPromptAdapterTests
     }
 
     [TestMethod]
+    [DataRow(false)]
+    [DataRow(true)]
+    public async Task DisposeJoinsAuthoritativeTeardownWhenQueuedTerminalDefeatsCancellationReservation(
+        bool workerReturnsFailure)
+    {
+        TaskCompletionSource<IOpenVinoEvent> terminal = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        TaskCompletionSource stopDispatchEntered = NewSignal();
+        TaskCompletionSource releaseStopDispatch = NewSignal();
+        TaskCompletionSource promptTerminalQueued = NewSignal();
+        IProgress<TokenEvent>? progress = null;
+        FakeChannel channel = new((_, observedProgress, _) =>
+        {
+            progress = observedProgress;
+            return terminal.Task;
+        });
+        channel.StopAsyncAction = async (_, _) =>
+        {
+            stopDispatchEntered.TrySetResult();
+            await releaseStopDispatch.Task.ConfigureAwait(false);
+        };
+        (OpenVinoRouteSession session, List<PromptEvent> events) =
+            await StartSessionAsync(
+                channel,
+                new Action<Guid>(_ => promptTerminalQueued.TrySetResult()));
+
+        Task<PromptTurnResult> generation = session.GenerateAsync(
+            "dispose after terminal owner", 8, CancellationToken.None);
+        Guid turnId = events.Single(item =>
+            item.Kind == PromptEventKind.GenerationConfirmed).TurnId!.Value;
+        Task stop = session.StopActiveTurnAsync(turnId, CancellationToken.None);
+        await stopDispatchEntered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        terminal.SetResult(workerReturnsFailure
+            ? new TurnFailedEvent(
+                session.Snapshot.Identity.SessionId,
+                turnId,
+                OpenVinoSupportCode.RuntimeLoadFailed)
+            : new TurnCompletedEvent(
+                session.Snapshot.Identity.SessionId,
+                turnId,
+                1,
+                0,
+                OpenVinoTurnDisposition.Stopped));
+        await promptTerminalQueued.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Task losingReservation = session.CancelActiveTurnAsync(
+            turnId,
+            CancellationToken.None);
+        Task disposal = session.DisposeAsync().AsTask();
+        Assert.IsFalse(losingReservation.IsCompleted);
+        Assert.IsFalse(disposal.IsCompleted,
+            "Disposal must wait for the turn reservation and authoritative teardown.");
+
+        releaseStopDispatch.TrySetResult();
+        await stop.WaitAsync(TimeSpan.FromSeconds(5));
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(async () =>
+            await losingReservation.WaitAsync(TimeSpan.FromSeconds(5)));
+        await disposal.WaitAsync(TimeSpan.FromSeconds(5));
+        PromptTurnResult result = await generation.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.AreEqual(
+            workerReturnsFailure ? PromptTurnStatus.Failed : PromptTurnStatus.Stopped,
+            result.Status);
+        Assert.AreEqual(1, channel.DisposeCount,
+            "A losing turn reservation cannot satisfy disposal or poison its cache.");
+        await session.DisposeAsync();
+        Assert.AreEqual(1, channel.DisposeCount,
+            "All disposal callers must join the one authoritative channel teardown.");
+        Assert.HasCount(1, events.Where(item =>
+            item.Kind is PromptEventKind.TurnCompleted or PromptEventKind.Failed));
+        Assert.AreEqual(
+            workerReturnsFailure ? 0 : 1,
+            events.Count(item => item.Kind == PromptEventKind.Cancelled),
+            "Disposal may add one session terminal after a completed turn, but " +
+            "must not duplicate either terminal scope.");
+
+        int settledEventCount = events.Count;
+        progress!.Report(new TokenEvent(
+            session.Snapshot.Identity.SessionId,
+            turnId,
+            0,
+            "late"));
+        Assert.AreEqual(settledEventCount, events.Count);
+    }
+
+    [TestMethod]
     public async Task CloseAwaitsChannelCleanupAndMakesLateOperationsInactionable()
     {
         FakeChannel channel = SuccessfulChannel();

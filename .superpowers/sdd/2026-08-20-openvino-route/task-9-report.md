@@ -514,3 +514,88 @@ UCL dispatch remain pending external authorization. `UCL-01` remains open,
 this local campaign is not UCL evidence, and neither MVP nor UCL acceptance is
 claimed. Task 9 remains in progress awaiting independent re-review; Task 10 was
 not started.
+
+## Fix round 2: route-neutral evidence and retained UCL ownership
+
+The round-one rereview identified five remaining boundaries: local UCL
+provenance could still be self-asserted, escaped JSON property names could
+defeat duplicate detection, trusted-root handles were released before their
+consumers ran, workflow command contracts could be satisfied by comments, and
+disposal could return a losing exact-turn reservation instead of permanent
+channel teardown. The root directed this correction inline, so no subagent or
+independent-agent review was used for this round.
+
+CPU evidence is now the route-neutral exact file `cpu.json`. It contains no
+`evidenceKind`, UCL, GitHub, protected-environment, runner, account, or machine
+provenance field. The generator does not read GitHub or UCL environment
+variables, and even a fully GitHub-shaped local environment plus the removed
+UCL parameter cannot create a self-claimed UCL document. The separate binding
+verifier accepts only an externally supplied closed GitHub run record whose
+workflow, event, job, artifact name, commit, and evidence digest correlate with
+the CPU document. Its success disposition is deliberately
+`ucl_evidence_binding_valid_not_authenticated`; local environment variables
+alone return the typed invalid disposition. This verifier validates binding
+shape and correlation and does not authenticate the supplied record.
+
+`OpenVinoClosedJson.psm1` performs bounded strict UTF-8 recursive JSON parsing
+before every affected `ConvertFrom-Json`. It decodes property names, rejects
+duplicates at every object scope, rejects unpaired literal or escaped UTF-16
+surrogates, enforces JSON number/string/token grammar, and enforces byte and
+depth limits. Escaped root and nested duplicates, lone surrogates, excessive
+depth, nonfinite numbers, and Int64 overflow all fail closed.
+
+The manual UCL workflow now has one `Invoke-OpenVinoUclCampaign.ps1` run step as
+the only trusted-root consumer. That process snapshots both external roots,
+rejects reparse points and alternate data streams, acquires root/directory/file
+handles with write/delete sharing denied, verifies each handle's final path and
+volume/file identity, and retains the complete lease across dependency and
+fixture validation, both native builds, native and managed tests, three process
+campaigns, app build, measurement generation, evidence generation, and final
+integrity. A recursive sticky change monitor closes the Windows directory-handle
+gap: additions that the OS does not deny remain permanently observable even if
+removed before the next snapshot. Every build/test boundary checks both the
+sticky monitor and exact topology/length/SHA-256 snapshot. Outputs are outside
+the leased roots, and handles are released only after the closed evidence set
+and post-integrity result are final. The outer workflow retains only always-run
+output cleanup, privacy, upload, and exact local-evidence cleanup.
+
+Workflow contracts parse YAML nodes and parse `run` bodies with the real
+PowerShell AST. They require the executable and arguments in the owning step
+and reject quoted, commented, and wrong-step substitutes. This is a test-only
+dependency on exact `Microsoft.PowerShell.SDK` `[7.4.18]`; its restored NuGet
+metadata records project source `https://github.com/PowerShell/PowerShell` and
+MIT license expression. `packages.lock.json` fixes the full dependency graph
+and content hashes, and CI restore uses locked mode. There is no production
+runtime reference.
+
+Disposal now publishes its own permanent teardown task when an exact-turn
+cancellation reservation is pending. It contains the losing reservation and,
+in all cases, starts or joins authoritative session/channel retirement. The
+completion-first and failure-first regressions queue the prompt terminal before
+the exact cancellation, call concurrent disposal before the reservation loses,
+and prove one channel disposal, no faulted-cache poisoning, one terminal per
+scope, and ignored late output.
+
+### Final inline verification
+
+| Gate | Result |
+| --- | --- |
+| Full OpenVINO contracts, Release | 142/142 |
+| Full route/static/app/package suite with pinned stage | 181/181, zero skipped |
+| Exact disposal regression | 2/2 |
+| Managed WorkerClient | 13/13 |
+| Hosted-shaped protected process campaign | 41/41 |
+| External read-only fixture process campaign | 41/41 plus `ucl_fixture_consumption_valid` |
+| Independent native closures A and B | 7/7 each |
+| Release x64 app build against pinned stage B | passed |
+| PowerShell AST parse | 0 errors across 8 affected scripts/modules |
+| Route-neutral local smoke document | 1,182 bytes; SHA-256 `482c83580a321f86145a12a2ccfbe2498bdbd633b8721c29116b08f16aec6a69`; artifact verifier passed |
+| Worker-process residue | zero |
+
+The smoke document was generated locally at pre-fix-round commit
+`2ea6a6649925711da699ef7e6cd7cae48ed51059` using previously closed measured
+inputs solely to exercise the new route-neutral writer; it was not uploaded and
+is not hosted or UCL execution evidence. The final committed identity will
+differ. Hosted dispatch/upload and trusted UCL dispatch remain pending external
+authorization, `UCL-01` remains open, and neither MVP nor UCL acceptance is
+claimed.

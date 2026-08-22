@@ -65,9 +65,9 @@ try {
         Stop-Invalid
     }
 
-    $bytes = [IO.File]::ReadAllBytes($fullPath)
-    $strictUtf8 = New-Object Text.UTF8Encoding($false, $true)
-    $raw = $strictUtf8.GetString($bytes)
+    Import-Module (Join-Path $PSScriptRoot 'OpenVinoClosedJson.psm1') -Force
+    $raw = Get-OpenVinoClosedJsonText -Path $fullPath `
+        -MaximumBytes 16384 -MaximumDepth 8
     if ($raw.IndexOf([char]0) -ge 0 -or
         $raw -match '(?i)(?:[a-z]:[\\/]|\\\\[^\\\s]+\\[^\\\s]+)' -or
         $raw -match '(?i)"(?:[^"\\]|\\.)*"\s*:\s*"/' -or
@@ -78,7 +78,6 @@ try {
     $evidence = $raw | ConvertFrom-Json -ErrorAction Stop
     $rootNames = @(
         'schemaVersion',
-        'evidenceKind',
         'commitSha',
         'dependencyLockIdentities',
         'fixtureManifestSha256',
@@ -134,8 +133,6 @@ try {
     }
 
     if (-not (Test-BoundedInteger $evidence.schemaVersion 1 1) -or
-        $evidence.evidenceKind -isnot [string] -or
-        $evidence.evidenceKind -notin @('hosted', 'ucl') -or
         $evidence.commitSha -isnot [string] -or
         $evidence.commitSha -cnotmatch '^[0-9a-f]{40}$' -or
         -not (Test-LowerSha256 $evidence.dependencyLockIdentities.runtimeLockSha256) -or
@@ -158,9 +155,7 @@ try {
         $evidence.cpuIdentity.architecture -isnot [string] -or
         $evidence.cpuIdentity.architecture -cne 'X64' -or
         $evidence.cpuIdentity.vendor -isnot [string] -or
-        $evidence.cpuIdentity.vendor -notin @('Intel', 'AMD', 'Other') -or
-        ($evidence.evidenceKind -ceq 'ucl' -and
-            $evidence.cpuIdentity.vendor -cne 'Intel')) {
+        $evidence.cpuIdentity.vendor -notin @('Intel', 'AMD', 'Other')) {
         Stop-Invalid
     }
 

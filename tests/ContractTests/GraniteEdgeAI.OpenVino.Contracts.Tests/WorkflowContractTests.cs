@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
+using System.Management.Automation.Language;
 using YamlDotNet.RepresentationModel;
 
 namespace GraniteEdgeAI.OpenVino.Contracts.Tests;
@@ -30,6 +31,12 @@ public sealed class WorkflowContractTests
             "scripts/openvino/Invoke-OpenVinoOfficialEvidence.ps1",
             "scripts/openvino/Test-OpenVinoEvidencePrivacy.ps1",
             "scripts/openvino/Test-OpenVinoEvidenceArtifactSet.ps1",
+            "scripts/openvino/OpenVinoClosedJson.psm1",
+            "scripts/openvino/Test-OpenVinoClosedJsonDocument.ps1",
+            "scripts/openvino/Test-OpenVinoUclEvidenceBinding.ps1",
+            "scripts/openvino/OpenVinoTrustedInputLease.psm1",
+            "scripts/openvino/Test-OpenVinoTrustedInputLease.ps1",
+            "scripts/openvino/Invoke-OpenVinoUclCampaign.ps1",
             "scripts/openvino/Test-OpenVinoNativeJUnit.ps1",
             "scripts/openvino/Test-OpenVinoTrustedInputs.ps1",
             "scripts/openvino/Test-OpenVinoUclFixtureConsumption.ps1",
@@ -148,13 +155,11 @@ public sealed class WorkflowContractTests
         StringAssert.Contains(source, "^[0-9a-f]{40}$");
         StringAssert.Contains(source, "ref: ${{ env.OPENVINO_EVIDENCE_COMMIT }}");
         StringAssert.Contains(source, "persist-credentials: false");
-        StringAssert.Contains(source, "Test-OpenVinoTrustedInputs.ps1");
+        StringAssert.Contains(source, "Invoke-OpenVinoUclCampaign.ps1");
         StringAssert.Contains(source, "ExpectedModelLength");
         StringAssert.Contains(source, "ExpectedModelSha256");
         StringAssert.Contains(source, "ExpectedFixtureManifestSha256");
-        StringAssert.Contains(source, "GenuineIntel");
-        StringAssert.Contains(source, "Test-OpenVinoOfficialWorkerManifest.ps1");
-        StringAssert.Contains(source, "Invoke-OpenVinoOfficialEvidence.ps1");
+        StringAssert.Contains(source, "ExpectedFixtureManifestSha256");
     }
 
     [TestMethod]
@@ -234,8 +239,8 @@ public sealed class WorkflowContractTests
     {
         string official = OfficialWorkflow();
         string wrongUploadNode = official.Replace(
-            "path: artifacts/openvino/evidence/official.json",
-            "path: artifacts/openvino/evidence/ignored.json # path: artifacts/openvino/evidence/official.json",
+            "path: artifacts/openvino/evidence/cpu.json",
+            "path: artifacts/openvino/evidence/ignored.json # path: artifacts/openvino/evidence/cpu.json",
             StringComparison.Ordinal);
         Assert.ThrowsExactly<AssertFailedException>(() =>
             ValidateWorkflowStructure(wrongUploadNode, trusted: false));
@@ -260,6 +265,87 @@ public sealed class WorkflowContractTests
     }
 
     [TestMethod]
+    public void TrustedWorkflowHasOneAstVerifiedRetainedLeaseCampaignOwner()
+    {
+        YamlMappingNode root = ParseWorkflow(UclWorkflow());
+        YamlMappingNode job = Mapping(Mapping(root, "jobs"), "trusted-intel-cpu");
+        YamlMappingNode[] steps = Sequence(job, "steps").Select(AsMapping).ToArray();
+        YamlMappingNode campaign = Step(steps, "Run retained trusted UCL CPU campaign");
+        string run = Scalar(campaign, "run");
+        CommandAst command = SingleCommand(run, "powershell.exe");
+        string[] elements = command.CommandElements.Select(item => item.Extent.Text).ToArray();
+        CollectionAssert.Contains(elements, "scripts/openvino/Invoke-OpenVinoUclCampaign.ps1");
+        foreach (string required in new[]
+        {
+            "$env:GITHUB_WORKSPACE", "$env:OPENVINO_ARCHIVES",
+            "$env:OPENVINO_CONTROLLED_FIXTURE", "$env:OPENVINO_BUILD_A",
+            "$env:OPENVINO_BUILD_B", "$env:OPENVINO_STAGE_A",
+            "$env:OPENVINO_STAGE_B", "$env:OPENVINO_RESULTS",
+            "$env:OPENVINO_EVIDENCE_FILE"
+        })
+        {
+            CollectionAssert.Contains(elements, required);
+        }
+
+        string[] forbiddenOwners =
+        [
+            "Build-OpenVinoOfficialWorker.ps1", "Test-OpenVinoTrustedInputs.ps1",
+            "Test-OpenVinoDependencyLocks.ps1", "Test-OpenVinoGenAiFixture.ps1",
+            "New-OpenVinoEvidenceMeasurements.ps1", "Invoke-OpenVinoOfficialEvidence.ps1",
+            "dotnet", "msbuild", "ctest.exe"
+        ];
+        foreach (YamlMappingNode other in steps.Where(step => HasRun(step) && step != campaign))
+        {
+            string otherRun = Scalar(other, "run");
+            Token[] tokens;
+            ParseError[] errors;
+            ScriptBlockAst ast = Parser.ParseInput(otherRun, out tokens, out errors);
+            Assert.HasCount(0, errors, Scalar(other, "name"));
+            CommandAst[] otherCommands = ast.FindAll(
+                    node => node is CommandAst, searchNestedScriptBlocks: true)
+                .Cast<CommandAst>().ToArray();
+            foreach (string forbidden in forbiddenOwners)
+            {
+                Assert.IsFalse(otherCommands.Any(item =>
+                        (item.GetCommandName() ?? string.Empty).Contains(
+                            forbidden, StringComparison.OrdinalIgnoreCase) ||
+                        item.CommandElements.Any(element => element.Extent.Text.Contains(
+                            forbidden, StringComparison.OrdinalIgnoreCase))),
+                    $"{Scalar(other, "name")} duplicates trusted-root consumer {forbidden}.");
+            }
+        }
+
+        string quoted = run.Replace(
+            "& powershell.exe -NoLogo -NoProfile -NonInteractive `",
+            "Write-Output \"& powershell.exe -NoLogo -NoProfile -NonInteractive `\"",
+            StringComparison.Ordinal);
+        Assert.ThrowsExactly<AssertFailedException>(() => SingleCommand(quoted, "powershell.exe"));
+        string commented = run.Replace("& powershell.exe", "# & powershell.exe", StringComparison.Ordinal);
+        Assert.ThrowsExactly<AssertFailedException>(() => SingleCommand(commented, "powershell.exe"));
+
+        string cleanup = Scalar(Step(steps, "Clean operation-owned outputs after retained campaign"), "run");
+        Assert.ThrowsExactly<AssertFailedException>(() =>
+            SingleCommand(cleanup, "powershell.exe"));
+    }
+
+    [TestMethod]
+    public void HostedWorkflowCommandsArePowerShellAstVerifiedInTheirOwningSteps()
+    {
+        YamlMappingNode root = ParseWorkflow(OfficialWorkflow());
+        YamlMappingNode job = Mapping(Mapping(root, "jobs"), "official-cpu");
+        YamlMappingNode[] steps = Sequence(job, "steps").Select(AsMapping).ToArray();
+        AssertPowerShellCommandArgument(
+            Step(steps, "Create closed measured evidence inputs"),
+            "powershell.exe", "New-OpenVinoEvidenceMeasurements.ps1");
+        AssertPowerShellCommandArgument(
+            Step(steps, "Create typed sanitized official CPU evidence"),
+            "powershell.exe", "Invoke-OpenVinoOfficialEvidence.ps1");
+        AssertPowerShellCommandArgument(
+            Step(steps, "Record and validate native unit count"),
+            "powershell.exe", "Test-OpenVinoNativeJUnit.ps1");
+    }
+
+    [TestMethod]
     public void PrivacyVerifierAcceptsTheClosedDeterministicEvidenceSchema()
     {
         using TemporaryDirectory temporary = TemporaryDirectory.Create();
@@ -276,11 +362,8 @@ public sealed class WorkflowContractTests
     public void ArtifactSetVerifierAcceptsOneExactFileAndRejectsASecondJson()
     {
         using TemporaryDirectory temporary = TemporaryDirectory.Create();
-        string evidencePath = Path.Combine(temporary.Path, "official.json");
-        File.WriteAllText(evidencePath, ValidEvidence().Replace(
-            "\"evidenceKind\":\"ucl\"",
-            "\"evidenceKind\":\"hosted\"",
-            StringComparison.Ordinal));
+        string evidencePath = Path.Combine(temporary.Path, "cpu.json");
+        File.WriteAllText(evidencePath, ValidEvidence());
 
         ScriptResult valid = RunPowerShellScript(
             "scripts/openvino/Test-OpenVinoEvidenceArtifactSet.ps1",
@@ -392,6 +475,52 @@ public sealed class WorkflowContractTests
         SetFilesReadOnly(fixture, readOnly: false);
         SetFilesReadOnly(archives, readOnly: false);
         SetFilesReadOnly(targetInsideWorkspace, readOnly: false);
+    }
+
+    [TestMethod]
+    public void TrustedInputLeaseDeniesMutationUntilReleasedAndThenRestoresMutability()
+    {
+        using TemporaryDirectory temporary = TemporaryDirectory.Create();
+        string archives = Directory.CreateDirectory(
+            Path.Combine(temporary.Path, "archives")).FullName;
+        string fixture = Path.Combine(temporary.Path, "fixture");
+        CopyDirectory(
+            RepoPath("tests/TestFixtures/OpenVINO/GenAI/TinySyntheticV1"),
+            fixture);
+        File.WriteAllText(Path.Combine(archives, "archive.zip"), "controlled");
+
+        ScriptResult result = RunPowerShellScript(
+            "scripts/openvino/Test-OpenVinoTrustedInputLease.ps1",
+            "-ArchiveRoot", archives,
+            "-FixtureRoot", fixture);
+
+        Assert.AreEqual(0, result.ExitCode, result.StandardError);
+        Assert.AreEqual("trusted_input_lease_valid", result.StandardOutput.Trim());
+        Assert.IsFalse(File.Exists(Path.Combine(archives, "lease-add-probe.tmp")));
+        Assert.IsTrue(File.Exists(Path.Combine(archives, "archive.zip")));
+    }
+
+    [TestMethod]
+    public void TrustedInputLeaseRejectsAlternateDataStreamsBeforeAcquisition()
+    {
+        using TemporaryDirectory temporary = TemporaryDirectory.Create();
+        string archives = Directory.CreateDirectory(
+            Path.Combine(temporary.Path, "archives")).FullName;
+        string fixture = Path.Combine(temporary.Path, "fixture");
+        CopyDirectory(
+            RepoPath("tests/TestFixtures/OpenVINO/GenAI/TinySyntheticV1"),
+            fixture);
+        string archive = Path.Combine(archives, "archive.zip");
+        File.WriteAllText(archive, "controlled");
+        File.WriteAllText(archive + ":hidden", "must be rejected");
+
+        ScriptResult result = RunPowerShellScript(
+            "scripts/openvino/Test-OpenVinoTrustedInputLease.ps1",
+            "-ArchiveRoot", archives,
+            "-FixtureRoot", fixture);
+
+        Assert.AreNotEqual(0, result.ExitCode);
+        Assert.AreEqual("trusted_input_lease_invalid", result.StandardOutput.Trim());
     }
 
     [TestMethod]
@@ -530,10 +659,10 @@ public sealed class WorkflowContractTests
     }
 
     [TestMethod]
-    public void UclEvidenceGenerationRejectsLocalAndPartialWorkflowProvenance()
+    public void RouteNeutralGeneratorCannotSelfClaimUclWithFullySpoofedEnvironment()
     {
         using TemporaryDirectory temporary = TemporaryDirectory.Create();
-        string evidence = Path.Combine(temporary.Path, "evidence", "ucl.json");
+        string evidence = Path.Combine(temporary.Path, "evidence", "cpu.json");
         string measurements = Path.Combine(temporary.Path, "measurements.json");
         File.WriteAllText(measurements, "{}");
         string[] arguments =
@@ -550,25 +679,135 @@ public sealed class WorkflowContractTests
             "-ExpectedModelSha256", new string('1', 64)
         ];
 
-        ScriptResult local = RunPowerShellScript(
-            "scripts/openvino/Invoke-OpenVinoOfficialEvidence.ps1",
-            arguments);
-        Assert.AreNotEqual(0, local.ExitCode);
-        Assert.AreEqual("official_evidence_failed", local.StandardOutput.Trim());
-        Assert.IsFalse(File.Exists(evidence));
-
-        ScriptResult partial = RunPowerShellScriptWithEnvironment(
+        ScriptResult spoofed = RunPowerShellScriptWithEnvironment(
             "scripts/openvino/Invoke-OpenVinoOfficialEvidence.ps1",
             new Dictionary<string, string?>
             {
                 ["GITHUB_ACTIONS"] = "true",
                 ["GITHUB_EVENT_NAME"] = "workflow_dispatch",
-                ["GITHUB_SHA"] = GitHead()
+                ["GITHUB_SHA"] = GitHead(),
+                ["GITHUB_WORKFLOW_SHA"] = GitHead(),
+                ["GITHUB_WORKFLOW_REF"] =
+                    "attacker/repo/.github/workflows/openvino-ucl-intel.yml@refs/heads/main",
+                ["GITHUB_REPOSITORY"] = "attacker/repo",
+                ["GITHUB_REF"] = "refs/heads/main",
+                ["GITHUB_RUN_ID"] = "1",
+                ["GITHUB_RUN_ATTEMPT"] = "1",
+                ["GITHUB_JOB"] = "trusted-intel-cpu",
+                ["OPENVINO_UCL_ENVIRONMENT"] = "openvino-ucl-01",
+                ["OPENVINO_UCL_01_AUTHORIZED"] = "UCL-01-approved",
+                ["OPENVINO_UCL_AUTHORIZATION"] = "UCL-01",
+                ["RUNNER_ARCH"] = "X64"
             },
             arguments);
-        Assert.AreNotEqual(0, partial.ExitCode);
-        Assert.AreEqual("official_evidence_failed", partial.StandardOutput.Trim());
+        Assert.AreNotEqual(0, spoofed.ExitCode);
         Assert.IsFalse(File.Exists(evidence));
+
+        string source = File.ReadAllText(RepoPath(
+            "scripts/openvino/Invoke-OpenVinoOfficialEvidence.ps1"));
+        Assert.IsFalse(source.Contains("EvidenceKind", StringComparison.Ordinal));
+        Assert.IsFalse(source.Contains("evidenceKind", StringComparison.Ordinal));
+        Assert.IsFalse(source.Contains("GITHUB_", StringComparison.Ordinal));
+        Assert.IsFalse(source.Contains("OPENVINO_UCL_", StringComparison.Ordinal));
+    }
+
+    [TestMethod]
+    public void LocalCpuDocumentCannotSatisfyUclBindingWithoutExternalRunRecord()
+    {
+        using TemporaryDirectory temporary = TemporaryDirectory.Create();
+        string evidence = Path.Combine(temporary.Path, "cpu.json");
+        File.WriteAllText(evidence, ValidEvidence());
+
+        ScriptResult result = RunPowerShellScriptWithEnvironment(
+            "scripts/openvino/Test-OpenVinoUclEvidenceBinding.ps1",
+            new Dictionary<string, string?>
+            {
+                ["GITHUB_ACTIONS"] = "true",
+                ["GITHUB_EVENT_NAME"] = "workflow_dispatch",
+                ["GITHUB_SHA"] = new string('a', 40),
+                ["GITHUB_RUN_ID"] = "123"
+            },
+            "-EvidencePath", evidence);
+
+        Assert.AreNotEqual(0, result.ExitCode);
+        Assert.AreEqual("ucl_evidence_binding_invalid", result.StandardOutput.Trim());
+        Assert.IsFalse(result.StandardOutput.Contains(
+            "ucl_evidence_binding_valid_not_authenticated",
+            StringComparison.Ordinal));
+    }
+
+    [TestMethod]
+    public void ExternallySuppliedRunRecordBindsDigestWithoutClaimingAuthentication()
+    {
+        using TemporaryDirectory temporary = TemporaryDirectory.Create();
+        string evidence = Path.Combine(temporary.Path, "cpu.json");
+        string metadata = Path.Combine(temporary.Path, "trusted-run.json");
+        File.WriteAllText(evidence, ValidEvidence());
+        File.WriteAllText(metadata,
+            "{\"schemaVersion\":1," +
+            "\"provider\":\"github-actions\"," +
+            "\"workflowPath\":\".github/workflows/openvino-ucl-intel.yml\"," +
+            "\"eventName\":\"workflow_dispatch\"," +
+            "\"commitSha\":\"0123456789abcdef0123456789abcdef01234567\"," +
+            "\"runId\":123,\"runAttempt\":1," +
+            "\"jobName\":\"trusted-intel-cpu\"," +
+            "\"artifactName\":\"openvino-ucl-intel-cpu-evidence\"," +
+            $"\"evidenceSha256\":\"{LowerSha256(evidence)}\"}}");
+
+        ScriptResult result = RunPowerShellScript(
+            "scripts/openvino/Test-OpenVinoUclEvidenceBinding.ps1",
+            "-EvidencePath", evidence,
+            "-TrustedRunMetadataPath", metadata);
+
+        Assert.AreEqual(0, result.ExitCode, result.StandardError);
+        Assert.AreEqual(
+            "ucl_evidence_binding_valid_not_authenticated",
+            result.StandardOutput.Trim());
+
+        File.WriteAllText(metadata, File.ReadAllText(metadata).Replace(
+            "0123456789abcdef0123456789abcdef01234567",
+            "fedcba9876543210fedcba9876543210fedcba98",
+            StringComparison.Ordinal));
+        ScriptResult wrongCommit = RunPowerShellScript(
+            "scripts/openvino/Test-OpenVinoUclEvidenceBinding.ps1",
+            "-EvidencePath", evidence,
+            "-TrustedRunMetadataPath", metadata);
+        Assert.AreNotEqual(0, wrongCommit.ExitCode);
+        Assert.AreEqual("ucl_evidence_binding_invalid", wrongCommit.StandardOutput.Trim());
+    }
+
+    [TestMethod]
+    public void ClosedJsonParserRejectsDecodedDuplicatesSurrogatesAndDepth()
+    {
+        using TemporaryDirectory temporary = TemporaryDirectory.Create();
+        string json = Path.Combine(temporary.Path, "input.json");
+        File.WriteAllText(json, "{\"a\":1,\"nested\":{\"b\":[true,null,\"ok\"]}}");
+        ScriptResult valid = RunPowerShellScript(
+            "scripts/openvino/Test-OpenVinoClosedJsonDocument.ps1",
+            "-JsonPath", json,
+            "-MaximumBytes", "1024",
+            "-MaximumDepth", "8");
+        Assert.AreEqual(0, valid.ExitCode, valid.StandardError);
+        Assert.AreEqual("closed_json_valid", valid.StandardOutput.Trim());
+
+        foreach (string hostile in new[]
+        {
+            "{\"schemaVersion\":true,\"\\u0073chemaVersion\":1}",
+            "{\"outer\":{\"runtime\":true,\"\\u0072untime\":1}}",
+            "{\"\\uD800\":null}",
+            "{\"value\":\"\\uDC00\"}",
+            "{\"a\":{\"b\":{\"c\":{\"d\":{\"e\":{\"f\":{\"g\":{\"h\":{}}}}}}}}}"
+        })
+        {
+            File.WriteAllText(json, hostile);
+            ScriptResult rejected = RunPowerShellScript(
+                "scripts/openvino/Test-OpenVinoClosedJsonDocument.ps1",
+                "-JsonPath", json,
+                "-MaximumBytes", "1024",
+                "-MaximumDepth", "8");
+            Assert.AreNotEqual(0, rejected.ExitCode, hostile);
+            Assert.AreEqual("closed_json_invalid", rejected.StandardOutput.Trim());
+        }
     }
 
     [TestMethod]
@@ -586,6 +825,11 @@ public sealed class WorkflowContractTests
     [DataRow("model-bytes")]
     [DataRow("unexpected-nested")]
     [DataRow("duplicate")]
+    [DataRow("escaped-root-duplicate")]
+    [DataRow("escaped-nested-duplicate")]
+    [DataRow("lone-high-surrogate-key")]
+    [DataRow("lone-low-surrogate-value")]
+    [DataRow("excessive-depth")]
     [DataRow("noncanonical-order")]
     [DataRow("zero-test-count")]
     [DataRow("wrong-type")]
@@ -606,7 +850,6 @@ public sealed class WorkflowContractTests
 
     [TestMethod]
     [DataRow("root")]
-    [DataRow("evidenceKind")]
     [DataRow("commitSha")]
     [DataRow("dependencyLockIdentities")]
     [DataRow("dependencyLockIdentities.runtimeLockSha256")]
@@ -692,9 +935,27 @@ public sealed class WorkflowContractTests
                 "\"schemaVersion\":1",
                 "\"schemaVersion\":1,\"schemaVersion\":1",
                 StringComparison.Ordinal),
+            "escaped-root-duplicate" => valid.Replace(
+                "\"schemaVersion\":1",
+                "\"schemaVersion\":true,\"\\u0073chemaVersion\":1",
+                StringComparison.Ordinal),
+            "escaped-nested-duplicate" => valid.Replace(
+                "\"runtime\":\"2026.3.0-22451-8a17657b995-releases/2026/3\"",
+                "\"runtime\":true,\"\\u0072untime\":\"2026.3.0-22451-8a17657b995-releases/2026/3\"",
+                StringComparison.Ordinal),
+            "lone-high-surrogate-key" => AddRootField(
+                valid,
+                "\"\\uD800\":null"),
+            "lone-low-surrogate-value" => valid.Replace(
+                "\"vendor\":\"Intel\"",
+                "\"vendor\":\"\\uDC00\"",
+                StringComparison.Ordinal),
+            "excessive-depth" => AddRootField(
+                valid,
+                "\"extra\":{\"a\":{\"b\":{\"c\":{\"d\":{\"e\":{\"f\":{\"g\":{\"h\":{}}}}}}}}}"),
             "noncanonical-order" => valid.Replace(
-                "{\"schemaVersion\":1,\"evidenceKind\":\"ucl\"",
-                "{\"evidenceKind\":\"ucl\",\"schemaVersion\":1",
+                "{\"schemaVersion\":1,\"commitSha\"",
+                "{\"commitSha\"",
                 StringComparison.Ordinal),
             "zero-test-count" => valid.Replace(
                 "\"contracts\":60",
@@ -817,7 +1078,6 @@ public sealed class WorkflowContractTests
 
     private static string ValidEvidence() =>
         "{\"schemaVersion\":1," +
-        "\"evidenceKind\":\"ucl\"," +
         "\"commitSha\":\"0123456789abcdef0123456789abcdef01234567\"," +
         "\"dependencyLockIdentities\":{" +
         "\"runtimeLockSha256\":\"1111111111111111111111111111111111111111111111111111111111111111\"," +
@@ -833,7 +1093,7 @@ public sealed class WorkflowContractTests
         "\"genAi\":\"2026.3.0.0-3277-bd8d6542e3c\"," +
         "\"tokenizers\":\"2026.3.0.0-703-183c6f25cda\"}," +
         "\"testCounts\":{\"contracts\":60,\"staticInspection\":177," +
-        "\"nativeUnit\":7,\"workerClient\":13,\"processContainment\":40," +
+        "\"nativeUnit\":7,\"workerClient\":13,\"processContainment\":41," +
         "\"appAdapter\":35,\"packageTamper\":5}," +
         "\"performanceAggregates\":{\"sampleCount\":3," +
         "\"durationMillisecondsMinimum\":1000,\"durationMillisecondsMedian\":2000," +
@@ -1006,9 +1266,7 @@ public sealed class WorkflowContractTests
         }
 
         YamlMappingNode rootEnvironment = Mapping(root, "env");
-        string expectedFile = trusted
-            ? "artifacts/openvino/evidence/ucl.json"
-            : "artifacts/openvino/evidence/official.json";
+        const string expectedFile = "artifacts/openvino/evidence/cpu.json";
         Assert.AreEqual(expectedFile, Scalar(rootEnvironment, "OPENVINO_EVIDENCE_FILE"));
         if (trusted)
         {
@@ -1037,23 +1295,29 @@ public sealed class WorkflowContractTests
         Assert.AreEqual("false", Scalar(checkoutWith, "persist-credentials"));
 
         YamlMappingNode evidence = Step(steps, trusted
-            ? "Create typed sanitized UCL Intel evidence"
+            ? "Run retained trusted UCL CPU campaign"
             : "Create typed sanitized official CPU evidence");
         string evidenceRun = Scalar(evidence, "run");
         StringAssert.Contains(evidenceRun, "$env:OPENVINO_EVIDENCE_FILE");
-        StringAssert.Contains(evidenceRun, "-MeasurementsPath $env:OPENVINO_MEASUREMENTS");
-        Assert.IsFalse(evidenceRun.Contains("-TestResultsDirectory", StringComparison.Ordinal));
-
-        YamlMappingNode measurements = Step(steps, trusted
-            ? "Create closed trusted measured evidence inputs"
-            : "Create closed measured evidence inputs");
-        string measurementRun = Scalar(measurements, "run");
-        StringAssert.Contains(measurementRun, "New-OpenVinoEvidenceMeasurements.ps1");
-        StringAssert.Contains(measurementRun, "-MeasurementsPath $env:OPENVINO_MEASUREMENTS");
-        StringAssert.Contains(measurementRun, "openvino_measurements_created");
+        if (trusted)
+        {
+            StringAssert.Contains(evidenceRun, "Invoke-OpenVinoUclCampaign.ps1");
+            StringAssert.Contains(evidenceRun, "-ArchiveRoot $env:OPENVINO_ARCHIVES");
+            StringAssert.Contains(evidenceRun, "-FixtureRoot $env:OPENVINO_CONTROLLED_FIXTURE");
+        }
+        else
+        {
+            StringAssert.Contains(evidenceRun, "-MeasurementsPath $env:OPENVINO_MEASUREMENTS");
+            Assert.IsFalse(evidenceRun.Contains("-TestResultsDirectory", StringComparison.Ordinal));
+            YamlMappingNode measurements = Step(steps, "Create closed measured evidence inputs");
+            string measurementRun = Scalar(measurements, "run");
+            StringAssert.Contains(measurementRun, "New-OpenVinoEvidenceMeasurements.ps1");
+            StringAssert.Contains(measurementRun, "-MeasurementsPath $env:OPENVINO_MEASUREMENTS");
+            StringAssert.Contains(measurementRun, "openvino_measurements_created");
+        }
 
         YamlMappingNode integrity = Step(steps, trusted
-            ? "Verify pre-post integrity zero residue and clean operation-owned state"
+            ? "Clean operation-owned outputs after retained campaign"
             : "Verify post-run integrity and clean operation-owned state");
         Assert.AreEqual("${{ always() }}", Scalar(integrity, "if"));
 
@@ -1086,13 +1350,14 @@ public sealed class WorkflowContractTests
             Array.IndexOf(steps, upload) < Array.IndexOf(steps, localCleanup),
             "The exact artifact must be uploaded before local evidence cleanup.");
 
-        YamlMappingNode native = Step(steps, trusted
-            ? "Record and validate trusted native unit count"
-            : "Record and validate native unit count");
-        string nativeRun = Scalar(native, "run");
-        StringAssert.Contains(nativeRun, "Test-OpenVinoNativeJUnit.ps1");
-        StringAssert.Contains(nativeRun, "-ResultsPath");
-        StringAssert.Contains(nativeRun, "-MinimumCount 7");
+        if (!trusted)
+        {
+            YamlMappingNode native = Step(steps, "Record and validate native unit count");
+            string nativeRun = Scalar(native, "run");
+            StringAssert.Contains(nativeRun, "Test-OpenVinoNativeJUnit.ps1");
+            StringAssert.Contains(nativeRun, "-ResultsPath");
+            StringAssert.Contains(nativeRun, "-MinimumCount 7");
+        }
 
         if (trusted)
         {
@@ -1102,29 +1367,7 @@ public sealed class WorkflowContractTests
             StringAssert.Contains(preflight, "$env:OPENVINO_UCL_AUTHORIZATION");
             Assert.IsFalse(preflight.Contains("${{", StringComparison.Ordinal));
 
-            foreach (string buildName in new[]
-            {
-                "Build independent reviewed Release x64 closure A",
-                "Build independent reviewed Release x64 closure B"
-            })
-            {
-                StringAssert.Contains(
-                    Scalar(Step(steps, buildName), "run"),
-                    "-FixtureRoot $env:OPENVINO_CONTROLLED_FIXTURE");
-                StringAssert.Contains(
-                    Scalar(Step(steps, buildName), "run"),
-                    "-ExpectedFixtureManifestSha256 $env:OPENVINO_EXPECTED_FIXTURE_MANIFEST_SHA256");
-            }
-
-            YamlMappingNode campaign = Step(
-                steps,
-                "Run one-turn two-turn cancellation hostile and containment gates");
-            Assert.AreEqual(
-                "${{ env.OPENVINO_CONTROLLED_FIXTURE }}",
-                Scalar(Mapping(campaign, "env"), "OPENVINO_UCL_CONTROLLED_FIXTURE_ROOT"));
-            StringAssert.Contains(Scalar(campaign, "run"),
-                "Test-OpenVinoUclFixtureConsumption.ps1");
-            StringAssert.Contains(Scalar(campaign, "run"), "-ResultsPath");
+            Assert.AreEqual("evidence", Scalar(evidence, "id"));
         }
     }
 
@@ -1134,6 +1377,32 @@ public sealed class WorkflowContractTests
         stream.Load(new StringReader(source));
         Assert.HasCount(1, stream.Documents);
         return AsMapping(stream.Documents[0].RootNode);
+    }
+
+    private static CommandAst SingleCommand(string source, string commandName)
+    {
+        Token[] tokens;
+        ParseError[] errors;
+        ScriptBlockAst ast = Parser.ParseInput(source, out tokens, out errors);
+        Assert.HasCount(0, errors);
+        CommandAst[] commands = ast.FindAll(node => node is CommandAst, searchNestedScriptBlocks: true)
+            .Cast<CommandAst>()
+            .Where(command => string.Equals(
+                command.GetCommandName(), commandName, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        Assert.HasCount(1, commands);
+        return commands[0];
+    }
+
+    private static void AssertPowerShellCommandArgument(
+        YamlMappingNode step,
+        string commandName,
+        string requiredArgument)
+    {
+        CommandAst command = SingleCommand(Scalar(step, "run"), commandName);
+        Assert.IsTrue(command.CommandElements.Any(element => element.Extent.Text.Contains(
+            requiredArgument, StringComparison.Ordinal)),
+            $"{Scalar(step, "name")} lacks executable argument {requiredArgument}.");
     }
 
     private static YamlMappingNode Mapping(YamlMappingNode parent, string key)

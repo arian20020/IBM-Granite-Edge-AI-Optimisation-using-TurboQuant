@@ -665,6 +665,7 @@ public sealed class OpenVinoPromptAdapter : IAsyncDisposable
     {
         TaskCompletionSource completion;
         Task teardown;
+        Task? pendingReservation = null;
         bool cancelSession = false;
         lock (teardownLock)
         {
@@ -675,40 +676,65 @@ public sealed class OpenVinoPromptAdapter : IAsyncDisposable
 
             if (pendingTurnCancellationTask is not null)
             {
-                return new ValueTask(pendingTurnCancellationTask);
+                pendingReservation = pendingTurnCancellationTask;
+                completion = NewCompletionSource();
+                teardown = terminalTeardownTask = completion.Task;
             }
-
-            if (channelDisposalTask is not null)
+            else if (channelDisposalTask is not null)
             {
                 return new ValueTask(channelDisposalTask);
             }
-
-            OpenVinoRouteState state = Snapshot.State;
-            if (state is not (
-                    OpenVinoRouteState.SessionCompleted or
-                    OpenVinoRouteState.Failed or
-                    OpenVinoRouteState.Cancelled))
-            {
-                completion = NewCompletionSource();
-                teardown = terminalTeardownTask = completion.Task;
-                cancelSession = true;
-            }
             else
             {
-                completion = NewCompletionSource();
-                teardown = channelDisposalTask = completion.Task;
-                disposed = true;
+                OpenVinoRouteState state = Snapshot.State;
+                if (state is not (
+                        OpenVinoRouteState.SessionCompleted or
+                        OpenVinoRouteState.Failed or
+                        OpenVinoRouteState.Cancelled))
+                {
+                    completion = NewCompletionSource();
+                    teardown = terminalTeardownTask = completion.Task;
+                    cancelSession = true;
+                }
+                else
+                {
+                    completion = NewCompletionSource();
+                    teardown = channelDisposalTask = completion.Task;
+                    disposed = true;
+                }
             }
         }
 
         _ = CompletePublishedTaskAsync(
             completion,
-            cancelSession
+            pendingReservation is not null
+                ? () => CompleteDisposalAfterReservationAsync(
+                    pendingReservation)
+                : cancelSession
                 ? () => CancelCoreAsync(
                     confirmedTurnId: null,
                     CancellationToken.None)
                 : () => channel.DisposeAsync().AsTask());
         return new ValueTask(teardown);
+    }
+
+    private async Task CompleteDisposalAfterReservationAsync(
+        Task pendingReservation)
+    {
+        try
+        {
+            await pendingReservation.ConfigureAwait(false);
+        }
+        catch (Exception)
+        {
+            // A turn-scoped reservation can legitimately lose to an already
+            // queued prompt terminal. Disposal still owns permanent teardown.
+        }
+
+        await CancelCoreAsync(
+                confirmedTurnId: null,
+                CancellationToken.None)
+            .ConfigureAwait(false);
     }
 
     private void AcceptToken(

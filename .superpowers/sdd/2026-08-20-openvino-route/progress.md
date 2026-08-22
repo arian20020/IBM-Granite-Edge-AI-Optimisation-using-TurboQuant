@@ -137,6 +137,37 @@ terminal reservation race corrected). Final gates: contracts 131/131, workflow
 app Release x64 passed, worker residue zero. Awaiting independent re-review;
 hosted/UCL dispatch and upload remain pending external authorization, `UCL-01`
 remains open, no acceptance is claimed, and Task 10 remains pending.
+Task 9: fix round 2/5 design ruling: use one fixed single-process UCL campaign
+owner that acquires and validates both external-root leases before any consumer,
+retains them across all native/managed/measurement/post-integrity work, and
+releases only after the closed campaign result is finalized; build/test outputs
+must remain outside the leased roots, while only outer always-run
+cleanup/status/privacy/upload steps may follow. Evidence is route-neutral
+`cpu.json` with no self-asserted UCL/trust field and external GitHub workflow/run
+provenance is the trust boundary. A binding verifier may validate externally
+supplied metadata plus digest shape/correlation but must never claim to
+authenticate it, and local output is not UCL-acceptable without that external
+run record. Exact test-only `Microsoft.PowerShell.SDK` 7.4.18 is approved for
+PowerShell AST workflow checks, with its license/source and deterministic
+restore recorded and no production dependency. If wrong, a retained-lease owner
+defect would invalidate UCL evidence; the test-only SDK adds restore and license
+surface.
+Task 9: fix round 2/5 implemented inline (route-neutral `cpu.json`; strict
+decoded-name JSON parser; external non-authenticating run-record binding;
+single retained trusted-root campaign with final-handle/file-identity/ADS,
+sticky topology, and boundary snapshot checks; PowerShell-AST workflow
+contracts with exact locked test dependency; disposal joins permanent teardown
+after a losing turn reservation). Final local gates: contracts 142/142, route
+181/181 with zero skipped, disposal 2/2, client 13/13, hosted process 41/41,
+external-fixture process 41/41 plus exact consumption, native A/B 7/7 each,
+Release x64 app passed, eight scripts/modules parse cleanly, worker residue
+zero. User directed inline execution, so round-two review was an inline
+security/diff audit rather than an independent subagent review. Hosted/UCL
+dispatch remain unauthorized, `UCL-01` remains open, and no MVP/UCL acceptance
+is claimed.
+Task 9: complete locally (implementation and fail-closed gates are ready;
+external hosted/UCL execution remains an explicit acceptance prerequisite, not
+a local implementation blocker).
 Task 10: pending
 Task 11: pending
 Task 12: pending
