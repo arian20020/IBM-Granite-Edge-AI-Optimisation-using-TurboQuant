@@ -1,8 +1,8 @@
 # Hardware Inspection Gate 3 LLM Fit Provider Design
 
 **Status:** Approved
-**Date:** 2026-08-22  
-**Parent design:** `docs/superpowers/specs/2026-08-15-hardware-inspection-production-design.md`  
+**Date:** 2026-08-22
+**Parent design:** `docs/superpowers/specs/2026-08-15-hardware-inspection-production-design.md`
 **Foundation:** Gate 2 through `05ad17a`
 
 ## 1. Goal

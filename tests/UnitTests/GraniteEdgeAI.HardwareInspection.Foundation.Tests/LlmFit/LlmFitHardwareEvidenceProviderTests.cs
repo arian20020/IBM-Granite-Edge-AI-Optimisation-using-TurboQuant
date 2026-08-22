@@ -58,6 +58,8 @@ public sealed class LlmFitHardwareEvidenceProviderTests
                 CancellationToken.None);
 
             AssertUnavailable(evidence, diagnostic);
+            Assert.AreEqual(toolId, evidence.ToolId);
+            Assert.AreEqual(version, evidence.Version);
             Assert.HasCount(0, runner.Requests);
         }
     }

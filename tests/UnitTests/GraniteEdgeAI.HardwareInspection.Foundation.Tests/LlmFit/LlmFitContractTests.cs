@@ -216,6 +216,56 @@ public sealed class LlmFitContractTests
                 "1.1.9",
                 CapturedAtUtc,
                 LlmFitDiagnosticCode.JsonInvalid));
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() =>
+            LlmFitHardwareEvidence.Unavailable(
+                "llmfit",
+                "1.1.9",
+                CapturedAtUtc,
+                (LlmFitDiagnosticCode)999));
+    }
+
+    [TestMethod]
+    public void EvidenceStopsEnumeratingCollectionsAtTheirClosedLimit()
+    {
+        int gpuEnumerations = 0;
+        IEnumerable<LlmFitReportedGpu> excessiveGpus = Counted(
+            new LlmFitReportedGpu("Fixture GPU", 1),
+            1000,
+            () => gpuEnumerations++);
+
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            LlmFitHardwareEvidence.Available(
+                "llmfit",
+                "1.1.9",
+                CapturedAtUtc,
+                "Fixture CPU",
+                8,
+                32,
+                16,
+                LlmFitGpuDetectionState.Reported,
+                excessiveGpus,
+                new string('a', 64)));
+        Assert.IsLessThanOrEqualTo(65, gpuEnumerations);
+
+        int diagnosticEnumerations = 0;
+        IEnumerable<LlmFitDiagnosticCode> excessiveDiagnostics = Counted(
+            LlmFitDiagnosticCode.JsonInvalid,
+            1000,
+            () => diagnosticEnumerations++);
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            LlmFitHardwareEvidence.Invalid(
+                "llmfit",
+                "1.1.9",
+                CapturedAtUtc,
+                null,
+                null,
+                null,
+                null,
+                LlmFitGpuDetectionState.Invalid,
+                [],
+                new string('a', 64),
+                excessiveDiagnostics));
+        Assert.IsLessThanOrEqualTo(Enum.GetValues<LlmFitDiagnosticCode>().Length + 1, diagnosticEnumerations);
     }
 
     private static LlmFitHardwareEvidence CreateAvailable(
@@ -238,4 +288,13 @@ public sealed class LlmFitContractTests
     private static string ReadCommandConstant(string name) =>
         (string)(typeof(LlmFitCommandContract).GetField(name)?.GetRawConstantValue() ??
             throw new InvalidOperationException($"Missing command constant {name}."));
+
+    private static IEnumerable<T> Counted<T>(T value, int count, Action onEnumeration)
+    {
+        for (int index = 0; index < count; index++)
+        {
+            onEnumeration();
+            yield return value;
+        }
+    }
 }

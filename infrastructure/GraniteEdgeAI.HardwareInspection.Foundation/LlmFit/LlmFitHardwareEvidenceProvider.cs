@@ -31,12 +31,12 @@ public sealed class LlmFitHardwareEvidenceProvider : ILlmFitHardwareEvidenceProv
         if (!string.Equals(tool.ToolId, LlmFitCommandContract.ToolId, StringComparison.Ordinal) ||
             !string.Equals(tool.Version, LlmFitCommandContract.Version, StringComparison.Ordinal))
         {
-            return Unavailable(LlmFitDiagnosticCode.ToolIdentityMismatch);
+            return Unavailable(tool, LlmFitDiagnosticCode.ToolIdentityMismatch);
         }
 
         if (!HasExactCommandContract(tool))
         {
-            return Unavailable(LlmFitDiagnosticCode.CommandContractMismatch);
+            return Unavailable(tool, LlmFitDiagnosticCode.CommandContractMismatch);
         }
 
         ExternalProcessResult versionResult = await _processRunner.RunAsync(
@@ -52,12 +52,12 @@ public sealed class LlmFitHardwareEvidenceProvider : ILlmFitHardwareEvidenceProv
         LlmFitDiagnosticCode? versionFailure = MapVersionFailure(versionResult);
         if (versionFailure.HasValue)
         {
-            return Unavailable(versionFailure.Value);
+            return Unavailable(tool, versionFailure.Value);
         }
 
         if (!IsExactVersionOutput(versionResult.StandardOutput))
         {
-            return Unavailable(LlmFitDiagnosticCode.VersionOutputMismatch);
+            return Unavailable(tool, LlmFitDiagnosticCode.VersionOutputMismatch);
         }
 
         ExternalProcessResult systemResult = await _processRunner.RunAsync(
@@ -73,7 +73,7 @@ public sealed class LlmFitHardwareEvidenceProvider : ILlmFitHardwareEvidenceProv
         LlmFitDiagnosticCode? systemFailure = MapSystemFailure(systemResult);
         if (systemFailure.HasValue)
         {
-            return Unavailable(systemFailure.Value);
+            return Unavailable(tool, systemFailure.Value);
         }
 
         LlmFitSystemParseResult parsed = LlmFitSystemJsonParser.Parse(systemResult.StandardOutput);
@@ -159,10 +159,12 @@ public sealed class LlmFitHardwareEvidenceProvider : ILlmFitHardwareEvidenceProv
             _ => LlmFitDiagnosticCode.SystemCleanupFailed,
         };
 
-    private LlmFitHardwareEvidence Unavailable(LlmFitDiagnosticCode diagnostic) =>
+    private LlmFitHardwareEvidence Unavailable(
+        VerifiedTrustedTool tool,
+        LlmFitDiagnosticCode diagnostic) =>
         LlmFitHardwareEvidence.Unavailable(
-            LlmFitCommandContract.ToolId,
-            LlmFitCommandContract.Version,
+            tool.ToolId,
+            tool.Version,
             _timeProvider.GetUtcNow().ToUniversalTime(),
             diagnostic);
 }

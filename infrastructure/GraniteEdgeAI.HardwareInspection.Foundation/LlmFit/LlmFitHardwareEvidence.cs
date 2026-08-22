@@ -128,7 +128,7 @@ public sealed class LlmFitHardwareEvidence
         IEnumerable<LlmFitReportedGpu> gpus,
         string rawOutputSha256)
     {
-        ValidateIdentityAndTime(toolId, version, capturedAtUtc);
+        ValidatePinnedIdentityAndTime(toolId, version, capturedAtUtc);
         LlmFitContractValidation.ValidateSafeName(cpuName, nameof(cpuName));
         ValidateProcessorCount(cpuLogicalProcessorCount, nameof(cpuLogicalProcessorCount));
         ValidateRam(totalRamGiB, availableRamGiB);
@@ -168,7 +168,7 @@ public sealed class LlmFitHardwareEvidence
         string rawOutputSha256,
         IEnumerable<LlmFitDiagnosticCode> diagnostics)
     {
-        ValidateIdentityAndTime(toolId, version, capturedAtUtc);
+        ValidatePinnedIdentityAndTime(toolId, version, capturedAtUtc);
         if (cpuName is not null)
         {
             LlmFitContractValidation.ValidateSafeName(cpuName, nameof(cpuName));
@@ -206,7 +206,12 @@ public sealed class LlmFitHardwareEvidence
         DateTimeOffset capturedAtUtc,
         LlmFitDiagnosticCode diagnostic)
     {
-        ValidateIdentityAndTime(toolId, version, capturedAtUtc);
+        ValidateObservedIdentityAndTime(toolId, version, capturedAtUtc);
+        if (!Enum.IsDefined(diagnostic))
+        {
+            throw new ArgumentOutOfRangeException(nameof(diagnostic));
+        }
+
         if (IsParserDiagnostic(diagnostic))
         {
             throw new ArgumentException("Unavailable evidence requires a provider diagnostic.", nameof(diagnostic));
@@ -227,7 +232,7 @@ public sealed class LlmFitHardwareEvidence
             Array.AsReadOnly([diagnostic]));
     }
 
-    private static void ValidateIdentityAndTime(
+    private static void ValidatePinnedIdentityAndTime(
         string toolId,
         string version,
         DateTimeOffset capturedAtUtc)
@@ -242,6 +247,29 @@ public sealed class LlmFitHardwareEvidence
             throw new ArgumentException("The evidence version is not the pinned LLM Fit version.", nameof(version));
         }
 
+        ValidateCaptureTime(capturedAtUtc);
+    }
+
+    private static void ValidateObservedIdentityAndTime(
+        string toolId,
+        string version,
+        DateTimeOffset capturedAtUtc)
+    {
+        if (string.IsNullOrWhiteSpace(toolId))
+        {
+            throw new ArgumentException("The observed tool ID is required.", nameof(toolId));
+        }
+
+        if (string.IsNullOrWhiteSpace(version))
+        {
+            throw new ArgumentException("The observed tool version is required.", nameof(version));
+        }
+
+        ValidateCaptureTime(capturedAtUtc);
+    }
+
+    private static void ValidateCaptureTime(DateTimeOffset capturedAtUtc)
+    {
         if (capturedAtUtc.Offset != TimeSpan.Zero)
         {
             throw new ArgumentException("Capture time must use the UTC offset.", nameof(capturedAtUtc));
@@ -296,13 +324,23 @@ public sealed class LlmFitHardwareEvidence
         IEnumerable<LlmFitReportedGpu> gpus)
     {
         ArgumentNullException.ThrowIfNull(gpus);
-        LlmFitReportedGpu[] copy = gpus.ToArray();
-        if (copy.Length > 64 || copy.Any(static gpu => gpu is null))
+        List<LlmFitReportedGpu> copy = new(capacity: 64);
+        foreach (LlmFitReportedGpu gpu in gpus)
         {
-            throw new ArgumentException("The reported GPU collection is invalid.", nameof(gpus));
+            if (copy.Count == 64)
+            {
+                throw new ArgumentException("The reported GPU collection exceeds 64 entries.", nameof(gpus));
+            }
+
+            if (gpu is null)
+            {
+                throw new ArgumentException("The reported GPU collection contains a null entry.", nameof(gpus));
+            }
+
+            copy.Add(gpu);
         }
 
-        if (copy.Select(static gpu => gpu.Name).Distinct(StringComparer.OrdinalIgnoreCase).Count() != copy.Length)
+        if (copy.Select(static gpu => gpu.Name).Distinct(StringComparer.OrdinalIgnoreCase).Count() != copy.Count)
         {
             throw new ArgumentException("Reported GPU names must be unique.", nameof(gpus));
         }
@@ -310,9 +348,9 @@ public sealed class LlmFitHardwareEvidence
         int totalCount = copy.Sum(static gpu => gpu.Count);
         bool shapeIsValid = gpuState switch
         {
-            LlmFitGpuDetectionState.Reported => copy.Length > 0 && totalCount is >= 1 and <= 64,
-            LlmFitGpuDetectionState.NotReported => copy.Length == 0,
-            LlmFitGpuDetectionState.Invalid => copy.Length == 0,
+            LlmFitGpuDetectionState.Reported => copy.Count > 0 && totalCount is >= 1 and <= 64,
+            LlmFitGpuDetectionState.NotReported => copy.Count == 0,
+            LlmFitGpuDetectionState.Invalid => copy.Count == 0,
             _ => false,
         };
 
@@ -321,7 +359,7 @@ public sealed class LlmFitHardwareEvidence
             throw new ArgumentException("GPU state and reported entries are inconsistent.", nameof(gpus));
         }
 
-        return Array.AsReadOnly(copy);
+        return Array.AsReadOnly(copy.ToArray());
     }
 
     private static ReadOnlyCollection<LlmFitDiagnosticCode> CopyAndValidateDiagnostics(
@@ -329,9 +367,27 @@ public sealed class LlmFitHardwareEvidence
         bool parserDiagnosticsRequired)
     {
         ArgumentNullException.ThrowIfNull(diagnostics);
-        LlmFitDiagnosticCode[] copy = diagnostics.Distinct().Order().ToArray();
-        if (copy.Length == 0 ||
-            (parserDiagnosticsRequired && copy.Any(static diagnostic => !IsParserDiagnostic(diagnostic))))
+        int maximumInputCount = Enum.GetValues<LlmFitDiagnosticCode>().Length;
+        int inputCount = 0;
+        HashSet<LlmFitDiagnosticCode> unique = [];
+        foreach (LlmFitDiagnosticCode diagnostic in diagnostics)
+        {
+            if (++inputCount > maximumInputCount)
+            {
+                throw new ArgumentException("The diagnostic collection exceeds its closed bound.", nameof(diagnostics));
+            }
+
+            if (!Enum.IsDefined(diagnostic) ||
+                (parserDiagnosticsRequired && !IsParserDiagnostic(diagnostic)))
+            {
+                throw new ArgumentException("Invalid evidence requires parser diagnostics only.", nameof(diagnostics));
+            }
+
+            unique.Add(diagnostic);
+        }
+
+        LlmFitDiagnosticCode[] copy = unique.Order().ToArray();
+        if (copy.Length == 0)
         {
             throw new ArgumentException("Invalid evidence requires parser diagnostics only.", nameof(diagnostics));
         }
