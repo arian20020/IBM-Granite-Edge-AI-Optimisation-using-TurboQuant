@@ -17,7 +17,7 @@
     <DefineConstants Condition="'$(Platform)' == 'x64'">$(DefineConstants);MODEL_INSPECTION_X64</DefineConstants>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
-    <DefineConstants>$(DefineConstants);MODEL_INSPECTION_FIXTURE_GALLERY</DefineConstants>
+    <DefineConstants>$(DefineConstants);MODEL_INSPECTION_FIXTURE_GALLERY;HARDWARE_INSPECTION_FIXTURE_GALLERY</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="Features\ModelInspection\DebugFixtures\**" />
@@ -32,8 +32,19 @@
     <Content Remove="Features\Onboarding\DebugFixtures\**" />
     <EmbeddedResource Remove="Features\Onboarding\DebugFixtures\**" />
     <PRIResource Remove="Features\Onboarding\DebugFixtures\**" />
+    <Compile Remove="Features\HardwareInspection\DebugFixtures\**" />
+    <Page Remove="Features\HardwareInspection\DebugFixtures\**" />
+    <None Remove="Features\HardwareInspection\DebugFixtures\**" />
+    <Content Remove="Features\HardwareInspection\DebugFixtures\**" />
+    <EmbeddedResource Remove="Features\HardwareInspection\DebugFixtures\**" />
+    <PRIResource Remove="Features\HardwareInspection\DebugFixtures\**" />
   </ItemGroup>
   <ItemGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+    <Compile Include="Features\HardwareInspection\DebugFixtures\HardwareInspectionFixtureCatalogue.cs" />
+    <Compile Include="Features\HardwareInspection\DebugFixtures\HardwareInspectionFixtureGalleryPage.xaml.cs" />
+    <Page Include="Features\HardwareInspection\DebugFixtures\HardwareInspectionFixtureGalleryPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Compile Include="Features\Onboarding\DebugFixtures\OnboardingShellPage.FixtureGallery.cs" />
     <Compile Include="Features\ModelInspection\DebugFixtures\ModelInspectionPage.DebugFixtures.cs" />
     <Compile Include="Features\ModelInspection\DebugFixtures\Observation\ModelInspectionObservedScreen.cs" />

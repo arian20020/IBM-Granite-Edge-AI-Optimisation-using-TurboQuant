@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="GraniteEdgeAI.Features.HardwareInspection.DebugFixtures.HardwareInspectionFixtureGalleryPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <Grid Padding="24" ColumnSpacing="24">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="300" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <StackPanel Spacing="12">
+            <TextBlock
+                Text="Hardware inspection fixtures"
+                Style="{ThemeResource TitleTextBlockStyle}" />
+            <TextBlock
+                x:Name="SyntheticFixtureBadge"
+                Text="Synthetic fixture"
+                FontWeight="SemiBold" />
+            <TextBlock
+                Text="Debug-only states. Selecting a fixture does not inspect this device or start an external process."
+                TextWrapping="Wrap" />
+            <ListView
+                x:Name="ScenarioList"
+                MinHeight="320"
+                DisplayMemberPath="Title"
+                SelectionChanged="ScenarioList_SelectionChanged"
+                AutomationProperties.Name="Hardware inspection fixture scenarios" />
+            <Button
+                x:Name="CloseFixtureGalleryButton"
+                Content="Close fixture gallery"
+                MinHeight="44"
+                Click="CloseFixtureGalleryButton_Click" />
+        </StackPanel>
+
+        <Border
+            Grid.Column="1"
+            BorderThickness="1"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+            CornerRadius="8">
+            <ContentControl
+                x:Name="FixturePreview"
+                HorizontalContentAlignment="Stretch"
+                VerticalContentAlignment="Stretch" />
+        </Border>
+    </Grid>
+</Page>

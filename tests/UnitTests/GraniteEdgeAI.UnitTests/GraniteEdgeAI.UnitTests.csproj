@@ -21,7 +21,7 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
-    <DefineConstants>$(DefineConstants);MODEL_INSPECTION_FIXTURE_GALLERY</DefineConstants>
+    <DefineConstants>$(DefineConstants);MODEL_INSPECTION_FIXTURE_GALLERY;HARDWARE_INSPECTION_FIXTURE_GALLERY</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
@@ -37,10 +37,12 @@
     <Content Remove="Features\Onboarding\DebugFixtures\**" />
     <EmbeddedResource Remove="Features\Onboarding\DebugFixtures\**" />
     <PRIResource Remove="Features\Onboarding\DebugFixtures\**" />
+    <Compile Remove="Features\HardwareInspection\DebugFixtures\**" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
     <ProjectReference Include="..\..\..\shared\GraniteEdgeAI.ModelInspection.Fixtures\GraniteEdgeAI.ModelInspection.Fixtures.csproj" />
+    <Compile Include="Features\HardwareInspection\DebugFixtures\HardwareInspectionFixtureCatalogueTests.cs" />
     <Compile Include="Features\ModelInspection\DebugFixtures\DebugModelInspectionServiceTests.cs" />
     <Compile Include="Features\ModelInspection\DebugFixtures\ModelInspectionFixtureAdapterTests.cs" />
     <Compile Include="Features\ModelInspection\DebugFixtures\ModelInspectionFixturePageLifecycleTests.cs" />
