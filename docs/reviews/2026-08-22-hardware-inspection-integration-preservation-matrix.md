@@ -39,10 +39,9 @@ The package contained 86 manifest-listed non-manifest files. Before implementati
 | Package integrity | Manifest and format validation described above | PASS |
 | Ref integrity | Exact remote SHA checks for all pinned refs | PASS |
 | Integration isolation | Dedicated ignored worktree on `integration/hardware-inspection-intel-completion-v1` | PASS |
-| Tool discovery | Python 3.12.10 available; Visual Studio 2022 Build Tools found; `dotnet` not currently on PATH | PARTIAL |
-| Mainline Stage 0/A baseline | Not run yet | PENDING |
+| Tool discovery | Python 3.12.10 and Visual Studio 18.7 MSBuild 18.7.8 are available. No .NET SDK is registered with the bundled host, `dotnet` is not on PATH, and `vstest.console.exe` was not found. | PARTIAL |
+| Mainline Stage 0/A baseline | `PSExecutionPolicyPreference=Bypass` scoped to the test process; `python -m unittest tests.testing.hardware_inspection.test_intel_runner_stage0_contract tests.testing.hardware_inspection.test_intel_runner_stage_a_contract -v` | PASS, 24/24 in 92.758s |
 | Functional merge | Not merged yet | PENDING |
 | Gate merge | Not merged yet | PENDING |
 | Combined deterministic tests | Not run yet | PENDING |
 | Native Debug/x64 visual/accessibility QA | Not run yet | PENDING |
-
