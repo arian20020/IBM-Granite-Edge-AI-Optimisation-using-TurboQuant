@@ -52,11 +52,8 @@ internal sealed class WindowsKillOnCloseJob : IDisposable
         return true;
     }
 
-    internal bool TryAssign(Process process)
-    {
-        ArgumentNullException.ThrowIfNull(process);
-        return AssignProcessToJobObject(_handle, process.Handle);
-    }
+    internal bool TryAssign(IntPtr processHandle) =>
+        processHandle != IntPtr.Zero && AssignProcessToJobObject(_handle, processHandle);
 
     internal bool TryTerminate() => TerminateJobObject(_handle, 1);
 

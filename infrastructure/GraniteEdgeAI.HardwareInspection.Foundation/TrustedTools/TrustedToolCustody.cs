@@ -83,7 +83,8 @@ internal sealed class TrustedToolCustody : IDisposable
     internal static bool TryAcquireDirectories(
         string approvedRoot,
         string packageRoot,
-        out IReadOnlyList<SafeFileHandle> handles)
+        out IReadOnlyList<SafeFileHandle> handles,
+        out CustodyOpenFailure failure)
     {
         List<SafeFileHandle> acquired = [];
         try
@@ -103,6 +104,25 @@ internal sealed class TrustedToolCustody : IDisposable
                     handle.Dispose();
                     DisposeAll(acquired);
                     handles = [];
+                    failure = CustodyOpenFailure.Unavailable;
+                    return false;
+                }
+
+                if (!TryInspectHandle(handle, out FileAttributes attributes))
+                {
+                    handle.Dispose();
+                    DisposeAll(acquired);
+                    handles = [];
+                    failure = CustodyOpenFailure.Unavailable;
+                    return false;
+                }
+
+                if ((attributes & FileAttributes.ReparsePoint) != 0)
+                {
+                    handle.Dispose();
+                    DisposeAll(acquired);
+                    handles = [];
+                    failure = CustodyOpenFailure.ReparsePoint;
                     return false;
                 }
 
@@ -110,14 +130,77 @@ internal sealed class TrustedToolCustody : IDisposable
             }
 
             handles = acquired;
+            failure = CustodyOpenFailure.None;
             return true;
         }
         catch
         {
             DisposeAll(acquired);
             handles = [];
+            failure = CustodyOpenFailure.Unavailable;
             return false;
         }
+    }
+
+    internal static bool TryAcquireFile(
+        string path,
+        out FileStream? stream,
+        out CustodyOpenFailure failure)
+    {
+        SafeFileHandle handle = CreateFile(
+            path,
+            GenericRead,
+            FileShare.Read,
+            IntPtr.Zero,
+            FileMode.Open,
+            FileFlagOpenReparsePoint | FileFlagSequentialScan,
+            IntPtr.Zero);
+        if (handle.IsInvalid)
+        {
+            handle.Dispose();
+            stream = null;
+            failure = CustodyOpenFailure.Unavailable;
+            return false;
+        }
+
+        if (!TryInspectHandle(handle, out FileAttributes attributes))
+        {
+            handle.Dispose();
+            stream = null;
+            failure = CustodyOpenFailure.Unavailable;
+            return false;
+        }
+
+        if ((attributes & FileAttributes.ReparsePoint) != 0 ||
+            (attributes & FileAttributes.Directory) != 0)
+        {
+            handle.Dispose();
+            stream = null;
+            failure = CustodyOpenFailure.ReparsePoint;
+            return false;
+        }
+
+        stream = new FileStream(handle, FileAccess.Read, bufferSize: 4096, isAsync: false);
+        failure = CustodyOpenFailure.None;
+        return true;
+    }
+
+    private static bool TryInspectHandle(
+        SafeFileHandle handle,
+        out FileAttributes attributes)
+    {
+        if (GetFileInformationByHandleEx(
+                handle,
+                FileAttributeTagInfo,
+                out FileAttributeTagInformation information,
+                (uint)Marshal.SizeOf<FileAttributeTagInformation>()))
+        {
+            attributes = information.FileAttributes;
+            return true;
+        }
+
+        attributes = default;
+        return false;
     }
 
     private static IEnumerable<string> EnumerateCustodyDirectories(
@@ -158,6 +241,9 @@ internal sealed class TrustedToolCustody : IDisposable
 
     private const uint FileFlagBackupSemantics = 0x02000000;
     private const uint FileFlagOpenReparsePoint = 0x00200000;
+    private const uint FileFlagSequentialScan = 0x08000000;
+    private const uint GenericRead = 0x80000000;
+    private const int FileAttributeTagInfo = 9;
 
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
@@ -169,4 +255,27 @@ internal sealed class TrustedToolCustody : IDisposable
         FileMode creationDisposition,
         uint flagsAndAttributes,
         IntPtr templateFile);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetFileInformationByHandleEx(
+        SafeFileHandle file,
+        int fileInformationClass,
+        out FileAttributeTagInformation fileInformation,
+        uint bufferSize);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct FileAttributeTagInformation
+    {
+        internal FileAttributes FileAttributes;
+        internal uint ReparseTag;
+    }
+}
+
+internal enum CustodyOpenFailure
+{
+    None,
+    ReparsePoint,
+    Unavailable,
 }

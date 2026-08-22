@@ -86,6 +86,13 @@ public sealed class TrustedToolContractTests
     }
 
     [TestMethod]
+    public void CommandRejectsEmbeddedNullArgument()
+    {
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            new TrustedToolCommand("version", ["--version\0ignored"]));
+    }
+
+    [TestMethod]
     public void ExternalProcessRequestRejectsUnboundedLimits()
     {
         Assert.ThrowsExactly<ArgumentOutOfRangeException>(() =>

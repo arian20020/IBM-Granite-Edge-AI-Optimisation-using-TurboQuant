@@ -143,6 +143,20 @@ public sealed class ExternalProcessRunnerTests
     }
 
     [TestMethod]
+    public async Task RunPlacesRootInJobBeforeManagedEntryPointExecutes()
+    {
+        using VerifiedFixture fixture = VerifiedFixture.Create("assert-in-job");
+
+        ExternalProcessResult result = await new ExternalProcessRunner().RunAsync(
+            fixture.Tool,
+            Request("system"),
+            CancellationToken.None);
+
+        Assert.AreEqual(ExternalProcessTerminationReason.Exited, result.TerminationReason);
+        Assert.AreEqual(0, result.ExitCode);
+    }
+
+    [TestMethod]
     public async Task RunReturnsStartFailedWhenVerifiedCustodyWasDisposed()
     {
         using VerifiedFixture fixture = VerifiedFixture.Create("success");

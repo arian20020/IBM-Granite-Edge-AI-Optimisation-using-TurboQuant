@@ -43,7 +43,8 @@ public sealed class TrustedToolCommand
         }
 
         string[] copy = arguments.ToArray();
-        if (copy.Length is 0 or > 32 || copy.Any(string.IsNullOrWhiteSpace))
+        if (copy.Length is 0 or > 32 ||
+            copy.Any(argument => string.IsNullOrWhiteSpace(argument) || argument.Contains('\0')))
         {
             throw new ArgumentException("Command arguments are invalid.", nameof(arguments));
         }

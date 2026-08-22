@@ -1,4 +1,3 @@
-using System.ComponentModel;
 using System.Diagnostics;
 using GraniteEdgeAI.HardwareInspection.Foundation.TrustedTools;
 
@@ -61,33 +60,44 @@ public sealed class ExternalProcessRunner : IExternalProcessRunner
         CancellationToken cancellationToken)
     {
 
-        using Process process = new()
-        {
-            StartInfo = CreateStartInfo(tool, command),
-        };
-        try
-        {
-            if (!process.Start())
-            {
-                return CreateResult(ExternalProcessTerminationReason.StartFailed, elapsed);
-            }
-        }
-        catch (Exception error) when (error is Win32Exception or InvalidOperationException)
+        if (!WindowsSuspendedProcess.TryStart(
+                tool,
+                command,
+                job,
+                out WindowsSuspendedProcess? launched))
         {
             return CreateResult(ExternalProcessTerminationReason.StartFailed, elapsed);
         }
 
-        if (!job.TryAssign(process))
+        WindowsSuspendedProcess running = launched!;
+        using (running)
         {
-            await KillAndWaitAsync(process, job).ConfigureAwait(false);
-            return CreateResult(ExternalProcessTerminationReason.CleanupFailed, elapsed);
+            return await MonitorAsync(
+                    running.Process,
+                    running.StandardOutput,
+                    running.StandardError,
+                    request,
+                    elapsed,
+                    job,
+                    cancellationToken)
+                .ConfigureAwait(false);
         }
+    }
 
+    private static async Task<ExternalProcessResult> MonitorAsync(
+        Process process,
+        Stream standardOutputStream,
+        Stream standardErrorStream,
+        ExternalProcessRequest request,
+        Stopwatch elapsed,
+        WindowsKillOnCloseJob job,
+        CancellationToken cancellationToken)
+    {
         BoundedProcessOutput standardOutput = BoundedProcessOutput.Start(
-            process.StandardOutput.BaseStream,
+            standardOutputStream,
             request.StandardOutputByteLimit);
         BoundedProcessOutput standardError = BoundedProcessOutput.Start(
-            process.StandardError.BaseStream,
+            standardErrorStream,
             request.StandardErrorByteLimit);
         Task exit = process.WaitForExitAsync(CancellationToken.None);
         using CancellationTokenSource timeoutLifetime = new();
@@ -192,28 +202,6 @@ public sealed class ExternalProcessRunner : IExternalProcessRunner
             elapsed.Elapsed);
     }
 
-    private static ProcessStartInfo CreateStartInfo(
-        VerifiedTrustedTool tool,
-        TrustedToolCommand command)
-    {
-        ProcessStartInfo startInfo = new()
-        {
-            FileName = tool.ExecutablePath,
-            WorkingDirectory = tool.PackageRoot,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            RedirectStandardInput = false,
-        };
-        foreach (string argument in command.Arguments)
-        {
-            startInfo.ArgumentList.Add(argument);
-        }
-
-        return startInfo;
-    }
-
     private static async Task<bool> KillAndWaitAsync(
         Process process,
         WindowsKillOnCloseJob job)
@@ -232,7 +220,7 @@ public sealed class ExternalProcessRunner : IExternalProcessRunner
             return await job.WaitForEmptyAsync(CleanupDeadline).ConfigureAwait(false);
         }
         catch (Exception error) when (
-            error is InvalidOperationException or Win32Exception or TimeoutException)
+            error is InvalidOperationException or System.ComponentModel.Win32Exception or TimeoutException)
         {
             return false;
         }

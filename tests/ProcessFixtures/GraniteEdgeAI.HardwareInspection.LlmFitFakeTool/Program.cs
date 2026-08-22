@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.InteropServices;
 
 return await RunAsync(args).ConfigureAwait(false);
 
@@ -41,6 +42,7 @@ static async Task<int> RunAsync(string[] arguments)
         "sleep" => await SleepAsync().ConfigureAwait(false),
         "spawn-child" => await SpawnChildAsync().ConfigureAwait(false),
         "spawn-child-exit" => await SpawnChildAndExitAsync().ConfigureAwait(false),
+        "assert-in-job" => JobMembership.IsCurrentProcessInJob() ? WriteSuccess() : 91,
         "sleep-child" => await SleepAsync().ConfigureAwait(false),
         "dashboard" => await ListenOnDashboardPortAsync().ConfigureAwait(false),
         _ => 64,
@@ -181,4 +183,21 @@ static async Task<int> ListenOnDashboardPortAsync()
     listener.Start();
     await Task.Delay(Timeout.InfiniteTimeSpan).ConfigureAwait(false);
     return 0;
+}
+
+internal static class JobMembership
+{
+    internal static bool IsCurrentProcessInJob()
+    {
+        using Process current = Process.GetCurrentProcess();
+        return IsProcessInJob(current.Handle, IntPtr.Zero, out bool inJob) && inJob;
+    }
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool IsProcessInJob(
+        IntPtr process,
+        IntPtr job,
+        [MarshalAs(UnmanagedType.Bool)] out bool result);
 }

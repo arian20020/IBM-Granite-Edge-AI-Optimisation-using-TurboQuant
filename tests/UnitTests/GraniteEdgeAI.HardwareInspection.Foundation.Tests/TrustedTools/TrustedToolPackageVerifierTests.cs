@@ -150,6 +150,28 @@ public sealed class TrustedToolPackageVerifierTests
     }
 
     [TestMethod]
+    public void VerifyRejectsPackageChangedToReparsePointBeforeCustodyOpen()
+    {
+        using PackageFixture fixture = PackageFixture.Create();
+        string movedPackage = fixture.PackageRoot + "-real";
+        TrustedToolPackageVerifier verifier = new(
+            afterDirectoryInspection: () =>
+            {
+                Directory.Move(fixture.PackageRoot, movedPackage);
+                Directory.CreateSymbolicLink(fixture.PackageRoot, movedPackage);
+            },
+            afterInitialInventory: null);
+
+        TrustedToolVerificationResult result = verifier.Verify(
+            fixture.ApprovedRoot,
+            fixture.PackageRoot,
+            fixture.Manifest);
+
+        result.Tool?.Dispose();
+        Assert.AreEqual(TrustedToolVerificationFailure.ReparsePoint, result.Failure);
+    }
+
+    [TestMethod]
     public void VerifyReportsMutationAfterInitialInventory()
     {
         using PackageFixture fixture = PackageFixture.Create();

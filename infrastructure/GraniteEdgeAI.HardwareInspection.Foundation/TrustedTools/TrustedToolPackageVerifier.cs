@@ -5,6 +5,7 @@ namespace GraniteEdgeAI.HardwareInspection.Foundation.TrustedTools;
 
 public sealed class TrustedToolPackageVerifier
 {
+    private readonly Action? _afterDirectoryInspection;
     private readonly Action? _afterInitialInventory;
 
     public TrustedToolPackageVerifier()
@@ -15,6 +16,15 @@ public sealed class TrustedToolPackageVerifier
     {
         _afterInitialInventory = afterInitialInventory ??
             throw new ArgumentNullException(nameof(afterInitialInventory));
+    }
+
+    internal TrustedToolPackageVerifier(
+        Action afterDirectoryInspection,
+        Action? afterInitialInventory)
+    {
+        _afterDirectoryInspection = afterDirectoryInspection ??
+            throw new ArgumentNullException(nameof(afterDirectoryInspection));
+        _afterInitialInventory = afterInitialInventory;
     }
 
     public TrustedToolVerificationResult Verify(
@@ -69,12 +79,17 @@ public sealed class TrustedToolPackageVerifier
             return Reject(TrustedToolVerificationFailure.ReparsePoint);
         }
 
+        _afterDirectoryInspection?.Invoke();
+
         if (!TrustedToolCustody.TryAcquireDirectories(
                 approvedFullPath,
                 packageFullPath,
-                out IReadOnlyList<Microsoft.Win32.SafeHandles.SafeFileHandle> directoryHandles))
+                out IReadOnlyList<Microsoft.Win32.SafeHandles.SafeFileHandle> directoryHandles,
+                out CustodyOpenFailure directoryOpenFailure))
         {
-            return Reject(TrustedToolVerificationFailure.FileUnavailable);
+            return Reject(directoryOpenFailure == CustodyOpenFailure.ReparsePoint
+                ? TrustedToolVerificationFailure.ReparsePoint
+                : TrustedToolVerificationFailure.FileUnavailable);
         }
 
         if (!TryCaptureFlatInventory(packageFullPath, out string[] initialInventory))
@@ -125,23 +140,17 @@ public sealed class TrustedToolPackageVerifier
             {
                 string actualMember = actualMembers[requiredMember];
                 string memberPath = Path.Combine(packageFullPath, actualMember);
-                ReparseInspection memberInspection = InspectReparsePoint(memberPath);
-                if (memberInspection != ReparseInspection.Clear)
+                if (!TrustedToolCustody.TryAcquireFile(
+                        memberPath,
+                        out FileStream? stream,
+                        out _))
                 {
                     DisposeResources(streams.Values);
                     DisposeResources(directoryHandles);
                     return Reject(TrustedToolVerificationFailure.PackageChangedDuringVerification);
                 }
 
-                streams.Add(
-                    requiredMember,
-                    new FileStream(
-                        memberPath,
-                        FileMode.Open,
-                        FileAccess.Read,
-                        FileShare.Read,
-                        bufferSize: 4096,
-                        FileOptions.SequentialScan));
+                streams.Add(requiredMember, stream!);
             }
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException)
