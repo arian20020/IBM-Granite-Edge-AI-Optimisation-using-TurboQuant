@@ -504,7 +504,16 @@ public sealed class GgufChatVisualContractTests
 
         StringAssert.Contains(
             controller,
-            "page.SetModelHeader(\"Preview mode\", \"No model loaded\");");
+            "\"Preview mode\",");
+        StringAssert.Contains(
+            controller,
+            "\"No model loaded\")");
+        StringAssert.Contains(
+            controller,
+            "page.SetModelHeader(displayName, runtimeDescription);");
+        StringAssert.Contains(
+            controller,
+            "CreateProductionAsync(");
         StringAssert.Contains(session, "Preview mode is active");
         StringAssert.Contains(
             session,

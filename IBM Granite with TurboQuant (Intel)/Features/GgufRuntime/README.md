@@ -24,6 +24,17 @@ deterministic fake CLI. Real GGUF inference still requires an authorized local
 `llama.cpp` CPU build and an inference-capable GGUF model; neither artifact is
 downloaded or committed by this repository.
 
+Production chat is composed from an explicit `GgufChatLaunchRequest` containing
+the verified package root, trusted manifest snapshot, inspected model path, and
+complete approved runtime configuration. `MainWindow.OpenProductionChatAsync`
+verifies that request and opens the same persistent chat UI without silently
+falling back to preview. The seam enforces the CPU-only MVP, matches runtime
+build/source identity, and re-hashes the model before launch. Untrusted,
+changed, or mismatched inputs return to onboarding.
+Each new or selected conversation starts an isolated CLI session reconstructed
+from that conversation's durable turns, and a Stop result that requires reload
+rebuilds the session before another prompt.
+
 Run all local verification with:
 
 ```powershell

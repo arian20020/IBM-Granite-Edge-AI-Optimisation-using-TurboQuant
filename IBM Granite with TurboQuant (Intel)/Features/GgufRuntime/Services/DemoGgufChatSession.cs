@@ -2,12 +2,23 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using GraniteEdgeAI.Features.GgufRuntime.History;
 
 namespace GraniteEdgeAI.Features.GgufRuntime.Services;
 
 internal sealed class DemoGgufChatSession : IGgufChatSession
 {
     private volatile bool stopRequested;
+
+    public ValueTask PrepareConversationAsync(
+        ChatConversation conversation,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(conversation);
+        cancellationToken.ThrowIfCancellationRequested();
+        stopRequested = false;
+        return ValueTask.CompletedTask;
+    }
 
     public async IAsyncEnumerable<GgufChatEvent> GenerateAsync(
         string prompt,

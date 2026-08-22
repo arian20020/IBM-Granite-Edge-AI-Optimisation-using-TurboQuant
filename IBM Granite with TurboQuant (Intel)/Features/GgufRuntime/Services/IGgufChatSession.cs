@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using GraniteEdgeAI.Features.GgufRuntime.History;
 
 namespace GraniteEdgeAI.Features.GgufRuntime.Services;
 
@@ -13,6 +14,10 @@ internal sealed record GgufChatFailed(string Code, string Message) : GgufChatEve
 
 internal interface IGgufChatSession : IAsyncDisposable
 {
+    ValueTask PrepareConversationAsync(
+        ChatConversation conversation,
+        CancellationToken cancellationToken);
+
     IAsyncEnumerable<GgufChatEvent> GenerateAsync(
         string prompt,
         CancellationToken cancellationToken);

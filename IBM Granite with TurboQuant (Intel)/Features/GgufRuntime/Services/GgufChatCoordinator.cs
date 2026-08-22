@@ -81,15 +81,41 @@ internal sealed class GgufChatCoordinator : IAsyncDisposable
         }
     }
 
-    internal async Task InitializeAsync(CancellationToken cancellationToken)
+    internal Task InitializeAsync(CancellationToken cancellationToken) =>
+        InitializeAsync(null, null, cancellationToken);
+
+    internal async Task InitializeAsync(
+        string? modelId,
+        string? profileId,
+        CancellationToken cancellationToken)
     {
+        if ((modelId is null) != (profileId is null))
+        {
+            throw new ArgumentException(
+                "Model and profile filters must be supplied together.");
+        }
+
         IReadOnlyList<ChatConversation> loaded = await store.LoadAsync(cancellationToken)
             .ConfigureAwait(false);
+        IEnumerable<ChatConversation> applicable = modelId is null
+            ? loaded
+            : loaded.Where(conversation =>
+                string.Equals(conversation.ModelId, modelId, StringComparison.Ordinal) &&
+                string.Equals(conversation.ProfileId, profileId, StringComparison.Ordinal));
         lock (stateSync)
         {
             conversations.Clear();
-            conversations.AddRange(ChatHistoryPolicy.ApplyRetention(loaded, clock.GetUtcNow()));
+            conversations.AddRange(ChatHistoryPolicy.ApplyRetention(
+                applicable,
+                clock.GetUtcNow()));
             selectedConversation = conversations.FirstOrDefault();
+        }
+
+        if (selectedConversation is not null)
+        {
+            await session.PrepareConversationAsync(
+                selectedConversation,
+                cancellationToken).ConfigureAwait(false);
         }
 
         ConversationChanged?.Invoke(this, EventArgs.Empty);
@@ -120,12 +146,18 @@ internal sealed class GgufChatCoordinator : IAsyncDisposable
         }
 
         await store.SaveAsync(conversation, cancellationToken).ConfigureAwait(false);
+        await session.PrepareConversationAsync(
+            conversation,
+            cancellationToken).ConfigureAwait(false);
         ConversationChanged?.Invoke(this, EventArgs.Empty);
         return conversation;
     }
 
-    internal void Select(Guid conversationId)
+    internal async Task SelectAsync(
+        Guid conversationId,
+        CancellationToken cancellationToken)
     {
+        ChatConversation conversation;
         lock (stateSync)
         {
             if (isGenerating)
@@ -133,7 +165,16 @@ internal sealed class GgufChatCoordinator : IAsyncDisposable
                 throw new InvalidOperationException("History cannot change during generation.");
             }
 
-            selectedConversation = conversations.Single(item => item.Id == conversationId);
+            conversation = conversations.Single(item => item.Id == conversationId);
+        }
+
+        await session.PrepareConversationAsync(
+            conversation,
+            cancellationToken).ConfigureAwait(false);
+
+        lock (stateSync)
+        {
+            selectedConversation = conversation;
         }
 
         ConversationChanged?.Invoke(this, EventArgs.Empty);
@@ -155,6 +196,7 @@ internal sealed class GgufChatCoordinator : IAsyncDisposable
         }
 
         ChatConversation? unpersistedConversation = null;
+        bool requiresSessionReload = false;
         try
         {
             current = current.Append(
@@ -191,8 +233,19 @@ internal sealed class GgufChatCoordinator : IAsyncDisposable
                 current = current.ReplaceMessage(assistant);
                 bool persist = runtimeEvent is GgufChatCompleted or
                     GgufChatStopped or GgufChatFailed;
+                requiresSessionReload |= runtimeEvent is GgufChatStopped
+                {
+                    NeedsReload: true
+                };
                 await PublishAsync(current, persist, cancellationToken).ConfigureAwait(false);
                 unpersistedConversation = persist ? null : current;
+            }
+
+            if (requiresSessionReload)
+            {
+                await session.PrepareConversationAsync(
+                    current,
+                    cancellationToken).ConfigureAwait(false);
             }
         }
         finally

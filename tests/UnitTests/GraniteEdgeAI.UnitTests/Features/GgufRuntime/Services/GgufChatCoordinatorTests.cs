@@ -81,6 +81,13 @@ public sealed class GgufChatCoordinatorTests
         ChatMessage assistant = coordinator.SelectedConversation!.Messages[1];
         Assert.AreEqual("partial", assistant.Content);
         Assert.AreEqual(ChatCompletionStatus.Incomplete, assistant.Status);
+        Assert.AreEqual(
+            2,
+            session.PreparedConversations.Count,
+            "A stop that invalidates the CLI must rebuild it from the persisted transcript.");
+        Assert.AreEqual(
+            ChatCompletionStatus.Incomplete,
+            session.PreparedConversations[1].Messages[1].Status);
     }
 
     [TestMethod]
@@ -99,7 +106,7 @@ public sealed class GgufChatCoordinatorTests
             "second",
             "cpu",
             CancellationToken.None);
-        coordinator.Select(first.Id);
+        await coordinator.SelectAsync(first.Id, CancellationToken.None);
 
         ChatCoordinatorSnapshot snapshot = coordinator.CaptureSnapshot();
 
@@ -110,6 +117,69 @@ public sealed class GgufChatCoordinatorTests
                 .SelectMany(group => group.Conversations)
                 .Select(conversation => conversation.Id)
                 .ToArray());
+    }
+
+    [TestMethod]
+    public async Task ConversationChangesPrepareAnIsolatedRuntimeContext()
+    {
+        var store = new MemoryStore();
+        ChatConversation restored = ChatConversation.Create(
+                Guid.NewGuid(),
+                "granite-test",
+                "cpu",
+                DateTimeOffset.UtcNow)
+            .Append(ChatMessage.User("first", DateTimeOffset.UtcNow))
+            .Append(ChatMessage.Assistant(
+                "answer",
+                ChatCompletionStatus.Completed,
+                DateTimeOffset.UtcNow));
+        await store.SaveAsync(restored, CancellationToken.None);
+        var session = new FakeSession();
+        var coordinator = new GgufChatCoordinator(
+            store,
+            session,
+            TimeProvider.System,
+            TimeZoneInfo.Utc);
+
+        await coordinator.InitializeAsync(CancellationToken.None);
+        ChatConversation fresh = await coordinator.NewChatAsync(
+            "granite-test",
+            "cpu",
+            CancellationToken.None);
+        await coordinator.SelectAsync(restored.Id, CancellationToken.None);
+
+        Assert.AreEqual(3, session.PreparedConversations.Count);
+        Assert.AreEqual(restored.Id, session.PreparedConversations[0].Id);
+        Assert.AreEqual(fresh.Id, session.PreparedConversations[1].Id);
+        Assert.AreEqual(restored.Id, session.PreparedConversations[2].Id);
+        Assert.AreEqual(2, session.PreparedConversations[2].Messages.Count);
+    }
+
+    [TestMethod]
+    public async Task InitializationLoadsOnlyTheRequestedModelProfile()
+    {
+        var store = new MemoryStore();
+        ChatConversation matching = ChatConversation.Create(
+            Guid.NewGuid(), "granite", "cpu", DateTimeOffset.UtcNow);
+        ChatConversation other = ChatConversation.Create(
+            Guid.NewGuid(), "preview", "demo", DateTimeOffset.UtcNow);
+        await store.SaveAsync(matching, CancellationToken.None);
+        await store.SaveAsync(other, CancellationToken.None);
+        var session = new FakeSession();
+        var coordinator = new GgufChatCoordinator(
+            store,
+            session,
+            TimeProvider.System,
+            TimeZoneInfo.Utc);
+
+        await coordinator.InitializeAsync(
+            "granite",
+            "cpu",
+            CancellationToken.None);
+
+        Assert.AreEqual(1, coordinator.Conversations.Count);
+        Assert.AreEqual(matching.Id, coordinator.SelectedConversation!.Id);
+        Assert.AreEqual(matching.Id, session.PreparedConversations.Single().Id);
     }
 
     [TestMethod]
@@ -141,6 +211,16 @@ public sealed class GgufChatCoordinatorTests
 
     private sealed class FakeSession(params GgufChatEvent[] events) : IGgufChatSession
     {
+        internal List<ChatConversation> PreparedConversations { get; } = [];
+
+        public ValueTask PrepareConversationAsync(
+            ChatConversation conversation,
+            CancellationToken cancellationToken)
+        {
+            PreparedConversations.Add(conversation);
+            return ValueTask.CompletedTask;
+        }
+
         public async IAsyncEnumerable<GgufChatEvent> GenerateAsync(
             string prompt,
             [System.Runtime.CompilerServices.EnumeratorCancellation]
@@ -162,6 +242,10 @@ public sealed class GgufChatCoordinatorTests
 
     private sealed class ThrowingSession : IGgufChatSession
     {
+        public ValueTask PrepareConversationAsync(
+            ChatConversation conversation,
+            CancellationToken cancellationToken) => ValueTask.CompletedTask;
+
         public async IAsyncEnumerable<GgufChatEvent> GenerateAsync(
             string prompt,
             [System.Runtime.CompilerServices.EnumeratorCancellation]

@@ -6,30 +6,50 @@ using System.Threading;
 using System.Threading.Tasks;
 using GraniteEdgeAI.Features.GgufRuntime.History;
 using GraniteEdgeAI.Features.GgufRuntime.Services;
+using GraniteEdgeAI.GgufRuntime.WorkerClient;
 
 namespace GraniteEdgeAI.Features.GgufRuntime;
 
 internal sealed class ChatDemoController : IAsyncDisposable
 {
-    private const string DemoModelId = "granite-demo";
-    private const string DemoProfileId = "local-preview";
     private readonly ChatPage page;
     private readonly GgufChatCoordinator coordinator;
     private readonly ChatRenderScheduler renderScheduler;
+    private readonly string modelId;
+    private readonly string profileId;
     private List<HistoryRenderKey> renderedHistory = [];
     private bool followLatest;
     private bool disposed;
 
     internal ChatDemoController(ChatPage page)
+        : this(
+            page,
+            new DemoGgufChatSession(),
+            "granite-demo",
+            "local-preview",
+            "Preview mode",
+            "No model loaded")
+    {
+    }
+
+    private ChatDemoController(
+        ChatPage page,
+        IGgufChatSession session,
+        string modelId,
+        string profileId,
+        string displayName,
+        string runtimeDescription)
     {
         this.page = page ?? throw new ArgumentNullException(nameof(page));
+        this.modelId = modelId;
+        this.profileId = profileId;
         string root = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "GraniteEdgeAI",
             "ChatHistory");
         coordinator = new GgufChatCoordinator(
             new AtomicJsonChatHistoryStore(root),
-            new DemoGgufChatSession(),
+            session,
             TimeProvider.System,
             TimeZoneInfo.Local);
         renderScheduler = new ChatRenderScheduler(
@@ -40,17 +60,44 @@ internal sealed class ChatDemoController : IAsyncDisposable
         page.SendRequested += Page_SendRequested;
         page.StopRequested += Page_StopRequested;
         page.ConversationSelected += Page_ConversationSelected;
-        page.SetModelHeader("Preview mode", "No model loaded");
+        page.SetModelHeader(displayName, runtimeDescription);
+    }
+
+    internal static async Task<ChatDemoController> CreateProductionAsync(
+        ChatPage page,
+        GgufChatLaunchRequest request,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(page);
+        ArgumentNullException.ThrowIfNull(request);
+        GgufRuntimeClient client = GgufRuntimeClient.CreateFromPackage(
+            request.PackageRoot,
+            request.TrustedManifest.Span,
+            request.ModelFile);
+        await request.VerifyModelAsync(cancellationToken);
+        var session = new GgufChatSessionAdapter(
+            client,
+            request.Configuration);
+        return new ChatDemoController(
+            page,
+            session,
+            request.Configuration.ModelId,
+            request.Configuration.ProfileId,
+            request.DisplayName,
+            $"{request.Configuration.Backend} Â· {request.Configuration.RuntimeBuildId}");
     }
 
     internal async Task InitializeAsync()
     {
-        await coordinator.InitializeAsync(CancellationToken.None);
+        await coordinator.InitializeAsync(
+            modelId,
+            profileId,
+            CancellationToken.None);
         if (coordinator.SelectedConversation is null)
         {
             await coordinator.NewChatAsync(
-                DemoModelId,
-                DemoProfileId,
+                modelId,
+                profileId,
                 CancellationToken.None);
         }
 
@@ -83,8 +130,8 @@ internal sealed class ChatDemoController : IAsyncDisposable
 
         followLatest = true;
         await coordinator.NewChatAsync(
-            DemoModelId,
-            DemoProfileId,
+            modelId,
+            profileId,
             CancellationToken.None);
     }
 
@@ -116,7 +163,7 @@ internal sealed class ChatDemoController : IAsyncDisposable
         }
     }
 
-    private void Page_ConversationSelected(object? sender, Guid conversationId)
+    private async void Page_ConversationSelected(object? sender, Guid conversationId)
     {
         if (disposed || coordinator.IsGenerating)
         {
@@ -124,7 +171,7 @@ internal sealed class ChatDemoController : IAsyncDisposable
         }
 
         followLatest = true;
-        coordinator.Select(conversationId);
+        await coordinator.SelectAsync(conversationId, CancellationToken.None);
     }
 
     private void Coordinator_ConversationChanged(object? sender, EventArgs eventArguments) =>
