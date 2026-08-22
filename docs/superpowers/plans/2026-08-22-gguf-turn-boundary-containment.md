@@ -2,9 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Keep local Granite replies inside one clean assistant turn by removing a leading `Me:`, stopping fabricated role continuations and empty-fence loops, and using deterministic generation.
+**Goal:** Keep local Granite replies inside one clean assistant turn by removing a leading `Me:`, stopping fabricated role continuations and empty-fence loops, and using repeatable generation.
 
-**Architecture:** Add one LLamaSharp `ITextStreamTransform` that incrementally buffers a small unsafe suffix while streaming confirmed-safe text. Attach it inside `ChatSession` so transformed text is both emitted and stored, then configure greedy sampling plus common anti-prompts for early executor termination.
+**Architecture:** Add one LLamaSharp `ITextStreamTransform` that incrementally buffers a small unsafe suffix while streaming confirmed-safe text. Attach it inside `ChatSession` so transformed text is both emitted and stored, then configure fixed-seed low-temperature sampling with repetition penalty and canonical next-speaker anti-prompts.
+
+**Controlled-test correction:** The initial plan specified greedy sampling and anti-prompts for `Me:` and empty fences. The real Granite two-turn test showed that greedy decoding deterministically selected the malformed fence path, while `Me:`/fence anti-prompts could erase a response before the transform saw it. The implemented and verified policy therefore uses seed `42`, temperature `0.2`, repetition penalty `1.1`, and only `User:`/`Assistant:` anti-prompts. The transform remains authoritative for `Me:` and fence containment.
 
 **Tech Stack:** C# 12, .NET 8, LLamaSharp 0.27.0, MSTest 4.3.2, WinUI 3, PowerShell.
 
@@ -15,7 +17,7 @@
 - Create `runtime/GraniteEdgeAI.GgufRuntime.NativeAdapter/GraniteTurnBoundaryTextTransform.cs` for streaming prefix normalization and turn-boundary detection.
 - Create `tests/UnitTests/GraniteEdgeAI.GgufRuntime.NativeAdapter.Tests/GraniteTurnBoundaryTextTransformTests.cs` for deterministic fragmented-stream coverage.
 - Modify `runtime/GraniteEdgeAI.GgufRuntime.NativeAdapter/LlamaSharpInferenceEngine.cs` to attach the transform and use the approved inference policy.
-- Modify `tests/UnitTests/GraniteEdgeAI.GgufRuntime.NativeAdapter.Tests/LlamaSharpInferenceEngineTests.cs` to bind greedy sampling and anti-prompts.
+- Modify `tests/UnitTests/GraniteEdgeAI.GgufRuntime.NativeAdapter.Tests/LlamaSharpInferenceEngineTests.cs` to bind repeatable sampling and canonical next-speaker anti-prompts.
 - Modify `tests/UnitTests/GraniteEdgeAI.GgufRuntime.NativeAdapter.Tests/LlamaSharpRealModelSmokeTests.cs` to cover the user's `helllo` case at the production token bound.
 - Modify `tests/IntegrationTests/GraniteEdgeAI.GgufRuntime.WorkerProcess.Tests/GgufRealModelSmokeTests.cs` to apply the same response-boundary assertion to both packaged turns.
 
@@ -199,7 +201,7 @@ Add:
 
 ```csharp
 [TestMethod]
-public void CreateInferenceParametersUsesGreedyTurnBoundaries()
+public void CreateInferenceParametersUsesRepeatResistantTurnBoundaries()
 {
     InferenceParams inference = LlamaSharpInferenceEngine.CreateInferenceParameters(
         new GgufAdapterOptions(
@@ -208,13 +210,17 @@ public void CreateInferenceParametersUsesGreedyTurnBoundaries()
             0, 4, 256, false, 512));
 
     Assert.AreEqual(512, inference.MaxTokens);
-    Assert.IsInstanceOfType<GreedySamplingPipeline>(inference.SamplingPipeline);
+    DefaultSamplingPipeline sampling = Assert.IsInstanceOfType<DefaultSamplingPipeline>(
+        inference.SamplingPipeline);
+    Assert.AreEqual(42u, sampling.Seed);
+    Assert.AreEqual(0.2f, sampling.Temperature);
+    Assert.AreEqual(1.1f, sampling.RepeatPenalty);
     CollectionAssert.Contains(inference.AntiPrompts.ToList(), "\nUser:");
     CollectionAssert.Contains(inference.AntiPrompts.ToList(), "\nuser:");
     CollectionAssert.Contains(inference.AntiPrompts.ToList(), "\nAssistant:");
     CollectionAssert.Contains(inference.AntiPrompts.ToList(), "\nassistant:");
-    CollectionAssert.Contains(inference.AntiPrompts.ToList(), "\nMe:");
-    CollectionAssert.Contains(inference.AntiPrompts.ToList(), "\nme:");
+    CollectionAssert.DoesNotContain(inference.AntiPrompts.ToList(), "\nMe:");
+    CollectionAssert.DoesNotContain(inference.AntiPrompts.ToList(), "\nme:");
 }
 ```
 
@@ -253,14 +259,16 @@ internal static InferenceParams CreateInferenceParameters(GgufAdapterOptions con
         MaxTokens = Math.Min(
             configuration.MaximumGeneratedTokens,
             checked((int)configuration.ContextSize / 2)),
-        SamplingPipeline = new GreedySamplingPipeline(),
+        SamplingPipeline = new DefaultSamplingPipeline
+        {
+            Seed = 42,
+            Temperature = 0.2f,
+            RepeatPenalty = 1.1f,
+        },
         AntiPrompts =
         [
             "\nUser:", "\nuser:",
             "\nAssistant:", "\nassistant:",
-            "\nMe:", "\nme:",
-            "\n```\n```", "\r\n```\r\n```",
-            "\n```\n\n```", "\r\n```\r\n\r\n```",
         ],
     };
 ```

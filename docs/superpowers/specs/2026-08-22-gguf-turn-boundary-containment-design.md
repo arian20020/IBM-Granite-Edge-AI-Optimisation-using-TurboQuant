@@ -1,7 +1,7 @@
 # GGUF Turn-Boundary Containment Design
 
-**Status:** Approved for specification on 2026-08-22  
-**Scope:** Local GGUF chat generation in `GraniteEdgeAI.GgufRuntime.NativeAdapter`  
+**Status:** Approved on 2026-08-22; inference policy amended from controlled-model evidence
+**Scope:** Local GGUF chat generation in `GraniteEdgeAI.GgufRuntime.NativeAdapter`
 **Observed model:** IBM Granite 4.1 3B Q4_K_M, SHA-256 prefix `662b0626cd58`
 
 ## Problem
@@ -13,7 +13,7 @@ The original smoke checks were insufficient because they exercised one random sa
 ## Required behavior
 
 - Continue applying the GGUF model's embedded chat template.
-- Use deterministic greedy sampling for the default local-chat profile. This matches IBM's basic Granite generation examples, which do not enable sampling.
+- Use a repeatable fixed-seed, low-temperature sampling profile with repetition penalty for the default local-chat profile. Controlled Granite testing showed that pure greedy decoding deterministically selected the malformed empty-fence path on a later turn.
 - Remove a case-insensitive `Me:` label only when it is the first non-whitespace text in a newly generated assistant turn. Preserve the answer following the label.
 - End the assistant turn before a subsequent line-leading `Me:`, `User:`, or `Assistant:` label, regardless of case. Do not expose or persist the fabricated label or anything after it.
 - End the turn when a second empty Markdown fence follows an empty fence with only whitespace between them. Preserve normal fenced code containing non-whitespace content.
@@ -31,13 +31,14 @@ The original smoke checks were insufficient because they exercised one random sa
 4. Stop enumeration at the first fabricated-turn or repeated-empty-fence boundary.
 5. Flush safe buffered text when the model ends normally.
 
-Inference parameters will use `GreedySamplingPipeline` and case variants of the supported next-speaker labels as anti-prompts. Anti-prompts provide early executor termination for common boundaries; the transform remains authoritative for chunk-split detection, prefix cleanup, and fence-loop containment.
+Inference parameters use `DefaultSamplingPipeline` with seed `42`, temperature `0.2`, and repetition penalty `1.1`. Only canonical subsequent `User:` and `Assistant:` labels are sampler anti-prompts. Leading `Me:` cleanup and empty-fence containment belong exclusively to the output transform: configuring those strings as anti-prompts can erase a response before the transform receives the answer behind the match.
 
 The transform must be cloneable because LLamaSharp clones stream transforms as part of session operations. Each clone starts with clean per-turn state.
 
 ## Edge cases
 
 - `Tell me: why` and prose containing `me:` are unchanged because the prefix rule applies only at response start.
+- A response whose first logical line literally begins `User:` or `Assistant:` is preserved; those labels terminate output only when they begin a subsequent logical line.
 - A legitimate first code fence is emitted. A second fence is allowed when content exists between fences; only whitespace-only fence repetition terminates the turn.
 - A role label inside a fenced code example is preserved unless it occurs after an already empty fence boundary. Role-boundary matching otherwise requires the start of a logical line.
 - Empty or whitespace-only model output remains empty; the worker's existing completion behavior is unchanged.
@@ -54,9 +55,9 @@ Unit tests will feed deliberately fragmented chunks into the transform and prove
 - the saved repeated-empty-fence shape terminates after the useful answer;
 - legitimate fenced code remains intact;
 - transform clones have independent state;
-- greedy sampling and the required anti-prompts are configured.
+- fixed-seed low-temperature sampling, repetition penalty, and canonical next-speaker anti-prompts are configured.
 
-Controlled real-model tests will use the imported Granite model and assert that complete responses contain no leading `Me:`, no fabricated next-speaker turn, and no repeated empty-fence loop. The full GGUF verification script, packaged WinUI chat suite, and self-contained Release/x64 build remain the completion gates.
+Controlled real-model tests use the imported Granite model and assert that complete responses contain no leading `Me:`, no fabricated next-speaker turn, and no repeated empty-fence loop across a natural two-turn conversation. The full GGUF verification script, packaged WinUI chat suite, and self-contained Release/x64 build remain the completion gates.
 
 ## Non-goals
 

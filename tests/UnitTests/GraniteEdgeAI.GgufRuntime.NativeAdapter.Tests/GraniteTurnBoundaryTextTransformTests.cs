@@ -22,6 +22,12 @@ public sealed class GraniteTurnBoundaryTextTransformTests
         Assert.AreEqual("Tell me: why", await TransformAsync("Tell me: why"));
 
     [TestMethod]
+    [DataRow("User: a person who uses a system")]
+    [DataRow("Assistant: a person who provides help")]
+    public async Task LeadingRoleDefinitionIsPreserved(string input) =>
+        Assert.AreEqual(input, await TransformAsync(input));
+
+    [TestMethod]
     [DataRow("Answer\nUser: fabricated")]
     [DataRow("Answer\r\nassistant: fabricated")]
     [DataRow("Answer\nMe: fabricated")]

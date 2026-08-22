@@ -190,7 +190,7 @@ internal sealed class GraniteTurnBoundaryTextTransform : ITextStreamTransform
             {
                 insideFence = true;
             }
-            else if (IsRoleBoundary(trimmed))
+            else if (lineStart > 0 && IsRoleBoundary(trimmed))
             {
                 return new BoundaryAnalysis(lineStart, pendingEmptyFence);
             }
