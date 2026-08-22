@@ -345,7 +345,10 @@ public sealed class ExternalProcessRunnerTests
         public void Dispose()
         {
             Tool.Dispose();
-            for (int attempt = 0; attempt < 100 && Directory.Exists(Root); attempt++)
+            const int maximumCleanupAttempts = 500;
+            for (int attempt = 0;
+                 attempt < maximumCleanupAttempts && Directory.Exists(Root);
+                 attempt++)
             {
                 try
                 {
@@ -354,7 +357,7 @@ public sealed class ExternalProcessRunnerTests
                 catch (Exception error) when (
                     error is IOException or UnauthorizedAccessException)
                 {
-                    if (attempt == 99)
+                    if (attempt == maximumCleanupAttempts - 1)
                     {
                         throw;
                     }
