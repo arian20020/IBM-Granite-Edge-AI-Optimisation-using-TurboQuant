@@ -204,9 +204,6 @@ internal static class WindowsProcessorTopologyParser
     private const int HeaderSize = 8;
     private const int MinimumProcessorCoreRecordSize = 48;
     private const int GroupCountOffset = 30;
-    private const uint ProcessorRelationshipPrefixSize = 32;
-    private const uint GroupAffinitySize = 16;
-    private const ushort MaximumProcessorGroups = 64;
     private const int ProcessorCoreRelationship = 0;
     private const int MaximumPhysicalCores = 4096;
 
@@ -234,9 +231,7 @@ internal static class WindowsProcessorTopologyParser
 
             ushort groupCount = BinaryPrimitives.ReadUInt16LittleEndian(
                 buffer.Slice(offset + GroupCountOffset, sizeof(ushort)));
-            uint requiredRecordSize = checked(
-                ProcessorRelationshipPrefixSize + (groupCount * GroupAffinitySize));
-            if (groupCount is 0 or > MaximumProcessorGroups || recordSize < requiredRecordSize)
+            if (groupCount != 1)
             {
                 return false;
             }

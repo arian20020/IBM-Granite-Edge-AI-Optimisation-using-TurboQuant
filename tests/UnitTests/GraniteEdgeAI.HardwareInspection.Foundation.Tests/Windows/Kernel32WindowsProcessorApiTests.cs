@@ -51,7 +51,7 @@ public sealed class Kernel32WindowsProcessorApiTests
     }
 
     [TestMethod]
-    public void TopologyParserValidatesGroupCountAgainstRecordSize()
+    public void TopologyParserRequiresExactlyOneGroupForEachCoreRecord()
     {
         byte[] zeroGroups = CreateCoreRecords(1);
         BinaryPrimitives.WriteUInt16LittleEndian(zeroGroups.AsSpan(30, 2), 0);
@@ -62,10 +62,9 @@ public sealed class Kernel32WindowsProcessorApiTests
         Assert.IsFalse(
             WindowsProcessorTopologyParser.TryCountPhysicalCores(undersizedTwoGroups, out _));
 
-        byte[] validTwoGroups = CreateCoreRecord(groupCount: 2);
-        Assert.IsTrue(
-            WindowsProcessorTopologyParser.TryCountPhysicalCores(validTwoGroups, out int cores));
-        Assert.AreEqual(1, cores);
+        byte[] sizedTwoGroups = CreateCoreRecord(groupCount: 2);
+        Assert.IsFalse(
+            WindowsProcessorTopologyParser.TryCountPhysicalCores(sizedTwoGroups, out _));
     }
 
     [TestMethod]
