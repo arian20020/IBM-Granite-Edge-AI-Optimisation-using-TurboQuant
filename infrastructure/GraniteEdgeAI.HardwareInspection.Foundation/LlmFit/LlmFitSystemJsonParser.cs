@@ -29,7 +29,8 @@ internal static class LlmFitSystemJsonParser
                 !HasUniquePropertyNames(root) ||
                 !root.TryGetProperty("system", out JsonElement system) ||
                 system.ValueKind != JsonValueKind.Object ||
-                !HasUniquePropertyNames(system))
+                !HasUniquePropertyNames(system) ||
+                !HasUniqueGpuObjectProperties(system))
             {
                 return StructuralFailure(sha256);
             }
@@ -56,13 +57,21 @@ internal static class LlmFitSystemJsonParser
         bool totalValid = totalState == FieldState.Valid && totalRamGiB is > 0 and <= 16384;
         bool availableIndividuallyValid =
             availableState == FieldState.Valid && availableRamGiB is >= 0 and <= 16384;
-        bool availableValid = availableIndividuallyValid && totalValid && availableRamGiB <= totalRamGiB;
+        bool ramRelationshipInvalid =
+            totalValid && availableIndividuallyValid && availableRamGiB > totalRamGiB;
+        bool availableRetainable = availableIndividuallyValid && !ramRelationshipInvalid;
         bool cpuMissing = totalState == FieldState.Missing ||
             availableState == FieldState.Missing ||
             coreState == FieldState.Missing ||
             cpuNameState == FieldState.Missing;
-        bool cpuInvalid = !totalValid || !availableValid ||
-            coreState == FieldState.Invalid || cpuNameState == FieldState.Invalid;
+        bool cpuInvalid =
+            totalState == FieldState.Invalid ||
+            availableState == FieldState.Invalid ||
+            coreState == FieldState.Invalid ||
+            cpuNameState == FieldState.Invalid ||
+            (totalState == FieldState.Valid && !totalValid) ||
+            (availableState == FieldState.Valid && !availableIndividuallyValid) ||
+            ramRelationshipInvalid;
 
         GpuParseData gpu = ParseGpu(system);
         List<LlmFitDiagnosticCode> diagnostics = [];
@@ -81,7 +90,7 @@ internal static class LlmFitSystemJsonParser
             diagnostics.Add(LlmFitDiagnosticCode.GpuShapeMissing);
         }
 
-        if (!gpu.IsConsistent)
+        if (gpu.HasInconsistency)
         {
             diagnostics.Add(LlmFitDiagnosticCode.GpuInconsistent);
         }
@@ -92,7 +101,7 @@ internal static class LlmFitSystemJsonParser
             cpuNameState == FieldState.Valid ? cpuName : null,
             coreState == FieldState.Valid ? logicalProcessors : null,
             totalValid ? totalRamGiB : null,
-            availableValid ? availableRamGiB : null,
+            availableRetainable ? availableRamGiB : null,
             gpu.IsConsistent ? gpu.State : LlmFitGpuDetectionState.Invalid,
             gpu.IsConsistent ? gpu.Gpus : [],
             sha256,
@@ -106,14 +115,16 @@ internal static class LlmFitSystemJsonParser
         FieldState arrayState = GetArray(system, "gpus", out JsonElement gpuArray);
         bool shapeMissing = hasGpuState == FieldState.Missing ||
             countState == FieldState.Missing || arrayState == FieldState.Missing;
+        bool representationInvalid = hasGpuState == FieldState.Invalid ||
+            countState == FieldState.Invalid || arrayState == FieldState.Invalid;
         if (hasGpuState != FieldState.Valid || countState != FieldState.Valid || arrayState != FieldState.Valid)
         {
-            return new(shapeMissing, false, LlmFitGpuDetectionState.Invalid, []);
+            return new(shapeMissing, representationInvalid, false, LlmFitGpuDetectionState.Invalid, []);
         }
 
         if (gpuArray.GetArrayLength() > MaximumGpuCount)
         {
-            return new(false, false, LlmFitGpuDetectionState.Invalid, []);
+            return new(false, true, false, LlmFitGpuDetectionState.Invalid, []);
         }
 
         List<LlmFitReportedGpu> gpus = [];
@@ -126,7 +137,7 @@ internal static class LlmFitSystemJsonParser
                 ReadBoundedInteger(gpu, "count", 1, MaximumGpuCount, out int count) != FieldState.Valid ||
                 name is null || !names.Add(name) || reportedCount > MaximumGpuCount - count)
             {
-                return new(false, false, LlmFitGpuDetectionState.Invalid, []);
+                return new(false, true, false, LlmFitGpuDetectionState.Invalid, []);
             }
 
             reportedCount += count;
@@ -142,6 +153,7 @@ internal static class LlmFitSystemJsonParser
 
         return new(
             false,
+            !consistent,
             consistent,
             consistent && hasGpu ? LlmFitGpuDetectionState.Reported :
                 consistent ? LlmFitGpuDetectionState.NotReported : LlmFitGpuDetectionState.Invalid,
@@ -154,6 +166,24 @@ internal static class LlmFitSystemJsonParser
         foreach (JsonProperty property in element.EnumerateObject())
         {
             if (!names.Add(property.Name))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool HasUniqueGpuObjectProperties(JsonElement system)
+    {
+        if (!system.TryGetProperty("gpus", out JsonElement gpus) || gpus.ValueKind != JsonValueKind.Array)
+        {
+            return true;
+        }
+
+        foreach (JsonElement gpu in gpus.EnumerateArray())
+        {
+            if (gpu.ValueKind == JsonValueKind.Object && !HasUniquePropertyNames(gpu))
             {
                 return false;
             }
@@ -278,6 +308,7 @@ internal static class LlmFitSystemJsonParser
 
     private sealed record GpuParseData(
         bool ShapeMissing,
+        bool HasInconsistency,
         bool IsConsistent,
         LlmFitGpuDetectionState State,
         IReadOnlyList<LlmFitReportedGpu> Gpus);
