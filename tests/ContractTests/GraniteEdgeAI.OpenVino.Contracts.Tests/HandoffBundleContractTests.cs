@@ -123,6 +123,37 @@ public sealed class HandoffBundleContractTests
         }
     }
 
+    [TestMethod]
+    public void BuilderPinsDeterminismInventoryAndOwnedCleanupBoundaries()
+    {
+        string builder = File.ReadAllText(RepoPath(
+            "scripts/openvino/handoff/New-OpenVinoUclHandoff.ps1"));
+        foreach (string required in new[]
+        {
+            "db46a1c79a6bd2199eb4d9434ba406a1de51a11b060a4108a100542bdf9e39d3",
+            "Sort-Object FullName",
+            "LastWriteTime = [DateTimeOffset]::new(",
+            "role = $Role",
+            "evidenceDisposition = 'transfer_input_only'",
+            "'.build-' + [Guid]::NewGuid()",
+            "Remove-Item -LiteralPath $resolvedStaging -Recurse -Force"
+        })
+        {
+            StringAssert.Contains(builder, required);
+        }
+
+        foreach (string relative in new[]
+        {
+            "docs/handoffs/openvino-ucl/READ_FIRST.md",
+            "docs/handoffs/openvino-ucl/CONTINUATION_PROMPT.md"
+        })
+        {
+            string document = File.ReadAllText(RepoPath(relative));
+            Assert.IsFalse(document.Contains("C:\\openvino-o1-task",
+                StringComparison.OrdinalIgnoreCase), relative);
+        }
+    }
+
     private static string RepoPath(string relative) => Path.Combine(
         FindRepositoryRoot(), relative.Replace('/', Path.DirectorySeparatorChar));
 
