@@ -198,7 +198,7 @@
                                 FontSize="{StaticResource CompatibilityCardTitleFontSize}"
                                 FontWeight="SemiBold"
                                 Foreground="{ThemeResource CompatibilityTextPrimaryBrush}"
-                                Text="What this needs" />
+                                Text="What this model needs" />
                             <!--
                                 Two columns of tiles that share one row height, with
                                 each tile's detail pinned to its own bottom edge.
@@ -281,7 +281,7 @@
                             FontSize="{StaticResource CompatibilityCardTitleFontSize}"
                             FontWeight="SemiBold"
                             Foreground="{ThemeResource CompatibilityTextPrimaryBrush}"
-                            Text="What would let this be answered" />
+                            Text="What would help" />
                         <StackPanel x:Name="RecoveryRows" Margin="0,9,0,0" />
                     </StackPanel>
                 </Border>

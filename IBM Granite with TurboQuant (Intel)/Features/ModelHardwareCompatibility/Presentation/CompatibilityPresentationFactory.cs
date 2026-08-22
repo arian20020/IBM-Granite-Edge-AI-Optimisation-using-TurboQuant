@@ -10,22 +10,24 @@ namespace GraniteEdgeAI.Features.ModelHardwareCompatibility.Presentation;
 /// <summary>
 /// Turns the engine's screen contract into words.
 ///
-/// The engine deliberately emits codes and never sentences, so this is the only
-/// place the product speaks. Three rules shape everything below.
+/// The engine emits codes and never sentences, so this is the only place the
+/// product speaks. Four rules shape everything below.
 ///
-/// First, never claim more certainty than exists. Every figure the engine
-/// produces today rests on documented defaults rather than measurements, so the
-/// page says "estimated" and carries a badge saying so. Calling an estimate a
-/// measurement would be the one lie this whole design was built to avoid.
+/// Plain words. Someone deciding whether to run a model should not have to
+/// decode "margin", "headroom", "configuration" or "established". They get
+/// "spare", "setup", and short sentences.
 ///
-/// Second, "we could not tell you" is a different sentence from "we checked and
-/// the answer is no". Screens 05 and 06 must never be confusable, because the
-/// first means the user should change something and the second means the user
-/// should give us something.
+/// Never claim more certainty than exists. Every figure today rests on sensible
+/// defaults rather than measurements, so the page says estimate and shows a
+/// badge saying so. Calling an estimate a test would be the one lie this design
+/// was built to avoid.
 ///
-/// Third, a problem stated without a remedy is half an answer. Every blocking
-/// finding carries a recovery line saying what would let the question be
-/// answered.
+/// "We can't tell you" is a different sentence from "we checked and the answer
+/// is no". Those two screens must never be confusable: the first means the user
+/// should give us something, the second means the user should change something.
+///
+/// A problem stated without a remedy is half an answer, so every blocking
+/// finding carries a line saying what would help.
 /// </summary>
 internal static class CompatibilityPresentationFactory
 {
@@ -35,18 +37,18 @@ internal static class CompatibilityPresentationFactory
     {
         string[] stages =
         [
-            "Analysing what this model needs",
-            "Checking which ways it could run",
+            "Working out what this model needs",
+            "Checking the ways it could run",
             "Checking memory and safety limits",
-            "Choosing the safest configuration"
+            "Picking the safest setup"
         ];
 
-        int clamped = stageIndex < 0 ? 0 : stageIndex > 3 ? 3 : stageIndex;
+        int clamped = Clamp(stageIndex, stages.Length);
 
         return CompatibilityPresentation.Empty with
         {
             PageTitle = Title,
-            PageLede = "This takes a few seconds and changes nothing on your computer.",
+            PageLede = "This takes a few seconds. Nothing on your computer changes.",
             Tone = CompatibilityOutcomeTone.Neutral,
             OutcomeTitle = stages[clamped],
             OutcomeDetail = $"Step {clamped + 1} of {stages.Length}.",
@@ -62,22 +64,22 @@ internal static class CompatibilityPresentationFactory
     {
         string[] stages =
         [
-            "Checking the selected backend and device",
-            "Loading the model you imported",
-            "Generating a short response",
-            "Recording what actually happened"
+            "Checking the chosen backend and device",
+            "Loading the model you added",
+            "Writing a short reply",
+            "Saving what happened"
         ];
 
-        int clamped = stageIndex < 0 ? 0 : stageIndex > 3 ? 3 : stageIndex;
+        int clamped = Clamp(stageIndex, stages.Length);
 
         return CompatibilityPresentation.Empty with
         {
             PageTitle = Title,
-            PageLede = "Trying the chosen configuration for real, so the result is measured rather than estimated.",
+            PageLede = "We're trying the setup for real, so the answer is tested rather than estimated.",
             Tone = CompatibilityOutcomeTone.Neutral,
             OutcomeTitle = stages[clamped],
             OutcomeDetail = $"Step {clamped + 1} of {stages.Length}.",
-            OutcomeBadge = "VERIFYING",
+            OutcomeBadge = "TESTING",
             PrimaryActionText = "Continue",
             PrimaryActionEnabled = false,
             SecondaryActionText = "Cancel",
@@ -89,13 +91,13 @@ internal static class CompatibilityPresentationFactory
         CompatibilityPresentation.Empty with
         {
             PageTitle = Title,
-            PageLede = "This configuration was tried on this computer and it worked.",
+            PageLede = "We tried this setup on your computer and it worked.",
             Tone = CompatibilityOutcomeTone.Positive,
-            OutcomeTitle = "Verified — this model runs on your computer",
+            OutcomeTitle = "Tested — this model runs on your computer",
             OutcomeDetail =
-                "The model loaded and produced a response. This result was measured on "
-                + "this machine rather than calculated.",
-            OutcomeBadge = "MEASURED",
+                "The model loaded and wrote a reply. We tested this on your computer "
+                + "instead of working it out on paper.",
+            OutcomeBadge = "TESTED",
             PrimaryActionText = "Continue",
             PrimaryActionEnabled = true,
             SecondaryActionText = "Back",
@@ -106,23 +108,23 @@ internal static class CompatibilityPresentationFactory
         CompatibilityPresentation.Empty with
         {
             PageTitle = Title,
-            PageLede = "The chosen configuration did not complete a test run.",
+            PageLede = "The setup we picked didn't finish a test run.",
             Tone = CompatibilityOutcomeTone.Blocking,
-            OutcomeTitle = "This configuration did not run",
+            OutcomeTitle = "This setup didn't run",
             OutcomeDetail =
-                "The estimate said it should fit, but the test run did not finish. That "
-                + "gap is worth trusting over the estimate.",
-            OutcomeBadge = "NOT VERIFIED",
+                "We expected it to fit, but the test didn't finish. Trust the test over "
+                + "our estimate.",
+            OutcomeBadge = "DIDN'T RUN",
             Recoveries =
             [
                 new CompatibilityRecovery(
-                    "Try a smaller configuration",
-                    "A shorter context or a more compact cache leaves more headroom than the "
-                    + "estimate allowed for."),
+                    "Try a smaller setup",
+                    "A shorter chat length, or a smaller way of storing it, leaves more "
+                    + "memory spare than we allowed for."),
                 new CompatibilityRecovery(
-                    "Close other applications",
-                    "Memory available now is what decides this, and it changes as you open "
-                    + "and close things.")
+                    "Close other apps",
+                    "What matters is the memory free right now, and that changes as you "
+                    + "open and close things.")
             ],
             PrimaryActionText = "Continue",
             PrimaryActionEnabled = false,
@@ -137,7 +139,7 @@ internal static class CompatibilityPresentationFactory
             PageLede = "You stopped this check. Nothing was changed.",
             Tone = CompatibilityOutcomeTone.Neutral,
             OutcomeTitle = "Check stopped",
-            OutcomeDetail = "No conclusion was reached, and nothing on your computer was altered.",
+            OutcomeDetail = "We didn't reach an answer, and nothing on your computer was changed.",
             OutcomeBadge = string.Empty,
             PrimaryActionText = "Continue",
             PrimaryActionEnabled = false,
@@ -146,7 +148,7 @@ internal static class CompatibilityPresentationFactory
         };
 
     /// <summary>
-    /// The terminal states the engine itself decides.
+    /// The states the engine itself decides.
     /// </summary>
     internal static CompatibilityPresentation From(CompatibilityScreenModel model)
     {
@@ -155,8 +157,8 @@ internal static class CompatibilityPresentationFactory
         return model.State switch
         {
             CompatibilityScreenState.EstimatedCompatible => EstimatedCompatible(model),
-            CompatibilityScreenState.OptimisationRequired => OptimisationRequired(model),
-            CompatibilityScreenState.NoEstimatedSafeConfiguration => NoSafeConfiguration(model),
+            CompatibilityScreenState.OptimisationRequired => OnlyJustFits(model),
+            CompatibilityScreenState.NoEstimatedSafeConfiguration => NothingFits(model),
             CompatibilityScreenState.Cancelled => Cancelled(),
             _ => NotEstablished(model)
         };
@@ -166,14 +168,14 @@ internal static class CompatibilityPresentationFactory
         CompatibilityPresentation.Empty with
         {
             PageTitle = Title,
-            PageLede = "Based on what this model needs and what your computer has available.",
+            PageLede = "Based on what this model needs and what your computer has free.",
             Tone = CompatibilityOutcomeTone.Positive,
             OutcomeTitle = "Yes — this model should run",
             OutcomeDetail =
-                "A configuration fits within a safe share of your available memory, with "
-                + "room left over. This is an estimate, not a measurement.",
-            OutcomeBadge = "ESTIMATED",
-            DisclosureTitle = "How this was calculated",
+                "One setup fits in the memory you have free, with room to spare. This is "
+                + "our best estimate, not a test.",
+            OutcomeBadge = "ESTIMATE",
+            DisclosureTitle = "How we worked this out",
             DisclosureDetail = DisclosureText(model),
             PrimaryActionText = "Continue",
             PrimaryActionEnabled = model.ContinueEnabled,
@@ -182,26 +184,26 @@ internal static class CompatibilityPresentationFactory
             Recoveries = BaselineRecoveries(model)
         };
 
-    private static CompatibilityPresentation OptimisationRequired(CompatibilityScreenModel model) =>
+    private static CompatibilityPresentation OnlyJustFits(CompatibilityScreenModel model) =>
         CompatibilityPresentation.Empty with
         {
             PageTitle = Title,
-            PageLede = "It fits, but not with much to spare.",
+            PageLede = "It fits, but only just.",
             Tone = CompatibilityOutcomeTone.Caution,
-            OutcomeTitle = "This should run, but the margin is narrow",
+            OutcomeTitle = "This should run, but there's very little memory spare",
             OutcomeDetail =
-                "Every configuration that fits does so with little headroom. Opening other "
-                + "applications while it runs could push it over.",
-            OutcomeBadge = "ESTIMATED",
-            DisclosureTitle = "How this was calculated",
+                "Every setup that fits leaves almost nothing free. If you open other apps "
+                + "while it runs, it could run out of memory.",
+            OutcomeBadge = "ESTIMATE",
+            DisclosureTitle = "How we worked this out",
             DisclosureDetail = DisclosureText(model),
             Recoveries =
             [
-                .. BaselineRecoveries(model),
                 new CompatibilityRecovery(
-                    "Consider a smaller setting",
-                    "A shorter context or a more compact cache would leave more room for "
-                    + "everything else you are running.")
+                    "Try a shorter chat length",
+                    "The longer the chat it can remember, the more memory it needs while "
+                    + "it runs."),
+                .. BaselineRecoveries(model)
             ],
             PrimaryActionText = "Continue",
             PrimaryActionEnabled = model.ContinueEnabled,
@@ -209,28 +211,29 @@ internal static class CompatibilityPresentationFactory
             SecondaryActionEnabled = true
         };
 
-    private static CompatibilityPresentation NoSafeConfiguration(CompatibilityScreenModel model) =>
+    private static CompatibilityPresentation NothingFits(CompatibilityScreenModel model) =>
         CompatibilityPresentation.Empty with
         {
             PageTitle = Title,
-            PageLede = "Every way of running this model was checked against your available memory.",
+            PageLede = "We checked every way of running this against your free memory.",
             Tone = CompatibilityOutcomeTone.Blocking,
-            OutcomeTitle = "No configuration fits safely",
+            OutcomeTitle = "No setup fits safely",
             OutcomeDetail =
-                "Each option needs more memory than can safely be spared right now. This is "
-                + "a conclusion, not a failure to check.",
-            OutcomeBadge = "ESTIMATED",
-            DisclosureTitle = "How this was calculated",
+                "Every way of running this needs more memory than you can safely spare "
+                + "right now. We checked them all — this is an answer, not a failure to "
+                + "check.",
+            OutcomeBadge = "ESTIMATE",
+            DisclosureTitle = "How we worked this out",
             DisclosureDetail = DisclosureText(model),
             Recoveries =
             [
                 new CompatibilityRecovery(
-                    "Close other applications",
-                    "What decides this is memory free right now, not memory installed."),
+                    "Close other apps",
+                    "What matters is the memory free right now, not how much your computer "
+                    + "has in total."),
                 new CompatibilityRecovery(
                     "Try a smaller model",
-                    "A more compact version of the same model needs less memory for its "
-                    + "weights and its cache."),
+                    "A smaller version of the same model needs less memory to run."),
                 .. BaselineRecoveries(model)
             ],
             PrimaryActionText = "Continue",
@@ -240,28 +243,28 @@ internal static class CompatibilityPresentationFactory
         };
 
     /// <summary>
-    /// Screen 06, and the state this feature ships in until the hardware and
-    /// model inspection handoffs exist. It has to be honest about knowing
-    /// nothing while still being useful, which is why every finding becomes a
-    /// recovery line rather than a bare error.
+    /// The state this feature ships in until the hardware and model checks hand
+    /// it something to work with. It has to admit it knows nothing while still
+    /// being useful, which is why every finding becomes a line about what would
+    /// help rather than a bare error.
     /// </summary>
     private static CompatibilityPresentation NotEstablished(CompatibilityScreenModel model) =>
         CompatibilityPresentation.Empty with
         {
             PageTitle = Title,
-            PageLede = "This question could not be answered yet.",
+            PageLede = "We couldn't answer this yet.",
             Tone = CompatibilityOutcomeTone.Caution,
-            OutcomeTitle = "Not enough information to answer this",
+            OutcomeTitle = "We can't answer this yet",
             OutcomeDetail =
-                "No compatibility conclusion was reached. Nothing here says the model will "
-                + "not run — only that it has not been established that it will.",
-            OutcomeBadge = "NOT ESTABLISHED",
-            DisclosureTitle = "What is missing",
+                "We didn't reach an answer. This doesn't mean the model won't run — only "
+                + "that we haven't been able to show that it will.",
+            OutcomeBadge = "NO ANSWER YET",
+            DisclosureTitle = "What's missing",
             DisclosureDetail =
-                "A conclusion needs three things: what the model requires, what this computer "
-                + "has, and how much memory is free at the moment of the check. Any one of "
-                + "them missing makes the answer a guess, and a guess about memory is how a "
-                + "computer runs out of it.",
+                "To answer this we need three things: what the model needs, what your "
+                + "computer has, and how much memory is free at the moment we check. If "
+                + "any one is missing, the answer would be a guess — and guessing about "
+                + "memory is how a computer runs out of it.",
             Recoveries = Recoveries(model),
             PrimaryActionText = "Continue",
             PrimaryActionEnabled = false,
@@ -270,12 +273,11 @@ internal static class CompatibilityPresentationFactory
         };
 
     /// <summary>
-    /// One recovery line per blocking finding. A code with no line here would
-    /// reach the user as silence, so the fallback is deliberately generic rather
-    /// than absent.
+    /// One line per blocking finding. A code with no line here would reach the
+    /// user as silence, so the fallback is deliberately generic rather than
+    /// missing.
     /// </summary>
-    private static IReadOnlyList<CompatibilityRecovery> Recoveries(
-        CompatibilityScreenModel model)
+    private static IReadOnlyList<CompatibilityRecovery> Recoveries(CompatibilityScreenModel model)
     {
         List<CompatibilityRecovery> recoveries = [];
 
@@ -289,50 +291,46 @@ internal static class CompatibilityPresentationFactory
             recoveries.Add(finding.Code switch
             {
                 CompatibilityFindingCode.ModelFactsUnavailable => new CompatibilityRecovery(
-                    "Inspect the model first",
-                    "What this model needs comes from inspecting it. That step has not "
-                    + "produced a result this check can use."),
+                    "Check the model first",
+                    "We find out what a model needs by looking inside it. That step hasn't "
+                    + "given us anything to use yet."),
 
                 CompatibilityFindingCode.HardwareFactsUnavailable => new CompatibilityRecovery(
-                    "Check your hardware first",
-                    "What your computer has comes from the hardware check. That step has "
-                    + "not produced a result this check can use."),
+                    "Check your computer first",
+                    "We find out what your computer has from the hardware check. That step "
+                    + "hasn't given us anything to use yet."),
 
                 CompatibilityFindingCode.FreshMemoryUnavailable => new CompatibilityRecovery(
-                    "Memory could not be read",
-                    "How much memory is free right now could not be measured. An older "
-                    + "figure is not used in its place, because free memory changes as "
-                    + "you open and close applications."),
+                    "We couldn't read your free memory",
+                    "We need to know how much is free right now. We won't use an older "
+                    + "number instead, because it changes as you open and close apps."),
 
                 CompatibilityFindingCode.NoCandidateCouldBeEstimated => new CompatibilityRecovery(
-                    "This model's shape could not be read",
-                    "Working out memory needs requires details such as the number of "
-                    + "layers and attention heads. They were not available, so nothing "
-                    + "was calculated."),
+                    "We couldn't read this model's shape",
+                    "To work out memory we need details like how many layers it has. They "
+                    + "weren't there, so we didn't work anything out."),
 
                 CompatibilityFindingCode.SupportMatrixUnavailable => new CompatibilityRecovery(
-                    "No supported configurations are listed",
-                    "The list of configurations this product supports could not be loaded, "
-                    + "so nothing could be offered."),
+                    "We couldn't load the list of supported setups",
+                    "Without that list there's nothing we can offer."),
 
                 CompatibilityFindingCode.NoCandidateGenerated => new CompatibilityRecovery(
-                    "Nothing runnable was found",
-                    "No supported configuration matched this model together with this "
-                    + "computer."),
+                    "Nothing here can run this model",
+                    "None of the setups we support work for this model on this computer."),
 
                 CompatibilityFindingCode.PlanningContextNotEstablished => new CompatibilityRecovery(
-                    "The model's context length is unknown",
-                    "Memory needed for the conversation cache depends on context length. "
-                    + "Without a trustworthy limit, no default is assumed."),
+                    "We don't know how much this model can remember",
+                    "Memory for the chat history depends on it. We won't guess a number "
+                    + "the model may not handle."),
 
                 CompatibilityFindingCode.HandoffClaimFailed => new CompatibilityRecovery(
-                    "The earlier steps could not be read together",
-                    "The model and hardware results must belong to the same session. They "
-                    + "could not be claimed as a matching pair."),
+                    "The earlier steps don't match up",
+                    "The model check and the hardware check have to come from the same "
+                    + "session. We couldn't pair them."),
 
                 _ => new CompatibilityRecovery(
                     "Try the check again",
-                    "Something needed for this answer was not available.")
+                    "Something we needed wasn't there.")
             });
         }
 
@@ -340,9 +338,9 @@ internal static class CompatibilityPresentationFactory
     }
 
     /// <summary>
-    /// Why the configuration the user already has is not among the options.
-    /// The remedies genuinely differ, which is why the engine distinguishes
-    /// them rather than reporting one generic absence.
+    /// Why the setup the user already has isn't among the options. The remedies
+    /// genuinely differ, which is why the engine tells them apart instead of
+    /// reporting one vague absence.
     /// </summary>
     private static IReadOnlyList<CompatibilityRecovery> BaselineRecoveries(
         CompatibilityScreenModel model) =>
@@ -351,57 +349,56 @@ internal static class CompatibilityPresentationFactory
             BaselineExclusionReason.BaselineEntryNotInstalled =>
             [
                 new CompatibilityRecovery(
-                    "Your current setup is not installed",
-                    "The way this model is set up right now needs a component that is not "
+                    "Your current setup isn't installed",
+                    "The way this model is set up right now needs something that isn't "
                     + "installed on this computer.")
             ],
             BaselineExclusionReason.BaselineEntryRequiresExperimentalOptIn =>
             [
                 new CompatibilityRecovery(
                     "Your current setup is experimental",
-                    "It is available, but it has to be turned on deliberately because it "
-                    + "may produce wrong output rather than simply failing.")
+                    "It's here, but you have to switch it on yourself. Experimental setups "
+                    + "can give wrong answers rather than just failing.")
             ],
             BaselineExclusionReason.BaselineContextOutsideEntryBounds =>
             [
                 new CompatibilityRecovery(
-                    "Your current context length is out of range",
-                    "The setup is supported, but not at the conversation length currently "
-                    + "chosen.")
+                    "Your current chat length is out of range",
+                    "The setup works, but not at the chat length you've picked.")
             ],
             BaselineExclusionReason.ModelContextLimitNotEstablished =>
             [
                 new CompatibilityRecovery(
-                    "The model's context limit is unknown",
-                    "Nothing was offered rather than assuming a limit this model may not "
-                    + "actually support.")
+                    "We don't know this model's limit",
+                    "We'd rather offer nothing than guess a limit the model may not handle.")
             ],
             BaselineExclusionReason.SupportMatrixUnavailable
                 or BaselineExclusionReason.NoAdmittedEntryMatchesTheBaseline =>
             [
                 new CompatibilityRecovery(
-                    "Your current setup is not among the options",
-                    "It is not one of the configurations this product supports on this "
-                    + "computer.")
+                    "Your current setup isn't one of the options",
+                    "It isn't one of the setups we support on this computer.")
             ],
             _ => []
         };
 
     private static string DisclosureText(CompatibilityScreenModel model)
     {
+        string basis =
+            "We work out the memory needed from the model's size and shape, the chat "
+            + "length you picked, and how it would run. We compare that with the memory "
+            + "free right now, minus some we set aside for Windows and your other apps.";
+
         bool uncalibrated = model.Findings.Any(finding =>
             finding.Code == CompatibilityFindingCode.UncalibratedEstimate);
 
-        string basis =
-            "Memory needed is worked out from the model's size and shape, the length of "
-            + "conversation you chose, and the way it would run. That total is compared "
-            + "against the memory free right now, less a reserve for Windows and for "
-            + "everything else you have open.";
-
         return uncalibrated
             ? basis
-            + " The reserves and margins used here are documented defaults rather than "
-            + "figures measured on machines like yours, so this is labelled an estimate."
+            + " The amounts we set aside are sensible defaults, not numbers measured on "
+            + "computers like yours. That's why we call this an estimate."
             : basis;
     }
+
+    private static int Clamp(int value, int length) =>
+        value < 0 ? 0 : value >= length ? length - 1 : value;
 }
