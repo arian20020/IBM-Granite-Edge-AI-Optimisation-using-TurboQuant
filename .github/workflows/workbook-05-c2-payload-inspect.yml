@@ -65,7 +65,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) {
               throw "Payload extraction exited with code $LASTEXITCODE."
           }
-          Get-ChildItem $destination -Recurse -File | ForEach-Object {
+          Get-ChildItem $destination -Recurse -File -Force | ForEach-Object {
               Write-Host $_.FullName.Substring($destination.Length + 1)
           }
 
@@ -76,4 +76,4 @@ jobs:
           path: ${{ runner.temp }}\workbook05-c2-source
           if-no-files-found: error
           retention-days: 7
-          include-hidden-files: false
+          include-hidden-files: true
