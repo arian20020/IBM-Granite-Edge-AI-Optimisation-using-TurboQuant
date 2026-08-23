@@ -24,7 +24,7 @@ internal static class Program
             input,
             output,
             error,
-            CreateInspectionEngine(version),
+            () => CreateInspectionEngine(version),
             new ParentProcessMonitor(),
             Environment.ProcessId,
             version);

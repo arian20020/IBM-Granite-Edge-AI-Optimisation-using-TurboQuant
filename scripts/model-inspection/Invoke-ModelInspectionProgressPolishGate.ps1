@@ -55,7 +55,7 @@ $werTargets = @(
 
 $ExpectedTotals = [ordered]@{
     Runtime = 189
-    Worker = 77
+    Worker = 78
     InteractionLifetime = 19
     FixtureCategory = 220
     FocusedPolish = 322
@@ -91,7 +91,7 @@ $ExpectedTestMaps = [ordered]@{
     }
     Worker = [ordered]@{
         'GraniteEdgeAI.ModelInspection.Worker.Tests.LlamaSharpInspectionEngineTests' = 67
-        'GraniteEdgeAI.ModelInspection.Worker.Tests.WorkerHostTests' = 10
+        'GraniteEdgeAI.ModelInspection.Worker.Tests.WorkerHostTests' = 11
     }
     InteractionLifetime = [ordered]@{
         'GraniteEdgeAI.UnitTests.ModelInspectionFixtureInteractionTests' = 6

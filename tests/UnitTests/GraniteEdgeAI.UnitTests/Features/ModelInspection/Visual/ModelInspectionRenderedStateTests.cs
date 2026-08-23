@@ -799,6 +799,7 @@ public sealed class ModelInspectionRenderedStateTests
             width);
         if (presentation.ContentCard.Mode == InspectionContentCardMode.Progress)
         {
+            Assert.HasCount(5, presentation.ContentCard.ProgressRows.Items);
             Grid[] progressRows = Descendants(content)
                 .OfType<Grid>()
                 .Where(row => string.Equals(
@@ -806,7 +807,9 @@ public sealed class ModelInspectionRenderedStateTests
                     "InspectionProgressRow",
                     StringComparison.Ordinal))
                 .ToArray();
-            Assert.HasCount(5, progressRows);
+            Assert.IsNotEmpty(
+                progressRows,
+                $"{state}/{preview200}/{width}: at least one virtualized progress row is realized");
             foreach (Grid row in progressRows)
             {
                 Grid statusOwner = Descendants(row)

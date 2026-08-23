@@ -65,6 +65,7 @@ public sealed class InspectionContentCardTests
         {
             window.Activate();
             await loaded.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            await ResizeClientAndWaitAsync(window, host, 1000d);
             host.UpdateLayout();
 
             DependencyObject[] descendants =

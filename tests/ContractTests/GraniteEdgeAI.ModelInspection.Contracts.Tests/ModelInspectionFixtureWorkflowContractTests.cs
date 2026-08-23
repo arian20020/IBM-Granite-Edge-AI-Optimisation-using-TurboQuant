@@ -927,7 +927,7 @@ public sealed class ModelInspectionFixtureWorkflowContractTests
         string[] exactExpectedTotals =
         [
             "Runtime = 189",
-            "Worker = 77",
+            "Worker = 78",
             "InteractionLifetime = 19",
             "FixtureCategory = 220",
             "FocusedPolish = 322",

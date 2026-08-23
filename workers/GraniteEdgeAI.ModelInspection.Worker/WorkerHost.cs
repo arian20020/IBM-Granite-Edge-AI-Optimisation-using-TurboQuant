@@ -13,7 +13,7 @@ internal sealed class WorkerHost : IAsyncDisposable
     private readonly BoundedUtf8LineReader _input;
     private readonly BoundedUtf8LineWriter _output;
     private readonly Stream _standardError;
-    private readonly IWorkerInspectionEngine _engine;
+    private readonly Func<IWorkerInspectionEngine> _engineFactory;
     private readonly IParentProcessMonitor _parentMonitor;
     private readonly int _workerProcessId;
     private readonly string _workerVersion;
@@ -42,7 +42,37 @@ internal sealed class WorkerHost : IAsyncDisposable
             output,
             WorkerProtocol.MaximumMessageBytes);
         _standardError = standardError;
-        _engine = engine;
+        _engineFactory = () => engine;
+        _parentMonitor = parentMonitor;
+        _workerProcessId = workerProcessId;
+        _workerVersion = workerVersion;
+    }
+
+    internal WorkerHost(
+        Stream input,
+        Stream output,
+        Stream standardError,
+        Func<IWorkerInspectionEngine> engineFactory,
+        IParentProcessMonitor parentMonitor,
+        int workerProcessId,
+        string workerVersion)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        ArgumentNullException.ThrowIfNull(output);
+        ArgumentNullException.ThrowIfNull(standardError);
+        ArgumentNullException.ThrowIfNull(engineFactory);
+        ArgumentNullException.ThrowIfNull(parentMonitor);
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(workerProcessId, 0);
+        ArgumentException.ThrowIfNullOrWhiteSpace(workerVersion);
+
+        _input = new BoundedUtf8LineReader(
+            input,
+            WorkerProtocol.MaximumMessageBytes);
+        _output = new BoundedUtf8LineWriter(
+            output,
+            WorkerProtocol.MaximumMessageBytes);
+        _standardError = standardError;
+        _engineFactory = engineFactory;
         _parentMonitor = parentMonitor;
         _workerProcessId = workerProcessId;
         _workerVersion = workerVersion;
@@ -76,6 +106,10 @@ internal sealed class WorkerHost : IAsyncDisposable
             commandSequence.AcceptStart(start);
             messageSequence.SetExpectedRequest(start.RequestId);
 
+            IWorkerInspectionEngine engine = _engineFactory() ??
+                throw new InvalidOperationException(
+                    "The worker inspection engine factory returned no engine.");
+
             Task parentLoss = _parentMonitor.MonitorAsync(
                 start,
                 sessionCancellation.Token);
@@ -96,7 +130,7 @@ internal sealed class WorkerHost : IAsyncDisposable
             SerializedProgressReporter progress = new(
                 _output,
                 messageSequence);
-            Task<WorkerEngineResult> engineTask = _engine.InspectAsync(
+            Task<WorkerEngineResult> engineTask = engine.InspectAsync(
                 start,
                 progress,
                 operationCancellation.Token);
