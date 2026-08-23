@@ -1,6 +1,6 @@
 # Hardware Inspection Gate 5 llama.cpp Capability Design
 
-**Status:** Approved for specification on 2026-08-23  
+**Status:** Revised signed-package boundary approved on 2026-08-23
 **Scope:** Hardware Inspection Gate 5 only  
 **Depends on:** Gate 4 closure `a351a7d`, ADR-001, ADR-003, and the Hardware Inspection trusted-tool/process foundation
 
@@ -51,7 +51,11 @@ The executable is a new focused worker under `workers/GraniteEdgeAI.HardwareInsp
 
 Hardware Inspection does not extend or call the Model Inspection worker protocol. The existing Hardware Inspection `TrustedToolPackageVerifier`, `VerifiedTrustedTool`, and `ExternalProcessRunner` remain the only launch route. No shell, `PATH` search, caller-supplied executable, caller-supplied argument, local server, listening port, or network access is permitted.
 
-Gate 5 does not register the provider into product composition or add the probe to the application package. Product composition remains `UnavailableHardwareInspectionService` until the resolver/orchestrator gates deliberately activate providers. Packaging the probe is a later reviewed integration step; Gate 5 proves the executable and provider from an isolated controlled package root.
+Gate 5 packages the probe as an inactive application asset under the fixed `HardwareInspection\LlamaCppProbe` directory. A dedicated `HardwareInspection.LlamaCppProbePackaging.targets` file follows the established Model Inspection worker-publishing pattern: Release, framework-dependent, `win-x64`, AMD64 apphost, no trimming, no ReadyToRun, no debug symbols, and an exact generated manifest. The package subdirectory is flat, contains only manifest-declared members, and is covered by the signed MSIX/AppX catalog.
+
+Packaging is not activation. Product composition remains `UnavailableHardwareInspectionService` until the resolver/orchestrator gates deliberately activate providers. No production code locates, verifies, or launches the packaged probe in Gate 5.
+
+Smart App Control remains fully enforced. Gate 5 does not execute a newly built unsigned apphost from a loose output directory, reuse a previously trusted binary, weaken custody, or substitute a system `dotnet.exe` host. Real process acceptance runs only from the installed signed AppX test package, whose package catalog authorizes the included child executables.
 
 ## 4. Probe commands and native behavior
 
@@ -169,7 +173,7 @@ There is no retry or fallback. The first failed phase stops sequencing. The prov
 - The executable must be AMD64 PE and its SHA-256 must match the manifest.
 - The process starts suspended, inherits only its redirected standard handles, joins a private kill-on-close Job before resume, and leaves zero descendants.
 - Timeout, cancellation, overflow, crash, malformed output, and normal parent exit all use bounded cleanup.
-- Native runtime files never load into the app, foundation tests, or packaged WinUI test host.
+- Native runtime files never load into the app, Foundation test host, or packaged WinUI test host; only the packaged probe child loads them.
 - Tests must prove the parent test process has not loaded llama/ggml native modules.
 - No runtime download, candidate acquisition, operational Gate execution, runner registration, network change, evidence publication, or Stage A/B/C/D action is authorized by Gate 5.
 - Host-specific device labels may be asserted structurally in a local smoke test but must not be printed, logged, committed, or retained in TRX attachments.
@@ -193,22 +197,31 @@ All production behavior is implemented test-first.
 - backend and device bounds, duplicate ordinals, unsafe labels, and additive output rejection;
 - bounded malformed-input fuzzing that never throws or expands retained evidence.
 
-### Provider/process tests
+### Provider tests
 
 - exact two-command sequencing and arguments;
 - identity mismatch stops before capability execution;
-- success, nonzero exit, start failure, timeout, cancellation, stdout/stderr overflow, invalid JSON, and cleanup;
+- success, nonzero exit, start failure, timeout, cancellation, stdout/stderr overflow, invalid JSON, and cleanup through injected runner results;
 - no retry, no shell, no network/listener, no raw-output persistence, and caller custody remains live;
-- a harmless fake executable supplies deterministic outputs without loading native runtime code.
+- ordinary Foundation tests are native-free and do not launch newly built unsigned apphosts.
 
-### Probe tests
+### Probe unit tests
 
 - identity output is exact and deterministic;
 - native calls occur only for `capabilities`;
 - backend initialization and release are balanced on success and failure;
 - device enumeration rejects null handles, unsafe labels, and a 17th device;
-- `identity` and adverse tests run without loading llama/ggml into the test host;
-- the real probe runs as a child process three consecutive times on Windows x64, returns structurally valid CPU capability evidence, and leaves no descendants.
+- application and native-lifetime tests use injected native seams and do not load llama/ggml into the test host.
+
+### Signed packaged process acceptance
+
+- the x64 Debug AppX test package contains the real probe and a test-only adverse probe fixture in separate exact flat directories;
+- both child executables and every dependency are covered by the installed package catalog before execution;
+- the real `TrustedToolPackageVerifier`, live `VerifiedTrustedTool` custody, and `ExternalProcessRunner` execute success, identity mismatch, malformed output, nonzero exit, overflow, timeout, cancellation, descendant cleanup, and normal-parent-exit scenarios;
+- the test-only fixture contains no LLamaSharp/native dependency and is excluded from the production application package;
+- the real packaged probe runs as a child process three consecutive times on Windows x64, returns structurally valid CPU capability evidence, and leaves no descendants;
+- before and after each acceptance class, the packaged parent test process has no loaded module whose filename begins with `llama` or `ggml`;
+- no acceptance test prints or attaches stdout, stderr, native logs, or host-specific device labels.
 
 ### Regression and audit
 
@@ -224,13 +237,13 @@ All production behavior is implemented test-first.
 Gate 5 is complete only when:
 
 1. the dedicated probe, strict parsers, evidence contracts, and provider pass all specified tests;
-2. the real child-process CPU capability smoke test passes three consecutive times without loading native code into the parent;
+2. the installed signed AppX test package proves the real and adverse child-process boundaries, including three consecutive CPU capability smoke passes, without loading native code into the parent;
 3. review has no unresolved Critical, Important, or Minor findings;
 4. fresh authoritative TRX files have zero failed, skipped, or not-executed tests;
 5. documentation records exact commits, counts, warnings, runtime identity, privacy-safe results, and audits;
 6. the tracked worktree is clean after the evidence commit.
 
-Gate 5 does not activate production Hardware Inspection. Gate 6 remains solely responsible for source authority, normalization, consistency, freshness, canonical resolution, and `HardwareSnapshot`. Gate 7 owns orchestration and product activation; later integration owns probe packaging and final supported-machine evidence.
+Gate 5 does not activate production Hardware Inspection. Gate 6 remains solely responsible for source authority, normalization, consistency, freshness, canonical resolution, and `HardwareSnapshot`. Gate 7 owns orchestration and product activation. Final supported-machine evidence remains a later integration responsibility.
 
 ## 11. Explicit nonclaims
 
@@ -241,6 +254,6 @@ Gate 5 does not claim that:
 - GPU/NPU offload exists or is absent;
 - a runtime-visible device uniquely identifies Windows hardware;
 - the separate upstream `b9870` research runtime is the application runtime;
-- the probe is packaged, registered, or active in WinUI;
+- the packaged probe is registered, located, verified, launched, or active in production WinUI composition;
 - a canonical hardware report or compatibility decision exists;
 - an operational Gate or candidate execution has occurred.
