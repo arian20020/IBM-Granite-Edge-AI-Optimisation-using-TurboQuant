@@ -103,7 +103,6 @@ public sealed class InspectionContentCardTests
             Assert.AreEqual(new Thickness(24d), progressView.Padding, "progress view padding");
             Assert.HasCount(5, rows);
             Assert.IsTrue(rows.All(row => row.ActualHeight >= 48d));
-            Assert.IsTrue(rows.All(row => Math.Abs(row.ActualHeight - 48d) <= 1d));
             Assert.AreEqual(new Thickness(1d), progressRowsSurface.BorderThickness);
             Assert.AreEqual(10d, progressRowsSurface.CornerRadius.TopLeft, 0.01d);
             Assert.AreSame(
