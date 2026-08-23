@@ -122,6 +122,7 @@ jobs:
             OPENVINO_STAGE_A = Join-Path $root 'openvino-official-stage-a'
             OPENVINO_STAGE_B = Join-Path $root 'openvino-official-stage-b'
             OPENVINO_RESULTS = Join-Path $root 'openvino-official-results'
+            OPENVINO_TEST_ARTIFACTS = Join-Path $root 'openvino-official-test-artifacts'
             OPENVINO_CONVERTER_CLOSURE = Join-Path $root 'openvino-converter-closure'
             OPENVINO_CONVERTER_BUILD = Join-Path $root 'openvino-converter-build'
             OPENVINO_CONVERTER_STAGE = Join-Path $root 'openvino-converter-stage'
@@ -301,11 +302,13 @@ jobs:
             throw 'Windows PowerShell cryptographic primitives are unavailable.'
           }
           dotnet test --project tests/ContractTests/GraniteEdgeAI.OpenVino.Contracts.Tests/GraniteEdgeAI.OpenVino.Contracts.Tests.csproj `
+            --artifacts-path $env:OPENVINO_TEST_ARTIFACTS `
             --configuration Release -p:Platform=x64 --minimum-expected-tests 60 `
             --results-directory $env:OPENVINO_RESULTS --report-trx `
             --report-trx-filename contracts.trx
           if ($LASTEXITCODE -ne 0) { throw 'OpenVINO contracts failed.' }
           dotnet test --project tests/UnitTests/GraniteEdgeAI.OpenVino.Tests/GraniteEdgeAI.OpenVino.Tests.csproj `
+            --artifacts-path $env:OPENVINO_TEST_ARTIFACTS `
             --configuration Release -p:Platform=x64 --minimum-expected-tests 177 `
             --results-directory $env:OPENVINO_RESULTS --report-trx `
             --report-trx-filename static-inspection.trx
@@ -318,12 +321,14 @@ jobs:
         run: |
           $env:PSModulePath = $env:OPENVINO_WINDOWS_POWERSHELL_MODULES
           dotnet test --project tests/UnitTests/GraniteEdgeAI.OpenVino.Tests/GraniteEdgeAI.OpenVino.Tests.csproj `
+            --artifacts-path $env:OPENVINO_TEST_ARTIFACTS `
             --configuration Release -p:Platform=x64 `
             --filter "FullyQualifiedName~OpenVinoPromptAdapterTests|FullyQualifiedName~OpenVinoRouteStateMachineTests" `
             --minimum-expected-tests 35 --results-directory $env:OPENVINO_RESULTS `
             --report-trx --report-trx-filename app-adapter.trx
           if ($LASTEXITCODE -ne 0) { throw 'App adapter tests failed.' }
           dotnet test --project tests/UnitTests/GraniteEdgeAI.OpenVino.Tests/GraniteEdgeAI.OpenVino.Tests.csproj `
+            --artifacts-path $env:OPENVINO_TEST_ARTIFACTS `
             --configuration Release -p:Platform=x64 `
             --filter FullyQualifiedName~OpenVinoWorkerPackagingTargetTests `
             --minimum-expected-tests 5 --results-directory $env:OPENVINO_RESULTS `
@@ -341,12 +346,14 @@ jobs:
           $env:TMP = $env:OPENVINO_NATIVE_TEMP
           $env:PSModulePath = $env:OPENVINO_WINDOWS_POWERSHELL_MODULES
           dotnet test --project tests/UnitTests/GraniteEdgeAI.OpenVino.WorkerClient.Tests/GraniteEdgeAI.OpenVino.WorkerClient.Tests.csproj `
+            --artifacts-path $env:OPENVINO_TEST_ARTIFACTS `
             --configuration Release -p:Platform=x64 --minimum-expected-tests 13 `
             --results-directory $env:OPENVINO_RESULTS --report-trx `
             --report-trx-filename worker-client.trx
           if ($LASTEXITCODE -ne 0) { throw 'OpenVINO WorkerClient tests failed.' }
           $watch = [Diagnostics.Stopwatch]::StartNew()
           dotnet test --project tests/IntegrationTests/GraniteEdgeAI.OpenVino.WorkerProcess.Tests/GraniteEdgeAI.OpenVino.WorkerProcess.Tests.csproj `
+            --artifacts-path $env:OPENVINO_TEST_ARTIFACTS `
             --configuration Release -p:Platform=x64 --minimum-expected-tests 41 `
             --results-directory $env:OPENVINO_RESULTS --report-trx `
             --report-trx-filename process-containment.trx
@@ -366,6 +373,7 @@ jobs:
           $env:TMP = $env:OPENVINO_NATIVE_TEMP
           $env:PSModulePath = $env:OPENVINO_WINDOWS_POWERSHELL_MODULES
           dotnet test --project tests/IntegrationTests/GraniteEdgeAI.OpenVino.WorkerProcess.Tests/GraniteEdgeAI.OpenVino.WorkerProcess.Tests.csproj `
+            --artifacts-path $env:OPENVINO_TEST_ARTIFACTS `
             --configuration Release -p:Platform=x64 `
             --filter TestCategory=StableRouteAcceptance --minimum-expected-tests 12 `
             --results-directory $env:OPENVINO_RESULTS --report-trx `
@@ -467,7 +475,7 @@ jobs:
             $failed = $true
           }
           $tempRoot = [IO.Path]::GetFullPath($env:RUNNER_TEMP).TrimEnd('\') + '\'
-          foreach ($owned in @($env:OPENVINO_ARCHIVES,$env:OPENVINO_BUILD_A,$env:OPENVINO_BUILD_B,$env:OPENVINO_STAGE_A,$env:OPENVINO_STAGE_B,$env:OPENVINO_RESULTS,$env:OPENVINO_CONVERTER_CLOSURE,$env:OPENVINO_CONVERTER_BUILD,$env:OPENVINO_CONVERTER_STAGE)) {
+          foreach ($owned in @($env:OPENVINO_ARCHIVES,$env:OPENVINO_BUILD_A,$env:OPENVINO_BUILD_B,$env:OPENVINO_STAGE_A,$env:OPENVINO_STAGE_B,$env:OPENVINO_RESULTS,$env:OPENVINO_TEST_ARTIFACTS,$env:OPENVINO_CONVERTER_CLOSURE,$env:OPENVINO_CONVERTER_BUILD,$env:OPENVINO_CONVERTER_STAGE)) {
             $full = [IO.Path]::GetFullPath($owned)
             if (-not $full.StartsWith($tempRoot,[StringComparison]::OrdinalIgnoreCase)) { $failed = $true; continue }
             if (Test-Path -LiteralPath $full) { Remove-Item -LiteralPath $full -Recurse -Force -ErrorAction SilentlyContinue }

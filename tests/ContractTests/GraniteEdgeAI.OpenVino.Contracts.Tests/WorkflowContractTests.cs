@@ -308,7 +308,8 @@ public sealed class WorkflowContractTests
     [TestMethod]
     public void HostedWorkflowUsesStreamCapableOperationOwnedNativeTemp()
     {
-        YamlMappingNode root = ParseWorkflow(OfficialWorkflow());
+        string source = OfficialWorkflow();
+        YamlMappingNode root = ParseWorkflow(source);
         YamlMappingNode job = Mapping(Mapping(root, "jobs"), "official-cpu");
         YamlMappingNode[] steps = Sequence(job, "steps").Select(AsMapping).ToArray();
         string bind = Scalar(Step(steps, "Bind operation-owned runner paths"), "run");
@@ -316,7 +317,8 @@ public sealed class WorkflowContractTests
         foreach (string required in new[]
         {
             "$env:SystemRoot", "$env:GITHUB_RUN_ID", "$env:GITHUB_RUN_ATTEMPT",
-            "OPENVINO_NATIVE_TEMP", "OPENVINO_WINDOWS_POWERSHELL_MODULES",
+            "OPENVINO_NATIVE_TEMP", "OPENVINO_TEST_ARTIFACTS",
+            "OPENVINO_WINDOWS_POWERSHELL_MODULES",
             "System32/WindowsPowerShell/v1.0/Modules",
             ":openvino-stream-probe", "-Stream *",
             "$streams -notcontains 'openvino-stream-probe'"
@@ -365,6 +367,10 @@ public sealed class WorkflowContractTests
         string cleanup = Scalar(
             Step(steps, "Verify post-run integrity and clean operation-owned state"),
             "run");
+        Assert.AreEqual(
+            Regex.Matches(source, @"(?m)^\s*dotnet test ").Count,
+            Regex.Matches(source, @"(?m)^\s*--artifacts-path \$env:OPENVINO_TEST_ARTIFACTS `$").Count);
+        StringAssert.Contains(cleanup, "$env:OPENVINO_TEST_ARTIFACTS");
         StringAssert.Contains(cleanup, "$env:OPENVINO_NATIVE_TEMP");
         StringAssert.Contains(cleanup, "$env:GITHUB_RUN_ID");
         StringAssert.Contains(cleanup, "$env:GITHUB_RUN_ATTEMPT");
