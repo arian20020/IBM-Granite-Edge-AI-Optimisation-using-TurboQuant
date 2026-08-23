@@ -22,6 +22,15 @@ $maximumResultBytes = 64KB
 $maximumWait = [TimeSpan]::FromSeconds(180)
 $normalizedThumbprint = $CertificateThumbprint.ToUpperInvariant()
 $currentUserSid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+$windowsPowerShellPath = [IO.Path]::Combine(
+    [Environment]::SystemDirectory,
+    'WindowsPowerShell\v1.0\powershell.exe')
+$windowsPowerShellItem = Get-Item -LiteralPath $windowsPowerShellPath -ErrorAction Stop
+$windowsPowerShellSignature = Get-AuthenticodeSignature -LiteralPath $windowsPowerShellPath
+if (($windowsPowerShellItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or
+    $windowsPowerShellSignature.Status -ne [Management.Automation.SignatureStatus]::Valid) {
+    throw 'The fixed Windows PowerShell host does not satisfy the signed launcher contract.'
+}
 $repositoryRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
 $testOutputRoot = [IO.Path]::GetFullPath((Join-Path $repositoryRoot (
     'tests\UnitTests\GraniteEdgeAI.UnitTests\bin\x64\{0}\net8.0-windows10.0.19041.0\win-x64' -f $Configuration)))
@@ -358,6 +367,9 @@ try {
     if ($null -ne $reparsePoint) {
         throw 'The staged package must not contain a reparse point.'
     }
+    $stagedFileInventory = [string[]]@(Get-ChildItem -LiteralPath $stagingRoot -File -Recurse |
+        ForEach-Object { $_.FullName.Substring($stagingRoot.Length + 1) })
+    [Array]::Sort($stagedFileInventory, [StringComparer]::Ordinal)
 
     $ownedExecutablePayload = @(Get-SolutionOwnedExecutablePayload -LayoutRoot $stagingRoot)
     if ($ownedExecutablePayload.Count -eq 0 -or $ownedExecutablePayload.Count -gt 128) {
@@ -383,14 +395,14 @@ try {
 
     $stagedProbeDirectory = Join-Path $stagingRoot 'HardwareInspection\LlamaCppProbe'
     $stagedProbeManifestPath = Join-Path $stagingRoot 'HardwareInspection\llamacpp-probe-manifest.json'
-    & powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
+    & $windowsPowerShellPath -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
         -File (Join-Path $repositoryRoot 'scripts\hardware-inspection\New-LlamaCppProbeManifest.ps1') `
         -ProbeDirectory $stagedProbeDirectory `
         -ManifestPath $stagedProbeManifestPath
     if ($LASTEXITCODE -ne 0) {
         throw 'The detached probe manifest could not be regenerated after payload signing.'
     }
-    & powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
+    & $windowsPowerShellPath -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
         -File (Join-Path $repositoryRoot 'scripts\hardware-inspection\Test-LlamaCppProbeManifest.ps1') `
         -ProbeDirectory $stagedProbeDirectory `
         -ManifestPath $stagedProbeManifestPath
@@ -405,6 +417,41 @@ try {
             $signedProbeHash,
             [StringComparison]::OrdinalIgnoreCase)) {
         throw 'The regenerated detached manifest does not bind the exact signed probe executable.'
+    }
+
+    $finalReparsePoint = Get-ChildItem -LiteralPath $stagingRoot -Force -Recurse |
+        Where-Object { ($_.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 } |
+        Select-Object -First 1
+    $finalStagedFileInventory = [string[]]@(Get-ChildItem -LiteralPath $stagingRoot -File -Recurse |
+        ForEach-Object { $_.FullName.Substring($stagingRoot.Length + 1) })
+    [Array]::Sort($finalStagedFileInventory, [StringComparer]::Ordinal)
+    $finalOwnedExecutablePayload = @(Get-SolutionOwnedExecutablePayload -LayoutRoot $stagingRoot)
+    $inventoryMatches = $stagedFileInventory.Count -eq $finalStagedFileInventory.Count
+    if ($inventoryMatches) {
+        for ($index = 0; $index -lt $stagedFileInventory.Count; $index++) {
+            if (-not [string]::Equals(
+                    $stagedFileInventory[$index],
+                    $finalStagedFileInventory[$index],
+                    [StringComparison]::Ordinal)) {
+                $inventoryMatches = $false
+                break
+            }
+        }
+    }
+    if ($null -ne $finalReparsePoint -or
+        -not $inventoryMatches -or
+        $finalOwnedExecutablePayload.Count -ne $ownedExecutablePayload.Count) {
+        throw 'The signed staging inventory changed outside the closed signing contract.'
+    }
+    foreach ($payloadFile in $finalOwnedExecutablePayload) {
+        $payloadSignature = Get-AuthenticodeSignature -LiteralPath $payloadFile.FullName
+        if ($payloadSignature.Status -ne [Management.Automation.SignatureStatus]::Valid -or
+            -not [string]::Equals(
+                $payloadSignature.SignerCertificate.Thumbprint,
+                $normalizedThumbprint,
+                [StringComparison]::OrdinalIgnoreCase)) {
+            throw 'A final solution-owned payload signature check failed before package creation.'
+        }
     }
 
     & $makeAppx pack /d $stagingRoot /p $signedPackagePath /o | Out-Null
@@ -484,15 +531,29 @@ finally {
         }
     }
     finally {
-        foreach ($resultPath in $createdResultPaths) {
-            if (Test-Path -LiteralPath $resultPath -PathType Leaf) {
-                Remove-Item -LiteralPath $resultPath -Force
+        try {
+            $resultCleanupFailure = $null
+            foreach ($resultPath in $createdResultPaths) {
+                try {
+                    if (Test-Path -LiteralPath $resultPath -PathType Leaf) {
+                        Remove-Item -LiteralPath $resultPath -Force
+                    }
+                }
+                catch {
+                    if ($null -eq $resultCleanupFailure) {
+                        $resultCleanupFailure = $_
+                    }
+                }
+            }
+            if ($null -ne $resultCleanupFailure) {
+                throw $resultCleanupFailure
             }
         }
-
-        Assert-OwnedPath -Path $ownedTempRoot -OwnedParent $ownedTempParent
-        if (Test-Path -LiteralPath $ownedTempRoot -PathType Container) {
-            Remove-Item -LiteralPath $ownedTempRoot -Recurse -Force
+        finally {
+            Assert-OwnedPath -Path $ownedTempRoot -OwnedParent $ownedTempParent
+            if (Test-Path -LiteralPath $ownedTempRoot -PathType Container) {
+                Remove-Item -LiteralPath $ownedTempRoot -Recurse -Force
+            }
         }
     }
 }
