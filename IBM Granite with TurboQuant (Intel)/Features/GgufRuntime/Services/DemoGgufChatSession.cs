@@ -46,7 +46,7 @@ internal sealed class DemoGgufChatSession : IGgufChatSession
             yield return new GgufChatDelta(chunk);
         }
 
-        yield return new GgufChatCompleted();
+        yield return new GgufChatCompleted(GgufChatCompletionKind.Stop);
     }
 
     public ValueTask StopAsync(CancellationToken cancellationToken)

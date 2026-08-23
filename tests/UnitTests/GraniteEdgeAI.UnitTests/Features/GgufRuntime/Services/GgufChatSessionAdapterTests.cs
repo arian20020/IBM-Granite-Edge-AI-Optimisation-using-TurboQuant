@@ -1,7 +1,9 @@
 using GraniteEdgeAI.Features.GgufRuntime.History;
 using GraniteEdgeAI.Features.GgufRuntime.Services;
+using GraniteEdgeAI.GgufRuntime.Contracts;
 using GraniteEdgeAI.GgufRuntime.Contracts.Commands;
 using GraniteEdgeAI.GgufRuntime.Contracts.Events;
+using GraniteEdgeAI.GgufRuntime.Contracts.Session;
 
 namespace GraniteEdgeAI.UnitTests.Features.GgufRuntime.Services;
 
@@ -89,6 +91,52 @@ public sealed class GgufChatSessionAdapterTests
             captured[2].Content);
     }
 
+    [TestMethod]
+    public async Task GenerateMapsStopCompletionIntoChatDomain()
+    {
+        GgufChatEvent result = await GenerateCompletionAsync(GgufCompletionReason.Stop);
+
+        Assert.AreEqual(
+            GgufChatCompletionKind.Stop,
+            Assert.IsInstanceOfType<GgufChatCompleted>(result).Kind);
+    }
+
+    [TestMethod]
+    public async Task GenerateMapsLengthCompletionIntoChatDomain()
+    {
+        GgufChatEvent result = await GenerateCompletionAsync(GgufCompletionReason.Length);
+
+        Assert.AreEqual(
+            GgufChatCompletionKind.Length,
+            Assert.IsInstanceOfType<GgufChatCompleted>(result).Kind);
+    }
+
+    private static async Task<GgufChatEvent> GenerateCompletionAsync(
+        GgufCompletionReason reason)
+    {
+        var runtime = new FakeRuntimeSession(
+            new ResponseCompletedEvent(
+                GgufProtocolVersion.Current,
+                Guid.NewGuid(),
+                new GgufSessionId(Guid.NewGuid()),
+                0,
+                reason));
+        var adapter = new GgufChatSessionAdapter((turns, cancellationToken) =>
+            Task.FromResult<IGgufChatRuntimeSession>(runtime));
+        await adapter.PrepareConversationAsync(
+            ChatConversation.Create(
+                Guid.NewGuid(), "model", "cpu", DateTimeOffset.UtcNow),
+            CancellationToken.None);
+        var events = new List<GgufChatEvent>();
+        await foreach (GgufChatEvent chatEvent in
+            adapter.GenerateAsync("prompt", CancellationToken.None))
+        {
+            events.Add(chatEvent);
+        }
+
+        return events.Single();
+    }
+
     private static ChatConversation ConversationWithCompletedTurn(
         string prompt,
         string response) => ChatConversation.Create(
@@ -99,7 +147,8 @@ public sealed class GgufChatSessionAdapterTests
             ChatCompletionStatus.Completed,
             DateTimeOffset.UtcNow));
 
-    private sealed class FakeRuntimeSession : IGgufChatRuntimeSession
+    private sealed class FakeRuntimeSession(params GgufRuntimeEvent[] events)
+        : IGgufChatRuntimeSession
     {
         internal bool Disposed { get; private set; }
 
@@ -108,8 +157,11 @@ public sealed class GgufChatSessionAdapterTests
             [System.Runtime.CompilerServices.EnumeratorCancellation]
             CancellationToken cancellationToken)
         {
-            await Task.CompletedTask;
-            yield break;
+            foreach (GgufRuntimeEvent runtimeEvent in events)
+            {
+                yield return runtimeEvent;
+                await Task.Yield();
+            }
         }
 
         public ValueTask StopAsync(CancellationToken cancellationToken) =>

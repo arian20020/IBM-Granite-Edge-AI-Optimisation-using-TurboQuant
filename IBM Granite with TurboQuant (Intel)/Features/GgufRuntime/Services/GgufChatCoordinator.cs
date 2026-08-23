@@ -199,8 +199,6 @@ internal sealed class GgufChatCoordinator : IAsyncDisposable
             current = selectedConversation;
         }
 
-        ChatConversation? unpersistedConversation = null;
-        bool requiresSessionReload = false;
         try
         {
             current = current.Append(
@@ -212,7 +210,97 @@ internal sealed class GgufChatCoordinator : IAsyncDisposable
                 clock.GetUtcNow());
             current = current.Append(assistant);
             await PublishAsync(current, persist: true, cancellationToken).ConfigureAwait(false);
+            await GenerateIntoAssistantAsync(
+                current,
+                assistant,
+                prompt,
+                cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            lock (stateSync)
+            {
+                isGenerating = false;
+            }
+        }
+    }
 
+    internal async Task ContinueAsync(
+        Guid assistantMessageId,
+        CancellationToken cancellationToken)
+    {
+        ChatConversation current;
+        ChatMessage assistant;
+        lock (stateSync)
+        {
+            if (isGenerating || selectedConversation is null)
+            {
+                throw new InvalidOperationException("The selected chat is not ready.");
+            }
+
+            current = selectedConversation;
+            assistant = current.Messages.SingleOrDefault(
+                    message => message.Id == assistantMessageId)
+                ?? throw new InvalidOperationException(
+                    "The response does not belong to the selected chat.");
+            ChatMessage? lastVisible = current.Messages.LastOrDefault(
+                message => message.IsVisible);
+            if (lastVisible?.Id != assistant.Id ||
+                assistant.Role != ChatMessageRole.Assistant ||
+                assistant.Status != ChatCompletionStatus.LimitReached)
+            {
+                throw new InvalidOperationException(
+                    "Only the latest limited response can continue.");
+            }
+
+            isGenerating = true;
+        }
+
+        try
+        {
+            current = current.Append(ChatMessage.Control(
+                ContinuationInstruction,
+                clock.GetUtcNow()));
+            await PublishAsync(current, persist: true, cancellationToken)
+                .ConfigureAwait(false);
+            assistant = assistant.WithContent(
+                assistant.Content,
+                ChatCompletionStatus.Pending);
+            current = current.ReplaceMessage(assistant);
+            await PublishAsync(current, persist: true, cancellationToken)
+                .ConfigureAwait(false);
+            await GenerateIntoAssistantAsync(
+                current,
+                assistant,
+                ContinuationInstruction,
+                cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            lock (stateSync)
+            {
+                isGenerating = false;
+            }
+        }
+    }
+
+    internal ValueTask StopAsync(CancellationToken cancellationToken) =>
+        IsGenerating
+            ? session.StopAsync(cancellationToken)
+            : ValueTask.CompletedTask;
+
+    public ValueTask DisposeAsync() => session.DisposeAsync();
+
+    private async Task GenerateIntoAssistantAsync(
+        ChatConversation current,
+        ChatMessage assistant,
+        string prompt,
+        CancellationToken cancellationToken)
+    {
+        ChatConversation? unpersistedConversation = null;
+        bool requiresSessionReload = false;
+        try
+        {
             await foreach (GgufChatEvent runtimeEvent in
                 session.GenerateAsync(prompt, cancellationToken).ConfigureAwait(false))
             {
@@ -221,9 +309,18 @@ internal sealed class GgufChatCoordinator : IAsyncDisposable
                     GgufChatDelta delta => assistant.WithContent(
                         assistant.Content + delta.Text,
                         ChatCompletionStatus.Streaming),
-                    GgufChatCompleted => assistant.WithContent(
+                    GgufChatCompleted
+                    {
+                        Kind: GgufChatCompletionKind.Stop
+                    } => assistant.WithContent(
                         assistant.Content,
                         ChatCompletionStatus.Completed),
+                    GgufChatCompleted
+                    {
+                        Kind: GgufChatCompletionKind.Length
+                    } => assistant.WithContent(
+                        assistant.Content,
+                        ChatCompletionStatus.LimitReached),
                     GgufChatStopped stopped => assistant.WithContent(
                         assistant.Content,
                         stopped.NeedsReload
@@ -232,7 +329,8 @@ internal sealed class GgufChatCoordinator : IAsyncDisposable
                     GgufChatFailed => assistant.WithContent(
                         assistant.Content,
                         ChatCompletionStatus.Failed),
-                    _ => throw new InvalidOperationException("The chat event is unsupported."),
+                    _ => throw new InvalidOperationException(
+                        "The chat event is unsupported."),
                 };
                 current = current.ReplaceMessage(assistant);
                 bool persist = runtimeEvent is GgufChatCompleted or
@@ -241,7 +339,8 @@ internal sealed class GgufChatCoordinator : IAsyncDisposable
                 {
                     NeedsReload: true
                 };
-                await PublishAsync(current, persist, cancellationToken).ConfigureAwait(false);
+                await PublishAsync(current, persist, cancellationToken)
+                    .ConfigureAwait(false);
                 unpersistedConversation = persist ? null : current;
             }
 
@@ -260,20 +359,8 @@ internal sealed class GgufChatCoordinator : IAsyncDisposable
                     unpersistedConversation,
                     CancellationToken.None).ConfigureAwait(false);
             }
-
-            lock (stateSync)
-            {
-                isGenerating = false;
-            }
         }
     }
-
-    internal ValueTask StopAsync(CancellationToken cancellationToken) =>
-        IsGenerating
-            ? session.StopAsync(cancellationToken)
-            : ValueTask.CompletedTask;
-
-    public ValueTask DisposeAsync() => session.DisposeAsync();
 
     private async Task PublishAsync(
         ChatConversation conversation,

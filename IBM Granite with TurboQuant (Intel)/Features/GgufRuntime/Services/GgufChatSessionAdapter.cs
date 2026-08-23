@@ -92,7 +92,14 @@ internal sealed class GgufChatSessionAdapter : IGgufChatSession
             GgufChatEvent? chatEvent = runtimeEvent switch
             {
                 TextDeltaEvent delta => new GgufChatDelta(delta.Text),
-                ResponseCompletedEvent => new GgufChatCompleted(),
+                ResponseCompletedEvent completed => new GgufChatCompleted(
+                    completed.Reason switch
+                    {
+                        GgufCompletionReason.Stop => GgufChatCompletionKind.Stop,
+                        GgufCompletionReason.Length => GgufChatCompletionKind.Length,
+                        _ => throw new ArgumentOutOfRangeException(
+                            nameof(runtimeEvent)),
+                    }),
                 ResponseStoppedEvent stopped => new GgufChatStopped(
                     stopped.Disposition == GgufStopDisposition.StoppedNeedsReload),
                 RuntimeFailureEvent failure => new GgufChatFailed(

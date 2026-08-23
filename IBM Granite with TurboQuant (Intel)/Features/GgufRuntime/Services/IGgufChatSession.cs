@@ -8,7 +8,14 @@ namespace GraniteEdgeAI.Features.GgufRuntime.Services;
 
 internal abstract record GgufChatEvent;
 internal sealed record GgufChatDelta(string Text) : GgufChatEvent;
-internal sealed record GgufChatCompleted : GgufChatEvent;
+internal enum GgufChatCompletionKind
+{
+    Stop,
+    Length,
+}
+
+internal sealed record GgufChatCompleted(GgufChatCompletionKind Kind)
+    : GgufChatEvent;
 internal sealed record GgufChatStopped(bool NeedsReload) : GgufChatEvent;
 internal sealed record GgufChatFailed(string Code, string Message) : GgufChatEvent;
 
