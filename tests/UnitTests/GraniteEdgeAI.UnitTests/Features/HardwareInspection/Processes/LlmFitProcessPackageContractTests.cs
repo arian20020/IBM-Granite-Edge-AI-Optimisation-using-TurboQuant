@@ -19,5 +19,8 @@ public sealed class LlmFitProcessPackageContractTests
             packageBase + Path.DirectorySeparatorChar,
             StringComparison.OrdinalIgnoreCase));
         Assert.IsFalse(Directory.EnumerateDirectories(fixture.PackageRoot).Any());
+        CollectionAssert.AreEqual(
+            "success\r\n"u8.ToArray(),
+            File.ReadAllBytes(Path.Combine(fixture.PackageRoot, "fake-mode.txt")));
     }
 }

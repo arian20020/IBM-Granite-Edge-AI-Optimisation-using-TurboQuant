@@ -45,7 +45,7 @@
       Lines="%(_HardwareInspectionLlmFitMode.Identity)"
       Overwrite="true"
       WriteOnlyWhenDifferent="true"
-      Encoding="UTF-8" />
+      Encoding="ASCII" />
 
     <RemoveDir Directories="$(_HardwareInspectionLlamaCppFixturePublishRoot);$(_HardwareInspectionLlamaCppFixturePackageRoot);$(_HardwareInspectionLlamaCppFixtureArtifactsRoot)" />
     <MakeDir Directories="$(_HardwareInspectionLlamaCppFixturePublishRoot);$(_HardwareInspectionLlamaCppFixturePackageRoot)" />
@@ -67,7 +67,7 @@
       Lines="%(_HardwareInspectionLlamaCppMode.Identity)"
       Overwrite="true"
       WriteOnlyWhenDifferent="true"
-      Encoding="UTF-8" />
+      Encoding="ASCII" />
 
     <ItemGroup>
       <_HardwareInspectionFixturePackagedFile Include="$(_HardwareInspectionFixturePackageRoot)\**\*" />

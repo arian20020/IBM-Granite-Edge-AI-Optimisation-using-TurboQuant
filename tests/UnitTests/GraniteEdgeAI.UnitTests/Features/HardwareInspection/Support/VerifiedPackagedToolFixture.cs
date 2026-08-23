@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using System.Text;
 using GraniteEdgeAI.HardwareInspection.Foundation.LlamaCpp;
 using GraniteEdgeAI.HardwareInspection.Foundation.LlmFit;
 using GraniteEdgeAI.HardwareInspection.Foundation.TrustedTools;
@@ -87,10 +88,8 @@ internal sealed class VerifiedPackagedToolFixture : IDisposable
         }
 
         string modePath = Path.Combine(packageRoot, "fake-mode.txt");
-        if (!string.Equals(
-                File.ReadAllText(modePath),
-                mode + Environment.NewLine,
-                StringComparison.Ordinal))
+        if (!File.ReadAllBytes(modePath).SequenceEqual(
+                Encoding.ASCII.GetBytes(mode + Environment.NewLine)))
         {
             throw new InvalidOperationException("The packaged fixture mode does not match its directory.");
         }
@@ -153,12 +152,13 @@ internal sealed class VerifiedPackagedToolFixture : IDisposable
         }
 
         string modePath = Path.Combine(packageRoot, "fake-mode.txt");
-        if (!string.Equals(File.ReadAllText(modePath), mode + Environment.NewLine, StringComparison.Ordinal))
+        if (!File.ReadAllBytes(modePath).SequenceEqual(
+                Encoding.ASCII.GetBytes(mode + Environment.NewLine)))
         {
             throw new InvalidOperationException("The packaged fixture mode does not match its directory.");
         }
 
-        const string executableName = "GraniteEdgeAI.HardwareInspection.LlamaCppProbeFakeTool.exe";
+        const string executableName = LlamaCppCapabilityCommandContract.ExecutableName;
         string executablePath = Path.Combine(packageRoot, executableName);
         string[] members = Directory.GetFiles(packageRoot, "*", SearchOption.TopDirectoryOnly)
             .Select(Path.GetFileName)
