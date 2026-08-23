@@ -283,7 +283,7 @@ public sealed class OpenVinoConversionServiceTests
                     throw new OpenVinoConversionException(OpenVinoSupportCode.PackageChanged);
                 }
             }
-            return OpenVinoConverterCompletion.CreateFixture();
+            return OpenVinoConverterCompletion.CreateTestInstance();
         }
 
         public Task<OpenVinoConversionValidation> ValidateAsync(
@@ -295,7 +295,7 @@ public sealed class OpenVinoConversionServiceTests
             {
                 throw new OpenVinoConversionException(OpenVinoSupportCode.ConversionOutputInvalid);
             }
-            return Task.FromResult(OpenVinoConversionValidation.CreateFixture());
+            return Task.FromResult(OpenVinoConversionValidation.CreateTestInstance());
         }
 
         public Task SmokeAsync(

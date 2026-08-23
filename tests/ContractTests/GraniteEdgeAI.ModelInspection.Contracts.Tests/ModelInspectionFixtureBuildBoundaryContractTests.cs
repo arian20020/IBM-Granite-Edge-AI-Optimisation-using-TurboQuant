@@ -578,12 +578,15 @@ public sealed class ModelInspectionFixtureBuildBoundaryContractTests
                     "Release",
                     "msbuild <app-project> /t:Restore,Build /p:Configuration=Release " +
                     "/p:Platform=x64 /p:RuntimeIdentifier=win-x64 " +
+                    "/p:OpenVinoOfficialWorkerStageDirectory=<verified-stage> " +
+                    "/p:OpenVinoOfficialWorkerManifestSha256=<verified-digest> " +
                     "/p:GenerateAppxPackageOnBuild=true " +
                     "/p:AppxPackageDir=<owned-root>/release/package"),
                 BuildProvenance(
                     "Debug",
                     "msbuild <app-project> /t:Restore,Build /p:Configuration=Debug " +
                     "/p:Platform=x64 /p:RuntimeIdentifier=win-x64 " +
+                    "/p:OpenVinoOfficialWorkerPackagingRequired=false " +
                     "/p:GenerateAppxPackageOnBuild=false"),
                 BuildProvenance(
                     "Release",
@@ -884,12 +887,15 @@ public sealed class ModelInspectionFixtureBuildBoundaryContractTests
                 "Release",
                 "msbuild <app-project> /t:Restore,Build /p:Configuration=Release " +
                 "/p:Platform=x64 /p:RuntimeIdentifier=win-x64 " +
+                "/p:OpenVinoOfficialWorkerStageDirectory=<verified-stage> " +
+                "/p:OpenVinoOfficialWorkerManifestSha256=<verified-digest> " +
                 "/p:GenerateAppxPackageOnBuild=true " +
                 "/p:AppxPackageDir=<owned-root>/release/package"),
             (
                 "Debug",
                 "msbuild <app-project> /t:Restore,Build /p:Configuration=Debug " +
                 "/p:Platform=x64 /p:RuntimeIdentifier=win-x64 " +
+                "/p:OpenVinoOfficialWorkerPackagingRequired=false " +
                 "/p:GenerateAppxPackageOnBuild=false"),
             (
                 "Release",

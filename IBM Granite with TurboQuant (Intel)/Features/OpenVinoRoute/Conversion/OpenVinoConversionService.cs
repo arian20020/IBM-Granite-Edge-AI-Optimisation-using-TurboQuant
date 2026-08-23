@@ -50,7 +50,7 @@ internal sealed record OpenVinoConverterCompletion(
     string ConverterManifestSha256,
     IReadOnlyDictionary<string, string> Versions)
 {
-    internal static OpenVinoConverterCompletion CreateFixture() => new(
+    internal static OpenVinoConverterCompletion CreateTestInstance() => new(
         new string('a', 64),
         new string('b', 64),
         new string('c', 64),
@@ -89,7 +89,7 @@ internal sealed class OpenVinoConversionValidation : IDisposable
 
     public void Dispose() => Interlocked.Exchange(ref lease, null)?.Dispose();
 
-    internal static OpenVinoConversionValidation CreateFixture() => new(Guid.NewGuid());
+    internal static OpenVinoConversionValidation CreateTestInstance() => new(Guid.NewGuid());
 }
 
 internal interface IOpenVinoConversionPipeline

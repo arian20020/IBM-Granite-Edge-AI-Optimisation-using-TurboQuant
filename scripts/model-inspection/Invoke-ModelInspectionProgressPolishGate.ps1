@@ -547,8 +547,23 @@ function Invoke-ReleaseIsolation {
     if (Test-Path -LiteralPath $evidencePath) {
         throw 'The unique Release-isolation evidence path already exists.'
     }
+    $workerStage = $env:OPENVINO_OFFICIAL_WORKER_STAGE_B
+    if ([string]::IsNullOrWhiteSpace($workerStage)) {
+        throw 'OPENVINO_OFFICIAL_WORKER_STAGE_B is required for full Release isolation.'
+    }
+    $workerManifest = Join-Path $workerStage 'worker-manifest.json'
+    if (-not (Test-Path -LiteralPath $workerManifest -PathType Leaf)) {
+        throw 'The verified OpenVINO worker manifest is unavailable for Release isolation.'
+    }
+    $workerManifestSha256 = (Get-FileHash `
+        -LiteralPath $workerManifest `
+        -Algorithm SHA256).Hash.ToLowerInvariant()
     Invoke-CheckedCommand -Name 'release-isolation' -Command {
-        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $releaseIsolationScript -EvidencePath $evidencePath
+        & powershell.exe -NoProfile -ExecutionPolicy Bypass `
+            -File $releaseIsolationScript `
+            -EvidencePath $evidencePath `
+            -OpenVinoOfficialWorkerStageDirectory $workerStage `
+            -OpenVinoOfficialWorkerManifestSha256 $workerManifestSha256
     }
     $evidence = Get-Content -LiteralPath $evidencePath -Raw | ConvertFrom-Json
     if ($evidence.status -cne 'passed' -or $evidence.sourceCommit -cne $headBefore) {

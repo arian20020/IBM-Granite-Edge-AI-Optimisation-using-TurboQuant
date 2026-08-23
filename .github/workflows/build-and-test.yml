@@ -629,13 +629,14 @@ jobs:
 
       # This check always runs. It records a failure before cleaning the runner,
       # so process leakage cannot be hidden by successful test assertions.
-      - name: Verify Model Inspection fixture Release isolation
+      - name: Verify Model Inspection fixture Release isolation evaluation contract
         working-directory: ${{ github.workspace }}
         run: |
-          $evidencePath = Join-Path $env:GITHUB_WORKSPACE 'TestResults\ModelInspectionFixtures\ReleaseIsolation\release-isolation-evidence.json'
-          & '.\scripts\model-inspection\Test-ModelInspectionFixtureReleaseIsolation.ps1' -EvidencePath $evidencePath
-          $isolationEvidence = Get-Content -LiteralPath $evidencePath -Raw | ConvertFrom-Json
-          if ($isolationEvidence.status -ne 'passed') { throw 'Release isolation did not pass.' }
+          $isolationEvaluation = & '.\scripts\model-inspection\Test-ModelInspectionFixtureReleaseIsolation.ps1' -EvaluateContract |
+            Out-String | ConvertFrom-Json
+          if ($isolationEvaluation.status -ne 'evaluation-contract-passed') {
+            throw 'Release isolation evaluation contract did not pass.'
+          }
 
       - name: Check for orphaned Gate 2 processes
         if: ${{ always() }}

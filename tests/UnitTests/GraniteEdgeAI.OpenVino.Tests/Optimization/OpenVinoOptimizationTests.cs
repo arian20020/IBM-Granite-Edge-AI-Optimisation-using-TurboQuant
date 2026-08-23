@@ -226,7 +226,7 @@ public sealed class OpenVinoOptimizationTests
         IReadOnlyList<GraniteEdgeAI.Features.OpenVinoRoute.Conversion.OpenVinoOutputArtifact>
             output = OpenVinoOptimizationProvenance.CaptureOutput(root);
         OpenVinoOptimizationCompletion completion =
-            OpenVinoOptimizationCompletion.CreateFixture(OpenVinoWeightPrecision.Fp16);
+            OpenVinoOptimizationCompletion.CreateTestInstance(OpenVinoWeightPrecision.Fp16);
         OpenVinoOptimizationProvenance provenance = new(
             OpenVinoOptimizationProvenance.CurrentSchemaVersion,
             Guid.NewGuid(),
@@ -265,7 +265,7 @@ public sealed class OpenVinoOptimizationTests
             File.Copy(
                 Path.Combine(invocation.SourceDirectory, "config.json"),
                 Path.Combine(invocation.StagingDirectory, "config.json"));
-            return Task.FromResult(OpenVinoOptimizationCompletion.CreateFixture(
+            return Task.FromResult(OpenVinoOptimizationCompletion.CreateTestInstance(
                 invocation.Candidate.PersistentArtifact.WeightPrecision));
         }
 
@@ -274,7 +274,7 @@ public sealed class OpenVinoOptimizationTests
             CancellationToken cancellationToken)
         {
             Calls.Add("validate");
-            return Task.FromResult(OpenVinoOptimizationValidation.CreateFixture());
+            return Task.FromResult(OpenVinoOptimizationValidation.CreateTestInstance());
         }
 
         public Task<OpenVinoRuntimeOptimizationEvidence> SmokeAsync(

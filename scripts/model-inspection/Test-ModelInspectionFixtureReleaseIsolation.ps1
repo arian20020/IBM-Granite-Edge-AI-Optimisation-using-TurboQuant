@@ -20,7 +20,13 @@ param(
     [switch] $WhatIfContract,
 
     [Parameter()]
-    [switch] $EvaluateContract
+    [switch] $EvaluateContract,
+
+    [Parameter()]
+    [string] $OpenVinoOfficialWorkerStageDirectory,
+
+    [Parameter()]
+    [string] $OpenVinoOfficialWorkerManifestSha256
 )
 
 Set-StrictMode -Version Latest
@@ -204,7 +210,7 @@ function Remove-OwnedRoot {
     }
 
     $canonicalRoot = Assert-OwnedRoot -Root $script:OwnedRoot
-    Remove-Item -LiteralPath $canonicalRoot -Recurse -Force
+    [System.IO.Directory]::Delete("\\?\$canonicalRoot", $true)
     if (Test-Path -LiteralPath $canonicalRoot) {
         throw 'Owned root cleanup did not complete.'
     }
@@ -935,8 +941,8 @@ function Assert-SnapshotBuildPathIsolation {
         -Recurse `
         -File `
         -Filter '*.csproj')
-    if ($projects.Count -ne 19) {
-        throw "Fresh source snapshot contains $($projects.Count) projects; expected 19."
+    if ($projects.Count -ne 27) {
+        throw "Fresh source snapshot contains $($projects.Count) projects; expected 27."
     }
 
     $names = New-Object 'System.Collections.Generic.HashSet[string]' (
@@ -1042,6 +1048,33 @@ function Invoke-AppBuild {
         '/p:RuntimeIdentifier=win-x64',
         "/p:PublishReadyToRun=$($Configuration -eq 'Release')") +
         @($Pins.Arguments)
+    if ($Configuration -eq 'Release') {
+        if ([string]::IsNullOrWhiteSpace($OpenVinoOfficialWorkerStageDirectory) -or
+            $OpenVinoOfficialWorkerManifestSha256 -cnotmatch '^[0-9a-f]{64}$') {
+            throw 'Release package isolation requires a verified OpenVINO official worker stage and manifest digest.'
+        }
+
+        $workerStage = [System.IO.Path]::GetFullPath(
+            $OpenVinoOfficialWorkerStageDirectory)
+        $workerManifest = Join-Path $workerStage 'worker-manifest.json'
+        if (-not (Test-Path -LiteralPath $workerManifest -PathType Leaf)) {
+            throw 'The verified OpenVINO official worker manifest is unavailable.'
+        }
+
+        $actualManifestSha256 = (Get-FileHash `
+            -LiteralPath $workerManifest `
+            -Algorithm SHA256).Hash.ToLowerInvariant()
+        if ($actualManifestSha256 -cne $OpenVinoOfficialWorkerManifestSha256) {
+            throw 'The OpenVINO official worker manifest digest changed before isolation.'
+        }
+
+        $common += @(
+            "/p:OpenVinoOfficialWorkerStageDirectory=$workerStage",
+            "/p:OpenVinoOfficialWorkerManifestSha256=$OpenVinoOfficialWorkerManifestSha256")
+    }
+    else {
+        $common += '/p:OpenVinoOfficialWorkerPackagingRequired=false'
+    }
     $null = Invoke-CheckedProcess `
         -FilePath $MSBuild `
         -Arguments ($common + @('/t:Restore')) `
@@ -1077,10 +1110,10 @@ function Invoke-AppBuild {
         platform = 'x64'
         runtime = 'win-x64'
         command = if ($Configuration -eq 'Release') {
-            'msbuild <app-project> /t:Restore,Build /p:Configuration=Release /p:Platform=x64 /p:RuntimeIdentifier=win-x64 /p:GenerateAppxPackageOnBuild=true /p:AppxPackageDir=<owned-root>/release/package'
+            'msbuild <app-project> /t:Restore,Build /p:Configuration=Release /p:Platform=x64 /p:RuntimeIdentifier=win-x64 /p:OpenVinoOfficialWorkerStageDirectory=<verified-stage> /p:OpenVinoOfficialWorkerManifestSha256=<verified-digest> /p:GenerateAppxPackageOnBuild=true /p:AppxPackageDir=<owned-root>/release/package'
         }
         else {
-            'msbuild <app-project> /t:Restore,Build /p:Configuration=Debug /p:Platform=x64 /p:RuntimeIdentifier=win-x64 /p:GenerateAppxPackageOnBuild=false'
+            'msbuild <app-project> /t:Restore,Build /p:Configuration=Debug /p:Platform=x64 /p:RuntimeIdentifier=win-x64 /p:OpenVinoOfficialWorkerPackagingRequired=false /p:GenerateAppxPackageOnBuild=false'
         }
         exitCode = $result.ExitCode
     }
@@ -2718,14 +2751,14 @@ try {
                     configuration = 'Release'
                     platform = 'x64'
                     runtime = 'win-x64'
-                    command = 'msbuild <app-project> /t:Restore,Build /p:Configuration=Release /p:Platform=x64 /p:RuntimeIdentifier=win-x64 /p:GenerateAppxPackageOnBuild=true /p:AppxPackageDir=<owned-root>/release/package'
+                    command = 'msbuild <app-project> /t:Restore,Build /p:Configuration=Release /p:Platform=x64 /p:RuntimeIdentifier=win-x64 /p:OpenVinoOfficialWorkerStageDirectory=<verified-stage> /p:OpenVinoOfficialWorkerManifestSha256=<verified-digest> /p:GenerateAppxPackageOnBuild=true /p:AppxPackageDir=<owned-root>/release/package'
                     exitCode = 0
                 },
                 [pscustomobject][ordered]@{
                     configuration = 'Debug'
                     platform = 'x64'
                     runtime = 'win-x64'
-                    command = 'msbuild <app-project> /t:Restore,Build /p:Configuration=Debug /p:Platform=x64 /p:RuntimeIdentifier=win-x64 /p:GenerateAppxPackageOnBuild=false'
+                    command = 'msbuild <app-project> /t:Restore,Build /p:Configuration=Debug /p:Platform=x64 /p:RuntimeIdentifier=win-x64 /p:OpenVinoOfficialWorkerPackagingRequired=false /p:GenerateAppxPackageOnBuild=false'
                     exitCode = 0
                 },
                 [pscustomobject][ordered]@{

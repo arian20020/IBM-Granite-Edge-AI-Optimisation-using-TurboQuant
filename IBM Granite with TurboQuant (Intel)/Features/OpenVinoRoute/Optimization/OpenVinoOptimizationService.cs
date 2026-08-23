@@ -44,7 +44,7 @@ internal sealed record OpenVinoOptimizationCompletion(
     OpenVinoWeightPrecision ActualWeightPrecision,
     IReadOnlyDictionary<string, string> Versions)
 {
-    internal static OpenVinoOptimizationCompletion CreateFixture(
+    internal static OpenVinoOptimizationCompletion CreateTestInstance(
         OpenVinoWeightPrecision precision) => new(
             precision,
             new Dictionary<string, string>(StringComparer.Ordinal)
@@ -74,7 +74,7 @@ internal sealed class OpenVinoOptimizationValidation : IDisposable
     internal IDisposable ConsumeLease() => Interlocked.Exchange(ref retainedLease, null) ??
         throw new OpenVinoOptimizationException(OpenVinoSupportCode.ConversionOutputInvalid);
     public void Dispose() => Interlocked.Exchange(ref retainedLease, null)?.Dispose();
-    internal static OpenVinoOptimizationValidation CreateFixture() => new(Guid.NewGuid());
+    internal static OpenVinoOptimizationValidation CreateTestInstance() => new(Guid.NewGuid());
 }
 
 internal sealed record OpenVinoRuntimeOptimizationEvidence(

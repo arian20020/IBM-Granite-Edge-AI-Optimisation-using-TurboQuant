@@ -448,6 +448,24 @@ jobs:
             /property:OpenVinoOfficialWorkerManifestSha256=$manifestSha
           if ($LASTEXITCODE -ne 0) { throw 'Release x64 app build failed.' }
 
+      - name: Verify Model Inspection fixture Release isolation
+        timeout-minutes: 25
+        run: |
+          $manifestSha = (Get-FileHash `
+            -LiteralPath (Join-Path $env:OPENVINO_STAGE_B 'worker-manifest.json') `
+            -Algorithm SHA256).Hash.ToLowerInvariant()
+          $evidencePath = Join-Path $env:GITHUB_WORKSPACE `
+            'TestResults\ModelInspectionFixtures\ReleaseIsolation\release-isolation-evidence.json'
+          & '.\scripts\model-inspection\Test-ModelInspectionFixtureReleaseIsolation.ps1' `
+            -EvidencePath $evidencePath `
+            -OpenVinoOfficialWorkerStageDirectory $env:OPENVINO_STAGE_B `
+            -OpenVinoOfficialWorkerManifestSha256 $manifestSha
+          $isolationEvidence = Get-Content -LiteralPath $evidencePath -Raw | ConvertFrom-Json
+          if ($isolationEvidence.status -ne 'passed') {
+            throw 'Release isolation did not pass.'
+          }
+          Remove-Item -LiteralPath $evidencePath -Force
+
       - name: Create closed measured evidence inputs
         timeout-minutes: 5
         run: |
