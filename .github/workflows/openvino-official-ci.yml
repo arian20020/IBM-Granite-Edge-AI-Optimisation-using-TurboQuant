@@ -94,6 +94,27 @@ jobs:
         timeout-minutes: 1
         run: |
           $root = [IO.Path]::GetFullPath($env:RUNNER_TEMP)
+          $systemVolume = [IO.Path]::GetPathRoot([IO.Path]::GetFullPath($env:SystemRoot))
+          $nativeTemp = [IO.Path]::GetFullPath((Join-Path $systemVolume (
+            'openvino-official-native-temp-{0}-{1}' -f $env:GITHUB_RUN_ID,$env:GITHUB_RUN_ATTEMPT)))
+          if (Test-Path -LiteralPath $nativeTemp) {
+            throw 'The operation-owned native temporary directory already exists.'
+          }
+          New-Item -ItemType Directory -Path $nativeTemp | Out-Null
+          $probe = Join-Path $nativeTemp 'stream-probe.bin'
+          try {
+            [IO.File]::WriteAllBytes($probe, [byte[]](1))
+            [IO.File]::WriteAllBytes("${probe}:openvino-stream-probe", [byte[]](2))
+            $streams = @((Get-Item -LiteralPath $probe -Stream * -ErrorAction Stop).Stream)
+            if ($streams -notcontains ':openvino-stream-probe') {
+              throw 'The native temporary volume cannot prove alternate-stream safety.'
+            }
+          } catch {
+            Remove-Item -LiteralPath $nativeTemp -Recurse -Force -ErrorAction SilentlyContinue
+            throw
+          } finally {
+            if (Test-Path -LiteralPath $probe) { Remove-Item -LiteralPath $probe -Force }
+          }
           $paths = [ordered]@{
             OPENVINO_ARCHIVES = Join-Path $root 'openvino-official-archives'
             OPENVINO_BUILD_A = Join-Path $root 'openvino-official-build-a'
@@ -105,6 +126,9 @@ jobs:
             OPENVINO_CONVERTER_BUILD = Join-Path $root 'openvino-converter-build'
             OPENVINO_CONVERTER_STAGE = Join-Path $root 'openvino-converter-stage'
             OPENVINO_MEASUREMENTS = Join-Path $root 'openvino-official-results/measurements.json'
+            OPENVINO_NATIVE_TEMP = $nativeTemp
+            TEMP = $nativeTemp
+            TMP = $nativeTemp
           }
           foreach ($entry in $paths.GetEnumerator()) {
             Add-Content -LiteralPath $env:GITHUB_ENV -Value "$($entry.Key)=$($entry.Value)" -Encoding utf8
@@ -430,6 +454,19 @@ jobs:
             if (Test-Path -LiteralPath $full) { Remove-Item -LiteralPath $full -Recurse -Force -ErrorAction SilentlyContinue }
             if (Test-Path -LiteralPath $full) { $failed = $true }
           }
+          $systemVolume = [IO.Path]::GetPathRoot([IO.Path]::GetFullPath($env:SystemRoot))
+          $expectedNativeTemp = [IO.Path]::GetFullPath((Join-Path $systemVolume (
+            'openvino-official-native-temp-{0}-{1}' -f $env:GITHUB_RUN_ID,$env:GITHUB_RUN_ATTEMPT)))
+          $nativeTemp = $expectedNativeTemp
+          if (-not [string]::IsNullOrWhiteSpace($env:OPENVINO_NATIVE_TEMP)) {
+            $actualNativeTemp = [IO.Path]::GetFullPath($env:OPENVINO_NATIVE_TEMP)
+            if ($actualNativeTemp -ine $expectedNativeTemp) { $failed = $true }
+            else { $nativeTemp = $actualNativeTemp }
+          }
+          if (Test-Path -LiteralPath $nativeTemp) {
+            Remove-Item -LiteralPath $nativeTemp -Recurse -Force -ErrorAction SilentlyContinue
+          }
+          if (Test-Path -LiteralPath $nativeTemp) { $failed = $true }
           if ($failed) { throw 'OpenVINO integrity or cleanup failed.' }
 
       - name: Privacy-check exact sanitized official evidence

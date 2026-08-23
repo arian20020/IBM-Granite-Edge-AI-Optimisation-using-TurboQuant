@@ -306,6 +306,33 @@ public sealed class WorkflowContractTests
     }
 
     [TestMethod]
+    public void HostedWorkflowUsesStreamCapableOperationOwnedNativeTemp()
+    {
+        YamlMappingNode root = ParseWorkflow(OfficialWorkflow());
+        YamlMappingNode job = Mapping(Mapping(root, "jobs"), "official-cpu");
+        YamlMappingNode[] steps = Sequence(job, "steps").Select(AsMapping).ToArray();
+        string bind = Scalar(Step(steps, "Bind operation-owned runner paths"), "run");
+
+        foreach (string required in new[]
+        {
+            "$env:SystemRoot", "$env:GITHUB_RUN_ID", "$env:GITHUB_RUN_ATTEMPT",
+            "OPENVINO_NATIVE_TEMP", "TEMP = $nativeTemp", "TMP = $nativeTemp",
+            ":openvino-stream-probe", "-Stream *"
+        })
+        {
+            StringAssert.Contains(bind, required);
+        }
+
+        string cleanup = Scalar(
+            Step(steps, "Verify post-run integrity and clean operation-owned state"),
+            "run");
+        StringAssert.Contains(cleanup, "$env:OPENVINO_NATIVE_TEMP");
+        StringAssert.Contains(cleanup, "$env:GITHUB_RUN_ID");
+        StringAssert.Contains(cleanup, "$env:GITHUB_RUN_ATTEMPT");
+        StringAssert.Contains(cleanup, "Remove-Item -LiteralPath $nativeTemp -Recurse -Force");
+    }
+
+    [TestMethod]
     public void HostedWorkflowIsImmutableLeastPrivilegeReleaseX64AndCountGated()
     {
         string source = OfficialWorkflow();
