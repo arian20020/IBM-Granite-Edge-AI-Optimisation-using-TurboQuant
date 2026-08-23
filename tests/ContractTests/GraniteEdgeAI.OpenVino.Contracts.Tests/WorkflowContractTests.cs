@@ -216,19 +216,35 @@ public sealed class WorkflowContractTests
             {
                 Path = ".github/workflows/openvino-official-ci.yml",
                 Job = "official-cpu",
-                RunnerKeys = new[] { "OPENVINO_ARCHIVES", "OPENVINO_MEASUREMENTS" }
+                RunnerKeys = new[]
+                {
+                    "OPENVINO_ARCHIVES", "OPENVINO_BUILD_A", "OPENVINO_BUILD_B",
+                    "OPENVINO_STAGE_A", "OPENVINO_STAGE_B", "OPENVINO_RESULTS",
+                    "OPENVINO_CONVERTER_CLOSURE", "OPENVINO_CONVERTER_BUILD",
+                    "OPENVINO_CONVERTER_STAGE", "OPENVINO_MEASUREMENTS"
+                }
             },
             new
             {
                 Path = ".github/workflows/openvino-ucl-intel.yml",
                 Job = "trusted-intel-cpu",
-                RunnerKeys = new[] { "OPENVINO_BUILD_A", "OPENVINO_CONVERTER_STAGE" }
+                RunnerKeys = new[]
+                {
+                    "OPENVINO_BUILD_A", "OPENVINO_BUILD_B", "OPENVINO_STAGE_A",
+                    "OPENVINO_STAGE_B", "OPENVINO_RESULTS", "OPENVINO_CONVERTER_BUILD",
+                    "OPENVINO_CONVERTER_STAGE", "GRANITE_OPENVINO_CONVERTER_STAGE"
+                }
             },
             new
             {
                 Path = ".github/workflows/openvino-turboquant-ucl.yml",
                 Job = "trusted-turboquant-cpu",
-                RunnerKeys = new[] { "TURBOQUANT_RUNTIME_BUILD", "TURBOQUANT_RESULTS" }
+                RunnerKeys = new[]
+                {
+                    "TURBOQUANT_RUNTIME_BUILD", "TURBOQUANT_RUNTIME_STAGE",
+                    "TURBOQUANT_WORKER_BUILD", "OPENVINO_TURBOQUANT_WORKER_STAGE",
+                    "TURBOQUANT_RESULTS"
+                }
             }
         };
 
@@ -243,13 +259,29 @@ public sealed class WorkflowContractTests
                 $"{workflow.Path} uses the runner context before a runner is assigned.");
 
             YamlMappingNode job = Mapping(Mapping(root, "jobs"), workflow.Job);
-            YamlMappingNode jobEnvironment = Mapping(job, "env");
+            if (job.Children.TryGetValue(new YamlScalarNode("env"), out YamlNode? environment))
+            {
+                Assert.IsFalse(
+                    AsMapping(environment).Children.Values
+                        .Select(Scalar)
+                        .Any(value => value.Contains("${{ runner.", StringComparison.Ordinal)),
+                    $"{workflow.Path} uses the runner context before its steps begin.");
+            }
+
+            YamlMappingNode initialize = Step(
+                Sequence(job, "steps").Select(AsMapping),
+                "Bind operation-owned runner paths");
+            string script = Scalar(initialize, "run");
+            StringAssert.Contains(script, "$env:RUNNER_TEMP");
+            StringAssert.Contains(script, "$env:GITHUB_ENV");
             foreach (string key in workflow.RunnerKeys)
             {
-                StringAssert.StartsWith(
-                    Scalar(jobEnvironment, key),
-                    "${{ runner.temp }}/",
-                    $"{workflow.Path} must resolve {key} after its runner is assigned.");
+                Assert.IsTrue(
+                    Regex.IsMatch(
+                        script,
+                        $@"(?m)^\s*{Regex.Escape(key)}\s*=",
+                        RegexOptions.CultureInvariant),
+                    $"{workflow.Path} must bind {key} after its runner is assigned.");
             }
         }
     }

@@ -85,19 +85,28 @@ jobs:
     name: Release x64 official CPU closure
     runs-on: windows-2022
     timeout-minutes: 180
-    env:
-      OPENVINO_ARCHIVES: ${{ runner.temp }}/openvino-official-archives
-      OPENVINO_BUILD_A: ${{ runner.temp }}/openvino-official-build-a
-      OPENVINO_BUILD_B: ${{ runner.temp }}/openvino-official-build-b
-      OPENVINO_STAGE_A: ${{ runner.temp }}/openvino-official-stage-a
-      OPENVINO_STAGE_B: ${{ runner.temp }}/openvino-official-stage-b
-      OPENVINO_RESULTS: ${{ runner.temp }}/openvino-official-results
-      OPENVINO_CONVERTER_CLOSURE: ${{ runner.temp }}/openvino-converter-closure
-      OPENVINO_CONVERTER_BUILD: ${{ runner.temp }}/openvino-converter-build
-      OPENVINO_CONVERTER_STAGE: ${{ runner.temp }}/openvino-converter-stage
-      OPENVINO_MEASUREMENTS: ${{ runner.temp }}/openvino-official-results/measurements.json
 
     steps:
+      - name: Bind operation-owned runner paths
+        timeout-minutes: 1
+        run: |
+          $root = [IO.Path]::GetFullPath($env:RUNNER_TEMP)
+          $paths = [ordered]@{
+            OPENVINO_ARCHIVES = Join-Path $root 'openvino-official-archives'
+            OPENVINO_BUILD_A = Join-Path $root 'openvino-official-build-a'
+            OPENVINO_BUILD_B = Join-Path $root 'openvino-official-build-b'
+            OPENVINO_STAGE_A = Join-Path $root 'openvino-official-stage-a'
+            OPENVINO_STAGE_B = Join-Path $root 'openvino-official-stage-b'
+            OPENVINO_RESULTS = Join-Path $root 'openvino-official-results'
+            OPENVINO_CONVERTER_CLOSURE = Join-Path $root 'openvino-converter-closure'
+            OPENVINO_CONVERTER_BUILD = Join-Path $root 'openvino-converter-build'
+            OPENVINO_CONVERTER_STAGE = Join-Path $root 'openvino-converter-stage'
+            OPENVINO_MEASUREMENTS = Join-Path $root 'openvino-official-results/measurements.json'
+          }
+          foreach ($entry in $paths.GetEnumerator()) {
+            Add-Content -LiteralPath $env:GITHUB_ENV -Value "$($entry.Key)=$($entry.Value)" -Encoding utf8
+          }
+
       - name: Check out the exact evidence commit
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:

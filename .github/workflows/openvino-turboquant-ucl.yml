@@ -47,12 +47,6 @@ jobs:
       - workbook05
       - intel-target
     timeout-minutes: 210
-    env:
-      TURBOQUANT_RUNTIME_BUILD: ${{ runner.temp }}/turboquant-runtime-build
-      TURBOQUANT_RUNTIME_STAGE: ${{ runner.temp }}/turboquant-runtime-stage
-      TURBOQUANT_WORKER_BUILD: ${{ runner.temp }}/turboquant-worker-build
-      OPENVINO_TURBOQUANT_WORKER_STAGE: ${{ runner.temp }}/turboquant-worker-stage
-      TURBOQUANT_RESULTS: ${{ runner.temp }}/turboquant-results
 
     steps:
       - name: Fail closed before repository code
@@ -75,6 +69,21 @@ jobs:
             if ([string]::IsNullOrWhiteSpace($value)) {
               throw 'A controlled TurboQuant input is unavailable.'
             }
+          }
+
+      - name: Bind operation-owned runner paths
+        timeout-minutes: 1
+        run: |
+          $root = [IO.Path]::GetFullPath($env:RUNNER_TEMP)
+          $paths = [ordered]@{
+            TURBOQUANT_RUNTIME_BUILD = Join-Path $root 'turboquant-runtime-build'
+            TURBOQUANT_RUNTIME_STAGE = Join-Path $root 'turboquant-runtime-stage'
+            TURBOQUANT_WORKER_BUILD = Join-Path $root 'turboquant-worker-build'
+            OPENVINO_TURBOQUANT_WORKER_STAGE = Join-Path $root 'turboquant-worker-stage'
+            TURBOQUANT_RESULTS = Join-Path $root 'turboquant-results'
+          }
+          foreach ($entry in $paths.GetEnumerator()) {
+            Add-Content -LiteralPath $env:GITHUB_ENV -Value "$($entry.Key)=$($entry.Value)" -Encoding utf8
           }
 
       - name: Check out exact reviewed commit without retained credentials

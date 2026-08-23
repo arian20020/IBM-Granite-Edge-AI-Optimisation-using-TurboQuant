@@ -61,15 +61,6 @@ jobs:
       - workbook05
       - intel-target
     timeout-minutes: 210
-    env:
-      OPENVINO_BUILD_A: ${{ runner.temp }}/openvino-ucl-build-a
-      OPENVINO_BUILD_B: ${{ runner.temp }}/openvino-ucl-build-b
-      OPENVINO_STAGE_A: ${{ runner.temp }}/openvino-ucl-stage-a
-      OPENVINO_STAGE_B: ${{ runner.temp }}/openvino-ucl-stage-b
-      OPENVINO_RESULTS: ${{ runner.temp }}/openvino-ucl-results
-      OPENVINO_CONVERTER_BUILD: ${{ runner.temp }}/openvino-ucl-converter-build
-      OPENVINO_CONVERTER_STAGE: ${{ runner.temp }}/openvino-ucl-converter-stage
-      GRANITE_OPENVINO_CONVERTER_STAGE: ${{ runner.temp }}/openvino-ucl-converter-stage
 
     steps:
       - name: Fail closed before repository code on UCL-01 and immutable inputs
@@ -97,6 +88,25 @@ jobs:
                [string]::IsNullOrWhiteSpace($env:OPENVINO_UCL_GPU_NAME) -or
                [string]::IsNullOrWhiteSpace($env:OPENVINO_UCL_GPU_DRIVER_VERSION))) {
             throw 'GPU-01 authorization or its fixed driver prerequisite is invalid.'
+          }
+
+      - name: Bind operation-owned runner paths
+        timeout-minutes: 1
+        run: |
+          $root = [IO.Path]::GetFullPath($env:RUNNER_TEMP)
+          $converterStage = Join-Path $root 'openvino-ucl-converter-stage'
+          $paths = [ordered]@{
+            OPENVINO_BUILD_A = Join-Path $root 'openvino-ucl-build-a'
+            OPENVINO_BUILD_B = Join-Path $root 'openvino-ucl-build-b'
+            OPENVINO_STAGE_A = Join-Path $root 'openvino-ucl-stage-a'
+            OPENVINO_STAGE_B = Join-Path $root 'openvino-ucl-stage-b'
+            OPENVINO_RESULTS = Join-Path $root 'openvino-ucl-results'
+            OPENVINO_CONVERTER_BUILD = Join-Path $root 'openvino-ucl-converter-build'
+            OPENVINO_CONVERTER_STAGE = $converterStage
+            GRANITE_OPENVINO_CONVERTER_STAGE = $converterStage
+          }
+          foreach ($entry in $paths.GetEnumerator()) {
+            Add-Content -LiteralPath $env:GITHUB_ENV -Value "$($entry.Key)=$($entry.Value)" -Encoding utf8
           }
 
       - name: Check out the exact reviewed commit without retained credentials
