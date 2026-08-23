@@ -317,7 +317,7 @@ public sealed class WorkflowContractTests
         foreach (string required in new[]
         {
             "$env:SystemRoot", "$env:GITHUB_RUN_ID", "$env:GITHUB_RUN_ATTEMPT",
-            "OPENVINO_NATIVE_TEMP", "OPENVINO_TEST_ARTIFACTS",
+            "OPENVINO_NATIVE_TEMP",
             "OPENVINO_WINDOWS_POWERSHELL_MODULES",
             "System32/WindowsPowerShell/v1.0/Modules",
             ":openvino-stream-probe", "-Stream *",
@@ -367,9 +367,18 @@ public sealed class WorkflowContractTests
         string cleanup = Scalar(
             Step(steps, "Verify post-run integrity and clean operation-owned state"),
             "run");
-        Assert.AreEqual(
-            2,
-            Regex.Matches(source, @"(?m)^\s*--artifacts-path \$env:OPENVINO_TEST_ARTIFACTS `$").Count);
+        Assert.AreEqual(0, Regex.Matches(source, @"--artifacts-path").Count);
+        string shortWorkspace = Scalar(
+            Step(steps, "Bind operation-owned short workspace drive"),
+            "run");
+        foreach (string required in new[]
+        {
+            "$env:GITHUB_WORKSPACE", "Test-Path -LiteralPath 'O:\\'",
+            "subst.exe", "OPENVINO_SHORT_WORKSPACE=O:\\"
+        })
+        {
+            StringAssert.Contains(shortWorkspace, required);
+        }
         foreach (string stepName in new[]
         {
             "Run managed client and protected process gates",
@@ -377,12 +386,13 @@ public sealed class WorkflowContractTests
         })
         {
             string run = Scalar(Step(steps, stepName), "run");
-            Assert.AreEqual(
-                1,
-                Regex.Matches(run, @"(?m)^\s*--artifacts-path \$env:OPENVINO_TEST_ARTIFACTS `$").Count,
+            StringAssert.Contains(
+                run,
+                "$env:OPENVINO_SHORT_WORKSPACE",
                 stepName);
         }
-        StringAssert.Contains(cleanup, "$env:OPENVINO_TEST_ARTIFACTS");
+        StringAssert.Contains(cleanup, "$env:OPENVINO_SHORT_WORKSPACE");
+        StringAssert.Contains(cleanup, "& subst.exe 'O:' /D");
         StringAssert.Contains(cleanup, "$env:OPENVINO_NATIVE_TEMP");
         StringAssert.Contains(cleanup, "$env:GITHUB_RUN_ID");
         StringAssert.Contains(cleanup, "$env:GITHUB_RUN_ATTEMPT");

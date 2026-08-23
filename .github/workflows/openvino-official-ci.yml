@@ -122,7 +122,6 @@ jobs:
             OPENVINO_STAGE_A = Join-Path $root 'openvino-official-stage-a'
             OPENVINO_STAGE_B = Join-Path $root 'openvino-official-stage-b'
             OPENVINO_RESULTS = Join-Path $root 'openvino-official-results'
-            OPENVINO_TEST_ARTIFACTS = Join-Path $root 'openvino-official-test-artifacts'
             OPENVINO_CONVERTER_CLOSURE = Join-Path $root 'openvino-converter-closure'
             OPENVINO_CONVERTER_BUILD = Join-Path $root 'openvino-converter-build'
             OPENVINO_CONVERTER_STAGE = Join-Path $root 'openvino-converter-stage'
@@ -331,6 +330,23 @@ jobs:
             --report-trx --report-trx-filename package-tamper.trx
           if ($LASTEXITCODE -ne 0) { throw 'Package tamper tests failed.' }
 
+      - name: Bind operation-owned short workspace drive
+        timeout-minutes: 2
+        run: |
+          if (Test-Path -LiteralPath 'O:\') {
+            throw 'The operation-owned short workspace drive is already in use.'
+          }
+          & subst.exe 'O:' $env:GITHUB_WORKSPACE
+          if ($LASTEXITCODE -ne 0) { throw 'Could not bind the short workspace drive.' }
+          $mapping = [string](& subst.exe 'O:')
+          if ($LASTEXITCODE -ne 0 -or
+              $mapping -cnotmatch [Regex]::Escape([IO.Path]::GetFullPath($env:GITHUB_WORKSPACE))) {
+            & subst.exe 'O:' /D
+            throw 'The short workspace drive did not bind to the exact checkout.'
+          }
+          'OPENVINO_SHORT_WORKSPACE=O:\' |
+            Out-File -LiteralPath $env:GITHUB_ENV -Encoding utf8 -Append
+
       - name: Run managed client and protected process gates
         timeout-minutes: 25
         env:
@@ -347,8 +363,9 @@ jobs:
             --report-trx-filename worker-client.trx
           if ($LASTEXITCODE -ne 0) { throw 'OpenVINO WorkerClient tests failed.' }
           $watch = [Diagnostics.Stopwatch]::StartNew()
-          dotnet test --project tests/IntegrationTests/GraniteEdgeAI.OpenVino.WorkerProcess.Tests/GraniteEdgeAI.OpenVino.WorkerProcess.Tests.csproj `
-            --artifacts-path $env:OPENVINO_TEST_ARTIFACTS `
+          $processProject = Join-Path $env:OPENVINO_SHORT_WORKSPACE `
+            'tests/IntegrationTests/GraniteEdgeAI.OpenVino.WorkerProcess.Tests/GraniteEdgeAI.OpenVino.WorkerProcess.Tests.csproj'
+          dotnet test --project $processProject `
             --configuration Release -p:Platform=x64 --minimum-expected-tests 41 `
             --results-directory $env:OPENVINO_RESULTS --report-trx `
             --report-trx-filename process-containment.trx
@@ -367,8 +384,9 @@ jobs:
           $env:TEMP = $env:OPENVINO_NATIVE_TEMP
           $env:TMP = $env:OPENVINO_NATIVE_TEMP
           $env:PSModulePath = $env:OPENVINO_WINDOWS_POWERSHELL_MODULES
-          dotnet test --project tests/IntegrationTests/GraniteEdgeAI.OpenVino.WorkerProcess.Tests/GraniteEdgeAI.OpenVino.WorkerProcess.Tests.csproj `
-            --artifacts-path $env:OPENVINO_TEST_ARTIFACTS `
+          $processProject = Join-Path $env:OPENVINO_SHORT_WORKSPACE `
+            'tests/IntegrationTests/GraniteEdgeAI.OpenVino.WorkerProcess.Tests/GraniteEdgeAI.OpenVino.WorkerProcess.Tests.csproj'
+          dotnet test --project $processProject `
             --configuration Release -p:Platform=x64 `
             --filter TestCategory=StableRouteAcceptance --minimum-expected-tests 12 `
             --results-directory $env:OPENVINO_RESULTS --report-trx `
@@ -470,7 +488,7 @@ jobs:
             $failed = $true
           }
           $tempRoot = [IO.Path]::GetFullPath($env:RUNNER_TEMP).TrimEnd('\') + '\'
-          foreach ($owned in @($env:OPENVINO_ARCHIVES,$env:OPENVINO_BUILD_A,$env:OPENVINO_BUILD_B,$env:OPENVINO_STAGE_A,$env:OPENVINO_STAGE_B,$env:OPENVINO_RESULTS,$env:OPENVINO_TEST_ARTIFACTS,$env:OPENVINO_CONVERTER_CLOSURE,$env:OPENVINO_CONVERTER_BUILD,$env:OPENVINO_CONVERTER_STAGE)) {
+          foreach ($owned in @($env:OPENVINO_ARCHIVES,$env:OPENVINO_BUILD_A,$env:OPENVINO_BUILD_B,$env:OPENVINO_STAGE_A,$env:OPENVINO_STAGE_B,$env:OPENVINO_RESULTS,$env:OPENVINO_CONVERTER_CLOSURE,$env:OPENVINO_CONVERTER_BUILD,$env:OPENVINO_CONVERTER_STAGE)) {
             $full = [IO.Path]::GetFullPath($owned)
             if (-not $full.StartsWith($tempRoot,[StringComparison]::OrdinalIgnoreCase)) { $failed = $true; continue }
             if (Test-Path -LiteralPath $full) { Remove-Item -LiteralPath $full -Recurse -Force -ErrorAction SilentlyContinue }
@@ -489,6 +507,18 @@ jobs:
             Remove-Item -LiteralPath $nativeTemp -Recurse -Force -ErrorAction SilentlyContinue
           }
           if (Test-Path -LiteralPath $nativeTemp) { $failed = $true }
+          if ($env:OPENVINO_SHORT_WORKSPACE -ceq 'O:\') {
+            $mapping = [string](& subst.exe 'O:')
+            if ($LASTEXITCODE -ne 0 -or
+                $mapping -cnotmatch [Regex]::Escape([IO.Path]::GetFullPath($env:GITHUB_WORKSPACE))) {
+              $failed = $true
+            } else {
+              & subst.exe 'O:' /D
+              if ($LASTEXITCODE -ne 0 -or (Test-Path -LiteralPath 'O:\')) { $failed = $true }
+            }
+          } elseif (-not [string]::IsNullOrWhiteSpace($env:OPENVINO_SHORT_WORKSPACE)) {
+            $failed = $true
+          }
           if ($failed) { throw 'OpenVINO integrity or cleanup failed.' }
 
       - name: Privacy-check exact sanitized official evidence
