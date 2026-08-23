@@ -117,7 +117,8 @@ public sealed class GgufContractTests
                 GgufProtocolVersion.Current,
                 RequestId,
                 SessionId,
-                4),
+                4,
+                GgufCompletionReason.Stop),
             new ResponseStoppedEvent(
                 GgufProtocolVersion.Current,
                 RequestId,
@@ -173,5 +174,33 @@ public sealed class GgufContractTests
             new GgufRuntimeFailure(
                 (GgufRuntimeFailureCategory)int.MaxValue,
                 "runtime-unavailable"));
+    }
+
+    [TestMethod]
+    [DataRow(GgufCompletionReason.Stop)]
+    [DataRow(GgufCompletionReason.Length)]
+    public void ResponseCompletedRequiresAClosedCompletionReason(
+        GgufCompletionReason reason)
+    {
+        var runtimeEvent = new ResponseCompletedEvent(
+            GgufProtocolVersion.Current,
+            RequestId,
+            SessionId,
+            4,
+            reason);
+
+        Assert.AreEqual(reason, runtimeEvent.Reason);
+    }
+
+    [TestMethod]
+    public void ResponseCompletedRejectsUnknownCompletionReason()
+    {
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() =>
+            new ResponseCompletedEvent(
+                GgufProtocolVersion.Current,
+                RequestId,
+                SessionId,
+                4,
+                (GgufCompletionReason)99));
     }
 }

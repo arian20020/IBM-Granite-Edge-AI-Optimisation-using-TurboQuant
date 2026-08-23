@@ -106,7 +106,8 @@ internal sealed class GgufWorkerHost : IAsyncDisposable
                         GgufProtocolVersion.Current,
                         prompt.RequestId,
                         prompt.SessionId,
-                        NextSequence()),
+                        NextSequence(),
+                        GgufCompletionReason.Stop),
                     cancellationToken).ConfigureAwait(false);
                 pendingRead = read;
                 continue;

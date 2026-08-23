@@ -57,6 +57,41 @@ public sealed class GgufProtocolSerializerTests
     }
 
     [TestMethod]
+    [DataRow(GgufCompletionReason.Stop)]
+    [DataRow(GgufCompletionReason.Length)]
+    public void ResponseCompletedRoundTripPreservesReason(
+        GgufCompletionReason reason)
+    {
+        var runtimeEvent = new ResponseCompletedEvent(
+            GgufProtocolVersion.Current,
+            RequestId,
+            SessionId,
+            8,
+            reason);
+
+        byte[] payload = GgufProtocolSerializer.SerializeEvent(runtimeEvent);
+        var result = (ResponseCompletedEvent)
+            GgufProtocolSerializer.DeserializeEvent(payload);
+
+        Assert.AreEqual(reason, result.Reason);
+    }
+
+    [TestMethod]
+    public void DeserializeEventRejectsVersionOneCompletionPayload()
+    {
+        var runtimeEvent = new ResponseCompletedEvent(
+            1,
+            RequestId,
+            SessionId,
+            8,
+            GgufCompletionReason.Stop);
+        byte[] payload = GgufProtocolSerializer.SerializeEvent(runtimeEvent);
+
+        Assert.ThrowsExactly<GgufTransportException>(() =>
+            GgufProtocolSerializer.DeserializeEvent(payload));
+    }
+
+    [TestMethod]
     public void DeserializeCommandRejectsUnknownKind()
     {
         byte[] payload = Encoding.UTF8.GetBytes(

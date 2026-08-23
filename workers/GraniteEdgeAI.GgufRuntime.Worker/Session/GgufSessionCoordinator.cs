@@ -133,7 +133,8 @@ internal sealed class GgufSessionCoordinator
             GgufProtocolVersion.Current,
             _activeRequestId,
             sessionId,
-            NextSequence());
+            NextSequence(),
+            GgufCompletionReason.Stop);
     }
 
     private long NextSequence()

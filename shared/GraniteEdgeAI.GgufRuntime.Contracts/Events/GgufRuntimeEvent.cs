@@ -118,12 +118,26 @@ public sealed record UsageUpdatedEvent : GgufRuntimeEvent
     public int ContextTokenCount { get; }
 }
 
-public sealed record ResponseCompletedEvent(
-    int Version,
-    Guid CorrelationId,
-    GgufSessionId CorrelatedSessionId,
-    long EventSequence)
-    : GgufRuntimeEvent(Version, CorrelationId, CorrelatedSessionId, EventSequence);
+public sealed record ResponseCompletedEvent : GgufRuntimeEvent
+{
+    public ResponseCompletedEvent(
+        int protocolVersion,
+        Guid requestId,
+        GgufSessionId sessionId,
+        long sequence,
+        GgufCompletionReason reason)
+        : base(protocolVersion, requestId, sessionId, sequence)
+    {
+        if (!Enum.IsDefined(reason))
+        {
+            throw new ArgumentOutOfRangeException(nameof(reason));
+        }
+
+        Reason = reason;
+    }
+
+    public GgufCompletionReason Reason { get; }
+}
 
 public enum GgufStopDisposition
 {
