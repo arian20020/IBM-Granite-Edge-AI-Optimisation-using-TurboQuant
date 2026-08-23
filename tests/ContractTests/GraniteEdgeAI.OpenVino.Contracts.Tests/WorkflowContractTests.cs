@@ -914,6 +914,7 @@ public sealed class WorkflowContractTests
             ["static-inspection.trx"] = 177,
             ["worker-client.trx"] = 13,
             ["process-containment.trx"] = 41,
+            ["stable-route-acceptance.trx"] = 12,
             ["app-adapter.trx"] = 35,
             ["package-tamper.trx"] = 5
         };

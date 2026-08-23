@@ -122,6 +122,7 @@ try {
         'static-inspection.trx',
         'worker-client.trx',
         'process-containment.trx',
+        'stable-route-acceptance.trx',
         'app-adapter.trx',
         'package-tamper.trx',
         'native.xml')
@@ -162,10 +163,12 @@ try {
     $static = Get-TrxMeasurement (Join-Path $resultsRoot 'static-inspection.trx')
     $client = Get-TrxMeasurement (Join-Path $resultsRoot 'worker-client.trx')
     $process = Get-TrxMeasurement (Join-Path $resultsRoot 'process-containment.trx')
+    $stable = Get-TrxMeasurement (Join-Path $resultsRoot 'stable-route-acceptance.trx')
     $adapter = Get-TrxMeasurement (Join-Path $resultsRoot 'app-adapter.trx')
     $tamper = Get-TrxMeasurement (Join-Path $resultsRoot 'package-tamper.trx')
     if ($contracts.Count -lt 60 -or $static.Count -lt 177 -or
         $client.Count -lt 13 -or $process.Count -lt 41 -or
+        $stable.Count -lt 12 -or
         $adapter.Count -lt 35 -or $tamper.Count -lt 5) {
         Stop-Invalid
     }

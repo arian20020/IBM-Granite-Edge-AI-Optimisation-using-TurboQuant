@@ -2252,12 +2252,14 @@ public sealed class ModelInspectionFixturePresetTests
         try
         {
             DateTime deadline = DateTime.UtcNow.AddSeconds(15);
+            double requestedWidth = width;
+            double requestedHeight = height;
             do
             {
                 double scale = root.XamlRoot.RasterizationScale;
                 window.AppWindow.ResizeClient(new Windows.Graphics.SizeInt32(
-                    (int)Math.Round(width * scale),
-                    (int)Math.Round(height * scale)));
+                    (int)Math.Round(requestedWidth * scale),
+                    (int)Math.Round(requestedHeight * scale)));
                 Observe(null, EventArgs.Empty);
                 if (resized.Task.IsCompleted)
                 {
@@ -2273,6 +2275,13 @@ public sealed class ModelInspectionFixturePresetTests
                     root.UpdateLayout();
                     return;
                 }
+
+                requestedWidth = Math.Max(
+                    1d,
+                    requestedWidth + width - root.XamlRoot.Size.Width);
+                requestedHeight = Math.Max(
+                    1d,
+                    requestedHeight + height - root.XamlRoot.Size.Height);
             }
             while (DateTime.UtcNow < deadline);
 
