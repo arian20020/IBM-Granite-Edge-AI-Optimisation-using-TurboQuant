@@ -383,6 +383,83 @@ public sealed class ChatPageTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
+    public void CompletedAssistantDoesNotOfferContinuation()
+    {
+        var page = new ChatPage();
+        page.SynchronizeTranscript(
+            Guid.NewGuid(),
+            [ChatMessage.Assistant(
+                "Complete",
+                ChatCompletionStatus.Completed,
+                DateTimeOffset.UtcNow)],
+            forceFollowLatest: false);
+        ChatMessageBubble bubble = Assert.IsInstanceOfType<ChatMessageBubble>(
+            Assert.IsInstanceOfType<ListView>(page.FindName("TranscriptList")).Items[0]);
+
+        Button continuation = Assert.IsInstanceOfType<Button>(
+            bubble.FindName("ContinueButton"));
+
+        Assert.AreEqual(Visibility.Collapsed, continuation.Visibility);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void ContinuationRaisesTheEligibleAssistantIdOnce()
+    {
+        var page = new ChatPage();
+        ChatMessage assistant = ChatMessage.Assistant(
+            "Partial",
+            ChatCompletionStatus.LimitReached,
+            DateTimeOffset.UtcNow);
+        Guid? requested = null;
+        int requests = 0;
+        page.ContinuationRequested += (_, id) =>
+        {
+            requested = id;
+            requests++;
+        };
+        page.SynchronizeTranscript(
+            Guid.NewGuid(),
+            [assistant],
+            forceFollowLatest: false);
+        ChatMessageBubble bubble = Assert.IsInstanceOfType<ChatMessageBubble>(
+            Assert.IsInstanceOfType<ListView>(page.FindName("TranscriptList")).Items[0]);
+
+        Invoke(Assert.IsInstanceOfType<Button>(bubble.FindName("ContinueButton")));
+
+        Assert.AreEqual(1, requests);
+        Assert.AreEqual(assistant.Id, requested);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void CopyingStreamingPartialDoesNotRaiseStopOrContinuation()
+    {
+        var clipboard = new RecordingClipboard();
+        var page = new ChatPage(clipboard);
+        int stops = 0;
+        int continuations = 0;
+        page.StopRequested += (_, _) => stops++;
+        page.ContinuationRequested += (_, _) => continuations++;
+        page.SynchronizeTranscript(
+            Guid.NewGuid(),
+            [ChatMessage.Assistant(
+                "Partial answer",
+                ChatCompletionStatus.Streaming,
+                DateTimeOffset.UtcNow)],
+            forceFollowLatest: true);
+        ChatMessageBubble bubble = Assert.IsInstanceOfType<ChatMessageBubble>(
+            Assert.IsInstanceOfType<ListView>(page.FindName("TranscriptList")).Items[0]);
+
+        Invoke(Assert.IsInstanceOfType<Button>(bubble.FindName("CopyMessageButton")));
+
+        Assert.AreEqual(0, stops);
+        Assert.AreEqual(0, continuations);
+        Assert.AreEqual("Partial answer", clipboard.Text);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
     public void ClipboardFailureProvidesFeedbackWithoutChangingTranscript()
     {
         var clipboard = new RecordingClipboard(succeeds: false);

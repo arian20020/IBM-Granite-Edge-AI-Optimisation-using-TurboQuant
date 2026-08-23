@@ -22,6 +22,12 @@ public sealed partial class ChatMessageBubble : UserControl
     public static readonly DependencyProperty IsUserProperty = DependencyProperty.Register(
         nameof(IsUser), typeof(bool), typeof(ChatMessageBubble),
         new PropertyMetadata(false, OnIsUserChanged));
+    public static readonly DependencyProperty MessageIdProperty = DependencyProperty.Register(
+        nameof(MessageId), typeof(Guid), typeof(ChatMessageBubble),
+        new PropertyMetadata(Guid.Empty));
+    public static readonly DependencyProperty CanContinueProperty = DependencyProperty.Register(
+        nameof(CanContinue), typeof(bool), typeof(ChatMessageBubble),
+        new PropertyMetadata(false, OnCanContinueChanged));
 
     public ChatMessageBubble()
     {
@@ -35,6 +41,7 @@ public sealed partial class ChatMessageBubble : UserControl
     }
 
     public event EventHandler<string>? CopyRequested;
+    public event EventHandler<Guid>? ContinueRequested;
 
     public string MessageContent
     {
@@ -54,6 +61,18 @@ public sealed partial class ChatMessageBubble : UserControl
         set => SetValue(IsUserProperty, value);
     }
 
+    public Guid MessageId
+    {
+        get => (Guid)GetValue(MessageIdProperty);
+        set => SetValue(MessageIdProperty, value);
+    }
+
+    public bool CanContinue
+    {
+        get => (bool)GetValue(CanContinueProperty);
+        set => SetValue(CanContinueProperty, value);
+    }
+
     private static void OnIsUserChanged(
         DependencyObject sender,
         DependencyPropertyChangedEventArgs eventArguments) =>
@@ -63,6 +82,11 @@ public sealed partial class ChatMessageBubble : UserControl
         DependencyObject sender,
         DependencyPropertyChangedEventArgs eventArguments) =>
         ((ChatMessageBubble)sender).UpdateCopyAvailability();
+
+    private static void OnCanContinueChanged(
+        DependencyObject sender,
+        DependencyPropertyChangedEventArgs eventArguments) =>
+        ((ChatMessageBubble)sender).UpdateContinuationAvailability();
 
     private void ApplyRole()
     {
@@ -116,6 +140,27 @@ public sealed partial class ChatMessageBubble : UserControl
         if (!string.IsNullOrEmpty(MessageContent))
         {
             CopyRequested?.Invoke(this, MessageContent);
+        }
+    }
+
+    private void ContinueButton_Click(
+        object sender,
+        RoutedEventArgs eventArguments)
+    {
+        if (CanContinue && MessageId != Guid.Empty)
+        {
+            ContinueRequested?.Invoke(this, MessageId);
+        }
+    }
+
+    private void UpdateContinuationAvailability()
+    {
+        if (ContinueButton is not null)
+        {
+            ContinueButton.Visibility = CanContinue
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+            ContinueButton.IsEnabled = CanContinue;
         }
     }
 

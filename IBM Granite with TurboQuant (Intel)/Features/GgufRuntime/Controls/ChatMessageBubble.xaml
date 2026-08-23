@@ -35,24 +35,37 @@
                         Foreground="{ThemeResource GgufChatMutedBrush}" />
                 </StackPanel>
             </Border>
-            <Button
-                x:Name="CopyMessageButton"
+            <StackPanel
                 Margin="4,4,4,0"
-                Padding="6"
-                HorizontalAlignment="Left"
-                Background="Transparent"
-                BorderThickness="0"
-                Opacity="0"
-                AutomationProperties.Name="Copy message"
-                ToolTipService.ToolTip="Copy message"
-                Click="CopyMessageButton_Click"
-                GotFocus="CopyMessageButton_GotFocus"
-                LostFocus="CopyMessageButton_LostFocus">
-                <FontIcon
-                    x:Name="CopyMessageGlyph"
-                    FontSize="14"
-                    Glyph="&#xE8C8;" />
-            </Button>
+                Orientation="Horizontal"
+                Spacing="4">
+                <Button
+                    x:Name="ContinueButton"
+                    Padding="6,4"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Content="Continue generating"
+                    Visibility="Collapsed"
+                    AutomationProperties.Name="Continue generating"
+                    Click="ContinueButton_Click" />
+                <Button
+                    x:Name="CopyMessageButton"
+                    Padding="6"
+                    HorizontalAlignment="Left"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Opacity="0"
+                    AutomationProperties.Name="Copy message"
+                    ToolTipService.ToolTip="Copy message"
+                    Click="CopyMessageButton_Click"
+                    GotFocus="CopyMessageButton_GotFocus"
+                    LostFocus="CopyMessageButton_LostFocus">
+                    <FontIcon
+                        x:Name="CopyMessageGlyph"
+                        FontSize="14"
+                        Glyph="&#xE8C8;" />
+                </Button>
+            </StackPanel>
         </StackPanel>
     </Grid>
 </UserControl>

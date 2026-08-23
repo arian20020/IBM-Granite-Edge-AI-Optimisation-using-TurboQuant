@@ -59,6 +59,7 @@ internal sealed class ChatDemoController : IAsyncDisposable
         page.NewChatRequested += Page_NewChatRequested;
         page.SendRequested += Page_SendRequested;
         page.StopRequested += Page_StopRequested;
+        page.ContinuationRequested += Page_ContinuationRequested;
         page.ConversationSelected += Page_ConversationSelected;
         page.SetModelHeader(displayName, runtimeDescription);
     }
@@ -117,6 +118,7 @@ internal sealed class ChatDemoController : IAsyncDisposable
         page.NewChatRequested -= Page_NewChatRequested;
         page.SendRequested -= Page_SendRequested;
         page.StopRequested -= Page_StopRequested;
+        page.ContinuationRequested -= Page_ContinuationRequested;
         page.ConversationSelected -= Page_ConversationSelected;
         await coordinator.DisposeAsync();
     }
@@ -160,6 +162,26 @@ internal sealed class ChatDemoController : IAsyncDisposable
         if (!disposed)
         {
             await coordinator.StopAsync(CancellationToken.None);
+        }
+    }
+
+    private async void Page_ContinuationRequested(object? sender, Guid messageId)
+    {
+        if (disposed || coordinator.IsGenerating)
+        {
+            return;
+        }
+
+        followLatest = true;
+        page.SetGenerating(true);
+        try
+        {
+            await coordinator.ContinueAsync(messageId, CancellationToken.None);
+        }
+        finally
+        {
+            page.SetGenerating(false);
+            renderScheduler.Request();
         }
     }
 

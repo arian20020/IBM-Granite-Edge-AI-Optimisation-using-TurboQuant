@@ -1,6 +1,7 @@
 using GraniteEdgeAI.Features.GgufRuntime;
 using GraniteEdgeAI.Features.GgufRuntime.Attachments;
 using GraniteEdgeAI.Features.GgufRuntime.Controls;
+using GraniteEdgeAI.Features.GgufRuntime.History;
 using GraniteEdgeAI.UnitTests.Features.ModelInspection.Visual;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
@@ -111,6 +112,40 @@ public sealed class ChatAccessibilityTests
             Assert.AreEqual(string.Empty, AutomationProperties.GetName(image));
             Assert.IsFalse(image.IsTabStop);
         }
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task OnlyLatestLimitedAssistantOffersKeyboardContinuation()
+    {
+        var page = new ChatPage();
+        ChatMessage first = ChatMessage.Assistant(
+            "First partial",
+            ChatCompletionStatus.LimitReached,
+            DateTimeOffset.UtcNow);
+        ChatMessage latest = ChatMessage.Assistant(
+            "Latest partial",
+            ChatCompletionStatus.LimitReached,
+            DateTimeOffset.UtcNow.AddSeconds(1));
+        page.SynchronizeTranscript(
+            Guid.NewGuid(),
+            [first, latest],
+            forceFollowLatest: false);
+        await using WinUiRenderHost host =
+            await WinUiRenderHost.ShowAsync(page, 900, 520);
+        ListView transcript = Assert.IsInstanceOfType<ListView>(
+            page.FindName("TranscriptList"));
+        Button firstAction = Assert.IsInstanceOfType<Button>(
+            Assert.IsInstanceOfType<ChatMessageBubble>(transcript.Items[0])
+                .FindName("ContinueButton"));
+        Button latestAction = Assert.IsInstanceOfType<Button>(
+            Assert.IsInstanceOfType<ChatMessageBubble>(transcript.Items[1])
+                .FindName("ContinueButton"));
+
+        Assert.AreEqual(Visibility.Collapsed, firstAction.Visibility);
+        Assert.AreEqual(Visibility.Visible, latestAction.Visibility);
+        Assert.AreEqual("Continue generating", AutomationProperties.GetName(latestAction));
+        AssertKeyboardFocusable(page, latestAction);
     }
 
     private static Button FindButton(FrameworkElement root, string name) =>

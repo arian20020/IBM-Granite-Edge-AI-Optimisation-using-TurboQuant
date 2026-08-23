@@ -43,6 +43,7 @@ public sealed partial class ChatPage : Page
     public event EventHandler<string>? SendRequested;
     public event EventHandler? StopRequested;
     public event EventHandler<Guid>? ConversationSelected;
+    public event EventHandler<Guid>? ContinuationRequested;
 
     public void SetModelHeader(string displayName, string runtimeDescription)
     {
@@ -110,11 +111,16 @@ public sealed partial class ChatPage : Page
                 nameof(conversationId));
         }
 
+        ChatMessage[] visibleMessages = messages
+            .Where(message => message.IsVisible)
+            .ToArray();
         ScrollViewer? scrollViewer = FindDescendant<ScrollViewer>(TranscriptList);
         bool shouldFollowLatest = forceFollowLatest ||
             scrollViewer is null ||
             ShouldFollowOutput(scrollViewer.VerticalOffset, scrollViewer.ScrollableHeight);
-        bool requiresTranscriptReset = RequiresTranscriptReset(conversationId, messages);
+        bool requiresTranscriptReset = RequiresTranscriptReset(
+            conversationId,
+            visibleMessages);
         if (requiresTranscriptReset)
         {
             ResetTranscript(conversationId);
@@ -124,9 +130,9 @@ public sealed partial class ChatPage : Page
             CancelTranscriptFollow();
         }
 
-        for (int index = 0; index < messages.Count; index++)
+        for (int index = 0; index < visibleMessages.Length; index++)
         {
-            ChatMessage message = messages[index];
+            ChatMessage message = visibleMessages[index];
             if (!transcriptBubbles.TryGetValue(message.Id, out ChatMessageBubble? bubble))
             {
                 bubble = CreateMessageBubble();
@@ -138,13 +144,18 @@ public sealed partial class ChatPage : Page
             bubble.MessageContent = message.Content;
             bubble.IsUser = message.Role == ChatMessageRole.User;
             bubble.StatusText = FormatStatus(message.Status);
+            bubble.MessageId = message.Id;
+            bubble.CanContinue =
+                index == visibleMessages.Length - 1 &&
+                message.Role == ChatMessageRole.Assistant &&
+                message.Status == ChatCompletionStatus.LimitReached;
         }
 
-        currentMessages = messages.ToArray();
+        currentMessages = visibleMessages;
         CopyChatButton.IsEnabled = currentMessages.Any(
             message => !string.IsNullOrWhiteSpace(message.Content));
 
-        if (messages.Count == 0)
+        if (visibleMessages.Length == 0)
         {
             CancelTranscriptFollow();
             EmptyConversationState.Visibility = Visibility.Visible;
@@ -172,6 +183,7 @@ public sealed partial class ChatPage : Page
         ChatCompletionStatus.Stopped => "Stopped",
         ChatCompletionStatus.Incomplete => "Incomplete",
         ChatCompletionStatus.Failed => "Failed",
+        ChatCompletionStatus.LimitReached => "Response limit reached",
         _ => string.Empty,
     };
 
@@ -203,6 +215,7 @@ public sealed partial class ChatPage : Page
             .OfType<ChatMessageBubble>())
         {
             bubble.CopyRequested -= MessageBubble_CopyRequested;
+            bubble.ContinueRequested -= MessageBubble_ContinueRequested;
         }
 
         TranscriptList.Items.Clear();
@@ -310,8 +323,12 @@ public sealed partial class ChatPage : Page
             HorizontalAlignment = HorizontalAlignment.Stretch,
         };
         bubble.CopyRequested += MessageBubble_CopyRequested;
+        bubble.ContinueRequested += MessageBubble_ContinueRequested;
         return bubble;
     }
+
+    private void MessageBubble_ContinueRequested(object? sender, Guid messageId) =>
+        ContinuationRequested?.Invoke(this, messageId);
 
     private void MessageBubble_CopyRequested(object? sender, string content)
     {
