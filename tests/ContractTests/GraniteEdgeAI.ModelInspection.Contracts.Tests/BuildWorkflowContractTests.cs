@@ -21,7 +21,7 @@ public sealed class BuildWorkflowContractTests
         "/TestCaseFilter:\"TestCategory!=ModelInspectionVisualRegression&TestCategory!=ModelInspectionControlledOs&TestCategory!=OfficialNative\"";
 
     private const string HostedPackagedStepSha256 =
-        "B2AB914BFEEAE6C7FBC899F1EF2E8031451843D3889C3709ABADA29DF2A6B812";
+        "706E5E6F372CE847B68442340680C96DACF7083EE405CF2B1C3DDDF446527853";
 
     private const string ControlledWorkflowSha256 =
         "5A58BE19B9B7F0A6E56ECF6DA136AE138AC1F74A7FDEFAA72BEFC58B353CFEC7";
@@ -43,7 +43,7 @@ public sealed class BuildWorkflowContractTests
             ("GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation.ModelInspectionPresentationFactoryTests", 18),
             ("GraniteEdgeAI.UnitTests.InspectionVisualStateGuardTests", 13),
             ("GraniteEdgeAI.UnitTests.ModelInspectionPageNavigationTests", 39),
-            ("GraniteEdgeAI.UnitTests.OnboardingModelInspectionNavigationTests", 14),
+            ("GraniteEdgeAI.UnitTests.OnboardingModelInspectionNavigationTests", 20),
             ("GraniteEdgeAI.UnitTests.ModelInspectionWorkerCompositionTests", 13),
             ("GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation.ModelInspectionAssetContractTests", 3),
             ("GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation.ModelInspectionDisplayTextPolicyTests", 46),
@@ -395,7 +395,7 @@ public sealed class BuildWorkflowContractTests
             "ModelInspectionPresentationFactoryTests' = 18",
             "InspectionVisualStateGuardTests' = 13",
             "ModelInspectionPageNavigationTests' = 39",
-            "OnboardingModelInspectionNavigationTests' = 14",
+            "OnboardingModelInspectionNavigationTests' = 20",
             "ModelInspectionWorkerCompositionTests' = 13",
             "ModelInspectionAssetContractTests' = 3",
             "ModelInspectionDisplayTextPolicyTests' = 46",

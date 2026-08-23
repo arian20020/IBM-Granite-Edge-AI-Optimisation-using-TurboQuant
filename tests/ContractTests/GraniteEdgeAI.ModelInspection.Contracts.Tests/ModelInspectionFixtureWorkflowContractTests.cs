@@ -30,7 +30,7 @@ public sealed class ModelInspectionFixtureWorkflowContractTests
         "Check out required build inputs";
 
     private const string HostedReleaseStepSha256 =
-        "B2AB914BFEEAE6C7FBC899F1EF2E8031451843D3889C3709ABADA29DF2A6B812";
+        "706E5E6F372CE847B68442340680C96DACF7083EE405CF2B1C3DDDF446527853";
 
     private const int HostedReleaseExpectedTotal = 799;
 
