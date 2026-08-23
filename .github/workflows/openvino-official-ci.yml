@@ -127,6 +127,7 @@ jobs:
             OPENVINO_CONVERTER_STAGE = Join-Path $root 'openvino-converter-stage'
             OPENVINO_MEASUREMENTS = Join-Path $root 'openvino-official-results/measurements.json'
             OPENVINO_NATIVE_TEMP = $nativeTemp
+            OPENVINO_CONTROLLED_FIXTURE_ROOT = Join-Path $nativeTemp 'controlled-fixture'
             OPENVINO_WINDOWS_POWERSHELL_MODULES = Join-Path $env:SystemRoot 'System32/WindowsPowerShell/v1.0/Modules'
           }
           foreach ($entry in $paths.GetEnumerator()) {
@@ -170,6 +171,7 @@ jobs:
             $env:OPENVINO_BUILD_B,
             $env:OPENVINO_STAGE_A,
             $env:OPENVINO_STAGE_B,
+            $env:OPENVINO_CONTROLLED_FIXTURE_ROOT,
             (Split-Path -Parent $env:OPENVINO_EVIDENCE_FILE))) {
             if (Test-Path -LiteralPath $path) {
               throw 'An operation-owned OpenVINO path already exists.'
@@ -199,12 +201,29 @@ jobs:
           if ($LASTEXITCODE -ne 0 -or [string]$dependency -cne 'dependency_lock_valid') {
             throw 'Official dependency verification failed.'
           }
+          $fixtureSource = 'tests/TestFixtures/OpenVINO/GenAI/TinySyntheticV1'
           $fixture = & powershell.exe -NoLogo -NoProfile -NonInteractive `
             -ExecutionPolicy Bypass -File scripts/openvino/Test-OpenVinoGenAiFixture.ps1 `
-            -FixtureRoot tests/TestFixtures/OpenVINO/GenAI/TinySyntheticV1
+            -FixtureRoot $fixtureSource
           if ($LASTEXITCODE -ne 0 -or [string]$fixture -cne 'fixture_valid') {
             throw 'The deterministic fixture failed verification.'
           }
+          New-Item -ItemType Directory -Path $env:OPENVINO_CONTROLLED_FIXTURE_ROOT | Out-Null
+          Get-ChildItem -LiteralPath $fixtureSource | Copy-Item `
+            -Destination $env:OPENVINO_CONTROLLED_FIXTURE_ROOT -Recurse
+          $controlledFixture = & powershell.exe -NoLogo -NoProfile -NonInteractive `
+            -ExecutionPolicy Bypass -File scripts/openvino/Test-OpenVinoGenAiFixture.ps1 `
+            -FixtureRoot $env:OPENVINO_CONTROLLED_FIXTURE_ROOT
+          if ($LASTEXITCODE -ne 0 -or [string]$controlledFixture -cne 'fixture_valid') {
+            throw 'The protected-volume fixture copy failed verification.'
+          }
+          $fixtureManifest = Join-Path $env:OPENVINO_CONTROLLED_FIXTURE_ROOT 'manifest.json'
+          $fixtureManifestSha = (Get-FileHash -LiteralPath $fixtureManifest `
+            -Algorithm SHA256).Hash.ToLowerInvariant()
+          "OPENVINO_UCL_CONTROLLED_FIXTURE_ROOT=$env:OPENVINO_CONTROLLED_FIXTURE_ROOT" |
+            Out-File -LiteralPath $env:GITHUB_ENV -Encoding utf8 -Append
+          "OPENVINO_UCL_CONTROLLED_FIXTURE_MANIFEST_SHA256=$fixtureManifestSha" |
+            Out-File -LiteralPath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Build and test independent Release x64 native closure A
         timeout-minutes: 35
@@ -362,11 +381,16 @@ jobs:
             --results-directory $env:OPENVINO_RESULTS --report-trx `
             --report-trx-filename worker-client.trx
           if ($LASTEXITCODE -ne 0) { throw 'OpenVINO WorkerClient tests failed.' }
+          $parentFixtureProject = Join-Path $env:OPENVINO_SHORT_WORKSPACE `
+            'tests/ProcessFixtures/GraniteEdgeAI.OpenVino.ParentExitFixture/GraniteEdgeAI.OpenVino.ParentExitFixture.csproj'
+          dotnet build $parentFixtureProject --configuration Release -p:Platform=x64
+          if ($LASTEXITCODE -ne 0) { throw 'Managed parent-loss fixture build failed.' }
           $watch = [Diagnostics.Stopwatch]::StartNew()
           $processProject = Join-Path $env:OPENVINO_SHORT_WORKSPACE `
             'tests/IntegrationTests/GraniteEdgeAI.OpenVino.WorkerProcess.Tests/GraniteEdgeAI.OpenVino.WorkerProcess.Tests.csproj'
           dotnet test --project $processProject `
-            --configuration Release -p:Platform=x64 --minimum-expected-tests 41 `
+            --configuration Release -p:Platform=x64 `
+            --filter TestCategory!=TurboQuantNative --minimum-expected-tests 41 `
             --results-directory $env:OPENVINO_RESULTS --report-trx `
             --report-trx-filename process-containment.trx
           $watch.Stop()

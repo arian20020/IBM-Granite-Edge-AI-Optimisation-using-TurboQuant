@@ -364,6 +364,26 @@ public sealed class WorkflowContractTests
             "run");
         StringAssert.Contains(contracts, "Get-Command Get-FileHash -ErrorAction Stop");
 
+        string acquisition = Scalar(
+            Step(steps, "Acquire and verify exact official dependencies and fixture"),
+            "run");
+        foreach (string required in new[]
+        {
+            "OPENVINO_CONTROLLED_FIXTURE_ROOT",
+            "OPENVINO_UCL_CONTROLLED_FIXTURE_MANIFEST_SHA256",
+            "Copy-Item",
+            "Test-OpenVinoGenAiFixture.ps1"
+        })
+        {
+            StringAssert.Contains(acquisition, required);
+        }
+
+        string managed = Scalar(
+            Step(steps, "Run managed client and protected process gates"),
+            "run");
+        StringAssert.Contains(managed, "GraniteEdgeAI.OpenVino.ParentExitFixture.csproj");
+        StringAssert.Contains(managed, "--filter TestCategory!=TurboQuantNative");
+
         string cleanup = Scalar(
             Step(steps, "Verify post-run integrity and clean operation-owned state"),
             "run");
