@@ -94,7 +94,8 @@ function Read-DevelopmentAcceptanceResult {
         throw 'The development acceptance result counts are inconsistent.'
     }
     if ($failedNames.Count -ne 0 -or $total -ne $passed) {
-        throw 'A development acceptance repetition did not pass completely.'
+        throw ('A development acceptance repetition failed: {0}' -f
+            ($failedNames -join ', '))
     }
 
     [pscustomobject]@{

@@ -585,8 +585,8 @@ class DevelopmentAcceptanceGuestBoundaryTests(unittest.TestCase):
                 json.loads(probe.stdout),
             )
 
-    def test_guest_rejects_acceptance_result_with_failures(self):
-        """Catch a campaign that treats a well-formed failing run as acceptance."""
+    def test_guest_reports_names_and_rejects_acceptance_result_with_failures(self):
+        """Catch a failing campaign whose bounded test identity is hidden from diagnosis."""
         with tempfile.TemporaryDirectory() as directory:
             result_path = Path(directory) / "acceptance.json"
             result_path.write_bytes(
@@ -601,7 +601,7 @@ class DevelopmentAcceptanceGuestBoundaryTests(unittest.TestCase):
             )
             self.assertNotEqual(0, probe.returncode, probe.stdout)
             self.assertIn(
-                "A development acceptance repetition did not pass completely.",
+                "A development acceptance repetition failed: HardwareInspection.Failed",
                 probe.stderr,
             )
 
