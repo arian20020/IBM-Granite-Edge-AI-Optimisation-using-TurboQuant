@@ -17,21 +17,20 @@ internal static class HardwareInspectionProcessAcceptanceHost
     private const int MaximumTestCount = 128;
     private const int MaximumTestNameScalars = 512;
 
-    internal static bool TryParseActivation(string arguments, out string resultToken)
+    internal static bool TryParseActivation(
+        IReadOnlyList<string> commandLine,
+        out string resultToken)
     {
         resultToken = string.Empty;
-        string[] parts = arguments.Split(
-            ' ',
-            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (parts.Length != 3 ||
-            !string.Equals(parts[0], ActivationCommand, StringComparison.Ordinal) ||
-            !string.Equals(parts[1], ResultTokenSwitch, StringComparison.Ordinal) ||
-            !IsResultToken(parts[2]))
+        if (commandLine.Count != 4 ||
+            !string.Equals(commandLine[1], ActivationCommand, StringComparison.Ordinal) ||
+            !string.Equals(commandLine[2], ResultTokenSwitch, StringComparison.Ordinal) ||
+            !IsResultToken(commandLine[3]))
         {
             return false;
         }
 
-        resultToken = parts[2];
+        resultToken = commandLine[3];
         return true;
     }
 

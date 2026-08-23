@@ -16,7 +16,7 @@ public partial class UnitTestApp : Application
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
         if (HardwareInspectionProcessAcceptanceHost.TryParseActivation(
-                args.Arguments,
+                Environment.GetCommandLineArgs(),
                 out string resultToken))
         {
             _ = RunHardwareInspectionProcessAcceptanceAsync(resultToken);
