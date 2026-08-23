@@ -242,9 +242,15 @@ public sealed class PackagingContractTests
     public async Task CleanupInventoryRejectsOwnedStagingResidue()
     {
         using TemporaryDirectory directory = TemporaryDirectory.Create();
+        using TemporaryDirectory official = TemporaryDirectory.Create();
+        using TemporaryDirectory converter = TemporaryDirectory.Create();
+        using TemporaryDirectory turboQuant = TemporaryDirectory.Create();
         ProcessResult clean = await RunPowerShellAsync(
             "scripts/openvino/Test-OpenVinoCleanupInventory.ps1",
-            "-OperationRoot", directory.Path);
+            "-OperationRoot", directory.Path,
+            "-OfficialWorkerRoot", official.Path,
+            "-ConverterRoot", converter.Path,
+            "-TurboQuantRoot", turboQuant.Path);
         Assert.AreEqual(0, clean.ExitCode, clean.Output);
         Assert.AreEqual("openvino_cleanup_valid", clean.Output.Trim());
 
@@ -252,7 +258,10 @@ public sealed class PackagingContractTests
             directory.Path, ".granite-openvino-test.staging"));
         ProcessResult residue = await RunPowerShellAsync(
             "scripts/openvino/Test-OpenVinoCleanupInventory.ps1",
-            "-OperationRoot", directory.Path);
+            "-OperationRoot", directory.Path,
+            "-OfficialWorkerRoot", official.Path,
+            "-ConverterRoot", converter.Path,
+            "-TurboQuantRoot", turboQuant.Path);
         Assert.AreNotEqual(0, residue.ExitCode);
         Assert.AreEqual("openvino_cleanup_invalid", residue.Output.Trim());
     }

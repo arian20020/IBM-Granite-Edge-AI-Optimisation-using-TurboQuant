@@ -244,7 +244,9 @@ try {
         & powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
             -File (Join-Path $PSScriptRoot 'Test-OpenVinoCleanupInventory.ps1') `
             -OperationRoot $operationRoot `
-            -OwnedRoots $officialStage $converterStage $turboStage
+            -OfficialWorkerRoot $officialStage `
+            -ConverterRoot $converterStage `
+            -TurboQuantRoot $turboStage
     }
     Invoke-Checked 'traceability' {
         $catalogue = Join-Path $repository 'docs\evidence\openvino\README.md'

@@ -3,7 +3,10 @@ param(
     [Parameter(Mandatory)]
     [ValidateNotNullOrEmpty()]
     [string]$OperationRoot,
-    [string[]]$OwnedRoots = @()
+    [string[]]$OwnedRoots = @(),
+    [string]$OfficialWorkerRoot = '',
+    [string]$ConverterRoot = '',
+    [string]$TurboQuantRoot = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -28,7 +31,11 @@ try {
         'GraniteEdgeAI.OpenVino.ParentExitFixture.exe'
     )
     $processes = @(Get-CimInstance Win32_Process -ErrorAction Stop)
-    $normalizedOwnedRoots = @($OwnedRoots | Where-Object {
+    $allOwnedRoots = @($OwnedRoots) + @(
+        $OfficialWorkerRoot,
+        $ConverterRoot,
+        $TurboQuantRoot)
+    $normalizedOwnedRoots = @($allOwnedRoots | Where-Object {
             -not [string]::IsNullOrWhiteSpace($_) } | ForEach-Object {
             [IO.Path]::GetFullPath($_).TrimEnd('\', '/') +
                 [IO.Path]::DirectorySeparatorChar })
