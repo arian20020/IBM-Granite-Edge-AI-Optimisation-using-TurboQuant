@@ -186,7 +186,6 @@ public sealed class OfficialCpuFixtureTests
                 new PromptCommand(cancelled.SessionId, Guid.NewGuid(), "hello", 2),
                 new InlineProgress<TokenEvent>(cancelledTokens.Add),
                 CancellationToken.None);
-            await Task.Delay(50).ConfigureAwait(false);
             OpenVinoWorkerClientException cancellation = await Assert.ThrowsExactlyAsync<OpenVinoWorkerClientException>(
                 async () =>
                 {
