@@ -215,6 +215,26 @@ public sealed class HandoffBundleContractTests
         StringAssert.Contains(builder, "$ErrorActionPreference = $savedErrorAction");
     }
 
+    [TestMethod]
+    public void ArchiveToolsLoadCompressionAndOwnPartiallyAcquiredResources()
+    {
+        string builder = File.ReadAllText(RepoPath(
+            "scripts/openvino/handoff/New-OpenVinoUclHandoff.ps1"));
+        string initializer = File.ReadAllText(RepoPath(
+            "scripts/openvino/handoff/Initialize-UclHandoff.ps1"));
+        foreach (string script in new[] { builder, initializer })
+        {
+            StringAssert.Contains(script,
+                "Add-Type -AssemblyName System.IO.Compression");
+            StringAssert.Contains(script, "$archive = $null");
+            StringAssert.Contains(script, "if ($null -ne $archive)");
+        }
+        StringAssert.Contains(builder, "$stream = $null");
+        StringAssert.Contains(builder, "if ($null -ne $stream)");
+        StringAssert.Contains(builder, "$output = $null");
+        StringAssert.Contains(initializer, "$output = $null");
+    }
+
     private static string RepoPath(string relative) => Path.Combine(
         FindRepositoryRoot(), relative.Replace('/', Path.DirectorySeparatorChar));
 

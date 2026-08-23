@@ -127,9 +127,11 @@ function Expand-SafeArchive {
         [Parameter(Mandatory)][int]$ExpectedFileCount,
         [Parameter(Mandatory)][long]$ExpectedExpandedBytes
     )
+    Add-Type -AssemblyName System.IO.Compression
     Add-Type -AssemblyName System.IO.Compression.FileSystem
-    $archive = [IO.Compression.ZipFile]::OpenRead($ArchivePath)
+    $archive = $null
     try {
+        $archive = [IO.Compression.ZipFile]::OpenRead($ArchivePath)
         if ($archive.Entries.Count -ne $ExpectedFileCount -or
             $archive.Entries.Count -gt 30000) {
             throw 'archive-entry-count-invalid'
@@ -158,10 +160,12 @@ function Expand-SafeArchive {
             }
             $parent = Split-Path -Parent $target
             $null = New-Item -ItemType Directory -Path $parent -Force
-            $input = $entry.Open()
-            $output = [IO.File]::Open($target, [IO.FileMode]::CreateNew,
-                [IO.FileAccess]::Write, [IO.FileShare]::None)
+            $input = $null
+            $output = $null
             try {
+                $input = $entry.Open()
+                $output = [IO.File]::Open($target, [IO.FileMode]::CreateNew,
+                    [IO.FileAccess]::Write, [IO.FileShare]::None)
                 $buffer = [byte[]]::new(81920)
                 [long]$copied = 0
                 while (($read = $input.Read($buffer, 0, $buffer.Length)) -gt 0) {
@@ -176,8 +180,8 @@ function Expand-SafeArchive {
                 }
             }
             finally {
-                $output.Dispose()
-                $input.Dispose()
+                if ($null -ne $output) { $output.Dispose() }
+                if ($null -ne $input) { $input.Dispose() }
             }
             $expandedBytes += [long]$entry.Length
         }
@@ -185,7 +189,9 @@ function Expand-SafeArchive {
             throw 'expanded-size-invalid'
         }
     }
-    finally { $archive.Dispose() }
+    finally {
+        if ($null -ne $archive) { $archive.Dispose() }
+    }
 }
 
 function Invoke-ManifestVerifier {

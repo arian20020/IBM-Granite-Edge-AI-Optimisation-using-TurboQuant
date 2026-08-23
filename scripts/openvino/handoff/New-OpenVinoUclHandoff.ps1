@@ -126,13 +126,16 @@ function New-DirectoryArchive {
         [Parameter(Mandatory)][string]$SourceRoot,
         [Parameter(Mandatory)][string]$ArchivePath
     )
+    Add-Type -AssemblyName System.IO.Compression
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     $tree = Test-InputTree $SourceRoot
-    $stream = [IO.File]::Open($ArchivePath, [IO.FileMode]::CreateNew,
-        [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
-    $archive = [IO.Compression.ZipArchive]::new(
-        $stream, [IO.Compression.ZipArchiveMode]::Create, $false)
+    $stream = $null
+    $archive = $null
     try {
+        $stream = [IO.File]::Open($ArchivePath, [IO.FileMode]::CreateNew,
+            [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
+        $archive = [IO.Compression.ZipArchive]::new(
+            $stream, [IO.Compression.ZipArchiveMode]::Create, $true)
         foreach ($file in $tree.Files) {
             $relative = Get-SafeRelativePath $SourceRoot $file.FullName
             if ([IO.Path]::IsPathRooted($relative) -or
@@ -147,10 +150,12 @@ function New-DirectoryArchive {
                 [IO.Compression.CompressionLevel]::Optimal)
             $entry.LastWriteTime = [DateTimeOffset]::new(
                 2000, 1, 1, 0, 0, 0, [TimeSpan]::Zero)
-            $input = [IO.File]::Open($file.FullName, [IO.FileMode]::Open,
-                [IO.FileAccess]::Read, [IO.FileShare]::Read)
-            $output = $entry.Open()
+            $input = $null
+            $output = $null
             try {
+                $input = [IO.File]::Open($file.FullName, [IO.FileMode]::Open,
+                    [IO.FileAccess]::Read, [IO.FileShare]::Read)
+                $output = $entry.Open()
                 $buffer = [byte[]]::new(81920)
                 [long]$copied = 0
                 while (($read = $input.Read($buffer, 0, $buffer.Length)) -gt 0) {
@@ -165,18 +170,19 @@ function New-DirectoryArchive {
                 }
             }
             finally {
-                $output.Dispose()
-                $input.Dispose()
+                if ($null -ne $output) { $output.Dispose() }
+                if ($null -ne $input) { $input.Dispose() }
             }
         }
     }
     finally {
-        $archive.Dispose()
-        $stream.Dispose()
+        if ($null -ne $archive) { $archive.Dispose() }
+        if ($null -ne $stream) { $stream.Dispose() }
     }
 
-    $readArchive = [IO.Compression.ZipFile]::OpenRead($ArchivePath)
+    $readArchive = $null
     try {
+        $readArchive = [IO.Compression.ZipFile]::OpenRead($ArchivePath)
         $names = [Collections.Generic.HashSet[string]]::new(
             [StringComparer]::OrdinalIgnoreCase)
         [long]$expanded = 0
@@ -198,7 +204,9 @@ function New-DirectoryArchive {
             throw 'archive-inventory-invalid'
         }
     }
-    finally { $readArchive.Dispose() }
+    finally {
+        if ($null -ne $readArchive) { $readArchive.Dispose() }
+    }
     return [pscustomobject]@{
         FileCount = $tree.FileCount
         Bytes = $tree.Bytes
