@@ -1,5 +1,6 @@
 using Microsoft.UI.Xaml;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
+using GraniteEdgeAI.UnitTests.Features.HardwareInspection.Acceptance;
 
 namespace GraniteEdgeAI.UnitTests;
 
@@ -14,6 +15,14 @@ public partial class UnitTestApp : Application
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
+        if (HardwareInspectionProcessAcceptanceHost.TryParseActivation(
+                args.Arguments,
+                out string resultToken))
+        {
+            _ = RunHardwareInspectionProcessAcceptanceAsync(resultToken);
+            return;
+        }
+
         Microsoft.VisualStudio.TestPlatform.TestExecutor.UnitTestClient.CreateDefaultUI();
 
         _window = new UnitTestAppWindow();
@@ -22,5 +31,11 @@ public partial class UnitTestApp : Application
 
         Microsoft.VisualStudio.TestPlatform.TestExecutor.UnitTestClient.Run(
             Environment.CommandLine);
+    }
+
+    private static async Task RunHardwareInspectionProcessAcceptanceAsync(string resultToken)
+    {
+        int exitCode = await HardwareInspectionProcessAcceptanceHost.RunAsync(resultToken);
+        Environment.Exit(exitCode);
     }
 }
