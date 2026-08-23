@@ -1,0 +1,54 @@
+<Project>
+  <PropertyGroup>
+    <_HardwareInspectionFixturePublishRoot>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\$(BaseIntermediateOutputPath)hardware-inspection-process-fixtures\publish\win-x64'))</_HardwareInspectionFixturePublishRoot>
+    <_HardwareInspectionFixturePackageRoot>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\$(BaseIntermediateOutputPath)hardware-inspection-process-fixtures\package'))</_HardwareInspectionFixturePackageRoot>
+    <_HardwareInspectionFixtureArtifactsRoot>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\$(BaseIntermediateOutputPath)hardware-inspection-process-fixtures\artifacts'))</_HardwareInspectionFixtureArtifactsRoot>
+    <_HardwareInspectionFixtureProject>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..\ProcessFixtures\GraniteEdgeAI.HardwareInspection.LlmFitFakeTool\GraniteEdgeAI.HardwareInspection.LlmFitFakeTool.csproj'))</_HardwareInspectionFixtureProject>
+    <_HardwareInspectionFixtureRepositoryRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..\..'))</_HardwareInspectionFixtureRepositoryRoot>
+    <_HardwareInspectionFixtureDotNetHost Condition="'$(DotNetHostPath)' != ''">$(DotNetHostPath)</_HardwareInspectionFixtureDotNetHost>
+    <_HardwareInspectionFixtureDotNetHost Condition="'$(_HardwareInspectionFixtureDotNetHost)' == ''">dotnet</_HardwareInspectionFixtureDotNetHost>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <_HardwareInspectionLlmFitMode Include="assert-in-job;invalid-json;large-output;nonzero;sleep;spawn-child;spawn-child-exit;success;version-mismatch" />
+  </ItemGroup>
+
+  <Target
+    Name="PublishHardwareInspectionProcessFixturesForPackagedTests"
+    BeforeTargets="AssignTargetPaths"
+    Condition="'$(Platform)' == 'x64' and '$(DesignTimeBuild)' != 'true'">
+    <RemoveDir Directories="$(_HardwareInspectionFixturePublishRoot);$(_HardwareInspectionFixturePackageRoot);$(_HardwareInspectionFixtureArtifactsRoot)" />
+    <MakeDir Directories="$(_HardwareInspectionFixturePublishRoot);$(_HardwareInspectionFixturePackageRoot)" />
+
+    <Exec
+      WorkingDirectory="$(_HardwareInspectionFixtureRepositoryRoot)"
+      Command="&quot;$(_HardwareInspectionFixtureDotNetHost)&quot; restore &quot;$(_HardwareInspectionFixtureProject)&quot; --runtime win-x64 --artifacts-path &quot;$(_HardwareInspectionFixtureArtifactsRoot)&quot; -p:Configuration=Release -p:Platform=x64" />
+    <Exec
+      WorkingDirectory="$(_HardwareInspectionFixtureRepositoryRoot)"
+      Command="&quot;$(_HardwareInspectionFixtureDotNetHost)&quot; publish &quot;$(_HardwareInspectionFixtureProject)&quot; --configuration Release --runtime win-x64 --self-contained false --no-restore --artifacts-path &quot;$(_HardwareInspectionFixtureArtifactsRoot)&quot; --output &quot;$(_HardwareInspectionFixturePublishRoot)&quot; -p:Configuration=Release -p:Platform=x64 -p:UseAppHost=true -p:PublishTrimmed=false -p:PublishReadyToRun=false -p:DebugSymbols=false -p:DebugType=None -p:CopyDebugSymbolToPublishDirectory=false" />
+
+    <MakeDir Directories="@(_HardwareInspectionLlmFitMode->'$(_HardwareInspectionFixturePackageRoot)\%(Identity)')" />
+    <ItemGroup>
+      <_HardwareInspectionFixturePublishedFile Include="$(_HardwareInspectionFixturePublishRoot)\*" />
+    </ItemGroup>
+    <Copy
+      SourceFiles="@(_HardwareInspectionFixturePublishedFile)"
+      DestinationFolder="$(_HardwareInspectionFixturePackageRoot)\%(_HardwareInspectionLlmFitMode.Identity)" />
+    <WriteLinesToFile
+      File="$(_HardwareInspectionFixturePackageRoot)\%(_HardwareInspectionLlmFitMode.Identity)\fake-mode.txt"
+      Lines="%(_HardwareInspectionLlmFitMode.Identity)"
+      Overwrite="true"
+      WriteOnlyWhenDifferent="true"
+      Encoding="UTF-8" />
+
+    <ItemGroup>
+      <_HardwareInspectionFixturePackagedFile Include="$(_HardwareInspectionFixturePackageRoot)\**\*" />
+      <Content Include="@(_HardwareInspectionFixturePackagedFile)">
+        <Link>HardwareInspection\TestTools\LlmFitFake\%(RecursiveDir)%(Filename)%(Extension)</Link>
+        <TargetPath>HardwareInspection\TestTools\LlmFitFake\%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </Content>
+    </ItemGroup>
+  </Target>
+</Project>

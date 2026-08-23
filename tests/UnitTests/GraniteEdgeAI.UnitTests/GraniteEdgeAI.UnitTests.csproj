@@ -451,4 +451,7 @@
   </ItemGroup>
 
   <!-- END EXPLICIT MODEL INSPECTION NAVIGATION TESTS -->
+  <Import
+    Project="HardwareInspection.ProcessFixturePackaging.targets"
+    Condition="'$(Platform)' == 'x64'" />
 </Project>

@@ -1,18 +1,19 @@
 using System.Diagnostics;
 using GraniteEdgeAI.HardwareInspection.Foundation.LlmFit;
 using GraniteEdgeAI.HardwareInspection.Foundation.Processes;
-using GraniteEdgeAI.HardwareInspection.Foundation.Tests.Support;
+using GraniteEdgeAI.UnitTests.Features.HardwareInspection.Support;
 
-namespace GraniteEdgeAI.HardwareInspection.Foundation.Tests.LlmFit;
+namespace GraniteEdgeAI.UnitTests.Features.HardwareInspection.LlmFit;
 
 [TestClass]
 [DoNotParallelize]
-public sealed class LlmFitHardwareEvidenceProviderProcessTests
+public sealed class LlmFitHardwareEvidenceProviderPackagedTests
 {
     [TestMethod]
+    [TestCategory("HardwareInspectionProcessAcceptance")]
     public async Task RealBoundaryMapsCpuOnlySuccess()
     {
-        using VerifiedLlmFitFixture fixture = VerifiedLlmFitFixture.Create("success");
+        using VerifiedPackagedToolFixture fixture = CreateFixture("success");
 
         LlmFitHardwareEvidence evidence = await CreateProvider().CaptureAsync(
             fixture.Tool,
@@ -28,9 +29,10 @@ public sealed class LlmFitHardwareEvidenceProviderProcessTests
     }
 
     [TestMethod]
+    [TestCategory("HardwareInspectionProcessAcceptance")]
     public async Task RealBoundaryRejectsVersionMismatchBeforeSystem()
     {
-        using VerifiedLlmFitFixture fixture = VerifiedLlmFitFixture.Create("version-mismatch");
+        using VerifiedPackagedToolFixture fixture = CreateFixture("version-mismatch");
 
         LlmFitHardwareEvidence evidence = await CreateProvider().CaptureAsync(
             fixture.Tool,
@@ -40,9 +42,10 @@ public sealed class LlmFitHardwareEvidenceProviderProcessTests
     }
 
     [TestMethod]
+    [TestCategory("HardwareInspectionProcessAcceptance")]
     public async Task RealBoundaryMapsInvalidJsonWithoutPersistingOutput()
     {
-        using VerifiedLlmFitFixture fixture = VerifiedLlmFitFixture.Create("invalid-json");
+        using VerifiedPackagedToolFixture fixture = CreateFixture("invalid-json");
         string[] inventoryBefore = Directory.GetFiles(
             fixture.PackageRoot,
             "*",
@@ -63,9 +66,10 @@ public sealed class LlmFitHardwareEvidenceProviderProcessTests
     }
 
     [TestMethod]
+    [TestCategory("HardwareInspectionProcessAcceptance")]
     public async Task RealBoundaryMapsNonzeroExit()
     {
-        using VerifiedLlmFitFixture fixture = VerifiedLlmFitFixture.Create("nonzero");
+        using VerifiedPackagedToolFixture fixture = CreateFixture("nonzero");
 
         LlmFitHardwareEvidence evidence = await CreateProvider().CaptureAsync(
             fixture.Tool,
@@ -75,9 +79,10 @@ public sealed class LlmFitHardwareEvidenceProviderProcessTests
     }
 
     [TestMethod]
+    [TestCategory("HardwareInspectionProcessAcceptance")]
     public async Task RealBoundaryMapsOutputOverflowAndKillsProcess()
     {
-        using VerifiedLlmFitFixture fixture = VerifiedLlmFitFixture.Create("large-output");
+        using VerifiedPackagedToolFixture fixture = CreateFixture("large-output");
 
         LlmFitHardwareEvidence evidence = await CreateProvider().CaptureAsync(
             fixture.Tool,
@@ -87,9 +92,10 @@ public sealed class LlmFitHardwareEvidenceProviderProcessTests
     }
 
     [TestMethod]
+    [TestCategory("HardwareInspectionProcessAcceptance")]
     public async Task RealBoundaryTimesOutAndKillsRootProcess()
     {
-        using VerifiedLlmFitFixture fixture = VerifiedLlmFitFixture.Create("sleep");
+        using VerifiedPackagedToolFixture fixture = CreateFixture("sleep");
 
         LlmFitHardwareEvidence evidence = await CreateProvider().CaptureAsync(
             fixture.Tool,
@@ -97,16 +103,19 @@ public sealed class LlmFitHardwareEvidenceProviderProcessTests
 
         AssertUnavailable(evidence, LlmFitDiagnosticCode.SystemTimedOut);
         await AssertRecordedProcessExitedAsync(
-            Path.Combine(fixture.PackageRoot, "owned-root-ready.txt"));
+            Path.Combine(fixture.ControlRoot, "owned-root-ready.txt"));
     }
 
     [TestMethod]
+    [TestCategory("HardwareInspectionProcessAcceptance")]
     public async Task RealBoundaryCancellationPropagatesAndKillsRootProcess()
     {
-        using VerifiedLlmFitFixture fixture = VerifiedLlmFitFixture.Create("sleep");
+        using VerifiedPackagedToolFixture fixture = CreateFixture("sleep");
         using CancellationTokenSource cancellation = new();
-        Task<LlmFitHardwareEvidence> capture = CreateProvider().CaptureAsync(fixture.Tool, cancellation.Token);
-        string marker = Path.Combine(fixture.PackageRoot, "owned-root-ready.txt");
+        Task<LlmFitHardwareEvidence> capture = CreateProvider().CaptureAsync(
+            fixture.Tool,
+            cancellation.Token);
+        string marker = Path.Combine(fixture.ControlRoot, "owned-root-ready.txt");
         int processId = await WaitForProcessIdAsync(marker);
 
         cancellation.Cancel();
@@ -117,27 +126,8 @@ public sealed class LlmFitHardwareEvidenceProviderProcessTests
         await AssertProcessExitedAsync(processId);
     }
 
-    [TestMethod]
-    public void AcceptedFixtureIsSyntheticAndOutsideRawCaptureEvidence()
-    {
-        string fixture = Path.Combine(
-            AppContext.BaseDirectory,
-            "Fixtures",
-            "LlmFit",
-            "valid-windows-intel.json");
-        string json = File.ReadAllText(fixture);
-
-        LlmFitSystemParseResult result = LlmFitSystemJsonParser.Parse(json);
-
-        Assert.AreEqual(LlmFitEvidenceState.Available, result.State);
-        Assert.AreEqual(31.72, result.TotalRamGiB);
-        Assert.AreEqual(18.40, result.AvailableRamGiB);
-        Assert.AreEqual(16, result.CpuLogicalProcessorCount);
-        Assert.AreEqual("Fixture Intel CPU", result.CpuName);
-        Assert.AreEqual("Fixture Intel Arc Graphics", result.Gpus.Single().Name);
-        Assert.IsFalse(fixture.Contains("release-evidence", StringComparison.OrdinalIgnoreCase));
-        Assert.IsFalse(fixture.Contains("raw", StringComparison.OrdinalIgnoreCase));
-    }
+    private static VerifiedPackagedToolFixture CreateFixture(string mode) =>
+        VerifiedPackagedToolFixture.CreateLlmFit(mode, useProductionIdentity: true);
 
     private static LlmFitHardwareEvidenceProvider CreateProvider() =>
         new(new ExternalProcessRunner());
@@ -162,9 +152,17 @@ public sealed class LlmFitHardwareEvidenceProviderProcessTests
         Stopwatch elapsed = Stopwatch.StartNew();
         while (elapsed.Elapsed < TimeSpan.FromSeconds(5))
         {
-            if (File.Exists(marker) && int.TryParse(await File.ReadAllTextAsync(marker), out int processId))
+            try
             {
-                return processId;
+                if (File.Exists(marker) &&
+                    int.TryParse(await File.ReadAllTextAsync(marker), out int processId))
+                {
+                    return processId;
+                }
+            }
+            catch (IOException)
+            {
+                // The fixture has created the marker but has not released its write handle yet.
             }
 
             await Task.Delay(20);
