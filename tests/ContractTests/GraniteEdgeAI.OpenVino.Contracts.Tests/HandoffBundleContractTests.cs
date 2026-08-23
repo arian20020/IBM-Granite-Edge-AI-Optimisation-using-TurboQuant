@@ -78,7 +78,7 @@ public sealed class HandoffBundleContractTests
             "$DestinationRoot",
             "OpenVinoClosedJson.psm1",
             "Test-PayloadIntegrity",
-            "git clone",
+            "'clone','--branch'",
             "rev-parse HEAD",
             "status --porcelain",
             "archive-entry-traversal",
@@ -93,7 +93,8 @@ public sealed class HandoffBundleContractTests
         int destinationCreation = script.LastIndexOf(
             "New-Item -ItemType Directory -Path $destination",
             StringComparison.Ordinal);
-        int clone = script.IndexOf("git clone", StringComparison.Ordinal);
+        int clone = script.IndexOf("-Arguments @('clone'",
+            StringComparison.Ordinal);
         Assert.IsGreaterThan(verification, destinationCreation);
         Assert.IsGreaterThan(verification, clone);
         Assert.IsFalse(script.Contains("GetTempPath", StringComparison.Ordinal));
@@ -233,6 +234,18 @@ public sealed class HandoffBundleContractTests
         StringAssert.Contains(builder, "if ($null -ne $stream)");
         StringAssert.Contains(builder, "$output = $null");
         StringAssert.Contains(initializer, "$output = $null");
+    }
+
+    [TestMethod]
+    public void InitializerChecksGitExitCodesDespiteInformationalStderr()
+    {
+        string initializer = File.ReadAllText(RepoPath(
+            "scripts/openvino/handoff/Initialize-UclHandoff.ps1"));
+        StringAssert.Contains(initializer, "function Invoke-GitCheckedSilently");
+        StringAssert.Contains(initializer, "$ErrorActionPreference = 'Continue'");
+        StringAssert.Contains(initializer, "$ErrorActionPreference = $savedErrorAction");
+        StringAssert.Contains(initializer, "'bundle','verify'");
+        StringAssert.Contains(initializer, "'clone','--branch'");
     }
 
     private static string RepoPath(string relative) => Path.Combine(

@@ -206,6 +206,24 @@ function Invoke-ManifestVerifier {
     if ($LASTEXITCODE -ne 0) { throw 'manifest-verification-failed' }
 }
 
+function Invoke-GitCheckedSilently {
+    param(
+        [Parameter(Mandatory)][string[]]$Arguments,
+        [Parameter(Mandatory)][string]$FailureCode
+    )
+    $savedErrorAction = $ErrorActionPreference
+    $exitCode = -1
+    try {
+        $ErrorActionPreference = 'Continue'
+        @(& git @Arguments 2>&1) | Out-Null
+        $exitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $savedErrorAction
+    }
+    if ($exitCode -ne 0) { throw $FailureCode }
+}
+
 try {
     $bundle = [IO.Path]::GetFullPath($BundleRoot)
     $destination = [IO.Path]::GetFullPath($DestinationRoot)
@@ -254,11 +272,13 @@ try {
     $bundleRow = @($inventory.payloads | Where-Object role -ceq 'gitBundle')
     if ($bundleRow.Count -ne 1) { throw 'git-bundle-record-invalid' }
     $bundlePath = Get-SafePayloadPath $bundle $bundleRow[0].relativePath
-    @(& git bundle verify $bundlePath 2>&1) | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw 'git-bundle-invalid' }
-    @(& git clone --branch feature/openvino-route --single-branch `
-        $bundlePath $repositoryDestination 2>&1) | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw 'git-clone-failed' }
+    Invoke-GitCheckedSilently `
+        -Arguments @('bundle','verify',$bundlePath) `
+        -FailureCode 'git-bundle-invalid'
+    Invoke-GitCheckedSilently `
+        -Arguments @('clone','--branch','feature/openvino-route','--single-branch',
+            $bundlePath,$repositoryDestination) `
+        -FailureCode 'git-clone-failed'
     $actualCommit = [string](& git -C $repositoryDestination rev-parse HEAD)
     $status = @(& git -C $repositoryDestination status --porcelain)
     if ($actualCommit.Trim().ToLowerInvariant() -cne $inventory.handoffCommit -or
