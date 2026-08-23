@@ -270,7 +270,26 @@ public sealed class ExternalProcessRunnerPackagedTests
             Assert.Fail("The harmless fixture process exited before it could be observed.");
         }
 
-        return process;
+        try
+        {
+            if (Path.GetFileName(path).Equals(
+                "spawn-child-ready.txt",
+                StringComparison.Ordinal))
+            {
+                await File.WriteAllTextAsync(
+                    Path.Combine(
+                        Path.GetDirectoryName(path)!,
+                        "spawn-child-observed.txt"),
+                    string.Empty);
+            }
+
+            return process;
+        }
+        catch
+        {
+            process.Dispose();
+            throw;
+        }
     }
 
     private static async Task AssertProcessExitedAsync(Process process)

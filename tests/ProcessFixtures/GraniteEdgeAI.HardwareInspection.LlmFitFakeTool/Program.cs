@@ -178,8 +178,29 @@ static async Task<int> SpawnChildAsync(string controlRoot, bool waitForCancellat
     {
         await Task.Delay(TimeSpan.FromMinutes(5)).ConfigureAwait(false);
     }
+    else if (!await WaitForChildObservationAsync(controlRoot).ConfigureAwait(false))
+    {
+        return 64;
+    }
 
     return 0;
+}
+
+static async Task<bool> WaitForChildObservationAsync(string controlRoot)
+{
+    string marker = Path.Combine(controlRoot, "spawn-child-observed.txt");
+    Stopwatch elapsed = Stopwatch.StartNew();
+    while (elapsed.Elapsed < TimeSpan.FromSeconds(30))
+    {
+        if (File.Exists(marker))
+        {
+            return true;
+        }
+
+        await Task.Delay(TimeSpan.FromMilliseconds(20)).ConfigureAwait(false);
+    }
+
+    return false;
 }
 
 static int WriteInvalidJson()

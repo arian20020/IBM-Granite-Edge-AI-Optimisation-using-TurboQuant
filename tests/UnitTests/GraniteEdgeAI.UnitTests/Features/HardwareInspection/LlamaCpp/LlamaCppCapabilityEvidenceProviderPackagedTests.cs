@@ -200,7 +200,26 @@ public sealed class LlamaCppCapabilityEvidenceProviderPackagedTests
                     Process process = Process.GetProcessById(processId);
                     if (!process.HasExited)
                     {
-                        return process;
+                        try
+                        {
+                            if (Path.GetFileName(marker).Equals(
+                                "spawn-child-ready.txt",
+                                StringComparison.Ordinal))
+                            {
+                                await File.WriteAllTextAsync(
+                                    Path.Combine(
+                                        Path.GetDirectoryName(marker)!,
+                                        "spawn-child-observed.txt"),
+                                    string.Empty);
+                            }
+
+                            return process;
+                        }
+                        catch
+                        {
+                            process.Dispose();
+                            throw;
+                        }
                     }
 
                     process.Dispose();
