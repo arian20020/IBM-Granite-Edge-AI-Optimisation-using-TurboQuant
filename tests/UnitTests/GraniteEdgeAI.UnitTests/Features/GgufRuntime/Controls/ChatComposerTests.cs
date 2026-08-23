@@ -179,6 +179,7 @@ public sealed class ChatComposerTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
+    [DoNotParallelize]
     public async Task PromptFocusUsesOnlyTheOuterComposerFocusVisual()
     {
         var composer = new ChatComposer();

@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
+using GraniteEdgeAI.GgufRuntime.Contracts.Configuration;
 using GraniteEdgeAI.GgufRuntime.Contracts.Events;
 using GraniteEdgeAI.GgufRuntime.WorkerClient;
 
@@ -80,8 +81,54 @@ public sealed class GgufRealModelSmokeTests
 
         Assert.IsTrue(stoppedEvents.OfType<ResponseStoppedEvent>().Any());
         await session.CloseAsync(timeout.Token);
+
+        GgufRuntimeConfiguration tinyBudget = WithMaximumGeneratedTokens(
+            controlled.RuntimeConfiguration,
+            8);
+        await using GgufRuntimeSession tinySession = await client.StartAsync(
+            tinyBudget,
+            [],
+            timeout.Token);
+        IReadOnlyList<GgufRuntimeEvent> limited = await CollectAsync(
+            tinySession.GenerateAsync(
+                "Explain KV-cache quantization in a detailed numbered list.",
+                timeout.Token));
+        ResponseCompletedEvent firstCompletion = limited
+            .OfType<ResponseCompletedEvent>()
+            .Single();
+        Assert.AreEqual(GgufCompletionReason.Length, firstCompletion.Reason);
+        Assert.IsTrue(limited.OfType<TextDeltaEvent>().Any());
+
+        IReadOnlyList<GgufRuntimeEvent> continuation = await CollectAsync(
+            tinySession.GenerateAsync(
+                "Continue from exactly where the preceding response ended. " +
+                "Do not repeat text already given. Complete the answer concisely.",
+                timeout.Token));
+        Assert.IsTrue(continuation.OfType<TextDeltaEvent>().Any());
+        Assert.IsNotNull(continuation.OfType<ResponseCompletedEvent>().Single());
+        await tinySession.CloseAsync(timeout.Token);
         AssertFileDigest(controlled.ModelFile, controlled.ModelSha256);
     }
+
+    private static GgufRuntimeConfiguration WithMaximumGeneratedTokens(
+        GgufRuntimeConfiguration source,
+        int maximumGeneratedTokens) => new(
+        source.ModelId,
+        source.ModelSha256,
+        source.RuntimeBuildId,
+        source.RuntimeSourceCommit,
+        source.Backend,
+        source.DeviceId,
+        source.ContextSize,
+        source.KeyCacheType,
+        source.ValueCacheType,
+        source.GpuLayerCount,
+        source.FlashAttention,
+        source.ThreadCount,
+        source.BatchSize,
+        source.EvidenceGrade,
+        source.ProfileId,
+        maximumGeneratedTokens);
 
     private static void AssertSingleAssistantTurn(string text)
     {

@@ -558,7 +558,7 @@ jobs:
           [xml]$trx = Get-Content -LiteralPath $trxPath -Raw
           $counters = $trx.TestRun.ResultSummary.Counters
           $minimumExpectedTests = 686
-          $measuredExpectedTests = 844
+          $measuredExpectedTests = 858
           if ([int]$counters.total -lt $minimumExpectedTests -or [int]$counters.executed -lt $minimumExpectedTests) {
             throw "The packaged unit-test run fell below the $minimumExpectedTests-test floor."
           }

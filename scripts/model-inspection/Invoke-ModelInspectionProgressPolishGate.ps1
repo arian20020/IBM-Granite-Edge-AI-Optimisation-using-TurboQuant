@@ -59,7 +59,7 @@ $ExpectedTotals = [ordered]@{
     InteractionLifetime = 19
     FixtureCategory = 220
     FocusedPolish = 326
-    HostedRelease = 844
+    HostedRelease = 858
     N001 = 1
     Contracts = 357
 }
