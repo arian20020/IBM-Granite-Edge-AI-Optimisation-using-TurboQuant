@@ -80,6 +80,25 @@ public sealed class ArchitectureBoundaryTests
             "scripts/openvino/Test-OpenVinoTurboQuantWorkerManifest.ps1")));
         Assert.IsTrue(File.Exists(RepoPath(
             "scripts/openvino/Test-OpenVinoConverterWorkerManifest.ps1")));
+
+        string session = File.ReadAllText(RepoPath(
+            "workers/OpenVinoOfficial.Worker/src/session.cpp"));
+        StringAssert.Contains(
+            session,
+            "pipeline_ = std::move(active_pipeline);");
+        string workerHost = File.ReadAllText(RepoPath(
+            "workers/OpenVinoOfficial.Worker/src/main.cpp"));
+        int cancelledTerminal = workerHost.IndexOf(
+            "{\"eventType\", \"sessionCancelled\"}",
+            StringComparison.Ordinal);
+        int boundedExit = workerHost.IndexOf(
+            "std::_Exit(EXIT_SUCCESS);",
+            StringComparison.Ordinal);
+        Assert.IsGreaterThanOrEqualTo(0, cancelledTerminal);
+        Assert.IsGreaterThan(
+            cancelledTerminal,
+            boundedExit,
+            "The one-session worker must exit after publishing cancellation without awaiting pipeline destruction.");
     }
 
     private static string RepoPath(string relative) => Path.Combine(

@@ -281,6 +281,7 @@ turn_result official_session::generate(
                 "native generation evidence inconsistent");
         }
         if (control.cancel.load(std::memory_order_acquire) || result.cancelled) {
+            pipeline_ = std::move(active_pipeline);
             history_.pop_back();
             result.cancelled = true;
             return result;

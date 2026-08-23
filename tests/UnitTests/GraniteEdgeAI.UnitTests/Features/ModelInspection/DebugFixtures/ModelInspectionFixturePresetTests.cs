@@ -2075,7 +2075,7 @@ public sealed class ModelInspectionFixturePresetTests
                 window,
                 horizontalScroll,
                 width: 360d,
-                height: 800d);
+                height: 700d);
             Assert.IsLessThan(applier.HostWidth, page.XamlRoot.Size.Width,
                 "The real XamlRoot must stay narrower than the fixed desktop preview.");
             Assert.AreEqual(3, applier.ActiveHandlerCount);

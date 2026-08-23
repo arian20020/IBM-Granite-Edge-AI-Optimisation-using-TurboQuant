@@ -14,6 +14,7 @@
 #include <io.h>
 
 #include <chrono>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <future>
@@ -311,7 +312,7 @@ void run_session_body(const json& command, const runtime_context& runtime) {
             publish_terminal_event(
                 {{"sessionId", session_id}, {"eventType", "sessionCancelled"}},
                 {[&] { session.verify_terminal_integrity(); }});
-            return;
+            std::_Exit(EXIT_SUCCESS);
         }
 #if defined(GRANITE_TURBOQUANT_WORKER)
         write_event(activation.to_json(session_id, turn_id));
