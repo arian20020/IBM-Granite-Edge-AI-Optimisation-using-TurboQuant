@@ -8,7 +8,10 @@ param(
     [int] $Repetitions = 1,
 
     [ValidateSet('Debug', 'Release')]
-    [string] $Configuration = 'Debug'
+    [string] $Configuration = 'Debug',
+
+    [ValidateNotNullOrEmpty()]
+    [string] $DevelopmentBundleDirectory
 )
 
 Set-StrictMode -Version Latest
@@ -37,6 +40,46 @@ $testOutputRoot = [IO.Path]::GetFullPath((Join-Path $repositoryRoot (
 $appPackagesRoot = [IO.Path]::GetFullPath((Join-Path $repositoryRoot `
     'tests\UnitTests\GraniteEdgeAI.UnitTests\AppPackages'))
 $ownedTempParent = [IO.Path]::GetFullPath((Join-Path $env:TEMP 'GEAI-HI-Signed'))
+$developmentBundleRoot = $null
+if ($PSBoundParameters.ContainsKey('DevelopmentBundleDirectory')) {
+    if ($DevelopmentBundleDirectory -notmatch '^[A-Za-z]:[\\/]') {
+        throw 'The development bundle directory must be an absolute path.'
+    }
+
+    $developmentBundleRoot = [IO.Path]::GetFullPath($DevelopmentBundleDirectory)
+    if ([string]::Equals(
+            $developmentBundleRoot,
+            [IO.Path]::GetPathRoot($developmentBundleRoot),
+            [StringComparison]::OrdinalIgnoreCase)) {
+        throw 'The development bundle directory must not be a filesystem root.'
+    }
+    $guardedRoots = @($repositoryRoot, $testOutputRoot, $appPackagesRoot, $ownedTempParent)
+    foreach ($guardedRoot in $guardedRoots) {
+        $guardedPrefix = $guardedRoot.TrimEnd(
+            [IO.Path]::DirectorySeparatorChar,
+            [IO.Path]::AltDirectorySeparatorChar)
+        if ([string]::Equals(
+                $developmentBundleRoot,
+                $guardedPrefix,
+                [StringComparison]::OrdinalIgnoreCase) -or
+            $developmentBundleRoot.StartsWith(
+                $guardedPrefix + [IO.Path]::DirectorySeparatorChar,
+                [StringComparison]::OrdinalIgnoreCase)) {
+            throw 'The development bundle directory must be outside repository and build roots.'
+        }
+    }
+
+    if (-not (Test-Path -LiteralPath $developmentBundleRoot -PathType Container)) {
+        throw 'The development bundle directory must already exist and be empty.'
+    }
+    $developmentBundleItem = Get-Item -LiteralPath $developmentBundleRoot -Force -ErrorAction Stop
+    if (($developmentBundleItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+        throw 'The development bundle directory must not be a reparse point.'
+    }
+    if (@(Get-ChildItem -LiteralPath $developmentBundleRoot -Force -ErrorAction Stop).Count -ne 0) {
+        throw 'The development bundle directory must already exist and be empty.'
+    }
+}
 $ownedTempRoot = Join-Path $ownedTempParent ([Guid]::NewGuid().ToString('N').Substring(0, 8))
 $stagingRoot = Join-Path $ownedTempRoot 'AppX'
 $signedPackagePath = Join-Path $ownedTempRoot 'GraniteEdgeAI.UnitTests.msix'
@@ -44,6 +87,7 @@ $resultRoot = [IO.Path]::GetFullPath((Join-Path $env:TEMP 'GraniteEdgeAI.Hardwar
 $createdResultPaths = [Collections.Generic.List[string]]::new()
 $installedPackage = $null
 $packageInstalledByInvocation = $false
+$developmentBundlePublished = $false
 
 function Get-NonRootPathWithoutTrailingSeparator {
     param([Parameter(Mandatory)][string] $Path)
@@ -236,6 +280,95 @@ function Read-AcceptanceResult {
     }
 }
 
+function Write-DevelopmentAcceptanceBundle {
+    param(
+        [Parameter(Mandatory)][string] $SignedPackagePath,
+        [Parameter(Mandatory)][string] $PublicCertificatePath,
+        [Parameter(Mandatory)][string] $GuestRunnerPath,
+        [Parameter(Mandatory)][string] $DestinationRoot,
+        [Parameter(Mandatory)]
+        [ValidatePattern('^[0-9A-Fa-f]{40}$')]
+        [string] $CertificateThumbprint
+    )
+
+    $resolvedDestination = [IO.Path]::GetFullPath($DestinationRoot)
+    if (-not (Test-Path -LiteralPath $resolvedDestination -PathType Container) -or
+        @(Get-ChildItem -LiteralPath $resolvedDestination -Force -ErrorAction Stop).Count -ne 0) {
+        throw 'The development bundle destination must be an existing empty directory.'
+    }
+
+    $sourceContracts = @(
+        [pscustomobject]@{
+            Source = [IO.Path]::GetFullPath($SignedPackagePath)
+            Name = 'GraniteEdgeAI.UnitTests.msix'
+        },
+        [pscustomobject]@{
+            Source = [IO.Path]::GetFullPath($PublicCertificatePath)
+            Name = 'GraniteEdgeAI.cer'
+        },
+        [pscustomobject]@{
+            Source = [IO.Path]::GetFullPath($GuestRunnerPath)
+            Name = 'Invoke-HardwareInspectionDevelopmentAcceptanceGuest.ps1'
+        }
+    )
+    foreach ($sourceContract in $sourceContracts) {
+        if (-not (Test-Path -LiteralPath $sourceContract.Source -PathType Leaf)) {
+            throw 'A required development bundle source file is absent.'
+        }
+        Copy-Item -LiteralPath $sourceContract.Source -Destination (
+            Join-Path $resolvedDestination $sourceContract.Name)
+    }
+
+    $payloads = @($sourceContracts | ForEach-Object {
+            $path = Join-Path $resolvedDestination $_.Name
+            $item = Get-Item -LiteralPath $path -Force -ErrorAction Stop
+            [pscustomobject]@{
+                Name = $_.Name
+                Length = [int64]$item.Length
+                Hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $path).Hash.ToLowerInvariant()
+            }
+        })
+    $normalizedBundleThumbprint = $CertificateThumbprint.ToUpperInvariant()
+    $manifestText = '{"schema":"granite.hardware-inspection.development-acceptance-bundle/v1",' +
+        '"packageName":"GraniteEdgeAI.WinUI.UnitTests",' +
+        '"publisher":"CN=GraniteEdgeAI",' +
+        '"version":"1.0.0.0",' +
+        '"architecture":"x64",' +
+        '"certificateThumbprint":"' + $normalizedBundleThumbprint + '",' +
+        '"files":[' +
+        (($payloads | ForEach-Object {
+                    '{"name":"' + $_.Name + '","length":' +
+                        $_.Length.ToString([Globalization.CultureInfo]::InvariantCulture) +
+                        ',"sha256":"' + $_.Hash + '"}'
+                }) -join ',') + ']}'
+    [IO.File]::WriteAllText(
+        (Join-Path $resolvedDestination 'bundle-manifest.json'),
+        $manifestText + "`n",
+        [Text.UTF8Encoding]::new($false))
+
+    $finalInventory = [string[]]@(Get-ChildItem -LiteralPath $resolvedDestination -Force |
+        ForEach-Object { $_.Name })
+    [Array]::Sort($finalInventory, [StringComparer]::Ordinal)
+    $expectedInventory = [string[]]@(
+        'GraniteEdgeAI.UnitTests.msix',
+        'GraniteEdgeAI.cer',
+        'Invoke-HardwareInspectionDevelopmentAcceptanceGuest.ps1',
+        'bundle-manifest.json'
+    )
+    [Array]::Sort($expectedInventory, [StringComparer]::Ordinal)
+    if ($finalInventory.Count -ne $expectedInventory.Count) {
+        throw 'The development bundle publication inventory is not exact.'
+    }
+    for ($index = 0; $index -lt $expectedInventory.Count; $index++) {
+        if (-not [string]::Equals(
+                $finalInventory[$index],
+                $expectedInventory[$index],
+                [StringComparison]::Ordinal)) {
+            throw 'The development bundle publication inventory is not exact.'
+        }
+    }
+}
+
 Assert-OwnedPath -Path $ownedTempRoot -OwnedParent $ownedTempParent
 $configurationToken = if ($Configuration -eq 'Debug') { '_Debug' } else { '' }
 $directoryPattern = '^GraniteEdgeAI\.UnitTests_[0-9]+(?:\.[0-9]+){3}_x64' +
@@ -272,15 +405,19 @@ if (($repositoryItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) 
 }
 
 $userCertificate = Get-Item -LiteralPath "Cert:\CurrentUser\My\$normalizedThumbprint" -ErrorAction Stop
-$trustedCertificate = Get-Item -LiteralPath "Cert:\LocalMachine\TrustedPeople\$normalizedThumbprint" -ErrorAction Stop
 if (-not $userCertificate.HasPrivateKey -or
-    $trustedCertificate.HasPrivateKey -or
     -not [string]::Equals($userCertificate.Subject, $packagePublisher, [StringComparison]::Ordinal) -or
-    -not [string]::Equals($trustedCertificate.Subject, $packagePublisher, [StringComparison]::Ordinal) -or
     $userCertificate.NotBefore -gt [DateTime]::Now -or
     $userCertificate.NotAfter -le [DateTime]::Now -or
     -not ($userCertificate.EnhancedKeyUsageList.ObjectId -contains '1.3.6.1.5.5.7.3.3')) {
     throw 'The purpose-specific package-signing certificate does not satisfy the closed trust contract.'
+}
+if ($null -eq $developmentBundleRoot) {
+    $trustedCertificate = Get-Item -LiteralPath "Cert:\LocalMachine\TrustedPeople\$normalizedThumbprint" -ErrorAction Stop
+    if ($trustedCertificate.HasPrivateKey -or
+        -not [string]::Equals($trustedCertificate.Subject, $packagePublisher, [StringComparison]::Ordinal)) {
+        throw 'The purpose-specific package-signing certificate does not satisfy the closed trust contract.'
+    }
 }
 
 $makeAppx = Resolve-WindowsSdkTool -Name 'makeappx.exe'
@@ -470,6 +607,41 @@ try {
         throw 'The signed MSIX did not pass exact Authenticode verification.'
     }
 
+    if ($null -ne $developmentBundleRoot) {
+        $publicCertificatePath = Join-Path $ownedTempRoot 'GraniteEdgeAI.cer'
+        Export-Certificate -Cert $userCertificate -FilePath $publicCertificatePath -Type CERT | Out-Null
+        $publicCertificate = [Security.Cryptography.X509Certificates.X509Certificate2]::new(
+            $publicCertificatePath)
+        if ($publicCertificate.HasPrivateKey -or
+            -not [string]::Equals(
+                $publicCertificate.Thumbprint,
+                $normalizedThumbprint,
+                [StringComparison]::OrdinalIgnoreCase) -or
+            -not [string]::Equals(
+                $publicCertificate.Subject,
+                $packagePublisher,
+                [StringComparison]::Ordinal)) {
+            throw 'The exported development bundle certificate is not the exact public signing identity.'
+        }
+
+        Write-DevelopmentAcceptanceBundle `
+            -SignedPackagePath $signedPackagePath `
+            -PublicCertificatePath $publicCertificatePath `
+            -GuestRunnerPath (Join-Path $repositoryRoot `
+                'scripts\hardware-inspection\Invoke-HardwareInspectionDevelopmentAcceptanceGuest.ps1') `
+            -DestinationRoot $developmentBundleRoot `
+            -CertificateThumbprint $normalizedThumbprint
+        $developmentBundlePublished = $true
+        [pscustomobject]@{
+            Classification = 'development-only'
+            BundleReady = $true
+            PublicTrustVerified = $false
+            SmartAppControlVerified = $false
+            FileCount = 4
+        }
+        return
+    }
+
     Remove-TestPackage
     Add-AppxPackage -Path $signedPackagePath
     $packageInstalledByInvocation = $true
@@ -550,9 +722,25 @@ finally {
             }
         }
         finally {
-            Assert-OwnedPath -Path $ownedTempRoot -OwnedParent $ownedTempParent
-            if (Test-Path -LiteralPath $ownedTempRoot -PathType Container) {
-                Remove-Item -LiteralPath $ownedTempRoot -Recurse -Force
+            try {
+                if ($null -ne $developmentBundleRoot -and -not $developmentBundlePublished) {
+                    foreach ($bundleName in @(
+                            'GraniteEdgeAI.UnitTests.msix',
+                            'GraniteEdgeAI.cer',
+                            'Invoke-HardwareInspectionDevelopmentAcceptanceGuest.ps1',
+                            'bundle-manifest.json')) {
+                        $bundlePath = Join-Path $developmentBundleRoot $bundleName
+                        if (Test-Path -LiteralPath $bundlePath -PathType Leaf) {
+                            Remove-Item -LiteralPath $bundlePath -Force
+                        }
+                    }
+                }
+            }
+            finally {
+                Assert-OwnedPath -Path $ownedTempRoot -OwnedParent $ownedTempParent
+                if (Test-Path -LiteralPath $ownedTempRoot -PathType Container) {
+                    Remove-Item -LiteralPath $ownedTempRoot -Recurse -Force
+                }
             }
         }
     }

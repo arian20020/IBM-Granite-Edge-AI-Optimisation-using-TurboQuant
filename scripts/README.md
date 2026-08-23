@@ -25,10 +25,22 @@ Store repeatable build, test, benchmark, evidence-validation and release scripts
 - [`hardware-inspection/Invoke-SignedHardwareInspectionAcceptance.ps1`](hardware-inspection/Invoke-SignedHardwareInspectionAcceptance.ps1)
   prepares and normally installs the closed signed test MSIX, activates only its
   registered AUMID acceptance command, validates the bounded result, and removes
-  invocation-owned package and temporary state. It does not activate production
-  Hardware Inspection or weaken Smart App Control.
+  invocation-owned package and temporary state. With
+  `-DevelopmentBundleDirectory`, it instead prepares a hash-bound four-file
+  development bundle without installing a package or exporting a private key.
+  It does not activate production Hardware Inspection or weaken Smart App
+  Control.
+- [`hardware-inspection/Invoke-HardwareInspectionDevelopmentAcceptanceGuest.ps1`](hardware-inspection/Invoke-HardwareInspectionDevelopmentAcceptanceGuest.ps1)
+  validates that closed bundle in an elevated disposable Windows guest, normally
+  installs the exact x64 Developer package, activates the registered AUMID
+  exactly three times without retry, writes one bounded development-only
+  summary, and proves cleanup of invocation-owned package, certificate, and raw
+  result state.
 - The operator boundary and verification commands are in
   [`Hardware-Inspection-Intel-Runner-Stage-0-Runbook.md`](../docs/testing/runbooks/Hardware-Inspection-Intel-Runner-Stage-0-Runbook.md).
 - The separately authorised Stage A stopped-runner, one-time registration,
   privacy review, deregistration, and exact cleanup procedure is in
   [`Hardware-Inspection-Intel-Runner-Stage-A-Runbook.md`](../docs/testing/runbooks/Hardware-Inspection-Intel-Runner-Stage-A-Runbook.md).
+- The bundle-only Azure transfer, three-run disposable-guest campaign, exact
+  nonclaim, and resource-group deletion procedure is in
+  [`Hardware-Inspection-Development-Acceptance-Runbook.md`](../docs/testing/runbooks/Hardware-Inspection-Development-Acceptance-Runbook.md).

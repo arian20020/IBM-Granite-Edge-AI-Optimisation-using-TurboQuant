@@ -258,6 +258,18 @@ def _is_stage0_gate1_runbook_candidate(path):
     )
 
 
+def _is_development_acceptance_runbook_candidate(path):
+    normalized_path = path.replace("\\", "/")
+    casefolded = normalized_path.casefold()
+    if not casefolded.startswith("docs/testing/runbooks/") or not casefolded.endswith(".md"):
+        return False
+    normalized = re.sub(r"[^a-z0-9]+", "", casefolded)
+    return all(
+        marker in normalized
+        for marker in ("hardware", "inspection", "development", "acceptance", "runbook")
+    )
+
+
 def _stage0_inventory_paths(repository_root=REPOSITORY_ROOT):
     environment = {
         key: value
@@ -305,6 +317,8 @@ def _stage0_inventory_paths(repository_root=REPOSITORY_ROOT):
         elif _is_stage0_hardware_script_candidate(normalized_path):
             paths.add(normalized_path)
         elif _is_stage0_gate1_runbook_candidate(normalized_path):
+            paths.add(normalized_path)
+        elif _is_development_acceptance_runbook_candidate(normalized_path):
             paths.add(normalized_path)
     return paths
 
@@ -356,6 +370,7 @@ def _assert_stage0_inventory(test_case, repository_paths):
             "scripts/hardware-inspection/New-LlamaCppProbeManifest.ps1",
             "scripts/hardware-inspection/Test-LlamaCppProbeManifest.ps1",
             "scripts/hardware-inspection/Invoke-SignedHardwareInspectionAcceptance.ps1",
+            "scripts/hardware-inspection/Invoke-HardwareInspectionDevelopmentAcceptanceGuest.ps1",
         },
     )
     gate1_runbooks = {
@@ -366,6 +381,17 @@ def _assert_stage0_inventory(test_case, repository_paths):
     test_case.assertEqual(gate1_runbooks, {
         "docs/testing/runbooks/Hardware-Inspection-LLM-Fit-Gate-1-Runbook.md",
     })
+    development_acceptance_runbooks = {
+        path
+        for path in paths
+        if _is_development_acceptance_runbook_candidate(path)
+    }
+    test_case.assertEqual(
+        development_acceptance_runbooks,
+        {
+            "docs/testing/runbooks/Hardware-Inspection-Development-Acceptance-Runbook.md",
+        },
+    )
     for forbidden_path in (
         ".github/workflows/hardware-inspection-intel-runner-stage-b.yml",
         ".github/workflows/hardware-inspection-intel-runner-stage-d.yml",
@@ -1336,6 +1362,8 @@ on:
             "docs/testing/runbooks/Gate-Runbook-Hardware-1-Inspection.md",
             "docs/testing/runbooks/LLM-Fit-Gate-1-Runbook.md",
             "docs/testing/runbooks/Runbook-Gate-Review-LLM-1-Fit.md",
+            "docs/testing/runbooks/hardware_inspection_development_acceptance_runbook.md",
+            "docs/testing/runbooks/Hardware-Inspection-Development-Acceptance-Runbook-copy.md",
         ):
             with self.subTest(inventory_mutation=mutation):
                 with self.assertRaises(AssertionError):
