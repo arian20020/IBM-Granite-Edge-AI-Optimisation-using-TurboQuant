@@ -9,6 +9,10 @@ namespace GraniteEdgeAI.Features.GgufRuntime.Services;
 
 internal sealed class GgufChatCoordinator : IAsyncDisposable
 {
+    internal const string ContinuationInstruction =
+        "Continue from exactly where the preceding response ended. " +
+        "Do not repeat text already given. Complete the answer concisely.";
+
     private readonly object stateSync = new();
     private readonly IChatHistoryStore store;
     private readonly IGgufChatSession session;

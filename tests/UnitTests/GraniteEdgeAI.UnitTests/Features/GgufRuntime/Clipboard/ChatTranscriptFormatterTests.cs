@@ -1,5 +1,6 @@
 using GraniteEdgeAI.Features.GgufRuntime.Clipboard;
 using GraniteEdgeAI.Features.GgufRuntime.History;
+using GraniteEdgeAI.Features.GgufRuntime.Services;
 
 namespace GraniteEdgeAI.UnitTests.Features.GgufRuntime.Clipboard;
 
@@ -52,5 +53,30 @@ public sealed class ChatTranscriptFormatterTests
         Assert.AreEqual(
             $"You:{Environment.NewLine}first line\r\n  indented line",
             ChatTranscriptFormatter.Format(messages));
+    }
+
+    [TestMethod]
+    public void FormatExcludesHiddenContinuationControl()
+    {
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        ChatMessage[] messages =
+        [
+            ChatMessage.User("Question", now),
+            ChatMessage.Assistant(
+                "Partial",
+                ChatCompletionStatus.LimitReached,
+                now),
+            ChatMessage.Control(
+                GgufChatCoordinator.ContinuationInstruction,
+                now),
+        ];
+
+        string transcript = ChatTranscriptFormatter.Format(messages);
+
+        StringAssert.Contains(transcript, "Partial");
+        StringAssert.DoesNotContain(
+            transcript,
+            GgufChatCoordinator.ContinuationInstruction,
+            StringComparison.Ordinal);
     }
 }

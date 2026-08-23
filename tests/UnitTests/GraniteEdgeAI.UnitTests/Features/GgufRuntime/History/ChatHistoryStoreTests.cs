@@ -1,4 +1,5 @@
 using GraniteEdgeAI.Features.GgufRuntime.History;
+using GraniteEdgeAI.Features.GgufRuntime.Services;
 
 namespace GraniteEdgeAI.UnitTests.Features.GgufRuntime.History;
 
@@ -57,6 +58,34 @@ public sealed class ChatHistoryStoreTests
 
         await store.DeleteAsync(healthy.Id, CancellationToken.None);
         Assert.AreEqual(0, (await store.LoadAsync(CancellationToken.None)).Count);
+    }
+
+    [TestMethod]
+    public async Task HiddenControlAndLimitStatusRoundTripWithoutChangingTitle()
+    {
+        using var root = new TemporaryDirectory();
+        var store = new AtomicJsonChatHistoryStore(root.Path);
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        ChatConversation conversation = ChatConversation.Create(
+                Guid.NewGuid(), "model", "cpu", now)
+            .Append(ChatMessage.User("Question", now))
+            .Append(ChatMessage.Assistant(
+                "Partial",
+                ChatCompletionStatus.LimitReached,
+                now.AddSeconds(1)))
+            .Append(ChatMessage.Control(
+                GgufChatCoordinator.ContinuationInstruction,
+                now.AddSeconds(2)));
+
+        await store.SaveAsync(conversation, CancellationToken.None);
+        ChatConversation loaded = (await new AtomicJsonChatHistoryStore(root.Path)
+            .LoadAsync(CancellationToken.None)).Single();
+
+        Assert.AreEqual("Question", loaded.Title);
+        Assert.AreEqual(3, loaded.Messages.Count);
+        Assert.AreEqual(ChatCompletionStatus.LimitReached, loaded.Messages[1].Status);
+        Assert.AreEqual(ChatMessageRole.Control, loaded.Messages[2].Role);
+        Assert.IsFalse(loaded.Messages[2].IsVisible);
     }
 
     private sealed class TemporaryDirectory : IDisposable

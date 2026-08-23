@@ -13,7 +13,9 @@ internal static class ChatTranscriptFormatter
         return string.Join(
             Environment.NewLine + Environment.NewLine,
             messages
-                .Where(message => !string.IsNullOrWhiteSpace(message.Content))
+                .Where(message =>
+                    message.IsVisible &&
+                    !string.IsNullOrWhiteSpace(message.Content))
                 .Select(message =>
                     $"{RoleLabel(message.Role)}:{Environment.NewLine}{message.Content}"));
     }

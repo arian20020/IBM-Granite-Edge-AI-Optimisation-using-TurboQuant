@@ -8,10 +8,12 @@ internal enum ChatCompletionStatus
     Stopped,
     Incomplete,
     Failed,
+    LimitReached,
 }
 
 internal enum ChatMessageRole
 {
     User,
     Assistant,
+    Control,
 }

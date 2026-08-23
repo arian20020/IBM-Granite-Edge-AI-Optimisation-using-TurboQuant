@@ -59,6 +59,36 @@ public sealed class GgufChatSessionAdapterTests
         Assert.AreEqual("question", captured[0].Content);
     }
 
+    [TestMethod]
+    public async Task PreparingConversationReplaysHiddenControlAsRuntimeUser()
+    {
+        ChatConversation conversation = ChatConversation.Create(
+                Guid.NewGuid(), "model", "cpu", DateTimeOffset.UtcNow)
+            .Append(ChatMessage.User("question", DateTimeOffset.UtcNow))
+            .Append(ChatMessage.Assistant(
+                "partial",
+                ChatCompletionStatus.LimitReached,
+                DateTimeOffset.UtcNow))
+            .Append(ChatMessage.Control(
+                GgufChatCoordinator.ContinuationInstruction,
+                DateTimeOffset.UtcNow));
+        IReadOnlyList<GgufConversationTurn>? captured = null;
+        var adapter = new GgufChatSessionAdapter((turns, cancellationToken) =>
+        {
+            captured = turns;
+            return Task.FromResult<IGgufChatRuntimeSession>(new FakeRuntimeSession());
+        });
+
+        await adapter.PrepareConversationAsync(conversation, CancellationToken.None);
+
+        Assert.IsNotNull(captured);
+        Assert.AreEqual(3, captured.Count);
+        Assert.AreEqual(GgufConversationRole.User, captured[2].Role);
+        Assert.AreEqual(
+            GgufChatCoordinator.ContinuationInstruction,
+            captured[2].Content);
+    }
+
     private static ChatConversation ConversationWithCompletedTurn(
         string prompt,
         string response) => ChatConversation.Create(

@@ -144,9 +144,13 @@ internal sealed class GgufChatSessionAdapter : IGgufChatSession
         return conversation.Messages
             .Where(message => !string.IsNullOrWhiteSpace(message.Content))
             .Select(message => new GgufConversationTurn(
-                message.Role == ChatMessageRole.User
-                    ? GgufConversationRole.User
-                    : GgufConversationRole.Assistant,
+                message.Role switch
+                {
+                    ChatMessageRole.User or ChatMessageRole.Control =>
+                        GgufConversationRole.User,
+                    ChatMessageRole.Assistant => GgufConversationRole.Assistant,
+                    _ => throw new ArgumentOutOfRangeException(nameof(conversation)),
+                },
                 message.Content))
             .TakeLast(GgufProtocolLimits.MaxInitialTurns)
             .ToArray();

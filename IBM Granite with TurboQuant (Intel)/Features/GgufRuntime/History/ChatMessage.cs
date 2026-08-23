@@ -28,6 +28,14 @@ internal sealed record ChatMessage
             throw new ArgumentOutOfRangeException(nameof(content));
         }
 
+        if (role == ChatMessageRole.Control &&
+            (string.IsNullOrWhiteSpace(content) || status != ChatCompletionStatus.Completed))
+        {
+            throw new ArgumentException(
+                "Control messages must be nonempty and completed.",
+                nameof(content));
+        }
+
         Id = id;
         Role = role;
         Content = content;
@@ -45,6 +53,9 @@ internal sealed record ChatMessage
 
     public DateTimeOffset CreatedUtc { get; }
 
+    public bool IsVisible =>
+        Role is ChatMessageRole.User or ChatMessageRole.Assistant;
+
     internal static ChatMessage User(string content, DateTimeOffset createdUtc) =>
         new(Guid.NewGuid(), ChatMessageRole.User, content,
             ChatCompletionStatus.Completed, createdUtc);
@@ -54,6 +65,12 @@ internal sealed record ChatMessage
         ChatCompletionStatus status,
         DateTimeOffset createdUtc) =>
         new(Guid.NewGuid(), ChatMessageRole.Assistant, content, status, createdUtc);
+
+    internal static ChatMessage Control(
+        string content,
+        DateTimeOffset createdUtc) =>
+        new(Guid.NewGuid(), ChatMessageRole.Control, content,
+            ChatCompletionStatus.Completed, createdUtc);
 
     internal ChatMessage WithContent(string content, ChatCompletionStatus status) =>
         new(Id, Role, content, status, CreatedUtc);
