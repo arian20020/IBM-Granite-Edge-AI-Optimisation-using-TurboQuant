@@ -15,7 +15,7 @@ permissions:
 # A newer push makes an older branch build obsolete. Cancelling the stale run
 # prevents two process-test campaigns from sharing one hosted runner at once.
 concurrency:
-  group: build-and-test-${{ github.workflow }}-${{ github.ref }}
+  group: build-and-test-${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 defaults:

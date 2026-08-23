@@ -89,6 +89,14 @@ public sealed class BuildWorkflowContractTests
         StringAssert.Contains(workflow, "CONTRACT_TEST_PROJECT");
         StringAssert.Contains(workflow, "Run Model Inspection contract tests");
         StringAssert.Contains(workflow, "--minimum-expected-tests 357");
+        StringAssert.Contains(
+            workflow,
+            "group: build-and-test-${{ github.workflow }}-${{ github.head_ref || github.ref_name }}");
+        StringAssert.Contains(workflow, "cancel-in-progress: true");
+        Assert.IsFalse(
+            workflow.Contains(
+                "group: build-and-test-${{ github.workflow }}-${{ github.ref }}",
+                StringComparison.Ordinal));
     }
 
     [TestMethod]

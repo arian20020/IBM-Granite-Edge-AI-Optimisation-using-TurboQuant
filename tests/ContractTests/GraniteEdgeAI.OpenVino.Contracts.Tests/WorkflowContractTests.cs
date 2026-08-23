@@ -392,6 +392,8 @@ public sealed class WorkflowContractTests
             Step(steps, "Build the Release x64 app against the pinned worker manifest"),
             "run");
         StringAssert.Contains(appBuild, "dotnet msbuild");
+        StringAssert.Contains(appBuild, "$env:OPENVINO_SHORT_WORKSPACE");
+        StringAssert.Contains(appBuild, "dotnet msbuild $appProject");
 
         string campaign = File.ReadAllText(RepoPath(
             "scripts/openvino/Invoke-OpenVinoUclCampaign.ps1"));

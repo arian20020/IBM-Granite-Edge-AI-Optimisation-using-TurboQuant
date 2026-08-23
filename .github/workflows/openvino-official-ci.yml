@@ -434,7 +434,9 @@ jobs:
           $manifestSha = (Get-FileHash `
             -LiteralPath (Join-Path $env:OPENVINO_STAGE_B 'worker-manifest.json') `
             -Algorithm SHA256).Hash.ToLowerInvariant()
-          dotnet msbuild 'IBM Granite with TurboQuant (Intel)/IBM Granite with TurboQuant (Intel).csproj' `
+          $appProject = Join-Path $env:OPENVINO_SHORT_WORKSPACE `
+            'IBM Granite with TurboQuant (Intel)/IBM Granite with TurboQuant (Intel).csproj'
+          dotnet msbuild $appProject `
             /restore /target:Build /maxCpuCount /verbosity:minimal `
             /property:Configuration=Release /property:Platform=x64 `
             /property:RuntimeIdentifier=win-x64 /property:PublishProfile= `

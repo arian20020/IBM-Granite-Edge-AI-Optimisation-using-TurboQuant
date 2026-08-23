@@ -2251,13 +2251,36 @@ public sealed class ModelInspectionFixturePresetTests
         root.LayoutUpdated += Observe;
         try
         {
-            double scale = root.XamlRoot.RasterizationScale;
-            window.AppWindow.ResizeClient(new Windows.Graphics.SizeInt32(
-                (int)Math.Round(width * scale),
-                (int)Math.Round(height * scale)));
-            Observe(null, EventArgs.Empty);
-            await resized.Task.WaitAsync(TimeSpan.FromSeconds(10));
-            root.UpdateLayout();
+            DateTime deadline = DateTime.UtcNow.AddSeconds(15);
+            do
+            {
+                double scale = root.XamlRoot.RasterizationScale;
+                window.AppWindow.ResizeClient(new Windows.Graphics.SizeInt32(
+                    (int)Math.Round(width * scale),
+                    (int)Math.Round(height * scale)));
+                Observe(null, EventArgs.Empty);
+                if (resized.Task.IsCompleted)
+                {
+                    root.UpdateLayout();
+                    return;
+                }
+
+                Task completed = await Task.WhenAny(
+                    resized.Task,
+                    Task.Delay(TimeSpan.FromMilliseconds(250)));
+                if (ReferenceEquals(completed, resized.Task))
+                {
+                    root.UpdateLayout();
+                    return;
+                }
+            }
+            while (DateTime.UtcNow < deadline);
+
+            throw new TimeoutException(
+                $"XamlRoot did not reach {width:F0}x{height:F0}; " +
+                $"actual={root.XamlRoot.Size.Width:F2}x" +
+                $"{root.XamlRoot.Size.Height:F2}, " +
+                $"scale={root.XamlRoot.RasterizationScale:F2}.");
         }
         finally
         {
