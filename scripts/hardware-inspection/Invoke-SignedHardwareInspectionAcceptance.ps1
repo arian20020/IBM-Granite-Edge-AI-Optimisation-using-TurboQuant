@@ -25,8 +25,8 @@ $testOutputRoot = [IO.Path]::GetFullPath((Join-Path $repositoryRoot (
     'tests\UnitTests\GraniteEdgeAI.UnitTests\bin\x64\{0}\net8.0-windows10.0.19041.0\win-x64' -f $Configuration)))
 $appPackagesRoot = [IO.Path]::GetFullPath((Join-Path $repositoryRoot `
     'tests\UnitTests\GraniteEdgeAI.UnitTests\AppPackages'))
-$ownedTempParent = [IO.Path]::GetFullPath((Join-Path $env:TEMP 'GraniteEdgeAI.HardwareInspection.Tests\SignedPackage'))
-$ownedTempRoot = Join-Path $ownedTempParent ([Guid]::NewGuid().ToString('N'))
+$ownedTempParent = [IO.Path]::GetFullPath((Join-Path $env:TEMP 'GEAI-HI-Signed'))
+$ownedTempRoot = Join-Path $ownedTempParent ([Guid]::NewGuid().ToString('N').Substring(0, 8))
 $stagingRoot = Join-Path $ownedTempRoot 'AppX'
 $signedPackagePath = Join-Path $ownedTempRoot 'GraniteEdgeAI.UnitTests.msix'
 $resultRoot = [IO.Path]::GetFullPath((Join-Path $env:TEMP 'GraniteEdgeAI.HardwareInspection.Tests\Acceptance'))
