@@ -302,13 +302,11 @@ jobs:
             throw 'Windows PowerShell cryptographic primitives are unavailable.'
           }
           dotnet test --project tests/ContractTests/GraniteEdgeAI.OpenVino.Contracts.Tests/GraniteEdgeAI.OpenVino.Contracts.Tests.csproj `
-            --artifacts-path $env:OPENVINO_TEST_ARTIFACTS `
             --configuration Release -p:Platform=x64 --minimum-expected-tests 60 `
             --results-directory $env:OPENVINO_RESULTS --report-trx `
             --report-trx-filename contracts.trx
           if ($LASTEXITCODE -ne 0) { throw 'OpenVINO contracts failed.' }
           dotnet test --project tests/UnitTests/GraniteEdgeAI.OpenVino.Tests/GraniteEdgeAI.OpenVino.Tests.csproj `
-            --artifacts-path $env:OPENVINO_TEST_ARTIFACTS `
             --configuration Release -p:Platform=x64 --minimum-expected-tests 177 `
             --results-directory $env:OPENVINO_RESULTS --report-trx `
             --report-trx-filename static-inspection.trx
@@ -321,14 +319,12 @@ jobs:
         run: |
           $env:PSModulePath = $env:OPENVINO_WINDOWS_POWERSHELL_MODULES
           dotnet test --project tests/UnitTests/GraniteEdgeAI.OpenVino.Tests/GraniteEdgeAI.OpenVino.Tests.csproj `
-            --artifacts-path $env:OPENVINO_TEST_ARTIFACTS `
             --configuration Release -p:Platform=x64 `
             --filter "FullyQualifiedName~OpenVinoPromptAdapterTests|FullyQualifiedName~OpenVinoRouteStateMachineTests" `
             --minimum-expected-tests 35 --results-directory $env:OPENVINO_RESULTS `
             --report-trx --report-trx-filename app-adapter.trx
           if ($LASTEXITCODE -ne 0) { throw 'App adapter tests failed.' }
           dotnet test --project tests/UnitTests/GraniteEdgeAI.OpenVino.Tests/GraniteEdgeAI.OpenVino.Tests.csproj `
-            --artifacts-path $env:OPENVINO_TEST_ARTIFACTS `
             --configuration Release -p:Platform=x64 `
             --filter FullyQualifiedName~OpenVinoWorkerPackagingTargetTests `
             --minimum-expected-tests 5 --results-directory $env:OPENVINO_RESULTS `
@@ -346,7 +342,6 @@ jobs:
           $env:TMP = $env:OPENVINO_NATIVE_TEMP
           $env:PSModulePath = $env:OPENVINO_WINDOWS_POWERSHELL_MODULES
           dotnet test --project tests/UnitTests/GraniteEdgeAI.OpenVino.WorkerClient.Tests/GraniteEdgeAI.OpenVino.WorkerClient.Tests.csproj `
-            --artifacts-path $env:OPENVINO_TEST_ARTIFACTS `
             --configuration Release -p:Platform=x64 --minimum-expected-tests 13 `
             --results-directory $env:OPENVINO_RESULTS --report-trx `
             --report-trx-filename worker-client.trx

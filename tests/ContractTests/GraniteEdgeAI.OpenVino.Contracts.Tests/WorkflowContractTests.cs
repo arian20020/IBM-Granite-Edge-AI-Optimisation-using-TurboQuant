@@ -368,8 +368,20 @@ public sealed class WorkflowContractTests
             Step(steps, "Verify post-run integrity and clean operation-owned state"),
             "run");
         Assert.AreEqual(
-            Regex.Matches(source, @"(?m)^\s*dotnet test ").Count,
+            2,
             Regex.Matches(source, @"(?m)^\s*--artifacts-path \$env:OPENVINO_TEST_ARTIFACTS `$").Count);
+        foreach (string stepName in new[]
+        {
+            "Run managed client and protected process gates",
+            "Run the closed stable-route acceptance filter"
+        })
+        {
+            string run = Scalar(Step(steps, stepName), "run");
+            Assert.AreEqual(
+                1,
+                Regex.Matches(run, @"(?m)^\s*--artifacts-path \$env:OPENVINO_TEST_ARTIFACTS `$").Count,
+                stepName);
+        }
         StringAssert.Contains(cleanup, "$env:OPENVINO_TEST_ARTIFACTS");
         StringAssert.Contains(cleanup, "$env:OPENVINO_NATIVE_TEMP");
         StringAssert.Contains(cleanup, "$env:GITHUB_RUN_ID");
