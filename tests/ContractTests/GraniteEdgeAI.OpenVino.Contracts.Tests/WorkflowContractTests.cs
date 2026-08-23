@@ -316,7 +316,8 @@ public sealed class WorkflowContractTests
         foreach (string required in new[]
         {
             "$env:SystemRoot", "$env:GITHUB_RUN_ID", "$env:GITHUB_RUN_ATTEMPT",
-            "OPENVINO_NATIVE_TEMP",
+            "OPENVINO_NATIVE_TEMP", "OPENVINO_WINDOWS_POWERSHELL_MODULES",
+            "System32/WindowsPowerShell/v1.0/Modules",
             ":openvino-stream-probe", "-Stream *",
             "$streams -notcontains 'openvino-stream-probe'"
         })
@@ -340,12 +341,25 @@ public sealed class WorkflowContractTests
             StringAssert.Contains(run, "$env:TMP = $env:OPENVINO_NATIVE_TEMP", stepName);
         }
 
+        foreach (string stepName in new[]
+        {
+            "Run contracts and static route tests with nonzero floors",
+            "Run app adapter and package tamper partitions",
+            "Run managed client and protected process gates",
+            "Run the closed stable-route acceptance filter",
+            "Build the Release x64 app against the pinned worker manifest"
+        })
+        {
+            string run = Scalar(Step(steps, stepName), "run");
+            StringAssert.Contains(
+                run,
+                "$env:PSModulePath = $env:OPENVINO_WINDOWS_POWERSHELL_MODULES",
+                stepName);
+        }
+
         string contracts = Scalar(
             Step(steps, "Run contracts and static route tests with nonzero floors"),
             "run");
-        StringAssert.Contains(
-            contracts,
-            "$env:PSModulePath = Join-Path $env:SystemRoot 'System32/WindowsPowerShell/v1.0/Modules'");
         StringAssert.Contains(contracts, "Get-Command Get-FileHash -ErrorAction Stop");
 
         string cleanup = Scalar(

@@ -127,6 +127,7 @@ jobs:
             OPENVINO_CONVERTER_STAGE = Join-Path $root 'openvino-converter-stage'
             OPENVINO_MEASUREMENTS = Join-Path $root 'openvino-official-results/measurements.json'
             OPENVINO_NATIVE_TEMP = $nativeTemp
+            OPENVINO_WINDOWS_POWERSHELL_MODULES = Join-Path $env:SystemRoot 'System32/WindowsPowerShell/v1.0/Modules'
           }
           foreach ($entry in $paths.GetEnumerator()) {
             Add-Content -LiteralPath $env:GITHUB_ENV -Value "$($entry.Key)=$($entry.Value)" -Encoding utf8
@@ -293,7 +294,7 @@ jobs:
         env:
           GRANITE_OPENVINO_OFFICIAL_WORKER_STAGE: ${{ env.OPENVINO_STAGE_B }}
         run: |
-          $env:PSModulePath = Join-Path $env:SystemRoot 'System32/WindowsPowerShell/v1.0/Modules'
+          $env:PSModulePath = $env:OPENVINO_WINDOWS_POWERSHELL_MODULES
           & powershell.exe -NoLogo -NoProfile -NonInteractive -Command `
             'Get-Command Get-FileHash -ErrorAction Stop | Out-Null'
           if ($LASTEXITCODE -ne 0) {
@@ -315,6 +316,7 @@ jobs:
         env:
           GRANITE_OPENVINO_OFFICIAL_WORKER_STAGE: ${{ env.OPENVINO_STAGE_B }}
         run: |
+          $env:PSModulePath = $env:OPENVINO_WINDOWS_POWERSHELL_MODULES
           dotnet test --project tests/UnitTests/GraniteEdgeAI.OpenVino.Tests/GraniteEdgeAI.OpenVino.Tests.csproj `
             --configuration Release -p:Platform=x64 `
             --filter "FullyQualifiedName~OpenVinoPromptAdapterTests|FullyQualifiedName~OpenVinoRouteStateMachineTests" `
@@ -337,6 +339,7 @@ jobs:
         run: |
           $env:TEMP = $env:OPENVINO_NATIVE_TEMP
           $env:TMP = $env:OPENVINO_NATIVE_TEMP
+          $env:PSModulePath = $env:OPENVINO_WINDOWS_POWERSHELL_MODULES
           dotnet test --project tests/UnitTests/GraniteEdgeAI.OpenVino.WorkerClient.Tests/GraniteEdgeAI.OpenVino.WorkerClient.Tests.csproj `
             --configuration Release -p:Platform=x64 --minimum-expected-tests 13 `
             --results-directory $env:OPENVINO_RESULTS --report-trx `
@@ -361,6 +364,7 @@ jobs:
         run: |
           $env:TEMP = $env:OPENVINO_NATIVE_TEMP
           $env:TMP = $env:OPENVINO_NATIVE_TEMP
+          $env:PSModulePath = $env:OPENVINO_WINDOWS_POWERSHELL_MODULES
           dotnet test --project tests/IntegrationTests/GraniteEdgeAI.OpenVino.WorkerProcess.Tests/GraniteEdgeAI.OpenVino.WorkerProcess.Tests.csproj `
             --configuration Release -p:Platform=x64 `
             --filter TestCategory=StableRouteAcceptance --minimum-expected-tests 12 `
@@ -371,6 +375,7 @@ jobs:
       - name: Build the Release x64 app against the pinned worker manifest
         timeout-minutes: 25
         run: |
+          $env:PSModulePath = $env:OPENVINO_WINDOWS_POWERSHELL_MODULES
           $manifestSha = (Get-FileHash `
             -LiteralPath (Join-Path $env:OPENVINO_STAGE_B 'worker-manifest.json') `
             -Algorithm SHA256).Hash.ToLowerInvariant()
