@@ -451,6 +451,7 @@ jobs:
       - name: Verify Model Inspection fixture Release isolation
         timeout-minutes: 25
         run: |
+          $env:PSModulePath = $env:OPENVINO_WINDOWS_POWERSHELL_MODULES
           $manifestSha = (Get-FileHash `
             -LiteralPath (Join-Path $env:OPENVINO_STAGE_B 'worker-manifest.json') `
             -Algorithm SHA256).Hash.ToLowerInvariant()

@@ -95,6 +95,7 @@ public sealed class ModelInspectionFixtureWorkflowContractTests
 
         foreach (string token in new[]
                  {
+                     "$env:PSModulePath = $env:OPENVINO_WINDOWS_POWERSHELL_MODULES",
                      "Test-ModelInspectionFixtureReleaseIsolation.ps1",
                      "-OpenVinoOfficialWorkerStageDirectory $env:OPENVINO_STAGE_B",
                      "-OpenVinoOfficialWorkerManifestSha256 $manifestSha",
