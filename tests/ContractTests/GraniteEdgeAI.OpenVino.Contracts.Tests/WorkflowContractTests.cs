@@ -317,7 +317,8 @@ public sealed class WorkflowContractTests
         {
             "$env:SystemRoot", "$env:GITHUB_RUN_ID", "$env:GITHUB_RUN_ATTEMPT",
             "OPENVINO_NATIVE_TEMP", "TEMP = $nativeTemp", "TMP = $nativeTemp",
-            ":openvino-stream-probe", "-Stream *"
+            ":openvino-stream-probe", "-Stream *",
+            "$streams -notcontains 'openvino-stream-probe'"
         })
         {
             StringAssert.Contains(bind, required);
