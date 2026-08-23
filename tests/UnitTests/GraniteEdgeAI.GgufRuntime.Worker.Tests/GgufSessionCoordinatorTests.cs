@@ -34,7 +34,7 @@ public sealed class GgufSessionCoordinatorTests
         TextDeltaEvent delta =
             (TextDeltaEvent)coordinator.HandleStandardOutput("G1DELTA YW5zd2Vy")!;
         ResponseCompletedEvent completed =
-            (ResponseCompletedEvent)coordinator.HandleStandardOutput("G1DONE")!;
+            (ResponseCompletedEvent)coordinator.HandleStandardOutput("G1DONE stop")!;
 
         Assert.AreEqual(GgufSessionState.Ready, coordinator.State);
         Assert.HasCount(2, startEvents);
@@ -44,6 +44,7 @@ public sealed class GgufSessionCoordinatorTests
         Assert.AreEqual(submit.RequestId, responseStarted.RequestId);
         Assert.AreEqual(submit.RequestId, delta.RequestId);
         Assert.AreEqual(submit.RequestId, completed.RequestId);
+        Assert.AreEqual(GgufCompletionReason.Stop, completed.Reason);
         CollectionAssert.AreEqual(
             new long[] { 0, 1, 2, 3, 4 },
             startEvents.Select(runtimeEvent => runtimeEvent.Sequence)
@@ -51,6 +52,34 @@ public sealed class GgufSessionCoordinatorTests
                 .Append(delta.Sequence)
                 .Append(completed.Sequence)
                 .ToArray());
+    }
+
+    [TestMethod]
+    [DataRow("G1DONE stop", GgufCompletionReason.Stop)]
+    [DataRow("G1DONE length", GgufCompletionReason.Length)]
+    public async Task CompletionReasonCrossesCoordinatorUnchanged(
+        string frame,
+        GgufCompletionReason expected)
+    {
+        await using var process = new RecordingCliProcess();
+        var coordinator = new GgufSessionCoordinator(
+            process,
+            "C:\\Models\\granite.gguf");
+        await coordinator.StartSessionAsync(
+            CreateStartCommand(),
+            CancellationToken.None);
+        await coordinator.SubmitPromptAsync(
+            new SubmitPromptCommand(
+                GgufProtocolVersion.Current,
+                Guid.NewGuid(),
+                SessionId,
+                "hello"),
+            CancellationToken.None);
+
+        var completed = (ResponseCompletedEvent)
+            coordinator.HandleStandardOutput(frame)!;
+
+        Assert.AreEqual(expected, completed.Reason);
     }
 
     [TestMethod]

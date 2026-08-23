@@ -2,6 +2,7 @@ using GraniteEdgeAI.GgufRuntime.Contracts;
 using GraniteEdgeAI.GgufRuntime.Contracts.Commands;
 using GraniteEdgeAI.GgufRuntime.Contracts.Configuration;
 using GraniteEdgeAI.GgufRuntime.Contracts.Events;
+using GraniteEdgeAI.GgufRuntime.Contracts.Failures;
 using GraniteEdgeAI.GgufRuntime.Contracts.Session;
 using GraniteEdgeAI.GgufRuntime.Transport;
 using GraniteEdgeAI.GgufRuntime.Worker.Session;
@@ -42,7 +43,23 @@ internal sealed class GgufWorkerHost : IAsyncDisposable
                 NextSequence(),
                 "load-model"),
             cancellationToken).ConfigureAwait(false);
-        await StartCliAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await StartCliAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (GgufCliStartupException exception)
+        {
+            await _channel.WriteEventAsync(
+                new RuntimeFailureEvent(
+                    GgufProtocolVersion.Current,
+                    start.RequestId,
+                    start.SessionId,
+                    NextSequence(),
+                    MapStartupFailure(exception.Code)),
+                CancellationToken.None).ConfigureAwait(false);
+            await CloseCliAsync(CancellationToken.None).ConfigureAwait(false);
+            return 70;
+        }
         await _channel.WriteEventAsync(
             new SessionReadyEvent(
                 GgufProtocolVersion.Current,
@@ -95,19 +112,22 @@ internal sealed class GgufWorkerHost : IAsyncDisposable
 
             using var generationCancellation =
                 CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            Task generation = PumpGenerationAsync(prompt, generationCancellation.Token);
+            Task<GgufCompletionReason> generation = PumpGenerationAsync(
+                prompt,
+                generationCancellation.Token);
             Task<GgufRuntimeCommand> read = _channel.ReadCommandAsync(cancellationToken).AsTask();
             Task winner = await Task.WhenAny(generation, read).ConfigureAwait(false);
             if (ReferenceEquals(winner, generation))
             {
-                await generation.ConfigureAwait(false);
+                GgufCompletionReason completionReason =
+                    await generation.ConfigureAwait(false);
                 await _channel.WriteEventAsync(
                     new ResponseCompletedEvent(
                         GgufProtocolVersion.Current,
                         prompt.RequestId,
                         prompt.SessionId,
                         NextSequence(),
-                        GgufCompletionReason.Stop),
+                        completionReason),
                     cancellationToken).ConfigureAwait(false);
                 pendingRead = read;
                 continue;
@@ -187,7 +207,7 @@ internal sealed class GgufWorkerHost : IAsyncDisposable
             cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task PumpGenerationAsync(
+    private async Task<GgufCompletionReason> PumpGenerationAsync(
         SubmitPromptCommand prompt,
         CancellationToken cancellationToken)
     {
@@ -210,7 +230,7 @@ internal sealed class GgufWorkerHost : IAsyncDisposable
             }
             else if (output.Kind == GgufCliOutputKind.ResponseCompleted)
             {
-                return;
+                return output.CompletionReason!.Value;
             }
         }
 
@@ -240,6 +260,24 @@ internal sealed class GgufWorkerHost : IAsyncDisposable
         {
         }
     }
+
+    private static GgufRuntimeFailure MapStartupFailure(string code) => code switch
+    {
+        "chat-template-unsupported" => new GgufRuntimeFailure(
+            GgufRuntimeFailureCategory.UnsupportedConfiguration,
+            code),
+        "turboquant-runtime-required" => new GgufRuntimeFailure(
+            GgufRuntimeFailureCategory.UnsupportedConfiguration,
+            code),
+        "model-load-failed" => new GgufRuntimeFailure(
+            GgufRuntimeFailureCategory.ModelLoadFailed,
+            code),
+        "protocol-violation" => new GgufRuntimeFailure(
+            GgufRuntimeFailureCategory.ProtocolViolation,
+            code),
+        _ => throw new InvalidOperationException(
+            "The adapter startup failure code is not allowed."),
+    };
 
     private long NextSequence() => _sequence++;
 }

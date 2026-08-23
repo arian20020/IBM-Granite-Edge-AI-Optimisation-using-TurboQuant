@@ -1,3 +1,4 @@
+using GraniteEdgeAI.GgufRuntime.Contracts.Events;
 using GraniteEdgeAI.GgufRuntime.Worker.Session;
 
 namespace GraniteEdgeAI.GgufRuntime.Worker.Tests;
@@ -15,7 +16,7 @@ public sealed class GgufCliOutputParserTests
             "G1RESPONSE",
             GgufCliOutputSource.StandardOutput);
         GgufCliOutput completed = GgufCliOutputParser.Parse(
-            "G1DONE",
+            "G1DONE stop",
             GgufCliOutputSource.StandardOutput);
 
         Assert.AreEqual(GgufCliOutputKind.Ready, ready.Kind);
@@ -24,6 +25,52 @@ public sealed class GgufCliOutputParserTests
         Assert.IsNull(ready.Text);
         Assert.IsNull(started.Text);
         Assert.IsNull(completed.Text);
+        Assert.AreEqual(GgufCompletionReason.Stop, completed.CompletionReason);
+    }
+
+    [TestMethod]
+    [DataRow("G1DONE stop", GgufCompletionReason.Stop)]
+    [DataRow("G1DONE length", GgufCompletionReason.Length)]
+    public void ParseCompletionRequiresExactReason(
+        string frame,
+        GgufCompletionReason expected)
+    {
+        GgufCliOutput output = GgufCliOutputParser.Parse(
+            frame,
+            GgufCliOutputSource.StandardOutput);
+
+        Assert.AreEqual(expected, output.CompletionReason);
+    }
+
+    [TestMethod]
+    [DataRow("G1DONE")]
+    [DataRow("G1DONE unknown")]
+    [DataRow("G1DONE stop extra")]
+    public void ParseCompletionRejectsMissingOrUnknownReason(string frame)
+    {
+        Assert.ThrowsExactly<InvalidOperationException>(() =>
+            GgufCliOutputParser.Parse(frame, GgufCliOutputSource.StandardOutput));
+    }
+
+    [TestMethod]
+    public void ParseUnsupportedTemplateFailurePreservesOnlyStableCode()
+    {
+        GgufCliOutput output = GgufCliOutputParser.Parse(
+            "G1FAIL chat-template-unsupported",
+            GgufCliOutputSource.StandardOutput);
+
+        Assert.AreEqual(GgufCliOutputKind.Failure, output.Kind);
+        Assert.AreEqual("chat-template-unsupported", output.FailureCode);
+        Assert.IsNull(output.Text);
+    }
+
+    [TestMethod]
+    public void ParseUnknownFailureCodeFailsClosed()
+    {
+        Assert.ThrowsExactly<InvalidOperationException>(() =>
+            GgufCliOutputParser.Parse(
+                "G1FAIL private-detail",
+                GgufCliOutputSource.StandardOutput));
     }
 
     [TestMethod]

@@ -120,13 +120,15 @@ internal sealed class GgufSessionCoordinator
                     NextSequence(),
                     output.Text!),
             GgufCliOutputKind.ResponseCompleted when State == GgufSessionState.Generating =>
-                CompleteResponse(sessionId),
+                CompleteResponse(sessionId, output.CompletionReason!.Value),
             _ => throw new InvalidOperationException(
                 "The CLI output is not valid for the current session state."),
         };
     }
 
-    private ResponseCompletedEvent CompleteResponse(GgufSessionId sessionId)
+    private ResponseCompletedEvent CompleteResponse(
+        GgufSessionId sessionId,
+        GgufCompletionReason reason)
     {
         _state.AdvanceTo(GgufSessionState.Ready);
         return new ResponseCompletedEvent(
@@ -134,7 +136,7 @@ internal sealed class GgufSessionCoordinator
             _activeRequestId,
             sessionId,
             NextSequence(),
-            GgufCompletionReason.Stop);
+            reason);
     }
 
     private long NextSequence()

@@ -9,6 +9,8 @@ internal enum FakeCliScenario
     StandardErrorFlood,
     EarlyExit,
     Hang,
+    LengthCompletion,
+    ChatTemplateUnsupported,
 }
 
 internal sealed record FakeCliOptions(FakeCliScenario Scenario)
@@ -30,6 +32,8 @@ internal sealed record FakeCliOptions(FakeCliScenario Scenario)
             "stderr-flood" => FakeCliScenario.StandardErrorFlood,
             "early-exit" => FakeCliScenario.EarlyExit,
             "hang" => FakeCliScenario.Hang,
+            "length-completion" => FakeCliScenario.LengthCompletion,
+            "chat-template-unsupported" => FakeCliScenario.ChatTemplateUnsupported,
             _ => null,
         };
         if (scenario is null)

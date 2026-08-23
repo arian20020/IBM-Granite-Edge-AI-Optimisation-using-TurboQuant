@@ -45,7 +45,21 @@ public sealed class GgufRuntimeSession : IAsyncDisposable
             .ConfigureAwait(false);
         GgufRuntimeEvent ready = await _channel.ReadEventAsync(cancellationToken)
             .ConfigureAwait(false);
-        if (loading is not SessionLoadingEvent || ready is not SessionReadyEvent)
+        ValidateStartupEvents(loading, ready);
+    }
+
+    internal static void ValidateStartupEvents(
+        GgufRuntimeEvent loading,
+        GgufRuntimeEvent terminal)
+    {
+        ArgumentNullException.ThrowIfNull(loading);
+        ArgumentNullException.ThrowIfNull(terminal);
+        if (loading is SessionLoadingEvent && terminal is RuntimeFailureEvent failure)
+        {
+            throw new GgufRuntimeStartupException(failure.Failure);
+        }
+
+        if (loading is not SessionLoadingEvent || terminal is not SessionReadyEvent)
         {
             throw new GgufTransportException("The worker did not become ready.");
         }

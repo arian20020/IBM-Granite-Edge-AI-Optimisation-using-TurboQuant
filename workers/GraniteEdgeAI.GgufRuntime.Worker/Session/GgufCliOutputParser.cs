@@ -1,3 +1,5 @@
+using GraniteEdgeAI.GgufRuntime.Contracts.Events;
+
 namespace GraniteEdgeAI.GgufRuntime.Worker.Session;
 
 internal enum GgufCliOutputSource
@@ -12,13 +14,16 @@ internal enum GgufCliOutputKind
     ResponseStarted,
     TextDelta,
     ResponseCompleted,
+    Failure,
     Diagnostic,
 }
 
 internal sealed record GgufCliOutput(
     GgufCliOutputKind Kind,
     string? Text = null,
-    string? DiagnosticCode = null);
+    string? DiagnosticCode = null,
+    GgufCompletionReason? CompletionReason = null,
+    string? FailureCode = null);
 
 internal static class GgufCliOutputParser
 {
@@ -50,8 +55,18 @@ internal static class GgufCliOutputParser
             "G1READY" => new GgufCliOutput(GgufCliOutputKind.Ready),
             "G1RESPONSE" => new GgufCliOutput(
                 GgufCliOutputKind.ResponseStarted),
-            "G1DONE" => new GgufCliOutput(
-                GgufCliOutputKind.ResponseCompleted),
+            "G1DONE stop" => new GgufCliOutput(
+                GgufCliOutputKind.ResponseCompleted,
+                CompletionReason: GgufCompletionReason.Stop),
+            "G1DONE length" => new GgufCliOutput(
+                GgufCliOutputKind.ResponseCompleted,
+                CompletionReason: GgufCompletionReason.Length),
+            "G1FAIL chat-template-unsupported" => Failure(
+                "chat-template-unsupported"),
+            "G1FAIL model-load-failed" => Failure("model-load-failed"),
+            "G1FAIL turboquant-runtime-required" => Failure(
+                "turboquant-runtime-required"),
+            "G1FAIL protocol-violation" => Failure("protocol-violation"),
             _ when line.StartsWith("G1DELTA ", StringComparison.Ordinal) =>
                 new GgufCliOutput(
                     GgufCliOutputKind.TextDelta,
@@ -60,4 +75,7 @@ internal static class GgufCliOutputParser
                 "The adapter emitted an unrecognized output frame."),
         };
     }
+
+    private static GgufCliOutput Failure(string code) =>
+        new(GgufCliOutputKind.Failure, FailureCode: code);
 }

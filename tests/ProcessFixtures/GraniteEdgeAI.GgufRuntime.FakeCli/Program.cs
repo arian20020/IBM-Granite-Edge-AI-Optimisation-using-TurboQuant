@@ -31,6 +31,13 @@ while (await Console.In.ReadLineAsync() is { } startFrame)
     historyRoles.Append(parts[1]);
 }
 
+if (options.Scenario == FakeCliScenario.ChatTemplateUnsupported)
+{
+    Console.WriteLine("G1FAIL chat-template-unsupported");
+    Console.Out.Flush();
+    return 70;
+}
+
 Console.WriteLine("G1READY");
 Console.Out.Flush();
 
@@ -63,7 +70,7 @@ while (await Console.In.ReadLineAsync() is { } frame)
     if (frame.Equals("G1STOP", StringComparison.Ordinal) &&
         options.Scenario != FakeCliScenario.IgnoreStop)
     {
-        Console.WriteLine("G1DONE");
+        Console.WriteLine("G1DONE stop");
         Console.Out.Flush();
         continue;
     }
@@ -96,7 +103,9 @@ while (await Console.In.ReadLineAsync() is { } frame)
         Console.Out.Flush();
     }
 
-    Console.WriteLine("G1DONE");
+    Console.WriteLine(options.Scenario == FakeCliScenario.LengthCompletion
+        ? "G1DONE length"
+        : "G1DONE stop");
     Console.Out.Flush();
 }
 

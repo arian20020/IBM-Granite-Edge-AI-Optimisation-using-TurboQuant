@@ -73,10 +73,20 @@ internal sealed class GgufCliSession : IGgufCliProcess
         await _input.FlushAsync(cancellationToken).ConfigureAwait(false);
         string? ready = await _output.ReadLineAsync(cancellationToken)
             .ConfigureAwait(false);
-        if (ready is null ||
-            GgufCliOutputParser.Parse(
-                ready,
-                GgufCliOutputSource.StandardOutput).Kind != GgufCliOutputKind.Ready)
+        if (ready is null)
+        {
+            throw new InvalidOperationException("The adapter did not become ready.");
+        }
+
+        GgufCliOutput startup = GgufCliOutputParser.Parse(
+            ready,
+            GgufCliOutputSource.StandardOutput);
+        if (startup.Kind == GgufCliOutputKind.Failure)
+        {
+            throw new GgufCliStartupException(startup.FailureCode!);
+        }
+
+        if (startup.Kind != GgufCliOutputKind.Ready)
         {
             throw new InvalidOperationException("The adapter did not become ready.");
         }
