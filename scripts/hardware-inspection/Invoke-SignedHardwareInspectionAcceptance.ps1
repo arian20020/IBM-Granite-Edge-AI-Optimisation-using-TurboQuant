@@ -188,7 +188,8 @@ namespace GraniteEdgeAI.HardwareInspection.AcceptanceLauncher
         public static uint Activate(string appUserModelId, string arguments)
         {
             var manager = (IApplicationActivationManager)new ApplicationActivationManager();
-            int result = manager.ActivateApplication(appUserModelId, arguments, 0, out uint processId);
+            uint processId;
+            int result = manager.ActivateApplication(appUserModelId, arguments, 0, out processId);
             Marshal.ThrowExceptionForHR(result);
             return processId;
         }
