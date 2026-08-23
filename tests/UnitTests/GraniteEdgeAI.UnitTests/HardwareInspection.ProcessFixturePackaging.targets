@@ -1,13 +1,14 @@
 <Project>
   <PropertyGroup>
-    <_HardwareInspectionFixturePublishRoot>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\$(BaseIntermediateOutputPath)hi-fixtures\llmfit\publish'))</_HardwareInspectionFixturePublishRoot>
-    <_HardwareInspectionFixturePackageRoot>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\$(BaseIntermediateOutputPath)hi-fixtures\llmfit\package'))</_HardwareInspectionFixturePackageRoot>
-    <_HardwareInspectionFixtureArtifactsRoot>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\$(BaseIntermediateOutputPath)hi-fixtures\llmfit\artifacts'))</_HardwareInspectionFixtureArtifactsRoot>
-    <_HardwareInspectionFixtureProject>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..\ProcessFixtures\GraniteEdgeAI.HardwareInspection.LlmFitFakeTool\GraniteEdgeAI.HardwareInspection.LlmFitFakeTool.csproj'))</_HardwareInspectionFixtureProject>
     <_HardwareInspectionFixtureRepositoryRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..\..'))</_HardwareInspectionFixtureRepositoryRoot>
-    <_HardwareInspectionLlamaCppFixturePublishRoot>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\$(BaseIntermediateOutputPath)hi-fixtures\llamacpp\publish'))</_HardwareInspectionLlamaCppFixturePublishRoot>
-    <_HardwareInspectionLlamaCppFixturePackageRoot>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\$(BaseIntermediateOutputPath)hi-fixtures\llamacpp\package'))</_HardwareInspectionLlamaCppFixturePackageRoot>
-    <_HardwareInspectionLlamaCppFixtureArtifactsRoot>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\$(BaseIntermediateOutputPath)hi-fixtures\llamacpp\artifacts'))</_HardwareInspectionLlamaCppFixtureArtifactsRoot>
+    <_HardwareInspectionFixtureIntermediateRoot>$([System.IO.Path]::GetFullPath('$(_HardwareInspectionFixtureRepositoryRoot)\obj\hi-fixtures'))</_HardwareInspectionFixtureIntermediateRoot>
+    <_HardwareInspectionFixturePublishRoot>$(_HardwareInspectionFixtureIntermediateRoot)\llmfit\publish</_HardwareInspectionFixturePublishRoot>
+    <_HardwareInspectionFixturePackageRoot>$(_HardwareInspectionFixtureIntermediateRoot)\llmfit\package</_HardwareInspectionFixturePackageRoot>
+    <_HardwareInspectionFixtureArtifactsRoot>$(_HardwareInspectionFixtureIntermediateRoot)\llmfit\artifacts</_HardwareInspectionFixtureArtifactsRoot>
+    <_HardwareInspectionFixtureProject>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..\ProcessFixtures\GraniteEdgeAI.HardwareInspection.LlmFitFakeTool\GraniteEdgeAI.HardwareInspection.LlmFitFakeTool.csproj'))</_HardwareInspectionFixtureProject>
+    <_HardwareInspectionLlamaCppFixturePublishRoot>$(_HardwareInspectionFixtureIntermediateRoot)\llamacpp\publish</_HardwareInspectionLlamaCppFixturePublishRoot>
+    <_HardwareInspectionLlamaCppFixturePackageRoot>$(_HardwareInspectionFixtureIntermediateRoot)\llamacpp\package</_HardwareInspectionLlamaCppFixturePackageRoot>
+    <_HardwareInspectionLlamaCppFixtureArtifactsRoot>$(_HardwareInspectionFixtureIntermediateRoot)\llamacpp\artifacts</_HardwareInspectionLlamaCppFixtureArtifactsRoot>
     <_HardwareInspectionLlamaCppFixtureProject>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..\ProcessFixtures\GraniteEdgeAI.HardwareInspection.LlamaCppProbeFakeTool\GraniteEdgeAI.HardwareInspection.LlamaCppProbeFakeTool.csproj'))</_HardwareInspectionLlamaCppFixtureProject>
     <_HardwareInspectionFixtureDotNetHost Condition="'$(DotNetHostPath)' != ''">$(DotNetHostPath)</_HardwareInspectionFixtureDotNetHost>
     <_HardwareInspectionFixtureDotNetHost Condition="'$(_HardwareInspectionFixtureDotNetHost)' == ''">dotnet</_HardwareInspectionFixtureDotNetHost>
