@@ -385,6 +385,8 @@ public sealed class WorkflowContractTests
         StringAssert.Contains(managed, "--filter TestCategory!=TurboQuantNative");
         StringAssert.Contains(managed, "dotnet build $processProject");
         StringAssert.Contains(managed, "--no-build");
+        StringAssert.Contains(managed, "OPENVINO_PARENT_EXIT_FIXTURE_ASSEMBLY");
+        StringAssert.Contains(managed, "Test-Path -LiteralPath $parentFixtureAssembly -PathType Leaf");
         Assert.IsTrue(
             managed.IndexOf("dotnet build $parentFixtureProject", StringComparison.Ordinal) <
             managed.IndexOf("dotnet test --project $processProject", StringComparison.Ordinal));

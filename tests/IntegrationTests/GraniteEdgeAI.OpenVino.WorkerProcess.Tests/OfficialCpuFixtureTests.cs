@@ -395,6 +395,23 @@ public sealed class OfficialCpuFixtureTests
             RedirectStandardOutput = true,
             RedirectStandardError = true,
         };
+        string? configuredAssembly = Environment.GetEnvironmentVariable(
+            "OPENVINO_PARENT_EXIT_FIXTURE_ASSEMBLY");
+        if (!string.IsNullOrWhiteSpace(configuredAssembly))
+        {
+            string fullAssembly = Path.GetFullPath(configuredAssembly);
+            if (!Path.GetFileName(fullAssembly).Equals(
+                    "GraniteEdgeAI.OpenVino.ParentExitFixture.dll",
+                    StringComparison.Ordinal) ||
+                !File.Exists(fullAssembly))
+            {
+                Assert.Fail("The configured managed parent-loss fixture is invalid.");
+            }
+            start.FileName = Environment.GetEnvironmentVariable("DOTNET_HOST_PATH") ?? "dotnet";
+            start.ArgumentList.Add(fullAssembly);
+            return start;
+        }
+
         if (File.Exists(executable))
         {
             start.FileName = executable;

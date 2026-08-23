@@ -389,6 +389,14 @@ jobs:
             'tests/ProcessFixtures/GraniteEdgeAI.OpenVino.ParentExitFixture/GraniteEdgeAI.OpenVino.ParentExitFixture.csproj'
           dotnet build $parentFixtureProject --configuration Release -p:Platform=x64
           if ($LASTEXITCODE -ne 0) { throw 'Managed parent-loss fixture build failed.' }
+          $parentFixtureAssembly = Join-Path (Split-Path -Parent $parentFixtureProject) `
+            'bin/x64/Release/net8.0-windows10.0.19041.0/win-x64/GraniteEdgeAI.OpenVino.ParentExitFixture.dll'
+          if (-not (Test-Path -LiteralPath $parentFixtureAssembly -PathType Leaf)) {
+            throw 'The managed parent-loss fixture assembly is unavailable.'
+          }
+          $env:OPENVINO_PARENT_EXIT_FIXTURE_ASSEMBLY = [IO.Path]::GetFullPath($parentFixtureAssembly)
+          "OPENVINO_PARENT_EXIT_FIXTURE_ASSEMBLY=$env:OPENVINO_PARENT_EXIT_FIXTURE_ASSEMBLY" |
+            Out-File -LiteralPath $env:GITHUB_ENV -Encoding utf8 -Append
           $watch = [Diagnostics.Stopwatch]::StartNew()
           dotnet test --project $processProject `
             --configuration Release -p:Platform=x64 --no-build `
