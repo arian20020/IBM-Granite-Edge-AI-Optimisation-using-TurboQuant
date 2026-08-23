@@ -382,8 +382,14 @@ public sealed class OpenVinoConversation : IAsyncDisposable
                 .ConfigureAwait(false);
             if (HasActiveTurn())
             {
+                bool surfaceCleanupPromotion =
+                    GetCancellationOutcome().SupportCode ==
+                    OpenVinoSupportCode.OperationCancelled;
                 await AwaitTerminalCleanupOrForceAsync().ConfigureAwait(false);
-                ThrowIfCancellationOutcomeWasPromoted();
+                if (surfaceCleanupPromotion)
+                {
+                    ThrowIfCancellationOutcomeWasPromoted();
+                }
                 return;
             }
 

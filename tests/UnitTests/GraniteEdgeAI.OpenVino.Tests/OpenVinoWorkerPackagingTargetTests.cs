@@ -53,6 +53,32 @@ public sealed class OpenVinoWorkerPackagingTargetTests
     }
 
     [TestMethod]
+    public async Task ExplicitNonPackagingBuildMaySkipTheOfficialClosure()
+    {
+        ProcessResult result = await RunTargetAsync(
+            stage: null,
+            digest: null,
+            packagingRequired: false);
+
+        Assert.AreEqual(0, result.ExitCode, result.Output);
+    }
+
+    [TestMethod]
+    public async Task PackageGenerationCannotSkipTheOfficialClosure()
+    {
+        ProcessResult result = await RunTargetAsync(
+            stage: null,
+            digest: null,
+            packagingRequired: false,
+            generateAppxPackage: true);
+
+        Assert.AreNotEqual(0, result.ExitCode);
+        StringAssert.Contains(
+            result.Output,
+            "OpenVinoOfficialWorkerPackagingRequired cannot be false");
+    }
+
+    [TestMethod]
     public async Task RemanifestedTamperedClosureCannotReplaceCallerPinnedDigest()
     {
         string stage = RequireOfficialStage();
@@ -127,7 +153,9 @@ public sealed class OpenVinoWorkerPackagingTargetTests
 
     private static async Task<ProcessResult> RunTargetAsync(
         string? stage,
-        string? digest)
+        string? digest,
+        bool packagingRequired = true,
+        bool generateAppxPackage = false)
     {
         string repositoryRoot = FindRepositoryRoot();
         string operationRoot = Path.Combine(
@@ -162,6 +190,12 @@ public sealed class OpenVinoWorkerPackagingTargetTests
             if (digest is not null)
             {
                 arguments.Add($"/p:OpenVinoOfficialWorkerManifestSha256={digest}");
+            }
+            if (!packagingRequired)
+            {
+                arguments.Add("/p:OpenVinoOfficialWorkerPackagingRequired=false");
+                arguments.Add(
+                    $"/p:GenerateAppxPackageOnBuild={generateAppxPackage.ToString().ToLowerInvariant()}");
             }
             ProcessStartInfo start = new("dotnet")
             {

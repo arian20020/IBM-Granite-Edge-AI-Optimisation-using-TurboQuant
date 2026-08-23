@@ -194,6 +194,24 @@ public sealed class BuildWorkflowContractTests
                 "dotnet msbuild");
         }
 
+        foreach (string packagedBuildStep in new[]
+                 {
+                     "Build WinUI application",
+                     "Run serialized Debug x64 Model Inspection fixture gallery"
+                 })
+        {
+            string step = ExtractWorkflowStep(workflow, packagedBuildStep);
+            StringAssert.Contains(
+                step,
+                "$env:PSModulePath = $env:GRANITE_WINDOWS_POWERSHELL_MODULES");
+            StringAssert.Contains(
+                step,
+                "/property:OpenVinoOfficialWorkerPackagingRequired=false");
+        }
+        StringAssert.Contains(
+            workflow,
+            "GRANITE_WINDOWS_POWERSHELL_MODULES: 'C:/Windows/System32/WindowsPowerShell/v1.0/Modules'");
+
         string checkout = ExtractWorkflowStep(
             workflow,
             "Check out required build inputs");

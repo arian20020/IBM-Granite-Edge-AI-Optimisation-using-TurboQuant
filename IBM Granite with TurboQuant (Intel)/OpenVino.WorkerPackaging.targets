@@ -1,5 +1,6 @@
 <Project>
   <PropertyGroup>
+    <OpenVinoOfficialWorkerPackagingRequired Condition="'$(OpenVinoOfficialWorkerPackagingRequired)' == ''">true</OpenVinoOfficialWorkerPackagingRequired>
     <OpenVinoOfficialWorkerPackageRelativeDirectory>OpenVino\Official\Worker</OpenVinoOfficialWorkerPackageRelativeDirectory>
     <_OpenVinoRepositoryRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..'))</_OpenVinoRepositoryRoot>
     <_OpenVinoWorkerManifestVerifier>$(_OpenVinoRepositoryRoot)\scripts\openvino\Test-OpenVinoOfficialWorkerManifest.ps1</_OpenVinoWorkerManifestVerifier>
@@ -9,7 +10,10 @@
   <Target
     Name="VerifyAndPackageOpenVinoOfficialWorker"
     BeforeTargets="AssignTargetPaths"
-    Condition="'$(Platform)' == 'x64' and '$(DesignTimeBuild)' != 'true'">
+    Condition="'$(Platform)' == 'x64' and '$(DesignTimeBuild)' != 'true' and ('$(OpenVinoOfficialWorkerPackagingRequired)' != 'false' or '$(GenerateAppxPackageOnBuild)' != 'false')">
+    <Error
+      Condition="'$(OpenVinoOfficialWorkerPackagingRequired)' == 'false'"
+      Text="OpenVinoOfficialWorkerPackagingRequired cannot be false when package generation is enabled." />
     <Error
       Condition="'$(OpenVinoOfficialWorkerStageDirectory)' == ''"
       Text="OpenVinoOfficialWorkerStageDirectory is required for x64 builds." />
