@@ -1,6 +1,6 @@
 # Hardware Inspection Gate 5 llama.cpp Capability Design
 
-**Status:** Revised signed-package boundary approved on 2026-08-23
+**Status:** Revised signed-package/AUMID acceptance boundary approved on 2026-08-23
 **Scope:** Hardware Inspection Gate 5 only  
 **Depends on:** Gate 4 closure `a351a7d`, ADR-001, ADR-003, and the Hardware Inspection trusted-tool/process foundation
 
@@ -55,7 +55,13 @@ Gate 5 packages the probe as an inactive application asset under the fixed `Hard
 
 Packaging is not activation. Product composition remains `UnavailableHardwareInspectionService` until the resolver/orchestrator gates deliberately activate providers. No production code locates, verifies, or launches the packaged probe in Gate 5.
 
-Smart App Control remains fully enforced. Gate 5 does not execute a newly built unsigned apphost from a loose output directory, reuse a previously trusted binary, weaken custody, or substitute a system `dotnet.exe` host. Real process acceptance runs only from the installed signed AppX test package, whose package catalog authorizes the included child executables.
+Smart App Control remains fully enforced. Gate 5 does not execute a newly built unsigned apphost from a loose output directory, reuse a previously trusted binary, weaken custody, or substitute a system `dotnet.exe` host. Real process acceptance runs only from the normally installed signed AppX test package, whose package catalog authorizes the included child executables. Visual Studio's `.build.appxrecipe` remains valid for ordinary packaged UI tests but is not the Gate 5 process-acceptance launcher because it deploys a development-mode loose layout with `SignatureKind=None`.
+
+The installed test application exposes one test-only, closed AUMID activation command. The launcher passes exactly `--hardware-inspection-process-acceptance --result-token <token>`, where `<token>` is 32 lowercase hexadecimal characters. The app derives the result path itself as `%TEMP%\GraniteEdgeAI.HardwareInspection.Tests\Acceptance\<token>.json`; it accepts no caller-supplied path, test name, filter, executable, or argument. Every other activation continues through the existing MSTest client unchanged.
+
+The acceptance host first proves that it has package identity, then discovers only public parameterless test methods carrying both `TestMethodAttribute` and the exact `HardwareInspectionProcessAcceptance` category in its own signed test assembly. It orders their fully qualified names ordinally and executes them sequentially. It rejects duplicate names, unsupported return types, discovery failure, or an empty campaign. Each method may return only `void`, `Task`, or `ValueTask`. The host writes one bounded UTF-8 JSON-v1 result atomically after the campaign completes, with one LF and no BOM. The result retains only schema, package-identity-present, total, passed, and a bounded ordinal list of failed fully qualified test names; it retains no exception, stack trace, path, process output, native label, host identity, or timing. The external launcher validates the exact schema/counts, requires zero failures, and removes its owned result root.
+
+The local signing launcher uses a purpose-specific code-signing certificate whose subject exactly matches the manifest publisher. Only the public certificate is trusted machine-wide; the private key remains in the invoking user's certificate store and is never exported or committed. It packs the exact built AppX layout, signs the MSIX with SHA-256, verifies the signature, installs the package normally, requires `SignatureKind=Developer` and an install location outside the source/build tree, activates the registered AUMID, waits with a fixed timeout, validates the bounded result, and removes the installed package. It never disables Smart App Control, registers an unpacked layout, copies files into `WindowsApps`, or launches a package payload by filesystem path.
 
 ## 4. Probe commands and native behavior
 
@@ -217,6 +223,9 @@ All production behavior is implemented test-first.
 
 - the x64 Debug AppX test package contains the real probe and a test-only adverse probe fixture in separate exact flat directories;
 - both child executables and every dependency are covered by the installed package catalog before execution;
+- a normally installed package reports `SignatureKind=Developer`, and the acceptance host is activated only through its registered AUMID and exact closed command;
+- the host proves package identity, discovers only the exact acceptance category, orders tests ordinally, and executes them sequentially;
+- the host publishes only the bounded atomic JSON-v1 summary under its fixed token-derived temporary subtree, and the launcher rejects any malformed, partial, oversized, mismatched, or non-passing result;
 - the real `TrustedToolPackageVerifier`, live `VerifiedTrustedTool` custody, and `ExternalProcessRunner` execute success, identity mismatch, malformed output, nonzero exit, overflow, timeout, cancellation, descendant cleanup, and normal-parent-exit scenarios;
 - the test-only fixture contains no LLamaSharp/native dependency and is excluded from the production application package;
 - the real packaged probe runs as a child process three consecutive times on Windows x64, returns structurally valid CPU capability evidence, and leaves no descendants;
@@ -237,9 +246,9 @@ All production behavior is implemented test-first.
 Gate 5 is complete only when:
 
 1. the dedicated probe, strict parsers, evidence contracts, and provider pass all specified tests;
-2. the installed signed AppX test package proves the real and adverse child-process boundaries, including three consecutive CPU capability smoke passes, without loading native code into the parent;
+2. the normally installed signed AppX test package, activated through its registered AUMID and closed acceptance command, proves the real and adverse child-process boundaries, including three consecutive CPU capability smoke passes, without loading native code into the parent;
 3. review has no unresolved Critical, Important, or Minor findings;
-4. fresh authoritative TRX files have zero failed, skipped, or not-executed tests;
+4. fresh authoritative ordinary-suite TRX files have zero failed, skipped, or not-executed tests, and every signed-AUMID acceptance summary has total equal to passed with an empty failure list;
 5. documentation records exact commits, counts, warnings, runtime identity, privacy-safe results, and audits;
 6. the tracked worktree is clean after the evidence commit.
 
