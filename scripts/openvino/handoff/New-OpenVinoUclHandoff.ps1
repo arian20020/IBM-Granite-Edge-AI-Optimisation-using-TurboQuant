@@ -337,8 +337,17 @@ try {
         Out-Null
     if ($LASTEXITCODE -ne 0) { throw 'git-bundle-create-failed' }
     $phase = 'git-bundle-verification'
-    @(& git bundle verify $gitBundlePath 2>&1) | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw 'git-bundle-verify-failed' }
+    $savedErrorAction = $ErrorActionPreference
+    $gitBundleVerifyExitCode = -1
+    try {
+        $ErrorActionPreference = 'Continue'
+        @(& git bundle verify $gitBundlePath 2>&1) | Out-Null
+        $gitBundleVerifyExitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $savedErrorAction
+    }
+    if ($gitBundleVerifyExitCode -ne 0) { throw 'git-bundle-verify-failed' }
     $phase = 'source-snapshot-creation'
     @(& git -C $repository archive --format=zip `
         --output $sourceSnapshotPath $baselineImplementationCommit 2>&1) | Out-Null

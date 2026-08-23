@@ -205,6 +205,16 @@ public sealed class HandoffBundleContractTests
             StringComparison.Ordinal));
     }
 
+    [TestMethod]
+    public void BuilderChecksGitBundleVerifyExitDespiteInformationalStderr()
+    {
+        string builder = File.ReadAllText(RepoPath(
+            "scripts/openvino/handoff/New-OpenVinoUclHandoff.ps1"));
+        StringAssert.Contains(builder, "$gitBundleVerifyExitCode");
+        StringAssert.Contains(builder, "$ErrorActionPreference = 'Continue'");
+        StringAssert.Contains(builder, "$ErrorActionPreference = $savedErrorAction");
+    }
+
     private static string RepoPath(string relative) => Path.Combine(
         FindRepositoryRoot(), relative.Replace('/', Path.DirectorySeparatorChar));
 
