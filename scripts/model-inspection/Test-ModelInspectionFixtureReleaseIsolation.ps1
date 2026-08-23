@@ -701,35 +701,13 @@ function Write-Utf8NoBomLf {
     [System.IO.File]::WriteAllText($Path, $normalized, $encoding)
 }
 
-function Find-MSBuild {
-    $vswhere = Join-Path ${env:ProgramFiles(x86)} `
-        'Microsoft Visual Studio\Installer\vswhere.exe'
-    if (-not (Test-Path -LiteralPath $vswhere -PathType Leaf)) {
-        throw 'Visual Studio Installer discovery tool was not found.'
+function Find-DotNet {
+    $command = Get-Command dotnet.exe -CommandType Application -ErrorAction Stop
+    if (-not (Test-Path -LiteralPath $command.Source -PathType Leaf)) {
+        throw 'The repository .NET SDK host was not found.'
     }
 
-    $result = Invoke-CheckedProcess `
-        -FilePath $vswhere `
-        -Arguments @(
-            '-latest',
-            '-products',
-            '*',
-            '-requires',
-            'Microsoft.Component.MSBuild',
-            '-find',
-            'MSBuild\**\Bin\MSBuild.exe') `
-        -WorkingDirectory $script:OwnedRoot `
-        -TimeoutSeconds 30 `
-        -Operation 'MSBuild discovery'
-    $candidates = @($result.StandardOutput -split "`r?`n" | Where-Object {
-        -not [string]::IsNullOrWhiteSpace($_)
-    })
-    if ($candidates.Count -ne 1 -or
-        -not (Test-Path -LiteralPath $candidates[0] -PathType Leaf)) {
-        throw 'MSBuild discovery did not return exactly one executable.'
-    }
-
-    return [System.IO.Path]::GetFullPath($candidates[0])
+    return [System.IO.Path]::GetFullPath($command.Source)
 }
 
 function Get-BuildPathPins {
@@ -839,7 +817,7 @@ function Get-AppBuildPathPins {
 function Assert-BuildPathEvaluation {
     param(
         [Parameter(Mandatory = $true)]
-        [string] $MSBuild,
+        [string] $DotNet,
 
         [Parameter(Mandatory = $true)]
         [string] $ProjectPath,
@@ -872,8 +850,9 @@ function Assert-BuildPathEvaluation {
 
     $propertyNames = @($expectedProperties.Keys)
     $result = Invoke-CheckedProcess `
-        -FilePath $MSBuild `
+        -FilePath $DotNet `
         -Arguments (@(
+            'msbuild',
             $ProjectPath,
             '/nologo',
             "/p:Configuration=$Configuration",
@@ -923,7 +902,7 @@ function Assert-BuildPathEvaluation {
 function Assert-SnapshotBuildPathIsolation {
     param(
         [Parameter(Mandatory = $true)]
-        [string] $MSBuild,
+        [string] $DotNet,
 
         [Parameter(Mandatory = $true)]
         [string] $SourceRoot,
@@ -962,7 +941,7 @@ function Assert-SnapshotBuildPathIsolation {
 
     foreach ($project in @($projects | Sort-Object FullName)) {
         Assert-BuildPathEvaluation `
-            -MSBuild $MSBuild `
+            -DotNet $DotNet `
             -ProjectPath $project.FullName `
             -Configuration $Configuration `
             -Pins $Pins
@@ -1015,7 +994,7 @@ function Assert-WorkerDestructiveTargetContract {
 function Invoke-AppBuild {
     param(
         [Parameter(Mandatory = $true)]
-        [string] $MSBuild,
+        [string] $DotNet,
 
         [Parameter(Mandatory = $true)]
         [string] $ProjectPath,
@@ -1039,6 +1018,7 @@ function Invoke-AppBuild {
     }
 
     $common = @(
+        'msbuild',
         $ProjectPath,
         '/m:1',
         '/nr:false',
@@ -1076,7 +1056,7 @@ function Invoke-AppBuild {
         $common += '/p:OpenVinoOfficialWorkerPackagingRequired=false'
     }
     $null = Invoke-CheckedProcess `
-        -FilePath $MSBuild `
+        -FilePath $DotNet `
         -Arguments ($common + @('/t:Restore')) `
         -WorkingDirectory $projectDirectory `
         -TimeoutSeconds 900 `
@@ -1100,7 +1080,7 @@ function Invoke-AppBuild {
     }
 
     $result = Invoke-CheckedProcess `
-        -FilePath $MSBuild `
+        -FilePath $DotNet `
         -Arguments $buildArguments `
         -WorkingDirectory $projectDirectory `
         -TimeoutSeconds 1200 `
@@ -1110,10 +1090,10 @@ function Invoke-AppBuild {
         platform = 'x64'
         runtime = 'win-x64'
         command = if ($Configuration -eq 'Release') {
-            'msbuild <app-project> /t:Restore,Build /p:Configuration=Release /p:Platform=x64 /p:RuntimeIdentifier=win-x64 /p:OpenVinoOfficialWorkerStageDirectory=<verified-stage> /p:OpenVinoOfficialWorkerManifestSha256=<verified-digest> /p:GenerateAppxPackageOnBuild=true /p:AppxPackageDir=<owned-root>/release/package'
+            'dotnet msbuild <app-project> /t:Restore,Build /p:Configuration=Release /p:Platform=x64 /p:RuntimeIdentifier=win-x64 /p:OpenVinoOfficialWorkerStageDirectory=<verified-stage> /p:OpenVinoOfficialWorkerManifestSha256=<verified-digest> /p:GenerateAppxPackageOnBuild=true /p:AppxPackageDir=<owned-root>/release/package'
         }
         else {
-            'msbuild <app-project> /t:Restore,Build /p:Configuration=Debug /p:Platform=x64 /p:RuntimeIdentifier=win-x64 /p:OpenVinoOfficialWorkerPackagingRequired=false /p:GenerateAppxPackageOnBuild=false'
+            'dotnet msbuild <app-project> /t:Restore,Build /p:Configuration=Debug /p:Platform=x64 /p:RuntimeIdentifier=win-x64 /p:OpenVinoOfficialWorkerPackagingRequired=false /p:GenerateAppxPackageOnBuild=false'
         }
         exitCode = $result.ExitCode
     }
@@ -1620,23 +1600,22 @@ function Invoke-CommittedMetadataInspection {
         [string] $SourceRoot,
 
         [Parameter(Mandatory = $true)]
-        [string] $MSBuild
+        [string] $DotNet
     )
 
     $contractProject = Join-Path $SourceRoot `
         'tests\ContractTests\GraniteEdgeAI.ModelInspection.Contracts.Tests\GraniteEdgeAI.ModelInspection.Contracts.Tests.csproj'
-    $dotnet = (Get-Command dotnet.exe -ErrorAction Stop).Source
     $pins = Get-BuildPathPins `
         -Configuration Release `
         -Scope 'contract-inspector' `
         -BuildRootParent (Join-Path $SourceRoot '.model-inspection-isolation-build')
     Assert-BuildPathEvaluation `
-        -MSBuild $MSBuild `
+        -DotNet $DotNet `
         -ProjectPath $contractProject `
         -Configuration Release `
         -Pins $pins
     $build = Invoke-CheckedProcess `
-        -FilePath $dotnet `
+        -FilePath $DotNet `
         -Arguments (@(
                 'build',
                 $contractProject,
@@ -2197,7 +2176,7 @@ function Inspect-ReleasePackage {
         [string] $SourceRoot,
 
         [Parameter(Mandatory = $true)]
-        [string] $MSBuild
+        [string] $DotNet
     )
 
     $packagePath = Assert-CanonicalChildPath `
@@ -2263,7 +2242,7 @@ function Inspect-ReleasePackage {
     $metadataInspection = Invoke-CommittedMetadataInspection `
         -AssemblyPath $mainFiles[0].FullName `
         -SourceRoot $SourceRoot `
-        -MSBuild $MSBuild
+        -DotNet $DotNet
     $metadata = $metadataInspection.Result
 
     $tokenHits = @(
@@ -2751,14 +2730,14 @@ try {
                     configuration = 'Release'
                     platform = 'x64'
                     runtime = 'win-x64'
-                    command = 'msbuild <app-project> /t:Restore,Build /p:Configuration=Release /p:Platform=x64 /p:RuntimeIdentifier=win-x64 /p:OpenVinoOfficialWorkerStageDirectory=<verified-stage> /p:OpenVinoOfficialWorkerManifestSha256=<verified-digest> /p:GenerateAppxPackageOnBuild=true /p:AppxPackageDir=<owned-root>/release/package'
+                    command = 'dotnet msbuild <app-project> /t:Restore,Build /p:Configuration=Release /p:Platform=x64 /p:RuntimeIdentifier=win-x64 /p:OpenVinoOfficialWorkerStageDirectory=<verified-stage> /p:OpenVinoOfficialWorkerManifestSha256=<verified-digest> /p:GenerateAppxPackageOnBuild=true /p:AppxPackageDir=<owned-root>/release/package'
                     exitCode = 0
                 },
                 [pscustomobject][ordered]@{
                     configuration = 'Debug'
                     platform = 'x64'
                     runtime = 'win-x64'
-                    command = 'msbuild <app-project> /t:Restore,Build /p:Configuration=Debug /p:Platform=x64 /p:RuntimeIdentifier=win-x64 /p:OpenVinoOfficialWorkerPackagingRequired=false /p:GenerateAppxPackageOnBuild=false'
+                    command = 'dotnet msbuild <app-project> /t:Restore,Build /p:Configuration=Debug /p:Platform=x64 /p:RuntimeIdentifier=win-x64 /p:OpenVinoOfficialWorkerPackagingRequired=false /p:GenerateAppxPackageOnBuild=false'
                     exitCode = 0
                 },
                 [pscustomobject][ordered]@{
@@ -2810,7 +2789,7 @@ try {
         -DebugEvaluation $debugEvaluation
     Assert-WorkerDestructiveTargetContract -SourceRoot $sourceRoot
 
-    $msbuild = Find-MSBuild
+    $dotnet = Find-DotNet
     $packageDirectory = Join-Path $script:OwnedRoot 'release\package'
     $packageOutput = Join-Path $packageDirectory 'application.msix'
     $releasePins = Get-AppBuildPathPins `
@@ -2818,12 +2797,12 @@ try {
         -PackageDirectory $packageDirectory
     $debugPins = Get-AppBuildPathPins -Configuration Debug
     Assert-SnapshotBuildPathIsolation `
-        -MSBuild $msbuild `
+        -DotNet $dotnet `
         -SourceRoot $sourceRoot `
         -Configuration Release `
         -Pins $releasePins
     Assert-SnapshotBuildPathIsolation `
-        -MSBuild $msbuild `
+        -DotNet $dotnet `
         -SourceRoot $sourceRoot `
         -Configuration Debug `
         -Pins $debugPins
@@ -2843,20 +2822,20 @@ try {
     }
 
     $releaseBuild = Invoke-AppBuild `
-        -MSBuild $msbuild `
+        -DotNet $dotnet `
         -ProjectPath $appProject `
         -Configuration Release `
         -Pins $releasePins `
         -PackageDirectory $packageDirectory
     $debugBuild = Invoke-AppBuild `
-        -MSBuild $msbuild `
+        -DotNet $dotnet `
         -ProjectPath $appProject `
         -Configuration Debug `
         -Pins $debugPins
     $package = Inspect-ReleasePackage `
         -PackagePath $packageOutput `
         -SourceRoot $sourceRoot `
-        -MSBuild $msbuild
+        -DotNet $dotnet
 
     $evidenceValidationProvenance = [pscustomobject][ordered]@{
         configuration = 'Release'
