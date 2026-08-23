@@ -23,7 +23,7 @@
 - Cancellation propagates with the caller token. Missing/integrity/runtime failures are typed unavailability, never absent hardware.
 - Retain no paths, hashes, stdout/stderr, exit codes, exceptions, native logs/pointers, host/account identity, model data, or unrestricted device/hardware names in evidence or committed artifacts.
 - Package the inactive production probe only under `HardwareInspection\LlamaCppProbe`; do not locate, verify, launch, or register it in product composition.
-- Real and adverse child-process acceptance must run from the installed signed x64 AppX test package. Do not execute new unsigned apphosts from loose output directories, disable Smart App Control, reuse previously trusted hashes, or substitute a system `dotnet.exe` launcher.
+- Real and adverse child-process acceptance must run from the normally installed signed x64 AppX test package through its registered AUMID and exact closed acceptance command. Visual Studio's development-mode `.build.appxrecipe` is not process-acceptance evidence. Do not execute new unsigned apphosts from loose output directories, disable Smart App Control, reuse previously trusted hashes, or substitute a system `dotnet.exe` launcher.
 - The test-only adverse executable is packaged only in `GraniteEdgeAI.UnitTests`, never the production application package.
 - Do not create `HardwareSnapshot`, normalize/resolve sources, infer compatibility, open a model, download/execute a candidate, or perform any operational Stage action.
 - Every behavior change follows RED -> GREEN -> refactor, each task commits independently, and every Critical/Important/Minor review finding is resolved test-first.
@@ -282,20 +282,27 @@ git commit -m "feat(hardware-inspection): map llama.cpp capability provider"
 
 **Files:**
 - Create: `tests/UnitTests/GraniteEdgeAI.HardwareInspection.Foundation.Tests/Processes/BoundedProcessOutputTests.cs`
+- Create: `tests/UnitTests/GraniteEdgeAI.UnitTests/Features/HardwareInspection/Acceptance/HardwareInspectionProcessAcceptanceHost.cs`
+- Create: `tests/UnitTests/GraniteEdgeAI.UnitTests/Features/HardwareInspection/Acceptance/SignedAcceptanceHostContractTests.cs`
 - Create: `tests/UnitTests/GraniteEdgeAI.UnitTests/Features/HardwareInspection/Processes/ExternalProcessRunnerPackagedTests.cs`
 - Create: `tests/UnitTests/GraniteEdgeAI.UnitTests/Features/HardwareInspection/LlmFit/LlmFitHardwareEvidenceProviderPackagedTests.cs`
 - Create: `tests/UnitTests/GraniteEdgeAI.UnitTests/Features/HardwareInspection/Support/VerifiedPackagedToolFixture.cs`
 - Create: `tests/UnitTests/GraniteEdgeAI.UnitTests/HardwareInspection.ProcessFixturePackaging.targets`
+- Create: `scripts/hardware-inspection/Invoke-SignedHardwareInspectionAcceptance.ps1`
 - Modify: `tests/UnitTests/GraniteEdgeAI.HardwareInspection.Foundation.Tests/Processes/ExternalProcessRunnerTests.cs`
 - Modify: `tests/UnitTests/GraniteEdgeAI.HardwareInspection.Foundation.Tests/LlmFit/LlmFitHardwareEvidenceProviderProcessTests.cs`
 - Modify: `tests/UnitTests/GraniteEdgeAI.HardwareInspection.Foundation.Tests/Support/VerifiedLlmFitFixture.cs`
 - Modify: `tests/UnitTests/GraniteEdgeAI.HardwareInspection.Foundation.Tests/GraniteEdgeAI.HardwareInspection.Foundation.Tests.csproj`
 - Modify: `tests/UnitTests/GraniteEdgeAI.UnitTests/GraniteEdgeAI.UnitTests.csproj`
+- Modify: `tests/UnitTests/GraniteEdgeAI.UnitTests/UnitTestApp.xaml.cs`
+- Modify: `tests/ProcessFixtures/GraniteEdgeAI.HardwareInspection.LlmFitFakeTool/Program.cs`
 - Modify: `infrastructure/GraniteEdgeAI.HardwareInspection.Foundation/Properties/AssemblyInfo.cs`
 
 **Interfaces:**
 - Retains native-free byte-stream tests in the Foundation suite.
 - Produces signed-package acceptance for the real `ExternalProcessRunner` using the existing LLM Fit fake tool under `HardwareInspection\TestTools\LlmFitFake`.
+- Produces `HardwareInspectionProcessAcceptanceHost.TryParseActivation(string, out string)` and `RunAsync(string)` for the exact AUMID command `--hardware-inspection-process-acceptance --result-token <32-lowercase-hex>`.
+- Produces `scripts/hardware-inspection/Invoke-SignedHardwareInspectionAcceptance.ps1 -CertificateThumbprint <40-hex> -Repetitions <1..10>`; it requires a pre-provisioned purpose-specific certificate and never creates, exports, or commits a private key.
 - Grants internals only to the established `GraniteEdgeAI.UnitTests` test assembly.
 
 - [ ] **Step 1: Write the RED package/inventory contract**
@@ -309,9 +316,9 @@ Assert.IsTrue(packageRoot.StartsWith(
 Assert.IsFalse(Directory.EnumerateDirectories(packageRoot).Any());
 ```
 
-- [ ] **Step 2: Run packaged RED**
+- [ ] **Step 2: Run loose-layout RED and identify the signed-host requirement**
 
-Build and install the x64 Debug AppX test package, then run only `ExternalProcessRunnerPackagedTests`. Expected: `HardwareInspection\TestTools\LlmFitFake` is missing.
+Build the x64 Debug AppX test project and run the package contract directly against the DLL. Expected before packaging: `HardwareInspection\TestTools\LlmFitFake` is missing. After packaging, require the contract to pass directly, but do not run any executable process test from that loose output. Run the generated `.build.appxrecipe` once only to characterize policy: require Windows Application Control event `0x800711C7` and `SignatureKind=None`, then retain no TRX as passing evidence.
 
 - [ ] **Step 3: Add test-only fixture packaging**
 
@@ -319,16 +326,34 @@ Publish `GraniteEdgeAI.HardwareInspection.LlmFitFakeTool` as Release/framework-d
 
 - [ ] **Step 4: Split native-free and real-process tests**
 
-Move `MemoryStream`/bounded-decoding cases into `BoundedProcessOutputTests`. Move every test that starts the fixture executable, checks provider behavior through the real runner, Job membership, timeout, cancellation, overflow, crash, descendant cleanup, or custody into the two packaged process classes. Remove `ExternalProcessRunnerTests`, `LlmFitHardwareEvidenceProviderProcessTests`, and `VerifiedLlmFitFixture` from the ordinary Foundation test assembly; remove its process-fixture project reference; and add the narrowly scoped `InternalsVisibleTo("GraniteEdgeAI.UnitTests")` needed by packaged acceptance.
+Move `MemoryStream`/bounded-decoding cases into `BoundedProcessOutputTests`. Move every test that starts the fixture executable, checks provider behavior through the real runner, Job membership, timeout, cancellation, overflow, crash, descendant cleanup, or custody into the two packaged process classes. Add the exact `HardwareInspectionProcessAcceptance` category to every moved executable case. Remove `ExternalProcessRunnerTests`, `LlmFitHardwareEvidenceProviderProcessTests`, and `VerifiedLlmFitFixture` from the ordinary Foundation test assembly; remove its process-fixture project reference; and add the narrowly scoped `InternalsVisibleTo("GraniteEdgeAI.UnitTests")` needed by packaged acceptance.
 
-- [ ] **Step 5: Run GREEN at both boundaries**
+- [ ] **Step 5: Write the RED signed-AUMID host contract**
 
-Require the ordinary Foundation suite to pass without starting an unsigned apphost. Require the installed AppX process class to pass three consecutive times with zero skipped and no surviving descendants.
+Add `SignedAcceptanceHostContractTests.RunsInsideNormallyInstalledPackage` with the exact process-acceptance category. It must use `Windows.ApplicationModel.Package.Current.Id` and require identity `GraniteEdgeAI.WinUI.UnitTests`. Add a closed activation branch to `UnitTestApp.OnLaunched` that calls the still-missing host. Build to verify RED because `HardwareInspectionProcessAcceptanceHost` is absent.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 6: Implement the minimal closed acceptance host**
+
+`TryParseActivation` accepts only the exact two-switch command and a 32-character lowercase hexadecimal token. `RunAsync` proves package identity; reflects over its own signed assembly; selects only public, parameterless methods with `TestMethodAttribute` and exact category `HardwareInspectionProcessAcceptance`; rejects zero, duplicate, more than 128, names above 512 Unicode scalars, or return types other than `void`, `Task`, and `ValueTask`; sorts fully qualified names ordinally; executes sequentially; and catches each test failure without retaining exception content. Write schema `granite.hardware-inspection.process-acceptance/v1`, `packageIdentityPresent`, `total`, `passed`, and sorted `failed` names as UTF-8 without BOM plus one LF to a temporary sibling, reject output above 64 KiB, then atomically rename beneath `%TEMP%\GraniteEdgeAI.HardwareInspection.Tests\Acceptance\<token>.json`. On every other launch, preserve the existing MSTest UI/client path byte-for-byte.
+
+- [ ] **Step 7: Add the signed package launcher and verify host RED**
+
+The PowerShell launcher validates a 40-hex certificate thumbprint, requires `CN=GraniteEdgeAI`, code-signing EKU, a private key only in `Cert:\CurrentUser\My`, and the same public certificate in `Cert:\LocalMachine\TrustedPeople`. Resolve x64 `makeappx.exe`, `signtool.exe`, and Visual Studio tools from installed Windows SDK/VS paths; pack the exact built `AppX` directory into an owned temporary MSIX; sign with SHA-256; require `Get-AuthenticodeSignature` valid; remove only the exact `GraniteEdgeAI.WinUI.UnitTests` test package identity if present; install normally; require `SignatureKind=Developer`, package identity/version/architecture/publisher match, and install location outside all source/build roots. Activate `<PackageFamilyName>!App` through `IApplicationActivationManager` with the exact closed command, wait at most 180 seconds for the token result, validate its 64 KiB bound and exact JSON schema/count invariant, and remove the installed package and owned temporary files in `finally`. Never remove or mutate the certificate. Run once against the old fake tool. Expected RED: the signed host connects and returns failures because immutable `fake-mode.txt` contains a newline while the old fake compares the untrimmed file and attempts package-local marker writes.
+
+- [ ] **Step 8: Make the fake tool package-immutable**
+
+Read `fake-mode.txt` once and accept only one closed mode followed by exactly `Environment.NewLine`. Derive the fixed control root as `%TEMP%\GraniteEdgeAI.HardwareInspection.Tests\LlmFitFake\<mode>`. Write readiness markers and create `owned-child-<guid>` only beneath that root. Child mode files contain exactly `sleep-child` plus `Environment.NewLine`; child execution still uses `Environment.ProcessPath` and the original exact LLM Fit command. Add bounded retry cleanup to `VerifiedPackagedToolFixture` for only its fixed owned control root.
+
+- [ ] **Step 9: Run GREEN at both boundaries**
+
+Require the unfiltered ordinary Foundation suite to pass without starting an unsigned apphost. Build the AppX from a real physical worktree, then require the signed AUMID launcher with `-Repetitions 3` to report total=passed, an empty failure list, zero surviving descendants, `SignatureKind=Developer` for every run, and package removal in `finally`. Require the normal `.build.appxrecipe` UI suites to remain structurally unchanged but do not claim them as signed process acceptance.
+
+- [ ] **Step 10: Commit**
 
 ```powershell
 git add infrastructure/GraniteEdgeAI.HardwareInspection.Foundation/Properties/AssemblyInfo.cs `
+  scripts/hardware-inspection/Invoke-SignedHardwareInspectionAcceptance.ps1 `
+  tests/ProcessFixtures/GraniteEdgeAI.HardwareInspection.LlmFitFakeTool/Program.cs `
   tests/UnitTests/GraniteEdgeAI.HardwareInspection.Foundation.Tests `
   tests/UnitTests/GraniteEdgeAI.UnitTests
 git commit -m "test(hardware-inspection): run process acceptance from signed AppX"
@@ -474,7 +499,7 @@ Resolve only `HardwareInspection\LlamaCppProbe` under the installed package. Par
 
 - [ ] **Step 4: Run signed packaged GREEN three times**
 
-Build/install the AppX test package and run both packaged classes three consecutive times. Require total=executed=passed, zero failed/skipped/not-executed, and no surviving descendant/resource symptom. Do not attempt a loose-output fallback if policy blocks execution.
+Build the AppX test package from the exact physical-path head and invoke `Invoke-SignedHardwareInspectionAcceptance.ps1 -Repetitions 3`. Require each signed-AUMID summary to have total=passed, an empty failure list, `packageIdentityPresent=true`, `SignatureKind=Developer`, and no surviving descendant/resource symptom. Require the launcher to remove the installed test package in `finally`. Do not attempt a loose-output or `.build.appxrecipe` fallback if signing, normal installation, AUMID activation, or policy blocks execution.
 
 - [ ] **Step 5: Run full regressions and commit**
 
@@ -504,8 +529,8 @@ At the exact final code head:
 
 1. build the probe and application Release/win-x64 with zero errors;
 2. run all Foundation and probe unit tests with fresh TRX files and exact discovered counts;
-3. install the signed x64 AppX test package and run fake-process and real-probe classes three consecutive times;
-4. parse every TRX and require total=executed=passed with zero failed/error/timeout/aborted/inconclusive/not-executed.
+3. run the normally installed signed x64 AppX acceptance package through its registered AUMID three consecutive times;
+4. parse every ordinary-suite TRX and require total=executed=passed with zero failed/error/timeout/aborted/inconclusive/not-executed, then parse every bounded signed-AUMID JSON-v1 summary and require total=passed, `packageIdentityPresent=true`, and an empty failure list.
 
 - [ ] **Step 2: Run repository regressions**
 
@@ -536,7 +561,7 @@ git diff --check
 rg -n '^(<<<<<<< |=======$|>>>>>>> )' --glob '!docs/superpowers/plans/*'
 ```
 
-Additionally inspect the exact Gate 5 commit range and Debug/Release AppX inventories recursively. Require the real probe/native runtime exactly once under `HardwareInspection\LlamaCppProbe`; require adverse fixtures only in the test AppX; fail for TRX, raw output, host device labels, private paths, candidate/trusted/offline evidence, usernames, URLs, model data, production registration, or unexpected package/reference changes. Prove the parent test/AppX processes load no llama/ggml module.
+Additionally inspect the exact Gate 5 commit range and Debug/Release AppX inventories recursively. Require the real probe/native runtime exactly once under `HardwareInspection\LlamaCppProbe`; require adverse fixtures only in the test AppX; require the acceptance host to use only the exact AUMID command and fixed token-derived result subtree; fail for committed certificates/private keys/MSIX/TRX/raw output, host device labels, private paths, candidate/trusted/offline evidence, usernames, URLs, model data, production registration, loose-layout process acceptance, or unexpected package/reference changes. Prove the parent test/AppX processes load no llama/ggml module and that the installed test package is removed after the campaign.
 
 - [ ] **Step 4: Request independent code review**
 
