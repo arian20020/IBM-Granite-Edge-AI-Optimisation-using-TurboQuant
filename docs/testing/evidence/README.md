@@ -14,6 +14,7 @@ This folder records evidence-backed runtime verification. Source presence, plann
 ## Hardware Inspection
 
 - [LLM Fit Gate 1 verification - 2026-08-15](./2026-08-15-hardware-inspection-gate1-llmfit-verification.md) - **Gate 1 Blocked and unsatisfied.** Gate 2 must not start; this record does not verify `F-M07`, `HE-01`, or `HE-02`.
+- [llama.cpp capabilities Gate 5 development acceptance - 2026-08-23](./2026-08-23-hardware-inspection-gate-5-llamacpp-capabilities.md) - **Gate 5 development acceptance complete.** Public-trust signing, Smart App Control acceptance, production activation, and canonical snapshot resolution are not claimed.
 
 ## Interpretation rule
 
