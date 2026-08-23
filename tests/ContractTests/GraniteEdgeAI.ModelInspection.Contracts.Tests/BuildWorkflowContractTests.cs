@@ -182,6 +182,18 @@ public sealed class BuildWorkflowContractTests
             StringAssert.Contains(workflow, longPathBinding);
         }
 
+        foreach (string sdkBoundStep in new[]
+                 {
+                     "Restore WinUI application",
+                     "Build WinUI application",
+                     "Run serialized Debug x64 Model Inspection fixture gallery"
+                 })
+        {
+            StringAssert.Contains(
+                ExtractWorkflowStep(workflow, sdkBoundStep),
+                "dotnet msbuild");
+        }
+
         string checkout = ExtractWorkflowStep(
             workflow,
             "Check out required build inputs");

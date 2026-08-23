@@ -442,7 +442,7 @@ jobs:
 
       - name: Restore WinUI application
         run: |
-          msbuild "$env:APP_PROJECT" `
+          dotnet msbuild "$env:APP_PROJECT" `
             /target:Restore `
             /property:Configuration=Release `
             /property:Platform=x64 `
@@ -454,7 +454,7 @@ jobs:
 
       - name: Build WinUI application
         run: |
-          msbuild "$env:APP_PROJECT" `
+          dotnet msbuild "$env:APP_PROJECT" `
             /target:Build `
             /maxCpuCount `
             /verbosity:minimal `
@@ -479,7 +479,7 @@ jobs:
         run: |
           $fixtureGalleryConfiguration = 'Debug'
           $fixtureGalleryPlatform = 'x64'
-          msbuild "$env:APP_PROJECT" /target:Restore,Build /property:Configuration=$fixtureGalleryConfiguration /property:Platform=$fixtureGalleryPlatform
+          dotnet msbuild "$env:APP_PROJECT" /target:Restore,Build /property:Configuration=$fixtureGalleryConfiguration /property:Platform=$fixtureGalleryPlatform
           if ($LASTEXITCODE -ne 0) { throw 'Debug fixture-gallery app build failed.' }
           dotnet build "$env:TEST_PROJECT" --configuration $fixtureGalleryConfiguration --runtime win-x64 -p:Platform=$fixtureGalleryPlatform
           if ($LASTEXITCODE -ne 0) { throw 'Debug fixture-gallery test build failed.' }
