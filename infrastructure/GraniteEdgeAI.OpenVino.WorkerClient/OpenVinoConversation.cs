@@ -54,7 +54,9 @@ public sealed class OpenVinoConversation : IAsyncDisposable
             session,
             processExit,
             options.CleanupTimeout,
-            _watchdogCancellation.Cancel);
+            _watchdogCancellation.Cancel,
+            () => PromoteCancellationOutcome(
+                OpenVinoWorkerClient.TimeoutFailure()));
         _watchdogTask = RunWatchdogAsync();
     }
 
@@ -381,6 +383,7 @@ public sealed class OpenVinoConversation : IAsyncDisposable
             if (HasActiveTurn())
             {
                 await AwaitTerminalCleanupOrForceAsync().ConfigureAwait(false);
+                ThrowIfCancellationOutcomeWasPromoted();
                 return;
             }
 
@@ -769,6 +772,15 @@ public sealed class OpenVinoConversation : IAsyncDisposable
         {
             return _cancellationState.Outcome ??
                 OpenVinoWorkerClient.CancellationFailure();
+        }
+    }
+
+    private void ThrowIfCancellationOutcomeWasPromoted()
+    {
+        OpenVinoWorkerClientException outcome = GetCancellationOutcome();
+        if (outcome.SupportCode != OpenVinoSupportCode.OperationCancelled)
+        {
+            throw outcome;
         }
     }
 

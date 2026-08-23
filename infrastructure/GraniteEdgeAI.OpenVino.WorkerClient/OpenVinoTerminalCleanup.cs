@@ -12,6 +12,7 @@ internal sealed class OpenVinoTerminalCleanup : IDisposable
     private readonly Task _processExit;
     private readonly TimeSpan _cleanupTimeout;
     private readonly Action _onCompleted;
+    private readonly Action _onTimedOut;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly TaskCompletionSource<bool> _completion = new(
         TaskCreationOptions.RunContinuationsAsynchronously);
@@ -23,12 +24,14 @@ internal sealed class OpenVinoTerminalCleanup : IDisposable
         ProtectedWorkerSession session,
         Task processExit,
         TimeSpan cleanupTimeout,
-        Action onCompleted)
+        Action onCompleted,
+        Action onTimedOut)
     {
         _session = session;
         _processExit = processExit;
         _cleanupTimeout = cleanupTimeout;
         _onCompleted = onCompleted;
+        _onTimedOut = onTimedOut;
     }
 
     internal Task Completion => _completion.Task;
@@ -85,6 +88,13 @@ internal sealed class OpenVinoTerminalCleanup : IDisposable
                         throw OpenVinoWorkerClient.ProtocolFailure();
                     }
                 }
+            }
+
+            if (timedOut)
+            {
+                // Publish the stronger terminal outcome before waking any
+                // cancellation caller waiting on Completion.
+                _onTimedOut();
             }
 
             MarkCompleted();
