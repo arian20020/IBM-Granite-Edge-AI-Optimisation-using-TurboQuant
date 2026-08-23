@@ -11,6 +11,7 @@ endif()
 
 find_package(OpenVINO CONFIG REQUIRED COMPONENTS Runtime)
 find_package(OpenVINOGenAI CONFIG REQUIRED)
+get_filename_component(official_runtime_root "${OpenVINO_DIR}/.." ABSOLUTE)
 
 add_library(openvino_official_core STATIC
     src/namespace_monitor.cpp
@@ -56,6 +57,9 @@ if(BUILD_TESTING)
     target_include_directories(openvino_official_protocol_tests PRIVATE src "${NLOHMANN_JSON_INCLUDE_DIR}")
     target_link_libraries(openvino_official_protocol_tests PRIVATE openvino_official_core)
     add_test(NAME openvino_official_protocol_tests COMMAND openvino_official_protocol_tests)
+    set_tests_properties(openvino_official_protocol_tests PROPERTIES
+        ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:${official_runtime_root}/bin/intel64/Release;PATH=path_list_prepend:${official_runtime_root}/3rdparty/tbb/bin")
 
     add_executable(openvino_official_session_tests tests/session_tests.cpp)
     target_compile_features(openvino_official_session_tests PRIVATE cxx_std_20)
@@ -71,7 +75,6 @@ if(BUILD_TESTING)
         target_compile_options(openvino_official_api_probe PRIVATE /W4 /WX /utf-8)
     endif()
     if(DEFINED OFFICIAL_FIXTURE_PACKAGE)
-        get_filename_component(official_runtime_root "${OpenVINO_DIR}/.." ABSOLUTE)
         add_test(
             NAME openvino_official_two_turn_fixture
             COMMAND openvino_official_api_probe "${OFFICIAL_FIXTURE_PACKAGE}" official-two "${OFFICIAL_WORKER_STAGE}")
