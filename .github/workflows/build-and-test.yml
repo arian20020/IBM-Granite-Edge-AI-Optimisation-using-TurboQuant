@@ -472,11 +472,14 @@ jobs:
 
       - name: Build unit-test project
         run: |
+          $env:PSModulePath = $env:GRANITE_WINDOWS_POWERSHELL_MODULES
           dotnet build "$env:TEST_PROJECT" `
             --configuration Release `
             --no-restore `
             --runtime win-x64 `
-            -p:Platform=x64
+            -p:Platform=x64 `
+            /property:GenerateAppxPackageOnBuild=false `
+            /property:OpenVinoOfficialWorkerPackagingRequired=false
 
       - name: Run serialized Debug x64 Model Inspection fixture gallery
         run: |
@@ -485,7 +488,7 @@ jobs:
           $fixtureGalleryPlatform = 'x64'
           dotnet msbuild "$env:APP_PROJECT" /target:Restore,Build /property:Configuration=$fixtureGalleryConfiguration /property:Platform=$fixtureGalleryPlatform /property:GenerateAppxPackageOnBuild=false /property:OpenVinoOfficialWorkerPackagingRequired=false
           if ($LASTEXITCODE -ne 0) { throw 'Debug fixture-gallery app build failed.' }
-          dotnet build "$env:TEST_PROJECT" --configuration $fixtureGalleryConfiguration --runtime win-x64 -p:Platform=$fixtureGalleryPlatform
+          dotnet build "$env:TEST_PROJECT" --configuration $fixtureGalleryConfiguration --runtime win-x64 -p:Platform=$fixtureGalleryPlatform /property:GenerateAppxPackageOnBuild=false /property:OpenVinoOfficialWorkerPackagingRequired=false
           if ($LASTEXITCODE -ne 0) { throw 'Debug fixture-gallery test build failed.' }
           $fixtureGalleryRecipe = 'D:/s/tests/UnitTests/GraniteEdgeAI.UnitTests/bin/x64/Debug/net8.0-windows10.0.19041.0/win-x64/GraniteEdgeAI.UnitTests.build.appxrecipe'
           $fixtureGalleryTrxPath = 'D:/s/TestResults/ModelInspectionFixtures/ModelInspectionFixtureGallery.trx'

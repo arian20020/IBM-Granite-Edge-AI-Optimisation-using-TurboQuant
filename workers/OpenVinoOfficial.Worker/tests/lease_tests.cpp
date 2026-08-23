@@ -157,8 +157,14 @@ int main(int argc, char** argv) {
                 copy, std::string(package_digest), std::string(model_digest), 88U);
             runtime_context runtime = initialize_verified_runtime_at(runtime_stage, {}, {});
             (void)inspect_package(cancellation_package, runtime);
+            std::size_t cancellation_pipeline_constructions = 0U;
             official_session cancellation_session(
-                std::move(cancellation_package), runtime, "CPU", 64U, 64U);
+                std::move(cancellation_package), runtime, "CPU", 64U, 64U,
+                [&](native_load_stage stage) {
+                    if (stage == native_load_stage::pipeline_construction) {
+                        ++cancellation_pipeline_constructions;
+                    }
+                });
             turn_control cancellation_control;
             std::atomic_bool cancel_command_written{false};
             bool fragment_observed = false;
@@ -191,6 +197,7 @@ int main(int argc, char** argv) {
                 cancellation_control);
             delayed_input_pump.join();
             if (!fragment_observed || !cancelled.cancelled ||
+                cancellation_pipeline_constructions != 1U ||
                 cancelled.streamed_fragments != 0U || !cancelled.answer.empty()) {
                 throw std::runtime_error("first-fragment cancellation leaked output");
             }
@@ -203,7 +210,11 @@ int main(int argc, char** argv) {
 
         std::size_t denied = 0U;
         std::size_t removal_denied = 0U;
+        std::size_t pipeline_constructions = 0U;
         auto observer = [&](native_load_stage stage) {
+            if (stage == native_load_stage::pipeline_construction) {
+                ++pipeline_constructions;
+            }
             const std::filesystem::path resource = resource_for(copy, stage);
             const std::filesystem::path displaced = resource.wstring() + L".displaced";
             std::error_code rename_error;
@@ -244,7 +255,8 @@ int main(int argc, char** argv) {
                 "hello",
                 2U,
                 control);
-            if (result.answer != "fixture" || result.generated_tokens != 2U || denied < 5U ||
+            if (result.answer != "fixture" || result.generated_tokens != 2U ||
+                pipeline_constructions != 2U || denied < 5U ||
                 removal_denied < 5U) {
                 throw std::runtime_error("real leased load evidence was incomplete");
             }

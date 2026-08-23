@@ -197,6 +197,7 @@ public sealed class BuildWorkflowContractTests
         foreach (string packagedBuildStep in new[]
                  {
                      "Build WinUI application",
+                     "Build unit-test project",
                      "Run serialized Debug x64 Model Inspection fixture gallery"
                  })
         {
@@ -207,6 +208,16 @@ public sealed class BuildWorkflowContractTests
             StringAssert.Contains(
                 step,
                 "/property:OpenVinoOfficialWorkerPackagingRequired=false");
+            int expectedOptOutCount = packagedBuildStep ==
+                "Run serialized Debug x64 Model Inspection fixture gallery"
+                ? 2
+                : 1;
+            Assert.AreEqual(
+                expectedOptOutCount,
+                step.Split(
+                    "/property:OpenVinoOfficialWorkerPackagingRequired=false",
+                    StringSplitOptions.None).Length - 1,
+                $"Unexpected OpenVINO non-packaging opt-out count in {packagedBuildStep}.");
         }
         StringAssert.Contains(
             workflow,

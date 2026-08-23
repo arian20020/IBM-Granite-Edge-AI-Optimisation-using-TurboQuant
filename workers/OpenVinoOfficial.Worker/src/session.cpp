@@ -107,20 +107,26 @@ official_session::official_session(
       kv_cache_precision_(std::move(kv_cache_precision)),
       model_context_(model_context),
       c1_context_(c1_context) {
+    pipeline_ = create_pipeline();
+}
+
+official_session::~official_session() = default;
+
+std::unique_ptr<ov::genai::LLMPipeline> official_session::create_pipeline() {
     try {
         if (observer_) observer_(native_load_stage::pipeline_construction);
         verify_integrity(false);
-        ov::genai::LLMPipeline validation_pipeline(
+        auto pipeline = std::make_unique<ov::genai::LLMPipeline>(
             package_.root(), device_, pipeline_properties(kv_cache_precision_));
-        validation_pipeline.get_tokenizer().set_chat_template(std::string(route_chat_template));
+        pipeline->get_tokenizer().set_chat_template(
+            std::string(route_chat_template));
         verify_integrity(true);
+        return pipeline;
     } catch (...) {
         verify_integrity(true);
         throw;
     }
 }
-
-official_session::~official_session() = default;
 
 void official_session::verify_integrity(bool drain_notifications) const {
     std::exception_ptr first_failure;
@@ -160,20 +166,8 @@ turn_result official_session::generate(
     turn_control& control) {
     history_.push_back({{"role", std::string("user")}, {"content", prompt}});
     try {
-        if (observer_) observer_(native_load_stage::pipeline_construction);
         verify_integrity(false);
-        std::unique_ptr<ov::genai::LLMPipeline> pipeline = [&] {
-            try {
-                auto value = std::make_unique<ov::genai::LLMPipeline>(
-                    package_.root(), device_, pipeline_properties(kv_cache_precision_));
-                verify_integrity(true);
-                return value;
-            } catch (...) {
-                verify_integrity(true);
-                throw;
-            }
-        }();
-        ov::genai::Tokenizer tokenizer = pipeline->get_tokenizer();
+        ov::genai::Tokenizer tokenizer = pipeline_->get_tokenizer();
         tokenizer.set_chat_template(std::string(route_chat_template));
         const std::string rendered = tokenizer.apply_chat_template(history_, true);
         const ov::genai::TokenizedInputs encoded = tokenizer.encode(
@@ -185,7 +179,7 @@ turn_result official_session::generate(
                 "runtime_context_exceeded", false, "runtime context exceeded");
         }
 
-        ov::genai::GenerationConfig config = pipeline->get_generation_config();
+        ov::genai::GenerationConfig config = pipeline_->get_generation_config();
         config.max_new_tokens = requested_tokens;
         config.do_sample = false;
         config.apply_chat_template = true;
@@ -256,9 +250,23 @@ turn_result official_session::generate(
                 return ov::genai::StreamingStatus::RUNNING;
             });
         ov::genai::ChatHistory generation_history(history_.get_messages());
-        ov::genai::DecodedResults generated = pipeline->generate(
-            generation_history, config, streamer);
+        std::unique_ptr<ov::genai::LLMPipeline> active_pipeline =
+            std::move(pipeline_);
+        ov::genai::DecodedResults generated;
+        try {
+            generated = active_pipeline->generate(
+                generation_history, config, streamer);
+        } catch (...) {
+            if (!control.cancel.load(std::memory_order_acquire)) {
+                pipeline_ = create_pipeline();
+            }
+            throw;
+        }
         verify_integrity(true);
+        if (!control.cancel.load(std::memory_order_acquire) &&
+            !result.cancelled) {
+            pipeline_ = create_pipeline();
+        }
         result.prompt_tokens = generated.perf_metrics.get_num_input_tokens();
         result.generated_tokens = generated.perf_metrics.get_num_generated_tokens();
         if (result.output_exceeded) {

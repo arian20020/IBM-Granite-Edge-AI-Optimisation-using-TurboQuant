@@ -82,12 +82,14 @@ public:
     void verify_terminal_integrity() const;
 
 private:
+    std::unique_ptr<ov::genai::LLMPipeline> create_pipeline();
     package_lease package_;
     const runtime_context& runtime_;
     native_load_observer observer_;
     native_module_verifier module_verifier_;
     std::string device_;
     std::string kv_cache_precision_;
+    std::unique_ptr<ov::genai::LLMPipeline> pipeline_;
     ov::genai::ChatHistory history_;
     std::size_t model_context_;
     std::size_t c1_context_;

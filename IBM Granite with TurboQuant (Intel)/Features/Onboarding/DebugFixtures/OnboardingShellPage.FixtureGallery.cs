@@ -1,4 +1,5 @@
 #if MODEL_INSPECTION_FIXTURE_GALLERY
+using GraniteEdgeAI.Features.ModelImport;
 using GraniteEdgeAI.Features.ModelInspection;
 using GraniteEdgeAI.Features.ModelInspection.DebugFixtures.Gallery;
 using Microsoft.UI.Xaml;
@@ -48,12 +49,37 @@ public sealed partial class OnboardingShellPage
     private bool NavigateToFixtureGallery()
     {
         object activation = ModelInspectionFixtureGalleryPage.CreateActivation(
-            NavigateToFreshModelImport);
+            NavigateFromFixtureGalleryToFreshModelImport);
         return NavigateToFixtureGallery(
             activation,
             frame => frame.Navigate(
                 typeof(ModelInspectionFixtureGalleryPage),
                 activation));
+    }
+
+    private bool NavigateFromFixtureGalleryToFreshModelImport()
+    {
+        object? previousContent = StageFrame.Content;
+        if (previousContent is not ModelInspectionFixtureGalleryPage)
+        {
+            return false;
+        }
+
+        bool navigationSucceeded = StageFrame.Navigate(typeof(ModelImportPage));
+        if (!navigationSucceeded ||
+            ReferenceEquals(StageFrame.Content, previousContent) ||
+            StageFrame.Content is not ModelImportPage modelImportPage)
+        {
+            return false;
+        }
+
+        StageFrame.BackStack.Clear();
+        StageFrame.ForwardStack.Clear();
+        AttachModelImportPage(modelImportPage);
+        DetachModelInspectionPage();
+        CurrentStage = OnboardingStage.ImportModel;
+        StageIndicator.CurrentStage = CurrentStage;
+        return true;
     }
 
     internal bool NavigateToFixtureGalleryForTesting(
