@@ -381,15 +381,17 @@ jobs:
             --results-directory $env:OPENVINO_RESULTS --report-trx `
             --report-trx-filename worker-client.trx
           if ($LASTEXITCODE -ne 0) { throw 'OpenVINO WorkerClient tests failed.' }
+          $processProject = Join-Path $env:OPENVINO_SHORT_WORKSPACE `
+            'tests/IntegrationTests/GraniteEdgeAI.OpenVino.WorkerProcess.Tests/GraniteEdgeAI.OpenVino.WorkerProcess.Tests.csproj'
+          dotnet build $processProject --configuration Release -p:Platform=x64
+          if ($LASTEXITCODE -ne 0) { throw 'Protected process test build failed.' }
           $parentFixtureProject = Join-Path $env:OPENVINO_SHORT_WORKSPACE `
             'tests/ProcessFixtures/GraniteEdgeAI.OpenVino.ParentExitFixture/GraniteEdgeAI.OpenVino.ParentExitFixture.csproj'
           dotnet build $parentFixtureProject --configuration Release -p:Platform=x64
           if ($LASTEXITCODE -ne 0) { throw 'Managed parent-loss fixture build failed.' }
           $watch = [Diagnostics.Stopwatch]::StartNew()
-          $processProject = Join-Path $env:OPENVINO_SHORT_WORKSPACE `
-            'tests/IntegrationTests/GraniteEdgeAI.OpenVino.WorkerProcess.Tests/GraniteEdgeAI.OpenVino.WorkerProcess.Tests.csproj'
           dotnet test --project $processProject `
-            --configuration Release -p:Platform=x64 `
+            --configuration Release -p:Platform=x64 --no-build `
             --filter TestCategory!=TurboQuantNative --minimum-expected-tests 41 `
             --results-directory $env:OPENVINO_RESULTS --report-trx `
             --report-trx-filename process-containment.trx

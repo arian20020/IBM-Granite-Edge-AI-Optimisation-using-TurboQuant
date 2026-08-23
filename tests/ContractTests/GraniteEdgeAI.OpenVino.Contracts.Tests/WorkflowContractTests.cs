@@ -383,6 +383,11 @@ public sealed class WorkflowContractTests
             "run");
         StringAssert.Contains(managed, "GraniteEdgeAI.OpenVino.ParentExitFixture.csproj");
         StringAssert.Contains(managed, "--filter TestCategory!=TurboQuantNative");
+        StringAssert.Contains(managed, "dotnet build $processProject");
+        StringAssert.Contains(managed, "--no-build");
+        Assert.IsTrue(
+            managed.IndexOf("dotnet build $parentFixtureProject", StringComparison.Ordinal) <
+            managed.IndexOf("dotnet test --project $processProject", StringComparison.Ordinal));
 
         string cleanup = Scalar(
             Step(steps, "Verify post-run integrity and clean operation-owned state"),
