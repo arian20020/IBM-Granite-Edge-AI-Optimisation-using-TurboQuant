@@ -67,6 +67,23 @@ function Assert-OwnedPath {
     }
 }
 
+function Get-SolutionOwnedExecutablePayload {
+    param([Parameter(Mandatory)][string] $LayoutRoot)
+
+    Get-ChildItem -LiteralPath $LayoutRoot -File -Recurse -ErrorAction Stop | Where-Object {
+        ($_.Extension -in @('.dll', '.exe')) -and
+        ($_.Name.StartsWith('GraniteEdgeAI.', [StringComparison]::Ordinal) -or
+            [string]::Equals(
+                $_.Name,
+                'IBM Granite with TurboQuant (Intel).dll',
+                [StringComparison]::Ordinal) -or
+            [string]::Equals(
+                $_.Name,
+                'IBM Granite with TurboQuant (Intel).exe',
+                [StringComparison]::Ordinal))
+    }
+}
+
 function Resolve-WindowsSdkTool {
     param([Parameter(Mandatory)][string] $Name)
 
@@ -210,6 +227,35 @@ try {
         $candidate = Join-Path $stagingRoot $developmentFile
         if (Test-Path -LiteralPath $candidate -PathType Leaf) {
             Remove-Item -LiteralPath $candidate -Force
+        }
+    }
+
+    $reparsePoint = Get-ChildItem -LiteralPath $stagingRoot -Force -Recurse |
+        Where-Object { ($_.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 } |
+        Select-Object -First 1
+    if ($null -ne $reparsePoint) {
+        throw 'The staged package must not contain a reparse point.'
+    }
+
+    $ownedExecutablePayload = @(Get-SolutionOwnedExecutablePayload -LayoutRoot $stagingRoot)
+    if ($ownedExecutablePayload.Count -eq 0 -or $ownedExecutablePayload.Count -gt 128) {
+        throw 'The solution-owned executable payload count is outside its closed bound.'
+    }
+
+    foreach ($payloadFile in $ownedExecutablePayload) {
+        Assert-OwnedPath -Path $payloadFile.FullName -OwnedParent $stagingRoot
+        & $signTool sign /fd SHA256 /sha1 $normalizedThumbprint $payloadFile.FullName | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            throw "signtool failed for a solution-owned executable payload with exit code $LASTEXITCODE."
+        }
+
+        $payloadSignature = Get-AuthenticodeSignature -LiteralPath $payloadFile.FullName
+        if ($payloadSignature.Status -ne [Management.Automation.SignatureStatus]::Valid -or
+            -not [string]::Equals(
+                $payloadSignature.SignerCertificate.Thumbprint,
+                $normalizedThumbprint,
+                [StringComparison]::OrdinalIgnoreCase)) {
+            throw 'A solution-owned executable payload did not pass exact Authenticode verification.'
         }
     }
 
