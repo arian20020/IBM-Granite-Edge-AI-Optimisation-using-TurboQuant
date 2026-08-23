@@ -33,6 +33,22 @@ $createdResultPaths = [Collections.Generic.List[string]]::new()
 $installedPackage = $null
 $packageInstalledByInvocation = $false
 
+function Get-NonRootPathWithoutTrailingSeparator {
+    param([Parameter(Mandatory)][string] $Path)
+
+    $fullPath = [IO.Path]::GetFullPath($Path)
+    if ([string]::Equals(
+            $fullPath,
+            [IO.Path]::GetPathRoot($fullPath),
+            [StringComparison]::OrdinalIgnoreCase)) {
+        throw 'A guarded path must not be a filesystem root.'
+    }
+
+    return $fullPath.TrimEnd(
+        [IO.Path]::DirectorySeparatorChar,
+        [IO.Path]::AltDirectorySeparatorChar)
+}
+
 function Assert-OwnedPath {
     param(
         [Parameter(Mandatory)]
@@ -43,18 +59,7 @@ function Assert-OwnedPath {
     )
 
     $resolvedPath = [IO.Path]::GetFullPath($Path)
-    $resolvedParentWithSeparator = [IO.Path]::GetFullPath($OwnedParent)
-    $parentRoot = [IO.Path]::GetPathRoot($resolvedParentWithSeparator)
-    if ([string]::Equals(
-            $resolvedParentWithSeparator,
-            $parentRoot,
-            [StringComparison]::OrdinalIgnoreCase)) {
-        throw 'An owned temporary parent must not be a filesystem root.'
-    }
-
-    $resolvedParent = $resolvedParentWithSeparator.TrimEnd(
-        [IO.Path]::DirectorySeparatorChar,
-        [IO.Path]::AltDirectorySeparatorChar)
+    $resolvedParent = Get-NonRootPathWithoutTrailingSeparator -Path $OwnedParent
     if (-not $resolvedPath.StartsWith(
             $resolvedParent + [IO.Path]::DirectorySeparatorChar,
             [StringComparison]::OrdinalIgnoreCase)) {
@@ -233,7 +238,7 @@ try {
         -not [string]::Equals($installedPackage.Architecture.ToString(), 'X64', [StringComparison]::Ordinal) -or
         -not [string]::Equals($installedPackage.Publisher, $packagePublisher, [StringComparison]::Ordinal) -or
         [IO.Path]::GetFullPath($installedPackage.InstallLocation).StartsWith(
-            [IO.Path]::TrimEndingDirectorySeparator($repositoryRoot) + [IO.Path]::DirectorySeparatorChar,
+            (Get-NonRootPathWithoutTrailingSeparator -Path $repositoryRoot) + [IO.Path]::DirectorySeparatorChar,
             [StringComparison]::OrdinalIgnoreCase)) {
         throw 'The test package was not normally installed with the exact signed x64 identity.'
     }
