@@ -63,9 +63,15 @@ public sealed class LlamaCppCapabilityEvidenceProviderPackagedTests
             "*",
             SearchOption.AllDirectories);
 
-        LlamaCppCapabilityEvidence evidence = await CreateProvider().CaptureAsync(
+        Task<LlamaCppCapabilityEvidence> capture = CreateProvider().CaptureAsync(
             fixture.Tool,
             CancellationToken.None);
+        using Process? observedProcess = mode == "sleep"
+            ? await WaitForLiveProcessAsync(
+                Path.Combine(fixture.ControlRoot, "owned-root-ready.txt"),
+                capture)
+            : null;
+        LlamaCppCapabilityEvidence evidence = await capture;
 
         AssertUnavailable(evidence, diagnostic);
         CollectionAssert.AreEquivalent(
@@ -73,9 +79,7 @@ public sealed class LlamaCppCapabilityEvidenceProviderPackagedTests
             Directory.GetFiles(fixture.PackageRoot, "*", SearchOption.AllDirectories));
         if (mode == "sleep")
         {
-            int processId = await WaitForProcessIdAsync(
-                Path.Combine(fixture.ControlRoot, "owned-root-ready.txt"));
-            await AssertProcessExitedAsync(processId);
+            await AssertProcessExitedAsync(observedProcess!);
         }
     }
 
@@ -101,10 +105,10 @@ public sealed class LlamaCppCapabilityEvidenceProviderPackagedTests
         Task<LlamaCppCapabilityEvidence> capture = CreateProvider().CaptureAsync(
             fixture.Tool,
             cancellation.Token);
-        int childId;
+        Process childProcess;
         try
         {
-            childId = await WaitForProcessIdAsync(
+            childProcess = await WaitForLiveProcessAsync(
                 Path.Combine(fixture.ControlRoot, "spawn-child-ready.txt"),
                 capture);
         }
@@ -123,12 +127,15 @@ public sealed class LlamaCppCapabilityEvidenceProviderPackagedTests
             throw;
         }
 
-        cancellation.Cancel();
-        OperationCanceledException error = await Assert.ThrowsExactlyAsync<OperationCanceledException>(
-            async () => await capture);
+        using (childProcess)
+        {
+            cancellation.Cancel();
+            OperationCanceledException error = await Assert.ThrowsExactlyAsync<OperationCanceledException>(
+                async () => await capture);
 
-        Assert.AreEqual(cancellation.Token, error.CancellationToken);
-        await AssertProcessExitedAsync(childId);
+            Assert.AreEqual(cancellation.Token, error.CancellationToken);
+            await AssertProcessExitedAsync(childProcess);
+        }
     }
 
     [TestMethod]
@@ -137,13 +144,16 @@ public sealed class LlamaCppCapabilityEvidenceProviderPackagedTests
     {
         using VerifiedPackagedToolFixture fixture = CreateFixture("spawn-child-exit");
 
-        LlamaCppCapabilityEvidence evidence = await CreateProvider().CaptureAsync(
+        Task<LlamaCppCapabilityEvidence> capture = CreateProvider().CaptureAsync(
             fixture.Tool,
             CancellationToken.None);
+        using Process childProcess = await WaitForLiveProcessAsync(
+            Path.Combine(fixture.ControlRoot, "spawn-child-ready.txt"),
+            capture);
+        LlamaCppCapabilityEvidence evidence = await capture;
 
         Assert.AreEqual(LlamaCppCapabilityEvidenceState.Available, evidence.State);
-        int childId = await WaitForProcessIdAsync(Path.Combine(fixture.ControlRoot, "spawn-child-ready.txt"));
-        await AssertProcessExitedAsync(childId);
+        await AssertProcessExitedAsync(childProcess);
     }
 
     private static VerifiedPackagedToolFixture CreateFixture(string mode) =>
@@ -163,7 +173,7 @@ public sealed class LlamaCppCapabilityEvidenceProviderPackagedTests
         Assert.HasCount(0, evidence.VisibleDevices);
     }
 
-    private static async Task<int> WaitForProcessIdAsync(
+    private static async Task<Process> WaitForLiveProcessAsync(
         string marker,
         Task<LlamaCppCapabilityEvidence>? capture = null)
     {
@@ -187,7 +197,14 @@ public sealed class LlamaCppCapabilityEvidenceProviderPackagedTests
             {
                 if (File.Exists(marker) && int.TryParse(await File.ReadAllTextAsync(marker), out int processId))
                 {
-                    return processId;
+                    Process process = Process.GetProcessById(processId);
+                    if (!process.HasExited)
+                    {
+                        return process;
+                    }
+
+                    process.Dispose();
+                    Assert.Fail("The harmless fixture process exited before it could be observed.");
                 }
             }
             catch (IOException)
@@ -205,23 +222,16 @@ public sealed class LlamaCppCapabilityEvidenceProviderPackagedTests
         }
 
         Assert.Fail("The harmless fixture did not publish its bounded child marker.");
-        return 0;
+        throw new InvalidOperationException("Unreachable after Assert.Fail.");
     }
 
-    private static async Task AssertProcessExitedAsync(int processId)
+    private static async Task AssertProcessExitedAsync(Process process)
     {
         Stopwatch elapsed = Stopwatch.StartNew();
         while (elapsed.Elapsed < TimeSpan.FromSeconds(5))
         {
-            try
-            {
-                using Process process = Process.GetProcessById(processId);
-                if (process.HasExited)
-                {
-                    return;
-                }
-            }
-            catch (ArgumentException)
+            process.Refresh();
+            if (process.HasExited)
             {
                 return;
             }

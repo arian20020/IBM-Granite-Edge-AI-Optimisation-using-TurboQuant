@@ -97,13 +97,15 @@ public sealed class LlmFitHardwareEvidenceProviderPackagedTests
     {
         using VerifiedPackagedToolFixture fixture = CreateFixture("sleep");
 
-        LlmFitHardwareEvidence evidence = await CreateProvider().CaptureAsync(
+        Task<LlmFitHardwareEvidence> capture = CreateProvider().CaptureAsync(
             fixture.Tool,
             CancellationToken.None);
+        using Process rootProcess = await WaitForLiveProcessAsync(
+            Path.Combine(fixture.ControlRoot, "owned-root-ready.txt"));
+        LlmFitHardwareEvidence evidence = await capture;
 
         AssertUnavailable(evidence, LlmFitDiagnosticCode.SystemTimedOut);
-        await AssertRecordedProcessExitedAsync(
-            Path.Combine(fixture.ControlRoot, "owned-root-ready.txt"));
+        await AssertProcessExitedAsync(rootProcess);
     }
 
     [TestMethod]
@@ -116,14 +118,14 @@ public sealed class LlmFitHardwareEvidenceProviderPackagedTests
             fixture.Tool,
             cancellation.Token);
         string marker = Path.Combine(fixture.ControlRoot, "owned-root-ready.txt");
-        int processId = await WaitForProcessIdAsync(marker);
+        using Process rootProcess = await WaitForLiveProcessAsync(marker);
 
         cancellation.Cancel();
         OperationCanceledException error = await Assert.ThrowsExactlyAsync<OperationCanceledException>(
             async () => await capture);
 
         Assert.AreEqual(cancellation.Token, error.CancellationToken);
-        await AssertProcessExitedAsync(processId);
+        await AssertProcessExitedAsync(rootProcess);
     }
 
     private static VerifiedPackagedToolFixture CreateFixture(string mode) =>
@@ -139,12 +141,6 @@ public sealed class LlmFitHardwareEvidenceProviderPackagedTests
         Assert.AreEqual(LlmFitEvidenceState.Unavailable, evidence.State);
         CollectionAssert.AreEqual(new[] { diagnostic }, evidence.Diagnostics.ToArray());
         Assert.IsNull(evidence.RawOutputSha256);
-    }
-
-    private static async Task AssertRecordedProcessExitedAsync(string marker)
-    {
-        int processId = await WaitForProcessIdAsync(marker);
-        await AssertProcessExitedAsync(processId);
     }
 
     private static async Task<int> WaitForProcessIdAsync(string marker)
@@ -172,20 +168,26 @@ public sealed class LlmFitHardwareEvidenceProviderPackagedTests
         return 0;
     }
 
-    private static async Task AssertProcessExitedAsync(int processId)
+    private static async Task<Process> WaitForLiveProcessAsync(string marker)
+    {
+        int processId = await WaitForProcessIdAsync(marker);
+        Process process = Process.GetProcessById(processId);
+        if (process.HasExited)
+        {
+            process.Dispose();
+            Assert.Fail("The harmless fixture process exited before it could be observed.");
+        }
+
+        return process;
+    }
+
+    private static async Task AssertProcessExitedAsync(Process process)
     {
         Stopwatch elapsed = Stopwatch.StartNew();
         while (elapsed.Elapsed < TimeSpan.FromSeconds(5))
         {
-            try
-            {
-                using Process process = Process.GetProcessById(processId);
-                if (process.HasExited)
-                {
-                    return;
-                }
-            }
-            catch (ArgumentException)
+            process.Refresh();
+            if (process.HasExited)
             {
                 return;
             }

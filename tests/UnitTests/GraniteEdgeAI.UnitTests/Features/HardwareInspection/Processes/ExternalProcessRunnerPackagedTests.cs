@@ -100,15 +100,17 @@ public sealed class ExternalProcessRunnerPackagedTests
     {
         using VerifiedPackagedToolFixture fixture = VerifiedPackagedToolFixture.CreateLlmFit("sleep");
 
-        ExternalProcessResult result = await new ExternalProcessRunner().RunAsync(
+        Task<ExternalProcessResult> execution = new ExternalProcessRunner().RunAsync(
             fixture.Tool,
             Request("system", timeout: TimeSpan.FromSeconds(2)),
             CancellationToken.None);
+        using Process rootProcess = await WaitForLiveProcessAsync(
+            Path.Combine(fixture.ControlRoot, "owned-root-ready.txt"));
+        ExternalProcessResult result = await execution;
 
         Assert.AreEqual(ExternalProcessTerminationReason.TimedOut, result.TerminationReason);
         Assert.IsNull(result.ExitCode);
-        await AssertRecordedProcessExitedAsync(
-            Path.Combine(fixture.ControlRoot, "owned-root-ready.txt"));
+        await AssertProcessExitedAsync(rootProcess);
     }
 
     [TestMethod]
@@ -122,14 +124,14 @@ public sealed class ExternalProcessRunnerPackagedTests
             Request("system", timeout: TimeSpan.FromSeconds(10)),
             cancellation.Token);
         string childReady = Path.Combine(fixture.ControlRoot, "spawn-child-ready.txt");
-        int childId = await WaitForProcessIdAsync(childReady);
+        using Process childProcess = await WaitForLiveProcessAsync(childReady);
 
         cancellation.Cancel();
         ExternalProcessResult result = await execution;
 
         Assert.AreEqual(ExternalProcessTerminationReason.Cancelled, result.TerminationReason);
         Assert.IsNull(result.ExitCode);
-        await AssertProcessExitedAsync(childId);
+        await AssertProcessExitedAsync(childProcess);
     }
 
     [TestMethod]
@@ -138,16 +140,17 @@ public sealed class ExternalProcessRunnerPackagedTests
     {
         using VerifiedPackagedToolFixture fixture = VerifiedPackagedToolFixture.CreateLlmFit("spawn-child-exit");
 
-        ExternalProcessResult result = await new ExternalProcessRunner().RunAsync(
+        Task<ExternalProcessResult> execution = new ExternalProcessRunner().RunAsync(
             fixture.Tool,
             Request("system"),
             CancellationToken.None);
+        using Process childProcess = await WaitForLiveProcessAsync(
+            Path.Combine(fixture.ControlRoot, "spawn-child-ready.txt"));
+        ExternalProcessResult result = await execution;
 
         Assert.AreEqual(ExternalProcessTerminationReason.Exited, result.TerminationReason);
         Assert.AreEqual(0, result.ExitCode);
-        int childId = await WaitForProcessIdAsync(
-            Path.Combine(fixture.ControlRoot, "spawn-child-ready.txt"));
-        await AssertProcessExitedAsync(childId);
+        await AssertProcessExitedAsync(childProcess);
     }
 
     [TestMethod]
@@ -232,12 +235,6 @@ public sealed class ExternalProcessRunnerPackagedTests
         int stderrLimit = 64 * 1024) =>
         new(command, timeout ?? TimeSpan.FromSeconds(5), stdoutLimit, stderrLimit);
 
-    private static async Task AssertRecordedProcessExitedAsync(string path)
-    {
-        int processId = await WaitForProcessIdAsync(path);
-        await AssertProcessExitedAsync(processId);
-    }
-
     private static async Task<int> WaitForProcessIdAsync(string path)
     {
         Stopwatch elapsed = Stopwatch.StartNew();
@@ -263,20 +260,26 @@ public sealed class ExternalProcessRunnerPackagedTests
         return 0;
     }
 
-    private static async Task AssertProcessExitedAsync(int processId)
+    private static async Task<Process> WaitForLiveProcessAsync(string path)
+    {
+        int processId = await WaitForProcessIdAsync(path);
+        Process process = Process.GetProcessById(processId);
+        if (process.HasExited)
+        {
+            process.Dispose();
+            Assert.Fail("The harmless fixture process exited before it could be observed.");
+        }
+
+        return process;
+    }
+
+    private static async Task AssertProcessExitedAsync(Process process)
     {
         Stopwatch elapsed = Stopwatch.StartNew();
         while (elapsed.Elapsed < TimeSpan.FromSeconds(5))
         {
-            try
-            {
-                using Process process = Process.GetProcessById(processId);
-                if (process.HasExited)
-                {
-                    return;
-                }
-            }
-            catch (ArgumentException)
+            process.Refresh();
+            if (process.HasExited)
             {
                 return;
             }
