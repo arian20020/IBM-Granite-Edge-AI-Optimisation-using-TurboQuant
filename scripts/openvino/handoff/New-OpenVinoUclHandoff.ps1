@@ -32,6 +32,7 @@ $staging = $null
 $outerPath = $null
 $checksumPath = $null
 $succeeded = $false
+$phase = 'startup'
 
 function Get-NormalizedDirectoryPrefix {
     param([Parameter(Mandatory)][string]$Path)
@@ -246,6 +247,7 @@ function New-PayloadRow {
 }
 
 try {
+    $phase = 'root-validation'
     $repository = [IO.Path]::GetFullPath($RepositoryRoot)
     $official = [IO.Path]::GetFullPath($OfficialStageDirectory)
     $turboQuant = [IO.Path]::GetFullPath($TurboQuantStageDirectory)
@@ -293,6 +295,7 @@ try {
         $null = New-Item -ItemType Directory -Path $output
     }
 
+    $phase = 'candidate-validation'
     $branch = ([string](& git -C $repository branch --show-current)).Trim()
     $handoffCommit = ([string](& git -C $repository rev-parse HEAD)).Trim().ToLowerInvariant()
     $status = @(& git -C $repository status --porcelain)
@@ -305,17 +308,22 @@ try {
         $baselineImplementationCommit $handoffCommit 2>&1) | Out-Null
     if ($LASTEXITCODE -ne 0) { throw 'baseline-not-ancestor' }
 
+    $phase = 'official-manifest-verification'
     Invoke-ManifestVerifier $repository `
         'Test-OpenVinoOfficialWorkerManifest.ps1' $official
+    $phase = 'turboquant-manifest-verification'
     Invoke-ManifestVerifier $repository `
         'Test-OpenVinoTurboQuantWorkerManifest.ps1' $turboQuant
+    $phase = 'converter-manifest-verification'
     Invoke-ManifestVerifier $repository `
         'Test-OpenVinoConverterWorkerManifest.ps1' $converter
+    $phase = 'official-manifest-identity'
     if ((Get-LowerSha256 (Join-Path $official 'worker-manifest.json')) -cne
         $expectedOfficialManifestSha256) {
         throw 'official-manifest-identity-invalid'
     }
 
+    $phase = 'staging-creation'
     $staging = Join-Path $output ('.build-' + [Guid]::NewGuid().ToString('N'))
     $null = New-Item -ItemType Directory -Path $staging
     foreach ($leaf in @('repository','closures','inventory','tools\lib','context')) {
@@ -324,15 +332,19 @@ try {
 
     $gitBundlePath = Join-Path $staging 'repository\openvino-route.bundle'
     $sourceSnapshotPath = Join-Path $staging 'repository\source-c1e0fe2f.zip'
+    $phase = 'git-bundle-creation'
     @(& git -C $repository bundle create $gitBundlePath feature/openvino-route 2>&1) |
         Out-Null
     if ($LASTEXITCODE -ne 0) { throw 'git-bundle-create-failed' }
+    $phase = 'git-bundle-verification'
     @(& git bundle verify $gitBundlePath 2>&1) | Out-Null
     if ($LASTEXITCODE -ne 0) { throw 'git-bundle-verify-failed' }
+    $phase = 'source-snapshot-creation'
     @(& git -C $repository archive --format=zip `
         --output $sourceSnapshotPath $baselineImplementationCommit 2>&1) | Out-Null
     if ($LASTEXITCODE -ne 0) { throw 'git-archive-failed' }
 
+    $phase = 'context-copy'
     $contextSources = [ordered]@{
         'docs\handoffs\openvino-ucl\READ_FIRST.md' = 'READ_FIRST.md'
         'docs\handoffs\openvino-ucl\CONTINUATION_PROMPT.md' = 'CONTINUATION_PROMPT.md'
@@ -381,10 +393,14 @@ Re-run all hardware-relevant checks on the exact laptop candidate.
     $officialZip = Join-Path $staging 'closures\official-worker.zip'
     $turboZip = Join-Path $staging 'closures\turboquant-worker.zip'
     $converterZip = Join-Path $staging 'closures\converter-stage-p.zip'
+    $phase = 'official-archive-creation'
     $officialMetrics = New-DirectoryArchive $official $officialZip
+    $phase = 'turboquant-archive-creation'
     $turboMetrics = New-DirectoryArchive $turboQuant $turboZip
+    $phase = 'converter-archive-creation'
     $converterMetrics = New-DirectoryArchive $converter $converterZip
 
+    $phase = 'inventory-creation'
     $payloadRows = @(
         (New-PayloadRow 'gitBundle' 'repository/openvino-route.bundle' $gitBundlePath),
         (New-PayloadRow 'sourceSnapshot' 'repository/source-c1e0fe2f.zip' $sourceSnapshotPath),
@@ -416,16 +432,19 @@ Re-run all hardware-relevant checks on the exact laptop candidate.
     $checksumLines | Set-Content `
         -LiteralPath (Join-Path $staging 'CHECKSUMS.sha256') -Encoding ASCII
 
+    $phase = 'outer-archive-creation'
     $shortCommit = $handoffCommit.Substring(0, 12)
     $outerPath = Join-Path $output "OpenVino-UCL-Handoff-$shortCommit.zip"
     $checksumPath = "$outerPath.sha256"
     $null = New-DirectoryArchive $staging $outerPath
+    $phase = 'outer-checksum-creation'
     $outerHash = Get-LowerSha256 $outerPath
     "$outerHash  $([IO.Path]::GetFileName($outerPath))" | Set-Content `
         -LiteralPath $checksumPath -Encoding ASCII
     $succeeded = $true
 }
 catch {
+    Write-Verbose "failure_phase=$phase"
     $succeeded = $false
 }
 finally {

@@ -194,6 +194,17 @@ public sealed class HandoffBundleContractTests
         StringAssert.Contains(initializer, "$checksums.Add(");
     }
 
+    [TestMethod]
+    public void BuilderVerboseDiagnosticsExposeOnlyASafeFailurePhase()
+    {
+        string builder = File.ReadAllText(RepoPath(
+            "scripts/openvino/handoff/New-OpenVinoUclHandoff.ps1"));
+        StringAssert.Contains(builder, "$phase = 'startup'");
+        StringAssert.Contains(builder, "Write-Verbose \"failure_phase=$phase\"");
+        Assert.IsFalse(builder.Contains("Write-Verbose $_",
+            StringComparison.Ordinal));
+    }
+
     private static string RepoPath(string relative) => Path.Combine(
         FindRepositoryRoot(), relative.Replace('/', Path.DirectorySeparatorChar));
 
