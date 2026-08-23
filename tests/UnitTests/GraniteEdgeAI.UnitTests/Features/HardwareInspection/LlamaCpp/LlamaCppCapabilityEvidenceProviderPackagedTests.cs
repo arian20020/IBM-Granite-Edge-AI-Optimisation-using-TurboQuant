@@ -30,12 +30,32 @@ public sealed class LlamaCppCapabilityEvidenceProviderPackagedTests
 
     [TestMethod]
     [TestCategory("HardwareInspectionProcessAcceptance")]
-    [DataRow("identity-mismatch", LlamaCppCapabilityDiagnosticCode.IdentityMismatch)]
-    [DataRow("invalid-json", LlamaCppCapabilityDiagnosticCode.CapabilityOutputInvalid)]
-    [DataRow("nonzero", LlamaCppCapabilityDiagnosticCode.CapabilityProcessFailed)]
-    [DataRow("large-output", LlamaCppCapabilityDiagnosticCode.CapabilityOutputLimitExceeded)]
-    [DataRow("sleep", LlamaCppCapabilityDiagnosticCode.CapabilityTimedOut)]
-    public async Task RealBoundaryFailsClosed(string mode, LlamaCppCapabilityDiagnosticCode diagnostic)
+    public Task RealBoundaryRejectsIdentityMismatch() =>
+        AssertFailsClosedAsync("identity-mismatch", LlamaCppCapabilityDiagnosticCode.IdentityMismatch);
+
+    [TestMethod]
+    [TestCategory("HardwareInspectionProcessAcceptance")]
+    public Task RealBoundaryRejectsInvalidCapabilityJson() =>
+        AssertFailsClosedAsync("invalid-json", LlamaCppCapabilityDiagnosticCode.CapabilityOutputInvalid);
+
+    [TestMethod]
+    [TestCategory("HardwareInspectionProcessAcceptance")]
+    public Task RealBoundaryMapsCapabilityNonzeroExit() =>
+        AssertFailsClosedAsync("nonzero", LlamaCppCapabilityDiagnosticCode.CapabilityProcessFailed);
+
+    [TestMethod]
+    [TestCategory("HardwareInspectionProcessAcceptance")]
+    public Task RealBoundaryMapsCapabilityOutputOverflow() =>
+        AssertFailsClosedAsync("large-output", LlamaCppCapabilityDiagnosticCode.CapabilityOutputLimitExceeded);
+
+    [TestMethod]
+    [TestCategory("HardwareInspectionProcessAcceptance")]
+    public Task RealBoundaryMapsCapabilityTimeout() =>
+        AssertFailsClosedAsync("sleep", LlamaCppCapabilityDiagnosticCode.CapabilityTimedOut);
+
+    private static async Task AssertFailsClosedAsync(
+        string mode,
+        LlamaCppCapabilityDiagnosticCode diagnostic)
     {
         using VerifiedPackagedToolFixture fixture = CreateFixture(mode);
         string[] inventoryBefore = Directory.GetFiles(
