@@ -11,6 +11,7 @@ on:
       - 'tools/ModelInspection.LlamaSharpSpike.TestSupport/**'
       - 'tools/ModelInspection.LlamaSharpSpike.NativeIntegrationTests/**'
       - 'tools/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests/**'
+      - 'tests/TestFixtures/GGUF/N-001-vocab-only-spm.gguf'
       - 'docs/testing/LLamaSharp-Runtime-Test-Coverage-Matrix.md'
       - 'IBM Granite with TurboQuant (Intel)/IBM Granite with TurboQuant (Intel).csproj'
       - 'global.json'
@@ -26,6 +27,7 @@ on:
       - 'tools/ModelInspection.LlamaSharpSpike.TestSupport/**'
       - 'tools/ModelInspection.LlamaSharpSpike.NativeIntegrationTests/**'
       - 'tools/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests/**'
+      - 'tests/TestFixtures/GGUF/N-001-vocab-only-spm.gguf'
       - 'docs/testing/LLamaSharp-Runtime-Test-Coverage-Matrix.md'
       - 'IBM Granite with TurboQuant (Intel)/IBM Granite with TurboQuant (Intel).csproj'
       - 'global.json'
@@ -68,6 +70,7 @@ jobs:
             tools/ModelInspection.LlamaSharpSpike.TestSupport
             tools/ModelInspection.LlamaSharpSpike.NativeIntegrationTests
             tools/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests
+            tests/TestFixtures/GGUF/N-001-vocab-only-spm.gguf
             docs/testing/LLamaSharp-Runtime-Test-Coverage-Matrix.md
 
       - name: Set up .NET SDK from global.json
