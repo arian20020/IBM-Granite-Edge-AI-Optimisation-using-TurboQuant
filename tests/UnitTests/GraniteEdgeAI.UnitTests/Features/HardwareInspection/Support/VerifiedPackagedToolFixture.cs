@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using GraniteEdgeAI.HardwareInspection.Foundation.LlamaCpp;
 using GraniteEdgeAI.HardwareInspection.Foundation.LlmFit;
 using GraniteEdgeAI.HardwareInspection.Foundation.TrustedTools;
 
@@ -19,15 +20,35 @@ internal sealed class VerifiedPackagedToolFixture : IDisposable
         "version-mismatch",
     };
 
+    private static readonly HashSet<string> LlamaCppClosedModes = new(StringComparer.Ordinal)
+    {
+        "assert-in-job",
+        "identity-mismatch",
+        "invalid-json",
+        "large-output",
+        "nonzero",
+        "sleep",
+        "spawn-child",
+        "spawn-child-exit",
+        "success",
+    };
+
     private VerifiedPackagedToolFixture(
         string packageRoot,
         string controlRoot,
+        string controlFamily,
+        IReadOnlySet<string> closedModes,
         VerifiedTrustedTool tool)
     {
         PackageRoot = packageRoot;
         ControlRoot = controlRoot;
+        _controlFamily = controlFamily;
+        _closedModes = closedModes;
         Tool = tool;
     }
+
+    private readonly string _controlFamily;
+    private readonly IReadOnlySet<string> _closedModes;
 
     internal string PackageRoot { get; }
 
@@ -108,28 +129,114 @@ internal sealed class VerifiedPackagedToolFixture : IDisposable
             mode);
         DeleteOwnedControlRoot(controlRoot);
         Directory.CreateDirectory(controlRoot);
-        return new(packageRoot, controlRoot, verification.Tool!);
+        return new(packageRoot, controlRoot, "LlmFitFake", ClosedModes, verification.Tool!);
+    }
+
+    internal static VerifiedPackagedToolFixture CreateLlamaCpp(string mode)
+    {
+        if (!LlamaCppClosedModes.Contains(mode))
+        {
+            throw new ArgumentException("The fixture mode is not closed.", nameof(mode));
+        }
+
+        string packageBase = Path.GetFullPath(AppContext.BaseDirectory);
+        string packageRoot = Path.GetFullPath(Path.Combine(
+            packageBase,
+            "HardwareInspection",
+            "TestTools",
+            "LlamaCppProbeFake",
+            mode));
+        AssertStrictPackageDescendant(packageBase, packageRoot);
+        if (!Directory.Exists(packageRoot) || Directory.EnumerateDirectories(packageRoot).Any())
+        {
+            throw new InvalidOperationException("The signed flat fixture package is unavailable.");
+        }
+
+        string modePath = Path.Combine(packageRoot, "fake-mode.txt");
+        if (!string.Equals(File.ReadAllText(modePath), mode + Environment.NewLine, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("The packaged fixture mode does not match its directory.");
+        }
+
+        const string executableName = "GraniteEdgeAI.HardwareInspection.LlamaCppProbeFakeTool.exe";
+        string executablePath = Path.Combine(packageRoot, executableName);
+        string[] members = Directory.GetFiles(packageRoot, "*", SearchOption.TopDirectoryOnly)
+            .Select(Path.GetFileName)
+            .Select(static name => name!)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        string executableHash = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(executablePath)))
+            .ToLowerInvariant();
+        TrustedToolPackageManifest manifest = new(
+            LlamaCppCapabilityCommandContract.ToolId,
+            LlamaCppCapabilityCommandContract.Version,
+            executableName,
+            executableHash,
+            members,
+            PeMachine.Amd64,
+            TrustedToolPackageDisposition.AcceptedForFunctionalEvaluation,
+            [
+                LlamaCppCapabilityCommandContract.CreateIdentityCommand(),
+                LlamaCppCapabilityCommandContract.CreateCapabilitiesCommand(),
+            ]);
+        TrustedToolVerificationResult verification = new TrustedToolPackageVerifier().Verify(
+            Path.GetDirectoryName(packageRoot)!,
+            packageRoot,
+            manifest);
+        if (!verification.IsVerified)
+        {
+            throw new InvalidOperationException("The signed fixture package failed exact verification.");
+        }
+
+        string controlRoot = Path.Combine(
+            Path.GetTempPath(),
+            "GraniteEdgeAI.HardwareInspection.Tests",
+            "LlamaCppProbeFake",
+            mode);
+        DeleteOwnedControlRoot(controlRoot, "LlamaCppProbeFake", LlamaCppClosedModes);
+        Directory.CreateDirectory(controlRoot);
+        return new(
+            packageRoot,
+            controlRoot,
+            "LlamaCppProbeFake",
+            LlamaCppClosedModes,
+            verification.Tool!);
     }
 
     public void Dispose()
     {
         Tool.Dispose();
-        DeleteOwnedControlRoot(ControlRoot);
+        DeleteOwnedControlRoot(ControlRoot, _controlFamily, _closedModes);
     }
 
-    private static void DeleteOwnedControlRoot(string controlRoot)
+    private static void AssertStrictPackageDescendant(string packageBase, string packageRoot)
     {
+        string relativePackage = Path.GetRelativePath(packageBase, packageRoot);
+        if (Path.IsPathRooted(relativePackage) ||
+            relativePackage.Equals("..", StringComparison.Ordinal) ||
+            relativePackage.StartsWith($"..{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("The packaged fixture escaped the test package root.");
+        }
+    }
+
+    private static void DeleteOwnedControlRoot(
+        string controlRoot,
+        string controlFamily = "LlmFitFake",
+        IReadOnlySet<string>? closedModes = null)
+    {
+        closedModes ??= ClosedModes;
         string ownedParent = Path.GetFullPath(Path.Combine(
             Path.GetTempPath(),
             "GraniteEdgeAI.HardwareInspection.Tests",
-            "LlmFitFake"));
+            controlFamily));
         string resolvedControlRoot = Path.GetFullPath(controlRoot);
         string relative = Path.GetRelativePath(ownedParent, resolvedControlRoot);
         if (Path.IsPathRooted(relative) ||
             relative.Equals("..", StringComparison.Ordinal) ||
             relative.StartsWith($"..{Path.DirectorySeparatorChar}", StringComparison.Ordinal) ||
             relative.IndexOfAny([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar]) >= 0 ||
-            !ClosedModes.Contains(relative))
+            !closedModes.Contains(relative))
         {
             throw new InvalidOperationException("The fixture control root escaped its fixed owned parent.");
         }
