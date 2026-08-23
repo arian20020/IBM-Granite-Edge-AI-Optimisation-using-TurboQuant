@@ -512,6 +512,21 @@ public sealed partial class ProductionWorkerPackagingTests
             RedirectStandardOutput = true,
             RedirectStandardError = true
         };
+        if (string.Equals(
+                executable,
+                "powershell.exe",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            string windowsDirectory = Environment.GetFolderPath(
+                Environment.SpecialFolder.Windows);
+            startInfo.Environment["PSModulePath"] = Path.Combine(
+                windowsDirectory,
+                "System32",
+                "WindowsPowerShell",
+                "v1.0",
+                "Modules");
+        }
+
         foreach (string argument in arguments)
         {
             startInfo.ArgumentList.Add(argument);
