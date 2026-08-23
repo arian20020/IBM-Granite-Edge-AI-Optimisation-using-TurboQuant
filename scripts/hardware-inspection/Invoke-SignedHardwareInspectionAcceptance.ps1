@@ -43,7 +43,18 @@ function Assert-OwnedPath {
     )
 
     $resolvedPath = [IO.Path]::GetFullPath($Path)
-    $resolvedParent = [IO.Path]::TrimEndingDirectorySeparator([IO.Path]::GetFullPath($OwnedParent))
+    $resolvedParentWithSeparator = [IO.Path]::GetFullPath($OwnedParent)
+    $parentRoot = [IO.Path]::GetPathRoot($resolvedParentWithSeparator)
+    if ([string]::Equals(
+            $resolvedParentWithSeparator,
+            $parentRoot,
+            [StringComparison]::OrdinalIgnoreCase)) {
+        throw 'An owned temporary parent must not be a filesystem root.'
+    }
+
+    $resolvedParent = $resolvedParentWithSeparator.TrimEnd(
+        [IO.Path]::DirectorySeparatorChar,
+        [IO.Path]::AltDirectorySeparatorChar)
     if (-not $resolvedPath.StartsWith(
             $resolvedParent + [IO.Path]::DirectorySeparatorChar,
             [StringComparison]::OrdinalIgnoreCase)) {
