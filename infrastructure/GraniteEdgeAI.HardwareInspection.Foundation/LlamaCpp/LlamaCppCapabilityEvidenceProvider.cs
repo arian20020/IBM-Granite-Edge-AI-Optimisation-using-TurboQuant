@@ -29,7 +29,11 @@ public sealed class LlamaCppCapabilityEvidenceProvider : ILlamaCppCapabilityEvid
         cancellationToken.ThrowIfCancellationRequested();
 
         if (!string.Equals(tool.ToolId, LlamaCppCapabilityCommandContract.ToolId, StringComparison.Ordinal) ||
-            !string.Equals(tool.Version, LlamaCppCapabilityCommandContract.Version, StringComparison.Ordinal))
+            !string.Equals(tool.Version, LlamaCppCapabilityCommandContract.Version, StringComparison.Ordinal) ||
+            !string.Equals(
+                Path.GetFileName(tool.ExecutablePath),
+                LlamaCppCapabilityCommandContract.ExecutableName,
+                StringComparison.Ordinal))
         {
             return Unavailable(LlamaCppCapabilityDiagnosticCode.ToolIdentityMismatch);
         }

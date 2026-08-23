@@ -28,16 +28,26 @@ internal sealed class LlamaCppNativeCapabilityResult
     internal static LlamaCppNativeCapabilityResult Available(IEnumerable<LlamaCppNativeDevice> devices)
     {
         ArgumentNullException.ThrowIfNull(devices);
-        LlamaCppNativeDevice[] copy = devices.ToArray();
-        if (copy.Length is < 1 or > 16 ||
-            copy.Where(static (device, index) =>
-                device.Ordinal != index ||
-                !LlamaCppProbeText.IsSafe(device.BufferType, 128)).Any())
+        List<LlamaCppNativeDevice> copy = new(16);
+        foreach (LlamaCppNativeDevice device in devices)
+        {
+            if (copy.Count == 16 ||
+                device is null ||
+                device.Ordinal != copy.Count ||
+                !LlamaCppProbeText.IsSafe(device.BufferType, 128))
+            {
+                throw new ArgumentException("Native devices violate the closed capability contract.", nameof(devices));
+            }
+
+            copy.Add(device);
+        }
+
+        if (copy.Count == 0)
         {
             throw new ArgumentException("Native devices violate the closed capability contract.", nameof(devices));
         }
 
-        return new(true, Array.AsReadOnly(copy));
+        return new(true, Array.AsReadOnly(copy.ToArray()));
     }
 
     internal static LlamaCppNativeCapabilityResult Unavailable() => new(false, NoDevices);

@@ -77,6 +77,21 @@ public sealed class LlamaCppCapabilityEvidenceProviderTests
     }
 
     [TestMethod]
+    public async Task ExecutableNameDriftFailsBeforeProcessExecution()
+    {
+        using VerifiedProviderFixture fixture = VerifiedProviderFixture.Create(
+            executableName: "renamed-probe.exe");
+        ScriptedRunner runner = new();
+
+        LlamaCppCapabilityEvidence evidence = await CreateProvider(runner).CaptureAsync(
+            fixture.Tool,
+            CancellationToken.None);
+
+        AssertUnavailable(evidence, LlamaCppCapabilityDiagnosticCode.ToolIdentityMismatch);
+        Assert.HasCount(0, runner.Requests);
+    }
+
+    [TestMethod]
     public async Task IdentityFailuresMapClosedDiagnosticsAndStopSequencing()
     {
         string mismatch = ValidIdentity.Replace("\"managedVersion\":\"0.27.0\"", "\"managedVersion\":\"9.9.9\"", StringComparison.Ordinal);
@@ -268,14 +283,14 @@ public sealed class LlamaCppCapabilityEvidenceProviderTests
         internal static VerifiedProviderFixture Create(
             string toolId = "granite-edge-hardware-llamacpp-probe",
             string version = "0.27.0-cpu-win-x64",
-            TrustedToolCommand[]? commands = null)
+            TrustedToolCommand[]? commands = null,
+            string executableName = "GraniteEdgeAI.HardwareInspection.LlamaCppProbe.exe")
         {
             string root = Path.Combine(Path.GetTempPath(), $"hi-llamacpp-provider-{Guid.NewGuid():N}");
             string approvedRoot = Path.Combine(root, "approved");
             string packageRoot = Path.Combine(approvedRoot, "package");
             Directory.CreateDirectory(packageRoot);
             byte[] executable = CreatePeImage();
-            const string executableName = "GraniteEdgeAI.HardwareInspection.LlamaCppProbe.exe";
             File.WriteAllBytes(Path.Combine(packageRoot, executableName), executable);
             string hash = Convert.ToHexString(SHA256.HashData(executable)).ToLowerInvariant();
             TrustedToolPackageManifest manifest = new(
