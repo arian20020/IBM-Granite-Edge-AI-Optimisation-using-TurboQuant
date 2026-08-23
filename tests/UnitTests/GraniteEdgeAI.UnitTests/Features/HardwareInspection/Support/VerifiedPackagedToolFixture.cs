@@ -119,9 +119,49 @@ internal sealed class VerifiedPackagedToolFixture : IDisposable
 
     private static void DeleteOwnedControlRoot(string controlRoot)
     {
-        if (Directory.Exists(controlRoot))
+        string ownedParent = Path.GetFullPath(Path.Combine(
+            Path.GetTempPath(),
+            "GraniteEdgeAI.HardwareInspection.Tests",
+            "LlmFitFake"));
+        string resolvedControlRoot = Path.GetFullPath(controlRoot);
+        string relative = Path.GetRelativePath(ownedParent, resolvedControlRoot);
+        if (Path.IsPathRooted(relative) ||
+            relative.Equals("..", StringComparison.Ordinal) ||
+            relative.StartsWith($"..{Path.DirectorySeparatorChar}", StringComparison.Ordinal) ||
+            relative.IndexOfAny([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar]) >= 0 ||
+            !ClosedModes.Contains(relative))
         {
-            Directory.Delete(controlRoot, recursive: true);
+            throw new InvalidOperationException("The fixture control root escaped its fixed owned parent.");
         }
+
+        const int MaximumAttempts = 6;
+        for (int attempt = 0; attempt < MaximumAttempts; attempt++)
+        {
+            if (!Directory.Exists(resolvedControlRoot))
+            {
+                return;
+            }
+
+            FileAttributes attributes = File.GetAttributes(resolvedControlRoot);
+            if ((attributes & FileAttributes.ReparsePoint) != 0)
+            {
+                throw new InvalidOperationException("The fixture control root must not be a reparse point.");
+            }
+
+            try
+            {
+                Directory.Delete(resolvedControlRoot, recursive: true);
+                return;
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                if (attempt < MaximumAttempts - 1)
+                {
+                    Thread.Sleep(TimeSpan.FromMilliseconds(20 * (1 << attempt)));
+                }
+            }
+        }
+
+        throw new IOException("The fixture control root remained after bounded cleanup.");
     }
 }

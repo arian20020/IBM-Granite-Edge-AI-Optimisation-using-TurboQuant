@@ -3,18 +3,25 @@ using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
+using System.Text;
 
 return await RunAsync(args).ConfigureAwait(false);
 
 static async Task<int> RunAsync(string[] arguments)
 {
     string modePath = Path.Combine(Directory.GetCurrentDirectory(), "fake-mode.txt");
-    if (!File.Exists(modePath))
+    string? mode = await ReadClosedModeAsync(modePath).ConfigureAwait(false);
+    if (mode is null)
     {
         return 64;
     }
 
-    string mode = await File.ReadAllTextAsync(modePath).ConfigureAwait(false);
+    string controlRoot = Path.GetFullPath(Path.Combine(
+        Path.GetTempPath(),
+        "GraniteEdgeAI.HardwareInspection.Tests",
+        "LlmFitFake",
+        mode));
+    Directory.CreateDirectory(controlRoot);
     if (arguments.SequenceEqual(["--version"], StringComparer.Ordinal))
     {
         Console.Out.WriteLine(mode == "version-mismatch" ? "llmfit 9.9.9" : "llmfit 1.1.9");
@@ -29,7 +36,7 @@ static async Task<int> RunAsync(string[] arguments)
     if (mode is "sleep" or "sleep-child")
     {
         await File.WriteAllTextAsync(
-                Path.Combine(Directory.GetCurrentDirectory(), "owned-root-ready.txt"),
+                Path.Combine(controlRoot, "owned-root-ready.txt"),
                 Environment.ProcessId.ToString(CultureInfo.InvariantCulture))
             .ConfigureAwait(false);
     }
@@ -41,13 +48,47 @@ static async Task<int> RunAsync(string[] arguments)
         "nonzero" => WriteNonzero(),
         "large-output" => await WriteLargeOutputAsync().ConfigureAwait(false),
         "sleep" => await SleepAsync().ConfigureAwait(false),
-        "spawn-child" => await SpawnChildAsync().ConfigureAwait(false),
-        "spawn-child-exit" => await SpawnChildAndExitAsync().ConfigureAwait(false),
+        "spawn-child" => await SpawnChildAsync(controlRoot, waitForCancellation: true).ConfigureAwait(false),
+        "spawn-child-exit" => await SpawnChildAsync(controlRoot, waitForCancellation: false).ConfigureAwait(false),
         "assert-in-job" => JobMembership.IsCurrentProcessInJob() ? WriteSuccess() : 91,
         "sleep-child" => await SleepAsync().ConfigureAwait(false),
         "dashboard" => await ListenOnDashboardPortAsync().ConfigureAwait(false),
         _ => 64,
     };
+}
+
+static async Task<string?> ReadClosedModeAsync(string modePath)
+{
+    string[] closedModes =
+    [
+        "assert-in-job",
+        "dashboard",
+        "invalid-json",
+        "large-output",
+        "nonzero",
+        "sleep",
+        "sleep-child",
+        "spawn-child",
+        "spawn-child-exit",
+        "success",
+        "version-mismatch",
+    ];
+
+    if (!File.Exists(modePath))
+    {
+        return null;
+    }
+
+    byte[] bytes = await File.ReadAllBytesAsync(modePath).ConfigureAwait(false);
+    foreach (string candidate in closedModes)
+    {
+        if (bytes.AsSpan().SequenceEqual(Encoding.UTF8.GetBytes(candidate + Environment.NewLine)))
+        {
+            return candidate;
+        }
+    }
+
+    return null;
 }
 
 static int WriteSuccess()
@@ -93,7 +134,7 @@ static async Task<int> SleepAsync()
     return 0;
 }
 
-static async Task<int> SpawnChildAsync()
+static async Task<int> SpawnChildAsync(string controlRoot, bool waitForCancellation)
 {
     string? processPath = Environment.ProcessPath;
     if (string.IsNullOrWhiteSpace(processPath))
@@ -102,12 +143,12 @@ static async Task<int> SpawnChildAsync()
     }
 
     string childDirectory = Path.Combine(
-        Directory.GetCurrentDirectory(),
+        controlRoot,
         "owned-child-" + Guid.NewGuid().ToString("N"));
     Directory.CreateDirectory(childDirectory);
     await File.WriteAllTextAsync(
             Path.Combine(childDirectory, "fake-mode.txt"),
-            "sleep-child")
+            "sleep-child" + Environment.NewLine)
         .ConfigureAwait(false);
 
     var startInfo = new ProcessStartInfo
@@ -130,57 +171,20 @@ static async Task<int> SpawnChildAsync()
     Console.Out.WriteLine(child.Id);
     Console.Out.Flush();
     await File.WriteAllTextAsync(
-            Path.Combine(Directory.GetCurrentDirectory(), "spawn-child-ready.txt"),
+            Path.Combine(controlRoot, "spawn-child-ready.txt"),
             child.Id.ToString(CultureInfo.InvariantCulture))
         .ConfigureAwait(false);
-    await Task.Delay(TimeSpan.FromMinutes(5)).ConfigureAwait(false);
+    if (waitForCancellation)
+    {
+        await Task.Delay(TimeSpan.FromMinutes(5)).ConfigureAwait(false);
+    }
+
     return 0;
 }
 
 static int WriteInvalidJson()
 {
     Console.Out.WriteLine("{\"system\":");
-    return 0;
-}
-
-static async Task<int> SpawnChildAndExitAsync()
-{
-    string? processPath = Environment.ProcessPath;
-    if (string.IsNullOrWhiteSpace(processPath))
-    {
-        return 64;
-    }
-
-    string childDirectory = Path.Combine(
-        Directory.GetCurrentDirectory(),
-        "owned-child-" + Guid.NewGuid().ToString("N"));
-    Directory.CreateDirectory(childDirectory);
-    await File.WriteAllTextAsync(
-            Path.Combine(childDirectory, "fake-mode.txt"),
-            "sleep-child")
-        .ConfigureAwait(false);
-
-    var startInfo = new ProcessStartInfo
-    {
-        FileName = processPath,
-        WorkingDirectory = childDirectory,
-        UseShellExecute = false,
-        CreateNoWindow = true,
-    };
-    startInfo.ArgumentList.Add("--no-dashboard");
-    startInfo.ArgumentList.Add("--json");
-    startInfo.ArgumentList.Add("system");
-
-    using var child = new Process { StartInfo = startInfo };
-    if (!child.Start())
-    {
-        return 64;
-    }
-
-    await File.WriteAllTextAsync(
-            Path.Combine(Directory.GetCurrentDirectory(), "spawn-child-ready.txt"),
-            child.Id.ToString(CultureInfo.InvariantCulture))
-        .ConfigureAwait(false);
     return 0;
 }
 
