@@ -78,16 +78,6 @@ defaults:
 
 env:
   OPENVINO_EVIDENCE_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
-  OPENVINO_ARCHIVES: ${{ runner.temp }}/openvino-official-archives
-  OPENVINO_BUILD_A: ${{ runner.temp }}/openvino-official-build-a
-  OPENVINO_BUILD_B: ${{ runner.temp }}/openvino-official-build-b
-  OPENVINO_STAGE_A: ${{ runner.temp }}/openvino-official-stage-a
-  OPENVINO_STAGE_B: ${{ runner.temp }}/openvino-official-stage-b
-  OPENVINO_RESULTS: ${{ runner.temp }}/openvino-official-results
-  OPENVINO_CONVERTER_CLOSURE: ${{ runner.temp }}/openvino-converter-closure
-  OPENVINO_CONVERTER_BUILD: ${{ runner.temp }}/openvino-converter-build
-  OPENVINO_CONVERTER_STAGE: ${{ runner.temp }}/openvino-converter-stage
-  OPENVINO_MEASUREMENTS: ${{ runner.temp }}/openvino-official-results/measurements.json
   OPENVINO_EVIDENCE_FILE: artifacts/openvino/evidence/cpu.json
 
 jobs:
@@ -95,6 +85,17 @@ jobs:
     name: Release x64 official CPU closure
     runs-on: windows-2022
     timeout-minutes: 180
+    env:
+      OPENVINO_ARCHIVES: ${{ runner.temp }}/openvino-official-archives
+      OPENVINO_BUILD_A: ${{ runner.temp }}/openvino-official-build-a
+      OPENVINO_BUILD_B: ${{ runner.temp }}/openvino-official-build-b
+      OPENVINO_STAGE_A: ${{ runner.temp }}/openvino-official-stage-a
+      OPENVINO_STAGE_B: ${{ runner.temp }}/openvino-official-stage-b
+      OPENVINO_RESULTS: ${{ runner.temp }}/openvino-official-results
+      OPENVINO_CONVERTER_CLOSURE: ${{ runner.temp }}/openvino-converter-closure
+      OPENVINO_CONVERTER_BUILD: ${{ runner.temp }}/openvino-converter-build
+      OPENVINO_CONVERTER_STAGE: ${{ runner.temp }}/openvino-converter-stage
+      OPENVINO_MEASUREMENTS: ${{ runner.temp }}/openvino-official-results/measurements.json
 
     steps:
       - name: Check out the exact evidence commit

@@ -34,12 +34,7 @@ env:
   OPENVINO_TURBOQUANT_PACKAGE_MANIFEST_SHA256: ${{ vars.OPENVINO_TURBOQUANT_PACKAGE_MANIFEST_SHA256 }}
   OPENVINO_TURBOQUANT_MODEL_SHA256: ${{ vars.OPENVINO_TURBOQUANT_MODEL_SHA256 }}
   OPENVINO_TURBOQUANT_MODEL_LENGTH: ${{ vars.OPENVINO_TURBOQUANT_MODEL_LENGTH }}
-  TURBOQUANT_RUNTIME_BUILD: ${{ runner.temp }}/turboquant-runtime-build
-  TURBOQUANT_RUNTIME_STAGE: ${{ runner.temp }}/turboquant-runtime-stage
-  TURBOQUANT_WORKER_BUILD: ${{ runner.temp }}/turboquant-worker-build
-  OPENVINO_TURBOQUANT_WORKER_STAGE: ${{ runner.temp }}/turboquant-worker-stage
   OPENVINO_TURBOQUANT_EVIDENCE_PATH: artifacts/openvino/turboquant/activation.json
-  TURBOQUANT_RESULTS: ${{ runner.temp }}/turboquant-results
 
 jobs:
   trusted-turboquant-cpu:
@@ -52,6 +47,12 @@ jobs:
       - workbook05
       - intel-target
     timeout-minutes: 210
+    env:
+      TURBOQUANT_RUNTIME_BUILD: ${{ runner.temp }}/turboquant-runtime-build
+      TURBOQUANT_RUNTIME_STAGE: ${{ runner.temp }}/turboquant-runtime-stage
+      TURBOQUANT_WORKER_BUILD: ${{ runner.temp }}/turboquant-worker-build
+      OPENVINO_TURBOQUANT_WORKER_STAGE: ${{ runner.temp }}/turboquant-worker-stage
+      TURBOQUANT_RESULTS: ${{ runner.temp }}/turboquant-results
 
     steps:
       - name: Fail closed before repository code

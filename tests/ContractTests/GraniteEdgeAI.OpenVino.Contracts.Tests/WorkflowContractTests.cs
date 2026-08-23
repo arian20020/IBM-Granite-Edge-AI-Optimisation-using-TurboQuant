@@ -208,6 +208,53 @@ public sealed class WorkflowContractTests
     }
 
     [TestMethod]
+    public void RunnerContextIsScopedToJobsInOpenVinoWorkflows()
+    {
+        var workflows = new[]
+        {
+            new
+            {
+                Path = ".github/workflows/openvino-official-ci.yml",
+                Job = "official-cpu",
+                RunnerKeys = new[] { "OPENVINO_ARCHIVES", "OPENVINO_MEASUREMENTS" }
+            },
+            new
+            {
+                Path = ".github/workflows/openvino-ucl-intel.yml",
+                Job = "trusted-intel-cpu",
+                RunnerKeys = new[] { "OPENVINO_BUILD_A", "OPENVINO_CONVERTER_STAGE" }
+            },
+            new
+            {
+                Path = ".github/workflows/openvino-turboquant-ucl.yml",
+                Job = "trusted-turboquant-cpu",
+                RunnerKeys = new[] { "TURBOQUANT_RUNTIME_BUILD", "TURBOQUANT_RESULTS" }
+            }
+        };
+
+        foreach (var workflow in workflows)
+        {
+            YamlMappingNode root = ParseWorkflow(File.ReadAllText(RepoPath(workflow.Path)));
+            YamlMappingNode rootEnvironment = Mapping(root, "env");
+            Assert.IsFalse(
+                rootEnvironment.Children.Values
+                    .Select(Scalar)
+                    .Any(value => value.Contains("${{ runner.", StringComparison.Ordinal)),
+                $"{workflow.Path} uses the runner context before a runner is assigned.");
+
+            YamlMappingNode job = Mapping(Mapping(root, "jobs"), workflow.Job);
+            YamlMappingNode jobEnvironment = Mapping(job, "env");
+            foreach (string key in workflow.RunnerKeys)
+            {
+                StringAssert.StartsWith(
+                    Scalar(jobEnvironment, key),
+                    "${{ runner.temp }}/",
+                    $"{workflow.Path} must resolve {key} after its runner is assigned.");
+            }
+        }
+    }
+
+    [TestMethod]
     public void HostedWorkflowIsImmutableLeastPrivilegeReleaseX64AndCountGated()
     {
         string source = OfficialWorkflow();

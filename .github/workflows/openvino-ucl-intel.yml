@@ -47,14 +47,6 @@ env:
   OPENVINO_EXPECTED_MODEL_LENGTH: ${{ vars.OPENVINO_UCL_MODEL_LENGTH }}
   OPENVINO_EXPECTED_MODEL_SHA256: ${{ vars.OPENVINO_UCL_MODEL_SHA256 }}
   OPENVINO_EXPECTED_FIXTURE_MANIFEST_SHA256: dc5ef5060a0e8242291d98701ab2b65286169c863a12e573dd1ad7921ac92648
-  OPENVINO_BUILD_A: ${{ runner.temp }}/openvino-ucl-build-a
-  OPENVINO_BUILD_B: ${{ runner.temp }}/openvino-ucl-build-b
-  OPENVINO_STAGE_A: ${{ runner.temp }}/openvino-ucl-stage-a
-  OPENVINO_STAGE_B: ${{ runner.temp }}/openvino-ucl-stage-b
-  OPENVINO_RESULTS: ${{ runner.temp }}/openvino-ucl-results
-  OPENVINO_CONVERTER_BUILD: ${{ runner.temp }}/openvino-ucl-converter-build
-  OPENVINO_CONVERTER_STAGE: ${{ runner.temp }}/openvino-ucl-converter-stage
-  GRANITE_OPENVINO_CONVERTER_STAGE: ${{ runner.temp }}/openvino-ucl-converter-stage
   OPENVINO_EVIDENCE_FILE: artifacts/openvino/evidence/cpu.json
   OPENVINO_GPU_EVIDENCE_FILE: artifacts/openvino/gpu-evidence/gpu.json
 
@@ -69,6 +61,15 @@ jobs:
       - workbook05
       - intel-target
     timeout-minutes: 210
+    env:
+      OPENVINO_BUILD_A: ${{ runner.temp }}/openvino-ucl-build-a
+      OPENVINO_BUILD_B: ${{ runner.temp }}/openvino-ucl-build-b
+      OPENVINO_STAGE_A: ${{ runner.temp }}/openvino-ucl-stage-a
+      OPENVINO_STAGE_B: ${{ runner.temp }}/openvino-ucl-stage-b
+      OPENVINO_RESULTS: ${{ runner.temp }}/openvino-ucl-results
+      OPENVINO_CONVERTER_BUILD: ${{ runner.temp }}/openvino-ucl-converter-build
+      OPENVINO_CONVERTER_STAGE: ${{ runner.temp }}/openvino-ucl-converter-stage
+      GRANITE_OPENVINO_CONVERTER_STAGE: ${{ runner.temp }}/openvino-ucl-converter-stage
 
     steps:
       - name: Fail closed before repository code on UCL-01 and immutable inputs
