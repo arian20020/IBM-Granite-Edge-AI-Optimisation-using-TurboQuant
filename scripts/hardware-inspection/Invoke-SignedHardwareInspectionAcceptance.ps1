@@ -21,6 +21,7 @@ $resultSchema = 'granite.hardware-inspection.process-acceptance/v1'
 $maximumResultBytes = 64KB
 $maximumWait = [TimeSpan]::FromSeconds(180)
 $normalizedThumbprint = $CertificateThumbprint.ToUpperInvariant()
+$currentUserSid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
 $repositoryRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
 $testOutputRoot = [IO.Path]::GetFullPath((Join-Path $repositoryRoot (
     'tests\UnitTests\GraniteEdgeAI.UnitTests\bin\x64\{0}\net8.0-windows10.0.19041.0\win-x64' -f $Configuration)))
@@ -179,7 +180,7 @@ function Remove-TestPackage {
             throw 'Package cleanup resolved an unexpected identity.'
         }
 
-        Remove-AppxPackage -Package $package.PackageFullName
+        Remove-AppxPackage -Package $package.PackageFullName -User $currentUserSid
     }
 }
 
@@ -477,18 +478,21 @@ try {
     }
 }
 finally {
-    if ($packageInstalledByInvocation) {
-        Remove-TestPackage
-    }
-
-    foreach ($resultPath in $createdResultPaths) {
-        if (Test-Path -LiteralPath $resultPath -PathType Leaf) {
-            Remove-Item -LiteralPath $resultPath -Force
+    try {
+        if ($packageInstalledByInvocation) {
+            Remove-TestPackage
         }
     }
+    finally {
+        foreach ($resultPath in $createdResultPaths) {
+            if (Test-Path -LiteralPath $resultPath -PathType Leaf) {
+                Remove-Item -LiteralPath $resultPath -Force
+            }
+        }
 
-    Assert-OwnedPath -Path $ownedTempRoot -OwnedParent $ownedTempParent
-    if (Test-Path -LiteralPath $ownedTempRoot -PathType Container) {
-        Remove-Item -LiteralPath $ownedTempRoot -Recurse -Force
+        Assert-OwnedPath -Path $ownedTempRoot -OwnedParent $ownedTempParent
+        if (Test-Path -LiteralPath $ownedTempRoot -PathType Container) {
+            Remove-Item -LiteralPath $ownedTempRoot -Recurse -Force
+        }
     }
 }
