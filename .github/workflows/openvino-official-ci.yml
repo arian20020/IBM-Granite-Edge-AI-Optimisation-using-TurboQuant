@@ -340,7 +340,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Could not bind the short workspace drive.' }
           $mapping = [string](& subst.exe 'O:')
           if ($LASTEXITCODE -ne 0 -or
-              $mapping -cnotmatch [Regex]::Escape([IO.Path]::GetFullPath($env:GITHUB_WORKSPACE))) {
+              $mapping -notmatch [Regex]::Escape([IO.Path]::GetFullPath($env:GITHUB_WORKSPACE))) {
             & subst.exe 'O:' /D
             throw 'The short workspace drive did not bind to the exact checkout.'
           }
@@ -510,7 +510,7 @@ jobs:
           if ($env:OPENVINO_SHORT_WORKSPACE -ceq 'O:\') {
             $mapping = [string](& subst.exe 'O:')
             if ($LASTEXITCODE -ne 0 -or
-                $mapping -cnotmatch [Regex]::Escape([IO.Path]::GetFullPath($env:GITHUB_WORKSPACE))) {
+                $mapping -notmatch [Regex]::Escape([IO.Path]::GetFullPath($env:GITHUB_WORKSPACE))) {
               $failed = $true
             } else {
               & subst.exe 'O:' /D

@@ -379,6 +379,8 @@ public sealed class WorkflowContractTests
         {
             StringAssert.Contains(shortWorkspace, required);
         }
+        Assert.AreEqual(2, Regex.Matches(source, @"\$mapping -notmatch \[Regex\]::Escape").Count);
+        Assert.IsFalse(source.Contains("$mapping -cnotmatch", StringComparison.Ordinal));
         foreach (string stepName in new[]
         {
             "Run managed client and protected process gates",
