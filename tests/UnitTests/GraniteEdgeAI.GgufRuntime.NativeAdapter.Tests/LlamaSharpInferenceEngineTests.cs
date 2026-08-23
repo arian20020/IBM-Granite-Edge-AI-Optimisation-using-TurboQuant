@@ -20,12 +20,16 @@ public sealed class LlamaSharpInferenceEngineTests
 
         ChatHistory history = LlamaSharpInferenceEngine.CreateHistory(messages);
 
-        Assert.AreEqual(3, history.Messages.Count);
-        Assert.AreEqual(AuthorRole.User, history.Messages[0].AuthorRole);
-        Assert.AreEqual("first question", history.Messages[0].Content);
-        Assert.AreEqual(AuthorRole.Assistant, history.Messages[1].AuthorRole);
-        Assert.AreEqual("first answer", history.Messages[1].Content);
-        Assert.AreEqual(AuthorRole.User, history.Messages[2].AuthorRole);
+        Assert.AreEqual(4, history.Messages.Count);
+        Assert.AreEqual(AuthorRole.System, history.Messages[0].AuthorRole);
+        StringAssert.Contains(
+            history.Messages[0].Content,
+            "Check numerical claims and units");
+        Assert.AreEqual(AuthorRole.User, history.Messages[1].AuthorRole);
+        Assert.AreEqual("first question", history.Messages[1].Content);
+        Assert.AreEqual(AuthorRole.Assistant, history.Messages[2].AuthorRole);
+        Assert.AreEqual("first answer", history.Messages[2].Content);
+        Assert.AreEqual(AuthorRole.User, history.Messages[3].AuthorRole);
     }
 
     [TestMethod]
@@ -69,7 +73,7 @@ public sealed class LlamaSharpInferenceEngineTests
                 false,
                 512));
 
-        Assert.AreEqual(512, inference.MaxTokens);
+        Assert.AreEqual(513, inference.MaxTokens);
         DefaultSamplingPipeline sampling = Assert.IsInstanceOfType<DefaultSamplingPipeline>(
             inference.SamplingPipeline);
         Assert.AreEqual(42u, sampling.Seed);
@@ -83,5 +87,19 @@ public sealed class LlamaSharpInferenceEngineTests
         CollectionAssert.DoesNotContain(inference.AntiPrompts.ToList(), "\nme:");
         CollectionAssert.DoesNotContain(inference.AntiPrompts.ToList(), "\n```\n```");
         CollectionAssert.DoesNotContain(inference.AntiPrompts.ToList(), "\r\n```\r\n```");
+    }
+
+    [TestMethod]
+    public void BeginGenerationClearsReasonFromThePreviousTurn()
+    {
+        var observer = new GraniteGenerationBoundaryObserver();
+        observer.Complete(GgufAdapterCompletionReason.Length);
+
+        LlamaSharpInferenceEngine.BeginGeneration(observer);
+        Assert.IsNull(observer.Reason);
+
+        observer.Complete(GgufAdapterCompletionReason.Stop);
+        LlamaSharpInferenceEngine.BeginGeneration(observer);
+        Assert.IsNull(observer.Reason);
     }
 }

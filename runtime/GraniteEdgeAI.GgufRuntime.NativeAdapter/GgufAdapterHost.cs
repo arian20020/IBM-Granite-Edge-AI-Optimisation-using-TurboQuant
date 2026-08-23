@@ -30,6 +30,13 @@ internal sealed class GgufAdapterHost(
                     await engine.InitializeAsync(history, cancellationToken)
                         .ConfigureAwait(false);
                 }
+                catch (GgufUnsupportedChatTemplateException)
+                {
+                    await WriteFrameAsync(
+                        "G1FAIL chat-template-unsupported",
+                        CancellationToken.None).ConfigureAwait(false);
+                    return 70;
+                }
                 catch (Exception exception) when (exception is not OperationCanceledException)
                 {
                     await WriteFrameAsync(
@@ -69,21 +76,44 @@ internal sealed class GgufAdapterHost(
             }
 
             await WriteFrameAsync("G1RESPONSE", cancellationToken).ConfigureAwait(false);
-            await foreach (string chunk in engine.GenerateAsync(
+            GgufAdapterCompletionReason? completionReason = null;
+            await foreach (GgufAdapterGenerationEvent generationEvent in engine.GenerateAsync(
                                command.Content!,
                                cancellationToken).ConfigureAwait(false))
             {
-                if (chunk.Length == 0)
+                if (completionReason is not null)
                 {
-                    continue;
+                    throw new InvalidOperationException(
+                        "The inference engine emitted data after completion.");
                 }
 
-                await WriteFrameAsync(
-                    GgufAdapterProtocol.EncodeDelta(chunk),
-                    cancellationToken).ConfigureAwait(false);
+                switch (generationEvent)
+                {
+                    case GgufAdapterTextDelta { Text.Length: > 0 } delta:
+                        await WriteFrameAsync(
+                            GgufAdapterProtocol.EncodeDelta(delta.Text),
+                            cancellationToken).ConfigureAwait(false);
+                        break;
+                    case GgufAdapterTextDelta:
+                        break;
+                    case GgufAdapterCompleted completed:
+                        completionReason = completed.Reason;
+                        break;
+                    default:
+                        throw new InvalidOperationException(
+                            "The inference engine emitted an unsupported event.");
+                }
             }
 
-            await WriteFrameAsync("G1DONE", cancellationToken).ConfigureAwait(false);
+            string reason = completionReason switch
+            {
+                GgufAdapterCompletionReason.Stop => "stop",
+                GgufAdapterCompletionReason.Length => "length",
+                _ => throw new InvalidOperationException(
+                    "The inference engine omitted completion."),
+            };
+            await WriteFrameAsync($"G1DONE {reason}", cancellationToken)
+                .ConfigureAwait(false);
         }
 
         return 0;

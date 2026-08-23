@@ -56,15 +56,11 @@ public sealed class LlamaSharpRealModelSmokeTests
         await using var engine = new LlamaSharpInferenceEngine(options);
         await engine.InitializeAsync([], CancellationToken.None);
 
-        var chunks = new List<string>();
-        await foreach (string chunk in engine.GenerateAsync(
-            "Introduce yourself in one short sentence.",
-            CancellationToken.None))
-        {
-            chunks.Add(chunk);
-        }
+        string answer = await GenerateTextAsync(
+            engine,
+            "Introduce yourself in one short sentence.");
 
-        AssertSingleAssistantTurn(string.Concat(chunks));
+        AssertSingleAssistantTurn(answer);
     }
 
     [TestMethod]
@@ -90,25 +86,32 @@ public sealed class LlamaSharpRealModelSmokeTests
         await using var engine = new LlamaSharpInferenceEngine(options);
         await engine.InitializeAsync([], CancellationToken.None);
 
+        AssertSingleAssistantTurn(await GenerateTextAsync(engine, "helllo"));
+        AssertSingleAssistantTurn(await GenerateTextAsync(engine, "How are you?"));
+    }
+
+    private static async Task<string> GenerateTextAsync(
+        LlamaSharpInferenceEngine engine,
+        string prompt)
+    {
         var chunks = new List<string>();
-        await foreach (string chunk in engine.GenerateAsync(
-            "helllo",
-            CancellationToken.None))
+        int completions = 0;
+        await foreach (GgufAdapterGenerationEvent generationEvent in
+            engine.GenerateAsync(prompt, CancellationToken.None))
         {
-            chunks.Add(chunk);
+            switch (generationEvent)
+            {
+                case GgufAdapterTextDelta delta:
+                    chunks.Add(delta.Text);
+                    break;
+                case GgufAdapterCompleted:
+                    completions++;
+                    break;
+            }
         }
 
-        AssertSingleAssistantTurn(string.Concat(chunks));
-
-        chunks.Clear();
-        await foreach (string chunk in engine.GenerateAsync(
-            "How are you?",
-            CancellationToken.None))
-        {
-            chunks.Add(chunk);
-        }
-
-        AssertSingleAssistantTurn(string.Concat(chunks));
+        Assert.AreEqual(1, completions);
+        return string.Concat(chunks);
     }
 
     private static void AssertSingleAssistantTurn(string answer)

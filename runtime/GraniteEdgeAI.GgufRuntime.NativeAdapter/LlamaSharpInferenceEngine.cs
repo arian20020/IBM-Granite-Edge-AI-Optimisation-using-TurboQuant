@@ -10,9 +10,17 @@ namespace GraniteEdgeAI.GgufRuntime.NativeAdapter;
 internal sealed class LlamaSharpInferenceEngine(GgufAdapterOptions options)
     : IGgufInferenceEngine
 {
+    private const string SystemInstruction =
+        "You are Granite Edge AI, a concise general-purpose assistant. " +
+        "Answer the user's question directly and accurately. " +
+        "Distinguish facts from uncertainty and state when you are unsure. " +
+        "Check numerical claims and units before stating them. " +
+        "Use only as much detail as needed unless the user asks for more.";
+
     private LLamaWeights? _weights;
     private LLamaContext? _context;
     private ChatSession? _session;
+    private GraniteGenerationBoundaryObserver? _completionObserver;
 
     public async ValueTask InitializeAsync(
         IReadOnlyList<GgufAdapterMessage> initialHistory,
@@ -28,19 +36,28 @@ internal sealed class LlamaSharpInferenceEngine(GgufAdapterOptions options)
             .ConfigureAwait(false);
         _context = _weights.CreateContext(parameters);
         var executor = new InteractiveExecutor(_context);
-        _session = new ChatSession(executor, CreateHistory(initialHistory))
-            .WithHistoryTransform(new PromptTemplateTransformer(
-                _weights,
-                withAssistant: true))
-            .WithOutputTransform(new GraniteTurnBoundaryTextTransform());
+        ChatHistory history = CreateHistory(initialHistory);
+        var historyTransform = new PromptTemplateTransformer(
+            _weights,
+            withAssistant: true);
+        PreflightTemplate(historyTransform, history);
+        _completionObserver = new GraniteGenerationBoundaryObserver();
+        _session = new ChatSession(executor, history)
+            .WithHistoryTransform(historyTransform)
+            .WithOutputTransform(new GraniteTurnBoundaryTextTransform(
+                VisibleTokenLimit(options),
+                _completionObserver));
     }
 
-    public async IAsyncEnumerable<string> GenerateAsync(
+    public async IAsyncEnumerable<GgufAdapterGenerationEvent> GenerateAsync(
         string prompt,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         ChatSession session = _session
             ?? throw new InvalidOperationException("The inference engine is not initialized.");
+        GraniteGenerationBoundaryObserver observer = _completionObserver
+            ?? throw new InvalidOperationException("The inference engine is not initialized.");
+        BeginGeneration(observer);
         InferenceParams inference = CreateInferenceParameters(options);
         var message = new ChatHistory.Message(AuthorRole.User, prompt);
         await foreach (string chunk in session.ChatAsync(
@@ -48,8 +65,14 @@ internal sealed class LlamaSharpInferenceEngine(GgufAdapterOptions options)
                            inference,
                            cancellationToken).ConfigureAwait(false))
         {
-            yield return chunk;
+            if (chunk.Length > 0)
+            {
+                yield return new GgufAdapterTextDelta(chunk);
+            }
         }
+
+        yield return new GgufAdapterCompleted(
+            observer.Reason ?? GgufAdapterCompletionReason.Stop);
     }
 
     public ValueTask DisposeAsync()
@@ -57,6 +80,7 @@ internal sealed class LlamaSharpInferenceEngine(GgufAdapterOptions options)
         _context?.Dispose();
         _weights?.Dispose();
         _session = null;
+        _completionObserver = null;
         _context = null;
         _weights = null;
         return ValueTask.CompletedTask;
@@ -67,6 +91,7 @@ internal sealed class LlamaSharpInferenceEngine(GgufAdapterOptions options)
     {
         ArgumentNullException.ThrowIfNull(messages);
         var history = new ChatHistory();
+        history.AddMessage(AuthorRole.System, SystemInstruction);
         foreach (GgufAdapterMessage message in messages)
         {
             AuthorRole role = message.Role switch
@@ -103,9 +128,7 @@ internal sealed class LlamaSharpInferenceEngine(GgufAdapterOptions options)
         ArgumentNullException.ThrowIfNull(configuration);
         return new InferenceParams
         {
-            MaxTokens = Math.Min(
-                configuration.MaximumGeneratedTokens,
-                checked((int)configuration.ContextSize / 2)),
+            MaxTokens = checked(VisibleTokenLimit(configuration) + 1),
             SamplingPipeline = new DefaultSamplingPipeline
             {
                 Seed = 42,
@@ -118,6 +141,35 @@ internal sealed class LlamaSharpInferenceEngine(GgufAdapterOptions options)
                 "\nAssistant:", "\nassistant:",
             ],
         };
+    }
+
+    internal static int VisibleTokenLimit(GgufAdapterOptions configuration)
+    {
+        ArgumentNullException.ThrowIfNull(configuration);
+        return Math.Min(
+            configuration.MaximumGeneratedTokens,
+            checked((int)configuration.ContextSize / 2));
+    }
+
+    internal static void BeginGeneration(
+        GraniteGenerationBoundaryObserver observer)
+    {
+        ArgumentNullException.ThrowIfNull(observer);
+        observer.Reset();
+    }
+
+    private static void PreflightTemplate(
+        PromptTemplateTransformer transform,
+        ChatHistory history)
+    {
+        try
+        {
+            _ = transform.HistoryToText(history);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            throw new GgufUnsupportedChatTemplateException(exception);
+        }
     }
 
     private static GGMLType MapCacheType(GgufAdapterCacheType cacheType) =>

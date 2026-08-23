@@ -6,7 +6,7 @@ internal interface IGgufInferenceEngine : IAsyncDisposable
         IReadOnlyList<GgufAdapterMessage> initialHistory,
         CancellationToken cancellationToken);
 
-    IAsyncEnumerable<string> GenerateAsync(
+    IAsyncEnumerable<GgufAdapterGenerationEvent> GenerateAsync(
         string prompt,
         CancellationToken cancellationToken);
 }

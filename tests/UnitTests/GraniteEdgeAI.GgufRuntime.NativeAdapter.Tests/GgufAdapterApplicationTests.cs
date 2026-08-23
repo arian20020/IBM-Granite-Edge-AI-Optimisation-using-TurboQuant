@@ -76,7 +76,7 @@ public sealed class GgufAdapterApplicationTests
             IReadOnlyList<GgufAdapterMessage> initialHistory,
             CancellationToken cancellationToken) => ValueTask.CompletedTask;
 
-        public async IAsyncEnumerable<string> GenerateAsync(
+        public async IAsyncEnumerable<GgufAdapterGenerationEvent> GenerateAsync(
             string prompt,
             [System.Runtime.CompilerServices.EnumeratorCancellation]
             CancellationToken cancellationToken)
