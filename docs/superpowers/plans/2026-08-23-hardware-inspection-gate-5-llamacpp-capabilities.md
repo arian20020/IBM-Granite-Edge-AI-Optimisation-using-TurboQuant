@@ -283,9 +283,12 @@ git commit -m "feat(hardware-inspection): map llama.cpp capability provider"
 **Files:**
 - Create: `tests/UnitTests/GraniteEdgeAI.HardwareInspection.Foundation.Tests/Processes/BoundedProcessOutputTests.cs`
 - Create: `tests/UnitTests/GraniteEdgeAI.UnitTests/Features/HardwareInspection/Processes/ExternalProcessRunnerPackagedTests.cs`
+- Create: `tests/UnitTests/GraniteEdgeAI.UnitTests/Features/HardwareInspection/LlmFit/LlmFitHardwareEvidenceProviderPackagedTests.cs`
 - Create: `tests/UnitTests/GraniteEdgeAI.UnitTests/Features/HardwareInspection/Support/VerifiedPackagedToolFixture.cs`
 - Create: `tests/UnitTests/GraniteEdgeAI.UnitTests/HardwareInspection.ProcessFixturePackaging.targets`
 - Modify: `tests/UnitTests/GraniteEdgeAI.HardwareInspection.Foundation.Tests/Processes/ExternalProcessRunnerTests.cs`
+- Modify: `tests/UnitTests/GraniteEdgeAI.HardwareInspection.Foundation.Tests/LlmFit/LlmFitHardwareEvidenceProviderProcessTests.cs`
+- Modify: `tests/UnitTests/GraniteEdgeAI.HardwareInspection.Foundation.Tests/Support/VerifiedLlmFitFixture.cs`
 - Modify: `tests/UnitTests/GraniteEdgeAI.HardwareInspection.Foundation.Tests/GraniteEdgeAI.HardwareInspection.Foundation.Tests.csproj`
 - Modify: `tests/UnitTests/GraniteEdgeAI.UnitTests/GraniteEdgeAI.UnitTests.csproj`
 - Modify: `infrastructure/GraniteEdgeAI.HardwareInspection.Foundation/Properties/AssemblyInfo.cs`
@@ -312,11 +315,11 @@ Build and install the x64 Debug AppX test package, then run only `ExternalProces
 
 - [ ] **Step 3: Add test-only fixture packaging**
 
-Publish `GraniteEdgeAI.HardwareInspection.LlmFitFakeTool` as Release/framework-dependent/win-x64 with `UseAppHost=true`, no symbols, no trimming, and no ReadyToRun. Include every flat published member as AppX `Content` under `HardwareInspection\TestTools\LlmFitFake`. Import this target only from `GraniteEdgeAI.UnitTests.csproj`; no application project edit is allowed in this step.
+Publish `GraniteEdgeAI.HardwareInspection.LlmFitFakeTool` as Release/framework-dependent/win-x64 with `UseAppHost=true`, no symbols, no trimming, and no ReadyToRun. Include every flat published member as AppX `Content` under `HardwareInspection\TestTools\LlmFitFake`. Import this target only from `GraniteEdgeAI.UnitTests.csproj`; no application project edit is allowed in this step. Because installed package files are read-only, the test-only manifest appends exact `--fixture-mode <closed-mode> --control-root <owned-temp-directory>` arguments; the fixture writes readiness/child files only under that owned temporary directory and never mutates its package directory.
 
 - [ ] **Step 4: Split native-free and real-process tests**
 
-Move `MemoryStream`/bounded-decoding cases into `BoundedProcessOutputTests`. Move every test that starts the fixture executable, checks Job membership, timeout, cancellation, overflow, crash, descendant cleanup, or custody into `ExternalProcessRunnerPackagedTests`. Remove the process-fixture project reference from the Foundation test project and add the narrowly scoped `InternalsVisibleTo("GraniteEdgeAI.UnitTests")` needed by packaged acceptance.
+Move `MemoryStream`/bounded-decoding cases into `BoundedProcessOutputTests`. Move every test that starts the fixture executable, checks provider behavior through the real runner, Job membership, timeout, cancellation, overflow, crash, descendant cleanup, or custody into the two packaged process classes. Remove `ExternalProcessRunnerTests`, `LlmFitHardwareEvidenceProviderProcessTests`, and `VerifiedLlmFitFixture` from the ordinary Foundation test assembly; remove its process-fixture project reference; and add the narrowly scoped `InternalsVisibleTo("GraniteEdgeAI.UnitTests")` needed by packaged acceptance.
 
 - [ ] **Step 5: Run GREEN at both boundaries**
 
