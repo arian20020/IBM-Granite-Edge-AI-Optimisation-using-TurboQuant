@@ -453,8 +453,13 @@ public sealed class OfficialCpuFixtureTests
             output,
             "GraniteEdgeAI.OpenVino.ParentExitFixture.dll");
         File.WriteAllBytes(assembly, [1]);
+        string? originalConfiguredAssembly = Environment.GetEnvironmentVariable(
+            "OPENVINO_PARENT_EXIT_FIXTURE_ASSEMBLY");
         try
         {
+            Environment.SetEnvironmentVariable(
+                "OPENVINO_PARENT_EXIT_FIXTURE_ASSEMBLY",
+                null);
             ProcessStartInfo start = CreateParentExitFixtureStartInfo(repository);
             Assert.IsFalse(string.IsNullOrWhiteSpace(start.FileName));
             Assert.HasCount(1, start.ArgumentList);
@@ -462,6 +467,9 @@ public sealed class OfficialCpuFixtureTests
         }
         finally
         {
+            Environment.SetEnvironmentVariable(
+                "OPENVINO_PARENT_EXIT_FIXTURE_ASSEMBLY",
+                originalConfiguredAssembly);
             Directory.Delete(repository, recursive: true);
         }
     }
