@@ -9,6 +9,33 @@ namespace GraniteEdgeAI.HardwareInspection.Foundation.Tests.Processes;
 public sealed class ExternalProcessRunnerTests
 {
     [TestMethod]
+    public async Task BoundedOutputRejectsInvalidUtf8WithoutReplacementText()
+    {
+        using var stream = new MemoryStream([0x7b, 0xff, 0x7d]);
+        BoundedProcessOutput output = BoundedProcessOutput.Start(stream, 16);
+
+        BoundedProcessOutputResult result = await output.Completion;
+
+        Assert.IsTrue(result.Failed);
+        Assert.AreEqual(string.Empty, result.Text);
+        Assert.IsFalse(result.LimitExceeded);
+    }
+
+    [TestMethod]
+    public async Task BoundedOutputDecodesMultibyteScalarSplitAcrossReadsExactly()
+    {
+        byte[] utf8 = System.Text.Encoding.UTF8.GetBytes("Aé🙂Z");
+        using var stream = new ChunkedReadStream(utf8, maximumReadSize: 1);
+        BoundedProcessOutput output = BoundedProcessOutput.Start(stream, utf8.Length);
+
+        BoundedProcessOutputResult result = await output.Completion;
+
+        Assert.IsFalse(result.Failed);
+        Assert.AreEqual("Aé🙂Z", result.Text);
+        Assert.IsFalse(result.LimitExceeded);
+    }
+
+    [TestMethod]
     public async Task RunUsesOnlyManifestDeclaredVersionArguments()
     {
         using VerifiedFixture fixture = VerifiedFixture.Create("success");
@@ -229,9 +256,17 @@ public sealed class ExternalProcessRunnerTests
         Stopwatch elapsed = Stopwatch.StartNew();
         while (elapsed.Elapsed < TimeSpan.FromSeconds(5))
         {
-            if (File.Exists(path) && int.TryParse(await File.ReadAllTextAsync(path), out int processId))
+            try
             {
-                return processId;
+                if (File.Exists(path) &&
+                    int.TryParse(await File.ReadAllTextAsync(path), out int processId))
+                {
+                    return processId;
+                }
+            }
+            catch (IOException)
+            {
+                // The fixture has created the marker but has not released its write handle yet.
             }
 
             await Task.Delay(20);
@@ -429,5 +464,23 @@ public sealed class ExternalProcessRunnerTests
 
             throw new InvalidOperationException("Repository root was not found.");
         }
+    }
+
+    private sealed class ChunkedReadStream : MemoryStream
+    {
+        private readonly int _maximumReadSize;
+
+        internal ChunkedReadStream(byte[] buffer, int maximumReadSize)
+            : base(buffer, writable: false)
+        {
+            _maximumReadSize = maximumReadSize;
+        }
+
+        public override ValueTask<int> ReadAsync(
+            Memory<byte> buffer,
+            CancellationToken cancellationToken = default) =>
+            base.ReadAsync(
+                buffer[..Math.Min(buffer.Length, _maximumReadSize)],
+                cancellationToken);
     }
 }
