@@ -454,4 +454,17 @@
   <Import
     Project="HardwareInspection.ProcessFixturePackaging.targets"
     Condition="'$(Platform)' == 'x64'" />
+  <Import
+    Project="..\..\..\IBM Granite with TurboQuant (Intel)\HardwareInspection.LlamaCppProbePackaging.targets"
+    Condition="'$(Platform)' == 'x64'" />
+  <Target
+    Name="ConfigureApplicationReferenceForHardwareInspectionProbePackaging"
+    AfterTargets="AssignProjectConfiguration">
+    <ItemGroup>
+      <ProjectReferenceWithConfiguration
+        Update="..\..\..\IBM Granite with TurboQuant (Intel)\IBM Granite with TurboQuant (Intel).csproj">
+        <SetConfiguration>%(ProjectReferenceWithConfiguration.SetConfiguration);HardwareInspectionLlamaCppProbeSkipPackaging=true</SetConfiguration>
+      </ProjectReferenceWithConfiguration>
+    </ItemGroup>
+  </Target>
 </Project>

@@ -567,4 +567,7 @@
   <Import
     Project="ModelInspection.WorkerPackaging.targets"
     Condition="'$(Platform)' == 'x64'" />
+  <Import
+    Project="HardwareInspection.LlamaCppProbePackaging.targets"
+    Condition="'$(Platform)' == 'x64'" />
 </Project>

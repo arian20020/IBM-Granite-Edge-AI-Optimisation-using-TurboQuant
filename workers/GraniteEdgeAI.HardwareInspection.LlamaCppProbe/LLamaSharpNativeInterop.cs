@@ -10,11 +10,8 @@ internal sealed class LLamaSharpNativeInterop : ILlamaCppNativeInterop
     {
         Invoke(() =>
         {
-            NativeLibraryConfig.LLama
-                .WithCuda(enable: false)
-                .WithVulkan(enable: false)
-                .WithAutoFallback(enable: true)
-                .WithLogCallback(static (_, _) => { });
+            string baseDirectory = AppContext.BaseDirectory;
+            NativeLibraryConfig.LLama.WithLibrary(Path.Combine(baseDirectory, "llama.dll"));
             NativeApi.llama_empty_call();
         });
     }
