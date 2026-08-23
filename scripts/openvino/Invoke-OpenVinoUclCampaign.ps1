@@ -280,7 +280,7 @@ try {
 
     $manifestSha = (Get-FileHash -LiteralPath (Join-Path $stageB 'worker-manifest.json') `
         -Algorithm SHA256).Hash.ToLowerInvariant()
-    & msbuild (Join-Path $workspace 'IBM Granite with TurboQuant (Intel)/IBM Granite with TurboQuant (Intel).csproj') `
+    & dotnet msbuild (Join-Path $workspace 'IBM Granite with TurboQuant (Intel)/IBM Granite with TurboQuant (Intel).csproj') `
         /restore /target:Build /maxCpuCount /verbosity:minimal /property:Configuration=Release `
         /property:Platform=x64 /property:RuntimeIdentifier=win-x64 /property:PublishProfile= `
         /property:PublishTrimmed=false /property:PublishReadyToRun=false `

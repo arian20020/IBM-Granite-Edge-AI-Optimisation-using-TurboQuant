@@ -387,6 +387,15 @@ public sealed class WorkflowContractTests
         StringAssert.Contains(managed, "--no-build");
         StringAssert.Contains(managed, "OPENVINO_PARENT_EXIT_FIXTURE_ASSEMBLY");
         StringAssert.Contains(managed, "Test-Path -LiteralPath $parentFixtureAssembly -PathType Leaf");
+
+        string appBuild = Scalar(
+            Step(steps, "Build the Release x64 app against the pinned worker manifest"),
+            "run");
+        StringAssert.Contains(appBuild, "dotnet msbuild");
+
+        string campaign = File.ReadAllText(RepoPath(
+            "scripts/openvino/Invoke-OpenVinoUclCampaign.ps1"));
+        StringAssert.Contains(campaign, "& dotnet msbuild");
         Assert.IsTrue(
             managed.IndexOf("dotnet build $parentFixtureProject", StringComparison.Ordinal) <
             managed.IndexOf("dotnet test --project $processProject", StringComparison.Ordinal));
