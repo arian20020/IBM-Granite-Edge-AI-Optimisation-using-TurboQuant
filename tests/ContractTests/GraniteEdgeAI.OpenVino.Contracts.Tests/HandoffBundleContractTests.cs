@@ -164,6 +164,36 @@ public sealed class HandoffBundleContractTests
             StringComparison.Ordinal));
     }
 
+    [TestMethod]
+    public void BuilderAvoidsPowerShellSevenOnlyRelativePathApis()
+    {
+        string builder = File.ReadAllText(RepoPath(
+            "scripts/openvino/handoff/New-OpenVinoUclHandoff.ps1"));
+        Assert.IsFalse(builder.Contains("[IO.Path]::GetRelativePath",
+            StringComparison.Ordinal));
+        StringAssert.Contains(builder, "Get-SafeRelativePath");
+    }
+
+    [TestMethod]
+    public void BuilderWritesStrictInventoryWithoutAUtf8Bom()
+    {
+        string builder = File.ReadAllText(RepoPath(
+            "scripts/openvino/handoff/New-OpenVinoUclHandoff.ps1"));
+        StringAssert.Contains(builder,
+            "[Text.UTF8Encoding]::new($false, $true)");
+        StringAssert.Contains(builder, "Write-Utf8NoBom $inventoryPath");
+    }
+
+    [TestMethod]
+    public void InitializerAvoidsPowerShellSevenOnlyDictionaryApis()
+    {
+        string initializer = File.ReadAllText(RepoPath(
+            "scripts/openvino/handoff/Initialize-UclHandoff.ps1"));
+        Assert.IsFalse(initializer.Contains(".TryAdd(",
+            StringComparison.Ordinal));
+        StringAssert.Contains(initializer, "$checksums.Add(");
+    }
+
     private static string RepoPath(string relative) => Path.Combine(
         FindRepositoryRoot(), relative.Replace('/', Path.DirectorySeparatorChar));
 

@@ -79,9 +79,10 @@ function Test-PayloadIntegrity {
         [StringComparer]::Ordinal)
     foreach ($line in $checksumLines) {
         if ($line -cnotmatch '^([0-9a-f]{64})  ([a-zA-Z0-9][a-zA-Z0-9._/-]{0,255})$' -or
-            -not $checksums.TryAdd($Matches[2], $Matches[1])) {
+            $checksums.ContainsKey($Matches[2])) {
             throw 'checksum-ledger-invalid'
         }
+        $checksums.Add($Matches[2], $Matches[1])
     }
     if ($checksums.Count -ne @($Inventory.payloads).Count) {
         throw 'checksum-count-invalid'

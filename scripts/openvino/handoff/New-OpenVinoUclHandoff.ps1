@@ -49,9 +49,32 @@ function Test-PathDescendsFrom {
         [StringComparison]::OrdinalIgnoreCase)
 }
 
+function Get-SafeRelativePath {
+    param(
+        [Parameter(Mandatory)][string]$Root,
+        [Parameter(Mandatory)][string]$Path
+    )
+    $rootPrefix = Get-NormalizedDirectoryPrefix $Root
+    $fullPath = [IO.Path]::GetFullPath($Path)
+    if (-not $fullPath.StartsWith(
+            $rootPrefix, [StringComparison]::OrdinalIgnoreCase)) {
+        throw 'relative-path-outside-root'
+    }
+    return $fullPath.Substring($rootPrefix.Length).Replace('\', '/')
+}
+
 function Get-LowerSha256 {
     param([Parameter(Mandatory)][string]$Path)
     return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
+}
+
+function Write-Utf8NoBom {
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [Parameter(Mandatory)][string]$Text
+    )
+    $encoding = [Text.UTF8Encoding]::new($false, $true)
+    [IO.File]::WriteAllText($Path, $Text, $encoding)
 }
 
 function Invoke-ManifestVerifier {
@@ -110,8 +133,7 @@ function New-DirectoryArchive {
         $stream, [IO.Compression.ZipArchiveMode]::Create, $false)
     try {
         foreach ($file in $tree.Files) {
-            $relative = [IO.Path]::GetRelativePath($SourceRoot, $file.FullName)
-                .Replace('\', '/')
+            $relative = Get-SafeRelativePath $SourceRoot $file.FullName
             if ([IO.Path]::IsPathRooted($relative) -or
                 $relative -match '(^|[\/])\.\.([\/]|$)' -or
                 $relative.IndexOf(':') -ge 0 -or
@@ -374,7 +396,7 @@ Re-run all hardware-relevant checks on the exact laptop candidate.
             $converterMetrics.FileCount $converterMetrics.Bytes)
     )
     foreach ($target in @($contextTargets | Sort-Object)) {
-        $relative = [IO.Path]::GetRelativePath($staging, $target).Replace('\', '/')
+        $relative = Get-SafeRelativePath $staging $target
         $payloadRows += New-PayloadRow 'context' $relative $target
     }
     $payloadRows = @($payloadRows | Sort-Object { $_.relativePath })
@@ -387,8 +409,7 @@ Re-run all hardware-relevant checks on the exact laptop candidate.
         payloads = $payloadRows
     }
     $inventoryPath = Join-Path $staging 'inventory\payloads.json'
-    $inventory | ConvertTo-Json -Depth 5 | Set-Content `
-        -LiteralPath $inventoryPath -Encoding UTF8
+    Write-Utf8NoBom $inventoryPath ($inventory | ConvertTo-Json -Depth 5)
     $checksumLines = @($payloadRows | ForEach-Object {
         "$($_.sha256)  $($_.relativePath)"
     })
