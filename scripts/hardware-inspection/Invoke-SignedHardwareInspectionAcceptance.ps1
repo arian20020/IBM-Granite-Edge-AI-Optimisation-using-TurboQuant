@@ -280,6 +280,125 @@ function Read-AcceptanceResult {
     }
 }
 
+function Assert-DevelopmentAcceptanceBundlePublication {
+    param(
+        [Parameter(Mandatory)][string] $DestinationRoot,
+        [Parameter(Mandatory)]
+        [ValidatePattern('^[0-9A-Fa-f]{40}$')]
+        [string] $CertificateThumbprint
+    )
+
+    $resolvedDestination = [IO.Path]::GetFullPath($DestinationRoot)
+    if ([string]::Equals(
+            $resolvedDestination,
+            [IO.Path]::GetPathRoot($resolvedDestination),
+            [StringComparison]::OrdinalIgnoreCase) -or
+        -not (Test-Path -LiteralPath $resolvedDestination -PathType Container)) {
+        throw 'The published development bundle boundary is invalid.'
+    }
+    $destinationItem = Get-Item -LiteralPath $resolvedDestination -Force -ErrorAction Stop
+    if (($destinationItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+        throw 'The published development bundle boundary is invalid.'
+    }
+
+    $expectedInventory = [string[]]@(
+        'GraniteEdgeAI.UnitTests.msix',
+        'GraniteEdgeAI.cer',
+        'Invoke-HardwareInspectionDevelopmentAcceptanceGuest.ps1',
+        'bundle-manifest.json'
+    )
+    [Array]::Sort($expectedInventory, [StringComparer]::Ordinal)
+    $actualItems = @(Get-ChildItem -LiteralPath $resolvedDestination -Force -ErrorAction Stop)
+    $actualInventory = [string[]]@($actualItems | ForEach-Object { $_.Name })
+    [Array]::Sort($actualInventory, [StringComparer]::Ordinal)
+    if ($actualInventory.Count -ne $expectedInventory.Count -or
+        @($actualItems | Where-Object {
+                $_.PSIsContainer -or
+                ($_.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0
+            }).Count -ne 0) {
+        throw 'The published development bundle inventory is not exact.'
+    }
+    for ($index = 0; $index -lt $expectedInventory.Count; $index++) {
+        if (-not [string]::Equals(
+                $actualInventory[$index],
+                $expectedInventory[$index],
+                [StringComparison]::Ordinal)) {
+            throw 'The published development bundle inventory is not exact.'
+        }
+    }
+
+    $manifestPath = Join-Path $resolvedDestination 'bundle-manifest.json'
+    $manifestBytes = [IO.File]::ReadAllBytes($manifestPath)
+    if ($manifestBytes.Length -eq 0 -or
+        $manifestBytes.Length -gt 16KB -or
+        $manifestBytes[-1] -ne 0x0a -or
+        @($manifestBytes | Where-Object { $_ -eq 0x0a }).Count -ne 1 -or
+        @($manifestBytes | Where-Object { $_ -eq 0x0d }).Count -ne 0 -or
+        ($manifestBytes.Length -ge 3 -and
+            $manifestBytes[0] -eq 0xef -and
+            $manifestBytes[1] -eq 0xbb -and
+            $manifestBytes[2] -eq 0xbf)) {
+        throw 'The published development bundle manifest has forbidden framing.'
+    }
+    try {
+        $manifestText = [Text.UTF8Encoding]::new($false, $true).GetString($manifestBytes)
+    }
+    catch {
+        throw 'The published development bundle manifest is not strict UTF-8.'
+    }
+
+    $normalizedThumbprint = $CertificateThumbprint.ToUpperInvariant()
+    $manifestPattern = '^\{"schema":"granite\.hardware-inspection\.development-acceptance-bundle/v1",' +
+        '"packageName":"GraniteEdgeAI\.WinUI\.UnitTests",' +
+        '"publisher":"CN=GraniteEdgeAI",' +
+        '"version":"1\.0\.0\.0",' +
+        '"architecture":"x64",' +
+        '"certificateThumbprint":"' +
+        [Text.RegularExpressions.Regex]::Escape($normalizedThumbprint) + '",' +
+        '"files":\[' +
+        '\{"name":"GraniteEdgeAI\.UnitTests\.msix","length":(?<msixLength>[1-9][0-9]{0,10}),"sha256":"(?<msixHash>[0-9a-f]{64})"\},' +
+        '\{"name":"GraniteEdgeAI\.cer","length":(?<cerLength>[1-9][0-9]{0,10}),"sha256":"(?<cerHash>[0-9a-f]{64})"\},' +
+        '\{"name":"Invoke-HardwareInspectionDevelopmentAcceptanceGuest\.ps1","length":(?<scriptLength>[1-9][0-9]{0,10}),"sha256":"(?<scriptHash>[0-9a-f]{64})"\}' +
+        '\]\}\n$'
+    $manifestMatch = [Text.RegularExpressions.Regex]::Match(
+        $manifestText,
+        $manifestPattern,
+        [Text.RegularExpressions.RegexOptions]::CultureInvariant)
+    if (-not $manifestMatch.Success) {
+        throw 'The published development bundle manifest is not canonical.'
+    }
+
+    $payloadContracts = @(
+        [pscustomobject]@{
+            Name = 'GraniteEdgeAI.UnitTests.msix'
+            Length = [int64]$manifestMatch.Groups['msixLength'].Value
+            Hash = $manifestMatch.Groups['msixHash'].Value
+        },
+        [pscustomobject]@{
+            Name = 'GraniteEdgeAI.cer'
+            Length = [int64]$manifestMatch.Groups['cerLength'].Value
+            Hash = $manifestMatch.Groups['cerHash'].Value
+        },
+        [pscustomobject]@{
+            Name = 'Invoke-HardwareInspectionDevelopmentAcceptanceGuest.ps1'
+            Length = [int64]$manifestMatch.Groups['scriptLength'].Value
+            Hash = $manifestMatch.Groups['scriptHash'].Value
+        }
+    )
+    foreach ($payloadContract in $payloadContracts) {
+        $payloadPath = Join-Path $resolvedDestination $payloadContract.Name
+        $payloadItem = Get-Item -LiteralPath $payloadPath -Force -ErrorAction Stop
+        $payloadHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $payloadPath).Hash
+        if ($payloadItem.Length -ne $payloadContract.Length -or
+            -not [string]::Equals(
+                $payloadHash,
+                $payloadContract.Hash,
+                [StringComparison]::OrdinalIgnoreCase)) {
+            throw 'A published development bundle payload differs from its manifest.'
+        }
+    }
+}
+
 function Write-DevelopmentAcceptanceBundle {
     param(
         [Parameter(Mandatory)][string] $SignedPackagePath,
@@ -292,9 +411,17 @@ function Write-DevelopmentAcceptanceBundle {
     )
 
     $resolvedDestination = [IO.Path]::GetFullPath($DestinationRoot)
-    if (-not (Test-Path -LiteralPath $resolvedDestination -PathType Container) -or
+    if ([string]::Equals(
+            $resolvedDestination,
+            [IO.Path]::GetPathRoot($resolvedDestination),
+            [StringComparison]::OrdinalIgnoreCase) -or
+        -not (Test-Path -LiteralPath $resolvedDestination -PathType Container) -or
         @(Get-ChildItem -LiteralPath $resolvedDestination -Force -ErrorAction Stop).Count -ne 0) {
         throw 'The development bundle destination must be an existing empty directory.'
+    }
+    $destinationItem = Get-Item -LiteralPath $resolvedDestination -Force -ErrorAction Stop
+    if (($destinationItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+        throw 'The development bundle destination must not be a reparse point.'
     }
 
     $sourceContracts = @(
@@ -312,11 +439,23 @@ function Write-DevelopmentAcceptanceBundle {
         }
     )
     foreach ($sourceContract in $sourceContracts) {
+        $destinationItem = Get-Item -LiteralPath $resolvedDestination -Force -ErrorAction Stop
+        if (($destinationItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+            throw 'The development bundle destination changed during publication.'
+        }
         if (-not (Test-Path -LiteralPath $sourceContract.Source -PathType Leaf)) {
             throw 'A required development bundle source file is absent.'
         }
-        Copy-Item -LiteralPath $sourceContract.Source -Destination (
-            Join-Path $resolvedDestination $sourceContract.Name)
+        $destinationPath = Join-Path $resolvedDestination $sourceContract.Name
+        if (Test-Path -LiteralPath $destinationPath) {
+            throw 'The development bundle destination changed during publication.'
+        }
+        Copy-Item -LiteralPath $sourceContract.Source -Destination $destinationPath
+        $publishedItem = Get-Item -LiteralPath $destinationPath -Force -ErrorAction Stop
+        if ($publishedItem.PSIsContainer -or
+            ($publishedItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+            throw 'The development bundle destination changed during publication.'
+        }
     }
 
     $payloads = @($sourceContracts | ForEach-Object {
@@ -341,8 +480,17 @@ function Write-DevelopmentAcceptanceBundle {
                         $_.Length.ToString([Globalization.CultureInfo]::InvariantCulture) +
                         ',"sha256":"' + $_.Hash + '"}'
                 }) -join ',') + ']}'
+    $destinationItem = Get-Item -LiteralPath $resolvedDestination -Force -ErrorAction Stop
+    if (($destinationItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or
+        @(Get-ChildItem -LiteralPath $resolvedDestination -Force -ErrorAction Stop).Count -ne 3) {
+        throw 'The development bundle destination changed during publication.'
+    }
+    $manifestPath = Join-Path $resolvedDestination 'bundle-manifest.json'
+    if (Test-Path -LiteralPath $manifestPath) {
+        throw 'The development bundle destination changed during publication.'
+    }
     [IO.File]::WriteAllText(
-        (Join-Path $resolvedDestination 'bundle-manifest.json'),
+        $manifestPath,
         $manifestText + "`n",
         [Text.UTF8Encoding]::new($false))
 
@@ -367,6 +515,10 @@ function Write-DevelopmentAcceptanceBundle {
             throw 'The development bundle publication inventory is not exact.'
         }
     }
+
+    Assert-DevelopmentAcceptanceBundlePublication `
+        -DestinationRoot $resolvedDestination `
+        -CertificateThumbprint $normalizedBundleThumbprint
 }
 
 Assert-OwnedPath -Path $ownedTempRoot -OwnedParent $ownedTempParent

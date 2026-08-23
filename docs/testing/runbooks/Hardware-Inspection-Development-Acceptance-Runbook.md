@@ -27,7 +27,7 @@ repository and build roots. Run Windows PowerShell with the purpose-specific
 certificate thumbprint:
 
 ```powershell
-$bundle = 'C:\Users\Student\Downloads\GraniteEdgeAI-HardwareInspection-Azure-Bundle'
+$bundle = Join-Path $env:USERPROFILE 'Downloads\GraniteEdgeAI-HardwareInspection-Azure-Bundle'
 powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass `
   -File .\scripts\hardware-inspection\Invoke-SignedHardwareInspectionAcceptance.ps1 `
   -CertificateThumbprint '<40-HEX-THUMBPRINT>' `
@@ -99,4 +99,3 @@ evidence.
 The only permitted conclusion is:
 
 > Development acceptance passed in a disposable guest. Smart App Control and public-trust signing remain unverified.
-

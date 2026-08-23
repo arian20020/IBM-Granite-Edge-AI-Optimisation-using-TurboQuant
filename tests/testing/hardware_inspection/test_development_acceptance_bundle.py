@@ -154,6 +154,13 @@ class DevelopmentAcceptanceBundleBoundaryTests(unittest.TestCase):
                             $node.Name -ceq 'Write-DevelopmentAcceptanceBundle'
                     }, $true)
                     if ($null -eq $function) { throw 'Bundle writer function is missing.' }
+                    $verifier = $ast.Find({
+                        param($node)
+                        $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
+                            $node.Name -ceq 'Assert-DevelopmentAcceptanceBundlePublication'
+                    }, $true)
+                    if ($null -eq $verifier) { throw 'Bundle verifier function is missing.' }
+                    Invoke-Expression $verifier.Extent.Text
                     Invoke-Expression $function.Extent.Text
                     Write-DevelopmentAcceptanceBundle `
                         -SignedPackagePath $env:GRANITE_PACKAGE_SOURCE `
@@ -194,6 +201,49 @@ class DevelopmentAcceptanceBundleBoundaryTests(unittest.TestCase):
                 b'"sha256":"a0339750f2a63c60b071d55d3d27e18c27f2ef5c9afb18aac36c46979caf3e58"}'
                 b']}\n',
                 (destination / "bundle-manifest.json").read_bytes(),
+            )
+
+            (destination / "GraniteEdgeAI.UnitTests.msix").write_bytes(
+                b"post-publication-drift"
+            )
+            verification_probe = subprocess.run(
+                [
+                    powershell_executable(),
+                    "-NoProfile",
+                    "-NonInteractive",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-Command",
+                    r"""
+                    $tokens = $null
+                    $errors = $null
+                    $ast = [System.Management.Automation.Language.Parser]::ParseFile(
+                        $env:GRANITE_SIGNING_SCRIPT,
+                        [ref]$tokens,
+                        [ref]$errors)
+                    if ($errors.Count -ne 0) { throw 'Signing script did not parse.' }
+                    $verifier = $ast.Find({
+                        param($node)
+                        $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
+                            $node.Name -ceq 'Assert-DevelopmentAcceptanceBundlePublication'
+                    }, $true)
+                    if ($null -eq $verifier) { throw 'Bundle verifier function is missing.' }
+                    Invoke-Expression $verifier.Extent.Text
+                    Assert-DevelopmentAcceptanceBundlePublication `
+                        -DestinationRoot $env:GRANITE_BUNDLE_DESTINATION `
+                        -CertificateThumbprint ('A' * 40)
+                    """,
+                ],
+                env=environment,
+                text=True,
+                capture_output=True,
+                timeout=30,
+                check=False,
+            )
+            self.assertNotEqual(0, verification_probe.returncode)
+            self.assertIn(
+                "A published development bundle payload differs from its manifest.",
+                verification_probe.stderr,
             )
 
 
@@ -312,6 +362,22 @@ class DevelopmentAcceptanceGuestBoundaryTests(unittest.TestCase):
                 Path(result_directory),
                 "The bundle and result directories must be absolute paths.",
             )
+
+    def test_guest_rejects_filesystem_root_directories(self):
+        """Catch drive roots becoming drive-relative paths after separator trimming."""
+        filesystem_root = Path(tempfile.gettempdir()).anchor
+        with tempfile.TemporaryDirectory() as bundle_directory:
+            with tempfile.TemporaryDirectory() as result_directory:
+                for bundle, result in (
+                    (Path(filesystem_root), Path(result_directory)),
+                    (Path(bundle_directory), Path(filesystem_root)),
+                ):
+                    with self.subTest(bundle=bundle, result=result):
+                        self.assert_rejected_before_guest_mutation(
+                            bundle,
+                            result,
+                            "The bundle and result directories must not be filesystem roots.",
+                        )
 
     def test_guest_rejects_same_bundle_and_result_directory(self):
         """Catch output writes that could mutate the read-only input bundle."""
@@ -704,6 +770,69 @@ class DevelopmentAcceptanceGuestBoundaryTests(unittest.TestCase):
         self.assertIn(
             "The installed test package does not match the closed identity contract.",
             probe.stderr,
+        )
+
+    def test_guest_removes_final_and_atomic_token_artifacts(self):
+        """Catch raw final or atomic temporary results surviving cleanup."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            token = "a" * 32
+            (root / f"{token}.json").write_bytes(b"result")
+            (root / f".{token}.{'b' * 32}.tmp").write_bytes(b"temporary")
+            probe = self.run_guest_function(
+                "Remove-DevelopmentAcceptanceTokenArtifacts",
+                r"""
+                Remove-DevelopmentAcceptanceTokenArtifacts `
+                    -AcceptanceRoot $env:GRANITE_ACCEPTANCE_ROOT `
+                    -ResultToken ('a' * 32)
+                """,
+                {"GRANITE_ACCEPTANCE_ROOT": str(root)},
+            )
+            self.assertEqual(0, probe.returncode, probe.stderr)
+            self.assertEqual([], list(root.iterdir()))
+
+    def test_guest_terminates_an_invocation_owned_activation_process(self):
+        """Catch an activated test host writing results after cleanup completes."""
+        probe = self.run_guest_function(
+            "Stop-DevelopmentAcceptanceProcess",
+            r"""
+            $process = Start-Process `
+                -FilePath $env:ComSpec `
+                -ArgumentList '/c', 'ping 127.0.0.1 -n 30 > nul' `
+                -WindowStyle Hidden `
+                -PassThru
+            try {
+                Stop-DevelopmentAcceptanceProcess -Process $process
+                $process.Refresh()
+                if (-not $process.HasExited) {
+                    throw 'The invocation-owned process remained active.'
+                }
+            }
+            finally {
+                if (-not $process.HasExited) { $process.Kill() }
+                $process.Dispose()
+            }
+            """,
+        )
+        self.assertEqual(0, probe.returncode, probe.stderr)
+
+    def test_guest_package_cleanup_is_bound_to_one_package_full_name(self):
+        """Catch broad cleanup of every registration sharing the package name."""
+        script = GUEST_SCRIPT.read_text(encoding="utf-8")
+        self.assertIn("$installedPackageFullName", script)
+        self.assertIn("$postAttemptPackages", script)
+        self.assertIn("$installationSucceeded", script)
+        self.assertIn(
+            "Remove-AppxPackage -Package $installedPackageFullName",
+            script,
+        )
+        self.assertNotIn("foreach ($packageToRemove in $packagesToRemove)", script)
+        self.assertNotIn("$createdResultTokens.Remove", script)
+        self.assertLess(
+            script.index(
+                "$installedPackageFullName = [string]$installedPackage.PackageFullName"
+            ),
+            script.index("if (-not $installationSucceeded)"),
         )
 
 

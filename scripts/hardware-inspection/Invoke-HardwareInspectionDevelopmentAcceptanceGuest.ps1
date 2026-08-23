@@ -218,6 +218,51 @@ function Get-DevelopmentAcceptanceAumid {
     "$packageFamilyName!App"
 }
 
+function Stop-DevelopmentAcceptanceProcess {
+    param(
+        [Parameter(Mandatory)]
+        [Diagnostics.Process] $Process
+    )
+
+    if (-not $Process.HasExited) {
+        Stop-Process -InputObject $Process -Force -ErrorAction Stop
+        if (-not $Process.WaitForExit(10000)) {
+            throw 'An invocation-owned acceptance process did not terminate.'
+        }
+    }
+    $Process.Refresh()
+    if (-not $Process.HasExited) {
+        throw 'An invocation-owned acceptance process did not terminate.'
+    }
+}
+
+function Remove-DevelopmentAcceptanceTokenArtifacts {
+    param(
+        [Parameter(Mandatory)][string] $AcceptanceRoot,
+        [Parameter(Mandatory)]
+        [ValidatePattern('^[0-9a-f]{32}$')]
+        [string] $ResultToken
+    )
+
+    $escapedToken = [Text.RegularExpressions.Regex]::Escape($ResultToken)
+    $artifactPattern = '^(?:' + $escapedToken +
+        '\.json|\.' + $escapedToken + '\.[0-9a-f]{32}\.tmp)$'
+    $artifacts = @(Get-ChildItem -LiteralPath $AcceptanceRoot -Force -ErrorAction Stop |
+        Where-Object { $_.Name -match $artifactPattern })
+    foreach ($artifact in $artifacts) {
+        if ($artifact.PSIsContainer -or
+            ($artifact.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+            throw 'An invocation-owned acceptance artifact is not a physical file.'
+        }
+        Remove-Item -LiteralPath $artifact.FullName -Force -ErrorAction Stop
+    }
+
+    if (@(Get-ChildItem -LiteralPath $AcceptanceRoot -Force -ErrorAction Stop |
+            Where-Object { $_.Name -match $artifactPattern }).Count -ne 0) {
+        throw 'Invocation-owned acceptance artifacts remain after cleanup.'
+    }
+}
+
 if (-not $ConfirmDisposableGuest) {
     throw 'Disposable guest confirmation is required.'
 }
@@ -227,10 +272,23 @@ if ($BundleDirectory -notmatch '^[A-Za-z]:[\\/]' -or
     throw 'The bundle and result directories must be absolute paths.'
 }
 
-$bundleRoot = [IO.Path]::GetFullPath($BundleDirectory).TrimEnd(
+$bundleFullPath = [IO.Path]::GetFullPath($BundleDirectory)
+$resultFullPath = [IO.Path]::GetFullPath($ResultDirectory)
+if ([string]::Equals(
+        $bundleFullPath,
+        [IO.Path]::GetPathRoot($bundleFullPath),
+        [StringComparison]::OrdinalIgnoreCase) -or
+    [string]::Equals(
+        $resultFullPath,
+        [IO.Path]::GetPathRoot($resultFullPath),
+        [StringComparison]::OrdinalIgnoreCase)) {
+    throw 'The bundle and result directories must not be filesystem roots.'
+}
+
+$bundleRoot = $bundleFullPath.TrimEnd(
     [IO.Path]::DirectorySeparatorChar,
     [IO.Path]::AltDirectorySeparatorChar)
-$resultRoot = [IO.Path]::GetFullPath($ResultDirectory).TrimEnd(
+$resultRoot = $resultFullPath.TrimEnd(
     [IO.Path]::DirectorySeparatorChar,
     [IO.Path]::AltDirectorySeparatorChar)
 if ([string]::Equals($bundleRoot, $resultRoot, [StringComparison]::OrdinalIgnoreCase)) {
@@ -435,6 +493,11 @@ if (-not (Test-Path -LiteralPath $acceptanceRoot -PathType Container)) {
     New-Item -ItemType Directory -Path $acceptanceRoot -Force | Out-Null
     $acceptanceRootCreated = $true
 }
+$existingAcceptanceItems = @(
+    Get-ChildItem -LiteralPath $acceptanceRoot -Force -ErrorAction Stop)
+if ($existingAcceptanceItems.Count -ne 0) {
+    throw 'The development acceptance temporary result boundary must be empty.'
+}
 $acceptanceRootItem = Get-Item -LiteralPath $acceptanceRoot -Force -ErrorAction Stop
 if (($acceptanceRootItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
     throw 'The development acceptance result boundary is not a physical directory.'
@@ -442,8 +505,11 @@ if (($acceptanceRootItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne
 
 $normalizedThumbprint = $manifestMatch.Groups['thumbprint'].Value.ToUpperInvariant()
 $certificateAddedByInvocation = $false
-$installationAttempted = $false
-$createdResultPaths = [Collections.Generic.List[string]]::new()
+$installedPackageFullName = $null
+$installationSucceeded = $false
+$postAttemptPackages = @()
+$createdResultTokens = [Collections.Generic.List[string]]::new()
+$activeProcesses = [Collections.Generic.List[Diagnostics.Process]]::new()
 $repetitions = [Collections.Generic.List[object]]::new()
 $maximumWait = [TimeSpan]::FromSeconds(180)
 
@@ -487,18 +553,29 @@ try {
         $trustedStore.Close()
     }
 
-    $installationAttempted = $true
     try {
         Add-AppxPackage -Path (Join-Path $bundleRoot 'GraniteEdgeAI.UnitTests.msix')
+        $installationSucceeded = $true
     }
     catch {
+        $installationSucceeded = $false
+    }
+
+    $postAttemptPackages = @(
+        Get-AppxPackage -Name $packageIdentityName -ErrorAction Stop)
+    if ($postAttemptPackages.Count -eq 1) {
+        $installedPackage = $postAttemptPackages[0]
+        $installedPackageFullName = [string]$installedPackage.PackageFullName
+        if ([string]::IsNullOrWhiteSpace($installedPackageFullName)) {
+            throw 'The installed test package does not expose an exact package full name.'
+        }
+    }
+    if (-not $installationSucceeded) {
         throw 'The signed development test package could not be installed normally.'
     }
-    $installedPackages = @(Get-AppxPackage -Name $packageIdentityName -ErrorAction Stop)
-    if ($installedPackages.Count -ne 1) {
+    if ($postAttemptPackages.Count -ne 1) {
         throw 'The signed development test package was not installed exactly once.'
     }
-    $installedPackage = $installedPackages[0]
     $appUserModelId = Get-DevelopmentAcceptanceAumid `
         -Package $installedPackage `
         -BundleRoot $bundleRoot `
@@ -507,74 +584,136 @@ try {
     for ($run = 1; $run -le 3; $run++) {
         $resultToken = [Guid]::NewGuid().ToString('N')
         $resultPath = Join-Path $acceptanceRoot "$resultToken.json"
-        $createdResultPaths.Add($resultPath)
+        $createdResultTokens.Add($resultToken)
         $arguments = "--hardware-inspection-process-acceptance --result-token $resultToken"
+        $processId = 0
+        $activationProcess = $null
         try {
             $processId = [GraniteEdgeAI.HardwareInspection.DevelopmentAcceptanceGuest.Activation]::Activate(
                 $appUserModelId,
                 $arguments)
+            if ($processId -lt 1 -or $processId -gt [int]::MaxValue) {
+                throw 'A development acceptance repetition returned an invalid process identity.'
+            }
+            $activationProcess = Get-Process -Id ([int]$processId) -ErrorAction Stop
+            $activeProcesses.Add($activationProcess)
         }
         catch {
             throw 'A development acceptance repetition could not be activated.'
         }
+        try {
+            $stopwatch = [Diagnostics.Stopwatch]::StartNew()
+            while (-not (Test-Path -LiteralPath $resultPath -PathType Leaf)) {
+                if ($stopwatch.Elapsed -ge $maximumWait) {
+                    throw 'A development acceptance repetition exceeded its fixed result timeout.'
+                }
+                $activationProcess.Refresh()
+                if ($activationProcess.HasExited) {
+                    throw 'A development acceptance repetition exited without publishing a result.'
+                }
+                Start-Sleep -Milliseconds 20
+            }
 
-        $stopwatch = [Diagnostics.Stopwatch]::StartNew()
-        while (-not (Test-Path -LiteralPath $resultPath -PathType Leaf)) {
-            if ($stopwatch.Elapsed -ge $maximumWait) {
-                throw 'A development acceptance repetition exceeded its fixed result timeout.'
-            }
-            if ($null -eq (Get-Process -Id $processId -ErrorAction SilentlyContinue)) {
-                throw 'A development acceptance repetition exited without publishing a result.'
-            }
-            Start-Sleep -Milliseconds 20
+            $result = Read-DevelopmentAcceptanceResult -Path $resultPath
+            $repetitions.Add([pscustomobject]@{
+                    Run = $run
+                    PackageIdentityPresent = $result.PackageIdentityPresent
+                    Total = $result.Total
+                    Passed = $result.Passed
+                    SignatureKind = $installedPackage.SignatureKind.ToString()
+                })
         }
-
-        $result = Read-DevelopmentAcceptanceResult -Path $resultPath
-        $repetitions.Add([pscustomobject]@{
-                Run = $run
-                PackageIdentityPresent = $result.PackageIdentityPresent
-                Total = $result.Total
-                Passed = $result.Passed
-                SignatureKind = $installedPackage.SignatureKind.ToString()
-            })
+        finally {
+            $repetitionCleanupFailed = $false
+            try {
+                if ($null -ne $activationProcess) {
+                    Stop-DevelopmentAcceptanceProcess -Process $activationProcess
+                    [void]$activeProcesses.Remove($activationProcess)
+                    $activationProcess.Dispose()
+                }
+            }
+            catch {
+                $repetitionCleanupFailed = $true
+            }
+            try {
+                Remove-DevelopmentAcceptanceTokenArtifacts `
+                    -AcceptanceRoot $acceptanceRoot `
+                    -ResultToken $resultToken
+            }
+            catch {
+                $repetitionCleanupFailed = $true
+            }
+            if ($repetitionCleanupFailed) {
+                throw 'A development acceptance repetition could not clean its owned state.'
+            }
+        }
     }
 }
 finally {
     $cleanupFailed = $false
-    foreach ($resultPath in $createdResultPaths) {
+    foreach ($activeProcess in $activeProcesses.ToArray()) {
         try {
-            if (Test-Path -LiteralPath $resultPath -PathType Leaf) {
-                Remove-Item -LiteralPath $resultPath -Force
-            }
-            if (Test-Path -LiteralPath $resultPath) {
-                $cleanupFailed = $true
-            }
+            Stop-DevelopmentAcceptanceProcess -Process $activeProcess
+            [void]$activeProcesses.Remove($activeProcess)
+            $activeProcess.Dispose()
+        }
+        catch {
+            $cleanupFailed = $true
+        }
+    }
+    foreach ($createdResultToken in $createdResultTokens.ToArray()) {
+        try {
+            Remove-DevelopmentAcceptanceTokenArtifacts `
+                -AcceptanceRoot $acceptanceRoot `
+                -ResultToken $createdResultToken
         }
         catch {
             $cleanupFailed = $true
         }
     }
 
-    if ($installationAttempted) {
-        try {
-            $packagesToRemove = @(Get-AppxPackage -Name $packageIdentityName -ErrorAction Stop)
-            foreach ($packageToRemove in $packagesToRemove) {
-                if (-not [string]::Equals(
-                        $packageToRemove.Name,
-                        $packageIdentityName,
-                        [StringComparison]::Ordinal)) {
-                    $cleanupFailed = $true
-                    continue
-                }
-                Remove-AppxPackage -Package $packageToRemove.PackageFullName -ErrorAction Stop
+    try {
+        if ([string]::IsNullOrWhiteSpace($installedPackageFullName)) {
+            $postAttemptPackages = @(
+                Get-AppxPackage -Name $packageIdentityName -ErrorAction Stop)
+            if ($postAttemptPackages.Count -eq 1) {
+                $installedPackageFullName = [string]$postAttemptPackages[0].PackageFullName
             }
-            if (@(Get-AppxPackage -Name $packageIdentityName -ErrorAction Stop).Count -ne 0) {
+            elseif ($postAttemptPackages.Count -gt 1) {
                 $cleanupFailed = $true
             }
         }
-        catch {
+
+        if (-not [string]::IsNullOrWhiteSpace($installedPackageFullName)) {
+            $exactInstalledPackages = @(Get-AppxPackage -Name $packageIdentityName -ErrorAction Stop |
+                Where-Object {
+                    [string]::Equals(
+                        $_.PackageFullName,
+                        $installedPackageFullName,
+                        [StringComparison]::Ordinal)
+                })
+            if ($exactInstalledPackages.Count -ne 1) {
+                $cleanupFailed = $true
+            }
+            else {
+                Remove-AppxPackage -Package $installedPackageFullName -ErrorAction Stop
+            }
+            if (@(Get-AppxPackage -Name $packageIdentityName -ErrorAction Stop |
+                    Where-Object {
+                        [string]::Equals(
+                            $_.PackageFullName,
+                            $installedPackageFullName,
+                            [StringComparison]::Ordinal)
+                    }).Count -ne 0) {
+                $cleanupFailed = $true
+            }
+        }
+        if (@(Get-AppxPackage -Name $packageIdentityName -ErrorAction Stop).Count -ne 0) {
             $cleanupFailed = $true
         }
+    }
+    catch {
+        $cleanupFailed = $true
     }
 
     if ($certificateAddedByInvocation) {
