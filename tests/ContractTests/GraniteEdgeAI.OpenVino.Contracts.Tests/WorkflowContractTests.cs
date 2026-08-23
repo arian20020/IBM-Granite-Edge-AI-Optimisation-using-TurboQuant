@@ -340,6 +340,14 @@ public sealed class WorkflowContractTests
             StringAssert.Contains(run, "$env:TMP = $env:OPENVINO_NATIVE_TEMP", stepName);
         }
 
+        string contracts = Scalar(
+            Step(steps, "Run contracts and static route tests with nonzero floors"),
+            "run");
+        StringAssert.Contains(
+            contracts,
+            "$env:PSModulePath = Join-Path $env:SystemRoot 'System32/WindowsPowerShell/v1.0/Modules'");
+        StringAssert.Contains(contracts, "Get-Command Get-FileHash -ErrorAction Stop");
+
         string cleanup = Scalar(
             Step(steps, "Verify post-run integrity and clean operation-owned state"),
             "run");

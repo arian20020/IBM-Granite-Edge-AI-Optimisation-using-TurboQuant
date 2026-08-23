@@ -293,6 +293,12 @@ jobs:
         env:
           GRANITE_OPENVINO_OFFICIAL_WORKER_STAGE: ${{ env.OPENVINO_STAGE_B }}
         run: |
+          $env:PSModulePath = Join-Path $env:SystemRoot 'System32/WindowsPowerShell/v1.0/Modules'
+          & powershell.exe -NoLogo -NoProfile -NonInteractive -Command `
+            'Get-Command Get-FileHash -ErrorAction Stop | Out-Null'
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Windows PowerShell cryptographic primitives are unavailable.'
+          }
           dotnet test --project tests/ContractTests/GraniteEdgeAI.OpenVino.Contracts.Tests/GraniteEdgeAI.OpenVino.Contracts.Tests.csproj `
             --configuration Release -p:Platform=x64 --minimum-expected-tests 60 `
             --results-directory $env:OPENVINO_RESULTS --report-trx `
