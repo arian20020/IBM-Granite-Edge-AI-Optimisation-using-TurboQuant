@@ -248,6 +248,21 @@ public sealed class HandoffBundleContractTests
         StringAssert.Contains(initializer, "'clone','--branch'");
     }
 
+    [TestMethod]
+    public void BuilderSanitizesContextWithoutRewritingExecutableTools()
+    {
+        string builder = File.ReadAllText(RepoPath(
+            "scripts/openvino/handoff/New-OpenVinoUclHandoff.ps1"));
+        StringAssert.Contains(builder, "function Copy-SanitizedContextFile");
+        StringAssert.Contains(builder, "[Environment]::UserName");
+        StringAssert.Contains(builder, "[Environment]::MachineName");
+        StringAssert.Contains(builder, "'[LOCAL_PATH]'");
+        StringAssert.Contains(builder,
+            "$contextTargets += Copy-SanitizedContextFile");
+        StringAssert.Contains(builder,
+            "$initializerTarget = Copy-ContextFile");
+    }
+
     private static string RepoPath(string relative) => Path.Combine(
         FindRepositoryRoot(), relative.Replace('/', Path.DirectorySeparatorChar));
 

@@ -234,6 +234,54 @@ function Copy-ContextFile {
     return $target
 }
 
+function Copy-SanitizedContextFile {
+    param(
+        [Parameter(Mandatory)][string]$Repository,
+        [Parameter(Mandatory)][string]$StagingRoot,
+        [Parameter(Mandatory)][string]$RelativeSource,
+        [Parameter(Mandatory)][string]$RelativeDestination,
+        [Parameter(Mandatory)][string[]]$SensitiveRoots
+    )
+    $source = [IO.Path]::GetFullPath((Join-Path $Repository $RelativeSource))
+    if (-not (Test-PathDescendsFrom $Repository $source) -or
+        -not (Test-Path -LiteralPath $source -PathType Leaf)) {
+        throw 'context-source-invalid'
+    }
+    $target = [IO.Path]::GetFullPath((Join-Path $StagingRoot $RelativeDestination))
+    if (-not (Test-PathDescendsFrom $StagingRoot $target)) {
+        throw 'context-destination-invalid'
+    }
+    $sanitized = [IO.File]::ReadAllText($source)
+    foreach ($sensitiveRoot in @($SensitiveRoots |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+            Sort-Object Length -Descending)) {
+        $sanitized = [regex]::Replace(
+            $sanitized,
+            [regex]::Escape([IO.Path]::GetFullPath($sensitiveRoot).TrimEnd('\', '/')),
+            '[LOCAL_PATH]',
+            [Text.RegularExpressions.RegexOptions]::IgnoreCase)
+    }
+    $sanitized = [regex]::Replace(
+        $sanitized,
+        'C:\\openvino-o1[A-Za-z0-9._\\-]*',
+        '[LOCAL_PATH]',
+        [Text.RegularExpressions.RegexOptions]::IgnoreCase)
+    foreach ($identity in @([Environment]::UserName, [Environment]::MachineName)) {
+        if (-not [string]::IsNullOrWhiteSpace($identity) -and $identity.Length -ge 3) {
+            $pattern = '(?<![A-Za-z0-9])' + [regex]::Escape($identity) +
+                '(?![A-Za-z0-9])'
+            $sanitized = [regex]::Replace(
+                $sanitized,
+                $pattern,
+                '[LOCAL_IDENTITY]',
+                [Text.RegularExpressions.RegexOptions]::IgnoreCase)
+        }
+    }
+    $null = New-Item -ItemType Directory -Path (Split-Path -Parent $target) -Force
+    Write-Utf8NoBom $target $sanitized
+    return $target
+}
+
 function New-PayloadRow {
     param(
         [Parameter(Mandatory)][string]$Role,
@@ -376,9 +424,20 @@ try {
             "context\task-$number-report.md"
     }
     $contextTargets = @()
+    $sensitiveContextRoots = @(
+        $repository,
+        $official,
+        $turboQuant,
+        $converter,
+        $output,
+        [Environment]::GetFolderPath([Environment+SpecialFolder]::UserProfile))
     foreach ($entry in $contextSources.GetEnumerator()) {
-        $contextTargets += Copy-ContextFile $repository $staging `
-            $entry.Key $entry.Value
+        $contextTargets += Copy-SanitizedContextFile `
+            -Repository $repository `
+            -StagingRoot $staging `
+            -RelativeSource $entry.Key `
+            -RelativeDestination $entry.Value `
+            -SensitiveRoots $sensitiveContextRoots
     }
     $verificationSummaryPath = Join-Path $staging 'context\LOCAL_VERIFICATION_SUMMARY.md'
     @'
