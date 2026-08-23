@@ -3,12 +3,12 @@
     <HardwareInspectionLlamaCppProbePackageRelativeDirectory>HardwareInspection\LlamaCppProbe</HardwareInspectionLlamaCppProbePackageRelativeDirectory>
     <!-- All importers reference one canonical staging area. This keeps the app and
          packaged-test content identities equal and lets MSBuild de-duplicate them. -->
-    <_HardwareInspectionLlamaCppProbeIntermediateRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)obj'))</_HardwareInspectionLlamaCppProbeIntermediateRoot>
+    <_HardwareInspectionLlamaCppProbeRepositoryRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..'))</_HardwareInspectionLlamaCppProbeRepositoryRoot>
+    <_HardwareInspectionLlamaCppProbeIntermediateRoot>$([System.IO.Path]::GetFullPath('$(_HardwareInspectionLlamaCppProbeRepositoryRoot)\obj\hi-llamacpp-probe'))</_HardwareInspectionLlamaCppProbeIntermediateRoot>
     <_HardwareInspectionLlamaCppProbeRawRoot>$(_HardwareInspectionLlamaCppProbeIntermediateRoot)\hardware-inspection-llamacpp-probe-raw\$(Configuration)\win-x64</_HardwareInspectionLlamaCppProbeRawRoot>
     <_HardwareInspectionLlamaCppProbePackageRoot>$(_HardwareInspectionLlamaCppProbeIntermediateRoot)\hardware-inspection-llamacpp-probe\$(Configuration)\win-x64</_HardwareInspectionLlamaCppProbePackageRoot>
     <_HardwareInspectionLlamaCppProbeArtifactsRoot>$(_HardwareInspectionLlamaCppProbeIntermediateRoot)\hardware-inspection-llamacpp-probe-artifacts\$(Configuration)</_HardwareInspectionLlamaCppProbeArtifactsRoot>
     <_HardwareInspectionLlamaCppProbeManifestPath>$(_HardwareInspectionLlamaCppProbeIntermediateRoot)\hardware-inspection-llamacpp-probe\$(Configuration)\llamacpp-probe-manifest.json</_HardwareInspectionLlamaCppProbeManifestPath>
-    <_HardwareInspectionLlamaCppProbeRepositoryRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..'))</_HardwareInspectionLlamaCppProbeRepositoryRoot>
     <_HardwareInspectionLlamaCppProbeProject>$(MSBuildThisFileDirectory)..\workers\GraniteEdgeAI.HardwareInspection.LlamaCppProbe\GraniteEdgeAI.HardwareInspection.LlamaCppProbe.csproj</_HardwareInspectionLlamaCppProbeProject>
     <_HardwareInspectionLlamaCppProbeManifestGenerator>$(MSBuildThisFileDirectory)..\scripts\hardware-inspection\New-LlamaCppProbeManifest.ps1</_HardwareInspectionLlamaCppProbeManifestGenerator>
     <_HardwareInspectionLlamaCppProbeManifestVerifier>$(MSBuildThisFileDirectory)..\scripts\hardware-inspection\Test-LlamaCppProbeManifest.ps1</_HardwareInspectionLlamaCppProbeManifestVerifier>
