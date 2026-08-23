@@ -315,7 +315,7 @@ Build and install the x64 Debug AppX test package, then run only `ExternalProces
 
 - [ ] **Step 3: Add test-only fixture packaging**
 
-Publish `GraniteEdgeAI.HardwareInspection.LlmFitFakeTool` as Release/framework-dependent/win-x64 with `UseAppHost=true`, no symbols, no trimming, and no ReadyToRun. Include every flat published member as AppX `Content` under `HardwareInspection\TestTools\LlmFitFake`. Import this target only from `GraniteEdgeAI.UnitTests.csproj`; no application project edit is allowed in this step. Because installed package files are read-only, the test-only manifest appends exact `--fixture-mode <closed-mode> --control-root <owned-temp-directory>` arguments; the fixture writes readiness/child files only under that owned temporary directory and never mutates its package directory.
+Publish `GraniteEdgeAI.HardwareInspection.LlmFitFakeTool` as Release/framework-dependent/win-x64 with `UseAppHost=true`, no symbols, no trimming, and no ReadyToRun. For each closed mode, include the same published files plus one immutable `fake-mode.txt` as a separate flat AppX directory under `HardwareInspection\TestTools\LlmFitFake\<mode>`. Import this target only from `GraniteEdgeAI.UnitTests.csproj`; no application project edit is allowed in this step. The fixture keeps the original exact commands required by the real LLM Fit provider. Because installed package files are read-only, readiness/child files go only under the fixed test-owned `%TEMP%\GraniteEdgeAI.HardwareInspection.Tests\LlmFitFake\<mode>` subtree, which the corresponding nonparallel test fixture cleans before and after execution.
 
 - [ ] **Step 4: Split native-free and real-process tests**
 
