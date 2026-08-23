@@ -381,6 +381,8 @@ public sealed class WorkflowContractTests
         }
         Assert.AreEqual(2, Regex.Matches(source, @"\$mapping -notmatch \[Regex\]::Escape").Count);
         Assert.IsFalse(source.Contains("$mapping -cnotmatch", StringComparison.Ordinal));
+        Assert.AreEqual(2, Regex.Matches(source, @"\[string\]\(\(& subst\.exe\) \|").Count);
+        Assert.IsFalse(source.Contains("[string](& subst.exe 'O:')", StringComparison.Ordinal));
         foreach (string stepName in new[]
         {
             "Run managed client and protected process gates",

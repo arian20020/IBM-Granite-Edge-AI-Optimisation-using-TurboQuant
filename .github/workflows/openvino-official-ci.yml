@@ -338,7 +338,7 @@ jobs:
           }
           & subst.exe 'O:' $env:GITHUB_WORKSPACE
           if ($LASTEXITCODE -ne 0) { throw 'Could not bind the short workspace drive.' }
-          $mapping = [string](& subst.exe 'O:')
+          $mapping = [string]((& subst.exe) | Where-Object { $_ -match '^O:\\' })
           if ($LASTEXITCODE -ne 0 -or
               $mapping -notmatch [Regex]::Escape([IO.Path]::GetFullPath($env:GITHUB_WORKSPACE))) {
             & subst.exe 'O:' /D
@@ -508,7 +508,7 @@ jobs:
           }
           if (Test-Path -LiteralPath $nativeTemp) { $failed = $true }
           if ($env:OPENVINO_SHORT_WORKSPACE -ceq 'O:\') {
-            $mapping = [string](& subst.exe 'O:')
+            $mapping = [string]((& subst.exe) | Where-Object { $_ -match '^O:\\' })
             if ($LASTEXITCODE -ne 0 -or
                 $mapping -notmatch [Regex]::Escape([IO.Path]::GetFullPath($env:GITHUB_WORKSPACE))) {
               $failed = $true
