@@ -1,4 +1,5 @@
 #include "protocol.hpp"
+#include "runtime_evidence.hpp"
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -56,6 +57,27 @@ int main() {
                 "absolute package path was rejected");
         require(!validate_absolute_package_path(L"package"),
                 "relative package path was accepted");
+        bool failed_load_verified = false;
+        bool integrity_failure_preserved = false;
+        try {
+            (void)verify_execution_device(
+                L"missing-openvino-model.xml",
+                "GPU",
+                [&] {
+                    failed_load_verified = true;
+                    throw worker_failure(
+                        "runtime_integrity_failed",
+                        false,
+                        "runtime integrity failed");
+                });
+        } catch (const worker_failure& failure) {
+            integrity_failure_preserved =
+                failure.support_code() == "runtime_integrity_failed";
+        }
+        require(failed_load_verified,
+                "failed runtime load bypassed module verification");
+        require(integrity_failure_preserved,
+                "runtime integrity failure was masked as device unavailability");
         HANDLE read_pipe = nullptr;
         HANDLE write_pipe = nullptr;
         require(CreatePipe(&read_pipe, &write_pipe, nullptr, 0) != FALSE,

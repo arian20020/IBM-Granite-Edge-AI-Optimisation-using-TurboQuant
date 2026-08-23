@@ -18,6 +18,7 @@
 #include <exception>
 #include <fstream>
 #include <iomanip>
+#include <optional>
 #include <set>
 #include <sstream>
 #include <utility>
@@ -515,25 +516,23 @@ verified_execution_device verify_execution_device(
     }
 
     try {
-        ov::Core core;
-        const std::vector<std::string> available = core.get_available_devices();
-        if (module_verifier) module_verifier();
-        const bool present = std::find(
-            available.begin(), available.end(), requested) != available.end();
-        const bool unqualified_gpu_present = requested == "GPU" &&
-            std::any_of(available.begin(), available.end(), [](const std::string& value) {
-                return value == "GPU" || value.starts_with("GPU.");
-            });
-        if (!present && !unqualified_gpu_present) {
-            throw worker_failure(
-                "runtime_device_unavailable", true, "requested device unavailable");
+        std::optional<ov::Core> core;
+        std::shared_ptr<ov::Model> model;
+        std::optional<ov::CompiledModel> compiled;
+        std::exception_ptr runtime_failure;
+        std::vector<std::string> actual;
+        try {
+            core.emplace();
+            model = core->read_model(model_path);
+            compiled.emplace(core->compile_model(model, requested));
+            actual = compiled->get_property(ov::execution_devices);
+        } catch (...) {
+            runtime_failure = std::current_exception();
         }
-
-        std::shared_ptr<ov::Model> model = core.read_model(model_path);
-        ov::CompiledModel compiled = core.compile_model(model, requested);
         if (module_verifier) module_verifier();
-        std::vector<std::string> actual =
-            compiled.get_property(ov::execution_devices);
+        if (runtime_failure != nullptr) {
+            std::rethrow_exception(runtime_failure);
+        }
         require_execution_device_match(requested, actual);
         return {requested, std::move(actual)};
     } catch (const worker_failure&) {
