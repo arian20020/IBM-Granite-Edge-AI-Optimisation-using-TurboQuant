@@ -23,7 +23,8 @@ $normalizedThumbprint = $CertificateThumbprint.ToUpperInvariant()
 $repositoryRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
 $testOutputRoot = [IO.Path]::GetFullPath((Join-Path $repositoryRoot (
     'tests\UnitTests\GraniteEdgeAI.UnitTests\bin\x64\{0}\net8.0-windows10.0.19041.0\win-x64' -f $Configuration)))
-$appxLayoutRoot = Join-Path $testOutputRoot 'AppX'
+$appPackagesRoot = [IO.Path]::GetFullPath((Join-Path $repositoryRoot `
+    'tests\UnitTests\GraniteEdgeAI.UnitTests\AppPackages'))
 $ownedTempParent = [IO.Path]::GetFullPath((Join-Path $env:TEMP 'GraniteEdgeAI.HardwareInspection.Tests\SignedPackage'))
 $ownedTempRoot = Join-Path $ownedTempParent ([Guid]::NewGuid().ToString('N'))
 $stagingRoot = Join-Path $ownedTempRoot 'AppX'
@@ -154,8 +155,25 @@ function Read-AcceptanceResult {
 }
 
 Assert-OwnedPath -Path $ownedTempRoot -OwnedParent $ownedTempParent
-if (-not (Test-Path -LiteralPath $appxLayoutRoot -PathType Container)) {
-    throw 'Build the x64 packaged test project before invoking signed acceptance.'
+$configurationToken = if ($Configuration -eq 'Debug') { '_Debug' } else { '' }
+$directoryPattern = '^GraniteEdgeAI\.UnitTests_[0-9]+(?:\.[0-9]+){3}_x64' +
+    [Text.RegularExpressions.Regex]::Escape($configurationToken) + '_Test$'
+$filePattern = '^GraniteEdgeAI\.UnitTests_[0-9]+(?:\.[0-9]+){3}_x64' +
+    [Text.RegularExpressions.Regex]::Escape($configurationToken) + '\.msix$'
+$builtPackages = @(Get-ChildItem -LiteralPath $appPackagesRoot -Filter '*.msix' -File -Recurse -ErrorAction Stop |
+    Where-Object {
+        $_.Directory.Name -match $directoryPattern -and
+        $_.Name -match $filePattern
+    })
+if ($builtPackages.Count -ne 1) {
+    throw 'Expected exactly one generated x64 test MSIX for signed acceptance.'
+}
+
+$builtPackagePath = $builtPackages[0].FullName
+$testAssemblyPath = Join-Path $testOutputRoot 'GraniteEdgeAI.UnitTests.dll'
+if (-not (Test-Path -LiteralPath $testAssemblyPath -PathType Leaf) -or
+    $builtPackages[0].LastWriteTimeUtc -lt (Get-Item -LiteralPath $testAssemblyPath).LastWriteTimeUtc) {
+    throw 'The generated test MSIX is absent or older than the test assembly.'
 }
 
 $repositoryItem = Get-Item -LiteralPath $repositoryRoot
@@ -220,9 +238,22 @@ namespace GraniteEdgeAI.HardwareInspection.AcceptanceLauncher
 '@
 
 try {
-    New-Item -ItemType Directory -Path $stagingRoot | Out-Null
-    Get-ChildItem -LiteralPath $appxLayoutRoot -Force |
-        Copy-Item -Destination $stagingRoot -Recurse -Force
+    New-Item -ItemType Directory -Path $ownedTempRoot | Out-Null
+    & $makeAppx unpack /p $builtPackagePath /d $stagingRoot /o | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        throw 'The generated x64 test MSIX could not be unpacked for signing.'
+    }
+
+    foreach ($requiredPath in @(
+            'AppxManifest.xml',
+            'GraniteEdgeAI.UnitTests.dll',
+            'HardwareInspection\LlamaCppProbe\GraniteEdgeAI.HardwareInspection.LlamaCppProbe.exe',
+            'HardwareInspection\llamacpp-probe-manifest.json',
+            'HardwareInspection\TestTools\LlamaCppProbeFake\success\fake-mode.txt')) {
+        if (-not (Test-Path -LiteralPath (Join-Path $stagingRoot $requiredPath) -PathType Leaf)) {
+            throw 'The generated x64 test MSIX lacks a required Hardware Inspection payload.'
+        }
+    }
     foreach ($developmentFile in @('vs.appxrecipe', 'AppxBlockMap.xml', 'AppxSignature.p7x', '[Content_Types].xml')) {
         $candidate = Join-Path $stagingRoot $developmentFile
         if (Test-Path -LiteralPath $candidate -PathType Leaf) {
