@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "campaign_id",
+    "workbook_id",
+    "workbook_revision",
+    "status",
+    "target",
+    "routes",
+    "controls",
+    "created_at_utc"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "campaign_id": {
+      "const": "GTQ-WB05-MF-v1"
+    },
+    "workbook_id": {
+      "const": "WB-05"
+    },
+    "workbook_revision": {
+      "const": "1.4"
+    },
+    "status": {
+      "enum": [
+        "Not started",
+        "In progress",
+        "Completed",
+        "Blocked"
+      ]
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "computer_name",
+        "processor",
+        "physical_memory_gib",
+        "runner_name"
+      ],
+      "properties": {
+        "computer_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "processor": {
+          "type": "string",
+          "minLength": 1
+        },
+        "physical_memory_gib": {
+          "type": "number",
+          "minimum": 0
+        },
+        "runner_name": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "routes": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "route_id",
+          "evidence_folder",
+          "admission_record"
+        ],
+        "properties": {
+          "route_id": {
+            "enum": [
+              "route-a-merged-openvino",
+              "route-b-experimental-qjl-polar"
+            ]
+          },
+          "evidence_folder": {
+            "enum": [
+              "official-openvino",
+              "custom-openvino-turboquant"
+            ]
+          },
+          "admission_record": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "controls": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "prompt_set_id",
+        "rubric_id",
+        "allowed_result_states",
+        "phase_order"
+      ],
+      "properties": {
+        "prompt_set_id": {
+          "const": "GTQ-PROMPTS-v1"
+        },
+        "rubric_id": {
+          "const": "GTQ-QUALITY-RUBRIC-v1"
+        },
+        "allowed_result_states": {
+          "type": "array",
+          "const": [
+            "Passed",
+            "Failed",
+            "Blocked",
+            "Skipped by frontier",
+            "Not applicable"
+          ]
+        },
+        "phase_order": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "created_at_utc": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

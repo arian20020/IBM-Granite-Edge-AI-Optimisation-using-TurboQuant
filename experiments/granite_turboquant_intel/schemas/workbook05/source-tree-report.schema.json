@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "relative_path": {
+      "type": "string",
+      "pattern": "^(?![A-Za-z]:[\\\\/])(?![\\\\/]{2})(?!.*(?:^|[\\\\/])\\.\\.(?:[\\\\/]|$)).+$"
+    },
+    "github_origin": {
+      "type": "string",
+      "pattern": "^https://github\\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:\\.git)?$"
+    }
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "campaign_id",
+    "phase_id",
+    "route_id",
+    "source_role",
+    "repository_full_name",
+    "expected_origin_url",
+    "actual_origin_url",
+    "expected_commit",
+    "actual_commit",
+    "working_tree_clean",
+    "submodules_complete",
+    "submodules",
+    "command_records",
+    "decision",
+    "decision_reason"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "campaign_id": { "const": "GTQ-WB05-MF-v1" },
+    "phase_id": { "const": "phase-1-source-admission" },
+    "route_id": {
+      "enum": [
+        "route-a-merged-openvino",
+        "route-b-experimental-qjl-polar"
+      ]
+    },
+    "source_role": {
+      "enum": [
+        "runtime",
+        "genai-compatibility-candidate",
+        "experimental-runtime"
+      ]
+    },
+    "repository_full_name": {
+      "enum": [
+        "openvinotoolkit/openvino",
+        "openvinotoolkit/openvino.genai",
+        "EgorDuplensky/openvino"
+      ]
+    },
+    "expected_origin_url": {
+      "type": "string",
+      "pattern": "^https://github\\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+\\.git$"
+    },
+    "actual_origin_url": {
+      "anyOf": [
+        { "const": "" },
+        { "$ref": "#/$defs/github_origin" }
+      ]
+    },
+    "expected_commit": { "$ref": "#/$defs/sha" },
+    "actual_commit": { "$ref": "#/$defs/sha" },
+    "working_tree_clean": { "type": "boolean" },
+    "submodules_complete": { "type": "boolean" },
+    "submodules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "url", "commit", "status"],
+        "properties": {
+          "path": { "$ref": "#/$defs/relative_path" },
+          "url": { "type": "string", "minLength": 1 },
+          "commit": { "$ref": "#/$defs/sha" },
+          "status": { "enum": ["clean", "modified", "uninitialised", "conflict"] }
+        }
+      }
+    },
+    "command_records": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/relative_path" }
+    },
+    "decision": { "enum": ["Passed", "Blocked", "Candidate"] },
+    "decision_reason": { "type": "string", "minLength": 1 }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "decision": { "const": "Passed" } },
+        "required": ["decision"]
+      },
+      "then": {
+        "properties": {
+          "actual_origin_url": { "$ref": "#/$defs/github_origin" },
+          "actual_commit": {
+            "allOf": [
+              { "$ref": "#/$defs/sha" },
+              { "not": { "const": "0000000000000000000000000000000000000000" } }
+            ]
+          },
+          "working_tree_clean": { "const": true },
+          "submodules_complete": { "const": true },
+          "command_records": { "minItems": 1 }
+        }
+      }
+    }
+  ]
+}

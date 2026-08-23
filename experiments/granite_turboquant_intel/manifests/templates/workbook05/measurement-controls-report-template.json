@@ -1,0 +1,61 @@
+{
+  "schema_version": "1.0",
+  "campaign_id": "GTQ-WB05-MF-v1",
+  "prompt_set_id": "GTQ-PROMPTS-v1",
+  "rubric_id": "GTQ-QUALITY-RUBRIC-v1",
+  "prompt_count": 6,
+  "prompt_ids": [
+    "P1",
+    "P2",
+    "P3",
+    "P4",
+    "P5",
+    "P6"
+  ],
+  "rubric_weight_total": 1.0,
+  "required_metric_names": [
+    "Model load time",
+    "TTFT",
+    "Prompt-processing throughput",
+    "TPOT",
+    "Decode throughput",
+    "Total generation time",
+    "Peak working set",
+    "Peak private bytes",
+    "Minimum available RAM",
+    "KV-cache allocation",
+    "Quality score",
+    "Stability"
+  ],
+  "controls": [
+    {
+      "path": "docs/testing/Metric-Definitions.md",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "path": "experiments/granite_turboquant_intel/prompts/fixed-feasibility-prompt-set-v1.json",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "path": "experiments/granite_turboquant_intel/rubrics/quality-rubric-v1.json",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "path": "docs/superpowers/specs/2026-08-05-workbook-05-quality-metrics-amendment.md",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "path": "experiments/granite_turboquant_intel/schemas/workbook05/measured-run-manifest.schema.json",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "path": "experiments/granite_turboquant_intel/manifests/templates/workbook05/measured-run-manifest-template.json",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  ],
+  "raw_output_required": true,
+  "activation_proof_required": true,
+  "fallback_result_required": true,
+  "separate_k_v_allocation_required": true,
+  "weight_and_kv_axes_separate": true
+}

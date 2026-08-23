@@ -1,0 +1,149 @@
+name: Hardware Inspection Intel runner Stage 0
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_repository_only:
+        description: Confirm this run is repository-only and will not contact the Intel laptop
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hardware-inspection-intel-runner-stage0
+  cancel-in-progress: false
+
+jobs:
+  hosted-preflight:
+    name: Validate repository-only Intel runner controls
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch) &&
+      github.actor == github.repository_owner &&
+      github.triggering_actor == github.repository_owner &&
+      github.run_attempt == 1 &&
+      inputs.confirm_repository_only == true
+    runs-on: windows-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Require sparse-checkout-capable Git
+        shell: powershell
+        run: |
+          $ProgressPreference = 'SilentlyContinue'
+          $ErrorActionPreference = 'Stop'
+          $failure = 'HI-RUNNER-STAGE0-GIT-INVALID: required Git capability is unavailable.'
+          try {
+            $gitCommand = Get-Command git -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($null -eq $gitCommand) {
+              throw 'invalid'
+            }
+            $versionLines = @(& $gitCommand.Source --version 2>$null)
+            if ($LASTEXITCODE -ne 0 -or $versionLines.Count -ne 1) {
+              throw 'invalid'
+            }
+            $versionText = [string]$versionLines[0]
+            if ($versionText -cnotmatch '\Agit version (?<major>0|[1-9][0-9]*)\.(?<minor>0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:\.windows\.(?:0|[1-9][0-9]*))?\z') {
+              throw 'invalid'
+            }
+            $major = [int]$Matches['major']
+            $minor = [int]$Matches['minor']
+            if ($major -lt 2 -or ($major -eq 2 -and $minor -lt 28)) {
+              throw 'invalid'
+            }
+          }
+          catch {
+            [Console]::Error.WriteLine($failure)
+            exit 1
+          }
+
+      - name: Check out default-branch controls
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          ref: ${{ github.sha }}
+          path: control
+          fetch-depth: 1
+          persist-credentials: false
+          sparse-checkout: |
+            .github/hardware-inspection
+            .github/workflows
+            docs/superpowers/specs
+            docs/testing/runbooks
+            scripts/hardware-inspection
+            tests/testing/hardware_inspection
+          sparse-checkout-cone-mode: true
+
+      - name: Set up Python for repository contracts
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.10'
+
+      - name: Run Stage 0 contracts
+        shell: pwsh
+        working-directory: control
+        run: >-
+          python -m unittest
+          tests.testing.hardware_inspection.test_intel_runner_stage0_contract
+          -v
+
+      - name: Validate dispatch and approval manifest
+        id: approval
+        shell: powershell
+        env:
+          STAGE0_WORKFLOW_REF: ${{ github.ref }}
+          STAGE0_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          STAGE0_ACTOR: ${{ github.actor }}
+          STAGE0_TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+          STAGE0_REPOSITORY_OWNER: ${{ github.repository_owner }}
+          STAGE0_RUN_ATTEMPT: ${{ github.run_attempt }}
+          STAGE0_CONFIRMATION: ${{ inputs.confirm_repository_only }}
+        run: |
+          & '.\control\scripts\hardware-inspection\Validate-HardwareInspectionIntelRunnerStage0.ps1' `
+            -Phase Dispatch `
+            -ControlRoot (Join-Path $env:GITHUB_WORKSPACE 'control') `
+            -WorkflowRef $env:STAGE0_WORKFLOW_REF `
+            -DefaultBranch $env:STAGE0_DEFAULT_BRANCH `
+            -Actor $env:STAGE0_ACTOR `
+            -TriggeringActor $env:STAGE0_TRIGGERING_ACTOR `
+            -RepositoryOwner $env:STAGE0_REPOSITORY_OWNER `
+            -RunAttempt $env:STAGE0_RUN_ATTEMPT `
+            -ConfirmRepositoryOnly $env:STAGE0_CONFIRMATION `
+            -GitHubOutputPath $env:GITHUB_OUTPUT
+
+      - name: Check out approved source for identity comparison only
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          ref: ${{ steps.approval.outputs.approved_sha }}
+          path: evaluated
+          fetch-depth: 1
+          persist-credentials: false
+          sparse-checkout: |
+            /docs/superpowers/specs/
+          sparse-checkout-cone-mode: false
+
+      - name: Confirm approved source identity and publish safe summary
+        shell: powershell
+        env:
+          STAGE0_WORKFLOW_REF: ${{ github.ref }}
+          STAGE0_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          STAGE0_ACTOR: ${{ github.actor }}
+          STAGE0_TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+          STAGE0_REPOSITORY_OWNER: ${{ github.repository_owner }}
+          STAGE0_RUN_ATTEMPT: ${{ github.run_attempt }}
+          STAGE0_CONFIRMATION: ${{ inputs.confirm_repository_only }}
+        run: |
+          & '.\control\scripts\hardware-inspection\Validate-HardwareInspectionIntelRunnerStage0.ps1' `
+            -Phase Source `
+            -ControlRoot (Join-Path $env:GITHUB_WORKSPACE 'control') `
+            -SourceCheckoutRoot (Join-Path $env:GITHUB_WORKSPACE 'evaluated') `
+            -WorkflowRef $env:STAGE0_WORKFLOW_REF `
+            -DefaultBranch $env:STAGE0_DEFAULT_BRANCH `
+            -Actor $env:STAGE0_ACTOR `
+            -TriggeringActor $env:STAGE0_TRIGGERING_ACTOR `
+            -RepositoryOwner $env:STAGE0_REPOSITORY_OWNER `
+            -RunAttempt $env:STAGE0_RUN_ATTEMPT `
+            -ConfirmRepositoryOnly $env:STAGE0_CONFIRMATION `
+            -SummaryPath $env:GITHUB_STEP_SUMMARY

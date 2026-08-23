@@ -1,0 +1,247 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "campaign_id",
+    "route_id",
+    "support_boundary",
+    "source",
+    "genai_candidate",
+    "admission_status",
+    "proofs",
+    "known_blockers",
+    "decision_reason"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "campaign_id": {
+      "const": "GTQ-WB05-MF-v1"
+    },
+    "route_id": {
+      "enum": [
+        "route-a-merged-openvino",
+        "route-b-experimental-qjl-polar"
+      ]
+    },
+    "support_boundary": {
+      "enum": [
+        "merged",
+        "experimental"
+      ]
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository_full_name",
+        "repository_url",
+        "source_role",
+        "commit",
+        "base_commit",
+        "pull_request_url",
+        "pull_request_state"
+      ],
+      "properties": {
+        "repository_full_name": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+        },
+        "repository_url": {
+          "type": "string",
+          "pattern": "^https://github\\.com/[^/]+/[^/]+(?:\\.git|/pull/[0-9]+)?$"
+        },
+        "source_role": {
+          "type": "string",
+          "minLength": 1
+        },
+        "commit": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "base_commit": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "pull_request_url": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^https://github\\.com/[^/]+/[^/]+/pull/[0-9]+$"
+        },
+        "pull_request_state": {
+          "type": "string",
+          "enum": [
+            "open",
+            "closed",
+            "merged",
+            "not-applicable"
+          ]
+        }
+      }
+    },
+    "genai_candidate": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "repository_full_name",
+            "repository_url",
+            "source_role",
+            "commit",
+            "base_commit",
+            "pull_request_url",
+            "pull_request_state"
+          ],
+          "properties": {
+            "repository_full_name": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+            },
+            "repository_url": {
+              "type": "string",
+              "pattern": "^https://github\\.com/[^/]+/[^/]+(?:\\.git|/pull/[0-9]+)?$"
+            },
+            "source_role": {
+              "type": "string",
+              "minLength": 1
+            },
+            "commit": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{40}$"
+            },
+            "base_commit": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "pattern": "^[0-9a-f]{40}$"
+            },
+            "pull_request_url": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "pattern": "^https://github\\.com/[^/]+/[^/]+/pull/[0-9]+$"
+            },
+            "pull_request_state": {
+              "type": "string",
+              "enum": [
+                "open",
+                "closed",
+                "merged",
+                "not-applicable"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "admission_status": {
+      "enum": [
+        "Candidate",
+        "Admitted",
+        "Blocked"
+      ]
+    },
+    "proofs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "proof_id",
+          "required",
+          "status",
+          "evidence_path"
+        ],
+        "properties": {
+          "proof_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Pending",
+              "Passed",
+              "Failed",
+              "Blocked",
+              "Not applicable"
+            ]
+          },
+          "evidence_path": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "known_blockers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "blocker_id",
+          "severity",
+          "status",
+          "path",
+          "description",
+          "evidence_url"
+        ],
+        "properties": {
+          "blocker_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "Blocker",
+              "Important",
+              "Minor"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Open",
+              "Resolved",
+              "Accepted risk"
+            ]
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "evidence_url": {
+            "type": "string",
+            "pattern": "^https://github\\.com/"
+          }
+        }
+      }
+    },
+    "decision_reason": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

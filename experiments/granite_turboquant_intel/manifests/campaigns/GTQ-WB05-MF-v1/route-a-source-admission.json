@@ -1,0 +1,83 @@
+{
+  "schema_version": "1.0",
+  "campaign_id": "GTQ-WB05-MF-v1",
+  "route_id": "route-a-merged-openvino",
+  "support_boundary": "merged",
+  "source": {
+    "repository_full_name": "openvinotoolkit/openvino",
+    "repository_url": "https://github.com/openvinotoolkit/openvino.git",
+    "source_role": "runtime",
+    "commit": "b9a1f201c109e0bed74763934f79483cf6c4cbf4",
+    "base_commit": "816d60598f9b37135cf7d9ee7ca11b75082896b2",
+    "pull_request_url": "https://github.com/openvinotoolkit/openvino/pull/35853",
+    "pull_request_state": "merged"
+  },
+  "genai_candidate": {
+    "repository_full_name": "openvinotoolkit/openvino.genai",
+    "repository_url": "https://github.com/openvinotoolkit/openvino.genai.git",
+    "source_role": "genai-compatibility-candidate",
+    "commit": "bd8d6542e3ca1ac30042d5d8d4202ce00b5f4af0",
+    "base_commit": null,
+    "pull_request_url": null,
+    "pull_request_state": "not-applicable"
+  },
+  "admission_status": "Candidate",
+  "proofs": [
+    {
+      "proof_id": "RA-P01-document-capture",
+      "required": true,
+      "status": "Pending",
+      "evidence_path": ""
+    },
+    {
+      "proof_id": "RA-P02-runtime-source-tree",
+      "required": true,
+      "status": "Pending",
+      "evidence_path": ""
+    },
+    {
+      "proof_id": "RA-P03-genai-source-tree",
+      "required": true,
+      "status": "Pending",
+      "evidence_path": ""
+    },
+    {
+      "proof_id": "RA-P04-runtime-submodules",
+      "required": true,
+      "status": "Pending",
+      "evidence_path": ""
+    },
+    {
+      "proof_id": "RA-P05-genai-submodules",
+      "required": true,
+      "status": "Pending",
+      "evidence_path": ""
+    },
+    {
+      "proof_id": "RA-P06-source-capabilities",
+      "required": true,
+      "status": "Pending",
+      "evidence_path": ""
+    },
+    {
+      "proof_id": "RA-P07-toolchain",
+      "required": true,
+      "status": "Pending",
+      "evidence_path": ""
+    },
+    {
+      "proof_id": "RA-P08-configure-probe",
+      "required": true,
+      "status": "Pending",
+      "evidence_path": ""
+    },
+    {
+      "proof_id": "RA-P09-generated-metadata",
+      "required": true,
+      "status": "Pending",
+      "evidence_path": ""
+    }
+  ],
+  "known_blockers": [],
+  "decision_reason": "Route A remains a Phase 1 candidate until the pinned Runtime and GenAI source trees, recursive submodules, source capabilities, toolchain, CPU-only configure probe, generated metadata, and controlling documents are captured and independently validated. Full build, runtime activation, packed allocation, and fallback proof belong to later phases."
+}

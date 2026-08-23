@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0",
+  "campaign_id": "GTQ-WB05-MF-v1",
+  "model_root": "C:\\w5m",
+  "probe_root": "C:\\w5c",
+  "run_root": "C:\\w5r",
+  "minimum_free_bytes_before_granite_3b": 53687091200,
+  "granite_3b_repository": "ibm-granite/granite-4.1-3b",
+  "granite_8b_repository": "ibm-granite/granite-4.1-8b",
+  "granite_8b_download_authorised": false
+}

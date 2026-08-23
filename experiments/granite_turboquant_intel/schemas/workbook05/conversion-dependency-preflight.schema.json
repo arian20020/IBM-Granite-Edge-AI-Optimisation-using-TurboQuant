@@ -1,0 +1,399 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://granite-edge-ai.local/workbook05/conversion-dependency-preflight.schema.json",
+  "title": "Workbook 05 conversion dependency preflight",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "campaign_id",
+    "record_type",
+    "route_id",
+    "generated_at_utc",
+    "workspace",
+    "python",
+    "pip",
+    "source_trees",
+    "direct_requirements",
+    "lock",
+    "packages",
+    "checks",
+    "import_modules",
+    "cli_help_exit_code",
+    "no_model_compatibility_exit_code",
+    "status",
+    "reasons",
+    "model_download_authorised",
+    "granite_model_test_authorised",
+    "activation_claim_authorised",
+    "packed_storage_claim_authorised",
+    "performance_claim_authorised",
+    "quality_claim_authorised"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "not": {
+              "const": "Blocked"
+            }
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "required": [
+          "bootstrap_lock"
+        ]
+      }
+    }
+  ],
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "windowsPath": {
+      "type": "string",
+      "minLength": 3,
+      "pattern": "^[A-Za-z]:\\\\"
+    },
+    "portablePath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$"
+    },
+    "sourceTree": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "repository",
+        "origin",
+        "commit",
+        "clean",
+        "aggregate_sha256"
+      ],
+      "properties": {
+        "name": {
+          "enum": [
+            "optimum",
+            "optimum-intel"
+          ]
+        },
+        "repository": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+        },
+        "origin": {
+          "type": "string",
+          "pattern": "^https://github\\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+\\.git$"
+        },
+        "commit": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "clean": {
+          "type": "boolean"
+        },
+        "aggregate_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "package": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "version",
+        "source_identity",
+        "direct"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_identity": {
+          "type": "string",
+          "minLength": 1
+        },
+        "direct": {
+          "type": "boolean"
+        }
+      }
+    },
+    "check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "status",
+        "exit_code"
+      ],
+      "properties": {
+        "name": {
+          "enum": [
+            "resolver",
+            "install",
+            "imports",
+            "cli_help",
+            "no_model_compatibility",
+            "remote_code_disabled"
+          ]
+        },
+        "status": {
+          "enum": [
+            "Passed",
+            "Failed",
+            "Blocked",
+            "IntegrityFailure",
+            "InfrastructureInterrupted"
+          ]
+        },
+        "exit_code": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      }
+    }
+  },
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "campaign_id": {
+      "const": "GTQ-WB05-MF-v1"
+    },
+    "record_type": {
+      "const": "conversion-dependency-preflight"
+    },
+    "route_id": {
+      "const": "route-a-merged-openvino"
+    },
+    "generated_at_utc": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "workspace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "root",
+        "normal_local_directory",
+        "fresh"
+      ],
+      "properties": {
+        "root": {
+          "$ref": "#/$defs/windowsPath"
+        },
+        "normal_local_directory": {
+          "type": "boolean"
+        },
+        "fresh": {
+          "type": "boolean"
+        }
+      }
+    },
+    "python": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "executable_path",
+        "executable_sha256"
+      ],
+      "properties": {
+        "version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "executable_path": {
+          "$ref": "#/$defs/windowsPath"
+        },
+        "executable_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "pip": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "executable_path",
+        "executable_sha256"
+      ],
+      "properties": {
+        "version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "executable_path": {
+          "$ref": "#/$defs/windowsPath"
+        },
+        "executable_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "source_trees": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "$ref": "#/$defs/sourceTree"
+      }
+    },
+    "direct_requirements": {
+      "type": "array",
+      "minItems": 7,
+      "maxItems": 7,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "bootstrap_lock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "install_report_path",
+        "install_report_sha256",
+        "normal_distribution_count",
+        "all_normal_artifacts_hashed"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/portablePath"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "install_report_path": {
+          "$ref": "#/$defs/portablePath"
+        },
+        "install_report_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "normal_distribution_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "all_normal_artifacts_hashed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "lock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "generator",
+        "normal_distribution_count",
+        "all_normal_artifacts_hashed",
+        "vcs_sources_bound_separately"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/portablePath"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "generator": {
+          "type": "string",
+          "minLength": 1
+        },
+        "normal_distribution_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "all_normal_artifacts_hashed": {
+          "type": "boolean"
+        },
+        "vcs_sources_bound_separately": {
+          "type": "boolean"
+        }
+      }
+    },
+    "packages": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/package"
+      }
+    },
+    "checks": {
+      "type": "array",
+      "minItems": 6,
+      "maxItems": 6,
+      "items": {
+        "$ref": "#/$defs/check"
+      }
+    },
+    "import_modules": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "cli_help_exit_code": {
+      "type": "integer"
+    },
+    "no_model_compatibility_exit_code": {
+      "type": "integer"
+    },
+    "status": {
+      "enum": [
+        "Passed",
+        "Blocked",
+        "IntegrityFailure",
+        "InfrastructureInterrupted"
+      ]
+    },
+    "reasons": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "model_download_authorised": {
+      "const": false
+    },
+    "granite_model_test_authorised": {
+      "const": false
+    },
+    "activation_claim_authorised": {
+      "const": false
+    },
+    "packed_storage_claim_authorised": {
+      "const": false
+    },
+    "performance_claim_authorised": {
+      "const": false
+    },
+    "quality_claim_authorised": {
+      "const": false
+    }
+  }
+}

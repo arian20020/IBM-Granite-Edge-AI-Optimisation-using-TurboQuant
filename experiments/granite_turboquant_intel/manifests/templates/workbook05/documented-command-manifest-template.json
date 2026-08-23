@@ -1,0 +1,8 @@
+{
+  "schema_version": "1.0",
+  "campaign_id": "GTQ-WB05-MF-v1",
+  "route_id": "route-a-merged-openvino",
+  "execution_allowed": false,
+  "documents": [],
+  "commands": []
+}

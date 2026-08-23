@@ -1,0 +1,1 @@
+Current AC Power Setting Index: 0x00000384
