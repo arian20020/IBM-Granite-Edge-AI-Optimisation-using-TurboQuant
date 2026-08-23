@@ -39,17 +39,20 @@ internal sealed class VerifiedPackagedToolFixture : IDisposable
         string controlRoot,
         string controlFamily,
         IReadOnlySet<string> closedModes,
-        VerifiedTrustedTool tool)
+        VerifiedTrustedTool tool,
+        string? ownedWritablePackageRoot = null)
     {
         PackageRoot = packageRoot;
         ControlRoot = controlRoot;
         _controlFamily = controlFamily;
         _closedModes = closedModes;
+        _ownedWritablePackageRoot = ownedWritablePackageRoot;
         Tool = tool;
     }
 
     private readonly string _controlFamily;
     private readonly IReadOnlySet<string> _closedModes;
+    private readonly string? _ownedWritablePackageRoot;
 
     internal string PackageRoot { get; }
 
@@ -59,7 +62,8 @@ internal sealed class VerifiedPackagedToolFixture : IDisposable
 
     internal static VerifiedPackagedToolFixture CreateLlmFit(
         string mode,
-        bool useProductionIdentity = false)
+        bool useProductionIdentity = false,
+        bool useWritableCopy = false)
     {
         if (!ClosedModes.Contains(mode))
         {
@@ -67,13 +71,13 @@ internal sealed class VerifiedPackagedToolFixture : IDisposable
         }
 
         string packageBase = Path.GetFullPath(AppContext.BaseDirectory);
-        string packageRoot = Path.GetFullPath(Path.Combine(
+        string packagedRoot = Path.GetFullPath(Path.Combine(
             packageBase,
             "HardwareInspection",
             "TestTools",
             "LlmFitFake",
             mode));
-        string relativePackage = Path.GetRelativePath(packageBase, packageRoot);
+        string relativePackage = Path.GetRelativePath(packageBase, packagedRoot);
         if (Path.IsPathRooted(relativePackage) ||
             relativePackage.Equals("..", StringComparison.Ordinal) ||
             relativePackage.StartsWith($"..{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
@@ -81,17 +85,34 @@ internal sealed class VerifiedPackagedToolFixture : IDisposable
             throw new InvalidOperationException("The packaged fixture escaped the test package root.");
         }
 
-        if (!Directory.Exists(packageRoot) ||
-            Directory.EnumerateDirectories(packageRoot).Any())
+        if (!Directory.Exists(packagedRoot) ||
+            Directory.EnumerateDirectories(packagedRoot).Any())
         {
             throw new InvalidOperationException("The signed flat fixture package is unavailable.");
         }
 
-        string modePath = Path.Combine(packageRoot, "fake-mode.txt");
+        string modePath = Path.Combine(packagedRoot, "fake-mode.txt");
         if (!File.ReadAllBytes(modePath).SequenceEqual(
                 Encoding.ASCII.GetBytes(mode + Environment.NewLine)))
         {
             throw new InvalidOperationException("The packaged fixture mode does not match its directory.");
+        }
+
+        string? ownedWritablePackageRoot = null;
+        string packageRoot = packagedRoot;
+        if (useWritableCopy)
+        {
+            ownedWritablePackageRoot = GetWritableLlmFitPackageRoot(mode);
+            DeleteOwnedWritableLlmFitPackageRoot(ownedWritablePackageRoot);
+            Directory.CreateDirectory(ownedWritablePackageRoot);
+            foreach (string sourcePath in Directory.GetFiles(packagedRoot, "*", SearchOption.TopDirectoryOnly))
+            {
+                File.Copy(sourcePath, Path.Combine(
+                    ownedWritablePackageRoot,
+                    Path.GetFileName(sourcePath)));
+            }
+
+            packageRoot = ownedWritablePackageRoot;
         }
 
         const string executableName = "GraniteEdgeAI.HardwareInspection.LlmFitFakeTool.exe";
@@ -128,7 +149,13 @@ internal sealed class VerifiedPackagedToolFixture : IDisposable
             mode);
         DeleteOwnedControlRoot(controlRoot);
         Directory.CreateDirectory(controlRoot);
-        return new(packageRoot, controlRoot, "LlmFitFake", ClosedModes, verification.Tool!);
+        return new(
+            packageRoot,
+            controlRoot,
+            "LlmFitFake",
+            ClosedModes,
+            verification.Tool!,
+            ownedWritablePackageRoot);
     }
 
     internal static VerifiedPackagedToolFixture CreateLlamaCpp(string mode)
@@ -207,6 +234,31 @@ internal sealed class VerifiedPackagedToolFixture : IDisposable
     {
         Tool.Dispose();
         DeleteOwnedControlRoot(ControlRoot, _controlFamily, _closedModes);
+        if (_ownedWritablePackageRoot is not null)
+        {
+            DeleteOwnedWritableLlmFitPackageRoot(_ownedWritablePackageRoot);
+        }
+    }
+
+    private static string GetWritableLlmFitPackageRoot(string mode) => Path.Combine(
+        Path.GetTempPath(),
+        "GraniteEdgeAI.HardwareInspection.Tests",
+        "WritablePackages",
+        "LlmFitFake",
+        mode);
+
+    private static void DeleteOwnedWritableLlmFitPackageRoot(string packageRoot)
+    {
+        string ownedParent = Path.GetFullPath(Path.Combine(
+            Path.GetTempPath(),
+            "GraniteEdgeAI.HardwareInspection.Tests",
+            "WritablePackages",
+            "LlmFitFake"));
+        DeleteOwnedLeafDirectory(
+            packageRoot,
+            ownedParent,
+            ClosedModes,
+            "The writable fixture package");
     }
 
     private static void AssertStrictPackageDescendant(string packageBase, string packageRoot)
@@ -230,34 +282,47 @@ internal sealed class VerifiedPackagedToolFixture : IDisposable
             Path.GetTempPath(),
             "GraniteEdgeAI.HardwareInspection.Tests",
             controlFamily));
-        string resolvedControlRoot = Path.GetFullPath(controlRoot);
-        string relative = Path.GetRelativePath(ownedParent, resolvedControlRoot);
+        DeleteOwnedLeafDirectory(
+            controlRoot,
+            ownedParent,
+            closedModes,
+            "The fixture control root");
+    }
+
+    private static void DeleteOwnedLeafDirectory(
+        string path,
+        string ownedParent,
+        IReadOnlySet<string> allowedLeaves,
+        string description)
+    {
+        string resolvedPath = Path.GetFullPath(path);
+        string relative = Path.GetRelativePath(ownedParent, resolvedPath);
         if (Path.IsPathRooted(relative) ||
             relative.Equals("..", StringComparison.Ordinal) ||
             relative.StartsWith($"..{Path.DirectorySeparatorChar}", StringComparison.Ordinal) ||
             relative.IndexOfAny([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar]) >= 0 ||
-            !closedModes.Contains(relative))
+            !allowedLeaves.Contains(relative))
         {
-            throw new InvalidOperationException("The fixture control root escaped its fixed owned parent.");
+            throw new InvalidOperationException($"{description} escaped its fixed owned parent.");
         }
 
         const int MaximumAttempts = 6;
         for (int attempt = 0; attempt < MaximumAttempts; attempt++)
         {
-            if (!Directory.Exists(resolvedControlRoot))
+            if (!Directory.Exists(resolvedPath))
             {
                 return;
             }
 
-            FileAttributes attributes = File.GetAttributes(resolvedControlRoot);
+            FileAttributes attributes = File.GetAttributes(resolvedPath);
             if ((attributes & FileAttributes.ReparsePoint) != 0)
             {
-                throw new InvalidOperationException("The fixture control root must not be a reparse point.");
+                throw new InvalidOperationException($"{description} must not be a reparse point.");
             }
 
             try
             {
-                Directory.Delete(resolvedControlRoot, recursive: true);
+                Directory.Delete(resolvedPath, recursive: true);
                 return;
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
@@ -269,6 +334,6 @@ internal sealed class VerifiedPackagedToolFixture : IDisposable
             }
         }
 
-        throw new IOException("The fixture control root remained after bounded cleanup.");
+        throw new IOException($"{description} remained after bounded cleanup.");
     }
 }

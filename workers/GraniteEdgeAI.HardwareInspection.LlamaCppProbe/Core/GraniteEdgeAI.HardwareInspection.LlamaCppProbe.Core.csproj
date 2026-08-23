@@ -21,4 +21,10 @@
     <Compile Include="..\LLamaSharpNativeCapabilityApi.cs" Link="LLamaSharpNativeCapabilityApi.cs" />
     <Compile Include="..\Properties\AssemblyInfo.cs" Link="Properties\AssemblyInfo.cs" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- The protocol directly uses System.Text.Json. Pin the same supported major
+         used by LLamaSharp's net8 dependency graph so single-file publication
+         cannot replace the framework assembly with an incompatible major. -->
+    <PackageReference Include="System.Text.Json" Version="10.0.5" />
+  </ItemGroup>
 </Project>

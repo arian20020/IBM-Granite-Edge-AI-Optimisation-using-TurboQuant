@@ -187,7 +187,9 @@ public sealed class ExternalProcessRunnerPackagedTests
     [TestCategory("HardwareInspectionProcessAcceptance")]
     public async Task RunRetainsExecutionCustodyAfterOwnerIsDisposed()
     {
-        using VerifiedPackagedToolFixture fixture = VerifiedPackagedToolFixture.CreateLlmFit("sleep");
+        using VerifiedPackagedToolFixture fixture = VerifiedPackagedToolFixture.CreateLlmFit(
+            "sleep",
+            useWritableCopy: true);
         string executablePath = fixture.Tool.ExecutablePath;
         using CancellationTokenSource cancellation = new();
         Task<ExternalProcessResult> execution = new ExternalProcessRunner().RunAsync(

@@ -43,7 +43,10 @@ public sealed class LlamaCppCapabilityRealProbePackagedTests
             new ExternalProcessRunner()).CaptureAsync(tool, CancellationToken.None);
 
         DateTimeOffset completedAtUtc = DateTimeOffset.UtcNow;
-        Assert.AreEqual(LlamaCppCapabilityEvidenceState.Available, evidence.State);
+        Assert.AreEqual(
+            LlamaCppCapabilityEvidenceState.Available,
+            evidence.State,
+            $"Probe diagnostic: {evidence.Diagnostic?.ToString() ?? "none"}");
         Assert.AreSame(LlamaCppRuntimeIdentity.PinnedCpu, evidence.RuntimeIdentity);
         Assert.AreEqual("3f7c29d318e317b63f54c558bc69803963d7d88c", evidence.RuntimeIdentity!.MappedLlamaCppCommit);
         CollectionAssert.AreEqual(new[] { LlamaCppBackend.Cpu }, evidence.Backends.ToArray());

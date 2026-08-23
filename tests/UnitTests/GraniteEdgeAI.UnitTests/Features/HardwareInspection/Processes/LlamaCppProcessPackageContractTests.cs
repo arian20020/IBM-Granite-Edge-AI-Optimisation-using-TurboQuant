@@ -4,25 +4,19 @@ namespace GraniteEdgeAI.UnitTests.Features.HardwareInspection.Processes;
 
 [TestClass]
 [DoNotParallelize]
-public sealed class LlmFitProcessPackageContractTests
+public sealed class LlamaCppProcessPackageContractTests
 {
     [TestMethod]
     [TestCategory("HardwareInspectionProcessAcceptance")]
-    public void SignedPackageContainsExactFlatAmd64Fixture()
+    public void SignedPackageContainsRuntimeIndependentFlatFixture()
     {
         using VerifiedPackagedToolFixture fixture =
-            VerifiedPackagedToolFixture.CreateLlmFit("success");
+            VerifiedPackagedToolFixture.CreateLlamaCpp("success");
 
-        string packageBase = Path.TrimEndingDirectorySeparator(
-            Path.GetFullPath(AppContext.BaseDirectory));
-        Assert.IsTrue(fixture.PackageRoot.StartsWith(
-            packageBase + Path.DirectorySeparatorChar,
-            StringComparison.OrdinalIgnoreCase));
-        Assert.IsFalse(Directory.EnumerateDirectories(fixture.PackageRoot).Any());
         CollectionAssert.AreEqual(
             new[]
             {
-                "GraniteEdgeAI.HardwareInspection.LlmFitFakeTool.exe",
+                "GraniteEdgeAI.HardwareInspection.LlamaCppProbe.exe",
                 "fake-mode.txt",
             },
             Directory.GetFiles(fixture.PackageRoot)

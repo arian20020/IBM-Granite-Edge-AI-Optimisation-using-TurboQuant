@@ -25,6 +25,21 @@ public sealed class LlamaCppProbePackageContractTests
             .ToArray();
         Assert.IsGreaterThanOrEqualTo(1, actualMembers.Length);
         Assert.IsLessThanOrEqualTo(64, actualMembers.Length);
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                "GraniteEdgeAI.HardwareInspection.LlamaCppProbe.exe",
+                "ggml-base.dll",
+                "ggml-cpu.dll",
+                "ggml.dll",
+                "llama.dll",
+                "msvcp140.dll",
+                "mtmd.dll",
+                "vcomp140.dll",
+                "vcruntime140.dll",
+                "vcruntime140_1.dll",
+            },
+            actualMembers);
 
         string manifestPath = Path.Combine(hardwareRoot, "llamacpp-probe-manifest.json");
         byte[] manifestBytes = File.ReadAllBytes(manifestPath);

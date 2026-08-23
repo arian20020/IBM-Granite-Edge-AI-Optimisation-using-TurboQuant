@@ -31,11 +31,11 @@
       Command="&quot;$(_HardwareInspectionFixtureDotNetHost)&quot; restore &quot;$(_HardwareInspectionFixtureProject)&quot; --runtime win-x64 --artifacts-path &quot;$(_HardwareInspectionFixtureArtifactsRoot)&quot; -p:Configuration=Release -p:Platform=x64" />
     <Exec
       WorkingDirectory="$(_HardwareInspectionFixtureRepositoryRoot)"
-      Command="&quot;$(_HardwareInspectionFixtureDotNetHost)&quot; publish &quot;$(_HardwareInspectionFixtureProject)&quot; --configuration Release --runtime win-x64 --self-contained false --no-restore --artifacts-path &quot;$(_HardwareInspectionFixtureArtifactsRoot)&quot; --output &quot;$(_HardwareInspectionFixturePublishRoot)&quot; -p:Configuration=Release -p:Platform=x64 -p:UseAppHost=true -p:PublishTrimmed=false -p:PublishReadyToRun=false -p:DebugSymbols=false -p:DebugType=None -p:CopyDebugSymbolToPublishDirectory=false" />
+      Command="&quot;$(_HardwareInspectionFixtureDotNetHost)&quot; publish &quot;$(_HardwareInspectionFixtureProject)&quot; --configuration Release --runtime win-x64 --self-contained true --no-restore --artifacts-path &quot;$(_HardwareInspectionFixtureArtifactsRoot)&quot; --output &quot;$(_HardwareInspectionFixturePublishRoot)&quot; -p:Configuration=Release -p:Platform=x64 -p:UseAppHost=true -p:PublishTrimmed=true -p:PublishReadyToRun=false -p:DebugSymbols=false -p:DebugType=None -p:CopyDebugSymbolToPublishDirectory=false" />
 
     <MakeDir Directories="@(_HardwareInspectionLlmFitMode->'$(_HardwareInspectionFixturePackageRoot)\%(Identity)')" />
     <ItemGroup>
-      <_HardwareInspectionFixturePublishedFile Include="$(_HardwareInspectionFixturePublishRoot)\*" />
+      <_HardwareInspectionFixturePublishedFile Include="$(_HardwareInspectionFixturePublishRoot)\*" Exclude="$(_HardwareInspectionFixturePublishRoot)\*.pdb" />
     </ItemGroup>
     <Copy
       SourceFiles="@(_HardwareInspectionFixturePublishedFile)"
@@ -54,10 +54,10 @@
       Command="&quot;$(_HardwareInspectionFixtureDotNetHost)&quot; restore &quot;$(_HardwareInspectionLlamaCppFixtureProject)&quot; --runtime win-x64 --artifacts-path &quot;$(_HardwareInspectionLlamaCppFixtureArtifactsRoot)&quot; -p:Configuration=Release -p:Platform=x64" />
     <Exec
       WorkingDirectory="$(_HardwareInspectionFixtureRepositoryRoot)"
-      Command="&quot;$(_HardwareInspectionFixtureDotNetHost)&quot; publish &quot;$(_HardwareInspectionLlamaCppFixtureProject)&quot; --configuration Release --runtime win-x64 --self-contained false --no-restore --artifacts-path &quot;$(_HardwareInspectionLlamaCppFixtureArtifactsRoot)&quot; --output &quot;$(_HardwareInspectionLlamaCppFixturePublishRoot)&quot; -p:Configuration=Release -p:Platform=x64 -p:UseAppHost=true -p:PublishTrimmed=false -p:PublishReadyToRun=false -p:DebugSymbols=false -p:DebugType=None -p:CopyDebugSymbolToPublishDirectory=false" />
+      Command="&quot;$(_HardwareInspectionFixtureDotNetHost)&quot; publish &quot;$(_HardwareInspectionLlamaCppFixtureProject)&quot; --configuration Release --runtime win-x64 --self-contained true --no-restore --artifacts-path &quot;$(_HardwareInspectionLlamaCppFixtureArtifactsRoot)&quot; --output &quot;$(_HardwareInspectionLlamaCppFixturePublishRoot)&quot; -p:Configuration=Release -p:Platform=x64 -p:UseAppHost=true -p:PublishTrimmed=true -p:PublishReadyToRun=false -p:DebugSymbols=false -p:DebugType=None -p:CopyDebugSymbolToPublishDirectory=false" />
     <MakeDir Directories="@(_HardwareInspectionLlamaCppMode->'$(_HardwareInspectionLlamaCppFixturePackageRoot)\%(Identity)')" />
     <ItemGroup>
-      <_HardwareInspectionLlamaCppFixturePublishedFile Include="$(_HardwareInspectionLlamaCppFixturePublishRoot)\*" />
+      <_HardwareInspectionLlamaCppFixturePublishedFile Include="$(_HardwareInspectionLlamaCppFixturePublishRoot)\*" Exclude="$(_HardwareInspectionLlamaCppFixturePublishRoot)\*.pdb" />
     </ItemGroup>
     <Copy
       SourceFiles="@(_HardwareInspectionLlamaCppFixturePublishedFile)"

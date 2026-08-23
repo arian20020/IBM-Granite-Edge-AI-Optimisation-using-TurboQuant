@@ -148,8 +148,22 @@ static async Task<int> SpawnChildAsync(string controlRoot, bool waitForCancellat
     startInfo.ArgumentList.Add("--format");
     startInfo.ArgumentList.Add("json-v1");
     using var child = new Process { StartInfo = startInfo };
-    if (!child.Start())
+    try
     {
+        if (!child.Start())
+        {
+            await WriteChildStartFailureAsync(controlRoot, "StartReturnedFalse", 0)
+                .ConfigureAwait(false);
+            return 64;
+        }
+    }
+    catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception)
+    {
+        await WriteChildStartFailureAsync(
+                controlRoot,
+                exception.GetType().Name,
+                exception.HResult)
+            .ConfigureAwait(false);
         return 64;
     }
 
@@ -163,6 +177,11 @@ static async Task<int> SpawnChildAsync(string controlRoot, bool waitForCancellat
 
     return WriteCapabilities();
 }
+
+static Task WriteChildStartFailureAsync(string controlRoot, string kind, int hresult) =>
+    File.WriteAllTextAsync(
+        Path.Combine(controlRoot, "spawn-child-error.txt"),
+        $"{kind}|{hresult:X8}");
 
 internal static class JobMembership
 {

@@ -12,6 +12,13 @@
     <_HardwareInspectionLlamaCppProbeProject>$(MSBuildThisFileDirectory)..\workers\GraniteEdgeAI.HardwareInspection.LlamaCppProbe\GraniteEdgeAI.HardwareInspection.LlamaCppProbe.csproj</_HardwareInspectionLlamaCppProbeProject>
     <_HardwareInspectionLlamaCppProbeManifestGenerator>$(MSBuildThisFileDirectory)..\scripts\hardware-inspection\New-LlamaCppProbeManifest.ps1</_HardwareInspectionLlamaCppProbeManifestGenerator>
     <_HardwareInspectionLlamaCppProbeManifestVerifier>$(MSBuildThisFileDirectory)..\scripts\hardware-inspection\Test-LlamaCppProbeManifest.ps1</_HardwareInspectionLlamaCppProbeManifestVerifier>
+    <_HardwareInspectionVisualStudioRootCandidate>$([System.IO.Path]::GetFullPath('$(MSBuildToolsPath)\..\..\..\..'))</_HardwareInspectionVisualStudioRootCandidate>
+    <_HardwareInspectionVisualStudioRoot Condition="Exists('$(_HardwareInspectionVisualStudioRootCandidate)\VC')">$(_HardwareInspectionVisualStudioRootCandidate)</_HardwareInspectionVisualStudioRoot>
+    <_HardwareInspectionVisualStudioRootCandidate>$([System.IO.Path]::GetFullPath('$(MSBuildToolsPath)\..\..\..'))</_HardwareInspectionVisualStudioRootCandidate>
+    <_HardwareInspectionVisualStudioRoot Condition="'$(_HardwareInspectionVisualStudioRoot)' == '' and Exists('$(_HardwareInspectionVisualStudioRootCandidate)\VC')">$(_HardwareInspectionVisualStudioRootCandidate)</_HardwareInspectionVisualStudioRoot>
+    <_HardwareInspectionVCRedistVersionFile>$(_HardwareInspectionVisualStudioRoot)\VC\Auxiliary\Build\Microsoft.VCRedistVersion.default.txt</_HardwareInspectionVCRedistVersionFile>
+    <_HardwareInspectionVCRedistVersion Condition="Exists('$(_HardwareInspectionVCRedistVersionFile)')">$([System.IO.File]::ReadAllText('$(_HardwareInspectionVCRedistVersionFile)').Trim())</_HardwareInspectionVCRedistVersion>
+    <_HardwareInspectionVCRedistRoot>$(_HardwareInspectionVisualStudioRoot)\VC\Redist\MSVC\$(_HardwareInspectionVCRedistVersion)\x64</_HardwareInspectionVCRedistRoot>
     <_HardwareInspectionLlamaCppProbeDotNetHost Condition="'$(DotNetHostPath)' != ''">$(DotNetHostPath)</_HardwareInspectionLlamaCppProbeDotNetHost>
     <_HardwareInspectionLlamaCppProbeDotNetHost Condition="'$(_HardwareInspectionLlamaCppProbeDotNetHost)' == ''">dotnet</_HardwareInspectionLlamaCppProbeDotNetHost>
   </PropertyGroup>
@@ -26,13 +33,19 @@
     <MakeDir Directories="$(_HardwareInspectionLlamaCppProbeRawRoot);$(_HardwareInspectionLlamaCppProbePackageRoot)" />
 
     <Exec WorkingDirectory="$(_HardwareInspectionLlamaCppProbeRepositoryRoot)" Command="&quot;$(_HardwareInspectionLlamaCppProbeDotNetHost)&quot; restore &quot;$(_HardwareInspectionLlamaCppProbeProject)&quot; --runtime win-x64 --artifacts-path &quot;$(_HardwareInspectionLlamaCppProbeArtifactsRoot)&quot; -p:Configuration=Release -p:Platform=x64" />
-    <Exec WorkingDirectory="$(_HardwareInspectionLlamaCppProbeRepositoryRoot)" Command="&quot;$(_HardwareInspectionLlamaCppProbeDotNetHost)&quot; publish &quot;$(_HardwareInspectionLlamaCppProbeProject)&quot; --configuration Release --runtime win-x64 --self-contained false --no-restore --artifacts-path &quot;$(_HardwareInspectionLlamaCppProbeArtifactsRoot)&quot; --output &quot;$(_HardwareInspectionLlamaCppProbeRawRoot)&quot; -p:Configuration=Release -p:Platform=x64 -p:UseAppHost=true -p:PublishTrimmed=false -p:PublishReadyToRun=false -p:DebugSymbols=false -p:DebugType=None -p:CopyDebugSymbolToPublishDirectory=false" />
+    <Exec WorkingDirectory="$(_HardwareInspectionLlamaCppProbeRepositoryRoot)" Command="&quot;$(_HardwareInspectionLlamaCppProbeDotNetHost)&quot; publish &quot;$(_HardwareInspectionLlamaCppProbeProject)&quot; --configuration Release --runtime win-x64 --self-contained true --no-restore --artifacts-path &quot;$(_HardwareInspectionLlamaCppProbeArtifactsRoot)&quot; --output &quot;$(_HardwareInspectionLlamaCppProbeRawRoot)&quot; -p:Configuration=Release -p:Platform=x64 -p:UseAppHost=true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=false -p:EnableCompressionInSingleFile=true -p:PublishTrimmed=false -p:PublishReadyToRun=false -p:DebugSymbols=false -p:DebugType=None -p:CopyDebugSymbolToPublishDirectory=false" />
 
     <ItemGroup>
       <_HardwareInspectionLlamaCppProbeManagedFiles Include="$(_HardwareInspectionLlamaCppProbeRawRoot)\*" Exclude="$(_HardwareInspectionLlamaCppProbeRawRoot)\*.pdb" />
       <_HardwareInspectionLlamaCppProbeNativeFiles Include="$(_HardwareInspectionLlamaCppProbeRawRoot)\runtimes\win-x64\native\noavx\*.dll" />
+      <_HardwareInspectionVCRuntimeFiles Include="$(_HardwareInspectionVCRedistRoot)\Microsoft.VC*.CRT\msvcp140.dll" />
+      <_HardwareInspectionVCRuntimeFiles Include="$(_HardwareInspectionVCRedistRoot)\Microsoft.VC*.CRT\vcruntime140.dll" />
+      <_HardwareInspectionVCRuntimeFiles Include="$(_HardwareInspectionVCRedistRoot)\Microsoft.VC*.CRT\vcruntime140_1.dll" />
+      <_HardwareInspectionVCRuntimeFiles Include="$(_HardwareInspectionVCRedistRoot)\Microsoft.VC*.OpenMP\vcomp140.dll" />
     </ItemGroup>
-    <Copy SourceFiles="@(_HardwareInspectionLlamaCppProbeManagedFiles);@(_HardwareInspectionLlamaCppProbeNativeFiles)" DestinationFolder="$(_HardwareInspectionLlamaCppProbePackageRoot)" SkipUnchangedFiles="false" />
+    <Error Condition="'@(_HardwareInspectionVCRuntimeFiles->Count())' != '4'"
+           Text="The exact x64 Microsoft VC++ runtime payload required by the llama.cpp probe was not found." />
+    <Copy SourceFiles="@(_HardwareInspectionLlamaCppProbeManagedFiles);@(_HardwareInspectionLlamaCppProbeNativeFiles);@(_HardwareInspectionVCRuntimeFiles)" DestinationFolder="$(_HardwareInspectionLlamaCppProbePackageRoot)" SkipUnchangedFiles="false" />
 
     <Exec Command="&quot;$(SystemRoot)\System32\WindowsPowerShell\v1.0\powershell.exe&quot; -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(_HardwareInspectionLlamaCppProbeManifestGenerator)&quot; -ProbeDirectory &quot;$(_HardwareInspectionLlamaCppProbePackageRoot)&quot; -ManifestPath &quot;$(_HardwareInspectionLlamaCppProbeManifestPath)&quot;" />
     <Exec Command="&quot;$(SystemRoot)\System32\WindowsPowerShell\v1.0\powershell.exe&quot; -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(_HardwareInspectionLlamaCppProbeManifestVerifier)&quot; -ProbeDirectory &quot;$(_HardwareInspectionLlamaCppProbePackageRoot)&quot; -ManifestPath &quot;$(_HardwareInspectionLlamaCppProbeManifestPath)&quot;" />

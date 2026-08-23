@@ -101,7 +101,27 @@ public sealed class LlamaCppCapabilityEvidenceProviderPackagedTests
         Task<LlamaCppCapabilityEvidence> capture = CreateProvider().CaptureAsync(
             fixture.Tool,
             cancellation.Token);
-        int childId = await WaitForProcessIdAsync(Path.Combine(fixture.ControlRoot, "spawn-child-ready.txt"));
+        int childId;
+        try
+        {
+            childId = await WaitForProcessIdAsync(
+                Path.Combine(fixture.ControlRoot, "spawn-child-ready.txt"),
+                capture);
+        }
+        catch
+        {
+            cancellation.Cancel();
+            try
+            {
+                await capture;
+            }
+            catch (OperationCanceledException)
+            {
+                // Preserve the original readiness failure after bounded cleanup.
+            }
+
+            throw;
+        }
 
         cancellation.Cancel();
         OperationCanceledException error = await Assert.ThrowsExactlyAsync<OperationCanceledException>(
@@ -143,11 +163,26 @@ public sealed class LlamaCppCapabilityEvidenceProviderPackagedTests
         Assert.HasCount(0, evidence.VisibleDevices);
     }
 
-    private static async Task<int> WaitForProcessIdAsync(string marker)
+    private static async Task<int> WaitForProcessIdAsync(
+        string marker,
+        Task<LlamaCppCapabilityEvidence>? capture = null)
     {
+        string errorMarker = Path.Combine(
+            Path.GetDirectoryName(marker)!,
+            "spawn-child-error.txt");
         Stopwatch elapsed = Stopwatch.StartNew();
-        while (elapsed.Elapsed < TimeSpan.FromSeconds(5))
+        // Capture performs the bounded identity probe before starting the
+        // capabilities process. Allow both cold starts on constrained guests.
+        while (elapsed.Elapsed < TimeSpan.FromSeconds(30))
         {
+            if (capture?.IsCompleted == true)
+            {
+                LlamaCppCapabilityEvidence completed = await capture;
+                Assert.Fail(
+                    "Capability capture completed before the child marker: " +
+                    $"state={completed.State}; diagnostic={completed.Diagnostic?.ToString() ?? "none"}.");
+            }
+
             try
             {
                 if (File.Exists(marker) && int.TryParse(await File.ReadAllTextAsync(marker), out int processId))
@@ -158,6 +193,12 @@ public sealed class LlamaCppCapabilityEvidenceProviderPackagedTests
             catch (IOException)
             {
                 // The fixture created the marker but has not released its write handle yet.
+            }
+
+            if (File.Exists(errorMarker))
+            {
+                Assert.Fail(
+                    $"The harmless fixture child could not start: {await File.ReadAllTextAsync(errorMarker)}");
             }
 
             await Task.Delay(20);
