@@ -6,9 +6,12 @@ namespace GraniteEdgeAI.HardwareInspection.Foundation.LlamaCpp;
 
 internal sealed record LlamaCppIdentityParseResult(
     bool IsValid,
+    bool IsMismatch,
     LlamaCppRuntimeIdentity? RuntimeIdentity)
 {
-    internal static LlamaCppIdentityParseResult Invalid { get; } = new(false, null);
+    internal static LlamaCppIdentityParseResult Invalid { get; } = new(false, false, null);
+
+    internal static LlamaCppIdentityParseResult Mismatch { get; } = new(false, true, null);
 }
 
 internal sealed record LlamaCppCapabilitiesParseResult(
@@ -45,6 +48,7 @@ internal static class LlamaCppCapabilityJsonParser
 
             const int requiredMask = (1 << 9) - 1;
             int seen = 0;
+            bool allValuesMatch = true;
             while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
             {
                 if (reader.TokenType != JsonTokenType.PropertyName)
@@ -71,39 +75,53 @@ internal static class LlamaCppCapabilityJsonParser
                     return LlamaCppIdentityParseResult.Invalid;
                 }
 
-                bool matches = property switch
+                bool structurallyValid;
+                bool matches;
+                if (property == "schemaVersion")
                 {
-                    "schemaVersion" =>
-                        reader.TokenType == JsonTokenType.Number &&
-                        reader.TryGetInt32(out int version) &&
-                        version == 1,
-                    "probeIdentity" => IsExactString(ref reader, ProbeIdentity),
-                    "managedPackage" => IsExactString(ref reader, "LLamaSharp"),
-                    "managedVersion" => IsExactString(ref reader, "0.27.0"),
-                    "backendPackage" => IsExactString(ref reader, "LLamaSharp.Backend.Cpu"),
-                    "backendVersion" => IsExactString(ref reader, "0.27.0"),
-                    "llamaSharpCommit" => IsExactString(
-                        ref reader,
-                        "7cbbc45e421d55794d5050d126e0b96511007007"),
-                    "mappedLlamaCppCommit" => IsExactString(
-                        ref reader,
-                        "3f7c29d318e317b63f54c558bc69803963d7d88c"),
-                    "runtimeIdentifier" => IsExactString(ref reader, "win-x64"),
-                    _ => false,
-                };
-                if (!matches)
+                    int version = 0;
+                    structurallyValid = reader.TokenType == JsonTokenType.Number &&
+                        reader.TryGetInt32(out version);
+                    matches = structurallyValid && version == 1;
+                }
+                else
+                {
+                    structurallyValid = reader.TokenType == JsonTokenType.String;
+                    matches = structurallyValid && property switch
+                    {
+                        "probeIdentity" => reader.ValueTextEquals(ProbeIdentity),
+                        "managedPackage" => reader.ValueTextEquals("LLamaSharp"),
+                        "managedVersion" => reader.ValueTextEquals("0.27.0"),
+                        "backendPackage" => reader.ValueTextEquals("LLamaSharp.Backend.Cpu"),
+                        "backendVersion" => reader.ValueTextEquals("0.27.0"),
+                        "llamaSharpCommit" => reader.ValueTextEquals(
+                            "7cbbc45e421d55794d5050d126e0b96511007007"),
+                        "mappedLlamaCppCommit" => reader.ValueTextEquals(
+                            "3f7c29d318e317b63f54c558bc69803963d7d88c"),
+                        "runtimeIdentifier" => reader.ValueTextEquals("win-x64"),
+                        _ => false,
+                    };
+                }
+
+                if (!structurallyValid)
                 {
                     return LlamaCppIdentityParseResult.Invalid;
                 }
 
+                allValuesMatch &= matches;
                 seen |= bit;
             }
 
-            return reader.TokenType == JsonTokenType.EndObject &&
-                seen == requiredMask &&
-                !reader.Read()
-                ? new LlamaCppIdentityParseResult(true, LlamaCppRuntimeIdentity.PinnedCpu)
-                : LlamaCppIdentityParseResult.Invalid;
+            if (reader.TokenType != JsonTokenType.EndObject ||
+                seen != requiredMask ||
+                reader.Read())
+            {
+                return LlamaCppIdentityParseResult.Invalid;
+            }
+
+            return allValuesMatch
+                ? new LlamaCppIdentityParseResult(true, false, LlamaCppRuntimeIdentity.PinnedCpu)
+                : LlamaCppIdentityParseResult.Mismatch;
         }
         catch (JsonException)
         {

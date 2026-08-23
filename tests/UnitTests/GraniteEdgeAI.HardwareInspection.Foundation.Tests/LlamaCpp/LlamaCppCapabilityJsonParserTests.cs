@@ -84,6 +84,25 @@ public sealed class LlamaCppCapabilityJsonParserTests
     }
 
     [TestMethod]
+    public void IdentityParserSeparatesWellFormedMismatchFromMalformedOutput()
+    {
+        string mismatched = ValidIdentity.Replace(
+            "\"managedVersion\":\"0.27.0\"",
+            "\"managedVersion\":\"9.9.9\"",
+            StringComparison.Ordinal);
+
+        LlamaCppIdentityParseResult mismatch =
+            LlamaCppCapabilityJsonParser.ParseIdentity(mismatched);
+        LlamaCppIdentityParseResult malformed =
+            LlamaCppCapabilityJsonParser.ParseIdentity("{]\n");
+
+        Assert.IsFalse(mismatch.IsValid);
+        Assert.IsTrue(mismatch.IsMismatch);
+        Assert.IsFalse(malformed.IsValid);
+        Assert.IsFalse(malformed.IsMismatch);
+    }
+
+    [TestMethod]
     public void CapabilitiesParserRejectsMalformedAndContradictoryFacts()
     {
         string[] invalid =
