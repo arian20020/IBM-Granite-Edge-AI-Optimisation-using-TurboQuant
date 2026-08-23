@@ -338,29 +338,7 @@ public sealed class OfficialCpuFixtureTests
     {
         string stage = RequireStage("OPENVINO_OFFICIAL_WORKER_STAGE_A");
         string repository = FindRepositoryRoot();
-        string helper = Path.Combine(
-            repository,
-            "tests",
-            "ProcessFixtures",
-            "GraniteEdgeAI.OpenVino.ParentExitFixture",
-            "bin",
-#if DEBUG
-            "Debug",
-#else
-            "Release",
-#endif
-            "net8.0-windows10.0.19041.0",
-            "win-x64",
-            "GraniteEdgeAI.OpenVino.ParentExitFixture.exe");
-        Assert.IsTrue(File.Exists(helper), "The managed parent-loss fixture was not built.");
-        ProcessStartInfo start = new()
-        {
-            FileName = helper,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-        };
+        ProcessStartInfo start = CreateParentExitFixtureStartInfo(repository);
         start.ArgumentList.Add(stage);
         start.ArgumentList.Add(LocateCanonicalPackage());
         using Process parent = Process.Start(start) ?? throw new InvalidOperationException();
@@ -387,6 +365,88 @@ public sealed class OfficialCpuFixtureTests
             // The worker exited before it could be reopened by PID.
         }
         await AssertNoOfficialWorkerProcessAsync().ConfigureAwait(false);
+    }
+
+    internal static ProcessStartInfo CreateParentExitFixtureStartInfo(string repository)
+    {
+        string output = Path.Combine(
+            repository,
+            "tests",
+            "ProcessFixtures",
+            "GraniteEdgeAI.OpenVino.ParentExitFixture",
+            "bin",
+#if DEBUG
+            "Debug",
+#else
+            "Release",
+#endif
+            "net8.0-windows10.0.19041.0",
+            "win-x64");
+        string executable = Path.Combine(
+            output,
+            "GraniteEdgeAI.OpenVino.ParentExitFixture.exe");
+        string assembly = Path.Combine(
+            output,
+            "GraniteEdgeAI.OpenVino.ParentExitFixture.dll");
+        ProcessStartInfo start = new()
+        {
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+        };
+        if (File.Exists(executable))
+        {
+            start.FileName = executable;
+            return start;
+        }
+
+        if (File.Exists(assembly))
+        {
+            start.FileName = Environment.GetEnvironmentVariable("DOTNET_HOST_PATH") ?? "dotnet";
+            start.ArgumentList.Add(assembly);
+            return start;
+        }
+
+        Assert.Fail("The managed parent-loss fixture was not built.");
+        throw new InvalidOperationException();
+    }
+
+    [TestMethod]
+    public void ParentLossFixtureLauncherFallsBackToFrameworkDependentAssembly()
+    {
+        string repository = Path.Combine(
+            Path.GetTempPath(),
+            "GraniteEdgeAI-ParentFixture-" + Guid.NewGuid().ToString("N"));
+        string output = Path.Combine(
+            repository,
+            "tests",
+            "ProcessFixtures",
+            "GraniteEdgeAI.OpenVino.ParentExitFixture",
+            "bin",
+#if DEBUG
+            "Debug",
+#else
+            "Release",
+#endif
+            "net8.0-windows10.0.19041.0",
+            "win-x64");
+        Directory.CreateDirectory(output);
+        string assembly = Path.Combine(
+            output,
+            "GraniteEdgeAI.OpenVino.ParentExitFixture.dll");
+        File.WriteAllBytes(assembly, [1]);
+        try
+        {
+            ProcessStartInfo start = CreateParentExitFixtureStartInfo(repository);
+            Assert.IsFalse(string.IsNullOrWhiteSpace(start.FileName));
+            Assert.HasCount(1, start.ArgumentList);
+            Assert.AreEqual(assembly, start.ArgumentList[0]);
+        }
+        finally
+        {
+            Directory.Delete(repository, recursive: true);
+        }
     }
 
     private static async Task<OpenVinoBuildEvidence> VerifyClosureAsync(
