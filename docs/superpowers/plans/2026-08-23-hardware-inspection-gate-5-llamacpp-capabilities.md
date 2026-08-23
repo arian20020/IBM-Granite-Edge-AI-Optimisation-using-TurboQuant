@@ -4,7 +4,7 @@
 
 **Goal:** Add a strict, trusted, child-process-only llama.cpp capability provider that records the pinned application runtime identity, CPU backend support, and runtime-visible devices without loading native code into WinUI or any test host.
 
-**Architecture:** Extend the existing Hardware Inspection trusted-tool and Job-contained process foundation with strict UTF-8 output handling. A dedicated `win-x64` probe executable owns LLamaSharp/native loading and emits a closed JSON-v1 protocol; the Foundation project validates that protocol into immutable noncanonical evidence and remains independent of LLamaSharp types.
+**Architecture:** Extend the existing Hardware Inspection trusted-tool and Job-contained process foundation with strict UTF-8 output handling. A dedicated `win-x64` probe executable owns LLamaSharp/native loading and emits a closed JSON-v1 protocol; the Foundation project validates that protocol into immutable noncanonical evidence and remains independent of LLamaSharp types. The inactive probe ships under `HardwareInspection\LlamaCppProbe` in the signed application package, while all real/adverse process acceptance executes from the installed signed x64 AppX test package.
 
 **Tech Stack:** C# 12, .NET 8 Windows x64, MSTest 4, Microsoft Testing Platform, `System.Text.Json`, LLamaSharp `0.27.0`, LLamaSharp.Backend.Cpu `0.27.0`, existing Win32 Job/custody boundary, Git.
 
@@ -14,7 +14,7 @@
 
 - Use `LLamaSharp` `0.27.0` and `LLamaSharp.Backend.Cpu` `0.27.0`; mapped llama.cpp commit is exactly `3f7c29d318e317b63f54c558bc69803963d7d88c`.
 - The helper is `win-x64`/AMD64 and CPU-only. A different package, backend, RID, or commit requires a new decision.
-- Native llama/ggml libraries load only in `GraniteEdgeAI.HardwareInspection.LlamaCppProbe.exe`, never WinUI, Foundation, MSTest/VSTest, or the packaged test host.
+- Native llama/ggml libraries load only in `GraniteEdgeAI.HardwareInspection.LlamaCppProbe.exe`, never WinUI, Foundation, MSTest/VSTest, or the packaged parent test host.
 - Reuse only `TrustedToolPackageVerifier`, live `VerifiedTrustedTool` custody, and `IExternalProcessRunner`; do not call the Model Inspection worker or copy a weaker process launcher.
 - The manifest contains exactly `identity --format json-v1` and `capabilities --format json-v1`; no caller arguments, shell, PATH search, network, server, retry, or fallback.
 - Identity uses 5 seconds and independent 4 KiB output limits. Capabilities uses 10 seconds and independent 64 KiB limits.
@@ -22,7 +22,10 @@
 - Retain at most 8 unique backends and 16 devices. Gate 5 accepts exactly backend `cpu`, contiguous ordinals from zero, and 1..16 safe buffer-type labels of at most 128 Unicode scalars.
 - Cancellation propagates with the caller token. Missing/integrity/runtime failures are typed unavailability, never absent hardware.
 - Retain no paths, hashes, stdout/stderr, exit codes, exceptions, native logs/pointers, host/account identity, model data, or unrestricted device/hardware names in evidence or committed artifacts.
-- Do not register the provider, package the probe into AppX, create `HardwareSnapshot`, normalize/resolve sources, infer compatibility, open a model, download/execute a candidate, or perform any operational Stage action.
+- Package the inactive production probe only under `HardwareInspection\LlamaCppProbe`; do not locate, verify, launch, or register it in product composition.
+- Real and adverse child-process acceptance must run from the installed signed x64 AppX test package. Do not execute new unsigned apphosts from loose output directories, disable Smart App Control, reuse previously trusted hashes, or substitute a system `dotnet.exe` launcher.
+- The test-only adverse executable is packaged only in `GraniteEdgeAI.UnitTests`, never the production application package.
+- Do not create `HardwareSnapshot`, normalize/resolve sources, infer compatibility, open a model, download/execute a candidate, or perform any operational Stage action.
 - Every behavior change follows RED -> GREEN -> refactor, each task commits independently, and every Critical/Important/Minor review finding is resolved test-first.
 
 ---
@@ -185,7 +188,14 @@ Reject framing before parsing. Encode the already strictly decoded string with U
 
 - [ ] **Step 7: Run GREEN and commit**
 
-Run both new classes and full foundation tests. Then:
+Run both new classes and every Foundation test except the existing loose-apphost `ExternalProcessRunnerTests` class:
+
+```powershell
+dotnet test tests/UnitTests/GraniteEdgeAI.HardwareInspection.Foundation.Tests/GraniteEdgeAI.HardwareInspection.Foundation.Tests.csproj `
+  -p:Platform=x64 --filter 'FullyQualifiedName!~ExternalProcessRunnerTests' --no-ansi
+```
+
+Require zero failed/skipped. This temporary filter is removed by Task 4, which moves equivalent real-process coverage into the signed AppX boundary; it is not acceptable in final Gate 5 evidence. Then:
 
 ```powershell
 git add infrastructure/GraniteEdgeAI.HardwareInspection.Foundation/LlamaCpp `
@@ -254,9 +264,9 @@ new ExternalProcessRequest("capabilities", TimeSpan.FromSeconds(10), 64 * 1024, 
 
 Map `StartFailed`, `TimedOut`, `OutputLimitExceeded`, `CleanupFailed`, unexpected `Cancelled`, nonzero `Exited`, and parser failures to closed phase-specific diagnostics. Map capability exit `70` to `NativeCapabilityUnavailable` and other nonzero capability exits to `CapabilityProcessFailed`. Check the caller token immediately before and after each await. Validate exact identity before the capability call. Do not dispose the tool or catch arbitrary exceptions.
 
-- [ ] **Step 5: Run GREEN and full foundation regression**
+- [ ] **Step 5: Run GREEN and native-free Foundation regression**
 
-Require the new classes and all foundation tests to pass with zero skipped.
+Require the new classes and the same explicit `FullyQualifiedName!~ExternalProcessRunnerTests` Foundation run to pass with zero skipped. Task 4 must restore an unfiltered ordinary Foundation run plus signed packaged process acceptance before any completion claim.
 
 - [ ] **Step 6: Commit**
 
@@ -268,56 +278,62 @@ git commit -m "feat(hardware-inspection): map llama.cpp capability provider"
 
 ---
 
-### Task 4: Prove the provider through the real contained process boundary
+### Task 4: Move real process-runner acceptance into the signed AppX test boundary
 
 **Files:**
-- Create: `tests/ProcessFixtures/GraniteEdgeAI.HardwareInspection.LlamaCppProbeFakeTool/GraniteEdgeAI.HardwareInspection.LlamaCppProbeFakeTool.csproj`
-- Create: `tests/ProcessFixtures/GraniteEdgeAI.HardwareInspection.LlamaCppProbeFakeTool/Program.cs`
+- Create: `tests/UnitTests/GraniteEdgeAI.HardwareInspection.Foundation.Tests/Processes/BoundedProcessOutputTests.cs`
+- Create: `tests/UnitTests/GraniteEdgeAI.UnitTests/Features/HardwareInspection/Processes/ExternalProcessRunnerPackagedTests.cs`
+- Create: `tests/UnitTests/GraniteEdgeAI.UnitTests/Features/HardwareInspection/Support/VerifiedPackagedToolFixture.cs`
+- Create: `tests/UnitTests/GraniteEdgeAI.UnitTests/HardwareInspection.ProcessFixturePackaging.targets`
+- Modify: `tests/UnitTests/GraniteEdgeAI.HardwareInspection.Foundation.Tests/Processes/ExternalProcessRunnerTests.cs`
 - Modify: `tests/UnitTests/GraniteEdgeAI.HardwareInspection.Foundation.Tests/GraniteEdgeAI.HardwareInspection.Foundation.Tests.csproj`
-- Create: `tests/UnitTests/GraniteEdgeAI.HardwareInspection.Foundation.Tests/LlamaCpp/LlamaCppCapabilityEvidenceProviderProcessTests.cs`
-- Create: `tests/UnitTests/GraniteEdgeAI.HardwareInspection.Foundation.Tests/Support/VerifiedLlamaCppProbeFixture.cs`
+- Modify: `tests/UnitTests/GraniteEdgeAI.UnitTests/GraniteEdgeAI.UnitTests.csproj`
+- Modify: `infrastructure/GraniteEdgeAI.HardwareInspection.Foundation/Properties/AssemblyInfo.cs`
 
 **Interfaces:**
-- Produces a test-only AMD64 executable with the exact production command surface and controlled `fake-mode.txt` scenarios.
-- Consumes real `TrustedToolPackageVerifier`, `ExternalProcessRunner`, and `LlamaCppCapabilityEvidenceProvider`.
+- Retains native-free byte-stream tests in the Foundation suite.
+- Produces signed-package acceptance for the real `ExternalProcessRunner` using the existing LLM Fit fake tool under `HardwareInspection\TestTools\LlmFitFake`.
+- Grants internals only to the established `GraniteEdgeAI.UnitTests` test assembly.
 
-- [ ] **Step 1: Write RED end-to-end process tests**
+- [ ] **Step 1: Write the RED package/inventory contract**
 
-Build a verified flat fixture package using a test-only manifest generated from its exact files/hash. Exercise success, identity mismatch, invalid JSON, nonzero, output overflow, timeout, cancellation, Job membership, child spawn/hang, and normal-parent-exit-with-child. Assert evidence/diagnostics and descendant cleanup; never persist stdout/stderr.
+Add a packaged test that resolves `AppContext.BaseDirectory`, requires the fixture directory to remain beneath it, inventories only top-level files, verifies the executable is AMD64, and constructs a `TrustedToolPackageManifest` from the exact SHA-256 and inventory. Require failure if the package directory is absent or contains a subdirectory.
 
 ```csharp
-LlamaCppCapabilityEvidence evidence = await provider.CaptureAsync(tool, CancellationToken.None);
-
-Assert.AreEqual(LlamaCppCapabilityEvidenceState.Available, evidence.State);
-Assert.AreEqual(LlamaCppBackend.Cpu, evidence.Backends.Single());
-Assert.AreEqual(0, evidence.VisibleDevices.Single().Ordinal);
+Assert.IsTrue(packageRoot.StartsWith(
+    Path.TrimEndingDirectorySeparator(AppContext.BaseDirectory) + Path.DirectorySeparatorChar,
+    StringComparison.OrdinalIgnoreCase));
+Assert.IsFalse(Directory.EnumerateDirectories(packageRoot).Any());
 ```
 
-The fixture may emit only synthetic `Fixture CPU Buffer` text. It must contain no LLamaSharp package reference and no network mode.
+- [ ] **Step 2: Run packaged RED**
 
-- [ ] **Step 2: Run RED**
+Build and install the x64 Debug AppX test package, then run only `ExternalProcessRunnerPackagedTests`. Expected: `HardwareInspection\TestTools\LlmFitFake` is missing.
 
-Expected: fake project/support types are missing.
+- [ ] **Step 3: Add test-only fixture packaging**
 
-- [ ] **Step 3: Implement the minimal fake executable**
+Publish `GraniteEdgeAI.HardwareInspection.LlmFitFakeTool` as Release/framework-dependent/win-x64 with `UseAppHost=true`, no symbols, no trimming, and no ReadyToRun. Include every flat published member as AppX `Content` under `HardwareInspection\TestTools\LlmFitFake`. Import this target only from `GraniteEdgeAI.UnitTests.csproj`; no application project edit is allowed in this step.
 
-Use exact argument matching and explicit LF writes through `Console.OpenStandardOutput()`. Implement modes as small functions. For hang/descendant modes reuse the established LLM Fit fake-tool pattern, but keep this fixture's command surface and files independent. Never place adverse behavior in production code.
+- [ ] **Step 4: Split native-free and real-process tests**
 
-- [ ] **Step 4: Run process GREEN three times**
+Move `MemoryStream`/bounded-decoding cases into `BoundedProcessOutputTests`. Move every test that starts the fixture executable, checks Job membership, timeout, cancellation, overflow, crash, descendant cleanup, or custody into `ExternalProcessRunnerPackagedTests`. Remove the process-fixture project reference from the Foundation test project and add the narrowly scoped `InternalsVisibleTo("GraniteEdgeAI.UnitTests")` needed by packaged acceptance.
 
-Run `LlamaCppCapabilityEvidenceProviderProcessTests` three consecutive times from a physical short worktree. Require all passes, zero skipped, and no descendant/resource symptom.
+- [ ] **Step 5: Run GREEN at both boundaries**
 
-- [ ] **Step 5: Commit**
+Require the ordinary Foundation suite to pass without starting an unsigned apphost. Require the installed AppX process class to pass three consecutive times with zero skipped and no surviving descendants.
+
+- [ ] **Step 6: Commit**
 
 ```powershell
-git add tests/ProcessFixtures/GraniteEdgeAI.HardwareInspection.LlamaCppProbeFakeTool `
-  tests/UnitTests/GraniteEdgeAI.HardwareInspection.Foundation.Tests
-git commit -m "test(hardware-inspection): prove llama.cpp provider containment"
+git add infrastructure/GraniteEdgeAI.HardwareInspection.Foundation/Properties/AssemblyInfo.cs `
+  tests/UnitTests/GraniteEdgeAI.HardwareInspection.Foundation.Tests `
+  tests/UnitTests/GraniteEdgeAI.UnitTests
+git commit -m "test(hardware-inspection): run process acceptance from signed AppX"
 ```
 
 ---
 
-### Task 5: Add the dedicated probe application with an injectable native seam
+### Task 5: Add and unit-test the isolated llama.cpp probe
 
 **Files:**
 - Create: `workers/GraniteEdgeAI.HardwareInspection.LlamaCppProbe/GraniteEdgeAI.HardwareInspection.LlamaCppProbe.csproj`
@@ -325,123 +341,151 @@ git commit -m "test(hardware-inspection): prove llama.cpp provider containment"
 - Create: `workers/GraniteEdgeAI.HardwareInspection.LlamaCppProbe/LlamaCppProbeApplication.cs`
 - Create: `workers/GraniteEdgeAI.HardwareInspection.LlamaCppProbe/LlamaCppProbeProtocol.cs`
 - Create: `workers/GraniteEdgeAI.HardwareInspection.LlamaCppProbe/ILlamaCppNativeCapabilityApi.cs`
+- Create: `workers/GraniteEdgeAI.HardwareInspection.LlamaCppProbe/ILlamaCppNativeInterop.cs`
+- Create: `workers/GraniteEdgeAI.HardwareInspection.LlamaCppProbe/LLamaSharpNativeCapabilityApi.cs`
 - Create: `workers/GraniteEdgeAI.HardwareInspection.LlamaCppProbe/Properties/AssemblyInfo.cs`
-- Modify: `tests/UnitTests/GraniteEdgeAI.HardwareInspection.Foundation.Tests/GraniteEdgeAI.HardwareInspection.Foundation.Tests.csproj`
-- Create: `tests/UnitTests/GraniteEdgeAI.HardwareInspection.Foundation.Tests/LlamaCppProbe/LlamaCppProbeApplicationTests.cs`
+- Create: `tests/UnitTests/GraniteEdgeAI.HardwareInspection.LlamaCppProbe.Tests/GraniteEdgeAI.HardwareInspection.LlamaCppProbe.Tests.csproj`
+- Create: `tests/UnitTests/GraniteEdgeAI.HardwareInspection.LlamaCppProbe.Tests/LlamaCppProbeApplicationTests.cs`
+- Create: `tests/UnitTests/GraniteEdgeAI.HardwareInspection.LlamaCppProbe.Tests/LLamaSharpNativeCapabilityApiTests.cs`
 
 **Interfaces:**
 - Produces `Task<int> LlamaCppProbeApplication.RunAsync(string[] args, Stream stdout, ILlamaCppNativeCapabilityApi nativeApi)`.
-- Produces `LlamaCppNativeCapabilityResult Capture()` containing closed success/failure plus copied `(ordinal, bufferType)` device facts.
-- The project references exact `LLamaSharp` and `LLamaSharp.Backend.Cpu` `0.27.0`; Foundation does not reference the worker.
+- Produces `LlamaCppNativeCapabilityResult Capture()` with only closed success/failure and copied `(ordinal, bufferType)` facts.
+- Implements the native seam through matched LLamaSharp/llama.cpp calls; no Foundation reference points back to the worker.
 
 - [ ] **Step 1: Write RED application/protocol tests**
 
-Reference the worker only from the foundation test project. Use a fake `ILlamaCppNativeCapabilityApi`; do not call native code. Require:
+With a fake native API, require exact identity output without native access, exact capability output with one LF, strict argument matching, exit `64` for usage, exit `70` for closed native failure, exit `74` for output failure, empty stdout on failure, and no exception/path/environment/host/model text.
 
-- exact identity command/output and exit 0 without native API access;
-- exact capabilities command writes the approved JSON-v1 with one LF;
-- unknown/missing/case-drifted/additive arguments exit 64 with empty stdout;
-- native unavailable/invalid results exit 70 with empty stdout;
-- native API exception exits 70 with empty stdout and no exception text;
-- output stream failure exits 74;
-- no CR, BOM, path, environment, host, or model values enter output.
+```csharp
+int exitCode = await application.RunAsync(
+    ["identity", "--format", "json-v1"],
+    output,
+    nativeApi);
+Assert.AreEqual(0, exitCode);
+Assert.AreEqual(0, nativeApi.CaptureCalls);
+```
 
-Before and after every class, enumerate parent modules and require no filename beginning with `llama` or `ggml`.
+- [ ] **Step 2: Write RED native lifetime/bounds tests**
+
+With fake `ILlamaCppNativeInterop`, require initialization before enumeration; 1..16 valid devices; rejection of zero/17 devices, null handles, null/unsafe/oversized labels; and exactly one `FreeBackend()` in `finally` after every successful initialization. Initialization failure must not free. Enumerate parent modules before/after and reject any loaded filename beginning `llama` or `ggml`.
+
+- [ ] **Step 3: Run RED**
+
+Expected: the worker and test project types are missing.
+
+- [ ] **Step 4: Implement strict executable and native seams**
+
+Use `OutputType=Exe`, .NET 8 Windows, `win-x64`, AMD64, nullable/analyzers/warnings-as-errors, and exact `LLamaSharp`/`LLamaSharp.Backend.Cpu` `0.27.0`. Write protocol bytes with `Utf8JsonWriter`, append `0x0a`, and perform one bounded write. Configure CPU-only native loading, copy runtime-owned labels immediately, validate them before retention, and always free initialized backend state in `finally`. Catch only the executable/native availability boundary categories and emit no diagnostic text.
+
+- [ ] **Step 5: Run GREEN and dependency audits**
+
+Require all probe tests to pass with zero skipped, then require zero hits for LLamaSharp/native references in Foundation and zero Model Inspection references in the probe.
+
+- [ ] **Step 6: Commit**
+
+```powershell
+git add workers/GraniteEdgeAI.HardwareInspection.LlamaCppProbe `
+  tests/UnitTests/GraniteEdgeAI.HardwareInspection.LlamaCppProbe.Tests
+git commit -m "feat(hardware-inspection): add isolated llama.cpp capability probe"
+```
+
+---
+
+### Task 6: Package the inactive production probe with exact identity
+
+**Files:**
+- Create: `IBM Granite with TurboQuant (Intel)/HardwareInspection.LlamaCppProbePackaging.targets`
+- Create: `scripts/hardware-inspection/New-LlamaCppProbeManifest.ps1`
+- Create: `scripts/hardware-inspection/Test-LlamaCppProbeManifest.ps1`
+- Modify: `IBM Granite with TurboQuant (Intel)/IBM Granite with TurboQuant (Intel).csproj`
+- Modify: `tests/UnitTests/GraniteEdgeAI.UnitTests/GraniteEdgeAI.UnitTests.csproj`
+- Create: `tests/UnitTests/GraniteEdgeAI.UnitTests/Features/HardwareInspection/LlamaCpp/LlamaCppProbePackageContractTests.cs`
+
+**Interfaces:**
+- Publishes the flat worker directory to `HardwareInspection\LlamaCppProbe` in both x64 application and x64 AppX test packages.
+- Produces `HardwareInspection\llamacpp-probe-manifest.json` with schema 1, exact tool/version/executable/hash/member inventory/machine/disposition, and exactly the two fixed commands.
+- Does not add a product locator, verifier call, provider registration, or launch path.
+
+- [ ] **Step 1: Write RED package-source and AppX inventory tests**
+
+Require the target import in both csproj files, fixed paths, Release/win-x64 publishing flags, manifest generation followed by verification, exact flat package membership, AMD64 executable, lowercase SHA-256, and absence of the probe below any other AppX directory. Require source inspection to find `UnavailableHardwareInspectionService.Instance` and no `LlamaCppCapabilityEvidenceProvider` construction in application code.
 
 - [ ] **Step 2: Run RED**
 
-Expected: worker project/types are missing.
+Expected: packaging target/scripts and AppX members are absent.
 
-- [ ] **Step 3: Implement the project and strict writer**
+- [ ] **Step 3: Implement deterministic publish and manifest scripts**
 
-Project properties include `OutputType=Exe`, `TargetFramework=net8.0-windows10.0.19041.0`, `RuntimeIdentifier=win-x64`, `PlatformTarget=x64`, nullable/analyzers/warnings-as-errors, and exact package references.
+Mirror `ModelInspection.WorkerPackaging.targets` with unique target/property names. Clean dedicated intermediate roots; restore/publish Release/win-x64/framework-dependent with apphost, no trim/ReadyToRun/symbols; reject directories and more than 64 files; sort member names ordinally; hash the executable with SHA-256; write UTF-8 without BOM and one LF; immediately verify every field, hash, member, command, and AMD64 PE before adding `Content` items.
 
-`Program.cs` creates the production native API and delegates once. `LlamaCppProbeProtocol` writes precomputed identity fields and validated capability data with `Utf8JsonWriter` to a buffer, appends byte `0x0a`, then performs one bounded stream write. The application catches exceptions only at the executable trust boundary, emits no error text, and returns the closed software exit code.
+- [ ] **Step 4: Import packaging without activation**
 
-- [ ] **Step 4: Run GREEN and dependency audits**
+Import the target for x64 in both the application and AppX test csproj. The production project gets only the real probe and manifest. The test project gets the same real probe through the same target plus test-only fixtures through Task 4/Task 7 targets.
 
-Require application tests to pass and prove:
+- [ ] **Step 5: Build and run GREEN**
 
-```powershell
-rg -n 'LLamaSharp|LLama\.Native' infrastructure/GraniteEdgeAI.HardwareInspection.Foundation
-rg -n 'ModelInspection' workers/GraniteEdgeAI.HardwareInspection.LlamaCppProbe
-```
+Build application Debug/x64 and Release/win-x64, build/install the Debug/x64 AppX tests, and run `LlamaCppProbePackageContractTests`. Require zero errors, exact single-location inventory, valid manifest, and inactive composition.
 
-Expected: zero production hits in both scans.
-
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```powershell
-git add workers/GraniteEdgeAI.HardwareInspection.LlamaCppProbe `
-  tests/UnitTests/GraniteEdgeAI.HardwareInspection.Foundation.Tests
-git commit -m "feat(hardware-inspection): add isolated llama.cpp probe"
+git add 'IBM Granite with TurboQuant (Intel)' `
+  scripts/hardware-inspection `
+  tests/UnitTests/GraniteEdgeAI.UnitTests
+git commit -m "build(hardware-inspection): package inactive llama.cpp probe"
 ```
 
 ---
 
-### Task 6: Implement native CPU capability enumeration and real child smoke
+### Task 7: Prove provider and native behavior from the signed AppX package
 
 **Files:**
-- Create: `workers/GraniteEdgeAI.HardwareInspection.LlamaCppProbe/LLamaSharpNativeCapabilityApi.cs`
-- Create: `workers/GraniteEdgeAI.HardwareInspection.LlamaCppProbe/ILlamaCppNativeInterop.cs`
-- Create: `tests/UnitTests/GraniteEdgeAI.HardwareInspection.Foundation.Tests/LlamaCppProbe/LLamaSharpNativeCapabilityApiContractTests.cs`
-- Create: `tests/UnitTests/GraniteEdgeAI.HardwareInspection.Foundation.Tests/LlamaCpp/LlamaCppCapabilityIntegrationTests.cs`
-- Modify: `tests/UnitTests/GraniteEdgeAI.HardwareInspection.Foundation.Tests/Support/VerifiedLlamaCppProbeFixture.cs`
+- Create: `tests/ProcessFixtures/GraniteEdgeAI.HardwareInspection.LlamaCppProbeFakeTool/GraniteEdgeAI.HardwareInspection.LlamaCppProbeFakeTool.csproj`
+- Create: `tests/ProcessFixtures/GraniteEdgeAI.HardwareInspection.LlamaCppProbeFakeTool/Program.cs`
+- Modify: `tests/UnitTests/GraniteEdgeAI.UnitTests/HardwareInspection.ProcessFixturePackaging.targets`
+- Create: `tests/UnitTests/GraniteEdgeAI.UnitTests/Features/HardwareInspection/LlamaCpp/LlamaCppCapabilityEvidenceProviderPackagedTests.cs`
+- Create: `tests/UnitTests/GraniteEdgeAI.UnitTests/Features/HardwareInspection/LlamaCpp/LlamaCppCapabilityRealProbePackagedTests.cs`
 
 **Interfaces:**
-- Implements `ILlamaCppNativeCapabilityApi` through LLamaSharp native configuration, `llama_backend_init`, `ggml_backend_dev_count`, `ggml_backend_dev_get`, `ggml_backend_dev_buffer_type`, `ggml_backend_buft_name`, and `llama_backend_free`.
-- Produces real provider evidence only through the child executable and existing trusted process boundary.
+- Packages the native-free adverse fixture only under `HardwareInspection\TestTools\LlamaCppProbeFake` in the AppX test package.
+- Consumes real `TrustedToolPackageVerifier`, `ExternalProcessRunner`, and `LlamaCppCapabilityEvidenceProvider` for both fake and real packaged children.
 
-- [ ] **Step 1: Write RED native lifetime/bounds tests through a lower interop seam**
+- [ ] **Step 1: Write RED adverse acceptance tests**
 
-Keep static native calls behind internal `ILlamaCppNativeInterop`. With a fake interop require:
+Create exact trusted manifests from catalog-covered package members and exercise success, identity mismatch, malformed JSON, nonzero exit, stdout/stderr overflow, timeout, cancellation, Job membership, child spawn/hang, and normal-parent-exit-with-child. Assert only evidence/closed diagnostics and descendant cleanup; never log process output.
 
-- exact CPU-only configuration and initialization before enumeration;
-- 1..16 valid devices map ordinal/label exactly;
-- zero devices, 17 devices, null device/buffer handles, null/unsafe/oversized names fail closed;
-- `FreeBackend()` is called once after every successful initialization, including enumeration failure;
-- initialization failure does not call free;
-- no native pointer or exception text enters result.
+```csharp
+LlamaCppCapabilityEvidence evidence = await provider.CaptureAsync(tool, CancellationToken.None);
+Assert.AreEqual(LlamaCppCapabilityEvidenceState.Available, evidence.State);
+Assert.AreEqual(LlamaCppBackend.Cpu, evidence.Backends.Single());
+```
 
-The mutation checks are removing `finally`, allowing a 17th device, accepting a null handle, or using an inferred label.
+- [ ] **Step 2: Implement and package the minimal adverse fixture**
 
-- [ ] **Step 2: Run native RED**
+Match only the two production commands and controlled test modes. Write explicit UTF-8/LF, use only synthetic `Fixture CPU Buffer`, include no LLamaSharp package and no network mode, and publish it with the Task 4 signed-test-only settings.
 
-Expected: production native adapter is missing.
+- [ ] **Step 3: Write the RED real-probe smoke**
 
-- [ ] **Step 3: Implement the minimal native adapter**
+Resolve only `HardwareInspection\LlamaCppProbe` under the installed package. Parse/construct its exact trusted manifest, capture through the real provider, and assert exact pinned identity, CPU backend, 1..16 contiguous safe devices, UTC capture, no supplied model, zero parent llama/ggml modules before/after, and zero persisted labels/output.
 
-Configure LLamaSharp for CPU with CUDA/Vulkan disabled before any native call. Load the published CPU library, call backend init, enumerate incrementally, convert runtime-owned strings immediately to managed text, and free backend state in `finally`. Catch only documented native availability exceptions at this executable seam and return a closed failed result; do not expose messages.
+- [ ] **Step 4: Run signed packaged GREEN three times**
 
-The executable returns code `70` only for the closed native-unavailable result. Task 3 maps that exact capability exit code to `NativeCapabilityUnavailable`; every other nonzero capability exit maps to `CapabilityProcessFailed`.
+Build/install the AppX test package and run both packaged classes three consecutive times. Require total=executed=passed, zero failed/skipped/not-executed, and no surviving descendant/resource symptom. Do not attempt a loose-output fallback if policy blocks execution.
 
-- [ ] **Step 4: Write the real child-process integration test**
+- [ ] **Step 5: Run full regressions and commit**
 
-Publish/build the probe to a controlled physical short path. Create an exact test-only trusted manifest from every flat output member and verified executable SHA-256. Capture through the real `TrustedToolPackageVerifier`, `ExternalProcessRunner`, and provider. Assert only:
-
-- state is available;
-- exact pinned identity and CPU backend;
-- 1..16 contiguous devices with safe labels;
-- UTC capture;
-- parent process has no loaded llama/ggml modules before or after;
-- no model is supplied/opened;
-- no host-specific label is printed or written to TRX attachments.
-
-- [ ] **Step 5: Run the real integration class three times**
-
-From a physical short worktree, require all three repetitions to pass with zero skipped. Inspect Task Manager/process/module evidence only transiently if diagnosing; do not persist host facts.
-
-- [ ] **Step 6: Run full foundation GREEN and commit**
+Require the full ordinary Foundation suite, probe unit suite, and authoritative packaged Hardware Inspection filter to pass. Then:
 
 ```powershell
-git add workers/GraniteEdgeAI.HardwareInspection.LlamaCppProbe `
-  tests/UnitTests/GraniteEdgeAI.HardwareInspection.Foundation.Tests
-git commit -m "feat(hardware-inspection): enumerate pinned llama.cpp capabilities"
+git add tests/ProcessFixtures/GraniteEdgeAI.HardwareInspection.LlamaCppProbeFakeTool `
+  tests/UnitTests/GraniteEdgeAI.UnitTests
+git commit -m "test(hardware-inspection): verify llama.cpp capabilities in signed AppX"
 ```
 
 ---
 
-### Task 7: Gate 5 independent review, regression, audits, and evidence closure
+### Task 8: Gate 5 independent review, regression, audits, and evidence closure
 
 **Files:**
 - Modify: `infrastructure/GraniteEdgeAI.HardwareInspection.Foundation/README.md`
@@ -455,9 +499,9 @@ git commit -m "feat(hardware-inspection): enumerate pinned llama.cpp capabilitie
 
 At the exact final code head:
 
-1. build the probe Release/win-x64 with zero errors;
-2. run all foundation tests with a fresh TRX and exact discovered count;
-3. run fake-process and real-probe integration classes three consecutive times;
+1. build the probe and application Release/win-x64 with zero errors;
+2. run all Foundation and probe unit tests with fresh TRX files and exact discovered counts;
+3. install the signed x64 AppX test package and run fake-process and real-probe classes three consecutive times;
 4. parse every TRX and require total=executed=passed with zero failed/error/timeout/aborted/inconclusive/not-executed.
 
 - [ ] **Step 2: Run repository regressions**
@@ -489,11 +533,11 @@ git diff --check
 rg -n '^(<<<<<<< |=======$|>>>>>>> )' --glob '!docs/superpowers/plans/*'
 ```
 
-Additionally inspect the exact Gate 5 commit range and Debug AppX recursively. Fail for a newly tracked/packaged probe executable/native runtime, TRX, raw output, host device label, private path, candidate/trusted/offline evidence, username, URL, model data, production registration, or unexpected package/reference change. Prove the parent test/AppX processes load no llama/ggml module.
+Additionally inspect the exact Gate 5 commit range and Debug/Release AppX inventories recursively. Require the real probe/native runtime exactly once under `HardwareInspection\LlamaCppProbe`; require adverse fixtures only in the test AppX; fail for TRX, raw output, host device labels, private paths, candidate/trusted/offline evidence, usernames, URLs, model data, production registration, or unexpected package/reference changes. Prove the parent test/AppX processes load no llama/ggml module.
 
 - [ ] **Step 4: Request independent code review**
 
-Use `superpowers:requesting-code-review` against the exact Gate 5 range. Review strict UTF-8, JSON framing/schema, evidence invariants, command inventory, phase mapping, cancellation, custody, fake isolation, native load placement/lifetime, device bounds, package identity, privacy, AppX absence, and nonclaims. Resolve every Critical/Important/Minor finding test-first and repeat affected evidence.
+Use `superpowers:requesting-code-review` against the exact Gate 5 range. Review strict UTF-8, JSON framing/schema, evidence invariants, command inventory, phase mapping, cancellation, custody, fake isolation, native load placement/lifetime, device bounds, signed package identity/inventory, production inactivity, privacy, and nonclaims. Resolve every Critical/Important/Minor finding test-first and repeat affected evidence.
 
 - [ ] **Step 5: Update evidence and boundary documentation**
 
