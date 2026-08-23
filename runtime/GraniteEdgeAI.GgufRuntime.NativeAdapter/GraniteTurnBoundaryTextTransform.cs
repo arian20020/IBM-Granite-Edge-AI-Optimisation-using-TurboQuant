@@ -6,6 +6,22 @@ namespace GraniteEdgeAI.GgufRuntime.NativeAdapter;
 internal sealed class GraniteTurnBoundaryTextTransform : ITextStreamTransform
 {
     private const int BoundaryLookbehindLength = 32;
+    private readonly int visibleTokenLimit;
+    private readonly GraniteGenerationBoundaryObserver observer;
+
+    internal GraniteTurnBoundaryTextTransform()
+        : this(int.MaxValue, new GraniteGenerationBoundaryObserver())
+    {
+    }
+
+    internal GraniteTurnBoundaryTextTransform(
+        int visibleTokenLimit,
+        GraniteGenerationBoundaryObserver observer)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(visibleTokenLimit);
+        this.visibleTokenLimit = visibleTokenLimit;
+        this.observer = observer ?? throw new ArgumentNullException(nameof(observer));
+    }
 
     public async IAsyncEnumerable<string> TransformAsync(
         IAsyncEnumerable<string> tokens)
@@ -13,10 +29,33 @@ internal sealed class GraniteTurnBoundaryTextTransform : ITextStreamTransform
         ArgumentNullException.ThrowIfNull(tokens);
         var text = new StringBuilder();
         int emitted = 0;
+        int sourceTokenCount = 0;
         bool prefixResolved = false;
 
         await foreach (string token in tokens.ConfigureAwait(false))
         {
+            sourceTokenCount++;
+            if (sourceTokenCount > visibleTokenLimit)
+            {
+                observer.Complete(GgufAdapterCompletionReason.Length);
+                prefixResolved = ResolveLeadingMe(text, prefixResolved, isFinal: true);
+                if (prefixResolved)
+                {
+                    BoundaryAnalysis probeAnalysis = Analyze(text);
+                    int probeEnd = probeAnalysis.BoundaryOffset >= 0
+                        ? probeAnalysis.BoundaryOffset
+                        : probeAnalysis.PendingEmptyFenceOffset >= 0
+                            ? probeAnalysis.PendingEmptyFenceOffset
+                            : text.Length;
+                    if (probeEnd > emitted)
+                    {
+                        yield return text.ToString(emitted, probeEnd - emitted);
+                    }
+                }
+
+                yield break;
+            }
+
             text.Append(token);
             prefixResolved = ResolveLeadingMe(
                 text,
@@ -39,10 +78,12 @@ internal sealed class GraniteTurnBoundaryTextTransform : ITextStreamTransform
 
             if (analysis.BoundaryOffset >= 0)
             {
+                observer.Complete(GgufAdapterCompletionReason.Stop);
                 yield break;
             }
         }
 
+        observer.Complete(GgufAdapterCompletionReason.Stop);
         prefixResolved = ResolveLeadingMe(text, prefixResolved, isFinal: true);
         if (!prefixResolved)
         {
@@ -59,7 +100,8 @@ internal sealed class GraniteTurnBoundaryTextTransform : ITextStreamTransform
         }
     }
 
-    public ITextStreamTransform Clone() => new GraniteTurnBoundaryTextTransform();
+    public ITextStreamTransform Clone() =>
+        new GraniteTurnBoundaryTextTransform(visibleTokenLimit, observer);
 
     private static bool ResolveLeadingMe(
         StringBuilder text,

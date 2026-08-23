@@ -83,6 +83,56 @@ public sealed class GraniteTurnBoundaryTextTransformTests
             await CollectAsync(clone.TransformAsync(Chunks("Me: Hello"))));
     }
 
+    [TestMethod]
+    public async Task SourceEndBeforeProbeReportsStop()
+    {
+        var observer = new GraniteGenerationBoundaryObserver();
+        var transform = new GraniteTurnBoundaryTextTransform(2, observer);
+
+        Assert.AreEqual(
+            "one two",
+            await CollectAsync(transform.TransformAsync(Chunks("one", " two"))));
+        Assert.AreEqual(GgufAdapterCompletionReason.Stop, observer.Reason);
+    }
+
+    [TestMethod]
+    public async Task ProbeTokenIsSuppressedAndReportsLength()
+    {
+        var observer = new GraniteGenerationBoundaryObserver();
+        var transform = new GraniteTurnBoundaryTextTransform(2, observer);
+
+        Assert.AreEqual(
+            "one two",
+            await CollectAsync(transform.TransformAsync(
+                Chunks("one", " two", " hidden"))));
+        Assert.AreEqual(GgufAdapterCompletionReason.Length, observer.Reason);
+    }
+
+    [TestMethod]
+    public async Task CloneSharesCompletionObserver()
+    {
+        var observer = new GraniteGenerationBoundaryObserver();
+        var original = new GraniteTurnBoundaryTextTransform(1, observer);
+        LLama.Abstractions.ITextStreamTransform clone = original.Clone();
+
+        Assert.AreEqual(
+            "visible",
+            await CollectAsync(clone.TransformAsync(
+                Chunks("visible", " hidden"))));
+        Assert.AreEqual(GgufAdapterCompletionReason.Length, observer.Reason);
+    }
+
+    [TestMethod]
+    public void ResetClearsThePreviousTurnsReason()
+    {
+        var observer = new GraniteGenerationBoundaryObserver();
+        observer.Complete(GgufAdapterCompletionReason.Length);
+
+        observer.Reset();
+
+        Assert.IsNull(observer.Reason);
+    }
+
     private static Task<string> TransformAsync(params string[] chunks) =>
         CollectAsync(new GraniteTurnBoundaryTextTransform()
             .TransformAsync(Chunks(chunks)));
