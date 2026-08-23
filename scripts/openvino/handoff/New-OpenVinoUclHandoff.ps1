@@ -308,7 +308,7 @@ try {
     @(& git bundle verify $gitBundlePath 2>&1) | Out-Null
     if ($LASTEXITCODE -ne 0) { throw 'git-bundle-verify-failed' }
     @(& git -C $repository archive --format=zip `
-        --output=$sourceSnapshotPath $baselineImplementationCommit 2>&1) | Out-Null
+        --output $sourceSnapshotPath $baselineImplementationCommit 2>&1) | Out-Null
     if ($LASTEXITCODE -ne 0) { throw 'git-archive-failed' }
 
     $contextSources = [ordered]@{

@@ -154,6 +154,16 @@ public sealed class HandoffBundleContractTests
         }
     }
 
+    [TestMethod]
+    public void BuilderPassesGitArchiveOutputAsASeparateNativeArgument()
+    {
+        string builder = File.ReadAllText(RepoPath(
+            "scripts/openvino/handoff/New-OpenVinoUclHandoff.ps1"));
+        StringAssert.Contains(builder, "--output $sourceSnapshotPath");
+        Assert.IsFalse(builder.Contains("--output=$sourceSnapshotPath",
+            StringComparison.Ordinal));
+    }
+
     private static string RepoPath(string relative) => Path.Combine(
         FindRepositoryRoot(), relative.Replace('/', Path.DirectorySeparatorChar));
 
