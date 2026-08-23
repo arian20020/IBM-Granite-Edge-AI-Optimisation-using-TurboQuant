@@ -26,6 +26,11 @@ defaults:
     working-directory: D:\s
 
 env:
+  # actions/checkout inherits these process-scoped settings before it writes
+  # the full cleanup-inventory tree on Windows.
+  GIT_CONFIG_COUNT: 1
+  GIT_CONFIG_KEY_0: core.longpaths
+  GIT_CONFIG_VALUE_0: true
   APP_PROJECT: 'IBM Granite with TurboQuant (Intel)/IBM Granite with TurboQuant (Intel).csproj'
   TEST_PROJECT: 'tests/UnitTests/GraniteEdgeAI.UnitTests/GraniteEdgeAI.UnitTests.csproj'
   CONTRACT_TEST_PROJECT: 'tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/GraniteEdgeAI.ModelInspection.Contracts.Tests.csproj'

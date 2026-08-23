@@ -172,6 +172,16 @@ public sealed class BuildWorkflowContractTests
     public void BuildWorkflowChecksOutCleanupInventoryInputs()
     {
         string workflow = ReadWorkflow();
+        foreach (string longPathBinding in new[]
+                 {
+                     "GIT_CONFIG_COUNT: 1",
+                     "GIT_CONFIG_KEY_0: core.longpaths",
+                     "GIT_CONFIG_VALUE_0: true"
+                 })
+        {
+            StringAssert.Contains(workflow, longPathBinding);
+        }
+
         string checkout = ExtractWorkflowStep(
             workflow,
             "Check out required build inputs");
