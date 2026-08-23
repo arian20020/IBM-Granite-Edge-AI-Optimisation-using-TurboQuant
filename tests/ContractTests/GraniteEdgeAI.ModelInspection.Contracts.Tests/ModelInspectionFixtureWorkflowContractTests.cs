@@ -30,9 +30,9 @@ public sealed class ModelInspectionFixtureWorkflowContractTests
         "Check out required build inputs";
 
     private const string HostedReleaseStepSha256 =
-        "F0B831F9748896AF341F62DD776F9A99293F97724C8B1BF18F6D79C95A0F8DE4";
+        "B2AB914BFEEAE6C7FBC899F1EF2E8031451843D3889C3709ABADA29DF2A6B812";
 
-    private const int HostedReleaseExpectedTotal = 717;
+    private const int HostedReleaseExpectedTotal = 799;
 
     // This sentinel stays invalid evidence for mutation-baseline validation.
     private const int UnmeasuredTrxCount = -1;
@@ -129,8 +129,8 @@ public sealed class ModelInspectionFixtureWorkflowContractTests
                 "FixtureCategory = 220",
                 "FixtureCategory = 219"),
             ("hosted Release measured total",
-                "HostedRelease = 717",
-                "HostedRelease = 716")
+                "HostedRelease = 799",
+                "HostedRelease = 798")
         ];
         foreach ((string name, string original, string replacement) in gateMutations)
         {
@@ -287,8 +287,8 @@ public sealed class ModelInspectionFixtureWorkflowContractTests
                 "$minimumExpectedTests = 685",
                 StringComparison.Ordinal)),
             ("measured Release total", workflow.Replace(
-                "$measuredExpectedTests = 717",
-                "$measuredExpectedTests = 716",
+                "$measuredExpectedTests = 799",
+                "$measuredExpectedTests = 798",
                 StringComparison.Ordinal)),
             ("duplicate campaign step", workflow + "\n      " +
                 ExtractWorkflowStep(workflow, CampaignStepName)),
@@ -931,7 +931,7 @@ public sealed class ModelInspectionFixtureWorkflowContractTests
             "InteractionLifetime = 19",
             "FixtureCategory = 220",
             "FocusedPolish = 322",
-            "HostedRelease = 717",
+            "HostedRelease = 799",
             "N001 = 1",
             "Contracts = 357"
         ];

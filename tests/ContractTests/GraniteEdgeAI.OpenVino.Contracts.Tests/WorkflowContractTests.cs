@@ -382,7 +382,10 @@ public sealed class WorkflowContractTests
             Step(steps, "Run managed client and protected process gates"),
             "run");
         StringAssert.Contains(managed, "GraniteEdgeAI.OpenVino.ParentExitFixture.csproj");
-        StringAssert.Contains(managed, "--filter TestCategory!=TurboQuantNative");
+        StringAssert.Contains(
+            managed,
+            "--filter \"TestCategory!=TurboQuantNative&FullyQualifiedName!~" +
+            "AuthorizedPhysicalIntelGpuCompilesAndGeneratesOnExactDevice\"");
         StringAssert.Contains(managed, "dotnet build $processProject");
         StringAssert.Contains(managed, "--no-build");
         StringAssert.Contains(managed, "OPENVINO_PARENT_EXIT_FIXTURE_ASSEMBLY");

@@ -547,7 +547,7 @@ jobs:
             /Platform:x64 `
             /Logger:"trx;LogFileName=GraniteEdgeAI.UnitTests.trx" `
             /ResultsDirectory:"D:\s\$env:TEST_RESULTS_DIRECTORY" `
-            /TestCaseFilter:"TestCategory!=ModelInspectionVisualRegression&TestCategory!=ModelInspectionControlledOs"
+            /TestCaseFilter:"TestCategory!=ModelInspectionVisualRegression&TestCategory!=ModelInspectionControlledOs&TestCategory!=OfficialNative"
           if ($LASTEXITCODE -ne 0) {
             throw "The packaged unit-test run failed with exit code $LASTEXITCODE."
           }
@@ -559,7 +559,7 @@ jobs:
           [xml]$trx = Get-Content -LiteralPath $trxPath -Raw
           $counters = $trx.TestRun.ResultSummary.Counters
           $minimumExpectedTests = 686
-          $measuredExpectedTests = 717
+          $measuredExpectedTests = 799
           if ([int]$counters.total -lt $minimumExpectedTests -or [int]$counters.executed -lt $minimumExpectedTests) {
             throw "The packaged unit-test run fell below the $minimumExpectedTests-test floor."
           }

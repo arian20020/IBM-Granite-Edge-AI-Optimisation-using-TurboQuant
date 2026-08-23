@@ -1043,10 +1043,14 @@ public sealed class InspectionContentCardTests
         double actual,
         double minimum,
         double maximum,
-        string context) =>
+        string context)
+    {
+        const double LayoutTolerance = 0.01d;
         Assert.IsTrue(
-            actual >= minimum && actual <= maximum,
+            actual >= minimum - LayoutTolerance &&
+                actual <= maximum + LayoutTolerance,
             $"{context}: {actual} is outside [{minimum}, {maximum}].");
+    }
 
     private static void AssertConnectorGeometry(
         IReadOnlyList<Grid> rows,

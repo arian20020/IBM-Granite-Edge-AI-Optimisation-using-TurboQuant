@@ -15,7 +15,7 @@ public sealed class ModelInspectionRenderHarnessTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
-    public async Task RenderTargetBitmap_Visible1440By1024ElementReturnsExpectedDimensions()
+    public async Task RenderTargetBitmap_Visible1000By700ElementReturnsExpectedDimensions()
     {
         var root = new Grid
         {
@@ -32,20 +32,25 @@ public sealed class ModelInspectionRenderHarnessTests
 
         await using var host = await WinUiRenderHost.ShowAsync(
             root,
-            width: 1440,
-            height: 1024);
+            width: 1000,
+            height: 700);
 
         RenderedFrame frame = await host.CaptureAsync();
+        double rasterizationScale = root.XamlRoot.RasterizationScale;
         string attachment = await frame.SavePngAsync(
             "model-inspection-render-harness.png");
         TestContext.AddResultFile(attachment);
 
-        Assert.AreEqual(1440, frame.Width);
-        Assert.AreEqual(1024, frame.Height);
-        Assert.AreEqual(1440d, root.ActualWidth, 1d);
-        Assert.AreEqual(1024d, root.ActualHeight, 1d);
-        Assert.AreEqual(1440d, root.XamlRoot.Size.Width, 1d);
-        Assert.AreEqual(1024d, root.XamlRoot.Size.Height, 1d);
+        Assert.AreEqual(
+            (int)Math.Round(1000d * rasterizationScale),
+            frame.Width);
+        Assert.AreEqual(
+            (int)Math.Round(700d * rasterizationScale),
+            frame.Height);
+        Assert.AreEqual(1000d, root.ActualWidth, 1d);
+        Assert.AreEqual(700d, root.ActualHeight, 1d);
+        Assert.AreEqual(1000d, root.XamlRoot.Size.Width, 1d);
+        Assert.AreEqual(700d, root.XamlRoot.Size.Height, 1d);
         Assert.IsTrue(File.Exists(attachment));
         Assert.IsGreaterThan(0L, new FileInfo(attachment).Length);
     }

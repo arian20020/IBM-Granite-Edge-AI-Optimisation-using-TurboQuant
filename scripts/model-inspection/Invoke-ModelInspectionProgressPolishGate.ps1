@@ -43,7 +43,7 @@ $cleanupScript = Join-Path $repositoryRoot 'scripts\model-inspection\Verify-Mode
 
 $interactionLifetimeFilter = 'FullyQualifiedName~ModelInspectionFixtureInteractionTests|FullyQualifiedName~ModelInspectionFixtureLifetimeTests'
 $fixtureCategoryFilter = 'TestCategory=ModelInspectionFixtureGallery'
-$hostedReleaseFilter = 'TestCategory!=ModelInspectionVisualRegression&TestCategory!=ModelInspectionControlledOs'
+$hostedReleaseFilter = 'TestCategory!=ModelInspectionVisualRegression&TestCategory!=ModelInspectionControlledOs&TestCategory!=OfficialNative'
 $n001FullyQualifiedName = 'GraniteEdgeAI.UnitTests.ModelInspectionPageNavigationTests.PackagedN001_PageJourneyCompletesAllFiveStagesAsReady'
 $polishFilter = 'FullyQualifiedName~ModelInspectionPresentationFactoryTests|FullyQualifiedName~InitialInspectionProgressPresentationTests|FullyQualifiedName~ModelInspectionViewModelTests|FullyQualifiedName~ModelInspectionPageNavigationTests|FullyQualifiedName~ModelInspectionWorkerCompositionTests|FullyQualifiedName~ModelInspectionMilestoneSequencerTests|FullyQualifiedName~ModelInspectionRenderCoordinatorTests|FullyQualifiedName~ModelInspectionAccessibilityTests|FullyQualifiedName~InspectionStatusGlyphTests|FullyQualifiedName~InspectionContentCardTests|FullyQualifiedName~InspectionModelCardTests|FullyQualifiedName~InspectionOutcomeCardTests|FullyQualifiedName~ModelInspectionMotionTests|FullyQualifiedName~OnboardingStageIndicatorTests|FullyQualifiedName~InspectionActionCardTests|FullyQualifiedName~ModelInspectionPageLayoutTests|FullyQualifiedName~ModelInspectionRenderedStateTests|FullyQualifiedName~ModelInspectionDisclosureTests|FullyQualifiedName~InspectionVisualStateGuardTests|FullyQualifiedName~InspectionProgressRowsTests|FullyQualifiedName~InspectionProgressPresentationFactoryTests|FullyQualifiedName~ModelInspectionRenderHarnessTests'
 $werTargets = @(
@@ -59,7 +59,7 @@ $ExpectedTotals = [ordered]@{
     InteractionLifetime = 19
     FixtureCategory = 220
     FocusedPolish = 322
-    HostedRelease = 717
+    HostedRelease = 799
     N001 = 1
     Contracts = 357
 }

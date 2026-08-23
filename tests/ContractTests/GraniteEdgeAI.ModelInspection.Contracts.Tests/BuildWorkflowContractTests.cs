@@ -15,13 +15,13 @@ public sealed class BuildWorkflowContractTests
 
     private const int HostedPackagedFloor = 686;
 
-    private const int HostedPackagedExpectedTotal = 717;
+    private const int HostedPackagedExpectedTotal = 799;
 
     private const string HostedPackagedFilter =
-        "/TestCaseFilter:\"TestCategory!=ModelInspectionVisualRegression&TestCategory!=ModelInspectionControlledOs\"";
+        "/TestCaseFilter:\"TestCategory!=ModelInspectionVisualRegression&TestCategory!=ModelInspectionControlledOs&TestCategory!=OfficialNative\"";
 
     private const string HostedPackagedStepSha256 =
-        "F0B831F9748896AF341F62DD776F9A99293F97724C8B1BF18F6D79C95A0F8DE4";
+        "B2AB914BFEEAE6C7FBC899F1EF2E8031451843D3889C3709ABADA29DF2A6B812";
 
     private const string ControlledWorkflowSha256 =
         "5A58BE19B9B7F0A6E56ECF6DA136AE138AC1F74A7FDEFAA72BEFC58B353CFEC7";
@@ -377,7 +377,7 @@ public sealed class BuildWorkflowContractTests
             "The permanent workflow must protect the current packaged application floor.");
         StringAssert.Contains(
             workflow,
-            "$measuredExpectedTests = 717",
+            "$measuredExpectedTests = 799",
             "The permanent workflow must pin the measured hosted-equivalent total.");
         string[] protectedApplicationClassFragments =
         [
@@ -589,8 +589,8 @@ public sealed class BuildWorkflowContractTests
                 "$minimumExpectedTests = 685",
                 StringComparison.Ordinal),
             workflow.Replace(
-                "$measuredExpectedTests = 717",
-                "$measuredExpectedTests = 716",
+                "$measuredExpectedTests = 799",
+                "$measuredExpectedTests = 798",
                 StringComparison.Ordinal),
             workflow.Replace(
                 "'GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation.ModelInspectionAssetContractTests' = 3",
@@ -610,8 +610,8 @@ public sealed class BuildWorkflowContractTests
                 "$minimumExpectedTests = 686\n          $minimumExpectedTests = 1",
                 StringComparison.Ordinal),
             workflow.Replace(
-                "$measuredExpectedTests = 717",
-                "$measuredExpectedTests = 717\n          $measuredExpectedTests = 1",
+                "$measuredExpectedTests = 799",
+                "$measuredExpectedTests = 799\n          $measuredExpectedTests = 1",
                 StringComparison.Ordinal),
             workflow.Replace(
                 "if ([int]$counters.total -ne $measuredExpectedTests -or [int]$counters.executed -ne $measuredExpectedTests)",
@@ -1667,8 +1667,8 @@ public sealed class BuildWorkflowContractTests
             "Expected exactly 67 passing worker engine executions.",
             "FullyQualifiedName~ModelInspectionFixtureInteractionTests|FullyQualifiedName~ModelInspectionFixtureLifetimeTests",
             "TestCategory=ModelInspectionFixtureGallery",
-            "TestCategory!=ModelInspectionVisualRegression&TestCategory!=ModelInspectionControlledOs",
-            "HostedRelease = 717",
+            "TestCategory!=ModelInspectionVisualRegression&TestCategory!=ModelInspectionControlledOs&TestCategory!=OfficialNative",
+            "HostedRelease = 799",
             "GraniteEdgeAI.UnitTests.ModelInspectionPageNavigationTests.PackagedN001_PageJourneyCompletesAllFiveStagesAsReady",
             "Test-ModelInspectionFixtureReleaseIsolation.ps1",
             "TestResults\\ModelInspectionFixtures\\ReleaseIsolation",

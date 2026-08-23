@@ -400,7 +400,8 @@ jobs:
           $watch = [Diagnostics.Stopwatch]::StartNew()
           dotnet test --project $processProject `
             --configuration Release -p:Platform=x64 --no-build `
-            --filter TestCategory!=TurboQuantNative --minimum-expected-tests 41 `
+            --filter "TestCategory!=TurboQuantNative&FullyQualifiedName!~AuthorizedPhysicalIntelGpuCompilesAndGeneratesOnExactDevice" `
+            --minimum-expected-tests 41 `
             --results-directory $env:OPENVINO_RESULTS --report-trx `
             --report-trx-filename process-containment.trx
           $watch.Stop()

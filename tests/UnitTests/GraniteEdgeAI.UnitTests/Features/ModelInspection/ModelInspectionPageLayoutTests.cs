@@ -14,7 +14,7 @@ public sealed class ModelInspectionPageLayoutTests
 {
     [UITestMethod]
     [TestCategory("WinUI")]
-    public async Task Desktop1440_UsesApprovedCenteredGeometry()
+    public async Task Desktop1000_UsesApprovedCenteredGeometry()
     {
         var page = new ModelInspectionPage();
         ScrollViewer scrollViewer = Assert.IsInstanceOfType<ScrollViewer>(
@@ -37,15 +37,15 @@ public sealed class ModelInspectionPageLayoutTests
                 window,
                 page,
                 contentHost,
-                effectiveWidth: 1000,
-                effectiveHeight: 720,
+                effectiveWidth: 888,
+                effectiveHeight: 700,
                 expectedInset: 24);
             await ResizeClientAndWaitAsync(
                 window,
                 page,
                 contentHost,
-                effectiveWidth: 1440,
-                effectiveHeight: 1024,
+                effectiveWidth: 1000,
+                effectiveHeight: 700,
                 expectedInset: 24);
             TextBlock title = Descendants(page)
                 .OfType<TextBlock>()
@@ -60,7 +60,7 @@ public sealed class ModelInspectionPageLayoutTests
                 .TransformToVisual(page)
                 .TransformPoint(new Point());
             Assert.AreEqual(840d, contentHost.ActualWidth, 0.01, "desktop host width");
-            Assert.AreEqual(300d, contentOrigin.X, 0.01, "desktop host left edge");
+            Assert.AreEqual(80d, contentOrigin.X, 0.01, "desktop host left edge");
             Assert.AreEqual(32d, title.FontSize, 0.01, "page title size");
             Assert.AreEqual(14d, subtitle.FontSize, 0.01, "page subtitle size");
             Assert.AreEqual(TextAlignment.Center, title.TextAlignment);
@@ -135,7 +135,7 @@ public sealed class ModelInspectionPageLayoutTests
                     page,
                     contentHost,
                     endpoint.Width,
-                    effectiveHeight: 720,
+                    effectiveHeight: 700,
                     expectedInset: endpoint.Inset);
 
                 Point origin = contentHost

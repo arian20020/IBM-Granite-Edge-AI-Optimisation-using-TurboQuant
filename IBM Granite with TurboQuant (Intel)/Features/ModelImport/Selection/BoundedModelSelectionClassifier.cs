@@ -49,9 +49,16 @@ internal sealed class BoundedModelSelectionClassifier : IModelSelectionClassifie
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeout.Token);
         CancellationToken token = linked.Token;
         var stopwatch = Stopwatch.StartNew();
-        Task<ModelSelectionResult> worker = Task.Run(
-            () => ClassifyCoreAsync(operationId, input, cancellationToken, token, stopwatch),
-            CancellationToken.None);
+        Task<ModelSelectionResult> worker = Task.Factory.StartNew(
+            () => ClassifyCoreAsync(
+                operationId,
+                input,
+                cancellationToken,
+                token,
+                stopwatch),
+            CancellationToken.None,
+            TaskCreationOptions.LongRunning,
+            TaskScheduler.Default).Unwrap();
 
         try
         {
