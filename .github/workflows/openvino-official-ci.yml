@@ -127,8 +127,6 @@ jobs:
             OPENVINO_CONVERTER_STAGE = Join-Path $root 'openvino-converter-stage'
             OPENVINO_MEASUREMENTS = Join-Path $root 'openvino-official-results/measurements.json'
             OPENVINO_NATIVE_TEMP = $nativeTemp
-            TEMP = $nativeTemp
-            TMP = $nativeTemp
           }
           foreach ($entry in $paths.GetEnumerator()) {
             Add-Content -LiteralPath $env:GITHUB_ENV -Value "$($entry.Key)=$($entry.Value)" -Encoding utf8
@@ -210,6 +208,8 @@ jobs:
       - name: Build and test independent Release x64 native closure A
         timeout-minutes: 35
         run: |
+          $env:TEMP = $env:OPENVINO_NATIVE_TEMP
+          $env:TMP = $env:OPENVINO_NATIVE_TEMP
           & powershell.exe -NoLogo -NoProfile -NonInteractive `
             -ExecutionPolicy Bypass -File scripts/openvino/Build-OpenVinoOfficialWorker.ps1 `
             -OfficialArchiveDirectory $env:OPENVINO_ARCHIVES `
@@ -220,6 +220,8 @@ jobs:
       - name: Build and test independent Release x64 native closure B
         timeout-minutes: 35
         run: |
+          $env:TEMP = $env:OPENVINO_NATIVE_TEMP
+          $env:TMP = $env:OPENVINO_NATIVE_TEMP
           & powershell.exe -NoLogo -NoProfile -NonInteractive `
             -ExecutionPolicy Bypass -File scripts/openvino/Build-OpenVinoOfficialWorker.ps1 `
             -OfficialArchiveDirectory $env:OPENVINO_ARCHIVES `
@@ -266,6 +268,8 @@ jobs:
       - name: Record and validate native unit count
         timeout-minutes: 8
         run: |
+          $env:TEMP = $env:OPENVINO_NATIVE_TEMP
+          $env:TMP = $env:OPENVINO_NATIVE_TEMP
           $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
           $installation = & $vswhere -latest -products * `
             -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
@@ -325,6 +329,8 @@ jobs:
           OPENVINO_OFFICIAL_WORKER_STAGE_B: ${{ env.OPENVINO_STAGE_B }}
           GRANITE_OPENVINO_CONVERTER_STAGE: ${{ env.OPENVINO_CONVERTER_STAGE }}
         run: |
+          $env:TEMP = $env:OPENVINO_NATIVE_TEMP
+          $env:TMP = $env:OPENVINO_NATIVE_TEMP
           dotnet test --project tests/UnitTests/GraniteEdgeAI.OpenVino.WorkerClient.Tests/GraniteEdgeAI.OpenVino.WorkerClient.Tests.csproj `
             --configuration Release -p:Platform=x64 --minimum-expected-tests 13 `
             --results-directory $env:OPENVINO_RESULTS --report-trx `
@@ -347,6 +353,8 @@ jobs:
           OPENVINO_OFFICIAL_WORKER_STAGE_B: ${{ env.OPENVINO_STAGE_B }}
           GRANITE_OPENVINO_CONVERTER_STAGE: ${{ env.OPENVINO_CONVERTER_STAGE }}
         run: |
+          $env:TEMP = $env:OPENVINO_NATIVE_TEMP
+          $env:TMP = $env:OPENVINO_NATIVE_TEMP
           dotnet test --project tests/IntegrationTests/GraniteEdgeAI.OpenVino.WorkerProcess.Tests/GraniteEdgeAI.OpenVino.WorkerProcess.Tests.csproj `
             --configuration Release -p:Platform=x64 `
             --filter TestCategory=StableRouteAcceptance --minimum-expected-tests 12 `

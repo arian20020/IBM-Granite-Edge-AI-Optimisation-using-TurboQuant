@@ -316,12 +316,28 @@ public sealed class WorkflowContractTests
         foreach (string required in new[]
         {
             "$env:SystemRoot", "$env:GITHUB_RUN_ID", "$env:GITHUB_RUN_ATTEMPT",
-            "OPENVINO_NATIVE_TEMP", "TEMP = $nativeTemp", "TMP = $nativeTemp",
+            "OPENVINO_NATIVE_TEMP",
             ":openvino-stream-probe", "-Stream *",
             "$streams -notcontains 'openvino-stream-probe'"
         })
         {
             StringAssert.Contains(bind, required);
+        }
+
+        Assert.IsFalse(Regex.IsMatch(bind, @"(?m)^\s*TEMP\s*="));
+        Assert.IsFalse(Regex.IsMatch(bind, @"(?m)^\s*TMP\s*="));
+        foreach (string stepName in new[]
+        {
+            "Build and test independent Release x64 native closure A",
+            "Build and test independent Release x64 native closure B",
+            "Record and validate native unit count",
+            "Run managed client and protected process gates",
+            "Run the closed stable-route acceptance filter"
+        })
+        {
+            string run = Scalar(Step(steps, stepName), "run");
+            StringAssert.Contains(run, "$env:TEMP = $env:OPENVINO_NATIVE_TEMP", stepName);
+            StringAssert.Contains(run, "$env:TMP = $env:OPENVINO_NATIVE_TEMP", stepName);
         }
 
         string cleanup = Scalar(
