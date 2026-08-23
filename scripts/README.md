@@ -16,6 +16,17 @@ Store repeatable build, test, benchmark, evidence-validation and release scripts
   and the five-property JSON plus fixed Markdown summaries. Detailed logs and raw
   TRX stay local; no hardware, candidate, trusted-Intel, offline, or Gate 1
   evidence is produced.
+- [`hardware-inspection/New-LlamaCppProbeManifest.ps1`](hardware-inspection/New-LlamaCppProbeManifest.ps1)
+  creates the detached canonical inventory and SHA-256 manifest for the inactive
+  packaged llama.cpp capability probe.
+- [`hardware-inspection/Test-LlamaCppProbeManifest.ps1`](hardware-inspection/Test-LlamaCppProbeManifest.ps1)
+  verifies the probe's flat AMD64 package, exact member inventory, canonical
+  manifest, and executable hash without launching it.
+- [`hardware-inspection/Invoke-SignedHardwareInspectionAcceptance.ps1`](hardware-inspection/Invoke-SignedHardwareInspectionAcceptance.ps1)
+  prepares and normally installs the closed signed test MSIX, activates only its
+  registered AUMID acceptance command, validates the bounded result, and removes
+  invocation-owned package and temporary state. It does not activate production
+  Hardware Inspection or weaken Smart App Control.
 - The operator boundary and verification commands are in
   [`Hardware-Inspection-Intel-Runner-Stage-0-Runbook.md`](../docs/testing/runbooks/Hardware-Inspection-Intel-Runner-Stage-0-Runbook.md).
 - The separately authorised Stage A stopped-runner, one-time registration,
