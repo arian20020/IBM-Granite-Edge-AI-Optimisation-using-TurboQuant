@@ -53,7 +53,7 @@ The underlying LLamaSharp inference call receives `MaximumGeneratedTokens + 1`. 
 
 The probe token is never emitted, persisted, copied, or rendered. The checked addition must reject an impossible integer overflow during configuration validation. This strategy avoids retokenizing decoded text, whose token boundaries may differ from the originally sampled sequence.
 
-The completion observer must be shared by cloned output transforms because `ChatSession` may clone a configured transform.
+The completion observer must be shared by cloned output transforms because `ChatSession` may clone a configured transform. Reset it immediately before each generation call so a terminal reason from one turn cannot contaminate the next turn; the worker already serializes prompts within a session, so reset and observation cannot overlap.
 
 ## Protocol and data flow
 
