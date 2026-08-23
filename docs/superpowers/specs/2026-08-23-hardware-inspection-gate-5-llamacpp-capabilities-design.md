@@ -1,7 +1,9 @@
 # Hardware Inspection Gate 5 llama.cpp Capability Design
 
 **Status:** Revised signed-package/AUMID acceptance boundary approved on 2026-08-23
-**Scope:** Hardware Inspection Gate 5 only  
+
+**Scope:** Hardware Inspection Gate 5 only
+
 **Depends on:** Gate 4 closure `a351a7d`, ADR-001, ADR-003, and the Hardware Inspection trusted-tool/process foundation
 
 ## 1. Purpose
