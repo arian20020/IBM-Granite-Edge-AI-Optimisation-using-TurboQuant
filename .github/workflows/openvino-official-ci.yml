@@ -77,6 +77,9 @@ defaults:
     shell: pwsh
 
 env:
+  GIT_CONFIG_COUNT: '1'
+  GIT_CONFIG_KEY_0: core.longpaths
+  GIT_CONFIG_VALUE_0: 'true'
   OPENVINO_EVIDENCE_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
   OPENVINO_EVIDENCE_FILE: artifacts/openvino/evidence/cpu.json
 
@@ -109,10 +112,6 @@ jobs:
 
       - name: Check out the exact evidence commit
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
-        env:
-          GIT_CONFIG_COUNT: '1'
-          GIT_CONFIG_KEY_0: core.longpaths
-          GIT_CONFIG_VALUE_0: 'true'
         with:
           ref: ${{ env.OPENVINO_EVIDENCE_COMMIT }}
           fetch-depth: 1

@@ -287,7 +287,7 @@ public sealed class WorkflowContractTests
     }
 
     [TestMethod]
-    public void OpenVinoCheckoutsEnableLongPathsWithoutPersistentGitMutation()
+    public void OpenVinoWorkflowsEnableLongPathsWithoutPersistentGitMutation()
     {
         foreach (string path in new[]
         {
@@ -297,16 +297,7 @@ public sealed class WorkflowContractTests
         })
         {
             YamlMappingNode root = ParseWorkflow(File.ReadAllText(RepoPath(path)));
-            YamlMappingNode job = Mapping(Mapping(root, "jobs"),
-                path.EndsWith("openvino-official-ci.yml", StringComparison.Ordinal)
-                    ? "official-cpu"
-                    : path.EndsWith("openvino-ucl-intel.yml", StringComparison.Ordinal)
-                        ? "trusted-intel-cpu"
-                        : "trusted-turboquant-cpu");
-            YamlMappingNode checkout = StepUsing(
-                Sequence(job, "steps").Select(AsMapping),
-                $"actions/checkout@{CheckoutSha}");
-            YamlMappingNode environment = Mapping(checkout, "env");
+            YamlMappingNode environment = Mapping(root, "env");
 
             Assert.AreEqual("1", Scalar(environment, "GIT_CONFIG_COUNT"), path);
             Assert.AreEqual("core.longpaths", Scalar(environment, "GIT_CONFIG_KEY_0"), path);
