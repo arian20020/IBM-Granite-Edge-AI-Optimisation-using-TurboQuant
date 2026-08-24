@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using GraniteEdgeAI.Features.ModelOptimization.Presentation;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
@@ -40,7 +39,7 @@ public sealed partial class OptimizationProgressCard : UserControl
         CancelButton.Visibility = presentation.CanCancel ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    private static Grid CreateRow(OptimizationProgressRow progress)
+    private Grid CreateRow(OptimizationProgressRow progress)
     {
         Grid row = new()
         {
@@ -48,7 +47,7 @@ public sealed partial class OptimizationProgressCard : UserControl
             Padding = new Thickness(12, 8, 12, 8),
             ColumnSpacing = 12,
             VerticalAlignment = VerticalAlignment.Stretch,
-            Background = (Brush)Application.Current.Resources["CardBackgroundFillColorDefaultBrush"],
+            Background = (Brush)Resources["OptimizationSurfaceSubtleBrush"],
             CornerRadius = new CornerRadius(10),
             Tag = "progress-row"
         };
@@ -70,14 +69,22 @@ public sealed partial class OptimizationProgressCard : UserControl
             VerticalAlignment = VerticalAlignment.Center,
             Spacing = 2
         };
-        copy.Children.Add(new TextBlock { Text = progress.Title, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
+        copy.Children.Add(new TextBlock
+        {
+            Text = progress.Title,
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            TextWrapping = TextWrapping.WrapWholeWords
+        });
         copy.Children.Add(new TextBlock { Text = progress.Description, TextWrapping = TextWrapping.WrapWholeWords });
         Grid.SetColumn(copy, 1);
 
         TextBlock status = new()
         {
             Text = Status(progress.Status),
+            MaxWidth = 88,
             HorizontalAlignment = HorizontalAlignment.Center,
+            TextAlignment = TextAlignment.Center,
+            TextWrapping = TextWrapping.WrapWholeWords,
             VerticalAlignment = VerticalAlignment.Center
         };
         Grid.SetColumn(status, 2);

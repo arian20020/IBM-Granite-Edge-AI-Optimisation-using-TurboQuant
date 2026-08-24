@@ -54,13 +54,18 @@ public sealed partial class OptimizationOutcomeCard : UserControl
     {
         Button button = new()
         {
-            Content = action.Text,
             MinHeight = 48,
             HorizontalAlignment = HorizontalAlignment.Stretch,
             HorizontalContentAlignment = HorizontalAlignment.Center,
             IsEnabled = action.IsEnabled,
             UseSystemFocusVisuals = true,
             Tag = action.Id
+        };
+        button.Content = new TextBlock
+        {
+            Text = action.Text,
+            TextAlignment = TextAlignment.Center,
+            TextWrapping = TextWrapping.WrapWholeWords
         };
         AutomationProperties.SetName(button, action.Text);
         if (action.IsPrimary)

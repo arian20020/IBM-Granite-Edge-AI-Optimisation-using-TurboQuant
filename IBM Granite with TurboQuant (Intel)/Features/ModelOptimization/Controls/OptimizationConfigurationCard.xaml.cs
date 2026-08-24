@@ -29,5 +29,9 @@ public sealed partial class OptimizationConfigurationCard : UserControl
             $"Memory: model {configuration.ModelMemory}; cache {configuration.CacheMemory}; runtime {configuration.RuntimeMemory}.";
         TradeoffValue.Text = $"Tradeoff: {configuration.Tradeoff}";
         LimitationsValue.Text = $"Limitations: {configuration.Limitations}";
+        OutputValue.Text = $"Result: {configuration.Output}";
+        WorkingDiskValue.Text = $"Working disk: {configuration.WorkingDisk}";
+        FinalDiskValue.Text = $"Final disk: {configuration.FinalDisk}";
+        RouteValidationValue.Text = $"Validation: {configuration.RouteValidation}";
     }
 }

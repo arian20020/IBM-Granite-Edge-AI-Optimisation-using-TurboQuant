@@ -22,11 +22,7 @@
         <controls:OptimizationConfigurationCard
             xmlns:controls="using:GraniteEdgeAI.Features.ModelOptimization.Controls"
             x:Name="ConfirmationConfiguration" />
-        <Grid ColumnSpacing="12">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
+        <StackPanel Spacing="10">
             <Button
                 x:Name="BackButton"
                 MinHeight="48"
@@ -38,7 +34,6 @@
                 UseSystemFocusVisuals="True" />
             <Button
                 x:Name="ConfirmButton"
-                Grid.Column="1"
                 MinHeight="48"
                 HorizontalAlignment="Stretch"
                 HorizontalContentAlignment="Center"
@@ -49,6 +44,6 @@
                 Content="Start optimisation"
                 Foreground="White"
                 UseSystemFocusVisuals="True" />
-        </Grid>
+        </StackPanel>
     </StackPanel>
 </UserControl>

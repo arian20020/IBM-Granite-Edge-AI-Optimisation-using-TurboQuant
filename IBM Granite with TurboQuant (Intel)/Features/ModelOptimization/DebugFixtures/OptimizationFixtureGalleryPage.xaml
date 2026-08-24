@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="GraniteEdgeAI.Features.ModelOptimization.DebugFixtures.OptimizationFixtureGalleryPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:optimization="using:GraniteEdgeAI.Features.ModelOptimization"
+    RequestedTheme="Light">
+
+    <Page.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="ms-appx:///Features/ModelOptimization/Presentation/OptimizationTheme.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Page.Resources>
+
+    <Grid x:Name="GalleryRoot" Background="{ThemeResource OptimizationCanvasBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <TextBlock
+            Margin="20,16,20,8"
+            FontSize="20"
+            FontWeight="SemiBold"
+            Text="Optimisation UI fixture gallery" />
+        <Grid Grid.Row="1" Margin="20,8,20,20" ColumnSpacing="16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="240" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <ListView
+                x:Name="FixtureList"
+                AutomationProperties.Name="Optimisation UI states"
+                IsItemClickEnabled="False"
+                SelectionChanged="OnFixtureSelectionChanged" />
+            <Border
+                Grid.Column="1"
+                Background="{ThemeResource OptimizationSurfaceBrush}"
+                BorderBrush="{ThemeResource OptimizationBorderBrush}"
+                BorderThickness="1"
+                CornerRadius="16">
+                <optimization:OptimizationPage x:Name="PreviewPage" />
+            </Border>
+        </Grid>
+    </Grid>
+</Page>

@@ -7,28 +7,26 @@ using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
 namespace GraniteEdgeAI.UnitTests.Features.ModelOptimization;
 
 [TestClass]
-public sealed class OptimizationOutcomeCardTests
+public sealed class OptimizationDestinationCardTests
 {
     [UITestMethod]
-    public void SuccessActionsDescribeTheArtifactThatActuallyExists()
+    public void DestinationUsesTruthfulSaveAction()
     {
-        OptimizationOutcomeCard card = new();
+        OptimizationDestinationCard card = new();
 
         card.Apply(OptimizationFixtureCatalog.All.Single(item => item.Id == "success-persistent").Presentation);
-        CollectionAssert.AreEqual(
-            new[] { "Chat with this model", "Save model to this computer" },
-            card.VisibleActionTexts.ToArray());
+        Assert.AreEqual("Chat with this model", card.PrimaryActionText);
+        Assert.AreEqual("Save model to this computer", card.SecondaryActionText);
 
         card.Apply(OptimizationFixtureCatalog.All.Single(item => item.Id == "success-runtime-profile").Presentation);
-        CollectionAssert.AreEqual(
-            new[] { "Chat with this model", "Save this setup" },
-            card.VisibleActionTexts.ToArray());
+        Assert.AreEqual("Chat with this model", card.PrimaryActionText);
+        Assert.AreEqual("Save this setup", card.SecondaryActionText);
     }
 
     [UITestMethod]
     public void RecoveryStateShowsBoundedSupportCodeAndActions()
     {
-        OptimizationOutcomeCard card = new();
+        OptimizationRecoveryCard card = new();
         card.Apply(OptimizationFixtureCatalog.All.Single(item => item.Id == "failed").Presentation);
 
         Assert.AreEqual("ValidationFailed", card.VisibleSupportCode);

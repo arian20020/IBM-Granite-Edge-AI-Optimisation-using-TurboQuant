@@ -17,6 +17,15 @@
     <Grid x:Name="LayoutRoot" Background="{ThemeResource OptimizationCanvasBrush}">
         <VisualStateManager.VisualStateGroups>
             <VisualStateGroup x:Name="ResponsivePageStates">
+                <VisualState x:Name="WidePageState">
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger MinWindowWidth="1100" />
+                    </VisualState.StateTriggers>
+                    <VisualState.Setters>
+                        <Setter Target="OptimizationContentHost.Margin" Value="32,48,32,64" />
+                        <Setter Target="OptimizationContentHost.MaxWidth" Value="1040" />
+                    </VisualState.Setters>
+                </VisualState>
                 <VisualState x:Name="StandardPageState">
                     <VisualState.StateTriggers>
                         <AdaptiveTrigger MinWindowWidth="600" />
@@ -85,9 +94,14 @@
                     AutomationProperties.Name="Optimisation progress"
                     Visibility="Collapsed" />
 
-                <controls:OptimizationOutcomeCard
-                    x:Name="OutcomeCard"
-                    AutomationProperties.Name="Optimisation result"
+                <controls:OptimizationRecoveryCard
+                    x:Name="RecoveryCard"
+                    AutomationProperties.Name="Optimisation recovery"
+                    Visibility="Collapsed" />
+
+                <controls:OptimizationDestinationCard
+                    x:Name="DestinationCard"
+                    AutomationProperties.Name="Optimisation destination"
                     Visibility="Collapsed" />
 
                 <Button

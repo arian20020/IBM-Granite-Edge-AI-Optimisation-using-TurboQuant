@@ -23,18 +23,14 @@
                 Checked="OnAutomaticChecked"
                 GroupName="OptimizationPreference"
                 UseSystemFocusVisuals="True">
-                <Grid ColumnSpacing="16">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
+                <StackPanel Spacing="10">
                     <StackPanel Spacing="4">
                         <TextBlock x:Name="AutomaticTitle" Style="{StaticResource OptimizationCardTitleStyle}" Text="Automatic" />
                         <TextBlock Style="{StaticResource OptimizationBodyStyle}" Text="Recommended. Chooses the strongest safe overall result for this model and computer." />
                     </StackPanel>
                     <Border
-                        Grid.Column="1"
                         Padding="10,5"
+                        HorizontalAlignment="Left"
                         VerticalAlignment="Center"
                         Background="{ThemeResource OptimizationSelectedSurfaceBrush}"
                         CornerRadius="12">
@@ -44,7 +40,7 @@
                             Foreground="{ThemeResource OptimizationPrimaryBrush}"
                             Text="Recommended" />
                     </Border>
-                </Grid>
+                </StackPanel>
             </RadioButton>
         </Border>
 

@@ -16,7 +16,8 @@ public sealed partial class OptimizationPage : Page
         ConfirmationCard.BackRequested += OnBackRequested;
         ConfirmationCard.ConfirmRequested += OnConfirmRequested;
         ProgressCard.CancelRequested += OnCancelRequested;
-        OutcomeCard.ActionRequested += OnOutcomeActionRequested;
+        RecoveryCard.ActionRequested += OnOutcomeActionRequested;
+        DestinationCard.ActionRequested += OnOutcomeActionRequested;
     }
 
     internal event EventHandler<OptimizationIntentEventArgs>? IntentRequested;
@@ -34,7 +35,19 @@ public sealed partial class OptimizationPage : Page
         ConfigurationCard.Apply(presentation.Configuration);
         ConfirmationCard.Apply(presentation);
         ProgressCard.Apply(presentation);
-        OutcomeCard.Apply(presentation);
+        bool succeeded = presentation.Kind is OptimizationPageStateKind.SucceededPersistent
+            or OptimizationPageStateKind.SucceededRuntimeProfile;
+        bool recovering = presentation.Kind is OptimizationPageStateKind.Cancelled
+            or OptimizationPageStateKind.ReplanRequired
+            or OptimizationPageStateKind.Failed;
+        if (succeeded)
+        {
+            DestinationCard.Apply(presentation);
+        }
+        else if (recovering)
+        {
+            RecoveryCard.Apply(presentation);
+        }
 
         bool selecting = presentation.Kind == OptimizationPageStateKind.Selecting;
         bool confirming = presentation.Kind == OptimizationPageStateKind.Confirming;
@@ -44,9 +57,8 @@ public sealed partial class OptimizationPage : Page
         ReviewConfigurationButton.Visibility = selecting ? Visibility.Visible : Visibility.Collapsed;
         ConfirmationCard.Visibility = confirming ? Visibility.Visible : Visibility.Collapsed;
         ProgressCard.Visibility = running ? Visibility.Visible : Visibility.Collapsed;
-        OutcomeCard.Visibility = !selecting && !confirming && !running
-            ? Visibility.Visible
-            : Visibility.Collapsed;
+        RecoveryCard.Visibility = recovering ? Visibility.Visible : Visibility.Collapsed;
+        DestinationCard.Visibility = succeeded ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void OnPreferenceChanged(

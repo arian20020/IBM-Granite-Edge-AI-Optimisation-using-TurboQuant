@@ -85,6 +85,10 @@
                     <TextBlock x:Name="MemoryBreakdownValue" Style="{StaticResource OptimizationBodyStyle}" />
                     <TextBlock x:Name="TradeoffValue" Style="{StaticResource OptimizationBodyStyle}" />
                     <TextBlock x:Name="LimitationsValue" Style="{StaticResource OptimizationBodyStyle}" />
+                    <TextBlock x:Name="OutputValue" Style="{StaticResource OptimizationBodyStyle}" />
+                    <TextBlock x:Name="WorkingDiskValue" Style="{StaticResource OptimizationBodyStyle}" />
+                    <TextBlock x:Name="FinalDiskValue" Style="{StaticResource OptimizationBodyStyle}" />
+                    <TextBlock x:Name="RouteValidationValue" Style="{StaticResource OptimizationBodyStyle}" />
                 </StackPanel>
             </Expander>
         </StackPanel>
