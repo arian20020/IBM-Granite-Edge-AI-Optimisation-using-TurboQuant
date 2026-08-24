@@ -67,11 +67,20 @@ public sealed record OpenVinoBuildIdentity
         string tokenizersBuild,
         string workerManifestDigest)
     {
-        OptimizationIdentifier.Require(
+        // Vendor build strings, not identifiers this product chose. The official
+        // runtime reports slash-delimited release-channel structure, and the
+        // generic rule rejects a slash because an evidence id or a device id
+        // carrying one would be a path. Refusing it here would leave O1 unable
+        // to record the authoritative identity without truncating or rewriting
+        // it, which is the substitution this contract forbids.
+        //
+        // WorkerManifestDigest below is not a vendor string and keeps the
+        // canonical digest rule.
+        OptimizationBuildIdentity.Require(
             runtimeBuild, nameof(runtimeBuild), "The OpenVINO runtime build");
-        OptimizationIdentifier.Require(
+        OptimizationBuildIdentity.Require(
             genAiBuild, nameof(genAiBuild), "The GenAI build");
-        OptimizationIdentifier.Require(
+        OptimizationBuildIdentity.Require(
             tokenizersBuild, nameof(tokenizersBuild), "The tokenizers build");
 
         if (!OptimizationDigest.IsCanonical(workerManifestDigest))
