@@ -7,10 +7,11 @@ using GraniteEdgeAI.HardwareInspection.Foundation.LlamaCpp;
 using GraniteEdgeAI.HardwareInspection.Foundation.LlmFit;
 using GraniteEdgeAI.HardwareInspection.Foundation.NeuralProcessors;
 using GraniteEdgeAI.HardwareInspection.Foundation.Windows;
+using GraniteEdgeAI.Features.HardwareInspection.Orchestration;
 
 namespace GraniteEdgeAI.Features.HardwareInspection.Resolution;
 
-internal sealed class HardwareEvidenceResolver
+internal sealed class HardwareEvidenceResolver : IHardwareEvidenceResolver
 {
     private static readonly string[] ManifestFields =
     [
@@ -50,7 +51,7 @@ internal sealed class HardwareEvidenceResolver
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
     }
 
-    internal HardwareEvidenceResolutionResult Resolve(
+    public HardwareEvidenceResolutionResult Resolve(
         Guid snapshotId,
         CollectedHardwareEvidence evidence)
     {
