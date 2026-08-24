@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.Presentation;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -30,12 +32,26 @@ internal sealed partial class CompatibilityPage : Page
     private CompatibilityPresentation _presentation = CompatibilityPresentation.Empty;
 
     public CompatibilityPage()
+        : this(new ViewModels.CompatibilityViewModel())
     {
+    }
+
+    internal CompatibilityPage(
+        Func<CancellationToken, Task<GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation.CompatibilityScreenModel>> evaluator)
+        : this(new ViewModels.CompatibilityViewModel(evaluator))
+    {
+    }
+
+    private CompatibilityPage(ViewModels.CompatibilityViewModel viewModel)
+    {
+        ViewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
         InitializeComponent();
         BuildStepper();
         Apply(CompatibilityPresentation.Empty);
 
         ViewModel.PresentationChanged += (_, presentation) => Apply(presentation);
+        ViewModel.ContinueRequested += (_, _) => ContinueRequested?.Invoke(this, EventArgs.Empty);
+        ViewModel.BackRequested += (_, _) => BackRequested?.Invoke(this, EventArgs.Empty);
         PrimaryAction.Command = ViewModel.ContinueCommand;
         SecondaryAction.Command = ViewModel.BackCommand;
 
@@ -50,6 +66,10 @@ internal sealed partial class CompatibilityPage : Page
         };
     }
 
+    internal event EventHandler? ContinueRequested;
+
+    internal event EventHandler? BackRequested;
+
     /// <summary>
     /// False only when something else is driving what this page shows — the
     /// fixture gallery, which would otherwise have its chosen state immediately
@@ -61,7 +81,7 @@ internal sealed partial class CompatibilityPage : Page
     /// Owned by the page for the lifetime of one navigation, so a check started
     /// here cannot outlive the screen that asked for it.
     /// </summary>
-    internal ViewModels.CompatibilityViewModel ViewModel { get; } = new();
+    internal ViewModels.CompatibilityViewModel ViewModel { get; }
 
     /// <summary>
     /// Applies a snapshot. Safe to call with the same value twice.

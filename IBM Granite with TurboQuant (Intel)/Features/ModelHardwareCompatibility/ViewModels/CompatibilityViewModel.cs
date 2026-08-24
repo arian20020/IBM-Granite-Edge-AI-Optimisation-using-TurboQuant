@@ -27,12 +27,22 @@ namespace GraniteEdgeAI.Features.ModelHardwareCompatibility.ViewModels;
 internal sealed class CompatibilityViewModel
 {
     private readonly SynchronizationContext? _uiContext;
+    private readonly Func<CancellationToken, Task<CompatibilityScreenModel>> _evaluator;
 
     private CancellationTokenSource? _attemptCancellation;
     private int _attemptGeneration;
 
     internal CompatibilityViewModel()
+        : this(static token => Task.Run(
+            () => CompatibilityEngine.RunWithAvailableAdapters(token),
+            token))
     {
+    }
+
+    internal CompatibilityViewModel(
+        Func<CancellationToken, Task<CompatibilityScreenModel>> evaluator)
+    {
+        _evaluator = evaluator ?? throw new ArgumentNullException(nameof(evaluator));
         _uiContext = SynchronizationContext.Current;
 
         // Assigned before the commands, because their guards read it: a command
@@ -87,9 +97,8 @@ internal sealed class CompatibilityViewModel
         {
             // The engine is synchronous and pure. It runs off the UI thread so a
             // slow adapter cannot freeze the page once adapters exist.
-            CompatibilityScreenModel model = await Task.Run(
-                () => CompatibilityEngine.RunWithAvailableAdapters(cancellation.Token),
-                cancellation.Token).ConfigureAwait(true);
+            CompatibilityScreenModel model = await _evaluator(cancellation.Token)
+                .ConfigureAwait(true);
 
             Publish(CompatibilityPresentationFactory.From(model), generation);
         }
