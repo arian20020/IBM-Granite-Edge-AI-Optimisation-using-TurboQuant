@@ -18,6 +18,28 @@ public sealed class OpenVinoOptimizationPlanAdapterTests
         ["optimize", "validate", "smoke", "reinspect"];
 
     [TestMethod]
+    public void AdapterExposesOnlyTheStrictSourceBoundEntryPoint()
+    {
+        MethodInfo[] methods = typeof(OpenVinoOptimizationPlanAdapter)
+            .GetMethods(BindingFlags.Public | BindingFlags.Static)
+            .Where(static method => method.Name == nameof(OpenVinoOptimizationPlanAdapter.Adapt))
+            .ToArray();
+
+        Assert.AreEqual(1, methods.Length);
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                typeof(OptimizationExecutionPlan),
+                typeof(OptimizationCapabilitySnapshot),
+                typeof(string),
+                typeof(ulong)
+            },
+            methods[0].GetParameters()
+                .Select(static parameter => parameter.ParameterType)
+                .ToArray());
+    }
+
+    [TestMethod]
     public void AdapterMapsTheExactPlanWithoutAnObjectiveLookup()
     {
         OptimizationExecutionPlan plan = OpenVinoOptimizationTestData.Plan(
@@ -115,6 +137,29 @@ public sealed class OpenVinoOptimizationPlanAdapterTests
             OpenVinoOptimizationTestData.Snapshot(
                 plan.CapabilitySnapshot.OpenVino!,
                 new string('4', 64));
+
+        OpenVinoOptimizationAdaptation result =
+            OpenVinoOptimizationPlanAdapter.Adapt(
+                plan,
+                current,
+                OpenVinoOptimizationTestData.SourceDigest,
+                OpenVinoOptimizationTestData.SourceLength);
+
+        Assert.AreEqual(OpenVinoOptimizationAdaptationStatus.ReplanRequired,
+            result.Status);
+        Assert.AreEqual(OptimizationSupportCode.CapabilityDrift, result.SupportCode);
+        Assert.IsNull(result.Candidate);
+    }
+
+    [TestMethod]
+    public void AdapterRejectsCapabilitySnapshotIdDrift()
+    {
+        OptimizationExecutionPlan plan = OpenVinoOptimizationTestData.Plan();
+        OptimizationCapabilitySnapshot current =
+            OpenVinoOptimizationTestData.Snapshot(
+                plan.CapabilitySnapshot.OpenVino!,
+                plan.CapabilitySnapshot.CapabilitySnapshotSha256,
+                snapshotId: "ov-capability-different");
 
         OpenVinoOptimizationAdaptation result =
             OpenVinoOptimizationPlanAdapter.Adapt(
@@ -389,9 +434,10 @@ public sealed class OpenVinoOptimizationPlanAdapterTests
 
         internal static OptimizationCapabilitySnapshot Snapshot(
             OpenVinoCapabilityPayload payload,
-            string digest) =>
+            string digest,
+            string snapshotId = "ov-capability-test-1") =>
             OptimizationCapabilitySnapshot.ForOpenVino(
-                "ov-capability-test-1",
+                snapshotId,
                 digest,
                 payload);
     }

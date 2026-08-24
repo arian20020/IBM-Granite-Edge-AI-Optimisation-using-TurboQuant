@@ -21,22 +21,6 @@ public static class OpenVinoOptimizationPlanAdapter
 {
     public static OpenVinoOptimizationAdaptation Adapt(
         OptimizationExecutionPlan plan,
-        OpenVinoCapabilityPayload currentCapabilities)
-    {
-        ArgumentNullException.ThrowIfNull(plan);
-        ArgumentNullException.ThrowIfNull(currentCapabilities);
-
-        OptimizationCapabilitySnapshot current =
-            OptimizationCapabilitySnapshot.ForOpenVino(
-                plan.CapabilitySnapshot.SnapshotId,
-                plan.CapabilitySnapshot.CapabilitySnapshotSha256,
-                currentCapabilities);
-
-        return AdaptCore(plan, current, validateSource: false, null, 0);
-    }
-
-    public static OpenVinoOptimizationAdaptation Adapt(
-        OptimizationExecutionPlan plan,
         OptimizationCapabilitySnapshot currentCapabilities,
         string currentSourceSha256,
         ulong currentSourceLengthBytes)
@@ -44,21 +28,6 @@ public static class OpenVinoOptimizationPlanAdapter
         ArgumentNullException.ThrowIfNull(plan);
         ArgumentNullException.ThrowIfNull(currentCapabilities);
 
-        return AdaptCore(
-            plan,
-            currentCapabilities,
-            validateSource: true,
-            currentSourceSha256,
-            currentSourceLengthBytes);
-    }
-
-    private static OpenVinoOptimizationAdaptation AdaptCore(
-        OptimizationExecutionPlan plan,
-        OptimizationCapabilitySnapshot currentCapabilities,
-        bool validateSource,
-        string? currentSourceSha256,
-        ulong currentSourceLengthBytes)
-    {
         if (plan.ContractVersion != OptimizationExecutionPlan.CurrentContractVersion ||
             plan.Route != OptimizationRoute.OpenVino ||
             plan.Candidate.Configuration is not OpenVinoRouteConfiguration configuration ||
@@ -70,14 +39,18 @@ public static class OpenVinoOptimizationPlanAdapter
 
         if (currentCapabilities.Route != OptimizationRoute.OpenVino ||
             currentCapabilities.OpenVino is not { } currentPayload ||
+            !string.Equals(
+                currentCapabilities.SnapshotId,
+                plan.CapabilitySnapshot.SnapshotId,
+                StringComparison.Ordinal) ||
             !plan.MatchesCapability(currentCapabilities) ||
             !PayloadsMatch(plannedPayload, currentPayload))
         {
             return Replan(OptimizationSupportCode.CapabilityDrift);
         }
 
-        if (validateSource && !plan.MatchesSource(
-            currentSourceSha256 ?? string.Empty,
+        if (!plan.MatchesSource(
+            currentSourceSha256,
             currentSourceLengthBytes))
         {
             return Replan(OptimizationSupportCode.SourceIdentityMismatch);

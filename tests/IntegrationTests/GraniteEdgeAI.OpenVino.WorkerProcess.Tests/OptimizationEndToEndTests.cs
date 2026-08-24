@@ -59,7 +59,7 @@ public sealed class OptimizationEndToEndTests
                 string staging = Path.Combine(root, objective.ToString());
                 Directory.CreateDirectory(staging);
                 OpenVinoOptimizationCandidate candidate =
-                    OpenVinoOptimizationRegistry.GetRequired(objective);
+                    OpenVinoOptimizationLegacyRegistryV1.GetRequired(objective);
                 OpenVinoOptimizationCompletion result = await pipeline.OptimizeAsync(
                     new OpenVinoOptimizationInvocation(
                         Guid.NewGuid(),
@@ -125,11 +125,11 @@ public sealed class OptimizationEndToEndTests
             foreach (OpenVinoOptimizationObjective objective in PersistentObjectives)
             {
                 OpenVinoOptimizationCandidate candidate =
-                    OpenVinoOptimizationRegistry.GetRequired(objective);
+                    OpenVinoOptimizationLegacyRegistryV1.GetRequired(objective);
                 string destination = Path.Combine(root, "published-" + objective);
                 List<OpenVinoOptimizationStage> stages = [];
-                OpenVinoOptimizationResult result = await service.OptimizeAsync(
-                    new OpenVinoOptimizationRequest(
+                OpenVinoOptimizationResult result = await service.OptimizeLegacyV1Async(
+                    new OpenVinoOptimizationLegacyRequestV1(
                         baseline, destination, candidate, Confirmed: true),
                     new InlineProgress<OpenVinoOptimizationProgress>(value =>
                         stages.Add(value.Stage)),
