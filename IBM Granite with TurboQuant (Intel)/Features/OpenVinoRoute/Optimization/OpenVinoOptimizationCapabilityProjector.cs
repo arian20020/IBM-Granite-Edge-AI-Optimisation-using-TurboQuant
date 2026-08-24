@@ -6,28 +6,63 @@ using ContractCompiledCachePolicy = GraniteEdgeAI.ModelHardwareCompatibility.Cor
 
 namespace GraniteEdgeAI.Features.OpenVinoRoute.Optimization;
 
+internal sealed record OpenVinoExperimentalCapabilityEvidence
+{
+    private OpenVinoExperimentalCapabilityEvidence(string evidenceId) =>
+        EvidenceId = evidenceId;
+
+    internal string EvidenceId { get; }
+
+    internal static OpenVinoExperimentalCapabilityEvidence TurboQuantTbq4(
+        string evidenceId) => new(evidenceId);
+}
+
 public static class OpenVinoOptimizationCapabilityProjector
 {
     public static OpenVinoCapabilityPayload Project(
-        OpenVinoOptimizationCapabilityEvidence evidence)
+        OpenVinoOptimizationCapabilityEvidence evidence) =>
+        Project(evidence, experimentalEvidence: null);
+
+    internal static OpenVinoCapabilityPayload Project(
+        OpenVinoOptimizationCapabilityEvidence evidence,
+        OpenVinoExperimentalCapabilityEvidence? experimentalEvidence)
     {
         ArgumentNullException.ThrowIfNull(evidence);
         ArgumentNullException.ThrowIfNull(evidence.Versions);
         ArgumentNullException.ThrowIfNull(evidence.Admitted);
+        if (evidence.Admitted.Count == 0)
+        {
+            throw new ArgumentException(
+                "At least one released OpenVINO admission is required.",
+                nameof(evidence));
+        }
 
         string runtimeVersion = RuntimeVersion(evidence.Versions);
-        OpenVinoAdmittedConfiguration[] admitted =
-            new OpenVinoAdmittedConfiguration[evidence.Admitted.Count];
-        for (int index = 0; index < admitted.Length; index++)
+        List<OpenVinoAdmittedConfiguration> admitted = [];
+        foreach (OpenVinoOptimizationCapabilityAdmission source in evidence.Admitted)
         {
-            admitted[index] = ProjectAdmission(
-                evidence.Admitted[index] ?? throw Unsupported());
+            OpenVinoAdmittedConfiguration? projected = ProjectAdmission(
+                source ?? throw Unsupported());
+            if (projected is not null)
+            {
+                admitted.Add(projected);
+            }
+        }
+
+        if (admitted.Count == 0)
+        {
+            throw Unsupported();
+        }
+
+        if (experimentalEvidence is not null)
+        {
+            admitted.Add(ProjectTurboQuant(experimentalEvidence.EvidenceId));
         }
 
         return OpenVinoCapabilityPayload.Create(runtimeVersion, admitted);
     }
 
-    private static OpenVinoAdmittedConfiguration ProjectAdmission(
+    private static OpenVinoAdmittedConfiguration? ProjectAdmission(
         OpenVinoOptimizationCapabilityAdmission admission)
     {
         if (!string.Equals(admission.Device, "CPU", StringComparison.Ordinal) ||
@@ -63,21 +98,50 @@ public static class OpenVinoOptimizationCapabilityProjector
             _ => throw Unsupported()
         };
 
+        if (admission.MinimumContextTokens < 1 ||
+            admission.MaximumContextTokens < admission.MinimumContextTokens)
+        {
+            throw new ArgumentException(
+                "Capability context evidence is not a valid range.",
+                nameof(admission));
+        }
+
+        if (admission.Streams != 1 ||
+            admission.Runtime.CompiledCache.Enabled ||
+            admission.MinimumContextTokens > 4_096 ||
+            admission.MaximumContextTokens < 4_096)
+        {
+            return null;
+        }
+
         return OpenVinoAdmittedConfiguration.Create(
             admission.EvidenceId,
             DeviceRouteId.Cpu,
             weights,
             kvCache,
             performanceHint,
-            admission.Runtime.CompiledCache.Enabled
-                ? ContractCompiledCachePolicy.Enabled
-                : ContractCompiledCachePolicy.Disabled,
-            admission.Streams,
-            admission.MinimumContextTokens,
-            admission.MaximumContextTokens,
+            ContractCompiledCachePolicy.Disabled,
+            streams: 1,
+            minimumContextTokens: 4_096,
+            maximumContextTokens: 4_096,
             maturity,
             requiresEvidence: false);
     }
+
+    private static OpenVinoAdmittedConfiguration ProjectTurboQuant(
+        string evidenceId) =>
+        OpenVinoAdmittedConfiguration.Create(
+            evidenceId,
+            DeviceRouteId.Cpu,
+            OpenVinoWeightFormat.TurboQuantTbq4,
+            OpenVinoKvCacheFormat.RouteDefault,
+            OpenVinoPerformanceHint.Latency,
+            ContractCompiledCachePolicy.Disabled,
+            streams: 1,
+            minimumContextTokens: 4_096,
+            maximumContextTokens: 4_096,
+            SupportLevel.Experimental,
+            requiresEvidence: true);
 
     private static string RuntimeVersion(OpenVinoOptimizationToolVersions versions)
     {

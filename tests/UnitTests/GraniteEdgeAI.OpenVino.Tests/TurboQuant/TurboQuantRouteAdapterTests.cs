@@ -42,6 +42,11 @@ public sealed class TurboQuantRouteAdapterTests
     [DataRow("length")]
     [DataRow("device")]
     [DataRow("build")]
+    [DataRow("runtime-build")]
+    [DataRow("source")]
+    [DataRow("implementation")]
+    [DataRow("binary")]
+    [DataRow("runtime-manifest")]
     [DataRow("closure")]
     [DataRow("security")]
     [DataRow("license")]
@@ -63,6 +68,50 @@ public sealed class TurboQuantRouteAdapterTests
                     WorkerManifestDigest = new string('4', 64)
                 }
             },
+            "runtime-build" => Evidence() with
+            {
+                BuildEvidence = BuildEvidence() with { RuntimeBuild = "different" }
+            },
+            "source" => Evidence() with
+            {
+                BuildEvidence = BuildEvidence() with
+                {
+                    TurboQuantBuild = BuildEvidence().TurboQuantBuild! with
+                    {
+                        SourceCommit = new string('d', 40)
+                    }
+                }
+            },
+            "implementation" => Evidence() with
+            {
+                BuildEvidence = BuildEvidence() with
+                {
+                    TurboQuantBuild = BuildEvidence().TurboQuantBuild! with
+                    {
+                        ImplementationCommit = new string('e', 40)
+                    }
+                }
+            },
+            "binary" => Evidence() with
+            {
+                BuildEvidence = BuildEvidence() with
+                {
+                    TurboQuantBuild = BuildEvidence().TurboQuantBuild! with
+                    {
+                        PatchSeriesDigest = new string('d', 64)
+                    }
+                }
+            },
+            "runtime-manifest" => Evidence() with
+            {
+                BuildEvidence = BuildEvidence() with
+                {
+                    TurboQuantBuild = BuildEvidence().TurboQuantBuild! with
+                    {
+                        RuntimeManifestDigest = new string('e', 64)
+                    }
+                }
+            },
             "closure" => Evidence() with { WorkerClosureVerified = false },
             "security" => Evidence() with { SecurityReviewApproved = false },
             "license" => Evidence() with { LicenseReviewApproved = false },
@@ -80,6 +129,9 @@ public sealed class TurboQuantRouteAdapterTests
     [TestMethod]
     [DataRow("activation")]
     [DataRow("model-sdpa")]
+    [DataRow("requested-codec")]
+    [DataRow("actual-codec")]
+    [DataRow("activation-origin")]
     [DataRow("rubric")]
     [DataRow("baseline")]
     [DataRow("smoke")]
@@ -101,6 +153,27 @@ public sealed class TurboQuantRouteAdapterTests
             "model-sdpa" => Evidence() with
             {
                 Activation = Activation() with { ModelSdpaNodeCount = 0 }
+            },
+            "requested-codec" => Evidence() with
+            {
+                Activation = Activation() with
+                {
+                    RequestedKeyCodec = TurboQuantCodec.ScalarU4
+                }
+            },
+            "actual-codec" => Evidence() with
+            {
+                Activation = Activation() with
+                {
+                    ActualValueCodec = TurboQuantCodec.ScalarU4
+                }
+            },
+            "activation-origin" => Evidence() with
+            {
+                Activation = Activation() with
+                {
+                    EvidenceOrigin = TurboQuantEvidenceOrigin.ParsedConsoleText
+                }
             },
             "rubric" => Evidence() with { QualityRubricId = "wrong" },
             "baseline" => Evidence() with { MatchedOfficialBaseline = false },

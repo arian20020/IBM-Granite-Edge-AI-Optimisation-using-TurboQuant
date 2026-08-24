@@ -1,4 +1,5 @@
 using GraniteEdgeAI.Features.OpenVinoRoute.Optimization;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Candidates;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.OpenVino;
@@ -54,10 +55,10 @@ public sealed class OpenVinoOptimizationCapabilityProjectorTests
                 ContractCompiledCachePolicy.Disabled),
             ("OV-STD-CPU-INT8-U8-01", OpenVinoWeightFormat.Int8,
                 OpenVinoKvCacheFormat.U8,
-                ContractCompiledCachePolicy.Enabled),
+                ContractCompiledCachePolicy.Disabled),
             ("OV-STD-CPU-INT4-U8-01", OpenVinoWeightFormat.Int4,
                 OpenVinoKvCacheFormat.U8,
-                ContractCompiledCachePolicy.Enabled)
+                ContractCompiledCachePolicy.Disabled)
         ];
 
         for (int index = 0; index < expected.Length; index++)
@@ -70,10 +71,75 @@ public sealed class OpenVinoOptimizationCapabilityProjectorTests
             Assert.AreEqual(DeviceRouteId.Cpu, actual.Device);
             Assert.AreEqual(OpenVinoPerformanceHint.Latency, actual.PerformanceHint);
             Assert.AreEqual(1, actual.Streams);
-            Assert.AreEqual(512, actual.MinimumContextTokens);
+            Assert.AreEqual(4_096, actual.MinimumContextTokens);
             Assert.AreEqual(4_096, actual.MaximumContextTokens);
             Assert.AreEqual(SupportLevel.DeclaredSupported, actual.Level);
             Assert.IsFalse(actual.RequiresEvidence);
+        }
+    }
+
+    [TestMethod]
+    public void ProjectorNarrowsReleasedContextEvidenceToTheExecutorContext()
+    {
+        OpenVinoOptimizationCapabilityEvidence evidence =
+            OpenVinoCapabilityTestData.StandardCpuEvidence();
+
+        OpenVinoCapabilityPayload payload =
+            OpenVinoOptimizationCapabilityProjector.Project(evidence);
+
+        Assert.IsTrue(payload.Admitted.All(static admission =>
+            admission.MinimumContextTokens == 4_096 &&
+            admission.MaximumContextTokens == 4_096));
+    }
+
+    [TestMethod]
+    [DataRow("compiled-cache")]
+    [DataRow("streams")]
+    [DataRow("context")]
+    public void ProjectorOmitsReleasedAdmissionsOutsideTheExecutorEnvelope(
+        string field)
+    {
+        OpenVinoOptimizationCapabilityEvidence evidence =
+            OpenVinoCapabilityTestData.WithMutatedFirstAdmission(
+                admission => field switch
+                {
+                    "compiled-cache" => admission with
+                    {
+                        Runtime = new OpenVinoRuntimeOptimization(
+                            admission.Runtime.KvCachePrecision,
+                            RouteCompiledCachePolicy.Disposable)
+                    },
+                    "streams" => admission with { Streams = 2 },
+                    "context" => admission with
+                    {
+                        MinimumContextTokens = 512,
+                        MaximumContextTokens = 2_048
+                    },
+                    _ => throw new AssertFailedException(field)
+                });
+
+        OpenVinoCapabilityPayload payload =
+            OpenVinoOptimizationCapabilityProjector.Project(evidence);
+
+        Assert.AreEqual(4, payload.Admitted.Count);
+        Assert.IsFalse(payload.Admitted.Any(static admission =>
+            admission.EvidenceId == "OV-STD-CPU-ORIGINAL-01"));
+    }
+
+    [TestMethod]
+    public void EveryReleasedProjectionIsAcceptedByTheSealedExecutorEnvelope()
+    {
+        OpenVinoCapabilityPayload payload =
+            OpenVinoOptimizationCapabilityProjector.Project(
+                OpenVinoCapabilityTestData.StandardCpuEvidence());
+
+        foreach (OpenVinoAdmittedConfiguration admission in payload.Admitted)
+        {
+            OpenVinoOptimizationCandidate candidate =
+                OpenVinoCapabilityTestData.AdaptedCandidate(payload, admission);
+
+            Assert.IsTrue(OpenVinoRuntimeTechnicalConfiguration
+                .From(candidate).IsSupported, admission.EvidenceId);
         }
     }
 
@@ -246,12 +312,12 @@ public sealed class OpenVinoOptimizationCapabilityProjectorTests
                         "OV-STD-CPU-INT8-U8-01",
                         OpenVinoWeightPrecision.EightBit,
                         OpenVinoKvCachePrecision.U8,
-                        compiledCache: true),
+                        compiledCache: false),
                     Admission(
                         "OV-STD-CPU-INT4-U8-01",
                         OpenVinoWeightPrecision.FourBit,
                         OpenVinoKvCachePrecision.U8,
-                        compiledCache: true)
+                        compiledCache: false)
                 ]);
 
         private static OpenVinoOptimizationCapabilityAdmission Admission(
@@ -273,6 +339,70 @@ public sealed class OpenVinoOptimizationCapabilityProjectorTests
                 MinimumContextTokens: 512,
                 MaximumContextTokens: 4_096,
                 OpenVinoCapabilityMaturity.Released);
+
+        internal static OpenVinoOptimizationCandidate AdaptedCandidate(
+            OpenVinoCapabilityPayload payload,
+            OpenVinoAdmittedConfiguration admission)
+        {
+            const string sourceDigest =
+                "1111111111111111111111111111111111111111111111111111111111111111";
+            const ulong sourceLength = 4UL * 1024 * 1024 * 1024;
+            bool persistent = admission.Weights != OpenVinoWeightFormat.Original;
+            OpenVinoRouteConfiguration configuration =
+                OpenVinoRouteConfiguration.Create(
+                    admission.Weights,
+                    admission.KvCache,
+                    admission.Device,
+                    admission.PerformanceHint,
+                    admission.CompiledCache,
+                    admission.Streams);
+            OptimizationCandidate candidate = OptimizationCandidate.Create(
+                configuration,
+                OptimizationCandidateMetrics.Create(
+                    EvidenceGrade.Estimated,
+                    OptimizationAssessment.Good,
+                    OptimizationAssessment.Good,
+                    OptimizationAssessment.Good,
+                    4_096,
+                    2UL * 1024 * 1024 * 1024,
+                    8UL * 1024 * 1024 * 1024,
+                    6UL * 1024 * 1024 * 1024,
+                    persistent ? sourceLength : 0,
+                    persistent ? sourceLength / 2 : 0,
+                    persistent),
+                admission.EvidenceId,
+                isExperimental: false);
+            OptimizationCapabilitySnapshot snapshot =
+                OptimizationCapabilitySnapshot.ForOpenVino(
+                    "ov-projector-parity",
+                    new string('3', 64),
+                    payload);
+            OptimizationSelection selection = OptimizationPreferenceResolver.Resolve(
+                [candidate], OptimizationPreferenceSelection.Manual(50))!;
+            OptimizationExecutionPlan plan = OptimizationPlanIssuer.Issue(
+                selection,
+                snapshot,
+                OptimizationWorkload.Create(
+                    "chat",
+                    512,
+                    OptimizationAssessment.Poor,
+                    [ContextTokenCount.FromTokens(4_096)]),
+                OptimizationJourneyBinding.Create(
+                    "mi-run-1",
+                    "mi-handoff-1",
+                    sourceDigest,
+                    sourceLength,
+                    "hw-run-1",
+                    new string('2', 64)),
+                DateTimeOffset.UnixEpoch);
+            OpenVinoOptimizationAdaptation adaptation =
+                OpenVinoOptimizationPlanAdapter.Adapt(
+                    plan, snapshot, sourceDigest, sourceLength);
+
+            Assert.AreEqual(OpenVinoOptimizationAdaptationStatus.Ready,
+                adaptation.Status, admission.EvidenceId);
+            return adaptation.Candidate!;
+        }
 
         internal static OpenVinoOptimizationToolVersions WithToolVersion(
             OpenVinoOptimizationToolVersions versions,
@@ -333,6 +463,22 @@ public sealed class OpenVinoOptimizationCapabilityProjectorTests
         {
             OpenVinoOptimizationCapabilityEvidence evidence = StandardCpuEvidence();
             return evidence with { Admitted = [mutate(evidence.Admitted[0])] };
+        }
+
+        internal static OpenVinoOptimizationCapabilityEvidence
+            WithMutatedFirstAdmission(
+                Func<OpenVinoOptimizationCapabilityAdmission,
+                    OpenVinoOptimizationCapabilityAdmission> mutate)
+        {
+            OpenVinoOptimizationCapabilityEvidence evidence = StandardCpuEvidence();
+            return evidence with
+            {
+                Admitted =
+                [
+                    mutate(evidence.Admitted[0]),
+                    .. evidence.Admitted.Skip(1)
+                ]
+            };
         }
     }
 }
