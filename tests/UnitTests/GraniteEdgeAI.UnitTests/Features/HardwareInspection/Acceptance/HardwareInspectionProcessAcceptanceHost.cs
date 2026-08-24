@@ -26,7 +26,7 @@ internal static class HardwareInspectionProcessAcceptanceHost
         if (commandLine.Count != 4 ||
             !string.Equals(commandLine[1], ActivationCommand, StringComparison.Ordinal) ||
             !string.Equals(commandLine[2], ResultTokenSwitch, StringComparison.Ordinal) ||
-            !IsResultToken(commandLine[3]))
+            !HardwareInspectionAcceptanceResultStore.IsResultToken(commandLine[3]))
         {
             return false;
         }
@@ -37,7 +37,7 @@ internal static class HardwareInspectionProcessAcceptanceHost
 
     internal static async Task<int> RunAsync(string resultToken)
     {
-        if (!IsResultToken(resultToken))
+        if (!HardwareInspectionAcceptanceResultStore.IsResultToken(resultToken))
         {
             return 64;
         }
@@ -183,53 +183,11 @@ internal static class HardwareInspectionProcessAcceptanceHost
             writer.WriteEndObject();
         }
 
-        int lengthWithLf = checked(buffer.WrittenCount + 1);
-        if (lengthWithLf > MaximumResultBytes)
-        {
-            throw new InvalidOperationException("The acceptance result exceeds its bound.");
-        }
-
-        string resultRoot = Path.Combine(
-            Path.GetTempPath(),
-            "GraniteEdgeAI.HardwareInspection.Tests",
-            "Acceptance");
-        Directory.CreateDirectory(resultRoot);
-        string resultPath = Path.Combine(resultRoot, $"{resultToken}.json");
-        string temporaryPath = Path.Combine(
-            resultRoot,
-            $".{resultToken}.{Guid.NewGuid():N}.tmp");
-        if (File.Exists(resultPath))
-        {
-            throw new InvalidOperationException("The acceptance result already exists.");
-        }
-
-        try
-        {
-            using (var stream = new FileStream(
-                       temporaryPath,
-                       FileMode.CreateNew,
-                       FileAccess.Write,
-                       FileShare.None))
-            {
-                stream.Write(buffer.WrittenSpan);
-                stream.WriteByte(0x0a);
-                stream.Flush(flushToDisk: true);
-            }
-
-            File.Move(temporaryPath, resultPath);
-        }
-        finally
-        {
-            if (File.Exists(temporaryPath))
-            {
-                File.Delete(temporaryPath);
-            }
-        }
+        HardwareInspectionAcceptanceResultStore.WriteAtomically(
+            resultToken,
+            buffer.WrittenSpan,
+            MaximumResultBytes);
     }
-
-    private static bool IsResultToken(string value) =>
-        value.Length == 32 && value.All(static character =>
-            character is >= '0' and <= '9' or >= 'a' and <= 'f');
 
     private sealed record AcceptanceTest(string Name, Type DeclaringType, MethodInfo Method);
 }
