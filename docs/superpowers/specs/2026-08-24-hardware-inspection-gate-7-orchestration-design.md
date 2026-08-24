@@ -13,7 +13,7 @@ Gate 7 does not change the WinUI page or ViewModel, pace visual stages, interpre
 The implementation uses three focused internal units under `Features/HardwareInspection/Infrastructure/Orchestration`:
 
 1. `HardwareToolAcquisition` owns the two closed trusted-tool identities. It resolves only the fixed administrator LLM Fit root and the fixed packaged llama.cpp probe root, converts application-owned manifests into `TrustedToolPackageManifest`, invokes `TrustedToolPackageVerifier`, and returns disposable custody or a closed acquisition diagnostic.
-2. `HardwareEvidenceCollectionCoordinator` owns native-provider scheduling and a one-permit external-process lane. Independent Windows processor, Windows system, storage, DXGI, and NPU captures may overlap. Verified LLM Fit and llama.cpp captures may overlap native work but cannot run external child processes concurrently.
+2. `HardwareEvidenceCollectionCoordinator` owns native-provider scheduling, a four-permit native lane, and a one-permit external-process lane. Independent Windows processor, Windows system, storage, DXGI, and NPU captures may overlap without exceeding four simultaneous native calls. Verified LLM Fit and llama.cpp captures may overlap native work but cannot run external child processes concurrently.
 3. `HardwareInspectionService` owns public run semantics. It validates the caller identity/progress sink, emits the exact seven stages with strictly increasing sequence numbers, invokes collection and Gate 6 resolution exactly once, maps one terminal result, and creates a handoff only through `HardwareInspectionRunResult.CreateCompleted`.
 
 `HardwareInspectionOutcomePolicy` remains a small pure helper so outcome and failure mapping can be exhaustively tested without provider or WinUI dependencies.
@@ -66,7 +66,7 @@ It carries no path, exception message, hash, username, host name, or arbitrary t
 - `ILlmFitHardwareEvidenceProvider.CaptureAsync`; and
 - `ILlamaCppCapabilityEvidenceProvider.CaptureAsync`.
 
-The two external providers pass through one `SemaphoreSlim(1, 1)` lane. Waiting for that lane is cancellable. A permit is released in `finally`; tool custody outlives every task. Native captures do not consume this lane, and no ordering guarantee beyond the one-process limit is claimed.
+The five native providers pass through `SemaphoreSlim(4, 4)` and execute on worker threads so their synchronous `ValueTask` implementations can genuinely overlap without occupying the UI thread. The two external providers pass through a separate `SemaphoreSlim(1, 1)` lane. Waiting for either lane is cancellable. Every permit is released in `finally`; tool custody outlives every task. No scheduling-order guarantee beyond the two concurrency limits is claimed.
 
 Provider-returned unavailable evidence remains evidence. Failure of one optional provider does not cancel siblings. The closed `WindowsSystemSnapshotException` is converted into `WindowsSystemEvidenceObservation.Unavailable` using its closed diagnostic category and a UTC attempt time. `OperationCanceledException` associated with the run token is never converted to evidence. Any other exception cancels the linked sibling token, awaits all started tasks to observe cleanup, and returns closed orchestration failure without exception text.
 
