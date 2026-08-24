@@ -4,7 +4,7 @@ namespace GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.Gguf;
 /// Candidate weight formats for the llama.cpp route, declared from highest to
 /// lowest expected quality. Imported means the file is used unchanged.
 /// </summary>
-internal enum GgufWeightFormat
+public enum GgufWeightFormat
 {
     Unspecified = 0,
     Imported,

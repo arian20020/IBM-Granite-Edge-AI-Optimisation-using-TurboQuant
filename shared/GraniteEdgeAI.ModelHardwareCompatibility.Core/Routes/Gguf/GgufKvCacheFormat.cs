@@ -4,7 +4,7 @@ namespace GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.Gguf;
 /// Runtime KV-cache formats. TurboQuant is one logical option here; the
 /// backend-specific implementation is selected when a backend is bound.
 /// </summary>
-internal enum GgufKvCacheFormat
+public enum GgufKvCacheFormat
 {
     Unspecified = 0,
     F16,

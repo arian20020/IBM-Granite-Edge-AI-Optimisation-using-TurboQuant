@@ -36,6 +36,35 @@ public sealed class PrivacyCanaryTests
         "OptimizationPreferenceLabelPolicy.AutomaticLabel",
         "OptimizationPreferenceLabelPolicy.GetLabel",
 
+        // Adapter-supplied identifiers, and the one place in this contract
+        // where a caller chooses the text. Admitted because the shape is
+        // enforced rather than trusted: OptimizationIdentifier bounds the
+        // length and rejects separators and traversal, so a path passed as an
+        // "evidence id" throws at the door instead of travelling into a plan,
+        // a manifest and a support record.
+        "GgufAdmittedConfiguration.EvidenceId",
+        "OpenVinoAdmittedConfiguration.EvidenceId",
+        "GgufCapabilityPayload.RuntimeVersion",
+        "OpenVinoCapabilityPayload.RuntimeVersion",
+        "OptimizationCapabilitySnapshot.SnapshotId",
+
+        // Structurally a digest: 64 lowercase hex characters, checked on
+        // construction. It cannot carry anything else.
+        "OptimizationCapabilitySnapshot.CapabilitySnapshotSha256",
+
+        // Composed entirely from enum members and an integer, exactly like the
+        // already-admitted GGUF descriptor it mirrors.
+        "OpenVinoRouteConfiguration.CanonicalDescriptor",
+
+        // Formats two integers into a validation message. No caller content
+        // reaches it.
+        "OptimizationBounds.Bounds",
+
+        // The set of characters that make a string look like a path. It is the
+        // guard itself, not something guarded: a constant of punctuation with
+        // no caller content in it.
+        "OptimizationIdentifier.PathLike",
+
         // Keyed by the same admitted support-entry id already allowed above
         // (CompatibilitySupportEntry.EntryId); this member only looks that id
         // up against an observed installation state and introduces no new
