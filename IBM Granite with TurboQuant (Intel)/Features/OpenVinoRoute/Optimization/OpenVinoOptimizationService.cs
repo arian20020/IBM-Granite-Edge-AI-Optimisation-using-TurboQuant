@@ -45,6 +45,10 @@ public sealed record OpenVinoOptimizationResult(
     string? ActualDevice)
 {
     internal string? PublishedDirectory { get; init; }
+    internal string? OutputIdentity { get; init; }
+    internal string? OutputManifestSha256 { get; init; }
+    internal ulong OutputSizeBytes { get; init; }
+    internal OptimizationSupportCode? ExecutionSupportCode { get; init; }
     public OptimizationSupportCode? ReplanSupportCode { get; init; }
 }
 
@@ -109,7 +113,7 @@ internal interface IOpenVinoOptimizationPipeline
     Task<OpenVinoRuntimeOptimizationEvidence> SmokeAsync(
         OpenVinoOptimizationValidation validation,
         string stagingDirectory,
-        OpenVinoRuntimeOptimization runtime,
+        OpenVinoOptimizationCandidate candidate,
         CancellationToken cancellationToken);
     Task<Guid> ReinspectPublishedAsync(
         string destinationDirectory,
@@ -157,6 +161,48 @@ public sealed class OpenVinoOptimizationService
             legacyCandidate: null,
             progress,
             cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<OptimizationExecutionResult> ExecuteAsync(
+        OpenVinoOptimizationRequest request,
+        IProgress<OpenVinoOptimizationProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(request.Plan);
+        OpenVinoOptimizationResult routeResult = await OptimizeAsync(
+            request,
+            progress,
+            cancellationToken).ConfigureAwait(false);
+        DateTimeOffset completedAtUtc = DateTimeOffset.UtcNow;
+        if (routeResult.Status == OpenVinoOptimizationStatus.Published)
+        {
+            return OptimizationExecutionResult.Succeeded(
+                request.Plan,
+                routeResult.OutputIdentity ?? throw new InvalidDataException(
+                    "optimization_output_invalid"),
+                routeResult.OutputManifestSha256 ?? throw new InvalidDataException(
+                    "optimization_output_invalid"),
+                routeResult.OutputSizeBytes,
+                sourceUnchanged: true,
+                completedAtUtc);
+        }
+        if (routeResult.Status == OpenVinoOptimizationStatus.ReplanRequired)
+        {
+            return OptimizationExecutionResult.ReplanRequired(
+                request.Plan,
+                routeResult.ReplanSupportCode ??
+                    OptimizationSupportCode.ModelBindingMismatch,
+                completedAtUtc);
+        }
+        if (routeResult.Status == OpenVinoOptimizationStatus.Cancelled)
+        {
+            return OptimizationExecutionResult.Cancelled(request.Plan, completedAtUtc);
+        }
+        return OptimizationExecutionResult.Failed(
+            request.Plan,
+            routeResult.ExecutionSupportCode ?? MapFailure(routeResult.SupportCode),
+            completedAtUtc);
     }
 
     public async Task<OpenVinoOptimizationResult> OptimizeLegacyV1Async(
@@ -211,8 +257,7 @@ public sealed class OpenVinoOptimizationService
             OpenVinoStaticPackageInspectionResult inspection =
                 new OpenVinoStaticPackageInspector().Inspect(sourceDirectory);
             if (inspection.Status != OpenVinoStaticInspectionStatus.NativeValidationRequired ||
-                inspection.Evidence is null || !hasSufficientSpace(
-                    sourceDirectory, destinationDirectory))
+                inspection.Evidence is null)
             {
                 return Failed(operationId, inspection.SupportCode ??
                     OpenVinoSupportCode.ConversionPreflightFailed);
@@ -244,7 +289,50 @@ public sealed class OpenVinoOptimizationService
 
             if (candidate is null || candidate.PersistentArtifact is null)
             {
-                return Failed(operationId, OpenVinoSupportCode.OptimizationUnsupported);
+                if (plan is null || candidate is null ||
+                    candidate.WeightPrecision != OpenVinoWeightPrecision.Original ||
+                    plan.ProducesPersistentArtifact)
+                {
+                    return Failed(operationId, OpenVinoSupportCode.OptimizationUnsupported);
+                }
+            }
+
+            try
+            {
+                OpenVinoRuntimeTechnicalConfiguration.From(candidate)
+                    .ValidateSupported();
+            }
+            catch (OpenVinoOptimizationException)
+            {
+                return plan is null
+                    ? Failed(operationId, OpenVinoSupportCode.OptimizationUnsupported)
+                    : Replan(operationId, OptimizationSupportCode.ToolNotAdmitted);
+            }
+
+            if (candidate.PersistentArtifact is null)
+            {
+                OpenVinoOptimizationResult runtimeProfile =
+                    await StoreRuntimeProfileAsync(
+                    operationId,
+                    sourceDirectory,
+                    destinationDirectory,
+                    plan!,
+                    currentCapabilities!,
+                    candidate,
+                    source,
+                    cancellationToken).ConfigureAwait(false);
+                if (runtimeProfile.Status == OpenVinoOptimizationStatus.Published)
+                {
+                    Report(progress, operationId, OpenVinoOptimizationStage.Completed);
+                }
+                return runtimeProfile;
+            }
+            if (!hasSufficientSpace(sourceDirectory, destinationDirectory))
+            {
+                return Failed(
+                    operationId,
+                    OpenVinoSupportCode.ConversionPreflightFailed,
+                    OptimizationSupportCode.InsufficientDiskSpace);
             }
 
             OpenVinoWeightPrecision sourcePrecision =
@@ -256,6 +344,17 @@ public sealed class OpenVinoOptimizationService
                 return Failed(operationId, OpenVinoSupportCode.OptimizationUnsupported);
             }
 
+            if (plan is not null)
+            {
+                OpenVinoOptimizationAdaptation beforeStaging = RevalidatePlan(
+                    plan, currentCapabilities!, sourceDirectory);
+                if (beforeStaging.Status ==
+                    OpenVinoOptimizationAdaptationStatus.ReplanRequired)
+                {
+                    return Replan(operationId, beforeStaging.SupportCode);
+                }
+                candidate = beforeStaging.Candidate!;
+            }
             using ConversionTransaction transaction = ConversionTransaction.Create(
                 sourceDirectory,
                 destinationDirectory,
@@ -271,10 +370,16 @@ public sealed class OpenVinoOptimizationService
                     candidate),
                 cancellationToken).ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
-            if (completion.ActualWeightPrecision != targetPrecision ||
-                source.ValidateStillCurrent() != OpenVinoSnapshotFailure.None)
+            if (completion.ActualWeightPrecision != targetPrecision)
             {
-                return Failed(operationId, OpenVinoSupportCode.PackageChanged);
+                return Failed(operationId, OpenVinoSupportCode.ConversionOutputInvalid);
+            }
+            if (source.ValidateStillCurrent() != OpenVinoSnapshotFailure.None)
+            {
+                return plan is null
+                    ? Failed(operationId, OpenVinoSupportCode.PackageChanged)
+                    : Replan(operationId,
+                        OptimizationSupportCode.SourceIdentityMismatch);
             }
 
             Report(progress, operationId, OpenVinoOptimizationStage.ValidatingOutput);
@@ -286,39 +391,79 @@ public sealed class OpenVinoOptimizationService
             OpenVinoRuntimeOptimizationEvidence runtime = await pipeline.SmokeAsync(
                 validation,
                 transaction.StagingDirectory,
-                candidate.Runtime,
+                candidate,
                 cancellationToken).ConfigureAwait(false);
             if (runtime.ActualDevice != candidate.Device ||
                 runtime.ActualKvCachePrecision != candidate.Runtime.KvCachePrecision ||
-                runtime.GenerationDisposition != "passed" || runtime.QualityDisposition != "passed" ||
-                source.ValidateStillCurrent() != OpenVinoSnapshotFailure.None)
+                runtime.GenerationDisposition != "passed" ||
+                runtime.QualityDisposition != "passed")
             {
                 return Failed(operationId, OpenVinoSupportCode.OptimizationUnsupported);
+            }
+            if (source.ValidateStillCurrent() != OpenVinoSnapshotFailure.None)
+            {
+                return plan is null
+                    ? Failed(operationId, OpenVinoSupportCode.PackageChanged)
+                    : Replan(operationId,
+                        OptimizationSupportCode.SourceIdentityMismatch);
             }
 
             IReadOnlyList<OpenVinoOutputArtifact> output =
                 OpenVinoOptimizationProvenance.CaptureOutput(transaction.StagingDirectory);
-            OpenVinoOptimizationProvenance provenance = new(
-                OpenVinoOptimizationProvenance.CurrentSchemaVersion,
-                operationId,
-                validation.ValidationRunId,
-                inspection.Evidence.PackageManifestDigest,
-                candidate.ConfigurationId,
-                sourcePrecision,
-                targetPrecision,
-                candidate.Runtime.KvCachePrecision,
-                runtime.ActualDevice,
-                runtime.ActualKvCachePrecision,
-                completion.Versions,
-                output,
-                OpenVinoProvenance.ComputeOutputManifestDigest(output),
-                "passed",
-                runtime.GenerationDisposition,
-                runtime.QualityDisposition);
+            string outputManifestSha256 =
+                OpenVinoProvenance.ComputeOutputManifestDigest(output);
+            OpenVinoOptimizationProvenance provenance = plan is null
+                ? new OpenVinoOptimizationProvenance(
+                    OpenVinoOptimizationProvenance.LegacySchemaVersion,
+                    operationId,
+                    validation.ValidationRunId,
+                    inspection.Evidence.PackageManifestDigest,
+                    candidate.ConfigurationId,
+                    sourcePrecision,
+                    targetPrecision,
+                    candidate.Runtime.KvCachePrecision,
+                    runtime.ActualDevice,
+                    runtime.ActualKvCachePrecision,
+                    completion.Versions,
+                    output,
+                    outputManifestSha256,
+                    "passed",
+                    runtime.GenerationDisposition,
+                    runtime.QualityDisposition)
+                : OpenVinoOptimizationProvenance.CreatePlanBound(
+                    plan,
+                    operationId,
+                    validation.ValidationRunId,
+                    inspection.Evidence.PackageManifestDigest,
+                    candidate.ConfigurationId,
+                    sourcePrecision,
+                    targetPrecision,
+                    candidate,
+                    runtime,
+                    completion.Versions,
+                    output,
+                    outputManifestSha256);
             provenance.Write(transaction.StagingDirectory);
 
             Report(progress, operationId, OpenVinoOptimizationStage.Publishing);
             cancellationToken.ThrowIfCancellationRequested();
+            if (plan is not null)
+            {
+                OpenVinoOptimizationAdaptation beforePublish = RevalidatePlan(
+                    plan, currentCapabilities!, sourceDirectory);
+                if (beforePublish.Status ==
+                    OpenVinoOptimizationAdaptationStatus.ReplanRequired)
+                {
+                    return Replan(operationId, beforePublish.SupportCode);
+                }
+            }
+            if (source.ValidateStillCurrent() != OpenVinoSnapshotFailure.None)
+            {
+                return plan is null
+                    ? Failed(operationId, OpenVinoSupportCode.PackageChanged)
+                    : Replan(operationId,
+                        OptimizationSupportCode.SourceIdentityMismatch);
+            }
             transaction.Publish();
             Guid inspectionRunId;
             try
@@ -348,7 +493,10 @@ public sealed class OpenVinoOptimizationService
                 runtime.ActualKvCachePrecision,
                 runtime.ActualDevice)
             {
-                PublishedDirectory = transaction.DestinationDirectory
+                PublishedDirectory = transaction.DestinationDirectory,
+                OutputIdentity = "openvino-package-v2-" + outputManifestSha256,
+                OutputManifestSha256 = outputManifestSha256,
+                OutputSizeBytes = checked((ulong)output.Sum(static file => file.Length))
             };
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -396,6 +544,122 @@ public sealed class OpenVinoOptimizationService
             _ => false
         };
 
+    private static OpenVinoOptimizationAdaptation RevalidatePlan(
+        OptimizationExecutionPlan plan,
+        OptimizationCapabilitySnapshot currentCapabilities,
+        string sourceDirectory)
+    {
+        OpenVinoStaticPackageInspectionResult current =
+            new OpenVinoStaticPackageInspector().Inspect(sourceDirectory);
+        if (current.Status != OpenVinoStaticInspectionStatus.NativeValidationRequired ||
+            current.Evidence is null)
+        {
+            return new OpenVinoOptimizationAdaptation(
+                OpenVinoOptimizationAdaptationStatus.ReplanRequired,
+                Candidate: null,
+                OptimizationSupportCode.SourceIdentityMismatch);
+        }
+        return OpenVinoOptimizationPlanAdapter.Adapt(
+            plan,
+            currentCapabilities,
+            current.Evidence.ModelSha256,
+            checked((ulong)current.Evidence.ModelLengthBytes));
+    }
+
+    private static async Task<OpenVinoOptimizationResult> StoreRuntimeProfileAsync(
+        Guid operationId,
+        string sourceDirectory,
+        string destinationDirectory,
+        OptimizationExecutionPlan plan,
+        OptimizationCapabilitySnapshot currentCapabilities,
+        OpenVinoOptimizationCandidate candidate,
+        OpenVinoPackageSnapshot source,
+        CancellationToken cancellationToken)
+    {
+        string destination = Path.GetFullPath(destinationDirectory);
+        string? parent = Path.GetDirectoryName(destination);
+        if (string.IsNullOrWhiteSpace(parent) || Directory.Exists(destination) ||
+            File.Exists(destination))
+        {
+            return Failed(operationId, OpenVinoSupportCode.ConversionPublishFailed);
+        }
+        Directory.CreateDirectory(parent);
+        string staging = Path.Combine(
+            parent,
+            ".granite-openvino-" + operationId.ToString("N") +
+            ".runtime-profile.staging");
+        if (Directory.Exists(staging) || File.Exists(staging))
+        {
+            return Failed(operationId, OpenVinoSupportCode.ConversionPreflightFailed);
+        }
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            OpenVinoOptimizationAdaptation beforeStaging = RevalidatePlan(
+                plan, currentCapabilities, sourceDirectory);
+            if (beforeStaging.Status ==
+                    OpenVinoOptimizationAdaptationStatus.ReplanRequired ||
+                source.ValidateStillCurrent() != OpenVinoSnapshotFailure.None)
+            {
+                return Replan(
+                    operationId,
+                    beforeStaging.Status ==
+                        OpenVinoOptimizationAdaptationStatus.ReplanRequired
+                            ? beforeStaging.SupportCode
+                            : OptimizationSupportCode.SourceIdentityMismatch);
+            }
+            Directory.CreateDirectory(staging);
+            OpenVinoRuntimeOptimizationProfile profile =
+                OpenVinoRuntimeOptimizationProfile.From(
+                    plan, candidate, DateTimeOffset.UtcNow);
+            byte[] profileBytes = profile.Serialize();
+            string profilePath = Path.Combine(
+                staging, OpenVinoRuntimeOptimizationProfile.FileName);
+            await File.WriteAllBytesAsync(
+                profilePath, profileBytes, cancellationToken).ConfigureAwait(false);
+            string digest = Convert.ToHexString(
+                System.Security.Cryptography.SHA256.HashData(profileBytes))
+                .ToLowerInvariant();
+
+            OpenVinoOptimizationAdaptation beforePublish = RevalidatePlan(
+                plan, currentCapabilities, sourceDirectory);
+            if (beforePublish.Status ==
+                    OpenVinoOptimizationAdaptationStatus.ReplanRequired ||
+                source.ValidateStillCurrent() != OpenVinoSnapshotFailure.None)
+            {
+                return Replan(
+                    operationId,
+                    beforePublish.Status ==
+                        OpenVinoOptimizationAdaptationStatus.ReplanRequired
+                            ? beforePublish.SupportCode
+                            : OptimizationSupportCode.SourceIdentityMismatch);
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            Directory.Move(staging, destination);
+            return new OpenVinoOptimizationResult(
+                OpenVinoOptimizationStatus.Published,
+                operationId,
+                Guid.Empty,
+                SupportCode: null,
+                OpenVinoWeightPrecision.Original,
+                candidate.Runtime.KvCachePrecision,
+                candidate.Device)
+            {
+                PublishedDirectory = destination,
+                OutputIdentity = "openvino-runtime-profile-v1-" + digest,
+                OutputManifestSha256 = digest,
+                OutputSizeBytes = checked((ulong)profileBytes.Length)
+            };
+        }
+        finally
+        {
+            if (Directory.Exists(staging))
+            {
+                Directory.Delete(staging, recursive: true);
+            }
+        }
+    }
+
     private static void Report(
         IProgress<OpenVinoOptimizationProgress>? progress,
         Guid operationId,
@@ -404,14 +668,18 @@ public sealed class OpenVinoOptimizationService
 
     private static OpenVinoOptimizationResult Failed(
         Guid operationId,
-        OpenVinoSupportCode code) => new(
+        OpenVinoSupportCode code,
+        OptimizationSupportCode? executionSupportCode = null) => new(
             OpenVinoOptimizationStatus.Failed,
             operationId,
             Guid.Empty,
             code,
             null,
             null,
-            null);
+            null)
+        {
+            ExecutionSupportCode = executionSupportCode
+        };
 
     private static OpenVinoOptimizationResult Replan(
         Guid operationId,
@@ -425,6 +693,28 @@ public sealed class OpenVinoOptimizationService
             ActualDevice: null)
         {
             ReplanSupportCode = supportCode
+        };
+
+    private static OptimizationSupportCode MapFailure(OpenVinoSupportCode? code) =>
+        code switch
+        {
+            OpenVinoSupportCode.ConversionPreflightFailed =>
+                OptimizationSupportCode.StagingUnavailable,
+            OpenVinoSupportCode.ConversionPublishFailed =>
+                OptimizationSupportCode.PublicationFailed,
+            OpenVinoSupportCode.ConversionOutputInvalid or
+            OpenVinoSupportCode.PackageInconsistentResource =>
+                OptimizationSupportCode.ValidationFailed,
+            OpenVinoSupportCode.RuntimeLoadFailed or
+            OpenVinoSupportCode.RuntimeProtocolFailed =>
+                OptimizationSupportCode.SmokeTestFailed,
+            OpenVinoSupportCode.PackageChanged =>
+                OptimizationSupportCode.SourceIdentityMismatch,
+            OpenVinoSupportCode.OperationCancelled =>
+                OptimizationSupportCode.CancelledByUser,
+            OpenVinoSupportCode.ConversionFailed =>
+                OptimizationSupportCode.ConversionFailed,
+            _ => OptimizationSupportCode.UnexpectedFailure
         };
 
     private static bool HasSufficientSpace(

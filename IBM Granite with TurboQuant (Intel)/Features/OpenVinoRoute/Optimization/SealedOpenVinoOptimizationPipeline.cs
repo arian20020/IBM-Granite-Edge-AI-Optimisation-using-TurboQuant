@@ -76,9 +76,11 @@ internal sealed class SealedOpenVinoOptimizationPipeline : IOpenVinoOptimization
     public async Task<OpenVinoRuntimeOptimizationEvidence> SmokeAsync(
         OpenVinoOptimizationValidation validation,
         string stagingDirectory,
-        OpenVinoRuntimeOptimization runtime,
+        OpenVinoOptimizationCandidate candidate,
         CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(candidate);
+        OpenVinoRuntimeTechnicalConfiguration.From(candidate).ValidateSupported();
         using IDisposable retained = validation.ConsumeLease();
         if (retained is not OpenVinoConversionValidation nativeValidation)
         {
@@ -87,7 +89,7 @@ internal sealed class SealedOpenVinoOptimizationPipeline : IOpenVinoOptimization
         }
         try
         {
-            OpenVinoRuntimeOptions requested = runtime.KvCachePrecision switch
+            OpenVinoRuntimeOptions requested = candidate.Runtime.KvCachePrecision switch
             {
                 OpenVinoKvCachePrecision.ReleasedDefault =>
                     OpenVinoRuntimeOptions.ReleasedDefault,

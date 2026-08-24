@@ -282,7 +282,7 @@ public sealed class OpenVinoOptimizationPlanAdapterTests
         OptimizationExecutionPlan plan = OpenVinoOptimizationTestData.Plan(
             OpenVinoWeightFormat.Int8,
             OpenVinoKvCacheFormat.U8,
-            ContractCompiledCachePolicy.Enabled,
+            ContractCompiledCachePolicy.Disabled,
             streams: 1,
             contextTokens: 4_096,
             sourceDigest: source.ModelSha256,
@@ -477,13 +477,13 @@ public sealed class OpenVinoOptimizationPlanAdapterTests
         public Task<OpenVinoRuntimeOptimizationEvidence> SmokeAsync(
             OpenVinoOptimizationValidation validation,
             string stagingDirectory,
-            OpenVinoRuntimeOptimization runtime,
+            OpenVinoOptimizationCandidate candidate,
             CancellationToken cancellationToken)
         {
             Calls.Add("smoke");
             return Task.FromResult(new OpenVinoRuntimeOptimizationEvidence(
                 "CPU",
-                runtime.KvCachePrecision,
+                candidate.Runtime.KvCachePrecision,
                 GenerationDisposition: "passed",
                 QualityDisposition: "passed"));
         }
