@@ -237,11 +237,12 @@ Set `$filter` to `FullyQualifiedName~FoundationHardwareEvidenceCaptureTests|Full
 ### Task 5: Collect evidence with bounded overlap and complete cleanup
 
 **Files:**
+- Create: `IBM Granite with TurboQuant (Intel)/Features/HardwareInspection/Infrastructure/Orchestration/IHardwareEvidenceCollectionCoordinator.cs`
 - Create: `IBM Granite with TurboQuant (Intel)/Features/HardwareInspection/Infrastructure/Orchestration/HardwareEvidenceCollectionCoordinator.cs`
 - Create: `tests/UnitTests/GraniteEdgeAI.UnitTests/Features/HardwareInspection/Orchestration/HardwareEvidenceCollectionCoordinatorTests.cs`
 - Create: `tests/UnitTests/GraniteEdgeAI.UnitTests/Features/HardwareInspection/Orchestration/HardwareEvidenceCaptureTestDouble.cs`
 
-**Interface:** `CollectAsync(HardwareToolLease, IProgress<HardwareInspectionRunStage>, CancellationToken)` returns `HardwareEvidenceCollectionResult`. Production lanes are 4 native/1 external; an internal constructor accepts bounds for tests.
+**Interface:** `IHardwareEvidenceCollectionCoordinator.CollectAsync(HardwareToolLease, IProgress<HardwareInspectionRunStage>, CancellationToken)` returns `Task<HardwareEvidenceCollectionResult>`. `HardwareEvidenceCollectionCoordinator` implements it. Production lanes are 4 native/1 external; an internal constructor accepts bounds for tests.
 
 - [ ] **Step 1: Write concurrency/lifecycle RED tests**
 
@@ -273,7 +274,7 @@ Set `$filter` to `FullyQualifiedName~HardwareEvidenceCollectionCoordinatorTests|
 - Modify: `IBM Granite with TurboQuant (Intel)/Features/HardwareInspection/Infrastructure/Resolution/HardwareEvidenceResolver.cs`
 - Create: `tests/UnitTests/GraniteEdgeAI.UnitTests/Features/HardwareInspection/Orchestration/HardwareInspectionServiceTests.cs`
 
-**Interfaces:** Resolver interface exposes the existing `Resolve(Guid, CollectedHardwareEvidence)` signature. Service consumes acquisition, collection coordinator, and resolver; the public API stays `IHardwareInspectionService.RunAsync` with no path/manifest/command/model overload.
+**Interfaces:** Resolver interface exposes the existing `Resolve(Guid, CollectedHardwareEvidence)` signature. Service consumes `IHardwareToolAcquisition`, `IHardwareEvidenceCollectionCoordinator`, and `IHardwareEvidenceResolver`; the public API stays `IHardwareInspectionService.RunAsync` with no path/manifest/command/model overload.
 
 - [ ] **Step 1: Write complete service RED tests**
 
@@ -325,7 +326,8 @@ Set `$filter` to `FullyQualifiedName~HardwareInspectionCompositionTests|FullyQua
 ```csharp
 IHardwareToolAcquisition tools = FixedHardwareToolAcquisition.CreateProduction();
 IHardwareEvidenceCapture capture = new FoundationHardwareEvidenceCapture();
-var collector = new HardwareEvidenceCollectionCoordinator(capture, TimeProvider.System);
+IHardwareEvidenceCollectionCoordinator collector =
+    new HardwareEvidenceCollectionCoordinator(capture, TimeProvider.System);
 IHardwareEvidenceResolver resolver = new HardwareEvidenceResolver(TimeProvider.System);
 return new HardwareInspectionService(tools, collector, resolver);
 ```
