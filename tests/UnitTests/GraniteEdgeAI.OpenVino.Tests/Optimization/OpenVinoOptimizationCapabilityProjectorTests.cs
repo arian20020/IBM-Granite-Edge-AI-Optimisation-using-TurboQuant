@@ -22,7 +22,7 @@ public sealed class OpenVinoOptimizationCapabilityProjectorTests
         Assert.IsTrue(payload.Admitted.All(static admission =>
             !string.IsNullOrWhiteSpace(admission.EvidenceId)));
         Assert.IsNull(typeof(OpenVinoOptimizationCapabilityAdmission)
-            .GetProperty(nameof(OpenVinoOptimizationCandidate.Objective)));
+            .GetProperty("Objective"));
         Assert.IsNull(typeof(OpenVinoOptimizationCapabilityAdmission)
             .GetProperty("Preference"));
     }

@@ -34,21 +34,22 @@ public sealed class OpenVinoOptimizationTests
                      OpenVinoKvCachePrecision kv) in expected)
         {
             OpenVinoOptimizationCandidate candidate =
-                OpenVinoOptimizationRegistry.GetRequired(objective);
-            Assert.AreEqual(objective, candidate.Objective);
+                OpenVinoOptimizationLegacyRegistryV1.GetRequired(objective);
+            Assert.AreEqual(objective, candidate.LegacyObjectiveV1);
             Assert.AreEqual(weight, candidate.PersistentArtifact.WeightPrecision);
             Assert.AreEqual(kv, candidate.Runtime.KvCachePrecision);
             Assert.AreEqual("CPU", candidate.Device);
             candidate.Validate();
         }
-        Assert.AreEqual(4, OpenVinoOptimizationRegistry.Candidates.Count);
+        Assert.AreEqual(4, OpenVinoOptimizationLegacyRegistryV1.Candidates.Count);
     }
 
     [TestMethod]
     public void PersistentWeightsRuntimeKvAndCompiledCacheRemainDistinct()
     {
         OpenVinoOptimizationCandidate candidate =
-            OpenVinoOptimizationRegistry.GetRequired(OpenVinoOptimizationObjective.Balanced);
+            OpenVinoOptimizationLegacyRegistryV1.GetRequired(
+                OpenVinoOptimizationObjective.Balanced);
 
         Assert.IsTrue(candidate.PersistentArtifact.CreatesCompletePackage);
         Assert.IsFalse(candidate.Runtime.CreatesModelArtifact);
@@ -60,7 +61,8 @@ public sealed class OpenVinoOptimizationTests
     [TestMethod]
     public void CandidatesContainNoGgufQuantizationOrLlamaCppFlags()
     {
-        string json = JsonSerializer.Serialize(OpenVinoOptimizationRegistry.Candidates);
+        string json = JsonSerializer.Serialize(
+            OpenVinoOptimizationLegacyRegistryV1.Candidates);
         foreach (string forbidden in new[]
         {
             "gguf", "q4_k", "q8_0", "llama.cpp", "--cache-type-k", "--cache-type-v"
@@ -106,11 +108,12 @@ public sealed class OpenVinoOptimizationTests
         using PackageFixture package = PackageFixture.Create();
         RecordingOptimizationPipeline pipeline = new();
         OpenVinoOptimizationService service = new(pipeline, _ => true);
-        OpenVinoOptimizationCandidate candidate = OpenVinoOptimizationRegistry.GetRequired(
-            OpenVinoOptimizationObjective.Balanced);
+        OpenVinoOptimizationCandidate candidate =
+            OpenVinoOptimizationLegacyRegistryV1.GetRequired(
+                OpenVinoOptimizationObjective.Balanced);
 
-        OpenVinoOptimizationResult result = await service.OptimizeAsync(
-            new OpenVinoOptimizationRequest(
+        OpenVinoOptimizationResult result = await service.OptimizeLegacyV1Async(
+            new OpenVinoOptimizationLegacyRequestV1(
                 package.Source,
                 package.Destination,
                 candidate,
@@ -138,15 +141,16 @@ public sealed class OpenVinoOptimizationTests
         using PackageFixture package = PackageFixture.Create();
         RecordingOptimizationPipeline pipeline = new();
         OpenVinoOptimizationService service = new(pipeline, _ => true);
-        OpenVinoOptimizationCandidate registered = OpenVinoOptimizationRegistry.GetRequired(
-            OpenVinoOptimizationObjective.Quality);
+        OpenVinoOptimizationCandidate registered =
+            OpenVinoOptimizationLegacyRegistryV1.GetRequired(
+                OpenVinoOptimizationObjective.Quality);
         OpenVinoOptimizationCandidate counterfeit = registered with
         {
             ConfigurationId = "openvino.standard.cpu.counterfeit.v1"
         };
 
-        OpenVinoOptimizationResult result = await service.OptimizeAsync(
-            new OpenVinoOptimizationRequest(
+        OpenVinoOptimizationResult result = await service.OptimizeLegacyV1Async(
+            new OpenVinoOptimizationLegacyRequestV1(
                 package.Source,
                 package.Destination,
                 counterfeit,

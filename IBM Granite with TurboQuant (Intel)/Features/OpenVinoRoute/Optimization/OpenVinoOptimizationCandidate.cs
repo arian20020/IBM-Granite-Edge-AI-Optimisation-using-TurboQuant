@@ -126,20 +126,39 @@ public sealed record OpenVinoOptimizationCapabilityEvidence(
 
 public sealed record OpenVinoOptimizationCandidate(
     string ConfigurationId,
-    OpenVinoOptimizationObjective Objective,
     string Device,
+    OpenVinoWeightPrecision WeightPrecision,
     OpenVinoPersistentArtifact PersistentArtifact,
     OpenVinoRuntimeOptimization Runtime,
+    OpenVinoCapabilityPerformanceHint PerformanceHint,
+    int Streams,
+    int ContextTokens,
     string Maturity,
     string EvidenceId)
 {
+    public OpenVinoOptimizationObjective? LegacyObjectiveV1 { get; init; }
+
     public void Validate()
     {
+        bool legacy = LegacyObjectiveV1.HasValue;
+        bool validConfigurationId = ConfigurationId.StartsWith(
+                "openvino.standard.cpu.", StringComparison.Ordinal) ||
+            !legacy && ConfigurationId.StartsWith(
+                "openvino.plan.v1.", StringComparison.Ordinal) &&
+                ConfigurationId.Length == "openvino.plan.v1.".Length + 64 &&
+                ConfigurationId["openvino.plan.v1.".Length..].All(static character =>
+                    character is (>= '0' and <= '9') or (>= 'a' and <= 'f'));
+        bool persistentShape = WeightPrecision == OpenVinoWeightPrecision.Original
+            ? PersistentArtifact is null
+            : PersistentArtifact?.WeightPrecision == WeightPrecision;
+
         if (string.IsNullOrWhiteSpace(ConfigurationId) ||
-            !ConfigurationId.StartsWith("openvino.standard.cpu.", StringComparison.Ordinal) ||
+            !validConfigurationId ||
             Device != "CPU" || Maturity != "Standard candidate" ||
             string.IsNullOrWhiteSpace(EvidenceId) ||
-            PersistentArtifact is null || Runtime is null || Runtime.CompiledCache is null)
+            !persistentShape || Runtime is null || Runtime.CompiledCache is null ||
+            PerformanceHint != OpenVinoCapabilityPerformanceHint.Latency ||
+            Streams < 1 || ContextTokens < 1)
         {
             throw new OpenVinoOptimizationException(
                 OpenVinoSupportCode.OptimizationUnsupported);
@@ -147,7 +166,7 @@ public sealed record OpenVinoOptimizationCandidate(
     }
 }
 
-public static class OpenVinoOptimizationRegistry
+public static class OpenVinoOptimizationLegacyRegistryV1
 {
     public static IReadOnlyList<OpenVinoOptimizationCandidate> Candidates { get; } =
     [
@@ -183,7 +202,7 @@ public static class OpenVinoOptimizationRegistry
 
     public static OpenVinoOptimizationCandidate GetRequired(
         OpenVinoOptimizationObjective objective) =>
-        Candidates.Single(candidate => candidate.Objective == objective);
+        Candidates.Single(candidate => candidate.LegacyObjectiveV1 == objective);
 
     public static bool IsRegistered(OpenVinoOptimizationCandidate candidate) =>
         candidate is not null && Candidates.Contains(candidate);
@@ -198,19 +217,33 @@ public static class OpenVinoOptimizationRegistry
     {
         OpenVinoOptimizationCandidate candidate = new(
             id,
-            objective,
             "CPU",
+            weight,
             OpenVinoPersistentArtifact.Create(weight),
             new OpenVinoRuntimeOptimization(
                 kv,
                 compiledCache
                     ? OpenVinoCompiledCachePolicy.Disposable
                     : OpenVinoCompiledCachePolicy.Disabled),
+            OpenVinoCapabilityPerformanceHint.Latency,
+            Streams: 1,
+            ContextTokens: 4_096,
             "Standard candidate",
-            evidenceId);
+            evidenceId)
+        {
+            LegacyObjectiveV1 = objective
+        };
         candidate.Validate();
         return candidate;
     }
+}
+
+// Schema-v1 provenance still resolves the old fixed ids through this alias.
+// New execution never calls it; Task 3 migrates provenance to plan identity.
+internal static class OpenVinoOptimizationRegistry
+{
+    internal static IReadOnlyList<OpenVinoOptimizationCandidate> Candidates =>
+        OpenVinoOptimizationLegacyRegistryV1.Candidates;
 }
 
 public sealed record OpenVinoCompiledCacheIdentity(
