@@ -42,7 +42,7 @@ public sealed class OnboardingShellPageTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
-    public void Constructor_KeepsProductionHardwareInspectionCompositionUnavailable()
+    public void Constructor_UsesProductionHardwareInspectionComposition()
     {
         var shell = new OnboardingShellPage();
         FieldInfo? serviceField = typeof(OnboardingShellPage).GetField(
@@ -53,8 +53,8 @@ public sealed class OnboardingShellPageTests
         object? service = serviceField.GetValue(shell);
         Assert.IsNotNull(service);
         Assert.AreEqual(
-            "GraniteEdgeAI.Features.HardwareInspection.Application." +
-            "UnavailableHardwareInspectionService",
+            "GraniteEdgeAI.Features.HardwareInspection.Orchestration." +
+            "HardwareInspectionService",
             service.GetType().FullName);
     }
 }

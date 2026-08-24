@@ -102,26 +102,10 @@ public sealed class HardwareInspectionJourneyTests
             .Any(item => item.Value.Contains('\\') || item.Value.Contains('/')));
         Assert.IsNull(viewModel.Snapshot.Handoff);
 
-        Type? unavailableType = typeof(IHardwareInspectionService).Assembly.GetType(
-            "GraniteEdgeAI.Features.HardwareInspection.Application.UnavailableHardwareInspectionService",
+        Type? productionType = typeof(IHardwareInspectionService).Assembly.GetType(
+            "GraniteEdgeAI.Features.HardwareInspection.Orchestration.HardwareInspectionService",
             throwOnError: false);
-        Assert.IsNotNull(unavailableType);
-        var unavailable = (IHardwareInspectionService)Activator.CreateInstance(
-            unavailableType,
-            nonPublic: true)!;
-        Guid unavailableRunId = Guid.NewGuid();
-        HardwareInspectionRunResult unavailableResult = await unavailable.RunAsync(
-            unavailableRunId,
-            new Progress<HardwareInspectionRunProgress>(),
-            CancellationToken.None);
-        Assert.AreEqual(
-            HardwareInspectionFailureKind.ApplicationRepairRequired,
-            unavailableResult.FailureKind);
-        Assert.AreEqual(
-            "HI-PROVIDER-NOT-AVAILABLE",
-            unavailableResult.SafeDiagnosticCode);
-        Assert.IsNull(unavailableResult.Snapshot);
-        Assert.IsNull(unavailableResult.Handoff);
+        Assert.IsNotNull(productionType);
     }
 
     [TestMethod]
