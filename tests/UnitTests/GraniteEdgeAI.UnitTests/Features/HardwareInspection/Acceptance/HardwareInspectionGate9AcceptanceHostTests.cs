@@ -187,6 +187,28 @@ public sealed class HardwareInspectionGate9AcceptanceHostTests
     }
 
     [TestMethod]
+    public async Task RunAsync_PublishesCancellationAfterValidProgressPrefix()
+    {
+        Gate9RunObservation observation = await RunHostAsync(async (id, progress, cancellationToken) =>
+        {
+            progress.Report(new HardwareInspectionRunProgress(
+                id,
+                1,
+                HardwareInspectionRunStage.StartingHardwareInspection));
+            await Task.Delay(50, cancellationToken);
+            return HardwareInspectionRunResult.CreateCancelled(id);
+        });
+
+        Assert.AreEqual(1, observation.ExitCode);
+        Assert.AreEqual(
+            "{\"schema\":\"granite.hardware-inspection.gate9-production-run/v1\"," +
+            "\"packageIdentityPresent\":true,\"outcome\":\"Cancelled\"," +
+            "\"stageCount\":1,\"handoffPresent\":false," +
+            "\"manifestFieldCount\":0,\"diagnostics\":[]}\n",
+            observation.Json);
+    }
+
+    [TestMethod]
     [DataRow("wrong-identity")]
     [DataRow("duplicate")]
     [DataRow("out-of-order")]

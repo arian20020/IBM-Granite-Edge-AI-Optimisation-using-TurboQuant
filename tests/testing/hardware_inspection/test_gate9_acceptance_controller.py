@@ -329,6 +329,38 @@ class Gate9AcceptanceControllerTests(unittest.TestCase):
             result.stdout,
         )
 
+    def test_surfaces_canonical_partial_cancellation(self):
+        """Catch a partial cancellation being rejected or exposing variable details."""
+        payload = (
+            b'{"schema":"granite.hardware-inspection.gate9-production-run/v1",'
+            b'"packageIdentityPresent":true,"outcome":"Cancelled",'
+            b'"stageCount":1,"handoffPresent":false,"manifestFieldCount":0,'
+            b'"diagnostics":[]}\n'
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "result.json"
+            path.write_bytes(payload)
+            result = self.run_functions(
+                [
+                    "Read-Gate9ProductionResult",
+                    "Assert-Gate9SuccessfulProductionResult",
+                ],
+                r"""
+                $result = Read-Gate9ProductionResult -Path $env:GRANITE_RESULT_PATH
+                try {
+                    Assert-Gate9SuccessfulProductionResult -Result $result
+                    throw 'The cancelled production result was accepted.'
+                }
+                catch {
+                    [Console]::Out.Write($_.Exception.Message)
+                }
+                """,
+                {"GRANITE_RESULT_PATH": str(path)},
+            )
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual("Gate 9 production run was cancelled.", result.stdout)
+
     def test_rejects_mutated_production_results(self):
         """Catch permissive parsing of failed, raw, malformed, or incomplete runs."""
         self.assertTrue(CONTROLLER.is_file(), "Gate 9 controller is missing")
@@ -349,6 +381,30 @@ class Gate9AcceptanceControllerTests(unittest.TestCase):
             "no-handoff": valid.replace(b'"handoffPresent":true', b'"handoffPresent":false'),
             "wrong-manifest": valid.replace(b'"manifestFieldCount":19', b'"manifestFieldCount":18'),
             "diagnostic": valid.replace(b'"diagnostics":[]', b'"diagnostics":["HI-WARNING"]'),
+            "cancelled-eight-stages": (
+                b'{"schema":"granite.hardware-inspection.gate9-production-run/v1",'
+                b'"packageIdentityPresent":true,"outcome":"Cancelled",'
+                b'"stageCount":8,"handoffPresent":false,"manifestFieldCount":0,'
+                b'"diagnostics":[]}\n'
+            ),
+            "cancelled-handoff": (
+                b'{"schema":"granite.hardware-inspection.gate9-production-run/v1",'
+                b'"packageIdentityPresent":true,"outcome":"Cancelled",'
+                b'"stageCount":1,"handoffPresent":true,"manifestFieldCount":0,'
+                b'"diagnostics":[]}\n'
+            ),
+            "cancelled-manifest": (
+                b'{"schema":"granite.hardware-inspection.gate9-production-run/v1",'
+                b'"packageIdentityPresent":true,"outcome":"Cancelled",'
+                b'"stageCount":1,"handoffPresent":false,"manifestFieldCount":1,'
+                b'"diagnostics":[]}\n'
+            ),
+            "cancelled-diagnostic": (
+                b'{"schema":"granite.hardware-inspection.gate9-production-run/v1",'
+                b'"packageIdentityPresent":true,"outcome":"Cancelled",'
+                b'"stageCount":1,"handoffPresent":false,"manifestFieldCount":0,'
+                b'"diagnostics":["HI-CANCELLED"]}\n'
+            ),
             "oversize": b" " * 4096 + valid,
         }
         with tempfile.TemporaryDirectory() as directory:
