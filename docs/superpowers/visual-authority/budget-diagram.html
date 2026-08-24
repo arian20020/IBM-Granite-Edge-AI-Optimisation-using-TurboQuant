@@ -1,0 +1,208 @@
+<meta charset="utf-8">
+<style>
+  .bd {
+    --ink:#101828; --muted:#667085; --subtle:#98a2b3;
+    --blue:#0f62fe; --blue-soft:#eef5ff; --blue-line:#bdd3ff;
+    --line:#e8edf3; --line-strong:#c9d5e3; --surface:#fff; --canvas:#f7f9fc;
+    --success-bg:#e9f7f1; --success-line:#a5d8c4; --success-text:#067a57;
+    --warning-bg:#fff6e0; --warning-line:#eec86f; --warning-text:#604200;
+    --danger:#b42318; --danger-bg:#fef3f2; --danger-line:#fda29b;
+    font-family:"Segoe UI","IBM Plex Sans",system-ui,sans-serif;
+  }
+  .bd *, .bd *::before, .bd *::after { box-sizing:border-box; }
+  .bd [class] { min-width:0; }
+  .bd-card { border:1px solid var(--line); border-radius:12px; background:var(--surface);
+    padding:16px 18px; overflow:hidden; }
+  .bd-head { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:12px; align-items:baseline; }
+  .bd-title { margin:0; color:var(--ink); font-size:12px; font-weight:750; }
+  .bd-note { margin:3px 0 0; color:var(--muted); font-size:9.5px; line-height:1.4; }
+  .bd-verdict { font-size:9.5px; font-weight:800; white-space:nowrap; }
+  .bd-verdict.ok { color:var(--success-text); }
+  .bd-verdict.no { color:var(--danger); }
+
+  /* ---- marker rail above the bar ---- */
+  .bd-rail { position:relative; height:19px; margin-top:16px; }
+  .bd-flag { position:absolute; bottom:0; transform:translateX(-50%); display:flex;
+    flex-direction:column; align-items:center; }
+  .bd-flag b { color:var(--ink); font-size:8px; font-weight:800; white-space:nowrap;
+    background:var(--surface); padding:0 4px; letter-spacing:.02em; }
+  .bd-flag i { display:block; width:1px; height:6px; background:var(--ink); opacity:.55; }
+
+  /* ---- the track ---- */
+  .bd-track { position:relative; display:grid; height:30px; border-radius:8px;
+    border:1px solid var(--line-strong); overflow:hidden; background:var(--canvas); }
+  .bd-seg { position:relative; display:flex; align-items:center; justify-content:center;
+    padding:0 4px; font-size:8px; font-weight:800; color:#fff; font-style:normal;
+    white-space:nowrap; overflow:hidden; }
+  .bd-seg + .bd-seg { border-left:1px solid rgba(255,255,255,.55); }
+  .bd-seg.reserve { background:#eef1f5; color:var(--subtle);
+    background-image:repeating-linear-gradient(135deg,transparent 0 5px,rgba(102,112,133,.13) 5px 10px);
+    border-left:1px solid var(--line-strong); }
+  .bd-limit { position:absolute; top:-1px; bottom:-1px; width:0;
+    border-left:2px dashed var(--ink); opacity:.62; pointer-events:none; }
+
+  /* ---- scale ---- */
+  .bd-scale { position:relative; height:13px; margin-top:5px; color:var(--muted); font-size:7.5px; }
+  .bd-scale .l { position:absolute; left:0; }
+  .bd-scale .r { position:absolute; right:0; }
+
+  /* ---- legend ---- */
+  .bd-legend { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:8px; margin-top:14px; }
+  .bd-key { border:1px solid var(--line); border-radius:8px; background:var(--canvas); padding:8px 9px; }
+  .bd-swatch { display:block; width:100%; height:4px; border-radius:99px; }
+  .bd-kname { display:block; margin-top:6px; color:var(--muted); font-size:7.5px; font-weight:700;
+    letter-spacing:.03em; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .bd-kval { display:block; margin-top:3px; color:var(--ink); font-size:10.5px; font-weight:750; }
+
+  /* ---- grouped bracket variant ---- */
+  .bd-brackets { position:relative; display:grid; height:22px; margin-top:6px; }
+  .bd-brk { position:relative; padding-top:9px; text-align:center; color:var(--muted);
+    font-size:7.5px; font-weight:750; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .bd-brk::before { content:""; position:absolute; top:0; left:6%; right:6%; height:5px;
+    border:1px solid var(--line-strong); border-bottom:0; border-radius:4px 4px 0 0; }
+  .bd-brk.g::before { border-color:var(--success-line); }
+  .bd-brk.n::before { border-color:var(--line-strong); }
+
+  .bd-foot { display:flex; flex-wrap:wrap; gap:6px 14px; margin-top:13px;
+    padding-top:11px; border-top:1px solid var(--line); color:var(--muted); font-size:8.5px; }
+  .bd-foot b { color:var(--ink); font-weight:750; }
+
+  .tag { display:inline-block; font-size:9px; font-weight:800; letter-spacing:.4px; padding:2px 8px;
+    border-radius:999px; background:#eef5ff; color:#0f62fe; margin-bottom:7px; }
+  .nm { font-size:13px; font-weight:700; margin:0 0 3px; }
+  .ds { font-size:11px; color:#667085; line-height:1.5; margin:0; }
+  .bd-stage { background:#f7f9fc; border:1px solid #c9d5e3; border-radius:12px; padding:16px; }
+</style>
+
+<h2>Memory budget diagram &mdash; polished</h2>
+<p class="subtitle">Numbers corrected: headroom is <strong>17.6 &minus; 10.6 = 7.0&nbsp;GB</strong>, not 4.6. The safe limit now falls exactly where the reserve begins, which is what makes the bar readable. Two treatments below; the third card shows the one that matters most &mdash; what it looks like when the model <em>doesn&rsquo;t</em> fit. Click to select.</p>
+
+<div class="cards bd">
+
+  <div class="card" data-choice="legend" onclick="toggleSelect(this)" style="border-radius:18px">
+   <div class="card-image" style="padding:0;background:none">
+    <div class="bd-stage">
+      <div class="bd-card">
+        <div class="bd-head">
+          <div><h4 class="bd-title">Memory budget</h4>
+            <p class="bd-note">How this model would use the memory available right now.</p></div>
+          <span class="bd-verdict ok">Fits safely</span>
+        </div>
+        <div class="bd-rail">
+          <div class="bd-flag" style="left:49.5%"><b>Model needs 10.6 GB</b><i></i></div>
+          <div class="bd-flag" style="left:82.2%"><b>Safe limit 17.6 GB</b><i></i></div>
+        </div>
+        <div class="bd-track" style="grid-template-columns:22.9fr 15.4fr 11.2fr 32.7fr 17.8fr">
+          <i class="bd-seg" style="background:#0f62fe">4.9</i>
+          <i class="bd-seg" style="background:#4589ff">3.3</i>
+          <i class="bd-seg" style="background:#a6c8ff;color:#0043ce">2.4</i>
+          <i class="bd-seg" style="background:#c5e8d8;color:#0d5c45">7.0 free</i>
+          <i class="bd-seg reserve">3.8</i>
+          <span class="bd-limit" style="left:82.2%"></span>
+        </div>
+        <div class="bd-scale"><span class="l">0 GB</span><span class="r">21.4 GB available</span></div>
+        <div class="bd-legend">
+          <div class="bd-key"><span class="bd-swatch" style="background:#0f62fe"></span>
+            <span class="bd-kname">Weights</span><span class="bd-kval">4.9 GB</span></div>
+          <div class="bd-key"><span class="bd-swatch" style="background:#4589ff"></span>
+            <span class="bd-kname">KV cache</span><span class="bd-kval">3.3 GB</span></div>
+          <div class="bd-key"><span class="bd-swatch" style="background:#a6c8ff"></span>
+            <span class="bd-kname">Buffers</span><span class="bd-kval">2.4 GB</span></div>
+          <div class="bd-key"><span class="bd-swatch" style="background:#c5e8d8"></span>
+            <span class="bd-kname">Headroom</span><span class="bd-kval">7.0 GB</span></div>
+          <div class="bd-key"><span class="bd-swatch" style="background:#dfe6ef"></span>
+            <span class="bd-kname">Reserved</span><span class="bd-kval">3.8 GB</span></div>
+        </div>
+        <div class="bd-foot"><span>Estimated peak <b>10.6 GB</b></span><span>Safe limit <b>17.6 GB</b></span>
+          <span>Headroom <b>7.0 GB</b></span><span>Evidence <b>Estimated</b></span></div>
+      </div>
+    </div>
+   </div>
+   <div class="card-body"><span class="tag">1</span>
+     <p class="nm">Stacked bar + legend</p>
+     <p class="ds">Segments carry only a number; the words move to a five-tile legend that is always legible however thin a segment gets. A dashed rule marks the safe limit on the bar itself, with a flag above naming it. The reserve is hatched so it reads as &ldquo;not yours to use&rdquo; rather than as another category of your model&rsquo;s memory.</p></div>
+  </div>
+
+  <div class="card" data-choice="bracket" onclick="toggleSelect(this)" style="border-radius:18px">
+   <div class="card-image" style="padding:0;background:none">
+    <div class="bd-stage">
+      <div class="bd-card">
+        <div class="bd-head">
+          <div><h4 class="bd-title">Memory budget</h4>
+            <p class="bd-note">How this model would use the memory available right now.</p></div>
+          <span class="bd-verdict ok">Fits safely</span>
+        </div>
+        <div class="bd-rail">
+          <div class="bd-flag" style="left:82.2%"><b>Safe limit 17.6 GB</b><i></i></div>
+        </div>
+        <div class="bd-track" style="grid-template-columns:22.9fr 15.4fr 11.2fr 32.7fr 17.8fr">
+          <i class="bd-seg" style="background:#0f62fe">Weights 4.9</i>
+          <i class="bd-seg" style="background:#4589ff">KV 3.3</i>
+          <i class="bd-seg" style="background:#a6c8ff;color:#0043ce">2.4</i>
+          <i class="bd-seg" style="background:#c5e8d8;color:#0d5c45">Free 7.0</i>
+          <i class="bd-seg reserve">3.8</i>
+          <span class="bd-limit" style="left:82.2%"></span>
+        </div>
+        <div class="bd-brackets" style="grid-template-columns:49.5fr 32.7fr 17.8fr">
+          <span class="bd-brk">This model needs 10.6 GB</span>
+          <span class="bd-brk g">Spare 7.0 GB</span>
+          <span class="bd-brk n">Windows 3.8</span>
+        </div>
+        <div class="bd-scale" style="margin-top:2px"><span class="l">0 GB</span><span class="r">21.4 GB available</span></div>
+        <div class="bd-foot"><span>Weights <b>4.9</b></span><span>KV cache <b>3.3</b></span>
+          <span>Buffers <b>2.4</b></span><span>Evidence <b>Estimated</b></span></div>
+      </div>
+    </div>
+   </div>
+   <div class="card-body"><span class="tag">2</span>
+     <p class="nm">Stacked bar + brackets</p>
+     <p class="ds">Same bar, but brackets underneath group it into the three ideas a user actually needs: what the model needs, what is spare, what Windows keeps. Fewer elements than the legend and it answers the question faster &mdash; at the cost of the per-component breakdown, which drops to the footer line.</p></div>
+  </div>
+
+  <div class="card" data-choice="nofit" onclick="toggleSelect(this)" style="border-radius:18px">
+   <div class="card-image" style="padding:0;background:none">
+    <div class="bd-stage">
+      <div class="bd-card" style="border-color:var(--danger-line)">
+        <div class="bd-head">
+          <div><h4 class="bd-title">Memory budget</h4>
+            <p class="bd-note">This configuration needs more memory than is safely available.</p></div>
+          <span class="bd-verdict no">Short by 4.9 GB</span>
+        </div>
+        <div class="bd-rail">
+          <div class="bd-flag" style="left:64.4%"><b>Safe limit 17.6 GB</b><i></i></div>
+        </div>
+        <div class="bd-track" style="grid-template-columns:53.5fr 25.6fr 8.8fr 12.1fr">
+          <i class="bd-seg" style="background:#0f62fe">Weights 14.6</i>
+          <i class="bd-seg" style="background:#4589ff">KV 7.0</i>
+          <i class="bd-seg" style="background:#a6c8ff;color:#0043ce">2.4</i>
+          <i class="bd-seg" style="background:repeating-linear-gradient(135deg,#fee4e2 0 5px,#fecdca 5px 10px);color:var(--danger)">Over</i>
+          <span class="bd-limit" style="left:64.4%;border-color:var(--danger);opacity:.85"></span>
+        </div>
+        <div class="bd-brackets" style="grid-template-columns:64.4fr 35.6fr">
+          <span class="bd-brk">Safely available 17.6 GB</span>
+          <span class="bd-brk n" style="color:var(--danger)">Beyond safe limit 6.4 GB</span>
+        </div>
+        <div class="bd-scale" style="margin-top:2px"><span class="l">0 GB</span><span class="r">Estimated peak 24.0 GB</span></div>
+        <div class="bd-foot"><span>Estimated peak <b>24.0 GB</b></span><span>Safe limit <b>17.6 GB</b></span>
+          <span style="color:var(--danger)">Shortfall <b style="color:var(--danger)">6.4 GB</b></span>
+          <span>Main limit <b>KV cache</b></span></div>
+      </div>
+    </div>
+   </div>
+   <div class="card-body"><span class="tag">3</span>
+     <p class="nm">The same diagram, not fitting</p>
+     <p class="ds">Screens&nbsp;04 and&nbsp;05. The bar now scales to <em>estimated peak</em> rather than available memory, so the overflow past the safe limit is visible instead of clipped. The over-budget region is hatched red and the footer names the limiting component &mdash; which is what tells the user whether a smaller KV cache or smaller weights is the fix.</p></div>
+  </div>
+
+</div>
+
+<div class="section" style="margin-top:22px">
+  <h3>What changed</h3>
+  <p class="subtitle" style="text-align:left">
+    Taller track with a real border; a dashed safe-limit rule drawn <em>on</em> the bar with a named flag above it; reserved memory hatched rather than coloured, so it doesn&rsquo;t read as part of the model; segment labels reduced to numbers with the words moved somewhere they always fit; a footer line restating peak, limit, headroom and evidence grade in words. And the bar rescales when the model overflows, so &ldquo;does not fit&rdquo; is shown rather than implied.
+  </p>
+  <h3 style="margin-top:16px">My pick</h3>
+  <p class="subtitle" style="text-align:left">
+    <strong>2 for the main screen, 1 inside the &ldquo;How was this calculated?&rdquo; disclosure.</strong> Brackets answer the user&rsquo;s question in three words on the surface; the legend gives the component breakdown to anyone who opens the details. Card&nbsp;3 is not an alternative &mdash; it&rsquo;s the same component in its unfitting state, and I&rsquo;ll build it either way.
+  </p>
+</div>

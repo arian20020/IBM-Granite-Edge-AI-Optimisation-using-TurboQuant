@@ -22,6 +22,14 @@
   <PropertyGroup Condition="'$(Platform)' == 'x64'">
     <DefineConstants>$(DefineConstants);HARDWARE_INSPECTION_X64</DefineConstants>
   </PropertyGroup>
+
+  <!-- Opt-in reviewer build: opens onto the compatibility screen gallery so
+       every state can be looked at. Off unless asked for, so a normal build
+       behaves exactly as before.
+         dotnet build ... -p:CompatibilityFixtureGallery=true -->
+  <PropertyGroup Condition="'$(CompatibilityFixtureGallery)' == 'true'">
+    <DefineConstants>$(DefineConstants);COMPATIBILITY_FIXTURE_GALLERY</DefineConstants>
+  </PropertyGroup>
   <ItemGroup>
     <Compile Remove="Features\ModelInspection\DebugFixtures\**" />
     <Page Remove="Features\ModelInspection\DebugFixtures\**" />
@@ -41,6 +49,19 @@
     <Content Remove="Features\HardwareInspection\DebugFixtures\**" />
     <EmbeddedResource Remove="Features\HardwareInspection\DebugFixtures\**" />
     <PRIResource Remove="Features\HardwareInspection\DebugFixtures\**" />
+    <Compile Remove="Features\ModelHardwareCompatibility\DebugFixtures\**" />
+    <Page Remove="Features\ModelHardwareCompatibility\DebugFixtures\**" />
+    <None Remove="Features\ModelHardwareCompatibility\DebugFixtures\**" />
+    <Content Remove="Features\ModelHardwareCompatibility\DebugFixtures\**" />
+    <EmbeddedResource Remove="Features\ModelHardwareCompatibility\DebugFixtures\**" />
+    <PRIResource Remove="Features\ModelHardwareCompatibility\DebugFixtures\**" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(CompatibilityFixtureGallery)' == 'true'">
+    <Compile Include="Features\ModelHardwareCompatibility\DebugFixtures\CompatibilityFixtureCatalogue.cs" />
+    <Compile Include="Features\ModelHardwareCompatibility\DebugFixtures\CompatibilityFixtureGalleryPage.xaml.cs" />
+    <Page Include="Features\ModelHardwareCompatibility\DebugFixtures\CompatibilityFixtureGalleryPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
   </ItemGroup>
   <ItemGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
     <Compile Include="Features\HardwareInspection\DebugFixtures\HardwareInspectionFixtureCatalogue.cs" />
@@ -461,6 +482,12 @@
       Condition="'$(Platform)' == 'x64'" />
     <ProjectReference
       Include="..\infrastructure\GraniteEdgeAI.HardwareInspection.Foundation\GraniteEdgeAI.HardwareInspection.Foundation.csproj"
+      Condition="'$(Platform)' == 'x64'" />
+    <!-- The compatibility engine. Route-neutral, WinUI-free, and referenced only
+         for its public screen contract; everything that produced that contract
+         stays internal to it. -->
+    <ProjectReference
+      Include="..\shared\GraniteEdgeAI.ModelHardwareCompatibility.Core\GraniteEdgeAI.ModelHardwareCompatibility.Core.csproj"
       Condition="'$(Platform)' == 'x64'" />
   </ItemGroup>
   <ItemGroup Condition="'$(Platform)' != 'x64'">

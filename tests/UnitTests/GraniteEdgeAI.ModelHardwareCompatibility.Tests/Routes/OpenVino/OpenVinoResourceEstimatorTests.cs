@@ -1,0 +1,304 @@
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Contracts;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Estimation;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.OpenVino;
+
+namespace GraniteEdgeAI.ModelHardwareCompatibility.Tests.Routes.OpenVino;
+
+/// <summary>
+/// What an OpenVINO configuration would actually cost.
+///
+/// The estimate is the number a safety gate is compared against, so the tests
+/// that matter here are the ones about what it must never do: leave a component
+/// out, invent a value it does not have, or count the same memory twice.
+/// </summary>
+[TestClass]
+public sealed class OpenVinoResourceEstimatorTests
+{
+    private const ulong Gibibyte = 1024UL * 1024 * 1024;
+
+    private static InspectedModelFacts Facts() =>
+        InspectedModelFacts.Create(
+            ByteCount.FromBytes(3 * Gibibyte), 32, 4096, 32, 8, 8192, 15, 2);
+
+    private static OpenVinoRouteConfiguration Configuration(
+        DeviceRouteId device = DeviceRouteId.Cpu,
+        OpenVinoWeightFormat weights = OpenVinoWeightFormat.Int8,
+        OpenVinoKvCacheFormat cache = OpenVinoKvCacheFormat.U8) =>
+        OpenVinoRouteConfiguration.Create(
+            weights,
+            cache,
+            device,
+            OpenVinoPerformanceHint.Latency,
+            OpenVinoCompiledCachePolicy.Enabled,
+            streams: 1);
+
+    private static ResourceEstimate Estimate(
+        OpenVinoRouteConfiguration configuration,
+        InspectedModelFacts? facts = null,
+        int contextTokens = 4096) =>
+        OpenVinoResourceEstimator.Estimate(
+            facts ?? Facts(),
+            configuration,
+            ContextTokenCount.FromTokens(contextTokens),
+            EstimatorPolicy.ProvisionalV1());
+
+    [TestMethod]
+    public void EstimateIsEstablishedForACompleteConfiguration()
+    {
+        Assert.AreEqual(EstimationStatus.Established, Estimate(Configuration()).Status);
+    }
+
+    [TestMethod]
+    public void IntegratedGpuSharedMemoryIsCountedOnce()
+    {
+        // An integrated GPU has no memory of its own: what it uses is system
+        // RAM. Charging the weights to shared device memory and again to system
+        // memory would double the requirement and reject a setup that fits.
+        // Charging them to a dedicated pool that does not exist would halve it
+        // and admit one that does not.
+        ResourceEstimate estimate =
+            Estimate(Configuration(DeviceRouteId.IntelIntegratedGpu));
+
+        ResourcePeakProfile peaks = ResourcePhaseComposer.Compose(estimate.Components);
+
+        Assert.AreEqual(
+            ByteCount.Zero,
+            peaks.PeakFor(ResourceTarget.DedicatedDeviceMemory),
+            "An integrated GPU was charged against dedicated memory it does not have.");
+
+        Assert.AreEqual(
+            peaks.PeakFor(ResourceTarget.SystemMemory)
+                .Add(peaks.PeakFor(ResourceTarget.SharedDeviceMemory)),
+            peaks.SystemMemoryPressure,
+            "Shared device memory was not folded into system pressure exactly once.");
+    }
+
+    [TestMethod]
+    public void NoComponentIsChargedToTwoPools()
+    {
+        // The same allocation appearing under two targets is the double count
+        // that section 7.2 forbids, and it survives every total-based check
+        // because both totals stay individually plausible.
+        ResourceEstimate estimate =
+            Estimate(Configuration(DeviceRouteId.IntelIntegratedGpu));
+
+        IEnumerable<IGrouping<ResourceComponentKind, ResourceComponent>> byKind =
+            estimate.Components
+                .Where(component => component.Target
+                    is ResourceTarget.SystemMemory
+                    or ResourceTarget.SharedDeviceMemory
+                    or ResourceTarget.DedicatedDeviceMemory)
+                .GroupBy(component => component.Kind);
+
+        foreach (IGrouping<ResourceComponentKind, ResourceComponent> group in byKind)
+        {
+            Assert.AreEqual(
+                1,
+                group.Select(component => component.Target).Distinct().Count(),
+                $"{group.Key} is charged against more than one memory pool.");
+        }
+    }
+
+    [TestMethod]
+    public void EveryMandatoryComponentIsPresent()
+    {
+        // A missing component is an underestimate, and an underestimate is the
+        // false-safe this whole design exists to prevent.
+        ResourceComponentKind[] required =
+        [
+            ResourceComponentKind.Weights,
+            ResourceComponentKind.KvCache,
+            ResourceComponentKind.ComputeBuffer,
+            ResourceComponentKind.BackendAllocation,
+            ResourceComponentKind.ApplicationOverhead
+        ];
+
+        IReadOnlyList<ResourceComponent> components = Estimate(Configuration()).Components;
+
+        foreach (ResourceComponentKind kind in required)
+        {
+            Assert.IsTrue(
+                components.Any(component => component.Kind == kind),
+                $"{kind} is missing from the estimate.");
+        }
+    }
+
+    [TestMethod]
+    public void EveryComponentCostsSomething()
+    {
+        foreach (ResourceComponent component in Estimate(Configuration()).Components)
+        {
+            Assert.IsTrue(
+                component.Bytes > ByteCount.Zero,
+                $"{component.Kind} was estimated at zero, which reads as free.");
+        }
+    }
+
+    [TestMethod]
+    [DataRow(null, null, null, null)]
+    [DataRow(32, null, 32, 8)]
+    [DataRow(32, 4096, null, 8)]
+    [DataRow(32, 4096, 32, null)]
+    public void UnknownModelShapeFailsClosed(
+        int? layers, int? embedding, int? heads, int? kvHeads)
+    {
+        // Missing a layer count does not make the cache free. Estimating around
+        // an unknown produces a confident number with nothing behind it, so the
+        // estimate refuses and names why.
+        InspectedModelFacts incomplete = InspectedModelFacts.Create(
+            ByteCount.FromBytes(3 * Gibibyte), layers, embedding, heads, kvHeads, 8192, 15, 2);
+
+        ResourceEstimate estimate = Estimate(Configuration(), incomplete);
+
+        Assert.AreEqual(EstimationStatus.NotEstablished, estimate.Status);
+        Assert.AreNotEqual(EstimationUnavailableReason.None, estimate.Reason);
+        Assert.AreEqual(0, estimate.Components.Count);
+    }
+
+    [TestMethod]
+    public void AbsentPolicyRefusesRatherThanInventingTerms()
+    {
+        ResourceEstimate estimate = OpenVinoResourceEstimator.Estimate(
+            Facts(),
+            Configuration(),
+            ContextTokenCount.FromTokens(4096),
+            EstimatorPolicy.Absent());
+
+        Assert.AreEqual(EstimationStatus.NotEstablished, estimate.Status);
+    }
+
+    [TestMethod]
+    public void LongerContextCostsMoreCache()
+    {
+        ulong Cache(int tokens) => Estimate(Configuration(), contextTokens: tokens)
+            .Components
+            .Where(component => component.Kind == ResourceComponentKind.KvCache)
+            .Aggregate(0UL, (sum, component) => sum + component.Bytes.Bytes);
+
+        Assert.IsTrue(Cache(8192) > Cache(4096));
+    }
+
+    [TestMethod]
+    public void SmallerCacheFormatCostsLess()
+    {
+        // U4 stores the same context in fewer bits than F16. If the estimate
+        // did not reflect that, the frontier would rank cache formats by
+        // nothing and a slider band would move memory without moving cost.
+        ulong Cache(OpenVinoKvCacheFormat format) =>
+            Estimate(Configuration(cache: format))
+                .Components
+                .Where(component => component.Kind == ResourceComponentKind.KvCache)
+                .Aggregate(0UL, (sum, component) => sum + component.Bytes.Bytes);
+
+        Assert.IsTrue(Cache(OpenVinoKvCacheFormat.U4) < Cache(OpenVinoKvCacheFormat.U8));
+        Assert.IsTrue(Cache(OpenVinoKvCacheFormat.U8) < Cache(OpenVinoKvCacheFormat.F16));
+    }
+
+    [TestMethod]
+    public void SmallerWeightFormatCostsLess()
+    {
+        ulong Weights(OpenVinoWeightFormat format) =>
+            Estimate(Configuration(weights: format))
+                .Components
+                .Where(component => component.Kind == ResourceComponentKind.Weights)
+                .Aggregate(0UL, (sum, component) => sum + component.Bytes.Bytes);
+
+        Assert.IsTrue(Weights(OpenVinoWeightFormat.Int4) < Weights(OpenVinoWeightFormat.Int8));
+        Assert.IsTrue(Weights(OpenVinoWeightFormat.Int8) < Weights(OpenVinoWeightFormat.Fp16));
+    }
+
+    [TestMethod]
+    public void OriginalWeightsCostWhatTheFileAlreadyIs()
+    {
+        // Nothing is converted, so the weights are exactly the bytes on disk.
+        // Deriving a figure from a bit-width here would contradict a value we
+        // already measured.
+        ulong weights = Estimate(Configuration(weights: OpenVinoWeightFormat.Original))
+            .Components
+            .Where(component => component.Kind == ResourceComponentKind.Weights)
+            .Aggregate(0UL, (sum, component) => sum + component.Bytes.Bytes);
+
+        Assert.IsTrue(
+            weights >= 3 * Gibibyte,
+            "Original weights were estimated below the file they come from.");
+    }
+
+    [TestMethod]
+    public void PersistentConversionChargesWorkspaceAndOutput()
+    {
+        // A conversion needs room for what it writes. Omitting it lets a plan
+        // promise a persistent artifact the disk cannot hold.
+        IReadOnlyList<ResourceComponent> converted =
+            Estimate(Configuration(weights: OpenVinoWeightFormat.Int4)).Components;
+
+        Assert.IsTrue(
+            converted.Any(component =>
+                component.Target == ResourceTarget.Storage
+                && component.Kind == ResourceComponentKind.PersistentArtifact),
+            "A converting configuration charged no storage for its output.");
+    }
+
+    [TestMethod]
+    public void OriginalWeightsChargeNoConversionStorage()
+    {
+        // Runtime-only work writes no model, so claiming disk for one would
+        // overstate what the user is agreeing to.
+        Assert.IsFalse(
+            Estimate(Configuration(weights: OpenVinoWeightFormat.Original))
+                .Components
+                .Any(component => component.Kind == ResourceComponentKind.PersistentArtifact),
+            "A runtime-only configuration claimed storage for a model copy.");
+    }
+
+    [TestMethod]
+    public void MoreStreamsCostMoreWorkingMemory()
+    {
+        ulong Compute(int streams) => OpenVinoResourceEstimator.Estimate(
+                Facts(),
+                OpenVinoRouteConfiguration.Create(
+                    OpenVinoWeightFormat.Int8,
+                    OpenVinoKvCacheFormat.U8,
+                    DeviceRouteId.Cpu,
+                    OpenVinoPerformanceHint.Throughput,
+                    OpenVinoCompiledCachePolicy.Enabled,
+                    streams),
+                ContextTokenCount.FromTokens(4096),
+                EstimatorPolicy.ProvisionalV1())
+            .Components
+            .Where(component => component.Kind == ResourceComponentKind.ComputeBuffer)
+            .Aggregate(0UL, (sum, component) => sum + component.Bytes.Bytes);
+
+        Assert.IsTrue(
+            Compute(4) > Compute(1),
+            "Four streams were estimated to cost no more working memory than one.");
+    }
+
+    [TestMethod]
+    public void CompiledCacheOnDiskIsCharged()
+    {
+        // Checked on a runtime-only configuration, so the compiled blob is the
+        // only thing that could put anything on disk. It is charged as model
+        // state rather than as a persistent artifact: it is a real file, but it
+        // is not a model copy, and only a model copy may make the page say one
+        // was created.
+        bool ChargesCache(OpenVinoCompiledCachePolicy policy) =>
+            OpenVinoResourceEstimator.Estimate(
+                    Facts(),
+                    OpenVinoRouteConfiguration.Create(
+                        OpenVinoWeightFormat.Original,
+                        OpenVinoKvCacheFormat.U8,
+                        DeviceRouteId.Cpu,
+                        OpenVinoPerformanceHint.Latency,
+                        policy,
+                        1),
+                    ContextTokenCount.FromTokens(4096),
+                    EstimatorPolicy.ProvisionalV1())
+                .Components
+                .Any(component => component.Target == ResourceTarget.Storage
+                    && component.Kind == ResourceComponentKind.ModelState);
+
+        Assert.IsTrue(ChargesCache(OpenVinoCompiledCachePolicy.Enabled));
+        Assert.IsFalse(ChargesCache(OpenVinoCompiledCachePolicy.Disabled));
+    }
+}
