@@ -109,7 +109,10 @@ public sealed class LlamaCppProbeManifestParserTests
     {
         JsonObject reversed = CreateManifestNode();
         JsonArray commands = reversed["commands"]!.AsArray();
-        (commands[0], commands[1]) = (commands[1], commands[0]);
+        JsonNode first = commands[0]!.DeepClone();
+        JsonNode second = commands[1]!.DeepClone();
+        commands[0] = second;
+        commands[1] = first;
         AssertRejected(Serialize(reversed));
 
         JsonObject changedArgument = CreateManifestNode();
