@@ -195,6 +195,32 @@ class Gate9AcceptanceControllerTests(unittest.TestCase):
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertEqual("OK\n", result.stdout)
 
+    def test_operating_system_architecture_uses_windows_powershell_compatible_probe(self):
+        """Catch dependence on RuntimeInformation members absent in some PS 5.1 hosts."""
+        result = self.run_functions(
+            ["Get-Gate9OperatingSystemArchitecture"],
+            r"""
+            $expected = if ([Environment]::Is64BitOperatingSystem) {
+                'X64'
+            }
+            else {
+                'X86'
+            }
+            $actual = Get-Gate9OperatingSystemArchitecture
+            if ($actual -cne $expected) {
+                throw "Expected $expected but received $actual."
+            }
+            'OK'
+            """,
+        )
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual("OK\n", result.stdout)
+        self.assertNotIn(
+            "RuntimeInformation]::OSArchitecture",
+            CONTROLLER.read_text(encoding="utf-8"),
+        )
+
     def test_supported_target_facts_fail_closed_for_every_precondition(self):
         """Catch AMD, x86, VM, connected, old-Windows, or non-admin acceptance."""
         self.assertTrue(CONTROLLER.is_file(), "Gate 9 controller is missing")

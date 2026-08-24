@@ -31,6 +31,14 @@ $maximumExitWait = [TimeSpan]::FromSeconds(10)
 $llmFitExecutableSha256 =
     'db82bcb17f065b7ff7528ffe9904b2b0e1cce0c843fcd659b4ee1432a2e72e19'
 
+function Get-Gate9OperatingSystemArchitecture {
+    if ([Environment]::Is64BitOperatingSystem) {
+        return 'X64'
+    }
+
+    return 'X86'
+}
+
 function Assert-Gate9SupportedTargetFacts {
     param(
         [Parameter(Mandatory)] [bool] $IsAdministrator,
@@ -919,7 +927,7 @@ if ($operatingSystems.Count -ne 1 -or
 }
 
 $osBuild = [int] $operatingSystems[0].BuildNumber
-$osArchitecture = [Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
+$osArchitecture = Get-Gate9OperatingSystemArchitecture
 [string[]] $processorManufacturers = @($processors | ForEach-Object {
         [string] $_.Manufacturer
     })
