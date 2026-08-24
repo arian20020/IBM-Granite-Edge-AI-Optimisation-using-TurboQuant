@@ -31,12 +31,59 @@ $maximumExitWait = [TimeSpan]::FromSeconds(10)
 $llmFitExecutableSha256 =
     'db82bcb17f065b7ff7528ffe9904b2b0e1cce0c843fcd659b4ee1432a2e72e19'
 
+function Convert-Gate9NativeMachineToArchitecture {
+    param([Parameter(Mandatory)] [uint16] $NativeMachine)
+
+    switch ($NativeMachine) {
+        0x8664 { return 'X64' }
+        0x014c { return 'X86' }
+        0xaa64 { return 'Arm64' }
+        default { return 'Unknown' }
+    }
+}
+
 function Get-Gate9OperatingSystemArchitecture {
-    if ([Environment]::Is64BitOperatingSystem) {
-        return 'X64'
+    if ($null -eq ('GraniteEdgeAI.HardwareInspection.Gate9.NativeArchitecture' -as [type])) {
+        Add-Type -TypeDefinition @'
+using System;
+using System.ComponentModel;
+using System.Runtime.InteropServices;
+
+namespace GraniteEdgeAI.HardwareInspection.Gate9
+{
+    public static class NativeArchitecture
+    {
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool IsWow64Process2(
+            IntPtr process,
+            out ushort processMachine,
+            out ushort nativeMachine);
+
+        [DllImport("kernel32.dll")]
+        private static extern IntPtr GetCurrentProcess();
+
+        public static ushort GetNativeMachine()
+        {
+            ushort processMachine;
+            ushort nativeMachine;
+            if (!IsWow64Process2(
+                GetCurrentProcess(),
+                out processMachine,
+                out nativeMachine))
+            {
+                throw new Win32Exception(Marshal.GetLastWin32Error());
+            }
+
+            return nativeMachine;
+        }
+    }
+}
+'@
     }
 
-    return 'X86'
+    $nativeMachine =
+        [GraniteEdgeAI.HardwareInspection.Gate9.NativeArchitecture]::GetNativeMachine()
+    return Convert-Gate9NativeMachineToArchitecture -NativeMachine $nativeMachine
 }
 
 function Assert-Gate9SupportedTargetFacts {

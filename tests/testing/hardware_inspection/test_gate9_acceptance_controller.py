@@ -195,20 +195,30 @@ class Gate9AcceptanceControllerTests(unittest.TestCase):
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertEqual("OK\n", result.stdout)
 
-    def test_operating_system_architecture_uses_windows_powershell_compatible_probe(self):
-        """Catch dependence on RuntimeInformation members absent in some PS 5.1 hosts."""
+    def test_operating_system_architecture_uses_native_fail_closed_probe(self):
+        """Catch PS 5.1 incompatibility or conflating ARM64 with x64 Windows."""
         result = self.run_functions(
-            ["Get-Gate9OperatingSystemArchitecture"],
+            [
+                "Convert-Gate9NativeMachineToArchitecture",
+                "Get-Gate9OperatingSystemArchitecture",
+            ],
             r"""
-            $expected = if ([Environment]::Is64BitOperatingSystem) {
-                'X64'
+            $cases = @(
+                [pscustomobject]@{ NativeMachine = 0x8664; Expected = 'X64' },
+                [pscustomobject]@{ NativeMachine = 0x014c; Expected = 'X86' },
+                [pscustomobject]@{ NativeMachine = 0xaa64; Expected = 'Arm64' },
+                [pscustomobject]@{ NativeMachine = 0x0000; Expected = 'Unknown' },
+                [pscustomobject]@{ NativeMachine = 0x0200; Expected = 'Unknown' })
+            foreach ($case in $cases) {
+                $actual = Convert-Gate9NativeMachineToArchitecture `
+                    -NativeMachine $case.NativeMachine
+                if ($actual -cne $case.Expected) {
+                    throw "Expected $($case.Expected) but received $actual."
+                }
             }
-            else {
-                'X86'
-            }
-            $actual = Get-Gate9OperatingSystemArchitecture
-            if ($actual -cne $expected) {
-                throw "Expected $expected but received $actual."
+
+            if ((Get-Gate9OperatingSystemArchitecture) -cne 'X64') {
+                throw 'The Windows x64 test host was not classified as X64.'
             }
             'OK'
             """,
@@ -218,6 +228,10 @@ class Gate9AcceptanceControllerTests(unittest.TestCase):
         self.assertEqual("OK\n", result.stdout)
         self.assertNotIn(
             "RuntimeInformation]::OSArchitecture",
+            CONTROLLER.read_text(encoding="utf-8"),
+        )
+        self.assertNotIn(
+            "Is64BitOperatingSystem",
             CONTROLLER.read_text(encoding="utf-8"),
         )
 
