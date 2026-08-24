@@ -367,7 +367,12 @@ function Assert-Gate9NoReparseAncestors {
             throw 'A required Gate 9 path traverses a reparse point.'
         }
 
-        $current = $current.Parent
+        $current = if ($current -is [IO.FileInfo]) {
+            $current.Directory
+        }
+        else {
+            $current.Parent
+        }
     }
 }
 

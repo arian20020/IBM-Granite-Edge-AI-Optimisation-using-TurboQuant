@@ -150,6 +150,31 @@ class Gate9AcceptanceControllerTests(unittest.TestCase):
         self.assertIn("$cleanupPackages.Count -eq 1", source)
         self.assertIn("$cleanupPackages.Count -gt 1", source)
 
+    def test_reparse_ancestor_check_accepts_physical_file_and_directory_paths(self):
+        """Catch treating FileInfo as DirectoryInfo while walking path ancestors."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "physical"
+            root.mkdir()
+            file_path = root / "bundle.zip"
+            file_path.write_bytes(b"bundle")
+
+            result = self.run_functions(
+                ["Assert-Gate9NoReparseAncestors"],
+                r"""
+                Set-StrictMode -Version Latest
+                Assert-Gate9NoReparseAncestors -Path $env:GRANITE_GATE9_DIRECTORY
+                Assert-Gate9NoReparseAncestors -Path $env:GRANITE_GATE9_FILE
+                'OK'
+                """,
+                environment={
+                    "GRANITE_GATE9_DIRECTORY": str(root),
+                    "GRANITE_GATE9_FILE": str(file_path),
+                },
+            )
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual("OK\n", result.stdout)
+
     def test_supported_target_facts_accept_exact_windows11_x64_intel_physical(self):
         """Catch rejection of the one explicitly supported physical target class."""
         result = self.run_functions(
