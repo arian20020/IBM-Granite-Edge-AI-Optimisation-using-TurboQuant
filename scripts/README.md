@@ -36,6 +36,18 @@ Store repeatable build, test, benchmark, evidence-validation and release scripts
   exactly three times without retry, writes one bounded development-only
   summary, and proves cleanup of invocation-owned package, certificate, and raw
   result state.
+- [`hardware-inspection/Invoke-HardwareInspectionGate9Acceptance.ps1`](hardware-inspection/Invoke-HardwareInspectionGate9Acceptance.ps1)
+  runs the exact production Hardware Inspection route three times on the
+  supported physical Windows 11 x64 Intel laptop. The operator must make the
+  network-disconnection precondition user-controlled and physically disconnected;
+  the controller never changes adapters, firewall, proxy, Defender, or Smart App
+  Control. It verifies the sibling bundle ZIP hash, the extracted four-file
+  bundle, fixed ProgramData LLM Fit package, process tree, endpoint observations,
+  package removal, and raw-result cleanup before publishing sanitized evidence.
+- [`hardware-inspection/Test-HardwareInspectionGate9Summary.ps1`](hardware-inspection/Test-HardwareInspectionGate9Summary.ps1)
+  validates the exact 16 KiB canonical Gate 9 summary. A Developer package can
+  produce only `EngineeringPassedReleaseBlocked`; public release requires a
+  separately validated Enterprise or Store trust record for the same package.
 - The operator boundary and verification commands are in
   [`Hardware-Inspection-Intel-Runner-Stage-0-Runbook.md`](../docs/testing/runbooks/Hardware-Inspection-Intel-Runner-Stage-0-Runbook.md).
 - The separately authorised Stage A stopped-runner, one-time registration,
