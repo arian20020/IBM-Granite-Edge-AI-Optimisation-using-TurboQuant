@@ -85,6 +85,11 @@
                     AutomationProperties.Name="Optimisation progress"
                     Visibility="Collapsed" />
 
+                <controls:OptimizationOutcomeCard
+                    x:Name="OutcomeCard"
+                    AutomationProperties.Name="Optimisation result"
+                    Visibility="Collapsed" />
+
                 <Button
                     x:Name="ReviewConfigurationButton"
                     MinHeight="48"

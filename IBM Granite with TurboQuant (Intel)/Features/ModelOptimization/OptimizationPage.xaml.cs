@@ -16,6 +16,7 @@ public sealed partial class OptimizationPage : Page
         ConfirmationCard.BackRequested += OnBackRequested;
         ConfirmationCard.ConfirmRequested += OnConfirmRequested;
         ProgressCard.CancelRequested += OnCancelRequested;
+        OutcomeCard.ActionRequested += OnOutcomeActionRequested;
     }
 
     internal event EventHandler<OptimizationIntentEventArgs>? IntentRequested;
@@ -33,6 +34,7 @@ public sealed partial class OptimizationPage : Page
         ConfigurationCard.Apply(presentation.Configuration);
         ConfirmationCard.Apply(presentation);
         ProgressCard.Apply(presentation);
+        OutcomeCard.Apply(presentation);
 
         bool selecting = presentation.Kind == OptimizationPageStateKind.Selecting;
         bool confirming = presentation.Kind == OptimizationPageStateKind.Confirming;
@@ -42,6 +44,9 @@ public sealed partial class OptimizationPage : Page
         ReviewConfigurationButton.Visibility = selecting ? Visibility.Visible : Visibility.Collapsed;
         ConfirmationCard.Visibility = confirming ? Visibility.Visible : Visibility.Collapsed;
         ProgressCard.Visibility = running ? Visibility.Visible : Visibility.Collapsed;
+        OutcomeCard.Visibility = !selecting && !confirming && !running
+            ? Visibility.Visible
+            : Visibility.Collapsed;
     }
 
     private void OnPreferenceChanged(
@@ -69,4 +74,13 @@ public sealed partial class OptimizationPage : Page
 
     private void RaiseIntent(OptimizationIntentKind kind) =>
         IntentRequested?.Invoke(this, new OptimizationIntentEventArgs(kind, _presentation?.Preference));
+
+    private void OnOutcomeActionRequested(string actionId) => RaiseIntent(actionId switch
+    {
+        "retry" => OptimizationIntentKind.RetryRequested,
+        "review" => OptimizationIntentKind.ReviewAgainRequested,
+        "chat" => OptimizationIntentKind.ChatRequested,
+        "save" => OptimizationIntentKind.SaveRequested,
+        _ => throw new ArgumentOutOfRangeException(nameof(actionId), actionId, "Unknown optimisation action.")
+    });
 }
