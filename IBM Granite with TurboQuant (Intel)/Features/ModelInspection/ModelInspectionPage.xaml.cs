@@ -457,6 +457,27 @@ public sealed partial class ModelInspectionPage : Page
             : null;
     }
 
+    internal ModelInspectionExecutionResult? ResolveTerminalResult(
+        ModelInspectionHandoff handoff)
+    {
+        ArgumentNullException.ThrowIfNull(handoff);
+        ModelInspectionExecutionResult? terminal = ViewModel?.Result;
+        if (terminal?.Status != ModelInspectionExecutionStatus.Completed
+            || terminal.Result is not { } result
+            || handoff.ModelInspectionRunId != ViewModel!.Snapshot.ModelInspectionRunId
+            || handoff.Outcome != result.Outcome
+            || handoff.ModelLengthBytes != result.Evidence.File.LengthBytes
+            || !string.Equals(
+                handoff.ModelSha256,
+                result.Evidence.File.ModelSha256,
+                StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        return terminal;
+    }
+
     private void ViewModel_HardwareInspectionRequested(
         object? sender,
         HardwareInspectionRequestedEventArgs eventArguments)

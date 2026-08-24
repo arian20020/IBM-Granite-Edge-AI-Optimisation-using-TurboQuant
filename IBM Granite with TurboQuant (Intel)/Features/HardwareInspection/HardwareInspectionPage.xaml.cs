@@ -25,6 +25,7 @@ public sealed partial class HardwareInspectionPage : Page
     private bool _hasStarted;
     private long _appliedRevision = -1;
     private long _appliedAttemptGeneration = -1;
+    private long _publishedCompletionGeneration = -1;
 
     public HardwareInspectionPage()
     {
@@ -61,6 +62,8 @@ public sealed partial class HardwareInspectionPage : Page
     public event EventHandler<HardwareInspectionActionRequestedEventArgs>? ActionRequested;
 
     internal event EventHandler? JourneyAbandoned;
+
+    internal event EventHandler<HardwareInspectionCompletedEventArgs>? InspectionCompleted;
 
     public object? FooterContent
     {
@@ -153,6 +156,7 @@ public sealed partial class HardwareInspectionPage : Page
         }
 
         HardwareInspectionViewState snapshot = _viewModel.Snapshot;
+        PublishCompletionIfReady(snapshot);
         if (snapshot.Revision <= _appliedRevision)
         {
             return;
@@ -167,6 +171,20 @@ public sealed partial class HardwareInspectionPage : Page
             preserveDisclosureState);
         _appliedAttemptGeneration = snapshot.AttemptGeneration;
         _appliedRevision = snapshot.Revision;
+    }
+
+    private void PublishCompletionIfReady(HardwareInspectionViewState snapshot)
+    {
+        if (snapshot.AttemptGeneration != _publishedCompletionGeneration
+            && snapshot.Handoff is { } handoff
+            && snapshot.Presentation.Kind is HardwareInspectionPresentationKind.Completed
+                or HardwareInspectionPresentationKind.CompletedWithWarnings)
+        {
+            _publishedCompletionGeneration = snapshot.AttemptGeneration;
+            InspectionCompleted?.Invoke(
+                this,
+                new HardwareInspectionCompletedEventArgs(handoff));
+        }
     }
 
     private void OnActionRequested(

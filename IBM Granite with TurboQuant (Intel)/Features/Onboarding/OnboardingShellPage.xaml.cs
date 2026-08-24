@@ -6,6 +6,8 @@ using GraniteEdgeAI.Features.HardwareInspection.Orchestration;
 using GraniteEdgeAI.Features.HardwareInspection.Presentation.Controls;
 using GraniteEdgeAI.Features.HardwareInspection.Presentation.State;
 using GraniteEdgeAI.Features.HardwareInspection.ViewModels;
+using GraniteEdgeAI.Features.ModelHardwareCompatibility;
+using GraniteEdgeAI.Features.ModelHardwareCompatibility.Infrastructure;
 using GraniteEdgeAI.Features.ModelImport;
 using GraniteEdgeAI.Features.ModelInspection;
 using GraniteEdgeAI.Features.ModelInspection.Contracts;
@@ -13,6 +15,9 @@ using GraniteEdgeAI.Features.ModelInspection.Handoff;
 using GraniteEdgeAI.Features.ModelInspection.Presentation;
 using Microsoft.UI.Xaml.Controls;
 using System;
+using System.Threading;
+using System.Threading.Tasks;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation;
 
 namespace GraniteEdgeAI.Features.Onboarding
 {
@@ -29,6 +34,8 @@ namespace GraniteEdgeAI.Features.Onboarding
         // shell is currently listening to.
         private ModelInspectionPage? _attachedModelInspectionPage;
         private HardwareInspectionPage? _attachedHardwareInspectionPage;
+        private HardwareInspectionPage? _hardwarePageForCompatibilityReturn;
+        private CompatibilityPage? _attachedCompatibilityPage;
         private ModelInspectionPage? _modelInspectionPageForHardwareReturn;
         private Guid _activeModelHandoffId;
         private Guid _activeProductHardwareRunId;
@@ -46,6 +53,12 @@ namespace GraniteEdgeAI.Features.Onboarding
         private readonly Func<ModelInspectionPage, ModelInspectionHandoff?>
             _hardwareHandoffReissuer;
         private readonly ModelInspectionHandoffRegistry _handoffRegistry = new();
+        private readonly ICompatibilityFreshMemorySource? _compatibilityFreshMemorySource;
+        private readonly Func<
+            ModelInspectionPage,
+            ModelInspectionHandoff,
+            ModelInspectionExecutionResult?> _modelEvidenceResolver;
+        private readonly Func<Frame, CompatibilityPage, bool> _compatibilityNavigator;
 
         /// <summary>
         /// Creates the onboarding shell and displays the first stage.
@@ -75,6 +88,36 @@ namespace GraniteEdgeAI.Features.Onboarding
                 hardwareHandoffReissuer: null,
                 initialize: true)
         {
+        }
+
+        internal OnboardingShellPage(
+            Func<Frame, ModelInspectionRequest, bool> modelInspectionNavigator,
+            IHardwareInspectionService hardwareInspectionService,
+            Func<
+                Frame,
+                HardwareInspectionViewModel,
+                ModelInspectionHandoff,
+                bool>? hardwareInspectionNavigator,
+            Func<ModelInspectionPage, ModelInspectionHandoff?>?
+                hardwareHandoffReissuer,
+            ICompatibilityFreshMemorySource compatibilityFreshMemorySource,
+            Func<
+                ModelInspectionPage,
+                ModelInspectionHandoff,
+                ModelInspectionExecutionResult?> modelEvidenceResolver,
+            Func<Frame, CompatibilityPage, bool>? compatibilityNavigator)
+            : this(
+                modelInspectionNavigator,
+                hardwareInspectionService,
+                hardwareInspectionNavigator,
+                hardwareHandoffReissuer,
+                initialize: true)
+        {
+            _compatibilityFreshMemorySource = compatibilityFreshMemorySource
+                ?? throw new ArgumentNullException(nameof(compatibilityFreshMemorySource));
+            _modelEvidenceResolver = modelEvidenceResolver
+                ?? throw new ArgumentNullException(nameof(modelEvidenceResolver));
+            _compatibilityNavigator = compatibilityNavigator ?? DefaultCompatibilityNavigation;
         }
 
         internal OnboardingShellPage(
@@ -122,6 +165,15 @@ namespace GraniteEdgeAI.Features.Onboarding
                 });
             _hardwareHandoffReissuer = hardwareHandoffReissuer ??
                 (static page => page.ReissueHardwareHandoff());
+#if HARDWARE_INSPECTION_X64
+            _compatibilityFreshMemorySource =
+                new WindowsCompatibilityFreshMemorySource();
+#else
+            _compatibilityFreshMemorySource = null;
+#endif
+            _modelEvidenceResolver = static (page, handoff) =>
+                page.ResolveTerminalResult(handoff);
+            _compatibilityNavigator = DefaultCompatibilityNavigation;
 
             // Create all controls declared in OnboardingShellPage.xaml.
             InitializeComponent();
@@ -419,6 +471,8 @@ namespace GraniteEdgeAI.Features.Onboarding
             _attachedHardwareInspectionPage = hardwarePage;
             _attachedHardwareInspectionPage.ActionRequested +=
                 HardwareInspectionPage_ActionRequested;
+            _attachedHardwareInspectionPage.InspectionCompleted +=
+                HardwareInspectionPage_InspectionCompleted;
             _attachedHardwareInspectionPage.JourneyAbandoned +=
                 HardwareInspectionPage_JourneyAbandoned;
             _modelInspectionPageForHardwareReturn = sourcePage;
@@ -429,6 +483,126 @@ namespace GraniteEdgeAI.Features.Onboarding
             CurrentStage = OnboardingStage.CheckHardwareFit;
             StageIndicator.CurrentStage = CurrentStage;
             return true;
+        }
+
+        private async void HardwareInspectionPage_InspectionCompleted(
+            object? sender,
+            HardwareInspectionCompletedEventArgs eventArguments)
+        {
+            if (sender is HardwareInspectionPage page)
+            {
+                _ = await NavigateToCompatibilityAsync(page, eventArguments);
+            }
+        }
+
+        internal async Task<bool> NavigateToCompatibilityAsync(
+            HardwareInspectionPage sourcePage,
+            HardwareInspectionCompletedEventArgs eventArguments)
+        {
+            ArgumentNullException.ThrowIfNull(sourcePage);
+            ArgumentNullException.ThrowIfNull(eventArguments);
+            ModelInspectionHandoff? modelHandoff = sourcePage.OpaqueModelHandoff;
+            ModelInspectionPage? modelPage = _modelInspectionPageForHardwareReturn;
+            if (_compatibilityFreshMemorySource is null
+                || !ReferenceEquals(sourcePage, _attachedHardwareInspectionPage)
+                || modelHandoff is null
+                || modelPage is null
+                || _activeModelHandoffId != modelHandoff.ModelInspectionHandoffId
+                || _activeProductHardwareRunId == Guid.Empty
+                || eventArguments.Handoff.InspectionId != _activeProductHardwareRunId
+                || _handoffRegistry.GetState(_activeModelHandoffId)
+                    != ModelInspectionHandoffLifecycleState.BoundToHardwareRun
+                || _modelEvidenceResolver(modelPage, modelHandoff)
+                    is not { } terminal)
+            {
+                return false;
+            }
+
+            AvailableMemorySnapshot freshMemory;
+            try
+            {
+                freshMemory = await _compatibilityFreshMemorySource
+                    .CaptureAsync(CancellationToken.None);
+            }
+            catch
+            {
+                return false;
+            }
+
+            if (!ReferenceEquals(sourcePage, _attachedHardwareInspectionPage)
+                || _activeModelHandoffId != modelHandoff.ModelInspectionHandoffId
+                || _activeProductHardwareRunId != eventArguments.Handoff.InspectionId
+                || !GgufCompatibilityInputProjector.TryProject(
+                    modelHandoff,
+                    terminal,
+                    _activeProductHardwareRunId,
+                    eventArguments.Handoff,
+                    freshMemory,
+                    out CompatibilityProductionInput? input))
+            {
+                return false;
+            }
+
+            var compatibilityPage = new CompatibilityPage(token => Task.Run(
+                () => CompatibilityEngine.Run(input!, token),
+                token),
+                continueDestinationAvailable: false);
+            compatibilityPage.BackRequested += CompatibilityPage_BackRequested;
+            compatibilityPage.ContinueRequested += CompatibilityPage_ContinueRequested;
+
+            DetachHardwareInspectionPage();
+            bool navigated;
+            try
+            {
+                _isHardwareNavigationTransaction = true;
+                navigated = _compatibilityNavigator(StageFrame, compatibilityPage)
+                    && ReferenceEquals(StageFrame.Content, compatibilityPage);
+            }
+            catch
+            {
+                navigated = false;
+            }
+            finally
+            {
+                _isHardwareNavigationTransaction = false;
+            }
+
+            if (!navigated)
+            {
+                compatibilityPage.BackRequested -= CompatibilityPage_BackRequested;
+                compatibilityPage.ContinueRequested -= CompatibilityPage_ContinueRequested;
+                AttachHardwareInspectionPage(sourcePage);
+                StageFrame.Content = sourcePage;
+                return false;
+            }
+
+            _hardwarePageForCompatibilityReturn = sourcePage;
+            _attachedCompatibilityPage = compatibilityPage;
+            StageFrame.BackStack.Clear();
+            StageFrame.ForwardStack.Clear();
+            return true;
+        }
+
+        private void CompatibilityPage_BackRequested(object? sender, EventArgs eventArguments)
+        {
+            if (!ReferenceEquals(sender, _attachedCompatibilityPage)
+                || _hardwarePageForCompatibilityReturn is not { } hardwarePage)
+            {
+                return;
+            }
+
+            DetachCompatibilityPage();
+            _hardwarePageForCompatibilityReturn = null;
+            StageFrame.Content = hardwarePage;
+            StageFrame.BackStack.Clear();
+            StageFrame.ForwardStack.Clear();
+            AttachHardwareInspectionPage(hardwarePage);
+        }
+
+        private void CompatibilityPage_ContinueRequested(object? sender, EventArgs eventArguments)
+        {
+            // The optimisation-mode destination is intentionally not registered
+            // in this increment, so C1 keeps this command disabled.
         }
 
         private void HardwareInspectionPage_ActionRequested(
@@ -549,6 +723,8 @@ namespace GraniteEdgeAI.Features.Onboarding
             _attachedHardwareInspectionPage = hardwarePage;
             _attachedHardwareInspectionPage.ActionRequested +=
                 HardwareInspectionPage_ActionRequested;
+            _attachedHardwareInspectionPage.InspectionCompleted +=
+                HardwareInspectionPage_InspectionCompleted;
             _attachedHardwareInspectionPage.JourneyAbandoned +=
                 HardwareInspectionPage_JourneyAbandoned;
             _activeModelHandoffId = replacement.ModelInspectionHandoffId;
@@ -704,9 +880,39 @@ namespace GraniteEdgeAI.Features.Onboarding
 
             _attachedHardwareInspectionPage.ActionRequested -=
                 HardwareInspectionPage_ActionRequested;
+            _attachedHardwareInspectionPage.InspectionCompleted -=
+                HardwareInspectionPage_InspectionCompleted;
             _attachedHardwareInspectionPage.JourneyAbandoned -=
                 HardwareInspectionPage_JourneyAbandoned;
             _attachedHardwareInspectionPage = null;
+        }
+
+        private void AttachHardwareInspectionPage(HardwareInspectionPage page)
+        {
+            _attachedHardwareInspectionPage = page;
+            page.ActionRequested += HardwareInspectionPage_ActionRequested;
+            page.InspectionCompleted += HardwareInspectionPage_InspectionCompleted;
+            page.JourneyAbandoned += HardwareInspectionPage_JourneyAbandoned;
+        }
+
+        private void DetachCompatibilityPage()
+        {
+            if (_attachedCompatibilityPage is null)
+            {
+                return;
+            }
+
+            _attachedCompatibilityPage.BackRequested -= CompatibilityPage_BackRequested;
+            _attachedCompatibilityPage.ContinueRequested -= CompatibilityPage_ContinueRequested;
+            _attachedCompatibilityPage = null;
+        }
+
+        private static bool DefaultCompatibilityNavigation(
+            Frame frame,
+            CompatibilityPage page)
+        {
+            frame.Content = page;
+            return true;
         }
     }
 }

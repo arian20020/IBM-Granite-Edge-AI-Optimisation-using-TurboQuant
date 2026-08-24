@@ -1,3 +1,4 @@
+#if HARDWARE_INSPECTION_X64
 using GraniteEdgeAI.Features.HardwareInspection.Application;
 using GraniteEdgeAI.Features.HardwareInspection.Infrastructure;
 using System;
@@ -23,3 +24,4 @@ internal sealed class WindowsCompatibilityFreshMemorySource : ICompatibilityFres
     public ValueTask<AvailableMemorySnapshot> CaptureAsync(CancellationToken cancellationToken) =>
         _provider.CaptureAsync(cancellationToken);
 }
+#endif

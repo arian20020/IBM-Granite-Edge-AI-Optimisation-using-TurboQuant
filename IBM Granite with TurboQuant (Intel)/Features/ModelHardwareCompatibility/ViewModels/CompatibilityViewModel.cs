@@ -28,6 +28,7 @@ internal sealed class CompatibilityViewModel
 {
     private readonly SynchronizationContext? _uiContext;
     private readonly Func<CancellationToken, Task<CompatibilityScreenModel>> _evaluator;
+    private readonly bool _continueDestinationAvailable;
 
     private CancellationTokenSource? _attemptCancellation;
     private int _attemptGeneration;
@@ -40,9 +41,11 @@ internal sealed class CompatibilityViewModel
     }
 
     internal CompatibilityViewModel(
-        Func<CancellationToken, Task<CompatibilityScreenModel>> evaluator)
+        Func<CancellationToken, Task<CompatibilityScreenModel>> evaluator,
+        bool continueDestinationAvailable = true)
     {
         _evaluator = evaluator ?? throw new ArgumentNullException(nameof(evaluator));
+        _continueDestinationAvailable = continueDestinationAvailable;
         _uiContext = SynchronizationContext.Current;
 
         // Assigned before the commands, because their guards read it: a command
@@ -142,7 +145,9 @@ internal sealed class CompatibilityViewModel
                 return;
             }
 
-            Presentation = presentation;
+            Presentation = _continueDestinationAvailable
+                ? presentation
+                : presentation with { PrimaryActionEnabled = false };
             ContinueCommand.RaiseCanExecuteChanged();
             BackCommand.RaiseCanExecuteChanged();
             PresentationChanged?.Invoke(this, presentation);

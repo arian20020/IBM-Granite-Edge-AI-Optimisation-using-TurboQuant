@@ -37,8 +37,11 @@ internal sealed partial class CompatibilityPage : Page
     }
 
     internal CompatibilityPage(
-        Func<CancellationToken, Task<GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation.CompatibilityScreenModel>> evaluator)
-        : this(new ViewModels.CompatibilityViewModel(evaluator))
+        Func<CancellationToken, Task<GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation.CompatibilityScreenModel>> evaluator,
+        bool continueDestinationAvailable = true)
+        : this(new ViewModels.CompatibilityViewModel(
+            evaluator,
+            continueDestinationAvailable))
     {
     }
 
