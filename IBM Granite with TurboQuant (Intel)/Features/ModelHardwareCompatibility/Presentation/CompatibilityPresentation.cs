@@ -33,6 +33,19 @@ internal sealed record CompatibilityRow(
 internal sealed record CompatibilityRecovery(string Title, string Detail);
 
 /// <summary>
+/// The compact, user-facing explanation of an evaluated peak-memory estimate.
+/// Values remain bytes until the page formats them, so presentation never
+/// reparses text or recalculates the compatibility result.
+/// </summary>
+internal sealed record CompatibilityEstimateSummary(
+    ulong ModelWeightsBytes,
+    ulong KvCacheBytes,
+    ulong RuntimeAndBufferBytes,
+    ulong MarginForErrorBytes,
+    ulong EstimatedPeakBytes,
+    ulong SafeMemoryBytes);
+
+/// <summary>
 /// Everything the page renders, resolved once per snapshot.
 ///
 /// The page applies this as deltas to a stable control tree rather than
@@ -71,6 +84,12 @@ internal sealed record CompatibilityPresentation
     /// nothing, which is the opposite of "we could not work this out".
     /// </summary>
     internal required CompatibilityBudget Budget { get; init; }
+
+    /// <summary>
+    /// Null when no setup was evaluated. A missing estimate must remain absent
+    /// rather than render as six zero-valued facts.
+    /// </summary>
+    internal required CompatibilityEstimateSummary? EstimateSummary { get; init; }
 
     internal required string RuntimeCardTitle { get; init; }
 
@@ -117,6 +136,7 @@ internal sealed record CompatibilityPresentation
         OutcomeBadge = string.Empty,
         Facts = [],
         Budget = CompatibilityBudget.Empty,
+        EstimateSummary = null,
         RuntimeCardTitle = "Runtime",
         RuntimeRows = [],
         ChecksCardTitle = "Checks",

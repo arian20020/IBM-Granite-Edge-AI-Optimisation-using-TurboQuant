@@ -161,6 +161,37 @@ internal static class CompatibilitySetupNarrative
         return CompatibilityBudget.Create(segments, setup.SafeBudgetBytes);
     }
 
+    /// <summary>
+    /// Groups the detailed peak-phase components into the compact categories a
+    /// person can scan. This does not estimate anything: it only preserves and
+    /// groups values already produced by the core estimator.
+    /// </summary>
+    internal static CompatibilityEstimateSummary EstimateSummary(
+        CompatibilitySetupView setup)
+    {
+        ulong weights = BytesFor(setup, ResourceComponentKind.Weights);
+        ulong kvCache = BytesFor(setup, ResourceComponentKind.KvCache);
+        ulong runtime = setup.Components
+            .Where(component => component.Kind is not ResourceComponentKind.Weights
+                and not ResourceComponentKind.KvCache)
+            .Aggregate(0UL, (sum, component) => checked(sum + component.Bytes));
+
+        return new CompatibilityEstimateSummary(
+            weights,
+            kvCache,
+            runtime,
+            setup.UncertaintyAllowanceBytes,
+            setup.RequiredBytes,
+            setup.SafeBudgetBytes);
+    }
+
+    private static ulong BytesFor(
+        CompatibilitySetupView setup,
+        ResourceComponentKind kind) =>
+        setup.Components
+            .Where(component => component.Kind == kind)
+            .Aggregate(0UL, (sum, component) => checked(sum + component.Bytes));
+
     private static string Spare(CompatibilitySetupView setup) => setup.Fit switch
     {
         CompatibilityFitState.Safe =>

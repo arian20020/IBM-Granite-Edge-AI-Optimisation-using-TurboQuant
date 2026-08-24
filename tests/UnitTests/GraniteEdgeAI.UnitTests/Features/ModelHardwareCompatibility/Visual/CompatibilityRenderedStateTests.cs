@@ -79,6 +79,24 @@ public sealed class CompatibilityRenderedStateTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
+    public void ConcludedPresentation_ExposesSemanticMemoryEstimate()
+    {
+        CompatibilityFixture? fixture = CompatibilityFixtureCatalogue.ById("CMP-010");
+        Assert.IsNotNull(fixture);
+        CompatibilityEstimateSummary? summary = fixture.Presentation.EstimateSummary;
+        Assert.IsNotNull(summary);
+
+        Assert.AreEqual(4_697_620_480UL, summary.ModelWeightsBytes);
+        Assert.AreEqual(536_870_912UL, summary.KvCacheBytes);
+        Assert.AreEqual(369_098_752UL, summary.RuntimeAndBufferBytes);
+        Assert.AreEqual(560_359_014UL, summary.MarginForErrorBytes);
+        Assert.AreEqual(6_163_949_158UL, summary.EstimatedPeakBytes);
+        Assert.AreEqual(9_663_676_416UL, summary.SafeMemoryBytes);
+        Assert.IsNull(CompatibilityPresentation.Empty.EstimateSummary);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
     public void EveryFixture_RendersWithoutThrowing()
     {
         // The page resolves theme-scoped brushes from code. A key that is

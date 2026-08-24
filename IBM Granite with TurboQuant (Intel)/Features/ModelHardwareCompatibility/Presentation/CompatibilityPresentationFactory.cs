@@ -184,6 +184,7 @@ internal static class CompatibilityPresentationFactory
             {
                 Facts = CompatibilitySetupNarrative.Facts(setup),
                 Budget = CompatibilitySetupNarrative.Budget(setup),
+                EstimateSummary = CompatibilitySetupNarrative.EstimateSummary(setup),
                 RuntimeCardTitle = "What would run",
                 RuntimeRows = CompatibilitySetupNarrative.RuntimeRows(setup),
                 ChecksCardTitle = "What we checked",
