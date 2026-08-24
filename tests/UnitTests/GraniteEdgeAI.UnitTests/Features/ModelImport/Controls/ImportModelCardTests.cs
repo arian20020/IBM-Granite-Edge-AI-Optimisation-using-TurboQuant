@@ -2,6 +2,7 @@ using GraniteEdgeAI.Features.ModelImport;
 using GraniteEdgeAI.Features.ModelImport.Controls;
 using GraniteEdgeAI.Features.ModelImport.FileImport;
 using GraniteEdgeAI.Features.ModelImport.QuickScan;
+using GraniteEdgeAI.Features.ModelImport.Selection;
 using Microsoft.UI;
 using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
@@ -136,7 +137,8 @@ public sealed class ImportModelCardTests
                         failureCode,
                         userMessage,
                         technicalMessage));
-            });
+            },
+            classifier: new AcceptedGgufClassifier());
 
         await page.BrowseFilesAsync();
 
@@ -176,7 +178,8 @@ public sealed class ImportModelCardTests
                     ModelQuickScanResult.CreateFailure(
                         "GGUF_INVALID_MAGIC",
                         "The selected file does not contain a valid GGUF header.",
-                        "Unexpected bytes at offset zero.")));
+                        "Unexpected bytes at offset zero.")),
+            classifier: new AcceptedGgufClassifier());
         await page.BrowseFilesAsync();
         var card = (ImportModelCard)page.FindName(
             "ImportModelCardControl");
@@ -226,7 +229,8 @@ public sealed class ImportModelCardTests
             {
                 scanCancellationToken = cancellationToken;
                 return scanCompletion.Task;
-            });
+            },
+            classifier: new AcceptedGgufClassifier());
 
         Task browseTask = page.BrowseFilesAsync();
         var card = (ImportModelCard)page.FindName(
@@ -360,7 +364,7 @@ public sealed class ImportModelCardTests
                 card,
                 "SuccessDeclaredContextTextBlock").Text);
 
-        Button browse = (Button)card.FindName("BrowseFilesButton");
+        Button browse = (Button)card.FindName("ChooseModelFileButton");
         Assert.AreEqual(46d, browse.Height);
         Assert.AreEqual(new CornerRadius(11), browse.CornerRadius);
         Assert.AreEqual(FontWeights.SemiBold.Weight, browse.FontWeight.Weight);
@@ -434,7 +438,8 @@ public sealed class ImportModelCardTests
 
                 return Task.FromResult(
                     successfulResult);
-            });
+            },
+            classifier: new AcceptedGgufClassifier());
 
         await page.BrowseFilesAsync();
 
@@ -513,7 +518,8 @@ public sealed class ImportModelCardTests
                         contextLength:
                             131_072UL,
                         ggufVersion:
-                            3)));
+                            3)),
+            classifier: new AcceptedGgufClassifier());
 
         await page.BrowseFilesAsync();
 
@@ -584,5 +590,17 @@ public sealed class ImportModelCardTests
         string elementName)
     {
         return (TextBlock)card.FindName(elementName);
+    }
+
+    private sealed class AcceptedGgufClassifier : IModelSelectionClassifier
+    {
+        public Task<ModelSelectionResult> ClassifyAsync(
+            ModelSelectionOperationId operationId,
+            ModelSelectionInput input,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(ModelSelectionResult.Accepted(
+                operationId,
+                ModelSelectionRoute.Gguf,
+                input.DisplayName));
     }
 }
