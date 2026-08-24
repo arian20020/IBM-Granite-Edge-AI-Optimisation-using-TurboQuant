@@ -12,6 +12,7 @@ using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.OpenVino;
 using GraniteEdgeAI.OpenVino.Contracts;
 using ContractCompiledCachePolicy = GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.OpenVino.OpenVinoCompiledCachePolicy;
+using ExecutionWeightPrecision = GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Execution.OpenVinoWeightPrecision;
 
 namespace GraniteEdgeAI.OpenVino.Tests.Optimization;
 
@@ -313,6 +314,107 @@ public sealed class OpenVinoOptimizationTests
                 OpenVinoExecutionPayloadJson =
                     provenance.OpenVinoExecutionPayloadJson + " "
             }).Write(package.Destination));
+    }
+
+    [TestMethod]
+    public async Task RawEightBitV2PlanUsesAuthoritativePayloadSourcePrecision()
+    {
+        using PackageFixture package = PackageFixture.Create();
+        RecordingOptimizationPipeline pipeline = new();
+        OpenVinoOptimizationService service = new(pipeline, _ => true);
+        OptimizationExecutionPlan plan = CreatePlan(
+            package.Source,
+            OpenVinoWeightFormat.Int4,
+            OpenVinoKvCacheFormat.U8,
+            sourcePrecision: ExecutionWeightPrecision.EightBit);
+
+        OptimizationExecutionResult result = await service.ExecuteAsync(
+            new OpenVinoOptimizationRequest(
+                package.Source,
+                package.Destination,
+                plan,
+                CurrentStateProvider(plan),
+                Confirmed: true),
+            progress: null,
+            CancellationToken.None);
+
+        Assert.AreEqual(OptimizationExecutionStatus.SucceededPersistent, result.Status);
+        OpenVinoOptimizationProvenance provenance =
+            OpenVinoOptimizationProvenance.Read(package.Destination);
+        Assert.AreEqual(OpenVinoWeightPrecision.EightBit,
+            provenance.SourceWeightPrecision);
+        Assert.AreEqual(OpenVinoWeightPrecision.FourBit,
+            provenance.TargetWeightPrecision);
+        Assert.AreEqual(OpenVinoWeightPrecision.EightBit,
+            pipeline.Invocations.Single().Candidate.SourceWeightPrecision);
+        AssertPayloadBinding(
+            plan.ExecutionPayload.OpenVino!,
+            provenance.OpenVinoExecutionPayloadJson,
+            provenance.OpenVinoExecutionPayloadSha256);
+    }
+
+    [TestMethod]
+    public async Task RawFourBitV2RuntimePlanUsesAuthoritativePayloadSourcePrecision()
+    {
+        using PackageFixture package = PackageFixture.Create();
+        RecordingOptimizationPipeline pipeline = new();
+        OpenVinoOptimizationService service = new(pipeline, _ => true);
+        OptimizationExecutionPlan plan = CreatePlan(
+            package.Source,
+            OpenVinoWeightFormat.Int4,
+            OpenVinoKvCacheFormat.U8,
+            sourcePrecision: ExecutionWeightPrecision.FourBit);
+
+        OptimizationExecutionResult result = await service.ExecuteAsync(
+            new OpenVinoOptimizationRequest(
+                package.Source,
+                package.Destination,
+                plan,
+                CurrentStateProvider(plan),
+                Confirmed: true),
+            progress: null,
+            CancellationToken.None);
+
+        Assert.AreEqual(OptimizationExecutionStatus.SucceededRuntimeProfile,
+            result.Status);
+        OpenVinoRuntimeOptimizationProfile profile =
+            OpenVinoRuntimeOptimizationProfile.Read(package.Destination);
+        Assert.AreEqual(OpenVinoWeightPrecision.FourBit, profile.WeightPrecision);
+        AssertPayloadBinding(
+            plan.ExecutionPayload.OpenVino!,
+            profile.OpenVinoExecutionPayloadJson,
+            profile.OpenVinoExecutionPayloadSha256);
+        Assert.AreEqual(0, pipeline.Calls.Count);
+    }
+
+    [TestMethod]
+    public async Task ExistingProvenancePrecisionMismatchStillFailsClosed()
+    {
+        using PackageFixture package = PackageFixture.Create();
+        WriteValidOptimizationProvenance(package.Source);
+        OptimizationExecutionPlan plan = CreatePlan(
+            package.Source,
+            OpenVinoWeightFormat.Int4,
+            OpenVinoKvCacheFormat.U8,
+            sourcePrecision: ExecutionWeightPrecision.EightBit);
+        RecordingOptimizationPipeline pipeline = new();
+        OpenVinoOptimizationService service = new(pipeline, _ => true);
+
+        OptimizationExecutionResult result = await service.ExecuteAsync(
+            new OpenVinoOptimizationRequest(
+                package.Source,
+                package.Destination,
+                plan,
+                CurrentStateProvider(plan),
+                Confirmed: true),
+            progress: null,
+            CancellationToken.None);
+
+        Assert.AreEqual(OptimizationExecutionStatus.ReplanRequired, result.Status);
+        Assert.AreEqual(OptimizationSupportCode.SourceIdentityMismatch,
+            result.SupportCode);
+        Assert.AreEqual(0, pipeline.Calls.Count);
+        Assert.IsFalse(Directory.Exists(package.Destination));
     }
 
     [TestMethod]
@@ -1281,7 +1383,8 @@ public sealed class OpenVinoOptimizationTests
         ContractCompiledCachePolicy compiledCache = ContractCompiledCachePolicy.Disabled,
         int streams = 1,
         int contextTokens = 4_096,
-        IReadOnlyDictionary<string, string>? optimizerVersions = null)
+        IReadOnlyDictionary<string, string>? optimizerVersions = null,
+        ExecutionWeightPrecision sourcePrecision = ExecutionWeightPrecision.Fp16)
     {
         OpenVinoStaticPackageEvidence source =
             new OpenVinoStaticPackageInspector().Inspect(sourceDirectory).Evidence!;
@@ -1292,8 +1395,15 @@ public sealed class OpenVinoOptimizationTests
             OpenVinoPerformanceHint.Latency,
             compiledCache,
             streams);
-        bool persistent = weights is OpenVinoWeightFormat.Int8 or
-            OpenVinoWeightFormat.Int4;
+        ExecutionWeightPrecision targetPrecision = weights switch
+        {
+            OpenVinoWeightFormat.Original or OpenVinoWeightFormat.Fp16 =>
+                ExecutionWeightPrecision.Fp16,
+            OpenVinoWeightFormat.Int8 => ExecutionWeightPrecision.EightBit,
+            OpenVinoWeightFormat.Int4 => ExecutionWeightPrecision.FourBit,
+            _ => throw new ArgumentOutOfRangeException(nameof(weights))
+        };
+        bool persistent = sourcePrecision != targetPrecision;
         OptimizationCandidate candidate = OptimizationCandidate.Create(
             configuration,
             OptimizationCandidateMetrics.Create(
@@ -1337,7 +1447,8 @@ public sealed class OpenVinoOptimizationTests
             selection,
             OpenVinoV2TestPayload.For(
                 weights, kvCache, compiledCache, "OV-BOUND-01",
-                optimizerVersions: optimizerVersions),
+                optimizerVersions: optimizerVersions,
+                sourceWeightPrecision: sourcePrecision),
             snapshot,
             OptimizationWorkload.Create(
                 "chat",

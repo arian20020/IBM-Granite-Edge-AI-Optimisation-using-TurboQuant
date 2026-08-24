@@ -335,11 +335,12 @@ public sealed record OpenVinoOptimizationProvenance(
     }
 
     internal static OpenVinoWeightPrecision ReadSourcePrecision(
-        OpenVinoPackageSnapshot snapshot)
+        OpenVinoPackageSnapshot snapshot,
+        OpenVinoWeightPrecision? authoritativeSourcePrecision = null)
     {
         if (!snapshot.TryGetEntry(FileName, out OpenVinoPackageSnapshotEntry entry))
         {
-            return OpenVinoWeightPrecision.Fp16;
+            return authoritativeSourcePrecision ?? OpenVinoWeightPrecision.Fp16;
         }
         entry.Stream.Position = 0;
         using JsonDocument document = JsonDocument.Parse(entry.Stream, new JsonDocumentOptions

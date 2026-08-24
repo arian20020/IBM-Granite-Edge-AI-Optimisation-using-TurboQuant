@@ -36,6 +36,10 @@ of O1. C1/shared contract files were not modified after the V2.1 merge.
   and actual completion evidence.
 - Runtime-only, persistent conversion, atomic publication, rollback,
   reinspection, cancellation, cleanup, and bounded-result behavior remain.
+- Raw V2 packages without prior O1 provenance take source precision exactly
+  from the verified C1 OpenVINO payload. Existing provenance must still match
+  that precision, while the isolated legacy V1 raw-package default remains
+  Fp16.
 - The V1 compatibility seam is explicitly named, and its registry admission is
   performed only by `OptimizeLegacyV1Async`, outside shared `OptimizeCoreAsync`.
 - A compiled static guard starts at `ExecuteAsync`, traverses same-module
@@ -77,6 +81,7 @@ Fresh post-fix evidence after the authority-guard corrections is limited to:
 |---|---|
 | Source-only architecture | 5 total; 5 passed; 0 failed; 0 skipped |
 | Optimization E2E/architecture | 8 total; 5 passed; 0 failed; 3 skipped |
+| OpenVINO component after source-precision fix | 405 total; 400 passed; 0 failed; 5 skipped |
 
 The integration test project also compiled fresh in Release with exit 0, zero
 warnings, and zero errors. The source-only architecture proof passed in its

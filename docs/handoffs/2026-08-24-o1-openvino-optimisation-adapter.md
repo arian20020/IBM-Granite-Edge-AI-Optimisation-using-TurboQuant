@@ -49,6 +49,13 @@ admissions retain their published IDs. O1 continues to advertise no TurboQuant
 optimization candidate and rejects a payload or live evidence containing a
 TurboQuant build identity.
 
+For a raw V2 package with no prior O1 provenance, source precision is taken
+exactly from the already verified C1 V2 OpenVINO payload; it is no longer
+defaulted to Fp16. If provenance is present, its recorded output precision is
+still read and must match the payload source precision or execution returns
+`ReplanRequired` before native launch. The legacy V1 raw-package default remains
+Fp16.
+
 The explicitly named `OpenVinoOptimizationLegacyRequestV1` and
 `OptimizeLegacyV1Async` compatibility seam remains isolated. V1 registry
 admission now occurs only in `OptimizeLegacyV1Async`; the shared
@@ -143,6 +150,7 @@ Fresh post-fix evidence after the authority-guard corrections is:
 |---|---:|---:|---:|---:|
 | Source-only architecture | 5 | 5 | 0 | 0 |
 | Optimization E2E/architecture filter | 8 | 5 | 0 | 3 |
+| OpenVINO component after source-precision fix | 405 | 400 | 0 | 5 |
 
 The integration test project also compiled fresh in Release with exit 0, zero
 warnings, and zero errors.

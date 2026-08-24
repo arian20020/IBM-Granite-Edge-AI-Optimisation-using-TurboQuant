@@ -37,10 +37,9 @@ internal static class OpenVinoV2TestPayload
         string evidenceId,
         string? configurationId = null,
         IReadOnlyDictionary<string, string>? optimizerVersions = null,
-        TurboQuantBuildIdentity? turboQuantBuild = null)
+        TurboQuantBuildIdentity? turboQuantBuild = null,
+        ExecutionWeight sourceWeightPrecision = ExecutionWeight.Fp16)
     {
-        bool runtimeOnly = weights is OpenVinoWeightFormat.Original or
-            OpenVinoWeightFormat.Fp16;
         ExecutionWeight target = weights switch
         {
             OpenVinoWeightFormat.Original or OpenVinoWeightFormat.Fp16 => ExecutionWeight.Fp16,
@@ -54,13 +53,14 @@ internal static class OpenVinoV2TestPayload
             OpenVinoKvCacheFormat.U8 => ExecutionKv.U8,
             _ => throw new ArgumentOutOfRangeException(nameof(kvCache))
         };
+        bool runtimeOnly = sourceWeightPrecision == target;
         bool cacheEnabled = compiledCache == ContractCache.Enabled;
         OpenVinoExecutionPayload payload = OpenVinoExecutionPayload.Create(
             configurationId ?? ConfigurationId(weights, kvCache),
             "CPU",
             "Standard candidate",
             evidenceId,
-            ExecutionWeight.Fp16,
+            sourceWeightPrecision,
             target,
             executionKv,
             cacheEnabled,

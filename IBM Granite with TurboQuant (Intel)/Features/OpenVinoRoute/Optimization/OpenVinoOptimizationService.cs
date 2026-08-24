@@ -409,7 +409,9 @@ public sealed class OpenVinoOptimizationService
             }
 
             OpenVinoWeightPrecision sourcePrecision =
-                OpenVinoOptimizationProvenance.ReadSourcePrecision(source);
+                OpenVinoOptimizationProvenance.ReadSourcePrecision(
+                    source,
+                    plan is null ? null : candidate.SourceWeightPrecision);
             OpenVinoWeightPrecision targetPrecision =
                 candidate.PersistentArtifact.WeightPrecision;
             if (plan is not null &&
