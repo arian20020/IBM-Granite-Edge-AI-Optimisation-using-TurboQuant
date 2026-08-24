@@ -1,7 +1,7 @@
 # Model Import architecture
 
-**Status:** Local GGUF quick scan and immutable handoff implemented; the downstream protected x64 inspection journey is connected
-**Last reviewed:** 2026-08-09
+**Status:** Local GGUF quick scan and immutable handoff implemented; folder classification is bounded and availability is reported fail-closed
+**Last reviewed:** 2026-08-20
 
 [← Application feature architecture](../README.md)
 
@@ -33,6 +33,54 @@ The connected route is GGUF. Quick scan remains deliberately lighter than full i
 - application outcome classification;
 - hardware-fit analysis;
 - conversion, configuration, inference, or chat.
+
+### Ownership and approved integration
+
+`ModelImport` is the D1-owned selection boundary. It owns normalization,
+bounded classification, local presentation, and intent events. It never owns a
+`Frame`, destination page, runtime engine, conversion implementation, or
+hardware inspection.
+
+The following are authorized I0 handoff seams and are deliberately not treated
+as D1 ownership violations:
+
+- `Features/Onboarding/OnboardingShellPage.xaml.cs`, which receives folder
+  intent and either supplies a real destination or rejects it;
+- `Features/Onboarding/SourceModelConversionRequestedEventArgs.cs`, the
+  path-private source-conversion intent;
+- `ModelInspectionRequest` and its existing GGUF handoff files, which preserve
+  the already-approved immutable GGUF journey.
+
+I0 owns shared navigation, destination registration, project/resource changes,
+and any future O1 invocation contract. D1 must not bypass those seams by
+creating a second engine or navigation path.
+
+## Selection limits and route availability
+
+Classification is read-only and bounded: at most 512 direct children, 32
+retained relevant names, 256 KiB of source metadata, and five seconds of
+elapsed time. Reparse points, network locations, offline items, custom-code
+source packages, changed candidates, and incomplete or ambiguous packages fail
+closed with path-minimized recovery copy.
+
+| Route | Current status | Handoff |
+| --- | --- | --- |
+| GGUF file | Available | Existing immutable Model Inspection request |
+| OpenVINO directory | Recognized; inspection unavailable | I0 shell rejects with `openvino-inspection-unavailable` until an O1 port exists |
+| Supported source-model directory | Recognized; conversion unavailable unless a destination accepts | I0 raises path-private conversion intent, otherwise rejects with `source-model-conversion-unavailable` |
+
+Folder and source routes never put a local path in presentation, diagnostics,
+or event payloads. The active page retains the local folder only behind an
+opaque operation identifier so an authorized destination can consume it during
+the handoff.
+
+## Drag and drop policy
+
+Explorer drop extraction is **Copy-only**. It accepts only the first supported
+local candidate and normalizes it into the same selection lifecycle as a native
+picker. It does not move, rename, delete, upload, execute, convert, or mutate
+the selected file or folder. Drop remains optional; picker and drop parity is
+covered by the same route contracts.
 
 ## Current source structure
 

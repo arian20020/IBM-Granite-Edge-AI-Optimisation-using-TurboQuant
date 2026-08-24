@@ -520,6 +520,9 @@ temp/
 cache/
 *.tmp
 
+# Local isolated implementation worktrees
+.worktrees/
+
 # === Controlled testing evidence exceptions ===
 
 # Formal testing logs are controlled evidence and must remain visible to Git.

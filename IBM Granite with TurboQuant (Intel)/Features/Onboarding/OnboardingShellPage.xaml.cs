@@ -202,6 +202,9 @@ namespace GraniteEdgeAI.Features.Onboarding
         internal Guid CurrentProductHardwareRunId =>
             _activeProductHardwareRunId;
 
+        internal event EventHandler<SourceModelConversionRequestedEventArgs>?
+            SourceModelConversionRequested;
+
         /// <summary>
         /// Subscribes the shell to one Model Import page.
         /// </summary>
@@ -228,6 +231,10 @@ namespace GraniteEdgeAI.Features.Onboarding
             // Listen for the page's request to begin model inspection.
             _attachedModelImportPage.ModelInspectionRequested +=
                 ModelImportPage_ModelInspectionRequested;
+            _attachedModelImportPage.OpenVinoInspectionRequested +=
+                ModelImportPage_OpenVinoInspectionRequested;
+            _attachedModelImportPage.SourceModelConversionRequested +=
+                ModelImportPage_SourceModelConversionRequested;
         }
 
         /// <summary>
@@ -354,6 +361,37 @@ namespace GraniteEdgeAI.Features.Onboarding
         {
             // Forward the exact immutable request without reconstructing it.
             NavigateToModelInspection(eventArguments.Request);
+        }
+
+        private void ModelImportPage_OpenVinoInspectionRequested(
+            object? sender,
+            OpenVinoInspectionRequestedEventArgs eventArguments)
+        {
+            if (sender is ModelImportPage page &&
+                ReferenceEquals(page, _attachedModelImportPage))
+            {
+                // O1 has no frozen inspection invocation port in this build.
+                // Do not navigate to a placeholder or imply that inspection ran.
+                page.RejectFolderRoute(
+                    "openvino-inspection-unavailable",
+                    "OpenVINO folder inspection is not available in this build.");
+            }
+        }
+
+        private void ModelImportPage_SourceModelConversionRequested(
+            object? sender,
+            SourceModelConversionRequestedEventArgs eventArguments)
+        {
+            if (sender is not ModelImportPage page ||
+                !ReferenceEquals(page, _attachedModelImportPage))
+            {
+                return;
+            }
+
+            // The shell relays the exact immutable intent. Conversion belongs
+            // to a later route; this boundary never starts a converter/process
+            // and never retains the selected folder path.
+            SourceModelConversionRequested?.Invoke(this, eventArguments);
         }
 
         /// <summary>
@@ -846,6 +884,10 @@ namespace GraniteEdgeAI.Features.Onboarding
             // Remove the event subscription to avoid retaining an inactive page.
             _attachedModelImportPage.ModelInspectionRequested -=
                 ModelImportPage_ModelInspectionRequested;
+            _attachedModelImportPage.OpenVinoInspectionRequested -=
+                ModelImportPage_OpenVinoInspectionRequested;
+            _attachedModelImportPage.SourceModelConversionRequested -=
+                ModelImportPage_SourceModelConversionRequested;
 
             // Release the reference to the old page.
             _attachedModelImportPage = null;
