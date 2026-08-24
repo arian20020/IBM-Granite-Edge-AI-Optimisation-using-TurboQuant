@@ -107,90 +107,47 @@ public sealed class OpenVinoExperimentalCapabilityTests
         TurboQuantActivationState state = Policy().Evaluate(evidence);
 
         OpenVinoCapabilityPayload payload =
-            OpenVinoOptimizationCapabilityProjector.Project(
-                OfficialEvidence(), state.OptimizationCapabilityEvidence);
+            OpenVinoOptimizationCapabilityProjector.Project(OfficialEvidence());
 
+        Assert.IsFalse(state.CanActivate);
         Assert.IsFalse(payload.Admitted.Any(static admission =>
             admission.Level == SupportLevel.Experimental));
         AssertOfficialFallback(payload);
     }
 
     [TestMethod]
-    public void ExactEvidenceAddsOneTbq4CandidateWithoutChangingOfficialFallback()
+    public void ExactEvidenceDoesNotPublishTbq4WithoutAnExactPlanExecutor()
     {
         TurboQuantActivationState state = Policy().Evaluate(Campaign());
 
         OpenVinoCapabilityPayload payload =
-            OpenVinoOptimizationCapabilityProjector.Project(
-                OfficialEvidence(), state.OptimizationCapabilityEvidence);
+            OpenVinoOptimizationCapabilityProjector.Project(OfficialEvidence());
 
-        OpenVinoAdmittedConfiguration experimental = payload.Admitted.Single(
-            static admission => admission.Level == SupportLevel.Experimental);
-        Assert.AreEqual(OpenVinoWeightFormat.TurboQuantTbq4,
-            experimental.Weights);
-        Assert.AreEqual(OpenVinoKvCacheFormat.RouteDefault,
-            experimental.KvCache);
-        Assert.AreEqual(DeviceRouteId.Cpu, experimental.Device);
-        Assert.AreEqual(OpenVinoPerformanceHint.Latency,
-            experimental.PerformanceHint);
-        Assert.AreEqual(
-            GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.OpenVino
-                .OpenVinoCompiledCachePolicy.Disabled,
-            experimental.CompiledCache);
-        Assert.AreEqual(1, experimental.Streams);
-        Assert.AreEqual(4_096, experimental.MinimumContextTokens);
-        Assert.AreEqual(4_096, experimental.MaximumContextTokens);
-        Assert.IsTrue(experimental.RequiresEvidence);
-        Assert.IsTrue(experimental.EvidenceId.StartsWith(
-            "OV-TBQ4-", StringComparison.Ordinal));
+        Assert.IsTrue(state.CanActivate);
+        Assert.IsFalse(payload.Admitted.Any(static admission =>
+            admission.Level == SupportLevel.Experimental));
         AssertOfficialFallback(payload);
     }
 
     [TestMethod]
-    public void ActiveEvidenceIdentityIsStableAndBindsActivationProof()
+    public void ExactTbq4AdmissionCannotCrossTheExistingPlanExecutor()
     {
-        TurboQuantCampaignEvidence firstEvidence = Campaign();
-        TurboQuantActivationState first = Policy().Evaluate(firstEvidence);
-        TurboQuantActivationState repeated = Policy().Evaluate(firstEvidence);
-        TurboQuantActivationState changed = Policy().Evaluate(firstEvidence with
-        {
-            Activation = firstEvidence.Activation! with { RuntimeDispatchCount = 3 }
-        });
-
-        Assert.IsNotNull(first.OptimizationEvidenceId);
-        Assert.AreEqual(first.OptimizationEvidenceId, repeated.OptimizationEvidenceId);
-        Assert.AreNotEqual(first.OptimizationEvidenceId, changed.OptimizationEvidenceId);
-    }
-
-    [TestMethod]
-    public void ChangedExperimentalEvidenceMakesAConfirmedPlanRequireReplanning()
-    {
-        TurboQuantCampaignEvidence firstEvidence = Campaign();
-        OpenVinoCapabilityPayload plannedPayload =
-            OpenVinoOptimizationCapabilityProjector.Project(
-                OfficialEvidence(),
-                Policy().Evaluate(firstEvidence).OptimizationCapabilityEvidence);
-        OpenVinoCapabilityPayload changedPayload =
-            OpenVinoOptimizationCapabilityProjector.Project(
-                OfficialEvidence(),
-                Policy().Evaluate(firstEvidence with
-                    {
-                        Activation = firstEvidence.Activation! with
-                        {
-                            RuntimeDispatchCount = 3
-                        }
-                    }).OptimizationCapabilityEvidence);
-        OptimizationCapabilitySnapshot plannedSnapshot = Snapshot(plannedPayload);
-        OptimizationExecutionPlan plan = Plan(plannedSnapshot);
-        OptimizationCapabilitySnapshot currentSnapshot = Snapshot(changedPayload);
+        OpenVinoCapabilityPayload payload = ExperimentalPayload();
+        OpenVinoAdmittedConfiguration experimental = payload.Admitted.Single(
+            static admission => admission.Level == SupportLevel.Experimental);
+        OptimizationCapabilitySnapshot snapshot = Snapshot(payload);
+        OptimizationExecutionPlan plan = Plan(snapshot, experimental);
 
         OpenVinoOptimizationAdaptation result =
             OpenVinoOptimizationPlanAdapter.Adapt(
-                plan, currentSnapshot, SourceDigest, SourceLength);
+                plan, snapshot, SourceDigest, SourceLength);
 
+        Assert.AreEqual(experimental.EvidenceId, plan.Candidate.EvidenceId);
+        Assert.IsTrue(plan.Candidate.IsExperimental);
+        Assert.IsTrue(plan.ProducesPersistentArtifact);
         Assert.AreEqual(OpenVinoOptimizationAdaptationStatus.ReplanRequired,
             result.Status);
-        Assert.AreEqual(OptimizationSupportCode.CapabilityDrift,
+        Assert.AreEqual(OptimizationSupportCode.ToolNotAdmitted,
             result.SupportCode);
         Assert.IsNull(result.Candidate);
     }
@@ -326,10 +283,34 @@ public sealed class OpenVinoExperimentalCapabilityTests
             new string('3', 64),
             payload);
 
-    private static OptimizationExecutionPlan Plan(
-        OptimizationCapabilitySnapshot snapshot)
+    private static OpenVinoCapabilityPayload ExperimentalPayload()
     {
-        OpenVinoAdmittedConfiguration admission = snapshot.OpenVino!.Admitted[0];
+        OpenVinoCapabilityPayload official =
+            OpenVinoOptimizationCapabilityProjector.Project(OfficialEvidence());
+        return OpenVinoCapabilityPayload.Create(
+            official.RuntimeVersion,
+            [
+                .. official.Admitted,
+                OpenVinoAdmittedConfiguration.Create(
+                    "OV-TBQ4-SYNTHETIC-PARITY",
+                    DeviceRouteId.Cpu,
+                    OpenVinoWeightFormat.TurboQuantTbq4,
+                    OpenVinoKvCacheFormat.RouteDefault,
+                    OpenVinoPerformanceHint.Latency,
+                    GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.OpenVino
+                        .OpenVinoCompiledCachePolicy.Disabled,
+                    1,
+                    4_096,
+                    4_096,
+                    SupportLevel.Experimental,
+                    requiresEvidence: true)
+            ]);
+    }
+
+    private static OptimizationExecutionPlan Plan(
+        OptimizationCapabilitySnapshot snapshot,
+        OpenVinoAdmittedConfiguration admission)
+    {
         OpenVinoRouteConfiguration configuration = OpenVinoRouteConfiguration.Create(
             admission.Weights,
             admission.KvCache,
@@ -337,6 +318,7 @@ public sealed class OpenVinoExperimentalCapabilityTests
             admission.PerformanceHint,
             admission.CompiledCache,
             admission.Streams);
+        bool persistent = admission.Weights != OpenVinoWeightFormat.Original;
         OptimizationCandidate candidate = OptimizationCandidate.Create(
             configuration,
             OptimizationCandidateMetrics.Create(
@@ -348,11 +330,11 @@ public sealed class OpenVinoExperimentalCapabilityTests
                 2UL * 1024 * 1024,
                 8UL * 1024 * 1024,
                 6UL * 1024 * 1024,
-                0,
-                0,
-                requiresPersistentChange: false),
+                persistent ? SourceLength : 0,
+                persistent ? SourceLength / 2 : 0,
+                requiresPersistentChange: persistent),
             admission.EvidenceId,
-            isExperimental: false);
+            isExperimental: admission.Level == SupportLevel.Experimental);
         OptimizationSelection selection = OptimizationPreferenceResolver.Resolve(
             [candidate], OptimizationPreferenceSelection.Manual(50))!;
         return OptimizationPlanIssuer.Issue(

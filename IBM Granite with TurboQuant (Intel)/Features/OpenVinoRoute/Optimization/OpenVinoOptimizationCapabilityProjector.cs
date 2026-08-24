@@ -6,26 +6,10 @@ using ContractCompiledCachePolicy = GraniteEdgeAI.ModelHardwareCompatibility.Cor
 
 namespace GraniteEdgeAI.Features.OpenVinoRoute.Optimization;
 
-internal sealed record OpenVinoExperimentalCapabilityEvidence
-{
-    private OpenVinoExperimentalCapabilityEvidence(string evidenceId) =>
-        EvidenceId = evidenceId;
-
-    internal string EvidenceId { get; }
-
-    internal static OpenVinoExperimentalCapabilityEvidence TurboQuantTbq4(
-        string evidenceId) => new(evidenceId);
-}
-
 public static class OpenVinoOptimizationCapabilityProjector
 {
     public static OpenVinoCapabilityPayload Project(
-        OpenVinoOptimizationCapabilityEvidence evidence) =>
-        Project(evidence, experimentalEvidence: null);
-
-    internal static OpenVinoCapabilityPayload Project(
-        OpenVinoOptimizationCapabilityEvidence evidence,
-        OpenVinoExperimentalCapabilityEvidence? experimentalEvidence)
+        OpenVinoOptimizationCapabilityEvidence evidence)
     {
         ArgumentNullException.ThrowIfNull(evidence);
         ArgumentNullException.ThrowIfNull(evidence.Versions);
@@ -52,11 +36,6 @@ public static class OpenVinoOptimizationCapabilityProjector
         if (admitted.Count == 0)
         {
             throw Unsupported();
-        }
-
-        if (experimentalEvidence is not null)
-        {
-            admitted.Add(ProjectTurboQuant(experimentalEvidence.EvidenceId));
         }
 
         return OpenVinoCapabilityPayload.Create(runtimeVersion, admitted);
@@ -127,21 +106,6 @@ public static class OpenVinoOptimizationCapabilityProjector
             maturity,
             requiresEvidence: false);
     }
-
-    private static OpenVinoAdmittedConfiguration ProjectTurboQuant(
-        string evidenceId) =>
-        OpenVinoAdmittedConfiguration.Create(
-            evidenceId,
-            DeviceRouteId.Cpu,
-            OpenVinoWeightFormat.TurboQuantTbq4,
-            OpenVinoKvCacheFormat.RouteDefault,
-            OpenVinoPerformanceHint.Latency,
-            ContractCompiledCachePolicy.Disabled,
-            streams: 1,
-            minimumContextTokens: 4_096,
-            maximumContextTokens: 4_096,
-            SupportLevel.Experimental,
-            requiresEvidence: true);
 
     private static string RuntimeVersion(OpenVinoOptimizationToolVersions versions)
     {

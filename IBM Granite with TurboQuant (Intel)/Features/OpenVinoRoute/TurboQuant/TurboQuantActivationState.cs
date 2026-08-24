@@ -1,8 +1,4 @@
 using GraniteEdgeAI.OpenVino.Contracts;
-using GraniteEdgeAI.Features.OpenVinoRoute.Optimization;
-using System.Globalization;
-using System.Security.Cryptography;
-using System.Text;
 
 namespace GraniteEdgeAI.Features.OpenVinoRoute.TurboQuant;
 
@@ -58,7 +54,6 @@ public sealed class TurboQuantActivationState
         string approvedModelSha256,
         long approvedModelLength,
         OpenVinoBuildEvidence approvedBuildEvidence,
-        string? optimizationEvidenceId,
         IReadOnlyList<TurboQuantEvidenceRow> evidenceRows)
     {
         Disposition = disposition;
@@ -66,11 +61,6 @@ public sealed class TurboQuantActivationState
         ApprovedModelSha256 = approvedModelSha256;
         ApprovedModelLength = approvedModelLength;
         ApprovedBuildEvidence = approvedBuildEvidence;
-        OptimizationEvidenceId = optimizationEvidenceId;
-        OptimizationCapabilityEvidence = optimizationEvidenceId is null
-            ? null
-            : OpenVinoExperimentalCapabilityEvidence.TurboQuantTbq4(
-                optimizationEvidenceId);
         Maturity = "Experimental";
         EvidenceRows = Array.AsReadOnly(evidenceRows.ToArray());
     }
@@ -81,9 +71,6 @@ public sealed class TurboQuantActivationState
     public string ApprovedModelSha256 { get; }
     public long ApprovedModelLength { get; }
     public OpenVinoBuildEvidence ApprovedBuildEvidence { get; }
-    public string? OptimizationEvidenceId { get; }
-    internal OpenVinoExperimentalCapabilityEvidence?
-        OptimizationCapabilityEvidence { get; }
     public IReadOnlyList<TurboQuantEvidenceRow> EvidenceRows { get; }
 
     public bool IsExperimentalVisible =>
@@ -166,7 +153,6 @@ public sealed class TurboQuantActivationPolicy
             approved.ModelSha256,
             approved.ModelLength,
             approved.BuildEvidence,
-            complete ? TurboQuantCapabilityEvidenceIdentity.Create(evidence) : null,
             Rows(
                 evidence,
                 foundation,
@@ -262,94 +248,5 @@ public sealed class TurboQuantActivationPolicy
         {
             throw new ArgumentException("A lowercase Git commit identity is required.", name);
         }
-    }
-}
-
-internal static class TurboQuantCapabilityEvidenceIdentity
-{
-    internal static string Create(TurboQuantCampaignEvidence evidence)
-    {
-        ArgumentNullException.ThrowIfNull(evidence);
-        TurboQuantActivationEvent activation = evidence.Activation ??
-            throw new ArgumentException(
-                "Complete TurboQuant activation evidence is required.",
-                nameof(evidence));
-        TurboQuantBuildEvidence build = evidence.BuildEvidence.TurboQuantBuild ??
-            throw new ArgumentException(
-                "The TurboQuant build identity is required.",
-                nameof(evidence));
-
-        StringBuilder canonical = new();
-        Add(canonical, "turboquant-capability-v1");
-        Add(canonical, evidence.EvidenceCommit);
-        Add(canonical, evidence.ModelId);
-        Add(canonical, evidence.PackageManifestSha256);
-        Add(canonical, evidence.ModelSha256);
-        Add(canonical, evidence.ModelLength);
-        Add(canonical, evidence.RequestedDevice);
-        Add(canonical, evidence.ActualExecutionDevices.Count);
-        foreach (string device in evidence.ActualExecutionDevices)
-        {
-            Add(canonical, device);
-        }
-        Add(canonical, evidence.BuildEvidence.RuntimeBuild);
-        Add(canonical, evidence.BuildEvidence.GenAiBuild);
-        Add(canonical, evidence.BuildEvidence.TokenizersBuild);
-        Add(canonical, evidence.BuildEvidence.WorkerManifestDigest);
-        Add(canonical, build.SourceCommit);
-        Add(canonical, build.ImplementationCommit);
-        Add(canonical, build.PatchSeriesDigest);
-        Add(canonical, build.RuntimeManifestDigest);
-        Add(canonical, evidence.WorkerClosureVerified);
-        Add(canonical, evidence.SecurityReviewApproved);
-        Add(canonical, evidence.LicenseReviewApproved);
-        Add(canonical, activation.SessionId.ToString("D"));
-        Add(canonical, activation.TurnId.ToString("D"));
-        Add(canonical, activation.RequestedKeyCodec);
-        Add(canonical, activation.RequestedValueCodec);
-        Add(canonical, activation.ActualKeyCodec);
-        Add(canonical, activation.ActualValueCodec);
-        Add(canonical, activation.AttentionPath);
-        Add(canonical, activation.HeadDimension);
-        Add(canonical, activation.RuntimeDispatchCount);
-        Add(canonical, activation.EncodedRecordCount);
-        Add(canonical, activation.ModelSdpaNodeCount);
-        Add(canonical, activation.PackedBytesPerRecord);
-        Add(canonical, activation.FullPrecisionBytesPerRecord);
-        Add(canonical, activation.PackedCacheBytes);
-        Add(canonical, activation.FullPrecisionCacheBytes);
-        Add(canonical, activation.EvidenceOrigin);
-        Add(canonical, activation.ForcedScalarNegative);
-        Add(canonical, evidence.QualityRubricId);
-        Add(canonical, evidence.MatchedOfficialBaseline);
-        Add(canonical, evidence.DeterministicSmokePassed);
-        Add(canonical, evidence.MemoryReductionPassed);
-        Add(canonical, evidence.QualityPassed);
-        Add(canonical, evidence.PerformancePassed);
-        Add(canonical, evidence.RepeatabilityPassed);
-        Add(canonical, evidence.ContextScalingPassed);
-        Add(canonical, evidence.CancellationPassed);
-        Add(canonical, evidence.CleanupPassed);
-        Add(canonical, evidence.CorruptionPassed);
-        Add(canonical, evidence.StreamingPassed);
-        Add(canonical, evidence.CompletedTurnCount);
-
-        string digest = Convert.ToHexString(SHA256.HashData(
-            new UTF8Encoding(false, true).GetBytes(canonical.ToString())))
-            .ToLowerInvariant();
-        return "OV-TBQ4-" + digest;
-    }
-
-    private static void Add(StringBuilder canonical, object value)
-    {
-        string text = value switch
-        {
-            IFormattable formattable => formattable.ToString(
-                null, CultureInfo.InvariantCulture),
-            _ => value.ToString() ?? string.Empty
-        };
-        canonical.Append(text.Length)
-            .Append(':')
-            .Append(text);
     }
 }
