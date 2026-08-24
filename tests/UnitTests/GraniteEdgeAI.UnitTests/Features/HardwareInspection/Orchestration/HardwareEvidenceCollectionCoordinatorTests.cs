@@ -2,6 +2,7 @@ using GraniteEdgeAI.Features.HardwareInspection.Application;
 using GraniteEdgeAI.Features.HardwareInspection.Orchestration;
 using GraniteEdgeAI.Features.HardwareInspection.Resolution;
 using GraniteEdgeAI.HardwareInspection.Foundation.Windows;
+using GraniteEdgeAI.UnitTests.Features.HardwareInspection.Resolution;
 using GraniteEdgeAI.UnitTests.Features.HardwareInspection.Support;
 
 namespace GraniteEdgeAI.UnitTests.Features.HardwareInspection.Orchestration;
