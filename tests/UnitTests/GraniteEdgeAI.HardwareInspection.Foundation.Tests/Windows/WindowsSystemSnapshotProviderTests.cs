@@ -67,6 +67,9 @@ public sealed class WindowsSystemSnapshotProviderTests
                 async () => await CreateProvider(api).CaptureAsync(CancellationToken.None));
 
         Assert.AreEqual("HI-WINDOWS-MEMORY-UNAVAILABLE", error.DiagnosticCode);
+        Assert.AreEqual(
+            WindowsSystemSnapshotDiagnosticCode.MemoryUnavailable,
+            error.ClosedDiagnostic);
         Assert.IsFalse(error.Message.Contains("path", StringComparison.OrdinalIgnoreCase));
     }
 
@@ -80,6 +83,9 @@ public sealed class WindowsSystemSnapshotProviderTests
                 async () => await CreateProvider(api).CaptureAsync(CancellationToken.None));
 
         Assert.AreEqual("HI-WINDOWS-MEMORY-OVERFLOW", error.DiagnosticCode);
+        Assert.AreEqual(
+            WindowsSystemSnapshotDiagnosticCode.MemoryOverflow,
+            error.ClosedDiagnostic);
     }
 
     [TestMethod]
@@ -92,6 +98,9 @@ public sealed class WindowsSystemSnapshotProviderTests
                 async () => await CreateProvider(api).CaptureAsync(CancellationToken.None));
 
         Assert.AreEqual("HI-WINDOWS-MEMORY-INCONSISTENT", error.DiagnosticCode);
+        Assert.AreEqual(
+            WindowsSystemSnapshotDiagnosticCode.MemoryInconsistent,
+            error.ClosedDiagnostic);
     }
 
     [TestMethod]
@@ -108,6 +117,9 @@ public sealed class WindowsSystemSnapshotProviderTests
                 async () => await provider.CaptureAsync(CancellationToken.None));
 
         Assert.AreEqual("HI-WINDOWS-MEMORY-INCONSISTENT", error.DiagnosticCode);
+        Assert.AreEqual(
+            WindowsSystemSnapshotDiagnosticCode.MemoryInconsistent,
+            error.ClosedDiagnostic);
     }
 
     [TestMethod]
