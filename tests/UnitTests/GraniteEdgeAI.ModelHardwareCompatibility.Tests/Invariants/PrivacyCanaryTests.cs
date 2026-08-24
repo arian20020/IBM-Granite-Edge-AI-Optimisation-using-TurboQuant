@@ -78,6 +78,72 @@ public sealed class PrivacyCanaryTests
         "OptimizationExclusion.EvidenceId",
         "OptimizationWorkload.WorkloadId",
 
+        // V2 execution payloads. Every one is either an enforced identifier
+        // (OptimizationIdentifier bounds the length and rejects separators and
+        // traversal), a validated 64-character digest, or a 40-character Git
+        // object identity. None is free-form and none can hold a path.
+        "GgufExecutionPayload.DeviceId",
+        "GgufExecutionPayload.EvidenceGrade",
+        "GgufExecutionPayload.ProfileId",
+        "GgufExecutionPayload.RuntimeBuildId",
+        "GgufExecutionPayload.RuntimeSourceCommit",
+        "GgufQuantiserIdentity.ExecutableSha256",
+        "GgufQuantiserIdentity.PackageId",
+        "GgufQuantiserIdentity.ToolVersion",
+        "OpenVinoBuildIdentity.GenAiBuild",
+        "OpenVinoBuildIdentity.RuntimeBuild",
+        "OpenVinoBuildIdentity.TokenizersBuild",
+        "OpenVinoBuildIdentity.WorkerManifestDigest",
+        "OpenVinoExecutionPayload.ConfigurationId",
+        "OpenVinoExecutionPayload.Device",
+        "OpenVinoExecutionPayload.EvidenceId",
+        "OpenVinoExecutionPayload.Maturity",
+        "OpenVinoExecutionPayload.OptimizerVersions",
+        "TurboQuantBuildIdentity.ImplementationCommit",
+        "TurboQuantBuildIdentity.PatchSeriesDigest",
+        "TurboQuantBuildIdentity.RuntimeManifestDigest",
+        "TurboQuantBuildIdentity.SourceCommit",
+
+        // Fixed device spellings composed from an enum. Deliberately not
+        // ToString on the enum, so renaming a planning member cannot change
+        // what an executor is told to open.
+        "ExecutionVocabularyMap.ToDeviceId",
+
+        // The trusted execution seams, and the only members in this assembly
+        // that genuinely hold a filesystem path.
+        //
+        // Admitted with their eyes open, because the alternative is worse: an
+        // executor needs the local file, and putting it in the plan would put it
+        // in a manifest, a log and a support record. So the path is carried
+        // beside the plan instead, under these controls:
+        //
+        //   the field is private, with no property returning it;
+        //   RevealVerifiedPath hands it over only after the digest and length
+        //     match the plan, and throws otherwise;
+        //   ToString is overridden on all three types so no interpolation or
+        //     argument-formatting logger can print one;
+        //   neither type is a record, so there is no synthesized ToString or
+        //     Equals that would enumerate members;
+        //   TrustedContextsAreNotReachableFromAPlan below proves nothing on the
+        //     plan or result surface exposes them.
+        //
+        // The remaining members are the plan identities these contexts echo,
+        // already admitted above under their own names.
+        "TrustedSourceContext._localSourcePath",
+        "TrustedSourceContext.RevealVerifiedPath",
+        "TrustedSourceContext.ToString",
+        "TrustedSourceContext.ExpectedModelSha256",
+        "TrustedSourceContext.ModelInspectionHandoffId",
+        "TrustedSourceContext.ModelInspectionRunId",
+        "TrustedToolContext._localExecutablePath",
+        "TrustedToolContext.RevealVerifiedPath",
+        "TrustedToolContext.ToString",
+        "TrustedToolContext.ExpectedExecutableSha256",
+        "TrustedToolContext.PackageId",
+
+        // Names its outcome enum member and nothing else.
+        "TrustedResolution.ToString",
+
         // The plan and result surface. Reviewed as a group because they share
         // one shape: every member is either a validated 64-character digest, an
         // enforced identifier, or a descriptor composed from enums and integers.

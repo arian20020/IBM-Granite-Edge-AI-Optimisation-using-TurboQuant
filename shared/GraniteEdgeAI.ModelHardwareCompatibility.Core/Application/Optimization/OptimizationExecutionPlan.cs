@@ -1,4 +1,5 @@
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Candidates;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Execution;
 
 namespace GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
 
@@ -118,8 +119,21 @@ public sealed record OptimizationExecutionPlan
     /// Bumped when the shape of a plan changes in a way an older executor could
     /// misread. An executor that does not recognise the version refuses rather
     /// than interpreting fields it may not understand.
+    ///
+    /// Version 2 added the route execution payload. A version 1 plan carries no
+    /// payload at all, so an executor built for 2 cannot read one as if it had
+    /// one - it would have to invent every runtime setting, which is the defect
+    /// this version exists to close. Construction requires a payload, so a
+    /// version 1 plan cannot be produced by this assembly any more.
     /// </summary>
-    public const int CurrentContractVersion = 1;
+    public const int CurrentContractVersion = 2;
+
+    /// <summary>
+    /// The lowest version an executor built against this contract may accept.
+    /// Reading a version 1 plan would mean supplying the missing execution
+    /// fields from somewhere, and there is nowhere honest to get them.
+    /// </summary>
+    public const int MinimumExecutableContractVersion = 2;
 
     internal OptimizationExecutionPlan(
         Guid optimizationPlanId,
@@ -127,11 +141,13 @@ public sealed record OptimizationExecutionPlan
         OptimizationCapabilitySnapshot capabilitySnapshot,
         OptimizationWorkload workload,
         OptimizationCandidate candidate,
+        OptimizationExecutionPayload executionPayload,
         OptimizationPreferenceSelection preference,
         bool sharedWithAdjacentBand,
         string configurationSha256,
         DateTimeOffset createdAtUtc)
     {
+        ExecutionPayload = executionPayload;
         OptimizationPlanId = optimizationPlanId;
         Binding = binding;
         CapabilitySnapshot = capabilitySnapshot;
@@ -156,6 +172,16 @@ public sealed record OptimizationExecutionPlan
     /// <summary>The complete configuration. An executor runs this or fails closed.</summary>
     public OptimizationCandidate Candidate { get; }
 
+    /// <summary>
+    /// The exact settings the route executor will use.
+    ///
+    /// Present on every version 2 plan. Its route always equals both
+    /// <see cref="Candidate"/>'s and <see cref="CapabilitySnapshot"/>'s, and
+    /// every field in it is inside <see cref="ConfigurationSha256"/> - so there
+    /// is nothing left for an executor to choose after the user has confirmed.
+    /// </summary>
+    public OptimizationExecutionPayload ExecutionPayload { get; }
+
     public OptimizationPreferenceSelection Preference { get; }
 
     /// <summary>
@@ -178,8 +204,24 @@ public sealed record OptimizationExecutionPlan
     /// <summary>
     /// Whether executing this writes a new model or package. The one fact the
     /// confirmation surface must not get wrong.
+    ///
+    /// Read off the candidate, and plan issuance proves the payload agrees. Two
+    /// places that could disagree about this would be two different promises to
+    /// the user.
     /// </summary>
     public bool ProducesPersistentArtifact => Candidate.Metrics.RequiresPersistentChange;
+
+    /// <summary>
+    /// Whether an executor built against this contract may run this plan.
+    ///
+    /// A version below the minimum is refused outright rather than partially
+    /// interpreted: the missing fields are exactly the ones that decide what
+    /// runs, so filling them in would be the substitution the whole contract
+    /// forbids.
+    /// </summary>
+    public bool IsExecutableBy(int executorContractVersion) =>
+        ContractVersion >= MinimumExecutableContractVersion
+        && executorContractVersion >= ContractVersion;
 
     /// <summary>Convenience for the shorthand the seams use.</summary>
     public string ModelInspectionRunId => Binding.ModelInspectionRunId;
