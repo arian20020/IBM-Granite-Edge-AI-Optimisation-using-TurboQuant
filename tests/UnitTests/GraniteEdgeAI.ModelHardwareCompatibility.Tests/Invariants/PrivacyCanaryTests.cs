@@ -27,6 +27,15 @@ public sealed class PrivacyCanaryTests
         "GgufRouteConfiguration.CanonicalDescriptor",
         "CandidateFingerprint.Value",
 
+        // The five approved preference labels plus "Automatic". Reviewed and
+        // admitted: these are a fixed product vocabulary that already exists in
+        // Model Download, they are compile-time constants, and none of them is
+        // derived from a model, a path, a machine or a tool. This is the one
+        // place the engine holds user-facing words, and it holds them so two
+        // screens cannot drift into two spellings of the same preference.
+        "OptimizationPreferenceLabelPolicy.AutomaticLabel",
+        "OptimizationPreferenceLabelPolicy.GetLabel",
+
         // Keyed by the same admitted support-entry id already allowed above
         // (CompatibilitySupportEntry.EntryId); this member only looks that id
         // up against an observed installation state and introduces no new
