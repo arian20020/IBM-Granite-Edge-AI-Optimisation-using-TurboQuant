@@ -107,7 +107,7 @@ public static class OpenVinoOptimizationCapabilityProjector
             requiresEvidence: false);
     }
 
-    private static string RuntimeVersion(OpenVinoOptimizationToolVersions versions)
+    internal static string RuntimeVersion(OpenVinoOptimizationToolVersions versions)
     {
         RequirePinnedVersion(
             versions.OpenVino, "2026.3.0", nameof(versions.OpenVino));

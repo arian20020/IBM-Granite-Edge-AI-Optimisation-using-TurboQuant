@@ -785,7 +785,8 @@ public sealed class OpenVinoOptimizationTests
             OpenVinoPerformanceHint.Latency,
             compiledCache,
             streams);
-        bool persistent = weights != OpenVinoWeightFormat.Original;
+        bool persistent = weights is OpenVinoWeightFormat.Int8 or
+            OpenVinoWeightFormat.Int4;
         OptimizationCandidate candidate = OptimizationCandidate.Create(
             configuration,
             OptimizationCandidateMetrics.Create(
@@ -803,7 +804,7 @@ public sealed class OpenVinoOptimizationTests
             "OV-BOUND-01",
             isExperimental: false);
         OpenVinoCapabilityPayload payload = OpenVinoCapabilityPayload.Create(
-            "openvino-test-runtime-1",
+            OpenVinoV2TestPayload.CapabilityRuntimeVersion,
             [
                 OpenVinoAdmittedConfiguration.Create(
                     "OV-BOUND-01",
@@ -827,6 +828,8 @@ public sealed class OpenVinoOptimizationTests
             [candidate], OptimizationPreferenceSelection.Manual(50))!;
         return OptimizationPlanIssuer.Issue(
             selection,
+            OpenVinoV2TestPayload.For(
+                weights, kvCache, compiledCache, "OV-BOUND-01"),
             snapshot,
             OptimizationWorkload.Create(
                 "chat",
@@ -840,6 +843,7 @@ public sealed class OpenVinoOptimizationTests
                 checked((ulong)source.ModelLengthBytes),
                 "hw-run-bound-1",
                 new string('2', 64)),
+            modelLayerCount: 1,
             DateTimeOffset.UnixEpoch);
     }
 

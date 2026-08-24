@@ -347,7 +347,8 @@ public sealed class OpenVinoOptimizationCapabilityProjectorTests
             const string sourceDigest =
                 "1111111111111111111111111111111111111111111111111111111111111111";
             const ulong sourceLength = 4UL * 1024 * 1024 * 1024;
-            bool persistent = admission.Weights != OpenVinoWeightFormat.Original;
+            bool persistent = admission.Weights is OpenVinoWeightFormat.Int8 or
+                OpenVinoWeightFormat.Int4;
             OpenVinoRouteConfiguration configuration =
                 OpenVinoRouteConfiguration.Create(
                     admission.Weights,
@@ -381,6 +382,9 @@ public sealed class OpenVinoOptimizationCapabilityProjectorTests
                 [candidate], OptimizationPreferenceSelection.Manual(50))!;
             OptimizationExecutionPlan plan = OptimizationPlanIssuer.Issue(
                 selection,
+                OpenVinoV2TestPayload.For(
+                    admission.Weights, admission.KvCache, admission.CompiledCache,
+                    admission.EvidenceId),
                 snapshot,
                 OptimizationWorkload.Create(
                     "chat",
@@ -394,6 +398,7 @@ public sealed class OpenVinoOptimizationCapabilityProjectorTests
                     sourceLength,
                     "hw-run-1",
                     new string('2', 64)),
+                modelLayerCount: 1,
                 DateTimeOffset.UnixEpoch);
             OpenVinoOptimizationAdaptation adaptation =
                 OpenVinoOptimizationPlanAdapter.Adapt(

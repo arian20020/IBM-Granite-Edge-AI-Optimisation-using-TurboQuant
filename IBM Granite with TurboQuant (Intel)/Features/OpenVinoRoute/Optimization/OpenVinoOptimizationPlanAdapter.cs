@@ -1,8 +1,13 @@
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Execution;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.OpenVino;
 using ContractCompiledCachePolicy = GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.OpenVino.OpenVinoCompiledCachePolicy;
+using ExecutionKvPrecision = GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Execution.OpenVinoKvCachePrecision;
+using ExecutionWeightPrecision = GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Execution.OpenVinoWeightPrecision;
 using RouteCompiledCachePolicy = GraniteEdgeAI.Features.OpenVinoRoute.Optimization.OpenVinoCompiledCachePolicy;
+using RouteKvPrecision = GraniteEdgeAI.Features.OpenVinoRoute.Optimization.OpenVinoKvCachePrecision;
+using RouteWeightPrecision = GraniteEdgeAI.Features.OpenVinoRoute.Optimization.OpenVinoWeightPrecision;
 
 namespace GraniteEdgeAI.Features.OpenVinoRoute.Optimization;
 
@@ -19,6 +24,8 @@ public sealed record OpenVinoOptimizationAdaptation(
 
 public static class OpenVinoOptimizationPlanAdapter
 {
+    private const int ExecutorContractVersion = 2;
+
     public static OpenVinoOptimizationAdaptation Adapt(
         OptimizationExecutionPlan plan,
         OptimizationCapabilitySnapshot currentCapabilities,
@@ -28,86 +35,79 @@ public static class OpenVinoOptimizationPlanAdapter
         ArgumentNullException.ThrowIfNull(plan);
         ArgumentNullException.ThrowIfNull(currentCapabilities);
 
-        if (plan.ContractVersion != OptimizationExecutionPlan.CurrentContractVersion ||
+        if (!plan.IsExecutableBy(ExecutorContractVersion) ||
+            plan.ContractVersion != ExecutorContractVersion ||
             plan.Route != OptimizationRoute.OpenVino ||
+            plan.Candidate.Route != OptimizationRoute.OpenVino ||
             plan.Candidate.Configuration is not OpenVinoRouteConfiguration configuration ||
             plan.CapabilitySnapshot.Route != OptimizationRoute.OpenVino ||
-            plan.CapabilitySnapshot.OpenVino is not { } plannedPayload)
+            plan.CapabilitySnapshot.OpenVino is not { } plannedCapabilities ||
+            plan.ExecutionPayload is not { Route: OptimizationRoute.OpenVino } execution ||
+            execution.OpenVino is not { } payload || execution.Gguf is not null ||
+            payload.TurboQuantBuild is not null)
         {
             return Replan(OptimizationSupportCode.ModelBindingMismatch);
         }
 
         if (currentCapabilities.Route != OptimizationRoute.OpenVino ||
             currentCapabilities.OpenVino is not { } currentPayload ||
-            !string.Equals(
-                currentCapabilities.SnapshotId,
-                plan.CapabilitySnapshot.SnapshotId,
-                StringComparison.Ordinal) ||
+            !string.Equals(currentCapabilities.SnapshotId,
+                plan.CapabilitySnapshot.SnapshotId, StringComparison.Ordinal) ||
             !plan.MatchesCapability(currentCapabilities) ||
-            !PayloadsMatch(plannedPayload, currentPayload))
+            !PayloadsMatch(plannedCapabilities, currentPayload))
         {
             return Replan(OptimizationSupportCode.CapabilityDrift);
         }
 
-        if (!plan.MatchesSource(
-            currentSourceSha256,
-            currentSourceLengthBytes))
-        {
-            return Replan(OptimizationSupportCode.SourceIdentityMismatch);
-        }
-
-        if (!ConfigurationIdentityMatches(plan))
-        {
-            return Replan(OptimizationSupportCode.ModelBindingMismatch);
-        }
-
-        OpenVinoAdmittedConfiguration[] matchingEvidence = currentPayload.Admitted
-            .Where(admission => string.Equals(
-                admission.EvidenceId,
-                plan.Candidate.EvidenceId,
-                StringComparison.Ordinal))
-            .ToArray();
-        if (matchingEvidence.Length != 1 ||
-            !AdmissionMatches(
-                matchingEvidence[0],
-                configuration,
-                plan.Candidate.Metrics.ContextTokens,
-                plan.Candidate.IsExperimental))
+        if (!ToolVersionsMatch(payload.OptimizerVersions, currentPayload.RuntimeVersion))
         {
             return Replan(OptimizationSupportCode.ToolNotAdmitted);
         }
 
-        OpenVinoOptimizationCandidate? candidate = Map(plan, configuration);
+        if (!plan.MatchesSource(currentSourceSha256, currentSourceLengthBytes))
+        {
+            return Replan(OptimizationSupportCode.SourceIdentityMismatch);
+        }
+
+        if (!ConfigurationIdentityMatches(plan, execution))
+        {
+            return Replan(OptimizationSupportCode.ModelBindingMismatch);
+        }
+
+        OpenVinoAdmittedConfiguration[] admissions = currentPayload.Admitted
+            .Where(admission => string.Equals(admission.EvidenceId,
+                payload.EvidenceId, StringComparison.Ordinal)).ToArray();
+        if (admissions.Length != 1 ||
+            !CandidateAndAdmissionMatch(plan, configuration, payload, admissions[0]))
+        {
+            return Replan(OptimizationSupportCode.ToolNotAdmitted);
+        }
+
+        OpenVinoOptimizationCandidate? candidate = Map(plan, payload);
         return candidate is null
             ? Replan(OptimizationSupportCode.ToolNotAdmitted)
-            : new OpenVinoOptimizationAdaptation(
-                OpenVinoOptimizationAdaptationStatus.Ready,
-                candidate,
+            : new(OpenVinoOptimizationAdaptationStatus.Ready, candidate,
                 OptimizationSupportCode.None);
     }
 
-    private static bool ConfigurationIdentityMatches(OptimizationExecutionPlan plan)
+    private static bool ConfigurationIdentityMatches(
+        OptimizationExecutionPlan plan,
+        OptimizationExecutionPayload executionPayload)
     {
         try
         {
             OptimizationSelection? selection = OptimizationPreferenceResolver.Resolve(
-                [plan.Candidate],
-                plan.Preference);
+                [plan.Candidate], plan.Preference);
             if (selection is null)
             {
                 return false;
             }
 
             OptimizationExecutionPlan recomputed = OptimizationPlanIssuer.Issue(
-                selection,
-                plan.CapabilitySnapshot,
-                plan.Workload,
-                plan.Binding,
-                plan.CreatedAtUtc);
-            return string.Equals(
-                recomputed.ConfigurationSha256,
-                plan.ConfigurationSha256,
-                StringComparison.Ordinal);
+                selection, executionPayload, plan.CapabilitySnapshot, plan.Workload,
+                plan.Binding, modelLayerCount: 1, plan.CreatedAtUtc);
+            return string.Equals(recomputed.ConfigurationSha256,
+                plan.ConfigurationSha256, StringComparison.Ordinal);
         }
         catch (Exception exception) when (exception is ArgumentException or
                                           InvalidOperationException)
@@ -116,73 +116,94 @@ public static class OpenVinoOptimizationPlanAdapter
         }
     }
 
+    private static bool CandidateAndAdmissionMatch(
+        OptimizationExecutionPlan plan,
+        OpenVinoRouteConfiguration configuration,
+        OpenVinoExecutionPayload payload,
+        OpenVinoAdmittedConfiguration admission)
+    {
+        OpenVinoWeightFormat target = payload.TargetWeightPrecision switch
+        {
+            ExecutionWeightPrecision.Fp16 => OpenVinoWeightFormat.Fp16,
+            ExecutionWeightPrecision.EightBit => OpenVinoWeightFormat.Int8,
+            ExecutionWeightPrecision.FourBit => OpenVinoWeightFormat.Int4,
+            _ => OpenVinoWeightFormat.Unspecified
+        };
+        OpenVinoKvCacheFormat kv = payload.KvCachePrecision switch
+        {
+            ExecutionKvPrecision.ReleasedDefault => OpenVinoKvCacheFormat.RouteDefault,
+            ExecutionKvPrecision.U8 => OpenVinoKvCacheFormat.U8,
+            _ => OpenVinoKvCacheFormat.Unspecified
+        };
+        ContractCompiledCachePolicy cache = payload.CompiledCacheEnabled
+            ? ContractCompiledCachePolicy.Enabled
+            : ContractCompiledCachePolicy.Disabled;
+        bool runtimeOnlyConfiguration =
+            configuration.Weights == OpenVinoWeightFormat.Original &&
+            payload.SourceWeightPrecision == payload.TargetWeightPrecision;
+
+        return (runtimeOnlyConfiguration || configuration.Weights == target) &&
+            configuration.KvCache == kv &&
+            configuration.Device == DeviceRouteId.Cpu &&
+            payload.Device == "CPU" &&
+            configuration.PerformanceHint == OpenVinoPerformanceHint.Latency &&
+            configuration.CompiledCache == cache &&
+            plan.Candidate.Metrics.RequiresPersistentChange ==
+                payload.RequiresPersistentConversion &&
+            plan.ProducesPersistentArtifact == payload.RequiresPersistentConversion &&
+            payload.CreatesCompletePackage == payload.RequiresPersistentConversion &&
+            payload.CompiledCacheIsDisposable && !payload.CompiledCacheIsModelArtifact &&
+            payload.Maturity == "Standard candidate" &&
+            string.Equals(
+                plan.Candidate.EvidenceId,
+                payload.EvidenceId,
+                StringComparison.Ordinal) &&
+            admission.Device == configuration.Device &&
+            admission.Weights == configuration.Weights &&
+            admission.KvCache == configuration.KvCache &&
+            admission.PerformanceHint == configuration.PerformanceHint &&
+            admission.CompiledCache == configuration.CompiledCache &&
+            admission.Streams == configuration.Streams &&
+            plan.Candidate.Metrics.ContextTokens >= admission.MinimumContextTokens &&
+            plan.Candidate.Metrics.ContextTokens <= admission.MaximumContextTokens &&
+            admission.Level == SupportLevel.DeclaredSupported &&
+            !admission.RequiresEvidence && !plan.Candidate.IsExperimental;
+    }
+
     private static OpenVinoOptimizationCandidate? Map(
         OptimizationExecutionPlan plan,
-        OpenVinoRouteConfiguration configuration)
+        OpenVinoExecutionPayload payload)
     {
-        OpenVinoWeightPrecision weights = configuration.Weights switch
+        RouteWeightPrecision source = MapWeight(payload.SourceWeightPrecision);
+        RouteWeightPrecision target = MapWeight(payload.TargetWeightPrecision);
+        RouteKvPrecision kv = payload.KvCachePrecision switch
         {
-            OpenVinoWeightFormat.Original => OpenVinoWeightPrecision.Original,
-            OpenVinoWeightFormat.Fp16 => OpenVinoWeightPrecision.Fp16,
-            OpenVinoWeightFormat.Int8 => OpenVinoWeightPrecision.EightBit,
-            OpenVinoWeightFormat.Int4 => OpenVinoWeightPrecision.FourBit,
-            OpenVinoWeightFormat.Unspecified or
-            OpenVinoWeightFormat.TurboQuantTbq4 or
-            OpenVinoWeightFormat.TurboQuantTbq3 => (OpenVinoWeightPrecision)(-1),
-            _ => (OpenVinoWeightPrecision)(-1)
+            ExecutionKvPrecision.ReleasedDefault => RouteKvPrecision.ReleasedDefault,
+            ExecutionKvPrecision.U8 => RouteKvPrecision.U8,
+            _ => (RouteKvPrecision)(-1)
         };
-        if (!Enum.IsDefined(weights))
+        if (!Enum.IsDefined(source) || !Enum.IsDefined(target) || !Enum.IsDefined(kv))
         {
             return null;
         }
 
-        OpenVinoKvCachePrecision kvCache = configuration.KvCache switch
-        {
-            OpenVinoKvCacheFormat.RouteDefault =>
-                OpenVinoKvCachePrecision.ReleasedDefault,
-            OpenVinoKvCacheFormat.U8 => OpenVinoKvCachePrecision.U8,
-            OpenVinoKvCacheFormat.Unspecified or OpenVinoKvCacheFormat.F16 or
-            OpenVinoKvCacheFormat.Bf16 or OpenVinoKvCacheFormat.U4 =>
-                (OpenVinoKvCachePrecision)(-1),
-            _ => (OpenVinoKvCachePrecision)(-1)
-        };
-        if (!Enum.IsDefined(kvCache) || configuration.Device != DeviceRouteId.Cpu ||
-            configuration.PerformanceHint != OpenVinoPerformanceHint.Latency)
-        {
-            return null;
-        }
-
-        RouteCompiledCachePolicy compiledCache = configuration.CompiledCache switch
-        {
-            ContractCompiledCachePolicy.Disabled =>
-                RouteCompiledCachePolicy.Disabled,
-            ContractCompiledCachePolicy.Enabled =>
-                RouteCompiledCachePolicy.Disposable,
-            ContractCompiledCachePolicy.Unspecified => null!,
-            _ => null!
-        };
-        if (compiledCache is null)
-        {
-            return null;
-        }
-
-        bool persistent = weights != OpenVinoWeightPrecision.Original;
-        if (persistent != plan.ProducesPersistentArtifact)
-        {
-            return null;
-        }
-
+        RouteCompiledCachePolicy cache = payload.CompiledCacheEnabled
+            ? RouteCompiledCachePolicy.Disposable
+            : RouteCompiledCachePolicy.Disabled;
         OpenVinoOptimizationCandidate candidate = new(
-            ConfigurationId(configuration, plan.ConfigurationSha256),
-            "CPU",
-            weights,
-            persistent ? OpenVinoPersistentArtifact.Create(weights) : null!,
-            new OpenVinoRuntimeOptimization(kvCache, compiledCache),
+            payload.ConfigurationId, payload.Device, target,
+            payload.RequiresPersistentConversion
+                ? OpenVinoPersistentArtifact.Create(target, source) : null!,
+            new OpenVinoRuntimeOptimization(kv, cache),
             OpenVinoCapabilityPerformanceHint.Latency,
-            configuration.Streams,
+            ((OpenVinoRouteConfiguration)plan.Candidate.Configuration).Streams,
             plan.Candidate.Metrics.ContextTokens,
-            "Standard candidate",
-            plan.Candidate.EvidenceId);
+            payload.Maturity,
+            payload.EvidenceId)
+        {
+            SourceWeightPrecision = source,
+            ExecutionPayload = payload
+        };
         try
         {
             candidate.Validate();
@@ -194,82 +215,58 @@ public static class OpenVinoOptimizationPlanAdapter
         }
     }
 
-    private static string ConfigurationId(
-        OpenVinoRouteConfiguration configuration,
-        string configurationSha256) => configuration switch
-        {
-            {
-                Weights: OpenVinoWeightFormat.Fp16,
-                KvCache: OpenVinoKvCacheFormat.RouteDefault,
-                CompiledCache: ContractCompiledCachePolicy.Disabled,
-                Streams: 1
-            } => "openvino.standard.cpu.fp16.default.v1",
-            {
-                Weights: OpenVinoWeightFormat.Int8,
-                KvCache: OpenVinoKvCacheFormat.RouteDefault,
-                CompiledCache: ContractCompiledCachePolicy.Disabled,
-                Streams: 1
-            } => "openvino.standard.cpu.int8.default.v1",
-            {
-                Weights: OpenVinoWeightFormat.Int8,
-                KvCache: OpenVinoKvCacheFormat.U8,
-                CompiledCache: ContractCompiledCachePolicy.Enabled,
-                Streams: 1
-            } => "openvino.standard.cpu.int8.u8.v1",
-            {
-                Weights: OpenVinoWeightFormat.Int4,
-                KvCache: OpenVinoKvCacheFormat.U8,
-                CompiledCache: ContractCompiledCachePolicy.Enabled,
-                Streams: 1
-            } => "openvino.standard.cpu.int4.u8.v1",
-            _ => "openvino.plan.v1." + configurationSha256
-        };
-
-    private static bool AdmissionMatches(
-        OpenVinoAdmittedConfiguration admission,
-        OpenVinoRouteConfiguration configuration,
-        int contextTokens,
-        bool isExperimental) =>
-        admission.Device == configuration.Device &&
-        admission.Weights == configuration.Weights &&
-        admission.KvCache == configuration.KvCache &&
-        admission.PerformanceHint == configuration.PerformanceHint &&
-        admission.CompiledCache == configuration.CompiledCache &&
-        admission.Streams == configuration.Streams &&
-        contextTokens >= admission.MinimumContextTokens &&
-        contextTokens <= admission.MaximumContextTokens &&
-        admission.Level == SupportLevel.DeclaredSupported &&
-        !admission.RequiresEvidence &&
-        !isExperimental;
-
-    private static bool PayloadsMatch(
-        OpenVinoCapabilityPayload planned,
-        OpenVinoCapabilityPayload current)
+    private static RouteWeightPrecision MapWeight(ExecutionWeightPrecision value) => value switch
     {
-        if (!string.Equals(
-                planned.RuntimeVersion,
-                current.RuntimeVersion,
-                StringComparison.Ordinal) ||
-            planned.Admitted.Count != current.Admitted.Count)
+        ExecutionWeightPrecision.Fp16 => RouteWeightPrecision.Fp16,
+        ExecutionWeightPrecision.EightBit => RouteWeightPrecision.EightBit,
+        ExecutionWeightPrecision.FourBit => RouteWeightPrecision.FourBit,
+        _ => (RouteWeightPrecision)(-1)
+    };
+
+    private static bool ToolVersionsMatch(
+        IReadOnlyDictionary<string, string> optimizerVersions,
+        string capabilityRuntimeVersion)
+    {
+        if (optimizerVersions.Count != 6 ||
+            !optimizerVersions.TryGetValue("openvino", out string? openVino) ||
+            !optimizerVersions.TryGetValue("openvino-genai", out string? openVinoGenAi) ||
+            !optimizerVersions.TryGetValue("nncf", out string? nncf) ||
+            !optimizerVersions.TryGetValue("optimum", out string? optimum) ||
+            !optimizerVersions.TryGetValue("optimum-intel", out string? optimumIntel) ||
+            !optimizerVersions.TryGetValue("transformers", out string? transformers))
         {
             return false;
         }
 
-        for (int index = 0; index < planned.Admitted.Count; index++)
+        try
         {
-            if (planned.Admitted[index] != current.Admitted[index])
-            {
-                return false;
-            }
+            string payloadRuntimeVersion =
+                OpenVinoOptimizationCapabilityProjector.RuntimeVersion(new(
+                    openVino,
+                    openVinoGenAi,
+                    nncf,
+                    optimum,
+                    optimumIntel,
+                    transformers));
+            return string.Equals(
+                capabilityRuntimeVersion,
+                payloadRuntimeVersion,
+                StringComparison.Ordinal);
         }
-
-        return true;
+        catch (ArgumentException)
+        {
+            return false;
+        }
     }
+
+    private static bool PayloadsMatch(
+        OpenVinoCapabilityPayload planned,
+        OpenVinoCapabilityPayload current) =>
+        string.Equals(planned.RuntimeVersion, current.RuntimeVersion,
+            StringComparison.Ordinal) &&
+        planned.Admitted.SequenceEqual(current.Admitted);
 
     private static OpenVinoOptimizationAdaptation Replan(
         OptimizationSupportCode supportCode) =>
-        new(
-            OpenVinoOptimizationAdaptationStatus.ReplanRequired,
-            Candidate: null,
-            supportCode);
+        new(OpenVinoOptimizationAdaptationStatus.ReplanRequired, null, supportCode);
 }

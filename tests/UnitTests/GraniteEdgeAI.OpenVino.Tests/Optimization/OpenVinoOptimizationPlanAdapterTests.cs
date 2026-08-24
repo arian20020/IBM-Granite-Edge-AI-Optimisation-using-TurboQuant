@@ -4,9 +4,14 @@ using GraniteEdgeAI.Features.OpenVinoRoute.Inspection;
 using GraniteEdgeAI.OpenVino.Contracts;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Candidates;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Execution;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.Gguf;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.OpenVino;
 using ContractCompiledCachePolicy = GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.OpenVino.OpenVinoCompiledCachePolicy;
+using ExecutionWeightPrecision = GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Execution.OpenVinoWeightPrecision;
+using OpenVinoKvCachePrecision = GraniteEdgeAI.Features.OpenVinoRoute.Optimization.OpenVinoKvCachePrecision;
+using OpenVinoWeightPrecision = GraniteEdgeAI.Features.OpenVinoRoute.Optimization.OpenVinoWeightPrecision;
 
 namespace GraniteEdgeAI.OpenVino.Tests.Optimization;
 
@@ -14,6 +19,12 @@ namespace GraniteEdgeAI.OpenVino.Tests.Optimization;
 [TestCategory("OpenVinoRoute")]
 public sealed class OpenVinoOptimizationPlanAdapterTests
 {
+    private static readonly string[] ExpectedOptimizerKeys =
+    [
+        "nncf", "openvino", "openvino-genai", "optimum", "optimum-intel",
+        "transformers"
+    ];
+
     [TestMethod]
     public void AdapterExposesOnlyTheStrictSourceBoundEntryPoint()
     {
@@ -71,7 +82,7 @@ public sealed class OpenVinoOptimizationPlanAdapterTests
     }
 
     [TestMethod]
-    public void AdapterMapsOriginalWeightsAsRuntimeOnly()
+    public void AdapterDerivesRuntimeOnlyOnlyFromEqualPayloadPrecisions()
     {
         OptimizationExecutionPlan plan = OpenVinoOptimizationTestData.Plan(
             OpenVinoWeightFormat.Original,
@@ -89,10 +100,182 @@ public sealed class OpenVinoOptimizationPlanAdapterTests
 
         Assert.AreEqual(OpenVinoOptimizationAdaptationStatus.Ready, result.Status);
         Assert.IsNotNull(result.Candidate);
-        Assert.AreEqual(OpenVinoWeightPrecision.Original,
+        Assert.AreEqual(OpenVinoWeightPrecision.Fp16,
             result.Candidate.WeightPrecision);
+        Assert.AreEqual(OpenVinoWeightPrecision.Fp16,
+            result.Candidate.SourceWeightPrecision);
         Assert.IsNull(result.Candidate.PersistentArtifact);
         Assert.IsFalse(plan.ProducesPersistentArtifact);
+    }
+
+    [TestMethod]
+    public void AdapterCarriesEveryV2PayloadFieldIntoExecution()
+    {
+        OptimizationExecutionPlan plan = OpenVinoOptimizationTestData.Plan(
+            OpenVinoWeightFormat.Int8,
+            OpenVinoKvCacheFormat.U8,
+            ContractCompiledCachePolicy.Enabled);
+
+        OpenVinoOptimizationAdaptation result = OpenVinoOptimizationPlanAdapter.Adapt(
+            plan, plan.CapabilitySnapshot, OpenVinoOptimizationTestData.SourceDigest,
+            OpenVinoOptimizationTestData.SourceLength);
+
+        Assert.AreEqual(OpenVinoOptimizationAdaptationStatus.Ready, result.Status);
+        OpenVinoExecutionPayload payload = plan.ExecutionPayload.OpenVino!;
+        OpenVinoOptimizationCandidate candidate = result.Candidate!;
+        OpenVinoExecutionPayload mappedPayload = candidate.ExecutionPayload!;
+        Assert.AreSame(payload, candidate.ExecutionPayload);
+        Assert.AreEqual(payload.ConfigurationId, candidate.ConfigurationId);
+        Assert.AreEqual(payload.Device, candidate.Device);
+        Assert.AreEqual(payload.Maturity, candidate.Maturity);
+        Assert.AreEqual(payload.EvidenceId, candidate.EvidenceId);
+        Assert.AreEqual(OpenVinoWeightPrecision.Fp16, candidate.SourceWeightPrecision);
+        Assert.AreEqual(OpenVinoWeightPrecision.EightBit, candidate.WeightPrecision);
+        Assert.AreEqual(OpenVinoKvCachePrecision.U8,
+            candidate.Runtime.KvCachePrecision);
+        Assert.AreEqual(payload.CompiledCacheEnabled,
+            candidate.Runtime.CompiledCache.Enabled);
+        Assert.AreEqual(payload.CompiledCacheIsDisposable,
+            candidate.Runtime.CompiledCache.IsDisposable);
+        Assert.AreEqual(payload.CompiledCacheIsModelArtifact,
+            candidate.Runtime.CompiledCache.IsModelArtifact);
+        Assert.AreEqual(payload.CreatesCompletePackage,
+            candidate.PersistentArtifact!.CreatesCompletePackage);
+        Assert.AreEqual("2026.3.0-22451-8a17657b995",
+            mappedPayload.BuildIdentity.RuntimeBuild);
+        Assert.AreEqual("2026.3.0.0-3277-bd8d6542e3c",
+            mappedPayload.BuildIdentity.GenAiBuild);
+        Assert.AreEqual("2026.3.0.0-703-183c6f25cda",
+            mappedPayload.BuildIdentity.TokenizersBuild);
+        Assert.AreEqual(new string('d', 64),
+            mappedPayload.BuildIdentity.WorkerManifestDigest);
+        CollectionAssert.AreEqual(
+            ExpectedOptimizerKeys,
+            mappedPayload.OptimizerVersions.Keys.ToArray());
+        Assert.IsNull(mappedPayload.TurboQuantBuild);
+    }
+
+    [TestMethod]
+    public void FrozenV2PlanIsNotExecutableByAV1Executor()
+    {
+        OptimizationExecutionPlan plan = OpenVinoOptimizationTestData.Plan();
+        Assert.IsFalse(plan.IsExecutableBy(1));
+        Assert.AreEqual(2, plan.ContractVersion);
+    }
+
+    [TestMethod]
+    public void AdapterRejectsV1StylePlanWithNoExecutionPayload()
+    {
+        OptimizationExecutionPlan plan = OpenVinoOptimizationTestData.Plan();
+        SetBackingField<OptimizationExecutionPayload?>(plan, "ExecutionPayload", null);
+
+        AssertRejected(plan, OptimizationSupportCode.ModelBindingMismatch);
+    }
+
+    [TestMethod]
+    public void AdapterRejectsOpenVinoUnionWithMissingRoutePayload()
+    {
+        OptimizationExecutionPlan plan = OpenVinoOptimizationTestData.Plan();
+        SetBackingField<OpenVinoExecutionPayload?>(
+            plan.ExecutionPayload, "OpenVino", null);
+
+        AssertRejected(plan, OptimizationSupportCode.ModelBindingMismatch);
+    }
+
+    [TestMethod]
+    public void AdapterRejectsGgufExecutionPayload()
+    {
+        OptimizationExecutionPlan plan = OpenVinoOptimizationTestData.Plan();
+        SetBackingField(plan, "ExecutionPayload", GgufExecutionUnion());
+
+        AssertRejected(plan, OptimizationSupportCode.ModelBindingMismatch);
+    }
+
+    [TestMethod]
+    public void AdapterRejectsMixedExecutionPayloadUnion()
+    {
+        OptimizationExecutionPlan plan = OpenVinoOptimizationTestData.Plan();
+        SetBackingField(plan.ExecutionPayload, "Gguf", GgufExecutionUnion().Gguf);
+
+        AssertRejected(plan, OptimizationSupportCode.ModelBindingMismatch);
+    }
+
+    [TestMethod]
+    public void AdapterRejectsPayloadTamperingInsteadOfReinterpretingCandidate()
+    {
+        OptimizationExecutionPlan plan = OpenVinoOptimizationTestData.Plan();
+        SetBackingField(plan.ExecutionPayload.OpenVino!, "TargetWeightPrecision",
+            GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Execution
+                .OpenVinoWeightPrecision.FourBit);
+
+        OpenVinoOptimizationAdaptation result = OpenVinoOptimizationPlanAdapter.Adapt(
+            plan, plan.CapabilitySnapshot, OpenVinoOptimizationTestData.SourceDigest,
+            OpenVinoOptimizationTestData.SourceLength);
+
+        Assert.AreEqual(OpenVinoOptimizationAdaptationStatus.ReplanRequired, result.Status);
+        Assert.AreEqual(OptimizationSupportCode.ModelBindingMismatch, result.SupportCode);
+        Assert.IsNull(result.Candidate);
+    }
+
+    [TestMethod]
+    public void AdapterRejectsPayloadToolVersionsOutsideCurrentCapabilityEvidence()
+    {
+        Dictionary<string, string> versions =
+            new(OpenVinoV2TestPayload.OptimizerVersions, StringComparer.Ordinal)
+            {
+                ["unadmitted-tool"] = "1.0.0"
+            };
+        OptimizationExecutionPlan plan = OpenVinoOptimizationTestData.Plan(
+            executionPayload: OpenVinoV2TestPayload.For(
+                OpenVinoWeightFormat.Int8,
+                OpenVinoKvCacheFormat.U8,
+                ContractCompiledCachePolicy.Disabled,
+                "OV-EXACT-01",
+                optimizerVersions: versions));
+
+        AssertRejected(plan, OptimizationSupportCode.ToolNotAdmitted);
+    }
+
+    [TestMethod]
+    public void AdapterRejectsUnexpectedTurboQuantBuildIdentity()
+    {
+        OptimizationExecutionPlan plan = OpenVinoOptimizationTestData.Plan(
+            executionPayload: OpenVinoV2TestPayload.For(
+                OpenVinoWeightFormat.Int8,
+                OpenVinoKvCacheFormat.U8,
+                ContractCompiledCachePolicy.Disabled,
+                "OV-EXACT-01",
+                turboQuantBuild: TurboQuantBuildIdentity.Create(
+                    new string('a', 40), new string('b', 40),
+                    new string('c', 64), new string('e', 64))));
+
+        AssertRejected(plan, OptimizationSupportCode.ModelBindingMismatch);
+    }
+
+    private static void SetBackingField<T>(object target, string property, T value) =>
+        target.GetType().GetField($"<{property}>k__BackingField",
+            BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(target, value);
+
+    private static OptimizationExecutionPayload GgufExecutionUnion() =>
+        OptimizationExecutionPayload.ForGguf(GgufExecutionPayload.Create(
+            "runtime-build-1", new string('a', 40), GgufRuntimeBackend.Cpu,
+            "CPU", 4_096, GgufCacheType.F16, GgufCacheType.F16,
+            gpuLayerCount: 0, flashAttention: false, threadCount: 4,
+            batchSize: 64, "measured", "profile-1", maximumGeneratedTokens: 64,
+            GgufWeightFormat.Imported));
+
+    private static void AssertRejected(
+        OptimizationExecutionPlan plan,
+        OptimizationSupportCode expectedSupportCode)
+    {
+        OpenVinoOptimizationAdaptation result = OpenVinoOptimizationPlanAdapter.Adapt(
+            plan, plan.CapabilitySnapshot, OpenVinoOptimizationTestData.SourceDigest,
+            OpenVinoOptimizationTestData.SourceLength);
+
+        Assert.AreEqual(OpenVinoOptimizationAdaptationStatus.ReplanRequired,
+            result.Status);
+        Assert.AreEqual(expectedSupportCode, result.SupportCode);
+        Assert.IsNull(result.Candidate);
     }
 
     [TestMethod]
@@ -102,7 +285,7 @@ public sealed class OpenVinoOptimizationPlanAdapterTests
         ContractCompiledCachePolicy.Enabled, OpenVinoWeightPrecision.EightBit)]
     [DataRow(OpenVinoWeightFormat.Int4, OpenVinoKvCacheFormat.U8,
         ContractCompiledCachePolicy.Enabled, OpenVinoWeightPrecision.FourBit)]
-    public void AdapterMapsEveryReleasedPersistentWeightPath(
+    public void AdapterMapsEveryReleasedWeightPath(
         OpenVinoWeightFormat weights,
         OpenVinoKvCacheFormat kvCache,
         ContractCompiledCachePolicy compiledCache,
@@ -123,7 +306,10 @@ public sealed class OpenVinoOptimizationPlanAdapterTests
         Assert.AreEqual(OpenVinoOptimizationAdaptationStatus.Ready, result.Status);
         Assert.IsNotNull(result.Candidate);
         Assert.AreEqual(expected, result.Candidate.WeightPrecision);
-        Assert.AreEqual(expected, result.Candidate.PersistentArtifact.WeightPrecision);
+        if (expected == OpenVinoWeightPrecision.Fp16)
+            Assert.IsNull(result.Candidate.PersistentArtifact);
+        else
+            Assert.AreEqual(expected, result.Candidate.PersistentArtifact.WeightPrecision);
     }
 
     [TestMethod]
@@ -348,7 +534,8 @@ public sealed class OpenVinoOptimizationPlanAdapterTests
             string candidateEvidenceId = "OV-EXACT-01",
             string? admittedEvidenceId = null,
             string sourceDigest = SourceDigest,
-            ulong sourceLength = SourceLength)
+            ulong sourceLength = SourceLength,
+            OptimizationExecutionPayload? executionPayload = null)
         {
             OpenVinoRouteConfiguration configuration =
                 OpenVinoRouteConfiguration.Create(
@@ -358,7 +545,8 @@ public sealed class OpenVinoOptimizationPlanAdapterTests
                     OpenVinoPerformanceHint.Latency,
                     compiledCache,
                     streams);
-            bool persistent = weights != OpenVinoWeightFormat.Original;
+            bool persistent = weights is OpenVinoWeightFormat.Int8 or
+                OpenVinoWeightFormat.Int4;
             OptimizationCandidate candidate = OptimizationCandidate.Create(
                 configuration,
                 OptimizationCandidateMetrics.Create(
@@ -388,6 +576,8 @@ public sealed class OpenVinoOptimizationPlanAdapterTests
 
             return OptimizationPlanIssuer.Issue(
                 selection,
+                executionPayload ?? OpenVinoV2TestPayload.For(
+                    weights, kvCache, compiledCache, candidateEvidenceId),
                 snapshot,
                 OptimizationWorkload.Create(
                     "chat",
@@ -401,6 +591,7 @@ public sealed class OpenVinoOptimizationPlanAdapterTests
                     sourceLength,
                     "hw-run-1",
                     new string('2', 64)),
+                modelLayerCount: 1,
                 DateTimeOffset.UnixEpoch);
         }
 
@@ -411,7 +602,7 @@ public sealed class OpenVinoOptimizationPlanAdapterTests
             int streams,
             string evidenceId) =>
             OpenVinoCapabilityPayload.Create(
-                "openvino-test-runtime-1",
+                OpenVinoV2TestPayload.CapabilityRuntimeVersion,
                 [
                     OpenVinoAdmittedConfiguration.Create(
                         evidenceId,

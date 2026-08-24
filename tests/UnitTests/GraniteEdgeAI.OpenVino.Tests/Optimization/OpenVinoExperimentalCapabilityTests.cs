@@ -136,20 +136,8 @@ public sealed class OpenVinoExperimentalCapabilityTests
         OpenVinoAdmittedConfiguration experimental = payload.Admitted.Single(
             static admission => admission.Level == SupportLevel.Experimental);
         OptimizationCapabilitySnapshot snapshot = Snapshot(payload);
-        OptimizationExecutionPlan plan = Plan(snapshot, experimental);
-
-        OpenVinoOptimizationAdaptation result =
-            OpenVinoOptimizationPlanAdapter.Adapt(
-                plan, snapshot, SourceDigest, SourceLength);
-
-        Assert.AreEqual(experimental.EvidenceId, plan.Candidate.EvidenceId);
-        Assert.IsTrue(plan.Candidate.IsExperimental);
-        Assert.IsTrue(plan.ProducesPersistentArtifact);
-        Assert.AreEqual(OpenVinoOptimizationAdaptationStatus.ReplanRequired,
-            result.Status);
-        Assert.AreEqual(OptimizationSupportCode.ToolNotAdmitted,
-            result.SupportCode);
-        Assert.IsNull(result.Candidate);
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(
+            () => Plan(snapshot, experimental));
     }
 
     private static void AssertOfficialFallback(OpenVinoCapabilityPayload payload)
@@ -318,7 +306,8 @@ public sealed class OpenVinoExperimentalCapabilityTests
             admission.PerformanceHint,
             admission.CompiledCache,
             admission.Streams);
-        bool persistent = admission.Weights != OpenVinoWeightFormat.Original;
+        bool persistent = admission.Weights is not (OpenVinoWeightFormat.Original or
+            OpenVinoWeightFormat.Fp16);
         OptimizationCandidate candidate = OptimizationCandidate.Create(
             configuration,
             OptimizationCandidateMetrics.Create(
@@ -339,6 +328,9 @@ public sealed class OpenVinoExperimentalCapabilityTests
             [candidate], OptimizationPreferenceSelection.Manual(50))!;
         return OptimizationPlanIssuer.Issue(
             selection,
+            OpenVinoV2TestPayload.For(
+                admission.Weights, admission.KvCache, admission.CompiledCache,
+                admission.EvidenceId),
             snapshot,
             OptimizationWorkload.Create(
                 "chat",
@@ -352,6 +344,7 @@ public sealed class OpenVinoExperimentalCapabilityTests
                 SourceLength,
                 "hw-run-1",
                 new string('2', 64)),
+            modelLayerCount: 1,
             DateTimeOffset.UnixEpoch);
     }
 }

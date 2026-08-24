@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using GraniteEdgeAI.OpenVino.Contracts;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Execution;
 
 namespace GraniteEdgeAI.Features.OpenVinoRoute.Optimization;
 
@@ -137,20 +138,23 @@ public sealed record OpenVinoOptimizationCandidate(
     string EvidenceId)
 {
     public OpenVinoOptimizationObjective? LegacyObjectiveV1 { get; init; }
+    public OpenVinoWeightPrecision SourceWeightPrecision { get; init; } =
+        OpenVinoWeightPrecision.Fp16;
+    public OpenVinoExecutionPayload? ExecutionPayload { get; init; }
 
     public void Validate()
     {
         bool legacy = LegacyObjectiveV1.HasValue;
-        bool validConfigurationId = ConfigurationId.StartsWith(
-                "openvino.standard.cpu.", StringComparison.Ordinal) ||
-            !legacy && ConfigurationId.StartsWith(
-                "openvino.plan.v1.", StringComparison.Ordinal) &&
-                ConfigurationId.Length == "openvino.plan.v1.".Length + 64 &&
-                ConfigurationId["openvino.plan.v1.".Length..].All(static character =>
-                    character is (>= '0' and <= '9') or (>= 'a' and <= 'f'));
-        bool persistentShape = WeightPrecision == OpenVinoWeightPrecision.Original
-            ? PersistentArtifact is null
-            : PersistentArtifact?.WeightPrecision == WeightPrecision;
+        bool validConfigurationId = ConfigurationId is { Length: > 0 and <= 128 } &&
+            ConfigurationId.All(static character => char.IsAsciiLetterOrDigit(character) ||
+                character is '.' or '-' or '_');
+        bool persistentShape = legacy
+            ? WeightPrecision == OpenVinoWeightPrecision.Original
+                ? PersistentArtifact is null
+                : PersistentArtifact?.WeightPrecision == WeightPrecision
+            : WeightPrecision == SourceWeightPrecision
+                ? PersistentArtifact is null
+                : PersistentArtifact?.WeightPrecision == WeightPrecision;
 
         if (string.IsNullOrWhiteSpace(ConfigurationId) ||
             !validConfigurationId ||
@@ -158,7 +162,14 @@ public sealed record OpenVinoOptimizationCandidate(
             string.IsNullOrWhiteSpace(EvidenceId) ||
             !persistentShape || Runtime is null || Runtime.CompiledCache is null ||
             PerformanceHint != OpenVinoCapabilityPerformanceHint.Latency ||
-            Streams < 1 || ContextTokens < 1)
+            Streams < 1 || ContextTokens < 1 ||
+            ExecutionPayload is not null &&
+            (ExecutionPayload.ConfigurationId != ConfigurationId ||
+             ExecutionPayload.Device != Device ||
+             ExecutionPayload.Maturity != Maturity ||
+             ExecutionPayload.EvidenceId != EvidenceId ||
+             ExecutionPayload.RequiresPersistentConversion !=
+                (PersistentArtifact is not null)))
         {
             throw new OpenVinoOptimizationException(
                 OpenVinoSupportCode.OptimizationUnsupported);
