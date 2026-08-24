@@ -15,14 +15,21 @@ public partial class UnitTestApp : Application
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
+        if (HardwareInspectionGate9AcceptanceHost.TryParseActivation(
+                Environment.GetCommandLineArgs(),
+                out string gate9ResultToken))
+        {
+            StartHardwareInspectionAcceptance(() =>
+                HardwareInspectionGate9AcceptanceHost.RunAsync(gate9ResultToken));
+            return;
+        }
+
         if (HardwareInspectionProcessAcceptanceHost.TryParseActivation(
                 Environment.GetCommandLineArgs(),
-                out string resultToken))
+                out string processResultToken))
         {
-            _window = new UnitTestAppWindow();
-            _window.Activate();
-            UITestMethodAttribute.DispatcherQueue = _window.DispatcherQueue;
-            _ = RunHardwareInspectionProcessAcceptanceAsync(resultToken);
+            StartHardwareInspectionAcceptance(() =>
+                HardwareInspectionProcessAcceptanceHost.RunAsync(processResultToken));
             return;
         }
 
@@ -36,12 +43,20 @@ public partial class UnitTestApp : Application
             Environment.CommandLine);
     }
 
-    private async Task RunHardwareInspectionProcessAcceptanceAsync(string resultToken)
+    private void StartHardwareInspectionAcceptance(Func<Task<int>> run)
+    {
+        _window = new UnitTestAppWindow();
+        _window.Activate();
+        UITestMethodAttribute.DispatcherQueue = _window.DispatcherQueue;
+        _ = RunHardwareInspectionAcceptanceAsync(run);
+    }
+
+    private async Task RunHardwareInspectionAcceptanceAsync(Func<Task<int>> run)
     {
         int exitCode = 70;
         try
         {
-            exitCode = await HardwareInspectionProcessAcceptanceHost.RunAsync(resultToken);
+            exitCode = await run();
         }
         finally
         {
