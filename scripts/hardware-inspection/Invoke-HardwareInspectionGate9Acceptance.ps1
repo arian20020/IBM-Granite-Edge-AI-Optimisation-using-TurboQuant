@@ -1079,19 +1079,58 @@ if ($PSBoundParameters.ContainsKey('ReleaseTrustRecord')) {
         throw 'The Gate 9 release-trust validator is unavailable.'
     }
 
-    & $releaseTrustValidator `
-        -Path $ReleaseTrustRecord `
-        -ExpectedPackageSha256 $manifest.PackageSha256 `
-        -ExpectedPublisher $expectedPublisher `
-        -ExpectedCommit $ExpectedCommit
-    if ($LASTEXITCODE -ne 0) {
-        throw 'The Gate 9 release-trust record is invalid.'
+    $trustRecordPath = [IO.Path]::GetFullPath($ReleaseTrustRecord)
+    Assert-Gate9NoReparseAncestors -Path $trustRecordPath
+    $trustStream = [IO.File]::Open(
+        $trustRecordPath,
+        [IO.FileMode]::Open,
+        [IO.FileAccess]::Read,
+        [IO.FileShare]::Read)
+    try {
+        & $releaseTrustValidator `
+            -Path $trustRecordPath `
+            -ExpectedPackageSha256 $manifest.PackageSha256 `
+            -ExpectedPublisher $expectedPublisher `
+            -ExpectedCommit $ExpectedCommit
+        if ($LASTEXITCODE -ne 0) {
+            throw 'The Gate 9 release-trust record is invalid.'
+        }
+
+        if ($trustStream.Length -lt 2 -or $trustStream.Length -gt 8KB) {
+            throw 'The Gate 9 release-trust record length is invalid.'
+        }
+
+        [byte[]] $trustBytes = New-Object byte[] ([int] $trustStream.Length)
+        $trustOffset = 0
+        while ($trustOffset -lt $trustBytes.Length) {
+            $trustRead = $trustStream.Read(
+                $trustBytes,
+                $trustOffset,
+                $trustBytes.Length - $trustOffset)
+            if ($trustRead -eq 0) {
+                throw 'The Gate 9 release-trust record ended during its locked read.'
+            }
+
+            $trustOffset += $trustRead
+        }
+
+        [byte[]] $trustJsonBytes = New-Object byte[] ($trustBytes.Length - 1)
+        [Array]::Copy(
+            $trustBytes,
+            0,
+            $trustJsonBytes,
+            0,
+            $trustJsonBytes.Length)
+        $trustJson = [Text.UTF8Encoding]::new($false, $true).GetString(
+            $trustJsonBytes)
+        $trust = $trustJson | ConvertFrom-Json -ErrorAction Stop
+    }
+    finally {
+        $trustStream.Dispose()
     }
 
-    $trust = Get-Content -LiteralPath $ReleaseTrustRecord -Raw |
-        ConvertFrom-Json -ErrorAction Stop
     $signatureKind = [string] $trust.signatureKind
-    $publicTrustVerified = [bool] $trust.publicTrustVerified
+    $publicTrustVerified = [bool] $trust.publicChainVerified
     $smartAppControlVerified = [bool] $trust.smartAppControlVerified
 }
 

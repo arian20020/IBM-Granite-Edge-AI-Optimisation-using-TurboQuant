@@ -48,6 +48,11 @@ Store repeatable build, test, benchmark, evidence-validation and release scripts
   validates the exact 16 KiB canonical Gate 9 summary. A Developer package can
   produce only `EngineeringPassedReleaseBlocked`; public release requires a
   separately validated Enterprise or Store trust record for the same package.
+- [`hardware-inspection/Test-HardwareInspectionGate9ReleaseTrust.ps1`](hardware-inspection/Test-HardwareInspectionGate9ReleaseTrust.ps1)
+  validates an exact 8 KiB canonical, sanitized release-trust record bound to
+  one package hash, reviewed commit, and publisher. It rejects Developer or
+  private-root trust and requires verified certificate time, code-signing EKU,
+  public chain, timestamp, and Smart App Control without changing trust stores.
 - The operator boundary and verification commands are in
   [`Hardware-Inspection-Intel-Runner-Stage-0-Runbook.md`](../docs/testing/runbooks/Hardware-Inspection-Intel-Runner-Stage-0-Runbook.md).
 - The separately authorised Stage A stopped-runner, one-time registration,
