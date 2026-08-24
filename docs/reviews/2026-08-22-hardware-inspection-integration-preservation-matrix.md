@@ -81,6 +81,12 @@ The package contained 86 manifest-listed non-manifest files. Before implementati
 | Gate 5 builds | Packaged Debug/x64 test project and app Release/x64 MSIX | PASS, zero errors; only the known `NETSDK1198`, `CS8602`, and `MSTEST0044` warning families were reproduced in their applicable builds |
 | Gate 5 boundary/package audit | Source/dependency scans, exact range inventory, recursive Debug/Release AppX inventory, module/process cleanup, production composition, privacy, and `git diff --check` | PASS; one real probe per package, fakes only in the test package, no committed keys/certificates/packages/TRX/raw output, and production remains unavailable |
 | Gate 5 independent review | Final runner cleanup, stable process identity, child-observation handshake, custody, packaging, privacy, and nonclaims | PASS; no remaining Critical, Important, or Minor findings |
+| Gate 6 implementation head | Exact code head `7990682f`; implementation/design range `63479fa3..7990682f` | PASS; fixed 19-field manifest, checked normalization, source authority, bounded freshness/consistency policy, provenance, and fail-closed canonical snapshot construction are present |
+| Gate 6 ordinary suites | Foundation 201/201; probe unit suite 22/22; hardware/runner Python contracts 63/63 | PASS, zero failed or skipped; PowerShell bypass was process-scoped and Smart App Control remained enabled |
+| Gate 6 packaged regression | Focused resolution/contracts 78/78 and authoritative Hardware Inspection/model-handoff/onboarding 174/174 | PASS, zero non-passing results |
+| Gate 6 builds and architecture | Packaged Debug/x64 test project; app Release/x64 MSIX; evaluated x86 graph | PASS, zero build errors; known warning families only; x86 contains zero resolution Compile items and zero Hardware Inspection Foundation project references |
+| Gate 6 boundary audit | Exact-range inventory, dependency/privacy/source scans, production-composition check, conflict-marker scan, and `git diff --check` | PASS; no new dependency/artifact/private-data boundary and `UnavailableHardwareInspectionService` remains composed |
+| Gate 6 review | Inline adversarial review of authority, semantics, time/numeric boundaries, collection bounds, manifest, fallbacks, privacy, and activation | PASS with no findings; explicitly not independent because the approved execution choice kept review inline |
 
 ## Functional merge audit
 
@@ -143,3 +149,14 @@ The package contained 86 manifest-listed non-manifest files. Before implementati
 - The final v10 disposable-guest campaign ran the normally installed, developer-signed x64 test AppX through its registered AUMID three times. Every repetition passed 32/32 with package identity present and no recorded failure. Superseded v8/v9 failures led to the stable process-identity and child-observation corrections; only v10 is accepted as final evidence.
 - Independent review reported no remaining Critical, Important, or Minor findings. Development acceptance passed in a disposable guest. Smart App Control and public-trust signing remain unverified.
 - Production still composes `UnavailableHardwareInspectionService`. Gate 6 is next and remains the sole authority for normalization, provenance, freshness, tolerance, consistency, resolution, and the canonical snapshot; Gates 7 through 9 remain incomplete.
+
+## Gate 6 evidence resolution audit
+
+- The application-side resolver consumes only immutable Gate 3-5 evidence and reads its UTC clock once. It neither recollects evidence nor starts a process.
+- Source authority is field-specific: Windows supplies processor architecture/topology, memory/OS, storage, and DXGI facts; LLM Fit supplies processor name/logical count with exact corroboration or bounded fallback; llama.cpp supplies only its pinned runtime identity, backends, and visible devices.
+- GiB conversion is checked and uses a documented midpoint rule. Memory consistency uses closed byte tolerances, static and dynamic evidence use separate age limits, future timestamps are bounded, and the aggregate accepted capture span is bounded.
+- The exact ordered manifest contains 19 unique canonical fields. Fifteen construction-critical fields must resolve; optional instruction-set, graphics, and NPU facts remain explicitly unavailable rather than fabricated.
+- Diagnostics use a bounded enum and stable tokens. Result collections and manifests are copied, sorted where policy requires it, and exposed read-only; raw provider output, paths, exception text, host facts, and model data are absent.
+- Resolution sources contain no shell/process launch, listener, network, filesystem, registry, compatibility, model-inspection, handoff, or product-outcome dependency. The Gate 6 range adds no package/project reference or binary evidence artifact.
+- Production still composes `UnavailableHardwareInspectionService`. Gate 7 owns orchestration, outcomes, cancellation, progress, and activation; Gates 8-9 own UI integration and supported-machine end-to-end evidence.
+- Inline review found no remaining Critical, Important, or Minor issue. It is not represented as independent review; that requirement remains an explicit execution exception.
