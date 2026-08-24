@@ -144,13 +144,17 @@ not fresh post-fix passes:
 | OpenVINO worker-client | 13 | 13 | 0 | 0 |
 | Worker-process integration, stable rerun | 65 | 48 | 2 | 15 |
 
-Fresh post-fix evidence after the authority-guard corrections is:
+Fresh final verification at `26a7711825bb746aa88657434f2de5a519258a9e` is:
 
 | Post-fix verification | Total | Passed | Failed | Skipped |
 |---|---:|---:|---:|---:|
 | Source-only architecture | 5 | 5 | 0 | 0 |
 | Optimization E2E/architecture filter | 8 | 5 | 0 | 3 |
 | OpenVINO component after source-precision fix | 405 | 400 | 0 | 5 |
+| C1 V2.1 complete project | 771 | 771 | 0 | 0 |
+| OpenVINO contract project | 204 | 204 | 0 | 0 |
+| OpenVINO worker-client | 13 | 13 | 0 | 0 |
+| Worker-process integration | 69 | 52 | 2 | 15 |
 
 The integration test project also compiled fresh in Release with exit 0, zero
 warnings, and zero errors.

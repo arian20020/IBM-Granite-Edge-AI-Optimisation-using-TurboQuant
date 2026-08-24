@@ -75,18 +75,21 @@ must not be read as fresh post-fix passes.
 | OpenVINO worker-client | 13 total; 13 passed; 0 failed; 0 skipped |
 | Full worker-process integration, stable rerun | 65 total; 48 passed; 2 failed; 15 skipped |
 
-Fresh post-fix evidence after the authority-guard corrections is limited to:
+Fresh final verification at `26a7711825bb746aa88657434f2de5a519258a9e` is:
 
 | Post-fix suite | Result |
 |---|---|
 | Source-only architecture | 5 total; 5 passed; 0 failed; 0 skipped |
 | Optimization E2E/architecture | 8 total; 5 passed; 0 failed; 3 skipped |
 | OpenVINO component after source-precision fix | 405 total; 400 passed; 0 failed; 5 skipped |
+| C1 V2.1 | 771 total; 771 passed; 0 failed; 0 skipped |
+| OpenVINO contracts | 204 total; 204 passed; 0 failed; 0 skipped |
+| OpenVINO worker-client | 13 total; 13 passed; 0 failed; 0 skipped |
+| Full worker-process integration | 69 total; 52 passed; 2 failed; 15 skipped |
 
 The integration test project also compiled fresh in Release with exit 0, zero
-warnings, and zero errors. The source-only architecture proof passed in its
-focused run; the larger source-suite results remain carry-forward only. Native
-observations remain separate: five component skips require the official worker;
+warnings, and zero errors. Native observations remain separate: five component
+skips require the official worker;
 the three optimization E2Es require the converter (and the plan-bound service
 E2E also requires official stage A); the full integration run has 15 absent
 stage/GPU skips and two explicit missing-TurboQuant-stage failures.
@@ -96,8 +99,9 @@ tests because Windows Application Control rejected the rebuilt unsigned test
 assembly with `0x800711C7`. It is an environmental blocker, not a pass; no WAC,
 signing, native-staging, or executable-hash gate was weakened or bypassed.
 
-The two-phase Debug x64 application compile passed: restore exit 0, build exit
-0, zero errors, one `NETSDK1198` missing-publish-profile warning. The nested
+The final Debug x64 application compile passed: build exit 0, zero errors, one
+`NETSDK1198` missing-publish-profile warning. Its immediately preceding restore
+also exited 0. The nested
 worker build used the portable SDK through `DotNetHostPath`. Packaging-disabled
 flags were used only because verified official-worker inputs do not exist in
 this environment. This is not Release packaging verification.
