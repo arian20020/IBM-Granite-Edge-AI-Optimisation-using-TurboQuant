@@ -109,6 +109,12 @@ public sealed class PrivacyCanaryTests
         // what an executor is told to open.
         "ExecutionVocabularyMap.ToDeviceId",
 
+        // Composes a rejection message naming the character class that was
+        // refused. Reviewed: it deliberately does not echo the offending
+        // character or the value, because a rejection message is a place
+        // adapter-supplied content leaks.
+        "OptimizationBuildIdentity.Describe",
+
         // The trusted execution seams, and the only members in this assembly
         // that genuinely hold a filesystem path.
         //

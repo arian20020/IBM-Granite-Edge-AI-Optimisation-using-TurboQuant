@@ -280,7 +280,16 @@ public sealed record OpenVinoCapabilityPayload
     {
         ArgumentNullException.ThrowIfNull(admitted);
 
-        OptimizationIdentifier.Require(
+        // The same OpenVINO runtime build identity the execution payload
+        // carries, so it takes the same rule. The official runtime reports
+        // slash-delimited release-channel structure, and validating it as a
+        // generic identifier here would reproduce the exact defect V2.1
+        // corrects one field away.
+        //
+        // The GGUF payload below is deliberately not changed: llama.cpp build
+        // tags have no published slash-bearing form, and widening a rule
+        // without evidence is how a guard stops meaning anything.
+        OptimizationBuildIdentity.Require(
             runtimeVersion,
             nameof(runtimeVersion),
             "The runtime build a capability payload was established against");
