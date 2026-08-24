@@ -30,6 +30,11 @@ $maximumResultWait = [TimeSpan]::FromSeconds(180)
 $maximumExitWait = [TimeSpan]::FromSeconds(10)
 $llmFitExecutableSha256 =
     'db82bcb17f065b7ff7528ffe9904b2b0e1cce0c843fcd659b4ee1432a2e72e19'
+$trustModulePath = Join-Path $PSScriptRoot 'HardwareInspectionTrust.psm1'
+if (-not [IO.File]::Exists($trustModulePath)) {
+    throw 'The Hardware Inspection trust module is unavailable.'
+}
+Import-Module $trustModulePath -Force -ErrorAction Stop
 
 function Convert-Gate9NativeMachineToArchitecture {
     param([Parameter(Mandatory)] [uint16] $NativeMachine)
@@ -867,11 +872,46 @@ namespace GraniteEdgeAI.HardwareInspection.Gate9
 '@
 }
 
+function Get-Gate9CodeIntegrityBlock {
+    param(
+        [Parameter(Mandatory)] [string] $PackageFullName,
+        [Parameter(Mandatory)] [DateTime] $NotBeforeUtc
+    )
+
+    $deadline = [Diagnostics.Stopwatch]::StartNew()
+    do {
+        $events = @(
+            Get-WinEvent `
+                -FilterHashtable @{
+                    LogName = 'Microsoft-Windows-CodeIntegrity/Operational'
+                    Id = @(3033, 3077)
+                    StartTime = $NotBeforeUtc.AddSeconds(-1)
+                } `
+                -MaxEvents 128 `
+                -ErrorAction SilentlyContinue
+        )
+        $block = Find-HardwareInspectionCodeIntegrityBlock `
+            -Events $events `
+            -PackageFullName $PackageFullName `
+            -NotBeforeUtc $NotBeforeUtc
+        if ($null -ne $block) {
+            return $block
+        }
+
+        if ($deadline.Elapsed -ge [TimeSpan]::FromSeconds(2)) {
+            return $null
+        }
+
+        Start-Sleep -Milliseconds 100
+    } while ($true)
+}
+
 function Invoke-Gate9Repetition {
     param(
         [Parameter(Mandatory)] [int] $Run,
         [Parameter(Mandatory)] [string] $AppUserModelId,
-        [Parameter(Mandatory)] [string] $AcceptanceRoot
+        [Parameter(Mandatory)] [string] $AcceptanceRoot,
+        [Parameter(Mandatory)] [string] $PackageFullName
     )
 
     $resultToken = [Guid]::NewGuid().ToString('N')
@@ -879,6 +919,7 @@ function Invoke-Gate9Repetition {
     $ownedIdentities = @{}
     $endpointObserved = $false
     try {
+        $activationStartedUtc = [DateTime]::UtcNow
         $arguments =
             "--hardware-inspection-gate9-acceptance --result-token $resultToken"
         $processId =
@@ -923,6 +964,24 @@ function Invoke-Gate9Repetition {
             if (-not (Test-Gate9OwnedProcessesActive `
                     -OwnedIdentities $ownedIdentities `
                     -ProcessRecords $records)) {
+                $integrityBlock = Get-Gate9CodeIntegrityBlock `
+                    -PackageFullName $PackageFullName `
+                    -NotBeforeUtc $activationStartedUtc
+                if ($null -ne $integrityBlock) {
+                    $policy = if ([string]::IsNullOrWhiteSpace(
+                            [string] $integrityBlock.PolicyId)) {
+                        'unavailable'
+                    }
+                    else {
+                        [string] $integrityBlock.PolicyId
+                    }
+                    throw (
+                        'Windows Code Integrity blocked the Gate 9 package ' +
+                        "(event $($integrityBlock.EventId), module " +
+                        "'$($integrityBlock.ModuleName)', policy '$policy'). " +
+                        'A trusted organization or Store signature is required.')
+                }
+
                 throw 'A Gate 9 repetition exited without publishing a result.'
             }
 
@@ -1106,7 +1165,8 @@ try {
         $repetitions.Add((Invoke-Gate9Repetition `
                 -Run $run `
                 -AppUserModelId $appUserModelId `
-                -AcceptanceRoot $acceptanceRoot))
+                -AcceptanceRoot $acceptanceRoot `
+                -PackageFullName $installedPackageFullName))
     }
 }
 finally {

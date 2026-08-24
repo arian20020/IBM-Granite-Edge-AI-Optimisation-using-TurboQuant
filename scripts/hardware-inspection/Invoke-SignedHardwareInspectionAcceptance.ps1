@@ -1,8 +1,24 @@
-[CmdletBinding()]
+[CmdletBinding(DefaultParameterSetName = 'Development')]
 param(
-    [Parameter(Mandatory)]
+    [Parameter(Mandatory, ParameterSetName = 'Development')]
     [ValidatePattern('^[0-9A-Fa-f]{40}$')]
     [string] $CertificateThumbprint,
+
+    [Parameter(Mandatory, ParameterSetName = 'Trusted')]
+    [ValidateNotNullOrEmpty()]
+    [string] $TrustedSignerPath,
+
+    [Parameter(Mandatory, ParameterSetName = 'Trusted')]
+    [ValidatePattern('^[0-9A-Fa-f]{64}$')]
+    [string] $ExpectedTrustedSignerSha256,
+
+    [Parameter(Mandatory, ParameterSetName = 'Trusted')]
+    [ValidateCount(1, 128)]
+    [string[]] $TrustedSignerArgumentTemplate,
+
+    [Parameter(Mandatory, ParameterSetName = 'Trusted')]
+    [ValidateNotNullOrEmpty()]
+    [string] $TrustedBundleDirectory,
 
     [ValidateRange(1, 10)]
     [int] $Repetitions = 1,
@@ -10,6 +26,7 @@ param(
     [ValidateSet('Debug', 'Release')]
     [string] $Configuration = 'Debug',
 
+    [Parameter(ParameterSetName = 'Development')]
     [ValidateNotNullOrEmpty()]
     [string] $DevelopmentBundleDirectory
 )
@@ -23,7 +40,13 @@ $packageVersion = [Version]'1.0.0.0'
 $resultSchema = 'granite.hardware-inspection.process-acceptance/v1'
 $maximumResultBytes = 64KB
 $maximumWait = [TimeSpan]::FromSeconds(180)
-$normalizedThumbprint = $CertificateThumbprint.ToUpperInvariant()
+$trustedSigning = $PSCmdlet.ParameterSetName -ceq 'Trusted'
+$normalizedThumbprint = if ($trustedSigning) {
+    $null
+}
+else {
+    $CertificateThumbprint.ToUpperInvariant()
+}
 $currentUserSid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
 $windowsPowerShellPath = [IO.Path]::Combine(
     [Environment]::SystemDirectory,
@@ -40,18 +63,27 @@ $testOutputRoot = [IO.Path]::GetFullPath((Join-Path $repositoryRoot (
 $appPackagesRoot = [IO.Path]::GetFullPath((Join-Path $repositoryRoot `
     'tests\UnitTests\GraniteEdgeAI.UnitTests\AppPackages'))
 $ownedTempParent = [IO.Path]::GetFullPath((Join-Path $env:TEMP 'GEAI-HI-Signed'))
-$developmentBundleRoot = $null
-if ($PSBoundParameters.ContainsKey('DevelopmentBundleDirectory')) {
-    if ($DevelopmentBundleDirectory -notmatch '^[A-Za-z]:[\\/]') {
-        throw 'The development bundle directory must be an absolute path.'
+$bundlePublicationRoot = $null
+$requestedBundleDirectory = if ($trustedSigning) {
+    $TrustedBundleDirectory
+}
+elseif ($PSBoundParameters.ContainsKey('DevelopmentBundleDirectory')) {
+    $DevelopmentBundleDirectory
+}
+else {
+    $null
+}
+if ($null -ne $requestedBundleDirectory) {
+    if ($requestedBundleDirectory -notmatch '^[A-Za-z]:[\\/]') {
+        throw 'The bundle publication directory must be an absolute path.'
     }
 
-    $developmentBundleRoot = [IO.Path]::GetFullPath($DevelopmentBundleDirectory)
+    $bundlePublicationRoot = [IO.Path]::GetFullPath($requestedBundleDirectory)
     if ([string]::Equals(
-            $developmentBundleRoot,
-            [IO.Path]::GetPathRoot($developmentBundleRoot),
+            $bundlePublicationRoot,
+            [IO.Path]::GetPathRoot($bundlePublicationRoot),
             [StringComparison]::OrdinalIgnoreCase)) {
-        throw 'The development bundle directory must not be a filesystem root.'
+        throw 'The bundle publication directory must not be a filesystem root.'
     }
     $guardedRoots = @($repositoryRoot, $testOutputRoot, $appPackagesRoot, $ownedTempParent)
     foreach ($guardedRoot in $guardedRoots) {
@@ -59,25 +91,25 @@ if ($PSBoundParameters.ContainsKey('DevelopmentBundleDirectory')) {
             [IO.Path]::DirectorySeparatorChar,
             [IO.Path]::AltDirectorySeparatorChar)
         if ([string]::Equals(
-                $developmentBundleRoot,
+                $bundlePublicationRoot,
                 $guardedPrefix,
                 [StringComparison]::OrdinalIgnoreCase) -or
-            $developmentBundleRoot.StartsWith(
+            $bundlePublicationRoot.StartsWith(
                 $guardedPrefix + [IO.Path]::DirectorySeparatorChar,
                 [StringComparison]::OrdinalIgnoreCase)) {
-            throw 'The development bundle directory must be outside repository and build roots.'
+            throw 'The bundle publication directory must be outside repository and build roots.'
         }
     }
 
-    if (-not (Test-Path -LiteralPath $developmentBundleRoot -PathType Container)) {
-        throw 'The development bundle directory must already exist and be empty.'
+    if (-not (Test-Path -LiteralPath $bundlePublicationRoot -PathType Container)) {
+        throw 'The bundle publication directory must already exist and be empty.'
     }
-    $developmentBundleItem = Get-Item -LiteralPath $developmentBundleRoot -Force -ErrorAction Stop
-    if (($developmentBundleItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
-        throw 'The development bundle directory must not be a reparse point.'
+    $bundlePublicationItem = Get-Item -LiteralPath $bundlePublicationRoot -Force -ErrorAction Stop
+    if (($bundlePublicationItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+        throw 'The bundle publication directory must not be a reparse point.'
     }
-    if (@(Get-ChildItem -LiteralPath $developmentBundleRoot -Force -ErrorAction Stop).Count -ne 0) {
-        throw 'The development bundle directory must already exist and be empty.'
+    if (@(Get-ChildItem -LiteralPath $bundlePublicationRoot -Force -ErrorAction Stop).Count -ne 0) {
+        throw 'The bundle publication directory must already exist and be empty.'
     }
 }
 $ownedTempRoot = Join-Path $ownedTempParent ([Guid]::NewGuid().ToString('N').Substring(0, 8))
@@ -87,7 +119,15 @@ $resultRoot = [IO.Path]::GetFullPath((Join-Path $env:TEMP 'GraniteEdgeAI.Hardwar
 $createdResultPaths = [Collections.Generic.List[string]]::new()
 $installedPackage = $null
 $packageInstalledByInvocation = $false
-$developmentBundlePublished = $false
+$bundlePublished = $false
+$trustedSignerThumbprint = $null
+$trustModulePath = Join-Path $PSScriptRoot 'HardwareInspectionTrust.psm1'
+if ($trustedSigning) {
+    if (-not [IO.File]::Exists($trustModulePath)) {
+        throw 'The Hardware Inspection trust module is unavailable.'
+    }
+    Import-Module $trustModulePath -Force -ErrorAction Stop
+}
 
 function Get-NonRootPathWithoutTrailingSeparator {
     param([Parameter(Mandatory)][string] $Path)
@@ -153,6 +193,59 @@ function Resolve-WindowsSdkTool {
     }
 
     return $tool.FullName
+}
+
+function Invoke-AcceptanceSigning {
+    param([Parameter(Mandatory)] [string] $Path)
+
+    if ($trustedSigning) {
+        $parameters = @{
+            FilePath = $Path
+            ProviderPath = $TrustedSignerPath
+            ExpectedProviderSha256 = $ExpectedTrustedSignerSha256
+            ArgumentTemplate = $TrustedSignerArgumentTemplate
+            ExpectedPublisher = $packagePublisher
+        }
+        if (-not [string]::IsNullOrWhiteSpace($script:trustedSignerThumbprint)) {
+            $parameters.ExpectedSignerThumbprint = $script:trustedSignerThumbprint
+        }
+
+        $evidence = Invoke-HardwareInspectionTrustedSigner @parameters
+        if ([string]::IsNullOrWhiteSpace($script:trustedSignerThumbprint)) {
+            $script:trustedSignerThumbprint = [string] $evidence.Thumbprint
+        }
+
+        return $evidence
+    }
+
+    & $signTool sign /fd SHA256 /sha1 $normalizedThumbprint $Path | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        throw "signtool failed with exit code $LASTEXITCODE."
+    }
+
+    $signature = Get-AuthenticodeSignature -LiteralPath $Path
+    if ($signature.Status -ne [Management.Automation.SignatureStatus]::Valid -or
+        $null -eq $signature.SignerCertificate -or
+        -not [string]::Equals(
+            $signature.SignerCertificate.Thumbprint,
+            $normalizedThumbprint,
+            [StringComparison]::OrdinalIgnoreCase)) {
+        throw 'A development signing result did not pass exact Authenticode verification.'
+    }
+
+    [pscustomobject]@{
+        Path = [IO.Path]::GetFullPath($Path)
+        Sha256 = (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash
+        Publisher = $signature.SignerCertificate.Subject
+        Thumbprint = $signature.SignerCertificate.Thumbprint
+        TimestampThumbprint = if ($null -eq $signature.TimeStamperCertificate) {
+            $null
+        }
+        else {
+            $signature.TimeStamperCertificate.Thumbprint
+        }
+        ChainTrustVerified = $false
+    }
 }
 
 function Read-ClosedPackageManifest {
@@ -556,19 +649,29 @@ if (($repositoryItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) 
     throw 'Signed acceptance requires a real physical worktree, not a reparse-point root.'
 }
 
-$userCertificate = Get-Item -LiteralPath "Cert:\CurrentUser\My\$normalizedThumbprint" -ErrorAction Stop
-if (-not $userCertificate.HasPrivateKey -or
-    -not [string]::Equals($userCertificate.Subject, $packagePublisher, [StringComparison]::Ordinal) -or
-    $userCertificate.NotBefore -gt [DateTime]::Now -or
-    $userCertificate.NotAfter -le [DateTime]::Now -or
-    -not ($userCertificate.EnhancedKeyUsageList.ObjectId -contains '1.3.6.1.5.5.7.3.3')) {
-    throw 'The purpose-specific package-signing certificate does not satisfy the closed trust contract.'
-}
-if ($null -eq $developmentBundleRoot) {
-    $trustedCertificate = Get-Item -LiteralPath "Cert:\LocalMachine\TrustedPeople\$normalizedThumbprint" -ErrorAction Stop
-    if ($trustedCertificate.HasPrivateKey -or
-        -not [string]::Equals($trustedCertificate.Subject, $packagePublisher, [StringComparison]::Ordinal)) {
+$userCertificate = $null
+if (-not $trustedSigning) {
+    $userCertificate = Get-Item `
+        -LiteralPath "Cert:\CurrentUser\My\$normalizedThumbprint" `
+        -ErrorAction Stop
+    if (-not $userCertificate.HasPrivateKey -or
+        -not [string]::Equals($userCertificate.Subject, $packagePublisher, [StringComparison]::Ordinal) -or
+        $userCertificate.NotBefore -gt [DateTime]::Now -or
+        $userCertificate.NotAfter -le [DateTime]::Now -or
+        -not ($userCertificate.EnhancedKeyUsageList.ObjectId -contains '1.3.6.1.5.5.7.3.3')) {
         throw 'The purpose-specific package-signing certificate does not satisfy the closed trust contract.'
+    }
+    if ($null -eq $bundlePublicationRoot) {
+        $trustedCertificate = Get-Item `
+            -LiteralPath "Cert:\LocalMachine\TrustedPeople\$normalizedThumbprint" `
+            -ErrorAction Stop
+        if ($trustedCertificate.HasPrivateKey -or
+            -not [string]::Equals(
+                $trustedCertificate.Subject,
+                $packagePublisher,
+                [StringComparison]::Ordinal)) {
+            throw 'The purpose-specific package-signing certificate does not satisfy the closed trust contract.'
+        }
     }
 }
 
@@ -667,19 +770,7 @@ try {
 
     foreach ($payloadFile in $ownedExecutablePayload) {
         Assert-OwnedPath -Path $payloadFile.FullName -OwnedParent $stagingRoot
-        & $signTool sign /fd SHA256 /sha1 $normalizedThumbprint $payloadFile.FullName | Out-Null
-        if ($LASTEXITCODE -ne 0) {
-            throw "signtool failed for a solution-owned executable payload with exit code $LASTEXITCODE."
-        }
-
-        $payloadSignature = Get-AuthenticodeSignature -LiteralPath $payloadFile.FullName
-        if ($payloadSignature.Status -ne [Management.Automation.SignatureStatus]::Valid -or
-            -not [string]::Equals(
-                $payloadSignature.SignerCertificate.Thumbprint,
-                $normalizedThumbprint,
-                [StringComparison]::OrdinalIgnoreCase)) {
-            throw 'A solution-owned executable payload did not pass exact Authenticode verification.'
-        }
+        $null = Invoke-AcceptanceSigning -Path $payloadFile.FullName
     }
 
     $stagedProbeDirectory = Join-Path $stagingRoot 'HardwareInspection\LlamaCppProbe'
@@ -732,12 +823,19 @@ try {
         $finalOwnedExecutablePayload.Count -ne $ownedExecutablePayload.Count) {
         throw 'The signed staging inventory changed outside the closed signing contract.'
     }
+    $expectedSigningThumbprint = if ($trustedSigning) {
+        $trustedSignerThumbprint
+    }
+    else {
+        $normalizedThumbprint
+    }
     foreach ($payloadFile in $finalOwnedExecutablePayload) {
         $payloadSignature = Get-AuthenticodeSignature -LiteralPath $payloadFile.FullName
         if ($payloadSignature.Status -ne [Management.Automation.SignatureStatus]::Valid -or
+            $null -eq $payloadSignature.SignerCertificate -or
             -not [string]::Equals(
                 $payloadSignature.SignerCertificate.Thumbprint,
-                $normalizedThumbprint,
+                $expectedSigningThumbprint,
                 [StringComparison]::OrdinalIgnoreCase)) {
             throw 'A final solution-owned payload signature check failed before package creation.'
         }
@@ -748,26 +846,28 @@ try {
         throw "makeappx failed with exit code $LASTEXITCODE."
     }
 
-    & $signTool sign /fd SHA256 /sha1 $normalizedThumbprint $signedPackagePath | Out-Null
-    if ($LASTEXITCODE -ne 0) {
-        throw "signtool failed with exit code $LASTEXITCODE."
-    }
-
+    $packageSigningEvidence = Invoke-AcceptanceSigning -Path $signedPackagePath
     $signature = Get-AuthenticodeSignature -LiteralPath $signedPackagePath
-    if ($signature.Status -ne [Management.Automation.SignatureStatus]::Valid -or
-        -not [string]::Equals($signature.SignerCertificate.Thumbprint, $normalizedThumbprint, [StringComparison]::OrdinalIgnoreCase)) {
-        throw 'The signed MSIX did not pass exact Authenticode verification.'
-    }
 
-    if ($null -ne $developmentBundleRoot) {
+    if ($null -ne $bundlePublicationRoot) {
         $publicCertificatePath = Join-Path $ownedTempRoot 'GraniteEdgeAI.cer'
-        Export-Certificate -Cert $userCertificate -FilePath $publicCertificatePath -Type CERT | Out-Null
+        $bundleCertificate = if ($trustedSigning) {
+            $signature.SignerCertificate
+        }
+        else {
+            $userCertificate
+        }
+        [IO.File]::WriteAllBytes(
+            $publicCertificatePath,
+            $bundleCertificate.Export(
+                [Security.Cryptography.X509Certificates.X509ContentType]::Cert))
         $publicCertificate = [Security.Cryptography.X509Certificates.X509Certificate2]::new(
             $publicCertificatePath)
+        $bundleCertificateThumbprint = [string] $packageSigningEvidence.Thumbprint
         if ($publicCertificate.HasPrivateKey -or
             -not [string]::Equals(
                 $publicCertificate.Thumbprint,
-                $normalizedThumbprint,
+                $bundleCertificateThumbprint,
                 [StringComparison]::OrdinalIgnoreCase) -or
             -not [string]::Equals(
                 $publicCertificate.Subject,
@@ -781,12 +881,18 @@ try {
             -PublicCertificatePath $publicCertificatePath `
             -GuestRunnerPath (Join-Path $repositoryRoot `
                 'scripts\hardware-inspection\Invoke-HardwareInspectionDevelopmentAcceptanceGuest.ps1') `
-            -DestinationRoot $developmentBundleRoot `
-            -CertificateThumbprint $normalizedThumbprint
-        $developmentBundlePublished = $true
+            -DestinationRoot $bundlePublicationRoot `
+            -CertificateThumbprint $bundleCertificateThumbprint
+        $bundlePublished = $true
         [pscustomobject]@{
-            Classification = 'development-only'
+            Classification = if ($trustedSigning) {
+                'trusted-signing-candidate'
+            }
+            else {
+                'development-only'
+            }
             BundleReady = $true
+            SigningChainVerified = [bool] $packageSigningEvidence.ChainTrustVerified
             PublicTrustVerified = $false
             SmartAppControlVerified = $false
             FileCount = 4
@@ -875,13 +981,13 @@ finally {
         }
         finally {
             try {
-                if ($null -ne $developmentBundleRoot -and -not $developmentBundlePublished) {
+                if ($null -ne $bundlePublicationRoot -and -not $bundlePublished) {
                     foreach ($bundleName in @(
                             'GraniteEdgeAI.UnitTests.msix',
                             'GraniteEdgeAI.cer',
                             'Invoke-HardwareInspectionDevelopmentAcceptanceGuest.ps1',
                             'bundle-manifest.json')) {
-                        $bundlePath = Join-Path $developmentBundleRoot $bundleName
+                        $bundlePath = Join-Path $bundlePublicationRoot $bundleName
                         if (Test-Path -LiteralPath $bundlePath -PathType Leaf) {
                             Remove-Item -LiteralPath $bundlePath -Force
                         }
