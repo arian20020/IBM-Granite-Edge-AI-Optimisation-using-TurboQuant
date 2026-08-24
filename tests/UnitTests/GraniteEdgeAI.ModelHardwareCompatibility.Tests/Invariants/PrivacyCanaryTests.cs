@@ -78,6 +78,29 @@ public sealed class PrivacyCanaryTests
         "OptimizationExclusion.EvidenceId",
         "OptimizationWorkload.WorkloadId",
 
+        // The plan and result surface. Reviewed as a group because they share
+        // one shape: every member is either a validated 64-character digest, an
+        // enforced identifier, or a descriptor composed from enums and integers.
+        //
+        // What is deliberately absent matters as much: no path, no filename, no
+        // tool output, no native error. A failure names itself through
+        // OptimizationSupportCode, which is a closed enum precisely so a support
+        // record can be shown to a user and shipped in a log.
+        "OptimizationCanonicalizer.Canonicalize",
+        "OptimizationCanonicalizer.ConfigurationSha256",
+        "OptimizationExecutionPlan.ConfigurationSha256",
+        "OptimizationExecutionPlan.ModelInspectionRunId",
+        "OptimizationExecutionPlan.ProductHardwareRunId",
+        "OptimizationExecutionResult.ConfigurationSha256",
+        "OptimizationExecutionResult.OutputIdentity",
+        "OptimizationExecutionResult.OutputManifestSha256",
+        "OptimizationExecutionResult.SourceSha256",
+        "OptimizationJourneyBinding.HardwareSnapshotSha256",
+        "OptimizationJourneyBinding.ModelInspectionHandoffId",
+        "OptimizationJourneyBinding.ModelInspectionRunId",
+        "OptimizationJourneyBinding.ModelSha256",
+        "OptimizationJourneyBinding.ProductHardwareRunId",
+
         // Keyed by the same admitted support-entry id already allowed above
         // (CompatibilitySupportEntry.EntryId); this member only looks that id
         // up against an observed installation state and introduces no new
