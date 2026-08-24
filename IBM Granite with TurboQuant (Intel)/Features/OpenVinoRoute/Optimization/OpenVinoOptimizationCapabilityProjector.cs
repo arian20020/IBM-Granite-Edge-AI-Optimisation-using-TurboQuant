@@ -81,14 +81,35 @@ public static class OpenVinoOptimizationCapabilityProjector
 
     private static string RuntimeVersion(OpenVinoOptimizationToolVersions versions)
     {
-        RequireVersion(versions.OpenVino, nameof(versions.OpenVino));
-        RequireVersion(versions.OpenVinoGenAi, nameof(versions.OpenVinoGenAi));
-        RequireVersion(versions.Nncf, nameof(versions.Nncf));
+        RequirePinnedVersion(
+            versions.OpenVino, "2026.3.0", nameof(versions.OpenVino));
+        RequirePinnedVersion(
+            versions.OpenVinoGenAi, "2026.3.0.0", nameof(versions.OpenVinoGenAi));
+        RequirePinnedVersion(versions.Nncf, "3.3.0", nameof(versions.Nncf));
+        RequirePinnedVersion(versions.Optimum, "2.3.0", nameof(versions.Optimum));
+        RequirePinnedVersion(
+            versions.OptimumIntel, "2.1.0", nameof(versions.OptimumIntel));
+        RequirePinnedVersion(
+            versions.Transformers, "5.5.4", nameof(versions.Transformers));
 
         return string.Create(
             CultureInfo.InvariantCulture,
             $"openvino-{versions.OpenVino}_openvino-genai-{versions.OpenVinoGenAi}"
-            + $"_nncf-{versions.Nncf}");
+            + $"_nncf-{versions.Nncf}_optimum-{versions.Optimum}"
+            + $"_optimum-intel-{versions.OptimumIntel}"
+            + $"_transformers-{versions.Transformers}");
+    }
+
+    private static void RequirePinnedVersion(
+        string value, string expected, string parameter)
+    {
+        RequireVersion(value, parameter);
+        if (!string.Equals(value, expected, StringComparison.Ordinal))
+        {
+            throw new ArgumentException(
+                "Capability evidence must match the exact admitted tool version.",
+                parameter);
+        }
     }
 
     private static void RequireVersion(string value, string parameter)

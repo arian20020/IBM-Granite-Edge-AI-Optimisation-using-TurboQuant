@@ -18,7 +18,7 @@ public sealed class OpenVinoOptimizationCapabilityProjectorTests
             OpenVinoOptimizationCapabilityProjector.Project(
                 OpenVinoCapabilityTestData.StandardCpuEvidence());
 
-        Assert.AreEqual(4, payload.Admitted.Count);
+        Assert.AreEqual(5, payload.Admitted.Count);
         Assert.IsTrue(payload.Admitted.All(static admission =>
             !string.IsNullOrWhiteSpace(admission.EvidenceId)));
         Assert.IsNull(typeof(OpenVinoOptimizationCapabilityAdmission)
@@ -35,7 +35,8 @@ public sealed class OpenVinoOptimizationCapabilityProjectorTests
                 OpenVinoCapabilityTestData.StandardCpuEvidence());
 
         Assert.AreEqual(
-            "openvino-2026.3.0_openvino-genai-2026.3.0.0_nncf-3.3.0",
+            "openvino-2026.3.0_openvino-genai-2026.3.0.0_nncf-3.3.0_"
+            + "optimum-2.3.0_optimum-intel-2.1.0_transformers-5.5.4",
             payload.RuntimeVersion);
 
         (string EvidenceId, OpenVinoWeightFormat Weights,
@@ -46,6 +47,9 @@ public sealed class OpenVinoOptimizationCapabilityProjectorTests
                 OpenVinoKvCacheFormat.RouteDefault,
                 ContractCompiledCachePolicy.Disabled),
             ("OV-STD-CPU-FP16-01", OpenVinoWeightFormat.Fp16,
+                OpenVinoKvCacheFormat.RouteDefault,
+                ContractCompiledCachePolicy.Disabled),
+            ("OV-STD-CPU-AUTO-01", OpenVinoWeightFormat.Int8,
                 OpenVinoKvCacheFormat.RouteDefault,
                 ContractCompiledCachePolicy.Disabled),
             ("OV-STD-CPU-INT8-U8-01", OpenVinoWeightFormat.Int8,
@@ -80,6 +84,137 @@ public sealed class OpenVinoOptimizationCapabilityProjectorTests
             OpenVinoPersistentArtifact.Create(OpenVinoWeightPrecision.Original));
     }
 
+    [TestMethod]
+    [DataRow(nameof(OpenVinoOptimizationToolVersions.OpenVino))]
+    [DataRow(nameof(OpenVinoOptimizationToolVersions.OpenVinoGenAi))]
+    [DataRow(nameof(OpenVinoOptimizationToolVersions.Nncf))]
+    [DataRow(nameof(OpenVinoOptimizationToolVersions.Optimum))]
+    [DataRow(nameof(OpenVinoOptimizationToolVersions.OptimumIntel))]
+    [DataRow(nameof(OpenVinoOptimizationToolVersions.Transformers))]
+    public void AChangedPinnedToolVersionFailsClosed(string tool)
+    {
+        OpenVinoOptimizationCapabilityEvidence evidence =
+            OpenVinoCapabilityTestData.StandardCpuEvidence();
+
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            OpenVinoOptimizationCapabilityProjector.Project(evidence with
+            {
+                Versions = OpenVinoCapabilityTestData.WithToolVersion(
+                    evidence.Versions, tool, "9.9.9")
+            }));
+    }
+
+    [TestMethod]
+    [DataRow(nameof(OpenVinoOptimizationToolVersions.OpenVino), "")]
+    [DataRow(nameof(OpenVinoOptimizationToolVersions.OpenVino), "2026/3")]
+    [DataRow(nameof(OpenVinoOptimizationToolVersions.OpenVinoGenAi), "")]
+    [DataRow(nameof(OpenVinoOptimizationToolVersions.OpenVinoGenAi), "2026/3")]
+    [DataRow(nameof(OpenVinoOptimizationToolVersions.Nncf), "")]
+    [DataRow(nameof(OpenVinoOptimizationToolVersions.Nncf), "3/3")]
+    [DataRow(nameof(OpenVinoOptimizationToolVersions.Optimum), "")]
+    [DataRow(nameof(OpenVinoOptimizationToolVersions.Optimum), "2/3")]
+    [DataRow(nameof(OpenVinoOptimizationToolVersions.OptimumIntel), "")]
+    [DataRow(nameof(OpenVinoOptimizationToolVersions.OptimumIntel), "2/1")]
+    [DataRow(nameof(OpenVinoOptimizationToolVersions.Transformers), "")]
+    [DataRow(nameof(OpenVinoOptimizationToolVersions.Transformers), "5/5")]
+    public void MissingOrMalformedToolVersionFailsClosed(string tool, string value)
+    {
+        OpenVinoOptimizationCapabilityEvidence evidence =
+            OpenVinoCapabilityTestData.StandardCpuEvidence();
+
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            OpenVinoOptimizationCapabilityProjector.Project(evidence with
+            {
+                Versions = OpenVinoCapabilityTestData.WithToolVersion(
+                    evidence.Versions, tool, value)
+            }));
+    }
+
+    [TestMethod]
+    [DataRow("device")]
+    [DataRow("weights")]
+    [DataRow("kv-cache")]
+    [DataRow("performance-hint")]
+    [DataRow("maturity")]
+    public void UnknownAdmissionValueFailsClosed(string field)
+    {
+        OpenVinoOptimizationCapabilityEvidence evidence =
+            OpenVinoCapabilityTestData.WithFirstAdmission(field);
+
+        Assert.ThrowsExactly<OpenVinoOptimizationException>(() =>
+            OpenVinoOptimizationCapabilityProjector.Project(evidence));
+    }
+
+    [TestMethod]
+    [DataRow("")]
+    [DataRow("   ")]
+    [DataRow("../evidence")]
+    public void MissingOrMalformedEvidenceIdFailsClosed(string evidenceId)
+    {
+        OpenVinoOptimizationCapabilityEvidence evidence =
+            OpenVinoCapabilityTestData.WithFirstAdmission(
+                admission => admission with { EvidenceId = evidenceId });
+
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            OpenVinoOptimizationCapabilityProjector.Project(evidence));
+    }
+
+    [TestMethod]
+    [DataRow("runtime")]
+    [DataRow("compiled-cache")]
+    public void MissingRuntimeEvidenceFailsClosed(string field)
+    {
+        OpenVinoOptimizationCapabilityEvidence evidence =
+            OpenVinoCapabilityTestData.WithFirstAdmission(field);
+
+        Assert.ThrowsExactly<OpenVinoOptimizationException>(() =>
+            OpenVinoOptimizationCapabilityProjector.Project(evidence));
+    }
+
+    [TestMethod]
+    public void EmptyAdmissionsFailClosed()
+    {
+        OpenVinoOptimizationCapabilityEvidence evidence =
+            OpenVinoCapabilityTestData.StandardCpuEvidence() with { Admitted = [] };
+
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            OpenVinoOptimizationCapabilityProjector.Project(evidence));
+    }
+
+    [TestMethod]
+    [DataRow(0, 4_096)]
+    [DataRow(4_096, 512)]
+    public void InvalidContextBoundsFailClosed(int minimum, int maximum)
+    {
+        OpenVinoOptimizationCapabilityEvidence evidence =
+            OpenVinoCapabilityTestData.WithFirstAdmission(admission => admission with
+            {
+                MinimumContextTokens = minimum,
+                MaximumContextTokens = maximum
+            });
+
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            OpenVinoOptimizationCapabilityProjector.Project(evidence));
+    }
+
+    [TestMethod]
+    public void ProjectedPayloadDoesNotRetainTheCallerAdmissionCollection()
+    {
+        OpenVinoOptimizationCapabilityEvidence standard =
+            OpenVinoCapabilityTestData.StandardCpuEvidence();
+        List<OpenVinoOptimizationCapabilityAdmission> callerAdmissions =
+            [.. standard.Admitted];
+        OpenVinoCapabilityPayload payload =
+            OpenVinoOptimizationCapabilityProjector.Project(
+                standard with { Admitted = callerAdmissions });
+
+        callerAdmissions.Clear();
+
+        Assert.AreEqual(5, payload.Admitted.Count);
+        Assert.AreEqual("OV-STD-CPU-ORIGINAL-01", payload.Admitted[0].EvidenceId);
+        Assert.AreEqual("OV-STD-CPU-INT4-U8-01", payload.Admitted[4].EvidenceId);
+    }
+
     private static class OpenVinoCapabilityTestData
     {
         internal static OpenVinoOptimizationCapabilityEvidence StandardCpuEvidence() =>
@@ -87,7 +222,10 @@ public sealed class OpenVinoOptimizationCapabilityProjectorTests
                 new OpenVinoOptimizationToolVersions(
                     OpenVino: "2026.3.0",
                     OpenVinoGenAi: "2026.3.0.0",
-                    Nncf: "3.3.0"),
+                    Nncf: "3.3.0",
+                    Optimum: "2.3.0",
+                    OptimumIntel: "2.1.0",
+                    Transformers: "5.5.4"),
                 [
                     Admission(
                         "OV-STD-CPU-ORIGINAL-01",
@@ -97,6 +235,11 @@ public sealed class OpenVinoOptimizationCapabilityProjectorTests
                     Admission(
                         "OV-STD-CPU-FP16-01",
                         OpenVinoWeightPrecision.Fp16,
+                        OpenVinoKvCachePrecision.ReleasedDefault,
+                        compiledCache: false),
+                    Admission(
+                        "OV-STD-CPU-AUTO-01",
+                        OpenVinoWeightPrecision.EightBit,
                         OpenVinoKvCachePrecision.ReleasedDefault,
                         compiledCache: false),
                     Admission(
@@ -130,5 +273,66 @@ public sealed class OpenVinoOptimizationCapabilityProjectorTests
                 MinimumContextTokens: 512,
                 MaximumContextTokens: 4_096,
                 OpenVinoCapabilityMaturity.Released);
+
+        internal static OpenVinoOptimizationToolVersions WithToolVersion(
+            OpenVinoOptimizationToolVersions versions,
+            string tool,
+            string value) =>
+            tool switch
+            {
+                nameof(OpenVinoOptimizationToolVersions.OpenVino) =>
+                    versions with { OpenVino = value },
+                nameof(OpenVinoOptimizationToolVersions.OpenVinoGenAi) =>
+                    versions with { OpenVinoGenAi = value },
+                nameof(OpenVinoOptimizationToolVersions.Nncf) =>
+                    versions with { Nncf = value },
+                nameof(OpenVinoOptimizationToolVersions.Optimum) =>
+                    versions with { Optimum = value },
+                nameof(OpenVinoOptimizationToolVersions.OptimumIntel) =>
+                    versions with { OptimumIntel = value },
+                nameof(OpenVinoOptimizationToolVersions.Transformers) =>
+                    versions with { Transformers = value },
+                _ => throw new AssertFailedException(tool)
+            };
+
+        internal static OpenVinoOptimizationCapabilityEvidence WithFirstAdmission(
+            string field) =>
+            WithFirstAdmission(admission => field switch
+            {
+                "device" => admission with { Device = "GPU" },
+                "weights" => admission with
+                {
+                    WeightPrecision = (OpenVinoWeightPrecision)int.MaxValue
+                },
+                "kv-cache" => admission with
+                {
+                    Runtime = new OpenVinoRuntimeOptimization(
+                        (OpenVinoKvCachePrecision)int.MaxValue,
+                        RouteCompiledCachePolicy.Disabled)
+                },
+                "performance-hint" => admission with
+                {
+                    PerformanceHint = (OpenVinoCapabilityPerformanceHint)int.MaxValue
+                },
+                "maturity" => admission with
+                {
+                    Maturity = (OpenVinoCapabilityMaturity)int.MaxValue
+                },
+                "runtime" => admission with { Runtime = null! },
+                "compiled-cache" => admission with
+                {
+                    Runtime = new OpenVinoRuntimeOptimization(
+                        OpenVinoKvCachePrecision.ReleasedDefault, null!)
+                },
+                _ => throw new AssertFailedException(field)
+            });
+
+        internal static OpenVinoOptimizationCapabilityEvidence WithFirstAdmission(
+            Func<OpenVinoOptimizationCapabilityAdmission,
+                OpenVinoOptimizationCapabilityAdmission> mutate)
+        {
+            OpenVinoOptimizationCapabilityEvidence evidence = StandardCpuEvidence();
+            return evidence with { Admitted = [mutate(evidence.Admitted[0])] };
+        }
     }
 }

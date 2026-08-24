@@ -104,7 +104,10 @@ public enum OpenVinoCapabilityMaturity
 public sealed record OpenVinoOptimizationToolVersions(
     string OpenVino,
     string OpenVinoGenAi,
-    string Nncf);
+    string Nncf,
+    string Optimum,
+    string OptimumIntel,
+    string Transformers);
 
 public sealed record OpenVinoOptimizationCapabilityAdmission(
     string EvidenceId,
