@@ -371,6 +371,7 @@ def _assert_stage0_inventory(test_case, repository_paths):
             "scripts/hardware-inspection/Test-LlamaCppProbeManifest.ps1",
             "scripts/hardware-inspection/Invoke-SignedHardwareInspectionAcceptance.ps1",
             "scripts/hardware-inspection/Invoke-HardwareInspectionDevelopmentAcceptanceGuest.ps1",
+            "scripts/hardware-inspection/Test-HardwareInspectionGate9Summary.ps1",
         },
     )
     gate1_runbooks = {
