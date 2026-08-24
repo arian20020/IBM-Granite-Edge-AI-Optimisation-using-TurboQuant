@@ -1,4 +1,7 @@
 using System.Security.Cryptography;
+using System.Reflection;
+using System.Reflection.Emit;
+using System.Runtime.CompilerServices;
 using GraniteEdgeAI.Features.OpenVinoRoute;
 using GraniteEdgeAI.Features.OpenVinoRoute.Conversion;
 using GraniteEdgeAI.Features.OpenVinoRoute.Optimization;
@@ -318,6 +321,175 @@ public sealed class OptimizationEndToEndTests
             if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
         }
     }
+
+    [TestMethod]
+    [TestCategory("Architecture")]
+    public void V2AcceptingPathHasOneExecutionAuthorityAndCannotReachLegacyLookup()
+    {
+        Type[] duplicateAuthorities = FindDuplicateExecutionAuthorities();
+        Assert.HasCount(0, duplicateAuthorities,
+            "O1 production must not define an execution payload or canonicalizer beside C1 V2.");
+
+        MethodInfo execute = typeof(OpenVinoOptimizationService).GetMethod(
+            nameof(OpenVinoOptimizationService.ExecuteAsync),
+            BindingFlags.Instance | BindingFlags.Public)!;
+        HashSet<MethodBase> reachable = FindReachableProductionMethods(execute);
+
+        Assert.IsTrue(reachable.Any(static method =>
+                method.DeclaringType == typeof(OpenVinoOptimizationPlanAdapter) &&
+                method.Name == nameof(OpenVinoOptimizationPlanAdapter.Adapt)),
+            "The architecture proof must cover the strict V2 adapter reached by ExecuteAsync.");
+        Assert.IsFalse(reachable.Any(static method =>
+                method.DeclaringType == typeof(OpenVinoOptimizationLegacyRegistryV1) &&
+                method.Name == nameof(OpenVinoOptimizationLegacyRegistryV1.GetRequired)),
+            "The V2 accepting path must not reach the V1 objective/configuration lookup.");
+    }
+
+    private static Type[] FindDuplicateExecutionAuthorities()
+    {
+        const string optimizationNamespace =
+            "GraniteEdgeAI.Features.OpenVinoRoute.Optimization";
+        return typeof(OpenVinoOptimizationService).Assembly.GetTypes()
+            .Where(type => type.Namespace?.StartsWith(
+                optimizationNamespace, StringComparison.Ordinal) is true)
+            .Where(static type =>
+                type.Name.Contains("ExecutionPayload", StringComparison.Ordinal) ||
+                type.Name.Contains("Canonicalizer", StringComparison.Ordinal))
+            .ToArray();
+    }
+
+    private static HashSet<MethodBase> FindReachableProductionMethods(
+        MethodInfo entryPoint)
+    {
+        const string productionNamespace = "GraniteEdgeAI.Features.OpenVinoRoute";
+        Queue<MethodBase> pending = new();
+        HashSet<MethodBase> reachable = [];
+        pending.Enqueue(entryPoint);
+
+        while (pending.TryDequeue(out MethodBase? method))
+        {
+            if (!reachable.Add(method))
+            {
+                continue;
+            }
+
+            MethodBase bodyOwner = AsyncBodyOwner(method);
+            if (bodyOwner != method)
+            {
+                reachable.Add(bodyOwner);
+            }
+            foreach (MethodBase called in ReadCalls(bodyOwner))
+            {
+                if (called.DeclaringType?.Namespace?.StartsWith(
+                        productionNamespace, StringComparison.Ordinal) is true)
+                {
+                    pending.Enqueue(called);
+                }
+                else
+                {
+                    reachable.Add(called);
+                }
+            }
+        }
+
+        return reachable;
+    }
+
+    private static MethodBase AsyncBodyOwner(MethodBase method) =>
+        method.GetCustomAttribute<AsyncStateMachineAttribute>()?.StateMachineType
+            .GetMethod("MoveNext",
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic) ??
+        method;
+
+    private static List<MethodBase> ReadCalls(MethodBase bodyOwner)
+    {
+        byte[]? il = bodyOwner.GetMethodBody()?.GetILAsByteArray();
+        if (il is null)
+        {
+            return [];
+        }
+
+        List<MethodBase> calls = [];
+        int offset = 0;
+        while (offset < il.Length)
+        {
+            OpCode opcode = il[offset++] == 0xfe
+                ? MultiByteOpCodes[il[offset++]]
+                : SingleByteOpCodes[il[offset - 1]];
+            int operandSize = OperandSize(opcode.OperandType, il, offset);
+            if (opcode.OperandType == OperandType.InlineMethod &&
+                (opcode == OpCodes.Call || opcode == OpCodes.Callvirt))
+            {
+                try
+                {
+                    MethodBase? called = bodyOwner.Module.ResolveMethod(
+                        BitConverter.ToInt32(il, offset),
+                        bodyOwner.DeclaringType?.IsGenericType is true
+                            ? bodyOwner.DeclaringType.GetGenericArguments()
+                            : null,
+                        bodyOwner.IsGenericMethod
+                            ? bodyOwner.GetGenericArguments()
+                            : null);
+                    if (called is not null)
+                    {
+                        calls.Add(called);
+                    }
+                }
+                catch (Exception exception) when (exception is ArgumentException or
+                                                  BadImageFormatException)
+                {
+                    throw new AssertFailedException(
+                        $"Unable to resolve a production call in {bodyOwner.Name}.",
+                        exception);
+                }
+            }
+            offset += operandSize;
+        }
+        return calls;
+    }
+
+    private static int OperandSize(OperandType operandType, byte[] il, int offset) =>
+        operandType switch
+        {
+            OperandType.InlineNone => 0,
+            OperandType.ShortInlineBrTarget or OperandType.ShortInlineI or
+                OperandType.ShortInlineVar => 1,
+            OperandType.InlineVar => 2,
+            OperandType.InlineBrTarget or OperandType.InlineField or
+                OperandType.InlineI or OperandType.InlineMethod or
+                OperandType.InlineSig or OperandType.InlineString or
+                OperandType.InlineTok or OperandType.InlineType or
+                OperandType.ShortInlineR => 4,
+            OperandType.InlineI8 or OperandType.InlineR => 8,
+            OperandType.InlineSwitch =>
+                4 + (BitConverter.ToInt32(il, offset) * 4),
+            _ => throw new AssertFailedException(
+                $"Unknown IL operand type {operandType}.")
+        };
+
+    private static OpCode[] BuildOpCodes(bool multiByte)
+    {
+        OpCode[] result = new OpCode[256];
+        foreach (FieldInfo field in typeof(OpCodes).GetFields(
+                     BindingFlags.Public | BindingFlags.Static))
+        {
+            if (field.GetValue(null) is not OpCode opcode)
+            {
+                continue;
+            }
+            ushort value = unchecked((ushort)opcode.Value);
+            if (multiByte == value > byte.MaxValue)
+            {
+                result[value & byte.MaxValue] = opcode;
+            }
+        }
+        return result;
+    }
+
+    private static readonly OpCode[] SingleByteOpCodes = BuildOpCodes(
+        multiByte: false);
+    private static readonly OpCode[] MultiByteOpCodes = BuildOpCodes(
+        multiByte: true);
 
     private static OpenVinoRouteService CreateRoute(string stage)
     {
