@@ -7,7 +7,7 @@ using System.Reflection;
 public sealed class HardwareInspectionProcessAcceptanceHostTests
 {
     [TestMethod]
-    public void DiscoveryIncludesExactProcessAndGate7AcceptanceInventory()
+    public void DiscoveryIncludesExactProcessAndGate8AcceptanceInventory()
     {
         MethodInfo? discover = typeof(HardwareInspectionProcessAcceptanceHost).GetMethod(
             "DiscoverTests",
@@ -22,12 +22,30 @@ public sealed class HardwareInspectionProcessAcceptanceHostTests
             names.Add((string)name.GetValue(test)!);
         }
 
-        Assert.HasCount(70, names);
+        Assert.HasCount(87, names);
         Assert.IsTrue(names.Any(name => name.Contains(
             ".HardwareInspectionServiceTests.",
             StringComparison.Ordinal)));
         Assert.IsTrue(names.Any(name => name.Contains(
             ".HardwareInspectionCompositionTests.",
+            StringComparison.Ordinal)));
+        Assert.IsTrue(names.Any(name => name.Contains(
+            ".HardwareInspectionPageTests.",
+            StringComparison.Ordinal)));
+        Assert.IsTrue(names.Any(name => name.Contains(
+            ".HardwareInspectionViewModelTests.",
+            StringComparison.Ordinal)));
+        Assert.IsTrue(names.Any(name => name.Contains(
+            ".HardwareInspectionJourneyTests.",
+            StringComparison.Ordinal)));
+        Assert.IsTrue(names.Any(name => name.Contains(
+            ".HardwareInspectionAccessibilityTests.",
+            StringComparison.Ordinal)));
+        Assert.IsTrue(names.Any(name => name.Contains(
+            ".OnboardingHardwareInspectionNavigationTests.",
+            StringComparison.Ordinal)));
+        Assert.IsTrue(names.Any(name => name.Contains(
+            ".OnboardingShellPageTests.",
             StringComparison.Ordinal)));
         Assert.AreEqual(names.Count, names.Distinct(StringComparer.Ordinal).Count());
     }

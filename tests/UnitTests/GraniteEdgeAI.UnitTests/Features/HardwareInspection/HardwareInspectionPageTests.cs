@@ -15,6 +15,7 @@ using System.Threading.Tasks;
 namespace GraniteEdgeAI.UnitTests.Features.HardwareInspection;
 
 [TestClass]
+[TestCategory("HardwareInspectionGate8Acceptance")]
 public sealed class HardwareInspectionPageTests
 {
     private readonly HardwareInspectionPresentationFactory _factory = new();

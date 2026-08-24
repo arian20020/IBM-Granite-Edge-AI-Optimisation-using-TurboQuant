@@ -13,6 +13,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
 namespace GraniteEdgeAI.UnitTests.Features.HardwareInspection;
 
 [TestClass]
+[TestCategory("HardwareInspectionGate8Acceptance")]
 public sealed class HardwareInspectionTerminalCardTests
 {
     private readonly HardwareInspectionPresentationFactory _factory = new();

@@ -6,6 +6,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 namespace GraniteEdgeAI.UnitTests.Features.HardwareInspection;
 
 [TestClass]
+[TestCategory("HardwareInspectionGate8Acceptance")]
 public sealed class HardwareInspectionPresentationContractTests
 {
     private readonly HardwareInspectionPresentationFactory _factory = new();

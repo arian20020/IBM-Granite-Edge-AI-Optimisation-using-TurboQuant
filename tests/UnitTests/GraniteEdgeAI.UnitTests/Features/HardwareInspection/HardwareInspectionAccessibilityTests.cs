@@ -4,6 +4,7 @@ using GraniteEdgeAI.Features.HardwareInspection.ViewModels;
 namespace GraniteEdgeAI.UnitTests.Features.HardwareInspection;
 
 [TestClass]
+[TestCategory("HardwareInspectionGate8Acceptance")]
 public sealed class HardwareInspectionAccessibilityTests
 {
     [TestMethod]

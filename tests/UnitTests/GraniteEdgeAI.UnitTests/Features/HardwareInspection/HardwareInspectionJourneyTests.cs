@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 namespace GraniteEdgeAI.UnitTests.Features.HardwareInspection;
 
 [TestClass]
+[TestCategory("HardwareInspectionGate8Acceptance")]
 [DoNotParallelize]
 public sealed class HardwareInspectionJourneyTests
 {

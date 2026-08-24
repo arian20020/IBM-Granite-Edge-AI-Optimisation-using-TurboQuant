@@ -9,6 +9,7 @@ using System.Reflection;
 namespace GraniteEdgeAI.UnitTests;
 
 [TestClass]
+[TestCategory("HardwareInspectionGate8Acceptance")]
 public sealed class OnboardingShellPageTests
 {
     [UITestMethod]

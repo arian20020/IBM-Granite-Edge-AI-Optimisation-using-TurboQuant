@@ -18,6 +18,7 @@ using System.Reflection;
 namespace GraniteEdgeAI.UnitTests;
 
 [TestClass]
+[TestCategory("HardwareInspectionGate8Acceptance")]
 public sealed class OnboardingHardwareInspectionNavigationTests
 {
     private static readonly Guid ModelRunId =
