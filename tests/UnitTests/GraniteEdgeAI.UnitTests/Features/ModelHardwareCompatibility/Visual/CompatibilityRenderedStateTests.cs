@@ -48,10 +48,24 @@ public sealed class CompatibilityRenderedStateTests
         FrameworkElement pageStack = Element<FrameworkElement>(page, "PageStack");
         TextBlock title = Element<TextBlock>(page, "PageTitleText");
 
-        Assert.AreEqual(HorizontalAlignment.Center, contentHost.HorizontalContentAlignment);
+        Assert.AreEqual(HorizontalAlignment.Stretch, contentHost.HorizontalContentAlignment);
+        Assert.AreEqual(HorizontalAlignment.Center, pageStack.HorizontalAlignment);
         Assert.IsGreaterThanOrEqualTo(1180d, pageStack.MaxWidth);
         Assert.IsLessThanOrEqualTo(1280d, pageStack.MaxWidth);
         Assert.IsGreaterThanOrEqualTo(26d, title.FontSize);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void Page_HasResponsiveAssessmentLayoutForNarrowWindows()
+    {
+        CompatibilityPage page = new() { StartAutomatically = false };
+        Grid assessment = Element<Grid>(page, "AssessmentGrid");
+        IList<VisualStateGroup> groups = VisualStateManager.GetVisualStateGroups(assessment);
+
+        Assert.AreEqual(1, groups.Count);
+        Assert.AreEqual(2, groups[0].States.Count);
+        Assert.AreEqual(2, assessment.RowDefinitions.Count);
     }
 
     [UITestMethod]

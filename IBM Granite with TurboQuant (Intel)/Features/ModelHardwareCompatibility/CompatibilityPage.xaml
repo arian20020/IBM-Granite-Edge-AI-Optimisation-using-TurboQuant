@@ -47,7 +47,7 @@
 
         <ScrollViewer
             x:Name="ContentHost"
-            HorizontalContentAlignment="Center"
+            HorizontalContentAlignment="Stretch"
             HorizontalScrollMode="Disabled"
             HorizontalScrollBarVisibility="Disabled"
             Padding="{StaticResource CompatibilityPageMargin}"
@@ -56,7 +56,7 @@
             <Grid
                 x:Name="PageStack"
                 MaxWidth="1240"
-                HorizontalAlignment="Stretch"
+                HorizontalAlignment="Center"
                 RowSpacing="14">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
@@ -185,15 +185,53 @@
                 </Border>
 
                 <!-- .b-columns: 1.35fr / .85fr, children stretch to equal height -->
-                <Grid Grid.Row="3" ColumnSpacing="14">
+                <Grid x:Name="AssessmentGrid" Grid.Row="3" ColumnSpacing="14">
+                    <VisualStateManager.VisualStateGroups>
+                        <VisualStateGroup x:Name="AssessmentLayoutStates">
+                            <VisualState x:Name="WideAssessment">
+                                <VisualState.StateTriggers>
+                                    <AdaptiveTrigger MinWindowWidth="1100" />
+                                </VisualState.StateTriggers>
+                                <VisualState.Setters>
+                                    <Setter Target="MainFactsColumn.Width" Value="1.35*" />
+                                    <Setter Target="SideFactsColumn.Width" Value="0.85*" />
+                                    <Setter Target="MainFactsCard.(Grid.ColumnSpan)" Value="1" />
+                                    <Setter Target="SideCardsGrid.(Grid.Column)" Value="1" />
+                                    <Setter Target="SideCardsGrid.(Grid.Row)" Value="0" />
+                                    <Setter Target="SideCardsGrid.(Grid.ColumnSpan)" Value="1" />
+                                    <Setter Target="SideCardsGrid.Margin" Value="0" />
+                                </VisualState.Setters>
+                            </VisualState>
+                            <VisualState x:Name="NarrowAssessment">
+                                <VisualState.StateTriggers>
+                                    <AdaptiveTrigger MinWindowWidth="0" />
+                                </VisualState.StateTriggers>
+                                <VisualState.Setters>
+                                    <Setter Target="MainFactsColumn.Width" Value="*" />
+                                    <Setter Target="SideFactsColumn.Width" Value="0" />
+                                    <Setter Target="MainFactsCard.(Grid.ColumnSpan)" Value="2" />
+                                    <Setter Target="SideCardsGrid.(Grid.Column)" Value="0" />
+                                    <Setter Target="SideCardsGrid.(Grid.Row)" Value="1" />
+                                    <Setter Target="SideCardsGrid.(Grid.ColumnSpan)" Value="2" />
+                                    <Setter Target="SideCardsGrid.Margin" Value="0,14,0,0" />
+                                </VisualState.Setters>
+                            </VisualState>
+                        </VisualStateGroup>
+                    </VisualStateManager.VisualStateGroups>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="1.35*" />
-                        <ColumnDefinition Width="0.85*" />
+                        <ColumnDefinition x:Name="MainFactsColumn" Width="1.35*" />
+                        <ColumnDefinition x:Name="SideFactsColumn" Width="0.85*" />
                     </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
 
                     <!-- Dominant facts card -->
                     <Border
+                        x:Name="MainFactsCard"
                         Grid.Column="0"
+                        Grid.Row="0"
                         Background="{ThemeResource CompatibilitySurfaceBrush}"
                         BorderBrush="{ThemeResource CompatibilityBorderLightBrush}"
                         BorderThickness="1"
@@ -240,7 +278,7 @@
                     </Border>
 
                     <!-- Side stack: equal rows -->
-                    <Grid Grid.Column="1" RowSpacing="14">
+                    <Grid x:Name="SideCardsGrid" Grid.Column="1" Grid.Row="0" RowSpacing="14">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="*" />
                             <RowDefinition Height="*" />
