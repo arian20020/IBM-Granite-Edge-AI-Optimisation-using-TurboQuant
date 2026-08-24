@@ -9,7 +9,8 @@ namespace GraniteEdgeAI.UnitTests.Features.HardwareInspection.Acceptance;
 internal static class HardwareInspectionProcessAcceptanceHost
 {
     private const string ActivationCommand = "--hardware-inspection-process-acceptance";
-    private const string Category = "HardwareInspectionProcessAcceptance";
+    private const string Gate7Category = "HardwareInspectionGate7Acceptance";
+    private const string ProcessCategory = "HardwareInspectionProcessAcceptance";
     private const string ResultTokenSwitch = "--result-token";
     private const string Schema = "granite.hardware-inspection.process-acceptance/v1";
     private const string TestPackageIdentity = "GraniteEdgeAI.WinUI.UnitTests";
@@ -85,11 +86,9 @@ internal static class HardwareInspectionProcessAcceptanceHost
             .Where(static type => type.IsClass && !type.IsAbstract)
             .SelectMany(static type => type
                 .GetMethods(BindingFlags.Instance | BindingFlags.Public)
-                .Where(static method =>
+                .Where(method =>
                     method.GetCustomAttribute<TestMethodAttribute>(inherit: true) is not null &&
-                    method.GetCustomAttributes<TestCategoryAttribute>(inherit: true)
-                        .SelectMany(static attribute => attribute.TestCategories)
-                        .Contains(Category, StringComparer.Ordinal))
+                    IsAcceptanceTest(type, method))
                 .Select(method => CreateAcceptanceTest(type, method)))
             .OrderBy(static test => test.Name, StringComparer.Ordinal)
             .ToArray();
@@ -102,6 +101,15 @@ internal static class HardwareInspectionProcessAcceptanceHost
 
         return tests;
     }
+
+    private static bool IsAcceptanceTest(Type type, MethodInfo method) =>
+        HasAcceptanceCategory(method.GetCustomAttributes<TestCategoryAttribute>(inherit: true)) ||
+        HasAcceptanceCategory(type.GetCustomAttributes<TestCategoryAttribute>(inherit: true));
+
+    private static bool HasAcceptanceCategory(
+        IEnumerable<TestCategoryAttribute> attributes) => attributes
+        .SelectMany(static attribute => attribute.TestCategories)
+        .Any(static category => category is ProcessCategory or Gate7Category);
 
     private static AcceptanceTest CreateAcceptanceTest(Type type, MethodInfo method)
     {
