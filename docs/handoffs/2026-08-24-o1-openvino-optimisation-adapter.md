@@ -37,8 +37,10 @@ The adapter maps only the authoritative V2 payload. Configuration ID, device,
 maturity, evidence ID, source/target weights, KV precision, all compiled-cache
 facts, complete-package/persistence fact, all four OpenVINO build values, all
 six optimizer versions, and TurboQuant absence are checked against current
-evidence. `ConfigurationSha256` is recomputed through the public V2 issuer; O1
-does not copy C1's canonicalizer or define a second execution payload.
+evidence. `ConfigurationSha256` is recomputed through the public V2 issuer. A
+focused compiled guard verifies that the adapter's configuration-identity
+subgraph calls that public issuer exactly once and contains no local
+SHA/string/JSON canonicalization or hidden reflection invocation.
 
 Runtime-only is derived only from equal payload source and target precision.
 Unequal precision remains persistent conversion. The five released CPU
@@ -47,10 +49,23 @@ optimization candidate and rejects a payload or live evidence containing a
 TurboQuant build identity.
 
 The explicitly named `OpenVinoOptimizationLegacyRequestV1` and
-`OptimizeLegacyV1Async` compatibility seam remains isolated. The V2 accepting
-call graph reaches the strict adapter and does not reach
-`OpenVinoOptimizationLegacyRegistryV1.GetRequired`. A compiled architecture
-test also rejects an O1-owned execution-payload or canonicalizer type.
+`OptimizeLegacyV1Async` compatibility seam remains isolated. V1 registry
+admission now occurs only in `OptimizeLegacyV1Async`; the shared
+`OptimizeCoreAsync` contains no V1 registry lookup.
+
+The compiled static guard starts at public `ExecuteAsync`, follows every
+same-module method operand for `call`, `callvirt`, `newobj`, `ldftn`, and
+`ldvirtftn` without a namespace filter, and rejects an exact V1 `GetRequired`
+reference, any semantic O1 candidate-catalog lookup, and reflection/dynamic
+invocation APIs that could hide a call. It also requires the frozen C1 union and
+OpenVINO payload member types, limits reachable types with substantial payload
+field overlap to the explicit route-native candidate/result-evidence allowlist,
+and checks the candidate's `ExecutionPayload` is the C1
+`OpenVinoExecutionPayload`.
+
+This is a static compiled-reference guard over the shared accepting core. It
+does not claim arbitrary runtime reachability through external or virtual
+dispatch, and it does not reject unrelated result-evidence canonicalizers.
 
 ## Trusted execution and durable evidence
 
@@ -90,9 +105,9 @@ calls `ExecuteAsync`, uses the sealed converter/official-worker path, and reads
 schema-v2 provenance after publication. No replacement stage or digest is
 invented.
 
-The stage variables were absent during Task 3 verification. The focused
-optimization class therefore discovered four tests: one source-only
-architecture test passed and all three native E2Es skipped. No native pass is
+The stage variables were absent during fix-round verification. The focused
+optimization class therefore discovered five tests: two source-only
+architecture tests passed and all three native E2Es skipped. No native pass is
 claimed.
 
 ## Fresh Task 3 verification
@@ -107,7 +122,7 @@ All commands ran from `C:\O1` with portable .NET SDK `10.0.301` and
 | OpenVINO contract project | 204 | 204 | 0 | 0 |
 | OpenVINO worker-client | 13 | 13 | 0 | 0 |
 | Worker-process integration, stable rerun | 65 | 48 | 2 | 15 |
-| Optimization E2E/architecture filter | 4 | 1 | 0 | 3 |
+| Optimization E2E/architecture filter | 5 | 2 | 0 | 3 |
 
 The five component skips require `GRANITE_OPENVINO_OFFICIAL_WORKER_STAGE`.
 The 15 integration skips cover absent converter, official A/B, and physical GPU

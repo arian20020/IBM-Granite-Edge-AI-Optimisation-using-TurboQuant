@@ -234,6 +234,13 @@ public sealed class OpenVinoOptimizationService
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
+        if (!request.Confirmed ||
+            !OpenVinoOptimizationLegacyRegistryV1.IsRegistered(request.Candidate))
+        {
+            return Failed(
+                operationIdFactory(),
+                OpenVinoSupportCode.OptimizationUnsupported);
+        }
         return await OptimizeCoreAsync(
             request.SourceDirectory,
             request.DestinationDirectory,
@@ -256,9 +263,7 @@ public sealed class OpenVinoOptimizationService
         CancellationToken cancellationToken)
     {
         Guid operationId = operationIdFactory();
-        if (!confirmed || plan is null &&
-            (legacyCandidate is null ||
-             !OpenVinoOptimizationLegacyRegistryV1.IsRegistered(legacyCandidate)))
+        if (!confirmed || plan is null && legacyCandidate is null)
         {
             return Failed(operationId, OpenVinoSupportCode.OptimizationUnsupported);
         }

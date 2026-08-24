@@ -23,8 +23,9 @@ of O1. C1/shared contract files were not modified after the V2.1 merge.
   GGUF, mixed, or mismatched unions fail closed before native work.
 - Every execution-affecting payload value and current build/tool evidence is
   checked exactly, including the slash-bearing official runtime build identity.
-- C1 `ConfigurationSha256` is recomputed with the public V2 issuer; O1 has no
-  execution canonicalizer or duplicate payload DTO.
+- C1 `ConfigurationSha256` is recomputed with the public V2 issuer. The adapter
+  configuration-identity subgraph is statically required to call that issuer
+  exactly once and to contain no local SHA/string/JSON canonicalization.
 - TurboQuant build identity remains rejected and O1 makes no TurboQuant
   optimization claim.
 - `TrustedSourceContext` verifies and gates source disclosure before package
@@ -34,8 +35,18 @@ of O1. C1/shared contract files were not modified after the V2.1 merge.
   and actual completion evidence.
 - Runtime-only, persistent conversion, atomic publication, rollback,
   reinspection, cancellation, cleanup, and bounded-result behavior remain.
-- The V1 compatibility seam is explicitly named; compiled call-graph evidence
-  proves `ExecuteAsync` reaches the V2 adapter and cannot reach V1 `GetRequired`.
+- The V1 compatibility seam is explicitly named, and its registry admission is
+  performed only by `OptimizeLegacyV1Async`, outside shared `OptimizeCoreAsync`.
+- A compiled static guard starts at `ExecuteAsync`, traverses same-module
+  `call`, `callvirt`, `newobj`, `ldftn`, and `ldvirtftn` operands without a
+  namespace filter, covers the strict adapter, and rejects exact V1
+  `GetRequired`, semantic O1 candidate-catalog lookups, and hidden
+  reflection/dynamic invocation APIs.
+- Semantic member/field-overlap invariants require the frozen C1 union and
+  OpenVINO payload types and admit substantial overlap only for the explicit
+  route-native candidate/result-evidence types. This does not claim arbitrary
+  runtime reachability through external or virtual dispatch and does not reject
+  unrelated evidence canonicalizers.
 
 ## Fresh verification evidence
 
@@ -46,7 +57,7 @@ of O1. C1/shared contract files were not modified after the V2.1 merge.
 | OpenVINO contracts | 204 total; 204 passed; 0 failed; 0 skipped |
 | OpenVINO worker-client | 13 total; 13 passed; 0 failed; 0 skipped |
 | Full worker-process integration, stable rerun | 65 total; 48 passed; 2 failed; 15 skipped |
-| Optimization E2E/architecture | 4 total; 1 passed; 0 failed; 3 skipped |
+| Optimization E2E/architecture | 5 total; 2 passed; 0 failed; 3 skipped |
 
 The complete source suites and source-only architecture proof pass. Native
 observations remain separate: five component skips require the official worker;
