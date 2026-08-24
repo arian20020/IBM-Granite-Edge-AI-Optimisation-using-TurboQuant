@@ -12,17 +12,29 @@
 | Worktree | `C:\c1-xroute` |
 | Base (resolved, 40 characters) | `699c4826af6ee1e8ffe18f2b1eca1b0e6ab9f3e3` |
 | Base branch | `feature/model-hardware-compatibility` |
-| Tip | `f7837584f6524cdfa83a3055e91ed1e72613e17f` (this handoff commit) |
+| Contract code frozen at | `48f578e09fb312c874ef2c75ea6c79b2c448c23c` |
+| Branch tip | see `git rev-parse feature/cross-route-optimisation-contracts-v1` |
 | Worktree status | clean |
 | Whitespace/encoding (`git diff --check`) | no errors |
 
 The audited tip matched exactly; the branch had not advanced, so no newer commits
 needed preserving. Nothing was reset, overwritten or discarded.
 
-**This is the commit G1, O1 and UO1 branch from.** Each should verify
-`git merge-base --is-ancestor feature/cross-route-optimisation-contracts-v1 HEAD`
-returns 0 before editing, and record `f7837584f6524cdfa83a3055e91ed1e72613e17f`
-as the resolved C1 SHA.
+**G1, O1 and UO1 branch from the branch ref**, not from a SHA copied out of
+this table. A handoff document cannot name its own commit, and correcting one
+that tried produced a further commit - so the ref is the reliable pointer and
+the table would always lag it.
+
+Each worker resolves and records the SHA itself:
+
+```powershell
+git rev-parse feature/cross-route-optimisation-contracts-v1
+git merge-base --is-ancestor feature/cross-route-optimisation-contracts-v1 HEAD
+```
+
+Every commit after `48f578e0` is documentation only. The contract assembly
+G1, O1 and UO1 compile against is identical at `48f578e0` and at the tip, so a
+worker who has the branch ref has the frozen contract whichever they resolve.
 
 ## Commits
 
