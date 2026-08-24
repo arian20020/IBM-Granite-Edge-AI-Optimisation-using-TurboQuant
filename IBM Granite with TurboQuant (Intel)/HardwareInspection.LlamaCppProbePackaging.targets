@@ -19,12 +19,53 @@
     <_HardwareInspectionVCRedistVersionFile>$(_HardwareInspectionVisualStudioRoot)\VC\Auxiliary\Build\Microsoft.VCRedistVersion.default.txt</_HardwareInspectionVCRedistVersionFile>
     <_HardwareInspectionVCRedistVersion Condition="Exists('$(_HardwareInspectionVCRedistVersionFile)')">$([System.IO.File]::ReadAllText('$(_HardwareInspectionVCRedistVersionFile)').Trim())</_HardwareInspectionVCRedistVersion>
     <_HardwareInspectionVCRedistRoot>$(_HardwareInspectionVisualStudioRoot)\VC\Redist\MSVC\$(_HardwareInspectionVCRedistVersion)\x64</_HardwareInspectionVCRedistRoot>
+    <_HardwareInspectionVsWhere>$([System.Environment]::GetEnvironmentVariable('ProgramFiles(x86)'))\Microsoft Visual Studio\Installer\vswhere.exe</_HardwareInspectionVsWhere>
     <_HardwareInspectionLlamaCppProbeDotNetHost Condition="'$(DotNetHostPath)' != ''">$(DotNetHostPath)</_HardwareInspectionLlamaCppProbeDotNetHost>
     <_HardwareInspectionLlamaCppProbeDotNetHost Condition="'$(_HardwareInspectionLlamaCppProbeDotNetHost)' == ''">dotnet</_HardwareInspectionLlamaCppProbeDotNetHost>
   </PropertyGroup>
 
+  <Target Name="ResolveHardwareInspectionVCRuntime"
+          Condition="'$(Platform)' == 'x64' and '$(DesignTimeBuild)' != 'true' and '$(HardwareInspectionLlamaCppProbeSkipPackaging)' != 'true'">
+    <ItemGroup>
+      <_HardwareInspectionVCRuntimeProbe Include="$(_HardwareInspectionVCRedistRoot)\Microsoft.VC*.CRT\msvcp140.dll" />
+      <_HardwareInspectionVCRuntimeProbe Include="$(_HardwareInspectionVCRedistRoot)\Microsoft.VC*.CRT\vcruntime140.dll" />
+      <_HardwareInspectionVCRuntimeProbe Include="$(_HardwareInspectionVCRedistRoot)\Microsoft.VC*.CRT\vcruntime140_1.dll" />
+      <_HardwareInspectionVCRuntimeProbe Include="$(_HardwareInspectionVCRedistRoot)\Microsoft.VC*.OpenMP\vcomp140.dll" />
+    </ItemGroup>
+    <PropertyGroup>
+      <_HardwareInspectionVCRedistComplete>false</_HardwareInspectionVCRedistComplete>
+      <_HardwareInspectionVCRedistComplete Condition="'@(_HardwareInspectionVCRuntimeProbe->Count())' == '4'">true</_HardwareInspectionVCRedistComplete>
+    </PropertyGroup>
+    <Exec Condition="'$(_HardwareInspectionVCRedistComplete)' != 'true' and Exists('$(_HardwareInspectionVsWhere)')"
+          Command="&quot;$(_HardwareInspectionVsWhere)&quot; -latest -products * -requires Microsoft.VisualStudio.Component.VC.Redist.14.Latest -property installationPath"
+          ConsoleToMSBuild="true"
+          StandardOutputImportance="Low">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_HardwareInspectionFallbackVisualStudioRoot" />
+    </Exec>
+    <PropertyGroup Condition="'$(_HardwareInspectionVCRedistComplete)' != 'true' and '$(_HardwareInspectionFallbackVisualStudioRoot)' != ''">
+      <_HardwareInspectionVisualStudioRoot>$([System.String]::Copy('$(_HardwareInspectionFallbackVisualStudioRoot)').Trim())</_HardwareInspectionVisualStudioRoot>
+      <_HardwareInspectionVCRedistVersionFile>$(_HardwareInspectionVisualStudioRoot)\VC\Auxiliary\Build\Microsoft.VCRedistVersion.default.txt</_HardwareInspectionVCRedistVersionFile>
+      <_HardwareInspectionVCRedistVersion Condition="Exists('$(_HardwareInspectionVCRedistVersionFile)')">$([System.IO.File]::ReadAllText('$(_HardwareInspectionVCRedistVersionFile)').Trim())</_HardwareInspectionVCRedistVersion>
+      <_HardwareInspectionVCRedistRoot>$(_HardwareInspectionVisualStudioRoot)\VC\Redist\MSVC\$(_HardwareInspectionVCRedistVersion)\x64</_HardwareInspectionVCRedistRoot>
+    </PropertyGroup>
+    <ItemGroup Condition="'$(_HardwareInspectionVCRedistComplete)' != 'true' and '$(_HardwareInspectionFallbackVisualStudioRoot)' != ''">
+      <_HardwareInspectionVCRuntimeProbe Remove="@(_HardwareInspectionVCRuntimeProbe)" />
+      <_HardwareInspectionVCRuntimeProbe Include="$(_HardwareInspectionVCRedistRoot)\Microsoft.VC*.CRT\msvcp140.dll" />
+      <_HardwareInspectionVCRuntimeProbe Include="$(_HardwareInspectionVCRedistRoot)\Microsoft.VC*.CRT\vcruntime140.dll" />
+      <_HardwareInspectionVCRuntimeProbe Include="$(_HardwareInspectionVCRedistRoot)\Microsoft.VC*.CRT\vcruntime140_1.dll" />
+      <_HardwareInspectionVCRuntimeProbe Include="$(_HardwareInspectionVCRedistRoot)\Microsoft.VC*.OpenMP\vcomp140.dll" />
+    </ItemGroup>
+    <PropertyGroup Condition="'$(_HardwareInspectionVCRedistComplete)' != 'true' and '$(_HardwareInspectionFallbackVisualStudioRoot)' != ''">
+      <_HardwareInspectionVCRedistComplete>false</_HardwareInspectionVCRedistComplete>
+      <_HardwareInspectionVCRedistComplete Condition="'@(_HardwareInspectionVCRuntimeProbe->Count())' == '4'">true</_HardwareInspectionVCRedistComplete>
+    </PropertyGroup>
+    <Error Condition="'$(_HardwareInspectionVCRedistComplete)' != 'true'"
+           Text="The exact x64 Microsoft VC++ runtime payload required by the llama.cpp probe was not found." />
+  </Target>
+
   <Target Name="PublishHardwareInspectionLlamaCppProbeForApplication"
           BeforeTargets="AssignTargetPaths"
+          DependsOnTargets="ResolveHardwareInspectionVCRuntime"
           Condition="'$(Platform)' == 'x64' and '$(DesignTimeBuild)' != 'true' and '$(HardwareInspectionLlamaCppProbeSkipPackaging)' != 'true'">
     <RemoveDir Directories="$(_HardwareInspectionLlamaCppProbeRawRoot)" />
     <RemoveDir Directories="$(_HardwareInspectionLlamaCppProbePackageRoot)" />
