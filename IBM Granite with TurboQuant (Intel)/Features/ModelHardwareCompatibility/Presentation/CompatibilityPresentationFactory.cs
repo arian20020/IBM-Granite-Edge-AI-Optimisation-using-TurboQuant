@@ -245,18 +245,19 @@ internal static class CompatibilityPresentationFactory
             Tone = CompatibilityOutcomeTone.Blocking,
             OutcomeTitle = "No setup fits safely",
             OutcomeDetail =
-                "Every way of running this needs more memory than you can safely spare "
-                + "right now. We checked them all — this is an answer, not a failure to "
-                + "check.",
+                "Every verified setup needs more memory than you can safely spare right "
+                + "now. Close unused applications and browser tabs to free memory, then "
+                + "check again.",
             OutcomeBadge = "ESTIMATE",
             DisclosureTitle = "How we worked this out",
             DisclosureDetail = DisclosureText(model),
             Recoveries =
             [
                 new CompatibilityRecovery(
-                    "Close other apps",
-                    "What matters is the memory free right now, not how much your computer "
-                    + "has in total."),
+                    "Free some memory, then check again",
+                    "Close unused applications and browser tabs. What matters is the "
+                    + "memory free right now, not how much memory your computer has in "
+                    + "total."),
                 new CompatibilityRecovery(
                     "Try a smaller model",
                     "A smaller version of the same model needs less memory to run."),

@@ -97,6 +97,30 @@ public sealed class CompatibilityRenderedStateTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
+    public void OnlyMemoryBlockedOutcome_TellsUserToCloseApplicationsAndTabs()
+    {
+        CompatibilityFixture? blockedFixture =
+            CompatibilityFixtureCatalogue.ById("CMP-030");
+        Assert.IsNotNull(blockedFixture);
+        CompatibilityPresentation blocked = blockedFixture.Presentation;
+
+        StringAssert.Contains(
+            blocked.OutcomeDetail,
+            "Close unused applications and browser tabs");
+        Assert.IsTrue(blocked.Recoveries.Any(recovery =>
+            recovery.Detail.Contains("browser tabs", StringComparison.Ordinal)));
+
+        foreach (CompatibilityFixture fixture in CompatibilityFixtureCatalogue.All
+            .Where(fixture => fixture.Id != "CMP-030"))
+        {
+            Assert.IsFalse(fixture.Presentation.OutcomeDetail.Contains(
+                "Close unused applications and browser tabs",
+                StringComparison.Ordinal));
+        }
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
     public void EveryFixture_RendersWithoutThrowing()
     {
         // The page resolves theme-scoped brushes from code. A key that is
