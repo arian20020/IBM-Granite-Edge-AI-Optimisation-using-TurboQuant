@@ -75,6 +75,16 @@
                     x:Name="ConfigurationCard"
                     AutomationProperties.Name="Selected optimisation configuration" />
 
+                <controls:OptimizationConfirmationCard
+                    x:Name="ConfirmationCard"
+                    AutomationProperties.Name="Confirm optimisation configuration"
+                    Visibility="Collapsed" />
+
+                <controls:OptimizationProgressCard
+                    x:Name="ProgressCard"
+                    AutomationProperties.Name="Optimisation progress"
+                    Visibility="Collapsed" />
+
                 <Button
                     x:Name="ReviewConfigurationButton"
                     MinHeight="48"

@@ -13,6 +13,9 @@ public sealed partial class OptimizationPage : Page
     {
         InitializeComponent();
         PreferenceCard.PreferenceChanged += OnPreferenceChanged;
+        ConfirmationCard.BackRequested += OnBackRequested;
+        ConfirmationCard.ConfirmRequested += OnConfirmRequested;
+        ProgressCard.CancelRequested += OnCancelRequested;
     }
 
     internal event EventHandler<OptimizationIntentEventArgs>? IntentRequested;
@@ -26,13 +29,19 @@ public sealed partial class OptimizationPage : Page
         PageTitle.Text = presentation.Title;
         PageSummary.Text = presentation.Summary;
         PreferenceCard.Apply(presentation.Preference
-            ?? throw new ArgumentException("Selection presentation requires a preference.", nameof(presentation)));
+            ?? throw new ArgumentException("Optimisation presentation requires a preference.", nameof(presentation)));
         ConfigurationCard.Apply(presentation.Configuration);
+        ConfirmationCard.Apply(presentation);
+        ProgressCard.Apply(presentation);
 
         bool selecting = presentation.Kind == OptimizationPageStateKind.Selecting;
+        bool confirming = presentation.Kind == OptimizationPageStateKind.Confirming;
+        bool running = presentation.Kind == OptimizationPageStateKind.Running;
         PreferenceCard.Visibility = selecting ? Visibility.Visible : Visibility.Collapsed;
         ConfigurationCard.Visibility = selecting ? Visibility.Visible : Visibility.Collapsed;
         ReviewConfigurationButton.Visibility = selecting ? Visibility.Visible : Visibility.Collapsed;
+        ConfirmationCard.Visibility = confirming ? Visibility.Visible : Visibility.Collapsed;
+        ProgressCard.Visibility = running ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void OnPreferenceChanged(
@@ -48,4 +57,16 @@ public sealed partial class OptimizationPage : Page
             new OptimizationIntentEventArgs(
                 OptimizationIntentKind.ReviewConfigurationRequested,
                 _presentation?.Preference));
+
+    private void OnBackRequested(object? sender, EventArgs args) =>
+        RaiseIntent(OptimizationIntentKind.BackRequested);
+
+    private void OnConfirmRequested(object? sender, EventArgs args) =>
+        RaiseIntent(OptimizationIntentKind.ConfirmRequested);
+
+    private void OnCancelRequested(object? sender, EventArgs args) =>
+        RaiseIntent(OptimizationIntentKind.CancelRequested);
+
+    private void RaiseIntent(OptimizationIntentKind kind) =>
+        IntentRequested?.Invoke(this, new OptimizationIntentEventArgs(kind, _presentation?.Preference));
 }
