@@ -129,7 +129,7 @@ git commit -m "feat(hardware-inspection): add Gate 7 orchestration contracts"
 
 - [ ] **Step 1: Write RED tests for exact authority and filesystem attacks**
 
-Assert tool/version/hash/AMD64/disposition, exact case-sensitive members, exact commands, zero-parameter production root, and no public path/URI/config/registry/environment override. Real temporary packages cover valid, missing/extra/changed file, reparse package, wrong architecture, and approved-root escape.
+Assert tool/version/hash/AMD64/disposition, exact case-sensitive members, exact commands, zero-parameter production root, and no public path/URI/config/registry/environment override. Temporary packages prove missing/extra/changed file, reparse package, wrong architecture, and approved-root escape fail through the real verifier. Do not add a hash-override seam: no synthetic executable can match the pinned real SHA-256. The existing Foundation verifier suite remains the deterministic successful-package proof; Gate 9 verifies the actual administrator-installed pinned package.
 
 - [ ] **Step 2: Run RED**
 
