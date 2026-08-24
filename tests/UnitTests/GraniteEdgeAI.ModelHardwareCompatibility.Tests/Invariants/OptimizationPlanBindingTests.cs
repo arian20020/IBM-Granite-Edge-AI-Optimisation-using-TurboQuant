@@ -1,4 +1,5 @@
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Execution;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.OpenVino;
 
@@ -90,17 +91,68 @@ public sealed class OptimizationPlanBindingTests
                 "chat", 512, OptimizationAssessment.Poor,
                 [ContextTokenCount.FromTokens(4096)]);
 
+        /// <summary>
+        /// The execution payload matching whatever candidate is used. V2 requires
+        /// one, and requires it to agree - so the fixture derives it from the
+        /// candidate rather than restating it.
+        /// </summary>
+        internal static OptimizationExecutionPayload Payload(
+            OptimizationCandidate candidate)
+        {
+            OpenVinoRouteConfiguration configuration =
+                (OpenVinoRouteConfiguration)candidate.Configuration;
+
+            OpenVinoWeightPrecision target = configuration.Weights switch
+            {
+                OpenVinoWeightFormat.Fp16 => OpenVinoWeightPrecision.Fp16,
+                OpenVinoWeightFormat.Int8 => OpenVinoWeightPrecision.EightBit,
+                _ => OpenVinoWeightPrecision.FourBit
+            };
+
+            // Original converts nothing, so source equals target there.
+            OpenVinoWeightPrecision source =
+                configuration.Weights == OpenVinoWeightFormat.Original
+                    ? target
+                    : OpenVinoWeightPrecision.Fp16;
+
+            return OptimizationExecutionPayload.ForOpenVino(
+                OpenVinoExecutionPayload.Create(
+                    "openvino.standard.cpu.int8.default.v1",
+                    "CPU",
+                    "Standard candidate",
+                    candidate.EvidenceId,
+                    source,
+                    target,
+                    OpenVinoKvCachePrecision.U8,
+                    compiledCacheEnabled: false,
+                    compiledCacheIsDisposable: true,
+                    compiledCacheIsModelArtifact: false,
+                    createsCompletePackage: true,
+                    OpenVinoBuildIdentity.Create(
+                        "2026.3.0", "2026.3.0.0", "2026.3.0", HardwareDigest),
+                    new Dictionary<string, string>(StringComparer.Ordinal)
+                    {
+                        ["openvino"] = "2026.3.0"
+                    }));
+        }
+
         internal static OptimizationExecutionPlan Create(
             OptimizationCandidate? candidate = null,
-            OptimizationCapabilitySnapshot? snapshot = null) =>
-            OptimizationPlanIssuer.Issue(
+            OptimizationCapabilitySnapshot? snapshot = null)
+        {
+            OptimizationCandidate chosen = candidate ?? Candidate();
+
+            return OptimizationPlanIssuer.Issue(
                 OptimizationPreferenceResolver.Resolve(
-                    [candidate ?? Candidate()],
+                    [chosen],
                     OptimizationPreferenceSelection.Manual(50))!,
+                Payload(chosen),
                 snapshot ?? Snapshot(),
                 Workload(),
                 Binding(),
+                modelLayerCount: 32,
                 DateTimeOffset.UnixEpoch);
+        }
     }
 
     [TestMethod]
@@ -217,6 +269,7 @@ public sealed class OptimizationPlanBindingTests
             OptimizationPreferenceResolver.Resolve(
                 [OptimizationPlanTestData.Candidate()],
                 OptimizationPreferenceSelection.Automatic())!,
+            OptimizationPlanTestData.Payload(OptimizationPlanTestData.Candidate()),
             OptimizationCapabilitySnapshot.ForGguf(
                 "gguf-cap",
                 OptimizationPlanTestData.CapabilityDigest,
@@ -235,6 +288,7 @@ public sealed class OptimizationPlanBindingTests
                     ])),
             OptimizationPlanTestData.Workload(),
             OptimizationPlanTestData.Binding(),
+            modelLayerCount: 32,
             DateTimeOffset.UnixEpoch));
     }
 
@@ -268,9 +322,11 @@ public sealed class OptimizationPlanBindingTests
             OptimizationPreferenceResolver.Resolve(
                 [OptimizationPlanTestData.Candidate()],
                 OptimizationPreferenceSelection.Automatic())!,
+            OptimizationPlanTestData.Payload(OptimizationPlanTestData.Candidate()),
             OptimizationPlanTestData.Snapshot(),
             OptimizationPlanTestData.Workload(),
             OptimizationPlanTestData.Binding(),
+            modelLayerCount: 32,
             new DateTimeOffset(2026, 8, 24, 12, 0, 0, TimeSpan.FromHours(2))));
     }
 
