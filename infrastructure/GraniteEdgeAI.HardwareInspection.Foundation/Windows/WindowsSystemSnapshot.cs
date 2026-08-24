@@ -2,6 +2,13 @@ using GraniteEdgeAI.HardwareInspection.Foundation.Validation;
 
 namespace GraniteEdgeAI.HardwareInspection.Foundation.Windows;
 
+public enum WindowsSystemSnapshotDiagnosticCode
+{
+    MemoryUnavailable,
+    MemoryOverflow,
+    MemoryInconsistent,
+}
+
 public sealed class WindowsSystemSnapshot
 {
     public WindowsSystemSnapshot(
@@ -58,9 +65,24 @@ public sealed class WindowsSystemSnapshotException : InvalidOperationException
         : base(GetSafeMessage(diagnosticCode))
     {
         DiagnosticCode = diagnosticCode;
+        ClosedDiagnostic = GetClosedDiagnostic(diagnosticCode);
     }
 
     public string DiagnosticCode { get; }
+
+    public WindowsSystemSnapshotDiagnosticCode ClosedDiagnostic { get; }
+
+    private static WindowsSystemSnapshotDiagnosticCode GetClosedDiagnostic(
+        string diagnosticCode) => diagnosticCode switch
+        {
+            WindowsSystemSnapshotProvider.MemoryUnavailableCode =>
+                WindowsSystemSnapshotDiagnosticCode.MemoryUnavailable,
+            WindowsSystemSnapshotProvider.MemoryOverflowCode =>
+                WindowsSystemSnapshotDiagnosticCode.MemoryOverflow,
+            WindowsSystemSnapshotProvider.MemoryInconsistentCode =>
+                WindowsSystemSnapshotDiagnosticCode.MemoryInconsistent,
+            _ => throw new ArgumentOutOfRangeException(nameof(diagnosticCode)),
+        };
 
     private static string GetSafeMessage(string diagnosticCode) => diagnosticCode switch
     {
