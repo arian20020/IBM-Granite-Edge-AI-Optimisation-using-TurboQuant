@@ -25,7 +25,7 @@ The package contained 86 manifest-listed non-manifest files. Before implementati
 | Identity | Model run, model handoff, and product hardware run UUID roles remain distinct | Preserved by functional merge and combined-tree audit |
 | Lifecycle | Issue, claim, bind, invalidate, retry, and reissue reject stale/replayed state | Preserved by functional merge and combined-tree audit |
 | Provider isolation | Hardware providers receive no model data and do not branch on GGUF/OpenVINO | PASS, source audit including new fixture boundary |
-| Production execution | Hardware service remains fail-closed until an approved production coordinator exists | PASS, only unavailable production implementation remains |
+| Production execution | Hardware service activates only through the approved fail-closed coordinator | PASS at Gate 7; fixed acquisition, bounded collection, single resolution, closed outcomes, and x64-only composition are active |
 | Block 3 | Sole future interpreter of model plus hardware evidence; not activated here | Preserved by scope |
 | Continue | Not production-enabled by this integration | Preserved by scope |
 | Gate 1 | Deterministic assets may merge; blocked operational status is not promoted | PASS, Gate assets remain repository tooling only |
@@ -87,6 +87,11 @@ The package contained 86 manifest-listed non-manifest files. Before implementati
 | Gate 6 builds and architecture | Packaged Debug/x64 test project; app Release/x64 MSIX; evaluated x86 graph | PASS, zero build errors; known warning families only; x86 contains zero resolution Compile items and zero Hardware Inspection Foundation project references |
 | Gate 6 boundary audit | Exact-range inventory, dependency/privacy/source scans, production-composition check, conflict-marker scan, and `git diff --check` | PASS; no new dependency/artifact/private-data boundary and `UnavailableHardwareInspectionService` remains composed |
 | Gate 6 review | Inline adversarial review of authority, semantics, time/numeric boundaries, collection bounds, manifest, fallbacks, privacy, and activation | PASS with no findings; explicitly not independent because the approved execution choice kept review inline |
+| Gate 7 implementation head | Exact code head `19ab9418`; implementation range `5915ded8..19ab9418` | PASS; fixed tool authority, all-or-nothing custody, provider adaptation, bounded collection, service lifecycle, outcomes, progress, cancellation, and x64 production activation are present |
+| Gate 7 ordinary suites | Foundation 201/201; probe unit suite 22/22; hardware/runner Python contracts 63/63 | PASS, 286/286 total with zero failed or skipped; PowerShell bypass was process-scoped |
+| Gate 7 builds and architecture | Debug/x64 test MSIX; Release/x64 app MSIX; evaluated x86 graph | PASS, zero errors; known warning families only; x86 contains zero Hardware Inspection infrastructure Compile items and zero Foundation references |
+| Gate 7 disposable-guest acceptance | Final v12 bundle; normally installed developer-signed x64 package; three registered-AUMID activations | PASS, 70/70 in each repetition, package identity present, zero failures; development-only with public trust and Smart App Control unverified |
+| Gate 7 boundary audit and review | Exact-range dependency/artifact/private-data scans, shell/network/model-coupling scans, conflict/whitespace checks, x86 evaluation, and inline lifecycle/security review | PASS after expanding the guest inventory from the prior 32 process tests to an exact 70 including all 38 Gate 7 tests; no remaining finding; review is explicitly not independent |
 
 ## Functional merge audit
 
@@ -160,3 +165,14 @@ The package contained 86 manifest-listed non-manifest files. Before implementati
 - Resolution sources contain no shell/process launch, listener, network, filesystem, registry, compatibility, model-inspection, handoff, or product-outcome dependency. The Gate 6 range adds no package/project reference or binary evidence artifact.
 - Production still composes `UnavailableHardwareInspectionService`. Gate 7 owns orchestration, outcomes, cancellation, progress, and activation; Gates 8-9 own UI integration and supported-machine end-to-end evidence.
 - Inline review found no remaining Critical, Important, or Minor issue. It is not represented as independent review; that requirement remains an explicit execution exception.
+
+## Gate 7 orchestration and activation audit
+
+- `FixedHardwareToolAcquisition` accepts only the pinned administrator LLM Fit v1.1.9 package and the packaged llama.cpp probe under fixed roots. Both manifests and every package member must verify before either custody object is returned; any missing, malformed, substituted, non-AMD64, or untrusted input fails closed.
+- `FoundationHardwareEvidenceCapture` shares one bounded external runner. `HardwareEvidenceCollectionCoordinator` permits at most four native operations and exactly one external operation, cancels siblings on failure, observes cleanup, retains no provider exception text, and distinguishes caller cancellation from closed provider/orchestration failures.
+- `HardwareInspectionService` validates before effects, emits the seven public stages with monotonic sequence values, resolves exactly once, gives cancellation precedence before terminal publication, maps callback and orchestration faults to fixed safe codes, and disposes tool custody after resolution. Only resolved clean/warning outcomes receive a handoff.
+- The public x64 onboarding constructor now uses `HardwareInspectionComposition.CreateProduction()`. Construction performs no verification, capture, or process launch. Internal injection remains available for deterministic tests. The evaluated x86 graph has zero Hardware Inspection infrastructure Compile items and zero Foundation project references.
+- The exact range adds no package/project dependency, candidate download, URL, certificate, key, executable, package, TRX, raw evidence, host label, username, private path, model datum, shell/network API, or compatibility rule. Generated packages and the v12 raw result remain outside version control.
+- Inline review found and corrected one acceptance-coverage gap: the first exact-head bundle selected only the 32 process tests. The accepted v12 inventory is fixed at 70 tests: those 32 plus all 38 Gate 7 authority, acquisition, parser, capture, coordinator, outcome, service, package-contract, and composition tests.
+- The final v12 development summary is canonical UTF-8/LF and has SHA-256 `FB415067027EE3B62F37402D1A2948662A1E15FE4B730AA397531BB929A7CF09`. All three repetitions report package identity present, `Developer` signing, 70 total, 70 passed, and no failures. The record deliberately leaves `publicTrustVerified` and `smartAppControlVerified` false.
+- Gate 7 activates verified orchestration; it does not approve or redistribute LLM Fit, produce model compatibility/fit conclusions, establish public publisher trust, or complete Gates 8-9 UI/accessibility and supported Intel-machine evidence.
