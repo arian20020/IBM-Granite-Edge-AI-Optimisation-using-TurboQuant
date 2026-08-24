@@ -108,7 +108,7 @@
     -->
     <x:Double x:Key="CompatibilityGap">14</x:Double>
     <Thickness x:Key="CompatibilityGapThickness">0,14,0,0</Thickness>
-    <Thickness x:Key="CompatibilityPageMargin">28,24,28,100</Thickness>
+    <Thickness x:Key="CompatibilityPageMargin">28,24,28,28</Thickness>
     <Thickness x:Key="CompatibilitySectionCardPadding">20,19,20,19</Thickness>
     <Thickness x:Key="CompatibilityMainFactsPadding">20</Thickness>
     <Thickness x:Key="CompatibilityMiniCardPadding">18,17,18,17</Thickness>

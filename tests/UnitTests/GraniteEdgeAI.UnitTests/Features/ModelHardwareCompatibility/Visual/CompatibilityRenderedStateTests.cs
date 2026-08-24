@@ -56,6 +56,15 @@ public sealed class CompatibilityRenderedStateTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
+    public void Page_DoesNotDuplicateTheOnboardingShellStageIndicator()
+    {
+        CompatibilityPage page = new() { StartAutomatically = false };
+
+        Assert.IsNull(page.FindName("StepperSteps"));
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
     public void EveryFixture_RendersWithoutThrowing()
     {
         // The page resolves theme-scoped brushes from code. A key that is

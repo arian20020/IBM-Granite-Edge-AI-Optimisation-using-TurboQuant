@@ -20,15 +20,6 @@ namespace GraniteEdgeAI.Features.ModelHardwareCompatibility;
 /// </summary>
 internal sealed partial class CompatibilityPage : Page
 {
-    private static readonly string[] StepLabels =
-    [
-        "Choose model",
-        "Inspect model",
-        "Check hardware fit",
-        "Choose settings",
-        "Finish"
-    ];
-
     private CompatibilityPresentation _presentation = CompatibilityPresentation.Empty;
 
     public CompatibilityPage()
@@ -49,7 +40,6 @@ internal sealed partial class CompatibilityPage : Page
     {
         ViewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
         InitializeComponent();
-        BuildStepper();
         Apply(CompatibilityPresentation.Empty);
 
         ViewModel.PresentationChanged += (_, presentation) => Apply(presentation);
@@ -121,7 +111,6 @@ internal sealed partial class CompatibilityPage : Page
         SecondaryAction.Content = presentation.SecondaryActionText;
         SecondaryAction.IsEnabled = presentation.SecondaryActionEnabled;
 
-        ApplyStepper(presentation.ActiveStepIndex);
     }
 
     private void ApplyOutcome(CompatibilityPresentation presentation)
@@ -389,78 +378,6 @@ internal sealed partial class CompatibilityPage : Page
             });
 
             RecoveryRows.Children.Add(item);
-        }
-    }
-
-    private void BuildStepper()
-    {
-        for (int index = 0; index < StepLabels.Length; index++)
-        {
-            StackPanel step = new();
-
-            Border dot = new()
-            {
-                CornerRadius = new CornerRadius(10),
-                Height = 19,
-                Width = 19,
-                BorderThickness = new Thickness(2),
-                HorizontalAlignment = HorizontalAlignment.Center,
-                Child = new TextBlock
-                {
-                    FontSize = 7.5,
-                    FontWeight = Microsoft.UI.Text.FontWeights.Bold,
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    VerticalAlignment = VerticalAlignment.Center,
-                    Text = (index + 1).ToString(System.Globalization.CultureInfo.InvariantCulture)
-                }
-            };
-
-            step.Children.Add(dot);
-            step.Children.Add(new TextBlock
-            {
-                Text = StepLabels[index],
-                FontSize = Size("CompatibilityStepLabelFontSize"),
-                HorizontalAlignment = HorizontalAlignment.Center,
-                Margin = new Thickness(0, 5, 0, 0),
-                TextAlignment = TextAlignment.Center,
-                TextWrapping = TextWrapping.Wrap
-            });
-
-            Grid.SetColumn(step, index);
-            StepperSteps.Children.Add(step);
-        }
-    }
-
-    private void ApplyStepper(int activeIndex)
-    {
-        for (int index = 0; index < StepperSteps.Children.Count; index++)
-        {
-            if (StepperSteps.Children[index] is not StackPanel step
-                || step.Children[0] is not Border dot
-                || step.Children[1] is not TextBlock label)
-            {
-                continue;
-            }
-
-            bool reached = index <= activeIndex;
-
-            dot.Background = reached
-                ? Brush("CompatibilityPrimaryBlueBrush")
-                : Brush("CompatibilitySurfaceBrush");
-            dot.BorderBrush = reached
-                ? Brush("CompatibilityPrimaryBlueBrush")
-                : Brush("CompatibilityBorderStrongBrush");
-
-            if (dot.Child is TextBlock number)
-            {
-                number.Foreground = reached
-                    ? Brush("CompatibilitySurfaceBrush")
-                    : Brush("CompatibilityTextMutedBrush");
-            }
-
-            label.Foreground = index == activeIndex
-                ? Brush("CompatibilityTextPrimaryBrush")
-                : Brush("CompatibilityTextMutedBrush");
         }
     }
 

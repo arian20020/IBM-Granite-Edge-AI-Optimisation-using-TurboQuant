@@ -374,31 +374,5 @@
             </Grid>
         </ScrollViewer>
 
-        <!-- Five-step stepper, pinned to the bottom -->
-        <Border
-            VerticalAlignment="Bottom"
-            Background="{ThemeResource CompatibilitySurfaceBrush}"
-            BorderBrush="{ThemeResource CompatibilityBorderLightBrush}"
-            BorderThickness="0,1,0,0"
-            Height="84"
-            Padding="28,11,28,11">
-            <StackPanel>
-                <TextBlock
-                    FontSize="{StaticResource CompatibilityPillFontSize}"
-                    FontWeight="Bold"
-                    Foreground="{ThemeResource CompatibilityTextMutedBrush}"
-                    HorizontalAlignment="Center"
-                    Text="CHECK HARDWARE FIT" />
-                <Grid x:Name="StepperSteps" Margin="0,10,0,0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-                </Grid>
-            </StackPanel>
-        </Border>
     </Grid>
 </Page>
