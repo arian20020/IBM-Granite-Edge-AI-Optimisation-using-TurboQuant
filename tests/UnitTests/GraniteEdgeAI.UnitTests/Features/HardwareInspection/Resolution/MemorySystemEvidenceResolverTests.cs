@@ -133,19 +133,25 @@ public sealed class MemorySystemEvidenceResolverTests
     public void Resolve_GiBMidpointsUseMidpointToEvenBeforeToleranceComparison()
     {
         double halfByte = 0.5 / HardwareResolutionTestData.GiB;
-        double acceptedTotal = 32 + halfByte;
-        double rejectedTotal = 32 + (3 * halfByte);
+        var windows = new GraniteEdgeAI.HardwareInspection.Foundation.Windows.WindowsSystemSnapshot(
+            physicallyInstalledBytes: 2 * HardwareResolutionTestData.GiB,
+            osUsablePhysicalBytes: HardwareResolutionTestData.GiB + 2,
+            availablePhysicalBytes: 0,
+            capturedAtUtc: HardwareResolutionTestData.Now,
+            operatingSystemName: "Windows 11",
+            operatingSystemVersion: "10.0.26100",
+            operatingSystemArchitecture: "x64");
 
-        Assert.IsFalse(Resolve(
-            AvailableLlmFit(acceptedTotal, 20),
-            HardwareResolutionTestData.WindowsSystem()).HasCriticalFailure);
         AssertCriticalFailure(
             Resolve(
-                AvailableLlmFit(rejectedTotal, 20),
-                HardwareResolutionTestData.WindowsSystem()),
+                AvailableLlmFit(halfByte, 0),
+                windows),
             HardwareResolutionDiagnosticCode.TotalMemoryConflict,
             entryIndex: 1,
             "total-memory.conflict");
+        Assert.IsFalse(Resolve(
+            AvailableLlmFit(3 * halfByte, 0),
+            windows).HasCriticalFailure);
     }
 
     [TestMethod]
