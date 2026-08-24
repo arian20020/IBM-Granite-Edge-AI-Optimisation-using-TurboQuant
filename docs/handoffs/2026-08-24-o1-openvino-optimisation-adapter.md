@@ -12,7 +12,9 @@ Branch: `feature/openvino-optimisation-adapter-v1`
 - Authoritative frozen C1 contract: `f999443279ae3505f7df1c686f98c5163c190acd` from `origin/feature/cross-route-optimisation-contracts-v1`.
 - C1 merge / O1 implementation base: `706d3cc4ca32364703eb2cea599a1557f8536e42`.
 - Merge parents, in order: `c7c7ae34210caa3d0af03643ea1fa4966bb8b296` and `f999443279ae3505f7df1c686f98c5163c190acd`.
-- O1 implementation tip before this handoff document: `b9767606c7553a5d71d1ee3d4d60ccb9f0aee1c7`.
+- O1 implementation tip before this handoff update: `18c1398fbfb748def347138e7bff0335612429b7`.
+- Whole-branch review fix: `18c1398fbfb748def347138e7bff0335612429b7`
+  (`fix(openvino): close plan execution gaps`).
 - C1 is an ancestor of the implementation tip. The remote C1 ref resolved to the exact expected SHA during final verification.
 
 The C1 merge's only manually resolved shared-file conflict was the explicitly authorised `MainWindow.xaml.cs` resolution. It retains C1's conditional initial fixture-gallery/onboarding navigation and registers `AppWindow.Closing += AppWindow_Closing;` after the `#endif`, so the complete existing OpenVINO shutdown path runs in both builds.
@@ -23,8 +25,13 @@ The C1 merge's only manually resolved shared-file conflict was the explicitly au
 - Capability input: public `OpenVinoOptimizationToolVersions`, `OpenVinoOptimizationCapabilityAdmission`, and `OpenVinoOptimizationCapabilityEvidence`.
 - Capability output: `OpenVinoOptimizationCapabilityProjector.Project(evidence)` returns frozen C1 `OpenVinoCapabilityPayload`. It reports evidence and does not select a preference or objective.
 - Exact adapter: `OpenVinoOptimizationPlanAdapter.Adapt(OptimizationExecutionPlan, OptimizationCapabilitySnapshot, string currentSourceSha256, ulong currentSourceLengthBytes)` returns `OpenVinoOptimizationAdaptation` with `Ready` plus one exact candidate or `ReplanRequired` plus a typed C1 `OptimizationSupportCode`.
-- Current-state input: `OpenVinoOptimizationCurrentState` independently supplies the current capability snapshot, model-inspection run/handoff IDs, product-hardware run ID, and hardware snapshot SHA-256.
-- Execution request: public `OpenVinoOptimizationRequest(SourceDirectory, DestinationDirectory, Plan, CurrentState, Confirmed)`.
+- Live current-state input: public `IOpenVinoOptimizationCurrentStateProvider`
+  returns an `OpenVinoOptimizationCurrentState` for the explicit
+  `InitialPreflight`, `BeforeStaging`, and `BeforePublish` checkpoints. The
+  provider is invoked independently at every checkpoint; the request no longer
+  freezes one state object for the whole run.
+- Execution request: public `OpenVinoOptimizationRequest(SourceDirectory,
+  DestinationDirectory, Plan, CurrentStateProvider, Confirmed)`.
 - Accepting execution result: `OpenVinoOptimizationService.ExecuteAsync(...)` returns frozen C1 `OptimizationExecutionResult`. Persistent plans return `SucceededPersistent`; Original returns `SucceededRuntimeProfile`; drift returns `ReplanRequired`; cancellation/failure results contain bounded support codes and no path or raw worker output.
 - Route-level compatibility seam: `OptimizeAsync(...)` returns `OpenVinoOptimizationResult`. The fixed registry is available only through the explicitly named `OpenVinoOptimizationLegacyRequestV1` / `OptimizeLegacyV1Async` migration seam.
 
@@ -52,7 +59,10 @@ TBQ4 and TBQ3 are not optimisation capabilities in this adapter. Frozen C1 model
 
 ## Revalidation and transaction boundaries
 
-The plan-bound path validates the frozen route, configuration identity, exact evidence entry, full capability snapshot identity/hash/payload, source SHA-256/length, model inspection run/handoff/model identity, and hardware run/snapshot identity:
+The plan-bound path obtains a fresh state from the request's live provider and
+validates the frozen route, configuration identity, exact evidence entry, full
+capability snapshot identity/hash/payload, source SHA-256/length, model
+inspection run/handoff/model identity, and hardware run/snapshot identity:
 
 1. during initial preflight;
 2. immediately before transaction or runtime-profile staging; and
@@ -61,6 +71,12 @@ The plan-bound path validates the frozen route, configuration identity, exact ev
 Configuration identity is recomputed through the frozen C1 issuer rather than by copying C1's internal canonicalizer. Capability/source/model/hardware drift returns a typed replan result before publication; no replacement candidate is selected.
 
 Persistent execution preserves the existing order: retained source snapshot and inspection, operation-owned staging, conversion, output validation, runtime smoke, schema-v2 provenance write, final revalidation, atomic publish, reinspection, rollback if reinspection fails, terminal progress, and operation-owned cleanup. Successful persistent results bind a validated output identity, output manifest SHA-256, and non-zero output size.
+
+After a successful atomic move, either a typed reinspection rejection or an
+unexpected reinspection exception triggers rollback and returns frozen C1
+`Failed/ReinspectionFailed`. That result has null output identity, null output
+manifest, and zero output size. A rollback failure remains
+`PublicationFailed`; caller cancellation retains cancellation semantics.
 
 Original is runtime-only. It performs no conversion, persistent-model validation, smoke, reinspection, or model-package publication. It writes one schema-v2 bound runtime profile through the hardened `ConversionTransaction` staging/atomic-move path, then returns `SucceededRuntimeProfile` with the profile identity and size.
 
@@ -78,7 +94,13 @@ Schema-v2 persistent provenance and schema-v2 runtime profiles bind:
 
 Reads recompute the O1 execution and plan-binding digests and fail closed on tampering. Schema-v2 validation does not consult a fixed registry. Schema-v1 provenance retains fixed-ID validation only for the explicitly versioned legacy migration path.
 
-Production optimisation search found `GetRequired(` once, in `OpenVinoOptimizationLegacyRegistryV1.GetRequired(OpenVinoOptimizationObjective)`. All `OpenVinoOptimizationObjective` references are confined to that legacy type/registry and `LegacyObjectiveV1`; the accepting request and `ExecuteAsync` path carry a frozen C1 plan and never call the lookup. Focused adapter reflection/behavior tests require the single strict source-bound adapter entry point and exact no-objective mapping; legacy tests call only `OptimizeLegacyV1Async`.
+Production optimisation search found `GetRequired(` once, in `OpenVinoOptimizationLegacyRegistryV1.GetRequired(OpenVinoOptimizationObjective)`. All `OpenVinoOptimizationObjective` references are confined to that legacy type/registry and `LegacyObjectiveV1`; the accepting request and `ExecuteAsync` path carry a frozen C1 plan and never call the lookup. The stale unused `OpenVinoOptimizationRegistry` compatibility alias was removed. Focused adapter reflection/behavior tests require the single strict source-bound adapter entry point and exact no-objective mapping; legacy tests call only `OptimizeLegacyV1Async`.
+
+Legacy V1 `Automatic` and `Quality` remain inside the sealed executor's exact
+disabled-cache envelope. Legacy `Balanced` and `Efficiency` request enabled
+compiled cache, which the worker protocol cannot prove; they therefore fail
+closed with the typed route rejection before optimisation pipeline work and
+are no longer claimed as publishable by the converter-gated service E2E.
 
 ## Fresh verification evidence
 
@@ -88,19 +110,35 @@ All commands ran from `C:\O1` using portable Git and portable .NET SDK `10.0.301
 |---|---|
 | C1 full contract/unit project, Release x64 | 659 total, 659 passed, 0 failed, 0 skipped |
 | OpenVINO contract project, Release x64 | 204 total, 204 passed, 0 failed, 0 skipped |
-| OpenVINO component project, Release x64 | 368 total, 363 passed, 0 failed, 5 skipped |
+| OpenVINO component project, Release x64 | 370 total, 365 passed, 0 failed, 5 skipped |
 | OpenVINO worker-client project, Release x64 | 13 total, 13 passed, 0 failed, 0 skipped |
-| Full worker-process integration project, Release x64 | 63 total, 47 passed, 2 failed, 14 skipped |
+| Full worker-process integration project, Release x64 | 64 total, 13 passed, 36 failed, 15 skipped; generated managed transport DLL blocked by Windows Application Control in 34 protocol-process cases, plus 2 missing TurboQuant-stage failures |
 | Converter isolation filter | 5 total, 4 passed, 0 failed, 1 skipped |
 | Protocol containment filter | 34 total, 34 passed, 0 failed, 0 skipped |
 | Stable-route acceptance filter | 12 total, 1 passed, 0 failed, 11 skipped |
-| Optimisation end-to-end filter | 2 total, 0 passed, 0 failed, 2 skipped |
+| Optimisation end-to-end filter | 3 total, 0 passed, 0 failed, 3 skipped |
 | Worker-process integration project build, Release x64 | succeeded, 0 warnings, 0 errors |
 | Checked-in OpenVINO GenAI fixture PowerShell verifier | `fixture_valid`, exit 0 |
 | Debug x64 app restore phase | exit 0 |
 | Debug x64 app build phase | exit 0, 0 errors, one `NETSDK1198` missing `win-x64.pubxml` warning |
 
-The five component skips require `GRANITE_OPENVINO_OFFICIAL_WORKER_STAGE`. Converter isolation and both optimisation E2Es require `GRANITE_OPENVINO_CONVERTER_STAGE`. The stable-route filter's native cases require the converter stage and two independently built official stages; its one static case passed. The full integration project's only failures are the two real TurboQuant worker tests, both throwing the explicit environmental requirement `OPENVINO_TURBOQUANT_WORKER_STAGE is required`; its 14 skips are likewise native-stage/GPU gated. The independent protocol-containment filter passed all 34 cases.
+The five component skips require `GRANITE_OPENVINO_OFFICIAL_WORKER_STAGE`.
+Converter isolation and all three optimisation E2Es require
+`GRANITE_OPENVINO_CONVERTER_STAGE`; the service E2Es additionally require
+`OPENVINO_OFFICIAL_WORKER_STAGE_A`. The new native plan-bound E2E constructs
+capability evidence through the O1 projector, issues the selected candidate
+through frozen C1, verifies the exact adapter, executes through the real sealed
+converter/worker pipeline, and validates the schema-v2 result/provenance
+binding. It remains an honest skip because no converter stage is present.
+
+During this fix round, the full integration run compiled but Windows
+Application Control blocked its freshly generated
+`GraniteEdgeAI.ModelInspection.Transport.dll` in 34 protocol-process cases
+(`0x800711C7`). The other two failures are the real TurboQuant worker tests,
+which require `OPENVINO_TURBOQUANT_WORKER_STAGE`; 15 native-stage/GPU cases
+skipped. These are environmental failures outside O1 ownership. The focused
+optimisation E2E filter compiled and skipped only for the absent converter
+stage, and the integration project build succeeded with zero warnings/errors.
 
 The 204-contract suite includes the PowerShell closure, dependency-lock, workflow, packaging, manifest, privacy, cleanup, fixture, protocol, and architecture source/behavior contracts. Direct manifest/activation/cleanup/release scripts were not run against invented inputs.
 
@@ -127,6 +165,6 @@ At verification time all relevant stage variables were unset and no official/con
 
 ## Boundary audit and repository state
 
-`706d3cc4..b9767606` changes only the approved O1 optimisation production files, their named OpenVINO component/integration tests and narrow test-project C1 references, plus the approved plan. It contains no optimisation XAML/UI, navigation, `MainWindow`, GGUF, shared C1 contract, shared worker protocol, app project/solution, UO1, or I0 change. The earlier authorised merge resolution is outside that implementation range.
+`706d3cc4..18c1398f` changes only the approved O1 optimisation production files, their named OpenVINO component/integration tests and narrow test-project C1 references, plus the approved plan and handoff. It contains no optimisation XAML/UI, navigation, `MainWindow`, GGUF, shared C1 contract, shared worker protocol, app project/solution, UO1, or I0 change. The earlier authorised merge resolution is outside that implementation range.
 
 Before this handoff write, the branch was clean; there were no unmerged paths or exact Git conflict markers, `git diff --check` exited 0, and no owned OpenVINO worker/converter/process-fixture process remained. Task 5 made no production-code change, push, target-branch merge, PR, or external publication. The C1 import merge described above is the only merge in this O1 branch history.
