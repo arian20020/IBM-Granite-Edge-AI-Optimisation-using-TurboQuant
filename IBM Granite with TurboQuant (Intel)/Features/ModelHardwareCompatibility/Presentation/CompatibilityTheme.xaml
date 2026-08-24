@@ -106,38 +106,38 @@
         one value here drives it too: changing this changes the whole page's
         spacing coherently, which is what stops the rhythm drifting card by card.
     -->
-    <x:Double x:Key="CompatibilityGap">10</x:Double>
-    <Thickness x:Key="CompatibilityGapThickness">0,10,0,0</Thickness>
-    <Thickness x:Key="CompatibilityPageMargin">16,16,16,84</Thickness>
-    <Thickness x:Key="CompatibilitySectionCardPadding">14,16,14,16</Thickness>
-    <Thickness x:Key="CompatibilityMainFactsPadding">16</Thickness>
-    <Thickness x:Key="CompatibilityMiniCardPadding">14,13,14,13</Thickness>
-    <Thickness x:Key="CompatibilityOutcomePadding">15,13,15,13</Thickness>
-    <Thickness x:Key="CompatibilityFactPadding">11,10,11,10</Thickness>
-    <Thickness x:Key="CompatibilityDisclosurePadding">15,12,15,12</Thickness>
+    <x:Double x:Key="CompatibilityGap">14</x:Double>
+    <Thickness x:Key="CompatibilityGapThickness">0,14,0,0</Thickness>
+    <Thickness x:Key="CompatibilityPageMargin">28,24,28,100</Thickness>
+    <Thickness x:Key="CompatibilitySectionCardPadding">20,19,20,19</Thickness>
+    <Thickness x:Key="CompatibilityMainFactsPadding">20</Thickness>
+    <Thickness x:Key="CompatibilityMiniCardPadding">18,17,18,17</Thickness>
+    <Thickness x:Key="CompatibilityOutcomePadding">20,17,20,17</Thickness>
+    <Thickness x:Key="CompatibilityFactPadding">15,13,15,13</Thickness>
+    <Thickness x:Key="CompatibilityDisclosurePadding">20,16,20,16</Thickness>
 
-    <CornerRadius x:Key="CompatibilityCardRadius">12</CornerRadius>
-    <CornerRadius x:Key="CompatibilityFactRadius">8</CornerRadius>
+    <CornerRadius x:Key="CompatibilityCardRadius">14</CornerRadius>
+    <CornerRadius x:Key="CompatibilityFactRadius">10</CornerRadius>
     <CornerRadius x:Key="CompatibilityPillRadius">999</CornerRadius>
-    <CornerRadius x:Key="CompatibilityButtonRadius">7</CornerRadius>
+    <CornerRadius x:Key="CompatibilityButtonRadius">9</CornerRadius>
 
     <!--
-        Type scale, read straight from the design's font-size declarations. The
-        page is dense by intent: these are small because the approved layout
-        fits a full assessment without scrolling.
+        Readable desktop type scale shared across the compatibility hierarchy.
+        The page scrolls when necessary rather than shrinking a complete
+        assessment below the scale used by the surrounding onboarding pages.
     -->
-    <x:Double x:Key="CompatibilityTitleFontSize">14</x:Double>
-    <x:Double x:Key="CompatibilityLedeFontSize">9</x:Double>
-    <x:Double x:Key="CompatibilityOutcomeTitleFontSize">12.5</x:Double>
-    <x:Double x:Key="CompatibilityOutcomeBodyFontSize">9.5</x:Double>
-    <x:Double x:Key="CompatibilityCardTitleFontSize">10.5</x:Double>
-    <x:Double x:Key="CompatibilityFactLabelFontSize">7.5</x:Double>
-    <x:Double x:Key="CompatibilityFactValueFontSize">11</x:Double>
-    <x:Double x:Key="CompatibilityFactDetailFontSize">7.5</x:Double>
-    <x:Double x:Key="CompatibilityRowTitleFontSize">9.5</x:Double>
-    <x:Double x:Key="CompatibilityRowSubFontSize">7.5</x:Double>
-    <x:Double x:Key="CompatibilityPillFontSize">7.5</x:Double>
-    <x:Double x:Key="CompatibilityButtonFontSize">8.5</x:Double>
-    <x:Double x:Key="CompatibilityStepLabelFontSize">6.5</x:Double>
+    <x:Double x:Key="CompatibilityTitleFontSize">28</x:Double>
+    <x:Double x:Key="CompatibilityLedeFontSize">14</x:Double>
+    <x:Double x:Key="CompatibilityOutcomeTitleFontSize">16</x:Double>
+    <x:Double x:Key="CompatibilityOutcomeBodyFontSize">13</x:Double>
+    <x:Double x:Key="CompatibilityCardTitleFontSize">15</x:Double>
+    <x:Double x:Key="CompatibilityFactLabelFontSize">11</x:Double>
+    <x:Double x:Key="CompatibilityFactValueFontSize">16</x:Double>
+    <x:Double x:Key="CompatibilityFactDetailFontSize">11.5</x:Double>
+    <x:Double x:Key="CompatibilityRowTitleFontSize">13.5</x:Double>
+    <x:Double x:Key="CompatibilityRowSubFontSize">11.5</x:Double>
+    <x:Double x:Key="CompatibilityPillFontSize">11</x:Double>
+    <x:Double x:Key="CompatibilityButtonFontSize">14</x:Double>
+    <x:Double x:Key="CompatibilityStepLabelFontSize">10.5</x:Double>
 
 </ResourceDictionary>

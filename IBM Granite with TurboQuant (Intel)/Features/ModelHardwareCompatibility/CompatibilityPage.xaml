@@ -28,7 +28,8 @@
     xmlns:controls="using:GraniteEdgeAI.Features.ModelHardwareCompatibility.Controls"
     d:DesignHeight="1024"
     d:DesignWidth="1440"
-    mc:Ignorable="d">
+    mc:Ignorable="d"
+    RequestedTheme="Light">
 
     <Page.Resources>
         <!--
@@ -46,12 +47,17 @@
 
         <ScrollViewer
             x:Name="ContentHost"
+            HorizontalContentAlignment="Center"
             HorizontalScrollMode="Disabled"
             HorizontalScrollBarVisibility="Disabled"
             Padding="{StaticResource CompatibilityPageMargin}"
             VerticalScrollBarVisibility="Auto">
 
-            <Grid x:Name="PageStack" MaxWidth="1120" RowSpacing="10">
+            <Grid
+                x:Name="PageStack"
+                MaxWidth="1240"
+                HorizontalAlignment="Stretch"
+                RowSpacing="14">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
@@ -88,8 +94,8 @@
                     BorderBrush="{ThemeResource CompatibilityBorderLightBrush}"
                     BorderThickness="1"
                     CornerRadius="{StaticResource CompatibilityCardRadius}"
-                    Padding="14,11,14,11">
-                    <Grid ColumnSpacing="11">
+                    Padding="20,15,20,15">
+                    <Grid ColumnSpacing="14">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="*" />
@@ -99,9 +105,9 @@
                             Background="{ThemeResource CompatibilityBlueSurfaceBrush}"
                             BorderBrush="{ThemeResource CompatibilityBlueBorderBrush}"
                             BorderThickness="1"
-                            CornerRadius="6"
-                            Height="26"
-                            Width="26" />
+                            CornerRadius="9"
+                            Height="38"
+                            Width="38" />
                         <StackPanel Grid.Column="1" VerticalAlignment="Center">
                             <TextBlock
                                 x:Name="ModelNameText"
@@ -125,7 +131,7 @@
                     BorderThickness="1"
                     CornerRadius="{StaticResource CompatibilityCardRadius}"
                     Padding="{StaticResource CompatibilityOutcomePadding}">
-                    <Grid ColumnSpacing="11">
+                    <Grid ColumnSpacing="14">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="*" />
@@ -135,13 +141,13 @@
                         <Border
                             x:Name="OutcomeGlyphHost"
                             Grid.Column="0"
-                            CornerRadius="11"
-                            Height="22"
+                            CornerRadius="16"
+                            Height="32"
                             VerticalAlignment="Center"
-                            Width="22">
+                            Width="32">
                             <TextBlock
                                 x:Name="OutcomeGlyphText"
-                                FontSize="12"
+                                FontSize="16"
                                 FontWeight="Bold"
                                 Foreground="White"
                                 HorizontalAlignment="Center"
@@ -168,7 +174,7 @@
                             Grid.Column="2"
                             BorderThickness="1"
                             CornerRadius="{StaticResource CompatibilityPillRadius}"
-                            Padding="8,5,8,5"
+                            Padding="11,7,11,7"
                             VerticalAlignment="Center">
                             <TextBlock
                                 x:Name="OutcomeBadgeText"
@@ -179,7 +185,7 @@
                 </Border>
 
                 <!-- .b-columns: 1.35fr / .85fr, children stretch to equal height -->
-                <Grid Grid.Row="3" ColumnSpacing="10">
+                <Grid Grid.Row="3" ColumnSpacing="14">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="1.35*" />
                         <ColumnDefinition Width="0.85*" />
@@ -206,9 +212,9 @@
                             -->
                             <Grid
                                 x:Name="FactsGrid"
-                                ColumnSpacing="10"
-                                Margin="0,11,0,0"
-                                RowSpacing="10">
+                                ColumnSpacing="12"
+                                Margin="0,14,0,0"
+                                RowSpacing="12">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="*" />
@@ -227,14 +233,14 @@
                             -->
                             <controls:CompatibilityBudgetDiagram
                                 x:Name="BudgetDiagram"
-                                Margin="0,12,0,0"
+                                Margin="0,16,0,0"
                                 ShowLegend="False"
                                 Visibility="Collapsed" />
                         </StackPanel>
                     </Border>
 
                     <!-- Side stack: equal rows -->
-                    <Grid Grid.Column="1" RowSpacing="10">
+                    <Grid Grid.Column="1" RowSpacing="14">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="*" />
                             <RowDefinition Height="*" />
@@ -253,7 +259,7 @@
                                     FontSize="{StaticResource CompatibilityCardTitleFontSize}"
                                     FontWeight="SemiBold"
                                     Foreground="{ThemeResource CompatibilityTextPrimaryBrush}" />
-                                <StackPanel x:Name="RuntimeRows" Margin="0,9,0,0" />
+                                <StackPanel x:Name="RuntimeRows" Margin="0,12,0,0" />
                             </StackPanel>
                         </Border>
 
@@ -270,7 +276,7 @@
                                     FontSize="{StaticResource CompatibilityCardTitleFontSize}"
                                     FontWeight="SemiBold"
                                     Foreground="{ThemeResource CompatibilityTextPrimaryBrush}" />
-                                <StackPanel x:Name="CheckRows" Margin="0,9,0,0" />
+                                <StackPanel x:Name="CheckRows" Margin="0,12,0,0" />
                             </StackPanel>
                         </Border>
                     </Grid>
@@ -295,7 +301,7 @@
                             FontWeight="SemiBold"
                             Foreground="{ThemeResource CompatibilityTextPrimaryBrush}"
                             Text="What would help" />
-                        <StackPanel x:Name="RecoveryRows" Margin="0,9,0,0" />
+                        <StackPanel x:Name="RecoveryRows" Margin="0,12,0,0" />
                     </StackPanel>
                 </Border>
 
@@ -353,14 +359,16 @@
                         CornerRadius="{StaticResource CompatibilityButtonRadius}"
                         FontSize="{StaticResource CompatibilityButtonFontSize}"
                         HorizontalAlignment="Stretch"
-                        MinHeight="32" />
+                        MinHeight="44"
+                        Padding="18,10" />
                     <Button
                         x:Name="PrimaryAction"
                         Grid.Column="1"
                         CornerRadius="{StaticResource CompatibilityButtonRadius}"
                         FontSize="{StaticResource CompatibilityButtonFontSize}"
                         HorizontalAlignment="Stretch"
-                        MinHeight="32"
+                        MinHeight="44"
+                        Padding="18,10"
                         Style="{StaticResource AccentButtonStyle}" />
                 </Grid>
             </Grid>
@@ -372,8 +380,8 @@
             Background="{ThemeResource CompatibilitySurfaceBrush}"
             BorderBrush="{ThemeResource CompatibilityBorderLightBrush}"
             BorderThickness="0,1,0,0"
-            Height="72"
-            Padding="24,9,24,9">
+            Height="84"
+            Padding="28,11,28,11">
             <StackPanel>
                 <TextBlock
                     FontSize="{StaticResource CompatibilityPillFontSize}"
@@ -381,7 +389,7 @@
                     Foreground="{ThemeResource CompatibilityTextMutedBrush}"
                     HorizontalAlignment="Center"
                     Text="CHECK HARDWARE FIT" />
-                <Grid x:Name="StepperSteps" Margin="0,8,0,0">
+                <Grid x:Name="StepperSteps" Margin="0,10,0,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="*" />

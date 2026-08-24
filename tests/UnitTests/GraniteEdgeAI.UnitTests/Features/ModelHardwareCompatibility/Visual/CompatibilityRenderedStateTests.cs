@@ -32,6 +32,30 @@ public sealed class CompatibilityRenderedStateTests
 {
     [UITestMethod]
     [TestCategory("WinUI")]
+    public void Page_UsesApprovedLightTheme()
+    {
+        CompatibilityPage page = new() { StartAutomatically = false };
+
+        Assert.AreEqual(ElementTheme.Light, page.RequestedTheme);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void Page_CentresAReadableDesktopContentColumn()
+    {
+        CompatibilityPage page = new() { StartAutomatically = false };
+        ScrollViewer contentHost = Element<ScrollViewer>(page, "ContentHost");
+        FrameworkElement pageStack = Element<FrameworkElement>(page, "PageStack");
+        TextBlock title = Element<TextBlock>(page, "PageTitleText");
+
+        Assert.AreEqual(HorizontalAlignment.Center, contentHost.HorizontalContentAlignment);
+        Assert.IsGreaterThanOrEqualTo(1180d, pageStack.MaxWidth);
+        Assert.IsLessThanOrEqualTo(1280d, pageStack.MaxWidth);
+        Assert.IsGreaterThanOrEqualTo(26d, title.FontSize);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
     public void EveryFixture_RendersWithoutThrowing()
     {
         // The page resolves theme-scoped brushes from code. A key that is
@@ -216,9 +240,7 @@ public sealed class CompatibilityRenderedStateTests
 
     private static CompatibilityPage CreatePage()
     {
-        CompatibilityPage page = new() { StartAutomatically = false };
-        page.RequestedTheme = ElementTheme.Light;
-        return page;
+        return new CompatibilityPage { StartAutomatically = false };
     }
 }
 #endif
