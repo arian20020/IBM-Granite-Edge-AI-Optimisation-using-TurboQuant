@@ -294,6 +294,41 @@ class Gate9AcceptanceControllerTests(unittest.TestCase):
             json.loads(result.stdout),
         )
 
+    def test_surfaces_only_sanitized_failed_production_result(self):
+        """Catch an early production failure being hidden behind a missing-result error."""
+        payload = (
+            b'{"schema":"granite.hardware-inspection.gate9-production-run/v1",'
+            b'"packageIdentityPresent":true,"outcome":"Failed",'
+            b'"stageCount":1,"handoffPresent":false,"manifestFieldCount":0,'
+            b'"diagnostics":["HI-TOOL-INTEGRITY"]}\n'
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "result.json"
+            path.write_bytes(payload)
+            result = self.run_functions(
+                [
+                    "Read-Gate9ProductionResult",
+                    "Assert-Gate9SuccessfulProductionResult",
+                ],
+                r"""
+                $result = Read-Gate9ProductionResult -Path $env:GRANITE_RESULT_PATH
+                try {
+                    Assert-Gate9SuccessfulProductionResult -Result $result
+                    throw 'The failed production result was accepted.'
+                }
+                catch {
+                    [Console]::Out.Write($_.Exception.Message)
+                }
+                """,
+                {"GRANITE_RESULT_PATH": str(path)},
+            )
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual(
+            "Gate 9 production run failed safely: HI-TOOL-INTEGRITY.",
+            result.stdout,
+        )
+
     def test_rejects_mutated_production_results(self):
         """Catch permissive parsing of failed, raw, malformed, or incomplete runs."""
         self.assertTrue(CONTROLLER.is_file(), "Gate 9 controller is missing")

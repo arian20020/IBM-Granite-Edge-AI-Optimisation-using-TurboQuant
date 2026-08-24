@@ -15,7 +15,6 @@ internal static class HardwareInspectionGate9AcceptanceHost
     private const int ExpectedManifestFieldCount = 19;
     private const int MaximumResultBytes = 4 * 1024;
     private static readonly TimeSpan RunTimeout = TimeSpan.FromSeconds(150);
-    private static readonly TimeSpan ProgressDeliveryTimeout = TimeSpan.FromMilliseconds(250);
     private static readonly HardwareInspectionRunStage[] ExpectedStages =
     [
         HardwareInspectionRunStage.StartingHardwareInspection,
@@ -86,17 +85,11 @@ internal static class HardwareInspectionGate9AcceptanceHost
             Guid inspectionId = Guid.NewGuid();
             var progressUpdates = new List<HardwareInspectionRunProgress>();
             object progressLock = new();
-            var expectedProgressDelivered = new TaskCompletionSource(
-                TaskCreationOptions.RunContinuationsAsynchronously);
-            var progress = new Progress<HardwareInspectionRunProgress>(update =>
+            var progress = new SynchronousProgress<HardwareInspectionRunProgress>(update =>
             {
                 lock (progressLock)
                 {
                     progressUpdates.Add(update);
-                    if (progressUpdates.Count >= ExpectedStages.Length)
-                    {
-                        expectedProgressDelivered.TrySetResult();
-                    }
                 }
             });
             using var timeout = new CancellationTokenSource(RunTimeout);
@@ -106,7 +99,6 @@ internal static class HardwareInspectionGate9AcceptanceHost
                     progress,
                     timeout.Token)
                 .WaitAsync(timeout.Token);
-            await WaitForProgressDeliveryAsync(expectedProgressDelivered.Task, timeout.Token);
 
             HardwareInspectionRunProgress[] capturedProgress;
             lock (progressLock)
@@ -114,13 +106,13 @@ internal static class HardwareInspectionGate9AcceptanceHost
                 capturedProgress = progressUpdates.ToArray();
             }
 
-            if (!IsValidProgress(inspectionId, capturedProgress) ||
+            if (!IsValidProgress(inspectionId, capturedProgress, result.Outcome) ||
                 !TryCreateResult(result, inspectionId, out Gate9Result? gate9Result))
             {
                 return 70;
             }
 
-            byte[] json = Serialize(gate9Result!);
+            byte[] json = Serialize(gate9Result!, capturedProgress.Length);
             HardwareInspectionAcceptanceResultStore.WriteAtomically(
                 resultToken,
                 json,
@@ -143,31 +135,21 @@ internal static class HardwareInspectionGate9AcceptanceHost
             !string.IsNullOrWhiteSpace(identity.FullName);
     }
 
-    private static async Task WaitForProgressDeliveryAsync(
-        Task expectedProgressDelivered,
-        CancellationToken cancellationToken)
-    {
-        if (expectedProgressDelivered.IsCompleted)
-        {
-            return;
-        }
-
-        await Task.WhenAny(
-            expectedProgressDelivered,
-            Task.Delay(ProgressDeliveryTimeout, cancellationToken));
-    }
-
     private static bool IsValidProgress(
         Guid inspectionId,
-        IReadOnlyList<HardwareInspectionRunProgress> progress)
+        IReadOnlyList<HardwareInspectionRunProgress> progress,
+        HardwareInspectionOutcome outcome)
     {
-        if (progress.Count != ExpectedStages.Length)
+        bool completed = outcome is HardwareInspectionOutcome.Completed or
+            HardwareInspectionOutcome.CompletedWithWarnings;
+        if ((completed && progress.Count != ExpectedStages.Length) ||
+            (!completed && progress.Count > ExpectedStages.Length))
         {
             return false;
         }
 
         long previousSequence = 0;
-        for (int index = 0; index < ExpectedStages.Length; index++)
+        for (int index = 0; index < progress.Count; index++)
         {
             HardwareInspectionRunProgress update = progress[index];
             if (update.InspectionId != inspectionId ||
@@ -260,7 +242,7 @@ internal static class HardwareInspectionGate9AcceptanceHost
         value.All(static character =>
             character is >= 'A' and <= 'Z' or >= '0' and <= '9' or '-');
 
-    private static byte[] Serialize(Gate9Result result)
+    private static byte[] Serialize(Gate9Result result, int stageCount)
     {
         var buffer = new ArrayBufferWriter<byte>();
         using (var writer = new Utf8JsonWriter(buffer))
@@ -269,7 +251,7 @@ internal static class HardwareInspectionGate9AcceptanceHost
             writer.WriteString("schema", Schema);
             writer.WriteBoolean("packageIdentityPresent", true);
             writer.WriteString("outcome", result.Outcome);
-            writer.WriteNumber("stageCount", ExpectedStages.Length);
+            writer.WriteNumber("stageCount", stageCount);
             writer.WriteBoolean("handoffPresent", result.HandoffPresent);
             writer.WriteNumber("manifestFieldCount", result.ManifestFieldCount);
             writer.WriteStartArray("diagnostics");
@@ -290,4 +272,9 @@ internal static class HardwareInspectionGate9AcceptanceHost
         bool HandoffPresent,
         int ManifestFieldCount,
         IReadOnlyList<string> Diagnostics);
+
+    private sealed class SynchronousProgress<T>(Action<T> report) : IProgress<T>
+    {
+        public void Report(T value) => report(value);
+    }
 }

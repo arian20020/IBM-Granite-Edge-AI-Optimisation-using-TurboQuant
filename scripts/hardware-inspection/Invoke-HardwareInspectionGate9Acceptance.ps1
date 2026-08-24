@@ -149,11 +149,22 @@ function Read-Gate9ProductionResult {
     }
 
     $text = [Text.UTF8Encoding]::new($false, $true).GetString($bytes)
-    $pattern = '^(?:' +
+    $prefix =
         '\{"schema":"granite\.hardware-inspection\.gate9-production-run/v1",' +
-        '"packageIdentityPresent":true,"outcome":"(?<outcome>Completed|CompletedWithWarnings)",' +
+        '"packageIdentityPresent":true,'
+    $success =
+        '"outcome":"(?<successOutcome>Completed|CompletedWithWarnings)",' +
         '"stageCount":7,"handoffPresent":true,"manifestFieldCount":19,' +
-        '"diagnostics":\[\]\}\n)$'
+        '"diagnostics":\[\]'
+    $failure =
+        '"outcome":"Failed","stageCount":(?<failureStageCount>[0-7]),' +
+        '"handoffPresent":false,"manifestFieldCount":0,' +
+        '"diagnostics":\["(?<failureDiagnostic>[A-Z0-9-]{1,64})"\]'
+    $cancelled =
+        '"outcome":"Cancelled","stageCount":(?<cancelledStageCount>[0-7]),' +
+        '"handoffPresent":false,"manifestFieldCount":0,"diagnostics":\[\]'
+    $pattern = '^(?:' + $prefix + '(?:' +
+        $success + '|' + $failure + '|' + $cancelled + ')\}\n)$'
     $match = [Text.RegularExpressions.Regex]::Match(
         $text,
         $pattern,
@@ -162,13 +173,54 @@ function Read-Gate9ProductionResult {
         throw 'The Gate 9 production result does not match its closed grammar.'
     }
 
+    if ($match.Groups['successOutcome'].Success) {
+        $outcome = $match.Groups['successOutcome'].Value
+        $stageCount = 7
+        $handoffPresent = $true
+        $manifestFieldCount = 19
+        $diagnostics = [string[]] @()
+    }
+    elseif ($match.Groups['failureStageCount'].Success) {
+        $outcome = 'Failed'
+        $stageCount = [int] $match.Groups['failureStageCount'].Value
+        $handoffPresent = $false
+        $manifestFieldCount = 0
+        $diagnostics = [string[]] @($match.Groups['failureDiagnostic'].Value)
+    }
+    else {
+        $outcome = 'Cancelled'
+        $stageCount = [int] $match.Groups['cancelledStageCount'].Value
+        $handoffPresent = $false
+        $manifestFieldCount = 0
+        $diagnostics = [string[]] @()
+    }
+
     [pscustomobject]@{
         PackageIdentityPresent = $true
-        Outcome = $match.Groups['outcome'].Value
-        StageCount = 7
-        HandoffPresent = $true
-        ManifestFieldCount = 19
-        Diagnostics = [string[]] @()
+        Outcome = $outcome
+        StageCount = $stageCount
+        HandoffPresent = $handoffPresent
+        ManifestFieldCount = $manifestFieldCount
+        Diagnostics = $diagnostics
+    }
+}
+
+function Assert-Gate9SuccessfulProductionResult {
+    param([Parameter(Mandatory)] [object] $Result)
+
+    if ([string] $Result.Outcome -ceq 'Failed') {
+        throw ('Gate 9 production run failed safely: {0}.' -f
+            [string] $Result.Diagnostics[0])
+    }
+
+    if ([string] $Result.Outcome -ceq 'Cancelled') {
+        throw 'Gate 9 production run was cancelled.'
+    }
+
+    if ([string] $Result.Outcome -cnotin @(
+            'Completed',
+            'CompletedWithWarnings')) {
+        throw 'The Gate 9 production result outcome is invalid.'
     }
 }
 
@@ -908,6 +960,8 @@ function Invoke-Gate9Repetition {
         if ($endpointObserved) {
             throw 'A Gate 9 process exposed a relevant network endpoint.'
         }
+
+        Assert-Gate9SuccessfulProductionResult -Result $result
 
         [pscustomobject]@{
             Run = $Run

@@ -102,7 +102,7 @@ public sealed class HardwareInspectionGate9AcceptanceHostTests
             "\"stageCount\":7,\"handoffPresent\":true," +
             "\"manifestFieldCount\":19,\"diagnostics\":[]}\n",
             json);
-        Assert.IsLessThan(Encoding.UTF8.GetByteCount(json), 4096);
+        Assert.IsLessThan(4096, Encoding.UTF8.GetByteCount(json));
         Assert.DoesNotContain("Snapshot", json);
         Assert.DoesNotContain("Intel", json);
     }
@@ -141,6 +141,31 @@ public sealed class HardwareInspectionGate9AcceptanceHostTests
             "\"packageIdentityPresent\":true,\"outcome\":\"Failed\"," +
             "\"stageCount\":7,\"handoffPresent\":false," +
             "\"manifestFieldCount\":0,\"diagnostics\":[\"HI-OPERATION-FAILED\"]}\n",
+            observation.Json);
+    }
+
+    [TestMethod]
+    public async Task RunAsync_PublishesFailureAfterValidProgressPrefix()
+    {
+        Gate9RunObservation observation = await RunHostAsync(async (id, progress, cancellationToken) =>
+        {
+            progress.Report(new HardwareInspectionRunProgress(
+                id,
+                1,
+                HardwareInspectionRunStage.StartingHardwareInspection));
+            await Task.Delay(50, cancellationToken);
+            return HardwareInspectionRunResult.CreateFailed(
+                id,
+                HardwareInspectionFailureKind.TransientOperation,
+                "HI-TOOL-INTEGRITY");
+        });
+
+        Assert.AreEqual(1, observation.ExitCode);
+        Assert.AreEqual(
+            "{\"schema\":\"granite.hardware-inspection.gate9-production-run/v1\"," +
+            "\"packageIdentityPresent\":true,\"outcome\":\"Failed\"," +
+            "\"stageCount\":1,\"handoffPresent\":false," +
+            "\"manifestFieldCount\":0,\"diagnostics\":[\"HI-TOOL-INTEGRITY\"]}\n",
             observation.Json);
     }
 
