@@ -1,5 +1,8 @@
 using GraniteEdgeAI.Features.HardwareInspection;
 using GraniteEdgeAI.Features.HardwareInspection.Application;
+#if HARDWARE_INSPECTION_X64
+using GraniteEdgeAI.Features.HardwareInspection.Orchestration;
+#endif
 using GraniteEdgeAI.Features.HardwareInspection.Presentation.Controls;
 using GraniteEdgeAI.Features.HardwareInspection.Presentation.State;
 using GraniteEdgeAI.Features.HardwareInspection.ViewModels;
@@ -52,7 +55,11 @@ namespace GraniteEdgeAI.Features.Onboarding
                 typeof(ModelInspectionPage),
                 request),
                 hardwareInspectionService:
-                    UnavailableHardwareInspectionService.Instance,
+#if HARDWARE_INSPECTION_X64
+                    HardwareInspectionComposition.CreateProduction(),
+#else
+                    null,
+#endif
                 hardwareInspectionNavigator: null,
                 hardwareHandoffReissuer: null,
                 initialize: true)

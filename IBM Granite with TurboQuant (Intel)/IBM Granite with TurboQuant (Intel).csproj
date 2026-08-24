@@ -19,6 +19,9 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
     <DefineConstants>$(DefineConstants);MODEL_INSPECTION_FIXTURE_GALLERY;HARDWARE_INSPECTION_FIXTURE_GALLERY</DefineConstants>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Platform)' == 'x64'">
+    <DefineConstants>$(DefineConstants);HARDWARE_INSPECTION_X64</DefineConstants>
+  </PropertyGroup>
   <ItemGroup>
     <Compile Remove="Features\ModelInspection\DebugFixtures\**" />
     <Page Remove="Features\ModelInspection\DebugFixtures\**" />
