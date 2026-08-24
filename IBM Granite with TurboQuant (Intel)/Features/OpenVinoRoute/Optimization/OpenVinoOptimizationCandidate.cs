@@ -16,7 +16,8 @@ public enum OpenVinoWeightPrecision
 {
     Fp16,
     EightBit,
-    FourBit
+    FourBit,
+    Original
 }
 
 public enum OpenVinoKvCachePrecision
@@ -45,8 +46,10 @@ public sealed record OpenVinoPersistentArtifact
         OpenVinoWeightPrecision targetPrecision,
         OpenVinoWeightPrecision sourcePrecision = OpenVinoWeightPrecision.Fp16)
     {
-        if (targetPrecision == OpenVinoWeightPrecision.Fp16 &&
-            sourcePrecision != OpenVinoWeightPrecision.Fp16)
+        if (targetPrecision == OpenVinoWeightPrecision.Original ||
+            sourcePrecision == OpenVinoWeightPrecision.Original ||
+            (targetPrecision == OpenVinoWeightPrecision.Fp16 &&
+             sourcePrecision != OpenVinoWeightPrecision.Fp16))
         {
             throw new OpenVinoOptimizationException(
                 OpenVinoSupportCode.OptimizationUnsupported);
@@ -87,6 +90,36 @@ public sealed record OpenVinoRuntimeOptimization
     public OpenVinoCompiledCachePolicy CompiledCache { get; }
     public bool CreatesModelArtifact { get; }
 }
+
+public enum OpenVinoCapabilityPerformanceHint
+{
+    Latency
+}
+
+public enum OpenVinoCapabilityMaturity
+{
+    Released
+}
+
+public sealed record OpenVinoOptimizationToolVersions(
+    string OpenVino,
+    string OpenVinoGenAi,
+    string Nncf);
+
+public sealed record OpenVinoOptimizationCapabilityAdmission(
+    string EvidenceId,
+    string Device,
+    OpenVinoWeightPrecision WeightPrecision,
+    OpenVinoRuntimeOptimization Runtime,
+    OpenVinoCapabilityPerformanceHint PerformanceHint,
+    int Streams,
+    int MinimumContextTokens,
+    int MaximumContextTokens,
+    OpenVinoCapabilityMaturity Maturity);
+
+public sealed record OpenVinoOptimizationCapabilityEvidence(
+    OpenVinoOptimizationToolVersions Versions,
+    IReadOnlyList<OpenVinoOptimizationCapabilityAdmission> Admitted);
 
 public sealed record OpenVinoOptimizationCandidate(
     string ConfigurationId,
