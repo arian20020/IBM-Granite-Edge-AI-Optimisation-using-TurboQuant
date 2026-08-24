@@ -2,8 +2,10 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Globalization;
 using GraniteEdgeAI.Features.OpenVinoRoute.Conversion;
 using GraniteEdgeAI.Features.OpenVinoRoute.Inspection;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Candidates;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
 
 namespace GraniteEdgeAI.Features.OpenVinoRoute.Optimization;
@@ -62,6 +64,15 @@ public sealed record OpenVinoOptimizationProvenance(
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public OpenVinoRuntimeTechnicalConfiguration? RuntimeConfiguration { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public OpenVinoDurablePlanContext? PlanContext { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ExecutionConfigurationSha256 { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? PlanBindingSha256 { get; init; }
     private static readonly IReadOnlyDictionary<string, string> RequiredVersions =
         new Dictionary<string, string>(StringComparer.Ordinal)
         {
@@ -119,7 +130,24 @@ public sealed record OpenVinoOptimizationProvenance(
         OpenVinoRuntimeOptimizationEvidence runtime,
         IReadOnlyDictionary<string, string> optimizerVersions,
         IReadOnlyList<OpenVinoOutputArtifact> outputFiles,
-        string outputManifestSha256) => new(
+        string outputManifestSha256)
+    {
+        OpenVinoRuntimeTechnicalConfiguration runtimeConfiguration =
+            OpenVinoRuntimeTechnicalConfiguration.From(candidate);
+        OpenVinoDurablePlanContext planContext =
+            OpenVinoDurablePlanContext.From(plan);
+        string executionConfigurationSha256 =
+            OpenVinoDurablePlanDigest.ExecutionConfigurationSha256(
+                plan.ConfigurationSha256,
+                configurationId,
+                sourceWeightPrecision,
+                targetWeightPrecision,
+                runtimeConfiguration);
+        string planBindingSha256 = OpenVinoDurablePlanDigest.PlanBindingSha256(
+            plan,
+            planContext,
+            executionConfigurationSha256);
+        return new(
             CurrentSchemaVersion,
             operationId,
             validationRunId,
@@ -148,8 +176,12 @@ public sealed record OpenVinoOptimizationProvenance(
             ModelLengthBytes = plan.Binding.ModelLengthBytes,
             ProductHardwareRunId = plan.Binding.ProductHardwareRunId,
             HardwareSnapshotSha256 = plan.Binding.HardwareSnapshotSha256,
-            RuntimeConfiguration = OpenVinoRuntimeTechnicalConfiguration.From(candidate)
+            RuntimeConfiguration = runtimeConfiguration,
+            PlanContext = planContext,
+            ExecutionConfigurationSha256 = executionConfigurationSha256,
+            PlanBindingSha256 = planBindingSha256
         };
+    }
 
     internal void Validate()
     {
@@ -222,6 +254,7 @@ public sealed record OpenVinoOptimizationProvenance(
             !IsSafeIdentity(ModelInspectionHandoffId) ||
             !IsSafeIdentity(ProductHardwareRunId) ||
             ModelLengthBytes == 0 || RuntimeConfiguration is null ||
+            PlanContext is null ||
             RuntimeConfiguration.KvCachePrecision != RequestedKvCachePrecision)
         {
             throw new InvalidDataException("optimization_output_invalid");
@@ -230,7 +263,40 @@ public sealed record OpenVinoOptimizationProvenance(
         RequireDigest(CapabilitySnapshotSha256);
         RequireDigest(ModelSha256);
         RequireDigest(HardwareSnapshotSha256);
+        RequireDigest(ExecutionConfigurationSha256);
+        RequireDigest(PlanBindingSha256);
         if (!RuntimeConfiguration.IsSupported)
+        {
+            throw new InvalidDataException("optimization_output_invalid");
+        }
+        PlanContext.Validate(RuntimeConfiguration.ContextTokens);
+        string executionDigest =
+            OpenVinoDurablePlanDigest.ExecutionConfigurationSha256(
+                ConfigurationSha256!,
+                ConfigurationId,
+                SourceWeightPrecision,
+                TargetWeightPrecision,
+                RuntimeConfiguration);
+        if (!string.Equals(
+                executionDigest,
+                ExecutionConfigurationSha256,
+                StringComparison.Ordinal) ||
+            !string.Equals(
+                OpenVinoDurablePlanDigest.PlanBindingSha256(
+                    OptimizationPlanId,
+                    ConfigurationSha256!,
+                    CapabilitySnapshotId!,
+                    CapabilitySnapshotSha256!,
+                    ModelInspectionRunId!,
+                    ModelInspectionHandoffId!,
+                    ModelSha256!,
+                    ModelLengthBytes,
+                    ProductHardwareRunId!,
+                    HardwareSnapshotSha256!,
+                    PlanContext,
+                    executionDigest),
+                PlanBindingSha256,
+                StringComparison.Ordinal))
         {
             throw new InvalidDataException("optimization_output_invalid");
         }
@@ -287,7 +353,9 @@ public sealed record OpenVinoOptimizationProvenance(
                     "capabilitySnapshotId", "capabilitySnapshotSha256",
                     "modelInspectionRunId", "modelInspectionHandoffId",
                     "modelSha256", "modelLengthBytes", "productHardwareRunId",
-                    "hardwareSnapshotSha256", "runtimeConfiguration"
+                    "hardwareSnapshotSha256", "runtimeConfiguration",
+                    "planContext", "executionConfigurationSha256",
+                    "planBindingSha256"
                 ]).ToArray()
                 : throw new InvalidDataException(
                     "Optimization provenance schema is invalid.");
@@ -308,6 +376,22 @@ public sealed record OpenVinoOptimizationProvenance(
             OpenVinoOptimizationProvenance>(root.GetRawText(), JsonOptions) ??
             throw new InvalidDataException("Optimization provenance is invalid.");
         parsed.Validate();
+        if (schema == CurrentSchemaVersion)
+        {
+            RequireExactObject(root.GetProperty("runtimeConfiguration"),
+            [
+                "device", "performanceHint", "streams", "contextTokens",
+                "compiledCacheEnabled", "kvCachePrecision"
+            ]);
+            RequireExactObject(root.GetProperty("planContext"),
+            [
+                "contractVersion", "route", "workloadId",
+                "workloadMinimumContextTokens", "workloadMinimumQuality",
+                "workloadCandidateContexts", "preferenceKind",
+                "preferenceValue", "preferenceBand", "sharedWithAdjacentBand",
+                "planCreatedAtUtc"
+            ]);
+        }
         string sourceDigest = RequireDigest(RequireString(root.GetProperty("sourceManifestSha256")));
         _ = sourceDigest;
         string outputDigest = RequireDigest(RequireString(root.GetProperty("outputManifestSha256")));
@@ -491,6 +575,184 @@ public sealed record OpenVinoRuntimeTechnicalConfiguration(
     }
 }
 
+public sealed record OpenVinoDurablePlanContext(
+    int ContractVersion,
+    OptimizationRoute Route,
+    string WorkloadId,
+    int WorkloadMinimumContextTokens,
+    OptimizationAssessment WorkloadMinimumQuality,
+    IReadOnlyList<int> WorkloadCandidateContexts,
+    OptimizationPreferenceKind PreferenceKind,
+    int? PreferenceValue,
+    OptimizationPreferenceBand? PreferenceBand,
+    bool SharedWithAdjacentBand,
+    DateTimeOffset PlanCreatedAtUtc)
+{
+    internal static OpenVinoDurablePlanContext From(
+        OptimizationExecutionPlan plan)
+    {
+        ArgumentNullException.ThrowIfNull(plan);
+        return new(
+            plan.ContractVersion,
+            plan.Route,
+            plan.Workload.WorkloadId,
+            plan.Workload.MinimumContextTokens,
+            plan.Workload.MinimumQuality,
+            plan.Workload.CandidateContexts.Select(
+                static context => context.Tokens).ToArray(),
+            plan.Preference.Kind,
+            plan.Preference.PreferenceValue,
+            plan.Preference.Band,
+            plan.SharedWithAdjacentBand,
+            plan.CreatedAtUtc);
+    }
+
+    internal void Validate(int selectedContextTokens)
+    {
+        bool automatic = PreferenceKind == OptimizationPreferenceKind.Automatic &&
+            PreferenceValue is null && PreferenceBand is null;
+        bool manual = PreferenceKind == OptimizationPreferenceKind.Manual &&
+            PreferenceValue is >= 0 and <= 100 &&
+            PreferenceBand == BandFor(PreferenceValue.Value);
+        if (ContractVersion != OptimizationExecutionPlan.CurrentContractVersion ||
+            Route != OptimizationRoute.OpenVino ||
+            string.IsNullOrWhiteSpace(WorkloadId) || WorkloadId.Length > 128 ||
+            WorkloadId.Contains('/') || WorkloadId.Contains('\\') ||
+            WorkloadId.Contains(':') ||
+            WorkloadMinimumContextTokens < 1 ||
+            WorkloadMinimumQuality == OptimizationAssessment.Unknown ||
+            WorkloadCandidateContexts is null ||
+            WorkloadCandidateContexts.Count == 0 ||
+            WorkloadCandidateContexts.Any(static context => context < 1) ||
+            !WorkloadCandidateContexts.Contains(selectedContextTokens) ||
+            (!automatic && !manual) ||
+            PlanCreatedAtUtc.Offset != TimeSpan.Zero)
+        {
+            throw new InvalidDataException("optimization_output_invalid");
+        }
+    }
+
+    private static OptimizationPreferenceBand BandFor(int value) => value switch
+    {
+        < 20 => OptimizationPreferenceBand.MaximumEfficiency,
+        < 40 => OptimizationPreferenceBand.Efficient,
+        < 60 => OptimizationPreferenceBand.Balanced,
+        < 80 => OptimizationPreferenceBand.HighCapability,
+        _ => OptimizationPreferenceBand.MaximumCapability
+    };
+}
+
+internal static class OpenVinoDurablePlanDigest
+{
+    internal static string ExecutionConfigurationSha256(
+        string planConfigurationSha256,
+        string configurationId,
+        OpenVinoWeightPrecision sourceWeightPrecision,
+        OpenVinoWeightPrecision targetWeightPrecision,
+        OpenVinoRuntimeTechnicalConfiguration runtime) =>
+        Hash(
+            ("version", "1"),
+            ("planConfigurationSha256", planConfigurationSha256),
+            ("configurationId", configurationId),
+            ("sourceWeightPrecision", EnumValue(sourceWeightPrecision)),
+            ("targetWeightPrecision", EnumValue(targetWeightPrecision)),
+            ("device", runtime.Device),
+            ("performanceHint", EnumValue(runtime.PerformanceHint)),
+            ("streams", Number(runtime.Streams)),
+            ("contextTokens", Number(runtime.ContextTokens)),
+            ("compiledCacheEnabled", runtime.CompiledCacheEnabled ? "1" : "0"),
+            ("kvCachePrecision", EnumValue(runtime.KvCachePrecision)));
+
+    internal static string PlanBindingSha256(
+        OptimizationExecutionPlan plan,
+        OpenVinoDurablePlanContext context,
+        string executionConfigurationSha256) =>
+        PlanBindingSha256(
+            plan.OptimizationPlanId,
+            plan.ConfigurationSha256,
+            plan.CapabilitySnapshot.SnapshotId,
+            plan.CapabilitySnapshot.CapabilitySnapshotSha256,
+            plan.Binding.ModelInspectionRunId,
+            plan.Binding.ModelInspectionHandoffId,
+            plan.Binding.ModelSha256,
+            plan.Binding.ModelLengthBytes,
+            plan.Binding.ProductHardwareRunId,
+            plan.Binding.HardwareSnapshotSha256,
+            context,
+            executionConfigurationSha256);
+
+    internal static string PlanBindingSha256(
+        Guid optimizationPlanId,
+        string configurationSha256,
+        string capabilitySnapshotId,
+        string capabilitySnapshotSha256,
+        string modelInspectionRunId,
+        string modelInspectionHandoffId,
+        string modelSha256,
+        ulong modelLengthBytes,
+        string productHardwareRunId,
+        string hardwareSnapshotSha256,
+        OpenVinoDurablePlanContext context,
+        string executionConfigurationSha256) =>
+        Hash(
+            ("version", "1"),
+            ("optimizationPlanId", optimizationPlanId.ToString("D")),
+            ("configurationSha256", configurationSha256),
+            ("capabilitySnapshotId", capabilitySnapshotId),
+            ("capabilitySnapshotSha256", capabilitySnapshotSha256),
+            ("modelInspectionRunId", modelInspectionRunId),
+            ("modelInspectionHandoffId", modelInspectionHandoffId),
+            ("modelSha256", modelSha256),
+            ("modelLengthBytes", Number(modelLengthBytes)),
+            ("productHardwareRunId", productHardwareRunId),
+            ("hardwareSnapshotSha256", hardwareSnapshotSha256),
+            ("contractVersion", Number(context.ContractVersion)),
+            ("route", EnumValue(context.Route)),
+            ("workloadId", context.WorkloadId),
+            ("workloadMinimumContextTokens",
+                Number(context.WorkloadMinimumContextTokens)),
+            ("workloadMinimumQuality", EnumValue(context.WorkloadMinimumQuality)),
+            ("workloadCandidateContexts", string.Join(
+                ",",
+                context.WorkloadCandidateContexts.Select(Number))),
+            ("preferenceKind", EnumValue(context.PreferenceKind)),
+            ("preferenceValue", context.PreferenceValue is int preference
+                ? Number(preference)
+                : "-"),
+            ("preferenceBand", context.PreferenceBand is
+                OptimizationPreferenceBand band ? EnumValue(band) : "-"),
+            ("sharedWithAdjacentBand", context.SharedWithAdjacentBand ? "1" : "0"),
+            ("planCreatedAtUtc", context.PlanCreatedAtUtc.ToString(
+                "O", CultureInfo.InvariantCulture)),
+            ("executionConfigurationSha256", executionConfigurationSha256));
+
+    private static string Hash(params (string Field, string Value)[] values)
+    {
+        StringBuilder canonical = new();
+        foreach ((string field, string value) in values)
+        {
+            canonical.Append(field.Length.ToString(CultureInfo.InvariantCulture))
+                .Append(':').Append(field)
+                .Append('=')
+                .Append(value.Length.ToString(CultureInfo.InvariantCulture))
+                .Append(':').Append(value).Append('|');
+        }
+        return Convert.ToHexString(SHA256.HashData(
+            new UTF8Encoding(false, true).GetBytes(canonical.ToString())))
+            .ToLowerInvariant();
+    }
+
+    private static string EnumValue<T>(T value) where T : struct, Enum =>
+        Convert.ToInt32(value, CultureInfo.InvariantCulture)
+            .ToString(CultureInfo.InvariantCulture);
+
+    private static string Number(int value) =>
+        value.ToString(CultureInfo.InvariantCulture);
+
+    private static string Number(ulong value) =>
+        value.ToString(CultureInfo.InvariantCulture);
+}
+
 public sealed record OpenVinoRuntimeOptimizationProfile(
     int SchemaVersion,
     Guid OptimizationPlanId,
@@ -503,11 +765,16 @@ public sealed record OpenVinoRuntimeOptimizationProfile(
     ulong ModelLengthBytes,
     string ProductHardwareRunId,
     string HardwareSnapshotSha256,
+    string ConfigurationId,
+    OpenVinoWeightPrecision WeightPrecision,
     OpenVinoRuntimeTechnicalConfiguration RuntimeConfiguration,
+    OpenVinoDurablePlanContext PlanContext,
+    string ExecutionConfigurationSha256,
+    string PlanBindingSha256,
     bool SourceUnchanged,
     DateTimeOffset CreatedAtUtc)
 {
-    public const int CurrentSchemaVersion = 1;
+    public const int CurrentSchemaVersion = 2;
     public const string FileName = "granite-openvino-runtime-profile.json";
     private static readonly JsonSerializerOptions ProfileJsonOptions = new()
     {
@@ -523,7 +790,19 @@ public sealed record OpenVinoRuntimeOptimizationProfile(
     internal static OpenVinoRuntimeOptimizationProfile From(
         OptimizationExecutionPlan plan,
         OpenVinoOptimizationCandidate candidate,
-        DateTimeOffset createdAtUtc) => new(
+        DateTimeOffset createdAtUtc)
+    {
+        OpenVinoRuntimeTechnicalConfiguration runtime =
+            OpenVinoRuntimeTechnicalConfiguration.From(candidate);
+        OpenVinoDurablePlanContext context = OpenVinoDurablePlanContext.From(plan);
+        string executionDigest =
+            OpenVinoDurablePlanDigest.ExecutionConfigurationSha256(
+                plan.ConfigurationSha256,
+                candidate.ConfigurationId,
+                OpenVinoWeightPrecision.Original,
+                candidate.WeightPrecision,
+                runtime);
+        return new(
             CurrentSchemaVersion,
             plan.OptimizationPlanId,
             plan.ConfigurationSha256,
@@ -535,9 +814,16 @@ public sealed record OpenVinoRuntimeOptimizationProfile(
             plan.Binding.ModelLengthBytes,
             plan.Binding.ProductHardwareRunId,
             plan.Binding.HardwareSnapshotSha256,
-            OpenVinoRuntimeTechnicalConfiguration.From(candidate),
+            candidate.ConfigurationId,
+            candidate.WeightPrecision,
+            runtime,
+            context,
+            executionDigest,
+            OpenVinoDurablePlanDigest.PlanBindingSha256(
+                plan, context, executionDigest),
             SourceUnchanged: true,
             createdAtUtc);
+    }
 
     internal byte[] Serialize()
     {
@@ -563,7 +849,10 @@ public sealed record OpenVinoRuntimeOptimizationProfile(
     internal void Validate()
     {
         if (SchemaVersion != CurrentSchemaVersion || OptimizationPlanId == Guid.Empty ||
-            ModelLengthBytes == 0 || !SourceUnchanged || RuntimeConfiguration is null)
+            ModelLengthBytes == 0 || !SourceUnchanged ||
+            WeightPrecision != OpenVinoWeightPrecision.Original ||
+            RuntimeConfiguration is null || PlanContext is null ||
+            CreatedAtUtc.Offset != TimeSpan.Zero)
         {
             throw new InvalidDataException("optimization_output_invalid");
         }
@@ -571,11 +860,45 @@ public sealed record OpenVinoRuntimeOptimizationProfile(
         RequireDigest(CapabilitySnapshotSha256);
         RequireDigest(ModelSha256);
         RequireDigest(HardwareSnapshotSha256);
+        RequireDigest(ExecutionConfigurationSha256);
+        RequireDigest(PlanBindingSha256);
         RequireIdentity(CapabilitySnapshotId);
         RequireIdentity(ModelInspectionRunId);
         RequireIdentity(ModelInspectionHandoffId);
         RequireIdentity(ProductHardwareRunId);
+        RequireIdentity(ConfigurationId);
         if (!RuntimeConfiguration.IsSupported)
+        {
+            throw new InvalidDataException("optimization_output_invalid");
+        }
+        PlanContext.Validate(RuntimeConfiguration.ContextTokens);
+        string executionDigest =
+            OpenVinoDurablePlanDigest.ExecutionConfigurationSha256(
+                ConfigurationSha256,
+                ConfigurationId,
+                OpenVinoWeightPrecision.Original,
+                WeightPrecision,
+                RuntimeConfiguration);
+        if (!string.Equals(
+                executionDigest,
+                ExecutionConfigurationSha256,
+                StringComparison.Ordinal) ||
+            !string.Equals(
+                OpenVinoDurablePlanDigest.PlanBindingSha256(
+                    OptimizationPlanId,
+                    ConfigurationSha256,
+                    CapabilitySnapshotId,
+                    CapabilitySnapshotSha256,
+                    ModelInspectionRunId,
+                    ModelInspectionHandoffId,
+                    ModelSha256,
+                    ModelLengthBytes,
+                    ProductHardwareRunId,
+                    HardwareSnapshotSha256,
+                    PlanContext,
+                    executionDigest),
+                PlanBindingSha256,
+                StringComparison.Ordinal))
         {
             throw new InvalidDataException("optimization_output_invalid");
         }

@@ -14,9 +14,6 @@ namespace GraniteEdgeAI.OpenVino.Tests.Optimization;
 [TestCategory("OpenVinoRoute")]
 public sealed class OpenVinoOptimizationPlanAdapterTests
 {
-    private static readonly string[] ExpectedPipelineCalls =
-        ["optimize", "validate", "smoke", "reinspect"];
-
     [TestMethod]
     public void AdapterExposesOnlyTheStrictSourceBoundEntryPoint()
     {
@@ -274,7 +271,7 @@ public sealed class OpenVinoOptimizationPlanAdapterTests
     }
 
     [TestMethod]
-    public async Task ServiceExecutesTheExactPlanWithoutLegacyObjectiveAcceptance()
+    public async Task ServiceFailsClosedForExactPlanWithUnappliedCompiledCache()
     {
         using PackageFixture package = PackageFixture.Create();
         OpenVinoStaticPackageEvidence source =
@@ -282,7 +279,7 @@ public sealed class OpenVinoOptimizationPlanAdapterTests
         OptimizationExecutionPlan plan = OpenVinoOptimizationTestData.Plan(
             OpenVinoWeightFormat.Int8,
             OpenVinoKvCacheFormat.U8,
-            ContractCompiledCachePolicy.Disabled,
+            ContractCompiledCachePolicy.Enabled,
             streams: 1,
             contextTokens: 4_096,
             sourceDigest: source.ModelSha256,
@@ -295,18 +292,16 @@ public sealed class OpenVinoOptimizationPlanAdapterTests
                 package.Source,
                 package.Destination,
                 plan,
-                plan.CapabilitySnapshot,
+                OpenVinoOptimizationTestData.CurrentState(plan),
                 Confirmed: true),
             progress: null,
             CancellationToken.None);
 
-        Assert.AreEqual(OpenVinoOptimizationStatus.Published, result.Status);
-        CollectionAssert.AreEqual(ExpectedPipelineCalls, pipeline.Calls.ToArray());
-        Assert.IsNotNull(pipeline.Candidate);
-        Assert.IsNull(pipeline.Candidate.LegacyObjectiveV1);
-        Assert.AreEqual(plan.Candidate.EvidenceId, pipeline.Candidate.EvidenceId);
-        Assert.AreEqual(4_096, pipeline.Candidate.ContextTokens);
-        Assert.AreEqual(1, pipeline.Candidate.Streams);
+        Assert.AreEqual(OpenVinoOptimizationStatus.ReplanRequired, result.Status);
+        Assert.AreEqual(OptimizationSupportCode.ToolNotAdmitted,
+            result.ReplanSupportCode);
+        Assert.AreEqual(0, pipeline.Calls.Count);
+        Assert.IsNull(pipeline.Candidate);
     }
 
     [TestMethod]
@@ -323,7 +318,7 @@ public sealed class OpenVinoOptimizationPlanAdapterTests
                 package.Source,
                 package.Destination,
                 plan,
-                plan.CapabilitySnapshot,
+                OpenVinoOptimizationTestData.CurrentState(plan),
                 Confirmed: true),
             progress: null,
             CancellationToken.None);
@@ -440,6 +435,14 @@ public sealed class OpenVinoOptimizationPlanAdapterTests
                 snapshotId,
                 digest,
                 payload);
+
+        internal static OpenVinoOptimizationCurrentState CurrentState(
+            OptimizationExecutionPlan plan) => new(
+                plan.CapabilitySnapshot,
+                plan.Binding.ModelInspectionRunId,
+                plan.Binding.ModelInspectionHandoffId,
+                plan.Binding.ProductHardwareRunId,
+                plan.Binding.HardwareSnapshotSha256);
     }
 
     private sealed class RecordingOptimizationPipeline : IOpenVinoOptimizationPipeline
