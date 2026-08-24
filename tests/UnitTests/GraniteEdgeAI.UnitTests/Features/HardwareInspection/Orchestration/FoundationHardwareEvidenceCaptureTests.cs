@@ -11,6 +11,7 @@ namespace GraniteEdgeAI.UnitTests.Features.HardwareInspection.Orchestration;
 
 [TestClass]
 [TestCategory("HardwareInspection")]
+[TestCategory("HardwareInspectionGate7Acceptance")]
 public sealed class FoundationHardwareEvidenceCaptureTests
 {
     private static readonly DateTimeOffset CapturedAtUtc =

@@ -6,6 +6,7 @@ namespace GraniteEdgeAI.UnitTests.Features.HardwareInspection.LlamaCpp;
 
 [TestClass]
 [TestCategory("HardwareInspection")]
+[TestCategory("HardwareInspectionGate7Acceptance")]
 public sealed class LlamaCppProbePackageContractTests
 {
     [TestMethod]

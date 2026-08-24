@@ -6,6 +6,7 @@ using System.Collections.ObjectModel;
 namespace GraniteEdgeAI.UnitTests.Features.HardwareInspection.Orchestration;
 
 [TestClass]
+[TestCategory("HardwareInspectionGate7Acceptance")]
 public sealed class HardwareOrchestrationContractTests
 {
     [TestMethod]

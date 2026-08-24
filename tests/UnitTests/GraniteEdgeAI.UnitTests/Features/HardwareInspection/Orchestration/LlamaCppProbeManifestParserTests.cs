@@ -9,6 +9,7 @@ namespace GraniteEdgeAI.UnitTests.Features.HardwareInspection.Orchestration;
 
 [TestClass]
 [TestCategory("HardwareInspection")]
+[TestCategory("HardwareInspectionGate7Acceptance")]
 public sealed class LlamaCppProbeManifestParserTests
 {
     private const string FailureMessage = "The packaged probe manifest is invalid.";

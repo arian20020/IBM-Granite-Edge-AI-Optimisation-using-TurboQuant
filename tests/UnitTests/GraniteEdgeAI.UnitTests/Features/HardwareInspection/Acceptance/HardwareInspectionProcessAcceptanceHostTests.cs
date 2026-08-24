@@ -1,8 +1,37 @@
 namespace GraniteEdgeAI.UnitTests.Features.HardwareInspection.Acceptance;
 
+using System.Collections;
+using System.Reflection;
+
 [TestClass]
 public sealed class HardwareInspectionProcessAcceptanceHostTests
 {
+    [TestMethod]
+    public void DiscoveryIncludesExactProcessAndGate7AcceptanceInventory()
+    {
+        MethodInfo? discover = typeof(HardwareInspectionProcessAcceptanceHost).GetMethod(
+            "DiscoverTests",
+            BindingFlags.Static | BindingFlags.NonPublic);
+        Assert.IsNotNull(discover);
+        var discovered = (IEnumerable)discover.Invoke(null, null)!;
+        List<string> names = [];
+        foreach (object test in discovered)
+        {
+            PropertyInfo? name = test.GetType().GetProperty("Name");
+            Assert.IsNotNull(name);
+            names.Add((string)name.GetValue(test)!);
+        }
+
+        Assert.HasCount(70, names);
+        Assert.IsTrue(names.Any(name => name.Contains(
+            ".HardwareInspectionServiceTests.",
+            StringComparison.Ordinal)));
+        Assert.IsTrue(names.Any(name => name.Contains(
+            ".HardwareInspectionCompositionTests.",
+            StringComparison.Ordinal)));
+        Assert.AreEqual(names.Count, names.Distinct(StringComparer.Ordinal).Count());
+    }
+
     [TestMethod]
     public void ParsesPlainDesktopLaunchCommandLine()
     {

@@ -7,6 +7,7 @@ using System.Reflection;
 namespace GraniteEdgeAI.UnitTests.Features.HardwareInspection.Orchestration;
 
 [TestClass]
+[TestCategory("HardwareInspectionGate7Acceptance")]
 public sealed class LlmFitToolAuthorityTests
 {
     [TestMethod]

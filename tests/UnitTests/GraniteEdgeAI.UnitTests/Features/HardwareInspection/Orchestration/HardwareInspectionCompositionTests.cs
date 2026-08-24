@@ -7,6 +7,7 @@ namespace GraniteEdgeAI.UnitTests.Features.HardwareInspection.Orchestration;
 
 [TestClass]
 [TestCategory("HardwareInspection")]
+[TestCategory("HardwareInspectionGate7Acceptance")]
 public sealed class HardwareInspectionCompositionTests
 {
     [TestMethod]

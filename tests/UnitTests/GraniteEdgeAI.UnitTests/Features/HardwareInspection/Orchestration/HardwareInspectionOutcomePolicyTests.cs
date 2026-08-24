@@ -6,6 +6,7 @@ using GraniteEdgeAI.UnitTests.Features.HardwareInspection.Resolution;
 namespace GraniteEdgeAI.UnitTests.Features.HardwareInspection.Orchestration;
 
 [TestClass]
+[TestCategory("HardwareInspectionGate7Acceptance")]
 public sealed class HardwareInspectionOutcomePolicyTests
 {
     [TestMethod]
