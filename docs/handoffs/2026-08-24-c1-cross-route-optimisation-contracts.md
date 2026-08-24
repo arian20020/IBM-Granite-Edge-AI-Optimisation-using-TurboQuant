@@ -12,7 +12,7 @@
 | Worktree | `C:\c1-xroute` |
 | Base (resolved, 40 characters) | `699c4826af6ee1e8ffe18f2b1eca1b0e6ab9f3e3` |
 | Base branch | `feature/model-hardware-compatibility` |
-| Tip | `48f578e09fb312c874ef2c75ea6c79b2c448c23c` |
+| Tip | `f7837584f6524cdfa83a3055e91ed1e72613e17f` (this handoff commit) |
 | Worktree status | clean |
 | Whitespace/encoding (`git diff --check`) | no errors |
 
@@ -21,7 +21,7 @@ needed preserving. Nothing was reset, overwritten or discarded.
 
 **This is the commit G1, O1 and UO1 branch from.** Each should verify
 `git merge-base --is-ancestor feature/cross-route-optimisation-contracts-v1 HEAD`
-returns 0 before editing, and record `48f578e09fb312c874ef2c75ea6c79b2c448c23c`
+returns 0 before editing, and record `f7837584f6524cdfa83a3055e91ed1e72613e17f`
 as the resolved C1 SHA.
 
 ## Commits
@@ -34,6 +34,7 @@ as the resolved C1 SHA.
 | `6310126e` | feat(compatibility): generate cross-route candidates |
 | `c6622168` | feat(compatibility): select safe optimisation frontier |
 | `48f578e0` | feat(compatibility): issue bound optimisation plans |
+| `f7837584` | docs(compatibility): hand off optimisation contracts |
 
 ## Canonical contract document
 
