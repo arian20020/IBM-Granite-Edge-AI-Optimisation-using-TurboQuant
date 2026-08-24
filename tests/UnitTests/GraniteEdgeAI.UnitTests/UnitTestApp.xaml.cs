@@ -19,6 +19,9 @@ public partial class UnitTestApp : Application
                 Environment.GetCommandLineArgs(),
                 out string resultToken))
         {
+            _window = new UnitTestAppWindow();
+            _window.Activate();
+            UITestMethodAttribute.DispatcherQueue = _window.DispatcherQueue;
             _ = RunHardwareInspectionProcessAcceptanceAsync(resultToken);
             return;
         }
@@ -33,9 +36,24 @@ public partial class UnitTestApp : Application
             Environment.CommandLine);
     }
 
-    private static async Task RunHardwareInspectionProcessAcceptanceAsync(string resultToken)
+    private async Task RunHardwareInspectionProcessAcceptanceAsync(string resultToken)
     {
-        int exitCode = await HardwareInspectionProcessAcceptanceHost.RunAsync(resultToken);
-        Environment.Exit(exitCode);
+        int exitCode = 70;
+        try
+        {
+            exitCode = await HardwareInspectionProcessAcceptanceHost.RunAsync(resultToken);
+        }
+        finally
+        {
+            try
+            {
+                _window?.Close();
+            }
+            finally
+            {
+                _window = null;
+                Environment.Exit(exitCode);
+            }
+        }
     }
 }

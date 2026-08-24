@@ -9,7 +9,7 @@ namespace GraniteEdgeAI.UnitTests.Features.HardwareInspection.Acceptance;
 internal static class HardwareInspectionProcessAcceptanceHost
 {
     private const string ActivationCommand = "--hardware-inspection-process-acceptance";
-    private const string Gate7Category = "HardwareInspectionGate7Acceptance";
+    private const string Gate8Category = "HardwareInspectionGate8Acceptance";
     private const string ProcessCategory = "HardwareInspectionProcessAcceptance";
     private const string ResultTokenSwitch = "--result-token";
     private const string Schema = "granite.hardware-inspection.process-acceptance/v1";
@@ -109,7 +109,7 @@ internal static class HardwareInspectionProcessAcceptanceHost
     private static bool HasAcceptanceCategory(
         IEnumerable<TestCategoryAttribute> attributes) => attributes
         .SelectMany(static attribute => attribute.TestCategories)
-        .Any(static category => category is ProcessCategory or Gate7Category);
+        .Any(static category => category is ProcessCategory or Gate8Category);
 
     private static AcceptanceTest CreateAcceptanceTest(Type type, MethodInfo method)
     {
