@@ -1,3 +1,6 @@
+using System.Reflection;
+using System.Reflection.Emit;
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -35,6 +38,76 @@ public sealed class OpenVinoOptimizationTests
         "smoke",
         "state:BeforePublish"
     ];
+
+    [TestMethod]
+    public void TrustedSourceVerificationDominatesPersistentAndRuntimeWork()
+    {
+        IReadOnlyList<ProductionCall> reveal = ProductionCalls(
+            "RevealTrustedPackageRoot");
+        AssertCallOrder(
+            reveal,
+            (typeof(GraniteEdgeAI.ModelHardwareCompatibility.Core.Application
+                .Optimization.Execution.TrustedSourceContext), "Verify"),
+            (typeof(GraniteEdgeAI.ModelHardwareCompatibility.Core.Application
+                .Optimization.Execution.TrustedSourceContext), "RevealVerifiedPath"));
+
+        IReadOnlyList<ProductionCall> revalidate = ProductionCalls(
+            "RevalidatePlanAsync");
+        AssertCallOrder(
+            revalidate,
+            (typeof(IOpenVinoOptimizationCurrentStateProvider),
+                nameof(IOpenVinoOptimizationCurrentStateProvider.GetCurrentStateAsync)),
+            (typeof(OpenVinoOptimizationService), "ValidateCurrentBinding"),
+            (typeof(OpenVinoOptimizationService), "RevealTrustedPackageRoot"),
+            (typeof(OpenVinoOptimizationPlanAdapter),
+                nameof(OpenVinoOptimizationPlanAdapter.Adapt)));
+
+        IReadOnlyList<ProductionCall> persistent = ProductionCalls(
+            "OptimizeCoreAsync");
+        int[] persistentRevalidations = CallOffsets(
+            persistent,
+            typeof(OpenVinoOptimizationService),
+            "RevalidatePlanAsync");
+        Assert.HasCount(2, persistentRevalidations);
+        AssertOffsetsOrdered(
+            persistentRevalidations[0],
+            SingleCallOffset(
+                persistent,
+                typeof(GraniteEdgeAI.Features.OpenVinoRoute.Conversion
+                    .ConversionTransaction),
+                "Create"),
+            SingleCallOffset(
+                persistent,
+                typeof(IOpenVinoOptimizationPipeline),
+                nameof(IOpenVinoOptimizationPipeline.OptimizeAsync)),
+            persistentRevalidations[1],
+            SingleCallOffset(
+                persistent,
+                typeof(GraniteEdgeAI.Features.OpenVinoRoute.Conversion
+                    .ConversionTransaction),
+                "Publish"));
+
+        IReadOnlyList<ProductionCall> runtime = ProductionCalls(
+            "StoreRuntimeProfileAsync");
+        int[] runtimeRevalidations = CallOffsets(
+            runtime,
+            typeof(OpenVinoOptimizationService),
+            "RevalidatePlanAsync");
+        Assert.HasCount(2, runtimeRevalidations);
+        AssertOffsetsOrdered(
+            runtimeRevalidations[0],
+            SingleCallOffset(
+                runtime,
+                typeof(GraniteEdgeAI.Features.OpenVinoRoute.Conversion
+                    .ConversionTransaction),
+                "Create"),
+            runtimeRevalidations[1],
+            SingleCallOffset(
+                runtime,
+                typeof(GraniteEdgeAI.Features.OpenVinoRoute.Conversion
+                    .ConversionTransaction),
+                "Publish"));
+    }
 
     [TestMethod]
     public void ObjectivesMapToExactClosedCpuCandidates()
@@ -1050,6 +1123,156 @@ public sealed class OpenVinoOptimizationTests
         Assert.AreEqual(JsonValueKind.Null,
             payload.GetProperty("turboQuantBuild").ValueKind);
     }
+
+    private static List<ProductionCall> ProductionCalls(string methodName)
+    {
+        MethodInfo method = typeof(OpenVinoOptimizationService).GetMethod(
+            methodName,
+            BindingFlags.Instance | BindingFlags.Static | BindingFlags.NonPublic) ??
+            throw new AssertFailedException(
+                $"Production method OpenVinoOptimizationService.{methodName} is absent.");
+        MethodInfo bodyOwner = method.GetCustomAttribute<AsyncStateMachineAttribute>()?
+            .StateMachineType.GetMethod(
+                "MoveNext",
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic) ??
+            method;
+        byte[] il = bodyOwner.GetMethodBody()?.GetILAsByteArray() ??
+            throw new AssertFailedException(
+                $"Production method {methodName} has no inspectable body.");
+        List<ProductionCall> calls = [];
+        int offset = 0;
+        while (offset < il.Length)
+        {
+            int instructionOffset = offset;
+            OpCode opcode = il[offset++] == 0xfe
+                ? MultiByteOpCodes[il[offset++]]
+                : SingleByteOpCodes[il[offset - 1]];
+            int operandSize = OperandSize(opcode.OperandType, il, offset);
+            if (opcode.OperandType == OperandType.InlineMethod &&
+                (opcode == OpCodes.Call || opcode == OpCodes.Callvirt))
+            {
+                try
+                {
+                    MethodBase? target = bodyOwner.Module.ResolveMethod(
+                        BitConverter.ToInt32(il, offset),
+                        bodyOwner.DeclaringType?.IsGenericType is true
+                            ? bodyOwner.DeclaringType.GetGenericArguments()
+                            : null,
+                        bodyOwner.IsGenericMethod
+                            ? bodyOwner.GetGenericArguments()
+                            : null);
+                    if (target is not null)
+                    {
+                        calls.Add(new ProductionCall(instructionOffset, target));
+                    }
+                }
+                catch (Exception exception) when (exception is ArgumentException or
+                                                  BadImageFormatException)
+                {
+                    throw new AssertFailedException(
+                        $"Unable to resolve a production call in {methodName}.",
+                        exception);
+                }
+            }
+            offset += operandSize;
+        }
+        return calls;
+    }
+
+    private static void AssertCallOrder(
+        IReadOnlyList<ProductionCall> calls,
+        params (Type DeclaringType, string Name)[] expected)
+    {
+        int previous = -1;
+        foreach ((Type declaringType, string name) in expected)
+        {
+            ProductionCall? found = calls.FirstOrDefault(call =>
+                call.Offset > previous &&
+                call.Target.DeclaringType == declaringType &&
+                string.Equals(call.Target.Name, name, StringComparison.Ordinal));
+            Assert.IsNotNull(found,
+                $"No {declaringType.Name}.{name} call follows IL offset {previous}.");
+            previous = found.Offset;
+        }
+    }
+
+    private static int[] CallOffsets(
+        IReadOnlyList<ProductionCall> calls,
+        Type declaringType,
+        string name) => calls
+            .Where(call => call.Target.DeclaringType == declaringType &&
+                string.Equals(call.Target.Name, name, StringComparison.Ordinal))
+            .Select(static call => call.Offset)
+            .ToArray();
+
+    private static int SingleCallOffset(
+        IReadOnlyList<ProductionCall> calls,
+        Type declaringType,
+        string name)
+    {
+        int[] offsets = CallOffsets(calls, declaringType, name);
+        Assert.HasCount(1, offsets,
+            $"Expected exactly one {declaringType.Name}.{name} production call.");
+        return offsets[0];
+    }
+
+    private static void AssertOffsetsOrdered(params int[] offsets)
+    {
+        Assert.IsTrue(offsets.All(static offset => offset >= 0),
+            "Every required production call must exist.");
+        for (int index = 1; index < offsets.Length; index++)
+        {
+            Assert.IsGreaterThan(offsets[index - 1], offsets[index],
+                "Required production calls are not in trusted boundary order.");
+        }
+    }
+
+    private static int OperandSize(
+        OperandType operandType,
+        byte[] il,
+        int offset) => operandType switch
+        {
+            OperandType.InlineNone => 0,
+            OperandType.ShortInlineBrTarget or OperandType.ShortInlineI or
+                OperandType.ShortInlineVar => 1,
+            OperandType.InlineVar => 2,
+            OperandType.InlineBrTarget or OperandType.InlineField or
+                OperandType.InlineI or OperandType.InlineMethod or
+                OperandType.InlineSig or OperandType.InlineString or
+                OperandType.InlineTok or OperandType.InlineType or
+                OperandType.ShortInlineR => 4,
+            OperandType.InlineI8 or OperandType.InlineR => 8,
+            OperandType.InlineSwitch =>
+                4 + (BitConverter.ToInt32(il, offset) * 4),
+            _ => throw new AssertFailedException(
+                $"Unknown IL operand type {operandType}.")
+        };
+
+    private static OpCode[] BuildOpCodes(bool multiByte)
+    {
+        OpCode[] result = new OpCode[256];
+        foreach (FieldInfo field in typeof(OpCodes).GetFields(
+                     BindingFlags.Public | BindingFlags.Static))
+        {
+            if (field.GetValue(null) is not OpCode opcode)
+            {
+                continue;
+            }
+            ushort value = unchecked((ushort)opcode.Value);
+            if (multiByte == value > byte.MaxValue)
+            {
+                result[value & byte.MaxValue] = opcode;
+            }
+        }
+        return result;
+    }
+
+    private static readonly OpCode[] SingleByteOpCodes = BuildOpCodes(
+        multiByte: false);
+    private static readonly OpCode[] MultiByteOpCodes = BuildOpCodes(
+        multiByte: true);
+
+    private sealed record ProductionCall(int Offset, MethodBase Target);
 
     private static OptimizationExecutionPlan CreatePlan(
         string sourceDirectory,
