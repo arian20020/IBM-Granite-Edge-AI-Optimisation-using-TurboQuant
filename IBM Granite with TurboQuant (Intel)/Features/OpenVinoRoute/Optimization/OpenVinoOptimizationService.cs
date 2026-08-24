@@ -20,6 +20,7 @@ public enum OpenVinoOptimizationStage
 
 public sealed record OpenVinoOptimizationCurrentState(
     OptimizationCapabilitySnapshot Capabilities,
+    OpenVinoOptimizationCapabilityEvidence CapabilityEvidence,
     string ModelInspectionRunId,
     string ModelInspectionHandoffId,
     string ProductHardwareRunId,
@@ -315,6 +316,7 @@ public sealed class OpenVinoOptimizationService
                     OpenVinoOptimizationPlanAdapter.Adapt(
                         plan,
                         initialCurrentState!.Capabilities,
+                        initialCurrentState.CapabilityEvidence,
                         inspection.Evidence.ModelSha256,
                         checked((ulong)inspection.Evidence.ModelLengthBytes));
                 if (adaptation.Status ==
@@ -640,6 +642,7 @@ public sealed class OpenVinoOptimizationService
         return OpenVinoOptimizationPlanAdapter.Adapt(
             plan,
             currentState.Capabilities,
+            currentState.CapabilityEvidence,
             current.Evidence.ModelSha256,
             checked((ulong)current.Evidence.ModelLengthBytes));
     }

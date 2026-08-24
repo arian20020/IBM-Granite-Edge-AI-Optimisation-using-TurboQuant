@@ -2,6 +2,7 @@ using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Execution;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.OpenVino;
+using GraniteEdgeAI.OpenVino.Contracts;
 using ContractCompiledCachePolicy = GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.OpenVino.OpenVinoCompiledCachePolicy;
 using ExecutionKvPrecision = GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Execution.OpenVinoKvCachePrecision;
 using ExecutionWeightPrecision = GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Execution.OpenVinoWeightPrecision;
@@ -29,11 +30,13 @@ public static class OpenVinoOptimizationPlanAdapter
     public static OpenVinoOptimizationAdaptation Adapt(
         OptimizationExecutionPlan plan,
         OptimizationCapabilitySnapshot currentCapabilities,
+        OpenVinoOptimizationCapabilityEvidence currentEvidence,
         string currentSourceSha256,
         ulong currentSourceLengthBytes)
     {
         ArgumentNullException.ThrowIfNull(plan);
         ArgumentNullException.ThrowIfNull(currentCapabilities);
+        ArgumentNullException.ThrowIfNull(currentEvidence);
 
         if (!plan.IsExecutableBy(ExecutorContractVersion) ||
             plan.ContractVersion != ExecutorContractVersion ||
@@ -59,7 +62,7 @@ public static class OpenVinoOptimizationPlanAdapter
             return Replan(OptimizationSupportCode.CapabilityDrift);
         }
 
-        if (!ToolVersionsMatch(payload.OptimizerVersions, currentPayload.RuntimeVersion))
+        if (!CurrentEvidenceMatches(payload, currentPayload, currentEvidence))
         {
             return Replan(OptimizationSupportCode.ToolNotAdmitted);
         }
@@ -223,41 +226,62 @@ public static class OpenVinoOptimizationPlanAdapter
         _ => (RouteWeightPrecision)(-1)
     };
 
-    private static bool ToolVersionsMatch(
-        IReadOnlyDictionary<string, string> optimizerVersions,
-        string capabilityRuntimeVersion)
+    private static bool CurrentEvidenceMatches(
+        OpenVinoExecutionPayload payload,
+        OpenVinoCapabilityPayload currentPayload,
+        OpenVinoOptimizationCapabilityEvidence currentEvidence)
     {
-        if (optimizerVersions.Count != 6 ||
-            !optimizerVersions.TryGetValue("openvino", out string? openVino) ||
-            !optimizerVersions.TryGetValue("openvino-genai", out string? openVinoGenAi) ||
-            !optimizerVersions.TryGetValue("nncf", out string? nncf) ||
-            !optimizerVersions.TryGetValue("optimum", out string? optimum) ||
-            !optimizerVersions.TryGetValue("optimum-intel", out string? optimumIntel) ||
-            !optimizerVersions.TryGetValue("transformers", out string? transformers))
+        if (currentEvidence.Builds is null || currentEvidence.Versions is null ||
+            currentEvidence.Admitted is null ||
+            currentEvidence.Builds.TurboQuantBuild is not null ||
+            !BuildsMatch(payload.BuildIdentity, currentEvidence.Builds) ||
+            !ToolVersionsMatch(payload.OptimizerVersions, currentEvidence.Versions))
         {
             return false;
         }
 
         try
         {
-            string payloadRuntimeVersion =
-                OpenVinoOptimizationCapabilityProjector.RuntimeVersion(new(
-                    openVino,
-                    openVinoGenAi,
-                    nncf,
-                    optimum,
-                    optimumIntel,
-                    transformers));
-            return string.Equals(
-                capabilityRuntimeVersion,
-                payloadRuntimeVersion,
-                StringComparison.Ordinal);
+            OpenVinoCapabilityPayload projected =
+                OpenVinoOptimizationCapabilityProjector.Project(currentEvidence);
+            return PayloadsMatch(projected, currentPayload);
         }
-        catch (ArgumentException)
+        catch (Exception exception) when (exception is ArgumentException or
+                                          OpenVinoOptimizationException)
         {
             return false;
         }
     }
+
+    private static bool BuildsMatch(
+        OpenVinoBuildIdentity payload,
+        OpenVinoBuildEvidence current) =>
+        string.Equals(payload.RuntimeBuild, current.RuntimeBuild,
+            StringComparison.Ordinal) &&
+        string.Equals(payload.GenAiBuild, current.GenAiBuild,
+            StringComparison.Ordinal) &&
+        string.Equals(payload.TokenizersBuild, current.TokenizersBuild,
+            StringComparison.Ordinal) &&
+        string.Equals(payload.WorkerManifestDigest, current.WorkerManifestDigest,
+            StringComparison.Ordinal);
+
+    private static bool ToolVersionsMatch(
+        IReadOnlyDictionary<string, string> payload,
+        OpenVinoOptimizationToolVersions current) =>
+        payload.Count == 6 &&
+        Matches(payload, "openvino", current.OpenVino) &&
+        Matches(payload, "openvino-genai", current.OpenVinoGenAi) &&
+        Matches(payload, "nncf", current.Nncf) &&
+        Matches(payload, "optimum", current.Optimum) &&
+        Matches(payload, "optimum-intel", current.OptimumIntel) &&
+        Matches(payload, "transformers", current.Transformers);
+
+    private static bool Matches(
+        IReadOnlyDictionary<string, string> payload,
+        string key,
+        string current) =>
+        payload.TryGetValue(key, out string? value) &&
+        string.Equals(value, current, StringComparison.Ordinal);
 
     private static bool PayloadsMatch(
         OpenVinoCapabilityPayload planned,

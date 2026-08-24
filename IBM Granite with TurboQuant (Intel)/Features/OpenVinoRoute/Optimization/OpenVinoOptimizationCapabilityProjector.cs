@@ -1,4 +1,3 @@
-using System.Globalization;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.OpenVino;
@@ -12,8 +11,10 @@ public static class OpenVinoOptimizationCapabilityProjector
         OpenVinoOptimizationCapabilityEvidence evidence)
     {
         ArgumentNullException.ThrowIfNull(evidence);
+        ArgumentNullException.ThrowIfNull(evidence.Builds);
         ArgumentNullException.ThrowIfNull(evidence.Versions);
         ArgumentNullException.ThrowIfNull(evidence.Admitted);
+        evidence.Builds.Validate();
         if (evidence.Admitted.Count == 0)
         {
             throw new ArgumentException(
@@ -21,7 +22,7 @@ public static class OpenVinoOptimizationCapabilityProjector
                 nameof(evidence));
         }
 
-        string runtimeVersion = RuntimeVersion(evidence.Versions);
+        ValidateToolVersions(evidence.Versions);
         List<OpenVinoAdmittedConfiguration> admitted = [];
         foreach (OpenVinoOptimizationCapabilityAdmission source in evidence.Admitted)
         {
@@ -38,7 +39,9 @@ public static class OpenVinoOptimizationCapabilityProjector
             throw Unsupported();
         }
 
-        return OpenVinoCapabilityPayload.Create(runtimeVersion, admitted);
+        return OpenVinoCapabilityPayload.Create(
+            evidence.Builds.RuntimeBuild,
+            admitted);
     }
 
     private static OpenVinoAdmittedConfiguration? ProjectAdmission(
@@ -107,7 +110,7 @@ public static class OpenVinoOptimizationCapabilityProjector
             requiresEvidence: false);
     }
 
-    internal static string RuntimeVersion(OpenVinoOptimizationToolVersions versions)
+    internal static void ValidateToolVersions(OpenVinoOptimizationToolVersions versions)
     {
         RequirePinnedVersion(
             versions.OpenVino, "2026.3.0", nameof(versions.OpenVino));
@@ -120,12 +123,6 @@ public static class OpenVinoOptimizationCapabilityProjector
         RequirePinnedVersion(
             versions.Transformers, "5.5.4", nameof(versions.Transformers));
 
-        return string.Create(
-            CultureInfo.InvariantCulture,
-            $"openvino-{versions.OpenVino}_openvino-genai-{versions.OpenVinoGenAi}"
-            + $"_nncf-{versions.Nncf}_optimum-{versions.Optimum}"
-            + $"_optimum-intel-{versions.OptimumIntel}"
-            + $"_transformers-{versions.Transformers}");
     }
 
     private static void RequirePinnedVersion(

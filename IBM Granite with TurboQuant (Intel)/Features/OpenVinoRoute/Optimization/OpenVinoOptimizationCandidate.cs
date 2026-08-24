@@ -122,6 +122,7 @@ public sealed record OpenVinoOptimizationCapabilityAdmission(
     OpenVinoCapabilityMaturity Maturity);
 
 public sealed record OpenVinoOptimizationCapabilityEvidence(
+    OpenVinoBuildEvidence Builds,
     OpenVinoOptimizationToolVersions Versions,
     IReadOnlyList<OpenVinoOptimizationCapabilityAdmission> Admitted);
 
@@ -146,6 +147,8 @@ public sealed record OpenVinoOptimizationCandidate(
     {
         bool legacy = LegacyObjectiveV1.HasValue;
         bool validConfigurationId = ConfigurationId is { Length: > 0 and <= 128 } &&
+            ConfigurationId.StartsWith(
+                "openvino.standard.cpu.", StringComparison.Ordinal) &&
             ConfigurationId.All(static character => char.IsAsciiLetterOrDigit(character) ||
                 character is '.' or '-' or '_');
         bool persistentShape = legacy

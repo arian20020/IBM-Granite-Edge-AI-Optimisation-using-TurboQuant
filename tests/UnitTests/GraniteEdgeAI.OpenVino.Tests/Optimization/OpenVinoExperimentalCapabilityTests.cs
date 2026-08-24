@@ -161,6 +161,7 @@ public sealed class OpenVinoExperimentalCapabilityTests
 
     private static OpenVinoOptimizationCapabilityEvidence OfficialEvidence() =>
         new(
+            BuildEvidence() with { TurboQuantBuild = null },
             new OpenVinoOptimizationToolVersions(
                 "2026.3.0", "2026.3.0.0", "3.3.0",
                 "2.3.0", "2.1.0", "5.5.4"),

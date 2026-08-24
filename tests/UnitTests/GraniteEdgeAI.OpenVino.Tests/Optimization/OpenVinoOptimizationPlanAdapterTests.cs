@@ -39,6 +39,7 @@ public sealed class OpenVinoOptimizationPlanAdapterTests
             {
                 typeof(OptimizationExecutionPlan),
                 typeof(OptimizationCapabilitySnapshot),
+                typeof(OpenVinoOptimizationCapabilityEvidence),
                 typeof(string),
                 typeof(ulong)
             },
@@ -53,14 +54,15 @@ public sealed class OpenVinoOptimizationPlanAdapterTests
         OptimizationExecutionPlan plan = OpenVinoOptimizationTestData.Plan(
             OpenVinoWeightFormat.Int8,
             OpenVinoKvCacheFormat.U8,
-            ContractCompiledCachePolicy.Enabled,
-            streams: 2,
-            contextTokens: 2_048);
+            ContractCompiledCachePolicy.Disabled,
+            streams: 1,
+            contextTokens: 4_096);
 
         OpenVinoOptimizationAdaptation result =
             OpenVinoOptimizationPlanAdapter.Adapt(
                 plan,
                 plan.CapabilitySnapshot,
+                OpenVinoOptimizationTestData.CurrentEvidence(plan),
                 OpenVinoOptimizationTestData.SourceDigest,
                 OpenVinoOptimizationTestData.SourceLength);
 
@@ -71,12 +73,12 @@ public sealed class OpenVinoOptimizationPlanAdapterTests
             result.Candidate.WeightPrecision);
         Assert.AreEqual(OpenVinoKvCachePrecision.U8,
             result.Candidate.Runtime.KvCachePrecision);
-        Assert.IsTrue(result.Candidate.Runtime.CompiledCache.Enabled);
+        Assert.IsFalse(result.Candidate.Runtime.CompiledCache.Enabled);
         Assert.AreEqual("CPU", result.Candidate.Device);
         Assert.AreEqual(OpenVinoCapabilityPerformanceHint.Latency,
             result.Candidate.PerformanceHint);
-        Assert.AreEqual(2, result.Candidate.Streams);
-        Assert.AreEqual(2_048, result.Candidate.ContextTokens);
+        Assert.AreEqual(1, result.Candidate.Streams);
+        Assert.AreEqual(4_096, result.Candidate.ContextTokens);
         Assert.AreEqual("OV-EXACT-01", result.Candidate.EvidenceId);
         Assert.IsNull(typeof(OpenVinoOptimizationCandidate).GetProperty("Objective"));
     }
@@ -89,12 +91,13 @@ public sealed class OpenVinoOptimizationPlanAdapterTests
             OpenVinoKvCacheFormat.RouteDefault,
             ContractCompiledCachePolicy.Disabled,
             streams: 1,
-            contextTokens: 1_024);
+            contextTokens: 4_096);
 
         OpenVinoOptimizationAdaptation result =
             OpenVinoOptimizationPlanAdapter.Adapt(
                 plan,
                 plan.CapabilitySnapshot,
+                OpenVinoOptimizationTestData.CurrentEvidence(plan),
                 OpenVinoOptimizationTestData.SourceDigest,
                 OpenVinoOptimizationTestData.SourceLength);
 
@@ -114,10 +117,12 @@ public sealed class OpenVinoOptimizationPlanAdapterTests
         OptimizationExecutionPlan plan = OpenVinoOptimizationTestData.Plan(
             OpenVinoWeightFormat.Int8,
             OpenVinoKvCacheFormat.U8,
-            ContractCompiledCachePolicy.Enabled);
+            ContractCompiledCachePolicy.Disabled);
 
         OpenVinoOptimizationAdaptation result = OpenVinoOptimizationPlanAdapter.Adapt(
-            plan, plan.CapabilitySnapshot, OpenVinoOptimizationTestData.SourceDigest,
+            plan, plan.CapabilitySnapshot,
+            OpenVinoOptimizationTestData.CurrentEvidence(plan),
+            OpenVinoOptimizationTestData.SourceDigest,
             OpenVinoOptimizationTestData.SourceLength);
 
         Assert.AreEqual(OpenVinoOptimizationAdaptationStatus.Ready, result.Status);
@@ -141,13 +146,13 @@ public sealed class OpenVinoOptimizationPlanAdapterTests
             candidate.Runtime.CompiledCache.IsModelArtifact);
         Assert.AreEqual(payload.CreatesCompletePackage,
             candidate.PersistentArtifact!.CreatesCompletePackage);
-        Assert.AreEqual("2026.3.0-22451-8a17657b995",
+        Assert.AreEqual("2026.3.0-22451-8a17657b995-releases/2026/3",
             mappedPayload.BuildIdentity.RuntimeBuild);
         Assert.AreEqual("2026.3.0.0-3277-bd8d6542e3c",
             mappedPayload.BuildIdentity.GenAiBuild);
         Assert.AreEqual("2026.3.0.0-703-183c6f25cda",
             mappedPayload.BuildIdentity.TokenizersBuild);
-        Assert.AreEqual(new string('d', 64),
+        Assert.AreEqual(new string('1', 64),
             mappedPayload.BuildIdentity.WorkerManifestDigest);
         CollectionAssert.AreEqual(
             ExpectedOptimizerKeys,
@@ -161,6 +166,74 @@ public sealed class OpenVinoOptimizationPlanAdapterTests
         OptimizationExecutionPlan plan = OpenVinoOptimizationTestData.Plan();
         Assert.IsFalse(plan.IsExecutableBy(1));
         Assert.AreEqual(2, plan.ContractVersion);
+    }
+
+    [TestMethod]
+    public void AdapterIlRetainsTheExecutableByV2Gate()
+    {
+        MethodInfo adapt = typeof(OpenVinoOptimizationPlanAdapter).GetMethod(
+            nameof(OpenVinoOptimizationPlanAdapter.Adapt),
+            BindingFlags.Public | BindingFlags.Static)!;
+        MethodInfo executableBy = typeof(OptimizationExecutionPlan).GetMethod(
+            nameof(OptimizationExecutionPlan.IsExecutableBy))!;
+        byte[] il = adapt.GetMethodBody()!.GetILAsByteArray()!;
+        int callIndex = FindCall(il, adapt.Module, executableBy);
+
+        Assert.IsGreaterThanOrEqualTo(1, callIndex,
+            "Adapt must call OptimizationExecutionPlan.IsExecutableBy.");
+        Assert.AreEqual((byte)0x18, il[callIndex - 1],
+            "Adapt must load the integer constant 2 for IsExecutableBy.");
+    }
+
+    [TestMethod]
+    [DataRow(OpenVinoWeightFormat.Original, OpenVinoKvCacheFormat.RouteDefault,
+        "openvino.standard.cpu.original.default.v1")]
+    [DataRow(OpenVinoWeightFormat.Fp16, OpenVinoKvCacheFormat.RouteDefault,
+        "openvino.standard.cpu.fp16.default.v1")]
+    [DataRow(OpenVinoWeightFormat.Int8, OpenVinoKvCacheFormat.RouteDefault,
+        "openvino.standard.cpu.int8.default.v1")]
+    [DataRow(OpenVinoWeightFormat.Int8, OpenVinoKvCacheFormat.U8,
+        "openvino.standard.cpu.int8.u8.v1")]
+    [DataRow(OpenVinoWeightFormat.Int4, OpenVinoKvCacheFormat.U8,
+        "openvino.standard.cpu.int4.u8.v1")]
+    public void AdapterMapsTheFivePublishedConfigurationIds(
+        OpenVinoWeightFormat weights,
+        OpenVinoKvCacheFormat kvCache,
+        string expectedConfigurationId)
+    {
+        OptimizationExecutionPlan plan = OpenVinoOptimizationTestData.Plan(
+            weights, kvCache, ContractCompiledCachePolicy.Disabled);
+
+        OpenVinoOptimizationAdaptation result = OpenVinoOptimizationPlanAdapter.Adapt(
+            plan,
+            plan.CapabilitySnapshot,
+            OpenVinoOptimizationTestData.CurrentEvidence(plan),
+            OpenVinoOptimizationTestData.SourceDigest,
+            OpenVinoOptimizationTestData.SourceLength);
+
+        Assert.AreEqual(OpenVinoOptimizationAdaptationStatus.Ready, result.Status);
+        Assert.AreEqual(expectedConfigurationId, result.Candidate!.ConfigurationId);
+    }
+
+    [TestMethod]
+    public void CandidateRejectsConfigurationOutsideThePublishedRouteNamespace()
+    {
+        OpenVinoOptimizationCandidate candidate = new(
+            "some.other.route.configuration",
+            "CPU",
+            OpenVinoWeightPrecision.EightBit,
+            OpenVinoPersistentArtifact.Create(OpenVinoWeightPrecision.EightBit),
+            new OpenVinoRuntimeOptimization(
+                OpenVinoKvCachePrecision.U8,
+                GraniteEdgeAI.Features.OpenVinoRoute.Optimization
+                    .OpenVinoCompiledCachePolicy.Disabled),
+            OpenVinoCapabilityPerformanceHint.Latency,
+            Streams: 1,
+            ContextTokens: 4_096,
+            "Standard candidate",
+            "OV-EXACT-01");
+
+        Assert.ThrowsExactly<OpenVinoOptimizationException>(candidate.Validate);
     }
 
     [TestMethod]
@@ -209,7 +282,9 @@ public sealed class OpenVinoOptimizationPlanAdapterTests
                 .OpenVinoWeightPrecision.FourBit);
 
         OpenVinoOptimizationAdaptation result = OpenVinoOptimizationPlanAdapter.Adapt(
-            plan, plan.CapabilitySnapshot, OpenVinoOptimizationTestData.SourceDigest,
+            plan, plan.CapabilitySnapshot,
+            OpenVinoOptimizationTestData.CurrentEvidence(plan),
+            OpenVinoOptimizationTestData.SourceDigest,
             OpenVinoOptimizationTestData.SourceLength);
 
         Assert.AreEqual(OpenVinoOptimizationAdaptationStatus.ReplanRequired, result.Status);
@@ -234,6 +309,70 @@ public sealed class OpenVinoOptimizationPlanAdapterTests
                 optimizerVersions: versions));
 
         AssertRejected(plan, OptimizationSupportCode.ToolNotAdmitted);
+    }
+
+    [TestMethod]
+    [DataRow(nameof(OpenVinoBuildEvidence.RuntimeBuild))]
+    [DataRow(nameof(OpenVinoBuildEvidence.GenAiBuild))]
+    [DataRow(nameof(OpenVinoBuildEvidence.TokenizersBuild))]
+    [DataRow(nameof(OpenVinoBuildEvidence.WorkerManifestDigest))]
+    public void AdapterRejectsAnyCurrentBuildIdentityMismatch(string field)
+    {
+        OptimizationExecutionPlan plan = OpenVinoOptimizationTestData.Plan();
+        OpenVinoOptimizationCapabilityEvidence current =
+            OpenVinoOptimizationTestData.CurrentEvidence(plan);
+        OpenVinoBuildEvidence changed = field switch
+        {
+            nameof(OpenVinoBuildEvidence.RuntimeBuild) =>
+                current.Builds with { RuntimeBuild = "2026.3.0-other" },
+            nameof(OpenVinoBuildEvidence.GenAiBuild) =>
+                current.Builds with { GenAiBuild = "2026.3.0.0-other" },
+            nameof(OpenVinoBuildEvidence.TokenizersBuild) =>
+                current.Builds with { TokenizersBuild = "2026.3.0.0-other" },
+            nameof(OpenVinoBuildEvidence.WorkerManifestDigest) =>
+                current.Builds with { WorkerManifestDigest = new string('9', 64) },
+            _ => throw new AssertFailedException(field)
+        };
+
+        AssertRejected(
+            plan,
+            OptimizationSupportCode.ToolNotAdmitted,
+            current with { Builds = changed });
+    }
+
+    [TestMethod]
+    public void AdapterRejectsCurrentTurboQuantBuildIdentity()
+    {
+        OptimizationExecutionPlan plan = OpenVinoOptimizationTestData.Plan();
+        OpenVinoOptimizationCapabilityEvidence current =
+            OpenVinoOptimizationTestData.CurrentEvidence(plan);
+        OpenVinoBuildEvidence changed = current.Builds with
+        {
+            TurboQuantBuild = new TurboQuantBuildEvidence(
+                new string('a', 40), new string('b', 40),
+                new string('c', 64), new string('d', 64))
+        };
+
+        AssertRejected(
+            plan,
+            OptimizationSupportCode.ToolNotAdmitted,
+            current with { Builds = changed });
+    }
+
+    [TestMethod]
+    public void AdapterRejectsCurrentOptimizerVersionMismatch()
+    {
+        OptimizationExecutionPlan plan = OpenVinoOptimizationTestData.Plan();
+        OpenVinoOptimizationCapabilityEvidence current =
+            OpenVinoOptimizationTestData.CurrentEvidence(plan);
+
+        AssertRejected(
+            plan,
+            OptimizationSupportCode.ToolNotAdmitted,
+            current with
+            {
+                Versions = current.Versions with { Transformers = "5.5.5" }
+            });
     }
 
     [TestMethod]
@@ -264,12 +403,44 @@ public sealed class OpenVinoOptimizationPlanAdapterTests
             batchSize: 64, "measured", "profile-1", maximumGeneratedTokens: 64,
             GgufWeightFormat.Imported));
 
+    private static int FindCall(byte[] il, Module module, MethodInfo expected)
+    {
+        for (int index = 0; index <= il.Length - 5; index++)
+        {
+            if (il[index] is not (0x28 or 0x6f))
+            {
+                continue;
+            }
+
+            try
+            {
+                MethodBase? called = module.ResolveMethod(
+                    BitConverter.ToInt32(il, index + 1));
+                if (called?.Name == expected.Name &&
+                    called.DeclaringType == expected.DeclaringType)
+                {
+                    return index;
+                }
+            }
+            catch (Exception exception) when (exception is ArgumentException or
+                                              BadImageFormatException)
+            {
+                // This byte was part of another instruction's operand.
+            }
+        }
+
+        return -1;
+    }
+
     private static void AssertRejected(
         OptimizationExecutionPlan plan,
-        OptimizationSupportCode expectedSupportCode)
+        OptimizationSupportCode expectedSupportCode,
+        OpenVinoOptimizationCapabilityEvidence? currentEvidence = null)
     {
         OpenVinoOptimizationAdaptation result = OpenVinoOptimizationPlanAdapter.Adapt(
-            plan, plan.CapabilitySnapshot, OpenVinoOptimizationTestData.SourceDigest,
+            plan, plan.CapabilitySnapshot,
+            currentEvidence ?? OpenVinoOptimizationTestData.CurrentEvidence(plan),
+            OpenVinoOptimizationTestData.SourceDigest,
             OpenVinoOptimizationTestData.SourceLength);
 
         Assert.AreEqual(OpenVinoOptimizationAdaptationStatus.ReplanRequired,
@@ -282,9 +453,9 @@ public sealed class OpenVinoOptimizationPlanAdapterTests
     [DataRow(OpenVinoWeightFormat.Fp16, OpenVinoKvCacheFormat.RouteDefault,
         ContractCompiledCachePolicy.Disabled, OpenVinoWeightPrecision.Fp16)]
     [DataRow(OpenVinoWeightFormat.Int8, OpenVinoKvCacheFormat.U8,
-        ContractCompiledCachePolicy.Enabled, OpenVinoWeightPrecision.EightBit)]
+        ContractCompiledCachePolicy.Disabled, OpenVinoWeightPrecision.EightBit)]
     [DataRow(OpenVinoWeightFormat.Int4, OpenVinoKvCacheFormat.U8,
-        ContractCompiledCachePolicy.Enabled, OpenVinoWeightPrecision.FourBit)]
+        ContractCompiledCachePolicy.Disabled, OpenVinoWeightPrecision.FourBit)]
     public void AdapterMapsEveryReleasedWeightPath(
         OpenVinoWeightFormat weights,
         OpenVinoKvCacheFormat kvCache,
@@ -300,6 +471,7 @@ public sealed class OpenVinoOptimizationPlanAdapterTests
             OpenVinoOptimizationPlanAdapter.Adapt(
                 plan,
                 plan.CapabilitySnapshot,
+                OpenVinoOptimizationTestData.CurrentEvidence(plan),
                 OpenVinoOptimizationTestData.SourceDigest,
                 OpenVinoOptimizationTestData.SourceLength);
 
@@ -325,6 +497,7 @@ public sealed class OpenVinoOptimizationPlanAdapterTests
             OpenVinoOptimizationPlanAdapter.Adapt(
                 plan,
                 current,
+                OpenVinoOptimizationTestData.CurrentEvidence(plan),
                 OpenVinoOptimizationTestData.SourceDigest,
                 OpenVinoOptimizationTestData.SourceLength);
 
@@ -348,6 +521,7 @@ public sealed class OpenVinoOptimizationPlanAdapterTests
             OpenVinoOptimizationPlanAdapter.Adapt(
                 plan,
                 current,
+                OpenVinoOptimizationTestData.CurrentEvidence(plan),
                 OpenVinoOptimizationTestData.SourceDigest,
                 OpenVinoOptimizationTestData.SourceLength);
 
@@ -377,6 +551,7 @@ public sealed class OpenVinoOptimizationPlanAdapterTests
             OpenVinoOptimizationPlanAdapter.Adapt(
                 plan,
                 current,
+                OpenVinoOptimizationTestData.CurrentEvidence(plan),
                 OpenVinoOptimizationTestData.SourceDigest,
                 OpenVinoOptimizationTestData.SourceLength);
 
@@ -399,6 +574,7 @@ public sealed class OpenVinoOptimizationPlanAdapterTests
             OpenVinoOptimizationPlanAdapter.Adapt(
                 plan,
                 plan.CapabilitySnapshot,
+                OpenVinoOptimizationTestData.CurrentEvidence(plan),
                 matchingDigest
                     ? OpenVinoOptimizationTestData.SourceDigest
                     : new string('9', 64),
@@ -424,6 +600,7 @@ public sealed class OpenVinoOptimizationPlanAdapterTests
             OpenVinoOptimizationPlanAdapter.Adapt(
                 plan,
                 plan.CapabilitySnapshot,
+                OpenVinoOptimizationTestData.CurrentEvidence(plan),
                 OpenVinoOptimizationTestData.SourceDigest,
                 OpenVinoOptimizationTestData.SourceLength);
 
@@ -446,6 +623,7 @@ public sealed class OpenVinoOptimizationPlanAdapterTests
             OpenVinoOptimizationPlanAdapter.Adapt(
                 plan,
                 plan.CapabilitySnapshot,
+                OpenVinoOptimizationTestData.CurrentEvidence(plan),
                 OpenVinoOptimizationTestData.SourceDigest,
                 OpenVinoOptimizationTestData.SourceLength);
 
@@ -612,8 +790,8 @@ public sealed class OpenVinoOptimizationPlanAdapterTests
                         OpenVinoPerformanceHint.Latency,
                         compiledCache,
                         streams,
-                        minimumContextTokens: 512,
-                        maximumContextTokens: 8_192,
+                        minimumContextTokens: 4_096,
+                        maximumContextTokens: 4_096,
                         SupportLevel.DeclaredSupported,
                         requiresEvidence: false)
                 ]);
@@ -630,10 +808,24 @@ public sealed class OpenVinoOptimizationPlanAdapterTests
         internal static FixedCurrentStateProvider CurrentStateProvider(
             OptimizationExecutionPlan plan) => new FixedCurrentStateProvider(new(
                 plan.CapabilitySnapshot,
+                CurrentEvidence(plan),
                 plan.Binding.ModelInspectionRunId,
                 plan.Binding.ModelInspectionHandoffId,
                 plan.Binding.ProductHardwareRunId,
                 plan.Binding.HardwareSnapshotSha256));
+
+        internal static OpenVinoOptimizationCapabilityEvidence CurrentEvidence(
+            OptimizationExecutionPlan plan)
+        {
+            OpenVinoAdmittedConfiguration admission =
+                plan.CapabilitySnapshot.OpenVino!.Admitted.Single();
+            return OpenVinoV2TestPayload.CapabilityEvidenceFor(
+                admission.Weights,
+                admission.KvCache,
+                admission.CompiledCache,
+                admission.EvidenceId,
+                admission.Streams);
+        }
     }
 
     private sealed class FixedCurrentStateProvider(

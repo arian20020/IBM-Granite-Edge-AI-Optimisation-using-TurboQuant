@@ -230,7 +230,7 @@ public sealed class OpenVinoOptimizationTests
         OptimizationExecutionPlan plan = CreatePlan(
             package.Source,
             OpenVinoWeightFormat.Original,
-            OpenVinoKvCacheFormat.U8);
+            OpenVinoKvCacheFormat.RouteDefault);
 
         OptimizationExecutionResult result = await service.ExecuteAsync(
             new OpenVinoOptimizationRequest(
@@ -560,7 +560,7 @@ public sealed class OpenVinoOptimizationTests
         OptimizationExecutionPlan plan = CreatePlan(
             package.Source,
             OpenVinoWeightFormat.Original,
-            OpenVinoKvCacheFormat.U8);
+            OpenVinoKvCacheFormat.RouteDefault);
         RecordingOptimizationPipeline pipeline = new();
         OpenVinoOptimizationService service = new(pipeline, _ => false);
 
@@ -587,7 +587,7 @@ public sealed class OpenVinoOptimizationTests
         OptimizationExecutionPlan plan = CreatePlan(
             package.Source,
             OpenVinoWeightFormat.Original,
-            OpenVinoKvCacheFormat.U8);
+            OpenVinoKvCacheFormat.RouteDefault);
         Guid operationId = Guid.NewGuid();
         string collision = Path.Combine(
             Path.GetDirectoryName(package.Destination)!,
@@ -814,8 +814,8 @@ public sealed class OpenVinoOptimizationTests
                     OpenVinoPerformanceHint.Latency,
                     compiledCache,
                     streams,
-                    minimumContextTokens: 512,
-                    maximumContextTokens: 8_192,
+                    minimumContextTokens: 4_096,
+                    maximumContextTokens: 4_096,
                     SupportLevel.DeclaredSupported,
                     requiresEvidence: false)
             ]);
@@ -851,10 +851,24 @@ public sealed class OpenVinoOptimizationTests
         OptimizationExecutionPlan plan,
         OptimizationCapabilitySnapshot? capabilities = null) => new(
             capabilities ?? plan.CapabilitySnapshot,
+            CurrentEvidence(plan),
             plan.Binding.ModelInspectionRunId,
             plan.Binding.ModelInspectionHandoffId,
             plan.Binding.ProductHardwareRunId,
             plan.Binding.HardwareSnapshotSha256);
+
+    private static OpenVinoOptimizationCapabilityEvidence CurrentEvidence(
+        OptimizationExecutionPlan plan)
+    {
+        OpenVinoAdmittedConfiguration admission =
+            plan.CapabilitySnapshot.OpenVino!.Admitted.Single();
+        return OpenVinoV2TestPayload.CapabilityEvidenceFor(
+            admission.Weights,
+            admission.KvCache,
+            admission.CompiledCache,
+            admission.EvidenceId,
+            admission.Streams);
+    }
 
     private static SequenceCurrentStateProvider CurrentStateProvider(
         OptimizationExecutionPlan plan,

@@ -3,6 +3,7 @@ using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Candidates;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.OpenVino;
+using GraniteEdgeAI.OpenVino.Contracts;
 using ContractCompiledCachePolicy = GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.OpenVino.OpenVinoCompiledCachePolicy;
 using RouteCompiledCachePolicy = GraniteEdgeAI.Features.OpenVinoRoute.Optimization.OpenVinoCompiledCachePolicy;
 
@@ -36,8 +37,7 @@ public sealed class OpenVinoOptimizationCapabilityProjectorTests
                 OpenVinoCapabilityTestData.StandardCpuEvidence());
 
         Assert.AreEqual(
-            "openvino-2026.3.0_openvino-genai-2026.3.0.0_nncf-3.3.0_"
-            + "optimum-2.3.0_optimum-intel-2.1.0_transformers-5.5.4",
+            "2026.3.0-22451-8a17657b995-releases/2026/3",
             payload.RuntimeVersion);
 
         (string EvidenceId, OpenVinoWeightFormat Weights,
@@ -76,6 +76,27 @@ public sealed class OpenVinoOptimizationCapabilityProjectorTests
             Assert.AreEqual(SupportLevel.DeclaredSupported, actual.Level);
             Assert.IsFalse(actual.RequiresEvidence);
         }
+    }
+
+    [TestMethod]
+    public void ProjectorUsesCallerVerifiedBuildEvidenceWithoutRewritingIt()
+    {
+        OpenVinoOptimizationCapabilityEvidence evidence =
+            OpenVinoCapabilityTestData.StandardCpuEvidence();
+
+        OpenVinoCapabilityPayload payload =
+            OpenVinoOptimizationCapabilityProjector.Project(evidence);
+
+        Assert.AreEqual(evidence.Builds.RuntimeBuild, payload.RuntimeVersion);
+        Assert.AreEqual(
+            "2026.3.0-22451-8a17657b995-releases/2026/3",
+            evidence.Builds.RuntimeBuild);
+        Assert.AreEqual("2026.3.0.0-3277-bd8d6542e3c",
+            evidence.Builds.GenAiBuild);
+        Assert.AreEqual("2026.3.0.0-703-183c6f25cda",
+            evidence.Builds.TokenizersBuild);
+        Assert.AreEqual(new string('1', 64),
+            evidence.Builds.WorkerManifestDigest);
     }
 
     [TestMethod]
@@ -285,6 +306,11 @@ public sealed class OpenVinoOptimizationCapabilityProjectorTests
     {
         internal static OpenVinoOptimizationCapabilityEvidence StandardCpuEvidence() =>
             new(
+                new OpenVinoBuildEvidence(
+                    "2026.3.0-22451-8a17657b995-releases/2026/3",
+                    "2026.3.0.0-3277-bd8d6542e3c",
+                    "2026.3.0.0-703-183c6f25cda",
+                    new string('1', 64)),
                 new OpenVinoOptimizationToolVersions(
                     OpenVino: "2026.3.0",
                     OpenVinoGenAi: "2026.3.0.0",
@@ -402,7 +428,8 @@ public sealed class OpenVinoOptimizationCapabilityProjectorTests
                 DateTimeOffset.UnixEpoch);
             OpenVinoOptimizationAdaptation adaptation =
                 OpenVinoOptimizationPlanAdapter.Adapt(
-                    plan, snapshot, sourceDigest, sourceLength);
+                    plan, snapshot, StandardCpuEvidence(),
+                    sourceDigest, sourceLength);
 
             Assert.AreEqual(OpenVinoOptimizationAdaptationStatus.Ready,
                 adaptation.Status, admission.EvidenceId);

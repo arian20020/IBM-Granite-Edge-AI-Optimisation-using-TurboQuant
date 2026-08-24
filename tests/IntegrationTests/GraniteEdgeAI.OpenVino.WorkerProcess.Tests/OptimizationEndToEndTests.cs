@@ -11,6 +11,9 @@ using GraniteEdgeAI.OpenVino.Contracts;
 using GraniteEdgeAI.OpenVino.WorkerClient;
 using ContractCompiledCachePolicy = GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.OpenVino.OpenVinoCompiledCachePolicy;
 using RouteCompiledCachePolicy = GraniteEdgeAI.Features.OpenVinoRoute.Optimization.OpenVinoCompiledCachePolicy;
+using ContractExecutionPayload = GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Execution.OptimizationExecutionPayload;
+using ContractOpenVinoBuildIdentity = GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Execution.OpenVinoBuildIdentity;
+using ContractOpenVinoExecutionPayload = GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Execution.OpenVinoExecutionPayload;
 
 namespace GraniteEdgeAI.OpenVino.WorkerProcess.Tests;
 
@@ -216,6 +219,13 @@ public sealed class OptimizationEndToEndTests
         string officialStage = RequireOfficialStage();
         string manifestDigest = Digest(Path.Combine(
             converterStage, "converter-manifest.json"));
+        OpenVinoBuildEvidence currentBuilds = new(
+            "2026.3.0-22451-8a17657b995-releases/2026/3",
+            "2026.3.0.0-3277-bd8d6542e3c",
+            "2026.3.0.0-703-183c6f25cda",
+            Digest(Path.Combine(officialStage, "worker-manifest.json")));
+        OpenVinoOptimizationCapabilityEvidence currentEvidence =
+            NativeCapabilityEvidence(currentBuilds);
         OpenVinoRouteService route = CreateRoute(officialStage);
         SealedOpenVinoConversionPipeline converter = new(
             converterStage, manifestDigest, route);
@@ -242,7 +252,7 @@ public sealed class OptimizationEndToEndTests
                 new OpenVinoStaticPackageInspector().Inspect(baseline).Evidence!;
             OpenVinoCapabilityPayload payload =
                 OpenVinoOptimizationCapabilityProjector.Project(
-                    NativeCapabilityEvidence());
+                    currentEvidence);
             OpenVinoAdmittedConfiguration admission = payload.Admitted.Single(
                 static item => item.EvidenceId == "OV-STD-CPU-INT8-U8-01");
             OptimizationCapabilitySnapshot snapshot =
@@ -253,11 +263,13 @@ public sealed class OptimizationEndToEndTests
             OptimizationExecutionPlan plan = IssuePlan(
                 admission,
                 snapshot,
-                baselineEvidence);
+                baselineEvidence,
+                currentEvidence);
             OpenVinoOptimizationAdaptation adaptation =
                 OpenVinoOptimizationPlanAdapter.Adapt(
                     plan,
                     snapshot,
+                    currentEvidence,
                     baselineEvidence.ModelSha256,
                     checked((ulong)baselineEvidence.ModelLengthBytes));
             Assert.AreEqual(OpenVinoOptimizationAdaptationStatus.Ready,
@@ -271,6 +283,7 @@ public sealed class OptimizationEndToEndTests
                     plan,
                     new FixedCurrentStateProvider(new(
                         snapshot,
+                        currentEvidence,
                         plan.Binding.ModelInspectionRunId,
                         plan.Binding.ModelInspectionHandoffId,
                         plan.Binding.ProductHardwareRunId,
@@ -350,8 +363,10 @@ public sealed class OptimizationEndToEndTests
         return Path.GetFullPath(value!);
     }
 
-    private static OpenVinoOptimizationCapabilityEvidence NativeCapabilityEvidence() =>
+    private static OpenVinoOptimizationCapabilityEvidence NativeCapabilityEvidence(
+        OpenVinoBuildEvidence builds) =>
         new(
+            builds,
             new OpenVinoOptimizationToolVersions(
                 OpenVino: "2026.3.0",
                 OpenVinoGenAi: "2026.3.0.0",
@@ -377,7 +392,8 @@ public sealed class OptimizationEndToEndTests
     private static OptimizationExecutionPlan IssuePlan(
         OpenVinoAdmittedConfiguration admission,
         OptimizationCapabilitySnapshot snapshot,
-        OpenVinoStaticPackageEvidence source)
+        OpenVinoStaticPackageEvidence source,
+        OpenVinoOptimizationCapabilityEvidence currentEvidence)
     {
         OpenVinoRouteConfiguration configuration = OpenVinoRouteConfiguration.Create(
             admission.Weights,
@@ -405,8 +421,42 @@ public sealed class OptimizationEndToEndTests
             isExperimental: false);
         OptimizationSelection selection = OptimizationPreferenceResolver.Resolve(
             [candidate], OptimizationPreferenceSelection.Manual(50))!;
+        OpenVinoOptimizationToolVersions versions = currentEvidence.Versions;
+        ContractExecutionPayload executionPayload =
+            ContractExecutionPayload.ForOpenVino(
+                ContractOpenVinoExecutionPayload.Create(
+                    "openvino.standard.cpu.int8.u8.v1",
+                    "CPU",
+                    "Standard candidate",
+                    admission.EvidenceId,
+                    GraniteEdgeAI.ModelHardwareCompatibility.Core.Application
+                        .Optimization.Execution.OpenVinoWeightPrecision.Fp16,
+                    GraniteEdgeAI.ModelHardwareCompatibility.Core.Application
+                        .Optimization.Execution.OpenVinoWeightPrecision.EightBit,
+                    GraniteEdgeAI.ModelHardwareCompatibility.Core.Application
+                        .Optimization.Execution.OpenVinoKvCachePrecision.U8,
+                    compiledCacheEnabled: false,
+                    compiledCacheIsDisposable: true,
+                    compiledCacheIsModelArtifact: false,
+                    createsCompletePackage: true,
+                    ContractOpenVinoBuildIdentity.Create(
+                        currentEvidence.Builds.RuntimeBuild,
+                        currentEvidence.Builds.GenAiBuild,
+                        currentEvidence.Builds.TokenizersBuild,
+                        currentEvidence.Builds.WorkerManifestDigest),
+                    new SortedDictionary<string, string>(StringComparer.Ordinal)
+                    {
+                        ["nncf"] = versions.Nncf,
+                        ["openvino"] = versions.OpenVino,
+                        ["openvino-genai"] = versions.OpenVinoGenAi,
+                        ["optimum"] = versions.Optimum,
+                        ["optimum-intel"] = versions.OptimumIntel,
+                        ["transformers"] = versions.Transformers
+                    },
+                    turboQuantBuild: null));
         return OptimizationPlanIssuer.Issue(
             selection,
+            executionPayload,
             snapshot,
             OptimizationWorkload.Create(
                 "chat",
@@ -420,6 +470,7 @@ public sealed class OptimizationEndToEndTests
                 sourceLength,
                 "hw-native-e2e-1",
                 new string('2', 64)),
+            modelLayerCount: 1,
             DateTimeOffset.UnixEpoch);
     }
 
