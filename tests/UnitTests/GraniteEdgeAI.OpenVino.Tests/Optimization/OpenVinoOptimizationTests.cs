@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using GraniteEdgeAI.Features.OpenVinoRoute.Optimization;
 using GraniteEdgeAI.Features.OpenVinoRoute.Inspection;
@@ -207,6 +209,19 @@ public sealed class OpenVinoOptimizationTests
         Assert.AreEqual(plan.CreatedAtUtc, provenance.PlanContext.PlanCreatedAtUtc);
         Assert.AreEqual(64, provenance.ExecutionConfigurationSha256!.Length);
         Assert.AreEqual(64, provenance.PlanBindingSha256!.Length);
+        Assert.AreSame(
+            plan.ExecutionPayload.OpenVino,
+            pipeline.Invocations.Single().Candidate.ExecutionPayload);
+        Assert.AreEqual(
+            Path.TrimEndingDirectorySeparator(Path.GetFullPath(package.Source)),
+            pipeline.Invocations.Single().SourceDirectory);
+        Assert.AreEqual(2, provenance.ExecutorContractVersion);
+        AssertPayloadBinding(
+            plan.ExecutionPayload.OpenVino!,
+            provenance.OpenVinoExecutionPayloadJson,
+            provenance.OpenVinoExecutionPayloadSha256);
+        Assert.IsFalse(File.Exists(Path.Combine(
+            package.Destination, OpenVinoRuntimeOptimizationProfile.FileName)));
 
         string provenancePath = Path.Combine(
             package.Destination, OpenVinoOptimizationProvenance.FileName);
@@ -218,6 +233,13 @@ public sealed class OpenVinoOptimizationTests
                 StringComparison.Ordinal));
         Assert.ThrowsExactly<InvalidDataException>(() =>
             OpenVinoOptimizationProvenance.Read(package.Destination));
+
+        Assert.ThrowsExactly<InvalidDataException>(() =>
+            (provenance with
+            {
+                OpenVinoExecutionPayloadJson =
+                    provenance.OpenVinoExecutionPayloadJson + " "
+            }).Write(package.Destination));
     }
 
     [TestMethod]
@@ -259,6 +281,11 @@ public sealed class OpenVinoOptimizationTests
         Assert.AreEqual(plan.Workload.WorkloadId, profile.PlanContext.WorkloadId);
         Assert.AreEqual(plan.Preference.Kind, profile.PlanContext.PreferenceKind);
         Assert.AreEqual(plan.CreatedAtUtc, profile.PlanContext.PlanCreatedAtUtc);
+        Assert.AreEqual(2, profile.ExecutorContractVersion);
+        AssertPayloadBinding(
+            plan.ExecutionPayload.OpenVino!,
+            profile.OpenVinoExecutionPayloadJson,
+            profile.OpenVinoExecutionPayloadSha256);
         Assert.AreEqual(0, pipeline.Calls.Count);
         CollectionAssert.AreEqual(
             new[]
@@ -271,6 +298,82 @@ public sealed class OpenVinoOptimizationTests
             package.Destination, "openvino_model.bin")));
         Assert.IsFalse(File.Exists(Path.Combine(
             package.Destination, OpenVinoOptimizationProvenance.FileName)));
+    }
+
+    [TestMethod]
+    public async Task TrustedSourceMismatchWinsBeforePackageInspectionOrPipelineAccess()
+    {
+        using PackageFixture package = PackageFixture.Create();
+        OptimizationExecutionPlan plan = CreatePlan(package.Source);
+        string modelPath = Path.Combine(package.Source, "openvino_model.bin");
+        byte[] changed = File.ReadAllBytes(modelPath);
+        changed[0] ^= 0xff;
+        File.WriteAllBytes(modelPath, changed);
+        File.Delete(Path.Combine(package.Source, "config.json"));
+        RecordingOptimizationPipeline pipeline = new();
+        SequenceCurrentStateProvider currentStateProvider = CurrentStateProvider(plan);
+        OpenVinoOptimizationService service = new(pipeline, _ => true);
+
+        OptimizationExecutionResult result = await service.ExecuteAsync(
+            new OpenVinoOptimizationRequest(
+                package.Source,
+                package.Destination,
+                plan,
+                currentStateProvider,
+                Confirmed: true),
+            progress: null,
+            CancellationToken.None);
+
+        Assert.AreEqual(OptimizationExecutionStatus.ReplanRequired, result.Status);
+        Assert.AreEqual(OptimizationSupportCode.SourceIdentityMismatch,
+            result.SupportCode);
+        CollectionAssert.AreEqual(
+            new[] { OpenVinoOptimizationCheckpoint.InitialPreflight },
+            currentStateProvider.Checkpoints.ToArray());
+        Assert.AreEqual(0, pipeline.Calls.Count);
+        Assert.IsFalse(Directory.Exists(package.Destination));
+    }
+
+    [TestMethod]
+    [DataRow(OpenVinoOptimizationCheckpoint.BeforeStaging, 0)]
+    [DataRow(OpenVinoOptimizationCheckpoint.BeforePublish, 3)]
+    public async Task TrustedSourceBoundaryValidationRunsImmediatelyBeforeNativeOrPublish(
+        OpenVinoOptimizationCheckpoint observedAt,
+        int expectedPipelineCalls)
+    {
+        using PackageFixture package = PackageFixture.Create();
+        OptimizationExecutionPlan plan = CreatePlan(package.Source);
+        OpenVinoOptimizationCurrentState current = CurrentState(plan);
+        RecordingOptimizationPipeline pipeline = new();
+        bool boundaryObserved = false;
+        SequenceCurrentStateProvider currentStateProvider = new(
+            [current, current, current],
+            beforeReturn: checkpoint =>
+            {
+                if (checkpoint != observedAt)
+                {
+                    return;
+                }
+                boundaryObserved = true;
+                Assert.AreEqual(expectedPipelineCalls, pipeline.Calls.Count);
+                Assert.IsFalse(Directory.Exists(package.Destination));
+            });
+        OpenVinoOptimizationService service = new(pipeline, _ => true);
+
+        OptimizationExecutionResult result = await service.ExecuteAsync(
+            new OpenVinoOptimizationRequest(
+                package.Source,
+                package.Destination,
+                plan,
+                currentStateProvider,
+                Confirmed: true),
+            progress: null,
+            CancellationToken.None);
+
+        Assert.AreEqual(OptimizationExecutionStatus.SucceededPersistent, result.Status);
+        Assert.IsTrue(boundaryObserved);
+        CollectionAssert.AreEqual(ExpectedPipelineCalls, pipeline.Calls.ToArray());
+        Assert.IsTrue(Directory.Exists(package.Destination));
     }
 
     [TestMethod]
@@ -424,6 +527,123 @@ public sealed class OpenVinoOptimizationTests
         Assert.AreEqual(0UL, result.OutputSizeBytes);
         Assert.AreEqual(0, pipeline.Calls.Count);
         Assert.IsFalse(Directory.Exists(package.Destination));
+    }
+
+    [TestMethod]
+    [DataRow("precision")]
+    [DataRow("optimizer-version")]
+    [DataRow("device")]
+    [DataRow("kv-cache")]
+    public async Task ActualCompletionEvidenceMustMatchTheAuthoritativePayload(
+        string mismatch)
+    {
+        using PackageFixture package = PackageFixture.Create();
+        OptimizationExecutionPlan plan = CreatePlan(package.Source);
+        Dictionary<string, string> versions = new(
+            OpenVinoV2TestPayload.OptimizerVersions,
+            StringComparer.Ordinal);
+        if (mismatch == "optimizer-version")
+        {
+            versions["nncf"] = "3.3.1";
+        }
+        RecordingOptimizationPipeline pipeline = new()
+        {
+            CompletionWeightPrecision = mismatch == "precision"
+                ? OpenVinoWeightPrecision.FourBit
+                : null,
+            CompletionVersions = versions,
+            SmokeDevice = mismatch == "device" ? "GPU" : "CPU",
+            SmokeKvCachePrecision = mismatch == "kv-cache"
+                ? OpenVinoKvCachePrecision.ReleasedDefault
+                : null
+        };
+        OpenVinoOptimizationService service = new(pipeline, _ => true);
+
+        OptimizationExecutionResult result = await service.ExecuteAsync(
+            new OpenVinoOptimizationRequest(
+                package.Source,
+                package.Destination,
+                plan,
+                CurrentStateProvider(plan),
+                Confirmed: true),
+            progress: null,
+            CancellationToken.None);
+
+        Assert.AreEqual(OptimizationExecutionStatus.Failed, result.Status);
+        Assert.AreEqual(OptimizationSupportCode.ValidationFailed, result.SupportCode);
+        Assert.IsNull(result.OutputIdentity);
+        Assert.IsNull(result.OutputManifestSha256);
+        Assert.IsFalse(Directory.Exists(package.Destination));
+        Assert.IsFalse(File.Exists(Path.Combine(
+            package.Destination, OpenVinoRuntimeOptimizationProfile.FileName)));
+    }
+
+    [TestMethod]
+    public void SchemaV2ProvenanceCopiesPayloadVersionsWithoutLegacyTableLookup()
+    {
+        using PackageFixture package = PackageFixture.Create();
+        Dictionary<string, string> payloadVersions = new(
+            OpenVinoV2TestPayload.OptimizerVersions,
+            StringComparer.Ordinal)
+        {
+            ["nncf"] = "3.3.9"
+        };
+        OptimizationExecutionPlan plan = CreatePlan(
+            package.Source,
+            optimizerVersions: payloadVersions);
+        GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Execution
+            .OpenVinoExecutionPayload payload = plan.ExecutionPayload.OpenVino!;
+        OpenVinoOptimizationCandidate candidate = new(
+            payload.ConfigurationId,
+            payload.Device,
+            OpenVinoWeightPrecision.EightBit,
+            OpenVinoPersistentArtifact.Create(
+                OpenVinoWeightPrecision.EightBit,
+                OpenVinoWeightPrecision.Fp16),
+            new OpenVinoRuntimeOptimization(
+                OpenVinoKvCachePrecision.U8,
+                GraniteEdgeAI.Features.OpenVinoRoute.Optimization
+                    .OpenVinoCompiledCachePolicy.Disabled),
+            OpenVinoCapabilityPerformanceHint.Latency,
+            Streams: 1,
+            ContextTokens: 4_096,
+            payload.Maturity,
+            payload.EvidenceId)
+        {
+            SourceWeightPrecision = OpenVinoWeightPrecision.Fp16,
+            ExecutionPayload = payload
+        };
+        candidate.Validate();
+        IReadOnlyList<GraniteEdgeAI.Features.OpenVinoRoute.Conversion
+            .OpenVinoOutputArtifact> output =
+            OpenVinoOptimizationProvenance.CaptureOutput(package.Source);
+        OpenVinoOptimizationProvenance provenance =
+            OpenVinoOptimizationProvenance.CreatePlanBound(
+                plan,
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                new string('a', 64),
+                candidate,
+                new OpenVinoRuntimeOptimizationEvidence(
+                    "CPU",
+                    OpenVinoKvCachePrecision.U8,
+                    "passed",
+                    "passed"),
+                payloadVersions,
+                output,
+                GraniteEdgeAI.Features.OpenVinoRoute.Conversion.OpenVinoProvenance
+                    .ComputeOutputManifestDigest(output));
+        Directory.CreateDirectory(package.Destination);
+
+        provenance.Write(package.Destination);
+        OpenVinoOptimizationProvenance read =
+            OpenVinoOptimizationProvenance.Read(package.Destination);
+
+        Assert.AreEqual("3.3.9", read.OptimizerVersions["nncf"]);
+        AssertPayloadBinding(
+            payload,
+            read.OpenVinoExecutionPayloadJson,
+            read.OpenVinoExecutionPayloadSha256);
     }
 
     [TestMethod]
@@ -768,13 +988,77 @@ public sealed class OpenVinoOptimizationTests
         provenance.Write(root);
     }
 
+    private static void AssertPayloadBinding(
+        GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Execution
+            .OpenVinoExecutionPayload expected,
+        string? actualJson,
+        string? actualSha256)
+    {
+        string json = actualJson ?? throw new AssertFailedException(
+            "The authoritative OpenVINO payload serialization was absent.");
+        string sha256 = actualSha256 ?? throw new AssertFailedException(
+            "The authoritative OpenVINO payload digest was absent.");
+        Assert.IsFalse(string.IsNullOrWhiteSpace(json));
+        string digest = Convert.ToHexString(SHA256.HashData(
+            new UTF8Encoding(false, true).GetBytes(json))).ToLowerInvariant();
+        Assert.AreEqual(digest, sha256);
+
+        using JsonDocument document = JsonDocument.Parse(json);
+        JsonElement payload = document.RootElement;
+        Assert.AreEqual(expected.ConfigurationId,
+            payload.GetProperty("configurationId").GetString());
+        Assert.AreEqual(expected.Device,
+            payload.GetProperty("device").GetString());
+        Assert.AreEqual(expected.Maturity,
+            payload.GetProperty("maturity").GetString());
+        Assert.AreEqual(expected.EvidenceId,
+            payload.GetProperty("evidenceId").GetString());
+        Assert.AreEqual(expected.SourceWeightPrecision.ToString(),
+            payload.GetProperty("sourceWeightPrecision").GetString());
+        Assert.AreEqual(expected.TargetWeightPrecision.ToString(),
+            payload.GetProperty("targetWeightPrecision").GetString());
+        Assert.AreEqual(expected.KvCachePrecision.ToString(),
+            payload.GetProperty("kvCachePrecision").GetString());
+        Assert.AreEqual(expected.CompiledCacheEnabled,
+            payload.GetProperty("compiledCacheEnabled").GetBoolean());
+        Assert.AreEqual(expected.CompiledCacheIsDisposable,
+            payload.GetProperty("compiledCacheIsDisposable").GetBoolean());
+        Assert.AreEqual(expected.CompiledCacheIsModelArtifact,
+            payload.GetProperty("compiledCacheIsModelArtifact").GetBoolean());
+        Assert.AreEqual(expected.CreatesCompletePackage,
+            payload.GetProperty("createsCompletePackage").GetBoolean());
+        Assert.AreEqual(expected.RequiresPersistentConversion,
+            payload.GetProperty("requiresPersistentConversion").GetBoolean());
+
+        JsonElement builds = payload.GetProperty("buildIdentity");
+        Assert.AreEqual(expected.BuildIdentity.RuntimeBuild,
+            builds.GetProperty("runtimeBuild").GetString());
+        Assert.AreEqual(expected.BuildIdentity.GenAiBuild,
+            builds.GetProperty("genAiBuild").GetString());
+        Assert.AreEqual(expected.BuildIdentity.TokenizersBuild,
+            builds.GetProperty("tokenizersBuild").GetString());
+        Assert.AreEqual(expected.BuildIdentity.WorkerManifestDigest,
+            builds.GetProperty("workerManifestDigest").GetString());
+
+        JsonElement versions = payload.GetProperty("optimizerVersions");
+        Assert.AreEqual(expected.OptimizerVersions.Count,
+            versions.EnumerateObject().Count());
+        foreach ((string name, string version) in expected.OptimizerVersions)
+        {
+            Assert.AreEqual(version, versions.GetProperty(name).GetString(), name);
+        }
+        Assert.AreEqual(JsonValueKind.Null,
+            payload.GetProperty("turboQuantBuild").ValueKind);
+    }
+
     private static OptimizationExecutionPlan CreatePlan(
         string sourceDirectory,
         OpenVinoWeightFormat weights = OpenVinoWeightFormat.Int8,
         OpenVinoKvCacheFormat kvCache = OpenVinoKvCacheFormat.U8,
         ContractCompiledCachePolicy compiledCache = ContractCompiledCachePolicy.Disabled,
         int streams = 1,
-        int contextTokens = 4_096)
+        int contextTokens = 4_096,
+        IReadOnlyDictionary<string, string>? optimizerVersions = null)
     {
         OpenVinoStaticPackageEvidence source =
             new OpenVinoStaticPackageInspector().Inspect(sourceDirectory).Evidence!;
@@ -829,7 +1113,8 @@ public sealed class OpenVinoOptimizationTests
         return OptimizationPlanIssuer.Issue(
             selection,
             OpenVinoV2TestPayload.For(
-                weights, kvCache, compiledCache, "OV-BOUND-01"),
+                weights, kvCache, compiledCache, "OV-BOUND-01",
+                optimizerVersions: optimizerVersions),
             snapshot,
             OptimizationWorkload.Create(
                 "chat",
@@ -903,7 +1188,9 @@ public sealed class OpenVinoOptimizationTests
 
     private sealed class SequenceCurrentStateProvider(
         IEnumerable<OpenVinoOptimizationCurrentState> states,
-        List<string>? events = null) : IOpenVinoOptimizationCurrentStateProvider
+        List<string>? events = null,
+        Action<OpenVinoOptimizationCheckpoint>? beforeReturn = null) :
+        IOpenVinoOptimizationCurrentStateProvider
     {
         private readonly Queue<OpenVinoOptimizationCurrentState> remaining =
             new(states);
@@ -919,6 +1206,7 @@ public sealed class OpenVinoOptimizationTests
             cancellationToken.ThrowIfCancellationRequested();
             Checkpoints.Add(checkpoint);
             events?.Add("state:" + checkpoint);
+            beforeReturn?.Invoke(checkpoint);
             if (remaining.Count > 0)
             {
                 last = remaining.Dequeue();
@@ -940,13 +1228,19 @@ public sealed class OpenVinoOptimizationTests
         }
 
         internal List<string> Calls { get; } = [];
+        internal List<OpenVinoOptimizationInvocation> Invocations { get; } = [];
         internal Exception? ReinspectionFailure { get; init; }
+        internal OpenVinoWeightPrecision? CompletionWeightPrecision { get; init; }
+        internal IReadOnlyDictionary<string, string>? CompletionVersions { get; init; }
+        internal string SmokeDevice { get; init; } = "CPU";
+        internal OpenVinoKvCachePrecision? SmokeKvCachePrecision { get; init; }
 
         public Task<OpenVinoOptimizationCompletion> OptimizeAsync(
             OpenVinoOptimizationInvocation invocation,
             CancellationToken cancellationToken)
         {
             Calls.Add("optimize");
+            Invocations.Add(invocation);
             events?.Add("optimize");
             File.Copy(
                 Path.Combine(invocation.SourceDirectory, "openvino_model.xml"),
@@ -956,8 +1250,12 @@ public sealed class OpenVinoOptimizationTests
             File.Copy(
                 Path.Combine(invocation.SourceDirectory, "config.json"),
                 Path.Combine(invocation.StagingDirectory, "config.json"));
-            return Task.FromResult(OpenVinoOptimizationCompletion.CreateTestInstance(
-                invocation.Candidate.PersistentArtifact.WeightPrecision));
+            OpenVinoOptimizationCompletion defaults =
+                OpenVinoOptimizationCompletion.CreateTestInstance(
+                    invocation.Candidate.PersistentArtifact.WeightPrecision);
+            return Task.FromResult(new OpenVinoOptimizationCompletion(
+                CompletionWeightPrecision ?? defaults.ActualWeightPrecision,
+                CompletionVersions ?? defaults.Versions));
         }
 
         public Task<OpenVinoOptimizationValidation> ValidateAsync(
@@ -978,8 +1276,8 @@ public sealed class OpenVinoOptimizationTests
             Calls.Add("smoke");
             events?.Add("smoke");
             return Task.FromResult(new OpenVinoRuntimeOptimizationEvidence(
-                "CPU",
-                candidate.Runtime.KvCachePrecision,
+                SmokeDevice,
+                SmokeKvCachePrecision ?? candidate.Runtime.KvCachePrecision,
                 GenerationDisposition: "passed",
                 QualityDisposition: "passed"));
         }
