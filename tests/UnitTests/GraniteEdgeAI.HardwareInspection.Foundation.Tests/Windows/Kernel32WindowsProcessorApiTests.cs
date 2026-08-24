@@ -179,6 +179,16 @@ public sealed class Kernel32WindowsProcessorApiTests
         Assert.AreEqual(expected, actual);
     }
 
+    [TestMethod]
+    public void RegistryNameSourceRemovesWindowsBoundaryPaddingBeforeValidation()
+    {
+        const string observed = "AMD Ryzen 7 8845HS w/ Radeon 780M Graphics     ";
+        const string expected = "AMD Ryzen 7 8845HS w/ Radeon 780M Graphics";
+
+        Assert.IsTrue(new RegistryProcessorNameSource(new FakeRegistry(observed)).TryGetName(out string? actual));
+        Assert.AreEqual(expected, actual);
+    }
+
     private static byte[] CreateCoreRecords(int count)
     {
         const int recordSize = 48;

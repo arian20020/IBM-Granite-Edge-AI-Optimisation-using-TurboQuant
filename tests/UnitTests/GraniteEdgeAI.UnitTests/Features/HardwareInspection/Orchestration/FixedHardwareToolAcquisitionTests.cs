@@ -8,6 +8,7 @@ using System.Text;
 namespace GraniteEdgeAI.UnitTests.Features.HardwareInspection.Orchestration;
 
 [TestClass]
+[DoNotParallelize]
 [TestCategory("HardwareInspection")]
 [TestCategory("HardwareInspectionGate7Acceptance")]
 public sealed class FixedHardwareToolAcquisitionTests

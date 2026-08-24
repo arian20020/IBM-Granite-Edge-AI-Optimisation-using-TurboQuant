@@ -20,18 +20,35 @@ internal sealed class FakeLlmFitTool : IAsyncDisposable
     private static readonly TimeSpan PublishCleanupDeadline = TimeSpan.FromSeconds(5);
     private static readonly string[] SystemArguments = ["--no-dashboard", "--json", "system"];
     private static readonly string[] VersionArguments = ["--version"];
+    private static readonly HashSet<string> ClosedModes = new(StringComparer.Ordinal)
+    {
+        "assert-in-job",
+        "dashboard",
+        "invalid-json",
+        "large-output",
+        "nonzero",
+        "sleep",
+        "sleep-child",
+        "spawn-child",
+        "spawn-child-exit",
+        "success",
+        "version-mismatch",
+    };
     private static readonly Lazy<Task<SharedFixture>> SharedFixtureTask = new(
         ResolveOrPublishAsync,
         LazyThreadSafetyMode.ExecutionAndPublication);
     private static int _sharedCleanupStarted;
 
-    private FakeLlmFitTool(string root)
+    private FakeLlmFitTool(string root, string controlRoot)
     {
         Root = root;
+        ControlRoot = controlRoot;
         ExecutablePath = Path.Combine(root, ExecutableName);
     }
 
     internal string Root { get; }
+
+    internal string ControlRoot { get; }
 
     internal string ExecutablePath { get; }
 
@@ -67,7 +84,7 @@ internal sealed class FakeLlmFitTool : IAsyncDisposable
             throw new ArgumentOutOfRangeException(nameof(timeout));
         }
 
-        string readinessPath = Path.Combine(Root, readinessFileName);
+        string readinessPath = Path.Combine(ControlRoot, readinessFileName);
         var elapsed = Stopwatch.StartNew();
         while (elapsed.Elapsed < timeout)
         {
@@ -115,16 +132,22 @@ internal sealed class FakeLlmFitTool : IAsyncDisposable
 
         SharedFixture shared = await SharedFixtureTask.Value.ConfigureAwait(false);
         string testRoot = CreateOwnedDirectory(TestDirectoryPrefix);
+        string controlRoot = GetControlRoot(mode);
 
         try
         {
+            DeleteOwnedControlRoot(controlRoot);
+            Directory.CreateDirectory(controlRoot);
             CopyWithoutReparsePoints(shared.Root, testRoot);
-            await File.WriteAllTextAsync(Path.Combine(testRoot, "fake-mode.txt"), mode)
+            await File.WriteAllTextAsync(
+                    Path.Combine(testRoot, "fake-mode.txt"),
+                    mode + Environment.NewLine)
                 .ConfigureAwait(false);
-            return new FakeLlmFitTool(testRoot);
+            return new FakeLlmFitTool(testRoot, controlRoot);
         }
         catch
         {
+            DeleteOwnedControlRoot(controlRoot);
             await DeleteOwnedDirectoryAsync(testRoot, TestDirectoryPrefix).ConfigureAwait(false);
             throw;
         }
@@ -153,9 +176,10 @@ internal sealed class FakeLlmFitTool : IAsyncDisposable
         }
     }
 
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
-        return new ValueTask(DeleteOwnedDirectoryAsync(Root, TestDirectoryPrefix));
+        DeleteOwnedControlRoot(ControlRoot);
+        await DeleteOwnedDirectoryAsync(Root, TestDirectoryPrefix).ConfigureAwait(false);
     }
 
     internal static Task DeleteOwnedDirectoryForTestsAsync(string path)
@@ -567,6 +591,55 @@ internal sealed class FakeLlmFitTool : IAsyncDisposable
         string path = Path.Combine(Path.GetTempPath(), prefix + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(path);
         return path;
+    }
+
+    private static string GetControlRoot(string mode) => Path.GetFullPath(Path.Combine(
+        Path.GetTempPath(),
+        "GraniteEdgeAI.HardwareInspection.Tests",
+        "LlmFitFake",
+        mode));
+
+    private static void DeleteOwnedControlRoot(string controlRoot)
+    {
+        string ownedParent = Path.GetFullPath(Path.Combine(
+            Path.GetTempPath(),
+            "GraniteEdgeAI.HardwareInspection.Tests",
+            "LlmFitFake"));
+        string resolvedPath = Path.GetFullPath(controlRoot);
+        string relative = Path.GetRelativePath(ownedParent, resolvedPath);
+        if (Path.IsPathRooted(relative) ||
+            relative.Equals("..", StringComparison.Ordinal) ||
+            relative.StartsWith($"..{Path.DirectorySeparatorChar}", StringComparison.Ordinal) ||
+            relative.IndexOfAny([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar]) >= 0 ||
+            !ClosedModes.Contains(relative))
+        {
+            throw new InvalidOperationException("The fixture control root escaped its fixed owned parent.");
+        }
+
+        const int maximumAttempts = 6;
+        for (int attempt = 0; attempt < maximumAttempts; attempt++)
+        {
+            if (!Directory.Exists(resolvedPath))
+            {
+                return;
+            }
+
+            EnsureTreeHasNoReparsePoints(resolvedPath);
+            try
+            {
+                Directory.Delete(resolvedPath, recursive: true);
+                return;
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                if (attempt < maximumAttempts - 1)
+                {
+                    Thread.Sleep(TimeSpan.FromMilliseconds(20 * (1 << attempt)));
+                }
+            }
+        }
+
+        throw new IOException("The fixture control root remained after bounded cleanup.");
     }
 
     private static void CopyWithoutReparsePoints(string sourceRoot, string destinationRoot)

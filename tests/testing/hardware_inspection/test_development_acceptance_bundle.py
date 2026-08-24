@@ -64,7 +64,7 @@ class DevelopmentAcceptanceBundleBoundaryTests(unittest.TestCase):
         """Catch a bundle destination whose meaning depends on process CWD."""
         self.assert_rejected_before_certificate_lookup(
             Path("relative-development-bundle"),
-            "The development bundle directory must be an absolute path.",
+            "The bundle publication directory must be an absolute path.",
         )
 
     def test_builder_rejects_filesystem_root_bundle_directory(self):
@@ -72,7 +72,7 @@ class DevelopmentAcceptanceBundleBoundaryTests(unittest.TestCase):
         filesystem_root = Path(tempfile.gettempdir()).anchor
         self.assert_rejected_before_certificate_lookup(
             Path(filesystem_root),
-            "The development bundle directory must not be a filesystem root.",
+            "The bundle publication directory must not be a filesystem root.",
         )
 
     def test_builder_rejects_repository_contained_bundle_directory(self):
@@ -80,7 +80,7 @@ class DevelopmentAcceptanceBundleBoundaryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(dir=REPOSITORY_ROOT) as directory:
             self.assert_rejected_before_certificate_lookup(
                 Path(directory),
-                "The development bundle directory must be outside repository and build roots.",
+                "The bundle publication directory must be outside repository and build roots.",
             )
 
     def test_builder_rejects_nonempty_bundle_directory(self):
@@ -90,7 +90,7 @@ class DevelopmentAcceptanceBundleBoundaryTests(unittest.TestCase):
             (destination / "stale.bin").write_bytes(b"stale")
             self.assert_rejected_before_certificate_lookup(
                 destination,
-                "The development bundle directory must already exist and be empty.",
+                "The bundle publication directory must already exist and be empty.",
             )
 
     def test_builder_rejects_reparse_point_bundle_directory(self):
@@ -106,7 +106,7 @@ class DevelopmentAcceptanceBundleBoundaryTests(unittest.TestCase):
                 self.skipTest(f"directory symlinks are unavailable: {error}")
             self.assert_rejected_before_certificate_lookup(
                 link,
-                "The development bundle directory must not be a reparse point.",
+                "The bundle publication directory must not be a reparse point.",
             )
 
     def test_bundle_writer_publishes_exact_hash_bound_inventory(self):

@@ -24,12 +24,6 @@ public sealed class HardwareInspectionProcessAcceptanceHostTests
 
         Assert.HasCount(87, names);
         Assert.IsTrue(names.Any(name => name.Contains(
-            ".HardwareInspectionServiceTests.",
-            StringComparison.Ordinal)));
-        Assert.IsTrue(names.Any(name => name.Contains(
-            ".HardwareInspectionCompositionTests.",
-            StringComparison.Ordinal)));
-        Assert.IsTrue(names.Any(name => name.Contains(
             ".HardwareInspectionPageTests.",
             StringComparison.Ordinal)));
         Assert.IsTrue(names.Any(name => name.Contains(

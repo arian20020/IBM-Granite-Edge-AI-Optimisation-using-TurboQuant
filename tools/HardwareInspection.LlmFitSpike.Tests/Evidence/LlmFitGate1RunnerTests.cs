@@ -731,10 +731,7 @@ public sealed class LlmFitGate1RunnerTests
             "--no-restore",
             "--output",
             publishDirectory,
-            "-p:PublishSingleFile=true",
             "-p:UseAppHost=true",
-            "-p:DebugType=None",
-            "-p:DebugSymbols=false",
         ];
         var publishCommand = new LlmFitCommand("dotnet", repositoryRoot, publishArguments);
         LlmFitProcessResult publish = await new LlmFitProcessRunner().ExecuteAsync(
@@ -752,7 +749,9 @@ public sealed class LlmFitGate1RunnerTests
             "GraniteEdgeAI.HardwareInspection.LlmFitFakeTool.exe");
         string candidateExecutable = Path.Combine(scope.CandidateRoot, "llmfit.exe");
         File.Copy(publishedExecutable, candidateExecutable, overwrite: false);
-        await File.WriteAllTextAsync(Path.Combine(scope.CandidateRoot, "fake-mode.txt"), "success")
+        await File.WriteAllTextAsync(
+                Path.Combine(scope.CandidateRoot, "fake-mode.txt"),
+                "success" + Environment.NewLine)
             .ConfigureAwait(false);
         await File.WriteAllTextAsync(Path.Combine(scope.CandidateRoot, "LICENSE"), "MIT")
             .ConfigureAwait(false);

@@ -45,12 +45,18 @@ internal sealed class RegistryProcessorNameSource : IProcessorNameSource
             return false;
         }
 
-        if (observed is not string name || !HardwareText.IsSafe(name, 256))
+        if (observed is not string name)
         {
             return false;
         }
 
-        value = name;
+        string candidate = name.TrimEnd();
+        if (!HardwareText.IsSafe(candidate, 256))
+        {
+            return false;
+        }
+
+        value = candidate;
         return true;
     }
 
