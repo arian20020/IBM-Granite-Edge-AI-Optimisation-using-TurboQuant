@@ -94,6 +94,7 @@ internal sealed partial class CompatibilityPage : Page
         ApplyOutcome(presentation);
         ApplyFacts(presentation.Facts);
         ApplyBudget(presentation.Budget);
+        ApplyEstimateSummary(presentation.EstimateSummary);
 
         RuntimeCardTitleText.Text = presentation.RuntimeCardTitle;
         ApplyRows(RuntimeRows, presentation.RuntimeRows);
@@ -111,6 +112,34 @@ internal sealed partial class CompatibilityPage : Page
         SecondaryAction.Content = presentation.SecondaryActionText;
         SecondaryAction.IsEnabled = presentation.SecondaryActionEnabled;
 
+    }
+
+    private void ApplyEstimateSummary(CompatibilityEstimateSummary? summary)
+    {
+        EstimateBreakdownCard.Visibility = summary is null
+            ? Visibility.Collapsed
+            : Visibility.Visible;
+
+        if (summary is null)
+        {
+            EstimateWeightsValue.Text = EstimateKvCacheValue.Text = string.Empty;
+            EstimateRuntimeValue.Text = EstimateMarginValue.Text = string.Empty;
+            EstimatePeakValue.Text = EstimateSafeValue.Text = string.Empty;
+            return;
+        }
+
+        EstimateWeightsValue.Text =
+            CompatibilityBudget.Describe(summary.ModelWeightsBytes);
+        EstimateKvCacheValue.Text =
+            CompatibilityBudget.Describe(summary.KvCacheBytes);
+        EstimateRuntimeValue.Text =
+            CompatibilityBudget.Describe(summary.RuntimeAndBufferBytes);
+        EstimateMarginValue.Text =
+            CompatibilityBudget.Describe(summary.MarginForErrorBytes);
+        EstimatePeakValue.Text =
+            CompatibilityBudget.Describe(summary.EstimatedPeakBytes);
+        EstimateSafeValue.Text =
+            CompatibilityBudget.Describe(summary.SafeMemoryBytes);
     }
 
     private void ApplyOutcome(CompatibilityPresentation presentation)

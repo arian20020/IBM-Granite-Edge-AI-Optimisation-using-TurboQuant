@@ -274,6 +274,180 @@
                                 Margin="0,16,0,0"
                                 ShowLegend="False"
                                 Visibility="Collapsed" />
+
+                            <Border
+                                x:Name="EstimateBreakdownCard"
+                                Background="{ThemeResource CompatibilityCanvasBrush}"
+                                BorderBrush="{ThemeResource CompatibilityBorderLightBrush}"
+                                BorderThickness="1"
+                                CornerRadius="{StaticResource CompatibilityCardRadius}"
+                                Margin="0,16,0,0"
+                                Padding="14"
+                                Visibility="Collapsed">
+                                <StackPanel>
+                                    <TextBlock
+                                        FontSize="{StaticResource CompatibilityCardTitleFontSize}"
+                                        FontWeight="SemiBold"
+                                        Foreground="{ThemeResource CompatibilityTextPrimaryBrush}"
+                                        Text="Estimated memory breakdown" />
+                                    <TextBlock
+                                        FontSize="{StaticResource CompatibilityOutcomeBodyFontSize}"
+                                        Foreground="{ThemeResource CompatibilityTextMutedBrush}"
+                                        Margin="0,3,0,0"
+                                        Text="Calculated for the setup shown above — not measured"
+                                        TextWrapping="Wrap" />
+
+                                    <Grid ColumnSpacing="10" Margin="0,12,0,0" RowSpacing="10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+
+                                        <Border
+                                            Grid.Row="0"
+                                            Grid.Column="0"
+                                            Background="{ThemeResource CompatibilitySurfaceBrush}"
+                                            BorderBrush="{ThemeResource CompatibilityBorderLightBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="10"
+                                            Padding="12,10">
+                                            <StackPanel>
+                                                <TextBlock
+                                                    FontSize="{StaticResource CompatibilityFactLabelFontSize}"
+                                                    FontWeight="SemiBold"
+                                                    Foreground="{ThemeResource CompatibilityTextMutedBrush}"
+                                                    Text="MODEL WEIGHTS" />
+                                                <TextBlock
+                                                    x:Name="EstimateWeightsValue"
+                                                    FontSize="{StaticResource CompatibilityFactValueFontSize}"
+                                                    FontWeight="SemiBold"
+                                                    Foreground="{ThemeResource CompatibilityTextPrimaryBrush}"
+                                                    Margin="0,4,0,0" />
+                                            </StackPanel>
+                                        </Border>
+
+                                        <Border
+                                            Grid.Row="0"
+                                            Grid.Column="1"
+                                            Background="{ThemeResource CompatibilitySurfaceBrush}"
+                                            BorderBrush="{ThemeResource CompatibilityBorderLightBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="10"
+                                            Padding="12,10">
+                                            <StackPanel>
+                                                <TextBlock
+                                                    FontSize="{StaticResource CompatibilityFactLabelFontSize}"
+                                                    FontWeight="SemiBold"
+                                                    Foreground="{ThemeResource CompatibilityTextMutedBrush}"
+                                                    Text="KV CACHE" />
+                                                <TextBlock
+                                                    x:Name="EstimateKvCacheValue"
+                                                    FontSize="{StaticResource CompatibilityFactValueFontSize}"
+                                                    FontWeight="SemiBold"
+                                                    Foreground="{ThemeResource CompatibilityTextPrimaryBrush}"
+                                                    Margin="0,4,0,0" />
+                                            </StackPanel>
+                                        </Border>
+
+                                        <Border
+                                            Grid.Row="1"
+                                            Grid.Column="0"
+                                            Background="{ThemeResource CompatibilitySurfaceBrush}"
+                                            BorderBrush="{ThemeResource CompatibilityBorderLightBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="10"
+                                            Padding="12,10">
+                                            <StackPanel>
+                                                <TextBlock
+                                                    FontSize="{StaticResource CompatibilityFactLabelFontSize}"
+                                                    FontWeight="SemiBold"
+                                                    Foreground="{ThemeResource CompatibilityTextMutedBrush}"
+                                                    Text="RUNTIME AND BUFFERS" />
+                                                <TextBlock
+                                                    x:Name="EstimateRuntimeValue"
+                                                    FontSize="{StaticResource CompatibilityFactValueFontSize}"
+                                                    FontWeight="SemiBold"
+                                                    Foreground="{ThemeResource CompatibilityTextPrimaryBrush}"
+                                                    Margin="0,4,0,0" />
+                                            </StackPanel>
+                                        </Border>
+
+                                        <Border
+                                            Grid.Row="1"
+                                            Grid.Column="1"
+                                            Background="{ThemeResource CompatibilitySurfaceBrush}"
+                                            BorderBrush="{ThemeResource CompatibilityBorderLightBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="10"
+                                            Padding="12,10">
+                                            <StackPanel>
+                                                <TextBlock
+                                                    FontSize="{StaticResource CompatibilityFactLabelFontSize}"
+                                                    FontWeight="SemiBold"
+                                                    Foreground="{ThemeResource CompatibilityTextMutedBrush}"
+                                                    Text="MARGIN FOR ERROR" />
+                                                <TextBlock
+                                                    x:Name="EstimateMarginValue"
+                                                    FontSize="{StaticResource CompatibilityFactValueFontSize}"
+                                                    FontWeight="SemiBold"
+                                                    Foreground="{ThemeResource CompatibilityTextPrimaryBrush}"
+                                                    Margin="0,4,0,0" />
+                                            </StackPanel>
+                                        </Border>
+
+                                        <Border
+                                            Grid.Row="2"
+                                            Grid.Column="0"
+                                            Background="{ThemeResource CompatibilityBlueSurfaceBrush}"
+                                            BorderBrush="{ThemeResource CompatibilityBlueBorderBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="10"
+                                            Padding="12,10">
+                                            <StackPanel>
+                                                <TextBlock
+                                                    FontSize="{StaticResource CompatibilityFactLabelFontSize}"
+                                                    FontWeight="SemiBold"
+                                                    Foreground="{ThemeResource CompatibilityTextMutedBrush}"
+                                                    Text="ESTIMATED PEAK" />
+                                                <TextBlock
+                                                    x:Name="EstimatePeakValue"
+                                                    FontSize="{StaticResource CompatibilityFactValueFontSize}"
+                                                    FontWeight="SemiBold"
+                                                    Foreground="{ThemeResource CompatibilityTextPrimaryBrush}"
+                                                    Margin="0,4,0,0" />
+                                            </StackPanel>
+                                        </Border>
+
+                                        <Border
+                                            Grid.Row="2"
+                                            Grid.Column="1"
+                                            Background="{ThemeResource CompatibilityBlueSurfaceBrush}"
+                                            BorderBrush="{ThemeResource CompatibilityBlueBorderBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="10"
+                                            Padding="12,10">
+                                            <StackPanel>
+                                                <TextBlock
+                                                    FontSize="{StaticResource CompatibilityFactLabelFontSize}"
+                                                    FontWeight="SemiBold"
+                                                    Foreground="{ThemeResource CompatibilityTextMutedBrush}"
+                                                    Text="SAFE MEMORY" />
+                                                <TextBlock
+                                                    x:Name="EstimateSafeValue"
+                                                    FontSize="{StaticResource CompatibilityFactValueFontSize}"
+                                                    FontWeight="SemiBold"
+                                                    Foreground="{ThemeResource CompatibilityTextPrimaryBrush}"
+                                                    Margin="0,4,0,0" />
+                                            </StackPanel>
+                                        </Border>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
                         </StackPanel>
                     </Border>
 

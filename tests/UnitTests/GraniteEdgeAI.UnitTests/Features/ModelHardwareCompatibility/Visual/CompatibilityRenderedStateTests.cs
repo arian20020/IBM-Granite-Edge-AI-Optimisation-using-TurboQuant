@@ -186,6 +186,42 @@ public sealed class CompatibilityRenderedStateTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
+    public void EvaluatedScreen_ShowsVisibleEstimatedMemoryBreakdown()
+    {
+        CompatibilityPage page = CreatePage();
+        CompatibilityFixture? fixture = CompatibilityFixtureCatalogue.ById("CMP-010");
+        Assert.IsNotNull(fixture);
+
+        page.Apply(fixture.Presentation);
+        page.UpdateLayout();
+
+        Assert.AreEqual(
+            Visibility.Visible,
+            Element<FrameworkElement>(page, "EstimateBreakdownCard").Visibility);
+        Assert.AreEqual("4.4 GB", Element<TextBlock>(page, "EstimateWeightsValue").Text);
+        Assert.AreEqual("512 MB", Element<TextBlock>(page, "EstimateKvCacheValue").Text);
+        Assert.AreEqual("352 MB", Element<TextBlock>(page, "EstimateRuntimeValue").Text);
+        Assert.AreEqual("534 MB", Element<TextBlock>(page, "EstimateMarginValue").Text);
+        Assert.AreEqual("5.7 GB", Element<TextBlock>(page, "EstimatePeakValue").Text);
+        Assert.AreEqual("9 GB", Element<TextBlock>(page, "EstimateSafeValue").Text);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void UnevaluatedScreen_HidesEstimatedMemoryBreakdown()
+    {
+        CompatibilityPage page = CreatePage();
+
+        page.Apply(CompatibilityPresentation.Empty);
+        page.UpdateLayout();
+
+        Assert.AreEqual(
+            Visibility.Collapsed,
+            Element<FrameworkElement>(page, "EstimateBreakdownCard").Visibility);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
     public void ScreenThatReachedNoAnswer_DrawsNoMemoryBar()
     {
         // An empty bar beside "we could not work this out" reads as a model
