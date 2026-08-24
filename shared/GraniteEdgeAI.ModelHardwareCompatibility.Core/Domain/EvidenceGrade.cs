@@ -7,7 +7,7 @@ namespace GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
 /// become reachable only when a recorded measurement exists, which is what stops
 /// a calculated number being presented as an observed one.
 /// </summary>
-internal enum EvidenceGrade
+public enum EvidenceGrade
 {
     Unknown = 0,
 

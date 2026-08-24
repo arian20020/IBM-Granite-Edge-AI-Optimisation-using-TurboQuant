@@ -5,13 +5,13 @@ namespace GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
 /// KV-cache estimate vanish, so it is rejected at construction rather than
 /// producing a silently free configuration downstream.
 /// </summary>
-internal readonly record struct ContextTokenCount
+public readonly record struct ContextTokenCount
 {
     private ContextTokenCount(int tokens) => Tokens = tokens;
 
-    internal int Tokens { get; }
+    public int Tokens { get; }
 
-    internal static ContextTokenCount FromTokens(int tokens)
+    public static ContextTokenCount FromTokens(int tokens)
     {
         if (tokens <= 0)
         {

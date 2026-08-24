@@ -65,6 +65,19 @@ public sealed class PrivacyCanaryTests
         // no caller content in it.
         "OptimizationIdentifier.PathLike",
 
+        // The candidate descriptor composes an already-admitted route
+        // descriptor with an integer context length, and the evidence id is the
+        // same enforced identifier as everywhere else.
+        "OptimizationCandidate.CanonicalDescriptor",
+        "OptimizationCandidate.EvidenceId",
+
+        // An exclusion repeats the descriptor and evidence id of the candidate
+        // it refused, both already admitted above; the workload id is the same
+        // enforced identifier.
+        "OptimizationExclusion.CanonicalDescriptor",
+        "OptimizationExclusion.EvidenceId",
+        "OptimizationWorkload.WorkloadId",
+
         // Keyed by the same admitted support-entry id already allowed above
         // (CompatibilitySupportEntry.EntryId); this member only looks that id
         // up against an observed installation state and introduces no new

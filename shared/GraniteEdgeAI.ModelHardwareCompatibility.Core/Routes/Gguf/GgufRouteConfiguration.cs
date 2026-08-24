@@ -8,7 +8,7 @@ namespace GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.Gguf;
 /// A complete llama.cpp configuration. Every field is required, so there is no
 /// partially specified GGUF configuration anywhere in the system.
 /// </summary>
-internal sealed record GgufRouteConfiguration : RouteConfiguration
+public sealed record GgufRouteConfiguration : RouteConfiguration
 {
     private GgufRouteConfiguration(
         GgufWeightFormat weights,
@@ -24,24 +24,24 @@ internal sealed record GgufRouteConfiguration : RouteConfiguration
         Offload = offload;
     }
 
-    internal GgufWeightFormat Weights { get; }
+    public GgufWeightFormat Weights { get; }
 
-    internal GgufKvCacheFormat KvCache { get; }
+    public GgufKvCacheFormat KvCache { get; }
 
-    internal CompatibilityBackend Backend { get; }
+    public CompatibilityBackend Backend { get; }
 
-    internal DeviceRouteId Device { get; }
+    public DeviceRouteId Device { get; }
 
-    internal GpuOffloadLevel Offload { get; }
+    public GpuOffloadLevel Offload { get; }
 
-    internal override RuntimeRouteId RouteId => RuntimeRouteId.LlamaCpp;
+    public override RuntimeRouteId RouteId => RuntimeRouteId.LlamaCpp;
 
-    internal override string CanonicalDescriptor =>
+    public override string CanonicalDescriptor =>
         string.Create(
             CultureInfo.InvariantCulture,
             $"gguf|w={Weights}|kv={KvCache}|be={Backend}|dev={Device}|off={Offload}");
 
-    internal static GgufRouteConfiguration Create(
+    public static GgufRouteConfiguration Create(
         GgufWeightFormat weights,
         GgufKvCacheFormat kvCache,
         CompatibilityBackend backend,

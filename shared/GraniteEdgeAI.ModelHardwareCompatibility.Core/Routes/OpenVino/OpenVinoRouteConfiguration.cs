@@ -18,7 +18,7 @@ namespace GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.OpenVino;
 /// The complete-configuration digest that the plan binds is taken over the
 /// candidate, where context and configuration are combined exactly once.
 /// </summary>
-internal sealed record OpenVinoRouteConfiguration : RouteConfiguration
+public sealed record OpenVinoRouteConfiguration : RouteConfiguration
 {
     private OpenVinoRouteConfiguration(
         OpenVinoWeightFormat weights,
@@ -36,37 +36,37 @@ internal sealed record OpenVinoRouteConfiguration : RouteConfiguration
         Streams = streams;
     }
 
-    internal OpenVinoWeightFormat Weights { get; }
+    public OpenVinoWeightFormat Weights { get; }
 
-    internal OpenVinoKvCacheFormat KvCache { get; }
+    public OpenVinoKvCacheFormat KvCache { get; }
 
-    internal DeviceRouteId Device { get; }
+    public DeviceRouteId Device { get; }
 
-    internal OpenVinoPerformanceHint PerformanceHint { get; }
+    public OpenVinoPerformanceHint PerformanceHint { get; }
 
-    internal OpenVinoCompiledCachePolicy CompiledCache { get; }
+    public OpenVinoCompiledCachePolicy CompiledCache { get; }
 
     /// <summary>
     /// How many inference streams the runtime is configured for. More than one
     /// multiplies the runtime's working allocations, so it is part of the
     /// configuration rather than a detail of it.
     /// </summary>
-    internal int Streams { get; }
+    public int Streams { get; }
 
-    internal override RuntimeRouteId RouteId => RuntimeRouteId.OpenVinoGenAi;
+    public override RuntimeRouteId RouteId => RuntimeRouteId.OpenVinoGenAi;
 
     /// <summary>
     /// Route-prefixed so two routes cannot produce the same text for
     /// coincidentally similar settings; the digest would otherwise stop
     /// identifying which executor a plan belongs to.
     /// </summary>
-    internal override string CanonicalDescriptor =>
+    public override string CanonicalDescriptor =>
         string.Create(
             CultureInfo.InvariantCulture,
             $"openvino|w={Weights}|kv={KvCache}|dev={Device}|hint={PerformanceHint}"
             + $"|cache={CompiledCache}|streams={Streams}");
 
-    internal static OpenVinoRouteConfiguration Create(
+    public static OpenVinoRouteConfiguration Create(
         OpenVinoWeightFormat weights,
         OpenVinoKvCacheFormat kvCache,
         DeviceRouteId device,
