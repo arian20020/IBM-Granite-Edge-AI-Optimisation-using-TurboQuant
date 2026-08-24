@@ -25,7 +25,8 @@ of O1. C1/shared contract files were not modified after the V2.1 merge.
   checked exactly, including the slash-bearing official runtime build identity.
 - C1 `ConfigurationSha256` is recomputed with the public V2 issuer. The adapter
   configuration-identity subgraph is statically required to call that issuer
-  exactly once and to contain no local SHA/string/JSON canonicalization.
+  exactly once and to contain no local cryptography, encoding/string-building,
+  or JSON canonicalization.
 - TurboQuant build identity remains rejected and O1 makes no TurboQuant
   optimization claim.
 - `TrustedSourceContext` verifies and gates source disclosure before package
@@ -39,31 +40,56 @@ of O1. C1/shared contract files were not modified after the V2.1 merge.
   performed only by `OptimizeLegacyV1Async`, outside shared `OptimizeCoreAsync`.
 - A compiled static guard starts at `ExecuteAsync`, traverses same-module
   `call`, `callvirt`, `newobj`, `ldftn`, and `ldvirtftn` operands without a
-  namespace filter, covers the strict adapter, and rejects exact V1
-  `GetRequired`, semantic O1 candidate-catalog lookups, and hidden
-  reflection/dynamic invocation APIs.
-- Semantic member/field-overlap invariants require the frozen C1 union and
-  OpenVINO payload types and admit substantial overlap only for the explicit
-  route-native candidate/result-evidence types. This does not claim arbitrary
-  runtime reachability through external or virtual dispatch and does not reject
-  unrelated evidence canonicalizers.
+  namespace filter, records all IL instructions to reject `calli`, covers the
+  strict adapter, and rejects exact V1 `GetRequired`, semantic O1
+  candidate-catalog lookups, reflection invocation/creation, runtime-binder/
+  `CallSite` dispatch, and non-allowlisted delegate invocation.
+- Semantic member/field-overlap invariants enumerate the explicitly linked O1
+  production roots in the production module, count both properties and
+  ordinary/backing fields, require every production `ExecutionPayload` member
+  to use a frozen C1 payload type, and admit substantial overlap only for the
+  explicit candidate/provenance/profile evidence types. This does not claim
+  arbitrary runtime reachability through external or virtual dispatch and does
+  not reject unrelated evidence canonicalizers.
+- Snapshot-verification, disk-space, and operation-ID delegate invocations are
+  allowed only by exact containing-method plus exact-delegate-type pairs. Their
+  containing methods are directly checked for V1 lookup, reflection/dynamic
+  dispatch, and `calli`; their signatures cannot carry C1 plan, payload,
+  candidate, or configuration authority. There is no signature-wide exception.
 
-## Fresh verification evidence
+## Verification evidence
 
-| Suite | Result |
+The complete-suite figures below are carry-forward pre-fix evidence. They ran
+before the service and architecture guard changed in fix round 1 and therefore
+must not be read as fresh post-fix passes.
+
+| Carry-forward suite | Result |
 |---|---|
 | OpenVINO component | 402 total; 397 passed; 0 failed; 5 skipped |
 | C1 V2.1 | 771 total; 771 passed; 0 failed; 0 skipped |
 | OpenVINO contracts | 204 total; 204 passed; 0 failed; 0 skipped |
 | OpenVINO worker-client | 13 total; 13 passed; 0 failed; 0 skipped |
 | Full worker-process integration, stable rerun | 65 total; 48 passed; 2 failed; 15 skipped |
-| Optimization E2E/architecture | 5 total; 2 passed; 0 failed; 3 skipped |
 
-The complete source suites and source-only architecture proof pass. Native
+Fresh post-fix evidence after the authority-guard corrections is limited to:
+
+| Post-fix suite | Result |
+|---|---|
+| Source-only architecture | 5 total; 5 passed; 0 failed; 0 skipped |
+| Optimization E2E/architecture | 8 total; 5 passed; 0 failed; 3 skipped |
+
+The integration test project also compiled fresh in Release with exit 0, zero
+warnings, and zero errors. The source-only architecture proof passed in its
+focused run; the larger source-suite results remain carry-forward only. Native
 observations remain separate: five component skips require the official worker;
 the three optimization E2Es require the converter (and the plan-bound service
 E2E also requires official stage A); the full integration run has 15 absent
 stage/GPU skips and two explicit missing-TurboQuant-stage failures.
+
+A fresh focused legacy unit attempt after the service change executed zero
+tests because Windows Application Control rejected the rebuilt unsigned test
+assembly with `0x800711C7`. It is an environmental blocker, not a pass; no WAC,
+signing, native-staging, or executable-hash gate was weakened or bypassed.
 
 The two-phase Debug x64 application compile passed: restore exit 0, build exit
 0, zero errors, one `NETSDK1198` missing-publish-profile warning. The nested

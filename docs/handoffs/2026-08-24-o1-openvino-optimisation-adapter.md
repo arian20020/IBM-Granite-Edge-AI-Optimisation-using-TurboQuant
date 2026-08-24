@@ -40,7 +40,8 @@ six optimizer versions, and TurboQuant absence are checked against current
 evidence. `ConfigurationSha256` is recomputed through the public V2 issuer. A
 focused compiled guard verifies that the adapter's configuration-identity
 subgraph calls that public issuer exactly once and contains no local
-SHA/string/JSON canonicalization or hidden reflection invocation.
+cryptography, encoding/string-building, or JSON canonicalization and no hidden
+invocation.
 
 Runtime-only is derived only from equal payload source and target precision.
 Unequal precision remains persistent conversion. The five released CPU
@@ -55,17 +56,26 @@ admission now occurs only in `OptimizeLegacyV1Async`; the shared
 
 The compiled static guard starts at public `ExecuteAsync`, follows every
 same-module method operand for `call`, `callvirt`, `newobj`, `ldftn`, and
-`ldvirtftn` without a namespace filter, and rejects an exact V1 `GetRequired`
-reference, any semantic O1 candidate-catalog lookup, and reflection/dynamic
-invocation APIs that could hide a call. It also requires the frozen C1 union and
-OpenVINO payload member types, limits reachable types with substantial payload
-field overlap to the explicit route-native candidate/result-evidence allowlist,
-and checks the candidate's `ExecutionPayload` is the C1
-`OpenVinoExecutionPayload`.
+`ldvirtftn` without a namespace filter, records all IL instructions to reject
+`calli`, and rejects an exact V1 `GetRequired` reference, any semantic O1
+candidate-catalog lookup, reflection invocation/creation, runtime-binder/
+`CallSite` dispatch, and non-allowlisted delegate invocation. Separately, it
+enumerates the explicitly linked O1 production namespace roots in the
+production module, counts authoritative payload-field overlap across properties
+and ordinary/backing fields, and restricts substantial overlap to the explicit
+candidate/provenance/profile evidence allowlist. Every production property or
+field named `ExecutionPayload` must use a frozen C1 payload type.
 
 This is a static compiled-reference guard over the shared accepting core. It
 does not claim arbitrary runtime reachability through external or virtual
 dispatch, and it does not reject unrelated result-evidence canonicalizers.
+Existing source-snapshot verification delegates are exceptions only at exact
+containing-method plus exact-delegate-type pairs. The same exact-site rule
+applies to the service's disk-space and operation-ID delegates. Those methods
+are directly checked for V1 lookup, reflection/dynamic dispatch, and `calli`,
+and the delegate signatures cannot carry C1 plan/payload/candidate/
+configuration authority types. This preserves testable package-verification
+seams without granting a signature-wide invocation exception.
 
 ## Trusted execution and durable evidence
 
@@ -105,24 +115,37 @@ calls `ExecuteAsync`, uses the sealed converter/official-worker path, and reads
 schema-v2 provenance after publication. No replacement stage or digest is
 invented.
 
-The stage variables were absent during fix-round verification. The focused
-optimization class therefore discovered five tests: two source-only
+The stage variables were absent during the latest fix-round verification. The
+focused optimization class therefore discovered eight tests: five source-only
 architecture tests passed and all three native E2Es skipped. No native pass is
 claimed.
 
-## Fresh Task 3 verification
+## Verification evidence
 
 All commands ran from `C:\O1` with portable .NET SDK `10.0.301` and
 `UseAppHost=false` for test execution.
 
-| Verification | Total | Passed | Failed | Skipped |
+The following totals are carry-forward pre-fix evidence. They were executed
+before the service and architecture guard changed in fix round 1, so they are
+not fresh post-fix passes:
+
+| Carry-forward verification | Total | Passed | Failed | Skipped |
 |---|---:|---:|---:|---:|
 | OpenVINO component | 402 | 397 | 0 | 5 |
 | C1 V2.1 complete project | 771 | 771 | 0 | 0 |
 | OpenVINO contract project | 204 | 204 | 0 | 0 |
 | OpenVINO worker-client | 13 | 13 | 0 | 0 |
 | Worker-process integration, stable rerun | 65 | 48 | 2 | 15 |
-| Optimization E2E/architecture filter | 5 | 2 | 0 | 3 |
+
+Fresh post-fix evidence after the authority-guard corrections is:
+
+| Post-fix verification | Total | Passed | Failed | Skipped |
+|---|---:|---:|---:|---:|
+| Source-only architecture | 5 | 5 | 0 | 0 |
+| Optimization E2E/architecture filter | 8 | 5 | 0 | 3 |
+
+The integration test project also compiled fresh in Release with exit 0, zero
+warnings, and zero errors.
 
 The five component skips require `GRANITE_OPENVINO_OFFICIAL_WORKER_STAGE`.
 The 15 integration skips cover absent converter, official A/B, and physical GPU
@@ -131,6 +154,11 @@ inputs. The two integration failures require
 One protocol case timed out in the first full integration observation, then
 passed focused and in the stable full rerun; no Code Integrity 3033/3077 event
 was found in the checked window.
+
+A fresh focused legacy unit attempt after the service change executed zero
+tests: Windows Application Control rejected the rebuilt unsigned test assembly
+with `0x800711C7`. That observation is an environmental block, not a pass, and
+no signing, staging, hash, or WAC control was bypassed.
 
 The two-phase Debug x64 application build completed with restore exit 0 and
 build exit 0, zero errors, and one `NETSDK1198` warning for absent

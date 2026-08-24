@@ -376,13 +376,74 @@ public sealed class OptimizationEndToEndTests
                 IsO1OwnedConfigurationLookup(reference.Target)),
             "The shared accepting core must not statically reference any O1-owned " +
             "configuration lookup.");
-        Assert.IsFalse(graph.References.Any(static reference =>
-                IsHiddenInvocationApi(reference.Target)),
-            "The accepting graph must not hide a call behind reflection or dynamic invocation.");
+        string[] hiddenInvocationRisks = HiddenInvocationRisks(graph).ToArray();
+        Assert.IsEmpty(hiddenInvocationRisks,
+            "The accepting graph must not hide a call behind reflection or dynamic " +
+            "invocation: " + string.Join("; ", hiddenInvocationRisks));
+        AssertAllowlistedDelegateInvocationBoundaries(graph);
 
         AssertAuthoritativePayloadMemberTypes(graph);
-        AssertNoDuplicatePayloadAuthority(graph);
+        AssertNoDuplicatePayloadAuthorityInProductionModule();
         AssertConfigurationDigestDelegatesToC1Issuer();
+    }
+
+    [TestMethod]
+    [TestCategory("Architecture")]
+    public void SemanticAuthorityGuardRejectsDisconnectedPropertyAndFieldDuplicates()
+    {
+        Type[] duplicates = FindDisallowedPayloadAuthorities(
+            [
+                typeof(DisconnectedPropertyPayloadFixture),
+                typeof(DisconnectedFieldPayloadFixture)
+            ],
+            allowlist: new HashSet<Type>());
+
+        CollectionAssert.AreEquivalent(
+            new[]
+            {
+                typeof(DisconnectedPropertyPayloadFixture),
+                typeof(DisconnectedFieldPayloadFixture)
+            },
+            duplicates);
+    }
+
+    [TestMethod]
+    [TestCategory("Architecture")]
+    public void HiddenInvocationGuardRejectsCalliDynamicAndReflectionInvokerFixtures()
+    {
+        SameModuleCallGraph calli = BuildSameModuleCallGraph(BuildCalliFixture());
+        MethodInfo dynamicDispatch = typeof(OptimizationEndToEndTests).GetMethod(
+            nameof(DynamicDispatchFixture),
+            BindingFlags.Static | BindingFlags.NonPublic)!;
+        SameModuleCallGraph dynamicGraph = BuildSameModuleCallGraph(dynamicDispatch);
+        MethodInfo delegateDispatch = typeof(OptimizationEndToEndTests).GetMethod(
+            nameof(DelegateDispatchFixture),
+            BindingFlags.Static | BindingFlags.NonPublic)!;
+        SameModuleCallGraph delegateGraph = BuildSameModuleCallGraph(delegateDispatch);
+        MethodBase[] reflectionInvokers = ReflectionInvokerFixtureMethods();
+
+        Assert.IsTrue(ContainsHiddenInvocationRisk(calli));
+        Assert.IsTrue(ContainsHiddenInvocationRisk(dynamicGraph));
+        Assert.IsTrue(ContainsHiddenInvocationRisk(delegateGraph));
+        Assert.IsNotEmpty(reflectionInvokers,
+            "This target framework must expose a reflection invoker fixture.");
+        foreach (MethodBase invoker in reflectionInvokers)
+        {
+            Assert.IsTrue(IsReflectionInvocationOrCreationApi(invoker),
+                invoker.DeclaringType?.FullName);
+        }
+    }
+
+    [TestMethod]
+    [TestCategory("Architecture")]
+    public void CanonicalizationGuardRejectsIncrementalHashFixture()
+    {
+        MethodInfo fixture = typeof(OptimizationEndToEndTests).GetMethod(
+            nameof(IncrementalHashFixture),
+            BindingFlags.Static | BindingFlags.NonPublic)!;
+
+        Assert.IsTrue(ContainsLocalConfigurationCanonicalization(
+            BuildSameModuleCallGraph(fixture)));
     }
 
     private static int CallGraphOperandFixture()
@@ -394,6 +455,87 @@ public sealed class OptimizationEndToEndTests
     }
 
     private static int CallGraphStaticTarget() => 1;
+
+    private static object DynamicDispatchFixture(dynamic target) => target.Hidden();
+
+    private static int DelegateDispatchFixture(
+        Func<int, int> target,
+        int value) => target(value);
+
+    private static byte[] IncrementalHashFixture(byte[] input)
+    {
+        using IncrementalHash hash = IncrementalHash.CreateHash(
+            HashAlgorithmName.SHA256);
+        hash.AppendData(input);
+        return hash.GetHashAndReset();
+    }
+
+    private static MethodInfo BuildCalliFixture()
+    {
+        AssemblyBuilder assembly = AssemblyBuilder.DefineDynamicAssembly(
+            new AssemblyName("OpenVinoArchitectureCalliFixture_" +
+                Guid.NewGuid().ToString("N")),
+            AssemblyBuilderAccess.Run);
+        ModuleBuilder module = assembly.DefineDynamicModule("Fixture");
+        TypeBuilder type = module.DefineType(
+            "CalliFixture",
+            TypeAttributes.Public | TypeAttributes.Abstract |
+            TypeAttributes.Sealed);
+        MethodBuilder method = type.DefineMethod(
+            "Invoke",
+            MethodAttributes.Public | MethodAttributes.Static,
+            typeof(int),
+            [typeof(IntPtr), typeof(int)]);
+        ILGenerator il = method.GetILGenerator();
+        il.Emit(OpCodes.Ldarg_1);
+        il.Emit(OpCodes.Ldarg_0);
+        il.Emit(OpCodes.Conv_I);
+        il.EmitCalli(
+            OpCodes.Calli,
+            System.Runtime.InteropServices.CallingConvention.Cdecl,
+            typeof(int),
+            [typeof(int)]);
+        il.Emit(OpCodes.Ret);
+        return type.CreateType()!.GetMethod(
+            "Invoke", BindingFlags.Public | BindingFlags.Static)!;
+    }
+
+    private static MethodBase[] ReflectionInvokerFixtureMethods()
+    {
+        string[] typeNames =
+        [
+            "System.Reflection.MethodInvoker",
+            "System.Reflection.ConstructorInvoker"
+        ];
+        return typeNames
+            .Select(name => typeof(MethodInfo).Assembly.GetType(name))
+            .Where(static type => type is not null)
+            .Select(static type => (MethodBase?)type!.GetMethods(
+                    BindingFlags.Public | BindingFlags.Static |
+                    BindingFlags.Instance)
+                .FirstOrDefault() ?? type.GetConstructors(
+                    BindingFlags.Public | BindingFlags.Instance)
+                .FirstOrDefault())
+            .Where(static method => method is not null)
+            .Cast<MethodBase>()
+            .ToArray();
+    }
+
+    private sealed class DisconnectedPropertyPayloadFixture
+    {
+        public string ConfigurationId { get; init; } = string.Empty;
+        public string Device { get; init; } = string.Empty;
+        public string Maturity { get; init; } = string.Empty;
+        public string EvidenceId { get; init; } = string.Empty;
+    }
+
+    private sealed class DisconnectedFieldPayloadFixture
+    {
+        public string ConfigurationId = string.Empty;
+        public string Device = string.Empty;
+        public string Maturity = string.Empty;
+        public string EvidenceId = string.Empty;
+    }
 
     private class CallGraphFixture
     {
@@ -417,6 +559,7 @@ public sealed class OptimizationEndToEndTests
         Queue<MethodBase> pending = new();
         HashSet<MethodBase> methods = [];
         List<MethodReference> references = [];
+        List<IlInstruction> instructions = [];
         pending.Enqueue(entryPoint);
 
         while (pending.TryDequeue(out MethodBase? method))
@@ -426,7 +569,8 @@ public sealed class OptimizationEndToEndTests
                 continue;
             }
 
-            ReadMethodReferences(method, references, pending, module);
+            ReadMethodReferences(
+                method, references, instructions, pending, module);
             MethodInfo? moveNext = method
                 .GetCustomAttribute<AsyncStateMachineAttribute>()?
                 .StateMachineType.GetMethod(
@@ -435,16 +579,18 @@ public sealed class OptimizationEndToEndTests
                     BindingFlags.NonPublic);
             if (moveNext is not null && methods.Add(moveNext))
             {
-                ReadMethodReferences(moveNext, references, pending, module);
+                ReadMethodReferences(
+                    moveNext, references, instructions, pending, module);
             }
         }
 
-        return new(methods, references);
+        return new(methods, references, instructions);
     }
 
     private static void ReadMethodReferences(
         MethodBase bodyOwner,
         List<MethodReference> references,
+        List<IlInstruction> instructions,
         Queue<MethodBase> pending,
         Module module)
     {
@@ -461,6 +607,7 @@ public sealed class OptimizationEndToEndTests
             OpCode opcode = il[offset++] == 0xfe
                 ? MultiByteOpCodes[il[offset++]]
                 : SingleByteOpCodes[il[offset - 1]];
+            instructions.Add(new(bodyOwner, instructionOffset, opcode));
             int operandSize = OperandSize(opcode.OperandType, il, offset);
             if (opcode.OperandType == OperandType.InlineMethod &&
                 (opcode == OpCodes.Call ||
@@ -500,38 +647,210 @@ public sealed class OptimizationEndToEndTests
         }
     }
 
-    private static bool IsHiddenInvocationApi(MethodBase target)
+    private static bool ContainsHiddenInvocationRisk(SameModuleCallGraph graph) =>
+        HiddenInvocationRisks(graph).Any();
+
+    private static IEnumerable<string> HiddenInvocationRisks(
+        SameModuleCallGraph graph)
+    {
+        foreach (IlInstruction instruction in graph.Instructions.Where(
+                     static instruction => instruction.OpCode == OpCodes.Calli))
+        {
+            yield return $"{instruction.Source.DeclaringType?.FullName}." +
+                $"{instruction.Source.Name}+IL_{instruction.Offset:x4}:calli";
+        }
+        foreach (MethodReference reference in graph.References.Where(
+                     static reference =>
+                         IsReflectionInvocationOrCreationApi(reference.Target) ||
+                         IsDynamicInvocationApi(reference.Target) ||
+                         IsDisallowedDelegateInvocation(reference)))
+        {
+            yield return $"{reference.Source.DeclaringType?.FullName}." +
+                $"{reference.Source.Name}+IL_{reference.Offset:x4} -> " +
+                $"{reference.Target.DeclaringType?.FullName}.{reference.Target.Name}";
+        }
+    }
+
+    private static bool IsReflectionInvocationOrCreationApi(MethodBase target)
     {
         Type? owner = target.DeclaringType;
-        string name = target.Name;
-        return owner == typeof(MethodBase) && name == nameof(MethodBase.Invoke) ||
-            owner == typeof(ConstructorInfo) && name == nameof(ConstructorInfo.Invoke) ||
-            owner == typeof(Type) && name == nameof(Type.InvokeMember) ||
-            owner == typeof(Activator) && name == nameof(Activator.CreateInstance) ||
-            owner == typeof(Assembly) && name == nameof(Assembly.CreateInstance) ||
-            owner == typeof(Delegate) &&
-                (name == nameof(Delegate.DynamicInvoke) ||
-                 name == nameof(Delegate.CreateDelegate)) ||
-            owner == typeof(MethodInfo) && name == nameof(MethodInfo.CreateDelegate) ||
-            owner == typeof(PropertyInfo) &&
-                (name == nameof(PropertyInfo.GetValue) ||
-                 name == nameof(PropertyInfo.SetValue)) ||
-            owner == typeof(FieldInfo) &&
-                (name == nameof(FieldInfo.GetValue) ||
-                 name == nameof(FieldInfo.SetValue)) ||
-            owner == typeof(EventInfo) &&
-                (name == nameof(EventInfo.AddEventHandler) ||
-                 name == nameof(EventInfo.RemoveEventHandler)) ||
-            owner == typeof(RuntimeMethodHandle) &&
-                name == nameof(RuntimeMethodHandle.GetFunctionPointer) ||
-            owner == typeof(DynamicMethod) &&
-                (name == nameof(DynamicMethod.Invoke) ||
-                 name == nameof(DynamicMethod.CreateDelegate)) ||
+        return owner?.Namespace?.StartsWith(
+                "System.Reflection", StringComparison.Ordinal) is true ||
+            owner == typeof(Activator) ||
+            owner == typeof(Type) && target.GetParameters().Any(static parameter =>
+                parameter.ParameterType == typeof(BindingFlags)) ||
+            owner == typeof(Delegate) ||
+            owner == typeof(RuntimeMethodHandle) ||
             owner == typeof(System.Runtime.InteropServices.Marshal) &&
-                name == nameof(System.Runtime.InteropServices.Marshal
-                    .GetDelegateForFunctionPointer) ||
-            owner?.Namespace == "System.Linq.Expressions" && name == "Compile";
+                ReturnsDelegate(target) ||
+            owner?.Namespace?.StartsWith(
+                "System.Linq.Expressions", StringComparison.Ordinal) is true &&
+                ReturnsDelegate(target);
     }
+
+    private static bool IsDynamicInvocationApi(MethodBase target)
+    {
+        Type? owner = target.DeclaringType;
+        string? ownerNamespace = owner?.Namespace;
+        return ownerNamespace?.StartsWith(
+                "Microsoft.CSharp.RuntimeBinder", StringComparison.Ordinal) is true ||
+            ownerNamespace?.StartsWith(
+                "System.Runtime.CompilerServices", StringComparison.Ordinal) is true &&
+            (owner?.Name.StartsWith("CallSite", StringComparison.Ordinal) is true ||
+             owner?.DeclaringType?.Name.StartsWith(
+                 "CallSite", StringComparison.Ordinal) is true);
+    }
+
+    private static bool IsDisallowedDelegateInvocation(MethodReference reference)
+    {
+        MethodBase target = reference.Target;
+        Type? owner = target.DeclaringType;
+        if (target.Name != "Invoke" || owner is null ||
+            !typeof(MulticastDelegate).IsAssignableFrom(owner))
+        {
+            return false;
+        }
+
+        return !IsAllowlistedDelegateInvocation(reference);
+    }
+
+    private static bool IsAllowlistedDelegateInvocation(
+        MethodReference reference)
+    {
+        Type? delegateType = reference.Target.DeclaringType;
+        if (delegateType is null || reference.Target.Name != "Invoke")
+        {
+            return false;
+        }
+
+        return IsExactContainingMethod(reference.Source,
+                   ExactProductionMethod(
+                       typeof(OpenVinoOptimizationService), "OptimizeCoreAsync")) &&
+               (delegateType == ServiceDelegateType("hasSufficientSpace") ||
+                delegateType == ServiceDelegateType("operationIdFactory")) ||
+            IsExactContainingMethod(reference.Source,
+                ExactProductionMethod(typeof(OpenVinoPackageSnapshotter), "Capture")) &&
+                delegateType == SnapshotterDelegateType("observer") ||
+            IsExactContainingMethod(reference.Source,
+                ExactProductionMethod(
+                    typeof(OpenVinoPackageSnapshotter), "DiscoverTopology")) &&
+                (delegateType == SnapshotterDelegateType("enumerateEntries") ||
+                 delegateType == SnapshotterDelegateType("observer")) ||
+            IsExactContainingMethod(reference.Source,
+                ExactProductionMethod(
+                    typeof(OpenVinoPackageSnapshotter),
+                    "ValidateDiscoveredPolicy")) &&
+                delegateType == typeof(Func<string, bool>) ||
+            IsExactContainingMethod(reference.Source,
+                ExactProductionMethod(
+                    typeof(OpenVinoPackageSnapshotter),
+                    "ValidateLengthAndMagic")) &&
+                delegateType == typeof(Func<string, bool>) ||
+            IsExactContainingMethod(reference.Source,
+                ExactProductionMethod(
+                    typeof(OpenVinoPackageSnapshot), "ValidateStillCurrent")) &&
+                delegateType == SnapshotDelegateType("validator") ||
+            IsExactContainingMethod(reference.Source,
+                ExactProductionMethod(typeof(OpenVinoPackageSnapshot), "Notify")) &&
+                delegateType == SnapshotDelegateType("observer");
+    }
+
+    private static Type ServiceDelegateType(string fieldName) =>
+        typeof(OpenVinoOptimizationService).GetField(
+            fieldName, BindingFlags.Instance | BindingFlags.NonPublic)!.FieldType;
+
+    private static Type SnapshotterDelegateType(string fieldName) =>
+        typeof(OpenVinoPackageSnapshotter).GetField(
+            fieldName, BindingFlags.Instance | BindingFlags.NonPublic)!.FieldType;
+
+    private static Type SnapshotDelegateType(string fieldName) =>
+        typeof(OpenVinoPackageSnapshot).GetField(
+            fieldName, BindingFlags.Instance | BindingFlags.NonPublic)!.FieldType;
+
+    private static MethodInfo ExactProductionMethod(Type type, string name) =>
+        type.GetMethods(BindingFlags.Instance | BindingFlags.Static |
+                BindingFlags.Public | BindingFlags.NonPublic)
+            .Single(method => method.Name == name);
+
+    private static bool IsExactContainingMethod(
+        MethodBase source,
+        MethodInfo containingMethod)
+    {
+        if (source == containingMethod)
+        {
+            return true;
+        }
+        if (source.Name != "MoveNext" ||
+            source.DeclaringType?.DeclaringType != containingMethod.DeclaringType)
+        {
+            return false;
+        }
+        return containingMethod.GetCustomAttribute<AsyncStateMachineAttribute>()?
+            .StateMachineType == source.DeclaringType;
+    }
+
+    private static void AssertAllowlistedDelegateInvocationBoundaries(
+        SameModuleCallGraph graph)
+    {
+        MethodReference[] allowed = graph.References
+            .Where(IsAllowlistedDelegateInvocation)
+            .ToArray();
+        Assert.IsNotEmpty(allowed,
+            "The exact delegate allowlist must cover the production service seams.");
+
+        foreach (MethodReference invocation in allowed)
+        {
+            MethodReference[] directReferences = graph.References
+                .Where(reference => reference.Source == invocation.Source)
+                .ToArray();
+            Assert.IsFalse(graph.Instructions.Any(instruction =>
+                    instruction.Source == invocation.Source &&
+                    instruction.OpCode == OpCodes.Calli),
+                $"{invocation.Source.DeclaringType?.FullName}." +
+                $"{invocation.Source.Name} contains calli.");
+            Assert.IsFalse(directReferences.Any(static reference =>
+                    reference.Target.DeclaringType ==
+                        typeof(OpenVinoOptimizationLegacyRegistryV1) &&
+                    reference.Target.Name ==
+                        nameof(OpenVinoOptimizationLegacyRegistryV1.GetRequired) ||
+                    IsReflectionInvocationOrCreationApi(reference.Target) ||
+                    IsDynamicInvocationApi(reference.Target)),
+                $"{invocation.Source.DeclaringType?.FullName}." +
+                $"{invocation.Source.Name} hides an authority lookup.");
+
+            Type delegateType = invocation.Target.DeclaringType!;
+            MethodInfo invoke = delegateType.GetMethod("Invoke")!;
+            Type[] boundaryTypes = invoke.GetParameters()
+                .Select(static parameter => parameter.ParameterType)
+                .Append(invoke.ReturnType)
+                .SelectMany(ContainedTypes)
+                .ToArray();
+            Assert.IsFalse(boundaryTypes.Any(IsExecutionAuthorityType),
+                $"Allowlisted delegate {delegateType.FullName} carries a plan, " +
+                "payload, candidate, or configuration authority type.");
+        }
+    }
+
+    private static bool IsExecutionAuthorityType(Type type)
+    {
+        Type normalized = NormalizeType(type);
+        if (normalized == typeof(OpenVinoOptimizationCandidate))
+        {
+            return true;
+        }
+        string? typeNamespace = normalized.Namespace;
+        return typeNamespace?.StartsWith(
+                "GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization",
+                StringComparison.Ordinal) is true &&
+            (normalized.Name.Contains("Plan", StringComparison.Ordinal) ||
+             normalized.Name.Contains("Payload", StringComparison.Ordinal) ||
+             normalized.Name.Contains("Candidate", StringComparison.Ordinal) ||
+             normalized.Name.Contains("Configuration", StringComparison.Ordinal));
+    }
+
+    private static bool ReturnsDelegate(MethodBase method) =>
+        method is MethodInfo info &&
+        typeof(Delegate).IsAssignableFrom(info.ReturnType);
 
     private static bool IsO1OwnedConfigurationLookup(MethodBase target)
     {
@@ -605,45 +924,122 @@ public sealed class OptimizationEndToEndTests
             "The configuration identity boundary must receive the C1 union payload.");
     }
 
-    private static void AssertNoDuplicatePayloadAuthority(SameModuleCallGraph graph)
+    private static void AssertNoDuplicatePayloadAuthorityInProductionModule()
     {
-        HashSet<string> authoritativeFields = typeof(ContractOpenVinoExecutionPayload)
-            .GetProperties(BindingFlags.Instance | BindingFlags.Public)
-            .Select(static property => property.Name)
-            .ToHashSet(StringComparer.Ordinal);
         HashSet<Type> allowlist =
         [
             typeof(OpenVinoOptimizationCandidate),
             typeof(OpenVinoOptimizationProvenance),
             typeof(OpenVinoRuntimeOptimizationProfile)
         ];
-        Type[] substantialOverlap = ReachableSameModuleTypes(graph)
-            .Where(type => type
-                .GetProperties(BindingFlags.Instance | BindingFlags.Public |
-                    BindingFlags.NonPublic)
-                .Select(static property => property.Name)
-                .Count(authoritativeFields.Contains) >= 4)
-            .ToArray();
+        Type[] productionTypes = ProductionModuleTypes();
+        Type[] substantialOverlap = FindPayloadAuthorityOverlaps(productionTypes);
+        Type[] disallowed = FindDisallowedPayloadAuthorities(
+            productionTypes, allowlist);
 
         Assert.IsTrue(substantialOverlap.Contains(typeof(OpenVinoOptimizationCandidate)),
             "The semantic overlap guard must cover the route-native candidate.");
-        Assert.IsTrue(substantialOverlap.Contains(typeof(OpenVinoOptimizationProvenance)),
-            "The semantic overlap guard must cover persistent result evidence.");
-        Assert.IsTrue(substantialOverlap.All(allowlist.Contains),
-            "A reachable O1 type substantially overlaps the C1 payload outside the " +
-            "explicit route-native candidate/result-evidence allowlist: " +
-            string.Join(", ", substantialOverlap
-                .Where(type => !allowlist.Contains(type))
-                .Select(static type => type.FullName)));
-        foreach (Type allowed in allowlist)
+        Assert.IsEmpty(disallowed,
+            "An O1 production type substantially overlaps the C1 payload outside " +
+            "the explicit candidate/provenance/profile evidence allowlist: " +
+            string.Join(", ", disallowed.Select(static type => type.FullName)));
+
+        PayloadMember[] payloadMembers = productionTypes
+            .SelectMany(PayloadMembers)
+            .ToArray();
+        Assert.IsNotEmpty(payloadMembers,
+            "The production module must expose its route-native C1 payload binding.");
+        foreach (PayloadMember payload in payloadMembers)
         {
-            PropertyInfo? payload = allowed.GetProperty("ExecutionPayload");
-            if (payload is not null)
+            Assert.IsTrue(allowlist.Contains(payload.Owner),
+                $"{payload.Owner.FullName}.{payload.Name} is not on the explicit " +
+                "candidate/provenance/profile evidence allowlist.");
+            Assert.IsTrue(
+                payload.MemberType == typeof(ContractExecutionPayload) ||
+                payload.MemberType == typeof(ContractOpenVinoExecutionPayload),
+                $"{payload.Owner.FullName}.{payload.Name} must use a frozen C1 " +
+                "execution-payload type, not {payload.MemberType.FullName}.");
+        }
+    }
+
+    private static Type[] ProductionModuleTypes()
+    {
+        Module productionModule = typeof(OpenVinoOptimizationService).Module;
+        string[] productionNamespaceRoots =
+        [
+            "GraniteEdgeAI.Features.OpenVinoRoute",
+            "GraniteEdgeAI.Features.Prompting"
+        ];
+        return productionModule.Assembly.GetTypes()
+            .Where(type => type.Module == productionModule &&
+                type.Namespace is not null &&
+                productionNamespaceRoots.Any(root =>
+                    type.Namespace.Equals(root, StringComparison.Ordinal) ||
+                    type.Namespace.StartsWith(root + ".", StringComparison.Ordinal)) &&
+                type.GetCustomAttribute<CompilerGeneratedAttribute>() is null &&
+                !type.Name.StartsWith('<'))
+            .ToArray();
+    }
+
+    private static Type[] FindDisallowedPayloadAuthorities(
+        IEnumerable<Type> types,
+        HashSet<Type> allowlist) =>
+        FindPayloadAuthorityOverlaps(types)
+            .Where(type => !allowlist.Contains(type))
+            .OrderBy(static type => type.FullName, StringComparer.Ordinal)
+            .ToArray();
+
+    private static Type[] FindPayloadAuthorityOverlaps(IEnumerable<Type> types)
+    {
+        HashSet<string> authoritativeFields = typeof(ContractOpenVinoExecutionPayload)
+            .GetProperties(BindingFlags.Instance | BindingFlags.Public)
+            .Select(static property => property.Name)
+            .ToHashSet(StringComparer.Ordinal);
+        return types
+            .Where(type => PayloadFieldNames(type)
+                .Count(authoritativeFields.Contains) >= 4)
+            .Distinct()
+            .ToArray();
+    }
+
+    private static HashSet<string> PayloadFieldNames(Type type) =>
+        type.GetProperties(BindingFlags.Instance | BindingFlags.Public |
+                BindingFlags.NonPublic | BindingFlags.DeclaredOnly)
+            .Select(static property => property.Name)
+            .Concat(type.GetFields(BindingFlags.Instance | BindingFlags.Public |
+                    BindingFlags.NonPublic | BindingFlags.DeclaredOnly)
+                .Select(static field => NormalizePayloadMemberName(field.Name)))
+            .ToHashSet(StringComparer.Ordinal);
+
+    private static IEnumerable<PayloadMember> PayloadMembers(Type type)
+    {
+        foreach (PropertyInfo property in type.GetProperties(
+                     BindingFlags.Instance | BindingFlags.Public |
+                     BindingFlags.NonPublic | BindingFlags.DeclaredOnly))
+        {
+            if (property.Name == "ExecutionPayload")
             {
-                Assert.AreEqual(typeof(ContractOpenVinoExecutionPayload),
-                    payload.PropertyType, allowed.FullName);
+                yield return new(type, property.Name, property.PropertyType);
             }
         }
+        foreach (FieldInfo field in type.GetFields(
+                     BindingFlags.Instance | BindingFlags.Public |
+                     BindingFlags.NonPublic | BindingFlags.DeclaredOnly))
+        {
+            if (NormalizePayloadMemberName(field.Name) == "ExecutionPayload")
+            {
+                yield return new(type, field.Name, field.FieldType);
+            }
+        }
+    }
+
+    private static string NormalizePayloadMemberName(string name)
+    {
+        const string backingSuffix = ">k__BackingField";
+        return name.StartsWith('<') && name.EndsWith(
+                backingSuffix, StringComparison.Ordinal)
+            ? name[1..^backingSuffix.Length]
+            : name;
     }
 
     private static void AssertConfigurationDigestDelegatesToC1Issuer()
@@ -663,38 +1059,82 @@ public sealed class OptimizationEndToEndTests
         Assert.IsTrue(issuerCalls[0].IsPublic && issuerCalls[0].IsStatic);
         Assert.AreEqual(typeof(ContractExecutionPayload),
             issuerCalls[0].GetParameters()[1].ParameterType);
-        Assert.IsFalse(graph.References.Any(static reference =>
-                IsHiddenInvocationApi(reference.Target)),
+        Assert.IsFalse(ContainsHiddenInvocationRisk(graph),
             "Configuration identity must not hide an alternate issuer/canonicalizer call.");
-        Assert.IsFalse(graph.References.Any(static reference =>
-                IsLocalConfigurationCanonicalizationApi(reference.Target)),
+        Assert.IsFalse(ContainsLocalConfigurationCanonicalization(graph),
             "Configuration identity must not perform local SHA/string/JSON canonicalization.");
     }
 
-    private static bool IsLocalConfigurationCanonicalizationApi(MethodBase target)
+    private static bool ContainsLocalConfigurationCanonicalization(
+        SameModuleCallGraph graph)
     {
-        Type? owner = target.DeclaringType;
-        if (owner is null)
-        {
-            return false;
-        }
-        if (typeof(HashAlgorithm).IsAssignableFrom(owner) ||
-            owner == typeof(System.Text.StringBuilder) ||
-            typeof(System.Text.Encoding).IsAssignableFrom(owner) ||
-            owner == typeof(BinaryWriter) ||
-            owner == typeof(MemoryStream) ||
-            owner.Namespace?.StartsWith("System.Text.Json", StringComparison.Ordinal) is true)
+        IEnumerable<Type> methodTypes = graph.Methods.SelectMany(MethodTypes);
+        IEnumerable<Type> referenceTypes = graph.References.SelectMany(
+            static reference => MethodTypes(reference.Target));
+        if (methodTypes.Concat(referenceTypes)
+            .SelectMany(ContainedTypes)
+            .Any(IsCanonicalizationType))
         {
             return true;
         }
-        if (owner == typeof(Convert) && target.Name is
-            nameof(Convert.ToHexString) or nameof(Convert.FromHexString) or
-            nameof(Convert.ToBase64String) or nameof(Convert.FromBase64String))
-        {
-            return true;
-        }
-        return owner == typeof(string) && target.Name != nameof(string.Equals);
+
+        return graph.References.Any(static reference =>
+            reference.Target.DeclaringType == typeof(BinaryWriter) ||
+            reference.Target.DeclaringType == typeof(MemoryStream) ||
+            reference.Target.DeclaringType == typeof(Convert) &&
+            reference.Target.Name is (nameof(Convert.ToHexString) or
+                nameof(Convert.FromHexString) or
+                nameof(Convert.ToBase64String) or
+                nameof(Convert.FromBase64String)) ||
+            reference.Target.DeclaringType == typeof(string) &&
+            reference.Target.Name != nameof(string.Equals));
     }
+
+    private static IEnumerable<Type> MethodTypes(MethodBase method)
+    {
+        if (method.DeclaringType is not null)
+        {
+            yield return method.DeclaringType;
+        }
+        if (method is MethodInfo info)
+        {
+            yield return info.ReturnType;
+        }
+        foreach (ParameterInfo parameter in method.GetParameters())
+        {
+            yield return parameter.ParameterType;
+        }
+        foreach (LocalVariableInfo local in
+                 method.GetMethodBody()?.LocalVariables ?? [])
+        {
+            yield return local.LocalType;
+        }
+    }
+
+    private static IEnumerable<Type> ContainedTypes(Type type)
+    {
+        Type normalized = NormalizeType(type);
+        yield return normalized;
+        if (!normalized.IsGenericType)
+        {
+            yield break;
+        }
+        foreach (Type argument in normalized.GetGenericArguments())
+        {
+            foreach (Type contained in ContainedTypes(argument))
+            {
+                yield return contained;
+            }
+        }
+    }
+
+    private static bool IsCanonicalizationType(Type type) =>
+        type.Namespace?.StartsWith(
+            "System.Security.Cryptography", StringComparison.Ordinal) is true ||
+        type == typeof(System.Text.StringBuilder) ||
+        typeof(System.Text.Encoding).IsAssignableFrom(type) ||
+        type.Namespace?.StartsWith(
+            "System.Text.Json", StringComparison.Ordinal) is true;
 
     private static MethodInfo ConfigurationIdentityMethod() =>
         typeof(OpenVinoOptimizationPlanAdapter).GetMethod(
@@ -777,7 +1217,18 @@ public sealed class OptimizationEndToEndTests
 
     private sealed record SameModuleCallGraph(
         HashSet<MethodBase> Methods,
-        List<MethodReference> References);
+        List<MethodReference> References,
+        List<IlInstruction> Instructions);
+
+    private sealed record IlInstruction(
+        MethodBase Source,
+        int Offset,
+        OpCode OpCode);
+
+    private sealed record PayloadMember(
+        Type Owner,
+        string Name,
+        Type MemberType);
 
     private sealed record MethodReference(
         MethodBase Source,
