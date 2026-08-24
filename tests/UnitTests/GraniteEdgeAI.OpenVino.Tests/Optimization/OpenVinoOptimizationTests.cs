@@ -1,5 +1,4 @@
 using System.Text.Json;
-using System.Reflection;
 using GraniteEdgeAI.Features.OpenVinoRoute.Optimization;
 using GraniteEdgeAI.Features.OpenVinoRoute.Inspection;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Candidates;
@@ -19,6 +18,21 @@ public sealed class OpenVinoOptimizationTests
         ["optimize", "validate", "smoke", "reinspect"];
     private static readonly string[] ExpectedPrePublishCalls =
         ["optimize", "validate", "smoke"];
+    private static readonly OpenVinoOptimizationCheckpoint[] ExpectedCheckpoints =
+    [
+        OpenVinoOptimizationCheckpoint.InitialPreflight,
+        OpenVinoOptimizationCheckpoint.BeforeStaging,
+        OpenVinoOptimizationCheckpoint.BeforePublish
+    ];
+    private static readonly string[] ExpectedBoundaryEvents =
+    [
+        "state:InitialPreflight",
+        "state:BeforeStaging",
+        "optimize",
+        "validate",
+        "smoke",
+        "state:BeforePublish"
+    ];
 
     [TestMethod]
     public void ObjectivesMapToExactClosedCpuCandidates()
@@ -152,7 +166,7 @@ public sealed class OpenVinoOptimizationTests
                 package.Source,
                 package.Destination,
                 plan,
-                CurrentState(plan),
+                CurrentStateProvider(plan),
                 Confirmed: true),
             progress: null,
             CancellationToken.None);
@@ -223,7 +237,7 @@ public sealed class OpenVinoOptimizationTests
                 package.Source,
                 package.Destination,
                 plan,
-                CurrentState(plan),
+                CurrentStateProvider(plan),
                 Confirmed: true),
             new InlineProgress<OpenVinoOptimizationProgress>(
                 value => stages.Add(value.Stage)),
@@ -282,7 +296,7 @@ public sealed class OpenVinoOptimizationTests
                 package.Source,
                 package.Destination,
                 plan,
-                CurrentState(plan),
+                CurrentStateProvider(plan),
                 Confirmed: true),
             progress: null,
             CancellationToken.None);
@@ -301,21 +315,20 @@ public sealed class OpenVinoOptimizationTests
     {
         using PackageFixture package = PackageFixture.Create();
         OptimizationExecutionPlan plan = CreatePlan(package.Source);
-        OptimizationCapabilitySnapshot current =
+        OpenVinoOptimizationCurrentState initial = CurrentState(plan);
+        OptimizationCapabilitySnapshot changedCapabilities =
             OptimizationCapabilitySnapshot.ForOpenVino(
-                plan.CapabilitySnapshot.SnapshotId,
+                "ov-capability-drifted",
                 plan.CapabilitySnapshot.CapabilitySnapshotSha256,
                 plan.CapabilitySnapshot.OpenVino!);
-        OpenVinoOptimizationCurrentState currentState = CurrentState(
-            plan, current);
-        RecordingOptimizationPipeline pipeline = new()
+        OpenVinoOptimizationCurrentState changed = initial with
         {
-            AfterSmoke = () => typeof(OptimizationCapabilitySnapshot)
-                .GetField(
-                    "<SnapshotId>k__BackingField",
-                    BindingFlags.Instance | BindingFlags.NonPublic)!
-                .SetValue(current, "ov-capability-drifted")
+            Capabilities = changedCapabilities
         };
+        List<string> events = [];
+        SequenceCurrentStateProvider currentStateProvider = new(
+            [initial, initial, changed], events);
+        RecordingOptimizationPipeline pipeline = new(events);
         OpenVinoOptimizationService service = new(pipeline, _ => true);
 
         OptimizationExecutionResult result = await service.ExecuteAsync(
@@ -323,7 +336,7 @@ public sealed class OpenVinoOptimizationTests
                 package.Source,
                 package.Destination,
                 plan,
-                currentState,
+                currentStateProvider,
                 Confirmed: true),
             progress: null,
             CancellationToken.None);
@@ -335,6 +348,14 @@ public sealed class OpenVinoOptimizationTests
         CollectionAssert.AreEqual(
             ExpectedPrePublishCalls,
             pipeline.Calls.ToArray());
+        CollectionAssert.AreEqual(
+            ExpectedCheckpoints,
+            currentStateProvider.Checkpoints.ToArray());
+        CollectionAssert.AreEqual(
+            ExpectedBoundaryEvents,
+            events);
+        Assert.AreSame(changedCapabilities,
+            currentStateProvider.ReturnedStates[2].Capabilities);
         Assert.IsFalse(Directory.Exists(package.Destination));
     }
 
@@ -349,11 +370,12 @@ public sealed class OpenVinoOptimizationTests
     {
         using PackageFixture package = PackageFixture.Create();
         OptimizationExecutionPlan plan = CreatePlan(package.Source);
-        OpenVinoOptimizationCurrentState current = CurrentState(plan);
-        RecordingOptimizationPipeline pipeline = new()
-        {
-            AfterSmoke = () => MutateCurrentBinding(current, changedBinding)
-        };
+        OpenVinoOptimizationCurrentState initial = CurrentState(plan);
+        OpenVinoOptimizationCurrentState changed = ChangedCurrentBinding(
+            initial, changedBinding);
+        SequenceCurrentStateProvider currentStateProvider = new(
+            [initial, initial, changed]);
+        RecordingOptimizationPipeline pipeline = new();
         OpenVinoOptimizationService service = new(pipeline, _ => true);
 
         OptimizationExecutionResult result = await service.ExecuteAsync(
@@ -361,7 +383,7 @@ public sealed class OpenVinoOptimizationTests
                 package.Source,
                 package.Destination,
                 plan,
-                current,
+                currentStateProvider,
                 Confirmed: true),
             progress: null,
             CancellationToken.None);
@@ -369,6 +391,10 @@ public sealed class OpenVinoOptimizationTests
         Assert.AreEqual(OptimizationExecutionStatus.ReplanRequired, result.Status);
         Assert.AreEqual(expected, result.SupportCode);
         CollectionAssert.AreEqual(ExpectedPrePublishCalls, pipeline.Calls.ToArray());
+        CollectionAssert.AreEqual(
+            ExpectedCheckpoints,
+            currentStateProvider.Checkpoints.ToArray());
+        Assert.AreSame(changed, currentStateProvider.ReturnedStates[2]);
         Assert.IsFalse(Directory.Exists(package.Destination));
     }
 
@@ -385,7 +411,7 @@ public sealed class OpenVinoOptimizationTests
                 package.Source,
                 package.Destination,
                 plan,
-                CurrentState(plan),
+                CurrentStateProvider(plan),
                 Confirmed: true),
             progress: null,
             CancellationToken.None);
@@ -398,6 +424,46 @@ public sealed class OpenVinoOptimizationTests
         Assert.AreEqual(0UL, result.OutputSizeBytes);
         Assert.AreEqual(0, pipeline.Calls.Count);
         Assert.IsFalse(Directory.Exists(package.Destination));
+    }
+
+    [TestMethod]
+    [DataRow(true)]
+    [DataRow(false)]
+    public async Task PostPublicationReinspectionFailureRollsBackAndReturnsTypedC1Failure(
+        bool rejected)
+    {
+        using PackageFixture package = PackageFixture.Create();
+        RecordingOptimizationPipeline pipeline = new()
+        {
+            ReinspectionFailure = rejected
+                ? new OpenVinoOptimizationException(
+                    OpenVinoSupportCode.PackageInconsistentResource)
+                : new InvalidOperationException("reinspection failed")
+        };
+        OpenVinoOptimizationService service = new(pipeline, _ => true);
+        OptimizationExecutionPlan plan = CreatePlan(package.Source);
+
+        OptimizationExecutionResult result = await service.ExecuteAsync(
+            new OpenVinoOptimizationRequest(
+                package.Source,
+                package.Destination,
+                plan,
+                CurrentStateProvider(plan),
+                Confirmed: true),
+            progress: null,
+            CancellationToken.None);
+
+        Assert.AreEqual(OptimizationExecutionStatus.Failed, result.Status);
+        Assert.AreEqual(OptimizationSupportCode.ReinspectionFailed,
+            result.SupportCode);
+        Assert.IsNull(result.OutputIdentity);
+        Assert.IsNull(result.OutputManifestSha256);
+        Assert.AreEqual(0UL, result.OutputSizeBytes);
+        CollectionAssert.AreEqual(ExpectedPipelineCalls, pipeline.Calls.ToArray());
+        Assert.IsFalse(Directory.Exists(package.Destination));
+        Assert.AreEqual(0, Directory.EnumerateDirectories(
+            Path.GetDirectoryName(package.Destination)!,
+            ".granite-openvino-*.staging").Count());
     }
 
     [TestMethod]
@@ -437,7 +503,7 @@ public sealed class OpenVinoOptimizationTests
                 package.Source,
                 package.Destination,
                 plan,
-                current,
+                new SequenceCurrentStateProvider([current]),
                 Confirmed: true),
             progress: null,
             CancellationToken.None);
@@ -453,25 +519,21 @@ public sealed class OpenVinoOptimizationTests
     {
         using PackageFixture package = PackageFixture.Create();
         OptimizationExecutionPlan plan = CreatePlan(package.Source);
-        OpenVinoOptimizationCurrentState current = CurrentState(plan);
+        OpenVinoOptimizationCurrentState initial = CurrentState(plan);
+        OpenVinoOptimizationCurrentState changed = initial with
+        {
+            ProductHardwareRunId = "hw-run-after-preflight"
+        };
+        SequenceCurrentStateProvider currentStateProvider = new([initial, changed]);
         RecordingOptimizationPipeline pipeline = new();
-        OpenVinoOptimizationService service = new(
-            pipeline,
-            _ =>
-            {
-                typeof(OpenVinoOptimizationCurrentState).GetField(
-                    "<ProductHardwareRunId>k__BackingField",
-                    BindingFlags.Instance | BindingFlags.NonPublic)!
-                    .SetValue(current, "hw-run-after-preflight");
-                return true;
-            });
+        OpenVinoOptimizationService service = new(pipeline, _ => true);
 
         OptimizationExecutionResult result = await service.ExecuteAsync(
             new OpenVinoOptimizationRequest(
                 package.Source,
                 package.Destination,
                 plan,
-                current,
+                currentStateProvider,
                 Confirmed: true),
             progress: null,
             CancellationToken.None);
@@ -479,6 +541,14 @@ public sealed class OpenVinoOptimizationTests
         Assert.AreEqual(OptimizationExecutionStatus.ReplanRequired, result.Status);
         Assert.AreEqual(OptimizationSupportCode.HardwareBindingMismatch,
             result.SupportCode);
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                OpenVinoOptimizationCheckpoint.InitialPreflight,
+                OpenVinoOptimizationCheckpoint.BeforeStaging
+            },
+            currentStateProvider.Checkpoints.ToArray());
+        Assert.AreSame(changed, currentStateProvider.ReturnedStates[1]);
         Assert.AreEqual(0, pipeline.Calls.Count);
         Assert.IsFalse(Directory.Exists(package.Destination));
     }
@@ -499,7 +569,7 @@ public sealed class OpenVinoOptimizationTests
                 package.Source,
                 Path.Combine(package.Source, "profile"),
                 plan,
-                CurrentState(plan),
+                CurrentStateProvider(plan),
                 Confirmed: true),
             progress: null,
             CancellationToken.None);
@@ -532,7 +602,7 @@ public sealed class OpenVinoOptimizationTests
                 package.Source,
                 package.Destination,
                 plan,
-                CurrentState(plan),
+                CurrentStateProvider(plan),
                 Confirmed: true),
             progress: null,
             CancellationToken.None);
@@ -556,7 +626,7 @@ public sealed class OpenVinoOptimizationTests
                 package.Source,
                 package.Destination,
                 plan,
-                CurrentState(plan),
+                CurrentStateProvider(plan),
                 Confirmed: true),
             progress: null,
             CancellationToken.None);
@@ -782,39 +852,84 @@ public sealed class OpenVinoOptimizationTests
             plan.Binding.ProductHardwareRunId,
             plan.Binding.HardwareSnapshotSha256);
 
-    private static void MutateCurrentBinding(
+    private static SequenceCurrentStateProvider CurrentStateProvider(
+        OptimizationExecutionPlan plan,
+        OptimizationCapabilitySnapshot? capabilities = null) =>
+        new([CurrentState(plan, capabilities)]);
+
+    private static OpenVinoOptimizationCurrentState ChangedCurrentBinding(
         OpenVinoOptimizationCurrentState current,
         string changedBinding)
     {
-        string property = changedBinding switch
+        return changedBinding switch
         {
-            "model-run" => nameof(OpenVinoOptimizationCurrentState.ModelInspectionRunId),
-            "model-handoff" => nameof(
-                OpenVinoOptimizationCurrentState.ModelInspectionHandoffId),
-            "hardware-run" => nameof(
-                OpenVinoOptimizationCurrentState.ProductHardwareRunId),
-            "hardware-hash" => nameof(
-                OpenVinoOptimizationCurrentState.HardwareSnapshotSha256),
+            "model-run" => current with
+            {
+                ModelInspectionRunId = "model-run-drifted"
+            },
+            "model-handoff" => current with
+            {
+                ModelInspectionHandoffId = "model-handoff-drifted"
+            },
+            "hardware-run" => current with
+            {
+                ProductHardwareRunId = "hardware-run-drifted"
+            },
+            "hardware-hash" => current with
+            {
+                HardwareSnapshotSha256 = new string('9', 64)
+            },
             _ => throw new InvalidOperationException()
         };
-        string value = changedBinding == "hardware-hash"
-            ? new string('9', 64)
-            : changedBinding + "-drifted";
-        typeof(OpenVinoOptimizationCurrentState).GetField(
-            $"<{property}>k__BackingField",
-            BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(current, value);
+    }
+
+    private sealed class SequenceCurrentStateProvider(
+        IEnumerable<OpenVinoOptimizationCurrentState> states,
+        List<string>? events = null) : IOpenVinoOptimizationCurrentStateProvider
+    {
+        private readonly Queue<OpenVinoOptimizationCurrentState> remaining =
+            new(states);
+        private OpenVinoOptimizationCurrentState? last;
+
+        internal List<OpenVinoOptimizationCheckpoint> Checkpoints { get; } = [];
+        internal List<OpenVinoOptimizationCurrentState> ReturnedStates { get; } = [];
+
+        public ValueTask<OpenVinoOptimizationCurrentState> GetCurrentStateAsync(
+            OpenVinoOptimizationCheckpoint checkpoint,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Checkpoints.Add(checkpoint);
+            events?.Add("state:" + checkpoint);
+            if (remaining.Count > 0)
+            {
+                last = remaining.Dequeue();
+            }
+            OpenVinoOptimizationCurrentState current = last ??
+                throw new AssertFailedException("No current state was supplied.");
+            ReturnedStates.Add(current);
+            return ValueTask.FromResult(current);
+        }
     }
 
     private sealed class RecordingOptimizationPipeline : IOpenVinoOptimizationPipeline
     {
+        private readonly List<string>? events;
+
+        internal RecordingOptimizationPipeline(List<string>? events = null)
+        {
+            this.events = events;
+        }
+
         internal List<string> Calls { get; } = [];
-        internal Action? AfterSmoke { get; init; }
+        internal Exception? ReinspectionFailure { get; init; }
 
         public Task<OpenVinoOptimizationCompletion> OptimizeAsync(
             OpenVinoOptimizationInvocation invocation,
             CancellationToken cancellationToken)
         {
             Calls.Add("optimize");
+            events?.Add("optimize");
             File.Copy(
                 Path.Combine(invocation.SourceDirectory, "openvino_model.xml"),
                 Path.Combine(invocation.StagingDirectory, "openvino_model.xml"));
@@ -832,6 +947,7 @@ public sealed class OpenVinoOptimizationTests
             CancellationToken cancellationToken)
         {
             Calls.Add("validate");
+            events?.Add("validate");
             return Task.FromResult(OpenVinoOptimizationValidation.CreateTestInstance());
         }
 
@@ -842,7 +958,7 @@ public sealed class OpenVinoOptimizationTests
             CancellationToken cancellationToken)
         {
             Calls.Add("smoke");
-            AfterSmoke?.Invoke();
+            events?.Add("smoke");
             return Task.FromResult(new OpenVinoRuntimeOptimizationEvidence(
                 "CPU",
                 candidate.Runtime.KvCachePrecision,
@@ -855,6 +971,11 @@ public sealed class OpenVinoOptimizationTests
             CancellationToken cancellationToken)
         {
             Calls.Add("reinspect");
+            events?.Add("reinspect");
+            if (ReinspectionFailure is not null)
+            {
+                throw ReinspectionFailure;
+            }
             return Task.FromResult(Guid.NewGuid());
         }
     }

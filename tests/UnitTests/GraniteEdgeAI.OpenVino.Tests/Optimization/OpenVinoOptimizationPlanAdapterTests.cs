@@ -292,7 +292,7 @@ public sealed class OpenVinoOptimizationPlanAdapterTests
                 package.Source,
                 package.Destination,
                 plan,
-                OpenVinoOptimizationTestData.CurrentState(plan),
+                OpenVinoOptimizationTestData.CurrentStateProvider(plan),
                 Confirmed: true),
             progress: null,
             CancellationToken.None);
@@ -318,7 +318,7 @@ public sealed class OpenVinoOptimizationPlanAdapterTests
                 package.Source,
                 package.Destination,
                 plan,
-                OpenVinoOptimizationTestData.CurrentState(plan),
+                OpenVinoOptimizationTestData.CurrentStateProvider(plan),
                 Confirmed: true),
             progress: null,
             CancellationToken.None);
@@ -436,13 +436,26 @@ public sealed class OpenVinoOptimizationPlanAdapterTests
                 digest,
                 payload);
 
-        internal static OpenVinoOptimizationCurrentState CurrentState(
-            OptimizationExecutionPlan plan) => new(
+        internal static FixedCurrentStateProvider CurrentStateProvider(
+            OptimizationExecutionPlan plan) => new FixedCurrentStateProvider(new(
                 plan.CapabilitySnapshot,
                 plan.Binding.ModelInspectionRunId,
                 plan.Binding.ModelInspectionHandoffId,
                 plan.Binding.ProductHardwareRunId,
-                plan.Binding.HardwareSnapshotSha256);
+                plan.Binding.HardwareSnapshotSha256));
+    }
+
+    private sealed class FixedCurrentStateProvider(
+        OpenVinoOptimizationCurrentState currentState) :
+        IOpenVinoOptimizationCurrentStateProvider
+    {
+        public ValueTask<OpenVinoOptimizationCurrentState> GetCurrentStateAsync(
+            OpenVinoOptimizationCheckpoint checkpoint,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return ValueTask.FromResult(currentState);
+        }
     }
 
     private sealed class RecordingOptimizationPipeline : IOpenVinoOptimizationPipeline

@@ -2,8 +2,15 @@ using System.Security.Cryptography;
 using GraniteEdgeAI.Features.OpenVinoRoute;
 using GraniteEdgeAI.Features.OpenVinoRoute.Conversion;
 using GraniteEdgeAI.Features.OpenVinoRoute.Optimization;
+using GraniteEdgeAI.Features.OpenVinoRoute.Inspection;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Candidates;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.OpenVino;
 using GraniteEdgeAI.OpenVino.Contracts;
 using GraniteEdgeAI.OpenVino.WorkerClient;
+using ContractCompiledCachePolicy = GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.OpenVino.OpenVinoCompiledCachePolicy;
+using RouteCompiledCachePolicy = GraniteEdgeAI.Features.OpenVinoRoute.Optimization.OpenVinoCompiledCachePolicy;
 
 namespace GraniteEdgeAI.OpenVino.WorkerProcess.Tests;
 
@@ -16,6 +23,16 @@ public sealed class OptimizationEndToEndTests
     private static readonly OpenVinoOptimizationObjective[] PersistentObjectives =
     [
         OpenVinoOptimizationObjective.Quality,
+        OpenVinoOptimizationObjective.Balanced,
+        OpenVinoOptimizationObjective.Efficiency
+    ];
+    private static readonly OpenVinoOptimizationObjective[] SupportedLegacyObjectives =
+    [
+        OpenVinoOptimizationObjective.Automatic,
+        OpenVinoOptimizationObjective.Quality
+    ];
+    private static readonly OpenVinoOptimizationObjective[] UnsupportedLegacyCacheObjectives =
+    [
         OpenVinoOptimizationObjective.Balanced,
         OpenVinoOptimizationObjective.Efficiency
     ];
@@ -89,7 +106,7 @@ public sealed class OptimizationEndToEndTests
     [TestMethod]
     [TestCategory("StableRouteAcceptance")]
     [Timeout(600_000)]
-    public async Task RegisteredCandidatesPublishValidatedPackagesWithActualRuntimeEvidence()
+    public async Task SupportedLegacyCandidatesPublishAndEnabledCacheFailsClosed()
     {
         string converterStage = RequireStage();
         string? officialValue = Environment.GetEnvironmentVariable(
@@ -122,7 +139,7 @@ public sealed class OptimizationEndToEndTests
                 new OpenVinoConverterInvocation(
                     Guid.NewGuid(), source, baseline, new string('a', 64)),
                 CancellationToken.None);
-            foreach (OpenVinoOptimizationObjective objective in PersistentObjectives)
+            foreach (OpenVinoOptimizationObjective objective in SupportedLegacyObjectives)
             {
                 OpenVinoOptimizationCandidate candidate =
                     OpenVinoOptimizationLegacyRegistryV1.GetRequired(objective);
@@ -160,6 +177,128 @@ public sealed class OptimizationEndToEndTests
                     independent.HandoffLease?.Dispose();
                 }
             }
+            foreach (OpenVinoOptimizationObjective objective in
+                     UnsupportedLegacyCacheObjectives)
+            {
+                OpenVinoOptimizationCandidate candidate =
+                    OpenVinoOptimizationLegacyRegistryV1.GetRequired(objective);
+                string destination = Path.Combine(root, "rejected-" + objective);
+                List<OpenVinoOptimizationStage> stages = [];
+
+                OpenVinoOptimizationResult result = await service.OptimizeLegacyV1Async(
+                    new OpenVinoOptimizationLegacyRequestV1(
+                        baseline, destination, candidate, Confirmed: true),
+                    new InlineProgress<OpenVinoOptimizationProgress>(value =>
+                        stages.Add(value.Stage)),
+                    CancellationToken.None);
+
+                Assert.AreEqual(OpenVinoOptimizationStatus.Failed, result.Status);
+                Assert.AreEqual(OpenVinoSupportCode.OptimizationUnsupported,
+                    result.SupportCode);
+                CollectionAssert.AreEqual(
+                    new[] { OpenVinoOptimizationStage.Preflight },
+                    stages);
+                Assert.IsFalse(Directory.Exists(destination));
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [TestMethod]
+    [TestCategory("StableRouteAcceptance")]
+    [Timeout(600_000)]
+    public async Task ProjectedC1PlanPublishesSchemaV2PackageThroughSealedPipeline()
+    {
+        string converterStage = RequireStage();
+        string officialStage = RequireOfficialStage();
+        string manifestDigest = Digest(Path.Combine(
+            converterStage, "converter-manifest.json"));
+        OpenVinoRouteService route = CreateRoute(officialStage);
+        SealedOpenVinoConversionPipeline converter = new(
+            converterStage, manifestDigest, route);
+        OpenVinoOptimizationService service = new(
+            new SealedOpenVinoOptimizationPipeline(
+                converterStage, manifestDigest, route),
+            _ => true);
+        string root = Path.Combine(
+            Path.GetTempPath(), "GraniteEdgeAI-C1-OptimizationE2E-" +
+            Guid.NewGuid().ToString("N"));
+        string source = Path.Combine(root, "source");
+        string baseline = Path.Combine(root, "baseline");
+        string destination = Path.Combine(root, "published");
+        Directory.CreateDirectory(source);
+        Directory.CreateDirectory(baseline);
+        CopySourceFixture(source);
+        try
+        {
+            await converter.ConvertAsync(
+                new OpenVinoConverterInvocation(
+                    Guid.NewGuid(), source, baseline, new string('a', 64)),
+                CancellationToken.None);
+            OpenVinoStaticPackageEvidence baselineEvidence =
+                new OpenVinoStaticPackageInspector().Inspect(baseline).Evidence!;
+            OpenVinoCapabilityPayload payload =
+                OpenVinoOptimizationCapabilityProjector.Project(
+                    NativeCapabilityEvidence());
+            OpenVinoAdmittedConfiguration admission = payload.Admitted.Single(
+                static item => item.EvidenceId == "OV-STD-CPU-INT8-U8-01");
+            OptimizationCapabilitySnapshot snapshot =
+                OptimizationCapabilitySnapshot.ForOpenVino(
+                    "ov-native-e2e-1",
+                    DigestCapability(payload),
+                    payload);
+            OptimizationExecutionPlan plan = IssuePlan(
+                admission,
+                snapshot,
+                baselineEvidence);
+            OpenVinoOptimizationAdaptation adaptation =
+                OpenVinoOptimizationPlanAdapter.Adapt(
+                    plan,
+                    snapshot,
+                    baselineEvidence.ModelSha256,
+                    checked((ulong)baselineEvidence.ModelLengthBytes));
+            Assert.AreEqual(OpenVinoOptimizationAdaptationStatus.Ready,
+                adaptation.Status);
+            Assert.AreEqual(admission.EvidenceId, adaptation.Candidate!.EvidenceId);
+
+            OptimizationExecutionResult result = await service.ExecuteAsync(
+                new OpenVinoOptimizationRequest(
+                    baseline,
+                    destination,
+                    plan,
+                    new FixedCurrentStateProvider(new(
+                        snapshot,
+                        plan.Binding.ModelInspectionRunId,
+                        plan.Binding.ModelInspectionHandoffId,
+                        plan.Binding.ProductHardwareRunId,
+                        plan.Binding.HardwareSnapshotSha256)),
+                    Confirmed: true),
+                progress: null,
+                CancellationToken.None);
+
+            Assert.AreEqual(OptimizationExecutionStatus.SucceededPersistent,
+                result.Status);
+            Assert.AreEqual(plan.OptimizationPlanId, result.OptimizationPlanId);
+            Assert.AreEqual(plan.ConfigurationSha256, result.ConfigurationSha256);
+            Assert.IsNotNull(result.OutputIdentity);
+            Assert.IsNotNull(result.OutputManifestSha256);
+            Assert.IsGreaterThan(0UL, result.OutputSizeBytes);
+            OpenVinoOptimizationProvenance provenance =
+                OpenVinoOptimizationProvenance.Read(destination);
+            Assert.AreEqual(OpenVinoOptimizationProvenance.CurrentSchemaVersion,
+                provenance.SchemaVersion);
+            Assert.AreEqual(plan.OptimizationPlanId, provenance.OptimizationPlanId);
+            Assert.AreEqual(plan.ConfigurationSha256,
+                provenance.ConfigurationSha256);
+            Assert.AreEqual(snapshot.SnapshotId,
+                provenance.CapabilitySnapshotId);
+            Assert.AreEqual(snapshot.CapabilitySnapshotSha256,
+                provenance.CapabilitySnapshotSha256);
+            Assert.AreEqual(result.OutputManifestSha256,
+                provenance.OutputManifestSha256);
         }
         finally
         {
@@ -198,6 +337,115 @@ public sealed class OptimizationEndToEndTests
             new OpenVinoWorkerClient(
                 OpenVinoWorkerClientOptions.CreateDefault(installation)),
             evidence);
+    }
+
+    private static string RequireOfficialStage()
+    {
+        string? value = Environment.GetEnvironmentVariable(
+            "OPENVINO_OFFICIAL_WORKER_STAGE_A");
+        if (string.IsNullOrWhiteSpace(value) || !Directory.Exists(value))
+        {
+            Assert.Inconclusive("OPENVINO_OFFICIAL_WORKER_STAGE_A is required.");
+        }
+        return Path.GetFullPath(value!);
+    }
+
+    private static OpenVinoOptimizationCapabilityEvidence NativeCapabilityEvidence() =>
+        new(
+            new OpenVinoOptimizationToolVersions(
+                OpenVino: "2026.3.0",
+                OpenVinoGenAi: "2026.3.0.0",
+                Nncf: "3.3.0",
+                Optimum: "2.3.0",
+                OptimumIntel: "2.1.0",
+                Transformers: "5.5.4"),
+            [
+                new OpenVinoOptimizationCapabilityAdmission(
+                    "OV-STD-CPU-INT8-U8-01",
+                    Device: "CPU",
+                    OpenVinoWeightPrecision.EightBit,
+                    new OpenVinoRuntimeOptimization(
+                        OpenVinoKvCachePrecision.U8,
+                        RouteCompiledCachePolicy.Disabled),
+                    OpenVinoCapabilityPerformanceHint.Latency,
+                    Streams: 1,
+                    MinimumContextTokens: 4_096,
+                    MaximumContextTokens: 4_096,
+                    OpenVinoCapabilityMaturity.Released)
+            ]);
+
+    private static OptimizationExecutionPlan IssuePlan(
+        OpenVinoAdmittedConfiguration admission,
+        OptimizationCapabilitySnapshot snapshot,
+        OpenVinoStaticPackageEvidence source)
+    {
+        OpenVinoRouteConfiguration configuration = OpenVinoRouteConfiguration.Create(
+            admission.Weights,
+            admission.KvCache,
+            admission.Device,
+            admission.PerformanceHint,
+            admission.CompiledCache,
+            admission.Streams);
+        ulong sourceLength = checked((ulong)source.ModelLengthBytes);
+        OptimizationCandidate candidate = OptimizationCandidate.Create(
+            configuration,
+            OptimizationCandidateMetrics.Create(
+                EvidenceGrade.Measured,
+                OptimizationAssessment.Good,
+                OptimizationAssessment.Good,
+                OptimizationAssessment.Good,
+                contextTokens: 4_096,
+                predictedPeakBytes: 2UL * 1024 * 1024 * 1024,
+                safeBudgetBytes: 8UL * 1024 * 1024 * 1024,
+                headroomBytes: 6UL * 1024 * 1024 * 1024,
+                workingDiskBytes: sourceLength,
+                outputDiskBytes: Math.Max(1UL, sourceLength / 2),
+                requiresPersistentChange: true),
+            admission.EvidenceId,
+            isExperimental: false);
+        OptimizationSelection selection = OptimizationPreferenceResolver.Resolve(
+            [candidate], OptimizationPreferenceSelection.Manual(50))!;
+        return OptimizationPlanIssuer.Issue(
+            selection,
+            snapshot,
+            OptimizationWorkload.Create(
+                "chat",
+                minimumContextTokens: 512,
+                OptimizationAssessment.Poor,
+                [ContextTokenCount.FromTokens(4_096)]),
+            OptimizationJourneyBinding.Create(
+                "mi-native-e2e-1",
+                "mi-handoff-native-e2e-1",
+                source.ModelSha256,
+                sourceLength,
+                "hw-native-e2e-1",
+                new string('2', 64)),
+            DateTimeOffset.UnixEpoch);
+    }
+
+    private static string DigestCapability(OpenVinoCapabilityPayload payload)
+    {
+        using MemoryStream canonical = new();
+        using (BinaryWriter writer = new(canonical, System.Text.Encoding.UTF8, true))
+        {
+            writer.Write(payload.RuntimeVersion);
+            foreach (OpenVinoAdmittedConfiguration admission in payload.Admitted)
+            {
+                writer.Write(admission.EvidenceId);
+                writer.Write((int)admission.Device);
+                writer.Write((int)admission.Weights);
+                writer.Write((int)admission.KvCache);
+                writer.Write((int)admission.PerformanceHint);
+                writer.Write((int)admission.CompiledCache);
+                writer.Write(admission.Streams);
+                writer.Write(admission.MinimumContextTokens);
+                writer.Write(admission.MaximumContextTokens);
+                writer.Write((int)admission.Level);
+                writer.Write(admission.RequiresEvidence);
+            }
+        }
+        return Convert.ToHexString(SHA256.HashData(canonical.ToArray()))
+            .ToLowerInvariant();
     }
 
     private static string RequireStage()
@@ -255,5 +503,18 @@ public sealed class OptimizationEndToEndTests
     private sealed class InlineProgress<T>(Action<T> report) : IProgress<T>
     {
         public void Report(T value) => report(value);
+    }
+
+    private sealed class FixedCurrentStateProvider(
+        OpenVinoOptimizationCurrentState currentState) :
+        IOpenVinoOptimizationCurrentStateProvider
+    {
+        public ValueTask<OpenVinoOptimizationCurrentState> GetCurrentStateAsync(
+            OpenVinoOptimizationCheckpoint checkpoint,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return ValueTask.FromResult(currentState);
+        }
     }
 }

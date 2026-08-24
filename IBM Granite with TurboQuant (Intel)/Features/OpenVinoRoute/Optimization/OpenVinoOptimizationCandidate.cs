@@ -238,14 +238,6 @@ public static class OpenVinoOptimizationLegacyRegistryV1
     }
 }
 
-// Schema-v1 provenance still resolves the old fixed ids through this alias.
-// New execution never calls it; Task 3 migrates provenance to plan identity.
-internal static class OpenVinoOptimizationRegistry
-{
-    internal static IReadOnlyList<OpenVinoOptimizationCandidate> Candidates =>
-        OpenVinoOptimizationLegacyRegistryV1.Candidates;
-}
-
 public sealed record OpenVinoCompiledCacheIdentity(
     string RuntimeIdentity,
     string PluginIdentity,

@@ -25,11 +25,25 @@ public sealed record OpenVinoOptimizationCurrentState(
     string ProductHardwareRunId,
     string HardwareSnapshotSha256);
 
+public enum OpenVinoOptimizationCheckpoint
+{
+    InitialPreflight,
+    BeforeStaging,
+    BeforePublish
+}
+
+public interface IOpenVinoOptimizationCurrentStateProvider
+{
+    ValueTask<OpenVinoOptimizationCurrentState> GetCurrentStateAsync(
+        OpenVinoOptimizationCheckpoint checkpoint,
+        CancellationToken cancellationToken);
+}
+
 public sealed record OpenVinoOptimizationRequest(
     string SourceDirectory,
     string DestinationDirectory,
     OptimizationExecutionPlan Plan,
-    OpenVinoOptimizationCurrentState CurrentState,
+    IOpenVinoOptimizationCurrentStateProvider CurrentStateProvider,
     bool Confirmed);
 
 public sealed record OpenVinoOptimizationLegacyRequestV1(
@@ -158,14 +172,13 @@ public sealed class OpenVinoOptimizationService
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(request.Plan);
-        ArgumentNullException.ThrowIfNull(request.CurrentState);
-        ArgumentNullException.ThrowIfNull(request.CurrentState.Capabilities);
+        ArgumentNullException.ThrowIfNull(request.CurrentStateProvider);
         return await OptimizeCoreAsync(
             request.SourceDirectory,
             request.DestinationDirectory,
             request.Confirmed,
             request.Plan,
-            request.CurrentState,
+            request.CurrentStateProvider,
             legacyCandidate: null,
             progress,
             cancellationToken).ConfigureAwait(false);
@@ -224,7 +237,7 @@ public sealed class OpenVinoOptimizationService
             request.DestinationDirectory,
             request.Confirmed,
             plan: null,
-            currentState: null,
+            currentStateProvider: null,
             request.Candidate,
             progress,
             cancellationToken).ConfigureAwait(false);
@@ -235,7 +248,7 @@ public sealed class OpenVinoOptimizationService
         string destinationDirectory,
         bool confirmed,
         OptimizationExecutionPlan? plan,
-        OpenVinoOptimizationCurrentState? currentState,
+        IOpenVinoOptimizationCurrentStateProvider? currentStateProvider,
         OpenVinoOptimizationCandidate? legacyCandidate,
         IProgress<OpenVinoOptimizationProgress>? progress,
         CancellationToken cancellationToken)
@@ -249,6 +262,7 @@ public sealed class OpenVinoOptimizationService
         }
 
         OpenVinoOptimizationCandidate? candidate = legacyCandidate;
+        OpenVinoOptimizationCurrentState? initialCurrentState = null;
         OpenVinoPackageSnapshot? source = null;
         OpenVinoOptimizationValidation? validation = null;
         try
@@ -257,14 +271,23 @@ public sealed class OpenVinoOptimizationService
             cancellationToken.ThrowIfCancellationRequested();
             if (plan is not null)
             {
-                if (currentState is null)
+                if (currentStateProvider is null)
+                {
+                    return Replan(
+                        operationId,
+                        OptimizationSupportCode.CapabilityDrift);
+                }
+                initialCurrentState = await currentStateProvider.GetCurrentStateAsync(
+                    OpenVinoOptimizationCheckpoint.InitialPreflight,
+                    cancellationToken).ConfigureAwait(false);
+                if (initialCurrentState?.Capabilities is null)
                 {
                     return Replan(
                         operationId,
                         OptimizationSupportCode.CapabilityDrift);
                 }
                 OptimizationSupportCode bindingFailure = ValidateCurrentBinding(
-                    plan, currentState);
+                    plan, initialCurrentState);
                 if (bindingFailure != OptimizationSupportCode.None)
                 {
                     return Replan(operationId, bindingFailure);
@@ -291,7 +314,7 @@ public sealed class OpenVinoOptimizationService
                 OpenVinoOptimizationAdaptation adaptation =
                     OpenVinoOptimizationPlanAdapter.Adapt(
                         plan,
-                        currentState!.Capabilities,
+                        initialCurrentState!.Capabilities,
                         inspection.Evidence.ModelSha256,
                         checked((ulong)inspection.Evidence.ModelLengthBytes));
                 if (adaptation.Status ==
@@ -333,7 +356,7 @@ public sealed class OpenVinoOptimizationService
                     sourceDirectory,
                     destinationDirectory,
                     plan!,
-                    currentState!,
+                    currentStateProvider!,
                     candidate,
                     source,
                     cancellationToken).ConfigureAwait(false);
@@ -362,8 +385,13 @@ public sealed class OpenVinoOptimizationService
 
             if (plan is not null)
             {
-                OpenVinoOptimizationAdaptation beforeStaging = RevalidatePlan(
-                    plan, currentState!, sourceDirectory);
+                OpenVinoOptimizationAdaptation beforeStaging =
+                    await RevalidatePlanAsync(
+                        plan,
+                        currentStateProvider!,
+                        sourceDirectory,
+                        OpenVinoOptimizationCheckpoint.BeforeStaging,
+                        cancellationToken).ConfigureAwait(false);
                 if (beforeStaging.Status ==
                     OpenVinoOptimizationAdaptationStatus.ReplanRequired)
                 {
@@ -465,8 +493,13 @@ public sealed class OpenVinoOptimizationService
             cancellationToken.ThrowIfCancellationRequested();
             if (plan is not null)
             {
-                OpenVinoOptimizationAdaptation beforePublish = RevalidatePlan(
-                    plan, currentState!, sourceDirectory);
+                OpenVinoOptimizationAdaptation beforePublish =
+                    await RevalidatePlanAsync(
+                        plan,
+                        currentStateProvider!,
+                        sourceDirectory,
+                        OpenVinoOptimizationCheckpoint.BeforePublish,
+                        cancellationToken).ConfigureAwait(false);
                 if (beforePublish.Status ==
                     OpenVinoOptimizationAdaptationStatus.ReplanRequired)
                 {
@@ -490,14 +523,22 @@ public sealed class OpenVinoOptimizationService
                     transaction.DestinationDirectory,
                     cancellationToken).ConfigureAwait(false);
             }
-            catch
+            catch (Exception failure)
             {
                 if (!transaction.TryRollbackPublished())
                 {
                     throw new ConversionTransactionException(
                         OpenVinoSupportCode.ConversionPublishFailed);
                 }
-                throw;
+                if (failure is OperationCanceledException &&
+                    cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                return Failed(
+                    operationId,
+                    OpenVinoSupportCode.ConversionOutputInvalid,
+                    OptimizationSupportCode.ReinspectionFailed);
             }
             Report(progress, operationId, OpenVinoOptimizationStage.Completed);
             return new OpenVinoOptimizationResult(
@@ -560,11 +601,23 @@ public sealed class OpenVinoOptimizationService
             _ => false
         };
 
-    private static OpenVinoOptimizationAdaptation RevalidatePlan(
+    private static async ValueTask<OpenVinoOptimizationAdaptation> RevalidatePlanAsync(
         OptimizationExecutionPlan plan,
-        OpenVinoOptimizationCurrentState currentState,
-        string sourceDirectory)
+        IOpenVinoOptimizationCurrentStateProvider currentStateProvider,
+        string sourceDirectory,
+        OpenVinoOptimizationCheckpoint checkpoint,
+        CancellationToken cancellationToken)
     {
+        OpenVinoOptimizationCurrentState currentState =
+            await currentStateProvider.GetCurrentStateAsync(
+                checkpoint, cancellationToken).ConfigureAwait(false);
+        if (currentState?.Capabilities is null)
+        {
+            return new OpenVinoOptimizationAdaptation(
+                OpenVinoOptimizationAdaptationStatus.ReplanRequired,
+                Candidate: null,
+                OptimizationSupportCode.CapabilityDrift);
+        }
         OptimizationSupportCode bindingFailure = ValidateCurrentBinding(
             plan, currentState);
         if (bindingFailure != OptimizationSupportCode.None)
@@ -627,14 +680,18 @@ public sealed class OpenVinoOptimizationService
         string sourceDirectory,
         string destinationDirectory,
         OptimizationExecutionPlan plan,
-        OpenVinoOptimizationCurrentState currentState,
+        IOpenVinoOptimizationCurrentStateProvider currentStateProvider,
         OpenVinoOptimizationCandidate candidate,
         OpenVinoPackageSnapshot source,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        OpenVinoOptimizationAdaptation beforeStaging = RevalidatePlan(
-            plan, currentState, sourceDirectory);
+        OpenVinoOptimizationAdaptation beforeStaging = await RevalidatePlanAsync(
+            plan,
+            currentStateProvider,
+            sourceDirectory,
+            OpenVinoOptimizationCheckpoint.BeforeStaging,
+            cancellationToken).ConfigureAwait(false);
         if (beforeStaging.Status ==
                 OpenVinoOptimizationAdaptationStatus.ReplanRequired ||
             source.ValidateStillCurrent() != OpenVinoSnapshotFailure.None)
@@ -663,8 +720,12 @@ public sealed class OpenVinoOptimizationService
             System.Security.Cryptography.SHA256.HashData(profileBytes))
             .ToLowerInvariant();
 
-        OpenVinoOptimizationAdaptation beforePublish = RevalidatePlan(
-            plan, currentState, sourceDirectory);
+        OpenVinoOptimizationAdaptation beforePublish = await RevalidatePlanAsync(
+            plan,
+            currentStateProvider,
+            sourceDirectory,
+            OpenVinoOptimizationCheckpoint.BeforePublish,
+            cancellationToken).ConfigureAwait(false);
         if (beforePublish.Status ==
                 OpenVinoOptimizationAdaptationStatus.ReplanRequired ||
             source.ValidateStillCurrent() != OpenVinoSnapshotFailure.None)
