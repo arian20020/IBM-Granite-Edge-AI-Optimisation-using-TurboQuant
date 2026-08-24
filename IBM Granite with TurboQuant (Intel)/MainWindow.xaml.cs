@@ -16,8 +16,19 @@ namespace GraniteEdgeAI
             // Loads MainWindow.xaml and creates its named controls, including rootFrame.
             InitializeComponent();
 
+#if COMPATIBILITY_FIXTURE_GALLERY
+            // Opens straight onto the compatibility screen gallery so every state
+            // can be reviewed. Nine of the ten cannot be reached by running the
+            // real flow, because the checks that would feed them do not exist
+            // yet. Inert unless COMPATIBILITY_FIXTURE_GALLERY is defined, so a
+            // normal build is untouched by this.
+            rootFrame.Navigate(
+                typeof(Features.ModelHardwareCompatibility.DebugFixtures
+                    .CompatibilityFixtureGalleryPage));
+#else
             // Loads OnboardingShellPage inside rootFrame when the window is created.
             rootFrame.Navigate(typeof(OnboardingShellPage));
+#endif
             AppWindow.Closing += AppWindow_Closing;
         }
 

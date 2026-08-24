@@ -10,6 +10,9 @@
     <Project Path="shared/GraniteEdgeAI.ModelInspection.Contracts/GraniteEdgeAI.ModelInspection.Contracts.csproj" />
     <Project Path="shared/GraniteEdgeAI.ModelInspection.Fixtures/GraniteEdgeAI.ModelInspection.Fixtures.csproj" />
     <Project Path="shared/GraniteEdgeAI.ModelInspection.Transport/GraniteEdgeAI.ModelInspection.Transport.csproj" />
+    <Project Path="shared/GraniteEdgeAI.ModelHardwareCompatibility.Core/GraniteEdgeAI.ModelHardwareCompatibility.Core.csproj">
+      <Platform Solution="*|x64" Project="AnyCPU" />
+    </Project>
   </Folder>
 
   <Folder Name="/workers/">
@@ -174,6 +177,10 @@
       <Platform Solution="*|x64" Project="AnyCPU" />
     </Project>
     <Project Path="tests/UnitTests/GraniteEdgeAI.OpenVino.WorkerClient.Tests/GraniteEdgeAI.OpenVino.WorkerClient.Tests.csproj">
+      <Platform Solution="*|x64" Project="AnyCPU" />
+    </Project>
+
+    <Project Path="tests/UnitTests/GraniteEdgeAI.ModelHardwareCompatibility.Tests/GraniteEdgeAI.ModelHardwareCompatibility.Tests.csproj">
       <Platform Solution="*|x64" Project="AnyCPU" />
     </Project>
 

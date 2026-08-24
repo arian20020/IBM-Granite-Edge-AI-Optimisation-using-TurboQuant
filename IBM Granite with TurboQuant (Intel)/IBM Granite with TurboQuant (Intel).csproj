@@ -28,6 +28,14 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
     <DefineConstants>$(DefineConstants);MODEL_INSPECTION_FIXTURE_GALLERY</DefineConstants>
   </PropertyGroup>
+
+  <!-- Opt-in reviewer build: opens onto the compatibility screen gallery so
+       every state can be looked at. Off unless asked for, so a normal build
+       behaves exactly as before.
+         dotnet build ... -p:CompatibilityFixtureGallery=true -->
+  <PropertyGroup Condition="'$(CompatibilityFixtureGallery)' == 'true'">
+    <DefineConstants>$(DefineConstants);COMPATIBILITY_FIXTURE_GALLERY</DefineConstants>
+  </PropertyGroup>
   <ItemGroup>
     <Compile Remove="Features\ModelInspection\DebugFixtures\**" />
     <Page Remove="Features\ModelInspection\DebugFixtures\**" />
@@ -452,6 +460,12 @@
       Condition="'$(Platform)' == 'x64'" />
     <ProjectReference
       Include="..\infrastructure\GraniteEdgeAI.ModelInspection.WorkerClient\GraniteEdgeAI.ModelInspection.WorkerClient.csproj"
+      Condition="'$(Platform)' == 'x64'" />
+    <!-- The compatibility engine. Route-neutral, WinUI-free, and referenced only
+         for its public screen contract; everything that produced that contract
+         stays internal to it. -->
+    <ProjectReference
+      Include="..\shared\GraniteEdgeAI.ModelHardwareCompatibility.Core\GraniteEdgeAI.ModelHardwareCompatibility.Core.csproj"
       Condition="'$(Platform)' == 'x64'" />
   </ItemGroup>
   <ItemGroup Condition="'$(Platform)' != 'x64'">
