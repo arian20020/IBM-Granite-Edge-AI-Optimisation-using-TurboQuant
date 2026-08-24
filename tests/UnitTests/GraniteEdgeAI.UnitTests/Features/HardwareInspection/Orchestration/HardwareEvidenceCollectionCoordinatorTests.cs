@@ -140,7 +140,12 @@ public sealed class HardwareEvidenceCollectionCoordinatorTests
         {
             using ToolLeaseFixture tools = new();
             HardwareEvidenceCaptureTestDouble capture = new() { SystemFailure = diagnostic };
-            HardwareEvidenceCollectionCoordinator coordinator = new(capture, TimeProvider.System, 4, 1);
+            HardwareEvidenceCollectionCoordinator coordinator = new(
+                capture,
+                new HardwareResolutionTestData.FixedTimeProvider(
+                    HardwareEvidenceCaptureTestDouble.CapturedAtUtc),
+                4,
+                1);
 
             HardwareEvidenceCollectionResult result = await coordinator.CollectAsync(
                 tools.Lease, new RecordingProgress(), CancellationToken.None);
