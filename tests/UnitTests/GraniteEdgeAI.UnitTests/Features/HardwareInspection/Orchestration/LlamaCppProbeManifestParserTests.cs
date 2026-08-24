@@ -98,7 +98,8 @@ public sealed class LlamaCppProbeManifestParserTests
         foreach (string[] members in invalidMembers)
         {
             JsonObject root = CreateManifestNode();
-            root["members"] = new JsonArray(members.Select(JsonValue.Create).ToArray<JsonNode?>());
+            root["members"] = new JsonArray(
+                members.Select(member => JsonValue.Create(member)).ToArray<JsonNode?>());
             AssertRejected(Serialize(root));
         }
     }
