@@ -2,16 +2,18 @@
 
 **Date:** 2026-08-25
 
+**Final verification update:** 2026-08-26
+
 **Branch:** `fix/hardware-inspection-loq-baseline`
 
 **Implementation base:** `9c9a665ea5397c0a1d09f9ba74543a7891a4d206`
 
 **Task 9 review base:** `735da68de3ff882f12595561e591d39234eaa491`
 
-**Reviewed code tip:** `322427748594c6f425f38472c65cadcdabb3776e`
+**Reviewed code tip:** `478a0a77c6aad84d7f30047e092d481ad71bdc00`
 
-**Disposition:** feature slice complete; one unrelated long-host packaged-process
-test instability remains explicitly recorded below.
+**Disposition:** feature slice complete; all final core and packaged regressions
+pass with non-zero discovery and zero failures or skips.
 
 ## Delivered behavior
 
@@ -46,6 +48,9 @@ remains visibly disabled as `Coming later` and cannot navigate.
 |---|---|
 | `c07b6583a2fc9066384ed90a6e15d6795c88279a` | isolates the OpenVINO folder picker so the full packaged run cannot block on an interactive picker |
 | `322427748594c6f425f38472c65cadcdabb3776e` | removes empty compatibility cards and makes essential evidence reflow at compact width and 200% text |
+| `3d727bc87b2cba7c66e6b0418e646d7151f98634` | retains the exact `CreateProcess` handle as race-free exit-code authority and adds deterministic/stress coverage |
+| `45dc3648f20d439426b321eb4eee062ded1dfb67` | covers the valid injected OpenVINO picker route, shared selection lifecycle, and path-private navigation payload |
+| `478a0a77c6aad84d7f30047e092d481ad71bdc00` | keeps the new lifecycle stress outside the separately frozen Gate 8 acceptance inventory |
 
 ### Changed paths after the Task 9 review base
 
@@ -53,6 +58,12 @@ remains visibly disabled as `Coming later` and cannot navigate.
 IBM Granite with TurboQuant (Intel)/Features/ModelHardwareCompatibility/CompatibilityPage.xaml
 IBM Granite with TurboQuant (Intel)/Features/ModelHardwareCompatibility/CompatibilityPage.xaml.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelImport/ModelImportPage.xaml.cs
+docs/handoffs/2026-08-25-hardware-aware-quantisation-required-flow.md
+infrastructure/GraniteEdgeAI.HardwareInspection.Foundation/Processes/ExternalProcessRunner.cs
+infrastructure/GraniteEdgeAI.HardwareInspection.Foundation/Processes/NativeProcessExitCodeAuthority.cs
+infrastructure/GraniteEdgeAI.HardwareInspection.Foundation/Processes/WindowsSuspendedProcess.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/HardwareInspection/Processes/ExternalProcessRunnerPackagedTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/HardwareInspection/Processes/NativeProcessExitCodeAuthorityTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelHardwareCompatibility/Visual/CompatibilityRenderedStateTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/FileImport/ModelFilePickerTests.cs
 ```
@@ -62,6 +73,16 @@ assessment and four fact tiles at their compact breakpoints, wraps essential
 labels and values instead of ellipsizing them, and hides facts/runtime/check
 surfaces which have no visible content. No decision arithmetic, route
 selection, navigation, or execution behavior changed.
+
+The process-lifecycle correction does not widen process capabilities. The
+exact native process handle returned by `CreateProcess` is transferred once
+into an owned `SafeHandle`, retained until result capture and cleanup finish,
+and queried through `GetExitCodeProcess`. The PID-derived managed `Process`
+remains only a wait/cleanup helper. A failed native query or `STILL_ACTIVE`
+after an observed exit now fails closed as a bounded `CleanupFailed` result;
+no exception, guessed exit code, path, or raw operating-system error escapes.
+Cancellation, timeout, Job Object tree cleanup, independent output bounds, and
+output-drain ordering are unchanged.
 
 ## Contract continuity
 
@@ -138,8 +159,9 @@ of record.
 ```powershell
 $env:PATH = 'C:\Program Files (x86)\Microsoft Visual Studio\Installer;' + $env:PATH
 $testProject = '.\tests\UnitTests\GraniteEdgeAI.UnitTests\GraniteEdgeAI.UnitTests.csproj'
-dotnet restore $testProject --runtime win-x64 -p:Platform=x64
-dotnet build $testProject --configuration Debug --no-restore --runtime win-x64 -p:Platform=x64
+dotnet restore $testProject --runtime win-x64 -p:Platform=x64 --disable-build-servers -m:1
+dotnet build $testProject --configuration Debug --no-restore --runtime win-x64 `
+  -p:Platform=x64 -p:BuildInParallel=false --disable-build-servers -m:1
 ```
 
 Result: **succeeded, 0 errors, 28 existing warnings**. The warnings are the
@@ -154,38 +176,72 @@ Runner:
 Recipe:
 `C:\GEAI-LOQ\tests\UnitTests\GraniteEdgeAI.UnitTests\bin\x64\Debug\net8.0-windows10.0.19041.0\win-x64\GraniteEdgeAI.UnitTests.build.appxrecipe`
 
-The complete suite was run with x64 and a one-worker MSTest runsettings file.
-Both complete attempts discovered and executed **1,424 tests with 0 skipped**.
-Each ended **1,423 passed / 1 failed** after approximately nine minutes:
+The complete suite was run with x64 and this one-worker MSTest setting:
 
-- `C:\GEAI-LOQ\TestResults\HardwareAwareOptimisation\Debug\Task9-Full-PostVisualFix\full.trx`
-  - `RealBoundaryMapsCpuOnlySuccess` failed while reading
-    `System.Diagnostics.Process.ExitCode` with `Process was not started by this object`.
-- `C:\GEAI-LOQ\TestResults\HardwareAwareOptimisation\Debug\Task9-Full-PostVisualFix-Retry\full-retry.trx`
-  - the first test passed; `RealBoundaryMapsInvalidJsonWithoutPersistingOutput`
-    then failed at the same process-lifetime boundary with the same exception.
-
-This did not affect ModelHardwareCompatibility or Onboarding and produced no
-skip in either area (there were no skips globally). The moving failure inside
-the same unrelated LlmFit packaged class was isolated without changing product:
-
-```text
-C:\GEAI-LOQ\TestResults\HardwareAwareOptimisation\Debug\Task9-LlmFit-Isolated-1\isolated.trx
-1 total, 1 passed
-
-C:\GEAI-LOQ\TestResults\HardwareAwareOptimisation\Debug\Task9-LlmFit-Class-Serial\class.trx
-7 total, 7 passed
+```xml
+<RunSettings>
+  <MSTest>
+    <Parallelize>
+      <Workers>1</Workers>
+      <Scope>MethodLevel</Scope>
+    </Parallelize>
+  </MSTest>
+</RunSettings>
 ```
 
-The focused final packaged ModelHardwareCompatibility suite passed **105/105**:
-`C:\GEAI-LOQ\TestResults\HardwareAwareOptimisation\Debug\Task9-Compatibility-Final\compatibility.trx`.
-The earlier picker-seam full run, before the final visual additions, passed
-**1,421/1,421** at
-`C:\GEAI-LOQ\TestResults\HardwareAwareOptimisation\Debug\Task9-Full-Serial-Final\full.trx`.
+Command of record:
 
-The two post-fix monolithic failures are therefore recorded as a long-lived
-packaged-host/process-handle limitation. They are not represented as a pass and
-were not hidden by changing compatibility product behavior.
+```powershell
+& $vstest $recipe '/Platform:x64' "/Settings:$runsettings" `
+  '/Logger:trx;LogFileName=full-serial-native-handle-final-green.trx' `
+  "/ResultsDirectory:$resultsPath"
+```
+
+Final result: **1,430 total, 1,430 passed, 0 failed, 0 skipped** in
+**9.1783 minutes**.
+
+TRX of record:
+`C:\GEAI-LOQ\TestResults\HardwareAwareOptimisation\ProcessLifecycle\full-serial-native-handle-final-green.trx`.
+
+The final run includes the complete ModelHardwareCompatibility and Onboarding
+inventories with no unexpected skips. It also executes the 64-iteration
+short-lived-process stress and both LlmFit tests which originally exposed the
+race, late in the same long-lived one-worker host; all passed.
+
+#### Process-lifecycle correction evidence
+
+The earlier two **1,424-test** runs remain useful RED evidence. They failed in
+different short-lived LlmFit tests at the same stack:
+`System.Diagnostics.Process.ExitCode` reported `Process was not started by
+this object`. Source tracing found that `WindowsSuspendedProcess` closed the
+authoritative `CreateProcess` handle during launch, then
+`ExternalProcessRunner` later depended on a PID-derived managed `Process` to
+reacquire exit status after the child had left the process table. This was a
+real ownership race, not an environment or long-host limitation.
+
+Before implementation, the deterministic authority tests failed to compile
+because `NativeProcessExitCodeAuthority` did not exist. After the minimal
+ownership correction:
+
+- `process-lifecycle-green-2.trx`: **5/5 passed**, including native-query
+  success, query-failure and `STILL_ACTIVE` fail-closed cases, source custody,
+  and 64 consecutive short-lived runs;
+- `process-lifecycle-broad-green.trx`: **24/24 passed**, covering every
+  `ExternalProcessRunner` terminal/cleanup path and all seven LlmFit real
+  boundaries; and
+- `process-and-picker-green.trx`: **6/6 passed**, combining lifecycle evidence
+  with the valid path-private injected OpenVINO picker route.
+
+The first post-correction full run executed all 1,430 tests and found one test
+metadata regression: the stress method had accidentally joined the frozen
+Gate 8 acceptance category, producing an inventory count of 88 instead of 87.
+No runtime test failed. Removing only that category restored the exact
+inventory; `inventory-and-stress-green.trx` then passed **2/2**, and the final
+complete run above passed **1,430/1,430**.
+
+The focused final packaged ModelHardwareCompatibility suite remains
+**105/105** at
+`C:\GEAI-LOQ\TestResults\HardwareAwareOptimisation\Debug\Task9-Compatibility-Final\compatibility.trx`.
 
 ## Native fixture-gallery evidence
 
@@ -236,12 +292,15 @@ clipping.
 
 ```powershell
 rg -n "Process\.GetProcesses|\.Kill\(|TerminateProcess|ManagementObjectSearcher" 'IBM Granite with TurboQuant (Intel)/Features/ModelHardwareCompatibility'
+git diff -U0 80a67bc78a343c6589d1c1f6b3be98092af81ecd..478a0a77c6aad84d7f30047e092d481ad71bdc00 -- 'infrastructure/GraniteEdgeAI.HardwareInspection.Foundation/Processes' | rg -n '^\+.*(Process\.GetProcesses|\.Kill\(|TerminateProcess|ManagementObjectSearcher)'
 rg -n "[A-Za-z]:\\|Users\\|Downloads\\" 'IBM Granite with TurboQuant (Intel)/Features/ModelHardwareCompatibility' 'shared/GraniteEdgeAI.ModelHardwareCompatibility.Core'
 git diff --check
 ```
 
-Both scans returned no matches. `git diff --check` passed. Compatibility does
-not enumerate or terminate user processes and emits no local path-bearing UI.
+All three scans returned no matches. `git diff --check` passed. Compatibility
+does not enumerate or terminate user processes and emits no local path-bearing
+UI; the lifecycle correction added no process enumeration or termination
+capability.
 
 ## Explicit downstream non-scope
 
