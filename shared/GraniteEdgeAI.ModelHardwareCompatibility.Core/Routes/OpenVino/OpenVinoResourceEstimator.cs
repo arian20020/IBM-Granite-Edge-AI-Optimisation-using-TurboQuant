@@ -204,32 +204,76 @@ internal static class OpenVinoResourceEstimator
         // not by the attention heads. Using the larger count would overstate
         // every model that groups them, which is most modern ones.
         decimal headDimension = (decimal)embedding / heads;
-        decimal perTokenPerLayer;
-
-        if (OpenVinoFormatMap.TryGetCacheBlockLayout(
-            configuration.KvCache,
-            out int valuesPerBlock,
-            out int bytesPerBlock))
-        {
-            decimal blocksPerHead = decimal.Ceiling(headDimension / valuesPerBlock);
-
-            // Key and value are separate records for every KV head. Padding
-            // cannot be shared across heads or across K/V without describing a
-            // packed layout the pinned codec does not have.
-            perTokenPerLayer =
-                blocksPerHead * bytesPerBlock * keyValueHeads * 2m;
-        }
-        else
-        {
-            perTokenPerLayer =
-                headDimension * keyValueHeads * 2m
-                * OpenVinoFormatMap.CacheBytesPerElement(configuration.KvCache);
-        }
+        decimal perTokenPerLayer = ConservativeCacheBytesPerTokenPerLayer(
+            configuration.KvCache, headDimension, keyValueHeads);
 
         decimal total = perTokenPerLayer * layers * context.Tokens;
 
         return ByteCount.FromBytes(checked((ulong)Math.Ceiling(total)))
             .AlignUpTo(terms.AllocationAlignment);
+    }
+
+    /// <summary>
+    /// Physical cache payload with a conservative monotonic floor.
+    ///
+    /// TurboQuant's pinned layout pads every K/V head to complete 128-value
+    /// records. Near a block boundary that padding can exceed the average-width
+    /// estimate of a nominally wider format. The frontier contract still
+    /// requires that reducing precision never increases estimated memory, so a
+    /// wider format is conservatively floored at every lower-precision physical
+    /// layout. This never understates either representation and does not invent
+    /// a block layout for the non-TurboQuant formats.
+    /// </summary>
+    private static decimal ConservativeCacheBytesPerTokenPerLayer(
+        OpenVinoKvCacheFormat format,
+        decimal headDimension,
+        int keyValueHeads)
+    {
+        OpenVinoKvCacheFormat[] precisionFloor = format switch
+        {
+            OpenVinoKvCacheFormat.RouteDefault
+                or OpenVinoKvCacheFormat.F16
+                or OpenVinoKvCacheFormat.Bf16 =>
+                [format, OpenVinoKvCacheFormat.U8, OpenVinoKvCacheFormat.U4,
+                    OpenVinoKvCacheFormat.TurboQuantTbq4,
+                    OpenVinoKvCacheFormat.TurboQuantTbq3],
+            OpenVinoKvCacheFormat.U8 =>
+                [format, OpenVinoKvCacheFormat.U4,
+                    OpenVinoKvCacheFormat.TurboQuantTbq4,
+                    OpenVinoKvCacheFormat.TurboQuantTbq3],
+            OpenVinoKvCacheFormat.U4 =>
+                [format, OpenVinoKvCacheFormat.TurboQuantTbq4,
+                    OpenVinoKvCacheFormat.TurboQuantTbq3],
+            OpenVinoKvCacheFormat.TurboQuantTbq4 =>
+                [format, OpenVinoKvCacheFormat.TurboQuantTbq3],
+            OpenVinoKvCacheFormat.TurboQuantTbq3 => [format],
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(format), format, "Unknown cache precision cannot be estimated.")
+        };
+
+        return precisionFloor.Max(candidate =>
+            PhysicalCacheBytesPerTokenPerLayer(
+                candidate, headDimension, keyValueHeads));
+    }
+
+    private static decimal PhysicalCacheBytesPerTokenPerLayer(
+        OpenVinoKvCacheFormat format,
+        decimal headDimension,
+        int keyValueHeads)
+    {
+        if (!OpenVinoFormatMap.TryGetCacheBlockLayout(
+            format, out int valuesPerBlock, out int bytesPerBlock))
+        {
+            return headDimension * keyValueHeads * 2m
+                * OpenVinoFormatMap.CacheBytesPerElement(format);
+        }
+
+        decimal blocksPerHead = decimal.Ceiling(headDimension / valuesPerBlock);
+
+        // Key and value are separate records for every KV head. Padding cannot
+        // be shared across heads or across K/V without describing a packed
+        // layout the pinned codec does not have.
+        return blocksPerHead * bytesPerBlock * keyValueHeads * 2m;
     }
 
     private static ByteCount Staging(InspectedModelFacts facts, EstimatorTerms terms)

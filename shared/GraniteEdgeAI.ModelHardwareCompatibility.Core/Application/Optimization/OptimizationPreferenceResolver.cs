@@ -57,7 +57,13 @@ public static class OptimizationPreferenceResolver
         ArgumentNullException.ThrowIfNull(admitted);
         ArgumentNullException.ThrowIfNull(preference);
 
-        IReadOnlyList<OptimizationCandidate> frontier = SafeCandidateFrontier.Create(admitted);
+        // The generator is the admission authority, but the resolver is public
+        // and must still fail closed if a caller accidentally passes through a
+        // candidate whose own budget-bound metrics mark it unsafe. Filtering
+        // here prevents a previously excluded over-budget setup from becoming
+        // selectable merely because it was reintroduced into the input list.
+        IReadOnlyList<OptimizationCandidate> frontier = SafeCandidateFrontier.Create(
+            [.. admitted.Where(candidate => candidate.Metrics.FitsSafely)]);
 
         if (frontier.Count == 0)
         {
@@ -75,7 +81,8 @@ public static class OptimizationPreferenceResolver
     ///
     /// This is what makes the two monotonic properties structural instead of
     /// hoped-for. The frontier is ordered from least memory to most, and
-    /// because dominance is taken over exactly quality and memory, quality
+    /// because dominance is taken over quality and memory, with only an
+    /// equal-quality exception for avoiding persistent conversion, quality
     /// rises along it in lockstep. Mapping the five bands onto that ordering in
     /// order therefore cannot produce a band that is worse than the one before
     /// it, whatever shape the frontier happens to have.
@@ -182,11 +189,14 @@ public static class OptimizationPreferenceResolver
 
     /// <summary>
     /// The deterministic tie-break, in the design's order: evidence, headroom,
-    /// no persistent conversion, stability, workload fit, canonical hash.
+    /// no persistent conversion, stability, workload fit, canonical descriptor,
+    /// exact evidence identity.
     ///
-    /// It ends on the hash so the order is total. Two candidates that tie on
-    /// everything else still resolve the same way on every run, which is what
-    /// lets the same inputs issue the same plan twice.
+    /// It ends on the canonical descriptor and then the exact evidence ID so
+    /// the order is total even when two evidence records admit the same
+    /// configuration. Two candidates that tie on everything else still resolve
+    /// the same way on every run, which is what lets the same inputs issue the
+    /// same evidence-bound plan twice.
     /// </summary>
     internal static bool PrefersFirst(OptimizationCandidate a, OptimizationCandidate b)
     {
@@ -215,7 +225,15 @@ public static class OptimizationPreferenceResolver
             return a.Metrics.ContextTokens > b.Metrics.ContextTokens;
         }
 
-        return string.CompareOrdinal(a.CanonicalDescriptor, b.CanonicalDescriptor) < 0;
+        int canonical = string.CompareOrdinal(
+            a.CanonicalDescriptor, b.CanonicalDescriptor);
+
+        if (canonical != 0)
+        {
+            return canonical < 0;
+        }
+
+        return string.CompareOrdinal(a.EvidenceId, b.EvidenceId) < 0;
     }
 
     private static bool SharesWithNeighbour(

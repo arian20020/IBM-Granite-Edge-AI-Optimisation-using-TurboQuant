@@ -140,6 +140,59 @@ public sealed class CrossRouteCandidateGeneratorTests
     }
 
     [TestMethod]
+    public void GgufTurboQuantCapabilitiesRemainBackendDeviceAndSourceSpecific()
+    {
+        var implementations = new[]
+        {
+            new
+            {
+                Evidence = "turbo3",
+                Source = "519f0c594a8e31467d2e2f2cf17054c9e7e11536",
+                Backend = CompatibilityBackend.IntelVulkan,
+                Device = DeviceRouteId.IntelIntegratedGpu
+            },
+            new
+            {
+                Evidence = "tq3_0",
+                Source = "5bc5ed3bdc25003aa9f07422753a7b8d4f9190fc",
+                Backend = CompatibilityBackend.IntelSycl,
+                Device = DeviceRouteId.IntelDiscreteGpu
+            }
+        };
+
+        foreach (var implementation in implementations)
+        {
+            GgufAdmittedConfiguration admitted = GgufAdmittedConfiguration.Create(
+                implementation.Evidence,
+                implementation.Backend,
+                implementation.Device,
+                GgufWeightFormat.Imported,
+                GgufKvCacheFormat.TurboQuant3Bit,
+                GpuOffloadLevel.Full,
+                512,
+                32768,
+                SupportLevel.Experimental,
+                requiresEvidence: true);
+            OptimizationCapabilitySnapshot snapshot = OptimizationCapabilitySnapshot.ForGguf(
+                "gguf-cap",
+                Digest,
+                GgufCapabilityPayload.Create(implementation.Source, [admitted]));
+
+            OptimizationCandidate candidate = Generate(
+                snapshot,
+                optedIn: implementation.Evidence).Candidates.Single();
+            GgufRouteConfiguration configuration =
+                (GgufRouteConfiguration)candidate.Configuration;
+
+            Assert.AreEqual(implementation.Source, snapshot.Gguf!.RuntimeVersion);
+            Assert.AreEqual(implementation.Evidence, candidate.EvidenceId);
+            Assert.AreEqual(implementation.Backend, configuration.Backend);
+            Assert.AreEqual(implementation.Device, configuration.Device);
+            Assert.AreEqual(GgufKvCacheFormat.TurboQuant3Bit, configuration.KvCache);
+        }
+    }
+
+    [TestMethod]
     public void CandidateRouteAlwaysAgreesWithItsConfiguration()
     {
         // The discriminator is derived, not supplied, so nothing can label a
@@ -233,6 +286,60 @@ public sealed class CrossRouteCandidateGeneratorTests
             OptimizationAssessment.Acceptable,
             result.Candidates[0].Metrics.Quality,
             "TBQ4 cache compression was omitted from the combined quality grade.");
+    }
+
+    [TestMethod]
+    public void CacheCompressionPreservesWeightIdentityAndAddsItsOwnQualityEffect()
+    {
+        CrossRouteGenerationResult result = Generate(
+            CrossRouteTestData.OpenVinoSnapshot(
+                CrossRouteTestData.OpenVino(
+                    "f16-cache", OpenVinoWeightFormat.Fp16,
+                    cache: OpenVinoKvCacheFormat.F16),
+                CrossRouteTestData.OpenVino(
+                    "u8-cache", OpenVinoWeightFormat.Fp16,
+                    cache: OpenVinoKvCacheFormat.U8)));
+
+        OptimizationCandidate f16 = result.Candidates.Single(
+            candidate => candidate.EvidenceId == "f16-cache");
+        OptimizationCandidate u8 = result.Candidates.Single(
+            candidate => candidate.EvidenceId == "u8-cache");
+
+        Assert.AreEqual(
+            OpenVinoWeightFormat.Fp16,
+            ((OpenVinoRouteConfiguration)f16.Configuration).Weights);
+        Assert.AreEqual(
+            OpenVinoWeightFormat.Fp16,
+            ((OpenVinoRouteConfiguration)u8.Configuration).Weights);
+        Assert.AreEqual(OptimizationAssessment.Excellent, f16.Metrics.Quality);
+        Assert.AreEqual(OptimizationAssessment.Good, u8.Metrics.Quality);
+    }
+
+    [TestMethod]
+    public void WeightCompressionPreservesCacheIdentityAndAddsItsOwnQualityEffect()
+    {
+        CrossRouteGenerationResult result = Generate(
+            CrossRouteTestData.OpenVinoSnapshot(
+                CrossRouteTestData.OpenVino(
+                    "fp16-weights", OpenVinoWeightFormat.Fp16,
+                    cache: OpenVinoKvCacheFormat.F16),
+                CrossRouteTestData.OpenVino(
+                    "int8-weights", OpenVinoWeightFormat.Int8,
+                    cache: OpenVinoKvCacheFormat.F16)));
+
+        OptimizationCandidate fp16 = result.Candidates.Single(
+            candidate => candidate.EvidenceId == "fp16-weights");
+        OptimizationCandidate int8 = result.Candidates.Single(
+            candidate => candidate.EvidenceId == "int8-weights");
+
+        Assert.AreEqual(
+            OpenVinoKvCacheFormat.F16,
+            ((OpenVinoRouteConfiguration)fp16.Configuration).KvCache);
+        Assert.AreEqual(
+            OpenVinoKvCacheFormat.F16,
+            ((OpenVinoRouteConfiguration)int8.Configuration).KvCache);
+        Assert.AreEqual(OptimizationAssessment.Excellent, fp16.Metrics.Quality);
+        Assert.AreEqual(OptimizationAssessment.Good, int8.Metrics.Quality);
     }
 
     [TestMethod]
@@ -518,6 +625,65 @@ public sealed class CrossRouteCandidateGeneratorTests
     }
 
     [TestMethod]
+    public void OpenVinoFallbackSetContainsOnlyExactlyAdmittedEvidence()
+    {
+        CrossRouteGenerationResult result = Generate(
+            CrossRouteTestData.OpenVinoSnapshot(
+                CrossRouteTestData.OpenVino(
+                    "tbq3", OpenVinoWeightFormat.Fp16, SupportLevel.Experimental,
+                    cache: OpenVinoKvCacheFormat.TurboQuantTbq3),
+                CrossRouteTestData.OpenVino(
+                    "tbq4", OpenVinoWeightFormat.Fp16, SupportLevel.Experimental,
+                    cache: OpenVinoKvCacheFormat.TurboQuantTbq4),
+                CrossRouteTestData.OpenVino(
+                    "u4", OpenVinoWeightFormat.Fp16,
+                    cache: OpenVinoKvCacheFormat.U4),
+                CrossRouteTestData.OpenVino(
+                    "u8", OpenVinoWeightFormat.Fp16,
+                    cache: OpenVinoKvCacheFormat.U8),
+                CrossRouteTestData.OpenVino(
+                    "f16", OpenVinoWeightFormat.Fp16,
+                    cache: OpenVinoKvCacheFormat.F16),
+                CrossRouteTestData.OpenVino(
+                    "bf16", OpenVinoWeightFormat.Fp16,
+                    cache: OpenVinoKvCacheFormat.Bf16)),
+            optedIn: "tbq4");
+
+        CollectionAssert.AreEquivalent(
+            new[] { "tbq4", "u4", "u8", "f16", "bf16" },
+            result.Candidates.Select(candidate => candidate.EvidenceId).ToArray());
+        Assert.AreEqual(
+            OptimizationExclusionReason.ExperimentalNotAdmitted,
+            result.Exclusions.Single(exclusion => exclusion.EvidenceId == "tbq3").Reason);
+    }
+
+    [TestMethod]
+    public void AutomaticMayChooseConversionWhenCurrentRepresentationDoesNotFit()
+    {
+        CrossRouteGenerationResult result = Generate(
+            CrossRouteTestData.OpenVinoSnapshot(
+                CrossRouteTestData.OpenVino(
+                    "current", OpenVinoWeightFormat.Original,
+                    cache: OpenVinoKvCacheFormat.F16),
+                CrossRouteTestData.OpenVino(
+                    "converted", OpenVinoWeightFormat.Int4,
+                    cache: OpenVinoKvCacheFormat.U4)),
+            budgetGibibytes: 2);
+
+        Assert.AreEqual(
+            OptimizationExclusionReason.ExceedsSafeMemoryBudget,
+            result.Exclusions.Single(exclusion => exclusion.EvidenceId == "current").Reason);
+
+        OptimizationSelection selection = OptimizationPreferenceResolver.Resolve(
+            result.Candidates,
+            OptimizationPreferenceSelection.Automatic())
+            ?? throw new AssertFailedException("No fitting conversion was selected.");
+
+        Assert.AreEqual("converted", selection.Candidate.EvidenceId);
+        Assert.IsTrue(selection.Candidate.Metrics.RequiresPersistentChange);
+    }
+
+    [TestMethod]
     public void CandidateExceedingTheSafeBudgetIsExcludedWithAReason()
     {
         CrossRouteGenerationResult result = Generate(
@@ -609,6 +775,27 @@ public sealed class CrossRouteCandidateGeneratorTests
                 CrossRouteTestData.OpenVino("ov-b", OpenVinoWeightFormat.Int8)));
 
         Assert.AreEqual(1, result.Candidates.Count);
+    }
+
+    [TestMethod]
+    public void IdenticalConfigurationsChooseReleasedEvidenceRegardlessOfEntryOrder()
+    {
+        OpenVinoAdmittedConfiguration released = CrossRouteTestData.OpenVino(
+            "released", OpenVinoWeightFormat.Int8);
+        OpenVinoAdmittedConfiguration experimental = CrossRouteTestData.OpenVino(
+            "experimental", OpenVinoWeightFormat.Int8, SupportLevel.Experimental);
+
+        OptimizationCandidate Forward() => Generate(
+            CrossRouteTestData.OpenVinoSnapshot(experimental, released),
+            optedIn: "experimental").Candidates.Single();
+
+        OptimizationCandidate Reversed() => Generate(
+            CrossRouteTestData.OpenVinoSnapshot(released, experimental),
+            optedIn: "experimental").Candidates.Single();
+
+        Assert.AreEqual("released", Forward().EvidenceId);
+        Assert.AreEqual(Forward().EvidenceId, Reversed().EvidenceId);
+        Assert.IsFalse(Forward().IsExperimental);
     }
 
     [TestMethod]

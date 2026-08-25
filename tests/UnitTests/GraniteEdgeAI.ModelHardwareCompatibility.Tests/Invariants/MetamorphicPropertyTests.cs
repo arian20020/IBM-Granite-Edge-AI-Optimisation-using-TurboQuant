@@ -1,7 +1,9 @@
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Candidates;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Contracts;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Estimation;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.Gguf;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.OpenVino;
 
 namespace GraniteEdgeAI.ModelHardwareCompatibility.Tests.Invariants;
 
@@ -153,6 +155,136 @@ public sealed class MetamorphicPropertyTests
             Assert.IsTrue(
                 quantised <= f16,
                 $"Case {generated.Seed:x16}: Q8_0 cost more than F16, so the block table is wrong.");
+        }
+    }
+
+    [TestMethod]
+    public void ReducingOpenVinoCachePrecisionCanNeverIncreaseTheKvPayload()
+    {
+        InspectedModelFacts facts = InspectedModelFacts.Create(
+            ByteCount.FromBytes(3UL * 1024 * 1024 * 1024),
+            layerCount: 1,
+            embeddingSize: 129,
+            attentionHeadCount: 1,
+            keyValueHeadCount: 1,
+            declaredContextLimit: 8192,
+            fileType: 15,
+            quantisationVersion: 2);
+
+        OpenVinoKvCacheFormat[] precisionOrder =
+        [
+            OpenVinoKvCacheFormat.F16,
+            OpenVinoKvCacheFormat.U8,
+            OpenVinoKvCacheFormat.U4,
+            OpenVinoKvCacheFormat.TurboQuantTbq4,
+            OpenVinoKvCacheFormat.TurboQuantTbq3
+        ];
+
+        ulong previous = ulong.MaxValue;
+
+        foreach (OpenVinoKvCacheFormat cache in precisionOrder)
+        {
+            OpenVinoRouteConfiguration configuration = OpenVinoRouteConfiguration.Create(
+                OpenVinoWeightFormat.Int8,
+                cache,
+                DeviceRouteId.Cpu,
+                OpenVinoPerformanceHint.Latency,
+                OpenVinoCompiledCachePolicy.Disabled,
+                streams: 1);
+
+            ResourceEstimate estimate = OpenVinoResourceEstimator.Estimate(
+                facts,
+                configuration,
+                ContextTokenCount.FromTokens(128),
+                Policy);
+
+            ulong current = BytesOf(estimate, ResourceComponentKind.KvCache);
+
+            Assert.IsTrue(
+                current <= previous,
+                $"Reducing cache precision from the preceding format to {cache} "
+                + $"increased KV bytes from {previous} to {current}.");
+
+            previous = current;
+        }
+    }
+
+    [TestMethod]
+    public void ReducingOpenVinoWeightPrecisionCanNeverIncreaseEstimatedMemory()
+    {
+        InspectedModelFacts facts = InspectedModelFacts.Create(
+            ByteCount.FromBytes(3UL * 1024 * 1024 * 1024),
+            32, 4096, 32, 8, 8192, 15, 2);
+        OpenVinoWeightFormat[] precisionOrder =
+        [
+            OpenVinoWeightFormat.Fp16,
+            OpenVinoWeightFormat.Int8,
+            OpenVinoWeightFormat.Int4
+        ];
+
+        ulong previous = ulong.MaxValue;
+
+        foreach (OpenVinoWeightFormat weights in precisionOrder)
+        {
+            ResourceEstimate estimate = OpenVinoResourceEstimator.Estimate(
+                facts,
+                OpenVinoRouteConfiguration.Create(
+                    weights,
+                    OpenVinoKvCacheFormat.F16,
+                    DeviceRouteId.Cpu,
+                    OpenVinoPerformanceHint.Latency,
+                    OpenVinoCompiledCachePolicy.Disabled,
+                    streams: 1),
+                ContextTokenCount.FromTokens(4096),
+                Policy);
+            ResourcePeakProfile peak = ResourcePhaseComposer.Compose(estimate.Components);
+            ulong current = peak.SystemMemoryPressure.Bytes
+                + peak.PeakFor(ResourceTarget.DedicatedDeviceMemory).Bytes;
+
+            Assert.IsTrue(
+                current <= previous,
+                $"Reducing weight precision to {weights} increased peak memory "
+                + $"from {previous} to {current}.");
+
+            previous = current;
+        }
+    }
+
+    [TestMethod]
+    public void ChangingOpenVinoCachePrecisionCannotAlterWeightBytes()
+    {
+        InspectedModelFacts facts = InspectedModelFacts.Create(
+            ByteCount.FromBytes(3UL * 1024 * 1024 * 1024),
+            32, 4096, 32, 8, 8192, 15, 2);
+
+        ulong Weights(OpenVinoKvCacheFormat cache) => BytesOf(
+            OpenVinoResourceEstimator.Estimate(
+                facts,
+                OpenVinoRouteConfiguration.Create(
+                    OpenVinoWeightFormat.Int8,
+                    cache,
+                    DeviceRouteId.Cpu,
+                    OpenVinoPerformanceHint.Latency,
+                    OpenVinoCompiledCachePolicy.Disabled,
+                    streams: 1),
+                ContextTokenCount.FromTokens(4096),
+                Policy),
+            ResourceComponentKind.Weights);
+
+        ulong expected = Weights(OpenVinoKvCacheFormat.F16);
+
+        foreach (OpenVinoKvCacheFormat cache in new[]
+        {
+            OpenVinoKvCacheFormat.U8,
+            OpenVinoKvCacheFormat.U4,
+            OpenVinoKvCacheFormat.TurboQuantTbq4,
+            OpenVinoKvCacheFormat.TurboQuantTbq3
+        })
+        {
+            Assert.AreEqual(
+                expected,
+                Weights(cache),
+                $"Cache format {cache} leaked into the weight component.");
         }
     }
 

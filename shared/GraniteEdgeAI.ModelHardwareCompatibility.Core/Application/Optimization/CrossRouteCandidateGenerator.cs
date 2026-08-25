@@ -95,16 +95,21 @@ internal static class CrossRouteCandidateGenerator
         // De-duplicated by complete configuration, so the same setup reached
         // through two admitted entries is offered once rather than competing
         // with itself for a band.
-        List<OptimizationCandidate> distinct = [];
-        HashSet<string> seen = [];
-
-        foreach (OptimizationCandidate candidate in candidates)
-        {
-            if (seen.Add(candidate.CanonicalDescriptor))
-            {
-                distinct.Add(candidate);
-            }
-        }
+        List<OptimizationCandidate> distinct =
+        [
+            .. candidates
+                .GroupBy(
+                    candidate => candidate.CanonicalDescriptor,
+                    StringComparer.Ordinal)
+                .Select(group => group.Aggregate(
+                    (best, candidate) =>
+                        OptimizationPreferenceResolver.PrefersFirst(candidate, best)
+                            ? candidate
+                            : best))
+                .OrderBy(
+                    candidate => candidate.CanonicalDescriptor,
+                    StringComparer.Ordinal)
+        ];
 
         return new CrossRouteGenerationResult(distinct, exclusions);
     }

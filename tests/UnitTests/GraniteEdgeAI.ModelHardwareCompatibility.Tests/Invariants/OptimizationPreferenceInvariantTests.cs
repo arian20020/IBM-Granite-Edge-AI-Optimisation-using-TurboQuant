@@ -207,6 +207,73 @@ public sealed class OptimizationPreferenceInvariantTests
     }
 
     [TestMethod]
+    public void AutomaticAvoidsALowerMemoryConversionWithNoQualityBenefit()
+    {
+        IReadOnlyList<OptimizationCandidate> pair =
+        [
+            Candidate(
+                "converts", OptimizationAssessment.Good,
+                4 * Gibibyte, persistent: true),
+            Candidate("as-is", OptimizationAssessment.Good, 8 * Gibibyte)
+        ];
+
+        OptimizationSelection selection = OptimizationPreferenceResolver.Resolve(
+            pair, OptimizationPreferenceSelection.Automatic())!;
+
+        Assert.AreEqual("as-is", selection.Candidate.EvidenceId);
+        Assert.IsFalse(selection.Candidate.Metrics.RequiresPersistentChange);
+    }
+
+    [TestMethod]
+    public void EveryManualSliderValueIsMonotonicInQualityAndMemory()
+    {
+        OptimizationAssessment previousQuality = OptimizationAssessment.Unknown;
+        ulong previousMemory = 0;
+
+        for (int value = 0; value <= 100; value++)
+        {
+            OptimizationCandidate candidate = OptimizationPreferenceResolver.Resolve(
+                Spread(),
+                OptimizationPreferenceSelection.Manual(value))!.Candidate;
+
+            Assert.IsTrue(
+                candidate.Metrics.Quality >= previousQuality,
+                $"Slider value {value} reduced quality.");
+            Assert.IsTrue(
+                candidate.Metrics.PredictedPeakBytes >= previousMemory,
+                $"Slider value {value} used less memory than a lower value, "
+                + "breaking the deterministic frontier ordering.");
+
+            previousQuality = candidate.Metrics.Quality;
+            previousMemory = candidate.Metrics.PredictedPeakBytes;
+        }
+    }
+
+    [TestMethod]
+    public void SharedWithAdjacentBandMatchesTheActualFrontierMapping()
+    {
+        IReadOnlyList<OptimizationCandidate> frontier = SafeCandidateFrontier.Create(Spread());
+
+        foreach (OptimizationPreferenceBand band in EfficiencyToCapability)
+        {
+            OptimizationSelection selection = OptimizationPreferenceResolver.Resolve(
+                frontier,
+                OptimizationPreferenceSelection.Manual(
+                    OptimizationPreferenceResolver.RepresentativeValue(band)))!;
+            bool expected = EfficiencyToCapability
+                .Where(other => Math.Abs((int)other - (int)band) == 1)
+                .Select(other => Resolve(frontier, other))
+                .Any(other => other.CanonicalDescriptor
+                    == selection.Candidate.CanonicalDescriptor);
+
+            Assert.AreEqual(
+                expected,
+                selection.SharedWithAdjacentBand,
+                $"{band} reported an inaccurate adjacent-band sharing state.");
+        }
+    }
+
+    [TestMethod]
     public void AutomaticNeverSelectsWarnedPoorQ2KWhenAcceptableFits()
     {
         OptimizationCandidate q2 = GgufCandidate(
@@ -346,6 +413,28 @@ public sealed class OptimizationPreferenceInvariantTests
     }
 
     [TestMethod]
+    public void EquivalentCanonicalConfigurationsResolveToTheSameEvidenceRegardlessOfInputOrder()
+    {
+        OptimizationCandidate alpha = Candidate(
+            "alpha-evidence", OptimizationAssessment.Good, 8 * Gibibyte);
+        OptimizationCandidate omega = Candidate(
+            "omega-evidence", OptimizationAssessment.Good, 8 * Gibibyte);
+
+        string Forward() => OptimizationPreferenceResolver.Resolve(
+            [omega, alpha],
+            OptimizationPreferenceSelection.Automatic())!.Candidate.EvidenceId;
+
+        string Reversed() => OptimizationPreferenceResolver.Resolve(
+            [alpha, omega],
+            OptimizationPreferenceSelection.Automatic())!.Candidate.EvidenceId;
+
+        Assert.AreEqual(
+            Forward(),
+            Reversed(),
+            "Equivalent configurations retained list-order-dependent evidence identity.");
+    }
+
+    [TestMethod]
     public void EveryBandResolvesWhenAnythingIsAdmitted()
     {
         // A band that returned nothing would leave the page with a slider
@@ -386,6 +475,36 @@ public sealed class OptimizationPreferenceInvariantTests
 
         Assert.IsTrue(OptimizationPreferenceResolver.Resolve(
             Spread(), OptimizationPreferenceSelection.Automatic())!.Candidate.Metrics.FitsSafely);
+    }
+
+    [TestMethod]
+    public void UnsafeCandidateCannotReenterThroughPreferenceResolution()
+    {
+        OptimizationCandidate unsafeCandidate = OptimizationCandidate.Create(
+            OpenVinoRouteConfiguration.Create(
+                OpenVinoWeightFormat.Int4,
+                OpenVinoKvCacheFormat.U4,
+                DeviceRouteId.Cpu,
+                OpenVinoPerformanceHint.Latency,
+                OpenVinoCompiledCachePolicy.Disabled,
+                streams: 1),
+            OptimizationCandidateMetrics.Create(
+                EvidenceGrade.Estimated,
+                OptimizationAssessment.Acceptable,
+                OptimizationAssessment.Good,
+                OptimizationAssessment.Good,
+                contextTokens: 4096,
+                predictedPeakBytes: 8 * Gibibyte,
+                safeBudgetBytes: 4 * Gibibyte,
+                headroomBytes: 0,
+                workingDiskBytes: 0,
+                outputDiskBytes: 0,
+                requiresPersistentChange: false),
+            "excluded-over-budget",
+            isExperimental: false);
+
+        Assert.IsNull(OptimizationPreferenceResolver.Resolve(
+            [unsafeCandidate], OptimizationPreferenceSelection.Automatic()));
     }
 
     [TestMethod]

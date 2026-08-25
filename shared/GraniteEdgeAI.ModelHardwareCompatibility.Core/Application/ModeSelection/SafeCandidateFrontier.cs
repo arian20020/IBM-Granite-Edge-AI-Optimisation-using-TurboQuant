@@ -52,13 +52,13 @@ internal static class SafeCandidateFrontier
     /// Whether <paramref name="challenger"/> beats <paramref name="candidate"/>
     /// on the two axes the slider actually trades.
     ///
-    /// Quality against memory, and nothing else. That is not a simplification -
-    /// it is what makes the preference bands honest. Dominance over six axes
-    /// leaves a frontier where a cheaper candidate can also be higher quality
-    /// (kept alive by some third axis), and then moving the slider toward
-    /// capability can hand the user something worse. Restricting dominance to
-    /// the two axes the bands are defined on guarantees that along the frontier
-    /// quality rises exactly as memory does.
+    /// Quality against memory, plus the one non-runtime cost that Automatic is
+    /// required to avoid when it buys no quality: persistent conversion. A
+    /// converting challenger cannot dominate a fitting as-is candidate of the
+    /// same quality solely by using less memory. Both remain a deterministic,
+    /// explicitly non-dominated trade-off. Because this exception applies only
+    /// at equal quality, quality still cannot fall as memory rises along the
+    /// frontier.
     ///
     /// The richer axes are not discarded. They break ties between candidates
     /// that are equal on both of these, which is where the design puts them.
@@ -73,6 +73,13 @@ internal static class SafeCandidateFrontier
 
         OptimizationCandidateMetrics a = challenger.Metrics;
         OptimizationCandidateMetrics b = candidate.Metrics;
+
+        if (a.Quality == b.Quality
+            && a.RequiresPersistentChange
+            && !b.RequiresPersistentChange)
+        {
+            return false;
+        }
 
         bool atLeastAsGood =
             a.PredictedPeakBytes <= b.PredictedPeakBytes && a.Quality >= b.Quality;
