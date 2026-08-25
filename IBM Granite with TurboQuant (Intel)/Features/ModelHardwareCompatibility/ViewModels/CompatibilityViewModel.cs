@@ -1,7 +1,6 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using GraniteEdgeAI.Features.ModelHardwareCompatibility.Contracts;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.Infrastructure;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.Presentation;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation;
@@ -45,14 +44,10 @@ internal sealed record CompatibilityAuxiliaryStatus(
 internal sealed class CompatibilityViewModel
 {
     private readonly SynchronizationContext? _uiContext;
-    private readonly Func<CancellationToken, Task<CompatibilityScreenModel>>? _evaluator;
-    private readonly Func<CancellationToken, Task<CompatibilityEvaluationResult>>? _boundEvaluator;
+    private readonly Func<CancellationToken, Task<CompatibilityScreenModel>> _evaluator;
     private readonly bool _continueDestinationAvailable;
     private readonly ICompatibilityMemoryRecovery _memoryRecovery;
-    private OptimizationDestination _optimizationDestination;
     private readonly object _attemptGate = new();
-    private readonly object _optimizationConsumerGate = new();
-    private EventHandler<OptimizationSelectionHandoff>? _optimizationConsumer;
 
     private AttemptCancellation? _attemptCancellation;
     private AttemptCancellation? _auxiliaryCancellation;
@@ -60,11 +55,6 @@ internal sealed class CompatibilityViewModel
     private long _operationSerial;
     private long _recoveryOwner;
     private long _taskManagerOwner;
-    private long _optimizationSelectionRevision;
-    private int _optimizationAuthorityGeneration;
-    private long _optimizationAuthoritySelectionRevision;
-    private int _optimizationIssuanceOwner;
-    private int _optimizationIssuanceConsumed;
     private CompatibilityScreenModel? _lastModel;
 
     internal CompatibilityViewModel()
@@ -79,45 +69,10 @@ internal sealed class CompatibilityViewModel
         Func<CancellationToken, Task<CompatibilityScreenModel>> evaluator,
         bool continueDestinationAvailable = true,
         ICompatibilityMemoryRecovery? memoryRecovery = null)
-        : this(
-            evaluator: evaluator
-                ?? throw new ArgumentNullException(nameof(evaluator)),
-            boundEvaluator: null,
-            continueDestinationAvailable: continueDestinationAvailable,
-            memoryRecovery: memoryRecovery)
     {
-    }
-
-    internal CompatibilityViewModel(
-        Func<CancellationToken, Task<CompatibilityEvaluationResult>> evaluator,
-        bool continueDestinationAvailable,
-        ICompatibilityMemoryRecovery? memoryRecovery)
-        : this(
-            evaluator: null,
-            boundEvaluator: evaluator
-                ?? throw new ArgumentNullException(nameof(evaluator)),
-            continueDestinationAvailable: continueDestinationAvailable,
-            memoryRecovery: memoryRecovery)
-    {
-    }
-
-    private CompatibilityViewModel(
-        Func<CancellationToken, Task<CompatibilityScreenModel>>? evaluator,
-        Func<CancellationToken, Task<CompatibilityEvaluationResult>>? boundEvaluator,
-        bool continueDestinationAvailable,
-        ICompatibilityMemoryRecovery? memoryRecovery)
-    {
-        _evaluator = evaluator;
-        _boundEvaluator = boundEvaluator;
+        _evaluator = evaluator ?? throw new ArgumentNullException(nameof(evaluator));
         _continueDestinationAvailable = continueDestinationAvailable;
         _memoryRecovery = memoryRecovery ?? new WindowsCompatibilityMemoryRecovery([]);
-        _optimizationDestination = OptimizationDestination.Unavailable;
-        if (boundEvaluator is not null && !continueDestinationAvailable)
-        {
-            throw new ArgumentException(
-                "A bound optimisation result requires an available navigation destination.",
-                nameof(continueDestinationAvailable));
-        }
         _uiContext = SynchronizationContext.Current;
 
         // Assigned before the commands, because their guards read it: a command
@@ -126,8 +81,8 @@ internal sealed class CompatibilityViewModel
         Presentation = CompatibilityPresentationFactory.Analysing(0);
 
         ContinueCommand = new DelegateCommand(
-            Continue,
-            CanContinue);
+            () => ContinueRequested?.Invoke(this, EventArgs.Empty),
+            () => Presentation.PrimaryActionEnabled);
 
         BackCommand = new DelegateCommand(
             () => BackRequested?.Invoke(this, EventArgs.Empty),
@@ -157,33 +112,6 @@ internal sealed class CompatibilityViewModel
 
     internal event EventHandler? ContinueRequested;
 
-    internal event EventHandler<OptimizationSelectionHandoff> OptimizationRequested
-    {
-        add
-        {
-            ArgumentNullException.ThrowIfNull(value);
-            lock (_optimizationConsumerGate)
-            {
-                if (_optimizationConsumer is not null)
-                {
-                    throw new InvalidOperationException(
-                        "The optimisation handoff already has a consumer.");
-                }
-                _optimizationConsumer = value;
-            }
-        }
-        remove
-        {
-            lock (_optimizationConsumerGate)
-            {
-                if (_optimizationConsumer == value)
-                {
-                    _optimizationConsumer = null;
-                }
-            }
-        }
-    }
-
     internal event EventHandler? BackRequested;
 
     internal CompatibilityPresentation Presentation { get; private set; }
@@ -204,101 +132,6 @@ internal sealed class CompatibilityViewModel
         CompatibilityAuxiliaryStatus.None;
 
     internal OptimizationPreferenceSelection? SelectedPreference { get; private set; }
-
-    private void Continue()
-    {
-        if (Presentation.Optimization is null)
-        {
-            ContinueRequested?.Invoke(this, EventArgs.Empty);
-            return;
-        }
-
-        OptimizationPreferenceSelection? preference = SelectedPreference;
-        int generation = Volatile.Read(ref _attemptGeneration);
-        long selectionRevision = Volatile.Read(ref _optimizationSelectionRevision);
-        if (preference is null
-            || generation != Volatile.Read(ref _optimizationAuthorityGeneration)
-            || selectionRevision
-                != Volatile.Read(ref _optimizationAuthoritySelectionRevision)
-            || Volatile.Read(ref _optimizationIssuanceConsumed) != 0
-            || Interlocked.CompareExchange(
-                ref _optimizationIssuanceOwner, 1, 0) != 0)
-        {
-            return;
-        }
-
-        try
-        {
-            if (generation != Volatile.Read(ref _attemptGeneration)
-                || selectionRevision
-                    != Volatile.Read(ref _optimizationSelectionRevision)
-                || !_optimizationDestination.TryIssue(
-                    preference,
-                    out OptimizationSelectionHandoff? handoff)
-                || handoff is null
-                || generation != Volatile.Read(ref _attemptGeneration)
-                || selectionRevision
-                    != Volatile.Read(ref _optimizationSelectionRevision))
-            {
-                return;
-            }
-
-            if (Interlocked.CompareExchange(
-                    ref _optimizationIssuanceConsumed, 1, 0) != 0)
-            {
-                return;
-            }
-
-            ContinueCommand.RaiseCanExecuteChanged();
-            try
-            {
-                EventHandler<OptimizationSelectionHandoff>? consumer;
-                lock (_optimizationConsumerGate)
-                {
-                    consumer = _optimizationConsumer;
-                }
-                consumer?.Invoke(this, handoff);
-            }
-            catch
-            {
-                // The sole consumer may have acted before it failed, so this
-                // issuance remains consumed. Retrying it could navigate or
-                // execute twice. Only a new authority context may retry.
-                PublishAuxiliaryStatus(new CompatibilityAuxiliaryStatus(
-                    CompatibilityAuxiliaryStatusKind.Error,
-                    "Optimisation could not be opened. Recheck compatibility to create a new plan."));
-            }
-        }
-        catch
-        {
-            // Adapter failures are private implementation details. Fail closed
-            // without turning a button press into a UI-thread exception.
-        }
-        finally
-        {
-            Volatile.Write(ref _optimizationIssuanceOwner, 0);
-        }
-    }
-
-    private bool CanContinue()
-    {
-        if (!Presentation.PrimaryActionEnabled)
-        {
-            return false;
-        }
-
-        if (Presentation.Optimization is null)
-        {
-            return true;
-        }
-
-        return _optimizationDestination.IsAvailable
-            && Volatile.Read(ref _optimizationIssuanceConsumed) == 0
-            && Volatile.Read(ref _attemptGeneration)
-                == Volatile.Read(ref _optimizationAuthorityGeneration)
-            && Volatile.Read(ref _optimizationSelectionRevision)
-                == Volatile.Read(ref _optimizationAuthoritySelectionRevision);
-    }
 
     /// <summary>
     /// Starts one attempt. Safe to call again: the previous attempt is cancelled
@@ -432,15 +265,6 @@ internal sealed class CompatibilityViewModel
                 _recoveryOwner = 0;
             }
             _taskManagerOwner = 0;
-
-            // Attempt replacement and authority retirement are one ownership
-            // transition. An older caller can never retire a newer attempt.
-            OptimizationDestination retiredDestination = _optimizationDestination;
-            retiredDestination.Invalidate();
-            _optimizationDestination = OptimizationDestination.Unavailable;
-            Volatile.Write(ref _optimizationAuthorityGeneration, 0);
-            Volatile.Write(ref _optimizationAuthoritySelectionRevision, 0);
-            Volatile.Write(ref _optimizationIssuanceConsumed, 0);
         }
 
         previous?.Cancel();
@@ -463,17 +287,8 @@ internal sealed class CompatibilityViewModel
 
             // The engine is synchronous and pure. It runs off the UI thread so a
             // slow adapter cannot freeze the page once adapters exist.
-            CompatibilityEvaluationResult? boundResult = null;
-            CompatibilityScreenModel model;
-            if (_boundEvaluator is not null)
-            {
-                boundResult = await _boundEvaluator(token).ConfigureAwait(true);
-                model = boundResult.Model;
-            }
-            else
-            {
-                model = await _evaluator!(token).ConfigureAwait(true);
-            }
+            CompatibilityScreenModel model = await _evaluator(token)
+                .ConfigureAwait(true);
 
             OptimizationPreferenceSelection? preference =
                 model.State == CompatibilityScreenState.OptimisationRequired
@@ -482,20 +297,14 @@ internal sealed class CompatibilityViewModel
             CompatibilityPresentation presentation = preference is null
                 ? CompatibilityPresentationFactory.From(model)
                 : CompatibilityPresentationFactory.From(model, preference);
-            bool published = await PublishAsync(
+            Publish(
                 presentation,
                 generation,
                 () =>
                 {
-                    _optimizationDestination = boundResult?.Destination
-                        ?? OptimizationDestination.Unavailable;
                     _lastModel = model;
-                    CommitAttemptSelection(preference, generation);
-                }).ConfigureAwait(false);
-            if (boundResult is not null && !published)
-            {
-                boundResult.Destination.Invalidate();
-            }
+                    SelectedPreference = preference;
+                });
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
@@ -505,7 +314,7 @@ internal sealed class CompatibilityViewModel
                 () =>
                 {
                     _lastModel = null;
-                    CommitSelection(null);
+                    SelectedPreference = null;
                 });
         }
         catch
@@ -516,7 +325,7 @@ internal sealed class CompatibilityViewModel
                 () =>
                 {
                     _lastModel = null;
-                    CommitSelection(null);
+                    SelectedPreference = null;
                 });
             throw;
         }
@@ -553,7 +362,7 @@ internal sealed class CompatibilityViewModel
             () =>
             {
                 _lastModel = null;
-                CommitSelection(null);
+                SelectedPreference = null;
             });
     }
 
@@ -566,7 +375,7 @@ internal sealed class CompatibilityViewModel
             () =>
             {
                 _lastModel = null;
-                CommitSelection(null);
+                SelectedPreference = null;
             });
     }
 
@@ -585,11 +394,6 @@ internal sealed class CompatibilityViewModel
             _auxiliaryCancellation = null;
             _recoveryOwner = 0;
             _taskManagerOwner = 0;
-        }
-
-        if (Volatile.Read(ref _optimizationAuthorityGeneration) != 0)
-        {
-            _optimizationDestination.Invalidate();
         }
 
         cancellation?.Cancel();
@@ -691,27 +495,7 @@ internal sealed class CompatibilityViewModel
     private void ClearCompatibilitySnapshot()
     {
         _lastModel = null;
-        CommitSelection(null);
-    }
-
-    private void CommitAttemptSelection(
-        OptimizationPreferenceSelection? preference,
-        int generation)
-    {
-        long revision = CommitSelection(preference);
-        if (preference is not null
-            && Volatile.Read(ref _optimizationAuthorityGeneration) == 0
-            && _optimizationDestination.MatchesExpectedPreference(preference))
-        {
-            Volatile.Write(ref _optimizationAuthoritySelectionRevision, revision);
-            Volatile.Write(ref _optimizationAuthorityGeneration, generation);
-        }
-    }
-
-    private long CommitSelection(OptimizationPreferenceSelection? preference)
-    {
-        SelectedPreference = preference;
-        return Interlocked.Increment(ref _optimizationSelectionRevision);
+        SelectedPreference = null;
     }
 
     internal void SelectAutomaticPreference()
@@ -725,14 +509,10 @@ internal sealed class CompatibilityViewModel
         CompatibilityScreenModel model = _lastModel;
         OptimizationPreferenceSelection preference =
             OptimizationPreferenceSelection.Automatic();
-        if (SelectedPreference != preference)
-        {
-            _optimizationDestination.Invalidate();
-        }
         Publish(
             CompatibilityPresentationFactory.From(model, preference),
             generation,
-            () => CommitSelection(preference));
+            () => SelectedPreference = preference);
     }
 
     internal void SelectManualPreference(int value)
@@ -746,10 +526,6 @@ internal sealed class CompatibilityViewModel
         CompatibilityScreenModel model = _lastModel;
         OptimizationPreferenceSelection preference =
             OptimizationPreferenceSelection.Manual(value);
-        if (SelectedPreference != preference)
-        {
-            _optimizationDestination.Invalidate();
-        }
         CompatibilityPresentation next =
             CompatibilityPresentationFactory.From(model, preference);
         if (SelectedPreference?.Kind == OptimizationPreferenceKind.Manual
@@ -760,28 +536,18 @@ internal sealed class CompatibilityViewModel
                 candidate.SelectedMode.Label,
                 StringComparison.Ordinal))
         {
-            // The exact choice still invalidates the former plan, but the
-            // effective visual band did not change, so avoid a redundant
-            // presentation publish.
-            CommitSelection(preference);
-            ContinueCommand.RaiseCanExecuteChanged();
+            // Preserve the exact user value for the future handoff, but a tick
+            // inside the same effective band changes no rendered state.
+            SelectedPreference = preference;
             return;
         }
         Publish(
             next,
             generation,
-            () => CommitSelection(preference));
+            () => SelectedPreference = preference);
     }
 
     private void Publish(
-        CompatibilityPresentation presentation,
-        int generation,
-        Action? commitState = null)
-    {
-        _ = PublishAsync(presentation, generation, commitState);
-    }
-
-    private Task<bool> PublishAsync(
         CompatibilityPresentation presentation,
         int generation,
         Action? commitState = null)
@@ -790,28 +556,19 @@ internal sealed class CompatibilityViewModel
         // moved on, so it is dropped rather than shown.
         if (generation != Volatile.Read(ref _attemptGeneration))
         {
-            return Task.FromResult(false);
+            return;
         }
 
-        bool Apply()
+        void Apply()
         {
             if (generation != Volatile.Read(ref _attemptGeneration))
             {
-                return false;
+                return;
             }
 
             commitState?.Invoke();
             CompatibilityPresentation effectivePresentation;
-            if (presentation.Optimization is not null
-                && !_optimizationDestination.IsAvailable)
-            {
-                effectivePresentation = presentation with
-                {
-                    PrimaryActionText = "Coming later",
-                    PrimaryActionEnabled = false
-                };
-            }
-            else if (!_continueDestinationAvailable
+            if (!_continueDestinationAvailable
                 && presentation.PrimaryActionEnabled)
             {
                 effectivePresentation = presentation with
@@ -833,30 +590,15 @@ internal sealed class CompatibilityViewModel
             RetryCommand.RaiseCanExecuteChanged();
             RaiseRecoveryCanExecuteChanged();
             PresentationChanged?.Invoke(this, effectivePresentation);
-            return true;
         }
 
         if (_uiContext is null || SynchronizationContext.Current == _uiContext)
         {
-            return Task.FromResult(Apply());
+            Apply();
+            return;
         }
 
-        var completion = new TaskCompletionSource<bool>(
-            TaskCreationOptions.RunContinuationsAsynchronously);
-        _uiContext.Post(
-            _ =>
-            {
-                try
-                {
-                    completion.TrySetResult(Apply());
-                }
-                catch (Exception error)
-                {
-                    completion.TrySetException(error);
-                }
-            },
-            null);
-        return completion.Task;
+        _uiContext.Post(_ => Apply(), null);
     }
 
     /// <summary>

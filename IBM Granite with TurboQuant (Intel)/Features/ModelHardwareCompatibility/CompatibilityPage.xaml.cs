@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using GraniteEdgeAI.Features.ModelHardwareCompatibility.Contracts;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.Presentation;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
@@ -29,8 +28,6 @@ internal sealed partial class CompatibilityPage : Page
     private bool _applyingOptimization;
     private bool _compactModeRows;
     private bool _isActive;
-    private readonly object _optimizationConsumerGate = new();
-    private EventHandler<OptimizationSelectionHandoff>? _optimizationConsumer;
 
     public CompatibilityPage()
         : this(new ViewModels.CompatibilityViewModel())
@@ -46,16 +43,6 @@ internal sealed partial class CompatibilityPage : Page
     {
     }
 
-    internal CompatibilityPage(
-        Func<CancellationToken, Task<CompatibilityEvaluationResult>> evaluator,
-        bool continueDestinationAvailable)
-        : this(new ViewModels.CompatibilityViewModel(
-            evaluator,
-            continueDestinationAvailable,
-            memoryRecovery: null))
-    {
-    }
-
     private CompatibilityPage(ViewModels.CompatibilityViewModel viewModel)
     {
         ViewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
@@ -64,7 +51,6 @@ internal sealed partial class CompatibilityPage : Page
 
         ViewModel.PresentationChanged += (_, presentation) => Apply(presentation);
         ViewModel.ContinueRequested += (_, _) => ContinueRequested?.Invoke(this, EventArgs.Empty);
-        ViewModel.OptimizationRequested += ForwardOptimizationRequested;
         ViewModel.BackRequested += (_, _) => BackRequested?.Invoke(this, EventArgs.Empty);
         PrimaryAction.Command = ViewModel.ContinueCommand;
         RefreshMemoryAction.Command = ViewModel.RefreshMemoryCommand;
@@ -78,33 +64,6 @@ internal sealed partial class CompatibilityPage : Page
     }
 
     internal event EventHandler? ContinueRequested;
-
-    internal event EventHandler<OptimizationSelectionHandoff> OptimizationRequested
-    {
-        add
-        {
-            ArgumentNullException.ThrowIfNull(value);
-            lock (_optimizationConsumerGate)
-            {
-                if (_optimizationConsumer is not null)
-                {
-                    throw new InvalidOperationException(
-                        "The optimisation handoff already has a consumer.");
-                }
-                _optimizationConsumer = value;
-            }
-        }
-        remove
-        {
-            lock (_optimizationConsumerGate)
-            {
-                if (_optimizationConsumer == value)
-                {
-                    _optimizationConsumer = null;
-                }
-            }
-        }
-    }
 
     internal event EventHandler? BackRequested;
 
@@ -120,18 +79,6 @@ internal sealed partial class CompatibilityPage : Page
     /// here cannot outlive the screen that asked for it.
     /// </summary>
     internal ViewModels.CompatibilityViewModel ViewModel { get; }
-
-    private void ForwardOptimizationRequested(
-        object? sender,
-        OptimizationSelectionHandoff handoff)
-    {
-        EventHandler<OptimizationSelectionHandoff>? consumer;
-        lock (_optimizationConsumerGate)
-        {
-            consumer = _optimizationConsumer;
-        }
-        consumer?.Invoke(this, handoff);
-    }
 
     private async void Page_Loaded(object sender, RoutedEventArgs e) =>
         await ActivateAsync();
