@@ -111,6 +111,16 @@ internal interface ITaskManagerProcessStarter
 
 internal sealed class WindowsTaskManagerProcessStarter : ITaskManagerProcessStarter
 {
+    private readonly Func<Process?> _startFixed;
+
+    internal WindowsTaskManagerProcessStarter()
+        : this(StartFixed)
+    {
+    }
+
+    internal WindowsTaskManagerProcessStarter(Func<Process?> startFixed) =>
+        _startFixed = startFixed ?? throw new ArgumentNullException(nameof(startFixed));
+
     public void Start(TaskManagerLaunchRequest request)
     {
         if (!ReferenceEquals(request, TaskManagerLaunchRequest.Fixed))
@@ -119,13 +129,20 @@ internal sealed class WindowsTaskManagerProcessStarter : ITaskManagerProcessStar
                 nameof(request));
         }
 
-        _ = Process.Start(new ProcessStartInfo
+        Process? process = _startFixed();
+        if (process is null)
         {
-            FileName = request.FileName,
-            Arguments = request.Arguments,
-            Verb = request.Verb,
-            UseShellExecute = request.UseShellExecute,
-            WindowStyle = request.WindowStyle
-        });
+            throw new InvalidOperationException("Task Manager launch was not accepted.");
+        }
     }
+
+    private static Process? StartFixed() =>
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = TaskManagerLaunchRequest.Fixed.FileName,
+            Arguments = TaskManagerLaunchRequest.Fixed.Arguments,
+            Verb = TaskManagerLaunchRequest.Fixed.Verb,
+            UseShellExecute = TaskManagerLaunchRequest.Fixed.UseShellExecute,
+            WindowStyle = TaskManagerLaunchRequest.Fixed.WindowStyle
+        });
 }

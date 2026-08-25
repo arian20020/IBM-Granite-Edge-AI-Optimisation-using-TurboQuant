@@ -760,25 +760,25 @@
                                         FontSize="{StaticResource CompatibilityRowTitleFontSize}"
                                         FontWeight="SemiBold"
                                         Foreground="{ThemeResource CompatibilityTextPrimaryBrush}"
-                                        Text="Free memory safely" />
+                                        Text="Refresh available memory" />
                                     <TextBlock
                                         FontSize="{StaticResource CompatibilityOutcomeBodyFontSize}"
                                         Foreground="{ThemeResource CompatibilityTextMutedBrush}"
-                                        Text="Granite Edge AI can release its own temporary memory and check again. Or open Task Manager; you choose which applications to close, then return and check again. Granite Edge AI will not close anything."
+                                        Text="Refresh reads the memory currently available and checks again. Or open Task Manager; you choose which applications to close, then return and refresh. Granite Edge AI will not close anything."
                                         TextWrapping="Wrap" />
                                 </StackPanel>
                             </Border>
                             <Button
-                                x:Name="ReleaseApplicationMemoryAction"
+                                x:Name="RefreshMemoryAction"
                                 MinHeight="44"
                                 HorizontalAlignment="Stretch"
                                 HorizontalContentAlignment="Center"
                                 CornerRadius="{StaticResource CompatibilityButtonRadius}"
                                 Padding="18,10"
                                 Style="{StaticResource AccentButtonStyle}"
-                                Content="Release app memory and check again"
-                                AutomationProperties.Name="Release app memory and check again"
-                                AutomationProperties.HelpText="Releases only temporary memory owned by Granite Edge AI, then checks compatibility again" />
+                                Content="Refresh memory and check again"
+                                AutomationProperties.Name="Refresh memory and check again"
+                                AutomationProperties.HelpText="Reads current available memory and checks compatibility again; it does not close applications" />
                             <Button
                                 x:Name="OpenTaskManagerAction"
                                 MinHeight="44"
@@ -789,6 +789,14 @@
                                 Content="Open Task Manager"
                                 AutomationProperties.Name="Open Task Manager"
                                 AutomationProperties.HelpText="Opens Task Manager; you choose which applications to close, and Granite Edge AI will not close anything" />
+                            <TextBlock
+                                x:Name="MemoryRecoveryStatus"
+                                Visibility="Collapsed"
+                                FontSize="{StaticResource CompatibilityOutcomeBodyFontSize}"
+                                Foreground="{ThemeResource CompatibilityTextMutedBrush}"
+                                TextWrapping="Wrap"
+                                AutomationProperties.Name="Memory recovery status"
+                                AutomationProperties.LiveSetting="Polite" />
                         </StackPanel>
                     </StackPanel>
                 </Border>

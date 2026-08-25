@@ -23,11 +23,39 @@ internal static class GgufCompatibilityInputProjector
         AvailableMemorySnapshot freshMemory,
         out CompatibilityProductionInput? input)
     {
+        ArgumentNullException.ThrowIfNull(freshMemory);
+        input = null;
+
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        TimeSpan age = now - freshMemory.CapturedAtUtc;
+        if (age > MaximumMemoryAge || age < -MaximumFutureSkew
+            || !TryPrepare(
+                modelHandoff, terminalModelResult, productHardwareRunId,
+                hardwareHandoff, out PreparedGgufCompatibilityInput? prepared))
+        {
+            return false;
+        }
+
+        return prepared!.TryBindFresh(
+            CompatibilityFreshResourcesInput.Create(
+                freshMemory.AvailablePhysicalBytes,
+                availableDedicatedDeviceMemoryBytes: 0,
+                hardwareHandoff.Snapshot.Storage.SystemVolumeAvailableBytes,
+                freshMemory.CapturedAtUtc),
+            out input);
+    }
+
+    internal static bool TryPrepare(
+        ModelInspectionHandoff modelHandoff,
+        ModelInspectionExecutionResult terminalModelResult,
+        Guid productHardwareRunId,
+        HardwareInspectionHandoff hardwareHandoff,
+        out PreparedGgufCompatibilityInput? prepared)
+    {
         ArgumentNullException.ThrowIfNull(modelHandoff);
         ArgumentNullException.ThrowIfNull(terminalModelResult);
         ArgumentNullException.ThrowIfNull(hardwareHandoff);
-        ArgumentNullException.ThrowIfNull(freshMemory);
-        input = null;
+        prepared = null;
 
         if (terminalModelResult.Status != ModelInspectionExecutionStatus.Completed
             || terminalModelResult.Result is not { } result
@@ -35,24 +63,13 @@ internal static class GgufCompatibilityInputProjector
             || result.Outcome != modelHandoff.Outcome
             || !result.Evidence.File.IntegrityPreserved
             || result.Evidence.File.LengthBytes != modelHandoff.ModelLengthBytes
-            || !string.Equals(
-                result.Evidence.File.ModelSha256,
-                modelHandoff.ModelSha256,
-                StringComparison.Ordinal)
-            || !string.Equals(
-                result.Evidence.Configuration.Format,
-                "GGUF",
-                StringComparison.Ordinal)
+            || !string.Equals(result.Evidence.File.ModelSha256,
+                modelHandoff.ModelSha256, StringComparison.Ordinal)
+            || !string.Equals(result.Evidence.Configuration.Format,
+                "GGUF", StringComparison.Ordinal)
             || productHardwareRunId == Guid.Empty
             || hardwareHandoff.InspectionId != productHardwareRunId
             || hardwareHandoff.Snapshot.Usability != HardwareSnapshotUsability.Usable)
-        {
-            return false;
-        }
-
-        DateTimeOffset now = DateTimeOffset.UtcNow;
-        TimeSpan age = now - freshMemory.CapturedAtUtc;
-        if (age > MaximumMemoryAge || age < -MaximumFutureSkew)
         {
             return false;
         }
@@ -103,7 +120,7 @@ internal static class GgufCompatibilityInputProjector
                 configuration.FileType,
                 configuration.QuantisationVersion);
 
-            input = CompatibilityProductionInput.Create(
+            prepared = new PreparedGgufCompatibilityInput(
                 modelHandoff.ModelInspectionRunId,
                 productHardwareRunId,
                 model,
@@ -112,17 +129,12 @@ internal static class GgufCompatibilityInputProjector
                     dedicatedMemory,
                     snapshot.Storage.SystemVolumeAvailableBytes,
                     devices,
-                    backends),
-                CompatibilityFreshResourcesInput.Create(
-                    freshMemory.AvailablePhysicalBytes,
-                    availableDedicatedDeviceMemoryBytes: 0,
-                    snapshot.Storage.SystemVolumeAvailableBytes,
-                    freshMemory.CapturedAtUtc));
+                    backends));
             return true;
         }
         catch (Exception exception) when (exception is ArgumentException or OverflowException)
         {
-            input = null;
+            prepared = null;
             return false;
         }
     }
@@ -137,4 +149,46 @@ internal static class GgufCompatibilityInputProjector
         LocalRuntimeBackend.Vulkan => CompatibilityBackend.IntelVulkan,
         _ => throw new ArgumentOutOfRangeException(nameof(backend)),
     };
+}
+
+internal sealed class PreparedGgufCompatibilityInput
+{
+    private readonly Guid _modelInspectionRunId;
+    private readonly Guid _productHardwareRunId;
+    private readonly GgufCompatibilityModelInput _model;
+    private readonly CompatibilityHardwareInput _hardware;
+
+    internal PreparedGgufCompatibilityInput(
+        Guid modelInspectionRunId,
+        Guid productHardwareRunId,
+        GgufCompatibilityModelInput model,
+        CompatibilityHardwareInput hardware)
+    {
+        _modelInspectionRunId = modelInspectionRunId;
+        _productHardwareRunId = productHardwareRunId;
+        _model = model;
+        _hardware = hardware;
+    }
+
+    internal bool TryBindFresh(
+        CompatibilityFreshResourcesInput freshResources,
+        out CompatibilityProductionInput? input)
+    {
+        ArgumentNullException.ThrowIfNull(freshResources);
+        try
+        {
+            input = CompatibilityProductionInput.Create(
+                _modelInspectionRunId,
+                _productHardwareRunId,
+                _model,
+                _hardware,
+                freshResources);
+            return true;
+        }
+        catch (ArgumentException)
+        {
+            input = null;
+            return false;
+        }
+    }
 }

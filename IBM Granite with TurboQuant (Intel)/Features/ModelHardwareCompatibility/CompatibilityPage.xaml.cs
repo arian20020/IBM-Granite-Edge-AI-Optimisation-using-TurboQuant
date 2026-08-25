@@ -53,8 +53,9 @@ internal sealed partial class CompatibilityPage : Page
         ViewModel.ContinueRequested += (_, _) => ContinueRequested?.Invoke(this, EventArgs.Empty);
         ViewModel.BackRequested += (_, _) => BackRequested?.Invoke(this, EventArgs.Empty);
         PrimaryAction.Command = ViewModel.ContinueCommand;
-        ReleaseApplicationMemoryAction.Command = ViewModel.ReleaseMemoryCommand;
+        RefreshMemoryAction.Command = ViewModel.RefreshMemoryCommand;
         OpenTaskManagerAction.Command = ViewModel.OpenTaskManagerCommand;
+        ViewModel.AuxiliaryStatusChanged += (_, status) => ApplyAuxiliaryStatus(status);
 
         // One automatic attempt per navigation: arriving here starts the check,
         // because that is the only reason to be on this page.
@@ -187,6 +188,16 @@ internal sealed partial class CompatibilityPage : Page
             ApplyResponsiveLayout(PageStack.ActualWidth);
         }
 
+    }
+
+    private void ApplyAuxiliaryStatus(
+        ViewModels.CompatibilityAuxiliaryStatus status)
+    {
+        MemoryRecoveryStatus.Text = status.Message;
+        MemoryRecoveryStatus.Visibility = status.Kind
+            == ViewModels.CompatibilityAuxiliaryStatusKind.None
+                ? Visibility.Collapsed
+                : Visibility.Visible;
     }
 
     private void ApplyOptimization(CompatibilityOptimizationPresentation? optimization)

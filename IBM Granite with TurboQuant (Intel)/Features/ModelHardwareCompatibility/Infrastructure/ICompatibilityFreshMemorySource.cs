@@ -1,10 +1,11 @@
-using GraniteEdgeAI.Features.HardwareInspection.Application;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace GraniteEdgeAI.Features.ModelHardwareCompatibility.Infrastructure;
 
-internal interface ICompatibilityFreshMemorySource
+internal interface ICompatibilityFreshResourcesSource
 {
-    ValueTask<AvailableMemorySnapshot> CaptureAsync(CancellationToken cancellationToken);
+    ValueTask<CompatibilityFreshResourcesInput> CaptureAsync(
+        CancellationToken cancellationToken);
 }

@@ -53,7 +53,7 @@ namespace GraniteEdgeAI.Features.Onboarding
         private readonly Func<ModelInspectionPage, ModelInspectionHandoff?>
             _hardwareHandoffReissuer;
         private readonly ModelInspectionHandoffRegistry _handoffRegistry = new();
-        private readonly ICompatibilityFreshMemorySource? _compatibilityFreshMemorySource;
+        private readonly ICompatibilityFreshResourcesSource? _compatibilityFreshResourcesSource;
         private readonly Func<
             ModelInspectionPage,
             ModelInspectionHandoff,
@@ -100,7 +100,7 @@ namespace GraniteEdgeAI.Features.Onboarding
                 bool>? hardwareInspectionNavigator,
             Func<ModelInspectionPage, ModelInspectionHandoff?>?
                 hardwareHandoffReissuer,
-            ICompatibilityFreshMemorySource compatibilityFreshMemorySource,
+            ICompatibilityFreshResourcesSource compatibilityFreshResourcesSource,
             Func<
                 ModelInspectionPage,
                 ModelInspectionHandoff,
@@ -113,8 +113,8 @@ namespace GraniteEdgeAI.Features.Onboarding
                 hardwareHandoffReissuer,
                 initialize: true)
         {
-            _compatibilityFreshMemorySource = compatibilityFreshMemorySource
-                ?? throw new ArgumentNullException(nameof(compatibilityFreshMemorySource));
+            _compatibilityFreshResourcesSource = compatibilityFreshResourcesSource
+                ?? throw new ArgumentNullException(nameof(compatibilityFreshResourcesSource));
             _modelEvidenceResolver = modelEvidenceResolver
                 ?? throw new ArgumentNullException(nameof(modelEvidenceResolver));
             _compatibilityNavigator = compatibilityNavigator ?? DefaultCompatibilityNavigation;
@@ -166,10 +166,10 @@ namespace GraniteEdgeAI.Features.Onboarding
             _hardwareHandoffReissuer = hardwareHandoffReissuer ??
                 (static page => page.ReissueHardwareHandoff());
 #if HARDWARE_INSPECTION_X64
-            _compatibilityFreshMemorySource =
-                new WindowsCompatibilityFreshMemorySource();
+            _compatibilityFreshResourcesSource =
+                new WindowsCompatibilityFreshResourcesSource();
 #else
-            _compatibilityFreshMemorySource = null;
+            _compatibilityFreshResourcesSource = null;
 #endif
             _modelEvidenceResolver = static (page, handoff) =>
                 page.ResolveTerminalResult(handoff);
@@ -541,7 +541,7 @@ namespace GraniteEdgeAI.Features.Onboarding
             ArgumentNullException.ThrowIfNull(eventArguments);
             ModelInspectionHandoff? modelHandoff = sourcePage.OpaqueModelHandoff;
             ModelInspectionPage? modelPage = _modelInspectionPageForHardwareReturn;
-            if (_compatibilityFreshMemorySource is null
+            if (_compatibilityFreshResourcesSource is null
                 || !ReferenceEquals(sourcePage, _attachedHardwareInspectionPage)
                 || modelHandoff is null
                 || modelPage is null
@@ -556,34 +556,42 @@ namespace GraniteEdgeAI.Features.Onboarding
                 return false;
             }
 
-            AvailableMemorySnapshot freshMemory;
-            try
-            {
-                freshMemory = await _compatibilityFreshMemorySource
-                    .CaptureAsync(CancellationToken.None);
-            }
-            catch
-            {
-                return false;
-            }
-
             if (!ReferenceEquals(sourcePage, _attachedHardwareInspectionPage)
                 || _activeModelHandoffId != modelHandoff.ModelInspectionHandoffId
                 || _activeProductHardwareRunId != eventArguments.Handoff.InspectionId
-                || !GgufCompatibilityInputProjector.TryProject(
+                || !GgufCompatibilityInputProjector.TryPrepare(
                     modelHandoff,
                     terminal,
                     _activeProductHardwareRunId,
                     eventArguments.Handoff,
-                    freshMemory,
-                    out CompatibilityProductionInput? input))
+                    out PreparedGgufCompatibilityInput? prepared))
             {
                 return false;
             }
 
-            var compatibilityPage = new CompatibilityPage(token => Task.Run(
-                () => CompatibilityEngine.Run(input!, token),
-                token),
+            var compatibilityPage = new CompatibilityPage(async token =>
+            {
+                try
+                {
+                    CompatibilityFreshResourcesInput fresh =
+                        await _compatibilityFreshResourcesSource.CaptureAsync(token);
+                    if (!prepared!.TryBindFresh(fresh, out CompatibilityProductionInput? input))
+                    {
+                        return CompatibilityEngine.RunWithAvailableAdapters(token);
+                    }
+
+                    return await Task.Run(
+                        () => CompatibilityEngine.Run(input!, token), token);
+                }
+                catch (OperationCanceledException) when (token.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch
+                {
+                    return CompatibilityEngine.RunWithAvailableAdapters(token);
+                }
+            },
                 continueDestinationAvailable: false);
             compatibilityPage.BackRequested += CompatibilityPage_BackRequested;
             compatibilityPage.ContinueRequested += CompatibilityPage_ContinueRequested;

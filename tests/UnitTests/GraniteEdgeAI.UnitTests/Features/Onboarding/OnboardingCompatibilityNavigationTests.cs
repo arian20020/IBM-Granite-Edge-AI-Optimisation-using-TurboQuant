@@ -7,6 +7,8 @@ using GraniteEdgeAI.Features.ModelInspection;
 using GraniteEdgeAI.Features.ModelInspection.Contracts;
 using GraniteEdgeAI.Features.ModelInspection.Handoff;
 using GraniteEdgeAI.Features.Onboarding;
+using GraniteEdgeAI.HardwareInspection.Foundation.Windows;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation;
 using GraniteEdgeAI.UnitTests.Features.HardwareInspection;
 using GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation;
 using Microsoft.UI.Xaml.Controls;
@@ -34,7 +36,7 @@ public sealed class OnboardingCompatibilityNavigationTests
             service,
             hardwareInspectionNavigator: null,
             hardwareHandoffReissuer: null,
-            new FreshMemorySource(),
+            new FreshResourcesSource(),
             (_, handoff) => handoff.ModelInspectionRunId == ModelRunId ? terminal : null,
             compatibilityNavigator: null);
         shell.AttachModelInspectionPage(source);
@@ -74,7 +76,7 @@ public sealed class OnboardingCompatibilityNavigationTests
             new CountingHardwareService(),
             hardwareInspectionNavigator: null,
             hardwareHandoffReissuer: null,
-            new FreshMemorySource(),
+            new FreshResourcesSource(),
             (_, _) => terminal,
             compatibilityNavigator: null);
         shell.AttachModelInspectionPage(source);
@@ -92,6 +94,79 @@ public sealed class OnboardingCompatibilityNavigationTests
         Assert.AreSame(hardwarePage, frame.Content);
     }
 
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task EveryCompatibilityAttempt_CapturesFreshResourcesAndCanChangeOutcome()
+    {
+        ModelInspectionExecutionResult terminal = Terminal();
+        ModelInspectionHandoff modelHandoff = ModelHandoff(terminal);
+        var source = new ModelInspectionPage();
+        var fresh = new SequencedFreshResourcesSource(
+            FreshResources(1),
+            FreshResources(24UL * 1024 * 1024 * 1024));
+        var shell = new OnboardingShellPage(
+            static (frame, request) => frame.Navigate(typeof(ModelInspectionPage), request),
+            new CountingHardwareService(), null, null, fresh,
+            (_, _) => terminal,
+            (frame, page) =>
+            {
+                page.StartAutomatically = false;
+                frame.Content = page;
+                return true;
+            });
+        shell.AttachModelInspectionPage(source);
+        Assert.IsTrue(shell.NavigateToHardwareInspection(source, modelHandoff));
+        var frame = (Frame)shell.FindName("StageFrame");
+        var hardwarePage = (HardwareInspectionPage)frame.Content;
+        HardwareInspectionHandoff hardwareHandoff = HardwareInspectionHandoff.Create(
+            shell.CurrentProductHardwareRunId,
+            HardwareInspectionOutcome.Completed,
+            HardwareInspectionContractTests.CreateUsableSnapshotForPresentation());
+
+        Assert.IsTrue(await shell.NavigateToCompatibilityAsync(
+            hardwarePage, new HardwareInspectionCompletedEventArgs(hardwareHandoff)));
+        var compatibilityPage = (CompatibilityPage)frame.Content;
+        Assert.AreEqual(0, fresh.CallCount,
+            "Navigation must not freeze a resource snapshot for later attempts.");
+
+        await compatibilityPage.ViewModel.StartAsync();
+        GraniteEdgeAI.Features.ModelHardwareCompatibility.Presentation
+            .CompatibilityOutcomeTone first = compatibilityPage.ViewModel.Presentation.Tone;
+        await compatibilityPage.ViewModel.StartAsync();
+
+        Assert.AreEqual(2, fresh.CallCount);
+        Assert.AreNotEqual(
+            GraniteEdgeAI.Features.ModelHardwareCompatibility.Presentation
+                .CompatibilityOutcomeTone.Positive,
+            first);
+        Assert.AreEqual(
+            GraniteEdgeAI.Features.ModelHardwareCompatibility.Presentation
+                .CompatibilityOutcomeTone.Positive,
+            compatibilityPage.ViewModel.Presentation.Tone);
+    }
+
+    [TestMethod]
+    public async Task WindowsFreshResourceSource_UsesCurrentProvidersAndInjectedClock()
+    {
+        DateTimeOffset memoryAt = new(2026, 8, 25, 12, 0, 0, TimeSpan.Zero);
+        DateTimeOffset storageAt = memoryAt.AddSeconds(1);
+        DateTimeOffset observedAt = memoryAt.AddSeconds(2);
+        var source = new WindowsCompatibilityFreshResourcesSource(
+            new FixedMemoryProvider(7_000_000_000, memoryAt),
+            _ => ValueTask.FromResult(WindowsStorageEvidence.Available(
+                100_000_000_000, 40_000_000_000, storageAt)),
+            new FixedTimeProvider(observedAt));
+
+        CompatibilityFreshResourcesInput captured =
+            await source.CaptureAsync(CancellationToken.None);
+
+        Assert.AreEqual(7_000_000_000UL, captured.AvailableSystemMemoryBytes);
+        Assert.AreEqual(40_000_000_000UL, captured.AvailableStorageBytes);
+        Assert.AreEqual(observedAt, captured.ObservedAtUtc);
+        Assert.IsFalse(captured.DedicatedDeviceMemoryEstablished,
+            "No fresh dedicated-memory provider exists, so the source must stay unknown.");
+    }
+
     private static ModelInspectionExecutionResult Terminal() =>
         ModelInspectionExecutionResult.Completed(
             PresentationTestData.CreateResult(ModelInspectionOutcome.Ready));
@@ -106,12 +181,37 @@ public sealed class OnboardingCompatibilityNavigationTests
         return handoff!;
     }
 
-    private sealed class FreshMemorySource : ICompatibilityFreshMemorySource
+    private static CompatibilityFreshResourcesInput FreshResources(ulong memory) =>
+        CompatibilityFreshResourcesInput.Create(
+            memory,
+            availableDedicatedDeviceMemoryBytes: null,
+            availableStorageBytes: 64UL * 1024 * 1024 * 1024,
+            DateTimeOffset.UtcNow);
+
+    private sealed class FreshResourcesSource : ICompatibilityFreshResourcesSource
     {
-        public ValueTask<AvailableMemorySnapshot> CaptureAsync(CancellationToken cancellationToken) =>
-            ValueTask.FromResult(new AvailableMemorySnapshot(
-                24UL * 1024 * 1024 * 1024,
-                DateTimeOffset.UtcNow));
+        public ValueTask<CompatibilityFreshResourcesInput> CaptureAsync(
+            CancellationToken cancellationToken) =>
+            ValueTask.FromResult(FreshResources(24UL * 1024 * 1024 * 1024));
+    }
+
+    private sealed class SequencedFreshResourcesSource : ICompatibilityFreshResourcesSource
+    {
+        private readonly Queue<CompatibilityFreshResourcesInput> _snapshots;
+
+        internal SequencedFreshResourcesSource(
+            params CompatibilityFreshResourcesInput[] snapshots) =>
+            _snapshots = new Queue<CompatibilityFreshResourcesInput>(snapshots);
+
+        internal int CallCount { get; private set; }
+
+        public ValueTask<CompatibilityFreshResourcesInput> CaptureAsync(
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            CallCount++;
+            return ValueTask.FromResult(_snapshots.Dequeue());
+        }
     }
 
     private sealed class CountingHardwareService : IHardwareInspectionService
@@ -126,5 +226,23 @@ public sealed class OnboardingCompatibilityNavigationTests
             CallCount++;
             return Task.FromResult(HardwareInspectionRunResult.CreateCancelled(inspectionId));
         }
+    }
+
+    private sealed class FixedMemoryProvider(
+        ulong availableBytes,
+        DateTimeOffset capturedAtUtc) : IAvailableMemoryProvider
+    {
+        public ValueTask<AvailableMemorySnapshot> CaptureAsync(
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return ValueTask.FromResult(
+                new AvailableMemorySnapshot(availableBytes, capturedAtUtc));
+        }
+    }
+
+    private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => now;
     }
 }

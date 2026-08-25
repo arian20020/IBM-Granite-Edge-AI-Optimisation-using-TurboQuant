@@ -12,6 +12,7 @@ using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.Gguf;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
+using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
@@ -43,6 +44,26 @@ public sealed class CompatibilityMemoryRecoveryTests
             && type == typeof(CancellationToken)));
         Assert.AreEqual(0, port.GetProperties().Length);
         Assert.AreEqual(0, port.GetEvents().Length);
+    }
+
+    [TestMethod]
+    public async Task EmptyProductionRegistry_RefreshesWithoutCollectionOrReleaseClaim()
+    {
+        bool collected = false;
+        var recovery = new WindowsCompatibilityMemoryRecovery(
+            [], new RecordingTaskManagerStarter(), () => collected = true);
+
+        await recovery.ReleaseApplicationMemoryAsync(CancellationToken.None);
+
+        Assert.IsFalse(collected);
+        string xaml = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot(), "IBM Granite with TurboQuant (Intel)",
+            "Features", "ModelHardwareCompatibility", "CompatibilityPage.xaml"));
+        StringAssert.Contains(xaml, "Refresh memory and check again");
+        Assert.IsFalse(xaml.Contains("release its own temporary memory",
+            StringComparison.OrdinalIgnoreCase));
+        Assert.IsFalse(xaml.Contains("Release app memory",
+            StringComparison.OrdinalIgnoreCase));
     }
 
     [TestMethod]
@@ -148,6 +169,20 @@ public sealed class CompatibilityMemoryRecoveryTests
             || (typeof(Delegate).IsAssignableFrom(parameter.ParameterType)
                 && !(parameter.Name == "collect"
                     && parameter.ParameterType == typeof(Action)))));
+
+        ParameterInfo[] starterParameters = typeof(WindowsTaskManagerProcessStarter)
+            .GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic)
+            .SelectMany(constructor => constructor.GetParameters()).ToArray();
+        Assert.IsFalse(starterParameters.Any(parameter =>
+            parameter.ParameterType == typeof(string)
+            || parameter.ParameterType == typeof(ProcessStartInfo)
+            || parameter.ParameterType == typeof(Action)));
+        ParameterInfo? fixedStart = starterParameters.SingleOrDefault(parameter =>
+            parameter.ParameterType == typeof(Func<Process?>));
+        Assert.IsNotNull(fixedStart);
+        Assert.AreEqual(0, fixedStart.ParameterType.GetMethod("Invoke")!
+            .GetParameters().Length,
+            "The test seam can return the fixed launch result but cannot select a command.");
     }
 
     [TestMethod]
@@ -168,6 +203,19 @@ public sealed class CompatibilityMemoryRecoveryTests
     }
 
     [TestMethod]
+    public void FixedStarter_TreatsNullAndThrowAsLaunchFailure()
+    {
+        var nullStarter = new WindowsTaskManagerProcessStarter(() => null);
+        var throwStarter = new WindowsTaskManagerProcessStarter(
+            () => throw new InvalidOperationException("private"));
+
+        Assert.ThrowsExactly<InvalidOperationException>(() =>
+            nullStarter.Start(TaskManagerLaunchRequest.Fixed));
+        Assert.ThrowsExactly<InvalidOperationException>(() =>
+            throwStarter.Start(TaskManagerLaunchRequest.Fixed));
+    }
+
+    [TestMethod]
     public async Task ReleaseThenRecheck_IsOneOperationAndPublishesFreshResult()
     {
         int evaluations = 0;
@@ -180,7 +228,7 @@ public sealed class CompatibilityMemoryRecoveryTests
             recovery);
         await viewModel.StartAsync();
 
-        await viewModel.ReleaseApplicationMemoryAndRetryAsync();
+        await viewModel.RefreshMemoryAndRetryAsync();
 
         Assert.AreEqual(1, recovery.ReleaseCalls);
         Assert.AreEqual(2, evaluations);
@@ -201,7 +249,7 @@ public sealed class CompatibilityMemoryRecoveryTests
             recovery);
         await viewModel.StartAsync();
 
-        Task stale = viewModel.ReleaseApplicationMemoryAndRetryAsync();
+        Task stale = viewModel.RefreshMemoryAndRetryAsync();
         await recovery.ReleaseStarted.Task;
         await viewModel.StartAsync();
         releaseRecovery.SetResult();
@@ -225,9 +273,9 @@ public sealed class CompatibilityMemoryRecoveryTests
             recovery);
         await viewModel.StartAsync();
 
-        Task first = viewModel.ReleaseApplicationMemoryAndRetryAsync();
+        Task first = viewModel.RefreshMemoryAndRetryAsync();
         await recovery.ReleaseStarted.Task;
-        Task second = viewModel.ReleaseApplicationMemoryAndRetryAsync();
+        Task second = viewModel.RefreshMemoryAndRetryAsync();
         releaseRecovery.SetResult();
         await Task.WhenAll(first, second);
 
@@ -249,7 +297,7 @@ public sealed class CompatibilityMemoryRecoveryTests
             recovery);
         await viewModel.StartAsync();
 
-        Task operation = viewModel.ReleaseApplicationMemoryAndRetryAsync();
+        Task operation = viewModel.RefreshMemoryAndRetryAsync();
         await recovery.ReleaseStarted.Task;
         viewModel.RetireAttempt();
         releaseRecovery.SetResult();
@@ -283,6 +331,181 @@ public sealed class CompatibilityMemoryRecoveryTests
     }
 
     [TestMethod]
+    public void ThrowingAndReentrantCancellationCallbacks_AreContainedAndDisposedByOwner()
+    {
+        var cancellation = new CompatibilityViewModel.AttemptCancellation();
+        CancellationToken token = cancellation.Token;
+        using CancellationTokenRegistration registration = token.Register(() =>
+        {
+            cancellation.Cancel();
+            throw new InvalidOperationException("private callback content");
+        });
+
+        cancellation.Cancel();
+        cancellation.Complete();
+
+        Assert.ThrowsExactly<ObjectDisposedException>(() =>
+            cancellation.Token.Register(static () => { }));
+    }
+
+    [TestMethod]
+    public async Task NewStart_RetiresNonCooperativeRecoveryBusyOwnerImmediately()
+    {
+        var releaseGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var recovery = new RecordingRecovery(release: releaseGate.Task);
+        var viewModel = new CompatibilityViewModel(
+            _ => Task.FromResult(MemoryPressureScreen()), true, recovery);
+        await viewModel.StartAsync();
+
+        Task old = viewModel.RefreshMemoryAndRetryAsync();
+        await recovery.ReleaseStarted.Task;
+        await viewModel.StartAsync();
+
+        Assert.IsTrue(viewModel.RefreshMemoryCommand.CanExecute(null));
+        releaseGate.SetResult();
+        await old;
+        Assert.IsTrue(viewModel.RefreshMemoryCommand.CanExecute(null));
+    }
+
+    [TestMethod]
+    public async Task ThrowingCancellationCallback_DuringNewStartCannotStrandTheNewAttempt()
+    {
+        var firstStarted = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseFirst = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        int evaluations = 0;
+        var viewModel = new CompatibilityViewModel(async token =>
+        {
+            if (Interlocked.Increment(ref evaluations) == 1)
+            {
+                using CancellationTokenRegistration registration = token.Register(
+                    () => throw new InvalidOperationException("private callback content"));
+                firstStarted.SetResult();
+                await releaseFirst.Task;
+            }
+
+            return MemoryPressureScreen();
+        }, true, new RecordingRecovery());
+
+        Task stale = viewModel.StartAsync();
+        await firstStarted.Task;
+        await viewModel.StartAsync();
+        releaseFirst.SetResult();
+        await stale;
+
+        Assert.AreEqual(2, evaluations);
+        Assert.AreEqual(CompatibilityMemoryRecoveryReason.SystemMemoryPressure,
+            viewModel.Presentation.MemoryRecoveryReason);
+        Assert.IsTrue(viewModel.RefreshMemoryCommand.CanExecute(null));
+        Assert.IsTrue(viewModel.OpenTaskManagerCommand.CanExecute(null));
+    }
+
+    [TestMethod]
+    public async Task ThrowingCancellationCallback_DuringRetireCannotPreventReloadedAttempt()
+    {
+        var firstStarted = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseFirst = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        int evaluations = 0;
+        var viewModel = new CompatibilityViewModel(async token =>
+        {
+            if (Interlocked.Increment(ref evaluations) == 1)
+            {
+                using CancellationTokenRegistration registration = token.Register(
+                    () => throw new InvalidOperationException("private callback content"));
+                firstStarted.SetResult();
+                await releaseFirst.Task;
+            }
+
+            return MemoryPressureScreen();
+        }, true, new RecordingRecovery());
+
+        Task retired = viewModel.StartAsync();
+        await firstStarted.Task;
+        viewModel.RetireAttempt();
+        await viewModel.StartAsync();
+        releaseFirst.SetResult();
+        await retired;
+
+        Assert.AreEqual(2, evaluations);
+        Assert.AreEqual(CompatibilityMemoryRecoveryReason.SystemMemoryPressure,
+            viewModel.Presentation.MemoryRecoveryReason);
+        Assert.IsTrue(viewModel.RefreshMemoryCommand.CanExecute(null));
+    }
+
+    [TestMethod]
+    public async Task StaleTaskManagerFinally_CannotClearTheNewTaskManagerBusyOwner()
+    {
+        var recovery = new SequencedTaskManagerRecovery();
+        var viewModel = new CompatibilityViewModel(
+            _ => Task.FromResult(MemoryPressureScreen()), true, recovery);
+        await viewModel.StartAsync();
+
+        Task stale = viewModel.OpenTaskManagerAsync();
+        await recovery.FirstStarted.Task;
+        await viewModel.StartAsync();
+        Task current = viewModel.OpenTaskManagerAsync();
+        await recovery.SecondStarted.Task;
+
+        Assert.IsFalse(viewModel.OpenTaskManagerCommand.CanExecute(null));
+        recovery.ReleaseFirst.SetResult();
+        await Assert.ThrowsExactlyAsync<OperationCanceledException>(async () => await stale);
+        Assert.IsFalse(viewModel.OpenTaskManagerCommand.CanExecute(null),
+            "The stale finally block must not release the newer operation owner.");
+
+        recovery.ReleaseSecond.SetResult();
+        await current;
+        Assert.IsTrue(viewModel.OpenTaskManagerCommand.CanExecute(null));
+    }
+
+    [TestMethod]
+    public async Task RetireAndReload_RetiresAuxiliaryBusyOwnerBeforeStartingNewOne()
+    {
+        var recovery = new SequencedTaskManagerRecovery();
+        var viewModel = new CompatibilityViewModel(
+            _ => Task.FromResult(MemoryPressureScreen()), true, recovery);
+        await viewModel.StartAsync();
+
+        Task retired = viewModel.OpenTaskManagerAsync();
+        await recovery.FirstStarted.Task;
+        viewModel.RetireAttempt();
+        await viewModel.StartAsync();
+        Task reloaded = viewModel.OpenTaskManagerAsync();
+        await recovery.SecondStarted.Task;
+
+        Assert.IsFalse(viewModel.OpenTaskManagerCommand.CanExecute(null));
+        recovery.ReleaseFirst.SetResult();
+        await Assert.ThrowsExactlyAsync<OperationCanceledException>(async () => await retired);
+        Assert.IsFalse(viewModel.OpenTaskManagerCommand.CanExecute(null));
+        recovery.ReleaseSecond.SetResult();
+        await reloaded;
+        Assert.IsTrue(viewModel.OpenTaskManagerCommand.CanExecute(null));
+    }
+
+    [TestMethod]
+    public async Task TaskManagerFailure_IsBoundedDoesNotReplaceResultAndRemainsRetryable()
+    {
+        var recovery = new FailingTaskManagerRecovery();
+        var viewModel = new CompatibilityViewModel(
+            _ => Task.FromResult(MemoryPressureScreen()), true, recovery);
+        await viewModel.StartAsync();
+        string outcome = viewModel.Presentation.OutcomeTitle;
+
+        await viewModel.OpenTaskManagerAsync();
+
+        Assert.AreEqual(outcome, viewModel.Presentation.OutcomeTitle);
+        Assert.AreEqual(CompatibilityAuxiliaryStatusKind.Error,
+            viewModel.AuxiliaryStatus.Kind);
+        Assert.AreEqual("Task Manager could not be opened. You can try again.",
+            viewModel.AuxiliaryStatus.Message);
+        Assert.IsTrue(viewModel.OpenTaskManagerCommand.CanExecute(null));
+        Assert.IsFalse(viewModel.AuxiliaryStatus.Message.Contains("taskmgr",
+            StringComparison.OrdinalIgnoreCase));
+    }
+
+    [TestMethod]
     public async Task RecoveryActions_FailClosedWhenOutcomeIsNotMemoryPressure()
     {
         var recovery = new RecordingRecovery();
@@ -292,7 +515,7 @@ public sealed class CompatibilityMemoryRecoveryTests
             recovery);
         await viewModel.StartAsync();
 
-        await viewModel.ReleaseApplicationMemoryAndRetryAsync();
+        await viewModel.RefreshMemoryAndRetryAsync();
         await viewModel.OpenTaskManagerAsync();
 
         Assert.AreEqual(0, recovery.ReleaseCalls);
@@ -417,7 +640,7 @@ public sealed class CompatibilityMemoryRecoveryTests
 
         FrameworkElement card = Element<FrameworkElement>(page, "RecoveryCard");
         FrameworkElement actions = Element<FrameworkElement>(page, "MemoryRecoveryActions");
-        Button release = Element<Button>(page, "ReleaseApplicationMemoryAction");
+        Button release = Element<Button>(page, "RefreshMemoryAction");
         Button taskManager = Element<Button>(page, "OpenTaskManagerAction");
 
         Assert.AreEqual(Visibility.Visible, card.Visibility);
@@ -426,11 +649,11 @@ public sealed class CompatibilityMemoryRecoveryTests
         Assert.IsTrue(taskManager.Command.CanExecute(null));
         Assert.IsGreaterThanOrEqualTo(44d, release.MinHeight);
         Assert.IsGreaterThanOrEqualTo(44d, taskManager.MinHeight);
-        Assert.AreEqual("Release app memory and check again", AutomationProperties.GetName(release));
+        Assert.AreEqual("Refresh memory and check again", AutomationProperties.GetName(release));
         Assert.AreEqual("Open Task Manager", AutomationProperties.GetName(taskManager));
         StringAssert.Contains(AutomationProperties.GetHelpText(taskManager),
             "you choose which applications to close");
-        Assert.AreSame(page.ViewModel.ReleaseMemoryCommand, release.Command);
+        Assert.AreSame(page.ViewModel.RefreshMemoryCommand, release.Command);
         Assert.AreSame(page.ViewModel.OpenTaskManagerCommand, taskManager.Command);
     }
 
@@ -451,9 +674,32 @@ public sealed class CompatibilityMemoryRecoveryTests
 
             Assert.AreEqual(Visibility.Collapsed,
                 Element<FrameworkElement>(page, "MemoryRecoveryActions").Visibility);
-            Assert.IsFalse(page.ViewModel.ReleaseMemoryCommand.CanExecute(null));
+            Assert.IsFalse(page.ViewModel.RefreshMemoryCommand.CanExecute(null));
             Assert.IsFalse(page.ViewModel.OpenTaskManagerCommand.CanExecute(null));
         }
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task RealPage_TaskManagerFailureIsAnAccessibleBoundedAnnouncement()
+    {
+        var viewModel = new CompatibilityViewModel(
+            _ => Task.FromResult(MemoryPressureScreen()), true,
+            new FailingTaskManagerRecovery());
+        ConstructorInfo constructor = typeof(CompatibilityPage)
+            .GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic)
+            .Single(candidate => candidate.GetParameters() is
+                [{ ParameterType: var type }] && type == typeof(CompatibilityViewModel));
+        var page = (CompatibilityPage)constructor.Invoke([viewModel]);
+        await viewModel.StartAsync();
+
+        await viewModel.OpenTaskManagerAsync();
+
+        TextBlock status = Element<TextBlock>(page, "MemoryRecoveryStatus");
+        Assert.AreEqual(Visibility.Visible, status.Visibility);
+        Assert.AreEqual("Task Manager could not be opened. You can try again.", status.Text);
+        Assert.AreEqual(AutomationLiveSetting.Polite,
+            AutomationProperties.GetLiveSetting(status));
     }
 #endif
 
@@ -615,5 +861,48 @@ public sealed class CompatibilityMemoryRecoveryTests
         internal TaskManagerLaunchRequest? Request { get; private set; }
 
         public void Start(TaskManagerLaunchRequest request) => Request = request;
+    }
+
+    private sealed class FailingTaskManagerRecovery : ICompatibilityMemoryRecovery
+    {
+        public Task ReleaseApplicationMemoryAsync(CancellationToken cancellationToken) =>
+            Task.CompletedTask;
+
+        public Task OpenTaskManagerAsync(CancellationToken cancellationToken) =>
+            Task.FromException(new InvalidOperationException("private executable path"));
+    }
+
+    private sealed class SequencedTaskManagerRecovery : ICompatibilityMemoryRecovery
+    {
+        private int _calls;
+
+        internal TaskCompletionSource FirstStarted { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        internal TaskCompletionSource SecondStarted { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        internal TaskCompletionSource ReleaseFirst { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        internal TaskCompletionSource ReleaseSecond { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task ReleaseApplicationMemoryAsync(CancellationToken cancellationToken) =>
+            Task.CompletedTask;
+
+        public async Task OpenTaskManagerAsync(CancellationToken cancellationToken)
+        {
+            int call = Interlocked.Increment(ref _calls);
+            Task gate = call switch
+            {
+                1 => ReleaseFirst.Task,
+                2 => ReleaseSecond.Task,
+                _ => throw new InvalidOperationException("Unexpected auxiliary operation.")
+            };
+            (call == 1 ? FirstStarted : SecondStarted).SetResult();
+            await gate;
+            cancellationToken.ThrowIfCancellationRequested();
+        }
     }
 }
