@@ -124,13 +124,12 @@ public sealed record OpenVinoAdmittedConfiguration
         // released support is the one mislabelling that would let it run
         // without anybody opting in, so it is refused at the door rather than
         // filtered later.
-        if (weights is OpenVinoWeightFormat.TurboQuantTbq4 or OpenVinoWeightFormat.TurboQuantTbq3
+        if ((kvCache is OpenVinoKvCacheFormat.TurboQuantTbq4
+                or OpenVinoKvCacheFormat.TurboQuantTbq3)
             && level != SupportLevel.Experimental)
         {
             throw new ArgumentException(
-                $"{weights} is experimental and may only be admitted as an "
-                + "experimental entry; declaring it as released support would let it "
-                + "run without an explicit opt-in.",
+                "TurboQuant KV-cache configurations require experimental evidence.",
                 nameof(level));
         }
 

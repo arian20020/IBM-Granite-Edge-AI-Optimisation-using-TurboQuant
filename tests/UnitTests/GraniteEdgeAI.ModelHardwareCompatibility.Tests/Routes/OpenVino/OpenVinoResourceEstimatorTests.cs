@@ -196,6 +196,35 @@ public sealed class OpenVinoResourceEstimatorTests
     }
 
     [TestMethod]
+    public void TurboQuantCacheFormatsReduceOnlyCacheMemoryMonotonically()
+    {
+        (ulong Weights, ulong Cache) Memory(OpenVinoKvCacheFormat format)
+        {
+            IReadOnlyList<ResourceComponent> components =
+                Estimate(Configuration(weights: OpenVinoWeightFormat.Int8, cache: format))
+                    .Components;
+
+            ulong weights = components
+                .Where(component => component.Kind == ResourceComponentKind.Weights)
+                .Aggregate(0UL, (sum, component) => sum + component.Bytes.Bytes);
+            ulong cache = components
+                .Where(component => component.Kind == ResourceComponentKind.KvCache)
+                .Aggregate(0UL, (sum, component) => sum + component.Bytes.Bytes);
+
+            return (weights, cache);
+        }
+
+        (ulong u4Weights, ulong u4Cache) = Memory(OpenVinoKvCacheFormat.U4);
+        (ulong tbq4Weights, ulong tbq4Cache) = Memory(OpenVinoKvCacheFormat.TurboQuantTbq4);
+        (ulong tbq3Weights, ulong tbq3Cache) = Memory(OpenVinoKvCacheFormat.TurboQuantTbq3);
+
+        Assert.IsTrue(u4Cache > tbq4Cache);
+        Assert.IsTrue(tbq4Cache > tbq3Cache);
+        Assert.AreEqual(u4Weights, tbq4Weights);
+        Assert.AreEqual(tbq4Weights, tbq3Weights);
+    }
+
+    [TestMethod]
     public void SmallerWeightFormatCostsLess()
     {
         ulong Weights(OpenVinoWeightFormat format) =>

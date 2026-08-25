@@ -24,6 +24,30 @@ public sealed class OpenVinoRouteConfigurationTests
             streams: 1);
 
     [TestMethod]
+    public void WeightVocabularyContainsOnlyOpenVinoWeightFormats()
+    {
+        string[] expected =
+        [
+            nameof(OpenVinoWeightFormat.Unspecified),
+            nameof(OpenVinoWeightFormat.Original),
+            nameof(OpenVinoWeightFormat.Fp16),
+            nameof(OpenVinoWeightFormat.Int8),
+            nameof(OpenVinoWeightFormat.Int4)
+        ];
+
+        CollectionAssert.AreEqual(expected, Enum.GetNames<OpenVinoWeightFormat>());
+    }
+
+    [TestMethod]
+    public void CacheVocabularyIncludesTurboQuantFormats()
+    {
+        string[] names = Enum.GetNames<OpenVinoKvCacheFormat>();
+
+        CollectionAssert.Contains(names, nameof(OpenVinoKvCacheFormat.TurboQuantTbq4));
+        CollectionAssert.Contains(names, nameof(OpenVinoKvCacheFormat.TurboQuantTbq3));
+    }
+
+    [TestMethod]
     public void ConfigurationNamesItsRoute()
     {
         Assert.AreEqual(RuntimeRouteId.OpenVinoGenAi, Standard().RouteId);

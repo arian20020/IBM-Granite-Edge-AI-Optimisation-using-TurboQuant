@@ -28,12 +28,6 @@ internal static class OpenVinoFormatMap
         OpenVinoWeightFormat.Int8 => 8m + 0.25m,
         OpenVinoWeightFormat.Int4 => 4m + 0.25m,
 
-        // Experimental, and admitted only with exact evidence. The widths are
-        // the ones the representation declares; nothing here implies the
-        // combination is available.
-        OpenVinoWeightFormat.TurboQuantTbq4 => 4m + 0.5m,
-        OpenVinoWeightFormat.TurboQuantTbq3 => 3m + 0.5m,
-
         // Original is not a width. Its size is the file that already exists,
         // which the caller measured, so deriving a figure here would contradict
         // something already known.
@@ -47,9 +41,7 @@ internal static class OpenVinoFormatMap
     internal static bool HasBitWidth(OpenVinoWeightFormat format) =>
         format is OpenVinoWeightFormat.Fp16
             or OpenVinoWeightFormat.Int8
-            or OpenVinoWeightFormat.Int4
-            or OpenVinoWeightFormat.TurboQuantTbq4
-            or OpenVinoWeightFormat.TurboQuantTbq3;
+            or OpenVinoWeightFormat.Int4;
 
     /// <summary>
     /// Whether running this representation means writing a new package first.
@@ -78,6 +70,12 @@ internal static class OpenVinoFormatMap
         // do, so neither is exactly one byte or exactly half of one.
         OpenVinoKvCacheFormat.U8 => 1m + 0.0625m,
         OpenVinoKvCacheFormat.U4 => 0.5m + 0.0625m,
+
+        // The pinned cache codec describes 128-value records. Keeping the
+        // record sizes here avoids turning an experimental block layout into
+        // an unsupported claim about nominal scalar precision.
+        OpenVinoKvCacheFormat.TurboQuantTbq4 => 68m / 128m,
+        OpenVinoKvCacheFormat.TurboQuantTbq3 => 52m / 128m,
 
         _ => throw new ArgumentOutOfRangeException(
             nameof(format),

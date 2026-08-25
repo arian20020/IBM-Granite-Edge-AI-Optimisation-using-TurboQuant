@@ -359,9 +359,7 @@ internal static class OpenVinoQuality
         OpenVinoWeightFormat.Original or OpenVinoWeightFormat.Fp16 =>
             OptimizationAssessment.Excellent,
         OpenVinoWeightFormat.Int8 => OptimizationAssessment.Good,
-        OpenVinoWeightFormat.Int4 or OpenVinoWeightFormat.TurboQuantTbq4 =>
-            OptimizationAssessment.Acceptable,
-        OpenVinoWeightFormat.TurboQuantTbq3 => OptimizationAssessment.Poor,
+        OpenVinoWeightFormat.Int4 => OptimizationAssessment.Acceptable,
         _ => OptimizationAssessment.Unknown
     };
 }

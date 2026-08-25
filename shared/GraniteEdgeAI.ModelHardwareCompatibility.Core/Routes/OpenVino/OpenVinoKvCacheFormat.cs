@@ -14,5 +14,11 @@ public enum OpenVinoKvCacheFormat
     F16 = 2,
     Bf16 = 3,
     U8 = 4,
-    U4 = 5
+    U4 = 5,
+
+    /// <summary>Experimental. Requires exact evidence; never planned by default.</summary>
+    TurboQuantTbq4 = 6,
+
+    /// <summary>Experimental. Requires exact evidence; never planned by default.</summary>
+    TurboQuantTbq3 = 7
 }

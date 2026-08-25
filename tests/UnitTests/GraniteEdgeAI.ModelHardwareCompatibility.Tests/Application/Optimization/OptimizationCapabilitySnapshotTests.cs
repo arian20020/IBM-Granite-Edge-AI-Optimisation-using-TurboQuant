@@ -194,15 +194,18 @@ public sealed class OptimizationCapabilitySnapshotTests
     }
 
     [TestMethod]
-    public void ExperimentalTurboQuantIsOnlyAdmissibleAsAnExperimentalEntry()
+    [DataRow(OpenVinoKvCacheFormat.TurboQuantTbq4)]
+    [DataRow(OpenVinoKvCacheFormat.TurboQuantTbq3)]
+    public void ExperimentalTurboQuantIsOnlyAdmissibleAsAnExperimentalEntry(
+        OpenVinoKvCacheFormat cache)
     {
         // TurboQuant is gated on exact evidence. Declaring it as ordinary
         // released support is the one mislabelling that would let it run
         // without anyone opting in.
         Assert.ThrowsExactly<ArgumentException>(
             () => OpenVinoAdmittedConfiguration.Create(
-                "ov-cpu-tbq4", DeviceRouteId.Cpu, OpenVinoWeightFormat.TurboQuantTbq4,
-                OpenVinoKvCacheFormat.U8, OpenVinoPerformanceHint.Latency,
+                "ov-cpu-tbq4", DeviceRouteId.Cpu, OpenVinoWeightFormat.Int4,
+                cache, OpenVinoPerformanceHint.Latency,
                 OpenVinoCompiledCachePolicy.Enabled, 1, 512, 32768,
                 SupportLevel.DeclaredSupported,
                 requiresEvidence: true));
@@ -212,13 +215,14 @@ public sealed class OptimizationCapabilitySnapshotTests
     public void ExperimentalTurboQuantIsAdmissibleWithExactEvidence()
     {
         OpenVinoAdmittedConfiguration admitted = OpenVinoAdmittedConfiguration.Create(
-            "ov-cpu-tbq4", DeviceRouteId.Cpu, OpenVinoWeightFormat.TurboQuantTbq4,
-            OpenVinoKvCacheFormat.U8, OpenVinoPerformanceHint.Latency,
+            "ov-cpu-tbq4", DeviceRouteId.Cpu, OpenVinoWeightFormat.Int4,
+            OpenVinoKvCacheFormat.TurboQuantTbq4, OpenVinoPerformanceHint.Latency,
             OpenVinoCompiledCachePolicy.Enabled, 1, 512, 32768,
             SupportLevel.Experimental,
             requiresEvidence: true);
 
         Assert.AreEqual(SupportLevel.Experimental, admitted.Level);
+        Assert.AreEqual(OpenVinoKvCacheFormat.TurboQuantTbq4, admitted.KvCache);
     }
 
     [TestMethod]

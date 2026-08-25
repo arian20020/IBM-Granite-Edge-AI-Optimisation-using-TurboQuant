@@ -33,7 +33,7 @@ public sealed class OptimizationPreferenceInvariantTests
             OptimizationAssessment.Excellent => OpenVinoWeightFormat.Fp16,
             OptimizationAssessment.Good => OpenVinoWeightFormat.Int8,
             OptimizationAssessment.Acceptable => OpenVinoWeightFormat.Int4,
-            _ => OpenVinoWeightFormat.TurboQuantTbq3
+            _ => OpenVinoWeightFormat.Int4
         };
 
         return OptimizationCandidate.Create(

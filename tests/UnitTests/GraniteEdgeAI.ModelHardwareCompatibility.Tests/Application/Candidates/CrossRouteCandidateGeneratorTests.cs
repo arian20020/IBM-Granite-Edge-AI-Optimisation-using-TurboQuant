@@ -40,9 +40,10 @@ public sealed class CrossRouteCandidateGeneratorTests
             string id,
             OpenVinoWeightFormat weights,
             SupportLevel level = SupportLevel.DeclaredSupported,
-            DeviceRouteId device = DeviceRouteId.Cpu) =>
+            DeviceRouteId device = DeviceRouteId.Cpu,
+            OpenVinoKvCacheFormat cache = OpenVinoKvCacheFormat.U8) =>
             OpenVinoAdmittedConfiguration.Create(
-                id, device, weights, OpenVinoKvCacheFormat.U8,
+                id, device, weights, cache,
                 OpenVinoPerformanceHint.Latency, OpenVinoCompiledCachePolicy.Disabled,
                 1, 512, 32768, level, level == SupportLevel.Experimental);
 
@@ -145,7 +146,8 @@ public sealed class CrossRouteCandidateGeneratorTests
         CrossRouteGenerationResult result = Generate(
             CrossRouteTestData.OpenVinoSnapshot(
                 CrossRouteTestData.OpenVino(
-                    "ov-tbq4", OpenVinoWeightFormat.TurboQuantTbq4, SupportLevel.Experimental)));
+                    "ov-tbq4", OpenVinoWeightFormat.Int4, SupportLevel.Experimental,
+                    cache: OpenVinoKvCacheFormat.TurboQuantTbq4)));
 
         Assert.AreEqual(0, result.Candidates.Count);
         Assert.AreEqual(
@@ -161,9 +163,11 @@ public sealed class CrossRouteCandidateGeneratorTests
         CrossRouteGenerationResult result = Generate(
             CrossRouteTestData.OpenVinoSnapshot(
                 CrossRouteTestData.OpenVino(
-                    "ov-tbq4", OpenVinoWeightFormat.TurboQuantTbq4, SupportLevel.Experimental),
+                    "ov-tbq4", OpenVinoWeightFormat.Int4, SupportLevel.Experimental,
+                    cache: OpenVinoKvCacheFormat.TurboQuantTbq4),
                 CrossRouteTestData.OpenVino(
-                    "ov-tbq3", OpenVinoWeightFormat.TurboQuantTbq3, SupportLevel.Experimental)),
+                    "ov-tbq3", OpenVinoWeightFormat.Int4, SupportLevel.Experimental,
+                    cache: OpenVinoKvCacheFormat.TurboQuantTbq3)),
             optedIn: "ov-tbq4");
 
         Assert.AreEqual(1, result.Candidates.Count);
