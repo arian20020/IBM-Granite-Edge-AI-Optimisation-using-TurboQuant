@@ -98,7 +98,14 @@ internal sealed class CompatibilityViewModel
         previous?.Cancel();
         previous?.Dispose();
 
-        Publish(CompatibilityPresentationFactory.Analysing(0), generation);
+        Publish(
+            CompatibilityPresentationFactory.Analysing(0),
+            generation,
+            () =>
+            {
+                _lastModel = null;
+                SelectedPreference = null;
+            });
 
         try
         {
@@ -107,17 +114,32 @@ internal sealed class CompatibilityViewModel
             CompatibilityScreenModel model = await _evaluator(cancellation.Token)
                 .ConfigureAwait(true);
 
-            _lastModel = model;
-            SelectedPreference = model.State == CompatibilityScreenState.OptimisationRequired
+            OptimizationPreferenceSelection? preference =
+                model.State == CompatibilityScreenState.OptimisationRequired
                 ? OptimizationPreferenceSelection.Automatic()
                 : null;
-            Publish(SelectedPreference is null
+            CompatibilityPresentation presentation = preference is null
                 ? CompatibilityPresentationFactory.From(model)
-                : CompatibilityPresentationFactory.From(model, SelectedPreference), generation);
+                : CompatibilityPresentationFactory.From(model, preference);
+            Publish(
+                presentation,
+                generation,
+                () =>
+                {
+                    _lastModel = model;
+                    SelectedPreference = preference;
+                });
         }
         catch (OperationCanceledException)
         {
-            Publish(CompatibilityPresentationFactory.Cancelled(), generation);
+            Publish(
+                CompatibilityPresentationFactory.Cancelled(),
+                generation,
+                () =>
+                {
+                    _lastModel = null;
+                    SelectedPreference = null;
+                });
         }
     }
 
@@ -131,7 +153,14 @@ internal sealed class CompatibilityViewModel
 
         // Takes a generation so an in-flight real attempt cannot overwrite what a
         // reviewer is looking at.
-        Publish(presentation, Interlocked.Increment(ref _attemptGeneration));
+        Publish(
+            presentation,
+            Interlocked.Increment(ref _attemptGeneration),
+            () =>
+            {
+                _lastModel = null;
+                SelectedPreference = null;
+            });
     }
 
     internal void Cancel()
@@ -146,9 +175,14 @@ internal sealed class CompatibilityViewModel
             return;
         }
 
-        SelectedPreference = OptimizationPreferenceSelection.Automatic();
-        Publish(CompatibilityPresentationFactory.From(_lastModel, SelectedPreference),
-            Volatile.Read(ref _attemptGeneration));
+        int generation = Volatile.Read(ref _attemptGeneration);
+        CompatibilityScreenModel model = _lastModel;
+        OptimizationPreferenceSelection preference =
+            OptimizationPreferenceSelection.Automatic();
+        Publish(
+            CompatibilityPresentationFactory.From(model, preference),
+            generation,
+            () => SelectedPreference = preference);
     }
 
     internal void SelectManualPreference(int value)
@@ -158,12 +192,20 @@ internal sealed class CompatibilityViewModel
             return;
         }
 
-        SelectedPreference = OptimizationPreferenceSelection.Manual(value);
-        Publish(CompatibilityPresentationFactory.From(_lastModel, SelectedPreference),
-            Volatile.Read(ref _attemptGeneration));
+        int generation = Volatile.Read(ref _attemptGeneration);
+        CompatibilityScreenModel model = _lastModel;
+        OptimizationPreferenceSelection preference =
+            OptimizationPreferenceSelection.Manual(value);
+        Publish(
+            CompatibilityPresentationFactory.From(model, preference),
+            generation,
+            () => SelectedPreference = preference);
     }
 
-    private void Publish(CompatibilityPresentation presentation, int generation)
+    private void Publish(
+        CompatibilityPresentation presentation,
+        int generation,
+        Action? commitState = null)
     {
         // A result from a superseded attempt describes a world that has already
         // moved on, so it is dropped rather than shown.
@@ -179,6 +221,7 @@ internal sealed class CompatibilityViewModel
                 return;
             }
 
+            commitState?.Invoke();
             Presentation = _continueDestinationAvailable
                 ? presentation
                 : presentation with { PrimaryActionEnabled = false };

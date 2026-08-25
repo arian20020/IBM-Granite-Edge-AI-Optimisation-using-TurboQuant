@@ -26,18 +26,21 @@
         </ResourceDictionary>
     </Page.Resources>
 
-    <Grid Background="{ThemeResource CompatibilityCanvasBrush}">
+    <Grid
+        x:Name="GalleryRoot"
+        Background="{ThemeResource CompatibilityCanvasBrush}"
+        SizeChanged="GalleryRoot_SizeChanged">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition x:Name="SidebarColumn" Width="300" />
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
         <!-- The list of states, so one click moves between them -->
         <Border
+            x:Name="Sidebar"
             Background="{ThemeResource CompatibilitySurfaceBrush}"
             BorderBrush="{ThemeResource CompatibilityBorderLightBrush}"
-            BorderThickness="0,0,1,0"
-            Width="300">
+            BorderThickness="0,0,1,0">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />

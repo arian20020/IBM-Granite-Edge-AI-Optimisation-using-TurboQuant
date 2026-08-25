@@ -56,8 +56,10 @@
     <EmbeddedResource Remove="Features\ModelHardwareCompatibility\DebugFixtures\**" />
     <PRIResource Remove="Features\ModelHardwareCompatibility\DebugFixtures\**" />
   </ItemGroup>
-  <ItemGroup Condition="'$(CompatibilityFixtureGallery)' == 'true'">
+  <ItemGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
     <Compile Include="Features\ModelHardwareCompatibility\DebugFixtures\CompatibilityFixtureCatalogue.cs" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(CompatibilityFixtureGallery)' == 'true'">
     <Compile Include="Features\ModelHardwareCompatibility\DebugFixtures\CompatibilityFixtureGalleryPage.xaml.cs" />
     <Page Include="Features\ModelHardwareCompatibility\DebugFixtures\CompatibilityFixtureGalleryPage.xaml">
       <Generator>MSBuild:Compile</Generator>

@@ -24,6 +24,7 @@ internal sealed partial class CompatibilityPage : Page
 {
     private CompatibilityPresentation _presentation = CompatibilityPresentation.Empty;
     private bool _applyingOptimization;
+    private bool _compactModeRows;
 
     public CompatibilityPage()
         : this(new ViewModels.CompatibilityViewModel())
@@ -123,6 +124,11 @@ internal sealed partial class CompatibilityPage : Page
         PrimaryAction.IsEnabled = presentation.PrimaryActionEnabled;
         SecondaryAction.Content = presentation.SecondaryActionText;
         SecondaryAction.IsEnabled = presentation.SecondaryActionEnabled;
+
+        if (PageStack.ActualWidth > 0d)
+        {
+            ApplyResponsiveLayout(PageStack.ActualWidth);
+        }
 
     }
 
@@ -231,6 +237,8 @@ internal sealed partial class CompatibilityPage : Page
                     new ColumnDefinition { Width = GridLength.Auto }
                 }
             };
+            content.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            content.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             StackPanel words = new()
             {
                 VerticalAlignment = VerticalAlignment.Center
@@ -279,7 +287,11 @@ internal sealed partial class CompatibilityPage : Page
                 TextAlignment = TextAlignment.Right,
                 TextWrapping = TextWrapping.Wrap
             });
-            Grid.SetColumn(trailing, 1);
+            Grid.SetColumn(trailing, _compactModeRows ? 0 : 1);
+            Grid.SetRow(trailing, _compactModeRows ? 1 : 0);
+            trailing.HorizontalAlignment = _compactModeRows
+                ? HorizontalAlignment.Left
+                : HorizontalAlignment.Right;
             content.Children.Add(trailing);
 
             OptimizationModeRows.Children.Add(new Border
@@ -295,6 +307,143 @@ internal sealed partial class CompatibilityPage : Page
                 Padding = new Thickness(14, 6, 14, 6),
                 Child = content
             });
+        }
+    }
+
+    private void PageStack_SizeChanged(object sender, SizeChangedEventArgs args) =>
+        ApplyResponsiveLayout(args.NewSize.Width);
+
+    private void ApplyResponsiveLayout(double availableWidth)
+    {
+        bool stackOutcome = availableWidth < 760d;
+        Grid.SetColumn(OutcomeBadgeHost, stackOutcome ? 1 : 2);
+        Grid.SetRow(OutcomeBadgeHost, stackOutcome ? 1 : 0);
+        OutcomeBadgeHost.HorizontalAlignment = stackOutcome
+            ? HorizontalAlignment.Left
+            : HorizontalAlignment.Right;
+
+        bool stackSetups = availableWidth < 900d;
+        OptimizationSetupGrid.ColumnDefinitions[0].Width = new GridLength(1, GridUnitType.Star);
+        OptimizationSetupGrid.ColumnDefinitions[1].Width = stackSetups
+            ? new GridLength(0)
+            : new GridLength(1, GridUnitType.Star);
+        Grid.SetColumn(CurrentSetupCard, 0);
+        Grid.SetRow(CurrentSetupCard, 0);
+        Grid.SetColumn(RecommendedSetupCard, stackSetups ? 0 : 1);
+        Grid.SetRow(RecommendedSetupCard, stackSetups ? 1 : 0);
+
+        bool stackFacts = availableWidth < 620d;
+        ApplySetupFactsLayout(
+            CurrentSetupFactsGrid,
+            CurrentWeightText,
+            CurrentCacheText,
+            CurrentContextText,
+            CurrentSystemMemoryText,
+            CurrentDedicatedMemoryText,
+            null,
+            stackFacts);
+        ApplySetupFactsLayout(
+            RecommendedSetupFactsGrid,
+            RecommendedWeightText,
+            RecommendedCacheText,
+            RecommendedContextText,
+            RecommendedSystemMemoryText,
+            RecommendedDedicatedMemoryText,
+            RecommendedQualityText,
+            stackFacts);
+
+        bool stackLabels = availableWidth < 560d;
+        Grid.SetColumn(RecommendedModeLabelText, stackLabels ? 0 : 1);
+        Grid.SetRow(RecommendedModeLabelText, stackLabels ? 1 : 0);
+        RecommendedModeLabelText.HorizontalAlignment = stackLabels
+            ? HorizontalAlignment.Left
+            : HorizontalAlignment.Right;
+        Grid.SetColumn(AutomaticSelectedText, stackLabels ? 0 : 1);
+        Grid.SetRow(AutomaticSelectedText, stackLabels ? 1 : 0);
+        AutomaticSelectedText.HorizontalAlignment = stackLabels
+            ? HorizontalAlignment.Left
+            : HorizontalAlignment.Right;
+        Grid.SetColumn(OptimizationSliderLabelText, stackLabels ? 0 : 1);
+        Grid.SetRow(OptimizationSliderLabelText, stackLabels ? 1 : 0);
+        OptimizationSliderLabelText.HorizontalAlignment = stackLabels
+            ? HorizontalAlignment.Left
+            : HorizontalAlignment.Right;
+
+        bool stackActions = availableWidth < 520d;
+        ActionGrid.HorizontalAlignment = stackActions
+            ? HorizontalAlignment.Stretch
+            : HorizontalAlignment.Center;
+        Grid.SetColumn(SecondaryAction, 0);
+        Grid.SetRow(SecondaryAction, 0);
+        Grid.SetColumnSpan(SecondaryAction, stackActions ? 2 : 1);
+        Grid.SetColumn(PrimaryAction, stackActions ? 0 : 1);
+        Grid.SetRow(PrimaryAction, stackActions ? 1 : 0);
+        Grid.SetColumnSpan(PrimaryAction, stackActions ? 2 : 1);
+
+        bool compactModes = availableWidth < 620d;
+        if (_compactModeRows != compactModes)
+        {
+            _compactModeRows = compactModes;
+            if (_presentation.Optimization is { } optimization)
+            {
+                ApplyOptimizationModes(optimization);
+            }
+        }
+    }
+
+    private static void ApplySetupFactsLayout(
+        Grid grid,
+        FrameworkElement weights,
+        FrameworkElement cache,
+        FrameworkElement context,
+        FrameworkElement systemMemory,
+        FrameworkElement dedicatedMemory,
+        FrameworkElement? quality,
+        bool stacked)
+    {
+        grid.ColumnDefinitions[0].Width = new GridLength(1, GridUnitType.Star);
+        grid.ColumnDefinitions[1].Width = stacked
+            ? new GridLength(0)
+            : new GridLength(1, GridUnitType.Star);
+        grid.ColumnDefinitions[2].Width = stacked
+            ? new GridLength(0)
+            : new GridLength(1, GridUnitType.Star);
+
+        FrameworkElement[] fields = [weights, cache, context, systemMemory, dedicatedMemory];
+        if (stacked)
+        {
+            for (int index = 0; index < fields.Length; index++)
+            {
+                Grid.SetColumn(fields[index], 0);
+                Grid.SetColumnSpan(fields[index], 1);
+                Grid.SetRow(fields[index], index);
+            }
+            if (quality is not null)
+            {
+                Grid.SetColumn(quality, 0);
+                Grid.SetColumnSpan(quality, 1);
+                Grid.SetRow(quality, 5);
+            }
+            return;
+        }
+
+        Grid.SetColumn(weights, 0);
+        Grid.SetRow(weights, 0);
+        Grid.SetColumn(cache, 1);
+        Grid.SetRow(cache, 0);
+        Grid.SetColumn(context, 2);
+        Grid.SetRow(context, 0);
+        Grid.SetColumn(systemMemory, 0);
+        Grid.SetColumnSpan(systemMemory, 2);
+        Grid.SetRow(systemMemory, 1);
+        Grid.SetColumn(dedicatedMemory, 2);
+        Grid.SetColumnSpan(dedicatedMemory, 1);
+        Grid.SetRow(dedicatedMemory, 1);
+        if (quality is not null)
+        {
+            Grid.SetColumn(quality, 0);
+            Grid.SetColumnSpan(quality, 3);
+            Grid.SetRow(quality, 2);
         }
     }
 

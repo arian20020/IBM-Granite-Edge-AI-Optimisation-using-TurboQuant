@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.Presentation;
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
 namespace GraniteEdgeAI.Features.ModelHardwareCompatibility.DebugFixtures;
@@ -54,5 +55,23 @@ internal sealed partial class CompatibilityFixtureGalleryPage : Page
         }
 
         _preview.ViewModel.ShowFixture(_fixtures[index].Presentation);
+    }
+
+    private void GalleryRoot_SizeChanged(object sender, SizeChangedEventArgs args)
+    {
+        if (args.NewSize.Width < 760d)
+        {
+            Sidebar.Visibility = Visibility.Collapsed;
+            SidebarColumn.Width = new GridLength(0);
+            Grid.SetColumn(PreviewHost, 0);
+            Grid.SetColumnSpan(PreviewHost, 2);
+            return;
+        }
+
+        Sidebar.Visibility = Visibility.Visible;
+        SidebarColumn.Width = new GridLength(
+            args.NewSize.Width < 1100d ? 220d : 300d);
+        Grid.SetColumn(PreviewHost, 1);
+        Grid.SetColumnSpan(PreviewHost, 1);
     }
 }

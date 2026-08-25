@@ -310,7 +310,10 @@ internal static class CompatibilityFixtureCatalogue
                 weights: 4_831_838_208,
                 kvCache: 805_306_368,
                 compute: 536_870_912,
-                safeBudget: safeBudget),
+                safeBudget: safeBudget,
+                route: openVino ? RuntimeRouteId.OpenVinoGenAi : RuntimeRouteId.LlamaCpp,
+                ggufCache: openVino ? null : GgufKvCacheFormat.F16,
+                openVinoCache: openVino ? OpenVinoKvCacheFormat.U8 : null),
             optimization);
     }
 
@@ -417,7 +420,10 @@ internal static class CompatibilityFixtureCatalogue
         ulong weights,
         ulong kvCache,
         ulong compute,
-        ulong safeBudget = 9_663_676_416)
+        ulong safeBudget = 9_663_676_416,
+        RuntimeRouteId route = RuntimeRouteId.LlamaCpp,
+        GgufKvCacheFormat? ggufCache = GgufKvCacheFormat.F16,
+        OpenVinoKvCacheFormat? openVinoCache = null)
     {
         const ulong Backend = 67_108_864;
         const ulong Application = 33_554_432;
@@ -432,9 +438,13 @@ internal static class CompatibilityFixtureCatalogue
         ulong required = parts + allowance;
 
         return CompatibilitySetupView.ForPresentation(
-            RuntimeRouteId.LlamaCpp,
-            CompatibilityBackend.IntelSycl,
-            DeviceRouteId.IntelIntegratedGpu,
+            route,
+            route == RuntimeRouteId.OpenVinoGenAi
+                ? CompatibilityBackend.OpenVinoCpu
+                : CompatibilityBackend.IntelSycl,
+            route == RuntimeRouteId.OpenVinoGenAi
+                ? DeviceRouteId.Cpu
+                : DeviceRouteId.IntelIntegratedGpu,
             quantisation,
             contextTokens,
             fit,
@@ -451,7 +461,9 @@ internal static class CompatibilityFixtureCatalogue
                 new CompatibilityComponentView(ResourceComponentKind.BackendAllocation, Backend),
                 new CompatibilityComponentView(
                     ResourceComponentKind.ApplicationOverhead, Application)
-            ]);
+            ],
+            ggufKvCache: ggufCache,
+            openVinoKvCache: openVinoCache);
     }
 
     private static CompatibilityModeView Mode(

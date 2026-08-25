@@ -1,5 +1,7 @@
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.FitAssessment;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.Gguf;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.OpenVino;
 
 namespace GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation;
 
@@ -42,8 +44,11 @@ public sealed record CompatibilitySetupView
         IReadOnlyList<CompatibilityComponentView> components,
         ulong? dedicatedRequiredBytes = null,
         ulong? dedicatedSafeBudgetBytes = null,
-        ulong? dedicatedHeadroomBytes = null)
+        ulong? dedicatedHeadroomBytes = null,
+        GgufKvCacheFormat? ggufKvCache = null,
+        OpenVinoKvCacheFormat? openVinoKvCache = null)
     {
+        ValidateCache(route, ggufKvCache, openVinoKvCache);
         Route = route;
         Backend = backend;
         Device = device;
@@ -60,6 +65,8 @@ public sealed record CompatibilitySetupView
         DedicatedRequiredBytes = dedicatedRequiredBytes;
         DedicatedSafeBudgetBytes = dedicatedSafeBudgetBytes;
         DedicatedHeadroomBytes = dedicatedHeadroomBytes;
+        GgufKvCache = ggufKvCache;
+        OpenVinoKvCache = openVinoKvCache;
     }
 
     public RuntimeRouteId Route { get; }
@@ -67,6 +74,13 @@ public sealed record CompatibilitySetupView
     public CompatibilityBackend Backend { get; }
 
     public DeviceRouteId Device { get; }
+
+    /// <summary>
+    /// Exact route-specific cache evidence. Both are null only when the
+    /// supplying authority did not establish a cache format.
+    /// </summary>
+    public GgufKvCacheFormat? GgufKvCache { get; }
+    public OpenVinoKvCacheFormat? OpenVinoKvCache { get; }
 
     /// <summary>
     /// The format the weights would be in when this runs, which is not always
@@ -151,7 +165,9 @@ public sealed record CompatibilitySetupView
         IReadOnlyList<CompatibilityComponentView> components,
         ulong? dedicatedRequiredBytes = null,
         ulong? dedicatedSafeBudgetBytes = null,
-        ulong? dedicatedHeadroomBytes = null)
+        ulong? dedicatedHeadroomBytes = null,
+        GgufKvCacheFormat? ggufKvCache = null,
+        OpenVinoKvCacheFormat? openVinoKvCache = null)
     {
         ArgumentNullException.ThrowIfNull(components);
         bool anyDedicated = dedicatedRequiredBytes.HasValue
@@ -187,6 +203,28 @@ public sealed record CompatibilitySetupView
             [.. components],
             dedicatedRequiredBytes,
             dedicatedSafeBudgetBytes,
-            dedicatedHeadroomBytes);
+            dedicatedHeadroomBytes,
+            ggufKvCache,
+            openVinoKvCache);
+    }
+
+    private static void ValidateCache(
+        RuntimeRouteId route,
+        GgufKvCacheFormat? gguf,
+        OpenVinoKvCacheFormat? openVino)
+    {
+        bool invalidGguf = gguf is { } ggufValue
+            && (!Enum.IsDefined(ggufValue)
+                || ggufValue == GgufKvCacheFormat.Unspecified
+                || route != RuntimeRouteId.LlamaCpp);
+        bool invalidOpenVino = openVino is { } openVinoValue
+            && (!Enum.IsDefined(openVinoValue)
+                || openVinoValue == OpenVinoKvCacheFormat.Unspecified
+                || route != RuntimeRouteId.OpenVinoGenAi);
+        if (invalidGguf || invalidOpenVino || (gguf.HasValue && openVino.HasValue))
+        {
+            throw new ArgumentException(
+                "A known cache format must be typed for exactly the evaluated route.");
+        }
     }
 }

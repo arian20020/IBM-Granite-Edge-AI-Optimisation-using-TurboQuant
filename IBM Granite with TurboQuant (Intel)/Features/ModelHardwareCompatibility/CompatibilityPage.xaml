@@ -59,7 +59,8 @@
                 x:Name="PageStack"
                 MaxWidth="1240"
                 HorizontalAlignment="Center"
-                RowSpacing="14">
+                RowSpacing="14"
+                SizeChanged="PageStack_SizeChanged">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
@@ -79,7 +80,9 @@
                         FontWeight="Bold"
                         Foreground="{ThemeResource CompatibilityTextPrimaryBrush}"
                         HorizontalAlignment="Center"
-                        Text="Model and hardware compatibility" />
+                        Text="Model and hardware compatibility"
+                        TextAlignment="Center"
+                        TextWrapping="Wrap" />
                     <TextBlock
                         x:Name="PageLedeText"
                         FontSize="{StaticResource CompatibilityLedeFontSize}"
@@ -99,11 +102,15 @@
                     BorderThickness="1"
                     CornerRadius="{StaticResource CompatibilityCardRadius}"
                     Padding="20,15,20,15">
-                    <Grid ColumnSpacing="14">
+                    <Grid x:Name="ModelSummaryLayoutGrid" ColumnSpacing="14" RowSpacing="8">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
                         <Border
                             Grid.Column="0"
                             Background="{ThemeResource CompatibilityBlueSurfaceBrush}"
@@ -112,7 +119,7 @@
                             CornerRadius="9"
                             Height="38"
                             Width="38" />
-                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <StackPanel x:Name="ModelSummaryTextPanel" Grid.Column="1" VerticalAlignment="Center">
                             <TextBlock
                                 x:Name="ModelNameText"
                                 FontSize="{StaticResource CompatibilityRowTitleFontSize}"
@@ -135,20 +142,24 @@
                     BorderThickness="1"
                     CornerRadius="{StaticResource CompatibilityCardRadius}"
                     Padding="{StaticResource CompatibilityOutcomePadding}">
-                    <Grid ColumnSpacing="14">
+                    <Grid x:Name="OutcomeLayoutGrid" ColumnSpacing="14" RowSpacing="8">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
 
                         <Border
                             x:Name="OutcomeGlyphHost"
                             Grid.Column="0"
                             CornerRadius="16"
-                            Height="32"
+                            MinHeight="32"
                             VerticalAlignment="Center"
-                            Width="32">
+                            MinWidth="32">
                             <TextBlock
                                 x:Name="OutcomeGlyphText"
                                 FontSize="16"
@@ -158,7 +169,7 @@
                                 VerticalAlignment="Center" />
                         </Border>
 
-                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <StackPanel x:Name="OutcomeTextPanel" Grid.Column="1" VerticalAlignment="Center">
                             <TextBlock
                                 x:Name="OutcomeTitleText"
                                 FontSize="{StaticResource CompatibilityOutcomeTitleFontSize}"
@@ -527,32 +538,6 @@
                         </StackPanel>
 
                         <Grid x:Name="OptimizationSetupGrid" ColumnSpacing="12" RowSpacing="12">
-                            <VisualStateManager.VisualStateGroups>
-                                <VisualStateGroup x:Name="OptimizationSetupStates">
-                                    <VisualState x:Name="WideOptimizationSetup">
-                                        <VisualState.StateTriggers>
-                                            <AdaptiveTrigger MinWindowWidth="1100" />
-                                        </VisualState.StateTriggers>
-                                        <VisualState.Setters>
-                                            <Setter Target="CurrentSetupCard.(Grid.Column)" Value="0" />
-                                            <Setter Target="CurrentSetupCard.(Grid.Row)" Value="0" />
-                                            <Setter Target="RecommendedSetupCard.(Grid.Column)" Value="1" />
-                                            <Setter Target="RecommendedSetupCard.(Grid.Row)" Value="0" />
-                                        </VisualState.Setters>
-                                    </VisualState>
-                                    <VisualState x:Name="NarrowOptimizationSetup">
-                                        <VisualState.StateTriggers>
-                                            <AdaptiveTrigger MinWindowWidth="0" />
-                                        </VisualState.StateTriggers>
-                                        <VisualState.Setters>
-                                            <Setter Target="CurrentSetupCard.(Grid.Column)" Value="0" />
-                                            <Setter Target="CurrentSetupCard.(Grid.Row)" Value="0" />
-                                            <Setter Target="RecommendedSetupCard.(Grid.Column)" Value="0" />
-                                            <Setter Target="RecommendedSetupCard.(Grid.Row)" Value="1" />
-                                        </VisualState.Setters>
-                                    </VisualState>
-                                </VisualStateGroup>
-                            </VisualStateManager.VisualStateGroups>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="*" />
@@ -571,13 +556,16 @@
                                 Padding="16">
                                 <StackPanel Spacing="10">
                                     <TextBlock FontWeight="SemiBold" Text="Current setup" />
-                                    <Grid ColumnSpacing="12" RowSpacing="8">
+                                    <Grid x:Name="CurrentSetupFactsGrid" ColumnSpacing="12" RowSpacing="8">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
                                         <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
                                             <RowDefinition Height="Auto" />
                                             <RowDefinition Height="Auto" />
                                         </Grid.RowDefinitions>
@@ -599,11 +587,15 @@
                                 CornerRadius="{StaticResource CompatibilityFactRadius}"
                                 Padding="16">
                                 <StackPanel Spacing="10">
-                                    <Grid ColumnSpacing="8">
+                                    <Grid x:Name="RecommendedSetupHeaderGrid" ColumnSpacing="8" RowSpacing="4">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
                                         <TextBlock FontWeight="SemiBold" Text="Recommended setup" />
                                         <TextBlock
                                             x:Name="RecommendedModeLabelText"
@@ -611,13 +603,16 @@
                                             FontWeight="SemiBold"
                                             Foreground="{ThemeResource CompatibilityPrimaryBlueBrush}" />
                                     </Grid>
-                                    <Grid ColumnSpacing="12" RowSpacing="8">
+                                    <Grid x:Name="RecommendedSetupFactsGrid" ColumnSpacing="12" RowSpacing="8">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
                                         <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
                                             <RowDefinition Height="Auto" />
                                             <RowDefinition Height="Auto" />
                                             <RowDefinition Height="Auto" />
@@ -644,11 +639,15 @@
                             HorizontalAlignment="Stretch"
                             HorizontalContentAlignment="Stretch"
                             Click="AutomaticChoice_Click">
-                            <Grid ColumnSpacing="12">
+                            <Grid x:Name="AutomaticChoiceLayout" ColumnSpacing="12" RowSpacing="4">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
                                 <StackPanel VerticalAlignment="Center">
                                     <TextBlock FontWeight="SemiBold" Text="Automatic" />
                                     <TextBlock
@@ -667,11 +666,15 @@
                         </Button>
 
                         <StackPanel Spacing="4">
-                            <Grid>
+                            <Grid x:Name="PreferenceHeaderGrid" RowSpacing="4">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
                                 <TextBlock FontWeight="SemiBold" Text="Your preference" />
                                 <TextBlock
                                     x:Name="OptimizationSliderLabelText"
@@ -787,11 +790,15 @@
                 </Border>
 
                 <!-- Centred actions -->
-                <Grid Grid.Row="7" ColumnSpacing="8" HorizontalAlignment="Center" MinWidth="320">
+                <Grid x:Name="ActionGrid" Grid.Row="7" ColumnSpacing="8" RowSpacing="8" HorizontalAlignment="Center" MaxWidth="520">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
                     <Button
                         x:Name="SecondaryAction"
                         Grid.Column="0"

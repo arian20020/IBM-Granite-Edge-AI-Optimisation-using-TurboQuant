@@ -858,7 +858,9 @@ public sealed record CompatibilityScreenModel
                 : candidate.Fit.DedicatedSafeBudget.Bytes,
             candidate.Fit.DedicatedRequiredBytes == ByteCount.Zero
                 ? null
-                : candidate.Fit.DedicatedHeadroom.Bytes);
+                : candidate.Fit.DedicatedHeadroom.Bytes,
+            gguf?.KvCache,
+            openVino?.KvCache);
     }
 
     /// <summary>

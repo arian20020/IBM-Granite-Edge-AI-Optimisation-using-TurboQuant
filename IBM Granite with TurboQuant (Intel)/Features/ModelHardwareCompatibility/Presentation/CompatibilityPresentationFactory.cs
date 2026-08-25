@@ -272,7 +272,7 @@ internal static class CompatibilityPresentationFactory
                 preference.Kind == OptimizationPreferenceKind.Automatic,
                 preference.PreferenceValue ?? optimization.RecommendedSliderValue ?? 50,
                 Weight(current.Route, current.Weights),
-                "Not reported",
+                CurrentCache(current),
                 $"{current.ContextTokens:N0} tokens",
                 CompatibilityBudget.Describe(current.SystemSharedRequiredBytes),
                 CompatibilityBudget.Describe(current.SystemSharedSafeBudgetBytes),
@@ -409,6 +409,13 @@ internal static class CompatibilityPresentationFactory
         OpenVinoKvCacheFormat.TurboQuantTbq3 => "TurboQuant TBQ3",
         _ => format.ToString().ToUpperInvariant()
     };
+
+    private static string CurrentCache(CompatibilitySetupView setup) =>
+        setup.GgufKvCache is { } gguf
+            ? Cache(gguf)
+            : setup.OpenVinoKvCache is { } openVino
+                ? Cache(openVino)
+                : "Not reported";
 
     private static string DescribeOptional(ulong? bytes) => bytes.HasValue
         ? CompatibilityBudget.Describe(bytes.Value)

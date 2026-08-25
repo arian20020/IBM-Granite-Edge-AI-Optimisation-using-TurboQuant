@@ -8,6 +8,7 @@ using GraniteEdgeAI.Features.ModelHardwareCompatibility.Presentation;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using Windows.Foundation;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
 
@@ -108,6 +109,100 @@ public sealed class CompatibilityRenderedStateTests
         Assert.IsGreaterThanOrEqualTo(44d, secondary.MinHeight);
         Assert.AreEqual(ScrollBarVisibility.Auto,
             Element<ScrollViewer>(page, "ContentHost").VerticalScrollBarVisibility);
+    }
+
+    [TestMethod]
+    public void RequiredOptimizationFixtures_CarryExactRouteFormatsAndWarnings()
+    {
+        var expected = new[]
+        {
+            new { Id = "CMP-020", CurrentWeight = "Q4_K_M", CurrentCache = "F16", RecommendedWeight = "Q3_K_M", RecommendedCache = "Q8_0", Quality = "Expected quality: Good", Experimental = false, Strong = false },
+            new { Id = "CMP-021", CurrentWeight = "Q4_K_M", CurrentCache = "F16", RecommendedWeight = "Q2_K", RecommendedCache = "Q8_0", Quality = "Expected quality: Low", Experimental = false, Strong = true },
+            new { Id = "CMP-022", CurrentWeight = "Q4_K_M", CurrentCache = "F16", RecommendedWeight = "Q3_K_M", RecommendedCache = "Q8_0", Quality = "Expected quality: Acceptable", Experimental = false, Strong = false },
+            new { Id = "CMP-023", CurrentWeight = "INT8", CurrentCache = "U8", RecommendedWeight = "INT4", RecommendedCache = "Runtime default", Quality = "Expected quality: Good", Experimental = false, Strong = false },
+            new { Id = "CMP-024", CurrentWeight = "INT8", CurrentCache = "U8", RecommendedWeight = "Original", RecommendedCache = "U4", Quality = "Expected quality: Excellent", Experimental = false, Strong = false },
+            new { Id = "CMP-025", CurrentWeight = "INT8", CurrentCache = "U8", RecommendedWeight = "Original", RecommendedCache = "TurboQuant TBQ4", Quality = "Expected quality: Good", Experimental = true, Strong = false },
+            new { Id = "CMP-026", CurrentWeight = "INT8", CurrentCache = "U8", RecommendedWeight = "Original", RecommendedCache = "TurboQuant TBQ3", Quality = "Expected quality: Acceptable", Experimental = true, Strong = true },
+            new { Id = "CMP-027", CurrentWeight = "Q4_K_M", CurrentCache = "F16", RecommendedWeight = "Q3_K_M", RecommendedCache = "Q8_0", Quality = "Expected quality: Acceptable", Experimental = false, Strong = false },
+            new { Id = "CMP-028", CurrentWeight = "Q4_K_M", CurrentCache = "F16", RecommendedWeight = "Q4_K_M", RecommendedCache = "Q8_0", Quality = "Expected quality: Good", Experimental = false, Strong = false }
+        };
+
+        foreach (var item in expected)
+        {
+            CompatibilityOptimizationPresentation optimization =
+                CompatibilityFixtureCatalogue.ById(item.Id)!.Presentation.Optimization!;
+            CompatibilityOptimizationModePresentation selected = optimization.SelectedMode;
+            Assert.AreEqual(item.CurrentWeight, optimization.CurrentWeightFormat, item.Id);
+            Assert.AreEqual(item.CurrentCache, optimization.CurrentCacheFormat, item.Id);
+            Assert.AreEqual(item.RecommendedWeight, selected.WeightFormat, item.Id);
+            Assert.AreEqual(item.RecommendedCache, selected.CacheFormat, item.Id);
+            Assert.IsTrue(
+                string.Equals(item.Quality, selected.ExpectedQualityText, StringComparison.Ordinal),
+                item.Id);
+            Assert.AreEqual(item.Experimental, selected.IsExperimental, item.Id);
+            Assert.AreEqual(item.Strong, selected.HasStrongQualityWarning, item.Id);
+        }
+
+        Assert.IsNull(CompatibilityFixtureCatalogue.ById("CMP-030")!.Presentation.Optimization);
+        Assert.IsNull(CompatibilityFixtureCatalogue.ById("CMP-040")!.Presentation.Optimization);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void OptimizationLayout_RespondsToItsOwnNarrowHost()
+    {
+        CompatibilityPage page = CreatePage();
+        Arrange(page, 680, 720);
+        page.Apply(CompatibilityFixtureCatalogue.ById("CMP-020")!.Presentation);
+        page.UpdateLayout();
+
+        Assert.AreEqual(1, Grid.GetRow(Element<FrameworkElement>(page,
+            "RecommendedSetupCard")));
+        Border outcomeBadge = Element<Border>(page, "OutcomeBadgeHost");
+        Grid outcomeLayout = Element<Grid>(page, "OutcomeLayoutGrid");
+        Assert.AreEqual(1, Grid.GetRow(outcomeBadge));
+        Assert.AreEqual(2, outcomeLayout.RowDefinitions.Count,
+            "The compact badge needs its own measured row rather than overlaying the message.");
+        Grid actions = Element<Grid>(page, "ActionGrid");
+        Assert.AreEqual(0d, actions.MinWidth);
+        Assert.AreEqual(1, Grid.GetRow(Element<FrameworkElement>(page,
+            "PrimaryAction")));
+        Assert.AreEqual(ScrollBarVisibility.Disabled,
+            Element<ScrollViewer>(page, "ContentHost").HorizontalScrollBarVisibility);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void OptimizationLayout_GrowsAndScrollsAtRepresentative200PercentText()
+    {
+        CompatibilityPage page = CreatePage();
+        page.Apply(CompatibilityFixtureCatalogue.ById("CMP-021")!.Presentation);
+        Arrange(page, 560, 520);
+        TextBlock title = Element<TextBlock>(page, "PageTitleText");
+        double naturalTitleHeight = title.ActualHeight;
+
+        foreach (TextBlock text in Descendants(page).OfType<TextBlock>())
+        {
+            text.FontSize *= 2d;
+        }
+        Arrange(page, 560, 520);
+
+        ScrollViewer scroll = Element<ScrollViewer>(page, "ContentHost");
+        Assert.AreEqual(TextWrapping.Wrap, title.TextWrapping);
+        Assert.IsTrue(title.IsTextScaleFactorEnabled);
+        Assert.IsGreaterThan(naturalTitleHeight * 1.5d, title.ActualHeight,
+            "the centered title must grow naturally at the 200% preview scale");
+        Assert.IsGreaterThan(0d, scroll.ScrollableHeight,
+            "the reduced viewport must expose vertical scrolling");
+        Assert.AreNotEqual(ScrollMode.Disabled, scroll.VerticalScrollMode);
+        string[] clipped = Descendants(page).OfType<TextBlock>()
+            .Where(text => text.ActualWidth > 0d && text.ActualHeight > 0d)
+            .Where(text => text.ActualHeight + 4d < text.DesiredSize.Height)
+            .Select(text => $"'{text.Text}' actual={text.ActualHeight:F1} desired={text.DesiredSize.Height:F1}")
+            .ToArray();
+        Assert.IsEmpty(clipped,
+            "realized text must receive its desired height instead of clipping: "
+            + string.Join("; ", clipped));
     }
 
     [UITestMethod]
@@ -411,6 +506,28 @@ public sealed class CompatibilityRenderedStateTests
 
     private static Panel Panel(FrameworkElement root, string name) =>
         Element<Panel>(root, name);
+
+    private static void Arrange(FrameworkElement element, double width, double height)
+    {
+        element.Width = width;
+        element.Height = height;
+        element.Measure(new Size(width, height));
+        element.Arrange(new Rect(0, 0, width, height));
+        element.UpdateLayout();
+    }
+
+    private static IEnumerable<DependencyObject> Descendants(DependencyObject root)
+    {
+        for (int index = 0; index < VisualTreeHelper.GetChildrenCount(root); index++)
+        {
+            DependencyObject child = VisualTreeHelper.GetChild(root, index);
+            yield return child;
+            foreach (DependencyObject descendant in Descendants(child))
+            {
+                yield return descendant;
+            }
+        }
+    }
 
     private static IEnumerable<CompatibilityFixture> Concluded() =>
         CompatibilityFixtureCatalogue.All.Where(fixture =>

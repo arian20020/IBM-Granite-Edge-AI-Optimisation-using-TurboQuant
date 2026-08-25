@@ -546,6 +546,8 @@ public sealed class CompatibilityScreenProjectionTests
 
         Assert.IsNull(model.Setup);
         Assert.AreEqual(CompatibilityFitState.DoesNotFit, model.CurrentSetup!.Fit);
+        Assert.AreEqual(GgufKvCacheFormat.F16, model.CurrentSetup.GgufKvCache);
+        Assert.IsNull(model.CurrentSetup.OpenVinoKvCache);
         Assert.AreEqual(
             CompatibilityOptimizationLabelCode.Automatic,
             model.RecommendedSetup!.LabelCode);
@@ -571,14 +573,18 @@ public sealed class CompatibilityScreenProjectionTests
         OptimizationWorkload workload = Workload();
         OptimizationJourneyBinding binding = Binding();
 
-        CompatibilityOptimizationView view = ProjectWith(
+        CompatibilityScreenModel model = ProjectWith(
             result,
             AdmittedAlternative(snapshot, workload, binding),
             snapshot,
             workload,
-            binding).Optimization!;
+            binding);
+        CompatibilityOptimizationView view = model.Optimization!;
 
         Assert.IsTrue(view.RequiresPersistentArtifact);
+        Assert.AreEqual(OpenVinoKvCacheFormat.U8,
+            model.CurrentSetup!.OpenVinoKvCache);
+        Assert.IsNull(model.CurrentSetup.GgufKvCache);
         Assert.IsTrue(view.Modes.All(mode =>
             mode.Route == OptimizationRoute.OpenVino
             && mode.OpenVinoWeights == OpenVinoWeightFormat.Int4

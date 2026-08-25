@@ -44,6 +44,7 @@ public sealed class CompatibilityPresentationFactoryTests
             !string.IsNullOrWhiteSpace(mode.ExpectedQualityText)));
         Assert.AreEqual("Choose optimisation", presentation.PrimaryActionText);
         Assert.AreEqual("Back", presentation.SecondaryActionText);
+        Assert.AreEqual("F16", presentation.Optimization.CurrentCacheFormat);
     }
 
     [TestMethod]
@@ -94,7 +95,33 @@ public sealed class CompatibilityPresentationFactoryTests
         Assert.IsFalse(viewModel.Presentation.PrimaryActionEnabled);
     }
 
-    private static CompatibilityScreenModel OptimizationScreen()
+    [TestMethod]
+    public async Task SupersededOptimizationAttempt_CannotBecomePreferenceSource()
+    {
+        TaskCompletionSource<CompatibilityScreenModel> first =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        CompatibilityScreenModel newer = OptimizationScreen(WeightQuantisation.Q4_K_M);
+        CompatibilityScreenModel older = OptimizationScreen(WeightQuantisation.Q5_K_M);
+        int calls = 0;
+        var viewModel = new CompatibilityViewModel(_ =>
+            ++calls == 1 ? first.Task : Task.FromResult(newer));
+
+        Task staleAttempt = viewModel.StartAsync();
+        await viewModel.StartAsync();
+        first.SetResult(older);
+        await staleAttempt;
+
+        viewModel.SelectManualPreference(72);
+        Assert.AreEqual("Q4_K_M",
+            viewModel.Presentation.Optimization!.CurrentWeightFormat);
+
+        viewModel.SelectAutomaticPreference();
+        Assert.AreEqual("Q4_K_M",
+            viewModel.Presentation.Optimization!.CurrentWeightFormat);
+    }
+
+    private static CompatibilityScreenModel OptimizationScreen(
+        WeightQuantisation currentWeights = WeightQuantisation.Q4_K_M)
     {
         CompatibilityOptimizationModeView[] modes =
         [
@@ -128,7 +155,7 @@ public sealed class CompatibilityPresentationFactoryTests
             BaselineExclusionReason.None,
             useCurrentModelAvailable: false,
             continueEnabled: true,
-            CurrentSetup(),
+            CurrentSetup(currentWeights),
             optimization);
     }
 
@@ -160,12 +187,12 @@ public sealed class CompatibilityPresentationFactoryTests
             isExperimental: false,
             sharedWithAdjacentBand: false);
 
-    private static CompatibilitySetupView CurrentSetup() =>
+    private static CompatibilitySetupView CurrentSetup(WeightQuantisation weights) =>
         CompatibilitySetupView.ForPresentation(
             RuntimeRouteId.LlamaCpp,
             CompatibilityBackend.Cpu,
             DeviceRouteId.Cpu,
-            WeightQuantisation.Q4_K_M,
+            weights,
             contextTokens: 4096,
             CompatibilityFitState.DoesNotFit,
             requiredBytes: 5_368_709_120,
@@ -174,5 +201,6 @@ public sealed class CompatibilityPresentationFactoryTests
             uncertaintyAllowanceBytes: 268_435_456,
             isExperimental: false,
             requiresConversion: false,
-            []);
+            [],
+            ggufKvCache: GgufKvCacheFormat.F16);
 }
