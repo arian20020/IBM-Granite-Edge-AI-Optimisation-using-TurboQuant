@@ -1,6 +1,7 @@
 using GraniteEdgeAI.Features.ModelImport;
 using GraniteEdgeAI.Features.ModelImport.FileImport;
 using GraniteEdgeAI.Features.ModelImport.FileImport.PickerRoute;
+using GraniteEdgeAI.Features.ModelImport.Selection;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
 
@@ -132,20 +133,27 @@ public sealed class ModelFilePickerTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
-    public async Task OpenVinoSelection_CurrentlyDeferred_DoesNotOpenGgufPicker()
+    public async Task OpenVinoSelection_DoesNotOpenGgufPickerWhenFolderSelectionIsCancelled()
     {
         var pickerInteractionCount = 0;
+        var openVinoPickerInteractionCount = 0;
         var page = new ModelImportPage(
             () => Task.FromResult(ModelFormatSelection.OpenVino),
             () =>
             {
                 pickerInteractionCount++;
                 return Task.FromResult<string?>(null);
+            },
+            pickOpenVinoInputAsync: () =>
+            {
+                openVinoPickerInteractionCount++;
+                return Task.FromResult<ModelSelectionInput?>(null);
             });
 
         await page.BrowseFilesAsync();
 
         Assert.AreEqual(0, pickerInteractionCount);
+        Assert.AreEqual(1, openVinoPickerInteractionCount);
         Assert.IsNull(page.SelectedModelPath);
     }
 

@@ -28,6 +28,7 @@ namespace GraniteEdgeAI.Features.ModelImport
         // Delegate seams keep native UI and scanner dependencies replaceable in tests.
         private readonly Func<Task<ModelFormatSelection>> _selectModelFormatAsync;
         private readonly Func<Task<string?>> _pickGgufPathAsync;
+        private readonly Func<Task<ModelSelectionInput?>>? _pickOpenVinoInputAsync;
         private readonly Func<
             ModelFormatSelection,
             string,
@@ -57,7 +58,8 @@ namespace GraniteEdgeAI.Features.ModelImport
             CultureInfo? displayCulture = null,
             Action<ModelQuickScanFailureDiagnostic>? recordScanFailure = null,
             IModelSelectionClassifier? classifier = null,
-            IDownloadedModelFinder? downloadedModelFinder = null)
+            IDownloadedModelFinder? downloadedModelFinder = null,
+            Func<Task<ModelSelectionInput?>>? pickOpenVinoInputAsync = null)
         {
             InitializeComponent();
 
@@ -65,6 +67,7 @@ namespace GraniteEdgeAI.Features.ModelImport
                 selectModelFormatAsync ?? ShowModelFormatSelectionAsync;
             _pickGgufPathAsync =
                 pickGgufPathAsync ?? PickGgufPathAsync;
+            _pickOpenVinoInputAsync = pickOpenVinoInputAsync;
 
             if (scanModelAsync is null)
             {
@@ -360,9 +363,18 @@ namespace GraniteEdgeAI.Features.ModelImport
 
         private async Task PickOpenVinoFolderAsync()
         {
-            var picker = new OpenVINOFolderPicker();
-            ModelSelectionInput? input = await picker.PickInputAsync(
-                new ModelSelectionInputNormalizer());
+            ModelSelectionInput? input;
+            if (_pickOpenVinoInputAsync is not null)
+            {
+                input = await _pickOpenVinoInputAsync();
+            }
+            else
+            {
+                var picker = new OpenVINOFolderPicker();
+                input = await picker.PickInputAsync(
+                    new ModelSelectionInputNormalizer());
+            }
+
             if (input is not null)
             {
                 await SubmitInputAsync(input);
