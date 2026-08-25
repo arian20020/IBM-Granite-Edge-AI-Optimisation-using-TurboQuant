@@ -179,6 +179,15 @@ public sealed class OpenVinoRouteService : IPromptRouteAdapter
 
     public async Task<OpenVinoRouteInspectionResult> InspectAsync(
         string packageDirectory,
+        CancellationToken cancellationToken) =>
+        await InspectAsync(
+            packageDirectory,
+            hashProgress: null,
+            cancellationToken).ConfigureAwait(false);
+
+    internal async Task<OpenVinoRouteInspectionResult> InspectAsync(
+        string packageDirectory,
+        Action<OpenVinoPackageHashProgress>? hashProgress,
         CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(packageDirectory);
@@ -190,7 +199,7 @@ public sealed class OpenVinoRouteService : IPromptRouteAdapter
         }
 
         OpenVinoStaticPackageInspectionResult staticResult =
-            staticInspector.Inspect(packageDirectory);
+            staticInspector.Inspect(packageDirectory, hashProgress);
         if (staticResult.Status !=
                 OpenVinoStaticInspectionStatus.NativeValidationRequired ||
             staticResult.Evidence is null)

@@ -95,9 +95,16 @@ public sealed class OpenVinoStaticPackageInspector
         this.snapshotter = snapshotter ?? throw new ArgumentNullException(nameof(snapshotter));
     }
 
-    public OpenVinoStaticPackageInspectionResult Inspect(string packageRoot)
+    public OpenVinoStaticPackageInspectionResult Inspect(string packageRoot) =>
+        Inspect(packageRoot, hashProgress: null);
+
+    internal OpenVinoStaticPackageInspectionResult Inspect(
+        string packageRoot,
+        Action<OpenVinoPackageHashProgress>? hashProgress)
     {
-        OpenVinoPackageSnapshotCapture capture = snapshotter.Capture(packageRoot);
+        OpenVinoPackageSnapshotCapture capture = snapshotter.Capture(
+            packageRoot,
+            hashProgress);
         if (capture.Snapshot is null)
         {
             return RejectSnapshotFailure(capture.Failure);

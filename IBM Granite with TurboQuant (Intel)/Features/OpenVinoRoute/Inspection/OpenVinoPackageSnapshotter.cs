@@ -40,6 +40,10 @@ internal sealed record OpenVinoPackageSnapshotCapture(
     OpenVinoPackageSnapshot? Snapshot,
     OpenVinoSnapshotFailure Failure);
 
+internal readonly record struct OpenVinoPackageHashProgress(
+    long BytesCompleted,
+    long TotalBytes);
+
 internal sealed record OpenVinoSnapshotPolicy(
     int MaximumEntries,
     int MaximumDepth,
@@ -84,7 +88,9 @@ internal sealed class OpenVinoPackageSnapshotter
     }
 
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "The instance boundary permits operation-scoped snapshotter composition.")]
-    public OpenVinoPackageSnapshotCapture Capture(string packageRoot)
+    public OpenVinoPackageSnapshotCapture Capture(
+        string packageRoot,
+        Action<OpenVinoPackageHashProgress>? hashProgress = null)
     {
         if (string.IsNullOrWhiteSpace(packageRoot))
         {
@@ -236,6 +242,28 @@ internal sealed class OpenVinoPackageSnapshotter
                 return Failed(validation);
             }
 
+            long totalHashBytes = acquired.Aggregate(
+                0L,
+                static (total, item) => checked(total + checked(item.Identity.Length * 2)));
+            long completedHashBytes = 0;
+            long reportedHashBytes = 0;
+            const long progressQuantumBytes = 32L * 1024L * 1024L;
+            hashProgress?.Invoke(new OpenVinoPackageHashProgress(0, totalHashBytes));
+            void ReportHashedBytes(int bytesRead)
+            {
+                completedHashBytes = checked(completedHashBytes + bytesRead);
+                if (completedHashBytes - reportedHashBytes < progressQuantumBytes &&
+                    completedHashBytes != totalHashBytes)
+                {
+                    return;
+                }
+
+                reportedHashBytes = completedHashBytes;
+                hashProgress?.Invoke(new OpenVinoPackageHashProgress(
+                    completedHashBytes,
+                    totalHashBytes));
+            }
+
             List<OpenVinoPackageSnapshotEntry> entries = [];
             foreach (AcquiredEntry item in acquired)
             {
@@ -246,9 +274,9 @@ internal sealed class OpenVinoPackageSnapshotter
                     return Failed(contentFailure);
                 }
 
-                string firstDigest = Hash(item.Stream);
+                string firstDigest = Hash(item.Stream, ReportHashedBytes);
                 FileIdentity afterFirstHash = GetIdentity(item.Stream.SafeFileHandle);
-                string secondDigest = Hash(item.Stream);
+                string secondDigest = Hash(item.Stream, ReportHashedBytes);
                 FileIdentity afterSecondHash = GetIdentity(item.Stream.SafeFileHandle);
                 if (!item.Identity.SameObjectAndContentMetadata(afterFirstHash) ||
                     !item.Identity.SameObjectAndContentMetadata(afterSecondHash) ||
@@ -626,11 +654,22 @@ internal sealed class OpenVinoPackageSnapshotter
         }
     }
 
-    private static string Hash(FileStream stream)
+    private static string Hash(
+        FileStream stream,
+        Action<int> reportBytesRead)
     {
+        ArgumentNullException.ThrowIfNull(reportBytesRead);
         stream.Position = 0;
-        using SHA256 algorithm = SHA256.Create();
-        byte[] hash = algorithm.ComputeHash(stream);
+        using IncrementalHash algorithm = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        byte[] buffer = GC.AllocateUninitializedArray<byte>(1024 * 1024);
+        int bytesRead;
+        while ((bytesRead = stream.Read(buffer, 0, buffer.Length)) > 0)
+        {
+            algorithm.AppendData(buffer, 0, bytesRead);
+            reportBytesRead(bytesRead);
+        }
+
+        byte[] hash = algorithm.GetHashAndReset();
         stream.Position = 0;
         return Convert.ToHexString(hash).ToLowerInvariant();
     }

@@ -826,6 +826,30 @@ public sealed class OpenVinoStaticPackageInspectorTests
     }
 
     [TestMethod]
+    public void PackageHashingReportsMonotonicByteProgress()
+    {
+        using TemporaryPackage package = TemporaryPackage.CopyFixture();
+        List<OpenVinoPackageHashProgress> updates = [];
+
+        OpenVinoStaticPackageInspectionResult result =
+            new OpenVinoStaticPackageInspector().Inspect(
+                package.Root,
+                updates.Add);
+
+        Assert.AreEqual(
+            OpenVinoStaticInspectionStatus.NativeValidationRequired,
+            result.Status);
+        Assert.IsTrue(updates.Count > 1);
+        Assert.IsTrue(updates.All(update =>
+            update.BytesCompleted >= 0 &&
+            update.BytesCompleted <= update.TotalBytes));
+        Assert.IsTrue(updates.Zip(updates.Skip(1)).All(pair =>
+            pair.First.TotalBytes == pair.Second.TotalBytes &&
+            pair.First.BytesCompleted <= pair.Second.BytesCompleted));
+        Assert.AreEqual(updates[^1].TotalBytes, updates[^1].BytesCompleted);
+    }
+
+    [TestMethod]
     [DataRow("hidden_size", 0L)]
     [DataRow("hidden_size", 1_048_577L)]
     [DataRow("intermediate_size", 0L)]

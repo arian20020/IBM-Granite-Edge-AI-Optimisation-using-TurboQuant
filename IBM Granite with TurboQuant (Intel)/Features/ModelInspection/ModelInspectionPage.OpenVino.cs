@@ -40,6 +40,8 @@ public sealed partial class ModelInspectionPage
     private readonly object _openVinoRetirementLock = new();
     private readonly object _navigationRetirementLock = new();
     private Task? _navigationRetirementTask;
+    private InspectionProgressRows? _openVinoProgressRows;
+    private long _openVinoProgressRevision;
     private long _openVinoLifetime;
     private int _requestedOpenVinoNewTokens =
         OpenVinoRouteCapability.DefaultRequestedNewTokens;
@@ -116,8 +118,14 @@ public sealed partial class ModelInspectionPage
         OpenVinoConversionOffer? conversionOffer = null;
         try
         {
+            Action<OpenVinoPackageHashProgress> hashProgress = progress =>
+                DispatcherQueue.TryEnqueue(() =>
+                    ApplyOpenVinoHashProgress(lifetime, progress));
             OpenVinoRouteInspectionResult result = await Task.Run(
-                () => service.InspectAsync(packageDirectory, cancellationToken),
+                () => service.InspectAsync(
+                    packageDirectory,
+                    hashProgress,
+                    cancellationToken),
                 cancellationToken);
             handoffLease = result.HandoffLease;
             conversionOffer = result.ConversionOffer;
@@ -211,6 +219,8 @@ public sealed partial class ModelInspectionPage
         InspectionProgressRows progressRows = new();
         ModelInspectionRenderKey initialKey = new(lifetime, 0);
         progressRows.Reset(initialKey);
+        _openVinoProgressRows = progressRows;
+        _openVinoProgressRevision = 1;
         progressRows.Apply(InspectionProgressPresentationFactory.Create(
             new ModelInspectionProgress(
                 ModelInspectionStage.CheckModelPackage,
@@ -248,6 +258,33 @@ public sealed partial class ModelInspectionPage
         PromptCapabilitySummary.Text = string.Empty;
         PromptExecutionEvidenceText.Text = string.Empty;
         PromptBuildEvidenceText.Text = string.Empty;
+    }
+
+    private void ApplyOpenVinoHashProgress(
+        long lifetime,
+        OpenVinoPackageHashProgress progress)
+    {
+        if (!IsCurrentOpenVinoLifetime(lifetime) ||
+            _openVinoProgressRows is null ||
+            progress.TotalBytes <= 0 ||
+            progress.BytesCompleted < 0 ||
+            progress.BytesCompleted > progress.TotalBytes)
+        {
+            return;
+        }
+
+        double fraction = (double)progress.BytesCompleted / progress.TotalBytes;
+        int percentage = (int)Math.Floor(fraction * 100d);
+        long revision = checked(++_openVinoProgressRevision);
+        _openVinoProgressRows.Apply(InspectionProgressPresentationFactory.Create(
+            new ModelInspectionProgress(
+                ModelInspectionStage.CheckModelPackage,
+                ModelInspectionStageStatus.Active,
+                completedStageCount: 0,
+                totalStageCount: 5,
+                stageFraction: fraction,
+                $"{percentage}% of package data verified."),
+            new ModelInspectionRenderKey(lifetime, revision)));
     }
 
     private void ApplyOpenVinoReadyPresentation(
