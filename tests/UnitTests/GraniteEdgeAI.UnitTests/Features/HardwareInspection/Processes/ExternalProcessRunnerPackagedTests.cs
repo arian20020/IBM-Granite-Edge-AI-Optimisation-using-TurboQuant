@@ -9,7 +9,6 @@ namespace GraniteEdgeAI.UnitTests.Features.HardwareInspection.Processes;
 public sealed class ExternalProcessRunnerPackagedTests
 {
     [TestMethod]
-    [TestCategory("HardwareInspectionProcessAcceptance")]
     public async Task RepeatedShortLivedProcessesAlwaysReturnTheirAuthoritativeExitCode()
     {
         using VerifiedPackagedToolFixture fixture =
