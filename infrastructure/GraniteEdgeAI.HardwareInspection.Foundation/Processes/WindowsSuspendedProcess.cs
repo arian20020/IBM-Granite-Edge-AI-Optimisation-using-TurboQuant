@@ -10,15 +10,19 @@ internal sealed class WindowsSuspendedProcess : IDisposable
 {
     private WindowsSuspendedProcess(
         Process process,
+        SafeProcessHandle processHandle,
         AnonymousPipeServerStream standardOutput,
         AnonymousPipeServerStream standardError)
     {
         Process = process;
+        ProcessHandle = processHandle;
         StandardOutput = standardOutput;
         StandardError = standardError;
     }
 
     internal Process Process { get; }
+
+    private SafeProcessHandle ProcessHandle { get; }
 
     internal Stream StandardOutput { get; }
 
@@ -43,6 +47,7 @@ internal sealed class WindowsSuspendedProcess : IDisposable
         IntPtr attributeList = IntPtr.Zero;
         IntPtr inheritedHandleList = IntPtr.Zero;
         bool attributeListInitialized = false;
+        SafeProcessHandle? processHandle = null;
         try
         {
             standardInput = new AnonymousPipeServerStream(
@@ -122,7 +127,16 @@ internal sealed class WindowsSuspendedProcess : IDisposable
                 return false;
             }
 
-            launched = new WindowsSuspendedProcess(process, standardOutput, standardError);
+            processHandle = new SafeProcessHandle(
+                processInformation.Process,
+                ownsHandle: true);
+            processInformation.Process = IntPtr.Zero;
+            launched = new WindowsSuspendedProcess(
+                process,
+                processHandle,
+                standardOutput,
+                standardError);
+            processHandle = null;
             standardOutput = null!;
             standardError = null!;
             return true;
@@ -169,8 +183,13 @@ internal sealed class WindowsSuspendedProcess : IDisposable
             {
                 CloseHandle(processInformation.Process);
             }
+
+            processHandle?.Dispose();
         }
     }
+
+    internal bool TryGetExitCode(out int exitCode) =>
+        NativeProcessExitCodeAuthority.TryRead(ProcessHandle, out exitCode);
 
     private static bool TryCreateExplicitHandleList(
         IntPtr[] handles,
@@ -249,6 +268,7 @@ internal sealed class WindowsSuspendedProcess : IDisposable
         StandardOutput.Dispose();
         StandardError.Dispose();
         Process.Dispose();
+        ProcessHandle.Dispose();
     }
 
     private static string BuildCommandLine(

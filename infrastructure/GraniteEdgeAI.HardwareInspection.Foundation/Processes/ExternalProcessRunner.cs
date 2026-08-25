@@ -73,7 +73,7 @@ public sealed class ExternalProcessRunner : IExternalProcessRunner
         using (running)
         {
             return await MonitorAsync(
-                    running.Process,
+                    running,
                     running.StandardOutput,
                     running.StandardError,
                     request,
@@ -85,7 +85,7 @@ public sealed class ExternalProcessRunner : IExternalProcessRunner
     }
 
     private static async Task<ExternalProcessResult> MonitorAsync(
-        Process process,
+        WindowsSuspendedProcess running,
         Stream standardOutputStream,
         Stream standardErrorStream,
         ExternalProcessRequest request,
@@ -93,6 +93,7 @@ public sealed class ExternalProcessRunner : IExternalProcessRunner
         WindowsKillOnCloseJob job,
         CancellationToken cancellationToken)
     {
+        Process process = running.Process;
         BoundedProcessOutput standardOutput = BoundedProcessOutput.Start(
             standardOutputStream,
             request.StandardOutputByteLimit);
@@ -144,6 +145,17 @@ public sealed class ExternalProcessRunner : IExternalProcessRunner
             reason = ExternalProcessTerminationReason.Exited;
         }
 
+        int? exitCode = null;
+        bool exitCodeCaptured = reason != ExternalProcessTerminationReason.Exited;
+        if (reason == ExternalProcessTerminationReason.Exited)
+        {
+            exitCodeCaptured = running.TryGetExitCode(out int capturedExitCode);
+            if (exitCodeCaptured)
+            {
+                exitCode = capturedExitCode;
+            }
+        }
+
         if (reason != ExternalProcessTerminationReason.Exited &&
             !await KillAndWaitAsync(process, job).ConfigureAwait(false))
         {
@@ -191,9 +203,16 @@ public sealed class ExternalProcessRunner : IExternalProcessRunner
             reason = ExternalProcessTerminationReason.OutputLimitExceeded;
         }
 
-        int? exitCode = reason == ExternalProcessTerminationReason.Exited
-            ? process.ExitCode
-            : null;
+        if (!exitCodeCaptured)
+        {
+            return new ExternalProcessResult(
+                ExternalProcessTerminationReason.CleanupFailed,
+                null,
+                captures[0].Text,
+                captures[1].Text,
+                elapsed.Elapsed);
+        }
+
         return new ExternalProcessResult(
             reason,
             exitCode,

@@ -10,6 +10,29 @@ public sealed class ExternalProcessRunnerPackagedTests
 {
     [TestMethod]
     [TestCategory("HardwareInspectionProcessAcceptance")]
+    public async Task RepeatedShortLivedProcessesAlwaysReturnTheirAuthoritativeExitCode()
+    {
+        using VerifiedPackagedToolFixture fixture =
+            VerifiedPackagedToolFixture.CreateLlmFit("success");
+        var runner = new ExternalProcessRunner();
+
+        for (int attempt = 0; attempt < 64; attempt++)
+        {
+            ExternalProcessResult result = await runner.RunAsync(
+                fixture.Tool,
+                Request("version"),
+                CancellationToken.None);
+
+            Assert.AreEqual(
+                ExternalProcessTerminationReason.Exited,
+                result.TerminationReason,
+                $"attempt {attempt}");
+            Assert.AreEqual(0, result.ExitCode, $"attempt {attempt}");
+        }
+    }
+
+    [TestMethod]
+    [TestCategory("HardwareInspectionProcessAcceptance")]
     public async Task RunUsesOnlyManifestDeclaredVersionArguments()
     {
         using VerifiedPackagedToolFixture fixture = VerifiedPackagedToolFixture.CreateLlmFit("success");
