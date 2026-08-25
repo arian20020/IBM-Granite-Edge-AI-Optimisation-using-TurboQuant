@@ -267,7 +267,7 @@ git commit -m 'feat(compatibility): add controlled GGUF low-memory frontier'
 - Modify: `shared/GraniteEdgeAI.ModelHardwareCompatibility.Core/Application/Optimization/OptimizationPreferenceResolver.cs`
 - Modify: `shared/GraniteEdgeAI.ModelHardwareCompatibility.Core/Routes/OpenVino/OpenVinoResourceEstimator.cs`
 - Modify: `tests/UnitTests/GraniteEdgeAI.ModelHardwareCompatibility.Tests/Application/Candidates/CrossRouteCandidateGeneratorTests.cs`
-- Modify: `tests/UnitTests/GraniteEdgeAI.ModelHardwareCompatibility.Tests/Application/Optimization/OptimizationPreferenceResolverTests.cs`
+- Create: `tests/UnitTests/GraniteEdgeAI.ModelHardwareCompatibility.Tests/Application/Optimization/OptimizationPreferenceResolverTests.cs`
 - Modify: `tests/UnitTests/GraniteEdgeAI.ModelHardwareCompatibility.Tests/Invariants/MetamorphicPropertyTests.cs`
 
 **Step 1: Write failing cross-route matrix tests**
@@ -371,7 +371,7 @@ git commit -m 'fix(compatibility): distinguish quantisation-required outcomes'
 - Modify: `IBM Granite with TurboQuant (Intel)/Features/ModelHardwareCompatibility/ViewModels/CompatibilityViewModel.cs`
 - Modify: `IBM Granite with TurboQuant (Intel)/Features/ModelHardwareCompatibility/CompatibilityPage.xaml`
 - Modify: `IBM Granite with TurboQuant (Intel)/Features/ModelHardwareCompatibility/CompatibilityPage.xaml.cs`
-- Modify: `IBM Granite with TurboQuant (Intel)/Features/ModelHardwareCompatibility/CompatibilityTheme.xaml`
+- Modify: `IBM Granite with TurboQuant (Intel)/Features/ModelHardwareCompatibility/Presentation/CompatibilityTheme.xaml`
 - Modify: `IBM Granite with TurboQuant (Intel)/Features/ModelHardwareCompatibility/DebugFixtures/CompatibilityFixtureCatalogue.cs`
 - Modify: `tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelHardwareCompatibility/Visual/CompatibilityRenderedStateTests.cs`
 - Modify: `tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelHardwareCompatibility/CompatibilityPresentationFactoryTests.cs`
