@@ -1,3 +1,4 @@
+using System.Reflection;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.ModeSelection;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
@@ -35,7 +36,12 @@ public sealed class OptimizationPreferenceInvariantTests
         EvidenceGrade evidence = EvidenceGrade.Estimated,
         ulong safeBudgetBytes = 32 * Gibibyte,
         string snapshotId = "preference-cap",
-        string capabilityDigest = Digest64)
+        string capabilityDigest = Digest64,
+        ulong? workingDiskBytes = null,
+        ulong? outputDiskBytes = null,
+        ulong? availableDiskBytes = null,
+        OptimizationConversionProvenance provenance =
+            OptimizationConversionProvenance.None)
     {
         OpenVinoWeightFormat weights = quality switch
         {
@@ -61,12 +67,12 @@ public sealed class OptimizationPreferenceInvariantTests
                 peakBytes,
                 safeBudgetBytes,
                 safeBudgetBytes - peakBytes,
-                persistent ? peakBytes : 0,
-                persistent ? peakBytes : 0,
+                workingDiskBytes ?? (persistent ? peakBytes : 0),
+                outputDiskBytes ?? (persistent ? peakBytes : 0),
                 persistent,
-                availableDiskBytes: 32 * Gibibyte);
+                availableDiskBytes: availableDiskBytes ?? 32 * Gibibyte);
         OptimizationCandidate candidate = OptimizationCandidate.Create(
-            configuration, metrics, id, isExperimental);
+            configuration, metrics, id, isExperimental, provenance);
         SupportLevel level = isExperimental
             ? SupportLevel.Experimental
             : SupportLevel.DeclaredSupported;
@@ -618,7 +624,24 @@ public sealed class OptimizationPreferenceInvariantTests
                 streams: 2),
             Candidate("z-evidence-id", OptimizationAssessment.Good, 8 * Gibibyte),
             Candidate("authority", OptimizationAssessment.Good, 8 * Gibibyte,
-                snapshotId: "z-authority")
+                snapshotId: "z-authority"),
+            Candidate("composite-storage", OptimizationAssessment.Good, 8 * Gibibyte,
+                persistent: true, workingDiskBytes: 9 * Gibibyte,
+                outputDiskBytes: 8 * Gibibyte),
+            Candidate("output-storage", OptimizationAssessment.Good, 8 * Gibibyte,
+                persistent: true, workingDiskBytes: 9 * Gibibyte,
+                outputDiskBytes: 7 * Gibibyte),
+            Candidate("available-storage", OptimizationAssessment.Good, 8 * Gibibyte,
+                availableDiskBytes: 31 * Gibibyte),
+            Candidate("provenance", OptimizationAssessment.Good, 8 * Gibibyte,
+                persistent: true,
+                provenance: OptimizationConversionProvenance.ControlledRequantisation),
+            Candidate("notice", OptimizationAssessment.Poor, 8 * Gibibyte,
+                persistent: true,
+                provenance: OptimizationConversionProvenance.ControlledRequantisation),
+            Candidate("capability-digest", OptimizationAssessment.Good, 8 * Gibibyte,
+                capabilityDigest:
+                    "2222222222222222222222222222222222222222222222222222222222222222")
         ];
 
         foreach (OptimizationCandidate variant in variants)
@@ -661,6 +684,84 @@ public sealed class OptimizationPreferenceInvariantTests
             "baseline", OptimizationAssessment.Good, 8 * Gibibyte);
         Assert.AreEqual(0, OptimizationPreferenceResolver.Compare(baseline, duplicate));
         Assert.AreEqual(1, SafeCandidateFrontier.Create([baseline, duplicate]).Count);
+
+        foreach ((string property, object changed) in new (string, object)[]
+        {
+            (nameof(OptimizationAdmissionProof.SupportLevel), SupportLevel.Experimental),
+            (nameof(OptimizationAdmissionProof.RequiresEvidence), true),
+            (nameof(OptimizationAdmissionProof.OptedInEvidenceId), "baseline"),
+            (nameof(OptimizationAdmissionProof.RouteExecutionAuthoritySha256),
+                "2222222222222222222222222222222222222222222222222222222222222222")
+        })
+        {
+            FieldInfo field = typeof(OptimizationAdmissionProof).GetField(
+                $"<{property}>k__BackingField",
+                BindingFlags.Instance | BindingFlags.NonPublic)!;
+            object? original = field.GetValue(duplicate.AdmissionProof!);
+            try
+            {
+                field.SetValue(duplicate.AdmissionProof, changed);
+                int forward = OptimizationPreferenceResolver.Compare(baseline, duplicate);
+                Assert.AreNotEqual(0, forward, property);
+                Assert.AreEqual(-Math.Sign(forward), Math.Sign(
+                    OptimizationPreferenceResolver.Compare(duplicate, baseline)), property);
+            }
+            finally
+            {
+                field.SetValue(duplicate.AdmissionProof, original);
+            }
+        }
+    }
+
+    [TestMethod]
+    public void TotalOrderIncludesGgufNormalizationProofIdentity()
+    {
+        GgufRouteConfiguration configuration = GgufRouteConfiguration.Create(
+            GgufWeightFormat.Imported, GgufKvCacheFormat.F16,
+            CompatibilityBackend.Cpu, DeviceRouteId.Cpu, GpuOffloadLevel.None);
+        OptimizationCandidateMetrics metrics = OptimizationCandidateMetrics.Create(
+            EvidenceGrade.Estimated, OptimizationAssessment.Good,
+            OptimizationAssessment.Good, OptimizationAssessment.Good,
+            4096, 8 * Gibibyte, 32 * Gibibyte, 24 * Gibibyte,
+            0, 0, false, availableDiskBytes: 32 * Gibibyte);
+        OptimizationCandidate plain = OptimizationCandidate.Create(
+            configuration, metrics, "normalization", false);
+        OptimizationCandidate normalized =
+            OptimizationCandidate.CreateWithGgufWeightNormalization(
+                configuration, metrics, "normalization", false,
+                GgufWeightNormalizationProof.FromInspection(
+                    15, 2, GgufWeightFormat.Q4KM));
+        OptimizationCapabilitySnapshot snapshot = OptimizationCapabilitySnapshot.ForGguf(
+            "normalization-cap", Digest64,
+            GgufCapabilityPayload.Create(
+                "runtime",
+                [GgufAdmittedConfiguration.Create(
+                    "normalization", CompatibilityBackend.Cpu, DeviceRouteId.Cpu,
+                    GgufWeightFormat.Imported, GgufKvCacheFormat.F16,
+                    GpuOffloadLevel.None, 1, 32768,
+                    SupportLevel.DeclaredSupported, false)]));
+        OptimizationWorkload workload = OptimizationWorkload.Create(
+            "normalization-workload", 1, OptimizationAssessment.Poor,
+            [ContextTokenCount.FromTokens(4096)]);
+        OptimizationJourneyBinding binding = OptimizationJourneyBinding.Create(
+            "mi-run", "mi-handoff", Digest64, Gibibyte, "hw-run", Digest64);
+        OptimizationAdmissionProof proof = OptimizationAdmissionProof.Create(
+            snapshot, workload, binding, plain, SupportLevel.DeclaredSupported,
+            false, new HashSet<string>());
+        plain = OptimizationCandidate.AttachAdmissionProof(plain, proof);
+        normalized = OptimizationCandidate.AttachAdmissionProof(normalized, proof);
+
+        int forward = OptimizationPreferenceResolver.Compare(plain, normalized);
+        Assert.AreNotEqual(0, forward);
+        Assert.AreEqual(-Math.Sign(forward), Math.Sign(
+            OptimizationPreferenceResolver.Compare(normalized, plain)));
+        Assert.AreEqual(
+            OptimizationPreferenceResolver.Resolve(
+                [plain, normalized], OptimizationPreferenceSelection.Automatic())!
+                .Candidate.WeightNormalizationProof,
+            OptimizationPreferenceResolver.Resolve(
+                [normalized, plain], OptimizationPreferenceSelection.Automatic())!
+                .Candidate.WeightNormalizationProof);
     }
 
     [TestMethod]
@@ -791,24 +892,27 @@ public sealed class OptimizationPreferenceInvariantTests
 
         void AssertRejected(
             ulong headroom, ulong working, ulong output,
-            bool persistent, ulong available)
+            bool persistent, ulong available,
+            ulong peak = 8 * Gibibyte,
+            ulong budget = 32 * Gibibyte)
         {
-            OptimizationCandidate candidate = OptimizationCandidate.Create(
-                configuration,
-                OptimizationCandidateMetrics.Create(
-                    EvidenceGrade.Estimated,
-                    OptimizationAssessment.Acceptable,
-                    OptimizationAssessment.Good,
-                    OptimizationAssessment.Good,
-                    4096, 8 * Gibibyte, 32 * Gibibyte, headroom,
-                    working, output, persistent, available),
-                "proof-validation", false);
-
-            Assert.ThrowsExactly<ArgumentException>(() =>
-                OptimizationAdmissionProof.Create(
-                    snapshot, workload, binding, candidate,
-                    SupportLevel.DeclaredSupported, false,
-                    new HashSet<string>()));
+            Assert.Throws<ArgumentException>(() =>
+            {
+                OptimizationCandidate candidate = OptimizationCandidate.Create(
+                    configuration,
+                    OptimizationCandidateMetrics.Create(
+                        EvidenceGrade.Estimated,
+                        OptimizationAssessment.Acceptable,
+                        OptimizationAssessment.Good,
+                        OptimizationAssessment.Good,
+                        4096, peak, budget, headroom,
+                        working, output, persistent, available),
+                    "proof-validation", false);
+                _ = OptimizationAdmissionProof.Create(
+                        snapshot, workload, binding, candidate,
+                        SupportLevel.DeclaredSupported, false,
+                        new HashSet<string>());
+            });
         }
 
         AssertRejected(23 * Gibibyte, 0, 0, false, 32 * Gibibyte);
@@ -816,6 +920,11 @@ public sealed class OptimizationPreferenceInvariantTests
         AssertRejected(24 * Gibibyte, 8 * Gibibyte, 8 * Gibibyte, true, 4 * Gibibyte);
         AssertRejected(24 * Gibibyte, 4 * Gibibyte, 4 * Gibibyte, false, 32 * Gibibyte);
         AssertRejected(24 * Gibibyte, 0, 0, true, 32 * Gibibyte);
+        AssertRejected(32 * Gibibyte, 0, 0, false, 32 * Gibibyte, peak: 0);
+        AssertRejected(0, 0, 0, false, 32 * Gibibyte,
+            peak: 33 * Gibibyte, budget: 32 * Gibibyte);
+        AssertRejected(0, 0, 0, false, 32 * Gibibyte, peak: 0, budget: 0);
+        AssertRejected(24 * Gibibyte, 0, 0, false, available: 0);
     }
 
     [TestMethod]

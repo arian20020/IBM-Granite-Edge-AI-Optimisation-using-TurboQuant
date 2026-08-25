@@ -72,7 +72,8 @@ public sealed class CrossRouteCandidateGeneratorTests
                         {
                             ["openvino"] = "2026.1.0"
                         },
-                        entry.KvCache is OpenVinoKvCacheFormat.TurboQuantTbq4
+                        compiledCacheIsDisposable: true,
+                        turboQuantBuild: entry.KvCache is OpenVinoKvCacheFormat.TurboQuantTbq4
                             or OpenVinoKvCacheFormat.TurboQuantTbq3
                             ? TurboQuantBuildIdentity.Create(
                                 Commit, Commit, Digest, Digest)
@@ -99,7 +100,8 @@ public sealed class CrossRouteCandidateGeneratorTests
                         "b4321", Commit,
                         [.. admitted.Select(entry =>
                             GgufExecutionProfileAuthority.Create(
-                                entry.EvidenceId, EvidenceGrade.Estimated, "profile"))])));
+                                entry.EvidenceId, EvidenceGrade.Estimated, "profile",
+                                false, 4, 128, 256))])));
         }
 
         internal static OptimizationJourneyBinding Binding() =>
@@ -117,7 +119,8 @@ public sealed class CrossRouteCandidateGeneratorTests
             GgufRuntimeAuthority.Create(
                 runtime, sourceCommit,
                 [.. admitted.Select(entry => GgufExecutionProfileAuthority.Create(
-                    entry.EvidenceId, EvidenceGrade.Estimated, "profile"))]);
+                    entry.EvidenceId, EvidenceGrade.Estimated, "profile",
+                    false, 4, 128, 256))]);
 
         internal static GgufConversionSourceBinding Source(
             WeightQuantisation precision = WeightQuantisation.Q4_K_M) =>

@@ -8,11 +8,21 @@ namespace GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization
 public sealed record GgufExecutionProfileAuthority
 {
     private GgufExecutionProfileAuthority(
-        string evidenceId, EvidenceGrade evidence, string profileId)
+        string evidenceId,
+        EvidenceGrade evidence,
+        string profileId,
+        bool flashAttention,
+        int threadCount,
+        int batchSize,
+        int maximumGeneratedTokens)
     {
         EvidenceId = evidenceId;
         Evidence = evidence;
         ProfileId = profileId;
+        FlashAttention = flashAttention;
+        ThreadCount = threadCount;
+        BatchSize = batchSize;
+        MaximumGeneratedTokens = maximumGeneratedTokens;
     }
 
     public string EvidenceId { get; }
@@ -21,8 +31,22 @@ public sealed record GgufExecutionProfileAuthority
 
     public string ProfileId { get; }
 
+    public bool FlashAttention { get; }
+
+    public int ThreadCount { get; }
+
+    public int BatchSize { get; }
+
+    public int MaximumGeneratedTokens { get; }
+
     public static GgufExecutionProfileAuthority Create(
-        string evidenceId, EvidenceGrade evidence, string profileId)
+        string evidenceId,
+        EvidenceGrade evidence,
+        string profileId,
+        bool flashAttention,
+        int threadCount,
+        int batchSize,
+        int maximumGeneratedTokens)
     {
         OptimizationIdentifier.Require(
             evidenceId, nameof(evidenceId), "The GGUF evidence record");
@@ -33,8 +57,22 @@ public sealed record GgufExecutionProfileAuthority
             throw new ArgumentOutOfRangeException(
                 nameof(evidence), evidence, "Runtime profile evidence must be established.");
         }
+        RequirePositive(threadCount, nameof(threadCount));
+        RequirePositive(batchSize, nameof(batchSize));
+        RequirePositive(maximumGeneratedTokens, nameof(maximumGeneratedTokens));
 
-        return new GgufExecutionProfileAuthority(evidenceId, evidence, profileId);
+        return new GgufExecutionProfileAuthority(
+            evidenceId, evidence, profileId, flashAttention,
+            threadCount, batchSize, maximumGeneratedTokens);
+    }
+
+    private static void RequirePositive(int value, string parameter)
+    {
+        if (value <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                parameter, value, "A GGUF profile execution quantity must be positive.");
+        }
     }
 }
 
@@ -68,13 +106,6 @@ public sealed record GgufRuntimeAuthority
         OptimizationIdentifier.Require(
             runtimeBuildId, nameof(runtimeBuildId), "The GGUF runtime build");
         OptimizationGitCommit.Require(runtimeSourceCommit, nameof(runtimeSourceCommit));
-        if (profiles.Count == 0)
-        {
-            throw new ArgumentException(
-                "GGUF runtime authority requires at least one exact profile.",
-                nameof(profiles));
-        }
-
         SortedDictionary<string, GgufExecutionProfileAuthority> copied =
             new(StringComparer.Ordinal);
         foreach (GgufExecutionProfileAuthority profile in profiles)
@@ -86,6 +117,12 @@ public sealed record GgufRuntimeAuthority
                     "GGUF execution profile evidence identifiers must be unique.",
                     nameof(profiles));
             }
+        }
+        if (copied.Count == 0)
+        {
+            throw new ArgumentException(
+                "GGUF runtime authority requires at least one exact profile.",
+                nameof(profiles));
         }
 
         return new GgufRuntimeAuthority(
@@ -131,6 +168,7 @@ public sealed record OpenVinoExecutionAuthority
         OpenVinoWeightPrecision sourceWeightPrecision,
         OpenVinoBuildIdentity buildIdentity,
         IReadOnlyDictionary<string, string> optimizerVersions,
+        bool compiledCacheIsDisposable,
         TurboQuantBuildIdentity? turboQuantBuild)
     {
         EvidenceId = evidenceId;
@@ -138,6 +176,7 @@ public sealed record OpenVinoExecutionAuthority
         SourceWeightPrecision = sourceWeightPrecision;
         BuildIdentity = buildIdentity;
         OptimizerVersions = optimizerVersions;
+        CompiledCacheIsDisposable = compiledCacheIsDisposable;
         TurboQuantBuild = turboQuantBuild;
     }
 
@@ -146,6 +185,7 @@ public sealed record OpenVinoExecutionAuthority
     public OpenVinoWeightPrecision SourceWeightPrecision { get; }
     public OpenVinoBuildIdentity BuildIdentity { get; }
     public IReadOnlyDictionary<string, string> OptimizerVersions { get; }
+    public bool CompiledCacheIsDisposable { get; }
     public TurboQuantBuildIdentity? TurboQuantBuild { get; }
 
     public static OpenVinoExecutionAuthority Create(
@@ -154,6 +194,7 @@ public sealed record OpenVinoExecutionAuthority
         OpenVinoWeightPrecision sourceWeightPrecision,
         OpenVinoBuildIdentity buildIdentity,
         IReadOnlyDictionary<string, string> optimizerVersions,
+        bool compiledCacheIsDisposable,
         TurboQuantBuildIdentity? turboQuantBuild = null)
     {
         ArgumentNullException.ThrowIfNull(buildIdentity);
@@ -168,13 +209,6 @@ public sealed record OpenVinoExecutionAuthority
                 nameof(sourceWeightPrecision), sourceWeightPrecision,
                 "OpenVINO source precision must be defined.");
         }
-        if (optimizerVersions.Count == 0)
-        {
-            throw new ArgumentException(
-                "OpenVINO execution authority requires the complete optimizer map.",
-                nameof(optimizerVersions));
-        }
-
         SortedDictionary<string, string> copied = new(StringComparer.Ordinal);
         foreach (KeyValuePair<string, string> version in optimizerVersions)
         {
@@ -189,11 +223,18 @@ public sealed record OpenVinoExecutionAuthority
                     nameof(optimizerVersions));
             }
         }
+        if (copied.Count == 0)
+        {
+            throw new ArgumentException(
+                "OpenVINO execution authority requires the complete optimizer map.",
+                nameof(optimizerVersions));
+        }
 
         return new OpenVinoExecutionAuthority(
             evidenceId, configurationId, sourceWeightPrecision,
             buildIdentity,
             new ReadOnlyDictionary<string, string>(copied),
+            compiledCacheIsDisposable,
             turboQuantBuild);
     }
 }

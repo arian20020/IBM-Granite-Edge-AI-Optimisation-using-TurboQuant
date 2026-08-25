@@ -154,6 +154,20 @@ public sealed class OptimizationCapabilitySnapshotTests
     }
 
     [TestMethod]
+    public void CapabilityAdmissionCollectionsCannotBeMutatedThroughADowncast()
+    {
+        OpenVinoCapabilityPayload openVino = OpenVinoTestData.StandardCpuPayload();
+        GgufCapabilityPayload gguf = GgufTestData.StandardCpuPayload();
+
+        Assert.ThrowsExactly<NotSupportedException>(() =>
+            ((IList<OpenVinoAdmittedConfiguration>)openVino.Admitted)[0] =
+                openVino.Admitted[0]);
+        Assert.ThrowsExactly<NotSupportedException>(() =>
+            ((IList<GgufAdmittedConfiguration>)gguf.Admitted)[0] =
+                gguf.Admitted[0]);
+    }
+
+    [TestMethod]
     public void AdmittedConfigurationRejectsInvertedContextBounds()
     {
         Assert.ThrowsExactly<ArgumentException>(
@@ -247,7 +261,8 @@ public sealed class OptimizationCapabilitySnapshotTests
                 [OpenVinoExecutionAuthority.Create(
                     "ov", "configuration", OpenVinoWeightPrecision.Fp16,
                     build, new Dictionary<string, string> { ["openvino"] = "2026.1.0" },
-                    turbo)]));
+                    compiledCacheIsDisposable: true,
+                    turboQuantBuild: turbo)]));
     }
 
     [TestMethod]
@@ -261,7 +276,8 @@ public sealed class OptimizationCapabilitySnapshotTests
         OpenVinoExecutionAuthority openVino = OpenVinoExecutionAuthority.Create(
             "ov", "configuration", OpenVinoWeightPrecision.Fp16,
             OpenVinoBuildIdentity.Create("runtime", "genai", "tokenizers", Digest),
-            versions);
+            versions,
+            compiledCacheIsDisposable: true);
         versions.Clear();
 
         CollectionAssert.AreEqual(
@@ -273,9 +289,9 @@ public sealed class OptimizationCapabilitySnapshotTests
             "runtime", "0123456789abcdef0123456789abcdef01234567",
             [
                 GgufExecutionProfileAuthority.Create(
-                    "same", EvidenceGrade.Estimated, "profile-a"),
+                    "same", EvidenceGrade.Estimated, "profile-a", false, 1, 1, 1),
                 GgufExecutionProfileAuthority.Create(
-                    "same", EvidenceGrade.Estimated, "profile-b")
+                    "same", EvidenceGrade.Estimated, "profile-b", false, 1, 1, 1)
             ]));
     }
 

@@ -218,7 +218,11 @@ internal sealed record OptimizationAdmissionProof
                 gguf.RuntimeSourceCommit,
                 profile.EvidenceId,
                 ((int)profile.Evidence).ToString(CultureInfo.InvariantCulture),
-                profile.ProfileId);
+                profile.ProfileId,
+                profile.FlashAttention ? "1" : "0",
+                profile.ThreadCount.ToString(CultureInfo.InvariantCulture),
+                profile.BatchSize.ToString(CultureInfo.InvariantCulture),
+                profile.MaximumGeneratedTokens.ToString(CultureInfo.InvariantCulture));
         }
 
         if (snapshot.OpenVino?.ExecutionAuthorities.TryGetValue(
@@ -233,7 +237,8 @@ internal sealed record OptimizationAdmissionProof
                 openVino.BuildIdentity.RuntimeBuild,
                 openVino.BuildIdentity.GenAiBuild,
                 openVino.BuildIdentity.TokenizersBuild,
-                openVino.BuildIdentity.WorkerManifestDigest
+                openVino.BuildIdentity.WorkerManifestDigest,
+                openVino.CompiledCacheIsDisposable ? "1" : "0"
             ];
             foreach (KeyValuePair<string, string> version in
                 openVino.OptimizerVersions.OrderBy(pair => pair.Key, StringComparer.Ordinal))

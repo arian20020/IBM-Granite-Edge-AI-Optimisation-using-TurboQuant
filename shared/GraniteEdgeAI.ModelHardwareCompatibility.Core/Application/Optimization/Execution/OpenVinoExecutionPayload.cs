@@ -1,3 +1,5 @@
+using System.Collections.ObjectModel;
+
 namespace GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Execution;
 
 /// <summary>
@@ -454,23 +456,6 @@ public sealed record OpenVinoExecutionPayload
                 nameof(targetWeightPrecision));
         }
 
-        if (optimizerVersions.Count == 0)
-        {
-            throw new ArgumentException(
-                "The optimiser toolchain must be pinned. Without versions, an "
-                + "output could be produced by a different toolchain than the one "
-                + "the plan was validated against.",
-                nameof(optimizerVersions));
-        }
-
-        foreach (KeyValuePair<string, string> version in optimizerVersions)
-        {
-            OptimizationIdentifier.Require(
-                version.Key, nameof(optimizerVersions), "An optimiser name");
-            OptimizationIdentifier.Require(
-                version.Value, nameof(optimizerVersions), "An optimiser version");
-        }
-
         if (compiledCacheIsModelArtifact)
         {
             throw new ArgumentException(
@@ -486,7 +471,24 @@ public sealed record OpenVinoExecutionPayload
 
         foreach (KeyValuePair<string, string> version in optimizerVersions)
         {
-            copied[version.Key] = version.Value;
+            OptimizationIdentifier.Require(
+                version.Key, nameof(optimizerVersions), "An optimiser name");
+            OptimizationIdentifier.Require(
+                version.Value, nameof(optimizerVersions), "An optimiser version");
+            if (!copied.TryAdd(version.Key, version.Value))
+            {
+                throw new ArgumentException(
+                    "Optimizer version keys must be unique.",
+                    nameof(optimizerVersions));
+            }
+        }
+        if (copied.Count == 0)
+        {
+            throw new ArgumentException(
+                "The optimiser toolchain must be pinned. Without versions, an "
+                + "output could be produced by a different toolchain than the one "
+                + "the plan was validated against.",
+                nameof(optimizerVersions));
         }
 
         return new OpenVinoExecutionPayload(
@@ -503,7 +505,7 @@ public sealed record OpenVinoExecutionPayload
             compiledCacheIsModelArtifact,
             createsCompletePackage,
             buildIdentity,
-            copied,
+            new ReadOnlyDictionary<string, string>(copied),
             turboQuantBuild);
     }
 

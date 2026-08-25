@@ -119,7 +119,8 @@ public sealed class OptimizationPlanBindingTests
                             "openvino.standard.cpu.int8.default.v1",
                             source,
                             build,
-                            versions)
+                            versions,
+                            compiledCacheIsDisposable: true)
                     ]));
         }
 

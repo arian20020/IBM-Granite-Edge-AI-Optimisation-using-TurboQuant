@@ -143,7 +143,11 @@ public sealed class OptimizationExecutionContractV2Tests
                             GgufExecutionProfileAuthority.Create(
                                 "gguf-evidence",
                                 candidate.Metrics.Evidence,
-                                executionPayload.ProfileId)
+                                executionPayload.ProfileId,
+                                executionPayload.FlashAttention,
+                                executionPayload.ThreadCount,
+                                executionPayload.BatchSize,
+                                executionPayload.MaximumGeneratedTokens)
                         ])));
         }
 
@@ -252,6 +256,7 @@ public sealed class OptimizationExecutionContractV2Tests
                                 ?? OpenVinoWeightPrecision.Fp16,
                             payload?.BuildIdentity ?? Build(),
                             payload?.OptimizerVersions ?? Versions(),
+                            payload?.CompiledCacheIsDisposable ?? true,
                             payload?.TurboQuantBuild)
                     ]));
         }

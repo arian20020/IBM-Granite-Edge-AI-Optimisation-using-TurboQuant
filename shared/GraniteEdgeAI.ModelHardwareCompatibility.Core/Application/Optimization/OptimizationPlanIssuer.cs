@@ -189,9 +189,13 @@ public static class OptimizationPlanIssuer
                 && string.Equals(
                     profile.ProfileId,
                     gguf.ProfileId,
-                    StringComparison.Ordinal),
+                    StringComparison.Ordinal)
+                && profile.FlashAttention == gguf.FlashAttention
+                && profile.ThreadCount == gguf.ThreadCount
+                && profile.BatchSize == gguf.BatchSize
+                && profile.MaximumGeneratedTokens == gguf.MaximumGeneratedTokens,
             "GGUF runtime execution authority",
-            "runtime build, source commit, evidence grade, or profile differs");
+            "runtime build, source commit, evidence grade, profile, or profile settings differ");
 
         GgufTurboQuantImplementationIdentity? identity =
             capability.TurboQuantImplementation;
@@ -295,9 +299,11 @@ public static class OptimizationPlanIssuer
                 && ExecutionAuthorityMapsAgree(
                     executionAuthority.OptimizerVersions,
                     openVino.OptimizerVersions)
+                && executionAuthority.CompiledCacheIsDisposable
+                    == openVino.CompiledCacheIsDisposable
                 && executionAuthority.TurboQuantBuild == openVino.TurboQuantBuild,
             "OpenVINO execution authority",
-            "configuration, source precision, build, optimizer map, or TurboQuant build differs");
+            "configuration, source precision, build, optimizer map, disposable-cache policy, or TurboQuant build differs");
         Require(
             string.Equals(openVino.EvidenceId, admitted.EvidenceId, StringComparison.Ordinal)
                 && string.Equals(openVino.Maturity, expectedMaturity, StringComparison.Ordinal)

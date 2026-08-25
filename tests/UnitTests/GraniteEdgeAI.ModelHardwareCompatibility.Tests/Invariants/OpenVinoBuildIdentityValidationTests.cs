@@ -73,7 +73,8 @@ public sealed class OpenVinoBuildIdentityValidationTests
                             new Dictionary<string, string>(StringComparer.Ordinal)
                             {
                                 ["openvino"] = "2026.3.0"
-                            })
+                            },
+                            compiledCacheIsDisposable: true)
                     ]));
         OptimizationWorkload workload = OptimizationWorkload.Create(
             "chat", 512, OptimizationAssessment.Poor,
