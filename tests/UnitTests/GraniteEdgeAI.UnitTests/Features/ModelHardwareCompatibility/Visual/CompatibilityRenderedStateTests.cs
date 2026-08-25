@@ -225,6 +225,16 @@ public sealed class CompatibilityRenderedStateTests
         });
 
         Assert.AreSame(firstRow, Element<Panel>(page, "OptimizationModeRows").Children[0]);
+        Grid updatedRow = Assert.IsInstanceOfType<Grid>(firstRow.Child);
+        StackPanel updatedTrailing = Assert.IsInstanceOfType<StackPanel>(
+            updatedRow.Children[1]);
+        TextBlock updatedSetup = Assert.IsInstanceOfType<TextBlock>(
+            updatedTrailing.Children[0]);
+        Assert.AreEqual(
+            $"{manualMode.WeightFormat} \u00B7 {manualMode.CacheFormat}",
+            updatedSetup.Text);
+        StringAssert.Contains(updatedSetup.Text, "\u00B7");
+        Assert.IsFalse(updatedSetup.Text.Contains("\u00C2", StringComparison.Ordinal));
         Assert.AreEqual(manualMode.SliderValue.Value, slider.Value);
         StringAssert.Contains(AutomationProperties.GetName(slider), manualMode.Label);
         StringAssert.Contains(AutomationProperties.GetHelpText(slider), manualMode.ExpectedQualityText);

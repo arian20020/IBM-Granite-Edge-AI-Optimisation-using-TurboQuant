@@ -409,7 +409,7 @@ internal sealed partial class CompatibilityPage : Page
         ((TextBlock)words.Children[0]).Text = mode.Label;
         ((TextBlock)words.Children[1]).Text = mode.ExpectedQualityText;
         TextBlock setup = (TextBlock)trailing.Children[0];
-        setup.Text = $"{mode.WeightFormat} Â· {mode.CacheFormat}";
+        setup.Text = $"{mode.WeightFormat} \u00B7 {mode.CacheFormat}";
         setup.Foreground = selected
             ? Brush("CompatibilityPrimaryBlueBrush")
             : Brush("CompatibilityTextMutedBrush");
