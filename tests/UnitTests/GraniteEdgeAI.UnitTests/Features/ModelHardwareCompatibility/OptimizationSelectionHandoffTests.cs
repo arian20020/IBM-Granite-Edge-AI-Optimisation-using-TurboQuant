@@ -9,6 +9,7 @@ using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Exe
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.Gguf;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.OpenVino;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace GraniteEdgeAI.UnitTests.Features.ModelHardwareCompatibility;
@@ -118,11 +119,14 @@ public sealed class OptimizationSelectionHandoffTests
     [TestMethod]
     public async Task AvailableDestination_RaisesExactlyOneTypedEventForIssuedSelection()
     {
-        OptimizationExecutionPlan plan = Plan(OptimizationPreferenceSelection.Manual(50));
+        OptimizationExecutionPlan plan = Plan(OptimizationPreferenceSelection.Automatic());
         OptimizationSelectionHandoff.TryCreate(
             plan, plan.Binding, plan.CapabilitySnapshot,
-            OptimizationPreferenceSelection.Manual(50), out OptimizationSelectionHandoff? issued);
+            OptimizationPreferenceSelection.Automatic(), out OptimizationSelectionHandoff? issued);
+        OptimizationHandoffAuthority authority = Authority(plan);
         var destination = OptimizationDestination.Available(
+            authority,
+            () => authority,
             (OptimizationPreferenceSelection preference,
                 out OptimizationSelectionHandoff? handoff) =>
             {
@@ -143,7 +147,6 @@ public sealed class OptimizationSelectionHandoffTests
         };
 
         await viewModel.StartAsync();
-        viewModel.SelectManualPreference(50);
         viewModel.ContinueCommand.Execute(null);
 
         Assert.AreEqual(1, events);
@@ -169,13 +172,16 @@ public sealed class OptimizationSelectionHandoffTests
     }
 
     [TestMethod]
-    public async Task IssuerReturningDifferentSelection_FailsClosedWithoutEvent()
+    public async Task ChangedSelection_InvalidatesAuthorityAndDisablesIssuance()
     {
-        OptimizationExecutionPlan plan = Plan(OptimizationPreferenceSelection.Manual(50));
+        OptimizationExecutionPlan plan = Plan(OptimizationPreferenceSelection.Automatic());
         OptimizationSelectionHandoff.TryCreate(
             plan, plan.Binding, plan.CapabilitySnapshot,
-            OptimizationPreferenceSelection.Manual(50), out OptimizationSelectionHandoff? issued);
+            OptimizationPreferenceSelection.Automatic(), out OptimizationSelectionHandoff? issued);
+        OptimizationHandoffAuthority authority = Authority(plan);
         var destination = OptimizationDestination.Available(
+            authority,
+            () => authority,
             (OptimizationPreferenceSelection _, out OptimizationSelectionHandoff? handoff) =>
             {
                 handoff = issued;
@@ -192,12 +198,20 @@ public sealed class OptimizationSelectionHandoffTests
         viewModel.ContinueCommand.Execute(null);
 
         Assert.AreEqual(0, events);
+        Assert.IsFalse(viewModel.ContinueCommand.CanExecute(null));
     }
 
     [TestMethod]
     public async Task ThrowingIssuer_FailsClosedWithoutEscapingTheUiCommand()
     {
+        OptimizationExecutionPlan plan = Plan(OptimizationPreferenceSelection.Automatic());
+        OptimizationSelectionHandoff.TryCreate(
+            plan, plan.Binding, plan.CapabilitySnapshot,
+            OptimizationPreferenceSelection.Automatic(), out OptimizationSelectionHandoff? issued);
+        OptimizationHandoffAuthority authority = Authority(plan);
         var destination = OptimizationDestination.Available(
+            authority,
+            () => authority,
             (OptimizationPreferenceSelection _, out OptimizationSelectionHandoff? handoff) =>
             {
                 handoff = null;
@@ -218,12 +232,15 @@ public sealed class OptimizationSelectionHandoffTests
     [TestMethod]
     public async Task SelectionChangedDuringIssuance_DropsTheNowStaleHandoff()
     {
-        OptimizationExecutionPlan plan = Plan(OptimizationPreferenceSelection.Manual(50));
+        OptimizationExecutionPlan plan = Plan(OptimizationPreferenceSelection.Automatic());
         OptimizationSelectionHandoff.TryCreate(
             plan, plan.Binding, plan.CapabilitySnapshot,
-            OptimizationPreferenceSelection.Manual(50), out OptimizationSelectionHandoff? issued);
+            OptimizationPreferenceSelection.Automatic(), out OptimizationSelectionHandoff? issued);
+        OptimizationHandoffAuthority authority = Authority(plan);
         CompatibilityViewModel? viewModel = null;
         var destination = OptimizationDestination.Available(
+            authority,
+            () => authority,
             (OptimizationPreferenceSelection _, out OptimizationSelectionHandoff? handoff) =>
             {
                 viewModel!.SelectManualPreference(70);
@@ -236,12 +253,187 @@ public sealed class OptimizationSelectionHandoffTests
         int events = 0;
         viewModel.OptimizationRequested += (_, _) => events++;
         await viewModel.StartAsync();
-        viewModel.SelectManualPreference(50);
-
         viewModel.ContinueCommand.Execute(null);
 
         Assert.AreEqual(0, events);
         Assert.AreEqual(70, viewModel.SelectedPreference!.PreferenceValue);
+    }
+
+    [TestMethod]
+    public async Task SamePreferenceHandoffFromAnotherAuthority_IsRejectedForEveryBindingAxis()
+    {
+        OptimizationPreferenceSelection preference =
+            OptimizationPreferenceSelection.Automatic();
+        OptimizationExecutionPlan expectedPlan = Plan(preference);
+        OptimizationHandoffAuthority expectedAuthority = Authority(expectedPlan);
+        OptimizationExecutionPlan[] substitutions =
+        [
+            Plan(preference, binding: Binding(modelRunId: "66666666666646668666666666666666")),
+            Plan(preference, binding: Binding(modelHandoffId: "77777777777747778777777777777777")),
+            Plan(preference, binding: Binding(productHardwareRunId: "88888888888848888888888888888888")),
+            Plan(preference, binding: Binding(hardwareSha256: OtherDigest)),
+            Plan(preference, binding: Binding(modelSha256: OtherDigest)),
+            Plan(preference, binding: Binding(modelLengthBytes: (2UL * 1024 * 1024 * 1024) + 1)),
+            Plan(preference, snapshot: Snapshot(OtherDigest)),
+            Plan(preference, selectedCandidate: AlternativeCandidate()),
+            Plan(preference, planId: Guid.Parse("99999999-9999-4999-8999-999999999999")),
+            Plan(preference, configurationSha256: OtherDigest),
+            OpenVinoPlan(preference)
+        ];
+
+        foreach (OptimizationExecutionPlan substitution in substitutions)
+        {
+            OptimizationSelectionHandoff returned = Handoff(substitution);
+            var destination = OptimizationDestination.Available(
+                expectedAuthority,
+                () => expectedAuthority,
+                (OptimizationPreferenceSelection _, out OptimizationSelectionHandoff? handoff) =>
+                {
+                    handoff = returned;
+                    return true;
+                });
+            var viewModel = new CompatibilityViewModel(
+                _ => Task.FromResult(ActionableOptimizationScreen()),
+                true, null, destination);
+            int events = 0;
+            viewModel.OptimizationRequested += (_, _) => events++;
+            await viewModel.StartAsync();
+            viewModel.ContinueCommand.Execute(null);
+
+            Assert.AreEqual(0, events, substitution.ConfigurationSha256);
+        }
+    }
+
+    [TestMethod]
+    public async Task FreshAuthorityDriftAfterCachedHandoff_FailsClosed()
+    {
+        OptimizationExecutionPlan expectedPlan =
+            Plan(OptimizationPreferenceSelection.Automatic());
+        OptimizationSelectionHandoff cached = Handoff(expectedPlan);
+        OptimizationHandoffAuthority expectedAuthority = Authority(expectedPlan);
+        OptimizationHandoffAuthority currentAuthority = expectedAuthority;
+        OptimizationExecutionPlan driftedPlan = Plan(
+            OptimizationPreferenceSelection.Automatic(),
+            binding: Binding(hardwareSha256: OtherDigest));
+        var destination = OptimizationDestination.Available(
+            expectedAuthority,
+            () => currentAuthority,
+            (OptimizationPreferenceSelection _, out OptimizationSelectionHandoff? handoff) =>
+            {
+                currentAuthority = Authority(driftedPlan);
+                handoff = cached;
+                return true;
+            });
+        var viewModel = new CompatibilityViewModel(
+            _ => Task.FromResult(ActionableOptimizationScreen()),
+            true, null, destination);
+        int events = 0;
+        viewModel.OptimizationRequested += (_, _) => events++;
+        await viewModel.StartAsync();
+        viewModel.ContinueCommand.Execute(null);
+
+        Assert.AreEqual(0, events);
+    }
+
+    [TestMethod]
+    public async Task ReentrantAbaSelectionChange_CannotRestoreStaleAcceptance()
+    {
+        OptimizationExecutionPlan plan =
+            Plan(OptimizationPreferenceSelection.Automatic());
+        OptimizationSelectionHandoff issued = Handoff(plan);
+        OptimizationHandoffAuthority authority = Authority(plan);
+        CompatibilityViewModel? viewModel = null;
+        var destination = OptimizationDestination.Available(
+            authority,
+            () => authority,
+            (OptimizationPreferenceSelection _, out OptimizationSelectionHandoff? handoff) =>
+            {
+                viewModel!.SelectManualPreference(70);
+                viewModel.SelectAutomaticPreference();
+                handoff = issued;
+                return true;
+            });
+        viewModel = new CompatibilityViewModel(
+            _ => Task.FromResult(ActionableOptimizationScreen()),
+            true, null, destination);
+        int events = 0;
+        viewModel.OptimizationRequested += (_, _) => events++;
+        await viewModel.StartAsync();
+        viewModel.ContinueCommand.Execute(null);
+
+        Assert.AreEqual(0, events);
+    }
+
+    [TestMethod]
+    public async Task ReentrantAndSequentialExecute_ConsumeOneExactIssuanceOnly()
+    {
+        OptimizationExecutionPlan plan =
+            Plan(OptimizationPreferenceSelection.Automatic());
+        OptimizationSelectionHandoff issued = Handoff(plan);
+        OptimizationHandoffAuthority authority = Authority(plan);
+        CompatibilityViewModel? viewModel = null;
+        bool reentered = false;
+        var destination = OptimizationDestination.Available(
+            authority,
+            () => authority,
+            (OptimizationPreferenceSelection _, out OptimizationSelectionHandoff? handoff) =>
+            {
+                if (!reentered)
+                {
+                    reentered = true;
+                    viewModel!.ContinueCommand.Execute(null);
+                }
+
+                handoff = issued;
+                return true;
+            });
+        viewModel = new CompatibilityViewModel(
+            _ => Task.FromResult(ActionableOptimizationScreen()),
+            true, null, destination);
+        int events = 0;
+        viewModel.OptimizationRequested += (_, _) => events++;
+        await viewModel.StartAsync();
+        viewModel.ContinueCommand.Execute(null);
+        viewModel.ContinueCommand.Execute(null);
+
+        Assert.AreEqual(1, events);
+    }
+
+    [TestMethod]
+    public async Task ThrowingSubscriber_IsContainedWithoutReEmittingAmbiguousHandoff()
+    {
+        OptimizationExecutionPlan plan =
+            Plan(OptimizationPreferenceSelection.Automatic());
+        OptimizationSelectionHandoff issued = Handoff(plan);
+        OptimizationHandoffAuthority authority = Authority(plan);
+        var destination = OptimizationDestination.Available(
+            authority,
+            () => authority,
+            (OptimizationPreferenceSelection _, out OptimizationSelectionHandoff? handoff) =>
+            {
+                handoff = issued;
+                return true;
+            });
+        var viewModel = new CompatibilityViewModel(
+            _ => Task.FromResult(ActionableOptimizationScreen()),
+            true, null, destination);
+        int acceptedActions = 0;
+        int throwingDispatches = 0;
+        viewModel.OptimizationRequested += (_, _) => acceptedActions++;
+        viewModel.OptimizationRequested += (_, _) =>
+        {
+            throwingDispatches++;
+            throw new InvalidOperationException("navigation failed");
+        };
+        await viewModel.StartAsync();
+        viewModel.ContinueCommand.Execute(null);
+        viewModel.ContinueCommand.Execute(null);
+
+        Assert.AreEqual(1, acceptedActions);
+        Assert.AreEqual(1, throwingDispatches);
+        Assert.AreEqual(
+            CompatibilityAuxiliaryStatusKind.Error,
+            viewModel.AuxiliaryStatus.Kind);
     }
 
     [TestMethod]
@@ -269,21 +461,161 @@ public sealed class OptimizationSelectionHandoffTests
             .All(property => !property.CanWrite));
     }
 
-    private static OptimizationExecutionPlan Plan(
+    private static OptimizationSelectionHandoff Handoff(
+        OptimizationExecutionPlan plan)
+    {
+        Assert.IsTrue(OptimizationSelectionHandoff.TryCreate(
+            plan,
+            plan.Binding,
+            plan.CapabilitySnapshot,
+            plan.Preference,
+            out OptimizationSelectionHandoff? handoff));
+        return handoff!;
+    }
+
+    private static OptimizationHandoffAuthority Authority(
+        OptimizationExecutionPlan plan)
+    {
+        Assert.IsTrue(OptimizationHandoffAuthority.TryCreate(
+            plan,
+            plan.Binding,
+            plan.CapabilitySnapshot,
+            plan.Preference,
+            out OptimizationHandoffAuthority? authority));
+        return authority!;
+    }
+
+    private static OptimizationJourneyBinding Binding(
+        string modelRunId = "22222222222242228222222222222222",
+        string modelHandoffId = "33333333333343338333333333333333",
+        string modelSha256 = Digest,
+        ulong modelLengthBytes = 2UL * 1024 * 1024 * 1024,
+        string productHardwareRunId = "44444444444444448444444444444444",
+        string hardwareSha256 = Digest) =>
+        OptimizationJourneyBinding.Create(
+            modelRunId,
+            modelHandoffId,
+            modelSha256,
+            modelLengthBytes,
+            productHardwareRunId,
+            hardwareSha256);
+
+    private static OptimizationCandidate AlternativeCandidate() =>
+        OptimizationCandidate.Create(
+            GgufRouteConfiguration.Create(
+                GgufWeightFormat.Q3KM,
+                GgufKvCacheFormat.Q8_0,
+                CompatibilityBackend.Cpu,
+                DeviceRouteId.Cpu,
+                GpuOffloadLevel.None),
+            OptimizationCandidateMetrics.Create(
+                EvidenceGrade.Estimated,
+                OptimizationAssessment.Acceptable,
+                OptimizationAssessment.Good,
+                OptimizationAssessment.Good,
+                4096,
+                2UL * 1024 * 1024 * 1024,
+                4UL * 1024 * 1024 * 1024,
+                2UL * 1024 * 1024 * 1024,
+                0,
+                0,
+                requiresPersistentChange: true),
+            "gguf-q3",
+            isExperimental: false);
+
+    private static OptimizationExecutionPlan OpenVinoPlan(
         OptimizationPreferenceSelection preference)
     {
-        OptimizationJourneyBinding binding = OptimizationJourneyBinding.Create(
+        OpenVinoAdmittedConfiguration admitted =
+            OpenVinoAdmittedConfiguration.Create(
+                "ov-int8",
+                DeviceRouteId.Cpu,
+                OpenVinoWeightFormat.Int8,
+                OpenVinoKvCacheFormat.U8,
+                OpenVinoPerformanceHint.Latency,
+                OpenVinoCompiledCachePolicy.Disabled,
+                1,
+                512,
+                32768,
+                SupportLevel.DeclaredSupported,
+                false);
+        OptimizationCapabilitySnapshot snapshot =
+            OptimizationCapabilitySnapshot.ForOpenVino(
+                "ov-capability",
+                Digest,
+                OpenVinoCapabilityPayload.Create("2026.3.0", [admitted]));
+        OptimizationCandidate candidate = OptimizationCandidate.Create(
+            OpenVinoRouteConfiguration.Create(
+                OpenVinoWeightFormat.Int8,
+                OpenVinoKvCacheFormat.U8,
+                DeviceRouteId.Cpu,
+                OpenVinoPerformanceHint.Latency,
+                OpenVinoCompiledCachePolicy.Disabled,
+                1),
+            OptimizationCandidateMetrics.Create(
+                EvidenceGrade.Estimated,
+                OptimizationAssessment.Good,
+                OptimizationAssessment.Good,
+                OptimizationAssessment.Good,
+                4096,
+                2UL * 1024 * 1024 * 1024,
+                4UL * 1024 * 1024 * 1024,
+                2UL * 1024 * 1024 * 1024,
+                0,
+                0,
+                requiresPersistentChange: true),
+            "ov-int8",
+            isExperimental: false);
+        OpenVinoBuildIdentity build = OpenVinoBuildIdentity.Create(
+            "2026.3.0", "2026.3.0.0", "2026.3.0", Digest);
+        OptimizationExecutionPayload payload =
+            OptimizationExecutionPayload.ForOpenVino(
+                OpenVinoExecutionPayload.Create(
+                    "openvino.cpu.int8",
+                    "CPU",
+                    "Released",
+                    "ov-int8",
+                    OpenVinoWeightPrecision.Fp16,
+                    OpenVinoWeightPrecision.EightBit,
+                    OpenVinoKvCachePrecision.U8,
+                    false,
+                    true,
+                    false,
+                    true,
+                    build,
+                    new Dictionary<string, string>(StringComparer.Ordinal)
+                    {
+                        ["openvino"] = "2026.3.0"
+                    }));
+        return Plan(
+            preference,
+            snapshot: snapshot,
+            selectedCandidate: candidate,
+            executionPayload: payload,
+            configurationSha256: OtherDigest);
+    }
+
+    private static OptimizationExecutionPlan Plan(
+        OptimizationPreferenceSelection preference,
+        OptimizationJourneyBinding? binding = null,
+        OptimizationCapabilitySnapshot? snapshot = null,
+        OptimizationCandidate? selectedCandidate = null,
+        OptimizationExecutionPayload? executionPayload = null,
+        Guid? planId = null,
+        string configurationSha256 = Digest)
+    {
+        binding ??= OptimizationJourneyBinding.Create(
             "22222222222242228222222222222222",
             "33333333333343338333333333333333",
             Digest,
             2UL * 1024 * 1024 * 1024,
             "44444444444444448444444444444444",
             Digest);
-        OptimizationCapabilitySnapshot snapshot = Snapshot(Digest);
+        snapshot ??= Snapshot(Digest);
         OptimizationWorkload workload = OptimizationWorkload.Create(
             "chat", 512, OptimizationAssessment.Poor,
             [ContextTokenCount.FromTokens(4096)]);
-        OptimizationCandidate candidate = OptimizationCandidate.Create(
+        OptimizationCandidate candidate = selectedCandidate ?? OptimizationCandidate.Create(
             GgufRouteConfiguration.Create(
                 GgufWeightFormat.Imported,
                 GgufKvCacheFormat.F16,
@@ -304,7 +636,7 @@ public sealed class OptimizationSelectionHandoffTests
                 requiresPersistentChange: false),
             "gguf-q4",
             isExperimental: false);
-        OptimizationExecutionPayload payload = OptimizationExecutionPayload.ForGguf(
+        OptimizationExecutionPayload payload = executionPayload ?? OptimizationExecutionPayload.ForGguf(
             GgufExecutionPayload.Create(
                 "runtime", Commit, GgufRuntimeBackend.Cpu, "CPU", 4096,
                 GgufCacheType.F16, GgufCacheType.F16, 0, false, 4, 128,
@@ -315,7 +647,7 @@ public sealed class OptimizationSelectionHandoffTests
         return (OptimizationExecutionPlan)constructor.Invoke(
         [
             OptimizationExecutionPlan.CurrentContractVersion,
-            Guid.Parse("55555555-5555-4555-8555-555555555555"),
+            planId ?? Guid.Parse("55555555-5555-4555-8555-555555555555"),
             binding,
             snapshot,
             workload,
@@ -323,7 +655,7 @@ public sealed class OptimizationSelectionHandoffTests
             payload,
             preference,
             false,
-            Digest,
+            configurationSha256,
             DateTimeOffset.UnixEpoch
         ]);
     }

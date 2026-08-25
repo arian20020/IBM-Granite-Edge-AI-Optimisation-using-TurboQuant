@@ -57,6 +57,11 @@ internal sealed class CompatibilityViewModel
     private long _operationSerial;
     private long _recoveryOwner;
     private long _taskManagerOwner;
+    private long _optimizationSelectionRevision;
+    private int _optimizationAuthorityGeneration;
+    private long _optimizationAuthoritySelectionRevision;
+    private int _optimizationIssuanceOwner;
+    private int _optimizationIssuanceConsumed;
     private CompatibilityScreenModel? _lastModel;
 
     internal CompatibilityViewModel()
@@ -105,7 +110,7 @@ internal sealed class CompatibilityViewModel
 
         ContinueCommand = new DelegateCommand(
             Continue,
-            () => Presentation.PrimaryActionEnabled);
+            CanContinue);
 
         BackCommand = new DelegateCommand(
             () => BackRequested?.Invoke(this, EventArgs.Empty),
@@ -167,34 +172,85 @@ internal sealed class CompatibilityViewModel
         }
 
         OptimizationPreferenceSelection? preference = SelectedPreference;
-        if (preference is null)
+        int generation = Volatile.Read(ref _attemptGeneration);
+        long selectionRevision = Volatile.Read(ref _optimizationSelectionRevision);
+        if (preference is null
+            || generation != Volatile.Read(ref _optimizationAuthorityGeneration)
+            || selectionRevision
+                != Volatile.Read(ref _optimizationAuthoritySelectionRevision)
+            || Volatile.Read(ref _optimizationIssuanceConsumed) != 0
+            || Interlocked.CompareExchange(
+                ref _optimizationIssuanceOwner, 1, 0) != 0)
         {
             return;
         }
 
-        OptimizationSelectionHandoff? handoff;
         try
         {
-            if (!_optimizationDestination.TryIssue(preference, out handoff))
+            if (generation != Volatile.Read(ref _attemptGeneration)
+                || selectionRevision
+                    != Volatile.Read(ref _optimizationSelectionRevision)
+                || !_optimizationDestination.TryIssue(
+                    preference,
+                    out OptimizationSelectionHandoff? handoff)
+                || handoff is null
+                || generation != Volatile.Read(ref _attemptGeneration)
+                || selectionRevision
+                    != Volatile.Read(ref _optimizationSelectionRevision))
             {
                 return;
+            }
+
+            if (Interlocked.CompareExchange(
+                    ref _optimizationIssuanceConsumed, 1, 0) != 0)
+            {
+                return;
+            }
+
+            ContinueCommand.RaiseCanExecuteChanged();
+            try
+            {
+                OptimizationRequested?.Invoke(this, handoff);
+            }
+            catch
+            {
+                // A subscriber may have acted before another subscriber failed,
+                // so this issuance remains consumed. Retrying it could navigate
+                // or execute twice. Only a new authority context may retry.
+                PublishAuxiliaryStatus(new CompatibilityAuxiliaryStatus(
+                    CompatibilityAuxiliaryStatusKind.Error,
+                    "Optimisation could not be opened. Recheck compatibility to create a new plan."));
             }
         }
         catch
         {
             // Adapter failures are private implementation details. Fail closed
             // without turning a button press into a UI-thread exception.
-            return;
         }
-
-        if (handoff is null || SelectedPreference != preference)
+        finally
         {
-            // The selection changed while the plan was being issued. The old
-            // plan is stale and must never cross the navigation boundary.
-            return;
+            Volatile.Write(ref _optimizationIssuanceOwner, 0);
+        }
+    }
+
+    private bool CanContinue()
+    {
+        if (!Presentation.PrimaryActionEnabled)
+        {
+            return false;
         }
 
-        OptimizationRequested?.Invoke(this, handoff);
+        if (Presentation.Optimization is null)
+        {
+            return true;
+        }
+
+        return _optimizationDestination.IsAvailable
+            && Volatile.Read(ref _optimizationIssuanceConsumed) == 0
+            && Volatile.Read(ref _attemptGeneration)
+                == Volatile.Read(ref _optimizationAuthorityGeneration)
+            && Volatile.Read(ref _optimizationSelectionRevision)
+                == Volatile.Read(ref _optimizationAuthoritySelectionRevision);
     }
 
     /// <summary>
@@ -331,6 +387,11 @@ internal sealed class CompatibilityViewModel
             _taskManagerOwner = 0;
         }
 
+        if (Volatile.Read(ref _optimizationAuthorityGeneration) != 0)
+        {
+            _optimizationDestination.Invalidate();
+        }
+
         previous?.Cancel();
         previousAuxiliary?.Cancel();
         PublishAuxiliaryStatus(CompatibilityAuxiliaryStatus.None);
@@ -367,7 +428,7 @@ internal sealed class CompatibilityViewModel
                 () =>
                 {
                     _lastModel = model;
-                    SelectedPreference = preference;
+                    CommitAttemptSelection(preference, generation);
                 });
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
@@ -378,7 +439,7 @@ internal sealed class CompatibilityViewModel
                 () =>
                 {
                     _lastModel = null;
-                    SelectedPreference = null;
+                    CommitSelection(null);
                 });
         }
         catch
@@ -389,7 +450,7 @@ internal sealed class CompatibilityViewModel
                 () =>
                 {
                     _lastModel = null;
-                    SelectedPreference = null;
+                    CommitSelection(null);
                 });
             throw;
         }
@@ -426,7 +487,7 @@ internal sealed class CompatibilityViewModel
             () =>
             {
                 _lastModel = null;
-                SelectedPreference = null;
+                CommitSelection(null);
             });
     }
 
@@ -439,7 +500,7 @@ internal sealed class CompatibilityViewModel
             () =>
             {
                 _lastModel = null;
-                SelectedPreference = null;
+                CommitSelection(null);
             });
     }
 
@@ -458,6 +519,11 @@ internal sealed class CompatibilityViewModel
             _auxiliaryCancellation = null;
             _recoveryOwner = 0;
             _taskManagerOwner = 0;
+        }
+
+        if (Volatile.Read(ref _optimizationAuthorityGeneration) != 0)
+        {
+            _optimizationDestination.Invalidate();
         }
 
         cancellation?.Cancel();
@@ -559,7 +625,27 @@ internal sealed class CompatibilityViewModel
     private void ClearCompatibilitySnapshot()
     {
         _lastModel = null;
-        SelectedPreference = null;
+        CommitSelection(null);
+    }
+
+    private void CommitAttemptSelection(
+        OptimizationPreferenceSelection? preference,
+        int generation)
+    {
+        long revision = CommitSelection(preference);
+        if (preference is not null
+            && Volatile.Read(ref _optimizationAuthorityGeneration) == 0
+            && _optimizationDestination.MatchesExpectedPreference(preference))
+        {
+            Volatile.Write(ref _optimizationAuthoritySelectionRevision, revision);
+            Volatile.Write(ref _optimizationAuthorityGeneration, generation);
+        }
+    }
+
+    private long CommitSelection(OptimizationPreferenceSelection? preference)
+    {
+        SelectedPreference = preference;
+        return Interlocked.Increment(ref _optimizationSelectionRevision);
     }
 
     internal void SelectAutomaticPreference()
@@ -573,10 +659,14 @@ internal sealed class CompatibilityViewModel
         CompatibilityScreenModel model = _lastModel;
         OptimizationPreferenceSelection preference =
             OptimizationPreferenceSelection.Automatic();
+        if (SelectedPreference != preference)
+        {
+            _optimizationDestination.Invalidate();
+        }
         Publish(
             CompatibilityPresentationFactory.From(model, preference),
             generation,
-            () => SelectedPreference = preference);
+            () => CommitSelection(preference));
     }
 
     internal void SelectManualPreference(int value)
@@ -590,6 +680,10 @@ internal sealed class CompatibilityViewModel
         CompatibilityScreenModel model = _lastModel;
         OptimizationPreferenceSelection preference =
             OptimizationPreferenceSelection.Manual(value);
+        if (SelectedPreference != preference)
+        {
+            _optimizationDestination.Invalidate();
+        }
         CompatibilityPresentation next =
             CompatibilityPresentationFactory.From(model, preference);
         if (SelectedPreference?.Kind == OptimizationPreferenceKind.Manual
@@ -600,15 +694,17 @@ internal sealed class CompatibilityViewModel
                 candidate.SelectedMode.Label,
                 StringComparison.Ordinal))
         {
-            // Preserve the exact user value for the future handoff, but a tick
-            // inside the same effective band changes no rendered state.
-            SelectedPreference = preference;
+            // The exact choice still invalidates the former plan, but the
+            // effective visual band did not change, so avoid a redundant
+            // presentation publish.
+            CommitSelection(preference);
+            ContinueCommand.RaiseCanExecuteChanged();
             return;
         }
         Publish(
             next,
             generation,
-            () => SelectedPreference = preference);
+            () => CommitSelection(preference));
     }
 
     private void Publish(
