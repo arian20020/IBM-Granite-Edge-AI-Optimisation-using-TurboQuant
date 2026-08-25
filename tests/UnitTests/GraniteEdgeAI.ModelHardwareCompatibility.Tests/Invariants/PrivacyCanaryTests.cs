@@ -282,15 +282,23 @@ public sealed class PrivacyCanaryTests
         "CompatibilityBaselineIdentity.SourceIdentitySha256",
         "<>c.<DigestSource>b__23_0",
 
+        // Production journey authority contains only independently supplied,
+        // validated lowercase SHA-256 values. The model/hardware digests bind
+        // the sealed journey without carrying a path, filename, model name,
+        // native error, display wording, or provider response.
+        "CompatibilityJourneyAuthorityInput.ModelSha256",
+        "CompatibilityJourneyAuthorityInput.HardwareSnapshotSha256",
+
         // The generation stamp is a one-way SHA-256 over the complete sealed
-        // generation inputs. Its canonicalizer sees only validated evidence
-        // identities, closed route values, numeric facts and existing reviewed
-        // build identities; it never receives a model path, filename, native
-        // error, display wording, or provider response. The public production
-        // input exposes only the copied set of strict evidence identifiers.
+        // generation inputs and the exact ordered candidates/exclusions it
+        // authorized. Its canonicalizer sees only validated evidence identities,
+        // closed route values, numeric facts and existing reviewed build
+        // identities; it never receives a model path, filename, native error,
+        // display wording, or provider response. The public production input
+        // exposes only the copied set of strict evidence identifiers.
         "CompatibilityOptimizationProductionInput.OptedInExperimentalEvidenceIds",
         "CompatibilityOptimizationProjectionInput.OptedInExperimentalEvidenceIds",
-        "OptimizationGenerationAuthority.InputSha256",
+        "OptimizationGenerationAuthority.AuthoritySha256",
         "OptimizationGenerationDigest.Compute",
         "OptimizationGenerationDigest.PayloadDigest",
         "<>c.<AppendObject>b__2_1",

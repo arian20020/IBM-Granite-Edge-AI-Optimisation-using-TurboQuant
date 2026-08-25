@@ -6,8 +6,10 @@ using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.FitAssessment;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.ModeSelection;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Ports;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Execution;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.Gguf;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.OpenVino;
 
 namespace GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation;
 
@@ -31,10 +33,13 @@ public static class CompatibilityEngine
 
         try
         {
-            CompatibilityRunResult result = CompatibilityRunCoordinator.Execute(
-                new CompatibilityRunRequest(CompatibilityContextRequest.ApplicationDefault()),
-                ProductionDependencies(input),
-                cancellationToken);
+            CompatibilityRunResult result = input.CurrentModel.Route == OptimizationRoute.Gguf
+                ? CompatibilityRunCoordinator.Execute(
+                    new CompatibilityRunRequest(
+                        CompatibilityContextRequest.ApplicationDefault()),
+                    ProductionDependencies(input),
+                    cancellationToken)
+                : EvaluateOpenVinoBaseline(input, cancellationToken);
             return ProjectProduction(result, input);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
@@ -110,7 +115,9 @@ public static class CompatibilityEngine
     private static CompatibilityRunDependencies ProductionDependencies(
         CompatibilityProductionInput input)
     {
-        int baselineTokens = Math.Min(4096, input.Model.DeclaredContextLimit ?? 4096);
+        int? declaredContext = input.CurrentModel.Gguf?.DeclaredContextLimit
+            ?? input.CurrentModel.OpenVino?.DeclaredContextLimit;
+        int baselineTokens = Math.Min(4096, declaredContext ?? 4096);
         return CompatibilityRunDependencies.Create(
             new ProductionGateway(input),
             new ProductionModelFactsSource(input),
@@ -121,15 +128,106 @@ public static class CompatibilityEngine
             SafetyPolicy.ProportionalV2(),
             new HashSet<string>(),
             TrustedSourceAvailability.None(),
-            GgufRouteConfiguration.Create(
-                GgufWeightFormat.Imported,
-                GgufKvCacheFormat.F16,
-                CompatibilityBackend.Cpu,
-                DeviceRouteId.Cpu,
-                GpuOffloadLevel.None),
+            input.CurrentModel.GgufConfiguration!,
             ContextTokenCount.FromTokens(baselineTokens),
             TimeProvider.System);
     }
+
+    private static CompatibilityRunResult EvaluateOpenVinoBaseline(
+        CompatibilityProductionInput input,
+        CancellationToken cancellationToken)
+    {
+        DateTimeOffset started = DateTimeOffset.UtcNow;
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return CompatibilityRunResult.Cancelled(
+                CompatibilityRunId.New(), [], [], started, DateTimeOffset.UtcNow);
+        }
+
+        OpenVinoRouteConfiguration configuration =
+            input.CurrentModel.OpenVinoConfiguration!;
+        int declaredContext = input.CurrentModel.OpenVino!.DeclaredContextLimit ?? 4096;
+        ContextTokenCount context = ContextTokenCount.FromTokens(
+            Math.Min(4096, declaredContext));
+        InspectedModelFacts facts = ToFacts(input.CurrentModel);
+        EstimatorPolicy estimator = EstimatorPolicy.ProvisionalV1();
+        SafetyPolicy safety = SafetyPolicy.ProportionalV2();
+        ResourceEstimate estimate = OpenVinoResourceEstimator.Estimate(
+            facts, configuration, context, estimator);
+        if (estimate.Status != EstimationStatus.Established)
+        {
+            return CompatibilityRunResult.NotEstablished(
+                CompatibilityRunId.New(),
+                [CompatibilityFinding.Create(
+                    CompatibilityFindingCode.NoCandidateCouldBeEstimated,
+                    FindingSeverity.Blocking)],
+                [PolicyIdentity.Create(
+                    "estimator", estimator.PolicyVersion, estimator.Provenance)],
+                started,
+                DateTimeOffset.UtcNow);
+        }
+
+        ResourcePeakProfile peaks = ResourcePhaseComposer.Compose(estimate.Components);
+        CompatibilityFreshResourcesInput fresh = input.FreshResources;
+        AvailableResources available = AvailableResources.Create(
+            ByteCount.FromBytes(fresh.AvailableSystemMemoryBytes),
+            ByteCount.FromBytes(fresh.AvailableDedicatedDeviceMemoryBytes),
+            ByteCount.FromBytes(fresh.AvailableStorageBytes),
+            fresh.ObservedAtUtc);
+        CompatibilityCandidate candidate = CompatibilityCandidate.Create(
+            configuration, context, CandidatePreparation.None,
+            "openvino-current", isExperimental: false, isBaseline: true);
+        EvaluatedCandidate evaluated = EvaluatedCandidate.Create(
+            candidate,
+            estimate,
+            peaks,
+            FitPolicy.Assess(peaks, available, safety),
+            EffectiveOpenVinoEncoding(
+                configuration.Weights,
+                input.CurrentModel.OpenVinoSourcePrecision!.Value),
+            EvidenceGrade.Estimated,
+            PerformanceIndicator.NotEstablished(),
+            ByteCount.Zero);
+        CompatibilityModeSelection[] modes =
+        [
+            CompatibilityModeSelection.NotEstablished(CompatibilityMode.Automatic),
+            CompatibilityModeSelection.NotEstablished(CompatibilityMode.Quality),
+            CompatibilityModeSelection.NotEstablished(CompatibilityMode.Balanced),
+            CompatibilityModeSelection.NotEstablished(CompatibilityMode.Efficiency)
+        ];
+        CompatibilityAssessment assessment = CompatibilityAssessment.Create(
+            [evaluated], modes, evaluated.Fingerprint,
+            BaselineExclusionReason.None,
+            evaluated.Fit.State is CompatibilityFitState.Safe
+                or CompatibilityFitState.Narrow);
+        return CompatibilityRunResult.Completed(
+            CompatibilityRunId.New(), assessment, [],
+            [
+                PolicyIdentity.Create(
+                    "estimator", estimator.PolicyVersion, estimator.Provenance),
+                PolicyIdentity.Create(
+                    "safety", safety.PolicyVersion, safety.Provenance)
+            ],
+            started,
+            DateTimeOffset.UtcNow);
+    }
+
+    private static WeightQuantisation EffectiveOpenVinoEncoding(
+        OpenVinoWeightFormat weights,
+        OpenVinoWeightPrecision sourcePrecision) => weights switch
+        {
+            OpenVinoWeightFormat.Fp16 => WeightQuantisation.F16,
+            OpenVinoWeightFormat.Int8 => WeightQuantisation.Q8_0,
+            OpenVinoWeightFormat.Int4 => WeightQuantisation.Q4_K_M,
+            OpenVinoWeightFormat.Original => sourcePrecision switch
+            {
+                OpenVinoWeightPrecision.Fp16 => WeightQuantisation.F16,
+                OpenVinoWeightPrecision.EightBit => WeightQuantisation.Q8_0,
+                OpenVinoWeightPrecision.FourBit => WeightQuantisation.Q4_K_M,
+                _ => WeightQuantisation.Unknown
+            },
+            _ => WeightQuantisation.Unknown
+        };
 
     private static CompatibilityScreenModel ProjectProduction(
         CompatibilityRunResult result,
@@ -149,15 +247,18 @@ public static class CompatibilityEngine
                 && candidate.Preparation == CandidatePreparation.None)
         ];
         if (baselines.Length != 1
-            || assessment.BaselineFingerprint != baselines[0].Fingerprint)
+            || assessment.BaselineFingerprint != baselines[0].Fingerprint
+            || !CurrentModelMatchesCapability(
+                input.CurrentModel, optimization.Snapshot, baselines[0].Context))
         {
             return CompatibilityScreenModel.ForPresentation(
                 CompatibilityScreenState.NotEstablished,
                 [], [], BaselineExclusionReason.None, false, false);
         }
 
-        InspectedModelFacts facts = ToFacts(input.Model);
-        ByteCount safeBudget = baselines[0].Fit.SafeBudget;
+        InspectedModelFacts facts = ToFacts(input.CurrentModel);
+        ByteCount safeBudget = GenerationBudget(
+            baselines[0].Fit.SafeBudget, SafetyPolicy.ProportionalV2());
         ByteCount availableDisk = ByteCount.FromBytes(
             input.FreshResources.AvailableStorageBytes);
         EstimatorPolicy policy = EstimatorPolicy.ProvisionalV1();
@@ -187,6 +288,19 @@ public static class CompatibilityEngine
         return CompatibilityScreenModel.From(result, projection);
     }
 
+    private static ByteCount GenerationBudget(
+        ByteCount fitBudget,
+        SafetyPolicy safety)
+    {
+        _ = fitBudget.TrySubtract(
+            safety.CalibrationMarginFloor, out ByteCount afterFloor);
+        ulong afterFraction = (ulong)Math.Floor(
+            fitBudget.Bytes / (1m + safety.CalibrationMarginFraction));
+        return afterFloor.Bytes < afterFraction
+            ? afterFloor
+            : ByteCount.FromBytes(afterFraction);
+    }
+
     private static CompatibilityScreenModel ProjectWithoutOptimizationAuthority(
         CompatibilityRunResult result)
     {
@@ -203,16 +317,78 @@ public static class CompatibilityEngine
             : legacy;
     }
 
-    private static InspectedModelFacts ToFacts(GgufCompatibilityModelInput model) =>
-        InspectedModelFacts.Create(
-            ByteCount.FromBytes(model.FileLengthBytes),
-            model.LayerCount,
-            model.EmbeddingSize,
-            model.AttentionHeadCount,
-            model.KeyValueHeadCount,
-            model.DeclaredContextLimit,
-            model.FileType,
-            model.QuantisationVersion);
+    private static InspectedModelFacts ToFacts(CompatibilityCurrentModelInput model)
+    {
+        if (model.Gguf is { } gguf)
+        {
+            return InspectedModelFacts.Create(
+                ByteCount.FromBytes(gguf.FileLengthBytes), gguf.LayerCount,
+                gguf.EmbeddingSize, gguf.AttentionHeadCount, gguf.KeyValueHeadCount,
+                gguf.DeclaredContextLimit, gguf.FileType, gguf.QuantisationVersion);
+        }
+
+        OpenVinoCompatibilityModelInput openVino = model.OpenVino!;
+        return InspectedModelFacts.Create(
+            ByteCount.FromBytes(openVino.PackageLengthBytes), openVino.LayerCount,
+            openVino.EmbeddingSize, openVino.AttentionHeadCount,
+            openVino.KeyValueHeadCount, openVino.DeclaredContextLimit,
+            fileType: null, quantisationVersion: null);
+    }
+
+    private static bool CurrentModelMatchesCapability(
+        CompatibilityCurrentModelInput current,
+        OptimizationCapabilitySnapshot snapshot,
+        ContextTokenCount context)
+    {
+        if (snapshot.Route != current.Route)
+        {
+            return false;
+        }
+
+        if (current.Route == OptimizationRoute.Gguf
+            && current.GgufConfiguration is { } gguf
+            && snapshot.Gguf is { RuntimeAuthority: { } runtime } payload)
+        {
+            GgufAdmittedConfiguration[] matching =
+            [
+                .. payload.Admitted.Where(admission =>
+                    admission.Weights == gguf.Weights
+                    && admission.KvCache == gguf.KvCache
+                    && admission.Backend == gguf.Backend
+                    && admission.Device == gguf.Device
+                    && admission.Offload == gguf.Offload
+                    && context.Tokens >= admission.MinimumContextTokens
+                    && context.Tokens <= admission.MaximumContextTokens
+                    && runtime.Profiles.ContainsKey(admission.EvidenceId))
+            ];
+            return matching.Length == 1;
+        }
+
+        if (current.Route == OptimizationRoute.OpenVino
+            && current.OpenVinoConfiguration is { } openVino
+            && current.OpenVinoSourcePrecision is { } sourcePrecision
+            && snapshot.OpenVino is { } openVinoPayload)
+        {
+            OpenVinoAdmittedConfiguration[] matching =
+            [
+                .. openVinoPayload.Admitted.Where(admission =>
+                    admission.Weights == openVino.Weights
+                    && admission.KvCache == openVino.KvCache
+                    && admission.Device == openVino.Device
+                    && admission.PerformanceHint == openVino.PerformanceHint
+                    && admission.CompiledCache == openVino.CompiledCache
+                    && admission.Streams == openVino.Streams
+                    && context.Tokens >= admission.MinimumContextTokens
+                    && context.Tokens <= admission.MaximumContextTokens
+                    && openVinoPayload.ExecutionAuthorities.TryGetValue(
+                        admission.EvidenceId, out OpenVinoExecutionAuthority? authority)
+                    && authority.SourceWeightPrecision == sourcePrecision)
+            ];
+            return matching.Length == 1;
+        }
+
+        return false;
+    }
 
     private sealed class ProductionGateway(CompatibilityProductionInput input)
         : ICompatibilityInputGateway
@@ -241,8 +417,7 @@ public static class CompatibilityEngine
                 return ModelFactsResolution.Unavailable(PortUnavailableReason.HandoffUnavailable);
             }
 
-            GgufCompatibilityModelInput model = input.Model;
-            return ModelFactsResolution.Established(ToFacts(model));
+            return ModelFactsResolution.Established(ToFacts(input.CurrentModel));
         }
     }
 

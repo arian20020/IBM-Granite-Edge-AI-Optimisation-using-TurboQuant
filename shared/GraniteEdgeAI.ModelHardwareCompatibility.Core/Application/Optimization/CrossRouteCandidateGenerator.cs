@@ -25,12 +25,12 @@ public sealed record OptimizationExclusion(
 /// </summary>
 internal sealed record OptimizationGenerationAuthority
 {
-    private OptimizationGenerationAuthority(string inputSha256)
+    private OptimizationGenerationAuthority(string authoritySha256)
     {
-        InputSha256 = inputSha256;
+        AuthoritySha256 = authoritySha256;
     }
 
-    private string InputSha256 { get; }
+    private string AuthoritySha256 { get; }
 
     internal static OptimizationGenerationAuthority Create(
         OptimizationCapabilitySnapshot snapshot,
@@ -40,7 +40,9 @@ internal sealed record OptimizationGenerationAuthority
         ByteCount safeBudget,
         ByteCount availableDisk,
         EstimatorPolicy policy,
-        IReadOnlySet<string> optedInExperimentalEvidenceIds)
+        IReadOnlySet<string> optedInExperimentalEvidenceIds,
+        IReadOnlyList<OptimizationCandidate> candidates,
+        IReadOnlyList<OptimizationExclusion> exclusions)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
         ArgumentNullException.ThrowIfNull(facts);
@@ -48,6 +50,8 @@ internal sealed record OptimizationGenerationAuthority
         ArgumentNullException.ThrowIfNull(binding);
         ArgumentNullException.ThrowIfNull(policy);
         ArgumentNullException.ThrowIfNull(optedInExperimentalEvidenceIds);
+        ArgumentNullException.ThrowIfNull(candidates);
+        ArgumentNullException.ThrowIfNull(exclusions);
         foreach (string evidenceId in optedInExperimentalEvidenceIds)
         {
             OptimizationIdentifier.Require(
@@ -58,7 +62,7 @@ internal sealed record OptimizationGenerationAuthority
 
         return new OptimizationGenerationAuthority(OptimizationGenerationDigest.Compute(
             snapshot, facts, workload, binding, safeBudget, availableDisk, policy,
-            optedInExperimentalEvidenceIds));
+            optedInExperimentalEvidenceIds, candidates, exclusions));
     }
 
     internal bool Matches(
@@ -69,19 +73,22 @@ internal sealed record OptimizationGenerationAuthority
         ByteCount safeBudget,
         ByteCount availableDisk,
         EstimatorPolicy policy,
-        IReadOnlySet<string> optedInExperimentalEvidenceIds) =>
+        IReadOnlySet<string> optedInExperimentalEvidenceIds,
+        IReadOnlyList<OptimizationCandidate> candidates,
+        IReadOnlyList<OptimizationExclusion> exclusions) =>
         string.Equals(
-            InputSha256,
+            AuthoritySha256,
             OptimizationGenerationDigest.Compute(
                 snapshot, facts, workload, binding, safeBudget, availableDisk,
-                policy, optedInExperimentalEvidenceIds),
+                policy, optedInExperimentalEvidenceIds, candidates, exclusions),
             StringComparison.Ordinal);
 }
 
 /// <summary>
-/// Canonical digest of every input that can change generation. The capability
-/// payload is hashed independently of the caller-supplied evidence digest, so
-/// replaying that digest beside a changed payload cannot preserve authority.
+/// Canonical digest of every input that can change generation and the exact
+/// ordered output produced. The capability payload is hashed independently of
+/// the caller-supplied evidence digest, so replaying that digest beside a
+/// changed payload or changed result cannot preserve authority.
 /// </summary>
 internal static class OptimizationGenerationDigest
 {
@@ -93,7 +100,9 @@ internal static class OptimizationGenerationDigest
         ByteCount safeBudget,
         ByteCount availableDisk,
         EstimatorPolicy policy,
-        IReadOnlySet<string> optedInExperimentalEvidenceIds)
+        IReadOnlySet<string> optedInExperimentalEvidenceIds,
+        IReadOnlyList<OptimizationCandidate> candidates,
+        IReadOnlyList<OptimizationExclusion> exclusions)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
         ArgumentNullException.ThrowIfNull(facts);
@@ -101,6 +110,8 @@ internal static class OptimizationGenerationDigest
         ArgumentNullException.ThrowIfNull(binding);
         ArgumentNullException.ThrowIfNull(policy);
         ArgumentNullException.ThrowIfNull(optedInExperimentalEvidenceIds);
+        ArgumentNullException.ThrowIfNull(candidates);
+        ArgumentNullException.ThrowIfNull(exclusions);
 
         StringBuilder canonical = new();
         Append(canonical, "generation-authority-v2");
@@ -120,6 +131,11 @@ internal static class OptimizationGenerationDigest
         {
             Append(canonical, evidenceId);
         }
+        // Output order is part of the contract. The generator emits candidates
+        // by canonical descriptor and exclusions by evidence/descriptor/reason;
+        // a reordered or substituted row therefore cannot reuse the stamp.
+        AppendObject(canonical, candidates);
+        AppendObject(canonical, exclusions);
 
         return Convert.ToHexString(SHA256.HashData(
             new UTF8Encoding(false).GetBytes(canonical.ToString())))
@@ -177,7 +193,8 @@ internal static class OptimizationGenerationDigest
 
         if (value is IEnumerable enumerable)
         {
-            Append(canonical, type.FullName ?? type.Name);
+            bool unordered = ImplementsSetOrDictionary(type);
+            Append(canonical, unordered ? "unordered" : "sequence");
             List<string> entries = [];
             foreach (object? item in enumerable)
             {
@@ -186,7 +203,7 @@ internal static class OptimizationGenerationDigest
                 entries.Add(entry.ToString());
             }
 
-            if (ImplementsSetOrDictionary(type))
+            if (unordered)
             {
                 entries.Sort(StringComparer.Ordinal);
             }
@@ -351,12 +368,20 @@ internal static class CrossRouteCandidateGenerator
                     StringComparer.Ordinal)
         ];
 
+        List<OptimizationExclusion> orderedExclusions =
+        [
+            .. exclusions
+                .OrderBy(exclusion => exclusion.EvidenceId, StringComparer.Ordinal)
+                .ThenBy(exclusion => exclusion.CanonicalDescriptor, StringComparer.Ordinal)
+                .ThenBy(exclusion => exclusion.Reason)
+        ];
+
         return new CrossRouteGenerationResult(
             distinct,
-            exclusions,
+            orderedExclusions,
             OptimizationGenerationAuthority.Create(
                 snapshot, facts, workload, binding, safeBudget, availableDisk,
-                policy, optedInExperimentalEvidenceIds));
+                policy, optedInExperimentalEvidenceIds, distinct, orderedExclusions));
     }
 
     private static void GenerateOpenVino(

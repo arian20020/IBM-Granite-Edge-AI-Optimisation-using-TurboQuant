@@ -42,11 +42,16 @@ public sealed class CompatibilityProductionInputTests
     {
         Guid modelRun = Guid.NewGuid();
         Guid hardwareRun = Guid.NewGuid();
-        CompatibilityProductionInput legacy = ValidInput(
-            modelRun, hardwareRun, availableSystemMemoryBytes: 4 * GiB);
+        Guid handoffId = Guid.NewGuid();
         const string digest =
             "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";
-        OpenVinoAdmittedConfiguration admitted =
+        OpenVinoAdmittedConfiguration current =
+            OpenVinoAdmittedConfiguration.Create(
+                "ov-original", DeviceRouteId.Cpu, OpenVinoWeightFormat.Original,
+                OpenVinoKvCacheFormat.U8, OpenVinoPerformanceHint.Latency,
+                OpenVinoCompiledCachePolicy.Disabled, 1, 512, 8192,
+                SupportLevel.DeclaredSupported, requiresEvidence: false);
+        OpenVinoAdmittedConfiguration alternative =
             OpenVinoAdmittedConfiguration.Create(
                 "ov-int4", DeviceRouteId.Cpu, OpenVinoWeightFormat.Int4,
                 OpenVinoKvCacheFormat.U8, OpenVinoPerformanceHint.Latency,
@@ -55,31 +60,33 @@ public sealed class CompatibilityProductionInputTests
         OptimizationCapabilitySnapshot snapshot =
             OptimizationCapabilitySnapshot.ForOpenVino(
                 "ov-cap", digest, OpenVinoCapabilityPayload.Create(
-                    "2026.1.0", [admitted],
-                    [OpenVinoExecutionAuthority.Create(
-                        "ov-int4", "ov-int4", OpenVinoWeightPrecision.Fp16,
-                        OpenVinoBuildIdentity.Create(
-                            "2026.1.0", "2026.1.0", "2026.1.0", digest),
-                        new Dictionary<string, string>(StringComparer.Ordinal)
-                        {
-                            ["openvino"] = "2026.1.0"
-                        },
-                        compiledCacheIsDisposable: true,
-                        turboQuantBuild: null)]));
+                    "2026.1.0", [current, alternative],
+                    [
+                        OpenVinoAuthority(current.EvidenceId, digest),
+                        OpenVinoAuthority(alternative.EvidenceId, digest)
+                    ]));
+        OpenVinoCompatibilityModelInput model =
+            OpenVinoCompatibilityModelInput.Create(
+                3 * GiB, 32, 4096, 32, 8, 8192);
+        CompatibilityCurrentModelInput currentModel =
+            CompatibilityCurrentModelInput.ForOpenVino(
+                model,
+                OpenVinoRouteConfiguration.Create(
+                    OpenVinoWeightFormat.Original, OpenVinoKvCacheFormat.U8,
+                    DeviceRouteId.Cpu, OpenVinoPerformanceHint.Latency,
+                    OpenVinoCompiledCachePolicy.Disabled, 1),
+                OpenVinoWeightPrecision.Fp16);
         OptimizationJourneyBinding binding = OptimizationJourneyBinding.Create(
-            modelRun.ToString("N"), "handoff", digest,
-            legacy.Model.FileLengthBytes, hardwareRun.ToString("N"), digest);
+            modelRun.ToString("N"), handoffId.ToString("N"), digest,
+            model.PackageLengthBytes, hardwareRun.ToString("N"), digest);
         CompatibilityOptimizationProductionInput optimization =
-            CompatibilityOptimizationProductionInput.Create(
-                snapshot,
-                OptimizationWorkload.Create(
-                    "chat", 512, OptimizationAssessment.Poor,
-                    [ContextTokenCount.FromTokens(4096)]),
-                binding,
-                new HashSet<string>());
+            OptimizationInput(snapshot, binding);
+        CompatibilityProductionInput legacy = ValidInput(
+            modelRun, hardwareRun, availableSystemMemoryBytes: 4 * GiB);
         CompatibilityProductionInput input = CompatibilityProductionInput.Create(
-            modelRun, hardwareRun, legacy.Model, legacy.Hardware,
-            legacy.FreshResources, optimization);
+            modelRun, hardwareRun, currentModel,
+            CompatibilityJourneyAuthorityInput.Create(handoffId, digest, digest),
+            legacy.Hardware, legacy.FreshResources, optimization);
 
         CompatibilityScreenModel result = CompatibilityEngine.Run(input);
 
@@ -88,17 +95,38 @@ public sealed class CompatibilityProductionInputTests
         Assert.AreEqual(OptimizationRoute.OpenVino, result.RecommendedSetup!.Route);
         Assert.IsNull(result.Setup);
         Assert.AreEqual(CompatibilityFitState.DoesNotFit, result.CurrentSetup!.Fit);
+        Assert.AreEqual(RuntimeRouteId.OpenVinoGenAi, result.CurrentSetup.Route);
     }
+
+    private static OpenVinoExecutionAuthority OpenVinoAuthority(
+        string evidenceId,
+        string digest) =>
+        OpenVinoExecutionAuthority.Create(
+            evidenceId, evidenceId, OpenVinoWeightPrecision.Fp16,
+            OpenVinoBuildIdentity.Create(
+                "2026.1.0", "2026.1.0", "2026.1.0", digest),
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["openvino"] = "2026.1.0"
+            },
+            compiledCacheIsDisposable: true,
+            turboQuantBuild: null);
 
     [TestMethod]
     public void ProductionEngine_GgufFrontierIsReachableWithoutAUiSelectionRerun()
     {
         Guid modelRun = Guid.NewGuid();
         Guid hardwareRun = Guid.NewGuid();
+        Guid handoffId = Guid.NewGuid();
         const string digest =
             "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";
         const string commit = "0123456789abcdef0123456789abcdef01234567";
-        GgufAdmittedConfiguration admitted = GgufAdmittedConfiguration.Create(
+        GgufAdmittedConfiguration current = GgufAdmittedConfiguration.Create(
+            "gguf-f16", CompatibilityBackend.Cpu, DeviceRouteId.Cpu,
+            GgufWeightFormat.Imported, GgufKvCacheFormat.F16,
+            GpuOffloadLevel.None, 512, 8192,
+            SupportLevel.DeclaredSupported, requiresEvidence: false);
+        GgufAdmittedConfiguration alternative = GgufAdmittedConfiguration.Create(
             "gguf-q8", CompatibilityBackend.Cpu, DeviceRouteId.Cpu,
             GgufWeightFormat.Imported, GgufKvCacheFormat.Q8_0,
             GpuOffloadLevel.None, 512, 8192,
@@ -106,12 +134,11 @@ public sealed class CompatibilityProductionInputTests
         OptimizationCapabilitySnapshot snapshot =
             OptimizationCapabilitySnapshot.ForGguf(
                 "gguf-cap", digest, GgufCapabilityPayload.Create(
-                    "b4321", [admitted], runtimeAuthority: GgufRuntimeAuthority.Create(
+                    "b4321", [current, alternative],
+                    runtimeAuthority: GgufRuntimeAuthority.Create(
                         "b4321", commit,
-                        [GgufExecutionProfileAuthority.Create(
-                            admitted.EvidenceId, EvidenceGrade.Estimated, "profile",
-                            flashAttention: false, threadCount: 4, batchSize: 128,
-                            maximumGeneratedTokens: 256)])));
+                        [GgufProfile(current.EvidenceId),
+                         GgufProfile(alternative.EvidenceId)])));
         CompatibilityScreenModel? found = null;
         for (ulong available = 3 * GiB;
              available <= 6 * GiB;
@@ -120,20 +147,23 @@ public sealed class CompatibilityProductionInputTests
             CompatibilityProductionInput legacy = ValidInput(
                 modelRun, hardwareRun, available);
             OptimizationJourneyBinding binding = OptimizationJourneyBinding.Create(
-                modelRun.ToString("N"), "handoff", digest,
+                modelRun.ToString("N"), handoffId.ToString("N"), digest,
                 legacy.Model.FileLengthBytes, hardwareRun.ToString("N"), digest);
             CompatibilityOptimizationProductionInput optimization =
-                CompatibilityOptimizationProductionInput.Create(
-                    snapshot,
-                    OptimizationWorkload.Create(
-                        "chat", 512, OptimizationAssessment.Poor,
-                        [ContextTokenCount.FromTokens(4096)]),
-                    binding,
-                    new HashSet<string>());
+                OptimizationInput(snapshot, binding);
+            CompatibilityCurrentModelInput currentModel =
+                CompatibilityCurrentModelInput.ForGguf(
+                    legacy.Model,
+                    GgufRouteConfiguration.Create(
+                        GgufWeightFormat.Imported, GgufKvCacheFormat.F16,
+                        CompatibilityBackend.Cpu, DeviceRouteId.Cpu,
+                        GpuOffloadLevel.None));
             CompatibilityScreenModel result = CompatibilityEngine.Run(
                 CompatibilityProductionInput.Create(
-                    modelRun, hardwareRun, legacy.Model, legacy.Hardware,
-                    legacy.FreshResources, optimization));
+                    modelRun, hardwareRun, currentModel,
+                    CompatibilityJourneyAuthorityInput.Create(
+                        handoffId, digest, digest),
+                    legacy.Hardware, legacy.FreshResources, optimization));
             if (result.State == CompatibilityScreenState.OptimisationRequired)
             {
                 found = result;
@@ -143,8 +173,26 @@ public sealed class CompatibilityProductionInputTests
 
         Assert.IsNotNull(found, "The GGUF Q8 cache frontier never became actionable.");
         Assert.AreEqual(OptimizationRoute.Gguf, found.RecommendedSetup!.Route);
+        Assert.AreEqual(RuntimeRouteId.LlamaCpp, found.CurrentSetup!.Route);
         Assert.IsNotNull(found.Optimization);
     }
+
+    private static GgufExecutionProfileAuthority GgufProfile(string evidenceId) =>
+        GgufExecutionProfileAuthority.Create(
+            evidenceId, EvidenceGrade.Estimated, $"profile-{evidenceId}",
+            flashAttention: false, threadCount: 4, batchSize: 128,
+            maximumGeneratedTokens: 256);
+
+    private static CompatibilityOptimizationProductionInput OptimizationInput(
+        OptimizationCapabilitySnapshot snapshot,
+        OptimizationJourneyBinding binding) =>
+        CompatibilityOptimizationProductionInput.Create(
+            snapshot,
+            OptimizationWorkload.Create(
+                "chat", 512, OptimizationAssessment.Poor,
+                [ContextTokenCount.FromTokens(4096)]),
+            binding,
+            new HashSet<string>());
 
     [TestMethod]
     public void ProductionEngine_WithoutFrontierCannotClaimOptimizationIsAvailable()
@@ -155,6 +203,162 @@ public sealed class CompatibilityProductionInputTests
         Assert.AreNotEqual(
             CompatibilityScreenState.OptimisationRequired,
             result.State);
+        Assert.IsNull(result.Optimization);
+    }
+
+    [TestMethod]
+    public void LegacySixArgumentFactory_PreservesNullOptimizationBehavior()
+    {
+        CompatibilityProductionInput legacy = ValidInput();
+
+        CompatibilityProductionInput result = CompatibilityProductionInput.Create(
+            legacy.ModelInspectionRunId,
+            legacy.ProductHardwareRunId,
+            legacy.Model,
+            legacy.Hardware,
+            legacy.FreshResources,
+            optimization: null);
+
+        Assert.AreEqual(OptimizationRoute.Gguf, result.CurrentModel.Route);
+        Assert.IsNull(result.Optimization);
+    }
+
+    [TestMethod]
+    [DataRow("model-run")]
+    [DataRow("handoff")]
+    [DataRow("model-sha")]
+    [DataRow("length")]
+    [DataRow("hardware-run")]
+    [DataRow("hardware-sha")]
+    public void AuthoritativeProductionInput_RejectsEveryJourneyMismatch(
+        string mismatch)
+    {
+        const string digest =
+            "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";
+        const string otherDigest =
+            "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+        Guid modelRun = Guid.NewGuid();
+        Guid hardwareRun = Guid.NewGuid();
+        Guid handoff = Guid.NewGuid();
+        Guid other = Guid.NewGuid();
+        CompatibilityProductionInput legacy = ValidInput(modelRun, hardwareRun, 4 * GiB);
+        GgufAdmittedConfiguration current = GgufAdmittedConfiguration.Create(
+            "gguf-f16", CompatibilityBackend.Cpu, DeviceRouteId.Cpu,
+            GgufWeightFormat.Imported, GgufKvCacheFormat.F16,
+            GpuOffloadLevel.None, 512, 8192,
+            SupportLevel.DeclaredSupported, requiresEvidence: false);
+        OptimizationCapabilitySnapshot snapshot =
+            OptimizationCapabilitySnapshot.ForGguf(
+                "gguf-cap", digest, GgufCapabilityPayload.Create(
+                    "b4321", [current], runtimeAuthority: GgufRuntimeAuthority.Create(
+                        "b4321", "0123456789abcdef0123456789abcdef01234567",
+                        [GgufProfile(current.EvidenceId)])));
+        OptimizationJourneyBinding binding = OptimizationJourneyBinding.Create(
+            mismatch == "model-run" ? other.ToString("N") : modelRun.ToString("N"),
+            mismatch == "handoff" ? other.ToString("N") : handoff.ToString("N"),
+            mismatch == "model-sha" ? otherDigest : digest,
+            legacy.Model.FileLengthBytes + (mismatch == "length" ? 1UL : 0UL),
+            mismatch == "hardware-run" ? other.ToString("N") : hardwareRun.ToString("N"),
+            mismatch == "hardware-sha" ? otherDigest : digest);
+
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            CompatibilityProductionInput.Create(
+                modelRun,
+                hardwareRun,
+                CompatibilityCurrentModelInput.ForGguf(
+                    legacy.Model,
+                    GgufRouteConfiguration.Create(
+                        GgufWeightFormat.Imported, GgufKvCacheFormat.F16,
+                        CompatibilityBackend.Cpu, DeviceRouteId.Cpu,
+                        GpuOffloadLevel.None)),
+                CompatibilityJourneyAuthorityInput.Create(handoff, digest, digest),
+                legacy.Hardware,
+                legacy.FreshResources,
+                OptimizationInput(snapshot, binding)),
+            mismatch);
+    }
+
+    [TestMethod]
+    public void AuthoritativeProductionInput_RejectsCrossRouteCapabilityEvidence()
+    {
+        Guid modelRun = Guid.NewGuid();
+        Guid hardwareRun = Guid.NewGuid();
+        Guid handoff = Guid.NewGuid();
+        const string digest =
+            "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";
+        CompatibilityProductionInput legacy = ValidInput(modelRun, hardwareRun, 4 * GiB);
+        OpenVinoAdmittedConfiguration admission =
+            OpenVinoAdmittedConfiguration.Create(
+                "ov-original", DeviceRouteId.Cpu, OpenVinoWeightFormat.Original,
+                OpenVinoKvCacheFormat.U8, OpenVinoPerformanceHint.Latency,
+                OpenVinoCompiledCachePolicy.Disabled, 1, 512, 8192,
+                SupportLevel.DeclaredSupported, false);
+        OptimizationCapabilitySnapshot openVino =
+            OptimizationCapabilitySnapshot.ForOpenVino(
+                "ov-cap", digest, OpenVinoCapabilityPayload.Create(
+                    "2026.1.0", [admission],
+                    [OpenVinoAuthority(admission.EvidenceId, digest)]));
+        OptimizationJourneyBinding binding = OptimizationJourneyBinding.Create(
+            modelRun.ToString("N"), handoff.ToString("N"), digest,
+            legacy.Model.FileLengthBytes, hardwareRun.ToString("N"), digest);
+
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            CompatibilityProductionInput.Create(
+                modelRun, hardwareRun,
+                CompatibilityCurrentModelInput.ForGguf(
+                    legacy.Model,
+                    GgufRouteConfiguration.Create(
+                        GgufWeightFormat.Imported, GgufKvCacheFormat.F16,
+                        CompatibilityBackend.Cpu, DeviceRouteId.Cpu,
+                        GpuOffloadLevel.None)),
+                CompatibilityJourneyAuthorityInput.Create(handoff, digest, digest),
+                legacy.Hardware, legacy.FreshResources,
+                OptimizationInput(openVino, binding)));
+    }
+
+    [TestMethod]
+    public void ProductionEngine_RejectsOpenVinoSourcePrecisionMismatch()
+    {
+        Guid modelRun = Guid.NewGuid();
+        Guid hardwareRun = Guid.NewGuid();
+        Guid handoff = Guid.NewGuid();
+        const string digest =
+            "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";
+        OpenVinoAdmittedConfiguration admission =
+            OpenVinoAdmittedConfiguration.Create(
+                "ov-original", DeviceRouteId.Cpu, OpenVinoWeightFormat.Original,
+                OpenVinoKvCacheFormat.U8, OpenVinoPerformanceHint.Latency,
+                OpenVinoCompiledCachePolicy.Disabled, 1, 512, 8192,
+                SupportLevel.DeclaredSupported, false);
+        OptimizationCapabilitySnapshot snapshot =
+            OptimizationCapabilitySnapshot.ForOpenVino(
+                "ov-cap", digest, OpenVinoCapabilityPayload.Create(
+                    "2026.1.0", [admission],
+                    [OpenVinoAuthority(admission.EvidenceId, digest)]));
+        OpenVinoCompatibilityModelInput model =
+            OpenVinoCompatibilityModelInput.Create(
+                3 * GiB, 32, 4096, 32, 8, 8192);
+        OptimizationJourneyBinding binding = OptimizationJourneyBinding.Create(
+            modelRun.ToString("N"), handoff.ToString("N"), digest,
+            model.PackageLengthBytes, hardwareRun.ToString("N"), digest);
+        CompatibilityProductionInput legacy = ValidInput(
+            modelRun, hardwareRun, availableSystemMemoryBytes: 4 * GiB);
+        CompatibilityProductionInput input = CompatibilityProductionInput.Create(
+            modelRun, hardwareRun,
+            CompatibilityCurrentModelInput.ForOpenVino(
+                model,
+                OpenVinoRouteConfiguration.Create(
+                    OpenVinoWeightFormat.Original, OpenVinoKvCacheFormat.U8,
+                    DeviceRouteId.Cpu, OpenVinoPerformanceHint.Latency,
+                    OpenVinoCompiledCachePolicy.Disabled, 1),
+                OpenVinoWeightPrecision.EightBit),
+            CompatibilityJourneyAuthorityInput.Create(handoff, digest, digest),
+            legacy.Hardware, legacy.FreshResources,
+            OptimizationInput(snapshot, binding));
+
+        CompatibilityScreenModel result = CompatibilityEngine.Run(input);
+
+        Assert.AreEqual(CompatibilityScreenState.NotEstablished, result.State);
         Assert.IsNull(result.Optimization);
     }
 
@@ -242,6 +446,8 @@ public sealed class CompatibilityProductionInputTests
         Type[] boundaryTypes =
         [
             typeof(GgufCompatibilityModelInput),
+            typeof(OpenVinoCompatibilityModelInput),
+            typeof(CompatibilityCurrentModelInput),
             typeof(CompatibilityHardwareInput),
             typeof(CompatibilityFreshResourcesInput),
             typeof(CompatibilityProductionInput),
@@ -255,6 +461,19 @@ public sealed class CompatibilityProductionInputTests
 
             Assert.AreEqual(0, strings.Length, $"{type.Name} carries free-form text.");
         }
+
+        string[] journeyStrings = typeof(CompatibilityJourneyAuthorityInput)
+            .GetProperties()
+            .Where(property => property.PropertyType == typeof(string))
+            .Select(property => property.Name)
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToArray();
+        CollectionAssert.AreEqual(
+            new[] { "HardwareSnapshotSha256", "ModelSha256" },
+            journeyStrings);
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            CompatibilityJourneyAuthorityInput.Create(
+                Guid.NewGuid(), @"C:\private\model.gguf", new string('a', 64)));
     }
 
     private static CompatibilityProductionInput ValidInput() =>

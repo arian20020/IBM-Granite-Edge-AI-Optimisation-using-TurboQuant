@@ -348,7 +348,9 @@ public sealed record CompatibilityScreenModel
         if (state == CompatibilityScreenState.Unspecified
             || !Enum.IsDefined(state)
             || (state == CompatibilityScreenState.OptimisationRequired)
-                != (optimization is not null))
+                != (optimization is not null)
+            || state == CompatibilityScreenState.OptimisationRequired
+                && setup?.Fit != CompatibilityFitState.DoesNotFit)
         {
             throw new ArgumentException(
                 "A screen model must name the state it renders.", nameof(state));
@@ -546,7 +548,9 @@ public sealed record CompatibilityScreenModel
             || !generationAuthority.Matches(
                 input.Snapshot, input.Facts, input.Workload, input.Binding,
                 input.SafeBudget, input.AvailableDisk, input.Policy,
-                input.OptedInExperimentalEvidenceIds))
+                input.OptedInExperimentalEvidenceIds,
+                input.Generated.Candidates,
+                input.Generated.Exclusions))
         {
             return false;
         }
