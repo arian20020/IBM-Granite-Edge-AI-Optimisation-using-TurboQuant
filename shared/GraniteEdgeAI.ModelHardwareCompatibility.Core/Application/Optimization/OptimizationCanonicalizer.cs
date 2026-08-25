@@ -28,8 +28,12 @@ internal static class OptimizationCanonicalizer
 {
     /// <summary>The immutable version-2 layout retained for digest verification.</summary>
     internal static string CanonicalizeV2(
-        OptimizationCandidate candidate, OptimizationExecutionPayload payload) =>
-        CanonicalizeCore(candidate, payload, contractVersion: 2, includeV3CacheAlgorithm: false);
+        OptimizationCandidate candidate, OptimizationExecutionPayload payload)
+    {
+        RequireVersionTwoCacheVocabulary(payload);
+        return CanonicalizeCore(
+            candidate, payload, contractVersion: 2, includeV3CacheAlgorithm: false);
+    }
 
     internal static string CanonicalizeV3(
         OptimizationCandidate candidate, OptimizationExecutionPayload payload) =>
@@ -38,11 +42,19 @@ internal static class OptimizationCanonicalizer
     internal static string ConfigurationSha256V2(
         OptimizationCandidate candidate, OptimizationExecutionPayload payload)
     {
+        RequireVersionTwoCacheVocabulary(payload);
         byte[] hash = SHA256.HashData(
             new UTF8Encoding(encoderShouldEmitUTF8Identifier: false)
                 .GetBytes(CanonicalizeV2(candidate, payload)));
 
         return Convert.ToHexString(hash).ToLowerInvariant();
+    }
+
+    private static void RequireVersionTwoCacheVocabulary(
+        OptimizationExecutionPayload payload)
+    {
+        ArgumentNullException.ThrowIfNull(payload);
+        payload.OpenVino?.RequireVersionTwoCacheVocabulary();
     }
 
     /// <summary>

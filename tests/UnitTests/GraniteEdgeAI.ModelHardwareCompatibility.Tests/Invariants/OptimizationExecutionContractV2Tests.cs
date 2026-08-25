@@ -263,6 +263,39 @@ public sealed class OptimizationExecutionContractV2Tests
     }
 
     [TestMethod]
+    [DataRow(OpenVinoKvCachePrecision.F16)]
+    [DataRow(OpenVinoKvCachePrecision.Bf16)]
+    [DataRow(OpenVinoKvCachePrecision.U4)]
+    [DataRow(OpenVinoKvCachePrecision.Tbq4)]
+    [DataRow(OpenVinoKvCachePrecision.Tbq3)]
+    public void VersionTwoPayloadRejectsPostVersionTwoCachePrecision(
+        OpenVinoKvCachePrecision precision)
+    {
+        Assert.ThrowsExactly<ArgumentException>(
+            () => V2TestData.OpenVinoPayload(kvCache: precision));
+    }
+
+    [TestMethod]
+    public void VersionTwoCanonicalizerRejectsVersionThreeTurboQuantPayload()
+    {
+        OptimizationCandidate candidate = V2TestData.OpenVinoCandidate();
+        OptimizationExecutionPayload payload = VersionThreeTurboQuantPayload();
+
+        Assert.ThrowsExactly<ArgumentException>(
+            () => OptimizationCanonicalizer.CanonicalizeV2(candidate, payload));
+    }
+
+    [TestMethod]
+    public void VersionTwoHashRejectsVersionThreeTurboQuantPayload()
+    {
+        OptimizationCandidate candidate = V2TestData.OpenVinoCandidate();
+        OptimizationExecutionPayload payload = VersionThreeTurboQuantPayload();
+
+        Assert.ThrowsExactly<ArgumentException>(
+            () => OptimizationCanonicalizer.ConfigurationSha256V2(candidate, payload));
+    }
+
+    [TestMethod]
     public void NewlyIssuedPlanReportsContractVersionThree()
     {
         OptimizationExecutionPlan plan = IssueGguf();
@@ -293,6 +326,25 @@ public sealed class OptimizationExecutionContractV2Tests
             plan.IsExecutableBy(OptimizationExecutionPlan.MinimumExecutableContractVersion - 1),
             "An executor below the minimum version was admitted.");
     }
+
+    private static OptimizationExecutionPayload VersionThreeTurboQuantPayload() =>
+        OptimizationExecutionPayload.ForOpenVino(OpenVinoExecutionPayload.Create(
+            "openvino.experimental.cpu.int4.turbo.v3",
+            "CPU",
+            "Experimental candidate",
+            "ov-turbo-evidence",
+            OpenVinoWeightPrecision.Fp16,
+            OpenVinoWeightPrecision.FourBit,
+            OpenVinoKvCachePrecision.Tbq4,
+            compiledCacheEnabled: false,
+            compiledCacheIsDisposable: true,
+            compiledCacheIsModelArtifact: false,
+            createsCompletePackage: true,
+            V2TestData.Build(),
+            V2TestData.Versions(),
+            TurboQuantBuildIdentity.Create(
+                Commit40, Commit40, Digest64, OtherDigest64),
+            OpenVinoKvCacheAlgorithm.TurboQuant));
 
     [TestMethod]
     public void PlanCannotBeConstructedWithoutAnExecutionPayload()

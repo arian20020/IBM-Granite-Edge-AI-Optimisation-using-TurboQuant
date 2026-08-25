@@ -127,6 +127,26 @@ public sealed class OptimizationExecutionContractV3Tests
     }
 
     [TestMethod]
+    public void TurboQuantTbq4V3CanonicalVectorRemainsFrozen()
+    {
+        OptimizationCandidate candidate = SelectedTurboCandidate(
+            OpenVinoKvCacheFormat.TurboQuantTbq4).Selection.Candidate;
+        OptimizationExecutionPayload payload = OptimizationExecutionPayload.ForOpenVino(
+            Payload(
+                OpenVinoKvCacheAlgorithm.TurboQuant,
+                OpenVinoKvCachePrecision.Tbq4,
+                TurboBuild()));
+
+        Assert.AreEqual(
+            "v=1:3|route=1:2|config=79:openvino|w=Int4|kv=TurboQuantTbq4|dev=Cpu|hint=Latency|cache=Disabled|streams=1|ctx=4:4096|persistent=1:1|evidence=17:ov-turbo-evidence|experimental=1:1|ov.configurationId=39:openvino.experimental.cpu.int4.turbo.v3|ov.device=3:CPU|ov.maturity=22:Experimental candidate|ov.evidenceId=17:ov-turbo-evidence|ov.sourceWeightPrecision=1:0|ov.targetWeightPrecision=1:2|ov.kvCacheAlgorithm=1:2|ov.kvCachePrecision=1:5|ov.compiledCacheEnabled=1:0|ov.compiledCacheIsDisposable=1:1|ov.compiledCacheIsModelArtifact=1:0|ov.createsCompletePackage=1:1|ov.build.runtimeBuild=8:2026.3.0|ov.build.genAiBuild=10:2026.3.0.0|ov.build.tokenizersBuild=8:2026.3.0|ov.build.workerManifestDigest=64:1111111111111111111111111111111111111111111111111111111111111111|ov.optimizer.nncf=5:3.3.0|ov.optimizer.openvino=8:2026.3.0|ov.turboQuant.sourceCommit=40:0123456789abcdef0123456789abcdef01234567|ov.turboQuant.implementationCommit=40:0123456789abcdef0123456789abcdef01234567|ov.turboQuant.patchSeriesDigest=64:1111111111111111111111111111111111111111111111111111111111111111|ov.turboQuant.runtimeManifestDigest=64:2222222222222222222222222222222222222222222222222222222222222222",
+            OptimizationCanonicalizer.Canonicalize(candidate, payload, contractVersion: 3));
+        Assert.AreEqual(
+            "8bcdb511fd67ff1c76e5cf43e52c3028cf0cbee7eb1ca20494358455bf72d3b4",
+            OptimizationCanonicalizer.ConfigurationSha256(
+                candidate, payload, contractVersion: 3));
+    }
+
+    [TestMethod]
     public void V3DigestChangesWithTurboQuantPrecisionAndBuildIdentity()
     {
         OptimizationCandidate tbq4 = SelectedTurboCandidate(

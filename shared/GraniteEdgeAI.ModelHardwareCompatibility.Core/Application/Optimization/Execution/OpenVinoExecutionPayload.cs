@@ -340,8 +340,9 @@ public sealed record OpenVinoExecutionPayload
         bool createsCompletePackage,
         OpenVinoBuildIdentity buildIdentity,
         IReadOnlyDictionary<string, string> optimizerVersions,
-        TurboQuantBuildIdentity? turboQuantBuild = null) =>
-        CreateCore(
+        TurboQuantBuildIdentity? turboQuantBuild = null)
+    {
+        OpenVinoExecutionPayload payload = CreateCore(
             configurationId,
             device,
             maturity,
@@ -358,6 +359,28 @@ public sealed record OpenVinoExecutionPayload
             turboQuantBuild,
             OpenVinoKvCacheAlgorithm.Released,
             enforceVersionThreeCacheRules: false);
+
+        payload.RequireVersionTwoCacheVocabulary();
+        return payload;
+    }
+
+    /// <summary>
+    /// Guards the immutable version-2 cache vocabulary wherever a legacy
+    /// payload is reconstructed or canonicalized.
+    /// </summary>
+    internal void RequireVersionTwoCacheVocabulary()
+    {
+        bool legacyPrecision = KvCachePrecision is
+            OpenVinoKvCachePrecision.ReleasedDefault or OpenVinoKvCachePrecision.U8;
+
+        if (KvCacheAlgorithm != OpenVinoKvCacheAlgorithm.Released || !legacyPrecision)
+        {
+            throw new ArgumentException(
+                "Version 2 permits only the released default or U8 cache precision; "
+                + "post-version-2 cache vocabulary cannot be represented by its digest.",
+                nameof(KvCachePrecision));
+        }
+    }
 
     private static OpenVinoExecutionPayload CreateCore(
         string configurationId,
