@@ -1,6 +1,9 @@
 using GraniteEdgeAI.Features.ModelImport.Controls;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation.Peers;
+using Microsoft.UI.Xaml.Automation.Provider;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
 
 namespace GraniteEdgeAI.UnitTests;
@@ -35,18 +38,48 @@ public sealed class ModelImportResponsiveStateTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
-    public void FolderSelection_UsesTerminalCardWithoutGGUFMetadata()
+    public void OpenVinoFolderSelection_MatchesGgufSuccessCardChrome()
     {
         var card = new ImportModelCard();
 
         card.ShowFolderAccepted("granite-openvino");
 
+        var folderView = (Border)card.FindName("FolderAcceptedView");
+        var successView = (Border)card.FindName("SuccessView");
+
         Assert.AreEqual(ImportModelCardState.SelectionAccepted, card.CurrentState);
+        Assert.AreEqual(Visibility.Visible, folderView.Visibility);
+        Assert.AreEqual(successView.Height, folderView.Height);
+        Assert.AreEqual(successView.Padding, folderView.Padding);
+        Assert.AreEqual(successView.BorderThickness, folderView.BorderThickness);
+        Assert.AreEqual(successView.CornerRadius, folderView.CornerRadius);
         Assert.AreEqual(
-            Visibility.Visible,
-            ((FrameworkElement)card.FindName("FolderAcceptedView")).Visibility);
+            ((SolidColorBrush)successView.Background).Color,
+            ((SolidColorBrush)folderView.Background).Color);
+        Assert.AreEqual(
+            ((SolidColorBrush)successView.BorderBrush).Color,
+            ((SolidColorBrush)folderView.BorderBrush).Color);
         Assert.AreEqual("granite-openvino", ((TextBlock)card.FindName(
             "FolderAcceptedNameTextBlock")).Text);
+        Assert.AreEqual("OpenVINO", ((TextBlock)card.FindName(
+            "FolderAcceptedFormatTextBlock")).Text);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void OpenVinoFolderSelection_RemoveButtonRaisesSharedCancelIntent()
+    {
+        var card = new ImportModelCard();
+        var cancelRequests = 0;
+        card.CancelScanRequested += (_, _) => cancelRequests++;
+        card.ShowFolderAccepted("granite-openvino");
+
+        var button = (Button)card.FindName("RemoveFolderAcceptedModelButton");
+        var peer = new ButtonAutomationPeer(button);
+        var provider = (IInvokeProvider)peer.GetPattern(PatternInterface.Invoke);
+        provider.Invoke();
+
+        Assert.AreEqual(1, cancelRequests);
     }
 
     [UITestMethod]
