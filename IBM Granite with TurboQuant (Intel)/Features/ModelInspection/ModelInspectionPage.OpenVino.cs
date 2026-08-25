@@ -1,6 +1,8 @@
 using GraniteEdgeAI.Features.ModelImport;
+using GraniteEdgeAI.Features.ModelInspection.Contracts;
 using GraniteEdgeAI.Features.ModelInspection.Models;
 using GraniteEdgeAI.Features.ModelInspection.Handoff;
+using GraniteEdgeAI.Features.ModelInspection.Presentation;
 using GraniteEdgeAI.Features.ModelInspection.Services;
 using GraniteEdgeAI.Features.ModelInspection.ViewModels;
 using GraniteEdgeAI.Features.OpenVinoRoute;
@@ -94,7 +96,7 @@ public sealed partial class ModelInspectionPage
         CancellationTokenSource cancellation = new();
         _openVinoCancellation = cancellation;
         long lifetime = checked(++_openVinoLifetime);
-        ApplyOpenVinoInspectingPresentation(request.DisplayName);
+        ApplyOpenVinoInspectingPresentation(request.DisplayName, lifetime);
         CurrentOpenVinoInspectionTask = InspectAndStartOpenVinoAsync(
             service,
             request,
@@ -192,7 +194,9 @@ public sealed partial class ModelInspectionPage
         }
     }
 
-    private void ApplyOpenVinoInspectingPresentation(string displayName)
+    private void ApplyOpenVinoInspectingPresentation(
+        string displayName,
+        long lifetime)
     {
         InspectionModelCardControl.Presentation = new InspectionModelCardPresentation
         {
@@ -204,16 +208,24 @@ public sealed partial class ModelInspectionPage
             OverviewFormatBadgeText = "OpenVINO",
             FormatName = "OpenVINO GenAI IR"
         };
+        InspectionProgressRows progressRows = new();
+        ModelInspectionRenderKey initialKey = new(lifetime, 0);
+        progressRows.Reset(initialKey);
+        progressRows.Apply(InspectionProgressPresentationFactory.Create(
+            new ModelInspectionProgress(
+                ModelInspectionStage.CheckModelPackage,
+                ModelInspectionStageStatus.Active,
+                completedStageCount: 0,
+                totalStageCount: 5,
+                stageFraction: null,
+                "Verifying package files and secure hashes."),
+            new ModelInspectionRenderKey(lifetime, 1)));
         InspectionContentCardControl.Presentation = new InspectionContentCardPresentation
         {
             Mode = InspectionContentCardMode.Progress,
             SectionTitle = "Checking OpenVINO package",
-            Startup = new InspectionStartupPresentation
-            {
-                Visibility = Visibility.Visible,
-                Summary = "Starting secure local inspection",
-                AutomationName = "Checking OpenVINO package. Starting secure local inspection."
-            }
+            Startup = InspectionStartupPresentation.Hidden,
+            ProgressRows = progressRows
         };
         InspectionActionCardControl.Presentation = new InspectionActionCardPresentation
         {

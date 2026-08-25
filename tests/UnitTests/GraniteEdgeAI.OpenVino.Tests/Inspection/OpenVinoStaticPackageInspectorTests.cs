@@ -702,6 +702,25 @@ public sealed class OpenVinoStaticPackageInspectorTests
     }
 
     [TestMethod]
+    public void SharedBosAndEosTokenWithTheSameIdentifierIsAccepted()
+    {
+        using TemporaryPackage package = TemporaryPackage.CopyFixture();
+        package.SetJson("config.json", "bos_token_id", JsonValue.Create(2));
+        package.SetJson("generation_config.json", "bos_token_id", JsonValue.Create(2));
+        package.SetJson(
+            "tokenizer_config.json",
+            "bos_token",
+            JsonValue.Create("<|eos|>"));
+
+        OpenVinoStaticPackageInspectionResult result = Inspect(package);
+
+        Assert.AreEqual(
+            OpenVinoStaticInspectionStatus.NativeValidationRequired,
+            result.Status);
+        Assert.IsNull(result.SupportCode);
+    }
+
+    [TestMethod]
     [DataRow("duplicate-config-id")]
     [DataRow("duplicate-tokenizer-string")]
     [DataRow("vocab-id-mismatch")]
@@ -793,6 +812,20 @@ public sealed class OpenVinoStaticPackageInspectorTests
     }
 
     [TestMethod]
+    public void Float16WeightsMayExposeFp32Logits()
+    {
+        using TemporaryPackage package = TemporaryPackage.CopyFixture();
+        package.SetJson("config.json", "torch_dtype", JsonValue.Create("float16"));
+
+        OpenVinoStaticPackageInspectionResult result = Inspect(package);
+
+        Assert.AreEqual(
+            OpenVinoStaticInspectionStatus.NativeValidationRequired,
+            result.Status);
+        Assert.IsNull(result.SupportCode);
+    }
+
+    [TestMethod]
     [DataRow("hidden_size", 0L)]
     [DataRow("hidden_size", 1_048_577L)]
     [DataRow("intermediate_size", 0L)]
@@ -808,6 +841,24 @@ public sealed class OpenVinoStaticPackageInspectorTests
         package.SetJson("config.json", property, JsonValue.Create(value));
 
         AssertRejected(package, OpenVinoSupportCode.PackageInconsistentResource);
+    }
+
+    [TestMethod]
+    public void IntermediateAliasMayShareTheFinalResultName()
+    {
+        using TemporaryPackage package = TemporaryPackage.CopyFixture();
+        package.AddIntermediateOutputAlias(
+            "openvino_model.xml",
+            "logits",
+            "FP32",
+            "8");
+
+        OpenVinoStaticPackageInspectionResult result = Inspect(package);
+
+        Assert.AreEqual(
+            OpenVinoStaticInspectionStatus.NativeValidationRequired,
+            result.Status);
+        Assert.IsNull(result.SupportCode);
     }
 
     [TestMethod]
@@ -1110,6 +1161,29 @@ public sealed class OpenVinoStaticPackageInspectorTests
                     dimension.Value = finalDimension;
                 }
             }
+
+            System.IO.File.WriteAllText(path, document.ToString(SaveOptions.DisableFormatting), new UTF8Encoding(false));
+        }
+
+        public void AddIntermediateOutputAlias(
+            string relativeName,
+            string portName,
+            string precision,
+            string finalDimension)
+        {
+            string path = File(relativeName);
+            XDocument document = XDocument.Load(path, LoadOptions.PreserveWhitespace);
+            XElement intermediate = document.Descendants("layer")
+                .Where(element => (string?)element.Attribute("type") != "Result")
+                .SelectMany(element => element.Elements("output").Elements("port"))
+                .First(element =>
+                    element.Attribute("names") is null &&
+                    (string?)element.Attribute("precision") == precision &&
+                    string.Equals(
+                        element.Elements("dim").LastOrDefault()?.Value,
+                        finalDimension,
+                        StringComparison.Ordinal));
+            intermediate.SetAttributeValue("names", portName);
 
             System.IO.File.WriteAllText(path, document.ToString(SaveOptions.DisableFormatting), new UTF8Encoding(false));
         }

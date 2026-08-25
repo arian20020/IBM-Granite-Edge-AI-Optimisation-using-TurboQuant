@@ -201,15 +201,8 @@ public sealed class OpenVinoStaticPackageInspector
                 return OpenVinoStaticPackageInspectionResult.Rejected(OpenVinoSupportCode.TokenizerUnsupported);
             }
 
-            string irPrecision = precision switch
-            {
-                "float32" => "FP32",
-                "float16" => "FP16",
-                "bfloat16" => "BF16",
-                _ => throw new InvalidDataException("Configured precision is unsupported.")
-            };
             if (!ValidateXml(snapshot, "openvino_model.xml", "openvino_model.bin", ["Parameter", "Select", "Result"],
-                    [new ExpectedPort("logits", irPrecision, vocabularySize)]) ||
+                    [new ExpectedPort("logits", "FP32", vocabularySize)]) ||
                 !ValidateXml(snapshot, "openvino_tokenizer.xml", "openvino_tokenizer.bin", ["Parameter", "StringTensorUnpack", "Result"],
                     [new ExpectedPort("input_ids", "I64", null), new ExpectedPort("attention_mask", "I64", null)]) ||
                 !ValidateXml(snapshot, "openvino_detokenizer.xml", "openvino_detokenizer.bin", ["Parameter", "VocabDecoder", "Result"],
@@ -797,13 +790,26 @@ public sealed class OpenVinoStaticPackageInspector
             (RequiredString(tokenizer, "eos_token"), RequireNonNegativeToken(config, "eos_token_id")),
             (RequiredString(tokenizer, "pad_token"), RequireNonNegativeToken(config, "pad_token_id"))
         ];
-        if (requiredFacts.Select(static fact => fact.Token).Distinct(StringComparer.Ordinal).Count() != 3 ||
-            requiredFacts.Select(static fact => fact.Identifier).Distinct().Count() != 3)
+        for (int left = 0; left < requiredFacts.Length; left++)
         {
-            return false;
+            for (int right = left + 1; right < requiredFacts.Length; right++)
+            {
+                bool sameToken = string.Equals(
+                    requiredFacts[left].Token,
+                    requiredFacts[right].Token,
+                    StringComparison.Ordinal);
+                bool sameIdentifier = requiredFacts[left].Identifier ==
+                    requiredFacts[right].Identifier;
+                if (sameToken != sameIdentifier)
+                {
+                    return false;
+                }
+            }
         }
 
-        Dictionary<string, long> requiredTokens = requiredFacts.ToDictionary(
+        Dictionary<string, long> requiredTokens = requiredFacts
+            .Distinct()
+            .ToDictionary(
             static fact => fact.Token,
             static fact => fact.Identifier,
             StringComparer.Ordinal);
@@ -1307,24 +1313,6 @@ public sealed class OpenVinoStaticPackageInspector
         IReadOnlyCollection<GraphEdge> graphEdges,
         IReadOnlyDictionary<string, ResultLayer> resultLayers)
     {
-        ObservedPort[] candidates = observedPorts.Where(observed =>
-            string.Equals(observed.Name, expected.Name, StringComparison.Ordinal) &&
-            string.Equals(observed.Precision, expected.Precision, StringComparison.Ordinal) &&
-            (expected.FinalDimension is null || observed.FinalDimension == expected.FinalDimension)).ToArray();
-        if (candidates.Length != 1)
-        {
-            return false;
-        }
-
-        ObservedPort candidate = candidates[0];
-        if (!candidate.IsOutput ||
-            string.IsNullOrWhiteSpace(candidate.LayerId) ||
-            string.IsNullOrWhiteSpace(candidate.PortId) ||
-            string.Equals(candidate.LayerType, "Result", StringComparison.Ordinal))
-        {
-            return false;
-        }
-
         ResultLayer[] correspondingResults = resultLayers.Values
             .Where(result => result.OutputNames.Contains(expected.Name))
             .ToArray();
@@ -1338,9 +1326,23 @@ public sealed class OpenVinoStaticPackageInspector
         GraphEdge[] destinationEdges = graphEdges.Where(edge =>
             string.Equals(edge.ToLayer, result.LayerId, StringComparison.Ordinal) &&
             string.Equals(edge.ToPort, inputPort, StringComparison.Ordinal)).ToArray();
-        return destinationEdges.Length == 1 &&
-            string.Equals(destinationEdges[0].FromLayer, candidate.LayerId, StringComparison.Ordinal) &&
-            string.Equals(destinationEdges[0].FromPort, candidate.PortId, StringComparison.Ordinal);
+        if (destinationEdges.Length != 1)
+        {
+            return false;
+        }
+
+        GraphEdge destination = destinationEdges[0];
+        ObservedPort[] connectedCandidates = observedPorts.Where(observed =>
+            string.Equals(observed.Name, expected.Name, StringComparison.Ordinal) &&
+            string.Equals(observed.Precision, expected.Precision, StringComparison.Ordinal) &&
+            (expected.FinalDimension is null || observed.FinalDimension == expected.FinalDimension) &&
+            observed.IsOutput &&
+            !string.IsNullOrWhiteSpace(observed.LayerId) &&
+            !string.IsNullOrWhiteSpace(observed.PortId) &&
+            !string.Equals(observed.LayerType, "Result", StringComparison.Ordinal) &&
+            string.Equals(destination.FromLayer, observed.LayerId, StringComparison.Ordinal) &&
+            string.Equals(destination.FromPort, observed.PortId, StringComparison.Ordinal)).ToArray();
+        return connectedCandidates.Length == 1;
     }
 
     private static HashSet<string> SplitNames(string? names) =>
