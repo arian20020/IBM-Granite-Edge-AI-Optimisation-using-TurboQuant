@@ -237,6 +237,15 @@ public sealed record GgufAdmittedConfiguration
                 nameof(minimumContextTokens));
         }
 
+        if (kvCache == GgufKvCacheFormat.TurboQuant3Bit
+            && (level != SupportLevel.Experimental || !requiresEvidence))
+        {
+            throw new ArgumentException(
+                "GGUF TurboQuant cache requires experimental support and exact "
+                + "evidence admission.",
+                nameof(kvCache));
+        }
+
         return new GgufAdmittedConfiguration(
             evidenceId,
             backend,
@@ -354,7 +363,8 @@ public sealed record GgufCapabilityPayload
         bool hasHigherPrecisionSource,
         GgufRequantisationPolicy? requantisationPolicy,
         GgufConversionSourceBinding? conversionSource,
-        GgufQuantiserIdentity? admittedQuantiser)
+        GgufQuantiserIdentity? admittedQuantiser,
+        GgufTurboQuantImplementationIdentity? turboQuantImplementation)
     {
         RuntimeVersion = runtimeVersion;
         Admitted = admitted;
@@ -362,6 +372,7 @@ public sealed record GgufCapabilityPayload
         RequantisationPolicy = requantisationPolicy;
         ConversionSource = conversionSource;
         AdmittedQuantiser = admittedQuantiser;
+        TurboQuantImplementation = turboQuantImplementation;
     }
 
     public string RuntimeVersion { get; }
@@ -380,13 +391,16 @@ public sealed record GgufCapabilityPayload
 
     public GgufQuantiserIdentity? AdmittedQuantiser { get; }
 
+    public GgufTurboQuantImplementationIdentity? TurboQuantImplementation { get; }
+
     public static GgufCapabilityPayload Create(
         string runtimeVersion,
         IReadOnlyList<GgufAdmittedConfiguration> admitted,
         bool hasHigherPrecisionSource = false,
         GgufRequantisationPolicy? requantisationPolicy = null,
         GgufConversionSourceBinding? conversionSource = null,
-        GgufQuantiserIdentity? admittedQuantiser = null)
+        GgufQuantiserIdentity? admittedQuantiser = null,
+        GgufTurboQuantImplementationIdentity? turboQuantImplementation = null)
     {
         ArgumentNullException.ThrowIfNull(admitted);
 
@@ -405,13 +419,52 @@ public sealed record GgufCapabilityPayload
         OptimizationAdmissionIdentity.RequireUnique(
             admitted.Select(entry => entry.EvidenceId), nameof(admitted));
 
+        GgufAdmittedConfiguration[] turboQuant =
+        [
+            .. admitted.Where(entry =>
+                entry.KvCache == GgufKvCacheFormat.TurboQuant3Bit)
+        ];
+
+        if (turboQuant.Length == 0 && turboQuantImplementation is not null)
+        {
+            throw new ArgumentException(
+                "A non-TurboQuant GGUF capability must carry no TurboQuant identity.",
+                nameof(turboQuantImplementation));
+        }
+
+        if (turboQuant.Length > 0)
+        {
+            if (turboQuantImplementation is null)
+            {
+                throw new ArgumentException(
+                    "GGUF TurboQuant remains unavailable without an exact pinned "
+                    + "implementation identity.",
+                    nameof(turboQuantImplementation));
+            }
+
+            if (!string.Equals(
+                    runtimeVersion,
+                    turboQuantImplementation.RuntimeName,
+                    StringComparison.Ordinal)
+                || turboQuant.Any(entry =>
+                    entry.Backend != turboQuantImplementation.Backend
+                    || entry.Device != turboQuantImplementation.Device))
+            {
+                throw new ArgumentException(
+                    "GGUF TurboQuant runtime, backend, or device differs from its "
+                    + "pinned implementation identity.",
+                    nameof(turboQuantImplementation));
+            }
+        }
+
         return new GgufCapabilityPayload(
             runtimeVersion,
             [.. admitted],
             hasHigherPrecisionSource,
             requantisationPolicy,
             conversionSource,
-            admittedQuantiser);
+            admittedQuantiser,
+            turboQuantImplementation);
     }
 }
 

@@ -259,6 +259,40 @@ public sealed class OpenVinoResourceEstimatorTests
     }
 
     [TestMethod]
+    [DataRow(OpenVinoKvCacheFormat.U8, 127, 36864UL)]
+    [DataRow(OpenVinoKvCacheFormat.U8, 128, 36864UL)]
+    [DataRow(OpenVinoKvCacheFormat.U8, 129, 69632UL)]
+    [DataRow(OpenVinoKvCacheFormat.U4, 127, 20480UL)]
+    [DataRow(OpenVinoKvCacheFormat.U4, 128, 20480UL)]
+    [DataRow(OpenVinoKvCacheFormat.U4, 129, 36864UL)]
+    public void ReleasedQuantisedCachesPadEachHeadToAComplete128ValueGroup(
+        OpenVinoKvCacheFormat format,
+        int headDimension,
+        ulong expectedBytes)
+    {
+        InspectedModelFacts facts = InspectedModelFacts.Create(
+            ByteCount.FromBytes(3 * Gibibyte),
+            layerCount: 1,
+            embeddingSize: headDimension,
+            attentionHeadCount: 1,
+            keyValueHeadCount: 1,
+            declaredContextLimit: 8192,
+            fileType: 15,
+            quantisationVersion: 2);
+
+        ulong actual = Estimate(
+                Configuration(cache: format),
+                facts,
+                contextTokens: 128)
+            .Components
+            .Single(component => component.Kind == ResourceComponentKind.KvCache)
+            .Bytes
+            .Bytes;
+
+        Assert.AreEqual(expectedBytes, actual);
+    }
+
+    [TestMethod]
     public void SmallerWeightFormatCostsLess()
     {
         ulong Weights(OpenVinoWeightFormat format) =>

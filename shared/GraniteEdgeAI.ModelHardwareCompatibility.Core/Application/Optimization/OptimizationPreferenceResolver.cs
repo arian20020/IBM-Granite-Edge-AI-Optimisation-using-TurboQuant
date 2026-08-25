@@ -63,7 +63,9 @@ public static class OptimizationPreferenceResolver
         // here prevents a previously excluded over-budget setup from becoming
         // selectable merely because it was reintroduced into the input list.
         IReadOnlyList<OptimizationCandidate> frontier = SafeCandidateFrontier.Create(
-            [.. admitted.Where(candidate => candidate.Metrics.FitsSafely)]);
+            [.. admitted.Where(candidate =>
+                candidate.Metrics.FitsSafely
+                && candidate.Metrics.FitsDiskSafely)]);
 
         if (frontier.Count == 0)
         {
@@ -189,8 +191,8 @@ public static class OptimizationPreferenceResolver
 
     /// <summary>
     /// The deterministic tie-break, in the design's order: evidence, headroom,
-    /// no persistent conversion, stability, workload fit, canonical descriptor,
-    /// exact evidence identity.
+    /// no persistent conversion, stability, workload fit, released evidence,
+    /// canonical descriptor, exact evidence identity.
     ///
     /// It ends on the canonical descriptor and then the exact evidence ID so
     /// the order is total even when two evidence records admit the same
@@ -223,6 +225,11 @@ public static class OptimizationPreferenceResolver
         if (a.Metrics.ContextTokens != b.Metrics.ContextTokens)
         {
             return a.Metrics.ContextTokens > b.Metrics.ContextTokens;
+        }
+
+        if (a.IsExperimental != b.IsExperimental)
+        {
+            return !a.IsExperimental;
         }
 
         int canonical = string.CompareOrdinal(

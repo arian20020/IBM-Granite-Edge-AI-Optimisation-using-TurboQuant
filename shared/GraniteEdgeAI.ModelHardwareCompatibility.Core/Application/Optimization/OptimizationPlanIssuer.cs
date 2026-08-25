@@ -79,6 +79,7 @@ public static class OptimizationPlanIssuer
         }
 
         RequireAgreement(candidate, executionPayload, modelLayerCount);
+        RequireGgufRuntimeAuthority(candidate, executionPayload, capabilitySnapshot);
         RequireGgufConversionAuthority(
             candidate, executionPayload, capabilitySnapshot, binding);
 
@@ -97,6 +98,97 @@ public static class OptimizationPlanIssuer
                 executionPayload,
                 OptimizationExecutionPlan.CurrentContractVersion),
             createdAtUtc);
+    }
+
+    private static void RequireGgufRuntimeAuthority(
+        OptimizationCandidate candidate,
+        OptimizationExecutionPayload payload,
+        OptimizationCapabilitySnapshot snapshot)
+    {
+        if (candidate.Configuration is not GgufRouteConfiguration configuration)
+        {
+            return;
+        }
+
+        GgufCapabilityPayload capability = snapshot.Gguf!;
+        GgufAdmittedConfiguration? admitted = capability.Admitted.SingleOrDefault(entry =>
+            string.Equals(entry.EvidenceId, candidate.EvidenceId, StringComparison.Ordinal));
+        Require(admitted is not null, "admitted GGUF evidence", candidate.EvidenceId);
+
+        GgufRouteConfiguration admittedConfiguration = GgufRouteConfiguration.Create(
+            admitted!.Weights, admitted.KvCache, admitted.Backend, admitted.Device,
+            admitted.Offload);
+        Require(
+            AdmittedGgufConfigurationMatches(
+                admittedConfiguration, configuration,
+                candidate.Metrics.RequiresPersistentChange,
+                candidate.WeightNormalizationProof)
+                && candidate.Metrics.ContextTokens >= admitted.MinimumContextTokens
+                && candidate.Metrics.ContextTokens <= admitted.MaximumContextTokens,
+            "admitted GGUF configuration",
+            "the evidence identifier names a different target or context range");
+
+        GgufTurboQuantImplementationIdentity? identity =
+            capability.TurboQuantImplementation;
+        GgufExecutionPayload gguf = payload.Gguf!;
+        if (identity is not null)
+        {
+            Require(
+                string.Equals(
+                    identity.RuntimeName, gguf.RuntimeBuildId, StringComparison.Ordinal)
+                    && string.Equals(
+                        identity.SourceCommit,
+                        gguf.RuntimeSourceCommit,
+                        StringComparison.Ordinal),
+                "GGUF TurboQuant runtime identity",
+                "the capability snapshot and execution payload name different runtimes");
+        }
+
+        if (configuration.KvCache != GgufKvCacheFormat.TurboQuant3Bit)
+        {
+            return;
+        }
+
+        Require(
+            identity is not null
+                && candidate.IsExperimental
+                && admitted.Level == SupportLevel.Experimental
+                && admitted.RequiresEvidence
+                && identity.Backend == configuration.Backend
+                && identity.Device == configuration.Device
+                && string.Equals(
+                    identity.RuntimeName, gguf.RuntimeBuildId, StringComparison.Ordinal)
+                && string.Equals(
+                    identity.SourceCommit,
+                    gguf.RuntimeSourceCommit,
+                    StringComparison.Ordinal),
+            "GGUF TurboQuant implementation identity",
+            "runtime name, source commit, backend, device, or evidence level differs");
+    }
+
+    private static bool AdmittedGgufConfigurationMatches(
+        GgufRouteConfiguration admitted,
+        GgufRouteConfiguration candidate,
+        bool requiresPersistentChange,
+        GgufWeightNormalizationProof? normalizationProof)
+    {
+        if (admitted == candidate)
+        {
+            return normalizationProof is null;
+        }
+
+        // The generator authenticates an already-at-target named weight against
+        // its admitted record, then represents the runtime-only result as
+        // Imported so no conversion can be implied by the execution contract.
+        return !requiresPersistentChange
+            && admitted.Weights != GgufWeightFormat.Imported
+            && candidate.Weights == GgufWeightFormat.Imported
+            && normalizationProof is not null
+            && normalizationProof.AdmittedWeight == admitted.Weights
+            && admitted.KvCache == candidate.KvCache
+            && admitted.Backend == candidate.Backend
+            && admitted.Device == candidate.Device
+            && admitted.Offload == candidate.Offload;
     }
 
     private static void RequireGgufConversionAuthority(

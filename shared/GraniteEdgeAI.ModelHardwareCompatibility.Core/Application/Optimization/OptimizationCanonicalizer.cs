@@ -86,6 +86,19 @@ internal static class OptimizationCanonicalizer
                 "Contract version 2 has no GGUF conversion-provenance vocabulary.",
                 nameof(candidate));
         }
+        if (candidate.Metrics.AvailableDiskBytes is not null)
+        {
+            throw new ArgumentException(
+                "Contract version 2 has no disk-admission-proof vocabulary.",
+                nameof(candidate));
+        }
+        if (candidate.WeightNormalizationProof is not null)
+        {
+            throw new ArgumentException(
+                "Contract version 2 has no GGUF weight-normalization-proof vocabulary.",
+                nameof(candidate));
+        }
+
 
         if (payload.Gguf is { } gguf
             && (gguf.ConversionSource is not null || gguf.RequantisationPolicy is not null))
@@ -134,6 +147,34 @@ internal static class OptimizationCanonicalizer
         Append(builder, "persistent", candidate.Metrics.RequiresPersistentChange ? 1 : 0);
         Append(builder, "evidence", candidate.EvidenceId);
         Append(builder, "experimental", candidate.IsExperimental ? 1 : 0);
+        if (contractVersion >= 3)
+        {
+            if (candidate.Metrics.AvailableDiskBytes is not { } availableDiskBytes)
+            {
+                throw new ArgumentException(
+                    "Contract version 3 requires the exact available-disk "
+                    + "observation used for candidate admission.",
+                    nameof(candidate));
+            }
+
+            Append(
+                builder,
+                "availableDiskBytes",
+                availableDiskBytes.ToString(CultureInfo.InvariantCulture));
+            if (candidate.WeightNormalizationProof is { } normalization)
+            {
+                Append(builder, "gguf.normalizedFileType", normalization.FileType);
+                Append(
+                    builder,
+                    "gguf.normalizedQuantisationVersion",
+                    normalization.QuantisationVersion);
+                Append(builder, "gguf.normalizedSource", (int)normalization.Source);
+                Append(
+                    builder,
+                    "gguf.normalizedAdmittedWeight",
+                    (int)normalization.AdmittedWeight);
+            }
+        }
         if (contractVersion >= 3
             && candidate.ConversionProvenance != OptimizationConversionProvenance.None)
         {

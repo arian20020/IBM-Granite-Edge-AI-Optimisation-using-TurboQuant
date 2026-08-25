@@ -79,7 +79,7 @@ internal static class OpenVinoFormatMap
     };
 
     /// <summary>
-    /// The pinned TurboQuant cache record layout. These are whole records, not
+    /// Exact quantised-cache record layouts. These are whole records, not
     /// average scalar widths: each key and value head is padded independently.
     /// </summary>
     internal static bool TryGetCacheBlockLayout(
@@ -91,6 +91,8 @@ internal static class OpenVinoFormatMap
 
         bytesPerBlock = format switch
         {
+            OpenVinoKvCacheFormat.U8 => 136,
+            OpenVinoKvCacheFormat.U4 => 72,
             OpenVinoKvCacheFormat.TurboQuantTbq4 => 68,
             OpenVinoKvCacheFormat.TurboQuantTbq3 => 52,
             _ => 0

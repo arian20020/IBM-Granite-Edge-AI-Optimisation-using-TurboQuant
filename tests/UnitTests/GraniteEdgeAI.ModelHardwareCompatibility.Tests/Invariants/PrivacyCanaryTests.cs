@@ -45,6 +45,8 @@ public sealed class PrivacyCanaryTests
         "GgufAdmittedConfiguration.EvidenceId",
         "OpenVinoAdmittedConfiguration.EvidenceId",
         "GgufCapabilityPayload.RuntimeVersion",
+        "GgufTurboQuantImplementationIdentity.RuntimeName",
+        "GgufTurboQuantImplementationIdentity.SourceCommit",
         "OpenVinoCapabilityPayload.RuntimeVersion",
         "OptimizationCapabilitySnapshot.SnapshotId",
 

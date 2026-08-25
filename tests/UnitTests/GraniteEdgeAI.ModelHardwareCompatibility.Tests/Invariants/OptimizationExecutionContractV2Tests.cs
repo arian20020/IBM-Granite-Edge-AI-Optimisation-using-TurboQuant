@@ -250,7 +250,8 @@ public sealed class OptimizationExecutionContractV2Tests
         GgufExecutionPayload? payload = null,
         int modelLayers = ModelLayers)
     {
-        OptimizationCandidate chosen = candidate ?? V2TestData.GgufCandidate();
+        OptimizationCandidate chosen = WithDiskAdmission(
+            candidate ?? V2TestData.GgufCandidate());
         GgufExecutionPayload chosenPayload = payload ?? V2TestData.GgufPayload();
         if (chosen.Metrics.RequiresPersistentChange
             && chosenPayload.ConversionSource is null)
@@ -282,10 +283,14 @@ public sealed class OptimizationExecutionContractV2Tests
 
     private static OptimizationExecutionPlan IssueOpenVino(
         OptimizationCandidate? candidate = null,
-        OpenVinoExecutionPayload? payload = null) =>
-        OptimizationPlanIssuer.Issue(
+        OpenVinoExecutionPayload? payload = null)
+    {
+        OptimizationCandidate chosen = WithDiskAdmission(
+            candidate ?? V2TestData.OpenVinoCandidate());
+
+        return OptimizationPlanIssuer.Issue(
             OptimizationPreferenceResolver.Resolve(
-                [candidate ?? V2TestData.OpenVinoCandidate()],
+                [chosen],
                 OptimizationPreferenceSelection.Manual(50))!,
             OptimizationExecutionPayload.ForOpenVino(
                 payload ?? V2TestData.OpenVinoPayload()),
@@ -294,6 +299,44 @@ public sealed class OptimizationExecutionContractV2Tests
             V2TestData.Binding(),
             ModelLayers,
             DateTimeOffset.UnixEpoch);
+    }
+
+    private static OptimizationCandidate WithDiskAdmission(
+        OptimizationCandidate candidate)
+    {
+        OptimizationCandidateMetrics metrics = candidate.Metrics;
+        OptimizationCandidateMetrics admitted = OptimizationCandidateMetrics.Create(
+            metrics.Evidence,
+            metrics.Quality,
+            metrics.Performance,
+            metrics.Stability,
+            metrics.ContextTokens,
+            metrics.PredictedPeakBytes,
+            metrics.SafeBudgetBytes,
+            metrics.HeadroomBytes,
+            metrics.WorkingDiskBytes,
+            metrics.OutputDiskBytes,
+            metrics.RequiresPersistentChange,
+            availableDiskBytes: 500 * Gibibyte);
+
+        if (candidate.Configuration is GgufRouteConfiguration
+                { Weights: GgufWeightFormat.Q3KM }
+            && candidate.Notice == OptimizationCandidateNotice.None)
+        {
+            return OptimizationCandidate.CreateLegacyVersionTwo(
+                candidate.Configuration,
+                admitted,
+                candidate.EvidenceId,
+                candidate.IsExperimental);
+        }
+
+        return OptimizationCandidate.Create(
+            candidate.Configuration,
+            admitted,
+            candidate.EvidenceId,
+            candidate.IsExperimental,
+            candidate.ConversionProvenance);
+    }
 
     // ---------- version ----------
 
@@ -372,6 +415,37 @@ public sealed class OptimizationExecutionContractV2Tests
 
         Assert.ThrowsExactly<ArgumentException>(
             () => OptimizationCanonicalizer.ConfigurationSha256V2(candidate, payload));
+    }
+
+    [TestMethod]
+    public void VersionTwoRejectsVersionThreeDiskAdmissionProof()
+    {
+        OptimizationCandidate legacy = V2TestData.OpenVinoCandidate();
+        OptimizationCandidateMetrics metrics = legacy.Metrics;
+        OptimizationCandidate versionThree = OptimizationCandidate.Create(
+            legacy.Configuration,
+            OptimizationCandidateMetrics.Create(
+                metrics.Evidence,
+                metrics.Quality,
+                metrics.Performance,
+                metrics.Stability,
+                metrics.ContextTokens,
+                metrics.PredictedPeakBytes,
+                metrics.SafeBudgetBytes,
+                metrics.HeadroomBytes,
+                metrics.WorkingDiskBytes,
+                metrics.OutputDiskBytes,
+                metrics.RequiresPersistentChange,
+                availableDiskBytes: 500 * Gibibyte),
+            legacy.EvidenceId,
+            legacy.IsExperimental);
+        OptimizationExecutionPayload payload = OptimizationExecutionPayload.ForOpenVino(
+            V2TestData.OpenVinoPayload());
+
+        Assert.ThrowsExactly<ArgumentException>(
+            () => OptimizationCanonicalizer.CanonicalizeV2(versionThree, payload));
+        Assert.ThrowsExactly<ArgumentException>(
+            () => OptimizationCanonicalizer.ConfigurationSha256V2(versionThree, payload));
     }
 
     [TestMethod]
@@ -546,7 +620,7 @@ public sealed class OptimizationExecutionContractV2Tests
     {
         Assert.ThrowsExactly<ArgumentException>(() => OptimizationPlanIssuer.Issue(
             OptimizationPreferenceResolver.Resolve(
-                [V2TestData.GgufCandidate()],
+                [WithDiskAdmission(V2TestData.GgufCandidate())],
                 OptimizationPreferenceSelection.Automatic())!,
             OptimizationExecutionPayload.ForOpenVino(V2TestData.OpenVinoPayload()),
             V2TestData.GgufSnapshot(),
@@ -561,7 +635,7 @@ public sealed class OptimizationExecutionContractV2Tests
     {
         Assert.ThrowsExactly<ArgumentException>(() => OptimizationPlanIssuer.Issue(
             OptimizationPreferenceResolver.Resolve(
-                [V2TestData.GgufCandidate()],
+                [WithDiskAdmission(V2TestData.GgufCandidate())],
                 OptimizationPreferenceSelection.Automatic())!,
             OptimizationExecutionPayload.ForGguf(V2TestData.GgufPayload()),
             V2TestData.OpenVinoSnapshot(),
@@ -1305,7 +1379,7 @@ public sealed class OptimizationExecutionContractV2Tests
 
         OptimizationExecutionPlan plan = OptimizationPlanIssuer.Issue(
             OptimizationPreferenceResolver.Resolve(
-                [V2TestData.GgufCandidate()],
+                [WithDiskAdmission(V2TestData.GgufCandidate())],
                 OptimizationPreferenceSelection.Automatic())!,
             OptimizationExecutionPayload.ForGguf(V2TestData.GgufPayload()),
             V2TestData.GgufSnapshot(),
@@ -1341,7 +1415,7 @@ public sealed class OptimizationExecutionContractV2Tests
 
         OptimizationExecutionPlan plan = OptimizationPlanIssuer.Issue(
             OptimizationPreferenceResolver.Resolve(
-                [V2TestData.GgufCandidate()],
+                [WithDiskAdmission(V2TestData.GgufCandidate())],
                 OptimizationPreferenceSelection.Automatic())!,
             OptimizationExecutionPayload.ForGguf(V2TestData.GgufPayload()),
             V2TestData.GgufSnapshot(),

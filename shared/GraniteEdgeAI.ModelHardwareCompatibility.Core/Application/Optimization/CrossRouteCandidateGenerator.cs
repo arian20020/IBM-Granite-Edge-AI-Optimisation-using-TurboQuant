@@ -231,6 +231,12 @@ internal static class CrossRouteCandidateGenerator
 
             ResourceEstimate estimate =
                 GgufResourceEstimator.Estimate(facts, candidate, policy);
+            GgufWeightNormalizationProof? normalizationProof =
+                effectiveWeights == GgufWeightFormat.Imported
+                    && admitted.Weights != GgufWeightFormat.Imported
+                    ? GgufWeightNormalizationProof.FromInspection(
+                        facts.FileType, facts.QuantisationVersion, admitted.Weights)
+                    : null;
 
             Admit(
                 configuration,
@@ -246,7 +252,8 @@ internal static class CrossRouteCandidateGenerator
                 descriptor,
                 candidates,
                 exclusions,
-                provenance);
+                provenance,
+                normalizationProof);
         }
     }
 
@@ -357,7 +364,8 @@ internal static class CrossRouteCandidateGenerator
         List<OptimizationCandidate> candidates,
         List<OptimizationExclusion> exclusions,
         OptimizationConversionProvenance provenance =
-            OptimizationConversionProvenance.None)
+            OptimizationConversionProvenance.None,
+        GgufWeightNormalizationProof? normalizationProof = null)
     {
         if (estimate.Status != EstimationStatus.Established)
         {
@@ -383,7 +391,7 @@ internal static class CrossRouteCandidateGenerator
 
         ByteCount disk = peaks.PeakFor(ResourceTarget.Storage);
 
-        if (disk > availableDisk)
+        if (availableDisk == ByteCount.Zero || disk > availableDisk)
         {
             exclusions.Add(new OptimizationExclusion(
                 evidenceId, descriptor, OptimizationExclusionReason.InsufficientDiskSpace));
@@ -410,30 +418,34 @@ internal static class CrossRouteCandidateGenerator
 
         _ = safeBudget.TrySubtract(peak, out ByteCount headroom);
 
-        candidates.Add(OptimizationCandidate.Create(
-            configuration,
-            OptimizationCandidateMetrics.Create(
-                EvidenceGrade.Estimated,
-                quality,
-                // Not measured. Nothing has run, so performance and stability
-                // are derived from the support level rather than observed, and
-                // the evidence grade above says so.
-                level == SupportLevel.Experimental
-                    ? OptimizationAssessment.Acceptable
-                    : OptimizationAssessment.Good,
-                level == SupportLevel.Experimental
-                    ? OptimizationAssessment.Acceptable
-                    : OptimizationAssessment.Good,
-                context.Tokens,
-                peak.Bytes,
-                safeBudget.Bytes,
-                headroom.Bytes,
-                peaks.PeakFor(ResourceTarget.Storage).Bytes,
-                requiresPersistentChange ? disk.Bytes : 0,
-                requiresPersistentChange),
-            evidenceId,
-            level == SupportLevel.Experimental,
-            provenance));
+        OptimizationCandidateMetrics metrics = OptimizationCandidateMetrics.Create(
+            EvidenceGrade.Estimated,
+            quality,
+            // Not measured. Nothing has run, so performance and stability
+            // are derived from the support level rather than observed, and
+            // the evidence grade above says so.
+            level == SupportLevel.Experimental
+                ? OptimizationAssessment.Acceptable
+                : OptimizationAssessment.Good,
+            level == SupportLevel.Experimental
+                ? OptimizationAssessment.Acceptable
+                : OptimizationAssessment.Good,
+            context.Tokens,
+            peak.Bytes,
+            safeBudget.Bytes,
+            headroom.Bytes,
+            peaks.PeakFor(ResourceTarget.Storage).Bytes,
+            requiresPersistentChange ? disk.Bytes : 0,
+            requiresPersistentChange,
+            availableDisk.Bytes);
+        OptimizationCandidate admittedCandidate = normalizationProof is null
+            ? OptimizationCandidate.Create(
+                configuration, metrics, evidenceId,
+                level == SupportLevel.Experimental, provenance)
+            : OptimizationCandidate.CreateWithGgufWeightNormalization(
+                (GgufRouteConfiguration)configuration, metrics, evidenceId,
+                level == SupportLevel.Experimental, normalizationProof);
+        candidates.Add(admittedCandidate);
     }
 }
 

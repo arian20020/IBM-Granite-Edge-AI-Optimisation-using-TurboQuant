@@ -56,7 +56,8 @@ public sealed class OptimizationPreferenceInvariantTests
                 32 * Gibibyte - peakBytes,
                 0,
                 persistent ? peakBytes : 0,
-                persistent),
+                persistent,
+                availableDiskBytes: 32 * Gibibyte),
             id,
             isExperimental: false);
     }
@@ -343,7 +344,8 @@ public sealed class OptimizationPreferenceInvariantTests
                 EvidenceGrade.Estimated, quality, OptimizationAssessment.Good,
                 OptimizationAssessment.Good, 4096, peakBytes, 32 * Gibibyte,
                 32 * Gibibyte - peakBytes, peakBytes, peakBytes,
-                requiresPersistentChange: true),
+                requiresPersistentChange: true,
+                availableDiskBytes: 32 * Gibibyte),
             id,
             isExperimental: false,
             provenance);
@@ -435,6 +437,26 @@ public sealed class OptimizationPreferenceInvariantTests
     }
 
     [TestMethod]
+    public void ReleasedEvidenceWinsBeforeLexicalEvidenceIdentityRegardlessOfInputOrder()
+    {
+        OptimizationCandidate released = Candidate(
+            "z-released", OptimizationAssessment.Good, 8 * Gibibyte);
+        OptimizationCandidate experimental = OptimizationCandidate.Create(
+            released.Configuration,
+            released.Metrics,
+            "a-experimental",
+            isExperimental: true);
+
+        string Resolve(IReadOnlyList<OptimizationCandidate> candidates) =>
+            OptimizationPreferenceResolver.Resolve(
+                candidates,
+                OptimizationPreferenceSelection.Automatic())!.Candidate.EvidenceId;
+
+        Assert.AreEqual("z-released", Resolve([experimental, released]));
+        Assert.AreEqual("z-released", Resolve([released, experimental]));
+    }
+
+    [TestMethod]
     public void EveryBandResolvesWhenAnythingIsAdmitted()
     {
         // A band that returned nothing would leave the page with a slider
@@ -499,12 +521,49 @@ public sealed class OptimizationPreferenceInvariantTests
                 headroomBytes: 0,
                 workingDiskBytes: 0,
                 outputDiskBytes: 0,
-                requiresPersistentChange: false),
+                requiresPersistentChange: false,
+                availableDiskBytes: 32 * Gibibyte),
             "excluded-over-budget",
             isExperimental: false);
 
         Assert.IsNull(OptimizationPreferenceResolver.Resolve(
             [unsafeCandidate], OptimizationPreferenceSelection.Automatic()));
+    }
+
+    [TestMethod]
+    [DataRow(8UL, 4UL, 6UL)]
+    [DataRow(4UL, 8UL, 6UL)]
+    public void DiskUnsafeCandidateCannotReenterThroughPreferenceResolution(
+        ulong workingGibibytes,
+        ulong outputGibibytes,
+        ulong availableGibibytes)
+    {
+        OptimizationCandidate diskUnsafe = OptimizationCandidate.Create(
+            OpenVinoRouteConfiguration.Create(
+                OpenVinoWeightFormat.Int4,
+                OpenVinoKvCacheFormat.U4,
+                DeviceRouteId.Cpu,
+                OpenVinoPerformanceHint.Latency,
+                OpenVinoCompiledCachePolicy.Disabled,
+                streams: 1),
+            OptimizationCandidateMetrics.Create(
+                EvidenceGrade.Estimated,
+                OptimizationAssessment.Acceptable,
+                OptimizationAssessment.Good,
+                OptimizationAssessment.Good,
+                contextTokens: 4096,
+                predictedPeakBytes: 2 * Gibibyte,
+                safeBudgetBytes: 4 * Gibibyte,
+                headroomBytes: 2 * Gibibyte,
+                workingDiskBytes: workingGibibytes * Gibibyte,
+                outputDiskBytes: outputGibibytes * Gibibyte,
+                requiresPersistentChange: true,
+                availableDiskBytes: availableGibibytes * Gibibyte),
+            "excluded-over-disk",
+            isExperimental: false);
+
+        Assert.IsNull(OptimizationPreferenceResolver.Resolve(
+            [diskUnsafe], OptimizationPreferenceSelection.Automatic()));
     }
 
     [TestMethod]

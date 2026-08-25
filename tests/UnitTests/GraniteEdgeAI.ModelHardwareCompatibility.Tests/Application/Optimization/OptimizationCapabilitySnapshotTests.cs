@@ -226,6 +226,113 @@ public sealed class OptimizationCapabilitySnapshotTests
     }
 
     [TestMethod]
+    [DataRow(SupportLevel.DeclaredSupported, true)]
+    [DataRow(SupportLevel.Experimental, false)]
+    public void GgufTurboQuantRequiresExperimentalEvidenceAdmission(
+        SupportLevel level,
+        bool requiresEvidence)
+    {
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            GgufAdmittedConfiguration.Create(
+                "turbo3",
+                CompatibilityBackend.IntelVulkan,
+                DeviceRouteId.IntelIntegratedGpu,
+                GgufWeightFormat.Imported,
+                GgufKvCacheFormat.TurboQuant3Bit,
+                GpuOffloadLevel.Full,
+                512,
+                32768,
+                level,
+                requiresEvidence));
+    }
+
+    [TestMethod]
+    public void GgufTurboQuantIdentityAcceptsOnlyPinnedBackendImplementations()
+    {
+        GgufTurboQuantImplementationIdentity atomicBot =
+            GgufTurboQuantImplementationIdentity.Create(
+                "turbo3",
+                "519f0c594a8e31467d2e2f2cf17054c9e7e11536",
+                CompatibilityBackend.IntelVulkan,
+                DeviceRouteId.IntelIntegratedGpu);
+        GgufTurboQuantImplementationIdentity animehacker =
+            GgufTurboQuantImplementationIdentity.Create(
+                "tq3_0",
+                "5bc5ed3bdc25003aa9f07422753a7b8d4f9190fc",
+                CompatibilityBackend.IntelSycl,
+                DeviceRouteId.IntelDiscreteGpu);
+
+        Assert.AreEqual("turbo3", atomicBot.RuntimeName);
+        Assert.AreEqual("tq3_0", animehacker.RuntimeName);
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            GgufTurboQuantImplementationIdentity.Create(
+                "turbo3",
+                "5bc5ed3bdc25003aa9f07422753a7b8d4f9190fc",
+                CompatibilityBackend.IntelVulkan,
+                DeviceRouteId.IntelIntegratedGpu));
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            GgufTurboQuantImplementationIdentity.Create(
+                "turbo3",
+                "519f0c594a8e31467d2e2f2cf17054c9e7e11536",
+                CompatibilityBackend.IntelSycl,
+                DeviceRouteId.IntelIntegratedGpu));
+    }
+
+    [TestMethod]
+    public void GgufTurboQuantCapabilityRequiresMatchingPinnedIdentity()
+    {
+        GgufAdmittedConfiguration turbo = GgufAdmittedConfiguration.Create(
+            "turbo3", CompatibilityBackend.IntelVulkan,
+            DeviceRouteId.IntelIntegratedGpu, GgufWeightFormat.Imported,
+            GgufKvCacheFormat.TurboQuant3Bit, GpuOffloadLevel.Full,
+            512, 32768, SupportLevel.Experimental, requiresEvidence: true);
+        GgufTurboQuantImplementationIdentity identity =
+            GgufTurboQuantImplementationIdentity.Create(
+                "turbo3",
+                "519f0c594a8e31467d2e2f2cf17054c9e7e11536",
+                CompatibilityBackend.IntelVulkan,
+                DeviceRouteId.IntelIntegratedGpu);
+
+        Assert.ThrowsExactly<ArgumentException>(
+            () => GgufCapabilityPayload.Create("turbo3", [turbo]));
+        Assert.ThrowsExactly<ArgumentException>(() => GgufCapabilityPayload.Create(
+            "different-runtime", [turbo], turboQuantImplementation: identity));
+
+        GgufAdmittedConfiguration wrongBackend = GgufAdmittedConfiguration.Create(
+            "tq3_0", CompatibilityBackend.IntelSycl,
+            DeviceRouteId.IntelDiscreteGpu, GgufWeightFormat.Imported,
+            GgufKvCacheFormat.TurboQuant3Bit, GpuOffloadLevel.Full,
+            512, 32768, SupportLevel.Experimental, requiresEvidence: true);
+        Assert.ThrowsExactly<ArgumentException>(() => GgufCapabilityPayload.Create(
+            "turbo3", [wrongBackend], turboQuantImplementation: identity));
+
+        GgufCapabilityPayload payload = GgufCapabilityPayload.Create(
+            "turbo3", [turbo], turboQuantImplementation: identity);
+
+        Assert.AreSame(identity, payload.TurboQuantImplementation);
+    }
+
+    [TestMethod]
+    public void NonTurboGgufCapabilityForbidsTurboQuantIdentity()
+    {
+        GgufTurboQuantImplementationIdentity identity =
+            GgufTurboQuantImplementationIdentity.Create(
+                "turbo3",
+                "519f0c594a8e31467d2e2f2cf17054c9e7e11536",
+                CompatibilityBackend.IntelVulkan,
+                DeviceRouteId.IntelIntegratedGpu);
+
+        Assert.ThrowsExactly<ArgumentException>(() => GgufCapabilityPayload.Create(
+            "b4321",
+            [GgufAdmittedConfiguration.Create(
+                "standard", CompatibilityBackend.Cpu, DeviceRouteId.Cpu,
+                GgufWeightFormat.Imported, GgufKvCacheFormat.F16,
+                GpuOffloadLevel.None, 512, 32768,
+                SupportLevel.DeclaredSupported, requiresEvidence: false)],
+            turboQuantImplementation: identity));
+    }
+
+    [TestMethod]
     public void DuplicateEvidenceIdsAreRefusedForBothRoutes()
     {
         OpenVinoAdmittedConfiguration ov = OpenVinoAdmittedConfiguration.Create(

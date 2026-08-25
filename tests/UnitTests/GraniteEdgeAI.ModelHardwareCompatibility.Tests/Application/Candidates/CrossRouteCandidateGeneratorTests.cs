@@ -147,6 +147,7 @@ public sealed class CrossRouteCandidateGeneratorTests
             new
             {
                 Evidence = "turbo3",
+                Runtime = "turbo3",
                 Source = "519f0c594a8e31467d2e2f2cf17054c9e7e11536",
                 Backend = CompatibilityBackend.IntelVulkan,
                 Device = DeviceRouteId.IntelIntegratedGpu
@@ -154,6 +155,7 @@ public sealed class CrossRouteCandidateGeneratorTests
             new
             {
                 Evidence = "tq3_0",
+                Runtime = "tq3_0",
                 Source = "5bc5ed3bdc25003aa9f07422753a7b8d4f9190fc",
                 Backend = CompatibilityBackend.IntelSycl,
                 Device = DeviceRouteId.IntelDiscreteGpu
@@ -176,7 +178,21 @@ public sealed class CrossRouteCandidateGeneratorTests
             OptimizationCapabilitySnapshot snapshot = OptimizationCapabilitySnapshot.ForGguf(
                 "gguf-cap",
                 Digest,
-                GgufCapabilityPayload.Create(implementation.Source, [admitted]));
+                GgufCapabilityPayload.Create(
+                    implementation.Runtime,
+                    [admitted],
+                    turboQuantImplementation:
+                        GgufTurboQuantImplementationIdentity.Create(
+                            implementation.Runtime,
+                            implementation.Source,
+                            implementation.Backend,
+                            implementation.Device)));
+
+            CrossRouteGenerationResult absent = Generate(snapshot);
+            Assert.AreEqual(0, absent.Candidates.Count);
+            Assert.AreEqual(
+                OptimizationExclusionReason.ExperimentalNotAdmitted,
+                absent.Exclusions.Single().Reason);
 
             OptimizationCandidate candidate = Generate(
                 snapshot,
@@ -184,7 +200,10 @@ public sealed class CrossRouteCandidateGeneratorTests
             GgufRouteConfiguration configuration =
                 (GgufRouteConfiguration)candidate.Configuration;
 
-            Assert.AreEqual(implementation.Source, snapshot.Gguf!.RuntimeVersion);
+            Assert.AreEqual(implementation.Runtime, snapshot.Gguf!.RuntimeVersion);
+            Assert.AreEqual(
+                implementation.Source,
+                snapshot.Gguf.TurboQuantImplementation!.SourceCommit);
             Assert.AreEqual(implementation.Evidence, candidate.EvidenceId);
             Assert.AreEqual(implementation.Backend, configuration.Backend);
             Assert.AreEqual(implementation.Device, configuration.Device);
@@ -710,6 +729,37 @@ public sealed class CrossRouteCandidateGeneratorTests
         Assert.AreEqual(
             OptimizationExclusionReason.InsufficientDiskSpace,
             result.Exclusions.Single().Reason);
+    }
+
+    [TestMethod]
+    public void RuntimeOnlyCandidateAlsoFailsClosedWhenDiskObservationIsZero()
+    {
+        CrossRouteGenerationResult result = Generate(
+            CrossRouteTestData.OpenVinoSnapshot(
+                CrossRouteTestData.OpenVino(
+                    "ov-original", OpenVinoWeightFormat.Original)),
+            diskGibibytes: 0);
+
+        Assert.AreEqual(0, result.Candidates.Count);
+        Assert.AreEqual(
+            OptimizationExclusionReason.InsufficientDiskSpace,
+            result.Exclusions.Single().Reason);
+    }
+
+    [TestMethod]
+    public void GeneratedCandidateCarriesTheExactDiskObservationUsedForAdmission()
+    {
+        const ulong availableGibibytes = 123;
+        OptimizationCandidate candidate = Generate(
+            CrossRouteTestData.OpenVinoSnapshot(
+                CrossRouteTestData.OpenVino(
+                    "ov-int8", OpenVinoWeightFormat.Int8)),
+            diskGibibytes: availableGibibytes).Candidates.Single();
+
+        Assert.AreEqual(
+            availableGibibytes * Gibibyte,
+            candidate.Metrics.AvailableDiskBytes);
+        Assert.IsTrue(candidate.Metrics.FitsDiskSafely);
     }
 
     [TestMethod]

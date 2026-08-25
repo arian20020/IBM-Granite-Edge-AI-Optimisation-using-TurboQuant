@@ -66,7 +66,8 @@ public sealed class OptimizationPlanBindingTests
                     24 * Gibibyte,
                     0,
                     persistent ? 4 * Gibibyte : 0,
-                    persistent),
+                    persistent,
+                    availableDiskBytes: 500 * Gibibyte),
                 "ov-int8",
                 isExperimental: false);
         }

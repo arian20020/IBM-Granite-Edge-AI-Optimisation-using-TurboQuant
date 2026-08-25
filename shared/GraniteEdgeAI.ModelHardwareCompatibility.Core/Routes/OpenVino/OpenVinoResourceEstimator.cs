@@ -216,9 +216,9 @@ internal static class OpenVinoResourceEstimator
     /// <summary>
     /// Physical cache payload with a conservative monotonic floor.
     ///
-    /// TurboQuant's pinned layout pads every K/V head to complete 128-value
-    /// records. Near a block boundary that padding can exceed the average-width
-    /// estimate of a nominally wider format. The frontier contract still
+    /// Quantised layouts pad every K/V head to complete 128-value records. Near
+    /// a block boundary that padding can exceed the scalar estimate of a
+    /// nominally wider format. The frontier contract still
     /// requires that reducing precision never increases estimated memory, so a
     /// wider format is conservatively floored at every lower-precision physical
     /// layout. This never understates either representation and does not invent

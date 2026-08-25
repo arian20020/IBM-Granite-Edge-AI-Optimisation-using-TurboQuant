@@ -69,7 +69,8 @@ public sealed class OpenVinoBuildIdentityValidationTests
                 24 * Gibibyte,
                 0,
                 4 * Gibibyte,
-                true),
+                true,
+                availableDiskBytes: 500 * Gibibyte),
             "ov-evidence",
             isExperimental: false);
 

@@ -5,6 +5,51 @@ using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.OpenVino;
 
 namespace GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
 
+internal sealed record GgufWeightNormalizationProof
+{
+    private GgufWeightNormalizationProof(
+        int fileType,
+        int quantisationVersion,
+        WeightQuantisation source,
+        GgufWeightFormat admittedWeight)
+    {
+        FileType = fileType;
+        QuantisationVersion = quantisationVersion;
+        Source = source;
+        AdmittedWeight = admittedWeight;
+    }
+
+    internal int FileType { get; }
+
+    internal int QuantisationVersion { get; }
+
+    internal WeightQuantisation Source { get; }
+
+    internal GgufWeightFormat AdmittedWeight { get; }
+
+    internal static GgufWeightNormalizationProof FromInspection(
+        int? fileType,
+        int? quantisationVersion,
+        GgufWeightFormat admittedWeight)
+    {
+        WeightQuantisation source = WeightQuantisationMap.FromGgufFileType(
+            fileType, quantisationVersion);
+        if (fileType is not { } exactFileType
+            || quantisationVersion is not { } exactVersion
+            || admittedWeight == GgufWeightFormat.Imported
+            || source != GgufWeightFormatMap.ToCanonical(admittedWeight))
+        {
+            throw new ArgumentException(
+                "A normalization proof requires exact inspected GGUF metadata "
+                + "matching the admitted named weight format.",
+                nameof(admittedWeight));
+        }
+
+        return new GgufWeightNormalizationProof(
+            exactFileType, exactVersion, source, admittedWeight);
+    }
+}
+
 /// <summary>
 /// How good a candidate is on one axis, in terms both routes can be scored on.
 ///
@@ -86,7 +131,8 @@ public sealed record OptimizationCandidateMetrics
         ulong headroomBytes,
         ulong workingDiskBytes,
         ulong outputDiskBytes,
-        bool requiresPersistentChange)
+        bool requiresPersistentChange,
+        ulong? availableDiskBytes)
     {
         Evidence = evidence;
         Quality = quality;
@@ -99,6 +145,7 @@ public sealed record OptimizationCandidateMetrics
         WorkingDiskBytes = workingDiskBytes;
         OutputDiskBytes = outputDiskBytes;
         RequiresPersistentChange = requiresPersistentChange;
+        AvailableDiskBytes = availableDiskBytes;
     }
 
     public EvidenceGrade Evidence { get; }
@@ -126,6 +173,16 @@ public sealed record OptimizationCandidateMetrics
     public ulong OutputDiskBytes { get; }
 
     /// <summary>
+    /// Exact free-disk observation used to admit this candidate. Null exists
+    /// only for the frozen version-two vocabulary; new resolution fails closed
+    /// when no disk admission proof is present.
+    /// </summary>
+    public ulong? AvailableDiskBytes { get; }
+
+    /// <summary>The peak disk obligation without double-counting overlapping phases.</summary>
+    public ulong DiskObligationBytes => Math.Max(WorkingDiskBytes, OutputDiskBytes);
+
+    /// <summary>
     /// Whether choosing this writes a new model or package.
     ///
     /// The one fact the confirmation surface must get right: it is the
@@ -145,7 +202,8 @@ public sealed record OptimizationCandidateMetrics
         ulong headroomBytes,
         ulong workingDiskBytes,
         ulong outputDiskBytes,
-        bool requiresPersistentChange)
+        bool requiresPersistentChange,
+        ulong? availableDiskBytes = null)
     {
         if (evidence == EvidenceGrade.Unknown)
         {
@@ -187,11 +245,20 @@ public sealed record OptimizationCandidateMetrics
             headroomBytes,
             workingDiskBytes,
             outputDiskBytes,
-            requiresPersistentChange);
+            requiresPersistentChange,
+            availableDiskBytes);
     }
 
     /// <summary>Whether the peak fits inside what this candidate was allowed.</summary>
     public bool FitsSafely => PredictedPeakBytes <= SafeBudgetBytes;
+
+    /// <summary>
+    /// Whether a positive, explicit disk observation covers the peak disk
+    /// obligation. Working and output figures are alternative phase peaks, not
+    /// additive reservations.
+    /// </summary>
+    public bool FitsDiskSafely => AvailableDiskBytes is > 0
+        && DiskObligationBytes <= AvailableDiskBytes.Value;
 
     private static void RequireAssessed(OptimizationAssessment value, string parameter)
     {
@@ -226,7 +293,8 @@ public sealed record OptimizationCandidate
         string evidenceId,
         bool isExperimental,
         OptimizationConversionProvenance conversionProvenance,
-        OptimizationCandidateNotice notice)
+        OptimizationCandidateNotice notice,
+        GgufWeightNormalizationProof? weightNormalizationProof)
     {
         Route = route;
         Configuration = configuration;
@@ -235,6 +303,7 @@ public sealed record OptimizationCandidate
         IsExperimental = isExperimental;
         ConversionProvenance = conversionProvenance;
         Notice = notice;
+        WeightNormalizationProof = weightNormalizationProof;
     }
 
     public OptimizationRoute Route { get; }
@@ -255,6 +324,8 @@ public sealed record OptimizationCandidate
     public OptimizationConversionProvenance ConversionProvenance { get; }
 
     public OptimizationCandidateNotice Notice { get; }
+
+    internal GgufWeightNormalizationProof? WeightNormalizationProof { get; }
 
     /// <summary>
     /// Ordinal, stable, and covering the whole candidate rather than the
@@ -322,7 +393,32 @@ public sealed record OptimizationCandidate
 
         return new OptimizationCandidate(
             route, configuration, metrics, evidenceId, isExperimental,
-            conversionProvenance, notice);
+            conversionProvenance, notice, weightNormalizationProof: null);
+    }
+
+    internal static OptimizationCandidate CreateWithGgufWeightNormalization(
+        GgufRouteConfiguration configuration,
+        OptimizationCandidateMetrics metrics,
+        string evidenceId,
+        bool isExperimental,
+        GgufWeightNormalizationProof proof)
+    {
+        ArgumentNullException.ThrowIfNull(proof);
+        if (configuration.Weights != GgufWeightFormat.Imported
+            || metrics.RequiresPersistentChange)
+        {
+            throw new ArgumentException(
+                "Only an imported, runtime-only GGUF candidate can carry an "
+                + "already-at-target normalization proof.",
+                nameof(configuration));
+        }
+
+        OptimizationCandidate validated = Create(
+            configuration, metrics, evidenceId, isExperimental);
+        return new OptimizationCandidate(
+            validated.Route, validated.Configuration, validated.Metrics,
+            validated.EvidenceId, validated.IsExperimental,
+            validated.ConversionProvenance, validated.Notice, proof);
     }
 
     internal static OptimizationCandidateNotice ExpectedNotice(
@@ -370,6 +466,7 @@ public sealed record OptimizationCandidate
             validated.Route, validated.Configuration, validated.Metrics,
             validated.EvidenceId, validated.IsExperimental,
             OptimizationConversionProvenance.None,
-            OptimizationCandidateNotice.None);
+            OptimizationCandidateNotice.None,
+            weightNormalizationProof: null);
     }
 }
