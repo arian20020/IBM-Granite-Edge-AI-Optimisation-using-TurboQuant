@@ -778,6 +778,8 @@ internal static class CrossRouteCandidateGenerator
         }
 
         ByteCount dedicatedPeak = peaks.PeakFor(ResourceTarget.DedicatedDeviceMemory);
+        ByteCount? dedicatedBudgetForMetrics = null;
+        ByteCount? dedicatedHeadroom = null;
         if (dedicatedPeak != ByteCount.Zero)
         {
             if (hardwareAuthority.SafeDedicatedDeviceMemoryBudget is not { } dedicatedBudget)
@@ -794,6 +796,10 @@ internal static class CrossRouteCandidateGenerator
                     OptimizationExclusionReason.ExceedsDedicatedDeviceMemory));
                 return;
             }
+            dedicatedBudgetForMetrics = dedicatedBudget;
+            _ = dedicatedBudget.TrySubtract(
+                dedicatedPeak, out ByteCount remainingDedicated);
+            dedicatedHeadroom = remainingDedicated;
         }
 
         ByteCount disk = peaks.PeakFor(ResourceTarget.Storage);
@@ -844,7 +850,10 @@ internal static class CrossRouteCandidateGenerator
             peaks.PeakFor(ResourceTarget.Storage).Bytes,
             requiresPersistentChange ? disk.Bytes : 0,
             requiresPersistentChange,
-            availableDisk.Bytes);
+            availableDisk.Bytes,
+            dedicatedPeak == ByteCount.Zero ? null : dedicatedPeak.Bytes,
+            dedicatedBudgetForMetrics?.Bytes,
+            dedicatedHeadroom?.Bytes);
         OptimizationCandidate admittedCandidate = normalizationProof is null
             ? OptimizationCandidate.Create(
                 configuration, metrics, evidenceId,

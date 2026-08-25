@@ -50,6 +50,9 @@ internal sealed record OptimizationAdmissionProof
         PredictedPeakBytes = candidate.Metrics.PredictedPeakBytes;
         SafeBudgetBytes = candidate.Metrics.SafeBudgetBytes;
         HeadroomBytes = candidate.Metrics.HeadroomBytes;
+        DedicatedRequiredBytes = candidate.Metrics.DedicatedRequiredBytes;
+        DedicatedSafeBudgetBytes = candidate.Metrics.DedicatedSafeBudgetBytes;
+        DedicatedHeadroomBytes = candidate.Metrics.DedicatedHeadroomBytes;
         WorkingStoragePhasePeakBytes = candidate.Metrics.WorkingDiskBytes;
         OutputDiskBytes = candidate.Metrics.OutputDiskBytes;
         DiskObligationBytes = candidate.Metrics.DiskObligationBytes;
@@ -79,6 +82,9 @@ internal sealed record OptimizationAdmissionProof
     internal ulong PredictedPeakBytes { get; }
     internal ulong SafeBudgetBytes { get; }
     internal ulong HeadroomBytes { get; }
+    internal ulong? DedicatedRequiredBytes { get; }
+    internal ulong? DedicatedSafeBudgetBytes { get; }
+    internal ulong? DedicatedHeadroomBytes { get; }
 
     /// <summary>
     /// Composite peak storage obligation in any lifecycle phase. It is already
@@ -153,6 +159,9 @@ internal sealed record OptimizationAdmissionProof
         && PredictedPeakBytes == candidate.Metrics.PredictedPeakBytes
         && SafeBudgetBytes == candidate.Metrics.SafeBudgetBytes
         && HeadroomBytes == candidate.Metrics.HeadroomBytes
+        && DedicatedRequiredBytes == candidate.Metrics.DedicatedRequiredBytes
+        && DedicatedSafeBudgetBytes == candidate.Metrics.DedicatedSafeBudgetBytes
+        && DedicatedHeadroomBytes == candidate.Metrics.DedicatedHeadroomBytes
         && WorkingStoragePhasePeakBytes == candidate.Metrics.WorkingDiskBytes
         && OutputDiskBytes == candidate.Metrics.OutputDiskBytes
         && DiskObligationBytes == candidate.Metrics.DiskObligationBytes
@@ -177,6 +186,16 @@ internal sealed record OptimizationAdmissionProof
             || metrics.SafeBudgetBytes == 0
             || metrics.PredictedPeakBytes > metrics.SafeBudgetBytes
             || metrics.HeadroomBytes != metrics.SafeBudgetBytes - metrics.PredictedPeakBytes
+            || metrics.DedicatedRequiredBytes.HasValue
+                != metrics.DedicatedSafeBudgetBytes.HasValue
+            || metrics.DedicatedRequiredBytes.HasValue
+                != metrics.DedicatedHeadroomBytes.HasValue
+            || metrics.DedicatedRequiredBytes is { } dedicatedRequired
+                && (dedicatedRequired == 0
+                    || metrics.DedicatedSafeBudgetBytes is not { } dedicatedBudget
+                    || dedicatedRequired > dedicatedBudget
+                    || metrics.DedicatedHeadroomBytes
+                        != dedicatedBudget - dedicatedRequired)
             || metrics.AvailableDiskBytes is not > 0
             || metrics.DiskObligationBytes != Math.Max(
                 metrics.WorkingDiskBytes, metrics.OutputDiskBytes)

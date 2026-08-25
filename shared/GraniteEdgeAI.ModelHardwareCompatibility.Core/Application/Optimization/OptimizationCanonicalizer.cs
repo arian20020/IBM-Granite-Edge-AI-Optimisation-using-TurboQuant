@@ -250,6 +250,17 @@ internal static class OptimizationCanonicalizer
             proof.SafeBudgetBytes.ToString(CultureInfo.InvariantCulture));
         Append(builder, "admission.headroomBytes",
             proof.HeadroomBytes.ToString(CultureInfo.InvariantCulture));
+        Append(builder, "admission.dedicatedEstablished",
+            proof.DedicatedRequiredBytes.HasValue ? 1 : 0);
+        Append(builder, "admission.dedicatedRequiredBytes",
+            proof.DedicatedRequiredBytes?.ToString(CultureInfo.InvariantCulture)
+                ?? "none");
+        Append(builder, "admission.dedicatedSafeBudgetBytes",
+            proof.DedicatedSafeBudgetBytes?.ToString(CultureInfo.InvariantCulture)
+                ?? "none");
+        Append(builder, "admission.dedicatedHeadroomBytes",
+            proof.DedicatedHeadroomBytes?.ToString(CultureInfo.InvariantCulture)
+                ?? "none");
         Append(builder, "admission.workingStoragePhasePeakBytes",
             proof.WorkingStoragePhasePeakBytes.ToString(CultureInfo.InvariantCulture));
         Append(builder, "admission.outputDiskBytes",

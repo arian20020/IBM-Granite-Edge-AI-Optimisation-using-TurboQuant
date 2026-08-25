@@ -39,7 +39,10 @@ public sealed record CompatibilitySetupView
         ulong uncertaintyAllowanceBytes,
         bool isExperimental,
         bool requiresConversion,
-        IReadOnlyList<CompatibilityComponentView> components)
+        IReadOnlyList<CompatibilityComponentView> components,
+        ulong? dedicatedRequiredBytes = null,
+        ulong? dedicatedSafeBudgetBytes = null,
+        ulong? dedicatedHeadroomBytes = null)
     {
         Route = route;
         Backend = backend;
@@ -54,6 +57,9 @@ public sealed record CompatibilitySetupView
         IsExperimental = isExperimental;
         RequiresConversion = requiresConversion;
         Components = components;
+        DedicatedRequiredBytes = dedicatedRequiredBytes;
+        DedicatedSafeBudgetBytes = dedicatedSafeBudgetBytes;
+        DedicatedHeadroomBytes = dedicatedHeadroomBytes;
     }
 
     public RuntimeRouteId Route { get; }
@@ -74,16 +80,30 @@ public sealed record CompatibilitySetupView
     public CompatibilityFitState Fit { get; }
 
     /// <summary>
-    /// Peak memory this setup would need. Excludes the safety reserve, which is
-    /// not a cost of running the model but a margin held back from it.
+    /// Legacy name for system/shared memory this setup would need. Excludes the
+    /// safety reserve, which is not a cost of running the model but a margin
+    /// held back from it.
     /// </summary>
     public ulong RequiredBytes { get; }
+    public ulong SystemSharedRequiredBytes => RequiredBytes;
 
-    /// <summary>The most this setup was allowed to use, after the reserve was withheld.</summary>
+    /// <summary>
+    /// The system/shared memory this setup was allowed after reserve.
+    /// </summary>
     public ulong SafeBudgetBytes { get; }
+    public ulong SystemSharedSafeBudgetBytes => SafeBudgetBytes;
 
     /// <summary>Budget left over. Zero when the setup does not fit.</summary>
     public ulong HeadroomBytes { get; }
+    public ulong SystemSharedHeadroomBytes => HeadroomBytes;
+
+    /// <summary>
+    /// Separate dedicated-device-memory admission axis, or null for a setup
+    /// that does not consume dedicated device memory.
+    /// </summary>
+    public ulong? DedicatedRequiredBytes { get; }
+    public ulong? DedicatedSafeBudgetBytes { get; }
+    public ulong? DedicatedHeadroomBytes { get; }
 
     /// <summary>
     /// Extra memory demanded on top of the components, because the figures are
@@ -128,9 +148,28 @@ public sealed record CompatibilitySetupView
         ulong uncertaintyAllowanceBytes,
         bool isExperimental,
         bool requiresConversion,
-        IReadOnlyList<CompatibilityComponentView> components)
+        IReadOnlyList<CompatibilityComponentView> components,
+        ulong? dedicatedRequiredBytes = null,
+        ulong? dedicatedSafeBudgetBytes = null,
+        ulong? dedicatedHeadroomBytes = null)
     {
         ArgumentNullException.ThrowIfNull(components);
+        bool anyDedicated = dedicatedRequiredBytes.HasValue
+            || dedicatedSafeBudgetBytes.HasValue
+            || dedicatedHeadroomBytes.HasValue;
+        if (anyDedicated
+            && (!(dedicatedRequiredBytes.HasValue
+                    && dedicatedSafeBudgetBytes.HasValue
+                    && dedicatedHeadroomBytes.HasValue)
+                || dedicatedRequiredBytes > dedicatedSafeBudgetBytes
+                || dedicatedRequiredBytes == 0
+                || dedicatedSafeBudgetBytes == 0
+                || dedicatedHeadroomBytes
+                    != dedicatedSafeBudgetBytes - dedicatedRequiredBytes))
+        {
+            throw new ArgumentException(
+                "Dedicated presentation values must form one complete axis.");
+        }
 
         return new CompatibilitySetupView(
             route,
@@ -145,6 +184,9 @@ public sealed record CompatibilitySetupView
             uncertaintyAllowanceBytes,
             isExperimental,
             requiresConversion,
-            [.. components]);
+            [.. components],
+            dedicatedRequiredBytes,
+            dedicatedSafeBudgetBytes,
+            dedicatedHeadroomBytes);
     }
 }

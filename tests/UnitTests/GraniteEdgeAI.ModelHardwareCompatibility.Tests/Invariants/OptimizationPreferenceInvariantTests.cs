@@ -872,6 +872,10 @@ public sealed class OptimizationPreferenceInvariantTests
                         ? checked((int)original! + 1)
                         : field.FieldType == typeof(ulong)
                             ? checked((ulong)original! + 1)
+                            : field.FieldType == typeof(ulong?)
+                                ? original is null
+                                    ? 1UL
+                                    : checked((ulong)original + 1)
                             : field.FieldType.IsEnum
                                 ? Enum.GetValues(field.FieldType).Cast<object>()
                                     .First(value => !value.Equals(original))
@@ -898,7 +902,7 @@ public sealed class OptimizationPreferenceInvariantTests
             }
         }
 
-        Assert.AreEqual(27, proofFields.Length);
+        Assert.AreEqual(30, proofFields.Length);
     }
 
     [TestMethod]

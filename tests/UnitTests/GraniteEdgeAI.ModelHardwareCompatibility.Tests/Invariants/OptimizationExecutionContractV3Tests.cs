@@ -468,10 +468,10 @@ public sealed class OptimizationExecutionContractV3Tests
                 TurboBuild()));
 
         Assert.AreEqual(
-            "v=1:3|route=1:2|config=79:openvino|w=Int4|kv=TurboQuantTbq4|dev=Cpu|hint=Latency|cache=Disabled|streams=1|ctx=4:4096|persistent=1:1|evidence=17:ov-turbo-evidence|experimental=1:1|availableDiskBytes=12:536870912000|admission.snapshotId=6:ov-cap|admission.capabilitySha256=64:1111111111111111111111111111111111111111111111111111111111111111|admission.workloadId=4:chat|admission.workloadSha256=64:256a9ed432045ddd99b0ed1c14865d1a811c03578515413fcea438b63e75ea5b|admission.journeySha256=64:79b21af287341b1ed1546722969e12b4785ce5051bc9ae21ec243b2906a8afd4|admission.routeExecutionAuthoritySha256=64:371407f0173992351669b9a1f1addb851297bbb8a65cdf8f43b91f87114353f9|admission.configuration=79:openvino|w=Int4|kv=TurboQuantTbq4|dev=Cpu|hint=Latency|cache=Disabled|streams=1|admission.evidenceId=17:ov-turbo-evidence|admission.supportLevel=1:2|admission.requiresEvidence=1:1|admission.optInEvidenceId=17:ov-turbo-evidence|admission.experimental=1:1|admission.conversionProvenance=1:0|admission.notice=1:0|admission.evidenceGrade=1:1|admission.quality=1:2|admission.performance=1:2|admission.stability=1:2|admission.contextTokens=4:4096|admission.predictedPeakBytes=10:1762111488|admission.safeBudgetBytes=11:34359738368|admission.headroomBytes=11:32597626880|admission.workingStoragePhasePeakBytes=10:1042368922|admission.outputDiskBytes=10:1042368922|admission.diskObligationBytes=10:1042368922|admission.availableDiskBytes=12:536870912000|admission.persistent=1:1|ov.configurationId=39:openvino.experimental.cpu.int4.turbo.v3|ov.device=3:CPU|ov.maturity=22:Experimental candidate|ov.evidenceId=17:ov-turbo-evidence|ov.sourceWeightPrecision=1:0|ov.targetWeightPrecision=1:2|ov.kvCacheAlgorithm=1:2|ov.kvCachePrecision=1:5|ov.compiledCacheEnabled=1:0|ov.compiledCacheIsDisposable=1:1|ov.compiledCacheIsModelArtifact=1:0|ov.createsCompletePackage=1:1|ov.build.runtimeBuild=8:2026.3.0|ov.build.genAiBuild=10:2026.3.0.0|ov.build.tokenizersBuild=8:2026.3.0|ov.build.workerManifestDigest=64:1111111111111111111111111111111111111111111111111111111111111111|ov.optimizer.nncf=5:3.3.0|ov.optimizer.openvino=8:2026.3.0|ov.turboQuant.sourceCommit=40:0123456789abcdef0123456789abcdef01234567|ov.turboQuant.implementationCommit=40:0123456789abcdef0123456789abcdef01234567|ov.turboQuant.patchSeriesDigest=64:1111111111111111111111111111111111111111111111111111111111111111|ov.turboQuant.runtimeManifestDigest=64:2222222222222222222222222222222222222222222222222222222222222222",
+            "v=1:3|route=1:2|config=79:openvino|w=Int4|kv=TurboQuantTbq4|dev=Cpu|hint=Latency|cache=Disabled|streams=1|ctx=4:4096|persistent=1:1|evidence=17:ov-turbo-evidence|experimental=1:1|availableDiskBytes=12:536870912000|admission.snapshotId=6:ov-cap|admission.capabilitySha256=64:1111111111111111111111111111111111111111111111111111111111111111|admission.workloadId=4:chat|admission.workloadSha256=64:256a9ed432045ddd99b0ed1c14865d1a811c03578515413fcea438b63e75ea5b|admission.journeySha256=64:79b21af287341b1ed1546722969e12b4785ce5051bc9ae21ec243b2906a8afd4|admission.routeExecutionAuthoritySha256=64:371407f0173992351669b9a1f1addb851297bbb8a65cdf8f43b91f87114353f9|admission.configuration=79:openvino|w=Int4|kv=TurboQuantTbq4|dev=Cpu|hint=Latency|cache=Disabled|streams=1|admission.evidenceId=17:ov-turbo-evidence|admission.supportLevel=1:2|admission.requiresEvidence=1:1|admission.optInEvidenceId=17:ov-turbo-evidence|admission.experimental=1:1|admission.conversionProvenance=1:0|admission.notice=1:0|admission.evidenceGrade=1:1|admission.quality=1:2|admission.performance=1:2|admission.stability=1:2|admission.contextTokens=4:4096|admission.predictedPeakBytes=10:1762111488|admission.safeBudgetBytes=11:34359738368|admission.headroomBytes=11:32597626880|admission.dedicatedEstablished=1:0|admission.dedicatedRequiredBytes=4:none|admission.dedicatedSafeBudgetBytes=4:none|admission.dedicatedHeadroomBytes=4:none|admission.workingStoragePhasePeakBytes=10:1042368922|admission.outputDiskBytes=10:1042368922|admission.diskObligationBytes=10:1042368922|admission.availableDiskBytes=12:536870912000|admission.persistent=1:1|ov.configurationId=39:openvino.experimental.cpu.int4.turbo.v3|ov.device=3:CPU|ov.maturity=22:Experimental candidate|ov.evidenceId=17:ov-turbo-evidence|ov.sourceWeightPrecision=1:0|ov.targetWeightPrecision=1:2|ov.kvCacheAlgorithm=1:2|ov.kvCachePrecision=1:5|ov.compiledCacheEnabled=1:0|ov.compiledCacheIsDisposable=1:1|ov.compiledCacheIsModelArtifact=1:0|ov.createsCompletePackage=1:1|ov.build.runtimeBuild=8:2026.3.0|ov.build.genAiBuild=10:2026.3.0.0|ov.build.tokenizersBuild=8:2026.3.0|ov.build.workerManifestDigest=64:1111111111111111111111111111111111111111111111111111111111111111|ov.optimizer.nncf=5:3.3.0|ov.optimizer.openvino=8:2026.3.0|ov.turboQuant.sourceCommit=40:0123456789abcdef0123456789abcdef01234567|ov.turboQuant.implementationCommit=40:0123456789abcdef0123456789abcdef01234567|ov.turboQuant.patchSeriesDigest=64:1111111111111111111111111111111111111111111111111111111111111111|ov.turboQuant.runtimeManifestDigest=64:2222222222222222222222222222222222222222222222222222222222222222",
             OptimizationCanonicalizer.Canonicalize(candidate, payload, contractVersion: 3));
         Assert.AreEqual(
-            "b40b8db92d78abaa2107d368cbea28a5b27a7589e139f338e3371ab5c4554bdc",
+            "6284cfbc5f5f63b25b8fc53a3e9566ec9bd1c94bd35b87dd81485fa5f9a66426",
             OptimizationCanonicalizer.ConfigurationSha256(
                 candidate, payload, contractVersion: 3));
     }
@@ -560,6 +560,10 @@ public sealed class OptimizationExecutionContractV3Tests
             "admission.performance", "admission.stability",
             "admission.contextTokens", "admission.predictedPeakBytes",
             "admission.safeBudgetBytes", "admission.headroomBytes",
+            "admission.dedicatedEstablished",
+            "admission.dedicatedRequiredBytes",
+            "admission.dedicatedSafeBudgetBytes",
+            "admission.dedicatedHeadroomBytes",
             "admission.workingStoragePhasePeakBytes", "admission.outputDiskBytes",
             "admission.diskObligationBytes", "admission.availableDiskBytes",
             "admission.persistent"
@@ -617,7 +621,7 @@ public sealed class OptimizationExecutionContractV3Tests
             }
         }
 
-        Assert.AreEqual(27, fields.Length);
+        Assert.AreEqual(30, fields.Length);
     }
 
     private static object ChangedValue(Type type, object? original)
@@ -637,6 +641,10 @@ public sealed class OptimizationExecutionContractV3Tests
         if (type == typeof(ulong))
         {
             return checked((ulong)original! + 1);
+        }
+        if (type == typeof(ulong?))
+        {
+            return original is null ? 1UL : checked((ulong)original + 1);
         }
         if (type.IsEnum)
         {

@@ -136,7 +136,10 @@ public sealed record OptimizationCandidateMetrics
         ulong workingDiskBytes,
         ulong outputDiskBytes,
         bool requiresPersistentChange,
-        ulong? availableDiskBytes)
+        ulong? availableDiskBytes,
+        ulong? dedicatedRequiredBytes,
+        ulong? dedicatedSafeBudgetBytes,
+        ulong? dedicatedHeadroomBytes)
     {
         Evidence = evidence;
         Quality = quality;
@@ -150,6 +153,9 @@ public sealed record OptimizationCandidateMetrics
         OutputDiskBytes = outputDiskBytes;
         RequiresPersistentChange = requiresPersistentChange;
         AvailableDiskBytes = availableDiskBytes;
+        DedicatedRequiredBytes = dedicatedRequiredBytes;
+        DedicatedSafeBudgetBytes = dedicatedSafeBudgetBytes;
+        DedicatedHeadroomBytes = dedicatedHeadroomBytes;
     }
 
     public EvidenceGrade Evidence { get; }
@@ -162,13 +168,26 @@ public sealed record OptimizationCandidateMetrics
 
     public int ContextTokens { get; }
 
-    /// <summary>Peak memory pressure, excluding the reserve held back from it.</summary>
+    /// <summary>
+    /// Legacy V2 name for peak system/shared-memory pressure. Dedicated device
+    /// memory is never included.
+    /// </summary>
     public ulong PredictedPeakBytes { get; }
+
+    public ulong SystemSharedPredictedPeakBytes => PredictedPeakBytes;
 
     public ulong SafeBudgetBytes { get; }
 
+    public ulong SystemSharedSafeBudgetBytes => SafeBudgetBytes;
+
     /// <summary>Budget left over. Zero when the candidate does not fit.</summary>
     public ulong HeadroomBytes { get; }
+
+    public ulong SystemSharedHeadroomBytes => HeadroomBytes;
+
+    public ulong? DedicatedRequiredBytes { get; }
+    public ulong? DedicatedSafeBudgetBytes { get; }
+    public ulong? DedicatedHeadroomBytes { get; }
 
     /// <summary>
     /// Composite peak storage obligation during any working lifecycle phase.
@@ -211,7 +230,10 @@ public sealed record OptimizationCandidateMetrics
         ulong workingDiskBytes,
         ulong outputDiskBytes,
         bool requiresPersistentChange,
-        ulong? availableDiskBytes = null)
+        ulong? availableDiskBytes = null,
+        ulong? dedicatedRequiredBytes = null,
+        ulong? dedicatedSafeBudgetBytes = null,
+        ulong? dedicatedHeadroomBytes = null)
     {
         if (evidence == EvidenceGrade.Unknown || !Enum.IsDefined(evidence))
         {
@@ -242,6 +264,24 @@ public sealed record OptimizationCandidateMetrics
                 + "is the shape an unestimated candidate would take.");
         }
 
+        bool anyDedicated = dedicatedRequiredBytes.HasValue
+            || dedicatedSafeBudgetBytes.HasValue
+            || dedicatedHeadroomBytes.HasValue;
+        bool completeDedicated = dedicatedRequiredBytes.HasValue
+            && dedicatedSafeBudgetBytes.HasValue
+            && dedicatedHeadroomBytes.HasValue;
+        if (anyDedicated != completeDedicated
+            || completeDedicated
+                && (dedicatedRequiredBytes == 0
+                    || dedicatedSafeBudgetBytes == 0
+                    || dedicatedRequiredBytes > dedicatedSafeBudgetBytes
+                    || dedicatedHeadroomBytes
+                        != dedicatedSafeBudgetBytes - dedicatedRequiredBytes))
+        {
+            throw new ArgumentException(
+                "Dedicated memory admission must be complete, separate, and safe.");
+        }
+
         return new OptimizationCandidateMetrics(
             evidence,
             quality,
@@ -254,7 +294,10 @@ public sealed record OptimizationCandidateMetrics
             workingDiskBytes,
             outputDiskBytes,
             requiresPersistentChange,
-            availableDiskBytes);
+            availableDiskBytes,
+            dedicatedRequiredBytes,
+            dedicatedSafeBudgetBytes,
+            dedicatedHeadroomBytes);
     }
 
     /// <summary>Whether the peak fits inside what this candidate was allowed.</summary>

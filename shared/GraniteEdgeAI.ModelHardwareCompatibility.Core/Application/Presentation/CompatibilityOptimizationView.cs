@@ -47,7 +47,10 @@ public sealed record CompatibilityOptimizationModeView
         bool requiresRequantisationAcknowledgement,
         OptimizationQualityNotice qualityNotice,
         bool isExperimental,
-        bool sharedWithAdjacentBand)
+        bool sharedWithAdjacentBand,
+        ulong? dedicatedRequiredBytes = null,
+        ulong? dedicatedSafeBudgetBytes = null,
+        ulong? dedicatedHeadroomBytes = null)
     {
         LabelCode = labelCode;
         SliderValue = sliderValue;
@@ -68,6 +71,9 @@ public sealed record CompatibilityOptimizationModeView
         QualityNotice = qualityNotice;
         IsExperimental = isExperimental;
         SharedWithAdjacentBand = sharedWithAdjacentBand;
+        DedicatedRequiredBytes = dedicatedRequiredBytes;
+        DedicatedSafeBudgetBytes = dedicatedSafeBudgetBytes;
+        DedicatedHeadroomBytes = dedicatedHeadroomBytes;
     }
 
     public CompatibilityOptimizationLabelCode LabelCode { get; }
@@ -80,9 +86,25 @@ public sealed record CompatibilityOptimizationModeView
     public DeviceRouteId Device { get; }
     public OptimizationAssessment ExpectedQuality { get; }
     public int ContextTokens { get; }
+    /// <summary>
+    /// Legacy name for peak system/shared-memory demand. Dedicated device
+    /// memory is exposed separately and is never included here.
+    /// </summary>
     public ulong PredictedPeakBytes { get; }
+    public ulong SystemSharedPredictedPeakBytes => PredictedPeakBytes;
+    /// <summary>Safe system/shared-memory budget after reserve.</summary>
     public ulong SafeBudgetBytes { get; }
+    public ulong SystemSharedSafeBudgetBytes => SafeBudgetBytes;
+    /// <summary>Remaining system/shared-memory headroom.</summary>
     public ulong HeadroomBytes { get; }
+    public ulong SystemSharedHeadroomBytes => HeadroomBytes;
+    /// <summary>
+    /// Separate dedicated-device-memory admission axis, or null for a setup
+    /// that does not consume dedicated device memory.
+    /// </summary>
+    public ulong? DedicatedRequiredBytes { get; }
+    public ulong? DedicatedSafeBudgetBytes { get; }
+    public ulong? DedicatedHeadroomBytes { get; }
     public bool RequiresPersistentArtifact { get; }
     public bool RequiresRequantisationAcknowledgement { get; }
     public OptimizationQualityNotice QualityNotice { get; }
@@ -108,7 +130,10 @@ public sealed record CompatibilityOptimizationModeView
         bool requiresRequantisationAcknowledgement,
         OptimizationQualityNotice qualityNotice,
         bool isExperimental,
-        bool sharedWithAdjacentBand)
+        bool sharedWithAdjacentBand,
+        ulong? dedicatedRequiredBytes = null,
+        ulong? dedicatedSafeBudgetBytes = null,
+        ulong? dedicatedHeadroomBytes = null)
     {
         if (labelCode == CompatibilityOptimizationLabelCode.Unspecified
             || !Enum.IsDefined(labelCode)
@@ -124,7 +149,10 @@ public sealed record CompatibilityOptimizationModeView
             || predictedPeakBytes > safeBudgetBytes
             || headroomBytes != safeBudgetBytes - predictedPeakBytes
             || requiresRequantisationAcknowledgement
-                && !requiresPersistentArtifact)
+                && !requiresPersistentArtifact
+            || !ValidDedicatedAxis(
+                dedicatedRequiredBytes, dedicatedSafeBudgetBytes,
+                dedicatedHeadroomBytes))
         {
             throw new ArgumentException(
                 "An optimization fixture must describe one complete, safe mode.");
@@ -157,7 +185,17 @@ public sealed record CompatibilityOptimizationModeView
             openVinoWeights, openVinoKvCache, device, expectedQuality,
             contextTokens, predictedPeakBytes, safeBudgetBytes, headroomBytes,
             requiresPersistentArtifact, requiresRequantisationAcknowledgement,
-            qualityNotice, isExperimental, sharedWithAdjacentBand);
+            qualityNotice, isExperimental, sharedWithAdjacentBand,
+            dedicatedRequiredBytes, dedicatedSafeBudgetBytes,
+            dedicatedHeadroomBytes);
+    }
+
+    private static bool ValidDedicatedAxis(
+        ulong? required, ulong? budget, ulong? headroom)
+    {
+        bool any = required.HasValue || budget.HasValue || headroom.HasValue;
+        return !any || required is > 0 && budget is > 0
+            && required <= budget && headroom == budget - required;
     }
 }
 

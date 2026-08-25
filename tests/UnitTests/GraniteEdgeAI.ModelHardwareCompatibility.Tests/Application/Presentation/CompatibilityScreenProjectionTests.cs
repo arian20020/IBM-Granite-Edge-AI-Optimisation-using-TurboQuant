@@ -298,11 +298,12 @@ public sealed class CompatibilityScreenProjectionTests
                     [Profile(f16.EvidenceId), Profile(q8.EvidenceId)])));
     }
 
-    private static OptimizationCapabilitySnapshot OpenVinoSnapshot()
+    private static OptimizationCapabilitySnapshot OpenVinoSnapshot(
+        DeviceRouteId device = DeviceRouteId.Cpu)
     {
         OpenVinoAdmittedConfiguration admitted = OpenVinoAdmittedConfiguration.Create(
             "ov-int4",
-            DeviceRouteId.Cpu,
+            device,
             OpenVinoWeightFormat.Int4,
             OpenVinoKvCacheFormat.U8,
             OpenVinoPerformanceHint.Latency,
@@ -1299,6 +1300,173 @@ public sealed class CompatibilityScreenProjectionTests
             setup: setup);
 
         Assert.IsFalse(fixture.ContinueEnabled);
+        Assert.IsFalse(fixture.UseCurrentModelAvailable);
+    }
+
+    [TestMethod]
+    public void SetupFixture_RejectsZeroOrPartialDedicatedMemoryEvidence()
+    {
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            CompatibilitySetupView.ForPresentation(
+                RuntimeRouteId.OpenVinoGenAi, CompatibilityBackend.OpenVinoGpu,
+                DeviceRouteId.IntelDiscreteGpu, WeightQuantisation.F16, 4096,
+                CompatibilityFitState.Safe, 1, 2, 1, 0,
+                false, false, [],
+                dedicatedRequiredBytes: 0,
+                dedicatedSafeBudgetBytes: 1,
+                dedicatedHeadroomBytes: 1));
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            CompatibilitySetupView.ForPresentation(
+                RuntimeRouteId.OpenVinoGenAi, CompatibilityBackend.OpenVinoGpu,
+                DeviceRouteId.IntelDiscreteGpu, WeightQuantisation.F16, 4096,
+                CompatibilityFitState.Safe, 1, 2, 1, 0,
+                false, false, [],
+                dedicatedRequiredBytes: 1));
+    }
+
+    [TestMethod]
+    [DataRow(DeviceRouteId.Cpu, CompatibilityBackend.OpenVinoCpu)]
+    [DataRow(DeviceRouteId.IntelIntegratedGpu, CompatibilityBackend.OpenVinoGpu)]
+    [DataRow(DeviceRouteId.IntelDiscreteGpu, CompatibilityBackend.OpenVinoGpu)]
+    [DataRow(DeviceRouteId.IntelNpu, CompatibilityBackend.OpenVinoNpu)]
+    public void OpenVinoSetupProjection_PreservesExactDeviceAndRequiredBackend(
+        DeviceRouteId device,
+        CompatibilityBackend expectedBackend)
+    {
+        OpenVinoRouteConfiguration configuration =
+            OpenVinoRouteConfiguration.Create(
+                OpenVinoWeightFormat.Original, OpenVinoKvCacheFormat.U8,
+                device, OpenVinoPerformanceHint.Latency,
+                OpenVinoCompiledCachePolicy.Disabled, 1);
+        CompatibilityScreenModel model = CompatibilityScreenModel.From(
+            CompletedWith(EvaluatedForConfiguration(
+                CandidatePreparation.None,
+                CompatibilityFitState.Safe,
+                isBaseline: true,
+                configuration)));
+
+        Assert.IsNotNull(model.Setup);
+        Assert.AreEqual(device, model.Setup.Device);
+        Assert.AreEqual(expectedBackend, model.Setup.Backend);
+    }
+
+    [TestMethod]
+    public void OpenVinoSetupProjection_UndefinedDeviceFailsClosed()
+    {
+        OpenVinoRouteConfiguration configuration =
+            OpenVinoRouteConfiguration.Create(
+                OpenVinoWeightFormat.Original, OpenVinoKvCacheFormat.U8,
+                DeviceRouteId.Cpu, OpenVinoPerformanceHint.Latency,
+                OpenVinoCompiledCachePolicy.Disabled, 1);
+        EvaluatedCandidate evaluated = EvaluatedForConfiguration(
+            CandidatePreparation.None,
+            CompatibilityFitState.Safe,
+            isBaseline: true,
+            configuration);
+        typeof(OpenVinoRouteConfiguration).GetField(
+            "<Device>k__BackingField",
+            BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(
+                configuration, (DeviceRouteId)999);
+
+        CompatibilityScreenModel model = CompatibilityScreenModel.From(
+            CompletedWith(evaluated));
+
+        Assert.AreEqual(CompatibilityScreenState.NotEstablished, model.State);
+        Assert.IsNull(model.Setup);
+        Assert.IsFalse(model.ContinueEnabled);
+    }
+
+    [TestMethod]
+    public void SetupProjection_PreservesDedicatedMemorySeparateFromSystemShared()
+    {
+        OpenVinoRouteConfiguration configuration =
+            OpenVinoRouteConfiguration.Create(
+                OpenVinoWeightFormat.Original, OpenVinoKvCacheFormat.U8,
+                DeviceRouteId.IntelDiscreteGpu, OpenVinoPerformanceHint.Latency,
+                OpenVinoCompiledCachePolicy.Disabled, 1);
+        CompatibilityCandidate candidate = CompatibilityCandidate.Create(
+            configuration, ContextTokenCount.FromTokens(4096),
+            CandidatePreparation.None, "baseline", false, true);
+        ResourceEstimate estimate = ResourceEstimate.Established(
+        [
+            ResourceComponent.Create(
+                ResourceComponentKind.Weights,
+                ResourceTarget.SystemMemory, ByteCount.FromBytes(Gibibyte),
+                new HashSet<LifecyclePhase>
+                {
+                    LifecyclePhase.SteadyStateGeneration
+                }),
+            ResourceComponent.Create(
+                ResourceComponentKind.KvCache,
+                ResourceTarget.DedicatedDeviceMemory,
+                ByteCount.FromBytes(2 * Gibibyte),
+                new HashSet<LifecyclePhase>
+                {
+                    LifecyclePhase.SteadyStateGeneration
+                })
+        ], new HashSet<EstimationLimitation>());
+        ResourcePeakProfile peaks = ResourcePhaseComposer.Compose(estimate.Components);
+        FitAssessment fit = FitPolicy.Assess(
+            peaks,
+            AvailableResources.Create(
+                ByteCount.FromBytes(20 * Gibibyte),
+                ByteCount.FromBytes(3 * Gibibyte),
+                ByteCount.FromBytes(500 * Gibibyte),
+                DateTimeOffset.UnixEpoch),
+            SafetyPolicy.ProvisionalV1());
+        EvaluatedCandidate evaluated = EvaluatedCandidate.Create(
+            candidate, estimate, peaks, fit, WeightQuantisation.F16,
+            EvidenceGrade.Estimated, PerformanceIndicator.NotEstablished(),
+            ByteCount.Zero);
+
+        CompatibilitySetupView setup = CompatibilityScreenModel.From(
+            CompletedWith(evaluated)).Setup!;
+
+        Assert.AreEqual(fit.RequiredBytes.Bytes, setup.SystemSharedRequiredBytes);
+        Assert.AreEqual(
+            fit.DedicatedRequiredBytes.Bytes, setup.DedicatedRequiredBytes);
+        Assert.AreEqual(
+            fit.DedicatedSafeBudget.Bytes, setup.DedicatedSafeBudgetBytes);
+        Assert.AreEqual(
+            fit.DedicatedHeadroom.Bytes, setup.DedicatedHeadroomBytes);
+    }
+
+    [TestMethod]
+    public void OptimizationModes_PreserveGeneratedDedicatedMemoryAdmission()
+    {
+        OpenVinoRouteConfiguration baselineConfiguration =
+            OpenVinoRouteConfiguration.Create(
+                OpenVinoWeightFormat.Original, OpenVinoKvCacheFormat.U8,
+                DeviceRouteId.IntelDiscreteGpu,
+                OpenVinoPerformanceHint.Latency,
+                OpenVinoCompiledCachePolicy.Disabled, 1);
+        CompatibilityRunResult result = CompletedWith(EvaluatedForConfiguration(
+            CandidatePreparation.RuntimeProfileOnly,
+            CompatibilityFitState.DoesNotFit,
+            isBaseline: true,
+            baselineConfiguration));
+        OptimizationCapabilitySnapshot snapshot =
+            OpenVinoSnapshot(DeviceRouteId.IntelDiscreteGpu);
+        OptimizationWorkload workload = Workload();
+        OptimizationJourneyBinding binding = Binding();
+
+        CompatibilityScreenModel model = ProjectWith(
+            result,
+            AdmittedAlternative(snapshot, workload, binding),
+            snapshot,
+            workload,
+            binding);
+
+        Assert.AreEqual(CompatibilityScreenState.OptimisationRequired, model.State);
+        CompatibilityOptimizationModeView mode =
+            model.Optimization!.Modes.Single(candidate =>
+                candidate.LabelCode == CompatibilityOptimizationLabelCode.Automatic);
+        Assert.AreEqual(DeviceRouteId.IntelDiscreteGpu, mode.Device);
+        Assert.IsNotNull(mode.DedicatedRequiredBytes);
+        Assert.IsNotNull(mode.DedicatedSafeBudgetBytes);
+        Assert.AreEqual(
+            mode.DedicatedSafeBudgetBytes - mode.DedicatedRequiredBytes,
+            mode.DedicatedHeadroomBytes);
     }
 
     private static CompatibilityOptimizationModeView PresentationMode(

@@ -270,7 +270,8 @@ public sealed record CompatibilityScreenModel
         Findings = findings;
         Modes = modes;
         BaselineExclusionReason = baselineExclusionReason;
-        UseCurrentModelAvailable = useCurrentModelAvailable;
+        UseCurrentModelAvailable = useCurrentModelAvailable
+            && isActionAuthoritative;
         IsActionAuthoritative = isActionAuthoritative;
         ContinueEnabled = continueEnabled && isActionAuthoritative;
         Optimization = optimization;
@@ -383,6 +384,13 @@ public sealed record CompatibilityScreenModel
         ArgumentNullException.ThrowIfNull(result);
 
         CompatibilityScreenState state = DecideState(result);
+        CompatibilitySetupView? setup = DescribeSetup(result.Assessment);
+        if ((state is CompatibilityScreenState.EstimatedCompatible
+                or CompatibilityScreenState.OptimisationRequired)
+            && setup is null)
+        {
+            state = CompatibilityScreenState.NotEstablished;
+        }
 
         IReadOnlyList<CompatibilityFindingView> findings =
         [
@@ -408,7 +416,7 @@ public sealed record CompatibilityScreenModel
             result.Assessment?.UseCurrentModelAvailable ?? false,
             state is CompatibilityScreenState.EstimatedCompatible
                 or CompatibilityScreenState.OptimisationRequired,
-            DescribeSetup(result.Assessment),
+            setup,
             optimization: null,
             isActionAuthoritative: true);
     }
@@ -479,6 +487,12 @@ public sealed record CompatibilityScreenModel
             return new ProjectionDecision(
                 CompatibilityScreenState.NotEstablished, null, null);
         }
+        CompatibilitySetupView? baselineSetup = Describe(baseline);
+        if (baselineSetup is null)
+        {
+            return new ProjectionDecision(
+                CompatibilityScreenState.NotEstablished, null, null);
+        }
 
         // An incomplete frontier cannot support even a positive baseline
         // verdict for this screen: the choices it would present are not known
@@ -527,7 +541,7 @@ public sealed record CompatibilityScreenModel
             return new ProjectionDecision(
                 CompatibilityScreenState.EstimatedCompatible,
                 null,
-                Describe(baseline));
+                baselineSetup);
         }
 
         if (baseline.Fit.State != CompatibilityFitState.DoesNotFit)
@@ -545,13 +559,13 @@ public sealed record CompatibilityScreenModel
                 : new ProjectionDecision(
                     CompatibilityScreenState.OptimisationRequired,
                     view,
-                    Describe(baseline));
+                    baselineSetup);
         }
 
         return new ProjectionDecision(
             CompatibilityScreenState.NoEstimatedSafeConfiguration,
             null,
-            Describe(baseline));
+            baselineSetup);
     }
 
     private static bool ValidGeneratedAuthority(
@@ -695,7 +709,10 @@ public sealed record CompatibilityScreenModel
                 == OptimizationConversionProvenance.ControlledRequantisation,
             NoticeFor(candidate),
             candidate.IsExperimental,
-            selection.SharedWithAdjacentBand);
+            selection.SharedWithAdjacentBand,
+            candidate.Metrics.DedicatedRequiredBytes,
+            candidate.Metrics.DedicatedSafeBudgetBytes,
+            candidate.Metrics.DedicatedHeadroomBytes);
     }
 
     private static OptimizationQualityNotice NoticeFor(
@@ -793,14 +810,36 @@ public sealed record CompatibilityScreenModel
         _ => 4
     };
 
-    private static CompatibilitySetupView Describe(EvaluatedCandidate candidate)
+    private static CompatibilitySetupView? Describe(EvaluatedCandidate candidate)
     {
         GgufRouteConfiguration? gguf = candidate.Candidate.Configuration as GgufRouteConfiguration;
+        OpenVinoRouteConfiguration? openVino =
+            candidate.Candidate.Configuration as OpenVinoRouteConfiguration;
+        DeviceRouteId device = gguf?.Device
+            ?? openVino?.Device
+            ?? DeviceRouteId.Unspecified;
+        CompatibilityBackend backend = gguf?.Backend
+            ?? openVino?.Device switch
+            {
+                DeviceRouteId.Cpu => CompatibilityBackend.OpenVinoCpu,
+                DeviceRouteId.IntelIntegratedGpu
+                    or DeviceRouteId.IntelDiscreteGpu =>
+                    CompatibilityBackend.OpenVinoGpu,
+                DeviceRouteId.IntelNpu => CompatibilityBackend.OpenVinoNpu,
+                _ => CompatibilityBackend.Unspecified
+            };
+        if (device == DeviceRouteId.Unspecified
+            || backend == CompatibilityBackend.Unspecified
+            || !Enum.IsDefined(device)
+            || !Enum.IsDefined(backend))
+        {
+            return null;
+        }
 
         return new CompatibilitySetupView(
             candidate.Candidate.RouteId,
-            gguf?.Backend ?? CompatibilityBackend.Unspecified,
-            gguf?.Device ?? DeviceRouteId.Unspecified,
+            backend,
+            device,
             candidate.EffectiveQuantisation,
             candidate.Context.Tokens,
             candidate.Fit.State,
@@ -810,7 +849,16 @@ public sealed record CompatibilityScreenModel
             Allowance(candidate),
             candidate.IsExperimental,
             candidate.Preparation == CandidatePreparation.WeightConversionRequired,
-            BreakDown(candidate.Estimate.Components));
+            BreakDown(candidate.Estimate.Components),
+            candidate.Fit.DedicatedRequiredBytes == ByteCount.Zero
+                ? null
+                : candidate.Fit.DedicatedRequiredBytes.Bytes,
+            candidate.Fit.DedicatedRequiredBytes == ByteCount.Zero
+                ? null
+                : candidate.Fit.DedicatedSafeBudget.Bytes,
+            candidate.Fit.DedicatedRequiredBytes == ByteCount.Zero
+                ? null
+                : candidate.Fit.DedicatedHeadroom.Bytes);
     }
 
     /// <summary>

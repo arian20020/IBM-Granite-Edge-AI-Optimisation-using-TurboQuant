@@ -364,8 +364,42 @@ public sealed class CrossRouteCandidateGeneratorTests
 
         Assert.AreEqual(1, exact.Candidates.Count);
         Assert.AreEqual(
+            dedicatedPeak,
+            exact.Candidates.Single().Metrics.DedicatedRequiredBytes);
+        Assert.AreEqual(
+            dedicatedPeak,
+            exact.Candidates.Single().Metrics.DedicatedSafeBudgetBytes);
+        Assert.AreEqual(
+            0UL,
+            exact.Candidates.Single().Metrics.DedicatedHeadroomBytes);
+        OptimizationAdmissionProof proof =
+            exact.Candidates.Single().AdmissionProof!;
+        Assert.IsNotNull(proof);
+        Assert.AreEqual(
+            dedicatedPeak,
+            proof.DedicatedRequiredBytes);
+        Assert.AreEqual(
+            dedicatedPeak,
+            proof.DedicatedSafeBudgetBytes);
+        Assert.AreEqual(
+            0UL,
+            proof.DedicatedHeadroomBytes);
+        Assert.AreEqual(
             OptimizationExclusionReason.ExceedsDedicatedDeviceMemory,
             shortByOne.Exclusions.Single().Reason);
+    }
+
+    [TestMethod]
+    public void CpuCandidateCarriesNoFabricatedDedicatedMemoryAxis()
+    {
+        OptimizationCandidate candidate = Generate(
+            CrossRouteTestData.OpenVinoSnapshot(
+                CrossRouteTestData.OpenVino(
+                    "ov-cpu", OpenVinoWeightFormat.Original))).Candidates.Single();
+
+        Assert.IsNull(candidate.Metrics.DedicatedRequiredBytes);
+        Assert.IsNull(candidate.Metrics.DedicatedSafeBudgetBytes);
+        Assert.IsNull(candidate.Metrics.DedicatedHeadroomBytes);
     }
 
     [TestMethod]
