@@ -1,7 +1,11 @@
 using System;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.Gguf;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.OpenVino;
 
 namespace GraniteEdgeAI.Features.ModelHardwareCompatibility.Contracts;
 
@@ -63,6 +67,10 @@ internal sealed record OptimizationSelectionHandoff
             || plan.Route != plan.ExecutionPayload.Route
             || plan.Route != currentCapability.Route
             || !plan.MatchesCapability(currentCapability)
+            || !string.Equals(
+                plan.CapabilitySnapshot.SnapshotId,
+                currentCapability.SnapshotId,
+                StringComparison.Ordinal)
             || !plan.MatchesSource(
                 currentBinding.ModelSha256,
                 currentBinding.ModelLengthBytes)
@@ -227,6 +235,96 @@ internal sealed class OptimizationHandoffAuthority
                 StringComparison.Ordinal);
     }
 
+    internal bool MatchesScreen(CompatibilityScreenModel? screen)
+    {
+        if (screen?.State != CompatibilityScreenState.OptimisationRequired
+            || screen.Optimization is not { } optimization)
+        {
+            return false;
+        }
+
+        CompatibilityOptimizationModeView mode;
+        if (Preference.Kind == OptimizationPreferenceKind.Automatic)
+        {
+            mode = optimization.RecommendedMode;
+        }
+        else if (Preference.PreferenceValue is >= 0 and <= 100)
+        {
+            int index = 1 + Math.Min(Preference.PreferenceValue.Value / 20, 4);
+            mode = optimization.Modes[index];
+        }
+        else
+        {
+            return false;
+        }
+
+        OptimizationCandidate candidate = Plan.Candidate;
+        OptimizationCandidateMetrics metrics = candidate.Metrics;
+        return mode.Route == candidate.Route
+            && mode.ExpectedQuality == metrics.Quality
+            && mode.ContextTokens == metrics.ContextTokens
+            && mode.PredictedPeakBytes == metrics.PredictedPeakBytes
+            && mode.SafeBudgetBytes == metrics.SafeBudgetBytes
+            && mode.HeadroomBytes == metrics.HeadroomBytes
+            && mode.DedicatedRequiredBytes == metrics.DedicatedRequiredBytes
+            && mode.DedicatedSafeBudgetBytes == metrics.DedicatedSafeBudgetBytes
+            && mode.DedicatedHeadroomBytes == metrics.DedicatedHeadroomBytes
+            && mode.RequiresPersistentArtifact == metrics.RequiresPersistentChange
+            && mode.RequiresRequantisationAcknowledgement
+                == (candidate.ConversionProvenance
+                    == OptimizationConversionProvenance.ControlledRequantisation)
+            && mode.QualityNotice == NoticeFor(candidate)
+            && mode.SharedWithAdjacentBand == Plan.SharedWithAdjacentBand
+            && optimization.RequiresPersistentArtifact
+                == mode.RequiresPersistentArtifact
+            && optimization.RequiresRequantisationAcknowledgement
+                == mode.RequiresRequantisationAcknowledgement
+            && optimization.QualityNotice == mode.QualityNotice
+            && mode.IsExperimental == candidate.IsExperimental
+            && candidate.Configuration switch
+            {
+                GgufRouteConfiguration gguf =>
+                    mode.Device == gguf.Device
+                    && mode.GgufWeights == gguf.Weights
+                    && mode.GgufKvCache == gguf.KvCache
+                    && mode.OpenVinoWeights is null
+                    && mode.OpenVinoKvCache is null,
+                OpenVinoRouteConfiguration openVino =>
+                    mode.Device == openVino.Device
+                    && mode.OpenVinoWeights == openVino.Weights
+                    && mode.OpenVinoKvCache == openVino.KvCache
+                    && mode.GgufWeights is null
+                    && mode.GgufKvCache is null,
+                _ => false
+            };
+    }
+
+    private static OptimizationQualityNotice NoticeFor(
+        OptimizationCandidate candidate)
+    {
+        if (candidate.Metrics.Quality == OptimizationAssessment.Poor)
+        {
+            return OptimizationQualityNotice.SignificantQualityReduction;
+        }
+
+        bool requantises = candidate.ConversionProvenance
+            == OptimizationConversionProvenance.ControlledRequantisation;
+        return candidate.Metrics.Quality switch
+        {
+            OptimizationAssessment.Excellent when !requantises =>
+                OptimizationQualityNotice.None,
+            OptimizationAssessment.Good when !requantises =>
+                OptimizationQualityNotice.None,
+            OptimizationAssessment.Good =>
+                OptimizationQualityNotice.SomeQualityReduction,
+            OptimizationAssessment.Acceptable when requantises =>
+                OptimizationQualityNotice.NoticeableQualityReduction,
+            OptimizationAssessment.Acceptable =>
+                OptimizationQualityNotice.SomeQualityReduction,
+            _ => OptimizationQualityNotice.NoticeableQualityReduction
+        };
+    }
+
     private static bool BindingsAgree(
         OptimizationJourneyBinding expected,
         OptimizationJourneyBinding current) =>
@@ -254,6 +352,8 @@ internal sealed class OptimizationDestination
     private readonly OptimizationHandoffAuthority? _expectedAuthority;
     private readonly Func<OptimizationHandoffAuthority?>? _currentAuthority;
     private int _invalidated;
+    private int _issuanceOwner;
+    private int _consumed;
 
     private OptimizationDestination(
         OptimizationHandoffAuthority? expectedAuthority,
@@ -271,7 +371,8 @@ internal sealed class OptimizationDestination
     internal bool IsAvailable => _issuer is not null
         && _expectedAuthority is not null
         && _currentAuthority is not null
-        && Volatile.Read(ref _invalidated) == 0;
+        && Volatile.Read(ref _invalidated) == 0
+        && Volatile.Read(ref _consumed) == 0;
 
     internal bool MatchesExpectedPreference(
         OptimizationPreferenceSelection preference) =>
@@ -280,7 +381,7 @@ internal sealed class OptimizationDestination
     internal void Invalidate() =>
         Interlocked.Exchange(ref _invalidated, 1);
 
-    internal static OptimizationDestination Available(
+    private static OptimizationDestination Available(
         OptimizationHandoffAuthority expectedAuthority,
         Func<OptimizationHandoffAuthority?> currentAuthority,
         OptimizationHandoffIssuer issuer) =>
@@ -299,21 +400,23 @@ internal sealed class OptimizationDestination
         if (_issuer is null
             || _expectedAuthority is null
             || _currentAuthority is null
-            || Volatile.Read(ref _invalidated) != 0)
+            || Volatile.Read(ref _invalidated) != 0
+            || Volatile.Read(ref _consumed) != 0
+            || Interlocked.CompareExchange(ref _issuanceOwner, 1, 0) != 0)
         {
-            handoff = null;
-            return false;
-        }
-
-        if (preference != _expectedAuthority.Preference)
-        {
-            Invalidate();
             handoff = null;
             return false;
         }
 
         try
         {
+            if (preference != _expectedAuthority.Preference)
+            {
+                Invalidate();
+                handoff = null;
+                return false;
+            }
+
             OptimizationHandoffAuthority? before = _currentAuthority();
             if (!_expectedAuthority.Matches(before))
             {
@@ -339,6 +442,12 @@ internal sealed class OptimizationDestination
                 return false;
             }
 
+            if (Interlocked.CompareExchange(ref _consumed, 1, 0) != 0)
+            {
+                handoff = null;
+                return false;
+            }
+
             return true;
         }
         catch
@@ -347,5 +456,81 @@ internal sealed class OptimizationDestination
             handoff = null;
             throw;
         }
+        finally
+        {
+            Volatile.Write(ref _issuanceOwner, 0);
+        }
+    }
+
+    internal static bool TryCreateBound(
+        CompatibilityScreenModel screen,
+        OptimizationHandoffAuthority authority,
+        Func<OptimizationHandoffAuthority?> currentAuthority,
+        OptimizationHandoffIssuer issuer,
+        out OptimizationDestination? destination)
+    {
+        destination = null;
+        if (!authority.MatchesScreen(screen))
+        {
+            return false;
+        }
+
+        destination = Available(authority, currentAuthority, issuer);
+        return true;
+    }
+}
+
+internal sealed record CompatibilityEvaluationResult
+{
+    private static readonly ConditionalWeakTable<CompatibilityScreenModel, ScreenClaim>
+        ClaimedScreens = new();
+
+    private CompatibilityEvaluationResult(
+        CompatibilityScreenModel model,
+        OptimizationDestination destination)
+    {
+        Model = model;
+        Destination = destination;
+    }
+
+    internal CompatibilityScreenModel Model { get; }
+
+    internal OptimizationDestination Destination { get; }
+
+    internal static bool TryCreate(
+        CompatibilityScreenModel model,
+        OptimizationHandoffAuthority authority,
+        Func<OptimizationHandoffAuthority?> currentAuthority,
+        OptimizationHandoffIssuer issuer,
+        out CompatibilityEvaluationResult? result)
+    {
+        ArgumentNullException.ThrowIfNull(model);
+        ArgumentNullException.ThrowIfNull(authority);
+        ArgumentNullException.ThrowIfNull(currentAuthority);
+        ArgumentNullException.ThrowIfNull(issuer);
+        result = null;
+        if (!OptimizationDestination.TryCreateBound(
+            model, authority, currentAuthority, issuer, out var destination))
+        {
+            return false;
+        }
+
+        try
+        {
+            ClaimedScreens.Add(model, ScreenClaim.Instance);
+        }
+        catch (ArgumentException)
+        {
+            destination!.Invalidate();
+            return false;
+        }
+
+        result = new CompatibilityEvaluationResult(model, destination!);
+        return true;
+    }
+
+    private sealed class ScreenClaim
+    {
+        internal static ScreenClaim Instance { get; } = new();
     }
 }
