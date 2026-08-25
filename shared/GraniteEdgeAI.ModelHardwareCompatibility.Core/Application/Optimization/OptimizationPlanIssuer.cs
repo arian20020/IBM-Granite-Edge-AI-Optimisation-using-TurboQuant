@@ -19,8 +19,8 @@ namespace GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization
 /// were allowed to disagree the plan would carry two answers to the same
 /// question - which is worse than carrying none, because both look authoritative.
 ///
-/// The issuer is pure. It takes the time as an argument rather than reading a
-/// clock, so the same inputs produce the same plan in a test and in production.
+/// The issuer reads an injected clock so retained candidates are rechecked at
+/// the exact issuance boundary. A fixed provider keeps tests deterministic.
 /// </summary>
 public static class OptimizationPlanIssuer
 {
@@ -40,15 +40,19 @@ public static class OptimizationPlanIssuer
         OptimizationWorkload workload,
         OptimizationJourneyBinding binding,
         int modelLayerCount,
-        DateTimeOffset createdAtUtc)
+        OptimizationIssuanceAuthority currentHardwareAuthority,
+        TimeProvider timeProvider)
     {
         ArgumentNullException.ThrowIfNull(selection);
         ArgumentNullException.ThrowIfNull(executionPayload);
         ArgumentNullException.ThrowIfNull(capabilitySnapshot);
         ArgumentNullException.ThrowIfNull(workload);
         ArgumentNullException.ThrowIfNull(binding);
+        ArgumentNullException.ThrowIfNull(currentHardwareAuthority);
+        ArgumentNullException.ThrowIfNull(timeProvider);
 
         OptimizationCandidate candidate = selection.Candidate;
+        DateTimeOffset createdAtUtc = timeProvider.GetUtcNow();
 
         if (candidate.Route != capabilitySnapshot.Route)
         {
@@ -79,7 +83,8 @@ public static class OptimizationPlanIssuer
         }
 
         RequireAdmissionAuthority(
-            candidate, executionPayload, capabilitySnapshot, workload, binding);
+            candidate, executionPayload, capabilitySnapshot, workload, binding,
+            currentHardwareAuthority, createdAtUtc);
         RequireAgreement(candidate, executionPayload, modelLayerCount);
         RequireOpenVinoRuntimeAuthority(candidate, executionPayload, capabilitySnapshot);
         RequireGgufRuntimeAuthority(candidate, executionPayload, capabilitySnapshot);
@@ -108,16 +113,23 @@ public static class OptimizationPlanIssuer
         OptimizationExecutionPayload payload,
         OptimizationCapabilitySnapshot snapshot,
         OptimizationWorkload workload,
-        OptimizationJourneyBinding binding)
+        OptimizationJourneyBinding binding,
+        OptimizationIssuanceAuthority currentHardwareAuthority,
+        DateTimeOffset createdAtUtc)
     {
         OptimizationAdmissionProof? proof = candidate.AdmissionProof;
         Require(
             proof is not null
                 && proof.MatchesCandidate(candidate)
                 && proof.MatchesAuthority(snapshot, workload, binding)
+                && string.Equals(
+                    proof.HardwareAuthoritySha256,
+                    currentHardwareAuthority.AuthoritySha256,
+                    StringComparison.Ordinal)
+                && currentHardwareAuthority.IsFreshAt(createdAtUtc)
                 && proof.RequiresPersistentChange == payload.RequiresPersistentConversion,
             "frontier admission authority",
-            "candidate quantities, snapshot, workload, journey, or persistence differs");
+            "candidate quantities, snapshot, workload, journey, hardware, freshness, or persistence differs");
     }
 
     private static void RequireGgufRuntimeAuthority(

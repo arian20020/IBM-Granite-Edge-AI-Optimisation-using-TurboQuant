@@ -121,8 +121,9 @@ public sealed record OptimizationExecutionPlan
     /// than interpreting fields it may not understand.
     ///
     /// Version 2 added the route execution payload. Version 3 separates the
-    /// OpenVINO cache algorithm from its precision and binds TurboQuant build
-    /// identity. A version 1 plan carries no
+    /// OpenVINO cache algorithm from its precision, binds TurboQuant build
+    /// identity, and binds the opaque current hardware/freshness authority used
+    /// again at issuance. A version 1 plan carries no
     /// payload at all, so an executor built for 2 cannot read one as if it had
     /// one - it would have to invent every runtime setting, which is the defect
     /// this version exists to close. Construction requires a payload, so a

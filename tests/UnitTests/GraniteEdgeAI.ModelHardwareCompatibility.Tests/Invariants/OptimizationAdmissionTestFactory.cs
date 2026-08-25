@@ -18,7 +18,8 @@ internal static class OptimizationAdmissionTestFactory
             ? new HashSet<string> { candidate.EvidenceId }
             : new HashSet<string>();
         OptimizationAdmissionProof proof = OptimizationAdmissionProof.Create(
-            snapshot, workload, binding, candidate, level, requiresEvidence, optedIn);
+            snapshot, workload, binding, candidate, level, requiresEvidence, optedIn,
+            OptimizationHardwareAuthorityTestData.Issuance(candidate));
         return OptimizationCandidate.AttachAdmissionProof(candidate, proof);
     }
 }

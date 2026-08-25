@@ -231,6 +231,8 @@ internal static class OptimizationCanonicalizer
         Append(builder, "admission.journeySha256", proof.JourneySha256);
         Append(builder, "admission.routeExecutionAuthoritySha256",
             proof.RouteExecutionAuthoritySha256);
+        Append(builder, "admission.hardwareAuthoritySha256",
+            proof.HardwareAuthoritySha256);
         Append(builder, "admission.configuration", proof.ConfigurationDescriptor);
         Append(builder, "admission.evidenceId", proof.EvidenceId);
         Append(builder, "admission.supportLevel", (int)proof.SupportLevel);

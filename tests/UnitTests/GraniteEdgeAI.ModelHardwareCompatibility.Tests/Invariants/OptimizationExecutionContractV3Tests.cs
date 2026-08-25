@@ -69,7 +69,8 @@ public sealed class OptimizationExecutionContractV3Tests
         {
             OptimizationAdmissionProof forged = OptimizationAdmissionProof.Create(
                 snapshot, workload, binding, valid.Candidate, invalid,
-                requiresEvidence: false, new HashSet<string>());
+                requiresEvidence: false, new HashSet<string>(),
+                OptimizationHardwareAuthorityTestData.Issuance(valid.Candidate));
             OptimizationCandidate candidate = OptimizationCandidate.AttachAdmissionProof(
                 valid.Candidate, forged);
             OptimizationSelection selection = OptimizationPreferenceResolver.Resolve(
@@ -468,12 +469,178 @@ public sealed class OptimizationExecutionContractV3Tests
                 TurboBuild()));
 
         Assert.AreEqual(
-            "v=1:3|route=1:2|config=79:openvino|w=Int4|kv=TurboQuantTbq4|dev=Cpu|hint=Latency|cache=Disabled|streams=1|ctx=4:4096|persistent=1:1|evidence=17:ov-turbo-evidence|experimental=1:1|availableDiskBytes=12:536870912000|admission.snapshotId=6:ov-cap|admission.capabilitySha256=64:1111111111111111111111111111111111111111111111111111111111111111|admission.workloadId=4:chat|admission.workloadSha256=64:256a9ed432045ddd99b0ed1c14865d1a811c03578515413fcea438b63e75ea5b|admission.journeySha256=64:79b21af287341b1ed1546722969e12b4785ce5051bc9ae21ec243b2906a8afd4|admission.routeExecutionAuthoritySha256=64:371407f0173992351669b9a1f1addb851297bbb8a65cdf8f43b91f87114353f9|admission.configuration=79:openvino|w=Int4|kv=TurboQuantTbq4|dev=Cpu|hint=Latency|cache=Disabled|streams=1|admission.evidenceId=17:ov-turbo-evidence|admission.supportLevel=1:2|admission.requiresEvidence=1:1|admission.optInEvidenceId=17:ov-turbo-evidence|admission.experimental=1:1|admission.conversionProvenance=1:0|admission.notice=1:0|admission.evidenceGrade=1:1|admission.quality=1:2|admission.performance=1:2|admission.stability=1:2|admission.contextTokens=4:4096|admission.predictedPeakBytes=10:1762111488|admission.safeBudgetBytes=11:34359738368|admission.headroomBytes=11:32597626880|admission.dedicatedEstablished=1:0|admission.dedicatedRequiredBytes=4:none|admission.dedicatedSafeBudgetBytes=4:none|admission.dedicatedHeadroomBytes=4:none|admission.workingStoragePhasePeakBytes=10:1042368922|admission.outputDiskBytes=10:1042368922|admission.diskObligationBytes=10:1042368922|admission.availableDiskBytes=12:536870912000|admission.persistent=1:1|ov.configurationId=39:openvino.experimental.cpu.int4.turbo.v3|ov.device=3:CPU|ov.maturity=22:Experimental candidate|ov.evidenceId=17:ov-turbo-evidence|ov.sourceWeightPrecision=1:0|ov.targetWeightPrecision=1:2|ov.kvCacheAlgorithm=1:2|ov.kvCachePrecision=1:5|ov.compiledCacheEnabled=1:0|ov.compiledCacheIsDisposable=1:1|ov.compiledCacheIsModelArtifact=1:0|ov.createsCompletePackage=1:1|ov.build.runtimeBuild=8:2026.3.0|ov.build.genAiBuild=10:2026.3.0.0|ov.build.tokenizersBuild=8:2026.3.0|ov.build.workerManifestDigest=64:1111111111111111111111111111111111111111111111111111111111111111|ov.optimizer.nncf=5:3.3.0|ov.optimizer.openvino=8:2026.3.0|ov.turboQuant.sourceCommit=40:0123456789abcdef0123456789abcdef01234567|ov.turboQuant.implementationCommit=40:0123456789abcdef0123456789abcdef01234567|ov.turboQuant.patchSeriesDigest=64:1111111111111111111111111111111111111111111111111111111111111111|ov.turboQuant.runtimeManifestDigest=64:2222222222222222222222222222222222222222222222222222222222222222",
+            "v=1:3|route=1:2|config=79:openvino|w=Int4|kv=TurboQuantTbq4|dev=Cpu|hint=Latency|cache=Disabled|streams=1|ctx=4:4096|persistent=1:1|evidence=17:ov-turbo-evidence|experimental=1:1|availableDiskBytes=12:536870912000|admission.snapshotId=6:ov-cap|admission.capabilitySha256=64:1111111111111111111111111111111111111111111111111111111111111111|admission.workloadId=4:chat|admission.workloadSha256=64:256a9ed432045ddd99b0ed1c14865d1a811c03578515413fcea438b63e75ea5b|admission.journeySha256=64:79b21af287341b1ed1546722969e12b4785ce5051bc9ae21ec243b2906a8afd4|admission.routeExecutionAuthoritySha256=64:371407f0173992351669b9a1f1addb851297bbb8a65cdf8f43b91f87114353f9|admission.hardwareAuthoritySha256=64:e9322c121c6603e751bc5df788f9a18904b2e2c6538797e54b996fedd551e34e|admission.configuration=79:openvino|w=Int4|kv=TurboQuantTbq4|dev=Cpu|hint=Latency|cache=Disabled|streams=1|admission.evidenceId=17:ov-turbo-evidence|admission.supportLevel=1:2|admission.requiresEvidence=1:1|admission.optInEvidenceId=17:ov-turbo-evidence|admission.experimental=1:1|admission.conversionProvenance=1:0|admission.notice=1:0|admission.evidenceGrade=1:1|admission.quality=1:2|admission.performance=1:2|admission.stability=1:2|admission.contextTokens=4:4096|admission.predictedPeakBytes=10:1762111488|admission.safeBudgetBytes=11:34359738368|admission.headroomBytes=11:32597626880|admission.dedicatedEstablished=1:0|admission.dedicatedRequiredBytes=4:none|admission.dedicatedSafeBudgetBytes=4:none|admission.dedicatedHeadroomBytes=4:none|admission.workingStoragePhasePeakBytes=10:1042368922|admission.outputDiskBytes=10:1042368922|admission.diskObligationBytes=10:1042368922|admission.availableDiskBytes=12:536870912000|admission.persistent=1:1|ov.configurationId=39:openvino.experimental.cpu.int4.turbo.v3|ov.device=3:CPU|ov.maturity=22:Experimental candidate|ov.evidenceId=17:ov-turbo-evidence|ov.sourceWeightPrecision=1:0|ov.targetWeightPrecision=1:2|ov.kvCacheAlgorithm=1:2|ov.kvCachePrecision=1:5|ov.compiledCacheEnabled=1:0|ov.compiledCacheIsDisposable=1:1|ov.compiledCacheIsModelArtifact=1:0|ov.createsCompletePackage=1:1|ov.build.runtimeBuild=8:2026.3.0|ov.build.genAiBuild=10:2026.3.0.0|ov.build.tokenizersBuild=8:2026.3.0|ov.build.workerManifestDigest=64:1111111111111111111111111111111111111111111111111111111111111111|ov.optimizer.nncf=5:3.3.0|ov.optimizer.openvino=8:2026.3.0|ov.turboQuant.sourceCommit=40:0123456789abcdef0123456789abcdef01234567|ov.turboQuant.implementationCommit=40:0123456789abcdef0123456789abcdef01234567|ov.turboQuant.patchSeriesDigest=64:1111111111111111111111111111111111111111111111111111111111111111|ov.turboQuant.runtimeManifestDigest=64:2222222222222222222222222222222222222222222222222222222222222222",
             OptimizationCanonicalizer.Canonicalize(candidate, payload, contractVersion: 3));
         Assert.AreEqual(
-            "6284cfbc5f5f63b25b8fc53a3e9566ec9bd1c94bd35b87dd81485fa5f9a66426",
+            "77d980c983a9fc08d4ba1c8318c57a1a473f0a7983dd580c1294f6a77a3ae770",
             OptimizationCanonicalizer.ConfigurationSha256(
                 candidate, payload, contractVersion: 3));
+    }
+
+    [TestMethod]
+    public void IssuanceRechecksInclusiveFreshnessBoundaries()
+    {
+        (OptimizationSelection selection, OptimizationCapabilitySnapshot snapshot,
+            OptimizationWorkload workload) = SelectedTurboCandidate(
+                OpenVinoKvCacheFormat.TurboQuantTbq4);
+        OptimizationIssuanceAuthority authority =
+            OptimizationHardwareAuthorityTestData.Issuance(selection.Candidate);
+
+        OptimizationExecutionPlan ageBoundary = IssueWithCurrentAuthority(
+            selection, snapshot, workload, authority,
+            DateTimeOffset.UnixEpoch.AddSeconds(30));
+        OptimizationExecutionPlan futureBoundary = IssueWithCurrentAuthority(
+            selection, snapshot, workload, authority,
+            DateTimeOffset.UnixEpoch.AddSeconds(-5));
+
+        Assert.AreEqual(
+            DateTimeOffset.UnixEpoch.AddSeconds(30), ageBoundary.CreatedAtUtc);
+        Assert.AreEqual(
+            DateTimeOffset.UnixEpoch.AddSeconds(-5), futureBoundary.CreatedAtUtc);
+        Assert.ThrowsExactly<ArgumentException>(() => IssueWithCurrentAuthority(
+            selection, snapshot, workload, authority,
+            DateTimeOffset.UnixEpoch.AddSeconds(30).AddTicks(1)));
+        Assert.ThrowsExactly<ArgumentException>(() => IssueWithCurrentAuthority(
+            selection, snapshot, workload, authority,
+            DateTimeOffset.UnixEpoch.AddSeconds(-5).AddTicks(-1)));
+    }
+
+    [TestMethod]
+    public void ProductionIssuerHasNoAuthorityFreeOrClockFreeOverload()
+    {
+        MethodInfo[] methods = typeof(GraniteEdgeAI.ModelHardwareCompatibility.Core
+            .Application.Optimization.OptimizationPlanIssuer)
+            .GetMethods(BindingFlags.Public | BindingFlags.Static)
+            .Where(method => method.Name == "Issue")
+            .ToArray();
+
+        Assert.AreEqual(1, methods.Length);
+        Type[] parameters = methods[0].GetParameters()
+            .Select(parameter => parameter.ParameterType)
+            .ToArray();
+        CollectionAssert.Contains(parameters, typeof(OptimizationIssuanceAuthority));
+        CollectionAssert.Contains(parameters, typeof(TimeProvider));
+        CollectionAssert.DoesNotContain(parameters, typeof(DateTimeOffset));
+    }
+
+    [TestMethod]
+    public void IssuanceRejectsEveryCurrentHardwareAuthorityReplayMutation()
+    {
+        (OptimizationSelection selection, OptimizationCapabilitySnapshot snapshot,
+            OptimizationWorkload workload) = SelectedTurboCandidate(
+                OpenVinoKvCacheFormat.TurboQuantTbq4);
+        OptimizationCandidate candidate = selection.Candidate;
+        OptimizationHardwareAuthority standard =
+            OptimizationHardwareAuthorityTestData.AllEstablished();
+        ByteCount systemBudget = ByteCount.FromBytes(candidate.Metrics.SafeBudgetBytes);
+        ByteCount disk = ByteCount.FromBytes(
+            candidate.Metrics.AvailableDiskBytes!.Value);
+        OptimizationHardwareAuthority Hardware(
+            string? facts = null,
+            IReadOnlyList<DeviceRouteId>? devices = null,
+            IReadOnlyList<CompatibilityBackend>? backends = null,
+            ByteCount? dedicated = null,
+            DateTimeOffset? observed = null,
+            DateTimeOffset? evaluated = null,
+            string? policy = null) =>
+            OptimizationHardwareAuthority.Create(
+                facts ?? new string('a', 64),
+                devices ??
+                [
+                    DeviceRouteId.Cpu, DeviceRouteId.IntelIntegratedGpu,
+                    DeviceRouteId.IntelDiscreteGpu, DeviceRouteId.IntelNpu
+                ],
+                backends ??
+                [
+                    CompatibilityBackend.Cpu, CompatibilityBackend.IntelSycl,
+                    CompatibilityBackend.IntelVulkan,
+                    CompatibilityBackend.OpenVinoCpu,
+                    CompatibilityBackend.OpenVinoGpu,
+                    CompatibilityBackend.OpenVinoNpu
+                ],
+                dedicated ?? ByteCount.FromBytes(64 * Gibibyte),
+                observed ?? DateTimeOffset.UnixEpoch,
+                evaluated ?? DateTimeOffset.UnixEpoch,
+                policy ?? OptimizationFreshnessPolicy.Version);
+
+        OptimizationIssuanceAuthority[] changed =
+        [
+            OptimizationIssuanceAuthority.FromGeneration(
+                Hardware(facts: new string('b', 64)), systemBudget, disk),
+            OptimizationIssuanceAuthority.FromGeneration(
+                Hardware(devices: [DeviceRouteId.Cpu]), systemBudget, disk),
+            OptimizationIssuanceAuthority.FromGeneration(
+                Hardware(backends: [CompatibilityBackend.OpenVinoCpu]),
+                systemBudget, disk),
+            OptimizationIssuanceAuthority.FromGeneration(
+                Hardware(dedicated: ByteCount.FromBytes(63 * Gibibyte)),
+                systemBudget, disk),
+            OptimizationIssuanceAuthority.FromGeneration(
+                Hardware(observed: DateTimeOffset.UnixEpoch.AddTicks(1)),
+                systemBudget, disk),
+            OptimizationIssuanceAuthority.FromGeneration(
+                Hardware(evaluated: DateTimeOffset.UnixEpoch.AddTicks(1)),
+                systemBudget, disk),
+            OptimizationIssuanceAuthority.FromGeneration(
+                Hardware(policy: OptimizationFreshnessPolicy.Version + "-changed"),
+                systemBudget, disk),
+            OptimizationIssuanceAuthority.FromGeneration(
+                standard, ByteCount.FromBytes(systemBudget.Bytes + 1), disk),
+            OptimizationIssuanceAuthority.FromGeneration(
+                standard, systemBudget, ByteCount.FromBytes(disk.Bytes + 1))
+        ];
+
+        OptimizationIssuanceAuthority independentlyRebuilt =
+            OptimizationIssuanceAuthority.CreateCurrent(
+                new string('a', 64),
+                [
+                    DeviceRouteId.Cpu, DeviceRouteId.IntelIntegratedGpu,
+                    DeviceRouteId.IntelDiscreteGpu, DeviceRouteId.IntelNpu
+                ],
+                [
+                    CompatibilityBackend.Cpu, CompatibilityBackend.IntelSycl,
+                    CompatibilityBackend.IntelVulkan,
+                    CompatibilityBackend.OpenVinoCpu,
+                    CompatibilityBackend.OpenVinoGpu,
+                    CompatibilityBackend.OpenVinoNpu
+                ],
+                systemBudget.Bytes,
+                64 * Gibibyte,
+                disk.Bytes,
+                DateTimeOffset.UnixEpoch,
+                DateTimeOffset.UnixEpoch);
+        OptimizationIssuanceAuthority reorderedInventory =
+            OptimizationIssuanceAuthority.CreateCurrent(
+                new string('a', 64),
+                [
+                    DeviceRouteId.IntelNpu, DeviceRouteId.IntelDiscreteGpu,
+                    DeviceRouteId.IntelIntegratedGpu, DeviceRouteId.Cpu
+                ],
+                [
+                    CompatibilityBackend.OpenVinoNpu,
+                    CompatibilityBackend.OpenVinoGpu,
+                    CompatibilityBackend.OpenVinoCpu,
+                    CompatibilityBackend.IntelVulkan,
+                    CompatibilityBackend.IntelSycl, CompatibilityBackend.Cpu
+                ],
+                systemBudget.Bytes,
+                64 * Gibibyte,
+                disk.Bytes,
+                DateTimeOffset.UnixEpoch,
+                DateTimeOffset.UnixEpoch);
+        Assert.AreEqual(
+            independentlyRebuilt.AuthoritySha256,
+            reorderedInventory.AuthoritySha256,
+            "Set enumeration order must not change issuance authority.");
+        _ = IssueWithCurrentAuthority(
+            selection, snapshot, workload, independentlyRebuilt,
+            DateTimeOffset.UnixEpoch);
+        foreach (OptimizationIssuanceAuthority current in changed)
+        {
+            Assert.ThrowsExactly<ArgumentException>(() => IssueWithCurrentAuthority(
+                selection, snapshot, workload, current,
+                DateTimeOffset.UnixEpoch));
+        }
     }
 
     [TestMethod]
@@ -552,6 +719,7 @@ public sealed class OptimizationExecutionContractV3Tests
             "admission.snapshotId", "admission.capabilitySha256",
             "admission.workloadId", "admission.workloadSha256",
             "admission.journeySha256", "admission.routeExecutionAuthoritySha256",
+            "admission.hardwareAuthoritySha256",
             "admission.configuration", "admission.evidenceId",
             "admission.supportLevel", "admission.requiresEvidence",
             "admission.optInEvidenceId", "admission.experimental",
@@ -621,7 +789,7 @@ public sealed class OptimizationExecutionContractV3Tests
             }
         }
 
-        Assert.AreEqual(30, fields.Length);
+        Assert.AreEqual(31, fields.Length);
     }
 
     private static object ChangedValue(Type type, object? original)
@@ -1526,11 +1694,32 @@ public sealed class OptimizationExecutionContractV3Tests
     private static TurboQuantBuildIdentity TurboBuild() =>
         TurboQuantBuildIdentity.Create(Commit40, Commit40, Digest64, OtherDigest64);
 
+    private static OptimizationExecutionPlan IssueWithCurrentAuthority(
+        OptimizationSelection selection,
+        OptimizationCapabilitySnapshot snapshot,
+        OptimizationWorkload workload,
+        OptimizationIssuanceAuthority currentAuthority,
+        DateTimeOffset nowUtc) =>
+        GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization
+            .OptimizationPlanIssuer.Issue(
+                selection,
+                OptimizationExecutionPayload.ForOpenVino(Payload(
+                    OpenVinoKvCacheAlgorithm.TurboQuant,
+                    OpenVinoKvCachePrecision.Tbq4,
+                    TurboBuild())),
+                snapshot, workload, Binding(), 32, currentAuthority,
+                new FixedTimeProvider(nowUtc));
+
     private static Dictionary<string, string> Versions() => new(StringComparer.Ordinal)
     {
         ["nncf"] = "3.3.0",
         ["openvino"] = "2026.3.0"
     };
+
+    private sealed class FixedTimeProvider(DateTimeOffset utcNow) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => utcNow;
+    }
 
     private sealed class EmptyEnumeratingDictionary : IReadOnlyDictionary<string, string>
     {

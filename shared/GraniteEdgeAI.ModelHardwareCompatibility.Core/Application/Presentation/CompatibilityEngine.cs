@@ -26,11 +26,11 @@ public static class CompatibilityEngine
 {
     // Matches the approved Hardware Inspection dynamic-memory evidence policy.
     internal static readonly TimeSpan FreshResourceMaximumAge =
-        TimeSpan.FromSeconds(30);
+        OptimizationFreshnessPolicy.MaximumAge;
     internal static readonly TimeSpan FreshResourceFutureClockSkew =
-        TimeSpan.FromSeconds(5);
+        OptimizationFreshnessPolicy.FutureClockSkew;
     internal const string FreshResourcePolicyVersion =
-        "hardware-dynamic-memory-freshness-v1";
+        OptimizationFreshnessPolicy.Version;
 
     /// <summary>Runs C1 with validated production values supplied by owner adapters.</summary>
     public static CompatibilityScreenModel Run(

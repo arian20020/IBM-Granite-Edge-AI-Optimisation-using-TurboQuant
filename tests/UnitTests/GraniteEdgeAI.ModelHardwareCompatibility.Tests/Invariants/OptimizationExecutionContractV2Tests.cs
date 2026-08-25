@@ -618,8 +618,9 @@ public sealed class OptimizationExecutionContractV2Tests
         // route to a plan is the issuer, which also requires one. There is no
         // way to produce a payload-less plan from this assembly.
         Assert.IsTrue(
-            typeof(OptimizationPlanIssuer)
-                .GetMethod(nameof(OptimizationPlanIssuer.Issue))!
+            typeof(GraniteEdgeAI.ModelHardwareCompatibility.Core.Application
+                .Optimization.OptimizationPlanIssuer)
+                .GetMethod("Issue")!
                 .GetParameters()
                 .Any(parameter =>
                     parameter.ParameterType == typeof(OptimizationExecutionPayload)),

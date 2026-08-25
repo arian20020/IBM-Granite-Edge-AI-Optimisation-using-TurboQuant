@@ -18,5 +18,13 @@ internal static class OptimizationHardwareAuthorityTestData
             ByteCount.FromBytes(64 * GiB),
             DateTimeOffset.UnixEpoch,
             DateTimeOffset.UnixEpoch,
-            "test-freshness-v1");
+            OptimizationFreshnessPolicy.Version);
+
+    internal static OptimizationIssuanceAuthority Issuance(
+        OptimizationCandidate candidate,
+        OptimizationHardwareAuthority? hardware = null) =>
+        OptimizationIssuanceAuthority.FromGeneration(
+            hardware ?? AllEstablished(),
+            ByteCount.FromBytes(candidate.Metrics.SafeBudgetBytes),
+            ByteCount.FromBytes(candidate.Metrics.AvailableDiskBytes!.Value));
 }

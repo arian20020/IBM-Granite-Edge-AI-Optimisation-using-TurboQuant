@@ -112,6 +112,144 @@ internal sealed record OptimizationHardwareAuthority
 }
 
 /// <summary>
+/// Opaque, path-free issuance authority rebuilt from the current hardware
+/// observation. It binds the exact generation budgets and inventory without
+/// putting raw hardware facts into an execution plan.
+/// </summary>
+public sealed record OptimizationIssuanceAuthority
+{
+    private OptimizationIssuanceAuthority(
+        string authoritySha256,
+        DateTimeOffset observedAtUtc,
+        DateTimeOffset evaluatedAtUtc,
+        string freshnessPolicyVersion)
+    {
+        AuthoritySha256 = authoritySha256;
+        ObservedAtUtc = observedAtUtc;
+        EvaluatedAtUtc = evaluatedAtUtc;
+        FreshnessPolicyVersion = freshnessPolicyVersion;
+    }
+
+    internal string AuthoritySha256 { get; }
+    internal DateTimeOffset ObservedAtUtc { get; }
+    internal DateTimeOffset EvaluatedAtUtc { get; }
+    internal string FreshnessPolicyVersion { get; }
+
+    /// <summary>
+    /// Rebuilds issuance authority from a fresh owner-supplied hardware-facts
+    /// digest and the exact current, path-free generation resources. The fixed
+    /// policy identifier cannot be caller-substituted.
+    /// </summary>
+    public static OptimizationIssuanceAuthority CreateCurrent(
+        string hardwareFactsSha256,
+        IEnumerable<DeviceRouteId> presentDevices,
+        IEnumerable<CompatibilityBackend> verifiedBackends,
+        ulong safeSystemSharedBudgetBytes,
+        ulong? safeDedicatedDeviceMemoryBudgetBytes,
+        ulong availableDiskBytes,
+        DateTimeOffset observedAtUtc,
+        DateTimeOffset evaluatedAtUtc)
+    {
+        OptimizationHardwareAuthority hardware =
+            OptimizationHardwareAuthority.Create(
+                hardwareFactsSha256,
+                presentDevices,
+                verifiedBackends,
+                safeDedicatedDeviceMemoryBudgetBytes.HasValue
+                    ? ByteCount.FromBytes(
+                        safeDedicatedDeviceMemoryBudgetBytes.Value)
+                    : null,
+                observedAtUtc,
+                evaluatedAtUtc,
+                OptimizationFreshnessPolicy.Version);
+        return FromGeneration(
+            hardware,
+            ByteCount.FromBytes(safeSystemSharedBudgetBytes),
+            ByteCount.FromBytes(availableDiskBytes));
+    }
+
+    internal static OptimizationIssuanceAuthority FromGeneration(
+        OptimizationHardwareAuthority hardware,
+        ByteCount safeSystemSharedBudget,
+        ByteCount availableDisk)
+    {
+        ArgumentNullException.ThrowIfNull(hardware);
+        if (safeSystemSharedBudget == ByteCount.Zero
+            || availableDisk == ByteCount.Zero)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(safeSystemSharedBudget),
+                "Issuance authority requires established non-zero budgets.");
+        }
+
+        return new OptimizationIssuanceAuthority(
+            Digest(
+                hardware.HardwareFactsSha256,
+                hardware.PresentDevices,
+                hardware.VerifiedBackends,
+                safeSystemSharedBudget,
+                hardware.SafeDedicatedDeviceMemoryBudget,
+                availableDisk,
+                hardware.ObservedAtUtc,
+                hardware.EvaluatedAtUtc,
+                hardware.FreshnessPolicyVersion),
+            hardware.ObservedAtUtc,
+            hardware.EvaluatedAtUtc,
+            hardware.FreshnessPolicyVersion);
+    }
+
+    internal bool IsFreshAt(DateTimeOffset nowUtc) =>
+        string.Equals(
+            FreshnessPolicyVersion,
+            OptimizationFreshnessPolicy.Version,
+            StringComparison.Ordinal)
+        && nowUtc.Offset == TimeSpan.Zero
+        && ObservedAtUtc <= nowUtc + OptimizationFreshnessPolicy.FutureClockSkew
+        && nowUtc - ObservedAtUtc <= OptimizationFreshnessPolicy.MaximumAge;
+
+    private static string Digest(
+        string hardwareFactsSha256,
+        IReadOnlySet<DeviceRouteId> devices,
+        IReadOnlySet<CompatibilityBackend> backends,
+        ByteCount safeSystemSharedBudget,
+        ByteCount? safeDedicatedDeviceMemoryBudget,
+        ByteCount availableDisk,
+        DateTimeOffset observedAtUtc,
+        DateTimeOffset evaluatedAtUtc,
+        string freshnessPolicyVersion)
+    {
+        StringBuilder canonical = new();
+        void Add(string value) => canonical.Append(value.Length)
+            .Append(':').Append(value).Append('|');
+
+        Add("hardware-issuance-authority-v1");
+        Add(hardwareFactsSha256);
+        Add(string.Join(",", devices.OrderBy(value => value)
+            .Select(value => ((int)value).ToString(CultureInfo.InvariantCulture))));
+        Add(string.Join(",", backends.OrderBy(value => value)
+            .Select(value => ((int)value).ToString(CultureInfo.InvariantCulture))));
+        Add(safeSystemSharedBudget.Bytes.ToString(CultureInfo.InvariantCulture));
+        Add(safeDedicatedDeviceMemoryBudget?.Bytes.ToString(
+            CultureInfo.InvariantCulture) ?? "none");
+        Add(availableDisk.Bytes.ToString(CultureInfo.InvariantCulture));
+        Add(observedAtUtc.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture));
+        Add(evaluatedAtUtc.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture));
+        Add(freshnessPolicyVersion);
+
+        return Convert.ToHexString(SHA256.HashData(
+            new UTF8Encoding(false).GetBytes(canonical.ToString())))
+            .ToLowerInvariant();
+    }
+}
+
+internal static class OptimizationFreshnessPolicy
+{
+    internal static readonly TimeSpan MaximumAge = TimeSpan.FromSeconds(30);
+    internal static readonly TimeSpan FutureClockSkew = TimeSpan.FromSeconds(5);
+    internal const string Version = "hardware-dynamic-memory-freshness-v1";
+}
+
+/// <summary>
 /// Canonical digest of every input that can change generation and the exact
 /// ordered output produced. The capability payload is hashed independently of
 /// the caller-supplied evidence digest, so replaying that digest beside a
@@ -863,7 +1001,9 @@ internal static class CrossRouteCandidateGenerator
                 level == SupportLevel.Experimental, normalizationProof);
         OptimizationAdmissionProof admissionProof = OptimizationAdmissionProof.Create(
             snapshot, workload, binding, admittedCandidate,
-            level, requiresEvidence, optedInEvidenceIds);
+            level, requiresEvidence, optedInEvidenceIds,
+            OptimizationIssuanceAuthority.FromGeneration(
+                hardwareAuthority, safeBudget, availableDisk));
         candidates.Add(OptimizationCandidate.AttachAdmissionProof(
             admittedCandidate, admissionProof));
     }

@@ -118,7 +118,8 @@ public sealed class OptimizationPreferenceInvariantTests
             "mi-run", "mi-handoff", Digest64, Gibibyte, "hw-run", Digest64);
         OptimizationAdmissionProof proof = OptimizationAdmissionProof.Create(
             snapshot, workload, binding, candidate, level,
-            isExperimental, isExperimental ? new HashSet<string> { id } : new HashSet<string>());
+            isExperimental, isExperimental ? new HashSet<string> { id } : new HashSet<string>(),
+            OptimizationHardwareAuthorityTestData.Issuance(candidate));
         return OptimizationCandidate.AttachAdmissionProof(candidate, proof);
     }
 
@@ -443,7 +444,8 @@ public sealed class OptimizationPreferenceInvariantTests
             candidate,
             OptimizationAdmissionProof.Create(
                 snapshot, workload, binding, candidate,
-                SupportLevel.DeclaredSupported, false, new HashSet<string>()));
+                SupportLevel.DeclaredSupported, false, new HashSet<string>(),
+                OptimizationHardwareAuthorityTestData.Issuance(candidate)));
     }
 
     [TestMethod]
@@ -772,7 +774,8 @@ public sealed class OptimizationPreferenceInvariantTests
             "mi-run", "mi-handoff", Digest64, Gibibyte, "hw-run", Digest64);
         OptimizationAdmissionProof proof = OptimizationAdmissionProof.Create(
             snapshot, workload, binding, plain, SupportLevel.DeclaredSupported,
-            false, new HashSet<string>());
+            false, new HashSet<string>(),
+            OptimizationHardwareAuthorityTestData.Issuance(plain));
         plain = OptimizationCandidate.AttachAdmissionProof(plain, proof);
         normalized = OptimizationCandidate.AttachAdmissionProof(normalized, proof);
 
@@ -885,7 +888,16 @@ public sealed class OptimizationPreferenceInvariantTests
             try
             {
                 field.SetValue(changed.AdmissionProof, replacement);
-                if (orderedAuthorityFields.Contains(property))
+                if (property == nameof(
+                    OptimizationAdmissionProof.HardwareAuthoritySha256))
+                {
+                    Assert.AreEqual(
+                        0,
+                        OptimizationPreferenceResolver.Compare(baseline, changed),
+                        "Issuance authority must reject replay, not change preference ordering.");
+                    Assert.IsTrue(changed.AdmissionProof!.MatchesCandidate(changed));
+                }
+                else if (orderedAuthorityFields.Contains(property))
                 {
                     AssertStrictAndPermutationInvariant(property);
                 }
@@ -902,7 +914,7 @@ public sealed class OptimizationPreferenceInvariantTests
             }
         }
 
-        Assert.AreEqual(30, proofFields.Length);
+        Assert.AreEqual(31, proofFields.Length);
     }
 
     [TestMethod]
@@ -1052,7 +1064,8 @@ public sealed class OptimizationPreferenceInvariantTests
                 _ = OptimizationAdmissionProof.Create(
                         snapshot, workload, binding, candidate,
                         SupportLevel.DeclaredSupported, false,
-                        new HashSet<string>());
+                        new HashSet<string>(),
+                        OptimizationHardwareAuthorityTestData.Issuance(candidate));
             });
         }
 

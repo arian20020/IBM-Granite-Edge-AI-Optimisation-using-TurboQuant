@@ -20,6 +20,7 @@ internal sealed record OptimizationAdmissionProof
         string workloadSha256,
         string journeySha256,
         string routeExecutionAuthoritySha256,
+        string hardwareAuthoritySha256,
         string configurationDescriptor,
         string evidenceId,
         SupportLevel supportLevel,
@@ -34,6 +35,7 @@ internal sealed record OptimizationAdmissionProof
         WorkloadSha256 = workloadSha256;
         JourneySha256 = journeySha256;
         RouteExecutionAuthoritySha256 = routeExecutionAuthoritySha256;
+        HardwareAuthoritySha256 = hardwareAuthoritySha256;
         ConfigurationDescriptor = configurationDescriptor;
         EvidenceId = evidenceId;
         SupportLevel = supportLevel;
@@ -66,6 +68,7 @@ internal sealed record OptimizationAdmissionProof
     internal string WorkloadSha256 { get; }
     internal string JourneySha256 { get; }
     internal string RouteExecutionAuthoritySha256 { get; }
+    internal string HardwareAuthoritySha256 { get; }
     internal string ConfigurationDescriptor { get; }
     internal string EvidenceId { get; }
     internal SupportLevel SupportLevel { get; }
@@ -104,13 +107,15 @@ internal sealed record OptimizationAdmissionProof
         OptimizationCandidate candidate,
         SupportLevel supportLevel,
         bool requiresEvidence,
-        IReadOnlySet<string> optedInEvidenceIds)
+        IReadOnlySet<string> optedInEvidenceIds,
+        OptimizationIssuanceAuthority issuanceAuthority)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
         ArgumentNullException.ThrowIfNull(workload);
         ArgumentNullException.ThrowIfNull(binding);
         ArgumentNullException.ThrowIfNull(candidate);
         ArgumentNullException.ThrowIfNull(optedInEvidenceIds);
+        ArgumentNullException.ThrowIfNull(issuanceAuthority);
 
         OptimizationSupportLevelPolicy.RequireAdmitted(
             supportLevel, nameof(supportLevel));
@@ -136,6 +141,7 @@ internal sealed record OptimizationAdmissionProof
             DigestWorkload(workload),
             DigestJourney(binding),
             DigestRouteExecutionAuthority(snapshot, candidate.EvidenceId),
+            issuanceAuthority.AuthoritySha256,
             candidate.Configuration.CanonicalDescriptor,
             candidate.EvidenceId,
             supportLevel,
