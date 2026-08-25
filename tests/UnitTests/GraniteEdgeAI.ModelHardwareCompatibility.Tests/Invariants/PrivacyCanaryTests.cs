@@ -159,7 +159,11 @@ public sealed class PrivacyCanaryTests
         // OptimizationSupportCode, which is a closed enum precisely so a support
         // record can be shown to a user and shipped in a log.
         "OptimizationCanonicalizer.Canonicalize",
+        "OptimizationCanonicalizer.CanonicalizeCore",
+        "OptimizationCanonicalizer.CanonicalizeV2",
+        "OptimizationCanonicalizer.CanonicalizeV3",
         "OptimizationCanonicalizer.ConfigurationSha256",
+        "OptimizationCanonicalizer.ConfigurationSha256V2",
         "OptimizationExecutionPlan.ConfigurationSha256",
         "OptimizationExecutionPlan.ModelInspectionRunId",
         "OptimizationExecutionPlan.ProductHardwareRunId",

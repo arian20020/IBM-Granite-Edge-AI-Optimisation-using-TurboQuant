@@ -188,8 +188,23 @@ internal static class ExecutionVocabularyMap
                 nameof(format),
                 format,
                 "The published OpenVINO route defines Fp16, EightBit and FourBit "
-                + "only. Original and the TurboQuant precisions have no execution "
-                + "counterpart in it, so a plan naming one cannot be executed.")
+                + "only. Original is a source-package state rather than an "
+                + "execution precision, so a plan cannot use it as a target.")
+        };
+
+    internal static OpenVinoKvCacheAlgorithm ToKvCacheAlgorithm(
+        OpenVinoKvCacheFormat format) => format switch
+        {
+            OpenVinoKvCacheFormat.TurboQuantTbq4
+                or OpenVinoKvCacheFormat.TurboQuantTbq3 =>
+                OpenVinoKvCacheAlgorithm.TurboQuant,
+            OpenVinoKvCacheFormat.RouteDefault
+                or OpenVinoKvCacheFormat.F16
+                or OpenVinoKvCacheFormat.Bf16
+                or OpenVinoKvCacheFormat.U8
+                or OpenVinoKvCacheFormat.U4 => OpenVinoKvCacheAlgorithm.Released,
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(format), format, "This cache format has no execution algorithm.")
         };
 
     internal static OpenVinoKvCachePrecision ToKvCachePrecision(
@@ -197,10 +212,15 @@ internal static class ExecutionVocabularyMap
         format switch
         {
             OpenVinoKvCacheFormat.RouteDefault => OpenVinoKvCachePrecision.ReleasedDefault,
+            OpenVinoKvCacheFormat.F16 => OpenVinoKvCachePrecision.F16,
+            OpenVinoKvCacheFormat.Bf16 => OpenVinoKvCachePrecision.Bf16,
             OpenVinoKvCacheFormat.U8 => OpenVinoKvCachePrecision.U8,
+            OpenVinoKvCacheFormat.U4 => OpenVinoKvCachePrecision.U4,
+            OpenVinoKvCacheFormat.TurboQuantTbq4 => OpenVinoKvCachePrecision.Tbq4,
+            OpenVinoKvCacheFormat.TurboQuantTbq3 => OpenVinoKvCachePrecision.Tbq3,
             _ => throw new ArgumentOutOfRangeException(
                 nameof(format),
                 format,
-                "The published OpenVINO route defines ReleasedDefault and U8 only.")
+                "This cache format has no execution precision.")
         };
 }

@@ -1,0 +1,252 @@
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Estimation;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Contracts;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Execution;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.OpenVino;
+
+namespace GraniteEdgeAI.ModelHardwareCompatibility.Tests.Invariants;
+
+[TestClass]
+public sealed class OptimizationExecutionContractV3Tests
+{
+    private const ulong Gibibyte = 1024UL * 1024 * 1024;
+    private const string Digest64 =
+        "1111111111111111111111111111111111111111111111111111111111111111";
+    private const string OtherDigest64 =
+        "2222222222222222222222222222222222222222222222222222222222222222";
+    private const string Commit40 = "0123456789abcdef0123456789abcdef01234567";
+
+    [TestMethod]
+    [DataRow(OpenVinoKvCacheFormat.TurboQuantTbq4, OpenVinoKvCachePrecision.Tbq4)]
+    [DataRow(OpenVinoKvCacheFormat.TurboQuantTbq3, OpenVinoKvCachePrecision.Tbq3)]
+    public void OptedInTurboQuantCandidateIssuesAnExactV3Plan(
+        OpenVinoKvCacheFormat cache,
+        OpenVinoKvCachePrecision precision)
+    {
+        (OptimizationSelection selection, OptimizationCapabilitySnapshot snapshot,
+            OptimizationWorkload workload) = SelectedTurboCandidate(cache);
+        TurboQuantBuildIdentity turboBuild = TurboBuild();
+
+        OptimizationExecutionPlan plan = OptimizationPlanIssuer.Issue(
+            selection,
+            OptimizationExecutionPayload.ForOpenVino(Payload(
+                OpenVinoKvCacheAlgorithm.TurboQuant,
+                precision,
+                turboBuild)),
+            snapshot,
+            workload,
+            Binding(),
+            modelLayerCount: 32,
+            DateTimeOffset.UnixEpoch);
+
+        Assert.AreEqual(3, plan.ContractVersion);
+        Assert.IsFalse(plan.IsExecutableBy(2));
+        Assert.AreEqual(OpenVinoKvCacheAlgorithm.TurboQuant,
+            plan.ExecutionPayload.OpenVino!.KvCacheAlgorithm);
+        Assert.AreEqual(precision, plan.ExecutionPayload.OpenVino.KvCachePrecision);
+        Assert.AreSame(turboBuild, plan.ExecutionPayload.OpenVino.TurboQuantBuild);
+    }
+
+    [TestMethod]
+    [DataRow(OpenVinoKvCachePrecision.Tbq4)]
+    [DataRow(OpenVinoKvCachePrecision.Tbq3)]
+    public void TurboQuantPrecisionRequiresPinnedBuildIdentity(
+        OpenVinoKvCachePrecision precision)
+    {
+        Assert.ThrowsExactly<ArgumentException>(() => Payload(
+            OpenVinoKvCacheAlgorithm.TurboQuant,
+            precision,
+            turboBuild: null));
+    }
+
+    [TestMethod]
+    public void ReleasedCacheForbidsTurboQuantBuildIdentity()
+    {
+        Assert.ThrowsExactly<ArgumentException>(() => Payload(
+            OpenVinoKvCacheAlgorithm.Released,
+            OpenVinoKvCachePrecision.U4,
+            TurboBuild()));
+    }
+
+    [TestMethod]
+    public void CacheAlgorithmAndPrecisionMustDescribeTheSameFamily()
+    {
+        Assert.ThrowsExactly<ArgumentException>(() => Payload(
+            OpenVinoKvCacheAlgorithm.Released,
+            OpenVinoKvCachePrecision.Tbq4,
+            TurboBuild()));
+
+        Assert.ThrowsExactly<ArgumentException>(() => Payload(
+            OpenVinoKvCacheAlgorithm.TurboQuant,
+            OpenVinoKvCachePrecision.U4,
+            TurboBuild()));
+    }
+
+    [TestMethod]
+    public void IssuerRejectsAnyTurboQuantCacheDisagreement()
+    {
+        (OptimizationSelection selection, OptimizationCapabilitySnapshot snapshot,
+            OptimizationWorkload workload) =
+            SelectedTurboCandidate(OpenVinoKvCacheFormat.TurboQuantTbq4);
+
+        Assert.ThrowsExactly<ArgumentException>(() => OptimizationPlanIssuer.Issue(
+            selection,
+            OptimizationExecutionPayload.ForOpenVino(Payload(
+                OpenVinoKvCacheAlgorithm.TurboQuant,
+                OpenVinoKvCachePrecision.Tbq3,
+                TurboBuild())),
+            snapshot,
+            workload,
+            Binding(),
+            32,
+            DateTimeOffset.UnixEpoch));
+    }
+
+    [TestMethod]
+    public void V3CanonicalOrderBindsAlgorithmPrecisionAndTurboQuantIdentity()
+    {
+        (OptimizationSelection selection, _, _) =
+            SelectedTurboCandidate(OpenVinoKvCacheFormat.TurboQuantTbq4);
+        OptimizationExecutionPayload payload = OptimizationExecutionPayload.ForOpenVino(
+            Payload(
+                OpenVinoKvCacheAlgorithm.TurboQuant,
+                OpenVinoKvCachePrecision.Tbq4,
+                TurboBuild()));
+
+        string canonical = OptimizationCanonicalizer.Canonicalize(
+            selection.Candidate, payload, contractVersion: 3);
+
+        int algorithm = canonical.IndexOf("ov.kvCacheAlgorithm", StringComparison.Ordinal);
+        int precision = canonical.IndexOf("ov.kvCachePrecision", StringComparison.Ordinal);
+        int identity = canonical.IndexOf("ov.turboQuant.sourceCommit", StringComparison.Ordinal);
+
+        Assert.IsTrue(algorithm >= 0);
+        Assert.IsTrue(algorithm < precision);
+        Assert.IsTrue(precision < identity);
+    }
+
+    [TestMethod]
+    public void V3DigestChangesWithTurboQuantPrecisionAndBuildIdentity()
+    {
+        OptimizationCandidate tbq4 = SelectedTurboCandidate(
+            OpenVinoKvCacheFormat.TurboQuantTbq4).Selection.Candidate;
+        OptimizationCandidate tbq3 = SelectedTurboCandidate(
+            OpenVinoKvCacheFormat.TurboQuantTbq3).Selection.Candidate;
+
+        string baseline = OptimizationCanonicalizer.ConfigurationSha256(
+            tbq4,
+            OptimizationExecutionPayload.ForOpenVino(Payload(
+                OpenVinoKvCacheAlgorithm.TurboQuant,
+                OpenVinoKvCachePrecision.Tbq4,
+                TurboBuild())),
+            contractVersion: 3);
+
+        string precisionChanged = OptimizationCanonicalizer.ConfigurationSha256(
+            tbq3,
+            OptimizationExecutionPayload.ForOpenVino(Payload(
+                OpenVinoKvCacheAlgorithm.TurboQuant,
+                OpenVinoKvCachePrecision.Tbq3,
+                TurboBuild())),
+            contractVersion: 3);
+
+        string identityChanged = OptimizationCanonicalizer.ConfigurationSha256(
+            tbq4,
+            OptimizationExecutionPayload.ForOpenVino(Payload(
+                OpenVinoKvCacheAlgorithm.TurboQuant,
+                OpenVinoKvCachePrecision.Tbq4,
+                TurboQuantBuildIdentity.Create(
+                    "89abcdef0123456789abcdef0123456789abcdef",
+                    Commit40,
+                    Digest64,
+                    OtherDigest64))),
+            contractVersion: 3);
+
+        Assert.AreNotEqual(baseline, precisionChanged);
+        Assert.AreNotEqual(baseline, identityChanged);
+    }
+
+    private static (OptimizationSelection Selection,
+        OptimizationCapabilitySnapshot Snapshot,
+        OptimizationWorkload Workload) SelectedTurboCandidate(OpenVinoKvCacheFormat cache)
+    {
+        OptimizationCapabilitySnapshot snapshot = OptimizationCapabilitySnapshot.ForOpenVino(
+            "ov-cap",
+            Digest64,
+            OpenVinoCapabilityPayload.Create(
+                "2026.3.0",
+                [
+                    OpenVinoAdmittedConfiguration.Create(
+                        "ov-turbo-evidence",
+                        DeviceRouteId.Cpu,
+                        OpenVinoWeightFormat.Int4,
+                        cache,
+                        OpenVinoPerformanceHint.Latency,
+                        Core.Routes.OpenVino.OpenVinoCompiledCachePolicy.Disabled,
+                        1,
+                        512,
+                        32768,
+                        SupportLevel.Experimental,
+                        requiresEvidence: true)
+                ]));
+        OptimizationWorkload workload = OptimizationWorkload.Create(
+            "chat",
+            512,
+            OptimizationAssessment.Poor,
+            [ContextTokenCount.FromTokens(4096)]);
+        CrossRouteGenerationResult generated = CrossRouteCandidateGenerator.Generate(
+            snapshot,
+            InspectedModelFacts.Create(
+                ByteCount.FromBytes(3 * Gibibyte), 32, 4096, 32, 8, 8192, 15, 2),
+            workload,
+            ByteCount.FromBytes(32 * Gibibyte),
+            ByteCount.FromBytes(500 * Gibibyte),
+            EstimatorPolicy.ProvisionalV1(),
+            new HashSet<string> { "ov-turbo-evidence" });
+
+        OptimizationSelection selection = OptimizationPreferenceResolver.Resolve(
+            generated.Candidates,
+            OptimizationPreferenceSelection.Automatic())
+            ?? throw new AssertFailedException("The opted-in TurboQuant candidate was absent.");
+
+        return (selection, snapshot, workload);
+    }
+
+    private static OpenVinoExecutionPayload Payload(
+        OpenVinoKvCacheAlgorithm algorithm,
+        OpenVinoKvCachePrecision precision,
+        TurboQuantBuildIdentity? turboBuild) =>
+        OpenVinoExecutionPayload.Create(
+            "openvino.experimental.cpu.int4.turbo.v3",
+            "CPU",
+            "Experimental candidate",
+            "ov-turbo-evidence",
+            OpenVinoWeightPrecision.Fp16,
+            OpenVinoWeightPrecision.FourBit,
+            precision,
+            compiledCacheEnabled: false,
+            compiledCacheIsDisposable: true,
+            compiledCacheIsModelArtifact: false,
+            createsCompletePackage: true,
+            Build(),
+            Versions(),
+            turboQuantBuild: turboBuild,
+            kvCacheAlgorithm: algorithm);
+
+    private static OptimizationJourneyBinding Binding() =>
+        OptimizationJourneyBinding.Create(
+            "mi-run-1", "mi-handoff-1", Digest64, 4 * Gibibyte,
+            "hw-run-1", OtherDigest64);
+
+    private static OpenVinoBuildIdentity Build() =>
+        OpenVinoBuildIdentity.Create("2026.3.0", "2026.3.0.0", "2026.3.0", Digest64);
+
+    private static TurboQuantBuildIdentity TurboBuild() =>
+        TurboQuantBuildIdentity.Create(Commit40, Commit40, Digest64, OtherDigest64);
+
+    private static Dictionary<string, string> Versions() => new(StringComparer.Ordinal)
+    {
+        ["nncf"] = "3.3.0",
+        ["openvino"] = "2026.3.0"
+    };
+}

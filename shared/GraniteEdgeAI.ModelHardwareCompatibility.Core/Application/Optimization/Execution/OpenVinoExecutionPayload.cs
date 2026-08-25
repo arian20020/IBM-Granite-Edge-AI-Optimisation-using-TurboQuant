@@ -7,9 +7,9 @@ namespace GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization
 /// contracts member for member: <c>Fp16</c>, <c>EightBit</c>, <c>FourBit</c>.
 ///
 /// Not translated into GGUF terms, and deliberately not this assembly's
-/// planning-side <c>OpenVinoWeightFormat</c>. That one carries members the
-/// published route does not define, and a payload typed on it could name a
-/// precision O1 has no arm for.
+/// planning-side <c>OpenVinoWeightFormat</c>. Original is a source-package
+/// state rather than an execution precision, so a payload typed on the planning
+/// enum could name a value O1 has no arm for.
 /// </summary>
 public enum OpenVinoWeightPrecision
 {
@@ -18,18 +18,29 @@ public enum OpenVinoWeightPrecision
     FourBit
 }
 
+/// <summary>The cache implementation family the OpenVINO executor must dispatch.</summary>
+public enum OpenVinoKvCacheAlgorithm
+{
+    Released = 1,
+    TurboQuant = 2
+}
+
 /// <summary>
 /// How OpenVINO stores the attention cache.
 ///
-/// Mirrors <c>OpenVinoKvCachePrecision</c> exactly: <c>ReleasedDefault</c> and
-/// <c>U8</c>. ReleasedDefault is a real selection meaning the released runtime
-/// default, not an absence - resolving it to something cheaper would plan a
-/// configuration nobody asked for.
+/// ReleasedDefault is a real selection meaning the released runtime default,
+/// not an absence. The original version-2 numeric values remain fixed; added
+/// members never reinterpret an existing serialized value.
 /// </summary>
 public enum OpenVinoKvCachePrecision
 {
-    ReleasedDefault,
-    U8
+    ReleasedDefault = 0,
+    U8 = 1,
+    F16 = 2,
+    Bf16 = 3,
+    U4 = 4,
+    Tbq4 = 5,
+    Tbq3 = 6
 }
 
 /// <summary>
@@ -190,6 +201,7 @@ public sealed record OpenVinoExecutionPayload
         string evidenceId,
         OpenVinoWeightPrecision sourceWeightPrecision,
         OpenVinoWeightPrecision targetWeightPrecision,
+        OpenVinoKvCacheAlgorithm kvCacheAlgorithm,
         OpenVinoKvCachePrecision kvCachePrecision,
         bool compiledCacheEnabled,
         bool compiledCacheIsDisposable,
@@ -205,6 +217,7 @@ public sealed record OpenVinoExecutionPayload
         EvidenceId = evidenceId;
         SourceWeightPrecision = sourceWeightPrecision;
         TargetWeightPrecision = targetWeightPrecision;
+        KvCacheAlgorithm = kvCacheAlgorithm;
         KvCachePrecision = kvCachePrecision;
         CompiledCacheEnabled = compiledCacheEnabled;
         CompiledCacheIsDisposable = compiledCacheIsDisposable;
@@ -234,6 +247,8 @@ public sealed record OpenVinoExecutionPayload
     public OpenVinoWeightPrecision SourceWeightPrecision { get; }
 
     public OpenVinoWeightPrecision TargetWeightPrecision { get; }
+
+    public OpenVinoKvCacheAlgorithm KvCacheAlgorithm { get; }
 
     public OpenVinoKvCachePrecision KvCachePrecision { get; }
 
@@ -287,7 +302,80 @@ public sealed record OpenVinoExecutionPayload
         bool createsCompletePackage,
         OpenVinoBuildIdentity buildIdentity,
         IReadOnlyDictionary<string, string> optimizerVersions,
-        TurboQuantBuildIdentity? turboQuantBuild = null)
+        TurboQuantBuildIdentity? turboQuantBuild = null,
+        OpenVinoKvCacheAlgorithm kvCacheAlgorithm = OpenVinoKvCacheAlgorithm.Released) =>
+        CreateCore(
+            configurationId,
+            device,
+            maturity,
+            evidenceId,
+            sourceWeightPrecision,
+            targetWeightPrecision,
+            kvCachePrecision,
+            compiledCacheEnabled,
+            compiledCacheIsDisposable,
+            compiledCacheIsModelArtifact,
+            createsCompletePackage,
+            buildIdentity,
+            optimizerVersions,
+            turboQuantBuild,
+            kvCacheAlgorithm,
+            enforceVersionThreeCacheRules: true);
+
+    /// <summary>
+    /// Reconstructs the former version-2 payload shape for canonical digest
+    /// verification only. New plans are issued through <see cref="Create"/>.
+    /// </summary>
+    internal static OpenVinoExecutionPayload CreateV2(
+        string configurationId,
+        string device,
+        string maturity,
+        string evidenceId,
+        OpenVinoWeightPrecision sourceWeightPrecision,
+        OpenVinoWeightPrecision targetWeightPrecision,
+        OpenVinoKvCachePrecision kvCachePrecision,
+        bool compiledCacheEnabled,
+        bool compiledCacheIsDisposable,
+        bool compiledCacheIsModelArtifact,
+        bool createsCompletePackage,
+        OpenVinoBuildIdentity buildIdentity,
+        IReadOnlyDictionary<string, string> optimizerVersions,
+        TurboQuantBuildIdentity? turboQuantBuild = null) =>
+        CreateCore(
+            configurationId,
+            device,
+            maturity,
+            evidenceId,
+            sourceWeightPrecision,
+            targetWeightPrecision,
+            kvCachePrecision,
+            compiledCacheEnabled,
+            compiledCacheIsDisposable,
+            compiledCacheIsModelArtifact,
+            createsCompletePackage,
+            buildIdentity,
+            optimizerVersions,
+            turboQuantBuild,
+            OpenVinoKvCacheAlgorithm.Released,
+            enforceVersionThreeCacheRules: false);
+
+    private static OpenVinoExecutionPayload CreateCore(
+        string configurationId,
+        string device,
+        string maturity,
+        string evidenceId,
+        OpenVinoWeightPrecision sourceWeightPrecision,
+        OpenVinoWeightPrecision targetWeightPrecision,
+        OpenVinoKvCachePrecision kvCachePrecision,
+        bool compiledCacheEnabled,
+        bool compiledCacheIsDisposable,
+        bool compiledCacheIsModelArtifact,
+        bool createsCompletePackage,
+        OpenVinoBuildIdentity buildIdentity,
+        IReadOnlyDictionary<string, string> optimizerVersions,
+        TurboQuantBuildIdentity? turboQuantBuild,
+        OpenVinoKvCacheAlgorithm kvCacheAlgorithm,
+        bool enforceVersionThreeCacheRules)
     {
         ArgumentNullException.ThrowIfNull(buildIdentity);
         ArgumentNullException.ThrowIfNull(optimizerVersions);
@@ -300,7 +388,37 @@ public sealed record OpenVinoExecutionPayload
 
         RequireDefined(sourceWeightPrecision, nameof(sourceWeightPrecision));
         RequireDefined(targetWeightPrecision, nameof(targetWeightPrecision));
+        RequireDefined(kvCacheAlgorithm, nameof(kvCacheAlgorithm));
         RequireDefined(kvCachePrecision, nameof(kvCachePrecision));
+
+        if (enforceVersionThreeCacheRules)
+        {
+            bool turboPrecision = kvCachePrecision is OpenVinoKvCachePrecision.Tbq4
+                or OpenVinoKvCachePrecision.Tbq3;
+            bool turboAlgorithm = kvCacheAlgorithm == OpenVinoKvCacheAlgorithm.TurboQuant;
+
+            if (turboPrecision != turboAlgorithm)
+            {
+                throw new ArgumentException(
+                    "Cache algorithm and precision must name the same released or "
+                    + "TurboQuant family.",
+                    nameof(kvCacheAlgorithm));
+            }
+
+            if (turboAlgorithm && turboQuantBuild is null)
+            {
+                throw new ArgumentException(
+                    "A TurboQuant cache requires its exact pinned build identity.",
+                    nameof(turboQuantBuild));
+            }
+
+            if (!turboAlgorithm && turboQuantBuild is not null)
+            {
+                throw new ArgumentException(
+                    "A released cache must not carry a TurboQuant build identity.",
+                    nameof(turboQuantBuild));
+            }
+        }
 
         // The published route refuses this outright: converting upward never
         // restores quality that was already discarded.
@@ -355,6 +473,7 @@ public sealed record OpenVinoExecutionPayload
             evidenceId,
             sourceWeightPrecision,
             targetWeightPrecision,
+            kvCacheAlgorithm,
             kvCachePrecision,
             compiledCacheEnabled,
             compiledCacheIsDisposable,

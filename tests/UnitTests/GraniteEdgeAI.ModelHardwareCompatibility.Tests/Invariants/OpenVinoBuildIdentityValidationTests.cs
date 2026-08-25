@@ -405,12 +405,9 @@ public sealed class OpenVinoBuildIdentityValidationTests
     }
 
     [TestMethod]
-    public void ContractVersionAndCanonicalOrderAreUnchanged()
+    public void BuildIdentityShapeIsUnchangedAcrossTheV3ContractBump()
     {
-        // An acceptance-domain correction, not a schema change. If the version
-        // or the field order had moved, every V2 plan digest would change and
-        // G1 and O1 would see drift on plans that were still valid.
-        Assert.AreEqual(2, Issue(Build()).ContractVersion);
+        Assert.AreEqual(3, Issue(Build()).ContractVersion);
 
         Assert.AreEqual(
             4,

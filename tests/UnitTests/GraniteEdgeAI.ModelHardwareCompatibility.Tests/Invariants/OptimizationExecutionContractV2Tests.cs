@@ -169,7 +169,7 @@ public sealed class OptimizationExecutionContractV2Tests
             OpenVinoBuildIdentity? build = null,
             IReadOnlyDictionary<string, string>? versions = null,
             TurboQuantBuildIdentity? turboQuant = null) =>
-            OpenVinoExecutionPayload.Create(
+            OpenVinoExecutionPayload.CreateV2(
                 configurationId, device, maturity, evidenceId, source, target, kvCache,
                 compiledCacheEnabled, compiledCacheIsDisposable,
                 compiledCacheIsModelArtifact: false,
@@ -237,11 +237,37 @@ public sealed class OptimizationExecutionContractV2Tests
     // ---------- version ----------
 
     [TestMethod]
-    public void PlanReportsContractVersionTwo()
+    public void OpenVinoV2CanonicalVectorsRemainFrozen()
+    {
+        OptimizationCandidate candidate = V2TestData.OpenVinoCandidate();
+        OptimizationExecutionPayload released = OptimizationExecutionPayload.ForOpenVino(
+            V2TestData.OpenVinoPayload());
+        OptimizationExecutionPayload legacyTurboIdentity = OptimizationExecutionPayload.ForOpenVino(
+            V2TestData.OpenVinoPayload(
+                turboQuant: TurboQuantBuildIdentity.Create(
+                    Commit40, Commit40, Digest64, OtherDigest64)));
+
+        Assert.AreEqual(
+            "v=1:2|route=1:2|config=66:openvino|w=Int8|kv=U8|dev=Cpu|hint=Latency|cache=Enabled|streams=1|ctx=4:4096|persistent=1:1|evidence=11:ov-evidence|experimental=1:0|ov.configurationId=37:openvino.standard.cpu.int8.default.v1|ov.device=3:CPU|ov.maturity=18:Standard candidate|ov.evidenceId=11:ov-evidence|ov.sourceWeightPrecision=1:0|ov.targetWeightPrecision=1:1|ov.kvCachePrecision=1:1|ov.compiledCacheEnabled=1:1|ov.compiledCacheIsDisposable=1:1|ov.compiledCacheIsModelArtifact=1:0|ov.createsCompletePackage=1:1|ov.build.runtimeBuild=8:2026.3.0|ov.build.genAiBuild=10:2026.3.0.0|ov.build.tokenizersBuild=8:2026.3.0|ov.build.workerManifestDigest=64:1111111111111111111111111111111111111111111111111111111111111111|ov.optimizer.nncf=5:3.3.0|ov.optimizer.openvino=8:2026.3.0|ov.optimizer.openvino-genai=10:2026.3.0.0|ov.optimizer.optimum=5:2.3.0|ov.optimizer.optimum-intel=5:2.1.0|ov.optimizer.transformers=5:5.5.4|ov.turboQuant=4:none",
+            OptimizationCanonicalizer.CanonicalizeV2(candidate, released));
+        Assert.AreEqual(
+            "v=1:2|route=1:2|config=66:openvino|w=Int8|kv=U8|dev=Cpu|hint=Latency|cache=Enabled|streams=1|ctx=4:4096|persistent=1:1|evidence=11:ov-evidence|experimental=1:0|ov.configurationId=37:openvino.standard.cpu.int8.default.v1|ov.device=3:CPU|ov.maturity=18:Standard candidate|ov.evidenceId=11:ov-evidence|ov.sourceWeightPrecision=1:0|ov.targetWeightPrecision=1:1|ov.kvCachePrecision=1:1|ov.compiledCacheEnabled=1:1|ov.compiledCacheIsDisposable=1:1|ov.compiledCacheIsModelArtifact=1:0|ov.createsCompletePackage=1:1|ov.build.runtimeBuild=8:2026.3.0|ov.build.genAiBuild=10:2026.3.0.0|ov.build.tokenizersBuild=8:2026.3.0|ov.build.workerManifestDigest=64:1111111111111111111111111111111111111111111111111111111111111111|ov.optimizer.nncf=5:3.3.0|ov.optimizer.openvino=8:2026.3.0|ov.optimizer.openvino-genai=10:2026.3.0.0|ov.optimizer.optimum=5:2.3.0|ov.optimizer.optimum-intel=5:2.1.0|ov.optimizer.transformers=5:5.5.4|ov.turboQuant.sourceCommit=40:0123456789abcdef0123456789abcdef01234567|ov.turboQuant.implementationCommit=40:0123456789abcdef0123456789abcdef01234567|ov.turboQuant.patchSeriesDigest=64:1111111111111111111111111111111111111111111111111111111111111111|ov.turboQuant.runtimeManifestDigest=64:2222222222222222222222222222222222222222222222222222222222222222",
+            OptimizationCanonicalizer.CanonicalizeV2(candidate, legacyTurboIdentity));
+
+        Assert.AreEqual(
+            "6d5902369602fb3b9b12c63f003890794488864c79323476c463610e9606270e",
+            OptimizationCanonicalizer.ConfigurationSha256V2(candidate, released));
+        Assert.AreEqual(
+            "d037be18e90cba1d7d7d9dec28140cd43a91dc41d7c69686e7f0e68ee4f5dbcf",
+            OptimizationCanonicalizer.ConfigurationSha256V2(candidate, legacyTurboIdentity));
+    }
+
+    [TestMethod]
+    public void NewlyIssuedPlanReportsContractVersionThree()
     {
         OptimizationExecutionPlan plan = IssueGguf();
 
-        Assert.AreEqual(2, plan.ContractVersion);
+        Assert.AreEqual(3, plan.ContractVersion);
 
         // Read through the instance so the check is a real comparison rather
         // than two literals the compiler folds together.
@@ -250,18 +276,16 @@ public sealed class OptimizationExecutionContractV2Tests
     }
 
     [TestMethod]
-    public void VersionOneCannotBeInterpretedAsVersionTwo()
+    public void VersionTwoCannotInterpretANewVersionThreePlan()
     {
         // A V1 plan carries no execution payload at all. An executor built for
         // V2 that accepted one would have to supply every runtime setting from
         // somewhere, which is the defect this version closes.
         OptimizationExecutionPlan plan = IssueGguf();
 
-        Assert.IsFalse(
-            plan.IsExecutableBy(1),
-            "A version 1 executor was allowed to run a version 2 plan.");
-
-        Assert.IsTrue(plan.IsExecutableBy(2));
+        Assert.IsFalse(plan.IsExecutableBy(1));
+        Assert.IsFalse(plan.IsExecutableBy(2));
+        Assert.IsTrue(plan.IsExecutableBy(3));
 
         // The minimum is asserted through its consequence rather than as a
         // literal: what matters is that no executor below it is admitted.
@@ -616,12 +640,16 @@ public sealed class OptimizationExecutionContractV2Tests
     [TestMethod]
     public void TurboQuantEvidenceChangesTheDigest()
     {
-        string without = IssueOpenVino().ConfigurationSha256;
+        OptimizationCandidate candidate = V2TestData.OpenVinoCandidate();
+        string without = OptimizationCanonicalizer.ConfigurationSha256V2(
+            candidate,
+            OptimizationExecutionPayload.ForOpenVino(V2TestData.OpenVinoPayload()));
 
-        string with = IssueOpenVino(
-            payload: V2TestData.OpenVinoPayload(
+        string with = OptimizationCanonicalizer.ConfigurationSha256V2(
+            candidate,
+            OptimizationExecutionPayload.ForOpenVino(V2TestData.OpenVinoPayload(
                 turboQuant: TurboQuantBuildIdentity.Create(
-                    Commit40, Commit40, Digest64, OtherDigest64))).ConfigurationSha256;
+                    Commit40, Commit40, Digest64, OtherDigest64))));
 
         Assert.AreNotEqual(without, with);
     }

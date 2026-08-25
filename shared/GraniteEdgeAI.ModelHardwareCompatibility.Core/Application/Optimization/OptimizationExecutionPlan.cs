@@ -120,13 +120,15 @@ public sealed record OptimizationExecutionPlan
     /// misread. An executor that does not recognise the version refuses rather
     /// than interpreting fields it may not understand.
     ///
-    /// Version 2 added the route execution payload. A version 1 plan carries no
+    /// Version 2 added the route execution payload. Version 3 separates the
+    /// OpenVINO cache algorithm from its precision and binds TurboQuant build
+    /// identity. A version 1 plan carries no
     /// payload at all, so an executor built for 2 cannot read one as if it had
     /// one - it would have to invent every runtime setting, which is the defect
     /// this version exists to close. Construction requires a payload, so a
     /// version 1 plan cannot be produced by this assembly any more.
     /// </summary>
-    public const int CurrentContractVersion = 2;
+    public const int CurrentContractVersion = 3;
 
     /// <summary>
     /// The lowest version an executor built against this contract may accept.
@@ -136,6 +138,7 @@ public sealed record OptimizationExecutionPlan
     public const int MinimumExecutableContractVersion = 2;
 
     internal OptimizationExecutionPlan(
+        int contractVersion,
         Guid optimizationPlanId,
         OptimizationJourneyBinding binding,
         OptimizationCapabilitySnapshot capabilitySnapshot,
@@ -147,6 +150,7 @@ public sealed record OptimizationExecutionPlan
         string configurationSha256,
         DateTimeOffset createdAtUtc)
     {
+        ContractVersion = contractVersion;
         ExecutionPayload = executionPayload;
         OptimizationPlanId = optimizationPlanId;
         Binding = binding;
@@ -159,7 +163,7 @@ public sealed record OptimizationExecutionPlan
         CreatedAtUtc = createdAtUtc;
     }
 
-    public int ContractVersion => CurrentContractVersion;
+    public int ContractVersion { get; }
 
     public Guid OptimizationPlanId { get; }
 
@@ -175,7 +179,7 @@ public sealed record OptimizationExecutionPlan
     /// <summary>
     /// The exact settings the route executor will use.
     ///
-    /// Present on every version 2 plan. Its route always equals both
+    /// Present on every version 2-or-later plan. Its route always equals both
     /// <see cref="Candidate"/>'s and <see cref="CapabilitySnapshot"/>'s, and
     /// every field in it is inside <see cref="ConfigurationSha256"/> - so there
     /// is nothing left for an executor to choose after the user has confirmed.

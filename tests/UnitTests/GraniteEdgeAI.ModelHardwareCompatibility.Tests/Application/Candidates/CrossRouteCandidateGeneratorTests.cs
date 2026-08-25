@@ -176,6 +176,70 @@ public sealed class CrossRouteCandidateGeneratorTests
     }
 
     [TestMethod]
+    public void TurboQuantCacheQualityIsCombinedConservativelyWithWeightQuality()
+    {
+        CrossRouteGenerationResult result = Generate(
+            CrossRouteTestData.OpenVinoSnapshot(
+                CrossRouteTestData.OpenVino(
+                    "ov-tbq4",
+                    OpenVinoWeightFormat.Fp16,
+                    SupportLevel.Experimental,
+                    cache: OpenVinoKvCacheFormat.TurboQuantTbq4)),
+            optedIn: "ov-tbq4");
+
+        Assert.AreEqual(1, result.Candidates.Count);
+        Assert.AreEqual(
+            OptimizationAssessment.Acceptable,
+            result.Candidates[0].Metrics.Quality,
+            "TBQ4 cache compression was omitted from the combined quality grade.");
+    }
+
+    [TestMethod]
+    public void TurboQuantTbq3IsExcludedByAnAcceptableQualityFloor()
+    {
+        CrossRouteGenerationResult result = Generate(
+            CrossRouteTestData.OpenVinoSnapshot(
+                CrossRouteTestData.OpenVino(
+                    "ov-tbq3",
+                    OpenVinoWeightFormat.Fp16,
+                    SupportLevel.Experimental,
+                    cache: OpenVinoKvCacheFormat.TurboQuantTbq3)),
+            workload: CrossRouteTestData.Workload(
+                floor: OptimizationAssessment.Acceptable),
+            optedIn: "ov-tbq3");
+
+        Assert.AreEqual(0, result.Candidates.Count);
+        Assert.AreEqual(
+            OptimizationExclusionReason.QualityBelowFloor,
+            result.Exclusions.Single().Reason);
+    }
+
+    [TestMethod]
+    public void AutomaticAvoidsTbq3WhileAFittingAcceptableOrBetterCacheExists()
+    {
+        CrossRouteGenerationResult result = Generate(
+            CrossRouteTestData.OpenVinoSnapshot(
+                CrossRouteTestData.OpenVino(
+                    "ov-u8", OpenVinoWeightFormat.Fp16,
+                    cache: OpenVinoKvCacheFormat.U8),
+                CrossRouteTestData.OpenVino(
+                    "ov-tbq3",
+                    OpenVinoWeightFormat.Fp16,
+                    SupportLevel.Experimental,
+                    cache: OpenVinoKvCacheFormat.TurboQuantTbq3)),
+            optedIn: "ov-tbq3");
+
+        OptimizationSelection selection = OptimizationPreferenceResolver.Resolve(
+            result.Candidates,
+            OptimizationPreferenceSelection.Automatic())
+            ?? throw new AssertFailedException("No candidate was selected.");
+
+        Assert.AreEqual("ov-u8", selection.Candidate.EvidenceId);
+        Assert.IsTrue(
+            selection.Candidate.Metrics.Quality >= OptimizationAssessment.Acceptable);
+    }
+
+    [TestMethod]
     public void CandidateExceedingTheSafeBudgetIsExcludedWithAReason()
     {
         CrossRouteGenerationResult result = Generate(

@@ -71,16 +71,31 @@ internal static class OpenVinoFormatMap
         OpenVinoKvCacheFormat.U8 => 1m + 0.0625m,
         OpenVinoKvCacheFormat.U4 => 0.5m + 0.0625m,
 
-        // The pinned cache codec describes 128-value records. Keeping the
-        // record sizes here avoids turning an experimental block layout into
-        // an unsupported claim about nominal scalar precision.
-        OpenVinoKvCacheFormat.TurboQuantTbq4 => 68m / 128m,
-        OpenVinoKvCacheFormat.TurboQuantTbq3 => 52m / 128m,
-
         _ => throw new ArgumentOutOfRangeException(
             nameof(format),
             format,
             "A cache format with no width cannot be estimated, and treating it as "
             + "free would understate every context length.")
     };
+
+    /// <summary>
+    /// The pinned TurboQuant cache record layout. These are whole records, not
+    /// average scalar widths: each key and value head is padded independently.
+    /// </summary>
+    internal static bool TryGetCacheBlockLayout(
+        OpenVinoKvCacheFormat format,
+        out int valuesPerBlock,
+        out int bytesPerBlock)
+    {
+        valuesPerBlock = 128;
+
+        bytesPerBlock = format switch
+        {
+            OpenVinoKvCacheFormat.TurboQuantTbq4 => 68,
+            OpenVinoKvCacheFormat.TurboQuantTbq3 => 52,
+            _ => 0
+        };
+
+        return bytesPerBlock != 0;
+    }
 }

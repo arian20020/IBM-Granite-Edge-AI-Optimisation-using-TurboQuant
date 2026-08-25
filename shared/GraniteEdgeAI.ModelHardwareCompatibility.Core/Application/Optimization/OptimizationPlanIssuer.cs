@@ -80,6 +80,7 @@ public static class OptimizationPlanIssuer
         RequireAgreement(candidate, executionPayload, modelLayerCount);
 
         return new OptimizationExecutionPlan(
+            OptimizationExecutionPlan.CurrentContractVersion,
             Guid.NewGuid(),
             binding,
             capabilitySnapshot,
@@ -88,7 +89,10 @@ public static class OptimizationPlanIssuer
             executionPayload,
             selection.Preference,
             selection.SharedWithAdjacentBand,
-            OptimizationCanonicalizer.ConfigurationSha256(candidate, executionPayload),
+            OptimizationCanonicalizer.ConfigurationSha256(
+                candidate,
+                executionPayload,
+                OptimizationExecutionPlan.CurrentContractVersion),
             createdAtUtc);
     }
 
@@ -214,11 +218,30 @@ public static class OptimizationPlanIssuer
                 $"{configuration.Weights} against {payload.TargetWeightPrecision}");
         }
 
+        OpenVinoKvCacheAlgorithm cacheAlgorithm =
+            ExecutionVocabularyMap.ToKvCacheAlgorithm(configuration.KvCache);
+        OpenVinoKvCachePrecision cachePrecision =
+            ExecutionVocabularyMap.ToKvCachePrecision(configuration.KvCache);
+
         Require(
-            ExecutionVocabularyMap.ToKvCachePrecision(configuration.KvCache)
-                == payload.KvCachePrecision,
+            cacheAlgorithm == payload.KvCacheAlgorithm
+                && cachePrecision == payload.KvCachePrecision,
             "KV cache precision",
-            $"{configuration.KvCache} against {payload.KvCachePrecision}");
+            $"{configuration.KvCache} against algorithm {payload.KvCacheAlgorithm} "
+                + $"and precision {payload.KvCachePrecision}");
+
+        bool turboQuant = cacheAlgorithm == OpenVinoKvCacheAlgorithm.TurboQuant;
+
+        Require(
+            !turboQuant || candidate.IsExperimental,
+            "TurboQuant evidence level",
+            $"cache {configuration.KvCache} against experimental={candidate.IsExperimental}");
+
+        Require(
+            (payload.TurboQuantBuild is not null) == turboQuant,
+            "TurboQuant build identity",
+            $"cache {configuration.KvCache} against build-present="
+                + $"{payload.TurboQuantBuild is not null}");
 
         Require(
             ExecutionVocabularyMap.ToDeviceId(configuration.Device) == payload.Device,

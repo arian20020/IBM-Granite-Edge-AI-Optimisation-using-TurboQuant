@@ -26,12 +26,47 @@ namespace GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization
 /// </summary>
 internal static class OptimizationCanonicalizer
 {
+    /// <summary>The immutable version-2 layout retained for digest verification.</summary>
+    internal static string CanonicalizeV2(
+        OptimizationCandidate candidate, OptimizationExecutionPayload payload) =>
+        CanonicalizeCore(candidate, payload, contractVersion: 2, includeV3CacheAlgorithm: false);
+
+    internal static string CanonicalizeV3(
+        OptimizationCandidate candidate, OptimizationExecutionPayload payload) =>
+        CanonicalizeCore(candidate, payload, contractVersion: 3, includeV3CacheAlgorithm: true);
+
+    internal static string ConfigurationSha256V2(
+        OptimizationCandidate candidate, OptimizationExecutionPayload payload)
+    {
+        byte[] hash = SHA256.HashData(
+            new UTF8Encoding(encoderShouldEmitUTF8Identifier: false)
+                .GetBytes(CanonicalizeV2(candidate, payload)));
+
+        return Convert.ToHexString(hash).ToLowerInvariant();
+    }
+
     /// <summary>
     /// Canonical form of the complete confirmed work: the candidate, the route
     /// payload, and the contract version that fixes how they are laid out.
     /// </summary>
     internal static string Canonicalize(
-        OptimizationCandidate candidate, OptimizationExecutionPayload payload)
+        OptimizationCandidate candidate,
+        OptimizationExecutionPayload payload,
+        int contractVersion) => contractVersion switch
+        {
+            2 => CanonicalizeV2(candidate, payload),
+            3 => CanonicalizeV3(candidate, payload),
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(contractVersion),
+                contractVersion,
+                "No canonical layout is defined for this plan contract version.")
+        };
+
+    private static string CanonicalizeCore(
+        OptimizationCandidate candidate,
+        OptimizationExecutionPayload payload,
+        int contractVersion,
+        bool includeV3CacheAlgorithm)
     {
         ArgumentNullException.ThrowIfNull(candidate);
         ArgumentNullException.ThrowIfNull(payload);
@@ -40,7 +75,7 @@ internal static class OptimizationCanonicalizer
 
         // The version leads, so a layout change cannot produce a digest that
         // collides with one from a different layout.
-        Append(builder, "v", OptimizationExecutionPlan.CurrentContractVersion);
+        Append(builder, "v", contractVersion);
         Append(builder, "route", (int)candidate.Route);
         Append(builder, "config", candidate.Configuration.CanonicalDescriptor);
         Append(builder, "ctx", candidate.Metrics.ContextTokens);
@@ -55,7 +90,7 @@ internal static class OptimizationCanonicalizer
                 break;
 
             case OptimizationRoute.OpenVino:
-                AppendOpenVino(builder, payload.OpenVino!);
+                AppendOpenVino(builder, payload.OpenVino!, includeV3CacheAlgorithm);
                 break;
 
             default:
@@ -75,11 +110,13 @@ internal static class OptimizationCanonicalizer
     /// on a plan that had not changed.
     /// </summary>
     internal static string ConfigurationSha256(
-        OptimizationCandidate candidate, OptimizationExecutionPayload payload)
+        OptimizationCandidate candidate,
+        OptimizationExecutionPayload payload,
+        int contractVersion)
     {
         byte[] hash = SHA256.HashData(
             new UTF8Encoding(encoderShouldEmitUTF8Identifier: false)
-                .GetBytes(Canonicalize(candidate, payload)));
+                .GetBytes(Canonicalize(candidate, payload, contractVersion)));
 
         // ToHexStringLower is .NET 9; this targets net8.0.
         return Convert.ToHexString(hash).ToLowerInvariant();
@@ -130,7 +167,9 @@ internal static class OptimizationCanonicalizer
     /// route's own names.
     /// </summary>
     private static void AppendOpenVino(
-        StringBuilder builder, OpenVinoExecutionPayload openVino)
+        StringBuilder builder,
+        OpenVinoExecutionPayload openVino,
+        bool includeV3CacheAlgorithm)
     {
         Append(builder, "ov.configurationId", openVino.ConfigurationId);
         Append(builder, "ov.device", openVino.Device);
@@ -138,6 +177,12 @@ internal static class OptimizationCanonicalizer
         Append(builder, "ov.evidenceId", openVino.EvidenceId);
         Append(builder, "ov.sourceWeightPrecision", (int)openVino.SourceWeightPrecision);
         Append(builder, "ov.targetWeightPrecision", (int)openVino.TargetWeightPrecision);
+
+        if (includeV3CacheAlgorithm)
+        {
+            Append(builder, "ov.kvCacheAlgorithm", (int)openVino.KvCacheAlgorithm);
+        }
+
         Append(builder, "ov.kvCachePrecision", (int)openVino.KvCachePrecision);
         Append(builder, "ov.compiledCacheEnabled", openVino.CompiledCacheEnabled ? 1 : 0);
         Append(

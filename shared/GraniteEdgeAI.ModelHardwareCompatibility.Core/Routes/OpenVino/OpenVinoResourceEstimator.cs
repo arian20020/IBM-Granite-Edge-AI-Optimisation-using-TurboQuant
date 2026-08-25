@@ -204,9 +204,27 @@ internal static class OpenVinoResourceEstimator
         // not by the attention heads. Using the larger count would overstate
         // every model that groups them, which is most modern ones.
         decimal headDimension = (decimal)embedding / heads;
-        decimal perTokenPerLayer =
-            headDimension * keyValueHeads * 2m
-            * OpenVinoFormatMap.CacheBytesPerElement(configuration.KvCache);
+        decimal perTokenPerLayer;
+
+        if (OpenVinoFormatMap.TryGetCacheBlockLayout(
+            configuration.KvCache,
+            out int valuesPerBlock,
+            out int bytesPerBlock))
+        {
+            decimal blocksPerHead = decimal.Ceiling(headDimension / valuesPerBlock);
+
+            // Key and value are separate records for every KV head. Padding
+            // cannot be shared across heads or across K/V without describing a
+            // packed layout the pinned codec does not have.
+            perTokenPerLayer =
+                blocksPerHead * bytesPerBlock * keyValueHeads * 2m;
+        }
+        else
+        {
+            perTokenPerLayer =
+                headDimension * keyValueHeads * 2m
+                * OpenVinoFormatMap.CacheBytesPerElement(configuration.KvCache);
+        }
 
         decimal total = perTokenPerLayer * layers * context.Tokens;
 

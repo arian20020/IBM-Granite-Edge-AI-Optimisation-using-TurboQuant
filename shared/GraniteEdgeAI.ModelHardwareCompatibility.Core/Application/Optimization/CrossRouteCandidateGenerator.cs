@@ -154,7 +154,7 @@ internal static class CrossRouteCandidateGenerator
                 context,
                 admitted.EvidenceId,
                 admitted.Level,
-                OpenVinoQuality.Of(admitted.Weights),
+                OpenVinoQuality.Of(admitted.Weights, admitted.KvCache),
                 OpenVinoFormatMap.RequiresPersistentConversion(admitted.Weights),
                 workload,
                 safeBudget,
@@ -348,18 +348,41 @@ internal static class CrossRouteCandidateGenerator
 /// <summary>
 /// How good each representation is, on the shared coarse scale.
 ///
-/// Derived from bit width, which is the only quality signal available before
-/// anything has been measured. Bands rather than a continuous score, because a
-/// finer scale would imply a precision nothing here supports.
+/// Conservatively combines weight and cache representation grades. The weaker
+/// one wins: compressing one part more aggressively cannot improve quality lost
+/// in the other. Bands rather than a continuous score avoid implying precision
+/// nothing here supports.
 /// </summary>
 internal static class OpenVinoQuality
 {
-    internal static OptimizationAssessment Of(OpenVinoWeightFormat format) => format switch
+    internal static OptimizationAssessment Of(
+        OpenVinoWeightFormat weights,
+        OpenVinoKvCacheFormat cache)
+    {
+        OptimizationAssessment weightQuality = Weight(weights);
+        OptimizationAssessment cacheQuality = Cache(cache);
+
+        return weightQuality < cacheQuality ? weightQuality : cacheQuality;
+    }
+
+    private static OptimizationAssessment Weight(OpenVinoWeightFormat format) => format switch
     {
         OpenVinoWeightFormat.Original or OpenVinoWeightFormat.Fp16 =>
             OptimizationAssessment.Excellent,
         OpenVinoWeightFormat.Int8 => OptimizationAssessment.Good,
         OpenVinoWeightFormat.Int4 => OptimizationAssessment.Acceptable,
+        _ => OptimizationAssessment.Unknown
+    };
+
+    private static OptimizationAssessment Cache(OpenVinoKvCacheFormat format) => format switch
+    {
+        OpenVinoKvCacheFormat.RouteDefault
+            or OpenVinoKvCacheFormat.F16
+            or OpenVinoKvCacheFormat.Bf16 => OptimizationAssessment.Excellent,
+        OpenVinoKvCacheFormat.U8 => OptimizationAssessment.Good,
+        OpenVinoKvCacheFormat.U4
+            or OpenVinoKvCacheFormat.TurboQuantTbq4 => OptimizationAssessment.Acceptable,
+        OpenVinoKvCacheFormat.TurboQuantTbq3 => OptimizationAssessment.Poor,
         _ => OptimizationAssessment.Unknown
     };
 }
