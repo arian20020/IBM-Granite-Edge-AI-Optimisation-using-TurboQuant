@@ -90,6 +90,11 @@ internal sealed partial class CompatibilityPage : Page
 
         ModelNameText.Text = presentation.ModelName;
         ModelDetailText.Text = presentation.ModelDetail;
+        ModelSummaryCard.Visibility =
+            string.IsNullOrWhiteSpace(presentation.ModelName)
+            && string.IsNullOrWhiteSpace(presentation.ModelDetail)
+                ? Visibility.Collapsed
+                : Visibility.Visible;
 
         ApplyOutcome(presentation);
         ApplyFacts(presentation.Facts);

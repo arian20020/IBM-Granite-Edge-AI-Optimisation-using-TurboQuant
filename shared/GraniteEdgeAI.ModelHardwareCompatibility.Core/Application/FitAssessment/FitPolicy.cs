@@ -42,10 +42,9 @@ internal static class FitPolicy
         // An exhausted budget is an expected answer, not an arithmetic error,
         // so the subtractions saturate at zero instead of throwing.
         ByteCount budget = ByteCount.Zero;
-        if (available.SystemMemory.TrySubtract(policy.OsAllowance, out ByteCount afterOs))
-        {
-            afterOs.TrySubtract(policy.OperationalReserve, out budget);
-        }
+        available.SystemMemory.TrySubtract(
+            policy.AvailableMemoryReserveFor(available.SystemMemory),
+            out budget);
 
         if (budget == ByteCount.Zero)
         {

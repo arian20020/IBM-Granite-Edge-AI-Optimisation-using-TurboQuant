@@ -20,6 +20,19 @@ public sealed class CompatibilityProductionInputTests
     }
 
     [TestMethod]
+    public void ProductionEngine_UsesTheProportionalV2AvailableMemoryReserve()
+    {
+        CompatibilityScreenModel result = CompatibilityEngine.Run(ValidInput());
+
+        Assert.IsNotNull(result.Setup);
+        ulong availableBytes = 48 * GiB;
+        ulong expectedReserve = (ulong)Math.Ceiling(availableBytes * 0.10m);
+        Assert.AreEqual(
+            availableBytes - expectedReserve,
+            result.Setup.SafeBudgetBytes);
+    }
+
+    [TestMethod]
     public void ProductionInput_RejectsEmptyOrDuplicateRunIdentities()
     {
         CompatibilityProductionInput valid = ValidInput();

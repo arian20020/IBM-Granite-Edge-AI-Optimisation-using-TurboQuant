@@ -89,6 +89,7 @@
 
                 <!-- Model row -->
                 <Border
+                    x:Name="ModelSummaryCard"
                     Grid.Row="1"
                     Background="{ThemeResource CompatibilitySurfaceBrush}"
                     BorderBrush="{ThemeResource CompatibilityBorderLightBrush}"

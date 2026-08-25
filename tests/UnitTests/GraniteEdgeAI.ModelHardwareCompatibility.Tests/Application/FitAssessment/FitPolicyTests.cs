@@ -59,6 +59,17 @@ public sealed class FitPolicyTests
     }
 
     [TestMethod]
+    public void ProportionalV2_DoesNotSubtractWindowsUsageTwice()
+    {
+        FitAssessment assessment = FitPolicy.Assess(
+            SystemPeak(Gib), Available(4 * Gib), SafetyPolicy.ProportionalV2());
+
+        // Windows already reports memory that is physically available. V2
+        // keeps a 512 MiB floor but does not remove a second fixed OS budget.
+        Assert.AreEqual(3 * Gib + Gib / 2, assessment.SafeBudget.Bytes);
+    }
+
+    [TestMethod]
     public void Required_IncludesTheCalibrationMargin()
     {
         SafetyPolicy policy = SafetyPolicy.ProvisionalV1();

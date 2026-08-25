@@ -7,6 +7,7 @@ using GraniteEdgeAI.Features.ModelHardwareCompatibility.DebugFixtures;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.Presentation;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
 
@@ -117,6 +118,50 @@ public sealed class CompatibilityRenderedStateTests
                 "Close unused applications and browser tabs",
                 StringComparison.Ordinal));
         }
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void PresentationWithoutSafeModelDisplayText_HidesModelSummaryCard()
+    {
+        CompatibilityPage page = CreatePage();
+        CompatibilityFixture? fixture = CompatibilityFixtureCatalogue.ById("CMP-030");
+        Assert.IsNotNull(fixture);
+
+        page.Apply(fixture.Presentation);
+        page.UpdateLayout();
+
+        Assert.AreEqual(
+            Visibility.Collapsed,
+            Element<FrameworkElement>(page, "ModelSummaryCard").Visibility);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void MemoryBlockedOutcome_IsAnExplicitActionableWarning()
+    {
+        CompatibilityFixture? fixture = CompatibilityFixtureCatalogue.ById("CMP-030");
+        Assert.IsNotNull(fixture);
+
+        StringAssert.Contains(fixture.Presentation.OutcomeTitle, "Memory warning");
+        StringAssert.Contains(fixture.Presentation.OutcomeDetail, "check again");
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void GeneratedRuntimeRows_UseReadableLightThemeTextBeforeFirstLoad()
+    {
+        CompatibilityPage page = CreatePage();
+        CompatibilityFixture? fixture = CompatibilityFixtureCatalogue.ById("CMP-030");
+        Assert.IsNotNull(fixture);
+
+        page.Apply(fixture.Presentation);
+        Grid row = Assert.IsInstanceOfType<Grid>(Panel(page, "RuntimeRows").Children[0]);
+        StackPanel text = Assert.IsInstanceOfType<StackPanel>(row.Children[0]);
+        TextBlock title = Assert.IsInstanceOfType<TextBlock>(text.Children[0]);
+        SolidColorBrush foreground = Assert.IsInstanceOfType<SolidColorBrush>(title.Foreground);
+
+        Assert.AreEqual("#FF101828", foreground.Color.ToString());
     }
 
     [UITestMethod]

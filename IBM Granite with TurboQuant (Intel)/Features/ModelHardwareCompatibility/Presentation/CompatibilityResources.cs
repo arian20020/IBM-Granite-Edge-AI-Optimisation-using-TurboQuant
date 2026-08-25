@@ -28,11 +28,7 @@ internal static class CompatibilityResources
 
     private static object? Find(FrameworkElement element, string key)
     {
-        string theme = element.ActualTheme switch
-        {
-            ElementTheme.Dark => "Dark",
-            _ => "Light"
-        };
+        string theme = ResolveTheme(element);
 
         // Walk up from the element: a page merges the dictionary, and a control
         // hosted inside one may rely on its parent's copy.
@@ -53,16 +49,30 @@ internal static class CompatibilityResources
         return Search(Application.Current?.Resources, key, theme);
     }
 
+    private static string ResolveTheme(FrameworkElement element)
+    {
+        // Apply() runs in the page constructor, before ActualTheme has caught
+        // up with the page's explicit RequestedTheme. Honour the nearest
+        // explicit request first so code-created controls do not permanently
+        // capture the host application's dark brushes during that interval.
+        for (DependencyObject? node = element; node is not null;
+            node = node is FrameworkElement current ? current.Parent : null)
+        {
+            if (node is FrameworkElement host
+                && host.RequestedTheme != ElementTheme.Default)
+            {
+                return host.RequestedTheme == ElementTheme.Dark ? "Dark" : "Light";
+            }
+        }
+
+        return element.ActualTheme == ElementTheme.Dark ? "Dark" : "Light";
+    }
+
     private static object? Search(ResourceDictionary? dictionary, string key, string theme)
     {
         if (dictionary is null)
         {
             return null;
-        }
-
-        if (dictionary.TryGetValue(key, out object? direct))
-        {
-            return direct;
         }
 
         if (dictionary.ThemeDictionaries.TryGetValue(theme, out object? themed)
@@ -78,6 +88,15 @@ internal static class CompatibilityResources
             {
                 return found;
             }
+        }
+
+        // Only ask the ordinary indexer after walking merged dictionaries.
+        // The indexer also searches those dictionaries, but it resolves their
+        // ThemeDictionaries against the host application's current theme. That
+        // can still be Dark while this page has explicitly requested Light.
+        if (dictionary.TryGetValue(key, out object? direct))
+        {
+            return direct;
         }
 
         return null;

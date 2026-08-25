@@ -118,7 +118,7 @@ public static class CompatibilityEngine
             new ProductionMemoryProbe(input),
             SupportMatrix.ProvisionalV1(),
             EstimatorPolicy.ProvisionalV1(),
-            SafetyPolicy.ProvisionalV1(),
+            SafetyPolicy.ProportionalV2(),
             new HashSet<string>(),
             TrustedSourceAvailability.None(),
             GgufRouteConfiguration.Create(

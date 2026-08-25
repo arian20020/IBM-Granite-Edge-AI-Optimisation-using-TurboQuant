@@ -28,6 +28,27 @@ public sealed class SafetyPolicyTests
     }
 
     [TestMethod]
+    public void ProportionalV2_DeclaresItsVersionAndKeepsTenPercentOfAvailableMemory()
+    {
+        SafetyPolicy policy = SafetyPolicy.ProportionalV2();
+
+        Assert.AreEqual("fit-safety-policy-v2", policy.PolicyVersion);
+        Assert.AreEqual(
+            2 * Gibibyte,
+            policy.AvailableMemoryReserveFor(ByteCount.FromBytes(20 * Gibibyte)).Bytes);
+    }
+
+    [TestMethod]
+    public void ProportionalV2_UsesA512MiBFloorOnSmallAvailablePools()
+    {
+        SafetyPolicy policy = SafetyPolicy.ProportionalV2();
+
+        Assert.AreEqual(
+            Gibibyte / 2,
+            policy.AvailableMemoryReserveFor(ByteCount.FromBytes(4 * Gibibyte)).Bytes);
+    }
+
+    [TestMethod]
     public void CalibrationMargin_SmallPeak_UsesTheAbsoluteFloor()
     {
         SafetyPolicy policy = SafetyPolicy.ProvisionalV1();

@@ -177,19 +177,35 @@ internal static class CompatibilityPresentationFactory
     /// nothing.
     /// </summary>
     private static CompatibilityPresentation WithSetup(
-        CompatibilityPresentation presentation, CompatibilityScreenModel model) =>
-        model.Setup is not { } setup
-            ? presentation
-            : presentation with
-            {
-                Facts = CompatibilitySetupNarrative.Facts(setup),
-                Budget = CompatibilitySetupNarrative.Budget(setup),
-                EstimateSummary = CompatibilitySetupNarrative.EstimateSummary(setup),
-                RuntimeCardTitle = "What would run",
-                RuntimeRows = CompatibilitySetupNarrative.RuntimeRows(setup),
-                ChecksCardTitle = "What we checked",
-                CheckRows = CompatibilitySetupNarrative.CheckRows(setup)
-            };
+        CompatibilityPresentation presentation, CompatibilityScreenModel model)
+    {
+        if (model.Setup is not { } setup)
+        {
+            return presentation;
+        }
+
+        string outcomeDetail = model.State ==
+            CompatibilityScreenState.NoEstimatedSafeConfiguration
+                ? "The lightest verified setup needs about "
+                    + CompatibilityBudget.Describe(setup.RequiredBytes)
+                    + ", but only "
+                    + CompatibilityBudget.Describe(setup.SafeBudgetBytes)
+                    + " is available within the safety limit right now. Close unused "
+                    + "applications and browser tabs, then check again."
+                : presentation.OutcomeDetail;
+
+        return presentation with
+        {
+            OutcomeDetail = outcomeDetail,
+            Facts = CompatibilitySetupNarrative.Facts(setup),
+            Budget = CompatibilitySetupNarrative.Budget(setup),
+            EstimateSummary = CompatibilitySetupNarrative.EstimateSummary(setup),
+            RuntimeCardTitle = "What would run",
+            RuntimeRows = CompatibilitySetupNarrative.RuntimeRows(setup),
+            ChecksCardTitle = "What we checked",
+            CheckRows = CompatibilitySetupNarrative.CheckRows(setup)
+        };
+    }
 
     private static CompatibilityPresentation EstimatedCompatible(CompatibilityScreenModel model) =>
         CompatibilityPresentation.Empty with
@@ -243,7 +259,7 @@ internal static class CompatibilityPresentationFactory
             PageTitle = Title,
             PageLede = "We checked every way of running this against your free memory.",
             Tone = CompatibilityOutcomeTone.Blocking,
-            OutcomeTitle = "No setup fits safely",
+            OutcomeTitle = "Memory warning — not enough free memory",
             OutcomeDetail =
                 "Every verified setup needs more memory than you can safely spare right "
                 + "now. Close unused applications and browser tabs to free memory, then "

@@ -51,6 +51,27 @@ internal sealed record SafetyPolicy
     internal decimal CalibrationMarginFraction => Terms.CalibrationMarginFraction;
 
     /// <summary>
+    /// Memory held back from a fresh Windows available-memory reading.
+    /// V1 preserves its fixed allowance for reproducibility; V2 scales the
+    /// reserve with the pool that is actually available and applies a floor.
+    /// </summary>
+    internal ByteCount AvailableMemoryReserveFor(ByteCount availableMemory)
+    {
+        SafetyTerms terms = Terms;
+
+        if (terms.AvailableMemoryReserveFraction == 0m)
+        {
+            return terms.OsAllowance.Add(terms.OperationalReserve);
+        }
+
+        ulong proportional = (ulong)Math.Ceiling(
+            availableMemory.Bytes * terms.AvailableMemoryReserveFraction);
+        return proportional > terms.AvailableMemoryReserveFloor.Bytes
+            ? ByteCount.FromBytes(proportional)
+            : terms.AvailableMemoryReserveFloor;
+    }
+
+    /// <summary>
     /// The margin added to a predicted peak to cover underprediction. It is
     /// always added and never subtracted, so an uncalibrated estimator errs
     /// toward reporting "does not fit" rather than crashing the machine.
@@ -78,7 +99,27 @@ internal sealed record SafetyPolicy
             OsAllowance: ByteCount.FromBytes(2 * Gibibyte),
             OperationalReserve: ByteCount.FromBytes(Gibibyte),
             CalibrationMarginFloor: ByteCount.FromBytes(Gibibyte / 2),
-            CalibrationMarginFraction: 0.10m));
+            CalibrationMarginFraction: 0.10m,
+            AvailableMemoryReserveFloor: ByteCount.Zero,
+            AvailableMemoryReserveFraction: 0m));
+
+    internal static SafetyPolicy ProportionalV2() => new(
+        PolicyProvenance.Provisional,
+        policyVersion: "fit-safety-policy-v2",
+        thresholds: new FitThresholds(
+            ComfortableCeiling: 0.75m,
+            ModerateHeadroomCeiling: 0.90m,
+            NarrowCeiling: 1.00m),
+        terms: new SafetyTerms(
+            // GlobalMemoryStatusEx already reports memory that is currently
+            // available after Windows and running applications. Removing a
+            // second OS/app allowance would count that usage twice.
+            OsAllowance: ByteCount.Zero,
+            OperationalReserve: ByteCount.Zero,
+            CalibrationMarginFloor: ByteCount.FromBytes(Gibibyte / 2),
+            CalibrationMarginFraction: 0.10m,
+            AvailableMemoryReserveFloor: ByteCount.FromBytes(Gibibyte / 2),
+            AvailableMemoryReserveFraction: 0.10m));
 
     internal static SafetyPolicy Absent() => new(
         PolicyProvenance.Absent,
@@ -97,5 +138,7 @@ internal sealed record SafetyPolicy
         ByteCount OsAllowance,
         ByteCount OperationalReserve,
         ByteCount CalibrationMarginFloor,
-        decimal CalibrationMarginFraction);
+        decimal CalibrationMarginFraction,
+        ByteCount AvailableMemoryReserveFloor,
+        decimal AvailableMemoryReserveFraction);
 }
