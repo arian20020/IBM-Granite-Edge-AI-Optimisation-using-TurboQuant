@@ -1,4 +1,5 @@
 using System.Globalization;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Execution;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.Gguf;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.OpenVino;
@@ -302,6 +303,9 @@ public sealed record OpenVinoCapabilityPayload
                 nameof(admitted));
         }
 
+        OptimizationAdmissionIdentity.RequireUnique(
+            admitted.Select(entry => entry.EvidenceId), nameof(admitted));
+
         // Copied so a caller still holding the list cannot add an unadmitted
         // combination after the snapshot has been hashed.
         return new OpenVinoCapabilityPayload(runtimeVersion, [.. admitted]);
@@ -321,6 +325,26 @@ internal static class OptimizationBounds
             $"Context bounds {minimum}..{maximum} are not a range,");
 }
 
+internal static class OptimizationAdmissionIdentity
+{
+    internal static void RequireUnique(IEnumerable<string> evidenceIds, string parameter)
+    {
+        HashSet<string> seen = new(StringComparer.Ordinal);
+
+        foreach (string evidenceId in evidenceIds)
+        {
+            if (!seen.Add(evidenceId))
+            {
+                throw new ArgumentException(
+                    "Admitted evidence identifiers must be unique within a route. "
+                    + "One identifier naming two configurations cannot bind a policy "
+                    + "or plan unambiguously.",
+                    parameter);
+            }
+        }
+    }
+}
+
 /// <summary>What the GGUF route can currently do on this machine.</summary>
 public sealed record GgufCapabilityPayload
 {
@@ -328,27 +352,41 @@ public sealed record GgufCapabilityPayload
         string runtimeVersion,
         IReadOnlyList<GgufAdmittedConfiguration> admitted,
         bool hasHigherPrecisionSource,
-        GgufRequantisationPolicy? requantisationPolicy)
+        GgufRequantisationPolicy? requantisationPolicy,
+        GgufConversionSourceBinding? conversionSource,
+        GgufQuantiserIdentity? admittedQuantiser)
     {
         RuntimeVersion = runtimeVersion;
         Admitted = admitted;
         HasHigherPrecisionSource = hasHigherPrecisionSource;
         RequantisationPolicy = requantisationPolicy;
+        ConversionSource = conversionSource;
+        AdmittedQuantiser = admittedQuantiser;
     }
 
     public string RuntimeVersion { get; }
 
     public IReadOnlyList<GgufAdmittedConfiguration> Admitted { get; }
 
+    /// <summary>
+    /// Legacy discovery information only. Conversion authority comes solely
+    /// from <see cref="ConversionSource"/> and <see cref="AdmittedQuantiser"/>.
+    /// </summary>
     public bool HasHigherPrecisionSource { get; }
 
     public GgufRequantisationPolicy? RequantisationPolicy { get; }
+
+    public GgufConversionSourceBinding? ConversionSource { get; }
+
+    public GgufQuantiserIdentity? AdmittedQuantiser { get; }
 
     public static GgufCapabilityPayload Create(
         string runtimeVersion,
         IReadOnlyList<GgufAdmittedConfiguration> admitted,
         bool hasHigherPrecisionSource = false,
-        GgufRequantisationPolicy? requantisationPolicy = null)
+        GgufRequantisationPolicy? requantisationPolicy = null,
+        GgufConversionSourceBinding? conversionSource = null,
+        GgufQuantiserIdentity? admittedQuantiser = null)
     {
         ArgumentNullException.ThrowIfNull(admitted);
 
@@ -364,11 +402,16 @@ public sealed record GgufCapabilityPayload
                 nameof(admitted));
         }
 
+        OptimizationAdmissionIdentity.RequireUnique(
+            admitted.Select(entry => entry.EvidenceId), nameof(admitted));
+
         return new GgufCapabilityPayload(
             runtimeVersion,
             [.. admitted],
             hasHigherPrecisionSource,
-            requantisationPolicy);
+            requantisationPolicy,
+            conversionSource,
+            admittedQuantiser);
     }
 }
 

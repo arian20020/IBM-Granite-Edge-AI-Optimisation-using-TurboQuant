@@ -227,7 +227,14 @@ public sealed class PrivacyCanaryTests
         // they identify which upstream run's facts were claimed, for
         // correlation and stale-claim detection.
         "HandoffClaim.ModelInspectionRunId",
-        "HandoffClaim.ProductHardwareRunId"
+        "HandoffClaim.ProductHardwareRunId",
+
+        // Cryptographic digests of a source artifact and an admitted GGUF
+        // configuration. These are fixed-format identities, never paths,
+        // filenames, model names or native errors.
+        "GgufConversionSourceBinding.SourceSha256",
+        "GgufRequantisationPolicy.AdmittedConfigurationSha256",
+        "GgufRequantisationPolicy.ComputeAdmittedConfigurationSha256"
     ];
 
     private static readonly BindingFlags AllMembers =

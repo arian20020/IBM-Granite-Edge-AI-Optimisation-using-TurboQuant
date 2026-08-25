@@ -1,3 +1,6 @@
+using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Execution;
 
 namespace GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
@@ -15,15 +18,17 @@ public sealed record GgufRequantisationPolicy
         bool preserveOriginal,
         bool requireNewOutput,
         string evidenceId,
+        string admittedConfigurationSha256,
         GgufQuantiserIdentity quantiser,
-        OptimizationJourneyBinding binding)
+        GgufConversionSourceBinding source)
     {
         ExplicitlyAcknowledged = explicitlyAcknowledged;
         PreserveOriginal = preserveOriginal;
         RequireNewOutput = requireNewOutput;
         EvidenceId = evidenceId;
+        AdmittedConfigurationSha256 = admittedConfigurationSha256;
         Quantiser = quantiser;
-        Binding = binding;
+        Source = source;
     }
 
     public bool ExplicitlyAcknowledged { get; }
@@ -34,35 +39,54 @@ public sealed record GgufRequantisationPolicy
 
     public string EvidenceId { get; }
 
+    public string AdmittedConfigurationSha256 { get; }
+
     public GgufQuantiserIdentity Quantiser { get; }
 
-    public OptimizationJourneyBinding Binding { get; }
+    public GgufConversionSourceBinding Source { get; }
 
-    internal bool Authorizes(string evidenceId) =>
+    internal bool Authorizes(GgufAdmittedConfiguration admitted) =>
         ExplicitlyAcknowledged
         && PreserveOriginal
         && RequireNewOutput
-        && string.Equals(EvidenceId, evidenceId, StringComparison.Ordinal);
+        && string.Equals(EvidenceId, admitted.EvidenceId, StringComparison.Ordinal)
+        && string.Equals(
+            AdmittedConfigurationSha256,
+            ComputeAdmittedConfigurationSha256(admitted),
+            StringComparison.Ordinal);
 
     public static GgufRequantisationPolicy Create(
         bool explicitlyAcknowledged,
         bool preserveOriginal,
         bool requireNewOutput,
-        string evidenceId,
+        GgufAdmittedConfiguration admitted,
         GgufQuantiserIdentity quantiser,
-        OptimizationJourneyBinding binding)
+        GgufConversionSourceBinding source)
     {
+        ArgumentNullException.ThrowIfNull(admitted);
         OptimizationIdentifier.Require(
-            evidenceId, nameof(evidenceId), "The requantisation evidence");
+            admitted.EvidenceId, nameof(admitted), "The requantisation evidence");
         ArgumentNullException.ThrowIfNull(quantiser);
-        ArgumentNullException.ThrowIfNull(binding);
+        ArgumentNullException.ThrowIfNull(source);
 
         return new GgufRequantisationPolicy(
             explicitlyAcknowledged,
             preserveOriginal,
             requireNewOutput,
-            evidenceId,
+            admitted.EvidenceId,
+            ComputeAdmittedConfigurationSha256(admitted),
             quantiser,
-            binding);
+            source);
+    }
+
+    internal static string ComputeAdmittedConfigurationSha256(
+        GgufAdmittedConfiguration admitted)
+    {
+        string canonical = string.Create(
+            CultureInfo.InvariantCulture,
+            $"evidence={admitted.EvidenceId}|backend={(int)admitted.Backend}|device={(int)admitted.Device}|weights={(int)admitted.Weights}|cache={(int)admitted.KvCache}|offload={(int)admitted.Offload}|min={admitted.MinimumContextTokens}|max={admitted.MaximumContextTokens}|level={(int)admitted.Level}|requiresEvidence={(admitted.RequiresEvidence ? 1 : 0)}");
+
+        return Convert.ToHexString(SHA256.HashData(
+            new UTF8Encoding(false).GetBytes(canonical))).ToLowerInvariant();
     }
 }

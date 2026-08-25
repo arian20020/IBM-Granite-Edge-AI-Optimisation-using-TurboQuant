@@ -123,7 +123,9 @@ public sealed record GgufExecutionPayload
         string profileId,
         int maximumGeneratedTokens,
         GgufWeightFormat persistentTargetWeightFormat,
-        GgufQuantiserIdentity? quantiser)
+        GgufQuantiserIdentity? quantiser,
+        GgufConversionSourceBinding? conversionSource,
+        GgufRequantisationPolicy? requantisationPolicy)
     {
         RuntimeBuildId = runtimeBuildId;
         RuntimeSourceCommit = runtimeSourceCommit;
@@ -141,6 +143,8 @@ public sealed record GgufExecutionPayload
         MaximumGeneratedTokens = maximumGeneratedTokens;
         PersistentTargetWeightFormat = persistentTargetWeightFormat;
         Quantiser = quantiser;
+        ConversionSource = conversionSource;
+        RequantisationPolicy = requantisationPolicy;
     }
 
     public string RuntimeBuildId { get; }
@@ -203,6 +207,10 @@ public sealed record GgufExecutionPayload
     /// </summary>
     public GgufQuantiserIdentity? Quantiser { get; }
 
+    public GgufConversionSourceBinding? ConversionSource { get; }
+
+    public GgufRequantisationPolicy? RequantisationPolicy { get; }
+
     /// <summary>
     /// Whether executing this writes a new GGUF file. Derived from the target
     /// format rather than supplied alongside it, so the two cannot disagree.
@@ -226,7 +234,9 @@ public sealed record GgufExecutionPayload
         string profileId,
         int maximumGeneratedTokens,
         GgufWeightFormat persistentTargetWeightFormat,
-        GgufQuantiserIdentity? quantiser = null)
+        GgufQuantiserIdentity? quantiser = null,
+        GgufConversionSourceBinding? conversionSource = null,
+        GgufRequantisationPolicy? requantisationPolicy = null)
     {
         OptimizationIdentifier.Require(
             runtimeBuildId, nameof(runtimeBuildId), "The runtime build");
@@ -297,7 +307,9 @@ public sealed record GgufExecutionPayload
             profileId,
             maximumGeneratedTokens,
             persistentTargetWeightFormat,
-            quantiser);
+            quantiser,
+            conversionSource,
+            requantisationPolicy);
     }
 
     private static void RequireGitCommit(string value, string parameter)

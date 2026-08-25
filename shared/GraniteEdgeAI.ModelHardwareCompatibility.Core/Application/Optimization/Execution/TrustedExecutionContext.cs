@@ -116,12 +116,19 @@ public sealed class TrustedSourceContext
                 nameof(localSourcePath));
         }
 
+        OptimizationJourneyBinding expected =
+            plan.Route == OptimizationRoute.Gguf
+                && plan.ProducesPersistentArtifact
+                && plan.ExecutionPayload.Gguf?.ConversionSource is { } conversionSource
+                    ? conversionSource.Journey
+                    : plan.Binding;
+
         return new TrustedSourceContext(
             plan.OptimizationPlanId,
-            plan.Binding.ModelInspectionRunId,
-            plan.Binding.ModelInspectionHandoffId,
-            plan.Binding.ModelSha256,
-            plan.Binding.ModelLengthBytes,
+            expected.ModelInspectionRunId,
+            expected.ModelInspectionHandoffId,
+            expected.ModelSha256,
+            expected.ModelLengthBytes,
             localSourcePath);
     }
 

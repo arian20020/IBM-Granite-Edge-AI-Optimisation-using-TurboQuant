@@ -226,6 +226,45 @@ public sealed class OptimizationCapabilitySnapshotTests
     }
 
     [TestMethod]
+    public void DuplicateEvidenceIdsAreRefusedForBothRoutes()
+    {
+        OpenVinoAdmittedConfiguration ov = OpenVinoAdmittedConfiguration.Create(
+            "duplicate", DeviceRouteId.Cpu, OpenVinoWeightFormat.Int8,
+            OpenVinoKvCacheFormat.U8, OpenVinoPerformanceHint.Latency,
+            OpenVinoCompiledCachePolicy.Enabled, 1, 512, 32768,
+            SupportLevel.DeclaredSupported, false);
+        GgufAdmittedConfiguration gguf = GgufAdmittedConfiguration.Create(
+            "duplicate", CompatibilityBackend.Cpu, DeviceRouteId.Cpu,
+            GgufWeightFormat.Q4KM, GgufKvCacheFormat.F16,
+            GpuOffloadLevel.None, 512, 32768,
+            SupportLevel.DeclaredSupported, false);
+
+        Assert.ThrowsExactly<ArgumentException>(
+            () => OpenVinoCapabilityPayload.Create("2026.1.0", [ov, ov]));
+        Assert.ThrowsExactly<ArgumentException>(
+            () => GgufCapabilityPayload.Create("b4321", [gguf, gguf]));
+    }
+
+    [TestMethod]
+    public void ConversionSourceBindingRequiresExactIdentityAndEstablishedPrecision()
+    {
+        OptimizationJourneyBinding binding = OptimizationJourneyBinding.Create(
+            "source-run", "source-handoff", Digest, 4096, "source-hardware", Digest);
+
+        GgufConversionSourceBinding source = GgufConversionSourceBinding.Create(
+            WeightQuantisation.F16, binding);
+
+        Assert.AreEqual(Digest, source.SourceSha256);
+        Assert.AreEqual(4096UL, source.SourceLengthBytes);
+        Assert.AreEqual(WeightQuantisation.F16, source.Precision);
+        Assert.AreSame(binding, source.Journey);
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            GgufConversionSourceBinding.Create(WeightQuantisation.Unknown, binding));
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() =>
+            GgufConversionSourceBinding.Create((WeightQuantisation)999, binding));
+    }
+
+    [TestMethod]
     public void EveryRouteHasAFactory()
     {
         // A route with no way to build a snapshot could never be planned for,

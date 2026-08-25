@@ -80,6 +80,21 @@ internal static class OptimizationCanonicalizer
                 + "executor accept a plan it cannot present faithfully.",
                 nameof(candidate));
         }
+        if (candidate.ConversionProvenance != OptimizationConversionProvenance.None)
+        {
+            throw new ArgumentException(
+                "Contract version 2 has no GGUF conversion-provenance vocabulary.",
+                nameof(candidate));
+        }
+
+        if (payload.Gguf is { } gguf
+            && (gguf.ConversionSource is not null || gguf.RequantisationPolicy is not null))
+        {
+            throw new ArgumentException(
+                "Contract version 2 has no bound GGUF conversion-source or "
+                + "requantisation-policy vocabulary.",
+                nameof(payload));
+        }
     }
 
     /// <summary>
@@ -119,6 +134,11 @@ internal static class OptimizationCanonicalizer
         Append(builder, "persistent", candidate.Metrics.RequiresPersistentChange ? 1 : 0);
         Append(builder, "evidence", candidate.EvidenceId);
         Append(builder, "experimental", candidate.IsExperimental ? 1 : 0);
+        if (contractVersion >= 3
+            && candidate.ConversionProvenance != OptimizationConversionProvenance.None)
+        {
+            Append(builder, "conversionProvenance", (int)candidate.ConversionProvenance);
+        }
         if (contractVersion >= 3 && candidate.Notice != OptimizationCandidateNotice.None)
         {
             Append(builder, "notice", (int)candidate.Notice);
@@ -127,7 +147,7 @@ internal static class OptimizationCanonicalizer
         switch (payload.Route)
         {
             case OptimizationRoute.Gguf:
-                AppendGguf(builder, payload.Gguf!);
+                AppendGguf(builder, payload.Gguf!, contractVersion);
                 break;
 
             case OptimizationRoute.OpenVino:
@@ -167,7 +187,8 @@ internal static class OptimizationCanonicalizer
     /// Every GGUF execution field, in a fixed order. A field missing here is a
     /// field an executor could change without changing the plan's identity.
     /// </summary>
-    private static void AppendGguf(StringBuilder builder, GgufExecutionPayload gguf)
+    private static void AppendGguf(
+        StringBuilder builder, GgufExecutionPayload gguf, int contractVersion)
     {
         Append(builder, "gguf.runtimeBuildId", gguf.RuntimeBuildId);
         Append(builder, "gguf.runtimeSourceCommit", gguf.RuntimeSourceCommit);
@@ -200,6 +221,53 @@ internal static class OptimizationCanonicalizer
         else
         {
             Append(builder, "gguf.quantiser", "none");
+        }
+
+        if (contractVersion >= 3)
+        {
+            AppendGgufConversionAuthority(builder, gguf);
+        }
+    }
+
+    private static void AppendGgufConversionAuthority(
+        StringBuilder builder, GgufExecutionPayload gguf)
+    {
+        if (gguf.ConversionSource is { } source)
+        {
+            Append(builder, "gguf.source.precision", (int)source.Precision);
+            Append(builder, "gguf.source.sha256", source.SourceSha256);
+            Append(builder, "gguf.source.length", source.SourceLengthBytes.ToString(CultureInfo.InvariantCulture));
+            Append(builder, "gguf.source.inspectionRun", source.Journey.ModelInspectionRunId);
+            Append(builder, "gguf.source.inspectionHandoff", source.Journey.ModelInspectionHandoffId);
+            Append(builder, "gguf.source.hardwareRun", source.Journey.ProductHardwareRunId);
+            Append(builder, "gguf.source.hardwareSha256", source.Journey.HardwareSnapshotSha256);
+        }
+        else
+        {
+            Append(builder, "gguf.source", "none");
+        }
+
+        if (gguf.RequantisationPolicy is { } policy)
+        {
+            Append(builder, "gguf.requant.acknowledged", policy.ExplicitlyAcknowledged ? 1 : 0);
+            Append(builder, "gguf.requant.preserveOriginal", policy.PreserveOriginal ? 1 : 0);
+            Append(builder, "gguf.requant.requireNewOutput", policy.RequireNewOutput ? 1 : 0);
+            Append(builder, "gguf.requant.evidence", policy.EvidenceId);
+            Append(builder, "gguf.requant.admittedSha256", policy.AdmittedConfigurationSha256);
+            Append(builder, "gguf.requant.quantiserPackage", policy.Quantiser.PackageId);
+            Append(builder, "gguf.requant.quantiserVersion", policy.Quantiser.ToolVersion);
+            Append(builder, "gguf.requant.quantiserSha256", policy.Quantiser.ExecutableSha256);
+            Append(builder, "gguf.requant.sourcePrecision", (int)policy.Source.Precision);
+            Append(builder, "gguf.requant.sourceSha256", policy.Source.SourceSha256);
+            Append(builder, "gguf.requant.sourceLength", policy.Source.SourceLengthBytes.ToString(CultureInfo.InvariantCulture));
+            Append(builder, "gguf.requant.sourceInspectionRun", policy.Source.Journey.ModelInspectionRunId);
+            Append(builder, "gguf.requant.sourceInspectionHandoff", policy.Source.Journey.ModelInspectionHandoffId);
+            Append(builder, "gguf.requant.sourceHardwareRun", policy.Source.Journey.ProductHardwareRunId);
+            Append(builder, "gguf.requant.sourceHardwareSha256", policy.Source.Journey.HardwareSnapshotSha256);
+        }
+        else
+        {
+            Append(builder, "gguf.requant", "none");
         }
     }
 

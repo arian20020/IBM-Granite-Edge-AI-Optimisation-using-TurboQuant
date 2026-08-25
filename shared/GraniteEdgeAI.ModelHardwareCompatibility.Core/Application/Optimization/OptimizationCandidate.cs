@@ -49,7 +49,15 @@ public enum OptimizationCandidateNotice
 {
     None = 0,
     LowQuality,
+    Requantisation,
     LowQualityRequantisation
+}
+
+public enum OptimizationConversionProvenance
+{
+    None = 0,
+    HigherPrecisionSource,
+    ControlledRequantisation
 }
 
 /// <summary>
@@ -217,6 +225,7 @@ public sealed record OptimizationCandidate
         OptimizationCandidateMetrics metrics,
         string evidenceId,
         bool isExperimental,
+        OptimizationConversionProvenance conversionProvenance,
         OptimizationCandidateNotice notice)
     {
         Route = route;
@@ -224,6 +233,7 @@ public sealed record OptimizationCandidate
         Metrics = metrics;
         EvidenceId = evidenceId;
         IsExperimental = isExperimental;
+        ConversionProvenance = conversionProvenance;
         Notice = notice;
     }
 
@@ -242,6 +252,8 @@ public sealed record OptimizationCandidate
 
     public bool IsExperimental { get; }
 
+    public OptimizationConversionProvenance ConversionProvenance { get; }
+
     public OptimizationCandidateNotice Notice { get; }
 
     /// <summary>
@@ -258,7 +270,8 @@ public sealed record OptimizationCandidate
         OptimizationCandidateMetrics metrics,
         string evidenceId,
         bool isExperimental,
-        OptimizationCandidateNotice notice = OptimizationCandidateNotice.None)
+        OptimizationConversionProvenance conversionProvenance =
+            OptimizationConversionProvenance.None)
     {
         ArgumentNullException.ThrowIfNull(configuration);
         ArgumentNullException.ThrowIfNull(metrics);
@@ -266,23 +279,33 @@ public sealed record OptimizationCandidate
         OptimizationIdentifier.Require(
             evidenceId, nameof(evidenceId), "The evidence behind a candidate");
 
-        if (!Enum.IsDefined(notice))
+        if (!Enum.IsDefined(conversionProvenance))
         {
             throw new ArgumentOutOfRangeException(
-                nameof(notice), notice, "An undefined notice cannot be presented.");
+                nameof(conversionProvenance), conversionProvenance,
+                "An undefined conversion provenance cannot be planned.");
         }
 
         if (configuration is GgufRouteConfiguration
                 { Weights: GgufWeightFormat.Q2K }
-            && notice is not (OptimizationCandidateNotice.LowQuality
-                or OptimizationCandidateNotice.LowQualityRequantisation))
+            && metrics.Quality != OptimizationAssessment.Poor)
         {
             throw new ArgumentException(
-                "A Q2_K candidate must carry its typed low-quality warning; "
-                + "without it a presentation surface could offer the product "
-                + "floor as an ordinary precision.",
-                nameof(notice));
+                "A Q2_K candidate is always Poor on the coarse quality scale. "
+                + "Caller-supplied metrics cannot upgrade the product floor.",
+                nameof(metrics));
         }
+
+        if (conversionProvenance != OptimizationConversionProvenance.None
+            && !metrics.RequiresPersistentChange)
+        {
+            throw new ArgumentException(
+                "Conversion provenance requires a persistent new artifact.",
+                nameof(conversionProvenance));
+        }
+
+        OptimizationCandidateNotice notice = ExpectedNotice(
+            configuration, metrics, conversionProvenance);
 
         // The discriminator is derived from the configuration rather than
         // supplied alongside it, so the two can never disagree and no caller
@@ -298,6 +321,55 @@ public sealed record OptimizationCandidate
         };
 
         return new OptimizationCandidate(
-            route, configuration, metrics, evidenceId, isExperimental, notice);
+            route, configuration, metrics, evidenceId, isExperimental,
+            conversionProvenance, notice);
+    }
+
+    internal static OptimizationCandidateNotice ExpectedNotice(
+        RouteConfiguration configuration,
+        OptimizationCandidateMetrics metrics,
+        OptimizationConversionProvenance provenance)
+    {
+        if (provenance == OptimizationConversionProvenance.ControlledRequantisation)
+        {
+            return configuration is GgufRouteConfiguration
+                    { Weights: GgufWeightFormat.Q2K }
+                ? OptimizationCandidateNotice.LowQualityRequantisation
+                : OptimizationCandidateNotice.Requantisation;
+        }
+
+        return metrics.Quality == OptimizationAssessment.Poor
+            ? OptimizationCandidateNotice.LowQuality
+            : OptimizationCandidateNotice.None;
+    }
+
+    /// <summary>
+    /// Reconstructs an authentic released-v2 candidate whose vocabulary had no
+    /// notice or conversion provenance. Kept internal so new planning cannot
+    /// silently discard a warning; the v2 canonical verifier is its sole use.
+    /// </summary>
+    internal static OptimizationCandidate CreateLegacyVersionTwo(
+        RouteConfiguration configuration,
+        OptimizationCandidateMetrics metrics,
+        string evidenceId,
+        bool isExperimental)
+    {
+        if (configuration is GgufRouteConfiguration
+            { Weights: GgufWeightFormat.Q2K })
+        {
+            throw new ArgumentException(
+                "Q2_K did not exist in the released version-two vocabulary.",
+                nameof(configuration));
+        }
+
+        OptimizationCandidate validated = Create(
+            configuration, metrics, evidenceId, isExperimental,
+            OptimizationConversionProvenance.None);
+
+        return new OptimizationCandidate(
+            validated.Route, validated.Configuration, validated.Metrics,
+            validated.EvidenceId, validated.IsExperimental,
+            OptimizationConversionProvenance.None,
+            OptimizationCandidateNotice.None);
     }
 }

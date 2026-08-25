@@ -50,16 +50,25 @@ public sealed class OptimizationExecutionContractV2Tests
             DeviceRouteId device = DeviceRouteId.Cpu,
             GpuOffloadLevel offload = GpuOffloadLevel.None,
             int context = 4096,
-            OptimizationCandidateNotice notice = OptimizationCandidateNotice.None)
+            OptimizationConversionProvenance provenance =
+                OptimizationConversionProvenance.None,
+            OptimizationAssessment quality = OptimizationAssessment.Good)
         {
             bool persistent = weights != GgufWeightFormat.Imported;
+            OptimizationConversionProvenance effectiveProvenance =
+                persistent && provenance == OptimizationConversionProvenance.None
+                    ? OptimizationConversionProvenance.HigherPrecisionSource
+                    : provenance;
+            OptimizationAssessment effectiveQuality = weights == GgufWeightFormat.Q2K
+                ? OptimizationAssessment.Poor
+                : quality;
 
             return OptimizationCandidate.Create(
                 GgufRouteConfiguration.Create(weights, cache, backend, device, offload),
-                Metrics(context, persistent),
+                Metrics(context, persistent, effectiveQuality),
                 "gguf-evidence",
                 isExperimental: false,
-                notice);
+                effectiveProvenance);
         }
 
         internal static GgufQuantiserIdentity Quantiser(
@@ -67,6 +76,16 @@ public sealed class OptimizationExecutionContractV2Tests
             string toolVersion = "b4321",
             string executableSha256 = Digest64) =>
             GgufQuantiserIdentity.Create(packageId, toolVersion, executableSha256);
+
+        internal static OptimizationCandidate LegacyGgufQ3Candidate() =>
+            OptimizationCandidate.CreateLegacyVersionTwo(
+                GgufRouteConfiguration.Create(
+                    GgufWeightFormat.Q3KM, GgufKvCacheFormat.F16,
+                    CompatibilityBackend.Cpu, DeviceRouteId.Cpu,
+                    GpuOffloadLevel.None),
+                Metrics(4096, persistent: true, OptimizationAssessment.Poor),
+                "gguf-evidence",
+                isExperimental: false);
 
         internal static GgufExecutionPayload GgufPayload(
             string runtimeBuildId = "gguf-build-1",
@@ -91,19 +110,36 @@ public sealed class OptimizationExecutionContractV2Tests
                 threadCount, batchSize, evidenceGrade, profileId,
                 maximumGeneratedTokens, persistentTarget, quantiser);
 
-        internal static OptimizationCapabilitySnapshot GgufSnapshot() =>
+        internal static OptimizationCapabilitySnapshot GgufSnapshot(
+            OptimizationCandidate candidate,
+            GgufExecutionPayload executionPayload)
+        {
+            GgufRouteConfiguration configuration =
+                (GgufRouteConfiguration)candidate.Configuration;
+            GgufConversionSourceBinding? source = candidate.Metrics.RequiresPersistentChange
+                ? GgufConversionSourceBinding.Create(
+                    WeightQuantisation.F16, Binding())
+                : null;
+
+            return
             OptimizationCapabilitySnapshot.ForGguf(
                 "gguf-cap", Digest64,
                 GgufCapabilityPayload.Create(
                     "b4321",
                     [
                         GgufAdmittedConfiguration.Create(
-                            "gguf-evidence", CompatibilityBackend.Cpu, DeviceRouteId.Cpu,
-                            GgufWeightFormat.Imported, GgufKvCacheFormat.F16,
-                            GpuOffloadLevel.None, 512, 32768,
+                            "gguf-evidence", configuration.Backend, configuration.Device,
+                            configuration.Weights, configuration.KvCache,
+                            configuration.Offload, 512, 32768,
                             SupportLevel.DeclaredSupported, false)
                     ],
-                    hasHigherPrecisionSource: true));
+                    hasHigherPrecisionSource: true,
+                    conversionSource: source,
+                    admittedQuantiser: executionPayload.Quantiser));
+        }
+
+        internal static OptimizationCapabilitySnapshot GgufSnapshot() =>
+            GgufSnapshot(GgufCandidate(), GgufPayload());
 
         // ---- OpenVINO ----
 
@@ -192,10 +228,12 @@ public sealed class OptimizationExecutionContractV2Tests
                             1, 512, 32768, SupportLevel.DeclaredSupported, false)
                     ]));
 
-        private static OptimizationCandidateMetrics Metrics(int context, bool persistent) =>
+        private static OptimizationCandidateMetrics Metrics(
+            int context, bool persistent,
+            OptimizationAssessment quality = OptimizationAssessment.Good) =>
             OptimizationCandidateMetrics.Create(
                 EvidenceGrade.Estimated,
-                OptimizationAssessment.Good,
+                quality,
                 OptimizationAssessment.Good,
                 OptimizationAssessment.Good,
                 context,
@@ -210,17 +248,37 @@ public sealed class OptimizationExecutionContractV2Tests
     private static OptimizationExecutionPlan IssueGguf(
         OptimizationCandidate? candidate = null,
         GgufExecutionPayload? payload = null,
-        int modelLayers = ModelLayers) =>
-        OptimizationPlanIssuer.Issue(
+        int modelLayers = ModelLayers)
+    {
+        OptimizationCandidate chosen = candidate ?? V2TestData.GgufCandidate();
+        GgufExecutionPayload chosenPayload = payload ?? V2TestData.GgufPayload();
+        if (chosen.Metrics.RequiresPersistentChange
+            && chosenPayload.ConversionSource is null)
+        {
+            chosenPayload = GgufExecutionPayload.Create(
+                chosenPayload.RuntimeBuildId, chosenPayload.RuntimeSourceCommit,
+                chosenPayload.Backend, chosenPayload.DeviceId, chosenPayload.ContextSize,
+                chosenPayload.KeyCacheType, chosenPayload.ValueCacheType,
+                chosenPayload.GpuLayerCount, chosenPayload.FlashAttention,
+                chosenPayload.ThreadCount, chosenPayload.BatchSize,
+                chosenPayload.EvidenceGrade, chosenPayload.ProfileId,
+                chosenPayload.MaximumGeneratedTokens,
+                chosenPayload.PersistentTargetWeightFormat, chosenPayload.Quantiser,
+                GgufConversionSourceBinding.Create(
+                    WeightQuantisation.F16, V2TestData.Binding()));
+        }
+
+        return OptimizationPlanIssuer.Issue(
             OptimizationPreferenceResolver.Resolve(
-                [candidate ?? V2TestData.GgufCandidate()],
+                [chosen],
                 OptimizationPreferenceSelection.Manual(50))!,
-            OptimizationExecutionPayload.ForGguf(payload ?? V2TestData.GgufPayload()),
-            V2TestData.GgufSnapshot(),
+            OptimizationExecutionPayload.ForGguf(chosenPayload),
+            V2TestData.GgufSnapshot(chosen, chosenPayload),
             V2TestData.Workload(),
             V2TestData.Binding(),
             modelLayers,
             DateTimeOffset.UnixEpoch);
+    }
 
     private static OptimizationExecutionPlan IssueOpenVino(
         OptimizationCandidate? candidate = null,
@@ -266,6 +324,24 @@ public sealed class OptimizationExecutionContractV2Tests
     }
 
     [TestMethod]
+    public void GgufQ3V2CandidateRemainsNoticeFreeAndCanonicalizable()
+    {
+        OptimizationCandidate candidate = V2TestData.LegacyGgufQ3Candidate();
+        OptimizationExecutionPayload payload = OptimizationExecutionPayload.ForGguf(
+            V2TestData.GgufPayload(
+                persistentTarget: GgufWeightFormat.Q3KM,
+                quantiser: V2TestData.Quantiser()));
+
+        Assert.AreEqual(OptimizationCandidateNotice.None, candidate.Notice);
+        Assert.AreEqual(
+            "v=1:2|route=1:1|config=42:gguf|w=Q3KM|kv=F16|be=Cpu|dev=Cpu|off=None|ctx=4:4096|persistent=1:1|evidence=13:gguf-evidence|experimental=1:0|gguf.runtimeBuildId=12:gguf-build-1|gguf.runtimeSourceCommit=40:0123456789abcdef0123456789abcdef01234567|gguf.backend=1:0|gguf.deviceId=3:CPU|gguf.contextSize=4:4096|gguf.keyCacheType=1:0|gguf.valueCacheType=1:0|gguf.gpuLayerCount=1:0|gguf.flashAttention=1:0|gguf.threadCount=1:8|gguf.batchSize=3:512|gguf.evidenceGrade=9:Estimated|gguf.profileId=9:profile-1|gguf.maximumGeneratedTokens=3:512|gguf.persistentTargetWeightFormat=1:8|gguf.quantiser.packageId=18:llama-quantize-pkg|gguf.quantiser.toolVersion=5:b4321|gguf.quantiser.executableSha256=64:1111111111111111111111111111111111111111111111111111111111111111",
+            OptimizationCanonicalizer.CanonicalizeV2(candidate, payload));
+        Assert.AreEqual(
+            "fd3699ffb644b9a8a15ec6aa4080f79779c78fb2a42461cdc7356180e007eb10",
+            OptimizationCanonicalizer.ConfigurationSha256V2(candidate, payload));
+    }
+
+    [TestMethod]
     [DataRow(OpenVinoKvCachePrecision.F16)]
     [DataRow(OpenVinoKvCachePrecision.Bf16)]
     [DataRow(OpenVinoKvCachePrecision.U4)]
@@ -303,7 +379,7 @@ public sealed class OptimizationExecutionContractV2Tests
     {
         OptimizationCandidate candidate = V2TestData.GgufCandidate(
             weights: GgufWeightFormat.Q2K,
-            notice: OptimizationCandidateNotice.LowQuality);
+            provenance: OptimizationConversionProvenance.HigherPrecisionSource);
         OptimizationExecutionPayload payload = OptimizationExecutionPayload.ForGguf(
             V2TestData.GgufPayload(
                 persistentTarget: GgufWeightFormat.Q2K,
@@ -334,20 +410,33 @@ public sealed class OptimizationExecutionContractV2Tests
                 persistentTarget: GgufWeightFormat.Q4KM,
                 quantiser: V2TestData.Quantiser()));
 
-        foreach (OptimizationCandidateNotice notice in
-            Enum.GetValues<OptimizationCandidateNotice>().Where(value =>
-                value != OptimizationCandidateNotice.None))
-        {
-            OptimizationCandidate candidate = V2TestData.GgufCandidate(
+        OptimizationCandidate[] candidates =
+        [
+            V2TestData.GgufCandidate(
+                weights: GgufWeightFormat.Q2K,
+                provenance: OptimizationConversionProvenance.HigherPrecisionSource,
+                quality: OptimizationAssessment.Poor),
+            V2TestData.GgufCandidate(
                 weights: GgufWeightFormat.Q4KM,
-                notice: notice);
+                provenance: OptimizationConversionProvenance.ControlledRequantisation),
+            V2TestData.GgufCandidate(
+                weights: GgufWeightFormat.Q2K,
+                provenance: OptimizationConversionProvenance.ControlledRequantisation)
+        ];
 
+        CollectionAssert.AreEquivalent(
+            Enum.GetValues<OptimizationCandidateNotice>()
+                .Where(value => value != OptimizationCandidateNotice.None).ToArray(),
+            candidates.Select(candidate => candidate.Notice).ToArray());
+
+        foreach (OptimizationCandidate candidate in candidates)
+        {
             Assert.ThrowsExactly<ArgumentException>(
                 () => OptimizationCanonicalizer.CanonicalizeV2(candidate, payload),
-                $"V2 accepted candidate notice {notice}.");
+                $"V2 accepted candidate notice {candidate.Notice}.");
             Assert.ThrowsExactly<ArgumentException>(
                 () => OptimizationCanonicalizer.ConfigurationSha256V2(candidate, payload),
-                $"V2 hashed candidate notice {notice}.");
+                $"V2 hashed candidate notice {candidate.Notice}.");
         }
     }
 

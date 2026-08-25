@@ -1,5 +1,6 @@
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Contracts;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Execution;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.Gguf;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.OpenVino;
 
@@ -78,7 +79,7 @@ public static class OptimizationPlanIssuer
         }
 
         RequireAgreement(candidate, executionPayload, modelLayerCount);
-        RequireControlledGgufAgreement(
+        RequireGgufConversionAuthority(
             candidate, executionPayload, capabilitySnapshot, binding);
 
         return new OptimizationExecutionPlan(
@@ -98,38 +99,118 @@ public static class OptimizationPlanIssuer
             createdAtUtc);
     }
 
-    private static void RequireControlledGgufAgreement(
+    private static void RequireGgufConversionAuthority(
         OptimizationCandidate candidate,
         OptimizationExecutionPayload payload,
         OptimizationCapabilitySnapshot snapshot,
         OptimizationJourneyBinding binding)
     {
-        if (candidate.Configuration is not GgufRouteConfiguration configuration
-            || configuration.Weights == GgufWeightFormat.Imported
-            || snapshot.Gguf!.HasHigherPrecisionSource)
+        if (candidate.Configuration is not GgufRouteConfiguration configuration)
         {
             return;
         }
 
-        GgufRequantisationPolicy? policy = snapshot.Gguf!.RequantisationPolicy;
+        if (configuration.Weights == GgufWeightFormat.Q2K)
+        {
+            Require(
+                candidate.Metrics.Quality == OptimizationAssessment.Poor,
+                "Q2_K quality",
+                "the product floor must remain Poor regardless of caller metrics");
+        }
 
+        OptimizationCandidateNotice expectedNotice =
+            OptimizationCandidate.ExpectedNotice(
+                configuration, candidate.Metrics, candidate.ConversionProvenance);
         Require(
-            policy?.Authorizes(candidate.EvidenceId) == true,
-            "controlled requantisation evidence",
-            $"candidate evidence {candidate.EvidenceId} is not authorized");
+            candidate.Notice == expectedNotice,
+            "candidate warning",
+            $"expected {expectedNotice} but received {candidate.Notice}");
+
+        GgufExecutionPayload ggufPayload = payload.Gguf!;
+        if (!candidate.Metrics.RequiresPersistentChange)
+        {
+            Require(
+                ggufPayload.ConversionSource is null
+                    && ggufPayload.RequantisationPolicy is null,
+                "runtime-only conversion authority",
+                "a runtime-only plan must authorize no conversion source or policy");
+            return;
+        }
+
+        GgufCapabilityPayload capability = snapshot.Gguf!;
+        GgufAdmittedConfiguration? admitted = capability.Admitted.SingleOrDefault(entry =>
+            string.Equals(entry.EvidenceId, candidate.EvidenceId, StringComparison.Ordinal));
+        Require(admitted is not null, "admitted GGUF evidence", candidate.EvidenceId);
+
+        GgufRouteConfiguration admittedConfiguration = GgufRouteConfiguration.Create(
+            admitted!.Weights, admitted.KvCache, admitted.Backend, admitted.Device,
+            admitted.Offload);
         Require(
-            policy!.Binding == binding,
-            "controlled requantisation source binding",
-            "the acknowledgement was made for a different inspected source or plan journey");
+            admittedConfiguration == configuration
+                && candidate.Metrics.ContextTokens >= admitted.MinimumContextTokens
+                && candidate.Metrics.ContextTokens <= admitted.MaximumContextTokens,
+            "admitted GGUF configuration",
+            "the evidence identifier names a different target or context range");
+
+        GgufConversionSourceBinding? source = capability.ConversionSource;
         Require(
-            payload.Gguf!.Quantiser == policy.Quantiser,
-            "controlled requantisation quantiser",
-            "the payload does not pin the exact acknowledged quantiser identity");
+            source is not null && source == ggufPayload.ConversionSource,
+            "GGUF conversion source",
+            "capability and execution payload must bind the exact same source identity");
         Require(
-            candidate.Metrics.RequiresPersistentChange
-                && payload.Gguf.RequiresPersistentConversion,
-            "controlled requantisation output",
-            "requantisation must produce a new persistent output");
+            string.Equals(
+                source!.Journey.ProductHardwareRunId,
+                binding.ProductHardwareRunId,
+                StringComparison.Ordinal)
+                && string.Equals(
+                    source.Journey.HardwareSnapshotSha256,
+                    binding.HardwareSnapshotSha256,
+                    StringComparison.Ordinal),
+            "GGUF conversion source journey",
+            "the selected source was established against a different hardware journey");
+        Require(
+            capability.AdmittedQuantiser is not null
+                && capability.AdmittedQuantiser == ggufPayload.Quantiser,
+            "GGUF conversion quantiser",
+            "every persistent conversion must use the exact admitted quantiser identity");
+
+        WeightQuantisation target = GgufWeightFormatMap.ToCanonical(configuration.Weights);
+        Require(
+            source!.CanProduce(target),
+            "GGUF conversion precision",
+            $"source {source.Precision} cannot produce downward target {target}");
+
+        OptimizationConversionProvenance expectedProvenance = source.IsAlreadyQuantised
+            ? OptimizationConversionProvenance.ControlledRequantisation
+            : OptimizationConversionProvenance.HigherPrecisionSource;
+        Require(
+            candidate.ConversionProvenance == expectedProvenance,
+            "GGUF conversion provenance",
+            $"expected {expectedProvenance} but received {candidate.ConversionProvenance}");
+
+        if (source.IsAlreadyQuantised)
+        {
+            Require(
+                source.Journey == binding,
+                "controlled requantisation imported source",
+                "the acknowledged quantised source is not the imported model bound to the plan");
+            GgufRequantisationPolicy? policy = capability.RequantisationPolicy;
+            Require(
+                policy is not null
+                    && policy == ggufPayload.RequantisationPolicy
+                    && policy.Authorizes(admitted)
+                    && policy.Source == source
+                    && policy.Quantiser == capability.AdmittedQuantiser,
+                "controlled requantisation policy",
+                "acknowledgement, admitted target, source, or quantiser differs");
+        }
+        else
+        {
+            Require(
+                ggufPayload.RequantisationPolicy is null,
+                "ordinary conversion policy",
+                "a higher-precision conversion must not masquerade as requantisation");
+        }
     }
 
     /// <summary>

@@ -188,7 +188,7 @@ internal static class CrossRouteCandidateGenerator
             if (!TryResolveGgufPreparation(
                 payload, facts, admitted, out GgufWeightFormat effectiveWeights,
                 out bool requiresPersistentChange, out OptimizationAssessment quality,
-                out OptimizationCandidateNotice notice))
+                out OptimizationConversionProvenance provenance))
             {
                 string refusedDescriptor =
                     $"weights={admitted.Weights}|ctx={context.Tokens}";
@@ -241,7 +241,7 @@ internal static class CrossRouteCandidateGenerator
                 descriptor,
                 candidates,
                 exclusions,
-                notice);
+                provenance);
         }
     }
 
@@ -252,12 +252,12 @@ internal static class CrossRouteCandidateGenerator
         out GgufWeightFormat effectiveWeights,
         out bool requiresPersistentChange,
         out OptimizationAssessment quality,
-        out OptimizationCandidateNotice notice)
+        out OptimizationConversionProvenance provenance)
     {
         effectiveWeights = admitted.Weights;
         requiresPersistentChange = false;
         quality = OptimizationAssessment.Unknown;
-        notice = OptimizationCandidateNotice.None;
+        provenance = OptimizationConversionProvenance.None;
 
         WeightQuantisation source = WeightQuantisationMap.FromGgufFileType(
             facts.FileType, facts.QuantisationVersion);
@@ -271,11 +271,6 @@ internal static class CrossRouteCandidateGenerator
                 // encoding was not established; reachability does not depend
                 // on knowing the encoding because no conversion is requested.
                 quality = OptimizationAssessment.Excellent;
-            }
-
-            if (source == WeightQuantisation.Q2_K)
-            {
-                notice = OptimizationCandidateNotice.LowQuality;
             }
 
             return true;
@@ -293,33 +288,28 @@ internal static class CrossRouteCandidateGenerator
         if (source == target)
         {
             effectiveWeights = GgufWeightFormat.Imported;
-            if (target == WeightQuantisation.Q2_K)
-            {
-                notice = OptimizationCandidateNotice.LowQuality;
-            }
-
             return true;
         }
 
-        if (WeightQuantisationMap.BitsPerWeight(target)
-            > WeightQuantisationMap.BitsPerWeight(source))
+        if (payload.ConversionSource is not { } conversionSource
+            || payload.AdmittedQuantiser is null
+            || !conversionSource.CanProduce(target))
         {
             return false;
         }
 
-        if (!payload.HasHigherPrecisionSource
-            && !(payload.RequantisationPolicy?.Authorizes(admitted.EvidenceId) ?? false))
+        if (conversionSource.IsAlreadyQuantised
+            && (!(payload.RequantisationPolicy?.Authorizes(admitted) ?? false)
+                || payload.RequantisationPolicy.Source != conversionSource
+                || payload.RequantisationPolicy.Quantiser != payload.AdmittedQuantiser))
         {
             return false;
         }
 
         requiresPersistentChange = true;
-        if (admitted.Weights == GgufWeightFormat.Q2K)
-        {
-            notice = payload.HasHigherPrecisionSource
-                ? OptimizationCandidateNotice.LowQuality
-                : OptimizationCandidateNotice.LowQualityRequantisation;
-        }
+        provenance = conversionSource.IsAlreadyQuantised
+            ? OptimizationConversionProvenance.ControlledRequantisation
+            : OptimizationConversionProvenance.HigherPrecisionSource;
 
         return true;
     }
@@ -361,7 +351,8 @@ internal static class CrossRouteCandidateGenerator
         string descriptor,
         List<OptimizationCandidate> candidates,
         List<OptimizationExclusion> exclusions,
-        OptimizationCandidateNotice notice = OptimizationCandidateNotice.None)
+        OptimizationConversionProvenance provenance =
+            OptimizationConversionProvenance.None)
     {
         if (estimate.Status != EstimationStatus.Established)
         {
@@ -437,7 +428,7 @@ internal static class CrossRouteCandidateGenerator
                 requiresPersistentChange),
             evidenceId,
             level == SupportLevel.Experimental,
-            notice));
+            provenance));
     }
 }
 

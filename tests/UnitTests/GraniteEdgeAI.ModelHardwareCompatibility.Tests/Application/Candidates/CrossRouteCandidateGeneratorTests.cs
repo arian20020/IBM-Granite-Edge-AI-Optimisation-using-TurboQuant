@@ -68,10 +68,17 @@ public sealed class CrossRouteCandidateGeneratorTests
         internal static OptimizationCapabilitySnapshot GgufSnapshotWithPolicy(
             GgufRequantisationPolicy? requantisationPolicy = null,
             bool hasHigherPrecisionSource = false,
-            params GgufAdmittedConfiguration[] admitted) =>
-            OptimizationCapabilitySnapshot.ForGguf(
+            params GgufAdmittedConfiguration[] admitted)
+        {
+            GgufConversionSourceBinding? source = hasHigherPrecisionSource
+                ? Source(WeightQuantisation.F16)
+                : requantisationPolicy?.Source;
+
+            return OptimizationCapabilitySnapshot.ForGguf(
                 "gguf-cap", Digest, GgufCapabilityPayload.Create(
-                    "b4321", admitted, hasHigherPrecisionSource, requantisationPolicy));
+                    "b4321", admitted, hasHigherPrecisionSource, requantisationPolicy,
+                    source, source is null ? null : Quantiser()));
+        }
 
         internal static OptimizationJourneyBinding Binding() =>
             OptimizationJourneyBinding.Create(
@@ -80,6 +87,10 @@ public sealed class CrossRouteCandidateGeneratorTests
 
         internal static GgufQuantiserIdentity Quantiser() =>
             GgufQuantiserIdentity.Create("llama-quantize", "b4321", Digest);
+
+        internal static GgufConversionSourceBinding Source(
+            WeightQuantisation precision = WeightQuantisation.Q4_K_M) =>
+            GgufConversionSourceBinding.Create(precision, Binding());
 
         internal static GgufRequantisationPolicy Requantisation(
             string evidenceId = "gguf-q2",
@@ -90,9 +101,9 @@ public sealed class CrossRouteCandidateGeneratorTests
                 acknowledged,
                 preserveOriginal,
                 requireNewOutput,
-                evidenceId,
+                Gguf(evidenceId, GgufWeightFormat.Q2K),
                 Quantiser(),
-                Binding());
+                Source());
     }
 
     private static CrossRouteGenerationResult Generate(
@@ -304,12 +315,23 @@ public sealed class CrossRouteCandidateGeneratorTests
     }
 
     [TestMethod]
-    public void GenuineHigherPrecisionSourcePermitsOrdinaryDownwardConversion()
+    [DataRow(WeightQuantisation.F32)]
+    [DataRow(WeightQuantisation.BF16)]
+    [DataRow(WeightQuantisation.F16)]
+    public void GenuineHigherPrecisionSourcePermitsOrdinaryDownwardConversion(
+        WeightQuantisation sourcePrecision)
     {
+        GgufAdmittedConfiguration admitted =
+            CrossRouteTestData.Gguf("gguf-q2", GgufWeightFormat.Q2K);
+        GgufConversionSourceBinding source =
+            CrossRouteTestData.Source(sourcePrecision);
         OptimizationCandidate candidate = Generate(
-            CrossRouteTestData.GgufSnapshotWithPolicy(
-                hasHigherPrecisionSource: true,
-                admitted: CrossRouteTestData.Gguf("gguf-q2", GgufWeightFormat.Q2K)))
+            OptimizationCapabilitySnapshot.ForGguf(
+                "gguf-cap", Digest,
+                GgufCapabilityPayload.Create(
+                    "b4321", [admitted], hasHigherPrecisionSource: true,
+                    conversionSource: source,
+                    admittedQuantiser: CrossRouteTestData.Quantiser())))
             .Candidates.Single();
 
         Assert.IsTrue(candidate.Metrics.RequiresPersistentChange);
@@ -362,12 +384,108 @@ public sealed class CrossRouteCandidateGeneratorTests
     }
 
     [TestMethod]
+    [DataRow(7, WeightQuantisation.Q8_0, GgufWeightFormat.Q4KM,
+        OptimizationCandidateNotice.Requantisation)]
+    [DataRow(15, WeightQuantisation.Q4_K_M, GgufWeightFormat.Q3KM,
+        OptimizationCandidateNotice.Requantisation)]
+    [DataRow(15, WeightQuantisation.Q4_K_M, GgufWeightFormat.Q2K,
+        OptimizationCandidateNotice.LowQualityRequantisation)]
+    public void ControlledRequantisationDerivesWarningFromSourceAndTarget(
+        int fileType,
+        WeightQuantisation sourcePrecision,
+        GgufWeightFormat target,
+        OptimizationCandidateNotice expectedNotice)
+    {
+        GgufAdmittedConfiguration admitted = CrossRouteTestData.Gguf("same-id", target);
+        GgufConversionSourceBinding source = CrossRouteTestData.Source(sourcePrecision);
+        GgufQuantiserIdentity quantiser = CrossRouteTestData.Quantiser();
+        GgufRequantisationPolicy policy = GgufRequantisationPolicy.Create(
+            true, true, true, admitted, quantiser, source);
+        OptimizationCapabilitySnapshot snapshot = OptimizationCapabilitySnapshot.ForGguf(
+            "gguf-cap", Digest,
+            GgufCapabilityPayload.Create(
+                "b4321", [admitted], false, policy, source, quantiser));
+
+        OptimizationCandidate candidate = Generate(
+            snapshot, facts: CrossRouteTestData.Facts(fileType)).Candidates.Single();
+
+        Assert.AreEqual(expectedNotice, candidate.Notice);
+        Assert.AreEqual(
+            OptimizationConversionProvenance.ControlledRequantisation,
+            candidate.ConversionProvenance);
+    }
+
+    [TestMethod]
+    public void BooleanAloneNeverAuthorizesOrdinaryConversion()
+    {
+        GgufAdmittedConfiguration admitted =
+            CrossRouteTestData.Gguf("gguf-q2", GgufWeightFormat.Q2K);
+        OptimizationCapabilitySnapshot snapshot = OptimizationCapabilitySnapshot.ForGguf(
+            "gguf-cap", Digest,
+            GgufCapabilityPayload.Create(
+                "b4321", [admitted], hasHigherPrecisionSource: true));
+
+        Assert.AreEqual(0, Generate(snapshot).Candidates.Count);
+    }
+
+    [TestMethod]
+    public void BoundSourceWithoutAnAdmittedQuantiserNeverAuthorizesConversion()
+    {
+        GgufAdmittedConfiguration admitted =
+            CrossRouteTestData.Gguf("gguf-q2", GgufWeightFormat.Q2K);
+        OptimizationCapabilitySnapshot snapshot = OptimizationCapabilitySnapshot.ForGguf(
+            "gguf-cap", Digest,
+            GgufCapabilityPayload.Create(
+                "b4321", [admitted], hasHigherPrecisionSource: true,
+                conversionSource: CrossRouteTestData.Source(WeightQuantisation.F16)));
+
+        Assert.AreEqual(0, Generate(snapshot).Candidates.Count);
+    }
+
+    [TestMethod]
+    public void BoundSourceMustBeStrictlyHigherPrecisionThanTheTarget()
+    {
+        GgufAdmittedConfiguration admitted =
+            CrossRouteTestData.Gguf("gguf-q2", GgufWeightFormat.Q2K);
+        GgufConversionSourceBinding source =
+            CrossRouteTestData.Source(WeightQuantisation.Q2_K);
+        GgufQuantiserIdentity quantiser = CrossRouteTestData.Quantiser();
+        GgufRequantisationPolicy policy = GgufRequantisationPolicy.Create(
+            true, true, true, admitted, quantiser, source);
+        OptimizationCapabilitySnapshot snapshot = OptimizationCapabilitySnapshot.ForGguf(
+            "gguf-cap", Digest,
+            GgufCapabilityPayload.Create(
+                "b4321", [admitted], false, policy, source, quantiser));
+
+        Assert.AreEqual(0, Generate(snapshot).Candidates.Count);
+    }
+
+    [TestMethod]
+    public void PolicyForSameEvidenceButDifferentTargetDoesNotAuthorize()
+    {
+        GgufAdmittedConfiguration authorized =
+            CrossRouteTestData.Gguf("same-id", GgufWeightFormat.Q3KM);
+        GgufAdmittedConfiguration requested =
+            CrossRouteTestData.Gguf("same-id", GgufWeightFormat.Q2K);
+        GgufConversionSourceBinding source = CrossRouteTestData.Source();
+        GgufQuantiserIdentity quantiser = CrossRouteTestData.Quantiser();
+        GgufRequantisationPolicy policy = GgufRequantisationPolicy.Create(
+            true, true, true, authorized, quantiser, source);
+        OptimizationCapabilitySnapshot snapshot = OptimizationCapabilitySnapshot.ForGguf(
+            "gguf-cap", Digest,
+            GgufCapabilityPayload.Create(
+                "b4321", [requested], false, policy, source, quantiser));
+
+        Assert.AreEqual(0, Generate(snapshot).Candidates.Count);
+    }
+
+    [TestMethod]
     public void RequantisationPolicyCarriesIdentitiesButNoPath()
     {
         GgufRequantisationPolicy policy = CrossRouteTestData.Requantisation();
 
         Assert.AreEqual(CrossRouteTestData.Quantiser(), policy.Quantiser);
-        Assert.AreEqual(CrossRouteTestData.Binding(), policy.Binding);
+        Assert.AreEqual(CrossRouteTestData.Binding(), policy.Source.Journey);
         Assert.IsFalse(typeof(GgufRequantisationPolicy).GetProperties().Any(property =>
             property.Name.Contains("Path", StringComparison.OrdinalIgnoreCase)
             || property.Name.Contains("File", StringComparison.OrdinalIgnoreCase)

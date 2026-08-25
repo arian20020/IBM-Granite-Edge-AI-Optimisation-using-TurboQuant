@@ -211,10 +211,10 @@ public sealed class OptimizationPreferenceInvariantTests
     {
         OptimizationCandidate q2 = GgufCandidate(
             "q2", GgufWeightFormat.Q2K, OptimizationAssessment.Poor,
-            2 * Gibibyte, OptimizationCandidateNotice.LowQualityRequantisation);
+            2 * Gibibyte, OptimizationConversionProvenance.ControlledRequantisation);
         OptimizationCandidate acceptable = GgufCandidate(
             "q4", GgufWeightFormat.Q4KM, OptimizationAssessment.Acceptable,
-            4 * Gibibyte, OptimizationCandidateNotice.None);
+            4 * Gibibyte, OptimizationConversionProvenance.None);
 
         OptimizationSelection selection = OptimizationPreferenceResolver.Resolve(
             [q2, acceptable], OptimizationPreferenceSelection.Automatic())!;
@@ -227,10 +227,10 @@ public sealed class OptimizationPreferenceInvariantTests
     {
         OptimizationCandidate q2 = GgufCandidate(
             "q2", GgufWeightFormat.Q2K, OptimizationAssessment.Poor,
-            2 * Gibibyte, OptimizationCandidateNotice.LowQualityRequantisation);
+            2 * Gibibyte, OptimizationConversionProvenance.ControlledRequantisation);
         OptimizationCandidate acceptable = GgufCandidate(
             "q4", GgufWeightFormat.Q4KM, OptimizationAssessment.Acceptable,
-            4 * Gibibyte, OptimizationCandidateNotice.None);
+            4 * Gibibyte, OptimizationConversionProvenance.None);
 
         OptimizationCandidate selected = Resolve(
             [acceptable, q2], OptimizationPreferenceBand.MaximumEfficiency);
@@ -244,11 +244,22 @@ public sealed class OptimizationPreferenceInvariantTests
     }
 
     [TestMethod]
-    public void Q2KCannotEnterTheFrontierWithoutATypedQualityWarning()
+    public void Q2KAlwaysDerivesATypedQualityWarning()
+    {
+        OptimizationCandidate candidate = GgufCandidate(
+            "unwarned-q2", GgufWeightFormat.Q2K, OptimizationAssessment.Poor,
+            2 * Gibibyte, OptimizationConversionProvenance.HigherPrecisionSource);
+
+        Assert.AreEqual(OptimizationCandidateNotice.LowQuality, candidate.Notice);
+    }
+
+    [TestMethod]
+    public void Q2KRejectsCallerSuppliedQualityAbovePoor()
     {
         Assert.ThrowsExactly<ArgumentException>(() => GgufCandidate(
-            "unwarned-q2", GgufWeightFormat.Q2K, OptimizationAssessment.Poor,
-            2 * Gibibyte, OptimizationCandidateNotice.None));
+            "misgraded-q2", GgufWeightFormat.Q2K,
+            OptimizationAssessment.Acceptable, 2 * Gibibyte,
+            OptimizationConversionProvenance.HigherPrecisionSource));
     }
 
     private static OptimizationCandidate GgufCandidate(
@@ -256,7 +267,7 @@ public sealed class OptimizationPreferenceInvariantTests
         GgufWeightFormat weights,
         OptimizationAssessment quality,
         ulong peakBytes,
-        OptimizationCandidateNotice notice) =>
+        OptimizationConversionProvenance provenance) =>
         OptimizationCandidate.Create(
             GgufRouteConfiguration.Create(
                 weights, GgufKvCacheFormat.F16, CompatibilityBackend.Cpu,
@@ -268,7 +279,7 @@ public sealed class OptimizationPreferenceInvariantTests
                 requiresPersistentChange: true),
             id,
             isExperimental: false,
-            notice);
+            provenance);
 
     [TestMethod]
     public void AutomaticStillTakesAConversionThatIsClearlyBetter()
