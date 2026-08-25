@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="GraniteEdgeAI.Features.HardwareInspection.Presentation.Controls.HardwareInspectionSummaryCard"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="ms-appx:///Features/HardwareInspection/Presentation/HardwareInspectionTheme.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+            <Style x:Key="HardwareInspectionFactTileStyle" TargetType="Border">
+                <Setter Property="Padding" Value="14,12" />
+                <Setter Property="Background" Value="{ThemeResource HardwareInspectionSurfaceSubtleBrush}" />
+                <Setter Property="BorderBrush" Value="{ThemeResource HardwareInspectionBorderBrush}" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="CornerRadius" Value="8" />
+            </Style>
+            <Style x:Key="HardwareInspectionFactGroupStyle" TargetType="TextBlock">
+                <Setter Property="FontFamily" Value="{ThemeResource HardwareInspectionFontFamilyBold}" />
+                <Setter Property="FontSize" Value="{ThemeResource HardwareInspectionLabelFontSize}" />
+                <Setter Property="FontWeight" Value="{ThemeResource HardwareInspectionFontWeightBold}" />
+                <Setter Property="Foreground" Value="{ThemeResource HardwareInspectionTextMutedBrush}" />
+            </Style>
+            <Style x:Key="HardwareInspectionFactValueStyle" TargetType="TextBlock">
+                <Setter Property="FontFamily" Value="{ThemeResource HardwareInspectionFontFamilyBold}" />
+                <Setter Property="FontSize" Value="{ThemeResource HardwareInspectionBodyFontSize}" />
+                <Setter Property="FontWeight" Value="{ThemeResource HardwareInspectionFontWeightBold}" />
+                <Setter Property="Foreground" Value="{ThemeResource HardwareInspectionTextPrimaryBrush}" />
+                <Setter Property="TextWrapping" Value="WrapWholeWords" />
+            </Style>
+            <Style x:Key="HardwareInspectionFactHelperStyle" TargetType="TextBlock">
+                <Setter Property="FontFamily" Value="{ThemeResource HardwareInspectionFontFamilyRegular}" />
+                <Setter Property="FontSize" Value="{ThemeResource HardwareInspectionHelperFontSize}" />
+                <Setter Property="Foreground" Value="{ThemeResource HardwareInspectionTextSecondaryBrush}" />
+                <Setter Property="TextWrapping" Value="WrapWholeWords" />
+            </Style>
+        </ResourceDictionary>
+    </UserControl.Resources>
+    <Border
+        x:Name="SummaryBorder"
+        Padding="{ThemeResource HardwareInspectionCardPadding}"
+        Background="{ThemeResource HardwareInspectionSurfaceBrush}"
+        BorderBrush="{ThemeResource HardwareInspectionBorderBrush}"
+        BorderThickness="{ThemeResource HardwareInspectionBorderThickness}"
+        CornerRadius="{ThemeResource HardwareInspectionCardCornerRadius}">
+        <StackPanel Spacing="16">
+            <TextBlock
+                x:Name="TitleTextBlock"
+                FontFamily="{ThemeResource HardwareInspectionFontFamilyBold}"
+                FontSize="{ThemeResource HardwareInspectionSectionTitleFontSize}"
+                FontWeight="{ThemeResource HardwareInspectionFontWeightBold}"
+                Foreground="{ThemeResource HardwareInspectionTextPrimaryBrush}"
+                Text="This computer" />
+            <TextBlock
+                x:Name="HelperTextBlock"
+                Margin="0,-10,0,0"
+                FontSize="{ThemeResource HardwareInspectionHelperFontSize}"
+                Foreground="{ThemeResource HardwareInspectionTextSecondaryBrush}"
+                Text="A detailed overview of this computer's hardware and available resources."
+                TextWrapping="WrapWholeWords" />
+            <Grid x:Name="FactsPanel" ColumnSpacing="12" RowSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+            </Grid>
+        </StackPanel>
+    </Border>
+</UserControl>

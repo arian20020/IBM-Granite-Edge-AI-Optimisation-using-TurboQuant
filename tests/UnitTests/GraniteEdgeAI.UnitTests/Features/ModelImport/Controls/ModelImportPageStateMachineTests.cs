@@ -2,6 +2,7 @@ using GraniteEdgeAI.Features.ModelImport;
 using GraniteEdgeAI.Features.ModelImport.Controls;
 using GraniteEdgeAI.Features.ModelImport.FileImport;
 using GraniteEdgeAI.Features.ModelImport.QuickScan;
+using GraniteEdgeAI.Features.ModelImport.Selection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Automation.Provider;
@@ -277,6 +278,31 @@ public sealed class ModelImportPageStateMachineTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
+    public async Task BrowseFilesAsync_WithInjectedAcceptedClassifier_RunsInjectedScannerForSyntheticPath()
+    {
+        const string selectedPath = @"C:\Models\injected-scanner.gguf";
+        int scannerCalls = 0;
+        var page = new ModelImportPage(
+            () => Task.FromResult(ModelFormatSelection.Gguf),
+            () => Task.FromResult<string?>(selectedPath),
+            (_, path, _) =>
+            {
+                scannerCalls++;
+                Assert.AreEqual(selectedPath, path);
+                return Task.FromResult(ModelQuickScanResult.CreateCancelled());
+            },
+            classifier: new AcceptedGgufClassifier());
+
+        await page.BrowseFilesAsync();
+
+        Assert.AreEqual(1, scannerCalls);
+        Assert.AreEqual(
+            ImportModelCardState.AwaitingSelection,
+            ((ImportModelCard)page.FindName("ImportModelCardControl")).CurrentState);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
     public void ScanSucceeded_WithoutCardData_IsRejected()
     {
         var card = new ImportModelCard();
@@ -308,5 +334,18 @@ public sealed class ModelImportPageStateMachineTests
         string elementName)
     {
         return (TextBlock)card.FindName(elementName);
+    }
+
+    private sealed class AcceptedGgufClassifier : IModelSelectionClassifier
+    {
+        public Task<ModelSelectionResult> ClassifyAsync(
+            ModelSelectionOperationId id,
+            ModelSelectionInput input,
+            CancellationToken token) =>
+            Task.FromResult(
+                ModelSelectionResult.Accepted(
+                    id,
+                    ModelSelectionRoute.Gguf,
+                    input.DisplayName));
     }
 }

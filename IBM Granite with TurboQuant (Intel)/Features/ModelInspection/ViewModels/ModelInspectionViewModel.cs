@@ -1,4 +1,5 @@
 using GraniteEdgeAI.Features.ModelInspection.Contracts;
+using GraniteEdgeAI.Features.ModelInspection.Handoff;
 using GraniteEdgeAI.Features.ModelInspection.Services;
 using System;
 using System.ComponentModel;
@@ -27,12 +28,15 @@ internal sealed class ModelInspectionViewModel : INotifyPropertyChanged, IDispos
     private readonly DelegateCommand cancelCommand;
     private readonly DelegateCommand retryCommand;
     private readonly DelegateCommand chooseAnotherCommand;
+    private readonly DelegateCommand checkHardwareCommand;
 
     private InspectionAttempt? activeAttempt;
     private ModelInspectionViewSnapshot snapshot =
         ModelInspectionViewSnapshot.Initial;
     private long nextAttemptGeneration;
     private bool lifecycleInvalidated;
+    private bool hardwareRouteAvailable;
+    private ModelInspectionHandoff? issuedHardwareHandoff;
     private bool disposed;
 
     internal ModelInspectionViewModel(
@@ -64,11 +68,17 @@ internal sealed class ModelInspectionViewModel : INotifyPropertyChanged, IDispos
         chooseAnotherCommand = new DelegateCommand(
             _ => ChooseAnother(),
             _ => CanChooseAnother());
+        checkHardwareCommand = new DelegateCommand(
+            _ => RequestHardwareInspection(),
+            _ => CanCheckHardware());
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
     internal event EventHandler? ChooseAnotherRequested;
+
+    internal event EventHandler<HardwareInspectionRequestedEventArgs>?
+        HardwareInspectionRequested;
 
     internal ModelInspectionRequest Request { get; }
 
@@ -95,6 +105,40 @@ internal sealed class ModelInspectionViewModel : INotifyPropertyChanged, IDispos
 
     internal ICommand ChooseAnotherCommand => chooseAnotherCommand;
 
+    internal ICommand CheckHardwareCommand => checkHardwareCommand;
+
+    internal void SetHardwareRouteAvailable(bool isAvailable)
+    {
+        bool snapshotChanged = false;
+        lock (stateLock)
+        {
+            if (disposed || hardwareRouteAvailable == isAvailable)
+            {
+                return;
+            }
+
+            hardwareRouteAvailable = isAvailable;
+            if (snapshot.TerminalResult is not null)
+            {
+                snapshot = new ModelInspectionViewSnapshot(
+                    NextRevisionKeyLocked(),
+                    isRunActive: false,
+                    isCancellationRequested: false,
+                    progress: null,
+                    terminalResult: snapshot.TerminalResult,
+                    modelInspectionRunId: snapshot.ModelInspectionRunId);
+                snapshotChanged = true;
+            }
+        }
+
+        if (snapshotChanged)
+        {
+            PublishSnapshotChanged();
+        }
+
+        checkHardwareCommand.RaiseCanExecuteChanged();
+    }
+
     /// <summary>
     /// Starts a fresh attempt for the exact immutable navigation request.
     /// A replacement becomes current before the prior attempt is cancelled.
@@ -115,7 +159,8 @@ internal sealed class ModelInspectionViewModel : INotifyPropertyChanged, IDispos
                 isRunActive: true,
                 isCancellationRequested: false,
                 progress: null,
-                terminalResult: null);
+                terminalResult: null,
+                modelInspectionRunId: attempt.RunId);
             replacedAttempt = activeAttempt;
 
             // Publish the new identity first. Synchronous cancellation callbacks
@@ -123,6 +168,7 @@ internal sealed class ModelInspectionViewModel : INotifyPropertyChanged, IDispos
             nextAttemptGeneration = nextGeneration;
             activeAttempt = attempt;
             lifecycleInvalidated = false;
+            issuedHardwareHandoff = null;
             snapshot = startSnapshot;
         }
 
@@ -269,6 +315,7 @@ internal sealed class ModelInspectionViewModel : INotifyPropertyChanged, IDispos
                 nextAttemptGeneration = nextGeneration;
                 activeAttempt = null;
                 lifecycleInvalidated = true;
+                issuedHardwareHandoff = null;
                 snapshot = invalidatedSnapshot;
             }
             else
@@ -286,6 +333,7 @@ internal sealed class ModelInspectionViewModel : INotifyPropertyChanged, IDispos
         RaiseCommandStates();
         invalidatedAttempt?.Cancel();
         ChooseAnotherRequested = null;
+        HardwareInspectionRequested = null;
     }
 
     private void PublishProgress(
@@ -311,7 +359,8 @@ internal sealed class ModelInspectionViewModel : INotifyPropertyChanged, IDispos
                 isRunActive: true,
                 isCancellationRequested: snapshot.IsCancellationRequested,
                 progress: value,
-                terminalResult: null);
+                terminalResult: null,
+                modelInspectionRunId: attempt.RunId);
         }
 
         PublishSnapshotChanged();
@@ -335,7 +384,8 @@ internal sealed class ModelInspectionViewModel : INotifyPropertyChanged, IDispos
                 isRunActive: false,
                 isCancellationRequested: false,
                 progress: null,
-                terminalResult: execution);
+                terminalResult: execution,
+                modelInspectionRunId: attempt.RunId);
 
             // Retire before notifying observers. Any already-queued progress
             // callback therefore fails the attempt-identity check.
@@ -366,7 +416,8 @@ internal sealed class ModelInspectionViewModel : INotifyPropertyChanged, IDispos
                 isRunActive: true,
                 isCancellationRequested: true,
                 progress: snapshot.Progress,
-                terminalResult: null);
+                terminalResult: null,
+                modelInspectionRunId: attempt.RunId);
             attempt.CancellationRequested = true;
             snapshot = cancellationSnapshot;
         }
@@ -402,6 +453,7 @@ internal sealed class ModelInspectionViewModel : INotifyPropertyChanged, IDispos
             invalidatedAttempt = activeAttempt;
             nextAttemptGeneration = nextGeneration;
             activeAttempt = null;
+            issuedHardwareHandoff = null;
             snapshot = invalidatedSnapshot;
         }
 
@@ -429,6 +481,7 @@ internal sealed class ModelInspectionViewModel : INotifyPropertyChanged, IDispos
             nextAttemptGeneration = nextGeneration;
             activeAttempt = null;
             lifecycleInvalidated = true;
+            issuedHardwareHandoff = null;
             snapshot = invalidatedSnapshot;
         }
 
@@ -465,11 +518,89 @@ internal sealed class ModelInspectionViewModel : INotifyPropertyChanged, IDispos
         }
     }
 
+    private bool CanCheckHardware()
+    {
+        lock (stateLock)
+        {
+            return CanCheckHardwareLocked();
+        }
+    }
+
+    private bool CanCheckHardwareLocked()
+    {
+        return !disposed &&
+            hardwareRouteAvailable &&
+            activeAttempt is null &&
+            ModelInspectionHandoff.IsUuidV4(snapshot.ModelInspectionRunId) &&
+            snapshot.TerminalResult is
+            {
+                Status: ModelInspectionExecutionStatus.Completed,
+                Result.CanContinueToHardwareFit: true
+            };
+    }
+
+    private void RequestHardwareInspection()
+    {
+        ModelInspectionHandoff? handoff;
+        lock (stateLock)
+        {
+            if (!CanCheckHardwareLocked())
+            {
+                return;
+            }
+
+            if (issuedHardwareHandoff is null)
+            {
+                if (!ModelInspectionHandoffProjector.TryProject(
+                    snapshot.ModelInspectionRunId,
+                    snapshot.ModelInspectionRunId,
+                    snapshot.TerminalResult!,
+                    out handoff))
+                {
+                    return;
+                }
+
+                issuedHardwareHandoff = handoff;
+            }
+
+            handoff = issuedHardwareHandoff;
+        }
+
+        HardwareInspectionRequested?.Invoke(
+            this,
+            new HardwareInspectionRequestedEventArgs(handoff!));
+    }
+
+    internal bool TryReissueHardwareHandoff(
+        out ModelInspectionHandoff? replacement)
+    {
+        lock (stateLock)
+        {
+            replacement = null;
+            if (disposed ||
+                activeAttempt is not null ||
+                issuedHardwareHandoff is null ||
+                snapshot.TerminalResult is null ||
+                !ModelInspectionHandoffProjector.TryProject(
+                    snapshot.ModelInspectionRunId,
+                    snapshot.ModelInspectionRunId,
+                    snapshot.TerminalResult,
+                    out replacement))
+            {
+                return false;
+            }
+
+            issuedHardwareHandoff = replacement;
+            return true;
+        }
+    }
+
     private void RaiseCommandStates()
     {
         cancelCommand.RaiseCanExecuteChanged();
         retryCommand.RaiseCanExecuteChanged();
         chooseAnotherCommand.RaiseCanExecuteChanged();
+        checkHardwareCommand.RaiseCanExecuteChanged();
     }
 
     private long GetNextAttemptGenerationLocked()
@@ -536,9 +667,12 @@ internal sealed class ModelInspectionViewModel : INotifyPropertyChanged, IDispos
         internal InspectionAttempt(long id)
         {
             Id = id;
+            RunId = Guid.NewGuid();
         }
 
         internal long Id { get; }
+
+        internal Guid RunId { get; }
 
         internal bool CancellationRequested { get; set; }
 

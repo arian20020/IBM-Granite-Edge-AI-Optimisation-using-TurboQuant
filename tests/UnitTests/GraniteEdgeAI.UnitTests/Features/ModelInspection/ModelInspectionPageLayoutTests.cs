@@ -116,7 +116,8 @@ public sealed class ModelInspectionPageLayoutTests
             (888d, 24d, 840d),
             (887d, 24d, 839d),
             (600d, 24d, 552d),
-            (599d, 16d, 567d)
+            (599d, 16d, 567d),
+            (480d, 16d, 448d)
         ];
         var loaded = new TaskCompletionSource<bool>(
             TaskCreationOptions.RunContinuationsAsynchronously);
@@ -163,6 +164,11 @@ public sealed class ModelInspectionPageLayoutTests
                     page.FindName("InspectionPageScrollViewer"));
                 Assert.AreEqual(0d, outcome.ActualHeight, 0.01d);
                 Assert.IsGreaterThan(0d, model.ActualHeight);
+                Assert.AreEqual(
+                    contentHost.ActualWidth,
+                    model.ActualWidth,
+                    1d,
+                    "every visible top-level card shares the content-host edges");
                 Assert.AreEqual(0d, content.ActualHeight, 0.01d);
                 Assert.AreEqual(0d, actions.ActualHeight, 0.01d);
             }
@@ -181,6 +187,51 @@ public sealed class ModelInspectionPageLayoutTests
         var page = new ModelInspectionPage();
         Grid layoutRoot = Assert.IsInstanceOfType<Grid>(
             page.FindName("LayoutRoot"));
+        ScrollViewer pageScrollViewer = Assert.IsInstanceOfType<ScrollViewer>(
+            page.FindName("InspectionPageScrollViewer"));
+        Grid scrollContent = Assert.IsInstanceOfType<Grid>(pageScrollViewer.Content);
+        Grid contentHost = Assert.IsInstanceOfType<Grid>(
+            page.FindName("InspectionContentHost"));
+        Grid reflowHost = Assert.IsInstanceOfType<Grid>(
+            page.FindName("InspectionReflowHost"));
+
+        Assert.AreSame(contentHost, scrollContent.Children.Single());
+        Assert.AreSame(reflowHost, contentHost.Children.Single());
+        Assert.AreEqual(ScrollMode.Enabled, pageScrollViewer.VerticalScrollMode);
+        Assert.AreEqual(
+            ScrollBarVisibility.Auto,
+            pageScrollViewer.VerticalScrollBarVisibility);
+        Assert.AreEqual(ScrollMode.Disabled, pageScrollViewer.HorizontalScrollMode);
+        Assert.AreEqual(
+            ScrollBarVisibility.Disabled,
+            pageScrollViewer.HorizontalScrollBarVisibility);
+        Assert.AreEqual(ZoomMode.Disabled, pageScrollViewer.ZoomMode);
+        Assert.IsFalse(reflowHost.Children.OfType<ScrollViewer>().Any());
+
+        FrameworkElement outcome = Assert.IsInstanceOfType<FrameworkElement>(
+            page.FindName("InspectionOutcomeCardControl"));
+        FrameworkElement model = Assert.IsInstanceOfType<FrameworkElement>(
+            page.FindName("InspectionModelCardControl"));
+        FrameworkElement content = Assert.IsInstanceOfType<FrameworkElement>(
+            page.FindName("InspectionContentCardControl"));
+        FrameworkElement outgoing = Assert.IsInstanceOfType<FrameworkElement>(
+            page.FindName("OutgoingProgressContentCard"));
+        FrameworkElement actions = Assert.IsInstanceOfType<FrameworkElement>(
+            page.FindName("InspectionActionCardControl"));
+        Assert.AreEqual(2, Grid.GetRow(outcome));
+        Assert.AreEqual(4, Grid.GetRow(model));
+        Assert.AreEqual(6, Grid.GetRow(content));
+        Assert.AreEqual(6, Grid.GetRow(outgoing));
+        Assert.AreEqual(8, Grid.GetRow(actions));
+        Assert.IsTrue(
+            reflowHost.Children.IndexOf(outcome) <
+            reflowHost.Children.IndexOf(model));
+        Assert.IsTrue(
+            reflowHost.Children.IndexOf(model) <
+            reflowHost.Children.IndexOf(content));
+        Assert.IsTrue(
+            reflowHost.Children.IndexOf(content) <
+            reflowHost.Children.IndexOf(actions));
 
         AssertResponsiveStateContract(
             layoutRoot,
@@ -200,23 +251,58 @@ public sealed class ModelInspectionPageLayoutTests
 
         ResourceDictionary resources = ModelInspectionResources();
         Assert.AreEqual(840d, resources["InspectionContentColumnWidth"]);
+        Assert.AreEqual(840d, contentHost.MaxWidth);
+        Assert.AreEqual(888d, resources["InspectionDesktopBreakpoint"]);
+        Assert.AreEqual(600d, resources["InspectionCompactBreakpoint"]);
         Assert.AreEqual(
             new CornerRadius(12d),
             Assert.IsInstanceOfType<CornerRadius>(
                 resources["InspectionCardCornerRadius"]));
+        Assert.AreEqual(
+            new CornerRadius(10d),
+            Assert.IsInstanceOfType<CornerRadius>(
+                resources["InspectionActionCornerRadius"]));
+        Assert.AreEqual(
+            new Thickness(18d, 10d, 18d, 10d),
+            Assert.IsInstanceOfType<Thickness>(
+                resources["InspectionActionPadding"]));
         Thickness cardPadding = Assert.IsInstanceOfType<Thickness>(
             resources["InspectionCardPadding"]);
         Assert.AreEqual(24d, cardPadding.Left, 0.01d);
         Assert.AreEqual(24d, cardPadding.Top, 0.01d);
         Assert.AreEqual(24d, cardPadding.Right, 0.01d);
         Assert.AreEqual(24d, cardPadding.Bottom, 0.01d);
+        string[] changedControlBrushes =
+        [
+            "InspectionBlueBorderBrush",
+            "InspectionBlueSurfaceBrush",
+            "InspectionBorderControlBrush",
+            "InspectionBorderLightBrush",
+            "InspectionBorderMutedBrush",
+            "InspectionErrorTextBrush",
+            "InspectionPrimaryBlueBrush",
+            "InspectionSuccessTextBrush",
+            "InspectionSurfaceBrush",
+            "InspectionSurfaceMutedBrush",
+            "InspectionSurfaceSubtleBrush",
+            "InspectionTextMutedBrush",
+            "InspectionTextPrimaryBrush",
+            "InspectionTextSecondaryMutedBrush",
+            "InspectionTextSecondaryStrongBrush",
+            "InspectionWarningTextBrush"
+        ];
         foreach (string themeName in new[] { "Light", "Dark", "HighContrast" })
         {
             ResourceDictionary theme = Assert.IsInstanceOfType<ResourceDictionary>(
                 resources.ThemeDictionaries[themeName]);
-            Assert.IsTrue(
-                theme.ContainsKey("InspectionCanvasBrush"),
-                $"{themeName} must define InspectionCanvasBrush");
+            foreach (string brushKey in changedControlBrushes)
+            {
+                Assert.IsTrue(
+                    theme.ContainsKey(brushKey),
+                    $"{themeName} must define {brushKey}");
+                Assert.IsNotNull(theme[brushKey],
+                    $"{themeName}/{brushKey} must resolve semantically");
+            }
         }
         Assert.AreEqual(ElementTheme.Light, page.RequestedTheme);
         Assert.AreEqual(ElementTheme.Light, page.ActualTheme);

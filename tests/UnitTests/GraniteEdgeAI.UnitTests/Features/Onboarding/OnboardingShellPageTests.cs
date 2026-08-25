@@ -4,10 +4,12 @@ using GraniteEdgeAI.Features.Onboarding.Controls;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
+using System.Reflection;
 
 namespace GraniteEdgeAI.UnitTests;
 
 [TestClass]
+[TestCategory("HardwareInspectionGate8Acceptance")]
 public sealed class OnboardingShellPageTests
 {
     [UITestMethod]
@@ -37,5 +39,23 @@ public sealed class OnboardingShellPageTests
         Assert.IsNotNull(stageFrame);
         Assert.AreEqual(shell.CurrentStage, stageIndicator.CurrentStage);
         Assert.AreNotSame(stageIndicator, stageFrame.Content);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void Constructor_UsesProductionHardwareInspectionComposition()
+    {
+        var shell = new OnboardingShellPage();
+        FieldInfo? serviceField = typeof(OnboardingShellPage).GetField(
+            "_hardwareInspectionService",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+
+        Assert.IsNotNull(serviceField);
+        object? service = serviceField.GetValue(shell);
+        Assert.IsNotNull(service);
+        Assert.AreEqual(
+            "GraniteEdgeAI.Features.HardwareInspection.Orchestration." +
+            "HardwareInspectionService",
+            service.GetType().FullName);
     }
 }

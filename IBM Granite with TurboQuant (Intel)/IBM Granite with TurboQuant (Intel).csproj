@@ -26,7 +26,10 @@
     <DefineConstants Condition="'$(Platform)' == 'x64'">$(DefineConstants);MODEL_INSPECTION_X64</DefineConstants>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
-    <DefineConstants>$(DefineConstants);MODEL_INSPECTION_FIXTURE_GALLERY</DefineConstants>
+    <DefineConstants>$(DefineConstants);MODEL_INSPECTION_FIXTURE_GALLERY;HARDWARE_INSPECTION_FIXTURE_GALLERY</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Platform)' == 'x64'">
+    <DefineConstants>$(DefineConstants);HARDWARE_INSPECTION_X64</DefineConstants>
   </PropertyGroup>
 
   <!-- Opt-in reviewer build: opens onto the compatibility screen gallery so
@@ -49,8 +52,32 @@
     <Content Remove="Features\Onboarding\DebugFixtures\**" />
     <EmbeddedResource Remove="Features\Onboarding\DebugFixtures\**" />
     <PRIResource Remove="Features\Onboarding\DebugFixtures\**" />
+    <Compile Remove="Features\HardwareInspection\DebugFixtures\**" />
+    <Page Remove="Features\HardwareInspection\DebugFixtures\**" />
+    <None Remove="Features\HardwareInspection\DebugFixtures\**" />
+    <Content Remove="Features\HardwareInspection\DebugFixtures\**" />
+    <EmbeddedResource Remove="Features\HardwareInspection\DebugFixtures\**" />
+    <PRIResource Remove="Features\HardwareInspection\DebugFixtures\**" />
+    <Compile Remove="Features\ModelHardwareCompatibility\DebugFixtures\**" />
+    <Page Remove="Features\ModelHardwareCompatibility\DebugFixtures\**" />
+    <None Remove="Features\ModelHardwareCompatibility\DebugFixtures\**" />
+    <Content Remove="Features\ModelHardwareCompatibility\DebugFixtures\**" />
+    <EmbeddedResource Remove="Features\ModelHardwareCompatibility\DebugFixtures\**" />
+    <PRIResource Remove="Features\ModelHardwareCompatibility\DebugFixtures\**" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(CompatibilityFixtureGallery)' == 'true'">
+    <Compile Include="Features\ModelHardwareCompatibility\DebugFixtures\CompatibilityFixtureCatalogue.cs" />
+    <Compile Include="Features\ModelHardwareCompatibility\DebugFixtures\CompatibilityFixtureGalleryPage.xaml.cs" />
+    <Page Include="Features\ModelHardwareCompatibility\DebugFixtures\CompatibilityFixtureGalleryPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
   </ItemGroup>
   <ItemGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+    <Compile Include="Features\HardwareInspection\DebugFixtures\HardwareInspectionFixtureCatalogue.cs" />
+    <Compile Include="Features\HardwareInspection\DebugFixtures\HardwareInspectionFixtureGalleryPage.xaml.cs" />
+    <Page Include="Features\HardwareInspection\DebugFixtures\HardwareInspectionFixtureGalleryPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Compile Include="Features\Onboarding\DebugFixtures\OnboardingShellPage.FixtureGallery.cs" />
     <Compile Include="Features\ModelInspection\DebugFixtures\ModelInspectionPage.DebugFixtures.cs" />
     <Compile Include="Features\ModelInspection\DebugFixtures\Observation\ModelInspectionObservedScreen.cs" />
@@ -411,6 +438,15 @@
     <None Remove="Features\ModelInspection\Controls\InspectionOutcomeCard.xaml" />
     <None Remove="Features\ModelInspection\Presentation\ModelInspectionTheme.xaml" />
     <None Remove="Features\ModelInspection\ModelInspectionPage.xaml" />
+    <None Remove="Features\HardwareInspection\HardwareInspectionPage.xaml" />
+    <None Remove="Features\HardwareInspection\Presentation\HardwareInspectionTheme.xaml" />
+    <None Remove="Features\HardwareInspection\Presentation\Controls\HardwareInspectionActionCard.xaml" />
+    <None Remove="Features\HardwareInspection\Presentation\Controls\HardwareInspectionDetailsCard.xaml" />
+    <None Remove="Features\HardwareInspection\Presentation\Controls\HardwareInspectionOutcomeCard.xaml" />
+    <None Remove="Features\HardwareInspection\Presentation\Controls\HardwareInspectionProgressCard.xaml" />
+    <None Remove="Features\HardwareInspection\Presentation\Controls\HardwareInspectionRecoveryCard.xaml" />
+    <None Remove="Features\HardwareInspection\Presentation\Controls\HardwareInspectionSummaryCard.xaml" />
+    <None Remove="Features\Onboarding\Presentation\GraniteJourneyActionPalette.xaml" />
     <None Remove="Features\Onboarding\Controls\OnboardingStageIndicator.xaml" />
     <None Remove="Features\Onboarding\OnboardingShellPage.xaml" />
   </ItemGroup>
@@ -461,6 +497,9 @@
     <ProjectReference
       Include="..\infrastructure\GraniteEdgeAI.ModelInspection.WorkerClient\GraniteEdgeAI.ModelInspection.WorkerClient.csproj"
       Condition="'$(Platform)' == 'x64'" />
+    <ProjectReference
+      Include="..\infrastructure\GraniteEdgeAI.HardwareInspection.Foundation\GraniteEdgeAI.HardwareInspection.Foundation.csproj"
+      Condition="'$(Platform)' == 'x64'" />
     <!-- The compatibility engine. Route-neutral, WinUI-free, and referenced only
          for its public screen contract; everything that produced that contract
          stays internal to it. -->
@@ -469,6 +508,7 @@
       Condition="'$(Platform)' == 'x64'" />
   </ItemGroup>
   <ItemGroup Condition="'$(Platform)' != 'x64'">
+    <Compile Remove="Features\HardwareInspection\Infrastructure\**\*.cs" />
     <Compile Remove="Features\ModelInspection\Infrastructure\**\*.cs" />
     <Compile Remove="Features\ModelInspection\Runtime\WorkerRequestMapper.cs" />
     <Compile Remove="Features\ModelInspection\Runtime\WorkerResultMapper.cs" />
@@ -496,6 +536,37 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Features\ModelImport\FileImport\DragDropRoute\" />
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Features\HardwareInspection\Presentation\HardwareInspectionTheme.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Update="Features\HardwareInspection\Presentation\Controls\HardwareInspectionActionCard.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Update="Features\HardwareInspection\Presentation\Controls\HardwareInspectionDetailsCard.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Update="Features\HardwareInspection\Presentation\Controls\HardwareInspectionOutcomeCard.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Update="Features\HardwareInspection\Presentation\Controls\HardwareInspectionProgressCard.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Update="Features\HardwareInspection\Presentation\Controls\HardwareInspectionRecoveryCard.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Update="Features\HardwareInspection\Presentation\Controls\HardwareInspectionSummaryCard.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Update="Features\HardwareInspection\HardwareInspectionPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Features\Onboarding\Presentation\GraniteJourneyActionPalette.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
   </ItemGroup>
   <ItemGroup>
     <Page Update="Features\Onboarding\Controls\OnboardingStageIndicator.xaml">
@@ -571,5 +642,8 @@
     Condition="'$(Platform)' == 'x64'" />
   <Import
     Project="OpenVino.WorkerPackaging.targets"
+    Condition="'$(Platform)' == 'x64'" />
+  <Import
+    Project="HardwareInspection.LlamaCppProbePackaging.targets"
     Condition="'$(Platform)' == 'x64'" />
 </Project>

@@ -253,13 +253,21 @@ internal sealed class BoundedModelSelectionClassifier : IModelSelectionClassifie
         CancellationToken token,
         Stopwatch stopwatch)
     {
-        if (configPath is null || (indexPath is null && safetensorsPaths.Count == 0))
+        var preflight = new SourceModelSelectionPreflight(
+            HasRootConfig: configPath is not null,
+            HasWeightFileOrIndex: indexPath is not null || safetensorsPaths.Count != 0,
+            // A single root safetensors file has no index whose shards need
+            // checking; an index earns this flag only after validation below.
+            HasCompleteIndexedShards: indexPath is null,
+            RequiresCustomCode: false);
+
+        if (!preflight.HasRootConfig || !preflight.HasWeightFileOrIndex)
         {
             return Failure(operationId, input.DisplayName, "selection-incomplete-source-model", "This source-model folder is incomplete. Choose a folder with config and model weights.");
         }
 
         BoundedJson config;
-        try { config = await ReadBoundedJsonAsync(configPath, ModelSelectionLimits.MaximumMetadataBytes, token, stopwatch).ConfigureAwait(false); }
+        try { config = await ReadBoundedJsonAsync(configPath!, ModelSelectionLimits.MaximumMetadataBytes, token, stopwatch).ConfigureAwait(false); }
         catch (JsonException) { return Failure(operationId, input.DisplayName, "selection-invalid-source-model", "This source-model configuration is not valid. Choose another folder."); }
 
         using (config.Document)
@@ -270,7 +278,12 @@ internal sealed class BoundedModelSelectionClassifier : IModelSelectionClassifie
                 return Failure(operationId, input.DisplayName, "selection-invalid-source-model", "This source-model configuration is not valid. Choose another folder.");
             }
 
-            if (root.TryGetProperty("auto_map", out _) || root.TryGetProperty("trust_remote_code", out _))
+            preflight = preflight with
+            {
+                RequiresCustomCode = root.TryGetProperty("auto_map", out _) ||
+                    root.TryGetProperty("trust_remote_code", out _),
+            };
+            if (preflight.RequiresCustomCode)
             {
                 return Failure(operationId, input.DisplayName, "selection-custom-code", "This source model requires custom code and cannot be imported here.");
             }
@@ -293,7 +306,14 @@ internal sealed class BoundedModelSelectionClassifier : IModelSelectionClassifie
                 {
                     return Failure(operationId, input.DisplayName, "selection-incomplete-source-model", "This source-model folder is missing a required weight shard. Choose another folder.");
                 }
+
+                preflight = preflight with { HasCompleteIndexedShards = true };
             }
+        }
+
+        if (!preflight.HasCompleteIndexedShards)
+        {
+            return Failure(operationId, input.DisplayName, "selection-incomplete-source-model", "This source-model folder is missing a required weight shard. Choose another folder.");
         }
 
         EnsureUnchanged(snapshot, input.LocalPath, token, stopwatch);

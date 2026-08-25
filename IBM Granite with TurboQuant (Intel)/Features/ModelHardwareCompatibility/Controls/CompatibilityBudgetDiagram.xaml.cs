@@ -59,7 +59,7 @@ internal sealed partial class CompatibilityBudgetDiagram : UserControl
     /// words. True inside the calculation disclosure, where the full breakdown
     /// belongs.
     /// </summary>
-    internal bool ShowLegend
+    public bool ShowLegend
     {
         get => (bool)GetValue(ShowLegendProperty);
         set => SetValue(ShowLegendProperty, value);

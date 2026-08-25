@@ -103,6 +103,34 @@ public sealed class InspectionContentCardTests
             Assert.AreEqual(new Thickness(24d), progressView.Padding, "progress view padding");
             Assert.HasCount(5, rows);
             Assert.IsTrue(rows.All(row => row.ActualHeight >= 48d));
+            Assert.IsTrue(rows.All(row => Math.Abs(row.ActualHeight - 48d) <= 1d));
+            AssertUniformHeights(rows, "initial progress rows");
+            foreach (Grid row in rows)
+            {
+                Assert.AreEqual(
+                    24d,
+                    row.ColumnDefinitions[0].ActualWidth,
+                    0.01d,
+                    "the glyph and step-number column is fixed");
+                Viewbox glyph = EnumerateDescendants(row)
+                    .OfType<Viewbox>()
+                    .Single(candidate => candidate.Name == "ProgressGlyphHost");
+                StackPanel copy = EnumerateDescendants(row)
+                    .OfType<StackPanel>()
+                    .Single(candidate => candidate.Name == "ProgressCopyPanel");
+                Grid status = EnumerateDescendants(row)
+                    .OfType<Grid>()
+                    .Single(candidate => candidate.Name == "ProgressStatusOwner");
+
+                AssertVerticallyCentred(row, glyph, "progress glyph");
+                AssertVerticallyCentred(row, copy, "progress copy");
+                AssertVerticallyCentred(row, status, "progress status");
+                Assert.AreEqual(
+                    12d,
+                    copy.Margin.Left,
+                    0.01d,
+                    "copy begins at the approved inset after the glyph column");
+            }
             Assert.AreEqual(new Thickness(1d), progressRowsSurface.BorderThickness);
             Assert.AreEqual(10d, progressRowsSurface.CornerRadius.TopLeft, 0.01d);
             Assert.AreSame(
@@ -168,6 +196,26 @@ public sealed class InspectionContentCardTests
             Assert.AreEqual(
                 page.ActionCard.CancelAction.AutomationName,
                 AutomationProperties.GetName(cancel));
+
+            host.Width = 480d;
+            content.Width = 480d;
+            actions.Width = 480d;
+            await ResizeClientAndWaitAsync(window, content, 480d);
+            Grid[] compactRows = ProgressRows(content);
+            foreach (Grid row in compactRows)
+            {
+                StackPanel copy = EnumerateDescendants(row)
+                    .OfType<StackPanel>()
+                    .Single(candidate => candidate.Name == "ProgressCopyPanel");
+                Grid status = EnumerateDescendants(row)
+                    .OfType<Grid>()
+                    .Single(candidate => candidate.Name == "ProgressStatusOwner");
+
+                Assert.AreEqual(0, Grid.GetRow(status),
+                    "compact progress status stays beside its stage name");
+                AssertVerticallyCentred(row, copy, "compact progress copy");
+                AssertVerticallyCentred(row, status, "compact progress status");
+            }
         }
         finally
         {
@@ -231,19 +279,61 @@ public sealed class InspectionContentCardTests
                 "DisclosureToggleButton");
             Border disclosureSurface = (Border)disclosure.FindName(
                 "DisclosureCardSurface");
-            InspectionStatusGlyph disclosureGlyph = EnumerateDescendants(header)
-                .OfType<InspectionStatusGlyph>()
-                .Single(IsEffectivelyVisible);
+            Grid disclosureHeader = Assert.IsInstanceOfType<Grid>(
+                control.FindName("DisclosureHeaderLayout"));
+            Viewbox disclosureGlyphHost = Assert.IsInstanceOfType<Viewbox>(
+                control.FindName("DisclosureInformationGlyphHost"));
+            InspectionStatusGlyph disclosureGlyph =
+                Assert.IsInstanceOfType<InspectionStatusGlyph>(
+                    control.FindName("DisclosureInformationGlyph"));
+            TextBlock disclosureTitle = Assert.IsInstanceOfType<TextBlock>(
+                control.FindName("DisclosureTitleText"));
+            Grid disclosureActionHost = Assert.IsInstanceOfType<Grid>(
+                control.FindName("DisclosureActionText"));
+            TextBlock disclosureAction = Assert.IsInstanceOfType<TextBlock>(
+                control.FindName("FindingsDisclosureActionText"));
             double collapsedHeight = control.ActualHeight;
             Assert.AreEqual(0d, shell.MinHeight, 0.01d);
+            Assert.AreEqual(3, disclosureHeader.ColumnDefinitions.Count);
+            Assert.AreEqual(24d, disclosureHeader.ColumnDefinitions[0].ActualWidth, 0.01d,
+                "the disclosure reserves the same fixed icon column as status rows");
+            Assert.AreEqual(20d, disclosureGlyphHost.ActualWidth, 0.01d);
+            Assert.AreEqual(20d, disclosureGlyphHost.ActualHeight, 0.01d);
             Assert.AreEqual(22d, disclosureGlyph.SurfaceSize, 0.01d,
                 "the disclosure information glyph aligns with the row glyphs");
+            Assert.AreEqual(InspectionStatusGlyphKind.Information, disclosureGlyph.Kind);
+            Canvas informationRoot = EnumerateDescendants(disclosureGlyph)
+                .OfType<Canvas>()
+                .Single(canvas => string.Equals(
+                    canvas.Tag as string,
+                    "GlyphKind:Information",
+                    StringComparison.Ordinal));
+            Microsoft.UI.Xaml.Shapes.Path informationStem =
+                EnumerateDescendants(informationRoot)
+                .OfType<Microsoft.UI.Xaml.Shapes.Path>()
+                .Single(path => string.Equals(
+                    path.Tag as string,
+                    "Mark:InformationStem",
+                    StringComparison.Ordinal));
+            Assert.IsTrue(informationStem.Data.Bounds.Left >= 0d);
+            Assert.IsTrue(informationStem.Data.Bounds.Top >= 0d);
+            Assert.IsTrue(informationStem.Data.Bounds.Right <= informationRoot.Width);
+            Assert.IsTrue(informationStem.Data.Bounds.Bottom <= informationRoot.Height);
+            Assert.IsFalse(EnumerateDescendants(informationRoot).OfType<TextBlock>().Any(),
+                "the information mark must be fixed vector geometry, never a font glyph");
+            Assert.AreEqual(1, Grid.GetColumn(disclosureTitle));
+            Assert.AreEqual(2, Grid.GetColumn(disclosureActionHost));
             Assert.AreEqual(
                 header.ActualHeight + disclosureSurface.BorderThickness.Top +
                     disclosureSurface.BorderThickness.Bottom,
                 disclosure.ActualHeight,
                 1d,
                 "collapsed disclosure must equal its realized header height");
+            Assert.IsGreaterThanOrEqualTo(68d, header.ActualHeight,
+                "the disclosure header keeps the approved comfortable target height");
+            AssertVerticallyCentred(header, disclosureGlyphHost, "disclosure glyph");
+            AssertVerticallyCentred(header, disclosureTitle, "disclosure title");
+            AssertVerticallyCentred(header, disclosureActionHost, "disclosure action");
 
             control.Presentation = CreateDisclosurePresentation(isExpanded: true);
             control.UpdateLayout();
@@ -271,6 +361,22 @@ public sealed class InspectionContentCardTests
                     row.ActualHeight >= 48d),
                 $"report rows keep a 48px minimum and grow naturally: " +
                 string.Join(", ", reportRows.Select(row => row.ActualHeight)));
+            AssertUniformHeights(reportRows, "expanded inspection rows at normal text size");
+            Grid[] reportRowLayouts = reportRows
+                .Select(row => EnumerateDescendants(row)
+                    .OfType<Grid>()
+                    .Single(grid => ReferenceEquals(
+                        VisualTreeHelper.GetParent(grid),
+                        row)))
+                .ToArray();
+            Assert.IsTrue(reportRowLayouts.All(row =>
+                    Math.Abs(row.ColumnDefinitions[0].ActualWidth - 24d) < 0.01d),
+                "every report row reserves the approved 24px status-glyph column");
+            Assert.AreEqual(
+                reportRowLayouts[0].ColumnDefinitions[0].ActualWidth,
+                disclosureHeader.ColumnDefinitions[0].ActualWidth,
+                0.01d,
+                "the disclosure and report rows share one icon-column contract");
             string[] expectedTitles =
             [
                 "Chat template warning",
@@ -308,12 +414,63 @@ public sealed class InspectionContentCardTests
                 ScrollAmount.SmallIncrement);
             control.UpdateLayout();
             Assert.IsGreaterThan(initialOffset, report.VerticalOffset);
+
+            double normalReportRowHeight = reportRows[0].ActualHeight;
+            foreach (TextBlock text in reportRows
+                .SelectMany(row => EnumerateDescendants(row).OfType<TextBlock>()))
+            {
+                text.FontSize *= 2d;
+            }
+
+            disclosureTitle.FontSize *= 2d;
+            disclosureAction.FontSize *= 2d;
+            control.Width = 480d;
+            control.UpdateLayout();
+
+            AssertUniformHeights(reportRows, "expanded inspection rows at representative 200% text");
+            Assert.IsGreaterThan(normalReportRowHeight, reportRows[0].ActualHeight,
+                "all inspection rows grow together for representative 200% text");
+            foreach (Border row in reportRows)
+            {
+                foreach (TextBlock text in EnumerateDescendants(row).OfType<TextBlock>())
+                {
+                    Rect textBounds = ElementBounds(text, row);
+                    Assert.IsTrue(textBounds.Top >= -0.01d &&
+                        textBounds.Bottom <= row.ActualHeight + 0.01d,
+                        $"scaled row text remains vertically unclipped: {text.Text}");
+                }
+            }
+
+            Rect glyphBounds = ElementBounds(disclosureGlyphHost, header);
+            Rect titleBounds = ElementBounds(disclosureTitle, header);
+            Rect actionBounds = ElementBounds(disclosureActionHost, header);
+            Assert.AreEqual(20d, glyphBounds.Width, 0.01d,
+                "the vector host stays fixed at representative 200% text");
+            Assert.AreEqual(20d, glyphBounds.Height, 0.01d,
+                "the vector host stays fixed at representative 200% text");
+            Assert.AreEqual(24d, disclosureHeader.ColumnDefinitions[0].ActualWidth, 0.01d,
+                "text scaling cannot consume the reserved icon column");
+            Assert.IsTrue(glyphBounds.Left >= -0.01d && glyphBounds.Right <= header.ActualWidth + 0.01d,
+                "the information glyph remains horizontally unclipped");
+            Assert.IsTrue(titleBounds.Right <= actionBounds.Left + 0.01d,
+                "wrapped disclosure copy cannot intersect the absolute action column");
+            Assert.IsTrue(actionBounds.Right <= header.ActualWidth + 0.01d,
+                "the absolute action remains inside the header at 200% text");
         }
         finally
         {
             window.Content = null;
             window.Close();
         }
+    }
+
+    private static Rect ElementBounds(
+        FrameworkElement element,
+        UIElement relativeTo)
+    {
+        Point origin = element.TransformToVisual(relativeTo)
+            .TransformPoint(new Point());
+        return new Rect(origin.X, origin.Y, element.ActualWidth, element.ActualHeight);
     }
 
     [UITestMethod]
@@ -354,9 +511,133 @@ public sealed class InspectionContentCardTests
             control.UpdateLayout();
 
             Border shell = (Border)control.FindName("ContentCardShell");
+            TextBlock sectionTitle = Assert.IsInstanceOfType<TextBlock>(
+                control.FindName("FindingsSectionTitle"));
+            Border rowsSurface = Assert.IsInstanceOfType<Border>(
+                control.FindName("FindingsRowsSurface"));
+            TextBlock supporting = Assert.IsInstanceOfType<TextBlock>(
+                control.FindName("SupportingText"));
+            TextBlock tertiary = Assert.IsInstanceOfType<TextBlock>(
+                control.FindName("TertiaryText"));
+            Border diagnostic = Assert.IsInstanceOfType<Border>(
+                control.FindName("DiagnosticCodeBorder"));
+            Grid technicalDetailsHost = Assert.IsInstanceOfType<Grid>(
+                control.FindName("TechnicalDetailsHost"));
+            TextBlock technicalHelp = Assert.IsInstanceOfType<TextBlock>(
+                control.FindName("TechnicalDetailsFutureHelpText"));
+            Button technicalAction = Assert.IsInstanceOfType<Button>(
+                control.FindName("TechnicalDetailsButton"));
             Assert.AreEqual(expectedState, page.State);
             Assert.AreEqual(0d, shell.MinHeight, 0.01d);
             Assert.IsGreaterThan(0d, control.ActualHeight);
+            Assert.AreEqual(18d, ElementBounds(sectionTitle, shell).Top, 1d,
+                "terminal title top inset");
+            Assert.AreEqual(12d, VerticalGap(sectionTitle, rowsSurface, shell), 1d,
+                "title to semantic row");
+            if (supporting.Visibility == Visibility.Visible)
+            {
+                Assert.AreEqual(8d, VerticalGap(rowsSurface, supporting, shell), 1d,
+                    "semantic row to helper copy");
+            }
+
+            if (tertiary.Visibility == Visibility.Visible)
+            {
+                FrameworkElement previous = supporting.Visibility == Visibility.Visible
+                    ? supporting
+                    : rowsSurface;
+                Assert.AreEqual(8d, VerticalGap(previous, tertiary, shell), 1d,
+                    "helper copy rhythm");
+            }
+
+            if (diagnostic.Visibility == Visibility.Visible)
+            {
+                FrameworkElement previous = tertiary.Visibility == Visibility.Visible
+                    ? tertiary
+                    : supporting.Visibility == Visibility.Visible
+                        ? supporting
+                        : rowsSurface;
+                Assert.AreEqual(8d, VerticalGap(previous, diagnostic, shell), 1d,
+                    "helper copy to diagnostic code");
+                Assert.AreEqual(
+                    ElementBounds(sectionTitle, shell).Left,
+                    ElementBounds(diagnostic, shell).Left,
+                    1d,
+                    "diagnostic code starts on the terminal card's text edge");
+            }
+
+            Border[] findingRows = EnumerateDescendants(rowsSurface)
+                .OfType<Border>()
+                .Where(row => string.Equals(
+                    row.Tag as string,
+                    "InspectionFindingRow",
+                    StringComparison.Ordinal))
+                .ToArray();
+            Assert.IsNotEmpty(findingRows);
+            foreach (Border findingRow in findingRows)
+            {
+                Grid layout = EnumerateDescendants(findingRow)
+                    .OfType<Grid>()
+                    .Single(grid => ReferenceEquals(
+                        VisualTreeHelper.GetParent(grid),
+                        findingRow));
+                ContentPresenter glyph = EnumerateDescendants(layout)
+                    .OfType<ContentPresenter>()
+                    .Single(presenter => Grid.GetColumn(presenter) == 0);
+                StackPanel copy = EnumerateDescendants(layout)
+                    .OfType<StackPanel>()
+                    .Single(panel => Grid.GetColumn(panel) == 1);
+                Border status = EnumerateDescendants(layout)
+                    .OfType<Border>()
+                    .Single(border => Grid.GetColumn(border) == 2);
+
+                Assert.AreEqual(24d, layout.ColumnDefinitions[0].ActualWidth, 0.01d);
+                Assert.AreEqual(12d, layout.ColumnSpacing, 0.01d);
+                AssertVerticallyCentred(findingRow, glyph, "terminal glyph");
+                AssertVerticallyCentred(findingRow, copy, "terminal copy");
+                AssertVerticallyCentred(findingRow, status, "terminal status");
+            }
+
+            if (technicalDetailsHost.Visibility == Visibility.Visible)
+            {
+                if (technicalHelp.Visibility == Visibility.Visible)
+                {
+                    AssertVerticallyCentred(
+                        technicalDetailsHost,
+                        technicalHelp,
+                        "technical-details helper");
+                }
+
+                if (technicalAction.Visibility == Visibility.Visible)
+                {
+                    AssertVerticallyCentred(
+                        technicalDetailsHost,
+                        technicalAction,
+                        "technical-details action");
+                }
+            }
+
+            control.Width = 480d;
+            control.UpdateLayout();
+            foreach (Border findingRow in findingRows)
+            {
+                Grid layout = EnumerateDescendants(findingRow)
+                    .OfType<Grid>()
+                    .Single(grid => ReferenceEquals(
+                        VisualTreeHelper.GetParent(grid),
+                        findingRow));
+                StackPanel copy = EnumerateDescendants(layout)
+                    .OfType<StackPanel>()
+                    .Single(panel => Grid.GetColumn(panel) == 1);
+                Border status = EnumerateDescendants(layout)
+                    .OfType<Border>()
+                    .Single(border => Grid.GetColumn(border) == 2);
+                Rect copyBounds = ElementBounds(copy, findingRow);
+                Rect statusBounds = ElementBounds(status, findingRow);
+                Assert.IsTrue(copyBounds.Right <= statusBounds.Left + 0.01d,
+                    "compact terminal copy cannot intersect its status");
+                Assert.IsTrue(statusBounds.Right <= findingRow.ActualWidth + 0.01d,
+                    "compact terminal status remains inside its row");
+            }
             foreach (TextBlock text in EnumerateDescendants(control)
                 .OfType<TextBlock>()
                 .Where(text => text.Text.Length >= 40))
@@ -378,6 +659,7 @@ public sealed class InspectionContentCardTests
     [TestCategory("WinUI")]
     public void TechnicalDetailsFuture_ExposesDisabledHelpTooltipAndAdjacentText()
     {
+        RecordingCommand command = PresentationTestData.CreateCommand();
         var control = new InspectionContentCard
         {
             Presentation = new InspectionContentCardPresentation
@@ -388,12 +670,17 @@ public sealed class InspectionContentCardTests
                 TechnicalDetailsActionText = "View technical details",
                 TechnicalDetailsAutomationName = "View technical details",
                 TechnicalDetailsAutomationHelpText = "Coming later",
-                IsTechnicalDetailsEnabled = false
+                IsTechnicalDetailsEnabled = false,
+                OpenTechnicalDetailsCommand = command
             }
         };
+        Grid host = (Grid)control.FindName("TechnicalDetailsHost");
         Button button = (Button)control.FindName("TechnicalDetailsButton");
         TextBlock help = (TextBlock)control.FindName("TechnicalDetailsFutureHelpText");
 
+        Assert.AreEqual(5, Grid.GetRow(host));
+        Assert.AreSame(command, button.Command,
+            "the existing technical-details command seam remains bound in place");
         Assert.IsFalse(button.IsEnabled);
         Assert.AreEqual("Coming later", AutomationProperties.GetHelpText(button));
         Assert.AreEqual("Coming later", ToolTipService.GetToolTip(button));
@@ -736,6 +1023,10 @@ public sealed class InspectionContentCardTests
                 activeSurface.ActualWidth <= 0.01d ||
                 activeSurface.ActualHeight <= 0.01d,
                 "the retired full-row active surface must occupy no visible geometry");
+            Grid[] activeProgressRows = ProgressRows(control);
+            AssertUniformHeights(
+                activeProgressRows,
+                "active progress rows at normal text size");
             double standardActiveHeight = activeRow.ActualHeight;
             TextBlock[] scalableActiveText = EnumerateDescendants(activeRow)
                 .OfType<TextBlock>()
@@ -746,11 +1037,19 @@ public sealed class InspectionContentCardTests
                     text.Text == "25%")
                 .ToArray();
             Assert.IsNotEmpty(scalableActiveText);
-            foreach (TextBlock text in scalableActiveText)
+            TextBlock[] scalableProgressText = activeProgressRows
+                .SelectMany(row => EnumerateDescendants(row).OfType<TextBlock>())
+                .Where(IsEffectivelyVisible)
+                .ToArray();
+            foreach (TextBlock text in scalableProgressText)
             {
                 text.FontSize *= 2d;
             }
+            control.InvalidateMeasure();
             control.UpdateLayout();
+            AssertUniformHeights(
+                activeProgressRows,
+                "active progress rows at representative 200% text");
             Assert.IsGreaterThan(standardActiveHeight, activeRow.ActualHeight);
             Assert.IsTrue(scalableActiveText.All(text =>
                     text.ActualHeight + 1d >= text.DesiredSize.Height),
@@ -1039,6 +1338,29 @@ public sealed class InspectionContentCardTests
         return lowerOrigin.Y - (upperOrigin.Y + upper.ActualHeight);
     }
 
+    private static void AssertUniformHeights(
+        IReadOnlyList<FrameworkElement> rows,
+        string context)
+    {
+        Assert.IsGreaterThan(0, rows.Count, context);
+        double expected = rows.Max(row => row.ActualHeight);
+        Assert.IsGreaterThanOrEqualTo(48d, expected, context);
+        foreach (FrameworkElement row in rows)
+        {
+            Assert.AreEqual(expected, row.ActualHeight, 1d, context);
+        }
+    }
+
+    private static void AssertVerticallyCentred(
+        FrameworkElement row,
+        FrameworkElement element,
+        string context)
+    {
+        Point origin = element.TransformToVisual(row).TransformPoint(default);
+        double elementCentre = origin.Y + (element.ActualHeight / 2d);
+        Assert.AreEqual(row.ActualHeight / 2d, elementCentre, 1d, context);
+    }
+
     private static void AssertInRange(
         double actual,
         double minimum,
@@ -1177,7 +1499,7 @@ public sealed class InspectionContentCardTests
             SectionTitle = "Inspection warnings",
             Items = Array.AsReadOnly(new[] { finding }),
             DisclosureVisibility = Visibility.Visible,
-            DisclosureStatus = InspectionContentStatus.Warning,
+            DisclosureStatus = InspectionContentStatus.Information,
             DisclosureSummary = "4 checks passed, 1 warning",
             CollapsedDisclosureText = "View full details",
             ExpandedDisclosureText = "Hide full details",

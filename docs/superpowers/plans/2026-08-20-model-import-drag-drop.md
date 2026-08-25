@@ -354,7 +354,7 @@ git commit -m "feat(model-import): accept one Explorer drop safely"
 - Modify: `IBM Granite with TurboQuant (Intel)/Features/ModelImport/ModelImportPage.xaml.cs`
 - Modify: `IBM Granite with TurboQuant (Intel)/Features/ModelImport/ModelInspectionRequestedEventArgs.cs`
 - Create: `IBM Granite with TurboQuant (Intel)/Features/ModelImport/OpenVinoInspectionRequestedEventArgs.cs`
-- Create: `IBM Granite with TurboQuant (Intel)/Features/ModelImport/SourceModelInspectionRequestedEventArgs.cs`
+- Create: `IBM Granite with TurboQuant (Intel)/Features/ModelImport/SourceModelConversionRequestedEventArgs.cs`
 - Test: `tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/ModelImportInputParityTests.cs`
 - Test: `tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/ModelImportOperationLifecycleTests.cs`
 

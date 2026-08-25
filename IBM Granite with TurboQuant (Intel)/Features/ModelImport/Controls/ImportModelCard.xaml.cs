@@ -14,6 +14,8 @@ namespace GraniteEdgeAI.Features.ModelImport.Controls
 
         public event RoutedEventHandler? BrowseFilesRequested;
 
+        public event RoutedEventHandler? ChooseModelFolderRequested;
+
         public event RoutedEventHandler? CancelScanRequested;
 
         public ImportModelCardState CurrentState { get; private set; }
@@ -35,6 +37,34 @@ namespace GraniteEdgeAI.Features.ModelImport.Controls
 
             SetVisibleState(ImportModelCardState.Scanning);
             ScanningFileNameTextBlock.Text = selectedFileName;
+        }
+
+        internal void ShowFolderAccepted(string folderName)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(folderName);
+
+            SetVisibleState(ImportModelCardState.SelectionAccepted);
+            FolderAcceptedNameTextBlock.Text = folderName;
+        }
+
+        // Native drag feedback is limited to the accepted operation; only its surface darkens.
+        internal void ShowDragValidation(bool isValid)
+        {
+            SetVisibleState(
+                isValid
+                    ? ImportModelCardState.DragOverValid
+                    : ImportModelCardState.DragOverInvalid);
+            ValidDragHoverOverlay.Visibility =
+                isValid ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        internal void ClearDragValidation()
+        {
+            if (CurrentState is ImportModelCardState.DragOverValid or ImportModelCardState.DragOverInvalid)
+            {
+                SetVisibleState(ImportModelCardState.AwaitingSelection);
+            }
+
         }
 
         /// <summary>
@@ -99,6 +129,18 @@ namespace GraniteEdgeAI.Features.ModelImport.Controls
                     ShowAwaitingSelection();
                     return;
 
+                case ImportModelCardState.DragOverValid:
+                    ShowDragValidation(isValid: true);
+                    return;
+
+                case ImportModelCardState.DragOverInvalid:
+                    ShowDragValidation(isValid: false);
+                    return;
+
+                case ImportModelCardState.SelectionAccepted:
+                    ShowFolderAccepted(selectedFileName ?? string.Empty);
+                    return;
+
                 case ImportModelCardState.Scanning:
                     ShowScanning(selectedFileName ?? string.Empty);
                     return;
@@ -127,7 +169,9 @@ namespace GraniteEdgeAI.Features.ModelImport.Controls
             CurrentState = state;
 
             AwaitingSelectionView.Visibility =
-                state == ImportModelCardState.AwaitingSelection
+                state is ImportModelCardState.AwaitingSelection
+                    or ImportModelCardState.DragOverValid
+                    or ImportModelCardState.DragOverInvalid
                     ? Visibility.Visible
                     : Visibility.Collapsed;
             ScanningView.Visibility =
@@ -142,10 +186,21 @@ namespace GraniteEdgeAI.Features.ModelImport.Controls
                 state == ImportModelCardState.ScanFailed
                     ? Visibility.Visible
                     : Visibility.Collapsed;
+            FolderAcceptedView.Visibility =
+                state == ImportModelCardState.SelectionAccepted
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
 
+            ClearDragValidationPresentation();
             ClearScanningValues();
             ClearFailureValues();
             ClearSuccessValues();
+            FolderAcceptedNameTextBlock.Text = string.Empty;
+        }
+
+        private void ClearDragValidationPresentation()
+        {
+            ValidDragHoverOverlay.Visibility = Visibility.Collapsed;
         }
 
         private void ClearScanningValues()
@@ -176,6 +231,13 @@ namespace GraniteEdgeAI.Features.ModelImport.Controls
             RoutedEventArgs e)
         {
             BrowseFilesRequested?.Invoke(this, e);
+        }
+
+        private void ChooseModelFolderButton_Click(
+            object sender,
+            RoutedEventArgs e)
+        {
+            ChooseModelFolderRequested?.Invoke(this, e);
         }
 
         private void CancelScanButton_Click(

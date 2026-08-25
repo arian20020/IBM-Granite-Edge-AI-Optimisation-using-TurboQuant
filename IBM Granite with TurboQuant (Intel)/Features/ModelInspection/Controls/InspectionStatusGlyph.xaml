@@ -159,11 +159,8 @@
                     StrokeThickness="2"
                     Tag="Mark:InformationStem" />
 
-                <Ellipse
-                    Width="2"
-                    Height="2"
-                    Canvas.Left="11"
-                    Canvas.Top="6.5"
+                <Path
+                    Data="M 12,6.5 A 1,1 0 1 1 12,8.5 A 1,1 0 1 1 12,6.5 Z"
                     Fill="{ThemeResource InspectionPrimaryBlueBrush}"
                     Tag="Mark:InformationDot" />
 

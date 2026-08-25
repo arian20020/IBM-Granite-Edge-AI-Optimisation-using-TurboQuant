@@ -11,6 +11,14 @@ This folder records evidence-backed runtime verification. Source presence, plann
 - [Model Inspection cleanup Phase 0 baseline — 2026-08-07](./2026-08-06-model-inspection-cleanup-baseline.md)
 - [Model Inspection cleanup Phase 1 evidence — 2026-08-08](./2026-08-07-model-inspection-cleanup-phase-1.md)
 
+## Hardware Inspection
+
+- [LLM Fit Gate 1 verification - 2026-08-15](./2026-08-15-hardware-inspection-gate1-llmfit-verification.md) - **Gate 1 Blocked and unsatisfied.** Gate 2 must not start; this record does not verify `F-M07`, `HE-01`, or `HE-02`.
+- [llama.cpp capabilities Gate 5 development acceptance - 2026-08-23](./2026-08-23-hardware-inspection-gate-5-llamacpp-capabilities.md) - **Gate 5 development acceptance complete.** Public-trust signing, Smart App Control acceptance, production activation, and canonical snapshot resolution are not claimed.
+- [Evidence resolution Gate 6 verification - 2026-08-24](./2026-08-24-hardware-inspection-gate-6-resolution.md) - **Gate 6 implementation verified with an explicit inline-review exception.** Deterministic canonical resolution is present; production activation and Gates 7-9 remain incomplete.
+- [Orchestration and activation Gate 7 verification - 2026-08-24](./2026-08-24-hardware-inspection-gate-7-orchestration.md) - **Gate 7 development verification complete with an explicit inline-review exception.** The fail-closed x64 production service is active and the v12 guest campaign passed three repetitions of 70/70; public trust, Smart App Control, and Gates 8-9 remain incomplete.
+- [WinUI and accessibility Gate 8 verification - 2026-08-24](./2026-08-24-hardware-inspection-gate-8-winui-accessibility.md) - **Gate 8 development verification complete with an explicit inline-review exception.** The v13 guest campaign passed three repetitions of 87/87 on the packaged UI thread; public trust, Smart App Control, and Gate 9 remain incomplete.
+
 ## Interpretation rule
 
 Each record identifies the exact source head, workflow boundary, test/build/runtime results, artifact identity, integrity/privacy checks and explicit non-claims. Later results supersede earlier wording only for the exact scope and commit they verify.

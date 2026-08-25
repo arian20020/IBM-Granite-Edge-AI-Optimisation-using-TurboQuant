@@ -273,6 +273,8 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition x:Name="MetadataColumnOne" Width="4*" />
@@ -282,12 +284,33 @@
                 </Grid.ColumnDefinitions>
 
                 <Grid
+                    x:Name="BalancedOverviewGrid"
+                    Grid.Row="0"
+                    Grid.Column="0"
+                    Grid.ColumnSpan="4"
+                    Height="0"
+                    VerticalAlignment="Top"
+                    IsHitTestVisible="False">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition x:Name="BalancedOverviewPrimaryColumn" Width="1.6*" />
+                        <ColumnDefinition x:Name="BalancedOverviewSupportColumn" Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid x:Name="ModelFactGrid" Grid.Column="0" Height="0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition x:Name="ModelFactColumnOne" Width="*" />
+                            <ColumnDefinition x:Name="ModelFactColumnTwo" Width="*" />
+                        </Grid.ColumnDefinitions>
+                    </Grid>
+                    <Grid x:Name="ModelSupportStack" Grid.Column="1" Height="0" />
+                </Grid>
+
+                <Grid
                     x:Name="ModelOverviewPanel"
                     Grid.Row="0"
                     Grid.Column="0"
                     Grid.RowSpan="4"
                     Grid.ColumnSpan="2"
-                    Margin="0,0,5,0"
+                    Margin="0,0,8,0"
                     IsHitTestVisible="False">
                     <Border
                         x:Name="ModelOverviewSurface"
@@ -303,7 +326,7 @@
                     Grid.Column="0"
                     Grid.ColumnSpan="2"
                     MinHeight="70"
-                    Margin="18,14,23,12">
+                    Margin="18,14,26,12">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
@@ -377,7 +400,7 @@
                     Grid.Column="2"
                     Grid.RowSpan="3"
                     Grid.ColumnSpan="2"
-                    Margin="5,0,0,5"
+                    Margin="8,0,0,8"
                     IsHitTestVisible="False">
                     <Border
                         x:Name="ModelConfigurationSurface"
@@ -391,7 +414,7 @@
                     Grid.Row="0"
                     Grid.Column="2"
                     Grid.ColumnSpan="2"
-                    Margin="23,14,18,12"
+                    Margin="26,14,18,12"
                     VerticalAlignment="Top"
                     FontFamily="{StaticResource InspectionSectionTitleFontFamily}"
                     FontSize="{ThemeResource InspectionSectionTitleFontSize}"
@@ -406,7 +429,7 @@
                     Grid.Row="3"
                     Grid.Column="2"
                     Grid.ColumnSpan="2"
-                    Margin="5,5,0,0">
+                    Margin="8,8,0,0">
                     <Border
                         x:Name="ModelResultSummarySurface"
                         Background="{ThemeResource InspectionSurfaceBrush}"
@@ -480,7 +503,7 @@
                     Grid.Row="1"
                     Grid.Column="1"
                     MinHeight="61"
-                    Margin="2.5,0,23,0"
+                    Margin="2.5,0,26,0"
                     Padding="11,10"
                     Background="{ThemeResource InspectionSurfaceSubtleBrush}"
                     BorderBrush="{ThemeResource InspectionBorderLightBrush}"
@@ -497,7 +520,7 @@
                     Grid.Column="2"
                     Grid.ColumnSpan="2"
                     MinHeight="61"
-                    Margin="23,0,18,0"
+                    Margin="26,0,18,0"
                     Padding="0,10"
                     BorderBrush="{ThemeResource InspectionBorderLightBrush}"
                     BorderThickness="0,1,0,0">
@@ -516,7 +539,7 @@
                     Grid.Column="2"
                     Grid.ColumnSpan="2"
                     MinHeight="61"
-                    Margin="23,0,18,0"
+                    Margin="26,0,18,0"
                     Padding="0,10"
                     BorderBrush="{ThemeResource InspectionBorderLightBrush}"
                     BorderThickness="0,1,0,0">
@@ -550,7 +573,7 @@
                     Grid.Row="2"
                     Grid.Column="1"
                     MinHeight="61"
-                    Margin="2.5,10,23,0"
+                    Margin="2.5,10,26,0"
                     Padding="11,10"
                     Background="{ThemeResource InspectionSurfaceSubtleBrush}"
                     BorderBrush="{ThemeResource InspectionBorderLightBrush}"
@@ -582,7 +605,7 @@
                     Grid.Row="3"
                     Grid.Column="1"
                     MinHeight="61"
-                    Margin="2.5,10,23,18"
+                    Margin="2.5,10,26,18"
                     Padding="11,10"
                     Background="{ThemeResource InspectionSurfaceSubtleBrush}"
                     BorderBrush="{ThemeResource InspectionBorderLightBrush}"
@@ -792,23 +815,23 @@
                         <Setter Target="MetadataColumnFour.Width" Value="2.5*" />
                         <Setter Target="ModelOverviewPanel.(Grid.Row)" Value="0" />
                         <Setter Target="ModelOverviewPanel.(Grid.Column)" Value="0" />
-                        <Setter Target="ModelOverviewPanel.(Grid.RowSpan)" Value="4" />
+                        <Setter Target="ModelOverviewPanel.(Grid.RowSpan)" Value="7" />
                         <Setter Target="ModelOverviewPanel.(Grid.ColumnSpan)" Value="2" />
-                        <Setter Target="ModelOverviewPanel.Margin" Value="0,0,5,0" />
+                        <Setter Target="ModelOverviewPanel.Margin" Value="0,0,8,0" />
                         <Setter Target="DetailedHeader.(Grid.Row)" Value="0" />
                         <Setter Target="DetailedHeader.(Grid.Column)" Value="0" />
                         <Setter Target="DetailedHeader.(Grid.ColumnSpan)" Value="2" />
-                        <Setter Target="DetailedHeader.Margin" Value="18,14,23,12" />
+                        <Setter Target="DetailedHeader.Margin" Value="18,14,26,12" />
                         <Setter Target="MetadataGrid.Margin" Value="0" />
                         <Setter Target="InspectionDetailsViewport.Margin" Value="24,0,24,24" />
                         <Setter Target="ModelNameField.Margin" Value="18,0,7.5,0" />
-                        <Setter Target="PublisherField.Margin" Value="2.5,0,23,0" />
+                        <Setter Target="PublisherField.Margin" Value="2.5,0,26,0" />
                         <Setter Target="ParametersField.Margin" Value="18,10,7.5,0" />
-                        <Setter Target="ModelTypeField.Margin" Value="2.5,10,23,0" />
+                        <Setter Target="ModelTypeField.Margin" Value="2.5,10,26,0" />
                         <Setter Target="DeclaredContextField.Margin" Value="18,10,7.5,18" />
-                        <Setter Target="FileSizeField.Margin" Value="2.5,10,23,18" />
-                        <Setter Target="FormatField.Margin" Value="23,0,18,0" />
-                        <Setter Target="QuantisationField.Margin" Value="23,0,18,0" />
+                        <Setter Target="FileSizeField.Margin" Value="2.5,10,26,18" />
+                        <Setter Target="FormatField.Margin" Value="26,0,18,0" />
+                        <Setter Target="QuantisationField.Margin" Value="26,0,18,0" />
                         <Setter Target="ModelNameField.(Grid.Row)" Value="1" />
                         <Setter Target="ModelNameField.(Grid.Column)" Value="0" />
                         <Setter Target="PublisherField.(Grid.Row)" Value="1" />
@@ -831,11 +854,11 @@
                         <Setter Target="ModelConfigurationPanel.(Grid.Column)" Value="2" />
                         <Setter Target="ModelConfigurationPanel.(Grid.RowSpan)" Value="3" />
                         <Setter Target="ModelConfigurationPanel.(Grid.ColumnSpan)" Value="2" />
-                        <Setter Target="ModelConfigurationPanel.Margin" Value="5,0,0,5" />
+                        <Setter Target="ModelConfigurationPanel.Margin" Value="8,0,0,8" />
                         <Setter Target="ModelResultSummaryPanel.(Grid.Row)" Value="3" />
                         <Setter Target="ModelResultSummaryPanel.(Grid.Column)" Value="2" />
                         <Setter Target="ModelResultSummaryPanel.(Grid.ColumnSpan)" Value="2" />
-                        <Setter Target="ModelResultSummaryPanel.Margin" Value="5,5,0,0" />
+                        <Setter Target="ModelResultSummaryPanel.Margin" Value="8,8,0,0" />
                         <Setter Target="ReadyResultContentGrid.ColumnSpacing" Value="12" />
                         <Setter Target="ReadyResultSummaryColumn.Width" Value="*" />
                         <Setter Target="ReadyResultBadgeColumn.Width" Value="Auto" />
@@ -944,42 +967,48 @@
                         <Setter Target="InspectionDetailsActionText.Margin" Value="0,8,6,8" />
                         <Setter Target="InspectionDetailsActionText.HorizontalAlignment" Value="Left" />
                         <Setter Target="InspectionDetailsViewport.Margin" Value="16,0,16,16" />
-                        <Setter Target="ModelNameField.Margin" Value="16,0,5,0" />
-                        <Setter Target="PublisherField.Margin" Value="5,0,16,0" />
-                        <Setter Target="ParametersField.Margin" Value="16,10,5,0" />
-                        <Setter Target="ModelTypeField.Margin" Value="5,10,16,0" />
-                        <Setter Target="DeclaredContextField.Margin" Value="16,10,5,16" />
-                        <Setter Target="FileSizeField.Margin" Value="5,10,16,16" />
+                        <Setter Target="ModelNameField.Margin" Value="16,0,16,0" />
+                        <Setter Target="PublisherField.Margin" Value="16,10,16,0" />
+                        <Setter Target="ParametersField.Margin" Value="16,10,16,0" />
+                        <Setter Target="ModelTypeField.Margin" Value="16,10,16,0" />
+                        <Setter Target="DeclaredContextField.Margin" Value="16,10,16,0" />
+                        <Setter Target="FileSizeField.Margin" Value="16,10,16,16" />
                         <Setter Target="ModelNameField.(Grid.Row)" Value="1" />
                         <Setter Target="ModelNameField.(Grid.Column)" Value="0" />
-                        <Setter Target="PublisherField.(Grid.Row)" Value="1" />
-                        <Setter Target="PublisherField.(Grid.Column)" Value="1" />
-                        <Setter Target="ParametersField.(Grid.Row)" Value="2" />
+                        <Setter Target="ModelNameField.(Grid.ColumnSpan)" Value="2" />
+                        <Setter Target="PublisherField.(Grid.Row)" Value="2" />
+                        <Setter Target="PublisherField.(Grid.Column)" Value="0" />
+                        <Setter Target="PublisherField.(Grid.ColumnSpan)" Value="2" />
+                        <Setter Target="ParametersField.(Grid.Row)" Value="3" />
                         <Setter Target="ParametersField.(Grid.Column)" Value="0" />
-                        <Setter Target="ModelTypeField.(Grid.Row)" Value="2" />
-                        <Setter Target="ModelTypeField.(Grid.Column)" Value="1" />
-                        <Setter Target="DeclaredContextField.(Grid.Row)" Value="3" />
+                        <Setter Target="ParametersField.(Grid.ColumnSpan)" Value="2" />
+                        <Setter Target="ModelTypeField.(Grid.Row)" Value="4" />
+                        <Setter Target="ModelTypeField.(Grid.Column)" Value="0" />
+                        <Setter Target="ModelTypeField.(Grid.ColumnSpan)" Value="2" />
+                        <Setter Target="DeclaredContextField.(Grid.Row)" Value="5" />
                         <Setter Target="DeclaredContextField.(Grid.Column)" Value="0" />
-                        <Setter Target="FileSizeField.(Grid.Row)" Value="3" />
-                        <Setter Target="FileSizeField.(Grid.Column)" Value="1" />
-                        <Setter Target="FormatField.(Grid.Row)" Value="5" />
+                        <Setter Target="DeclaredContextField.(Grid.ColumnSpan)" Value="2" />
+                        <Setter Target="FileSizeField.(Grid.Row)" Value="6" />
+                        <Setter Target="FileSizeField.(Grid.Column)" Value="0" />
+                        <Setter Target="FileSizeField.(Grid.ColumnSpan)" Value="2" />
+                        <Setter Target="FormatField.(Grid.Row)" Value="8" />
                         <Setter Target="FormatField.(Grid.Column)" Value="0" />
                         <Setter Target="FormatField.(Grid.ColumnSpan)" Value="2" />
                         <Setter Target="FormatField.Margin" Value="16,0,16,0" />
-                        <Setter Target="QuantisationField.(Grid.Row)" Value="6" />
+                        <Setter Target="QuantisationField.(Grid.Row)" Value="9" />
                         <Setter Target="QuantisationField.(Grid.Column)" Value="0" />
                         <Setter Target="QuantisationField.(Grid.ColumnSpan)" Value="2" />
                         <Setter Target="QuantisationField.Margin" Value="16,0,16,0" />
-                        <Setter Target="ModelConfigurationPanel.(Grid.Row)" Value="4" />
+                        <Setter Target="ModelConfigurationPanel.(Grid.Row)" Value="7" />
                         <Setter Target="ModelConfigurationPanel.(Grid.Column)" Value="0" />
                         <Setter Target="ModelConfigurationPanel.(Grid.RowSpan)" Value="3" />
                         <Setter Target="ModelConfigurationPanel.(Grid.ColumnSpan)" Value="2" />
                         <Setter Target="ModelConfigurationPanel.Margin" Value="0,5,0,5" />
-                        <Setter Target="ModelConfigurationHeading.(Grid.Row)" Value="4" />
+                        <Setter Target="ModelConfigurationHeading.(Grid.Row)" Value="7" />
                         <Setter Target="ModelConfigurationHeading.(Grid.Column)" Value="0" />
                         <Setter Target="ModelConfigurationHeading.(Grid.ColumnSpan)" Value="2" />
                         <Setter Target="ModelConfigurationHeading.Margin" Value="16,14,16,12" />
-                        <Setter Target="ModelResultSummaryPanel.(Grid.Row)" Value="7" />
+                        <Setter Target="ModelResultSummaryPanel.(Grid.Row)" Value="10" />
                         <Setter Target="ModelResultSummaryPanel.(Grid.Column)" Value="0" />
                         <Setter Target="ModelResultSummaryPanel.(Grid.ColumnSpan)" Value="2" />
                         <Setter Target="ModelResultSummaryPanel.Margin" Value="0,5,0,0" />

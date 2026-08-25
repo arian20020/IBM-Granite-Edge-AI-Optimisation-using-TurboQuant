@@ -1,0 +1,89 @@
+<Project>
+  <PropertyGroup>
+    <_HardwareInspectionFixtureRepositoryRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..\..'))</_HardwareInspectionFixtureRepositoryRoot>
+    <_HardwareInspectionFixtureIntermediateRoot>$([System.IO.Path]::GetFullPath('$(_HardwareInspectionFixtureRepositoryRoot)\obj\hi-fixtures'))</_HardwareInspectionFixtureIntermediateRoot>
+    <_HardwareInspectionFixturePublishRoot>$(_HardwareInspectionFixtureIntermediateRoot)\llmfit\publish</_HardwareInspectionFixturePublishRoot>
+    <_HardwareInspectionFixturePackageRoot>$(_HardwareInspectionFixtureIntermediateRoot)\llmfit\package</_HardwareInspectionFixturePackageRoot>
+    <_HardwareInspectionFixtureArtifactsRoot>$(_HardwareInspectionFixtureIntermediateRoot)\llmfit\artifacts</_HardwareInspectionFixtureArtifactsRoot>
+    <_HardwareInspectionFixtureProject>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..\ProcessFixtures\GraniteEdgeAI.HardwareInspection.LlmFitFakeTool\GraniteEdgeAI.HardwareInspection.LlmFitFakeTool.csproj'))</_HardwareInspectionFixtureProject>
+    <_HardwareInspectionLlamaCppFixturePublishRoot>$(_HardwareInspectionFixtureIntermediateRoot)\llamacpp\publish</_HardwareInspectionLlamaCppFixturePublishRoot>
+    <_HardwareInspectionLlamaCppFixturePackageRoot>$(_HardwareInspectionFixtureIntermediateRoot)\llamacpp\package</_HardwareInspectionLlamaCppFixturePackageRoot>
+    <_HardwareInspectionLlamaCppFixtureArtifactsRoot>$(_HardwareInspectionFixtureIntermediateRoot)\llamacpp\artifacts</_HardwareInspectionLlamaCppFixtureArtifactsRoot>
+    <_HardwareInspectionLlamaCppFixtureProject>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..\ProcessFixtures\GraniteEdgeAI.HardwareInspection.LlamaCppProbeFakeTool\GraniteEdgeAI.HardwareInspection.LlamaCppProbeFakeTool.csproj'))</_HardwareInspectionLlamaCppFixtureProject>
+    <_HardwareInspectionFixtureDotNetHost Condition="'$(DotNetHostPath)' != ''">$(DotNetHostPath)</_HardwareInspectionFixtureDotNetHost>
+    <_HardwareInspectionFixtureDotNetHost Condition="'$(_HardwareInspectionFixtureDotNetHost)' == ''">dotnet</_HardwareInspectionFixtureDotNetHost>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <_HardwareInspectionLlmFitMode Include="assert-in-job;invalid-json;large-output;nonzero;sleep;spawn-child;spawn-child-exit;success;version-mismatch" />
+    <_HardwareInspectionLlamaCppMode Include="assert-in-job;identity-mismatch;invalid-json;large-output;nonzero;sleep;spawn-child;spawn-child-exit;success" />
+  </ItemGroup>
+
+  <Target
+    Name="PublishHardwareInspectionProcessFixturesForPackagedTests"
+    BeforeTargets="AssignTargetPaths"
+    Condition="'$(Platform)' == 'x64' and '$(DesignTimeBuild)' != 'true'">
+    <RemoveDir Directories="$(_HardwareInspectionFixturePublishRoot);$(_HardwareInspectionFixturePackageRoot);$(_HardwareInspectionFixtureArtifactsRoot)" />
+    <MakeDir Directories="$(_HardwareInspectionFixturePublishRoot);$(_HardwareInspectionFixturePackageRoot)" />
+
+    <Exec
+      WorkingDirectory="$(_HardwareInspectionFixtureRepositoryRoot)"
+      Command="&quot;$(_HardwareInspectionFixtureDotNetHost)&quot; restore &quot;$(_HardwareInspectionFixtureProject)&quot; --runtime win-x64 --artifacts-path &quot;$(_HardwareInspectionFixtureArtifactsRoot)&quot; -p:Configuration=Release -p:Platform=x64" />
+    <Exec
+      WorkingDirectory="$(_HardwareInspectionFixtureRepositoryRoot)"
+      Command="&quot;$(_HardwareInspectionFixtureDotNetHost)&quot; publish &quot;$(_HardwareInspectionFixtureProject)&quot; --configuration Release --runtime win-x64 --self-contained true --no-restore --artifacts-path &quot;$(_HardwareInspectionFixtureArtifactsRoot)&quot; --output &quot;$(_HardwareInspectionFixturePublishRoot)&quot; -p:Configuration=Release -p:Platform=x64 -p:UseAppHost=true -p:PublishTrimmed=true -p:PublishReadyToRun=false -p:DebugSymbols=false -p:DebugType=None -p:CopyDebugSymbolToPublishDirectory=false" />
+
+    <MakeDir Directories="@(_HardwareInspectionLlmFitMode->'$(_HardwareInspectionFixturePackageRoot)\%(Identity)')" />
+    <ItemGroup>
+      <_HardwareInspectionFixturePublishedFile Include="$(_HardwareInspectionFixturePublishRoot)\*" Exclude="$(_HardwareInspectionFixturePublishRoot)\*.pdb" />
+    </ItemGroup>
+    <Copy
+      SourceFiles="@(_HardwareInspectionFixturePublishedFile)"
+      DestinationFolder="$(_HardwareInspectionFixturePackageRoot)\%(_HardwareInspectionLlmFitMode.Identity)" />
+    <WriteLinesToFile
+      File="$(_HardwareInspectionFixturePackageRoot)\%(_HardwareInspectionLlmFitMode.Identity)\fake-mode.txt"
+      Lines="%(_HardwareInspectionLlmFitMode.Identity)"
+      Overwrite="true"
+      WriteOnlyWhenDifferent="true"
+      Encoding="ASCII" />
+
+    <RemoveDir Directories="$(_HardwareInspectionLlamaCppFixturePublishRoot);$(_HardwareInspectionLlamaCppFixturePackageRoot);$(_HardwareInspectionLlamaCppFixtureArtifactsRoot)" />
+    <MakeDir Directories="$(_HardwareInspectionLlamaCppFixturePublishRoot);$(_HardwareInspectionLlamaCppFixturePackageRoot)" />
+    <Exec
+      WorkingDirectory="$(_HardwareInspectionFixtureRepositoryRoot)"
+      Command="&quot;$(_HardwareInspectionFixtureDotNetHost)&quot; restore &quot;$(_HardwareInspectionLlamaCppFixtureProject)&quot; --runtime win-x64 --artifacts-path &quot;$(_HardwareInspectionLlamaCppFixtureArtifactsRoot)&quot; -p:Configuration=Release -p:Platform=x64" />
+    <Exec
+      WorkingDirectory="$(_HardwareInspectionFixtureRepositoryRoot)"
+      Command="&quot;$(_HardwareInspectionFixtureDotNetHost)&quot; publish &quot;$(_HardwareInspectionLlamaCppFixtureProject)&quot; --configuration Release --runtime win-x64 --self-contained true --no-restore --artifacts-path &quot;$(_HardwareInspectionLlamaCppFixtureArtifactsRoot)&quot; --output &quot;$(_HardwareInspectionLlamaCppFixturePublishRoot)&quot; -p:Configuration=Release -p:Platform=x64 -p:UseAppHost=true -p:PublishTrimmed=true -p:PublishReadyToRun=false -p:DebugSymbols=false -p:DebugType=None -p:CopyDebugSymbolToPublishDirectory=false" />
+    <MakeDir Directories="@(_HardwareInspectionLlamaCppMode->'$(_HardwareInspectionLlamaCppFixturePackageRoot)\%(Identity)')" />
+    <ItemGroup>
+      <_HardwareInspectionLlamaCppFixturePublishedFile Include="$(_HardwareInspectionLlamaCppFixturePublishRoot)\*" Exclude="$(_HardwareInspectionLlamaCppFixturePublishRoot)\*.pdb" />
+    </ItemGroup>
+    <Copy
+      SourceFiles="@(_HardwareInspectionLlamaCppFixturePublishedFile)"
+      DestinationFolder="$(_HardwareInspectionLlamaCppFixturePackageRoot)\%(_HardwareInspectionLlamaCppMode.Identity)" />
+    <WriteLinesToFile
+      File="$(_HardwareInspectionLlamaCppFixturePackageRoot)\%(_HardwareInspectionLlamaCppMode.Identity)\fake-mode.txt"
+      Lines="%(_HardwareInspectionLlamaCppMode.Identity)"
+      Overwrite="true"
+      WriteOnlyWhenDifferent="true"
+      Encoding="ASCII" />
+
+    <ItemGroup>
+      <_HardwareInspectionFixturePackagedFile Include="$(_HardwareInspectionFixturePackageRoot)\**\*" />
+      <Content Include="@(_HardwareInspectionFixturePackagedFile)">
+        <Link>HardwareInspection\TestTools\LlmFitFake\%(RecursiveDir)%(Filename)%(Extension)</Link>
+        <TargetPath>HardwareInspection\TestTools\LlmFitFake\%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </Content>
+      <_HardwareInspectionLlamaCppFixturePackagedFile Include="$(_HardwareInspectionLlamaCppFixturePackageRoot)\**\*" />
+      <Content Include="@(_HardwareInspectionLlamaCppFixturePackagedFile)">
+        <Link>HardwareInspection\TestTools\LlamaCppProbeFake\%(RecursiveDir)%(Filename)%(Extension)</Link>
+        <TargetPath>HardwareInspection\TestTools\LlamaCppProbeFake\%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </Content>
+    </ItemGroup>
+  </Target>
+</Project>

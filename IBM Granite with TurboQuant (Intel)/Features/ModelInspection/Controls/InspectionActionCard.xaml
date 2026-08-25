@@ -12,11 +12,17 @@
     mc:Ignorable="d">
 
     <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="ms-appx:///Features/Onboarding/Presentation/GraniteJourneyActionPalette.xaml" />
+            </ResourceDictionary.MergedDictionaries>
         <Style x:Key="InspectionActionHeadingStyle" TargetType="TextBlock">
             <Setter Property="FontFamily" Value="{StaticResource InspectionStrongBodyFontFamily}" />
             <Setter Property="FontSize" Value="{ThemeResource InspectionBodyFontSize}" />
             <Setter Property="FontWeight" Value="{StaticResource InspectionStrongBodyFontWeight}" />
             <Setter Property="Foreground" Value="{ThemeResource InspectionTextPrimaryBrush}" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="MaxWidth" Value="640" />
             <Setter Property="TextAlignment" Value="Center" />
             <Setter Property="TextWrapping" Value="WrapWholeWords" />
         </Style>
@@ -24,19 +30,53 @@
             <Setter Property="FontFamily" Value="{StaticResource InspectionHelperFontFamily}" />
             <Setter Property="FontSize" Value="{ThemeResource InspectionHelperFontSize}" />
             <Setter Property="Foreground" Value="{ThemeResource InspectionTextSecondaryMutedBrush}" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="MaxWidth" Value="640" />
             <Setter Property="TextAlignment" Value="Center" />
             <Setter Property="TextWrapping" Value="WrapWholeWords" />
         </Style>
         <Style x:Key="InspectionActionButtonTextStyle" TargetType="TextBlock">
             <Setter Property="FontFamily" Value="{StaticResource InspectionStrongBodyFontFamily}" />
             <Setter Property="FontSize" Value="{ThemeResource InspectionHelperFontSize}" />
-            <Setter Property="FontWeight" Value="{StaticResource InspectionStrongBodyFontWeight}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="MaxLines" Value="0" />
             <Setter Property="TextAlignment" Value="Center" />
             <Setter Property="TextWrapping" Value="Wrap" />
         </Style>
+        <Style
+            x:Key="InspectionSecondaryActionButtonStyle"
+            BasedOn="{StaticResource DefaultButtonStyle}"
+            TargetType="Button">
+            <Setter Property="MinHeight" Value="{StaticResource GraniteJourneyActionHeight}" />
+            <Setter Property="Padding" Value="{StaticResource GraniteJourneyActionPadding}" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Background" Value="{StaticResource GraniteJourneySecondaryBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource GraniteJourneySecondaryBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="{StaticResource GraniteJourneyActionCornerRadius}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{StaticResource GraniteJourneySecondaryForegroundBrush}" />
+            <Setter Property="UseSystemFocusVisuals" Value="True" />
+        </Style>
+        <Style
+            x:Key="InspectionPrimaryActionButtonStyle"
+            BasedOn="{StaticResource AccentButtonStyle}"
+            TargetType="Button">
+            <Setter Property="MinHeight" Value="{StaticResource GraniteJourneyActionHeight}" />
+            <Setter Property="Padding" Value="{StaticResource GraniteJourneyActionPadding}" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Background" Value="{StaticResource GraniteJourneyPrimaryBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource GraniteJourneyPrimaryBackgroundBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="{StaticResource GraniteJourneyActionCornerRadius}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{StaticResource GraniteJourneyPrimaryForegroundBrush}" />
+            <Setter Property="UseSystemFocusVisuals" Value="True" />
+        </Style>
         <Style x:Key="InspectionFutureHelpStyle" TargetType="TextBlock">
-            <Setter Property="Margin" Value="0,4,0,0" />
+            <Setter Property="Margin" Value="{StaticResource InspectionActionFutureHelpMargin}" />
             <Setter Property="FontFamily" Value="{StaticResource InspectionHelperFontFamily}" />
             <Setter Property="FontSize" Value="{ThemeResource InspectionLabelFontSize}" />
             <Setter Property="Foreground" Value="{ThemeResource InspectionTextMutedBrush}" />
@@ -44,6 +84,7 @@
             <Setter Property="TextAlignment" Value="Center" />
             <Setter Property="TextWrapping" Value="WrapWholeWords" />
         </Style>
+        </ResourceDictionary>
     </UserControl.Resources>
 
     <Grid
@@ -84,25 +125,25 @@
                         x:Name="CancelActionButton"
                         Grid.Row="1"
                         MinWidth="{x:Bind Presentation.CancelAction.MinimumWidth, Mode=OneWay}"
-                        MinHeight="{StaticResource InspectionStandardButtonHeight}"
                         Margin="0,12,0,0"
-                        Padding="20,10"
                         HorizontalAlignment="Center"
-                        HorizontalContentAlignment="Center"
-                        VerticalContentAlignment="Center"
                         AutomationProperties.Name="{x:Bind Presentation.CancelAction.AutomationName, Mode=OneWay}"
-                        Background="{ThemeResource InspectionSurfaceBrush}"
-                        BorderBrush="{ThemeResource InspectionBorderControlBrush}"
-                        BorderThickness="1"
                         Command="{x:Bind Presentation.CancelAction.Command, Mode=OneWay}"
                         CommandParameter="{x:Bind Presentation.CancelAction.CommandParameter, Mode=OneWay}"
-                        CornerRadius="12"
-                        Foreground="{ThemeResource InspectionTextSecondaryStrongBrush}"
                         IsEnabled="{x:Bind Presentation.CancelAction.IsEnabled, Mode=OneWay}"
+                        Style="{StaticResource InspectionSecondaryActionButtonStyle}"
                         Tag="{x:Bind Presentation.CancelAction.ActionId, Mode=OneWay}"
                         TabIndex="0"
-                        UseSystemFocusVisuals="True"
                         Visibility="{x:Bind Presentation.CancelAction.Visibility, Mode=OneWay}">
+                        <Button.Resources>
+                            <StaticResource x:Key="ButtonBackgroundPointerOver" ResourceKey="GraniteJourneySecondaryPointerOverBrush" />
+                            <StaticResource x:Key="ButtonBorderBrushPointerOver" ResourceKey="GraniteJourneySecondaryPointerOverBorderBrush" />
+                            <StaticResource x:Key="ButtonBackgroundPressed" ResourceKey="GraniteJourneySecondaryPressedBrush" />
+                            <StaticResource x:Key="ButtonBorderBrushPressed" ResourceKey="GraniteJourneySecondaryPressedBorderBrush" />
+                            <StaticResource x:Key="ButtonBackgroundDisabled" ResourceKey="GraniteJourneyDisabledBackgroundBrush" />
+                            <StaticResource x:Key="ButtonForegroundDisabled" ResourceKey="GraniteJourneyDisabledForegroundBrush" />
+                            <StaticResource x:Key="ButtonBorderBrushDisabled" ResourceKey="GraniteJourneyDisabledBorderBrush" />
+                        </Button.Resources>
                         <TextBlock
                             Style="{StaticResource InspectionActionButtonTextStyle}"
                             Text="{x:Bind Presentation.CancelAction.Text, Mode=OneWay}" />
@@ -113,7 +154,7 @@
 
         <Border
             x:Name="ResultView"
-            Padding="20,17"
+            Padding="{StaticResource InspectionResultActionPadding}"
             HorizontalAlignment="Stretch"
             Background="{ThemeResource InspectionSurfaceMutedBrush}"
             BorderBrush="{ThemeResource InspectionBorderLightBrush}"
@@ -131,7 +172,7 @@
                     Text="{x:Bind Presentation.Title, Mode=OneWay}" />
                 <TextBlock
                     Grid.Row="1"
-                    Margin="0,6,0,0"
+                    Margin="{StaticResource InspectionActionMessageMargin}"
                     Style="{StaticResource InspectionActionMessageStyle}"
                     Text="{x:Bind Presentation.Message, Mode=OneWay}" />
 
@@ -139,7 +180,7 @@
                     x:Name="ResultButtonPanel"
                     Grid.Row="2"
                     MaxWidth="760"
-                    Margin="0,14,0,0"
+                    Margin="{StaticResource InspectionActionPanelMargin}"
                     HorizontalAlignment="Stretch"
                     ColumnSpacing="0"
                     RowSpacing="0">
@@ -158,26 +199,26 @@
                         <Button
                             x:Name="SecondaryActionOneButton"
                             MinWidth="{StaticResource InspectionMinimumTargetSize}"
-                            MinHeight="{StaticResource InspectionStandardButtonHeight}"
-                            Padding="20,10"
                             HorizontalAlignment="Stretch"
-                            HorizontalContentAlignment="Center"
-                            VerticalContentAlignment="Center"
                             AutomationProperties.HelpText="{x:Bind Presentation.SecondaryActionOne.AutomationHelpText, Mode=OneWay}"
                             AutomationProperties.Name="{x:Bind Presentation.SecondaryActionOne.AutomationName, Mode=OneWay}"
-                            Background="{ThemeResource InspectionSurfaceBrush}"
-                            BorderBrush="{ThemeResource InspectionBorderControlBrush}"
-                            BorderThickness="1"
                             Command="{x:Bind Presentation.SecondaryActionOne.Command, Mode=OneWay}"
                             CommandParameter="{x:Bind Presentation.SecondaryActionOne.CommandParameter, Mode=OneWay}"
-                            CornerRadius="12"
-                            Foreground="{ThemeResource InspectionTextSecondaryStrongBrush}"
                             IsEnabled="{x:Bind Presentation.SecondaryActionOne.IsEnabled, Mode=OneWay}"
+                            Style="{StaticResource InspectionSecondaryActionButtonStyle}"
                             Tag="{x:Bind Presentation.SecondaryActionOne.ActionId, Mode=OneWay}"
                             TabIndex="0"
                             ToolTipService.ToolTip="{x:Bind Presentation.SecondaryActionOne.AutomationHelpText, Mode=OneWay}"
-                            UseSystemFocusVisuals="True"
                             Visibility="{x:Bind Presentation.SecondaryActionOne.Visibility, Mode=OneWay}">
+                            <Button.Resources>
+                                <StaticResource x:Key="ButtonBackgroundPointerOver" ResourceKey="GraniteJourneySecondaryPointerOverBrush" />
+                                <StaticResource x:Key="ButtonBorderBrushPointerOver" ResourceKey="GraniteJourneySecondaryPointerOverBorderBrush" />
+                                <StaticResource x:Key="ButtonBackgroundPressed" ResourceKey="GraniteJourneySecondaryPressedBrush" />
+                                <StaticResource x:Key="ButtonBorderBrushPressed" ResourceKey="GraniteJourneySecondaryPressedBorderBrush" />
+                                <StaticResource x:Key="ButtonBackgroundDisabled" ResourceKey="GraniteJourneyDisabledBackgroundBrush" />
+                                <StaticResource x:Key="ButtonForegroundDisabled" ResourceKey="GraniteJourneyDisabledForegroundBrush" />
+                                <StaticResource x:Key="ButtonBorderBrushDisabled" ResourceKey="GraniteJourneyDisabledBorderBrush" />
+                            </Button.Resources>
                             <TextBlock Style="{StaticResource InspectionActionButtonTextStyle}" Text="{x:Bind Presentation.SecondaryActionOne.Text, Mode=OneWay}" />
                         </Button>
                         <TextBlock
@@ -193,26 +234,26 @@
                         <Button
                             x:Name="SecondaryActionTwoButton"
                             MinWidth="{StaticResource InspectionMinimumTargetSize}"
-                            MinHeight="{StaticResource InspectionStandardButtonHeight}"
-                            Padding="20,10"
                             HorizontalAlignment="Stretch"
-                            HorizontalContentAlignment="Center"
-                            VerticalContentAlignment="Center"
                             AutomationProperties.HelpText="{x:Bind Presentation.SecondaryActionTwo.AutomationHelpText, Mode=OneWay}"
                             AutomationProperties.Name="{x:Bind Presentation.SecondaryActionTwo.AutomationName, Mode=OneWay}"
-                            Background="{ThemeResource InspectionSurfaceBrush}"
-                            BorderBrush="{ThemeResource InspectionBorderControlBrush}"
-                            BorderThickness="1"
                             Command="{x:Bind Presentation.SecondaryActionTwo.Command, Mode=OneWay}"
                             CommandParameter="{x:Bind Presentation.SecondaryActionTwo.CommandParameter, Mode=OneWay}"
-                            CornerRadius="12"
-                            Foreground="{ThemeResource InspectionTextSecondaryStrongBrush}"
                             IsEnabled="{x:Bind Presentation.SecondaryActionTwo.IsEnabled, Mode=OneWay}"
+                            Style="{StaticResource InspectionSecondaryActionButtonStyle}"
                             Tag="{x:Bind Presentation.SecondaryActionTwo.ActionId, Mode=OneWay}"
                             TabIndex="1"
                             ToolTipService.ToolTip="{x:Bind Presentation.SecondaryActionTwo.AutomationHelpText, Mode=OneWay}"
-                            UseSystemFocusVisuals="True"
                             Visibility="{x:Bind Presentation.SecondaryActionTwo.Visibility, Mode=OneWay}">
+                            <Button.Resources>
+                                <StaticResource x:Key="ButtonBackgroundPointerOver" ResourceKey="GraniteJourneySecondaryPointerOverBrush" />
+                                <StaticResource x:Key="ButtonBorderBrushPointerOver" ResourceKey="GraniteJourneySecondaryPointerOverBorderBrush" />
+                                <StaticResource x:Key="ButtonBackgroundPressed" ResourceKey="GraniteJourneySecondaryPressedBrush" />
+                                <StaticResource x:Key="ButtonBorderBrushPressed" ResourceKey="GraniteJourneySecondaryPressedBorderBrush" />
+                                <StaticResource x:Key="ButtonBackgroundDisabled" ResourceKey="GraniteJourneyDisabledBackgroundBrush" />
+                                <StaticResource x:Key="ButtonForegroundDisabled" ResourceKey="GraniteJourneyDisabledForegroundBrush" />
+                                <StaticResource x:Key="ButtonBorderBrushDisabled" ResourceKey="GraniteJourneyDisabledBorderBrush" />
+                            </Button.Resources>
                             <TextBlock Style="{StaticResource InspectionActionButtonTextStyle}" Text="{x:Bind Presentation.SecondaryActionTwo.Text, Mode=OneWay}" />
                         </Button>
                         <TextBlock
@@ -228,26 +269,26 @@
                         <Button
                             x:Name="PrimaryActionButton"
                             MinWidth="{StaticResource InspectionMinimumTargetSize}"
-                            MinHeight="{StaticResource InspectionStandardButtonHeight}"
-                            Padding="20,10"
                             HorizontalAlignment="Stretch"
-                            HorizontalContentAlignment="Center"
-                            VerticalContentAlignment="Center"
                             AutomationProperties.HelpText="{x:Bind Presentation.PrimaryAction.AutomationHelpText, Mode=OneWay}"
                             AutomationProperties.Name="{x:Bind Presentation.PrimaryAction.AutomationName, Mode=OneWay}"
-                            Background="{ThemeResource InspectionPrimaryBlueBrush}"
-                            BorderBrush="{ThemeResource InspectionPrimaryBlueBrush}"
-                            BorderThickness="1"
                             Command="{x:Bind Presentation.PrimaryAction.Command, Mode=OneWay}"
                             CommandParameter="{x:Bind Presentation.PrimaryAction.CommandParameter, Mode=OneWay}"
-                            CornerRadius="12"
-                            Foreground="{ThemeResource InspectionSurfaceBrush}"
                             IsEnabled="{x:Bind Presentation.PrimaryAction.IsEnabled, Mode=OneWay}"
+                            Style="{StaticResource InspectionPrimaryActionButtonStyle}"
                             Tag="{x:Bind Presentation.PrimaryAction.ActionId, Mode=OneWay}"
                             TabIndex="2"
                             ToolTipService.ToolTip="{x:Bind Presentation.PrimaryAction.AutomationHelpText, Mode=OneWay}"
-                            UseSystemFocusVisuals="True"
                             Visibility="{x:Bind Presentation.PrimaryAction.Visibility, Mode=OneWay}">
+                            <Button.Resources>
+                                <StaticResource x:Key="ButtonBackgroundPointerOver" ResourceKey="GraniteJourneyPrimaryPointerOverBrush" />
+                                <StaticResource x:Key="ButtonBorderBrushPointerOver" ResourceKey="GraniteJourneyPrimaryPointerOverBrush" />
+                                <StaticResource x:Key="ButtonBackgroundPressed" ResourceKey="GraniteJourneyPrimaryPressedBrush" />
+                                <StaticResource x:Key="ButtonBorderBrushPressed" ResourceKey="GraniteJourneyPrimaryPressedBrush" />
+                                <StaticResource x:Key="ButtonBackgroundDisabled" ResourceKey="GraniteJourneyDisabledBackgroundBrush" />
+                                <StaticResource x:Key="ButtonForegroundDisabled" ResourceKey="GraniteJourneyDisabledForegroundBrush" />
+                                <StaticResource x:Key="ButtonBorderBrushDisabled" ResourceKey="GraniteJourneyDisabledBorderBrush" />
+                            </Button.Resources>
                             <TextBlock Style="{StaticResource InspectionActionButtonTextStyle}" Text="{x:Bind Presentation.PrimaryAction.Text, Mode=OneWay}" />
                         </Button>
                         <TextBlock

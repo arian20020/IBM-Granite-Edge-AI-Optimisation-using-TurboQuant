@@ -1,4 +1,6 @@
 using GraniteEdgeAI.Features.ModelImport.Controls;
+using GraniteEdgeAI.Features.ModelImport.DragDropRoute;
+using GraniteEdgeAI.Features.ModelImport.DownloadedModels;
 using GraniteEdgeAI.Features.ModelImport.FileImport;
 using GraniteEdgeAI.Features.ModelImport.FileImport.PickerRoute;
 using GraniteEdgeAI.Features.ModelImport.QuickScan;
@@ -6,6 +8,7 @@ using GraniteEdgeAI.Features.ModelImport.Selection;
 using GraniteEdgeAI.Features.ModelInspection.Contracts;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Windows.ApplicationModel.DataTransfer;
 using Microsoft.Windows.Storage.Pickers;
 using System;
 using System.Diagnostics;
@@ -34,6 +37,7 @@ namespace GraniteEdgeAI.Features.ModelImport
         private readonly CultureInfo _displayCulture;
         private readonly Action<ModelQuickScanFailureDiagnostic>
             _recordScanFailure;
+        private readonly ModelImportDropHandler _dropHandler;
 
         // Identifies the scan whose result is currently allowed to update the page.
         private CancellationTokenSource? _scanCancellationTokenSource;
@@ -54,7 +58,8 @@ namespace GraniteEdgeAI.Features.ModelImport
             CultureInfo? displayCulture = null,
             Action<ModelQuickScanFailureDiagnostic>? recordScanFailure = null,
             IModelSelectionClassifier? classifier = null,
-            Func<Task<string?>>? pickOpenVinoPathAsync = null)
+            Func<Task<string?>>? pickOpenVinoPathAsync = null,
+            IDownloadedModelFinder? downloadedModelFinder = null)
         {
             InitializeComponent();
 
@@ -79,6 +84,9 @@ namespace GraniteEdgeAI.Features.ModelImport
             _recordScanFailure =
                 recordScanFailure ?? WriteFailureDiagnosticToTrace;
             _classifier = classifier ?? new BoundedModelSelectionClassifier();
+            _downloadedModelFinder = downloadedModelFinder ?? new BoundedDownloadedModelFinder();
+            _dropHandler = new ModelImportDropHandler(
+                new ModelSelectionInputNormalizer());
         }
 
         internal string? SelectedModelPath { get; private set; }
@@ -92,7 +100,7 @@ namespace GraniteEdgeAI.Features.ModelImport
         /// Raised when the user requests full inspection of the validated model.
         internal event EventHandler<ModelInspectionRequestedEventArgs>? ModelInspectionRequested;
         internal event EventHandler<OpenVinoInspectionRequestedEventArgs>? OpenVinoInspectionRequested;
-        internal event EventHandler<SourceModelInspectionRequestedEventArgs>? SourceModelInspectionRequested;
+        internal event EventHandler<SourceModelConversionRequestedEventArgs>? SourceModelConversionRequested;
 
         internal async Task BrowseFilesAsync()
         {
@@ -263,15 +271,23 @@ namespace GraniteEdgeAI.Features.ModelImport
 
         private void ResetToAwaitingSelection()
         {
+            ClearSelectionAnnouncement();
             SelectedModelPath = null;
-            _selectedOpenVinoDirectory = null;
-            _selectedOpenVinoDisplayName = null;
-            _selectedOpenVinoOperationId = null;
             ValidatedScanResult = null;
             CurrentRoute = null;
+            _acceptedFolderOperationId = null;
+            _acceptedFolderDisplayName = null;
+            _acceptedFolderLocalPath = null;
+            _acceptedFolderSelection = null;
             HasValidatedModel = false;
             ContinueToModelInspectionButton.IsEnabled = false;
             ImportModelCardControl.ShowAwaitingSelection();
+        }
+
+        private void ClearSelectionAnnouncement()
+        {
+            SelectionAnnouncement.Text = string.Empty;
+            SelectionAnnouncement.Visibility = Visibility.Collapsed;
         }
 
         /// <summary>
@@ -343,6 +359,63 @@ namespace GraniteEdgeAI.Features.ModelImport
             await BrowseFilesAsync();
         }
 
+        private async void ImportModelCard_ChooseModelFolderRequested(
+            object sender,
+            RoutedEventArgs e)
+        {
+            await PickOpenVinoFolderAsync();
+        }
+
+        private async Task PickOpenVinoFolderAsync()
+        {
+            var picker = new OpenVINOFolderPicker();
+            ModelSelectionInput? input = await picker.PickInputAsync(
+                new ModelSelectionInputNormalizer());
+            if (input is not null)
+            {
+                await SubmitInputAsync(input);
+            }
+        }
+
+        private void ModelDropTarget_DragOver(object sender, DragEventArgs e)
+        {
+            _dropHandler.HandleDragOver(e);
+            ImportModelCardControl.ShowDragValidation(
+                e.AcceptedOperation == DataPackageOperation.Copy);
+        }
+
+        private void ModelDropTarget_DragLeave(object sender, DragEventArgs e)
+        {
+            ImportModelCardControl.ClearDragValidation();
+        }
+
+        private async void ModelDropTarget_Drop(object sender, DragEventArgs e)
+        {
+            ImportModelCardControl.ClearDragValidation();
+            await _dropHandler.HandleDropAsync(
+                e,
+                SubmitInputAsync,
+                RejectDroppedSelectionAsync,
+                CancellationToken.None);
+        }
+
+        // Task 5 delivers only a safe diagnostic for rejected native drops.
+        // Accepted items still enter solely through SubmitInputAsync.
+        private Task RejectDroppedSelectionAsync(ModelSelectionDiagnostic diagnostic)
+        {
+            CancelSelection();
+            ImportModelCardControl.ShowFailure(
+                "dropped item",
+                diagnostic.Code,
+                diagnostic.Message);
+            // A collapsed live region is absent from the accessibility tree.
+            // Reveal it before changing text so assistive technology can announce
+            // the recoverable rejection without exposing a local path.
+            SelectionAnnouncement.Visibility = Visibility.Visible;
+            SelectionAnnouncement.Text = diagnostic.Message;
+            return Task.CompletedTask;
+        }
+
         private void ImportModelCard_CancelScanRequested(
             object sender,
             RoutedEventArgs e)
@@ -359,27 +432,8 @@ namespace GraniteEdgeAI.Features.ModelImport
         /// </returns>
         internal bool TryRequestModelInspection()
         {
-            if (CurrentRoute == ModelSelectionRoute.OpenVinoDirectory)
+            if (TryRequestFolderInspection())
             {
-                if (!HasValidatedModel ||
-                    _selectedOpenVinoOperationId is not ModelSelectionOperationId operationId ||
-                    string.IsNullOrWhiteSpace(_selectedOpenVinoDirectory) ||
-                    string.IsNullOrWhiteSpace(_selectedOpenVinoDisplayName))
-                {
-                    return false;
-                }
-
-                OpenVinoInspectionRequestedEventArgs openVinoRequest = new(
-                    operationId,
-                    _selectedOpenVinoDirectory,
-                    _selectedOpenVinoDisplayName);
-                _selectedOpenVinoDirectory = null;
-                _selectedOpenVinoDisplayName = null;
-                _selectedOpenVinoOperationId = null;
-                CurrentRoute = null;
-                HasValidatedModel = false;
-                ContinueToModelInspectionButton.IsEnabled = false;
-                OpenVinoInspectionRequested?.Invoke(this, openVinoRequest);
                 return true;
             }
 

@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.Presentation;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -18,24 +20,31 @@ namespace GraniteEdgeAI.Features.ModelHardwareCompatibility;
 /// </summary>
 internal sealed partial class CompatibilityPage : Page
 {
-    private static readonly string[] StepLabels =
-    [
-        "Choose model",
-        "Inspect model",
-        "Check hardware fit",
-        "Choose settings",
-        "Finish"
-    ];
-
     private CompatibilityPresentation _presentation = CompatibilityPresentation.Empty;
 
     public CompatibilityPage()
+        : this(new ViewModels.CompatibilityViewModel())
     {
+    }
+
+    internal CompatibilityPage(
+        Func<CancellationToken, Task<GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation.CompatibilityScreenModel>> evaluator,
+        bool continueDestinationAvailable = true)
+        : this(new ViewModels.CompatibilityViewModel(
+            evaluator,
+            continueDestinationAvailable))
+    {
+    }
+
+    private CompatibilityPage(ViewModels.CompatibilityViewModel viewModel)
+    {
+        ViewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
         InitializeComponent();
-        BuildStepper();
         Apply(CompatibilityPresentation.Empty);
 
         ViewModel.PresentationChanged += (_, presentation) => Apply(presentation);
+        ViewModel.ContinueRequested += (_, _) => ContinueRequested?.Invoke(this, EventArgs.Empty);
+        ViewModel.BackRequested += (_, _) => BackRequested?.Invoke(this, EventArgs.Empty);
         PrimaryAction.Command = ViewModel.ContinueCommand;
         SecondaryAction.Command = ViewModel.BackCommand;
 
@@ -50,6 +59,10 @@ internal sealed partial class CompatibilityPage : Page
         };
     }
 
+    internal event EventHandler? ContinueRequested;
+
+    internal event EventHandler? BackRequested;
+
     /// <summary>
     /// False only when something else is driving what this page shows — the
     /// fixture gallery, which would otherwise have its chosen state immediately
@@ -61,7 +74,7 @@ internal sealed partial class CompatibilityPage : Page
     /// Owned by the page for the lifetime of one navigation, so a check started
     /// here cannot outlive the screen that asked for it.
     /// </summary>
-    internal ViewModels.CompatibilityViewModel ViewModel { get; } = new();
+    internal ViewModels.CompatibilityViewModel ViewModel { get; }
 
     /// <summary>
     /// Applies a snapshot. Safe to call with the same value twice.
@@ -81,6 +94,7 @@ internal sealed partial class CompatibilityPage : Page
         ApplyOutcome(presentation);
         ApplyFacts(presentation.Facts);
         ApplyBudget(presentation.Budget);
+        ApplyEstimateSummary(presentation.EstimateSummary);
 
         RuntimeCardTitleText.Text = presentation.RuntimeCardTitle;
         ApplyRows(RuntimeRows, presentation.RuntimeRows);
@@ -98,7 +112,34 @@ internal sealed partial class CompatibilityPage : Page
         SecondaryAction.Content = presentation.SecondaryActionText;
         SecondaryAction.IsEnabled = presentation.SecondaryActionEnabled;
 
-        ApplyStepper(presentation.ActiveStepIndex);
+    }
+
+    private void ApplyEstimateSummary(CompatibilityEstimateSummary? summary)
+    {
+        EstimateBreakdownCard.Visibility = summary is null
+            ? Visibility.Collapsed
+            : Visibility.Visible;
+
+        if (summary is null)
+        {
+            EstimateWeightsValue.Text = EstimateKvCacheValue.Text = string.Empty;
+            EstimateRuntimeValue.Text = EstimateMarginValue.Text = string.Empty;
+            EstimatePeakValue.Text = EstimateSafeValue.Text = string.Empty;
+            return;
+        }
+
+        EstimateWeightsValue.Text =
+            CompatibilityBudget.Describe(summary.ModelWeightsBytes);
+        EstimateKvCacheValue.Text =
+            CompatibilityBudget.Describe(summary.KvCacheBytes);
+        EstimateRuntimeValue.Text =
+            CompatibilityBudget.Describe(summary.RuntimeAndBufferBytes);
+        EstimateMarginValue.Text =
+            CompatibilityBudget.Describe(summary.MarginForErrorBytes);
+        EstimatePeakValue.Text =
+            CompatibilityBudget.Describe(summary.EstimatedPeakBytes);
+        EstimateSafeValue.Text =
+            CompatibilityBudget.Describe(summary.SafeMemoryBytes);
     }
 
     private void ApplyOutcome(CompatibilityPresentation presentation)
@@ -366,78 +407,6 @@ internal sealed partial class CompatibilityPage : Page
             });
 
             RecoveryRows.Children.Add(item);
-        }
-    }
-
-    private void BuildStepper()
-    {
-        for (int index = 0; index < StepLabels.Length; index++)
-        {
-            StackPanel step = new();
-
-            Border dot = new()
-            {
-                CornerRadius = new CornerRadius(10),
-                Height = 19,
-                Width = 19,
-                BorderThickness = new Thickness(2),
-                HorizontalAlignment = HorizontalAlignment.Center,
-                Child = new TextBlock
-                {
-                    FontSize = 7.5,
-                    FontWeight = Microsoft.UI.Text.FontWeights.Bold,
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    VerticalAlignment = VerticalAlignment.Center,
-                    Text = (index + 1).ToString(System.Globalization.CultureInfo.InvariantCulture)
-                }
-            };
-
-            step.Children.Add(dot);
-            step.Children.Add(new TextBlock
-            {
-                Text = StepLabels[index],
-                FontSize = Size("CompatibilityStepLabelFontSize"),
-                HorizontalAlignment = HorizontalAlignment.Center,
-                Margin = new Thickness(0, 5, 0, 0),
-                TextAlignment = TextAlignment.Center,
-                TextWrapping = TextWrapping.Wrap
-            });
-
-            Grid.SetColumn(step, index);
-            StepperSteps.Children.Add(step);
-        }
-    }
-
-    private void ApplyStepper(int activeIndex)
-    {
-        for (int index = 0; index < StepperSteps.Children.Count; index++)
-        {
-            if (StepperSteps.Children[index] is not StackPanel step
-                || step.Children[0] is not Border dot
-                || step.Children[1] is not TextBlock label)
-            {
-                continue;
-            }
-
-            bool reached = index <= activeIndex;
-
-            dot.Background = reached
-                ? Brush("CompatibilityPrimaryBlueBrush")
-                : Brush("CompatibilitySurfaceBrush");
-            dot.BorderBrush = reached
-                ? Brush("CompatibilityPrimaryBlueBrush")
-                : Brush("CompatibilityBorderStrongBrush");
-
-            if (dot.Child is TextBlock number)
-            {
-                number.Foreground = reached
-                    ? Brush("CompatibilitySurfaceBrush")
-                    : Brush("CompatibilityTextMutedBrush");
-            }
-
-            label.Foreground = index == activeIndex
-                ? Brush("CompatibilityTextPrimaryBrush")
-                : Brush("CompatibilityTextMutedBrush");
         }
     }
 

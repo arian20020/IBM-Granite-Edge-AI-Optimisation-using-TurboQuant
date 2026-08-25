@@ -20,6 +20,29 @@ namespace GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation
 /// </summary>
 public static class CompatibilityEngine
 {
+    /// <summary>Runs C1 with validated production values supplied by owner adapters.</summary>
+    public static CompatibilityScreenModel Run(
+        CompatibilityProductionInput input,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+
+        CompatibilityRunResult result;
+        try
+        {
+            result = CompatibilityRunCoordinator.Execute(
+                new CompatibilityRunRequest(CompatibilityContextRequest.ApplicationDefault()),
+                ProductionDependencies(input),
+                cancellationToken);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            result = Failure();
+        }
+
+        return CompatibilityScreenModel.From(result);
+    }
+
     /// <summary>
     /// Runs a check with the adapters that exist today.
     ///
@@ -83,6 +106,107 @@ public static class CompatibilityEngine
                 GpuOffloadLevel.None),
             ContextTokenCount.FromTokens(4096),
             TimeProvider.System);
+
+    private static CompatibilityRunDependencies ProductionDependencies(
+        CompatibilityProductionInput input)
+    {
+        int baselineTokens = Math.Min(4096, input.Model.DeclaredContextLimit ?? 4096);
+        return CompatibilityRunDependencies.Create(
+            new ProductionGateway(input),
+            new ProductionModelFactsSource(input),
+            new ProductionHardwareFactsSource(input),
+            new ProductionMemoryProbe(input),
+            SupportMatrix.ProvisionalV1(),
+            EstimatorPolicy.ProvisionalV1(),
+            SafetyPolicy.ProvisionalV1(),
+            new HashSet<string>(),
+            TrustedSourceAvailability.None(),
+            GgufRouteConfiguration.Create(
+                GgufWeightFormat.Imported,
+                GgufKvCacheFormat.F16,
+                CompatibilityBackend.Cpu,
+                DeviceRouteId.Cpu,
+                GpuOffloadLevel.None),
+            ContextTokenCount.FromTokens(baselineTokens),
+            TimeProvider.System);
+    }
+
+    private sealed class ProductionGateway(CompatibilityProductionInput input)
+        : ICompatibilityInputGateway
+    {
+        public HandoffClaim Claim() => HandoffClaim.Claimed(
+            input.ModelInspectionRunId.ToString("N"),
+            input.ProductHardwareRunId.ToString("N"));
+
+        public void Rollback()
+        {
+        }
+
+        public bool Commit(CompatibilityRunId runId) => !runId.IsEmpty;
+    }
+
+    private sealed class ProductionModelFactsSource(CompatibilityProductionInput input)
+        : IInspectedModelFactsSource
+    {
+        public ModelFactsResolution Resolve(string modelInspectionRunId)
+        {
+            if (!string.Equals(
+                modelInspectionRunId,
+                input.ModelInspectionRunId.ToString("N"),
+                StringComparison.Ordinal))
+            {
+                return ModelFactsResolution.Unavailable(PortUnavailableReason.HandoffUnavailable);
+            }
+
+            GgufCompatibilityModelInput model = input.Model;
+            return ModelFactsResolution.Established(InspectedModelFacts.Create(
+                ByteCount.FromBytes(model.FileLengthBytes),
+                model.LayerCount,
+                model.EmbeddingSize,
+                model.AttentionHeadCount,
+                model.KeyValueHeadCount,
+                model.DeclaredContextLimit,
+                model.FileType,
+                model.QuantisationVersion));
+        }
+    }
+
+    private sealed class ProductionHardwareFactsSource(CompatibilityProductionInput input)
+        : IHardwareFactsSource
+    {
+        public HardwareFactsResolution Resolve(string productHardwareRunId)
+        {
+            if (!string.Equals(
+                productHardwareRunId,
+                input.ProductHardwareRunId.ToString("N"),
+                StringComparison.Ordinal))
+            {
+                return HardwareFactsResolution.Unavailable(PortUnavailableReason.HandoffUnavailable);
+            }
+
+            CompatibilityHardwareInput hardware = input.Hardware;
+            return HardwareFactsResolution.Established(HardwareFacts.Create(
+                ByteCount.FromBytes(hardware.InstalledSystemMemoryBytes),
+                ByteCount.FromBytes(hardware.InstalledDedicatedDeviceMemoryBytes),
+                ByteCount.FromBytes(hardware.FreeStorageBytes),
+                hardware.PresentDevices,
+                hardware.VerifiedBackends));
+        }
+    }
+
+    private sealed class ProductionMemoryProbe(CompatibilityProductionInput input)
+        : IFreshSystemMemoryProbe
+    {
+        public FreshMemoryReading Probe()
+        {
+            CompatibilityFreshResourcesInput fresh = input.FreshResources;
+            return FreshMemoryReading.Established(AvailableResources.Create(
+                ByteCount.FromBytes(fresh.AvailableSystemMemoryBytes),
+                ByteCount.FromBytes(fresh.AvailableDedicatedDeviceMemoryBytes),
+                ByteCount.FromBytes(fresh.AvailableStorageBytes),
+                fresh.ObservedAtUtc));
+        }
+    }
 
     /// <summary>
     /// A run that never started, described the same way as one that started and

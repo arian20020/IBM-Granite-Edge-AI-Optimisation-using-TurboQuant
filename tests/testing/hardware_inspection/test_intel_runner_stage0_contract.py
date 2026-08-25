@@ -258,6 +258,18 @@ def _is_stage0_gate1_runbook_candidate(path):
     )
 
 
+def _is_development_acceptance_runbook_candidate(path):
+    normalized_path = path.replace("\\", "/")
+    casefolded = normalized_path.casefold()
+    if not casefolded.startswith("docs/testing/runbooks/") or not casefolded.endswith(".md"):
+        return False
+    normalized = re.sub(r"[^a-z0-9]+", "", casefolded)
+    return all(
+        marker in normalized
+        for marker in ("hardware", "inspection", "development", "acceptance", "runbook")
+    )
+
+
 def _stage0_inventory_paths(repository_root=REPOSITORY_ROOT):
     environment = {
         key: value
@@ -306,6 +318,8 @@ def _stage0_inventory_paths(repository_root=REPOSITORY_ROOT):
             paths.add(normalized_path)
         elif _is_stage0_gate1_runbook_candidate(normalized_path):
             paths.add(normalized_path)
+        elif _is_development_acceptance_runbook_candidate(normalized_path):
+            paths.add(normalized_path)
     return paths
 
 
@@ -326,7 +340,7 @@ def _assert_stage0_inventory(test_case, repository_paths):
     paths = set(repository_paths)
     workflow_paths = {path for path in paths if path.casefold().startswith(".github/workflows/")}
     test_case.assertEqual(workflow_paths, {
-        ".github/workflows/build-and-test.yml", ".github/workflows/hardware-inspection-intel-runner-stage0.yml", ".github/workflows/hardware-inspection-intel-runner-stage-a.yml", ".github/workflows/traceability-validation.yml", ".github/workflows/workbook-05-documented-build.yml", ".github/workflows/workbook-05-phase3-assets.yml", ".github/workflows/workbook-05-phase3-dependency-preflight.yml", ".github/workflows/workbook-05-preflight.yml", ".github/workflows/workbook-05-route-b-repair.yml", ".github/workflows/workbook-05-runner-smoke.yml", ".github/workflows/workbook-05-runtime-resume.yml", ".github/workflows/workbook-05-source-admission.yml",
+        ".github/workflows/build-and-test.yml", ".github/workflows/hardware-inspection-intel-runner-stage0.yml", ".github/workflows/hardware-inspection-intel-runner-stage-a.yml", ".github/workflows/hardware-inspection-llmfit-spike.yml", ".github/workflows/traceability-validation.yml", ".github/workflows/workbook-05-documented-build.yml", ".github/workflows/workbook-05-phase3-assets.yml", ".github/workflows/workbook-05-phase3-dependency-preflight.yml", ".github/workflows/workbook-05-preflight.yml", ".github/workflows/workbook-05-route-b-repair.yml", ".github/workflows/workbook-05-runner-smoke.yml", ".github/workflows/workbook-05-runtime-resume.yml", ".github/workflows/workbook-05-source-admission.yml",
     })
     stage_workflows = {
         path for path in paths if _is_stage0_workflow_alias(path)
@@ -336,6 +350,7 @@ def _assert_stage0_inventory(test_case, repository_paths):
         {
             ".github/workflows/hardware-inspection-intel-runner-stage0.yml",
             ".github/workflows/hardware-inspection-intel-runner-stage-a.yml",
+            ".github/workflows/hardware-inspection-llmfit-spike.yml",
         },
     )
     hardware_scripts = {
@@ -349,6 +364,16 @@ def _assert_stage0_inventory(test_case, repository_paths):
             "scripts/hardware-inspection/Validate-HardwareInspectionIntelRunnerStage0.ps1",
             "scripts/hardware-inspection/Validate-HardwareInspectionIntelRunnerStageA.ps1",
             "scripts/hardware-inspection/Invoke-HardwareInspectionIntelRunnerStageA.ps1",
+            "scripts/hardware-inspection/Acquire-HardwareInspectionLlmFitCandidate.ps1",
+            "scripts/hardware-inspection/Capture-HardwareInspectionWindowsReference.ps1",
+            "scripts/hardware-inspection/Write-HardwareInspectionLlmFitGate1Report.ps1",
+            "scripts/hardware-inspection/New-LlamaCppProbeManifest.ps1",
+            "scripts/hardware-inspection/Test-LlamaCppProbeManifest.ps1",
+            "scripts/hardware-inspection/Invoke-SignedHardwareInspectionAcceptance.ps1",
+            "scripts/hardware-inspection/Invoke-HardwareInspectionDevelopmentAcceptanceGuest.ps1",
+            "scripts/hardware-inspection/Test-HardwareInspectionGate9Summary.ps1",
+            "scripts/hardware-inspection/Invoke-HardwareInspectionGate9Acceptance.ps1",
+            "scripts/hardware-inspection/Test-HardwareInspectionGate9ReleaseTrust.ps1",
         },
     )
     gate1_runbooks = {
@@ -356,7 +381,20 @@ def _assert_stage0_inventory(test_case, repository_paths):
         for path in paths
         if _is_stage0_gate1_runbook_candidate(path)
     }
-    test_case.assertEqual(gate1_runbooks, set())
+    test_case.assertEqual(gate1_runbooks, {
+        "docs/testing/runbooks/Hardware-Inspection-LLM-Fit-Gate-1-Runbook.md",
+    })
+    development_acceptance_runbooks = {
+        path
+        for path in paths
+        if _is_development_acceptance_runbook_candidate(path)
+    }
+    test_case.assertEqual(
+        development_acceptance_runbooks,
+        {
+            "docs/testing/runbooks/Hardware-Inspection-Development-Acceptance-Runbook.md",
+        },
+    )
     for forbidden_path in (
         ".github/workflows/hardware-inspection-intel-runner-stage-b.yml",
         ".github/workflows/hardware-inspection-intel-runner-stage-d.yml",
@@ -1322,12 +1360,13 @@ on:
             "scripts/runner-tools/Invoke-Gate-Hardware-Review-1.ps1",
             "scripts/hardware-tools/Invoke-Offline-Intel.ps1",
             "scripts/runner-tools/Invoke-Intel-Hardware-Stage-C.ps1",
-            "docs/testing/runbooks/Hardware-Inspection-LLM-Fit-Gate-1-Runbook.md",
             "docs/testing/runbooks/hardware_inspection_llm_fit_gate_1_runbook.md",
             "docs/testing/runbooks/Hardware-Inspection-Gate-1-Runbook.md",
             "docs/testing/runbooks/Gate-Runbook-Hardware-1-Inspection.md",
             "docs/testing/runbooks/LLM-Fit-Gate-1-Runbook.md",
             "docs/testing/runbooks/Runbook-Gate-Review-LLM-1-Fit.md",
+            "docs/testing/runbooks/hardware_inspection_development_acceptance_runbook.md",
+            "docs/testing/runbooks/Hardware-Inspection-Development-Acceptance-Runbook-copy.md",
         ):
             with self.subTest(inventory_mutation=mutation):
                 with self.assertRaises(AssertionError):

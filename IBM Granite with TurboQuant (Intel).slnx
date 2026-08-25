@@ -25,6 +25,9 @@
     <Project Path="infrastructure/GraniteEdgeAI.OpenVino.WorkerClient/GraniteEdgeAI.OpenVino.WorkerClient.csproj">
       <Platform Solution="*|x64" Project="AnyCPU" />
     </Project>
+    <Project Path="infrastructure/GraniteEdgeAI.HardwareInspection.Foundation/GraniteEdgeAI.HardwareInspection.Foundation.csproj">
+      <Platform Solution="*|x64" Project="AnyCPU" />
+    </Project>
     <Project Path="infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/GraniteEdgeAI.ModelInspection.WorkerClient.csproj">
       <Platform Solution="*|x64" Project="AnyCPU" />
     </Project>
@@ -163,6 +166,10 @@
 
   <Folder Name="/tests/UnitTests/">
     <File Path="tests/UnitTests/README.md" />
+
+    <Project Path="tests/UnitTests/GraniteEdgeAI.HardwareInspection.Foundation.Tests/GraniteEdgeAI.HardwareInspection.Foundation.Tests.csproj">
+      <Platform Solution="*|x64" Project="AnyCPU" />
+    </Project>
 
     <Project Path="tests/UnitTests/GraniteEdgeAI.ModelInspection.Transport.Tests/GraniteEdgeAI.ModelInspection.Transport.Tests.csproj" />
 

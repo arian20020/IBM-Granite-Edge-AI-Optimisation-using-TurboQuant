@@ -59,6 +59,7 @@ public sealed class InspectionModelCardTests
             ("FILE SIZE", "2.08 GB")
         ];
         FrameworkElement[] fields = MetadataFields(control);
+        Grid layoutRoot = Find<Grid>(control, "LayoutRoot");
         Grid overviewPanel = Find<Grid>(control, "ModelOverviewPanel");
         TextBlock overviewCopy = Find<TextBlock>(control, "ModelOverviewCopy");
         Border formatChip = Find<Border>(control, "OverviewFormatChip");
@@ -75,6 +76,10 @@ public sealed class InspectionModelCardTests
             "DisclosureToggleButton");
 
         Assert.AreEqual(840d, detailed.ActualWidth, 0.01, "model card width");
+        Assert.AreEqual(840d, layoutRoot.ActualWidth, 0.01,
+            "the model card root owns the shared 840px content edge");
+        Assert.AreEqual(layoutRoot.ActualWidth, detailed.ActualWidth, 0.01,
+            "the visible model surface shares both root edges");
         Assert.AreEqual(0d, detailed.MinHeight, 0.01, "model card must size naturally");
         Assert.AreEqual(
             disclosureHeader.ActualHeight +
@@ -98,7 +103,7 @@ public sealed class InspectionModelCardTests
         Assert.AreEqual(TextAlignment.Left, overviewCopy.TextAlignment);
         Assert.AreEqual(12d, detailed.CornerRadius.TopLeft, 0.01, "shared card radius");
         Assert.AreEqual(new Thickness(24d), compact.Padding, "compact view padding");
-        Assert.AreEqual(new Thickness(18d, 14d, 23d, 12d),
+        Assert.AreEqual(new Thickness(18d, 14d, 26d, 12d),
             detailedHeader.Margin, "approved overview header inset");
         Assert.AreEqual(new Thickness(0d), metadataGrid.Margin,
             "macro layout owns its full 840px width");
@@ -194,7 +199,7 @@ public sealed class InspectionModelCardTests
             .TransformPoint(new Point());
         double macroGap = configurationOrigin.X -
             (overviewOrigin.X + overviewPanel.ActualWidth);
-        Assert.AreEqual(10d, macroGap, 1d, "approved macro gap");
+        Assert.AreEqual(16d, macroGap, 1d, "approved macro gap");
         Assert.AreEqual(
             1.6d,
             overviewPanel.ActualWidth / configurationPanel.ActualWidth,
@@ -219,7 +224,13 @@ public sealed class InspectionModelCardTests
         Assert.IsTrue(resultBadge.ActualHeight > 0d);
         Assert.IsTrue(labels.All(label => label.FontSize == 10d));
         Assert.AreEqual(18d, sectionTitle.FontSize, 0.01, "section title size");
-        double expectedFactWidth = fields[0].ActualWidth;
+        double expectedLeadingFactWidth = fields[0].ActualWidth;
+        double expectedTrailingFactWidth = fields[1].ActualWidth;
+        Assert.AreEqual(
+            3d,
+            expectedLeadingFactWidth - expectedTrailingFactWidth,
+            1d,
+            "the approved 18/26 edge insets preserve the balanced tile columns");
         Thickness expectedFactPadding = ((Border)fields[0]).Padding;
         for (int index = 0; index < expectedFields.Length; index++)
         {
@@ -235,7 +246,10 @@ public sealed class InspectionModelCardTests
             Assert.AreEqual(14d, fieldText[1].FontSize, 0.01);
             if (index is not (2 or 3))
             {
-                Assert.AreEqual(expectedFactWidth, fields[index].ActualWidth, 1d,
+                double expectedColumnWidth = index is 0 or 4 or 6
+                    ? expectedLeadingFactWidth
+                    : expectedTrailingFactWidth;
+                Assert.AreEqual(expectedColumnWidth, fields[index].ActualWidth, 1d,
                     $"{expectedFields[index].Label} width");
                 Assert.AreEqual(expectedFactPadding, ((Border)fields[index]).Padding,
                     $"{expectedFields[index].Label} tile padding");
@@ -529,11 +543,11 @@ public sealed class InspectionModelCardTests
     [UITestMethod]
     [TestCategory("WinUI")]
     [DataRow(888d, 3)]
-    [DataRow(600d, 4)]
+    [DataRow(600d, 5)]
     [DataRow(599d, 8)]
     public async Task Metadata_ReflowsAtApprovedResponsiveBreakpoints(
         double clientWidth,
-        int expectedRowCount)
+        int expectedReadingRowCount)
     {
         var control = new InspectionModelCard
         {
@@ -556,8 +570,9 @@ public sealed class InspectionModelCardTests
 
         try
         {
-            int approvedAttachedRowCount = clientWidth >= 888d ? 3 : 5;
-            int approvedVisualRowCount = clientWidth >= 888d ? 4 : 5;
+            int expectedAttachedRowCount = clientWidth >= 888d
+                ? 3
+                : clientWidth >= 600d ? 5 : 8;
             window.Activate();
             await loaded.Task.WaitAsync(TimeSpan.FromSeconds(10));
             await ResizeClientAndWaitAsync(
@@ -569,25 +584,26 @@ public sealed class InspectionModelCardTests
                 window,
                 control,
                 clientWidth,
-                approvedAttachedRowCount);
+                expectedAttachedRowCount);
 
             Border detailed = Find<Border>(control, "DetailedView");
-            double[] rows = MetadataFields(control)
-                .Select(field => field
-                    .TransformToVisual(detailed)
-                    .TransformPoint(new Point()).Y)
-                .Select(value => Math.Round(value, 1))
-                .Distinct()
-                .ToArray();
-
-            Assert.HasCount(
-                approvedVisualRowCount,
-                rows,
-                $"metadata rows at {clientWidth}px: {string.Join(", ", rows)}");
-            Assert.IsTrue(expectedRowCount is 3 or 4 or 8,
-                "the existing responsive discovery inputs remain unchanged");
-
             FrameworkElement[] metadataFields = MetadataFields(control);
+            int overviewReadingRows = new[] { 0, 1, 4, 5, 6, 7 }
+                .Select(index => Grid.GetRow(metadataFields[index]))
+                .Distinct()
+                .Count();
+            int configurationReadingRows = new[] { 2, 3 }
+                .Select(index => Grid.GetRow(metadataFields[index]))
+                .Distinct()
+                .Count();
+            int readingRows = clientWidth >= 888d
+                ? Math.Max(overviewReadingRows, configurationReadingRows)
+                : overviewReadingRows + configurationReadingRows;
+            Assert.AreEqual(
+                expectedReadingRowCount,
+                readingRows,
+                $"grouped metadata reading rows at {clientWidth}px");
+
             FrameworkElement configurationPanel = Find<FrameworkElement>(
                 control,
                 "ModelConfigurationPanel");
@@ -605,7 +621,7 @@ public sealed class InspectionModelCardTests
                 Assert.AreEqual(2, Grid.GetColumnSpan(configurationPanel));
                 Assert.AreEqual(3, Grid.GetRow(resultSummaryPanel));
             }
-            else
+            else if (clientWidth >= 600d)
             {
                 Assert.AreEqual(Grid.GetRow(metadataFields[0]),
                     Grid.GetRow(metadataFields[1]));
@@ -625,6 +641,21 @@ public sealed class InspectionModelCardTests
                     Grid.GetRow(configurationPanel),
                     Grid.GetRow(resultSummaryPanel),
                     "result summary follows configuration");
+            }
+            else
+            {
+                int[] overviewIndexes = [0, 1, 4, 5, 6, 7];
+                for (int rowIndex = 0; rowIndex < overviewIndexes.Length; rowIndex++)
+                {
+                    FrameworkElement field = metadataFields[overviewIndexes[rowIndex]];
+                    Assert.AreEqual(rowIndex + 1, Grid.GetRow(field));
+                    Assert.AreEqual(0, Grid.GetColumn(field));
+                    Assert.AreEqual(2, Grid.GetColumnSpan(field));
+                }
+                Assert.AreEqual(8, Grid.GetRow(metadataFields[2]));
+                Assert.AreEqual(9, Grid.GetRow(metadataFields[3]));
+                Assert.AreEqual(7, Grid.GetRow(configurationPanel));
+                Assert.AreEqual(10, Grid.GetRow(resultSummaryPanel));
             }
             Thickness expectedFactPadding = ((Border)metadataFields[0]).Padding;
             Assert.IsTrue(new[] { 1, 4, 5, 6, 7 }.All(index =>
@@ -667,7 +698,7 @@ public sealed class InspectionModelCardTests
                     window,
                     control,
                     effectiveWidth: 360d,
-                    expectedRowCount: 5);
+                    expectedRowCount: 8);
                 Assert.AreEqual(1, Grid.GetColumn(titleHost));
                 Assert.AreEqual(1, Grid.GetColumnSpan(titleHost));
                 Assert.IsGreaterThan(
@@ -978,7 +1009,7 @@ public sealed class InspectionModelCardTests
                 window,
                 control,
                 effectiveWidth: 599,
-                expectedRowCount: 5);
+                expectedRowCount: 8);
             TextBlock[] dynamicText =
             [
                 Descendants(compact).OfType<TextBlock>()

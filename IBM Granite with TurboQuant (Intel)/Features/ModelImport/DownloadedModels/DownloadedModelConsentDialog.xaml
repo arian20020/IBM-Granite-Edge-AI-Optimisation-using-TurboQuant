@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentDialog
+    x:Class="GraniteEdgeAI.Features.ModelImport.DownloadedModels.DownloadedModelConsentDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    CloseButtonText="Cancel"
+    PrimaryButtonText="Find downloaded models"
+    Title="Find downloaded models?">
+    <StackPanel Spacing="12">
+        <TextBlock TextWrapping="Wrap">This one-time search checks your Downloads, Documents, and Desktop folders for model files.</TextBlock>
+        <TextBlock TextWrapping="Wrap">It checks at most 250 items for up to 10 seconds. It does not run in the background or on a schedule.</TextBlock>
+    </StackPanel>
+</ContentDialog>

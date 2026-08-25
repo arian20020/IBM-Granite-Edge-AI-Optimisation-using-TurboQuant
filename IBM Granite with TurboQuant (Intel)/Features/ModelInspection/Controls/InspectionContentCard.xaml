@@ -78,7 +78,7 @@
                 AutomationProperties.Name="{x:Bind Title}"
                 BorderBrush="{ThemeResource InspectionBorderLightBrush}"
                 BorderThickness="0,0,0,1">
-                <Grid ColumnSpacing="10">
+                <Grid ColumnSpacing="12">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="24" />
                         <ColumnDefinition Width="*" />
@@ -182,13 +182,13 @@
                 AutomationProperties.HelpText="{x:Bind AutomationHelpText, Mode=OneWay}"
                 AutomationProperties.Name="{x:Bind Title}">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="32" />
+                    <ColumnDefinition Width="24" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
                 <UserControl
@@ -211,14 +211,6 @@
                                 <VisualState.StateTriggers>
                                     <AdaptiveTrigger MinWindowWidth="0" />
                                 </VisualState.StateTriggers>
-                                <VisualState.Setters>
-                                    <Setter Target="ProgressGlyphHost.(Grid.RowSpan)" Value="2" />
-                                    <Setter Target="ProgressCopyPanel.(Grid.ColumnSpan)" Value="3" />
-                                    <Setter Target="ProgressStatusOwner.(Grid.Row)" Value="1" />
-                                    <Setter Target="ProgressStatusOwner.Margin" Value="18,4,0,7" />
-                                    <Setter Target="ProgressFractionText.(Grid.Row)" Value="1" />
-                                    <Setter Target="ProgressFractionText.Margin" Value="8,4,0,7" />
-                                </VisualState.Setters>
                             </VisualState>
                         </VisualStateGroup>
                     </VisualStateManager.VisualStateGroups>
@@ -292,7 +284,7 @@
                     x:Name="ProgressCopyPanel"
                     Grid.Column="1"
                     MinWidth="0"
-                    Margin="0,7,0,7"
+                    Margin="12,7,0,7"
                     VerticalAlignment="Center"
                     Spacing="3">
                     <TextBlock Style="{StaticResource ContentPrimaryTextStyle}" Text="{x:Bind Title}" />
@@ -305,7 +297,7 @@
                 <Grid
                     x:Name="ProgressStatusOwner"
                     Grid.Column="2"
-                    Margin="18,0,0,0"
+                    Margin="12,0,0,0"
                     VerticalAlignment="Center">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="0" />
@@ -465,13 +457,13 @@
                             ItemTemplate="{StaticResource ProgressStageTemplate}"
                             ItemsSource="{x:Bind Presentation.ProgressRows.Items, Mode=OneWay}">
                             <ItemsRepeater.Layout>
-                                <StackLayout Orientation="Vertical" Spacing="0" />
+                                <local:EqualHeightStackLayout />
                             </ItemsRepeater.Layout>
                         </ItemsRepeater>
                     </Border>
                 </Grid>
 
-                <Grid x:Name="FindingsView" Padding="0,0,0,24" Visibility="Collapsed">
+                <Grid x:Name="FindingsView" Padding="{StaticResource InspectionTerminalViewPadding}" Visibility="Collapsed">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
@@ -482,13 +474,13 @@
                     </Grid.RowDefinitions>
                     <TextBlock
                         x:Name="FindingsSectionTitle"
-                        Margin="24,20,24,0"
+                        Margin="{StaticResource InspectionTerminalTitleMargin}"
                         Style="{StaticResource ContentHeadingStyle}"
                         Text="{x:Bind Presentation.SectionTitle, Mode=OneWay}" />
                     <Border
                         x:Name="FindingsRowsSurface"
                         Grid.Row="1"
-                        Margin="24,12,24,0"
+                        Margin="{StaticResource InspectionTerminalRowsMargin}"
                         Background="{ThemeResource InspectionSurfaceSubtleBrush}"
                         BorderBrush="{ThemeResource InspectionBorderLightBrush}"
                         BorderThickness="1"
@@ -512,14 +504,14 @@
                     <TextBlock
                         x:Name="SupportingText"
                         Grid.Row="2"
-                        Margin="24,0,24,0"
+                        Margin="{StaticResource InspectionTerminalElementMargin}"
                         Style="{StaticResource ContentSecondaryTextStyle}"
                         Text="{x:Bind Presentation.SupportingText, Mode=OneWay}"
                         Visibility="{x:Bind Presentation.SupportingTextVisibility, Mode=OneWay}" />
                     <TextBlock
                         x:Name="TertiaryText"
                         Grid.Row="3"
-                        Margin="24,10,24,0"
+                        Margin="{StaticResource InspectionTerminalElementMargin}"
                         FontFamily="{StaticResource InspectionStrongBodyFontFamily}"
                         FontSize="{ThemeResource InspectionHelperFontSize}"
                         FontWeight="{StaticResource InspectionStrongBodyFontWeight}"
@@ -531,7 +523,7 @@
                     <Border
                         x:Name="DiagnosticCodeBorder"
                         Grid.Row="4"
-                        Margin="24,4,24,0"
+                        Margin="{StaticResource InspectionTerminalDiagnosticMargin}"
                         Padding="12,4"
                         Background="{ThemeResource InspectionSurfaceMutedBrush}"
                         BorderBrush="{ThemeResource InspectionBorderLightBrush}"
@@ -556,7 +548,7 @@
                         BorderThickness="0,1,0,0"
                         Visibility="{x:Bind Presentation.TechnicalDetailsVisibility, Mode=OneWay}">
                         <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
                         <Grid.ColumnDefinitions>
@@ -601,30 +593,50 @@
             HeaderMinHeight="68"
             Visibility="{x:Bind Presentation.DisclosureVisibility, Mode=OneWay}">
             <local:InspectionDisclosure.HeaderContent>
-                <Grid Padding="23,0,23,0" ColumnSpacing="12">
+                <Grid
+                    x:Name="DisclosureHeaderLayout"
+                    Padding="23,0,23,0"
+                    ColumnSpacing="12">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="22" />
+                        <ColumnDefinition Width="24" />
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <Viewbox Width="20" Height="20" VerticalAlignment="Center" Stretch="Uniform" StretchDirection="DownOnly">
+                    <Viewbox
+                        x:Name="DisclosureInformationGlyphHost"
+                        Width="20"
+                        Height="20"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Stretch="Uniform"
+                        StretchDirection="DownOnly">
                         <local:InspectionStatusGlyph
+                            x:Name="DisclosureInformationGlyph"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
                             Kind="{x:Bind local:InspectionContentCard.GetStatusGlyphKind(Presentation.DisclosureStatus), Mode=OneWay}"
                             SurfaceSize="22"
                             Visibility="{x:Bind local:InspectionContentCard.GetStatusGlyphVisibility(Presentation.DisclosureStatus), Mode=OneWay}" />
                     </Viewbox>
                     <TextBlock
+                        x:Name="DisclosureTitleText"
                         Grid.Column="1"
+                        MinWidth="0"
                         VerticalAlignment="Center"
                         Style="{StaticResource ContentPrimaryTextStyle}"
                         Text="{x:Bind Presentation.DisclosureSummary, Mode=OneWay}" />
-                    <TextBlock
-                        x:Name="FindingsDisclosureActionText"
+                    <Grid
+                        x:Name="DisclosureActionText"
                         Grid.Column="2"
                         Margin="12,0,0,0"
-                        VerticalAlignment="Center"
-                        Style="{StaticResource ContentPrimaryTextStyle}"
-                        Text="{x:Bind local:InspectionContentCard.GetDisclosureText(Presentation.CollapsedDisclosureText, Presentation.ExpandedDisclosureText, Presentation.IsExpanded), Mode=OneWay}" />
+                        MinWidth="0"
+                        VerticalAlignment="Center">
+                        <TextBlock
+                            x:Name="FindingsDisclosureActionText"
+                            VerticalAlignment="Center"
+                            Style="{StaticResource ContentPrimaryTextStyle}"
+                            Text="{x:Bind local:InspectionContentCard.GetDisclosureText(Presentation.CollapsedDisclosureText, Presentation.ExpandedDisclosureText, Presentation.IsExpanded), Mode=OneWay}" />
+                    </Grid>
                 </Grid>
             </local:InspectionDisclosure.HeaderContent>
             <local:InspectionDisclosure.ViewportContent>
@@ -661,7 +673,7 @@
                                 ItemsSource="{x:Bind ExpandedItems, Mode=OneWay}">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>
-                                        <StackPanel Orientation="Vertical" Spacing="0" />
+                                        <local:EqualHeightStackPanel />
                                     </ItemsPanelTemplate>
                                 </ItemsControl.ItemsPanel>
                             </ItemsControl>
@@ -719,11 +731,11 @@
                         <Setter Target="ProgressCompletedCountChip.(Grid.ColumnSpan)" Value="2" />
                         <Setter Target="ProgressCompletedCountChip.Margin" Value="0,12,0,0" />
                         <Setter Target="ProgressCompletedCountChip.HorizontalAlignment" Value="Left" />
-                        <Setter Target="FindingsSectionTitle.Margin" Value="24,20,24,0" />
-                        <Setter Target="FindingsRowsSurface.Margin" Value="24,12,24,0" />
-                        <Setter Target="SupportingText.Margin" Value="24,0,24,0" />
-                        <Setter Target="TertiaryText.Margin" Value="24,10,24,0" />
-                        <Setter Target="DiagnosticCodeBorder.Margin" Value="24,4,24,0" />
+                        <Setter Target="FindingsSectionTitle.Margin" Value="{StaticResource InspectionTerminalTitleMargin}" />
+                        <Setter Target="FindingsRowsSurface.Margin" Value="{StaticResource InspectionTerminalRowsMargin}" />
+                        <Setter Target="SupportingText.Margin" Value="{StaticResource InspectionTerminalElementMargin}" />
+                        <Setter Target="TertiaryText.Margin" Value="{StaticResource InspectionTerminalElementMargin}" />
+                        <Setter Target="DiagnosticCodeBorder.Margin" Value="{StaticResource InspectionTerminalDiagnosticMargin}" />
                         <Setter Target="ExpandedReportViewport.Margin" Value="24,0,24,24" />
                         <Setter Target="FindingsDisclosureActionText.MaxWidth" Value="112" />
                         <Setter Target="TechnicalDetailsFutureHelpText.(Grid.ColumnSpan)" Value="2" />

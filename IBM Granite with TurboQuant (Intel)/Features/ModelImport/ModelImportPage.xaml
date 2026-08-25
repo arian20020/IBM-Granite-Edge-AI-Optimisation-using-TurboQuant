@@ -17,6 +17,7 @@
 
         <!--  Allows the page to scroll when the available window height is limited.  -->
         <ScrollViewer
+            x:Name="ModelImportPageScrollViewer"
             HorizontalContentAlignment="Stretch"
             HorizontalScrollBarVisibility="Disabled"
             HorizontalScrollMode="Disabled"
@@ -53,25 +54,56 @@
                             TextTrimming="None"
                             TextWrapping="WrapWholeWords" />
 
-                        <!--
-                            Creates the complete model-file drop target.
-                            
-                            TODO(FILE IMPORT):
-                            This area will later receive drag-and-drop events and pass
-                            the selected files to the model-import service.
-                        -->
-
-                        <controls:ImportModelCard
-                            x:Name="ImportModelCardControl"
-                            HorizontalAlignment="Stretch"
-                            BrowseFilesRequested="ImportModelCard_BrowseFilesRequested"
-                            CancelScanRequested="ImportModelCard_CancelScanRequested" />
+                        <Grid
+                            x:Name="ModelDropTarget"
+                            AllowDrop="True"
+                            Background="Transparent"
+                            AutomationProperties.HelpText="Optional. Choose model file to select a GGUF file or an OpenVINO model folder."
+                            AutomationProperties.Name="Model drop area"
+                            DragLeave="ModelDropTarget_DragLeave"
+                            DragOver="ModelDropTarget_DragOver"
+                            Drop="ModelDropTarget_Drop">
+                            <controls:ImportModelCard
+                                x:Name="ImportModelCardControl"
+                                HorizontalAlignment="Stretch"
+                                BrowseFilesRequested="ImportModelCard_BrowseFilesRequested"
+                                CancelScanRequested="ImportModelCard_CancelScanRequested" />
+                        </Grid>
+                        <TextBlock
+                            x:Name="SelectionAnnouncement"
+                            AutomationProperties.LiveSetting="Polite"
+                            Visibility="Collapsed" />
                         <TextBlock
                             HorizontalAlignment="Center"
                             FontSize="13"
                             Foreground="#6B7280"
                             Text="or"
                             TextAlignment="Center" />
+
+                        <Button
+                            x:Name="FindDownloadedModelsButton"
+                            HorizontalAlignment="Center"
+                            Click="FindDownloadedModelsButton_Click"
+                            Content="Find downloaded models"
+                            AutomationProperties.HelpText="Search Downloads, Documents, and Desktop only after you approve the one-time search." />
+
+                        <StackPanel
+                            x:Name="DownloadedModelsResultsPanel"
+                            Margin="0,4,0,0"
+                            AutomationProperties.Name="Downloaded model search results"
+                            Spacing="4"
+                            Visibility="Collapsed">
+                            <TextBlock
+                                x:Name="DownloadedModelsSearchStatus"
+                                AutomationProperties.LiveSetting="Polite"
+                                TextWrapping="WrapWholeWords" />
+                            <ListView
+                                x:Name="DownloadedModelsResults"
+                                AutomationProperties.Name="Downloaded model file names"
+                                IsItemClickEnabled="False"
+                                SelectionMode="None"
+                                Visibility="Collapsed" />
+                        </StackPanel>
 
                         <modelDownload:ModelDownloadCard
                             x:Name="RecommendedModelDownloadCard"

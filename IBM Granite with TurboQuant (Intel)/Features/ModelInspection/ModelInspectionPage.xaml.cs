@@ -1,4 +1,5 @@
 using GraniteEdgeAI.Features.ModelInspection.Contracts;
+using GraniteEdgeAI.Features.ModelInspection.Handoff;
 using GraniteEdgeAI.Features.ModelInspection.Controls;
 using GraniteEdgeAI.Features.ModelInspection.Models;
 using GraniteEdgeAI.Features.ModelInspection.Presentation;
@@ -164,6 +165,9 @@ public sealed partial class ModelInspectionPage : Page
     internal event EventHandler<InspectionFooterStatusChangedEventArgs>?
         FooterStatusChanged;
 
+    internal event EventHandler<HardwareInspectionRequestedEventArgs>?
+        HardwareInspectionRequested;
+
     internal ModelInspectionRequest? Request { get; private set; }
 
     internal OpenVinoInspectionRequestedEventArgs? OpenVinoRequest
@@ -254,7 +258,8 @@ public sealed partial class ModelInspectionPage : Page
             var commands = new ModelInspectionPresentationCommands(
                 viewModel.CancelCommand,
                 viewModel.RetryCommand,
-                viewModel.ChooseAnotherCommand);
+                viewModel.ChooseAnotherCommand,
+                viewModel.CheckHardwareCommand);
 
             long lifetime = checked(_navigationLifetime + 1);
             var motionSettingsRegistration = new MotionSettingsChangeRegistration(
@@ -445,12 +450,59 @@ public sealed partial class ModelInspectionPage : Page
     {
         viewModel.PropertyChanged += ViewModel_PropertyChanged;
         viewModel.ChooseAnotherRequested += ViewModel_ChooseAnotherRequested;
+        viewModel.HardwareInspectionRequested +=
+            ViewModel_HardwareInspectionRequested;
     }
 
     private void Unsubscribe(ModelInspectionViewModel viewModel)
     {
         viewModel.PropertyChanged -= ViewModel_PropertyChanged;
         viewModel.ChooseAnotherRequested -= ViewModel_ChooseAnotherRequested;
+        viewModel.HardwareInspectionRequested -=
+            ViewModel_HardwareInspectionRequested;
+    }
+
+    internal void SetHardwareRouteAvailable(bool isAvailable) =>
+        ViewModel?.SetHardwareRouteAvailable(isAvailable);
+
+    internal ModelInspectionHandoff? ReissueHardwareHandoff()
+    {
+        return ViewModel?.TryReissueHardwareHandoff(
+            out ModelInspectionHandoff? replacement) == true
+            ? replacement
+            : null;
+    }
+
+    internal ModelInspectionExecutionResult? ResolveTerminalResult(
+        ModelInspectionHandoff handoff)
+    {
+        ArgumentNullException.ThrowIfNull(handoff);
+        ModelInspectionExecutionResult? terminal = ViewModel?.Result;
+        if (terminal?.Status != ModelInspectionExecutionStatus.Completed
+            || terminal.Result is not { } result
+            || handoff.ModelInspectionRunId != ViewModel!.Snapshot.ModelInspectionRunId
+            || handoff.Outcome != result.Outcome
+            || handoff.ModelLengthBytes != result.Evidence.File.LengthBytes
+            || !string.Equals(
+                handoff.ModelSha256,
+                result.Evidence.File.ModelSha256,
+                StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        return terminal;
+    }
+
+    private void ViewModel_HardwareInspectionRequested(
+        object? sender,
+        HardwareInspectionRequestedEventArgs eventArguments)
+    {
+        if (sender is ModelInspectionViewModel viewModel &&
+            ReferenceEquals(viewModel, ViewModel))
+        {
+            HardwareInspectionRequested?.Invoke(this, eventArguments);
+        }
     }
 
     private void ViewModel_PropertyChanged(
@@ -1561,6 +1613,7 @@ public sealed partial class ModelInspectionPage : Page
 
         _navigationLifetime = retiredLifetime;
         FooterStatusChanged = null;
+        HardwareInspectionRequested = null;
         Request = null;
         OpenVinoRequest = null;
         ViewModel = null;

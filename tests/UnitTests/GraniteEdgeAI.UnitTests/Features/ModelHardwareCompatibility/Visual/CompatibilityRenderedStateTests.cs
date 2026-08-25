@@ -32,6 +32,95 @@ public sealed class CompatibilityRenderedStateTests
 {
     [UITestMethod]
     [TestCategory("WinUI")]
+    public void Page_UsesApprovedLightTheme()
+    {
+        CompatibilityPage page = new() { StartAutomatically = false };
+
+        Assert.AreEqual(ElementTheme.Light, page.RequestedTheme);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void Page_CentresAReadableDesktopContentColumn()
+    {
+        CompatibilityPage page = new() { StartAutomatically = false };
+        ScrollViewer contentHost = Element<ScrollViewer>(page, "ContentHost");
+        FrameworkElement pageStack = Element<FrameworkElement>(page, "PageStack");
+        TextBlock title = Element<TextBlock>(page, "PageTitleText");
+
+        Assert.AreEqual(HorizontalAlignment.Stretch, contentHost.HorizontalContentAlignment);
+        Assert.AreEqual(HorizontalAlignment.Center, pageStack.HorizontalAlignment);
+        Assert.IsGreaterThanOrEqualTo(1180d, pageStack.MaxWidth);
+        Assert.IsLessThanOrEqualTo(1280d, pageStack.MaxWidth);
+        Assert.IsGreaterThanOrEqualTo(26d, title.FontSize);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void Page_HasResponsiveAssessmentLayoutForNarrowWindows()
+    {
+        CompatibilityPage page = new() { StartAutomatically = false };
+        Grid assessment = Element<Grid>(page, "AssessmentGrid");
+        IList<VisualStateGroup> groups = VisualStateManager.GetVisualStateGroups(assessment);
+
+        Assert.AreEqual(1, groups.Count);
+        Assert.AreEqual(2, groups[0].States.Count);
+        Assert.AreEqual(2, assessment.RowDefinitions.Count);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void Page_DoesNotDuplicateTheOnboardingShellStageIndicator()
+    {
+        CompatibilityPage page = new() { StartAutomatically = false };
+
+        Assert.IsNull(page.FindName("StepperSteps"));
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void ConcludedPresentation_ExposesSemanticMemoryEstimate()
+    {
+        CompatibilityFixture? fixture = CompatibilityFixtureCatalogue.ById("CMP-010");
+        Assert.IsNotNull(fixture);
+        CompatibilityEstimateSummary? summary = fixture.Presentation.EstimateSummary;
+        Assert.IsNotNull(summary);
+
+        Assert.AreEqual(4_697_620_480UL, summary.ModelWeightsBytes);
+        Assert.AreEqual(536_870_912UL, summary.KvCacheBytes);
+        Assert.AreEqual(369_098_752UL, summary.RuntimeAndBufferBytes);
+        Assert.AreEqual(560_359_014UL, summary.MarginForErrorBytes);
+        Assert.AreEqual(6_163_949_158UL, summary.EstimatedPeakBytes);
+        Assert.AreEqual(9_663_676_416UL, summary.SafeMemoryBytes);
+        Assert.IsNull(CompatibilityPresentation.Empty.EstimateSummary);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void OnlyMemoryBlockedOutcome_TellsUserToCloseApplicationsAndTabs()
+    {
+        CompatibilityFixture? blockedFixture =
+            CompatibilityFixtureCatalogue.ById("CMP-030");
+        Assert.IsNotNull(blockedFixture);
+        CompatibilityPresentation blocked = blockedFixture.Presentation;
+
+        StringAssert.Contains(
+            blocked.OutcomeDetail,
+            "Close unused applications and browser tabs");
+        Assert.IsTrue(blocked.Recoveries.Any(recovery =>
+            recovery.Detail.Contains("browser tabs", StringComparison.Ordinal)));
+
+        foreach (CompatibilityFixture fixture in CompatibilityFixtureCatalogue.All
+            .Where(fixture => fixture.Id != "CMP-030"))
+        {
+            Assert.IsFalse(fixture.Presentation.OutcomeDetail.Contains(
+                "Close unused applications and browser tabs",
+                StringComparison.Ordinal));
+        }
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
     public void EveryFixture_RendersWithoutThrowing()
     {
         // The page resolves theme-scoped brushes from code. A key that is
@@ -93,6 +182,42 @@ public sealed class CompatibilityRenderedStateTests
                 Element<FrameworkElement>(page, "BudgetDiagram").Visibility,
                 $"{fixture.Id} reached a verdict without showing the memory it rests on.");
         }
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void EvaluatedScreen_ShowsVisibleEstimatedMemoryBreakdown()
+    {
+        CompatibilityPage page = CreatePage();
+        CompatibilityFixture? fixture = CompatibilityFixtureCatalogue.ById("CMP-010");
+        Assert.IsNotNull(fixture);
+
+        page.Apply(fixture.Presentation);
+        page.UpdateLayout();
+
+        Assert.AreEqual(
+            Visibility.Visible,
+            Element<FrameworkElement>(page, "EstimateBreakdownCard").Visibility);
+        Assert.AreEqual("4.4 GB", Element<TextBlock>(page, "EstimateWeightsValue").Text);
+        Assert.AreEqual("512 MB", Element<TextBlock>(page, "EstimateKvCacheValue").Text);
+        Assert.AreEqual("352 MB", Element<TextBlock>(page, "EstimateRuntimeValue").Text);
+        Assert.AreEqual("534 MB", Element<TextBlock>(page, "EstimateMarginValue").Text);
+        Assert.AreEqual("5.7 GB", Element<TextBlock>(page, "EstimatePeakValue").Text);
+        Assert.AreEqual("9 GB", Element<TextBlock>(page, "EstimateSafeValue").Text);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void UnevaluatedScreen_HidesEstimatedMemoryBreakdown()
+    {
+        CompatibilityPage page = CreatePage();
+
+        page.Apply(CompatibilityPresentation.Empty);
+        page.UpdateLayout();
+
+        Assert.AreEqual(
+            Visibility.Collapsed,
+            Element<FrameworkElement>(page, "EstimateBreakdownCard").Visibility);
     }
 
     [UITestMethod]
@@ -216,9 +341,7 @@ public sealed class CompatibilityRenderedStateTests
 
     private static CompatibilityPage CreatePage()
     {
-        CompatibilityPage page = new() { StartAutomatically = false };
-        page.RequestedTheme = ElementTheme.Light;
-        return page;
+        return new CompatibilityPage { StartAutomatically = false };
     }
 }
 #endif

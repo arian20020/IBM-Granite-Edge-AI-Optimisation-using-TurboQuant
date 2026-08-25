@@ -1,5 +1,6 @@
 #if MODEL_INSPECTION_FIXTURE_GALLERY
 using GraniteEdgeAI.Features.ModelImport;
+using GraniteEdgeAI.Features.HardwareInspection.DebugFixtures;
 using GraniteEdgeAI.Features.ModelInspection;
 using GraniteEdgeAI.Features.ModelInspection.DebugFixtures.Gallery;
 using Microsoft.UI.Xaml;
@@ -40,11 +41,65 @@ public sealed partial class OnboardingShellPage
         Grid.SetRow(button, 1);
         root.Children.Add(button);
         button.Click += FixtureGalleryButton_Click;
+
+        var hardwareButton = new Button
+        {
+            Name = "HardwareFixtureGalleryButton",
+            Content = "Hardware fixtures",
+            HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Center,
+            MinWidth = 120,
+            MinHeight = 44,
+            Margin = new Thickness(24, 8, 24, 8)
+        };
+        AutomationProperties.SetName(
+            hardwareButton,
+            "Hardware inspection fixtures");
+        Grid.SetRow(hardwareButton, 1);
+        root.Children.Add(hardwareButton);
+        hardwareButton.Click += HardwareFixtureGalleryButton_Click;
     }
 
     private void FixtureGalleryButton_Click(
         object sender,
         RoutedEventArgs eventArguments) => NavigateToFixtureGallery();
+
+    private void HardwareFixtureGalleryButton_Click(
+        object sender,
+        RoutedEventArgs eventArguments) =>
+        NavigateToHardwareFixtureGallery();
+
+    internal bool NavigateToHardwareFixtureGalleryForTesting() =>
+        NavigateToHardwareFixtureGallery();
+
+    private bool NavigateToHardwareFixtureGallery()
+    {
+        object? previousContent = StageFrame.Content;
+        var gallery = new HardwareInspectionFixtureGalleryPage(
+            NavigateToFreshModelImport);
+        StageFrame.Content = gallery;
+        if (ReferenceEquals(StageFrame.Content, previousContent) ||
+            !ReferenceEquals(StageFrame.Content, gallery))
+        {
+            return false;
+        }
+
+        DetachModelImportPage();
+        DetachModelInspectionPage();
+        InvalidateActiveHardwareJourney();
+        DetachHardwareInspectionPage();
+        _modelInspectionPageForHardwareReturn = null;
+        if (previousContent is ModelInspectionPage inspection)
+        {
+            _ = inspection.RetireForFixture();
+        }
+
+        StageFrame.BackStack.Clear();
+        StageFrame.ForwardStack.Clear();
+        CurrentStage = OnboardingStage.ImportModel;
+        StageIndicator.CurrentStage = CurrentStage;
+        return true;
+    }
 
     private bool NavigateToFixtureGallery()
     {

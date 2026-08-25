@@ -72,6 +72,12 @@ public sealed class ModelInspectionViewModelTests
         await run;
 
         Assert.AreEqual(4, published.Count);
+        Guid modelRunId = published[0].ModelInspectionRunId;
+        Assert.IsTrue(
+            GraniteEdgeAI.Features.ModelInspection.Handoff
+                .ModelInspectionHandoff.IsUuidV4(modelRunId));
+        Assert.IsTrue(published.All(item =>
+            item.ModelInspectionRunId == modelRunId));
         AssertSnapshot(
             published[0],
             attemptGeneration: 1,
@@ -116,6 +122,7 @@ public sealed class ModelInspectionViewModelTests
             service,
             CreateRequest());
         Task firstRun = viewModel.StartAsync();
+        Guid firstModelRunId = viewModel.Snapshot.ModelInspectionRunId;
         ModelInspectionRenderKey cancellationObservedKey = default;
         using CancellationTokenRegistration registration =
             first.CancellationToken.Register(() =>
@@ -123,6 +130,9 @@ public sealed class ModelInspectionViewModelTests
 
         Task secondRun = viewModel.StartAsync();
 
+        Assert.AreNotEqual(
+            firstModelRunId,
+            viewModel.Snapshot.ModelInspectionRunId);
         Assert.AreEqual(
             new ModelInspectionRenderKey(2, 0),
             cancellationObservedKey);

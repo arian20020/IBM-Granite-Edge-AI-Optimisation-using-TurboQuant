@@ -6,6 +6,7 @@ using GraniteEdgeAI.Features.ModelInspection.Presentation;
 using GraniteEdgeAI.Features.ModelInspection.Services;
 using GraniteEdgeAI.Features.ModelInspection.ViewModels;
 using GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation;
+using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
@@ -848,16 +849,18 @@ public sealed class ModelInspectionRenderedStateTests
                         .GetVisualStateGroups(rowStateHost)
                         .First(group => group.Name == "ProgressRowWidthStates")
                         .CurrentState?.Name ?? "<none>";
-                    Assert.AreEqual(1, Grid.GetRow(statusOwner),
+                    Assert.AreEqual(0, Grid.GetRow(statusOwner),
                         $"{state}/{preview200}/{width}: {rowWidthState}");
-                    Assert.AreEqual(1, Grid.GetRow(fraction));
-                    Assert.AreEqual(3, Grid.GetColumnSpan(copy));
-                    Assert.AreEqual(2, Grid.GetRowSpan(glyphHost));
+                    Assert.AreEqual(0, Grid.GetRow(fraction));
+                    Assert.AreEqual(1, Grid.GetColumnSpan(copy));
+                    Assert.AreEqual(1, Grid.GetRowSpan(glyphHost));
                     Rect copyBounds = Bounds(page, copy);
                     Rect statusBounds = Bounds(page, statusOwner);
-                    Assert.IsTrue(
-                        copyBounds.Bottom <= statusBounds.Y + 1d,
-                        $"{state}/{preview200}/{width}: status reflows below copy");
+                    Assert.AreEqual(
+                        copyBounds.Y + (copyBounds.Height / 2d),
+                        statusBounds.Y + (statusBounds.Height / 2d),
+                        1d,
+                        $"{state}/{preview200}/{width}: status and copy share a vertical centre");
                 }
 
                 Rect rowBounds = Bounds(page, row);
@@ -939,7 +942,9 @@ public sealed class ModelInspectionRenderedStateTests
                 Element<FrameworkElement>(model, "DeclaredContextField"),
                 Element<FrameworkElement>(model, "FileSizeField")
             ];
-            int expectedColumns = width >= 888d ? 3 : 2;
+            int expectedColumns = width >= 888d
+                ? 3
+                : width >= 600d ? 2 : 1;
             Assert.AreEqual(
                 expectedColumns,
                 metadata.Select(Grid.GetColumn).Distinct().Count(),
@@ -1646,7 +1651,9 @@ public sealed class ModelInspectionRenderedStateTests
             double expectedInset = width < 600d ? 16d : 24d;
             bool responsiveStateApplied = Math.Abs(
                 contentHost.Margin.Left - expectedInset) <= 0.1d;
-            int expectedMetadataColumns = width >= 888d ? 3 : 2;
+            int expectedMetadataColumns = width >= 888d
+                ? 3
+                : width >= 600d ? 2 : 1;
             bool modelStateApplied = metadata
                 .Select(Grid.GetColumn)
                 .Distinct()
@@ -1861,6 +1868,13 @@ public sealed class ModelInspectionRenderedStateTests
             Assert.IsTrue(
                 text.FontSize is 10d or 12d or 14d or 18d or 32d,
                 $"Unexpected Inter role size {text.FontSize}: {text.Text}");
+            if (HasAncestor<InspectionActionCard>(text) &&
+                HasAncestor<Button>(text))
+            {
+                Assert.AreEqual(600, text.FontWeight.Weight, text.Text);
+                continue;
+            }
+
             if (source.Contains("Inter-Bold.ttf", StringComparison.Ordinal))
             {
                 Assert.AreEqual(700, text.FontWeight.Weight, text.Text);
@@ -2107,15 +2121,30 @@ public sealed class ModelInspectionRenderedStateTests
                 "InspectionBorderLightBrush",
                 resultSurface.BorderBrush);
             Button primary = Element<Button>(actions, "PrimaryActionButton");
-            AssertBrushColor("InspectionPrimaryBlueBrush", primary.Background);
-            AssertBrushColor("InspectionPrimaryBlueBrush", primary.BorderBrush);
-            AssertBrushColor("InspectionSurfaceBrush", primary.Foreground);
+            AssertBrushColor(
+                ColorHelper.FromArgb(0xFF, 0x25, 0x63, 0xEB),
+                primary.Background,
+                "shared primary background");
+            AssertBrushColor(
+                ColorHelper.FromArgb(0xFF, 0x25, 0x63, 0xEB),
+                primary.BorderBrush,
+                "shared primary border");
+            AssertBrushColor(
+                Colors.White,
+                primary.Foreground,
+                "shared primary foreground");
         }
         else
         {
             Button cancel = Element<Button>(actions, "CancelActionButton");
-            AssertBrushColor("InspectionSurfaceBrush", cancel.Background);
-            AssertBrushColor("InspectionBorderControlBrush", cancel.BorderBrush);
+            AssertBrushColor(
+                Colors.White,
+                cancel.Background,
+                "shared secondary background");
+            AssertBrushColor(
+                ColorHelper.FromArgb(0xFF, 0xC9, 0xD7, 0xE8),
+                cancel.BorderBrush,
+                "shared secondary border");
         }
     }
 
@@ -2259,6 +2288,15 @@ public sealed class ModelInspectionRenderedStateTests
             LightThemeResource(resourceKey));
         SolidColorBrush observed = Assert.IsInstanceOfType<SolidColorBrush>(actual);
         Assert.AreEqual(expected.Color, observed.Color, context ?? resourceKey);
+    }
+
+    private static void AssertBrushColor(
+        Windows.UI.Color expected,
+        Brush? actual,
+        string context)
+    {
+        SolidColorBrush observed = Assert.IsInstanceOfType<SolidColorBrush>(actual);
+        Assert.AreEqual(expected, observed.Color, context);
     }
 
     private static object LightThemeResource(string resourceKey)
