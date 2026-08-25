@@ -64,7 +64,7 @@ public sealed class OptimizationPlanBindingTests
                     8 * Gibibyte,
                     32 * Gibibyte,
                     24 * Gibibyte,
-                    0,
+                    persistent ? 4 * Gibibyte : 0,
                     persistent ? 4 * Gibibyte : 0,
                     persistent,
                     availableDiskBytes: 500 * Gibibyte),
@@ -73,19 +73,31 @@ public sealed class OptimizationPlanBindingTests
         }
 
         internal static OptimizationCapabilitySnapshot Snapshot(
-            string digest = CapabilityDigest) =>
+            string digest = CapabilityDigest) => SnapshotFor(Candidate(), digest);
+
+        internal static OptimizationCapabilitySnapshot SnapshotFor(
+            OptimizationCandidate candidate,
+            string digest = CapabilityDigest)
+        {
+            OpenVinoRouteConfiguration configuration =
+                (OpenVinoRouteConfiguration)candidate.Configuration;
+
+            return
             OptimizationCapabilitySnapshot.ForOpenVino(
                 "ov-cap",
                 digest,
                 OpenVinoCapabilityPayload.Create(
-                    "2026.1.0",
+                    "2026.3.0",
                     [
                         OpenVinoAdmittedConfiguration.Create(
-                            "ov-int8", DeviceRouteId.Cpu, OpenVinoWeightFormat.Int8,
-                            OpenVinoKvCacheFormat.U8, OpenVinoPerformanceHint.Latency,
-                            OpenVinoCompiledCachePolicy.Disabled, 1, 512, 32768,
+                            candidate.EvidenceId, configuration.Device,
+                            configuration.Weights, configuration.KvCache,
+                            configuration.PerformanceHint,
+                            configuration.CompiledCache, configuration.Streams,
+                            512, 32768,
                             SupportLevel.DeclaredSupported, false)
                     ]));
+        }
 
         internal static OptimizationWorkload Workload() =>
             OptimizationWorkload.Create(
@@ -128,7 +140,7 @@ public sealed class OptimizationPlanBindingTests
                     compiledCacheEnabled: false,
                     compiledCacheIsDisposable: true,
                     compiledCacheIsModelArtifact: false,
-                    createsCompletePackage: true,
+                    createsCompletePackage: candidate.Metrics.RequiresPersistentChange,
                     OpenVinoBuildIdentity.Create(
                         "2026.3.0", "2026.3.0.0", "2026.3.0", HardwareDigest),
                     new Dictionary<string, string>(StringComparer.Ordinal)
@@ -141,18 +153,34 @@ public sealed class OptimizationPlanBindingTests
             OptimizationCandidate? candidate = null,
             OptimizationCapabilitySnapshot? snapshot = null)
         {
-            OptimizationCandidate chosen = candidate ?? Candidate();
+            OptimizationCandidate unproved = candidate ?? Candidate();
+            OptimizationCapabilitySnapshot authority = snapshot ?? SnapshotFor(unproved);
+            OptimizationCandidate chosen = OptimizationAdmissionTestFactory.Admit(
+                unproved, authority, Workload(), Binding(),
+                SupportLevel.DeclaredSupported);
 
             return OptimizationPlanIssuer.Issue(
                 OptimizationPreferenceResolver.Resolve(
                     [chosen],
                     OptimizationPreferenceSelection.Manual(50))!,
                 Payload(chosen),
-                snapshot ?? Snapshot(),
+                authority,
                 Workload(),
                 Binding(),
                 modelLayerCount: 32,
                 DateTimeOffset.UnixEpoch);
+        }
+
+        internal static OptimizationSelection Selection(
+            OptimizationCandidate? candidate = null)
+        {
+            OptimizationCandidate unproved = candidate ?? Candidate();
+            OptimizationCapabilitySnapshot snapshot = SnapshotFor(unproved);
+            OptimizationCandidate admitted = OptimizationAdmissionTestFactory.Admit(
+                unproved, snapshot, Workload(), Binding(),
+                SupportLevel.DeclaredSupported);
+            return OptimizationPreferenceResolver.Resolve(
+                [admitted], OptimizationPreferenceSelection.Automatic())!;
         }
     }
 
@@ -267,9 +295,7 @@ public sealed class OptimizationPlanBindingTests
         // The two come from different places. A plan bound to evidence about a
         // different executor could not be verified by either of them.
         Assert.ThrowsExactly<ArgumentException>(() => OptimizationPlanIssuer.Issue(
-            OptimizationPreferenceResolver.Resolve(
-                [OptimizationPlanTestData.Candidate()],
-                OptimizationPreferenceSelection.Automatic())!,
+            OptimizationPlanTestData.Selection(),
             OptimizationPlanTestData.Payload(OptimizationPlanTestData.Candidate()),
             OptimizationCapabilitySnapshot.ForGguf(
                 "gguf-cap",
@@ -320,9 +346,7 @@ public sealed class OptimizationPlanBindingTests
     public void NonUtcTimestampIsRefused()
     {
         Assert.ThrowsExactly<ArgumentException>(() => OptimizationPlanIssuer.Issue(
-            OptimizationPreferenceResolver.Resolve(
-                [OptimizationPlanTestData.Candidate()],
-                OptimizationPreferenceSelection.Automatic())!,
+            OptimizationPlanTestData.Selection(),
             OptimizationPlanTestData.Payload(OptimizationPlanTestData.Candidate()),
             OptimizationPlanTestData.Snapshot(),
             OptimizationPlanTestData.Workload(),

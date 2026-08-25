@@ -215,18 +215,26 @@ public sealed class OptimizationExecutionContractV2Tests
                 createsCompletePackage, build ?? Build(), versions ?? Versions(),
                 turboQuant);
 
-        internal static OptimizationCapabilitySnapshot OpenVinoSnapshot() =>
-            OptimizationCapabilitySnapshot.ForOpenVino(
+        internal static OptimizationCapabilitySnapshot OpenVinoSnapshot(
+            OptimizationCandidate? candidate = null,
+            OpenVinoExecutionPayload? payload = null)
+        {
+            OpenVinoRouteConfiguration configuration = candidate?.Configuration
+                as OpenVinoRouteConfiguration
+                ?? (OpenVinoRouteConfiguration)OpenVinoCandidate().Configuration;
+            return OptimizationCapabilitySnapshot.ForOpenVino(
                 "ov-cap", Digest64,
                 OpenVinoCapabilityPayload.Create(
-                    "2026.3.0",
+                    payload?.BuildIdentity.RuntimeBuild ?? "2026.3.0",
                     [
                         OpenVinoAdmittedConfiguration.Create(
-                            "ov-evidence", DeviceRouteId.Cpu, OpenVinoWeightFormat.Int8,
-                            OpenVinoKvCacheFormat.U8, OpenVinoPerformanceHint.Latency,
-                            Core.Routes.OpenVino.OpenVinoCompiledCachePolicy.Enabled,
-                            1, 512, 32768, SupportLevel.DeclaredSupported, false)
+                            candidate?.EvidenceId ?? "ov-evidence",
+                            configuration.Device, configuration.Weights,
+                            configuration.KvCache, configuration.PerformanceHint,
+                            configuration.CompiledCache, configuration.Streams,
+                            512, 32768, SupportLevel.DeclaredSupported, false)
                     ]));
+        }
 
         private static OptimizationCandidateMetrics Metrics(
             int context, bool persistent,
@@ -248,8 +256,10 @@ public sealed class OptimizationExecutionContractV2Tests
     private static OptimizationExecutionPlan IssueGguf(
         OptimizationCandidate? candidate = null,
         GgufExecutionPayload? payload = null,
-        int modelLayers = ModelLayers)
+        int modelLayers = ModelLayers,
+        OptimizationJourneyBinding? binding = null)
     {
+        OptimizationJourneyBinding chosenBinding = binding ?? V2TestData.Binding();
         OptimizationCandidate chosen = WithDiskAdmission(
             candidate ?? V2TestData.GgufCandidate());
         GgufExecutionPayload chosenPayload = payload ?? V2TestData.GgufPayload();
@@ -269,14 +279,19 @@ public sealed class OptimizationExecutionContractV2Tests
                     WeightQuantisation.F16, V2TestData.Binding()));
         }
 
+        OptimizationCapabilitySnapshot snapshot =
+            V2TestData.GgufSnapshot(chosen, chosenPayload);
+        chosen = OptimizationAdmissionTestFactory.Admit(
+            chosen, snapshot, V2TestData.Workload(), chosenBinding,
+            SupportLevel.DeclaredSupported);
         return OptimizationPlanIssuer.Issue(
             OptimizationPreferenceResolver.Resolve(
                 [chosen],
                 OptimizationPreferenceSelection.Manual(50))!,
             OptimizationExecutionPayload.ForGguf(chosenPayload),
-            V2TestData.GgufSnapshot(chosen, chosenPayload),
+            snapshot,
             V2TestData.Workload(),
-            V2TestData.Binding(),
+            chosenBinding,
             modelLayers,
             DateTimeOffset.UnixEpoch);
     }
@@ -287,14 +302,20 @@ public sealed class OptimizationExecutionContractV2Tests
     {
         OptimizationCandidate chosen = WithDiskAdmission(
             candidate ?? V2TestData.OpenVinoCandidate());
+        OpenVinoExecutionPayload chosenPayload = payload ?? V2TestData.OpenVinoPayload();
+        OptimizationCapabilitySnapshot snapshot =
+            V2TestData.OpenVinoSnapshot(chosen, chosenPayload);
+        chosen = OptimizationAdmissionTestFactory.Admit(
+            chosen, snapshot, V2TestData.Workload(), V2TestData.Binding(),
+            SupportLevel.DeclaredSupported);
 
         return OptimizationPlanIssuer.Issue(
             OptimizationPreferenceResolver.Resolve(
                 [chosen],
                 OptimizationPreferenceSelection.Manual(50))!,
             OptimizationExecutionPayload.ForOpenVino(
-                payload ?? V2TestData.OpenVinoPayload()),
-            V2TestData.OpenVinoSnapshot(),
+                chosenPayload),
+            snapshot,
             V2TestData.Workload(),
             V2TestData.Binding(),
             ModelLayers,
@@ -314,7 +335,7 @@ public sealed class OptimizationExecutionContractV2Tests
             metrics.PredictedPeakBytes,
             metrics.SafeBudgetBytes,
             metrics.HeadroomBytes,
-            metrics.WorkingDiskBytes,
+            Math.Max(metrics.WorkingDiskBytes, metrics.OutputDiskBytes),
             metrics.OutputDiskBytes,
             metrics.RequiresPersistentChange,
             availableDiskBytes: 500 * Gibibyte);
@@ -619,9 +640,9 @@ public sealed class OptimizationExecutionContractV2Tests
     public void PayloadRouteMustMatchTheCandidate()
     {
         Assert.ThrowsExactly<ArgumentException>(() => OptimizationPlanIssuer.Issue(
-            OptimizationPreferenceResolver.Resolve(
-                [WithDiskAdmission(V2TestData.GgufCandidate())],
-                OptimizationPreferenceSelection.Automatic())!,
+            new OptimizationSelection(
+                WithDiskAdmission(V2TestData.GgufCandidate()),
+                OptimizationPreferenceSelection.Automatic(), false),
             OptimizationExecutionPayload.ForOpenVino(V2TestData.OpenVinoPayload()),
             V2TestData.GgufSnapshot(),
             V2TestData.Workload(),
@@ -634,9 +655,9 @@ public sealed class OptimizationExecutionContractV2Tests
     public void PayloadRouteMustMatchTheCapabilitySnapshot()
     {
         Assert.ThrowsExactly<ArgumentException>(() => OptimizationPlanIssuer.Issue(
-            OptimizationPreferenceResolver.Resolve(
-                [WithDiskAdmission(V2TestData.GgufCandidate())],
-                OptimizationPreferenceSelection.Automatic())!,
+            new OptimizationSelection(
+                WithDiskAdmission(V2TestData.GgufCandidate()),
+                OptimizationPreferenceSelection.Automatic(), false),
             OptimizationExecutionPayload.ForGguf(V2TestData.GgufPayload()),
             V2TestData.OpenVinoSnapshot(),
             V2TestData.Workload(),
@@ -816,7 +837,8 @@ public sealed class OptimizationExecutionContractV2Tests
     [TestMethod]
     public void EveryOpenVinoExecutionFieldChangesTheConfigurationDigest()
     {
-        string baseline = IssueOpenVino().ConfigurationSha256;
+        OptimizationExecutionPlan baselinePlan = IssueOpenVino();
+        string baseline = baselinePlan.ConfigurationSha256;
 
         Dictionary<string, string> otherVersions = V2TestData.Versions();
         otherVersions["nncf"] = "3.4.0";
@@ -845,7 +867,10 @@ public sealed class OptimizationExecutionContractV2Tests
         {
             Assert.AreNotEqual(
                 baseline,
-                IssueOpenVino(payload: payload).ConfigurationSha256,
+                OptimizationCanonicalizer.ConfigurationSha256(
+                    baselinePlan.Candidate,
+                    OptimizationExecutionPayload.ForOpenVino(payload),
+                    contractVersion: 3),
                 $"Changing {field} did not change the configuration digest.");
         }
     }
@@ -896,13 +921,15 @@ public sealed class OptimizationExecutionContractV2Tests
             runtimeOnly,
             V2TestData.OpenVinoPayload(
                 source: OpenVinoWeightPrecision.EightBit,
-                target: OpenVinoWeightPrecision.EightBit)).ConfigurationSha256;
+                target: OpenVinoWeightPrecision.EightBit,
+                createsCompletePackage: false)).ConfigurationSha256;
 
         string fourBit = IssueOpenVino(
             runtimeOnly,
             V2TestData.OpenVinoPayload(
                 source: OpenVinoWeightPrecision.FourBit,
-                target: OpenVinoWeightPrecision.FourBit)).ConfigurationSha256;
+                target: OpenVinoWeightPrecision.FourBit,
+                createsCompletePackage: false)).ConfigurationSha256;
 
         Assert.AreNotEqual(
             eightBit, fourBit, "Source weight precision does not reach the digest.");
@@ -1377,17 +1404,10 @@ public sealed class OptimizationExecutionContractV2Tests
         string digest = Convert.ToHexString(
             System.Security.Cryptography.SHA256.HashData(content)).ToLowerInvariant();
 
-        OptimizationExecutionPlan plan = OptimizationPlanIssuer.Issue(
-            OptimizationPreferenceResolver.Resolve(
-                [WithDiskAdmission(V2TestData.GgufCandidate())],
-                OptimizationPreferenceSelection.Automatic())!,
-            OptimizationExecutionPayload.ForGguf(V2TestData.GgufPayload()),
-            V2TestData.GgufSnapshot(),
-            V2TestData.Workload(),
+        OptimizationExecutionPlan plan = IssueGguf(binding:
             OptimizationJourneyBinding.Create(
                 "mi-run-1", "mi-handoff-1", digest, 64, "hw-run-1", OtherDigest64),
-            ModelLayers,
-            DateTimeOffset.UnixEpoch);
+            modelLayers: ModelLayers);
 
         string file = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
         byte[] different = new byte[64];
@@ -1413,17 +1433,10 @@ public sealed class OptimizationExecutionContractV2Tests
         string digest = Convert.ToHexString(
             System.Security.Cryptography.SHA256.HashData(content)).ToLowerInvariant();
 
-        OptimizationExecutionPlan plan = OptimizationPlanIssuer.Issue(
-            OptimizationPreferenceResolver.Resolve(
-                [WithDiskAdmission(V2TestData.GgufCandidate())],
-                OptimizationPreferenceSelection.Automatic())!,
-            OptimizationExecutionPayload.ForGguf(V2TestData.GgufPayload()),
-            V2TestData.GgufSnapshot(),
-            V2TestData.Workload(),
+        OptimizationExecutionPlan plan = IssueGguf(binding:
             OptimizationJourneyBinding.Create(
                 "mi-run-1", "mi-handoff-1", digest, 64, "hw-run-1", OtherDigest64),
-            ModelLayers,
-            DateTimeOffset.UnixEpoch);
+            modelLayers: ModelLayers);
 
         string file = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
         File.WriteAllBytes(file, content);

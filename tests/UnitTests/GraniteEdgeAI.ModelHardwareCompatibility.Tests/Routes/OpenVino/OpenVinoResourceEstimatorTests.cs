@@ -50,6 +50,76 @@ public sealed class OpenVinoResourceEstimatorTests
     }
 
     [TestMethod]
+    public void NonDivisibleAttentionShapeFailsClosedForEveryCacheLayout()
+    {
+        InspectedModelFacts inconsistent = InspectedModelFacts.Create(
+            ByteCount.FromBytes(3 * Gibibyte), 32, 4097, 32, 8,
+            8192, 15, 2);
+
+        foreach (OpenVinoKvCacheFormat format in Enum.GetValues<OpenVinoKvCacheFormat>()
+            .Where(value => value != OpenVinoKvCacheFormat.Unspecified))
+        {
+            ResourceEstimate estimate = Estimate(
+                Configuration(cache: format), inconsistent);
+            Assert.AreEqual(EstimationStatus.NotEstablished, estimate.Status, format.ToString());
+            Assert.AreEqual(
+                EstimationUnavailableReason.UnknownArchitecture,
+                estimate.Reason,
+                format.ToString());
+        }
+    }
+
+    [TestMethod]
+    public void ExtremeCacheProductsReturnTypedRangeFailureInsteadOfThrowing()
+    {
+        InspectedModelFacts extreme = InspectedModelFacts.Create(
+            ByteCount.FromBytes(3 * Gibibyte), int.MaxValue, int.MaxValue,
+            1, int.MaxValue, int.MaxValue, 15, 2);
+
+        ResourceEstimate estimate = Estimate(
+            Configuration(cache: OpenVinoKvCacheFormat.F16),
+            extreme,
+            contextTokens: int.MaxValue);
+
+        Assert.AreEqual(EstimationStatus.NotEstablished, estimate.Status);
+        Assert.AreEqual(
+            EstimationUnavailableReason.QuantitiesExceedRepresentableRange,
+            estimate.Reason);
+    }
+
+    [TestMethod]
+    public void LargeRepresentableCacheProductRemainsEstablished()
+    {
+        InspectedModelFacts large = InspectedModelFacts.Create(
+            ByteCount.FromBytes(3 * Gibibyte), int.MaxValue, 128,
+            1, 1, 8192, 15, 2);
+
+        Assert.AreEqual(
+            EstimationStatus.Established,
+            Estimate(Configuration(cache: OpenVinoKvCacheFormat.U8),
+                large, contextTokens: 1).Status);
+    }
+
+    [TestMethod]
+    public void MaximumConservativeCacheProductJustInsideUlongRemainsEstablished()
+    {
+        // F16 is conservatively floored by the 272-byte one-block U8 K/V
+        // layout. This is the largest layer count that fits that layout at
+        // int.MaxValue context; one more layer would exceed UInt64.
+        InspectedModelFacts justInside = InspectedModelFacts.Create(
+            ByteCount.FromBytes(1), 31_580_641, 1,
+            1, 1, 8192, 15, 2);
+
+        ResourceEstimate estimate = Estimate(
+            Configuration(cache: OpenVinoKvCacheFormat.F16),
+            justInside,
+            contextTokens: int.MaxValue);
+
+        Assert.AreEqual(
+            EstimationStatus.Established, estimate.Status, estimate.Reason.ToString());
+    }
+
+    [TestMethod]
     public void IntegratedGpuSharedMemoryIsCountedOnce()
     {
         // An integrated GPU has no memory of its own: what it uses is system

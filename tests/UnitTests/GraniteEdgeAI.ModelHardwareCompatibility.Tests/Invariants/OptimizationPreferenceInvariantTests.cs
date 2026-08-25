@@ -19,6 +19,8 @@ namespace GraniteEdgeAI.ModelHardwareCompatibility.Tests.Invariants;
 public sealed class OptimizationPreferenceInvariantTests
 {
     private const ulong Gibibyte = 1024UL * 1024 * 1024;
+    private const string Digest64 =
+        "1111111111111111111111111111111111111111111111111111111111111111";
 
     private static OptimizationCandidate Candidate(
         string id,
@@ -27,7 +29,9 @@ public sealed class OptimizationPreferenceInvariantTests
         bool persistent = false,
         int context = 4096,
         OptimizationAssessment stability = OptimizationAssessment.Good,
-        int streams = 1)
+        int streams = 1,
+        OptimizationAssessment performance = OptimizationAssessment.Good,
+        bool isExperimental = false)
     {
         OpenVinoWeightFormat weights = quality switch
         {
@@ -37,29 +41,50 @@ public sealed class OptimizationPreferenceInvariantTests
             _ => OpenVinoWeightFormat.Int4
         };
 
-        return OptimizationCandidate.Create(
-            OpenVinoRouteConfiguration.Create(
+        OpenVinoRouteConfiguration configuration = OpenVinoRouteConfiguration.Create(
                 weights,
                 OpenVinoKvCacheFormat.U8,
                 DeviceRouteId.Cpu,
                 OpenVinoPerformanceHint.Latency,
                 OpenVinoCompiledCachePolicy.Disabled,
-                streams),
-            OptimizationCandidateMetrics.Create(
+                streams);
+        OptimizationCandidateMetrics metrics = OptimizationCandidateMetrics.Create(
                 EvidenceGrade.Estimated,
                 quality,
-                OptimizationAssessment.Good,
+                performance,
                 stability,
                 context,
                 peakBytes,
                 32 * Gibibyte,
                 32 * Gibibyte - peakBytes,
-                0,
+                persistent ? peakBytes : 0,
                 persistent ? peakBytes : 0,
                 persistent,
-                availableDiskBytes: 32 * Gibibyte),
-            id,
-            isExperimental: false);
+                availableDiskBytes: 32 * Gibibyte);
+        OptimizationCandidate candidate = OptimizationCandidate.Create(
+            configuration, metrics, id, isExperimental);
+        SupportLevel level = isExperimental
+            ? SupportLevel.Experimental
+            : SupportLevel.DeclaredSupported;
+        OptimizationCapabilitySnapshot snapshot =
+            OptimizationCapabilitySnapshot.ForOpenVino(
+                "preference-cap", Digest64,
+                OpenVinoCapabilityPayload.Create(
+                    "runtime",
+                    [OpenVinoAdmittedConfiguration.Create(
+                        id, DeviceRouteId.Cpu, weights, OpenVinoKvCacheFormat.U8,
+                        OpenVinoPerformanceHint.Latency,
+                        OpenVinoCompiledCachePolicy.Disabled, streams, 1, 32768,
+                        level, isExperimental)]));
+        OptimizationWorkload workload = OptimizationWorkload.Create(
+            "preference-workload", 1, OptimizationAssessment.Poor,
+            [ContextTokenCount.FromTokens(context)]);
+        OptimizationJourneyBinding binding = OptimizationJourneyBinding.Create(
+            "mi-run", "mi-handoff", Digest64, Gibibyte, "hw-run", Digest64);
+        OptimizationAdmissionProof proof = OptimizationAdmissionProof.Create(
+            snapshot, workload, binding, candidate, level,
+            isExperimental, isExperimental ? new HashSet<string> { id } : new HashSet<string>());
+        return OptimizationCandidate.AttachAdmissionProof(candidate, proof);
     }
 
     /// <summary>A frontier with a real spread of safe options.</summary>
@@ -208,6 +233,24 @@ public sealed class OptimizationPreferenceInvariantTests
     }
 
     [TestMethod]
+    public void AdmissionProofCannotBeReusedAfterChangingConversionProvenance()
+    {
+        OptimizationCandidate admitted = Candidate(
+            "proof-bound", OptimizationAssessment.Poor, 2 * Gibibyte,
+            persistent: true);
+        OptimizationCandidate substituted = OptimizationCandidate.Create(
+            admitted.Configuration,
+            admitted.Metrics,
+            admitted.EvidenceId,
+            admitted.IsExperimental,
+            OptimizationConversionProvenance.ControlledRequantisation);
+
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            OptimizationCandidate.AttachAdmissionProof(
+                substituted, admitted.AdmissionProof!));
+    }
+
+    [TestMethod]
     public void AutomaticAvoidsALowerMemoryConversionWithNoQualityBenefit()
     {
         IReadOnlyList<OptimizationCandidate> pair =
@@ -335,20 +378,38 @@ public sealed class OptimizationPreferenceInvariantTests
         GgufWeightFormat weights,
         OptimizationAssessment quality,
         ulong peakBytes,
-        OptimizationConversionProvenance provenance) =>
-        OptimizationCandidate.Create(
-            GgufRouteConfiguration.Create(
+        OptimizationConversionProvenance provenance)
+    {
+        GgufRouteConfiguration configuration = GgufRouteConfiguration.Create(
                 weights, GgufKvCacheFormat.F16, CompatibilityBackend.Cpu,
-                DeviceRouteId.Cpu, GpuOffloadLevel.None),
-            OptimizationCandidateMetrics.Create(
+                DeviceRouteId.Cpu, GpuOffloadLevel.None);
+        OptimizationCandidateMetrics metrics = OptimizationCandidateMetrics.Create(
                 EvidenceGrade.Estimated, quality, OptimizationAssessment.Good,
                 OptimizationAssessment.Good, 4096, peakBytes, 32 * Gibibyte,
                 32 * Gibibyte - peakBytes, peakBytes, peakBytes,
                 requiresPersistentChange: true,
-                availableDiskBytes: 32 * Gibibyte),
-            id,
-            isExperimental: false,
-            provenance);
+                availableDiskBytes: 32 * Gibibyte);
+        OptimizationCandidate candidate = OptimizationCandidate.Create(
+            configuration, metrics, id, false, provenance);
+        OptimizationCapabilitySnapshot snapshot = OptimizationCapabilitySnapshot.ForGguf(
+            "preference-gguf-cap", Digest64,
+            GgufCapabilityPayload.Create(
+                "runtime",
+                [GgufAdmittedConfiguration.Create(
+                    id, CompatibilityBackend.Cpu, DeviceRouteId.Cpu, weights,
+                    GgufKvCacheFormat.F16, GpuOffloadLevel.None, 1, 32768,
+                    SupportLevel.DeclaredSupported, false)]));
+        OptimizationWorkload workload = OptimizationWorkload.Create(
+            "preference-workload", 1, OptimizationAssessment.Poor,
+            [ContextTokenCount.FromTokens(4096)]);
+        OptimizationJourneyBinding binding = OptimizationJourneyBinding.Create(
+            "mi-run", "mi-handoff", Digest64, Gibibyte, "hw-run", Digest64);
+        return OptimizationCandidate.AttachAdmissionProof(
+            candidate,
+            OptimizationAdmissionProof.Create(
+                snapshot, workload, binding, candidate,
+                SupportLevel.DeclaredSupported, false, new HashSet<string>()));
+    }
 
     [TestMethod]
     public void AutomaticStillTakesAConversionThatIsClearlyBetter()
@@ -441,10 +502,8 @@ public sealed class OptimizationPreferenceInvariantTests
     {
         OptimizationCandidate released = Candidate(
             "z-released", OptimizationAssessment.Good, 8 * Gibibyte);
-        OptimizationCandidate experimental = OptimizationCandidate.Create(
-            released.Configuration,
-            released.Metrics,
-            "a-experimental",
+        OptimizationCandidate experimental = Candidate(
+            "a-experimental", OptimizationAssessment.Good, 8 * Gibibyte,
             isExperimental: true);
 
         string Resolve(IReadOnlyList<OptimizationCandidate> candidates) =>
@@ -454,6 +513,80 @@ public sealed class OptimizationPreferenceInvariantTests
 
         Assert.AreEqual("z-released", Resolve([experimental, released]));
         Assert.AreEqual("z-released", Resolve([released, experimental]));
+    }
+
+    [TestMethod]
+    public void HigherPerformanceWinsEqualFrontierTieRegardlessOfInputOrder()
+    {
+        OptimizationCandidate lower = Candidate(
+            "a-lower", OptimizationAssessment.Good, 8 * Gibibyte,
+            performance: OptimizationAssessment.Acceptable);
+        OptimizationCandidate higher = Candidate(
+            "z-higher", OptimizationAssessment.Good, 8 * Gibibyte,
+            performance: OptimizationAssessment.Excellent);
+
+        string Resolve(IReadOnlyList<OptimizationCandidate> candidates) =>
+            OptimizationPreferenceResolver.Resolve(
+                candidates, OptimizationPreferenceSelection.Automatic())!
+                .Candidate.EvidenceId;
+
+        Assert.AreEqual("z-higher", Resolve([lower, higher]));
+        Assert.AreEqual("z-higher", Resolve([higher, lower]));
+    }
+
+    [TestMethod]
+    public void DeterministicComparisonDistinguishesEveryMetricTradeoff()
+    {
+        OptimizationCandidate Create(
+            OptimizationAssessment quality, ulong peak, ulong budget)
+        {
+            OpenVinoRouteConfiguration configuration =
+                OpenVinoRouteConfiguration.Create(
+                    OpenVinoWeightFormat.Int8, OpenVinoKvCacheFormat.U8,
+                    DeviceRouteId.Cpu, OpenVinoPerformanceHint.Latency,
+                    OpenVinoCompiledCachePolicy.Disabled, 1);
+            OptimizationCandidate candidate = OptimizationCandidate.Create(
+                configuration,
+                OptimizationCandidateMetrics.Create(
+                    EvidenceGrade.Estimated, quality, OptimizationAssessment.Good,
+                    OptimizationAssessment.Good, 4096, peak, budget,
+                    budget - peak, 0, 0, false,
+                    availableDiskBytes: 32 * Gibibyte),
+                "strict-order", false);
+            OptimizationCapabilitySnapshot snapshot =
+                OptimizationCapabilitySnapshot.ForOpenVino(
+                    "strict-cap", Digest64,
+                    OpenVinoCapabilityPayload.Create(
+                        "runtime",
+                        [OpenVinoAdmittedConfiguration.Create(
+                            candidate.EvidenceId, DeviceRouteId.Cpu,
+                            OpenVinoWeightFormat.Int8, OpenVinoKvCacheFormat.U8,
+                            OpenVinoPerformanceHint.Latency,
+                            OpenVinoCompiledCachePolicy.Disabled, 1, 1, 32768,
+                            SupportLevel.DeclaredSupported, false)]));
+            OptimizationWorkload workload = OptimizationWorkload.Create(
+                "strict-workload", 1, OptimizationAssessment.Poor,
+                [ContextTokenCount.FromTokens(4096)]);
+            OptimizationJourneyBinding binding = OptimizationJourneyBinding.Create(
+                "mi-run", "mi-handoff", Digest64, Gibibyte,
+                "hw-run", Digest64);
+            return OptimizationAdmissionTestFactory.Admit(
+                candidate, snapshot, workload, binding,
+                SupportLevel.DeclaredSupported);
+        }
+
+        OptimizationCandidate acceptable = Create(
+            OptimizationAssessment.Acceptable, 8 * Gibibyte, 32 * Gibibyte);
+        OptimizationCandidate good = Create(
+            OptimizationAssessment.Good, 8 * Gibibyte, 32 * Gibibyte);
+        OptimizationCandidate alternateBudget = Create(
+            OptimizationAssessment.Good, 9 * Gibibyte, 33 * Gibibyte);
+
+        Assert.AreNotEqual(0, OptimizationPreferenceResolver.Compare(acceptable, good));
+        Assert.AreNotEqual(0, OptimizationPreferenceResolver.Compare(good, alternateBudget));
+        Assert.AreEqual(
+            -Math.Sign(OptimizationPreferenceResolver.Compare(acceptable, good)),
+            Math.Sign(OptimizationPreferenceResolver.Compare(good, acceptable)));
     }
 
     [TestMethod]
@@ -528,6 +661,87 @@ public sealed class OptimizationPreferenceInvariantTests
 
         Assert.IsNull(OptimizationPreferenceResolver.Resolve(
             [unsafeCandidate], OptimizationPreferenceSelection.Automatic()));
+    }
+
+    [TestMethod]
+    public void PublicCallerCannotForgeAnAdmittedCandidateWithSafeLookingMetrics()
+    {
+        OptimizationCandidate forged = OptimizationCandidate.Create(
+            OpenVinoRouteConfiguration.Create(
+                OpenVinoWeightFormat.Int4, OpenVinoKvCacheFormat.U4,
+                DeviceRouteId.Cpu, OpenVinoPerformanceHint.Latency,
+                OpenVinoCompiledCachePolicy.Disabled, streams: 1),
+            OptimizationCandidateMetrics.Create(
+                EvidenceGrade.Measured,
+                OptimizationAssessment.Excellent,
+                OptimizationAssessment.Excellent,
+                OptimizationAssessment.Excellent,
+                contextTokens: 4096,
+                predictedPeakBytes: 1,
+                safeBudgetBytes: 32 * Gibibyte,
+                headroomBytes: 32 * Gibibyte - 1,
+                workingDiskBytes: 0,
+                outputDiskBytes: 0,
+                requiresPersistentChange: false,
+                availableDiskBytes: 32 * Gibibyte),
+            "forged-public-admission",
+            isExperimental: false);
+
+        Assert.IsNull(OptimizationPreferenceResolver.Resolve(
+            [forged], OptimizationPreferenceSelection.Automatic()));
+    }
+
+    [TestMethod]
+    public void AdmissionProofRejectsInconsistentMemoryDiskAndPersistenceClaims()
+    {
+        OpenVinoRouteConfiguration configuration = OpenVinoRouteConfiguration.Create(
+            OpenVinoWeightFormat.Int4, OpenVinoKvCacheFormat.U4,
+            DeviceRouteId.Cpu, OpenVinoPerformanceHint.Latency,
+            OpenVinoCompiledCachePolicy.Disabled, 1);
+        OptimizationCapabilitySnapshot snapshot =
+            OptimizationCapabilitySnapshot.ForOpenVino(
+                "proof-validation-cap", Digest64,
+                OpenVinoCapabilityPayload.Create(
+                    "runtime",
+                    [OpenVinoAdmittedConfiguration.Create(
+                        "proof-validation", DeviceRouteId.Cpu,
+                        OpenVinoWeightFormat.Int4, OpenVinoKvCacheFormat.U4,
+                        OpenVinoPerformanceHint.Latency,
+                        OpenVinoCompiledCachePolicy.Disabled, 1, 1, 32768,
+                        SupportLevel.DeclaredSupported, false)]));
+        OptimizationWorkload workload = OptimizationWorkload.Create(
+            "proof-validation-workload", 1, OptimizationAssessment.Poor,
+            [ContextTokenCount.FromTokens(4096)]);
+        OptimizationJourneyBinding binding = OptimizationJourneyBinding.Create(
+            "mi-run", "mi-handoff", Digest64, Gibibyte, "hw-run", Digest64);
+
+        void AssertRejected(
+            ulong headroom, ulong working, ulong output,
+            bool persistent, ulong available)
+        {
+            OptimizationCandidate candidate = OptimizationCandidate.Create(
+                configuration,
+                OptimizationCandidateMetrics.Create(
+                    EvidenceGrade.Estimated,
+                    OptimizationAssessment.Acceptable,
+                    OptimizationAssessment.Good,
+                    OptimizationAssessment.Good,
+                    4096, 8 * Gibibyte, 32 * Gibibyte, headroom,
+                    working, output, persistent, available),
+                "proof-validation", false);
+
+            Assert.ThrowsExactly<ArgumentException>(() =>
+                OptimizationAdmissionProof.Create(
+                    snapshot, workload, binding, candidate,
+                    SupportLevel.DeclaredSupported, false,
+                    new HashSet<string>()));
+        }
+
+        AssertRejected(23 * Gibibyte, 0, 0, false, 32 * Gibibyte);
+        AssertRejected(24 * Gibibyte, 4 * Gibibyte, 8 * Gibibyte, true, 32 * Gibibyte);
+        AssertRejected(24 * Gibibyte, 8 * Gibibyte, 8 * Gibibyte, true, 4 * Gibibyte);
+        AssertRejected(24 * Gibibyte, 4 * Gibibyte, 4 * Gibibyte, false, 32 * Gibibyte);
+        AssertRejected(24 * Gibibyte, 0, 0, true, 32 * Gibibyte);
     }
 
     [TestMethod]

@@ -53,6 +53,7 @@ internal static class CrossRouteCandidateGenerator
         OptimizationCapabilitySnapshot snapshot,
         InspectedModelFacts facts,
         OptimizationWorkload workload,
+        OptimizationJourneyBinding binding,
         ByteCount safeBudget,
         ByteCount availableDisk,
         EstimatorPolicy policy,
@@ -61,6 +62,7 @@ internal static class CrossRouteCandidateGenerator
         ArgumentNullException.ThrowIfNull(snapshot);
         ArgumentNullException.ThrowIfNull(facts);
         ArgumentNullException.ThrowIfNull(workload);
+        ArgumentNullException.ThrowIfNull(binding);
         ArgumentNullException.ThrowIfNull(policy);
         ArgumentNullException.ThrowIfNull(optedInExperimentalEvidenceIds);
 
@@ -73,13 +75,15 @@ internal static class CrossRouteCandidateGenerator
             {
                 case OptimizationRoute.Gguf:
                     GenerateGguf(
-                        snapshot.Gguf!, facts, workload, context, safeBudget, availableDisk,
+                        snapshot, snapshot.Gguf!, facts, workload, binding, context,
+                        safeBudget, availableDisk,
                         policy, optedInExperimentalEvidenceIds, candidates, exclusions);
                     break;
 
                 case OptimizationRoute.OpenVino:
                     GenerateOpenVino(
-                        snapshot.OpenVino!, facts, workload, context, safeBudget, availableDisk,
+                        snapshot, snapshot.OpenVino!, facts, workload, binding, context,
+                        safeBudget, availableDisk,
                         policy, optedInExperimentalEvidenceIds, candidates, exclusions);
                     break;
 
@@ -115,9 +119,11 @@ internal static class CrossRouteCandidateGenerator
     }
 
     private static void GenerateOpenVino(
+        OptimizationCapabilitySnapshot snapshot,
         OpenVinoCapabilityPayload payload,
         InspectedModelFacts facts,
         OptimizationWorkload workload,
+        OptimizationJourneyBinding binding,
         ContextTokenCount context,
         ByteCount safeBudget,
         ByteCount availableDisk,
@@ -145,7 +151,8 @@ internal static class CrossRouteCandidateGenerator
             string descriptor = $"{configuration.CanonicalDescriptor}|ctx={context.Tokens}";
 
             if (Refused(
-                admitted.Level, admitted.EvidenceId, optedIn, descriptor, exclusions))
+                admitted.Level, admitted.RequiresEvidence, admitted.EvidenceId,
+                optedIn, descriptor, exclusions))
             {
                 continue;
             }
@@ -166,14 +173,20 @@ internal static class CrossRouteCandidateGenerator
                 availableDisk,
                 descriptor,
                 candidates,
-                exclusions);
+                exclusions,
+                snapshot,
+                binding,
+                admitted.RequiresEvidence,
+                optedIn);
         }
     }
 
     private static void GenerateGguf(
+        OptimizationCapabilitySnapshot snapshot,
         GgufCapabilityPayload payload,
         InspectedModelFacts facts,
         OptimizationWorkload workload,
+        OptimizationJourneyBinding binding,
         ContextTokenCount context,
         ByteCount safeBudget,
         ByteCount availableDisk,
@@ -214,7 +227,8 @@ internal static class CrossRouteCandidateGenerator
             string descriptor = $"{configuration.CanonicalDescriptor}|ctx={context.Tokens}";
 
             if (Refused(
-                admitted.Level, admitted.EvidenceId, optedIn, descriptor, exclusions))
+                admitted.Level, admitted.RequiresEvidence, admitted.EvidenceId,
+                optedIn, descriptor, exclusions))
             {
                 continue;
             }
@@ -252,6 +266,10 @@ internal static class CrossRouteCandidateGenerator
                 descriptor,
                 candidates,
                 exclusions,
+                snapshot,
+                binding,
+                admitted.RequiresEvidence,
+                optedIn,
                 provenance,
                 normalizationProof);
         }
@@ -333,15 +351,21 @@ internal static class CrossRouteCandidateGenerator
     /// </summary>
     private static bool Refused(
         SupportLevel level,
+        bool requiresEvidence,
         string evidenceId,
         IReadOnlySet<string> optedIn,
         string descriptor,
         List<OptimizationExclusion> exclusions)
     {
-        if (level == SupportLevel.Experimental && !optedIn.Contains(evidenceId))
+        if ((level == SupportLevel.Experimental || requiresEvidence)
+            && !optedIn.Contains(evidenceId))
         {
             exclusions.Add(new OptimizationExclusion(
-                evidenceId, descriptor, OptimizationExclusionReason.ExperimentalNotAdmitted));
+                evidenceId,
+                descriptor,
+                level == SupportLevel.Experimental
+                    ? OptimizationExclusionReason.ExperimentalNotAdmitted
+                    : OptimizationExclusionReason.EvidenceBelowAdmissionLevel));
 
             return true;
         }
@@ -363,6 +387,10 @@ internal static class CrossRouteCandidateGenerator
         string descriptor,
         List<OptimizationCandidate> candidates,
         List<OptimizationExclusion> exclusions,
+        OptimizationCapabilitySnapshot snapshot,
+        OptimizationJourneyBinding binding,
+        bool requiresEvidence,
+        IReadOnlySet<string> optedInEvidenceIds,
         OptimizationConversionProvenance provenance =
             OptimizationConversionProvenance.None,
         GgufWeightNormalizationProof? normalizationProof = null)
@@ -445,7 +473,11 @@ internal static class CrossRouteCandidateGenerator
             : OptimizationCandidate.CreateWithGgufWeightNormalization(
                 (GgufRouteConfiguration)configuration, metrics, evidenceId,
                 level == SupportLevel.Experimental, normalizationProof);
-        candidates.Add(admittedCandidate);
+        OptimizationAdmissionProof admissionProof = OptimizationAdmissionProof.Create(
+            snapshot, workload, binding, admittedCandidate,
+            level, requiresEvidence, optedInEvidenceIds);
+        candidates.Add(OptimizationCandidate.AttachAdmissionProof(
+            admittedCandidate, admissionProof));
     }
 }
 

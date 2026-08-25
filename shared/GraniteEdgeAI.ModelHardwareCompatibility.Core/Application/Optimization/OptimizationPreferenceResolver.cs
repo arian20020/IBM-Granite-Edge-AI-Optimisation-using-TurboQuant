@@ -64,7 +64,9 @@ public static class OptimizationPreferenceResolver
         // selectable merely because it was reintroduced into the input list.
         IReadOnlyList<OptimizationCandidate> frontier = SafeCandidateFrontier.Create(
             [.. admitted.Where(candidate =>
-                candidate.Metrics.FitsSafely
+                candidate.AdmissionProof is { } proof
+                && proof.MatchesCandidate(candidate)
+                && candidate.Metrics.FitsSafely
                 && candidate.Metrics.FitsDiskSafely)]);
 
         if (frontier.Count == 0)
@@ -201,35 +203,74 @@ public static class OptimizationPreferenceResolver
     /// same evidence-bound plan twice.
     /// </summary>
     internal static bool PrefersFirst(OptimizationCandidate a, OptimizationCandidate b)
+        => Compare(a, b) < 0;
+
+    /// <summary>One strict order shared by reduction, frontier ties, and Automatic.</summary>
+    internal static int Compare(OptimizationCandidate a, OptimizationCandidate b)
     {
         if (a.Metrics.Evidence != b.Metrics.Evidence)
         {
-            return a.Metrics.Evidence > b.Metrics.Evidence;
+            return ((int)b.Metrics.Evidence).CompareTo((int)a.Metrics.Evidence);
         }
 
         if (a.Metrics.HeadroomBytes != b.Metrics.HeadroomBytes)
         {
-            return a.Metrics.HeadroomBytes > b.Metrics.HeadroomBytes;
+            return b.Metrics.HeadroomBytes.CompareTo(a.Metrics.HeadroomBytes);
         }
 
         if (a.Metrics.RequiresPersistentChange != b.Metrics.RequiresPersistentChange)
         {
-            return !a.Metrics.RequiresPersistentChange;
+            return a.Metrics.RequiresPersistentChange ? 1 : -1;
         }
 
         if (a.Metrics.Stability != b.Metrics.Stability)
         {
-            return a.Metrics.Stability > b.Metrics.Stability;
+            return ((int)b.Metrics.Stability).CompareTo((int)a.Metrics.Stability);
         }
 
         if (a.Metrics.ContextTokens != b.Metrics.ContextTokens)
         {
-            return a.Metrics.ContextTokens > b.Metrics.ContextTokens;
+            return b.Metrics.ContextTokens.CompareTo(a.Metrics.ContextTokens);
         }
 
         if (a.IsExperimental != b.IsExperimental)
         {
-            return !a.IsExperimental;
+            return a.IsExperimental ? 1 : -1;
+        }
+
+        if (a.Metrics.Performance != b.Metrics.Performance)
+        {
+            return ((int)b.Metrics.Performance).CompareTo((int)a.Metrics.Performance);
+        }
+
+        if (a.Metrics.Quality != b.Metrics.Quality)
+        {
+            return ((int)b.Metrics.Quality).CompareTo((int)a.Metrics.Quality);
+        }
+
+        if (a.Metrics.PredictedPeakBytes != b.Metrics.PredictedPeakBytes)
+        {
+            return a.Metrics.PredictedPeakBytes.CompareTo(b.Metrics.PredictedPeakBytes);
+        }
+
+        if (a.Metrics.SafeBudgetBytes != b.Metrics.SafeBudgetBytes)
+        {
+            return b.Metrics.SafeBudgetBytes.CompareTo(a.Metrics.SafeBudgetBytes);
+        }
+
+        if (a.Metrics.WorkingDiskBytes != b.Metrics.WorkingDiskBytes)
+        {
+            return a.Metrics.WorkingDiskBytes.CompareTo(b.Metrics.WorkingDiskBytes);
+        }
+
+        if (a.Metrics.OutputDiskBytes != b.Metrics.OutputDiskBytes)
+        {
+            return a.Metrics.OutputDiskBytes.CompareTo(b.Metrics.OutputDiskBytes);
+        }
+
+        if (a.Metrics.AvailableDiskBytes != b.Metrics.AvailableDiskBytes)
+        {
+            return Nullable.Compare(b.Metrics.AvailableDiskBytes, a.Metrics.AvailableDiskBytes);
         }
 
         int canonical = string.CompareOrdinal(
@@ -237,10 +278,115 @@ public static class OptimizationPreferenceResolver
 
         if (canonical != 0)
         {
-            return canonical < 0;
+            return canonical;
         }
 
-        return string.CompareOrdinal(a.EvidenceId, b.EvidenceId) < 0;
+        int evidence = string.CompareOrdinal(a.EvidenceId, b.EvidenceId);
+        if (evidence != 0)
+        {
+            return evidence;
+        }
+
+        int provenance = ((int)a.ConversionProvenance)
+            .CompareTo((int)b.ConversionProvenance);
+        if (provenance != 0)
+        {
+            return provenance;
+        }
+
+        int notice = ((int)a.Notice).CompareTo((int)b.Notice);
+        if (notice != 0)
+        {
+            return notice;
+        }
+
+        int authority = CompareAdmissionAuthority(a.AdmissionProof, b.AdmissionProof);
+        if (authority != 0)
+        {
+            return authority;
+        }
+
+        return CompareNormalizationProof(
+            a.WeightNormalizationProof, b.WeightNormalizationProof);
+    }
+
+    private static int CompareAdmissionAuthority(
+        OptimizationAdmissionProof? a,
+        OptimizationAdmissionProof? b)
+    {
+        if (ReferenceEquals(a, b))
+        {
+            return 0;
+        }
+
+        if (a is null || b is null)
+        {
+            return a is null ? 1 : -1;
+        }
+
+        int result = string.CompareOrdinal(a.SnapshotId, b.SnapshotId);
+        if (result == 0)
+        {
+            result = string.CompareOrdinal(
+                a.CapabilitySnapshotSha256, b.CapabilitySnapshotSha256);
+        }
+        if (result == 0)
+        {
+            result = string.CompareOrdinal(a.WorkloadId, b.WorkloadId);
+        }
+        if (result == 0)
+        {
+            result = string.CompareOrdinal(a.WorkloadSha256, b.WorkloadSha256);
+        }
+        if (result == 0)
+        {
+            result = string.CompareOrdinal(a.JourneySha256, b.JourneySha256);
+        }
+        if (result == 0)
+        {
+            result = ((int)a.SupportLevel).CompareTo((int)b.SupportLevel);
+        }
+        if (result == 0)
+        {
+            result = a.RequiresEvidence.CompareTo(b.RequiresEvidence);
+        }
+        if (result == 0)
+        {
+            result = string.CompareOrdinal(
+                a.OptedInEvidenceId ?? string.Empty,
+                b.OptedInEvidenceId ?? string.Empty);
+        }
+        return result;
+    }
+
+    private static int CompareNormalizationProof(
+        GgufWeightNormalizationProof? a,
+        GgufWeightNormalizationProof? b)
+    {
+        if (ReferenceEquals(a, b))
+        {
+            return 0;
+        }
+
+        if (a is null || b is null)
+        {
+            return a is null ? 1 : -1;
+        }
+
+        int result = a.FileType.CompareTo(b.FileType);
+        if (result == 0)
+        {
+            result = a.QuantisationVersion.CompareTo(b.QuantisationVersion);
+        }
+        if (result == 0)
+        {
+            result = ((int)a.Source).CompareTo((int)b.Source);
+        }
+        if (result == 0)
+        {
+            result = ((int)a.AdmittedWeight).CompareTo((int)b.AdmittedWeight);
+        }
+        return result;
     }
 
     private static bool SharesWithNeighbour(

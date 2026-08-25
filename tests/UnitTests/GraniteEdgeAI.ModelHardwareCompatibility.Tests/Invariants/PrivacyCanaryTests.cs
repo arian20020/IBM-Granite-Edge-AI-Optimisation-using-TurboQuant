@@ -236,7 +236,25 @@ public sealed class PrivacyCanaryTests
         // filenames, model names or native errors.
         "GgufConversionSourceBinding.SourceSha256",
         "GgufRequantisationPolicy.AdmittedConfigurationSha256",
-        "GgufRequantisationPolicy.ComputeAdmittedConfigurationSha256"
+        "GgufRequantisationPolicy.ComputeAdmittedConfigurationSha256",
+
+        // Opaque frontier-admission authority carries only already-reviewed
+        // capability/workload/evidence identifiers, canonical route descriptors,
+        // and fixed-format SHA-256 digests. Its digest helpers only combine those
+        // bounded values and never accept or return a filesystem path.
+        "OptimizationAdmissionProof.CapabilitySnapshotSha256",
+        "OptimizationAdmissionProof.ConfigurationDescriptor",
+        "OptimizationAdmissionProof.Digest",
+        "OptimizationAdmissionProof.DigestJourney",
+        "OptimizationAdmissionProof.DigestWorkload",
+        "OptimizationAdmissionProof.EvidenceId",
+        "OptimizationAdmissionProof.JourneySha256",
+        "OptimizationAdmissionProof.OptedInEvidenceId",
+        "OptimizationAdmissionProof.SnapshotId",
+        "OptimizationAdmissionProof.WorkloadId",
+        "OptimizationAdmissionProof.WorkloadSha256",
+        "<>c.<Digest>b__87_0",
+        "<>c.<DigestWorkload>b__85_2"
     ];
 
     private static readonly BindingFlags AllMembers =

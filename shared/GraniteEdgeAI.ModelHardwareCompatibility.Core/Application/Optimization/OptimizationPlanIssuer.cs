@@ -78,7 +78,10 @@ public static class OptimizationPlanIssuer
                 nameof(createdAtUtc));
         }
 
+        RequireAdmissionAuthority(
+            candidate, executionPayload, capabilitySnapshot, workload, binding);
         RequireAgreement(candidate, executionPayload, modelLayerCount);
+        RequireOpenVinoRuntimeAuthority(candidate, executionPayload, capabilitySnapshot);
         RequireGgufRuntimeAuthority(candidate, executionPayload, capabilitySnapshot);
         RequireGgufConversionAuthority(
             candidate, executionPayload, capabilitySnapshot, binding);
@@ -98,6 +101,23 @@ public static class OptimizationPlanIssuer
                 executionPayload,
                 OptimizationExecutionPlan.CurrentContractVersion),
             createdAtUtc);
+    }
+
+    private static void RequireAdmissionAuthority(
+        OptimizationCandidate candidate,
+        OptimizationExecutionPayload payload,
+        OptimizationCapabilitySnapshot snapshot,
+        OptimizationWorkload workload,
+        OptimizationJourneyBinding binding)
+    {
+        OptimizationAdmissionProof? proof = candidate.AdmissionProof;
+        Require(
+            proof is not null
+                && proof.MatchesCandidate(candidate)
+                && proof.MatchesAuthority(snapshot, workload, binding)
+                && proof.RequiresPersistentChange == payload.RequiresPersistentConversion,
+            "frontier admission authority",
+            "candidate quantities, snapshot, workload, journey, or persistence differs");
     }
 
     private static void RequireGgufRuntimeAuthority(
@@ -127,6 +147,21 @@ public static class OptimizationPlanIssuer
                 && candidate.Metrics.ContextTokens <= admitted.MaximumContextTokens,
             "admitted GGUF configuration",
             "the evidence identifier names a different target or context range");
+
+        OptimizationAdmissionProof proof = candidate.AdmissionProof!;
+        Require(
+            proof.SupportLevel == admitted.Level
+                && proof.RequiresEvidence == admitted.RequiresEvidence
+                && candidate.IsExperimental
+                    == (admitted.Level == SupportLevel.Experimental)
+                && (!(admitted.RequiresEvidence
+                        || admitted.Level == SupportLevel.Experimental)
+                    || string.Equals(
+                        proof.OptedInEvidenceId,
+                        admitted.EvidenceId,
+                        StringComparison.Ordinal)),
+            "GGUF support admission",
+            "support level, experimental state, evidence requirement, or opt-in differs");
 
         GgufTurboQuantImplementationIdentity? identity =
             capability.TurboQuantImplementation;
@@ -164,6 +199,66 @@ public static class OptimizationPlanIssuer
                     StringComparison.Ordinal),
             "GGUF TurboQuant implementation identity",
             "runtime name, source commit, backend, device, or evidence level differs");
+    }
+
+    private static void RequireOpenVinoRuntimeAuthority(
+        OptimizationCandidate candidate,
+        OptimizationExecutionPayload payload,
+        OptimizationCapabilitySnapshot snapshot)
+    {
+        if (candidate.Configuration is not OpenVinoRouteConfiguration configuration)
+        {
+            return;
+        }
+
+        OpenVinoCapabilityPayload capability = snapshot.OpenVino!;
+        OpenVinoAdmittedConfiguration? admitted = capability.Admitted.SingleOrDefault(entry =>
+            string.Equals(entry.EvidenceId, candidate.EvidenceId, StringComparison.Ordinal));
+        Require(admitted is not null, "admitted OpenVINO evidence", candidate.EvidenceId);
+
+        OpenVinoRouteConfiguration admittedConfiguration =
+            OpenVinoRouteConfiguration.Create(
+                admitted!.Weights, admitted.KvCache, admitted.Device,
+                admitted.PerformanceHint, admitted.CompiledCache, admitted.Streams);
+        OptimizationAdmissionProof proof = candidate.AdmissionProof!;
+        OpenVinoExecutionPayload openVino = payload.OpenVino!;
+        string expectedMaturity = admitted.Level == SupportLevel.Experimental
+            ? "Experimental candidate"
+            : "Standard candidate";
+
+        Require(
+            admittedConfiguration == configuration
+                && candidate.Metrics.ContextTokens >= admitted.MinimumContextTokens
+                && candidate.Metrics.ContextTokens <= admitted.MaximumContextTokens,
+            "admitted OpenVINO configuration",
+            "the evidence identifier names a different complete target or context range");
+        Require(
+            proof.SupportLevel == admitted.Level
+                && proof.RequiresEvidence == admitted.RequiresEvidence
+                && candidate.IsExperimental
+                    == (admitted.Level == SupportLevel.Experimental)
+                && (!(admitted.RequiresEvidence
+                        || admitted.Level == SupportLevel.Experimental)
+                    || string.Equals(
+                        proof.OptedInEvidenceId,
+                        admitted.EvidenceId,
+                        StringComparison.Ordinal)),
+            "OpenVINO support admission",
+            "support level, experimental state, evidence requirement, or opt-in differs");
+        Require(
+            string.Equals(
+                capability.RuntimeVersion,
+                openVino.BuildIdentity.RuntimeBuild,
+                StringComparison.Ordinal),
+            "OpenVINO runtime build",
+            "capability and execution payload runtime identities differ");
+        Require(
+            string.Equals(openVino.EvidenceId, admitted.EvidenceId, StringComparison.Ordinal)
+                && string.Equals(openVino.Maturity, expectedMaturity, StringComparison.Ordinal)
+                && openVino.CreatesCompletePackage
+                    == candidate.Metrics.RequiresPersistentChange,
+            "OpenVINO execution admission",
+            "evidence, maturity, package creation, or persistence differs");
     }
 
     private static bool AdmittedGgufConfigurationMatches(

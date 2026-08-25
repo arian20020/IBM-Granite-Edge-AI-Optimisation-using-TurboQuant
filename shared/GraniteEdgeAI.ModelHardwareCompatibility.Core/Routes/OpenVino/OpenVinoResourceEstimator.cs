@@ -65,103 +65,117 @@ internal static class OpenVinoResourceEstimator
                 EstimationUnavailableReason.UnknownArchitecture);
         }
 
-        EstimatorTerms terms = policy.Terms;
-
-        // Where memory is charged. Shared is the integrated case: real system
-        // RAM, addressed by the GPU, and the phase composer folds it into
-        // system pressure exactly once.
-        ResourceTarget pool = configuration.Device switch
+        if (embedding % heads != 0)
         {
-            DeviceRouteId.IntelDiscreteGpu => ResourceTarget.DedicatedDeviceMemory,
-            DeviceRouteId.IntelIntegratedGpu or DeviceRouteId.IntelNpu =>
-                ResourceTarget.SharedDeviceMemory,
-            _ => ResourceTarget.SystemMemory
-        };
-
-        List<ResourceComponent> components = [];
-
-        // Recorded, not hidden. The weights figure is scaled from the source
-        // file rather than counted, and one sequence is assumed; a reader of
-        // this estimate is entitled to know both.
-        HashSet<EstimationLimitation> limitations =
-        [
-            EstimationLimitation.WeightsDerivedFromFileLength,
-            EstimationLimitation.SingleSequenceAssumed
-        ];
-
-        if (policy.Provenance == PolicyProvenance.Provisional)
-        {
-            limitations.Add(EstimationLimitation.UncalibratedEstimatorPolicy);
+            return ResourceEstimate.NotEstablished(
+                EstimationUnavailableReason.UnknownArchitecture);
         }
 
-        ByteCount weights = WeightBytes(facts, configuration, terms);
-        components.Add(ResourceComponent.Create(
-            ResourceComponentKind.Weights, pool, weights, AllPhases));
-
-        components.Add(ResourceComponent.Create(
-            ResourceComponentKind.KvCache,
-            pool,
-            CacheBytes(configuration, context, layers, embedding, heads, keyValueHeads, terms),
-            SteadyState));
-
-        // Each stream carries its own working set, so throughput configurations
-        // cost more than latency ones by more than a rounding difference.
-        ByteCount compute = policy.ComputeBufferFor(context)
-            .MultiplyByFraction(configuration.Streams);
-        components.Add(ResourceComponent.Create(
-            ResourceComponentKind.ComputeBuffer, pool, compute, SteadyState));
-
-        components.Add(ResourceComponent.Create(
-            ResourceComponentKind.BackendAllocation,
-            pool,
-            pool == ResourceTarget.SystemMemory
-                ? terms.CpuBackendAllocation
-                : terms.GpuBackendAllocation,
-            AllPhases));
-
-        // Charged to system memory whatever the device, because the process
-        // hosting the runtime lives there regardless of where inference runs.
-        components.Add(ResourceComponent.Create(
-            ResourceComponentKind.ApplicationOverhead,
-            ResourceTarget.SystemMemory,
-            terms.ApplicationOverhead,
-            AllPhases));
-
-        if (OpenVinoFormatMap.RequiresPersistentConversion(configuration.Weights))
+        try
         {
-            // A conversion writes a package. The plan has to state that space
-            // before a user agrees to it, so it is part of the estimate rather
-            // than a surprise at execution.
+            EstimatorTerms terms = policy.Terms;
+
+            // Where memory is charged. Shared is the integrated case: real system
+            // RAM, addressed by the GPU, and the phase composer folds it into
+            // system pressure exactly once.
+            ResourceTarget pool = configuration.Device switch
+            {
+                DeviceRouteId.IntelDiscreteGpu => ResourceTarget.DedicatedDeviceMemory,
+                DeviceRouteId.IntelIntegratedGpu or DeviceRouteId.IntelNpu =>
+                    ResourceTarget.SharedDeviceMemory,
+                _ => ResourceTarget.SystemMemory
+            };
+
+            List<ResourceComponent> components = [];
+
+            // Recorded, not hidden. The weights figure is scaled from the source
+            // file rather than counted, and one sequence is assumed; a reader of
+            // this estimate is entitled to know both.
+            HashSet<EstimationLimitation> limitations =
+            [
+                EstimationLimitation.WeightsDerivedFromFileLength,
+                EstimationLimitation.SingleSequenceAssumed
+            ];
+
+            if (policy.Provenance == PolicyProvenance.Provisional)
+            {
+                limitations.Add(EstimationLimitation.UncalibratedEstimatorPolicy);
+            }
+
+            ByteCount weights = WeightBytes(facts, configuration, terms);
             components.Add(ResourceComponent.Create(
-                ResourceComponentKind.PersistentArtifact,
-                ResourceTarget.Storage,
-                weights,
+                ResourceComponentKind.Weights, pool, weights, AllPhases));
+
+            components.Add(ResourceComponent.Create(
+                ResourceComponentKind.KvCache,
+                pool,
+                CacheBytes(configuration, context, layers, embedding, heads, keyValueHeads, terms),
+                SteadyState));
+
+            // Each stream carries its own working set, so throughput configurations
+            // cost more than latency ones by more than a rounding difference.
+            ByteCount compute = policy.ComputeBufferFor(context)
+                .MultiplyByFraction(configuration.Streams);
+            components.Add(ResourceComponent.Create(
+                ResourceComponentKind.ComputeBuffer, pool, compute, SteadyState));
+
+            components.Add(ResourceComponent.Create(
+                ResourceComponentKind.BackendAllocation,
+                pool,
+                pool == ResourceTarget.SystemMemory
+                    ? terms.CpuBackendAllocation
+                    : terms.GpuBackendAllocation,
                 AllPhases));
 
+            // Charged to system memory whatever the device, because the process
+            // hosting the runtime lives there regardless of where inference runs.
             components.Add(ResourceComponent.Create(
-                ResourceComponentKind.StagingBuffer,
-                ResourceTarget.Storage,
-                Staging(facts, terms),
-                new HashSet<LifecyclePhase> { LifecyclePhase.Load }));
-
-            limitations.Add(EstimationLimitation.ConversionSourceStorageNotCounted);
-        }
-
-        if (configuration.CompiledCache == OpenVinoCompiledCachePolicy.Enabled)
-        {
-            // Charged as model state, not as a persistent artifact. The blob is
-            // a real file that survives between runs, but it is not a model
-            // copy - and PersistentArtifact is what decides whether the page
-            // tells the user a new model was created. Conflating the two would
-            // make a runtime-only result claim an artifact it never wrote.
-            components.Add(ResourceComponent.Create(
-                ResourceComponentKind.ModelState,
-                ResourceTarget.Storage,
-                weights.MultiplyByFraction(0.05m),
+                ResourceComponentKind.ApplicationOverhead,
+                ResourceTarget.SystemMemory,
+                terms.ApplicationOverhead,
                 AllPhases));
-        }
 
-        return ResourceEstimate.Established(components, limitations);
+            if (OpenVinoFormatMap.RequiresPersistentConversion(configuration.Weights))
+            {
+                // A conversion writes a package. The plan has to state that space
+                // before a user agrees to it, so it is part of the estimate rather
+                // than a surprise at execution.
+                components.Add(ResourceComponent.Create(
+                    ResourceComponentKind.PersistentArtifact,
+                    ResourceTarget.Storage,
+                    weights,
+                    AllPhases));
+
+                components.Add(ResourceComponent.Create(
+                    ResourceComponentKind.StagingBuffer,
+                    ResourceTarget.Storage,
+                    Staging(facts, terms),
+                    new HashSet<LifecyclePhase> { LifecyclePhase.Load }));
+
+                limitations.Add(EstimationLimitation.ConversionSourceStorageNotCounted);
+            }
+
+            if (configuration.CompiledCache == OpenVinoCompiledCachePolicy.Enabled)
+            {
+                // Charged as model state, not as a persistent artifact. The blob is
+                // a real file that survives between runs, but it is not a model
+                // copy - and PersistentArtifact is what decides whether the page
+                // tells the user a new model was created. Conflating the two would
+                // make a runtime-only result claim an artifact it never wrote.
+                components.Add(ResourceComponent.Create(
+                    ResourceComponentKind.ModelState,
+                    ResourceTarget.Storage,
+                    weights.MultiplyByFraction(0.05m),
+                    AllPhases));
+            }
+
+            return ResourceEstimate.Established(components, limitations);
+        }
+        catch (OverflowException)
+        {
+            return ResourceEstimate.NotEstablished(
+                EstimationUnavailableReason.QuantitiesExceedRepresentableRange);
+        }
     }
 
     /// <summary>

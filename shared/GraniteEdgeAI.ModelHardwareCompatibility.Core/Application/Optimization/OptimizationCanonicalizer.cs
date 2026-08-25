@@ -98,6 +98,12 @@ internal static class OptimizationCanonicalizer
                 "Contract version 2 has no GGUF weight-normalization-proof vocabulary.",
                 nameof(candidate));
         }
+        if (candidate.AdmissionProof is not null)
+        {
+            throw new ArgumentException(
+                "Contract version 2 has no frontier-admission-proof vocabulary.",
+                nameof(candidate));
+        }
 
 
         if (payload.Gguf is { } gguf
@@ -161,6 +167,14 @@ internal static class OptimizationCanonicalizer
                 builder,
                 "availableDiskBytes",
                 availableDiskBytes.ToString(CultureInfo.InvariantCulture));
+            if (candidate.AdmissionProof is not { } admission)
+            {
+                throw new ArgumentException(
+                    "Contract version 3 requires generator-produced admission authority.",
+                    nameof(candidate));
+            }
+
+            AppendAdmission(builder, admission);
             if (candidate.WeightNormalizationProof is { } normalization)
             {
                 Append(builder, "gguf.normalizedFileType", normalization.FileType);
@@ -204,6 +218,45 @@ internal static class OptimizationCanonicalizer
         }
 
         return builder.ToString();
+    }
+
+    private static void AppendAdmission(
+        StringBuilder builder,
+        OptimizationAdmissionProof proof)
+    {
+        Append(builder, "admission.snapshotId", proof.SnapshotId);
+        Append(builder, "admission.capabilitySha256", proof.CapabilitySnapshotSha256);
+        Append(builder, "admission.workloadId", proof.WorkloadId);
+        Append(builder, "admission.workloadSha256", proof.WorkloadSha256);
+        Append(builder, "admission.journeySha256", proof.JourneySha256);
+        Append(builder, "admission.configuration", proof.ConfigurationDescriptor);
+        Append(builder, "admission.evidenceId", proof.EvidenceId);
+        Append(builder, "admission.supportLevel", (int)proof.SupportLevel);
+        Append(builder, "admission.requiresEvidence", proof.RequiresEvidence ? 1 : 0);
+        Append(builder, "admission.optInEvidenceId", proof.OptedInEvidenceId ?? "none");
+        Append(builder, "admission.experimental", proof.IsExperimental ? 1 : 0);
+        Append(builder, "admission.conversionProvenance", (int)proof.ConversionProvenance);
+        Append(builder, "admission.notice", (int)proof.Notice);
+        Append(builder, "admission.evidenceGrade", (int)proof.Evidence);
+        Append(builder, "admission.quality", (int)proof.Quality);
+        Append(builder, "admission.performance", (int)proof.Performance);
+        Append(builder, "admission.stability", (int)proof.Stability);
+        Append(builder, "admission.contextTokens", proof.ContextTokens);
+        Append(builder, "admission.predictedPeakBytes",
+            proof.PredictedPeakBytes.ToString(CultureInfo.InvariantCulture));
+        Append(builder, "admission.safeBudgetBytes",
+            proof.SafeBudgetBytes.ToString(CultureInfo.InvariantCulture));
+        Append(builder, "admission.headroomBytes",
+            proof.HeadroomBytes.ToString(CultureInfo.InvariantCulture));
+        Append(builder, "admission.workingStoragePhasePeakBytes",
+            proof.WorkingStoragePhasePeakBytes.ToString(CultureInfo.InvariantCulture));
+        Append(builder, "admission.outputDiskBytes",
+            proof.OutputDiskBytes.ToString(CultureInfo.InvariantCulture));
+        Append(builder, "admission.diskObligationBytes",
+            proof.DiskObligationBytes.ToString(CultureInfo.InvariantCulture));
+        Append(builder, "admission.availableDiskBytes",
+            proof.AvailableDiskBytes.ToString(CultureInfo.InvariantCulture));
+        Append(builder, "admission.persistent", proof.RequiresPersistentChange ? 1 : 0);
     }
 
     /// <summary>

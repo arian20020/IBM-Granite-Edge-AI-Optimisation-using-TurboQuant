@@ -1,4 +1,6 @@
 using System.Reflection;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Contracts;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Estimation;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Execution;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
@@ -49,35 +51,36 @@ public sealed class OpenVinoBuildIdentityValidationTests
         OpenVinoBuildIdentity.Create(
             runtimeBuild, genAiBuild, tokenizersBuild, workerManifestDigest);
 
-    private static OptimizationCandidate Candidate() =>
-        OptimizationCandidate.Create(
-            OpenVinoRouteConfiguration.Create(
-                OpenVinoWeightFormat.Int8,
-                OpenVinoKvCacheFormat.U8,
-                DeviceRouteId.Cpu,
-                OpenVinoPerformanceHint.Latency,
-                OpenVinoCompiledCachePolicy.Enabled,
-                1),
-            OptimizationCandidateMetrics.Create(
-                EvidenceGrade.Estimated,
-                OptimizationAssessment.Good,
-                OptimizationAssessment.Good,
-                OptimizationAssessment.Good,
-                4096,
-                8 * Gibibyte,
-                32 * Gibibyte,
-                24 * Gibibyte,
-                0,
-                4 * Gibibyte,
-                true,
-                availableDiskBytes: 500 * Gibibyte),
-            "ov-evidence",
-            isExperimental: false);
+    private static OptimizationExecutionPlan Issue(OpenVinoBuildIdentity build)
+    {
+        OpenVinoAdmittedConfiguration admitted = OpenVinoAdmittedConfiguration.Create(
+            "ov-evidence", DeviceRouteId.Cpu, OpenVinoWeightFormat.Int8,
+            OpenVinoKvCacheFormat.U8, OpenVinoPerformanceHint.Latency,
+            OpenVinoCompiledCachePolicy.Enabled, 1, 512, 32768,
+            SupportLevel.DeclaredSupported, false);
+        OptimizationCapabilitySnapshot snapshot =
+            OptimizationCapabilitySnapshot.ForOpenVino(
+                "ov-cap", Digest64,
+                OpenVinoCapabilityPayload.Create(build.RuntimeBuild, [admitted]));
+        OptimizationWorkload workload = OptimizationWorkload.Create(
+            "chat", 512, OptimizationAssessment.Poor,
+            [ContextTokenCount.FromTokens(4096)]);
+        OptimizationJourneyBinding binding = OptimizationJourneyBinding.Create(
+            "mi-run-1", "mi-handoff-1", Digest64, 4 * Gibibyte,
+            "hw-run-1", OtherDigest64);
+        CrossRouteGenerationResult generated = CrossRouteCandidateGenerator.Generate(
+            snapshot,
+            InspectedModelFacts.Create(
+                ByteCount.FromBytes(4 * Gibibyte), 32, 4096, 32, 8, 8192, 1, 2),
+            workload, binding,
+            ByteCount.FromBytes(32 * Gibibyte),
+            ByteCount.FromBytes(500 * Gibibyte),
+            EstimatorPolicy.ProvisionalV1(),
+            new HashSet<string>());
 
-    private static OptimizationExecutionPlan Issue(OpenVinoBuildIdentity build) =>
-        OptimizationPlanIssuer.Issue(
+        return OptimizationPlanIssuer.Issue(
             OptimizationPreferenceResolver.Resolve(
-                [Candidate()], OptimizationPreferenceSelection.Manual(50))!,
+                generated.Candidates, OptimizationPreferenceSelection.Manual(50))!,
             OptimizationExecutionPayload.ForOpenVino(
                 OpenVinoExecutionPayload.Create(
                     "openvino.standard.cpu.int8.default.v1",
@@ -96,26 +99,12 @@ public sealed class OpenVinoBuildIdentityValidationTests
                     {
                         ["openvino"] = "2026.3.0"
                     })),
-            OptimizationCapabilitySnapshot.ForOpenVino(
-                "ov-cap",
-                Digest64,
-                OpenVinoCapabilityPayload.Create(
-                    "2026.3.0",
-                    [
-                        OpenVinoAdmittedConfiguration.Create(
-                            "ov-evidence", DeviceRouteId.Cpu, OpenVinoWeightFormat.Int8,
-                            OpenVinoKvCacheFormat.U8, OpenVinoPerformanceHint.Latency,
-                            OpenVinoCompiledCachePolicy.Enabled, 1, 512, 32768,
-                            SupportLevel.DeclaredSupported, false)
-                    ])),
-            OptimizationWorkload.Create(
-                "chat", 512, OptimizationAssessment.Poor,
-                [ContextTokenCount.FromTokens(4096)]),
-            OptimizationJourneyBinding.Create(
-                "mi-run-1", "mi-handoff-1", Digest64, 4 * Gibibyte,
-                "hw-run-1", OtherDigest64),
+            snapshot,
+            workload,
+            binding,
             modelLayerCount: 32,
             DateTimeOffset.UnixEpoch);
+    }
 
     // ---------- the defect ----------
 

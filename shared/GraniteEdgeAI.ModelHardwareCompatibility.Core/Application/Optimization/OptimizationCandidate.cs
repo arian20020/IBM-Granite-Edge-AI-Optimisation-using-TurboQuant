@@ -166,7 +166,11 @@ public sealed record OptimizationCandidateMetrics
     /// <summary>Budget left over. Zero when the candidate does not fit.</summary>
     public ulong HeadroomBytes { get; }
 
-    /// <summary>Transient space a conversion needs while it runs.</summary>
+    /// <summary>
+    /// Composite peak storage obligation during any working lifecycle phase.
+    /// It may already include the final output, so it is never added to
+    /// <see cref="OutputDiskBytes"/> when determining the disk obligation.
+    /// </summary>
     public ulong WorkingDiskBytes { get; }
 
     /// <summary>Space the finished output occupies. Zero for runtime-only work.</summary>
@@ -294,7 +298,8 @@ public sealed record OptimizationCandidate
         bool isExperimental,
         OptimizationConversionProvenance conversionProvenance,
         OptimizationCandidateNotice notice,
-        GgufWeightNormalizationProof? weightNormalizationProof)
+        GgufWeightNormalizationProof? weightNormalizationProof,
+        OptimizationAdmissionProof? admissionProof)
     {
         Route = route;
         Configuration = configuration;
@@ -304,6 +309,7 @@ public sealed record OptimizationCandidate
         ConversionProvenance = conversionProvenance;
         Notice = notice;
         WeightNormalizationProof = weightNormalizationProof;
+        AdmissionProof = admissionProof;
     }
 
     public OptimizationRoute Route { get; }
@@ -326,6 +332,8 @@ public sealed record OptimizationCandidate
     public OptimizationCandidateNotice Notice { get; }
 
     internal GgufWeightNormalizationProof? WeightNormalizationProof { get; }
+
+    internal OptimizationAdmissionProof? AdmissionProof { get; }
 
     /// <summary>
     /// Ordinal, stable, and covering the whole candidate rather than the
@@ -393,7 +401,8 @@ public sealed record OptimizationCandidate
 
         return new OptimizationCandidate(
             route, configuration, metrics, evidenceId, isExperimental,
-            conversionProvenance, notice, weightNormalizationProof: null);
+            conversionProvenance, notice, weightNormalizationProof: null,
+            admissionProof: null);
     }
 
     internal static OptimizationCandidate CreateWithGgufWeightNormalization(
@@ -418,7 +427,28 @@ public sealed record OptimizationCandidate
         return new OptimizationCandidate(
             validated.Route, validated.Configuration, validated.Metrics,
             validated.EvidenceId, validated.IsExperimental,
-            validated.ConversionProvenance, validated.Notice, proof);
+            validated.ConversionProvenance, validated.Notice, proof,
+            admissionProof: null);
+    }
+
+    internal static OptimizationCandidate AttachAdmissionProof(
+        OptimizationCandidate candidate,
+        OptimizationAdmissionProof proof)
+    {
+        ArgumentNullException.ThrowIfNull(candidate);
+        ArgumentNullException.ThrowIfNull(proof);
+        if (!proof.MatchesCandidate(candidate))
+        {
+            throw new ArgumentException(
+                "An admission proof must describe the exact candidate it admits.",
+                nameof(proof));
+        }
+
+        return new OptimizationCandidate(
+            candidate.Route, candidate.Configuration, candidate.Metrics,
+            candidate.EvidenceId, candidate.IsExperimental,
+            candidate.ConversionProvenance, candidate.Notice,
+            candidate.WeightNormalizationProof, proof);
     }
 
     internal static OptimizationCandidateNotice ExpectedNotice(
@@ -467,6 +497,7 @@ public sealed record OptimizationCandidate
             validated.EvidenceId, validated.IsExperimental,
             OptimizationConversionProvenance.None,
             OptimizationCandidateNotice.None,
-            weightNormalizationProof: null);
+            weightNormalizationProof: null,
+            admissionProof: null);
     }
 }

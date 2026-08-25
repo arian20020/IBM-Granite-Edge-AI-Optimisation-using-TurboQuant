@@ -50,6 +50,31 @@ public sealed class OptimizationExecutionContractV3Tests
     }
 
     [TestMethod]
+    public void OpenVinoPlanRejectsRuntimeMaturityPackageAndEvidenceSubstitution()
+    {
+        (OptimizationSelection selection, OptimizationCapabilitySnapshot snapshot,
+            OptimizationWorkload workload) = SelectedTurboCandidate(
+                OpenVinoKvCacheFormat.TurboQuantTbq4);
+
+        foreach (OpenVinoExecutionPayload changed in new[]
+        {
+            Payload(OpenVinoKvCacheAlgorithm.TurboQuant,
+                OpenVinoKvCachePrecision.Tbq4, TurboBuild(), runtimeBuild: "changed"),
+            Payload(OpenVinoKvCacheAlgorithm.TurboQuant,
+                OpenVinoKvCachePrecision.Tbq4, TurboBuild(), maturity: "Standard candidate"),
+            Payload(OpenVinoKvCacheAlgorithm.TurboQuant,
+                OpenVinoKvCachePrecision.Tbq4, TurboBuild(), createsCompletePackage: false),
+            Payload(OpenVinoKvCacheAlgorithm.TurboQuant,
+                OpenVinoKvCachePrecision.Tbq4, TurboBuild(), evidenceId: "other-evidence")
+        })
+        {
+            Assert.ThrowsExactly<ArgumentException>(() => OptimizationPlanIssuer.Issue(
+                selection, OptimizationExecutionPayload.ForOpenVino(changed),
+                snapshot, workload, Binding(), 32, DateTimeOffset.UnixEpoch));
+        }
+    }
+
+    [TestMethod]
     [DataRow(OpenVinoKvCachePrecision.Tbq4)]
     [DataRow(OpenVinoKvCachePrecision.Tbq3)]
     public void TurboQuantPrecisionRequiresPinnedBuildIdentity(
@@ -139,10 +164,10 @@ public sealed class OptimizationExecutionContractV3Tests
                 TurboBuild()));
 
         Assert.AreEqual(
-            "v=1:3|route=1:2|config=79:openvino|w=Int4|kv=TurboQuantTbq4|dev=Cpu|hint=Latency|cache=Disabled|streams=1|ctx=4:4096|persistent=1:1|evidence=17:ov-turbo-evidence|experimental=1:1|availableDiskBytes=12:536870912000|ov.configurationId=39:openvino.experimental.cpu.int4.turbo.v3|ov.device=3:CPU|ov.maturity=22:Experimental candidate|ov.evidenceId=17:ov-turbo-evidence|ov.sourceWeightPrecision=1:0|ov.targetWeightPrecision=1:2|ov.kvCacheAlgorithm=1:2|ov.kvCachePrecision=1:5|ov.compiledCacheEnabled=1:0|ov.compiledCacheIsDisposable=1:1|ov.compiledCacheIsModelArtifact=1:0|ov.createsCompletePackage=1:1|ov.build.runtimeBuild=8:2026.3.0|ov.build.genAiBuild=10:2026.3.0.0|ov.build.tokenizersBuild=8:2026.3.0|ov.build.workerManifestDigest=64:1111111111111111111111111111111111111111111111111111111111111111|ov.optimizer.nncf=5:3.3.0|ov.optimizer.openvino=8:2026.3.0|ov.turboQuant.sourceCommit=40:0123456789abcdef0123456789abcdef01234567|ov.turboQuant.implementationCommit=40:0123456789abcdef0123456789abcdef01234567|ov.turboQuant.patchSeriesDigest=64:1111111111111111111111111111111111111111111111111111111111111111|ov.turboQuant.runtimeManifestDigest=64:2222222222222222222222222222222222222222222222222222222222222222",
+            "v=1:3|route=1:2|config=79:openvino|w=Int4|kv=TurboQuantTbq4|dev=Cpu|hint=Latency|cache=Disabled|streams=1|ctx=4:4096|persistent=1:1|evidence=17:ov-turbo-evidence|experimental=1:1|availableDiskBytes=12:536870912000|admission.snapshotId=6:ov-cap|admission.capabilitySha256=64:1111111111111111111111111111111111111111111111111111111111111111|admission.workloadId=4:chat|admission.workloadSha256=64:256a9ed432045ddd99b0ed1c14865d1a811c03578515413fcea438b63e75ea5b|admission.journeySha256=64:79b21af287341b1ed1546722969e12b4785ce5051bc9ae21ec243b2906a8afd4|admission.configuration=79:openvino|w=Int4|kv=TurboQuantTbq4|dev=Cpu|hint=Latency|cache=Disabled|streams=1|admission.evidenceId=17:ov-turbo-evidence|admission.supportLevel=1:2|admission.requiresEvidence=1:1|admission.optInEvidenceId=17:ov-turbo-evidence|admission.experimental=1:1|admission.conversionProvenance=1:0|admission.notice=1:0|admission.evidenceGrade=1:1|admission.quality=1:2|admission.performance=1:2|admission.stability=1:2|admission.contextTokens=4:4096|admission.predictedPeakBytes=10:1762111488|admission.safeBudgetBytes=11:34359738368|admission.headroomBytes=11:32597626880|admission.workingStoragePhasePeakBytes=10:1042368922|admission.outputDiskBytes=10:1042368922|admission.diskObligationBytes=10:1042368922|admission.availableDiskBytes=12:536870912000|admission.persistent=1:1|ov.configurationId=39:openvino.experimental.cpu.int4.turbo.v3|ov.device=3:CPU|ov.maturity=22:Experimental candidate|ov.evidenceId=17:ov-turbo-evidence|ov.sourceWeightPrecision=1:0|ov.targetWeightPrecision=1:2|ov.kvCacheAlgorithm=1:2|ov.kvCachePrecision=1:5|ov.compiledCacheEnabled=1:0|ov.compiledCacheIsDisposable=1:1|ov.compiledCacheIsModelArtifact=1:0|ov.createsCompletePackage=1:1|ov.build.runtimeBuild=8:2026.3.0|ov.build.genAiBuild=10:2026.3.0.0|ov.build.tokenizersBuild=8:2026.3.0|ov.build.workerManifestDigest=64:1111111111111111111111111111111111111111111111111111111111111111|ov.optimizer.nncf=5:3.3.0|ov.optimizer.openvino=8:2026.3.0|ov.turboQuant.sourceCommit=40:0123456789abcdef0123456789abcdef01234567|ov.turboQuant.implementationCommit=40:0123456789abcdef0123456789abcdef01234567|ov.turboQuant.patchSeriesDigest=64:1111111111111111111111111111111111111111111111111111111111111111|ov.turboQuant.runtimeManifestDigest=64:2222222222222222222222222222222222222222222222222222222222222222",
             OptimizationCanonicalizer.Canonicalize(candidate, payload, contractVersion: 3));
         Assert.AreEqual(
-            "515d5eaa0d895b131467d58841d2f2e1b15af9dcd43461f6111632395b3c18e9",
+            "b93a560d63bf521d975867e13ea7c98c11294828d5a69f2cfaa83542cf46eb58",
             OptimizationCanonicalizer.ConfigurationSha256(
                 candidate, payload, contractVersion: 3));
     }
@@ -192,25 +217,9 @@ public sealed class OptimizationExecutionContractV3Tests
     {
         OptimizationCandidate baseline = SelectedTurboCandidate(
             OpenVinoKvCacheFormat.TurboQuantTbq4).Selection.Candidate;
-        OptimizationCandidateMetrics metrics = baseline.Metrics;
-        OptimizationCandidate changed = OptimizationCandidate.Create(
-            baseline.Configuration,
-            OptimizationCandidateMetrics.Create(
-                metrics.Evidence,
-                metrics.Quality,
-                metrics.Performance,
-                metrics.Stability,
-                metrics.ContextTokens,
-                metrics.PredictedPeakBytes,
-                metrics.SafeBudgetBytes,
-                metrics.HeadroomBytes,
-                metrics.WorkingDiskBytes,
-                metrics.OutputDiskBytes,
-                metrics.RequiresPersistentChange,
-                availableDiskBytes: metrics.AvailableDiskBytes!.Value - 1),
-            baseline.EvidenceId,
-            baseline.IsExperimental,
-            baseline.ConversionProvenance);
+        OptimizationCandidate changed = SelectedTurboCandidate(
+            OpenVinoKvCacheFormat.TurboQuantTbq4,
+            availableDiskBytes: 499 * Gibibyte).Selection.Candidate;
         OptimizationExecutionPayload payload = OptimizationExecutionPayload.ForOpenVino(
             Payload(
                 OpenVinoKvCacheAlgorithm.TurboQuant,
@@ -260,6 +269,12 @@ public sealed class OptimizationExecutionContractV3Tests
             Digest64,
             GgufCapabilityPayload.Create(
                 "turbo3", [admitted], turboQuantImplementation: identity));
+        OptimizationWorkload workload = OptimizationWorkload.Create(
+            "chat", 512, OptimizationAssessment.Poor,
+            [ContextTokenCount.FromTokens(4096)]);
+        candidate = OptimizationAdmissionTestFactory.Admit(
+            candidate, snapshot, workload, Binding(),
+            SupportLevel.Experimental, requiresEvidence: true);
         OptimizationExecutionPayload mismatched = OptimizationExecutionPayload.ForGguf(
             GgufExecutionPayload.Create(
                 "turbo3",
@@ -283,9 +298,7 @@ public sealed class OptimizationExecutionContractV3Tests
                 [candidate], OptimizationPreferenceSelection.Automatic())!,
             mismatched,
             snapshot,
-            OptimizationWorkload.Create(
-                "chat", 512, OptimizationAssessment.Poor,
-                [ContextTokenCount.FromTokens(4096)]),
+            workload,
             Binding(),
             modelLayerCount: 32,
             DateTimeOffset.UnixEpoch));
@@ -312,9 +325,7 @@ public sealed class OptimizationExecutionContractV3Tests
                 [candidate], OptimizationPreferenceSelection.Automatic())!,
             exact,
             snapshot,
-            OptimizationWorkload.Create(
-                "chat", 512, OptimizationAssessment.Poor,
-                [ContextTokenCount.FromTokens(4096)]),
+            workload,
             Binding(),
             modelLayerCount: 32,
             DateTimeOffset.UnixEpoch);
@@ -344,12 +355,8 @@ public sealed class OptimizationExecutionContractV3Tests
             "chat", 512, OptimizationAssessment.Poor,
             [ContextTokenCount.FromTokens(4096)]);
 
-        Assert.ThrowsExactly<ArgumentException>(() => OptimizationPlanIssuer.Issue(
-            OptimizationPreferenceResolver.Resolve(
-                [candidate], OptimizationPreferenceSelection.Automatic())!,
-            RuntimeOnlyGgufPayload("standard", Commit40, GgufCacheType.F16),
-            snapshot,
-            workload, Binding(), 32, DateTimeOffset.UnixEpoch));
+        Assert.IsNull(OptimizationPreferenceResolver.Resolve(
+            [candidate], OptimizationPreferenceSelection.Automatic()));
 
         CrossRouteGenerationResult generated = CrossRouteCandidateGenerator.Generate(
             snapshot,
@@ -357,10 +364,11 @@ public sealed class OptimizationExecutionContractV3Tests
                 ByteCount.FromBytes(3 * Gibibyte), 32, 4096, 32, 8,
                 8192, fileType: 15, quantisationVersion: 2),
             workload,
+            Binding(),
             ByteCount.FromBytes(32 * Gibibyte),
             ByteCount.FromBytes(500 * Gibibyte),
             EstimatorPolicy.ProvisionalV1(),
-            new HashSet<string>());
+            new HashSet<string> { "gguf-q2" });
         OptimizationSelection selected = OptimizationPreferenceResolver.Resolve(
             generated.Candidates, OptimizationPreferenceSelection.Automatic())
             ?? throw new AssertFailedException("Already-at-target candidate was absent.");
@@ -375,9 +383,30 @@ public sealed class OptimizationExecutionContractV3Tests
             plan.Candidate, plan.ExecutionPayload, contractVersion: 3);
         StringAssert.Contains(canonical, "gguf.normalizedFileType=2:15");
         StringAssert.Contains(canonical, "gguf.normalizedQuantisationVersion=1:2");
+        StringAssert.Contains(canonical, "admission.snapshotId=13:gguf-standard");
+        StringAssert.Contains(canonical, "admission.diskObligationBytes=");
         Assert.ThrowsExactly<ArgumentException>(() =>
             OptimizationCanonicalizer.CanonicalizeV2(
                 plan.Candidate, plan.ExecutionPayload));
+
+        OptimizationCapabilitySnapshot changedSnapshot =
+            OptimizationCapabilitySnapshot.ForGguf(
+                "gguf-changed", OtherDigest64, snapshot.Gguf!);
+        Assert.ThrowsExactly<ArgumentException>(() => OptimizationPlanIssuer.Issue(
+            selected,
+            plan.ExecutionPayload,
+            changedSnapshot,
+            workload,
+            Binding(), 32, DateTimeOffset.UnixEpoch));
+        OptimizationWorkload changedWorkload = OptimizationWorkload.Create(
+            "different-chat", 512, OptimizationAssessment.Poor,
+            [ContextTokenCount.FromTokens(4096)]);
+        Assert.ThrowsExactly<ArgumentException>(() => OptimizationPlanIssuer.Issue(
+            selected,
+            plan.ExecutionPayload,
+            snapshot,
+            changedWorkload,
+            Binding(), 32, DateTimeOffset.UnixEpoch));
     }
 
     [TestMethod]
@@ -406,6 +435,12 @@ public sealed class OptimizationExecutionContractV3Tests
                 turboQuantImplementation: identity));
         OptimizationCandidate candidate = RuntimeOnlyGgufCandidate(
             standard, GgufWeightFormat.Imported);
+        OptimizationWorkload workload = OptimizationWorkload.Create(
+            "chat", 512, OptimizationAssessment.Poor,
+            [ContextTokenCount.FromTokens(4096)]);
+        candidate = OptimizationAdmissionTestFactory.Admit(
+            candidate, snapshot, workload, Binding(),
+            SupportLevel.DeclaredSupported);
 
         OptimizationExecutionPlan plan = OptimizationPlanIssuer.Issue(
             OptimizationPreferenceResolver.Resolve(
@@ -413,9 +448,7 @@ public sealed class OptimizationExecutionContractV3Tests
             RuntimeOnlyGgufPayload(
                 identity.RuntimeName, identity.SourceCommit, GgufCacheType.F16),
             snapshot,
-            OptimizationWorkload.Create(
-                "chat", 512, OptimizationAssessment.Poor,
-                [ContextTokenCount.FromTokens(4096)]),
+            workload,
             Binding(), 32, DateTimeOffset.UnixEpoch);
 
         Assert.AreEqual(GgufKvCacheFormat.F16,
@@ -426,9 +459,7 @@ public sealed class OptimizationExecutionContractV3Tests
             RuntimeOnlyGgufPayload(
                 identity.RuntimeName, Commit40, GgufCacheType.F16),
             snapshot,
-            OptimizationWorkload.Create(
-                "chat", 512, OptimizationAssessment.Poor,
-                [ContextTokenCount.FromTokens(4096)]),
+            workload,
             Binding(), 32, DateTimeOffset.UnixEpoch));
     }
 
@@ -501,17 +532,9 @@ public sealed class OptimizationExecutionContractV3Tests
             selection.Candidate.EvidenceId,
             selection.Candidate.IsExperimental,
             OptimizationConversionProvenance.HigherPrecisionSource);
-        OptimizationSelection substitutedSelection = OptimizationPreferenceResolver.Resolve(
-            [weakerWarning], OptimizationPreferenceSelection.Manual(10))!;
         Assert.AreEqual(OptimizationCandidateNotice.LowQuality, weakerWarning.Notice);
-        Assert.ThrowsExactly<ArgumentException>(() => OptimizationPlanIssuer.Issue(
-            substitutedSelection,
-            GgufPayload(quantiser, snapshot),
-            snapshot,
-            workload,
-            acknowledgedBinding,
-            32,
-            DateTimeOffset.UnixEpoch));
+        Assert.IsNull(OptimizationPreferenceResolver.Resolve(
+            [weakerWarning], OptimizationPreferenceSelection.Manual(10)));
 
         Assert.ThrowsExactly<ArgumentException>(() => OptimizationPlanIssuer.Issue(
             selection,
@@ -537,14 +560,18 @@ public sealed class OptimizationExecutionContractV3Tests
     {
         OptimizationJourneyBinding binding = GgufBinding(Digest64);
         GgufQuantiserIdentity quantiser = GgufQuantiser(Digest64);
-        OptimizationCandidate warned = SelectedGgufCandidate(binding, quantiser)
-            .Selection.Candidate;
+        (OptimizationSelection selection, OptimizationCapabilitySnapshot snapshot,
+            OptimizationWorkload workload) = SelectedGgufCandidate(binding, quantiser);
+        OptimizationCandidate warned = selection.Candidate;
         OptimizationCandidate unwarned = OptimizationCandidate.Create(
             warned.Configuration,
             warned.Metrics,
             warned.EvidenceId,
             warned.IsExperimental,
             OptimizationConversionProvenance.HigherPrecisionSource);
+        unwarned = OptimizationAdmissionTestFactory.Admit(
+            unwarned, snapshot, workload, binding,
+            SupportLevel.DeclaredSupported, requiresEvidence: true);
         OptimizationExecutionPayload payload = GgufPayload(quantiser, snapshot: null);
 
         Assert.AreNotEqual(
@@ -615,7 +642,8 @@ public sealed class OptimizationExecutionContractV3Tests
             OptimizationCandidateMetrics.Create(
                 EvidenceGrade.Estimated, OptimizationAssessment.Good,
                 OptimizationAssessment.Good, OptimizationAssessment.Good,
-                4096, 8 * Gibibyte, 32 * Gibibyte, 24 * Gibibyte, 0,
+                4096, 8 * Gibibyte, 32 * Gibibyte, 24 * Gibibyte,
+                4 * Gibibyte,
                 4 * Gibibyte, requiresPersistentChange: true,
                 availableDiskBytes: 500 * Gibibyte),
             admitted.EvidenceId, false,
@@ -625,6 +653,12 @@ public sealed class OptimizationExecutionContractV3Tests
             GgufCapabilityPayload.Create(
                 "b4321", [admitted], hasHigherPrecisionSource: true,
                 conversionSource: source, admittedQuantiser: quantiser));
+        OptimizationWorkload workload = OptimizationWorkload.Create(
+            "chat", 512, OptimizationAssessment.Poor,
+            [ContextTokenCount.FromTokens(4096)]);
+        candidate = OptimizationAdmissionTestFactory.Admit(
+            candidate, snapshot, workload, imported,
+            SupportLevel.DeclaredSupported);
         OptimizationExecutionPayload payload = OptimizationExecutionPayload.ForGguf(
             GgufExecutionPayload.Create(
                 "b4321", Commit40, GgufRuntimeBackend.Cpu, "CPU", 4096,
@@ -635,9 +669,7 @@ public sealed class OptimizationExecutionContractV3Tests
             OptimizationPreferenceResolver.Resolve(
                 [candidate], OptimizationPreferenceSelection.Manual(10))!,
             payload, snapshot,
-            OptimizationWorkload.Create(
-                "chat", 512, OptimizationAssessment.Poor,
-                [ContextTokenCount.FromTokens(4096)]),
+            workload,
             imported, 32, DateTimeOffset.UnixEpoch);
 
         TrustedSourceContext trusted = TrustedSourceContext.ForPlan(
@@ -693,10 +725,11 @@ public sealed class OptimizationExecutionContractV3Tests
             InspectedModelFacts.Create(
                 ByteCount.FromBytes(3 * Gibibyte), 32, 4096, 32, 8, 8192, 15, 2),
             workload,
+            binding,
             ByteCount.FromBytes(32 * Gibibyte),
             ByteCount.FromBytes(500 * Gibibyte),
             EstimatorPolicy.ProvisionalV1(),
-            new HashSet<string>());
+            new HashSet<string> { admitted.EvidenceId });
         OptimizationSelection selection = OptimizationPreferenceResolver.Resolve(
             generated.Candidates, OptimizationPreferenceSelection.Manual(10))
             ?? throw new AssertFailedException("The authorized Q2_K candidate was absent.");
@@ -746,7 +779,9 @@ public sealed class OptimizationExecutionContractV3Tests
 
     private static (OptimizationSelection Selection,
         OptimizationCapabilitySnapshot Snapshot,
-        OptimizationWorkload Workload) SelectedTurboCandidate(OpenVinoKvCacheFormat cache)
+        OptimizationWorkload Workload) SelectedTurboCandidate(
+            OpenVinoKvCacheFormat cache,
+            ulong availableDiskBytes = 500 * Gibibyte)
     {
         OptimizationCapabilitySnapshot snapshot = OptimizationCapabilitySnapshot.ForOpenVino(
             "ov-cap",
@@ -777,8 +812,9 @@ public sealed class OptimizationExecutionContractV3Tests
             InspectedModelFacts.Create(
                 ByteCount.FromBytes(3 * Gibibyte), 32, 4096, 32, 8, 8192, 15, 2),
             workload,
+            Binding(),
             ByteCount.FromBytes(32 * Gibibyte),
-            ByteCount.FromBytes(500 * Gibibyte),
+            ByteCount.FromBytes(availableDiskBytes),
             EstimatorPolicy.ProvisionalV1(),
             new HashSet<string> { "ov-turbo-evidence" });
 
@@ -793,20 +829,25 @@ public sealed class OptimizationExecutionContractV3Tests
     private static OpenVinoExecutionPayload Payload(
         OpenVinoKvCacheAlgorithm algorithm,
         OpenVinoKvCachePrecision precision,
-        TurboQuantBuildIdentity? turboBuild) =>
+        TurboQuantBuildIdentity? turboBuild,
+        string runtimeBuild = "2026.3.0",
+        string maturity = "Experimental candidate",
+        bool createsCompletePackage = true,
+        string evidenceId = "ov-turbo-evidence") =>
         OpenVinoExecutionPayload.Create(
             "openvino.experimental.cpu.int4.turbo.v3",
             "CPU",
-            "Experimental candidate",
-            "ov-turbo-evidence",
+            maturity,
+            evidenceId,
             OpenVinoWeightPrecision.Fp16,
             OpenVinoWeightPrecision.FourBit,
             precision,
             compiledCacheEnabled: false,
             compiledCacheIsDisposable: true,
             compiledCacheIsModelArtifact: false,
-            createsCompletePackage: true,
-            Build(),
+            createsCompletePackage,
+            OpenVinoBuildIdentity.Create(
+                runtimeBuild, "2026.3.0.0", "2026.3.0", Digest64),
             Versions(),
             turboQuantBuild: turboBuild,
             kvCacheAlgorithm: algorithm);

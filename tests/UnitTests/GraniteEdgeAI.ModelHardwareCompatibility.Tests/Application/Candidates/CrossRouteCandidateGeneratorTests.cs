@@ -117,6 +117,7 @@ public sealed class CrossRouteCandidateGeneratorTests
             snapshot,
             facts ?? CrossRouteTestData.Facts(),
             workload ?? CrossRouteTestData.Workload(),
+            CrossRouteTestData.Binding(),
             ByteCount.FromBytes(budgetGibibytes * Gibibyte),
             ByteCount.FromBytes(diskGibibytes * Gibibyte),
             EstimatorPolicy.ProvisionalV1(),
@@ -137,6 +138,28 @@ public sealed class CrossRouteCandidateGeneratorTests
         Assert.AreEqual(1, gguf.Candidates.Count);
         Assert.AreEqual(OptimizationRoute.OpenVino, openVino.Candidates[0].Route);
         Assert.AreEqual(OptimizationRoute.Gguf, gguf.Candidates[0].Route);
+    }
+
+    [TestMethod]
+    public void ReleasedEvidenceRequirementIsFailClosedWithoutItsExactOptIn()
+    {
+        GgufAdmittedConfiguration admitted = GgufAdmittedConfiguration.Create(
+            "gguf-evidence-bound", CompatibilityBackend.Cpu, DeviceRouteId.Cpu,
+            GgufWeightFormat.Imported, GgufKvCacheFormat.F16,
+            GpuOffloadLevel.None, 512, 32768,
+            SupportLevel.DeclaredSupported, requiresEvidence: true);
+        OptimizationCapabilitySnapshot snapshot =
+            CrossRouteTestData.GgufSnapshot(admitted);
+
+        CrossRouteGenerationResult absent = Generate(snapshot);
+        CrossRouteGenerationResult exact = Generate(snapshot, optedIn: admitted.EvidenceId);
+
+        Assert.AreEqual(0, absent.Candidates.Count);
+        Assert.AreEqual(1, absent.Exclusions.Count);
+        Assert.AreEqual(
+            OptimizationExclusionReason.EvidenceBelowAdmissionLevel,
+            absent.Exclusions[0].Reason);
+        Assert.AreEqual(1, exact.Candidates.Count);
     }
 
     [TestMethod]
@@ -774,6 +797,7 @@ public sealed class CrossRouteCandidateGeneratorTests
             InspectedModelFacts.Create(
                 ByteCount.FromBytes(3 * Gibibyte), null, null, null, null, 8192, 15, 2),
             CrossRouteTestData.Workload(),
+            CrossRouteTestData.Binding(),
             ByteCount.FromBytes(32 * Gibibyte),
             ByteCount.FromBytes(500 * Gibibyte),
             EstimatorPolicy.ProvisionalV1(),
