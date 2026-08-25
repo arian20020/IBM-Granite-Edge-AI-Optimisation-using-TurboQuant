@@ -24,6 +24,7 @@ internal static class GgufWeightFormatMap
         GgufWeightFormat.Q5KM => WeightQuantisation.Q5_K_M,
         GgufWeightFormat.Q4KM => WeightQuantisation.Q4_K_M,
         GgufWeightFormat.Q3KM => WeightQuantisation.Q3_K_M,
+        GgufWeightFormat.Q2K => WeightQuantisation.Q2_K,
         _ => WeightQuantisation.Unknown
     };
 }

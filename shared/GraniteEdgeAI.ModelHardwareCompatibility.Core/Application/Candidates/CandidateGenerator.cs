@@ -169,7 +169,9 @@ internal static class CandidateGenerator
     /// Decides whether an entry's weight format is reachable from the imported
     /// file, whether reaching it writes a new artifact, and the weight format the
     /// resulting configuration is actually built from. Returns false when the
-    /// entry must not be offered at all.
+    /// entry must not be offered at all. This remains the ordinary conversion
+    /// path and deliberately has no acknowledgement override; controlled v3
+    /// requantisation is admitted separately by CrossRouteCandidateGenerator.
     /// </summary>
     private static bool TryResolvePreparationKind(
         CompatibilitySupportEntry entry,

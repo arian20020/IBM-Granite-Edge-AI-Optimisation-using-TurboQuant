@@ -40,7 +40,16 @@ public enum OptimizationExclusionReason
     EvidenceBelowAdmissionLevel,
     ExperimentalNotAdmitted,
     QualityBelowFloor,
-    Dominated
+    Dominated,
+    RequantisationNotAuthorized
+}
+
+/// <summary>A closed presentation notice derived from admitted candidate facts.</summary>
+public enum OptimizationCandidateNotice
+{
+    None = 0,
+    LowQuality,
+    LowQualityRequantisation
 }
 
 /// <summary>
@@ -207,13 +216,15 @@ public sealed record OptimizationCandidate
         RouteConfiguration configuration,
         OptimizationCandidateMetrics metrics,
         string evidenceId,
-        bool isExperimental)
+        bool isExperimental,
+        OptimizationCandidateNotice notice)
     {
         Route = route;
         Configuration = configuration;
         Metrics = metrics;
         EvidenceId = evidenceId;
         IsExperimental = isExperimental;
+        Notice = notice;
     }
 
     public OptimizationRoute Route { get; }
@@ -231,6 +242,8 @@ public sealed record OptimizationCandidate
 
     public bool IsExperimental { get; }
 
+    public OptimizationCandidateNotice Notice { get; }
+
     /// <summary>
     /// Ordinal, stable, and covering the whole candidate rather than the
     /// configuration alone. Context is folded in here because two candidates
@@ -244,13 +257,32 @@ public sealed record OptimizationCandidate
         RouteConfiguration configuration,
         OptimizationCandidateMetrics metrics,
         string evidenceId,
-        bool isExperimental)
+        bool isExperimental,
+        OptimizationCandidateNotice notice = OptimizationCandidateNotice.None)
     {
         ArgumentNullException.ThrowIfNull(configuration);
         ArgumentNullException.ThrowIfNull(metrics);
 
         OptimizationIdentifier.Require(
             evidenceId, nameof(evidenceId), "The evidence behind a candidate");
+
+        if (!Enum.IsDefined(notice))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(notice), notice, "An undefined notice cannot be presented.");
+        }
+
+        if (configuration is GgufRouteConfiguration
+                { Weights: GgufWeightFormat.Q2K }
+            && notice is not (OptimizationCandidateNotice.LowQuality
+                or OptimizationCandidateNotice.LowQualityRequantisation))
+        {
+            throw new ArgumentException(
+                "A Q2_K candidate must carry its typed low-quality warning; "
+                + "without it a presentation surface could offer the product "
+                + "floor as an ordinary precision.",
+                nameof(notice));
+        }
 
         // The discriminator is derived from the configuration rather than
         // supplied alongside it, so the two can never disagree and no caller
@@ -266,6 +298,6 @@ public sealed record OptimizationCandidate
         };
 
         return new OptimizationCandidate(
-            route, configuration, metrics, evidenceId, isExperimental);
+            route, configuration, metrics, evidenceId, isExperimental, notice);
     }
 }

@@ -100,7 +100,8 @@ public sealed class OptimizationExecutionContractV2Tests
                             GgufWeightFormat.Imported, GgufKvCacheFormat.F16,
                             GpuOffloadLevel.None, 512, 32768,
                             SupportLevel.DeclaredSupported, false)
-                    ]));
+                    ],
+                    hasHigherPrecisionSource: true));
 
         // ---- OpenVINO ----
 

@@ -14,5 +14,6 @@ public enum GgufWeightFormat
     Q6K,
     Q5KM,
     Q4KM,
-    Q3KM
+    Q3KM,
+    Q2K
 }

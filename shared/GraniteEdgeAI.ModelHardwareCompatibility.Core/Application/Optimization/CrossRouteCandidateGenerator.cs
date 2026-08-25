@@ -185,8 +185,22 @@ internal static class CrossRouteCandidateGenerator
                 continue;
             }
 
+            if (!TryResolveGgufPreparation(
+                payload, facts, admitted, out GgufWeightFormat effectiveWeights,
+                out bool requiresPersistentChange, out OptimizationAssessment quality,
+                out OptimizationCandidateNotice notice))
+            {
+                string refusedDescriptor =
+                    $"weights={admitted.Weights}|ctx={context.Tokens}";
+                exclusions.Add(new OptimizationExclusion(
+                    admitted.EvidenceId,
+                    refusedDescriptor,
+                    OptimizationExclusionReason.RequantisationNotAuthorized));
+                continue;
+            }
+
             GgufRouteConfiguration configuration = GgufRouteConfiguration.Create(
-                admitted.Weights,
+                effectiveWeights,
                 admitted.KvCache,
                 admitted.Backend,
                 admitted.Device,
@@ -203,7 +217,7 @@ internal static class CrossRouteCandidateGenerator
             CompatibilityCandidate candidate = CompatibilityCandidate.Create(
                 configuration,
                 context,
-                admitted.Weights == GgufWeightFormat.Imported
+                !requiresPersistentChange
                     ? CandidatePreparation.RuntimeProfileOnly
                     : CandidatePreparation.WeightConversionRequired,
                 admitted.EvidenceId,
@@ -219,15 +233,95 @@ internal static class CrossRouteCandidateGenerator
                 context,
                 admitted.EvidenceId,
                 admitted.Level,
-                GgufQuality.Of(admitted.Weights),
-                admitted.Weights != GgufWeightFormat.Imported,
+                quality,
+                requiresPersistentChange,
                 workload,
                 safeBudget,
                 availableDisk,
                 descriptor,
                 candidates,
-                exclusions);
+                exclusions,
+                notice);
         }
+    }
+
+    private static bool TryResolveGgufPreparation(
+        GgufCapabilityPayload payload,
+        InspectedModelFacts facts,
+        GgufAdmittedConfiguration admitted,
+        out GgufWeightFormat effectiveWeights,
+        out bool requiresPersistentChange,
+        out OptimizationAssessment quality,
+        out OptimizationCandidateNotice notice)
+    {
+        effectiveWeights = admitted.Weights;
+        requiresPersistentChange = false;
+        quality = OptimizationAssessment.Unknown;
+        notice = OptimizationCandidateNotice.None;
+
+        WeightQuantisation source = WeightQuantisationMap.FromGgufFileType(
+            facts.FileType, facts.QuantisationVersion);
+
+        if (admitted.Weights == GgufWeightFormat.Imported)
+        {
+            quality = GgufQuality.Of(source);
+            if (quality == OptimizationAssessment.Unknown)
+            {
+                // Preserve the established imported-file behavior when its
+                // encoding was not established; reachability does not depend
+                // on knowing the encoding because no conversion is requested.
+                quality = OptimizationAssessment.Excellent;
+            }
+
+            if (source == WeightQuantisation.Q2_K)
+            {
+                notice = OptimizationCandidateNotice.LowQuality;
+            }
+
+            return true;
+        }
+
+        WeightQuantisation target = GgufWeightFormatMap.ToCanonical(admitted.Weights);
+
+        if (source == WeightQuantisation.Unknown || target == WeightQuantisation.Unknown)
+        {
+            return false;
+        }
+
+        quality = GgufQuality.Of(target);
+
+        if (source == target)
+        {
+            effectiveWeights = GgufWeightFormat.Imported;
+            if (target == WeightQuantisation.Q2_K)
+            {
+                notice = OptimizationCandidateNotice.LowQuality;
+            }
+
+            return true;
+        }
+
+        if (WeightQuantisationMap.BitsPerWeight(target)
+            > WeightQuantisationMap.BitsPerWeight(source))
+        {
+            return false;
+        }
+
+        if (!payload.HasHigherPrecisionSource
+            && !(payload.RequantisationPolicy?.Authorizes(admitted.EvidenceId) ?? false))
+        {
+            return false;
+        }
+
+        requiresPersistentChange = true;
+        if (admitted.Weights == GgufWeightFormat.Q2K)
+        {
+            notice = payload.HasHigherPrecisionSource
+                ? OptimizationCandidateNotice.LowQuality
+                : OptimizationCandidateNotice.LowQualityRequantisation;
+        }
+
+        return true;
     }
 
     /// <summary>
@@ -266,7 +360,8 @@ internal static class CrossRouteCandidateGenerator
         ByteCount availableDisk,
         string descriptor,
         List<OptimizationCandidate> candidates,
-        List<OptimizationExclusion> exclusions)
+        List<OptimizationExclusion> exclusions,
+        OptimizationCandidateNotice notice = OptimizationCandidateNotice.None)
     {
         if (estimate.Status != EstimationStatus.Established)
         {
@@ -341,7 +436,8 @@ internal static class CrossRouteCandidateGenerator
                 requiresPersistentChange ? disk.Bytes : 0,
                 requiresPersistentChange),
             evidenceId,
-            level == SupportLevel.Experimental));
+            level == SupportLevel.Experimental,
+            notice));
     }
 }
 
@@ -396,7 +492,20 @@ internal static class GgufQuality
             OptimizationAssessment.Excellent,
         GgufWeightFormat.Q8_0 or GgufWeightFormat.Q6K => OptimizationAssessment.Good,
         GgufWeightFormat.Q5KM or GgufWeightFormat.Q4KM => OptimizationAssessment.Acceptable,
-        GgufWeightFormat.Q3KM => OptimizationAssessment.Poor,
+        GgufWeightFormat.Q3KM or GgufWeightFormat.Q2K => OptimizationAssessment.Poor,
+        _ => OptimizationAssessment.Unknown
+    };
+
+    internal static OptimizationAssessment Of(WeightQuantisation format) => format switch
+    {
+        WeightQuantisation.BF16 or WeightQuantisation.F16 =>
+            OptimizationAssessment.Excellent,
+        WeightQuantisation.Q8_0 or WeightQuantisation.Q6_K =>
+            OptimizationAssessment.Good,
+        WeightQuantisation.Q5_K_M or WeightQuantisation.Q4_K_M =>
+            OptimizationAssessment.Acceptable,
+        WeightQuantisation.Q3_K_M or WeightQuantisation.Q2_K =>
+            OptimizationAssessment.Poor,
         _ => OptimizationAssessment.Unknown
     };
 }

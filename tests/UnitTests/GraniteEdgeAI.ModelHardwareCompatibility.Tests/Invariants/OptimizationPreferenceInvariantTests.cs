@@ -2,6 +2,7 @@ using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.ModeSelection;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.OpenVino;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.Gguf;
 
 namespace GraniteEdgeAI.ModelHardwareCompatibility.Tests.Invariants;
 
@@ -204,6 +205,70 @@ public sealed class OptimizationPreferenceInvariantTests
         Assert.AreEqual("as-is", selection.Candidate.EvidenceId);
         Assert.IsFalse(selection.Candidate.Metrics.RequiresPersistentChange);
     }
+
+    [TestMethod]
+    public void AutomaticNeverSelectsWarnedPoorQ2KWhenAcceptableFits()
+    {
+        OptimizationCandidate q2 = GgufCandidate(
+            "q2", GgufWeightFormat.Q2K, OptimizationAssessment.Poor,
+            2 * Gibibyte, OptimizationCandidateNotice.LowQualityRequantisation);
+        OptimizationCandidate acceptable = GgufCandidate(
+            "q4", GgufWeightFormat.Q4KM, OptimizationAssessment.Acceptable,
+            4 * Gibibyte, OptimizationCandidateNotice.None);
+
+        OptimizationSelection selection = OptimizationPreferenceResolver.Resolve(
+            [q2, acceptable], OptimizationPreferenceSelection.Automatic())!;
+
+        Assert.AreEqual("q4", selection.Candidate.EvidenceId);
+    }
+
+    [TestMethod]
+    public void MaximumEfficiencySelectsQ2KOnlyAsWarnedLowestMemoryCandidate()
+    {
+        OptimizationCandidate q2 = GgufCandidate(
+            "q2", GgufWeightFormat.Q2K, OptimizationAssessment.Poor,
+            2 * Gibibyte, OptimizationCandidateNotice.LowQualityRequantisation);
+        OptimizationCandidate acceptable = GgufCandidate(
+            "q4", GgufWeightFormat.Q4KM, OptimizationAssessment.Acceptable,
+            4 * Gibibyte, OptimizationCandidateNotice.None);
+
+        OptimizationCandidate selected = Resolve(
+            [acceptable, q2], OptimizationPreferenceBand.MaximumEfficiency);
+
+        Assert.AreEqual("q2", selected.EvidenceId);
+        Assert.AreEqual(
+            OptimizationCandidateNotice.LowQualityRequantisation,
+            selected.Notice);
+        Assert.IsTrue(selected.Metrics.PredictedPeakBytes
+            < acceptable.Metrics.PredictedPeakBytes);
+    }
+
+    [TestMethod]
+    public void Q2KCannotEnterTheFrontierWithoutATypedQualityWarning()
+    {
+        Assert.ThrowsExactly<ArgumentException>(() => GgufCandidate(
+            "unwarned-q2", GgufWeightFormat.Q2K, OptimizationAssessment.Poor,
+            2 * Gibibyte, OptimizationCandidateNotice.None));
+    }
+
+    private static OptimizationCandidate GgufCandidate(
+        string id,
+        GgufWeightFormat weights,
+        OptimizationAssessment quality,
+        ulong peakBytes,
+        OptimizationCandidateNotice notice) =>
+        OptimizationCandidate.Create(
+            GgufRouteConfiguration.Create(
+                weights, GgufKvCacheFormat.F16, CompatibilityBackend.Cpu,
+                DeviceRouteId.Cpu, GpuOffloadLevel.None),
+            OptimizationCandidateMetrics.Create(
+                EvidenceGrade.Estimated, quality, OptimizationAssessment.Good,
+                OptimizationAssessment.Good, 4096, peakBytes, 32 * Gibibyte,
+                32 * Gibibyte - peakBytes, peakBytes, peakBytes,
+                requiresPersistentChange: true),
+            id,
+            isExperimental: false,
+            notice);
 
     [TestMethod]
     public void AutomaticStillTakesAConversionThatIsClearlyBetter()

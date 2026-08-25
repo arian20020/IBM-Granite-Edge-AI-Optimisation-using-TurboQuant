@@ -78,6 +78,8 @@ public static class OptimizationPlanIssuer
         }
 
         RequireAgreement(candidate, executionPayload, modelLayerCount);
+        RequireControlledGgufAgreement(
+            candidate, executionPayload, capabilitySnapshot, binding);
 
         return new OptimizationExecutionPlan(
             OptimizationExecutionPlan.CurrentContractVersion,
@@ -94,6 +96,40 @@ public static class OptimizationPlanIssuer
                 executionPayload,
                 OptimizationExecutionPlan.CurrentContractVersion),
             createdAtUtc);
+    }
+
+    private static void RequireControlledGgufAgreement(
+        OptimizationCandidate candidate,
+        OptimizationExecutionPayload payload,
+        OptimizationCapabilitySnapshot snapshot,
+        OptimizationJourneyBinding binding)
+    {
+        if (candidate.Configuration is not GgufRouteConfiguration configuration
+            || configuration.Weights == GgufWeightFormat.Imported
+            || snapshot.Gguf!.HasHigherPrecisionSource)
+        {
+            return;
+        }
+
+        GgufRequantisationPolicy? policy = snapshot.Gguf!.RequantisationPolicy;
+
+        Require(
+            policy?.Authorizes(candidate.EvidenceId) == true,
+            "controlled requantisation evidence",
+            $"candidate evidence {candidate.EvidenceId} is not authorized");
+        Require(
+            policy!.Binding == binding,
+            "controlled requantisation source binding",
+            "the acknowledgement was made for a different inspected source or plan journey");
+        Require(
+            payload.Gguf!.Quantiser == policy.Quantiser,
+            "controlled requantisation quantiser",
+            "the payload does not pin the exact acknowledged quantiser identity");
+        Require(
+            candidate.Metrics.RequiresPersistentChange
+                && payload.Gguf.RequiresPersistentConversion,
+            "controlled requantisation output",
+            "requantisation must produce a new persistent output");
     }
 
     /// <summary>

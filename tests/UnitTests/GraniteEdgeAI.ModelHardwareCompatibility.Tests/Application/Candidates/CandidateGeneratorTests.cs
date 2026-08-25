@@ -483,6 +483,45 @@ public sealed class CandidateGeneratorTests
     }
 
     [TestMethod]
+    public void Generate_Q2KUsesTheCanonicalLowestSupportedWeightWidth()
+    {
+        SupportMatrix matrix = SupportMatrix.FromEntries(
+            "v-q2k",
+            PolicyProvenance.Provisional,
+            [
+                CompatibilitySupportEntry.Create(
+                    "downward-q2k",
+                    RuntimeRouteId.LlamaCpp,
+                    CompatibilityBackend.Cpu,
+                    DeviceRouteId.Cpu,
+                    GpuOffloadLevel.None,
+                    GgufWeightFormat.Q2K,
+                    GgufKvCacheFormat.F16,
+                    1024,
+                    32768,
+                    SupportLevel.DeclaredSupported,
+                    requiresEvidence: false)
+            ]);
+
+        CompatibilityCandidate candidate = Generate(
+            matrix: matrix,
+            installation: AllInstalled(matrix),
+            trustedSource: TrustedSourceAvailability.HigherPrecisionAvailable())
+            .Candidates.First();
+
+        Assert.AreEqual(
+            GgufWeightFormat.Q2K,
+            ((GgufRouteConfiguration)candidate.Configuration).Weights);
+        Assert.AreEqual(
+            WeightQuantisation.Q2_K,
+            GgufWeightFormatMap.ToCanonical(GgufWeightFormat.Q2K));
+        Assert.AreEqual(
+            2.625m,
+            WeightQuantisationMap.BitsPerWeight(
+                GgufWeightFormatMap.ToCanonical(GgufWeightFormat.Q2K)));
+    }
+
+    [TestMethod]
     public void Generate_LabelsASettingsOnlyChangeAsRuntimeProfileOnly()
     {
         // Same weights, different KV format: no new file is written, so the user

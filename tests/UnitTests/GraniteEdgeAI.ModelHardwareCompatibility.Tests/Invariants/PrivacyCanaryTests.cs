@@ -71,6 +71,11 @@ public sealed class PrivacyCanaryTests
         "OptimizationCandidate.CanonicalDescriptor",
         "OptimizationCandidate.EvidenceId",
 
+        // The controlled GGUF exception repeats the exact admitted evidence
+        // identifier. Construction applies OptimizationIdentifier, so path and
+        // filename shapes are refused before the policy can enter a snapshot.
+        "GgufRequantisationPolicy.EvidenceId",
+
         // An exclusion repeats the descriptor and evidence id of the candidate
         // it refused, both already admitted above; the workload id is the same
         // enforced identifier.

@@ -325,18 +325,30 @@ internal static class OptimizationBounds
 public sealed record GgufCapabilityPayload
 {
     private GgufCapabilityPayload(
-        string runtimeVersion, IReadOnlyList<GgufAdmittedConfiguration> admitted)
+        string runtimeVersion,
+        IReadOnlyList<GgufAdmittedConfiguration> admitted,
+        bool hasHigherPrecisionSource,
+        GgufRequantisationPolicy? requantisationPolicy)
     {
         RuntimeVersion = runtimeVersion;
         Admitted = admitted;
+        HasHigherPrecisionSource = hasHigherPrecisionSource;
+        RequantisationPolicy = requantisationPolicy;
     }
 
     public string RuntimeVersion { get; }
 
     public IReadOnlyList<GgufAdmittedConfiguration> Admitted { get; }
 
+    public bool HasHigherPrecisionSource { get; }
+
+    public GgufRequantisationPolicy? RequantisationPolicy { get; }
+
     public static GgufCapabilityPayload Create(
-        string runtimeVersion, IReadOnlyList<GgufAdmittedConfiguration> admitted)
+        string runtimeVersion,
+        IReadOnlyList<GgufAdmittedConfiguration> admitted,
+        bool hasHigherPrecisionSource = false,
+        GgufRequantisationPolicy? requantisationPolicy = null)
     {
         ArgumentNullException.ThrowIfNull(admitted);
 
@@ -352,7 +364,11 @@ public sealed record GgufCapabilityPayload
                 nameof(admitted));
         }
 
-        return new GgufCapabilityPayload(runtimeVersion, [.. admitted]);
+        return new GgufCapabilityPayload(
+            runtimeVersion,
+            [.. admitted],
+            hasHigherPrecisionSource,
+            requantisationPolicy);
     }
 }
 

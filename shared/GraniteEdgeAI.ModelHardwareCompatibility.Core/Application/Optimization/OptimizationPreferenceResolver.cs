@@ -146,9 +146,16 @@ public static class OptimizationPreferenceResolver
     private static OptimizationCandidate Automatic(
         IReadOnlyList<OptimizationCandidate> frontier)
     {
-        OptimizationCandidate best = frontier[0];
+        IReadOnlyList<OptimizationCandidate> considered =
+            frontier.Any(candidate =>
+                candidate.Metrics.Quality >= OptimizationAssessment.Acceptable)
+                ? [.. frontier.Where(candidate =>
+                    candidate.Metrics.Quality >= OptimizationAssessment.Acceptable)]
+                : frontier;
 
-        foreach (OptimizationCandidate candidate in frontier)
+        OptimizationCandidate best = considered[0];
+
+        foreach (OptimizationCandidate candidate in considered)
         {
             int score = AutomaticScore(candidate);
             int incumbent = AutomaticScore(best);

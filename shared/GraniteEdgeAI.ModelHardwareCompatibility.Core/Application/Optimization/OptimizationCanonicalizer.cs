@@ -94,6 +94,10 @@ internal static class OptimizationCanonicalizer
         Append(builder, "persistent", candidate.Metrics.RequiresPersistentChange ? 1 : 0);
         Append(builder, "evidence", candidate.EvidenceId);
         Append(builder, "experimental", candidate.IsExperimental ? 1 : 0);
+        if (contractVersion >= 3 && candidate.Notice != OptimizationCandidateNotice.None)
+        {
+            Append(builder, "notice", (int)candidate.Notice);
+        }
 
         switch (payload.Route)
         {
