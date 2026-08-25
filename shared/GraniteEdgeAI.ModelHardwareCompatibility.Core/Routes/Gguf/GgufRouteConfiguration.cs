@@ -48,6 +48,12 @@ public sealed record GgufRouteConfiguration : RouteConfiguration
         DeviceRouteId device,
         GpuOffloadLevel offload)
     {
+        RequireDefined(weights, nameof(weights));
+        RequireDefined(kvCache, nameof(kvCache));
+        RequireDefined(backend, nameof(backend));
+        RequireDefined(device, nameof(device));
+        RequireDefined(offload, nameof(offload));
+
         if (weights == GgufWeightFormat.Unspecified)
         {
             throw new ArgumentException(
@@ -95,5 +101,15 @@ public sealed record GgufRouteConfiguration : RouteConfiguration
         }
 
         return new GgufRouteConfiguration(weights, kvCache, backend, device, offload);
+    }
+
+    private static void RequireDefined<T>(T value, string parameter)
+        where T : struct, Enum
+    {
+        if (!Enum.IsDefined(value))
+        {
+            throw new ArgumentOutOfRangeException(
+                parameter, value, "An undefined GGUF configuration value cannot run.");
+        }
     }
 }

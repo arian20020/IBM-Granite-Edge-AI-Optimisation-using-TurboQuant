@@ -62,6 +62,36 @@ public sealed class GgufRouteConfigurationTests
     }
 
     [TestMethod]
+    [DataRow(-1)]
+    [DataRow(int.MaxValue)]
+    public void Create_RejectsUndefinedConfigurationEnums(int raw)
+    {
+        Action[] invalid =
+        [
+            () => GgufRouteConfiguration.Create(
+                (GgufWeightFormat)raw, GgufKvCacheFormat.Q8_0,
+                CompatibilityBackend.Cpu, DeviceRouteId.Cpu, GpuOffloadLevel.None),
+            () => GgufRouteConfiguration.Create(
+                GgufWeightFormat.Q4KM, (GgufKvCacheFormat)raw,
+                CompatibilityBackend.Cpu, DeviceRouteId.Cpu, GpuOffloadLevel.None),
+            () => GgufRouteConfiguration.Create(
+                GgufWeightFormat.Q4KM, GgufKvCacheFormat.Q8_0,
+                (CompatibilityBackend)raw, DeviceRouteId.Cpu, GpuOffloadLevel.None),
+            () => GgufRouteConfiguration.Create(
+                GgufWeightFormat.Q4KM, GgufKvCacheFormat.Q8_0,
+                CompatibilityBackend.Cpu, (DeviceRouteId)raw, GpuOffloadLevel.None),
+            () => GgufRouteConfiguration.Create(
+                GgufWeightFormat.Q4KM, GgufKvCacheFormat.Q8_0,
+                CompatibilityBackend.Cpu, DeviceRouteId.Cpu, (GpuOffloadLevel)raw)
+        ];
+
+        foreach (Action create in invalid)
+        {
+            Assert.ThrowsExactly<ArgumentOutOfRangeException>(create);
+        }
+    }
+
+    [TestMethod]
     // An OpenVINO backend on a llama.cpp configuration is route mixing.
     [DataRow(nameof(CompatibilityBackend.OpenVinoCpu))]
     [DataRow(nameof(CompatibilityBackend.OpenVinoGpu))]

@@ -66,6 +66,7 @@ public static class OptimizationPreferenceResolver
             [.. admitted.Where(candidate =>
                 candidate.AdmissionProof is { } proof
                 && proof.MatchesCandidate(candidate)
+                && OptimizationSupportLevelPolicy.IsAdmitted(proof.SupportLevel)
                 && candidate.Metrics.FitsSafely
                 && candidate.Metrics.FitsDiskSafely)]);
 

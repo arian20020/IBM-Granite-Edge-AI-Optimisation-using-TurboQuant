@@ -51,10 +51,12 @@ public sealed record OptimizationWorkload
 
         OptimizationIdentifier.Require(workloadId, nameof(workloadId), "A workload");
 
-        if (minimumQuality == OptimizationAssessment.Unknown)
+        if (minimumQuality == OptimizationAssessment.Unknown
+            || !Enum.IsDefined(minimumQuality))
         {
             throw new ArgumentException(
-                "A workload with no quality floor would admit anything, including a "
+                "A workload with an unknown or undefined quality floor would admit "
+                + "anything, including a "
                 + "configuration nobody could use.",
                 nameof(minimumQuality));
         }

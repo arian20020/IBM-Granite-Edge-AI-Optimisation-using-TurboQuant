@@ -150,6 +150,11 @@ public static class OptimizationPlanIssuer
 
         OptimizationAdmissionProof proof = candidate.AdmissionProof!;
         Require(
+            OptimizationSupportLevelPolicy.IsAdmitted(admitted.Level)
+                && OptimizationSupportLevelPolicy.IsAdmitted(proof.SupportLevel),
+            "GGUF support admission",
+            "unknown or undefined support levels fail closed");
+        Require(
             proof.SupportLevel == admitted.Level
                 && proof.RequiresEvidence == admitted.RequiresEvidence
                 && candidate.IsExperimental
@@ -257,9 +262,20 @@ public static class OptimizationPlanIssuer
         OpenVinoExecutionPayload openVino = payload.OpenVino!;
         capability.ExecutionAuthorities.TryGetValue(
             admitted.EvidenceId, out OpenVinoExecutionAuthority? executionAuthority);
-        string expectedMaturity = admitted.Level == SupportLevel.Experimental
-            ? "Experimental candidate"
-            : "Standard candidate";
+
+        Require(
+            OptimizationSupportLevelPolicy.IsAdmitted(admitted.Level)
+                && OptimizationSupportLevelPolicy.IsAdmitted(proof.SupportLevel),
+            "OpenVINO support admission",
+            "unknown or undefined support levels fail closed");
+        string expectedMaturity = admitted.Level switch
+        {
+            SupportLevel.DeclaredSupported => "Standard candidate",
+            SupportLevel.Experimental => "Experimental candidate",
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(admitted.Level), admitted.Level,
+                "Unknown or undefined support cannot name a maturity.")
+        };
 
         Require(
             admittedConfiguration == configuration

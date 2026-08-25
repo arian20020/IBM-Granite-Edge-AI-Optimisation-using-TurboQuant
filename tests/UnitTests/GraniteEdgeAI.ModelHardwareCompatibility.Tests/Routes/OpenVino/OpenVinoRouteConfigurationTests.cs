@@ -93,6 +93,41 @@ public sealed class OpenVinoRouteConfigurationTests
     }
 
     [TestMethod]
+    [DataRow(-1)]
+    [DataRow(int.MaxValue)]
+    public void UndefinedConfigurationEnumsAreRefused(int raw)
+    {
+        Action[] invalid =
+        [
+            () => OpenVinoRouteConfiguration.Create(
+                (OpenVinoWeightFormat)raw, OpenVinoKvCacheFormat.U8,
+                DeviceRouteId.Cpu, OpenVinoPerformanceHint.Latency,
+                OpenVinoCompiledCachePolicy.Enabled, 1),
+            () => OpenVinoRouteConfiguration.Create(
+                OpenVinoWeightFormat.Int8, (OpenVinoKvCacheFormat)raw,
+                DeviceRouteId.Cpu, OpenVinoPerformanceHint.Latency,
+                OpenVinoCompiledCachePolicy.Enabled, 1),
+            () => OpenVinoRouteConfiguration.Create(
+                OpenVinoWeightFormat.Int8, OpenVinoKvCacheFormat.U8,
+                (DeviceRouteId)raw, OpenVinoPerformanceHint.Latency,
+                OpenVinoCompiledCachePolicy.Enabled, 1),
+            () => OpenVinoRouteConfiguration.Create(
+                OpenVinoWeightFormat.Int8, OpenVinoKvCacheFormat.U8,
+                DeviceRouteId.Cpu, (OpenVinoPerformanceHint)raw,
+                OpenVinoCompiledCachePolicy.Enabled, 1),
+            () => OpenVinoRouteConfiguration.Create(
+                OpenVinoWeightFormat.Int8, OpenVinoKvCacheFormat.U8,
+                DeviceRouteId.Cpu, OpenVinoPerformanceHint.Latency,
+                (OpenVinoCompiledCachePolicy)raw, 1)
+        ];
+
+        foreach (Action create in invalid)
+        {
+            Assert.ThrowsExactly<ArgumentOutOfRangeException>(create);
+        }
+    }
+
+    [TestMethod]
     [DataRow(0)]
     [DataRow(-1)]
     public void NonPositiveStreamCountIsRefused(int streams)

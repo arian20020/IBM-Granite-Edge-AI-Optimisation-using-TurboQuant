@@ -106,6 +106,9 @@ internal sealed record OptimizationAdmissionProof
         ArgumentNullException.ThrowIfNull(candidate);
         ArgumentNullException.ThrowIfNull(optedInEvidenceIds);
 
+        OptimizationSupportLevelPolicy.RequireAdmitted(
+            supportLevel, nameof(supportLevel));
+
         bool isExperimental = supportLevel == SupportLevel.Experimental;
         string? exactOptIn = requiresEvidence || isExperimental
             ? optedInEvidenceIds.Contains(candidate.EvidenceId)

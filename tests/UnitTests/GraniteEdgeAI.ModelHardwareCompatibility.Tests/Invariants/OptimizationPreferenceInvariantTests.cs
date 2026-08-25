@@ -23,6 +23,31 @@ public sealed class OptimizationPreferenceInvariantTests
     private const string Digest64 =
         "1111111111111111111111111111111111111111111111111111111111111111";
 
+    [TestMethod]
+    [DataRow(-1)]
+    [DataRow(5)]
+    public void CandidateMetricsRejectUndefinedEvidenceAndAssessmentEnums(int raw)
+    {
+        OptimizationCandidateMetrics Create(
+            EvidenceGrade evidence = EvidenceGrade.Estimated,
+            OptimizationAssessment quality = OptimizationAssessment.Good,
+            OptimizationAssessment performance = OptimizationAssessment.Good,
+            OptimizationAssessment stability = OptimizationAssessment.Good) =>
+            OptimizationCandidateMetrics.Create(
+                evidence, quality, performance, stability, 4096,
+                8 * Gibibyte, 32 * Gibibyte, 24 * Gibibyte,
+                0, 0, false, availableDiskBytes: 32 * Gibibyte);
+
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            Create(evidence: (EvidenceGrade)raw));
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            Create(quality: (OptimizationAssessment)raw));
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            Create(performance: (OptimizationAssessment)raw));
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            Create(stability: (OptimizationAssessment)raw));
+    }
+
     private static OptimizationCandidate Candidate(
         string id,
         OptimizationAssessment quality,

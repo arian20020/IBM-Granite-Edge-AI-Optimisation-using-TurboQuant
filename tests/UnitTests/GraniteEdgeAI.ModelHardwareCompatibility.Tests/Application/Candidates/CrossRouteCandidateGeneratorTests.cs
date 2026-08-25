@@ -1,4 +1,5 @@
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Contracts;
+using System.Reflection;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Estimation;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Execution;
@@ -45,6 +46,43 @@ public sealed class CrossRouteCandidateGeneratorTests
         Assert.ThrowsExactly<NotSupportedException>(
             () => ((IList<OptimizationExclusion>)result.Exclusions).Clear());
     }
+
+    [TestMethod]
+    public void UndefinedSupportCannotGenerateThroughAMutatedOpenVinoAdmission()
+    {
+        OpenVinoAdmittedConfiguration admitted = CrossRouteTestData.OpenVino(
+            "ov-invalid-support", OpenVinoWeightFormat.Int8);
+        SetSupportLevel(admitted, (SupportLevel)(-1));
+
+        CrossRouteGenerationResult result = Generate(
+            CrossRouteTestData.OpenVinoSnapshot(admitted));
+
+        Assert.AreEqual(0, result.Candidates.Count);
+        Assert.AreEqual(
+            OptimizationExclusionReason.EvidenceBelowAdmissionLevel,
+            result.Exclusions.Single().Reason);
+    }
+
+    [TestMethod]
+    public void UndefinedSupportCannotGenerateThroughAMutatedGgufAdmission()
+    {
+        GgufAdmittedConfiguration admitted = CrossRouteTestData.Gguf(
+            "gguf-invalid-support", GgufWeightFormat.Q4KM);
+        SetSupportLevel(admitted, (SupportLevel)3);
+
+        CrossRouteGenerationResult result = Generate(
+            CrossRouteTestData.GgufSnapshot(admitted));
+
+        Assert.AreEqual(0, result.Candidates.Count);
+        Assert.AreEqual(
+            OptimizationExclusionReason.EvidenceBelowAdmissionLevel,
+            result.Exclusions.Single().Reason);
+    }
+
+    private static void SetSupportLevel(object admitted, SupportLevel level) =>
+        admitted.GetType().GetField(
+            "<Level>k__BackingField",
+            BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(admitted, level);
 
     private static class CrossRouteTestData
     {

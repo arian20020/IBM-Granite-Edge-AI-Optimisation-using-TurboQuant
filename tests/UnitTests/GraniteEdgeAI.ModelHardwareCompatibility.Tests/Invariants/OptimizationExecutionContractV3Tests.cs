@@ -20,6 +20,100 @@ public sealed class OptimizationExecutionContractV3Tests
     private const string Commit40 = "0123456789abcdef0123456789abcdef01234567";
 
     [TestMethod]
+    public void UndefinedSupportCannotAcquireAProofOrIssueAfterAdmissionMutation()
+    {
+        OpenVinoAdmittedConfiguration admitted = OpenVinoAdmittedConfiguration.Create(
+            "ov-standard", DeviceRouteId.Cpu, OpenVinoWeightFormat.Int8,
+            OpenVinoKvCacheFormat.U8, OpenVinoPerformanceHint.Latency,
+            OpenVinoCompiledCachePolicy.Disabled, 1, 512, 32768,
+            SupportLevel.DeclaredSupported, false);
+        OpenVinoExecutionAuthority authority = OpenVinoExecutionAuthority.Create(
+            admitted.EvidenceId, "openvino.standard.cpu.int8.u8.v3",
+            OpenVinoWeightPrecision.Fp16, Build(), Versions(),
+            compiledCacheIsDisposable: true);
+        OptimizationCapabilitySnapshot snapshot =
+            OptimizationCapabilitySnapshot.ForOpenVino(
+                "ov-standard", Digest64,
+                OpenVinoCapabilityPayload.Create(
+                    Build().RuntimeBuild, [admitted], [authority]));
+        OptimizationWorkload workload = OptimizationWorkload.Create(
+            "chat", 512, OptimizationAssessment.Poor,
+            [ContextTokenCount.FromTokens(4096)]);
+        OptimizationJourneyBinding binding = Binding();
+        CrossRouteGenerationResult generated = CrossRouteCandidateGenerator.Generate(
+            snapshot,
+            InspectedModelFacts.Create(
+                ByteCount.FromBytes(3 * Gibibyte), 32, 4096, 32, 8, 8192, 15, 2),
+            workload, binding, ByteCount.FromBytes(32 * Gibibyte),
+            ByteCount.FromBytes(500 * Gibibyte), EstimatorPolicy.ProvisionalV1(),
+            new HashSet<string>());
+        OptimizationSelection valid = OptimizationPreferenceResolver.Resolve(
+            generated.Candidates, OptimizationPreferenceSelection.Automatic())!;
+        OptimizationExecutionPayload payload = OptimizationExecutionPayload.ForOpenVino(
+            OpenVinoExecutionPayload.Create(
+                authority.ConfigurationId, "CPU", "Standard candidate",
+                admitted.EvidenceId, OpenVinoWeightPrecision.Fp16,
+                OpenVinoWeightPrecision.EightBit, OpenVinoKvCachePrecision.U8,
+                false, true, false, true, Build(), Versions()));
+        _ = OptimizationPlanIssuer.Issue(
+            valid, payload, snapshot, workload, binding, 32,
+            DateTimeOffset.UnixEpoch);
+
+        const SupportLevel invalid = (SupportLevel)3;
+        typeof(OpenVinoAdmittedConfiguration).GetField(
+            "<Level>k__BackingField",
+            BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(admitted, invalid);
+
+        Assert.ThrowsExactly<ArgumentException>(() =>
+        {
+            OptimizationAdmissionProof forged = OptimizationAdmissionProof.Create(
+                snapshot, workload, binding, valid.Candidate, invalid,
+                requiresEvidence: false, new HashSet<string>());
+            OptimizationCandidate candidate = OptimizationCandidate.AttachAdmissionProof(
+                valid.Candidate, forged);
+            OptimizationSelection selection = OptimizationPreferenceResolver.Resolve(
+                [candidate], OptimizationPreferenceSelection.Automatic())!;
+            _ = OptimizationPlanIssuer.Issue(
+                selection, payload, snapshot, workload, binding, 32,
+                DateTimeOffset.UnixEpoch);
+        });
+
+        OptimizationAdmissionProof proof = valid.Candidate.AdmissionProof!;
+        typeof(OptimizationAdmissionProof).GetField(
+            "<SupportLevel>k__BackingField",
+            BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(proof, invalid);
+        string currentAuthorityDigest = (string)typeof(OptimizationAdmissionProof)
+            .GetMethod(
+                "DigestRouteExecutionAuthority",
+                BindingFlags.Static | BindingFlags.NonPublic)!
+            .Invoke(null, [snapshot, admitted.EvidenceId])!;
+        typeof(OptimizationAdmissionProof).GetField(
+            "<RouteExecutionAuthoritySha256>k__BackingField",
+            BindingFlags.Instance | BindingFlags.NonPublic)!
+            .SetValue(proof, currentAuthorityDigest);
+
+        Assert.IsNull(OptimizationPreferenceResolver.Resolve(
+            [valid.Candidate], OptimizationPreferenceSelection.Automatic()));
+
+        Assert.ThrowsExactly<ArgumentException>(() => OptimizationPlanIssuer.Issue(
+            valid, payload, snapshot, workload, binding, 32,
+            DateTimeOffset.UnixEpoch));
+    }
+
+    [TestMethod]
+    [DataRow(-1)]
+    [DataRow(int.MaxValue)]
+    public void GgufPayloadRejectsUndefinedPersistentTargetWeightFormat(int raw)
+    {
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() =>
+            GgufExecutionPayload.Create(
+                "runtime", Commit40, GgufRuntimeBackend.Cpu, "CPU", 4096,
+                GgufCacheType.F16, GgufCacheType.F16, 0, false, 4, 128,
+                "Estimated", "profile", 256, (GgufWeightFormat)raw,
+                GgufQuantiser(Digest64)));
+    }
+
+    [TestMethod]
     [DataRow(OpenVinoKvCacheFormat.TurboQuantTbq4, OpenVinoKvCachePrecision.Tbq4)]
     [DataRow(OpenVinoKvCacheFormat.TurboQuantTbq3, OpenVinoKvCachePrecision.Tbq3)]
     public void OptedInTurboQuantCandidateIssuesAnExactV3Plan(

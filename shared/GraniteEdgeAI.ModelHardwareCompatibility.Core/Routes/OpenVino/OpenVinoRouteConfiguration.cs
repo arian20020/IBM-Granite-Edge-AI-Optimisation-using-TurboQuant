@@ -74,6 +74,12 @@ public sealed record OpenVinoRouteConfiguration : RouteConfiguration
         OpenVinoCompiledCachePolicy compiledCache,
         int streams)
     {
+        RequireDefined(weights, nameof(weights));
+        RequireDefined(kvCache, nameof(kvCache));
+        RequireDefined(device, nameof(device));
+        RequireDefined(performanceHint, nameof(performanceHint));
+        RequireDefined(compiledCache, nameof(compiledCache));
+
         // Unspecified is the absence of a choice, not a modest one. Admitting
         // it would produce a candidate nobody could execute and an estimate of
         // something undefined.
@@ -115,6 +121,16 @@ public sealed record OpenVinoRouteConfiguration : RouteConfiguration
         if (unspecified)
         {
             throw new ArgumentException(message, parameter);
+        }
+    }
+
+    private static void RequireDefined<T>(T value, string parameter)
+        where T : struct, Enum
+    {
+        if (!Enum.IsDefined(value))
+        {
+            throw new ArgumentOutOfRangeException(
+                parameter, value, "An undefined OpenVINO configuration value cannot run.");
         }
     }
 }

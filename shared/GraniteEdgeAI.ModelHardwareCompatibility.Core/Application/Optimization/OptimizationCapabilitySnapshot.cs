@@ -100,13 +100,7 @@ public sealed record OpenVinoAdmittedConfiguration
             nameof(evidenceId),
             "The evidence record behind an admitted combination");
 
-        if (level == SupportLevel.Unknown)
-        {
-            throw new ArgumentException(
-                "Support level Unknown fails closed: a combination whose standing "
-                + "was never established must not be planned against.",
-                nameof(level));
-        }
+        OptimizationSupportLevelPolicy.RequireAdmitted(level, nameof(level));
 
         // Validated by constructing the configuration it describes, so an
         // admitted entry and a generated candidate can never disagree about
@@ -214,11 +208,7 @@ public sealed record GgufAdmittedConfiguration
             nameof(evidenceId),
             "The evidence record behind an admitted combination");
 
-        if (level == SupportLevel.Unknown)
-        {
-            throw new ArgumentException(
-                "Support level Unknown fails closed.", nameof(level));
-        }
+        OptimizationSupportLevelPolicy.RequireAdmitted(level, nameof(level));
 
         if (weights == GgufWeightFormat.Unspecified
             || kvCache == GgufKvCacheFormat.Unspecified
@@ -383,6 +373,24 @@ internal static class OptimizationBounds
         string.Create(
             CultureInfo.InvariantCulture,
             $"Context bounds {minimum}..{maximum} are not a range,");
+}
+
+/// <summary>The complete allowlist of support claims that may authorize planning.</summary>
+internal static class OptimizationSupportLevelPolicy
+{
+    internal static bool IsAdmitted(SupportLevel level) =>
+        level is SupportLevel.DeclaredSupported or SupportLevel.Experimental;
+
+    internal static void RequireAdmitted(SupportLevel level, string parameter)
+    {
+        if (!IsAdmitted(level))
+        {
+            throw new ArgumentException(
+                "Only explicitly declared or experimental support can be admitted; "
+                + "unknown and undefined values fail closed.",
+                parameter);
+        }
+    }
 }
 
 internal static class OptimizationAdmissionIdentity

@@ -381,6 +381,16 @@ internal static class CrossRouteCandidateGenerator
         string descriptor,
         List<OptimizationExclusion> exclusions)
     {
+        if (!OptimizationSupportLevelPolicy.IsAdmitted(level))
+        {
+            exclusions.Add(new OptimizationExclusion(
+                evidenceId,
+                descriptor,
+                OptimizationExclusionReason.EvidenceBelowAdmissionLevel));
+
+            return true;
+        }
+
         if ((level == SupportLevel.Experimental || requiresEvidence)
             && !optedIn.Contains(evidenceId))
         {

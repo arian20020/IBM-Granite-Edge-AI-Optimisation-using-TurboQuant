@@ -295,7 +295,10 @@ public sealed class OptimizationCapabilitySnapshotTests
     }
 
     [TestMethod]
-    public void AdmittedConfigurationRejectsAnUnknownSupportLevel()
+    [DataRow((int)SupportLevel.Unknown)]
+    [DataRow(-1)]
+    [DataRow(3)]
+    public void OpenVinoAdmittedConfigurationRejectsInvalidSupportLevels(int rawLevel)
     {
         // Unknown fails closed: an entry whose support level was never
         // established must not be planned against.
@@ -304,8 +307,32 @@ public sealed class OptimizationCapabilitySnapshotTests
                 "ov-cpu-int8", DeviceRouteId.Cpu, OpenVinoWeightFormat.Int8,
                 OpenVinoKvCacheFormat.U8, OpenVinoPerformanceHint.Latency,
                 OpenVinoCompiledCachePolicy.Enabled, 1, 512, 32768,
-                SupportLevel.Unknown,
+                (SupportLevel)rawLevel,
                 requiresEvidence: false));
+    }
+
+    [TestMethod]
+    [DataRow((int)SupportLevel.Unknown)]
+    [DataRow(-1)]
+    [DataRow(3)]
+    public void GgufAdmittedConfigurationRejectsInvalidSupportLevels(int rawLevel)
+    {
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            GgufAdmittedConfiguration.Create(
+                "gguf-cpu-q4", CompatibilityBackend.Cpu, DeviceRouteId.Cpu,
+                GgufWeightFormat.Q4KM, GgufKvCacheFormat.F16,
+                GpuOffloadLevel.None, 512, 32768,
+                (SupportLevel)rawLevel, requiresEvidence: false));
+    }
+
+    [TestMethod]
+    [DataRow(-1)]
+    [DataRow(5)]
+    public void WorkloadRejectsUndefinedQualityFloors(int rawQuality)
+    {
+        Assert.ThrowsExactly<ArgumentException>(() => OptimizationWorkload.Create(
+            "workload", 1, (OptimizationAssessment)rawQuality,
+            [ContextTokenCount.FromTokens(1024)]));
     }
 
     [TestMethod]

@@ -210,10 +210,10 @@ public sealed record OptimizationCandidateMetrics
         bool requiresPersistentChange,
         ulong? availableDiskBytes = null)
     {
-        if (evidence == EvidenceGrade.Unknown)
+        if (evidence == EvidenceGrade.Unknown || !Enum.IsDefined(evidence))
         {
             throw new ArgumentException(
-                "Evidence Unknown fails closed: an ungraded candidate must not "
+                "Unknown or undefined evidence fails closed: an ungraded candidate must not "
                 + "compete against a graded one.",
                 nameof(evidence));
         }
@@ -267,10 +267,10 @@ public sealed record OptimizationCandidateMetrics
 
     private static void RequireAssessed(OptimizationAssessment value, string parameter)
     {
-        if (value == OptimizationAssessment.Unknown)
+        if (value == OptimizationAssessment.Unknown || !Enum.IsDefined(value))
         {
             throw new ArgumentException(
-                "An unassessed axis fails closed. Ranking against it would treat "
+                "An unknown or undefined axis fails closed. Ranking against it would treat "
                 + "'not established' as a score.",
                 parameter);
         }

@@ -250,6 +250,8 @@ public sealed record GgufExecutionPayload
         RequireDefined(backend, nameof(backend));
         RequireDefined(keyCacheType, nameof(keyCacheType));
         RequireDefined(valueCacheType, nameof(valueCacheType));
+        RequireDefined(
+            persistentTargetWeightFormat, nameof(persistentTargetWeightFormat));
 
         if (persistentTargetWeightFormat == GgufWeightFormat.Unspecified)
         {
