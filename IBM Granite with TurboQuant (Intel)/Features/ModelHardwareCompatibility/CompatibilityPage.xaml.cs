@@ -53,6 +53,8 @@ internal sealed partial class CompatibilityPage : Page
         ViewModel.ContinueRequested += (_, _) => ContinueRequested?.Invoke(this, EventArgs.Empty);
         ViewModel.BackRequested += (_, _) => BackRequested?.Invoke(this, EventArgs.Empty);
         PrimaryAction.Command = ViewModel.ContinueCommand;
+        ReleaseApplicationMemoryAction.Command = ViewModel.ReleaseMemoryCommand;
+        OpenTaskManagerAction.Command = ViewModel.OpenTaskManagerCommand;
 
         // One automatic attempt per navigation: arriving here starts the check,
         // because that is the only reason to be on this page.
@@ -159,6 +161,10 @@ internal sealed partial class CompatibilityPage : Page
         ApplyRows(CheckRows, presentation.CheckRows);
 
         ApplyRecoveries(presentation.Recoveries);
+        MemoryRecoveryActions.Visibility = presentation.MemoryRecoveryReason
+            == CompatibilityMemoryRecoveryReason.SystemMemoryPressure
+                ? Visibility.Visible
+                : Visibility.Collapsed;
 
         DisclosureTitleText.Text = presentation.DisclosureTitle;
         DisclosureDetailText.Text = presentation.DisclosureDetail;

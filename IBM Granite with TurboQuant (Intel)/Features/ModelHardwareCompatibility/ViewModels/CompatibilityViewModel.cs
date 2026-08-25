@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using GraniteEdgeAI.Features.ModelHardwareCompatibility.Infrastructure;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.Presentation;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
@@ -30,25 +31,33 @@ internal sealed class CompatibilityViewModel
     private readonly SynchronizationContext? _uiContext;
     private readonly Func<CancellationToken, Task<CompatibilityScreenModel>> _evaluator;
     private readonly bool _continueDestinationAvailable;
+    private readonly ICompatibilityMemoryRecovery _memoryRecovery;
     private readonly object _attemptGate = new();
 
     private AttemptCancellation? _attemptCancellation;
+    private AttemptCancellation? _auxiliaryCancellation;
     private int _attemptGeneration;
+    private int _recoveryInProgress;
+    private int _taskManagerInProgress;
     private CompatibilityScreenModel? _lastModel;
 
     internal CompatibilityViewModel()
         : this(static token => Task.Run(
             () => CompatibilityEngine.RunWithAvailableAdapters(token),
-            token))
+            token),
+            continueDestinationAvailable: true)
     {
     }
 
     internal CompatibilityViewModel(
         Func<CancellationToken, Task<CompatibilityScreenModel>> evaluator,
-        bool continueDestinationAvailable = true)
+        bool continueDestinationAvailable = true,
+        ICompatibilityMemoryRecovery? memoryRecovery = null)
     {
         _evaluator = evaluator ?? throw new ArgumentNullException(nameof(evaluator));
         _continueDestinationAvailable = continueDestinationAvailable;
+        _memoryRecovery = memoryRecovery ?? new WindowsCompatibilityMemoryRecovery(
+            [ReleaseCompatibilitySnapshotAsync]);
         _uiContext = SynchronizationContext.Current;
 
         // Assigned before the commands, because their guards read it: a command
@@ -73,6 +82,12 @@ internal sealed class CompatibilityViewModel
             RetryFromCommand,
             () => Presentation.SecondaryActionEnabled
                 && Presentation.SecondaryActionKind == CompatibilitySecondaryActionKind.Retry);
+        ReleaseMemoryCommand = new DelegateCommand(
+            ReleaseMemoryFromCommand,
+            CanUseMemoryRecovery);
+        OpenTaskManagerCommand = new DelegateCommand(
+            OpenTaskManagerFromCommand,
+            CanOpenTaskManager);
     }
 
     /// <summary>Raised whenever a new snapshot is ready to render.</summary>
@@ -92,13 +107,92 @@ internal sealed class CompatibilityViewModel
 
     internal DelegateCommand RetryCommand { get; }
 
+    internal DelegateCommand ReleaseMemoryCommand { get; }
+
+    internal DelegateCommand OpenTaskManagerCommand { get; }
+
     internal OptimizationPreferenceSelection? SelectedPreference { get; private set; }
 
     /// <summary>
     /// Starts one attempt. Safe to call again: the previous attempt is cancelled
     /// and its result, if it arrives late, is discarded.
     /// </summary>
-    internal async Task StartAsync()
+    internal Task StartAsync() => RunAttemptAsync(preparation: null);
+
+    /// <summary>
+    /// Releases only registered application-owned caches and then reruns the
+    /// exact evaluator. Both steps share one attempt generation, so neither a
+    /// late release nor its late result can overwrite a newer check.
+    /// </summary>
+    internal Task ReleaseApplicationMemoryAndRetryAsync()
+    {
+        if (!CanUseMemoryRecovery()
+            || Interlocked.CompareExchange(ref _recoveryInProgress, 1, 0) != 0)
+        {
+            return Task.CompletedTask;
+        }
+
+        RaiseRecoveryCanExecuteChanged();
+        return CompleteRecoveryAsync();
+    }
+
+    internal Task OpenTaskManagerAsync()
+    {
+        if (!CanOpenTaskManager()
+            || Interlocked.CompareExchange(ref _taskManagerInProgress, 1, 0) != 0)
+        {
+            return Task.CompletedTask;
+        }
+
+        RaiseRecoveryCanExecuteChanged();
+        return CompleteTaskManagerAsync();
+    }
+
+    private async Task CompleteRecoveryAsync()
+    {
+        try
+        {
+            await RunAttemptAsync(_memoryRecovery.ReleaseApplicationMemoryAsync);
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _recoveryInProgress, 0);
+            RaiseRecoveryCanExecuteChanged();
+        }
+    }
+
+    private async Task CompleteTaskManagerAsync()
+    {
+        AttemptCancellation cancellation = new();
+        AttemptCancellation? previous;
+        lock (_attemptGate)
+        {
+            previous = _auxiliaryCancellation;
+            _auxiliaryCancellation = cancellation;
+        }
+        previous?.Cancel();
+
+        try
+        {
+            await _memoryRecovery.OpenTaskManagerAsync(cancellation.Token);
+        }
+        finally
+        {
+            lock (_attemptGate)
+            {
+                if (ReferenceEquals(_auxiliaryCancellation, cancellation))
+                {
+                    _auxiliaryCancellation = null;
+                }
+            }
+            cancellation.Complete();
+            Interlocked.Exchange(ref _taskManagerInProgress, 0);
+            RaiseRecoveryCanExecuteChanged();
+        }
+    }
+
+    private async Task RunAttemptAsync(
+        Func<CancellationToken, Task>? preparation)
     {
         AttemptCancellation cancellation = new();
         CancellationToken token = cancellation.Token;
@@ -116,14 +210,16 @@ internal sealed class CompatibilityViewModel
         Publish(
             CompatibilityPresentationFactory.Analysing(0),
             generation,
-            () =>
-            {
-                _lastModel = null;
-                SelectedPreference = null;
-            });
+            preparation is null ? ClearCompatibilitySnapshot : null);
 
         try
         {
+            if (preparation is not null)
+            {
+                await preparation(token).ConfigureAwait(true);
+                token.ThrowIfCancellationRequested();
+            }
+
             // The engine is synchronous and pure. It runs off the UI thread so a
             // slow adapter cannot freeze the page once adapters exist.
             CompatibilityScreenModel model = await _evaluator(token)
@@ -222,16 +318,60 @@ internal sealed class CompatibilityViewModel
     internal int RetireAttempt()
     {
         AttemptCancellation? cancellation;
+        AttemptCancellation? auxiliary;
         int generation;
         lock (_attemptGate)
         {
             generation = unchecked(++_attemptGeneration);
             cancellation = _attemptCancellation;
             _attemptCancellation = null;
+            auxiliary = _auxiliaryCancellation;
+            _auxiliaryCancellation = null;
         }
 
         cancellation?.Cancel();
+        auxiliary?.Cancel();
         return generation;
+    }
+
+    private bool CanUseMemoryRecovery() =>
+        Presentation.MemoryRecoveryReason
+            == CompatibilityMemoryRecoveryReason.SystemMemoryPressure
+        && Volatile.Read(ref _recoveryInProgress) == 0;
+
+    private bool CanOpenTaskManager() =>
+        Presentation.MemoryRecoveryReason
+            == CompatibilityMemoryRecoveryReason.SystemMemoryPressure
+        && Volatile.Read(ref _taskManagerInProgress) == 0;
+
+    private async void ReleaseMemoryFromCommand()
+    {
+        try
+        {
+            await ReleaseApplicationMemoryAndRetryAsync();
+        }
+        catch
+        {
+            // The operation already published a path-private safe failure.
+        }
+    }
+
+    private async void OpenTaskManagerFromCommand()
+    {
+        try
+        {
+            await OpenTaskManagerAsync();
+        }
+        catch
+        {
+            // OS launch failures carry no user or process data into the page.
+        }
+    }
+
+    private void RaiseRecoveryCanExecuteChanged()
+    {
+        ReleaseMemoryCommand.RaiseCanExecuteChanged();
+        OpenTaskManagerCommand.RaiseCanExecuteChanged();
     }
 
     private async void RetryFromCommand()
@@ -245,6 +385,19 @@ internal sealed class CompatibilityViewModel
             // StartAsync already published a path-private operational failure.
             // Command dispatch must not surface an unhandled async-void fault.
         }
+    }
+
+    private Task ReleaseCompatibilitySnapshotAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ClearCompatibilitySnapshot();
+        return Task.CompletedTask;
+    }
+
+    private void ClearCompatibilitySnapshot()
+    {
+        _lastModel = null;
+        SelectedPreference = null;
     }
 
     internal void SelectAutomaticPreference()
@@ -324,6 +477,7 @@ internal sealed class CompatibilityViewModel
             BackCommand.RaiseCanExecuteChanged();
             CancelCommand.RaiseCanExecuteChanged();
             RetryCommand.RaiseCanExecuteChanged();
+            RaiseRecoveryCanExecuteChanged();
             PresentationChanged?.Invoke(this, effectivePresentation);
         }
 

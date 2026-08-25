@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Candidates;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Contracts;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.FitAssessment;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.Gguf;
@@ -292,6 +293,7 @@ internal static class CompatibilityPresentationFactory
             PrimaryActionEnabled = model.ContinueEnabled,
             SecondaryActionText = "Back",
             SecondaryActionEnabled = true,
+            MemoryRecoveryReason = MemoryRecoveryReason(model),
             Optimization = new CompatibilityOptimizationPresentation(
                 "You can choose how you want to balance memory use and expected quality.",
                 current.Route == RuntimeRouteId.LlamaCpp
@@ -552,8 +554,43 @@ internal static class CompatibilityPresentationFactory
             PrimaryActionText = "Continue",
             PrimaryActionEnabled = false,
             SecondaryActionText = "Back",
-            SecondaryActionEnabled = true
+            SecondaryActionEnabled = true,
+            MemoryRecoveryReason = MemoryRecoveryReason(model)
         };
+
+    private static CompatibilityMemoryRecoveryReason MemoryRecoveryReason(
+        CompatibilityScreenModel model)
+    {
+        CompatibilitySetupView? setup = model.State switch
+        {
+            CompatibilityScreenState.OptimisationRequired => model.CurrentSetup,
+            CompatibilityScreenState.NoEstimatedSafeConfiguration => model.Setup,
+            _ => null
+        };
+        if (setup?.Fit != CompatibilityFitState.DoesNotFit
+            || setup.SystemSharedRequiredBytes <= setup.SystemSharedSafeBudgetBytes
+            || model.Findings.Any(finding => finding.Severity == FindingSeverity.Blocking))
+        {
+            return CompatibilityMemoryRecoveryReason.None;
+        }
+
+        bool anyDedicated = setup.DedicatedRequiredBytes.HasValue
+            || setup.DedicatedSafeBudgetBytes.HasValue
+            || setup.DedicatedHeadroomBytes.HasValue;
+        bool completeDedicated = setup.DedicatedRequiredBytes.HasValue
+            && setup.DedicatedSafeBudgetBytes.HasValue
+            && setup.DedicatedHeadroomBytes.HasValue;
+        if (anyDedicated
+            && (!completeDedicated
+                || setup.DedicatedRequiredBytes > setup.DedicatedSafeBudgetBytes))
+        {
+            // Mixed or incomplete evidence is not authority to offer a memory-
+            // only recovery as though it addressed the whole refusal.
+            return CompatibilityMemoryRecoveryReason.None;
+        }
+
+        return CompatibilityMemoryRecoveryReason.SystemMemoryPressure;
+    }
 
     /// <summary>
     /// The state this feature ships in until the hardware and model checks hand

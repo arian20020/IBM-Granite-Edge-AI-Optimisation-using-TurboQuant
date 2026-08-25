@@ -27,6 +27,16 @@ internal enum CompatibilitySecondaryActionKind
     Retry
 }
 
+/// <summary>
+/// Typed authority for showing memory-recovery controls. A screen state alone
+/// is insufficient: a no-safe result can arise from a non-memory constraint.
+/// </summary>
+internal enum CompatibilityMemoryRecoveryReason
+{
+    None,
+    SystemMemoryPressure
+}
+
 /// <summary>One tile in the dominant facts card.</summary>
 internal sealed record CompatibilityFact(string Label, string Value, string Detail);
 
@@ -160,6 +170,8 @@ internal sealed record CompatibilityPresentation
     /// <summary>What is missing and what to do about it. Empty when nothing is.</summary>
     internal required IReadOnlyList<CompatibilityRecovery> Recoveries { get; init; }
 
+    internal required CompatibilityMemoryRecoveryReason MemoryRecoveryReason { get; init; }
+
     internal required string DisclosureTitle { get; init; }
 
     internal required string DisclosureDetail { get; init; }
@@ -203,6 +215,7 @@ internal sealed record CompatibilityPresentation
         ChecksCardTitle = "Checks",
         CheckRows = [],
         Recoveries = [],
+        MemoryRecoveryReason = CompatibilityMemoryRecoveryReason.None,
         DisclosureTitle = "How this was calculated",
         DisclosureDetail = string.Empty,
         PrimaryActionText = "Continue",
