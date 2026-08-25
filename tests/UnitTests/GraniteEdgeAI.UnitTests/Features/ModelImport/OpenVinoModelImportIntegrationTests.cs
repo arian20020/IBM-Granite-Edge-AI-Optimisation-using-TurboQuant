@@ -16,14 +16,14 @@ public sealed class OpenVinoModelImportIntegrationTests
 {
     [UITestMethod]
     [TestCategory("WinUI")]
-    public async Task OpenVinoDirectoryIsCarriedOnlyWhenContinueRequestsInspection()
+    public async Task OpenVinoContinueCarriesOnlyOpaqueIdentityAndDisplayData()
     {
         string directory = Path.Combine(Path.GetTempPath(), $"ov-import-{Guid.NewGuid():N}");
         Directory.CreateDirectory(directory);
         try
         {
             ModelImportPage page = CreatePage(ModelSelectionRoute.OpenVinoDirectory);
-            object? request = null;
+            OpenVinoInspectionRequestedEventArgs? request = null;
             int requestCount = 0;
             page.OpenVinoInspectionRequested += (_, eventArguments) =>
             {
@@ -39,20 +39,19 @@ public sealed class OpenVinoModelImportIntegrationTests
             Assert.IsNull(request, "selection must not navigate before Continue");
             InvokeButton((Button)page.FindName("ContinueToModelInspectionButton"));
             Assert.IsNotNull(request);
-            string? carriedDirectory = request.GetType()
-                .GetProperty(
-                    "DirectoryPath",
-                    System.Reflection.BindingFlags.Instance |
-                    System.Reflection.BindingFlags.NonPublic)?
-                .GetValue(request) as string;
-            Assert.AreEqual(directory, carriedDirectory);
+            Assert.AreEqual("OpenVINO package", request.DisplayName);
+            Assert.AreNotEqual(default(ModelSelectionOperationId), request.OperationId);
+            Assert.IsNull(request.GetType().GetProperty(
+                "DirectoryPath",
+                System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.NonPublic));
             Assert.IsNull(page.SelectedModelPath,
                 "the directory must not enter the GGUF file-path property");
             Assert.AreEqual(1, requestCount);
             Assert.IsFalse(page.TryRequestModelInspection(),
-                "a transferred raw directory must not remain reusable");
-            Assert.AreEqual(1, requestCount);
-            Assert.IsNull(page.CurrentRoute);
+                "a path-free request without an accepting shell remains retryable");
+            Assert.AreEqual(2, requestCount);
+            Assert.AreEqual(ModelSelectionRoute.OpenVinoDirectory, page.CurrentRoute);
         }
         finally
         {

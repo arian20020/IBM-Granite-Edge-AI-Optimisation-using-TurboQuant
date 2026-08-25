@@ -28,6 +28,8 @@ internal sealed class CompatibilityViewModel
 {
     private readonly SynchronizationContext? _uiContext;
     private readonly Func<CancellationToken, Task<CompatibilityScreenModel>> _evaluator;
+    private readonly Func<CancellationToken, Task<CompatibilityPresentation>>?
+        _presentationEvaluator;
     private readonly bool _continueDestinationAvailable;
 
     private CancellationTokenSource? _attemptCancellation;
@@ -62,6 +64,19 @@ internal sealed class CompatibilityViewModel
             () => Presentation.SecondaryActionEnabled);
 
         CancelCommand = new DelegateCommand(Cancel);
+    }
+
+    internal CompatibilityViewModel(
+        Func<CancellationToken, Task<CompatibilityPresentation>> presentationEvaluator,
+        bool continueDestinationAvailable)
+        : this(
+            (Func<CancellationToken, Task<CompatibilityScreenModel>>)(static _ =>
+                throw new InvalidOperationException(
+                    "The route-specific presentation evaluator owns this attempt.")),
+            continueDestinationAvailable)
+    {
+        _presentationEvaluator = presentationEvaluator ??
+            throw new ArgumentNullException(nameof(presentationEvaluator));
     }
 
     /// <summary>Raised whenever a new snapshot is ready to render.</summary>
@@ -100,10 +115,20 @@ internal sealed class CompatibilityViewModel
         {
             // The engine is synchronous and pure. It runs off the UI thread so a
             // slow adapter cannot freeze the page once adapters exist.
-            CompatibilityScreenModel model = await _evaluator(cancellation.Token)
-                .ConfigureAwait(true);
+            CompatibilityPresentation presentation;
+            if (_presentationEvaluator is not null)
+            {
+                presentation = await _presentationEvaluator(cancellation.Token)
+                    .ConfigureAwait(true);
+            }
+            else
+            {
+                CompatibilityScreenModel model = await _evaluator(cancellation.Token)
+                    .ConfigureAwait(true);
+                presentation = CompatibilityPresentationFactory.From(model);
+            }
 
-            Publish(CompatibilityPresentationFactory.From(model), generation);
+            Publish(presentation, generation);
         }
         catch (OperationCanceledException)
         {

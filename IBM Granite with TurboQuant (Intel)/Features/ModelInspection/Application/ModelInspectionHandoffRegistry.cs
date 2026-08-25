@@ -329,6 +329,7 @@ internal sealed class ModelInspectionHandoffRegistry : IDisposable
         ModelInspectionHandoff expected,
         ModelInspectionHandoff actual) =>
         expected.SchemaVersion == actual.SchemaVersion &&
+        expected.Route == actual.Route &&
         expected.ModelInspectionHandoffId == actual.ModelInspectionHandoffId &&
         expected.ModelInspectionRunId == actual.ModelInspectionRunId &&
         expected.Outcome == actual.Outcome &&
@@ -342,6 +343,7 @@ internal sealed class ModelInspectionHandoffRegistry : IDisposable
         ModelInspectionHandoff prior,
         ModelInspectionHandoff replacement) =>
         prior.SchemaVersion == replacement.SchemaVersion &&
+        prior.Route == replacement.Route &&
         prior.ModelInspectionRunId == replacement.ModelInspectionRunId &&
         prior.Outcome == replacement.Outcome &&
         string.Equals(

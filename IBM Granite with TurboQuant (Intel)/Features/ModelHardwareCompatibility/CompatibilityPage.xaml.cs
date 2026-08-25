@@ -36,6 +36,15 @@ internal sealed partial class CompatibilityPage : Page
     {
     }
 
+    internal CompatibilityPage(
+        Func<CancellationToken, Task<CompatibilityPresentation>> evaluator,
+        bool continueDestinationAvailable)
+        : this(new ViewModels.CompatibilityViewModel(
+            evaluator,
+            continueDestinationAvailable))
+    {
+    }
+
     private CompatibilityPage(ViewModels.CompatibilityViewModel viewModel)
     {
         ViewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));

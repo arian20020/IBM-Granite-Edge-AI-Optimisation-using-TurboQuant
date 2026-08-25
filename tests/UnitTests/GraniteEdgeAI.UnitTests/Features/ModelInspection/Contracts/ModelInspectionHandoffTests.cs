@@ -20,7 +20,7 @@ public sealed class ModelInspectionHandoffTests
         Guid.Parse("22222222-2222-4222-8222-222222222222");
 
     [TestMethod]
-    public void Contract_ContainsExactlySixImmutableFields()
+    public void Contract_ContainsExactlySevenPathFreeImmutableFields()
     {
         PropertyInfo[] properties = typeof(ModelInspectionHandoff)
             .GetProperties(BindingFlags.Instance | BindingFlags.NonPublic)
@@ -35,6 +35,7 @@ public sealed class ModelInspectionHandoffTests
                 "ModelLengthBytes",
                 "ModelSha256",
                 "Outcome",
+                "Route",
                 "SchemaVersion"
             },
             properties.Select(property => property.Name).ToArray());

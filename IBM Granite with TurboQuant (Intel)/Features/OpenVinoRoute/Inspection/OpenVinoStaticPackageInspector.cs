@@ -170,6 +170,14 @@ public sealed class OpenVinoStaticPackageInspector
             }
 
             long contextLength = RequiredPositiveInt64(configRoot, "max_position_embeddings");
+            int layerCount = checked((int)RequiredPositiveInt64(
+                configRoot, "num_hidden_layers"));
+            int embeddingSize = checked((int)RequiredPositiveInt64(
+                configRoot, "hidden_size"));
+            int attentionHeadCount = checked((int)RequiredPositiveInt64(
+                configRoot, "num_attention_heads"));
+            int keyValueHeadCount = checked((int)RequiredPositiveInt64(
+                configRoot, "num_key_value_heads"));
             string precision = GetConfiguredDataType(configRoot);
             if (contextLength > OpenVinoPackagePolicy.MaximumContextLength ||
                 precision is not ("float32" or "float16" or "bfloat16"))
@@ -231,6 +239,10 @@ public sealed class OpenVinoStaticPackageInspector
                 contextLength,
                 precision,
                 tokenizerClass,
+                layerCount,
+                embeddingSize,
+                attentionHeadCount,
+                keyValueHeadCount,
                 snapshot.Entries.Count,
                 hasChatTemplate));
         }

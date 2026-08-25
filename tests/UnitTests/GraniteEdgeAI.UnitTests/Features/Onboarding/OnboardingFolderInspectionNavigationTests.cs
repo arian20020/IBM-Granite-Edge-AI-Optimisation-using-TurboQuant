@@ -18,7 +18,7 @@ public sealed class OnboardingFolderInspectionNavigationTests
 {
     [UITestMethod]
     [TestCategory("WinUI")]
-    public async Task OpenVinoFolderContinue_FailsClosedWhenNoO1InspectionPortExists()
+    public async Task OpenVinoFolderContinue_NavigatesToRouteAwareModelInspection()
     {
         var shell = new OnboardingShellPage();
         var page = CreateFolderPage(ModelSelectionRoute.OpenVinoDirectory);
@@ -29,14 +29,16 @@ public sealed class OnboardingFolderInspectionNavigationTests
             "private-openvino-package",
             isFolder: true));
 
-        Assert.IsFalse(page.TryRequestModelInspection());
+        Assert.IsTrue(page.TryRequestModelInspection());
 
         var frame = (Frame)shell.FindName("StageFrame");
-        Assert.AreEqual(OnboardingStage.ImportModel, shell.CurrentStage);
-        Assert.IsInstanceOfType<ModelImportPage>(frame.Content);
-        Assert.IsFalse(page.HasValidatedModel);
-
-        Assert.IsFalse(page.TryRequestModelInspection());
+        Assert.AreEqual(OnboardingStage.InspectModel, shell.CurrentStage);
+        var inspectionPage = frame.Content as GraniteEdgeAI.Features.ModelInspection.ModelInspectionPage;
+        Assert.IsNotNull(inspectionPage);
+        Assert.IsNotNull(inspectionPage.OpenVinoRequest);
+        Assert.AreEqual("private-openvino-package", inspectionPage.OpenVinoRequest.DisplayName);
+        Assert.IsFalse(typeof(OpenVinoInspectionRequestedEventArgs).GetProperties()
+            .Any(property => property.Name.Contains("Path", StringComparison.OrdinalIgnoreCase)));
     }
 
     [UITestMethod]

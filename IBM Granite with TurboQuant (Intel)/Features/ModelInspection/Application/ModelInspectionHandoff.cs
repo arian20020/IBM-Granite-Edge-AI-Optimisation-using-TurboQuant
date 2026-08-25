@@ -5,6 +5,12 @@ using System.Text.RegularExpressions;
 
 namespace GraniteEdgeAI.Features.ModelInspection.Handoff;
 
+internal enum ModelInspectionRouteKind
+{
+    Gguf,
+    OpenVino
+}
+
 /// <summary>
 /// Carries the minimum validated Model Inspection identity into one local
 /// Hardware Inspection journey. It deliberately contains no path or display
@@ -24,7 +30,8 @@ internal sealed class ModelInspectionHandoff
         Guid modelInspectionRunId,
         ModelInspectionOutcome outcome,
         string modelSha256,
-        long modelLengthBytes)
+        long modelLengthBytes,
+        ModelInspectionRouteKind route = ModelInspectionRouteKind.Gguf)
     {
         if (schemaVersion != CurrentSchemaVersion)
         {
@@ -73,6 +80,7 @@ internal sealed class ModelInspectionHandoff
         Outcome = outcome;
         ModelSha256 = modelSha256;
         ModelLengthBytes = modelLengthBytes;
+        Route = route;
     }
 
     internal ushort SchemaVersion { get; }
@@ -86,6 +94,8 @@ internal sealed class ModelInspectionHandoff
     internal string ModelSha256 { get; }
 
     internal long ModelLengthBytes { get; }
+
+    internal ModelInspectionRouteKind Route { get; }
 
     internal static bool IsUuidV4(Guid value)
     {

@@ -94,6 +94,10 @@ public sealed record OpenVinoStaticPackageEvidence(
     long ContextLength,
     string Precision,
     string TokenizerClass,
+    int LayerCount,
+    int EmbeddingSize,
+    int AttentionHeadCount,
+    int KeyValueHeadCount,
     int ResourceCount,
     bool HasChatTemplate);
 

@@ -14,7 +14,8 @@ public sealed record OpenVinoRouteInspectionResult(
     OpenVinoRouteHandoffLease? HandoffLease,
     PromptFailure? Failure,
     OpenVinoConfigurationCandidate? Configuration,
-    OpenVinoConversionOffer? ConversionOffer = null)
+    OpenVinoConversionOffer? ConversionOffer = null,
+    OpenVinoStaticPackageEvidence? CompatibilityFacts = null)
 {
     public ModelInspectionHandoffV2? Handoff => HandoffLease?.Handoff;
 }
@@ -312,7 +313,8 @@ public sealed class OpenVinoRouteService : IPromptRouteAdapter
             readyOutcome,
             lease,
             Failure: null,
-            OpenVinoRouteCapability.Candidates[0]);
+            OpenVinoRouteCapability.Candidates[0],
+            CompatibilityFacts: evidence);
     }
 
     public async Task<OpenVinoRouteSession> StartSessionAsync(

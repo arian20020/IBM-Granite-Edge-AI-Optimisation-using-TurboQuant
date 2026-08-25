@@ -180,7 +180,6 @@ namespace GraniteEdgeAI.Features.ModelImport
             {
                 var eventArguments = new OpenVinoInspectionRequestedEventArgs(
                     active.Id,
-                    _acceptedFolderLocalPath,
                     displayName);
                 OpenVinoInspectionRequested?.Invoke(this, eventArguments);
                 return CompleteFolderInspectionRequest(eventArguments.NavigationAccepted);

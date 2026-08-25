@@ -133,6 +133,10 @@ public sealed class OpenVinoInspectionHandoffFactoryTests
             64,
             "float32",
             "PreTrainedTokenizerFast",
+            1,
+            4,
+            1,
+            1,
             9,
             HasChatTemplate: false));
 

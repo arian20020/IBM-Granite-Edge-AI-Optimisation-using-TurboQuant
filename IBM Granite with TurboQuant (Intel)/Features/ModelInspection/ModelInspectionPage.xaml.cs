@@ -203,7 +203,6 @@ public sealed partial class ModelInspectionPage : Page
             RetirePageLifetime();
             Request = null;
             OpenVinoRequest = openVinoRequest;
-            BeginOpenVinoInspection(openVinoRequest);
             return;
         }
 
@@ -462,11 +461,19 @@ public sealed partial class ModelInspectionPage : Page
             ViewModel_HardwareInspectionRequested;
     }
 
-    internal void SetHardwareRouteAvailable(bool isAvailable) =>
+    internal void SetHardwareRouteAvailable(bool isAvailable)
+    {
         ViewModel?.SetHardwareRouteAvailable(isAvailable);
+        SetOpenVinoHardwareRouteAvailable(isAvailable);
+    }
 
     internal ModelInspectionHandoff? ReissueHardwareHandoff()
     {
+        if (_openVinoHardwareHandoff is not null)
+        {
+            return ReissueOpenVinoHardwareHandoff();
+        }
+
         return ViewModel?.TryReissueHardwareHandoff(
             out ModelInspectionHandoff? replacement) == true
             ? replacement

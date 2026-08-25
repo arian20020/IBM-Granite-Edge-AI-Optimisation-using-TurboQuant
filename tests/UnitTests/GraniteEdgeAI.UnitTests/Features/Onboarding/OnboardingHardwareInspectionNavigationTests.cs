@@ -130,6 +130,38 @@ public sealed class OnboardingHardwareInspectionNavigationTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
+    public void OpenVinoHandoff_UsesTheSharedHardwarePageWithoutChangingRouteIdentity()
+    {
+        var service = new RecordingHardwareService();
+        var shell = new OnboardingShellPage(
+            static (frame, request) => frame.Navigate(
+                typeof(ModelInspectionPage),
+                request),
+            service);
+        var source = new ModelInspectionPage();
+        shell.AttachModelInspectionPage(source);
+        var handoff = new ModelInspectionHandoff(
+            schemaVersion: 2,
+            modelInspectionHandoffId: Guid.NewGuid(),
+            modelInspectionRunId: ModelRunId,
+            outcome: ModelInspectionOutcome.Ready,
+            modelSha256: new string('a', 64),
+            modelLengthBytes: 4_294_967_296,
+            route: ModelInspectionRouteKind.OpenVino);
+
+        Assert.IsTrue(shell.NavigateToHardwareInspection(source, handoff));
+
+        var hardwarePage = (HardwareInspectionPage)
+            ((Frame)shell.FindName("StageFrame")).Content;
+        Assert.AreSame(handoff, hardwarePage.OpaqueModelHandoff);
+        Assert.AreEqual(
+            ModelInspectionRouteKind.OpenVino,
+            hardwarePage.OpaqueModelHandoff!.Route);
+        Assert.AreEqual(OnboardingStage.CheckHardwareFit, shell.CurrentStage);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
     public void FailedNavigation_RollsBackWithoutAuthorizingOrStartingHardware()
     {
         var service = new RecordingHardwareService();

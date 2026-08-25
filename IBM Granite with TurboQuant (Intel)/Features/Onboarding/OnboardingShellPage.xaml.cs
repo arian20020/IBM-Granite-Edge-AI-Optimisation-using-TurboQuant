@@ -8,6 +8,7 @@ using GraniteEdgeAI.Features.HardwareInspection.Presentation.State;
 using GraniteEdgeAI.Features.HardwareInspection.ViewModels;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.Infrastructure;
+using GraniteEdgeAI.Features.ModelHardwareCompatibility.Presentation;
 using GraniteEdgeAI.Features.ModelImport;
 using GraniteEdgeAI.Features.ModelInspection;
 using GraniteEdgeAI.Features.ModelInspection.Contracts;
@@ -18,6 +19,11 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation;
+using GraniteEdgeAI.Features.OpenVinoRoute;
+using GraniteEdgeAI.Features.OpenVinoRoute.Inspection;
+using GraniteEdgeAI.Features.OpenVinoRoute.Optimization;
+using GraniteEdgeAI.OpenVino.Contracts;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
 
 namespace GraniteEdgeAI.Features.Onboarding
 {
@@ -36,6 +42,9 @@ namespace GraniteEdgeAI.Features.Onboarding
         private HardwareInspectionPage? _attachedHardwareInspectionPage;
         private HardwareInspectionPage? _hardwarePageForCompatibilityReturn;
         private CompatibilityPage? _attachedCompatibilityPage;
+        private OpenVinoOptimizationPage? _attachedOpenVinoOptimizationPage;
+        private OpenVinoCompatibilityEvaluation? _activeOpenVinoCompatibility;
+        private HardwareInspectionHandoff? _activeCompatibilityHardwareHandoff;
         private ModelInspectionPage? _modelInspectionPageForHardwareReturn;
         private Guid _activeModelHandoffId;
         private Guid _activeProductHardwareRunId;
@@ -370,10 +379,17 @@ namespace GraniteEdgeAI.Features.Onboarding
         }
 
         internal bool NavigateToOpenVinoInspection(
+            ModelImportPage sourcePage,
             OpenVinoInspectionRequestedEventArgs request)
         {
+            ArgumentNullException.ThrowIfNull(sourcePage);
             ArgumentNullException.ThrowIfNull(request);
-            if (IsShuttingDown())
+            if (IsShuttingDown() ||
+                !ReferenceEquals(sourcePage, _attachedModelImportPage) ||
+                !sourcePage.TryGetAcceptedFolderLocalPath(
+                    request.OperationId,
+                    out string? localDirectory) ||
+                string.IsNullOrWhiteSpace(localDirectory))
             {
                 return false;
             }
@@ -388,6 +404,10 @@ namespace GraniteEdgeAI.Features.Onboarding
             {
                 return false;
             }
+
+            modelInspectionPage.ActivateOpenVinoInspection(
+                request,
+                localDirectory);
 
             StageFrame.BackStack.Clear();
             AttachModelInspectionPage(modelInspectionPage);
@@ -441,7 +461,7 @@ namespace GraniteEdgeAI.Features.Onboarding
         {
             if (sender is ModelImportPage page &&
                 ReferenceEquals(page, _attachedModelImportPage) &&
-                NavigateToOpenVinoInspection(eventArguments))
+                NavigateToOpenVinoInspection(page, eventArguments))
             {
                 eventArguments.AcceptNavigation();
             }
@@ -744,6 +764,9 @@ namespace GraniteEdgeAI.Features.Onboarding
                         DetachModelInspectionPage();
                     }
                     DetachModelImportPage();
+                    DetachHardwareInspectionPage();
+                    DetachCompatibilityPage();
+                    DetachOpenVinoOptimizationPage();
                     DisableShellInput();
                 }
                 catch (Exception)
@@ -911,9 +934,7 @@ namespace GraniteEdgeAI.Features.Onboarding
                 || _activeProductHardwareRunId == Guid.Empty
                 || eventArguments.Handoff.InspectionId != _activeProductHardwareRunId
                 || _handoffRegistry.GetState(_activeModelHandoffId)
-                    != ModelInspectionHandoffLifecycleState.BoundToHardwareRun
-                || _modelEvidenceResolver(modelPage, modelHandoff)
-                    is not { } terminal)
+                    != ModelInspectionHandoffLifecycleState.BoundToHardwareRun)
             {
                 return false;
             }
@@ -931,22 +952,59 @@ namespace GraniteEdgeAI.Features.Onboarding
 
             if (!ReferenceEquals(sourcePage, _attachedHardwareInspectionPage)
                 || _activeModelHandoffId != modelHandoff.ModelInspectionHandoffId
-                || _activeProductHardwareRunId != eventArguments.Handoff.InspectionId
-                || !GgufCompatibilityInputProjector.TryProject(
-                    modelHandoff,
-                    terminal,
-                    _activeProductHardwareRunId,
-                    eventArguments.Handoff,
-                    freshMemory,
-                    out CompatibilityProductionInput? input))
+                || _activeProductHardwareRunId != eventArguments.Handoff.InspectionId)
             {
                 return false;
             }
 
-            var compatibilityPage = new CompatibilityPage(token => Task.Run(
-                () => CompatibilityEngine.Run(input!, token),
-                token),
-                continueDestinationAvailable: false);
+            CompatibilityPage compatibilityPage;
+            if (modelHandoff.Route == ModelInspectionRouteKind.OpenVino)
+            {
+                if (!modelPage.TryResolveOpenVinoInspection(
+                        modelHandoff,
+                        out ModelInspectionHandoffV2? authoritative,
+                        out OpenVinoConfigurationCandidate? configuration,
+                        out OpenVinoStaticPackageEvidence? openVinoFacts,
+                        out OpenVinoBuildEvidence? builds) ||
+                    authoritative is null || configuration is null ||
+                    openVinoFacts is null || builds is null)
+                {
+                    return false;
+                }
+
+                OpenVinoCompatibilityEvaluation evaluation = await Task.Run(
+                    () => OpenVinoCompatibilityEvaluator.Evaluate(
+                        authoritative,
+                        openVinoFacts,
+                        builds,
+                        eventArguments.Handoff,
+                        freshMemory));
+                _activeOpenVinoCompatibility = evaluation;
+                compatibilityPage = new CompatibilityPage(
+                    _ => Task.FromResult(evaluation.Presentation),
+                    continueDestinationAvailable: evaluation.Plan is not null);
+            }
+            else
+            {
+                _activeOpenVinoCompatibility = null;
+                ModelInspectionExecutionResult? terminal =
+                    _modelEvidenceResolver(modelPage, modelHandoff);
+                if (terminal is null || !GgufCompatibilityInputProjector.TryProject(
+                        modelHandoff,
+                        terminal,
+                        _activeProductHardwareRunId,
+                        eventArguments.Handoff,
+                        freshMemory,
+                        out CompatibilityProductionInput? input))
+                {
+                    return false;
+                }
+
+                compatibilityPage = new CompatibilityPage(token => Task.Run(
+                    () => CompatibilityEngine.Run(input!, token),
+                    token),
+                    continueDestinationAvailable: false);
+            }
             compatibilityPage.BackRequested += CompatibilityPage_BackRequested;
             compatibilityPage.ContinueRequested += CompatibilityPage_ContinueRequested;
 
@@ -976,6 +1034,7 @@ namespace GraniteEdgeAI.Features.Onboarding
                 return false;
             }
 
+            _activeCompatibilityHardwareHandoff = eventArguments.Handoff;
             _hardwarePageForCompatibilityReturn = sourcePage;
             _attachedCompatibilityPage = compatibilityPage;
             StageFrame.BackStack.Clear();
@@ -1001,8 +1060,89 @@ namespace GraniteEdgeAI.Features.Onboarding
 
         private void CompatibilityPage_ContinueRequested(object? sender, EventArgs eventArguments)
         {
-            // The optimisation-mode destination is intentionally not registered
-            // in this increment, so C1 keeps this command disabled.
+            if (!ReferenceEquals(sender, _attachedCompatibilityPage) ||
+                _activeOpenVinoCompatibility is not { Plan: { } plan,
+                    CapabilitySnapshot: { } capabilitySnapshot } ||
+                _modelInspectionPageForHardwareReturn is not { } modelPage ||
+                _hardwarePageForCompatibilityReturn?.OpaqueModelHandoff is not
+                    { Route: ModelInspectionRouteKind.OpenVino } modelHandoff ||
+                _hardwarePageForCompatibilityReturn is not { } hardwarePage ||
+                _activeCompatibilityHardwareHandoff is not { } hardwareHandoff)
+            {
+                return;
+            }
+
+            var currentState = new OpenVinoJourneyCurrentStateProvider(
+                plan,
+                capabilitySnapshot,
+                () =>
+                {
+                    bool valid = modelPage.TryResolveOpenVinoInspection(
+                        modelHandoff,
+                        out _,
+                        out _,
+                        out _,
+                        out OpenVinoBuildEvidence? builds);
+                    return (valid, builds);
+                },
+                () => _activeProductHardwareRunId != Guid.Empty &&
+                    hardwareHandoff.InspectionId == _activeProductHardwareRunId &&
+                    hardwarePage.OpaqueModelHandoff is { } currentHandoff &&
+                    currentHandoff.ModelInspectionHandoffId == _activeModelHandoffId &&
+                    string.Equals(
+                        HardwareSnapshotIdentity.Sha256(hardwareHandoff.Snapshot),
+                        plan.Binding.HardwareSnapshotSha256,
+                        StringComparison.Ordinal));
+
+            var optimizationPage = new OpenVinoOptimizationPage(
+                plan,
+                (destination, progress, token) =>
+                    modelPage.ExecuteOpenVinoOptimizationAsync(
+                        plan,
+                        currentState,
+                        destination,
+                        progress,
+                        token));
+            optimizationPage.BackRequested += OpenVinoOptimizationPage_BackRequested;
+            optimizationPage.Completed += OpenVinoOptimizationPage_Completed;
+            StageFrame.Content = optimizationPage;
+            StageFrame.BackStack.Clear();
+            StageFrame.ForwardStack.Clear();
+            _attachedOpenVinoOptimizationPage = optimizationPage;
+            CurrentStage = OnboardingStage.ConfigureModel;
+            StageIndicator.CurrentStage = CurrentStage;
+        }
+
+        private void OpenVinoOptimizationPage_BackRequested(
+            object? sender,
+            EventArgs eventArguments)
+        {
+            if (!ReferenceEquals(sender, _attachedOpenVinoOptimizationPage) ||
+                _attachedCompatibilityPage is not { } compatibilityPage)
+            {
+                return;
+            }
+
+            DetachOpenVinoOptimizationPage();
+            StageFrame.Content = compatibilityPage;
+            StageFrame.BackStack.Clear();
+            StageFrame.ForwardStack.Clear();
+            CurrentStage = OnboardingStage.CheckHardwareFit;
+            StageIndicator.CurrentStage = CurrentStage;
+        }
+
+        private void OpenVinoOptimizationPage_Completed(
+            object? sender,
+            OpenVinoOptimizationCompletedEventArgs eventArguments)
+        {
+            if (!ReferenceEquals(sender, _attachedOpenVinoOptimizationPage) ||
+                !eventArguments.Result.IsSuccessful)
+            {
+                return;
+            }
+
+            CurrentStage = OnboardingStage.ReadyToChat;
+            StageIndicator.CurrentStage = CurrentStage;
         }
 
         private void HardwareInspectionPage_ActionRequested(
@@ -1188,6 +1328,8 @@ namespace GraniteEdgeAI.Features.Onboarding
             _activeModelHandoffId = Guid.Empty;
             _activeProductHardwareRunId = Guid.Empty;
             _pendingHardwareRetryHandoff = null;
+            _activeCompatibilityHardwareHandoff = null;
+            _activeOpenVinoCompatibility = null;
         }
 
         internal ModelInspectionHandoffLifecycleState? GetModelHandoffState(
@@ -1309,6 +1451,21 @@ namespace GraniteEdgeAI.Features.Onboarding
             _attachedCompatibilityPage.BackRequested -= CompatibilityPage_BackRequested;
             _attachedCompatibilityPage.ContinueRequested -= CompatibilityPage_ContinueRequested;
             _attachedCompatibilityPage = null;
+        }
+
+        private void DetachOpenVinoOptimizationPage()
+        {
+            if (_attachedOpenVinoOptimizationPage is null)
+            {
+                return;
+            }
+
+            _attachedOpenVinoOptimizationPage.CancelAndDispose();
+            _attachedOpenVinoOptimizationPage.BackRequested -=
+                OpenVinoOptimizationPage_BackRequested;
+            _attachedOpenVinoOptimizationPage.Completed -=
+                OpenVinoOptimizationPage_Completed;
+            _attachedOpenVinoOptimizationPage = null;
         }
 
         private static bool DefaultCompatibilityNavigation(

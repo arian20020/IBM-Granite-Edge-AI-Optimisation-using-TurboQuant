@@ -1,10 +1,14 @@
 using GraniteEdgeAI.Features.ModelImport;
 using GraniteEdgeAI.Features.ModelInspection.Models;
+using GraniteEdgeAI.Features.ModelInspection.Handoff;
 using GraniteEdgeAI.Features.ModelInspection.Services;
 using GraniteEdgeAI.Features.ModelInspection.ViewModels;
 using GraniteEdgeAI.Features.OpenVinoRoute;
 using GraniteEdgeAI.Features.OpenVinoRoute.Conversion;
+using GraniteEdgeAI.Features.OpenVinoRoute.Inspection;
+using GraniteEdgeAI.Features.OpenVinoRoute.Optimization;
 using GraniteEdgeAI.Features.Prompting;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
 using GraniteEdgeAI.OpenVino.Contracts;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
@@ -24,6 +28,13 @@ public sealed partial class ModelInspectionPage
     private OpenVinoConversionOffer? _conversionOffer;
     private OpenVinoConversionService? _conversionService;
     private OpenVinoInspectionRequestedEventArgs? _openVinoConversionSourceRequest;
+    private string? _openVinoPackageDirectory;
+    private OpenVinoRouteHandoffLease? _openVinoHardwareLease;
+    private ModelInspectionHandoffV2? _openVinoAuthoritativeHandoff;
+    private ModelInspectionHandoff? _openVinoHardwareHandoff;
+    private OpenVinoConfigurationCandidate? _openVinoConfiguration;
+    private OpenVinoStaticPackageEvidence? _openVinoCompatibilityFacts;
+    private bool _openVinoHardwareRouteAvailable;
     private readonly object _openVinoRetirementLock = new();
     private readonly object _navigationRetirementLock = new();
     private Task? _navigationRetirementTask;
@@ -55,8 +66,14 @@ public sealed partial class ModelInspectionPage
     }
 
     private void BeginOpenVinoInspection(
-        OpenVinoInspectionRequestedEventArgs request)
+        OpenVinoInspectionRequestedEventArgs request,
+        string packageDirectory)
     {
+        // Model Inspection never owns prompting. Keep the legacy shared
+        // surface hidden even when service composition fails before the
+        // inspecting presentation can be applied.
+        SetPromptSurfaceVisible(false);
+        SetPromptControlsEnabled(send: false, stop: false, cancel: false);
         OpenVinoRouteService service;
         try
         {
@@ -81,6 +98,7 @@ public sealed partial class ModelInspectionPage
         CurrentOpenVinoInspectionTask = InspectAndStartOpenVinoAsync(
             service,
             request,
+            packageDirectory,
             lifetime,
             cancellation.Token);
     }
@@ -88,6 +106,7 @@ public sealed partial class ModelInspectionPage
     private async Task InspectAndStartOpenVinoAsync(
         OpenVinoRouteService service,
         OpenVinoInspectionRequestedEventArgs request,
+        string packageDirectory,
         long lifetime,
         CancellationToken cancellationToken)
     {
@@ -96,7 +115,7 @@ public sealed partial class ModelInspectionPage
         try
         {
             OpenVinoRouteInspectionResult result = await Task.Run(
-                () => service.InspectAsync(request.DirectoryPath, cancellationToken),
+                () => service.InspectAsync(packageDirectory, cancellationToken),
                 cancellationToken);
             handoffLease = result.HandoffLease;
             conversionOffer = result.ConversionOffer;
@@ -125,23 +144,25 @@ public sealed partial class ModelInspectionPage
                 return;
             }
 
-            PromptRouteSessionActivation active = await _promptRouteRegistry!
-                .ActivateAsync(
-                handoffLease,
-                promptEvent => ApplyPromptEvent(lifetime, promptEvent),
-                cancellationToken);
-            if (!IsCurrentOpenVinoLifetime(lifetime))
+            if (!OpenVinoHardwareHandoffAdapter.TryProject(
+                    handoffLease.Handoff,
+                    out ModelInspectionHandoff? hardwareHandoff))
             {
-                await active.Session.CancelAsync(CancellationToken.None);
-                await active.Session.DisposeAsync();
+                ApplyOpenVinoFailurePresentation(
+                    "inspection_handoff_invalid",
+                    "The OpenVINO inspection evidence could not be prepared.",
+                    "Choose the package again and rerun model inspection.");
                 return;
             }
 
-            _promptSession = active.Session;
-            _promptPresenter = new PromptSessionPresenter(active.Presentation);
-            ApplyOpenVinoReadyPresentation(
-                result,
-                active.Presentation);
+            _openVinoHardwareLease?.Dispose();
+            _openVinoHardwareLease = handoffLease;
+            handoffLease = null;
+            _openVinoAuthoritativeHandoff = _openVinoHardwareLease.Handoff;
+            _openVinoHardwareHandoff = hardwareHandoff;
+            _openVinoConfiguration = result.Configuration;
+            _openVinoCompatibilityFacts = result.CompatibilityFacts;
+            ApplyOpenVinoReadyPresentation(result);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -218,8 +239,7 @@ public sealed partial class ModelInspectionPage
     }
 
     private void ApplyOpenVinoReadyPresentation(
-        OpenVinoRouteInspectionResult result,
-        PromptRoutePresentation promptPresentation)
+        OpenVinoRouteInspectionResult result)
     {
         bool warnings = result.Outcome ==
             OpenVinoRouteInspectionOutcome.ReadyWithWarnings;
@@ -234,8 +254,8 @@ public sealed partial class ModelInspectionPage
                 : InspectionStatusGlyphKind.Success,
             Title = warnings ? "Ready with warnings" : "Ready",
             Message = warnings
-                ? "The package is ready for local CPU prompting with a non-blocking chat-template warning."
-                : "The package is ready for local CPU prompting.",
+                ? "The package passed local inspection with a non-blocking chat-template warning."
+                : "The package passed local OpenVINO inspection.",
             AutomationName = warnings
                 ? "OpenVINO inspection ready with warnings"
                 : "OpenVINO inspection ready"
@@ -249,15 +269,162 @@ public sealed partial class ModelInspectionPage
                 SupportingTextVisibility = Visibility.Visible
             }
             : InspectionContentCardPresentation.Hidden;
-        InspectionActionCardControl.Presentation =
-            InspectionActionCardPresentation.Hidden;
-        SetPromptSurfaceVisible(true);
-        PromptCapabilitySummary.Text = promptPresentation.CapabilitySummary;
-        PromptExecutionEvidenceText.Text = promptPresentation.ExecutionEvidence;
-        PromptBuildEvidenceText.Text = promptPresentation.BuildEvidence;
-        ApplyPromptSurfaceState(_promptPresenter!.State);
-        PromptInput.Focus(FocusState.Programmatic);
-        AnnouncePromptStatus(promptPresentation.ReadyAnnouncement);
+        ApplyOpenVinoHardwareAction();
+        SetPromptSurfaceVisible(false);
+        SetPromptControlsEnabled(send: false, stop: false, cancel: false);
+        AnnouncePromptStatus(warnings
+            ? "OpenVINO inspection is ready with warnings."
+            : "OpenVINO inspection is ready.");
+    }
+
+    private void ApplyOpenVinoHardwareAction()
+    {
+        bool enabled = _openVinoHardwareRouteAvailable &&
+            _openVinoHardwareHandoff is not null;
+        InspectionActionCardControl.Presentation = new InspectionActionCardPresentation
+        {
+            Mode = InspectionActionCardMode.Result,
+            Title = "Model is ready",
+            Message = "Continue to inspect this computer before compatibility is calculated.",
+            SecondaryActionOne = new InspectionActionPresentation
+            {
+                Text = "Choose another model",
+                AutomationName = "Choose another model",
+                ActionId = "choose-another-openvino-model",
+                Visibility = Visibility.Visible,
+                Command = new DelegateCommand(_ => ChooseAnotherModelRequested?.Invoke(this, EventArgs.Empty))
+            },
+            PrimaryAction = new InspectionActionPresentation
+            {
+                Text = "Check hardware",
+                AutomationName = "Continue to hardware inspection",
+                ActionId = "check-openvino-hardware",
+                Visibility = Visibility.Visible,
+                IsEnabled = enabled,
+                AutomationHelpText = enabled
+                    ? string.Empty
+                    : "Hardware inspection is unavailable in this build.",
+                Command = new DelegateCommand(_ => RequestOpenVinoHardwareInspection())
+            }
+        };
+    }
+
+    private void RequestOpenVinoHardwareInspection()
+    {
+        if (!_openVinoHardwareRouteAvailable || _openVinoHardwareHandoff is null)
+        {
+            return;
+        }
+
+        HardwareInspectionRequested?.Invoke(
+            this,
+            new HardwareInspectionRequestedEventArgs(_openVinoHardwareHandoff));
+    }
+
+    private void SetOpenVinoHardwareRouteAvailable(bool isAvailable)
+    {
+        _openVinoHardwareRouteAvailable = isAvailable;
+        if (_openVinoHardwareHandoff is not null)
+        {
+            ApplyOpenVinoHardwareAction();
+        }
+    }
+
+    private ModelInspectionHandoff? ReissueOpenVinoHardwareHandoff()
+    {
+        ModelInspectionHandoff? prior = _openVinoHardwareHandoff;
+        if (prior is null || _openVinoAuthoritativeHandoff is null)
+        {
+            return null;
+        }
+
+        _openVinoHardwareHandoff = new ModelInspectionHandoff(
+            prior.SchemaVersion,
+            Guid.NewGuid(),
+            prior.ModelInspectionRunId,
+            prior.Outcome,
+            prior.ModelSha256,
+            prior.ModelLengthBytes,
+            ModelInspectionRouteKind.OpenVino);
+        return _openVinoHardwareHandoff;
+    }
+
+    internal bool TryResolveOpenVinoInspection(
+        ModelInspectionHandoff handoff,
+        out ModelInspectionHandoffV2? authoritative,
+        out OpenVinoConfigurationCandidate? configuration,
+        out OpenVinoStaticPackageEvidence? compatibilityFacts,
+        out OpenVinoBuildEvidence? buildEvidence)
+    {
+        authoritative = null;
+        configuration = null;
+        compatibilityFacts = null;
+        buildEvidence = null;
+        if (handoff.Route != ModelInspectionRouteKind.OpenVino ||
+            _openVinoAuthoritativeHandoff is null ||
+            _openVinoHardwareLease is null ||
+            handoff.ModelInspectionRunId != _openVinoAuthoritativeHandoff.ModelInspectionRunId ||
+            handoff.ModelSha256 != _openVinoAuthoritativeHandoff.ModelSha256 ||
+            handoff.ModelLengthBytes != _openVinoAuthoritativeHandoff.ModelLengthBytes)
+        {
+            return false;
+        }
+
+        authoritative = _openVinoAuthoritativeHandoff;
+        configuration = _openVinoConfiguration;
+        compatibilityFacts = _openVinoCompatibilityFacts;
+        buildEvidence = _openVinoRouteService?.ExpectedBuildEvidence;
+        return configuration is not null && compatibilityFacts is not null &&
+            buildEvidence is not null;
+    }
+
+    internal async Task<OptimizationExecutionResult> ExecuteOpenVinoOptimizationAsync(
+        OptimizationExecutionPlan plan,
+        IOpenVinoOptimizationCurrentStateProvider currentStateProvider,
+        string? selectedDestinationDirectory,
+        IProgress<OpenVinoOptimizationProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(plan);
+        ArgumentNullException.ThrowIfNull(currentStateProvider);
+        if (_openVinoRouteService is null ||
+            string.IsNullOrWhiteSpace(_openVinoPackageDirectory) ||
+            !plan.IsExecutableBy(2) ||
+            plan.ExecutionPayload.Route != OptimizationRoute.OpenVino)
+        {
+            throw new InvalidOperationException("openvino_journey_stale");
+        }
+
+        string destination;
+        if (plan.ProducesPersistentArtifact)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(selectedDestinationDirectory);
+            destination = Path.GetFullPath(selectedDestinationDirectory);
+        }
+        else
+        {
+            string profileRoot = Path.Combine(
+                Windows.Storage.ApplicationData.Current.LocalFolder.Path,
+                "OpenVino",
+                "RuntimeProfiles");
+            Directory.CreateDirectory(profileRoot);
+            destination = Path.Combine(
+                profileRoot,
+                plan.OptimizationPlanId.ToString("N"));
+        }
+
+        OpenVinoOptimizationService service =
+            ModelInspectionServiceComposition.CreateDefaultOpenVinoOptimizationService(
+                _openVinoRouteService);
+        return await service.ExecuteAsync(
+            new OpenVinoOptimizationRequest(
+                _openVinoPackageDirectory,
+                destination,
+                plan,
+                currentStateProvider,
+                Confirmed: true),
+            progress,
+            cancellationToken).ConfigureAwait(true);
     }
 
     private void ApplyOpenVinoNonReadyPresentation(
@@ -432,21 +599,27 @@ public sealed partial class ModelInspectionPage
                     ApplyOpenVinoConversionFailure(OpenVinoSupportCode.ConversionOutputInvalid);
                     return;
                 }
-                PromptRouteSessionActivation active = await _promptRouteRegistry!.ActivateAsync(
-                    lease,
-                    promptEvent => ApplyPromptEvent(lifetime, promptEvent),
-                    cancellationToken);
-                lease = null;
                 if (!IsCurrentOpenVinoLifetime(lifetime))
                 {
-                    await active.Session.CancelAsync(CancellationToken.None);
-                    await active.Session.DisposeAsync();
                     return;
                 }
-                _promptSession = active.Session;
-                _promptPresenter = new PromptSessionPresenter(active.Presentation);
                 _openVinoConversionSourceRequest = null;
-                ApplyOpenVinoReadyPresentation(inspection, active.Presentation);
+                if (!OpenVinoHardwareHandoffAdapter.TryProject(
+                        lease.Handoff,
+                        out ModelInspectionHandoff? hardwareHandoff))
+                {
+                    ApplyOpenVinoConversionFailure(OpenVinoSupportCode.ConversionOutputInvalid);
+                    return;
+                }
+
+                _openVinoHardwareLease?.Dispose();
+                _openVinoHardwareLease = lease;
+                lease = null;
+                _openVinoAuthoritativeHandoff = _openVinoHardwareLease.Handoff;
+                _openVinoHardwareHandoff = hardwareHandoff;
+                _openVinoConfiguration = inspection.Configuration;
+                _openVinoCompatibilityFacts = inspection.CompatibilityFacts;
+                ApplyOpenVinoReadyPresentation(inspection);
             }
             finally
             {
@@ -594,12 +767,13 @@ public sealed partial class ModelInspectionPage
     private async void RetryOpenVinoConversion()
     {
         OpenVinoInspectionRequestedEventArgs? request = _openVinoConversionSourceRequest;
-        if (request is null)
+        string? packageDirectory = _openVinoPackageDirectory;
+        if (request is null || string.IsNullOrWhiteSpace(packageDirectory))
         {
             return;
         }
         await RetireOpenVinoLifetime();
-        ActivateOpenVinoInspection(request);
+        ActivateOpenVinoInspection(request, packageDirectory);
     }
 
     private void ApplyOpenVinoCancelledPresentation()
@@ -870,6 +1044,12 @@ public sealed partial class ModelInspectionPage
             Task? cancelTask = CurrentOpenVinoCancelTask;
             OpenVinoRequest = null;
             _openVinoConversionSourceRequest = null;
+            _openVinoPackageDirectory = null;
+            Interlocked.Exchange(ref _openVinoHardwareLease, null)?.Dispose();
+            _openVinoAuthoritativeHandoff = null;
+            _openVinoHardwareHandoff = null;
+            _openVinoConfiguration = null;
+            _openVinoCompatibilityFacts = null;
             Interlocked.Exchange(ref _conversionOffer, null)?.Dispose();
             checked
             {
@@ -932,12 +1112,15 @@ public sealed partial class ModelInspectionPage
     }
 
     internal void ActivateOpenVinoInspection(
-        OpenVinoInspectionRequestedEventArgs request)
+        OpenVinoInspectionRequestedEventArgs request,
+        string packageDirectory)
     {
         ArgumentNullException.ThrowIfNull(request);
+        ArgumentException.ThrowIfNullOrWhiteSpace(packageDirectory);
         RetireOpenVinoLifetime();
         OpenVinoRequest = request;
-        BeginOpenVinoInspection(request);
+        _openVinoPackageDirectory = Path.GetFullPath(packageDirectory);
+        BeginOpenVinoInspection(request, _openVinoPackageDirectory);
     }
 
     internal async Task RetireOpenVinoInspectionAsync()

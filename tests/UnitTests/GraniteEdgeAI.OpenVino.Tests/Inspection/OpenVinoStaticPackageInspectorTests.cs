@@ -33,6 +33,10 @@ public sealed class OpenVinoStaticPackageInspectorTests
         Assert.AreEqual("GraniteForCausalLM", result.Evidence.Architecture);
         Assert.AreEqual("text-generation-with-past", result.Evidence.Task);
         Assert.AreEqual(64L, result.Evidence.ContextLength);
+        Assert.AreEqual(1, result.Evidence.LayerCount);
+        Assert.AreEqual(4, result.Evidence.EmbeddingSize);
+        Assert.AreEqual(1, result.Evidence.AttentionHeadCount);
+        Assert.AreEqual(1, result.Evidence.KeyValueHeadCount);
         Assert.AreEqual("float32", result.Evidence.Precision);
         Assert.AreEqual("PreTrainedTokenizerFast", result.Evidence.TokenizerClass);
         Assert.AreEqual(9, result.Evidence.ResourceCount);
