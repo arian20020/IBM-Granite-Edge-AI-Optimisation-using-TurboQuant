@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using System.Globalization;
 using System.Linq;
 using System.Security.Cryptography;
@@ -66,31 +67,71 @@ internal sealed record CompatibilityBaselineIdentity
             preparation,
             configuration.CanonicalDescriptor,
             context.Tokens,
-            DigestSource(configuration.CanonicalDescriptor, context.Tokens, binding));
+            DigestSource(
+                configuration.CanonicalDescriptor,
+                context.Tokens,
+                CandidatePreparation.RuntimeProfileOnly,
+                binding));
+    }
+
+    /// <summary>
+    /// Maps the coordinator's published pre-optimization baseline. This is a
+    /// separate identity kind: <see cref="CandidatePreparation.None"/> is
+    /// accepted only from the exact evaluated source row and is never treated
+    /// as an arbitrary runtime-profile candidate.
+    /// </summary>
+    internal static CompatibilityBaselineIdentity ForLegacyNone(
+        EvaluatedCandidate baseline,
+        OptimizationJourneyBinding binding)
+    {
+        ArgumentNullException.ThrowIfNull(baseline);
+        ArgumentNullException.ThrowIfNull(binding);
+        if (!baseline.Candidate.IsBaseline
+            || baseline.Preparation != CandidatePreparation.None)
+        {
+            throw new ArgumentException(
+                "A legacy baseline identity requires the exact published None baseline.",
+                nameof(baseline));
+        }
+
+        return new CompatibilityBaselineIdentity(
+            baseline.Fingerprint,
+            CandidatePreparation.None,
+            baseline.Candidate.Configuration.CanonicalDescriptor,
+            baseline.Context.Tokens,
+            DigestSource(
+                baseline.Candidate.Configuration.CanonicalDescriptor,
+                baseline.Context.Tokens,
+                CandidatePreparation.None,
+                binding));
     }
 
     internal bool Matches(
         EvaluatedCandidate candidate,
         OptimizationJourneyBinding binding) =>
         candidate.Candidate.IsBaseline
+        && candidate.Preparation == Preparation
+        && candidate.Fingerprint == Fingerprint
         && candidate.Candidate.Configuration.CanonicalDescriptor
             == ConfigurationDescriptor
         && candidate.Context.Tokens == ContextTokens
         && SourceIdentitySha256 == DigestSource(
             candidate.Candidate.Configuration.CanonicalDescriptor,
             candidate.Context.Tokens,
+            candidate.Preparation,
             binding);
 
     private static string DigestSource(
         string configurationDescriptor,
         int contextTokens,
+        CandidatePreparation preparation,
         OptimizationJourneyBinding binding)
     {
         string[] fields =
         [
             configurationDescriptor,
             contextTokens.ToString(CultureInfo.InvariantCulture),
-            ((int)CandidatePreparation.RuntimeProfileOnly).ToString(
+            ((int)preparation).ToString(
                 CultureInfo.InvariantCulture),
             binding.ModelInspectionRunId,
             binding.ModelInspectionHandoffId,
@@ -112,38 +153,63 @@ internal sealed record CompatibilityOptimizationProjectionInput
     private CompatibilityOptimizationProjectionInput(
         CrossRouteGenerationResult generated,
         OptimizationCapabilitySnapshot snapshot,
+        InspectedModelFacts facts,
         OptimizationWorkload workload,
         OptimizationJourneyBinding binding,
+        ByteCount safeBudget,
+        ByteCount availableDisk,
+        EstimatorPolicy policy,
+        IReadOnlySet<string> optedInExperimentalEvidenceIds,
         CompatibilityBaselineIdentity baseline)
     {
         Generated = generated;
         Snapshot = snapshot;
+        Facts = facts;
         Workload = workload;
         Binding = binding;
+        SafeBudget = safeBudget;
+        AvailableDisk = availableDisk;
+        Policy = policy;
+        OptedInExperimentalEvidenceIds =
+            optedInExperimentalEvidenceIds.ToFrozenSet(StringComparer.Ordinal);
         Baseline = baseline;
     }
 
     internal CrossRouteGenerationResult Generated { get; }
     internal OptimizationCapabilitySnapshot Snapshot { get; }
+    internal InspectedModelFacts Facts { get; }
     internal OptimizationWorkload Workload { get; }
     internal OptimizationJourneyBinding Binding { get; }
+    internal ByteCount SafeBudget { get; }
+    internal ByteCount AvailableDisk { get; }
+    internal EstimatorPolicy Policy { get; }
+    internal IReadOnlySet<string> OptedInExperimentalEvidenceIds { get; }
     internal CompatibilityBaselineIdentity Baseline { get; }
 
     internal static CompatibilityOptimizationProjectionInput Create(
         CrossRouteGenerationResult generated,
         OptimizationCapabilitySnapshot snapshot,
+        InspectedModelFacts facts,
         OptimizationWorkload workload,
         OptimizationJourneyBinding binding,
+        ByteCount safeBudget,
+        ByteCount availableDisk,
+        EstimatorPolicy policy,
+        IReadOnlySet<string> optedInExperimentalEvidenceIds,
         CompatibilityBaselineIdentity baseline)
     {
         ArgumentNullException.ThrowIfNull(generated);
         ArgumentNullException.ThrowIfNull(snapshot);
+        ArgumentNullException.ThrowIfNull(facts);
         ArgumentNullException.ThrowIfNull(workload);
         ArgumentNullException.ThrowIfNull(binding);
+        ArgumentNullException.ThrowIfNull(policy);
+        ArgumentNullException.ThrowIfNull(optedInExperimentalEvidenceIds);
         ArgumentNullException.ThrowIfNull(baseline);
 
         return new CompatibilityOptimizationProjectionInput(
-            generated, snapshot, workload, binding, baseline);
+            generated, snapshot, facts, workload, binding, safeBudget,
+            availableDisk, policy, optedInExperimentalEvidenceIds, baseline);
     }
 }
 
@@ -191,7 +257,8 @@ public sealed record CompatibilityScreenModel
         CompatibilitySetupView? setup,
         CompatibilityOptimizationView? optimization)
     {
-        Setup = setup;
+        CurrentSetup = setup;
+        Setup = state == CompatibilityScreenState.OptimisationRequired ? null : setup;
         State = state;
         Findings = findings;
         Modes = modes;
@@ -199,6 +266,7 @@ public sealed record CompatibilityScreenModel
         UseCurrentModelAvailable = useCurrentModelAvailable;
         ContinueEnabled = continueEnabled;
         Optimization = optimization;
+        RecommendedSetup = optimization?.RecommendedMode;
     }
 
     public CompatibilityScreenState State { get; }
@@ -231,12 +299,22 @@ public sealed record CompatibilityScreenModel
     /// <summary>
     /// The setup the screen is describing, or null when nothing was evaluated.
     ///
-    /// This is the configuration a user would actually get if they continued:
-    /// the balanced choice where one exists, and otherwise the best-fitting
-    /// candidate found. A screen showing figures from a setup nobody would be
-    /// given would be describing a decision that was never made.
+    /// Compatibility alias for non-optimization screens. It is null when
+    /// optimization is required; callers must then use CurrentSetup and
+    /// RecommendedSetup so the failing import cannot be confused with the
+    /// admitted Continue target.
     /// </summary>
     public CompatibilitySetupView? Setup { get; }
+
+    /// <summary>The exact imported/current setup that was assessed.</summary>
+    public CompatibilitySetupView? CurrentSetup { get; }
+
+    /// <summary>
+    /// The admitted alternative Continue will select, only when optimisation is
+    /// required. This is deliberately a different type from CurrentSetup so a
+    /// failed baseline cannot be mistaken for the continue target.
+    /// </summary>
+    public CompatibilityOptimizationModeView? RecommendedSetup { get; }
 
     /// <summary>
     /// Fully resolved choices only for <see cref="CompatibilityScreenState.OptimisationRequired"/>.
@@ -267,7 +345,10 @@ public sealed record CompatibilityScreenModel
         ArgumentNullException.ThrowIfNull(findings);
         ArgumentNullException.ThrowIfNull(modes);
 
-        if (state == CompatibilityScreenState.Unspecified)
+        if (state == CompatibilityScreenState.Unspecified
+            || !Enum.IsDefined(state)
+            || (state == CompatibilityScreenState.OptimisationRequired)
+                != (optimization is not null))
         {
             throw new ArgumentException(
                 "A screen model must name the state it renders.", nameof(state));
@@ -369,7 +450,8 @@ public sealed record CompatibilityScreenModel
 
         if (matchingBaselines.Length != 1
             || assessment.BaselineFingerprint != matchingBaselines[0].Fingerprint
-            || input.Baseline.Preparation != CandidatePreparation.RuntimeProfileOnly
+            || input.Baseline.Preparation is not (
+                CandidatePreparation.RuntimeProfileOnly or CandidatePreparation.None)
             || !ValidGeneratedAuthority(input))
         {
             return new ProjectionDecision(
@@ -405,6 +487,20 @@ public sealed record CompatibilityScreenModel
                 == input.Baseline.OptimizationDescriptor);
         if (baseline.Fit.State == CompatibilityFitState.DoesNotFit
             && currentFrontierSaysBaselineFits)
+        {
+            return new ProjectionDecision(
+                CompatibilityScreenState.NotEstablished, null, null);
+        }
+
+        bool currentFrontierExplicitlyExcludesBaseline =
+            !currentFrontierSaysBaselineFits
+            && input.Generated.Exclusions.Any(exclusion => string.Equals(
+                exclusion.CanonicalDescriptor,
+                input.Baseline.OptimizationDescriptor,
+                StringComparison.Ordinal));
+        if (baseline.Fit.State is CompatibilityFitState.Safe
+                or CompatibilityFitState.Narrow
+            && currentFrontierExplicitlyExcludesBaseline)
         {
             return new ProjectionDecision(
                 CompatibilityScreenState.NotEstablished, null, null);
@@ -448,7 +544,9 @@ public sealed record CompatibilityScreenModel
     {
         if (input.Generated.Authority is not { } generationAuthority
             || !generationAuthority.Matches(
-                input.Snapshot, input.Workload, input.Binding))
+                input.Snapshot, input.Facts, input.Workload, input.Binding,
+                input.SafeBudget, input.AvailableDisk, input.Policy,
+                input.OptedInExperimentalEvidenceIds))
         {
             return false;
         }
@@ -456,6 +554,15 @@ public sealed record CompatibilityScreenModel
         if (input.Generated.Candidates
                 .GroupBy(candidate => candidate.CanonicalDescriptor, StringComparer.Ordinal)
                 .Any(group => group.Count() != 1))
+        {
+            return false;
+        }
+
+        if (input.Generated.Exclusions
+            .GroupBy(
+                exclusion => (exclusion.EvidenceId, exclusion.CanonicalDescriptor),
+                EqualityComparer<(string EvidenceId, string CanonicalDescriptor)>.Default)
+            .Any(group => group.Count() != 1))
         {
             return false;
         }

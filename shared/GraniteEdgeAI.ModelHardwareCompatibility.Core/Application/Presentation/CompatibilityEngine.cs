@@ -3,7 +3,9 @@ using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Capabilities;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Contracts;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Estimation;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.FitAssessment;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.ModeSelection;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Ports;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.Gguf;
 
@@ -27,20 +29,18 @@ public static class CompatibilityEngine
     {
         ArgumentNullException.ThrowIfNull(input);
 
-        CompatibilityRunResult result;
         try
         {
-            result = CompatibilityRunCoordinator.Execute(
+            CompatibilityRunResult result = CompatibilityRunCoordinator.Execute(
                 new CompatibilityRunRequest(CompatibilityContextRequest.ApplicationDefault()),
                 ProductionDependencies(input),
                 cancellationToken);
+            return ProjectProduction(result, input);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            result = Failure();
+            return CompatibilityScreenModel.From(Failure());
         }
-
-        return CompatibilityScreenModel.From(result);
     }
 
     /// <summary>
@@ -82,7 +82,7 @@ public static class CompatibilityEngine
             result = Failure();
         }
 
-        return CompatibilityScreenModel.From(result);
+        return ProjectWithoutOptimizationAuthority(result);
     }
 
     private static CompatibilityRunDependencies Dependencies() =>
@@ -131,6 +131,89 @@ public static class CompatibilityEngine
             TimeProvider.System);
     }
 
+    private static CompatibilityScreenModel ProjectProduction(
+        CompatibilityRunResult result,
+        CompatibilityProductionInput input)
+    {
+        if (input.Optimization is not { } optimization
+            || result.Outcome != CompatibilityRunOutcome.Completed
+            || result.Assessment is not { } assessment)
+        {
+            return ProjectWithoutOptimizationAuthority(result);
+        }
+
+        EvaluatedCandidate[] baselines =
+        [
+            .. assessment.EvaluatedCandidates.Where(candidate =>
+                candidate.Candidate.IsBaseline
+                && candidate.Preparation == CandidatePreparation.None)
+        ];
+        if (baselines.Length != 1
+            || assessment.BaselineFingerprint != baselines[0].Fingerprint)
+        {
+            return CompatibilityScreenModel.ForPresentation(
+                CompatibilityScreenState.NotEstablished,
+                [], [], BaselineExclusionReason.None, false, false);
+        }
+
+        InspectedModelFacts facts = ToFacts(input.Model);
+        ByteCount safeBudget = baselines[0].Fit.SafeBudget;
+        ByteCount availableDisk = ByteCount.FromBytes(
+            input.FreshResources.AvailableStorageBytes);
+        EstimatorPolicy policy = EstimatorPolicy.ProvisionalV1();
+        CrossRouteGenerationResult generated = CrossRouteCandidateGenerator.Generate(
+            optimization.Snapshot,
+            facts,
+            optimization.Workload,
+            optimization.Binding,
+            safeBudget,
+            availableDisk,
+            policy,
+            optimization.OptedInExperimentalEvidenceIds);
+
+        CompatibilityOptimizationProjectionInput projection =
+            CompatibilityOptimizationProjectionInput.Create(
+                generated,
+                optimization.Snapshot,
+                facts,
+                optimization.Workload,
+                optimization.Binding,
+                safeBudget,
+                availableDisk,
+                policy,
+                optimization.OptedInExperimentalEvidenceIds,
+                CompatibilityBaselineIdentity.ForLegacyNone(
+                    baselines[0], optimization.Binding));
+        return CompatibilityScreenModel.From(result, projection);
+    }
+
+    private static CompatibilityScreenModel ProjectWithoutOptimizationAuthority(
+        CompatibilityRunResult result)
+    {
+        CompatibilityScreenModel legacy = CompatibilityScreenModel.From(result);
+        return legacy.State == CompatibilityScreenState.OptimisationRequired
+            ? CompatibilityScreenModel.ForPresentation(
+                CompatibilityScreenState.NotEstablished,
+                legacy.Findings,
+                legacy.Modes,
+                legacy.BaselineExclusionReason,
+                useCurrentModelAvailable: false,
+                continueEnabled: false,
+                setup: legacy.CurrentSetup)
+            : legacy;
+    }
+
+    private static InspectedModelFacts ToFacts(GgufCompatibilityModelInput model) =>
+        InspectedModelFacts.Create(
+            ByteCount.FromBytes(model.FileLengthBytes),
+            model.LayerCount,
+            model.EmbeddingSize,
+            model.AttentionHeadCount,
+            model.KeyValueHeadCount,
+            model.DeclaredContextLimit,
+            model.FileType,
+            model.QuantisationVersion);
+
     private sealed class ProductionGateway(CompatibilityProductionInput input)
         : ICompatibilityInputGateway
     {
@@ -159,15 +242,7 @@ public static class CompatibilityEngine
             }
 
             GgufCompatibilityModelInput model = input.Model;
-            return ModelFactsResolution.Established(InspectedModelFacts.Create(
-                ByteCount.FromBytes(model.FileLengthBytes),
-                model.LayerCount,
-                model.EmbeddingSize,
-                model.AttentionHeadCount,
-                model.KeyValueHeadCount,
-                model.DeclaredContextLimit,
-                model.FileType,
-                model.QuantisationVersion));
+            return ModelFactsResolution.Established(ToFacts(model));
         }
     }
 

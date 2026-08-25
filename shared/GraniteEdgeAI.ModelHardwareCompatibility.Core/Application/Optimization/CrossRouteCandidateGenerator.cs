@@ -1,3 +1,8 @@
+using System.Collections;
+using System.Globalization;
+using System.Reflection;
+using System.Security.Cryptography;
+using System.Text;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Candidates;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Contracts;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Estimation;
@@ -20,57 +25,206 @@ public sealed record OptimizationExclusion(
 /// </summary>
 internal sealed record OptimizationGenerationAuthority
 {
-    private OptimizationGenerationAuthority(
-        OptimizationRoute route,
-        string snapshotId,
-        string capabilitySnapshotSha256,
-        string workloadId,
-        string workloadSha256,
-        string journeySha256)
+    private OptimizationGenerationAuthority(string inputSha256)
     {
-        Route = route;
-        SnapshotId = snapshotId;
-        CapabilitySnapshotSha256 = capabilitySnapshotSha256;
-        WorkloadId = workloadId;
-        WorkloadSha256 = workloadSha256;
-        JourneySha256 = journeySha256;
+        InputSha256 = inputSha256;
     }
 
-    private OptimizationRoute Route { get; }
-    private string SnapshotId { get; }
-    private string CapabilitySnapshotSha256 { get; }
-    private string WorkloadId { get; }
-    private string WorkloadSha256 { get; }
-    private string JourneySha256 { get; }
+    private string InputSha256 { get; }
 
     internal static OptimizationGenerationAuthority Create(
         OptimizationCapabilitySnapshot snapshot,
+        InspectedModelFacts facts,
         OptimizationWorkload workload,
-        OptimizationJourneyBinding binding)
+        OptimizationJourneyBinding binding,
+        ByteCount safeBudget,
+        ByteCount availableDisk,
+        EstimatorPolicy policy,
+        IReadOnlySet<string> optedInExperimentalEvidenceIds)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
+        ArgumentNullException.ThrowIfNull(facts);
         ArgumentNullException.ThrowIfNull(workload);
         ArgumentNullException.ThrowIfNull(binding);
+        ArgumentNullException.ThrowIfNull(policy);
+        ArgumentNullException.ThrowIfNull(optedInExperimentalEvidenceIds);
+        foreach (string evidenceId in optedInExperimentalEvidenceIds)
+        {
+            OptimizationIdentifier.Require(
+                evidenceId,
+                nameof(optedInExperimentalEvidenceIds),
+                "An experimental capability opt-in");
+        }
 
-        return new OptimizationGenerationAuthority(
-            snapshot.Route,
-            snapshot.SnapshotId,
-            snapshot.CapabilitySnapshotSha256,
-            workload.WorkloadId,
-            OptimizationAdmissionProof.DigestWorkload(workload),
-            OptimizationAdmissionProof.DigestJourney(binding));
+        return new OptimizationGenerationAuthority(OptimizationGenerationDigest.Compute(
+            snapshot, facts, workload, binding, safeBudget, availableDisk, policy,
+            optedInExperimentalEvidenceIds));
     }
 
     internal bool Matches(
         OptimizationCapabilitySnapshot snapshot,
+        InspectedModelFacts facts,
         OptimizationWorkload workload,
-        OptimizationJourneyBinding binding) =>
-        Route == snapshot.Route
-        && SnapshotId == snapshot.SnapshotId
-        && CapabilitySnapshotSha256 == snapshot.CapabilitySnapshotSha256
-        && WorkloadId == workload.WorkloadId
-        && WorkloadSha256 == OptimizationAdmissionProof.DigestWorkload(workload)
-        && JourneySha256 == OptimizationAdmissionProof.DigestJourney(binding);
+        OptimizationJourneyBinding binding,
+        ByteCount safeBudget,
+        ByteCount availableDisk,
+        EstimatorPolicy policy,
+        IReadOnlySet<string> optedInExperimentalEvidenceIds) =>
+        string.Equals(
+            InputSha256,
+            OptimizationGenerationDigest.Compute(
+                snapshot, facts, workload, binding, safeBudget, availableDisk,
+                policy, optedInExperimentalEvidenceIds),
+            StringComparison.Ordinal);
+}
+
+/// <summary>
+/// Canonical digest of every input that can change generation. The capability
+/// payload is hashed independently of the caller-supplied evidence digest, so
+/// replaying that digest beside a changed payload cannot preserve authority.
+/// </summary>
+internal static class OptimizationGenerationDigest
+{
+    internal static string Compute(
+        OptimizationCapabilitySnapshot snapshot,
+        InspectedModelFacts facts,
+        OptimizationWorkload workload,
+        OptimizationJourneyBinding binding,
+        ByteCount safeBudget,
+        ByteCount availableDisk,
+        EstimatorPolicy policy,
+        IReadOnlySet<string> optedInExperimentalEvidenceIds)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        ArgumentNullException.ThrowIfNull(facts);
+        ArgumentNullException.ThrowIfNull(workload);
+        ArgumentNullException.ThrowIfNull(binding);
+        ArgumentNullException.ThrowIfNull(policy);
+        ArgumentNullException.ThrowIfNull(optedInExperimentalEvidenceIds);
+
+        StringBuilder canonical = new();
+        Append(canonical, "generation-authority-v2");
+        AppendObject(canonical, snapshot);
+        // The sealed route payload is deliberately hashed a second time under
+        // its own label. This makes the distinction between an asserted
+        // capability digest and the payload actually consumed reviewable.
+        Append(canonical, PayloadDigest(snapshot));
+        AppendObject(canonical, facts);
+        AppendObject(canonical, workload);
+        AppendObject(canonical, binding);
+        AppendObject(canonical, safeBudget);
+        AppendObject(canonical, availableDisk);
+        AppendObject(canonical, policy);
+        foreach (string evidenceId in optedInExperimentalEvidenceIds
+            .OrderBy(value => value, StringComparer.Ordinal))
+        {
+            Append(canonical, evidenceId);
+        }
+
+        return Convert.ToHexString(SHA256.HashData(
+            new UTF8Encoding(false).GetBytes(canonical.ToString())))
+            .ToLowerInvariant();
+    }
+
+    private static string PayloadDigest(OptimizationCapabilitySnapshot snapshot)
+    {
+        StringBuilder canonical = new();
+        AppendObject(canonical, snapshot.Gguf ?? (object?)snapshot.OpenVino);
+        return Convert.ToHexString(SHA256.HashData(
+            new UTF8Encoding(false).GetBytes(canonical.ToString())))
+            .ToLowerInvariant();
+    }
+
+    private static void AppendObject(StringBuilder canonical, object? value)
+    {
+        if (value is null)
+        {
+            Append(canonical, "null");
+            return;
+        }
+
+        Type type = value.GetType();
+        if (value is string text)
+        {
+            Append(canonical, text);
+            return;
+        }
+
+        if (value is Type runtimeType)
+        {
+            Append(canonical, runtimeType.FullName ?? runtimeType.Name);
+            return;
+        }
+
+        if (value is EstimatorPolicy estimatorPolicy)
+        {
+            Append(canonical, estimatorPolicy.PolicyVersion);
+            Append(canonical, ((int)estimatorPolicy.Provenance).ToString(
+                CultureInfo.InvariantCulture));
+            if (estimatorPolicy.Provenance != PolicyProvenance.Absent)
+            {
+                AppendObject(canonical, estimatorPolicy.Terms);
+            }
+            return;
+        }
+
+        if (type.IsEnum || type.IsPrimitive || value is decimal
+            || value is DateTimeOffset || value is Guid)
+        {
+            Append(canonical, Convert.ToString(value, CultureInfo.InvariantCulture) ?? "");
+            return;
+        }
+
+        if (value is IEnumerable enumerable)
+        {
+            Append(canonical, type.FullName ?? type.Name);
+            List<string> entries = [];
+            foreach (object? item in enumerable)
+            {
+                StringBuilder entry = new();
+                AppendObject(entry, item);
+                entries.Add(entry.ToString());
+            }
+
+            if (ImplementsSetOrDictionary(type))
+            {
+                entries.Sort(StringComparer.Ordinal);
+            }
+
+            foreach (string entry in entries)
+            {
+                Append(canonical, entry);
+            }
+            return;
+        }
+
+        Append(canonical, type.FullName ?? type.Name);
+        foreach (PropertyInfo property in type.GetProperties(
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+            .Where(property => property.GetMethod is not null
+                && property.Name != "EqualityContract"
+                && property.GetIndexParameters().Length == 0)
+            .OrderBy(property => property.Name, StringComparer.Ordinal))
+        {
+            Append(canonical, property.Name);
+            AppendObject(canonical, property.GetValue(value));
+        }
+    }
+
+    private static bool ImplementsSetOrDictionary(Type type) =>
+        type.GetInterfaces().Any(contract => contract.IsGenericType
+            && contract.GetGenericTypeDefinition() is { } definition
+            && (definition == typeof(ISet<>)
+                || definition == typeof(IReadOnlySet<>)
+                || definition == typeof(IDictionary<,>)
+                || definition == typeof(IReadOnlyDictionary<,>)));
+
+    private static void Append(StringBuilder canonical, string value)
+    {
+        canonical.Append(value.Length.ToString(CultureInfo.InvariantCulture));
+        canonical.Append(':');
+        canonical.Append(value);
+    }
 }
 
 /// <summary>
@@ -140,6 +294,13 @@ internal static class CrossRouteCandidateGenerator
         ArgumentNullException.ThrowIfNull(binding);
         ArgumentNullException.ThrowIfNull(policy);
         ArgumentNullException.ThrowIfNull(optedInExperimentalEvidenceIds);
+        foreach (string evidenceId in optedInExperimentalEvidenceIds)
+        {
+            OptimizationIdentifier.Require(
+                evidenceId,
+                nameof(optedInExperimentalEvidenceIds),
+                "An experimental capability opt-in");
+        }
 
         List<OptimizationCandidate> candidates = [];
         List<OptimizationExclusion> exclusions = [];
@@ -193,7 +354,9 @@ internal static class CrossRouteCandidateGenerator
         return new CrossRouteGenerationResult(
             distinct,
             exclusions,
-            OptimizationGenerationAuthority.Create(snapshot, workload, binding));
+            OptimizationGenerationAuthority.Create(
+                snapshot, facts, workload, binding, safeBudget, availableDisk,
+                policy, optedInExperimentalEvidenceIds));
     }
 
     private static void GenerateOpenVino(

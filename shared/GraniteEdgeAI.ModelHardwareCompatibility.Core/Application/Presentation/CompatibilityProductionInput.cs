@@ -1,3 +1,5 @@
+using System.Collections.Frozen;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
 
 namespace GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation;
@@ -193,13 +195,15 @@ public sealed record CompatibilityProductionInput
         Guid productHardwareRunId,
         GgufCompatibilityModelInput model,
         CompatibilityHardwareInput hardware,
-        CompatibilityFreshResourcesInput freshResources)
+        CompatibilityFreshResourcesInput freshResources,
+        CompatibilityOptimizationProductionInput? optimization)
     {
         ModelInspectionRunId = modelInspectionRunId;
         ProductHardwareRunId = productHardwareRunId;
         Model = model;
         Hardware = hardware;
         FreshResources = freshResources;
+        Optimization = optimization;
     }
 
     public Guid ModelInspectionRunId { get; }
@@ -207,13 +211,35 @@ public sealed record CompatibilityProductionInput
     public GgufCompatibilityModelInput Model { get; }
     public CompatibilityHardwareInput Hardware { get; }
     public CompatibilityFreshResourcesInput FreshResources { get; }
+    public CompatibilityOptimizationProductionInput? Optimization { get; }
 
+    /// <summary>
+    /// Legacy compatibility factory. It carries no optimization authority and
+    /// the engine therefore cannot return an optimization recommendation.
+    /// New production integrations must use the sealed-authority overload.
+    /// </summary>
     public static CompatibilityProductionInput Create(
         Guid modelInspectionRunId,
         Guid productHardwareRunId,
         GgufCompatibilityModelInput model,
         CompatibilityHardwareInput hardware,
         CompatibilityFreshResourcesInput freshResources)
+        => Create(
+            modelInspectionRunId, productHardwareRunId, model, hardware,
+            freshResources, optimization: null);
+
+    /// <summary>
+    /// Creates the production path with the complete, sealed optimization
+    /// authority. The legacy overload is retained for callers that have not yet
+    /// published capability evidence; it cannot produce optimization choices.
+    /// </summary>
+    public static CompatibilityProductionInput Create(
+        Guid modelInspectionRunId,
+        Guid productHardwareRunId,
+        GgufCompatibilityModelInput model,
+        CompatibilityHardwareInput hardware,
+        CompatibilityFreshResourcesInput freshResources,
+        CompatibilityOptimizationProductionInput? optimization)
     {
         RequireUuidV4(modelInspectionRunId, nameof(modelInspectionRunId));
         RequireUuidV4(productHardwareRunId, nameof(productHardwareRunId));
@@ -222,12 +248,29 @@ public sealed record CompatibilityProductionInput
             throw new ArgumentException("Model and Hardware run identities must be distinct.", nameof(productHardwareRunId));
         }
 
+        if (optimization is not null
+            && (!string.Equals(
+                    optimization.Binding.ModelInspectionRunId,
+                    modelInspectionRunId.ToString("N"),
+                    StringComparison.Ordinal)
+                || !string.Equals(
+                    optimization.Binding.ProductHardwareRunId,
+                    productHardwareRunId.ToString("N"),
+                    StringComparison.Ordinal)
+                || optimization.Binding.ModelLengthBytes != model.FileLengthBytes))
+        {
+            throw new ArgumentException(
+                "Optimization authority must bind this exact model and Hardware run.",
+                nameof(optimization));
+        }
+
         return new CompatibilityProductionInput(
             modelInspectionRunId,
             productHardwareRunId,
             model ?? throw new ArgumentNullException(nameof(model)),
             hardware ?? throw new ArgumentNullException(nameof(hardware)),
-            freshResources ?? throw new ArgumentNullException(nameof(freshResources)));
+            freshResources ?? throw new ArgumentNullException(nameof(freshResources)),
+            optimization);
     }
 
     private static void RequireUuidV4(Guid value, string parameterName)
@@ -237,5 +280,52 @@ public sealed record CompatibilityProductionInput
         {
             throw new ArgumentException("Run identity must be an RFC 4122 UUID version 4.", parameterName);
         }
+    }
+}
+
+/// <summary>
+/// Sealed generation inputs supplied by the compatibility integration owner.
+/// No file path, provider payload, or display wording crosses this boundary.
+/// </summary>
+public sealed record CompatibilityOptimizationProductionInput
+{
+    private CompatibilityOptimizationProductionInput(
+        OptimizationCapabilitySnapshot snapshot,
+        OptimizationWorkload workload,
+        OptimizationJourneyBinding binding,
+        IReadOnlySet<string> optedInExperimentalEvidenceIds)
+    {
+        Snapshot = snapshot;
+        Workload = workload;
+        Binding = binding;
+        OptedInExperimentalEvidenceIds =
+            optedInExperimentalEvidenceIds.ToFrozenSet(StringComparer.Ordinal);
+    }
+
+    public OptimizationCapabilitySnapshot Snapshot { get; }
+    public OptimizationWorkload Workload { get; }
+    public OptimizationJourneyBinding Binding { get; }
+    public IReadOnlySet<string> OptedInExperimentalEvidenceIds { get; }
+
+    public static CompatibilityOptimizationProductionInput Create(
+        OptimizationCapabilitySnapshot snapshot,
+        OptimizationWorkload workload,
+        OptimizationJourneyBinding binding,
+        IReadOnlySet<string> optedInExperimentalEvidenceIds)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        ArgumentNullException.ThrowIfNull(workload);
+        ArgumentNullException.ThrowIfNull(binding);
+        ArgumentNullException.ThrowIfNull(optedInExperimentalEvidenceIds);
+        foreach (string evidenceId in optedInExperimentalEvidenceIds)
+        {
+            OptimizationIdentifier.Require(
+                evidenceId,
+                nameof(optedInExperimentalEvidenceIds),
+                "An experimental capability opt-in");
+        }
+
+        return new CompatibilityOptimizationProductionInput(
+            snapshot, workload, binding, optedInExperimentalEvidenceIds);
     }
 }

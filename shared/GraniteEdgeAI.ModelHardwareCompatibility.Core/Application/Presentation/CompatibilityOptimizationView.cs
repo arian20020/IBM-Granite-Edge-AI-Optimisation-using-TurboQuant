@@ -187,6 +187,9 @@ public sealed record CompatibilityOptimizationView
     public CompatibilityOptimizationLabelCode RecommendedLabelCode { get; }
     public int? RecommendedSliderValue { get; }
     public IReadOnlyList<CompatibilityOptimizationModeView> Modes { get; }
+    /// <summary>The exact admitted setup selected for Continue.</summary>
+    public CompatibilityOptimizationModeView RecommendedMode =>
+        Modes.Single(mode => mode.LabelCode == RecommendedLabelCode);
     public bool RequiresPersistentArtifact { get; }
     public bool RequiresRequantisationAcknowledgement { get; }
     public OptimizationQualityNotice QualityNotice { get; }
@@ -201,6 +204,16 @@ public sealed record CompatibilityOptimizationView
         OptimizationQualityNotice qualityNotice)
     {
         ArgumentNullException.ThrowIfNull(modes);
+        CompatibilityOptimizationLabelCode[] expectedLabels =
+        [
+            CompatibilityOptimizationLabelCode.Automatic,
+            CompatibilityOptimizationLabelCode.MaximumEfficiency,
+            CompatibilityOptimizationLabelCode.Efficient,
+            CompatibilityOptimizationLabelCode.Balanced,
+            CompatibilityOptimizationLabelCode.HighCapability,
+            CompatibilityOptimizationLabelCode.MaximumCapability
+        ];
+        int?[] expectedSliders = [null, 10, 30, 50, 70, 90];
         CompatibilityOptimizationModeView[] recommendations =
         [.. modes.Where(mode => mode.LabelCode == recommendedLabelCode)];
         if (recommendedLabelCode == CompatibilityOptimizationLabelCode.Unspecified
@@ -209,8 +222,9 @@ public sealed record CompatibilityOptimizationView
             || recommendedSliderValue is < 0 or > 100
             || requiresRequantisationAcknowledgement
                 && !requiresPersistentArtifact
-            || modes.Count == 0
-            || modes.Select(mode => mode.LabelCode).Distinct().Count() != modes.Count
+            || modes.Count != expectedLabels.Length
+            || !modes.Select(mode => mode.LabelCode).SequenceEqual(expectedLabels)
+            || !modes.Select(mode => mode.SliderValue).SequenceEqual(expectedSliders)
             || recommendations.Length != 1
             || recommendations[0].SliderValue != recommendedSliderValue
             || recommendations[0].RequiresPersistentArtifact

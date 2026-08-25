@@ -280,16 +280,21 @@ public sealed class PrivacyCanaryTests
         "CompatibilityBaselineIdentity.DigestSource",
         "CompatibilityBaselineIdentity.OptimizationDescriptor",
         "CompatibilityBaselineIdentity.SourceIdentitySha256",
-        "<>c.<DigestSource>b__22_0",
+        "<>c.<DigestSource>b__23_0",
 
-        // The generation stamp repeats the already-reviewed snapshot, workload,
-        // and journey identifiers/digests so an all-excluded frontier can prove
-        // freshness. It is internal and opaque to presentation consumers.
-        "OptimizationGenerationAuthority.CapabilitySnapshotSha256",
-        "OptimizationGenerationAuthority.JourneySha256",
-        "OptimizationGenerationAuthority.SnapshotId",
-        "OptimizationGenerationAuthority.WorkloadId",
-        "OptimizationGenerationAuthority.WorkloadSha256"
+        // The generation stamp is a one-way SHA-256 over the complete sealed
+        // generation inputs. Its canonicalizer sees only validated evidence
+        // identities, closed route values, numeric facts and existing reviewed
+        // build identities; it never receives a model path, filename, native
+        // error, display wording, or provider response. The public production
+        // input exposes only the copied set of strict evidence identifiers.
+        "CompatibilityOptimizationProductionInput.OptedInExperimentalEvidenceIds",
+        "CompatibilityOptimizationProjectionInput.OptedInExperimentalEvidenceIds",
+        "OptimizationGenerationAuthority.InputSha256",
+        "OptimizationGenerationDigest.Compute",
+        "OptimizationGenerationDigest.PayloadDigest",
+        "<>c.<AppendObject>b__2_1",
+        "<>c.<Compute>b__0_0"
     ];
 
     private static readonly BindingFlags AllMembers =
