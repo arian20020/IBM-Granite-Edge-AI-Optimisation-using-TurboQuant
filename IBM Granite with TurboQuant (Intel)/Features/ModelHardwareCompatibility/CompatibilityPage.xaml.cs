@@ -151,15 +151,34 @@ internal sealed partial class CompatibilityPage : Page
         ApplyBudget(presentation.Budget);
         ApplyEstimateSummary(presentation.EstimateSummary);
         ApplyOptimization(presentation.Optimization);
-        AssessmentGrid.Visibility = presentation.Optimization is null
-            ? Visibility.Visible
-            : Visibility.Collapsed;
 
         RuntimeCardTitleText.Text = presentation.RuntimeCardTitle;
         ApplyRows(RuntimeRows, presentation.RuntimeRows);
 
         ChecksCardTitleText.Text = presentation.ChecksCardTitle;
         ApplyRows(CheckRows, presentation.CheckRows);
+
+        bool hasFacts = presentation.Facts.Count > 0 ||
+            presentation.Budget.Segments.Count > 0 ||
+            presentation.EstimateSummary is not null;
+        bool hasRuntimeRows = presentation.RuntimeRows.Count > 0;
+        bool hasCheckRows = presentation.CheckRows.Count > 0;
+        MainFactsCard.Visibility = hasFacts
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        RuntimeCard.Visibility = hasRuntimeRows
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        ChecksCard.Visibility = hasCheckRows
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        SideCardsGrid.Visibility = hasRuntimeRows || hasCheckRows
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        AssessmentGrid.Visibility = presentation.Optimization is null &&
+            (hasFacts || hasRuntimeRows || hasCheckRows)
+                ? Visibility.Visible
+                : Visibility.Collapsed;
 
         ApplyRecoveries(presentation.Recoveries, presentation.MemoryRecoveryReason);
         MemoryRecoveryActions.Visibility = presentation.MemoryRecoveryReason
@@ -489,8 +508,27 @@ internal sealed partial class CompatibilityPage : Page
     private void PageStack_SizeChanged(object sender, SizeChangedEventArgs args) =>
         ApplyResponsiveLayout(args.NewSize.Width);
 
+    private void ContentHost_SizeChanged(object sender, SizeChangedEventArgs args) =>
+        ApplyViewportWidth(args.NewSize.Width);
+
+    private void ApplyViewportWidth(double viewportWidth)
+    {
+        double availableWidth = Math.Max(
+            0d,
+            viewportWidth - ContentHost.Padding.Left - ContentHost.Padding.Right);
+        if (availableWidth <= 0d)
+        {
+            return;
+        }
+
+        PageStack.Width = Math.Min(PageStack.MaxWidth, availableWidth);
+        ApplyResponsiveLayout(PageStack.Width);
+    }
+
     private void ApplyResponsiveLayout(double availableWidth)
     {
+        ApplyAssessmentLayout(availableWidth < 900d);
+
         bool stackOutcome = availableWidth < 760d;
         Grid.SetColumn(OutcomeBadgeHost, stackOutcome ? 1 : 2);
         Grid.SetRow(OutcomeBadgeHost, stackOutcome ? 1 : 0);
@@ -509,6 +547,7 @@ internal sealed partial class CompatibilityPage : Page
         Grid.SetRow(RecommendedSetupCard, stackSetups ? 1 : 0);
 
         bool stackFacts = availableWidth < 620d;
+        ApplyAssessmentFactsLayout(stackFacts);
         ApplySetupFactsLayout(
             CurrentSetupFactsGrid,
             CurrentWeightText,
@@ -564,6 +603,47 @@ internal sealed partial class CompatibilityPage : Page
             {
                 ApplyOptimizationModes(optimization);
             }
+        }
+    }
+
+    private void ApplyAssessmentLayout(bool stacked)
+    {
+        MainFactsColumn.Width = new GridLength(
+            stacked ? 1d : 1.35d,
+            GridUnitType.Star);
+        SideFactsColumn.Width = stacked
+            ? new GridLength(0)
+            : new GridLength(0.85d, GridUnitType.Star);
+        Grid.SetColumnSpan(MainFactsCard, stacked ? 2 : 1);
+        Grid.SetColumn(SideCardsGrid, stacked ? 0 : 1);
+        Grid.SetRow(SideCardsGrid, stacked ? 1 : 0);
+        Grid.SetColumnSpan(SideCardsGrid, stacked ? 2 : 1);
+        SideCardsGrid.Margin = stacked
+            ? new Thickness(0, 14, 0, 0)
+            : new Thickness(0);
+    }
+
+    private void ApplyAssessmentFactsLayout(bool stacked)
+    {
+        FactsGrid.ColumnDefinitions[0].Width = new GridLength(1, GridUnitType.Star);
+        FactsGrid.ColumnDefinitions[1].Width = stacked
+            ? new GridLength(0)
+            : new GridLength(1, GridUnitType.Star);
+
+        for (int index = 0; index < FactsGrid.RowDefinitions.Count; index++)
+        {
+            FactsGrid.RowDefinitions[index].Height = stacked
+                ? GridLength.Auto
+                : index < 2
+                    ? new GridLength(1, GridUnitType.Star)
+                    : new GridLength(0);
+        }
+
+        for (int index = 0; index < FactsGrid.Children.Count; index++)
+        {
+            FrameworkElement tile = (FrameworkElement)FactsGrid.Children[index];
+            Grid.SetColumn(tile, stacked ? 0 : index % 2);
+            Grid.SetRow(tile, stacked ? index : index / 2);
         }
     }
 
@@ -738,7 +818,8 @@ internal sealed partial class CompatibilityPage : Page
                 FontSize = Size("CompatibilityFactLabelFontSize"),
                 FontWeight = Microsoft.UI.Text.FontWeights.Bold,
                 Foreground = Brush("CompatibilityTextMutedBrush"),
-                TextTrimming = TextTrimming.CharacterEllipsis
+                TextTrimming = TextTrimming.None,
+                TextWrapping = TextWrapping.Wrap
             };
 
             TextBlock value = new()
@@ -748,7 +829,8 @@ internal sealed partial class CompatibilityPage : Page
                 FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
                 Foreground = Brush("CompatibilityTextPrimaryBrush"),
                 Margin = new Thickness(0, 5, 0, 0),
-                TextTrimming = TextTrimming.CharacterEllipsis
+                TextTrimming = TextTrimming.None,
+                TextWrapping = TextWrapping.Wrap
             };
 
             TextBlock detail = new()
@@ -829,7 +911,8 @@ internal sealed partial class CompatibilityPage : Page
                 FontSize = Size("CompatibilityRowTitleFontSize"),
                 FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
                 Foreground = Brush("CompatibilityTextPrimaryBrush"),
-                TextTrimming = TextTrimming.CharacterEllipsis
+                TextTrimming = TextTrimming.None,
+                TextWrapping = TextWrapping.Wrap
             });
 
             if (!string.IsNullOrEmpty(row.Subtitle))
@@ -839,7 +922,8 @@ internal sealed partial class CompatibilityPage : Page
                     Text = row.Subtitle,
                     FontSize = Size("CompatibilityRowSubFontSize"),
                     Foreground = Brush("CompatibilityTextMutedBrush"),
-                    TextTrimming = TextTrimming.CharacterEllipsis
+                    TextTrimming = TextTrimming.None,
+                    TextWrapping = TextWrapping.Wrap
                 });
             }
 
@@ -854,7 +938,8 @@ internal sealed partial class CompatibilityPage : Page
                     FontSize = Size("CompatibilityRowTitleFontSize"),
                     FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
                     Foreground = Brush("CompatibilityTextPrimaryBrush"),
-                    VerticalAlignment = VerticalAlignment.Center
+                    VerticalAlignment = VerticalAlignment.Center,
+                    TextWrapping = TextWrapping.Wrap
                 };
 
             Grid.SetColumn(trailing, 1);
@@ -899,7 +984,8 @@ internal sealed partial class CompatibilityPage : Page
                 Text = row.Value,
                 FontSize = Size("CompatibilityPillFontSize"),
                 FontWeight = Microsoft.UI.Text.FontWeights.Bold,
-                Foreground = accent
+                Foreground = accent,
+                TextWrapping = TextWrapping.Wrap
             }
         };
     }

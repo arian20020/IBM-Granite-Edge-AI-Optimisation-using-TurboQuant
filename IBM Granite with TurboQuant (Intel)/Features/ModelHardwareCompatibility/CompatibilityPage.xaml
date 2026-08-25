@@ -53,6 +53,7 @@
             HorizontalScrollMode="Disabled"
             HorizontalScrollBarVisibility="Disabled"
             Padding="{StaticResource CompatibilityPageMargin}"
+            SizeChanged="ContentHost_SizeChanged"
             VerticalScrollBarVisibility="Auto">
 
             <Grid
@@ -275,6 +276,8 @@
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="*" />
                                     <RowDefinition Height="*" />
+                                    <RowDefinition Height="0" />
+                                    <RowDefinition Height="0" />
                                 </Grid.RowDefinitions>
                             </Grid>
 
@@ -474,6 +477,7 @@
                         </Grid.RowDefinitions>
 
                         <Border
+                            x:Name="RuntimeCard"
                             Grid.Row="0"
                             Background="{ThemeResource CompatibilitySurfaceBrush}"
                             BorderBrush="{ThemeResource CompatibilityBorderLightBrush}"
@@ -491,6 +495,7 @@
                         </Border>
 
                         <Border
+                            x:Name="ChecksCard"
                             Grid.Row="1"
                             Background="{ThemeResource CompatibilitySurfaceBrush}"
                             BorderBrush="{ThemeResource CompatibilityBorderLightBrush}"

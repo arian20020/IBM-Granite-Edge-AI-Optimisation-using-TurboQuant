@@ -80,6 +80,79 @@ public sealed class CompatibilityRenderedStateTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
+    public void CompactViewport_ConstrainsContentWidthInsteadOfKeepingItsWideDesiredSize()
+    {
+        CompatibilityPage page = CreatePage();
+        CompatibilityFixture? fixture = CompatibilityFixtureCatalogue.ById("CMP-022");
+        Assert.IsNotNull(fixture);
+        page.Apply(fixture.Presentation);
+
+        MethodInfo? constrain = typeof(CompatibilityPage).GetMethod(
+            "ApplyViewportWidth",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsNotNull(constrain,
+            "the page must constrain desired content from the real viewport");
+        constrain.Invoke(page, new object[] { 600d });
+        Arrange(page, 600, 900);
+
+        FrameworkElement pageStack = Element<FrameworkElement>(page, "PageStack");
+        Assert.IsGreaterThan(0d, pageStack.ActualWidth);
+        Assert.IsLessThanOrEqualTo(552d, pageStack.ActualWidth,
+            "the 600px viewport has 24px page padding on each side");
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void CompactConcludedScreens_StackFactsAndPreserveEssentialEvidenceText()
+    {
+        CompatibilityPage page = CreatePage();
+
+        foreach (string fixtureId in new[] { "CMP-010", "CMP-011", "CMP-012", "CMP-030" })
+        {
+            CompatibilityFixture? fixture = CompatibilityFixtureCatalogue.ById(fixtureId);
+            Assert.IsNotNull(fixture);
+            page.Apply(fixture.Presentation);
+            Arrange(page, 560, 900);
+            InvokeResponsiveLayout(page, 560);
+
+            FrameworkElement sideCards = Element<FrameworkElement>(page, "SideCardsGrid");
+            Assert.AreEqual(0, Grid.GetColumn(sideCards),
+                $"{fixtureId} left the supporting cards in a clipped side column.");
+            Assert.AreEqual(1, Grid.GetRow(sideCards),
+                $"{fixtureId} did not stack the supporting cards after the facts.");
+
+            Panel facts = Panel(page, "FactsGrid");
+            for (int index = 0; index < facts.Children.Count; index++)
+            {
+                FrameworkElement tile = Assert.IsInstanceOfType<FrameworkElement>(
+                    facts.Children[index]);
+                Assert.AreEqual(0, Grid.GetColumn(tile),
+                    $"{fixtureId} fact {index} remained in a squeezed second column.");
+                Assert.AreEqual(index, Grid.GetRow(tile),
+                    $"{fixtureId} fact {index} did not receive its own compact row.");
+            }
+
+            IEnumerable<TextBlock> essentialText =
+                Descendants(facts).OfType<TextBlock>()
+                    .Concat(Descendants(Panel(page, "RuntimeRows")).OfType<TextBlock>())
+                    .Concat(Descendants(Panel(page, "CheckRows")).OfType<TextBlock>());
+
+            foreach (TextBlock text in essentialText.Where(text =>
+                         !string.IsNullOrWhiteSpace(text.Text)))
+            {
+                Assert.AreEqual(TextTrimming.None, text.TextTrimming,
+                    $"{fixtureId} shortened essential evidence: {text.Text}");
+                if (VisualTreeHelper.GetParent(text) is not Border)
+                {
+                    Assert.AreEqual(TextWrapping.Wrap, text.TextWrapping,
+                        $"{fixtureId} did not wrap essential evidence: {text.Text}");
+                }
+            }
+        }
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
     public void Page_DoesNotDuplicateTheOnboardingShellStageIndicator()
     {
         CompatibilityPage page = new() { StartAutomatically = false };
@@ -620,6 +693,51 @@ public sealed class CompatibilityRenderedStateTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
+    public void EveryFixture_HidesCardsThatHaveNoVisibleContent()
+    {
+        CompatibilityPage page = CreatePage();
+
+        foreach (CompatibilityFixture fixture in CompatibilityFixtureCatalogue.All)
+        {
+            CompatibilityPresentation presentation = fixture.Presentation;
+            page.Apply(presentation);
+            page.UpdateLayout();
+
+            bool hasFacts = presentation.Facts.Count > 0 ||
+                presentation.Budget.Segments.Count > 0 ||
+                presentation.EstimateSummary is not null;
+            bool showsAssessment = presentation.Optimization is null &&
+                (hasFacts ||
+                 presentation.RuntimeRows.Count > 0 ||
+                 presentation.CheckRows.Count > 0);
+
+            Assert.AreEqual(
+                showsAssessment ? Visibility.Visible : Visibility.Collapsed,
+                Element<FrameworkElement>(page, "AssessmentGrid").Visibility,
+                $"{fixture.Id} left an empty assessment surface visible.");
+            Assert.AreEqual(
+                hasFacts
+                    ? Visibility.Visible
+                    : Visibility.Collapsed,
+                Element<FrameworkElement>(page, "MainFactsCard").Visibility,
+                $"{fixture.Id} left the facts card empty.");
+            Assert.AreEqual(
+                presentation.RuntimeRows.Count > 0
+                    ? Visibility.Visible
+                    : Visibility.Collapsed,
+                Element<FrameworkElement>(page, "RuntimeCard").Visibility,
+                $"{fixture.Id} left the runtime card empty.");
+            Assert.AreEqual(
+                presentation.CheckRows.Count > 0
+                    ? Visibility.Visible
+                    : Visibility.Collapsed,
+                Element<FrameworkElement>(page, "ChecksCard").Visibility,
+                $"{fixture.Id} left the checks card empty.");
+        }
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
     public void EvaluatedScreen_ShowsVisibleEstimatedMemoryBreakdown()
     {
         CompatibilityPage page = CreatePage();
@@ -812,6 +930,16 @@ public sealed class CompatibilityRenderedStateTests
             BindingFlags.Instance | BindingFlags.NonPublic);
         Assert.IsNotNull(method);
         method.Invoke(page, null);
+    }
+
+    private static void InvokeResponsiveLayout(CompatibilityPage page, double width)
+    {
+        MethodInfo? method = typeof(CompatibilityPage).GetMethod(
+            "ApplyResponsiveLayout",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsNotNull(method);
+        method.Invoke(page, new object[] { width });
+        page.UpdateLayout();
     }
 
     private static IEnumerable<DependencyObject> Descendants(DependencyObject root)
