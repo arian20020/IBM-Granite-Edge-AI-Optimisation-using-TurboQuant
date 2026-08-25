@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using GraniteEdgeAI.Features.ModelHardwareCompatibility.Contracts;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.Presentation;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
@@ -43,6 +44,18 @@ internal sealed partial class CompatibilityPage : Page
     {
     }
 
+    internal CompatibilityPage(
+        Func<CancellationToken, Task<GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation.CompatibilityScreenModel>> evaluator,
+        bool continueDestinationAvailable,
+        OptimizationDestination optimizationDestination)
+        : this(new ViewModels.CompatibilityViewModel(
+            evaluator,
+            continueDestinationAvailable,
+            memoryRecovery: null,
+            optimizationDestination))
+    {
+    }
+
     private CompatibilityPage(ViewModels.CompatibilityViewModel viewModel)
     {
         ViewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
@@ -51,6 +64,8 @@ internal sealed partial class CompatibilityPage : Page
 
         ViewModel.PresentationChanged += (_, presentation) => Apply(presentation);
         ViewModel.ContinueRequested += (_, _) => ContinueRequested?.Invoke(this, EventArgs.Empty);
+        ViewModel.OptimizationRequested += (_, handoff) =>
+            OptimizationRequested?.Invoke(this, handoff);
         ViewModel.BackRequested += (_, _) => BackRequested?.Invoke(this, EventArgs.Empty);
         PrimaryAction.Command = ViewModel.ContinueCommand;
         RefreshMemoryAction.Command = ViewModel.RefreshMemoryCommand;
@@ -64,6 +79,8 @@ internal sealed partial class CompatibilityPage : Page
     }
 
     internal event EventHandler? ContinueRequested;
+
+    internal event EventHandler<OptimizationSelectionHandoff>? OptimizationRequested;
 
     internal event EventHandler? BackRequested;
 

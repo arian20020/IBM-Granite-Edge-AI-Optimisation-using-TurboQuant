@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using GraniteEdgeAI.Features.ModelHardwareCompatibility.Contracts;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.Infrastructure;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.Presentation;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation;
@@ -47,6 +48,7 @@ internal sealed class CompatibilityViewModel
     private readonly Func<CancellationToken, Task<CompatibilityScreenModel>> _evaluator;
     private readonly bool _continueDestinationAvailable;
     private readonly ICompatibilityMemoryRecovery _memoryRecovery;
+    private readonly OptimizationDestination _optimizationDestination;
     private readonly object _attemptGate = new();
 
     private AttemptCancellation? _attemptCancellation;
@@ -69,10 +71,31 @@ internal sealed class CompatibilityViewModel
         Func<CancellationToken, Task<CompatibilityScreenModel>> evaluator,
         bool continueDestinationAvailable = true,
         ICompatibilityMemoryRecovery? memoryRecovery = null)
+        : this(
+            evaluator,
+            continueDestinationAvailable,
+            memoryRecovery,
+            OptimizationDestination.Unavailable)
+    {
+    }
+
+    internal CompatibilityViewModel(
+        Func<CancellationToken, Task<CompatibilityScreenModel>> evaluator,
+        bool continueDestinationAvailable,
+        ICompatibilityMemoryRecovery? memoryRecovery,
+        OptimizationDestination optimizationDestination)
     {
         _evaluator = evaluator ?? throw new ArgumentNullException(nameof(evaluator));
         _continueDestinationAvailable = continueDestinationAvailable;
         _memoryRecovery = memoryRecovery ?? new WindowsCompatibilityMemoryRecovery([]);
+        _optimizationDestination = optimizationDestination
+            ?? throw new ArgumentNullException(nameof(optimizationDestination));
+        if (_optimizationDestination.IsAvailable && !continueDestinationAvailable)
+        {
+            throw new ArgumentException(
+                "An optimisation issuer cannot be registered while navigation is unavailable.",
+                nameof(continueDestinationAvailable));
+        }
         _uiContext = SynchronizationContext.Current;
 
         // Assigned before the commands, because their guards read it: a command
@@ -81,7 +104,7 @@ internal sealed class CompatibilityViewModel
         Presentation = CompatibilityPresentationFactory.Analysing(0);
 
         ContinueCommand = new DelegateCommand(
-            () => ContinueRequested?.Invoke(this, EventArgs.Empty),
+            Continue,
             () => Presentation.PrimaryActionEnabled);
 
         BackCommand = new DelegateCommand(
@@ -112,6 +135,8 @@ internal sealed class CompatibilityViewModel
 
     internal event EventHandler? ContinueRequested;
 
+    internal event EventHandler<OptimizationSelectionHandoff>? OptimizationRequested;
+
     internal event EventHandler? BackRequested;
 
     internal CompatibilityPresentation Presentation { get; private set; }
@@ -132,6 +157,45 @@ internal sealed class CompatibilityViewModel
         CompatibilityAuxiliaryStatus.None;
 
     internal OptimizationPreferenceSelection? SelectedPreference { get; private set; }
+
+    private void Continue()
+    {
+        if (Presentation.Optimization is null)
+        {
+            ContinueRequested?.Invoke(this, EventArgs.Empty);
+            return;
+        }
+
+        OptimizationPreferenceSelection? preference = SelectedPreference;
+        if (preference is null)
+        {
+            return;
+        }
+
+        OptimizationSelectionHandoff? handoff;
+        try
+        {
+            if (!_optimizationDestination.TryIssue(preference, out handoff))
+            {
+                return;
+            }
+        }
+        catch
+        {
+            // Adapter failures are private implementation details. Fail closed
+            // without turning a button press into a UI-thread exception.
+            return;
+        }
+
+        if (handoff is null || SelectedPreference != preference)
+        {
+            // The selection changed while the plan was being issued. The old
+            // plan is stale and must never cross the navigation boundary.
+            return;
+        }
+
+        OptimizationRequested?.Invoke(this, handoff);
+    }
 
     /// <summary>
     /// Starts one attempt. Safe to call again: the previous attempt is cancelled
@@ -567,9 +631,31 @@ internal sealed class CompatibilityViewModel
             }
 
             commitState?.Invoke();
-            CompatibilityPresentation effectivePresentation = _continueDestinationAvailable
-                ? presentation
-                : presentation with { PrimaryActionEnabled = false };
+            CompatibilityPresentation effectivePresentation;
+            if (presentation.Optimization is not null
+                && !_optimizationDestination.IsAvailable)
+            {
+                effectivePresentation = presentation with
+                {
+                    PrimaryActionText = "Coming later",
+                    PrimaryActionEnabled = false
+                };
+            }
+            else if (!_continueDestinationAvailable
+                && presentation.PrimaryActionEnabled)
+            {
+                effectivePresentation = presentation with
+                {
+                    PrimaryActionText = "Coming later",
+                    PrimaryActionEnabled = false
+                };
+            }
+            else
+            {
+                effectivePresentation = _continueDestinationAvailable
+                    ? presentation
+                    : presentation with { PrimaryActionEnabled = false };
+            }
             Presentation = effectivePresentation;
             ContinueCommand.RaiseCanExecuteChanged();
             BackCommand.RaiseCanExecuteChanged();

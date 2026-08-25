@@ -57,6 +57,17 @@ public sealed class OnboardingCompatibilityNavigationTests
         Assert.IsFalse(
             compatibilityPage.ViewModel.Presentation.PrimaryActionEnabled,
             "Continue must remain unavailable until the optimisation destination is integrated.");
+        Assert.AreEqual(
+            OnboardingStage.CheckHardwareFit,
+            shell.CurrentStage,
+            "A disabled future destination must not falsely advance step 3 to step 4.");
+        Assert.AreEqual(
+            "Coming later",
+            compatibilityPage.ViewModel.Presentation.PrimaryActionText);
+        Assert.AreSame(compatibilityPage, frame.Content);
+        Assert.IsNull(
+            compatibilityPage.FindName("StageIndicator"),
+            "Compatibility must remain content inside the shell, never create a second shell.");
 
         compatibilityPage.ViewModel.BackCommand.Execute(null);
 

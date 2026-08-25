@@ -7,6 +7,7 @@ using GraniteEdgeAI.Features.HardwareInspection.Presentation.Controls;
 using GraniteEdgeAI.Features.HardwareInspection.Presentation.State;
 using GraniteEdgeAI.Features.HardwareInspection.ViewModels;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility;
+using GraniteEdgeAI.Features.ModelHardwareCompatibility.Contracts;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.Infrastructure;
 using GraniteEdgeAI.Features.ModelImport;
 using GraniteEdgeAI.Features.ModelInspection;
@@ -595,6 +596,8 @@ namespace GraniteEdgeAI.Features.Onboarding
                 continueDestinationAvailable: false);
             compatibilityPage.BackRequested += CompatibilityPage_BackRequested;
             compatibilityPage.ContinueRequested += CompatibilityPage_ContinueRequested;
+            compatibilityPage.OptimizationRequested +=
+                CompatibilityPage_OptimizationRequested;
 
             DetachHardwareInspectionPage();
             bool navigated;
@@ -617,6 +620,8 @@ namespace GraniteEdgeAI.Features.Onboarding
             {
                 compatibilityPage.BackRequested -= CompatibilityPage_BackRequested;
                 compatibilityPage.ContinueRequested -= CompatibilityPage_ContinueRequested;
+                compatibilityPage.OptimizationRequested -=
+                    CompatibilityPage_OptimizationRequested;
                 AttachHardwareInspectionPage(sourcePage);
                 StageFrame.Content = sourcePage;
                 return false;
@@ -649,6 +654,17 @@ namespace GraniteEdgeAI.Features.Onboarding
         {
             // The optimisation-mode destination is intentionally not registered
             // in this increment, so C1 keeps this command disabled.
+        }
+
+        private void CompatibilityPage_OptimizationRequested(
+            object? sender,
+            OptimizationSelectionHandoff handoff)
+        {
+            // No compatible optimisation destination is registered in this
+            // increment. The production page uses the explicit unavailable
+            // destination, so this event cannot be raised and the single shell
+            // remains on step 3. A future integration must navigate the exact
+            // validated handoff before advancing to Configure model.
         }
 
         private void HardwareInspectionPage_ActionRequested(
@@ -954,6 +970,8 @@ namespace GraniteEdgeAI.Features.Onboarding
 
             _attachedCompatibilityPage.BackRequested -= CompatibilityPage_BackRequested;
             _attachedCompatibilityPage.ContinueRequested -= CompatibilityPage_ContinueRequested;
+            _attachedCompatibilityPage.OptimizationRequested -=
+                CompatibilityPage_OptimizationRequested;
             _attachedCompatibilityPage = null;
         }
 
