@@ -101,6 +101,19 @@ internal sealed class TaskManagerLaunchRequest
     internal bool UseShellExecute => true;
 
     internal ProcessWindowStyle WindowStyle => ProcessWindowStyle.Normal;
+
+    /// <summary>
+    /// Produces an isolated descriptor from the closed request. Mutating a
+    /// returned instance cannot alter the next launch or the fixed request.
+    /// </summary>
+    internal ProcessStartInfo CreateProcessStartInfo() => new()
+    {
+        FileName = FileName,
+        Arguments = Arguments,
+        Verb = Verb,
+        UseShellExecute = UseShellExecute,
+        WindowStyle = WindowStyle
+    };
 }
 
 /// <summary>A closed process boundary that can launch only the fixed request.</summary>
@@ -111,16 +124,6 @@ internal interface ITaskManagerProcessStarter
 
 internal sealed class WindowsTaskManagerProcessStarter : ITaskManagerProcessStarter
 {
-    private readonly Func<Process?> _startFixed;
-
-    internal WindowsTaskManagerProcessStarter()
-        : this(StartFixed)
-    {
-    }
-
-    internal WindowsTaskManagerProcessStarter(Func<Process?> startFixed) =>
-        _startFixed = startFixed ?? throw new ArgumentNullException(nameof(startFixed));
-
     public void Start(TaskManagerLaunchRequest request)
     {
         if (!ReferenceEquals(request, TaskManagerLaunchRequest.Fixed))
@@ -129,20 +132,7 @@ internal sealed class WindowsTaskManagerProcessStarter : ITaskManagerProcessStar
                 nameof(request));
         }
 
-        Process? process = _startFixed();
-        if (process is null)
-        {
-            throw new InvalidOperationException("Task Manager launch was not accepted.");
-        }
+        using Process process = Process.Start(request.CreateProcessStartInfo())
+            ?? throw new InvalidOperationException("Task Manager launch was not accepted.");
     }
-
-    private static Process? StartFixed() =>
-        Process.Start(new ProcessStartInfo
-        {
-            FileName = TaskManagerLaunchRequest.Fixed.FileName,
-            Arguments = TaskManagerLaunchRequest.Fixed.Arguments,
-            Verb = TaskManagerLaunchRequest.Fixed.Verb,
-            UseShellExecute = TaskManagerLaunchRequest.Fixed.UseShellExecute,
-            WindowStyle = TaskManagerLaunchRequest.Fixed.WindowStyle
-        });
 }

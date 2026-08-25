@@ -162,9 +162,68 @@ public sealed class OnboardingCompatibilityNavigationTests
 
         Assert.AreEqual(7_000_000_000UL, captured.AvailableSystemMemoryBytes);
         Assert.AreEqual(40_000_000_000UL, captured.AvailableStorageBytes);
-        Assert.AreEqual(observedAt, captured.ObservedAtUtc);
+        Assert.AreEqual(memoryAt, captured.ObservedAtUtc,
+            "The aggregate must retain the oldest accepted provider observation.");
         Assert.IsFalse(captured.DedicatedDeviceMemoryEstablished,
             "No fresh dedicated-memory provider exists, so the source must stay unknown.");
+    }
+
+    [TestMethod]
+    public async Task WindowsFreshResourceSource_RejectsStaleMemoryEvidence()
+    {
+        DateTimeOffset now = new(2026, 8, 25, 12, 0, 0, TimeSpan.Zero);
+        WindowsCompatibilityFreshResourcesSource source = FreshSource(
+            now.AddSeconds(-31), now, now);
+
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(async () =>
+            await source.CaptureAsync(CancellationToken.None));
+    }
+
+    [TestMethod]
+    public async Task WindowsFreshResourceSource_RejectsStaleStorageEvidence()
+    {
+        DateTimeOffset now = new(2026, 8, 25, 12, 0, 0, TimeSpan.Zero);
+        WindowsCompatibilityFreshResourcesSource source = FreshSource(
+            now, now.AddSeconds(-31), now);
+
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(async () =>
+            await source.CaptureAsync(CancellationToken.None));
+    }
+
+    [TestMethod]
+    public async Task WindowsFreshResourceSource_RejectsFutureEvidence()
+    {
+        DateTimeOffset now = new(2026, 8, 25, 12, 0, 0, TimeSpan.Zero);
+        WindowsCompatibilityFreshResourcesSource source = FreshSource(
+            now.AddSeconds(6), now, now);
+
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(async () =>
+            await source.CaptureAsync(CancellationToken.None));
+    }
+
+    [TestMethod]
+    public async Task WindowsFreshResourceSource_RejectsExcessiveProviderSkew()
+    {
+        DateTimeOffset now = new(2026, 8, 25, 12, 0, 0, TimeSpan.Zero);
+        WindowsCompatibilityFreshResourcesSource source = FreshSource(
+            now.AddSeconds(-10), now, now);
+
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(async () =>
+            await source.CaptureAsync(CancellationToken.None));
+    }
+
+    [TestMethod]
+    public async Task WindowsFreshResourceSource_AcceptsCloseEvidenceWithoutRestampingIt()
+    {
+        DateTimeOffset now = new(2026, 8, 25, 12, 0, 0, TimeSpan.Zero);
+        DateTimeOffset memoryAt = now.AddSeconds(-2);
+        WindowsCompatibilityFreshResourcesSource source = FreshSource(
+            memoryAt, now.AddSeconds(-1), now);
+
+        CompatibilityFreshResourcesInput captured =
+            await source.CaptureAsync(CancellationToken.None);
+
+        Assert.AreEqual(memoryAt, captured.ObservedAtUtc);
     }
 
     private static ModelInspectionExecutionResult Terminal() =>
@@ -187,6 +246,16 @@ public sealed class OnboardingCompatibilityNavigationTests
             availableDedicatedDeviceMemoryBytes: null,
             availableStorageBytes: 64UL * 1024 * 1024 * 1024,
             DateTimeOffset.UtcNow);
+
+    private static WindowsCompatibilityFreshResourcesSource FreshSource(
+        DateTimeOffset memoryAt,
+        DateTimeOffset storageAt,
+        DateTimeOffset now) =>
+        new(
+            new FixedMemoryProvider(7_000_000_000, memoryAt),
+            _ => ValueTask.FromResult(WindowsStorageEvidence.Available(
+                100_000_000_000, 40_000_000_000, storageAt)),
+            new FixedTimeProvider(now));
 
     private sealed class FreshResourcesSource : ICompatibilityFreshResourcesSource
     {

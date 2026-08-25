@@ -170,19 +170,24 @@ public sealed class CompatibilityMemoryRecoveryTests
                 && !(parameter.Name == "collect"
                     && parameter.ParameterType == typeof(Action)))));
 
-        ParameterInfo[] starterParameters = typeof(WindowsTaskManagerProcessStarter)
-            .GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic)
-            .SelectMany(constructor => constructor.GetParameters()).ToArray();
-        Assert.IsFalse(starterParameters.Any(parameter =>
-            parameter.ParameterType == typeof(string)
-            || parameter.ParameterType == typeof(ProcessStartInfo)
-            || parameter.ParameterType == typeof(Action)));
-        ParameterInfo? fixedStart = starterParameters.SingleOrDefault(parameter =>
-            parameter.ParameterType == typeof(Func<Process?>));
-        Assert.IsNotNull(fixedStart);
-        Assert.AreEqual(0, fixedStart.ParameterType.GetMethod("Invoke")!
-            .GetParameters().Length,
-            "The test seam can return the fixed launch result but cannot select a command.");
+        ConstructorInfo[] starterConstructors = typeof(WindowsTaskManagerProcessStarter)
+            .GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsTrue(starterConstructors.All(constructor =>
+            constructor.GetParameters().Length == 0));
+        Assert.IsFalse(typeof(WindowsTaskManagerProcessStarter)
+            .GetFields(BindingFlags.Instance | BindingFlags.NonPublic)
+            .Any(field => typeof(Delegate).IsAssignableFrom(field.FieldType)
+                || field.FieldType == typeof(string)
+                || field.FieldType == typeof(ProcessStartInfo)));
+
+        ProcessStartInfo first = TaskManagerLaunchRequest.Fixed.CreateProcessStartInfo();
+        first.FileName = "mutated-by-test.exe";
+        ProcessStartInfo second = TaskManagerLaunchRequest.Fixed.CreateProcessStartInfo();
+        Assert.AreEqual("taskmgr.exe", second.FileName,
+            "Each pure descriptor is rebuilt from the immutable fixed request.");
+        Assert.AreEqual(string.Empty, second.Arguments);
+        Assert.AreEqual(string.Empty, second.Verb);
+        Assert.IsTrue(second.UseShellExecute);
     }
 
     [TestMethod]
@@ -203,16 +208,22 @@ public sealed class CompatibilityMemoryRecoveryTests
     }
 
     [TestMethod]
-    public void FixedStarter_TreatsNullAndThrowAsLaunchFailure()
+    public void FixedStarter_HasNoInjectableProcessLaunchCapability()
     {
-        var nullStarter = new WindowsTaskManagerProcessStarter(() => null);
-        var throwStarter = new WindowsTaskManagerProcessStarter(
-            () => throw new InvalidOperationException("private"));
+        Type starter = typeof(WindowsTaskManagerProcessStarter);
 
-        Assert.ThrowsExactly<InvalidOperationException>(() =>
-            nullStarter.Start(TaskManagerLaunchRequest.Fixed));
-        Assert.ThrowsExactly<InvalidOperationException>(() =>
-            throwStarter.Start(TaskManagerLaunchRequest.Fixed));
+        Assert.IsTrue(starter.GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic)
+            .All(constructor => constructor.GetParameters().Length == 0));
+        Assert.IsFalse(starter.GetFields(BindingFlags.Instance | BindingFlags.NonPublic)
+            .Any(field => typeof(Delegate).IsAssignableFrom(field.FieldType)));
+
+        string source = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot(), "IBM Granite with TurboQuant (Intel)",
+            "Features", "ModelHardwareCompatibility", "Infrastructure",
+            "WindowsCompatibilityMemoryRecovery.cs"));
+        StringAssert.Contains(source,
+            "using Process process = Process.Start(request.CreateProcessStartInfo())");
+        Assert.IsFalse(source.Contains("Func<Process", StringComparison.Ordinal));
     }
 
     [TestMethod]
