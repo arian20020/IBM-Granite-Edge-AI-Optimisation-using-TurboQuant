@@ -246,7 +246,7 @@ public sealed class OptimizationExecutionContractV3Tests
     }
 
     [TestMethod]
-    public void V3DigestBindsTheTypedLowQualityWarningWithoutChangingV2Layout()
+    public void V3DigestBindsTheTypedLowQualityWarning()
     {
         OptimizationJourneyBinding binding = GgufBinding(Digest64);
         GgufQuantiserIdentity quantiser = GgufQuantiser(Digest64);
@@ -263,9 +263,6 @@ public sealed class OptimizationExecutionContractV3Tests
         Assert.AreNotEqual(
             OptimizationCanonicalizer.ConfigurationSha256(warned, payload, 3),
             OptimizationCanonicalizer.ConfigurationSha256(unwarned, payload, 3));
-        Assert.AreEqual(
-            OptimizationCanonicalizer.ConfigurationSha256V2(warned, payload),
-            OptimizationCanonicalizer.ConfigurationSha256V2(unwarned, payload));
     }
 
     private static (OptimizationSelection Selection,

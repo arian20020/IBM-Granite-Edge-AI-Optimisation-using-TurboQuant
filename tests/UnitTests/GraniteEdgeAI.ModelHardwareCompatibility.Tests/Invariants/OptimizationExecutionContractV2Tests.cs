@@ -49,7 +49,8 @@ public sealed class OptimizationExecutionContractV2Tests
             CompatibilityBackend backend = CompatibilityBackend.Cpu,
             DeviceRouteId device = DeviceRouteId.Cpu,
             GpuOffloadLevel offload = GpuOffloadLevel.None,
-            int context = 4096)
+            int context = 4096,
+            OptimizationCandidateNotice notice = OptimizationCandidateNotice.None)
         {
             bool persistent = weights != GgufWeightFormat.Imported;
 
@@ -57,7 +58,8 @@ public sealed class OptimizationExecutionContractV2Tests
                 GgufRouteConfiguration.Create(weights, cache, backend, device, offload),
                 Metrics(context, persistent),
                 "gguf-evidence",
-                isExperimental: false);
+                isExperimental: false,
+                notice);
         }
 
         internal static GgufQuantiserIdentity Quantiser(
@@ -294,6 +296,59 @@ public sealed class OptimizationExecutionContractV2Tests
 
         Assert.ThrowsExactly<ArgumentException>(
             () => OptimizationCanonicalizer.ConfigurationSha256V2(candidate, payload));
+    }
+
+    [TestMethod]
+    public void VersionTwoCanonicalAndHashRejectQ2KWeightVocabulary()
+    {
+        OptimizationCandidate candidate = V2TestData.GgufCandidate(
+            weights: GgufWeightFormat.Q2K,
+            notice: OptimizationCandidateNotice.LowQuality);
+        OptimizationExecutionPayload payload = OptimizationExecutionPayload.ForGguf(
+            V2TestData.GgufPayload(
+                persistentTarget: GgufWeightFormat.Q2K,
+                quantiser: V2TestData.Quantiser()));
+
+        ArgumentException canonical = Assert.ThrowsExactly<ArgumentException>(
+            () => OptimizationCanonicalizer.CanonicalizeV2(candidate, payload));
+        ArgumentException hash = Assert.ThrowsExactly<ArgumentException>(
+            () => OptimizationCanonicalizer.ConfigurationSha256V2(candidate, payload));
+
+        StringAssert.Contains(canonical.Message, "Q2_K");
+        StringAssert.Contains(hash.Message, "Q2_K");
+
+        OptimizationCandidate legacyCandidate = V2TestData.GgufCandidate(
+            weights: GgufWeightFormat.Q4KM);
+
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            OptimizationCanonicalizer.CanonicalizeV2(legacyCandidate, payload));
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            OptimizationCanonicalizer.ConfigurationSha256V2(legacyCandidate, payload));
+    }
+
+    [TestMethod]
+    public void VersionTwoCanonicalAndHashRejectEveryPostVersionTwoCandidateNotice()
+    {
+        OptimizationExecutionPayload payload = OptimizationExecutionPayload.ForGguf(
+            V2TestData.GgufPayload(
+                persistentTarget: GgufWeightFormat.Q4KM,
+                quantiser: V2TestData.Quantiser()));
+
+        foreach (OptimizationCandidateNotice notice in
+            Enum.GetValues<OptimizationCandidateNotice>().Where(value =>
+                value != OptimizationCandidateNotice.None))
+        {
+            OptimizationCandidate candidate = V2TestData.GgufCandidate(
+                weights: GgufWeightFormat.Q4KM,
+                notice: notice);
+
+            Assert.ThrowsExactly<ArgumentException>(
+                () => OptimizationCanonicalizer.CanonicalizeV2(candidate, payload),
+                $"V2 accepted candidate notice {notice}.");
+            Assert.ThrowsExactly<ArgumentException>(
+                () => OptimizationCanonicalizer.ConfigurationSha256V2(candidate, payload),
+                $"V2 hashed candidate notice {notice}.");
+        }
     }
 
     [TestMethod]

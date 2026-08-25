@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Execution;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.Gguf;
 
 namespace GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
 
@@ -30,7 +31,7 @@ internal static class OptimizationCanonicalizer
     internal static string CanonicalizeV2(
         OptimizationCandidate candidate, OptimizationExecutionPayload payload)
     {
-        RequireVersionTwoCacheVocabulary(payload);
+        RequireVersionTwoVocabulary(candidate, payload);
         return CanonicalizeCore(
             candidate, payload, contractVersion: 2, includeV3CacheAlgorithm: false);
     }
@@ -42,7 +43,7 @@ internal static class OptimizationCanonicalizer
     internal static string ConfigurationSha256V2(
         OptimizationCandidate candidate, OptimizationExecutionPayload payload)
     {
-        RequireVersionTwoCacheVocabulary(payload);
+        RequireVersionTwoVocabulary(candidate, payload);
         byte[] hash = SHA256.HashData(
             new UTF8Encoding(encoderShouldEmitUTF8Identifier: false)
                 .GetBytes(CanonicalizeV2(candidate, payload)));
@@ -50,11 +51,35 @@ internal static class OptimizationCanonicalizer
         return Convert.ToHexString(hash).ToLowerInvariant();
     }
 
-    private static void RequireVersionTwoCacheVocabulary(
+    private static void RequireVersionTwoVocabulary(
+        OptimizationCandidate candidate,
         OptimizationExecutionPayload payload)
     {
+        ArgumentNullException.ThrowIfNull(candidate);
         ArgumentNullException.ThrowIfNull(payload);
         payload.OpenVino?.RequireVersionTwoCacheVocabulary();
+
+        bool candidateUsesQ2 = candidate.Configuration is GgufRouteConfiguration
+            { Weights: GgufWeightFormat.Q2K };
+        bool payloadUsesQ2 = payload.Gguf?.PersistentTargetWeightFormat
+            == GgufWeightFormat.Q2K;
+
+        if (candidateUsesQ2 || payloadUsesQ2)
+        {
+            throw new ArgumentException(
+                "Contract version 2 predates the GGUF Q2_K product floor. "
+                + "A version-2 executor must refuse rather than reinterpret it.",
+                candidateUsesQ2 ? nameof(candidate) : nameof(payload));
+        }
+
+        if (candidate.Notice != OptimizationCandidateNotice.None)
+        {
+            throw new ArgumentException(
+                "Contract version 2 has no candidate-notice vocabulary. "
+                + "Interpreting a later warning as absent would let an older "
+                + "executor accept a plan it cannot present faithfully.",
+                nameof(candidate));
+        }
     }
 
     /// <summary>
