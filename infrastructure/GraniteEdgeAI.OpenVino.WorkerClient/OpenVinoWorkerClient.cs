@@ -10,7 +10,7 @@ namespace GraniteEdgeAI.OpenVino.WorkerClient;
 /// Connects the strict OpenVINO JSONL contract to the shared protected-process
 /// facade. Payload data crosses stdin only and never enters process arguments.
 /// </summary>
-public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
+public sealed class OpenVinoWorkerClient : IOpenVinoInspectionProgressClient
 {
     private const string ProtocolFailureMessage =
         "The OpenVINO worker protocol conversation failed validation.";
@@ -52,6 +52,13 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
 
     public async Task<IOpenVinoEvent> InspectAsync(
         StartInspectionCommand command,
+        CancellationToken cancellationToken) =>
+        await InspectAsync(command, progress: null, cancellationToken)
+            .ConfigureAwait(false);
+
+    public async Task<IOpenVinoEvent> InspectAsync(
+        StartInspectionCommand command,
+        IProgress<InspectionProgressEvent>? progress,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(command);
@@ -89,6 +96,7 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
                     processExit,
                     validator,
                     command.InspectionRunId,
+                    progress,
                     operationDeadline,
                     cancellationToken)
                 .ConfigureAwait(false);
@@ -266,6 +274,7 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
         Task processExit,
         OpenVinoConversationValidator validator,
         Guid inspectionRunId,
+        IProgress<InspectionProgressEvent>? progress,
         DateTimeOffset deadline,
         CancellationToken cancellationToken)
     {
@@ -283,7 +292,9 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
                     remaining,
                     cancellationToken)
                 .ConfigureAwait(false);
-            if (@event is InspectionCompletedEvent completed &&
+            if (@event is InspectionProgressEvent progressEvent &&
+                progressEvent.InspectionRunId != inspectionRunId ||
+                @event is InspectionCompletedEvent completed &&
                 completed.InspectionRunId != inspectionRunId ||
                 @event is InspectionFailedEvent failed &&
                 failed.InspectionRunId != inspectionRunId)
@@ -292,6 +303,10 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
             }
 
             validator.Accept(@event);
+            if (@event is InspectionProgressEvent acceptedProgress)
+            {
+                progress?.Report(acceptedProgress);
+            }
             if (@event is InspectionCompletedEvent or InspectionFailedEvent)
             {
                 return @event;

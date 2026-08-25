@@ -6,6 +6,7 @@ using GraniteEdgeAI.Features.ModelImport.Selection;
 using GraniteEdgeAI.Features.ModelInspection;
 using GraniteEdgeAI.Features.ModelInspection.Controls;
 using GraniteEdgeAI.Features.ModelInspection.Handoff;
+using GraniteEdgeAI.Features.ModelInspection.Models;
 using GraniteEdgeAI.Features.ModelInspection.Services;
 using GraniteEdgeAI.Features.Onboarding;
 using Microsoft.UI.Xaml;
@@ -33,9 +34,38 @@ public sealed class OpenVinoPackagedUiEndToEndTests
         var actions = (InspectionActionCard)page.FindName(
             "InspectionActionCardControl");
         Button checkHardware = (Button)actions.FindName("PrimaryActionButton");
-        Assert.AreEqual("Check hardware", checkHardware.Content);
+        Assert.IsTrue(actions.Presentation.Title.StartsWith(
+            "Model is ready",
+            StringComparison.Ordinal));
+        Assert.AreEqual(
+            "Choose another model or review future next steps.",
+            actions.Presentation.Message);
+        var content = (InspectionContentCard)page.FindName(
+            "InspectionContentCardControl");
+        bool warnings = content.Presentation.Mode ==
+            InspectionContentCardMode.Warnings;
+        Assert.AreEqual(
+            warnings ? "Continue to hardware check" : "Check hardware fit",
+            actions.Presentation.PrimaryAction.Text);
         Assert.IsTrue(checkHardware.IsEnabled);
-        InvokeButton(checkHardware, "Check hardware");
+        Assert.IsTrue(content.Presentation.Mode is
+            InspectionContentCardMode.Hidden or
+            InspectionContentCardMode.Warnings);
+        var model = (InspectionModelCard)page.FindName(
+            "InspectionModelCardControl");
+        InspectionDisclosure disclosure = warnings
+            ? Require(content.ActiveDisclosure)
+            : Require(model.ActiveDisclosure);
+        disclosure.RequestTargetState(isExpanded: true);
+        await WaitForAsync(
+            () => warnings
+                ? content.Presentation.IsExpanded
+                : model.Presentation.IsInspectionDetailsExpanded,
+            TimeSpan.FromSeconds(2),
+            "OpenVINO inspection details to expand");
+        InvokeButton(
+            checkHardware,
+            warnings ? "Continue to hardware check" : "Check hardware fit");
 
         HardwareInspectionPage hardware =
             Assert.IsInstanceOfType<HardwareInspectionPage>(journey.Frame.Content);
@@ -68,10 +98,51 @@ public sealed class OpenVinoPackagedUiEndToEndTests
         Assert.AreEqual(OnboardingStage.InspectModel, shell.CurrentStage);
         await Require(page.CurrentOpenVinoInspectionTask)
             .WaitAsync(TimeSpan.FromSeconds(30));
+        await WaitForAsync(
+            () => ((InspectionActionCard)page.FindName(
+                "InspectionActionCardControl")).Presentation.Title.StartsWith(
+                    "Model is ready",
+                    StringComparison.Ordinal),
+            TimeSpan.FromSeconds(10),
+            "the paced OpenVINO terminal presentation",
+            () => DescribeInspectionState(page));
         Assert.AreEqual(
             Visibility.Collapsed,
             ((Border)page.FindName("PromptSurface")).Visibility);
         return new PageJourney(shell, frame, page);
+    }
+
+    private static async Task WaitForAsync(
+        Func<bool> condition,
+        TimeSpan timeout,
+        string operation,
+        Func<string>? diagnostics = null)
+    {
+        DateTimeOffset deadline = DateTimeOffset.UtcNow + timeout;
+        while (!condition())
+        {
+            if (DateTimeOffset.UtcNow >= deadline)
+            {
+                Assert.Fail(
+                    $"Timed out waiting for {operation}. " +
+                    (diagnostics?.Invoke() ?? string.Empty));
+            }
+
+            await Task.Delay(25);
+        }
+    }
+
+    private static string DescribeInspectionState(ModelInspectionPage page)
+    {
+        var content = (InspectionContentCard)page.FindName(
+            "InspectionContentCardControl");
+        var actions = (InspectionActionCard)page.FindName(
+            "InspectionActionCardControl");
+        return $"Content={content.Presentation.Mode}; " +
+            $"section='{content.Presentation.SectionTitle}'; " +
+            $"startup='{content.Presentation.Startup.Summary}'; " +
+            $"actions='{actions.Presentation.Title}'; " +
+            $"message='{actions.Presentation.Message}'.";
     }
 
     [UITestMethod]
@@ -122,6 +193,9 @@ public sealed class OpenVinoPackagedUiEndToEndTests
         await Require(page.CurrentOpenVinoInspectionTask)
             .WaitAsync(TimeSpan.FromSeconds(30));
         TextBlock response = (TextBlock)page.FindName("PromptResponseText");
+        Assert.AreEqual(
+            Visibility.Collapsed,
+            ((Border)page.FindName("PromptSurface")).Visibility);
         Assert.IsFalse(((Button)page.FindName("PromptSendButton")).IsEnabled);
         Assert.IsFalse(response.Text.Contains(package, StringComparison.OrdinalIgnoreCase));
         Assert.IsFalse(response.Text.Contains(workerRoot, StringComparison.OrdinalIgnoreCase));

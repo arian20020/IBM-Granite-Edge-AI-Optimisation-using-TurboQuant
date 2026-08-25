@@ -10,6 +10,20 @@ namespace GraniteEdgeAI.OpenVino.Tests;
 [TestClass]
 public sealed class OpenVinoRouteServiceTests
 {
+    private static readonly string[] ExpectedDisplayStageTransitions =
+    [
+        "CheckModelPackage:Active",
+        "CheckModelPackage:Completed",
+        "ReadModelConfiguration:Active",
+        "ReadModelConfiguration:Completed",
+        "ValidateTokenizerAndChatSetup:Active",
+        "ValidateTokenizerAndChatSetup:Completed",
+        "ValidateModelStructure:Active",
+        "ValidateModelStructure:Completed",
+        "ConfirmCoreRuntimeCompatibility:Active",
+        "ConfirmCoreRuntimeCompatibility:Completed"
+    ];
+
     [TestMethod]
     public async Task ReadyPackageProducesSchemaV2HandoffAndPathFreeCpuEvidence()
     {
@@ -39,6 +53,33 @@ public sealed class OpenVinoRouteServiceTests
         string publicResult = result.ToString();
         Assert.IsFalse(publicResult.Contains(package.Root, StringComparison.OrdinalIgnoreCase));
         Assert.AreEqual(1, worker.InspectCount);
+    }
+
+    [TestMethod]
+    public async Task ReadyPackageReportsEveryInspectionStageInDisplayOrder()
+    {
+        using TemporaryPackage package = TemporaryPackage.CopyFixture();
+        FakeWorkerClient worker = new(command => new InspectionCompletedEvent(
+            command.InspectionRunId,
+            command.PackageManifestDigest,
+            command.ModelSha256,
+            command.ModelLengthBytes,
+            true,
+            true,
+            true,
+            BuildEvidence()));
+        RecordingInspectionProgress progress = new();
+
+        OpenVinoRouteInspectionResult result = await Service(worker).InspectAsync(
+            package.Root,
+            progress,
+            CancellationToken.None);
+
+        Assert.IsTrue(result.Outcome is OpenVinoRouteInspectionOutcome.Ready or
+            OpenVinoRouteInspectionOutcome.ReadyWithWarnings);
+        CollectionAssert.AreEqual(
+            ExpectedDisplayStageTransitions,
+            progress.StageTransitions.ToArray());
     }
 
     [TestMethod]
@@ -189,6 +230,20 @@ public sealed class OpenVinoRouteServiceTests
             StartSessionCommand command,
             CancellationToken cancellationToken) =>
             throw new AssertFailedException("session start is not part of inspection");
+    }
+
+    private sealed class RecordingInspectionProgress :
+        IProgress<OpenVinoRouteInspectionProgress>
+    {
+        internal List<string> StageTransitions { get; } = [];
+
+        public void Report(OpenVinoRouteInspectionProgress value)
+        {
+            if (value.StageFraction is null)
+            {
+                StageTransitions.Add($"{value.Stage}:{value.Status}");
+            }
+        }
     }
 
     private sealed class UnusedChannelFactory : IOpenVinoPromptChannelFactory

@@ -20,6 +20,26 @@ public sealed record OpenVinoRouteInspectionResult(
     public ModelInspectionHandoffV2? Handoff => HandoffLease?.Handoff;
 }
 
+public enum OpenVinoRouteInspectionStage
+{
+    CheckModelPackage,
+    ReadModelConfiguration,
+    ValidateTokenizerAndChatSetup,
+    ValidateModelStructure,
+    ConfirmCoreRuntimeCompatibility
+}
+
+public enum OpenVinoRouteInspectionStageStatus
+{
+    Active,
+    Completed
+}
+
+public sealed record OpenVinoRouteInspectionProgress(
+    OpenVinoRouteInspectionStage Stage,
+    OpenVinoRouteInspectionStageStatus Status,
+    double? StageFraction = null);
+
 public sealed class OpenVinoConversionOffer : IDisposable
 {
     private SourceModelInspectionResult? source;
@@ -182,12 +202,12 @@ public sealed class OpenVinoRouteService : IPromptRouteAdapter
         CancellationToken cancellationToken) =>
         await InspectAsync(
             packageDirectory,
-            hashProgress: null,
+            progress: null,
             cancellationToken).ConfigureAwait(false);
 
     internal async Task<OpenVinoRouteInspectionResult> InspectAsync(
         string packageDirectory,
-        Action<OpenVinoPackageHashProgress>? hashProgress,
+        IProgress<OpenVinoRouteInspectionProgress>? progress,
         CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(packageDirectory);
@@ -198,8 +218,23 @@ public sealed class OpenVinoRouteService : IPromptRouteAdapter
             throw new InvalidOperationException("The inspection could not start.");
         }
 
+        progress?.Report(new OpenVinoRouteInspectionProgress(
+            OpenVinoRouteInspectionStage.CheckModelPackage,
+            OpenVinoRouteInspectionStageStatus.Active));
         OpenVinoStaticPackageInspectionResult staticResult =
-            staticInspector.Inspect(packageDirectory, hashProgress);
+            staticInspector.Inspect(packageDirectory, hashProgress =>
+            {
+                if (hashProgress.TotalBytes <= 0)
+                {
+                    return;
+                }
+
+                progress?.Report(new OpenVinoRouteInspectionProgress(
+                    OpenVinoRouteInspectionStage.CheckModelPackage,
+                    OpenVinoRouteInspectionStageStatus.Active,
+                    (double)hashProgress.BytesCompleted /
+                        hashProgress.TotalBytes));
+            });
         if (staticResult.Status !=
                 OpenVinoStaticInspectionStatus.NativeValidationRequired ||
             staticResult.Evidence is null)
@@ -232,18 +267,38 @@ public sealed class OpenVinoRouteService : IPromptRouteAdapter
         }
 
         OpenVinoStaticPackageEvidence evidence = staticResult.Evidence;
+        progress?.Report(new OpenVinoRouteInspectionProgress(
+            OpenVinoRouteInspectionStage.CheckModelPackage,
+            OpenVinoRouteInspectionStageStatus.Completed));
+        progress?.Report(new OpenVinoRouteInspectionProgress(
+            OpenVinoRouteInspectionStage.ReadModelConfiguration,
+            OpenVinoRouteInspectionStageStatus.Active));
+        progress?.Report(new OpenVinoRouteInspectionProgress(
+            OpenVinoRouteInspectionStage.ReadModelConfiguration,
+            OpenVinoRouteInspectionStageStatus.Completed));
+        progress?.Report(new OpenVinoRouteInspectionProgress(
+            OpenVinoRouteInspectionStage.ValidateTokenizerAndChatSetup,
+            OpenVinoRouteInspectionStageStatus.Active));
         Guid inspectionRunId = Guid.NewGuid();
+        OpenVinoNativeProgressProjector nativeProgress = new(progress);
         IOpenVinoEvent terminal;
         try
         {
-            terminal = await workerClient.InspectAsync(
-                new StartInspectionCommand(
+            StartInspectionCommand command = new(
                     inspectionRunId,
                     packageDirectory,
                     evidence.PackageManifestDigest,
                     evidence.ModelSha256,
-                    evidence.ModelLengthBytes),
-                cancellationToken).ConfigureAwait(false);
+                    evidence.ModelLengthBytes);
+            terminal = workerClient is IOpenVinoInspectionProgressClient
+                progressClient
+                ? await progressClient.InspectAsync(
+                    command,
+                    nativeProgress,
+                    cancellationToken).ConfigureAwait(false)
+                : await workerClient.InspectAsync(
+                    command,
+                    cancellationToken).ConfigureAwait(false);
         }
         catch (OpenVinoWorkerClientException failure)
         {
@@ -281,6 +336,8 @@ public sealed class OpenVinoRouteService : IPromptRouteAdapter
                 OpenVinoPromptAdapter.MapFailure(code),
                 Configuration: null);
         }
+
+        nativeProgress.Complete(completed);
 
         OpenVinoRouteInspectionOutcome readyOutcome = evidence.HasChatTemplate
             ? OpenVinoRouteInspectionOutcome.Ready
@@ -324,6 +381,89 @@ public sealed class OpenVinoRouteService : IPromptRouteAdapter
             Failure: null,
             OpenVinoRouteCapability.Candidates[0],
             CompatibilityFacts: evidence);
+    }
+
+    private sealed class OpenVinoNativeProgressProjector(
+        IProgress<OpenVinoRouteInspectionProgress>? progress) :
+        IProgress<InspectionProgressEvent>
+    {
+        private bool mainModelParsed;
+        private bool tokenizerParsed;
+        private bool detokenizerParsed;
+        private bool tokenizerStageCompleted;
+        private bool modelStageCompleted;
+        private bool runtimeStageStarted;
+
+        public void Report(InspectionProgressEvent value)
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            switch (value.Stage)
+            {
+                case OpenVinoInspectionStage.MainModelParsed:
+                    mainModelParsed = true;
+                    break;
+                case OpenVinoInspectionStage.TokenizerParsed:
+                    tokenizerParsed = true;
+                    break;
+                case OpenVinoInspectionStage.DetokenizerParsed:
+                    detokenizerParsed = true;
+                    break;
+            }
+
+            Advance();
+        }
+
+        internal void Complete(InspectionCompletedEvent completed)
+        {
+            ArgumentNullException.ThrowIfNull(completed);
+            mainModelParsed |= completed.MainModelParsed;
+            tokenizerParsed |= completed.TokenizerParsed;
+            detokenizerParsed |= completed.DetokenizerParsed;
+            Advance();
+            if (!runtimeStageStarted)
+            {
+                StartRuntimeStage();
+            }
+            progress?.Report(new OpenVinoRouteInspectionProgress(
+                OpenVinoRouteInspectionStage.ConfirmCoreRuntimeCompatibility,
+                OpenVinoRouteInspectionStageStatus.Completed));
+        }
+
+        private void Advance()
+        {
+            if (!tokenizerStageCompleted && tokenizerParsed && detokenizerParsed)
+            {
+                tokenizerStageCompleted = true;
+                progress?.Report(new OpenVinoRouteInspectionProgress(
+                    OpenVinoRouteInspectionStage.ValidateTokenizerAndChatSetup,
+                    OpenVinoRouteInspectionStageStatus.Completed));
+            }
+
+            if (tokenizerStageCompleted && !modelStageCompleted && mainModelParsed)
+            {
+                progress?.Report(new OpenVinoRouteInspectionProgress(
+                    OpenVinoRouteInspectionStage.ValidateModelStructure,
+                    OpenVinoRouteInspectionStageStatus.Active));
+                modelStageCompleted = true;
+                progress?.Report(new OpenVinoRouteInspectionProgress(
+                    OpenVinoRouteInspectionStage.ValidateModelStructure,
+                    OpenVinoRouteInspectionStageStatus.Completed));
+                StartRuntimeStage();
+            }
+        }
+
+        private void StartRuntimeStage()
+        {
+            if (runtimeStageStarted)
+            {
+                return;
+            }
+
+            runtimeStageStarted = true;
+            progress?.Report(new OpenVinoRouteInspectionProgress(
+                OpenVinoRouteInspectionStage.ConfirmCoreRuntimeCompatibility,
+                OpenVinoRouteInspectionStageStatus.Active));
+        }
     }
 
     public async Task<OpenVinoRouteSession> StartSessionAsync(

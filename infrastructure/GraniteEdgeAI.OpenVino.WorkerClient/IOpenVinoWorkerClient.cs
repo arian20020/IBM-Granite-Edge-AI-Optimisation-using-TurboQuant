@@ -14,6 +14,18 @@ public interface IOpenVinoWorkerClient
         CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Extends the worker boundary with validated native inspection milestones.
+/// Older test and alternate clients can retain the terminal-only boundary.
+/// </summary>
+public interface IOpenVinoInspectionProgressClient : IOpenVinoWorkerClient
+{
+    Task<IOpenVinoEvent> InspectAsync(
+        StartInspectionCommand command,
+        IProgress<InspectionProgressEvent> progress,
+        CancellationToken cancellationToken);
+}
+
 /// <summary>A privacy-safe failure reported by the managed worker boundary.</summary>
 public sealed class OpenVinoWorkerClientException : Exception
 {

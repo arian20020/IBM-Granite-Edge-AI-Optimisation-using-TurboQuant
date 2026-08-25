@@ -587,6 +587,11 @@ public sealed partial class ModelInspectionPage : Page
         object? sender,
         InspectionDisclosureToggleRequestedEventArgs eventArguments)
     {
+        if (TryHandleOpenVinoDisclosureToggle(sender, eventArguments))
+        {
+            return;
+        }
+
         ModelInspectionRenderCoordinator? coordinator = _coordinator;
         ModelInspectionPagePresentation? presentation = CurrentPresentation;
         if (coordinator is null || presentation is null)
