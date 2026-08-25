@@ -13,6 +13,67 @@ public sealed record OptimizationExclusion(
     string EvidenceId, string CanonicalDescriptor, OptimizationExclusionReason Reason);
 
 /// <summary>
+/// Opaque stamp over the complete authority context that produced both the
+/// admitted candidates and the exclusions. Candidate proofs cover admitted
+/// rows; this stamp is what makes an all-excluded result safe to distinguish
+/// from stale or unbound evidence.
+/// </summary>
+internal sealed record OptimizationGenerationAuthority
+{
+    private OptimizationGenerationAuthority(
+        OptimizationRoute route,
+        string snapshotId,
+        string capabilitySnapshotSha256,
+        string workloadId,
+        string workloadSha256,
+        string journeySha256)
+    {
+        Route = route;
+        SnapshotId = snapshotId;
+        CapabilitySnapshotSha256 = capabilitySnapshotSha256;
+        WorkloadId = workloadId;
+        WorkloadSha256 = workloadSha256;
+        JourneySha256 = journeySha256;
+    }
+
+    private OptimizationRoute Route { get; }
+    private string SnapshotId { get; }
+    private string CapabilitySnapshotSha256 { get; }
+    private string WorkloadId { get; }
+    private string WorkloadSha256 { get; }
+    private string JourneySha256 { get; }
+
+    internal static OptimizationGenerationAuthority Create(
+        OptimizationCapabilitySnapshot snapshot,
+        OptimizationWorkload workload,
+        OptimizationJourneyBinding binding)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        ArgumentNullException.ThrowIfNull(workload);
+        ArgumentNullException.ThrowIfNull(binding);
+
+        return new OptimizationGenerationAuthority(
+            snapshot.Route,
+            snapshot.SnapshotId,
+            snapshot.CapabilitySnapshotSha256,
+            workload.WorkloadId,
+            OptimizationAdmissionProof.DigestWorkload(workload),
+            OptimizationAdmissionProof.DigestJourney(binding));
+    }
+
+    internal bool Matches(
+        OptimizationCapabilitySnapshot snapshot,
+        OptimizationWorkload workload,
+        OptimizationJourneyBinding binding) =>
+        Route == snapshot.Route
+        && SnapshotId == snapshot.SnapshotId
+        && CapabilitySnapshotSha256 == snapshot.CapabilitySnapshotSha256
+        && WorkloadId == workload.WorkloadId
+        && WorkloadSha256 == OptimizationAdmissionProof.DigestWorkload(workload)
+        && JourneySha256 == OptimizationAdmissionProof.DigestJourney(binding);
+}
+
+/// <summary>
 /// Everything the planner considered: what survived, and what did not and why.
 /// </summary>
 public sealed record CrossRouteGenerationResult
@@ -20,12 +81,21 @@ public sealed record CrossRouteGenerationResult
     internal CrossRouteGenerationResult(
         IReadOnlyList<OptimizationCandidate> candidates,
         IReadOnlyList<OptimizationExclusion> exclusions)
+        : this(candidates, exclusions, authority: null)
+    {
+    }
+
+    internal CrossRouteGenerationResult(
+        IReadOnlyList<OptimizationCandidate> candidates,
+        IReadOnlyList<OptimizationExclusion> exclusions,
+        OptimizationGenerationAuthority? authority)
     {
         ArgumentNullException.ThrowIfNull(candidates);
         ArgumentNullException.ThrowIfNull(exclusions);
 
         Candidates = Array.AsReadOnly([.. candidates]);
         Exclusions = Array.AsReadOnly([.. exclusions]);
+        Authority = authority;
     }
 
     public IReadOnlyList<OptimizationCandidate> Candidates { get; }
@@ -36,6 +106,8 @@ public sealed record CrossRouteGenerationResult
     /// apart.
     /// </summary>
     public IReadOnlyList<OptimizationExclusion> Exclusions { get; }
+
+    internal OptimizationGenerationAuthority? Authority { get; }
 }
 
 /// <summary>
@@ -118,7 +190,10 @@ internal static class CrossRouteCandidateGenerator
                     StringComparer.Ordinal)
         ];
 
-        return new CrossRouteGenerationResult(distinct, exclusions);
+        return new CrossRouteGenerationResult(
+            distinct,
+            exclusions,
+            OptimizationGenerationAuthority.Create(snapshot, workload, binding));
     }
 
     private static void GenerateOpenVino(

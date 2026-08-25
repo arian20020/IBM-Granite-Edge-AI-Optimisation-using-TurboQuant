@@ -269,7 +269,27 @@ public sealed class PrivacyCanaryTests
         "<>c__DisplayClass4_0.actual",
         "<>c.<Digest>b__91_0",
         "<>c.<DigestRouteExecutionAuthority>b__90_0",
-        "<>c.<DigestWorkload>b__88_2"
+        "<>c.<DigestWorkload>b__88_2",
+
+        // The presentation baseline identity carries only a canonical route
+        // descriptor assembled from closed enum/numeric fields and fixed-format
+        // SHA-256 digests over the already-reviewed journey identities. None is
+        // exposed by the public flattened view, and no path/filename/provider
+        // output enters the digest helper or its compiler-generated lambda.
+        "CompatibilityBaselineIdentity.ConfigurationDescriptor",
+        "CompatibilityBaselineIdentity.DigestSource",
+        "CompatibilityBaselineIdentity.OptimizationDescriptor",
+        "CompatibilityBaselineIdentity.SourceIdentitySha256",
+        "<>c.<DigestSource>b__22_0",
+
+        // The generation stamp repeats the already-reviewed snapshot, workload,
+        // and journey identifiers/digests so an all-excluded frontier can prove
+        // freshness. It is internal and opaque to presentation consumers.
+        "OptimizationGenerationAuthority.CapabilitySnapshotSha256",
+        "OptimizationGenerationAuthority.JourneySha256",
+        "OptimizationGenerationAuthority.SnapshotId",
+        "OptimizationGenerationAuthority.WorkloadId",
+        "OptimizationGenerationAuthority.WorkloadSha256"
     ];
 
     private static readonly BindingFlags AllMembers =

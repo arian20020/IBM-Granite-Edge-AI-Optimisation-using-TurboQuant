@@ -191,7 +191,7 @@ internal sealed record OptimizationAdmissionProof
         }
     }
 
-    private static string DigestWorkload(OptimizationWorkload workload) => Digest(
+    internal static string DigestWorkload(OptimizationWorkload workload) => Digest(
         workload.WorkloadId,
         workload.MinimumContextTokens.ToString(CultureInfo.InvariantCulture),
         ((int)workload.MinimumQuality).ToString(CultureInfo.InvariantCulture),
@@ -200,7 +200,7 @@ internal sealed record OptimizationAdmissionProof
             .OrderBy(value => value)
             .Select(value => value.ToString(CultureInfo.InvariantCulture))));
 
-    private static string DigestJourney(OptimizationJourneyBinding binding) => Digest(
+    internal static string DigestJourney(OptimizationJourneyBinding binding) => Digest(
         binding.ModelInspectionRunId,
         binding.ModelInspectionHandoffId,
         binding.ModelSha256,

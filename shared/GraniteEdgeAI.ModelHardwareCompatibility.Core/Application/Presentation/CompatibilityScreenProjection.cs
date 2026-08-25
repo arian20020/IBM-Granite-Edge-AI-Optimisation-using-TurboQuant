@@ -1,13 +1,151 @@
+using System.Globalization;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Candidates;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Contracts;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.FitAssessment;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Estimation;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.ModeSelection;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.Gguf;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.OpenVino;
 
 namespace GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation;
+
+/// <summary>
+/// Explicit identity of the imported/current setup. It is source-bound and can
+/// only describe the runtime-profile baseline; a list position is never an
+/// identity.
+/// </summary>
+internal sealed record CompatibilityBaselineIdentity
+{
+    private CompatibilityBaselineIdentity(
+        CandidateFingerprint fingerprint,
+        CandidatePreparation preparation,
+        string configurationDescriptor,
+        int contextTokens,
+        string sourceIdentitySha256)
+    {
+        Fingerprint = fingerprint;
+        Preparation = preparation;
+        ConfigurationDescriptor = configurationDescriptor;
+        ContextTokens = contextTokens;
+        SourceIdentitySha256 = sourceIdentitySha256;
+    }
+
+    internal CandidateFingerprint Fingerprint { get; }
+    internal CandidatePreparation Preparation { get; }
+    internal string ConfigurationDescriptor { get; }
+    internal int ContextTokens { get; }
+    internal string SourceIdentitySha256 { get; }
+
+    internal string OptimizationDescriptor =>
+        $"{ConfigurationDescriptor}|ctx={ContextTokens}";
+
+    internal static CompatibilityBaselineIdentity Create(
+        CandidatePreparation preparation,
+        RouteConfiguration configuration,
+        ContextTokenCount context,
+        OptimizationJourneyBinding binding)
+    {
+        ArgumentNullException.ThrowIfNull(configuration);
+        ArgumentNullException.ThrowIfNull(binding);
+
+        if (preparation != CandidatePreparation.RuntimeProfileOnly)
+        {
+            throw new ArgumentException(
+                "The optimization baseline must be the imported source under a "
+                + "runtime-only profile; conversion is an alternative, not a baseline.",
+                nameof(preparation));
+        }
+
+        return new CompatibilityBaselineIdentity(
+            CandidateFingerprint.Compute(configuration, context, preparation),
+            preparation,
+            configuration.CanonicalDescriptor,
+            context.Tokens,
+            DigestSource(configuration.CanonicalDescriptor, context.Tokens, binding));
+    }
+
+    internal bool Matches(
+        EvaluatedCandidate candidate,
+        OptimizationJourneyBinding binding) =>
+        candidate.Candidate.IsBaseline
+        && candidate.Candidate.Configuration.CanonicalDescriptor
+            == ConfigurationDescriptor
+        && candidate.Context.Tokens == ContextTokens
+        && SourceIdentitySha256 == DigestSource(
+            candidate.Candidate.Configuration.CanonicalDescriptor,
+            candidate.Context.Tokens,
+            binding);
+
+    private static string DigestSource(
+        string configurationDescriptor,
+        int contextTokens,
+        OptimizationJourneyBinding binding)
+    {
+        string[] fields =
+        [
+            configurationDescriptor,
+            contextTokens.ToString(CultureInfo.InvariantCulture),
+            ((int)CandidatePreparation.RuntimeProfileOnly).ToString(
+                CultureInfo.InvariantCulture),
+            binding.ModelInspectionRunId,
+            binding.ModelInspectionHandoffId,
+            binding.ModelSha256,
+            binding.ModelLengthBytes.ToString(CultureInfo.InvariantCulture),
+            binding.ProductHardwareRunId,
+            binding.HardwareSnapshotSha256
+        ];
+        string canonical = string.Concat(fields.Select(field =>
+            $"{field.Length.ToString(CultureInfo.InvariantCulture)}:{field}"));
+        return Convert.ToHexString(SHA256.HashData(
+            new UTF8Encoding(false).GetBytes(canonical))).ToLowerInvariant();
+    }
+}
+
+/// <summary>Exact authority inputs paired with the generated frontier.</summary>
+internal sealed record CompatibilityOptimizationProjectionInput
+{
+    private CompatibilityOptimizationProjectionInput(
+        CrossRouteGenerationResult generated,
+        OptimizationCapabilitySnapshot snapshot,
+        OptimizationWorkload workload,
+        OptimizationJourneyBinding binding,
+        CompatibilityBaselineIdentity baseline)
+    {
+        Generated = generated;
+        Snapshot = snapshot;
+        Workload = workload;
+        Binding = binding;
+        Baseline = baseline;
+    }
+
+    internal CrossRouteGenerationResult Generated { get; }
+    internal OptimizationCapabilitySnapshot Snapshot { get; }
+    internal OptimizationWorkload Workload { get; }
+    internal OptimizationJourneyBinding Binding { get; }
+    internal CompatibilityBaselineIdentity Baseline { get; }
+
+    internal static CompatibilityOptimizationProjectionInput Create(
+        CrossRouteGenerationResult generated,
+        OptimizationCapabilitySnapshot snapshot,
+        OptimizationWorkload workload,
+        OptimizationJourneyBinding binding,
+        CompatibilityBaselineIdentity baseline)
+    {
+        ArgumentNullException.ThrowIfNull(generated);
+        ArgumentNullException.ThrowIfNull(snapshot);
+        ArgumentNullException.ThrowIfNull(workload);
+        ArgumentNullException.ThrowIfNull(binding);
+        ArgumentNullException.ThrowIfNull(baseline);
+
+        return new CompatibilityOptimizationProjectionInput(
+            generated, snapshot, workload, binding, baseline);
+    }
+}
 
 /// <summary>
 /// One finding, flattened for a caller outside this assembly.
@@ -50,7 +188,8 @@ public sealed record CompatibilityScreenModel
         BaselineExclusionReason baselineExclusionReason,
         bool useCurrentModelAvailable,
         bool continueEnabled,
-        CompatibilitySetupView? setup)
+        CompatibilitySetupView? setup,
+        CompatibilityOptimizationView? optimization)
     {
         Setup = setup;
         State = state;
@@ -59,6 +198,7 @@ public sealed record CompatibilityScreenModel
         BaselineExclusionReason = baselineExclusionReason;
         UseCurrentModelAvailable = useCurrentModelAvailable;
         ContinueEnabled = continueEnabled;
+        Optimization = optimization;
     }
 
     public CompatibilityScreenState State { get; }
@@ -99,6 +239,12 @@ public sealed record CompatibilityScreenModel
     public CompatibilitySetupView? Setup { get; }
 
     /// <summary>
+    /// Fully resolved choices only for <see cref="CompatibilityScreenState.OptimisationRequired"/>.
+    /// Null elsewhere; WinUI must not rebuild a frontier to populate it.
+    /// </summary>
+    public CompatibilityOptimizationView? Optimization { get; }
+
+    /// <summary>
     /// Builds a screen model directly, for Debug fixtures and tests that need to
     /// render a state without an engine run behind it.
     ///
@@ -115,7 +261,8 @@ public sealed record CompatibilityScreenModel
         BaselineExclusionReason baselineExclusionReason,
         bool useCurrentModelAvailable,
         bool continueEnabled,
-        CompatibilitySetupView? setup = null)
+        CompatibilitySetupView? setup = null,
+        CompatibilityOptimizationView? optimization = null)
     {
         ArgumentNullException.ThrowIfNull(findings);
         ArgumentNullException.ThrowIfNull(modes);
@@ -133,7 +280,8 @@ public sealed record CompatibilityScreenModel
             baselineExclusionReason,
             useCurrentModelAvailable,
             continueEnabled,
-            setup);
+            setup,
+            optimization);
     }
 
     internal static CompatibilityScreenModel From(CompatibilityRunResult result)
@@ -166,7 +314,292 @@ public sealed record CompatibilityScreenModel
             result.Assessment?.UseCurrentModelAvailable ?? false,
             state is CompatibilityScreenState.EstimatedCompatible
                 or CompatibilityScreenState.OptimisationRequired,
-            DescribeSetup(result.Assessment));
+            DescribeSetup(result.Assessment),
+            optimization: null);
+    }
+
+    /// <summary>
+    /// Projects the hardware-relative frontier using the exact authority that
+    /// generated it. Any mismatch is unknown evidence, never a no-fit claim.
+    /// </summary>
+    internal static CompatibilityScreenModel From(
+        CompatibilityRunResult result,
+        CompatibilityOptimizationProjectionInput optimization)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+        ArgumentNullException.ThrowIfNull(optimization);
+
+        CompatibilityScreenModel original = From(result);
+        if (result.Outcome != CompatibilityRunOutcome.Completed
+            || result.Assessment is not { } assessment)
+        {
+            return original;
+        }
+
+        ProjectionDecision decision = DecideOptimizationState(assessment, optimization);
+        bool actionable = decision.State is CompatibilityScreenState.EstimatedCompatible
+            or CompatibilityScreenState.OptimisationRequired;
+
+        return new CompatibilityScreenModel(
+            decision.State,
+            original.Findings,
+            original.Modes,
+            original.BaselineExclusionReason,
+            decision.State == CompatibilityScreenState.EstimatedCompatible,
+            actionable,
+            decision.Setup,
+            decision.Optimization);
+    }
+
+    private sealed record ProjectionDecision(
+        CompatibilityScreenState State,
+        CompatibilityOptimizationView? Optimization,
+        CompatibilitySetupView? Setup);
+
+    private static ProjectionDecision DecideOptimizationState(
+        CompatibilityAssessment assessment,
+        CompatibilityOptimizationProjectionInput input)
+    {
+        EvaluatedCandidate[] matchingBaselines =
+        [
+            .. assessment.EvaluatedCandidates.Where(candidate =>
+                candidate.Candidate.IsBaseline
+                && input.Baseline.Matches(candidate, input.Binding))
+        ];
+
+        if (matchingBaselines.Length != 1
+            || assessment.BaselineFingerprint != matchingBaselines[0].Fingerprint
+            || input.Baseline.Preparation != CandidatePreparation.RuntimeProfileOnly
+            || !ValidGeneratedAuthority(input))
+        {
+            return new ProjectionDecision(
+                CompatibilityScreenState.NotEstablished, null, null);
+        }
+
+        EvaluatedCandidate baseline = matchingBaselines[0];
+        if (!Enum.IsDefined(baseline.Fit.State))
+        {
+            return new ProjectionDecision(
+                CompatibilityScreenState.NotEstablished, null, null);
+        }
+
+        // An incomplete frontier cannot support even a positive baseline
+        // verdict for this screen: the choices it would present are not known
+        // to be complete under the current authority.
+        if (input.Generated.Exclusions.Any(exclusion =>
+            exclusion.Reason is OptimizationExclusionReason.EstimateNotEstablished
+                or OptimizationExclusionReason.ExecutionAuthorityNotEstablished))
+        {
+            return new ProjectionDecision(
+                CompatibilityScreenState.NotEstablished, null, null);
+        }
+
+        IReadOnlyList<OptimizationCandidate> alternatives =
+        [
+            .. input.Generated.Candidates.Where(candidate =>
+                candidate.CanonicalDescriptor != input.Baseline.OptimizationDescriptor)
+        ];
+
+        bool currentFrontierSaysBaselineFits = input.Generated.Candidates.Any(
+            candidate => candidate.CanonicalDescriptor
+                == input.Baseline.OptimizationDescriptor);
+        if (baseline.Fit.State == CompatibilityFitState.DoesNotFit
+            && currentFrontierSaysBaselineFits)
+        {
+            return new ProjectionDecision(
+                CompatibilityScreenState.NotEstablished, null, null);
+        }
+
+        if (baseline.Fit.State is CompatibilityFitState.Safe
+            or CompatibilityFitState.Narrow)
+        {
+            return new ProjectionDecision(
+                CompatibilityScreenState.EstimatedCompatible,
+                null,
+                Describe(baseline));
+        }
+
+        if (baseline.Fit.State != CompatibilityFitState.DoesNotFit)
+        {
+            return new ProjectionDecision(
+                CompatibilityScreenState.NotEstablished, null, null);
+        }
+
+        if (alternatives.Count > 0)
+        {
+            CompatibilityOptimizationView? view = BuildOptimizationView(alternatives);
+            return view is null
+                ? new ProjectionDecision(
+                    CompatibilityScreenState.NotEstablished, null, null)
+                : new ProjectionDecision(
+                    CompatibilityScreenState.OptimisationRequired,
+                    view,
+                    Describe(baseline));
+        }
+
+        return new ProjectionDecision(
+            CompatibilityScreenState.NoEstimatedSafeConfiguration,
+            null,
+            Describe(baseline));
+    }
+
+    private static bool ValidGeneratedAuthority(
+        CompatibilityOptimizationProjectionInput input)
+    {
+        if (input.Generated.Authority is not { } generationAuthority
+            || !generationAuthority.Matches(
+                input.Snapshot, input.Workload, input.Binding))
+        {
+            return false;
+        }
+
+        if (input.Generated.Candidates
+                .GroupBy(candidate => candidate.CanonicalDescriptor, StringComparer.Ordinal)
+                .Any(group => group.Count() != 1))
+        {
+            return false;
+        }
+
+        foreach (OptimizationExclusion exclusion in input.Generated.Exclusions)
+        {
+            if (string.IsNullOrWhiteSpace(exclusion.EvidenceId)
+                || string.IsNullOrWhiteSpace(exclusion.CanonicalDescriptor)
+                || exclusion.Reason == OptimizationExclusionReason.None
+                || !Enum.IsDefined(exclusion.Reason))
+            {
+                return false;
+            }
+        }
+
+        foreach (OptimizationCandidate candidate in input.Generated.Candidates)
+        {
+            OptimizationAdmissionProof? proof = candidate.AdmissionProof;
+            if (candidate.Route != input.Snapshot.Route
+                || !Enum.IsDefined(candidate.Route)
+                || !Enum.IsDefined(candidate.Metrics.Quality)
+                || !Enum.IsDefined(candidate.Metrics.Performance)
+                || !Enum.IsDefined(candidate.Metrics.Stability)
+                || !Enum.IsDefined(candidate.Notice)
+                || !Enum.IsDefined(candidate.ConversionProvenance)
+                || proof is null
+                || !proof.MatchesCandidate(candidate)
+                || !proof.MatchesAuthority(
+                    input.Snapshot, input.Workload, input.Binding)
+                || !OptimizationSupportLevelPolicy.IsAdmitted(proof.SupportLevel)
+                || !candidate.Metrics.FitsSafely
+                || !candidate.Metrics.FitsDiskSafely)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static CompatibilityOptimizationView? BuildOptimizationView(
+        IReadOnlyList<OptimizationCandidate> alternatives)
+    {
+        OptimizationPreferenceSelection automatic =
+            OptimizationPreferenceSelection.Automatic();
+        OptimizationSelection? recommended =
+            OptimizationPreferenceResolver.Resolve(alternatives, automatic);
+        if (recommended is null)
+        {
+            return null;
+        }
+
+        List<CompatibilityOptimizationModeView> modes =
+        [CreateMode(CompatibilityOptimizationLabelCode.Automatic, null, recommended)];
+
+        (CompatibilityOptimizationLabelCode Label, int Slider)[] manual =
+        [
+            (CompatibilityOptimizationLabelCode.MaximumEfficiency, 10),
+            (CompatibilityOptimizationLabelCode.Efficient, 30),
+            (CompatibilityOptimizationLabelCode.Balanced, 50),
+            (CompatibilityOptimizationLabelCode.HighCapability, 70),
+            (CompatibilityOptimizationLabelCode.MaximumCapability, 90)
+        ];
+
+        foreach ((CompatibilityOptimizationLabelCode label, int slider) in manual)
+        {
+            OptimizationSelection? selection = OptimizationPreferenceResolver.Resolve(
+                alternatives, OptimizationPreferenceSelection.Manual(slider));
+            if (selection is null)
+            {
+                return null;
+            }
+
+            modes.Add(CreateMode(label, slider, selection));
+        }
+
+        OptimizationCandidate chosen = recommended.Candidate;
+        return new CompatibilityOptimizationView(
+            CompatibilityOptimizationLabelCode.Automatic,
+            recommendedSliderValue: null,
+            modes,
+            chosen.Metrics.RequiresPersistentChange,
+            chosen.ConversionProvenance
+                == OptimizationConversionProvenance.ControlledRequantisation,
+            NoticeFor(chosen));
+    }
+
+    private static CompatibilityOptimizationModeView CreateMode(
+        CompatibilityOptimizationLabelCode label,
+        int? slider,
+        OptimizationSelection selection)
+    {
+        OptimizationCandidate candidate = selection.Candidate;
+        GgufRouteConfiguration? gguf =
+            candidate.Configuration as GgufRouteConfiguration;
+        OpenVinoRouteConfiguration? openVino =
+            candidate.Configuration as OpenVinoRouteConfiguration;
+
+        return new CompatibilityOptimizationModeView(
+            label,
+            slider,
+            candidate.Route,
+            gguf?.Weights,
+            gguf?.KvCache,
+            openVino?.Weights,
+            openVino?.KvCache,
+            gguf?.Device ?? openVino?.Device ?? DeviceRouteId.Unspecified,
+            candidate.Metrics.Quality,
+            candidate.Metrics.ContextTokens,
+            candidate.Metrics.PredictedPeakBytes,
+            candidate.Metrics.SafeBudgetBytes,
+            candidate.Metrics.HeadroomBytes,
+            candidate.Metrics.RequiresPersistentChange,
+            candidate.ConversionProvenance
+                == OptimizationConversionProvenance.ControlledRequantisation,
+            NoticeFor(candidate),
+            candidate.IsExperimental,
+            selection.SharedWithAdjacentBand);
+    }
+
+    private static OptimizationQualityNotice NoticeFor(
+        OptimizationCandidate candidate)
+    {
+        if (candidate.Metrics.Quality == OptimizationAssessment.Poor)
+        {
+            return OptimizationQualityNotice.SignificantQualityReduction;
+        }
+
+        bool requantises = candidate.ConversionProvenance
+            == OptimizationConversionProvenance.ControlledRequantisation;
+        return candidate.Metrics.Quality switch
+        {
+            OptimizationAssessment.Excellent when !requantises =>
+                OptimizationQualityNotice.None,
+            OptimizationAssessment.Good when !requantises =>
+                OptimizationQualityNotice.None,
+            OptimizationAssessment.Good =>
+                OptimizationQualityNotice.SomeQualityReduction,
+            OptimizationAssessment.Acceptable when requantises =>
+                OptimizationQualityNotice.NoticeableQualityReduction,
+            OptimizationAssessment.Acceptable =>
+                OptimizationQualityNotice.SomeQualityReduction,
+            _ => OptimizationQualityNotice.NoticeableQualityReduction
+        };
     }
 
     /// <summary>
@@ -346,11 +779,27 @@ public sealed record CompatibilityScreenModel
             return CompatibilityScreenState.NoEstimatedSafeConfiguration;
         }
 
-        // Narrow means it fits only after every mandatory margin, with little
-        // room left. Saying so is the difference between a user proceeding
-        // informed and proceeding surprised.
-        return admitted.Any(candidate => candidate.Fit.State == CompatibilityFitState.Safe)
-            ? CompatibilityScreenState.EstimatedCompatible
-            : CompatibilityScreenState.OptimisationRequired;
+        EvaluatedCandidate[] baselines = assessment.BaselineFingerprint is { } fingerprint
+            ? [.. assessment.EvaluatedCandidates.Where(candidate =>
+                candidate.Fingerprint == fingerprint)]
+            : [];
+        if (baselines.Length > 1)
+        {
+            return CompatibilityScreenState.NotEstablished;
+        }
+
+        EvaluatedCandidate? baseline = baselines.FirstOrDefault();
+
+        // A narrow baseline still runs as imported. Narrowness is a warning on
+        // that setup, not an instruction to create a different model. Only a
+        // failed baseline with a separate admitted setup is optimisation-
+        // required.
+        if (baseline?.Fit.State is CompatibilityFitState.Safe
+            or CompatibilityFitState.Narrow)
+        {
+            return CompatibilityScreenState.EstimatedCompatible;
+        }
+
+        return CompatibilityScreenState.OptimisationRequired;
     }
 }

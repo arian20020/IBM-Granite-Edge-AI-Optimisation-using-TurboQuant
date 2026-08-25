@@ -5,10 +5,13 @@ using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Contracts;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Estimation;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.FitAssessment;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.ModeSelection;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Execution;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Ports;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.Gguf;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.OpenVino;
 
 namespace GraniteEdgeAI.ModelHardwareCompatibility.Tests.Application.Presentation;
 
@@ -16,6 +19,9 @@ namespace GraniteEdgeAI.ModelHardwareCompatibility.Tests.Application.Presentatio
 public sealed class CompatibilityScreenProjectionTests
 {
     private const ulong Gibibyte = 1024UL * 1024 * 1024;
+    private const string Digest =
+        "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";
+    private const string Commit = "0123456789abcdef0123456789abcdef01234567";
 
     private sealed class Gateway : ICompatibilityInputGateway
     {
@@ -97,12 +103,783 @@ public sealed class CompatibilityScreenProjectionTests
             DateTimeOffset.UtcNow,
             DateTimeOffset.UtcNow);
 
+    private static EvaluatedCandidate Evaluated(
+        CandidatePreparation preparation,
+        CompatibilityFitState fit,
+        bool isBaseline,
+        GgufKvCacheFormat cache)
+        => EvaluatedForConfiguration(
+            preparation,
+            fit,
+            isBaseline,
+            GgufRouteConfiguration.Create(
+                GgufWeightFormat.Imported,
+                cache,
+                CompatibilityBackend.Cpu,
+                DeviceRouteId.Cpu,
+                GpuOffloadLevel.None));
+
+    private static EvaluatedCandidate EvaluatedForConfiguration(
+        CandidatePreparation preparation,
+        CompatibilityFitState fit,
+        bool isBaseline,
+        RouteConfiguration configuration)
+    {
+        CompatibilityCandidate candidate = CompatibilityCandidate.Create(
+            configuration,
+            ContextTokenCount.FromTokens(4096),
+            preparation,
+            isBaseline ? "baseline" : "alternative",
+            isExperimental: false,
+            isBaseline);
+
+        ResourceEstimate estimate = ResourceEstimate.Established(
+            [ResourceComponent.Create(
+                ResourceComponentKind.Weights,
+                ResourceTarget.SystemMemory,
+                ByteCount.FromBytes(2 * Gibibyte),
+                new HashSet<LifecyclePhase> { LifecyclePhase.Load })],
+            new HashSet<EstimationLimitation>());
+
+        return EvaluatedCandidate.Create(
+            candidate,
+            estimate,
+            ResourcePhaseComposer.Compose(estimate.Components),
+            new FitAssessment(
+                fit,
+                fit is CompatibilityFitState.Safe or CompatibilityFitState.Narrow
+                    ? FitLimitingReason.None
+                    : FitLimitingReason.InsufficientSystemMemory,
+                ByteCount.FromBytes(3 * Gibibyte),
+                ByteCount.FromBytes(2 * Gibibyte),
+                fit is CompatibilityFitState.Safe or CompatibilityFitState.Narrow
+                    ? ByteCount.FromBytes(Gibibyte)
+                    : ByteCount.Zero,
+                1.5m),
+            WeightQuantisation.Q4_K_M,
+            EvidenceGrade.Estimated,
+            PerformanceIndicator.NotEstablished(),
+            ByteCount.Zero);
+    }
+
+    private static CompatibilityRunResult CompletedWith(
+        EvaluatedCandidate baseline,
+        params EvaluatedCandidate[] alternatives)
+    {
+        IReadOnlyList<EvaluatedCandidate> evaluated = [baseline, .. alternatives];
+        IReadOnlyList<CompatibilityModeSelection> selections =
+            baseline.Candidate.Configuration is GgufRouteConfiguration gguf
+                ? ModeSelector.SelectAll(
+                    ModeSelectionRequest.Create(
+                        evaluated,
+                        new HashSet<string>(),
+                        ContextTokenCount.FromTokens(4096),
+                        gguf)).Selections
+                :
+                [
+                    CompatibilityModeSelection.NotEstablished(
+                        CompatibilityMode.Automatic),
+                    CompatibilityModeSelection.NotEstablished(
+                        CompatibilityMode.Quality),
+                    CompatibilityModeSelection.NotEstablished(
+                        CompatibilityMode.Balanced),
+                    CompatibilityModeSelection.NotEstablished(
+                        CompatibilityMode.Efficiency)
+                ];
+
+        CompatibilityAssessment assessment = CompatibilityAssessment.Create(
+            evaluated,
+            selections,
+            baseline.Fingerprint,
+            BaselineExclusionReason.None,
+            baseline.Fit.State is CompatibilityFitState.Safe
+                or CompatibilityFitState.Narrow);
+
+        return CompatibilityRunResult.Completed(
+            CompatibilityRunId.New(),
+            assessment,
+            [],
+            [PolicyIdentity.Create("estimator", "v1", PolicyProvenance.Provisional)],
+            DateTimeOffset.UtcNow,
+            DateTimeOffset.UtcNow);
+    }
+
+    private static OptimizationJourneyBinding Binding(string hardwareRun = "hw-run-1") =>
+        OptimizationJourneyBinding.Create(
+            "mi-run-1", "mi-handoff-1", Digest, 3 * Gibibyte, hardwareRun, Digest);
+
+    private static OptimizationWorkload Workload() =>
+        OptimizationWorkload.Create(
+            "chat", 512, OptimizationAssessment.Poor,
+            [ContextTokenCount.FromTokens(4096)]);
+
+    private static OptimizationCapabilitySnapshot OptimizationSnapshot()
+    {
+        GgufAdmittedConfiguration admitted = GgufAdmittedConfiguration.Create(
+            "gguf-q8-cache",
+            CompatibilityBackend.Cpu,
+            DeviceRouteId.Cpu,
+            GgufWeightFormat.Imported,
+            GgufKvCacheFormat.Q8_0,
+            GpuOffloadLevel.None,
+            512,
+            32768,
+            SupportLevel.DeclaredSupported,
+            requiresEvidence: false);
+
+        return OptimizationCapabilitySnapshot.ForGguf(
+            "gguf-cap",
+            Digest,
+            GgufCapabilityPayload.Create(
+                "b4321",
+                [admitted],
+                runtimeAuthority: GgufRuntimeAuthority.Create(
+                    "b4321",
+                    Commit,
+                    [GgufExecutionProfileAuthority.Create(
+                        admitted.EvidenceId,
+                        EvidenceGrade.Estimated,
+                        "profile",
+                        flashAttention: false,
+                        threadCount: 4,
+                        batchSize: 128,
+                        maximumGeneratedTokens: 256)])));
+    }
+
+    private static OptimizationCapabilitySnapshot OpenVinoSnapshot()
+    {
+        OpenVinoAdmittedConfiguration admitted = OpenVinoAdmittedConfiguration.Create(
+            "ov-int4",
+            DeviceRouteId.Cpu,
+            OpenVinoWeightFormat.Int4,
+            OpenVinoKvCacheFormat.U8,
+            OpenVinoPerformanceHint.Latency,
+            OpenVinoCompiledCachePolicy.Disabled,
+            1,
+            512,
+            32768,
+            SupportLevel.DeclaredSupported,
+            requiresEvidence: false);
+
+        return OptimizationCapabilitySnapshot.ForOpenVino(
+            "ov-cap",
+            Digest,
+            OpenVinoCapabilityPayload.Create(
+                "2026.1.0",
+                [admitted],
+                [OpenVinoExecutionAuthority.Create(
+                    "ov-int4",
+                    "ov-int4",
+                    OpenVinoWeightPrecision.Fp16,
+                    OpenVinoBuildIdentity.Create(
+                        "2026.1.0", "2026.1.0", "2026.1.0", Digest),
+                    new Dictionary<string, string>(StringComparer.Ordinal)
+                    {
+                        ["openvino"] = "2026.1.0"
+                    },
+                    compiledCacheIsDisposable: true,
+                    turboQuantBuild: null)]));
+    }
+
+    private static CrossRouteGenerationResult AdmittedAlternative(
+        OptimizationCapabilitySnapshot snapshot,
+        OptimizationWorkload workload,
+        OptimizationJourneyBinding binding) =>
+        CrossRouteCandidateGenerator.Generate(
+            snapshot,
+            ModelFacts(),
+            workload,
+            binding,
+            ByteCount.FromBytes(32 * Gibibyte),
+            ByteCount.FromBytes(500 * Gibibyte),
+            EstimatorPolicy.ProvisionalV1(),
+            new HashSet<string>());
+
+    private static CompatibilityBaselineIdentity BaselineIdentity(
+        CompatibilityRunResult result,
+        OptimizationJourneyBinding binding)
+    {
+        EvaluatedCandidate baseline = result.Assessment!.EvaluatedCandidates
+            .Single(candidate => candidate.Candidate.IsBaseline);
+
+        return IdentityFor(baseline, binding);
+    }
+
+    private static CompatibilityBaselineIdentity IdentityFor(
+        EvaluatedCandidate baseline,
+        OptimizationJourneyBinding binding) =>
+        CompatibilityBaselineIdentity.Create(
+            CandidatePreparation.RuntimeProfileOnly,
+            baseline.Candidate.Configuration,
+            baseline.Context,
+            binding);
+
+    private static CompatibilityScreenModel ProjectWith(
+        CompatibilityRunResult result,
+        CrossRouteGenerationResult generated,
+        OptimizationCapabilitySnapshot snapshot,
+        OptimizationWorkload workload,
+        OptimizationJourneyBinding generatedBinding,
+        OptimizationJourneyBinding? currentBinding = null) =>
+        CompatibilityScreenModel.From(
+            result,
+            CompatibilityOptimizationProjectionInput.Create(
+                generated,
+                snapshot,
+                workload,
+                currentBinding ?? generatedBinding,
+                BaselineIdentity(result, generatedBinding)));
+
     [TestMethod]
     public void AGenerousMachine_ShowsEstimatedCompatible()
     {
         Assert.AreEqual(
             nameof(CompatibilityScreenState.EstimatedCompatible),
             CompatibilityScreenModel.From(RunWith(64)).State.ToString());
+    }
+
+    [TestMethod]
+    public void BaselineFailsButAnAdmittedAlternativeFits_ShowsOptimisationRequired()
+    {
+        // Regression caught: deciding from "anything fits" labels a model that
+        // cannot run as imported as already compatible and skips quantisation.
+        EvaluatedCandidate baseline = Evaluated(
+            CandidatePreparation.RuntimeProfileOnly,
+            CompatibilityFitState.DoesNotFit,
+            isBaseline: true,
+            GgufKvCacheFormat.F16);
+        EvaluatedCandidate alternative = Evaluated(
+            CandidatePreparation.WeightConversionRequired,
+            CompatibilityFitState.Safe,
+            isBaseline: false,
+            GgufKvCacheFormat.Q8_0);
+
+        Assert.AreEqual(
+            CompatibilityScreenState.OptimisationRequired,
+            CompatibilityScreenModel.From(CompletedWith(baseline, alternative)).State);
+    }
+
+    [TestMethod]
+    public void DecisionTable_BaselineFits_RemainsEstimatedCompatible()
+    {
+        CompatibilityRunResult result = CompletedWith(Evaluated(
+            CandidatePreparation.RuntimeProfileOnly,
+            CompatibilityFitState.Narrow,
+            isBaseline: true,
+            GgufKvCacheFormat.F16));
+        OptimizationCapabilitySnapshot snapshot = OptimizationSnapshot();
+        OptimizationWorkload workload = Workload();
+        OptimizationJourneyBinding binding = Binding();
+
+        CompatibilityScreenModel model = ProjectWith(
+            result,
+            AdmittedAlternative(snapshot, workload, binding),
+            snapshot,
+            workload,
+            binding);
+
+        Assert.AreEqual(CompatibilityScreenState.EstimatedCompatible, model.State);
+        Assert.AreEqual(CompatibilityFitState.Narrow, model.Setup!.Fit);
+    }
+
+    [TestMethod]
+    public void DecisionTable_BaselineFailsAndAdmittedAlternativeFits_ProjectsModes()
+    {
+        CompatibilityRunResult result = CompletedWith(Evaluated(
+            CandidatePreparation.RuntimeProfileOnly,
+            CompatibilityFitState.DoesNotFit,
+            isBaseline: true,
+            GgufKvCacheFormat.F16));
+        OptimizationCapabilitySnapshot snapshot = OptimizationSnapshot();
+        OptimizationWorkload workload = Workload();
+        OptimizationJourneyBinding binding = Binding();
+
+        CompatibilityScreenModel model = ProjectWith(
+            result,
+            AdmittedAlternative(snapshot, workload, binding),
+            snapshot,
+            workload,
+            binding);
+
+        Assert.AreEqual(CompatibilityScreenState.OptimisationRequired, model.State);
+        Assert.IsNotNull(model.Optimization);
+        Assert.AreEqual(6, model.Optimization.Modes.Count);
+        Assert.AreEqual(
+            CompatibilityOptimizationLabelCode.Automatic,
+            model.Optimization.RecommendedLabelCode);
+        Assert.IsNull(model.Optimization.RecommendedSliderValue);
+        Assert.IsFalse(model.Optimization.RequiresPersistentArtifact);
+        Assert.IsFalse(model.Optimization.RequiresRequantisationAcknowledgement);
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                CompatibilityOptimizationLabelCode.Automatic,
+                CompatibilityOptimizationLabelCode.MaximumEfficiency,
+                CompatibilityOptimizationLabelCode.Efficient,
+                CompatibilityOptimizationLabelCode.Balanced,
+                CompatibilityOptimizationLabelCode.HighCapability,
+                CompatibilityOptimizationLabelCode.MaximumCapability
+            },
+            model.Optimization.Modes.Select(mode => mode.LabelCode).ToArray());
+        Assert.IsTrue(model.Optimization.Modes.All(mode =>
+            mode.Route == OptimizationRoute.Gguf
+            && mode.GgufKvCache == GgufKvCacheFormat.Q8_0
+            && mode.OpenVinoKvCache is null));
+    }
+
+    [TestMethod]
+    public void OptimisationRequired_SetupDescribesTheFailingBaselineNotAnOldModeChoice()
+    {
+        EvaluatedCandidate baseline = Evaluated(
+            CandidatePreparation.None,
+            CompatibilityFitState.DoesNotFit,
+            isBaseline: true,
+            GgufKvCacheFormat.F16);
+        EvaluatedCandidate oldAlternative = Evaluated(
+            CandidatePreparation.RuntimeProfileOnly,
+            CompatibilityFitState.Safe,
+            isBaseline: false,
+            GgufKvCacheFormat.Q8_0);
+        CompatibilityRunResult result = CompletedWith(baseline, oldAlternative);
+        OptimizationCapabilitySnapshot snapshot = OptimizationSnapshot();
+        OptimizationWorkload workload = Workload();
+        OptimizationJourneyBinding binding = Binding();
+
+        CompatibilityScreenModel model = ProjectWith(
+            result,
+            AdmittedAlternative(snapshot, workload, binding),
+            snapshot,
+            workload,
+            binding);
+
+        Assert.AreEqual(CompatibilityFitState.DoesNotFit, model.Setup!.Fit);
+    }
+
+    [TestMethod]
+    public void OpenVinoAlternative_IsFlattenedWithoutProviderPayloads()
+    {
+        OpenVinoRouteConfiguration imported = OpenVinoRouteConfiguration.Create(
+            OpenVinoWeightFormat.Original,
+            OpenVinoKvCacheFormat.U8,
+            DeviceRouteId.Cpu,
+            OpenVinoPerformanceHint.Latency,
+            OpenVinoCompiledCachePolicy.Disabled,
+            1);
+        CompatibilityRunResult result = CompletedWith(EvaluatedForConfiguration(
+            CandidatePreparation.None,
+            CompatibilityFitState.DoesNotFit,
+            isBaseline: true,
+            imported));
+        OptimizationCapabilitySnapshot snapshot = OpenVinoSnapshot();
+        OptimizationWorkload workload = Workload();
+        OptimizationJourneyBinding binding = Binding();
+
+        CompatibilityOptimizationView view = ProjectWith(
+            result,
+            AdmittedAlternative(snapshot, workload, binding),
+            snapshot,
+            workload,
+            binding).Optimization!;
+
+        Assert.IsTrue(view.RequiresPersistentArtifact);
+        Assert.IsTrue(view.Modes.All(mode =>
+            mode.Route == OptimizationRoute.OpenVino
+            && mode.OpenVinoWeights == OpenVinoWeightFormat.Int4
+            && mode.GgufWeights is null));
+    }
+
+    [TestMethod]
+    public void DecisionTable_BaselineFailsAndNoAdmittedAlternative_IsNoSafeConfiguration()
+    {
+        CompatibilityRunResult result = CompletedWith(Evaluated(
+            CandidatePreparation.RuntimeProfileOnly,
+            CompatibilityFitState.DoesNotFit,
+            isBaseline: true,
+            GgufKvCacheFormat.F16));
+        OptimizationCapabilitySnapshot snapshot = OptimizationSnapshot();
+        OptimizationWorkload workload = Workload();
+        OptimizationJourneyBinding binding = Binding();
+        CrossRouteGenerationResult generated = new(
+            [],
+            [new OptimizationExclusion(
+                "ov-int4",
+                "weights=Int4|ctx=4096",
+                OptimizationExclusionReason.ExceedsSafeMemoryBudget)],
+            OptimizationGenerationAuthority.Create(snapshot, workload, binding));
+
+        CompatibilityScreenModel model = ProjectWith(
+            result, generated, snapshot, workload, binding);
+
+        Assert.AreEqual(
+            CompatibilityScreenState.NoEstimatedSafeConfiguration,
+            model.State);
+        Assert.IsNull(model.Optimization);
+    }
+
+    [TestMethod]
+    public void DecisionTable_UnknownAlternativeEvidence_IsNotEstablished()
+    {
+        CompatibilityRunResult result = CompletedWith(Evaluated(
+            CandidatePreparation.RuntimeProfileOnly,
+            CompatibilityFitState.DoesNotFit,
+            isBaseline: true,
+            GgufKvCacheFormat.F16));
+        OptimizationCapabilitySnapshot snapshot = OptimizationSnapshot();
+        OptimizationWorkload workload = Workload();
+        OptimizationJourneyBinding binding = Binding();
+        CrossRouteGenerationResult generated = new(
+            [],
+            [new OptimizationExclusion(
+                "ov-int4",
+                "weights=Int4|ctx=4096",
+                OptimizationExclusionReason.EstimateNotEstablished)],
+            OptimizationGenerationAuthority.Create(snapshot, workload, binding));
+
+        Assert.AreEqual(
+            CompatibilityScreenState.NotEstablished,
+            ProjectWith(result, generated, snapshot, workload, binding).State);
+    }
+
+    [TestMethod]
+    public void BaselineFit_DoesNotHideUnknownAlternativeEvidence()
+    {
+        CompatibilityRunResult result = CompletedWith(Evaluated(
+            CandidatePreparation.RuntimeProfileOnly,
+            CompatibilityFitState.Safe,
+            isBaseline: true,
+            GgufKvCacheFormat.F16));
+        OptimizationCapabilitySnapshot snapshot = OptimizationSnapshot();
+        OptimizationWorkload workload = Workload();
+        OptimizationJourneyBinding binding = Binding();
+        CrossRouteGenerationResult generated = new(
+            [],
+            [new OptimizationExclusion(
+                "ov-int4",
+                "weights=Int4|ctx=4096",
+                OptimizationExclusionReason.EstimateNotEstablished)],
+            OptimizationGenerationAuthority.Create(snapshot, workload, binding));
+
+        Assert.AreEqual(
+            CompatibilityScreenState.NotEstablished,
+            ProjectWith(result, generated, snapshot, workload, binding).State);
+    }
+
+    [TestMethod]
+    public void CandidateFromStaleHardwareRun_FailsClosed()
+    {
+        CompatibilityRunResult result = CompletedWith(Evaluated(
+            CandidatePreparation.RuntimeProfileOnly,
+            CompatibilityFitState.DoesNotFit,
+            isBaseline: true,
+            GgufKvCacheFormat.F16));
+        OptimizationCapabilitySnapshot snapshot = OptimizationSnapshot();
+        OptimizationWorkload workload = Workload();
+        OptimizationJourneyBinding generatedBinding = Binding("hw-run-old");
+        OptimizationJourneyBinding currentBinding = Binding("hw-run-current");
+
+        CompatibilityScreenModel model = ProjectWith(
+            result,
+            AdmittedAlternative(snapshot, workload, generatedBinding),
+            snapshot,
+            workload,
+            generatedBinding,
+            currentBinding);
+
+        Assert.AreEqual(CompatibilityScreenState.NotEstablished, model.State);
+        Assert.IsNull(model.Optimization);
+    }
+
+    [TestMethod]
+    public void DuplicateAdmittedCandidate_FailsClosedRatherThanChoosingByOrder()
+    {
+        CompatibilityRunResult result = CompletedWith(Evaluated(
+            CandidatePreparation.RuntimeProfileOnly,
+            CompatibilityFitState.DoesNotFit,
+            isBaseline: true,
+            GgufKvCacheFormat.F16));
+        OptimizationCapabilitySnapshot snapshot = OptimizationSnapshot();
+        OptimizationWorkload workload = Workload();
+        OptimizationJourneyBinding binding = Binding();
+        OptimizationCandidate candidate = AdmittedAlternative(
+            snapshot, workload, binding).Candidates.Single();
+
+        CrossRouteGenerationResult duplicated = new(
+            [candidate, candidate],
+            [],
+            OptimizationGenerationAuthority.Create(snapshot, workload, binding));
+
+        Assert.AreEqual(
+            CompatibilityScreenState.NotEstablished,
+            ProjectWith(result, duplicated, snapshot, workload, binding).State);
+    }
+
+    [TestMethod]
+    public void BaselineIdentity_RejectsAnythingOtherThanRuntimeProfileOnly()
+    {
+        CompatibilityRunResult result = CompletedWith(Evaluated(
+            CandidatePreparation.RuntimeProfileOnly,
+            CompatibilityFitState.DoesNotFit,
+            isBaseline: true,
+            GgufKvCacheFormat.F16));
+        EvaluatedCandidate baseline = result.Assessment!.EvaluatedCandidates.Single();
+
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            CompatibilityBaselineIdentity.Create(
+                CandidatePreparation.WeightConversionRequired,
+                baseline.Candidate.Configuration,
+                baseline.Context,
+                Binding()));
+    }
+
+    [TestMethod]
+    public void UnstampedNoFitExclusions_CannotBecomeANoSafeConclusion()
+    {
+        CompatibilityRunResult result = CompletedWith(Evaluated(
+            CandidatePreparation.None,
+            CompatibilityFitState.DoesNotFit,
+            isBaseline: true,
+            GgufKvCacheFormat.F16));
+        OptimizationCapabilitySnapshot snapshot = OptimizationSnapshot();
+        OptimizationWorkload workload = Workload();
+        OptimizationJourneyBinding binding = Binding();
+        CrossRouteGenerationResult unstamped = new(
+            [],
+            [new OptimizationExclusion(
+                "ov-int4",
+                "weights=Int4|ctx=4096",
+                OptimizationExclusionReason.ExceedsSafeMemoryBudget)]);
+
+        Assert.AreEqual(
+            CompatibilityScreenState.NotEstablished,
+            ProjectWith(result, unstamped, snapshot, workload, binding).State);
+    }
+
+    [TestMethod]
+    public void BaselineFitDisagreementAcrossCurrentAuthorities_FailsClosed()
+    {
+        OpenVinoRouteConfiguration baselineConfiguration =
+            OpenVinoRouteConfiguration.Create(
+                OpenVinoWeightFormat.Int4,
+                OpenVinoKvCacheFormat.U8,
+                DeviceRouteId.Cpu,
+                OpenVinoPerformanceHint.Latency,
+                OpenVinoCompiledCachePolicy.Disabled,
+                1);
+        EvaluatedCandidate baseline = EvaluatedForConfiguration(
+            CandidatePreparation.None,
+            CompatibilityFitState.DoesNotFit,
+            isBaseline: true,
+            baselineConfiguration);
+        CompatibilityRunResult result = CompletedWith(baseline);
+        OptimizationCapabilitySnapshot snapshot = OpenVinoSnapshot();
+        OptimizationWorkload workload = Workload();
+        OptimizationJourneyBinding binding = Binding();
+
+        Assert.AreEqual(
+            CompatibilityScreenState.NotEstablished,
+            ProjectWith(
+                result,
+                AdmittedAlternative(snapshot, workload, binding),
+                snapshot,
+                workload,
+                binding).State);
+    }
+
+    [TestMethod]
+    public void LegacyNoneBaseline_IsMappedSeparatelyToRuntimeProfileAuthority()
+    {
+        EvaluatedCandidate legacyBaseline = Evaluated(
+            CandidatePreparation.None,
+            CompatibilityFitState.Safe,
+            isBaseline: true,
+            GgufKvCacheFormat.F16);
+        CompatibilityRunResult result = CompletedWith(legacyBaseline);
+        OptimizationCapabilitySnapshot snapshot = OptimizationSnapshot();
+        OptimizationWorkload workload = Workload();
+        OptimizationJourneyBinding binding = Binding();
+        CompatibilityBaselineIdentity identity = IdentityFor(legacyBaseline, binding);
+        CompatibilityOptimizationProjectionInput input =
+            CompatibilityOptimizationProjectionInput.Create(
+                new CrossRouteGenerationResult(
+                    [], [], OptimizationGenerationAuthority.Create(
+                        snapshot, workload, binding)),
+                snapshot,
+                workload,
+                binding,
+                identity);
+
+        Assert.AreEqual(CandidatePreparation.None, legacyBaseline.Preparation);
+        Assert.AreEqual(CandidatePreparation.RuntimeProfileOnly, identity.Preparation);
+        Assert.AreNotEqual(legacyBaseline.Fingerprint, identity.Fingerprint);
+        Assert.AreEqual(
+            CompatibilityScreenState.EstimatedCompatible,
+            CompatibilityScreenModel.From(result, input).State);
+    }
+
+    [TestMethod]
+    public void ZeroMatchingBaselineIdentities_FailClosed()
+    {
+        EvaluatedCandidate baseline = Evaluated(
+            CandidatePreparation.None,
+            CompatibilityFitState.Safe,
+            isBaseline: true,
+            GgufKvCacheFormat.F16);
+        EvaluatedCandidate different = Evaluated(
+            CandidatePreparation.None,
+            CompatibilityFitState.Safe,
+            isBaseline: true,
+            GgufKvCacheFormat.Q8_0);
+        CompatibilityRunResult result = CompletedWith(baseline);
+        OptimizationCapabilitySnapshot snapshot = OptimizationSnapshot();
+        OptimizationWorkload workload = Workload();
+        OptimizationJourneyBinding binding = Binding();
+        CompatibilityOptimizationProjectionInput input =
+            CompatibilityOptimizationProjectionInput.Create(
+                new CrossRouteGenerationResult(
+                    [], [], OptimizationGenerationAuthority.Create(
+                        snapshot, workload, binding)),
+                snapshot,
+                workload,
+                binding,
+                IdentityFor(different, binding));
+
+        Assert.AreEqual(
+            CompatibilityScreenState.NotEstablished,
+            CompatibilityScreenModel.From(result, input).State);
+    }
+
+    [TestMethod]
+    public void MultipleMatchingBaselineIdentities_FailClosed()
+    {
+        EvaluatedCandidate first = Evaluated(
+            CandidatePreparation.None,
+            CompatibilityFitState.Safe,
+            isBaseline: true,
+            GgufKvCacheFormat.F16);
+        EvaluatedCandidate duplicate = Evaluated(
+            CandidatePreparation.None,
+            CompatibilityFitState.Safe,
+            isBaseline: true,
+            GgufKvCacheFormat.F16);
+        CompatibilityRunResult result = CompletedWith(first, duplicate);
+        OptimizationCapabilitySnapshot snapshot = OptimizationSnapshot();
+        OptimizationWorkload workload = Workload();
+        OptimizationJourneyBinding binding = Binding();
+        CompatibilityOptimizationProjectionInput input =
+            CompatibilityOptimizationProjectionInput.Create(
+                new CrossRouteGenerationResult(
+                    [], [], OptimizationGenerationAuthority.Create(
+                        snapshot, workload, binding)),
+                snapshot,
+                workload,
+                binding,
+                IdentityFor(first, binding));
+
+        Assert.AreEqual(
+            CompatibilityScreenState.NotEstablished,
+            CompatibilityScreenModel.From(result, input).State);
+    }
+
+    [TestMethod]
+    public void OptimizationProjection_OwnsImmutableModeViewsAndNoFreeformAuthorityData()
+    {
+        CompatibilityRunResult result = CompletedWith(Evaluated(
+            CandidatePreparation.RuntimeProfileOnly,
+            CompatibilityFitState.DoesNotFit,
+            isBaseline: true,
+            GgufKvCacheFormat.F16));
+        OptimizationCapabilitySnapshot snapshot = OptimizationSnapshot();
+        OptimizationWorkload workload = Workload();
+        OptimizationJourneyBinding binding = Binding();
+        CompatibilityOptimizationView optimization = ProjectWith(
+            result,
+            AdmittedAlternative(snapshot, workload, binding),
+            snapshot,
+            workload,
+            binding).Optimization!;
+
+        Assert.ThrowsExactly<NotSupportedException>(() =>
+            ((IList<CompatibilityOptimizationModeView>)optimization.Modes).Clear());
+        Assert.AreEqual(
+            0,
+            typeof(CompatibilityOptimizationView).GetProperties()
+                .Count(property => property.PropertyType == typeof(string)));
+        Assert.AreEqual(
+            0,
+            typeof(CompatibilityOptimizationModeView).GetProperties()
+                .Count(property => property.PropertyType == typeof(string)));
+    }
+
+    [TestMethod]
+    public void PresentationFactories_CopyModeCollectionsForDownstreamFixtures()
+    {
+        CompatibilityOptimizationModeView mode =
+            CompatibilityOptimizationModeView.ForPresentation(
+                CompatibilityOptimizationLabelCode.Automatic,
+                sliderValue: null,
+                OptimizationRoute.Gguf,
+                GgufWeightFormat.Imported,
+                GgufKvCacheFormat.Q8_0,
+                openVinoWeights: null,
+                openVinoKvCache: null,
+                DeviceRouteId.Cpu,
+                OptimizationAssessment.Good,
+                contextTokens: 4096,
+                predictedPeakBytes: 2 * Gibibyte,
+                safeBudgetBytes: 3 * Gibibyte,
+                headroomBytes: Gibibyte,
+                requiresPersistentArtifact: false,
+                requiresRequantisationAcknowledgement: false,
+                OptimizationQualityNotice.None,
+                isExperimental: false,
+                sharedWithAdjacentBand: false);
+        List<CompatibilityOptimizationModeView> modes = [mode];
+
+        CompatibilityOptimizationView view =
+            CompatibilityOptimizationView.ForPresentation(
+                CompatibilityOptimizationLabelCode.Automatic,
+                recommendedSliderValue: null,
+                modes,
+                requiresPersistentArtifact: false,
+                requiresRequantisationAcknowledgement: false,
+                OptimizationQualityNotice.None);
+        modes.Clear();
+
+        Assert.AreEqual(1, view.Modes.Count);
+    }
+
+    [TestMethod]
+    public void PresentationFactory_RejectsAggregateFlagsThatDisagreeWithRecommendation()
+    {
+        CompatibilityOptimizationModeView mode =
+            CompatibilityOptimizationModeView.ForPresentation(
+                CompatibilityOptimizationLabelCode.Automatic,
+                sliderValue: null,
+                OptimizationRoute.Gguf,
+                GgufWeightFormat.Imported,
+                GgufKvCacheFormat.Q8_0,
+                null,
+                null,
+                DeviceRouteId.Cpu,
+                OptimizationAssessment.Good,
+                4096,
+                2 * Gibibyte,
+                3 * Gibibyte,
+                Gibibyte,
+                requiresPersistentArtifact: false,
+                requiresRequantisationAcknowledgement: false,
+                OptimizationQualityNotice.None,
+                isExperimental: false,
+                sharedWithAdjacentBand: false);
+
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            CompatibilityOptimizationView.ForPresentation(
+                CompatibilityOptimizationLabelCode.Automatic,
+                null,
+                [mode],
+                requiresPersistentArtifact: true,
+                requiresRequantisationAcknowledgement: false,
+                OptimizationQualityNotice.None));
     }
 
     [TestMethod]
