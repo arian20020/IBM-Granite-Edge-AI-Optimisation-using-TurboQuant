@@ -15,7 +15,7 @@ namespace GraniteEdgeAI.Features.ModelHardwareCompatibility.Infrastructure;
 internal sealed class WindowsCompatibilityMemoryRecovery : ICompatibilityMemoryRecovery
 {
     private readonly IReadOnlyList<Func<CancellationToken, Task>> _cacheReleaseCallbacks;
-    private readonly Action _startTaskManager;
+    private readonly ITaskManagerProcessStarter _taskManagerProcessStarter;
     private readonly Action _collect;
 
     /// <summary>
@@ -25,7 +25,7 @@ internal sealed class WindowsCompatibilityMemoryRecovery : ICompatibilityMemoryR
     /// </summary>
     internal WindowsCompatibilityMemoryRecovery(
         IEnumerable<Func<CancellationToken, Task>> cacheReleaseCallbacks,
-        Action? startTaskManager = null,
+        ITaskManagerProcessStarter? taskManagerProcessStarter = null,
         Action? collect = null)
     {
         ArgumentNullException.ThrowIfNull(cacheReleaseCallbacks);
@@ -39,7 +39,8 @@ internal sealed class WindowsCompatibilityMemoryRecovery : ICompatibilityMemoryR
         }
 
         _cacheReleaseCallbacks = Array.AsReadOnly(callbacks);
-        _startTaskManager = startTaskManager ?? StartTrustedTaskManager;
+        _taskManagerProcessStarter = taskManagerProcessStarter
+            ?? new WindowsTaskManagerProcessStarter();
         _collect = collect ?? CollectAfterOwnedRelease;
     }
 
@@ -66,21 +67,9 @@ internal sealed class WindowsCompatibilityMemoryRecovery : ICompatibilityMemoryR
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        _startTaskManager();
+        _taskManagerProcessStarter.Start(TaskManagerLaunchRequest.Fixed);
         return Task.CompletedTask;
     }
-
-    private static ProcessStartInfo CreateTrustedTaskManagerStartInfo() =>
-        new()
-        {
-            FileName = "taskmgr.exe",
-            Arguments = string.Empty,
-            Verb = string.Empty,
-            UseShellExecute = true
-        };
-
-    private static void StartTrustedTaskManager() =>
-        _ = Process.Start(CreateTrustedTaskManagerStartInfo());
 
     private static void CollectAfterOwnedRelease() =>
         GC.Collect(
@@ -88,4 +77,55 @@ internal sealed class WindowsCompatibilityMemoryRecovery : ICompatibilityMemoryR
             GCCollectionMode.Optimized,
             blocking: false,
             compacting: false);
+}
+
+/// <summary>
+/// The one immutable launch descriptor admitted by the compatibility feature.
+/// Its private constructor prevents callers from supplying an executable,
+/// arguments, verb, or window policy.
+/// </summary>
+internal sealed class TaskManagerLaunchRequest
+{
+    private TaskManagerLaunchRequest()
+    {
+    }
+
+    internal static TaskManagerLaunchRequest Fixed { get; } = new();
+
+    internal string FileName => "taskmgr.exe";
+
+    internal string Arguments => string.Empty;
+
+    internal string Verb => string.Empty;
+
+    internal bool UseShellExecute => true;
+
+    internal ProcessWindowStyle WindowStyle => ProcessWindowStyle.Normal;
+}
+
+/// <summary>A closed process boundary that can launch only the fixed request.</summary>
+internal interface ITaskManagerProcessStarter
+{
+    void Start(TaskManagerLaunchRequest request);
+}
+
+internal sealed class WindowsTaskManagerProcessStarter : ITaskManagerProcessStarter
+{
+    public void Start(TaskManagerLaunchRequest request)
+    {
+        if (!ReferenceEquals(request, TaskManagerLaunchRequest.Fixed))
+        {
+            throw new ArgumentException("Only the fixed Task Manager request is accepted.",
+                nameof(request));
+        }
+
+        _ = Process.Start(new ProcessStartInfo
+        {
+            FileName = request.FileName,
+            Arguments = request.Arguments,
+            Verb = request.Verb,
+            UseShellExecute = request.UseShellExecute,
+            WindowStyle = request.WindowStyle
+        });
+    }
 }

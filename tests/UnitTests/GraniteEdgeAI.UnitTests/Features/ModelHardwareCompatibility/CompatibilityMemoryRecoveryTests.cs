@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Reflection;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.Infrastructure;
+using GraniteEdgeAI.Features.ModelHardwareCompatibility.Presentation;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.ViewModels;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Candidates;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Contracts;
@@ -53,7 +54,7 @@ public sealed class CompatibilityMemoryRecoveryTests
                 _ => { calls.Add("first"); return Task.CompletedTask; },
                 _ => { calls.Add("second"); return Task.CompletedTask; }
             ],
-            () => throw new AssertFailedException("Task Manager must stay separate."),
+            new RecordingTaskManagerStarter(),
             () => calls.Add("collect"));
 
         await recovery.ReleaseApplicationMemoryAsync(CancellationToken.None);
@@ -70,7 +71,7 @@ public sealed class CompatibilityMemoryRecoveryTests
                 _ => { calls.Add("first"); return Task.FromException(new InvalidOperationException("private")); },
                 _ => { calls.Add("second"); return Task.CompletedTask; }
             ],
-            () => { },
+            new RecordingTaskManagerStarter(),
             () => calls.Add("collect"));
 
         await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
@@ -94,7 +95,7 @@ public sealed class CompatibilityMemoryRecoveryTests
                 },
                 _ => { calls.Add("second"); return Task.CompletedTask; }
             ],
-            () => { },
+            new RecordingTaskManagerStarter(),
             () => calls.Add("collect"));
 
         await Assert.ThrowsExactlyAsync<OperationCanceledException>(() =>
@@ -109,7 +110,7 @@ public sealed class CompatibilityMemoryRecoveryTests
         bool collected = false;
         var recovery = new WindowsCompatibilityMemoryRecovery(
             [],
-            () => { },
+            new RecordingTaskManagerStarter(),
             () => collected = true);
 
         await recovery.ReleaseApplicationMemoryAsync(CancellationToken.None);
@@ -120,23 +121,33 @@ public sealed class CompatibilityMemoryRecoveryTests
     [TestMethod]
     public async Task TaskManager_UsesOnlyTheFixedShellLaunchWithoutArguments()
     {
-        bool launched = false;
+        var starter = new RecordingTaskManagerStarter();
         var recovery = new WindowsCompatibilityMemoryRecovery(
             [],
-            () => launched = true,
+            starter,
             () => { });
 
         await recovery.OpenTaskManagerAsync(CancellationToken.None);
 
-        Assert.IsTrue(launched);
-        MethodInfo factory = typeof(WindowsCompatibilityMemoryRecovery).GetMethod(
-            "CreateTrustedTaskManagerStartInfo",
-            BindingFlags.NonPublic | BindingFlags.Static)!;
-        var startInfo = (ProcessStartInfo)factory.Invoke(null, null)!;
-        Assert.AreEqual("taskmgr.exe", startInfo.FileName);
-        Assert.IsTrue(startInfo.UseShellExecute);
-        Assert.AreEqual(string.Empty, startInfo.Arguments);
-        Assert.AreEqual(string.Empty, startInfo.Verb);
+        Assert.IsNotNull(starter.Request);
+        Assert.AreEqual("taskmgr.exe", starter.Request.FileName);
+        Assert.IsTrue(starter.Request.UseShellExecute);
+        Assert.AreEqual(string.Empty, starter.Request.Arguments);
+        Assert.AreEqual(string.Empty, starter.Request.Verb);
+        Assert.AreEqual(ProcessWindowStyle.Normal, starter.Request.WindowStyle);
+
+        ConstructorInfo[] constructors = typeof(WindowsCompatibilityMemoryRecovery)
+            .GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic);
+        ParameterInfo[] parameters = constructors
+            .SelectMany(constructor => constructor.GetParameters()).ToArray();
+        Assert.IsTrue(parameters.Any(parameter =>
+            parameter.ParameterType == typeof(ITaskManagerProcessStarter)));
+        Assert.IsFalse(parameters.Any(parameter =>
+            parameter.ParameterType == typeof(string)
+            || parameter.ParameterType == typeof(ProcessStartInfo)
+            || (typeof(Delegate).IsAssignableFrom(parameter.ParameterType)
+                && !(parameter.Name == "collect"
+                    && parameter.ParameterType == typeof(Action)))));
     }
 
     [TestMethod]
@@ -144,16 +155,16 @@ public sealed class CompatibilityMemoryRecoveryTests
     {
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
-        bool launched = false;
+        var starter = new RecordingTaskManagerStarter();
         var recovery = new WindowsCompatibilityMemoryRecovery(
             [],
-            () => launched = true,
+            starter,
             () => { });
 
         await Assert.ThrowsExactlyAsync<OperationCanceledException>(() =>
             recovery.OpenTaskManagerAsync(cancellation.Token));
 
-        Assert.IsFalse(launched);
+        Assert.IsNull(starter.Request);
     }
 
     [TestMethod]
@@ -249,6 +260,29 @@ public sealed class CompatibilityMemoryRecoveryTests
     }
 
     [TestMethod]
+    public async Task NewCompatibilityAttempt_CancelsPendingTaskManagerBeforeItCanLaunch()
+    {
+        var openGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var recovery = new RecordingRecovery(openTaskManager: openGate.Task);
+        var viewModel = new CompatibilityViewModel(
+            _ => Task.FromResult(MemoryPressureScreen()),
+            continueDestinationAvailable: true,
+            recovery);
+        await viewModel.StartAsync();
+
+        Task pendingOpen = viewModel.OpenTaskManagerAsync();
+        await recovery.OpenStarted.Task;
+        await viewModel.StartAsync();
+        openGate.SetResult();
+        await Assert.ThrowsExactlyAsync<OperationCanceledException>(async () =>
+            await pendingOpen);
+
+        Assert.IsTrue(recovery.LastOpenToken.IsCancellationRequested);
+        Assert.AreEqual(0, recovery.CompletedOpenCalls,
+            "A stale auxiliary operation must not reach its launch boundary.");
+    }
+
+    [TestMethod]
     public async Task RecoveryActions_FailClosedWhenOutcomeIsNotMemoryPressure()
     {
         var recovery = new RecordingRecovery();
@@ -323,6 +357,26 @@ public sealed class CompatibilityMemoryRecoveryTests
     }
 
     [TestMethod]
+    public void MixedOrIncompleteDedicatedEvidence_FailsClosed()
+    {
+        CompatibilityPresentation presentation = PresentationForSetup(
+            SetupWithDedicated(required: 512, safe: null, headroom: null));
+
+        Assert.AreEqual(CompatibilityMemoryRecoveryReason.None,
+            presentation.MemoryRecoveryReason);
+    }
+
+    [TestMethod]
+    public void DedicatedMemoryBlocker_FailsClosed()
+    {
+        CompatibilityPresentation presentation = PresentationForSetup(
+            SetupWithDedicated(required: 1024, safe: 512, headroom: 0));
+
+        Assert.AreEqual(CompatibilityMemoryRecoveryReason.None,
+            presentation.MemoryRecoveryReason);
+    }
+
+    [TestMethod]
     public void SourceCanary_HasNoEnumerationTerminationElevationOrConsumerDisclosure()
     {
         string featureRoot = Path.Combine(
@@ -354,15 +408,22 @@ public sealed class CompatibilityMemoryRecoveryTests
     public void RealPage_MemoryActionsUseAccessibleModernExistingTree()
     {
         CompatibilityPage page = new() { StartAutomatically = false };
-        page.Apply(GraniteEdgeAI.Features.ModelHardwareCompatibility.Presentation
-            .CompatibilityPresentationFactory.From(
-                MemoryPressureScreen()));
+        CompatibilityPresentation optimization = GraniteEdgeAI.Features
+            .ModelHardwareCompatibility.DebugFixtures.CompatibilityFixtureCatalogue.All
+            .Single(fixture => fixture.Id == "CMP-020").Presentation;
+        Assert.AreEqual(CompatibilityMemoryRecoveryReason.SystemMemoryPressure,
+            optimization.MemoryRecoveryReason);
+        page.ViewModel.ShowFixture(optimization);
 
+        FrameworkElement card = Element<FrameworkElement>(page, "RecoveryCard");
         FrameworkElement actions = Element<FrameworkElement>(page, "MemoryRecoveryActions");
         Button release = Element<Button>(page, "ReleaseApplicationMemoryAction");
         Button taskManager = Element<Button>(page, "OpenTaskManagerAction");
 
+        Assert.AreEqual(Visibility.Visible, card.Visibility);
         Assert.AreEqual(Visibility.Visible, actions.Visibility);
+        Assert.IsTrue(release.Command.CanExecute(null));
+        Assert.IsTrue(taskManager.Command.CanExecute(null));
         Assert.IsGreaterThanOrEqualTo(44d, release.MinHeight);
         Assert.IsGreaterThanOrEqualTo(44d, taskManager.MinHeight);
         Assert.AreEqual("Release app memory and check again", AutomationProperties.GetName(release));
@@ -371,6 +432,28 @@ public sealed class CompatibilityMemoryRecoveryTests
             "you choose which applications to close");
         Assert.AreSame(page.ViewModel.ReleaseMemoryCommand, release.Command);
         Assert.AreSame(page.ViewModel.OpenTaskManagerCommand, taskManager.Command);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void RealPage_MixedIncompleteAndDedicatedBlockersCollapseAndDisableRecovery()
+    {
+        CompatibilitySetupView[] rejected =
+        [
+            SetupWithDedicated(required: 512, safe: null, headroom: null),
+            SetupWithDedicated(required: 1024, safe: 512, headroom: 0)
+        ];
+
+        foreach (CompatibilitySetupView setup in rejected)
+        {
+            CompatibilityPage page = new() { StartAutomatically = false };
+            page.ViewModel.ShowFixture(PresentationForSetup(setup));
+
+            Assert.AreEqual(Visibility.Collapsed,
+                Element<FrameworkElement>(page, "MemoryRecoveryActions").Visibility);
+            Assert.IsFalse(page.ViewModel.ReleaseMemoryCommand.CanExecute(null));
+            Assert.IsFalse(page.ViewModel.OpenTaskManagerCommand.CanExecute(null));
+        }
     }
 #endif
 
@@ -411,6 +494,47 @@ public sealed class CompatibilityMemoryRecoveryTests
                 [],
                 ggufKvCache: GgufKvCacheFormat.F16);
 
+    private static CompatibilityPresentation PresentationForSetup(
+        CompatibilitySetupView setup) =>
+        CompatibilityPresentationFactory.From(
+            CompatibilityScreenModel.ForPresentation(
+                CompatibilityScreenState.NoEstimatedSafeConfiguration,
+                [], [], BaselineExclusionReason.None,
+                useCurrentModelAvailable: false,
+                continueEnabled: false,
+                setup));
+
+    private static CompatibilitySetupView SetupWithDedicated(
+        ulong? required,
+        ulong? safe,
+        ulong? headroom)
+    {
+        ConstructorInfo constructor = typeof(CompatibilitySetupView)
+            .GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic)
+            .Single(candidate => candidate.GetParameters().Length == 18);
+        return (CompatibilitySetupView)constructor.Invoke(
+        [
+            RuntimeRouteId.LlamaCpp,
+            CompatibilityBackend.Cpu,
+            DeviceRouteId.Cpu,
+            WeightQuantisation.Q4_K_M,
+            4096,
+            CompatibilityFitState.DoesNotFit,
+            5_368_709_120UL,
+            4_294_967_296UL,
+            0UL,
+            268_435_456UL,
+            false,
+            false,
+            Array.Empty<CompatibilityComponentView>(),
+            required,
+            safe,
+            headroom,
+            GgufKvCacheFormat.F16,
+            null
+        ]);
+    }
+
     private static T Element<T>(FrameworkElement root, string name)
         where T : class
     {
@@ -441,17 +565,28 @@ public sealed class CompatibilityMemoryRecoveryTests
     private sealed class RecordingRecovery : ICompatibilityMemoryRecovery
     {
         private readonly Task _release;
+        private readonly Task _openTaskManager;
 
-        internal RecordingRecovery(Task? release = null) =>
+        internal RecordingRecovery(Task? release = null, Task? openTaskManager = null)
+        {
             _release = release ?? Task.CompletedTask;
+            _openTaskManager = openTaskManager ?? Task.CompletedTask;
+        }
 
         internal int ReleaseCalls { get; private set; }
 
         internal int OpenCalls { get; private set; }
 
+        internal int CompletedOpenCalls { get; private set; }
+
         internal CancellationToken LastReleaseToken { get; private set; }
 
+        internal CancellationToken LastOpenToken { get; private set; }
+
         internal TaskCompletionSource ReleaseStarted { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        internal TaskCompletionSource OpenStarted { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public async Task ReleaseApplicationMemoryAsync(CancellationToken cancellationToken)
@@ -463,11 +598,22 @@ public sealed class CompatibilityMemoryRecoveryTests
             cancellationToken.ThrowIfCancellationRequested();
         }
 
-        public Task OpenTaskManagerAsync(CancellationToken cancellationToken)
+        public async Task OpenTaskManagerAsync(CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
             OpenCalls++;
-            return Task.CompletedTask;
+            LastOpenToken = cancellationToken;
+            OpenStarted.TrySetResult();
+            await _openTaskManager;
+            cancellationToken.ThrowIfCancellationRequested();
+            CompletedOpenCalls++;
         }
+    }
+
+    private sealed class RecordingTaskManagerStarter : ITaskManagerProcessStarter
+    {
+        internal TaskManagerLaunchRequest? Request { get; private set; }
+
+        public void Start(TaskManagerLaunchRequest request) => Request = request;
     }
 }

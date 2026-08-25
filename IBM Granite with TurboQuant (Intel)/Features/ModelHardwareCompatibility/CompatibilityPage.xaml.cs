@@ -160,7 +160,7 @@ internal sealed partial class CompatibilityPage : Page
         ChecksCardTitleText.Text = presentation.ChecksCardTitle;
         ApplyRows(CheckRows, presentation.CheckRows);
 
-        ApplyRecoveries(presentation.Recoveries);
+        ApplyRecoveries(presentation.Recoveries, presentation.MemoryRecoveryReason);
         MemoryRecoveryActions.Visibility = presentation.MemoryRecoveryReason
             == CompatibilityMemoryRecoveryReason.SystemMemoryPressure
                 ? Visibility.Visible
@@ -893,11 +893,14 @@ internal sealed partial class CompatibilityPage : Page
         };
     }
 
-    private void ApplyRecoveries(IReadOnlyList<CompatibilityRecovery> recoveries)
+    private void ApplyRecoveries(
+        IReadOnlyList<CompatibilityRecovery> recoveries,
+        CompatibilityMemoryRecoveryReason memoryRecoveryReason)
     {
         RecoveryRows.Children.Clear();
 
         RecoveryCard.Visibility = recoveries.Count == 0
+            && memoryRecoveryReason == CompatibilityMemoryRecoveryReason.None
             ? Visibility.Collapsed
             : Visibility.Visible;
 

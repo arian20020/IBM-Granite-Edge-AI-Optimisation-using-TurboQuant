@@ -197,15 +197,19 @@ internal sealed class CompatibilityViewModel
         AttemptCancellation cancellation = new();
         CancellationToken token = cancellation.Token;
         AttemptCancellation? previous;
+        AttemptCancellation? previousAuxiliary;
         int generation;
         lock (_attemptGate)
         {
             generation = unchecked(++_attemptGeneration);
             previous = _attemptCancellation;
             _attemptCancellation = cancellation;
+            previousAuxiliary = _auxiliaryCancellation;
+            _auxiliaryCancellation = null;
         }
 
         previous?.Cancel();
+        previousAuxiliary?.Cancel();
 
         Publish(
             CompatibilityPresentationFactory.Analysing(0),
