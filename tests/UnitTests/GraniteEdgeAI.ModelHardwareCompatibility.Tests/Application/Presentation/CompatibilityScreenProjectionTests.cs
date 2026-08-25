@@ -12,6 +12,7 @@ using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.Gguf;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.OpenVino;
+using System.Reflection;
 
 namespace GraniteEdgeAI.ModelHardwareCompatibility.Tests.Application.Presentation;
 
@@ -22,6 +23,28 @@ public sealed class CompatibilityScreenProjectionTests
     private const string Digest =
         "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";
     private const string Commit = "0123456789abcdef0123456789abcdef01234567";
+
+    [TestMethod]
+    public void AuthorityMinting_IsStructurallyPrivateToTheGenerator()
+    {
+        Type resultType = typeof(CrossRouteGenerationResult);
+        Assert.IsNull(resultType.Assembly.GetType(
+            "GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.OptimizationGenerationAuthority"));
+        Assert.IsNull(resultType.GetProperty(
+            "Authority", BindingFlags.Instance | BindingFlags.Public
+                | BindingFlags.NonPublic));
+        Type? nestedAuthority = typeof(CrossRouteCandidateGenerator).GetNestedType(
+            "GenerationAuthority", BindingFlags.NonPublic);
+        Assert.IsNotNull(nestedAuthority);
+        Assert.IsTrue(nestedAuthority.IsNestedPrivate);
+        ConstructorInfo[] constructors = resultType.GetConstructors(
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+        Assert.IsFalse(constructors.Any(constructor =>
+            constructor.GetParameters().Length > 2
+            || constructor.GetParameters().Any(parameter =>
+                parameter.ParameterType.Name.Contains(
+                    "Authority", StringComparison.Ordinal))));
+    }
 
     private sealed class Gateway : ICompatibilityInputGateway
     {
@@ -351,7 +374,10 @@ public sealed class CompatibilityScreenProjectionTests
         OptimizationCapabilitySnapshot snapshot,
         OptimizationWorkload workload,
         OptimizationJourneyBinding generatedBinding,
-        OptimizationJourneyBinding? currentBinding = null) =>
+        OptimizationJourneyBinding? currentBinding = null,
+        ulong safeBudgetBytes = 32 * Gibibyte,
+        ulong availableDiskBytes = 500 * Gibibyte,
+        EstimatorPolicy? policy = null) =>
         CompatibilityScreenModel.From(
             result,
             CompatibilityOptimizationProjectionInput.Create(
@@ -360,9 +386,9 @@ public sealed class CompatibilityScreenProjectionTests
                 ModelFacts(),
                 workload,
                 currentBinding ?? generatedBinding,
-                ByteCount.FromBytes(32 * Gibibyte),
-                ByteCount.FromBytes(500 * Gibibyte),
-                EstimatorPolicy.ProvisionalV1(),
+                ByteCount.FromBytes(safeBudgetBytes),
+                ByteCount.FromBytes(availableDiskBytes),
+                policy ?? EstimatorPolicy.ProvisionalV1(),
                 new HashSet<string>(),
                 BaselineIdentity(result, generatedBinding)));
 
@@ -377,26 +403,6 @@ public sealed class CompatibilityScreenProjectionTests
             ByteCount.FromBytes(32 * Gibibyte),
             ByteCount.FromBytes(500 * Gibibyte),
             EstimatorPolicy.ProvisionalV1(), new HashSet<string>(), identity);
-
-    private static CrossRouteGenerationResult Stamped(
-        OptimizationCapabilitySnapshot snapshot,
-        OptimizationWorkload workload,
-        OptimizationJourneyBinding binding,
-        IReadOnlyList<OptimizationCandidate> candidates,
-        IReadOnlyList<OptimizationExclusion> exclusions)
-    {
-        OptimizationCandidate[] candidateRows = [.. candidates];
-        OptimizationExclusion[] exclusionRows = [.. exclusions];
-        return new CrossRouteGenerationResult(
-            candidateRows,
-            exclusionRows,
-            OptimizationGenerationAuthority.Create(
-                snapshot, ModelFacts(), workload, binding,
-                ByteCount.FromBytes(32 * Gibibyte),
-                ByteCount.FromBytes(500 * Gibibyte),
-                EstimatorPolicy.ProvisionalV1(), new HashSet<string>(),
-                candidateRows, exclusionRows));
-    }
 
     [TestMethod]
     public void AGenerousMachine_ShowsEstimatedCompatible()
@@ -572,16 +578,14 @@ public sealed class CompatibilityScreenProjectionTests
         OptimizationCapabilitySnapshot snapshot = OptimizationSnapshot();
         OptimizationWorkload workload = Workload();
         OptimizationJourneyBinding binding = Binding();
-        CrossRouteGenerationResult generated = Stamped(
-            snapshot, workload, binding,
-            [],
-            [new OptimizationExclusion(
-                "ov-int4",
-                "weights=Int4|ctx=4096",
-                OptimizationExclusionReason.ExceedsSafeMemoryBudget)]);
+        CrossRouteGenerationResult generated = CrossRouteCandidateGenerator.Generate(
+            snapshot, ModelFacts(), workload, binding,
+            ByteCount.FromBytes(1), ByteCount.FromBytes(500 * Gibibyte),
+            EstimatorPolicy.ProvisionalV1(), new HashSet<string>());
 
         CompatibilityScreenModel model = ProjectWith(
-            result, generated, snapshot, workload, binding);
+            result, generated, snapshot, workload, binding,
+            safeBudgetBytes: 1);
 
         Assert.AreEqual(
             CompatibilityScreenState.NoEstimatedSafeConfiguration,
@@ -600,17 +604,18 @@ public sealed class CompatibilityScreenProjectionTests
         OptimizationCapabilitySnapshot snapshot = OptimizationSnapshot();
         OptimizationWorkload workload = Workload();
         OptimizationJourneyBinding binding = Binding();
-        CrossRouteGenerationResult generated = Stamped(
-            snapshot, workload, binding,
-            [],
-            [new OptimizationExclusion(
-                "ov-int4",
-                "weights=Int4|ctx=4096",
-                OptimizationExclusionReason.EstimateNotEstablished)]);
+        EstimatorPolicy absent = EstimatorPolicy.Absent();
+        CrossRouteGenerationResult generated = CrossRouteCandidateGenerator.Generate(
+            snapshot, ModelFacts(), workload, binding,
+            ByteCount.FromBytes(32 * Gibibyte),
+            ByteCount.FromBytes(500 * Gibibyte), absent,
+            new HashSet<string>());
 
         Assert.AreEqual(
             CompatibilityScreenState.NotEstablished,
-            ProjectWith(result, generated, snapshot, workload, binding).State);
+            ProjectWith(
+                result, generated, snapshot, workload, binding,
+                policy: absent).State);
     }
 
     [TestMethod]
@@ -624,17 +629,18 @@ public sealed class CompatibilityScreenProjectionTests
         OptimizationCapabilitySnapshot snapshot = OptimizationSnapshot();
         OptimizationWorkload workload = Workload();
         OptimizationJourneyBinding binding = Binding();
-        CrossRouteGenerationResult generated = Stamped(
-            snapshot, workload, binding,
-            [],
-            [new OptimizationExclusion(
-                "ov-int4",
-                "weights=Int4|ctx=4096",
-                OptimizationExclusionReason.EstimateNotEstablished)]);
+        EstimatorPolicy absent = EstimatorPolicy.Absent();
+        CrossRouteGenerationResult generated = CrossRouteCandidateGenerator.Generate(
+            snapshot, ModelFacts(), workload, binding,
+            ByteCount.FromBytes(32 * Gibibyte),
+            ByteCount.FromBytes(500 * Gibibyte), absent,
+            new HashSet<string>());
 
         Assert.AreEqual(
             CompatibilityScreenState.NotEstablished,
-            ProjectWith(result, generated, snapshot, workload, binding).State);
+            ProjectWith(
+                result, generated, snapshot, workload, binding,
+                policy: absent).State);
     }
 
     [TestMethod]
@@ -755,10 +761,8 @@ public sealed class CompatibilityScreenProjectionTests
         OptimizationCandidate candidate = AdmittedAlternative(
             snapshot, workload, binding).Candidates.Single();
 
-        CrossRouteGenerationResult duplicated = Stamped(
-            snapshot, workload, binding,
-            [candidate, candidate],
-            []);
+        CrossRouteGenerationResult duplicated = new(
+            [candidate, candidate], []);
 
         Assert.AreEqual(
             CompatibilityScreenState.NotEstablished,
@@ -829,20 +833,19 @@ public sealed class CompatibilityScreenProjectionTests
             isBaseline: true,
             GgufKvCacheFormat.F16);
         CompatibilityRunResult result = CompletedWith(baseline);
-        OptimizationCapabilitySnapshot snapshot = OptimizationSnapshot();
+        OptimizationCapabilitySnapshot snapshot = TwoCandidateSnapshot();
         OptimizationWorkload workload = Workload();
         OptimizationJourneyBinding binding = Binding();
-        CrossRouteGenerationResult generated = Stamped(
-            snapshot, workload, binding,
-            [],
-            [new OptimizationExclusion(
-                "baseline",
-                IdentityFor(baseline, binding).OptimizationDescriptor,
-                OptimizationExclusionReason.ExceedsSafeMemoryBudget)]);
+        CrossRouteGenerationResult generated = CrossRouteCandidateGenerator.Generate(
+            snapshot, ModelFacts(), workload, binding,
+            ByteCount.FromBytes(1), ByteCount.FromBytes(500 * Gibibyte),
+            EstimatorPolicy.ProvisionalV1(), new HashSet<string>());
 
         Assert.AreEqual(
             CompatibilityScreenState.NotEstablished,
-            ProjectWith(result, generated, snapshot, workload, binding).State);
+            ProjectWith(
+                result, generated, snapshot, workload, binding,
+                safeBudgetBytes: 1).State);
     }
 
     [TestMethod]
@@ -869,7 +872,25 @@ public sealed class CompatibilityScreenProjectionTests
     }
 
     [TestMethod]
-    public void ValidInputStamp_CannotAuthorizeAFabricatedEmptyOutput()
+    public void SyntheticEmptyOutput_CannotReceiveGeneratorAuthority()
+    {
+        CompatibilityRunResult result = CompletedWith(Evaluated(
+            CandidatePreparation.RuntimeProfileOnly,
+            CompatibilityFitState.DoesNotFit,
+            isBaseline: true,
+            GgufKvCacheFormat.F16));
+        OptimizationCapabilitySnapshot snapshot = OptimizationSnapshot();
+        OptimizationWorkload workload = Workload();
+        OptimizationJourneyBinding binding = Binding();
+        CrossRouteGenerationResult fabricated = new([], []);
+
+        Assert.AreEqual(
+            CompatibilityScreenState.NotEstablished,
+            ProjectWith(result, fabricated, snapshot, workload, binding).State);
+    }
+
+    [TestMethod]
+    public void CopyingAGenuineResult_DoesNotTransferGeneratorAuthority()
     {
         CompatibilityRunResult result = CompletedWith(Evaluated(
             CandidatePreparation.RuntimeProfileOnly,
@@ -881,12 +902,11 @@ public sealed class CompatibilityScreenProjectionTests
         OptimizationJourneyBinding binding = Binding();
         CrossRouteGenerationResult genuine = AdmittedAlternative(
             snapshot, workload, binding);
-        CrossRouteGenerationResult fabricated = new(
-            [], [], genuine.Authority);
+        CrossRouteGenerationResult copied = genuine with { };
 
         Assert.AreEqual(
             CompatibilityScreenState.NotEstablished,
-            ProjectWith(result, fabricated, snapshot, workload, binding).State);
+            ProjectWith(result, copied, snapshot, workload, binding).State);
     }
 
     [TestMethod]
@@ -910,8 +930,7 @@ public sealed class CompatibilityScreenProjectionTests
             [exclusion with
             {
                 Reason = OptimizationExclusionReason.InsufficientDiskSpace
-            }],
-            genuine.Authority);
+            }]);
 
         Assert.AreEqual(
             CompatibilityScreenState.NotEstablished,
@@ -937,8 +956,7 @@ public sealed class CompatibilityScreenProjectionTests
         Assert.AreEqual(2, genuine.Candidates.Count);
         CrossRouteGenerationResult reordered = new(
             genuine.Candidates.Reverse().ToArray(),
-            genuine.Exclusions,
-            genuine.Authority);
+            genuine.Exclusions);
 
         Assert.AreEqual(
             CompatibilityScreenState.NotEstablished,
@@ -991,7 +1009,7 @@ public sealed class CompatibilityScreenProjectionTests
         CompatibilityBaselineIdentity identity = IdentityFor(legacyBaseline, binding);
         CompatibilityOptimizationProjectionInput input =
             ProjectionInput(
-                Stamped(snapshot, workload, binding, [], []),
+                AdmittedAlternative(snapshot, workload, binding),
                 snapshot, workload, binding, identity);
 
         Assert.AreEqual(CandidatePreparation.None, legacyBaseline.Preparation);
@@ -1021,7 +1039,7 @@ public sealed class CompatibilityScreenProjectionTests
         OptimizationJourneyBinding binding = Binding();
         CompatibilityOptimizationProjectionInput input =
             ProjectionInput(
-                Stamped(snapshot, workload, binding, [], []),
+                AdmittedAlternative(snapshot, workload, binding),
                 snapshot, workload, binding, IdentityFor(different, binding));
 
         Assert.AreEqual(
@@ -1048,7 +1066,7 @@ public sealed class CompatibilityScreenProjectionTests
         OptimizationJourneyBinding binding = Binding();
         CompatibilityOptimizationProjectionInput input =
             ProjectionInput(
-                Stamped(snapshot, workload, binding, [], []),
+                AdmittedAlternative(snapshot, workload, binding),
                 snapshot, workload, binding, IdentityFor(first, binding));
 
         Assert.AreEqual(

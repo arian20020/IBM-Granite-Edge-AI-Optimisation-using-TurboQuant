@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Globalization;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Candidates;
@@ -16,73 +17,6 @@ namespace GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization
 /// <summary>One candidate that was considered and refused, and why.</summary>
 public sealed record OptimizationExclusion(
     string EvidenceId, string CanonicalDescriptor, OptimizationExclusionReason Reason);
-
-/// <summary>
-/// Opaque stamp over the complete authority context that produced both the
-/// admitted candidates and the exclusions. Candidate proofs cover admitted
-/// rows; this stamp is what makes an all-excluded result safe to distinguish
-/// from stale or unbound evidence.
-/// </summary>
-internal sealed record OptimizationGenerationAuthority
-{
-    private OptimizationGenerationAuthority(string authoritySha256)
-    {
-        AuthoritySha256 = authoritySha256;
-    }
-
-    private string AuthoritySha256 { get; }
-
-    internal static OptimizationGenerationAuthority Create(
-        OptimizationCapabilitySnapshot snapshot,
-        InspectedModelFacts facts,
-        OptimizationWorkload workload,
-        OptimizationJourneyBinding binding,
-        ByteCount safeBudget,
-        ByteCount availableDisk,
-        EstimatorPolicy policy,
-        IReadOnlySet<string> optedInExperimentalEvidenceIds,
-        IReadOnlyList<OptimizationCandidate> candidates,
-        IReadOnlyList<OptimizationExclusion> exclusions)
-    {
-        ArgumentNullException.ThrowIfNull(snapshot);
-        ArgumentNullException.ThrowIfNull(facts);
-        ArgumentNullException.ThrowIfNull(workload);
-        ArgumentNullException.ThrowIfNull(binding);
-        ArgumentNullException.ThrowIfNull(policy);
-        ArgumentNullException.ThrowIfNull(optedInExperimentalEvidenceIds);
-        ArgumentNullException.ThrowIfNull(candidates);
-        ArgumentNullException.ThrowIfNull(exclusions);
-        foreach (string evidenceId in optedInExperimentalEvidenceIds)
-        {
-            OptimizationIdentifier.Require(
-                evidenceId,
-                nameof(optedInExperimentalEvidenceIds),
-                "An experimental capability opt-in");
-        }
-
-        return new OptimizationGenerationAuthority(OptimizationGenerationDigest.Compute(
-            snapshot, facts, workload, binding, safeBudget, availableDisk, policy,
-            optedInExperimentalEvidenceIds, candidates, exclusions));
-    }
-
-    internal bool Matches(
-        OptimizationCapabilitySnapshot snapshot,
-        InspectedModelFacts facts,
-        OptimizationWorkload workload,
-        OptimizationJourneyBinding binding,
-        ByteCount safeBudget,
-        ByteCount availableDisk,
-        EstimatorPolicy policy,
-        IReadOnlySet<string> optedInExperimentalEvidenceIds,
-        IReadOnlyList<OptimizationCandidate> candidates,
-        IReadOnlyList<OptimizationExclusion> exclusions) =>
-        string.Equals(
-            AuthoritySha256,
-            OptimizationGenerationDigest.Compute(
-                snapshot, facts, workload, binding, safeBudget, availableDisk,
-                policy, optedInExperimentalEvidenceIds, candidates, exclusions),
-            StringComparison.Ordinal);
-}
 
 /// <summary>
 /// Canonical digest of every input that can change generation and the exact
@@ -252,21 +186,12 @@ public sealed record CrossRouteGenerationResult
     internal CrossRouteGenerationResult(
         IReadOnlyList<OptimizationCandidate> candidates,
         IReadOnlyList<OptimizationExclusion> exclusions)
-        : this(candidates, exclusions, authority: null)
-    {
-    }
-
-    internal CrossRouteGenerationResult(
-        IReadOnlyList<OptimizationCandidate> candidates,
-        IReadOnlyList<OptimizationExclusion> exclusions,
-        OptimizationGenerationAuthority? authority)
     {
         ArgumentNullException.ThrowIfNull(candidates);
         ArgumentNullException.ThrowIfNull(exclusions);
 
         Candidates = Array.AsReadOnly([.. candidates]);
         Exclusions = Array.AsReadOnly([.. exclusions]);
-        Authority = authority;
     }
 
     public IReadOnlyList<OptimizationCandidate> Candidates { get; }
@@ -278,7 +203,6 @@ public sealed record CrossRouteGenerationResult
     /// </summary>
     public IReadOnlyList<OptimizationExclusion> Exclusions { get; }
 
-    internal OptimizationGenerationAuthority? Authority { get; }
 }
 
 /// <summary>
@@ -295,6 +219,33 @@ public sealed record CrossRouteGenerationResult
 /// </summary>
 internal static class CrossRouteCandidateGenerator
 {
+    private sealed record GenerationAuthority(string AuthoritySha256);
+
+    private static readonly ConditionalWeakTable<
+        CrossRouteGenerationResult, GenerationAuthority> Authorities = new();
+
+    internal static bool HasMatchingAuthority(
+        CrossRouteGenerationResult result,
+        OptimizationCapabilitySnapshot snapshot,
+        InspectedModelFacts facts,
+        OptimizationWorkload workload,
+        OptimizationJourneyBinding binding,
+        ByteCount safeBudget,
+        ByteCount availableDisk,
+        EstimatorPolicy policy,
+        IReadOnlySet<string> optedInExperimentalEvidenceIds)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+        return Authorities.TryGetValue(result, out GenerationAuthority? authority)
+            && string.Equals(
+                authority.AuthoritySha256,
+                OptimizationGenerationDigest.Compute(
+                    snapshot, facts, workload, binding, safeBudget, availableDisk,
+                    policy, optedInExperimentalEvidenceIds, result.Candidates,
+                    result.Exclusions),
+                StringComparison.Ordinal);
+    }
+
     internal static CrossRouteGenerationResult Generate(
         OptimizationCapabilitySnapshot snapshot,
         InspectedModelFacts facts,
@@ -376,12 +327,14 @@ internal static class CrossRouteCandidateGenerator
                 .ThenBy(exclusion => exclusion.Reason)
         ];
 
-        return new CrossRouteGenerationResult(
-            distinct,
-            orderedExclusions,
-            OptimizationGenerationAuthority.Create(
+        CrossRouteGenerationResult result = new(distinct, orderedExclusions);
+        Authorities.Add(
+            result,
+            new GenerationAuthority(OptimizationGenerationDigest.Compute(
                 snapshot, facts, workload, binding, safeBudget, availableDisk,
-                policy, optedInExperimentalEvidenceIds, distinct, orderedExclusions));
+                policy, optedInExperimentalEvidenceIds, distinct,
+                orderedExclusions)));
+        return result;
     }
 
     private static void GenerateOpenVino(

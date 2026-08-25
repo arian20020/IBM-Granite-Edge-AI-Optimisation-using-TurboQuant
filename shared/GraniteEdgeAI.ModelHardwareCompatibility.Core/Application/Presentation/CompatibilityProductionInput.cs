@@ -302,16 +302,36 @@ public sealed record CompatibilityHardwareInput
 
         ArgumentNullException.ThrowIfNull(presentDevices);
         ArgumentNullException.ThrowIfNull(verifiedBackends);
-        HashSet<DeviceRouteId> devices = [.. presentDevices];
-        HashSet<CompatibilityBackend> backends = [.. verifiedBackends];
-        if (devices.Count == 0 || devices.Contains(DeviceRouteId.Unspecified))
+        List<DeviceRouteId> deviceSnapshot = [];
+        foreach (DeviceRouteId device in presentDevices)
         {
-            throw new ArgumentException("At least one established device is required.", nameof(presentDevices));
+            if (!Enum.IsDefined(device) || device == DeviceRouteId.Unspecified)
+            {
+                throw new ArgumentException(
+                    "Every device must be a defined established value.",
+                    nameof(presentDevices));
+            }
+            deviceSnapshot.Add(device);
         }
 
-        if (backends.Contains(CompatibilityBackend.Unspecified))
+        List<CompatibilityBackend> backendSnapshot = [];
+        foreach (CompatibilityBackend backend in verifiedBackends)
         {
-            throw new ArgumentException("An unspecified backend is not verified.", nameof(verifiedBackends));
+            if (!Enum.IsDefined(backend)
+                || backend == CompatibilityBackend.Unspecified)
+            {
+                throw new ArgumentException(
+                    "Every backend must be a defined verified value.",
+                    nameof(verifiedBackends));
+            }
+            backendSnapshot.Add(backend);
+        }
+
+        FrozenSet<DeviceRouteId> devices = deviceSnapshot.ToFrozenSet();
+        FrozenSet<CompatibilityBackend> backends = backendSnapshot.ToFrozenSet();
+        if (devices.Count == 0)
+        {
+            throw new ArgumentException("At least one established device is required.", nameof(presentDevices));
         }
 
         return new CompatibilityHardwareInput(
@@ -542,8 +562,7 @@ public sealed record CompatibilityOptimizationProductionInput
         Snapshot = snapshot;
         Workload = workload;
         Binding = binding;
-        OptedInExperimentalEvidenceIds =
-            optedInExperimentalEvidenceIds.ToFrozenSet(StringComparer.Ordinal);
+        OptedInExperimentalEvidenceIds = optedInExperimentalEvidenceIds;
     }
 
     public OptimizationCapabilitySnapshot Snapshot { get; }
@@ -561,15 +580,18 @@ public sealed record CompatibilityOptimizationProductionInput
         ArgumentNullException.ThrowIfNull(workload);
         ArgumentNullException.ThrowIfNull(binding);
         ArgumentNullException.ThrowIfNull(optedInExperimentalEvidenceIds);
+        List<string> evidenceSnapshot = [];
         foreach (string evidenceId in optedInExperimentalEvidenceIds)
         {
             OptimizationIdentifier.Require(
                 evidenceId,
                 nameof(optedInExperimentalEvidenceIds),
                 "An experimental capability opt-in");
+            evidenceSnapshot.Add(evidenceId);
         }
 
         return new CompatibilityOptimizationProductionInput(
-            snapshot, workload, binding, optedInExperimentalEvidenceIds);
+            snapshot, workload, binding,
+            evidenceSnapshot.ToFrozenSet(StringComparer.Ordinal));
     }
 }

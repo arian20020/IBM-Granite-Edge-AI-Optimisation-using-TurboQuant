@@ -298,7 +298,7 @@ public sealed class PrivacyCanaryTests
         // exposes only the copied set of strict evidence identifiers.
         "CompatibilityOptimizationProductionInput.OptedInExperimentalEvidenceIds",
         "CompatibilityOptimizationProjectionInput.OptedInExperimentalEvidenceIds",
-        "OptimizationGenerationAuthority.AuthoritySha256",
+        "GenerationAuthority.AuthoritySha256",
         "OptimizationGenerationDigest.Compute",
         "OptimizationGenerationDigest.PayloadDigest",
         "<>c.<AppendObject>b__2_1",

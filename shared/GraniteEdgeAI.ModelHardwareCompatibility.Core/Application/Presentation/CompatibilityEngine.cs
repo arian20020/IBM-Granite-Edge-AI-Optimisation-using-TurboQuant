@@ -249,7 +249,8 @@ public static class CompatibilityEngine
         if (baselines.Length != 1
             || assessment.BaselineFingerprint != baselines[0].Fingerprint
             || !CurrentModelMatchesCapability(
-                input.CurrentModel, optimization.Snapshot, baselines[0].Context))
+                input.CurrentModel, input.Hardware, optimization.Snapshot,
+                baselines[0].Context))
         {
             return CompatibilityScreenModel.ForPresentation(
                 CompatibilityScreenState.NotEstablished,
@@ -337,6 +338,7 @@ public static class CompatibilityEngine
 
     private static bool CurrentModelMatchesCapability(
         CompatibilityCurrentModelInput current,
+        CompatibilityHardwareInput hardware,
         OptimizationCapabilitySnapshot snapshot,
         ContextTokenCount context)
     {
@@ -369,6 +371,22 @@ public static class CompatibilityEngine
             && current.OpenVinoSourcePrecision is { } sourcePrecision
             && snapshot.OpenVino is { } openVinoPayload)
         {
+            CompatibilityBackend requiredBackend = openVino.Device switch
+            {
+                DeviceRouteId.Cpu => CompatibilityBackend.OpenVinoCpu,
+                DeviceRouteId.IntelIntegratedGpu
+                    or DeviceRouteId.IntelDiscreteGpu =>
+                    CompatibilityBackend.OpenVinoGpu,
+                DeviceRouteId.IntelNpu => CompatibilityBackend.OpenVinoNpu,
+                _ => CompatibilityBackend.Unspecified
+            };
+            if (!hardware.PresentDevices.Contains(openVino.Device)
+                || requiredBackend == CompatibilityBackend.Unspecified
+                || !hardware.VerifiedBackends.Contains(requiredBackend))
+            {
+                return false;
+            }
+
             OpenVinoAdmittedConfiguration[] matching =
             [
                 .. openVinoPayload.Admitted.Where(admission =>

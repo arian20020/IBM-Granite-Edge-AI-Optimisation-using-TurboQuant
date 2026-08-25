@@ -544,13 +544,10 @@ public sealed record CompatibilityScreenModel
     private static bool ValidGeneratedAuthority(
         CompatibilityOptimizationProjectionInput input)
     {
-        if (input.Generated.Authority is not { } generationAuthority
-            || !generationAuthority.Matches(
-                input.Snapshot, input.Facts, input.Workload, input.Binding,
-                input.SafeBudget, input.AvailableDisk, input.Policy,
-                input.OptedInExperimentalEvidenceIds,
-                input.Generated.Candidates,
-                input.Generated.Exclusions))
+        if (!CrossRouteCandidateGenerator.HasMatchingAuthority(
+                input.Generated, input.Snapshot, input.Facts, input.Workload,
+                input.Binding, input.SafeBudget, input.AvailableDisk,
+                input.Policy, input.OptedInExperimentalEvidenceIds))
         {
             return false;
         }

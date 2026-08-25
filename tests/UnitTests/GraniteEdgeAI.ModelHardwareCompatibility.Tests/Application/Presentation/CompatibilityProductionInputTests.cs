@@ -6,6 +6,7 @@ using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.OpenVino;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.Gguf;
 using System.Reflection;
+using System.Collections;
 
 namespace GraniteEdgeAI.ModelHardwareCompatibility.Tests.Application.Presentation;
 
@@ -86,7 +87,8 @@ public sealed class CompatibilityProductionInputTests
         CompatibilityProductionInput input = CompatibilityProductionInput.Create(
             modelRun, hardwareRun, currentModel,
             CompatibilityJourneyAuthorityInput.Create(handoffId, digest, digest),
-            legacy.Hardware, legacy.FreshResources, optimization);
+            OpenVinoHardware(DeviceRouteId.Cpu, CompatibilityBackend.OpenVinoCpu),
+            legacy.FreshResources, optimization);
 
         CompatibilityScreenModel result = CompatibilityEngine.Run(input);
 
@@ -193,6 +195,24 @@ public sealed class CompatibilityProductionInputTests
                 [ContextTokenCount.FromTokens(4096)]),
             binding,
             new HashSet<string>());
+
+    private static OptimizationCapabilitySnapshot OptimizationSnapshotForCollectionTest()
+    {
+        const string digest =
+            "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";
+        GgufAdmittedConfiguration admission = GgufAdmittedConfiguration.Create(
+            "gguf-q8-cache", CompatibilityBackend.Cpu, DeviceRouteId.Cpu,
+            GgufWeightFormat.Imported, GgufKvCacheFormat.Q8_0,
+            GpuOffloadLevel.None, 512, 8192,
+            SupportLevel.DeclaredSupported, false);
+        return OptimizationCapabilitySnapshot.ForGguf(
+            "gguf-cap", digest,
+            GgufCapabilityPayload.Create(
+                "b4321", [admission],
+                runtimeAuthority: GgufRuntimeAuthority.Create(
+                    "b4321", "0123456789abcdef0123456789abcdef01234567",
+                    [GgufProfile(admission.EvidenceId)])));
+    }
 
     [TestMethod]
     public void ProductionEngine_WithoutFrontierCannotClaimOptimizationIsAvailable()
@@ -363,6 +383,83 @@ public sealed class CompatibilityProductionInputTests
     }
 
     [TestMethod]
+    [DataRow(DeviceRouteId.Cpu, CompatibilityBackend.OpenVinoCpu, DeviceRouteId.Cpu, true)]
+    [DataRow(DeviceRouteId.Cpu, CompatibilityBackend.Cpu, DeviceRouteId.Cpu, false)]
+    [DataRow(DeviceRouteId.IntelIntegratedGpu, CompatibilityBackend.OpenVinoGpu,
+        DeviceRouteId.IntelIntegratedGpu, true)]
+    [DataRow(DeviceRouteId.IntelIntegratedGpu, CompatibilityBackend.OpenVinoGpu,
+        DeviceRouteId.IntelDiscreteGpu, false)]
+    [DataRow(DeviceRouteId.IntelDiscreteGpu, CompatibilityBackend.OpenVinoGpu,
+        DeviceRouteId.IntelDiscreteGpu, true)]
+    [DataRow(DeviceRouteId.IntelNpu, CompatibilityBackend.OpenVinoNpu,
+        DeviceRouteId.IntelNpu, true)]
+    [DataRow(DeviceRouteId.IntelNpu, CompatibilityBackend.OpenVinoNpu,
+        DeviceRouteId.Cpu, false)]
+    public void ProductionEngine_RequiresExactOpenVinoDeviceAndBackendCoherence(
+        DeviceRouteId configuredDevice,
+        CompatibilityBackend verifiedBackend,
+        DeviceRouteId presentDevice,
+        bool expectedEstablished)
+    {
+        Guid modelRun = Guid.NewGuid();
+        Guid hardwareRun = Guid.NewGuid();
+        Guid handoff = Guid.NewGuid();
+        const string digest =
+            "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";
+        OpenVinoAdmittedConfiguration admission =
+            OpenVinoAdmittedConfiguration.Create(
+                "ov-current", configuredDevice, OpenVinoWeightFormat.Original,
+                OpenVinoKvCacheFormat.U8, OpenVinoPerformanceHint.Latency,
+                OpenVinoCompiledCachePolicy.Disabled, 1, 512, 8192,
+                SupportLevel.DeclaredSupported, false);
+        OptimizationCapabilitySnapshot snapshot =
+            OptimizationCapabilitySnapshot.ForOpenVino(
+                "ov-cap", digest, OpenVinoCapabilityPayload.Create(
+                    "2026.1.0", [admission],
+                    [OpenVinoAuthority(admission.EvidenceId, digest)]));
+        OpenVinoCompatibilityModelInput model =
+            OpenVinoCompatibilityModelInput.Create(
+                1 * GiB, 16, 2048, 16, 4, 4096);
+        OptimizationJourneyBinding binding = OptimizationJourneyBinding.Create(
+            modelRun.ToString("N"), handoff.ToString("N"), digest,
+            model.PackageLengthBytes, hardwareRun.ToString("N"), digest);
+        CompatibilityProductionInput legacy = ValidInput(
+            modelRun, hardwareRun, availableSystemMemoryBytes: 16 * GiB);
+        CompatibilityProductionInput input = CompatibilityProductionInput.Create(
+            modelRun, hardwareRun,
+            CompatibilityCurrentModelInput.ForOpenVino(
+                model,
+                OpenVinoRouteConfiguration.Create(
+                    OpenVinoWeightFormat.Original, OpenVinoKvCacheFormat.U8,
+                    configuredDevice, OpenVinoPerformanceHint.Latency,
+                    OpenVinoCompiledCachePolicy.Disabled, 1),
+                OpenVinoWeightPrecision.Fp16),
+            CompatibilityJourneyAuthorityInput.Create(handoff, digest, digest),
+            OpenVinoHardware(presentDevice, verifiedBackend),
+            legacy.FreshResources,
+            OptimizationInput(snapshot, binding));
+
+        CompatibilityScreenModel result = CompatibilityEngine.Run(input);
+
+        if (expectedEstablished)
+        {
+            Assert.AreEqual(
+                CompatibilityScreenState.EstimatedCompatible, result.State);
+        }
+        else
+        {
+            Assert.AreEqual(CompatibilityScreenState.NotEstablished, result.State);
+            Assert.IsNull(result.Optimization);
+        }
+    }
+
+    private static CompatibilityHardwareInput OpenVinoHardware(
+        DeviceRouteId device,
+        CompatibilityBackend backend) =>
+        CompatibilityHardwareInput.Create(
+            16 * GiB, 4 * GiB, 500 * GiB, [device], [backend]);
+
+    [TestMethod]
     public void ProductionInput_RejectsEmptyOrDuplicateRunIdentities()
     {
         CompatibilityProductionInput valid = ValidInput();
@@ -427,6 +524,66 @@ public sealed class CompatibilityProductionInputTests
 
         CollectionAssert.Contains(input.PresentDevices.ToArray(), DeviceRouteId.Cpu);
         CollectionAssert.Contains(input.VerifiedBackends.ToArray(), CompatibilityBackend.Cpu);
+        Assert.ThrowsExactly<NotSupportedException>(() =>
+            ((ISet<DeviceRouteId>)input.PresentDevices).Add(
+                DeviceRouteId.IntelNpu));
+        Assert.ThrowsExactly<NotSupportedException>(() =>
+            ((ISet<CompatibilityBackend>)input.VerifiedBackends).Add(
+                CompatibilityBackend.OpenVinoNpu));
+    }
+
+    [TestMethod]
+    public void HardwareInput_EnumeratesEachCollectionExactlyOnceWithoutReadingCount()
+    {
+        HostileCountCollection<DeviceRouteId> devices = new(DeviceRouteId.Cpu);
+        HostileCountCollection<CompatibilityBackend> backends =
+            new(CompatibilityBackend.Cpu);
+
+        CompatibilityHardwareInput input = CompatibilityHardwareInput.Create(
+            16 * GiB, 0, 100 * GiB, devices, backends);
+
+        Assert.AreEqual(1, devices.EnumerationCount);
+        Assert.AreEqual(1, backends.EnumerationCount);
+        CollectionAssert.AreEqual(
+            new[] { DeviceRouteId.Cpu }, input.PresentDevices.ToArray());
+    }
+
+    [TestMethod]
+    [DataRow(-1)]
+    [DataRow(999)]
+    public void HardwareInput_RejectsEveryUndefinedEnumValue(int raw)
+    {
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            CompatibilityHardwareInput.Create(
+                16 * GiB, 0, 100 * GiB,
+                [(DeviceRouteId)raw],
+                [CompatibilityBackend.Cpu]));
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            CompatibilityHardwareInput.Create(
+                16 * GiB, 0, 100 * GiB,
+                [DeviceRouteId.Cpu],
+                [(CompatibilityBackend)raw]));
+    }
+
+    [TestMethod]
+    public void OptimizationInput_SnapshotsOptInsExactlyOnceWithoutReadingCount()
+    {
+        HostileReadOnlySet<string> optedIn = new("gguf-q8-cache");
+
+        CompatibilityOptimizationProductionInput input =
+            CompatibilityOptimizationProductionInput.Create(
+                OptimizationSnapshotForCollectionTest(),
+                OptimizationWorkload.Create(
+                    "chat", 512, OptimizationAssessment.Poor,
+                    [ContextTokenCount.FromTokens(4096)]),
+                OptimizationJourneyBinding.Create(
+                    "mi-run", "mi-handoff", new string('a', 64), 1,
+                    "hw-run", new string('b', 64)),
+                optedIn);
+
+        Assert.AreEqual(1, optedIn.EnumerationCount);
+        Assert.ThrowsExactly<NotSupportedException>(() =>
+            ((ISet<string>)input.OptedInExperimentalEvidenceIds).Add("another"));
     }
 
     [TestMethod]
@@ -508,5 +665,56 @@ public sealed class CompatibilityProductionInputTests
                 0,
                 500 * GiB,
                 observedAt));
+    }
+
+    private sealed class SinglePassEnumerable<T>(T value) : IEnumerable<T>
+    {
+        public int EnumerationCount { get; private set; }
+
+        public IEnumerator<T> GetEnumerator()
+        {
+            EnumerationCount++;
+            if (EnumerationCount != 1)
+            {
+                throw new InvalidOperationException("The source was enumerated twice.");
+            }
+
+            yield return value;
+        }
+
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+    }
+
+    private sealed class HostileCountCollection<T>(T value) : ICollection<T>
+    {
+        private readonly SinglePassEnumerable<T> source = new(value);
+
+        public int EnumerationCount => source.EnumerationCount;
+        public int Count => throw new InvalidOperationException("Count is hostile.");
+        public bool IsReadOnly => true;
+        public IEnumerator<T> GetEnumerator() => source.GetEnumerator();
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+        public bool Contains(T item) => throw new NotSupportedException();
+        public void CopyTo(T[] array, int arrayIndex) => throw new NotSupportedException();
+        public void Add(T item) => throw new NotSupportedException();
+        public bool Remove(T item) => throw new NotSupportedException();
+        public void Clear() => throw new NotSupportedException();
+    }
+
+    private sealed class HostileReadOnlySet<T>(T value) : IReadOnlySet<T>
+    {
+        private readonly SinglePassEnumerable<T> source = new(value);
+
+        public int EnumerationCount => source.EnumerationCount;
+        public int Count => throw new InvalidOperationException("Count is hostile.");
+        public IEnumerator<T> GetEnumerator() => source.GetEnumerator();
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+        public bool Contains(T item) => EqualityComparer<T>.Default.Equals(value, item);
+        public bool IsProperSubsetOf(IEnumerable<T> other) => throw new NotSupportedException();
+        public bool IsProperSupersetOf(IEnumerable<T> other) => throw new NotSupportedException();
+        public bool IsSubsetOf(IEnumerable<T> other) => throw new NotSupportedException();
+        public bool IsSupersetOf(IEnumerable<T> other) => throw new NotSupportedException();
+        public bool Overlaps(IEnumerable<T> other) => throw new NotSupportedException();
+        public bool SetEquals(IEnumerable<T> other) => throw new NotSupportedException();
     }
 }
