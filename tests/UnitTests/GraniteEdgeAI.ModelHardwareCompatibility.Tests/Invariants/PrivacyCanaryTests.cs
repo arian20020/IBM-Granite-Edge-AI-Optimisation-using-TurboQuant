@@ -301,6 +301,17 @@ public sealed class PrivacyCanaryTests
         "GenerationAuthority.AuthoritySha256",
         "OptimizationGenerationDigest.Compute",
         "OptimizationGenerationDigest.PayloadDigest",
+        // Closed freshness policy identity and lowercase SHA-256 digests only.
+        // The fact digest functions hash length-prefixed numeric/enumerated
+        // facts and never return or retain source values, paths, or names.
+        "CompatibilityEngine.FreshResourcePolicyVersion",
+        "CompatibilityFactDigest.ComputeHardware",
+        "CompatibilityFactDigest.ComputeModel",
+        "CompatibilityFactDigest.Digest",
+        "CompatibilityJourneyAuthorityInput.HardwareFactsSha256",
+        "CompatibilityJourneyAuthorityInput.ModelFactsSha256",
+        "OptimizationHardwareAuthority.FreshnessPolicyVersion",
+        "OptimizationHardwareAuthority.HardwareFactsSha256",
         "<>c.<AppendObject>b__2_1",
         "<>c.<Compute>b__0_0"
     ];

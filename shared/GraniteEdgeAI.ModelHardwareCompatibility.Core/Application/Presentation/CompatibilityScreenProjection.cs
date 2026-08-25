@@ -160,6 +160,7 @@ internal sealed record CompatibilityOptimizationProjectionInput
         ByteCount availableDisk,
         EstimatorPolicy policy,
         IReadOnlySet<string> optedInExperimentalEvidenceIds,
+        OptimizationHardwareAuthority hardwareAuthority,
         CompatibilityBaselineIdentity baseline)
     {
         Generated = generated;
@@ -172,6 +173,7 @@ internal sealed record CompatibilityOptimizationProjectionInput
         Policy = policy;
         OptedInExperimentalEvidenceIds =
             optedInExperimentalEvidenceIds.ToFrozenSet(StringComparer.Ordinal);
+        HardwareAuthority = hardwareAuthority;
         Baseline = baseline;
     }
 
@@ -184,6 +186,7 @@ internal sealed record CompatibilityOptimizationProjectionInput
     internal ByteCount AvailableDisk { get; }
     internal EstimatorPolicy Policy { get; }
     internal IReadOnlySet<string> OptedInExperimentalEvidenceIds { get; }
+    internal OptimizationHardwareAuthority HardwareAuthority { get; }
     internal CompatibilityBaselineIdentity Baseline { get; }
 
     internal static CompatibilityOptimizationProjectionInput Create(
@@ -196,6 +199,7 @@ internal sealed record CompatibilityOptimizationProjectionInput
         ByteCount availableDisk,
         EstimatorPolicy policy,
         IReadOnlySet<string> optedInExperimentalEvidenceIds,
+        OptimizationHardwareAuthority hardwareAuthority,
         CompatibilityBaselineIdentity baseline)
     {
         ArgumentNullException.ThrowIfNull(generated);
@@ -205,11 +209,13 @@ internal sealed record CompatibilityOptimizationProjectionInput
         ArgumentNullException.ThrowIfNull(binding);
         ArgumentNullException.ThrowIfNull(policy);
         ArgumentNullException.ThrowIfNull(optedInExperimentalEvidenceIds);
+        ArgumentNullException.ThrowIfNull(hardwareAuthority);
         ArgumentNullException.ThrowIfNull(baseline);
 
         return new CompatibilityOptimizationProjectionInput(
             generated, snapshot, facts, workload, binding, safeBudget,
-            availableDisk, policy, optedInExperimentalEvidenceIds, baseline);
+            availableDisk, policy, optedInExperimentalEvidenceIds,
+            hardwareAuthority, baseline);
     }
 }
 
@@ -255,7 +261,8 @@ public sealed record CompatibilityScreenModel
         bool useCurrentModelAvailable,
         bool continueEnabled,
         CompatibilitySetupView? setup,
-        CompatibilityOptimizationView? optimization)
+        CompatibilityOptimizationView? optimization,
+        bool isActionAuthoritative)
     {
         CurrentSetup = setup;
         Setup = state == CompatibilityScreenState.OptimisationRequired ? null : setup;
@@ -264,7 +271,8 @@ public sealed record CompatibilityScreenModel
         Modes = modes;
         BaselineExclusionReason = baselineExclusionReason;
         UseCurrentModelAvailable = useCurrentModelAvailable;
-        ContinueEnabled = continueEnabled;
+        IsActionAuthoritative = isActionAuthoritative;
+        ContinueEnabled = continueEnabled && isActionAuthoritative;
         Optimization = optimization;
         RecommendedSetup = optimization?.RecommendedMode;
     }
@@ -295,6 +303,8 @@ public sealed record CompatibilityScreenModel
     /// can act on. Elsewhere it stays visible and disabled.
     /// </summary>
     public bool ContinueEnabled { get; }
+
+    internal bool IsActionAuthoritative { get; }
 
     /// <summary>
     /// The setup the screen is describing, or null when nothing was evaluated.
@@ -364,7 +374,8 @@ public sealed record CompatibilityScreenModel
             useCurrentModelAvailable,
             continueEnabled,
             setup,
-            optimization);
+            optimization,
+            isActionAuthoritative: false);
     }
 
     internal static CompatibilityScreenModel From(CompatibilityRunResult result)
@@ -398,7 +409,8 @@ public sealed record CompatibilityScreenModel
             state is CompatibilityScreenState.EstimatedCompatible
                 or CompatibilityScreenState.OptimisationRequired,
             DescribeSetup(result.Assessment),
-            optimization: null);
+            optimization: null,
+            isActionAuthoritative: true);
     }
 
     /// <summary>
@@ -431,7 +443,8 @@ public sealed record CompatibilityScreenModel
             decision.State == CompatibilityScreenState.EstimatedCompatible,
             actionable,
             decision.Setup,
-            decision.Optimization);
+            decision.Optimization,
+            isActionAuthoritative: true);
     }
 
     private sealed record ProjectionDecision(
@@ -547,7 +560,8 @@ public sealed record CompatibilityScreenModel
         if (!CrossRouteCandidateGenerator.HasMatchingAuthority(
                 input.Generated, input.Snapshot, input.Facts, input.Workload,
                 input.Binding, input.SafeBudget, input.AvailableDisk,
-                input.Policy, input.OptedInExperimentalEvidenceIds))
+                input.Policy, input.OptedInExperimentalEvidenceIds,
+                input.HardwareAuthority))
         {
             return false;
         }

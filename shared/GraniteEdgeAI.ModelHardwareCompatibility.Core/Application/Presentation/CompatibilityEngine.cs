@@ -24,12 +24,38 @@ namespace GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation
 /// </summary>
 public static class CompatibilityEngine
 {
+    // Matches the approved Hardware Inspection dynamic-memory evidence policy.
+    internal static readonly TimeSpan FreshResourceMaximumAge =
+        TimeSpan.FromSeconds(30);
+    internal static readonly TimeSpan FreshResourceFutureClockSkew =
+        TimeSpan.FromSeconds(5);
+    internal const string FreshResourcePolicyVersion =
+        "hardware-dynamic-memory-freshness-v1";
+
     /// <summary>Runs C1 with validated production values supplied by owner adapters.</summary>
     public static CompatibilityScreenModel Run(
         CompatibilityProductionInput input,
+        CancellationToken cancellationToken = default) =>
+        Run(input, TimeProvider.System, cancellationToken);
+
+    /// <summary>Runs C1 against an explicit execution-time clock.</summary>
+    public static CompatibilityScreenModel Run(
+        CompatibilityProductionInput input,
+        TimeProvider timeProvider,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(input);
+        ArgumentNullException.ThrowIfNull(timeProvider);
+
+        DateTimeOffset evaluatedAtUtc = timeProvider.GetUtcNow();
+        if (!FreshResourcesAreCurrent(input.FreshResources, evaluatedAtUtc))
+        {
+            return CompatibilityScreenModel.ForPresentation(
+                CompatibilityScreenState.NotEstablished,
+                [], [], BaselineExclusionReason.None,
+                useCurrentModelAvailable: false,
+                continueEnabled: false);
+        }
 
         try
         {
@@ -37,16 +63,22 @@ public static class CompatibilityEngine
                 ? CompatibilityRunCoordinator.Execute(
                     new CompatibilityRunRequest(
                         CompatibilityContextRequest.ApplicationDefault()),
-                    ProductionDependencies(input),
+                    ProductionDependencies(input, timeProvider),
                     cancellationToken)
-                : EvaluateOpenVinoBaseline(input, cancellationToken);
-            return ProjectProduction(result, input);
+                : EvaluateOpenVinoBaseline(input, timeProvider, cancellationToken);
+            return ProjectProduction(result, input, evaluatedAtUtc);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             return CompatibilityScreenModel.From(Failure());
         }
     }
+
+    private static bool FreshResourcesAreCurrent(
+        CompatibilityFreshResourcesInput resources,
+        DateTimeOffset evaluatedAtUtc) =>
+        resources.ObservedAtUtc >= evaluatedAtUtc - FreshResourceMaximumAge
+        && resources.ObservedAtUtc <= evaluatedAtUtc + FreshResourceFutureClockSkew;
 
     /// <summary>
     /// Runs a check with the adapters that exist today.
@@ -113,7 +145,8 @@ public static class CompatibilityEngine
             TimeProvider.System);
 
     private static CompatibilityRunDependencies ProductionDependencies(
-        CompatibilityProductionInput input)
+        CompatibilityProductionInput input,
+        TimeProvider timeProvider)
     {
         int? declaredContext = input.CurrentModel.Gguf?.DeclaredContextLimit
             ?? input.CurrentModel.OpenVino?.DeclaredContextLimit;
@@ -130,18 +163,19 @@ public static class CompatibilityEngine
             TrustedSourceAvailability.None(),
             input.CurrentModel.GgufConfiguration!,
             ContextTokenCount.FromTokens(baselineTokens),
-            TimeProvider.System);
+            timeProvider);
     }
 
     private static CompatibilityRunResult EvaluateOpenVinoBaseline(
         CompatibilityProductionInput input,
+        TimeProvider timeProvider,
         CancellationToken cancellationToken)
     {
-        DateTimeOffset started = DateTimeOffset.UtcNow;
+        DateTimeOffset started = timeProvider.GetUtcNow();
         if (cancellationToken.IsCancellationRequested)
         {
             return CompatibilityRunResult.Cancelled(
-                CompatibilityRunId.New(), [], [], started, DateTimeOffset.UtcNow);
+                CompatibilityRunId.New(), [], [], started, timeProvider.GetUtcNow());
         }
 
         OpenVinoRouteConfiguration configuration =
@@ -164,7 +198,7 @@ public static class CompatibilityEngine
                 [PolicyIdentity.Create(
                     "estimator", estimator.PolicyVersion, estimator.Provenance)],
                 started,
-                DateTimeOffset.UtcNow);
+                timeProvider.GetUtcNow());
         }
 
         ResourcePeakProfile peaks = ResourcePhaseComposer.Compose(estimate.Components);
@@ -173,7 +207,9 @@ public static class CompatibilityEngine
             ByteCount.FromBytes(fresh.AvailableSystemMemoryBytes),
             ByteCount.FromBytes(fresh.AvailableDedicatedDeviceMemoryBytes),
             ByteCount.FromBytes(fresh.AvailableStorageBytes),
-            fresh.ObservedAtUtc);
+            fresh.ObservedAtUtc,
+            dedicatedDeviceMemoryEstablished:
+                fresh.DedicatedDeviceMemoryEstablished);
         CompatibilityCandidate candidate = CompatibilityCandidate.Create(
             configuration, context, CandidatePreparation.None,
             "openvino-current", isExperimental: false, isBaseline: true);
@@ -209,7 +245,7 @@ public static class CompatibilityEngine
                     "safety", safety.PolicyVersion, safety.Provenance)
             ],
             started,
-            DateTimeOffset.UtcNow);
+            timeProvider.GetUtcNow());
     }
 
     private static WeightQuantisation EffectiveOpenVinoEncoding(
@@ -231,7 +267,8 @@ public static class CompatibilityEngine
 
     private static CompatibilityScreenModel ProjectProduction(
         CompatibilityRunResult result,
-        CompatibilityProductionInput input)
+        CompatibilityProductionInput input,
+        DateTimeOffset evaluatedAtUtc)
     {
         if (input.Optimization is not { } optimization
             || result.Outcome != CompatibilityRunOutcome.Completed
@@ -263,6 +300,20 @@ public static class CompatibilityEngine
         ByteCount availableDisk = ByteCount.FromBytes(
             input.FreshResources.AvailableStorageBytes);
         EstimatorPolicy policy = EstimatorPolicy.ProvisionalV1();
+        OptimizationHardwareAuthority hardwareAuthority =
+            OptimizationHardwareAuthority.Create(
+                input.JourneyAuthority!.HardwareFactsSha256!,
+                input.Hardware.PresentDevices,
+                input.Hardware.VerifiedBackends,
+                input.FreshResources.DedicatedDeviceMemoryEstablished
+                    ? GenerationBudget(
+                        ByteCount.FromBytes(
+                            input.FreshResources.AvailableDedicatedDeviceMemoryBytes),
+                        SafetyPolicy.ProportionalV2())
+                    : null,
+                input.FreshResources.ObservedAtUtc,
+                evaluatedAtUtc,
+                FreshResourcePolicyVersion);
         CrossRouteGenerationResult generated = CrossRouteCandidateGenerator.Generate(
             optimization.Snapshot,
             facts,
@@ -271,7 +322,8 @@ public static class CompatibilityEngine
             safeBudget,
             availableDisk,
             policy,
-            optimization.OptedInExperimentalEvidenceIds);
+            optimization.OptedInExperimentalEvidenceIds,
+            hardwareAuthority);
 
         CompatibilityOptimizationProjectionInput projection =
             CompatibilityOptimizationProjectionInput.Create(
@@ -284,6 +336,7 @@ public static class CompatibilityEngine
                 availableDisk,
                 policy,
                 optimization.OptedInExperimentalEvidenceIds,
+                hardwareAuthority,
                 CompatibilityBaselineIdentity.ForLegacyNone(
                     baselines[0], optimization.Binding));
         return CompatibilityScreenModel.From(result, projection);
@@ -351,6 +404,20 @@ public static class CompatibilityEngine
             && current.GgufConfiguration is { } gguf
             && snapshot.Gguf is { RuntimeAuthority: { } runtime } payload)
         {
+            bool validHardwarePair =
+                gguf.Backend == CompatibilityBackend.Cpu
+                    && gguf.Device == DeviceRouteId.Cpu
+                || gguf.Backend is CompatibilityBackend.IntelSycl
+                    or CompatibilityBackend.IntelVulkan
+                    && gguf.Device is DeviceRouteId.IntelIntegratedGpu
+                    or DeviceRouteId.IntelDiscreteGpu;
+            if (!validHardwarePair
+                || !hardware.PresentDevices.Contains(gguf.Device)
+                || !hardware.VerifiedBackends.Contains(gguf.Backend))
+            {
+                return false;
+            }
+
             GgufAdmittedConfiguration[] matching =
             [
                 .. payload.Admitted.Where(admission =>
@@ -472,7 +539,9 @@ public static class CompatibilityEngine
                 ByteCount.FromBytes(fresh.AvailableSystemMemoryBytes),
                 ByteCount.FromBytes(fresh.AvailableDedicatedDeviceMemoryBytes),
                 ByteCount.FromBytes(fresh.AvailableStorageBytes),
-                fresh.ObservedAtUtc));
+                fresh.ObservedAtUtc,
+                dedicatedDeviceMemoryEstablished:
+                    fresh.DedicatedDeviceMemoryEstablished));
         }
     }
 

@@ -14,5 +14,6 @@ internal enum FitLimitingReason
     ContextExceedsModelLimit,
     EvidenceBelowAdmissionLevel,
     SafetyPolicyUnavailable,
-    FreshAvailabilityUnavailable
+    FreshAvailabilityUnavailable,
+    DedicatedAvailabilityUnavailable
 }

@@ -84,10 +84,12 @@ public sealed class CompatibilityProductionInputTests
             OptimizationInput(snapshot, binding);
         CompatibilityProductionInput legacy = ValidInput(
             modelRun, hardwareRun, availableSystemMemoryBytes: 4 * GiB);
+        CompatibilityHardwareInput hardware =
+            OpenVinoHardware(DeviceRouteId.Cpu, CompatibilityBackend.OpenVinoCpu);
         CompatibilityProductionInput input = CompatibilityProductionInput.Create(
             modelRun, hardwareRun, currentModel,
-            CompatibilityJourneyAuthorityInput.Create(handoffId, digest, digest),
-            OpenVinoHardware(DeviceRouteId.Cpu, CompatibilityBackend.OpenVinoCpu),
+            JourneyAuthority(handoffId, digest, currentModel, hardware),
+            hardware,
             legacy.FreshResources, optimization);
 
         CompatibilityScreenModel result = CompatibilityEngine.Run(input);
@@ -113,6 +115,49 @@ public sealed class CompatibilityProductionInputTests
             },
             compiledCacheIsDisposable: true,
             turboQuantBuild: null);
+
+    private static CompatibilityProductionInput ValidOpenVinoInput(
+        DateTimeOffset observedAtUtc)
+    {
+        Guid modelRun = Guid.NewGuid();
+        Guid hardwareRun = Guid.NewGuid();
+        Guid handoff = Guid.NewGuid();
+        const string digest =
+            "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";
+        OpenVinoAdmittedConfiguration admitted =
+            OpenVinoAdmittedConfiguration.Create(
+                "ov-current", DeviceRouteId.Cpu, OpenVinoWeightFormat.Original,
+                OpenVinoKvCacheFormat.U8, OpenVinoPerformanceHint.Latency,
+                OpenVinoCompiledCachePolicy.Disabled, 1, 512, 8192,
+                SupportLevel.DeclaredSupported, false);
+        OptimizationCapabilitySnapshot snapshot =
+            OptimizationCapabilitySnapshot.ForOpenVino(
+                "ov-cap", digest, OpenVinoCapabilityPayload.Create(
+                    "2026.1.0", [admitted],
+                    [OpenVinoAuthority(admitted.EvidenceId, digest)]));
+        OpenVinoCompatibilityModelInput model =
+            OpenVinoCompatibilityModelInput.Create(
+                GiB, 16, 2048, 16, 4, 4096);
+        CompatibilityCurrentModelInput current =
+            CompatibilityCurrentModelInput.ForOpenVino(
+                model,
+                OpenVinoRouteConfiguration.Create(
+                    OpenVinoWeightFormat.Original, OpenVinoKvCacheFormat.U8,
+                    DeviceRouteId.Cpu, OpenVinoPerformanceHint.Latency,
+                    OpenVinoCompiledCachePolicy.Disabled, 1),
+                OpenVinoWeightPrecision.Fp16);
+        CompatibilityHardwareInput hardware =
+            OpenVinoHardware(DeviceRouteId.Cpu, CompatibilityBackend.OpenVinoCpu);
+        OptimizationJourneyBinding binding = OptimizationJourneyBinding.Create(
+            modelRun.ToString("N"), handoff.ToString("N"), digest,
+            model.PackageLengthBytes, hardwareRun.ToString("N"), digest);
+        return CompatibilityProductionInput.Create(
+            modelRun, hardwareRun, current,
+            JourneyAuthority(handoff, digest, current, hardware), hardware,
+            CompatibilityFreshResourcesInput.Create(
+                16 * GiB, 4 * GiB, 500 * GiB, observedAtUtc),
+            OptimizationInput(snapshot, binding));
+    }
 
     [TestMethod]
     public void ProductionEngine_GgufFrontierIsReachableWithoutAUiSelectionRerun()
@@ -163,8 +208,8 @@ public sealed class CompatibilityProductionInputTests
             CompatibilityScreenModel result = CompatibilityEngine.Run(
                 CompatibilityProductionInput.Create(
                     modelRun, hardwareRun, currentModel,
-                    CompatibilityJourneyAuthorityInput.Create(
-                        handoffId, digest, digest),
+                    JourneyAuthority(
+                        handoffId, digest, currentModel, legacy.Hardware),
                     legacy.Hardware, legacy.FreshResources, optimization));
             if (result.State == CompatibilityScreenState.OptimisationRequired)
             {
@@ -227,6 +272,82 @@ public sealed class CompatibilityProductionInputTests
     }
 
     [TestMethod]
+    [DataRow(-31)]
+    [DataRow(6)]
+    public void ProductionEngine_RejectsStaleOrFutureFreshResourceEvidence(
+        int observedOffsetSeconds)
+    {
+        DateTimeOffset now = new(2026, 8, 25, 12, 0, 0, TimeSpan.Zero);
+        CompatibilityProductionInput input = ValidInput(
+            Guid.NewGuid(), Guid.NewGuid(), 16 * GiB,
+            now.AddSeconds(observedOffsetSeconds));
+
+        CompatibilityScreenModel result = CompatibilityEngine.Run(
+            input, new FixedTimeProvider(now));
+
+        Assert.AreEqual(CompatibilityScreenState.NotEstablished, result.State);
+        Assert.IsFalse(result.ContinueEnabled);
+    }
+
+    [TestMethod]
+    public void ProductionEngine_RechecksFreshnessAtExecutionRatherThanConstruction()
+    {
+        DateTimeOffset captured = new(2026, 8, 25, 12, 0, 0, TimeSpan.Zero);
+        CompatibilityProductionInput input = ValidInput(
+            Guid.NewGuid(), Guid.NewGuid(), 16 * GiB, captured);
+
+        CompatibilityScreenModel result = CompatibilityEngine.Run(
+            input, new FixedTimeProvider(captured.AddSeconds(31)));
+
+        Assert.AreEqual(CompatibilityScreenState.NotEstablished, result.State);
+    }
+
+    [TestMethod]
+    [DataRow(-31)]
+    [DataRow(6)]
+    public void OpenVinoProductionEngine_RejectsStaleOrFutureEvidence(
+        int observedOffsetSeconds)
+    {
+        DateTimeOffset now = new(2026, 8, 25, 12, 0, 0, TimeSpan.Zero);
+        CompatibilityScreenModel result = CompatibilityEngine.Run(
+            ValidOpenVinoInput(now.AddSeconds(observedOffsetSeconds)),
+            new FixedTimeProvider(now));
+
+        Assert.AreEqual(CompatibilityScreenState.NotEstablished, result.State);
+        Assert.IsFalse(result.ContinueEnabled);
+    }
+
+    [TestMethod]
+    public void OpenVinoProductionEngine_RechecksFreshnessAtExecution()
+    {
+        DateTimeOffset captured = new(2026, 8, 25, 12, 0, 0, TimeSpan.Zero);
+        CompatibilityProductionInput input = ValidOpenVinoInput(captured);
+
+        CompatibilityScreenModel result = CompatibilityEngine.Run(
+            input, new FixedTimeProvider(captured.AddSeconds(31)));
+
+        Assert.AreEqual(CompatibilityScreenState.NotEstablished, result.State);
+    }
+
+    [TestMethod]
+    [DataRow(-30)]
+    [DataRow(5)]
+    public void FreshnessPolicy_AcceptsExactReviewedBoundaries(int offsetSeconds)
+    {
+        DateTimeOffset now = new(2026, 8, 25, 12, 0, 0, TimeSpan.Zero);
+        CompatibilityScreenModel gguf = CompatibilityEngine.Run(
+            ValidInput(Guid.NewGuid(), Guid.NewGuid(), 16 * GiB,
+                now.AddSeconds(offsetSeconds)),
+            new FixedTimeProvider(now));
+        CompatibilityScreenModel openVino = CompatibilityEngine.Run(
+            ValidOpenVinoInput(now.AddSeconds(offsetSeconds)),
+            new FixedTimeProvider(now));
+
+        Assert.AreNotEqual(CompatibilityScreenState.NotEstablished, gguf.State);
+        Assert.AreNotEqual(CompatibilityScreenState.NotEstablished, openVino.State);
+    }
+
+    [TestMethod]
     public void LegacySixArgumentFactory_PreservesNullOptimizationBehavior()
     {
         CompatibilityProductionInput legacy = ValidInput();
@@ -281,21 +402,130 @@ public sealed class CompatibilityProductionInputTests
             mismatch == "hardware-run" ? other.ToString("N") : hardwareRun.ToString("N"),
             mismatch == "hardware-sha" ? otherDigest : digest);
 
+        CompatibilityCurrentModelInput currentModel =
+            CompatibilityCurrentModelInput.ForGguf(
+                legacy.Model,
+                GgufRouteConfiguration.Create(
+                    GgufWeightFormat.Imported, GgufKvCacheFormat.F16,
+                    CompatibilityBackend.Cpu, DeviceRouteId.Cpu,
+                    GpuOffloadLevel.None));
         Assert.ThrowsExactly<ArgumentException>(() =>
             CompatibilityProductionInput.Create(
                 modelRun,
                 hardwareRun,
-                CompatibilityCurrentModelInput.ForGguf(
-                    legacy.Model,
-                    GgufRouteConfiguration.Create(
-                        GgufWeightFormat.Imported, GgufKvCacheFormat.F16,
-                        CompatibilityBackend.Cpu, DeviceRouteId.Cpu,
-                        GpuOffloadLevel.None)),
-                CompatibilityJourneyAuthorityInput.Create(handoff, digest, digest),
+                currentModel,
+                JourneyAuthority(handoff, digest, currentModel, legacy.Hardware),
                 legacy.Hardware,
                 legacy.FreshResources,
                 OptimizationInput(snapshot, binding)),
             mismatch);
+    }
+
+    [TestMethod]
+    [DataRow("model-facts")]
+    [DataRow("model-configuration")]
+    [DataRow("hardware-facts")]
+    [DataRow("hardware-dedicated")]
+    [DataRow("hardware-storage")]
+    [DataRow("hardware-device")]
+    [DataRow("hardware-backend")]
+    public void AuthoritativeProductionInput_RejectsOwnerHashReplayOverChangedFacts(
+        string mutation)
+    {
+        Guid modelRun = Guid.NewGuid();
+        Guid hardwareRun = Guid.NewGuid();
+        Guid handoff = Guid.NewGuid();
+        const string artifactDigest =
+            "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";
+        CompatibilityProductionInput legacy = ValidInput(
+            modelRun, hardwareRun, 16 * GiB);
+        CompatibilityCurrentModelInput current =
+            CompatibilityCurrentModelInput.ForGguf(
+                legacy.Model,
+                GgufRouteConfiguration.Create(
+                    GgufWeightFormat.Imported, GgufKvCacheFormat.F16,
+                    CompatibilityBackend.Cpu, DeviceRouteId.Cpu,
+                    GpuOffloadLevel.None));
+        CompatibilityHardwareInput hardware = legacy.Hardware;
+        GgufAdmittedConfiguration admission = GgufAdmittedConfiguration.Create(
+            "gguf-f16", CompatibilityBackend.Cpu, DeviceRouteId.Cpu,
+            GgufWeightFormat.Imported, GgufKvCacheFormat.F16,
+            GpuOffloadLevel.None, 512, 8192,
+            SupportLevel.DeclaredSupported, false);
+        OptimizationCapabilitySnapshot snapshot =
+            OptimizationCapabilitySnapshot.ForGguf(
+                "gguf-cap", artifactDigest,
+                GgufCapabilityPayload.Create(
+                    "b4321", [admission],
+                    runtimeAuthority: GgufRuntimeAuthority.Create(
+                        "b4321", "0123456789abcdef0123456789abcdef01234567",
+                        [GgufProfile(admission.EvidenceId)])));
+        OptimizationJourneyBinding binding = OptimizationJourneyBinding.Create(
+            modelRun.ToString("N"), handoff.ToString("N"), artifactDigest,
+            current.ModelLengthBytes, hardwareRun.ToString("N"), artifactDigest);
+        CompatibilityJourneyAuthorityInput authority =
+            CompatibilityJourneyAuthorityInput.Create(
+                handoff,
+                artifactDigest,
+                CompatibilityFactDigest.ComputeModel(current),
+                artifactDigest,
+                CompatibilityFactDigest.ComputeHardware(hardware));
+
+        CompatibilityCurrentModelInput submittedModel = mutation switch
+        {
+            "model-facts" => CompatibilityCurrentModelInput.ForGguf(
+                GgufCompatibilityModelInput.Create(
+                    legacy.Model.FileLengthBytes, legacy.Model.LayerCount,
+                    legacy.Model.EmbeddingSize + 1,
+                    legacy.Model.AttentionHeadCount,
+                    legacy.Model.KeyValueHeadCount,
+                    legacy.Model.DeclaredContextLimit,
+                    legacy.Model.FileType,
+                    legacy.Model.QuantisationVersion),
+                current.GgufConfiguration!),
+            "model-configuration" => CompatibilityCurrentModelInput.ForGguf(
+                legacy.Model,
+                GgufRouteConfiguration.Create(
+                    GgufWeightFormat.Imported, GgufKvCacheFormat.Q8_0,
+                    CompatibilityBackend.Cpu, DeviceRouteId.Cpu,
+                    GpuOffloadLevel.None)),
+            _ => current
+        };
+        CompatibilityHardwareInput submittedHardware = mutation switch
+        {
+            "hardware-facts" => CompatibilityHardwareInput.Create(
+                hardware.InstalledSystemMemoryBytes + 1,
+                hardware.InstalledDedicatedDeviceMemoryBytes,
+                hardware.FreeStorageBytes,
+                hardware.PresentDevices, hardware.VerifiedBackends),
+            "hardware-dedicated" => CompatibilityHardwareInput.Create(
+                hardware.InstalledSystemMemoryBytes,
+                hardware.InstalledDedicatedDeviceMemoryBytes + 1,
+                hardware.FreeStorageBytes,
+                hardware.PresentDevices, hardware.VerifiedBackends),
+            "hardware-storage" => CompatibilityHardwareInput.Create(
+                hardware.InstalledSystemMemoryBytes,
+                hardware.InstalledDedicatedDeviceMemoryBytes,
+                hardware.FreeStorageBytes + 1,
+                hardware.PresentDevices, hardware.VerifiedBackends),
+            "hardware-device" => CompatibilityHardwareInput.Create(
+                hardware.InstalledSystemMemoryBytes,
+                hardware.InstalledDedicatedDeviceMemoryBytes,
+                hardware.FreeStorageBytes,
+                [DeviceRouteId.IntelNpu], hardware.VerifiedBackends),
+            "hardware-backend" => CompatibilityHardwareInput.Create(
+                hardware.InstalledSystemMemoryBytes,
+                hardware.InstalledDedicatedDeviceMemoryBytes,
+                hardware.FreeStorageBytes,
+                hardware.PresentDevices, [CompatibilityBackend.IntelSycl]),
+            _ => hardware
+        };
+
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            CompatibilityProductionInput.Create(
+                modelRun, hardwareRun, submittedModel, authority,
+                submittedHardware, legacy.FreshResources,
+                OptimizationInput(snapshot, binding)));
     }
 
     [TestMethod]
@@ -322,16 +552,18 @@ public sealed class CompatibilityProductionInputTests
             modelRun.ToString("N"), handoff.ToString("N"), digest,
             legacy.Model.FileLengthBytes, hardwareRun.ToString("N"), digest);
 
+        CompatibilityCurrentModelInput currentModel =
+            CompatibilityCurrentModelInput.ForGguf(
+                legacy.Model,
+                GgufRouteConfiguration.Create(
+                    GgufWeightFormat.Imported, GgufKvCacheFormat.F16,
+                    CompatibilityBackend.Cpu, DeviceRouteId.Cpu,
+                    GpuOffloadLevel.None));
         Assert.ThrowsExactly<ArgumentException>(() =>
             CompatibilityProductionInput.Create(
                 modelRun, hardwareRun,
-                CompatibilityCurrentModelInput.ForGguf(
-                    legacy.Model,
-                    GgufRouteConfiguration.Create(
-                        GgufWeightFormat.Imported, GgufKvCacheFormat.F16,
-                        CompatibilityBackend.Cpu, DeviceRouteId.Cpu,
-                        GpuOffloadLevel.None)),
-                CompatibilityJourneyAuthorityInput.Create(handoff, digest, digest),
+                currentModel,
+                JourneyAuthority(handoff, digest, currentModel, legacy.Hardware),
                 legacy.Hardware, legacy.FreshResources,
                 OptimizationInput(openVino, binding)));
     }
@@ -363,17 +595,21 @@ public sealed class CompatibilityProductionInputTests
             model.PackageLengthBytes, hardwareRun.ToString("N"), digest);
         CompatibilityProductionInput legacy = ValidInput(
             modelRun, hardwareRun, availableSystemMemoryBytes: 4 * GiB);
-        CompatibilityProductionInput input = CompatibilityProductionInput.Create(
-            modelRun, hardwareRun,
+        CompatibilityCurrentModelInput currentModel =
             CompatibilityCurrentModelInput.ForOpenVino(
                 model,
                 OpenVinoRouteConfiguration.Create(
                     OpenVinoWeightFormat.Original, OpenVinoKvCacheFormat.U8,
                     DeviceRouteId.Cpu, OpenVinoPerformanceHint.Latency,
                     OpenVinoCompiledCachePolicy.Disabled, 1),
-                OpenVinoWeightPrecision.EightBit),
-            CompatibilityJourneyAuthorityInput.Create(handoff, digest, digest),
-            legacy.Hardware, legacy.FreshResources,
+                OpenVinoWeightPrecision.EightBit);
+        CompatibilityHardwareInput hardware =
+            OpenVinoHardware(DeviceRouteId.Cpu, CompatibilityBackend.OpenVinoCpu);
+        CompatibilityProductionInput input = CompatibilityProductionInput.Create(
+            modelRun, hardwareRun,
+            currentModel,
+            JourneyAuthority(handoff, digest, currentModel, hardware),
+            hardware, legacy.FreshResources,
             OptimizationInput(snapshot, binding));
 
         CompatibilityScreenModel result = CompatibilityEngine.Run(input);
@@ -425,18 +661,30 @@ public sealed class CompatibilityProductionInputTests
             model.PackageLengthBytes, hardwareRun.ToString("N"), digest);
         CompatibilityProductionInput legacy = ValidInput(
             modelRun, hardwareRun, availableSystemMemoryBytes: 16 * GiB);
-        CompatibilityProductionInput input = CompatibilityProductionInput.Create(
-            modelRun, hardwareRun,
+        CompatibilityCurrentModelInput currentModel =
             CompatibilityCurrentModelInput.ForOpenVino(
                 model,
                 OpenVinoRouteConfiguration.Create(
                     OpenVinoWeightFormat.Original, OpenVinoKvCacheFormat.U8,
                     configuredDevice, OpenVinoPerformanceHint.Latency,
                     OpenVinoCompiledCachePolicy.Disabled, 1),
-                OpenVinoWeightPrecision.Fp16),
-            CompatibilityJourneyAuthorityInput.Create(handoff, digest, digest),
-            OpenVinoHardware(presentDevice, verifiedBackend),
-            legacy.FreshResources,
+                OpenVinoWeightPrecision.Fp16);
+        CompatibilityHardwareInput hardware =
+            OpenVinoHardware(presentDevice, verifiedBackend);
+        CompatibilityFreshResourcesInput fresh =
+            CompatibilityFreshResourcesInput.Create(
+                legacy.FreshResources.AvailableSystemMemoryBytes,
+                configuredDevice == DeviceRouteId.IntelDiscreteGpu
+                    ? 4 * GiB
+                    : 0,
+                legacy.FreshResources.AvailableStorageBytes,
+                legacy.FreshResources.ObservedAtUtc);
+        CompatibilityProductionInput input = CompatibilityProductionInput.Create(
+            modelRun, hardwareRun,
+            currentModel,
+            JourneyAuthority(handoff, digest, currentModel, hardware),
+            hardware,
+            fresh,
             OptimizationInput(snapshot, binding));
 
         CompatibilityScreenModel result = CompatibilityEngine.Run(input);
@@ -598,6 +846,32 @@ public sealed class CompatibilityProductionInputTests
     }
 
     [TestMethod]
+    [DataRow("system")]
+    [DataRow("dedicated")]
+    [DataRow("storage")]
+    public void FreshResources_CannotExceedBoundInstalledHardware(string axis)
+    {
+        CompatibilityProductionInput valid = ValidInput();
+        CompatibilityFreshResourcesInput contradictory =
+            CompatibilityFreshResourcesInput.Create(
+                axis == "system"
+                    ? valid.Hardware.InstalledSystemMemoryBytes + 1
+                    : valid.FreshResources.AvailableSystemMemoryBytes,
+                axis == "dedicated"
+                    ? valid.Hardware.InstalledDedicatedDeviceMemoryBytes + 1
+                    : valid.FreshResources.AvailableDedicatedDeviceMemoryBytes,
+                axis == "storage"
+                    ? valid.Hardware.FreeStorageBytes + 1
+                    : valid.FreshResources.AvailableStorageBytes,
+                valid.FreshResources.ObservedAtUtc);
+
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            CompatibilityProductionInput.Create(
+                valid.ModelInspectionRunId, valid.ProductHardwareRunId,
+                valid.Model, valid.Hardware, contradictory));
+    }
+
+    [TestMethod]
     public void ProductionBoundary_CarriesNoFreeFormOrPathLikeStrings()
     {
         Type[] boundaryTypes =
@@ -626,7 +900,11 @@ public sealed class CompatibilityProductionInputTests
             .OrderBy(name => name, StringComparer.Ordinal)
             .ToArray();
         CollectionAssert.AreEqual(
-            new[] { "HardwareSnapshotSha256", "ModelSha256" },
+            new[]
+            {
+                "HardwareFactsSha256", "HardwareSnapshotSha256",
+                "ModelFactsSha256", "ModelSha256"
+            },
             journeyStrings);
         Assert.ThrowsExactly<ArgumentException>(() =>
             CompatibilityJourneyAuthorityInput.Create(
@@ -639,9 +917,10 @@ public sealed class CompatibilityProductionInputTests
     private static CompatibilityProductionInput ValidInput(
         Guid modelRun,
         Guid hardwareRun,
-        ulong availableSystemMemoryBytes)
+        ulong availableSystemMemoryBytes,
+        DateTimeOffset? observedAtUtc = null)
     {
-        DateTimeOffset observedAt = DateTimeOffset.UtcNow;
+        DateTimeOffset observedAt = observedAtUtc ?? DateTimeOffset.UtcNow;
         return CompatibilityProductionInput.Create(
             modelRun,
             hardwareRun,
@@ -667,6 +946,18 @@ public sealed class CompatibilityProductionInputTests
                 observedAt));
     }
 
+    private static CompatibilityJourneyAuthorityInput JourneyAuthority(
+        Guid handoffId,
+        string artifactDigest,
+        CompatibilityCurrentModelInput currentModel,
+        CompatibilityHardwareInput hardware) =>
+        CompatibilityJourneyAuthorityInput.Create(
+            handoffId,
+            artifactDigest,
+            CompatibilityFactDigest.ComputeModel(currentModel),
+            artifactDigest,
+            CompatibilityFactDigest.ComputeHardware(hardware));
+
     private sealed class SinglePassEnumerable<T>(T value) : IEnumerable<T>
     {
         public int EnumerationCount { get; private set; }
@@ -683,6 +974,11 @@ public sealed class CompatibilityProductionInputTests
         }
 
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+    }
+
+    private sealed class FixedTimeProvider(DateTimeOffset utcNow) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => utcNow;
     }
 
     private sealed class HostileCountCollection<T>(T value) : ICollection<T>

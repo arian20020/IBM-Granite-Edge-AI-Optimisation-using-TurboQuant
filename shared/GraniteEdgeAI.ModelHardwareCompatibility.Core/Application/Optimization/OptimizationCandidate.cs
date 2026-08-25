@@ -87,7 +87,10 @@ public enum OptimizationExclusionReason
     QualityBelowFloor,
     Dominated,
     RequantisationNotAuthorized,
-    ExecutionAuthorityNotEstablished
+    ExecutionAuthorityNotEstablished,
+    HardwareCapabilityUnavailable,
+    DedicatedMemoryNotEstablished,
+    ExceedsDedicatedDeviceMemory
 }
 
 /// <summary>A closed presentation notice derived from admitted candidate facts.</summary>

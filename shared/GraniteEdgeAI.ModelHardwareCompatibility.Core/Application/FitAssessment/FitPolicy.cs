@@ -38,6 +38,12 @@ internal static class FitPolicy
         // single figure is the whole demand on physical RAM.
         ByteCount predictedPeak = profile.SystemMemoryPressure;
         ByteCount required = predictedPeak.Add(policy.CalibrationMarginFor(predictedPeak));
+        ByteCount dedicatedPeak = profile.PeakFor(ResourceTarget.DedicatedDeviceMemory);
+        if (dedicatedPeak != ByteCount.Zero
+            && !available.DedicatedDeviceMemoryEstablished)
+        {
+            return NotEstablished(FitLimitingReason.DedicatedAvailabilityUnavailable);
+        }
 
         // An exhausted budget is an expected answer, not an arithmetic error,
         // so the subtractions saturate at zero instead of throwing.
@@ -73,6 +79,49 @@ internal static class FitPolicy
             _ => (CompatibilityFitState.DoesNotFit,
                   FitLimitingReason.InsufficientSystemMemory)
         };
+
+        if (dedicatedPeak != ByteCount.Zero)
+        {
+            ByteCount dedicatedRequired = dedicatedPeak.Add(
+                policy.CalibrationMarginFor(dedicatedPeak));
+            ByteCount dedicatedBudget = available.DedicatedDeviceMemory;
+            decimal dedicatedRatio = dedicatedBudget == ByteCount.Zero
+                ? decimal.MaxValue
+                : dedicatedRequired.RatioAgainst(dedicatedBudget);
+            _ = dedicatedBudget.TrySubtract(
+                dedicatedRequired, out ByteCount dedicatedHeadroom);
+            CompatibilityFitState dedicatedState = dedicatedRatio switch
+            {
+                _ when dedicatedRatio <= thresholds.ModerateHeadroomCeiling =>
+                    CompatibilityFitState.Safe,
+                _ when dedicatedRatio <= thresholds.NarrowCeiling =>
+                    CompatibilityFitState.Narrow,
+                _ => CompatibilityFitState.DoesNotFit
+            };
+            if (dedicatedState == CompatibilityFitState.DoesNotFit)
+            {
+                return new FitAssessment(
+                    dedicatedState,
+                    FitLimitingReason.InsufficientDedicatedDeviceMemory,
+                    budget,
+                    required,
+                    headroom,
+                    ratio,
+                    dedicatedBudget,
+                    dedicatedRequired,
+                    dedicatedHeadroom);
+            }
+
+            if (dedicatedState == CompatibilityFitState.Narrow
+                && state == CompatibilityFitState.Safe)
+            {
+                state = CompatibilityFitState.Narrow;
+            }
+
+            return new FitAssessment(
+                state, reason, budget, required, headroom, ratio,
+                dedicatedBudget, dedicatedRequired, dedicatedHeadroom);
+        }
 
         return new FitAssessment(state, reason, budget, required, headroom, ratio);
     }

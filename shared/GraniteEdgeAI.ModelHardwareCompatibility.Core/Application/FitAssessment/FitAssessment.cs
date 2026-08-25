@@ -13,4 +13,7 @@ internal sealed record FitAssessment(
     ByteCount SafeBudget,
     ByteCount RequiredBytes,
     ByteCount Headroom,
-    decimal PressureRatio);
+    decimal PressureRatio,
+    ByteCount DedicatedSafeBudget = default,
+    ByteCount DedicatedRequiredBytes = default,
+    ByteCount DedicatedHeadroom = default);

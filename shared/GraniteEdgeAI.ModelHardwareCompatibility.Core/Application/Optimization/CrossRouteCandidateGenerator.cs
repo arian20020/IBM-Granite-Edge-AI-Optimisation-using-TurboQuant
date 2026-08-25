@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Frozen;
 using System.Globalization;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -19,6 +20,98 @@ public sealed record OptimizationExclusion(
     string EvidenceId, string CanonicalDescriptor, OptimizationExclusionReason Reason);
 
 /// <summary>
+/// Exact, path-free machine and observation authority consumed while generating
+/// a frontier. RAM and dedicated memory remain separate safety axes.
+/// </summary>
+internal sealed record OptimizationHardwareAuthority
+{
+    private OptimizationHardwareAuthority(
+        string hardwareFactsSha256,
+        IReadOnlySet<DeviceRouteId> presentDevices,
+        IReadOnlySet<CompatibilityBackend> verifiedBackends,
+        ByteCount? safeDedicatedDeviceMemoryBudget,
+        DateTimeOffset observedAtUtc,
+        DateTimeOffset evaluatedAtUtc,
+        string freshnessPolicyVersion)
+    {
+        HardwareFactsSha256 = hardwareFactsSha256;
+        PresentDevices = presentDevices;
+        VerifiedBackends = verifiedBackends;
+        SafeDedicatedDeviceMemoryBudget = safeDedicatedDeviceMemoryBudget;
+        ObservedAtUtc = observedAtUtc;
+        EvaluatedAtUtc = evaluatedAtUtc;
+        FreshnessPolicyVersion = freshnessPolicyVersion;
+    }
+
+    internal string HardwareFactsSha256 { get; }
+    internal IReadOnlySet<DeviceRouteId> PresentDevices { get; }
+    internal IReadOnlySet<CompatibilityBackend> VerifiedBackends { get; }
+    internal ByteCount? SafeDedicatedDeviceMemoryBudget { get; }
+    internal DateTimeOffset ObservedAtUtc { get; }
+    internal DateTimeOffset EvaluatedAtUtc { get; }
+    internal string FreshnessPolicyVersion { get; }
+
+    internal static OptimizationHardwareAuthority Create(
+        string hardwareFactsSha256,
+        IEnumerable<DeviceRouteId> presentDevices,
+        IEnumerable<CompatibilityBackend> verifiedBackends,
+        ByteCount? safeDedicatedDeviceMemoryBudget,
+        DateTimeOffset observedAtUtc,
+        DateTimeOffset evaluatedAtUtc,
+        string freshnessPolicyVersion)
+    {
+        if (hardwareFactsSha256 is null || hardwareFactsSha256.Length != 64
+            || hardwareFactsSha256.Any(
+                c => c is not (>= '0' and <= '9' or >= 'a' and <= 'f')))
+        {
+            throw new ArgumentException("Hardware facts digest must be lowercase SHA-256.", nameof(hardwareFactsSha256));
+        }
+        ArgumentNullException.ThrowIfNull(presentDevices);
+        ArgumentNullException.ThrowIfNull(verifiedBackends);
+        if (string.IsNullOrWhiteSpace(freshnessPolicyVersion))
+        {
+            throw new ArgumentException("Freshness policy is required.", nameof(freshnessPolicyVersion));
+        }
+
+        FrozenSet<DeviceRouteId> devices = presentDevices.ToFrozenSet();
+        FrozenSet<CompatibilityBackend> backends = verifiedBackends.ToFrozenSet();
+        if (devices.Count == 0
+            || devices.Any(device =>
+                !Enum.IsDefined(device) || device == DeviceRouteId.Unspecified)
+            || backends.Any(backend =>
+                !Enum.IsDefined(backend)
+                || backend == CompatibilityBackend.Unspecified))
+        {
+            throw new ArgumentException("Hardware inventory contains an undefined value.");
+        }
+        return new OptimizationHardwareAuthority(
+            hardwareFactsSha256, devices, backends,
+            safeDedicatedDeviceMemoryBudget, observedAtUtc.ToUniversalTime(),
+            evaluatedAtUtc.ToUniversalTime(), freshnessPolicyVersion);
+    }
+
+    internal bool Supports(RouteConfiguration configuration) => configuration switch
+    {
+        GgufRouteConfiguration gguf =>
+            PresentDevices.Contains(gguf.Device)
+            && VerifiedBackends.Contains(gguf.Backend)
+            && ((gguf.Backend == CompatibilityBackend.Cpu && gguf.Device == DeviceRouteId.Cpu)
+                || (gguf.Backend is CompatibilityBackend.IntelSycl or CompatibilityBackend.IntelVulkan
+                    && gguf.Device is DeviceRouteId.IntelIntegratedGpu or DeviceRouteId.IntelDiscreteGpu)),
+        OpenVinoRouteConfiguration openVino =>
+            PresentDevices.Contains(openVino.Device)
+            && VerifiedBackends.Contains(openVino.Device switch
+            {
+                DeviceRouteId.Cpu => CompatibilityBackend.OpenVinoCpu,
+                DeviceRouteId.IntelIntegratedGpu or DeviceRouteId.IntelDiscreteGpu => CompatibilityBackend.OpenVinoGpu,
+                DeviceRouteId.IntelNpu => CompatibilityBackend.OpenVinoNpu,
+                _ => CompatibilityBackend.Unspecified
+            }),
+        _ => false
+    };
+}
+
+/// <summary>
 /// Canonical digest of every input that can change generation and the exact
 /// ordered output produced. The capability payload is hashed independently of
 /// the caller-supplied evidence digest, so replaying that digest beside a
@@ -35,6 +128,7 @@ internal static class OptimizationGenerationDigest
         ByteCount availableDisk,
         EstimatorPolicy policy,
         IReadOnlySet<string> optedInExperimentalEvidenceIds,
+        OptimizationHardwareAuthority hardwareAuthority,
         IReadOnlyList<OptimizationCandidate> candidates,
         IReadOnlyList<OptimizationExclusion> exclusions)
     {
@@ -60,6 +154,7 @@ internal static class OptimizationGenerationDigest
         AppendObject(canonical, safeBudget);
         AppendObject(canonical, availableDisk);
         AppendObject(canonical, policy);
+        AppendObject(canonical, hardwareAuthority);
         foreach (string evidenceId in optedInExperimentalEvidenceIds
             .OrderBy(value => value, StringComparer.Ordinal))
         {
@@ -233,7 +328,8 @@ internal static class CrossRouteCandidateGenerator
         ByteCount safeBudget,
         ByteCount availableDisk,
         EstimatorPolicy policy,
-        IReadOnlySet<string> optedInExperimentalEvidenceIds)
+        IReadOnlySet<string> optedInExperimentalEvidenceIds,
+        OptimizationHardwareAuthority hardwareAuthority)
     {
         ArgumentNullException.ThrowIfNull(result);
         return Authorities.TryGetValue(result, out GenerationAuthority? authority)
@@ -241,7 +337,7 @@ internal static class CrossRouteCandidateGenerator
                 authority.AuthoritySha256,
                 OptimizationGenerationDigest.Compute(
                     snapshot, facts, workload, binding, safeBudget, availableDisk,
-                    policy, optedInExperimentalEvidenceIds, result.Candidates,
+                    policy, optedInExperimentalEvidenceIds, hardwareAuthority, result.Candidates,
                     result.Exclusions),
                 StringComparison.Ordinal);
     }
@@ -254,7 +350,8 @@ internal static class CrossRouteCandidateGenerator
         ByteCount safeBudget,
         ByteCount availableDisk,
         EstimatorPolicy policy,
-        IReadOnlySet<string> optedInExperimentalEvidenceIds)
+        IReadOnlySet<string> optedInExperimentalEvidenceIds,
+        OptimizationHardwareAuthority hardwareAuthority)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
         ArgumentNullException.ThrowIfNull(facts);
@@ -262,6 +359,7 @@ internal static class CrossRouteCandidateGenerator
         ArgumentNullException.ThrowIfNull(binding);
         ArgumentNullException.ThrowIfNull(policy);
         ArgumentNullException.ThrowIfNull(optedInExperimentalEvidenceIds);
+        ArgumentNullException.ThrowIfNull(hardwareAuthority);
         foreach (string evidenceId in optedInExperimentalEvidenceIds)
         {
             OptimizationIdentifier.Require(
@@ -281,14 +379,14 @@ internal static class CrossRouteCandidateGenerator
                     GenerateGguf(
                         snapshot, snapshot.Gguf!, facts, workload, binding, context,
                         safeBudget, availableDisk,
-                        policy, optedInExperimentalEvidenceIds, candidates, exclusions);
+                        policy, optedInExperimentalEvidenceIds, hardwareAuthority, candidates, exclusions);
                     break;
 
                 case OptimizationRoute.OpenVino:
                     GenerateOpenVino(
                         snapshot, snapshot.OpenVino!, facts, workload, binding, context,
                         safeBudget, availableDisk,
-                        policy, optedInExperimentalEvidenceIds, candidates, exclusions);
+                        policy, optedInExperimentalEvidenceIds, hardwareAuthority, candidates, exclusions);
                     break;
 
                 default:
@@ -332,7 +430,7 @@ internal static class CrossRouteCandidateGenerator
             result,
             new GenerationAuthority(OptimizationGenerationDigest.Compute(
                 snapshot, facts, workload, binding, safeBudget, availableDisk,
-                policy, optedInExperimentalEvidenceIds, distinct,
+                policy, optedInExperimentalEvidenceIds, hardwareAuthority, distinct,
                 orderedExclusions)));
         return result;
     }
@@ -348,6 +446,7 @@ internal static class CrossRouteCandidateGenerator
         ByteCount availableDisk,
         EstimatorPolicy policy,
         IReadOnlySet<string> optedIn,
+        OptimizationHardwareAuthority hardwareAuthority,
         List<OptimizationCandidate> candidates,
         List<OptimizationExclusion> exclusions)
     {
@@ -405,7 +504,8 @@ internal static class CrossRouteCandidateGenerator
                 snapshot,
                 binding,
                 admitted.RequiresEvidence,
-                optedIn);
+                optedIn,
+                hardwareAuthority);
         }
     }
 
@@ -420,6 +520,7 @@ internal static class CrossRouteCandidateGenerator
         ByteCount availableDisk,
         EstimatorPolicy policy,
         IReadOnlySet<string> optedIn,
+        OptimizationHardwareAuthority hardwareAuthority,
         List<OptimizationCandidate> candidates,
         List<OptimizationExclusion> exclusions)
     {
@@ -510,6 +611,7 @@ internal static class CrossRouteCandidateGenerator
                 binding,
                 admitted.RequiresEvidence,
                 optedIn,
+                hardwareAuthority,
                 provenance,
                 normalizationProof);
         }
@@ -641,6 +743,7 @@ internal static class CrossRouteCandidateGenerator
         OptimizationJourneyBinding binding,
         bool requiresEvidence,
         IReadOnlySet<string> optedInEvidenceIds,
+        OptimizationHardwareAuthority hardwareAuthority,
         OptimizationConversionProvenance provenance =
             OptimizationConversionProvenance.None,
         GgufWeightNormalizationProof? normalizationProof = null)
@@ -656,8 +759,15 @@ internal static class CrossRouteCandidateGenerator
         }
 
         ResourcePeakProfile peaks = ResourcePhaseComposer.Compose(estimate.Components);
-        ByteCount peak = peaks.SystemMemoryPressure.Add(
-            peaks.PeakFor(ResourceTarget.DedicatedDeviceMemory));
+        if (!hardwareAuthority.Supports(configuration))
+        {
+            exclusions.Add(new OptimizationExclusion(
+                evidenceId, descriptor,
+                OptimizationExclusionReason.HardwareCapabilityUnavailable));
+            return;
+        }
+
+        ByteCount peak = peaks.SystemMemoryPressure;
 
         if (peak > safeBudget)
         {
@@ -665,6 +775,25 @@ internal static class CrossRouteCandidateGenerator
                 evidenceId, descriptor, OptimizationExclusionReason.ExceedsSafeMemoryBudget));
 
             return;
+        }
+
+        ByteCount dedicatedPeak = peaks.PeakFor(ResourceTarget.DedicatedDeviceMemory);
+        if (dedicatedPeak != ByteCount.Zero)
+        {
+            if (hardwareAuthority.SafeDedicatedDeviceMemoryBudget is not { } dedicatedBudget)
+            {
+                exclusions.Add(new OptimizationExclusion(
+                    evidenceId, descriptor,
+                    OptimizationExclusionReason.DedicatedMemoryNotEstablished));
+                return;
+            }
+            if (dedicatedPeak > dedicatedBudget)
+            {
+                exclusions.Add(new OptimizationExclusion(
+                    evidenceId, descriptor,
+                    OptimizationExclusionReason.ExceedsDedicatedDeviceMemory));
+                return;
+            }
         }
 
         ByteCount disk = peaks.PeakFor(ResourceTarget.Storage);

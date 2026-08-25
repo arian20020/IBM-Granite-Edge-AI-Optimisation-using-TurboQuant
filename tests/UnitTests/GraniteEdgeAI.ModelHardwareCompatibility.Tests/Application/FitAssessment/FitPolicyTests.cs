@@ -19,6 +19,16 @@ public sealed class FitPolicyTests
                 new HashSet<LifecyclePhase> { LifecyclePhase.SteadyStateGeneration }),
         ]);
 
+    private static ResourcePeakProfile DedicatedPeak(ulong bytes) =>
+        ResourcePhaseComposer.Compose(
+        [
+            ResourceComponent.Create(
+                ResourceComponentKind.Weights,
+                ResourceTarget.DedicatedDeviceMemory,
+                ByteCount.FromBytes(bytes),
+                new HashSet<LifecyclePhase> { LifecyclePhase.SteadyStateGeneration }),
+        ]);
+
     private static AvailableResources Available(ulong systemBytes, bool isFresh = true) =>
         AvailableResources.Create(
             systemMemory: ByteCount.FromBytes(systemBytes),
@@ -169,6 +179,72 @@ public sealed class FitPolicyTests
             profile, Available(20 * Gib), SafetyPolicy.ProvisionalV1());
 
         Assert.AreEqual(CompatibilityFitState.DoesNotFit, assessment.State);
+    }
+
+    [TestMethod]
+    public void DedicatedMemory_IsNeverAddedToTheSystemMemoryBudget()
+    {
+        FitAssessment assessment = FitPolicy.Assess(
+            DedicatedPeak(2 * Gib),
+            AvailableResources.Create(
+                ByteCount.FromBytes(20 * Gib), ByteCount.FromBytes(3 * Gib),
+                ByteCount.FromBytes(500 * Gib), DateTimeOffset.UnixEpoch),
+            SafetyPolicy.ProvisionalV1());
+
+        Assert.AreEqual(CompatibilityFitState.Safe, assessment.State);
+        Assert.AreEqual(17 * Gib, assessment.SafeBudget.Bytes);
+        Assert.AreEqual(3 * Gib, assessment.DedicatedSafeBudget.Bytes);
+        Assert.AreEqual(2 * Gib + Gib / 2, assessment.DedicatedRequiredBytes.Bytes);
+    }
+
+    [TestMethod]
+    public void DedicatedMemory_InsufficientAndUnknownFailClosed()
+    {
+        FitAssessment insufficient = FitPolicy.Assess(
+            DedicatedPeak(3 * Gib),
+            AvailableResources.Create(
+                ByteCount.FromBytes(20 * Gib), ByteCount.FromBytes(3 * Gib),
+                ByteCount.FromBytes(500 * Gib), DateTimeOffset.UnixEpoch),
+            SafetyPolicy.ProvisionalV1());
+        FitAssessment unknown = FitPolicy.Assess(
+            DedicatedPeak(Gib),
+            AvailableResources.Create(
+                ByteCount.FromBytes(20 * Gib), ByteCount.Zero,
+                ByteCount.FromBytes(500 * Gib), DateTimeOffset.UnixEpoch,
+                dedicatedDeviceMemoryEstablished: false),
+            SafetyPolicy.ProvisionalV1());
+
+        Assert.AreEqual(CompatibilityFitState.DoesNotFit, insufficient.State);
+        Assert.AreEqual(
+            FitLimitingReason.InsufficientDedicatedDeviceMemory,
+            insufficient.LimitingReason);
+        Assert.AreEqual(CompatibilityFitState.NotEstablished, unknown.State);
+        Assert.AreEqual(
+            FitLimitingReason.DedicatedAvailabilityUnavailable,
+            unknown.LimitingReason);
+    }
+
+    [TestMethod]
+    public void DedicatedMemory_ExactBoundaryFitsAndOneByteOverDoesNot()
+    {
+        SafetyPolicy policy = SafetyPolicy.ProvisionalV1();
+        ByteCount peak = ByteCount.FromBytes(2 * Gib);
+        ByteCount exact = peak.Add(policy.CalibrationMarginFor(peak));
+        FitAssessment fits = FitPolicy.Assess(
+            DedicatedPeak(peak.Bytes),
+            AvailableResources.Create(
+                ByteCount.FromBytes(20 * Gib), exact,
+                ByteCount.FromBytes(500 * Gib), DateTimeOffset.UnixEpoch),
+            policy);
+        FitAssessment fails = FitPolicy.Assess(
+            DedicatedPeak(peak.Bytes + 1),
+            AvailableResources.Create(
+                ByteCount.FromBytes(20 * Gib), exact,
+                ByteCount.FromBytes(500 * Gib), DateTimeOffset.UnixEpoch),
+            policy);
+
+        Assert.AreEqual(CompatibilityFitState.Narrow, fits.State);
+        Assert.AreEqual(CompatibilityFitState.DoesNotFit, fails.State);
     }
 
     [TestMethod]

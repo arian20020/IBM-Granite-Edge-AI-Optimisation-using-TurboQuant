@@ -1,4 +1,7 @@
 using System.Collections.Frozen;
+using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Candidates;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Execution;
@@ -213,22 +216,116 @@ public sealed record CompatibilityCurrentModelInput
     }
 }
 
+/// <summary>
+/// Canonical, path-free digests over the exact model and hardware facts the
+/// compatibility engine consumes. These are distinct from artifact hashes.
+/// </summary>
+public static class CompatibilityFactDigest
+{
+    public static string ComputeModel(CompatibilityCurrentModelInput model)
+    {
+        ArgumentNullException.ThrowIfNull(model);
+        StringBuilder canonical = new();
+        Append(canonical, "compatibility-model-facts-v1");
+        Append(canonical, (int)model.Route);
+        Append(canonical, model.ModelLengthBytes);
+        if (model.Gguf is { } gguf)
+        {
+            Append(canonical, gguf.LayerCount);
+            Append(canonical, gguf.EmbeddingSize);
+            Append(canonical, gguf.AttentionHeadCount);
+            Append(canonical, gguf.KeyValueHeadCount);
+            Append(canonical, gguf.DeclaredContextLimit);
+            Append(canonical, gguf.FileType);
+            Append(canonical, gguf.QuantisationVersion);
+            GgufRouteConfiguration route = model.GgufConfiguration!;
+            Append(canonical, (int)route.Weights);
+            Append(canonical, (int)route.KvCache);
+            Append(canonical, (int)route.Backend);
+            Append(canonical, (int)route.Device);
+            Append(canonical, (int)route.Offload);
+        }
+        else
+        {
+            OpenVinoCompatibilityModelInput openVino = model.OpenVino!;
+            Append(canonical, openVino.LayerCount);
+            Append(canonical, openVino.EmbeddingSize);
+            Append(canonical, openVino.AttentionHeadCount);
+            Append(canonical, openVino.KeyValueHeadCount);
+            Append(canonical, openVino.DeclaredContextLimit);
+            OpenVinoRouteConfiguration route = model.OpenVinoConfiguration!;
+            Append(canonical, (int)route.Weights);
+            Append(canonical, (int)route.KvCache);
+            Append(canonical, (int)route.Device);
+            Append(canonical, (int)route.PerformanceHint);
+            Append(canonical, (int)route.CompiledCache);
+            Append(canonical, route.Streams);
+            Append(canonical, (int)model.OpenVinoSourcePrecision!.Value);
+        }
+        return Digest(canonical);
+    }
+
+    public static string ComputeHardware(CompatibilityHardwareInput hardware)
+    {
+        ArgumentNullException.ThrowIfNull(hardware);
+        StringBuilder canonical = new();
+        Append(canonical, "compatibility-hardware-facts-v1");
+        Append(canonical, hardware.InstalledSystemMemoryBytes);
+        Append(canonical, hardware.InstalledDedicatedDeviceMemoryBytes);
+        Append(canonical, hardware.FreeStorageBytes);
+        Append(canonical, "devices");
+        Append(canonical, hardware.PresentDevices.Count);
+        foreach (DeviceRouteId device in hardware.PresentDevices.Order())
+        {
+            Append(canonical, (int)device);
+        }
+        Append(canonical, "backends");
+        Append(canonical, hardware.VerifiedBackends.Count);
+        foreach (CompatibilityBackend backend in hardware.VerifiedBackends.Order())
+        {
+            Append(canonical, (int)backend);
+        }
+        return Digest(canonical);
+    }
+
+    private static string Digest(StringBuilder canonical) =>
+        Convert.ToHexString(SHA256.HashData(
+            new UTF8Encoding(false).GetBytes(canonical.ToString())))
+            .ToLowerInvariant();
+
+    private static void Append<T>(StringBuilder canonical, T? value)
+    {
+        string text = value is null
+            ? "null"
+            : Convert.ToString(value, CultureInfo.InvariantCulture) ?? "null";
+        canonical.Append(text.Length.ToString(CultureInfo.InvariantCulture));
+        canonical.Append(':');
+        canonical.Append(text);
+    }
+}
+
 /// <summary>Independent journey identities supplied outside the optimization binding.</summary>
 public sealed record CompatibilityJourneyAuthorityInput
 {
     private CompatibilityJourneyAuthorityInput(
         Guid modelInspectionHandoffId,
         string modelSha256,
-        string hardwareSnapshotSha256)
+        string? modelFactsSha256,
+        string hardwareSnapshotSha256,
+        string? hardwareFactsSha256)
     {
         ModelInspectionHandoffId = modelInspectionHandoffId;
         ModelSha256 = modelSha256;
+        ModelFactsSha256 = modelFactsSha256;
         HardwareSnapshotSha256 = hardwareSnapshotSha256;
+        HardwareFactsSha256 = hardwareFactsSha256;
     }
 
     public Guid ModelInspectionHandoffId { get; }
     public string ModelSha256 { get; }
+    public string? ModelFactsSha256 { get; }
     public string HardwareSnapshotSha256 { get; }
+    public string? HardwareFactsSha256 { get; }
 
     public static CompatibilityJourneyAuthorityInput Create(
         Guid modelInspectionHandoffId,
@@ -239,7 +336,25 @@ public sealed record CompatibilityJourneyAuthorityInput
         RequireDigest(modelSha256, nameof(modelSha256));
         RequireDigest(hardwareSnapshotSha256, nameof(hardwareSnapshotSha256));
         return new CompatibilityJourneyAuthorityInput(
-            modelInspectionHandoffId, modelSha256, hardwareSnapshotSha256);
+            modelInspectionHandoffId, modelSha256, null,
+            hardwareSnapshotSha256, null);
+    }
+
+    public static CompatibilityJourneyAuthorityInput Create(
+        Guid modelInspectionHandoffId,
+        string modelSha256,
+        string modelFactsSha256,
+        string hardwareSnapshotSha256,
+        string hardwareFactsSha256)
+    {
+        RequireUuidV4(modelInspectionHandoffId, nameof(modelInspectionHandoffId));
+        RequireDigest(modelSha256, nameof(modelSha256));
+        RequireDigest(modelFactsSha256, nameof(modelFactsSha256));
+        RequireDigest(hardwareSnapshotSha256, nameof(hardwareSnapshotSha256));
+        RequireDigest(hardwareFactsSha256, nameof(hardwareFactsSha256));
+        return new CompatibilityJourneyAuthorityInput(
+            modelInspectionHandoffId, modelSha256, modelFactsSha256,
+            hardwareSnapshotSha256, hardwareFactsSha256);
     }
 
     private static void RequireUuidV4(Guid value, string parameterName)
@@ -349,23 +464,26 @@ public sealed record CompatibilityFreshResourcesInput
     private CompatibilityFreshResourcesInput(
         ulong availableSystemMemoryBytes,
         ulong availableDedicatedDeviceMemoryBytes,
+        bool dedicatedDeviceMemoryEstablished,
         ulong availableStorageBytes,
         DateTimeOffset observedAtUtc)
     {
         AvailableSystemMemoryBytes = availableSystemMemoryBytes;
         AvailableDedicatedDeviceMemoryBytes = availableDedicatedDeviceMemoryBytes;
+        DedicatedDeviceMemoryEstablished = dedicatedDeviceMemoryEstablished;
         AvailableStorageBytes = availableStorageBytes;
         ObservedAtUtc = observedAtUtc;
     }
 
     public ulong AvailableSystemMemoryBytes { get; }
     public ulong AvailableDedicatedDeviceMemoryBytes { get; }
+    public bool DedicatedDeviceMemoryEstablished { get; }
     public ulong AvailableStorageBytes { get; }
     public DateTimeOffset ObservedAtUtc { get; }
 
     public static CompatibilityFreshResourcesInput Create(
         ulong availableSystemMemoryBytes,
-        ulong availableDedicatedDeviceMemoryBytes,
+        ulong? availableDedicatedDeviceMemoryBytes,
         ulong availableStorageBytes,
         DateTimeOffset observedAtUtc)
     {
@@ -376,7 +494,8 @@ public sealed record CompatibilityFreshResourcesInput
 
         return new CompatibilityFreshResourcesInput(
             availableSystemMemoryBytes,
-            availableDedicatedDeviceMemoryBytes,
+            availableDedicatedDeviceMemoryBytes.GetValueOrDefault(),
+            availableDedicatedDeviceMemoryBytes.HasValue,
             availableStorageBytes,
             observedAtUtc);
     }
@@ -497,6 +616,18 @@ public sealed record CompatibilityProductionInput
             throw new ArgumentException("Model and Hardware run identities must be distinct.", nameof(productHardwareRunId));
         }
 
+        if (freshResources.AvailableSystemMemoryBytes
+                > hardware.InstalledSystemMemoryBytes
+            || freshResources.DedicatedDeviceMemoryEstablished
+                && freshResources.AvailableDedicatedDeviceMemoryBytes
+                    > hardware.InstalledDedicatedDeviceMemoryBytes
+            || freshResources.AvailableStorageBytes > hardware.FreeStorageBytes)
+        {
+            throw new ArgumentException(
+                "Fresh resource availability cannot exceed the bound hardware facts.",
+                nameof(freshResources));
+        }
+
         if (optimization is not null
             && (journeyAuthority is null
                 || optimization.Snapshot.Route != currentModel.Route
@@ -520,6 +651,14 @@ public sealed record CompatibilityProductionInput
                 || !string.Equals(
                     optimization.Binding.HardwareSnapshotSha256,
                     journeyAuthority.HardwareSnapshotSha256,
+                    StringComparison.Ordinal)
+                || !string.Equals(
+                    journeyAuthority.ModelFactsSha256,
+                    CompatibilityFactDigest.ComputeModel(currentModel),
+                    StringComparison.Ordinal)
+                || !string.Equals(
+                    journeyAuthority.HardwareFactsSha256,
+                    CompatibilityFactDigest.ComputeHardware(hardware),
                     StringComparison.Ordinal)))
         {
             throw new ArgumentException(

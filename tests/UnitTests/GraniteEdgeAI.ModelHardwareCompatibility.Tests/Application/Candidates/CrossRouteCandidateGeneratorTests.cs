@@ -211,7 +211,33 @@ public sealed class CrossRouteCandidateGeneratorTests
             ByteCount.FromBytes(budgetGibibytes * Gibibyte),
             ByteCount.FromBytes(diskGibibytes * Gibibyte),
             EstimatorPolicy.ProvisionalV1(),
-            new HashSet<string>(optedIn));
+            new HashSet<string>(optedIn),
+            HardwareAuthority());
+
+    private static OptimizationHardwareAuthority HardwareAuthority() =>
+        OptimizationHardwareAuthority.Create(
+            Digest,
+            [DeviceRouteId.Cpu, DeviceRouteId.IntelIntegratedGpu,
+             DeviceRouteId.IntelDiscreteGpu, DeviceRouteId.IntelNpu],
+            [CompatibilityBackend.Cpu, CompatibilityBackend.IntelSycl,
+             CompatibilityBackend.IntelVulkan, CompatibilityBackend.OpenVinoCpu,
+             CompatibilityBackend.OpenVinoGpu, CompatibilityBackend.OpenVinoNpu],
+            ByteCount.FromBytes(64 * Gibibyte),
+            DateTimeOffset.UnixEpoch,
+            DateTimeOffset.UnixEpoch,
+            "test-freshness-v1");
+
+    private static OptimizationHardwareAuthority HardwareAuthority(
+        DeviceRouteId device,
+        CompatibilityBackend backend,
+        ulong? dedicatedBytes = 64 * Gibibyte) =>
+        OptimizationHardwareAuthority.Create(
+            Digest, [device], [backend],
+            dedicatedBytes.HasValue
+                ? ByteCount.FromBytes(dedicatedBytes.Value)
+                : null,
+            DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch,
+            "test-freshness-v1");
 
     [TestMethod]
     public void BothRoutesGenerateCompleteCandidates()
@@ -228,6 +254,118 @@ public sealed class CrossRouteCandidateGeneratorTests
         Assert.AreEqual(1, gguf.Candidates.Count);
         Assert.AreEqual(OptimizationRoute.OpenVino, openVino.Candidates[0].Route);
         Assert.AreEqual(OptimizationRoute.Gguf, gguf.Candidates[0].Route);
+    }
+
+    [TestMethod]
+    public void AlternativeClaimingAbsentOpenVinoNpuIsExcluded()
+    {
+        OpenVinoAdmittedConfiguration admitted = CrossRouteTestData.OpenVino(
+            "ov-npu", OpenVinoWeightFormat.Int8,
+            device: DeviceRouteId.IntelNpu);
+        CrossRouteGenerationResult result = CrossRouteCandidateGenerator.Generate(
+            CrossRouteTestData.OpenVinoSnapshot(admitted),
+            CrossRouteTestData.Facts(), CrossRouteTestData.Workload(),
+            CrossRouteTestData.Binding(), ByteCount.FromBytes(32 * Gibibyte),
+            ByteCount.FromBytes(500 * Gibibyte), EstimatorPolicy.ProvisionalV1(),
+            new HashSet<string>(),
+            HardwareAuthority(DeviceRouteId.Cpu, CompatibilityBackend.OpenVinoCpu));
+
+        Assert.AreEqual(0, result.Candidates.Count);
+        Assert.AreEqual(
+            OptimizationExclusionReason.HardwareCapabilityUnavailable,
+            result.Exclusions.Single().Reason);
+    }
+
+    [TestMethod]
+    public void AlternativeClaimingAbsentGgufGpuBackendIsExcluded()
+    {
+        GgufAdmittedConfiguration admitted = GgufAdmittedConfiguration.Create(
+            "gguf-sycl", CompatibilityBackend.IntelSycl,
+            DeviceRouteId.IntelIntegratedGpu, GgufWeightFormat.Imported,
+            GgufKvCacheFormat.F16, GpuOffloadLevel.Full, 512, 8192,
+            SupportLevel.DeclaredSupported, false);
+        CrossRouteGenerationResult result = CrossRouteCandidateGenerator.Generate(
+            CrossRouteTestData.GgufSnapshot(admitted),
+            CrossRouteTestData.Facts(), CrossRouteTestData.Workload(),
+            CrossRouteTestData.Binding(), ByteCount.FromBytes(32 * Gibibyte),
+            ByteCount.FromBytes(500 * Gibibyte), EstimatorPolicy.ProvisionalV1(),
+            new HashSet<string>(),
+            HardwareAuthority(DeviceRouteId.Cpu, CompatibilityBackend.Cpu));
+
+        Assert.AreEqual(0, result.Candidates.Count);
+        Assert.AreEqual(
+            OptimizationExclusionReason.HardwareCapabilityUnavailable,
+            result.Exclusions.Single().Reason);
+    }
+
+    [TestMethod]
+    public void DedicatedMemoryDemandRequiresEstablishedSufficientDedicatedBudget()
+    {
+        OpenVinoAdmittedConfiguration admitted = CrossRouteTestData.OpenVino(
+            "ov-gpu", OpenVinoWeightFormat.Fp16,
+            device: DeviceRouteId.IntelDiscreteGpu);
+        OptimizationCapabilitySnapshot snapshot =
+            CrossRouteTestData.OpenVinoSnapshot(admitted);
+
+        CrossRouteGenerationResult unknown = CrossRouteCandidateGenerator.Generate(
+            snapshot, CrossRouteTestData.Facts(), CrossRouteTestData.Workload(),
+            CrossRouteTestData.Binding(), ByteCount.FromBytes(32 * Gibibyte),
+            ByteCount.FromBytes(500 * Gibibyte), EstimatorPolicy.ProvisionalV1(),
+            new HashSet<string>(),
+            HardwareAuthority(DeviceRouteId.IntelDiscreteGpu,
+                CompatibilityBackend.OpenVinoGpu, null));
+        CrossRouteGenerationResult insufficient = CrossRouteCandidateGenerator.Generate(
+            snapshot, CrossRouteTestData.Facts(), CrossRouteTestData.Workload(),
+            CrossRouteTestData.Binding(), ByteCount.FromBytes(32 * Gibibyte),
+            ByteCount.FromBytes(500 * Gibibyte), EstimatorPolicy.ProvisionalV1(),
+            new HashSet<string>(),
+            HardwareAuthority(DeviceRouteId.IntelDiscreteGpu,
+                CompatibilityBackend.OpenVinoGpu, 1));
+
+        Assert.AreEqual(
+            OptimizationExclusionReason.DedicatedMemoryNotEstablished,
+            unknown.Exclusions.Single().Reason);
+        Assert.AreEqual(
+            OptimizationExclusionReason.ExceedsDedicatedDeviceMemory,
+            insufficient.Exclusions.Single().Reason);
+    }
+
+    [TestMethod]
+    public void AlternativeDedicatedBudget_ExactBoundaryFits_OneByteLessFails()
+    {
+        OpenVinoAdmittedConfiguration admitted = CrossRouteTestData.OpenVino(
+            "ov-gpu-boundary", OpenVinoWeightFormat.Fp16,
+            device: DeviceRouteId.IntelDiscreteGpu);
+        OptimizationCapabilitySnapshot snapshot =
+            CrossRouteTestData.OpenVinoSnapshot(admitted);
+        InspectedModelFacts facts = CrossRouteTestData.Facts();
+        OptimizationWorkload workload = CrossRouteTestData.Workload();
+        ContextTokenCount context = workload.CandidateContexts.Single();
+        OpenVinoRouteConfiguration configuration = OpenVinoRouteConfiguration.Create(
+            admitted.Weights, admitted.KvCache, admitted.Device,
+            admitted.PerformanceHint, admitted.CompiledCache, admitted.Streams);
+        ResourceEstimate estimate = OpenVinoResourceEstimator.Estimate(
+            facts, configuration, context, EstimatorPolicy.ProvisionalV1());
+        ulong dedicatedPeak = ResourcePhaseComposer.Compose(estimate.Components)
+            .PeakFor(ResourceTarget.DedicatedDeviceMemory).Bytes;
+
+        CrossRouteGenerationResult exact = CrossRouteCandidateGenerator.Generate(
+            snapshot, facts, workload, CrossRouteTestData.Binding(),
+            ByteCount.FromBytes(32 * Gibibyte), ByteCount.FromBytes(500 * Gibibyte),
+            EstimatorPolicy.ProvisionalV1(), new HashSet<string>(),
+            HardwareAuthority(DeviceRouteId.IntelDiscreteGpu,
+                CompatibilityBackend.OpenVinoGpu, dedicatedPeak));
+        CrossRouteGenerationResult shortByOne = CrossRouteCandidateGenerator.Generate(
+            snapshot, facts, workload, CrossRouteTestData.Binding(),
+            ByteCount.FromBytes(32 * Gibibyte), ByteCount.FromBytes(500 * Gibibyte),
+            EstimatorPolicy.ProvisionalV1(), new HashSet<string>(),
+            HardwareAuthority(DeviceRouteId.IntelDiscreteGpu,
+                CompatibilityBackend.OpenVinoGpu, dedicatedPeak - 1));
+
+        Assert.AreEqual(1, exact.Candidates.Count);
+        Assert.AreEqual(
+            OptimizationExclusionReason.ExceedsDedicatedDeviceMemory,
+            shortByOne.Exclusions.Single().Reason);
     }
 
     [TestMethod]
@@ -933,7 +1071,8 @@ public sealed class CrossRouteCandidateGeneratorTests
             ByteCount.FromBytes(32 * Gibibyte),
             ByteCount.FromBytes(500 * Gibibyte),
             EstimatorPolicy.ProvisionalV1(),
-            new HashSet<string>());
+            new HashSet<string>(),
+            HardwareAuthority());
 
         Assert.AreEqual(0, result.Candidates.Count);
         Assert.AreEqual(

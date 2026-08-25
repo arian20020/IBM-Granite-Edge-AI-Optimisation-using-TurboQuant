@@ -90,7 +90,8 @@ public sealed class OpenVinoBuildIdentityValidationTests
             ByteCount.FromBytes(32 * Gibibyte),
             ByteCount.FromBytes(500 * Gibibyte),
             EstimatorPolicy.ProvisionalV1(),
-            new HashSet<string>());
+            new HashSet<string>(),
+            OptimizationHardwareAuthorityTestData.AllEstablished());
 
         return OptimizationPlanIssuer.Issue(
             OptimizationPreferenceResolver.Resolve(

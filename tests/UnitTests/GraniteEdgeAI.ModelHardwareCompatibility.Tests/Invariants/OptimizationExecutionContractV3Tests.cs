@@ -46,7 +46,8 @@ public sealed class OptimizationExecutionContractV3Tests
                 ByteCount.FromBytes(3 * Gibibyte), 32, 4096, 32, 8, 8192, 15, 2),
             workload, binding, ByteCount.FromBytes(32 * Gibibyte),
             ByteCount.FromBytes(500 * Gibibyte), EstimatorPolicy.ProvisionalV1(),
-            new HashSet<string>());
+            new HashSet<string>(),
+            OptimizationHardwareAuthorityTestData.AllEstablished());
         OptimizationSelection valid = OptimizationPreferenceResolver.Resolve(
             generated.Candidates, OptimizationPreferenceSelection.Automatic())!;
         OptimizationExecutionPayload payload = OptimizationExecutionPayload.ForOpenVino(
@@ -795,7 +796,8 @@ public sealed class OptimizationExecutionContractV3Tests
             ByteCount.FromBytes(32 * Gibibyte),
             ByteCount.FromBytes(500 * Gibibyte),
             EstimatorPolicy.ProvisionalV1(),
-            new HashSet<string> { "gguf-q2" });
+            new HashSet<string> { "gguf-q2" },
+            OptimizationHardwareAuthorityTestData.AllEstablished());
         OptimizationSelection selected = OptimizationPreferenceResolver.Resolve(
             generated.Candidates, OptimizationPreferenceSelection.Automatic())
             ?? throw new AssertFailedException("Already-at-target candidate was absent.");
@@ -1324,7 +1326,8 @@ public sealed class OptimizationExecutionContractV3Tests
             ByteCount.FromBytes(32 * Gibibyte),
             ByteCount.FromBytes(500 * Gibibyte),
             EstimatorPolicy.ProvisionalV1(),
-            new HashSet<string> { admitted.EvidenceId });
+            new HashSet<string> { admitted.EvidenceId },
+            OptimizationHardwareAuthorityTestData.AllEstablished());
         OptimizationSelection selection = OptimizationPreferenceResolver.Resolve(
             generated.Candidates, OptimizationPreferenceSelection.Manual(10))
             ?? throw new AssertFailedException("The authorized Q2_K candidate was absent.");
@@ -1419,7 +1422,8 @@ public sealed class OptimizationExecutionContractV3Tests
             ByteCount.FromBytes(32 * Gibibyte),
             ByteCount.FromBytes(availableDiskBytes),
             EstimatorPolicy.ProvisionalV1(),
-            new HashSet<string> { "ov-turbo-evidence" });
+            new HashSet<string> { "ov-turbo-evidence" },
+            OptimizationHardwareAuthorityTestData.AllEstablished());
 
         OptimizationSelection selection = OptimizationPreferenceResolver.Resolve(
             generated.Candidates,

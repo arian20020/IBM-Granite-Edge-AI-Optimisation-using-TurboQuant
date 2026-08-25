@@ -14,13 +14,15 @@ internal sealed record AvailableResources
         ByteCount dedicatedDeviceMemory,
         ByteCount storage,
         DateTimeOffset observedAtUtc,
-        bool isFresh)
+        bool isFresh,
+        bool dedicatedDeviceMemoryEstablished)
     {
         SystemMemory = systemMemory;
         DedicatedDeviceMemory = dedicatedDeviceMemory;
         Storage = storage;
         ObservedAtUtc = observedAtUtc;
         IsFresh = isFresh;
+        DedicatedDeviceMemoryEstablished = dedicatedDeviceMemoryEstablished;
     }
 
     internal ByteCount SystemMemory { get; }
@@ -33,15 +35,19 @@ internal sealed record AvailableResources
 
     internal bool IsFresh { get; }
 
+    internal bool DedicatedDeviceMemoryEstablished { get; }
+
     internal static AvailableResources Create(
         ByteCount systemMemory,
         ByteCount dedicatedDeviceMemory,
         ByteCount storage,
         DateTimeOffset observedAtUtc,
-        bool isFresh = true) =>
+        bool isFresh = true,
+        bool dedicatedDeviceMemoryEstablished = true) =>
         new(systemMemory,
             dedicatedDeviceMemory,
             storage,
             observedAtUtc.ToUniversalTime(),
-            isFresh);
+            isFresh,
+            dedicatedDeviceMemoryEstablished);
 }
