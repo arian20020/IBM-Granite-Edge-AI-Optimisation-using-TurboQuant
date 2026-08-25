@@ -21,6 +21,7 @@ public sealed class CrossRouteCandidateGeneratorTests
 {
     private const ulong Gibibyte = 1024UL * 1024 * 1024;
     private const string Digest = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";
+    private const string Commit = "0123456789abcdef0123456789abcdef01234567";
 
     private static class CrossRouteTestData
     {
@@ -59,7 +60,23 @@ public sealed class CrossRouteCandidateGeneratorTests
         internal static OptimizationCapabilitySnapshot OpenVinoSnapshot(
             params OpenVinoAdmittedConfiguration[] admitted) =>
             OptimizationCapabilitySnapshot.ForOpenVino(
-                "ov-cap", Digest, OpenVinoCapabilityPayload.Create("2026.1.0", admitted));
+                "ov-cap", Digest, OpenVinoCapabilityPayload.Create(
+                    "2026.1.0", admitted,
+                    [.. admitted.Select(entry => OpenVinoExecutionAuthority.Create(
+                        entry.EvidenceId,
+                        entry.EvidenceId,
+                        OpenVinoWeightPrecision.Fp16,
+                        OpenVinoBuildIdentity.Create(
+                            "2026.1.0", "2026.1.0", "2026.1.0", Digest),
+                        new Dictionary<string, string>(StringComparer.Ordinal)
+                        {
+                            ["openvino"] = "2026.1.0"
+                        },
+                        entry.KvCache is OpenVinoKvCacheFormat.TurboQuantTbq4
+                            or OpenVinoKvCacheFormat.TurboQuantTbq3
+                            ? TurboQuantBuildIdentity.Create(
+                                Commit, Commit, Digest, Digest)
+                            : null))]));
 
         internal static OptimizationCapabilitySnapshot GgufSnapshot(
             params GgufAdmittedConfiguration[] admitted) =>
@@ -77,7 +94,12 @@ public sealed class CrossRouteCandidateGeneratorTests
             return OptimizationCapabilitySnapshot.ForGguf(
                 "gguf-cap", Digest, GgufCapabilityPayload.Create(
                     "b4321", admitted, hasHigherPrecisionSource, requantisationPolicy,
-                    source, source is null ? null : Quantiser()));
+                    source, source is null ? null : Quantiser(),
+                    runtimeAuthority: GgufRuntimeAuthority.Create(
+                        "b4321", Commit,
+                        [.. admitted.Select(entry =>
+                            GgufExecutionProfileAuthority.Create(
+                                entry.EvidenceId, EvidenceGrade.Estimated, "profile"))])));
         }
 
         internal static OptimizationJourneyBinding Binding() =>
@@ -87,6 +109,15 @@ public sealed class CrossRouteCandidateGeneratorTests
 
         internal static GgufQuantiserIdentity Quantiser() =>
             GgufQuantiserIdentity.Create("llama-quantize", "b4321", Digest);
+
+        internal static GgufRuntimeAuthority RuntimeAuthority(
+            string runtime,
+            string sourceCommit,
+            params GgufAdmittedConfiguration[] admitted) =>
+            GgufRuntimeAuthority.Create(
+                runtime, sourceCommit,
+                [.. admitted.Select(entry => GgufExecutionProfileAuthority.Create(
+                    entry.EvidenceId, EvidenceGrade.Estimated, "profile"))]);
 
         internal static GgufConversionSourceBinding Source(
             WeightQuantisation precision = WeightQuantisation.Q4_K_M) =>
@@ -138,6 +169,42 @@ public sealed class CrossRouteCandidateGeneratorTests
         Assert.AreEqual(1, gguf.Candidates.Count);
         Assert.AreEqual(OptimizationRoute.OpenVino, openVino.Candidates[0].Route);
         Assert.AreEqual(OptimizationRoute.Gguf, gguf.Candidates[0].Route);
+    }
+
+    [TestMethod]
+    public void GgufCandidateWithoutExactRuntimeProfileAuthorityIsTypedExcluded()
+    {
+        GgufAdmittedConfiguration admitted = CrossRouteTestData.Gguf(
+            "gguf-no-runtime-authority", GgufWeightFormat.Imported);
+        OptimizationCapabilitySnapshot snapshot = OptimizationCapabilitySnapshot.ForGguf(
+            "gguf-cap", Digest,
+            GgufCapabilityPayload.Create("b4321", [admitted]));
+
+        CrossRouteGenerationResult result = Generate(snapshot);
+
+        Assert.AreEqual(0, result.Candidates.Count);
+        Assert.AreEqual(1, result.Exclusions.Count);
+        Assert.AreEqual(
+            OptimizationExclusionReason.ExecutionAuthorityNotEstablished,
+            result.Exclusions[0].Reason);
+    }
+
+    [TestMethod]
+    public void OpenVinoCandidateWithoutExactExecutionAuthorityIsTypedExcluded()
+    {
+        OpenVinoAdmittedConfiguration admitted = CrossRouteTestData.OpenVino(
+            "ov-no-execution-authority", OpenVinoWeightFormat.Original);
+        OptimizationCapabilitySnapshot snapshot = OptimizationCapabilitySnapshot.ForOpenVino(
+            "ov-cap", Digest,
+            OpenVinoCapabilityPayload.Create("2026.1.0", [admitted]));
+
+        CrossRouteGenerationResult result = Generate(snapshot);
+
+        Assert.AreEqual(0, result.Candidates.Count);
+        Assert.AreEqual(1, result.Exclusions.Count);
+        Assert.AreEqual(
+            OptimizationExclusionReason.ExecutionAuthorityNotEstablished,
+            result.Exclusions[0].Reason);
     }
 
     [TestMethod]
@@ -209,7 +276,9 @@ public sealed class CrossRouteCandidateGeneratorTests
                             implementation.Runtime,
                             implementation.Source,
                             implementation.Backend,
-                            implementation.Device)));
+                            implementation.Device),
+                    runtimeAuthority: CrossRouteTestData.RuntimeAuthority(
+                        implementation.Runtime, implementation.Source, admitted)));
 
             CrossRouteGenerationResult absent = Generate(snapshot);
             Assert.AreEqual(0, absent.Candidates.Count);
@@ -480,7 +549,9 @@ public sealed class CrossRouteCandidateGeneratorTests
                 GgufCapabilityPayload.Create(
                     "b4321", [admitted], hasHigherPrecisionSource: true,
                     conversionSource: source,
-                    admittedQuantiser: CrossRouteTestData.Quantiser())))
+                    admittedQuantiser: CrossRouteTestData.Quantiser(),
+                    runtimeAuthority: CrossRouteTestData.RuntimeAuthority(
+                        "b4321", Commit, admitted))))
             .Candidates.Single();
 
         Assert.IsTrue(candidate.Metrics.RequiresPersistentChange);
@@ -553,7 +624,9 @@ public sealed class CrossRouteCandidateGeneratorTests
         OptimizationCapabilitySnapshot snapshot = OptimizationCapabilitySnapshot.ForGguf(
             "gguf-cap", Digest,
             GgufCapabilityPayload.Create(
-                "b4321", [admitted], false, policy, source, quantiser));
+                "b4321", [admitted], false, policy, source, quantiser,
+                runtimeAuthority: CrossRouteTestData.RuntimeAuthority(
+                    "b4321", Commit, admitted)));
 
         OptimizationCandidate candidate = Generate(
             snapshot, facts: CrossRouteTestData.Facts(fileType)).Candidates.Single();

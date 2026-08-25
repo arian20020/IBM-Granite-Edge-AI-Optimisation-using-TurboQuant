@@ -81,6 +81,22 @@ public sealed class OptimizationPlanBindingTests
         {
             OpenVinoRouteConfiguration configuration =
                 (OpenVinoRouteConfiguration)candidate.Configuration;
+            OpenVinoWeightPrecision target = configuration.Weights switch
+            {
+                OpenVinoWeightFormat.Fp16 => OpenVinoWeightPrecision.Fp16,
+                OpenVinoWeightFormat.Int8 => OpenVinoWeightPrecision.EightBit,
+                _ => OpenVinoWeightPrecision.FourBit
+            };
+            OpenVinoWeightPrecision source =
+                configuration.Weights == OpenVinoWeightFormat.Original
+                    ? target
+                    : OpenVinoWeightPrecision.Fp16;
+            OpenVinoBuildIdentity build = OpenVinoBuildIdentity.Create(
+                "2026.3.0", "2026.3.0.0", "2026.3.0", HardwareDigest);
+            Dictionary<string, string> versions = new(StringComparer.Ordinal)
+            {
+                ["openvino"] = "2026.3.0"
+            };
 
             return
             OptimizationCapabilitySnapshot.ForOpenVino(
@@ -96,6 +112,14 @@ public sealed class OptimizationPlanBindingTests
                             configuration.CompiledCache, configuration.Streams,
                             512, 32768,
                             SupportLevel.DeclaredSupported, false)
+                    ],
+                    [
+                        OpenVinoExecutionAuthority.Create(
+                            candidate.EvidenceId,
+                            "openvino.standard.cpu.int8.default.v1",
+                            source,
+                            build,
+                            versions)
                     ]));
         }
 

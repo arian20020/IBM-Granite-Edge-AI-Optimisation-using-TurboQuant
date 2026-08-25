@@ -125,7 +125,7 @@ public sealed class OptimizationExecutionContractV2Tests
             OptimizationCapabilitySnapshot.ForGguf(
                 "gguf-cap", Digest64,
                 GgufCapabilityPayload.Create(
-                    "b4321",
+                    executionPayload.RuntimeBuildId,
                     [
                         GgufAdmittedConfiguration.Create(
                             "gguf-evidence", configuration.Backend, configuration.Device,
@@ -135,7 +135,16 @@ public sealed class OptimizationExecutionContractV2Tests
                     ],
                     hasHigherPrecisionSource: true,
                     conversionSource: source,
-                    admittedQuantiser: executionPayload.Quantiser));
+                    admittedQuantiser: executionPayload.Quantiser,
+                    runtimeAuthority: GgufRuntimeAuthority.Create(
+                        executionPayload.RuntimeBuildId,
+                        executionPayload.RuntimeSourceCommit,
+                        [
+                            GgufExecutionProfileAuthority.Create(
+                                "gguf-evidence",
+                                candidate.Metrics.Evidence,
+                                executionPayload.ProfileId)
+                        ])));
         }
 
         internal static OptimizationCapabilitySnapshot GgufSnapshot() =>
@@ -233,6 +242,17 @@ public sealed class OptimizationExecutionContractV2Tests
                             configuration.KvCache, configuration.PerformanceHint,
                             configuration.CompiledCache, configuration.Streams,
                             512, 32768, SupportLevel.DeclaredSupported, false)
+                    ],
+                    [
+                        OpenVinoExecutionAuthority.Create(
+                            candidate?.EvidenceId ?? "ov-evidence",
+                            payload?.ConfigurationId
+                                ?? "openvino.standard.cpu.int8.default.v1",
+                            payload?.SourceWeightPrecision
+                                ?? OpenVinoWeightPrecision.Fp16,
+                            payload?.BuildIdentity ?? Build(),
+                            payload?.OptimizerVersions ?? Versions(),
+                            payload?.TurboQuantBuild)
                     ]));
         }
 
@@ -681,8 +701,6 @@ public sealed class OptimizationExecutionContractV2Tests
             ("flashAttention", V2TestData.GgufPayload(flashAttention: true)),
             ("threadCount", V2TestData.GgufPayload(threadCount: 16)),
             ("batchSize", V2TestData.GgufPayload(batchSize: 1024)),
-            ("evidenceGrade", V2TestData.GgufPayload(evidenceGrade: "Measured")),
-            ("profileId", V2TestData.GgufPayload(profileId: "profile-2")),
             ("maximumGeneratedTokens", V2TestData.GgufPayload(maximumGeneratedTokens: 1024))
         ];
 

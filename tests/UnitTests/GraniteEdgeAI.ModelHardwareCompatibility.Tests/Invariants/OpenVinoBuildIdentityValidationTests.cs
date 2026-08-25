@@ -61,7 +61,20 @@ public sealed class OpenVinoBuildIdentityValidationTests
         OptimizationCapabilitySnapshot snapshot =
             OptimizationCapabilitySnapshot.ForOpenVino(
                 "ov-cap", Digest64,
-                OpenVinoCapabilityPayload.Create(build.RuntimeBuild, [admitted]));
+                OpenVinoCapabilityPayload.Create(
+                    build.RuntimeBuild,
+                    [admitted],
+                    [
+                        OpenVinoExecutionAuthority.Create(
+                            "ov-evidence",
+                            "openvino.standard.cpu.int8.default.v1",
+                            OpenVinoWeightPrecision.Fp16,
+                            build,
+                            new Dictionary<string, string>(StringComparer.Ordinal)
+                            {
+                                ["openvino"] = "2026.3.0"
+                            })
+                    ]));
         OptimizationWorkload workload = OptimizationWorkload.Create(
             "chat", 512, OptimizationAssessment.Poor,
             [ContextTokenCount.FromTokens(4096)]);

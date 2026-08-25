@@ -31,7 +31,11 @@ public sealed class OptimizationPreferenceInvariantTests
         OptimizationAssessment stability = OptimizationAssessment.Good,
         int streams = 1,
         OptimizationAssessment performance = OptimizationAssessment.Good,
-        bool isExperimental = false)
+        bool isExperimental = false,
+        EvidenceGrade evidence = EvidenceGrade.Estimated,
+        ulong safeBudgetBytes = 32 * Gibibyte,
+        string snapshotId = "preference-cap",
+        string capabilityDigest = Digest64)
     {
         OpenVinoWeightFormat weights = quality switch
         {
@@ -49,14 +53,14 @@ public sealed class OptimizationPreferenceInvariantTests
                 OpenVinoCompiledCachePolicy.Disabled,
                 streams);
         OptimizationCandidateMetrics metrics = OptimizationCandidateMetrics.Create(
-                EvidenceGrade.Estimated,
+                evidence,
                 quality,
                 performance,
                 stability,
                 context,
                 peakBytes,
-                32 * Gibibyte,
-                32 * Gibibyte - peakBytes,
+                safeBudgetBytes,
+                safeBudgetBytes - peakBytes,
                 persistent ? peakBytes : 0,
                 persistent ? peakBytes : 0,
                 persistent,
@@ -68,7 +72,7 @@ public sealed class OptimizationPreferenceInvariantTests
             : SupportLevel.DeclaredSupported;
         OptimizationCapabilitySnapshot snapshot =
             OptimizationCapabilitySnapshot.ForOpenVino(
-                "preference-cap", Digest64,
+                snapshotId, capabilityDigest,
                 OpenVinoCapabilityPayload.Create(
                     "runtime",
                     [OpenVinoAdmittedConfiguration.Create(
@@ -587,6 +591,76 @@ public sealed class OptimizationPreferenceInvariantTests
         Assert.AreEqual(
             -Math.Sign(OptimizationPreferenceResolver.Compare(acceptable, good)),
             Math.Sign(OptimizationPreferenceResolver.Compare(good, acceptable)));
+    }
+
+    [TestMethod]
+    public void TotalOrderIsStrictAntisymmetricTransitiveAndPermutationInvariant()
+    {
+        OptimizationCandidate baseline = Candidate(
+            "baseline", OptimizationAssessment.Good, 8 * Gibibyte);
+        OptimizationCandidate[] variants =
+        [
+            Candidate("evidence-grade", OptimizationAssessment.Good, 8 * Gibibyte,
+                evidence: EvidenceGrade.Verified),
+            Candidate("experimental", OptimizationAssessment.Good, 8 * Gibibyte,
+                isExperimental: true),
+            Candidate("headroom", OptimizationAssessment.Good, 8 * Gibibyte,
+                safeBudgetBytes: 33 * Gibibyte),
+            Candidate("conversion", OptimizationAssessment.Good, 8 * Gibibyte,
+                persistent: true),
+            Candidate("stability", OptimizationAssessment.Good, 8 * Gibibyte,
+                stability: OptimizationAssessment.Excellent),
+            Candidate("performance", OptimizationAssessment.Good, 8 * Gibibyte,
+                performance: OptimizationAssessment.Excellent),
+            Candidate("context", OptimizationAssessment.Good, 8 * Gibibyte,
+                context: 8192),
+            Candidate("configuration", OptimizationAssessment.Good, 8 * Gibibyte,
+                streams: 2),
+            Candidate("z-evidence-id", OptimizationAssessment.Good, 8 * Gibibyte),
+            Candidate("authority", OptimizationAssessment.Good, 8 * Gibibyte,
+                snapshotId: "z-authority")
+        ];
+
+        foreach (OptimizationCandidate variant in variants)
+        {
+            int forward = OptimizationPreferenceResolver.Compare(baseline, variant);
+            int reverse = OptimizationPreferenceResolver.Compare(variant, baseline);
+            Assert.AreNotEqual(0, forward);
+            Assert.AreEqual(-Math.Sign(forward), Math.Sign(reverse));
+
+            string first = OptimizationPreferenceResolver.Resolve(
+                [baseline, variant], OptimizationPreferenceSelection.Automatic())!
+                .Candidate.CanonicalDescriptor + ":" +
+                OptimizationPreferenceResolver.Resolve(
+                    [baseline, variant], OptimizationPreferenceSelection.Automatic())!
+                    .Candidate.EvidenceId;
+            string reversed = OptimizationPreferenceResolver.Resolve(
+                [variant, baseline], OptimizationPreferenceSelection.Automatic())!
+                .Candidate.CanonicalDescriptor + ":" +
+                OptimizationPreferenceResolver.Resolve(
+                    [variant, baseline], OptimizationPreferenceSelection.Automatic())!
+                    .Candidate.EvidenceId;
+            Assert.AreEqual(first, reversed);
+        }
+
+        OptimizationCandidate[] ordered = [baseline, .. variants];
+        Array.Sort(ordered, OptimizationPreferenceResolver.Compare);
+        for (int i = 0; i < ordered.Length; i++)
+        {
+            for (int j = i + 1; j < ordered.Length; j++)
+            {
+                for (int k = j + 1; k < ordered.Length; k++)
+                {
+                    Assert.IsTrue(OptimizationPreferenceResolver.Compare(
+                        ordered[i], ordered[k]) < 0);
+                }
+            }
+        }
+
+        OptimizationCandidate duplicate = Candidate(
+            "baseline", OptimizationAssessment.Good, 8 * Gibibyte);
+        Assert.AreEqual(0, OptimizationPreferenceResolver.Compare(baseline, duplicate));
+        Assert.AreEqual(1, SafeCandidateFrontier.Create([baseline, duplicate]).Count);
     }
 
     [TestMethod]

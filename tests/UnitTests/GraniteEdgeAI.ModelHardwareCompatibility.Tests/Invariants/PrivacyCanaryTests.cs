@@ -246,15 +246,30 @@ public sealed class PrivacyCanaryTests
         "OptimizationAdmissionProof.ConfigurationDescriptor",
         "OptimizationAdmissionProof.Digest",
         "OptimizationAdmissionProof.DigestJourney",
+        "OptimizationAdmissionProof.DigestRouteExecutionAuthority",
         "OptimizationAdmissionProof.DigestWorkload",
         "OptimizationAdmissionProof.EvidenceId",
         "OptimizationAdmissionProof.JourneySha256",
         "OptimizationAdmissionProof.OptedInEvidenceId",
+        "OptimizationAdmissionProof.RouteExecutionAuthoritySha256",
         "OptimizationAdmissionProof.SnapshotId",
         "OptimizationAdmissionProof.WorkloadId",
         "OptimizationAdmissionProof.WorkloadSha256",
-        "<>c.<Digest>b__87_0",
-        "<>c.<DigestWorkload>b__85_2"
+        "GgufEvidenceGradeMap.ToExecutionValue",
+        "GgufExecutionProfileAuthority.EvidenceId",
+        "GgufExecutionProfileAuthority.ProfileId",
+        "GgufRuntimeAuthority.Profiles",
+        "GgufRuntimeAuthority.RuntimeBuildId",
+        "GgufRuntimeAuthority.RuntimeSourceCommit",
+        "OpenVinoCapabilityPayload.ExecutionAuthorities",
+        "OpenVinoExecutionAuthority.ConfigurationId",
+        "OpenVinoExecutionAuthority.EvidenceId",
+        "OpenVinoExecutionAuthority.OptimizerVersions",
+        "<>c__DisplayClass27_1.evidenceId",
+        "<>c__DisplayClass4_0.actual",
+        "<>c.<Digest>b__91_0",
+        "<>c.<DigestRouteExecutionAuthority>b__90_0",
+        "<>c.<DigestWorkload>b__88_2"
     ];
 
     private static readonly BindingFlags AllMembers =

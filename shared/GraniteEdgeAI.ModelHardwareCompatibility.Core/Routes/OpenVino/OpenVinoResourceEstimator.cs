@@ -65,7 +65,9 @@ internal static class OpenVinoResourceEstimator
                 EstimationUnavailableReason.UnknownArchitecture);
         }
 
-        if (embedding % heads != 0)
+        if (embedding % heads != 0
+            || keyValueHeads > heads
+            || heads % keyValueHeads != 0)
         {
             return ResourceEstimate.NotEstablished(
                 EstimationUnavailableReason.UnknownArchitecture);

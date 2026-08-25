@@ -26,11 +26,21 @@ internal static class SafeCandidateFrontier
     {
         ArgumentNullException.ThrowIfNull(admitted);
 
-        List<OptimizationCandidate> frontier = [];
-
+        List<OptimizationCandidate> unique = [];
         foreach (OptimizationCandidate candidate in admitted)
         {
-            if (!admitted.Any(other => Dominates(other, candidate)))
+            if (!unique.Any(existing =>
+                    OptimizationPreferenceResolver.Compare(existing, candidate) == 0))
+            {
+                unique.Add(candidate);
+            }
+        }
+
+        List<OptimizationCandidate> frontier = [];
+
+        foreach (OptimizationCandidate candidate in unique)
+        {
+            if (!unique.Any(other => Dominates(other, candidate)))
             {
                 frontier.Add(candidate);
             }

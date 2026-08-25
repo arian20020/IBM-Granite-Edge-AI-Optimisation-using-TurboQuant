@@ -134,6 +134,15 @@ internal static class CrossRouteCandidateGenerator
     {
         foreach (OpenVinoAdmittedConfiguration admitted in payload.Admitted)
         {
+            if (!payload.ExecutionAuthorities.ContainsKey(admitted.EvidenceId))
+            {
+                exclusions.Add(new OptimizationExclusion(
+                    admitted.EvidenceId,
+                    $"weights={admitted.Weights}|ctx={context.Tokens}",
+                    OptimizationExclusionReason.ExecutionAuthorityNotEstablished));
+                continue;
+            }
+
             if (context.Tokens < admitted.MinimumContextTokens
                 || context.Tokens > admitted.MaximumContextTokens)
             {
@@ -197,6 +206,18 @@ internal static class CrossRouteCandidateGenerator
     {
         foreach (GgufAdmittedConfiguration admitted in payload.Admitted)
         {
+            if (payload.RuntimeAuthority is not { } runtimeAuthority
+                || !runtimeAuthority.Profiles.TryGetValue(
+                    admitted.EvidenceId, out GgufExecutionProfileAuthority? profile)
+                || profile.Evidence != EvidenceGrade.Estimated)
+            {
+                exclusions.Add(new OptimizationExclusion(
+                    admitted.EvidenceId,
+                    $"weights={admitted.Weights}|ctx={context.Tokens}",
+                    OptimizationExclusionReason.ExecutionAuthorityNotEstablished));
+                continue;
+            }
+
             if (context.Tokens < admitted.MinimumContextTokens
                 || context.Tokens > admitted.MaximumContextTokens)
             {

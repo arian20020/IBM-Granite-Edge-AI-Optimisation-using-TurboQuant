@@ -1,4 +1,5 @@
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Execution;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.Gguf;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.OpenVino;
@@ -223,6 +224,59 @@ public sealed class OptimizationCapabilitySnapshotTests
 
         Assert.AreEqual(SupportLevel.Experimental, admitted.Level);
         Assert.AreEqual(OpenVinoKvCacheFormat.TurboQuantTbq4, admitted.KvCache);
+    }
+
+    [TestMethod]
+    public void OpenVinoAuthorityTurboIdentityMustMatchTheAdmittedCacheFamily()
+    {
+        OpenVinoAdmittedConfiguration released = OpenVinoAdmittedConfiguration.Create(
+            "ov", DeviceRouteId.Cpu, OpenVinoWeightFormat.Int8,
+            OpenVinoKvCacheFormat.U8, OpenVinoPerformanceHint.Latency,
+            OpenVinoCompiledCachePolicy.Enabled, 1, 512, 32768,
+            SupportLevel.DeclaredSupported, false);
+        OpenVinoBuildIdentity build = OpenVinoBuildIdentity.Create(
+            "2026.1.0", "genai", "tokenizers", Digest);
+        TurboQuantBuildIdentity turbo = TurboQuantBuildIdentity.Create(
+            "0123456789abcdef0123456789abcdef01234567",
+            "89abcdef0123456789abcdef0123456789abcdef",
+            Digest, Digest);
+
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            OpenVinoCapabilityPayload.Create(
+                "2026.1.0", [released],
+                [OpenVinoExecutionAuthority.Create(
+                    "ov", "configuration", OpenVinoWeightPrecision.Fp16,
+                    build, new Dictionary<string, string> { ["openvino"] = "2026.1.0" },
+                    turbo)]));
+    }
+
+    [TestMethod]
+    public void RouteAuthoritiesAreImmutableSortedAndRejectDuplicateEvidence()
+    {
+        Dictionary<string, string> versions = new(StringComparer.Ordinal)
+        {
+            ["z-optimizer"] = "2",
+            ["a-optimizer"] = "1"
+        };
+        OpenVinoExecutionAuthority openVino = OpenVinoExecutionAuthority.Create(
+            "ov", "configuration", OpenVinoWeightPrecision.Fp16,
+            OpenVinoBuildIdentity.Create("runtime", "genai", "tokenizers", Digest),
+            versions);
+        versions.Clear();
+
+        CollectionAssert.AreEqual(
+            new[] { "a-optimizer", "z-optimizer" },
+            openVino.OptimizerVersions.Keys.ToArray());
+        Assert.ThrowsExactly<NotSupportedException>(() =>
+            ((IDictionary<string, string>)openVino.OptimizerVersions)["injected"] = "3");
+        Assert.ThrowsExactly<ArgumentException>(() => GgufRuntimeAuthority.Create(
+            "runtime", "0123456789abcdef0123456789abcdef01234567",
+            [
+                GgufExecutionProfileAuthority.Create(
+                    "same", EvidenceGrade.Estimated, "profile-a"),
+                GgufExecutionProfileAuthority.Create(
+                    "same", EvidenceGrade.Estimated, "profile-b")
+            ]));
     }
 
     [TestMethod]

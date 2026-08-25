@@ -70,11 +70,45 @@ public sealed class OpenVinoResourceEstimatorTests
     }
 
     [TestMethod]
+    [DataRow(12, 5)]
+    [DataRow(8, 16)]
+    public void InvalidGroupedAttentionShapeFailsClosed(
+        int attentionHeads, int keyValueHeads)
+    {
+        int embedding = attentionHeads == 12 ? 4092 : 4096;
+        InspectedModelFacts inconsistent = InspectedModelFacts.Create(
+            ByteCount.FromBytes(3 * Gibibyte), 32, embedding,
+            attentionHeads, keyValueHeads, 8192, 15, 2);
+
+        ResourceEstimate estimate = Estimate(Configuration(), inconsistent);
+
+        Assert.AreEqual(EstimationStatus.NotEstablished, estimate.Status);
+        Assert.AreEqual(
+            EstimationUnavailableReason.UnknownArchitecture, estimate.Reason);
+    }
+
+    [TestMethod]
+    [DataRow(12, 12)]
+    [DataRow(12, 3)]
+    [DataRow(12, 1)]
+    public void ValidMhaGqaAndMqaShapesRemainEstablished(
+        int attentionHeads, int keyValueHeads)
+    {
+        InspectedModelFacts valid = InspectedModelFacts.Create(
+            ByteCount.FromBytes(3 * Gibibyte), 32, 4092,
+            attentionHeads, keyValueHeads, 8192, 15, 2);
+
+        Assert.AreEqual(
+            EstimationStatus.Established,
+            Estimate(Configuration(), valid).Status);
+    }
+
+    [TestMethod]
     public void ExtremeCacheProductsReturnTypedRangeFailureInsteadOfThrowing()
     {
         InspectedModelFacts extreme = InspectedModelFacts.Create(
             ByteCount.FromBytes(3 * Gibibyte), int.MaxValue, int.MaxValue,
-            1, int.MaxValue, int.MaxValue, 15, 2);
+            1, 1, int.MaxValue, 15, 2);
 
         ResourceEstimate estimate = Estimate(
             Configuration(cache: OpenVinoKvCacheFormat.F16),

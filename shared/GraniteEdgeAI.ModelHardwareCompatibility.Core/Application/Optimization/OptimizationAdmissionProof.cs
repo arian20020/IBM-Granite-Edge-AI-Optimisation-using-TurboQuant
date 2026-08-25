@@ -19,6 +19,7 @@ internal sealed record OptimizationAdmissionProof
         string workloadId,
         string workloadSha256,
         string journeySha256,
+        string routeExecutionAuthoritySha256,
         string configurationDescriptor,
         string evidenceId,
         SupportLevel supportLevel,
@@ -32,6 +33,7 @@ internal sealed record OptimizationAdmissionProof
         WorkloadId = workloadId;
         WorkloadSha256 = workloadSha256;
         JourneySha256 = journeySha256;
+        RouteExecutionAuthoritySha256 = routeExecutionAuthoritySha256;
         ConfigurationDescriptor = configurationDescriptor;
         EvidenceId = evidenceId;
         SupportLevel = supportLevel;
@@ -60,6 +62,7 @@ internal sealed record OptimizationAdmissionProof
     internal string WorkloadId { get; }
     internal string WorkloadSha256 { get; }
     internal string JourneySha256 { get; }
+    internal string RouteExecutionAuthoritySha256 { get; }
     internal string ConfigurationDescriptor { get; }
     internal string EvidenceId { get; }
     internal SupportLevel SupportLevel { get; }
@@ -123,6 +126,7 @@ internal sealed record OptimizationAdmissionProof
             workload.WorkloadId,
             DigestWorkload(workload),
             DigestJourney(binding),
+            DigestRouteExecutionAuthority(snapshot, candidate.EvidenceId),
             candidate.Configuration.CanonicalDescriptor,
             candidate.EvidenceId,
             supportLevel,
@@ -160,7 +164,9 @@ internal sealed record OptimizationAdmissionProof
         && CapabilitySnapshotSha256 == snapshot.CapabilitySnapshotSha256
         && WorkloadId == workload.WorkloadId
         && WorkloadSha256 == DigestWorkload(workload)
-        && JourneySha256 == DigestJourney(binding);
+        && JourneySha256 == DigestJourney(binding)
+        && RouteExecutionAuthoritySha256
+            == DigestRouteExecutionAuthority(snapshot, EvidenceId);
 
     private static void ValidateMetrics(OptimizationCandidateMetrics metrics)
     {
@@ -198,6 +204,62 @@ internal sealed record OptimizationAdmissionProof
         binding.ModelLengthBytes.ToString(CultureInfo.InvariantCulture),
         binding.ProductHardwareRunId,
         binding.HardwareSnapshotSha256);
+
+    private static string DigestRouteExecutionAuthority(
+        OptimizationCapabilitySnapshot snapshot,
+        string evidenceId)
+    {
+        if (snapshot.Gguf?.RuntimeAuthority is { } gguf
+            && gguf.Profiles.TryGetValue(evidenceId, out GgufExecutionProfileAuthority? profile))
+        {
+            return Digest(
+                "gguf",
+                gguf.RuntimeBuildId,
+                gguf.RuntimeSourceCommit,
+                profile.EvidenceId,
+                ((int)profile.Evidence).ToString(CultureInfo.InvariantCulture),
+                profile.ProfileId);
+        }
+
+        if (snapshot.OpenVino?.ExecutionAuthorities.TryGetValue(
+                evidenceId, out OpenVinoExecutionAuthority? openVino) == true)
+        {
+            List<string> fields =
+            [
+                "openvino",
+                openVino.EvidenceId,
+                openVino.ConfigurationId,
+                ((int)openVino.SourceWeightPrecision).ToString(CultureInfo.InvariantCulture),
+                openVino.BuildIdentity.RuntimeBuild,
+                openVino.BuildIdentity.GenAiBuild,
+                openVino.BuildIdentity.TokenizersBuild,
+                openVino.BuildIdentity.WorkerManifestDigest
+            ];
+            foreach (KeyValuePair<string, string> version in
+                openVino.OptimizerVersions.OrderBy(pair => pair.Key, StringComparer.Ordinal))
+            {
+                fields.Add(version.Key);
+                fields.Add(version.Value);
+            }
+
+            if (openVino.TurboQuantBuild is { } turbo)
+            {
+                fields.Add("turboquant");
+                fields.Add(turbo.SourceCommit);
+                fields.Add(turbo.ImplementationCommit);
+                fields.Add(turbo.PatchSeriesDigest);
+                fields.Add(turbo.RuntimeManifestDigest);
+            }
+            else
+            {
+                fields.Add("released");
+            }
+
+            return Digest(fields.ToArray());
+        }
+
+        return "none";
+    }
 
     private static string Digest(params string[] fields)
     {

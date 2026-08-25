@@ -344,6 +344,12 @@ public static class OptimizationPreferenceResolver
         }
         if (result == 0)
         {
+            result = string.CompareOrdinal(
+                a.RouteExecutionAuthoritySha256,
+                b.RouteExecutionAuthoritySha256);
+        }
+        if (result == 0)
+        {
             result = ((int)a.SupportLevel).CompareTo((int)b.SupportLevel);
         }
         if (result == 0)

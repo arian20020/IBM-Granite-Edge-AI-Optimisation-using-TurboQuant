@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Globalization;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Execution;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
@@ -269,10 +270,13 @@ public sealed record GgufAdmittedConfiguration
 public sealed record OpenVinoCapabilityPayload
 {
     private OpenVinoCapabilityPayload(
-        string runtimeVersion, IReadOnlyList<OpenVinoAdmittedConfiguration> admitted)
+        string runtimeVersion,
+        IReadOnlyList<OpenVinoAdmittedConfiguration> admitted,
+        IReadOnlyDictionary<string, OpenVinoExecutionAuthority> executionAuthorities)
     {
         RuntimeVersion = runtimeVersion;
         Admitted = admitted;
+        ExecutionAuthorities = executionAuthorities;
     }
 
     /// <summary>
@@ -284,8 +288,12 @@ public sealed record OpenVinoCapabilityPayload
 
     public IReadOnlyList<OpenVinoAdmittedConfiguration> Admitted { get; }
 
+    public IReadOnlyDictionary<string, OpenVinoExecutionAuthority> ExecutionAuthorities { get; }
+
     public static OpenVinoCapabilityPayload Create(
-        string runtimeVersion, IReadOnlyList<OpenVinoAdmittedConfiguration> admitted)
+        string runtimeVersion,
+        IReadOnlyList<OpenVinoAdmittedConfiguration> admitted,
+        IReadOnlyList<OpenVinoExecutionAuthority>? executionAuthorities = null)
     {
         ArgumentNullException.ThrowIfNull(admitted);
 
@@ -315,9 +323,48 @@ public sealed record OpenVinoCapabilityPayload
         OptimizationAdmissionIdentity.RequireUnique(
             admitted.Select(entry => entry.EvidenceId), nameof(admitted));
 
+        SortedDictionary<string, OpenVinoExecutionAuthority> copiedAuthorities =
+            new(StringComparer.Ordinal);
+        foreach (OpenVinoExecutionAuthority authority in executionAuthorities ?? [])
+        {
+            ArgumentNullException.ThrowIfNull(authority);
+            OpenVinoAdmittedConfiguration? authoritativeAdmission = admitted
+                .SingleOrDefault(entry => string.Equals(
+                    entry.EvidenceId, authority.EvidenceId, StringComparison.Ordinal));
+            if (!string.Equals(
+                    runtimeVersion,
+                    authority.BuildIdentity.RuntimeBuild,
+                    StringComparison.Ordinal)
+                || authoritativeAdmission is null)
+            {
+                throw new ArgumentException(
+                    "OpenVINO execution authority must name this runtime and admitted evidence.",
+                    nameof(executionAuthorities));
+            }
+            bool turboCache = authoritativeAdmission.KvCache is
+                OpenVinoKvCacheFormat.TurboQuantTbq4
+                or OpenVinoKvCacheFormat.TurboQuantTbq3;
+            if (turboCache != (authority.TurboQuantBuild is not null))
+            {
+                throw new ArgumentException(
+                    "OpenVINO TurboQuant execution identity must agree with the admitted cache family.",
+                    nameof(executionAuthorities));
+            }
+            if (!copiedAuthorities.TryAdd(authority.EvidenceId, authority))
+            {
+                throw new ArgumentException(
+                    "OpenVINO execution authority evidence identifiers must be unique.",
+                    nameof(executionAuthorities));
+            }
+        }
+
         // Copied so a caller still holding the list cannot add an unadmitted
         // combination after the snapshot has been hashed.
-        return new OpenVinoCapabilityPayload(runtimeVersion, [.. admitted]);
+        return new OpenVinoCapabilityPayload(
+            runtimeVersion,
+            [.. admitted],
+            new ReadOnlyDictionary<string, OpenVinoExecutionAuthority>(
+                copiedAuthorities));
     }
 }
 
@@ -364,7 +411,8 @@ public sealed record GgufCapabilityPayload
         GgufRequantisationPolicy? requantisationPolicy,
         GgufConversionSourceBinding? conversionSource,
         GgufQuantiserIdentity? admittedQuantiser,
-        GgufTurboQuantImplementationIdentity? turboQuantImplementation)
+        GgufTurboQuantImplementationIdentity? turboQuantImplementation,
+        GgufRuntimeAuthority? runtimeAuthority)
     {
         RuntimeVersion = runtimeVersion;
         Admitted = admitted;
@@ -373,6 +421,7 @@ public sealed record GgufCapabilityPayload
         ConversionSource = conversionSource;
         AdmittedQuantiser = admittedQuantiser;
         TurboQuantImplementation = turboQuantImplementation;
+        RuntimeAuthority = runtimeAuthority;
     }
 
     public string RuntimeVersion { get; }
@@ -393,6 +442,8 @@ public sealed record GgufCapabilityPayload
 
     public GgufTurboQuantImplementationIdentity? TurboQuantImplementation { get; }
 
+    public GgufRuntimeAuthority? RuntimeAuthority { get; }
+
     public static GgufCapabilityPayload Create(
         string runtimeVersion,
         IReadOnlyList<GgufAdmittedConfiguration> admitted,
@@ -400,7 +451,8 @@ public sealed record GgufCapabilityPayload
         GgufRequantisationPolicy? requantisationPolicy = null,
         GgufConversionSourceBinding? conversionSource = null,
         GgufQuantiserIdentity? admittedQuantiser = null,
-        GgufTurboQuantImplementationIdentity? turboQuantImplementation = null)
+        GgufTurboQuantImplementationIdentity? turboQuantImplementation = null,
+        GgufRuntimeAuthority? runtimeAuthority = null)
     {
         ArgumentNullException.ThrowIfNull(admitted);
 
@@ -418,6 +470,22 @@ public sealed record GgufCapabilityPayload
 
         OptimizationAdmissionIdentity.RequireUnique(
             admitted.Select(entry => entry.EvidenceId), nameof(admitted));
+
+        if (runtimeAuthority is not null)
+        {
+            if (!string.Equals(
+                    runtimeVersion,
+                    runtimeAuthority.RuntimeBuildId,
+                    StringComparison.Ordinal)
+                || runtimeAuthority.Profiles.Keys.Any(evidenceId =>
+                    admitted.All(entry => !string.Equals(
+                        entry.EvidenceId, evidenceId, StringComparison.Ordinal))))
+            {
+                throw new ArgumentException(
+                    "GGUF runtime authority must name this build and only admitted evidence.",
+                    nameof(runtimeAuthority));
+            }
+        }
 
         GgufAdmittedConfiguration[] turboQuant =
         [
@@ -455,6 +523,17 @@ public sealed record GgufCapabilityPayload
                     + "pinned implementation identity.",
                     nameof(turboQuantImplementation));
             }
+
+            if (runtimeAuthority is not null
+                && !string.Equals(
+                    runtimeAuthority.RuntimeSourceCommit,
+                    turboQuantImplementation.SourceCommit,
+                    StringComparison.Ordinal))
+            {
+                throw new ArgumentException(
+                    "GGUF TurboQuant runtime authority must use the pinned source commit.",
+                    nameof(runtimeAuthority));
+            }
         }
 
         return new GgufCapabilityPayload(
@@ -464,7 +543,8 @@ public sealed record GgufCapabilityPayload
             requantisationPolicy,
             conversionSource,
             admittedQuantiser,
-            turboQuantImplementation);
+            turboQuantImplementation,
+            runtimeAuthority);
     }
 }
 

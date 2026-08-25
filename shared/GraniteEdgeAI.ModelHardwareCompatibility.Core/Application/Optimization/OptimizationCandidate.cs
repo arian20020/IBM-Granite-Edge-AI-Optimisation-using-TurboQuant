@@ -86,7 +86,8 @@ public enum OptimizationExclusionReason
     ExperimentalNotAdmitted,
     QualityBelowFloor,
     Dominated,
-    RequantisationNotAuthorized
+    RequantisationNotAuthorized,
+    ExecutionAuthorityNotEstablished
 }
 
 /// <summary>A closed presentation notice derived from admitted candidate facts.</summary>

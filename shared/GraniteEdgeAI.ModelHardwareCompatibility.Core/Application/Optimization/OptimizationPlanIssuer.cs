@@ -163,9 +163,38 @@ public static class OptimizationPlanIssuer
             "GGUF support admission",
             "support level, experimental state, evidence requirement, or opt-in differs");
 
+        GgufRuntimeAuthority? runtimeAuthority = capability.RuntimeAuthority;
+        GgufExecutionProfileAuthority? profile = null;
+        if (runtimeAuthority is not null)
+        {
+            runtimeAuthority.Profiles.TryGetValue(candidate.EvidenceId, out profile);
+        }
+        GgufExecutionPayload gguf = payload.Gguf!;
+        Require(
+            runtimeAuthority is not null
+                && profile is not null
+                && string.Equals(
+                    runtimeAuthority.RuntimeBuildId,
+                    gguf.RuntimeBuildId,
+                    StringComparison.Ordinal)
+                && string.Equals(
+                    runtimeAuthority.RuntimeSourceCommit,
+                    gguf.RuntimeSourceCommit,
+                    StringComparison.Ordinal)
+                && profile.Evidence == candidate.Metrics.Evidence
+                && string.Equals(
+                    GgufEvidenceGradeMap.ToExecutionValue(profile.Evidence),
+                    gguf.EvidenceGrade,
+                    StringComparison.Ordinal)
+                && string.Equals(
+                    profile.ProfileId,
+                    gguf.ProfileId,
+                    StringComparison.Ordinal),
+            "GGUF runtime execution authority",
+            "runtime build, source commit, evidence grade, or profile differs");
+
         GgufTurboQuantImplementationIdentity? identity =
             capability.TurboQuantImplementation;
-        GgufExecutionPayload gguf = payload.Gguf!;
         if (identity is not null)
         {
             Require(
@@ -222,6 +251,8 @@ public static class OptimizationPlanIssuer
                 admitted.PerformanceHint, admitted.CompiledCache, admitted.Streams);
         OptimizationAdmissionProof proof = candidate.AdmissionProof!;
         OpenVinoExecutionPayload openVino = payload.OpenVino!;
+        capability.ExecutionAuthorities.TryGetValue(
+            admitted.EvidenceId, out OpenVinoExecutionAuthority? executionAuthority);
         string expectedMaturity = admitted.Level == SupportLevel.Experimental
             ? "Experimental candidate"
             : "Standard candidate";
@@ -253,6 +284,21 @@ public static class OptimizationPlanIssuer
             "OpenVINO runtime build",
             "capability and execution payload runtime identities differ");
         Require(
+            executionAuthority is not null
+                && string.Equals(
+                    executionAuthority.ConfigurationId,
+                    openVino.ConfigurationId,
+                    StringComparison.Ordinal)
+                && executionAuthority.SourceWeightPrecision
+                    == openVino.SourceWeightPrecision
+                && executionAuthority.BuildIdentity == openVino.BuildIdentity
+                && ExecutionAuthorityMapsAgree(
+                    executionAuthority.OptimizerVersions,
+                    openVino.OptimizerVersions)
+                && executionAuthority.TurboQuantBuild == openVino.TurboQuantBuild,
+            "OpenVINO execution authority",
+            "configuration, source precision, build, optimizer map, or TurboQuant build differs");
+        Require(
             string.Equals(openVino.EvidenceId, admitted.EvidenceId, StringComparison.Ordinal)
                 && string.Equals(openVino.Maturity, expectedMaturity, StringComparison.Ordinal)
                 && openVino.CreatesCompletePackage
@@ -260,6 +306,14 @@ public static class OptimizationPlanIssuer
             "OpenVINO execution admission",
             "evidence, maturity, package creation, or persistence differs");
     }
+
+    private static bool ExecutionAuthorityMapsAgree(
+        IReadOnlyDictionary<string, string> expected,
+        IReadOnlyDictionary<string, string> actual) =>
+        expected.Count == actual.Count
+        && expected.All(entry =>
+            actual.TryGetValue(entry.Key, out string? value)
+            && string.Equals(entry.Value, value, StringComparison.Ordinal));
 
     private static bool AdmittedGgufConfigurationMatches(
         GgufRouteConfiguration admitted,
