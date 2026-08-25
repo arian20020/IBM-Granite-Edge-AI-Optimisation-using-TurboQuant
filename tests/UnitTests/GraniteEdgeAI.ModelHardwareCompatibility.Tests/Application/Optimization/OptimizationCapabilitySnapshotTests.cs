@@ -327,6 +327,111 @@ public sealed class OptimizationCapabilitySnapshotTests
 
     [TestMethod]
     [DataRow(-1)]
+    [DataRow(int.MaxValue)]
+    public void GgufAdmissionRejectsUndefinedRouteEnums(int raw)
+    {
+        Action[] invalid =
+        [
+            () => GgufAdmission(weights: (GgufWeightFormat)raw),
+            () => GgufAdmission(cache: (GgufKvCacheFormat)raw),
+            () => GgufAdmission(backend: (CompatibilityBackend)raw),
+            () => GgufAdmission(device: (DeviceRouteId)raw),
+            () => GgufAdmission(offload: (GpuOffloadLevel)raw)
+        ];
+
+        foreach (Action create in invalid)
+        {
+            Assert.ThrowsExactly<ArgumentOutOfRangeException>(create);
+        }
+    }
+
+    [TestMethod]
+    public void GgufAdmissionRejectsInvalidNamedRouteCombinations()
+    {
+        Action[] invalid =
+        [
+            () => GgufAdmission(backend: CompatibilityBackend.OpenVinoCpu),
+            () => GgufAdmission(device: DeviceRouteId.IntelNpu),
+            () => GgufAdmission(offload: GpuOffloadLevel.Unspecified),
+            () => GgufAdmission(
+                backend: CompatibilityBackend.Cpu,
+                device: DeviceRouteId.IntelIntegratedGpu,
+                offload: GpuOffloadLevel.Full),
+            () => GgufAdmission(
+                backend: CompatibilityBackend.IntelSycl,
+                device: DeviceRouteId.Cpu,
+                offload: GpuOffloadLevel.None),
+            () => GgufAdmission(offload: GpuOffloadLevel.Full)
+        ];
+
+        foreach (Action create in invalid)
+        {
+            Assert.ThrowsExactly<ArgumentException>(create);
+        }
+    }
+
+    [TestMethod]
+    public void GgufCapabilityRevalidatesEveryMutatedAdmissionAuthorityField()
+    {
+        GgufAdmittedConfiguration admitted = GgufAdmission();
+        foreach ((string property, object invalid) in new (string, object)[]
+        {
+            (nameof(GgufAdmittedConfiguration.Backend), CompatibilityBackend.OpenVinoCpu),
+            (nameof(GgufAdmittedConfiguration.Device), DeviceRouteId.IntelNpu),
+            (nameof(GgufAdmittedConfiguration.Weights), (GgufWeightFormat)(-1)),
+            (nameof(GgufAdmittedConfiguration.KvCache), (GgufKvCacheFormat)(-1)),
+            (nameof(GgufAdmittedConfiguration.Offload), GpuOffloadLevel.Unspecified),
+            (nameof(GgufAdmittedConfiguration.Level), (SupportLevel)(-1))
+        })
+        {
+            System.Reflection.FieldInfo field = typeof(GgufAdmittedConfiguration).GetField(
+                $"<{property}>k__BackingField",
+                System.Reflection.BindingFlags.Instance
+                    | System.Reflection.BindingFlags.NonPublic)!;
+            object? original = field.GetValue(admitted);
+            try
+            {
+                field.SetValue(admitted, invalid);
+                Assert.Throws<ArgumentException>(() =>
+                    GgufCapabilityPayload.Create("runtime", [admitted]), property);
+            }
+            finally
+            {
+                field.SetValue(admitted, original);
+            }
+        }
+    }
+
+    [TestMethod]
+    public void GgufCapabilityOwnsItsValidatedAdmissionRecords()
+    {
+        GgufAdmittedConfiguration admitted = GgufAdmission();
+        GgufCapabilityPayload payload = GgufCapabilityPayload.Create(
+            "runtime", [admitted]);
+        typeof(GgufAdmittedConfiguration).GetField(
+            "<Backend>k__BackingField",
+            System.Reflection.BindingFlags.Instance
+                | System.Reflection.BindingFlags.NonPublic)!
+            .SetValue(admitted, CompatibilityBackend.OpenVinoCpu);
+
+        Assert.AreEqual(
+            CompatibilityBackend.Cpu,
+            payload.Admitted.Single().Backend);
+        Assert.AreNotSame(admitted, payload.Admitted.Single());
+    }
+
+    private static GgufAdmittedConfiguration GgufAdmission(
+        CompatibilityBackend backend = CompatibilityBackend.Cpu,
+        DeviceRouteId device = DeviceRouteId.Cpu,
+        GgufWeightFormat weights = GgufWeightFormat.Q4KM,
+        GgufKvCacheFormat cache = GgufKvCacheFormat.F16,
+        GpuOffloadLevel offload = GpuOffloadLevel.None) =>
+        GgufAdmittedConfiguration.Create(
+            "gguf-admission", backend, device, weights, cache, offload,
+            512, 32768, SupportLevel.DeclaredSupported, false);
+
+    [TestMethod]
+    [DataRow(-1)]
     [DataRow(5)]
     public void WorkloadRejectsUndefinedQualityFloors(int rawQuality)
     {

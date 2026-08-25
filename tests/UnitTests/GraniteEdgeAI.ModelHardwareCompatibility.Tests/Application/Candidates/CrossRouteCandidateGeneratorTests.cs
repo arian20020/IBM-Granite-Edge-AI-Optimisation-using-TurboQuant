@@ -64,19 +64,14 @@ public sealed class CrossRouteCandidateGeneratorTests
     }
 
     [TestMethod]
-    public void UndefinedSupportCannotGenerateThroughAMutatedGgufAdmission()
+    public void UndefinedSupportCannotSealAMutatedGgufAdmission()
     {
         GgufAdmittedConfiguration admitted = CrossRouteTestData.Gguf(
             "gguf-invalid-support", GgufWeightFormat.Q4KM);
         SetSupportLevel(admitted, (SupportLevel)3);
 
-        CrossRouteGenerationResult result = Generate(
+        Assert.ThrowsExactly<ArgumentException>(() =>
             CrossRouteTestData.GgufSnapshot(admitted));
-
-        Assert.AreEqual(0, result.Candidates.Count);
-        Assert.AreEqual(
-            OptimizationExclusionReason.EvidenceBelowAdmissionLevel,
-            result.Exclusions.Single().Reason);
     }
 
     private static void SetSupportLevel(object admitted, SupportLevel level) =>

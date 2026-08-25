@@ -210,16 +210,8 @@ public sealed record GgufAdmittedConfiguration
 
         OptimizationSupportLevelPolicy.RequireAdmitted(level, nameof(level));
 
-        if (weights == GgufWeightFormat.Unspecified
-            || kvCache == GgufKvCacheFormat.Unspecified
-            || backend == CompatibilityBackend.Unspecified
-            || device == DeviceRouteId.Unspecified)
-        {
-            throw new ArgumentException(
-                "An admitted combination must be complete; Unspecified is the "
-                + "absence of a choice rather than a modest one.",
-                nameof(weights));
-        }
+        GgufRouteConfiguration validated = GgufRouteConfiguration.Create(
+            weights, kvCache, backend, device, offload);
 
         if (minimumContextTokens < 1 || maximumContextTokens < minimumContextTokens)
         {
@@ -239,11 +231,11 @@ public sealed record GgufAdmittedConfiguration
 
         return new GgufAdmittedConfiguration(
             evidenceId,
-            backend,
-            device,
-            weights,
-            kvCache,
-            offload,
+            validated.Backend,
+            validated.Device,
+            validated.Weights,
+            validated.KvCache,
+            validated.Offload,
             minimumContextTokens,
             maximumContextTokens,
             level,
@@ -469,13 +461,31 @@ public sealed record GgufCapabilityPayload
         ArgumentNullException.ThrowIfNull(admitted);
 
         GgufAdmittedConfiguration[] admittedSnapshot = [.. admitted];
+        GgufAdmittedConfiguration[] validatedAdmissions =
+            new GgufAdmittedConfiguration[admittedSnapshot.Length];
+        for (int index = 0; index < admittedSnapshot.Length; index++)
+        {
+            GgufAdmittedConfiguration entry = admittedSnapshot[index];
+            ArgumentNullException.ThrowIfNull(entry);
+            validatedAdmissions[index] = GgufAdmittedConfiguration.Create(
+                entry.EvidenceId,
+                entry.Backend,
+                entry.Device,
+                entry.Weights,
+                entry.KvCache,
+                entry.Offload,
+                entry.MinimumContextTokens,
+                entry.MaximumContextTokens,
+                entry.Level,
+                entry.RequiresEvidence);
+        }
 
         OptimizationIdentifier.Require(
             runtimeVersion,
             nameof(runtimeVersion),
             "The runtime build a capability payload was established against");
 
-        if (admittedSnapshot.Length == 0)
+        if (validatedAdmissions.Length == 0)
         {
             throw new ArgumentException(
                 "An empty admitted set is a route with no evidence, not a modest one.",
@@ -483,7 +493,7 @@ public sealed record GgufCapabilityPayload
         }
 
         OptimizationAdmissionIdentity.RequireUnique(
-            admittedSnapshot.Select(entry => entry.EvidenceId), nameof(admitted));
+            validatedAdmissions.Select(entry => entry.EvidenceId), nameof(admitted));
 
         if (runtimeAuthority is not null)
         {
@@ -492,7 +502,7 @@ public sealed record GgufCapabilityPayload
                     runtimeAuthority.RuntimeBuildId,
                     StringComparison.Ordinal)
                 || runtimeAuthority.Profiles.Keys.Any(evidenceId =>
-                    admittedSnapshot.All(entry => !string.Equals(
+                    validatedAdmissions.All(entry => !string.Equals(
                         entry.EvidenceId, evidenceId, StringComparison.Ordinal))))
             {
                 throw new ArgumentException(
@@ -503,7 +513,7 @@ public sealed record GgufCapabilityPayload
 
         GgufAdmittedConfiguration[] turboQuant =
         [
-            .. admittedSnapshot.Where(entry =>
+            .. validatedAdmissions.Where(entry =>
                 entry.KvCache == GgufKvCacheFormat.TurboQuant3Bit)
         ];
 
@@ -552,7 +562,7 @@ public sealed record GgufCapabilityPayload
 
         return new GgufCapabilityPayload(
             runtimeVersion,
-            Array.AsReadOnly(admittedSnapshot),
+            Array.AsReadOnly(validatedAdmissions),
             hasHigherPrecisionSource,
             requantisationPolicy,
             conversionSource,

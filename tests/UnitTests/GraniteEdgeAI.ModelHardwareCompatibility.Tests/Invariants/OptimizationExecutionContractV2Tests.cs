@@ -794,15 +794,19 @@ public sealed class OptimizationExecutionContractV2Tests
     }
 
     [TestMethod]
-    public void GgufBackendChangeChangesTheDigest()
+    public void GgufBackendAndMatchingDeviceChangeChangesTheDigest()
     {
         string baseline = IssueGguf().ConfigurationSha256;
 
         Assert.AreNotEqual(
             baseline,
             IssueGguf(
-                V2TestData.GgufCandidate(backend: CompatibilityBackend.IntelSycl),
-                V2TestData.GgufPayload(backend: GgufRuntimeBackend.Sycl))
+                V2TestData.GgufCandidate(
+                    backend: CompatibilityBackend.IntelSycl,
+                    device: DeviceRouteId.IntelIntegratedGpu),
+                V2TestData.GgufPayload(
+                    backend: GgufRuntimeBackend.Sycl,
+                    deviceId: "GPU.0"))
                 .ConfigurationSha256);
     }
 

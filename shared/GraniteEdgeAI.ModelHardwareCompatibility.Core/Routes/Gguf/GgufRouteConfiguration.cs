@@ -87,6 +87,21 @@ public sealed record GgufRouteConfiguration : RouteConfiguration
                 nameof(device));
         }
 
+        bool backendMatchesDevice = backend switch
+        {
+            CompatibilityBackend.Cpu => device == DeviceRouteId.Cpu,
+            CompatibilityBackend.IntelSycl or CompatibilityBackend.IntelVulkan =>
+                device is DeviceRouteId.IntelIntegratedGpu
+                    or DeviceRouteId.IntelDiscreteGpu,
+            _ => false
+        };
+        if (!backendMatchesDevice)
+        {
+            throw new ArgumentException(
+                "The GGUF backend must match its CPU or Intel GPU device.",
+                nameof(backend));
+        }
+
         if (offload == GpuOffloadLevel.Unspecified)
         {
             throw new ArgumentException(
