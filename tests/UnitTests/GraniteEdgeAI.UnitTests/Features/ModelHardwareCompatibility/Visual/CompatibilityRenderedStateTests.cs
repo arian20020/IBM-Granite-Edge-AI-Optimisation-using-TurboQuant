@@ -5,6 +5,9 @@
 using GraniteEdgeAI.Features.ModelHardwareCompatibility;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.DebugFixtures;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.Presentation;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Candidates;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
@@ -81,6 +84,30 @@ public sealed class CompatibilityRenderedStateTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
+    public async Task MissingDestination_LeavesViewModelCommandAndPageDisabled()
+    {
+        CompatibilityScreenModel result = CompatibilityScreenModel.ForPresentation(
+            CompatibilityScreenState.EstimatedCompatible,
+            [],
+            [],
+            BaselineExclusionReason.None,
+            useCurrentModelAvailable: false,
+            continueEnabled: true);
+        var blockedPage = new CompatibilityPage(
+            _ => Task.FromResult(result),
+            continueDestinationAvailable: false)
+        {
+            StartAutomatically = false
+        };
+        await blockedPage.ViewModel.StartAsync();
+
+        Assert.IsFalse(blockedPage.ViewModel.Presentation.PrimaryActionEnabled);
+        Assert.IsFalse(Element<Button>(blockedPage, "PrimaryAction").IsEnabled);
+        Assert.IsFalse(blockedPage.ViewModel.ContinueCommand.CanExecute(null));
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
     public void OptimisationRequired_UsesStableResponsiveAccessibleChoiceTree()
     {
         CompatibilityPage page = CreatePage();
@@ -116,15 +143,15 @@ public sealed class CompatibilityRenderedStateTests
     {
         var expected = new[]
         {
-            new { Id = "CMP-020", CurrentWeight = "Q4_K_M", CurrentCache = "F16", RecommendedWeight = "Q3_K_M", RecommendedCache = "Q8_0", Quality = "Expected quality: Good", Experimental = false, Strong = false },
-            new { Id = "CMP-021", CurrentWeight = "Q4_K_M", CurrentCache = "F16", RecommendedWeight = "Q2_K", RecommendedCache = "Q8_0", Quality = "Expected quality: Low", Experimental = false, Strong = true },
-            new { Id = "CMP-022", CurrentWeight = "Q4_K_M", CurrentCache = "F16", RecommendedWeight = "Q3_K_M", RecommendedCache = "Q8_0", Quality = "Expected quality: Acceptable", Experimental = false, Strong = false },
-            new { Id = "CMP-023", CurrentWeight = "INT8", CurrentCache = "U8", RecommendedWeight = "INT4", RecommendedCache = "Runtime default", Quality = "Expected quality: Good", Experimental = false, Strong = false },
-            new { Id = "CMP-024", CurrentWeight = "INT8", CurrentCache = "U8", RecommendedWeight = "Original", RecommendedCache = "U4", Quality = "Expected quality: Excellent", Experimental = false, Strong = false },
-            new { Id = "CMP-025", CurrentWeight = "INT8", CurrentCache = "U8", RecommendedWeight = "Original", RecommendedCache = "TurboQuant TBQ4", Quality = "Expected quality: Good", Experimental = true, Strong = false },
-            new { Id = "CMP-026", CurrentWeight = "INT8", CurrentCache = "U8", RecommendedWeight = "Original", RecommendedCache = "TurboQuant TBQ3", Quality = "Expected quality: Acceptable", Experimental = true, Strong = true },
-            new { Id = "CMP-027", CurrentWeight = "Q4_K_M", CurrentCache = "F16", RecommendedWeight = "Q3_K_M", RecommendedCache = "Q8_0", Quality = "Expected quality: Acceptable", Experimental = false, Strong = false },
-            new { Id = "CMP-028", CurrentWeight = "Q4_K_M", CurrentCache = "F16", RecommendedWeight = "Q4_K_M", RecommendedCache = "Q8_0", Quality = "Expected quality: Good", Experimental = false, Strong = false }
+            new { Id = "CMP-020", Route = OptimizationRoute.Gguf, CurrentWeight = "Q4_K_M", CurrentCache = "F16", RecommendedWeight = "Q3_K_M", RecommendedCache = "Q8_0", Quality = "Expected quality: Good", Experimental = false, Strong = false },
+            new { Id = "CMP-021", Route = OptimizationRoute.Gguf, CurrentWeight = "Q4_K_M", CurrentCache = "F16", RecommendedWeight = "Q2_K", RecommendedCache = "Q8_0", Quality = "Expected quality: Low", Experimental = false, Strong = true },
+            new { Id = "CMP-022", Route = OptimizationRoute.Gguf, CurrentWeight = "Q4_K_M", CurrentCache = "F16", RecommendedWeight = "Q3_K_M", RecommendedCache = "Q8_0", Quality = "Expected quality: Acceptable", Experimental = false, Strong = false },
+            new { Id = "CMP-023", Route = OptimizationRoute.OpenVino, CurrentWeight = "INT8", CurrentCache = "U8", RecommendedWeight = "INT4", RecommendedCache = "Runtime default", Quality = "Expected quality: Good", Experimental = false, Strong = false },
+            new { Id = "CMP-024", Route = OptimizationRoute.OpenVino, CurrentWeight = "INT8", CurrentCache = "U8", RecommendedWeight = "INT8", RecommendedCache = "U4", Quality = "Expected quality: Excellent", Experimental = false, Strong = false },
+            new { Id = "CMP-025", Route = OptimizationRoute.OpenVino, CurrentWeight = "INT8", CurrentCache = "U8", RecommendedWeight = "INT8", RecommendedCache = "TurboQuant TBQ4", Quality = "Expected quality: Good", Experimental = true, Strong = false },
+            new { Id = "CMP-026", Route = OptimizationRoute.OpenVino, CurrentWeight = "INT8", CurrentCache = "U8", RecommendedWeight = "INT8", RecommendedCache = "TurboQuant TBQ3", Quality = "Expected quality: Acceptable", Experimental = true, Strong = true },
+            new { Id = "CMP-027", Route = OptimizationRoute.Gguf, CurrentWeight = "Q4_K_M", CurrentCache = "F16", RecommendedWeight = "Q3_K_M", RecommendedCache = "Q8_0", Quality = "Expected quality: Acceptable", Experimental = false, Strong = false },
+            new { Id = "CMP-028", Route = OptimizationRoute.Gguf, CurrentWeight = "Q4_K_M", CurrentCache = "F16", RecommendedWeight = "Q4_K_M", RecommendedCache = "Q8_0", Quality = "Expected quality: Good", Experimental = false, Strong = false }
         };
 
         foreach (var item in expected)
@@ -132,6 +159,7 @@ public sealed class CompatibilityRenderedStateTests
             CompatibilityOptimizationPresentation optimization =
                 CompatibilityFixtureCatalogue.ById(item.Id)!.Presentation.Optimization!;
             CompatibilityOptimizationModePresentation selected = optimization.SelectedMode;
+            Assert.AreEqual(item.Route, optimization.Route, item.Id);
             Assert.AreEqual(item.CurrentWeight, optimization.CurrentWeightFormat, item.Id);
             Assert.AreEqual(item.CurrentCache, optimization.CurrentCacheFormat, item.Id);
             Assert.AreEqual(item.RecommendedWeight, selected.WeightFormat, item.Id);

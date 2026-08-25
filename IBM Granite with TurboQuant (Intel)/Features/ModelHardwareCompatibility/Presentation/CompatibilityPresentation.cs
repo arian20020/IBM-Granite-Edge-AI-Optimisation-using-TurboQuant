@@ -72,6 +72,7 @@ internal sealed record CompatibilityOptimizationModePresentation(
 /// </summary>
 internal sealed record CompatibilityOptimizationPresentation(
     string Instruction,
+    OptimizationRoute Route,
     IReadOnlyList<CompatibilityOptimizationModePresentation> Modes,
     CompatibilityOptimizationModePresentation SelectedMode,
     bool IsAutomatic,

@@ -30,6 +30,7 @@ internal sealed class CompatibilityViewModel
     private readonly SynchronizationContext? _uiContext;
     private readonly Func<CancellationToken, Task<CompatibilityScreenModel>> _evaluator;
     private readonly bool _continueDestinationAvailable;
+    private readonly object _attemptGate = new();
 
     private CancellationTokenSource? _attemptCancellation;
     private int _attemptGeneration;
@@ -89,11 +90,16 @@ internal sealed class CompatibilityViewModel
     /// </summary>
     internal async Task StartAsync()
     {
-        int generation = Interlocked.Increment(ref _attemptGeneration);
-
         CancellationTokenSource cancellation = new();
-        CancellationTokenSource? previous =
-            Interlocked.Exchange(ref _attemptCancellation, cancellation);
+        CancellationToken token = cancellation.Token;
+        CancellationTokenSource? previous;
+        int generation;
+        lock (_attemptGate)
+        {
+            generation = unchecked(++_attemptGeneration);
+            previous = _attemptCancellation;
+            _attemptCancellation = cancellation;
+        }
 
         previous?.Cancel();
         previous?.Dispose();
@@ -111,7 +117,7 @@ internal sealed class CompatibilityViewModel
         {
             // The engine is synchronous and pure. It runs off the UI thread so a
             // slow adapter cannot freeze the page once adapters exist.
-            CompatibilityScreenModel model = await _evaluator(cancellation.Token)
+            CompatibilityScreenModel model = await _evaluator(token)
                 .ConfigureAwait(true);
 
             OptimizationPreferenceSelection? preference =
@@ -141,6 +147,23 @@ internal sealed class CompatibilityViewModel
                     SelectedPreference = null;
                 });
         }
+        finally
+        {
+            bool ownsCancellation = false;
+            lock (_attemptGate)
+            {
+                if (ReferenceEquals(_attemptCancellation, cancellation))
+                {
+                    _attemptCancellation = null;
+                    ownsCancellation = true;
+                }
+            }
+
+            if (ownsCancellation)
+            {
+                cancellation.Dispose();
+            }
+        }
     }
 
     /// <summary>
@@ -165,7 +188,25 @@ internal sealed class CompatibilityViewModel
 
     internal void Cancel()
     {
-        _attemptCancellation?.Cancel();
+        CancellationTokenSource? cancellation;
+        int generation;
+        lock (_attemptGate)
+        {
+            generation = unchecked(++_attemptGeneration);
+            cancellation = _attemptCancellation;
+            _attemptCancellation = null;
+        }
+
+        cancellation?.Cancel();
+        cancellation?.Dispose();
+        Publish(
+            CompatibilityPresentationFactory.Cancelled(),
+            generation,
+            () =>
+            {
+                _lastModel = null;
+                SelectedPreference = null;
+            });
     }
 
     internal void SelectAutomaticPreference()
@@ -222,12 +263,13 @@ internal sealed class CompatibilityViewModel
             }
 
             commitState?.Invoke();
-            Presentation = _continueDestinationAvailable
+            CompatibilityPresentation effectivePresentation = _continueDestinationAvailable
                 ? presentation
                 : presentation with { PrimaryActionEnabled = false };
+            Presentation = effectivePresentation;
             ContinueCommand.RaiseCanExecuteChanged();
             BackCommand.RaiseCanExecuteChanged();
-            PresentationChanged?.Invoke(this, presentation);
+            PresentationChanged?.Invoke(this, effectivePresentation);
         }
 
         if (_uiContext is null || SynchronizationContext.Current == _uiContext)

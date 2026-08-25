@@ -227,10 +227,18 @@ internal static class CompatibilityPresentationFactory
             return NotEstablished(model);
         }
 
-        IReadOnlyList<CompatibilityOptimizationModePresentation> modes =
-        [
-            .. optimization.Modes.Select(DescribeMode)
-        ];
+        List<CompatibilityOptimizationModePresentation> modes = [];
+        foreach (CompatibilityOptimizationModeView mode in optimization.Modes)
+        {
+            CompatibilityOptimizationModePresentation? described =
+                DescribeMode(mode, current);
+            if (described is null)
+            {
+                return NotEstablished(model);
+            }
+
+            modes.Add(described);
+        }
         CompatibilityOptimizationLabelCode selectedCode = preference.Kind ==
             OptimizationPreferenceKind.Automatic
                 ? CompatibilityOptimizationLabelCode.Automatic
@@ -267,6 +275,9 @@ internal static class CompatibilityPresentationFactory
             SecondaryActionEnabled = true,
             Optimization = new CompatibilityOptimizationPresentation(
                 "You can choose how you want to balance memory use and expected quality.",
+                current.Route == RuntimeRouteId.LlamaCpp
+                    ? OptimizationRoute.Gguf
+                    : OptimizationRoute.OpenVino,
                 modes,
                 selected,
                 preference.Kind == OptimizationPreferenceKind.Automatic,
@@ -285,9 +296,16 @@ internal static class CompatibilityPresentationFactory
         };
     }
 
-    private static CompatibilityOptimizationModePresentation DescribeMode(
-        CompatibilityOptimizationModeView mode)
+    private static CompatibilityOptimizationModePresentation? DescribeMode(
+        CompatibilityOptimizationModeView mode,
+        CompatibilitySetupView current)
     {
+        string? weight = RecommendedWeight(mode, current);
+        if (weight is null)
+        {
+            return null;
+        }
+
         string warning = mode.QualityNotice switch
         {
             OptimizationQualityNotice.SignificantQualityReduction =>
@@ -318,9 +336,7 @@ internal static class CompatibilityPresentationFactory
             Label(mode.LabelCode),
             mode.SliderValue,
             $"Expected quality: {Quality(mode.ExpectedQuality)}",
-            mode.Route == OptimizationRoute.Gguf
-                ? Weight(mode.GgufWeights!.Value)
-                : Weight(mode.OpenVinoWeights!.Value),
+            weight,
             mode.Route == OptimizationRoute.Gguf
                 ? Cache(mode.GgufKvCache!.Value)
                 : Cache(mode.OpenVinoKvCache!.Value),
@@ -336,6 +352,53 @@ internal static class CompatibilityPresentationFactory
             warning.Trim(),
             mode.RequiresPersistentArtifact,
             mode.RequiresRequantisationAcknowledgement);
+    }
+
+    private static string? RecommendedWeight(
+        CompatibilityOptimizationModeView mode,
+        CompatibilitySetupView current)
+    {
+        if (mode.Route == OptimizationRoute.Gguf)
+        {
+            if (current.Route != RuntimeRouteId.LlamaCpp
+                || mode.GgufWeights is not { } gguf
+                || mode.OpenVinoWeights is not null)
+            {
+                return null;
+            }
+
+            if (gguf != GgufWeightFormat.Imported)
+            {
+                return gguf == GgufWeightFormat.Unspecified ? null : Weight(gguf);
+            }
+
+            return current.Weights == WeightQuantisation.Unknown
+                ? null
+                : Weight(current.Route, current.Weights);
+        }
+
+        if (mode.Route != OptimizationRoute.OpenVino
+            || current.Route != RuntimeRouteId.OpenVinoGenAi
+            || mode.OpenVinoWeights is not { } openVino
+            || mode.GgufWeights is not null)
+        {
+            return null;
+        }
+
+        if (openVino != OpenVinoWeightFormat.Original)
+        {
+            return openVino == OpenVinoWeightFormat.Unspecified
+                ? null
+                : Weight(openVino);
+        }
+
+        return current.Weights switch
+        {
+            WeightQuantisation.F16 => "FP16",
+            WeightQuantisation.Q8_0 => "INT8",
+            WeightQuantisation.Q4_K_M => "INT4",
+            _ => null
+        };
     }
 
     private static string Label(CompatibilityOptimizationLabelCode code) => code switch

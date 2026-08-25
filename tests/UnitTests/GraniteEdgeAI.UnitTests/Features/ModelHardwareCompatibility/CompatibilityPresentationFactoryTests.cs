@@ -5,6 +5,7 @@ using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.Gguf;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.OpenVino;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.ViewModels;
 
@@ -120,6 +121,30 @@ public sealed class CompatibilityPresentationFactoryTests
             viewModel.Presentation.Optimization!.CurrentWeightFormat);
     }
 
+    [TestMethod]
+    public void OpenVinoUnchangedWeight_WithoutExactCurrentPrecision_FailsClosed()
+    {
+        CompatibilityPresentation presentation = CompatibilityPresentationFactory.From(
+            OpenVinoCacheOnlyScreen(WeightQuantisation.Unknown));
+
+        Assert.IsNull(presentation.Optimization);
+        Assert.AreEqual("We can't answer this yet", presentation.OutcomeTitle);
+        Assert.IsFalse(presentation.PrimaryActionEnabled);
+    }
+
+    [TestMethod]
+    public void OpenVinoUnchangedWeight_WithMismatchedCurrentRoute_FailsClosed()
+    {
+        CompatibilityPresentation presentation = CompatibilityPresentationFactory.From(
+            OpenVinoCacheOnlyScreen(
+                WeightQuantisation.Q8_0,
+                RuntimeRouteId.LlamaCpp));
+
+        Assert.IsNull(presentation.Optimization);
+        Assert.AreEqual("We can't answer this yet", presentation.OutcomeTitle);
+        Assert.IsFalse(presentation.PrimaryActionEnabled);
+    }
+
     private static CompatibilityScreenModel OptimizationScreen(
         WeightQuantisation currentWeights = WeightQuantisation.Q4_K_M)
     {
@@ -186,6 +211,81 @@ public sealed class CompatibilityPresentationFactoryTests
                 : OptimizationQualityNotice.None,
             isExperimental: false,
             sharedWithAdjacentBand: false);
+
+    private static CompatibilityScreenModel OpenVinoCacheOnlyScreen(
+        WeightQuantisation currentWeights,
+        RuntimeRouteId currentRoute = RuntimeRouteId.OpenVinoGenAi)
+    {
+        CompatibilityOptimizationLabelCode[] labels =
+        [
+            CompatibilityOptimizationLabelCode.Automatic,
+            CompatibilityOptimizationLabelCode.MaximumEfficiency,
+            CompatibilityOptimizationLabelCode.Efficient,
+            CompatibilityOptimizationLabelCode.Balanced,
+            CompatibilityOptimizationLabelCode.HighCapability,
+            CompatibilityOptimizationLabelCode.MaximumCapability
+        ];
+        int?[] sliders = [null, 10, 30, 50, 70, 90];
+        CompatibilityOptimizationModeView[] modes = labels
+            .Select((label, index) => CompatibilityOptimizationModeView.ForPresentation(
+                label,
+                sliders[index],
+                OptimizationRoute.OpenVino,
+                null,
+                null,
+                OpenVinoWeightFormat.Original,
+                OpenVinoKvCacheFormat.U4,
+                DeviceRouteId.Cpu,
+                OptimizationAssessment.Excellent,
+                contextTokens: 4096,
+                predictedPeakBytes: 3_221_225_472,
+                safeBudgetBytes: 4_294_967_296,
+                headroomBytes: 1_073_741_824,
+                requiresPersistentArtifact: false,
+                requiresRequantisationAcknowledgement: false,
+                qualityNotice: OptimizationQualityNotice.None,
+                isExperimental: false,
+                sharedWithAdjacentBand: false))
+            .ToArray();
+        CompatibilityOptimizationView optimization =
+            CompatibilityOptimizationView.ForPresentation(
+                CompatibilityOptimizationLabelCode.Automatic,
+                null,
+                modes,
+                requiresPersistentArtifact: false,
+                requiresRequantisationAcknowledgement: false,
+                OptimizationQualityNotice.None);
+        CompatibilitySetupView current = CompatibilitySetupView.ForPresentation(
+            currentRoute,
+            CompatibilityBackend.Cpu,
+            DeviceRouteId.Cpu,
+            currentWeights,
+            contextTokens: 4096,
+            CompatibilityFitState.DoesNotFit,
+            requiredBytes: 5_368_709_120,
+            safeBudgetBytes: 4_294_967_296,
+            headroomBytes: 0,
+            uncertaintyAllowanceBytes: 268_435_456,
+            isExperimental: false,
+            requiresConversion: false,
+            [],
+            ggufKvCache: currentRoute == RuntimeRouteId.LlamaCpp
+                ? GgufKvCacheFormat.F16
+                : null,
+            openVinoKvCache: currentRoute == RuntimeRouteId.OpenVinoGenAi
+                ? OpenVinoKvCacheFormat.U8
+                : null);
+
+        return CompatibilityScreenModel.ForPresentation(
+            CompatibilityScreenState.OptimisationRequired,
+            [],
+            [],
+            BaselineExclusionReason.None,
+            useCurrentModelAvailable: false,
+            continueEnabled: true,
+            setup: current,
+            optimization: optimization);
+    }
 
     private static CompatibilitySetupView CurrentSetup(WeightQuantisation weights) =>
         CompatibilitySetupView.ForPresentation(
