@@ -5,15 +5,20 @@
 using GraniteEdgeAI.Features.ModelHardwareCompatibility;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.DebugFixtures;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.Presentation;
+using GraniteEdgeAI.Features.ModelImport.ModelDownload;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Candidates;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Automation;
+using Microsoft.UI.Xaml.Automation.Peers;
+using Microsoft.UI.Xaml.Automation.Provider;
 using Windows.Foundation;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
+using System.Reflection;
 
 namespace GraniteEdgeAI.UnitTests.Features.ModelHardwareCompatibility.Visual;
 
@@ -136,6 +141,225 @@ public sealed class CompatibilityRenderedStateTests
         Assert.IsGreaterThanOrEqualTo(44d, secondary.MinHeight);
         Assert.AreEqual(ScrollBarVisibility.Auto,
             Element<ScrollViewer>(page, "ContentHost").VerticalScrollBarVisibility);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task SecondaryAction_InvokesCancelRetryAndBackForTheRenderedState()
+    {
+        TaskCompletionSource<CompatibilityScreenModel> first =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        int calls = 0;
+        var page = new CompatibilityPage(_ => ++calls == 1
+            ? first.Task
+            : Task.FromResult(CompatibilityScreenModel.ForPresentation(
+                CompatibilityScreenState.EstimatedCompatible,
+                [], [], BaselineExclusionReason.None,
+                useCurrentModelAvailable: false,
+                continueEnabled: true)))
+        {
+            StartAutomatically = false
+        };
+        Button secondary = Element<Button>(page, "SecondaryAction");
+
+        Task analysing = page.ViewModel.StartAsync();
+        Assert.AreEqual("Cancel", secondary.Content);
+        Invoke(secondary);
+        first.SetResult(CompatibilityScreenModel.ForPresentation(
+            CompatibilityScreenState.EstimatedCompatible,
+            [], [], BaselineExclusionReason.None,
+            useCurrentModelAvailable: false,
+            continueEnabled: true));
+        await analysing;
+        Assert.AreEqual("Check stopped", page.ViewModel.Presentation.OutcomeTitle);
+
+        Assert.AreEqual("Check again", secondary.Content);
+        Invoke(secondary);
+        await WaitUntilAsync(() =>
+            calls == 2
+            && page.ViewModel.Presentation.SecondaryActionKind
+                == CompatibilitySecondaryActionKind.Back
+            && Equals(secondary.Content, "Back"));
+        Assert.IsTrue(page.ViewModel.Presentation.OutcomeTitle.StartsWith(
+            "Yes",
+            StringComparison.Ordinal));
+
+        bool backed = false;
+        page.BackRequested += (_, _) => backed = true;
+        Assert.AreEqual("Back", secondary.Content);
+        Invoke(secondary);
+        Assert.IsTrue(backed);
+
+        page.Apply(CompatibilityPresentation.Empty with
+        {
+            SecondaryActionText = "Unavailable",
+            SecondaryActionEnabled = true,
+            SecondaryActionKind = CompatibilitySecondaryActionKind.None
+        });
+        Assert.IsFalse(secondary.IsEnabled);
+        Assert.IsNull(secondary.Command);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void OptimizationRowsRemainStableAndAccessibilityTracksTheEffectiveMode()
+    {
+        CompatibilityPage page = CreatePage();
+        CompatibilityPresentation automatic =
+            CompatibilityFixtureCatalogue.ById("CMP-021")!.Presentation;
+        page.Apply(automatic);
+        Border firstRow = Assert.IsInstanceOfType<Border>(
+            Element<Panel>(page, "OptimizationModeRows").Children[0]);
+        Slider slider = Element<Slider>(page, "OptimizationSlider");
+
+        CompatibilityOptimizationPresentation optimization = automatic.Optimization!;
+        CompatibilityOptimizationModePresentation manualMode = optimization.Modes[1];
+        page.Apply(automatic with
+        {
+            Optimization = optimization with
+            {
+                IsAutomatic = false,
+                SliderValue = manualMode.SliderValue!.Value,
+                SelectedMode = manualMode
+            }
+        });
+
+        Assert.AreSame(firstRow, Element<Panel>(page, "OptimizationModeRows").Children[0]);
+        Assert.AreEqual(manualMode.SliderValue.Value, slider.Value);
+        StringAssert.Contains(AutomationProperties.GetName(slider), manualMode.Label);
+        StringAssert.Contains(AutomationProperties.GetHelpText(slider), manualMode.ExpectedQualityText);
+        StringAssert.Contains(AutomationProperties.GetHelpText(slider), "Strong quality warning");
+        StringAssert.Contains(AutomationProperties.GetItemStatus(slider), "Released");
+
+        page.Apply(automatic);
+        Assert.AreEqual(automatic.Optimization!.SliderValue, slider.Value);
+        StringAssert.Contains(AutomationProperties.GetName(slider), "Automatic");
+        StringAssert.Contains(
+            AutomationProperties.GetName(slider),
+            automatic.Optimization.SelectedMode.Label);
+        StringAssert.Contains(
+            AutomationProperties.GetHelpText(slider),
+            automatic.Optimization.SelectedMode.Label);
+        StringAssert.Contains(AutomationProperties.GetItemStatus(slider), "Recommended");
+        StringAssert.Contains(
+            AutomationProperties.GetItemStatus(slider),
+            automatic.Optimization.SelectedMode.Label);
+
+        CompatibilityPresentation experimental =
+            CompatibilityFixtureCatalogue.ById("CMP-026")!.Presentation;
+        page.Apply(experimental);
+        StringAssert.Contains(
+            AutomationProperties.GetHelpText(slider),
+            "Experimental opt-in");
+        StringAssert.Contains(
+            AutomationProperties.GetHelpText(slider),
+            "Strong quality warning");
+        StringAssert.Contains(
+            AutomationProperties.GetHelpText(slider),
+            experimental.Optimization!.SelectedMode.WarningText);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void SharedPreferenceSliderThemeDefinesSystemResolvedHighContrastResources()
+    {
+        ResourceDictionary theme = new()
+        {
+            Source = new Uri(
+                "ms-appx:///Features/ModelImport/ModelDownload/ModelPreferenceSliderTheme.xaml")
+        };
+        ResourceDictionary highContrast = Assert.IsInstanceOfType<ResourceDictionary>(
+            theme.ThemeDictionaries["HighContrast"]);
+
+        foreach (string key in new[]
+        {
+            "SliderOuterThumbBackground",
+            "SliderOuterThumbBackgroundPointerOver",
+            "SliderOuterThumbBackgroundPressed",
+            "SliderThumbBackground",
+            "SliderThumbBackgroundPointerOver",
+            "SliderThumbBackgroundPressed",
+            "SliderThumbBorderBrush",
+            "SliderThumbBorderBrushPointerOver",
+            "SliderThumbBorderBrushPressed",
+            "SliderTrackFill",
+            "SliderTrackFillPointerOver",
+            "SliderTrackFillPressed",
+            "SliderTrackValueFill",
+            "SliderTrackValueFillPointerOver",
+            "SliderTrackValueFillPressed"
+        })
+        {
+            Assert.IsInstanceOfType<SolidColorBrush>(highContrast[key], key);
+        }
+
+        CompatibilityPage compatibilityPage = CreatePage();
+        Assert.IsTrue(compatibilityPage.Resources.MergedDictionaries.Any(
+            dictionary => dictionary.Source?.OriginalString.EndsWith(
+                "/ModelPreferenceSliderTheme.xaml",
+                StringComparison.Ordinal) == true));
+
+        var downloadCard = new ModelDownloadCard();
+        Slider downloadSlider = Assert.IsInstanceOfType<Slider>(
+            downloadCard.FindName("ModelScaleSlider"));
+        Assert.IsTrue(downloadSlider.Resources.MergedDictionaries.Any(
+            dictionary => dictionary.Source?.OriginalString.EndsWith(
+                "/ModelPreferenceSliderTheme.xaml",
+                StringComparison.Ordinal) == true));
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task HostLifetime_UnloadRetiresLateWorkAndReloadStartsExactlyOnce()
+    {
+        TaskCompletionSource<CompatibilityScreenModel> first =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        int calls = 0;
+        var page = new CompatibilityPage(_ => ++calls == 1
+            ? first.Task
+            : Task.FromResult(CompatibilityScreenModel.ForPresentation(
+                CompatibilityScreenState.NotEstablished,
+                [], [], BaselineExclusionReason.None,
+                useCurrentModelAvailable: false,
+                continueEnabled: false)));
+
+        Task firstLifetime = InvokeLifecycleAsync(page, "ActivateAsync");
+        await WaitUntilAsync(() => calls == 1);
+        await InvokeLifecycleAsync(page, "ActivateAsync");
+        Assert.AreEqual(1, calls, "Repeated Loaded must be idempotent in one lifetime.");
+
+        InvokeLifecycle(page, "Deactivate");
+        first.SetResult(CompatibilityScreenModel.ForPresentation(
+            CompatibilityScreenState.EstimatedCompatible,
+            [], [], BaselineExclusionReason.None,
+            useCurrentModelAvailable: false,
+            continueEnabled: true));
+        await firstLifetime;
+        Assert.AreEqual(
+            CompatibilitySecondaryActionKind.Cancel,
+            page.ViewModel.Presentation.SecondaryActionKind);
+        Assert.IsFalse(page.ViewModel.Presentation.PrimaryActionEnabled);
+
+        await InvokeLifecycleAsync(page, "ActivateAsync");
+        Assert.AreEqual(2, calls, "Reload starts one intentional fresh attempt.");
+        await InvokeLifecycleAsync(page, "ActivateAsync");
+        Assert.AreEqual(2, calls);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task HostLoadedBoundary_ReportsAnEvaluatorFaultWithoutThrowing()
+    {
+        var page = new CompatibilityPage(_ =>
+            Task.FromException<CompatibilityScreenModel>(
+                new InvalidOperationException("adapter failed")));
+
+        await InvokeLifecycleAsync(page, "ActivateAsync");
+
+        Assert.AreEqual(
+            "The compatibility check could not finish",
+            page.ViewModel.Presentation.OutcomeTitle);
+        Assert.AreEqual("Check again", Element<Button>(page, "SecondaryAction").Content);
     }
 
     [TestMethod]
@@ -542,6 +766,42 @@ public sealed class CompatibilityRenderedStateTests
         element.Measure(new Size(width, height));
         element.Arrange(new Rect(0, 0, width, height));
         element.UpdateLayout();
+    }
+
+    private static void Invoke(Button button)
+    {
+        ButtonAutomationPeer peer = new(button);
+        IInvokeProvider provider = Assert.IsInstanceOfType<IInvokeProvider>(
+            peer.GetPattern(PatternInterface.Invoke));
+        provider.Invoke();
+    }
+
+    private static async Task WaitUntilAsync(Func<bool> condition)
+    {
+        DateTime deadline = DateTime.UtcNow.AddSeconds(5);
+        while (!condition())
+        {
+            Assert.IsTrue(DateTime.UtcNow < deadline, "Timed out waiting for the UI action.");
+            await Task.Delay(10);
+        }
+    }
+
+    private static Task InvokeLifecycleAsync(CompatibilityPage page, string methodName)
+    {
+        MethodInfo? method = typeof(CompatibilityPage).GetMethod(
+            methodName,
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsNotNull(method);
+        return Assert.IsInstanceOfType<Task>(method.Invoke(page, null));
+    }
+
+    private static void InvokeLifecycle(CompatibilityPage page, string methodName)
+    {
+        MethodInfo? method = typeof(CompatibilityPage).GetMethod(
+            methodName,
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsNotNull(method);
+        method.Invoke(page, null);
     }
 
     private static IEnumerable<DependencyObject> Descendants(DependencyObject root)

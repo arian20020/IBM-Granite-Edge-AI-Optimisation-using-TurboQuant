@@ -97,6 +97,73 @@ public sealed class CompatibilityPresentationFactoryTests
     }
 
     [TestMethod]
+    public async Task ManualTicksWithinOneBand_UpdatePreferenceWithoutRepublishing()
+    {
+        var viewModel = new CompatibilityViewModel(
+            _ => Task.FromResult(OptimizationScreen()),
+            continueDestinationAvailable: true);
+        await viewModel.StartAsync();
+        int changes = 0;
+        viewModel.PresentationChanged += (_, _) => changes++;
+
+        viewModel.SelectManualPreference(21);
+        CompatibilityPresentation firstBand = viewModel.Presentation;
+        viewModel.SelectManualPreference(29);
+
+        Assert.AreEqual(1, changes);
+        Assert.AreSame(firstBand, viewModel.Presentation);
+        Assert.AreEqual(29, viewModel.SelectedPreference!.PreferenceValue);
+
+        viewModel.SelectManualPreference(41);
+        Assert.AreEqual(2, changes);
+        Assert.AreEqual("Balanced", viewModel.Presentation.Optimization!.SelectedMode.Label);
+    }
+
+    [TestMethod]
+    public void SecondaryActionCopyAndKindStayInTheSameClosedStateMapping()
+    {
+        CompatibilityPresentation analysing =
+            CompatibilityPresentationFactory.Analysing(0);
+        Assert.AreEqual("Cancel", analysing.SecondaryActionText);
+        Assert.AreEqual(
+            CompatibilitySecondaryActionKind.Cancel,
+            analysing.SecondaryActionKind);
+
+        CompatibilityPresentation cancelled =
+            CompatibilityPresentationFactory.Cancelled();
+        Assert.AreEqual("Check again", cancelled.SecondaryActionText);
+        Assert.AreEqual(
+            CompatibilitySecondaryActionKind.Retry,
+            cancelled.SecondaryActionKind);
+
+        CompatibilityPresentation unanswered = CompatibilityPresentationFactory.From(
+            CompatibilityScreenModel.ForPresentation(
+                CompatibilityScreenState.NotEstablished,
+                [],
+                [],
+                BaselineExclusionReason.None,
+                useCurrentModelAvailable: false,
+                continueEnabled: false));
+        Assert.AreEqual("Check again", unanswered.SecondaryActionText);
+        Assert.AreEqual(
+            CompatibilitySecondaryActionKind.Retry,
+            unanswered.SecondaryActionKind);
+
+        CompatibilityPresentation terminal = CompatibilityPresentationFactory.From(
+            CompatibilityScreenModel.ForPresentation(
+                CompatibilityScreenState.EstimatedCompatible,
+                [],
+                [],
+                BaselineExclusionReason.None,
+                useCurrentModelAvailable: false,
+                continueEnabled: true));
+        Assert.AreEqual("Back", terminal.SecondaryActionText);
+        Assert.AreEqual(
+            CompatibilitySecondaryActionKind.Back,
+            terminal.SecondaryActionKind);
+    }
+
+    [TestMethod]
     public async Task SupersededOptimizationAttempt_CannotBecomePreferenceSource()
     {
         TaskCompletionSource<CompatibilityScreenModel> first =

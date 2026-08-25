@@ -15,6 +15,18 @@ internal enum CompatibilityOutcomeTone
     Blocking
 }
 
+/// <summary>
+/// Closed secondary-action authority. Copy and command are carried together so
+/// a button can never say Cancel while navigating Back.
+/// </summary>
+internal enum CompatibilitySecondaryActionKind
+{
+    None,
+    Back,
+    Cancel,
+    Retry
+}
+
 /// <summary>One tile in the dominant facts card.</summary>
 internal sealed record CompatibilityFact(string Label, string Value, string Detail);
 
@@ -160,6 +172,8 @@ internal sealed record CompatibilityPresentation
 
     internal required bool SecondaryActionEnabled { get; init; }
 
+    internal required CompatibilitySecondaryActionKind SecondaryActionKind { get; init; }
+
     /// <summary>
     /// Zero-based index of the active step in the five-step stepper. The
     /// compatibility check is step three of the onboarding sequence.
@@ -195,6 +209,7 @@ internal sealed record CompatibilityPresentation
         PrimaryActionEnabled = false,
         SecondaryActionText = "Back",
         SecondaryActionEnabled = true,
+        SecondaryActionKind = CompatibilitySecondaryActionKind.Back,
         ActiveStepIndex = 2
     };
 }

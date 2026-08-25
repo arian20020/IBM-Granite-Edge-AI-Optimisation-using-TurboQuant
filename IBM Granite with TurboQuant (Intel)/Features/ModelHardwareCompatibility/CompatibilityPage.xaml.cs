@@ -5,6 +5,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.Presentation;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
+using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media;
@@ -25,6 +27,7 @@ internal sealed partial class CompatibilityPage : Page
     private CompatibilityPresentation _presentation = CompatibilityPresentation.Empty;
     private bool _applyingOptimization;
     private bool _compactModeRows;
+    private bool _isActive;
 
     public CompatibilityPage()
         : this(new ViewModels.CompatibilityViewModel())
@@ -50,17 +53,11 @@ internal sealed partial class CompatibilityPage : Page
         ViewModel.ContinueRequested += (_, _) => ContinueRequested?.Invoke(this, EventArgs.Empty);
         ViewModel.BackRequested += (_, _) => BackRequested?.Invoke(this, EventArgs.Empty);
         PrimaryAction.Command = ViewModel.ContinueCommand;
-        SecondaryAction.Command = ViewModel.BackCommand;
 
         // One automatic attempt per navigation: arriving here starts the check,
         // because that is the only reason to be on this page.
-        Loaded += async (_, _) =>
-        {
-            if (StartAutomatically)
-            {
-                await ViewModel.StartAsync();
-            }
-        };
+        Loaded += Page_Loaded;
+        Unloaded += Page_Unloaded;
     }
 
     internal event EventHandler? ContinueRequested;
@@ -79,6 +76,52 @@ internal sealed partial class CompatibilityPage : Page
     /// here cannot outlive the screen that asked for it.
     /// </summary>
     internal ViewModels.CompatibilityViewModel ViewModel { get; }
+
+    private async void Page_Loaded(object sender, RoutedEventArgs e) =>
+        await ActivateAsync();
+
+    private void Page_Unloaded(object sender, RoutedEventArgs e) => Deactivate();
+
+    /// <summary>
+    /// Begins one host lifetime. Repeated Loaded notifications in the same
+    /// lifetime are intentionally idempotent.
+    /// </summary>
+    private async Task ActivateAsync()
+    {
+        if (_isActive)
+        {
+            return;
+        }
+
+        _isActive = true;
+        if (!StartAutomatically)
+        {
+            return;
+        }
+
+        try
+        {
+            await ViewModel.StartAsync();
+        }
+        catch
+        {
+            // StartAsync has already rendered the path-private safe failure.
+            // Loaded is async-void at the framework boundary, so the exception
+            // must not escape and terminate the application.
+        }
+    }
+
+    /// <summary>Ends the active host lifetime and rejects every late post.</summary>
+    private void Deactivate()
+    {
+        if (!_isActive)
+        {
+            return;
+        }
+
+        _isActive = false;
+        ViewModel.RetireAttempt();
+    }
 
     /// <summary>
     /// Applies a snapshot. Safe to call with the same value twice.
@@ -123,7 +166,15 @@ internal sealed partial class CompatibilityPage : Page
         PrimaryAction.Content = presentation.PrimaryActionText;
         PrimaryAction.IsEnabled = presentation.PrimaryActionEnabled;
         SecondaryAction.Content = presentation.SecondaryActionText;
-        SecondaryAction.IsEnabled = presentation.SecondaryActionEnabled;
+        SecondaryAction.Command = presentation.SecondaryActionKind switch
+        {
+            CompatibilitySecondaryActionKind.Back => ViewModel.BackCommand,
+            CompatibilitySecondaryActionKind.Cancel => ViewModel.CancelCommand,
+            CompatibilitySecondaryActionKind.Retry => ViewModel.RetryCommand,
+            _ => null
+        };
+        SecondaryAction.IsEnabled = presentation.SecondaryActionEnabled
+            && SecondaryAction.Command is not null;
 
         if (PageStack.ActualWidth > 0d)
         {
@@ -141,6 +192,11 @@ internal sealed partial class CompatibilityPage : Page
         {
             OptimizationModeRows.Children.Clear();
             OptimizationWarningCard.Visibility = Visibility.Collapsed;
+            AutomationProperties.SetName(
+                OptimizationSlider,
+                "Optimisation preference unavailable");
+            AutomationProperties.SetHelpText(OptimizationSlider, string.Empty);
+            AutomationProperties.SetItemStatus(OptimizationSlider, string.Empty);
             return;
         }
 
@@ -190,6 +246,8 @@ internal sealed partial class CompatibilityPage : Page
             RecommendedQualityText.Text = selected.ExpectedQualityText;
             OptimizationSliderLabelText.Text = selected.Label;
 
+            ApplyOptimizationAccessibility(optimization, selected);
+
             ApplyOptimizationModes(optimization);
 
             OptimizationWarningText.Text = selected.WarningText;
@@ -214,10 +272,38 @@ internal sealed partial class CompatibilityPage : Page
 
     private void ApplyOptimizationModes(CompatibilityOptimizationPresentation optimization)
     {
+        CompatibilityOptimizationModePresentation[] modes = optimization.Modes
+            .Where(mode => mode.SliderValue.HasValue)
+            .ToArray();
+        bool sameTree = OptimizationModeRows.Children.Count == modes.Length;
+        for (int index = 0; sameTree && index < modes.Length; index++)
+        {
+            sameTree = OptimizationModeRows.Children[index] is Border border
+                && string.Equals(
+                    border.Tag as string,
+                    ModeIdentity(modes[index]),
+                    StringComparison.Ordinal);
+        }
+
+        if (sameTree)
+        {
+            for (int index = 0; index < modes.Length; index++)
+            {
+                UpdateOptimizationModeRow(
+                    (Border)OptimizationModeRows.Children[index],
+                    modes[index],
+                    string.Equals(
+                        modes[index].Label,
+                        optimization.SelectedMode.Label,
+                        StringComparison.Ordinal));
+            }
+            return;
+        }
+
         OptimizationModeRows.Children.Clear();
 
         foreach (CompatibilityOptimizationModePresentation mode in
-            optimization.Modes.Where(mode => mode.SliderValue.HasValue))
+            modes)
         {
             bool selected = string.Equals(
                 mode.Label,
@@ -294,8 +380,9 @@ internal sealed partial class CompatibilityPage : Page
                 : HorizontalAlignment.Right;
             content.Children.Add(trailing);
 
-            OptimizationModeRows.Children.Add(new Border
+            Border root = new()
             {
+                Tag = ModeIdentity(mode),
                 Background = selected
                     ? Brush("CompatibilityBlueSurfaceBrush")
                     : Brush("CompatibilityCanvasBrush"),
@@ -306,9 +393,81 @@ internal sealed partial class CompatibilityPage : Page
                 CornerRadius = Radius("CompatibilityFactRadius"),
                 Padding = new Thickness(14, 6, 14, 6),
                 Child = content
-            });
+            };
+            OptimizationModeRows.Children.Add(root);
         }
     }
+
+    private void UpdateOptimizationModeRow(
+        Border root,
+        CompatibilityOptimizationModePresentation mode,
+        bool selected)
+    {
+        Grid content = (Grid)root.Child;
+        StackPanel words = (StackPanel)content.Children[0];
+        StackPanel trailing = (StackPanel)content.Children[1];
+        ((TextBlock)words.Children[0]).Text = mode.Label;
+        ((TextBlock)words.Children[1]).Text = mode.ExpectedQualityText;
+        TextBlock setup = (TextBlock)trailing.Children[0];
+        setup.Text = $"{mode.WeightFormat} Â· {mode.CacheFormat}";
+        setup.Foreground = selected
+            ? Brush("CompatibilityPrimaryBlueBrush")
+            : Brush("CompatibilityTextMutedBrush");
+        setup.FontWeight = selected
+            ? Microsoft.UI.Text.FontWeights.SemiBold
+            : Microsoft.UI.Text.FontWeights.Normal;
+        TextBlock status = (TextBlock)trailing.Children[1];
+        status.Text = mode.HasStrongQualityWarning
+            ? "Strong quality warning"
+            : mode.IsExperimental ? "Experimental opt-in" : string.Empty;
+        status.Foreground = mode.HasStrongQualityWarning
+            ? Brush("CompatibilityErrorTextBrush")
+            : Brush("CompatibilityWarningAccentBrush");
+        Grid.SetColumn(trailing, _compactModeRows ? 0 : 1);
+        Grid.SetRow(trailing, _compactModeRows ? 1 : 0);
+        trailing.HorizontalAlignment = _compactModeRows
+            ? HorizontalAlignment.Left
+            : HorizontalAlignment.Right;
+        root.Background = selected
+            ? Brush("CompatibilityBlueSurfaceBrush")
+            : Brush("CompatibilityCanvasBrush");
+        root.BorderBrush = selected
+            ? Brush("CompatibilityBlueBorderBrush")
+            : Brush("CompatibilityBorderLightBrush");
+    }
+
+    private void ApplyOptimizationAccessibility(
+        CompatibilityOptimizationPresentation optimization,
+        CompatibilityOptimizationModePresentation selected)
+    {
+        string choice = optimization.IsAutomatic
+            ? $"Automatic ({selected.Label})"
+            : selected.Label;
+        string release = selected.IsExperimental ? "Experimental opt-in" : "Released";
+        string warning = selected.HasStrongQualityWarning
+            ? $" Strong quality warning. {selected.WarningText}"
+            : string.Empty;
+        AutomationProperties.SetName(
+            OptimizationSlider,
+            $"Optimisation preference: {choice}");
+        AutomationProperties.SetHelpText(
+            OptimizationSlider,
+            $"Selected band: {selected.Label}. "
+                + $"{selected.ExpectedQualityText}. {release}.{warning}");
+        AutomationProperties.SetItemStatus(
+            OptimizationSlider,
+            optimization.IsAutomatic
+                ? $"Automatic. Recommended band: {selected.Label}. {release}."
+                : $"{selected.Label}. {release}.");
+        AutomationProperties.SetLiveSetting(
+            OptimizationSlider,
+            AutomationLiveSetting.Polite);
+    }
+
+    private static string ModeIdentity(
+        CompatibilityOptimizationModePresentation mode) =>
+        $"{mode.Label}|{mode.SliderValue}";
+
 
     private void PageStack_SizeChanged(object sender, SizeChangedEventArgs args) =>
         ApplyResponsiveLayout(args.NewSize.Width);

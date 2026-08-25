@@ -103,6 +103,58 @@ public sealed class CompatibilityViewModelTests
     }
 
     [TestMethod]
+    public async Task Cancel_DoesNotDisposeTheTokenSourceWhileItsEvaluatorIsStillReturning()
+    {
+        TaskCompletionSource started =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        TaskCompletionSource release =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        var viewModel = new CompatibilityViewModel(async token =>
+        {
+            started.SetResult();
+            await release.Task;
+
+            // A late-cleaning adapter is allowed to register cleanup and inspect
+            // the token after cancellation. Its attempt owns the source until
+            // this delegate has completely returned.
+            using CancellationTokenRegistration registration = token.Register(() => { });
+            Assert.IsTrue(token.WaitHandle.WaitOne(0));
+            return Screen(CompatibilityScreenState.EstimatedCompatible);
+        });
+
+        Task attempt = viewModel.StartAsync();
+        await started.Task;
+        viewModel.Cancel();
+        release.SetResult();
+        await attempt;
+
+        Assert.AreEqual("Check stopped", viewModel.Presentation.OutcomeTitle);
+    }
+
+    [TestMethod]
+    public async Task AttemptCancellation_CancelAndOwnerCompletionAreRaceSafe()
+    {
+        for (int iteration = 0; iteration < 250; iteration++)
+        {
+            var attempt = new CompatibilityViewModel.AttemptCancellation();
+            using var release = new ManualResetEventSlim(false);
+            Task cancel = Task.Run(() =>
+            {
+                release.Wait();
+                attempt.Cancel();
+            });
+            Task complete = Task.Run(() =>
+            {
+                release.Wait();
+                attempt.Complete();
+            });
+
+            release.Set();
+            await Task.WhenAll(cancel, complete);
+        }
+    }
+
+    [TestMethod]
     public async Task MissingDestination_StoresAndEmitsTheSameDisabledSnapshot()
     {
         var viewModel = new CompatibilityViewModel(
@@ -117,6 +169,24 @@ public sealed class CompatibilityViewModelTests
         Assert.AreSame(viewModel.Presentation, emitted);
         Assert.IsFalse(emitted.PrimaryActionEnabled);
         Assert.IsFalse(viewModel.ContinueCommand.CanExecute(null));
+    }
+
+    [TestMethod]
+    public async Task ArbitraryEvaluatorFault_IsReportedSafelyAndStillPropagates()
+    {
+        var viewModel = new CompatibilityViewModel(_ =>
+            Task.FromException<CompatibilityScreenModel>(
+                new InvalidOperationException("adapter failed")));
+
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(
+            () => viewModel.StartAsync());
+
+        Assert.AreEqual(
+            "The compatibility check could not finish",
+            viewModel.Presentation.OutcomeTitle);
+        Assert.AreEqual(
+            CompatibilitySecondaryActionKind.Retry,
+            viewModel.Presentation.SecondaryActionKind);
     }
 
     private static CompatibilityScreenModel Screen(CompatibilityScreenState state) =>

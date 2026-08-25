@@ -60,7 +60,8 @@ internal static class CompatibilityPresentationFactory
             PrimaryActionText = "Continue",
             PrimaryActionEnabled = false,
             SecondaryActionText = "Cancel",
-            SecondaryActionEnabled = true
+            SecondaryActionEnabled = true,
+            SecondaryActionKind = CompatibilitySecondaryActionKind.Cancel
         };
     }
 
@@ -87,7 +88,8 @@ internal static class CompatibilityPresentationFactory
             PrimaryActionText = "Continue",
             PrimaryActionEnabled = false,
             SecondaryActionText = "Cancel",
-            SecondaryActionEnabled = true
+            SecondaryActionEnabled = true,
+            SecondaryActionKind = CompatibilitySecondaryActionKind.Cancel
         };
     }
 
@@ -148,7 +150,24 @@ internal static class CompatibilityPresentationFactory
             PrimaryActionText = "Continue",
             PrimaryActionEnabled = false,
             SecondaryActionText = "Check again",
-            SecondaryActionEnabled = true
+            SecondaryActionEnabled = true,
+            SecondaryActionKind = CompatibilitySecondaryActionKind.Retry
+        };
+
+    internal static CompatibilityPresentation OperationalFailure() =>
+        CompatibilityPresentation.Empty with
+        {
+            PageTitle = Title,
+            PageLede = "The check stopped safely before reaching an answer.",
+            Tone = CompatibilityOutcomeTone.Blocking,
+            OutcomeTitle = "The compatibility check could not finish",
+            OutcomeDetail = "Nothing was changed. You can safely check again.",
+            OutcomeBadge = string.Empty,
+            PrimaryActionText = "Continue",
+            PrimaryActionEnabled = false,
+            SecondaryActionText = "Check again",
+            SecondaryActionEnabled = true,
+            SecondaryActionKind = CompatibilitySecondaryActionKind.Retry
         };
 
     /// <summary>
@@ -563,7 +582,8 @@ internal static class CompatibilityPresentationFactory
             PrimaryActionText = "Continue",
             PrimaryActionEnabled = false,
             SecondaryActionText = "Check again",
-            SecondaryActionEnabled = true
+            SecondaryActionEnabled = true,
+            SecondaryActionKind = CompatibilitySecondaryActionKind.Retry
         };
 
     /// <summary>
