@@ -23,6 +23,29 @@ public sealed class CrossRouteCandidateGeneratorTests
     private const string Digest = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";
     private const string Commit = "0123456789abcdef0123456789abcdef01234567";
 
+    [TestMethod]
+    public void GenerationResultOwnsTrulyImmutableCollections()
+    {
+        OptimizationCandidate candidate = Generate(CrossRouteTestData.OpenVinoSnapshot(
+            CrossRouteTestData.OpenVino("ov-u8", OpenVinoWeightFormat.Fp16))).Candidates.Single();
+        List<OptimizationCandidate> candidates = [candidate];
+        List<OptimizationExclusion> exclusions =
+        [
+            new("excluded", "descriptor", OptimizationExclusionReason.ExperimentalNotAdmitted)
+        ];
+        CrossRouteGenerationResult result = new(candidates, exclusions);
+
+        candidates.Clear();
+        exclusions.Clear();
+
+        Assert.AreEqual(1, result.Candidates.Count);
+        Assert.AreEqual(1, result.Exclusions.Count);
+        Assert.ThrowsExactly<NotSupportedException>(
+            () => ((IList<OptimizationCandidate>)result.Candidates).Clear());
+        Assert.ThrowsExactly<NotSupportedException>(
+            () => ((IList<OptimizationExclusion>)result.Exclusions).Clear());
+    }
+
     private static class CrossRouteTestData
     {
         internal static InspectedModelFacts Facts(int fileType = 15) =>

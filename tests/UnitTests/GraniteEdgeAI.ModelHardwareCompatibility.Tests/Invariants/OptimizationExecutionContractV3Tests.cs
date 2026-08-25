@@ -164,6 +164,26 @@ public sealed class OptimizationExecutionContractV3Tests
             Assert.ThrowsExactly<ArgumentException>(() => OptimizationPlanIssuer.Issue(
                 selection, Valid(substituted), snapshot, workload, Binding(), 32,
                 DateTimeOffset.UnixEpoch));
+
+            OpenVinoAdmittedConfiguration admitted = snapshot.OpenVino!.Admitted.Single();
+            OptimizationCapabilitySnapshot replay =
+                OptimizationCapabilitySnapshot.ForOpenVino(
+                    snapshot.SnapshotId,
+                    snapshot.CapabilitySnapshotSha256,
+                    OpenVinoCapabilityPayload.Create(
+                        substituted.BuildIdentity.RuntimeBuild,
+                        [admitted],
+                        [OpenVinoExecutionAuthority.Create(
+                            substituted.EvidenceId,
+                            substituted.ConfigurationId,
+                            substituted.SourceWeightPrecision,
+                            substituted.BuildIdentity,
+                            substituted.OptimizerVersions,
+                            substituted.CompiledCacheIsDisposable,
+                            substituted.TurboQuantBuild)]));
+            Assert.ThrowsExactly<ArgumentException>(() => OptimizationPlanIssuer.Issue(
+                selection, Valid(substituted), replay, workload, Binding(), 32,
+                DateTimeOffset.UnixEpoch));
         }
     }
 
@@ -460,13 +480,18 @@ public sealed class OptimizationExecutionContractV3Tests
     }
 
     [TestMethod]
-    public void MutatingEachAdmissionProofFieldOneAtATimeChangesTheV3Digest()
+    public void MutatingEachAdmissionProofFieldOneAtATimeRejectsReplayAndChangesDigest()
     {
-        OptimizationCandidate candidate = SelectedTurboCandidate(
-            OpenVinoKvCacheFormat.TurboQuantTbq4).Selection.Candidate;
+        (OptimizationSelection selection, OptimizationCapabilitySnapshot snapshot,
+            OptimizationWorkload workload) = SelectedTurboCandidate(
+                OpenVinoKvCacheFormat.TurboQuantTbq4);
+        OptimizationCandidate candidate = selection.Candidate;
         OptimizationExecutionPayload payload = OptimizationExecutionPayload.ForOpenVino(
             Payload(OpenVinoKvCacheAlgorithm.TurboQuant,
                 OpenVinoKvCachePrecision.Tbq4, TurboBuild()));
+        _ = OptimizationPlanIssuer.Issue(
+            selection, payload, snapshot, workload, Binding(), 32,
+            DateTimeOffset.UnixEpoch);
         string baseline = OptimizationCanonicalizer.ConfigurationSha256(
             candidate, payload, 3);
         FieldInfo[] fields = typeof(OptimizationAdmissionProof)
@@ -485,6 +510,11 @@ public sealed class OptimizationExecutionContractV3Tests
                     baseline,
                     OptimizationCanonicalizer.ConfigurationSha256(candidate, payload, 3),
                     $"{field.Name} did not participate in the v3 digest.");
+                Assert.ThrowsExactly<ArgumentException>(() =>
+                    OptimizationPlanIssuer.Issue(
+                        selection, payload, snapshot, workload, Binding(), 32,
+                        DateTimeOffset.UnixEpoch),
+                    $"{field.Name} was accepted by replay validation.");
             }
             finally
             {
@@ -853,6 +883,29 @@ public sealed class OptimizationExecutionContractV3Tests
         {
             Assert.ThrowsExactly<ArgumentException>(() => OptimizationPlanIssuer.Issue(
                 selection, substituted, snapshot, workload, Binding(), 32,
+                DateTimeOffset.UnixEpoch));
+
+            GgufExecutionPayload changed = substituted.Gguf!;
+            OptimizationCapabilitySnapshot replay =
+                OptimizationCapabilitySnapshot.ForGguf(
+                    snapshot.SnapshotId,
+                    snapshot.CapabilitySnapshotSha256,
+                    GgufCapabilityPayload.Create(
+                        changed.RuntimeBuildId,
+                        [admitted],
+                        runtimeAuthority: GgufRuntimeAuthority.Create(
+                            changed.RuntimeBuildId,
+                            changed.RuntimeSourceCommit,
+                            [GgufExecutionProfileAuthority.Create(
+                                admitted.EvidenceId,
+                                Enum.Parse<EvidenceGrade>(changed.EvidenceGrade),
+                                changed.ProfileId,
+                                changed.FlashAttention,
+                                changed.ThreadCount,
+                                changed.BatchSize,
+                                changed.MaximumGeneratedTokens)])));
+            Assert.ThrowsExactly<ArgumentException>(() => OptimizationPlanIssuer.Issue(
+                selection, substituted, replay, workload, Binding(), 32,
                 DateTimeOffset.UnixEpoch));
         }
     }

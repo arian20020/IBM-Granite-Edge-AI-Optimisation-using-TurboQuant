@@ -765,6 +765,118 @@ public sealed class OptimizationPreferenceInvariantTests
     }
 
     [TestMethod]
+    public void ComparatorIsolatesStoragePresentationAndEveryAdmissionProofField()
+    {
+        OptimizationCandidate baseline = Candidate(
+            "isolated", OptimizationAssessment.Good, 8 * Gibibyte);
+        OptimizationCandidate changed = Candidate(
+            "isolated", OptimizationAssessment.Good, 8 * Gibibyte);
+
+        void AssertStrictAndPermutationInvariant(string dimension)
+        {
+            int forward = OptimizationPreferenceResolver.Compare(baseline, changed);
+            int reverse = OptimizationPreferenceResolver.Compare(changed, baseline);
+            Assert.AreNotEqual(0, forward, dimension);
+            Assert.AreEqual(-Math.Sign(forward), Math.Sign(reverse), dimension);
+            Assert.AreEqual(
+                OptimizationPreferenceResolver.Resolve(
+                    [baseline, changed], OptimizationPreferenceSelection.Automatic())!
+                    .Candidate,
+                OptimizationPreferenceResolver.Resolve(
+                    [changed, baseline], OptimizationPreferenceSelection.Automatic())!
+                    .Candidate,
+                dimension);
+        }
+
+        foreach ((object target, Type owner, string property, object value) in new[]
+        {
+            ((object)changed.Metrics, typeof(OptimizationCandidateMetrics),
+                nameof(OptimizationCandidateMetrics.WorkingDiskBytes), (object)1UL),
+            (changed.Metrics, typeof(OptimizationCandidateMetrics),
+                nameof(OptimizationCandidateMetrics.OutputDiskBytes), (object)1UL),
+            (changed.Metrics, typeof(OptimizationCandidateMetrics),
+                nameof(OptimizationCandidateMetrics.AvailableDiskBytes),
+                (object)(ulong?)(31 * Gibibyte)),
+            (changed, typeof(OptimizationCandidate),
+                nameof(OptimizationCandidate.ConversionProvenance),
+                (object)OptimizationConversionProvenance.HigherPrecisionSource),
+            (changed, typeof(OptimizationCandidate),
+                nameof(OptimizationCandidate.Notice),
+                (object)OptimizationCandidateNotice.LowQuality)
+        })
+        {
+            FieldInfo field = owner.GetField(
+                $"<{property}>k__BackingField",
+                BindingFlags.Instance | BindingFlags.NonPublic)!;
+            object? original = field.GetValue(target);
+            try
+            {
+                field.SetValue(target, value);
+                AssertStrictAndPermutationInvariant(property);
+            }
+            finally
+            {
+                field.SetValue(target, original);
+            }
+        }
+
+        HashSet<string> orderedAuthorityFields = new(StringComparer.Ordinal)
+        {
+            nameof(OptimizationAdmissionProof.SnapshotId),
+            nameof(OptimizationAdmissionProof.CapabilitySnapshotSha256),
+            nameof(OptimizationAdmissionProof.WorkloadId),
+            nameof(OptimizationAdmissionProof.WorkloadSha256),
+            nameof(OptimizationAdmissionProof.JourneySha256),
+            nameof(OptimizationAdmissionProof.RouteExecutionAuthoritySha256),
+            nameof(OptimizationAdmissionProof.SupportLevel),
+            nameof(OptimizationAdmissionProof.RequiresEvidence),
+            nameof(OptimizationAdmissionProof.OptedInEvidenceId)
+        };
+        FieldInfo[] proofFields = typeof(OptimizationAdmissionProof)
+            .GetFields(BindingFlags.Instance | BindingFlags.NonPublic)
+            .Where(field => field.Name.Contains("BackingField", StringComparison.Ordinal))
+            .ToArray();
+        foreach (FieldInfo field in proofFields)
+        {
+            object? original = field.GetValue(changed.AdmissionProof!);
+            object replacement = field.FieldType == typeof(string)
+                ? (string?)original + "-changed"
+                : field.FieldType == typeof(bool)
+                    ? !(bool)original!
+                    : field.FieldType == typeof(int)
+                        ? checked((int)original! + 1)
+                        : field.FieldType == typeof(ulong)
+                            ? checked((ulong)original! + 1)
+                            : field.FieldType.IsEnum
+                                ? Enum.GetValues(field.FieldType).Cast<object>()
+                                    .First(value => !value.Equals(original))
+                                : throw new AssertFailedException(
+                                    $"No mutation for {field.FieldType.Name}.");
+            string property = field.Name[1..field.Name.IndexOf('>')];
+            try
+            {
+                field.SetValue(changed.AdmissionProof, replacement);
+                if (orderedAuthorityFields.Contains(property))
+                {
+                    AssertStrictAndPermutationInvariant(property);
+                }
+                else
+                {
+                    Assert.IsFalse(
+                        changed.AdmissionProof!.MatchesCandidate(changed),
+                        $"{property} is neither ordered authority nor candidate-bound.");
+                }
+            }
+            finally
+            {
+                field.SetValue(changed.AdmissionProof, original);
+            }
+        }
+
+        Assert.AreEqual(27, proofFields.Length);
+    }
+
+    [TestMethod]
     public void EveryBandResolvesWhenAnythingIsAdmitted()
     {
         // A band that returned nothing would leave the page with a slider

@@ -168,6 +168,119 @@ public sealed class OptimizationCapabilitySnapshotTests
     }
 
     [TestMethod]
+    public void PublicFactoriesSnapshotHostileCollectionsExactlyOnce()
+    {
+        OpenVinoAdmittedConfiguration firstOpenVino =
+            OpenVinoAdmittedConfiguration.Create(
+                "first-ov", DeviceRouteId.Cpu, OpenVinoWeightFormat.Int8,
+                OpenVinoKvCacheFormat.U8, OpenVinoPerformanceHint.Latency,
+                OpenVinoCompiledCachePolicy.Enabled, 1, 512, 32768,
+                SupportLevel.DeclaredSupported, false);
+        OpenVinoAdmittedConfiguration laterOpenVino =
+            OpenVinoAdmittedConfiguration.Create(
+                "later-ov", DeviceRouteId.Cpu, OpenVinoWeightFormat.Int8,
+                OpenVinoKvCacheFormat.U8, OpenVinoPerformanceHint.Latency,
+                OpenVinoCompiledCachePolicy.Enabled, 1, 512, 32768,
+                SupportLevel.DeclaredSupported, false);
+        GgufAdmittedConfiguration firstGguf = GgufAdmittedConfiguration.Create(
+            "first-gguf", CompatibilityBackend.Cpu, DeviceRouteId.Cpu,
+            GgufWeightFormat.Q4KM, GgufKvCacheFormat.F16,
+            GpuOffloadLevel.None, 512, 32768,
+            SupportLevel.DeclaredSupported, false);
+        GgufAdmittedConfiguration laterGguf = GgufAdmittedConfiguration.Create(
+            "later-gguf", CompatibilityBackend.Cpu, DeviceRouteId.Cpu,
+            GgufWeightFormat.Q4KM, GgufKvCacheFormat.F16,
+            GpuOffloadLevel.None, 512, 32768,
+            SupportLevel.DeclaredSupported, false);
+
+        TimeVaryingReadOnlyList<OpenVinoAdmittedConfiguration> openVinoAdmissions =
+            new(count: 0, [firstOpenVino], [laterOpenVino]);
+        TimeVaryingReadOnlyList<OpenVinoExecutionAuthority> openVinoAuthorities =
+            new(
+                count: 0,
+                [OpenVinoAuthority(firstOpenVino.EvidenceId)],
+                [OpenVinoAuthority(laterOpenVino.EvidenceId)]);
+        TimeVaryingReadOnlyList<GgufAdmittedConfiguration> ggufAdmissions =
+            new(count: 0, [firstGguf], [laterGguf]);
+        TimeVaryingReadOnlyList<ContextTokenCount> contexts = new(
+            count: 0,
+            [ContextTokenCount.FromTokens(1024)],
+            [ContextTokenCount.FromTokens(2048)]);
+
+        OpenVinoCapabilityPayload openVino = OpenVinoCapabilityPayload.Create(
+            "runtime", openVinoAdmissions, openVinoAuthorities);
+        GgufCapabilityPayload gguf = GgufCapabilityPayload.Create(
+            "runtime", ggufAdmissions);
+        OptimizationWorkload workload = OptimizationWorkload.Create(
+            "workload", 1, OptimizationAssessment.Poor, contexts);
+
+        Assert.AreEqual("first-ov", openVino.Admitted.Single().EvidenceId);
+        Assert.IsTrue(openVino.ExecutionAuthorities.ContainsKey("first-ov"));
+        Assert.IsFalse(openVino.ExecutionAuthorities.ContainsKey("later-ov"));
+        Assert.AreEqual("first-gguf", gguf.Admitted.Single().EvidenceId);
+        Assert.AreEqual(1024, workload.CandidateContexts.Single().Tokens);
+        Assert.AreEqual(1, openVinoAdmissions.EnumerationCount);
+        Assert.AreEqual(1, openVinoAuthorities.EnumerationCount);
+        Assert.AreEqual(1, ggufAdmissions.EnumerationCount);
+        Assert.AreEqual(1, contexts.EnumerationCount);
+    }
+
+    [TestMethod]
+    public void AnalogousAuthorityFactoriesSnapshotTheirPublicCollectionsOnce()
+    {
+        Dictionary<string, string> firstVersions = new(StringComparer.Ordinal)
+        {
+            ["openvino"] = "2026.1.0"
+        };
+        Dictionary<string, string> laterVersions = new(StringComparer.Ordinal)
+        {
+            ["injected"] = "later"
+        };
+        TimeVaryingReadOnlyDictionary<string, string> authorityVersions =
+            new(firstVersions, laterVersions);
+        TimeVaryingReadOnlyDictionary<string, string> payloadVersions =
+            new(firstVersions, laterVersions);
+        TimeVaryingReadOnlyList<GgufExecutionProfileAuthority> profiles =
+            new(
+                count: 0,
+                [GgufExecutionProfileAuthority.Create(
+                    "first", EvidenceGrade.Estimated, "profile", false, 1, 1, 1)],
+                [GgufExecutionProfileAuthority.Create(
+                    "later", EvidenceGrade.Estimated, "profile", false, 1, 1, 1)]);
+        OpenVinoExecutionAuthority authority = OpenVinoExecutionAuthority.Create(
+            "evidence", "configuration", OpenVinoWeightPrecision.Fp16,
+            OpenVinoBuildIdentity.Create("runtime", "genai", "tokenizers", Digest),
+            authorityVersions,
+            compiledCacheIsDisposable: true);
+        OpenVinoExecutionPayload payload = OpenVinoExecutionPayload.Create(
+            "configuration", "CPU", "Released candidate", "evidence",
+            OpenVinoWeightPrecision.Fp16, OpenVinoWeightPrecision.Fp16,
+            OpenVinoKvCachePrecision.U8, false, true, false, true,
+            OpenVinoBuildIdentity.Create("runtime", "genai", "tokenizers", Digest),
+            payloadVersions);
+        GgufRuntimeAuthority gguf = GgufRuntimeAuthority.Create(
+            "runtime", "0123456789abcdef0123456789abcdef01234567",
+            profiles);
+
+        CollectionAssert.AreEqual(new[] { "openvino" }, authority.OptimizerVersions.Keys.ToArray());
+        CollectionAssert.AreEqual(new[] { "openvino" }, payload.OptimizerVersions.Keys.ToArray());
+        CollectionAssert.AreEqual(new[] { "first" }, gguf.Profiles.Keys.ToArray());
+        Assert.AreEqual(1, authorityVersions.EnumerationCount);
+        Assert.AreEqual(1, payloadVersions.EnumerationCount);
+        Assert.AreEqual(1, profiles.EnumerationCount);
+    }
+
+    private static OpenVinoExecutionAuthority OpenVinoAuthority(string evidenceId) =>
+        OpenVinoExecutionAuthority.Create(
+            evidenceId, "configuration", OpenVinoWeightPrecision.Fp16,
+            OpenVinoBuildIdentity.Create("runtime", "genai", "tokenizers", Digest),
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["openvino"] = "2026.1.0"
+            },
+            compiledCacheIsDisposable: true);
+
+    [TestMethod]
     public void AdmittedConfigurationRejectsInvertedContextBounds()
     {
         Assert.ThrowsExactly<ArgumentException>(
@@ -293,6 +406,43 @@ public sealed class OptimizationCapabilitySnapshotTests
                 GgufExecutionProfileAuthority.Create(
                     "same", EvidenceGrade.Estimated, "profile-b", false, 1, 1, 1)
             ]));
+    }
+
+    private sealed class TimeVaryingReadOnlyList<T>(
+        int count,
+        IReadOnlyList<T> first,
+        IReadOnlyList<T> later) : IReadOnlyList<T>
+    {
+        private int enumerations;
+        public int EnumerationCount => Volatile.Read(ref enumerations);
+        public int Count => count;
+        public T this[int index] => first[index];
+        public IEnumerator<T> GetEnumerator() =>
+            (Interlocked.Increment(ref enumerations) == 1 ? first : later)
+            .GetEnumerator();
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() =>
+            GetEnumerator();
+    }
+
+    private sealed class TimeVaryingReadOnlyDictionary<TKey, TValue>(
+        IReadOnlyDictionary<TKey, TValue> first,
+        IReadOnlyDictionary<TKey, TValue> later) : IReadOnlyDictionary<TKey, TValue>
+        where TKey : notnull
+    {
+        private int enumerations;
+        public int EnumerationCount => Volatile.Read(ref enumerations);
+        public int Count => 0;
+        public IEnumerable<TKey> Keys => first.Keys;
+        public IEnumerable<TValue> Values => first.Values;
+        public TValue this[TKey key] => first[key];
+        public bool ContainsKey(TKey key) => first.ContainsKey(key);
+        public bool TryGetValue(TKey key, out TValue value) =>
+            first.TryGetValue(key, out value!);
+        public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator() =>
+            (Interlocked.Increment(ref enumerations) == 1 ? first : later)
+            .GetEnumerator();
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() =>
+            GetEnumerator();
     }
 
     [TestMethod]

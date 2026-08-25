@@ -21,8 +21,11 @@ public sealed record CrossRouteGenerationResult
         IReadOnlyList<OptimizationCandidate> candidates,
         IReadOnlyList<OptimizationExclusion> exclusions)
     {
-        Candidates = candidates;
-        Exclusions = exclusions;
+        ArgumentNullException.ThrowIfNull(candidates);
+        ArgumentNullException.ThrowIfNull(exclusions);
+
+        Candidates = Array.AsReadOnly([.. candidates]);
+        Exclusions = Array.AsReadOnly([.. exclusions]);
     }
 
     public IReadOnlyList<OptimizationCandidate> Candidates { get; }

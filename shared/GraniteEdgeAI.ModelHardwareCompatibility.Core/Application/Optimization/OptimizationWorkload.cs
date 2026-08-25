@@ -47,6 +47,8 @@ public sealed record OptimizationWorkload
     {
         ArgumentNullException.ThrowIfNull(candidateContexts);
 
+        ContextTokenCount[] contextSnapshot = [.. candidateContexts];
+
         OptimizationIdentifier.Require(workloadId, nameof(workloadId), "A workload");
 
         if (minimumQuality == OptimizationAssessment.Unknown)
@@ -65,7 +67,7 @@ public sealed record OptimizationWorkload
                 "A workload that needs no context is not a workload.");
         }
 
-        if (candidateContexts.Count == 0)
+        if (contextSnapshot.Length == 0)
         {
             throw new ArgumentException(
                 "With no context lengths to consider, generation produces nothing "
@@ -74,6 +76,9 @@ public sealed record OptimizationWorkload
         }
 
         return new OptimizationWorkload(
-            workloadId, minimumContextTokens, minimumQuality, [.. candidateContexts]);
+            workloadId,
+            minimumContextTokens,
+            minimumQuality,
+            Array.AsReadOnly(contextSnapshot));
     }
 }

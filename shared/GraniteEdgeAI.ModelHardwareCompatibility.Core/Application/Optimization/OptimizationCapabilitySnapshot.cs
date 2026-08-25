@@ -297,6 +297,10 @@ public sealed record OpenVinoCapabilityPayload
     {
         ArgumentNullException.ThrowIfNull(admitted);
 
+        OpenVinoAdmittedConfiguration[] admittedSnapshot = [.. admitted];
+        OpenVinoExecutionAuthority[] authoritySnapshot =
+            executionAuthorities is null ? [] : [.. executionAuthorities];
+
         // The same OpenVINO runtime build identity the execution payload
         // carries, so it takes the same rule. The official runtime reports
         // slash-delimited release-channel structure, and validating it as a
@@ -311,7 +315,7 @@ public sealed record OpenVinoCapabilityPayload
             nameof(runtimeVersion),
             "The runtime build a capability payload was established against");
 
-        if (admitted.Count == 0)
+        if (admittedSnapshot.Length == 0)
         {
             throw new ArgumentException(
                 "An empty admitted set is not a route with modest capability, it is "
@@ -321,14 +325,14 @@ public sealed record OpenVinoCapabilityPayload
         }
 
         OptimizationAdmissionIdentity.RequireUnique(
-            admitted.Select(entry => entry.EvidenceId), nameof(admitted));
+            admittedSnapshot.Select(entry => entry.EvidenceId), nameof(admitted));
 
         SortedDictionary<string, OpenVinoExecutionAuthority> copiedAuthorities =
             new(StringComparer.Ordinal);
-        foreach (OpenVinoExecutionAuthority authority in executionAuthorities ?? [])
+        foreach (OpenVinoExecutionAuthority authority in authoritySnapshot)
         {
             ArgumentNullException.ThrowIfNull(authority);
-            OpenVinoAdmittedConfiguration? authoritativeAdmission = admitted
+            OpenVinoAdmittedConfiguration? authoritativeAdmission = admittedSnapshot
                 .SingleOrDefault(entry => string.Equals(
                     entry.EvidenceId, authority.EvidenceId, StringComparison.Ordinal));
             if (!string.Equals(
@@ -362,7 +366,7 @@ public sealed record OpenVinoCapabilityPayload
         // combination after the snapshot has been hashed.
         return new OpenVinoCapabilityPayload(
             runtimeVersion,
-            [.. admitted],
+            Array.AsReadOnly(admittedSnapshot),
             new ReadOnlyDictionary<string, OpenVinoExecutionAuthority>(
                 copiedAuthorities));
     }
@@ -456,12 +460,14 @@ public sealed record GgufCapabilityPayload
     {
         ArgumentNullException.ThrowIfNull(admitted);
 
+        GgufAdmittedConfiguration[] admittedSnapshot = [.. admitted];
+
         OptimizationIdentifier.Require(
             runtimeVersion,
             nameof(runtimeVersion),
             "The runtime build a capability payload was established against");
 
-        if (admitted.Count == 0)
+        if (admittedSnapshot.Length == 0)
         {
             throw new ArgumentException(
                 "An empty admitted set is a route with no evidence, not a modest one.",
@@ -469,7 +475,7 @@ public sealed record GgufCapabilityPayload
         }
 
         OptimizationAdmissionIdentity.RequireUnique(
-            admitted.Select(entry => entry.EvidenceId), nameof(admitted));
+            admittedSnapshot.Select(entry => entry.EvidenceId), nameof(admitted));
 
         if (runtimeAuthority is not null)
         {
@@ -478,7 +484,7 @@ public sealed record GgufCapabilityPayload
                     runtimeAuthority.RuntimeBuildId,
                     StringComparison.Ordinal)
                 || runtimeAuthority.Profiles.Keys.Any(evidenceId =>
-                    admitted.All(entry => !string.Equals(
+                    admittedSnapshot.All(entry => !string.Equals(
                         entry.EvidenceId, evidenceId, StringComparison.Ordinal))))
             {
                 throw new ArgumentException(
@@ -489,7 +495,7 @@ public sealed record GgufCapabilityPayload
 
         GgufAdmittedConfiguration[] turboQuant =
         [
-            .. admitted.Where(entry =>
+            .. admittedSnapshot.Where(entry =>
                 entry.KvCache == GgufKvCacheFormat.TurboQuant3Bit)
         ];
 
@@ -538,7 +544,7 @@ public sealed record GgufCapabilityPayload
 
         return new GgufCapabilityPayload(
             runtimeVersion,
-            [.. admitted],
+            Array.AsReadOnly(admittedSnapshot),
             hasHigherPrecisionSource,
             requantisationPolicy,
             conversionSource,
