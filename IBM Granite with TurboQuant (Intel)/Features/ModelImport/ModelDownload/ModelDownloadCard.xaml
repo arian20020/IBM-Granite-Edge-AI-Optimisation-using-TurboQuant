@@ -313,92 +313,12 @@
                         ValueChanged="ModelScaleSlider_ValueChanged"
                         Value="50">
 
-                        <!--
-                            TODO(THEMING):
-                            These colours currently belong only to this slider.
-                            They can later move into shared theme resources in App.xaml.
-                        -->
                         <local:ModelPreferenceSlider.Resources>
-
-                            <!--  Removes the dark outer ring around the slider thumb.  -->
-                            <SolidColorBrush
-                                x:Key="SliderOuterThumbBackground"
-                                Color="Transparent" />
-
-                            <SolidColorBrush
-                                x:Key="SliderOuterThumbBackgroundPointerOver"
-                                Color="Transparent" />
-
-                            <SolidColorBrush
-                                x:Key="SliderOuterThumbBackgroundPressed"
-                                Color="Transparent" />
-
-                            <!--  Creates the blue slider thumb.  -->
-                            <SolidColorBrush
-                                x:Key="SliderThumbBackground"
-                                Color="#2563EB" />
-
-                            <SolidColorBrush
-                                x:Key="SliderThumbBackgroundPointerOver"
-                                Color="#1D4ED8" />
-
-                            <SolidColorBrush
-                                x:Key="SliderThumbBackgroundPressed"
-                                Color="#1E40AF" />
-
-                            <!--  Removes the thumb border in every interaction state.  -->
-                            <SolidColorBrush
-                                x:Key="SliderThumbBorderBrush"
-                                Color="Transparent" />
-
-                            <SolidColorBrush
-                                x:Key="SliderThumbBorderBrushPointerOver"
-                                Color="Transparent" />
-
-                            <SolidColorBrush
-                                x:Key="SliderThumbBorderBrushPressed"
-                                Color="Transparent" />
-
-                            <!--  Keeps the unselected grey track unchanged during interaction.  -->
-                            <SolidColorBrush
-                                x:Key="SliderTrackFill"
-                                Color="#D1D5DB" />
-
-                            <SolidColorBrush
-                                x:Key="SliderTrackFillPointerOver"
-                                Color="#D1D5DB" />
-
-                            <SolidColorBrush
-                                x:Key="SliderTrackFillPressed"
-                                Color="#D1D5DB" />
-
-                            <!--  Keeps the selected blue track unchanged during interaction.  -->
-                            <SolidColorBrush
-                                x:Key="SliderTrackValueFill"
-                                Color="#2563EB" />
-
-                            <SolidColorBrush
-                                x:Key="SliderTrackValueFillPointerOver"
-                                Color="#2563EB" />
-
-                            <SolidColorBrush
-                                x:Key="SliderTrackValueFillPressed"
-                                Color="#2563EB" />
-
-                            <!--
-                                Controls the visible blue circle without reducing
-                                the size of its interactive hit area.
-                            -->
-                            <x:Double
-                                x:Key="SliderInnerThumbWidth">
-                                14
-                            </x:Double>
-
-                            <x:Double
-                                x:Key="SliderInnerThumbHeight">
-                                14
-                            </x:Double>
-
+                            <ResourceDictionary>
+                                <ResourceDictionary.MergedDictionaries>
+                                    <ResourceDictionary Source="ms-appx:///Features/ModelImport/ModelDownload/ModelPreferenceSliderTheme.xaml" />
+                                </ResourceDictionary.MergedDictionaries>
+                            </ResourceDictionary>
                         </local:ModelPreferenceSlider.Resources>
 
                     </local:ModelPreferenceSlider>

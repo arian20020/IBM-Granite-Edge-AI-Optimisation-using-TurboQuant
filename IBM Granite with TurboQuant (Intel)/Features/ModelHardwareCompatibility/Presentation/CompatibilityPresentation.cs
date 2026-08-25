@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
 
 namespace GraniteEdgeAI.Features.ModelHardwareCompatibility.Presentation;
 
@@ -44,6 +45,48 @@ internal sealed record CompatibilityEstimateSummary(
     ulong MarginForErrorBytes,
     ulong EstimatedPeakBytes,
     ulong SafeMemoryBytes);
+
+/// <summary>One route-specific, already-resolved optimisation choice.</summary>
+internal sealed record CompatibilityOptimizationModePresentation(
+    string Label,
+    int? SliderValue,
+    string ExpectedQualityText,
+    string WeightFormat,
+    string CacheFormat,
+    string ContextText,
+    string SystemSharedRequirementText,
+    string SystemSharedBudgetText,
+    string SystemSharedHeadroomText,
+    string DedicatedRequirementText,
+    string DedicatedBudgetText,
+    string DedicatedHeadroomText,
+    bool IsExperimental,
+    bool HasStrongQualityWarning,
+    string WarningText,
+    bool RequiresPersistentArtifact,
+    bool RequiresRequantisationAcknowledgement);
+
+/// <summary>
+/// Rendering-only optimisation state. It is flattened from the core projection;
+/// the page never asks the candidate resolver to run again.
+/// </summary>
+internal sealed record CompatibilityOptimizationPresentation(
+    string Instruction,
+    IReadOnlyList<CompatibilityOptimizationModePresentation> Modes,
+    CompatibilityOptimizationModePresentation SelectedMode,
+    bool IsAutomatic,
+    int SliderValue,
+    string CurrentWeightFormat,
+    string CurrentCacheFormat,
+    string CurrentContextText,
+    string CurrentSystemSharedRequirementText,
+    string CurrentSystemSharedBudgetText,
+    string CurrentSystemSharedHeadroomText,
+    string CurrentDedicatedRequirementText,
+    string CurrentDedicatedBudgetText,
+    string CurrentDedicatedHeadroomText,
+    bool IsActionAuthoritative,
+    OptimizationPreferenceSelection Preference);
 
 /// <summary>
 /// Everything the page renders, resolved once per snapshot.
@@ -91,6 +134,8 @@ internal sealed record CompatibilityPresentation
     /// </summary>
     internal required CompatibilityEstimateSummary? EstimateSummary { get; init; }
 
+    internal required CompatibilityOptimizationPresentation? Optimization { get; init; }
+
     internal required string RuntimeCardTitle { get; init; }
 
     internal required IReadOnlyList<CompatibilityRow> RuntimeRows { get; init; }
@@ -137,6 +182,7 @@ internal sealed record CompatibilityPresentation
         Facts = [],
         Budget = CompatibilityBudget.Empty,
         EstimateSummary = null,
+        Optimization = null,
         RuntimeCardTitle = "Runtime",
         RuntimeRows = [],
         ChecksCardTitle = "Checks",

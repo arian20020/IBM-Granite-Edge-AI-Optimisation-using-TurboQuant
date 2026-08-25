@@ -7,6 +7,9 @@ using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.ModeSelection;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.FitAssessment;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.Gguf;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.OpenVino;
 
 namespace GraniteEdgeAI.Features.ModelHardwareCompatibility.DebugFixtures;
 
@@ -66,6 +69,67 @@ internal static class CompatibilityFixtureCatalogue
                 CompatibilityScreenState.OptimisationRequired,
                 continueEnabled: true,
                 useCurrentModel: true))),
+
+        new("CMP-021", "GGUF Q2_K is the only safe choice",
+            CompatibilityPresentationFactory.From(Optimisation(
+                GgufWeightFormat.Q2K,
+                GgufKvCacheFormat.Q8_0,
+                OptimizationAssessment.Poor,
+                requantisation: true,
+                OptimizationQualityNotice.SignificantQualityReduction))),
+
+        new("CMP-022", "GGUF requantisation keeps the original",
+            CompatibilityPresentationFactory.From(Optimisation(
+                GgufWeightFormat.Q3KM,
+                GgufKvCacheFormat.Q8_0,
+                OptimizationAssessment.Acceptable,
+                requantisation: true,
+                OptimizationQualityNotice.NoticeableQualityReduction))),
+
+        new("CMP-023", "OpenVINO INT8 to INT4",
+            CompatibilityPresentationFactory.From(OptimisationOpenVino(
+                OpenVinoWeightFormat.Int4,
+                OpenVinoKvCacheFormat.RouteDefault,
+                OptimizationAssessment.Good))),
+
+        new("CMP-024", "OpenVINO cache-only U8 and U4",
+            CompatibilityPresentationFactory.From(OptimisationOpenVino(
+                OpenVinoWeightFormat.Original,
+                OpenVinoKvCacheFormat.U4,
+                OptimizationAssessment.Excellent))),
+
+        new("CMP-025", "Experimental TurboQuant TBQ4 opt-in",
+            CompatibilityPresentationFactory.From(OptimisationOpenVino(
+                OpenVinoWeightFormat.Original,
+                OpenVinoKvCacheFormat.TurboQuantTbq4,
+                OptimizationAssessment.Good,
+                experimental: true))),
+
+        new("CMP-026", "Experimental TurboQuant TBQ3 opt-in warning",
+            CompatibilityPresentationFactory.From(OptimisationOpenVino(
+                OpenVinoWeightFormat.Original,
+                OpenVinoKvCacheFormat.TurboQuantTbq3,
+                OptimizationAssessment.Acceptable,
+                experimental: true,
+                OptimizationQualityNotice.SignificantQualityReduction))),
+
+        new("CMP-027", "8 GB constrained-memory example",
+            CompatibilityPresentationFactory.From(Optimisation(
+                GgufWeightFormat.Q3KM,
+                GgufKvCacheFormat.Q8_0,
+                OptimizationAssessment.Acceptable,
+                requantisation: true,
+                OptimizationQualityNotice.SomeQualityReduction,
+                safeBudget: 4_294_967_296))),
+
+        new("CMP-028", "16 GB ordinary-memory example",
+            CompatibilityPresentationFactory.From(Optimisation(
+                GgufWeightFormat.Q4KM,
+                GgufKvCacheFormat.Q8_0,
+                OptimizationAssessment.Good,
+                requantisation: false,
+                OptimizationQualityNotice.None,
+                safeBudget: 10_737_418_240))),
 
         new("CMP-030", "Nothing fits safely",
             CompatibilityPresentationFactory.From(Concluded(
@@ -144,7 +208,170 @@ internal static class CompatibilityFixtureCatalogue
             baseline,
             useCurrentModel,
             continueEnabled,
-            Setup(state));
+            Setup(state),
+            state == CompatibilityScreenState.OptimisationRequired
+                ? Optimization(
+                    GgufWeightFormat.Q3KM,
+                    GgufKvCacheFormat.Q8_0,
+                    OptimizationAssessment.Good,
+                    requantisation: true,
+                    OptimizationQualityNotice.SomeQualityReduction)
+                : null);
+
+    private static CompatibilityScreenModel Optimisation(
+        GgufWeightFormat weights,
+        GgufKvCacheFormat cache,
+        OptimizationAssessment quality,
+        bool requantisation,
+        OptimizationQualityNotice notice,
+        ulong safeBudget = 6_442_450_944)
+    {
+        CompatibilityOptimizationModeView[] modes =
+        [
+            OptimizationMode(CompatibilityOptimizationLabelCode.Automatic, null,
+                weights, cache, quality, requantisation, notice, safeBudget),
+            OptimizationMode(CompatibilityOptimizationLabelCode.MaximumEfficiency, 10,
+                weights, cache, quality, requantisation, notice, safeBudget),
+            OptimizationMode(CompatibilityOptimizationLabelCode.Efficient, 30,
+                weights, cache, quality, requantisation, notice, safeBudget),
+            OptimizationMode(CompatibilityOptimizationLabelCode.Balanced, 50,
+                weights, cache, quality, requantisation, notice, safeBudget),
+            OptimizationMode(CompatibilityOptimizationLabelCode.HighCapability, 70,
+                weights, cache, quality, requantisation, notice, safeBudget),
+            OptimizationMode(CompatibilityOptimizationLabelCode.MaximumCapability, 90,
+                weights, cache, quality, requantisation, notice, safeBudget)
+        ];
+
+        return OptimizationScreen(modes, safeBudget);
+    }
+
+    private static CompatibilityScreenModel OptimisationOpenVino(
+        OpenVinoWeightFormat weights,
+        OpenVinoKvCacheFormat cache,
+        OptimizationAssessment quality,
+        bool experimental = false,
+        OptimizationQualityNotice notice = OptimizationQualityNotice.None)
+    {
+        CompatibilityOptimizationModeView[] modes =
+        [
+            OpenVinoMode(CompatibilityOptimizationLabelCode.Automatic, null),
+            OpenVinoMode(CompatibilityOptimizationLabelCode.MaximumEfficiency, 10),
+            OpenVinoMode(CompatibilityOptimizationLabelCode.Efficient, 30),
+            OpenVinoMode(CompatibilityOptimizationLabelCode.Balanced, 50),
+            OpenVinoMode(CompatibilityOptimizationLabelCode.HighCapability, 70),
+            OpenVinoMode(CompatibilityOptimizationLabelCode.MaximumCapability, 90)
+        ];
+
+        return OptimizationScreen(modes, 8_589_934_592, openVino: true);
+
+        CompatibilityOptimizationModeView OpenVinoMode(
+            CompatibilityOptimizationLabelCode label, int? slider) =>
+            CompatibilityOptimizationModeView.ForPresentation(
+                label, slider, OptimizationRoute.OpenVino,
+                null, null, weights, cache, DeviceRouteId.Cpu, quality,
+                contextTokens: 4096,
+                predictedPeakBytes: 4_294_967_296,
+                safeBudgetBytes: 8_589_934_592,
+                headroomBytes: 4_294_967_296,
+                requiresPersistentArtifact: weights != OpenVinoWeightFormat.Original,
+                requiresRequantisationAcknowledgement: false,
+                qualityNotice: notice,
+                isExperimental: experimental,
+                sharedWithAdjacentBand: true);
+    }
+
+    private static CompatibilityScreenModel OptimizationScreen(
+        IReadOnlyList<CompatibilityOptimizationModeView> modes,
+        ulong safeBudget,
+        bool openVino = false)
+    {
+        CompatibilityOptimizationView optimization =
+            CompatibilityOptimizationView.ForPresentation(
+                CompatibilityOptimizationLabelCode.Automatic,
+                null,
+                modes,
+                modes[0].RequiresPersistentArtifact,
+                modes[0].RequiresRequantisationAcknowledgement,
+                modes[0].QualityNotice);
+
+        return CompatibilityScreenModel.ForPresentation(
+            CompatibilityScreenState.OptimisationRequired,
+            [new CompatibilityFindingView(
+                CompatibilityFindingCode.UncalibratedEstimate,
+                FindingSeverity.Warning)],
+            [],
+            BaselineExclusionReason.None,
+            useCurrentModelAvailable: false,
+            continueEnabled: true,
+            Setup(
+                CompatibilityFitState.DoesNotFit,
+                4096,
+                openVino ? WeightQuantisation.Q8_0 : WeightQuantisation.Q4_K_M,
+                weights: 4_831_838_208,
+                kvCache: 805_306_368,
+                compute: 536_870_912,
+                safeBudget: safeBudget),
+            optimization);
+    }
+
+    private static CompatibilityOptimizationView Optimization(
+        GgufWeightFormat weights,
+        GgufKvCacheFormat cache,
+        OptimizationAssessment quality,
+        bool requantisation,
+        OptimizationQualityNotice notice)
+    {
+        CompatibilityOptimizationModeView[] modes =
+        [
+            OptimizationMode(CompatibilityOptimizationLabelCode.Automatic, null,
+                weights, cache, quality, requantisation, notice),
+            OptimizationMode(CompatibilityOptimizationLabelCode.MaximumEfficiency, 10,
+                GgufWeightFormat.Q2K, cache, OptimizationAssessment.Poor, true,
+                OptimizationQualityNotice.SignificantQualityReduction),
+            OptimizationMode(CompatibilityOptimizationLabelCode.Efficient, 30,
+                GgufWeightFormat.Q3KM, cache, OptimizationAssessment.Acceptable, true,
+                OptimizationQualityNotice.NoticeableQualityReduction),
+            OptimizationMode(CompatibilityOptimizationLabelCode.Balanced, 50,
+                GgufWeightFormat.Q3KM, cache, OptimizationAssessment.Good, true,
+                OptimizationQualityNotice.SomeQualityReduction),
+            OptimizationMode(CompatibilityOptimizationLabelCode.HighCapability, 70,
+                GgufWeightFormat.Q4KM, cache, OptimizationAssessment.Good, false,
+                OptimizationQualityNotice.None),
+            OptimizationMode(CompatibilityOptimizationLabelCode.MaximumCapability, 90,
+                GgufWeightFormat.Q5KM, cache, OptimizationAssessment.Excellent, false,
+                OptimizationQualityNotice.None)
+        ];
+
+        return CompatibilityOptimizationView.ForPresentation(
+            CompatibilityOptimizationLabelCode.Automatic,
+            null,
+            modes,
+            modes[0].RequiresPersistentArtifact,
+            modes[0].RequiresRequantisationAcknowledgement,
+            modes[0].QualityNotice);
+    }
+
+    private static CompatibilityOptimizationModeView OptimizationMode(
+        CompatibilityOptimizationLabelCode label,
+        int? slider,
+        GgufWeightFormat weights,
+        GgufKvCacheFormat cache,
+        OptimizationAssessment quality,
+        bool requantisation,
+        OptimizationQualityNotice notice,
+        ulong safeBudget = 6_442_450_944) =>
+        CompatibilityOptimizationModeView.ForPresentation(
+            label, slider, OptimizationRoute.Gguf,
+            weights, cache, null, null, DeviceRouteId.Cpu, quality,
+            contextTokens: 4096,
+            predictedPeakBytes: 3_221_225_472,
+            safeBudgetBytes: safeBudget,
+            headroomBytes: safeBudget - 3_221_225_472,
+            requiresPersistentArtifact: requantisation,
+            requiresRequantisationAcknowledgement: requantisation,
+            qualityNotice: notice,
+            isExperimental: cache == GgufKvCacheFormat.TurboQuant3Bit,
+            sharedWithAdjacentBand: true);
 
     /// <summary>
     /// Figures for a screen to draw, shaped like a mid-sized model on a laptop
@@ -159,7 +386,7 @@ internal static class CompatibilityFixtureCatalogue
     private static CompatibilitySetupView Setup(CompatibilityScreenState state) => state switch
     {
         CompatibilityScreenState.OptimisationRequired => Setup(
-            CompatibilityFitState.Narrow,
+            CompatibilityFitState.DoesNotFit,
             contextTokens: 32768,
             WeightQuantisation.Q4_K_M,
             weights: 4_697_620_480,
@@ -189,11 +416,11 @@ internal static class CompatibilityFixtureCatalogue
         WeightQuantisation quantisation,
         ulong weights,
         ulong kvCache,
-        ulong compute)
+        ulong compute,
+        ulong safeBudget = 9_663_676_416)
     {
         const ulong Backend = 67_108_864;
         const ulong Application = 33_554_432;
-        const ulong SafeBudget = 9_663_676_416;
 
         ulong parts = weights + kvCache + compute + Backend + Application;
 
@@ -212,8 +439,8 @@ internal static class CompatibilityFixtureCatalogue
             contextTokens,
             fit,
             required,
-            SafeBudget,
-            required < SafeBudget ? SafeBudget - required : 0,
+            safeBudget,
+            required < safeBudget ? safeBudget - required : 0,
             allowance,
             isExperimental: false,
             requiresConversion: false,

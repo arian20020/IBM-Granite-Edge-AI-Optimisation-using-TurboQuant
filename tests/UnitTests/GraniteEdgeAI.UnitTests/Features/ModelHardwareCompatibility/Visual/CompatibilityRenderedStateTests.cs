@@ -80,6 +80,38 @@ public sealed class CompatibilityRenderedStateTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
+    public void OptimisationRequired_UsesStableResponsiveAccessibleChoiceTree()
+    {
+        CompatibilityPage page = CreatePage();
+        CompatibilityFixture? fixture = CompatibilityFixtureCatalogue.ById("CMP-020");
+        Assert.IsNotNull(fixture);
+
+        page.Apply(fixture.Presentation);
+        page.UpdateLayout();
+
+        FrameworkElement card = Element<FrameworkElement>(page, "OptimizationCard");
+        Button automatic = Element<Button>(page, "AutomaticChoice");
+        Slider slider = Element<Slider>(page, "OptimizationSlider");
+        Button primary = Element<Button>(page, "PrimaryAction");
+        Button secondary = Element<Button>(page, "SecondaryAction");
+
+        Assert.AreEqual(Visibility.Visible, card.Visibility);
+        Assert.AreEqual(
+            Visibility.Collapsed,
+            Element<FrameworkElement>(page, "AssessmentGrid").Visibility,
+            "The optimisation state must not leave the legacy empty assessment cards above it.");
+        Assert.IsNotNull(page.FindName("OptimizationModeRows"));
+        Assert.IsNull(page.FindName("OptimizationOnboardingShell"));
+        Assert.IsGreaterThanOrEqualTo(44d, automatic.MinHeight);
+        Assert.IsGreaterThanOrEqualTo(44d, slider.MinHeight);
+        Assert.IsGreaterThanOrEqualTo(44d, primary.MinHeight);
+        Assert.IsGreaterThanOrEqualTo(44d, secondary.MinHeight);
+        Assert.AreEqual(ScrollBarVisibility.Auto,
+            Element<ScrollViewer>(page, "ContentHost").VerticalScrollBarVisibility);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
     public void ConcludedPresentation_ExposesSemanticMemoryEstimate()
     {
         CompatibilityFixture? fixture = CompatibilityFixtureCatalogue.ById("CMP-010");

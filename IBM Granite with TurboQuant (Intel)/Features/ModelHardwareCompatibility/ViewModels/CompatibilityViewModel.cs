@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.Presentation;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
 
 namespace GraniteEdgeAI.Features.ModelHardwareCompatibility.ViewModels;
 
@@ -32,6 +33,7 @@ internal sealed class CompatibilityViewModel
 
     private CancellationTokenSource? _attemptCancellation;
     private int _attemptGeneration;
+    private CompatibilityScreenModel? _lastModel;
 
     internal CompatibilityViewModel()
         : this(static token => Task.Run(
@@ -79,6 +81,8 @@ internal sealed class CompatibilityViewModel
 
     internal DelegateCommand CancelCommand { get; }
 
+    internal OptimizationPreferenceSelection? SelectedPreference { get; private set; }
+
     /// <summary>
     /// Starts one attempt. Safe to call again: the previous attempt is cancelled
     /// and its result, if it arrives late, is discarded.
@@ -103,7 +107,13 @@ internal sealed class CompatibilityViewModel
             CompatibilityScreenModel model = await _evaluator(cancellation.Token)
                 .ConfigureAwait(true);
 
-            Publish(CompatibilityPresentationFactory.From(model), generation);
+            _lastModel = model;
+            SelectedPreference = model.State == CompatibilityScreenState.OptimisationRequired
+                ? OptimizationPreferenceSelection.Automatic()
+                : null;
+            Publish(SelectedPreference is null
+                ? CompatibilityPresentationFactory.From(model)
+                : CompatibilityPresentationFactory.From(model, SelectedPreference), generation);
         }
         catch (OperationCanceledException)
         {
@@ -127,6 +137,30 @@ internal sealed class CompatibilityViewModel
     internal void Cancel()
     {
         _attemptCancellation?.Cancel();
+    }
+
+    internal void SelectAutomaticPreference()
+    {
+        if (_lastModel?.State != CompatibilityScreenState.OptimisationRequired)
+        {
+            return;
+        }
+
+        SelectedPreference = OptimizationPreferenceSelection.Automatic();
+        Publish(CompatibilityPresentationFactory.From(_lastModel, SelectedPreference),
+            Volatile.Read(ref _attemptGeneration));
+    }
+
+    internal void SelectManualPreference(int value)
+    {
+        if (_lastModel?.State != CompatibilityScreenState.OptimisationRequired)
+        {
+            return;
+        }
+
+        SelectedPreference = OptimizationPreferenceSelection.Manual(value);
+        Publish(CompatibilityPresentationFactory.From(_lastModel, SelectedPreference),
+            Volatile.Read(ref _attemptGeneration));
     }
 
     private void Publish(CompatibilityPresentation presentation, int generation)

@@ -26,6 +26,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:controls="using:GraniteEdgeAI.Features.ModelHardwareCompatibility.Controls"
+    xmlns:modelDownload="using:GraniteEdgeAI.Features.ModelImport.ModelDownload"
     d:DesignHeight="1024"
     d:DesignWidth="1440"
     mc:Ignorable="d"
@@ -38,6 +39,7 @@
         -->
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="ms-appx:///Features/ModelImport/ModelDownload/ModelPreferenceSliderTheme.xaml" />
                 <ResourceDictionary Source="ms-appx:///Features/ModelHardwareCompatibility/Presentation/CompatibilityTheme.xaml" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
@@ -59,6 +61,7 @@
                 HorizontalAlignment="Center"
                 RowSpacing="14">
                 <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
@@ -496,12 +499,235 @@
                 </Grid>
 
                 <!--
+                    One in-page optimisation choice. It consumes the flattened
+                    Task 5 view only; no candidate generation or estimation is
+                    performed by this visual tree.
+                -->
+                <Border
+                    x:Name="OptimizationCard"
+                    Grid.Row="4"
+                    Background="{ThemeResource CompatibilitySurfaceBrush}"
+                    BorderBrush="{ThemeResource CompatibilityBorderLightBrush}"
+                    BorderThickness="1"
+                    CornerRadius="{StaticResource CompatibilityCardRadius}"
+                    Padding="{StaticResource CompatibilitySectionCardPadding}"
+                    Visibility="Collapsed">
+                    <StackPanel Spacing="16">
+                        <StackPanel Spacing="4">
+                            <TextBlock
+                                FontSize="{StaticResource CompatibilityCardTitleFontSize}"
+                                FontWeight="SemiBold"
+                                Foreground="{ThemeResource CompatibilityTextPrimaryBrush}"
+                                Text="Choose how to optimise this model" />
+                            <TextBlock
+                                x:Name="OptimizationInstructionText"
+                                FontSize="{StaticResource CompatibilityOutcomeBodyFontSize}"
+                                Foreground="{ThemeResource CompatibilityTextMutedBrush}"
+                                TextWrapping="Wrap" />
+                        </StackPanel>
+
+                        <Grid x:Name="OptimizationSetupGrid" ColumnSpacing="12" RowSpacing="12">
+                            <VisualStateManager.VisualStateGroups>
+                                <VisualStateGroup x:Name="OptimizationSetupStates">
+                                    <VisualState x:Name="WideOptimizationSetup">
+                                        <VisualState.StateTriggers>
+                                            <AdaptiveTrigger MinWindowWidth="1100" />
+                                        </VisualState.StateTriggers>
+                                        <VisualState.Setters>
+                                            <Setter Target="CurrentSetupCard.(Grid.Column)" Value="0" />
+                                            <Setter Target="CurrentSetupCard.(Grid.Row)" Value="0" />
+                                            <Setter Target="RecommendedSetupCard.(Grid.Column)" Value="1" />
+                                            <Setter Target="RecommendedSetupCard.(Grid.Row)" Value="0" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="NarrowOptimizationSetup">
+                                        <VisualState.StateTriggers>
+                                            <AdaptiveTrigger MinWindowWidth="0" />
+                                        </VisualState.StateTriggers>
+                                        <VisualState.Setters>
+                                            <Setter Target="CurrentSetupCard.(Grid.Column)" Value="0" />
+                                            <Setter Target="CurrentSetupCard.(Grid.Row)" Value="0" />
+                                            <Setter Target="RecommendedSetupCard.(Grid.Column)" Value="0" />
+                                            <Setter Target="RecommendedSetupCard.(Grid.Row)" Value="1" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                </VisualStateGroup>
+                            </VisualStateManager.VisualStateGroups>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+
+                            <Border
+                                x:Name="CurrentSetupCard"
+                                Background="{ThemeResource CompatibilityCanvasBrush}"
+                                BorderBrush="{ThemeResource CompatibilityBorderLightBrush}"
+                                BorderThickness="1"
+                                CornerRadius="{StaticResource CompatibilityFactRadius}"
+                                Padding="16">
+                                <StackPanel Spacing="10">
+                                    <TextBlock FontWeight="SemiBold" Text="Current setup" />
+                                    <Grid ColumnSpacing="12" RowSpacing="8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+                                        <TextBlock x:Name="CurrentWeightText" Grid.Column="0" TextWrapping="Wrap" />
+                                        <TextBlock x:Name="CurrentCacheText" Grid.Column="1" TextWrapping="Wrap" />
+                                        <TextBlock x:Name="CurrentContextText" Grid.Column="2" TextWrapping="Wrap" />
+                                        <TextBlock x:Name="CurrentSystemMemoryText" Grid.Row="1" Grid.ColumnSpan="2" TextWrapping="Wrap" />
+                                        <TextBlock x:Name="CurrentDedicatedMemoryText" Grid.Row="1" Grid.Column="2" TextWrapping="Wrap" />
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+
+                            <Border
+                                x:Name="RecommendedSetupCard"
+                                Grid.Column="1"
+                                Background="{ThemeResource CompatibilityBlueSurfaceBrush}"
+                                BorderBrush="{ThemeResource CompatibilityBlueBorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="{StaticResource CompatibilityFactRadius}"
+                                Padding="16">
+                                <StackPanel Spacing="10">
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock FontWeight="SemiBold" Text="Recommended setup" />
+                                        <TextBlock
+                                            x:Name="RecommendedModeLabelText"
+                                            Grid.Column="1"
+                                            FontWeight="SemiBold"
+                                            Foreground="{ThemeResource CompatibilityPrimaryBlueBrush}" />
+                                    </Grid>
+                                    <Grid ColumnSpacing="12" RowSpacing="8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+                                        <TextBlock x:Name="RecommendedWeightText" Grid.Column="0" TextWrapping="Wrap" />
+                                        <TextBlock x:Name="RecommendedCacheText" Grid.Column="1" TextWrapping="Wrap" />
+                                        <TextBlock x:Name="RecommendedContextText" Grid.Column="2" TextWrapping="Wrap" />
+                                        <TextBlock x:Name="RecommendedSystemMemoryText" Grid.Row="1" Grid.ColumnSpan="2" TextWrapping="Wrap" />
+                                        <TextBlock x:Name="RecommendedDedicatedMemoryText" Grid.Row="1" Grid.Column="2" TextWrapping="Wrap" />
+                                        <TextBlock
+                                            x:Name="RecommendedQualityText"
+                                            Grid.Row="2"
+                                            Grid.ColumnSpan="3"
+                                            FontWeight="SemiBold"
+                                            TextWrapping="Wrap" />
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+
+                        <Button
+                            x:Name="AutomaticChoice"
+                            MinHeight="44"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Stretch"
+                            Click="AutomaticChoice_Click">
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock FontWeight="SemiBold" Text="Automatic" />
+                                    <TextBlock
+                                        x:Name="AutomaticQualityText"
+                                        Foreground="{ThemeResource CompatibilityTextMutedBrush}"
+                                        TextWrapping="Wrap" />
+                                </StackPanel>
+                                <TextBlock
+                                    x:Name="AutomaticSelectedText"
+                                    Grid.Column="1"
+                                    VerticalAlignment="Center"
+                                    FontWeight="SemiBold"
+                                    Foreground="{ThemeResource CompatibilityPrimaryBlueBrush}"
+                                    Text="Recommended" />
+                            </Grid>
+                        </Button>
+
+                        <StackPanel Spacing="4">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock FontWeight="SemiBold" Text="Your preference" />
+                                <TextBlock
+                                    x:Name="OptimizationSliderLabelText"
+                                    Grid.Column="1"
+                                    FontWeight="SemiBold"
+                                    Foreground="{ThemeResource CompatibilityPrimaryBlueBrush}" />
+                            </Grid>
+                            <modelDownload:ModelPreferenceSlider
+                                x:Name="OptimizationSlider"
+                                MinHeight="44"
+                                Minimum="0"
+                                Maximum="100"
+                                SmallChange="1"
+                                LargeChange="10"
+                                StepFrequency="1"
+                                SnapsTo="StepValues"
+                                IsThumbToolTipEnabled="False"
+                                AutomationProperties.Name="Optimisation preference"
+                                AutomationProperties.HelpText="Choose between maximum efficiency and maximum model capability"
+                                ValueChanged="OptimizationSlider_ValueChanged" />
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Foreground="{ThemeResource CompatibilityTextMutedBrush}" Text="Maximum efficiency" />
+                                <TextBlock Grid.Column="1" HorizontalAlignment="Right" Foreground="{ThemeResource CompatibilityTextMutedBrush}" Text="Maximum capability" TextAlignment="Right" />
+                            </Grid>
+                        </StackPanel>
+
+                        <StackPanel x:Name="OptimizationModeRows" Spacing="8" />
+
+                        <Border
+                            x:Name="OptimizationWarningCard"
+                            Background="{ThemeResource CompatibilityWarningSurfaceBrush}"
+                            BorderBrush="{ThemeResource CompatibilityWarningBorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="{StaticResource CompatibilityFactRadius}"
+                            Padding="14"
+                            Visibility="Collapsed">
+                            <TextBlock
+                                x:Name="OptimizationWarningText"
+                                Foreground="{ThemeResource CompatibilityWarningTextBrush}"
+                                FontWeight="SemiBold"
+                                TextWrapping="Wrap" />
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <!--
                     Recovery actions. Screen 06 must say what is missing AND what
                     to do about it; this is the second half.
                 -->
                 <Border
                     x:Name="RecoveryCard"
-                    Grid.Row="4"
+                    Grid.Row="5"
                     Background="{ThemeResource CompatibilitySurfaceBrush}"
                     BorderBrush="{ThemeResource CompatibilityBorderLightBrush}"
                     BorderThickness="1"
@@ -520,7 +746,7 @@
 
                 <!-- Calculation disclosure -->
                 <Border
-                    Grid.Row="5"
+                    Grid.Row="6"
                     Background="{ThemeResource CompatibilitySurfaceBrush}"
                     BorderBrush="{ThemeResource CompatibilityBorderLightBrush}"
                     BorderThickness="1"
@@ -561,7 +787,7 @@
                 </Border>
 
                 <!-- Centred actions -->
-                <Grid Grid.Row="6" ColumnSpacing="8" HorizontalAlignment="Center" MinWidth="320">
+                <Grid Grid.Row="7" ColumnSpacing="8" HorizontalAlignment="Center" MinWidth="320">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="*" />

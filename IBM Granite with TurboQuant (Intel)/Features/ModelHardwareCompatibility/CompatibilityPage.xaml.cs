@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.Presentation;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media;
 
 namespace GraniteEdgeAI.Features.ModelHardwareCompatibility;
@@ -21,6 +23,7 @@ namespace GraniteEdgeAI.Features.ModelHardwareCompatibility;
 internal sealed partial class CompatibilityPage : Page
 {
     private CompatibilityPresentation _presentation = CompatibilityPresentation.Empty;
+    private bool _applyingOptimization;
 
     public CompatibilityPage()
         : this(new ViewModels.CompatibilityViewModel())
@@ -100,6 +103,10 @@ internal sealed partial class CompatibilityPage : Page
         ApplyFacts(presentation.Facts);
         ApplyBudget(presentation.Budget);
         ApplyEstimateSummary(presentation.EstimateSummary);
+        ApplyOptimization(presentation.Optimization);
+        AssessmentGrid.Visibility = presentation.Optimization is null
+            ? Visibility.Visible
+            : Visibility.Collapsed;
 
         RuntimeCardTitleText.Text = presentation.RuntimeCardTitle;
         ApplyRows(RuntimeRows, presentation.RuntimeRows);
@@ -117,6 +124,196 @@ internal sealed partial class CompatibilityPage : Page
         SecondaryAction.Content = presentation.SecondaryActionText;
         SecondaryAction.IsEnabled = presentation.SecondaryActionEnabled;
 
+    }
+
+    private void ApplyOptimization(CompatibilityOptimizationPresentation? optimization)
+    {
+        OptimizationCard.Visibility = optimization is null
+            ? Visibility.Collapsed
+            : Visibility.Visible;
+        if (optimization is null)
+        {
+            OptimizationModeRows.Children.Clear();
+            OptimizationWarningCard.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        _applyingOptimization = true;
+        try
+        {
+            OptimizationInstructionText.Text = optimization.Instruction;
+            OptimizationSlider.Value = optimization.SliderValue;
+            OptimizationSlider.IsEnabled = optimization.IsActionAuthoritative;
+            AutomaticChoice.IsEnabled = optimization.IsActionAuthoritative;
+            AutomaticSelectedText.Visibility = optimization.IsAutomatic
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+
+            CompatibilityOptimizationModePresentation automatic =
+                optimization.Modes[0];
+            AutomaticQualityText.Text = automatic.ExpectedQualityText;
+
+            CurrentWeightText.Text = $"Weights\n{optimization.CurrentWeightFormat}";
+            CurrentCacheText.Text = $"Cache\n{optimization.CurrentCacheFormat}";
+            CurrentContextText.Text = $"Context\n{optimization.CurrentContextText}";
+            CurrentSystemMemoryText.Text =
+                "System/shared RAM\n"
+                + $"Needs {optimization.CurrentSystemSharedRequirementText} · "
+                + $"safe budget {optimization.CurrentSystemSharedBudgetText} · "
+                + $"headroom {optimization.CurrentSystemSharedHeadroomText}";
+            CurrentDedicatedMemoryText.Text = DedicatedMemory(
+                optimization.CurrentDedicatedRequirementText,
+                optimization.CurrentDedicatedBudgetText,
+                optimization.CurrentDedicatedHeadroomText);
+
+            CompatibilityOptimizationModePresentation selected =
+                optimization.SelectedMode;
+            RecommendedModeLabelText.Text = selected.Label;
+            RecommendedWeightText.Text = $"Weights\n{selected.WeightFormat}";
+            RecommendedCacheText.Text = $"Cache\n{selected.CacheFormat}";
+            RecommendedContextText.Text = $"Context\n{selected.ContextText}";
+            RecommendedSystemMemoryText.Text =
+                "System/shared RAM\n"
+                + $"Needs {selected.SystemSharedRequirementText} · "
+                + $"safe budget {selected.SystemSharedBudgetText} · "
+                + $"headroom {selected.SystemSharedHeadroomText}";
+            RecommendedDedicatedMemoryText.Text = DedicatedMemory(
+                selected.DedicatedRequirementText,
+                selected.DedicatedBudgetText,
+                selected.DedicatedHeadroomText);
+            RecommendedQualityText.Text = selected.ExpectedQualityText;
+            OptimizationSliderLabelText.Text = selected.Label;
+
+            ApplyOptimizationModes(optimization);
+
+            OptimizationWarningText.Text = selected.WarningText;
+            OptimizationWarningCard.Visibility =
+                string.IsNullOrWhiteSpace(selected.WarningText)
+                    ? Visibility.Collapsed
+                    : Visibility.Visible;
+        }
+        finally
+        {
+            _applyingOptimization = false;
+        }
+    }
+
+    private static string DedicatedMemory(
+        string requirement,
+        string budget,
+        string headroom) => requirement == "Not used"
+            ? "Dedicated VRAM\nNot used"
+            : "Dedicated VRAM\n"
+                + $"Needs {requirement} · budget {budget} · headroom {headroom}";
+
+    private void ApplyOptimizationModes(CompatibilityOptimizationPresentation optimization)
+    {
+        OptimizationModeRows.Children.Clear();
+
+        foreach (CompatibilityOptimizationModePresentation mode in
+            optimization.Modes.Where(mode => mode.SliderValue.HasValue))
+        {
+            bool selected = string.Equals(
+                mode.Label,
+                optimization.SelectedMode.Label,
+                StringComparison.Ordinal);
+            Grid content = new()
+            {
+                MinHeight = 44,
+                ColumnSpacing = 12,
+                VerticalAlignment = VerticalAlignment.Center,
+                ColumnDefinitions =
+                {
+                    new ColumnDefinition
+                    {
+                        Width = new GridLength(1, GridUnitType.Star)
+                    },
+                    new ColumnDefinition { Width = GridLength.Auto }
+                }
+            };
+            StackPanel words = new()
+            {
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            words.Children.Add(new TextBlock
+            {
+                Text = mode.Label,
+                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                Foreground = Brush("CompatibilityTextPrimaryBrush")
+            });
+            words.Children.Add(new TextBlock
+            {
+                Text = mode.ExpectedQualityText,
+                Foreground = Brush("CompatibilityTextMutedBrush"),
+                TextWrapping = TextWrapping.Wrap
+            });
+            Grid.SetColumn(words, 0);
+            content.Children.Add(words);
+
+            StackPanel trailing = new()
+            {
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Right
+            };
+            trailing.Children.Add(new TextBlock
+            {
+                Text = $"{mode.WeightFormat} · {mode.CacheFormat}",
+                Foreground = selected
+                    ? Brush("CompatibilityPrimaryBlueBrush")
+                    : Brush("CompatibilityTextMutedBrush"),
+                FontWeight = selected
+                    ? Microsoft.UI.Text.FontWeights.SemiBold
+                    : Microsoft.UI.Text.FontWeights.Normal,
+                TextAlignment = TextAlignment.Right,
+                TextWrapping = TextWrapping.Wrap
+            });
+            trailing.Children.Add(new TextBlock
+            {
+                Text = mode.HasStrongQualityWarning
+                    ? "Strong quality warning"
+                    : mode.IsExperimental ? "Experimental opt-in" : string.Empty,
+                Foreground = mode.HasStrongQualityWarning
+                    ? Brush("CompatibilityErrorTextBrush")
+                    : Brush("CompatibilityWarningAccentBrush"),
+                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                TextAlignment = TextAlignment.Right,
+                TextWrapping = TextWrapping.Wrap
+            });
+            Grid.SetColumn(trailing, 1);
+            content.Children.Add(trailing);
+
+            OptimizationModeRows.Children.Add(new Border
+            {
+                Background = selected
+                    ? Brush("CompatibilityBlueSurfaceBrush")
+                    : Brush("CompatibilityCanvasBrush"),
+                BorderBrush = selected
+                    ? Brush("CompatibilityBlueBorderBrush")
+                    : Brush("CompatibilityBorderLightBrush"),
+                BorderThickness = new Thickness(1),
+                CornerRadius = Radius("CompatibilityFactRadius"),
+                Padding = new Thickness(14, 6, 14, 6),
+                Child = content
+            });
+        }
+    }
+
+    private void AutomaticChoice_Click(object sender, RoutedEventArgs e)
+    {
+        if (!_applyingOptimization)
+        {
+            ViewModel.SelectAutomaticPreference();
+        }
+    }
+
+    private void OptimizationSlider_ValueChanged(
+        object sender,
+        RangeBaseValueChangedEventArgs e)
+    {
+        if (!_applyingOptimization && OptimizationSlider.IsEnabled)
+        {
+            ViewModel.SelectManualPreference((int)Math.Round(e.NewValue));
+        }
     }
 
     private void ApplyEstimateSummary(CompatibilityEstimateSummary? summary)

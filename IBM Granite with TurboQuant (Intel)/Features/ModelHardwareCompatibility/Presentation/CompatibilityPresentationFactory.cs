@@ -4,6 +4,10 @@ using System.Linq;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Candidates;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Contracts;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.Gguf;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.OpenVino;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
 
 namespace GraniteEdgeAI.Features.ModelHardwareCompatibility.Presentation;
 
@@ -150,16 +154,22 @@ internal static class CompatibilityPresentationFactory
     /// <summary>
     /// The states the engine itself decides.
     /// </summary>
-    internal static CompatibilityPresentation From(CompatibilityScreenModel model)
+    internal static CompatibilityPresentation From(CompatibilityScreenModel model) =>
+        From(model, OptimizationPreferenceSelection.Automatic());
+
+    internal static CompatibilityPresentation From(
+        CompatibilityScreenModel model,
+        OptimizationPreferenceSelection preference)
     {
         ArgumentNullException.ThrowIfNull(model);
+        ArgumentNullException.ThrowIfNull(preference);
 
         return model.State switch
         {
             CompatibilityScreenState.EstimatedCompatible =>
                 WithSetup(EstimatedCompatible(model), model),
             CompatibilityScreenState.OptimisationRequired =>
-                WithSetup(OnlyJustFits(model), model),
+                OptimizationRequired(model, preference),
             CompatibilityScreenState.NoEstimatedSafeConfiguration =>
                 WithSetup(NothingFits(model), model),
             CompatibilityScreenState.Cancelled => Cancelled(),
@@ -207,6 +217,203 @@ internal static class CompatibilityPresentationFactory
         };
     }
 
+    private static CompatibilityPresentation OptimizationRequired(
+        CompatibilityScreenModel model,
+        OptimizationPreferenceSelection preference)
+    {
+        if (model.CurrentSetup is not { } current
+            || model.Optimization is not { } optimization)
+        {
+            return NotEstablished(model);
+        }
+
+        IReadOnlyList<CompatibilityOptimizationModePresentation> modes =
+        [
+            .. optimization.Modes.Select(DescribeMode)
+        ];
+        CompatibilityOptimizationLabelCode selectedCode = preference.Kind ==
+            OptimizationPreferenceKind.Automatic
+                ? CompatibilityOptimizationLabelCode.Automatic
+                : preference.Band switch
+                {
+                    OptimizationPreferenceBand.MaximumEfficiency =>
+                        CompatibilityOptimizationLabelCode.MaximumEfficiency,
+                    OptimizationPreferenceBand.Efficient =>
+                        CompatibilityOptimizationLabelCode.Efficient,
+                    OptimizationPreferenceBand.Balanced =>
+                        CompatibilityOptimizationLabelCode.Balanced,
+                    OptimizationPreferenceBand.HighCapability =>
+                        CompatibilityOptimizationLabelCode.HighCapability,
+                    OptimizationPreferenceBand.MaximumCapability =>
+                        CompatibilityOptimizationLabelCode.MaximumCapability,
+                    _ => throw new ArgumentOutOfRangeException(nameof(preference))
+                };
+        CompatibilityOptimizationModePresentation selected = modes.Single(mode =>
+            string.Equals(mode.Label, Label(selectedCode), StringComparison.Ordinal));
+
+        return CompatibilityPresentation.Empty with
+        {
+            PageTitle = Title,
+            PageLede = "Choose a smaller setup that fits this computer safely.",
+            Tone = CompatibilityOutcomeTone.Caution,
+            OutcomeTitle = "This model needs to be quantised to run on your computer",
+            OutcomeDetail = "Your current model needs more memory than this computer can safely spare. A smaller version can run here.",
+            OutcomeBadge = "OPTIMISATION REQUIRED",
+            DisclosureTitle = "How we worked this out",
+            DisclosureDetail = DisclosureText(model),
+            PrimaryActionText = "Choose optimisation",
+            PrimaryActionEnabled = model.ContinueEnabled,
+            SecondaryActionText = "Back",
+            SecondaryActionEnabled = true,
+            Optimization = new CompatibilityOptimizationPresentation(
+                "You can choose how you want to balance memory use and expected quality.",
+                modes,
+                selected,
+                preference.Kind == OptimizationPreferenceKind.Automatic,
+                preference.PreferenceValue ?? optimization.RecommendedSliderValue ?? 50,
+                Weight(current.Route, current.Weights),
+                "Not reported",
+                $"{current.ContextTokens:N0} tokens",
+                CompatibilityBudget.Describe(current.SystemSharedRequiredBytes),
+                CompatibilityBudget.Describe(current.SystemSharedSafeBudgetBytes),
+                CompatibilityBudget.Describe(current.SystemSharedHeadroomBytes),
+                DescribeOptional(current.DedicatedRequiredBytes),
+                DescribeOptional(current.DedicatedSafeBudgetBytes),
+                DescribeOptional(current.DedicatedHeadroomBytes),
+                model.ContinueEnabled,
+                preference)
+        };
+    }
+
+    private static CompatibilityOptimizationModePresentation DescribeMode(
+        CompatibilityOptimizationModeView mode)
+    {
+        string warning = mode.QualityNotice switch
+        {
+            OptimizationQualityNotice.SignificantQualityReduction =>
+                "Warning: this setting may cause a significant quality reduction.",
+            OptimizationQualityNotice.NoticeableQualityReduction =>
+                "This setting may cause a noticeable quality reduction.",
+            OptimizationQualityNotice.SomeQualityReduction =>
+                "This setting may cause some quality reduction.",
+            _ => string.Empty
+        };
+        bool strong = mode.QualityNotice ==
+            OptimizationQualityNotice.SignificantQualityReduction
+            || mode.GgufWeights == GgufWeightFormat.Q2K
+            || mode.GgufKvCache == GgufKvCacheFormat.TurboQuant3Bit
+            || mode.OpenVinoKvCache == OpenVinoKvCacheFormat.TurboQuantTbq3;
+        if (strong && string.IsNullOrEmpty(warning))
+        {
+            warning = "Warning: this setting may cause a significant quality reduction.";
+        }
+
+        if (mode.RequiresRequantisationAcknowledgement)
+        {
+            warning += (warning.Length == 0 ? string.Empty : " ")
+                + "Quantisation creates a new copy; your original model remains unchanged.";
+        }
+
+        return new CompatibilityOptimizationModePresentation(
+            Label(mode.LabelCode),
+            mode.SliderValue,
+            $"Expected quality: {Quality(mode.ExpectedQuality)}",
+            mode.Route == OptimizationRoute.Gguf
+                ? Weight(mode.GgufWeights!.Value)
+                : Weight(mode.OpenVinoWeights!.Value),
+            mode.Route == OptimizationRoute.Gguf
+                ? Cache(mode.GgufKvCache!.Value)
+                : Cache(mode.OpenVinoKvCache!.Value),
+            $"{mode.ContextTokens:N0} tokens",
+            CompatibilityBudget.Describe(mode.SystemSharedPredictedPeakBytes),
+            CompatibilityBudget.Describe(mode.SystemSharedSafeBudgetBytes),
+            CompatibilityBudget.Describe(mode.SystemSharedHeadroomBytes),
+            DescribeOptional(mode.DedicatedRequiredBytes),
+            DescribeOptional(mode.DedicatedSafeBudgetBytes),
+            DescribeOptional(mode.DedicatedHeadroomBytes),
+            mode.IsExperimental,
+            strong,
+            warning.Trim(),
+            mode.RequiresPersistentArtifact,
+            mode.RequiresRequantisationAcknowledgement);
+    }
+
+    private static string Label(CompatibilityOptimizationLabelCode code) => code switch
+    {
+        CompatibilityOptimizationLabelCode.Automatic =>
+            OptimizationPreferenceLabelPolicy.AutomaticLabel,
+        CompatibilityOptimizationLabelCode.MaximumEfficiency =>
+            OptimizationPreferenceLabelPolicy.GetLabel(
+                OptimizationPreferenceBand.MaximumEfficiency),
+        CompatibilityOptimizationLabelCode.Efficient =>
+            OptimizationPreferenceLabelPolicy.GetLabel(OptimizationPreferenceBand.Efficient),
+        CompatibilityOptimizationLabelCode.Balanced =>
+            OptimizationPreferenceLabelPolicy.GetLabel(OptimizationPreferenceBand.Balanced),
+        CompatibilityOptimizationLabelCode.HighCapability =>
+            OptimizationPreferenceLabelPolicy.GetLabel(OptimizationPreferenceBand.HighCapability),
+        CompatibilityOptimizationLabelCode.MaximumCapability =>
+            OptimizationPreferenceLabelPolicy.GetLabel(OptimizationPreferenceBand.MaximumCapability),
+        _ => throw new ArgumentOutOfRangeException(nameof(code))
+    };
+
+    private static string Quality(OptimizationAssessment quality) => quality switch
+    {
+        OptimizationAssessment.Poor => "Low",
+        OptimizationAssessment.Acceptable => "Acceptable",
+        OptimizationAssessment.Good => "Good",
+        OptimizationAssessment.Excellent => "Excellent",
+        _ => "Not established"
+    };
+
+    private static string Weight(GgufWeightFormat format) => format switch
+    {
+        GgufWeightFormat.Q6K => "Q6_K",
+        GgufWeightFormat.Q5KM => "Q5_K_M",
+        GgufWeightFormat.Q4KM => "Q4_K_M",
+        GgufWeightFormat.Q3KM => "Q3_K_M",
+        GgufWeightFormat.Q2K => "Q2_K",
+        _ => format.ToString().ToUpperInvariant()
+    };
+
+    private static string Weight(OpenVinoWeightFormat format) => format switch
+    {
+        OpenVinoWeightFormat.Fp16 => "FP16",
+        OpenVinoWeightFormat.Int8 => "INT8",
+        OpenVinoWeightFormat.Int4 => "INT4",
+        _ => "Original"
+    };
+
+    private static string Weight(WeightQuantisation format) => format.ToString();
+
+    private static string Weight(RuntimeRouteId route, WeightQuantisation format) =>
+        route == RuntimeRouteId.OpenVinoGenAi
+            ? format switch
+            {
+                WeightQuantisation.F16 => "FP16",
+                WeightQuantisation.Q8_0 => "INT8",
+                WeightQuantisation.Q4_K_M => "INT4",
+                _ => Weight(format)
+            }
+            : Weight(format);
+
+    private static string Cache(GgufKvCacheFormat format) => format switch
+    {
+        GgufKvCacheFormat.TurboQuant3Bit => "TurboQuant 3-bit",
+        _ => format.ToString()
+    };
+
+    private static string Cache(OpenVinoKvCacheFormat format) => format switch
+    {
+        OpenVinoKvCacheFormat.RouteDefault => "Runtime default",
+        OpenVinoKvCacheFormat.TurboQuantTbq4 => "TurboQuant TBQ4",
+        OpenVinoKvCacheFormat.TurboQuantTbq3 => "TurboQuant TBQ3",
+        _ => format.ToString().ToUpperInvariant()
+    };
+
+    private static string DescribeOptional(ulong? bytes) => bytes.HasValue
+        ? CompatibilityBudget.Describe(bytes.Value)
+        : "Not used";
+
     private static CompatibilityPresentation EstimatedCompatible(CompatibilityScreenModel model) =>
         CompatibilityPresentation.Empty with
         {
@@ -225,32 +432,6 @@ internal static class CompatibilityPresentationFactory
             SecondaryActionText = "Back",
             SecondaryActionEnabled = true,
             Recoveries = BaselineRecoveries(model)
-        };
-
-    private static CompatibilityPresentation OnlyJustFits(CompatibilityScreenModel model) =>
-        CompatibilityPresentation.Empty with
-        {
-            PageTitle = Title,
-            PageLede = "It fits, but only just.",
-            Tone = CompatibilityOutcomeTone.Caution,
-            OutcomeTitle = "This should run, but there's very little memory spare",
-            OutcomeDetail =
-                "Every setup that fits leaves almost nothing free. If you open other apps "
-                + "while it runs, it could run out of memory.",
-            OutcomeBadge = "ESTIMATE",
-            DisclosureTitle = "How we worked this out",
-            DisclosureDetail = DisclosureText(model),
-            Recoveries =
-            [
-                new CompatibilityRecovery(
-                    "Try a shorter context",
-                    "The longer the context, the more memory it needs while it runs."),
-                .. BaselineRecoveries(model)
-            ],
-            PrimaryActionText = "Continue",
-            PrimaryActionEnabled = model.ContinueEnabled,
-            SecondaryActionText = "Back",
-            SecondaryActionEnabled = true
         };
 
     private static CompatibilityPresentation NothingFits(CompatibilityScreenModel model) =>
