@@ -1,6 +1,7 @@
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.ViewModels;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.Presentation;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Candidates;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -187,6 +188,81 @@ public sealed class CompatibilityViewModelTests
         Assert.AreEqual(
             CompatibilitySecondaryActionKind.Retry,
             viewModel.Presentation.SecondaryActionKind);
+    }
+
+    [TestMethod]
+    public async Task ExperimentalConsent_ReevaluatesWithOnlyTheExactKnownEvidence()
+    {
+        const string evidenceId = "tbq-evidence-7";
+        List<string[]> observedConsent = [];
+        var viewModel = new CompatibilityViewModel((consent, _) =>
+        {
+            observedConsent.Add(consent.Order(StringComparer.Ordinal).ToArray());
+            return Task.FromResult(new CompatibilityEvaluation(
+                Screen(CompatibilityScreenState.EstimatedCompatible),
+                PlanningSession: null,
+                CurrentConfiguration: null)
+            {
+                ExperimentalConsentOptions =
+                [
+                    CompatibilityExperimentalConsentOption.Create(
+                        OptimizationRoute.Gguf,
+                        evidenceId)
+                ]
+            });
+        });
+
+        await viewModel.StartAsync();
+        bool wrongAccepted = await viewModel.SetExperimentalConsentAsync(
+            "other-evidence",
+            granted: true);
+        bool exactAccepted = await viewModel.SetExperimentalConsentAsync(
+            evidenceId,
+            granted: true);
+        bool revoked = await viewModel.SetExperimentalConsentAsync(
+            evidenceId,
+            granted: false);
+
+        Assert.IsFalse(wrongAccepted);
+        Assert.IsTrue(exactAccepted);
+        Assert.IsTrue(revoked);
+        Assert.AreEqual(3, observedConsent.Count);
+        CollectionAssert.AreEqual(Array.Empty<string>(), observedConsent[0]);
+        CollectionAssert.AreEqual(new[] { evidenceId }, observedConsent[1]);
+        CollectionAssert.AreEqual(Array.Empty<string>(), observedConsent[2]);
+        Assert.IsFalse(viewModel.IsExperimentalConsentGranted);
+    }
+
+    [TestMethod]
+    public async Task RetiringPageClearsExperimentalConsentForTheNextRun()
+    {
+        const string evidenceId = "tbq-evidence-7";
+        List<string[]> observedConsent = [];
+        var viewModel = new CompatibilityViewModel((consent, _) =>
+        {
+            observedConsent.Add(consent.ToArray());
+            return Task.FromResult(new CompatibilityEvaluation(
+                Screen(CompatibilityScreenState.EstimatedCompatible),
+                PlanningSession: null,
+                CurrentConfiguration: null)
+            {
+                ExperimentalConsentOptions =
+                [
+                    CompatibilityExperimentalConsentOption.Create(
+                        OptimizationRoute.Gguf,
+                        evidenceId)
+                ]
+            });
+        });
+
+        await viewModel.StartAsync();
+        await viewModel.SetExperimentalConsentAsync(evidenceId, granted: true);
+        viewModel.RetireAttempt();
+        await viewModel.StartAsync();
+
+        CollectionAssert.AreEqual(
+            Array.Empty<string>(),
+            observedConsent[^1]);
     }
 
     private static CompatibilityScreenModel Screen(CompatibilityScreenState state) =>

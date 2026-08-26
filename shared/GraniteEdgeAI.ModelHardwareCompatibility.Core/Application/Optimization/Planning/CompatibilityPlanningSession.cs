@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Collections.Frozen;
 
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Execution;
 
@@ -16,6 +17,7 @@ public sealed class CompatibilityPlanningSession
     private readonly OptimizationWorkload workload;
     private readonly OptimizationJourneyBinding binding;
     private readonly int modelLayerCount;
+    private readonly FrozenSet<string> optedInExperimentalEvidenceIds;
 
     private CompatibilityPlanningSession(
         OptimizationRoute route,
@@ -23,7 +25,8 @@ public sealed class CompatibilityPlanningSession
         OptimizationCapabilitySnapshot capabilitySnapshot,
         OptimizationWorkload workload,
         OptimizationJourneyBinding binding,
-        int modelLayerCount)
+        int modelLayerCount,
+        IReadOnlySet<string> optedInExperimentalEvidenceIds)
     {
         Route = route;
         this.frontier = Array.AsReadOnly([.. frontier]);
@@ -31,9 +34,27 @@ public sealed class CompatibilityPlanningSession
         this.workload = workload;
         this.binding = binding;
         this.modelLayerCount = modelLayerCount;
+        this.optedInExperimentalEvidenceIds =
+            optedInExperimentalEvidenceIds.ToFrozenSet(StringComparer.Ordinal);
     }
 
     public OptimizationRoute Route { get; }
+
+    /// <summary>
+    /// Returns the exact evidence identity required by the selected preference,
+    /// or null when the resolved candidate is fully released. No provider text
+    /// or candidate object crosses this boundary.
+    /// </summary>
+    public string? RequiredExperimentalEvidenceId(
+        OptimizationPreferenceSelection preference)
+    {
+        ArgumentNullException.ThrowIfNull(preference);
+        OptimizationSelection selection =
+            OptimizationPreferenceResolver.Resolve(frontier, preference)
+            ?? throw new InvalidOperationException(
+                "The retained frontier no longer contains an admitted selection.");
+        return selection.Candidate.AdmissionProof?.OptedInEvidenceId;
+    }
 
     internal static CompatibilityPlanningSession? Create(
         OptimizationRoute route,
@@ -41,32 +62,43 @@ public sealed class CompatibilityPlanningSession
         OptimizationCapabilitySnapshot capabilitySnapshot,
         OptimizationWorkload workload,
         OptimizationJourneyBinding binding,
-        int modelLayerCount)
+        int modelLayerCount,
+        IReadOnlySet<string> optedInExperimentalEvidenceIds)
     {
         ArgumentNullException.ThrowIfNull(candidates);
         ArgumentNullException.ThrowIfNull(capabilitySnapshot);
         ArgumentNullException.ThrowIfNull(workload);
         ArgumentNullException.ThrowIfNull(binding);
+        ArgumentNullException.ThrowIfNull(optedInExperimentalEvidenceIds);
 
         if (!Enum.IsDefined(route)
             || capabilitySnapshot.Route != route
             || modelLayerCount < 1
-            || candidates.Count == 0
-            || candidates.Any(candidate =>
-                candidate.Route != route
-                || candidate.AdmissionProof is null
-                || !candidate.AdmissionProof.MatchesCandidate(candidate)
-                || !candidate.AdmissionProof.MatchesAuthority(
-                    capabilitySnapshot, workload, binding)
-                || !candidate.Metrics.FitsSafely
-                || !candidate.Metrics.FitsDiskSafely))
+            || candidates.Count == 0)
         {
             return null;
         }
 
+        foreach (OptimizationCandidate candidate in candidates)
+        {
+            OptimizationAdmissionProof? proof = candidate.AdmissionProof;
+            if (candidate.Route != route
+                || proof is null
+                || !proof.MatchesCandidate(candidate)
+                || !proof.MatchesAuthority(
+                    capabilitySnapshot, workload, binding)
+                || proof.OptedInEvidenceId is { } evidenceId
+                    && !optedInExperimentalEvidenceIds.Contains(evidenceId)
+                || !candidate.Metrics.FitsSafely
+                || !candidate.Metrics.FitsDiskSafely)
+            {
+                return null;
+            }
+        }
+
         return new CompatibilityPlanningSession(
             route, candidates, capabilitySnapshot, workload, binding,
-            modelLayerCount);
+            modelLayerCount, optedInExperimentalEvidenceIds);
     }
 
     public OptimizationExecutionPlan Issue(
@@ -91,6 +123,12 @@ public sealed class CompatibilityPlanningSession
             OptimizationPreferenceResolver.Resolve(frontier, preference)
             ?? throw new InvalidOperationException(
                 "The retained frontier no longer contains an admitted selection.");
+        if (selection.Candidate.AdmissionProof?.OptedInEvidenceId is { } evidenceId
+            && !optedInExperimentalEvidenceIds.Contains(evidenceId))
+        {
+            throw new InvalidOperationException(
+                "The selected experimental evidence is not admitted by this planning session.");
+        }
         OptimizationExecutionPayload payload = composer.Compose(selection.Candidate)
             ?? throw new InvalidOperationException(
                 "The route composer returned no execution payload.");

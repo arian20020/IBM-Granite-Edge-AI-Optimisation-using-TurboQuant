@@ -487,6 +487,43 @@ public sealed record CompatibilityScreenModel
         };
     }
 
+    internal static IReadOnlyList<CompatibilityExperimentalConsentOption>
+        RetainExperimentalConsentOptions(
+            CompatibilityOptimizationProjectionInput input)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        if (!ValidGeneratedAuthority(input))
+        {
+            return [];
+        }
+
+        SortedSet<string> evidenceIds = new(StringComparer.Ordinal);
+        foreach (OptimizationCandidate candidate in input.Generated.Candidates)
+        {
+            if (candidate.AdmissionProof?.OptedInEvidenceId is { } evidenceId)
+            {
+                evidenceIds.Add(evidenceId);
+            }
+        }
+        foreach (OptimizationExclusion exclusion in input.Generated.Exclusions)
+        {
+            if (exclusion.Reason
+                == OptimizationExclusionReason.ExperimentalNotAdmitted)
+            {
+                evidenceIds.Add(exclusion.EvidenceId);
+            }
+        }
+
+        List<CompatibilityExperimentalConsentOption> options = [];
+        foreach (string evidenceId in evidenceIds)
+        {
+            options.Add(new CompatibilityExperimentalConsentOption(
+                input.Snapshot.Route,
+                evidenceId));
+        }
+        return Array.AsReadOnly([.. options]);
+    }
+
     private sealed record ProjectionDecision(
         CompatibilityScreenState State,
         CompatibilityOptimizationView? Optimization,

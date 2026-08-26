@@ -853,6 +853,32 @@ public sealed class CompatibilityProductionInputTests
     }
 
     [TestMethod]
+    public void ProductionInput_ConsentReissuePreservesAuthorityAndCopiesExactIds()
+    {
+        CompatibilityProductionInput original = ValidOpenVinoInput(
+            new DateTimeOffset(2026, 8, 26, 12, 0, 0, TimeSpan.Zero));
+        HashSet<string> consent = new(StringComparer.Ordinal)
+        {
+            "ov-experimental"
+        };
+
+        CompatibilityProductionInput revised =
+            original.WithOptedInExperimentalEvidenceIds(consent);
+        consent.Clear();
+
+        Assert.AreSame(original.CurrentModel, revised.CurrentModel);
+        Assert.AreSame(original.Hardware, revised.Hardware);
+        Assert.AreSame(original.FreshResources, revised.FreshResources);
+        Assert.AreSame(original.JourneyAuthority, revised.JourneyAuthority);
+        Assert.AreSame(
+            original.Optimization!.Snapshot,
+            revised.Optimization!.Snapshot);
+        CollectionAssert.AreEqual(
+            new[] { "ov-experimental" },
+            revised.Optimization.OptedInExperimentalEvidenceIds.ToArray());
+    }
+
+    [TestMethod]
     public void FreshResources_RequireUtcObservation()
     {
         Assert.ThrowsExactly<ArgumentException>(() =>

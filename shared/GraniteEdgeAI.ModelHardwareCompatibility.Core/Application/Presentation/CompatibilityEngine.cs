@@ -366,13 +366,20 @@ public static class CompatibilityEngine
                 optimization.Snapshot,
                 optimization.Workload,
                 optimization.Binding,
-                layers)
+                layers,
+                optimization.OptedInExperimentalEvidenceIds)
             : null;
+
+        IReadOnlyList<CompatibilityExperimentalConsentOption> consentOptions =
+            CompatibilityScreenModel.RetainExperimentalConsentOptions(projection);
 
         return new CompatibilityEvaluation(
             screen,
             planningSession,
-            CurrentConfiguration: null);
+            CurrentConfiguration: null)
+        {
+            ExperimentalConsentOptions = consentOptions
+        };
     }
 
     private static CompatibilityEvaluation WithoutPlanning(

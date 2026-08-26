@@ -228,6 +228,7 @@ internal sealed partial class CompatibilityPage : Page
         {
             OptimizationModeRows.Children.Clear();
             OptimizationWarningCard.Visibility = Visibility.Collapsed;
+            ExperimentalConsentCard.Visibility = Visibility.Collapsed;
             AutomationProperties.SetName(
                 OptimizationSlider,
                 "Optimisation preference unavailable");
@@ -291,11 +292,31 @@ internal sealed partial class CompatibilityPage : Page
                 string.IsNullOrWhiteSpace(selected.WarningText)
                     ? Visibility.Collapsed
                     : Visibility.Visible;
+            ApplyExperimentalConsent(selected.IsExperimental);
         }
         finally
         {
             _applyingOptimization = false;
         }
+    }
+
+    private void ApplyExperimentalConsent(bool selectedModeIsExperimental)
+    {
+        string? evidenceId = ViewModel.AvailableExperimentalConsentEvidenceId;
+        bool available = evidenceId is not null;
+        bool granted = available && ViewModel.IsExperimentalConsentGranted;
+
+        ExperimentalConsentCard.Visibility = available
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        ExperimentalConsentCheckBox.IsChecked = granted;
+        ExperimentalFinalConfirmationCard.Visibility =
+            selectedModeIsExperimental && granted
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+        ExperimentalFinalConfirmationCheckBox.IsChecked =
+            selectedModeIsExperimental
+            && ViewModel.CanConfirmExperimentalPlan;
     }
 
     private static string DedicatedMemory(
@@ -718,6 +739,40 @@ internal sealed partial class CompatibilityPage : Page
         if (!_applyingOptimization && OptimizationSlider.IsEnabled)
         {
             ViewModel.SelectManualPreference((int)Math.Round(e.NewValue));
+        }
+    }
+
+    private async void ExperimentalConsentCheckBox_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        if (_applyingOptimization
+            || ViewModel.AvailableExperimentalConsentEvidenceId is not { } evidenceId)
+        {
+            return;
+        }
+
+        bool granted = ExperimentalConsentCheckBox.IsChecked == true;
+        bool accepted = await ViewModel.SetExperimentalConsentAsync(
+            evidenceId,
+            granted);
+        if (!accepted)
+        {
+            _applyingOptimization = true;
+            ExperimentalConsentCheckBox.IsChecked =
+                ViewModel.IsExperimentalConsentGranted;
+            _applyingOptimization = false;
+        }
+    }
+
+    private void ExperimentalFinalConfirmationCheckBox_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        if (!_applyingOptimization)
+        {
+            ViewModel.SetExperimentalFinalConfirmation(
+                ExperimentalFinalConfirmationCheckBox.IsChecked == true);
         }
     }
 

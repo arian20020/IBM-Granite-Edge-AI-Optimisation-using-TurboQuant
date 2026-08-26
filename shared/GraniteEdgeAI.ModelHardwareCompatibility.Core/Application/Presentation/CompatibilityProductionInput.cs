@@ -535,6 +535,34 @@ public sealed record CompatibilityProductionInput
     public CompatibilityOptimizationProductionInput? Optimization { get; }
 
     /// <summary>
+    /// Reissues the immutable production input with a newly snapshotted set of
+    /// exact experimental evidence identifiers. All model, Hardware, journey,
+    /// capability and workload authority remains unchanged and is revalidated.
+    /// </summary>
+    public CompatibilityProductionInput WithOptedInExperimentalEvidenceIds(
+        IReadOnlySet<string> optedInExperimentalEvidenceIds)
+    {
+        ArgumentNullException.ThrowIfNull(optedInExperimentalEvidenceIds);
+        CompatibilityOptimizationProductionInput optimization = Optimization
+            ?? throw new InvalidOperationException(
+                "Experimental consent requires sealed optimization authority.");
+        CompatibilityOptimizationProductionInput revised =
+            CompatibilityOptimizationProductionInput.Create(
+                optimization.Snapshot,
+                optimization.Workload,
+                optimization.Binding,
+                optedInExperimentalEvidenceIds);
+        return CreateValidated(
+            ModelInspectionRunId,
+            ProductHardwareRunId,
+            CurrentModel,
+            JourneyAuthority,
+            Hardware,
+            FreshResources,
+            revised);
+    }
+
+    /// <summary>
     /// Legacy compatibility factory. It carries no optimization authority and
     /// the engine therefore cannot return an optimization recommendation.
     /// New production integrations must use the sealed-authority overload.

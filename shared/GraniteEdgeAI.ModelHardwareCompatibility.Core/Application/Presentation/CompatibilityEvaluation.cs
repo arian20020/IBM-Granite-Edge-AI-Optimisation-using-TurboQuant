@@ -11,7 +11,41 @@ namespace GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation
 public sealed record CompatibilityEvaluation(
     CompatibilityScreenModel Screen,
     CompatibilityPlanningSession? PlanningSession,
-    CurrentCompatibleConfiguration? CurrentConfiguration);
+    CurrentCompatibleConfiguration? CurrentConfiguration)
+{
+    /// <summary>
+    /// Exact, path-free capability evidence that may be enabled by explicit
+    /// user consent. Provider text is deliberately absent.
+    /// </summary>
+    public IReadOnlyList<CompatibilityExperimentalConsentOption>
+        ExperimentalConsentOptions { get; init; } = [];
+}
+
+public sealed record CompatibilityExperimentalConsentOption
+{
+    internal CompatibilityExperimentalConsentOption(
+        OptimizationRoute route,
+        string evidenceId)
+    {
+        if (!Enum.IsDefined(route))
+        {
+            throw new ArgumentOutOfRangeException(nameof(route));
+        }
+        OptimizationIdentifier.Require(
+            evidenceId,
+            nameof(evidenceId),
+            "The experimental consent evidence");
+        Route = route;
+        EvidenceId = evidenceId;
+    }
+
+    public OptimizationRoute Route { get; }
+    public string EvidenceId { get; }
+
+    public static CompatibilityExperimentalConsentOption Create(
+        OptimizationRoute route,
+        string evidenceId) => new(route, evidenceId);
+}
 
 /// <summary>
 /// Exact path-free runtime configuration behind a current-model fit decision.

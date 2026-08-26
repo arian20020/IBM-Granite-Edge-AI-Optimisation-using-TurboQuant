@@ -726,6 +726,48 @@
                                 FontWeight="SemiBold"
                                 TextWrapping="Wrap" />
                         </Border>
+
+                        <Border
+                            x:Name="ExperimentalConsentCard"
+                            Background="{ThemeResource CompatibilityBlueSurfaceBrush}"
+                            BorderBrush="{ThemeResource CompatibilityBlueBorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="{StaticResource CompatibilityFactRadius}"
+                            Padding="16"
+                            Visibility="Collapsed">
+                            <StackPanel Spacing="10">
+                                <StackPanel Spacing="4">
+                                    <TextBlock
+                                        FontWeight="SemiBold"
+                                        Foreground="{ThemeResource CompatibilityTextPrimaryBrush}"
+                                        Text="Experimental TurboQuant options" />
+                                    <TextBlock
+                                        Foreground="{ThemeResource CompatibilityTextMutedBrush}"
+                                        Text="You can include a device-verified experimental format. It may improve memory efficiency, but its quality or stability may be less predictable."
+                                        TextWrapping="Wrap" />
+                                </StackPanel>
+                                <CheckBox
+                                    x:Name="ExperimentalConsentCheckBox"
+                                    AutomationProperties.Name="Include experimental TurboQuant options"
+                                    Content="Include the verified experimental option for this device"
+                                    Click="ExperimentalConsentCheckBox_Click" />
+                                <Border
+                                    x:Name="ExperimentalFinalConfirmationCard"
+                                    Background="{ThemeResource CompatibilityWarningSurfaceBrush}"
+                                    BorderBrush="{ThemeResource CompatibilityWarningBorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="{StaticResource CompatibilityFactRadius}"
+                                    Padding="12"
+                                    Visibility="Collapsed">
+                                    <CheckBox
+                                        x:Name="ExperimentalFinalConfirmationCheckBox"
+                                        AutomationProperties.Name="Confirm selected experimental optimisation"
+                                        Content="I understand that this selected option is experimental and may reduce quality or stability."
+                                        Foreground="{ThemeResource CompatibilityWarningTextBrush}"
+                                        Click="ExperimentalFinalConfirmationCheckBox_Click" />
+                                </Border>
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
                 </Border>
 

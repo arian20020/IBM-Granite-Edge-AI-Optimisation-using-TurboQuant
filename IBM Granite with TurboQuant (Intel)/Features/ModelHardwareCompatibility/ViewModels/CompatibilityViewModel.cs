@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.Infrastructure;
@@ -44,7 +46,8 @@ internal sealed record CompatibilityAuxiliaryStatus(
 internal sealed class CompatibilityViewModel
 {
     private readonly SynchronizationContext? _uiContext;
-    private readonly Func<CancellationToken, Task<CompatibilityScreenModel>> _evaluator;
+    private readonly Func<IReadOnlySet<string>, CancellationToken,
+        Task<CompatibilityEvaluation>> _evaluator;
     private readonly bool _continueDestinationAvailable;
     private readonly ICompatibilityMemoryRecovery _memoryRecovery;
     private readonly object _attemptGate = new();
@@ -56,6 +59,10 @@ internal sealed class CompatibilityViewModel
     private long _recoveryOwner;
     private long _taskManagerOwner;
     private CompatibilityScreenModel? _lastModel;
+    private CompatibilityEvaluation? _lastEvaluation;
+    private readonly HashSet<string> _experimentalConsentEvidenceIds =
+        new(StringComparer.Ordinal);
+    private bool _experimentalFinalConfirmation;
 
     internal CompatibilityViewModel()
         : this(static token => Task.Run(
@@ -67,6 +74,22 @@ internal sealed class CompatibilityViewModel
 
     internal CompatibilityViewModel(
         Func<CancellationToken, Task<CompatibilityScreenModel>> evaluator,
+        bool continueDestinationAvailable = true,
+        ICompatibilityMemoryRecovery? memoryRecovery = null)
+        : this(
+            async (_, token) => new CompatibilityEvaluation(
+                await evaluator(token).ConfigureAwait(false),
+                PlanningSession: null,
+                CurrentConfiguration: null),
+            continueDestinationAvailable,
+            memoryRecovery)
+    {
+        ArgumentNullException.ThrowIfNull(evaluator);
+    }
+
+    internal CompatibilityViewModel(
+        Func<IReadOnlySet<string>, CancellationToken,
+            Task<CompatibilityEvaluation>> evaluator,
         bool continueDestinationAvailable = true,
         ICompatibilityMemoryRecovery? memoryRecovery = null)
     {
@@ -133,11 +156,108 @@ internal sealed class CompatibilityViewModel
 
     internal OptimizationPreferenceSelection? SelectedPreference { get; private set; }
 
+    internal string? AvailableExperimentalConsentEvidenceId
+    {
+        get
+        {
+            string[] options = (_lastEvaluation?.ExperimentalConsentOptions
+                    .Select(option => option.EvidenceId)
+                    ?? [])
+                .Concat(_experimentalConsentEvidenceIds)
+                .Distinct(StringComparer.Ordinal)
+                .ToArray();
+            return options.Length == 1 ? options[0] : null;
+        }
+    }
+
+    internal bool IsExperimentalConsentGranted =>
+        AvailableExperimentalConsentEvidenceId is { } evidenceId
+        && _experimentalConsentEvidenceIds.Contains(evidenceId);
+
+    internal bool RequiresExperimentalConfirmation =>
+        SelectedExperimentalEvidenceId() is not null;
+
+    internal bool CanConfirmExperimentalPlan
+    {
+        get
+        {
+            if (_lastEvaluation?.PlanningSession is null
+                || SelectedPreference is null)
+            {
+                return false;
+            }
+            string? evidenceId = SelectedExperimentalEvidenceId();
+            return evidenceId is null
+                || _experimentalConsentEvidenceIds.Contains(evidenceId)
+                    && _experimentalFinalConfirmation;
+        }
+    }
+
     /// <summary>
     /// Starts one attempt. Safe to call again: the previous attempt is cancelled
     /// and its result, if it arrives late, is discarded.
     /// </summary>
-    internal Task StartAsync() => RunAttemptAsync(preparation: null);
+    internal Task StartAsync()
+    {
+        ClearExperimentalConsent();
+        return RunAttemptAsync(preparation: null);
+    }
+
+    internal Task<bool> SetExperimentalConsentAsync(
+        string evidenceId,
+        bool granted)
+    {
+        if (string.IsNullOrWhiteSpace(evidenceId))
+        {
+            return Task.FromResult(false);
+        }
+
+        bool changed;
+        lock (_attemptGate)
+        {
+            bool known = _experimentalConsentEvidenceIds.Contains(evidenceId)
+                || _lastEvaluation?.ExperimentalConsentOptions.Any(option =>
+                    string.Equals(
+                        option.EvidenceId,
+                        evidenceId,
+                        StringComparison.Ordinal)) == true;
+            if (!known)
+            {
+                return Task.FromResult(false);
+            }
+
+            changed = granted
+                ? _experimentalConsentEvidenceIds.Add(evidenceId)
+                : _experimentalConsentEvidenceIds.Remove(evidenceId);
+            _experimentalFinalConfirmation = false;
+        }
+
+        return changed
+            ? ReevaluateExperimentalConsentAsync()
+            : Task.FromResult(true);
+    }
+
+    internal void SetExperimentalFinalConfirmation(bool confirmed)
+    {
+        string? evidenceId = SelectedExperimentalEvidenceId();
+        _experimentalFinalConfirmation = confirmed
+            && evidenceId is not null
+            && _experimentalConsentEvidenceIds.Contains(evidenceId);
+        PresentationChanged?.Invoke(this, Presentation);
+    }
+
+    private async Task<bool> ReevaluateExperimentalConsentAsync()
+    {
+        try
+        {
+            await RunAttemptAsync(preparation: null).ConfigureAwait(true);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
 
     /// <summary>
     /// Releases only registered application-owned caches and then reruns the
@@ -150,6 +270,8 @@ internal sealed class CompatibilityViewModel
         {
             return Task.CompletedTask;
         }
+
+        ClearExperimentalConsent();
 
         long owner;
         lock (_attemptGate)
@@ -287,8 +409,18 @@ internal sealed class CompatibilityViewModel
 
             // The engine is synchronous and pure. It runs off the UI thread so a
             // slow adapter cannot freeze the page once adapters exist.
-            CompatibilityScreenModel model = await _evaluator(token)
+            IReadOnlySet<string> consentSnapshot;
+            lock (_attemptGate)
+            {
+                consentSnapshot = new HashSet<string>(
+                    _experimentalConsentEvidenceIds,
+                    StringComparer.Ordinal);
+            }
+            CompatibilityEvaluation evaluation = await _evaluator(
+                    consentSnapshot,
+                    token)
                 .ConfigureAwait(true);
+            CompatibilityScreenModel model = evaluation.Screen;
 
             OptimizationPreferenceSelection? preference =
                 model.State == CompatibilityScreenState.OptimisationRequired
@@ -303,7 +435,9 @@ internal sealed class CompatibilityViewModel
                 () =>
                 {
                     _lastModel = model;
+                    _lastEvaluation = evaluation;
                     SelectedPreference = preference;
+                    _experimentalFinalConfirmation = false;
                 });
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
@@ -314,7 +448,9 @@ internal sealed class CompatibilityViewModel
                 () =>
                 {
                     _lastModel = null;
+                    _lastEvaluation = null;
                     SelectedPreference = null;
+                    _experimentalFinalConfirmation = false;
                 });
         }
         catch
@@ -325,7 +461,9 @@ internal sealed class CompatibilityViewModel
                 () =>
                 {
                     _lastModel = null;
+                    _lastEvaluation = null;
                     SelectedPreference = null;
+                    _experimentalFinalConfirmation = false;
                 });
             throw;
         }
@@ -362,7 +500,9 @@ internal sealed class CompatibilityViewModel
             () =>
             {
                 _lastModel = null;
+                _lastEvaluation = null;
                 SelectedPreference = null;
+                ClearExperimentalConsent();
             });
     }
 
@@ -375,7 +515,9 @@ internal sealed class CompatibilityViewModel
             () =>
             {
                 _lastModel = null;
+                _lastEvaluation = null;
                 SelectedPreference = null;
+                ClearExperimentalConsent();
             });
     }
 
@@ -400,6 +542,7 @@ internal sealed class CompatibilityViewModel
         auxiliary?.Cancel();
         PublishAuxiliaryStatus(CompatibilityAuxiliaryStatus.None);
         RaiseRecoveryCanExecuteChanged();
+        ClearExperimentalConsent();
         return generation;
     }
 
@@ -495,7 +638,36 @@ internal sealed class CompatibilityViewModel
     private void ClearCompatibilitySnapshot()
     {
         _lastModel = null;
+        _lastEvaluation = null;
         SelectedPreference = null;
+        _experimentalFinalConfirmation = false;
+    }
+
+    private void ClearExperimentalConsent()
+    {
+        lock (_attemptGate)
+        {
+            _experimentalConsentEvidenceIds.Clear();
+            _experimentalFinalConfirmation = false;
+        }
+    }
+
+    private string? SelectedExperimentalEvidenceId()
+    {
+        if (_lastEvaluation?.PlanningSession is not { } session
+            || SelectedPreference is not { } preference)
+        {
+            return null;
+        }
+
+        try
+        {
+            return session.RequiredExperimentalEvidenceId(preference);
+        }
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
     }
 
     internal void SelectAutomaticPreference()
@@ -512,7 +684,11 @@ internal sealed class CompatibilityViewModel
         Publish(
             CompatibilityPresentationFactory.From(model, preference),
             generation,
-            () => SelectedPreference = preference);
+            () =>
+            {
+                SelectedPreference = preference;
+                _experimentalFinalConfirmation = false;
+            });
     }
 
     internal void SelectManualPreference(int value)
@@ -539,12 +715,18 @@ internal sealed class CompatibilityViewModel
             // Preserve the exact user value for the future handoff, but a tick
             // inside the same effective band changes no rendered state.
             SelectedPreference = preference;
+            _experimentalFinalConfirmation = false;
+            PresentationChanged?.Invoke(this, Presentation);
             return;
         }
         Publish(
             next,
             generation,
-            () => SelectedPreference = preference);
+            () =>
+            {
+                SelectedPreference = preference;
+                _experimentalFinalConfirmation = false;
+            });
     }
 
     private void Publish(

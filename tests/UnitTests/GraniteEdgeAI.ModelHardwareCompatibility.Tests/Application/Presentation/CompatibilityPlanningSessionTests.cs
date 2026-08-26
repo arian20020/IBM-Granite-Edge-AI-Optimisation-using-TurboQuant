@@ -66,6 +66,41 @@ public sealed class CompatibilityPlanningSessionTests
     }
 
     [TestMethod]
+    public void Create_RejectsExperimentalCandidateWithoutItsExactConsent()
+    {
+        Fixture fixture = CreateFixture(experimental: true);
+
+        CompatibilityPlanningSession? missing = CreateSession(
+            fixture, new HashSet<string>());
+        CompatibilityPlanningSession? wrong = CreateSession(
+            fixture, new HashSet<string>(StringComparer.Ordinal) { "other-evidence" });
+        CompatibilityPlanningSession? exact = CreateSession(
+            fixture,
+            new HashSet<string>(StringComparer.Ordinal)
+            {
+                fixture.Candidate.EvidenceId
+            });
+
+        Assert.IsNull(missing);
+        Assert.IsNull(wrong);
+        Assert.IsNotNull(exact);
+        Assert.AreEqual(
+            fixture.Candidate.EvidenceId,
+            exact.RequiredExperimentalEvidenceId(
+                OptimizationPreferenceSelection.Automatic()));
+    }
+
+    [TestMethod]
+    public void ReleasedSelectionRequiresNoExperimentalConfirmation()
+    {
+        Fixture fixture = CreateFixture();
+        CompatibilityPlanningSession session = CreateSession(fixture);
+
+        Assert.IsNull(session.RequiredExperimentalEvidenceId(
+            OptimizationPreferenceSelection.Automatic()));
+    }
+
+    [TestMethod]
     public void PublicPlanningSurfaceContainsNoPathLikeMember()
     {
         Type[] types =
@@ -73,6 +108,7 @@ public sealed class CompatibilityPlanningSessionTests
             typeof(CompatibilityPlanningSession),
             typeof(IOptimizationExecutionPayloadComposer),
             typeof(CompatibilityEvaluation),
+            typeof(CompatibilityExperimentalConsentOption),
             typeof(CurrentCompatibleConfiguration)
         ];
         string[] forbidden = ["Path", "File", "Folder", "Directory", "Uri"];
@@ -95,15 +131,28 @@ public sealed class CompatibilityPlanningSessionTests
     }
 
     private static CompatibilityPlanningSession CreateSession(Fixture fixture) =>
+        CreateSession(
+            fixture,
+            fixture.Candidate.IsExperimental
+                ? new HashSet<string>(StringComparer.Ordinal)
+                {
+                    fixture.Candidate.EvidenceId
+                }
+                : new HashSet<string>(StringComparer.Ordinal))!;
+
+    private static CompatibilityPlanningSession? CreateSession(
+        Fixture fixture,
+        IReadOnlySet<string> optedInExperimentalEvidenceIds) =>
         CompatibilityPlanningSession.Create(
             OptimizationRoute.OpenVino,
             [fixture.Candidate],
             fixture.Snapshot,
             fixture.Workload,
             fixture.Binding,
-            modelLayerCount: 32)!;
+            modelLayerCount: 32,
+            optedInExperimentalEvidenceIds);
 
-    private static Fixture CreateFixture()
+    private static Fixture CreateFixture(bool experimental = false)
     {
         OpenVinoRouteConfiguration configuration = OpenVinoRouteConfiguration.Create(
             OpenVinoWeightFormat.Original,
@@ -128,7 +177,7 @@ public sealed class CompatibilityPlanningSessionTests
                 requiresPersistentChange: false,
                 availableDiskBytes: 500 * GiB),
             "ov-current",
-            isExperimental: false);
+            isExperimental: experimental);
         OpenVinoBuildIdentity build = OpenVinoBuildIdentity.Create(
             "2026.1.0", "2026.1.0", "2026.1.0", Digest);
         IReadOnlyDictionary<string, string> versions =
@@ -152,8 +201,10 @@ public sealed class CompatibilityPlanningSessionTests
                         1,
                         512,
                         8192,
-                        SupportLevel.DeclaredSupported,
-                        requiresEvidence: false)],
+                        experimental
+                            ? SupportLevel.Experimental
+                            : SupportLevel.DeclaredSupported,
+                        requiresEvidence: experimental)],
                     [OpenVinoExecutionAuthority.Create(
                         candidate.EvidenceId,
                         "ov-current-config",
@@ -168,7 +219,8 @@ public sealed class CompatibilityPlanningSessionTests
             "model-run", "handoff", Digest, 3 * GiB, "hardware-run", Digest);
         OptimizationCandidate admitted = OptimizationAdmissionTestFactory.Admit(
             candidate, snapshot, workload, binding,
-            SupportLevel.DeclaredSupported);
+            experimental ? SupportLevel.Experimental : SupportLevel.DeclaredSupported,
+            requiresEvidence: experimental);
         return new Fixture(admitted, snapshot, workload, binding);
     }
 

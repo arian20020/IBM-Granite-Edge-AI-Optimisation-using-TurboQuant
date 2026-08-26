@@ -304,6 +304,13 @@ public sealed class PrivacyCanaryTests
         // exposes only the copied set of strict evidence identifiers.
         "CompatibilityOptimizationProductionInput.OptedInExperimentalEvidenceIds",
         "CompatibilityOptimizationProjectionInput.OptedInExperimentalEvidenceIds",
+        // These two exact-ID members carry only values validated by
+        // OptimizationIdentifier. They exist so consent can be rebound to one
+        // capability record without exposing provider text, model names,
+        // filenames, paths, or diagnostics.
+        "CompatibilityExperimentalConsentOption.EvidenceId",
+        "CompatibilityPlanningSession.optedInExperimentalEvidenceIds",
+        "CompatibilityPlanningSession.RequiredExperimentalEvidenceId",
         "GenerationAuthority.AuthoritySha256",
         "OptimizationAdmissionProof.HardwareAuthoritySha256",
         "OptimizationIssuanceAuthority.AuthoritySha256",
