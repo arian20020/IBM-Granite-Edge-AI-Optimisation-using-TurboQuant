@@ -184,6 +184,12 @@ public sealed class PrivacyCanaryTests
         "OptimizationJourneyBinding.ModelSha256",
         "OptimizationJourneyBinding.ProductHardwareRunId",
 
+        // The retained current-configuration surface carries one canonical
+        // SHA-256 and one bounded OptimizationIdentifier. Neither can contain a
+        // path, filename, provider text, or native diagnostic.
+        "CurrentCompatibleConfiguration.RuntimeConfigurationSha256",
+        "CurrentCompatibleConfiguration.CompatibilityDecisionId",
+
         // Keyed by the same admitted support-entry id already allowed above
         // (CompatibilitySupportEntry.EntryId); this member only looks that id
         // up against an observed installation state and introduces no new

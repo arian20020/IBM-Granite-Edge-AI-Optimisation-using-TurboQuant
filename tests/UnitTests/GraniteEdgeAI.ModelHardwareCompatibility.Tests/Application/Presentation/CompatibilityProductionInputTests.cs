@@ -26,6 +26,24 @@ public sealed class CompatibilityProductionInputTests
     }
 
     [TestMethod]
+    public void CurrentFitEvaluation_RetainsOptionalPlanningAuthority()
+    {
+        DateTimeOffset now = new(2026, 8, 26, 12, 0, 0, TimeSpan.Zero);
+
+        CompatibilityEvaluation evaluation = CompatibilityEngine.EvaluateProduction(
+            ValidOpenVinoInput(now), new FixedTimeProvider(now));
+
+        Assert.AreEqual(
+            CompatibilityScreenState.EstimatedCompatible,
+            evaluation.Screen.State);
+        Assert.IsNotNull(evaluation.PlanningSession);
+        Assert.AreEqual(
+            OptimizationRoute.OpenVino,
+            evaluation.PlanningSession.Route);
+        Assert.IsNull(evaluation.CurrentConfiguration);
+    }
+
+    [TestMethod]
     public void ProductionEngine_UsesTheProportionalV2AvailableMemoryReserve()
     {
         CompatibilityScreenModel result = CompatibilityEngine.Run(ValidInput());

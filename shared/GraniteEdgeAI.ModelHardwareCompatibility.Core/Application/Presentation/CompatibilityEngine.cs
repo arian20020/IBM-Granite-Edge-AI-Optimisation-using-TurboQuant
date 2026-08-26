@@ -7,6 +7,7 @@ using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.ModeSelection;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Ports;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Execution;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Planning;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.Gguf;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.OpenVino;
@@ -36,10 +37,26 @@ public static class CompatibilityEngine
     public static CompatibilityScreenModel Run(
         CompatibilityProductionInput input,
         CancellationToken cancellationToken = default) =>
-        Run(input, TimeProvider.System, cancellationToken);
+        EvaluateProduction(input, TimeProvider.System, cancellationToken).Screen;
 
     /// <summary>Runs C1 against an explicit execution-time clock.</summary>
     public static CompatibilityScreenModel Run(
+        CompatibilityProductionInput input,
+        TimeProvider timeProvider,
+        CancellationToken cancellationToken = default) =>
+        EvaluateProduction(input, timeProvider, cancellationToken).Screen;
+
+    /// <summary>
+    /// Evaluates compatibility and retains the immutable planning authority for
+    /// the next screen when, and only when, the decision is actionable.
+    /// </summary>
+    public static CompatibilityEvaluation EvaluateProduction(
+        CompatibilityProductionInput input,
+        CancellationToken cancellationToken = default) =>
+        EvaluateProduction(input, TimeProvider.System, cancellationToken);
+
+    /// <summary>Evaluates against an explicit execution-time clock.</summary>
+    public static CompatibilityEvaluation EvaluateProduction(
         CompatibilityProductionInput input,
         TimeProvider timeProvider,
         CancellationToken cancellationToken = default)
@@ -50,11 +67,10 @@ public static class CompatibilityEngine
         DateTimeOffset evaluatedAtUtc = timeProvider.GetUtcNow();
         if (!FreshResourcesAreCurrent(input.FreshResources, evaluatedAtUtc))
         {
-            return CompatibilityScreenModel.ForPresentation(
-                CompatibilityScreenState.NotEstablished,
-                [], [], BaselineExclusionReason.None,
-                useCurrentModelAvailable: false,
-                continueEnabled: false);
+            return WithoutPlanning(CompatibilityScreenModel.ForPresentation(
+                CompatibilityScreenState.NotEstablished, [], [],
+                BaselineExclusionReason.None, useCurrentModelAvailable: false,
+                continueEnabled: false));
         }
 
         try
@@ -70,7 +86,7 @@ public static class CompatibilityEngine
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            return CompatibilityScreenModel.From(Failure());
+            return WithoutPlanning(CompatibilityScreenModel.From(Failure()));
         }
     }
 
@@ -265,7 +281,7 @@ public static class CompatibilityEngine
             _ => WeightQuantisation.Unknown
         };
 
-    private static CompatibilityScreenModel ProjectProduction(
+    private static CompatibilityEvaluation ProjectProduction(
         CompatibilityRunResult result,
         CompatibilityProductionInput input,
         DateTimeOffset evaluatedAtUtc)
@@ -274,7 +290,7 @@ public static class CompatibilityEngine
             || result.Outcome != CompatibilityRunOutcome.Completed
             || result.Assessment is not { } assessment)
         {
-            return ProjectWithoutOptimizationAuthority(result);
+            return WithoutPlanning(ProjectWithoutOptimizationAuthority(result));
         }
 
         EvaluatedCandidate[] baselines =
@@ -289,9 +305,9 @@ public static class CompatibilityEngine
                 input.CurrentModel, input.Hardware, optimization.Snapshot,
                 baselines[0].Context))
         {
-            return CompatibilityScreenModel.ForPresentation(
+            return WithoutPlanning(CompatibilityScreenModel.ForPresentation(
                 CompatibilityScreenState.NotEstablished,
-                [], [], BaselineExclusionReason.None, false, false);
+                [], [], BaselineExclusionReason.None, false, false));
         }
 
         InspectedModelFacts facts = ToFacts(input.CurrentModel);
@@ -339,8 +355,28 @@ public static class CompatibilityEngine
                 hardwareAuthority,
                 CompatibilityBaselineIdentity.ForLegacyNone(
                     baselines[0], optimization.Binding));
-        return CompatibilityScreenModel.From(result, projection);
+        CompatibilityScreenModel screen = CompatibilityScreenModel.From(
+            result, projection);
+        IReadOnlyList<OptimizationCandidate> retained =
+            CompatibilityScreenModel.RetainPlanningCandidates(screen, projection);
+        CompatibilityPlanningSession? planningSession = facts.LayerCount is { } layers
+            ? CompatibilityPlanningSession.Create(
+                input.CurrentModel.Route,
+                retained,
+                optimization.Snapshot,
+                optimization.Workload,
+                optimization.Binding,
+                layers)
+            : null;
+
+        return new CompatibilityEvaluation(
+            screen,
+            planningSession,
+            CurrentConfiguration: null);
     }
+
+    private static CompatibilityEvaluation WithoutPlanning(
+        CompatibilityScreenModel screen) => new(screen, null, null);
 
     private static ByteCount GenerationBudget(
         ByteCount fitBudget,

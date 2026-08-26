@@ -455,6 +455,38 @@ public sealed record CompatibilityScreenModel
             isActionAuthoritative: true);
     }
 
+    /// <summary>
+    /// Retains the exact admitted frontier for a later planning action. Nothing
+    /// is exposed publicly: the UI receives the planning session, not the
+    /// candidate collection. A required-optimisation session excludes the
+    /// failing baseline; an optional session keeps the complete safe frontier.
+    /// </summary>
+    internal static IReadOnlyList<OptimizationCandidate> RetainPlanningCandidates(
+        CompatibilityScreenModel screen,
+        CompatibilityOptimizationProjectionInput input)
+    {
+        ArgumentNullException.ThrowIfNull(screen);
+        ArgumentNullException.ThrowIfNull(input);
+
+        if (!screen.IsActionAuthoritative || !ValidGeneratedAuthority(input))
+        {
+            return [];
+        }
+
+        return screen.State switch
+        {
+            CompatibilityScreenState.EstimatedCompatible =>
+                Array.AsReadOnly([.. input.Generated.Candidates]),
+            CompatibilityScreenState.OptimisationRequired =>
+                Array.AsReadOnly([
+                    .. input.Generated.Candidates.Where(candidate =>
+                        candidate.CanonicalDescriptor
+                            != input.Baseline.OptimizationDescriptor)
+                ]),
+            _ => []
+        };
+    }
+
     private sealed record ProjectionDecision(
         CompatibilityScreenState State,
         CompatibilityOptimizationView? Optimization,
