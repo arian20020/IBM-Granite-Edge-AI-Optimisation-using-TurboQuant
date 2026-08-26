@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "sourceUrl": "https://github.com/ggml-org/llama.cpp.git",
+  "sourceCommit": "3f7c29d318e317b63f54c558bc69803963d7d88c",
+  "target": "llama-quantize",
+  "architecture": "x64",
+  "configuration": "Release",
+  "libraryLinkage": "static",
+  "cmakeFlags": [
+    "GGML_NATIVE=OFF",
+    "GGML_OPENMP=OFF",
+    "LLAMA_CURL=OFF",
+    "BUILD_SHARED_LIBS=OFF"
+  ],
+  "licensePath": "third-party/licenses/LICENSE.llama.cpp.txt",
+  "networkFetches": []
+}
