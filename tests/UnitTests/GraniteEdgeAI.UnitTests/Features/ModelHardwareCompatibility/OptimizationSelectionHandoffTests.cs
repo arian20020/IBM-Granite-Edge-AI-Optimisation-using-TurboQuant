@@ -41,6 +41,50 @@ public sealed class OptimizationSelectionHandoffTests
             currentModelFallback: null);
     }
 
+    internal static OptimizationExecutionPlan PersistentPlanForSource(
+        string sourceSha256,
+        ulong sourceLengthBytes)
+    {
+        OptimizationJourneyBinding binding = OptimizationJourneyBinding.Create(
+            "22222222222242228222222222222222",
+            "33333333333343338333333333333333",
+            sourceSha256,
+            sourceLengthBytes,
+            "44444444444444448444444444444444",
+            Digest);
+        OptimizationCandidate candidate = OptimizationCandidate.Create(
+            GgufRouteConfiguration.Create(
+                GgufWeightFormat.Q3KM,
+                GgufKvCacheFormat.F16,
+                CompatibilityBackend.Cpu,
+                DeviceRouteId.Cpu,
+                GpuOffloadLevel.None),
+            OptimizationCandidateMetrics.Create(
+                EvidenceGrade.Estimated,
+                OptimizationAssessment.Good,
+                OptimizationAssessment.Good,
+                OptimizationAssessment.Good,
+                4096,
+                1UL * 1024 * 1024 * 1024,
+                4UL * 1024 * 1024 * 1024,
+                1UL * 1024 * 1024 * 1024,
+                0,
+                2UL * 1024 * 1024 * 1024,
+                requiresPersistentChange: true),
+            "gguf-q3-persistent",
+            isExperimental: false);
+        OptimizationExecutionPayload payload = OptimizationExecutionPayload.ForGguf(
+            GgufExecutionPayload.Create(
+                "runtime", Commit, GgufRuntimeBackend.Cpu, "CPU", 4096,
+                GgufCacheType.F16, GgufCacheType.F16, 0, false, 4, 128,
+                "Estimated", "profile", 256, GgufWeightFormat.Q3KM));
+        return Plan(
+            OptimizationPreferenceSelection.Automatic(),
+            binding: binding,
+            selectedCandidate: candidate,
+            executionPayload: payload);
+    }
+
     [TestMethod]
     public void ExactCurrentAuthority_ProducesIdentityBoundV3Handoff()
     {

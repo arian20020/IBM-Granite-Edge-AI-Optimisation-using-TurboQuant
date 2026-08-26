@@ -1,5 +1,6 @@
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.Journey;
 using GraniteEdgeAI.Features.ModelOptimization.Journey;
+using GraniteEdgeAI.Features.ModelOptimization.Storage;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
 using GraniteEdgeAI.UnitTests.Features.ModelHardwareCompatibility;
 using Microsoft.VisualStudio.TestTools.UnitTesting;

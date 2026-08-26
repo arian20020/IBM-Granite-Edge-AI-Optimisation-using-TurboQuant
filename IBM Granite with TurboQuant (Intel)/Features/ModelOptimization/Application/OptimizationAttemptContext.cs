@@ -1,33 +1,15 @@
 using System;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using GraniteEdgeAI.Features.ModelOptimization.Storage;
 
 namespace GraniteEdgeAI.Features.ModelOptimization.Journey;
-
-internal sealed record StagedSourceSnapshot(
-    string SourceSha256,
-    ulong SourceLengthBytes,
-    string SealedSnapshotIdentity)
-{
-    internal StagedSourceSnapshot Validate()
-    {
-        if (SourceLengthBytes < 1
-            || SourceSha256.Length != 64
-            || !SourceSha256.All(character => character is >= '0' and <= '9'
-                or >= 'a' and <= 'f')
-            || string.IsNullOrWhiteSpace(SealedSnapshotIdentity))
-        {
-            throw new ArgumentException("The staged source snapshot is not sealed.");
-        }
-        return this;
-    }
-}
 
 internal sealed record OptimizationAttemptContext(
     long Generation,
     StagedSourceSnapshot Source,
     string OperationStagingRootIdentity)
+    : IDisposable
 {
     internal OptimizationAttemptContext Validate()
     {
@@ -38,6 +20,8 @@ internal sealed record OptimizationAttemptContext(
         Source.Validate();
         return this;
     }
+
+    public void Dispose() => Source.Dispose();
 }
 
 internal interface IOptimizationAttemptContextFactory

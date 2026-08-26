@@ -141,6 +141,7 @@ internal sealed class OptimizationJourneyCoordinator : IAsyncDisposable
                     sourceUnchanged: false,
                     _timeProvider.GetUtcNow());
                 Complete(generation, result);
+                context?.Dispose();
                 return;
             }
 
@@ -160,6 +161,7 @@ internal sealed class OptimizationJourneyCoordinator : IAsyncDisposable
                     sourceUnchanged: false,
                     _timeProvider.GetUtcNow());
                 Complete(generation, result);
+                context.Dispose();
                 return;
             }
 
@@ -173,6 +175,7 @@ internal sealed class OptimizationJourneyCoordinator : IAsyncDisposable
                     sourceUnchanged: true,
                     _timeProvider.GetUtcNow());
                 Complete(generation, result);
+                context.Dispose();
                 return;
             }
 
@@ -185,6 +188,7 @@ internal sealed class OptimizationJourneyCoordinator : IAsyncDisposable
                     sourceUnchanged: true,
                     _timeProvider.GetUtcNow());
                 Complete(generation, result);
+                context.Dispose();
                 return;
             }
 
@@ -213,6 +217,7 @@ internal sealed class OptimizationJourneyCoordinator : IAsyncDisposable
                 _timeProvider.GetUtcNow());
         }
         Complete(generation, result);
+        context?.Dispose();
     }
 
     private void ReportProgress(OptimizationProgress progress)
