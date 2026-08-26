@@ -504,6 +504,15 @@
       Include="..\infrastructure\GraniteEdgeAI.GgufRuntime.WorkerClient\GraniteEdgeAI.GgufRuntime.WorkerClient.csproj"
       Condition="'$(Platform)' == 'x64'" />
     <ProjectReference
+      Include="..\shared\GraniteEdgeAI.GgufQuantization.Contracts\GraniteEdgeAI.GgufQuantization.Contracts.csproj"
+      Condition="'$(Platform)' == 'x64'" />
+    <ProjectReference
+      Include="..\runtime\GraniteEdgeAI.GgufQuantization.Capabilities\GraniteEdgeAI.GgufQuantization.Capabilities.csproj"
+      Condition="'$(Platform)' == 'x64'" />
+    <ProjectReference
+      Include="..\infrastructure\GraniteEdgeAI.GgufQuantization.WorkerClient\GraniteEdgeAI.GgufQuantization.WorkerClient.csproj"
+      Condition="'$(Platform)' == 'x64'" />
+    <ProjectReference
       Include="..\infrastructure\GraniteEdgeAI.HardwareInspection.Foundation\GraniteEdgeAI.HardwareInspection.Foundation.csproj"
       Condition="'$(Platform)' == 'x64'" />
     <!-- The compatibility engine. Route-neutral, WinUI-free, and referenced only
@@ -625,5 +634,8 @@
     Condition="'$(Platform)' == 'x64'" />
   <Import
     Project="GgufRuntime.WorkerPackaging.targets"
+    Condition="'$(Platform)' == 'x64'" />
+  <Import
+    Project="GgufQuantization.WorkerPackaging.targets"
     Condition="'$(Platform)' == 'x64'" />
 </Project>

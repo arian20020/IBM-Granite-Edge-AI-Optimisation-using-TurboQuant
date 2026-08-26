@@ -1,0 +1,35 @@
+<Project>
+  <PropertyGroup>
+    <GgufQuantizerPackagingRequired Condition="'$(GgufQuantizerPackagingRequired)' == '' and '$(Configuration)' == 'Release'">true</GgufQuantizerPackagingRequired>
+    <GgufQuantizerPackagingRequired Condition="'$(GgufQuantizerPackagingRequired)' == ''">false</GgufQuantizerPackagingRequired>
+    <_GgufQuantizerVerifier>$(MSBuildThisFileDirectory)..\scripts\gguf-quantization\Test-GgufQuantizerPackage.ps1</_GgufQuantizerVerifier>
+  </PropertyGroup>
+
+  <Target
+    Name="VerifyAndPackageGgufQuantizer"
+    BeforeTargets="AssignTargetPaths"
+    Condition="'$(Platform)' == 'x64' and '$(DesignTimeBuild)' != 'true' and '$(GgufQuantizerPackagingRequired)' == 'true'">
+    <Error
+      Condition="'$(GgufQuantizerStageDirectory)' == ''"
+      Text="GgufQuantizerStageDirectory is required when GGUF quantizer packaging is enabled." />
+    <Error
+      Condition="'$(GgufQuantizerManifestSha256)' == ''"
+      Text="GgufQuantizerManifestSha256 is required when GGUF quantizer packaging is enabled." />
+    <Error
+      Condition="!Exists('$(GgufQuantizerStageDirectory)\llama-quantize.package.manifest.json')"
+      Text="The verified GGUF quantizer package manifest is missing." />
+
+    <Exec
+      Command="&quot;$(SystemRoot)\System32\WindowsPowerShell\v1.0\powershell.exe&quot; -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(_GgufQuantizerVerifier)&quot; -StageDirectory &quot;$(GgufQuantizerStageDirectory)&quot; -ExpectedManifestSha256 &quot;$(GgufQuantizerManifestSha256)&quot;" />
+
+    <ItemGroup>
+      <_GgufQuantizerPackageFiles Include="$(GgufQuantizerStageDirectory)\**\*" />
+      <Content Include="@(_GgufQuantizerPackageFiles)">
+        <Link>Tools\GgufQuantizer\%(RecursiveDir)%(Filename)%(Extension)</Link>
+        <TargetPath>Tools\GgufQuantizer\%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </Content>
+    </ItemGroup>
+  </Target>
+</Project>
