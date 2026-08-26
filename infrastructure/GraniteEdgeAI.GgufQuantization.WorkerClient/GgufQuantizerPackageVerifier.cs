@@ -10,6 +10,7 @@ public sealed class VerifiedGgufQuantizerPackage
         string stageRoot,
         string executablePath,
         string manifestSha256,
+        string executableSha256,
         long maximumSourceBytes,
         long maximumOutputBytes,
         int standardOutputMaximumBytes,
@@ -18,6 +19,7 @@ public sealed class VerifiedGgufQuantizerPackage
         StageRoot = stageRoot;
         ExecutablePath = executablePath;
         ManifestSha256 = manifestSha256;
+        ExecutableSha256 = executableSha256;
         MaximumSourceBytes = maximumSourceBytes;
         MaximumOutputBytes = maximumOutputBytes;
         StandardOutputMaximumBytes = standardOutputMaximumBytes;
@@ -26,7 +28,8 @@ public sealed class VerifiedGgufQuantizerPackage
 
     internal string StageRoot { get; }
     internal string ExecutablePath { get; }
-    internal string ManifestSha256 { get; }
+    public string ManifestSha256 { get; }
+    public string ExecutableSha256 { get; }
     internal long MaximumSourceBytes { get; }
     internal long MaximumOutputBytes { get; }
     internal int StandardOutputMaximumBytes { get; }
@@ -130,10 +133,14 @@ public static class GgufQuantizerPackageVerifier
         {
             throw new InvalidDataException("The quantizer executable is not manifested.");
         }
+        using FileStream executableStream = File.OpenRead(executable);
+        string executableSha256 = Convert.ToHexString(
+            SHA256.HashData(executableStream)).ToLowerInvariant();
         return new VerifiedGgufQuantizerPackage(
             root,
             executable,
             actualManifestSha,
+            executableSha256,
             manifest.MaximumSourceBytes,
             manifest.MaximumOutputBytes,
             manifest.StandardOutputMaximumBytes,

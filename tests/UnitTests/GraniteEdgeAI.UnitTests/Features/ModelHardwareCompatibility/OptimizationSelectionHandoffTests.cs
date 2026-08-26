@@ -86,9 +86,30 @@ public sealed class OptimizationSelectionHandoffTests
                 "Estimated", "profile", 256, GgufWeightFormat.Q3KM,
                 quantiser,
                 conversionSource));
+        GgufAdmittedConfiguration admittedTarget = GgufAdmittedConfiguration.Create(
+            "gguf-q3-persistent",
+            CompatibilityBackend.Cpu,
+            DeviceRouteId.Cpu,
+            GgufWeightFormat.Q3KM,
+            GgufKvCacheFormat.F16,
+            GpuOffloadLevel.None,
+            512,
+            32768,
+            SupportLevel.DeclaredSupported,
+            false);
+        OptimizationCapabilitySnapshot snapshot = OptimizationCapabilitySnapshot.ForGguf(
+            "gguf-capability-persistent",
+            Digest,
+            GgufCapabilityPayload.Create(
+                "runtime",
+                [admittedTarget],
+                hasHigherPrecisionSource: true,
+                conversionSource: conversionSource,
+                admittedQuantiser: quantiser));
         return Plan(
             OptimizationPreferenceSelection.Automatic(),
             binding: binding,
+            snapshot: snapshot,
             selectedCandidate: candidate,
             executionPayload: payload);
     }

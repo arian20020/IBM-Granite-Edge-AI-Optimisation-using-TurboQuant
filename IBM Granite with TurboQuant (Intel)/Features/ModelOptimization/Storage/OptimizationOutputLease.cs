@@ -68,14 +68,7 @@ internal sealed class OptimizationOutputLease : IDisposable
 
     internal FileStream CreateFileForWrite(string relativePath)
     {
-        ThrowIfUnavailable();
-        ValidateRelativePath(relativePath);
-        string path = StoragePathGuard.RequireChild(
-            _stagingRoot,
-            Path.Combine(_candidateRoot, relativePath),
-            mustExist: false);
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        StoragePathGuard.RequireChild(_stagingRoot, Path.GetDirectoryName(path)!, mustExist: true);
+        string path = CreatePendingFilePath(relativePath);
         return new FileStream(
             path,
             FileMode.CreateNew,
@@ -83,6 +76,31 @@ internal sealed class OptimizationOutputLease : IDisposable
             FileShare.None,
             128 * 1024,
             FileOptions.Asynchronous | FileOptions.WriteThrough);
+    }
+
+    /// <summary>
+    /// Reserves a path inside this exact operation-owned candidate directory
+    /// without creating the file. Native tools require an unused destination
+    /// path and are never given the staging root itself.
+    /// </summary>
+    internal string CreatePendingFilePath(string relativePath)
+    {
+        ThrowIfUnavailable();
+        ValidateRelativePath(relativePath);
+        string path = StoragePathGuard.RequireChild(
+            _stagingRoot,
+            Path.Combine(_candidateRoot, relativePath),
+            mustExist: false);
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        StoragePathGuard.RequireChild(
+            _stagingRoot,
+            Path.GetDirectoryName(path)!,
+            mustExist: true);
+        if (File.Exists(path) || Directory.Exists(path))
+        {
+            throw new IOException("The pending output path is already in use.");
+        }
+        return path;
     }
 
     internal SealedOptimizationCandidate Seal(string outputIdentity)

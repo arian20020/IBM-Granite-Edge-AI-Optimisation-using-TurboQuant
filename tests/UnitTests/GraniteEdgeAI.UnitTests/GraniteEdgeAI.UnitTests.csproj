@@ -402,6 +402,12 @@
     <ProjectReference Include="..\..\..\infrastructure\GraniteEdgeAI.ModelInspection.WorkerClient\GraniteEdgeAI.ModelInspection.WorkerClient.csproj" />
     <ProjectReference Include="..\..\..\shared\GraniteEdgeAI.ModelInspection.Contracts\GraniteEdgeAI.ModelInspection.Contracts.csproj" />
     <ProjectReference Include="..\..\..\shared\GraniteEdgeAI.ModelHardwareCompatibility.Core\GraniteEdgeAI.ModelHardwareCompatibility.Core.csproj" />
+    <ProjectReference Include="..\..\..\shared\GraniteEdgeAI.GgufQuantization.Contracts\GraniteEdgeAI.GgufQuantization.Contracts.csproj"
+                      Condition="'$(Platform)' == 'x64'" />
+    <ProjectReference Include="..\..\..\runtime\GraniteEdgeAI.GgufQuantization.Capabilities\GraniteEdgeAI.GgufQuantization.Capabilities.csproj"
+                      Condition="'$(Platform)' == 'x64'" />
+    <ProjectReference Include="..\..\..\infrastructure\GraniteEdgeAI.GgufQuantization.WorkerClient\GraniteEdgeAI.GgufQuantization.WorkerClient.csproj"
+                      Condition="'$(Platform)' == 'x64'" />
   </ItemGroup>
 
   <ItemGroup>

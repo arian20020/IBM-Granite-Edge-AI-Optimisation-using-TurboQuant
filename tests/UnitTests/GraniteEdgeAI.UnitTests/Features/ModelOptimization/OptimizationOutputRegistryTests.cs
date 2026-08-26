@@ -59,6 +59,24 @@ public sealed class OptimizationOutputRegistryTests
         Assert.IsNotNull(replacement);
     }
 
+    [TestMethod]
+    public void PendingOutputPathIsOwnedAndDoesNotPrecreateTheToolOutput()
+    {
+        using var fixture = new RegistryFixture();
+        OptimizationExecutionPlan plan = fixture.Plan();
+        var registry = new OptimizationOutputRegistry(fixture.StagingRoot, fixture.CommittedRoot);
+        using OptimizationOutputLease lease = registry.CreateLease(plan, 10);
+
+        string pending = lease.CreatePendingFilePath("model.gguf");
+
+        Assert.IsFalse(File.Exists(pending));
+        Assert.IsTrue(Path.GetFullPath(pending).StartsWith(
+            Path.GetFullPath(fixture.StagingRoot) + Path.DirectorySeparatorChar,
+            StringComparison.OrdinalIgnoreCase));
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            lease.CreatePendingFilePath("..\\escaped.gguf"));
+    }
+
     private sealed class RegistryFixture : IDisposable
     {
         private readonly string _root = Path.Combine(
