@@ -19,6 +19,8 @@ public sealed record CompatibilityEvaluation(
     /// </summary>
     public IReadOnlyList<CompatibilityExperimentalConsentOption>
         ExperimentalConsentOptions { get; init; } = [];
+
+    public CompatibilityOptimizationView? OptionalOptimization { get; init; }
 }
 
 public sealed record CompatibilityExperimentalConsentOption

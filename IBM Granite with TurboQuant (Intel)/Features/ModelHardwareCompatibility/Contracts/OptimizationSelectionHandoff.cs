@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Planning;
 
 namespace GraniteEdgeAI.Features.ModelHardwareCompatibility.Contracts;
 
@@ -71,6 +72,26 @@ internal sealed record OptimizationSelectionHandoff
                 currentBinding.ModelLengthBytes)
             || !BindingsAgree(plan.Binding, currentBinding)
             || plan.Preference != currentPreference)
+        {
+            return false;
+        }
+
+        handoff = new OptimizationSelectionHandoff(plan);
+        return true;
+    }
+
+    internal static bool TryCreate(
+        OptimizationExecutionPlan? plan,
+        CompatibilityPlanningSession? planningSession,
+        OptimizationPreferenceSelection? currentPreference,
+        out OptimizationSelectionHandoff? handoff)
+    {
+        handoff = null;
+        if (plan is null
+            || planningSession is null
+            || currentPreference is null
+            || !planningSession.MatchesIssuedPlan(plan, currentPreference)
+            || !IsCanonicalDigest(plan.ConfigurationSha256))
         {
             return false;
         }

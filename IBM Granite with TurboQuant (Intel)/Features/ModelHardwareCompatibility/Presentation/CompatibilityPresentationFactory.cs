@@ -247,6 +247,41 @@ internal static class CompatibilityPresentationFactory
             return NotEstablished(model);
         }
 
+        return OptimizationSelection(
+            model,
+            current,
+            optimization,
+            preference,
+            isRequired: true);
+    }
+
+    internal static CompatibilityPresentation OptionalOptimization(
+        CompatibilityScreenModel model,
+        CompatibilityOptimizationView optimization,
+        OptimizationPreferenceSelection preference)
+    {
+        ArgumentNullException.ThrowIfNull(model);
+        ArgumentNullException.ThrowIfNull(optimization);
+        ArgumentNullException.ThrowIfNull(preference);
+        return model.State == CompatibilityScreenState.EstimatedCompatible
+            && model.Setup is { } current
+            ? OptimizationSelection(
+                model,
+                current,
+                optimization,
+                preference,
+                isRequired: false)
+            : NotEstablished(model);
+    }
+
+    private static CompatibilityPresentation OptimizationSelection(
+        CompatibilityScreenModel model,
+        CompatibilitySetupView current,
+        CompatibilityOptimizationView optimization,
+        OptimizationPreferenceSelection preference,
+        bool isRequired)
+    {
+
         List<CompatibilityOptimizationModePresentation> modes = [];
         foreach (CompatibilityOptimizationModeView mode in optimization.Modes)
         {
@@ -282,20 +317,38 @@ internal static class CompatibilityPresentationFactory
         return CompatibilityPresentation.Empty with
         {
             PageTitle = Title,
-            PageLede = "Choose a smaller setup that fits this computer safely.",
-            Tone = CompatibilityOutcomeTone.Caution,
-            OutcomeTitle = "This model needs to be quantised to run on your computer",
-            OutcomeDetail = "Your current model needs more memory than this computer can safely spare. A smaller version can run here.",
-            OutcomeBadge = "OPTIMISATION REQUIRED",
+            PageLede = isRequired
+                ? "Choose a smaller setup that fits this computer safely."
+                : "The current model fits. You can still optimise it for your preferred balance.",
+            Tone = isRequired
+                ? CompatibilityOutcomeTone.Caution
+                : CompatibilityOutcomeTone.Positive,
+            OutcomeTitle = isRequired
+                ? "This model needs to be quantised to run on your computer"
+                : "Optimisation is optional",
+            OutcomeDetail = isRequired
+                ? "Your current model needs more memory than this computer can safely spare. A smaller version can run here."
+                : "You can chat with the model as it is, or create a setup with different memory and quality trade-offs.",
+            OutcomeBadge = isRequired
+                ? "OPTIMISATION REQUIRED"
+                : "CURRENT MODEL FITS",
             DisclosureTitle = "How we worked this out",
             DisclosureDetail = DisclosureText(model),
-            PrimaryActionText = "Choose optimisation",
+            PrimaryActionText = isRequired
+                ? "Choose optimisation"
+                : "Optimise first",
             PrimaryActionEnabled = model.ContinueEnabled,
-            SecondaryActionText = "Back",
+            SecondaryActionText = isRequired
+                ? "Back"
+                : "Back",
             SecondaryActionEnabled = true,
-            MemoryRecoveryReason = MemoryRecoveryReason(model),
+            MemoryRecoveryReason = isRequired
+                ? MemoryRecoveryReason(model)
+                : CompatibilityMemoryRecoveryReason.None,
             Optimization = new CompatibilityOptimizationPresentation(
-                "You can choose how you want to balance memory use and expected quality.",
+                isRequired
+                    ? "You can choose how you want to balance memory use and expected quality."
+                    : "Choose an optional balance, or keep the current model unchanged.",
                 current.Route == RuntimeRouteId.LlamaCpp
                     ? OptimizationRoute.Gguf
                     : OptimizationRoute.OpenVino,

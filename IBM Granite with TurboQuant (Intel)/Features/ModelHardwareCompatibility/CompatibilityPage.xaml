@@ -917,6 +917,19 @@
                         MinHeight="44"
                         Padding="18,10"
                         Style="{StaticResource AccentButtonStyle}" />
+                    <Button
+                        x:Name="OptionalOptimizationAction"
+                        Grid.Row="1"
+                        Grid.ColumnSpan="2"
+                        CornerRadius="{StaticResource CompatibilityButtonRadius}"
+                        FontSize="{StaticResource CompatibilityButtonFontSize}"
+                        HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Center"
+                        MinHeight="44"
+                        Padding="18,10"
+                        Content="Optimise first"
+                        AutomationProperties.Name="Optimise this model before chatting"
+                        Visibility="Collapsed" />
                 </Grid>
             </Grid>
         </ScrollViewer>

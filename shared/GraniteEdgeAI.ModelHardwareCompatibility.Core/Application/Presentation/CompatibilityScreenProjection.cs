@@ -459,7 +459,10 @@ public sealed record CompatibilityScreenModel
     /// Retains the exact admitted frontier for a later planning action. Nothing
     /// is exposed publicly: the UI receives the planning session, not the
     /// candidate collection. A required-optimisation session excludes the
-    /// failing baseline; an optional session keeps the complete safe frontier.
+    /// failing baseline; an optional session also excludes the unchanged
+    /// baseline because chatting with that model is a separate typed exit.
+    /// Consequently every plan issued from this session represents an actual
+    /// optimisation shown by the optional-selection UI.
     /// </summary>
     internal static IReadOnlyList<OptimizationCandidate> RetainPlanningCandidates(
         CompatibilityScreenModel screen,
@@ -476,7 +479,11 @@ public sealed record CompatibilityScreenModel
         return screen.State switch
         {
             CompatibilityScreenState.EstimatedCompatible =>
-                Array.AsReadOnly([.. input.Generated.Candidates]),
+                Array.AsReadOnly([
+                    .. input.Generated.Candidates.Where(candidate =>
+                        candidate.CanonicalDescriptor
+                            != input.Baseline.OptimizationDescriptor)
+                ]),
             CompatibilityScreenState.OptimisationRequired =>
                 Array.AsReadOnly([
                     .. input.Generated.Candidates.Where(candidate =>
@@ -522,6 +529,29 @@ public sealed record CompatibilityScreenModel
                 evidenceId));
         }
         return Array.AsReadOnly([.. options]);
+    }
+
+    internal static CompatibilityOptimizationView? RetainOptionalOptimization(
+        CompatibilityScreenModel screen,
+        CompatibilityOptimizationProjectionInput input)
+    {
+        ArgumentNullException.ThrowIfNull(screen);
+        ArgumentNullException.ThrowIfNull(input);
+        if (screen.State != CompatibilityScreenState.EstimatedCompatible
+            || !ValidGeneratedAuthority(input))
+        {
+            return null;
+        }
+
+        IReadOnlyList<OptimizationCandidate> alternatives =
+        [
+            .. input.Generated.Candidates.Where(candidate =>
+                candidate.CanonicalDescriptor
+                    != input.Baseline.OptimizationDescriptor)
+        ];
+        return alternatives.Count == 0
+            ? null
+            : BuildOptimizationView(alternatives);
     }
 
     private sealed record ProjectionDecision(

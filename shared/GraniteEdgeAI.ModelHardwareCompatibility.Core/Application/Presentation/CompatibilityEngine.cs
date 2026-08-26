@@ -372,13 +372,18 @@ public static class CompatibilityEngine
 
         IReadOnlyList<CompatibilityExperimentalConsentOption> consentOptions =
             CompatibilityScreenModel.RetainExperimentalConsentOptions(projection);
+        CompatibilityOptimizationView? optionalOptimization =
+            CompatibilityScreenModel.RetainOptionalOptimization(
+                screen,
+                projection);
 
         return new CompatibilityEvaluation(
             screen,
             planningSession,
             CurrentConfiguration: null)
         {
-            ExperimentalConsentOptions = consentOptions
+            ExperimentalConsentOptions = consentOptions,
+            OptionalOptimization = optionalOptimization
         };
     }
 

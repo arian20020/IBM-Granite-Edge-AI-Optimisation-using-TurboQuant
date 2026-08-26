@@ -3,7 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using GraniteEdgeAI.Features.ModelHardwareCompatibility.Contracts;
+using GraniteEdgeAI.Features.ModelHardwareCompatibility.Journey;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.Presentation;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Automation.Peers;
@@ -43,6 +46,23 @@ internal sealed partial class CompatibilityPage : Page
     {
     }
 
+    internal CompatibilityPage(
+        Func<IReadOnlySet<string>, CancellationToken,
+            Task<CompatibilityEvaluation>> evaluator,
+        ICompatibilityActionAuthority actionAuthority,
+        Func<CompatibilityEvaluation, CurrentModelLaunchHandoff?>
+            currentModelHandoffResolver,
+        bool continueDestinationAvailable = true,
+        TimeProvider? timeProvider = null)
+        : this(new ViewModels.CompatibilityViewModel(
+            evaluator,
+            continueDestinationAvailable,
+            actionAuthority: actionAuthority,
+            currentModelHandoffResolver: currentModelHandoffResolver,
+            timeProvider: timeProvider))
+    {
+    }
+
     private CompatibilityPage(ViewModels.CompatibilityViewModel viewModel)
     {
         ViewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
@@ -51,8 +71,13 @@ internal sealed partial class CompatibilityPage : Page
 
         ViewModel.PresentationChanged += (_, presentation) => Apply(presentation);
         ViewModel.ContinueRequested += (_, _) => ContinueRequested?.Invoke(this, EventArgs.Empty);
+        ViewModel.OptimizationRequested += (_, args) =>
+            OptimizationRequested?.Invoke(this, args);
+        ViewModel.CurrentModelChatRequested += (_, args) =>
+            CurrentModelChatRequested?.Invoke(this, args);
         ViewModel.BackRequested += (_, _) => BackRequested?.Invoke(this, EventArgs.Empty);
         PrimaryAction.Command = ViewModel.ContinueCommand;
+        OptionalOptimizationAction.Command = ViewModel.OptionalOptimizationCommand;
         RefreshMemoryAction.Command = ViewModel.RefreshMemoryCommand;
         OpenTaskManagerAction.Command = ViewModel.OpenTaskManagerCommand;
         ViewModel.AuxiliaryStatusChanged += (_, status) => ApplyAuxiliaryStatus(status);
@@ -64,6 +89,12 @@ internal sealed partial class CompatibilityPage : Page
     }
 
     internal event EventHandler? ContinueRequested;
+
+    internal event EventHandler<OptimizationRequestedEventArgs>?
+        OptimizationRequested;
+
+    internal event EventHandler<CurrentModelChatRequestedEventArgs>?
+        CurrentModelChatRequested;
 
     internal event EventHandler? BackRequested;
 
@@ -201,6 +232,12 @@ internal sealed partial class CompatibilityPage : Page
         };
         SecondaryAction.IsEnabled = presentation.SecondaryActionEnabled
             && SecondaryAction.Command is not null;
+        OptionalOptimizationAction.Visibility =
+            presentation.Optimization is null
+            && ViewModel.CanOptimiseFirst
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+        OptionalOptimizationAction.IsEnabled = ViewModel.CanOptimiseFirst;
 
         if (PageStack.ActualWidth > 0d)
         {

@@ -56,6 +56,37 @@ public sealed class CompatibilityPlanningSession
         return selection.Candidate.AdmissionProof?.OptedInEvidenceId;
     }
 
+    public bool MatchesIssuedPlan(
+        OptimizationExecutionPlan? plan,
+        OptimizationPreferenceSelection preference)
+    {
+        ArgumentNullException.ThrowIfNull(preference);
+        if (plan is null
+            || plan.ContractVersion
+                != OptimizationExecutionPlan.CurrentContractVersion
+            || !plan.IsExecutableBy(
+                OptimizationExecutionPlan.CurrentContractVersion)
+            || plan.Route != Route
+            || plan.Preference != preference
+            || plan.Binding != binding
+            || plan.Workload != workload
+            || !plan.MatchesCapability(capabilitySnapshot))
+        {
+            return false;
+        }
+
+        OptimizationSelection? selected =
+            OptimizationPreferenceResolver.Resolve(frontier, preference);
+        if (selected is null
+            || plan.Candidate != selected.Candidate
+            || plan.SharedWithAdjacentBand != selected.SharedWithAdjacentBand)
+        {
+            return false;
+        }
+        return plan.Candidate.AdmissionProof?.OptedInEvidenceId is not { } evidenceId
+            || optedInExperimentalEvidenceIds.Contains(evidenceId);
+    }
+
     internal static CompatibilityPlanningSession? Create(
         OptimizationRoute route,
         IReadOnlyList<OptimizationCandidate> candidates,

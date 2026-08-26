@@ -5,8 +5,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.Infrastructure;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.Presentation;
+using GraniteEdgeAI.Features.ModelHardwareCompatibility.Contracts;
+using GraniteEdgeAI.Features.ModelHardwareCompatibility.Journey;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Execution;
 
 namespace GraniteEdgeAI.Features.ModelHardwareCompatibility.ViewModels;
 
@@ -50,6 +53,10 @@ internal sealed class CompatibilityViewModel
         Task<CompatibilityEvaluation>> _evaluator;
     private readonly bool _continueDestinationAvailable;
     private readonly ICompatibilityMemoryRecovery _memoryRecovery;
+    private readonly ICompatibilityActionAuthority _actionAuthority;
+    private readonly Func<CompatibilityEvaluation, CurrentModelLaunchHandoff?>
+        _currentModelHandoffResolver;
+    private readonly TimeProvider _timeProvider;
     private readonly object _attemptGate = new();
 
     private AttemptCancellation? _attemptCancellation;
@@ -63,6 +70,8 @@ internal sealed class CompatibilityViewModel
     private readonly HashSet<string> _experimentalConsentEvidenceIds =
         new(StringComparer.Ordinal);
     private bool _experimentalFinalConfirmation;
+    private bool _optionalOptimizationOpen;
+    private CurrentModelLaunchHandoff? _currentModelLaunchHandoff;
 
     internal CompatibilityViewModel()
         : this(static token => Task.Run(
@@ -82,7 +91,10 @@ internal sealed class CompatibilityViewModel
                 PlanningSession: null,
                 CurrentConfiguration: null),
             continueDestinationAvailable,
-            memoryRecovery)
+            memoryRecovery,
+            actionAuthority: null,
+            currentModelHandoffResolver: null,
+            timeProvider: null)
     {
         ArgumentNullException.ThrowIfNull(evaluator);
     }
@@ -91,11 +103,20 @@ internal sealed class CompatibilityViewModel
         Func<IReadOnlySet<string>, CancellationToken,
             Task<CompatibilityEvaluation>> evaluator,
         bool continueDestinationAvailable = true,
-        ICompatibilityMemoryRecovery? memoryRecovery = null)
+        ICompatibilityMemoryRecovery? memoryRecovery = null,
+        ICompatibilityActionAuthority? actionAuthority = null,
+        Func<CompatibilityEvaluation, CurrentModelLaunchHandoff?>?
+            currentModelHandoffResolver = null,
+        TimeProvider? timeProvider = null)
     {
         _evaluator = evaluator ?? throw new ArgumentNullException(nameof(evaluator));
         _continueDestinationAvailable = continueDestinationAvailable;
         _memoryRecovery = memoryRecovery ?? new WindowsCompatibilityMemoryRecovery([]);
+        _actionAuthority = actionAuthority
+            ?? UnavailableCompatibilityActionAuthority.Instance;
+        _currentModelHandoffResolver = currentModelHandoffResolver
+            ?? (static _ => null);
+        _timeProvider = timeProvider ?? TimeProvider.System;
         _uiContext = SynchronizationContext.Current;
 
         // Assigned before the commands, because their guards read it: a command
@@ -104,11 +125,11 @@ internal sealed class CompatibilityViewModel
         Presentation = CompatibilityPresentationFactory.Analysing(0);
 
         ContinueCommand = new DelegateCommand(
-            () => ContinueRequested?.Invoke(this, EventArgs.Empty),
-            () => Presentation.PrimaryActionEnabled);
+            Continue,
+            CanContinue);
 
         BackCommand = new DelegateCommand(
-            () => BackRequested?.Invoke(this, EventArgs.Empty),
+            Back,
             () => Presentation.SecondaryActionEnabled
                 && Presentation.SecondaryActionKind == CompatibilitySecondaryActionKind.Back);
 
@@ -126,6 +147,9 @@ internal sealed class CompatibilityViewModel
         OpenTaskManagerCommand = new DelegateCommand(
             OpenTaskManagerFromCommand,
             CanOpenTaskManager);
+        OptionalOptimizationCommand = new DelegateCommand(
+            BeginOptionalOptimization,
+            () => CanOptimiseFirst);
     }
 
     /// <summary>Raised whenever a new snapshot is ready to render.</summary>
@@ -134,6 +158,12 @@ internal sealed class CompatibilityViewModel
     internal event EventHandler<CompatibilityAuxiliaryStatus>? AuxiliaryStatusChanged;
 
     internal event EventHandler? ContinueRequested;
+
+    internal event EventHandler<OptimizationRequestedEventArgs>?
+        OptimizationRequested;
+
+    internal event EventHandler<CurrentModelChatRequestedEventArgs>?
+        CurrentModelChatRequested;
 
     internal event EventHandler? BackRequested;
 
@@ -151,10 +181,28 @@ internal sealed class CompatibilityViewModel
 
     internal DelegateCommand OpenTaskManagerCommand { get; }
 
+    internal DelegateCommand OptionalOptimizationCommand { get; }
+
     internal CompatibilityAuxiliaryStatus AuxiliaryStatus { get; private set; } =
         CompatibilityAuxiliaryStatus.None;
 
     internal OptimizationPreferenceSelection? SelectedPreference { get; private set; }
+
+    internal OptimizationSelectionHandoff? CurrentOptimizationHandoff
+        { get; private set; }
+
+    internal bool CanChatWithCurrentModel =>
+        !_optionalOptimizationOpen
+        && _lastEvaluation?.Screen.State
+            == CompatibilityScreenState.EstimatedCompatible
+        && _currentModelLaunchHandoff is { } handoff
+        && _actionAuthority.IsCurrentModelChatAvailable(handoff.Route);
+
+    internal bool CanOptimiseFirst =>
+        !_optionalOptimizationOpen
+        && _lastEvaluation is
+            { PlanningSession: not null, OptionalOptimization: not null } evaluation
+        && HasOptimizationAuthority(evaluation.PlanningSession.Route);
 
     internal string? AvailableExperimentalConsentEvidenceId
     {
@@ -243,7 +291,202 @@ internal sealed class CompatibilityViewModel
         _experimentalFinalConfirmation = confirmed
             && evidenceId is not null
             && _experimentalConsentEvidenceIds.Contains(evidenceId);
+        if (_lastEvaluation is { } evaluation
+            && SelectedPreference is { } preference)
+        {
+            CurrentOptimizationHandoff = TryIssueOptimization(
+                evaluation,
+                preference);
+            Presentation = Presentation with
+            {
+                PrimaryActionEnabled = _continueDestinationAvailable
+                    && CurrentOptimizationHandoff is not null
+            };
+        }
+        ContinueCommand.RaiseCanExecuteChanged();
         PresentationChanged?.Invoke(this, Presentation);
+    }
+
+    internal void BeginOptionalOptimization()
+    {
+        if (!CanOptimiseFirst
+            || _lastEvaluation is not
+                { OptionalOptimization: { } optimization } evaluation)
+        {
+            return;
+        }
+
+        _optionalOptimizationOpen = true;
+        OptimizationPreferenceSelection preference =
+            OptimizationPreferenceSelection.Automatic();
+        CompatibilityPresentation presentation =
+            CompatibilityPresentationFactory.OptionalOptimization(
+                evaluation.Screen,
+                optimization,
+                preference);
+        OptimizationSelectionHandoff? handoff = TryIssueOptimization(
+            evaluation,
+            preference);
+        Publish(
+            presentation with
+            {
+                PrimaryActionEnabled = handoff is not null
+            },
+            Volatile.Read(ref _attemptGeneration),
+            () =>
+            {
+                SelectedPreference = preference;
+                CurrentOptimizationHandoff = handoff;
+                _experimentalFinalConfirmation = false;
+            });
+    }
+
+    private void Continue()
+    {
+        if (!CanContinue())
+        {
+            return;
+        }
+
+        if (TryCurrentOptimizationContext(out OptimizationJourneyEntryContext? context))
+        {
+            OptimizationRequested?.Invoke(
+                this,
+                new OptimizationRequestedEventArgs(context!));
+            ContinueRequested?.Invoke(this, EventArgs.Empty);
+            return;
+        }
+
+        if (CanChatWithCurrentModel
+            && _currentModelLaunchHandoff is { } current)
+        {
+            CurrentModelChatRequested?.Invoke(
+                this,
+                new CurrentModelChatRequestedEventArgs(current));
+            ContinueRequested?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    private bool CanContinue() =>
+        Presentation.PrimaryActionEnabled
+        && (TryCurrentOptimizationContext(out _)
+            || CanChatWithCurrentModel);
+
+    private bool TryCurrentOptimizationContext(
+        out OptimizationJourneyEntryContext? context)
+    {
+        context = null;
+        if (CurrentOptimizationHandoff is not { } optimization)
+        {
+            return false;
+        }
+
+        OptimizationJourneyOrigin origin = _optionalOptimizationOpen
+            ? OptimizationJourneyOrigin.Optional
+            : OptimizationJourneyOrigin.Required;
+        CurrentModelLaunchHandoff? fallback =
+            origin == OptimizationJourneyOrigin.Optional
+                ? _currentModelLaunchHandoff
+                : null;
+        try
+        {
+            context = new OptimizationJourneyEntryContext(
+                optimization,
+                origin,
+                fallback);
+            return true;
+        }
+        catch (ArgumentException)
+        {
+            // A resolver supplied identities from a different journey. This is
+            // a stale-authority condition, not a recoverable UI substitution.
+            return false;
+        }
+    }
+
+    private void Back()
+    {
+        if (_optionalOptimizationOpen
+            && _lastEvaluation is { } evaluation)
+        {
+            _optionalOptimizationOpen = false;
+            CurrentOptimizationHandoff = null;
+            SelectedPreference = null;
+            Publish(
+                CurrentFitPresentation(evaluation),
+                Volatile.Read(ref _attemptGeneration));
+            return;
+        }
+        BackRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    private bool HasOptimizationAuthority(OptimizationRoute route) =>
+        _actionAuthority.TryGetOptimizationAuthority(
+            route,
+            out IOptimizationExecutionPayloadComposer? composer,
+            out OptimizationIssuanceAuthority? authority)
+        && composer is not null
+        && authority is not null;
+
+    private OptimizationSelectionHandoff? TryIssueOptimization(
+        CompatibilityEvaluation evaluation,
+        OptimizationPreferenceSelection preference)
+    {
+        if (evaluation.PlanningSession is not { } session
+            || !_actionAuthority.TryGetOptimizationAuthority(
+                session.Route,
+                out IOptimizationExecutionPayloadComposer? composer,
+                out OptimizationIssuanceAuthority? authority)
+            || composer is null
+            || authority is null)
+        {
+            return null;
+        }
+
+        string? experimental = session.RequiredExperimentalEvidenceId(preference);
+        if (experimental is not null
+            && (!_experimentalConsentEvidenceIds.Contains(experimental)
+                || !_experimentalFinalConfirmation))
+        {
+            return null;
+        }
+
+        try
+        {
+            OptimizationExecutionPlan plan = session.Issue(
+                preference,
+                composer,
+                authority,
+                _timeProvider);
+            return OptimizationSelectionHandoff.TryCreate(
+                plan,
+                session,
+                preference,
+                out OptimizationSelectionHandoff? handoff)
+                    ? handoff
+                    : null;
+        }
+        catch (Exception exception) when (exception is
+            ArgumentException or InvalidOperationException)
+        {
+            return null;
+        }
+    }
+
+    private CompatibilityPresentation CurrentFitPresentation(
+        CompatibilityEvaluation evaluation)
+    {
+        CompatibilityPresentation presentation =
+            CompatibilityPresentationFactory.From(evaluation.Screen);
+        bool chat = _currentModelLaunchHandoff is { } handoff
+            && _actionAuthority.IsCurrentModelChatAvailable(handoff.Route);
+        return presentation with
+        {
+            PrimaryActionText = chat
+                ? "Chat with current model"
+                : "Coming later",
+            PrimaryActionEnabled = chat
+        };
     }
 
     private async Task<bool> ReevaluateExperimentalConsentAsync()
@@ -429,6 +672,35 @@ internal sealed class CompatibilityViewModel
             CompatibilityPresentation presentation = preference is null
                 ? CompatibilityPresentationFactory.From(model)
                 : CompatibilityPresentationFactory.From(model, preference);
+            CurrentModelLaunchHandoff? currentHandoff =
+                model.State == CompatibilityScreenState.EstimatedCompatible
+                    ? _currentModelHandoffResolver(evaluation)
+                    : null;
+            OptimizationSelectionHandoff? optimizationHandoff =
+                preference is not null
+                    && evaluation.PlanningSession?
+                        .RequiredExperimentalEvidenceId(preference) is null
+                    ? TryIssueOptimization(evaluation, preference)
+                    : null;
+            if (model.State == CompatibilityScreenState.EstimatedCompatible)
+            {
+                bool canChat = currentHandoff is { } handoff
+                    && _actionAuthority.IsCurrentModelChatAvailable(handoff.Route);
+                presentation = presentation with
+                {
+                    PrimaryActionText = canChat
+                        ? "Chat with current model"
+                        : "Coming later",
+                    PrimaryActionEnabled = canChat
+                };
+            }
+            else if (preference is not null)
+            {
+                presentation = presentation with
+                {
+                    PrimaryActionEnabled = optimizationHandoff is not null
+                };
+            }
             Publish(
                 presentation,
                 generation,
@@ -437,6 +709,9 @@ internal sealed class CompatibilityViewModel
                     _lastModel = model;
                     _lastEvaluation = evaluation;
                     SelectedPreference = preference;
+                    CurrentOptimizationHandoff = optimizationHandoff;
+                    _currentModelLaunchHandoff = currentHandoff;
+                    _optionalOptimizationOpen = false;
                     _experimentalFinalConfirmation = false;
                 });
         }
@@ -447,10 +722,8 @@ internal sealed class CompatibilityViewModel
                 generation,
                 () =>
                 {
-                    _lastModel = null;
-                    _lastEvaluation = null;
-                    SelectedPreference = null;
-                    _experimentalFinalConfirmation = false;
+                    ClearCompatibilitySnapshot();
+                    ClearExperimentalConsent();
                 });
         }
         catch
@@ -460,10 +733,8 @@ internal sealed class CompatibilityViewModel
                 generation,
                 () =>
                 {
-                    _lastModel = null;
-                    _lastEvaluation = null;
-                    SelectedPreference = null;
-                    _experimentalFinalConfirmation = false;
+                    ClearCompatibilitySnapshot();
+                    ClearExperimentalConsent();
                 });
             throw;
         }
@@ -499,9 +770,7 @@ internal sealed class CompatibilityViewModel
             generation,
             () =>
             {
-                _lastModel = null;
-                _lastEvaluation = null;
-                SelectedPreference = null;
+                ClearCompatibilitySnapshot();
                 ClearExperimentalConsent();
             });
     }
@@ -514,9 +783,7 @@ internal sealed class CompatibilityViewModel
             generation,
             () =>
             {
-                _lastModel = null;
-                _lastEvaluation = null;
-                SelectedPreference = null;
+                ClearCompatibilitySnapshot();
                 ClearExperimentalConsent();
             });
     }
@@ -542,6 +809,7 @@ internal sealed class CompatibilityViewModel
         auxiliary?.Cancel();
         PublishAuxiliaryStatus(CompatibilityAuxiliaryStatus.None);
         RaiseRecoveryCanExecuteChanged();
+        ClearCompatibilitySnapshot();
         ClearExperimentalConsent();
         return generation;
     }
@@ -640,6 +908,9 @@ internal sealed class CompatibilityViewModel
         _lastModel = null;
         _lastEvaluation = null;
         SelectedPreference = null;
+        CurrentOptimizationHandoff = null;
+        _currentModelLaunchHandoff = null;
+        _optionalOptimizationOpen = false;
         _experimentalFinalConfirmation = false;
     }
 
@@ -672,38 +943,57 @@ internal sealed class CompatibilityViewModel
 
     internal void SelectAutomaticPreference()
     {
-        if (_lastModel?.State != CompatibilityScreenState.OptimisationRequired)
+        if (_lastModel is not { } model
+            || _lastEvaluation is not { } evaluation
+            || model.State != CompatibilityScreenState.OptimisationRequired
+                && !_optionalOptimizationOpen)
         {
             return;
         }
 
         int generation = Volatile.Read(ref _attemptGeneration);
-        CompatibilityScreenModel model = _lastModel;
         OptimizationPreferenceSelection preference =
             OptimizationPreferenceSelection.Automatic();
+        _experimentalFinalConfirmation = false;
+        OptimizationSelectionHandoff? handoff = TryIssueOptimization(
+            evaluation,
+            preference);
         Publish(
-            CompatibilityPresentationFactory.From(model, preference),
+            SelectionPresentation(evaluation, preference) with
+            {
+                PrimaryActionEnabled = handoff is not null
+            },
             generation,
             () =>
             {
                 SelectedPreference = preference;
-                _experimentalFinalConfirmation = false;
+                CurrentOptimizationHandoff = handoff;
             });
     }
 
     internal void SelectManualPreference(int value)
     {
-        if (_lastModel?.State != CompatibilityScreenState.OptimisationRequired)
+        if (_lastModel is not { } model
+            || _lastEvaluation is not { } evaluation
+            || model.State != CompatibilityScreenState.OptimisationRequired
+                && !_optionalOptimizationOpen)
         {
             return;
         }
 
         int generation = Volatile.Read(ref _attemptGeneration);
-        CompatibilityScreenModel model = _lastModel;
         OptimizationPreferenceSelection preference =
             OptimizationPreferenceSelection.Manual(value);
-        CompatibilityPresentation next =
-            CompatibilityPresentationFactory.From(model, preference);
+        _experimentalFinalConfirmation = false;
+        OptimizationSelectionHandoff? handoff = TryIssueOptimization(
+            evaluation,
+            preference);
+        CompatibilityPresentation next = SelectionPresentation(
+            evaluation,
+            preference) with
+        {
+            PrimaryActionEnabled = handoff is not null
+        };
         if (SelectedPreference?.Kind == OptimizationPreferenceKind.Manual
             && Presentation.Optimization is { } current
             && next.Optimization is { } candidate
@@ -715,7 +1005,13 @@ internal sealed class CompatibilityViewModel
             // Preserve the exact user value for the future handoff, but a tick
             // inside the same effective band changes no rendered state.
             SelectedPreference = preference;
-            _experimentalFinalConfirmation = false;
+            CurrentOptimizationHandoff = handoff;
+            Presentation = Presentation with
+            {
+                PrimaryActionEnabled = _continueDestinationAvailable
+                    && handoff is not null
+            };
+            ContinueCommand.RaiseCanExecuteChanged();
             PresentationChanged?.Invoke(this, Presentation);
             return;
         }
@@ -725,9 +1021,22 @@ internal sealed class CompatibilityViewModel
             () =>
             {
                 SelectedPreference = preference;
-                _experimentalFinalConfirmation = false;
+                CurrentOptimizationHandoff = handoff;
             });
     }
+
+    private CompatibilityPresentation SelectionPresentation(
+        CompatibilityEvaluation evaluation,
+        OptimizationPreferenceSelection preference) =>
+        _optionalOptimizationOpen
+            && evaluation.OptionalOptimization is { } optional
+                ? CompatibilityPresentationFactory.OptionalOptimization(
+                    evaluation.Screen,
+                    optional,
+                    preference)
+                : CompatibilityPresentationFactory.From(
+                    evaluation.Screen,
+                    preference);
 
     private void Publish(
         CompatibilityPresentation presentation,
@@ -770,6 +1079,7 @@ internal sealed class CompatibilityViewModel
             BackCommand.RaiseCanExecuteChanged();
             CancelCommand.RaiseCanExecuteChanged();
             RetryCommand.RaiseCanExecuteChanged();
+            OptionalOptimizationCommand.RaiseCanExecuteChanged();
             RaiseRecoveryCanExecuteChanged();
             PresentationChanged?.Invoke(this, effectivePresentation);
         }

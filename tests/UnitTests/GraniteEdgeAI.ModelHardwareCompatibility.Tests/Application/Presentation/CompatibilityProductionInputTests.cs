@@ -26,7 +26,7 @@ public sealed class CompatibilityProductionInputTests
     }
 
     [TestMethod]
-    public void CurrentFitEvaluation_RetainsOptionalPlanningAuthority()
+    public void CurrentFitEvaluation_RetainsAlternativeOnlyPlanningAuthority()
     {
         DateTimeOffset now = new(2026, 8, 26, 12, 0, 0, TimeSpan.Zero);
 
@@ -40,6 +40,7 @@ public sealed class CompatibilityProductionInputTests
         Assert.AreEqual(
             OptimizationRoute.OpenVino,
             evaluation.PlanningSession.Route);
+        Assert.IsNotNull(evaluation.OptionalOptimization);
         Assert.IsNull(evaluation.CurrentConfiguration);
     }
 
@@ -122,9 +123,10 @@ public sealed class CompatibilityProductionInputTests
 
     private static OpenVinoExecutionAuthority OpenVinoAuthority(
         string evidenceId,
-        string digest) =>
+        string digest,
+        OpenVinoWeightPrecision targetPrecision = OpenVinoWeightPrecision.Fp16) =>
         OpenVinoExecutionAuthority.Create(
-            evidenceId, evidenceId, OpenVinoWeightPrecision.Fp16,
+            evidenceId, evidenceId, targetPrecision,
             OpenVinoBuildIdentity.Create(
                 "2026.1.0", "2026.1.0", "2026.1.0", digest),
             new Dictionary<string, string>(StringComparer.Ordinal)
@@ -148,11 +150,23 @@ public sealed class CompatibilityProductionInputTests
                 OpenVinoKvCacheFormat.U8, OpenVinoPerformanceHint.Latency,
                 OpenVinoCompiledCachePolicy.Disabled, 1, 512, 8192,
                 SupportLevel.DeclaredSupported, false);
+        OpenVinoAdmittedConfiguration alternative =
+            OpenVinoAdmittedConfiguration.Create(
+                "ov-int4", DeviceRouteId.Cpu, OpenVinoWeightFormat.Int4,
+                OpenVinoKvCacheFormat.U8, OpenVinoPerformanceHint.Latency,
+                OpenVinoCompiledCachePolicy.Disabled, 1, 512, 8192,
+                SupportLevel.DeclaredSupported, false);
         OptimizationCapabilitySnapshot snapshot =
             OptimizationCapabilitySnapshot.ForOpenVino(
                 "ov-cap", digest, OpenVinoCapabilityPayload.Create(
-                    "2026.1.0", [admitted],
-                    [OpenVinoAuthority(admitted.EvidenceId, digest)]));
+                    "2026.1.0", [admitted, alternative],
+                    [
+                        OpenVinoAuthority(admitted.EvidenceId, digest),
+                        OpenVinoAuthority(
+                            alternative.EvidenceId,
+                            digest,
+                            OpenVinoWeightPrecision.FourBit)
+                    ]));
         OpenVinoCompatibilityModelInput model =
             OpenVinoCompatibilityModelInput.Create(
                 GiB, 16, 2048, 16, 4, 4096);

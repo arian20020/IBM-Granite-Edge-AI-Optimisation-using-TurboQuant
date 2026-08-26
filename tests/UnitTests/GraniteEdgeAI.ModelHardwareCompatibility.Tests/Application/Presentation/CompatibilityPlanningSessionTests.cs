@@ -40,6 +40,25 @@ public sealed class CompatibilityPlanningSessionTests
     }
 
     [TestMethod]
+    public void MatchesIssuedPlan_AcceptsOnlyTheExactRetainedDecision()
+    {
+        Fixture fixture = CreateFixture();
+        CompatibilityPlanningSession session = CreateSession(fixture);
+        OptimizationPreferenceSelection preference =
+            OptimizationPreferenceSelection.Manual(60);
+        OptimizationExecutionPlan plan = session.Issue(
+            preference,
+            new OpenVinoComposer(),
+            OptimizationHardwareAuthorityTestData.Issuance(fixture.Candidate),
+            new FixedTimeProvider(DateTimeOffset.UnixEpoch));
+
+        Assert.IsTrue(session.MatchesIssuedPlan(plan, preference));
+        Assert.IsFalse(session.MatchesIssuedPlan(
+            plan,
+            OptimizationPreferenceSelection.Manual(40)));
+    }
+
+    [TestMethod]
     public void Issue_RejectsWrongRouteComposerBeforeItCanCompose()
     {
         Fixture fixture = CreateFixture();
