@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "policy": {
+    "importMethod": "bounded commit:path:blob verification",
+    "manifestPaths": [
+      "docs/handoffs/2026-08-26-cross-route-optimisation-import-manifest.json",
+      "docs/handoffs/2026-08-26-cross-route-optimisation-import-manifest.md"
+    ]
+  },
+  "authorities": [
+    { "name": "planning-base", "ref": "fix/hardware-inspection-loq-baseline", "commit": "092589c38981ad86bb73c7c97dff01ab8b5a6c8e" },
+    { "name": "canonical-optimisation-ui", "ref": "origin/feature/cross-route-optimisation-ui-v1", "commit": "8d304d765cf8138ae68e0e8d3afa9f4ad2bad9a8" },
+    { "name": "openvino-route", "ref": "origin/feature/openvino-optimisation-adapter-v1", "commit": "f0189ed187ba900f27bade5fde282ae4e99e8d7b" },
+    { "name": "historical-cross-route-contracts", "ref": "origin/feature/cross-route-optimisation-contracts-v2-1", "commit": "e254385997392601102b16acf19244437803bdcc" },
+    { "name": "production-gguf-runtime", "ref": "origin/feature/gguf-cli-chat-production", "commit": "bacb3f4106e0191b05b870358342f8158765396d" },
+    { "name": "llama-cpp-quantiser", "ref": "https://github.com/ggml-org/llama.cpp.git", "commit": "3f7c29d318e317b63f54c558bc69803963d7d88c" }
+  ],
+  "components": [
+    {
+      "name": "UO1",
+      "sourceRef": "origin/feature/cross-route-optimisation-ui-v1",
+      "sourceCommit": "8d304d765cf8138ae68e0e8d3afa9f4ad2bad9a8",
+      "status": "Pending",
+      "sources": [],
+      "destinations": [],
+      "allowedDestinationPaths": [],
+      "dependencyClosure": [],
+      "excludedSharedPaths": [],
+      "integrationPatches": [],
+      "verificationCommands": []
+    },
+    {
+      "name": "GGUF runtime",
+      "sourceRef": "origin/feature/gguf-cli-chat-production",
+      "sourceCommit": "bacb3f4106e0191b05b870358342f8158765396d",
+      "status": "Pending",
+      "sources": [],
+      "destinations": [],
+      "allowedDestinationPaths": [],
+      "dependencyClosure": [],
+      "excludedSharedPaths": [],
+      "integrationPatches": [],
+      "verificationCommands": []
+    },
+    {
+      "name": "OpenVINO route",
+      "sourceRef": "origin/feature/openvino-optimisation-adapter-v1",
+      "sourceCommit": "f0189ed187ba900f27bade5fde282ae4e99e8d7b",
+      "status": "Pending",
+      "sources": [],
+      "destinations": [],
+      "allowedDestinationPaths": [],
+      "dependencyClosure": [],
+      "excludedSharedPaths": [],
+      "integrationPatches": [],
+      "verificationCommands": []
+    }
+  ]
+}
