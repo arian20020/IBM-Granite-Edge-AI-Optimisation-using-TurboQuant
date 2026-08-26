@@ -1,6 +1,7 @@
 using System.Reflection;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.Contracts;
+using GraniteEdgeAI.Features.ModelHardwareCompatibility.Journey;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.ViewModels;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Contracts;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Candidates;
@@ -23,6 +24,22 @@ public sealed class OptimizationSelectionHandoffTests
     private const string OtherDigest =
         "2222222222222222222222222222222222222222222222222222222222222222";
     private const string Commit = "0123456789abcdef0123456789abcdef01234567";
+
+    internal static OptimizationJourneyEntryContext RequiredJourneyEntry()
+    {
+        OptimizationExecutionPlan plan = Plan(
+            OptimizationPreferenceSelection.Automatic());
+        Assert.IsTrue(OptimizationSelectionHandoff.TryCreate(
+            plan,
+            plan.Binding,
+            plan.CapabilitySnapshot,
+            plan.Preference,
+            out OptimizationSelectionHandoff? handoff));
+        return new OptimizationJourneyEntryContext(
+            handoff!,
+            OptimizationJourneyOrigin.Required,
+            currentModelFallback: null);
+    }
 
     [TestMethod]
     public void ExactCurrentAuthority_ProducesIdentityBoundV3Handoff()

@@ -393,11 +393,14 @@ public sealed class OptimizationPlanBindingTests
                 plan, "out-1",
                 "6666666666666666666666666666666666666666666666666666666666666666",
                 4 * Gibibyte, sourceUnchanged: true, DateTimeOffset.UnixEpoch),
-            OptimizationExecutionResult.Cancelled(plan, DateTimeOffset.UnixEpoch),
+            OptimizationExecutionResult.Cancelled(
+                plan, sourceUnchanged: true, DateTimeOffset.UnixEpoch),
             OptimizationExecutionResult.Failed(
-                plan, OptimizationSupportCode.ValidationFailed, DateTimeOffset.UnixEpoch),
+                plan, OptimizationSupportCode.ValidationFailed,
+                sourceUnchanged: true, DateTimeOffset.UnixEpoch),
             OptimizationExecutionResult.ReplanRequired(
-                plan, OptimizationSupportCode.CapabilityDrift, DateTimeOffset.UnixEpoch)
+                plan, OptimizationSupportCode.CapabilityDrift,
+                sourceUnchanged: true, DateTimeOffset.UnixEpoch)
         ];
 
         foreach (OptimizationExecutionResult result in results)
@@ -441,15 +444,18 @@ public sealed class OptimizationPlanBindingTests
         OptimizationExecutionPlan plan = OptimizationPlanTestData.Create();
 
         Assert.IsFalse(
-            OptimizationExecutionResult.Cancelled(plan, DateTimeOffset.UnixEpoch)
+            OptimizationExecutionResult.Cancelled(
+                plan, sourceUnchanged: true, DateTimeOffset.UnixEpoch)
                 .IsSuccessful);
         Assert.IsFalse(
             OptimizationExecutionResult.Failed(
-                plan, OptimizationSupportCode.SmokeTestFailed, DateTimeOffset.UnixEpoch)
+                plan, OptimizationSupportCode.SmokeTestFailed,
+                sourceUnchanged: true, DateTimeOffset.UnixEpoch)
                 .IsSuccessful);
         Assert.IsFalse(
             OptimizationExecutionResult.ReplanRequired(
-                plan, OptimizationSupportCode.CapabilityDrift, DateTimeOffset.UnixEpoch)
+                plan, OptimizationSupportCode.CapabilityDrift,
+                sourceUnchanged: true, DateTimeOffset.UnixEpoch)
                 .IsSuccessful);
     }
 
@@ -462,18 +468,39 @@ public sealed class OptimizationPlanBindingTests
 
         foreach (OptimizationExecutionResult result in new[]
         {
-            OptimizationExecutionResult.Cancelled(plan, DateTimeOffset.UnixEpoch),
+            OptimizationExecutionResult.Cancelled(
+                plan, sourceUnchanged: true, DateTimeOffset.UnixEpoch),
             OptimizationExecutionResult.Failed(
-                plan, OptimizationSupportCode.ConversionFailed, DateTimeOffset.UnixEpoch),
+                plan, OptimizationSupportCode.ConversionFailed,
+                sourceUnchanged: true, DateTimeOffset.UnixEpoch),
             OptimizationExecutionResult.ReplanRequired(
                 plan, OptimizationSupportCode.SourceIdentityMismatch,
-                DateTimeOffset.UnixEpoch)
+                sourceUnchanged: true, DateTimeOffset.UnixEpoch)
         })
         {
             Assert.IsNull(result.OutputIdentity);
             Assert.IsNull(result.OutputManifestSha256);
             Assert.AreEqual(0UL, result.OutputSizeBytes);
         }
+    }
+
+    [TestMethod]
+    public void NonSuccessResultsPreserveTheObservedSourceIntegrity()
+    {
+        OptimizationExecutionPlan plan = OptimizationPlanTestData.Create();
+        OptimizationExecutionResult[] results =
+        [
+            OptimizationExecutionResult.Cancelled(
+                plan, sourceUnchanged: false, DateTimeOffset.UnixEpoch),
+            OptimizationExecutionResult.Failed(
+                plan, OptimizationSupportCode.ValidationFailed,
+                sourceUnchanged: false, DateTimeOffset.UnixEpoch),
+            OptimizationExecutionResult.ReplanRequired(
+                plan, OptimizationSupportCode.SourceIdentityMismatch,
+                sourceUnchanged: false, DateTimeOffset.UnixEpoch)
+        ];
+
+        Assert.IsTrue(results.All(result => !result.SourceUnchanged));
     }
 
     [TestMethod]
@@ -498,6 +525,7 @@ public sealed class OptimizationPlanBindingTests
             () => OptimizationExecutionResult.ReplanRequired(
                 OptimizationPlanTestData.Create(),
                 OptimizationSupportCode.InsufficientDiskSpace,
+                sourceUnchanged: false,
                 DateTimeOffset.UnixEpoch));
     }
 
@@ -508,6 +536,7 @@ public sealed class OptimizationPlanBindingTests
             () => OptimizationExecutionResult.Failed(
                 OptimizationPlanTestData.Create(),
                 OptimizationSupportCode.None,
+                sourceUnchanged: false,
                 DateTimeOffset.UnixEpoch));
     }
 

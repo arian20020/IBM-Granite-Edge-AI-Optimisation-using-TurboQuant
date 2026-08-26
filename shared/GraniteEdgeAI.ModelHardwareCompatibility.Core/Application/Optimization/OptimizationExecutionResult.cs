@@ -193,6 +193,7 @@ public sealed record OptimizationExecutionResult
     public static OptimizationExecutionResult ReplanRequired(
         OptimizationExecutionPlan plan,
         OptimizationSupportCode supportCode,
+        bool sourceUnchanged,
         DateTimeOffset completedAtUtc)
     {
         ArgumentNullException.ThrowIfNull(plan);
@@ -212,12 +213,14 @@ public sealed record OptimizationExecutionResult
         }
 
         return Terminal(
-            plan, OptimizationExecutionStatus.ReplanRequired, supportCode, completedAtUtc);
+            plan, OptimizationExecutionStatus.ReplanRequired, supportCode,
+            sourceUnchanged, completedAtUtc);
     }
 
     public static OptimizationExecutionResult Failed(
         OptimizationExecutionPlan plan,
         OptimizationSupportCode supportCode,
+        bool sourceUnchanged,
         DateTimeOffset completedAtUtc)
     {
         ArgumentNullException.ThrowIfNull(plan);
@@ -230,11 +233,14 @@ public sealed record OptimizationExecutionResult
                 nameof(supportCode));
         }
 
-        return Terminal(plan, OptimizationExecutionStatus.Failed, supportCode, completedAtUtc);
+        return Terminal(plan, OptimizationExecutionStatus.Failed, supportCode,
+            sourceUnchanged, completedAtUtc);
     }
 
     public static OptimizationExecutionResult Cancelled(
-        OptimizationExecutionPlan plan, DateTimeOffset completedAtUtc)
+        OptimizationExecutionPlan plan,
+        bool sourceUnchanged,
+        DateTimeOffset completedAtUtc)
     {
         ArgumentNullException.ThrowIfNull(plan);
 
@@ -242,6 +248,7 @@ public sealed record OptimizationExecutionResult
             plan,
             OptimizationExecutionStatus.Cancelled,
             OptimizationSupportCode.CancelledByUser,
+            sourceUnchanged,
             completedAtUtc);
     }
 
@@ -254,6 +261,7 @@ public sealed record OptimizationExecutionResult
         OptimizationExecutionPlan plan,
         OptimizationExecutionStatus status,
         OptimizationSupportCode supportCode,
+        bool sourceUnchanged,
         DateTimeOffset completedAtUtc) =>
         new(
             status,
@@ -261,7 +269,7 @@ public sealed record OptimizationExecutionResult
             plan.Route,
             plan.ConfigurationSha256,
             plan.Binding.ModelSha256,
-            sourceUnchanged: true,
+            sourceUnchanged,
             outputIdentity: null,
             outputManifestSha256: null,
             outputSizeBytes: 0,
