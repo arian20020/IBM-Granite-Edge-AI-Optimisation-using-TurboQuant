@@ -215,11 +215,18 @@ public sealed class ExternalProcessRunner : IExternalProcessRunner
 
         return new ExternalProcessResult(
             reason,
-            exitCode,
+            ExitCodeForFinalReason(reason, exitCode),
             captures[0].Text,
             captures[1].Text,
             elapsed.Elapsed);
     }
+
+    internal static int? ExitCodeForFinalReason(
+        ExternalProcessTerminationReason finalReason,
+        int? capturedExitCode) =>
+        finalReason == ExternalProcessTerminationReason.Exited
+            ? capturedExitCode
+            : null;
 
     private static async Task<bool> KillAndWaitAsync(
         Process process,

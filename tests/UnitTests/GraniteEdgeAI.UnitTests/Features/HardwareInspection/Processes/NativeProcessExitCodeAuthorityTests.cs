@@ -6,6 +6,26 @@ namespace GraniteEdgeAI.UnitTests.Features.HardwareInspection.Processes;
 public sealed class NativeProcessExitCodeAuthorityTests
 {
     [TestMethod]
+    public void OutputLimitObservedAfterExitSuppressesPreviouslyCapturedExitCode()
+    {
+        ExternalProcessTerminationReason finalReason =
+            ExternalProcessTerminationReason.Exited;
+        int? capturedExitCode = 0;
+
+        Assert.AreEqual(
+            capturedExitCode,
+            ExternalProcessRunner.ExitCodeForFinalReason(
+                finalReason,
+                capturedExitCode));
+
+        finalReason = ExternalProcessTerminationReason.OutputLimitExceeded;
+
+        Assert.IsNull(ExternalProcessRunner.ExitCodeForFinalReason(
+            finalReason,
+            capturedExitCode));
+    }
+
+    [TestMethod]
     public void CompletedNativeQueryReturnsTheExactExitCode()
     {
         Assert.IsTrue(NativeProcessExitCodeAuthority.TryInterpret(
