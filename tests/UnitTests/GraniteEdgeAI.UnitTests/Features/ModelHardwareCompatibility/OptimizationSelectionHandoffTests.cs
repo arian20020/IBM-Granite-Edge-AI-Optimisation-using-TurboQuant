@@ -73,11 +73,19 @@ public sealed class OptimizationSelectionHandoffTests
                 requiresPersistentChange: true),
             "gguf-q3-persistent",
             isExperimental: false);
+        GgufQuantiserIdentity quantiser = GgufQuantiserIdentity.Create(
+            "llama-quantize-test",
+            "build-test-1",
+            OtherDigest);
+        GgufConversionSourceBinding conversionSource =
+            GgufConversionSourceBinding.Create(WeightQuantisation.F16, binding);
         OptimizationExecutionPayload payload = OptimizationExecutionPayload.ForGguf(
             GgufExecutionPayload.Create(
                 "runtime", Commit, GgufRuntimeBackend.Cpu, "CPU", 4096,
                 GgufCacheType.F16, GgufCacheType.F16, 0, false, 4, 128,
-                "Estimated", "profile", 256, GgufWeightFormat.Q3KM));
+                "Estimated", "profile", 256, GgufWeightFormat.Q3KM,
+                quantiser,
+                conversionSource));
         return Plan(
             OptimizationPreferenceSelection.Automatic(),
             binding: binding,
