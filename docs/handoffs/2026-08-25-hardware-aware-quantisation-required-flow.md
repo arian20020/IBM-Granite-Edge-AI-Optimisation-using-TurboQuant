@@ -10,7 +10,7 @@
 
 **Task 9 review base:** `735da68de3ff882f12595561e591d39234eaa491`
 
-**Reviewed code tip:** `478a0a77c6aad84d7f30047e092d481ad71bdc00`
+**Reviewed code tip:** `8b25e4f7f5b65f820594b6b600d0f411de7cb993`
 
 **Disposition:** feature slice complete; all final core and packaged regressions
 pass with non-zero discovery and zero failures or skips.
@@ -51,6 +51,7 @@ remains visibly disabled as `Coming later` and cannot navigate.
 | `3d727bc87b2cba7c66e6b0418e646d7151f98634` | retains the exact `CreateProcess` handle as race-free exit-code authority and adds deterministic/stress coverage |
 | `45dc3648f20d439426b321eb4eee062ded1dfb67` | covers the valid injected OpenVINO picker route, shared selection lifecycle, and path-private navigation payload |
 | `478a0a77c6aad84d7f30047e092d481ad71bdc00` | keeps the new lifecycle stress outside the separately frozen Gate 8 acceptance inventory |
+| `8b25e4f7f5b65f820594b6b600d0f411de7cb993` | suppresses a captured exit code when output draining changes the final terminal reason away from `Exited` |
 
 ### Changed paths after the Task 9 review base
 
@@ -83,6 +84,14 @@ after an observed exit now fails closed as a bounded `CleanupFailed` result;
 no exception, guessed exit code, path, or raw operating-system error escapes.
 Cancellation, timeout, Job Object tree cleanup, independent output bounds, and
 output-drain ordering are unchanged.
+
+A final terminal-result review found one additional ordering edge: the native
+exit code could be captured after `exit` won the initial race, while a bounded
+drain later proved an output-limit breach and changed the final reason to
+`OutputLimitExceeded`. The runner still performs the race-free native query at
+the same early point, but publishes the captured code only if the final reason
+remains `Exited`. Every non-exit result therefore retains the contractually
+required null exit code.
 
 ## Contract continuity
 
@@ -193,20 +202,21 @@ Command of record:
 
 ```powershell
 & $vstest $recipe '/Platform:x64' "/Settings:$runsettings" `
-  '/Logger:trx;LogFileName=full-serial-native-handle-final-green.trx' `
+  '/Logger:trx;LogFileName=full-serial-final-reason-green.trx' `
   "/ResultsDirectory:$resultsPath"
 ```
 
-Final result: **1,430 total, 1,430 passed, 0 failed, 0 skipped** in
-**9.1783 minutes**.
+Final result: **1,431 total, 1,431 passed, 0 failed, 0 skipped** in
+**9.1991 minutes**.
 
 TRX of record:
-`C:\GEAI-LOQ\TestResults\HardwareAwareOptimisation\ProcessLifecycle\full-serial-native-handle-final-green.trx`.
+`C:\GEAI-LOQ\TestResults\HardwareAwareOptimisation\ProcessLifecycle\full-serial-final-reason-green.trx`.
 
 The final run includes the complete ModelHardwareCompatibility and Onboarding
 inventories with no unexpected skips. It also executes the 64-iteration
-short-lived-process stress and both LlmFit tests which originally exposed the
-race, late in the same long-lived one-worker host; all passed.
+short-lived-process stress, the deterministic final-reason normalization test,
+and both LlmFit tests which originally exposed the race, late in the same
+long-lived one-worker host; all passed.
 
 #### Process-lifecycle correction evidence
 
@@ -237,7 +247,14 @@ metadata regression: the stress method had accidentally joined the frozen
 Gate 8 acceptance category, producing an inventory count of 88 instead of 87.
 No runtime test failed. Removing only that category restored the exact
 inventory; `inventory-and-stress-green.trx` then passed **2/2**, and the final
-complete run above passed **1,430/1,430**.
+complete run above passed **1,431/1,431**.
+
+The final-reason correction was also exercised in
+`terminal-reason-normalization-green.trx`: **25/25 passed** across the exit-code
+authority, runner stress, both output-limit paths, and all LlmFit real
+boundaries. After the test made the modeled `Exited` to
+`OutputLimitExceeded` transition explicit, the exact focused rerun passed
+**1/1** in `terminal-reason-contract-final-green.trx`.
 
 The focused final packaged ModelHardwareCompatibility suite remains
 **105/105** at
@@ -292,7 +309,7 @@ clipping.
 
 ```powershell
 rg -n "Process\.GetProcesses|\.Kill\(|TerminateProcess|ManagementObjectSearcher" 'IBM Granite with TurboQuant (Intel)/Features/ModelHardwareCompatibility'
-git diff -U0 80a67bc78a343c6589d1c1f6b3be98092af81ecd..478a0a77c6aad84d7f30047e092d481ad71bdc00 -- 'infrastructure/GraniteEdgeAI.HardwareInspection.Foundation/Processes' | rg -n '^\+.*(Process\.GetProcesses|\.Kill\(|TerminateProcess|ManagementObjectSearcher)'
+git diff -U0 80a67bc78a343c6589d1c1f6b3be98092af81ecd..8b25e4f7f5b65f820594b6b600d0f411de7cb993 -- 'infrastructure/GraniteEdgeAI.HardwareInspection.Foundation/Processes' | rg -n '^\+.*(Process\.GetProcesses|\.Kill\(|TerminateProcess|ManagementObjectSearcher)'
 rg -n "[A-Za-z]:\\|Users\\|Downloads\\" 'IBM Granite with TurboQuant (Intel)/Features/ModelHardwareCompatibility' 'shared/GraniteEdgeAI.ModelHardwareCompatibility.Core'
 git diff --check
 ```
