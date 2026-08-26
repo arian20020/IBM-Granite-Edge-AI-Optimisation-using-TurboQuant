@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="GraniteEdgeAI.Features.ModelOptimization.OptimizationPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:GraniteEdgeAI.Features.ModelOptimization.Controls"
+    RequestedTheme="Light">
+
+    <Page.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="ms-appx:///Features/ModelOptimization/Presentation/OptimizationTheme.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Page.Resources>
+
+    <Grid x:Name="LayoutRoot" Background="{ThemeResource OptimizationCanvasBrush}">
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup x:Name="ResponsivePageStates">
+                <VisualState x:Name="WidePageState">
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger MinWindowWidth="1100" />
+                    </VisualState.StateTriggers>
+                    <VisualState.Setters>
+                        <Setter Target="OptimizationContentHost.Margin" Value="32,48,32,64" />
+                        <Setter Target="OptimizationContentHost.MaxWidth" Value="1040" />
+                    </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="StandardPageState">
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger MinWindowWidth="600" />
+                    </VisualState.StateTriggers>
+                    <VisualState.Setters>
+                        <Setter Target="OptimizationContentHost.Margin" Value="{StaticResource OptimizationPageMargin}" />
+                    </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="CompactPageState">
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger MinWindowWidth="0" />
+                    </VisualState.StateTriggers>
+                    <VisualState.Setters>
+                        <Setter Target="OptimizationContentHost.Margin" Value="{StaticResource OptimizationCompactPageMargin}" />
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
+
+        <ScrollViewer
+            x:Name="OptimizationPageScrollViewer"
+            HorizontalScrollBarVisibility="Disabled"
+            HorizontalScrollMode="Disabled"
+            VerticalScrollBarVisibility="Auto"
+            VerticalScrollMode="Enabled"
+            ZoomMode="Disabled">
+            <StackPanel
+                x:Name="OptimizationContentHost"
+                MaxWidth="{StaticResource OptimizationContentWidth}"
+                Margin="{StaticResource OptimizationCompactPageMargin}"
+                HorizontalAlignment="Stretch"
+                Spacing="16">
+                <StackPanel Margin="0,0,0,12" Spacing="8">
+                    <TextBlock
+                        x:Name="PageTitle"
+                        HorizontalAlignment="Center"
+                        FontSize="32"
+                        FontWeight="Bold"
+                        Foreground="{ThemeResource OptimizationTextBrush}"
+                        Text="Optimise this model"
+                        TextAlignment="Center"
+                        TextWrapping="WrapWholeWords" />
+                    <TextBlock
+                        x:Name="PageSummary"
+                        MaxWidth="720"
+                        HorizontalAlignment="Center"
+                        Style="{StaticResource OptimizationBodyStyle}"
+                        TextAlignment="Center" />
+                </StackPanel>
+
+                <controls:OptimizationConfigurationCard
+                    x:Name="ConfigurationCard"
+                    AutomationProperties.Name="Selected optimisation configuration" />
+
+                <controls:OptimizationConfirmationCard
+                    x:Name="ConfirmationCard"
+                    AutomationProperties.Name="Confirm optimisation configuration"
+                    Visibility="Collapsed" />
+
+                <controls:OptimizationProgressCard
+                    x:Name="ProgressCard"
+                    AutomationProperties.Name="Optimisation progress"
+                    Visibility="Collapsed" />
+
+                <controls:OptimizationRecoveryCard
+                    x:Name="RecoveryCard"
+                    AutomationProperties.Name="Optimisation recovery"
+                    Visibility="Collapsed" />
+
+                <controls:OptimizationDestinationCard
+                    x:Name="DestinationCard"
+                    AutomationProperties.Name="Optimisation destination"
+                    Visibility="Collapsed" />
+
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Page>
