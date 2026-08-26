@@ -1,0 +1,58 @@
+<h2>Shared optimisation flow</h2>
+<p class="subtitle">One interpretation for C1, G1, O1 and the post-optimisation page</p>
+
+<div class="mockup">
+  <div class="mockup-header">Route-neutral decision, route-specific execution</div>
+  <div class="mockup-body">
+    <div style="display:grid;grid-template-columns:1fr;gap:12px;max-width:900px;margin:auto">
+      <div style="padding:16px;border:1px solid #cbd5e1;border-radius:12px;background:#f8fafc">
+        <div class="label">Inputs</div>
+        <strong>Inspected model + inspected hardware + requested workload</strong>
+        <div style="color:#64748b;margin-top:5px">Format, source precision, architecture, context target, safe memory, supported runtimes/devices and admitted evidence.</div>
+      </div>
+      <div style="text-align:center;font-size:22px;color:#2563eb">↓</div>
+      <div style="padding:16px;border:2px solid #2563eb;border-radius:12px;background:#eff6ff">
+        <div class="label">C1 owns</div>
+        <strong>Generate and rank complete configurations</strong>
+        <div style="color:#475569;margin-top:5px">Automatic, Quality, Balanced and Efficiency are objectives—not fixed formats. Every candidate binds weights, runtime KV cache, backend/device, context, offload, Flash Attention, memory estimate and evidence grade.</div>
+      </div>
+      <div style="text-align:center;font-size:22px;color:#2563eb">↓</div>
+      <div style="padding:16px;border:1px solid #93c5fd;border-radius:12px;background:white">
+        <div class="label">User confirmation</div>
+        <strong>Review the exact selected configuration before anything changes</strong>
+        <div style="color:#64748b;margin-top:5px">Current versus proposed settings, expected trade-offs, limitations, and a prominent “New model copy: Yes / No”.</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div style="padding:16px;border:1px solid #a7f3d0;border-radius:12px;background:#ecfdf5">
+          <div class="label">Runtime-only</div>
+          <strong>No new model artefact</strong>
+          <div style="color:#475569;margin-top:5px">Save a validated runtime profile. Original model/package remains unchanged.</div>
+        </div>
+        <div style="padding:16px;border:1px solid #fde68a;border-radius:12px;background:#fffbeb">
+          <div class="label">Persistent change</div>
+          <strong>G1 executes GGUF · O1 executes OpenVINO</strong>
+          <div style="color:#475569;margin-top:5px">Stage output, verify source unchanged, validate/reinspect, smoke-test, write provenance, then publish atomically.</div>
+        </div>
+      </div>
+      <div style="text-align:center;font-size:22px;color:#2563eb">↓</div>
+      <div style="padding:16px;border:2px solid #0f766e;border-radius:12px;background:#f0fdfa">
+        <div class="label">POD1 owns</div>
+        <strong>What would you like to do next?</strong>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px">
+          <button class="mock-button" style="width:100%;background:#0f6cbd;color:white">Chat with this model</button>
+          <button class="mock-button" style="width:100%;background:white;color:#0f172a;border:1px solid #94a3b8">Save model to this computer</button>
+        </div>
+        <div style="color:#64748b;margin-top:9px">Save uses a Windows picker and copies the validated GGUF file or complete OpenVINO package plus its manifest to a user-selected folder.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="approve" onclick="toggleSelect(this)">
+    <div class="letter">A</div><div class="content"><h3>Approve this flow</h3><p>Use it as the shared contract for all workers.</p></div>
+  </div>
+  <div class="option" data-choice="revise" onclick="toggleSelect(this)">
+    <div class="letter">B</div><div class="content"><h3>Revise the flow</h3><p>Tell me what should change before I define the detailed mode rules.</p></div>
+  </div>
+</div>

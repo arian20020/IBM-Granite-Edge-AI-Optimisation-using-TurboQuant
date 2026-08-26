@@ -1,0 +1,66 @@
+<h2>Optimisation choice page</h2>
+<p class="subtitle">Modern light composition using the existing Model Download preference control as the visual foundation</p>
+
+<div class="mockup">
+  <div class="mockup-header">Preview · Standard desktop width</div>
+  <div class="mockup-body" style="background:#f5f7fb;padding:28px">
+    <div style="max-width:820px;margin:auto;color:#172033">
+      <div style="text-align:center;margin-bottom:18px">
+        <h2 style="margin:0 0 6px;font-size:30px">Choose how to optimise</h2>
+        <p style="margin:0;color:#64748b">Every option below is supported for this model and remains within this computer's safe limit.</p>
+      </div>
+
+      <div style="background:#fff;border:1px solid #dbe3ef;border-radius:16px;padding:18px 20px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:20px">
+        <div><div style="font-size:17px;font-weight:750">Granite 4.1 3B</div><div style="color:#64748b;margin-top:3px">GGUF · Current Q8_0 · Requested context 16,384 tokens</div></div>
+        <div style="padding:6px 10px;border-radius:999px;background:#e8f7f2;color:#08775c;font-weight:700;font-size:11px">SAFE OPTIONS FOUND</div>
+      </div>
+
+      <div style="background:#edf6ff;border:1px solid #93c5fd;border-radius:16px;padding:20px;margin-bottom:12px;display:grid;grid-template-columns:1fr auto;gap:14px;align-items:center">
+        <div>
+          <div style="display:flex;align-items:center;gap:8px"><strong style="font-size:18px">Automatic</strong><span style="font-size:10px;font-weight:800;color:#1457b8;background:white;border-radius:999px;padding:4px 8px">RECOMMENDED</span></div>
+          <p style="margin:6px 0 0;color:#475569">Let the application choose the strongest overall setup for this model, workload and computer.</p>
+        </div>
+        <button class="mock-button" style="background:#0f6cbd;color:white;border:0;border-radius:9px;padding:11px 18px">Use Automatic</button>
+      </div>
+
+      <div style="background:#fff;border:1px solid #dbe3ef;border-radius:16px;padding:21px;margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;align-items:end;gap:16px">
+          <div><div class="label">Manual preference</div><strong style="font-size:18px">Balanced</strong></div>
+          <span style="color:#2563eb;font-size:12px;font-weight:700">Recommended position</span>
+        </div>
+        <div style="margin:25px 4px 4px;position:relative">
+          <div style="height:7px;border-radius:99px;background:linear-gradient(90deg,#0f6cbd,#3b82f6 50%,#8b5cf6)"></div>
+          <div style="position:absolute;left:50%;top:-7px;transform:translateX(-50%);width:21px;height:21px;border:4px solid white;border-radius:50%;background:#2563eb;box-shadow:0 0 0 2px #2563eb"></div>
+          <div style="display:grid;grid-template-columns:repeat(5,1fr);margin-top:10px;color:#64748b;font-size:10px;text-align:center;gap:3px">
+            <div style="text-align:left">Maximum<br>efficiency</div><div>Efficient</div><div style="color:#1d4ed8;font-weight:800">Balanced</div><div>High<br>capability</div><div style="text-align:right">Maximum<br>capability</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="background:#fff;border:1px solid #dbe3ef;border-radius:16px;padding:20px;margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><strong style="font-size:18px">Selected setup</strong><span style="color:#08775c;background:#e8f7f2;border-radius:999px;padding:5px 9px;font-size:10px;font-weight:800">VALIDATED CANDIDATE</span></div>
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:9px">
+          <div style="background:#f7f9fc;border-radius:10px;padding:11px"><div class="label">Model weights</div><strong>Q6_K</strong></div>
+          <div style="background:#f7f9fc;border-radius:10px;padding:11px"><div class="label">Conversation memory</div><strong>Q8_0 cache</strong></div>
+          <div style="background:#f7f9fc;border-radius:10px;padding:11px"><div class="label">Estimated peak memory</div><strong>8.6 GB · 3.1 GB reserve</strong></div>
+          <div style="background:#f7f9fc;border-radius:10px;padding:11px"><div class="label">New model copy</div><strong>Yes · original unchanged</strong></div>
+        </div>
+        <p style="margin:12px 0 0;color:#64748b;font-size:12px">Balanced selects the strongest middle point between output capability, memory headroom, context capacity and measured performance on this PC.</p>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;gap:12px;background:#fff;border:1px solid #dbe3ef;border-radius:16px;padding:16px 18px;align-items:center">
+        <button class="mock-button" style="background:white;color:#172033;border:1px solid #b8c5d8;border-radius:9px;padding:11px 18px">Back</button>
+        <button class="mock-button" style="background:#0f6cbd;color:white;border:0;border-radius:9px;padding:11px 22px">Review this configuration</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="approve-page" onclick="toggleSelect(this)">
+    <div class="letter">A</div><div class="content"><h3>Approve this page direction</h3><p>Continue to confirmation, progress and final Save-or-Chat states using this same family.</p></div>
+  </div>
+  <div class="option" data-choice="revise-page" onclick="toggleSelect(this)">
+    <div class="letter">B</div><div class="content"><h3>Revise the page</h3><p>Tell me what should be changed before the worker plans are frozen.</p></div>
+  </div>
+</div>

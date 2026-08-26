@@ -2,10 +2,15 @@
 
 **Date:** 2026-08-26
 
-**Status:** Approved in conversation; written-spec review pending
+**Status:** User-approved implementation design; corrected design/plan package under final three-pass consistency review
 
-**Authoritative implementation base:** `fix/hardware-inspection-loq-baseline` at
+**Authoritative feature base:** `fix/hardware-inspection-loq-baseline` at
 `85e889fa18f73cc19780b2af03598d1b76ac0e21`
+
+**Implementation start:** the exact later planning handoff commit supplied as
+`GEAI_EXPECTED_PLAN_COMMIT`; it must descend from feature base and planning-base
+commit `092589c38981ad86bb73c7c97dff01ab8b5a6c8e` and contain this final design,
+the execution plan, and the six byte-pinned visual oracles together.
 
 ## 1. Purpose
 
@@ -40,6 +45,7 @@ authorities:
 | OpenVINO route and optimisation adapter | `origin/feature/openvino-optimisation-adapter-v1` | `f0189ed187ba900f27bade5fde282ae4e99e8d7b` |
 | Cross-route v2.1 historical contract input | `origin/feature/cross-route-optimisation-contracts-v2-1` | `e254385997392601102b16acf19244437803bdcc` |
 | Production GGUF chat/runtime | `origin/feature/gguf-cli-chat-production` | `bacb3f4106e0191b05b870358342f8158765396d` |
+| GGUF quantiser source | `https://github.com/ggml-org/llama.cpp.git` | `3f7c29d318e317b63f54c558bc69803963d7d88c` |
 
 The current v3 contract supersedes v1/v2.1 for the new application journey and
 all new plan issuance. The existing minimum-executable-version rule and any
@@ -53,6 +59,41 @@ default. A required route integration is then expressed as the smallest new
 edit against the authoritative file and verified across both routes.
 
 ## 3. User journeys
+
+### 3.0 OpenVINO import and inspection entry
+
+The existing Model Import picker and Explorer drop paths continue to converge on
+`SubmitInputAsync`. When that classifier accepts an `OpenVinoDirectory`, Model
+Import registers the selected folder in an internal, immutable, operation-owned
+custody record keyed by `ModelSelectionOperationId`; the path does not enter the
+existing `OpenVinoInspectionRequestedEventArgs` or any shell/navigation state.
+
+The shell replaces its current fail-closed `openvino-inspection-unavailable`
+response only after the imported O1 `OpenVinoRouteService` is registered behind
+an `IOpenVinoModelInspectionPort`. The port resolves the private operation
+custody, snapshots the exact package manifest, runs static validation and the
+device-neutral native worker validation, and adapts the successful O1 handoff
+into the current six-field, path-free `ModelInspectionHandoff`. The current
+shared Model Inspection page renders a route-neutral projection of those
+bounded results; OpenVINO does not receive a second inspection page or theme.
+
+For a valid OpenVINO package, the existing six handoff fields retain their exact
+roles: `modelSha256` is O1's validated primary-model digest and
+`modelLengthBytes` is that primary model's validated byte length. The complete
+package-manifest digest and membership remain in private OpenVINO custody and
+must match again at Hardware, Compatibility, execution, Chat, and Save
+boundaries. A source-model folder that requires conversion remains the distinct
+path-private conversion-required intent and is never represented as an
+inspected OpenVINO package.
+
+After the shared Model Inspection presentation reaches an eligible terminal
+state, the normal Hardware Inspection path runs unchanged. A dedicated
+`OpenVinoCompatibilityInputProjector` combines the exact current handoffs with
+the private validated package facts and current OpenVINO capability evidence to
+create `OpenVinoCompatibilityModelInput`; it does not infer missing model,
+runtime, device, or package facts. Cancellation, stale selection callbacks,
+package drift, missing native validation, or custody mismatch fails closed and
+cannot advance to Hardware or Compatibility.
 
 ### 3.1 Current model already fits
 
@@ -404,6 +445,16 @@ The OpenVINO branch contributes only route-owned implementation and evidence:
 - necessary worker packaging targets and project references; and
 - focused OpenVINO route tests.
 
+Production composition does not import the older branch's Model Inspection
+composition owner. One integration-owned, path-private resolver starts from the
+packaged application's installed location, resolves fixed package-relative
+converter, official-worker, and TurboQuant-worker directories, and revalidates
+their canonical manifests, member hashes, and compile-time manifest identities.
+Only its sealed tool contexts may construct the single OpenVINO route service,
+optimisation pipeline, and prompting adapter. Missing, swapped, extra, escaped,
+or mismatched package content makes OpenVINO unavailable with bounded copy; no
+tool path enters a handoff, presentation, navigation payload, diagnostic, or log.
+
 The following older OpenVINO-branch versions are not imported over the current
 branch:
 
@@ -437,6 +488,23 @@ validate and reinspect the result, and return only a sealed operation-owned
 staging candidate. The private registry alone promotes and receipts it into the
 committed-output root. After that admission, Chat receives the exact approved
 runtime configuration.
+
+Persistent GGUF quantisation uses a separately built and packaged
+`llama-quantize.exe` from official `ggml-org/llama.cpp` commit
+`3f7c29d318e317b63f54c558bc69803963d7d88c`, the same mapped upstream identity
+already approved for the current LLamaSharp runtime. A repository-owned build
+script checks out that exact commit, builds only the CPU x64 quantiser with
+network-independent Release flags, inventories its complete runtime dependency
+closure and licences, and writes a canonical package manifest containing the
+source URL/commit, build flags/toolchain, package ID, executable relative path,
+SHA-256, dependency hashes, supported target-format allowlist, and operational
+limits. The binary is staged, not committed.
+
+Packaging and execution require both the verified stage directory and the exact
+lowercase manifest SHA-256. Missing or different source, manifest, executable,
+dependency, licence, architecture, format allowlist, or hash keeps persistent
+GGUF candidates unavailable. The Chat/runtime package never contains
+`llama-quantize.exe`, and production never downloads or builds it on demand.
 
 ### 6.1 Bounded import procedure
 
@@ -584,12 +652,15 @@ or adapter-supplied data.
    current-model Chat handoff, then implement the shared coordinator,
    executor/progress ports, private source/output registries, and destination
    routing with tests.
-5. Import route-owned GGUF runtime/chat code and complete the v3 GGUF optimiser
+5. Import route-owned GGUF runtime/chat code, build/freeze the separate pinned
+   quantiser package, and complete the v3 GGUF optimiser
    adapter.
 6. Prove the complete GGUF journey locally: import through Chat and Save.
 7. Import route-owned OpenVINO contracts, services, worker client, packaging,
    and tests only.
-8. Adapt OpenVINO to the same v3 coordinator without changing shared UI.
+8. Adapt OpenVINO to the same v3 coordinator and connect its path-private
+   Import -> shared Model Inspection -> Hardware -> Compatibility entry without
+   changing or duplicating shared UI.
 9. Prove the complete OpenVINO journey on the UCL laptop, including Chat and
    package export.
 10. Run combined regressions, native visual review, packaged Debug/Release
@@ -638,13 +709,38 @@ or adapter-supplied data.
 
 ### 10.3 Shared visuals
 
+The following locally preserved, user-approved HTML boards are the exact visual
+oracles. Before visual work begins, verify each byte hash. If an oracle is
+missing or mismatched, visual acceptance is blocked rather than reconstructed
+from memory.
+
+| Screen family | Approved oracle | SHA-256 | Exact accepted scope |
+|---|---|---|---|
+| Model Inspection template | `docs/ux/visual-oracles/model-inspection-balanced-full-approval-v3.html` | `D44CFCE9C53BCD9D0EAAA41CA8BA9DED434F68845BBF943351518366FBB20CFF` | `.viewport` geometry, light tokens, card/row/disclosure/action layout, responsive presets; the old disabled future-action attributes are not behavior authority |
+| Hardware Inspection direction B | `docs/ux/visual-oracles/hardware-layout-direction-b-refinement-v3.html` | `6C677D5E9BF9F2F58F1F404ECA3798CD6D17C68911F966CA21DEC01CA902FB4B` | only `.direction[data-choice="b"] .screen`; A/C comparison boards and review chrome are excluded |
+| Compatibility light layout | `docs/ux/visual-oracles/compat-visual-style-v3.html` | `3FFC2F3664363F20908DEDF110E52B53CEE0860FB24C096BEDE4D7DB979A03DF` | only `.card[data-choice="a"] .hi-page` structure/geometry/tokens; its old action labels are replaced by `Chat with current model` and `Optimise first` |
+| Optimisation choice | `docs/ux/visual-oracles/optimisation-choice-page-v1.html` | `434F04BA81E1EB9EF1F88B3C2F2CCA357103B7FE3B6C03F952681280C85921AE` | `.mockup` application page only; the A/B approval controls beneath it are review chrome |
+| Optimisation spectrum | `docs/ux/visual-oracles/optimisation-spectrum-v1.html` | `D74F3B93DF5C38419CF6ADAD45A308FE78745EB9D23DB607B411858E054EB9AF` | frontier/quality-memory concept plus `data-choice="keep-automatic"`; old spectrum labels yield to the exact labels in §3.4 and the choice-page oracle |
+| Shared optimisation flow | `docs/ux/visual-oracles/shared-optimisation-flow.html` | `D669771600EE0D3A56EF3B793C6C06A9882048B88F46F433FED006E5033292F0` | route-neutral ownership/sequence only; not pixel or product-copy authority |
+
+These preserved boards are exact visual references within the scoped regions,
+not executable product specifications. This design owns behavior, copy, enabled
+actions, privacy, and route semantics whenever a board contains earlier review
+copy or disabled placeholders. No worker may copy comparison/review chrome into
+the application or use a stale board label to override an approved journey.
+
 The canonical fixture gallery covers selection, confirmation, every progress
 stage, cancellation, failure, replan, persistent success, and runtime-only
 success at compact, standard, and wide layouts, High Contrast, and actual
 Windows 200% text scaling. Native screenshots must show centred light layouts,
 consistent spacing, vertically aligned icons/text/statuses, equal progress
 rows, full-width disclosures, readable buttons, and no clipping or duplicate
-onboarding shell.
+onboarding shell. Each state receives three passes: first inventory every visual
+and interaction defect against the oracle; second correct geometry, hierarchy,
+spacing, alignment, typography, colour, focus and responsive behavior; third
+recapture and challenge the result for remaining inconsistency across GGUF and
+OpenVINO. A state is not accepted merely because its automated layout tests
+pass.
 
 ### 10.4 End-to-end routes
 

@@ -1,0 +1,357 @@
+<meta charset="utf-8">
+<style>
+  .hi {
+    --ink:#101828; --muted:#667085; --subtle:#98a2b3;
+    --blue:#0f62fe; --blue-soft:#eef5ff; --blue-line:#bdd3ff;
+    --line:#e8edf3; --line-strong:#c9d5e3;
+    --surface:#ffffff; --canvas:#f7f9fc;
+    --warning-bg:#fff6e0; --warning-line:#eec86f; --warning-text:#604200;
+    --success-bg:#e9f7f1; --success-line:#a5d8c4; --success-text:#067a57;
+    --gap:10px;
+    --glyph-check:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2016%2016'%3E%3Cpath%20d='M4.25%207.4L6.9%2010.05L11.75%205.2'%20fill='none'%20stroke='black'%20stroke-width='1.8'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E");
+    --glyph-warning:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2016%2016'%3E%3Cpath%20d='M8%203.4V9.4'%20fill='none'%20stroke='black'%20stroke-width='1.8'%20stroke-linecap='round'/%3E%3Ccircle%20cx='8'%20cy='12.1'%20r='1.1'%20fill='black'/%3E%3C/svg%3E");
+    --glyph-info:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2016%2016'%3E%3Ccircle%20cx='8'%20cy='3.9'%20r='1.1'%20fill='black'/%3E%3Cpath%20d='M8%206.7V12.5'%20fill='none'%20stroke='black'%20stroke-width='1.8'%20stroke-linecap='round'/%3E%3C/svg%3E");
+    font-family:"Segoe UI","IBM Plex Sans",system-ui,sans-serif;
+  }
+  .hi *, .hi *::before { box-sizing:border-box; }
+  /* every grid/flex child may shrink, so nothing can push out of its parent */
+  .hi [class] { min-width:0; }
+
+  .hi-page { position:relative; background:var(--canvas); border:1px solid var(--line-strong);
+    border-radius:12px; padding:16px 16px 84px; overflow:hidden; }
+  .hi-title { margin:0; color:var(--ink); font-size:14px; font-weight:700; text-align:center; }
+  .hi-lede { margin:3px 0 0; color:var(--muted); font-size:9px; line-height:1.45; text-align:center; }
+
+  .card { border:1px solid var(--line); border-radius:12px; background:var(--surface); overflow:hidden; }
+  .section-card { padding:14px 16px; margin-top:var(--gap); }
+
+  .outcome { display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:11px; align-items:center;
+    padding:13px 15px; margin-top:12px; border-color:var(--success-line); background:var(--success-bg); }
+  .outcome h3 { margin:0; color:var(--ink); font-size:12.5px; line-height:1.25; }
+  .outcome p, .section-note { margin:3px 0 0; color:var(--muted); font-size:9.5px; line-height:1.4; }
+
+  .status-icon { --active-glyph:var(--glyph-check); position:relative; width:22px; height:22px;
+    border-radius:50%; background:var(--success-text); color:#fff; flex:0 0 auto; }
+  .status-icon::before { content:""; position:absolute; top:50%; left:50%; width:12px; height:12px;
+    background:currentColor; transform:translate(-50%,calc(-50% + .5px));
+    -webkit-mask:var(--active-glyph) center/contain no-repeat; mask:var(--active-glyph) center/contain no-repeat; }
+
+  .badge { flex:0 0 auto; padding:5px 8px; border:1px solid var(--success-line); border-radius:999px;
+    color:var(--success-text); background:rgba(255,255,255,.62); font-size:7.5px; font-weight:800;
+    line-height:1; letter-spacing:.04em; white-space:nowrap; }
+  .badge.neutral { border-color:var(--blue-line); color:var(--blue); }
+
+  /* ---- symmetry: equal columns, equal rows, equal tiles ---- */
+  .b-columns { display:grid; grid-template-columns:1.35fr .85fr; gap:var(--gap);
+    margin-top:var(--gap); align-items:stretch; }
+  .b-main-facts { display:flex; flex-direction:column; padding:16px; }
+  .b-main-facts .facts-grid { flex:1 1 auto; grid-template-columns:repeat(2,minmax(0,1fr));
+    grid-auto-rows:1fr; gap:var(--gap); margin-top:11px; }
+  .b-side { display:grid; grid-auto-rows:1fr; gap:var(--gap); }
+  .mini-card { display:flex; flex-direction:column; padding:13px 14px; }
+
+  .facts-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr));
+    grid-auto-rows:1fr; gap:8px; margin-top:11px; }
+  .fact { display:flex; flex-direction:column; padding:10px 11px; border:1px solid var(--line);
+    border-radius:8px; background:var(--canvas); }
+  .fact-label { color:var(--muted); font-size:7.5px; font-weight:700; letter-spacing:.03em;
+    text-transform:uppercase; line-height:1.3; }
+  .fact-value { margin-top:5px; color:var(--ink); font-size:11px; font-weight:750; line-height:1.2; }
+  .fact-detail { margin-top:auto; padding-top:4px; color:var(--muted); font-size:7.5px; line-height:1.3; }
+
+  .card-title { margin:0; color:var(--ink); font-size:10.5px; font-weight:750; }
+
+  /* runtime rows: label may ellipsis, pill never shrinks and never escapes */
+  .rows { margin-top:9px; display:flex; flex-direction:column; }
+  .rows.fill { flex:1 1 auto; justify-content:space-between; }
+  .runtime-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px;
+    align-items:center; padding:5px 0; }
+  .row-title { font-size:9.5px; font-weight:750; color:var(--ink);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .row-sub { margin-top:1px; color:var(--muted); font-size:7.5px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .row-val { font-size:9.5px; font-weight:750; color:var(--ink); text-align:right; white-space:nowrap; }
+  .state-good,.state-warn,.state-neutral { flex:0 0 auto; padding:4px 7px; border-radius:999px;
+    font-size:7.5px; font-weight:800; line-height:1; white-space:nowrap; }
+  .state-good { background:var(--success-bg); color:var(--success-text); border:1px solid var(--success-line); }
+  .state-warn { background:var(--warning-bg); color:#9a6700; border:1px solid var(--warning-line); }
+  .state-neutral { background:var(--blue-soft); color:var(--blue); border:1px solid var(--blue-line); }
+
+  .details-disclosure { margin-top:var(--gap); border:1px solid var(--line); border-radius:12px;
+    background:var(--surface); overflow:hidden; }
+  .details-disclosure summary { display:grid; grid-template-columns:auto minmax(0,1fr) auto;
+    align-items:center; gap:11px; padding:12px 15px; cursor:pointer; list-style:none; }
+  .details-disclosure summary::-webkit-details-marker { display:none; }
+  .details-icon { --active-glyph:var(--glyph-info); position:relative; width:22px; height:22px;
+    border-radius:50%; background:var(--blue); color:#fff; flex:0 0 auto; }
+  .details-icon::before { content:""; position:absolute; top:50%; left:50%; width:12px; height:12px;
+    background:currentColor; transform:translate(-50%,calc(-50% + .5px));
+    -webkit-mask:var(--active-glyph) center/contain no-repeat; mask:var(--active-glyph) center/contain no-repeat; }
+  .details-action { flex:0 0 auto; color:var(--blue); font-size:8.5px; font-weight:800; white-space:nowrap; }
+
+  .action-bar { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px;
+    margin-top:var(--gap); }
+  .btn { min-height:32px; display:flex; align-items:center; justify-content:center; padding:0 10px;
+    border-radius:7px; border:1px solid var(--line-strong); background:#fff; color:#344054;
+    font-size:8.5px; font-weight:750; text-align:center; white-space:nowrap;
+    overflow:hidden; text-overflow:ellipsis; }
+  .btn.primary { border-color:var(--blue); background:var(--blue); color:#fff; }
+
+  .stepper { position:absolute; inset:auto 0 0; height:72px; padding:9px 6%;
+    border-top:1px solid var(--line); background:rgba(255,255,255,.97); }
+  .stepper-title { color:var(--muted); font-size:7.5px; font-weight:800; text-align:center; letter-spacing:.06em; }
+  .steps { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); margin-top:8px; }
+  .step { position:relative; text-align:center; color:var(--muted); font-size:6.5px;
+    line-height:1.25; padding:0 3px; }
+  .step:not(:last-child)::after { content:""; position:absolute; top:9px; left:calc(50% + 13px);
+    right:calc(-50% + 13px); height:2px; background:var(--line-strong); }
+  .step.done:not(:last-child)::after { background:var(--blue); }
+  .step-dot { position:relative; width:19px; height:19px; margin:0 auto 5px; border-radius:50%;
+    border:2px solid var(--line-strong); background:#fff; color:var(--muted); font-size:7.5px;
+    font-weight:800; display:grid; place-items:center; }
+  .step.done .step-dot { border-color:var(--blue); background:var(--blue); color:#fff; font-size:0; }
+  .step.done .step-dot::before { content:""; position:absolute; top:50%; left:50%; width:10px; height:10px;
+    background:currentColor; transform:translate(-50%,calc(-50% + .5px));
+    -webkit-mask:var(--glyph-check) center/contain no-repeat; mask:var(--glyph-check) center/contain no-repeat; }
+  .step.active .step-dot { border-color:var(--blue); background:var(--blue); color:#fff; }
+  .step.active { color:var(--ink); font-weight:750; }
+
+  /* budget bar: segments clip their own labels, never overflow */
+  .budget { margin-top:10px; }
+  .budget-track { display:grid; height:24px; border-radius:7px; overflow:hidden;
+    border:1px solid var(--line); }
+  .budget-track i { display:flex; align-items:center; justify-content:center; padding:0 3px;
+    font-size:7px; font-weight:800; color:#fff; font-style:normal;
+    white-space:nowrap; overflow:hidden; }
+  .budget-scale { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); margin-top:5px;
+    color:var(--muted); font-size:7px; }
+  .budget-scale span:nth-child(2) { text-align:center; }
+  .budget-scale span:nth-child(3) { text-align:right; }
+
+  .check-list { margin-top:9px; }
+  .check-row { display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:9px;
+    align-items:center; padding:7px 0; border-top:1px solid var(--line); }
+  .check-row:first-child { border-top:0; padding-top:0; }
+  .check-mark { --active-glyph:var(--glyph-check); position:relative; width:16px; height:16px;
+    border-radius:50%; background:var(--success-text); color:#fff; flex:0 0 auto; }
+  .check-mark.warning { --active-glyph:var(--glyph-warning); background:#9a6700; }
+  .check-mark::before { content:""; position:absolute; top:50%; left:50%; width:9px; height:9px;
+    background:currentColor; transform:translate(-50%,calc(-50% + .5px));
+    -webkit-mask:var(--active-glyph) center/contain no-repeat; mask:var(--active-glyph) center/contain no-repeat; }
+  .check-copy strong { display:block; color:var(--ink); font-size:8.5px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .check-copy span { display:block; margin-top:2px; color:var(--muted); font-size:7.5px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .check-state { flex:0 0 auto; color:var(--success-text); font-size:7.5px; font-weight:800; white-space:nowrap; }
+
+  .b-hero { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:16px; align-items:center;
+    padding:15px 17px; margin-top:12px; border-color:var(--success-line);
+    background:linear-gradient(110deg,var(--success-bg),#fbfffd 72%); }
+  .b-kicker { color:var(--success-text); font-size:7.5px; font-weight:850; letter-spacing:.07em; text-transform:uppercase; }
+  .b-title { margin:4px 0 0; color:var(--ink); font-size:14px; }
+  .b-copy { margin:4px 0 0; color:#3f6b5c; font-size:8.5px; line-height:1.4; }
+  .quality-score { flex:0 0 auto; display:grid; align-content:center; justify-items:center; text-align:center; }
+  .quality-score strong { display:block; color:var(--ink); font-size:20px; line-height:1; }
+  .quality-score span { margin-top:3px; color:var(--muted); font-size:7.5px; line-height:1.2; }
+
+  .model-row { display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:10px;
+    align-items:center; padding:11px 14px; margin-top:12px; }
+  .model-chip { flex:0 0 auto; width:30px; height:30px; border-radius:8px; background:var(--blue-soft);
+    color:var(--blue); font-size:7px; font-weight:850; display:grid; place-items:center; }
+
+  .tag { display:inline-block; font-size:9px; font-weight:800; letter-spacing:.4px; padding:2px 8px;
+    border-radius:999px; background:#eef5ff; color:#0f62fe; margin-bottom:7px; }
+  .nm { font-size:13px; font-weight:700; margin:0 0 3px; }
+  .ds { font-size:11px; color:#667085; line-height:1.5; margin:0; }
+</style>
+
+<h2>Compatibility front end &mdash; geometry corrected</h2>
+<p class="subtitle">Fixed: pills and labels can no longer escape their card; the left and right columns now finish level; fact tiles share one row height; budget segments clip their own labels; stepper labels no longer collide. Same approved Direction&nbsp;B tokens and grammar throughout. Click to select.</p>
+
+<div class="cards hi">
+
+  <div class="card" data-choice="a" onclick="toggleSelect(this)" style="border-radius:18px">
+   <div class="card-image" style="padding:0;background:none">
+    <div class="hi-page">
+      <h1 class="hi-title">Model and hardware compatibility</h1>
+      <p class="hi-lede">We&rsquo;re checking whether this model can run safely on this computer.</p>
+      <div class="card model-row">
+        <div class="model-chip">GGUF</div>
+        <div><div class="row-title">granite-4.1-3b-Q4_K_M.gguf</div>
+          <div class="row-sub">Granite 4.1 &middot; 3B &middot; Q4_K_M &middot; 2.1 GB</div></div>
+        <span class="badge neutral">ESTIMATED</span>
+      </div>
+      <div class="card outcome">
+        <span class="status-icon"></span>
+        <div><h3>Estimated compatible</h3>
+          <p>A supported configuration fits within this computer&rsquo;s current safety limits.</p></div>
+      </div>
+      <div class="b-columns">
+        <div class="card b-main-facts">
+          <div>
+            <h4 class="card-title">Memory safety</h4>
+            <p class="section-note">From a fresh reading taken just now.</p>
+          </div>
+          <div class="facts-grid">
+            <div class="fact"><div class="fact-label">Available RAM</div><div class="fact-value">21.4 GB</div><div class="fact-detail">Read 2 seconds ago</div></div>
+            <div class="fact"><div class="fact-label">Safe usable RAM</div><div class="fact-value">17.6 GB</div><div class="fact-detail">After system reserve</div></div>
+            <div class="fact"><div class="fact-label">Estimated peak</div><div class="fact-value">10.6 GB</div><div class="fact-detail">Weights, cache, buffers</div></div>
+            <div class="fact"><div class="fact-label">Safety headroom</div><div class="fact-value">4.6 GB</div><div class="fact-detail">Comfortable</div></div>
+          </div>
+        </div>
+        <div class="b-side">
+          <div class="card mini-card">
+            <h4 class="card-title">Execution paths</h4>
+            <div class="rows fill">
+              <div class="runtime-row"><div><div class="row-title">SYCL</div><div class="row-sub">Intel GPU</div></div><span class="state-good">Available</span></div>
+              <div class="runtime-row"><div><div class="row-title">CPU</div><div class="row-sub">Fallback</div></div><span class="state-good">Available</span></div>
+              <div class="runtime-row"><div><div class="row-title">OpenVINO</div><div class="row-sub">Not verified</div></div><span class="state-warn">Unverified</span></div>
+            </div>
+          </div>
+          <div class="card mini-card">
+            <h4 class="card-title">Recommended</h4>
+            <div class="rows fill">
+              <div class="runtime-row"><div class="row-title">Weights</div><span class="row-val">Q4_K_M</span></div>
+              <div class="runtime-row"><div class="row-title">KV cache</div><span class="row-val">Q8_0</span></div>
+              <div class="runtime-row"><div class="row-title">Context</div><span class="row-val">8,192</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <details class="details-disclosure"><summary>
+        <span class="details-icon"></span>
+        <span><span class="row-title">How was compatibility calculated?</span>
+          <span class="row-sub">Budget, components, evidence grade and assumptions</span></span>
+        <span class="details-action">Show details</span></summary></details>
+      <div class="action-bar"><span class="btn">Choose optimisation mode</span><span class="btn primary">Use current model</span></div>
+      <div class="stepper"><div class="stepper-title">MODEL SETUP &middot; STEP 3 OF 5</div>
+        <div class="steps"><div class="step done"><div class="step-dot"></div>Choose model</div>
+          <div class="step done"><div class="step-dot"></div>Inspect model</div>
+          <div class="step active"><div class="step-dot">3</div>Hardware fit</div>
+          <div class="step"><div class="step-dot">4</div>Configure</div>
+          <div class="step"><div class="step-dot">5</div>Ready to chat</div></div></div>
+    </div>
+   </div>
+   <div class="card-body"><span class="tag">A</span>
+     <p class="nm">Direction&nbsp;B, applied literally</p>
+     <p class="ds">Model row, outcome card, then <code>.b-columns</code> &mdash; dominant facts card left, two mini-cards right, all three now finishing on the same baseline. The two mini-cards are equal height and their pills are pinned inside. Degrades cleanly into screen&nbsp;06 by swapping the outcome tone and rendering the facts as typed-unavailable.</p></div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)" style="border-radius:18px">
+   <div class="card-image" style="padding:0;background:none">
+    <div class="hi-page">
+      <h1 class="hi-title">Model and hardware compatibility</h1>
+      <p class="hi-lede">We&rsquo;re checking whether this model can run safely on this computer.</p>
+      <div class="card b-hero">
+        <div><div class="b-kicker">Estimated &middot; not yet verified</div>
+          <h3 class="b-title">Yes &mdash; this model should run</h3>
+          <p class="b-copy">Granite 4.1 3B fits with 4.6&nbsp;GB to spare. No optimisation needed.</p></div>
+        <div class="quality-score"><strong>4.6</strong><span>GB spare<br>of 17.6 safe</span></div>
+      </div>
+      <div class="card model-row">
+        <div class="model-chip">GGUF</div>
+        <div><div class="row-title">granite-4.1-3b-Q4_K_M.gguf</div>
+          <div class="row-sub">Q4_K_M &middot; Q8_0 cache &middot; 8,192 tokens &middot; llama.cpp</div></div>
+        <span class="badge">SAFE</span>
+      </div>
+      <div class="card section-card">
+        <h4 class="card-title">Memory at a glance</h4>
+        <div class="budget">
+          <div class="budget-track" style="grid-template-columns:49fr 21fr 30fr">
+            <i style="background:var(--success-text)">Model 10.6 GB</i>
+            <i style="background:var(--success-line);color:#0d5c45">Spare 4.6</i>
+            <i style="background:#dfe6ef;color:#667085">Reserved 3.8</i>
+          </div>
+          <div class="budget-scale"><span>0</span><span>Safe limit 17.6 GB</span><span>21.4 GB installed</span></div>
+        </div>
+        <p class="section-note" style="margin-top:9px">Reserved memory is kept back for Windows and your other apps so the computer stays responsive.</p>
+      </div>
+      <details class="details-disclosure"><summary>
+        <span class="details-icon"></span>
+        <span><span class="row-title">Technical details and evidence</span>
+          <span class="row-sub">Execution paths, configuration, components</span></span>
+        <span class="details-action">Show details</span></summary></details>
+      <div class="action-bar"><span class="btn">Choose optimisation mode</span><span class="btn primary">Use current model</span></div>
+      <div class="stepper"><div class="stepper-title">MODEL SETUP &middot; STEP 3 OF 5</div>
+        <div class="steps"><div class="step done"><div class="step-dot"></div>Choose model</div>
+          <div class="step done"><div class="step-dot"></div>Inspect model</div>
+          <div class="step active"><div class="step-dot">3</div>Hardware fit</div>
+          <div class="step"><div class="step-dot">4</div>Configure</div>
+          <div class="step"><div class="step-dot">5</div>Ready to chat</div></div></div>
+    </div>
+   </div>
+   <div class="card-body"><span class="tag">B</span>
+     <p class="nm">Verdict hero</p>
+     <p class="ds">Reuses the template&rsquo;s <code>.b-hero</code> as a plain-language verdict plus one readable memory bar; execution paths and configuration move into the disclosure. Kindest to a non-specialist &mdash; but it spends a hero on a yes/no answer, and screens&nbsp;04 and&nbsp;05 carry far more than a hero can hold.</p></div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)" style="border-radius:18px">
+   <div class="card-image" style="padding:0;background:none">
+    <div class="hi-page">
+      <h1 class="hi-title">Model and hardware compatibility</h1>
+      <p class="hi-lede">We&rsquo;re checking whether this model can run safely on this computer.</p>
+      <div class="card outcome">
+        <span class="status-icon"></span>
+        <div><h3>Estimated compatible</h3>
+          <p>3 of 5 supported configurations fit safely. The highest-quality one is selected.</p></div>
+        <span class="badge">ESTIMATED</span>
+      </div>
+      <div class="card section-card">
+        <h4 class="card-title">Memory budget</h4>
+        <div class="budget">
+          <div class="budget-track" style="grid-template-columns:23fr 15fr 11fr 21fr 30fr">
+            <i style="background:var(--blue)">Weights 4.9</i>
+            <i style="background:#4589ff">KV 3.3</i>
+            <i style="background:#a6c8ff;color:#0043ce">Buf 2.4</i>
+            <i style="background:var(--success-line);color:#0d5c45">Headroom 4.6</i>
+            <i style="background:#dfe6ef;color:#667085">Reserve 3.8</i>
+          </div>
+          <div class="budget-scale"><span>0 GB</span><span>&#9650; safe limit 17.6</span><span>21.4 GB</span></div>
+        </div>
+      </div>
+      <div class="card section-card">
+        <h4 class="card-title">Configurations considered</h4>
+        <p class="section-note">Ranked by the Quality objective.</p>
+        <div class="check-list">
+          <div class="check-row"><span class="check-mark"></span>
+            <div class="check-copy"><strong>Q4_K_M &middot; Q8_0 cache &middot; 8,192</strong><span>Peak 10.6 GB &mdash; selected</span></div>
+            <span class="check-state">Safe</span></div>
+          <div class="check-row"><span class="check-mark"></span>
+            <div class="check-copy"><strong>Q4_K_M &middot; F16 cache &middot; 8,192</strong><span>Peak 13.9 GB</span></div>
+            <span class="check-state">Safe</span></div>
+          <div class="check-row"><span class="check-mark warning"></span>
+            <div class="check-copy"><strong>Q4_K_M &middot; F16 cache &middot; 16,384</strong><span>Peak 17.1 GB &mdash; little headroom</span></div>
+            <span class="check-state" style="color:#9a6700">Narrow</span></div>
+        </div>
+      </div>
+      <details class="details-disclosure"><summary>
+        <span class="details-icon"></span>
+        <span><span class="row-title">How was compatibility calculated?</span>
+          <span class="row-sub">Budget, components, evidence grade and assumptions</span></span>
+        <span class="details-action">Show details</span></summary></details>
+      <div class="action-bar"><span class="btn">Choose optimisation mode</span><span class="btn primary">Use current model</span></div>
+      <div class="stepper"><div class="stepper-title">MODEL SETUP &middot; STEP 3 OF 5</div>
+        <div class="steps"><div class="step done"><div class="step-dot"></div>Choose model</div>
+          <div class="step done"><div class="step-dot"></div>Inspect model</div>
+          <div class="step active"><div class="step-dot">3</div>Hardware fit</div>
+          <div class="step"><div class="step-dot">4</div>Configure</div>
+          <div class="step"><div class="step-dot">5</div>Ready to chat</div></div></div>
+    </div>
+   </div>
+   <div class="card-body"><span class="tag">C</span>
+     <p class="nm">Budget &amp; candidates</p>
+     <p class="ds">Budget split into weights / KV / buffers / headroom / reserve, then the candidate set in the approved <code>.check-list</code> grammar. Strongest on screens&nbsp;04 and&nbsp;05 where a trade-off must be made, and it makes the four optimisation modes tangible. Denser, and it surfaces uncalibrated component figures on the main card rather than behind the disclosure.</p></div>
+  </div>
+
+</div>
+
+<div class="section" style="margin-top:22px">
+  <h3>Geometry rules now enforced</h3>
+  <p class="subtitle" style="text-align:left">
+    Every grid and flex child can shrink (<code>min-width:0</code>), so no pill, label or value can push outside its card. Cards clip their own content (<code>overflow:hidden</code>). Columns stretch to equal height and the side stack uses equal rows, so left and right finish level. Fact tiles share one row height with the detail line pinned to the bottom, giving a straight horizontal line across the grid. Budget segments are grid tracks that clip their own labels. One <code>--gap</code> token drives every vertical space, so the rhythm is identical on all three.
+  </p>
+  <h3 style="margin-top:16px">Recommendation unchanged</h3>
+  <p class="subtitle" style="text-align:left">
+    <strong>A as the base for all ten screens</strong>, borrowing C&rsquo;s candidate list only on screens&nbsp;04 and&nbsp;05.
+  </p>
+</div>

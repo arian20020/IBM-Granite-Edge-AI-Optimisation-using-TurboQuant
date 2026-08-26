@@ -1,0 +1,55 @@
+<h2>PC-aware optimisation spectrum</h2>
+<p class="subtitle">The slider chooses an objective on this computer's safe, validated candidate frontier—not a fixed bit format.</p>
+
+<div class="mockup">
+  <div class="mockup-header">Choose your optimisation preference</div>
+  <div class="mockup-body">
+    <div style="padding:22px;border:1px solid #dbe3ef;border-radius:16px;background:#fff;max-width:900px;margin:auto">
+      <div style="display:flex;justify-content:space-between;align-items:end;gap:18px">
+        <div>
+          <div class="label">Optimisation preference</div>
+          <h3 style="margin:4px 0">Balanced</h3>
+        </div>
+        <div style="padding:6px 11px;border-radius:999px;background:#e8f1ff;color:#1457b8;font-weight:700;font-size:12px">RECOMMENDED FOR THIS PC</div>
+      </div>
+
+      <div style="margin:26px 5px 4px;position:relative">
+        <div style="height:7px;border-radius:99px;background:linear-gradient(90deg,#0f6cbd 0%,#3b82f6 48%,#8b5cf6 100%)"></div>
+        <div style="position:absolute;left:50%;top:-7px;transform:translateX(-50%);width:21px;height:21px;border:4px solid white;border-radius:50%;background:#2563eb;box-shadow:0 0 0 2px #2563eb"></div>
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);margin-top:9px;color:#64748b;font-size:11px;text-align:center;gap:4px">
+          <div style="text-align:left">Extreme<br>efficiency</div>
+          <div>Efficiency</div>
+          <div style="color:#1d4ed8;font-weight:700">Balanced</div>
+          <div>Quality</div>
+          <div style="text-align:right">Maximum<br>quality</div>
+        </div>
+      </div>
+
+      <div style="margin-top:20px;padding:15px;border-radius:12px;background:#f8fafc;border:1px solid #e2e8f0;display:grid;grid-template-columns:1fr 1fr;gap:10px 24px">
+        <div><span class="label">Selected weights</span><br><strong>Q6_K</strong></div>
+        <div><span class="label">Runtime cache</span><br><strong>Q8_0</strong></div>
+        <div><span class="label">Why this result</span><br><span style="color:#475569">Best middle point on this PC's safe frontier</span></div>
+        <div><span class="label">New model copy</span><br><strong>Yes — original remains unchanged</strong></div>
+      </div>
+      <p style="color:#64748b;margin:12px 0 0;font-size:12px">If two adjacent positions resolve to the same safe configuration, the app says so; it never invents a lower-quality or unsupported option just to make every stop different.</p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>How the five positions resolve</h3>
+  <div class="pros-cons">
+    <div class="pros"><h4>Quality side</h4><ul><li><strong>Maximum quality:</strong> highest-quality complete configuration under the PC's safe limit.</li><li><strong>Quality:</strong> next meaningful frontier point with a modest memory/context benefit and minimal additional quality loss.</li><li><strong>Balanced:</strong> the measured knee of the safe quality-memory-performance frontier.</li></ul></div>
+    <div class="cons" style="border-color:#bfdbfe;background:#eff6ff"><h4>Efficiency side</h4><ul><li><strong>Efficiency:</strong> lower-memory frontier point that remains above the preferred quality/performance target.</li><li><strong>Extreme efficiency:</strong> smallest complete configuration still meeting hard acceptable quality, stability, performance and context thresholds.</li></ul></div>
+  </div>
+</div>
+
+<h3>What should happen to Automatic?</h3>
+<div class="options">
+  <div class="option" data-choice="replace-automatic" onclick="toggleSelect(this)">
+    <div class="letter">A</div><div class="content"><h3>Replace Automatic with the slider</h3><p>Balanced is the recommended starting position; the user can move toward either endpoint.</p></div>
+  </div>
+  <div class="option" data-choice="keep-automatic" onclick="toggleSelect(this)">
+    <div class="letter">B</div><div class="content"><h3>Keep Automatic separately</h3><p>An Automatic button chooses the system recommendation; the slider remains available for manual preference.</p></div>
+  </div>
+</div>
