@@ -81,6 +81,7 @@ Expected at every checkpoint: each command exits `0`, each filter discovers at l
 - Create: `scripts/verification/Test-CrossRouteImportManifest.ps1`
 - Create: `scripts/verification/Assert-ChangedPaths.ps1`
 - Create: `scripts/verification/Invoke-PackagedTestCheckpoint.ps1`
+- Create: `scripts/verification/PackagedCheckpoint.Core.psm1`
 - Test: `tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelOptimization/OptimizationImportManifestTests.cs`
 - Test: `tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelOptimization/ChangedPathAllowlistTests.cs`
 - Test: `tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelOptimization/PackagedTestCheckpointTests.cs`
@@ -104,7 +105,7 @@ git -C C:\GEAI-XRoute fetch origin refs/heads/feature/cross-route-optimisation-u
 $oracles = @{
   'docs/ux/visual-oracles/model-inspection-balanced-full-approval-v3.html'='d44cfce9c53bcd9d0eaaa41ca8ba9ded434f68845bbf943351518366fbb20cff';
   'docs/ux/visual-oracles/hardware-layout-direction-b-refinement-v3.html'='6c677d5e9bf9f2f58f1f404eca3798cd6d17c68911f966ca21dec01ca902fb4b';
-  'docs/ux/visual-oracles/compat-visual-style-v3.html'='3ffc2f3664363f20908dedf110e52b53cee0860fb24c096beede4d7db979a03df';
+  'docs/ux/visual-oracles/compat-visual-style-v3.html'='3ffc2f3664363f20908dedf110e52b53cee0860fb24c096bede4d7db979a03df';
   'docs/ux/visual-oracles/optimisation-choice-page-v1.html'='434f04ba81e1eb9ef1f88b3c2f2cca357103b7fe3b6c03f952681280c85921ae';
   'docs/ux/visual-oracles/optimisation-spectrum-v1.html'='d74f3b93df5c38419cf6adad45a308fe78745eb9d23db607b411858e054eb9af';
   'docs/ux/visual-oracles/shared-optimisation-flow.html'='d669771600ee0d3a56ef3b793c6c06a9882048b88f46f433fed006e5033292f0'
@@ -116,7 +117,7 @@ Expected: both status commands are empty, the ancestor check exits `0`, the new 
 
 - [ ] **Step 2: Write a failing immutable-authority test**
 
-Create `OptimizationImportManifestTests.cs` with a test that loads the machine JSON, asserts all six authority SHAs above, rejects `git merge` as an import method, requires every component to declare `Pending` or `Verified`, and requires `Verified` components to contain non-empty destination, dependency, integration-patch, and verification arrays plus source records whenever source blobs are imported. Every destination declares `Exact`, `Adapted`, or `Created`: `Exact` requires commit:path/blob-bound byte identity; `Adapted` requires source commit/path/blob/SHA-256, destination, patch-group ID, tracked patch path/SHA-256, and final result SHA-256; `Created` is permitted only for integration-owned files absent from the input branch and requires an integration-base commit/tree, tracked creation patch from `/dev/null`, patch SHA-256, destination, and final result SHA-256, with no invented source blob. A second process test runs the verifier against a Pending component and requires a non-zero exit, proving an empty ledger cannot authorize import. `ChangedPathAllowlistTests` process-tests `Assert-ChangedPaths.ps1`: one allowed edit writes a NUL-delimited pathspec; one unrelated untracked file and one path outside the allowlist each fail without writing a pathspec. `PackagedTestCheckpointTests` uses controlled fake build/runner commands to prove Installer PATH injection, current-recipe enforcement, TRX discovery/failure parsing, and rejection of a stale recipe.
+Create `OptimizationImportManifestTests.cs` with a test that loads the machine JSON, asserts all six authority SHAs above, rejects merge-based import methods, requires every component to declare `Pending` or `Verified`, and requires `Verified` components to contain non-empty destination, dependency, integration-patch, and verification arrays plus source records whenever source blobs are imported. Every destination declares `Exact`, `Adapted`, or `Created`: `Exact` requires commit:path/blob-bound byte identity; `Adapted` requires source commit/path/blob/SHA-256, destination, patch-group ID, tracked patch path/SHA-256, and final result SHA-256; `Created` is permitted only for integration-owned files absent from the input branch and requires an integration-base commit/tree, tracked creation patch from `/dev/null`, patch SHA-256, destination, and final result SHA-256, with no invented source blob. Controlled temporary Git repositories must non-vacuously exercise valid and invalid Exact, Adapted, Created, authority/policy, allowlist, patch, worktree, staged-blob, staged-mode and rename/copy cases. A second process test runs the verifier against a Pending component and requires a non-zero exit, proving an empty ledger cannot authorize import. `ChangedPathAllowlistTests` process-tests `Assert-ChangedPaths.ps1`: one allowed edit writes a NUL-delimited pathspec; one unrelated untracked file and one path outside the allowlist each fail without writing a pathspec. `PackagedTestCheckpointTests` tests controlled fake build/runner orchestration only through `PackagedCheckpoint.Core.psm1`; it proves Installer PATH injection, operation-owned recipe/TRX enforcement, strict counter parsing, repository identity stability and rejection of stale/future/malformed evidence. The production wrapper exposes only `-Filter` and optional `-EvidenceDirectory`, derives every executable/repository/artifact identity itself, and cannot emit accepted evidence through the fake seam.
 
 ```csharp
 [TestMethod]
@@ -162,7 +163,7 @@ The verifier accepts `-Component`, `-SourceRepository`, `-DestinationRepository`
 
 `Assert-ChangedPaths.ps1` accepts repository root, one or more exact files or trailing-`/**` owned prefixes, and `-WritePathspec`. It parses `git status --porcelain=v1 -z`, fails on rename/copy records unless both old and new paths are allowed, fails on every modified/untracked path outside the allowlist, then writes only the actual allowed changed paths as NUL-delimited UTF-8 without BOM. Every later non-import commit must use this script and `git add --pathspec-from-file=... --pathspec-file-nul`; direct directory-wide `git add` is prohibited.
 
-`Invoke-PackagedTestCheckpoint.ps1` accepts a mandatory `-Filter` and optional evidence directory. It prepends `C:\Program Files (x86)\Microsoft Visual Studio\Installer` to process `PATH`, performs serial win-x64 restore/build of the UnitTests project with `OpenVinoConverterPackagingRequired=false`, `OpenVinoOfficialWorkerPackagingRequired=false`, `OpenVinoTurboQuantPackagingRequired=false`, `GgufQuantizerPackagingRequired=false`, and `GenerateAppxPackageOnBuild=false`, asserts the `.build.appxrecipe` modification time is later than the checkpoint start and records its SHA-256 plus current HEAD, invokes VS Community VSTest with a TRX, parses the TRX, and requires discovered count greater than zero and failed count zero. It labels this as source/component evidence and cannot be used as Release/native/package evidence. Every filtered packaged command in later tasks uses this helper so stale binaries cannot pass.
+`Invoke-PackagedTestCheckpoint.ps1` accepts only a mandatory `-Filter` and optional evidence directory. It prepends `C:\Program Files (x86)\Microsoft Visual Studio\Installer` to process `PATH`, derives the exact clean repository, VS Community MSBuild/VSTest, UnitTests project and repository-contained recipe, records the pre-build HEAD/tree, removes the exact prior recipe, performs serial win-x64 restore/build with `OpenVinoConverterPackagingRequired=false`, `OpenVinoOfficialWorkerPackagingRequired=false`, `OpenVinoTurboQuantPackagingRequired=false`, `GgufQuantizerPackagingRequired=false`, and `GenerateAppxPackageOnBuild=false`, and requires the exact recipe to be recreated during the bounded operation. It invokes VSTest into an operation-owned evidence directory with an exact GUID TRX name, strictly parses the exact TRX and complete coherent counters, requires non-zero execution/discovery and zero non-passing outcomes, then requires unchanged clean HEAD/tree. It records pre/post identities plus executable and recipe hashes and labels the result as source/component evidence that cannot be used as Release/native/package evidence. `PackagedCheckpoint.Core.psm1` owns testable orchestration and strict parsing primitives but cannot itself publish accepted production checkpoint evidence. Every filtered packaged command in later tasks uses the wrapper so stale binaries cannot pass.
 
 - [ ] **Step 5: Run the focused test and commit**
 
@@ -173,12 +174,12 @@ $pendingExit = $LASTEXITCODE
 if ($pendingExit -eq 0) { throw 'Pending UO1 manifest unexpectedly verified.' }
 git diff --check
 $pathspec = Join-Path $env:TEMP 'geai-task1-pathspec.bin'
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Assert-ChangedPaths.ps1 -Repository $PWD -AllowedPath @('docs/handoffs/2026-08-26-cross-route-optimisation-import-manifest.json','docs/handoffs/2026-08-26-cross-route-optimisation-import-manifest.md','scripts/verification/Test-CrossRouteImportManifest.ps1','scripts/verification/Assert-ChangedPaths.ps1','scripts/verification/Invoke-PackagedTestCheckpoint.ps1','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelOptimization/OptimizationImportManifestTests.cs','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelOptimization/ChangedPathAllowlistTests.cs','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelOptimization/PackagedTestCheckpointTests.cs') -WritePathspec $pathspec
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Assert-ChangedPaths.ps1 -Repository $PWD -AllowedPath @('docs/handoffs/2026-08-26-cross-route-optimisation-import-manifest.json','docs/handoffs/2026-08-26-cross-route-optimisation-import-manifest.md','scripts/verification/Test-CrossRouteImportManifest.ps1','scripts/verification/Assert-ChangedPaths.ps1','scripts/verification/Invoke-PackagedTestCheckpoint.ps1','scripts/verification/PackagedCheckpoint.Core.psm1','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelOptimization/OptimizationImportManifestTests.cs','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelOptimization/ChangedPathAllowlistTests.cs','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelOptimization/PackagedTestCheckpointTests.cs') -WritePathspec $pathspec
 git add --pathspec-from-file=$pathspec --pathspec-file-nul
 git commit -m "docs(optimisation): freeze bounded component imports"
 ```
 
-Expected: all three focused test families pass with non-zero discovery, the verifier refuses Pending UO1, and the commit changes exactly eight paths.
+Expected: all three focused test families pass with non-zero discovery, the verifier refuses Pending UO1, and the implementation commit changes exactly nine paths.
 
 ### Task 2: Preserve authoritative candidates in a path-free planning session
 
@@ -564,6 +565,7 @@ git diff --name-only HEAD | ForEach-Object { if ($_ -notmatch '^(IBM Granite wit
 $pathspec = Join-Path $env:TEMP 'uo1-import-pathspec.bin'
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Test-CrossRouteImportManifest.ps1 -Component UO1 -SourceRepository $env:GEAI_SOURCE_REPOSITORY -DestinationRepository $PWD -WriteAllowedPathspec $pathspec
 git add --pathspec-from-file=$pathspec --pathspec-file-nul
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Test-CrossRouteImportManifest.ps1 -Component UO1 -SourceRepository $env:GEAI_SOURCE_REPOSITORY -DestinationRepository $PWD -VerifyStaged
 git commit -m "feat(optimisation): import canonical post-selection experience"
 ```
 
@@ -787,6 +789,7 @@ Check every changed path against the populated manifest. Any unapproved shared p
 $pathspec = Join-Path $env:TEMP 'gguf-runtime-import-pathspec.bin'
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Test-CrossRouteImportManifest.ps1 -Component GgufRuntime -SourceRepository $env:GEAI_SOURCE_REPOSITORY -DestinationRepository $PWD -WriteAllowedPathspec $pathspec
 git add --pathspec-from-file=$pathspec --pathspec-file-nul
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Test-CrossRouteImportManifest.ps1 -Component GgufRuntime -SourceRepository $env:GEAI_SOURCE_REPOSITORY -DestinationRepository $PWD -VerifyStaged
 git commit -m "feat(gguf): import verified chat runtime closure"
 ```
 
@@ -1109,6 +1112,7 @@ git diff --check
 $pathspec = Join-Path $env:TEMP 'geai-task13-pathspec.bin'
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Test-CrossRouteImportManifest.ps1 -Component OpenVino -SourceRepository $PWD -DestinationRepository $PWD -WriteAllowedPathspec $pathspec
 git add --pathspec-from-file=$pathspec --pathspec-file-nul
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Test-CrossRouteImportManifest.ps1 -Component OpenVino -SourceRepository $PWD -DestinationRepository $PWD -VerifyStaged
 git commit -m "feat(openvino): import route and execute exact v3 plans"
 ```
 
