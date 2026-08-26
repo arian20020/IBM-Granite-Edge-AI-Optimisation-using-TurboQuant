@@ -7,7 +7,7 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Platforms>x86;x64;ARM64</Platforms>
     <RuntimeIdentifiers>win-x86;win-x64;win-arm64</RuntimeIdentifiers>
-    <PublishProfile>win-$(Platform).pubxml</PublishProfile>
+    <PublishProfile Condition="Exists('Properties\PublishProfiles\win-$(Platform).pubxml')">win-$(Platform).pubxml</PublishProfile>
     <UseWinUI>true</UseWinUI>
     <WinUISDKReferences>false</WinUISDKReferences>
     <EnableMsixTooling>true</EnableMsixTooling>
@@ -447,7 +447,22 @@
 		<Content Include="Assets\Wide310x150Logo.scale-200.png" />
 
 		<!-- Granite Edge AI branding used inside the application UI. -->
-		<Content Include="Assets\Branding\granite-edge-ai-icon.svg" />
+		<Content Include="Assets\Branding\granite-edge-ai-icon.svg">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="Assets\Branding\granite-edge-ai-lockup-outlined.svg">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="Assets\Branding\granite-edge-ai.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="Assets\Branding\windows-icon-manifest.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
 
 		<!-- Licensed Inter 4.1 faces and immutable provenance for Model Inspection. -->
 		<Content Update="Assets\Fonts\Inter-Regular.ttf" />
@@ -481,6 +496,12 @@
       Condition="'$(Platform)' == 'x64'" />
     <ProjectReference
       Include="..\infrastructure\GraniteEdgeAI.ModelInspection.WorkerClient\GraniteEdgeAI.ModelInspection.WorkerClient.csproj"
+      Condition="'$(Platform)' == 'x64'" />
+    <ProjectReference
+      Include="..\shared\GraniteEdgeAI.GgufRuntime.Contracts\GraniteEdgeAI.GgufRuntime.Contracts.csproj"
+      Condition="'$(Platform)' == 'x64'" />
+    <ProjectReference
+      Include="..\infrastructure\GraniteEdgeAI.GgufRuntime.WorkerClient\GraniteEdgeAI.GgufRuntime.WorkerClient.csproj"
       Condition="'$(Platform)' == 'x64'" />
     <ProjectReference
       Include="..\infrastructure\GraniteEdgeAI.HardwareInspection.Foundation\GraniteEdgeAI.HardwareInspection.Foundation.csproj"
@@ -601,5 +622,8 @@
     Condition="'$(Platform)' == 'x64'" />
   <Import
     Project="HardwareInspection.LlamaCppProbePackaging.targets"
+    Condition="'$(Platform)' == 'x64'" />
+  <Import
+    Project="GgufRuntime.WorkerPackaging.targets"
     Condition="'$(Platform)' == 'x64'" />
 </Project>

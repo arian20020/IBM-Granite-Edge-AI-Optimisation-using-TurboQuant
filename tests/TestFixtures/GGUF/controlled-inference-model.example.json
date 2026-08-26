@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "packageRoot": "C:\\approved-runtime\\GgufRuntime",
+  "manifestSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "modelFile": "C:\\approved-models\\granite.gguf",
+  "modelSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "modelId": "approved-granite-model",
+  "runtimeBuildId": "approved-cpu-build",
+  "runtimeSourceCommit": "0000000000000000000000000000000000000000",
+  "backend": "Cpu",
+  "deviceId": "cpu",
+  "contextSize": 2048,
+  "keyCacheType": "F16",
+  "valueCacheType": "F16",
+  "gpuLayerCount": 0,
+  "flashAttention": false,
+  "threadCount": 4,
+  "batchSize": 128,
+  "evidenceGrade": "controlled-smoke",
+  "profileId": "cpu-controlled-smoke"
+}

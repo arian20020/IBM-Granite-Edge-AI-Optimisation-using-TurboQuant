@@ -1,0 +1,274 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="GraniteEdgeAI.Features.GgufRuntime.ChatPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:GraniteEdgeAI.Features.GgufRuntime.Controls"
+    RequestedTheme="Light"
+    Background="{ThemeResource GgufChatCanvasBrush}">
+    <Grid x:Name="ChatLayoutRoot">
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup x:Name="ResponsiveStates">
+                <VisualState x:Name="WideState">
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger MinWindowWidth="840" />
+                    </VisualState.StateTriggers>
+                    <VisualState.Setters>
+                        <Setter Target="HistoryRail.Visibility" Value="Visible" />
+                        <Setter Target="HistoryColumn.Width" Value="256" />
+                    </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="NarrowState">
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger MinWindowWidth="0" />
+                    </VisualState.StateTriggers>
+                    <VisualState.Setters>
+                        <Setter Target="HistoryRail.Visibility" Value="Collapsed" />
+                        <Setter Target="HistoryColumn.Width" Value="0" />
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition x:Name="HistoryColumn" Width="256" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <Grid
+            x:Name="HistoryRail"
+            Grid.Column="0"
+            Padding="24,28,20,24"
+            Background="{ThemeResource GgufChatRailBrush}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <Grid Height="56">
+                <Image
+                    x:Name="BrandLockup"
+                    Width="220"
+                    Height="56"
+                    HorizontalAlignment="Left"
+                    Stretch="Uniform"
+                    AutomationProperties.AccessibilityView="Raw"
+                    Source="ms-appx:///Assets/Branding/granite-edge-ai-lockup-outlined.svg" />
+            </Grid>
+            <Button
+                x:Name="NewChatButton"
+                Grid.Row="1"
+                Height="46"
+                Margin="0,28,0,12"
+                HorizontalAlignment="Stretch"
+                HorizontalContentAlignment="Left"
+                Padding="4,8"
+                Style="{StaticResource GgufChatNavigationButtonStyle}"
+                AutomationProperties.Name="Start a new chat"
+                Click="NewChatButton_Click">
+                <Grid ColumnSpacing="12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="20" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <FontIcon
+                        FontSize="16"
+                        Glyph="&#xE710;" />
+                    <TextBlock
+                        Grid.Column="1"
+                        VerticalAlignment="Center"
+                        FontWeight="SemiBold"
+                        Text="New Chat" />
+                </Grid>
+            </Button>
+            <Button
+                x:Name="ImportModelButton"
+                Grid.Row="2"
+                Height="46"
+                Margin="0,0,0,20"
+                HorizontalAlignment="Stretch"
+                HorizontalContentAlignment="Left"
+                Padding="4,8"
+                Style="{StaticResource GgufChatNavigationButtonStyle}"
+                AutomationProperties.Name="Import another model"
+                Click="ImportModelButton_Click">
+                <Grid ColumnSpacing="12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="20" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <FontIcon
+                        FontSize="16"
+                        Glyph="&#xE8B5;" />
+                    <TextBlock
+                        Grid.Column="1"
+                        VerticalAlignment="Center"
+                        Text="Import Model" />
+                </Grid>
+            </Button>
+            <Grid x:Name="HistoryRegion" Grid.Row="3" RowSpacing="10">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <TextBlock
+                    Text="CHATS"
+                    FontSize="13"
+                    FontWeight="SemiBold"
+                    Foreground="{ThemeResource GgufChatMutedBrush}" />
+                <ListView
+                    x:Name="ChatHistoryList"
+                    Grid.Row="1"
+                    Padding="0"
+                    Margin="0"
+                    HorizontalContentAlignment="Stretch"
+                    SelectionMode="None"
+                    AutomationProperties.Name="Dated chat history">
+                    <ListView.ItemContainerStyle>
+                        <Style TargetType="ListViewItem">
+                            <Setter Property="Padding" Value="0" />
+                            <Setter Property="Margin" Value="0" />
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                        </Style>
+                    </ListView.ItemContainerStyle>
+                </ListView>
+            </Grid>
+            <Border
+                x:Name="SettingsFooter"
+                Grid.Row="4"
+                Margin="0,12,0,0"
+                Padding="0,12,0,0"
+                BorderBrush="{ThemeResource GgufChatBorderBrush}"
+                BorderThickness="0,1,0,0">
+                <Button
+                    x:Name="SettingsButton"
+                    Height="46"
+                    HorizontalAlignment="Stretch"
+                    HorizontalContentAlignment="Left"
+                    Padding="4,8"
+                    Style="{StaticResource GgufChatNavigationButtonStyle}"
+                    AutomationProperties.Name="Settings">
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="20" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <FontIcon
+                            FontSize="16"
+                            Glyph="&#xE713;" />
+                        <TextBlock
+                            Grid.Column="1"
+                            VerticalAlignment="Center"
+                            Text="Settings" />
+                    </Grid>
+                </Button>
+            </Border>
+        </Grid>
+
+        <Grid Grid.Column="1" Padding="16">
+            <Border
+                x:Name="ConversationPanel"
+                Background="{ThemeResource GgufChatSurfaceBrush}"
+                BorderBrush="{ThemeResource GgufChatPanelBorderBrush}"
+                BorderThickness="1"
+                CornerRadius="14"
+                Padding="24"
+                Shadow="{StaticResource GgufChatSubtlePanelShadow}"
+                Translation="0,0,2">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="1" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Grid Margin="4,0,4,20" ColumnSpacing="16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Spacing="6">
+                            <TextBlock
+                                Text="Chat"
+                                FontSize="28"
+                                FontWeight="Bold"
+                                Foreground="{ThemeResource GgufChatTextBrush}" />
+                            <TextBlock
+                                x:Name="ModelNameText"
+                                Text="No model selected"
+                                Foreground="{ThemeResource GgufChatMutedBrush}"
+                                TextWrapping="Wrap" />
+                        </StackPanel>
+                        <Button
+                            x:Name="CopyChatButton"
+                            Grid.Column="1"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Top"
+                            Padding="10,7"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            IsEnabled="False"
+                            AutomationProperties.Name="Copy chat"
+                            ToolTipService.ToolTip="Copy chat"
+                            Click="CopyChatButton_Click">
+                            <StackPanel Orientation="Horizontal" Spacing="7">
+                                <FontIcon
+                                    x:Name="CopyChatGlyph"
+                                    FontSize="14"
+                                    Glyph="&#xE8C8;" />
+                                <TextBlock
+                                    x:Name="CopyChatLabel"
+                                    Text="Copy chat" />
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+                    <Rectangle
+                        Grid.Row="1"
+                        Fill="{ThemeResource GgufChatBorderBrush}" />
+                    <Grid Grid.Row="2">
+                        <StackPanel
+                            x:Name="EmptyConversationState"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Spacing="18">
+                            <Image
+                                x:Name="EmptyStateBrandMark"
+                                Width="88"
+                                Height="88"
+                                Source="ms-appx:///Assets/Branding/granite-edge-ai-icon.svg"
+                                AutomationProperties.AccessibilityView="Raw"
+                                Opacity="0.9" />
+                            <TextBlock
+                                Text="Start a new conversation"
+                                FontSize="21"
+                                Foreground="{ThemeResource GgufChatMutedBrush}"
+                                TextAlignment="Center" />
+                        </StackPanel>
+                        <ListView
+                            x:Name="TranscriptList"
+                            Padding="4,20"
+                            SelectionMode="None"
+                            Visibility="Collapsed"
+                            AutomationProperties.Name="Conversation messages"
+                            AutomationProperties.LiveSetting="Polite">
+                            <ListView.ItemContainerStyle>
+                                <Style TargetType="ListViewItem">
+                                    <Setter Property="Padding" Value="0" />
+                                    <Setter Property="Margin" Value="0,0,0,12" />
+                                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                </Style>
+                            </ListView.ItemContainerStyle>
+                        </ListView>
+                    </Grid>
+                    <controls:ChatComposer
+                        x:Name="Composer"
+                        Grid.Row="3"
+                        Margin="0,20,0,0"
+                        SendRequested="Composer_SendRequested"
+                        StopRequested="Composer_StopRequested" />
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</Page>

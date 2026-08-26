@@ -6,6 +6,8 @@
   </Configurations>
 
   <Folder Name="/shared/">
+    <Project Path="shared/GraniteEdgeAI.GgufRuntime.Contracts/GraniteEdgeAI.GgufRuntime.Contracts.csproj" />
+    <Project Path="shared/GraniteEdgeAI.GgufRuntime.Transport/GraniteEdgeAI.GgufRuntime.Transport.csproj" />
     <Project Path="shared/GraniteEdgeAI.ModelInspection.Contracts/GraniteEdgeAI.ModelInspection.Contracts.csproj" />
     <Project Path="shared/GraniteEdgeAI.ModelInspection.Fixtures/GraniteEdgeAI.ModelInspection.Fixtures.csproj" />
     <Project Path="shared/GraniteEdgeAI.ModelInspection.Transport/GraniteEdgeAI.ModelInspection.Transport.csproj" />
@@ -15,12 +17,18 @@
   </Folder>
 
   <Folder Name="/workers/">
+    <Project Path="workers/GraniteEdgeAI.GgufRuntime.Worker/GraniteEdgeAI.GgufRuntime.Worker.csproj">
+      <Platform Solution="*|x64" Project="AnyCPU" />
+    </Project>
     <Project Path="workers/GraniteEdgeAI.ModelInspection.Worker/GraniteEdgeAI.ModelInspection.Worker.csproj">
       <Platform Solution="*|x64" Project="AnyCPU" />
     </Project>
   </Folder>
 
   <Folder Name="/infrastructure/">
+    <Project Path="infrastructure/GraniteEdgeAI.GgufRuntime.WorkerClient/GraniteEdgeAI.GgufRuntime.WorkerClient.csproj">
+      <Platform Solution="*|x64" Project="AnyCPU" />
+    </Project>
     <Project Path="infrastructure/GraniteEdgeAI.HardwareInspection.Foundation/GraniteEdgeAI.HardwareInspection.Foundation.csproj">
       <Platform Solution="*|x64" Project="AnyCPU" />
     </Project>
@@ -30,6 +38,12 @@
   </Folder>
 
   <Folder Name="/runtime/">
+    <Project Path="runtime/GraniteEdgeAI.GgufRuntime.NativeAdapter/GraniteEdgeAI.GgufRuntime.NativeAdapter.csproj">
+      <Platform Solution="*|x64" Project="x64" />
+    </Project>
+    <Project Path="runtime/GraniteEdgeAI.GgufRuntime.Capabilities/GraniteEdgeAI.GgufRuntime.Capabilities.csproj">
+      <Platform Solution="*|x64" Project="AnyCPU" />
+    </Project>
     <Project Path="runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/GraniteEdgeAI.ModelInspection.LlamaSharp.csproj">
       <Platform Solution="*|x64" Project="AnyCPU" />
     </Project>
@@ -41,6 +55,7 @@
 
   <Folder Name="/tests/ContractTests/">
     <File Path="tests/ContractTests/README.md" />
+    <Project Path="tests/ContractTests/GraniteEdgeAI.GgufRuntime.Contracts.Tests/GraniteEdgeAI.GgufRuntime.Contracts.Tests.csproj" />
     <Project Path="tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/GraniteEdgeAI.ModelInspection.Contracts.Tests.csproj" />
   </Folder>
 
@@ -50,6 +65,9 @@
 
   <Folder Name="/tests/IntegrationTests/">
     <File Path="tests/IntegrationTests/README.md" />
+    <Project Path="tests/IntegrationTests/GraniteEdgeAI.GgufRuntime.WorkerProcess.Tests/GraniteEdgeAI.GgufRuntime.WorkerProcess.Tests.csproj">
+      <Platform Solution="*|x64" Project="AnyCPU" />
+    </Project>
 
     <Project Path="tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests.csproj">
       <Platform Solution="*|x64" Project="AnyCPU" />
@@ -57,6 +75,12 @@
   </Folder>
 
   <Folder Name="/tests/ProcessFixtures/">
+    <Project Path="tests/ProcessFixtures/GraniteEdgeAI.GgufRuntime.FakeCli/GraniteEdgeAI.GgufRuntime.FakeCli.csproj">
+      <Platform Solution="*|x64" Project="AnyCPU" />
+    </Project>
+    <Project Path="tests/ProcessFixtures/GraniteEdgeAI.GgufRuntime.ProtocolTestWorker/GraniteEdgeAI.GgufRuntime.ProtocolTestWorker.csproj">
+      <Platform Solution="*|x64" Project="AnyCPU" />
+    </Project>
     <Project Path="tests/ProcessFixtures/GraniteEdgeAI.ModelInspection.ProtocolTestWorker/GraniteEdgeAI.ModelInspection.ProtocolTestWorker.csproj">
       <Platform Solution="*|x64" Project="AnyCPU" />
     </Project>
@@ -152,6 +176,19 @@
 
   <Folder Name="/tests/UnitTests/">
     <File Path="tests/UnitTests/README.md" />
+    <Project Path="tests/UnitTests/GraniteEdgeAI.GgufRuntime.NativeAdapter.Tests/GraniteEdgeAI.GgufRuntime.NativeAdapter.Tests.csproj">
+      <Platform Solution="*|x64" Project="x64" />
+    </Project>
+    <Project Path="tests/UnitTests/GraniteEdgeAI.GgufRuntime.Capabilities.Tests/GraniteEdgeAI.GgufRuntime.Capabilities.Tests.csproj">
+      <Platform Solution="*|x64" Project="AnyCPU" />
+    </Project>
+    <Project Path="tests/UnitTests/GraniteEdgeAI.GgufRuntime.Transport.Tests/GraniteEdgeAI.GgufRuntime.Transport.Tests.csproj" />
+    <Project Path="tests/UnitTests/GraniteEdgeAI.GgufRuntime.Worker.Tests/GraniteEdgeAI.GgufRuntime.Worker.Tests.csproj">
+      <Platform Solution="*|x64" Project="AnyCPU" />
+    </Project>
+    <Project Path="tests/UnitTests/GraniteEdgeAI.GgufRuntime.WorkerClient.Tests/GraniteEdgeAI.GgufRuntime.WorkerClient.Tests.csproj">
+      <Platform Solution="*|x64" Project="AnyCPU" />
+    </Project>
 
     <Project Path="tests/UnitTests/GraniteEdgeAI.HardwareInspection.Foundation.Tests/GraniteEdgeAI.HardwareInspection.Foundation.Tests.csproj">
       <Platform Solution="*|x64" Project="AnyCPU" />

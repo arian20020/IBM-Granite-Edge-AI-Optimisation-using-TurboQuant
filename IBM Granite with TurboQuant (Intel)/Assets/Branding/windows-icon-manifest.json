@@ -1,0 +1,72 @@
+{
+    "schemaVersion":  1,
+    "source":  {
+                   "path":  "docs/Logo/granite-edge-ai-icon.svg",
+                   "sha256":  "b392df072100e16675c21987070b7e1063f5e891c1a4bedb920e90e679691ba2"
+               },
+    "pngs":  [
+                 {
+                     "path":  "IBM Granite with TurboQuant (Intel)/Assets/LockScreenLogo.scale-200.png",
+                     "sha256":  "38e1946c9f60c0e43bd732b78af0931920eec23dac46cf1fc56d93a148b2ce77",
+                     "bytes":  1034,
+                     "width":  48,
+                     "height":  48
+                 },
+                 {
+                     "path":  "IBM Granite with TurboQuant (Intel)/Assets/SplashScreen.scale-200.png",
+                     "sha256":  "3e8751a021668e21202549e1b88cb8f1b475d2d794b7f639d9414a1813d2e308",
+                     "bytes":  10754,
+                     "width":  1240,
+                     "height":  600
+                 },
+                 {
+                     "path":  "IBM Granite with TurboQuant (Intel)/Assets/Square150x150Logo.scale-200.png",
+                     "sha256":  "9afa381fcd865e383a0288b15c43ce6d3a9e1f3e00fd6a2b9678ba040d1e418a",
+                     "bytes":  4583,
+                     "width":  300,
+                     "height":  300
+                 },
+                 {
+                     "path":  "IBM Granite with TurboQuant (Intel)/Assets/Square44x44Logo.scale-200.png",
+                     "sha256":  "ed37ff4c63df3de8ea3a025d56d0dc5a068db92fa1314988e8398181ddad9cdd",
+                     "bytes":  1411,
+                     "width":  88,
+                     "height":  88
+                 },
+                 {
+                     "path":  "IBM Granite with TurboQuant (Intel)/Assets/Square44x44Logo.targetsize-24_altform-unplated.png",
+                     "sha256":  "0a995c2c140314f22ee3cfdf606af07364cd7782e5678f8343822091aea72bed",
+                     "bytes":  625,
+                     "width":  24,
+                     "height":  24
+                 },
+                 {
+                     "path":  "IBM Granite with TurboQuant (Intel)/Assets/StoreLogo.png",
+                     "sha256":  "b51c72237da910635c7987abbf369b5bc81bc23320bec7686b754b4cab890212",
+                     "bytes":  980,
+                     "width":  50,
+                     "height":  50
+                 },
+                 {
+                     "path":  "IBM Granite with TurboQuant (Intel)/Assets/Wide310x150Logo.scale-200.png",
+                     "sha256":  "1845e83cc4e4365a65253ccdde605d1350b50ef7f5e116311a8b835855e0d62b",
+                     "bytes":  5208,
+                     "width":  620,
+                     "height":  300
+                 }
+             ],
+    "ico":  {
+                "path":  "IBM Granite with TurboQuant (Intel)/Assets/Branding/granite-edge-ai.ico",
+                "sha256":  "55c0786cd17c6efb491f511a55e780012db103626578e3b94ee871c9795d3f7f",
+                "bytes":  10210,
+                "sizes":  [
+                              16,
+                              24,
+                              32,
+                              48,
+                              64,
+                              128,
+                              256
+                          ]
+            }
+}
