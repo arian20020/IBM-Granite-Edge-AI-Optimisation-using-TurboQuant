@@ -24,7 +24,7 @@ namespace GraniteEdgeAI.Features.Onboarding
     /// <summary>
     /// Hosts the onboarding journey and displays one onboarding page at a time.
     /// </summary>
-    public sealed partial class OnboardingShellPage : Page
+    public sealed partial class OnboardingShellPage : Page, IDisposable
     {
         // Stores the Model Import page whose inspection request the shell is
         // currently listening to.
@@ -449,6 +449,11 @@ namespace GraniteEdgeAI.Features.Onboarding
             {
                 return false;
             }
+            if (!TryRegisterModelSourceCustody(sourcePage, handoff))
+            {
+                InvalidateModelHandoff(handoff.ModelInspectionHandoffId);
+                return false;
+            }
 
             Guid hardwareRunId = Guid.NewGuid();
             if (!_handoffRegistry.TryBindToHardwareRun(
@@ -457,7 +462,7 @@ namespace GraniteEdgeAI.Features.Onboarding
                 hardwareRunId,
                 out ModelInspectionHandoffClaim claim))
             {
-                _handoffRegistry.Invalidate(handoff.ModelInspectionHandoffId);
+                InvalidateModelHandoff(handoff.ModelInspectionHandoffId);
                 return false;
             }
 
@@ -498,7 +503,7 @@ namespace GraniteEdgeAI.Features.Onboarding
 
             if (!_handoffRegistry.TryMarkHardwareStarted(claim))
             {
-                _handoffRegistry.Invalidate(handoff.ModelInspectionHandoffId);
+                InvalidateModelHandoff(handoff.ModelInspectionHandoffId);
                 StageFrame.Content = previousContent;
                 return false;
             }
@@ -693,13 +698,23 @@ namespace GraniteEdgeAI.Features.Onboarding
             if (replacement is null)
             {
                 replacement = _hardwareHandoffReissuer(modelPage);
-                if (replacement is null ||
-                    !_handoffRegistry.TryAcceptReissue(
-                        _activeModelHandoffId,
-                        replacement))
+                if (replacement is null
+                    || !TryRegisterModelSourceCustody(modelPage, replacement))
                 {
                     return false;
                 }
+
+                if (!_handoffRegistry.TryAcceptReissue(
+                    _activeModelHandoffId,
+                    replacement))
+                {
+                    _modelSourceCustodyRegistry.Retire(
+                        replacement.ModelInspectionHandoffId);
+                    return false;
+                }
+
+                _modelSourceCustodyRegistry.Retire(_activeModelHandoffId);
+                _currentModelChatLaunchRegistry?.Retire(_activeModelHandoffId);
 
                 _pendingHardwareRetryHandoff = replacement;
             }
@@ -757,8 +772,7 @@ namespace GraniteEdgeAI.Features.Onboarding
 
             if (!_handoffRegistry.TryMarkHardwareStarted(claim))
             {
-                _handoffRegistry.Invalidate(
-                    replacement.ModelInspectionHandoffId);
+                InvalidateModelHandoff(replacement.ModelInspectionHandoffId);
                 sourcePage.JourneyAbandoned +=
                     HardwareInspectionPage_JourneyAbandoned;
                 StageFrame.Content = previousContent;
@@ -822,12 +836,12 @@ namespace GraniteEdgeAI.Features.Onboarding
         {
             if (_activeModelHandoffId != Guid.Empty)
             {
-                _handoffRegistry.Invalidate(_activeModelHandoffId);
+                InvalidateModelHandoff(_activeModelHandoffId);
             }
 
             if (_pendingHardwareRetryHandoff is not null)
             {
-                _handoffRegistry.Invalidate(
+                InvalidateModelHandoff(
                     _pendingHardwareRetryHandoff.ModelInspectionHandoffId);
             }
 

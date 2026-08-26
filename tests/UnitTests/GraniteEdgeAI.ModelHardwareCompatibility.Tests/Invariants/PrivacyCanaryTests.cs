@@ -316,6 +316,8 @@ public sealed class PrivacyCanaryTests
         "OptimizationIssuanceAuthority.AuthoritySha256",
         "OptimizationIssuanceAuthority.Digest",
         "OptimizationIssuanceAuthority.FreshnessPolicyVersion",
+        "OptimizationExecutionPayload.ComputeRuntimeConfigurationSha256",
+        "OptimizationCanonicalizer.RuntimeConfigurationSha256",
         "OptimizationFreshnessPolicy.Version",
         "<>c.<Digest>b__103_0",
         "<>c.<Digest>b__17_2",

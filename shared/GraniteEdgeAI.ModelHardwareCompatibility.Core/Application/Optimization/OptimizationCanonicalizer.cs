@@ -292,6 +292,38 @@ internal static class OptimizationCanonicalizer
         return Convert.ToHexString(hash).ToLowerInvariant();
     }
 
+    internal static string RuntimeConfigurationSha256(
+        OptimizationExecutionPayload payload)
+    {
+        ArgumentNullException.ThrowIfNull(payload);
+        StringBuilder builder = new();
+        Append(builder, "runtime-configuration-contract", 1);
+        Append(builder, "route", (int)payload.Route);
+        switch (payload.Route)
+        {
+            case OptimizationRoute.Gguf when payload.Gguf is not null
+                && payload.OpenVino is null:
+                AppendGguf(builder, payload.Gguf, contractVersion: 3);
+                break;
+            case OptimizationRoute.OpenVino when payload.OpenVino is not null
+                && payload.Gguf is null:
+                AppendOpenVino(
+                    builder,
+                    payload.OpenVino,
+                    includeV3CacheAlgorithm: true);
+                break;
+            default:
+                throw new ArgumentException(
+                    "A runtime configuration requires exactly one closed route payload.",
+                    nameof(payload));
+        }
+
+        byte[] hash = SHA256.HashData(
+            new UTF8Encoding(encoderShouldEmitUTF8Identifier: false)
+                .GetBytes(builder.ToString()));
+        return Convert.ToHexString(hash).ToLowerInvariant();
+    }
+
     /// <summary>
     /// Every GGUF execution field, in a fixed order. A field missing here is a
     /// field an executor could change without changing the plan's identity.

@@ -66,7 +66,11 @@ public sealed record CurrentCompatibleConfiguration
                 "The current execution payload must match the established route.",
                 nameof(exactExecutionPayload));
         }
-        if (!OptimizationDigest.IsCanonical(runtimeConfigurationSha256))
+        if (!OptimizationDigest.IsCanonical(runtimeConfigurationSha256)
+            || !string.Equals(
+                runtimeConfigurationSha256,
+                exactExecutionPayload.ComputeRuntimeConfigurationSha256(),
+                StringComparison.Ordinal))
         {
             throw new ArgumentException(
                 "The runtime configuration identity must be a canonical SHA-256.",

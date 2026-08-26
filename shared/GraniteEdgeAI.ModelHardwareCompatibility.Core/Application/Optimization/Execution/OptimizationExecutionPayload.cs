@@ -45,6 +45,13 @@ public sealed record OptimizationExecutionPayload
             "A payload with no route cannot say whether it writes anything.")
     };
 
+    /// <summary>
+    /// Stable identity of this exact route payload. It includes every
+    /// execution-affecting field and contains no source path.
+    /// </summary>
+    public string ComputeRuntimeConfigurationSha256() =>
+        OptimizationCanonicalizer.RuntimeConfigurationSha256(this);
+
     public static OptimizationExecutionPayload ForGguf(GgufExecutionPayload payload)
     {
         ArgumentNullException.ThrowIfNull(payload);
