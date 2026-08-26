@@ -45,7 +45,7 @@ public sealed record GgufRequantisationPolicy
 
     public GgufConversionSourceBinding Source { get; }
 
-    internal bool Authorizes(GgufAdmittedConfiguration admitted) =>
+    public bool Authorizes(GgufAdmittedConfiguration admitted) =>
         ExplicitlyAcknowledged
         && PreserveOriginal
         && RequireNewOutput
