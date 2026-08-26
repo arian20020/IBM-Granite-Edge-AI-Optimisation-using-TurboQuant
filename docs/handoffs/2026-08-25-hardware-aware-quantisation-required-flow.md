@@ -12,6 +12,10 @@
 
 **Reviewed code tip:** `8b25e4f7f5b65f820594b6b600d0f411de7cb993`
 
+**Post-commit test-start HEAD:** `c9d16779022b1ba2a0fc5af28faf1ef25bccbbc7`
+
+**Post-commit test-start tree:** `d60ac9003c7a8ae7ffc42f2cb5918d428d36d345`
+
 **Disposition:** feature slice complete; all final core and packaged regressions
 pass with non-zero discovery and zero failures or skips.
 
@@ -157,6 +161,7 @@ dotnet test --project '.\tests\UnitTests\GraniteEdgeAI.ModelHardwareCompatibilit
 ```
 
 Result: **1,038 total, 1,038 passed, 0 failed, 0 skipped**.
+The final rerun used the exact post-commit test-start HEAD recorded above.
 
 An earlier invocation which added unsupported VSTest-style logger arguments to
 this Microsoft.Testing.Platform project ran zero tests and exited 5. It is not
@@ -175,7 +180,8 @@ dotnet build $testProject --configuration Debug --no-restore --runtime win-x64 `
 
 Result: **succeeded, 0 errors, 28 existing warnings**. The warnings are the
 existing missing publish-profile, nullable-test, and obsolete MSTest data-row
-warnings; Task 9 introduced none.
+warnings; Task 9 introduced none. The evidence-of-record build was preceded by
+a successful clean and was run from the exact post-commit test-start HEAD above.
 
 ### Packaged VS Community VSTest
 
@@ -202,15 +208,32 @@ Command of record:
 
 ```powershell
 & $vstest $recipe '/Platform:x64' "/Settings:$runsettings" `
-  '/Logger:trx;LogFileName=full-serial-final-reason-green.trx' `
+  '/Logger:trx;LogFileName=full-serial-post-commit-bound-green.trx' `
   "/ResultsDirectory:$resultsPath"
 ```
 
 Final result: **1,431 total, 1,431 passed, 0 failed, 0 skipped** in
-**9.1991 minutes**.
+**9.1884 minutes**.
 
 TRX of record:
-`C:\GEAI-LOQ\TestResults\HardwareAwareOptimisation\ProcessLifecycle\full-serial-final-reason-green.trx`.
+`C:\GEAI-LOQ\TestResults\HardwareAwareOptimisation\ProcessLifecycle\full-serial-post-commit-bound-green.trx`.
+
+Immutable evidence binding:
+
+- production code commit:
+  `8b25e4f7f5b65f820594b6b600d0f411de7cb993`, committed at
+  `2026-08-26T01:12:53+01:00`;
+- test-start and test-finish HEAD:
+  `c9d16779022b1ba2a0fc5af28faf1ef25bccbbc7`;
+- TRX start: `2026-08-26T01:21:07.8518153+01:00`;
+- TRX finish: `2026-08-26T01:30:19.2168125+01:00`;
+- TRX bytes: `2,281,909`; and
+- TRX SHA-256:
+  `6293A67301670AB3E5F67C1E2231B812BE9FC2258DE9F8F5AD058163D61F1BD3`.
+
+The earlier `full-serial-final-reason-green.trx` executed the same source bytes
+but began before the production commit was created. It remains diagnostic
+history only and is not the evidence of record.
 
 The final run includes the complete ModelHardwareCompatibility and Onboarding
 inventories with no unexpected skips. It also executes the 64-iteration
