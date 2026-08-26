@@ -76,12 +76,13 @@ Expected at every checkpoint: each command exits `0`, each filter discovers at l
 ### Task 1: Create the isolated integration branch and immutable import ledger
 
 **Files:**
-- Create: `docs/handoffs/2026-08-26-cross-route-optimisation-import-manifest.json`
-- Create: `docs/handoffs/2026-08-26-cross-route-optimisation-import-manifest.md`
-- Create: `scripts/verification/Test-CrossRouteImportManifest.ps1`
+- Modify: `docs/handoffs/2026-08-26-cross-route-optimisation-import-manifest.json`
+- Modify: `docs/handoffs/2026-08-26-cross-route-optimisation-import-manifest.md`
+- Modify: `docs/superpowers/plans/2026-08-26-cross-route-optimisation-integration.md`
+- Modify: `scripts/verification/Test-CrossRouteImportManifest.ps1`
 - Create: `scripts/verification/CrossRouteImportManifest.Core.psm1`
-- Create: `scripts/verification/Assert-ChangedPaths.ps1`
-- Create: `scripts/verification/Invoke-PackagedTestCheckpoint.ps1`
+- Modify: `scripts/verification/Assert-ChangedPaths.ps1`
+- Modify: `scripts/verification/Invoke-PackagedTestCheckpoint.ps1`
 - Create: `scripts/verification/PackagedCheckpoint.Core.psm1`
 - Test: `tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelOptimization/OptimizationImportManifestTests.cs`
 - Test: `tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelOptimization/ChangedPathAllowlistTests.cs`
@@ -158,29 +159,27 @@ Bootstrap this first red without the not-yet-created checkpoint helper: prepend 
 
 - [ ] **Step 4: Create the manifest with exact authority tables**
 
-For each imported component, the JSON records source ref/SHA, status, selected source paths, Git blob IDs, computed SHA-256 values, destination paths, dependency closure, excluded shared paths, manual integration patches, and verification commands. Start UO1, GGUF runtime, and OpenVINO route as `Pending`; each import task must populate every required array and change only its own component to `Verified` before source files can be staged. The Markdown mirrors those facts for review and includes this rule verbatim: `A component import commit must change only its manifest-approved destination paths and these two manifest files.`
+For each imported component, the JSON records source ref/SHA, status, selected source paths, Git blob IDs, computed SHA-256 values, destination paths, dependency closure, excluded shared paths, manual integration patches, and verification commands. Start UO1, GGUF runtime, and OpenVINO route as `Pending`; each import task must populate every required array and change only its own component to `Verified` before source files can be staged. The Markdown mirrors those facts for review and includes this rule verbatim: `A component import commit must change only its manifest-approved destination paths, declared integration patch paths, and these two manifest files.`
 
-`Test-CrossRouteImportManifest.ps1` remains a fail-closed, non-injectable production wrapper over reusable operations exported by `CrossRouteImportManifest.Core.psm1`. The verifier accepts `-Component`, `-SourceRepository`, `-DestinationRepository`, optional `-WriteAllowedPathspec`, and optional `-VerifyStaged`, parses the JSON with strict duplicate-key rejection, and requires `Verified`. For every source record it normalizes a relative non-traversing Git path, resolves the declared pinned authority commit and path with `git ls-tree` plus `git rev-parse <commit>:<path>`, requires mode `100644` or `100755`, rejects symlink/submodule/tree modes, and requires the resulting object ID to equal the recorded blob ID before obtaining bytes with `git cat-file blob` and computing SHA-256. A merely reachable or prose-named blob is never accepted. For `Exact`, it compares imported destination bytes directly. Each `Adapted` or `Created` patch group declares exactly one base authority commit/tree; the verifier seeds an owned temporary Git tree with commit:path-bound base blobs, confirms every `Created` destination is absent at that base, verifies the tracked unified patch SHA-256, rejects absolute/traversal/undeclared paths, requires `/dev/null` creation only for declared `Created` files, runs `git apply --check` then `git apply`, hashes every reconstructed result, and requires both the declared result SHA-256 and actual destination bytes to match. Files from different authority/base commits require separate patch groups. It checks that every staged path is in `allowedDestinationPaths`, a declared patch path, or one of the two manifest files, and exits non-zero on missing dependency/patch/verification arrays. When requested, it writes only the verified actual changed paths as a NUL-delimited Git pathspec file. It never trusts hashes merely because they appear in prose.
+`Test-CrossRouteImportManifest.ps1` remains a fail-closed, non-injectable production wrapper over reusable operations exported by `CrossRouteImportManifest.Core.psm1`. The verifier accepts `-Component`, `-SourceRepository`, `-DestinationRepository`, optional locked-review-artifact `-WriteAllowedPathspec`, `-StageVerified`, and optional `-VerifyStaged`, parses the JSON with strict duplicate-key rejection, and requires `Verified`. For every source record it normalizes a relative non-traversing Git path, resolves the declared pinned authority commit and path with `git ls-tree` plus `git rev-parse <commit>:<path>`, requires mode `100644` or `100755`, rejects symlink/submodule/tree modes, and requires the resulting object ID to equal the recorded blob ID before obtaining bytes with `git cat-file blob` and computing SHA-256. A merely reachable or prose-named blob is never accepted. For `Exact`, it compares imported destination bytes directly. Each `Adapted` or `Created` patch group declares exactly one base authority commit/tree; the verifier seeds an owned temporary Git tree with commit:path-bound base blobs, confirms every `Created` destination is absent at that base, verifies the tracked unified patch SHA-256, rejects absolute/traversal/undeclared paths, requires `/dev/null` creation only for declared `Created` files, runs `git apply --check` then `git apply`, hashes every reconstructed result, and requires both the declared result SHA-256 and actual destination bytes to match. Files from different authority/base commits require separate patch groups. It checks that every staged path is in `allowedDestinationPaths`, a declared patch path, or one of the two manifest files, and exits non-zero on missing dependency/patch/verification arrays. `-StageVerified` hashes the already verified bytes with trusted Git `hash-object -w --no-filters -- <literal-path>`, binds each OID back to its verified SHA-256 bytes, stages the exact declared mode/OID/path in an operation-owned temporary index, verifies the complete temporary state, revalidates the original repository/index identity, and atomically publishes the complete verified index. `-WriteAllowedPathspec` writes only a locked review artifact and must never feed `git add`. It never trusts hashes merely because they appear in prose.
 
-`Assert-ChangedPaths.ps1` accepts repository root, one or more exact files or trailing-`/**` owned prefixes, and `-WritePathspec`. It parses `git status --porcelain=v1 -z`, fails on rename/copy records unless both old and new paths are allowed, fails on every modified/untracked path outside the allowlist, then writes only the actual allowed changed paths as NUL-delimited UTF-8 without BOM. Every later non-import commit must use this script and `git add --pathspec-from-file=... --pathspec-file-nul`; direct directory-wide `git add` is prohibited.
+`Assert-ChangedPaths.ps1` accepts repository root, one or more exact files or trailing-`/**` owned prefixes, optional review-only `-WritePathspec`, and `-StageVerified`. It rejects repository-local fsmonitor, hooks, untracked-cache, filter, and signing/external-program configuration plus hidden assume-unchanged/skip-worktree/fsmonitor-valid entries, preserves byte-exact status/index/flag identity, parses `git status --porcelain=v1 -z`, and fails on every modified/untracked path outside the allowlist. `-StageVerified` hashes each exact regular file with trusted Git `hash-object -w --no-filters`, applies additions/deletions with literal `update-index` plumbing in an operation-owned temporary index, verifies the exact endpoint set and bytes, revalidates the original repository/index identity, and atomically publishes the complete index. A review pathspec never feeds `git add`. Every later non-import commit must use `-StageVerified`; its commit must disable hooks and signing with the stated `-c` overrides. Direct `git add` is prohibited.
 
 `Invoke-PackagedTestCheckpoint.ps1` accepts only a mandatory `-Filter` and optional evidence directory. It prepends `C:\Program Files (x86)\Microsoft Visual Studio\Installer` to process `PATH`, derives the exact clean repository, VS Community MSBuild/VSTest, UnitTests project and repository-contained recipe, records the pre-build HEAD/tree, removes the exact prior recipe, performs serial win-x64 restore/build with `OpenVinoConverterPackagingRequired=false`, `OpenVinoOfficialWorkerPackagingRequired=false`, `OpenVinoTurboQuantPackagingRequired=false`, `GgufQuantizerPackagingRequired=false`, and `GenerateAppxPackageOnBuild=false`, and requires the exact recipe to be recreated during the bounded operation. It invokes VSTest into an operation-owned evidence directory with an exact GUID TRX name, strictly parses the exact TRX and complete coherent counters, requires non-zero execution/discovery and zero non-passing outcomes, then requires unchanged clean HEAD/tree. It records pre/post identities plus executable and recipe hashes and labels the result as source/component evidence that cannot be used as Release/native/package evidence. `PackagedCheckpoint.Core.psm1` owns testable orchestration and strict parsing primitives but cannot itself publish accepted production checkpoint evidence. Every filtered packaged command in later tasks uses the wrapper so stale binaries cannot pass.
 
 - [ ] **Step 5: Run the focused test and commit**
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Invoke-PackagedTestCheckpoint.ps1 -Filter 'FullyQualifiedName~OptimizationImportManifestTests|FullyQualifiedName~ChangedPathAllowlistTests|FullyQualifiedName~PackagedTestCheckpointTests'
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Invoke-PackagedTestCheckpoint.ps1 -Filter 'FullyQualifiedName~OptimizationImportManifestTests|FullyQualifiedName~OptimizationImportManifestVerifierProcessTests|FullyQualifiedName~ChangedPathAllowlistTests|FullyQualifiedName~PackagedTestCheckpointTests'
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Test-CrossRouteImportManifest.ps1 -Component UO1 -SourceRepository $env:GEAI_SOURCE_REPOSITORY -DestinationRepository $PWD
 $pendingExit = $LASTEXITCODE
 if ($pendingExit -eq 0) { throw 'Pending UO1 manifest unexpectedly verified.' }
 git diff --check
-$pathspec = Join-Path $env:TEMP 'geai-task1-pathspec.bin'
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Assert-ChangedPaths.ps1 -Repository $PWD -AllowedPath @('docs/handoffs/2026-08-26-cross-route-optimisation-import-manifest.json','docs/handoffs/2026-08-26-cross-route-optimisation-import-manifest.md','scripts/verification/Test-CrossRouteImportManifest.ps1','scripts/verification/CrossRouteImportManifest.Core.psm1','scripts/verification/Assert-ChangedPaths.ps1','scripts/verification/Invoke-PackagedTestCheckpoint.ps1','scripts/verification/PackagedCheckpoint.Core.psm1','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelOptimization/OptimizationImportManifestTests.cs','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelOptimization/ChangedPathAllowlistTests.cs','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelOptimization/PackagedTestCheckpointTests.cs') -WritePathspec $pathspec
-git add --pathspec-from-file=$pathspec --pathspec-file-nul
-git commit -m "docs(optimisation): freeze bounded component imports"
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Assert-ChangedPaths.ps1 -Repository $PWD -AllowedPath @('docs/handoffs/2026-08-26-cross-route-optimisation-import-manifest.json','docs/handoffs/2026-08-26-cross-route-optimisation-import-manifest.md','docs/superpowers/plans/2026-08-26-cross-route-optimisation-integration.md','scripts/verification/Test-CrossRouteImportManifest.ps1','scripts/verification/CrossRouteImportManifest.Core.psm1','scripts/verification/Assert-ChangedPaths.ps1','scripts/verification/Invoke-PackagedTestCheckpoint.ps1','scripts/verification/PackagedCheckpoint.Core.psm1','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelOptimization/OptimizationImportManifestTests.cs','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelOptimization/ChangedPathAllowlistTests.cs','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelOptimization/PackagedTestCheckpointTests.cs') -StageVerified
+git -c core.fsmonitor=false -c core.hooksPath=NUL -c commit.gpgSign=false commit -m "docs(optimisation): freeze bounded component imports"
 ```
 
-Expected: all three focused test families pass with non-zero discovery, the verifier refuses Pending UO1, and the implementation commit changes exactly ten paths.
+Expected: all three focused test families pass with non-zero discovery, the verifier refuses Pending UO1, and the implementation commit changes exactly eleven paths.
 
 ### Task 2: Preserve authoritative candidates in a path-free planning session
 
@@ -261,10 +260,8 @@ Add `CompatibilityEngine.EvaluateProduction(CompatibilityProductionInput)` and m
 ```powershell
 dotnet test --project $core --configuration Release
 git diff --check
-$pathspec = Join-Path $env:TEMP 'geai-task2-pathspec.bin'
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Assert-ChangedPaths.ps1 -Repository $PWD -AllowedPath @('shared/GraniteEdgeAI.ModelHardwareCompatibility.Core/**','tests/UnitTests/GraniteEdgeAI.ModelHardwareCompatibility.Tests/**') -WritePathspec $pathspec
-git add --pathspec-from-file=$pathspec --pathspec-file-nul
-git commit -m "feat(compatibility): retain authoritative optimisation planning session"
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Assert-ChangedPaths.ps1 -Repository $PWD -AllowedPath @('shared/GraniteEdgeAI.ModelHardwareCompatibility.Core/**','tests/UnitTests/GraniteEdgeAI.ModelHardwareCompatibility.Tests/**') -StageVerified
+git -c core.fsmonitor=false -c core.hooksPath=NUL -c commit.gpgSign=false commit -m "feat(compatibility): retain authoritative optimisation planning session"
 ```
 
 Expected: all core tests pass; the suite count is not lower than its pre-task baseline.
@@ -313,10 +310,8 @@ Add one bounded notice row and checkbox to the existing Compatibility selector. 
 dotnet test --project $core --configuration Release
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Invoke-PackagedTestCheckpoint.ps1 -Filter 'FullyQualifiedName~ModelHardwareCompatibility'
 git diff --check
-$pathspec = Join-Path $env:TEMP 'geai-task3-pathspec.bin'
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Assert-ChangedPaths.ps1 -Repository $PWD -AllowedPath @('shared/GraniteEdgeAI.ModelHardwareCompatibility.Core/**','IBM Granite with TurboQuant (Intel)/Features/ModelHardwareCompatibility/**','tests/UnitTests/GraniteEdgeAI.ModelHardwareCompatibility.Tests/**','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelHardwareCompatibility/**') -WritePathspec $pathspec
-git add --pathspec-from-file=$pathspec --pathspec-file-nul
-git commit -m "feat(compatibility): bind exact experimental optimisation consent"
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Assert-ChangedPaths.ps1 -Repository $PWD -AllowedPath @('shared/GraniteEdgeAI.ModelHardwareCompatibility.Core/**','IBM Granite with TurboQuant (Intel)/Features/ModelHardwareCompatibility/**','tests/UnitTests/GraniteEdgeAI.ModelHardwareCompatibility.Tests/**','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelHardwareCompatibility/**') -StageVerified
+git -c core.fsmonitor=false -c core.hooksPath=NUL -c commit.gpgSign=false commit -m "feat(compatibility): bind exact experimental optimisation consent"
 ```
 
 Expected: both suites pass with non-zero discovery; privacy canaries report no evidence/path leak.
@@ -406,10 +401,8 @@ Register custody through `OnboardingShellPage.ModelSourceCustody.cs` at the one 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Invoke-PackagedTestCheckpoint.ps1 -Filter 'FullyQualifiedName~ModelSourceCustodyRegistryTests|FullyQualifiedName~CurrentModelLaunchHandoffTests'
 git diff --check
-$pathspec = Join-Path $env:TEMP 'geai-task4-pathspec.bin'
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Assert-ChangedPaths.ps1 -Repository $PWD -AllowedPath @('IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Application/**','IBM Granite with TurboQuant (Intel)/Features/ModelHardwareCompatibility/**','IBM Granite with TurboQuant (Intel)/Features/Onboarding/OnboardingShellPage.ModelSourceCustody.cs','IBM Granite with TurboQuant (Intel)/Features/Onboarding/OnboardingShellPage.xaml.cs','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/**','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelHardwareCompatibility/**','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/Onboarding/**') -WritePathspec $pathspec
-git add --pathspec-from-file=$pathspec --pathspec-file-nul
-git commit -m "feat(compatibility): add private source custody and current chat handoff"
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Assert-ChangedPaths.ps1 -Repository $PWD -AllowedPath @('IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Application/**','IBM Granite with TurboQuant (Intel)/Features/ModelHardwareCompatibility/**','IBM Granite with TurboQuant (Intel)/Features/Onboarding/OnboardingShellPage.ModelSourceCustody.cs','IBM Granite with TurboQuant (Intel)/Features/Onboarding/OnboardingShellPage.xaml.cs','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/**','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelHardwareCompatibility/**','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/Onboarding/**') -StageVerified
+git -c core.fsmonitor=false -c core.hooksPath=NUL -c commit.gpgSign=false commit -m "feat(compatibility): add private source custody and current chat handoff"
 ```
 
 Expected: all focused tests pass and no public member exposes a path or source record.
@@ -471,10 +464,8 @@ The page can emit typed events in tests with a complete fixture composer/authori
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Invoke-PackagedTestCheckpoint.ps1 -Filter 'FullyQualifiedName~CompatibilityPlanIssuanceTests|FullyQualifiedName~CompatibilityViewModelTests'
 git diff --check
-$pathspec = Join-Path $env:TEMP 'geai-task5-pathspec.bin'
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Assert-ChangedPaths.ps1 -Repository $PWD -AllowedPath @('IBM Granite with TurboQuant (Intel)/Features/ModelHardwareCompatibility/Contracts/OptimizationRequestedEventArgs.cs','IBM Granite with TurboQuant (Intel)/Features/ModelHardwareCompatibility/Contracts/CurrentModelChatRequestedEventArgs.cs','IBM Granite with TurboQuant (Intel)/Features/ModelHardwareCompatibility/ViewModels/CompatibilityViewModel.cs','IBM Granite with TurboQuant (Intel)/Features/ModelHardwareCompatibility/CompatibilityPage.xaml','IBM Granite with TurboQuant (Intel)/Features/ModelHardwareCompatibility/CompatibilityPage.xaml.cs','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelHardwareCompatibility/CompatibilityPlanIssuanceTests.cs','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelHardwareCompatibility/CompatibilityViewModelTests.cs') -WritePathspec $pathspec
-git add --pathspec-from-file=$pathspec --pathspec-file-nul
-git commit -m "feat(onboarding): route typed compatibility decisions"
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Assert-ChangedPaths.ps1 -Repository $PWD -AllowedPath @('IBM Granite with TurboQuant (Intel)/Features/ModelHardwareCompatibility/Contracts/OptimizationRequestedEventArgs.cs','IBM Granite with TurboQuant (Intel)/Features/ModelHardwareCompatibility/Contracts/CurrentModelChatRequestedEventArgs.cs','IBM Granite with TurboQuant (Intel)/Features/ModelHardwareCompatibility/ViewModels/CompatibilityViewModel.cs','IBM Granite with TurboQuant (Intel)/Features/ModelHardwareCompatibility/CompatibilityPage.xaml','IBM Granite with TurboQuant (Intel)/Features/ModelHardwareCompatibility/CompatibilityPage.xaml.cs','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelHardwareCompatibility/CompatibilityPlanIssuanceTests.cs','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelHardwareCompatibility/CompatibilityViewModelTests.cs') -StageVerified
+git -c core.fsmonitor=false -c core.hooksPath=NUL -c commit.gpgSign=false commit -m "feat(onboarding): route typed compatibility decisions"
 ```
 
 Expected: current fit, required optimisation, no-fit, inconclusive, and stale confirmation tests pass; production still advertises no destination before real route registration.
@@ -563,11 +554,10 @@ Use the current light model-import/inspection/hardware theme values; keep one ce
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Invoke-PackagedTestCheckpoint.ps1 -Filter 'FullyQualifiedName~GraniteEdgeAI.UnitTests.Features.ModelOptimization'
 git diff --check
 git diff --name-only HEAD | ForEach-Object { if ($_ -notmatch '^(IBM Granite with TurboQuant \(Intel\)/Features/ModelOptimization/|tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelOptimization/|docs/handoffs/2026-08-26-cross-route-optimisation-import-manifest\.(json|md)$|docs/handoffs/import-patches/uo1-v3-adaptation\.patch$)') { throw "Forbidden UO1 path: $_" } }
-$pathspec = Join-Path $env:TEMP 'uo1-import-pathspec.bin'
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Test-CrossRouteImportManifest.ps1 -Component UO1 -SourceRepository $env:GEAI_SOURCE_REPOSITORY -DestinationRepository $PWD -WriteAllowedPathspec $pathspec
-git add --pathspec-from-file=$pathspec --pathspec-file-nul
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Test-CrossRouteImportManifest.ps1 -Component UO1 -SourceRepository $env:GEAI_SOURCE_REPOSITORY -DestinationRepository $PWD -VerifyStaged
-git commit -m "feat(optimisation): import canonical post-selection experience"
+$reviewPathspec = Join-Path $env:TEMP 'uo1-import-pathspec.bin'
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Test-CrossRouteImportManifest.ps1 -Component UO1 -SourceRepository $env:GEAI_SOURCE_REPOSITORY -DestinationRepository $PWD -WriteAllowedPathspec $reviewPathspec
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Test-CrossRouteImportManifest.ps1 -Component UO1 -SourceRepository $env:GEAI_SOURCE_REPOSITORY -DestinationRepository $PWD -StageVerified
+git -c core.fsmonitor=false -c core.hooksPath=NUL -c commit.gpgSign=false commit -m "feat(optimisation): import canonical post-selection experience"
 ```
 
 Expected: all ModelOptimization tests pass with non-zero discovery and the commit contains no preference card.
@@ -654,10 +644,8 @@ The reducer must be pure: `(state, event) -> state`. Its initial state is create
 dotnet test --project $core --configuration Release --filter 'FullyQualifiedName~OptimizationExecutionResultSourceIntegrityTests'
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Invoke-PackagedTestCheckpoint.ps1 -Filter 'FullyQualifiedName~OptimizationJourneyReducerTests|FullyQualifiedName~OptimizationJourneyCoordinatorTests|FullyQualifiedName~OptimizationProgressCardTests'
 git diff --check
-$pathspec = Join-Path $env:TEMP 'geai-task7-pathspec.bin'
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Assert-ChangedPaths.ps1 -Repository $PWD -AllowedPath @('shared/GraniteEdgeAI.ModelHardwareCompatibility.Core/Application/Optimization/OptimizationExecutionResult.cs','IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/Application/**','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelOptimization/**','tests/UnitTests/GraniteEdgeAI.ModelHardwareCompatibility.Tests/Application/Optimization/OptimizationExecutionResultSourceIntegrityTests.cs') -WritePathspec $pathspec
-git add --pathspec-from-file=$pathspec --pathspec-file-nul
-git commit -m "feat(optimisation): add generation-safe shared coordinator"
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Assert-ChangedPaths.ps1 -Repository $PWD -AllowedPath @('shared/GraniteEdgeAI.ModelHardwareCompatibility.Core/Application/Optimization/OptimizationExecutionResult.cs','IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/Application/**','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelOptimization/**','tests/UnitTests/GraniteEdgeAI.ModelHardwareCompatibility.Tests/Application/Optimization/OptimizationExecutionResultSourceIntegrityTests.cs') -StageVerified
+git -c core.fsmonitor=false -c core.hooksPath=NUL -c commit.gpgSign=false commit -m "feat(optimisation): add generation-safe shared coordinator"
 ```
 
 Expected: concurrency and stale-callback tests pass deterministically.
@@ -725,10 +713,8 @@ The executor receives only its registry-created operation staging lease. On appa
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Invoke-PackagedTestCheckpoint.ps1 -Filter 'FullyQualifiedName~OptimizationSourceResolverTests|FullyQualifiedName~OptimizationOutputRegistryTests|FullyQualifiedName~OptimizationRestartRecoveryTests|FullyQualifiedName~Privacy'
 git diff --check
-$pathspec = Join-Path $env:TEMP 'geai-task8-pathspec.bin'
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Assert-ChangedPaths.ps1 -Repository $PWD -AllowedPath @('IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/Storage/**','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelOptimization/**') -WritePathspec $pathspec
-git add --pathspec-from-file=$pathspec --pathspec-file-nul
-git commit -m "feat(optimisation): seal sources and receipt verified outputs"
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Assert-ChangedPaths.ps1 -Repository $PWD -AllowedPath @('IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/Storage/**','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelOptimization/**') -StageVerified
+git -c core.fsmonitor=false -c core.hooksPath=NUL -c commit.gpgSign=false commit -m "feat(optimisation): seal sources and receipt verified outputs"
 ```
 
 Expected: all storage/crash/privacy cases pass; no success is visible without a durable receipt.
@@ -787,11 +773,10 @@ Run `Test-CrossRouteImportManifest.ps1 -Component GgufRuntime` with the same sou
 Check every changed path against the populated manifest. Any unapproved shared path aborts the commit. Commit:
 
 ```powershell
-$pathspec = Join-Path $env:TEMP 'gguf-runtime-import-pathspec.bin'
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Test-CrossRouteImportManifest.ps1 -Component GgufRuntime -SourceRepository $env:GEAI_SOURCE_REPOSITORY -DestinationRepository $PWD -WriteAllowedPathspec $pathspec
-git add --pathspec-from-file=$pathspec --pathspec-file-nul
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Test-CrossRouteImportManifest.ps1 -Component GgufRuntime -SourceRepository $env:GEAI_SOURCE_REPOSITORY -DestinationRepository $PWD -VerifyStaged
-git commit -m "feat(gguf): import verified chat runtime closure"
+$reviewPathspec = Join-Path $env:TEMP 'gguf-runtime-import-pathspec.bin'
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Test-CrossRouteImportManifest.ps1 -Component GgufRuntime -SourceRepository $env:GEAI_SOURCE_REPOSITORY -DestinationRepository $PWD -WriteAllowedPathspec $reviewPathspec
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Test-CrossRouteImportManifest.ps1 -Component GgufRuntime -SourceRepository $env:GEAI_SOURCE_REPOSITORY -DestinationRepository $PWD -StageVerified
+git -c core.fsmonitor=false -c core.hooksPath=NUL -c commit.gpgSign=false commit -m "feat(gguf): import verified chat runtime closure"
 ```
 
 Expected: the commit contains only manifest-approved blobs plus named minimal integration edits.
@@ -827,10 +812,8 @@ Expected: both scripts exit `0`; manifest source commit is exact; every listed f
 
 ```powershell
 dotnet test tests/UnitTests/GraniteEdgeAI.GgufQuantization.Capabilities.Tests/GraniteEdgeAI.GgufQuantization.Capabilities.Tests.csproj -c Release --filter 'FullyQualifiedName~QuantizerSourceLockTests'
-$pathspec = Join-Path $env:TEMP 'geai-task10a-pathspec.bin'
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Assert-ChangedPaths.ps1 -Repository $PWD -AllowedPath @('third-party/llama-quantize/source.lock.json','scripts/gguf-quantization/Build-VerifiedQuantizer.ps1','scripts/gguf-quantization/Test-GgufQuantizerPackage.ps1','tests/UnitTests/GraniteEdgeAI.GgufQuantization.Capabilities.Tests/GraniteEdgeAI.GgufQuantization.Capabilities.Tests.csproj','tests/UnitTests/GraniteEdgeAI.GgufQuantization.Capabilities.Tests/QuantizerSourceLockTests.cs') -WritePathspec $pathspec
-git add --pathspec-from-file=$pathspec --pathspec-file-nul
-git commit -m "build(gguf): freeze official quantiser source"
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Assert-ChangedPaths.ps1 -Repository $PWD -AllowedPath @('third-party/llama-quantize/source.lock.json','scripts/gguf-quantization/Build-VerifiedQuantizer.ps1','scripts/gguf-quantization/Test-GgufQuantizerPackage.ps1','tests/UnitTests/GraniteEdgeAI.GgufQuantization.Capabilities.Tests/GraniteEdgeAI.GgufQuantization.Capabilities.Tests.csproj','tests/UnitTests/GraniteEdgeAI.GgufQuantization.Capabilities.Tests/QuantizerSourceLockTests.cs') -StageVerified
+git -c core.fsmonitor=false -c core.hooksPath=NUL -c commit.gpgSign=false commit -m "build(gguf): freeze official quantiser source"
 ```
 
 Expected: non-zero discovered tests pass; no executable or stage directory is committed.
@@ -859,10 +842,8 @@ The command contains protocol/correlation/plan/config IDs, source/output opaque 
 ```powershell
 dotnet test tests/ContractTests/GraniteEdgeAI.GgufQuantization.Contracts.Tests/GraniteEdgeAI.GgufQuantization.Contracts.Tests.csproj -c Release
 dotnet test tests/UnitTests/GraniteEdgeAI.GgufQuantization.Capabilities.Tests/GraniteEdgeAI.GgufQuantization.Capabilities.Tests.csproj -c Release
-$pathspec = Join-Path $env:TEMP 'geai-task10b-pathspec.bin'
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Assert-ChangedPaths.ps1 -Repository $PWD -AllowedPath @('shared/GraniteEdgeAI.GgufQuantization.Contracts/**','runtime/GraniteEdgeAI.GgufQuantization.Capabilities/**','tests/ContractTests/GraniteEdgeAI.GgufQuantization.Contracts.Tests/**','tests/UnitTests/GraniteEdgeAI.GgufQuantization.Capabilities.Tests/**') -WritePathspec $pathspec
-git add --pathspec-from-file=$pathspec --pathspec-file-nul
-git commit -m "feat(gguf): add closed quantisation contracts"
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Assert-ChangedPaths.ps1 -Repository $PWD -AllowedPath @('shared/GraniteEdgeAI.GgufQuantization.Contracts/**','runtime/GraniteEdgeAI.GgufQuantization.Capabilities/**','tests/ContractTests/GraniteEdgeAI.GgufQuantization.Contracts.Tests/**','tests/UnitTests/GraniteEdgeAI.GgufQuantization.Capabilities.Tests/**') -StageVerified
+git -c core.fsmonitor=false -c core.hooksPath=NUL -c commit.gpgSign=false commit -m "feat(gguf): add closed quantisation contracts"
 ```
 
 Expected: both projects discover tests and pass; reflection confirms no path or arbitrary argument property.
@@ -894,10 +875,8 @@ The verifier recomputes the canonical manifest hash and every file hash before r
 ```powershell
 dotnet test tests/UnitTests/GraniteEdgeAI.GgufQuantization.WorkerClient.Tests/GraniteEdgeAI.GgufQuantization.WorkerClient.Tests.csproj -c Release
 dotnet test tests/IntegrationTests/GraniteEdgeAI.GgufQuantization.WorkerProcess.Tests/GraniteEdgeAI.GgufQuantization.WorkerProcess.Tests.csproj -c Release --filter 'FullyQualifiedName~GgufQuantizationProcessTests'
-$pathspec = Join-Path $env:TEMP 'geai-task10c-pathspec.bin'
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Assert-ChangedPaths.ps1 -Repository $PWD -AllowedPath @('infrastructure/GraniteEdgeAI.GgufQuantization.WorkerClient/**','workers/GraniteEdgeAI.GgufQuantization.Worker/**','tests/ProcessFixtures/GraniteEdgeAI.GgufQuantization.FakeQuantizer/**','tests/UnitTests/GraniteEdgeAI.GgufQuantization.WorkerClient.Tests/**','tests/IntegrationTests/GraniteEdgeAI.GgufQuantization.WorkerProcess.Tests/**') -WritePathspec $pathspec
-git add --pathspec-from-file=$pathspec --pathspec-file-nul
-git commit -m "feat(gguf): supervise bounded quantiser worker"
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Assert-ChangedPaths.ps1 -Repository $PWD -AllowedPath @('infrastructure/GraniteEdgeAI.GgufQuantization.WorkerClient/**','workers/GraniteEdgeAI.GgufQuantization.Worker/**','tests/ProcessFixtures/GraniteEdgeAI.GgufQuantization.FakeQuantizer/**','tests/UnitTests/GraniteEdgeAI.GgufQuantization.WorkerClient.Tests/**','tests/IntegrationTests/GraniteEdgeAI.GgufQuantization.WorkerProcess.Tests/**') -StageVerified
+git -c core.fsmonitor=false -c core.hooksPath=NUL -c commit.gpgSign=false commit -m "feat(gguf): supervise bounded quantiser worker"
 ```
 
 Expected: all lifecycle cases pass with non-zero discovery and no descendant remains.
@@ -922,10 +901,8 @@ Import the target after worker packaging targets. It resolves only verified mani
 ```powershell
 dotnet build 'IBM Granite with TurboQuant (Intel).slnx' -c Debug -p:Platform=x64 -p:GgufQuantizerPackagingRequired=false -p:BuildInParallel=false -m:1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Invoke-PackagedTestCheckpoint.ps1 -Filter 'FullyQualifiedName~GgufQuantizerPackagingTests'
-$pathspec = Join-Path $env:TEMP 'geai-task10d-pathspec.bin'
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Assert-ChangedPaths.ps1 -Repository $PWD -AllowedPath @('IBM Granite with TurboQuant (Intel)/GgufQuantization.WorkerPackaging.targets','IBM Granite with TurboQuant (Intel)/IBM Granite with TurboQuant (Intel).csproj','IBM Granite with TurboQuant (Intel).slnx','scripts/gguf-runtime/Invoke-GgufChatVerification.ps1','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelOptimization/GgufQuantizerPackagingTests.cs') -WritePathspec $pathspec
-git add --pathspec-from-file=$pathspec --pathspec-file-nul
-git commit -m "build(gguf): package separate verified quantiser"
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Assert-ChangedPaths.ps1 -Repository $PWD -AllowedPath @('IBM Granite with TurboQuant (Intel)/GgufQuantization.WorkerPackaging.targets','IBM Granite with TurboQuant (Intel)/IBM Granite with TurboQuant (Intel).csproj','IBM Granite with TurboQuant (Intel).slnx','scripts/gguf-runtime/Invoke-GgufChatVerification.ps1','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelOptimization/GgufQuantizerPackagingTests.cs') -StageVerified
+git -c core.fsmonitor=false -c core.hooksPath=NUL -c commit.gpgSign=false commit -m "build(gguf): package separate verified quantiser"
 ```
 
 Expected: source-only Debug passes; a separate packaging test with the verified Task 10A stage/hash passes; missing/wrong stage/hash fails.
@@ -980,10 +957,8 @@ dotnet test .\tests\IntegrationTests\GraniteEdgeAI.GgufQuantization.WorkerProces
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\gguf-runtime\Invoke-GgufChatVerification.ps1 -GgufQuantizerStageDirectory $quantizerStage -GgufQuantizerManifestSha256 $quantizerManifestSha -GgufQuantizerPackagingRequired:$true -GenerateAppxPackageOnBuild:$false
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Invoke-PackagedTestCheckpoint.ps1 -Filter 'FullyQualifiedName~GgufOptimization|FullyQualifiedName~GgufOptimizationChatLaunchFactory|FullyQualifiedName~GgufOptimizationProductionAuthorityTests'
 git diff --check
-$pathspec = Join-Path $env:TEMP 'geai-task11-pathspec.bin'
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Assert-ChangedPaths.ps1 -Repository $PWD -AllowedPath @('IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/Execution/Gguf/**','IBM Granite with TurboQuant (Intel)/Features/ModelHardwareCompatibility/Infrastructure/GgufOptimizationProductionAuthorityProvider.cs','IBM Granite with TurboQuant (Intel)/Features/ModelHardwareCompatibility/Infrastructure/GgufCompatibilityInputProjector.cs','IBM Granite with TurboQuant (Intel)/Features/GgufRuntime/**','scripts/gguf-runtime/Invoke-GgufChatVerification.ps1','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelOptimization/**','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelHardwareCompatibility/GgufOptimizationProductionAuthorityTests.cs','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/GgufRuntime/**','tests/UnitTests/GraniteEdgeAI.GgufRuntime.Tests/**','tests/IntegrationTests/GraniteEdgeAI.GgufQuantization.WorkerProcess.Tests/**') -WritePathspec $pathspec
-git add --pathspec-from-file=$pathspec --pathspec-file-nul
-git commit -m "feat(gguf): execute v3 plans and launch verified chat"
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Assert-ChangedPaths.ps1 -Repository $PWD -AllowedPath @('IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/Execution/Gguf/**','IBM Granite with TurboQuant (Intel)/Features/ModelHardwareCompatibility/Infrastructure/GgufOptimizationProductionAuthorityProvider.cs','IBM Granite with TurboQuant (Intel)/Features/ModelHardwareCompatibility/Infrastructure/GgufCompatibilityInputProjector.cs','IBM Granite with TurboQuant (Intel)/Features/GgufRuntime/**','scripts/gguf-runtime/Invoke-GgufChatVerification.ps1','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelOptimization/**','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelHardwareCompatibility/GgufOptimizationProductionAuthorityTests.cs','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/GgufRuntime/**','tests/UnitTests/GraniteEdgeAI.GgufRuntime.Tests/**','tests/IntegrationTests/GraniteEdgeAI.GgufQuantization.WorkerProcess.Tests/**') -StageVerified
+git -c core.fsmonitor=false -c core.hooksPath=NUL -c commit.gpgSign=false commit -m "feat(gguf): execute v3 plans and launch verified chat"
 ```
 
 Expected: the process filter discovers its required cases with zero Failed, Skipped, Inconclusive, or NotExecuted outcomes; quantise-to-admitted-output and Chat launch pass; cancellation/failure publish nothing; original SHA remains unchanged.
@@ -999,7 +974,7 @@ Expected: the process filter discovers its required cases with zero Failed, Skip
 
 - [ ] **Step 1: Freeze the O1 manifest and forbid stale authorities**
 
-Record exact blobs from `f0189ed187ba900f27bade5fde282ae4e99e8d7b`. The allowlist is the explicit route-owned set in Step 3. Keep the machine component `Pending` in this documentation-only task. Explicitly forbid O1 ModelImport, ModelInspection, HardwareInspection, ModelHardwareCompatibility, Onboarding, MainWindow, App/resources/navigation, whole project/solution files, v1/v2 core/contracts/tests, `.github/workflows`, research/evidence, direct destination publication, and any second UI/coordinator/selector/theme/gallery. Mark `OpenVinoV2TestPayload.cs` excluded. Import only these O1 contract-test sources: `ArchitectureBoundaryTests.cs`, `DependencyLockContractTests.cs`, `FixtureContractTests.cs`, `GpuDeviceContractTests.cs`, `ProtocolJsonTests.cs`, `ProtocolSequenceTests.cs`, `SupportCodeTests.cs`, and `Task7ProtocolExtensionTests.cs`; create the current project file around them. Exclude legacy `WorkflowContractTests.cs`, `TurboQuantSourceContractTests.cs`, `HandoffBundleContractTests.cs`, and `PackagingContractTests.cs` because they assert forbidden O1 workflows/evidence topology. New integration-owned packaging and UCL evidence tests replace those responsibilities in Tasks 13 and 17.
+Record exact blobs from `f0189ed187ba900f27bade5fde282ae4e99e8d7b`. The allowlist is the explicit route-owned set in Step 3. Keep the machine component `Pending` in this documentation-only task. Explicitly forbid O1 ModelImport, ModelInspection, HardwareInspection, ModelHardwareCompatibility, Onboarding, MainWindow, App/resources/navigation, whole project/solution files, v1/v2 core/contracts/tests, `.github/workflows`, research/evidence, direct destination publication, and any second UI/coordinator/selector/theme/gallery. Mark `OpenVinoV2TestPayload.cs` excluded. Import only these O1 contract-test sources: `ArchitectureBoundaryTests.cs`, `DependencyLockContractTests.cs`, `FixtureContractTests.cs`, `GpuDeviceContractTests.cs`, `ProtocolJsonTests.cs`, `ProtocolSequenceTests.cs`, `SupportCodeTests.cs`, and `Task7ProtocolExtensionTests.cs`; explicitly exclude the pinned O1 `packages.lock.json` and create the current project file around the eight sources. Exclude legacy `WorkflowContractTests.cs`, `TurboQuantSourceContractTests.cs`, `HandoffBundleContractTests.cs`, and `PackagingContractTests.cs` because they assert forbidden O1 workflows/evidence topology. New integration-owned packaging and UCL evidence tests replace those responsibilities in Tasks 13 and 17.
 
 - [ ] **Step 2: Write failing closure and single-prompt-router tests**
 
@@ -1022,10 +997,8 @@ Expected: manifest and current compatibility tests pass with non-zero discovery 
 - [ ] **Step 5: Commit the reviewed immutable closure**
 
 ```powershell
-$pathspec = Join-Path $env:TEMP 'geai-task12-pathspec.bin'
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Assert-ChangedPaths.ps1 -Repository $PWD -AllowedPath @('docs/handoffs/2026-08-26-cross-route-optimisation-import-manifest.json','docs/handoffs/2026-08-26-cross-route-optimisation-import-manifest.md','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelOptimization/OptimizationImportManifestTests.cs') -WritePathspec $pathspec
-git add --pathspec-from-file=$pathspec --pathspec-file-nul
-git commit -m "docs(openvino): freeze verified route closure"
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Assert-ChangedPaths.ps1 -Repository $PWD -AllowedPath @('docs/handoffs/2026-08-26-cross-route-optimisation-import-manifest.json','docs/handoffs/2026-08-26-cross-route-optimisation-import-manifest.md','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelOptimization/OptimizationImportManifestTests.cs') -StageVerified
+git -c core.fsmonitor=false -c core.hooksPath=NUL -c commit.gpgSign=false commit -m "docs(openvino): freeze verified route closure"
 ```
 
 Expected: exactly the two manifest files and their focused test are committed.
@@ -1050,7 +1023,8 @@ Expected: exactly the two manifest files and their focused test are committed.
 - Import: `IBM Granite with TurboQuant (Intel)/OpenVino.WorkerPackaging.targets`
 - Create: `IBM Granite with TurboQuant (Intel)/OpenVino.ConverterPackaging.targets`
 - Create: `IBM Granite with TurboQuant (Intel)/OpenVino.TurboQuantPackaging.targets`
-- Import/adapt: OpenVINO contract/unit/integration/process-fixture test projects enumerated in the Task 12 manifest, with the four legacy workflow/evidence-topology contract tests explicitly absent
+- Import/adapt: OpenVINO contract/unit/integration/process-fixture tests enumerated in the Task 12 manifest, with only its eight exact contract-test sources and with the four legacy workflow/evidence-topology contract tests plus the pinned O1 `packages.lock.json` explicitly absent
+- Create: `tests/ContractTests/GraniteEdgeAI.OpenVino.Contracts.Tests/GraniteEdgeAI.OpenVino.Contracts.Tests.csproj`
 - Modify minimally: `IBM Granite with TurboQuant (Intel)/IBM Granite with TurboQuant (Intel).csproj`
 - Modify minimally: `IBM Granite with TurboQuant (Intel).slnx`
 - Modify minimally: `tests/UnitTests/GraniteEdgeAI.UnitTests/GraniteEdgeAI.UnitTests.csproj`
@@ -1075,7 +1049,7 @@ Expected: exactly the two manifest files and their focused test are committed.
 
 - [ ] **Step 1: Import the exact manifest and apply minimal registrations**
 
-Import every Task 12-approved blob, excluding `OpenVinoV2TestPayload.cs`. Preserve unmodified entries as `Exact`. Use three mechanically independent patch groups: `openvino-v3-adaptation.patch` is based only on O1 `f0189ed...` route-owned blobs; `openvino-shared-integration.patch` is based only on the immediately preceding integration commit's current project/solution/UnitTests blobs and uses explicit `Created` entries for integration-owned composers, executors, packaging targets, or tests added from `/dev/null`; `gguf-verifier-openvino-integration.patch` is based only on the exact Task 11 GGUF verification-script blob. Record each base commit:path/blob (when present), base tree, creation absence proof, patch SHA-256, and final result SHA-256 before changing OpenVino to `Verified`; mixing files from different bases in one patch group is prohibited.
+Import every Task 12-approved blob, excluding `OpenVinoV2TestPayload.cs` and the pinned O1 contract-test `packages.lock.json`. Preserve unmodified entries as `Exact`. Use three mechanically independent patch groups: `openvino-v3-adaptation.patch` is based only on O1 `f0189ed...` route-owned blobs; `openvino-shared-integration.patch` is based only on the immediately preceding integration commit's current project/solution/UnitTests blobs and uses explicit `Created` entries for integration-owned composers, executors, packaging targets, and exactly `IBM Granite with TurboQuant (Intel)/Features/OpenVinoRoute/Integration/OpenVinoPackagedToolContextResolver.cs`, `IBM Granite with TurboQuant (Intel)/Features/OpenVinoRoute/Integration/OpenVinoProductionComposition.cs`, `tests/UnitTests/GraniteEdgeAI.UnitTests/Features/OpenVinoRoute/OpenVinoProductionCompositionTests.cs`, and `tests/ContractTests/GraniteEdgeAI.OpenVino.Contracts.Tests/GraniteEdgeAI.OpenVino.Contracts.Tests.csproj` from `/dev/null`; no sibling path is authorized. `gguf-verifier-openvino-integration.patch` is based only on the exact Task 11 GGUF verification-script blob. Record each base commit:path/blob (when present), base tree, creation absence proof, patch SHA-256, and final result SHA-256 before changing OpenVino to `Verified`; mixing files from different bases in one patch group is prohibited.
 
 Add x64 project references to OpenVINO Contracts and WorkerClient, compile-time `AssemblyMetadata` for the converter, official-worker, and TurboQuant-worker manifest SHA-256 values, and import all three packaging targets after existing worker imports. `OpenVino.ConverterPackaging.targets` and `OpenVino.TurboQuantPackaging.targets` follow the same fail-closed design as the official-worker target: explicit stage directory, lowercase manifest SHA-256, regular-file/non-reparse closure, manifest/member hash verification, no additions, and distinct package-relative directories `OpenVino\Converter\Worker`, the imported official target's exact `OpenVino\Official\Worker`, and `OpenVino\TurboQuant\Worker`. Release/native evidence requires converter, official, and TurboQuant packaging; missing or wrong stage/hash fails. For source-only packaged tests, the UnitTests application reference may set `OpenVinoConverterPackagingRequired=false`, `OpenVinoOfficialWorkerPackagingRequired=false`, `OpenVinoTurboQuantPackagingRequired=false`, and `GenerateAppxPackageOnBuild=false` only when `CrossRouteNativeEvidenceBuild != true`; never use those bypasses for Release/package evidence. Add the eight OpenVINO projects/tests to `.slnx` with AnyCPU for contracts and x64 mappings for native projects. Extend the already integration-owned GGUF verification script only through its separate patch group by adding and forwarding all three OpenVINO packaging-required controls; process tests prove exact forwarding, rejection of invalid combinations, and that `CrossRouteNativeEvidenceBuild=true` cannot disable any required package.
 
@@ -1110,11 +1084,10 @@ dotnet test tests/IntegrationTests/GraniteEdgeAI.OpenVino.WorkerProcess.Tests/Gr
 dotnet test --project $core --configuration Release
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Invoke-PackagedTestCheckpoint.ps1 -Filter 'FullyQualifiedName~OpenVinoProductionCompositionTests'
 git diff --check
-$pathspec = Join-Path $env:TEMP 'geai-task13-pathspec.bin'
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Test-CrossRouteImportManifest.ps1 -Component OpenVino -SourceRepository $PWD -DestinationRepository $PWD -WriteAllowedPathspec $pathspec
-git add --pathspec-from-file=$pathspec --pathspec-file-nul
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Test-CrossRouteImportManifest.ps1 -Component OpenVino -SourceRepository $PWD -DestinationRepository $PWD -VerifyStaged
-git commit -m "feat(openvino): import route and execute exact v3 plans"
+$reviewPathspec = Join-Path $env:TEMP 'geai-task13-pathspec.bin'
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Test-CrossRouteImportManifest.ps1 -Component OpenVino -SourceRepository $env:GEAI_SOURCE_REPOSITORY -DestinationRepository $PWD -WriteAllowedPathspec $reviewPathspec
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Test-CrossRouteImportManifest.ps1 -Component OpenVino -SourceRepository $env:GEAI_SOURCE_REPOSITORY -DestinationRepository $PWD -StageVerified
+git -c core.fsmonitor=false -c core.hooksPath=NUL -c commit.gpgSign=false commit -m "feat(openvino): import route and execute exact v3 plans"
 ```
 
 Expected: all locally available tests pass. A native skipped/unavailable converter, worker, or prompting stage remains explicitly blocked for Task 17’s UCL run.
@@ -1210,10 +1183,8 @@ dotnet test tests/UnitTests/GraniteEdgeAI.OpenVino.Tests/GraniteEdgeAI.OpenVino.
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Invoke-PackagedTestCheckpoint.ps1 -Filter 'FullyQualifiedName~OpenVinoModelInspectionPageSessionTests|FullyQualifiedName~OpenVinoCurrentModelChatLaunchAuthorityTests|FullyQualifiedName~OnboardingOpenVinoInspectionNavigationTests|FullyQualifiedName~OpenVinoCompatibilityInputProjectorTests|FullyQualifiedName~ModelImportOperationLifecycleTests|FullyQualifiedName~ModelImportPrivacyBoundaryTests'
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Invoke-PackagedTestCheckpoint.ps1 -Filter 'FullyQualifiedName~ModelInspectionPresentationFactoryTests|FullyQualifiedName~OnboardingFolderInspectionNavigationTests|FullyQualifiedName~GgufCompatibilityInputProjectorTests'
 git diff --check
-$pathspec = Join-Path $env:TEMP 'geai-task14-pathspec.bin'
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Assert-ChangedPaths.ps1 -Repository $PWD -AllowedPath @('IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Application/IModelInspectionPageSession.cs','IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Application/GgufModelInspectionPageSession.cs','IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Application/ModelInspectionDisplayDescriptor.cs','IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Application/ModelInspectionPageSessionSnapshot.cs','IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Application/ModelInspectionPageCommand.cs','IBM Granite with TurboQuant (Intel)/Features/ModelInspection/ModelInspectionPage.xaml.cs','IBM Granite with TurboQuant (Intel)/Features/ModelInspection/ViewModels/ModelInspectionViewModel.cs','IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/ModelInspectionPresentationFactory.cs','IBM Granite with TurboQuant (Intel)/Features/OpenVinoRoute/Integration/**','IBM Granite with TurboQuant (Intel)/Features/ModelHardwareCompatibility/Infrastructure/OpenVinoCompatibilityInputProjector.cs','IBM Granite with TurboQuant (Intel)/Features/Onboarding/OnboardingShellPage.OpenVinoInspection.cs','IBM Granite with TurboQuant (Intel)/Features/Onboarding/OnboardingShellPage.xaml.cs','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/OpenVinoModelInspectionPageSessionTests.cs','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/OpenVinoRoute/OpenVinoCurrentModelChatLaunchAuthorityTests.cs','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelHardwareCompatibility/OpenVinoCompatibilityInputProjectorTests.cs','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/Onboarding/OnboardingOpenVinoInspectionNavigationTests.cs','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/**','tests/UnitTests/GraniteEdgeAI.OpenVino.Tests/**') -WritePathspec $pathspec
-git add --pathspec-from-file=$pathspec --pathspec-file-nul
-git commit -m "feat(openvino): complete import inspection compatibility seam"
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Assert-ChangedPaths.ps1 -Repository $PWD -AllowedPath @('IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Application/IModelInspectionPageSession.cs','IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Application/GgufModelInspectionPageSession.cs','IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Application/ModelInspectionDisplayDescriptor.cs','IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Application/ModelInspectionPageSessionSnapshot.cs','IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Application/ModelInspectionPageCommand.cs','IBM Granite with TurboQuant (Intel)/Features/ModelInspection/ModelInspectionPage.xaml.cs','IBM Granite with TurboQuant (Intel)/Features/ModelInspection/ViewModels/ModelInspectionViewModel.cs','IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/ModelInspectionPresentationFactory.cs','IBM Granite with TurboQuant (Intel)/Features/OpenVinoRoute/Integration/**','IBM Granite with TurboQuant (Intel)/Features/ModelHardwareCompatibility/Infrastructure/OpenVinoCompatibilityInputProjector.cs','IBM Granite with TurboQuant (Intel)/Features/Onboarding/OnboardingShellPage.OpenVinoInspection.cs','IBM Granite with TurboQuant (Intel)/Features/Onboarding/OnboardingShellPage.xaml.cs','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/OpenVinoModelInspectionPageSessionTests.cs','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/OpenVinoRoute/OpenVinoCurrentModelChatLaunchAuthorityTests.cs','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelHardwareCompatibility/OpenVinoCompatibilityInputProjectorTests.cs','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/Onboarding/OnboardingOpenVinoInspectionNavigationTests.cs','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/**','tests/UnitTests/GraniteEdgeAI.OpenVino.Tests/**') -StageVerified
+git -c core.fsmonitor=false -c core.hooksPath=NUL -c commit.gpgSign=false commit -m "feat(openvino): complete import inspection compatibility seam"
 ```
 
 Expected: both GGUF and OpenVINO reach the same Hardware and Compatibility pages; the existing OpenVINO-unavailable rejection is gone only when the verified port is registered; source folders remain conversion-only; every filter discovers tests and passes; the commit contains no XAML/theme duplicate and no path-bearing boundary.
@@ -1260,10 +1231,8 @@ Current-model Chat calls `ICurrentModelChatLaunchAuthority` and translates its c
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Invoke-PackagedTestCheckpoint.ps1 -Filter 'FullyQualifiedName~OptimizationChatRouterTests'
 git diff --check
-$pathspec = Join-Path $env:TEMP 'geai-task15a-pathspec.bin'
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Assert-ChangedPaths.ps1 -Repository $PWD -AllowedPath @('IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/Destinations/DestinationSupportCode.cs','IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/Destinations/DestinationResult.cs','IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/Destinations/OptimizationChatRouter.cs','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelOptimization/OptimizationChatRouterTests.cs') -WritePathspec $pathspec
-git add --pathspec-from-file=$pathspec --pathspec-file-nul
-git commit -m "feat(optimisation): route verified chat destinations"
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Assert-ChangedPaths.ps1 -Repository $PWD -AllowedPath @('IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/Destinations/DestinationSupportCode.cs','IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/Destinations/DestinationResult.cs','IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/Destinations/OptimizationChatRouter.cs','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelOptimization/OptimizationChatRouterTests.cs') -StageVerified
+git -c core.fsmonitor=false -c core.hooksPath=NUL -c commit.gpgSign=false commit -m "feat(optimisation): route verified chat destinations"
 ```
 
 Expected: current GGUF, optimized GGUF, and OpenVINO Chat tests discover and pass; mixed identities and unavailable route authorities fail closed.
@@ -1289,10 +1258,8 @@ Use an OS picker/handle through `IDestinationPicker`; never treat display text a
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Invoke-PackagedTestCheckpoint.ps1 -Filter 'FullyQualifiedName~GgufModelExporterTests'
 git diff --check
-$pathspec = Join-Path $env:TEMP 'geai-task15b-pathspec.bin'
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Assert-ChangedPaths.ps1 -Repository $PWD -AllowedPath @('IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/Destinations/IDestinationPicker.cs','IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/Destinations/OptimizationDestinationService.cs','IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/Destinations/GgufModelExporter.cs','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelOptimization/GgufModelExporterTests.cs') -WritePathspec $pathspec
-git add --pathspec-from-file=$pathspec --pathspec-file-nul
-git commit -m "feat(gguf): save verified model atomically"
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Assert-ChangedPaths.ps1 -Repository $PWD -AllowedPath @('IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/Destinations/IDestinationPicker.cs','IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/Destinations/OptimizationDestinationService.cs','IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/Destinations/GgufModelExporter.cs','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelOptimization/GgufModelExporterTests.cs') -StageVerified
+git -c core.fsmonitor=false -c core.hooksPath=NUL -c commit.gpgSign=false commit -m "feat(gguf): save verified model atomically"
 ```
 
 Expected: every GGUF Save security/cancellation/retry case passes with non-zero discovery and failed publication leaves the registry result available.
@@ -1328,10 +1295,8 @@ Acquire the verified OpenVINO output lease and enumerate its immutable manifest 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Invoke-PackagedTestCheckpoint.ps1 -Filter 'FullyQualifiedName~OpenVinoPackageExporterTests'
 git diff --check
-$pathspec = Join-Path $env:TEMP 'geai-task15c-pathspec.bin'
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Assert-ChangedPaths.ps1 -Repository $PWD -AllowedPath @('IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/Destinations/OpenVinoArchiveEntry.cs','IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/Destinations/OpenVinoPackageExporter.cs','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelOptimization/OpenVinoPackageExporterTests.cs') -WritePathspec $pathspec
-git add --pathspec-from-file=$pathspec --pathspec-file-nul
-git commit -m "feat(openvino): save complete verified package"
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Assert-ChangedPaths.ps1 -Repository $PWD -AllowedPath @('IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/Destinations/OpenVinoArchiveEntry.cs','IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/Destinations/OpenVinoPackageExporter.cs','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelOptimization/OpenVinoPackageExporterTests.cs') -StageVerified
+git -c core.fsmonitor=false -c core.hooksPath=NUL -c commit.gpgSign=false commit -m "feat(openvino): save complete verified package"
 ```
 
 Expected: complete persistent packages save as one verified `.zip`; runtime-only results expose no Save; every unsafe-entry and drift case fails before publication.
@@ -1385,10 +1350,8 @@ First hash all six approved visual oracles in design §10.3 and stop visual acce
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Invoke-PackagedTestCheckpoint.ps1 -Filter 'FullyQualifiedName~OptimizationNavigationTests|FullyQualifiedName~OptimizationOwnershipTests|FullyQualifiedName~GraniteEdgeAI.UnitTests.Features.ModelOptimization'
 git diff --check
-$pathspec = Join-Path $env:TEMP 'geai-task16-pathspec.bin'
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Assert-ChangedPaths.ps1 -Repository $PWD -AllowedPath @('IBM Granite with TurboQuant (Intel)/Features/Onboarding/OnboardingShellPage.Optimization.cs','IBM Granite with TurboQuant (Intel)/Features/Onboarding/OnboardingShellPage.xaml.cs','IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/OptimizationPage.xaml','IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/OptimizationPage.xaml.cs','IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/Controls/**','IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/Presentation/OptimizationTheme.xaml','docs/handoffs/2026-08-26-cross-route-optimisation-ownership.json','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelOptimization/**','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/Onboarding/OptimizationNavigationTests.cs') -WritePathspec $pathspec
-git add --pathspec-from-file=$pathspec --pathspec-file-nul
-git commit -m "feat(onboarding): complete shared optimisation journey"
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Assert-ChangedPaths.ps1 -Repository $PWD -AllowedPath @('IBM Granite with TurboQuant (Intel)/Features/Onboarding/OnboardingShellPage.Optimization.cs','IBM Granite with TurboQuant (Intel)/Features/Onboarding/OnboardingShellPage.xaml.cs','IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/OptimizationPage.xaml','IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/OptimizationPage.xaml.cs','IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/Controls/**','IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/Presentation/OptimizationTheme.xaml','docs/handoffs/2026-08-26-cross-route-optimisation-ownership.json','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelOptimization/**','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/Onboarding/OptimizationNavigationTests.cs') -StageVerified
+git -c core.fsmonitor=false -c core.hooksPath=NUL -c commit.gpgSign=false commit -m "feat(onboarding): complete shared optimisation journey"
 ```
 
 Expected: one shell, one page/theme/coordinator/router/registration, and all visual states pass.
@@ -1447,10 +1410,8 @@ The script requires a clean worktree and exact HEAD before testing, records `git
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Invoke-PackagedTestCheckpoint.ps1 -Filter 'FullyQualifiedName~CrossRouteGgufJourneyE2ETests|FullyQualifiedName~CrossRouteOpenVinoJourneyE2ETests'
 git diff --check
-$pathspec = Join-Path $env:TEMP 'geai-task17-code-pathspec.bin'
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Assert-ChangedPaths.ps1 -Repository $PWD -AllowedPath @('tests/runsettings/OneWorker.runsettings','scripts/verification/Invoke-CrossRouteFinalVerification.ps1','scripts/verification/Capture-CrossRouteVisualEvidence.ps1','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelOptimization/CrossRouteGgufJourneyE2ETests.cs','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelOptimization/CrossRouteOpenVinoJourneyE2ETests.cs','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelOptimization/CrossRouteVisualCaptureTests.cs') -WritePathspec $pathspec
-git add --pathspec-from-file=$pathspec --pathspec-file-nul
-git commit -m "test(optimisation): prove both complete route journeys"
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Assert-ChangedPaths.ps1 -Repository $PWD -AllowedPath @('tests/runsettings/OneWorker.runsettings','scripts/verification/Invoke-CrossRouteFinalVerification.ps1','scripts/verification/Capture-CrossRouteVisualEvidence.ps1','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelOptimization/CrossRouteGgufJourneyE2ETests.cs','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelOptimization/CrossRouteOpenVinoJourneyE2ETests.cs','tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelOptimization/CrossRouteVisualCaptureTests.cs') -StageVerified
+git -c core.fsmonitor=false -c core.hooksPath=NUL -c commit.gpgSign=false commit -m "test(optimisation): prove both complete route journeys"
 git status --short
 ```
 
@@ -1550,11 +1511,9 @@ $testedTree = git rev-parse 'HEAD^{tree}'
 if (git status --porcelain) { throw 'The tested worktree is not clean.' }
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Invoke-CrossRouteFinalVerification.ps1 -ExpectedCommit $testedHead -OpenVinoConverterStageDirectory $env:GEAI_OPENVINO_CONVERTER_STAGE_DIRECTORY -OpenVinoConverterManifestSha256 $env:GEAI_OPENVINO_CONVERTER_MANIFEST_SHA256 -OpenVinoOfficialWorkerStageDirectory $env:GEAI_OPENVINO_OFFICIAL_STAGE_DIRECTORY -OpenVinoOfficialWorkerManifestSha256 $env:GEAI_OPENVINO_OFFICIAL_MANIFEST_SHA256 -OpenVinoTurboQuantWorkerStageDirectory $env:GEAI_OPENVINO_TURBOQUANT_STAGE_DIRECTORY -OpenVinoTurboQuantWorkerManifestSha256 $env:GEAI_OPENVINO_TURBOQUANT_MANIFEST_SHA256 -OpenVinoControlledFixtureDirectory $env:GEAI_OPENVINO_FIXTURE_DIRECTORY -OpenVinoControlledFixtureManifestSha256 $env:GEAI_OPENVINO_FIXTURE_MANIFEST_SHA256 -OpenVinoControlledPackageManifestSha256 $env:GEAI_OPENVINO_PACKAGE_MANIFEST_SHA256 -OpenVinoControlledModelSha256 $env:GEAI_OPENVINO_MODEL_SHA256 -OpenVinoControlledModelLengthBytes ([long]$env:GEAI_OPENVINO_MODEL_LENGTH_BYTES) -GgufQuantizerStageDirectory $env:GEAI_GGUF_QUANTIZER_STAGE_DIRECTORY -GgufQuantizerManifestSha256 $env:GEAI_GGUF_QUANTIZER_MANIFEST_SHA256 -StandardVisualEvidenceDirectory $env:GEAI_VISUAL_STANDARD_EVIDENCE_DIRECTORY -Text200VisualEvidenceDirectory $env:GEAI_VISUAL_TEXT200_EVIDENCE_DIRECTORY -HighContrastVisualEvidenceDirectory $env:GEAI_VISUAL_HIGH_CONTRAST_EVIDENCE_DIRECTORY -EvidenceDirectory $env:GEAI_FINAL_EVIDENCE_DIRECTORY
 if ((git rev-parse HEAD) -ne $testedHead -or (git rev-parse 'HEAD^{tree}') -ne $testedTree -or (git status --porcelain)) { throw 'Repository changed during evidence collection.' }
-$pathspec = Join-Path $env:TEMP 'geai-final-handoff-pathspec.bin'
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Assert-ChangedPaths.ps1 -Repository $PWD -AllowedPath @('docs/handoffs/2026-08-26-cross-route-optimisation-final-handoff.md') -WritePathspec $pathspec
-git add --pathspec-from-file=$pathspec --pathspec-file-nul
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verification\Assert-ChangedPaths.ps1 -Repository $PWD -AllowedPath @('docs/handoffs/2026-08-26-cross-route-optimisation-final-handoff.md') -StageVerified
 if ((git diff --cached --name-only) -ne 'docs/handoffs/2026-08-26-cross-route-optimisation-final-handoff.md') { throw 'Final evidence commit is not docs-only.' }
-git commit -m "docs(optimisation): record cross-route integration evidence"
+git -c core.fsmonitor=false -c core.hooksPath=NUL -c commit.gpgSign=false commit -m "docs(optimisation): record cross-route integration evidence"
 git diff --check HEAD^ HEAD
 git status --short
 ```

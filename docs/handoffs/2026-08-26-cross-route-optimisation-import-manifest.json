@@ -2,6 +2,7 @@
   "schemaVersion": 1,
   "policy": {
     "importMethod": "bounded commit:path:blob verification",
+    "stagingMethod": "verified no-filter blob hashing and literal update-index cacheinfo",
     "manifestPaths": [
       "docs/handoffs/2026-08-26-cross-route-optimisation-import-manifest.json",
       "docs/handoffs/2026-08-26-cross-route-optimisation-import-manifest.md"
@@ -24,10 +25,19 @@
       "sources": [],
       "destinations": [],
       "allowedDestinationPaths": [],
-      "dependencyClosure": [],
-      "excludedSharedPaths": [],
+      "dependencyClosure": [
+        "IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/**",
+        "tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelOptimization/**"
+      ],
+      "excludedSharedPaths": [
+        "IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/Controls/OptimizationPreferenceCard.xaml",
+        "IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/Controls/OptimizationPreferenceCard.xaml.cs",
+        "tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelOptimization/OptimizationSelectionLayoutTests.cs"
+      ],
       "integrationPatches": [],
-      "verificationCommands": []
+      "verificationCommands": [
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\verification\\Invoke-PackagedTestCheckpoint.ps1 -Filter 'FullyQualifiedName~GraniteEdgeAI.UnitTests.Features.ModelOptimization'"
+      ]
     },
     {
       "name": "GGUF runtime",
@@ -37,10 +47,51 @@
       "sources": [],
       "destinations": [],
       "allowedDestinationPaths": [],
-      "dependencyClosure": [],
-      "excludedSharedPaths": [],
+      "dependencyClosure": [
+        "IBM Granite with TurboQuant (Intel)/Features/GgufRuntime/**",
+        "shared/GraniteEdgeAI.GgufRuntime.Contracts/**",
+        "shared/GraniteEdgeAI.GgufRuntime.Transport/**",
+        "runtime/GraniteEdgeAI.GgufRuntime.Capabilities/**",
+        "runtime/GraniteEdgeAI.GgufRuntime.NativeAdapter/**",
+        "infrastructure/GraniteEdgeAI.GgufRuntime.WorkerClient/**",
+        "workers/GraniteEdgeAI.GgufRuntime.Worker/**",
+        "IBM Granite with TurboQuant (Intel)/GgufRuntime.WorkerPackaging.targets",
+        "scripts/gguf-runtime/**",
+        "scripts/Run-ChatPreview.ps1",
+        "third-party/licenses/LICENSE.LLamaSharp.txt",
+        "third-party/licenses/LICENSE.llama.cpp.txt",
+        "tests/TestFixtures/Generate-GgufFixtures.ps1",
+        "tests/TestFixtures/Generate-GgufHeaderFixtures.ps1",
+        "tests/TestFixtures/Generate-GgufMetadataFixtures.ps1",
+        "tests/ContractTests/GraniteEdgeAI.GgufRuntime.Contracts.Tests/**",
+        "tests/IntegrationTests/GraniteEdgeAI.GgufRuntime.WorkerProcess.Tests/**",
+        "tests/UnitTests/GraniteEdgeAI.GgufRuntime.Capabilities.Tests/**",
+        "tests/UnitTests/GraniteEdgeAI.GgufRuntime.NativeAdapter.Tests/**",
+        "tests/UnitTests/GraniteEdgeAI.GgufRuntime.Transport.Tests/**",
+        "tests/UnitTests/GraniteEdgeAI.GgufRuntime.Worker.Tests/**",
+        "tests/UnitTests/GraniteEdgeAI.GgufRuntime.WorkerClient.Tests/**",
+        "tests/UnitTests/GraniteEdgeAI.UnitTests/Features/GgufRuntime/**",
+        "tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/QuickScan/GgufFixtureIntegrityTests.cs",
+        "tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/QuickScan/GgufQuickScannerTests.cs",
+        "IBM Granite with TurboQuant (Intel)/IBM Granite with TurboQuant (Intel).csproj",
+        "IBM Granite with TurboQuant (Intel).slnx"
+      ],
+      "excludedSharedPaths": [
+        "IBM Granite with TurboQuant (Intel)/Features/ModelImport/**",
+        "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/**",
+        "IBM Granite with TurboQuant (Intel)/Features/HardwareInspection/**",
+        "IBM Granite with TurboQuant (Intel)/Features/ModelHardwareCompatibility/**",
+        "IBM Granite with TurboQuant (Intel)/Features/Onboarding/**",
+        "IBM Granite with TurboQuant (Intel)/MainWindow.xaml.cs",
+        "IBM Granite with TurboQuant (Intel)/Features/GgufRuntime/GgufInspectedModelLaunchFactory.cs",
+        "tests/UnitTests/GraniteEdgeAI.UnitTests/Features/GgufRuntime/GgufInspectedModelLaunchFactoryTests.cs"
+      ],
       "integrationPatches": [],
-      "verificationCommands": []
+      "verificationCommands": [
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\gguf-runtime\\Invoke-GgufChatVerification.ps1",
+        "dotnet test --project $core --configuration Release",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\verification\\Invoke-PackagedTestCheckpoint.ps1 -Filter 'FullyQualifiedName~GgufRuntime'"
+      ]
     },
     {
       "name": "OpenVINO route",
@@ -50,10 +101,64 @@
       "sources": [],
       "destinations": [],
       "allowedDestinationPaths": [],
-      "dependencyClosure": [],
-      "excludedSharedPaths": [],
+      "dependencyClosure": [
+        "IBM Granite with TurboQuant (Intel)/Features/OpenVinoRoute/**",
+        "shared/GraniteEdgeAI.OpenVino.Contracts/**",
+        "infrastructure/GraniteEdgeAI.OpenVino.WorkerClient/**",
+        "IBM Granite with TurboQuant (Intel)/Features/Prompting/PromptRouteContract.cs",
+        "IBM Granite with TurboQuant (Intel)/Features/Prompting/PromptRouteRegistry.cs",
+        "IBM Granite with TurboQuant (Intel)/Features/Prompting/PromptSessionPresenter.cs",
+        "workers/OpenVinoConverter.Worker/**",
+        "workers/OpenVinoOfficial.Worker/**",
+        "workers/OpenVinoTurboQuant.Worker/**",
+        "third-party/openvino-converter/**",
+        "third-party/openvino-official/**",
+        "third-party/openvino-turboquant/**",
+        "scripts/openvino/**",
+        "tests/TestFixtures/OpenVINO/**",
+        "IBM Granite with TurboQuant (Intel)/OpenVino.WorkerPackaging.targets",
+        "IBM Granite with TurboQuant (Intel)/OpenVino.ConverterPackaging.targets",
+        "IBM Granite with TurboQuant (Intel)/OpenVino.TurboQuantPackaging.targets",
+        "tests/ContractTests/GraniteEdgeAI.OpenVino.Contracts.Tests/ArchitectureBoundaryTests.cs",
+        "tests/ContractTests/GraniteEdgeAI.OpenVino.Contracts.Tests/DependencyLockContractTests.cs",
+        "tests/ContractTests/GraniteEdgeAI.OpenVino.Contracts.Tests/FixtureContractTests.cs",
+        "tests/ContractTests/GraniteEdgeAI.OpenVino.Contracts.Tests/GpuDeviceContractTests.cs",
+        "tests/ContractTests/GraniteEdgeAI.OpenVino.Contracts.Tests/ProtocolJsonTests.cs",
+        "tests/ContractTests/GraniteEdgeAI.OpenVino.Contracts.Tests/ProtocolSequenceTests.cs",
+        "tests/ContractTests/GraniteEdgeAI.OpenVino.Contracts.Tests/SupportCodeTests.cs",
+        "tests/ContractTests/GraniteEdgeAI.OpenVino.Contracts.Tests/Task7ProtocolExtensionTests.cs",
+        "tests/ContractTests/GraniteEdgeAI.OpenVino.Contracts.Tests/GraniteEdgeAI.OpenVino.Contracts.Tests.csproj",
+        "tests/IntegrationTests/GraniteEdgeAI.OpenVino.WorkerProcess.Tests/**",
+        "tests/UnitTests/GraniteEdgeAI.OpenVino.Tests/**",
+        "tests/UnitTests/GraniteEdgeAI.OpenVino.WorkerClient.Tests/**",
+        "tests/UnitTests/GraniteEdgeAI.UnitTests/Features/OpenVinoRoute/**",
+        "IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/Execution/OpenVino/**",
+        "IBM Granite with TurboQuant (Intel)/IBM Granite with TurboQuant (Intel).csproj",
+        "IBM Granite with TurboQuant (Intel).slnx",
+        "tests/UnitTests/GraniteEdgeAI.UnitTests/GraniteEdgeAI.UnitTests.csproj",
+        "scripts/gguf-runtime/Invoke-GgufChatVerification.ps1"
+      ],
+      "excludedSharedPaths": [
+        "IBM Granite with TurboQuant (Intel)/Features/ModelImport/**",
+        "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/**",
+        "IBM Granite with TurboQuant (Intel)/Features/HardwareInspection/**",
+        "IBM Granite with TurboQuant (Intel)/Features/ModelHardwareCompatibility/**",
+        "IBM Granite with TurboQuant (Intel)/Features/Onboarding/**",
+        "IBM Granite with TurboQuant (Intel)/MainWindow.xaml.cs",
+        "tests/UnitTests/GraniteEdgeAI.OpenVino.Tests/Optimization/OpenVinoV2TestPayload.cs",
+        "tests/ContractTests/GraniteEdgeAI.OpenVino.Contracts.Tests/WorkflowContractTests.cs",
+        "tests/ContractTests/GraniteEdgeAI.OpenVino.Contracts.Tests/TurboQuantSourceContractTests.cs",
+        "tests/ContractTests/GraniteEdgeAI.OpenVino.Contracts.Tests/HandoffBundleContractTests.cs",
+        "tests/ContractTests/GraniteEdgeAI.OpenVino.Contracts.Tests/PackagingContractTests.cs",
+        "tests/ContractTests/GraniteEdgeAI.OpenVino.Contracts.Tests/packages.lock.json"
+      ],
       "integrationPatches": [],
-      "verificationCommands": []
+      "verificationCommands": [
+        "dotnet test tests/UnitTests/GraniteEdgeAI.OpenVino.Tests/GraniteEdgeAI.OpenVino.Tests.csproj -c Release -p:UseAppHost=false",
+        "dotnet test tests/UnitTests/GraniteEdgeAI.OpenVino.WorkerClient.Tests/GraniteEdgeAI.OpenVino.WorkerClient.Tests.csproj -c Release -p:UseAppHost=false",
+        "dotnet test tests/IntegrationTests/GraniteEdgeAI.OpenVino.WorkerProcess.Tests/GraniteEdgeAI.OpenVino.WorkerProcess.Tests.csproj -c Release -p:UseAppHost=false --filter 'FullyQualifiedName~OptimizationEndToEndTests'",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\verification\\Invoke-PackagedTestCheckpoint.ps1 -Filter 'FullyQualifiedName~OpenVinoProductionCompositionTests'"
+      ]
     }
   ]
 }
