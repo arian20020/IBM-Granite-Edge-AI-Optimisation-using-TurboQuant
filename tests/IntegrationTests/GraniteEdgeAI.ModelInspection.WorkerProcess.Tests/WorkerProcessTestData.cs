@@ -39,7 +39,7 @@ internal static class WorkerProcessTestData
         return new InspectionWorkerClient(
             options,
             FixtureExecutableName,
-            [scenario]);
+            FixtureArguments(scenario));
     }
 
     internal static InspectionWorkerClient CreateProductionClient(
@@ -81,12 +81,13 @@ internal static class WorkerProcessTestData
         return new InspectionWorkerClient(
             options,
             FixtureExecutableName,
-            [
+            FixtureArguments(
                 "cooperative-cancellation",
-                helloDelayMilliseconds.ToString(
-                    System.Globalization.CultureInfo.InvariantCulture)
-            ]);
+                helloDelayMilliseconds));
     }
+
+    internal static string[] FixtureArguments(string scenario, long version = 1) =>
+        ["--protocol", $"modelinspection.fixture.{scenario}/{version}"];
 
     internal static WorkerStartInspectionCommand StartCommand()
     {

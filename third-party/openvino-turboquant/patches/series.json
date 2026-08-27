@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "route": "recovered-upstream",
+  "baseCommit": "8a17657b995fd3b4a52f8484acfcf2bb61214623",
+  "implementationCommit": "b9a1f201c109e0bed74763934f79483cf6c4cbf4",
+  "patches": [],
+  "reason": "The exact released base already contains the merged CPU SDPA TurboQuant implementation from upstream PR 35853; applying a local patch would duplicate or diverge from audited source.",
+  "securityReview": "pending-external-review",
+  "licenseReview": "pending-external-review",
+  "packageRegistrationAllowed": false
+}

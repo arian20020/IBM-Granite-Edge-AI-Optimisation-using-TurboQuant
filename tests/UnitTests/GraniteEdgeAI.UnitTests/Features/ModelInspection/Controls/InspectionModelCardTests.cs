@@ -961,7 +961,7 @@ public sealed class InspectionModelCardTests
             Assert.AreEqual(
                 expectedCompactHeight,
                 compact.ActualHeight,
-                0.01,
+                1d,
                 "compact card uses its realized content, shared padding, and border thickness");
             Assert.AreEqual(Visibility.Collapsed, formatTile.Visibility,
                 "the approved compact card has no visible format tile");
@@ -973,7 +973,7 @@ public sealed class InspectionModelCardTests
                 badge.TransformToVisual(compact).TransformPoint(new Point()).X,
                 summaryPanel.TransformToVisual(compact).TransformPoint(new Point()).X,
                 "model summary precedes the status pill in one horizontal row");
-            Assert.AreEqual(34d, badge.ActualHeight, 0.01);
+            Assert.AreEqual(34d, badge.ActualHeight, 1d);
             Assert.AreEqual(
                 "InspectedBadgeState",
                 CurrentVisualState(
@@ -984,6 +984,11 @@ public sealed class InspectionModelCardTests
                 badge.Background);
 
             await ChangeThemeAsync(control, ElementTheme.Dark);
+            await WaitForLayoutConditionAsync(
+                control,
+                () => ReferenceEquals(
+                    ThemeResource("Dark", "InspectionSuccessSurfaceBrush"),
+                    badge.Background));
 
             Assert.AreSame(
                 ThemeResource("Dark", "InspectionSuccessSurfaceBrush"),

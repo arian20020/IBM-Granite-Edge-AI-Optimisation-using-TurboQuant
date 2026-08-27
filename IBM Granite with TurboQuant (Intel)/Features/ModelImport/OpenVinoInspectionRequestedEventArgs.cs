@@ -5,7 +5,9 @@ namespace GraniteEdgeAI.Features.ModelImport;
 
 internal sealed class OpenVinoInspectionRequestedEventArgs : EventArgs
 {
-    internal OpenVinoInspectionRequestedEventArgs(ModelSelectionOperationId operationId, string displayName)
+    internal OpenVinoInspectionRequestedEventArgs(
+        ModelSelectionOperationId operationId,
+        string displayName)
     {
         OperationId = operationId;
         DisplayName = displayName ?? throw new ArgumentNullException(nameof(displayName));

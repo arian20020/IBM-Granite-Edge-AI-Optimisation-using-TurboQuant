@@ -64,6 +64,12 @@ namespace GraniteEdgeAI.Features.Onboarding
         private ModelInspectionHandoff? _pendingHardwareRetryHandoff;
         private bool _isHardwareNavigationTransaction;
 
+        internal Task CurrentNavigationTask { get; private set; } =
+            Task.CompletedTask;
+
+        internal ModelInspectionPage? ActiveInspectionPageForTesting =>
+            _attachedModelInspectionPage;
+
         private readonly Func<Frame, ModelInspectionRequest, bool>
             _modelInspectionNavigator;
         private readonly IHardwareInspectionService? _hardwareInspectionService;
@@ -347,6 +353,56 @@ namespace GraniteEdgeAI.Features.Onboarding
             return true;
         }
 
+        internal bool NavigateToOpenVinoInspection(
+            OpenVinoInspectionRequestedEventArgs request)
+        {
+            ArgumentNullException.ThrowIfNull(request);
+
+            if (_attachedModelImportPage is not { } importPage ||
+                !importPage.TryGetAcceptedFolderLocalPath(
+                    request.OperationId,
+                    out string? directoryPath) ||
+                string.IsNullOrWhiteSpace(directoryPath))
+            {
+                return false;
+            }
+
+            object? previousContent = StageFrame.Content;
+            ModelInspectionPage modelInspectionPage = new();
+            modelInspectionPage.ActivateOpenVinoInspection(request, directoryPath);
+            StageFrame.Content = modelInspectionPage;
+            if (ReferenceEquals(StageFrame.Content, previousContent) ||
+                !ReferenceEquals(StageFrame.Content, modelInspectionPage))
+            {
+                return false;
+            }
+
+            StageFrame.BackStack.Clear();
+            AttachModelInspectionPage(modelInspectionPage);
+            DetachModelImportPage();
+            CurrentStage = OnboardingStage.InspectModel;
+            StageIndicator.CurrentStage = CurrentStage;
+            request.AcceptNavigation();
+            return true;
+        }
+
+        internal Task<bool> ReturnToModelImportAsync()
+        {
+            Task<bool> navigation = ReturnToModelImportCoreAsync();
+            CurrentNavigationTask = navigation;
+            return navigation;
+        }
+
+        private async Task<bool> ReturnToModelImportCoreAsync()
+        {
+            if (_attachedModelInspectionPage is { } inspectionPage)
+            {
+                await inspectionPage.RetireForNavigationAsync();
+            }
+
+            return NavigateToFreshModelImport();
+        }
+
         /// <summary>
         /// Displays ModelImportPage inside the shell's StageFrame.
         /// </summary>
@@ -392,11 +448,7 @@ namespace GraniteEdgeAI.Features.Onboarding
             if (sender is ModelImportPage page &&
                 ReferenceEquals(page, _attachedModelImportPage))
             {
-                // O1 has no frozen inspection invocation port in this build.
-                // Do not navigate to a placeholder or imply that inspection ran.
-                page.RejectFolderRoute(
-                    "openvino-inspection-unavailable",
-                    "OpenVINO folder inspection is not available in this build.");
+                NavigateToOpenVinoInspection(eventArguments);
             }
         }
 

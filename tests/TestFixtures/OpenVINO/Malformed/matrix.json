@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "fixtureId": "OpenVinoMalformedV1",
+  "ownership": "operation-owned-copies-only",
+  "cases": [
+    { "id": "missing-required", "supportCode": "package_missing_resource" },
+    { "id": "inconsistent-pair", "supportCode": "package_inconsistent_resource" },
+    { "id": "entry-4097", "supportCode": "package_unsafe_path" },
+    { "id": "depth-17", "supportCode": "package_unsafe_path" },
+    { "id": "json-over-limit", "supportCode": "package_inconsistent_resource" },
+    { "id": "json-depth-33", "supportCode": "package_inconsistent_resource" },
+    { "id": "json-strictness", "supportCode": "package_inconsistent_resource" },
+    { "id": "xml-over-limit", "supportCode": "package_inconsistent_resource" },
+    { "id": "xml-dtd-entity-external", "supportCode": "package_inconsistent_resource" },
+    { "id": "xml-external-schema", "supportCode": "package_inconsistent_resource" },
+    { "id": "reparse-escape", "supportCode": "package_unsafe_path" },
+    { "id": "case-collision", "supportCode": "package_unsafe_path" },
+    { "id": "file-alternate-stream", "supportCode": "package_unsafe_path" },
+    { "id": "directory-alternate-stream", "supportCode": "package_unsafe_path" },
+    { "id": "non-regular-required", "supportCode": "package_unsafe_path" },
+    { "id": "executable-content", "supportCode": "package_unsafe_path" },
+    { "id": "script-content", "supportCode": "package_unsafe_path" },
+    { "id": "unreadable", "supportCode": "package_unreadable" },
+    { "id": "mutating", "supportCode": "package_changed" },
+    { "id": "architecture", "supportCode": "model_architecture_unsupported" },
+    { "id": "task", "supportCode": "model_task_unsupported" },
+    { "id": "tokenizer", "supportCode": "tokenizer_unsupported" },
+    { "id": "unknown-optional", "supportCode": "package_inconsistent_resource" }
+  ]
+}

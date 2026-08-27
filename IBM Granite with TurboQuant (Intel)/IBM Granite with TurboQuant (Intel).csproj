@@ -12,7 +12,16 @@
     <WinUISDKReferences>false</WinUISDKReferences>
     <EnableMsixTooling>true</EnableMsixTooling>
     <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\shared\GraniteEdgeAI.OpenVino.Contracts\GraniteEdgeAI.OpenVino.Contracts.csproj" />
+    <ProjectReference Include="..\infrastructure\GraniteEdgeAI.OpenVino.WorkerClient\GraniteEdgeAI.OpenVino.WorkerClient.csproj" />
+    <AssemblyMetadata
+      Include="OpenVinoOfficialWorkerManifestSha256"
+      Value="$(OpenVinoOfficialWorkerManifestSha256)"
+      Condition="'$(Platform)' == 'x64' and '$(OpenVinoOfficialWorkerManifestSha256)' != ''" />
+  </ItemGroup>
   <PropertyGroup>
     <DefineConstants Condition="'$(Platform)' == 'x64'">$(DefineConstants);MODEL_INSPECTION_X64</DefineConstants>
   </PropertyGroup>
@@ -637,5 +646,8 @@
     Condition="'$(Platform)' == 'x64'" />
   <Import
     Project="GgufQuantization.WorkerPackaging.targets"
+    Condition="'$(Platform)' == 'x64'" />
+  <Import
+    Project="OpenVino.WorkerPackaging.targets"
     Condition="'$(Platform)' == 'x64'" />
 </Project>

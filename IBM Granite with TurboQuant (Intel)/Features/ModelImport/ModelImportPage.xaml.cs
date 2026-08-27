@@ -50,6 +50,18 @@ namespace GraniteEdgeAI.Features.ModelImport
         internal ModelImportPage(
             Func<Task<ModelFormatSelection>>? selectModelFormatAsync,
             Func<Task<string?>>? pickGgufPathAsync,
+            Func<Task<string?>> pickOpenVinoPathAsync)
+            : this(
+                selectModelFormatAsync,
+                pickGgufPathAsync,
+                pickOpenVinoInputAsync:
+                    AdaptOpenVinoPathPicker(pickOpenVinoPathAsync))
+        {
+        }
+
+        internal ModelImportPage(
+            Func<Task<ModelFormatSelection>>? selectModelFormatAsync,
+            Func<Task<string?>>? pickGgufPathAsync,
             Func<
                 ModelFormatSelection,
                 string,
@@ -86,6 +98,21 @@ namespace GraniteEdgeAI.Features.ModelImport
             _downloadedModelFinder = downloadedModelFinder ?? new BoundedDownloadedModelFinder();
             _dropHandler = new ModelImportDropHandler(
                 new ModelSelectionInputNormalizer());
+        }
+
+        private static Func<Task<ModelSelectionInput?>> AdaptOpenVinoPathPicker(
+            Func<Task<string?>> picker)
+        {
+            ArgumentNullException.ThrowIfNull(picker);
+            return async () =>
+            {
+                string? path = await picker();
+                return path is null
+                    ? null
+                    : new ModelSelectionInputNormalizer().FromPickerPath(
+                        path,
+                        isFolder: true);
+            };
         }
 
         internal string? SelectedModelPath { get; private set; }

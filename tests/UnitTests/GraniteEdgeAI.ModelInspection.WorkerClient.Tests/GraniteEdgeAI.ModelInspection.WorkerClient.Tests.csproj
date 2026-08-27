@@ -26,5 +26,6 @@
     <ProjectReference Include="..\..\..\infrastructure\GraniteEdgeAI.ModelInspection.WorkerClient\GraniteEdgeAI.ModelInspection.WorkerClient.csproj" />
     <ProjectReference Include="..\..\..\shared\GraniteEdgeAI.ModelInspection.Contracts\GraniteEdgeAI.ModelInspection.Contracts.csproj" />
     <ProjectReference Include="..\..\..\shared\GraniteEdgeAI.ModelInspection.Transport\GraniteEdgeAI.ModelInspection.Transport.csproj" />
+    <ProjectReference Include="..\..\..\tests\ProcessFixtures\GraniteEdgeAI.ModelInspection.ProtocolTestWorker\GraniteEdgeAI.ModelInspection.ProtocolTestWorker.csproj" />
   </ItemGroup>
 </Project>

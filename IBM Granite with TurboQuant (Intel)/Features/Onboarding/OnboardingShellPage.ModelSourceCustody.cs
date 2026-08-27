@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.Journey;
 using GraniteEdgeAI.Features.ModelInspection;
 using GraniteEdgeAI.Features.ModelInspection.SourceCustody;
@@ -56,5 +57,35 @@ public sealed partial class OnboardingShellPage
         _currentModelChatLaunchRegistry?.Dispose();
         _modelSourceCustodyRegistry.Dispose();
         _handoffRegistry.Dispose();
+    }
+
+    internal async Task ShutdownAsync()
+    {
+        StageFrame.IsHitTestVisible = false;
+
+        if (_attachedModelInspectionPage is { } inspectionPage)
+        {
+            await inspectionPage.RetireForNavigationAsync();
+        }
+
+        await RetireOptimizationAsync();
+
+        if (_attachedChatPage is { } chatPage)
+        {
+            chatPage.ImportModelRequested -= ChatPage_ImportModelRequested;
+            _attachedChatPage = null;
+        }
+
+        if (_chatController is { } chatController)
+        {
+            _chatController = null;
+            await chatController.DisposeAsync();
+        }
+
+        DetachCompatibilityPage();
+        DetachHardwareInspectionPage();
+        DetachModelInspectionPage();
+        DetachModelImportPage();
+        Dispose();
     }
 }

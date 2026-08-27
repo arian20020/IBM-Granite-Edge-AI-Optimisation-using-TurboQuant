@@ -49,9 +49,16 @@ internal sealed class BoundedModelSelectionClassifier : IModelSelectionClassifie
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeout.Token);
         CancellationToken token = linked.Token;
         var stopwatch = Stopwatch.StartNew();
-        Task<ModelSelectionResult> worker = Task.Run(
-            () => ClassifyCoreAsync(operationId, input, cancellationToken, token, stopwatch),
-            CancellationToken.None);
+        Task<ModelSelectionResult> worker = Task.Factory.StartNew(
+            () => ClassifyCoreAsync(
+                operationId,
+                input,
+                cancellationToken,
+                token,
+                stopwatch),
+            CancellationToken.None,
+            TaskCreationOptions.LongRunning,
+            TaskScheduler.Default).Unwrap();
 
         try
         {
@@ -200,12 +207,24 @@ internal sealed class BoundedModelSelectionClassifier : IModelSelectionClassifie
         }
 
         var pairs = xmlStems.Intersect(binStems, StringComparer.OrdinalIgnoreCase).ToArray();
-        if (pairs.Length > 1)
+        string[] canonicalGenAiStems =
+        [
+            "openvino_model",
+            "openvino_tokenizer",
+            "openvino_detokenizer"
+        ];
+        bool isCanonicalGenAiPackage =
+            xmlStems.SetEquals(canonicalGenAiStems) &&
+            binStems.SetEquals(canonicalGenAiStems);
+        if (pairs.Length > 1 && !isCanonicalGenAiPackage)
         {
             return Failure(operationId, input.DisplayName, "selection-ambiguous-folder", "This folder contains more than one possible model. Choose the folder for one model only.");
         }
 
-        if (pairs.Length == 1 && pairs.Length == xmlStems.Count && pairs.Length == binStems.Count)
+        if (isCanonicalGenAiPackage ||
+            (pairs.Length == 1 &&
+             pairs.Length == xmlStems.Count &&
+             pairs.Length == binStems.Count))
         {
             EnsureUnchanged(snapshot, input.LocalPath, token, stopwatch);
             return ModelSelectionResult.Accepted(operationId, ModelSelectionRoute.OpenVinoDirectory, input.DisplayName);

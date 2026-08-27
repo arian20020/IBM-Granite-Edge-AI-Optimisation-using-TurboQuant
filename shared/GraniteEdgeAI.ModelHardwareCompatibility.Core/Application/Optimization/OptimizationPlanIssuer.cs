@@ -25,6 +25,60 @@ namespace GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization
 public static class OptimizationPlanIssuer
 {
     /// <summary>
+    /// Reads the frozen version-2 issuance shape used by the completed
+    /// OpenVINO adapter. New product planning uses the authority-bound overload
+    /// below; this overload exists so already-issued V2 OpenVINO plans remain
+    /// executable and verifiable during the cross-route migration.
+    /// </summary>
+    public static OptimizationExecutionPlan Issue(
+        OptimizationSelection selection,
+        OptimizationExecutionPayload executionPayload,
+        OptimizationCapabilitySnapshot capabilitySnapshot,
+        OptimizationWorkload workload,
+        OptimizationJourneyBinding binding,
+        int modelLayerCount,
+        DateTimeOffset createdAtUtc)
+    {
+        ArgumentNullException.ThrowIfNull(selection);
+        ArgumentNullException.ThrowIfNull(executionPayload);
+        ArgumentNullException.ThrowIfNull(capabilitySnapshot);
+        ArgumentNullException.ThrowIfNull(workload);
+        ArgumentNullException.ThrowIfNull(binding);
+
+        OptimizationCandidate candidate = selection.Candidate;
+        if (candidate.Route != capabilitySnapshot.Route ||
+            candidate.Route != executionPayload.Route)
+        {
+            throw new ArgumentException(
+                "The candidate, capability snapshot, and execution payload must use one route.",
+                nameof(executionPayload));
+        }
+        if (createdAtUtc.Offset != TimeSpan.Zero)
+        {
+            throw new ArgumentException(
+                "Plan timestamps must use UTC.",
+                nameof(createdAtUtc));
+        }
+
+        RequireAgreement(candidate, executionPayload, modelLayerCount);
+        return new OptimizationExecutionPlan(
+            contractVersion: 2,
+            Guid.NewGuid(),
+            binding,
+            capabilitySnapshot,
+            workload,
+            candidate,
+            executionPayload,
+            selection.Preference,
+            selection.SharedWithAdjacentBand,
+            OptimizationCanonicalizer.ConfigurationSha256(
+                candidate,
+                executionPayload,
+                contractVersion: 2),
+            createdAtUtc);
+    }
+
+    /// <summary>
     /// Issues a plan for a candidate that was actually selected, together with
     /// the exact settings its executor will use.
     ///

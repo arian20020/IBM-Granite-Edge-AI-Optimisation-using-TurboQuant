@@ -178,7 +178,9 @@ namespace GraniteEdgeAI.Features.ModelImport
             string displayName = _acceptedFolderDisplayName;
             if (CurrentRoute == ModelSelectionRoute.OpenVinoDirectory)
             {
-                var eventArguments = new OpenVinoInspectionRequestedEventArgs(active.Id, displayName);
+                var eventArguments = new OpenVinoInspectionRequestedEventArgs(
+                    active.Id,
+                    displayName);
                 OpenVinoInspectionRequested?.Invoke(this, eventArguments);
                 return CompleteFolderInspectionRequest(eventArguments.NavigationAccepted);
             }

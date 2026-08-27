@@ -2076,7 +2076,7 @@ public sealed class ModelInspectionFixturePresetTests
                 window,
                 horizontalScroll,
                 width: 360d,
-                height: 800d);
+                height: 700d);
             Assert.IsLessThan(applier.HostWidth, page.XamlRoot.Size.Width,
                 "The real XamlRoot must stay narrower than the fixed desktop preview.");
             Assert.AreEqual(3, applier.ActiveHandlerCount);
@@ -2252,13 +2252,45 @@ public sealed class ModelInspectionFixturePresetTests
         root.LayoutUpdated += Observe;
         try
         {
-            double scale = root.XamlRoot.RasterizationScale;
-            window.AppWindow.ResizeClient(new Windows.Graphics.SizeInt32(
-                (int)Math.Round(width * scale),
-                (int)Math.Round(height * scale)));
-            Observe(null, EventArgs.Empty);
-            await resized.Task.WaitAsync(TimeSpan.FromSeconds(10));
-            root.UpdateLayout();
+            DateTime deadline = DateTime.UtcNow.AddSeconds(15);
+            double requestedWidth = width;
+            double requestedHeight = height;
+            do
+            {
+                double scale = root.XamlRoot.RasterizationScale;
+                window.AppWindow.ResizeClient(new Windows.Graphics.SizeInt32(
+                    (int)Math.Round(requestedWidth * scale),
+                    (int)Math.Round(requestedHeight * scale)));
+                Observe(null, EventArgs.Empty);
+                if (resized.Task.IsCompleted)
+                {
+                    root.UpdateLayout();
+                    return;
+                }
+
+                Task completed = await Task.WhenAny(
+                    resized.Task,
+                    Task.Delay(TimeSpan.FromMilliseconds(250)));
+                if (ReferenceEquals(completed, resized.Task))
+                {
+                    root.UpdateLayout();
+                    return;
+                }
+
+                requestedWidth = Math.Max(
+                    1d,
+                    requestedWidth + width - root.XamlRoot.Size.Width);
+                requestedHeight = Math.Max(
+                    1d,
+                    requestedHeight + height - root.XamlRoot.Size.Height);
+            }
+            while (DateTime.UtcNow < deadline);
+
+            throw new TimeoutException(
+                $"XamlRoot did not reach {width:F0}x{height:F0}; " +
+                $"actual={root.XamlRoot.Size.Width:F2}x" +
+                $"{root.XamlRoot.Size.Height:F2}, " +
+                $"scale={root.XamlRoot.RasterizationScale:F2}.");
         }
         finally
         {

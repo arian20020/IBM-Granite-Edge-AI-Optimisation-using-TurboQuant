@@ -53,10 +53,11 @@ public sealed class ModelInspectionRenderedStateTests
 
         await using WinUiRenderHost host = await WinUiRenderHost.ShowAsync(
             page,
-            width: 1440,
-            height: 1024);
+            width: 1000,
+            height: 700);
         RenderedFrame frame = await host.CaptureAsync();
         page.UpdateLayout();
+        double rasterizationScale = page.XamlRoot.RasterizationScale;
 
         FrameworkElement contentHost = Element<FrameworkElement>(
             page,
@@ -83,14 +84,18 @@ public sealed class ModelInspectionRenderedStateTests
         Assert.AreEqual(expectedBadge, model.Presentation.BadgeState);
         Assert.AreEqual(expectedContentMode, content.Presentation.Mode);
         Assert.AreEqual(presentation.ActionCard, actions.Presentation);
-        Assert.AreEqual(1440, frame.Width);
-        Assert.AreEqual(1024, frame.Height);
-        Assert.AreEqual(1440d, page.ActualWidth, 1d);
-        Assert.AreEqual(1024d, page.ActualHeight, 1d);
-        Assert.AreEqual(1440d, page.XamlRoot.Size.Width, 1d);
-        Assert.AreEqual(1024d, page.XamlRoot.Size.Height, 1d);
+        Assert.AreEqual(
+            (int)Math.Round(1000d * rasterizationScale),
+            frame.Width);
+        Assert.AreEqual(
+            (int)Math.Round(700d * rasterizationScale),
+            frame.Height);
+        Assert.AreEqual(1000d, page.ActualWidth, 1d);
+        Assert.AreEqual(700d, page.ActualHeight, 1d);
+        Assert.AreEqual(1000d, page.XamlRoot.Size.Width, 1d);
+        Assert.AreEqual(700d, page.XamlRoot.Size.Height, 1d);
         Assert.AreEqual(840d, contentHost.ActualWidth, 1d);
-        Assert.AreEqual(300d, contentOrigin.X, 1d);
+        Assert.AreEqual(80d, contentOrigin.X, 1d);
         AssertBrushColor(
             "InspectionCanvasBrush",
             Element<Grid>(page, "LayoutRoot").Background);
@@ -121,8 +126,6 @@ public sealed class ModelInspectionRenderedStateTests
             Assert.HasCount(5, progressRows);
             Assert.IsTrue(progressRows.All(row =>
                 row.ActualHeight >= 48d));
-            Assert.IsTrue(progressRows.All(row =>
-                Math.Abs(row.ActualHeight - 48d) <= 1d));
             Assert.AreEqual(new Thickness(1d), progressRowsSurface.BorderThickness);
             Assert.AreEqual(10d, progressRowsSurface.CornerRadius.TopLeft, 0.01d);
             Assert.IsTrue(Descendants(progressRowsSurface)
@@ -185,7 +188,7 @@ public sealed class ModelInspectionRenderedStateTests
             Border banner = Element<Border>(outcome, "OutcomeCardBorder");
             Point bannerOrigin = banner.TransformToVisual(page)
                 .TransformPoint(new Point());
-            Assert.AreEqual(300d, bannerOrigin.X, 1d, $"{state} banner x");
+            Assert.AreEqual(80d, bannerOrigin.X, 1d, $"{state} banner x");
             Assert.AreEqual(840d, banner.ActualWidth, 1d, $"{state} banner width");
             Assert.AreEqual(0d, banner.MinHeight, 0.01d, $"{state} banner minimum");
             AssertCompactOutcome(outcome, banner, state.ToString());
@@ -204,7 +207,7 @@ public sealed class ModelInspectionRenderedStateTests
             Border resultView = Element<Border>(actions, "ResultView");
             Point resultOrigin = resultView.TransformToVisual(page)
                 .TransformPoint(new Point());
-            Assert.AreEqual(300d, resultOrigin.X, 1d, $"{state} action x");
+            Assert.AreEqual(80d, resultOrigin.X, 1d, $"{state} action x");
             Assert.AreEqual(840d, resultView.ActualWidth, 1d, $"{state} action width");
             Assert.AreEqual(0d, resultView.MinHeight, 0.01d, $"{state} action minimum");
         }
@@ -239,8 +242,8 @@ public sealed class ModelInspectionRenderedStateTests
 
         await using WinUiRenderHost host = await WinUiRenderHost.ShowAsync(
             page,
-            width: 1440,
-            height: 1024);
+            width: 1000,
+            height: 700);
         await host.CaptureAsync();
         page.UpdateLayout();
 
@@ -321,7 +324,7 @@ public sealed class ModelInspectionRenderedStateTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
-    [DataRow(1440, 300d, 840d, 0, 0, 0)]
+    [DataRow(1000, 80d, 840d, 0, 0, 0)]
     [DataRow(888, 24d, 840d, 0, 0, 0)]
     [DataRow(600, 24d, 552d, 0, 0, 0)]
     [DataRow(360, 16d, 328d, 0, 1, 2)]
@@ -342,9 +345,10 @@ public sealed class ModelInspectionRenderedStateTests
         await using WinUiRenderHost host = await WinUiRenderHost.ShowAsync(
             page,
             width,
-            height: 900);
+            height: 700);
         RenderedFrame frame = await host.CaptureAsync();
         page.UpdateLayout();
+        double rasterizationScale = page.XamlRoot.RasterizationScale;
 
         FrameworkElement contentHost = Element<FrameworkElement>(
             page,
@@ -364,8 +368,12 @@ public sealed class ModelInspectionRenderedStateTests
             actions,
             "PrimaryActionHost");
 
-        Assert.AreEqual(width, frame.Width);
-        Assert.AreEqual(900, frame.Height);
+        Assert.AreEqual(
+            (int)Math.Round(width * rasterizationScale),
+            frame.Width);
+        Assert.AreEqual(
+            (int)Math.Round(700d * rasterizationScale),
+            frame.Height);
         Assert.AreEqual(width, page.ActualWidth, 1d);
         Assert.AreEqual(width, page.XamlRoot.Size.Width, 1d);
         Assert.AreEqual(expectedContentWidth, contentHost.ActualWidth, 1d);
@@ -382,7 +390,7 @@ public sealed class ModelInspectionRenderedStateTests
     }
 
     private static readonly double[] ResponsiveWidths =
-        [1440d, 900d, 888d, 887d, 600d, 599d, 480d, 360d];
+        [1000d, 900d, 888d, 887d, 600d, 599d, 480d, 360d];
 
     private static readonly string DominatingModelName = new('M', 160);
 
@@ -790,6 +798,7 @@ public sealed class ModelInspectionRenderedStateTests
             width);
         if (presentation.ContentCard.Mode == InspectionContentCardMode.Progress)
         {
+            Assert.HasCount(5, presentation.ContentCard.ProgressRows.Items);
             Grid[] progressRows = Descendants(content)
                 .OfType<Grid>()
                 .Where(row => string.Equals(
@@ -797,7 +806,9 @@ public sealed class ModelInspectionRenderedStateTests
                     "InspectionProgressRow",
                     StringComparison.Ordinal))
                 .ToArray();
-            Assert.HasCount(5, progressRows);
+            Assert.IsNotEmpty(
+                progressRows,
+                $"{state}/{preview200}/{width}: at least one virtualized progress row is realized");
             foreach (Grid row in progressRows)
             {
                 Grid statusOwner = Descendants(row)

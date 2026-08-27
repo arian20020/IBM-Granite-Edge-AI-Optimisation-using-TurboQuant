@@ -2,7 +2,7 @@
   <PropertyGroup>
     <ModelInspectionWorkerPackageRelativeDirectory>ModelInspection\Worker</ModelInspectionWorkerPackageRelativeDirectory>
     <_ModelInspectionWorkerPublishRoot>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\$(BaseIntermediateOutputPath)model-inspection-worker\$(Configuration)\win-x64'))</_ModelInspectionWorkerPublishRoot>
-    <_ModelInspectionWorkerArtifactsRoot>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\$(BaseIntermediateOutputPath)model-inspection-worker-artifacts\$(Configuration)'))</_ModelInspectionWorkerArtifactsRoot>
+    <_ModelInspectionWorkerArtifactsRoot>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\$(BaseIntermediateOutputPath)mi-worker\$(Configuration)'))</_ModelInspectionWorkerArtifactsRoot>
     <_ModelInspectionWorkerManifestPath>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\$(BaseIntermediateOutputPath)model-inspection-worker\$(Configuration)\worker-manifest.json'))</_ModelInspectionWorkerManifestPath>
     <_ModelInspectionRepositoryRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..'))</_ModelInspectionRepositoryRoot>
     <_ModelInspectionWorkerProject>$(MSBuildThisFileDirectory)..\workers\GraniteEdgeAI.ModelInspection.Worker\GraniteEdgeAI.ModelInspection.Worker.csproj</_ModelInspectionWorkerProject>

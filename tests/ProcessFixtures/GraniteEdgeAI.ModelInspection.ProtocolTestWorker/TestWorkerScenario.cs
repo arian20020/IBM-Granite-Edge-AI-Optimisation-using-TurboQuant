@@ -41,5 +41,6 @@ internal enum TestWorkerScenario
     TerminalExitMismatch,
     EchoEnvironmentKeys,
     ProbeUnrelatedHandle,
+    ObserveParentIdentity,
     ChildProcessWait
 }

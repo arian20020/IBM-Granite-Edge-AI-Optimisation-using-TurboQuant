@@ -1,0 +1,285 @@
+name: OpenVINO trusted UCL Intel CPU evidence
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_commit:
+        description: Exact reviewed lowercase 40-character commit SHA
+        required: true
+        type: string
+      authorization:
+        description: Explicit UCL gate identifier
+        required: true
+        type: string
+      gpu_authorization:
+        description: Optional exact GPU gate identifier; use GPU-01 only after prerequisite approval
+        required: false
+        default: ''
+        type: string
+      gpu_device:
+        description: Optional exact OpenVINO Intel GPU identity (GPU or GPU.n)
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: openvino-ucl-intel-cpu
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: pwsh
+
+env:
+  GIT_CONFIG_COUNT: '1'
+  GIT_CONFIG_KEY_0: core.longpaths
+  GIT_CONFIG_VALUE_0: 'true'
+  OPENVINO_UCL_01_AUTHORIZED: ${{ vars.OPENVINO_UCL_01_AUTHORIZED }}
+  OPENVINO_UCL_AUTHORIZATION: ${{ inputs.authorization }}
+  OPENVINO_UCL_GPU_AUTHORIZATION: ${{ inputs.gpu_authorization }}
+  OPENVINO_UCL_GPU_DEVICE: ${{ inputs.gpu_device }}
+  OPENVINO_UCL_GPU_NAME: ${{ vars.OPENVINO_UCL_GPU_NAME }}
+  OPENVINO_UCL_GPU_DRIVER_VERSION: ${{ vars.OPENVINO_UCL_GPU_DRIVER_VERSION }}
+  OPENVINO_EVIDENCE_COMMIT: ${{ inputs.target_commit }}
+  OPENVINO_ARCHIVES: ${{ vars.OPENVINO_UCL_ARCHIVE_DIRECTORY }}
+  OPENVINO_CONTROLLED_FIXTURE: ${{ vars.OPENVINO_UCL_FIXTURE_ROOT }}
+  OPENVINO_CONVERTER_CLOSURE: ${{ vars.OPENVINO_UCL_CONVERTER_CLOSURE }}
+  OPENVINO_EXPECTED_MODEL_LENGTH: ${{ vars.OPENVINO_UCL_MODEL_LENGTH }}
+  OPENVINO_EXPECTED_MODEL_SHA256: ${{ vars.OPENVINO_UCL_MODEL_SHA256 }}
+  OPENVINO_EXPECTED_FIXTURE_MANIFEST_SHA256: dc5ef5060a0e8242291d98701ab2b65286169c863a12e573dd1ad7921ac92648
+  OPENVINO_EVIDENCE_FILE: artifacts/openvino/evidence/cpu.json
+  OPENVINO_GPU_EVIDENCE_FILE: artifacts/openvino/gpu-evidence/gpu.json
+
+jobs:
+  trusted-intel-cpu:
+    name: Controlled Intel CPU official route
+    environment: openvino-ucl-01
+    runs-on:
+      - self-hosted
+      - Windows
+      - X64
+      - workbook05
+      - intel-target
+    timeout-minutes: 210
+
+    steps:
+      - name: Fail closed before repository code on UCL-01 and immutable inputs
+        timeout-minutes: 2
+        run: |
+          if ($env:OPENVINO_UCL_01_AUTHORIZED -cne 'UCL-01-approved' -or
+              $env:OPENVINO_UCL_AUTHORIZATION -cne 'UCL-01') {
+            throw 'UCL-01 authorization is absent.'
+          }
+          if ($env:OPENVINO_EVIDENCE_COMMIT -cnotmatch '^[0-9a-f]{40}$') {
+            throw 'The reviewed target commit is not an exact lowercase SHA.'
+          }
+          foreach ($value in @($env:OPENVINO_ARCHIVES,$env:OPENVINO_CONTROLLED_FIXTURE,
+              $env:OPENVINO_CONVERTER_CLOSURE,
+              $env:OPENVINO_EXPECTED_MODEL_LENGTH,$env:OPENVINO_EXPECTED_MODEL_SHA256)) {
+            if ([string]::IsNullOrWhiteSpace($value)) {
+              throw 'A controlled UCL input is unavailable.'
+            }
+          }
+          $gpuRequested = -not [string]::IsNullOrWhiteSpace($env:OPENVINO_UCL_GPU_AUTHORIZATION) -or
+            -not [string]::IsNullOrWhiteSpace($env:OPENVINO_UCL_GPU_DEVICE)
+          if ($gpuRequested -and
+              ($env:OPENVINO_UCL_GPU_AUTHORIZATION -cne 'GPU-01' -or
+               $env:OPENVINO_UCL_GPU_DEVICE -cnotmatch '^GPU(?:\.(?:0|[1-9][0-9]*))?$' -or
+               [string]::IsNullOrWhiteSpace($env:OPENVINO_UCL_GPU_NAME) -or
+               [string]::IsNullOrWhiteSpace($env:OPENVINO_UCL_GPU_DRIVER_VERSION))) {
+            throw 'GPU-01 authorization or its fixed driver prerequisite is invalid.'
+          }
+
+      - name: Bind operation-owned runner paths
+        timeout-minutes: 1
+        run: |
+          $root = [IO.Path]::GetFullPath($env:RUNNER_TEMP)
+          $converterStage = Join-Path $root 'openvino-ucl-converter-stage'
+          $paths = [ordered]@{
+            OPENVINO_BUILD_A = Join-Path $root 'openvino-ucl-build-a'
+            OPENVINO_BUILD_B = Join-Path $root 'openvino-ucl-build-b'
+            OPENVINO_STAGE_A = Join-Path $root 'openvino-ucl-stage-a'
+            OPENVINO_STAGE_B = Join-Path $root 'openvino-ucl-stage-b'
+            OPENVINO_RESULTS = Join-Path $root 'openvino-ucl-results'
+            OPENVINO_CONVERTER_BUILD = Join-Path $root 'openvino-ucl-converter-build'
+            OPENVINO_CONVERTER_STAGE = $converterStage
+            GRANITE_OPENVINO_CONVERTER_STAGE = $converterStage
+          }
+          foreach ($entry in $paths.GetEnumerator()) {
+            Add-Content -LiteralPath $env:GITHUB_ENV -Value "$($entry.Key)=$($entry.Value)" -Encoding utf8
+          }
+
+      - name: Check out the exact reviewed commit without retained credentials
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          ref: ${{ env.OPENVINO_EVIDENCE_COMMIT }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up repository .NET SDK
+        uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d
+        with:
+          global-json-file: global.json
+
+      - name: Set up Visual Studio MSBuild
+        uses: microsoft/setup-msbuild@30375c66a4eea26614e0d39710365f22f8b0af57
+
+      - name: Run retained trusted UCL CPU campaign
+        id: evidence
+        timeout-minutes: 180
+        run: |
+          # Invoke-OpenVinoStableAcceptance.ps1 runs inside the sole retained-input campaign owner.
+          $gpuArguments = @()
+          if (-not [string]::IsNullOrWhiteSpace($env:OPENVINO_UCL_GPU_AUTHORIZATION) -or
+              -not [string]::IsNullOrWhiteSpace($env:OPENVINO_UCL_GPU_DEVICE)) {
+            $gpuArguments = @(
+              '-GpuAuthorization', $env:OPENVINO_UCL_GPU_AUTHORIZATION,
+              '-GpuDevice', $env:OPENVINO_UCL_GPU_DEVICE,
+              '-ExpectedGpuName', $env:OPENVINO_UCL_GPU_NAME,
+              '-ExpectedGpuDriverVersion', $env:OPENVINO_UCL_GPU_DRIVER_VERSION,
+              '-GpuEvidencePath', $env:OPENVINO_GPU_EVIDENCE_FILE)
+          }
+          & powershell.exe -NoLogo -NoProfile -NonInteractive `
+            -ExecutionPolicy Bypass -File scripts/openvino/Invoke-OpenVinoUclCampaign.ps1 `
+            -WorkspaceRoot $env:GITHUB_WORKSPACE `
+            -ArchiveRoot $env:OPENVINO_ARCHIVES `
+            -FixtureRoot $env:OPENVINO_CONTROLLED_FIXTURE `
+            -ExpectedModelLength ([long]$env:OPENVINO_EXPECTED_MODEL_LENGTH) `
+            -ExpectedModelSha256 $env:OPENVINO_EXPECTED_MODEL_SHA256 `
+            -ExpectedFixtureManifestSha256 $env:OPENVINO_EXPECTED_FIXTURE_MANIFEST_SHA256 `
+            -ExpectedCommitSha $env:OPENVINO_EVIDENCE_COMMIT `
+            -BuildDirectoryA $env:OPENVINO_BUILD_A `
+            -BuildDirectoryB $env:OPENVINO_BUILD_B `
+            -StageDirectoryA $env:OPENVINO_STAGE_A `
+            -StageDirectoryB $env:OPENVINO_STAGE_B `
+            -ConverterClosureDirectory $env:OPENVINO_CONVERTER_CLOSURE `
+            -ConverterBuildDirectory $env:OPENVINO_CONVERTER_BUILD `
+            -ConverterStageDirectory $env:OPENVINO_CONVERTER_STAGE `
+            -ResultsDirectory $env:OPENVINO_RESULTS `
+            -EvidencePath $env:OPENVINO_EVIDENCE_FILE @gpuArguments
+          if ($LASTEXITCODE -ne 0) { throw 'Retained trusted UCL campaign failed.' }
+
+      - name: Verify explicitly authorized GPU evidence before cleanup
+        id: gpuprivacy
+        if: ${{ inputs.gpu_authorization == 'GPU-01' && steps.evidence.outcome == 'success' }}
+        timeout-minutes: 3
+        run: |
+          & powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
+            -File scripts/openvino/Test-OpenVinoGpuEvidence.ps1 `
+            -EvidencePath $env:OPENVINO_GPU_EVIDENCE_FILE `
+            -StageDirectory $env:OPENVINO_STAGE_B `
+            -ResultsPath (Join-Path $env:OPENVINO_RESULTS 'gpu.trx') `
+            -ExpectedCommitSha $env:OPENVINO_EVIDENCE_COMMIT `
+            -ExpectedDevice $env:OPENVINO_UCL_GPU_DEVICE `
+            -ExpectedGpuName $env:OPENVINO_UCL_GPU_NAME `
+            -ExpectedDriverVersion $env:OPENVINO_UCL_GPU_DRIVER_VERSION
+          if ($LASTEXITCODE -ne 0) { throw 'Trusted GPU evidence verification failed.' }
+
+      - name: Clean operation-owned outputs after retained campaign
+        id: integrity
+        if: ${{ always() }}
+        timeout-minutes: 15
+        run: |
+          $ErrorActionPreference = 'Continue'
+          $failed = $false
+          $remaining = @(Get-Process -Name 'OpenVinoOfficial.Worker','GraniteEdgeAI.OpenVino.ProtocolTestWorker','GraniteEdgeAI.OpenVino.ParentExitFixture' -ErrorAction SilentlyContinue)
+          $converterPrefix = [IO.Path]::GetFullPath($env:OPENVINO_CONVERTER_STAGE).TrimEnd('\') + '\'
+          $remaining += @(Get-Process -Name 'python' -ErrorAction SilentlyContinue |
+            Where-Object { $_.Path -and [IO.Path]::GetFullPath($_.Path).StartsWith(
+              $converterPrefix,[StringComparison]::OrdinalIgnoreCase) })
+          if ($remaining.Count -ne 0) {
+            $remaining | Stop-Process -Force -ErrorAction SilentlyContinue
+            $failed = $true
+          }
+          $tempRoot = [IO.Path]::GetFullPath($env:RUNNER_TEMP).TrimEnd('\') + '\'
+          foreach ($owned in @($env:OPENVINO_BUILD_A,$env:OPENVINO_BUILD_B,$env:OPENVINO_STAGE_A,$env:OPENVINO_STAGE_B,$env:OPENVINO_RESULTS,$env:OPENVINO_CONVERTER_BUILD,$env:OPENVINO_CONVERTER_STAGE)) {
+            $full = [IO.Path]::GetFullPath($owned)
+            if (-not $full.StartsWith($tempRoot,[StringComparison]::OrdinalIgnoreCase)) {
+              $failed = $true
+              continue
+            }
+            if (Test-Path -LiteralPath $full) {
+              Remove-Item -LiteralPath $full -Recurse -Force -ErrorAction SilentlyContinue
+            }
+            if (Test-Path -LiteralPath $full) { $failed = $true }
+          }
+          if ($failed) { throw 'Trusted UCL output cleanup failed.' }
+
+      - name: Privacy-check exact sanitized UCL evidence
+        id: privacy
+        if: ${{ always() }}
+        timeout-minutes: 3
+        run: |
+          $directory = Split-Path -Parent $env:OPENVINO_EVIDENCE_FILE
+          if (-not (Test-Path -LiteralPath $directory -PathType Container)) {
+            throw 'The evidence directory is absent.'
+          }
+          $evidenceFiles = @(Get-ChildItem -LiteralPath $directory -File -Force)
+          if ($evidenceFiles.Count -ne 1 -or
+              $evidenceFiles[0].FullName -cne [IO.Path]::GetFullPath($env:OPENVINO_EVIDENCE_FILE)) {
+            throw 'The operation-owned evidence set is not exactly the expected file.'
+          }
+          & powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
+            -File scripts/openvino/Test-OpenVinoEvidenceArtifactSet.ps1 `
+            -EvidencePath $env:OPENVINO_EVIDENCE_FILE
+          if ($LASTEXITCODE -ne 0) { throw 'Trusted evidence privacy verification failed.' }
+
+      - name: Upload sanitized UCL evidence only
+        if: ${{ always() && steps.evidence.outcome == 'success' && steps.integrity.outcome == 'success' && steps.privacy.outcome == 'success' }}
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+        with:
+          name: openvino-ucl-intel-cpu-evidence
+          path: artifacts/openvino/evidence/cpu.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload explicitly authorized sanitized GPU evidence only
+        if: ${{ always() && inputs.gpu_authorization == 'GPU-01' && steps.evidence.outcome == 'success' && steps.gpuprivacy.outcome == 'success' && steps.integrity.outcome == 'success' && steps.privacy.outcome == 'success' }}
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+        with:
+          name: openvino-ucl-intel-gpu-evidence
+          path: artifacts/openvino/gpu-evidence/gpu.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Remove operation-owned local GPU evidence residue
+        if: ${{ always() }}
+        timeout-minutes: 2
+        run: |
+          $workspace = [IO.Path]::GetFullPath($env:GITHUB_WORKSPACE).TrimEnd('\')
+          $expected = Join-Path $workspace 'artifacts\openvino\gpu-evidence\gpu.json'
+          $evidence = [IO.Path]::GetFullPath($env:OPENVINO_GPU_EVIDENCE_FILE)
+          if ($evidence -ine $expected) { throw 'The GPU evidence cleanup target is not exact.' }
+          if (Test-Path -LiteralPath $evidence -PathType Leaf) {
+            Remove-Item -LiteralPath $evidence -Force
+          }
+          $directory = Split-Path -Parent $evidence
+          if ((Test-Path -LiteralPath $directory -PathType Container) -and
+              @(Get-ChildItem -LiteralPath $directory -Force).Count -eq 0) {
+            Remove-Item -LiteralPath $directory -Force
+          }
+          if (Test-Path -LiteralPath $evidence) { throw 'Local GPU evidence residue remains.' }
+
+      - name: Remove operation-owned local evidence residue
+        if: ${{ always() }}
+        timeout-minutes: 2
+        run: |
+          $workspace = [IO.Path]::GetFullPath($env:GITHUB_WORKSPACE).TrimEnd('\')
+          $expected = Join-Path $workspace 'artifacts\openvino\evidence\cpu.json'
+          $evidence = [IO.Path]::GetFullPath($env:OPENVINO_EVIDENCE_FILE)
+          if ($evidence -ine $expected) { throw 'The evidence cleanup target is not exact.' }
+          if (Test-Path -LiteralPath $evidence -PathType Leaf) {
+            Remove-Item -LiteralPath $evidence -Force
+          }
+          foreach ($directory in @((Split-Path -Parent $evidence),
+              (Split-Path -Parent (Split-Path -Parent $evidence)),
+              (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $evidence))))) {
+            if ((Test-Path -LiteralPath $directory -PathType Container) -and
+                @(Get-ChildItem -LiteralPath $directory -Force).Count -eq 0) {
+              Remove-Item -LiteralPath $directory -Force
+            }
+          }
+          if (Test-Path -LiteralPath $evidence) { throw 'Local evidence residue remains.' }

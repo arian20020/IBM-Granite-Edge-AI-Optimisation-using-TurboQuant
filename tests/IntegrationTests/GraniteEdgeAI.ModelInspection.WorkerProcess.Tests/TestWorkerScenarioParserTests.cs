@@ -47,20 +47,20 @@ public sealed class TestWorkerScenarioParserTests
             [TestWorkerScenario.FloodStderr] = "flood-stderr",
             [TestWorkerScenario.TerminalExitMismatch] = "terminal-exit-mismatch",
             [TestWorkerScenario.EchoEnvironmentKeys] = "echo-environment-keys",
-            [TestWorkerScenario.ProbeUnrelatedHandle] = "probe-unrelated-handle"
+            [TestWorkerScenario.ProbeUnrelatedHandle] = "probe-unrelated-handle",
+            [TestWorkerScenario.ObserveParentIdentity] = "observe-parent-identity",
+            [TestWorkerScenario.ChildProcessWait] = "child-process-wait"
         };
 
     [TestMethod]
-    public void EveryPublicScenarioHasOneExactKebabCaseName()
+    public void EveryPublicScenarioHasOneExactProtocolSelector()
     {
         foreach ((TestWorkerScenario scenario, string name) in ExpectedNames)
         {
-            // The handle probe requires a numeric value here. Cooperative
-            // cancellation also accepts an optional bounded delay, while its
-            // canonical one-argument form remains valid in this inventory.
-            string[] arguments = scenario == TestWorkerScenario.ProbeUnrelatedHandle
-                ? [name, "1234"]
-                : [name];
+            long version = scenario == TestWorkerScenario.ProbeUnrelatedHandle
+                ? 1234
+                : 1;
+            string[] arguments = FixtureArguments(name, version);
 
             bool parsed = TestWorkerScenarioParser.TryParse(
                 arguments,
@@ -73,11 +73,13 @@ public sealed class TestWorkerScenarioParserTests
     }
 
     [TestMethod]
-    [DataRow("unknown")]
-    [DataRow("CrashAfterHello")]
-    [DataRow("crash_after_hello")]
+    [DataRow("modelinspection.fixture.unknown/1")]
+    [DataRow("modelinspection.fixture.CrashAfterHello/1")]
+    [DataRow("modelinspection.fixture.crash_after_hello/1")]
     public void UnknownOrNonCanonicalNameIsRejected(string name)
     {
+        Assert.IsFalse(
+            TestWorkerScenarioParser.TryParse(["--protocol", name], out _));
         Assert.IsFalse(
             TestWorkerScenarioParser.TryParse([name], out _));
     }
@@ -87,7 +89,11 @@ public sealed class TestWorkerScenarioParserTests
     {
         Assert.IsFalse(
             TestWorkerScenarioParser.TryParse(
-                ["healthy-controlled-failure", "unexpected"],
+                [
+                    "--protocol",
+                    "modelinspection.fixture.healthy-controlled-failure/1",
+                    "unexpected"
+                ],
                 out _));
     }
 
@@ -96,12 +102,15 @@ public sealed class TestWorkerScenarioParserTests
     {
         Assert.IsTrue(
             TestWorkerScenarioParser.TryParse(
-                ["probe-unrelated-handle", "1234"],
+                FixtureArguments("probe-unrelated-handle", 1234),
                 out TestWorkerScenarioRequest? request));
         Assert.AreEqual(1234L, request?.NumericValue);
         Assert.IsFalse(
             TestWorkerScenarioParser.TryParse(
-                ["probe-unrelated-handle", "not-a-handle"],
+                [
+                    "--protocol",
+                    "modelinspection.fixture.probe-unrelated-handle/not-a-handle"
+                ],
                 out _));
     }
 
@@ -110,7 +119,7 @@ public sealed class TestWorkerScenarioParserTests
     {
         Assert.IsTrue(
             TestWorkerScenarioParser.TryParse(
-                ["cooperative-cancellation", "700"],
+                FixtureArguments("cooperative-cancellation", 700),
                 out TestWorkerScenarioRequest? request));
         Assert.AreEqual(700L, request?.NumericValue);
 
@@ -118,14 +127,27 @@ public sealed class TestWorkerScenarioParserTests
         {
             Assert.IsFalse(
                 TestWorkerScenarioParser.TryParse(
-                    ["cooperative-cancellation", invalid],
+                    [
+                        "--protocol",
+                        $"modelinspection.fixture.cooperative-cancellation/{invalid}"
+                    ],
                     out _),
                 invalid);
         }
 
         Assert.IsFalse(
             TestWorkerScenarioParser.TryParse(
-                ["cooperative-cancellation", "700", "unexpected"],
+                [
+                    "--protocol",
+                    "modelinspection.fixture.cooperative-cancellation/700",
+                    "unexpected"
+                ],
                 out _));
     }
+
+    private static string[] FixtureArguments(string scenario, long version) =>
+    [
+        "--protocol",
+        $"modelinspection.fixture.{scenario}/{version}"
+    ];
 }

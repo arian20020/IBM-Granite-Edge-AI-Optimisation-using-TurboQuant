@@ -6,6 +6,7 @@
   </Configurations>
 
   <Folder Name="/shared/">
+    <Project Path="shared/GraniteEdgeAI.OpenVino.Contracts/GraniteEdgeAI.OpenVino.Contracts.csproj" />
     <Project Path="shared/GraniteEdgeAI.GgufQuantization.Contracts/GraniteEdgeAI.GgufQuantization.Contracts.csproj" />
     <Project Path="shared/GraniteEdgeAI.GgufRuntime.Contracts/GraniteEdgeAI.GgufRuntime.Contracts.csproj" />
     <Project Path="shared/GraniteEdgeAI.GgufRuntime.Transport/GraniteEdgeAI.GgufRuntime.Transport.csproj" />
@@ -27,6 +28,9 @@
   </Folder>
 
   <Folder Name="/infrastructure/">
+    <Project Path="infrastructure/GraniteEdgeAI.OpenVino.WorkerClient/GraniteEdgeAI.OpenVino.WorkerClient.csproj">
+      <Platform Solution="*|x64" Project="AnyCPU" />
+    </Project>
     <Project Path="infrastructure/GraniteEdgeAI.GgufQuantization.WorkerClient/GraniteEdgeAI.GgufQuantization.WorkerClient.csproj">
       <Platform Solution="*|x64" Project="AnyCPU" />
     </Project>
@@ -65,6 +69,7 @@
     <Project Path="tests/ContractTests/GraniteEdgeAI.GgufQuantization.Contracts.Tests/GraniteEdgeAI.GgufQuantization.Contracts.Tests.csproj" />
     <Project Path="tests/ContractTests/GraniteEdgeAI.GgufRuntime.Contracts.Tests/GraniteEdgeAI.GgufRuntime.Contracts.Tests.csproj" />
     <Project Path="tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/GraniteEdgeAI.ModelInspection.Contracts.Tests.csproj" />
+    <Project Path="tests/ContractTests/GraniteEdgeAI.OpenVino.Contracts.Tests/GraniteEdgeAI.OpenVino.Contracts.Tests.csproj" />
   </Folder>
 
   <Folder Name="/tests/E2ETests/">
@@ -80,6 +85,9 @@
     <Project Path="tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests.csproj">
       <Platform Solution="*|x64" Project="AnyCPU" />
     </Project>
+    <Project Path="tests/IntegrationTests/GraniteEdgeAI.OpenVino.WorkerProcess.Tests/GraniteEdgeAI.OpenVino.WorkerProcess.Tests.csproj">
+      <Platform Solution="*|x64" Project="AnyCPU" />
+    </Project>
   </Folder>
 
   <Folder Name="/tests/ProcessFixtures/">
@@ -93,6 +101,12 @@
       <Platform Solution="*|x64" Project="AnyCPU" />
     </Project>
     <Project Path="tests/ProcessFixtures/GraniteEdgeAI.ModelInspection.ProtocolTestWorker/GraniteEdgeAI.ModelInspection.ProtocolTestWorker.csproj">
+      <Platform Solution="*|x64" Project="AnyCPU" />
+    </Project>
+    <Project Path="tests/ProcessFixtures/GraniteEdgeAI.OpenVino.ParentExitFixture/GraniteEdgeAI.OpenVino.ParentExitFixture.csproj">
+      <Platform Solution="*|x64" Project="AnyCPU" />
+    </Project>
+    <Project Path="tests/ProcessFixtures/GraniteEdgeAI.OpenVino.ProtocolTestWorker/GraniteEdgeAI.OpenVino.ProtocolTestWorker.csproj">
       <Platform Solution="*|x64" Project="AnyCPU" />
     </Project>
   </Folder>
@@ -218,6 +232,12 @@
     </Project>
 
     <Project Path="tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests.csproj">
+      <Platform Solution="*|x64" Project="AnyCPU" />
+    </Project>
+    <Project Path="tests/UnitTests/GraniteEdgeAI.OpenVino.Tests/GraniteEdgeAI.OpenVino.Tests.csproj">
+      <Platform Solution="*|x64" Project="AnyCPU" />
+    </Project>
+    <Project Path="tests/UnitTests/GraniteEdgeAI.OpenVino.WorkerClient.Tests/GraniteEdgeAI.OpenVino.WorkerClient.Tests.csproj">
       <Platform Solution="*|x64" Project="AnyCPU" />
     </Project>
 

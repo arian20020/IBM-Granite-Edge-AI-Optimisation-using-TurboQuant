@@ -10,9 +10,8 @@ namespace GraniteEdgeAI.ModelInspection.WorkerClient;
 /// </summary>
 internal sealed class WorkerProcessSession : IAsyncDisposable
 {
-    private static readonly TimeSpan FallbackCleanupTimeout =
-        TimeSpan.FromSeconds(5);
     private readonly SafeProcessHandle _processHandle;
+    private readonly TimeSpan _cleanupTimeout;
     private bool _disposed;
 
     internal WorkerProcessSession(
@@ -21,13 +20,20 @@ internal sealed class WorkerProcessSession : IAsyncDisposable
         WindowsJobObject job,
         FileStream standardInput,
         FileStream standardOutput,
-        FileStream standardError)
+        FileStream standardError,
+        TimeSpan cleanupTimeout)
     {
         ArgumentNullException.ThrowIfNull(processHandle);
         ArgumentNullException.ThrowIfNull(job);
         ArgumentNullException.ThrowIfNull(standardInput);
         ArgumentNullException.ThrowIfNull(standardOutput);
         ArgumentNullException.ThrowIfNull(standardError);
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(
+            cleanupTimeout,
+            TimeSpan.Zero);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(
+            cleanupTimeout,
+            TimeSpan.FromSeconds(5));
 
         ProcessId = processId;
         _processHandle = processHandle;
@@ -35,6 +41,7 @@ internal sealed class WorkerProcessSession : IAsyncDisposable
         StandardInput = standardInput;
         StandardOutput = standardOutput;
         StandardError = standardError;
+        _cleanupTimeout = cleanupTimeout;
     }
 
     internal uint ProcessId { get; }
@@ -79,13 +86,9 @@ internal sealed class WorkerProcessSession : IAsyncDisposable
     /// <see langword="true"/> when TerminateJobObject was required; otherwise
     /// <see langword="false"/> because the Job Object was already empty.
     /// </returns>
-    internal async Task<bool> TerminateAndVerifyEmptyAsync(TimeSpan timeout)
+    internal async Task<bool> TerminateAndVerifyEmptyAsync()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(
-            timeout,
-            TimeSpan.Zero);
-
         bool terminationRequired = Job.GetActiveProcessCount() != 0;
         if (terminationRequired)
         {
@@ -97,7 +100,7 @@ internal sealed class WorkerProcessSession : IAsyncDisposable
         try
         {
             await WaitForExitAsync(CancellationToken.None)
-                .WaitAsync(timeout, CancellationToken.None)
+                .WaitAsync(_cleanupTimeout, CancellationToken.None)
                 .ConfigureAwait(false);
         }
         catch (TimeoutException)
@@ -108,7 +111,7 @@ internal sealed class WorkerProcessSession : IAsyncDisposable
         }
 
         if (!await Job.WaitUntilEmptyAsync(
-                timeout,
+                _cleanupTimeout,
                 CancellationToken.None)
             .ConfigureAwait(false))
         {
@@ -123,10 +126,10 @@ internal sealed class WorkerProcessSession : IAsyncDisposable
     /// <summary>
     /// Waits for the Job Object to become empty without forcing termination.
     /// </summary>
-    internal Task<bool> WaitForTreeEmptyAsync(TimeSpan timeout)
+    internal Task<bool> WaitForTreeEmptyAsync()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        return Job.WaitUntilEmptyAsync(timeout, CancellationToken.None);
+        return Job.WaitUntilEmptyAsync(_cleanupTimeout, CancellationToken.None);
     }
 
     public async ValueTask DisposeAsync()
@@ -150,7 +153,7 @@ internal sealed class WorkerProcessSession : IAsyncDisposable
 
         try
         {
-            _ = await TerminateAndVerifyEmptyAsync(FallbackCleanupTimeout)
+            _ = await TerminateAndVerifyEmptyAsync()
                 .ConfigureAwait(false);
         }
         catch (Exception error) when (

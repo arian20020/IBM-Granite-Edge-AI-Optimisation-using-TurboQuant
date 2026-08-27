@@ -43,7 +43,7 @@ $cleanupScript = Join-Path $repositoryRoot 'scripts\model-inspection\Verify-Mode
 
 $interactionLifetimeFilter = 'FullyQualifiedName~ModelInspectionFixtureInteractionTests|FullyQualifiedName~ModelInspectionFixtureLifetimeTests'
 $fixtureCategoryFilter = 'TestCategory=ModelInspectionFixtureGallery'
-$hostedReleaseFilter = 'TestCategory!=ModelInspectionVisualRegression&TestCategory!=ModelInspectionControlledOs'
+$hostedReleaseFilter = 'TestCategory!=ModelInspectionVisualRegression&TestCategory!=ModelInspectionControlledOs&TestCategory!=OfficialNative'
 $n001FullyQualifiedName = 'GraniteEdgeAI.UnitTests.ModelInspectionPageNavigationTests.PackagedN001_PageJourneyCompletesAllFiveStagesAsReady'
 $polishFilter = 'FullyQualifiedName~ModelInspectionPresentationFactoryTests|FullyQualifiedName~InitialInspectionProgressPresentationTests|FullyQualifiedName~ModelInspectionViewModelTests|FullyQualifiedName~ModelInspectionPageNavigationTests|FullyQualifiedName~ModelInspectionWorkerCompositionTests|FullyQualifiedName~ModelInspectionMilestoneSequencerTests|FullyQualifiedName~ModelInspectionRenderCoordinatorTests|FullyQualifiedName~ModelInspectionAccessibilityTests|FullyQualifiedName~InspectionStatusGlyphTests|FullyQualifiedName~InspectionContentCardTests|FullyQualifiedName~InspectionModelCardTests|FullyQualifiedName~InspectionOutcomeCardTests|FullyQualifiedName~ModelInspectionMotionTests|FullyQualifiedName~OnboardingStageIndicatorTests|FullyQualifiedName~InspectionActionCardTests|FullyQualifiedName~ModelInspectionPageLayoutTests|FullyQualifiedName~ModelInspectionRenderedStateTests|FullyQualifiedName~ModelInspectionDisclosureTests|FullyQualifiedName~InspectionVisualStateGuardTests|FullyQualifiedName~InspectionProgressRowsTests|FullyQualifiedName~InspectionProgressPresentationFactoryTests|FullyQualifiedName~ModelInspectionRenderHarnessTests'
 $werTargets = @(
@@ -55,11 +55,11 @@ $werTargets = @(
 
 $ExpectedTotals = [ordered]@{
     Runtime = 189
-    Worker = 77
+    Worker = 78
     InteractionLifetime = 19
     FixtureCategory = 220
     FocusedPolish = 322
-    HostedRelease = 717
+    HostedRelease = 799
     N001 = 1
     Contracts = 357
 }
@@ -91,7 +91,7 @@ $ExpectedTestMaps = [ordered]@{
     }
     Worker = [ordered]@{
         'GraniteEdgeAI.ModelInspection.Worker.Tests.LlamaSharpInspectionEngineTests' = 67
-        'GraniteEdgeAI.ModelInspection.Worker.Tests.WorkerHostTests' = 10
+        'GraniteEdgeAI.ModelInspection.Worker.Tests.WorkerHostTests' = 11
     }
     InteractionLifetime = [ordered]@{
         'GraniteEdgeAI.UnitTests.ModelInspectionFixtureInteractionTests' = 6
@@ -147,7 +147,7 @@ $ExpectedTestMaps = [ordered]@{
         'GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation.ModelInspectionPresentationFactoryTests' = 18
         'GraniteEdgeAI.UnitTests.InspectionVisualStateGuardTests' = 13
         'GraniteEdgeAI.UnitTests.ModelInspectionPageNavigationTests' = 39
-        'GraniteEdgeAI.UnitTests.OnboardingModelInspectionNavigationTests' = 14
+        'GraniteEdgeAI.UnitTests.OnboardingModelInspectionNavigationTests' = 20
         'GraniteEdgeAI.UnitTests.ModelInspectionWorkerCompositionTests' = 13
         'GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation.ModelInspectionAssetContractTests' = 3
         'GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation.ModelInspectionDisplayTextPolicyTests' = 46
@@ -547,8 +547,23 @@ function Invoke-ReleaseIsolation {
     if (Test-Path -LiteralPath $evidencePath) {
         throw 'The unique Release-isolation evidence path already exists.'
     }
+    $workerStage = $env:OPENVINO_OFFICIAL_WORKER_STAGE_B
+    if ([string]::IsNullOrWhiteSpace($workerStage)) {
+        throw 'OPENVINO_OFFICIAL_WORKER_STAGE_B is required for full Release isolation.'
+    }
+    $workerManifest = Join-Path $workerStage 'worker-manifest.json'
+    if (-not (Test-Path -LiteralPath $workerManifest -PathType Leaf)) {
+        throw 'The verified OpenVINO worker manifest is unavailable for Release isolation.'
+    }
+    $workerManifestSha256 = (Get-FileHash `
+        -LiteralPath $workerManifest `
+        -Algorithm SHA256).Hash.ToLowerInvariant()
     Invoke-CheckedCommand -Name 'release-isolation' -Command {
-        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $releaseIsolationScript -EvidencePath $evidencePath
+        & powershell.exe -NoProfile -ExecutionPolicy Bypass `
+            -File $releaseIsolationScript `
+            -EvidencePath $evidencePath `
+            -OpenVinoOfficialWorkerStageDirectory $workerStage `
+            -OpenVinoOfficialWorkerManifestSha256 $workerManifestSha256
     }
     $evidence = Get-Content -LiteralPath $evidencePath -Raw | ConvertFrom-Json
     if ($evidence.status -cne 'passed' -or $evidence.sourceCommit -cne $headBefore) {

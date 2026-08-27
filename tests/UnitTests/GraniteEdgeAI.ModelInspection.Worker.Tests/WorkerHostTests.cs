@@ -12,6 +12,40 @@ namespace GraniteEdgeAI.ModelInspection.Worker.Tests;
 public sealed class WorkerHostTests
 {
     [TestMethod]
+    public async Task EngineConstructionStartsOnlyAfterHelloAndStartHandshake()
+    {
+        WorkerStartInspectionCommand start = CreateStart();
+        using ControllableInputStream input = new();
+        using MemoryStream output = new();
+        using MemoryStream error = new();
+        bool factoryObservedHello = false;
+        input.SupplyLine(WorkerProtocolJson.Serialize(start));
+        input.Complete();
+
+        await using WorkerHost host = new(
+            input,
+            output,
+            error,
+            () =>
+            {
+                factoryObservedHello = ParseMessages(output.ToArray())
+                    .FirstOrDefault() is WorkerHelloMessage;
+                return new CompletedEngine();
+            },
+            new NeverLostParentMonitor(),
+            workerProcessId: 1234,
+            workerVersion: "1.0.0");
+
+        int exitCode = await host.RunAsync(CancellationToken.None)
+            .ConfigureAwait(false);
+
+        Assert.AreEqual(WorkerExitCodes.Completed, exitCode);
+        Assert.IsTrue(
+            factoryObservedHello,
+            "The protocol hello must be flushed before heavy engine construction starts.");
+    }
+
+    [TestMethod]
     public async Task UnavailableEngineWritesHelloStartedAndControlledFailure()
     {
         WorkerStartInspectionCommand start = CreateStart();

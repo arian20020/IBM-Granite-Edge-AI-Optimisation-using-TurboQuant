@@ -14,6 +14,20 @@ namespace GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike.Tests;
 public sealed class VocabOnlyModelProbeContinuityTests
 {
     [TestMethod]
+    public void TierOneWorkflowChecksOutTheContinuityFixture()
+    {
+        string workflow = File.ReadAllText(Path.Combine(
+            RepositoryPaths.FindRoot(),
+            ".github",
+            "workflows",
+            "llamasharp-feasibility-smoke.yml"));
+
+        StringAssert.Contains(
+            workflow,
+            "tests/TestFixtures/GGUF/N-001-vocab-only-spm.gguf");
+    }
+
+    [TestMethod]
     public async Task RunAsyncWithLengthMismatchFailsAfterActiveBeforeHash()
     {
         using var directory = new TemporaryDirectory("continuity-length");

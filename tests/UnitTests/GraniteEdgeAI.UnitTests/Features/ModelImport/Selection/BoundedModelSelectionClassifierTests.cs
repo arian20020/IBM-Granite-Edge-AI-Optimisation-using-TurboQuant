@@ -48,6 +48,29 @@ public sealed class BoundedModelSelectionClassifierTests
     }
 
     [TestMethod]
+    public async Task ClassifyAsync_AcceptsCanonicalOpenVinoGenAiResourceSet()
+    {
+        using var directory = new TemporaryDirectory();
+        foreach (string stem in new[]
+                 {
+                     "openvino_model",
+                     "openvino_tokenizer",
+                     "openvino_detokenizer"
+                 })
+        {
+            directory.WriteFile(stem + ".xml", "xml");
+            directory.WriteFile(stem + ".bin", "bin");
+        }
+
+        ModelSelectionResult result = await ClassifyAsync(
+            directory.Path,
+            isFolder: true);
+
+        Assert.IsTrue(result.IsAccepted);
+        Assert.AreEqual(ModelSelectionRoute.OpenVinoDirectory, result.Route);
+    }
+
+    [TestMethod]
     public async Task ClassifyAsync_RejectsAmbiguousOpenVinoPairs()
     {
         using var directory = new TemporaryDirectory();

@@ -15,6 +15,9 @@ public sealed class ModelInspectionFixtureWorkflowContractTests
         "Run serialized Debug x64 Model Inspection fixture gallery";
 
     private const string IsolationStepName =
+        "Verify Model Inspection fixture Release isolation evaluation contract";
+
+    private const string FullIsolationStepName =
         "Verify Model Inspection fixture Release isolation";
 
     private const string ExactCategoryFilter =
@@ -30,9 +33,9 @@ public sealed class ModelInspectionFixtureWorkflowContractTests
         "Check out required build inputs";
 
     private const string HostedReleaseStepSha256 =
-        "F0B831F9748896AF341F62DD776F9A99293F97724C8B1BF18F6D79C95A0F8DE4";
+        "706E5E6F372CE847B68442340680C96DACF7083EE405CF2B1C3DDDF446527853";
 
-    private const int HostedReleaseExpectedTotal = 717;
+    private const int HostedReleaseExpectedTotal = 799;
 
     // This sentinel stays invalid evidence for mutation-baseline validation.
     private const int UnmeasuredTrxCount = -1;
@@ -74,8 +77,42 @@ public sealed class ModelInspectionFixtureWorkflowContractTests
             allowUnmeasuredCounts: false));
         errors.AddRange(ValidateProgressPolishGateFixtureBoundary(
             ReadProgressPolishGate()));
+        errors.AddRange(ValidateOfficialReleaseIsolation());
 
         Assert.AreEqual(0, errors.Count, string.Join(Environment.NewLine, errors));
+    }
+
+    private static string[] ValidateOfficialReleaseIsolation()
+    {
+        string workflow = File.ReadAllText(Path.Combine(
+            Root, ".github", "workflows", "openvino-official-ci.yml"));
+        var errors = new List<string>();
+        string? isolation = TryExtractWorkflowStep(workflow, FullIsolationStepName);
+        if (isolation is null)
+        {
+            return ["The official workflow must own full Release isolation."];
+        }
+
+        foreach (string token in new[]
+                 {
+                     "$env:PSModulePath = $env:OPENVINO_WINDOWS_POWERSHELL_MODULES",
+                     "Test-ModelInspectionFixtureReleaseIsolation.ps1",
+                     "-OpenVinoOfficialWorkerStageDirectory $env:OPENVINO_STAGE_B",
+                     "-OpenVinoOfficialWorkerManifestSha256 $manifestSha",
+                     "TestResults\\ModelInspectionFixtures\\ReleaseIsolation\\release-isolation-evidence.json",
+                     "$isolationEvidence.status -ne 'passed'",
+                     "Remove-Item -LiteralPath $evidencePath -Force"
+                 })
+        {
+            RequireExactlyOnce(isolation, token, errors);
+        }
+
+        if (isolation.Contains("continue-on-error", StringComparison.OrdinalIgnoreCase))
+        {
+            errors.Add("Official Release isolation must fail closed.");
+        }
+
+        return errors.ToArray();
     }
 
     [TestMethod]
@@ -129,8 +166,8 @@ public sealed class ModelInspectionFixtureWorkflowContractTests
                 "FixtureCategory = 220",
                 "FixtureCategory = 219"),
             ("hosted Release measured total",
-                "HostedRelease = 717",
-                "HostedRelease = 716")
+                "HostedRelease = 799",
+                "HostedRelease = 798")
         ];
         foreach ((string name, string original, string replacement) in gateMutations)
         {
@@ -287,8 +324,8 @@ public sealed class ModelInspectionFixtureWorkflowContractTests
                 "$minimumExpectedTests = 685",
                 StringComparison.Ordinal)),
             ("measured Release total", workflow.Replace(
-                "$measuredExpectedTests = 717",
-                "$measuredExpectedTests = 716",
+                "$measuredExpectedTests = 799",
+                "$measuredExpectedTests = 798",
                 StringComparison.Ordinal)),
             ("duplicate campaign step", workflow + "\n      " +
                 ExtractWorkflowStep(workflow, CampaignStepName)),
@@ -818,8 +855,8 @@ public sealed class ModelInspectionFixtureWorkflowContractTests
                  {
                      "working-directory: ${{ github.workspace }}",
                      "& '.\\scripts\\model-inspection\\Test-ModelInspectionFixtureReleaseIsolation.ps1'",
-                     "TestResults\\ModelInspectionFixtures\\ReleaseIsolation\\release-isolation-evidence.json",
-                     "$isolationEvidence.status -ne 'passed'"
+                     "-EvaluateContract",
+                     "$isolationEvaluation.status -ne 'evaluation-contract-passed'"
                  })
         {
             RequireExactlyOnce(isolation, token, errors);
@@ -927,11 +964,11 @@ public sealed class ModelInspectionFixtureWorkflowContractTests
         string[] exactExpectedTotals =
         [
             "Runtime = 189",
-            "Worker = 77",
+            "Worker = 78",
             "InteractionLifetime = 19",
             "FixtureCategory = 220",
             "FocusedPolish = 322",
-            "HostedRelease = 717",
+            "HostedRelease = 799",
             "N001 = 1",
             "Contracts = 357"
         ];
@@ -1232,10 +1269,11 @@ public sealed class ModelInspectionFixtureWorkflowContractTests
             $"- name: {IsolationStepName}\n" +
             "        working-directory: ${{ github.workspace }}\n" +
             "        run: |\n" +
-            "          $evidencePath = Join-Path $env:GITHUB_WORKSPACE 'TestResults\\ModelInspectionFixtures\\ReleaseIsolation\\release-isolation-evidence.json'\n" +
-            "          & '.\\scripts\\model-inspection\\Test-ModelInspectionFixtureReleaseIsolation.ps1' -EvidencePath $evidencePath\n" +
-            "          $isolationEvidence = Get-Content -LiteralPath $evidencePath -Raw | ConvertFrom-Json\n" +
-            "          if ($isolationEvidence.status -ne 'passed') { throw 'Release isolation did not pass.' }\n";
+            "          $isolationEvaluation = & '.\\scripts\\model-inspection\\Test-ModelInspectionFixtureReleaseIsolation.ps1' -EvaluateContract |\n" +
+            "            Out-String | ConvertFrom-Json\n" +
+            "          if ($isolationEvaluation.status -ne 'evaluation-contract-passed') {\n" +
+            "            throw 'Release isolation evaluation contract did not pass.'\n" +
+            "          }\n";
 
     private static void RequireExactlyOnce(
         string value,

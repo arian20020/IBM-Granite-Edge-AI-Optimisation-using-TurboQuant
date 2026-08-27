@@ -12,6 +12,9 @@ namespace GraniteEdgeAI.ModelInspection.WorkerClient.Tests;
 [TestClass]
 public sealed class WindowsWorkerProcessLauncherFailureTests
 {
+    private static readonly string[] ExpectedCreationBoundaryEvents =
+        ["handle-list", "job-list", "create-process"];
+
     [TestMethod]
     public void EnvironmentFailureStopsBeforeProcessCreation() =>
         AssertFailure(
@@ -47,6 +50,30 @@ public sealed class WindowsWorkerProcessLauncherFailureTests
             WorkerClientFailureCodes.WorkerLaunchFailed,
             expectedCreateProcessCalls: 1);
 
+    [TestMethod]
+    public void JobListContainmentIsAppliedBeforeCreateProcess()
+    {
+        using VerifiedExecutableFixture fixture =
+            VerifiedExecutableFixture.Create();
+        using VerifiedWorkerExecutable executable =
+            new WorkerExecutableResolver("worker.exe")
+                .Resolve(fixture.RootDirectory);
+        WindowsProcessLaunchRequest request = new(
+            executable,
+            CreateEnvironment(),
+            [],
+            TimeSpan.FromSeconds(5));
+        FailingWindowsWorkerProcessPlatform platform = new(
+            LaunchFailureStage.CreateProcess);
+
+        _ = Assert.ThrowsExactly<WorkerClientPolicyException>(
+            () => WindowsWorkerProcessLauncher.Launch(request, platform));
+
+        CollectionAssert.AreEqual(
+            ExpectedCreationBoundaryEvents,
+            platform.CreationBoundaryEvents);
+    }
+
     private static void AssertFailure(
         LaunchFailureStage stage,
         string expectedCode,
@@ -60,7 +87,8 @@ public sealed class WindowsWorkerProcessLauncherFailureTests
         WindowsProcessLaunchRequest request = new(
             executable,
             CreateEnvironment(),
-            []);
+            [],
+            TimeSpan.FromSeconds(5));
         FailingWindowsWorkerProcessPlatform platform = new(stage);
 
         WorkerClientPolicyException error =
@@ -113,6 +141,8 @@ public sealed class WindowsWorkerProcessLauncherFailureTests
 
         internal int CreateProcessCalls { get; private set; }
 
+        internal List<string> CreationBoundaryEvents { get; } = [];
+
         public WindowsEnvironmentBlock CreateEnvironmentBlock(
             IReadOnlyDictionary<string, string> environment)
         {
@@ -161,6 +191,7 @@ public sealed class WindowsWorkerProcessLauncherFailureTests
             SafeAttributeListBuffer attributes,
             WindowsPipeSet pipes)
         {
+            CreationBoundaryEvents.Add("handle-list");
             if (_stage == LaunchFailureStage.HandleList)
             {
                 throw new Win32Exception(5, "Injected handle-list failure.");
@@ -175,6 +206,7 @@ public sealed class WindowsWorkerProcessLauncherFailureTests
             SafeAttributeListBuffer attributes,
             WindowsJobObject job)
         {
+            CreationBoundaryEvents.Add("job-list");
             if (_stage == LaunchFailureStage.JobList)
             {
                 throw new Win32Exception(5, "Injected job-list failure.");
@@ -192,6 +224,7 @@ public sealed class WindowsWorkerProcessLauncherFailureTests
             string workingDirectory,
             ref StartupInfoEx startupInfo)
         {
+            CreationBoundaryEvents.Add("create-process");
             CreateProcessCalls++;
             throw new Win32Exception(5, "Injected CreateProcessW failure.");
         }

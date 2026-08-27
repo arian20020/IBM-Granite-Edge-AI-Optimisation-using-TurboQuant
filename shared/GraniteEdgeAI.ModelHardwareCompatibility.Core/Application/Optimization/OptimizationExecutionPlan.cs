@@ -254,6 +254,23 @@ public sealed record OptimizationExecutionPlan
     }
 
     /// <summary>
+    /// Recomputes the exact route configuration identity using this plan's
+    /// contract version. Executors use this instead of issuing a replacement
+    /// plan merely to verify an already confirmed payload.
+    /// </summary>
+    public bool MatchesExecutionPayload(OptimizationExecutionPayload payload)
+    {
+        ArgumentNullException.ThrowIfNull(payload);
+        return string.Equals(
+            ConfigurationSha256,
+            OptimizationCanonicalizer.ConfigurationSha256(
+                Candidate,
+                payload,
+                ContractVersion),
+            StringComparison.Ordinal);
+    }
+
+    /// <summary>
     /// Whether the source file is still the one that was planned against.
     ///
     /// Both the digest and the length, because a length alone is trivially

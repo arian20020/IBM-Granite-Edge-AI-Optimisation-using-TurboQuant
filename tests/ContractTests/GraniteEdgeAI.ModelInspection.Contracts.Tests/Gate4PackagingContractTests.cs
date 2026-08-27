@@ -160,6 +160,37 @@ public sealed class Gate4PackagingContractTests
         Assert.IsTrue(
             restore >= 0 && restore < publish,
             "The isolated worker graph must be restored before it is published.");
+
+        XDocument targetDocument = XDocument.Load(Absolute(PackagingTarget));
+        string artifactsRoot = targetDocument
+            .Descendants("_ModelInspectionWorkerArtifactsRoot")
+            .Single()
+            .Value;
+        const string prefix =
+            "$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\\" +
+            "$(BaseIntermediateOutputPath)";
+        const string suffix = "\\$(Configuration)'))";
+        Assert.IsTrue(artifactsRoot.StartsWith(prefix, StringComparison.Ordinal));
+        Assert.IsTrue(artifactsRoot.EndsWith(suffix, StringComparison.Ordinal));
+
+        string intermediateDirectory = artifactsRoot[
+            prefix.Length..^suffix.Length];
+        const int SupportedApplicationDirectoryLength = 81;
+        const string LongestGeneratedRelativePath =
+            "obj\\GraniteEdgeAI.ModelInspection.LlamaSharp\\release_win-x64\\" +
+            "GraniteEdgeAI.ModelInspection.LlamaSharp." +
+            "GeneratedMSBuildEditorConfig.editorconfig";
+        int maximumGeneratedPathLength =
+            SupportedApplicationDirectoryLength +
+            1 + "obj".Length +
+            1 + intermediateDirectory.Length +
+            1 + "Release".Length +
+            1 + LongestGeneratedRelativePath.Length;
+
+        Assert.IsLessThanOrEqualTo(
+            259,
+            maximumGeneratedPathLength,
+            "The worker artifacts path must remain removable when Windows long paths are disabled.");
     }
 
     [TestMethod]

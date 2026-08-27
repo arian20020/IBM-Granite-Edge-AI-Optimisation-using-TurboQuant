@@ -27,7 +27,7 @@ public sealed class WorkerLaunchContainmentTests
             ResolveFixtureExecutable(fixture);
         WindowsProcessLaunchRequest request = CreateRequest(
             executable,
-            ["launch-probe"]);
+            WorkerProcessTestData.FixtureArguments("launch-probe"));
 
         await using WorkerProcessSession session =
             WindowsWorkerProcessLauncher.Launch(request);
@@ -66,7 +66,9 @@ public sealed class WorkerLaunchContainmentTests
             .ToString(CultureInfo.InvariantCulture);
         WindowsProcessLaunchRequest request = CreateRequest(
             executable,
-            ["probe-unrelated-handle", handleValue]);
+            WorkerProcessTestData.FixtureArguments(
+                "probe-unrelated-handle",
+                long.Parse(handleValue, CultureInfo.InvariantCulture)));
 
         await using WorkerProcessSession session =
             WindowsWorkerProcessLauncher.Launch(request);
@@ -94,7 +96,8 @@ public sealed class WorkerLaunchContainmentTests
         IReadOnlyList<string> arguments) => new(
             executable,
             WorkerEnvironmentPolicy.Create(CaptureParentEnvironment()),
-            arguments);
+            arguments,
+            TimeSpan.FromSeconds(5));
 
     private static async Task<string?> ReadMilestoneAsync(
         WorkerProcessSession session)

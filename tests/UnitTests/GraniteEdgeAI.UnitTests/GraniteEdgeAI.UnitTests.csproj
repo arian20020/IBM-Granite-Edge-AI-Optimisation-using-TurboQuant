@@ -443,6 +443,11 @@
       <Link>TestFixtures\fixture-manifest.json</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Content Include="..\..\TestFixtures\OpenVINO\GenAI\TinySyntheticV1\package\**\*">
+      <Link>TestFixtures\OpenVINO\GenAI\TinySyntheticV1\package\%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
   </ItemGroup>
   <!-- BEGIN EXPLICIT MODEL INSPECTION NAVIGATION TESTS -->
 
@@ -477,7 +482,7 @@
     <ItemGroup>
       <ProjectReferenceWithConfiguration
         Update="..\..\..\IBM Granite with TurboQuant (Intel)\IBM Granite with TurboQuant (Intel).csproj">
-        <SetConfiguration>%(ProjectReferenceWithConfiguration.SetConfiguration);HardwareInspectionLlamaCppProbeSkipPackaging=true</SetConfiguration>
+        <SetConfiguration>%(ProjectReferenceWithConfiguration.SetConfiguration);HardwareInspectionLlamaCppProbeSkipPackaging=true;OpenVinoOfficialWorkerPackagingRequired=false;GenerateAppxPackageOnBuild=false</SetConfiguration>
       </ProjectReferenceWithConfiguration>
     </ItemGroup>
   </Target>

@@ -114,8 +114,8 @@ public sealed class ModelInspectionAccessibilityTests
 
         await using WinUiRenderHost host = await WinUiRenderHost.ShowAsync(
             page,
-            width: 1440,
-            height: 1024);
+            width: 1000,
+            height: 700);
         await host.CaptureAsync();
         page.UpdateLayout();
 
@@ -193,8 +193,8 @@ public sealed class ModelInspectionAccessibilityTests
 
         await using WinUiRenderHost host = await WinUiRenderHost.ShowAsync(
             page,
-            width: 1440,
-            height: 1024);
+            width: 1000,
+            height: 700);
         await host.CaptureAsync();
         page.UpdateLayout();
 
@@ -254,7 +254,7 @@ public sealed class ModelInspectionAccessibilityTests
         await using WinUiRenderHost host = await WinUiRenderHost.ShowAsync(
             page,
             width: 888,
-            height: 900);
+            height: 700);
         await host.CaptureAsync();
         Task run = page.StartInspectionIfReadyAsync()!;
 
@@ -428,8 +428,8 @@ public sealed class ModelInspectionAccessibilityTests
             dispatcher.RunAll();
             await using WinUiRenderHost host = await WinUiRenderHost.ShowAsync(
                 page,
-                width: 1440,
-                height: 1024);
+                width: 1000,
+                height: 700);
             await host.CaptureAsync();
             InspectionOutcomeCard outcome = Element<InspectionOutcomeCard>(
                 page,
@@ -585,7 +585,7 @@ public sealed class ModelInspectionAccessibilityTests
         await using WinUiRenderHost host = await WinUiRenderHost.ShowAsync(
             page,
             width: 360,
-            height: 1024);
+            height: 700);
         await host.CaptureAsync();
         page.UpdateLayout();
 
@@ -706,7 +706,7 @@ public sealed class ModelInspectionAccessibilityTests
             await using WinUiRenderHost host = await WinUiRenderHost.ShowAsync(
                 page,
                 width: 888,
-                height: 900);
+                height: 700);
             await host.CaptureAsync();
             page.UpdateLayout();
             double[] geometry =

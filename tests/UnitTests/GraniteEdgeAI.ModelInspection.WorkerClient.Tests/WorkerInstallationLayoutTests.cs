@@ -84,7 +84,8 @@ public sealed class WorkerInstallationLayoutTests
                     [
                         typeof(VerifiedWorkerExecutable),
                         typeof(IReadOnlyDictionary<string, string>),
-                        typeof(IReadOnlyList<string>)
+                        typeof(IReadOnlyList<string>),
+                        typeof(TimeSpan)
                     ])),
             "The launch request must expose the derived-CWD constructor.");
     }
@@ -120,7 +121,8 @@ public sealed class WorkerInstallationLayoutTests
                         executable,
                         new Dictionary<string, string>(
                             StringComparer.OrdinalIgnoreCase),
-                        []));
+                        [],
+                        TimeSpan.FromSeconds(5)));
 
             Assert.AreEqual(
                 WorkerClientFailureCodes.WorkerContainmentFailed,
@@ -143,7 +145,8 @@ public sealed class WorkerInstallationLayoutTests
         VerifiedWorkerExecutable executable) => new(
             executable,
             new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase),
-            []);
+            [],
+            TimeSpan.FromSeconds(5));
 
     private sealed class TemporaryLaunchRoot : IDisposable
     {

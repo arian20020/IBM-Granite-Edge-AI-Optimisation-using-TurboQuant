@@ -15,7 +15,7 @@ permissions:
 # A newer push makes an older branch build obsolete. Cancelling the stale run
 # prevents two process-test campaigns from sharing one hosted runner at once.
 concurrency:
-  group: build-and-test-${{ github.workflow }}-${{ github.ref }}
+  group: build-and-test-${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 defaults:
@@ -26,6 +26,11 @@ defaults:
     working-directory: D:\s
 
 env:
+  # actions/checkout inherits these process-scoped settings before it writes
+  # the full cleanup-inventory tree on Windows.
+  GIT_CONFIG_COUNT: 1
+  GIT_CONFIG_KEY_0: core.longpaths
+  GIT_CONFIG_VALUE_0: true
   APP_PROJECT: 'IBM Granite with TurboQuant (Intel)/IBM Granite with TurboQuant (Intel).csproj'
   TEST_PROJECT: 'tests/UnitTests/GraniteEdgeAI.UnitTests/GraniteEdgeAI.UnitTests.csproj'
   CONTRACT_TEST_PROJECT: 'tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/GraniteEdgeAI.ModelInspection.Contracts.Tests.csproj'
@@ -40,6 +45,7 @@ env:
   GATE2_RESULTS_DIRECTORY: 'TestResults/Gate2'
   GRANITE_GATE2_WORKER_ROOT: 'D:/s/artifacts/gate2/worker'
   GRANITE_GATE2_FIXTURE_ROOT: 'D:/s/artifacts/gate2/fixture'
+  GRANITE_WINDOWS_POWERSHELL_MODULES: 'C:/Windows/System32/WindowsPowerShell/v1.0/Modules'
 
 jobs:
   build-and-test:
@@ -437,7 +443,7 @@ jobs:
 
       - name: Restore WinUI application
         run: |
-          msbuild "$env:APP_PROJECT" `
+          dotnet msbuild "$env:APP_PROJECT" `
             /target:Restore `
             /property:Configuration=Release `
             /property:Platform=x64 `
@@ -449,7 +455,8 @@ jobs:
 
       - name: Build WinUI application
         run: |
-          msbuild "$env:APP_PROJECT" `
+          $env:PSModulePath = $env:GRANITE_WINDOWS_POWERSHELL_MODULES
+          dotnet msbuild "$env:APP_PROJECT" `
             /target:Build `
             /maxCpuCount `
             /verbosity:minimal `
@@ -460,23 +467,28 @@ jobs:
             /property:PublishTrimmed=false `
             /property:PublishReadyToRun=false `
             /property:AppxPackageSigningEnabled=false `
-            /property:GenerateAppxPackageOnBuild=false
+            /property:GenerateAppxPackageOnBuild=false `
+            /property:OpenVinoOfficialWorkerPackagingRequired=false
 
       - name: Build unit-test project
         run: |
+          $env:PSModulePath = $env:GRANITE_WINDOWS_POWERSHELL_MODULES
           dotnet build "$env:TEST_PROJECT" `
             --configuration Release `
             --no-restore `
             --runtime win-x64 `
-            -p:Platform=x64
+            -p:Platform=x64 `
+            /property:GenerateAppxPackageOnBuild=false `
+            /property:OpenVinoOfficialWorkerPackagingRequired=false
 
       - name: Run serialized Debug x64 Model Inspection fixture gallery
         run: |
+          $env:PSModulePath = $env:GRANITE_WINDOWS_POWERSHELL_MODULES
           $fixtureGalleryConfiguration = 'Debug'
           $fixtureGalleryPlatform = 'x64'
-          msbuild "$env:APP_PROJECT" /target:Restore,Build /property:Configuration=$fixtureGalleryConfiguration /property:Platform=$fixtureGalleryPlatform
+          dotnet msbuild "$env:APP_PROJECT" /target:Restore,Build /property:Configuration=$fixtureGalleryConfiguration /property:Platform=$fixtureGalleryPlatform /property:GenerateAppxPackageOnBuild=false /property:OpenVinoOfficialWorkerPackagingRequired=false
           if ($LASTEXITCODE -ne 0) { throw 'Debug fixture-gallery app build failed.' }
-          dotnet build "$env:TEST_PROJECT" --configuration $fixtureGalleryConfiguration --runtime win-x64 -p:Platform=$fixtureGalleryPlatform
+          dotnet build "$env:TEST_PROJECT" --configuration $fixtureGalleryConfiguration --runtime win-x64 -p:Platform=$fixtureGalleryPlatform /property:GenerateAppxPackageOnBuild=false /property:OpenVinoOfficialWorkerPackagingRequired=false
           if ($LASTEXITCODE -ne 0) { throw 'Debug fixture-gallery test build failed.' }
           $fixtureGalleryRecipe = 'D:/s/tests/UnitTests/GraniteEdgeAI.UnitTests/bin/x64/Debug/net8.0-windows10.0.19041.0/win-x64/GraniteEdgeAI.UnitTests.build.appxrecipe'
           $fixtureGalleryTrxPath = 'D:/s/TestResults/ModelInspectionFixtures/ModelInspectionFixtureGallery.trx'
@@ -535,7 +547,7 @@ jobs:
             /Platform:x64 `
             /Logger:"trx;LogFileName=GraniteEdgeAI.UnitTests.trx" `
             /ResultsDirectory:"D:\s\$env:TEST_RESULTS_DIRECTORY" `
-            /TestCaseFilter:"TestCategory!=ModelInspectionVisualRegression&TestCategory!=ModelInspectionControlledOs"
+            /TestCaseFilter:"TestCategory!=ModelInspectionVisualRegression&TestCategory!=ModelInspectionControlledOs&TestCategory!=OfficialNative"
           if ($LASTEXITCODE -ne 0) {
             throw "The packaged unit-test run failed with exit code $LASTEXITCODE."
           }
@@ -547,7 +559,7 @@ jobs:
           [xml]$trx = Get-Content -LiteralPath $trxPath -Raw
           $counters = $trx.TestRun.ResultSummary.Counters
           $minimumExpectedTests = 686
-          $measuredExpectedTests = 717
+          $measuredExpectedTests = 799
           if ([int]$counters.total -lt $minimumExpectedTests -or [int]$counters.executed -lt $minimumExpectedTests) {
             throw "The packaged unit-test run fell below the $minimumExpectedTests-test floor."
           }
@@ -589,7 +601,7 @@ jobs:
             'GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation.ModelInspectionPresentationFactoryTests' = 18
             'GraniteEdgeAI.UnitTests.InspectionVisualStateGuardTests' = 13
             'GraniteEdgeAI.UnitTests.ModelInspectionPageNavigationTests' = 39
-            'GraniteEdgeAI.UnitTests.OnboardingModelInspectionNavigationTests' = 14
+            'GraniteEdgeAI.UnitTests.OnboardingModelInspectionNavigationTests' = 20
             'GraniteEdgeAI.UnitTests.ModelInspectionWorkerCompositionTests' = 13
             'GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation.ModelInspectionAssetContractTests' = 3
             'GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation.ModelInspectionDisplayTextPolicyTests' = 46
@@ -617,13 +629,14 @@ jobs:
 
       # This check always runs. It records a failure before cleaning the runner,
       # so process leakage cannot be hidden by successful test assertions.
-      - name: Verify Model Inspection fixture Release isolation
+      - name: Verify Model Inspection fixture Release isolation evaluation contract
         working-directory: ${{ github.workspace }}
         run: |
-          $evidencePath = Join-Path $env:GITHUB_WORKSPACE 'TestResults\ModelInspectionFixtures\ReleaseIsolation\release-isolation-evidence.json'
-          & '.\scripts\model-inspection\Test-ModelInspectionFixtureReleaseIsolation.ps1' -EvidencePath $evidencePath
-          $isolationEvidence = Get-Content -LiteralPath $evidencePath -Raw | ConvertFrom-Json
-          if ($isolationEvidence.status -ne 'passed') { throw 'Release isolation did not pass.' }
+          $isolationEvaluation = & '.\scripts\model-inspection\Test-ModelInspectionFixtureReleaseIsolation.ps1' -EvaluateContract |
+            Out-String | ConvertFrom-Json
+          if ($isolationEvaluation.status -ne 'evaluation-contract-passed') {
+            throw 'Release isolation evaluation contract did not pass.'
+          }
 
       - name: Check for orphaned Gate 2 processes
         if: ${{ always() }}
