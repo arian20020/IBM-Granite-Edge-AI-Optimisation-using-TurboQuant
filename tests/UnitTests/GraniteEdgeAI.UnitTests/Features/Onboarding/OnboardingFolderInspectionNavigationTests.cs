@@ -2,6 +2,7 @@ using GraniteEdgeAI.Features.ModelImport;
 using GraniteEdgeAI.Features.ModelImport.FileImport;
 using GraniteEdgeAI.Features.ModelImport.QuickScan;
 using GraniteEdgeAI.Features.ModelImport.Selection;
+using GraniteEdgeAI.Features.ModelInspection;
 using GraniteEdgeAI.Features.Onboarding;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -18,7 +19,7 @@ public sealed class OnboardingFolderInspectionNavigationTests
 {
     [UITestMethod]
     [TestCategory("WinUI")]
-    public async Task OpenVinoFolderContinue_FailsClosedWhenNoO1InspectionPortExists()
+    public async Task OpenVinoFolderContinue_NavigatesToIntegratedInspectionRoute()
     {
         var shell = new OnboardingShellPage();
         var page = CreateFolderPage(ModelSelectionRoute.OpenVinoDirectory);
@@ -29,14 +30,12 @@ public sealed class OnboardingFolderInspectionNavigationTests
             "private-openvino-package",
             isFolder: true));
 
-        Assert.IsFalse(page.TryRequestModelInspection());
+        Assert.IsTrue(page.TryRequestModelInspection());
 
         var frame = (Frame)shell.FindName("StageFrame");
-        Assert.AreEqual(OnboardingStage.ImportModel, shell.CurrentStage);
-        Assert.IsInstanceOfType<ModelImportPage>(frame.Content);
-        Assert.IsFalse(page.HasValidatedModel);
-
-        Assert.IsFalse(page.TryRequestModelInspection());
+        Assert.AreEqual(OnboardingStage.InspectModel, shell.CurrentStage);
+        Assert.IsInstanceOfType<ModelInspectionPage>(frame.Content);
+        Assert.IsTrue(page.HasValidatedModel);
     }
 
     [UITestMethod]
