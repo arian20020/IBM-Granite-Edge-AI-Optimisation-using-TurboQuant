@@ -128,7 +128,17 @@ public static class CompatibilityEngine
                     ProductionDependencies(input, timeProvider),
                     cancellationToken)
                 : EvaluateOpenVinoBaseline(input, timeProvider, cancellationToken);
-            return ProjectProduction(result, input, evaluatedAtUtc);
+            CompatibilityEvaluation evaluation =
+                ProjectProduction(result, input, evaluatedAtUtc);
+            return evaluation.Screen.State is
+                CompatibilityScreenState.EstimatedCompatible or
+                CompatibilityScreenState.OptimisationRequired or
+                CompatibilityScreenState.NoEstimatedSafeConfiguration
+                    ? evaluation with
+                    {
+                        MachineMemory = MachineMemory(input)
+                    }
+                    : evaluation;
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
@@ -141,6 +151,21 @@ public static class CompatibilityEngine
         DateTimeOffset evaluatedAtUtc) =>
         resources.ObservedAtUtc >= evaluatedAtUtc - FreshResourceMaximumAge
         && resources.ObservedAtUtc <= evaluatedAtUtc + FreshResourceFutureClockSkew;
+
+    private static CompatibilityMachineMemory MachineMemory(
+        CompatibilityProductionInput input)
+    {
+        SafetyPolicy safety = SafetyPolicy.ProportionalV2();
+        ByteCount available = ByteCount.FromBytes(
+            input.FreshResources.AvailableSystemMemoryBytes);
+        ByteCount reserve = safety.AvailableMemoryReserveFor(available);
+        _ = available.TrySubtract(reserve, out ByteCount safeBudget);
+        return CompatibilityMachineMemory.Create(
+            input.Hardware.InstalledSystemMemoryBytes,
+            available.Bytes,
+            reserve.Bytes,
+            safeBudget.Bytes);
+    }
 
     /// <summary>
     /// Runs a check with the adapters that exist today.

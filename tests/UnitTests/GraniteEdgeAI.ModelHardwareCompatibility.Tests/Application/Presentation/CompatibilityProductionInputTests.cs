@@ -58,6 +58,28 @@ public sealed class CompatibilityProductionInputTests
     }
 
     [TestMethod]
+    public void ProductionEvaluation_CarriesExactMachineMemorySummary()
+    {
+        CompatibilityEvaluation evaluation =
+            CompatibilityEngine.EvaluateProduction(ValidInput());
+
+        Assert.IsNotNull(evaluation.MachineMemory);
+        Assert.AreEqual(
+            64 * GiB,
+            evaluation.MachineMemory.InstalledSystemMemoryBytes);
+        Assert.AreEqual(
+            48 * GiB,
+            evaluation.MachineMemory.AvailableSystemMemoryBytes);
+        ulong expectedReserve = (ulong)Math.Ceiling(48 * GiB * 0.10m);
+        Assert.AreEqual(
+            expectedReserve,
+            evaluation.MachineMemory.SafetyReserveBytes);
+        Assert.AreEqual(
+            48 * GiB - expectedReserve,
+            evaluation.MachineMemory.SafeModelBudgetBytes);
+    }
+
+    [TestMethod]
     public void ProductionEngine_UsesTheAuthoritativeGeneratedFrontier()
     {
         Guid modelRun = Guid.NewGuid();

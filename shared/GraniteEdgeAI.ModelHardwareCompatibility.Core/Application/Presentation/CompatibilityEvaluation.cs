@@ -5,6 +5,53 @@ using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Pla
 namespace GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation;
 
 /// <summary>
+/// The exact system-memory observation and policy result used by one
+/// established compatibility evaluation.
+/// </summary>
+public sealed record CompatibilityMachineMemory
+{
+    private CompatibilityMachineMemory(
+        ulong installedSystemMemoryBytes,
+        ulong availableSystemMemoryBytes,
+        ulong safetyReserveBytes,
+        ulong safeModelBudgetBytes)
+    {
+        InstalledSystemMemoryBytes = installedSystemMemoryBytes;
+        AvailableSystemMemoryBytes = availableSystemMemoryBytes;
+        SafetyReserveBytes = safetyReserveBytes;
+        SafeModelBudgetBytes = safeModelBudgetBytes;
+    }
+
+    public ulong InstalledSystemMemoryBytes { get; }
+    public ulong AvailableSystemMemoryBytes { get; }
+    public ulong SafetyReserveBytes { get; }
+    public ulong SafeModelBudgetBytes { get; }
+
+    public static CompatibilityMachineMemory Create(
+        ulong installedSystemMemoryBytes,
+        ulong availableSystemMemoryBytes,
+        ulong safetyReserveBytes,
+        ulong safeModelBudgetBytes)
+    {
+        if (installedSystemMemoryBytes == 0
+            || availableSystemMemoryBytes > installedSystemMemoryBytes
+            || safetyReserveBytes > availableSystemMemoryBytes
+            || safeModelBudgetBytes
+                != availableSystemMemoryBytes - safetyReserveBytes)
+        {
+            throw new ArgumentException(
+                "Machine-memory values must describe one coherent evaluation.");
+        }
+
+        return new CompatibilityMachineMemory(
+            installedSystemMemoryBytes,
+            availableSystemMemoryBytes,
+            safetyReserveBytes,
+            safeModelBudgetBytes);
+    }
+}
+
+/// <summary>
 /// One compatibility decision together with any authority that can safely
 /// support the next action. Non-actionable decisions carry neither authority.
 /// </summary>
@@ -13,6 +60,8 @@ public sealed record CompatibilityEvaluation(
     CompatibilityPlanningSession? PlanningSession,
     CurrentCompatibleConfiguration? CurrentConfiguration)
 {
+    public CompatibilityMachineMemory? MachineMemory { get; init; }
+
     /// <summary>
     /// Exact, path-free capability evidence that may be enabled by explicit
     /// user consent. Provider text is deliberately absent.
