@@ -17,6 +17,11 @@
             <StackPanel Spacing="4">
                 <TextBlock Style="{StaticResource OptimizationCardTitleStyle}" Text="Optimisation progress" />
                 <TextBlock Style="{StaticResource OptimizationBodyStyle}" Text="Seven checks take the configuration from preflight to a safe published result." />
+                <TextBlock
+                    Margin="0,4,0,0"
+                    Style="{StaticResource OptimizationBodyStyle}"
+                    Text="Optimisation can take several minutes. Keep the app open while the active step completes."
+                    TextWrapping="WrapWholeWords" />
             </StackPanel>
             <StackPanel x:Name="ProgressRowsHost" Spacing="8" />
             <Button

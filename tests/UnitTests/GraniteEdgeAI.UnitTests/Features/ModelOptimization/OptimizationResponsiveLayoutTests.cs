@@ -18,13 +18,19 @@ public sealed class OptimizationResponsiveLayoutTests
     {
         OptimizationPage page = new();
         FrameworkElement root = (FrameworkElement)page.FindName("LayoutRoot");
+        ScrollViewer scrollViewer =
+            (ScrollViewer)page.FindName("OptimizationPageScrollViewer");
+        FrameworkElement contentHost =
+            (FrameworkElement)page.FindName("OptimizationContentHost");
         var stateNames = VisualStateManager.GetVisualStateGroups(root)
             .SelectMany(group => group.States)
             .Select(state => state.Name)
             .ToArray();
 
         CollectionAssert.IsSubsetOf(new[] { "CompactPageState", "StandardPageState", "WidePageState" }, stateNames);
-        Assert.AreEqual(ScrollMode.Enabled, ((ScrollViewer)page.FindName("OptimizationPageScrollViewer")).VerticalScrollMode);
+        Assert.AreEqual(ScrollMode.Enabled, scrollViewer.VerticalScrollMode);
+        Assert.AreEqual(HorizontalAlignment.Center, contentHost.HorizontalAlignment);
+        Assert.AreEqual(HorizontalAlignment.Center, scrollViewer.HorizontalContentAlignment);
     }
 
     [UITestMethod]

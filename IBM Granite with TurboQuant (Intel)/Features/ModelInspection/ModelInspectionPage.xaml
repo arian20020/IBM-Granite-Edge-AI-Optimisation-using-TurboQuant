@@ -248,6 +248,7 @@
                                     Header="Prompt"
                                     IsTextScaleFactorEnabled="True"
                                     PlaceholderText="Ask something about this model"
+                                    PreviewKeyDown="PromptInput_PreviewKeyDown"
                                     TextWrapping="Wrap"
                                     UseSystemFocusVisuals="True" />
                                 <StackPanel

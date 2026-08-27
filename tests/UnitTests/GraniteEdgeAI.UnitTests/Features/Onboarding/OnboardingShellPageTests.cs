@@ -1,6 +1,7 @@
 using GraniteEdgeAI.Features.ModelImport;
 using GraniteEdgeAI.Features.Onboarding;
 using GraniteEdgeAI.Features.Onboarding.Controls;
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
@@ -39,6 +40,24 @@ public sealed class OnboardingShellPageTests
         Assert.IsNotNull(stageFrame);
         Assert.AreEqual(shell.CurrentStage, stageIndicator.CurrentStage);
         Assert.AreNotSame(stageIndicator, stageFrame.Content);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void CurrentStage_HidesIndicatorForChatAndRestoresItForOnboarding()
+    {
+        var shell = new OnboardingShellPage();
+        var stageIndicator = Assert.IsInstanceOfType<OnboardingStageIndicator>(
+            shell.FindName("StageIndicator"));
+        PropertyInfo? currentStage = typeof(OnboardingShellPage).GetProperty(
+            nameof(OnboardingShellPage.CurrentStage));
+        Assert.IsNotNull(currentStage);
+
+        currentStage.SetValue(shell, OnboardingStage.ReadyToChat);
+        Assert.AreEqual(Visibility.Collapsed, stageIndicator.Visibility);
+
+        currentStage.SetValue(shell, OnboardingStage.ConfigureModel);
+        Assert.AreEqual(Visibility.Visible, stageIndicator.Visibility);
     }
 
     [UITestMethod]

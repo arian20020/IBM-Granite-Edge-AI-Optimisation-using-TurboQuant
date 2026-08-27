@@ -10,11 +10,14 @@ using GraniteEdgeAI.Features.OpenVinoRoute.Inspection;
 using GraniteEdgeAI.Features.OpenVinoRoute.Optimization;
 using GraniteEdgeAI.Features.Prompting;
 using GraniteEdgeAI.OpenVino.Contracts;
+using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Windows.System;
+using Windows.UI.Core;
 
 namespace GraniteEdgeAI.Features.ModelInspection;
 
@@ -883,14 +886,46 @@ public sealed partial class ModelInspectionPage
         }
     }
 
+    private static bool IsPromptSendKey(VirtualKey key, bool isShiftPressed) =>
+        key == VirtualKey.Enter && !isShiftPressed;
+
+    private async void PromptInput_PreviewKeyDown(
+        object sender,
+        KeyRoutedEventArgs eventArguments)
+    {
+        bool isShiftPressed = InputKeyboardSource
+            .GetKeyStateForCurrentThread(VirtualKey.Shift)
+            .HasFlag(CoreVirtualKeyStates.Down);
+        if (!IsPromptSendKey(eventArguments.Key, isShiftPressed))
+        {
+            return;
+        }
+
+        eventArguments.Handled = true;
+        Task? promptTask = StartOpenVinoPrompt();
+        if (promptTask is not null)
+        {
+            await promptTask;
+        }
+    }
+
     private async void PromptSendButton_Click(object sender, RoutedEventArgs e)
+    {
+        Task? promptTask = StartOpenVinoPrompt();
+        if (promptTask is not null)
+        {
+            await promptTask;
+        }
+    }
+
+    private Task? StartOpenVinoPrompt()
     {
         IPromptRouteSession? session = _promptSession;
         string prompt = PromptInput.Text;
         if (session is null || string.IsNullOrWhiteSpace(prompt))
         {
             PromptInput.Focus(FocusState.Programmatic);
-            return;
+            return null;
         }
 
         LastOpenVinoTurnResult = null;
@@ -898,7 +933,7 @@ public sealed partial class ModelInspectionPage
             session,
             prompt,
             _openVinoCancellation?.Token ?? CancellationToken.None);
-        await CurrentOpenVinoPromptTask;
+        return CurrentOpenVinoPromptTask;
     }
 
     private async Task GenerateOpenVinoPromptAsync(

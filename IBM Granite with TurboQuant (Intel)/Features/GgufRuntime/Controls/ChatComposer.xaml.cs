@@ -250,20 +250,30 @@ public sealed partial class ChatComposer : UserControl
     internal static bool IsSendKey(VirtualKey key, bool isShiftPressed) =>
         key == VirtualKey.Enter && !isShiftPressed;
 
-    private void PromptTextBox_KeyDown(
+    private bool TryHandlePromptKeyDown(VirtualKey key, bool isShiftPressed)
+    {
+        if (!IsSendKey(key, isShiftPressed))
+        {
+            return false;
+        }
+
+        TrySubmitPrompt();
+        return true;
+    }
+
+    private void PromptTextBox_PreviewKeyDown(
         object sender,
         KeyRoutedEventArgs eventArguments)
     {
         bool isShiftPressed = InputKeyboardSource
             .GetKeyStateForCurrentThread(VirtualKey.Shift)
             .HasFlag(CoreVirtualKeyStates.Down);
-        if (!IsSendKey(eventArguments.Key, isShiftPressed))
+        if (!TryHandlePromptKeyDown(eventArguments.Key, isShiftPressed))
         {
             return;
         }
 
         eventArguments.Handled = true;
-        TrySubmitPrompt();
     }
 
     private void UpdatePromptVerticalAlignment()

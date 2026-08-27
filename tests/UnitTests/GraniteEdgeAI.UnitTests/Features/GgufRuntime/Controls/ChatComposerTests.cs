@@ -156,6 +156,31 @@ public sealed class ChatComposerTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
+    public void PreviewEnterSubmitsWhileShiftEnterPreservesMultilineInput()
+    {
+        var composer = new ChatComposer();
+        var prompts = new List<string>();
+        composer.SendRequested += (_, prompt) => prompts.Add(prompt);
+
+        composer.PromptText = "send this";
+        Assert.IsTrue(InvokeTryHandlePromptKeyDown(
+            composer,
+            Windows.System.VirtualKey.Enter,
+            isShiftPressed: false));
+        CollectionAssert.AreEqual(new[] { "send this" }, prompts);
+        Assert.AreEqual(string.Empty, composer.PromptText);
+
+        composer.PromptText = "keep editing";
+        Assert.IsFalse(InvokeTryHandlePromptKeyDown(
+            composer,
+            Windows.System.VirtualKey.Enter,
+            isShiftPressed: true));
+        Assert.AreEqual("keep editing", composer.PromptText);
+        Assert.AreEqual(1, prompts.Count);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
     public void SharedSubmissionPathTrimsAndGuardsKeyboardAndPointerInput()
     {
         var composer = new ChatComposer();
@@ -549,6 +574,20 @@ public sealed class ChatComposerTests
             BindingFlags.Instance | BindingFlags.NonPublic);
         Assert.IsNotNull(method);
         return Assert.IsInstanceOfType<bool>(method.Invoke(composer, null));
+    }
+
+    private static bool InvokeTryHandlePromptKeyDown(
+        ChatComposer composer,
+        Windows.System.VirtualKey key,
+        bool isShiftPressed)
+    {
+        MethodInfo? method = typeof(ChatComposer).GetMethod(
+            "TryHandlePromptKeyDown",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsNotNull(method);
+        return Assert.IsInstanceOfType<bool>(method.Invoke(
+            composer,
+            new object[] { key, isShiftPressed }));
     }
 
     private static ItemsControl GetAttachmentItems(ChatComposer composer) =>

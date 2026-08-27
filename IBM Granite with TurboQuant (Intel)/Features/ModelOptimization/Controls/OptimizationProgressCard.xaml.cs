@@ -55,14 +55,8 @@ public sealed partial class OptimizationProgressCard : UserControl
         row.ColumnDefinitions.Add(new() { Width = new GridLength(1, GridUnitType.Star) });
         row.ColumnDefinitions.Add(new() { Width = GridLength.Auto });
 
-        TextBlock glyph = new()
-        {
-            Text = Glyph(progress.Status),
-            FontSize = 18,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center
-        };
-        Grid.SetColumn(glyph, 0);
+        FrameworkElement indicator = CreateIndicator(progress);
+        Grid.SetColumn(indicator, 0);
 
         StackPanel copy = new()
         {
@@ -89,11 +83,38 @@ public sealed partial class OptimizationProgressCard : UserControl
         };
         Grid.SetColumn(status, 2);
 
-        row.Children.Add(glyph);
+        row.Children.Add(indicator);
         row.Children.Add(copy);
         row.Children.Add(status);
         AutomationProperties.SetName(row, $"{progress.Title}: {Status(progress.Status)}. {progress.Description}");
         return row;
+    }
+
+    private FrameworkElement CreateIndicator(OptimizationProgressRow progress)
+    {
+        if (progress.Status == OptimizationStageStatus.Active)
+        {
+            ProgressRing ring = new()
+            {
+                Width = 20,
+                Height = 20,
+                IsActive = true,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            AutomationProperties.SetName(
+                ring,
+                $"{progress.Title}, in progress");
+            return ring;
+        }
+
+        return new TextBlock
+        {
+            Text = Glyph(progress.Status),
+            FontSize = 18,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
     }
 
     private static string Glyph(OptimizationStageStatus status) => status switch

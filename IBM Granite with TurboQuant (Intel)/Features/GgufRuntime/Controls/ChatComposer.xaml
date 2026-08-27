@@ -171,7 +171,7 @@
                         AutomationProperties.Name="Message"
                         GettingFocus="PromptTextBox_GettingFocus"
                         LosingFocus="PromptTextBox_LosingFocus"
-                        KeyDown="PromptTextBox_KeyDown"
+                        PreviewKeyDown="PromptTextBox_PreviewKeyDown"
                         TextChanged="PromptTextBox_TextChanged"
                         SizeChanged="PromptTextBox_SizeChanged">
                         <TextBox.Resources>

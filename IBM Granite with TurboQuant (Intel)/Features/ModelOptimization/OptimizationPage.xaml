@@ -47,7 +47,7 @@
 
         <ScrollViewer
             x:Name="OptimizationPageScrollViewer"
-            HorizontalContentAlignment="Stretch"
+            HorizontalContentAlignment="Center"
             HorizontalScrollBarVisibility="Disabled"
             HorizontalScrollMode="Disabled"
             VerticalScrollBarVisibility="Auto"
@@ -57,7 +57,7 @@
                 x:Name="OptimizationContentHost"
                 MaxWidth="{StaticResource OptimizationContentWidth}"
                 Margin="{StaticResource OptimizationCompactPageMargin}"
-                HorizontalAlignment="Stretch">
+                HorizontalAlignment="Center">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />

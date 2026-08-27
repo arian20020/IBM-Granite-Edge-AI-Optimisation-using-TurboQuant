@@ -4,6 +4,8 @@ using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
+using System.Reflection;
+using Windows.System;
 
 namespace GraniteEdgeAI.UnitTests.Features.ModelInspection;
 
@@ -70,4 +72,26 @@ public sealed class OpenVinoPromptSurfaceTests
         Assert.IsTrue(prompt.IsTextScaleFactorEnabled);
         Assert.IsTrue(double.IsNaN(prompt.Height));
     }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void PromptKeyboardGestureSendsOnEnterAndKeepsShiftEnterForNewlines()
+    {
+        MethodInfo? method = typeof(ModelInspectionPage).GetMethod(
+            "IsPromptSendKey",
+            BindingFlags.Static | BindingFlags.NonPublic);
+        Assert.IsNotNull(method);
+
+        Assert.IsTrue(InvokePromptSendKey(method, VirtualKey.Enter, false));
+        Assert.IsFalse(InvokePromptSendKey(method, VirtualKey.Enter, true));
+        Assert.IsFalse(InvokePromptSendKey(method, VirtualKey.Space, false));
+    }
+
+    private static bool InvokePromptSendKey(
+        MethodInfo method,
+        VirtualKey key,
+        bool isShiftPressed) =>
+        Assert.IsInstanceOfType<bool>(method.Invoke(
+            null,
+            new object[] { key, isShiftPressed }));
 }

@@ -34,6 +34,7 @@ using System.Threading.Tasks;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
 using Windows.Storage.Pickers;
+using Microsoft.UI.Xaml;
 
 namespace GraniteEdgeAI.Features.Onboarding
 {
@@ -69,6 +70,7 @@ namespace GraniteEdgeAI.Features.Onboarding
         private Guid _activeProductHardwareRunId;
         private ModelInspectionHandoff? _pendingHardwareRetryHandoff;
         private bool _isHardwareNavigationTransaction;
+        private OnboardingStage _currentStage;
 
         internal Task CurrentNavigationTask { get; private set; } =
             Task.CompletedTask;
@@ -228,7 +230,20 @@ namespace GraniteEdgeAI.Features.Onboarding
         /// <summary>
         /// Gets the onboarding stage currently displayed by the shell.
         /// </summary>
-        public OnboardingStage CurrentStage { get; private set; }
+        public OnboardingStage CurrentStage
+        {
+            get => _currentStage;
+            private set
+            {
+                _currentStage = value;
+                if (StageIndicator is not null)
+                {
+                    StageIndicator.Visibility = value == OnboardingStage.ReadyToChat
+                        ? Visibility.Collapsed
+                        : Visibility.Visible;
+                }
+            }
+        }
 
         internal bool IsHardwareRouteRegistered =>
             _hardwareInspectionService is not null;
