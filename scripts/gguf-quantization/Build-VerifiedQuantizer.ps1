@@ -42,6 +42,12 @@ $dumpbin = Get-ChildItem -LiteralPath (Join-Path $vsRoot 'VC\Tools\MSVC') -Filte
 if (-not $dumpbin) {
     throw 'Visual Studio dumpbin.exe was not found.'
 }
+$masm = Get-ChildItem -LiteralPath (Join-Path $vsRoot 'VC\Tools\MSVC') -Filter ml64.exe -File -Recurse |
+    Where-Object { $_.FullName -match '\\Hostx64\\x64\\ml64\.exe$' } |
+    Sort-Object FullName -Descending | Select-Object -First 1 -ExpandProperty FullName
+if (-not $masm) {
+    throw 'Visual Studio x64 MASM was not found.'
+}
 
 $operationRoot = Join-Path ([IO.Path]::GetTempPath()) ('geai-llama-quantize-' + [Guid]::NewGuid().ToString('N'))
 $sourceRoot = Join-Path $operationRoot 'source'
@@ -60,6 +66,7 @@ try {
         '-S', $sourceRoot,
         '-B', $buildRoot,
         '-A', 'x64',
+        "-DCMAKE_ASM_COMPILER=$masm",
         '-DGGML_NATIVE=OFF',
         '-DGGML_OPENMP=OFF',
         '-DLLAMA_CURL=OFF',
