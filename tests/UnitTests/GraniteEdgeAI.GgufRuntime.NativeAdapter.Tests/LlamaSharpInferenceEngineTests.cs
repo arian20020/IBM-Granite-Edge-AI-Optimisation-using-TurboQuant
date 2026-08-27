@@ -102,4 +102,13 @@ public sealed class LlamaSharpInferenceEngineTests
         LlamaSharpInferenceEngine.BeginGeneration(observer);
         Assert.IsNull(observer.Reason);
     }
+
+    [TestMethod]
+    public void OnlyLengthCompletionRequiresAReplayedSession()
+    {
+        Assert.IsTrue(LlamaSharpInferenceEngine.RequiresSessionReplay(
+            GgufAdapterCompletionReason.Length));
+        Assert.IsFalse(LlamaSharpInferenceEngine.RequiresSessionReplay(
+            GgufAdapterCompletionReason.Stop));
+    }
 }

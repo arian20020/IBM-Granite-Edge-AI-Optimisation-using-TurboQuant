@@ -104,7 +104,9 @@ public sealed class GgufRealModelSmokeTests
                 "Continue from exactly where the preceding response ended. " +
                 "Do not repeat text already given. Complete the answer concisely.",
                 timeout.Token));
-        Assert.IsTrue(continuation.OfType<TextDeltaEvent>().Any());
+        Assert.IsTrue(
+            continuation.OfType<TextDeltaEvent>().Any(),
+            $"Continuation emitted no text delta. Events: {DescribeEvents(continuation)}");
         Assert.IsNotNull(continuation.OfType<ResponseCompletedEvent>().Single());
         await tinySession.CloseAsync(timeout.Token);
         AssertFileDigest(controlled.ModelFile, controlled.ModelSha256);
@@ -156,6 +158,17 @@ public sealed class GgufRealModelSmokeTests
 
         return result;
     }
+
+    private static string DescribeEvents(IReadOnlyList<GgufRuntimeEvent> events) =>
+        string.Join(
+            ", ",
+            events.Select(runtimeEvent => runtimeEvent switch
+            {
+                ResponseCompletedEvent completed =>
+                    $"{nameof(ResponseCompletedEvent)}({completed.Reason})",
+                TextDeltaEvent => nameof(TextDeltaEvent),
+                _ => runtimeEvent.GetType().Name,
+            }));
 
     private static void AssertFileDigest(string path, string expected)
     {

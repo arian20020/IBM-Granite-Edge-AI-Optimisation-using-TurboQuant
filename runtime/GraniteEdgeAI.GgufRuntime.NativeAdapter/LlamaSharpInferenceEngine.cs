@@ -35,18 +35,13 @@ internal sealed class LlamaSharpInferenceEngine(GgufAdapterOptions options)
         _weights = await LLamaWeights.LoadFromFileAsync(parameters, cancellationToken)
             .ConfigureAwait(false);
         _context = _weights.CreateContext(parameters);
-        var executor = new InteractiveExecutor(_context);
         ChatHistory history = CreateHistory(initialHistory);
-        var historyTransform = new PromptTemplateTransformer(
-            _weights,
-            withAssistant: true);
-        PreflightTemplate(historyTransform, history);
         _completionObserver = new GraniteGenerationBoundaryObserver();
-        _session = new ChatSession(executor, history)
-            .WithHistoryTransform(historyTransform)
-            .WithOutputTransform(new GraniteTurnBoundaryTextTransform(
-                VisibleTokenLimit(options),
-                _completionObserver));
+        _session = CreateSession(
+            _weights,
+            _context,
+            history,
+            _completionObserver);
     }
 
     public async IAsyncEnumerable<GgufAdapterGenerationEvent> GenerateAsync(
@@ -71,8 +66,14 @@ internal sealed class LlamaSharpInferenceEngine(GgufAdapterOptions options)
             }
         }
 
-        yield return new GgufAdapterCompleted(
-            observer.Reason ?? GgufAdapterCompletionReason.Stop);
+        GgufAdapterCompletionReason reason =
+            observer.Reason ?? GgufAdapterCompletionReason.Stop;
+        if (RequiresSessionReplay(reason))
+        {
+            ReplaySession(session.History);
+        }
+
+        yield return new GgufAdapterCompleted(reason);
     }
 
     public ValueTask DisposeAsync()
@@ -156,6 +157,66 @@ internal sealed class LlamaSharpInferenceEngine(GgufAdapterOptions options)
     {
         ArgumentNullException.ThrowIfNull(observer);
         observer.Reset();
+    }
+
+    internal static bool RequiresSessionReplay(
+        GgufAdapterCompletionReason reason) =>
+        reason == GgufAdapterCompletionReason.Length;
+
+    private ChatSession CreateSession(
+        LLamaWeights weights,
+        LLamaContext context,
+        ChatHistory history,
+        GraniteGenerationBoundaryObserver observer)
+    {
+        var historyTransform = new PromptTemplateTransformer(
+            weights,
+            withAssistant: true);
+        PreflightTemplate(historyTransform, history);
+        return new ChatSession(new InteractiveExecutor(context), history)
+            .WithHistoryTransform(historyTransform)
+            .WithOutputTransform(new GraniteTurnBoundaryTextTransform(
+                VisibleTokenLimit(options),
+                observer));
+    }
+
+    private void ReplaySession(ChatHistory history)
+    {
+        LLamaWeights weights = _weights
+            ?? throw new InvalidOperationException("The inference engine is not initialized.");
+        GraniteGenerationBoundaryObserver observer = _completionObserver
+            ?? throw new InvalidOperationException("The inference engine is not initialized.");
+        ChatHistory replayHistory = CloneHistory(history);
+        LLamaContext replayContext = weights.CreateContext(CreateModelParameters(options));
+        ChatSession replaySession;
+        try
+        {
+            replaySession = CreateSession(
+                weights,
+                replayContext,
+                replayHistory,
+                observer);
+        }
+        catch
+        {
+            replayContext.Dispose();
+            throw;
+        }
+
+        _context?.Dispose();
+        _context = replayContext;
+        _session = replaySession;
+    }
+
+    private static ChatHistory CloneHistory(ChatHistory source)
+    {
+        var clone = new ChatHistory();
+        foreach (ChatHistory.Message message in source.Messages)
+        {
+            clone.AddMessage(message.AuthorRole, message.Content);
+        }
+
+        return clone;
     }
 
     private static void PreflightTemplate(
