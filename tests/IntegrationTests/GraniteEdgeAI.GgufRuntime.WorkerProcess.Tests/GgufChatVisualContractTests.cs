@@ -944,7 +944,10 @@ public sealed class GgufChatVisualContractTests
             sendButton.Element(presentation + "FontIcon")?.Attribute("Glyph")?.Value);
         Assert.AreEqual("32", prompt.Attribute("MinHeight")?.Value);
         Assert.AreEqual("10,0", prompt.Attribute("Padding")?.Value);
-        Assert.AreEqual("PromptTextBox_KeyDown", prompt.Attribute("KeyDown")?.Value);
+        Assert.AreEqual(
+            "PromptTextBox_PreviewKeyDown",
+            prompt.Attribute("PreviewKeyDown")?.Value);
+        Assert.IsNull(prompt.Attribute("KeyDown"));
         Assert.AreEqual("40", sendButton.Attribute("Height")?.Value);
         Assert.AreEqual("40", stopButton.Attribute("Height")?.Value);
         Assert.AreEqual(
