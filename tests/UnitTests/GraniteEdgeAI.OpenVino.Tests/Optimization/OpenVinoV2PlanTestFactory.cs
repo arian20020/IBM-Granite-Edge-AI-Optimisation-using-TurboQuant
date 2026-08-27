@@ -39,7 +39,7 @@ internal static class OpenVinoV2PlanTestFactory
         OptimizationSelection selection = (OptimizationSelection)
             SelectionConstructor.Invoke([candidate, preference, false]);
 
-        return OptimizationPlanIssuer.Issue(
+        return OptimizationPlanIssuer.IssueLegacyV2(
             selection,
             executionPayload,
             capabilitySnapshot,

@@ -10,6 +10,8 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="GraniteEdgeAI.ModelHardwareCompatibility.Tests" />
+    <InternalsVisibleTo Include="GraniteEdgeAI.OpenVino.Tests" />
+    <InternalsVisibleTo Include="GraniteEdgeAI.OpenVino.WorkerProcess.Tests" />
   </ItemGroup>
 
 </Project>

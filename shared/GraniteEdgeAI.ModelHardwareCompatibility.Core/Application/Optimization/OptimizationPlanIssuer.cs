@@ -30,7 +30,7 @@ public static class OptimizationPlanIssuer
     /// below; this overload exists so already-issued V2 OpenVINO plans remain
     /// executable and verifiable during the cross-route migration.
     /// </summary>
-    public static OptimizationExecutionPlan Issue(
+    internal static OptimizationExecutionPlan IssueLegacyV2(
         OptimizationSelection selection,
         OptimizationExecutionPayload executionPayload,
         OptimizationCapabilitySnapshot capabilitySnapshot,

@@ -1429,7 +1429,7 @@ public sealed class OptimizationEndToEndTests
                         ["transformers"] = versions.Transformers
                     },
                     turboQuantBuild: null));
-        return OptimizationPlanIssuer.Issue(
+        return OptimizationPlanIssuer.IssueLegacyV2(
             selection,
             executionPayload,
             snapshot,

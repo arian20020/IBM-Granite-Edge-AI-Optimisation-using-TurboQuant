@@ -272,7 +272,7 @@ public sealed class PrivacyCanaryTests
         "OpenVinoExecutionAuthority.EvidenceId",
         "OpenVinoExecutionAuthority.OptimizerVersions",
         "<>c__DisplayClass27_1.evidenceId",
-        "<>c__DisplayClass4_0.actual",
+        "<>c__DisplayClass5_0.actual",
         "<>c.<Digest>b__91_0",
         "<>c.<DigestRouteExecutionAuthority>b__90_0",
         "<>c.<DigestWorkload>b__88_2",
