@@ -32,6 +32,25 @@ public sealed class GgufQuantizerPackagingTests
         StringAssert.Contains(project, "GraniteEdgeAI.GgufQuantization.WorkerClient.csproj");
     }
 
+    [TestMethod]
+    public void VerifiedDevelopmentPackageIsIncludedInDebugBuildWhenPresent()
+    {
+        string root = FindRepositoryRoot();
+        string targetPath = Path.Combine(
+            root,
+            "IBM Granite with TurboQuant (Intel)",
+            "GgufQuantization.WorkerPackaging.targets");
+        string text = File.ReadAllText(targetPath);
+
+        StringAssert.Contains(text, "GgufQuantizerDevelopmentStageDirectory");
+        StringAssert.Contains(text, "llama-quantize-3f7c29d-x64");
+        StringAssert.Contains(
+            text,
+            "903c6e4620a45743cd920d577c32881422d8321d417c63fdf6ca69f67685f58b");
+        StringAssert.Contains(text, "'$(Configuration)' == 'Debug'");
+        StringAssert.Contains(text, "Exists('$(GgufQuantizerDevelopmentStageDirectory)");
+    }
+
     private static string FindRepositoryRoot()
     {
         DirectoryInfo? current = new(AppContext.BaseDirectory);

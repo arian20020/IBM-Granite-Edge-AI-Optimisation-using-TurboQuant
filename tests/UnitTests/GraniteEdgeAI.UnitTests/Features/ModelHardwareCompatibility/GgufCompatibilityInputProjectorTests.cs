@@ -125,6 +125,132 @@ public sealed class GgufCompatibilityInputProjectorTests
             out _));
     }
 
+    [TestMethod]
+    public async Task VerifiedDevelopmentQuantizer_EnablesOptionalOptimizationAction()
+    {
+        string packagedManifest = Path.Combine(
+            AppContext.BaseDirectory,
+            "Tools",
+            "GgufQuantizer",
+            "llama-quantize.package.manifest.json");
+        if (!File.Exists(packagedManifest))
+        {
+            Assert.Inconclusive(
+                "This local integration check requires the verified GGUF quantizer package.");
+        }
+
+        ModelInspectionExecutionResult terminal = Terminal();
+        Assert.IsTrue(GgufCompatibilityInputProjector.TryPrepare(
+            ModelHandoff(terminal),
+            terminal,
+            HardwareRunId,
+            HardwareHandoff(),
+            out PreparedGgufCompatibilityInput? prepared), "prepare");
+        Assert.IsTrue(GgufOptimizationProductionAuthority.TryCreate(
+            prepared!,
+            out GgufOptimizationProductionAuthority? authority), "authority create");
+
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        CompatibilityEvaluation evaluation = authority!.Evaluate(
+            CompatibilityFreshResourcesInput.Create(
+                21UL * 1024 * 1024 * 1024,
+                0,
+                500_000_000_000UL,
+                now),
+            new HashSet<string>(),
+            now,
+            CancellationToken.None);
+        Assert.IsTrue(authority.TryGetOptimizationAuthority(
+            evaluation.PlanningSession!.Route,
+            out var composer,
+            out var issuanceAuthority), "issuance authority");
+        Assert.IsNotNull(evaluation.PlanningSession.Issue(
+            GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization
+                .OptimizationPreferenceSelection.Automatic(),
+            composer!,
+            issuanceAuthority!,
+            TimeProvider.System));
+        var viewModel = new GraniteEdgeAI.Features.ModelHardwareCompatibility
+            .ViewModels.CompatibilityViewModel(
+            (_, _) => Task.FromResult(evaluation),
+            actionAuthority: authority);
+
+        await viewModel.StartAsync();
+
+        Assert.IsNotNull(evaluation.OptionalOptimization);
+        Assert.IsTrue(viewModel.CanOptimiseFirst, "can optimise first");
+        Assert.IsTrue(viewModel.OptionalOptimizationCommand.CanExecute(null), "command can execute");
+        viewModel.OptionalOptimizationCommand.Execute(null);
+        Assert.IsNotNull(viewModel.Presentation.Optimization);
+        Assert.IsNotNull(viewModel.CurrentOptimizationHandoff);
+        Assert.IsTrue(viewModel.Presentation.PrimaryActionEnabled);
+    }
+
+    [TestMethod]
+    public async Task VerifiedDevelopmentQuantizer_EnablesRequiredOptimizationAction()
+    {
+        string packagedManifest = Path.Combine(
+            AppContext.BaseDirectory,
+            "Tools",
+            "GgufQuantizer",
+            "llama-quantize.package.manifest.json");
+        if (!File.Exists(packagedManifest))
+        {
+            Assert.Inconclusive(
+                "This local integration check requires the verified GGUF quantizer package.");
+        }
+
+        const ulong gib = 1024UL * 1024 * 1024;
+        var prepared = new PreparedGgufCompatibilityInput(
+            ModelRunId,
+            Guid.Parse("44444444-4444-4444-8444-444444444444"),
+            PresentationTestData.Sha256,
+            HardwareRunId,
+            GgufCompatibilityModelInput.Create(
+                2_104_533_811UL,
+                24,
+                2_048,
+                16,
+                8,
+                4_096,
+                15,
+                2),
+            CompatibilityHardwareInput.Create(
+                16 * gib,
+                0,
+                500_000_000_000UL,
+                [DeviceRouteId.Cpu],
+                [CompatibilityBackend.Cpu]));
+        Assert.IsTrue(GgufOptimizationProductionAuthority.TryCreate(
+            prepared,
+            out GgufOptimizationProductionAuthority? authority));
+
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        CompatibilityEvaluation evaluation = authority!.Evaluate(
+            CompatibilityFreshResourcesInput.Create(
+                3 * gib,
+                0,
+                500_000_000_000UL,
+                now),
+            new HashSet<string>(),
+            now,
+            CancellationToken.None);
+        var viewModel = new GraniteEdgeAI.Features.ModelHardwareCompatibility
+            .ViewModels.CompatibilityViewModel(
+            (_, _) => Task.FromResult(evaluation),
+            actionAuthority: authority);
+
+        await viewModel.StartAsync();
+
+        Assert.AreEqual(
+            CompatibilityScreenState.OptimisationRequired,
+            evaluation.Screen.State);
+        Assert.IsNotNull(viewModel.Presentation.Optimization);
+        Assert.IsNotNull(viewModel.CurrentOptimizationHandoff);
+        Assert.IsTrue(viewModel.Presentation.PrimaryActionEnabled);
+        Assert.IsTrue(viewModel.ContinueCommand.CanExecute(null));
+    }
+
     private static ModelInspectionExecutionResult Terminal() =>
         ModelInspectionExecutionResult.Completed(
             PresentationTestData.CreateResult(ModelInspectionOutcome.Ready));

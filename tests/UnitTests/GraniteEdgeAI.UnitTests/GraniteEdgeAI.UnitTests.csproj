@@ -476,6 +476,9 @@
   <Import
     Project="..\..\..\IBM Granite with TurboQuant (Intel)\HardwareInspection.LlamaCppProbePackaging.targets"
     Condition="'$(Platform)' == 'x64'" />
+  <Import
+    Project="..\..\..\IBM Granite with TurboQuant (Intel)\GgufQuantization.WorkerPackaging.targets"
+    Condition="'$(Configuration)' == 'Debug' and '$(Platform)' == 'x64'" />
   <Target
     Name="ConfigureApplicationReferenceForHardwareInspectionProbePackaging"
     AfterTargets="AssignProjectConfiguration">

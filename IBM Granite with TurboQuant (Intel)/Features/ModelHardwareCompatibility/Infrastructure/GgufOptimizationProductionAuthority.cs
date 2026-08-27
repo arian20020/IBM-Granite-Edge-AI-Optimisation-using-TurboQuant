@@ -29,6 +29,7 @@ internal sealed class GgufOptimizationProductionAuthority
     private const string QuantizerPackageId =
         "granite-edge-ai-llama-quantize-x64";
     private const string QuantizerVersion = "llama-quantize-3f7c29d";
+    internal const string PackagedCpuDeviceId = "CPU";
     private readonly object _gate = new();
     private readonly PreparedGgufCompatibilityInput _prepared;
     private readonly CompatibilityHardwareInput _hardware;
@@ -532,7 +533,7 @@ internal sealed class GgufOptimizationProductionAuthority
                 runtime.RuntimeBuildId,
                 runtime.RuntimeSourceCommit,
                 GgufRuntimeBackend.Cpu,
-                "cpu",
+                PackagedCpuDeviceId,
                 contextTokens,
                 GgufCacheType.F16,
                 GgufCacheType.F16,

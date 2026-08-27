@@ -1,6 +1,20 @@
 <Project>
   <PropertyGroup>
+    <!--
+      Local Debug builds use the repository-approved, hash-pinned development
+      stage when it exists. Copying it into the output makes the exact same
+      verified package visible to unpackaged apps and packaged test hosts;
+      neither host needs broad access to C:\GEAI-Tools at runtime.
+    -->
+    <GgufQuantizerDevelopmentStageDirectory
+      Condition="'$(GgufQuantizerDevelopmentStageDirectory)' == '' and '$(OS)' == 'Windows_NT'">$(SystemDrive)\GEAI-Tools\llama-quantize-3f7c29d-x64</GgufQuantizerDevelopmentStageDirectory>
+    <GgufQuantizerDevelopmentManifestSha256>903c6e4620a45743cd920d577c32881422d8321d417c63fdf6ca69f67685f58b</GgufQuantizerDevelopmentManifestSha256>
+    <GgufQuantizerStageDirectory
+      Condition="'$(GgufQuantizerStageDirectory)' == '' and '$(Configuration)' == 'Debug' and '$(Platform)' == 'x64' and Exists('$(GgufQuantizerDevelopmentStageDirectory)\llama-quantize.package.manifest.json')">$(GgufQuantizerDevelopmentStageDirectory)</GgufQuantizerStageDirectory>
+    <GgufQuantizerManifestSha256
+      Condition="'$(GgufQuantizerManifestSha256)' == '' and '$(GgufQuantizerStageDirectory)' == '$(GgufQuantizerDevelopmentStageDirectory)'">$(GgufQuantizerDevelopmentManifestSha256)</GgufQuantizerManifestSha256>
     <GgufQuantizerPackagingRequired Condition="'$(GgufQuantizerPackagingRequired)' == '' and '$(Configuration)' == 'Release'">true</GgufQuantizerPackagingRequired>
+    <GgufQuantizerPackagingRequired Condition="'$(GgufQuantizerPackagingRequired)' == '' and '$(Configuration)' == 'Debug' and '$(Platform)' == 'x64' and '$(GgufQuantizerStageDirectory)' != ''">true</GgufQuantizerPackagingRequired>
     <GgufQuantizerPackagingRequired Condition="'$(GgufQuantizerPackagingRequired)' == ''">false</GgufQuantizerPackagingRequired>
     <_GgufQuantizerVerifier>$(MSBuildThisFileDirectory)..\scripts\gguf-quantization\Test-GgufQuantizerPackage.ps1</_GgufQuantizerVerifier>
   </PropertyGroup>
