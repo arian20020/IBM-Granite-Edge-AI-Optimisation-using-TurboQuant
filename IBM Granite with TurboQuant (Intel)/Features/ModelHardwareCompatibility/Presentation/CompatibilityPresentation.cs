@@ -68,6 +68,10 @@ internal sealed record CompatibilityEstimateSummary(
     ulong EstimatedPeakBytes,
     ulong SafeMemoryBytes);
 
+/// <summary>The machine-memory values behind one established evaluation.</summary>
+internal sealed record CompatibilityMachineMemoryPresentation(
+    IReadOnlyList<CompatibilityFact> Facts);
+
 /// <summary>One route-specific, already-resolved optimisation choice.</summary>
 internal sealed record CompatibilityOptimizationModePresentation(
     string Label,
@@ -157,6 +161,9 @@ internal sealed record CompatibilityPresentation
     /// </summary>
     internal required CompatibilityEstimateSummary? EstimateSummary { get; init; }
 
+    internal required CompatibilityMachineMemoryPresentation? MachineMemory
+        { get; init; }
+
     internal required CompatibilityOptimizationPresentation? Optimization { get; init; }
 
     internal required string RuntimeCardTitle { get; init; }
@@ -209,6 +216,7 @@ internal sealed record CompatibilityPresentation
         Facts = [],
         Budget = CompatibilityBudget.Empty,
         EstimateSummary = null,
+        MachineMemory = null,
         Optimization = null,
         RuntimeCardTitle = "Runtime",
         RuntimeRows = [],

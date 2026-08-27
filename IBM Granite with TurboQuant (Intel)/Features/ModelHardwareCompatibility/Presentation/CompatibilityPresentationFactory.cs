@@ -178,6 +178,20 @@ internal static class CompatibilityPresentationFactory
         From(model, OptimizationPreferenceSelection.Automatic());
 
     internal static CompatibilityPresentation From(
+        CompatibilityEvaluation evaluation) =>
+        From(evaluation, OptimizationPreferenceSelection.Automatic());
+
+    internal static CompatibilityPresentation From(
+        CompatibilityEvaluation evaluation,
+        OptimizationPreferenceSelection preference)
+    {
+        ArgumentNullException.ThrowIfNull(evaluation);
+        return WithMachineMemory(
+            From(evaluation.Screen, preference),
+            evaluation.MachineMemory);
+    }
+
+    internal static CompatibilityPresentation From(
         CompatibilityScreenModel model,
         OptimizationPreferenceSelection preference)
     {
@@ -273,6 +287,46 @@ internal static class CompatibilityPresentationFactory
                 isRequired: false)
             : NotEstablished(model);
     }
+
+    internal static CompatibilityPresentation OptionalOptimization(
+        CompatibilityEvaluation evaluation,
+        CompatibilityOptimizationView optimization,
+        OptimizationPreferenceSelection preference)
+    {
+        ArgumentNullException.ThrowIfNull(evaluation);
+        return WithMachineMemory(
+            OptionalOptimization(evaluation.Screen, optimization, preference),
+            evaluation.MachineMemory);
+    }
+
+    private static CompatibilityPresentation WithMachineMemory(
+        CompatibilityPresentation presentation,
+        CompatibilityMachineMemory? memory) => memory is null
+            ? presentation
+            : presentation with
+            {
+                MachineMemory = new CompatibilityMachineMemoryPresentation(
+                [
+                    new CompatibilityFact(
+                        "Installed RAM",
+                        CompatibilityBudget.Describe(
+                            memory.InstalledSystemMemoryBytes),
+                        "Physical memory in this computer"),
+                    new CompatibilityFact(
+                        "Available now",
+                        CompatibilityBudget.Describe(
+                            memory.AvailableSystemMemoryBytes),
+                        "Free when this check ran"),
+                    new CompatibilityFact(
+                        "Safety reserve",
+                        CompatibilityBudget.Describe(memory.SafetyReserveBytes),
+                        "Kept for Windows and other applications"),
+                    new CompatibilityFact(
+                        "Safe for this model",
+                        CompatibilityBudget.Describe(memory.SafeModelBudgetBytes),
+                        "Available after the safety reserve")
+                ])
+            };
 
     private static CompatibilityPresentation OptimizationSelection(
         CompatibilityScreenModel model,

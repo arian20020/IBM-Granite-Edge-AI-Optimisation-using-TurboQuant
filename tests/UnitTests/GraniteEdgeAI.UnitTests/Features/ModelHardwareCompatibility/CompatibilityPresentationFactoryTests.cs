@@ -14,6 +14,42 @@ namespace GraniteEdgeAI.UnitTests.Features.ModelHardwareCompatibility;
 [TestClass]
 public sealed class CompatibilityPresentationFactoryTests
 {
+    private const ulong GiB = 1024UL * 1024 * 1024;
+
+    [TestMethod]
+    public void MachineMemorySummary_FormatsExactEvaluationValues()
+    {
+        ulong available = 6 * GiB;
+        ulong reserve = (ulong)Math.Ceiling(available * 0.10m);
+        var evaluation = new CompatibilityEvaluation(
+            OptimizationScreen(),
+            PlanningSession: null,
+            CurrentConfiguration: null)
+        {
+            MachineMemory = CompatibilityMachineMemory.Create(
+                16 * GiB,
+                available,
+                reserve,
+                available - reserve)
+        };
+
+        CompatibilityPresentation presentation =
+            CompatibilityPresentationFactory.From(evaluation);
+
+        Assert.IsNotNull(presentation.MachineMemory);
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                "Installed RAM|16 GB",
+                "Available now|6 GB",
+                "Safety reserve|614 MB",
+                "Safe for this model|5.4 GB"
+            },
+            presentation.MachineMemory.Facts
+                .Select(fact => $"{fact.Label}|{fact.Value}")
+                .ToArray());
+    }
+
     [TestMethod]
     public void OptimisationRequired_UsesApprovedCopyAndAllFrozenChoices()
     {

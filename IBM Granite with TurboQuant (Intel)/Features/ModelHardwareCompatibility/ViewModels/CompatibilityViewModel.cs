@@ -321,7 +321,7 @@ internal sealed class CompatibilityViewModel
             OptimizationPreferenceSelection.Automatic();
         CompatibilityPresentation presentation =
             CompatibilityPresentationFactory.OptionalOptimization(
-                evaluation.Screen,
+                evaluation,
                 optimization,
                 preference);
         OptimizationSelectionHandoff? handoff = TryIssueOptimization(
@@ -477,7 +477,7 @@ internal sealed class CompatibilityViewModel
         CompatibilityEvaluation evaluation)
     {
         CompatibilityPresentation presentation =
-            CompatibilityPresentationFactory.From(evaluation.Screen);
+            CompatibilityPresentationFactory.From(evaluation);
         bool chat = _currentModelLaunchHandoff is { } handoff
             && _actionAuthority.IsCurrentModelChatAvailable(handoff.Route);
         return presentation with
@@ -670,8 +670,8 @@ internal sealed class CompatibilityViewModel
                 ? OptimizationPreferenceSelection.Automatic()
                 : null;
             CompatibilityPresentation presentation = preference is null
-                ? CompatibilityPresentationFactory.From(model)
-                : CompatibilityPresentationFactory.From(model, preference);
+                ? CompatibilityPresentationFactory.From(evaluation)
+                : CompatibilityPresentationFactory.From(evaluation, preference);
             CurrentModelLaunchHandoff? currentHandoff =
                 model.State == CompatibilityScreenState.EstimatedCompatible
                     ? _currentModelHandoffResolver(evaluation)
@@ -1035,12 +1035,10 @@ internal sealed class CompatibilityViewModel
         _optionalOptimizationOpen
             && evaluation.OptionalOptimization is { } optional
                 ? CompatibilityPresentationFactory.OptionalOptimization(
-                    evaluation.Screen,
+                    evaluation,
                     optional,
                     preference)
-                : CompatibilityPresentationFactory.From(
-                    evaluation.Screen,
-                    preference);
+                : CompatibilityPresentationFactory.From(evaluation, preference);
 
     private void Publish(
         CompatibilityPresentation presentation,
