@@ -21,6 +21,7 @@ internal sealed class LlamaSharpInferenceEngine(GgufAdapterOptions options)
     private LLamaContext? _context;
     private ChatSession? _session;
     private GraniteGenerationBoundaryObserver? _completionObserver;
+    private bool _sessionReplayRequired;
 
     public async ValueTask InitializeAsync(
         IReadOnlyList<GgufAdapterMessage> initialHistory,
@@ -48,6 +49,12 @@ internal sealed class LlamaSharpInferenceEngine(GgufAdapterOptions options)
         string prompt,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
+        if (_sessionReplayRequired)
+        {
+            ReplaySession();
+            _sessionReplayRequired = false;
+        }
+
         ChatSession session = _session
             ?? throw new InvalidOperationException("The inference engine is not initialized.");
         GraniteGenerationBoundaryObserver observer = _completionObserver
@@ -70,7 +77,7 @@ internal sealed class LlamaSharpInferenceEngine(GgufAdapterOptions options)
             observer.Reason ?? GgufAdapterCompletionReason.Stop;
         if (RequiresSessionReplay(reason))
         {
-            ReplaySession(session.History);
+            _sessionReplayRequired = true;
         }
 
         yield return new GgufAdapterCompleted(reason);
@@ -84,6 +91,7 @@ internal sealed class LlamaSharpInferenceEngine(GgufAdapterOptions options)
         _completionObserver = null;
         _context = null;
         _weights = null;
+        _sessionReplayRequired = false;
         return ValueTask.CompletedTask;
     }
 
@@ -180,13 +188,19 @@ internal sealed class LlamaSharpInferenceEngine(GgufAdapterOptions options)
                 observer));
     }
 
-    private void ReplaySession(ChatHistory history)
+    private void ReplaySession()
     {
         LLamaWeights weights = _weights
             ?? throw new InvalidOperationException("The inference engine is not initialized.");
+        ChatSession session = _session
+            ?? throw new InvalidOperationException("The inference engine is not initialized.");
         GraniteGenerationBoundaryObserver observer = _completionObserver
             ?? throw new InvalidOperationException("The inference engine is not initialized.");
-        ChatHistory replayHistory = CloneHistory(history);
+        ChatHistory replayHistory = CloneHistory(session.History);
+        _session = null;
+        _context?.Dispose();
+        _context = null;
+
         LLamaContext replayContext = weights.CreateContext(CreateModelParameters(options));
         ChatSession replaySession;
         try
@@ -203,7 +217,6 @@ internal sealed class LlamaSharpInferenceEngine(GgufAdapterOptions options)
             throw;
         }
 
-        _context?.Dispose();
         _context = replayContext;
         _session = replaySession;
     }

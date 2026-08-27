@@ -5,6 +5,7 @@ using LLama.Native;
 namespace GraniteEdgeAI.GgufRuntime.NativeAdapter.Tests;
 
 [TestClass]
+[DoNotParallelize]
 public sealed class LlamaSharpRealModelSmokeTests
 {
     private const string ModelVariable = "GRANITE_GGUF_ADAPTER_TEST_MODEL";
@@ -13,6 +14,11 @@ public sealed class LlamaSharpRealModelSmokeTests
     [TestInitialize]
     public void SilenceNativeDiagnostics() =>
         NativeLogConfig.llama_log_set((_, _) => { });
+
+    [TestCleanup]
+    public void RestoreNativeDiagnostics() =>
+        NativeLogConfig.llama_log_set(
+            (NativeLogConfig.LLamaLogCallback?)null);
 
     [TestMethod]
     [TestCategory("ControlledRuntime")]
