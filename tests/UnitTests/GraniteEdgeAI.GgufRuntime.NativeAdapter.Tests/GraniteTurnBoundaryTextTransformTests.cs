@@ -109,6 +109,20 @@ public sealed class GraniteTurnBoundaryTextTransformTests
     }
 
     [TestMethod]
+    public async Task ProbeTokenIsDrainedSoTheExecutorCanAcceptAnotherTurn()
+    {
+        var observer = new GraniteGenerationBoundaryObserver();
+        var source = new CompletingTokenSource("one", " two", " hidden");
+        var transform = new GraniteTurnBoundaryTextTransform(2, observer);
+
+        string visible = await CollectAsync(transform.TransformAsync(source.ReadAsync()));
+
+        Assert.AreEqual("one two", visible);
+        Assert.AreEqual(GgufAdapterCompletionReason.Length, observer.Reason);
+        Assert.IsTrue(source.Completed);
+    }
+
+    [TestMethod]
     public async Task CloneSharesCompletionObserver()
     {
         var observer = new GraniteGenerationBoundaryObserver();
@@ -155,6 +169,22 @@ public sealed class GraniteTurnBoundaryTextTransformTests
         {
             yield return chunk;
             await Task.Yield();
+        }
+    }
+
+    private sealed class CompletingTokenSource(params string[] chunks)
+    {
+        internal bool Completed { get; private set; }
+
+        internal async IAsyncEnumerable<string> ReadAsync()
+        {
+            foreach (string chunk in chunks)
+            {
+                yield return chunk;
+                await Task.Yield();
+            }
+
+            Completed = true;
         }
     }
 }
