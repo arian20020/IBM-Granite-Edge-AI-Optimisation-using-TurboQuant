@@ -7,7 +7,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $verifier = Join-Path $PSScriptRoot 'Test-GgufRuntimeManifest.ps1'
 & $verifier -PackageRoot $PackageRoot -ManifestPath $ManifestPath
-if ($LASTEXITCODE -ne 0) {
+if (-not $?) {
     throw 'GGUF runtime manifest verification failed.'
 }
 
