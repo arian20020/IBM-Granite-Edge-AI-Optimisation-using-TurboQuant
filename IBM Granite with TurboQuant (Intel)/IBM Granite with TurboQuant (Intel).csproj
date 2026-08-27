@@ -21,6 +21,14 @@
       Include="OpenVinoOfficialWorkerManifestSha256"
       Value="$(OpenVinoOfficialWorkerManifestSha256)"
       Condition="'$(Platform)' == 'x64' and '$(OpenVinoOfficialWorkerManifestSha256)' != ''" />
+    <AssemblyMetadata
+      Include="OpenVinoConverterManifestSha256"
+      Value="$(OpenVinoConverterManifestSha256)"
+      Condition="'$(Platform)' == 'x64' and '$(OpenVinoConverterManifestSha256)' != ''" />
+    <AssemblyMetadata
+      Include="OpenVinoTurboQuantWorkerManifestSha256"
+      Value="$(OpenVinoTurboQuantWorkerManifestSha256)"
+      Condition="'$(Platform)' == 'x64' and '$(OpenVinoTurboQuantWorkerManifestSha256)' != ''" />
   </ItemGroup>
   <PropertyGroup>
     <DefineConstants Condition="'$(Platform)' == 'x64'">$(DefineConstants);MODEL_INSPECTION_X64</DefineConstants>
@@ -649,5 +657,11 @@
     Condition="'$(Platform)' == 'x64'" />
   <Import
     Project="OpenVino.WorkerPackaging.targets"
+    Condition="'$(Platform)' == 'x64'" />
+  <Import
+    Project="OpenVino.ConverterPackaging.targets"
+    Condition="'$(Platform)' == 'x64'" />
+  <Import
+    Project="OpenVino.TurboQuantPackaging.targets"
     Condition="'$(Platform)' == 'x64'" />
 </Project>

@@ -36,6 +36,47 @@ public sealed class PackagingContractTests
     }
 
     [TestMethod]
+    public void ConverterAndTurboQuantPackagingAreSeparateAndDigestPinned()
+    {
+        string converter = File.ReadAllText(RepoPath(
+            "IBM Granite with TurboQuant (Intel)/OpenVino.ConverterPackaging.targets"));
+        StringAssert.Contains(converter, "OpenVinoConverterStageDirectory");
+        StringAssert.Contains(converter, "OpenVinoConverterManifestSha256");
+        StringAssert.Contains(converter, "Test-OpenVinoConverterWorkerManifest.ps1");
+        StringAssert.Contains(converter, "OpenVino\\Converter\\Worker");
+        Assert.IsFalse(converter.Contains("TurboQuant", StringComparison.Ordinal));
+        Assert.IsFalse(converter.Contains("Official", StringComparison.Ordinal));
+
+        string turboQuant = File.ReadAllText(RepoPath(
+            "IBM Granite with TurboQuant (Intel)/OpenVino.TurboQuantPackaging.targets"));
+        StringAssert.Contains(turboQuant, "OpenVinoTurboQuantWorkerStageDirectory");
+        StringAssert.Contains(turboQuant, "OpenVinoTurboQuantWorkerManifestSha256");
+        StringAssert.Contains(turboQuant,
+            "Test-OpenVinoTurboQuantWorkerManifest.ps1");
+        StringAssert.Contains(turboQuant, "OpenVino\\TurboQuant\\Worker");
+        Assert.IsFalse(turboQuant.Contains("Converter", StringComparison.Ordinal));
+        Assert.IsFalse(turboQuant.Contains("Official", StringComparison.Ordinal));
+
+        string application = File.ReadAllText(RepoPath(
+            "IBM Granite with TurboQuant (Intel)/IBM Granite with TurboQuant (Intel).csproj"));
+        StringAssert.Contains(application, "OpenVino.ConverterPackaging.targets");
+        StringAssert.Contains(application, "OpenVino.TurboQuantPackaging.targets");
+        StringAssert.Contains(application,
+            "Include=\"OpenVinoConverterManifestSha256\"");
+        StringAssert.Contains(application,
+            "Include=\"OpenVinoTurboQuantWorkerManifestSha256\"");
+        StringAssert.Contains(converter, "CrossRouteNativeEvidenceBuild");
+        StringAssert.Contains(turboQuant, "CrossRouteNativeEvidenceBuild");
+
+        string unitTests = File.ReadAllText(RepoPath(
+            "tests/UnitTests/GraniteEdgeAI.UnitTests/GraniteEdgeAI.UnitTests.csproj"));
+        StringAssert.Contains(unitTests,
+            "Condition=\"'$(CrossRouteNativeEvidenceBuild)' != 'true'\"");
+        StringAssert.Contains(unitTests,
+            "OpenVinoTurboQuantPackagingRequired=false");
+    }
+
+    [TestMethod]
     public void NativeRuntimeClosesAmbientDllResolutionBeforeOpenVinoLoad()
     {
         string official = File.ReadAllText(RepoPath(

@@ -1,0 +1,46 @@
+<Project>
+  <PropertyGroup>
+    <OpenVinoConverterPackagingRequired Condition="'$(OpenVinoConverterPackagingRequired)' == ''">true</OpenVinoConverterPackagingRequired>
+    <OpenVinoConverterPackageRelativeDirectory>OpenVino\Converter\Worker</OpenVinoConverterPackageRelativeDirectory>
+    <_OpenVinoConverterRepositoryRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..'))</_OpenVinoConverterRepositoryRoot>
+    <_OpenVinoConverterManifestVerifier>$(_OpenVinoConverterRepositoryRoot)\scripts\openvino\Test-OpenVinoConverterWorkerManifest.ps1</_OpenVinoConverterManifestVerifier>
+    <_OpenVinoConverterPowerShell>$(SystemRoot)\System32\WindowsPowerShell\v1.0\powershell.exe</_OpenVinoConverterPowerShell>
+  </PropertyGroup>
+
+  <Target
+    Name="VerifyAndPackageOpenVinoConverter"
+    BeforeTargets="AssignTargetPaths"
+    Condition="'$(Platform)' == 'x64' and '$(DesignTimeBuild)' != 'true' and ('$(OpenVinoConverterPackagingRequired)' != 'false' or '$(GenerateAppxPackageOnBuild)' != 'false' or '$(CrossRouteNativeEvidenceBuild)' == 'true')">
+    <Error
+      Condition="'$(OpenVinoConverterPackagingRequired)' == 'false' and ('$(GenerateAppxPackageOnBuild)' != 'false' or '$(CrossRouteNativeEvidenceBuild)' == 'true')"
+      Text="OpenVinoConverterPackagingRequired cannot be false when package generation or cross-route native evidence is enabled." />
+    <Error
+      Condition="'$(OpenVinoConverterStageDirectory)' == ''"
+      Text="OpenVinoConverterStageDirectory is required for x64 builds." />
+    <Error
+      Condition="'$(OpenVinoConverterManifestSha256)' == '' or !$([System.Text.RegularExpressions.Regex]::IsMatch('$(OpenVinoConverterManifestSha256)', '^[0-9a-f]{64}$'))"
+      Text="OpenVinoConverterManifestSha256 must be a caller-supplied lowercase SHA-256 digest." />
+    <PropertyGroup>
+      <_OpenVinoConverterStage>$([System.IO.Path]::GetFullPath('$(OpenVinoConverterStageDirectory)'))</_OpenVinoConverterStage>
+      <_OpenVinoConverterManifest>$(_OpenVinoConverterStage)\converter-manifest.json</_OpenVinoConverterManifest>
+    </PropertyGroup>
+    <Error
+      Condition="!Exists('$(_OpenVinoConverterManifest)')"
+      Text="The verified OpenVINO converter manifest is missing." />
+
+    <Exec
+      Command="&quot;$(_OpenVinoConverterPowerShell)&quot; -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(_OpenVinoConverterManifestVerifier)&quot; -StageDirectory &quot;$(_OpenVinoConverterStage)&quot;" />
+    <Exec
+      Command="&quot;$(_OpenVinoConverterPowerShell)&quot; -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command &quot;$actual=(Get-FileHash -LiteralPath '$(_OpenVinoConverterManifest)' -Algorithm SHA256).Hash.ToLowerInvariant(); if ($actual -cne '$(OpenVinoConverterManifestSha256)') { Write-Output 'converter_manifest_digest_mismatch'; exit 1 }; Write-Output 'converter_manifest_digest_valid'&quot;" />
+
+    <ItemGroup>
+      <_OpenVinoConverterFile Include="$(_OpenVinoConverterStage)\**\*" />
+      <Content Include="@(_OpenVinoConverterFile)">
+        <Link>$(OpenVinoConverterPackageRelativeDirectory)\%(_OpenVinoConverterFile.RecursiveDir)%(_OpenVinoConverterFile.Filename)%(_OpenVinoConverterFile.Extension)</Link>
+        <TargetPath>$(OpenVinoConverterPackageRelativeDirectory)\%(_OpenVinoConverterFile.RecursiveDir)%(_OpenVinoConverterFile.Filename)%(_OpenVinoConverterFile.Extension)</TargetPath>
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </Content>
+    </ItemGroup>
+  </Target>
+</Project>

@@ -481,11 +481,12 @@
     Condition="'$(Configuration)' == 'Debug' and '$(Platform)' == 'x64'" />
   <Target
     Name="ConfigureApplicationReferenceForHardwareInspectionProbePackaging"
-    AfterTargets="AssignProjectConfiguration">
+    AfterTargets="AssignProjectConfiguration"
+    Condition="'$(CrossRouteNativeEvidenceBuild)' != 'true'">
     <ItemGroup>
       <ProjectReferenceWithConfiguration
         Update="..\..\..\IBM Granite with TurboQuant (Intel)\IBM Granite with TurboQuant (Intel).csproj">
-        <SetConfiguration>%(ProjectReferenceWithConfiguration.SetConfiguration);HardwareInspectionLlamaCppProbeSkipPackaging=true;OpenVinoOfficialWorkerPackagingRequired=false;GenerateAppxPackageOnBuild=false</SetConfiguration>
+        <SetConfiguration>%(ProjectReferenceWithConfiguration.SetConfiguration);HardwareInspectionLlamaCppProbeSkipPackaging=true;OpenVinoOfficialWorkerPackagingRequired=false;OpenVinoConverterPackagingRequired=false;OpenVinoTurboQuantPackagingRequired=false;GenerateAppxPackageOnBuild=false</SetConfiguration>
       </ProjectReferenceWithConfiguration>
     </ItemGroup>
   </Target>
