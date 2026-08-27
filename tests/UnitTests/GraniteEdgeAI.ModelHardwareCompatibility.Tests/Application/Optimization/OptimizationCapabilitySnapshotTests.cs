@@ -724,6 +724,29 @@ public sealed class OptimizationCapabilitySnapshotTests
     }
 
     [TestMethod]
+    public void ConversionSourceBindingMapsInspectedGgufFileTypeWithoutCallerDefaults()
+    {
+        OptimizationJourneyBinding binding = OptimizationJourneyBinding.Create(
+            "source-run", "source-handoff", Digest, 4096, "source-hardware", Digest);
+
+        Assert.IsTrue(GgufConversionSourceBinding.TryCreateFromGgufInspection(
+            fileType: 15,
+            quantisationVersion: 2,
+            binding,
+            out GgufConversionSourceBinding? source));
+        Assert.IsNotNull(source);
+        Assert.AreEqual(WeightQuantisation.Q4_K_M, source.Precision);
+        Assert.AreSame(binding, source.Journey);
+
+        Assert.IsFalse(GgufConversionSourceBinding.TryCreateFromGgufInspection(
+            fileType: 15,
+            quantisationVersion: 3,
+            binding,
+            out source));
+        Assert.IsNull(source);
+    }
+
+    [TestMethod]
     public void EveryRouteHasAFactory()
     {
         // A route with no way to build a snapshot could never be planned for,

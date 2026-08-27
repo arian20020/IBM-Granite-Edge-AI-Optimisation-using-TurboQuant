@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
@@ -37,6 +38,73 @@ internal sealed class OptimizationOutputRegistry
     internal int AdmittedCount
     {
         get { lock (_gate) { return _admitted.Count; } }
+    }
+
+    internal bool TryGetPublishedGgufFile(
+        OptimizationExecutionResult result,
+        out string? filePath,
+        out string? fileSha256,
+        out ulong fileLengthBytes)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+        filePath = null;
+        fileSha256 = null;
+        fileLengthBytes = 0;
+        if (result.Status != OptimizationExecutionStatus.SucceededPersistent
+            || result.Route != OptimizationRoute.Gguf
+            || result.OutputIdentity is null
+            || result.OutputManifestSha256 is null)
+        {
+            return false;
+        }
+
+        OptimizationCommitReceipt? receipt;
+        lock (_gate)
+        {
+            receipt = _admitted.Values.SingleOrDefault(candidate =>
+                candidate.Key.OptimizationPlanId == result.OptimizationPlanId
+                && string.Equals(
+                    candidate.Key.ConfigurationSha256,
+                    result.ConfigurationSha256,
+                    StringComparison.Ordinal)
+                && string.Equals(
+                    candidate.Key.OutputIdentity,
+                    result.OutputIdentity,
+                    StringComparison.Ordinal)
+                && string.Equals(
+                    candidate.Key.OutputManifestSha256,
+                    result.OutputManifestSha256,
+                    StringComparison.Ordinal));
+        }
+        if (receipt is null)
+        {
+            return false;
+        }
+
+        string publication = StoragePathGuard.RequireChild(
+            _committedRoot,
+            Path.Combine(_committedRoot, receipt.PublicationIdentity),
+            mustExist: true);
+        string[] files = Directory.GetFiles(
+            publication,
+            "*",
+            SearchOption.AllDirectories);
+        if (files.Length != 1
+            || !string.Equals(
+                Path.GetExtension(files[0]),
+                ".gguf",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+        StoragePathGuard.RequireRegularFile(files[0]);
+        using FileStream stream = File.OpenRead(files[0]);
+        string digest = Convert.ToHexString(SHA256.HashData(stream))
+            .ToLowerInvariant();
+        filePath = files[0];
+        fileSha256 = digest;
+        fileLengthBytes = checked((ulong)stream.Length);
+        return true;
     }
 
     internal OptimizationOutputLease CreateLease(

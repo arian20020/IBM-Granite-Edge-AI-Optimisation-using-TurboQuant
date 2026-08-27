@@ -55,6 +55,52 @@ public static class CompatibilityEngine
         CancellationToken cancellationToken = default) =>
         EvaluateProduction(input, TimeProvider.System, cancellationToken);
 
+    /// <summary>
+    /// Rebuilds the exact issuance authority used by production candidate
+    /// generation. Keeping this calculation beside the engine prevents a UI
+    /// integration from copying or drifting the proportional memory policy.
+    /// </summary>
+    public static OptimizationIssuanceAuthority CreateOptimizationIssuanceAuthority(
+        CompatibilityProductionInput input,
+        DateTimeOffset evaluatedAtUtc)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        if (input.Optimization is null
+            || input.JourneyAuthority?.HardwareFactsSha256 is not { } hardwareFacts
+            || evaluatedAtUtc.Offset != TimeSpan.Zero)
+        {
+            throw new ArgumentException(
+                "Issuance requires complete production optimization authority and a UTC evaluation time.",
+                nameof(input));
+        }
+
+        SafetyPolicy safety = SafetyPolicy.ProportionalV2();
+        ByteCount available = ByteCount.FromBytes(
+            input.FreshResources.AvailableSystemMemoryBytes);
+        _ = available.TrySubtract(
+            safety.AvailableMemoryReserveFor(available),
+            out ByteCount fitBudget);
+        ByteCount generationBudget = GenerationBudget(fitBudget, safety);
+        ulong? dedicatedBudget = null;
+        if (input.FreshResources.DedicatedDeviceMemoryEstablished)
+        {
+            dedicatedBudget = GenerationBudget(
+                ByteCount.FromBytes(
+                    input.FreshResources.AvailableDedicatedDeviceMemoryBytes),
+                safety).Bytes;
+        }
+
+        return OptimizationIssuanceAuthority.CreateCurrent(
+            hardwareFacts,
+            input.Hardware.PresentDevices,
+            input.Hardware.VerifiedBackends,
+            generationBudget.Bytes,
+            dedicatedBudget,
+            input.FreshResources.AvailableStorageBytes,
+            input.FreshResources.ObservedAtUtc,
+            evaluatedAtUtc);
+    }
+
     /// <summary>Evaluates against an explicit execution-time clock.</summary>
     public static CompatibilityEvaluation EvaluateProduction(
         CompatibilityProductionInput input,

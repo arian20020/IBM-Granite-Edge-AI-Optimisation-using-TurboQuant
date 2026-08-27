@@ -29,7 +29,7 @@ public sealed class OnboardingCompatibilityNavigationTests
     {
         ModelInspectionExecutionResult terminal = Terminal();
         ModelInspectionHandoff modelHandoff = ModelHandoff(terminal);
-        var source = new ModelInspectionPage();
+        ModelInspectionPage source = CreateSourcePage();
         var service = new CountingHardwareService();
         var shell = new OnboardingShellPage(
             static (frame, request) => frame.Navigate(typeof(ModelInspectionPage), request),
@@ -54,10 +54,10 @@ public sealed class OnboardingCompatibilityNavigationTests
         var compatibilityPage = frame.Content as CompatibilityPage;
         Assert.IsNotNull(compatibilityPage);
         await compatibilityPage.ViewModel.StartAsync();
-        Assert.IsFalse(
+        Assert.IsTrue(
             compatibilityPage.ViewModel.Presentation.PrimaryActionEnabled,
-            "Continue must remain unavailable until the optimisation destination is integrated.");
-        Assert.AreEqual("Coming later",
+            "A verified current-fit GGUF result must expose its direct Chat destination.");
+        Assert.AreEqual("Chat with current model",
             compatibilityPage.ViewModel.Presentation.PrimaryActionText);
         Assert.AreEqual(OnboardingStage.CheckHardwareFit, shell.CurrentStage,
             "Unavailable optimisation must not advance step 3.");
@@ -77,7 +77,7 @@ public sealed class OnboardingCompatibilityNavigationTests
     {
         ModelInspectionExecutionResult terminal = Terminal();
         ModelInspectionHandoff modelHandoff = ModelHandoff(terminal);
-        var source = new ModelInspectionPage();
+        ModelInspectionPage source = CreateSourcePage();
         var shell = new OnboardingShellPage(
             static (frame, request) => frame.Navigate(typeof(ModelInspectionPage), request),
             new CountingHardwareService(),
@@ -107,7 +107,7 @@ public sealed class OnboardingCompatibilityNavigationTests
     {
         ModelInspectionExecutionResult terminal = Terminal();
         ModelInspectionHandoff modelHandoff = ModelHandoff(terminal);
-        var source = new ModelInspectionPage();
+        ModelInspectionPage source = CreateSourcePage();
         var fresh = new SequencedFreshResourcesSource(
             FreshResources(1),
             FreshResources(24UL * 1024 * 1024 * 1024));
@@ -173,6 +173,19 @@ public sealed class OnboardingCompatibilityNavigationTests
             "The aggregate must retain the oldest accepted provider observation.");
         Assert.IsFalse(captured.DedicatedDeviceMemoryEstablished,
             "No fresh dedicated-memory provider exists, so the source must stay unknown.");
+    }
+
+    private static ModelInspectionPage CreateSourcePage()
+    {
+        var page = new ModelInspectionPage();
+        System.Reflection.MethodInfo? activate = typeof(ModelInspectionPage)
+            .GetMethod(
+                "ActivateRequest",
+                System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.NonPublic);
+        Assert.IsNotNull(activate);
+        activate.Invoke(page, [PresentationTestData.CreateRequest()]);
+        return page;
     }
 
     [TestMethod]

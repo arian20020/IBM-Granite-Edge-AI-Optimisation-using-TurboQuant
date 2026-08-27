@@ -46,3 +46,28 @@ internal sealed class VerifiedGgufQuantizationRunner : IGgufQuantizationRunner
             cancellationToken).ConfigureAwait(false);
     }
 }
+
+internal sealed class UnavailableGgufQuantizationRunner : IGgufQuantizationRunner
+{
+    internal static UnavailableGgufQuantizationRunner Instance { get; } = new();
+
+    private UnavailableGgufQuantizationRunner() { }
+
+    public string ManifestSha256 => new('0', 64);
+    public string ExecutableSha256 => new('0', 64);
+
+    public Task<GgufQuantizationEvent> RunAsync(
+        GgufQuantizationCommand command,
+        string sourcePath,
+        string sourceSha256,
+        ulong sourceLengthBytes,
+        string outputPath,
+        CancellationToken cancellationToken) => Task.FromResult(
+            GgufQuantizationEvent.Create(
+                command.CorrelationId,
+                command.OptimizationPlanId,
+                command.ConfigurationSha256,
+                GgufQuantizationEventKind.Failed,
+                progressPercent: 0,
+                GgufQuantizationSupportCode.PackageVerificationFailed));
+}

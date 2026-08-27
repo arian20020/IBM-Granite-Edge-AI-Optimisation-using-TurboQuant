@@ -47,6 +47,31 @@ public sealed record GgufConversionSourceBinding
         return new GgufConversionSourceBinding(precision, journey);
     }
 
+    /// <summary>
+    /// Creates conversion authority from the exact GGUF identifiers established
+    /// by Model Inspection. Unknown versions and file types fail closed; callers
+    /// never substitute a guessed source precision.
+    /// </summary>
+    public static bool TryCreateFromGgufInspection(
+        int? fileType,
+        int? quantisationVersion,
+        OptimizationJourneyBinding journey,
+        out GgufConversionSourceBinding? source)
+    {
+        ArgumentNullException.ThrowIfNull(journey);
+        WeightQuantisation precision = WeightQuantisationMap.FromGgufFileType(
+            fileType,
+            quantisationVersion);
+        if (precision == WeightQuantisation.Unknown)
+        {
+            source = null;
+            return false;
+        }
+
+        source = new GgufConversionSourceBinding(precision, journey);
+        return true;
+    }
+
     internal bool IsAlreadyQuantised =>
         Precision is WeightQuantisation.Q8_0
             or WeightQuantisation.Q6_K

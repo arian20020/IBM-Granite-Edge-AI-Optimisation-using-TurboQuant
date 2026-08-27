@@ -7,17 +7,30 @@ using GraniteEdgeAI.Features.HardwareInspection.Presentation.Controls;
 using GraniteEdgeAI.Features.HardwareInspection.Presentation.State;
 using GraniteEdgeAI.Features.HardwareInspection.ViewModels;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility;
+using GraniteEdgeAI.Features.ModelHardwareCompatibility.Contracts;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.Infrastructure;
+using GraniteEdgeAI.Features.ModelHardwareCompatibility.Journey;
+using GraniteEdgeAI.Features.GgufRuntime;
 using GraniteEdgeAI.Features.ModelImport;
 using GraniteEdgeAI.Features.ModelInspection;
 using GraniteEdgeAI.Features.ModelInspection.Contracts;
 using GraniteEdgeAI.Features.ModelInspection.Handoff;
 using GraniteEdgeAI.Features.ModelInspection.Presentation;
+using GraniteEdgeAI.Features.ModelInspection.SourceCustody;
+using GraniteEdgeAI.Features.ModelOptimization;
+using GraniteEdgeAI.Features.ModelOptimization.Execution.Gguf;
+using GraniteEdgeAI.Features.ModelOptimization.Journey;
+using GraniteEdgeAI.Features.ModelOptimization.Presentation;
+using GraniteEdgeAI.Features.ModelOptimization.Storage;
+using GraniteEdgeAI.GgufQuantization.WorkerClient;
 using Microsoft.UI.Xaml.Controls;
 using System;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
+using Windows.Storage.Pickers;
 
 namespace GraniteEdgeAI.Features.Onboarding
 {
@@ -36,6 +49,15 @@ namespace GraniteEdgeAI.Features.Onboarding
         private HardwareInspectionPage? _attachedHardwareInspectionPage;
         private HardwareInspectionPage? _hardwarePageForCompatibilityReturn;
         private CompatibilityPage? _attachedCompatibilityPage;
+        private GgufOptimizationProductionAuthority? _activeGgufAuthority;
+        private ChatPage? _attachedChatPage;
+        private ChatDemoController? _chatController;
+        private bool _ggufChatRouteRegistered;
+        private OptimizationPage? _attachedOptimizationPage;
+        private CompatibilityPage? _compatibilityPageForOptimizationReturn;
+        private OptimizationJourneyCoordinator? _optimizationCoordinator;
+        private GgufOptimizationAttemptContextFactory? _optimizationContextFactory;
+        private OptimizationOutputRegistry? _optimizationOutputRegistry;
         private ModelInspectionPage? _modelInspectionPageForHardwareReturn;
         private Guid _activeModelHandoffId;
         private Guid _activeProductHardwareRunId;
@@ -574,32 +596,84 @@ namespace GraniteEdgeAI.Features.Onboarding
                 return false;
             }
 
-            var compatibilityPage = new CompatibilityPage(async token =>
+            CompatibilityPage compatibilityPage;
+            if (GgufOptimizationProductionAuthority.TryCreate(
+                    prepared!,
+                    out GgufOptimizationProductionAuthority? production))
             {
-                try
+                _activeGgufAuthority = production;
+                EnsureGgufChatRoute(production!);
+                compatibilityPage = new CompatibilityPage(
+                    async (optedInEvidence, token) =>
+                    {
+                        try
+                        {
+                            CompatibilityFreshResourcesInput fresh =
+                                await _compatibilityFreshResourcesSource
+                                    .CaptureAsync(token);
+                            DateTimeOffset evaluatedAtUtc = DateTimeOffset.UtcNow;
+                            return await Task.Run(
+                                () => production!.Evaluate(
+                                    fresh,
+                                    optedInEvidence,
+                                    evaluatedAtUtc,
+                                    token),
+                                token);
+                        }
+                        catch (OperationCanceledException)
+                            when (token.IsCancellationRequested)
+                        {
+                            throw;
+                        }
+                        catch
+                        {
+                            return new CompatibilityEvaluation(
+                                CompatibilityEngine.RunWithAvailableAdapters(token),
+                                null,
+                                null);
+                        }
+                    },
+                    production!,
+                    evaluation => production!.ResolveCurrentModel(
+                        evaluation,
+                        CurrentModelChatLaunchRegistry),
+                    continueDestinationAvailable: true);
+            }
+            else
+            {
+                _activeGgufAuthority = null;
+                compatibilityPage = new CompatibilityPage(async token =>
                 {
-                    CompatibilityFreshResourcesInput fresh =
-                        await _compatibilityFreshResourcesSource.CaptureAsync(token);
-                    if (!prepared!.TryBindFresh(fresh, out CompatibilityProductionInput? input))
+                    try
+                    {
+                        CompatibilityFreshResourcesInput fresh =
+                            await _compatibilityFreshResourcesSource.CaptureAsync(token);
+                        if (!prepared!.TryBindFresh(
+                                fresh,
+                                out CompatibilityProductionInput? input))
+                        {
+                            return CompatibilityEngine.RunWithAvailableAdapters(token);
+                        }
+                        return await Task.Run(
+                            () => CompatibilityEngine.Run(input!, token), token);
+                    }
+                    catch (OperationCanceledException)
+                        when (token.IsCancellationRequested)
+                    {
+                        throw;
+                    }
+                    catch
                     {
                         return CompatibilityEngine.RunWithAvailableAdapters(token);
                     }
-
-                    return await Task.Run(
-                        () => CompatibilityEngine.Run(input!, token), token);
-                }
-                catch (OperationCanceledException) when (token.IsCancellationRequested)
-                {
-                    throw;
-                }
-                catch
-                {
-                    return CompatibilityEngine.RunWithAvailableAdapters(token);
-                }
-            },
-                continueDestinationAvailable: false);
+                }, continueDestinationAvailable: false);
+            }
             compatibilityPage.BackRequested += CompatibilityPage_BackRequested;
             compatibilityPage.ContinueRequested += CompatibilityPage_ContinueRequested;
+            compatibilityPage.OptimizationRequested +=
+                CompatibilityPage_OptimizationRequested;
+            compatibilityPage.CurrentModelChatRequested +=
+                CompatibilityPage_CurrentModelChatRequested;
 
             DetachHardwareInspectionPage();
             bool navigated;
@@ -622,6 +696,10 @@ namespace GraniteEdgeAI.Features.Onboarding
             {
                 compatibilityPage.BackRequested -= CompatibilityPage_BackRequested;
                 compatibilityPage.ContinueRequested -= CompatibilityPage_ContinueRequested;
+                compatibilityPage.OptimizationRequested -=
+                    CompatibilityPage_OptimizationRequested;
+                compatibilityPage.CurrentModelChatRequested -=
+                    CompatibilityPage_CurrentModelChatRequested;
                 AttachHardwareInspectionPage(sourcePage);
                 StageFrame.Content = sourcePage;
                 return false;
@@ -652,8 +730,366 @@ namespace GraniteEdgeAI.Features.Onboarding
 
         private void CompatibilityPage_ContinueRequested(object? sender, EventArgs eventArguments)
         {
-            // The optimisation-mode destination is intentionally not registered
-            // in this increment, so C1 keeps this command disabled.
+            // The typed OptimizationRequested or CurrentModelChatRequested
+            // event performs the transition. This compatibility event remains
+            // subscribed for the existing page contract and intentionally does
+            // not duplicate navigation.
+        }
+
+        private void CompatibilityPage_OptimizationRequested(
+            object? sender,
+            OptimizationRequestedEventArgs eventArguments)
+        {
+            if (!ReferenceEquals(sender, _attachedCompatibilityPage))
+            {
+                return;
+            }
+            NavigateToOptimization(eventArguments.Context);
+        }
+
+        private void NavigateToOptimization(
+            OptimizationJourneyEntryContext entry)
+        {
+            if (_activeGgufAuthority is not { } authority
+                || _attachedCompatibilityPage is not { } compatibilityPage
+                || entry.OptimizationHandoff.Plan.Route
+                    != GraniteEdgeAI.ModelHardwareCompatibility.Core.Application
+                        .Optimization.OptimizationRoute.Gguf)
+            {
+                return;
+            }
+
+            string appRoot = Path.Combine(
+                Environment.GetFolderPath(
+                    Environment.SpecialFolder.LocalApplicationData),
+                "GraniteEdgeAI",
+                "Optimization");
+            var outputs = new OptimizationOutputRegistry(
+                Path.Combine(appRoot, "OutputStaging"),
+                Path.Combine(appRoot, "Outputs"));
+            GraniteEdgeAI.Features.ModelOptimization.Execution.Gguf
+                .IGgufQuantizationRunner runner =
+                authority.QuantizerPackageRoot is { } quantizerRoot
+                    ? new VerifiedGgufQuantizationRunner(
+                        quantizerRoot,
+                        authority.QuantizerManifestSha256,
+                        TimeSpan.FromHours(2))
+                    : UnavailableGgufQuantizationRunner.Instance;
+            var executor = new GgufOptimizationExecutor(outputs, runner);
+            var contextFactory = new GgufOptimizationAttemptContextFactory(
+                _modelSourceCustodyRegistry,
+                Path.Combine(appRoot, "SourceStaging"))
+            {
+                Plan = entry.OptimizationHandoff.Plan,
+            };
+            var coordinator = new OptimizationJourneyCoordinator(
+                entry,
+                new OptimizationExecutorRouter([executor]),
+                new GgufOptimizationRevalidator(
+                    _modelSourceCustodyRegistry,
+                    authority),
+                contextFactory);
+            var page = new OptimizationPage(entry);
+            page.IntentRequested += OptimizationPage_IntentRequested;
+            coordinator.StateChanged += OptimizationCoordinator_StateChanged;
+
+            _compatibilityPageForOptimizationReturn = compatibilityPage;
+            _attachedOptimizationPage = page;
+            _optimizationCoordinator = coordinator;
+            _optimizationContextFactory = contextFactory;
+            _optimizationOutputRegistry = outputs;
+            StageFrame.Content = page;
+            StageFrame.BackStack.Clear();
+            StageFrame.ForwardStack.Clear();
+            CurrentStage = OnboardingStage.ConfigureModel;
+            StageIndicator.CurrentStage = CurrentStage;
+        }
+
+        private void OptimizationCoordinator_StateChanged(
+            object? sender,
+            OptimizationJourneyState state)
+        {
+            if (!ReferenceEquals(sender, _optimizationCoordinator))
+            {
+                return;
+            }
+            _ = DispatcherQueue.TryEnqueue(() =>
+            {
+                if (ReferenceEquals(sender, _optimizationCoordinator))
+                {
+                    ApplyOptimizationState(state);
+                }
+            });
+        }
+
+        private void ApplyOptimizationState(OptimizationJourneyState state)
+        {
+            if (_attachedOptimizationPage is not { } page)
+            {
+                return;
+            }
+            var plan = state.Entry.OptimizationHandoff.Plan;
+            OptimizationConfigurationPresentation configuration =
+                OptimizationConfigurationProjection.From(plan);
+            OptimizationPreferenceSelection preference = plan.Preference;
+            OptimizationPresentationState presentation = state.Kind switch
+            {
+                OptimizationJourneyKind.Confirmation =>
+                    OptimizationPresentationFactory.Confirmation(
+                        preference,
+                        configuration,
+                        plan.OptimizationPlanId,
+                        plan.ConfigurationSha256),
+                OptimizationJourneyKind.Running or
+                    OptimizationJourneyKind.Cancelling =>
+                    OptimizationPresentationFactory.Running(
+                        preference,
+                        configuration,
+                        MapStage(state.Stage),
+                        state.Kind != OptimizationJourneyKind.Cancelling),
+                OptimizationJourneyKind.Cancelled =>
+                    OptimizationPresentationFactory.Cancelled(
+                        preference,
+                        configuration,
+                        state.Entry.Origin),
+                OptimizationJourneyKind.ReplanRequired =>
+                    OptimizationPresentationFactory.ReplanRequired(
+                        preference,
+                        configuration),
+                OptimizationJourneyKind.Failed =>
+                    OptimizationPresentationFactory.Failed(
+                        preference,
+                        configuration,
+                        state.Entry.Origin),
+                OptimizationJourneyKind.SucceededPersistent or
+                    OptimizationJourneyKind.SucceededRuntimeProfile =>
+                    OptimizationPresentationFactory.Success(
+                        preference,
+                        configuration),
+                _ => throw new ArgumentOutOfRangeException(nameof(state)),
+            };
+            page.ApplyPresentation(presentation);
+        }
+
+        private async void OptimizationPage_IntentRequested(
+            object? sender,
+            OptimizationIntentEventArgs eventArguments)
+        {
+            if (!ReferenceEquals(sender, _attachedOptimizationPage)
+                || _optimizationCoordinator is not { } coordinator)
+            {
+                return;
+            }
+            switch (eventArguments.Command)
+            {
+                case OptimizationCommand.Confirm:
+                    await coordinator.ConfirmAsync();
+                    break;
+                case OptimizationCommand.Cancel:
+                    await coordinator.CancelAsync();
+                    break;
+                case OptimizationCommand.Retry:
+                    _ = coordinator.Retry();
+                    break;
+                case OptimizationCommand.BackToCompatibility:
+                    await ReturnFromOptimizationAsync();
+                    break;
+                case OptimizationCommand.ChatWithOriginal:
+                    if (coordinator.State.Entry.CurrentModelFallback is { } fallback)
+                    {
+                        _ = await CurrentModelChatLaunchRegistry.LaunchAsync(
+                            fallback,
+                            CancellationToken.None);
+                    }
+                    break;
+                case OptimizationCommand.Chat:
+                    await LaunchOptimizedChatAsync(coordinator.State);
+                    break;
+                case OptimizationCommand.Save:
+                    await SaveOptimizedModelAsync(coordinator.State);
+                    break;
+                case OptimizationCommand.Done:
+                    await ReturnFromOptimizationAsync();
+                    break;
+            }
+        }
+
+        private async Task LaunchOptimizedChatAsync(
+            OptimizationJourneyState state)
+        {
+            if (_activeGgufAuthority is not { } authority
+                || state.Result is not { IsSuccessful: true } result
+                || state.Entry.OptimizationHandoff.Plan.ExecutionPayload.Gguf
+                    is not { } payload)
+            {
+                return;
+            }
+
+            string? modelPath = null;
+            string? modelSha256 = null;
+            ModelSourceLease? sourceLease = null;
+            try
+            {
+                if (result.ProducedPersistentArtifact)
+                {
+                    if (_optimizationOutputRegistry is null
+                        || !_optimizationOutputRegistry.TryGetPublishedGgufFile(
+                            result,
+                            out modelPath,
+                            out modelSha256,
+                            out _))
+                    {
+                        return;
+                    }
+                }
+                else
+                {
+                    OptimizationExecutionPlan plan =
+                        state.Entry.OptimizationHandoff.Plan;
+                    ModelSourceCustodyKey key =
+                        GgufOptimizationAttemptContextFactory.SourceKey(plan);
+                    if (!_modelSourceCustodyRegistry.TryAcquire(
+                            key,
+                            out sourceLease))
+                    {
+                        return;
+                    }
+                    modelPath = sourceLease!.SourcePath;
+                    modelSha256 = plan.Binding.ModelSha256;
+                }
+
+                GraniteEdgeAI.GgufRuntime.Contracts.Configuration.GgufRuntimeConfiguration
+                    configuration =
+                    GgufCurrentModelChatRouteLauncher.CreateConfiguration(
+                        $"optimized-{modelSha256![..12]}",
+                        modelSha256!,
+                        payload);
+                var request = new GgufChatLaunchRequest(
+                    authority.RuntimePackageRoot,
+                    authority.TrustedRuntimeManifest.Span,
+                    modelPath!,
+                    "Optimised model",
+                    configuration);
+                var page = new ChatPage();
+                ChatDemoController controller =
+                    await ChatDemoController.CreateProductionAsync(
+                        page,
+                        request,
+                        CancellationToken.None);
+                await controller.InitializeAsync();
+                await RetireOptimizationAsync();
+                ShowGgufChat(page, controller);
+            }
+            finally
+            {
+                sourceLease?.Dispose();
+            }
+        }
+
+        private async Task SaveOptimizedModelAsync(
+            OptimizationJourneyState state)
+        {
+            if (state.Result is not
+                    { Status: OptimizationExecutionStatus.SucceededPersistent }
+                    result
+                || _optimizationOutputRegistry is null
+                || !_optimizationOutputRegistry.TryGetPublishedGgufFile(
+                    result,
+                    out string? sourcePath,
+                    out _,
+                    out _))
+            {
+                return;
+            }
+
+            var picker = new FileSavePicker
+            {
+                SuggestedFileName = "optimised-model",
+            };
+            WinRT.Interop.InitializeWithWindow.Initialize(
+                picker,
+                WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow));
+            picker.FileTypeChoices.Add("GGUF model", [".gguf"]);
+            Windows.Storage.StorageFile? destination =
+                await picker.PickSaveFileAsync();
+            if (destination is null)
+            {
+                return;
+            }
+            await using FileStream source = new(
+                sourcePath!,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Read,
+                1024 * 1024,
+                FileOptions.Asynchronous | FileOptions.SequentialScan);
+            await using Stream target = await destination.OpenStreamForWriteAsync();
+            target.SetLength(0);
+            await source.CopyToAsync(target);
+            await target.FlushAsync();
+        }
+
+        private async Task RetireOptimizationAsync()
+        {
+            if (_attachedOptimizationPage is { } page)
+            {
+                page.IntentRequested -= OptimizationPage_IntentRequested;
+            }
+            if (_optimizationCoordinator is { } coordinator)
+            {
+                coordinator.StateChanged -= OptimizationCoordinator_StateChanged;
+                await coordinator.DisposeAsync();
+            }
+            _attachedOptimizationPage = null;
+            _optimizationCoordinator = null;
+            _optimizationContextFactory = null;
+        }
+
+        private async Task ReturnFromOptimizationAsync()
+        {
+            await RetireOptimizationAsync();
+            _optimizationOutputRegistry = null;
+            if (_compatibilityPageForOptimizationReturn is { } compatibility)
+            {
+                StageFrame.Content = compatibility;
+                StageFrame.BackStack.Clear();
+                StageFrame.ForwardStack.Clear();
+                CurrentStage = OnboardingStage.CheckHardwareFit;
+                StageIndicator.CurrentStage = CurrentStage;
+            }
+        }
+
+        private static OptimizationStage MapStage(
+            OptimizationProgressStage? stage) => stage switch
+        {
+            OptimizationProgressStage.Preflight =>
+                OptimizationStage.Preflight,
+            OptimizationProgressStage.PrepareStaging =>
+                OptimizationStage.PrepareStaging,
+            OptimizationProgressStage.Optimise =>
+                OptimizationStage.Optimise,
+            OptimizationProgressStage.Validate =>
+                OptimizationStage.Validate,
+            OptimizationProgressStage.SmokeTest =>
+                OptimizationStage.SmokeTest,
+            OptimizationProgressStage.Reinspect =>
+                OptimizationStage.Reinspect,
+            OptimizationProgressStage.Publish =>
+                OptimizationStage.Publish,
+            _ => OptimizationStage.Preflight,
+        };
+
+        private async void CompatibilityPage_CurrentModelChatRequested(
+            object? sender,
+            CurrentModelChatRequestedEventArgs eventArguments)
+        {
+            if (!ReferenceEquals(sender, _attachedCompatibilityPage))
+            {
+                return;
+            }
+            _ = await CurrentModelChatLaunchRegistry.LaunchAsync(
+                eventArguments.Handoff,
+                CancellationToken.None);
         }
 
         private void HardwareInspectionPage_ActionRequested(
@@ -968,7 +1404,59 @@ namespace GraniteEdgeAI.Features.Onboarding
 
             _attachedCompatibilityPage.BackRequested -= CompatibilityPage_BackRequested;
             _attachedCompatibilityPage.ContinueRequested -= CompatibilityPage_ContinueRequested;
+            _attachedCompatibilityPage.OptimizationRequested -=
+                CompatibilityPage_OptimizationRequested;
+            _attachedCompatibilityPage.CurrentModelChatRequested -=
+                CompatibilityPage_CurrentModelChatRequested;
             _attachedCompatibilityPage = null;
+        }
+
+        private void EnsureGgufChatRoute(
+            GgufOptimizationProductionAuthority authority)
+        {
+            if (_ggufChatRouteRegistered)
+            {
+                return;
+            }
+            var accessor = new GgufOptimizationProductionAuthorityAccessor(
+                authority.RuntimePackageRoot,
+                authority.TrustedRuntimeManifest);
+            _ggufChatRouteRegistered = CurrentModelChatLaunchRegistry.RegisterRoute(
+                new GgufCurrentModelChatRouteLauncher(accessor, ShowGgufChat));
+        }
+
+        private void ShowGgufChat(
+            ChatPage page,
+            ChatDemoController controller)
+        {
+            DetachCompatibilityPage();
+            _hardwarePageForCompatibilityReturn = null;
+            _attachedChatPage = page;
+            _chatController = controller;
+            page.ImportModelRequested += ChatPage_ImportModelRequested;
+            StageFrame.Content = page;
+            StageFrame.BackStack.Clear();
+            StageFrame.ForwardStack.Clear();
+            CurrentStage = OnboardingStage.ReadyToChat;
+            StageIndicator.CurrentStage = CurrentStage;
+        }
+
+        private async void ChatPage_ImportModelRequested(
+            object? sender,
+            EventArgs eventArguments)
+        {
+            if (!ReferenceEquals(sender, _attachedChatPage))
+            {
+                return;
+            }
+            _attachedChatPage!.ImportModelRequested -= ChatPage_ImportModelRequested;
+            _attachedChatPage = null;
+            if (_chatController is { } controller)
+            {
+                _chatController = null;
+                await controller.DisposeAsync();
+            }
+            NavigateToFreshModelImport();
         }
 
         private static bool DefaultCompatibilityNavigation(

@@ -1006,13 +1006,17 @@ internal sealed class CompatibilityViewModel
             // inside the same effective band changes no rendered state.
             SelectedPreference = preference;
             CurrentOptimizationHandoff = handoff;
-            Presentation = Presentation with
+            bool primaryActionEnabled = _continueDestinationAvailable
+                && handoff is not null;
+            if (Presentation.PrimaryActionEnabled != primaryActionEnabled)
             {
-                PrimaryActionEnabled = _continueDestinationAvailable
-                    && handoff is not null
-            };
+                Presentation = Presentation with
+                {
+                    PrimaryActionEnabled = primaryActionEnabled
+                };
+                PresentationChanged?.Invoke(this, Presentation);
+            }
             ContinueCommand.RaiseCanExecuteChanged();
-            PresentationChanged?.Invoke(this, Presentation);
             return;
         }
         Publish(
@@ -1060,7 +1064,10 @@ internal sealed class CompatibilityViewModel
             commitState?.Invoke();
             CompatibilityPresentation effectivePresentation;
             if (!_continueDestinationAvailable
-                && presentation.PrimaryActionEnabled)
+                && presentation.PrimaryActionText is
+                    "Continue" or
+                    "Choose optimisation" or
+                    "Chat with current model")
             {
                 effectivePresentation = presentation with
                 {

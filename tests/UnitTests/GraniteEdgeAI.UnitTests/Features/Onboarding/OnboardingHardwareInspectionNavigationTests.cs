@@ -49,7 +49,7 @@ public sealed class OnboardingHardwareInspectionNavigationTests
                 return true;
             },
             hardwareHandoffReissuer: static _ => CreateHandoff());
-        var source = new ModelInspectionPage();
+        ModelInspectionPage source = CreateSourcePage();
         shell.AttachModelInspectionPage(source);
         ModelInspectionHandoff handoff = CreateHandoff();
 
@@ -152,7 +152,7 @@ public sealed class OnboardingHardwareInspectionNavigationTests
                     retryHandoff);
                 return true;
             });
-        var source = new ModelInspectionPage();
+        ModelInspectionPage source = CreateSourcePage();
         shell.AttachModelInspectionPage(source);
         ModelInspectionHandoff handoff = CreateHandoff();
 
@@ -181,7 +181,7 @@ public sealed class OnboardingHardwareInspectionNavigationTests
                 typeof(ModelInspectionPage),
                 request),
             service);
-        var active = new ModelInspectionPage();
+        ModelInspectionPage active = CreateSourcePage();
         var stale = new ModelInspectionPage();
         shell.AttachModelInspectionPage(active);
         ModelInspectionHandoff handoff = CreateHandoff();
@@ -213,6 +213,17 @@ public sealed class OnboardingHardwareInspectionNavigationTests
             out ModelInspectionHandoff? handoff));
         Assert.IsNotNull(handoff);
         return handoff;
+    }
+
+    private static ModelInspectionPage CreateSourcePage()
+    {
+        var page = new ModelInspectionPage();
+        MethodInfo? activate = typeof(ModelInspectionPage).GetMethod(
+            "ActivateRequest",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsNotNull(activate);
+        activate.Invoke(page, [PresentationTestData.CreateRequest()]);
+        return page;
     }
 
     private static void Load(HardwareInspectionPage page)

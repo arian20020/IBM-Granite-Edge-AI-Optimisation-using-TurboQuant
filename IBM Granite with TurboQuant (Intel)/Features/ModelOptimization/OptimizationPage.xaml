@@ -47,21 +47,30 @@
 
         <ScrollViewer
             x:Name="OptimizationPageScrollViewer"
+            HorizontalContentAlignment="Stretch"
             HorizontalScrollBarVisibility="Disabled"
             HorizontalScrollMode="Disabled"
             VerticalScrollBarVisibility="Auto"
             VerticalScrollMode="Enabled"
             ZoomMode="Disabled">
-            <StackPanel
+            <Grid
                 x:Name="OptimizationContentHost"
                 MaxWidth="{StaticResource OptimizationContentWidth}"
                 Margin="{StaticResource OptimizationCompactPageMargin}"
-                HorizontalAlignment="Stretch"
-                Spacing="16">
-                <StackPanel Margin="0,0,0,12" Spacing="8">
+                HorizontalAlignment="Stretch">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <StackPanel Grid.Row="0" Margin="0,0,0,12" Spacing="8">
                     <TextBlock
                         x:Name="PageTitle"
-                        HorizontalAlignment="Center"
+                        HorizontalAlignment="Stretch"
                         FontSize="32"
                         FontWeight="Bold"
                         Foreground="{ThemeResource OptimizationTextBrush}"
@@ -78,29 +87,39 @@
 
                 <controls:OptimizationConfigurationCard
                     x:Name="ConfigurationCard"
+                    Grid.Row="1"
+                    Margin="0,16,0,0"
                     AutomationProperties.Name="Selected optimisation configuration" />
 
                 <controls:OptimizationConfirmationCard
                     x:Name="ConfirmationCard"
+                    Grid.Row="2"
+                    Margin="0,16,0,0"
                     AutomationProperties.Name="Confirm optimisation configuration"
                     Visibility="Collapsed" />
 
                 <controls:OptimizationProgressCard
                     x:Name="ProgressCard"
+                    Grid.Row="3"
+                    Margin="0,16,0,0"
                     AutomationProperties.Name="Optimisation progress"
                     Visibility="Collapsed" />
 
                 <controls:OptimizationRecoveryCard
                     x:Name="RecoveryCard"
+                    Grid.Row="4"
+                    Margin="0,16,0,0"
                     AutomationProperties.Name="Optimisation recovery"
                     Visibility="Collapsed" />
 
                 <controls:OptimizationDestinationCard
                     x:Name="DestinationCard"
+                    Grid.Row="5"
+                    Margin="0,16,0,0"
                     AutomationProperties.Name="Optimisation destination"
                     Visibility="Collapsed" />
 
-            </StackPanel>
+            </Grid>
         </ScrollViewer>
     </Grid>
 </Page>

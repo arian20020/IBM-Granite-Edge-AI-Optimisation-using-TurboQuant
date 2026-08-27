@@ -30,6 +30,46 @@ public sealed class OptimizationOutputRegistryTests
     }
 
     [TestMethod]
+    public async Task SuccessfulGgufResultResolvesOnlyItsVerifiedPublishedFile()
+    {
+        using var fixture = new RegistryFixture();
+        OptimizationExecutionPlan plan = fixture.Plan();
+        var registry = new OptimizationOutputRegistry(
+            fixture.StagingRoot,
+            fixture.CommittedRoot);
+        using OptimizationOutputLease lease = registry.CreateLease(plan, 2);
+        byte[] expected = "optimized-result"u8.ToArray();
+        await using (FileStream output = lease.CreateFileForWrite("model.gguf"))
+            await output.WriteAsync(expected);
+        SealedOptimizationCandidate candidate = lease.Seal("optimized-model-2");
+        OptimizationCommitReceipt receipt = await registry.AdmitAsync(
+            plan,
+            2,
+            fixture.SourceSnapshot(),
+            true,
+            candidate,
+            CancellationToken.None);
+        OptimizationExecutionResult result = OptimizationExecutionResult.Succeeded(
+            plan,
+            receipt.Key.OutputIdentity,
+            receipt.Key.OutputManifestSha256,
+            receipt.OutputSizeBytes,
+            sourceUnchanged: true,
+            DateTimeOffset.UtcNow);
+
+        Assert.IsTrue(registry.TryGetPublishedGgufFile(
+            result,
+            out string? path,
+            out string? sha256,
+            out ulong length));
+        CollectionAssert.AreEqual(expected, File.ReadAllBytes(path!));
+        Assert.AreEqual(
+            Convert.ToHexString(SHA256.HashData(expected)).ToLowerInvariant(),
+            sha256);
+        Assert.AreEqual((ulong)expected.Length, length);
+    }
+
+    [TestMethod]
     public void RestartNeverAdmitsMovedOutputWithoutDurableReceipt()
     {
         using var fixture = new RegistryFixture();

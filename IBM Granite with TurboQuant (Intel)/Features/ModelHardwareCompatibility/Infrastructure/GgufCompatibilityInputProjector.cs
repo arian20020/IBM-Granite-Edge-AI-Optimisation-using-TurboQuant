@@ -3,10 +3,14 @@ using GraniteEdgeAI.Features.HardwareInspection.Domain;
 using GraniteEdgeAI.Features.ModelInspection.Contracts;
 using GraniteEdgeAI.Features.ModelInspection.Handoff;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.Gguf;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace GraniteEdgeAI.Features.ModelHardwareCompatibility.Infrastructure;
 
@@ -122,6 +126,8 @@ internal static class GgufCompatibilityInputProjector
 
             prepared = new PreparedGgufCompatibilityInput(
                 modelHandoff.ModelInspectionRunId,
+                modelHandoff.ModelInspectionHandoffId,
+                modelHandoff.ModelSha256,
                 productHardwareRunId,
                 model,
                 CompatibilityHardwareInput.Create(
@@ -154,20 +160,54 @@ internal static class GgufCompatibilityInputProjector
 internal sealed class PreparedGgufCompatibilityInput
 {
     private readonly Guid _modelInspectionRunId;
+    private readonly Guid _modelInspectionHandoffId;
+    private readonly string _modelSha256;
     private readonly Guid _productHardwareRunId;
     private readonly GgufCompatibilityModelInput _model;
     private readonly CompatibilityHardwareInput _hardware;
 
     internal PreparedGgufCompatibilityInput(
         Guid modelInspectionRunId,
+        Guid modelInspectionHandoffId,
+        string modelSha256,
         Guid productHardwareRunId,
         GgufCompatibilityModelInput model,
         CompatibilityHardwareInput hardware)
     {
         _modelInspectionRunId = modelInspectionRunId;
+        _modelInspectionHandoffId = modelInspectionHandoffId;
+        _modelSha256 = modelSha256;
         _productHardwareRunId = productHardwareRunId;
         _model = model;
         _hardware = hardware;
+    }
+
+    internal Guid ModelInspectionRunId => _modelInspectionRunId;
+    internal Guid ModelInspectionHandoffId => _modelInspectionHandoffId;
+    internal string ModelSha256 => _modelSha256;
+    internal Guid ProductHardwareRunId => _productHardwareRunId;
+    internal GgufCompatibilityModelInput Model => _model;
+    internal CompatibilityHardwareInput Hardware => _hardware;
+
+    internal CompatibilityCurrentModelInput CurrentModel =>
+        CompatibilityCurrentModelInput.ForGguf(
+            _model,
+            GgufRouteConfiguration.Create(
+                GgufWeightFormat.Imported,
+                GgufKvCacheFormat.F16,
+                CompatibilityBackend.Cpu,
+                DeviceRouteId.Cpu,
+                GpuOffloadLevel.None));
+
+    internal string HardwareSnapshotSha256
+    {
+        get
+        {
+            string canonical = $"hardware-snapshot-v1|{_productHardwareRunId:N}|"
+                + CompatibilityFactDigest.ComputeHardware(_hardware);
+            return Convert.ToHexString(SHA256.HashData(
+                Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant();
+        }
     }
 
     internal bool TryBindFresh(
