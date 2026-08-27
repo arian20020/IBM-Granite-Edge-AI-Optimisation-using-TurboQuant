@@ -89,7 +89,8 @@ internal static class OpenVinoCompatibilityInputProjector
                 productHardwareRunId,
                 model,
                 configuration,
-                hardware);
+                hardware,
+                evidence.Precision);
             return true;
         }
         catch (Exception error) when (error is ArgumentException or OverflowException)
@@ -108,7 +109,8 @@ internal sealed class PreparedOpenVinoCompatibilityInput
         Guid productHardwareRunId,
         OpenVinoCompatibilityModelInput model,
         OpenVinoRouteConfiguration configuration,
-        CompatibilityHardwareInput hardware)
+        CompatibilityHardwareInput hardware,
+        string sourcePrecision)
     {
         ModelInspectionRunId = modelInspectionRunId;
         ModelInspectionHandoffId = modelInspectionHandoffId;
@@ -117,6 +119,7 @@ internal sealed class PreparedOpenVinoCompatibilityInput
         Model = model;
         Configuration = configuration;
         Hardware = hardware;
+        SourcePrecision = sourcePrecision;
     }
 
     internal Guid ModelInspectionRunId { get; }
@@ -126,6 +129,7 @@ internal sealed class PreparedOpenVinoCompatibilityInput
     internal OpenVinoCompatibilityModelInput Model { get; }
     internal OpenVinoRouteConfiguration Configuration { get; }
     internal CompatibilityHardwareInput Hardware { get; }
+    internal string SourcePrecision { get; }
     internal CompatibilityCurrentModelInput CurrentModel =>
         CompatibilityCurrentModelInput.ForOpenVino(
             Model,

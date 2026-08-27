@@ -7,6 +7,7 @@ using ModelOutcome = GraniteEdgeAI.Features.ModelInspection.Contracts.ModelInspe
 using GraniteEdgeAI.Features.OpenVinoRoute;
 using GraniteEdgeAI.Features.OpenVinoRoute.Conversion;
 using GraniteEdgeAI.Features.OpenVinoRoute.Inspection;
+using GraniteEdgeAI.Features.OpenVinoRoute.Optimization;
 using GraniteEdgeAI.Features.Prompting;
 using GraniteEdgeAI.OpenVino.Contracts;
 using Microsoft.UI.Xaml;
@@ -368,6 +369,105 @@ public sealed partial class ModelInspectionPage
 
         directoryPath = _openVinoDirectoryPath;
         return true;
+    }
+
+    internal bool TryCreateOpenVinoOptimizationService(
+        out OpenVinoOptimizationService? service,
+        out OpenVinoBuildEvidence? buildEvidence)
+    {
+        service = null;
+        buildEvidence = _openVinoRouteService?.ExpectedBuildEvidence;
+        if (_openVinoRouteService is null || buildEvidence is null)
+        {
+            return false;
+        }
+        try
+        {
+            service = ModelInspectionServiceComposition
+                .CreateDefaultOpenVinoOptimizationService(_openVinoRouteService);
+            return true;
+        }
+        catch
+        {
+            service = null;
+            buildEvidence = null;
+            return false;
+        }
+    }
+
+    internal async Task<bool> ActivateOpenVinoChatAsync(
+        CancellationToken cancellationToken) =>
+        await ActivateOpenVinoChatFromDirectoryAsync(
+            _openVinoDirectoryPath, cancellationToken);
+
+    internal async Task<bool> ActivateOpenVinoChatFromDirectoryAsync(
+        string? packageDirectory,
+        CancellationToken cancellationToken)
+    {
+        if (_openVinoRouteService is null
+            || _promptRouteRegistry is null
+            || string.IsNullOrWhiteSpace(packageDirectory))
+        {
+            return false;
+        }
+        OpenVinoRouteHandoffLease? lease = null;
+        try
+        {
+            OpenVinoRouteInspectionResult inspection =
+                await _openVinoRouteService.InspectAsync(
+                    packageDirectory, cancellationToken);
+            lease = inspection.HandoffLease;
+            if (lease is null || inspection.Outcome is not (
+                    OpenVinoRouteInspectionOutcome.Ready or
+                    OpenVinoRouteInspectionOutcome.ReadyWithWarnings))
+            {
+                return false;
+            }
+            long lifetime = _openVinoLifetime;
+            List<PromptEvent> buffered = [];
+            object eventGate = new();
+            bool presenterReady = false;
+            PromptRouteSessionActivation activation =
+                await _promptRouteRegistry.ActivateAsync(
+                    lease,
+                    promptEvent =>
+                    {
+                        lock (eventGate)
+                        {
+                            if (!presenterReady)
+                            {
+                                buffered.Add(promptEvent);
+                                return;
+                            }
+                        }
+                        ApplyPromptEvent(lifetime, promptEvent);
+                    },
+                    cancellationToken);
+            lease = null;
+            _promptSession = activation.Session;
+            _promptPresenter = new PromptSessionPresenter(activation.Presentation);
+            lock (eventGate)
+            {
+                presenterReady = true;
+                foreach (PromptEvent promptEvent in buffered)
+                {
+                    _promptPresenter.Apply(promptEvent);
+                }
+                buffered.Clear();
+            }
+            SetPromptSurfaceVisible(true);
+            ApplyPromptSurfaceState(_promptPresenter.State);
+            AnnouncePromptStatus("OpenVINO local chat is ready.");
+            return IsCurrentOpenVinoLifetime(lifetime);
+        }
+        catch
+        {
+            return false;
+        }
+        finally
+        {
+            lease?.Dispose();
+        }
     }
 
     private void ApplyOpenVinoNonReadyPresentation(
