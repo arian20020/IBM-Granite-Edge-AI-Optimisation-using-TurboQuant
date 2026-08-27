@@ -6,6 +6,19 @@ namespace GraniteEdgeAI.GgufQuantization.Capabilities.Tests;
 public sealed class GgufQuantizerPackagingTests
 {
     [TestMethod]
+    public void VerifiedQuantizerBuildPinsTheResolvedMasmCompilerForCmake()
+    {
+        string script = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot(),
+            "scripts",
+            "gguf-quantization",
+            "Build-VerifiedQuantizer.ps1"));
+
+        StringAssert.Contains(script, "ml64.exe");
+        StringAssert.Contains(script, "CMAKE_ASM_COMPILER");
+    }
+
+    [TestMethod]
     public void ApplicationImportsASeparateFailClosedQuantizerPackage()
     {
         string root = FindRepositoryRoot();

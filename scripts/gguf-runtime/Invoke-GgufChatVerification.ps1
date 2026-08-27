@@ -18,7 +18,11 @@ $projects = @(
 Push-Location $repositoryRoot
 try {
     foreach ($relativeProject in $projects) {
-        & dotnet run --project $relativeProject -c Release -- --progress off
+        if ($relativeProject -ceq 'tests\UnitTests\GraniteEdgeAI.GgufRuntime.WorkerClient.Tests\GraniteEdgeAI.GgufRuntime.WorkerClient.Tests.csproj') {
+            & dotnet test --project $relativeProject -c Release -p:UseAppHost=false
+        } else {
+            & dotnet run --project $relativeProject -c Release -- --progress off
+        }
         if ($LASTEXITCODE -ne 0) {
             throw "Verification failed for $relativeProject."
         }
