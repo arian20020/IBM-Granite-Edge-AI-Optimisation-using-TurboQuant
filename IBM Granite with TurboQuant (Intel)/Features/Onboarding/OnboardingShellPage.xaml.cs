@@ -22,6 +22,7 @@ using GraniteEdgeAI.Features.ModelOptimization.Execution.Gguf;
 using GraniteEdgeAI.Features.ModelOptimization.Journey;
 using GraniteEdgeAI.Features.ModelOptimization.Presentation;
 using GraniteEdgeAI.Features.ModelOptimization.Storage;
+using GraniteEdgeAI.Features.OpenVinoRoute.Inspection;
 using GraniteEdgeAI.GgufQuantization.WorkerClient;
 using Microsoft.UI.Xaml.Controls;
 using System;
@@ -628,29 +629,40 @@ namespace GraniteEdgeAI.Features.Onboarding
                 || _activeProductHardwareRunId == Guid.Empty
                 || eventArguments.Handoff.InspectionId != _activeProductHardwareRunId
                 || _handoffRegistry.GetState(_activeModelHandoffId)
-                    != ModelInspectionHandoffLifecycleState.BoundToHardwareRun
-                || _modelEvidenceResolver(modelPage, modelHandoff)
-                    is not { } terminal)
+                    != ModelInspectionHandoffLifecycleState.BoundToHardwareRun)
             {
                 return false;
             }
 
-            if (!ReferenceEquals(sourcePage, _attachedHardwareInspectionPage)
-                || _activeModelHandoffId != modelHandoff.ModelInspectionHandoffId
-                || _activeProductHardwareRunId != eventArguments.Handoff.InspectionId
-                || !GgufCompatibilityInputProjector.TryPrepare(
+            ModelInspectionExecutionResult? terminal =
+                _modelEvidenceResolver(modelPage, modelHandoff);
+            PreparedGgufCompatibilityInput? preparedGguf = null;
+            PreparedOpenVinoCompatibilityInput? preparedOpenVino = null;
+            bool hasGguf = terminal is not null &&
+                GgufCompatibilityInputProjector.TryPrepare(
                     modelHandoff,
                     terminal,
                     _activeProductHardwareRunId,
                     eventArguments.Handoff,
-                    out PreparedGgufCompatibilityInput? prepared))
+                    out preparedGguf);
+            bool hasOpenVino = !hasGguf &&
+                modelPage.TryGetOpenVinoCompatibilityEvidence(
+                    modelHandoff,
+                    out OpenVinoStaticPackageEvidence? openVinoEvidence) &&
+                OpenVinoCompatibilityInputProjector.TryPrepare(
+                    modelHandoff,
+                    openVinoEvidence!,
+                    _activeProductHardwareRunId,
+                    eventArguments.Handoff,
+                    out preparedOpenVino);
+            if (!hasGguf && !hasOpenVino)
             {
                 return false;
             }
 
             CompatibilityPage compatibilityPage;
-            if (GgufOptimizationProductionAuthority.TryCreate(
-                    prepared!,
+            if (hasGguf && GgufOptimizationProductionAuthority.TryCreate(
+                    preparedGguf!,
                     out GgufOptimizationProductionAuthority? production))
             {
                 _activeGgufAuthority = production;
@@ -700,9 +712,14 @@ namespace GraniteEdgeAI.Features.Onboarding
                     {
                         CompatibilityFreshResourcesInput fresh =
                             await _compatibilityFreshResourcesSource.CaptureAsync(token);
-                        if (!prepared!.TryBindFresh(
+                        bool bound = hasGguf
+                            ? preparedGguf!.TryBindFresh(
                                 fresh,
-                                out CompatibilityProductionInput? input))
+                                out CompatibilityProductionInput? input)
+                            : preparedOpenVino!.TryBindFresh(
+                                fresh,
+                                out input);
+                        if (!bound)
                         {
                             return CompatibilityEngine.RunWithAvailableAdapters(token);
                         }

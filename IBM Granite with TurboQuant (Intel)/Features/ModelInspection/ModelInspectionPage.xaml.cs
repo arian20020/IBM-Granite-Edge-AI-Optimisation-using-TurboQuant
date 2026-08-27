@@ -460,15 +460,36 @@ public sealed partial class ModelInspectionPage : Page
             ViewModel_HardwareInspectionRequested;
     }
 
-    internal void SetHardwareRouteAvailable(bool isAvailable) =>
+    internal void SetHardwareRouteAvailable(bool isAvailable)
+    {
         ViewModel?.SetHardwareRouteAvailable(isAvailable);
+        SetOpenVinoHardwareRouteAvailable(isAvailable);
+    }
 
     internal ModelInspectionHandoff? ReissueHardwareHandoff()
     {
-        return ViewModel?.TryReissueHardwareHandoff(
+        ModelInspectionHandoff? gguf = ViewModel?.TryReissueHardwareHandoff(
             out ModelInspectionHandoff? replacement) == true
             ? replacement
             : null;
+        if (gguf is not null)
+        {
+            return gguf;
+        }
+
+        if (_openVinoHardwareHandoff is not { } current)
+        {
+            return null;
+        }
+
+        _openVinoHardwareHandoff = new ModelInspectionHandoff(
+            ModelInspectionHandoff.CurrentSchemaVersion,
+            Guid.NewGuid(),
+            current.ModelInspectionRunId,
+            current.Outcome,
+            current.ModelSha256,
+            current.ModelLengthBytes);
+        return _openVinoHardwareHandoff;
     }
 
     internal ModelInspectionExecutionResult? ResolveTerminalResult(

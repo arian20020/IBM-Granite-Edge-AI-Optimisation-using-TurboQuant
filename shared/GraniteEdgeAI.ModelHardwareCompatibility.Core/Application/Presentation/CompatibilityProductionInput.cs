@@ -613,6 +613,32 @@ public sealed record CompatibilityProductionInput
                 "Optimization requires independent journey authority and an exact route baseline.",
                 nameof(optimization));
 
+    /// <summary>
+    /// Creates an inspected OpenVINO compatibility run before optional
+    /// optimization authority has been assembled.
+    /// </summary>
+    public static CompatibilityProductionInput Create(
+        Guid modelInspectionRunId,
+        Guid productHardwareRunId,
+        OpenVinoCompatibilityModelInput model,
+        OpenVinoRouteConfiguration configuration,
+        OpenVinoWeightPrecision sourcePrecision,
+        CompatibilityHardwareInput hardware,
+        CompatibilityFreshResourcesInput freshResources)
+    {
+        ArgumentNullException.ThrowIfNull(model);
+        ArgumentNullException.ThrowIfNull(configuration);
+        return CreateValidated(
+            modelInspectionRunId,
+            productHardwareRunId,
+            CompatibilityCurrentModelInput.ForOpenVino(
+                model, configuration, sourcePrecision),
+            journeyAuthority: null,
+            hardware,
+            freshResources,
+            optimization: null);
+    }
+
     public static CompatibilityProductionInput Create(
         Guid modelInspectionRunId,
         Guid productHardwareRunId,

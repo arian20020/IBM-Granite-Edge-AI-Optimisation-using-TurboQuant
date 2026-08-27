@@ -21,9 +21,22 @@ public sealed partial class OnboardingShellPage
         ModelInspectionPage sourcePage,
         ModelInspectionHandoff handoff)
     {
-        if (sourcePage.Request is not { } request
-            || request.ExpectedFileIdentity.LengthBytes
-                != handoff.ModelLengthBytes)
+        OptimizationRoute route;
+        string sourcePath;
+        if (sourcePage.Request is { } request &&
+            request.ExpectedFileIdentity.LengthBytes == handoff.ModelLengthBytes)
+        {
+            route = OptimizationRoute.Gguf;
+            sourcePath = request.ModelPath;
+        }
+        else if (sourcePage.TryGetOpenVinoSourceDirectory(
+            handoff, out string? directoryPath) &&
+            !string.IsNullOrWhiteSpace(directoryPath))
+        {
+            route = OptimizationRoute.OpenVino;
+            sourcePath = directoryPath;
+        }
+        else
         {
             return false;
         }
@@ -34,9 +47,9 @@ public sealed partial class OnboardingShellPage
                 handoff.ModelInspectionHandoffId,
                 handoff.ModelSha256,
                 handoff.ModelLengthBytes,
-                OptimizationRoute.Gguf);
+                route);
             return _modelSourceCustodyRegistry.Register(
-                new ModelSourceCustodyRecord(key, request.ModelPath));
+                new ModelSourceCustodyRecord(key, sourcePath));
         }
         catch (ArgumentException)
         {
