@@ -71,6 +71,7 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
                 <!-- Title -->
@@ -136,10 +137,104 @@
                     </Grid>
                 </Border>
 
+                <!-- Exact memory evidence consumed by this compatibility decision. -->
+                <Border
+                    x:Name="MachineMemoryCard"
+                    Grid.Row="2"
+                    Background="{ThemeResource CompatibilitySurfaceBrush}"
+                    BorderBrush="{ThemeResource CompatibilityBorderLightBrush}"
+                    BorderThickness="1"
+                    CornerRadius="{StaticResource CompatibilityCardRadius}"
+                    Padding="{StaticResource CompatibilitySectionCardPadding}"
+                    Visibility="Collapsed">
+                    <StackPanel Spacing="12">
+                        <StackPanel Spacing="3">
+                            <TextBlock
+                                FontSize="{StaticResource CompatibilityCardTitleFontSize}"
+                                FontWeight="SemiBold"
+                                Foreground="{ThemeResource CompatibilityTextPrimaryBrush}"
+                                Text="This computer" />
+                            <TextBlock
+                                FontSize="{StaticResource CompatibilityOutcomeBodyFontSize}"
+                                Foreground="{ThemeResource CompatibilityTextMutedBrush}"
+                                Text="Memory measured when this compatibility check ran."
+                                TextWrapping="Wrap" />
+                        </StackPanel>
+                        <Grid x:Name="MachineMemoryFactsGrid" ColumnSpacing="12" RowSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <Border
+                                x:Name="MachineMemoryInstalledTile"
+                                Grid.Column="0"
+                                Background="{ThemeResource CompatibilityBlueSurfaceBrush}"
+                                BorderBrush="{ThemeResource CompatibilityBorderLightBrush}"
+                                BorderThickness="1"
+                                CornerRadius="{StaticResource CompatibilityFactRadius}"
+                                Padding="14,12">
+                                <StackPanel Spacing="4">
+                                    <TextBlock x:Name="MachineMemoryInstalledLabel" FontSize="{StaticResource CompatibilityFactLabelFontSize}" FontWeight="SemiBold" Foreground="{ThemeResource CompatibilityTextMutedBrush}" TextWrapping="Wrap" />
+                                    <TextBlock x:Name="MachineMemoryInstalledValue" FontSize="{StaticResource CompatibilityFactValueFontSize}" FontWeight="SemiBold" Foreground="{ThemeResource CompatibilityTextPrimaryBrush}" TextWrapping="Wrap" />
+                                    <TextBlock x:Name="MachineMemoryInstalledDetail" FontSize="{StaticResource CompatibilityRowSubFontSize}" Foreground="{ThemeResource CompatibilityTextMutedBrush}" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
+                            <Border
+                                x:Name="MachineMemoryAvailableTile"
+                                Grid.Column="1"
+                                Background="{ThemeResource CompatibilityBlueSurfaceBrush}"
+                                BorderBrush="{ThemeResource CompatibilityBorderLightBrush}"
+                                BorderThickness="1"
+                                CornerRadius="{StaticResource CompatibilityFactRadius}"
+                                Padding="14,12">
+                                <StackPanel Spacing="4">
+                                    <TextBlock x:Name="MachineMemoryAvailableLabel" FontSize="{StaticResource CompatibilityFactLabelFontSize}" FontWeight="SemiBold" Foreground="{ThemeResource CompatibilityTextMutedBrush}" TextWrapping="Wrap" />
+                                    <TextBlock x:Name="MachineMemoryAvailableValue" FontSize="{StaticResource CompatibilityFactValueFontSize}" FontWeight="SemiBold" Foreground="{ThemeResource CompatibilityTextPrimaryBrush}" TextWrapping="Wrap" />
+                                    <TextBlock x:Name="MachineMemoryAvailableDetail" FontSize="{StaticResource CompatibilityRowSubFontSize}" Foreground="{ThemeResource CompatibilityTextMutedBrush}" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
+                            <Border
+                                x:Name="MachineMemoryReserveTile"
+                                Grid.Column="2"
+                                Background="{ThemeResource CompatibilityBlueSurfaceBrush}"
+                                BorderBrush="{ThemeResource CompatibilityBorderLightBrush}"
+                                BorderThickness="1"
+                                CornerRadius="{StaticResource CompatibilityFactRadius}"
+                                Padding="14,12">
+                                <StackPanel Spacing="4">
+                                    <TextBlock x:Name="MachineMemoryReserveLabel" FontSize="{StaticResource CompatibilityFactLabelFontSize}" FontWeight="SemiBold" Foreground="{ThemeResource CompatibilityTextMutedBrush}" TextWrapping="Wrap" />
+                                    <TextBlock x:Name="MachineMemoryReserveValue" FontSize="{StaticResource CompatibilityFactValueFontSize}" FontWeight="SemiBold" Foreground="{ThemeResource CompatibilityTextPrimaryBrush}" TextWrapping="Wrap" />
+                                    <TextBlock x:Name="MachineMemoryReserveDetail" FontSize="{StaticResource CompatibilityRowSubFontSize}" Foreground="{ThemeResource CompatibilityTextMutedBrush}" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
+                            <Border
+                                x:Name="MachineMemorySafeTile"
+                                Grid.Column="3"
+                                Background="{ThemeResource CompatibilityBlueSurfaceBrush}"
+                                BorderBrush="{ThemeResource CompatibilityBorderLightBrush}"
+                                BorderThickness="1"
+                                CornerRadius="{StaticResource CompatibilityFactRadius}"
+                                Padding="14,12">
+                                <StackPanel Spacing="4">
+                                    <TextBlock x:Name="MachineMemorySafeLabel" FontSize="{StaticResource CompatibilityFactLabelFontSize}" FontWeight="SemiBold" Foreground="{ThemeResource CompatibilityTextMutedBrush}" TextWrapping="Wrap" />
+                                    <TextBlock x:Name="MachineMemorySafeValue" FontSize="{StaticResource CompatibilityFactValueFontSize}" FontWeight="SemiBold" Foreground="{ThemeResource CompatibilityTextPrimaryBrush}" TextWrapping="Wrap" />
+                                    <TextBlock x:Name="MachineMemorySafeDetail" FontSize="{StaticResource CompatibilityRowSubFontSize}" Foreground="{ThemeResource CompatibilityTextMutedBrush}" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
                 <!-- Outcome card -->
                 <Border
                     x:Name="OutcomeCard"
-                    Grid.Row="2"
+                    Grid.Row="3"
                     BorderThickness="1"
                     CornerRadius="{StaticResource CompatibilityCardRadius}"
                     Padding="{StaticResource CompatibilityOutcomePadding}">
@@ -201,7 +296,7 @@
                 </Border>
 
                 <!-- .b-columns: 1.35fr / .85fr, children stretch to equal height -->
-                <Grid x:Name="AssessmentGrid" Grid.Row="3" ColumnSpacing="14">
+                <Grid x:Name="AssessmentGrid" Grid.Row="4" ColumnSpacing="14">
                     <VisualStateManager.VisualStateGroups>
                         <VisualStateGroup x:Name="AssessmentLayoutStates">
                             <VisualState x:Name="WideAssessment">
@@ -521,7 +616,7 @@
                 -->
                 <Border
                     x:Name="OptimizationCard"
-                    Grid.Row="4"
+                    Grid.Row="5"
                     Background="{ThemeResource CompatibilitySurfaceBrush}"
                     BorderBrush="{ThemeResource CompatibilityBorderLightBrush}"
                     BorderThickness="1"
@@ -777,7 +872,7 @@
                 -->
                 <Border
                     x:Name="RecoveryCard"
-                    Grid.Row="5"
+                    Grid.Row="6"
                     Background="{ThemeResource CompatibilitySurfaceBrush}"
                     BorderBrush="{ThemeResource CompatibilityBorderLightBrush}"
                     BorderThickness="1"
@@ -850,7 +945,7 @@
 
                 <!-- Calculation disclosure -->
                 <Border
-                    Grid.Row="6"
+                    Grid.Row="7"
                     Background="{ThemeResource CompatibilitySurfaceBrush}"
                     BorderBrush="{ThemeResource CompatibilityBorderLightBrush}"
                     BorderThickness="1"
@@ -891,7 +986,7 @@
                 </Border>
 
                 <!-- Centred actions -->
-                <Grid x:Name="ActionGrid" Grid.Row="7" ColumnSpacing="8" RowSpacing="8" HorizontalAlignment="Center" MaxWidth="520">
+                <Grid x:Name="ActionGrid" Grid.Row="8" ColumnSpacing="8" RowSpacing="8" HorizontalAlignment="Center" MaxWidth="520">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="*" />

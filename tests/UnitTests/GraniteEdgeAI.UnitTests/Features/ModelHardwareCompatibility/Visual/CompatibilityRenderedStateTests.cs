@@ -600,6 +600,54 @@ public sealed class CompatibilityRenderedStateTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
+    public void MachineMemoryCard_RendersExactValuesAndCollapsesWithoutEvidence()
+    {
+        CompatibilityPage page = CreatePage();
+        CompatibilityFixture? fixture = CompatibilityFixtureCatalogue.ById("CMP-010");
+        Assert.IsNotNull(fixture);
+        CompatibilityPresentation presentation = fixture.Presentation with
+        {
+            MachineMemory = new CompatibilityMachineMemoryPresentation(
+            [
+                new CompatibilityFact("Installed RAM", "16 GB", "Physical memory in this computer"),
+                new CompatibilityFact("Available now", "6 GB", "Free when this check ran"),
+                new CompatibilityFact("Safety reserve", "614 MB", "Kept for Windows and other applications"),
+                new CompatibilityFact("Safe for this model", "5.4 GB", "Available after the safety reserve")
+            ])
+        };
+
+        page.Apply(presentation);
+        InvokeResponsiveLayout(page, 560d);
+        page.UpdateLayout();
+
+        Assert.AreEqual(
+            Visibility.Visible,
+            Element<FrameworkElement>(page, "MachineMemoryCard").Visibility);
+        Assert.AreEqual("Installed RAM", Element<TextBlock>(page, "MachineMemoryInstalledLabel").Text);
+        Assert.AreEqual("16 GB", Element<TextBlock>(page, "MachineMemoryInstalledValue").Text);
+        Assert.AreEqual("Available now", Element<TextBlock>(page, "MachineMemoryAvailableLabel").Text);
+        Assert.AreEqual("6 GB", Element<TextBlock>(page, "MachineMemoryAvailableValue").Text);
+        Assert.AreEqual("Safety reserve", Element<TextBlock>(page, "MachineMemoryReserveLabel").Text);
+        Assert.AreEqual("614 MB", Element<TextBlock>(page, "MachineMemoryReserveValue").Text);
+        Assert.AreEqual("Safe for this model", Element<TextBlock>(page, "MachineMemorySafeLabel").Text);
+        Assert.AreEqual("5.4 GB", Element<TextBlock>(page, "MachineMemorySafeValue").Text);
+
+        Grid facts = Element<Grid>(page, "MachineMemoryFactsGrid");
+        Assert.AreEqual(0, Grid.GetRow(Element<FrameworkElement>(page, "MachineMemoryInstalledTile")));
+        Assert.AreEqual(0, Grid.GetRow(Element<FrameworkElement>(page, "MachineMemoryAvailableTile")));
+        Assert.AreEqual(1, Grid.GetRow(Element<FrameworkElement>(page, "MachineMemoryReserveTile")));
+        Assert.AreEqual(1, Grid.GetRow(Element<FrameworkElement>(page, "MachineMemorySafeTile")));
+        Assert.AreEqual(new GridLength(1, GridUnitType.Star), facts.ColumnDefinitions[0].Width);
+        Assert.AreEqual(new GridLength(1, GridUnitType.Star), facts.ColumnDefinitions[1].Width);
+
+        page.Apply(CompatibilityPresentation.Empty);
+        Assert.AreEqual(
+            Visibility.Collapsed,
+            Element<FrameworkElement>(page, "MachineMemoryCard").Visibility);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
     public void MemoryBlockedOutcome_IsAnExplicitActionableWarning()
     {
         CompatibilityFixture? fixture = CompatibilityFixtureCatalogue.ById("CMP-030");

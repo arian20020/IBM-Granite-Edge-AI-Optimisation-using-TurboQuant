@@ -177,6 +177,7 @@ internal sealed partial class CompatibilityPage : Page
                 ? Visibility.Collapsed
                 : Visibility.Visible;
 
+        ApplyMachineMemory(presentation.MachineMemory);
         ApplyOutcome(presentation);
         ApplyFacts(presentation.Facts);
         ApplyBudget(presentation.Budget);
@@ -254,6 +255,49 @@ internal sealed partial class CompatibilityPage : Page
             == ViewModels.CompatibilityAuxiliaryStatusKind.None
                 ? Visibility.Collapsed
                 : Visibility.Visible;
+    }
+
+    private void ApplyMachineMemory(
+        CompatibilityMachineMemoryPresentation? memory)
+    {
+        if (memory is null || memory.Facts.Count != 4)
+        {
+            MachineMemoryCard.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        ApplyMachineMemoryFact(
+            memory.Facts[0],
+            MachineMemoryInstalledLabel,
+            MachineMemoryInstalledValue,
+            MachineMemoryInstalledDetail);
+        ApplyMachineMemoryFact(
+            memory.Facts[1],
+            MachineMemoryAvailableLabel,
+            MachineMemoryAvailableValue,
+            MachineMemoryAvailableDetail);
+        ApplyMachineMemoryFact(
+            memory.Facts[2],
+            MachineMemoryReserveLabel,
+            MachineMemoryReserveValue,
+            MachineMemoryReserveDetail);
+        ApplyMachineMemoryFact(
+            memory.Facts[3],
+            MachineMemorySafeLabel,
+            MachineMemorySafeValue,
+            MachineMemorySafeDetail);
+        MachineMemoryCard.Visibility = Visibility.Visible;
+    }
+
+    private static void ApplyMachineMemoryFact(
+        CompatibilityFact fact,
+        TextBlock label,
+        TextBlock value,
+        TextBlock detail)
+    {
+        label.Text = fact.Label;
+        value.Text = fact.Value;
+        detail.Text = fact.Detail;
     }
 
     private void ApplyOptimization(CompatibilityOptimizationPresentation? optimization)
@@ -585,6 +629,7 @@ internal sealed partial class CompatibilityPage : Page
 
     private void ApplyResponsiveLayout(double availableWidth)
     {
+        ApplyMachineMemoryLayout(availableWidth < 760d);
         ApplyAssessmentLayout(availableWidth < 900d);
 
         bool stackOutcome = availableWidth < 760d;
@@ -799,6 +844,35 @@ internal sealed partial class CompatibilityPage : Page
             ExperimentalConsentCheckBox.IsChecked =
                 ViewModel.IsExperimentalConsentGranted;
             _applyingOptimization = false;
+        }
+    }
+
+    private void ApplyMachineMemoryLayout(bool compact)
+    {
+        for (int index = 0; index < MachineMemoryFactsGrid.ColumnDefinitions.Count; index++)
+        {
+            MachineMemoryFactsGrid.ColumnDefinitions[index].Width =
+                !compact || index < 2
+                    ? new GridLength(1, GridUnitType.Star)
+                    : new GridLength(0);
+        }
+
+        MachineMemoryFactsGrid.RowDefinitions[0].Height = GridLength.Auto;
+        MachineMemoryFactsGrid.RowDefinitions[1].Height = compact
+            ? GridLength.Auto
+            : new GridLength(0);
+
+        FrameworkElement[] tiles =
+        [
+            MachineMemoryInstalledTile,
+            MachineMemoryAvailableTile,
+            MachineMemoryReserveTile,
+            MachineMemorySafeTile
+        ];
+        for (int index = 0; index < tiles.Length; index++)
+        {
+            Grid.SetColumn(tiles[index], compact ? index % 2 : index);
+            Grid.SetRow(tiles[index], compact ? index / 2 : 0);
         }
     }
 
