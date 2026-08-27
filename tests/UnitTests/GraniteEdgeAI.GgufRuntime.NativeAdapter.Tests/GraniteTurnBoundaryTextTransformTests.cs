@@ -109,17 +109,25 @@ public sealed class GraniteTurnBoundaryTextTransformTests
     }
 
     [TestMethod]
-    public async Task ProbeTokenIsDrainedSoTheExecutorCanAcceptAnotherTurn()
+    public async Task ForcedLengthTurnDrainsProbeAndNextTurnEmitsFreshText()
     {
         var observer = new GraniteGenerationBoundaryObserver();
-        var source = new CompletingTokenSource("one", " two", " hidden");
+        var source = new ContinuingTokenSource();
         var transform = new GraniteTurnBoundaryTextTransform(2, observer);
 
-        string visible = await CollectAsync(transform.TransformAsync(source.ReadAsync()));
+        string limited = await CollectAsync(transform.TransformAsync(source.ReadLimitedAsync()));
 
-        Assert.AreEqual("one two", visible);
+        Assert.AreEqual("one two", limited);
         Assert.AreEqual(GgufAdapterCompletionReason.Length, observer.Reason);
-        Assert.IsTrue(source.Completed);
+        Assert.IsTrue(source.LimitedTurnCompleted);
+
+        LlamaSharpInferenceEngine.BeginGeneration(observer);
+        string continuation = await CollectAsync(
+            transform.TransformAsync(source.ReadContinuationAsync()));
+
+        Assert.AreEqual("continued", continuation);
+        Assert.AreEqual(GgufAdapterCompletionReason.Stop, observer.Reason);
+        Assert.IsFalse(continuation.Contains("hidden", StringComparison.Ordinal));
     }
 
     [TestMethod]
@@ -172,19 +180,25 @@ public sealed class GraniteTurnBoundaryTextTransformTests
         }
     }
 
-    private sealed class CompletingTokenSource(params string[] chunks)
+    private sealed class ContinuingTokenSource
     {
-        internal bool Completed { get; private set; }
+        internal bool LimitedTurnCompleted { get; private set; }
 
-        internal async IAsyncEnumerable<string> ReadAsync()
+        internal async IAsyncEnumerable<string> ReadLimitedAsync()
         {
-            foreach (string chunk in chunks)
+            foreach (string chunk in new[] { "one", " two", " hidden" })
             {
                 yield return chunk;
                 await Task.Yield();
             }
 
-            Completed = true;
+            LimitedTurnCompleted = true;
+        }
+
+        internal async IAsyncEnumerable<string> ReadContinuationAsync()
+        {
+            yield return LimitedTurnCompleted ? "continued" : " hidden";
+            await Task.Yield();
         }
     }
 }
