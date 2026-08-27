@@ -19,11 +19,9 @@ public sealed class ArchitectureBoundaryTests
                 .Select(element => (string?)element.Attribute("Include") ?? string.Empty)
                 .ToArray();
 
-            Assert.IsFalse(references.Any(reference =>
-                reference.Contains("infrastructure", StringComparison.OrdinalIgnoreCase) ||
-                reference.Contains("runtime", StringComparison.OrdinalIgnoreCase) ||
-                reference.Contains("workers", StringComparison.OrdinalIgnoreCase) ||
-                reference.Contains("IBM Granite", StringComparison.OrdinalIgnoreCase)), project);
+            Assert.IsFalse(
+                references.Any(reference => ReferencesForbiddenLayer(project, reference)),
+                project);
             Assert.IsFalse(packages.Any(package =>
                 package.Contains("OpenVINO", StringComparison.OrdinalIgnoreCase) ||
                 package.Contains("TurboQuant", StringComparison.OrdinalIgnoreCase) ||
@@ -104,6 +102,32 @@ public sealed class ArchitectureBoundaryTests
     private static string RepoPath(string relative) => Path.Combine(
         FindRepositoryRoot(),
         relative.Replace('/', Path.DirectorySeparatorChar));
+
+    private static bool ReferencesForbiddenLayer(
+        string project,
+        string projectReference)
+    {
+        string repositoryRoot = FindRepositoryRoot();
+        string referencedProject = Path.GetFullPath(
+            projectReference,
+            Path.GetDirectoryName(project)!);
+        string relative = Path.GetRelativePath(repositoryRoot, referencedProject);
+        if (relative.Equals("..", StringComparison.Ordinal) ||
+            relative.StartsWith($"..{Path.DirectorySeparatorChar}",
+                StringComparison.Ordinal))
+        {
+            return true;
+        }
+        string topLevel = relative.Split(
+            [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
+            StringSplitOptions.RemoveEmptyEntries)[0];
+
+        return topLevel.Equals("infrastructure", StringComparison.OrdinalIgnoreCase) ||
+            topLevel.Equals("runtime", StringComparison.OrdinalIgnoreCase) ||
+            topLevel.Equals("workers", StringComparison.OrdinalIgnoreCase) ||
+            topLevel.Equals("IBM Granite with TurboQuant (Intel)",
+                StringComparison.OrdinalIgnoreCase);
+    }
 
     private static string FindRepositoryRoot()
     {

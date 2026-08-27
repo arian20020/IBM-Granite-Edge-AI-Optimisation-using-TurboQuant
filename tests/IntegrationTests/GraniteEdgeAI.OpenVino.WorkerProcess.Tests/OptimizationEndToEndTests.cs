@@ -384,7 +384,7 @@ public sealed class OptimizationEndToEndTests
 
         AssertAuthoritativePayloadMemberTypes(graph);
         AssertNoDuplicatePayloadAuthorityInProductionModule();
-        AssertConfigurationDigestDelegatesToC1Issuer();
+        AssertConfigurationDigestDelegatesToPlanAuthority();
     }
 
     [TestMethod]
@@ -1042,23 +1042,24 @@ public sealed class OptimizationEndToEndTests
             : name;
     }
 
-    private static void AssertConfigurationDigestDelegatesToC1Issuer()
+    private static void AssertConfigurationDigestDelegatesToPlanAuthority()
     {
         MethodInfo configurationMatch = ConfigurationIdentityMethod();
         SameModuleCallGraph graph = BuildSameModuleCallGraph(configurationMatch);
-        MethodInfo[] issuerCalls = graph.References
+        MethodInfo[] authorityCalls = graph.References
             .Select(static reference => reference.Target)
             .OfType<MethodInfo>()
             .Where(static method =>
-                method.DeclaringType == typeof(OptimizationPlanIssuer) &&
-                method.Name == nameof(OptimizationPlanIssuer.Issue))
+                method.DeclaringType == typeof(OptimizationExecutionPlan) &&
+                method.Name == nameof(
+                    OptimizationExecutionPlan.MatchesExecutionPayload))
             .ToArray();
 
-        Assert.HasCount(1, issuerCalls,
-            "Configuration identity must delegate exactly once to the public C1 issuer.");
-        Assert.IsTrue(issuerCalls[0].IsPublic && issuerCalls[0].IsStatic);
+        Assert.HasCount(1, authorityCalls,
+            "Configuration identity must delegate exactly once to the bound C1 plan.");
+        Assert.IsTrue(authorityCalls[0].IsPublic && !authorityCalls[0].IsStatic);
         Assert.AreEqual(typeof(ContractExecutionPayload),
-            issuerCalls[0].GetParameters()[1].ParameterType);
+            authorityCalls[0].GetParameters()[0].ParameterType);
         Assert.IsFalse(ContainsHiddenInvocationRisk(graph),
             "Configuration identity must not hide an alternate issuer/canonicalizer call.");
         Assert.IsFalse(ContainsLocalConfigurationCanonicalization(graph),
@@ -1379,8 +1380,22 @@ public sealed class OptimizationEndToEndTests
                 requiresPersistentChange: true),
             admission.EvidenceId,
             isExperimental: false);
-        OptimizationSelection selection = OptimizationPreferenceResolver.Resolve(
-            [candidate], OptimizationPreferenceSelection.Manual(50))!;
+        OptimizationPreferenceSelection preference =
+            OptimizationPreferenceSelection.Manual(50);
+        ConstructorInfo selectionConstructor =
+            typeof(OptimizationSelection).GetConstructor(
+                BindingFlags.Instance | BindingFlags.NonPublic,
+                binder: null,
+                [
+                    typeof(OptimizationCandidate),
+                    typeof(OptimizationPreferenceSelection),
+                    typeof(bool)
+                ],
+                modifiers: null)
+            ?? throw new InvalidOperationException(
+                "The frozen V2 selection constructor is unavailable.");
+        OptimizationSelection selection = (OptimizationSelection)
+            selectionConstructor.Invoke([candidate, preference, false]);
         OpenVinoOptimizationToolVersions versions = currentEvidence.Versions;
         ContractExecutionPayload executionPayload =
             ContractExecutionPayload.ForOpenVino(

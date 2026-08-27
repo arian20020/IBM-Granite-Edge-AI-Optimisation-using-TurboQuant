@@ -404,10 +404,8 @@ public sealed class OpenVinoOptimizationCapabilityProjectorTests
                     "ov-projector-parity",
                     new string('3', 64),
                     payload);
-            OptimizationSelection selection = OptimizationPreferenceResolver.Resolve(
-                [candidate], OptimizationPreferenceSelection.Manual(50))!;
-            OptimizationExecutionPlan plan = OptimizationPlanIssuer.Issue(
-                selection,
+            OptimizationExecutionPlan plan = OpenVinoV2PlanTestFactory.Issue(
+                candidate,
                 OpenVinoV2TestPayload.For(
                     admission.Weights, admission.KvCache, admission.CompiledCache,
                     admission.EvidenceId),
