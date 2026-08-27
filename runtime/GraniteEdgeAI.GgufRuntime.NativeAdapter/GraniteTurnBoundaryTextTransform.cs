@@ -31,29 +31,36 @@ internal sealed class GraniteTurnBoundaryTextTransform : ITextStreamTransform
         int emitted = 0;
         int sourceTokenCount = 0;
         bool prefixResolved = false;
+        bool lengthReached = false;
 
         await foreach (string token in tokens.ConfigureAwait(false))
         {
             sourceTokenCount++;
             if (sourceTokenCount > visibleTokenLimit)
             {
-                observer.Complete(GgufAdapterCompletionReason.Length);
-                prefixResolved = ResolveLeadingMe(text, prefixResolved, isFinal: true);
-                if (prefixResolved)
+                if (!lengthReached)
                 {
-                    BoundaryAnalysis probeAnalysis = Analyze(text);
-                    int probeEnd = probeAnalysis.BoundaryOffset >= 0
-                        ? probeAnalysis.BoundaryOffset
-                        : probeAnalysis.PendingEmptyFenceOffset >= 0
-                            ? probeAnalysis.PendingEmptyFenceOffset
-                            : text.Length;
-                    if (probeEnd > emitted)
+                    observer.Complete(GgufAdapterCompletionReason.Length);
+                    prefixResolved = ResolveLeadingMe(text, prefixResolved, isFinal: true);
+                    if (prefixResolved)
                     {
-                        yield return text.ToString(emitted, probeEnd - emitted);
+                        BoundaryAnalysis probeAnalysis = Analyze(text);
+                        int probeEnd = probeAnalysis.BoundaryOffset >= 0
+                            ? probeAnalysis.BoundaryOffset
+                            : probeAnalysis.PendingEmptyFenceOffset >= 0
+                                ? probeAnalysis.PendingEmptyFenceOffset
+                                : text.Length;
+                        if (probeEnd > emitted)
+                        {
+                            yield return text.ToString(emitted, probeEnd - emitted);
+                            emitted = probeEnd;
+                        }
                     }
+
+                    lengthReached = true;
                 }
 
-                yield break;
+                continue;
             }
 
             text.Append(token);
@@ -81,6 +88,11 @@ internal sealed class GraniteTurnBoundaryTextTransform : ITextStreamTransform
                 observer.Complete(GgufAdapterCompletionReason.Stop);
                 yield break;
             }
+        }
+
+        if (lengthReached)
+        {
+            yield break;
         }
 
         observer.Complete(GgufAdapterCompletionReason.Stop);
