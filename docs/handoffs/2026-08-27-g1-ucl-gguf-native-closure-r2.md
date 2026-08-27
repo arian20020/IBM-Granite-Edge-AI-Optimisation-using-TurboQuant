@@ -2,7 +2,7 @@
 
 ## Final route state
 
-Branch `validation/ucl-gguf-native-r2` contains G1-only changes. The final replay repair is `6f457c127c60546b15691e8ed74c2fd5f52fe4e5` (the final documentation commit is recorded in coordination after push). No application, package-registration, signing, or end-to-end claim is made here.
+Branch `validation/ucl-gguf-native-r2` contains G1-only changes. The initial replay repair is `6f457c127c60546b15691e8ed74c2fd5f52fe4e5`; the reviewed follow-up `13ab9cf1` defers replay until the next turn and avoids a double-context peak. The final documentation tip is recorded in coordination after push. No application, package-registration, signing, or end-to-end claim is made here.
 
 ## Candidate audit
 
