@@ -662,7 +662,8 @@ public sealed record OpenVinoDurablePlanContext(
         bool manual = PreferenceKind == OptimizationPreferenceKind.Manual &&
             PreferenceValue is >= 0 and <= 100 &&
             PreferenceBand == BandFor(PreferenceValue.Value);
-        if (ContractVersion != OptimizationExecutionPlan.CurrentContractVersion ||
+        if (ContractVersion < OptimizationExecutionPlan.MinimumExecutableContractVersion ||
+            ContractVersion > OptimizationExecutionPlan.CurrentContractVersion ||
             Route != OptimizationRoute.OpenVino ||
             string.IsNullOrWhiteSpace(WorkloadId) || WorkloadId.Length > 128 ||
             WorkloadId.Contains('/') || WorkloadId.Contains('\\') ||

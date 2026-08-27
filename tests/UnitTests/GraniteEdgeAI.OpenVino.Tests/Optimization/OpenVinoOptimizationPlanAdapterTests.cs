@@ -165,11 +165,12 @@ public sealed class OpenVinoOptimizationPlanAdapterTests
     {
         OptimizationExecutionPlan plan = OpenVinoOptimizationTestData.Plan();
         Assert.IsFalse(plan.IsExecutableBy(1));
+        Assert.IsTrue(plan.IsExecutableBy(2));
         Assert.AreEqual(2, plan.ContractVersion);
     }
 
     [TestMethod]
-    public void AdapterIlRetainsTheExecutableByV2Gate()
+    public void AdapterUsesTheCurrentExecutorWhileRetainingTheFrozenV2Floor()
     {
         MethodInfo adapt = typeof(OpenVinoOptimizationPlanAdapter).GetMethod(
             nameof(OpenVinoOptimizationPlanAdapter.Adapt),
@@ -181,8 +182,9 @@ public sealed class OpenVinoOptimizationPlanAdapterTests
 
         Assert.IsGreaterThanOrEqualTo(1, callIndex,
             "Adapt must call OptimizationExecutionPlan.IsExecutableBy.");
-        Assert.AreEqual((byte)0x18, il[callIndex - 1],
-            "Adapt must load the integer constant 2 for IsExecutableBy.");
+        Assert.AreEqual((byte)0x19, il[callIndex - 1],
+            "Adapt must pass the current contract version 3 to IsExecutableBy; " +
+            "the plan contract retains the executable V2 floor.");
     }
 
     [TestMethod]
@@ -378,15 +380,13 @@ public sealed class OpenVinoOptimizationPlanAdapterTests
     [TestMethod]
     public void AdapterRejectsUnexpectedTurboQuantBuildIdentity()
     {
-        OptimizationExecutionPlan plan = OpenVinoOptimizationTestData.Plan(
-            executionPayload: OpenVinoV2TestPayload.For(
-                OpenVinoWeightFormat.Int8,
-                OpenVinoKvCacheFormat.U8,
-                ContractCompiledCachePolicy.Disabled,
-                "OV-EXACT-01",
-                turboQuantBuild: TurboQuantBuildIdentity.Create(
-                    new string('a', 40), new string('b', 40),
-                    new string('c', 64), new string('e', 64))));
+        OptimizationExecutionPlan plan = OpenVinoOptimizationTestData.Plan();
+        SetBackingField(
+            plan.ExecutionPayload.OpenVino!,
+            "TurboQuantBuild",
+            TurboQuantBuildIdentity.Create(
+                new string('a', 40), new string('b', 40),
+                new string('c', 64), new string('e', 64)));
 
         AssertRejected(plan, OptimizationSupportCode.ModelBindingMismatch);
     }
@@ -748,12 +748,8 @@ public sealed class OpenVinoOptimizationPlanAdapterTests
                 streams,
                 admittedEvidenceId ?? candidateEvidenceId);
             OptimizationCapabilitySnapshot snapshot = Snapshot(payload, CapabilityDigest);
-            OptimizationSelection selection = OptimizationPreferenceResolver.Resolve(
-                [candidate],
-                OptimizationPreferenceSelection.Manual(50))!;
-
-            return OptimizationPlanIssuer.Issue(
-                selection,
+            return OpenVinoV2PlanTestFactory.Issue(
+                candidate,
                 executionPayload ?? OpenVinoV2TestPayload.For(
                     weights, kvCache, compiledCache, candidateEvidenceId),
                 snapshot,

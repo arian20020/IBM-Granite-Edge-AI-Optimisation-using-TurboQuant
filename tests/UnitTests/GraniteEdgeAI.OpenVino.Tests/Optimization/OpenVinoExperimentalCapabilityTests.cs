@@ -325,10 +325,8 @@ public sealed class OpenVinoExperimentalCapabilityTests
                 requiresPersistentChange: persistent),
             admission.EvidenceId,
             isExperimental: admission.Level == SupportLevel.Experimental);
-        OptimizationSelection selection = OptimizationPreferenceResolver.Resolve(
-            [candidate], OptimizationPreferenceSelection.Manual(50))!;
-        return OptimizationPlanIssuer.Issue(
-            selection,
+        return OpenVinoV2PlanTestFactory.Issue(
+            candidate,
             OpenVinoV2TestPayload.For(
                 admission.Weights, admission.KvCache, admission.CompiledCache,
                 admission.EvidenceId),

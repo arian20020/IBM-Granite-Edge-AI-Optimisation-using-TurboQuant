@@ -246,10 +246,12 @@ public sealed class OpenVinoOptimizationTests
                 Confirmed: true),
             progress: null,
             CancellationToken.None);
+        Assert.AreEqual(
+            OptimizationExecutionStatus.SucceededPersistent,
+            result.Status,
+            $"Execution={result.SupportCode}");
         OpenVinoOptimizationProvenance provenance =
             OpenVinoOptimizationProvenance.Read(package.Destination);
-
-        Assert.AreEqual(OptimizationExecutionStatus.SucceededPersistent, result.Status);
         Assert.AreEqual(plan.OptimizationPlanId, result.OptimizationPlanId);
         Assert.AreEqual(plan.ConfigurationSha256, result.ConfigurationSha256);
         Assert.AreEqual(plan.Binding.ModelSha256, result.SourceSha256);
@@ -1441,10 +1443,8 @@ public sealed class OpenVinoOptimizationTests
                 "ov-capability-bound-1",
                 new string('3', 64),
                 payload);
-        OptimizationSelection selection = OptimizationPreferenceResolver.Resolve(
-            [candidate], OptimizationPreferenceSelection.Manual(50))!;
-        return OptimizationPlanIssuer.Issue(
-            selection,
+        return OpenVinoV2PlanTestFactory.Issue(
+            candidate,
             OpenVinoV2TestPayload.For(
                 weights, kvCache, compiledCache, "OV-BOUND-01",
                 optimizerVersions: optimizerVersions,
