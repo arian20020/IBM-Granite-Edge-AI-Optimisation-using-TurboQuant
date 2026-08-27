@@ -23,7 +23,7 @@ It introduces no network acquisition, relaxed validation, model/output logging, 
 
 The real model produced `ResponseStartedEvent` followed by `ResponseCompletedEvent(Stop)` with no text after a forced Length completion. LLamaSharp stores only output-transform text in `ChatHistory`, but its stateful executor had already consumed the hidden probe token. The next incremental prompt therefore used a KV cache ahead of the visible assistant history.
 
-The minimal repair replaces the session/context only after `Length`, cloning the visible `ChatHistory` and recreating the prompt/template/output-transform state. Ordinary `Stop` turns preserve the existing context. During replay, the prior and replacement contexts coexist briefly; the old context is disposed immediately after the new one has been constructed, and normal `DisposeAsync` disposes the retained context and weights.
+The minimal repair marks the session for replay only after `Length`, then before the next turn clones the visible `ChatHistory`, disposes the old context, and recreates the prompt/template/output-transform state. Ordinary `Stop` turns preserve the existing context. This avoids a temporary double-context memory peak; normal `DisposeAsync` disposes the retained context and weights.
 
 The focused real-model regression was run against frozen `f599` before the repair: 1 total, 1 failed, with `Continuation completed as Stop without text`. The same regression on the repair: 1 total, 1 passed. The decision-level test was also RED on frozen code (the replay decision did not exist) and GREEN on the repair: 1 total, 1 passed.
 
