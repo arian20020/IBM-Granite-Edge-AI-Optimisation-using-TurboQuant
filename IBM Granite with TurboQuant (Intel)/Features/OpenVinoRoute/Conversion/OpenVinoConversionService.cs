@@ -263,7 +263,9 @@ public sealed class OpenVinoConversionService
             }
 
             IReadOnlyList<OpenVinoOutputArtifact> output =
-                OpenVinoProvenance.CaptureOutput(transaction.StagingDirectory);
+                OpenVinoProvenance.CaptureOutput(
+                    transaction.StagingDirectory,
+                    cancellationToken);
             OpenVinoProvenance provenance = new(
                 OpenVinoProvenance.CurrentSchemaVersion,
                 operationId,

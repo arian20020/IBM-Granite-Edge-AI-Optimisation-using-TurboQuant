@@ -74,7 +74,8 @@ public sealed record OptimizationExecutionResult
         string? outputManifestSha256,
         ulong outputSizeBytes,
         OptimizationSupportCode supportCode,
-        DateTimeOffset completedAtUtc)
+        DateTimeOffset completedAtUtc,
+        Guid executionId)
     {
         Status = status;
         OptimizationPlanId = optimizationPlanId;
@@ -87,17 +88,34 @@ public sealed record OptimizationExecutionResult
         OutputSizeBytes = outputSizeBytes;
         SupportCode = supportCode;
         CompletedAtUtc = completedAtUtc;
+        ExecutionId = executionId == Guid.Empty ? Guid.NewGuid() : executionId;
     }
 
     public OptimizationExecutionStatus Status { get; }
 
     public Guid OptimizationPlanId { get; }
 
+    /// <summary>
+    /// Identity of this terminal execution, distinct from both the reusable
+    /// plan identity and any UI attempt generation.
+    /// </summary>
+    public Guid ExecutionId { get; }
+
     public OptimizationRoute Route { get; }
 
     public string ConfigurationSha256 { get; }
 
     public string SourceSha256 { get; }
+
+    public ulong SourceLengthBytes { get; private init; }
+
+    public string ModelInspectionRunId { get; private init; } = string.Empty;
+
+    public string ModelInspectionHandoffId { get; private init; } = string.Empty;
+
+    public string ProductHardwareRunId { get; private init; } = string.Empty;
+
+    public string HardwareSnapshotSha256 { get; private init; } = string.Empty;
 
     /// <summary>
     /// Verified after the run, not assumed. The original being untouched is the
@@ -137,7 +155,8 @@ public sealed record OptimizationExecutionResult
         string outputManifestSha256,
         ulong outputSizeBytes,
         bool sourceUnchanged,
-        DateTimeOffset completedAtUtc)
+        DateTimeOffset completedAtUtc,
+        Guid executionId = default)
     {
         ArgumentNullException.ThrowIfNull(plan);
 
@@ -182,7 +201,15 @@ public sealed record OptimizationExecutionResult
             outputManifestSha256,
             outputSizeBytes,
             OptimizationSupportCode.None,
-            completedAtUtc);
+            completedAtUtc,
+            executionId)
+        {
+            SourceLengthBytes = plan.Binding.ModelLengthBytes,
+            ModelInspectionRunId = plan.Binding.ModelInspectionRunId,
+            ModelInspectionHandoffId = plan.Binding.ModelInspectionHandoffId,
+            ProductHardwareRunId = plan.Binding.ProductHardwareRunId,
+            HardwareSnapshotSha256 = plan.Binding.HardwareSnapshotSha256
+        };
     }
 
     /// <summary>
@@ -194,7 +221,8 @@ public sealed record OptimizationExecutionResult
         OptimizationExecutionPlan plan,
         OptimizationSupportCode supportCode,
         bool sourceUnchanged,
-        DateTimeOffset completedAtUtc)
+        DateTimeOffset completedAtUtc,
+        Guid executionId = default)
     {
         ArgumentNullException.ThrowIfNull(plan);
 
@@ -214,14 +242,15 @@ public sealed record OptimizationExecutionResult
 
         return Terminal(
             plan, OptimizationExecutionStatus.ReplanRequired, supportCode,
-            sourceUnchanged, completedAtUtc);
+            sourceUnchanged, completedAtUtc, executionId);
     }
 
     public static OptimizationExecutionResult Failed(
         OptimizationExecutionPlan plan,
         OptimizationSupportCode supportCode,
         bool sourceUnchanged,
-        DateTimeOffset completedAtUtc)
+        DateTimeOffset completedAtUtc,
+        Guid executionId = default)
     {
         ArgumentNullException.ThrowIfNull(plan);
 
@@ -234,13 +263,14 @@ public sealed record OptimizationExecutionResult
         }
 
         return Terminal(plan, OptimizationExecutionStatus.Failed, supportCode,
-            sourceUnchanged, completedAtUtc);
+            sourceUnchanged, completedAtUtc, executionId);
     }
 
     public static OptimizationExecutionResult Cancelled(
         OptimizationExecutionPlan plan,
         bool sourceUnchanged,
-        DateTimeOffset completedAtUtc)
+        DateTimeOffset completedAtUtc,
+        Guid executionId = default)
     {
         ArgumentNullException.ThrowIfNull(plan);
 
@@ -249,7 +279,8 @@ public sealed record OptimizationExecutionResult
             OptimizationExecutionStatus.Cancelled,
             OptimizationSupportCode.CancelledByUser,
             sourceUnchanged,
-            completedAtUtc);
+            completedAtUtc,
+            executionId);
     }
 
     /// <summary>
@@ -262,8 +293,9 @@ public sealed record OptimizationExecutionResult
         OptimizationExecutionStatus status,
         OptimizationSupportCode supportCode,
         bool sourceUnchanged,
-        DateTimeOffset completedAtUtc) =>
-        new(
+        DateTimeOffset completedAtUtc,
+        Guid executionId) =>
+        new OptimizationExecutionResult(
             status,
             plan.OptimizationPlanId,
             plan.Route,
@@ -274,5 +306,13 @@ public sealed record OptimizationExecutionResult
             outputManifestSha256: null,
             outputSizeBytes: 0,
             supportCode,
-            completedAtUtc);
+            completedAtUtc,
+            executionId)
+        {
+            SourceLengthBytes = plan.Binding.ModelLengthBytes,
+            ModelInspectionRunId = plan.Binding.ModelInspectionRunId,
+            ModelInspectionHandoffId = plan.Binding.ModelInspectionHandoffId,
+            ProductHardwareRunId = plan.Binding.ProductHardwareRunId,
+            HardwareSnapshotSha256 = plan.Binding.HardwareSnapshotSha256
+        };
 }

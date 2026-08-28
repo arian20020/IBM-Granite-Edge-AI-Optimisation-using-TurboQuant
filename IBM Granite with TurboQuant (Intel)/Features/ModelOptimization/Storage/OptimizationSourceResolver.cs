@@ -76,7 +76,7 @@ internal sealed class OptimizationSourceResolver
         }
     }
 
-    internal async Task<StagedSourceSnapshot> ResolveOpenVinoAsync(
+    internal Task<StagedSourceSnapshot> ResolveOpenVinoAsync(
         ModelSourceCustodyKey key,
         IReadOnlyList<OpenVinoSourceMember> members,
         long generation,
@@ -92,63 +92,53 @@ internal sealed class OptimizationSourceResolver
         {
             throw new ArgumentException("An exact, duplicate-free package manifest is required.", nameof(members));
         }
+        foreach (OpenVinoSourceMember member in members)
+        {
+            ValidateRelativePath(member.RelativePath);
+            if (!StagedSourceSnapshot.IsCanonicalSha256(member.Sha256)
+                || member.LengthBytes == 0)
+            {
+                throw new InvalidDataException(
+                    "The package manifest contains an invalid member identity.");
+            }
+        }
         if (!_custody.TryAcquire(key, out ModelSourceLease? lease) || lease is null)
         {
             throw new InvalidOperationException("The inspected package lease is no longer current.");
         }
-        using (lease)
+        try
         {
+            cancellationToken.ThrowIfCancellationRequested();
             string packageRoot = StoragePathGuard.RequireRoot(lease.SourcePath, create: false);
-            string operationRoot = CreateOperationRoot();
-            try
+            (string packageSha, ulong total) = HashPackage(packageRoot, members);
+            if (!string.Equals(packageSha, key.ModelSha256, StringComparison.Ordinal)
+                || total != (ulong)key.ModelLengthBytes)
             {
-                using var packageDigest = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-                ulong total = 0;
-                foreach (OpenVinoSourceMember member in members.OrderBy(value => value.RelativePath, StringComparer.Ordinal))
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    ValidateRelativePath(member.RelativePath);
-                    if (!StagedSourceSnapshot.IsCanonicalSha256(member.Sha256) || member.LengthBytes == 0)
-                    {
-                        throw new InvalidDataException("The package manifest contains an invalid member identity.");
-                    }
-                    string source = StoragePathGuard.RequireChild(
-                        packageRoot,
-                        Path.Combine(packageRoot, member.RelativePath),
-                        mustExist: true);
-                    StoragePathGuard.RequireRegularFile(source);
-                    string destination = Path.Combine(operationRoot, member.RelativePath);
-                    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
-                    (string digest, ulong length) = await CopyAndHashAsync(source, destination, cancellationToken)
-                        .ConfigureAwait(false);
-                    if (!string.Equals(digest, member.Sha256, StringComparison.Ordinal)
-                        || length != member.LengthBytes)
-                    {
-                        throw new InvalidDataException("A package member changed before sealing.");
-                    }
-                    SetReadOnly(destination);
-                    AppendCanonicalMember(packageDigest, member.RelativePath, digest, length);
-                    total = checked(total + length);
-                }
-                string packageSha = Convert.ToHexString(packageDigest.GetHashAndReset()).ToLowerInvariant();
-                if (!string.Equals(packageSha, key.ModelSha256, StringComparison.Ordinal)
-                    || total != (ulong)key.ModelLengthBytes)
-                {
-                    throw new InvalidDataException("The sealed package does not match the inspected package identity.");
-                }
-                return new StagedSourceSnapshot(
+                throw new InvalidDataException(
+                    "The inspected package identity changed before execution.");
+            }
+            string firstMember = members
+                .OrderBy(value => value.RelativePath, StringComparer.Ordinal)
+                .First().RelativePath;
+            return Task.FromResult(new StagedSourceSnapshot(
+                packageSha,
+                total,
+                CreateIdentity("pkg", generation),
+                StoragePathGuard.RequireChild(
+                    packageRoot,
+                    Path.Combine(packageRoot, firstMember),
+                    mustExist: true),
+                integrityVerifier: () => PackageMatches(
+                    packageRoot,
+                    members,
                     packageSha,
-                    total,
-                    CreateIdentity("pkg", generation),
-                    Path.Combine(operationRoot, members.OrderBy(value => value.RelativePath, StringComparer.Ordinal).First().RelativePath),
-                    integrityVerifier: () => PackageMatches(packageRoot, operationRoot, members, packageSha, total),
-                    cleanup: () => TryDeleteOwnedDirectory(operationRoot));
-            }
-            catch
-            {
-                TryDeleteOwnedDirectory(operationRoot);
-                throw;
-            }
+                    total),
+                cleanup: lease.Dispose));
+        }
+        catch
+        {
+            lease.Dispose();
+            throw;
         }
     }
 
@@ -239,24 +229,6 @@ internal sealed class OptimizationSourceResolver
         }
     }
 
-    private static bool PackageMatches(
-        string originalRoot,
-        string stagedRoot,
-        IReadOnlyList<OpenVinoSourceMember> members,
-        string expectedDigest,
-        ulong expectedLength)
-    {
-        try
-        {
-            return HashPackage(originalRoot, members) == (expectedDigest, expectedLength)
-                && HashPackage(stagedRoot, members) == (expectedDigest, expectedLength);
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
     private static (string Digest, ulong Length) HashPackage(
         string root,
         IReadOnlyList<OpenVinoSourceMember> members)
@@ -279,6 +251,26 @@ internal sealed class OptimizationSourceResolver
             total = checked(total + length);
         }
         return (Convert.ToHexString(packageDigest.GetHashAndReset()).ToLowerInvariant(), total);
+    }
+
+    private static bool PackageMatches(
+        string packageRoot,
+        IReadOnlyList<OpenVinoSourceMember> members,
+        string expectedDigest,
+        ulong expectedLength)
+    {
+        try
+        {
+            return HashPackage(packageRoot, members)
+                == (expectedDigest, expectedLength);
+        }
+        catch (Exception exception) when (exception is IOException
+                                          or UnauthorizedAccessException
+                                          or InvalidOperationException
+                                          or OverflowException)
+        {
+            return false;
+        }
     }
 
     private static (string Digest, ulong Length) HashFile(string path)

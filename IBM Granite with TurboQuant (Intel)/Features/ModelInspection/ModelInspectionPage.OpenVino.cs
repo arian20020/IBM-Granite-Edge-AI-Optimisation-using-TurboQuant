@@ -400,18 +400,60 @@ public sealed partial class ModelInspectionPage
 
     internal async Task<bool> ActivateOpenVinoChatAsync(
         CancellationToken cancellationToken) =>
-        await ActivateOpenVinoChatFromDirectoryAsync(
-            _openVinoDirectoryPath, cancellationToken);
+        (await ActivateOpenVinoChatResultAsync(cancellationToken)).IsSuccessful;
+
+    internal Task<OpenVinoActivationResult> ActivateOpenVinoChatResultAsync(
+        CancellationToken cancellationToken) =>
+        ActivateOpenVinoChatFromDirectoryResultAsync(
+            _openVinoDirectoryPath,
+            cancellationToken);
 
     internal async Task<bool> ActivateOpenVinoChatFromDirectoryAsync(
         string? packageDirectory,
+        CancellationToken cancellationToken) =>
+        (await ActivateOpenVinoChatFromDirectoryResultAsync(
+            packageDirectory,
+            cancellationToken)).IsSuccessful;
+
+    internal async Task<OpenVinoActivationResult>
+        ActivateOpenVinoChatFromDirectoryResultAsync(
+            string? packageDirectory,
+            CancellationToken cancellationToken) =>
+        await ActivateOpenVinoChatCoreAsync(
+            packageDirectory,
+            runtimeOptions: null,
+            cancellationToken);
+
+    internal async Task<OpenVinoActivationResult>
+        ActivateOpenVinoOptimizationTargetAsync(
+            OpenVinoOptimizationChatTarget target,
+            CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(target);
+        try
+        {
+            return await ActivateOpenVinoChatCoreAsync(
+                target.PackageDirectory,
+                target.RuntimeOptions,
+                cancellationToken);
+        }
+        finally
+        {
+            target.Dispose();
+        }
+    }
+
+    private async Task<OpenVinoActivationResult> ActivateOpenVinoChatCoreAsync(
+        string? packageDirectory,
+        OpenVinoRuntimeOptions? runtimeOptions,
         CancellationToken cancellationToken)
     {
         if (_openVinoRouteService is null
             || _promptRouteRegistry is null
             || string.IsNullOrWhiteSpace(packageDirectory))
         {
-            return false;
+            return OpenVinoActivationResult.Failure(
+                OpenVinoActivationFailureCategory.RouteUnavailable);
         }
         OpenVinoRouteHandoffLease? lease = null;
         try
@@ -424,29 +466,54 @@ public sealed partial class ModelInspectionPage
                     OpenVinoRouteInspectionOutcome.Ready or
                     OpenVinoRouteInspectionOutcome.ReadyWithWarnings))
             {
-                return false;
+                return OpenVinoActivationResult.Failure(
+                    OpenVinoActivationFailureCategory.InspectionRejected);
             }
             long lifetime = _openVinoLifetime;
             List<PromptEvent> buffered = [];
             object eventGate = new();
             bool presenterReady = false;
-            PromptRouteSessionActivation activation =
-                await _promptRouteRegistry.ActivateAsync(
-                    lease,
-                    promptEvent =>
+            OpenVinoActivationResult activationResult =
+                await OpenVinoActivationRunner.RunAsync(
+                    token =>
                     {
-                        lock (eventGate)
+                        void BufferOrApply(PromptEvent promptEvent)
                         {
-                            if (!presenterReady)
+                            lock (eventGate)
                             {
-                                buffered.Add(promptEvent);
-                                return;
+                                if (!presenterReady)
+                                {
+                                    buffered.Add(promptEvent);
+                                    return;
+                                }
                             }
+                            ApplyPromptEvent(lifetime, promptEvent);
                         }
-                        ApplyPromptEvent(lifetime, promptEvent);
+
+                        return runtimeOptions is null
+                            ? _promptRouteRegistry.ActivateAsync(
+                                lease,
+                                BufferOrApply,
+                                token)
+                            : _openVinoRouteService.ActivateAsync(
+                                lease,
+                                runtimeOptions,
+                                BufferOrApply,
+                                token);
                     },
                     cancellationToken);
+            if (!activationResult.IsSuccessful)
+            {
+                return activationResult;
+            }
+            PromptRouteSessionActivation activation = activationResult.Activation!;
             lease = null;
+            if (!IsCurrentOpenVinoLifetime(lifetime))
+            {
+                await activation.Session.DisposeAsync();
+                return OpenVinoActivationResult.Failure(
+                    OpenVinoActivationFailureCategory.TargetStale);
+            }
             _promptSession = activation.Session;
             _promptPresenter = new PromptSessionPresenter(activation.Presentation);
             lock (eventGate)
@@ -461,11 +528,16 @@ public sealed partial class ModelInspectionPage
             SetPromptSurfaceVisible(true);
             ApplyPromptSurfaceState(_promptPresenter.State);
             AnnouncePromptStatus("OpenVINO local chat is ready.");
-            return IsCurrentOpenVinoLifetime(lifetime);
+            return activationResult;
         }
-        catch
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            return false;
+            return OpenVinoActivationResult.Cancelled();
+        }
+        catch (Exception)
+        {
+            return OpenVinoActivationResult.Failure(
+                OpenVinoActivationFailureCategory.UnexpectedFailure);
         }
         finally
         {

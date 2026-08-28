@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using System.Text;
 using GraniteEdgeAI.Features.ModelInspection.SourceCustody;
 using GraniteEdgeAI.Features.ModelOptimization.Storage;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
@@ -50,6 +51,49 @@ public sealed class OptimizationSourceResolverTests
     }
 
     [TestMethod]
+    public async Task OpenVinoPackageUsesExactCustodyLeaseWithoutRedundantCopy()
+    {
+        using var fixture = new SourceFixture();
+        string package = Path.Combine(fixture.Root, "openvino");
+        Directory.CreateDirectory(package);
+        File.WriteAllText(Path.Combine(package, "config.json"), "{}");
+        File.WriteAllBytes(Path.Combine(package, "openvino_model.bin"), [1, 2, 3, 4]);
+        OpenVinoSourceMember[] members = Directory.EnumerateFiles(package)
+            .Select(path => new OpenVinoSourceMember(
+                Path.GetFileName(path),
+                Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path)))
+                    .ToLowerInvariant(),
+                checked((ulong)new FileInfo(path).Length)))
+            .OrderBy(member => member.RelativePath, StringComparer.Ordinal)
+            .ToArray();
+        using var packageHash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        foreach (OpenVinoSourceMember member in members)
+        {
+            packageHash.AppendData(Encoding.UTF8.GetBytes(
+                member.RelativePath + "\0" + member.Sha256 + "\0"
+                + member.LengthBytes + "\n"));
+        }
+        string digest = Convert.ToHexString(packageHash.GetHashAndReset())
+            .ToLowerInvariant();
+        long length = checked((long)members.Aggregate(
+            0UL,
+            static (total, member) => checked(total + member.LengthBytes)));
+        var key = new ModelSourceCustodyKey(
+            Guid.NewGuid(), digest, length, OptimizationRoute.OpenVino);
+        using var custody = new ModelSourceCustodyRegistry();
+        Assert.IsTrue(custody.Register(new ModelSourceCustodyRecord(key, package)));
+        var resolver = new OptimizationSourceResolver(custody, fixture.StagingRoot);
+
+        using StagedSourceSnapshot snapshot = await resolver.ResolveOpenVinoAsync(
+            key, members, 1, CancellationToken.None);
+
+        Assert.IsTrue(snapshot.RehashMatches());
+        Assert.IsFalse(Directory.EnumerateFileSystemEntries(fixture.StagingRoot).Any());
+        File.WriteAllBytes(Path.Combine(package, "openvino_model.bin"), [4, 3, 2, 1]);
+        Assert.IsFalse(snapshot.RehashMatches());
+    }
+
+    [TestMethod]
     public void SnapshotPublicSurfaceDoesNotExposeAPath()
     {
         string[] names = typeof(StagedSourceSnapshot)
@@ -73,6 +117,7 @@ public sealed class OptimizationSourceResolverTests
         }
 
         internal string SourcePath => Path.Combine(_root, "model.gguf");
+        internal string Root => _root;
         internal string StagingRoot => Path.Combine(_root, "staging");
 
         public void Dispose()

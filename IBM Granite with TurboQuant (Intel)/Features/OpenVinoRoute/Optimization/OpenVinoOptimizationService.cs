@@ -208,7 +208,8 @@ public sealed class OpenVinoOptimizationService
                     "optimization_output_invalid"),
                 routeResult.OutputSizeBytes,
                 sourceUnchanged: true,
-                completedAtUtc);
+                completedAtUtc,
+                routeResult.OperationId);
         }
         if (routeResult.Status == OpenVinoOptimizationStatus.ReplanRequired)
         {
@@ -217,20 +218,23 @@ public sealed class OpenVinoOptimizationService
                 routeResult.ReplanSupportCode ??
                     OptimizationSupportCode.ModelBindingMismatch,
                 sourceUnchanged: true,
-                completedAtUtc);
+                completedAtUtc,
+                routeResult.OperationId);
         }
         if (routeResult.Status == OpenVinoOptimizationStatus.Cancelled)
         {
             return OptimizationExecutionResult.Cancelled(
                 request.Plan,
                 sourceUnchanged: true,
-                completedAtUtc);
+                completedAtUtc,
+                routeResult.OperationId);
         }
         return OptimizationExecutionResult.Failed(
             request.Plan,
             routeResult.ExecutionSupportCode ?? MapFailure(routeResult.SupportCode),
             sourceUnchanged: true,
-            completedAtUtc);
+            completedAtUtc,
+            routeResult.OperationId);
     }
 
     public async Task<OpenVinoOptimizationResult> OptimizeLegacyV1Async(
@@ -513,7 +517,9 @@ public sealed class OpenVinoOptimizationService
             }
 
             IReadOnlyList<OpenVinoOutputArtifact> output =
-                OpenVinoOptimizationProvenance.CaptureOutput(transaction.StagingDirectory);
+                OpenVinoOptimizationProvenance.CaptureOutput(
+                    transaction.StagingDirectory,
+                    cancellationToken);
             string outputManifestSha256 =
                 OpenVinoProvenance.ComputeOutputManifestDigest(output);
             OpenVinoOptimizationProvenance provenance = plan is null
@@ -780,7 +786,7 @@ public sealed class OpenVinoOptimizationService
             operationId);
         OpenVinoRuntimeOptimizationProfile profile =
             OpenVinoRuntimeOptimizationProfile.From(
-                plan, candidate, DateTimeOffset.UtcNow);
+                plan, candidate, operationId, DateTimeOffset.UtcNow);
         byte[] profileBytes = profile.Serialize();
         string profilePath = Path.Combine(
             transaction.StagingDirectory,
@@ -821,7 +827,7 @@ public sealed class OpenVinoOptimizationService
             candidate.Device)
         {
             PublishedDirectory = transaction.DestinationDirectory,
-            OutputIdentity = "openvino-runtime-profile-v2-" + digest,
+            OutputIdentity = "openvino-runtime-profile-v3-" + digest,
             OutputManifestSha256 = digest,
             OutputSizeBytes = checked((ulong)profileBytes.Length)
         };

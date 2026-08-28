@@ -371,9 +371,27 @@ public sealed class OpenVinoRouteService : IPromptRouteAdapter
                 nameof(activation));
         }
 
+        return await ActivateAsync(
+            lease,
+            OpenVinoRuntimeOptions.ReleasedDefault,
+            eventSink,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    internal async Task<PromptRouteSessionActivation> ActivateAsync(
+        OpenVinoRouteHandoffLease lease,
+        OpenVinoRuntimeOptions runtimeOptions,
+        Action<PromptEvent> eventSink,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(lease);
+        ArgumentNullException.ThrowIfNull(runtimeOptions);
+        ArgumentNullException.ThrowIfNull(eventSink);
+        runtimeOptions.Validate();
         OpenVinoRouteSession session = await StartSessionAsync(
             lease,
             eventSink,
+            runtimeOptions,
             cancellationToken).ConfigureAwait(false);
         string buildEvidence = expectedBuildEvidence is null
             ? "Verified official worker build"

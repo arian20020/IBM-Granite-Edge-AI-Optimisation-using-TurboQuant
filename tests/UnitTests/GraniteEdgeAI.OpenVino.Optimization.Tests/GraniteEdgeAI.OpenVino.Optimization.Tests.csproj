@@ -1,0 +1,58 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>GraniteEdgeAI.OpenVino.Tests</AssemblyName>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <PlatformTarget>x64</PlatformTarget>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <Deterministic>true</Deterministic>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <EnableMSTestRunner>true</EnableMSTestRunner>
+    <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
+    <TestingPlatformShowTestsFailure>true</TestingPlatformShowTestsFailure>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.8.1" />
+    <PackageReference Include="Microsoft.Testing.Extensions.TrxReport" Version="2.3.2" />
+    <PackageReference Include="MSTest.TestAdapter" Version="4.3.2" />
+    <PackageReference Include="MSTest.TestFramework" Version="4.3.2" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\shared\GraniteEdgeAI.OpenVino.Contracts\GraniteEdgeAI.OpenVino.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\shared\GraniteEdgeAI.ModelHardwareCompatibility.Core\GraniteEdgeAI.ModelHardwareCompatibility.Core.csproj" />
+    <Compile Include="..\GraniteEdgeAI.OpenVino.Tests\Optimization\OpenVinoOptimizationTests.cs" />
+    <Compile Include="..\GraniteEdgeAI.OpenVino.Tests\Optimization\OpenVinoV2TestPayload.cs" />
+    <Compile Include="..\GraniteEdgeAI.OpenVino.Tests\Optimization\OpenVinoV2PlanTestFactory.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\OpenVinoRoute\Inspection\*.cs"
+             Link="Production\Inspection\%(Filename)%(Extension)" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\OpenVinoRoute\Conversion\ConversionTransaction.cs"
+             Link="Production\Conversion\ConversionTransaction.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\OpenVinoRoute\Conversion\OpenVinoProvenance.cs"
+             Link="Production\Conversion\OpenVinoProvenance.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\OpenVinoRoute\Optimization\OpenVinoOptimizationCandidate.cs"
+             Link="Production\Optimization\OpenVinoOptimizationCandidate.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\OpenVinoRoute\Optimization\OpenVinoOptimizationCapabilityProjector.cs"
+             Link="Production\Optimization\OpenVinoOptimizationCapabilityProjector.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\OpenVinoRoute\Optimization\OpenVinoOptimizationPlanAdapter.cs"
+             Link="Production\Optimization\OpenVinoOptimizationPlanAdapter.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\OpenVinoRoute\Optimization\OpenVinoOptimizationProvenance.cs"
+             Link="Production\Optimization\OpenVinoOptimizationProvenance.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\OpenVinoRoute\Optimization\OpenVinoOptimizationService.cs"
+             Link="Production\Optimization\OpenVinoOptimizationService.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\OpenVinoRoute\Optimization\OpenVinoPublishedOutputRegistry.cs"
+             Link="Production\Optimization\OpenVinoPublishedOutputRegistry.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="..\..\TestFixtures\OpenVINO\GenAI\TinySyntheticV1\package\**\*">
+      <Link>TestFixtures\OpenVINO\GenAI\TinySyntheticV1\package\%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+</Project>

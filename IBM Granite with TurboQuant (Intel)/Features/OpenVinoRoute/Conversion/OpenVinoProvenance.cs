@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -29,6 +30,8 @@ public sealed record OpenVinoProvenance(
     string ValidationDisposition,
     string SmokeDisposition)
 {
+    private const ulong MaximumArtifactBytes = 1UL << 40;
+    private const int HashBufferBytes = 128 * 1024;
     public const string FileName = "granite-openvino-provenance.json";
     public const int CurrentSchemaVersion = 1;
     public const string DenseGraniteAllowlist =
@@ -52,12 +55,15 @@ public sealed record OpenVinoProvenance(
         };
 
     internal static IReadOnlyList<OpenVinoOutputArtifact> CaptureOutput(
-        string stagingDirectory)
+        string stagingDirectory,
+        CancellationToken cancellationToken = default)
     {
         string root = Path.GetFullPath(stagingDirectory);
         List<OpenVinoOutputArtifact> files = [];
-        foreach (string path in Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories))
+        ulong total = 0;
+        foreach (string path in EnumerateRegularFiles(root))
         {
+            cancellationToken.ThrowIfCancellationRequested();
             string relative = Path.GetRelativePath(root, path).Replace('\\', '/');
             if (relative == FileName || relative.StartsWith("../", StringComparison.Ordinal) ||
                 relative.Contains(':'))
@@ -65,14 +71,19 @@ public sealed record OpenVinoProvenance(
                 throw new InvalidDataException("conversion_output_invalid");
             }
             FileInfo file = new(path);
-            if ((file.Attributes & FileAttributes.ReparsePoint) != 0 || file.Length <= 0)
+            if (file.Length <= 0)
+            {
+                throw new InvalidDataException("conversion_output_invalid");
+            }
+            total = checked(total + (ulong)file.Length);
+            if (total > MaximumArtifactBytes)
             {
                 throw new InvalidDataException("conversion_output_invalid");
             }
             files.Add(new OpenVinoOutputArtifact(
                 relative,
                 file.Length,
-                Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))).ToLowerInvariant()));
+                HashFile(path, checked((ulong)file.Length), cancellationToken)));
         }
         files.Sort(static (left, right) => StringComparer.Ordinal.Compare(left.Path, right.Path));
         if (files.Count == 0)
@@ -80,6 +91,96 @@ public sealed record OpenVinoProvenance(
             throw new InvalidDataException("conversion_output_invalid");
         }
         return files;
+    }
+
+    internal static string HashFile(
+        string path,
+        ulong maximumBytes,
+        CancellationToken cancellationToken = default)
+    {
+        FileInfo file = new(path);
+        if (!file.Exists
+            || file.Length <= 0
+            || checked((ulong)file.Length) > maximumBytes
+            || (file.Attributes & (FileAttributes.Directory | FileAttributes.ReparsePoint)) != 0)
+        {
+            throw new InvalidDataException("conversion_output_invalid");
+        }
+        byte[] buffer = ArrayPool<byte>.Shared.Rent(HashBufferBytes);
+        try
+        {
+            using FileStream stream = new(
+                file.FullName,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Read,
+                HashBufferBytes,
+                FileOptions.SequentialScan);
+            using IncrementalHash hash = IncrementalHash.CreateHash(
+                HashAlgorithmName.SHA256);
+            ulong readTotal = 0;
+            int read;
+            while (true)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                read = stream.Read(buffer, 0, buffer.Length);
+                if (read == 0)
+                {
+                    break;
+                }
+                readTotal = checked(readTotal + (ulong)read);
+                if (readTotal > maximumBytes
+                    || readTotal > checked((ulong)file.Length))
+                {
+                    throw new InvalidDataException("conversion_output_invalid");
+                }
+                hash.AppendData(buffer, 0, read);
+            }
+            if (readTotal != checked((ulong)file.Length))
+            {
+                throw new InvalidDataException("conversion_output_invalid");
+            }
+            return Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant();
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer, clearArray: true);
+        }
+    }
+
+    private static IEnumerable<string> EnumerateRegularFiles(string root)
+    {
+        var pending = new Stack<string>();
+        pending.Push(root);
+        while (pending.Count != 0)
+        {
+            DirectoryInfo directory = new(pending.Pop());
+            if (!directory.Exists
+                || (directory.Attributes & FileAttributes.ReparsePoint) != 0)
+            {
+                throw new InvalidDataException("conversion_output_invalid");
+            }
+            foreach (FileSystemInfo entry in directory.EnumerateFileSystemInfos())
+            {
+                entry.Refresh();
+                if ((entry.Attributes & FileAttributes.ReparsePoint) != 0)
+                {
+                    throw new InvalidDataException("conversion_output_invalid");
+                }
+                if ((entry.Attributes & FileAttributes.Directory) != 0)
+                {
+                    pending.Push(entry.FullName);
+                }
+                else if (entry is FileInfo)
+                {
+                    yield return entry.FullName;
+                }
+                else
+                {
+                    throw new InvalidDataException("conversion_output_invalid");
+                }
+            }
+        }
     }
 
     internal static string ComputeOutputManifestDigest(
