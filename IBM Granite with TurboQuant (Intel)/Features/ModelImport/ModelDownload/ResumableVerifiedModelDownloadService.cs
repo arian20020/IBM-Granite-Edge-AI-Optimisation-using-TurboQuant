@@ -205,6 +205,10 @@ internal sealed class ResumableVerifiedModelDownloadService : IModelDownloadServ
             {
                 return Interrupted("download-inactivity-timeout");
             }
+            catch (TimeoutException)
+            {
+                return Interrupted("download-inactivity-timeout");
+            }
             catch (InvalidDataException)
             {
                 return Failed("download-http-rejected");

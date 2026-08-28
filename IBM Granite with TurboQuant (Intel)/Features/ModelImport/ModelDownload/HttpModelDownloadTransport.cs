@@ -14,10 +14,19 @@ internal sealed class HttpModelDownloadTransport : IModelDownloadTransport
     ];
 
     private readonly HttpClient _client;
+    private readonly TimeSpan _responseHeaderTimeout;
 
-    internal HttpModelDownloadTransport(HttpClient client)
+    internal HttpModelDownloadTransport(
+        HttpClient client,
+        TimeSpan? responseHeaderTimeout = null)
     {
         _client = client ?? throw new ArgumentNullException(nameof(client));
+        _responseHeaderTimeout = responseHeaderTimeout ?? TimeSpan.FromSeconds(30);
+        if (_responseHeaderTimeout <= TimeSpan.Zero ||
+            _responseHeaderTimeout == Timeout.InfiniteTimeSpan)
+        {
+            throw new ArgumentOutOfRangeException(nameof(responseHeaderTimeout));
+        }
         if (_client.DefaultRequestHeaders.Authorization is not null ||
             _client.DefaultRequestHeaders.Contains("Cookie"))
         {
@@ -60,10 +69,20 @@ internal sealed class HttpModelDownloadTransport : IModelDownloadTransport
                 }
             }
 
-            HttpResponseMessage response = await _client.SendAsync(
-                request,
-                HttpCompletionOption.ResponseHeadersRead,
-                cancellationToken);
+            using var headerTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            headerTimeout.CancelAfter(_responseHeaderTimeout);
+            HttpResponseMessage response;
+            try
+            {
+                response = await _client.SendAsync(
+                    request,
+                    HttpCompletionOption.ResponseHeadersRead,
+                    headerTimeout.Token);
+            }
+            catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
+            {
+                throw new TimeoutException("The model source did not return response headers in time.", exception);
+            }
 
             if (!IsRedirect(response.StatusCode))
             {

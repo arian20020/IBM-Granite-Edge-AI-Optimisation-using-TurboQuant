@@ -160,6 +160,35 @@ public sealed class AppModelLibraryTests
         Assert.IsTrue(File.Exists(unrelated));
     }
 
+    [TestMethod]
+    public async Task WriteCheckpointAsync_RejectsReparsePointTemporaryArtifact()
+    {
+        using var root = new TemporaryModelLibraryRoot();
+        var library = new AppModelLibrary(root.Path, _ => long.MaxValue);
+        ModelDownloadCatalogEntry entry = CreateSmallEntry(expectedBytes: 4);
+        await using (Stream partial = await library.OpenPartialWriteAsync(entry, 0, CancellationToken.None))
+        {
+            await partial.WriteAsync(new byte[] { 1, 2 });
+        }
+
+        string stateRoot = System.IO.Path.Combine(root.Path, "State");
+        string target = System.IO.Path.Combine(root.Path, "external.txt");
+        await File.WriteAllTextAsync(target, "do-not-change");
+        string temporary = System.IO.Path.Combine(stateRoot, entry.Id + ".json.new");
+        try
+        {
+            File.CreateSymbolicLink(temporary, target);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            Assert.Inconclusive("This Windows host does not permit test symbolic links.");
+        }
+
+        await Assert.ThrowsExactlyAsync<IOException>(() => library.WriteCheckpointAsync(
+            entry, CreateState(entry, durableByteLength: 2), CancellationToken.None));
+        Assert.AreEqual("do-not-change", await File.ReadAllTextAsync(target));
+    }
+
     private static ModelDownloadPartialState CreateState(
         ModelDownloadCatalogEntry entry,
         long durableByteLength) =>

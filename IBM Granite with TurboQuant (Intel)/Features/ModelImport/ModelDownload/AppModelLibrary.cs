@@ -32,8 +32,9 @@ internal sealed class AppModelLibrary
         _stateRoot = ContainedDirectory("State");
         _locksRoot = ContainedDirectory("Locks");
 
+        RejectReparseAncestry(_root);
         Directory.CreateDirectory(_root);
-        RejectReparsePoint(_root);
+        RejectReparseAncestry(_root);
         Directory.CreateDirectory(_modelsRoot);
         Directory.CreateDirectory(_partialRoot);
         Directory.CreateDirectory(_stateRoot);
@@ -106,6 +107,8 @@ internal sealed class AppModelLibrary
 
         string statePath = StatePath(entry);
         string temporaryPath = statePath + ".new";
+        EnsureContained(temporaryPath);
+        RejectReparsePointIfExists(temporaryPath);
         byte[] json = JsonSerializer.SerializeToUtf8Bytes(state, CheckpointJsonOptions);
         try
         {
@@ -333,6 +336,7 @@ internal sealed class AppModelLibrary
 
     private string ArtifactPath(string parent, string stem, string suffix)
     {
+        RejectReparseAncestry(_root);
         RejectReparsePoint(parent);
         if (string.IsNullOrWhiteSpace(stem) ||
             stem.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 ||
@@ -372,6 +376,19 @@ internal sealed class AppModelLibrary
             (File.GetAttributes(path) & System.IO.FileAttributes.ReparsePoint) != 0)
         {
             throw new IOException("A model library artifact cannot be a reparse point.");
+        }
+    }
+
+    private static void RejectReparseAncestry(string path)
+    {
+        var cursor = new DirectoryInfo(Path.GetFullPath(path));
+        while (cursor is not null)
+        {
+            if (cursor.Exists && (cursor.Attributes & System.IO.FileAttributes.ReparsePoint) != 0)
+            {
+                throw new IOException("The model library path cannot traverse a reparse point.");
+            }
+            cursor = cursor.Parent;
         }
     }
 

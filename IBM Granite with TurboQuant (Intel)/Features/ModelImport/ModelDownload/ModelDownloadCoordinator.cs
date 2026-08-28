@@ -63,6 +63,13 @@ internal sealed class ModelDownloadCoordinator : IDisposable
             }
 
             ModelDownloadConnectionKind connection = _networkPolicy.GetCurrentConnectionKind();
+            lock (_sync)
+            {
+                if (_activeCancellation is not null || State.OperationId is not null)
+                {
+                    return;
+                }
+            }
             if (connection == ModelDownloadConnectionKind.Unrestricted)
             {
                 await StartAsync(entry.MinimumSliderValue, allowMetered: false, cancellationToken);
@@ -296,6 +303,10 @@ internal sealed class ModelDownloadCoordinator : IDisposable
             errorCode);
         lock (_sync)
         {
+            if (_activeCancellation is not null || State.OperationId is not null)
+            {
+                return;
+            }
             State = recovered;
         }
         StateChanged?.Invoke(this, recovered);

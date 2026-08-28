@@ -139,6 +139,17 @@ public sealed class HttpModelDownloadTransportTests
         Assert.ThrowsExactly<ArgumentException>(() => new HttpModelDownloadTransport(client));
     }
 
+    [TestMethod]
+    public async Task OpenAsync_TimesOutWhenResponseHeadersNeverArrive()
+    {
+        var handler = new NeverRespondingHandler();
+        using var client = new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan };
+        var transport = new HttpModelDownloadTransport(client, TimeSpan.FromMilliseconds(50));
+
+        await Assert.ThrowsExactlyAsync<TimeoutException>(() => transport.OpenAsync(
+            PinnedGraniteModelCatalog.ForSliderValue(50), 0, null, CancellationToken.None));
+    }
+
     private static HttpResponseMessage Redirect(string location) =>
         new(HttpStatusCode.TemporaryRedirect)
         {
@@ -192,6 +203,17 @@ public sealed class HttpModelDownloadTransportTests
         {
             IsDisposed = true;
             base.Dispose(disposing);
+        }
+    }
+
+    private sealed class NeverRespondingHandler : HttpMessageHandler
+    {
+        protected override async Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            throw new InvalidOperationException("Unreachable.");
         }
     }
 }

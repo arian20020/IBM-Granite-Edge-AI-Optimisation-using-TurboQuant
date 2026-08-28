@@ -478,6 +478,14 @@ namespace GraniteEdgeAI.Features.ModelImport
             {
                 // A user-started operation won the race with startup recovery.
             }
+            catch (OperationCanceledException)
+            {
+                // Page lifetime cancellation leaves any durable partial available for a later resume.
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                // Startup recovery is best-effort. The normal card remains available for an explicit retry.
+            }
         }
 
         private void RetireAutomaticDownloadHandoff()

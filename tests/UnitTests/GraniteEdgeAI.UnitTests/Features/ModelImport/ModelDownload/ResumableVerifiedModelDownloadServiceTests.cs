@@ -199,6 +199,22 @@ public sealed class ResumableVerifiedModelDownloadServiceTests
         Assert.AreEqual("download-inactivity-timeout", result.ErrorCode);
     }
 
+    [TestMethod]
+    public async Task DownloadAsync_ResponseHeaderTimeoutReturnsBoundedInterruption()
+    {
+        using TestDownloadFixture fixture = TestDownloadFixture.Create(
+            [1, 2, 3, 4],
+            transportException: new TimeoutException("response headers stalled"));
+
+        ModelDownloadResult result = await fixture.Service.DownloadAsync(
+            fixture.Entry,
+            new Progress<ModelDownloadProgress>(),
+            CancellationToken.None);
+
+        Assert.AreEqual(ModelDownloadResultKind.Interrupted, result.Kind);
+        Assert.AreEqual("download-inactivity-timeout", result.ErrorCode);
+    }
+
     private sealed class TestDownloadFixture : IDisposable
     {
         private readonly string _root;

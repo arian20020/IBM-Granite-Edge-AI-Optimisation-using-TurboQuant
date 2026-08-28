@@ -118,6 +118,30 @@ public sealed class ModelDownloadCoordinatorTests
         Assert.IsFalse(coordinator.IsAutomaticHandoffAuthorized(first));
     }
 
+    [TestMethod]
+    public async Task RecoverAsync_DoesNotReplaceAUserStartedOperation()
+    {
+        var service = new FakeDownloadService
+        {
+            ResumeQuantisation = "Q4_K_M",
+            DelayResumeProbe = true,
+            WaitForCancellation = true
+        };
+        var coordinator = new ModelDownloadCoordinator(
+            service,
+            new FakeNetworkPolicy(ModelDownloadConnectionKind.Offline));
+        Task recovery = coordinator.RecoverAsync(CancellationToken.None);
+        await service.ResumeProbeStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        Task userStart = coordinator.StartAsync(80, allowMetered: false, CancellationToken.None);
+        service.ReleaseResumeProbe.TrySetResult();
+        await recovery;
+        await userStart;
+
+        Assert.AreEqual("Q8_0", coordinator.State.Quantisation);
+        Assert.AreEqual("download-offline", coordinator.State.ErrorCode);
+    }
+
     private sealed class FakeNetworkPolicy(ModelDownloadConnectionKind kind) : IModelDownloadNetworkPolicy
     {
         public ModelDownloadConnectionKind GetCurrentConnectionKind() => kind;
@@ -132,7 +156,10 @@ public sealed class ModelDownloadCoordinatorTests
         internal int DiscardCalls { get; private set; }
         internal string? ResumeQuantisation { get; init; }
         internal bool WaitForCancellation { get; init; }
+        internal bool DelayResumeProbe { get; init; }
         internal TaskCompletionSource DownloadStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource ResumeProbeStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource ReleaseResumeProbe { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public async Task<ModelDownloadResult> DownloadAsync(ModelDownloadCatalogEntry entry, IProgress<ModelDownloadProgress> progress, CancellationToken cancellationToken)
         {
@@ -153,10 +180,17 @@ public sealed class ModelDownloadCoordinatorTests
             return new ModelDownloadResult(ModelDownloadResultKind.Completed, Model, null);
         }
 
-        public Task<ModelDownloadResumeInfo?> GetResumeInfoAsync(ModelDownloadCatalogEntry entry, CancellationToken cancellationToken) =>
-            Task.FromResult<ModelDownloadResumeInfo?>(entry.Quantisation == ResumeQuantisation
+        public async Task<ModelDownloadResumeInfo?> GetResumeInfoAsync(ModelDownloadCatalogEntry entry, CancellationToken cancellationToken)
+        {
+            if (DelayResumeProbe)
+            {
+                ResumeProbeStarted.TrySetResult();
+                await ReleaseResumeProbe.Task.WaitAsync(cancellationToken);
+            }
+            return entry.Quantisation == ResumeQuantisation
                 ? new ModelDownloadResumeInfo(entry.Id, 2, entry.ExpectedByteLength, "\"v1\"")
-                : null);
+                : null;
+        }
 
         public Task DiscardPartialAsync(ModelDownloadCatalogEntry entry, CancellationToken cancellationToken)
         {
