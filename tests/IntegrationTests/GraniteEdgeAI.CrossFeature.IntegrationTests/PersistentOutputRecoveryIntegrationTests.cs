@@ -271,6 +271,72 @@ public sealed class PersistentOutputRecoveryIntegrationTests
     }
 
     [TestMethod]
+    public async Task ExportRejectsEveryExistingAncestorReparsePoint()
+    {
+        using var fixture = new OutputFixture();
+        string link = Path.Combine(fixture.Root, "export-ancestor-link");
+        string nested = Path.Combine(fixture.ExportRoot, "nested");
+        Directory.CreateDirectory(nested);
+        try
+        {
+            Directory.CreateSymbolicLink(link, fixture.ExportRoot);
+        }
+        catch (Exception exception) when (exception is IOException
+                                          or UnauthorizedAccessException
+                                          or PlatformNotSupportedException)
+        {
+            Assert.Inconclusive("Directory symbolic links are unavailable: "
+                + exception.GetType().Name);
+        }
+        try
+        {
+            OptimizationExecutionPlan plan = fixture.Plan();
+            var registry = new OptimizationOutputRegistry(
+                fixture.StagingRoot,
+                fixture.CommittedRoot);
+            using OptimizationOutputLease lease = registry.CreateLease(plan, 7);
+            await using (FileStream output = lease.CreateFileForWrite("model.gguf"))
+                await output.WriteAsync("ancestor-reparse"u8.ToArray());
+            SealedOptimizationCandidate candidate = lease.Seal("optimized-model-7");
+            Guid executionId = Guid.NewGuid();
+            OptimizationCommitReceipt receipt = await registry.AdmitAsync(
+                plan,
+                7,
+                executionId,
+                fixture.SourceSnapshot(),
+                true,
+                candidate,
+                CancellationToken.None);
+            OptimizationExecutionResult exact = OptimizationExecutionResult.Succeeded(
+                plan,
+                receipt.Key.OutputIdentity,
+                receipt.Key.OutputManifestSha256,
+                receipt.OutputSizeBytes,
+                sourceUnchanged: true,
+                DateTimeOffset.UnixEpoch,
+                executionId);
+            string escaped = Path.Combine(link, "nested", "escaped.gguf");
+
+            await Assert.ThrowsExactlyAsync<InvalidOperationException>(async () =>
+                await OptimizationExporter.ExportGgufAsync(
+                    registry,
+                    exact,
+                    escaped,
+                    maximumBytes: 1024,
+                    CancellationToken.None));
+
+            Assert.IsFalse(File.Exists(Path.Combine(nested, "escaped.gguf")));
+        }
+        finally
+        {
+            if (Directory.Exists(link))
+            {
+                Directory.Delete(link);
+            }
+        }
+    }
+
+    [TestMethod]
     public async Task PublishedGgufIdentityIsReusedByChatAndExportAfterRestart()
     {
         using var fixture = new OutputFixture();
