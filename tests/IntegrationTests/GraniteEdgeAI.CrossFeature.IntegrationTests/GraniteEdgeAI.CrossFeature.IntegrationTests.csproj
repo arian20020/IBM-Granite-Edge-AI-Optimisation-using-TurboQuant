@@ -30,6 +30,8 @@
   <ItemGroup>
     <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelImport\Selection\*.cs"
              Link="Production\ModelImport\Selection\%(Filename)%(Extension)" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelImport\DragDropRoute\ModelImportDropHandler.cs"
+             Link="Production\ModelImport\DragDropRoute\ModelImportDropHandler.cs" />
     <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelInspection\Application\ModelInspectionHandoff*.cs"
              Link="Production\ModelInspection\Handoff\%(Filename)%(Extension)" />
     <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelInspection\Contracts\*.cs"
@@ -51,6 +53,8 @@
              Link="Production\GgufRuntime\Services\IGgufChatSession.cs" />
     <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\GgufRuntime\Services\GgufChatSessionAdapter.cs"
              Link="Production\GgufRuntime\Services\GgufChatSessionAdapter.cs" />
+    <Compile Include="..\..\..\infrastructure\GraniteEdgeAI.GgufQuantization.WorkerClient\GgufQuantizerEnvironmentPolicy.cs"
+             Link="Production\GgufQuantization\GgufQuantizerEnvironmentPolicy.cs" />
   </ItemGroup>
 
   <ItemGroup>

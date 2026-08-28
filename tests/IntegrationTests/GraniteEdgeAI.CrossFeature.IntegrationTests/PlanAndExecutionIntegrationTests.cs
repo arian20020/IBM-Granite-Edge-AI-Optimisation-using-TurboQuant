@@ -1,4 +1,5 @@
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Execution;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.OpenVino;
 
 namespace GraniteEdgeAI.CrossFeature.IntegrationTests;
@@ -80,6 +81,40 @@ public sealed class PlanAndExecutionIntegrationTests
                 "6666666666666666666666666666666666666666666666666666666666666666");
         Assert.AreNotEqual(plan.Binding.HardwareSnapshotSha256,
             changedHardware.HardwareSnapshotSha256);
+    }
+
+    [TestMethod]
+    public void ExactSelectedPlanAloneCanReachExecution()
+    {
+        OptimizationExecutionPlan selected = CrossFeaturePlanFixture.Issue();
+        OptimizationCandidate differentCandidate = CrossFeaturePlanFixture.Candidate(
+            OpenVinoWeightFormat.Original,
+            "ov-original");
+        OptimizationExecutionPayload differentPayload =
+            CrossFeaturePlanFixture.Payload(differentCandidate);
+
+        Assert.IsTrue(selected.MatchesExecutionPayload(selected.ExecutionPayload));
+        Assert.IsFalse(selected.MatchesExecutionPayload(differentPayload));
+        Assert.AreNotEqual(
+            selected.ConfigurationSha256,
+            differentPayload.ComputeRuntimeConfigurationSha256());
+    }
+
+    [TestMethod]
+    public void RetryMintsNewPlanIdentityAndRejectsPriorResultAsStale()
+    {
+        OptimizationExecutionPlan firstPlan = CrossFeaturePlanFixture.Issue();
+        OptimizationExecutionResult firstResult = OptimizationExecutionResult.Failed(
+            firstPlan,
+            OptimizationSupportCode.UnexpectedFailure,
+            sourceUnchanged: true,
+            DateTimeOffset.UnixEpoch);
+        OptimizationExecutionPlan retryPlan = CrossFeaturePlanFixture.Issue();
+
+        Assert.AreNotEqual(firstPlan.OptimizationPlanId, retryPlan.OptimizationPlanId);
+        Assert.AreNotEqual(firstResult.OptimizationPlanId, retryPlan.OptimizationPlanId);
+        Assert.AreEqual(firstPlan.ConfigurationSha256, retryPlan.ConfigurationSha256,
+            "Retry may preserve the selected configuration while changing attempt authority.");
     }
 
     [TestMethod]

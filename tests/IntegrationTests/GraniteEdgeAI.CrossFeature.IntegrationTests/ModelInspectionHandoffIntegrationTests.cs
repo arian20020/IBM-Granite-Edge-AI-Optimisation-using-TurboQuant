@@ -37,6 +37,20 @@ public sealed class ModelInspectionHandoffIntegrationTests
     }
 
     [TestMethod]
+    public void GgufAndOpenVinoInspectionRoutesProduceIdenticalV2Projection()
+    {
+        // Route selection happens after inspection. Both routes must receive
+        // byte-identical schema-v2 evidence for the same inspected artifact.
+        byte[] ggufProjection = ProjectForRoute(route: 0);
+        byte[] openVinoProjection = ProjectForRoute(route: 1);
+
+        CollectionAssert.AreEqual(ggufProjection, openVinoProjection);
+        Assert.AreEqual(6, CountTopLevelProperties(ggufProjection));
+        Assert.IsFalse(Encoding.UTF8.GetString(ggufProjection)
+            .Contains("path", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [TestMethod]
     [DataRow("{\"schemaVersion\":2,\"modelInspectionHandoffId\":\"22222222-2222-4222-8222-222222222222\",\"modelInspectionRunId\":\"11111111-1111-4111-8111-111111111111\",\"outcome\":\"ReadyWithWarnings\",\"modelSha256\":\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\",\"modelLengthBytes\":4096,\"path\":\"C:\\\\Users\\\\private\\\\model.gguf\"}")]
     [DataRow("{\"modelInspectionRunId\":\"11111111-1111-4111-8111-111111111111\",\"schemaVersion\":2,\"modelInspectionHandoffId\":\"22222222-2222-4222-8222-222222222222\",\"outcome\":\"ReadyWithWarnings\",\"modelSha256\":\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\",\"modelLengthBytes\":4096}")]
     [DataRow("{\"schemaVersion\":2,\"modelInspectionHandoffId\":\"22222222-2222-4222-8222-222222222222\",\"modelInspectionRunId\":\"11111111-1111-4111-8111-111111111111\",\"outcome\":\"ReadyWithWarnings\",\"modelSha256\":\"0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF\",\"modelLengthBytes\":4096}")]
@@ -90,4 +104,17 @@ public sealed class ModelInspectionHandoffIntegrationTests
         ModelInspectionOutcome.ReadyWithWarnings,
         ModelDigest,
         4096);
+
+    private static byte[] ProjectForRoute(int route)
+    {
+        Assert.IsTrue(route is 0 or 1);
+        return ModelInspectionHandoffCodec.Serialize(Create(HandoffId));
+    }
+
+    private static int CountTopLevelProperties(byte[] json)
+    {
+        using System.Text.Json.JsonDocument document =
+            System.Text.Json.JsonDocument.Parse(json);
+        return document.RootElement.EnumerateObject().Count();
+    }
 }

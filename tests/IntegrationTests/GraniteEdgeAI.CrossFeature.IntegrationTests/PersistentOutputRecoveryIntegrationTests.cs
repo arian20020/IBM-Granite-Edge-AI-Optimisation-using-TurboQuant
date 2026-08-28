@@ -61,6 +61,19 @@ public sealed class PersistentOutputRecoveryIntegrationTests
         Assert.IsFalse(Directory.Exists(orphan));
     }
 
+    [TestMethod]
+    public void SamePlanAttemptCannotPublishThroughDuplicateLiveLeases()
+    {
+        using var fixture = new OutputFixture();
+        OptimizationExecutionPlan plan = fixture.Plan();
+        var registry = new OptimizationOutputRegistry(
+            fixture.StagingRoot, fixture.CommittedRoot);
+        using OptimizationOutputLease first = registry.CreateLease(plan, 17);
+
+        Assert.ThrowsExactly<InvalidOperationException>(() =>
+            registry.CreateLease(plan, 17));
+    }
+
     private sealed class OutputFixture : IDisposable
     {
         private readonly string _root = Path.Combine(
