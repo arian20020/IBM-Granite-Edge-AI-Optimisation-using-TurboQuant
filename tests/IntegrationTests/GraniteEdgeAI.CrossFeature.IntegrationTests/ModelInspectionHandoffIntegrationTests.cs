@@ -1,6 +1,8 @@
 using System.Text;
 using GraniteEdgeAI.Features.ModelInspection.Contracts;
 using GraniteEdgeAI.Features.ModelInspection.Handoff;
+using OpenVinoHandoff = GraniteEdgeAI.OpenVino.Contracts.ModelInspectionHandoffV2;
+using OpenVinoOutcome = GraniteEdgeAI.OpenVino.Contracts.ModelInspectionOutcome;
 
 namespace GraniteEdgeAI.CrossFeature.IntegrationTests;
 
@@ -37,12 +39,18 @@ public sealed class ModelInspectionHandoffIntegrationTests
     }
 
     [TestMethod]
-    public void GgufAndOpenVinoInspectionRoutesProduceIdenticalV2Projection()
+    public void GgufAndOpenVinoApprovedContractsProduceIdenticalV2Projection()
     {
         // Route selection happens after inspection. Both routes must receive
         // byte-identical schema-v2 evidence for the same inspected artifact.
-        byte[] ggufProjection = ProjectForRoute(route: 0);
-        byte[] openVinoProjection = ProjectForRoute(route: 1);
+        byte[] ggufProjection = ModelInspectionHandoffCodec.Serialize(Create(HandoffId));
+        var openVino = new OpenVinoHandoff(
+            HandoffId,
+            ModelRunId,
+            OpenVinoOutcome.ReadyWithWarnings,
+            ModelDigest,
+            4096);
+        byte[] openVinoProjection = openVino.ToCanonicalUtf8Json();
 
         CollectionAssert.AreEqual(ggufProjection, openVinoProjection);
         Assert.AreEqual(6, CountTopLevelProperties(ggufProjection));
@@ -104,12 +112,6 @@ public sealed class ModelInspectionHandoffIntegrationTests
         ModelInspectionOutcome.ReadyWithWarnings,
         ModelDigest,
         4096);
-
-    private static byte[] ProjectForRoute(int route)
-    {
-        Assert.IsTrue(route is 0 or 1);
-        return ModelInspectionHandoffCodec.Serialize(Create(HandoffId));
-    }
 
     private static int CountTopLevelProperties(byte[] json)
     {

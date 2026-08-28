@@ -74,6 +74,36 @@ public sealed class PersistentOutputRecoveryIntegrationTests
             registry.CreateLease(plan, 17));
     }
 
+    [TestMethod]
+    public async Task PublishedPlanRejectsASecondTerminalOutputAsStale()
+    {
+        using var fixture = new OutputFixture();
+        OptimizationExecutionPlan plan = fixture.Plan();
+        var registry = new OptimizationOutputRegistry(
+            fixture.StagingRoot, fixture.CommittedRoot);
+        using (OptimizationOutputLease first = registry.CreateLease(plan, 21))
+        {
+            await using FileStream output = first.CreateFileForWrite("model.gguf");
+            await output.WriteAsync("first-terminal-output"u8.ToArray());
+            await output.DisposeAsync();
+            SealedOptimizationCandidate candidate = first.Seal("first-output");
+            _ = await registry.AdmitAsync(
+                plan, 21, fixture.SourceSnapshot(), true, candidate,
+                CancellationToken.None);
+        }
+
+        using OptimizationOutputLease stale = registry.CreateLease(plan, 22);
+        await using (FileStream output = stale.CreateFileForWrite("model.gguf"))
+            await output.WriteAsync("stale-terminal-output"u8.ToArray());
+        SealedOptimizationCandidate staleCandidate = stale.Seal("stale-output");
+
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
+            registry.AdmitAsync(
+                plan, 22, fixture.SourceSnapshot(), true, staleCandidate,
+                CancellationToken.None));
+        Assert.AreEqual(1, registry.AdmittedCount);
+    }
+
     private sealed class OutputFixture : IDisposable
     {
         private readonly string _root = Path.Combine(

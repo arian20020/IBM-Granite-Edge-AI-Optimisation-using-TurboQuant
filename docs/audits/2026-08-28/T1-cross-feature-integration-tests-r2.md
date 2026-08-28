@@ -15,9 +15,9 @@ T1 changed only the cross-feature test project, its fixtures/coverage map, and a
 
 - Picker and Explorer drop now exercise the real picker normalizer and real drop handler against the same path-private classifier, parameterized for GGUF files and OpenVINO package folders.
 - Schema-v2 Model Inspection projection is independently checked for exact six-field encoding and byte-identical GGUF/OpenVINO handoff bytes.
-- Cross-route compatibility cases cover direct Chat when the current model fits, a distinct optional safe alternative, required optimization when only the alternative fits, and disabled execution when none fits. Route-specific configuration types and descriptors remain explicit.
+- Cross-route compatibility cases cover direct Chat when the current model fits, production retention of an executable optional optimization, required optimization when only the alternative fits, and disabled execution when none fits. Route-specific configuration types and descriptors remain explicit.
 - Installed memory, fresh available memory, safety reserve, and executable model budget are asserted as four distinct values using an independent 10 GiB minus 1 GiB calculation.
-- Model/hardware binding, exact payload/plan matching, retry authority, stale-result rejection, cancellation/failure publication, duplicate live publication prevention, restart quarantine, and exact persistent Chat/export identity are executable.
+- The production compatibility input rejects a mutated current Hardware identity. The real journey coordinator forwards the exact selected plan to the route executor. Exact payload matching, retry authority, stale terminal-result rejection by the output registry, cancellation/failure publication, duplicate live publication prevention, restart quarantine, and exact persistent Chat/export identity are executable.
 - Runtime-only OpenVINO success is excluded from model-file export. Quantizer child-environment isolation and GGUF stop/disposal lifetime behavior fixed by C0 are retained as characterization coverage.
 - One onboarding shell and the absence of the onboarding stage/footer surface on Chat are characterized.
 
@@ -25,22 +25,14 @@ The detailed mapping is in `tests/IntegrationTests/GraniteEdgeAI.CrossFeature.In
 
 ## Characterization GREEN versus remediation RED
 
-The final cross-feature executable discovered 79 tests: 69 passed, 10 failed, 0 skipped. The 69 passes characterize behavior already present at the authoritative base or validate independently derived cross-feature contracts. The ten failures are intentional remediation-required regressions and were not weakened:
+The final cross-feature executable discovered 80 tests: 78 passed, 2 failed, 0 skipped. The 78 passes characterize behavior already present at the authoritative base or validate independently derived cross-feature contracts. The two failures are intentional remediation-required regressions and were not weakened:
 
-1. `RecommendedModelDownloadImplementsRequiredLifecycle ("functional")`
-2. `RecommendedModelDownloadImplementsRequiredLifecycle ("cancellable")`
-3. `RecommendedModelDownloadImplementsRequiredLifecycle ("bounded")`
-4. `RecommendedModelDownloadImplementsRequiredLifecycle ("integrity-checked")`
-5. `RecommendedModelDownloadImplementsRequiredLifecycle ("retryable")`
-6. `OpenVinoChatConsumesExactResultBoundConfiguration`
-7. `PersistentExportVerifiesExactOutputAndLifecycle ("bounded")`
-8. `PersistentExportVerifiesExactOutputAndLifecycle ("integrity-checked")`
-9. `PersistentExportVerifiesExactOutputAndLifecycle ("cancellable-and-cleaned")`
-10. `HardwareProbePackagingDoesNotLeakAnUnresolvedPackageItemExpression`
+1. `RecommendedModelDownloadActionIsFunctionallyWired`
+2. `OpenVinoChatConsumesExactResultBoundConfiguration`
 
-These RED cases correspond to the unresolved C0 findings: the visual-only download action; export without cancellation, bounds, digest verification, and partial-output cleanup; OpenVINO Chat using `LastPublishedDirectory` rather than the exact result-bound configuration; and the unresolved Hardware probe package-item expression found by the Model Inspection package inventory.
+These RED cases correspond to two unresolved C0 findings: the visual-only download action and OpenVINO Chat using `LastPublishedDirectory` rather than the exact result-bound configuration. The unresolved package-item expression remains directly executable and RED in the affected Model Inspection contract project; T1 does not duplicate that owner regression with a weaker source-shape assertion.
 
-Disabled-action keyboard reachability and UI Automation invoke-pattern accessibility require E1 native WinUI coverage. The cross-feature executable does not instantiate the packaged Windows application or automation peers, so a passing managed/source assertion would not prove keyboard or automation inaccessibility. This is the only explicit E1-only coverage boundary.
+Disabled-action keyboard reachability and UI Automation invoke-pattern accessibility require E1 native WinUI coverage. Download/export cancellation and retry, actual network/file bounds, existing/inaccessible destinations, post-write digest mismatch and partial-output cleanup also require E1 at this base: there is no callable download/export service seam, and the managed host does not instantiate the packaged app, picker, network transfer or destination filesystem journey. The managed suite therefore proves functional wiring is currently absent, runtime-only exclusion, exact persistent output identity, and failure publication without pretending that token searches prove lifecycle behavior.
 
 ## Verification receipts
 
@@ -48,8 +40,8 @@ All commands used the complete installed SDK entry point `C:\Program Files\dotne
 
 | Verification | Result |
 |---|---:|
-| Cross-feature explicit discovery | 79 discovered |
-| Cross-feature complete project | 79 total, 69 passed, 10 remediation RED, 0 skipped |
+| Cross-feature explicit discovery | 80 discovered |
+| Cross-feature complete project | 80 total, 78 passed, 2 remediation RED, 0 skipped |
 | Model/Hardware Compatibility | 1,050 total, 1,050 passed |
 | OpenVINO contracts | 205 total, 205 passed |
 | OpenVINO worker client | 13 total, 13 passed |

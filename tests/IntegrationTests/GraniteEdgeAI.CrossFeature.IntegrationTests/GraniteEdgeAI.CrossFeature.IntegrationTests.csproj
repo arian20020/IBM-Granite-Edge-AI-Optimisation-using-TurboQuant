@@ -17,7 +17,7 @@
     <TestingPlatformShowTestsFailure>true</TestingPlatformShowTestsFailure>
     <!-- Linked application sources retain the owning project's analyzer
          baseline; T1 must not rewrite production solely for this test host. -->
-    <NoWarn>$(NoWarn);CA1068;CA1512;CA1707;CA1720;CA1822;CA1870;CA2208</NoWarn>
+    <NoWarn>$(NoWarn);CA1068;CA1512;CA1707;CA1720;CA1822;CA1859;CA1870;CA2208</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -39,6 +39,12 @@
     <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelOptimization\Storage\*.cs"
              Exclude="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelOptimization\Storage\OptimizationSourceResolver.cs"
              Link="Production\ModelOptimization\Storage\%(Filename)%(Extension)" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelOptimization\Application\*.cs"
+             Link="Production\ModelOptimization\Application\%(Filename)%(Extension)" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelHardwareCompatibility\Application\OptimizationJourneyEntryContext.cs"
+             Link="Production\ModelHardwareCompatibility\OptimizationJourneyEntryContext.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelHardwareCompatibility\Contracts\*.cs"
+             Link="Production\ModelHardwareCompatibility\Contracts\%(Filename)%(Extension)" />
     <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\GgufRuntime\History\ChatCompletionStatus.cs"
              Link="Production\GgufRuntime\History\ChatCompletionStatus.cs" />
     <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\GgufRuntime\History\ChatConversation.cs"
@@ -65,6 +71,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\shared\GraniteEdgeAI.GgufRuntime.Contracts\GraniteEdgeAI.GgufRuntime.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\shared\GraniteEdgeAI.OpenVino.Contracts\GraniteEdgeAI.OpenVino.Contracts.csproj" />
     <ProjectReference Include="..\..\..\infrastructure\GraniteEdgeAI.GgufRuntime.WorkerClient\GraniteEdgeAI.GgufRuntime.WorkerClient.csproj" />
   </ItemGroup>
 </Project>

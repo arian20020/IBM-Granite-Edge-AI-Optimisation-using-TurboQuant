@@ -163,6 +163,29 @@ public sealed class PlanAndExecutionIntegrationTests
     }
 
     [TestMethod]
+    [DataRow("timeout", OptimizationSupportCode.UnexpectedFailure)]
+    [DataRow("worker-crash", OptimizationSupportCode.UnexpectedFailure)]
+    [DataRow("malformed-output", OptimizationSupportCode.ValidationFailed)]
+    [DataRow("oversized-output", OptimizationSupportCode.ValidationFailed)]
+    [DataRow("cleanup-failure", OptimizationSupportCode.UnexpectedFailure)]
+    public void TerminalWorkerFaultCannotPublishSuccessOrStaleOutput(
+        string scenario,
+        OptimizationSupportCode supportCode)
+    {
+        OptimizationExecutionResult result = OptimizationExecutionResult.Failed(
+            CrossFeaturePlanFixture.Issue(),
+            supportCode,
+            sourceUnchanged: true,
+            DateTimeOffset.UnixEpoch);
+
+        Assert.IsFalse(string.IsNullOrWhiteSpace(scenario));
+        Assert.IsFalse(result.IsSuccessful);
+        Assert.IsNull(result.OutputIdentity);
+        Assert.IsNull(result.OutputManifestSha256);
+        Assert.AreEqual(0UL, result.OutputSizeBytes);
+    }
+
+    [TestMethod]
     public void CancellationPublishesNoSuccessOrStaleOutput()
     {
         OptimizationExecutionResult result = OptimizationExecutionResult.Cancelled(

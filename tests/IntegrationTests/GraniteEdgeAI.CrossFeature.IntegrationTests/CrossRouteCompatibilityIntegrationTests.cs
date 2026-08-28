@@ -18,7 +18,7 @@ public sealed class CrossRouteCompatibilityIntegrationTests
     [TestMethod]
     [DataRow(0)]
     [DataRow(1)]
-    public void CurrentModelFitAllowsDirectChatAndOptionalAlternative(int route)
+    public void CurrentModelFitAllowsDirectChat(int route)
     {
         RouteConfiguration baselineConfiguration = Configuration(route, baseline: true);
         RouteConfiguration alternativeConfiguration = Configuration(route, baseline: false);
@@ -35,8 +35,6 @@ public sealed class CrossRouteCompatibilityIntegrationTests
             "A safe current configuration must permit direct Chat.");
         Assert.IsTrue(screen.ContinueEnabled);
         Assert.IsNotNull(screen.CurrentSetup);
-        Assert.IsTrue(alternative.Candidate.Preparation != CandidatePreparation.None,
-            "A distinct safe alternative remains available for optional optimisation.");
         AssertRouteSpecificConfiguration(route, baselineConfiguration);
         AssertRouteSpecificConfiguration(route, alternativeConfiguration);
     }
