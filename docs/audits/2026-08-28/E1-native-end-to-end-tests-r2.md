@@ -76,7 +76,7 @@ A guard skip is not counted as a pass. Product seams remain open requirements wh
 | Authoritative packaged List | 0 | 0 | 0 | 0 | all | not run: no new C0 candidate/pinned SDK/package |
 | Authoritative Smoke/Failure/Acceptance/Restart/RealModel | 0 | 0 | 0 | 0 | all | not run: dependency gate |
 
-The ignored deterministic TRX is 40,714 bytes with SHA-256 `45c8d3da058bb8ed6e911a34dd183956d7b63c3c3c334590995f0f97b7f3806a`. It is diagnostic because the project was built using the available complete SDK 10.0.400 from a neutral directory; the repository-pinned 10.0.301 SDK is incomplete. VSTest 17.14.0 x64 and the one-worker runsettings were used. PowerShell parsing and `git diff --check` passed.
+The ignored deterministic TRX is 40,714 bytes with SHA-256 `5a0af4678594dfdca7b3e0d6e9492b5b965ea50a3592cb678de2f89c132eabac`. It is diagnostic because the project was built using the available complete SDK 10.0.400 from a neutral directory; the repository-pinned 10.0.301 SDK is incomplete. VSTest 17.14.0 x64 and the one-worker runsettings were used. PowerShell parsing and `git diff --check` passed.
 
 ## Blockers
 
