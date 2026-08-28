@@ -166,11 +166,49 @@ public sealed class ModelImportPageCompositionTests
             StringComparison.Ordinal));
     }
 
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task RetiredPageRejectsLateVerifiedDownloadCompletion()
+    {
+        ModelSelectionInput downloaded = new(
+            @"C:\private\late-granite.gguf", "late-granite.gguf", isFolder: false);
+        var service = new ControlledDownloadService(downloaded);
+        var page = new ModelImportPage(
+            () => Task.FromResult(ModelFormatSelection.None),
+            () => Task.FromResult<string?>(null),
+            (_, _, _) => Task.FromResult(ModelQuickScanResult.CreateSuccess(
+                "Granite", "granite", "3B", "Q4", 64, 4096, 3)),
+            classifier: new StubClassifier());
+        page.BindRecommendedModelDownload(Offer(), service);
+        var card = (ModelDownloadCard)page.FindName("RecommendedModelDownloadCard");
+
+        Task<bool> download = card.TryStartDownloadAsync();
+        page.RetireSelectionForNavigation();
+        service.Complete();
+        Assert.IsTrue(await download);
+
+        Assert.IsFalse(page.HasValidatedModel);
+        Assert.IsNull(page.CurrentRoute);
+        Assert.IsNull(page.SelectedModelPath);
+        Assert.IsFalse(((Button)page.FindName(
+            "ContinueToModelInspectionButton")).IsEnabled);
+    }
+
     private static ModelImportPage CreatePage(IDownloadedModelFinder finder) => new(
         () => Task.FromResult(ModelFormatSelection.None),
         () => Task.FromResult<string?>(null),
         (_, _, _) => Task.FromResult(ModelQuickScanResult.CreateCancelled()),
         downloadedModelFinder: finder);
+
+    private static RecommendedModelOffer Offer() => new(
+        "granite-offer-1",
+        "Granite recommended model",
+        "1.94 GB download",
+        "Verified instruction model",
+        "GGUF",
+        "Q4_K_M",
+        "2.8 GB estimated memory",
+        "128K tokens");
 
     private sealed class StubDownloadedModelFinder : IDownloadedModelFinder
     {
@@ -214,5 +252,24 @@ public sealed class ModelImportPageCompositionTests
                     "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
                     1024,
                     "publication-1")));
+    }
+
+    private sealed class ControlledDownloadService(ModelSelectionInput selection)
+        : IRecommendedModelDownloadService
+    {
+        private readonly TaskCompletionSource<ModelDownloadResult> _completion =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task<ModelDownloadResult> DownloadAsync(
+            RecommendedModelDownloadRequest request,
+            IProgress<ModelDownloadProgress> progress,
+            CancellationToken cancellationToken) => _completion.Task;
+
+        internal void Complete() => _completion.SetResult(
+            ModelDownloadResult.Succeeded(new CompletedModelDownload(
+                selection,
+                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                1024,
+                "publication-1")));
     }
 }

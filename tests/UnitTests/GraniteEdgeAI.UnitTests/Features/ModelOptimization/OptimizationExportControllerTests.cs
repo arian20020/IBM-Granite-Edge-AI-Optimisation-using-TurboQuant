@@ -3,6 +3,7 @@ using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -156,6 +157,32 @@ public sealed class OptimizationExportControllerTests
         Assert.IsTrue(await operation);
         Assert.AreEqual(OptimizationExportStateKind.Failed, controller.State.Kind);
         Assert.AreEqual(OptimizationExportFailure.CleanupFailure, controller.State.Failure);
+    }
+
+    [TestMethod]
+    public async Task RetirementWaitsForNonCooperativeExportAndLeavesNoReusableTarget()
+    {
+        var service = new ControlledExportService(ignoreCancellation: true);
+        var controller = new OptimizationExportController(service);
+        controller.Bind(Target());
+        Task<bool> operation = controller.TryStartAsync();
+        MethodInfo? retireMethod = typeof(OptimizationExportController).GetMethod(
+            "RetireAsync",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsNotNull(retireMethod,
+            "The controller must expose an awaitable production retirement seam.");
+
+        var retirement = (Task)retireMethod.Invoke(controller, null)!;
+        Assert.IsFalse(retirement.IsCompleted,
+            "Retirement must observe a non-cooperative active export.");
+        service.Complete(OptimizationExportResult.Failed(
+            OptimizationExportFailure.CleanupFailure));
+
+        await retirement;
+        Assert.IsTrue(await operation);
+        Assert.AreEqual(OptimizationExportStateKind.Unbound, controller.State.Kind);
+        Assert.IsNull(controller.State.Target);
+        Assert.IsFalse(await controller.TryStartAsync());
     }
 
     [TestMethod]

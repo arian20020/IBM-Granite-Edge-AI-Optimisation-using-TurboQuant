@@ -3,6 +3,7 @@ using GraniteEdgeAI.Features.ModelImport.Selection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -163,6 +164,30 @@ public sealed class ModelDownloadControllerTests
         Assert.IsTrue(await operation);
         Assert.AreEqual(ModelDownloadStateKind.Failed, controller.State.Kind);
         Assert.AreEqual(ModelDownloadFailure.CleanupFailure, controller.State.Failure);
+    }
+
+    [TestMethod]
+    public async Task RetirementWaitsForNonCooperativeDownloadAndRejectsLateSuccess()
+    {
+        var service = new ControlledDownloadService(ignoreCancellation: true);
+        var controller = new ModelDownloadController(service);
+        Task<bool> operation = controller.TryStartAsync(Offer(), 50);
+        MethodInfo? retireMethod = typeof(ModelDownloadController).GetMethod(
+            "RetireAsync",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsNotNull(retireMethod,
+            "The controller must expose an awaitable production retirement seam.");
+
+        var retirement = (Task)retireMethod.Invoke(controller, null)!;
+        Assert.IsFalse(retirement.IsCompleted,
+            "Retirement must observe a non-cooperative active download.");
+        service.Complete(ModelDownloadResult.Succeeded(Completion()));
+
+        await retirement;
+        Assert.IsTrue(await operation);
+        Assert.AreEqual(ModelDownloadStateKind.Unavailable, controller.State.Kind);
+        Assert.IsNull(controller.State.CompletedDownload);
+        Assert.IsFalse(await controller.TryStartAsync(Offer(), 50));
     }
 
     [TestMethod]
