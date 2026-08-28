@@ -136,7 +136,7 @@ public sealed class R3ReleaseVetoPreflightTests
     private static string RequireEnvironment(string name) =>
         Environment.GetEnvironmentVariable(name) is { Length: > 0 } value
             ? value
-            : throw new AssertInconclusiveException($"Blocked by declared guard: {name} is required.");
+            : throw new InvalidDataException($"CHANGES REQUIRED: {name} is required.");
 
     private static string Git(string workingDirectory, params string[] arguments)
     {
