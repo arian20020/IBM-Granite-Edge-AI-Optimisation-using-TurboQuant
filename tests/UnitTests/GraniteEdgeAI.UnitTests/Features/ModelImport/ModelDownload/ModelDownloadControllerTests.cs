@@ -184,6 +184,38 @@ public sealed class ModelDownloadControllerTests
     }
 
     [TestMethod]
+    public async Task ThrowingCancellationCallbackCannotBypassDownloadRetirement()
+    {
+        var service = new ThrowingCancellationDownloadService();
+        var controller = new ModelDownloadController(service);
+        Task<bool> operation = controller.TryStartAsync(Offer(), 50);
+
+        Task retirement = controller.RetireAsync();
+        Assert.IsFalse(retirement.IsCompleted);
+        service.Complete(ModelDownloadResult.Failed(
+            ModelDownloadFailure.CleanupFailure));
+
+        await retirement;
+        Assert.IsTrue(await operation);
+        Assert.AreEqual(ModelDownloadStateKind.Unavailable, controller.State.Kind);
+    }
+
+    [TestMethod]
+    public async Task ThrowingCancellationCallbackMapsToDownloadCleanupFailure()
+    {
+        var service = new ThrowingCancellationDownloadService();
+        var controller = new ModelDownloadController(service);
+        Task<bool> operation = controller.TryStartAsync(Offer(), 50);
+
+        Assert.IsTrue(controller.TryCancel());
+        service.Complete(ModelDownloadResult.Succeeded(Completion()));
+
+        Assert.IsTrue(await operation);
+        Assert.AreEqual(ModelDownloadStateKind.Failed, controller.State.Kind);
+        Assert.AreEqual(ModelDownloadFailure.CleanupFailure, controller.State.Failure);
+    }
+
+    [TestMethod]
     public async Task EveryServiceFailureRemainsBoundedAndRetryable()
     {
         ModelDownloadFailure[] failures =
@@ -286,5 +318,27 @@ public sealed class ModelDownloadControllerTests
             IProgress<ModelDownloadProgress> progress,
             CancellationToken cancellationToken) =>
             Task.FromResult<ModelDownloadResult>(null!);
+    }
+
+    private sealed class ThrowingCancellationDownloadService
+        : IRecommendedModelDownloadService
+    {
+        private readonly TaskCompletionSource<ModelDownloadResult> _completion =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public async Task<ModelDownloadResult> DownloadAsync(
+            RecommendedModelDownloadRequest request,
+            IProgress<ModelDownloadProgress> progress,
+            CancellationToken cancellationToken)
+        {
+            using CancellationTokenRegistration registration =
+                cancellationToken.Register(
+                    () => throw new InvalidOperationException(
+                        "Synthetic cancellation callback failure."));
+            return await _completion.Task;
+        }
+
+        internal void Complete(ModelDownloadResult result) =>
+            _completion.SetResult(result);
     }
 }

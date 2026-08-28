@@ -174,8 +174,17 @@ namespace GraniteEdgeAI.Features.ModelImport
 
         internal async Task BrowseFilesAsync()
         {
+            if (Volatile.Read(ref _isRetired) != 0)
+            {
+                return;
+            }
             ModelFormatSelection selectedFormat =
                 await _selectModelFormatAsync();
+
+            if (Volatile.Read(ref _isRetired) != 0)
+            {
+                return;
+            }
 
             if (selectedFormat == ModelFormatSelection.OpenVino)
             {
@@ -189,7 +198,7 @@ namespace GraniteEdgeAI.Features.ModelImport
             }
 
             string? selectedPath = await _pickGgufPathAsync();
-            if (selectedPath is null)
+            if (selectedPath is null || Volatile.Read(ref _isRetired) != 0)
             {
                 return;
             }
@@ -435,6 +444,10 @@ namespace GraniteEdgeAI.Features.ModelImport
 
         private async Task PickOpenVinoFolderAsync()
         {
+            if (Volatile.Read(ref _isRetired) != 0)
+            {
+                return;
+            }
             ModelSelectionInput? input;
             if (_pickOpenVinoInputAsync is not null)
             {
@@ -447,7 +460,7 @@ namespace GraniteEdgeAI.Features.ModelImport
                     new ModelSelectionInputNormalizer());
             }
 
-            if (input is not null)
+            if (input is not null && Volatile.Read(ref _isRetired) == 0)
             {
                 await SubmitInputAsync(input);
             }

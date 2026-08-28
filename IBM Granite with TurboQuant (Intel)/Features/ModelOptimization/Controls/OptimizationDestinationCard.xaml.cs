@@ -13,6 +13,7 @@ public sealed partial class OptimizationDestinationCard : UserControl
 {
     private OptimizationPresentationState? _presentation;
     private OptimizationExportController? _exportController;
+    private readonly object _retirementGate = new();
     private Task _detachedOperations = Task.CompletedTask;
     private Task? _retirementTask;
     private bool _retired;
@@ -114,17 +115,20 @@ public sealed partial class OptimizationDestinationCard : UserControl
 
     internal Task RetireAsync()
     {
-        if (_retirementTask is not null)
+        lock (_retirementGate)
         {
+            if (_retirementTask is not null)
+            {
+                return _retirementTask;
+            }
+
+            _retired = true;
+            ResetExportBinding();
+            _presentation = null;
+            DestinationCore.SetAllActionsEnabled(false);
+            _retirementTask = _detachedOperations;
             return _retirementTask;
         }
-
-        _retired = true;
-        ResetExportBinding();
-        _presentation = null;
-        DestinationCore.SetAllActionsEnabled(false);
-        _retirementTask = _detachedOperations;
-        return _retirementTask;
     }
 
     private async void OnActionRequested(OptimizationCommand command)

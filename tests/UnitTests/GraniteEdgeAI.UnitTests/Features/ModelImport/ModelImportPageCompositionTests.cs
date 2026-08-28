@@ -183,8 +183,10 @@ public sealed class ModelImportPageCompositionTests
         var card = (ModelDownloadCard)page.FindName("RecommendedModelDownloadCard");
 
         Task<bool> download = card.TryStartDownloadAsync();
-        page.RetireSelectionForNavigation();
+        Task retirement = page.RetireForNavigationAsync();
+        Assert.AreSame(retirement, page.RetireForNavigationAsync());
         service.Complete();
+        await retirement;
         Assert.IsTrue(await download);
 
         Assert.IsFalse(page.HasValidatedModel);
@@ -192,6 +194,29 @@ public sealed class ModelImportPageCompositionTests
         Assert.IsNull(page.SelectedModelPath);
         Assert.IsFalse(((Button)page.FindName(
             "ContinueToModelInspectionButton")).IsEnabled);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task RetiredPageRejectsPickerCompletionThatArrivesAfterNavigation()
+    {
+        var pickedPath = new TaskCompletionSource<string?>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var page = new ModelImportPage(
+            () => Task.FromResult(ModelFormatSelection.Gguf),
+            () => pickedPath.Task,
+            (_, _, _) => Task.FromResult(ModelQuickScanResult.CreateSuccess(
+                "Granite", "granite", "3B", "Q4", 64, 4096, 3)),
+            classifier: new StubClassifier());
+        Task browse = page.BrowseFilesAsync();
+
+        Task retirement = page.RetireForNavigationAsync();
+        pickedPath.SetResult(@"C:\private\late-picker.gguf");
+        await Task.WhenAll(browse, retirement);
+
+        Assert.IsFalse(page.HasValidatedModel);
+        Assert.IsNull(page.CurrentRoute);
+        Assert.IsNull(page.SelectedModelPath);
     }
 
     private static ModelImportPage CreatePage(IDownloadedModelFinder finder) => new(

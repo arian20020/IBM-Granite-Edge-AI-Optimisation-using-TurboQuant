@@ -24,6 +24,11 @@ namespace GraniteEdgeAI.Features.ModelImport
         {
             ArgumentNullException.ThrowIfNull(input);
 
+            if (Volatile.Read(ref _isRetired) != 0)
+            {
+                return;
+            }
+
             CancelDownloadedModelSearch();
             ClearSelectionAnnouncement();
 

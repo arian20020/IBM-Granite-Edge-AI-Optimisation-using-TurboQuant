@@ -14,6 +14,7 @@ namespace GraniteEdgeAI.Features.ModelImport.ModelDownload
     {
         private RecommendedModelOffer? _offer;
         private ModelDownloadController? _controller;
+        private readonly object _retirementGate = new();
         private Task _detachedOperations = Task.CompletedTask;
         private Task? _retirementTask;
         private bool _retired;
@@ -100,24 +101,27 @@ namespace GraniteEdgeAI.Features.ModelImport.ModelDownload
 
         internal Task RetireAsync()
         {
-            if (_retirementTask is not null)
+            lock (_retirementGate)
             {
+                if (_retirementTask is not null)
+                {
+                    return _retirementTask;
+                }
+
+                _retired = true;
+                _offer = null;
+                ModelDownloadController? controller = _controller;
+                _controller = null;
+                if (controller is not null)
+                {
+                    controller.StateChanged -= Controller_StateChanged;
+                }
+                _retirementTask = Task.WhenAll(
+                    _detachedOperations,
+                    controller?.RetireAsync() ?? Task.CompletedTask);
+                ApplyDownloadState(ModelDownloadViewState.Unavailable());
                 return _retirementTask;
             }
-
-            _retired = true;
-            _offer = null;
-            ModelDownloadController? controller = _controller;
-            _controller = null;
-            if (controller is not null)
-            {
-                controller.StateChanged -= Controller_StateChanged;
-            }
-            _retirementTask = Task.WhenAll(
-                _detachedOperations,
-                controller?.RetireAsync() ?? Task.CompletedTask);
-            ApplyDownloadState(ModelDownloadViewState.Unavailable());
-            return _retirementTask;
         }
 
         /*

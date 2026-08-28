@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -42,6 +43,7 @@ internal sealed class ModelDownloadController
     private long _generation;
     private long? _activeGeneration;
     private long? _cancelledGeneration;
+    private long? _cancellationFailureGeneration;
     private CancellationTokenSource? _activeCancellation;
     private Task<bool>? _activeTask;
     private RecommendedModelOffer? _lastOffer;
@@ -163,6 +165,14 @@ internal sealed class ModelDownloadController
             {
                 _state = ModelDownloadViewState.Unavailable();
             }
+            else if (_cancellationFailureGeneration == generation)
+            {
+                completed = ToTerminalState(
+                    request,
+                    ModelDownloadResult.Failed(
+                        ModelDownloadFailure.CleanupFailure));
+                _state = completed;
+            }
             else if (_cancelledGeneration == generation
                 && result.Kind != ModelDownloadResultKind.Failed)
             {
@@ -179,6 +189,7 @@ internal sealed class ModelDownloadController
             _activeCancellation = null;
             _activeTask = null;
             _cancelledGeneration = null;
+            _cancellationFailureGeneration = null;
         }
         cancellation.Dispose();
         if (completed is not null)
@@ -192,15 +203,17 @@ internal sealed class ModelDownloadController
     {
         CancellationTokenSource cancellation;
         ModelDownloadViewState cancelling;
+        long generation;
         lock (_gate)
         {
             if (_retired
-                || _activeGeneration is not long generation
+                || _activeGeneration is not long activeGeneration
                 || _activeCancellation is null
                 || _state.Kind != ModelDownloadStateKind.Running)
             {
                 return false;
             }
+            generation = activeGeneration;
             _cancelledGeneration = generation;
             cancellation = _activeCancellation;
             _state = cancelling = _state with
@@ -210,7 +223,16 @@ internal sealed class ModelDownloadController
             };
         }
         PublishState(cancelling);
-        cancellation.Cancel();
+        if (!RequestCancellation(cancellation))
+        {
+            lock (_gate)
+            {
+                if (_activeGeneration == generation)
+                {
+                    _cancellationFailureGeneration = generation;
+                }
+            }
+        }
         return true;
     }
 
@@ -236,7 +258,10 @@ internal sealed class ModelDownloadController
         CancellationTokenSource? cancellation,
         Task activeTask)
     {
-        cancellation?.Cancel();
+        if (cancellation is not null)
+        {
+            RequestCancellation(cancellation);
+        }
         await activeTask.ConfigureAwait(false);
     }
 
@@ -336,13 +361,33 @@ internal sealed class ModelDownloadController
 
     private void PublishState(ModelDownloadViewState state)
     {
+        Delegate[] handlers = StateChanged?.GetInvocationList() ?? [];
+        foreach (Delegate candidate in handlers)
+        {
+            try
+            {
+                ((EventHandler<ModelDownloadViewState>)candidate)(this, state);
+            }
+            catch (Exception exception)
+            {
+                Trace.TraceError(
+                    "A model-download state observer failed with {0}.",
+                    exception.GetType().Name);
+            }
+        }
+    }
+
+    private static bool RequestCancellation(
+        CancellationTokenSource cancellation)
+    {
         try
         {
-            StateChanged?.Invoke(this, state);
+            cancellation.Cancel();
+            return true;
         }
-        catch
+        catch (AggregateException)
         {
-            // A retiring view must not fault or detach the owned backend operation.
+            return false;
         }
     }
 

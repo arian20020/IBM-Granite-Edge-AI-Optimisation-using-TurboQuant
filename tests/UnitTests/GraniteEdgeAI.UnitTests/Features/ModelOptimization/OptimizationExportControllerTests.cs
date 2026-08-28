@@ -179,6 +179,43 @@ public sealed class OptimizationExportControllerTests
     }
 
     [TestMethod]
+    public async Task ThrowingCancellationCallbackCannotBypassExportRetirement()
+    {
+        var service = new ThrowingCancellationExportService();
+        var controller = new OptimizationExportController(service);
+        controller.Bind(Target());
+        Task<bool> operation = controller.TryStartAsync();
+
+        Task retirement = controller.RetireAsync();
+        Assert.IsFalse(retirement.IsCompleted);
+        service.Complete(OptimizationExportResult.Failed(
+            OptimizationExportFailure.CleanupFailure));
+
+        await retirement;
+        Assert.IsTrue(await operation);
+        Assert.AreEqual(OptimizationExportStateKind.Unbound, controller.State.Kind);
+    }
+
+    [TestMethod]
+    public async Task ThrowingCancellationCallbackMapsToExportCleanupFailure()
+    {
+        var service = new ThrowingCancellationExportService();
+        var controller = new OptimizationExportController(service);
+        controller.Bind(Target());
+        Task<bool> operation = controller.TryStartAsync();
+
+        Assert.IsTrue(controller.TryCancel());
+        service.Complete(OptimizationExportResult.Succeeded(
+            new OptimizationExportReceipt(Manifest, 4096)));
+
+        Assert.IsTrue(await operation);
+        Assert.AreEqual(OptimizationExportStateKind.Failed, controller.State.Kind);
+        Assert.AreEqual(
+            OptimizationExportFailure.CleanupFailure,
+            controller.State.Failure);
+    }
+
+    [TestMethod]
     public async Task EveryServiceFailureRemainsBoundedAndRetryable()
     {
         OptimizationExportFailure[] failures =
@@ -298,5 +335,27 @@ public sealed class OptimizationExportControllerTests
             IProgress<OptimizationExportProgress> progress,
             CancellationToken cancellationToken) =>
             Task.FromResult<OptimizationExportResult>(null!);
+    }
+
+    private sealed class ThrowingCancellationExportService
+        : IOptimizationExportService
+    {
+        private readonly TaskCompletionSource<OptimizationExportResult> _completion =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public async Task<OptimizationExportResult> ExportAsync(
+            VerifiedPersistentExportTarget target,
+            IProgress<OptimizationExportProgress> progress,
+            CancellationToken cancellationToken)
+        {
+            using CancellationTokenRegistration registration =
+                cancellationToken.Register(
+                    () => throw new InvalidOperationException(
+                        "Synthetic cancellation callback failure."));
+            return await _completion.Task;
+        }
+
+        internal void Complete(OptimizationExportResult result) =>
+            _completion.SetResult(result);
     }
 }
