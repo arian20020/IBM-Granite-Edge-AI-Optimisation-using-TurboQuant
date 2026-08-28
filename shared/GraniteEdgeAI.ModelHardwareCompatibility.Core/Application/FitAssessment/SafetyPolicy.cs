@@ -1,4 +1,5 @@
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation;
 
 namespace GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.FitAssessment;
 
@@ -55,20 +56,18 @@ internal sealed record SafetyPolicy
     /// V1 preserves its fixed allowance for reproducibility; V2 scales the
     /// reserve with the pool that is actually available and applies a floor.
     /// </summary>
-    internal ByteCount AvailableMemoryReserveFor(ByteCount availableMemory)
+    internal AvailableMemorySafetyBudget AvailableMemoryBudgetFor(
+        CurrentlyAvailableMemory availableMemory)
     {
         SafetyTerms terms = Terms;
-
-        if (terms.AvailableMemoryReserveFraction == 0m)
-        {
-            return terms.OsAllowance.Add(terms.OperationalReserve);
-        }
-
-        ulong proportional = (ulong)Math.Ceiling(
-            availableMemory.Bytes * terms.AvailableMemoryReserveFraction);
-        return proportional > terms.AvailableMemoryReserveFloor.Bytes
-            ? ByteCount.FromBytes(proportional)
-            : terms.AvailableMemoryReserveFloor;
+        ulong floor = terms.AvailableMemoryReserveNumerator == 0
+            ? terms.OsAllowance.Add(terms.OperationalReserve).Bytes
+            : terms.AvailableMemoryReserveFloor.Bytes;
+        return SystemMemoryBudgetCalculator.Calculate(
+            availableMemory,
+            terms.AvailableMemoryReserveNumerator,
+            terms.AvailableMemoryReserveDenominator,
+            floor);
     }
 
     /// <summary>
@@ -101,7 +100,8 @@ internal sealed record SafetyPolicy
             CalibrationMarginFloor: ByteCount.FromBytes(Gibibyte / 2),
             CalibrationMarginFraction: 0.10m,
             AvailableMemoryReserveFloor: ByteCount.Zero,
-            AvailableMemoryReserveFraction: 0m));
+            AvailableMemoryReserveNumerator: 0,
+            AvailableMemoryReserveDenominator: 1));
 
     internal static SafetyPolicy ProportionalV2() => new(
         PolicyProvenance.Provisional,
@@ -119,7 +119,8 @@ internal sealed record SafetyPolicy
             CalibrationMarginFloor: ByteCount.FromBytes(Gibibyte / 2),
             CalibrationMarginFraction: 0.10m,
             AvailableMemoryReserveFloor: ByteCount.FromBytes(Gibibyte / 2),
-            AvailableMemoryReserveFraction: 0.10m));
+            AvailableMemoryReserveNumerator: 1,
+            AvailableMemoryReserveDenominator: 10));
 
     internal static SafetyPolicy Absent() => new(
         PolicyProvenance.Absent,
@@ -140,5 +141,6 @@ internal sealed record SafetyPolicy
         ByteCount CalibrationMarginFloor,
         decimal CalibrationMarginFraction,
         ByteCount AvailableMemoryReserveFloor,
-        decimal AvailableMemoryReserveFraction);
+        ulong AvailableMemoryReserveNumerator,
+        ulong AvailableMemoryReserveDenominator);
 }

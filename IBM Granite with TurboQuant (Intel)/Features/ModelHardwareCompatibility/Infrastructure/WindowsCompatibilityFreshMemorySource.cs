@@ -66,7 +66,7 @@ internal sealed class WindowsCompatibilityFreshResourcesSource : ICompatibilityF
             : storage.CapturedAtUtc;
 
         return CompatibilityFreshResourcesInput.Create(
-            memory.AvailablePhysicalBytes,
+            CurrentlyAvailableMemory.FromBytes(memory.AvailablePhysicalBytes),
             availableDedicatedDeviceMemoryBytes: null,
             availableStorage,
             observedAtUtc);

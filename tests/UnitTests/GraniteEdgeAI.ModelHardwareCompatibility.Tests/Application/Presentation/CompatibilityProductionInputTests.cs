@@ -209,7 +209,8 @@ public sealed class CompatibilityProductionInputTests
             modelRun, hardwareRun, current,
             JourneyAuthority(handoff, digest, current, hardware), hardware,
             CompatibilityFreshResourcesInput.Create(
-                16 * GiB, 4 * GiB, 500 * GiB, observedAtUtc),
+                CurrentlyAvailableMemory.FromBytes(16 * GiB),
+                4 * GiB, 500 * GiB, observedAtUtc),
             OptimizationInput(snapshot, binding));
     }
 
@@ -548,27 +549,27 @@ public sealed class CompatibilityProductionInputTests
         CompatibilityHardwareInput submittedHardware = mutation switch
         {
             "hardware-facts" => CompatibilityHardwareInput.Create(
-                hardware.InstalledSystemMemoryBytes + 1,
+                TotalPhysicalMemory.FromBytes(hardware.InstalledSystemMemoryBytes + 1),
                 hardware.InstalledDedicatedDeviceMemoryBytes,
                 hardware.FreeStorageBytes,
                 hardware.PresentDevices, hardware.VerifiedBackends),
             "hardware-dedicated" => CompatibilityHardwareInput.Create(
-                hardware.InstalledSystemMemoryBytes,
+                hardware.TotalPhysicalMemory,
                 hardware.InstalledDedicatedDeviceMemoryBytes + 1,
                 hardware.FreeStorageBytes,
                 hardware.PresentDevices, hardware.VerifiedBackends),
             "hardware-storage" => CompatibilityHardwareInput.Create(
-                hardware.InstalledSystemMemoryBytes,
+                hardware.TotalPhysicalMemory,
                 hardware.InstalledDedicatedDeviceMemoryBytes,
                 hardware.FreeStorageBytes + 1,
                 hardware.PresentDevices, hardware.VerifiedBackends),
             "hardware-device" => CompatibilityHardwareInput.Create(
-                hardware.InstalledSystemMemoryBytes,
+                hardware.TotalPhysicalMemory,
                 hardware.InstalledDedicatedDeviceMemoryBytes,
                 hardware.FreeStorageBytes,
                 [DeviceRouteId.IntelNpu], hardware.VerifiedBackends),
             "hardware-backend" => CompatibilityHardwareInput.Create(
-                hardware.InstalledSystemMemoryBytes,
+                hardware.TotalPhysicalMemory,
                 hardware.InstalledDedicatedDeviceMemoryBytes,
                 hardware.FreeStorageBytes,
                 hardware.PresentDevices, [CompatibilityBackend.IntelSycl]),
@@ -727,7 +728,7 @@ public sealed class CompatibilityProductionInputTests
             OpenVinoHardware(presentDevice, verifiedBackend);
         CompatibilityFreshResourcesInput fresh =
             CompatibilityFreshResourcesInput.Create(
-                legacy.FreshResources.AvailableSystemMemoryBytes,
+                legacy.FreshResources.AvailableSystemMemory,
                 configuredDevice == DeviceRouteId.IntelDiscreteGpu
                     ? 4 * GiB
                     : 0,
@@ -759,7 +760,8 @@ public sealed class CompatibilityProductionInputTests
         DeviceRouteId device,
         CompatibilityBackend backend) =>
         CompatibilityHardwareInput.Create(
-            16 * GiB, 4 * GiB, 500 * GiB, [device], [backend]);
+            TotalPhysicalMemory.FromBytes(16 * GiB),
+            4 * GiB, 500 * GiB, [device], [backend]);
 
     [TestMethod]
     public void ProductionInput_RejectsEmptyOrDuplicateRunIdentities()
@@ -798,7 +800,7 @@ public sealed class CompatibilityProductionInputTests
     {
         Assert.ThrowsExactly<ArgumentOutOfRangeException>(() =>
             CompatibilityHardwareInput.Create(
-                0,
+                TotalPhysicalMemory.FromBytes(0),
                 0,
                 500 * GiB,
                 [DeviceRouteId.Cpu],
@@ -806,7 +808,7 @@ public sealed class CompatibilityProductionInputTests
 
         Assert.ThrowsExactly<ArgumentException>(() =>
             CompatibilityHardwareInput.Create(
-                64 * GiB,
+                TotalPhysicalMemory.FromBytes(64 * GiB),
                 0,
                 500 * GiB,
                 [DeviceRouteId.Unspecified],
@@ -819,7 +821,8 @@ public sealed class CompatibilityProductionInputTests
         HashSet<DeviceRouteId> devices = [DeviceRouteId.Cpu];
         HashSet<CompatibilityBackend> backends = [CompatibilityBackend.Cpu];
         CompatibilityHardwareInput input = CompatibilityHardwareInput.Create(
-            64 * GiB, 0, 500 * GiB, devices, backends);
+            TotalPhysicalMemory.FromBytes(64 * GiB),
+            0, 500 * GiB, devices, backends);
 
         devices.Clear();
         backends.Clear();
@@ -842,7 +845,8 @@ public sealed class CompatibilityProductionInputTests
             new(CompatibilityBackend.Cpu);
 
         CompatibilityHardwareInput input = CompatibilityHardwareInput.Create(
-            16 * GiB, 0, 100 * GiB, devices, backends);
+            TotalPhysicalMemory.FromBytes(16 * GiB),
+            0, 100 * GiB, devices, backends);
 
         Assert.AreEqual(1, devices.EnumerationCount);
         Assert.AreEqual(1, backends.EnumerationCount);
@@ -857,12 +861,12 @@ public sealed class CompatibilityProductionInputTests
     {
         Assert.ThrowsExactly<ArgumentException>(() =>
             CompatibilityHardwareInput.Create(
-                16 * GiB, 0, 100 * GiB,
+                TotalPhysicalMemory.FromBytes(16 * GiB), 0, 100 * GiB,
                 [(DeviceRouteId)raw],
                 [CompatibilityBackend.Cpu]));
         Assert.ThrowsExactly<ArgumentException>(() =>
             CompatibilityHardwareInput.Create(
-                16 * GiB, 0, 100 * GiB,
+                TotalPhysicalMemory.FromBytes(16 * GiB), 0, 100 * GiB,
                 [DeviceRouteId.Cpu],
                 [(CompatibilityBackend)raw]));
     }
@@ -919,7 +923,7 @@ public sealed class CompatibilityProductionInputTests
     {
         Assert.ThrowsExactly<ArgumentException>(() =>
             CompatibilityFreshResourcesInput.Create(
-                48 * GiB,
+                CurrentlyAvailableMemory.FromBytes(48 * GiB),
                 0,
                 500 * GiB,
                 new DateTimeOffset(2026, 8, 24, 12, 0, 0, TimeSpan.FromHours(1))));
@@ -934,9 +938,9 @@ public sealed class CompatibilityProductionInputTests
         CompatibilityProductionInput valid = ValidInput();
         CompatibilityFreshResourcesInput contradictory =
             CompatibilityFreshResourcesInput.Create(
-                axis == "system"
+                CurrentlyAvailableMemory.FromBytes(axis == "system"
                     ? valid.Hardware.InstalledSystemMemoryBytes + 1
-                    : valid.FreshResources.AvailableSystemMemoryBytes,
+                    : valid.FreshResources.AvailableSystemMemoryBytes),
                 axis == "dedicated"
                     ? valid.Hardware.InstalledDedicatedDeviceMemoryBytes + 1
                     : valid.FreshResources.AvailableDedicatedDeviceMemoryBytes,
@@ -1014,13 +1018,13 @@ public sealed class CompatibilityProductionInputTests
                 15,
                 2),
             CompatibilityHardwareInput.Create(
-                64 * GiB,
+                TotalPhysicalMemory.FromBytes(64 * GiB),
                 0,
                 500 * GiB,
                 [DeviceRouteId.Cpu],
                 [CompatibilityBackend.Cpu]),
             CompatibilityFreshResourcesInput.Create(
-                availableSystemMemoryBytes,
+                CurrentlyAvailableMemory.FromBytes(availableSystemMemoryBytes),
                 0,
                 500 * GiB,
                 observedAt));

@@ -153,7 +153,7 @@ public sealed class GgufCompatibilityInputProjectorTests
         DateTimeOffset now = DateTimeOffset.UtcNow;
         CompatibilityEvaluation evaluation = authority!.Evaluate(
             CompatibilityFreshResourcesInput.Create(
-                21UL * 1024 * 1024 * 1024,
+                CurrentlyAvailableMemory.FromBytes(21UL * 1024 * 1024 * 1024),
                 0,
                 500_000_000_000UL,
                 now),
@@ -206,6 +206,7 @@ public sealed class GgufCompatibilityInputProjectorTests
             Guid.Parse("44444444-4444-4444-8444-444444444444"),
             PresentationTestData.Sha256,
             HardwareRunId,
+            PresentationTestData.Sha256,
             GgufCompatibilityModelInput.Create(
                 2_104_533_811UL,
                 24,
@@ -216,7 +217,7 @@ public sealed class GgufCompatibilityInputProjectorTests
                 15,
                 2),
             CompatibilityHardwareInput.Create(
-                16 * gib,
+                TotalPhysicalMemory.FromBytes(16 * gib),
                 0,
                 500_000_000_000UL,
                 [DeviceRouteId.Cpu],
@@ -228,7 +229,7 @@ public sealed class GgufCompatibilityInputProjectorTests
         DateTimeOffset now = DateTimeOffset.UtcNow;
         CompatibilityEvaluation evaluation = authority!.Evaluate(
             CompatibilityFreshResourcesInput.Create(
-                3 * gib,
+                CurrentlyAvailableMemory.FromBytes(3 * gib),
                 0,
                 500_000_000_000UL,
                 now),
@@ -265,9 +266,24 @@ public sealed class GgufCompatibilityInputProjectorTests
         return handoff!;
     }
 
+    [TestMethod]
+    public void Prepare_RetainsTheExactHardwareSnapshotDigest()
+    {
+        ModelInspectionExecutionResult terminal = Terminal();
+        HardwareInspectionHandoff hardware = HardwareHandoff();
+
+        Assert.IsTrue(GgufCompatibilityInputProjector.TryPrepare(
+            ModelHandoff(terminal), terminal, HardwareRunId, hardware,
+            out PreparedGgufCompatibilityInput? prepared));
+
+        Assert.AreEqual(
+            hardware.Snapshot.Identity.Sha256,
+            prepared!.HardwareSnapshotSha256);
+    }
+
     private static HardwareInspectionHandoff HardwareHandoff() =>
         HardwareInspectionHandoff.Create(
             HardwareRunId,
             HardwareInspectionOutcome.Completed,
-            HardwareInspectionContractTests.CreateUsableSnapshotForPresentation());
+            HardwareInspectionContractTests.CreateUsableSnapshotForPresentation(HardwareRunId));
 }

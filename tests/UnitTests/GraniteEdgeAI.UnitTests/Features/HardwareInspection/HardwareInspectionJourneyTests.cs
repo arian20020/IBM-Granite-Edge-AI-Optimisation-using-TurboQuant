@@ -25,12 +25,12 @@ public sealed class HardwareInspectionJourneyTests
             (id => HardwareInspectionRunResult.CreateCompleted(
                     id,
                     HardwareInspectionOutcome.Completed,
-                    HardwareInspectionContractTests.CreateUsableSnapshotForPresentation()),
+                    HardwareInspectionContractTests.CreateUsableSnapshotForPresentation(id)),
                 HardwareInspectionPresentationKind.Completed),
             (id => HardwareInspectionRunResult.CreateCompleted(
                     id,
                     HardwareInspectionOutcome.CompletedWithWarnings,
-                    HardwareInspectionContractTests.CreateUsableSnapshotForPresentation()),
+                    HardwareInspectionContractTests.CreateUsableSnapshotForPresentation(id)),
                 HardwareInspectionPresentationKind.CompletedWithWarnings),
             (id => HardwareInspectionRunResult.CreateFailed(
                     id,

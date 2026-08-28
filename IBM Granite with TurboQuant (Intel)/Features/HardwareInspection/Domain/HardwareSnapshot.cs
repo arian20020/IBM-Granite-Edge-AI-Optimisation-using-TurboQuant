@@ -76,6 +76,7 @@ public sealed class HardwareSnapshot
         LocalRuntime = localRuntime;
         Evidence = evidence;
         Usability = usability;
+        Identity = HardwareSnapshotIdentityCanonicalizer.Compute(this);
     }
 
     public Guid SnapshotId { get; }
@@ -91,4 +92,5 @@ public sealed class HardwareSnapshot
     public LocalRuntimeCapabilities LocalRuntime { get; }
     public HardwareEvidenceManifest Evidence { get; }
     public HardwareSnapshotUsability Usability { get; }
+    public HardwareSnapshotIdentity Identity { get; }
 }

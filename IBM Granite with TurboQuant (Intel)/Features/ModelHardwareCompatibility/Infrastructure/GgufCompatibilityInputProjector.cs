@@ -9,8 +9,6 @@ using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.Gguf;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
 
 namespace GraniteEdgeAI.Features.ModelHardwareCompatibility.Infrastructure;
 
@@ -42,7 +40,7 @@ internal static class GgufCompatibilityInputProjector
 
         return prepared!.TryBindFresh(
             CompatibilityFreshResourcesInput.Create(
-                freshMemory.AvailablePhysicalBytes,
+                CurrentlyAvailableMemory.FromBytes(freshMemory.AvailablePhysicalBytes),
                 availableDedicatedDeviceMemoryBytes: 0,
                 hardwareHandoff.Snapshot.Storage.SystemVolumeAvailableBytes,
                 freshMemory.CapturedAtUtc),
@@ -129,9 +127,10 @@ internal static class GgufCompatibilityInputProjector
                 modelHandoff.ModelInspectionHandoffId,
                 modelHandoff.ModelSha256,
                 productHardwareRunId,
+                snapshot.Identity.Sha256,
                 model,
                 CompatibilityHardwareInput.Create(
-                    snapshot.Memory.PhysicallyInstalledBytes,
+                    TotalPhysicalMemory.FromBytes(snapshot.Memory.PhysicallyInstalledBytes),
                     dedicatedMemory,
                     snapshot.Storage.SystemVolumeAvailableBytes,
                     devices,
@@ -163,6 +162,7 @@ internal sealed class PreparedGgufCompatibilityInput
     private readonly Guid _modelInspectionHandoffId;
     private readonly string _modelSha256;
     private readonly Guid _productHardwareRunId;
+    private readonly string _hardwareSnapshotSha256;
     private readonly GgufCompatibilityModelInput _model;
     private readonly CompatibilityHardwareInput _hardware;
 
@@ -171,6 +171,7 @@ internal sealed class PreparedGgufCompatibilityInput
         Guid modelInspectionHandoffId,
         string modelSha256,
         Guid productHardwareRunId,
+        string hardwareSnapshotSha256,
         GgufCompatibilityModelInput model,
         CompatibilityHardwareInput hardware)
     {
@@ -178,6 +179,7 @@ internal sealed class PreparedGgufCompatibilityInput
         _modelInspectionHandoffId = modelInspectionHandoffId;
         _modelSha256 = modelSha256;
         _productHardwareRunId = productHardwareRunId;
+        _hardwareSnapshotSha256 = hardwareSnapshotSha256;
         _model = model;
         _hardware = hardware;
     }
@@ -199,16 +201,7 @@ internal sealed class PreparedGgufCompatibilityInput
                 DeviceRouteId.Cpu,
                 GpuOffloadLevel.None));
 
-    internal string HardwareSnapshotSha256
-    {
-        get
-        {
-            string canonical = $"hardware-snapshot-v1|{_productHardwareRunId:N}|"
-                + CompatibilityFactDigest.ComputeHardware(_hardware);
-            return Convert.ToHexString(SHA256.HashData(
-                Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant();
-        }
-    }
+    internal string HardwareSnapshotSha256 => _hardwareSnapshotSha256;
 
     internal bool TryBindFresh(
         CompatibilityFreshResourcesInput freshResources,

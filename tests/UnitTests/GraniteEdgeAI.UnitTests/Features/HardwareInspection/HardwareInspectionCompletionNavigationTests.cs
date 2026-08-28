@@ -104,7 +104,7 @@ public sealed class HardwareInspectionCompletionNavigationTests
             }
 
             HardwareSnapshot snapshot =
-                HardwareInspectionContractTests.CreateUsableSnapshotForPresentation();
+                HardwareInspectionContractTests.CreateUsableSnapshotForPresentation(inspectionId);
             return Task.FromResult(HardwareInspectionRunResult.CreateCompleted(
                 inspectionId,
                 HardwareInspectionOutcome.Completed,

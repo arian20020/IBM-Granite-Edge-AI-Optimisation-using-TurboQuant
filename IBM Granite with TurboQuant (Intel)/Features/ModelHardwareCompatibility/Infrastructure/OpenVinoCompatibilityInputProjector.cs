@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
 using GraniteEdgeAI.Features.HardwareInspection.Application;
 using GraniteEdgeAI.Features.HardwareInspection.Domain;
 using GraniteEdgeAI.Features.ModelInspection.Handoff;
@@ -61,7 +59,7 @@ internal static class OpenVinoCompatibilityInputProjector
             }
 
             CompatibilityHardwareInput hardware = CompatibilityHardwareInput.Create(
-                snapshot.Memory.PhysicallyInstalledBytes,
+                TotalPhysicalMemory.FromBytes(snapshot.Memory.PhysicallyInstalledBytes),
                 dedicatedMemory,
                 snapshot.Storage.SystemVolumeAvailableBytes,
                 devices,
@@ -87,6 +85,7 @@ internal static class OpenVinoCompatibilityInputProjector
                 modelHandoff.ModelInspectionHandoffId,
                 modelHandoff.ModelSha256,
                 productHardwareRunId,
+                snapshot.Identity.Sha256,
                 model,
                 configuration,
                 hardware,
@@ -107,6 +106,7 @@ internal sealed class PreparedOpenVinoCompatibilityInput
         Guid modelInspectionHandoffId,
         string modelSha256,
         Guid productHardwareRunId,
+        string hardwareSnapshotSha256,
         OpenVinoCompatibilityModelInput model,
         OpenVinoRouteConfiguration configuration,
         CompatibilityHardwareInput hardware,
@@ -116,6 +116,7 @@ internal sealed class PreparedOpenVinoCompatibilityInput
         ModelInspectionHandoffId = modelInspectionHandoffId;
         ModelSha256 = modelSha256;
         ProductHardwareRunId = productHardwareRunId;
+        HardwareSnapshotSha256 = hardwareSnapshotSha256;
         Model = model;
         Configuration = configuration;
         Hardware = hardware;
@@ -136,16 +137,7 @@ internal sealed class PreparedOpenVinoCompatibilityInput
             Configuration,
             OpenVinoWeightPrecision.Fp16);
 
-    internal string HardwareSnapshotSha256
-    {
-        get
-        {
-            string canonical = $"hardware-snapshot-v1|{ProductHardwareRunId:N}|"
-                + CompatibilityFactDigest.ComputeHardware(Hardware);
-            return Convert.ToHexString(SHA256.HashData(
-                Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant();
-        }
-    }
+    internal string HardwareSnapshotSha256 { get; }
 
     internal bool TryBindFresh(
         CompatibilityFreshResourcesInput fresh,

@@ -20,17 +20,18 @@ public sealed class CompatibilityPresentationFactoryTests
     public void MachineMemorySummary_FormatsExactEvaluationValues()
     {
         ulong available = 6 * GiB;
-        ulong reserve = (ulong)Math.Ceiling(available * 0.10m);
+        AvailableMemorySafetyBudget budget = SystemMemoryBudgetCalculator.Calculate(
+            CurrentlyAvailableMemory.FromBytes(available));
         var evaluation = new CompatibilityEvaluation(
             OptimizationScreen(),
             PlanningSession: null,
             CurrentConfiguration: null)
         {
             MachineMemory = CompatibilityMachineMemory.Create(
-                16 * GiB,
-                available,
-                reserve,
-                available - reserve)
+                TotalPhysicalMemory.FromBytes(16 * GiB),
+                budget.Available,
+                budget.Reserve,
+                budget.Executable)
         };
 
         CompatibilityPresentation presentation =

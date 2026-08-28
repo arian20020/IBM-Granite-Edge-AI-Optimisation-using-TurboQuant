@@ -89,22 +89,28 @@
     <Copy SourceFiles="@(_HardwareInspectionLlamaCppProbeManagedFiles);@(_HardwareInspectionLlamaCppProbeNativeFiles);@(_HardwareInspectionVCRuntimeFiles)" DestinationFolder="$(_HardwareInspectionLlamaCppProbePackageRoot)" SkipUnchangedFiles="false" />
 
     <Exec Command="&quot;$(SystemRoot)\System32\WindowsPowerShell\v1.0\powershell.exe&quot; -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(_HardwareInspectionLlamaCppProbeManifestGenerator)&quot; -ProbeDirectory &quot;$(_HardwareInspectionLlamaCppProbePackageRoot)&quot; -ManifestPath &quot;$(_HardwareInspectionLlamaCppProbeManifestPath)&quot;" />
-    <Exec Command="&quot;$(SystemRoot)\System32\WindowsPowerShell\v1.0\powershell.exe&quot; -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(_HardwareInspectionLlamaCppProbeManifestVerifier)&quot; -ProbeDirectory &quot;$(_HardwareInspectionLlamaCppProbePackageRoot)&quot; -ManifestPath &quot;$(_HardwareInspectionLlamaCppProbeManifestPath)&quot;" />
+    <Exec Command="&quot;$(SystemRoot)\System32\WindowsPowerShell\v1.0\powershell.exe&quot; -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(_HardwareInspectionLlamaCppProbeManifestVerifier)&quot; -ProbeDirectory &quot;$(_HardwareInspectionLlamaCppProbePackageRoot)&quot; -ManifestPath &quot;$(_HardwareInspectionLlamaCppProbeManifestPath)&quot; -EmitVerifiedFilePaths"
+          ConsoleToMSBuild="true"
+          StandardOutputImportance="Low">
+      <Output TaskParameter="ConsoleOutput" ItemName="_HardwareInspectionLlamaCppProbeVerifiedFiles" />
+    </Exec>
 
     <ItemGroup>
-      <_HardwareInspectionLlamaCppProbePublishedFiles Include="$(_HardwareInspectionLlamaCppProbePackageRoot)\*" />
-      <Content Include="@(_HardwareInspectionLlamaCppProbePublishedFiles)">
+      <_HardwareInspectionLlamaCppProbeVerifiedFiles>
         <Link>$(HardwareInspectionLlamaCppProbePackageRelativeDirectory)\%(Filename)%(Extension)</Link>
         <TargetPath>$(HardwareInspectionLlamaCppProbePackageRelativeDirectory)\%(Filename)%(Extension)</TargetPath>
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-      </Content>
-      <Content Include="$(_HardwareInspectionLlamaCppProbeManifestPath)">
+      </_HardwareInspectionLlamaCppProbeVerifiedFiles>
+      <_HardwareInspectionLlamaCppProbeManifestContent Include="$(_HardwareInspectionLlamaCppProbeManifestPath)">
         <Link>HardwareInspection\llamacpp-probe-manifest.json</Link>
         <TargetPath>HardwareInspection\llamacpp-probe-manifest.json</TargetPath>
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-      </Content>
+      </_HardwareInspectionLlamaCppProbeManifestContent>
     </ItemGroup>
+    <CreateItem Include="@(_HardwareInspectionLlamaCppProbeVerifiedFiles);@(_HardwareInspectionLlamaCppProbeManifestContent)">
+      <Output TaskParameter="Include" ItemName="Content" />
+    </CreateItem>
   </Target>
 </Project>

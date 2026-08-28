@@ -1,5 +1,6 @@
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.FitAssessment;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation;
 
 namespace GraniteEdgeAI.ModelHardwareCompatibility.Tests.Application;
 
@@ -35,7 +36,8 @@ public sealed class SafetyPolicyTests
         Assert.AreEqual("fit-safety-policy-v2", policy.PolicyVersion);
         Assert.AreEqual(
             2 * Gibibyte,
-            policy.AvailableMemoryReserveFor(ByteCount.FromBytes(20 * Gibibyte)).Bytes);
+            policy.AvailableMemoryBudgetFor(
+                CurrentlyAvailableMemory.FromBytes(20 * Gibibyte)).Reserve.Bytes);
     }
 
     [TestMethod]
@@ -45,7 +47,19 @@ public sealed class SafetyPolicyTests
 
         Assert.AreEqual(
             Gibibyte / 2,
-            policy.AvailableMemoryReserveFor(ByteCount.FromBytes(4 * Gibibyte)).Bytes);
+            policy.AvailableMemoryBudgetFor(
+                CurrentlyAvailableMemory.FromBytes(4 * Gibibyte)).Reserve.Bytes);
+    }
+
+    [TestMethod]
+    public void ProportionalV2_ReserveIsBoundedByTheObservedAvailableMemory()
+    {
+        SafetyPolicy policy = SafetyPolicy.ProportionalV2();
+
+        ProportionalSafetyReserve reserve = policy.AvailableMemoryBudgetFor(
+            CurrentlyAvailableMemory.FromBytes(1)).Reserve;
+
+        Assert.AreEqual(1UL, reserve.Bytes);
     }
 
     [TestMethod]
