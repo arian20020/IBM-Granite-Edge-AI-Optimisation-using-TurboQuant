@@ -37,11 +37,30 @@
     <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelOptimization\Storage\*.cs"
              Exclude="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelOptimization\Storage\OptimizationSourceResolver.cs"
              Link="Production\ModelOptimization\Storage\%(Filename)%(Extension)" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\GgufRuntime\History\ChatCompletionStatus.cs"
+             Link="Production\GgufRuntime\History\ChatCompletionStatus.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\GgufRuntime\History\ChatConversation.cs"
+             Link="Production\GgufRuntime\History\ChatConversation.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\GgufRuntime\History\ChatHistoryPolicy.cs"
+             Link="Production\GgufRuntime\History\ChatHistoryPolicy.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\GgufRuntime\History\ChatMessage.cs"
+             Link="Production\GgufRuntime\History\ChatMessage.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\GgufRuntime\History\ChatTitlePolicy.cs"
+             Link="Production\GgufRuntime\History\ChatTitlePolicy.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\GgufRuntime\Services\IGgufChatSession.cs"
+             Link="Production\GgufRuntime\Services\IGgufChatSession.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\GgufRuntime\Services\GgufChatSessionAdapter.cs"
+             Link="Production\GgufRuntime\Services\GgufChatSessionAdapter.cs" />
   </ItemGroup>
 
   <ItemGroup>
     <Compile Include="..\..\..\shared\GraniteEdgeAI.ModelHardwareCompatibility.Core\**\*.cs"
              Exclude="..\..\..\shared\GraniteEdgeAI.ModelHardwareCompatibility.Core\bin\**;..\..\..\shared\GraniteEdgeAI.ModelHardwareCompatibility.Core\obj\**"
              Link="Production\CompatibilityCore\%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\shared\GraniteEdgeAI.GgufRuntime.Contracts\GraniteEdgeAI.GgufRuntime.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\infrastructure\GraniteEdgeAI.GgufRuntime.WorkerClient\GraniteEdgeAI.GgufRuntime.WorkerClient.csproj" />
   </ItemGroup>
 </Project>
