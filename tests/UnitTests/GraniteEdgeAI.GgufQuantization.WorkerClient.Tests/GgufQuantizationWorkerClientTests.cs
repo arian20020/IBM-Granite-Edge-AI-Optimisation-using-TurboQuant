@@ -2,7 +2,6 @@ using System.Security.Cryptography;
 using System.Diagnostics;
 using System.Text.Json;
 using GraniteEdgeAI.GgufQuantization.Contracts;
-using GraniteEdgeAI.GgufQuantization.FakeQuantizer;
 using GraniteEdgeAI.GgufQuantization.WorkerClient;
 
 namespace GraniteEdgeAI.GgufQuantization.WorkerClient.Tests;
@@ -357,7 +356,7 @@ public sealed class GgufQuantizationWorkerClientTests
             Stage = Path.Combine(_root, "stage");
             Directory.CreateDirectory(Path.Combine(Stage, "bin"));
             Directory.CreateDirectory(Path.Combine(Stage, "licenses"));
-            string fakeDirectory = Path.GetDirectoryName(typeof(FakeQuantizerMarker).Assembly.Location)!;
+            string fakeDirectory = AppContext.BaseDirectory;
             foreach (string file in Directory.EnumerateFiles(fakeDirectory, "llama-quantize*"))
             {
                 File.Copy(file, Path.Combine(Stage, "bin", Path.GetFileName(file)));
