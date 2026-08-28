@@ -176,6 +176,8 @@ docs/architecture/decisions/ADR-001-llamasharp-application-runtime.md
 docs/architecture/decisions/ADR-002-core-inspection-versus-backend-verification.md
 docs/architecture/decisions/ADR-003-protected-model-inspection-worker.md
 docs/architecture/decisions/README.md
+docs/audits/2026-08-28/M1-model-inspection-remediation-r2.md
+docs/audits/2026-08-28/evidence/M1-model-inspection-evidence-v1.json
 docs/development/Model-Import-Quick-Scan-Current-State.md
 docs/development/Model-Inspection-Visual-Studio-Debug-Guide.md
 docs/evidence/testing/Model-Inspection-Figma-Visual-Verification.md

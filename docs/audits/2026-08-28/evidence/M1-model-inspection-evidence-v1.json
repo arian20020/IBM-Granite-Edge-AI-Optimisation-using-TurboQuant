@@ -1,0 +1,153 @@
+{
+  "schemaVersion": 1,
+  "workerId": "M1",
+  "frozenSourceCommit": "4748fe04f19afdf6b27c4c12502b84db325e7294",
+  "evidenceSubjectCommit": "58f5bb475f0ac97be157b5adf8481e57516c722f",
+  "evidenceSubjectTree": "661cfb59a5263d47e7c6d2f85f46bfe0d9690ee7",
+  "createdAtUtc": "2026-08-28T17:38:11Z",
+  "route": [
+    "shared",
+    "gguf",
+    "openvino"
+  ],
+  "evidenceStatus": "mixed",
+  "report": {
+    "path": "docs/audits/2026-08-28/M1-model-inspection-remediation-r2.md",
+    "sha256": "d92743404f927e83010ad0ea777e56a5d9e08a0933dc26a30febcbe3933aa4fa",
+    "bytes": 5115
+  },
+  "inputs": [
+    {
+      "kind": "modelSource",
+      "id": "schema-v2-exact-model-source-identity-contract",
+      "sha256": "658011b7aafb7ba2b12edc54d61bbc27d18f79eda3d2ceb2306fb616dc68c4d7",
+      "bytes": 14901,
+      "evidenceGrade": "verified"
+    },
+    {
+      "kind": "routeSpecificInspection",
+      "id": "gguf-and-openvino-validated-projection-factory",
+      "sha256": "1483835a57be8900abf78f031839df31aab884f195f06ed1bc158c8aa671f8c9",
+      "bytes": 3199,
+      "evidenceGrade": "verified"
+    }
+  ],
+  "outputs": [
+    {
+      "kind": "modelInspectionResult",
+      "id": "schema-v2-terminal-result-binding",
+      "sha256": "658011b7aafb7ba2b12edc54d61bbc27d18f79eda3d2ceb2306fb616dc68c4d7",
+      "bytes": 14901,
+      "evidenceGrade": "verified"
+    },
+    {
+      "kind": "modelInspectionHandoff",
+      "id": "schema-v2-path-private-handoff-binding",
+      "sha256": "658011b7aafb7ba2b12edc54d61bbc27d18f79eda3d2ceb2306fb616dc68c4d7",
+      "bytes": 14901,
+      "evidenceGrade": "verified"
+    }
+  ],
+  "commands": [
+    {
+      "id": "MODEL-INSPECTION-CONTRACTS",
+      "exitCode": 0,
+      "discovered": 387,
+      "executed": 387,
+      "passed": 387,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "id": "MODEL-INSPECTION-TRANSPORT",
+      "exitCode": 0,
+      "discovered": 27,
+      "executed": 27,
+      "passed": 27,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "id": "MODEL-INSPECTION-WORKER",
+      "exitCode": 0,
+      "discovered": 78,
+      "executed": 78,
+      "passed": 78,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "id": "MODEL-INSPECTION-WORKER-CLIENT",
+      "exitCode": 0,
+      "discovered": 119,
+      "executed": 119,
+      "passed": 119,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "id": "MODEL-INSPECTION-WORKER-PROCESS",
+      "exitCode": 0,
+      "discovered": 32,
+      "executed": 32,
+      "passed": 32,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "id": "MODEL-HARDWARE-COMPATIBILITY",
+      "exitCode": 0,
+      "discovered": 1050,
+      "executed": 1050,
+      "passed": 1050,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "id": "HARDWARE-FOUNDATION-CROSS-FEATURE",
+      "exitCode": 0,
+      "discovered": 202,
+      "executed": 202,
+      "passed": 202,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "id": "LLAMASHARP-DETERMINISTIC",
+      "exitCode": 0,
+      "discovered": 191,
+      "executed": 191,
+      "passed": 191,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "id": "OPENVINO-MANAGED-ROUTE",
+      "exitCode": 0,
+      "discovered": 409,
+      "executed": 402,
+      "passed": 402,
+      "failed": 0,
+      "skipped": 7
+    },
+    {
+      "id": "WINAPP-PROJECTION-FACTORY-HOST",
+      "exitCode": 1,
+      "discovered": 2,
+      "executed": 2,
+      "passed": 0,
+      "failed": 2,
+      "skipped": 0
+    }
+  ],
+  "blockers": [
+    "H1 handoff and native receipt were absent, so the H1-to-M1 native phase protocol could not begin and nativeDisposition is not-run.",
+    "The loose WinUI VSTest host lacks Windows App SDK COM registration and fails before test logic with REGDB_E_CLASSNOTREG; the application and factory compile successfully.",
+    "Seven OpenVINO controlled-stage tests were skipped because their converter or official-worker stage environment variables were not supplied."
+  ],
+  "nonClaims": [
+    "No native GGUF or OpenVINO execution is claimed.",
+    "No hosted CI, controlled visual capture, or Application Control result is claimed.",
+    "No local model path, model filename, user identity, or unapproved model metadata is evidence output."
+  ]
+}
