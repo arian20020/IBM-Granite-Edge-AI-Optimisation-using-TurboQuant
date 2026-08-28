@@ -32,8 +32,10 @@ internal sealed class ModelDownloadCoordinator : IDisposable
     private readonly IModelDownloadService _service;
     private readonly IModelDownloadNetworkPolicy _networkPolicy;
     private CancellationTokenSource? _activeCancellation;
+    private TaskCompletionSource? _activeCompletion;
     private VerifiedDownloadedModel? _claimableModel;
     private ModelDownloadOperationId? _claimableOperation;
+    private ModelDownloadOperationId? _authorizedHandoffOperation;
     private bool _automaticHandoffRetired;
     private bool _disposed;
 
@@ -50,11 +52,39 @@ internal sealed class ModelDownloadCoordinator : IDisposable
     internal event EventHandler<ModelDownloadCoordinatorState>? StateChanged;
     internal event EventHandler<VerifiedModelAvailableEventArgs>? VerifiedModelAvailable;
 
+    internal async Task RecoverAsync(CancellationToken cancellationToken)
+    {
+        foreach (ModelDownloadCatalogEntry entry in PinnedGraniteModelCatalog.Entries)
+        {
+            ModelDownloadResumeInfo? resume = await _service.GetResumeInfoAsync(entry, cancellationToken);
+            if (resume is null)
+            {
+                continue;
+            }
+
+            ModelDownloadConnectionKind connection = _networkPolicy.GetCurrentConnectionKind();
+            if (connection == ModelDownloadConnectionKind.Unrestricted)
+            {
+                await StartAsync(entry.MinimumSliderValue, allowMetered: false, cancellationToken);
+                return;
+            }
+
+            ModelDownloadOperationId operationId = ModelDownloadOperationId.CreateNew();
+            string errorCode = connection == ModelDownloadConnectionKind.Offline
+                ? "download-offline"
+                : "download-network-confirmation-required";
+            PublishRecovered(operationId, entry, resume.DownloadedBytes, errorCode);
+            return;
+        }
+    }
+
     internal async Task StartAsync(double sliderValue, bool allowMetered, CancellationToken cancellationToken)
     {
         ModelDownloadCatalogEntry entry = PinnedGraniteModelCatalog.ForSliderValue(sliderValue);
         ModelDownloadOperationId operationId = ModelDownloadOperationId.CreateNew();
         CancellationTokenSource linked;
+        TaskCompletionSource completion;
+        ModelDownloadCoordinatorState started;
         lock (_sync)
         {
             ThrowIfDisposed();
@@ -64,15 +94,19 @@ internal sealed class ModelDownloadCoordinator : IDisposable
             }
 
             linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             _activeCancellation = linked;
+            _activeCompletion = completion;
             _claimableModel = null;
             _claimableOperation = null;
+            _authorizedHandoffOperation = null;
             _automaticHandoffRetired = false;
-            State = new(operationId, ModelDownloadStage.Preparing,
+            started = new(operationId, ModelDownloadStage.Preparing,
                 entry.PreferenceLabel, entry.Quantisation, entry.DownloadSizeText,
                 0, entry.ExpectedByteLength, null);
+            State = started;
         }
-        StateChanged?.Invoke(this, State);
+        StateChanged?.Invoke(this, started);
 
         try
         {
@@ -116,6 +150,7 @@ internal sealed class ModelDownloadCoordinator : IDisposable
                     {
                         _claimableModel = result.VerifiedModel;
                         _claimableOperation = operationId;
+                        _authorizedHandoffOperation = operationId;
                     }
                 }
 
@@ -133,9 +168,11 @@ internal sealed class ModelDownloadCoordinator : IDisposable
                 if (ReferenceEquals(_activeCancellation, linked))
                 {
                     _activeCancellation = null;
+                    _activeCompletion = null;
                 }
             }
             linked.Dispose();
+            completion.TrySetResult();
         }
     }
 
@@ -143,18 +180,41 @@ internal sealed class ModelDownloadCoordinator : IDisposable
     {
         ModelDownloadCatalogEntry entry;
         CancellationTokenSource? active;
+        Task? completion;
+        ModelDownloadOperationId? operationId;
         lock (_sync)
         {
             active = _activeCancellation;
+            completion = _activeCompletion?.Task;
+            operationId = State.OperationId;
             entry = PinnedGraniteModelCatalog.Entries.First(value => value.Quantisation == State.Quantisation);
             _automaticHandoffRetired = true;
             _claimableModel = null;
             _claimableOperation = null;
+            _authorizedHandoffOperation = null;
         }
         active?.Cancel();
+        if (completion is not null)
+        {
+            await completion.WaitAsync(cancellationToken);
+        }
         if (discardPartial)
         {
             await _service.DiscardPartialAsync(entry, cancellationToken);
+            ModelDownloadCoordinatorState cancelled = new(
+                operationId,
+                ModelDownloadStage.Interrupted,
+                entry.PreferenceLabel,
+                entry.Quantisation,
+                entry.DownloadSizeText,
+                0,
+                entry.ExpectedByteLength,
+                "download-cancelled-discarded");
+            lock (_sync)
+            {
+                State = cancelled;
+            }
+            StateChanged?.Invoke(this, cancelled);
         }
     }
 
@@ -173,6 +233,15 @@ internal sealed class ModelDownloadCoordinator : IDisposable
             _automaticHandoffRetired = true;
             _claimableModel = null;
             _claimableOperation = null;
+            _authorizedHandoffOperation = null;
+        }
+    }
+
+    internal bool IsAutomaticHandoffAuthorized(ModelDownloadOperationId operationId)
+    {
+        lock (_sync)
+        {
+            return !_automaticHandoffRetired && _authorizedHandoffOperation == operationId;
         }
     }
 
@@ -210,6 +279,28 @@ internal sealed class ModelDownloadCoordinator : IDisposable
         StateChanged?.Invoke(this, next);
     }
 
+    private void PublishRecovered(
+        ModelDownloadOperationId operationId,
+        ModelDownloadCatalogEntry entry,
+        long downloadedBytes,
+        string errorCode)
+    {
+        ModelDownloadCoordinatorState recovered = new(
+            operationId,
+            ModelDownloadStage.Interrupted,
+            entry.PreferenceLabel,
+            entry.Quantisation,
+            entry.DownloadSizeText,
+            downloadedBytes,
+            entry.ExpectedByteLength,
+            errorCode);
+        lock (_sync)
+        {
+            State = recovered;
+        }
+        StateChanged?.Invoke(this, recovered);
+    }
+
     private bool IsCurrent(ModelDownloadOperationId operationId)
     {
         lock (_sync) return IsCurrentUnsafe(operationId);
@@ -227,6 +318,7 @@ internal sealed class ModelDownloadCoordinator : IDisposable
             _disposed = true;
             _activeCancellation?.Cancel();
             _claimableModel = null;
+            _authorizedHandoffOperation = null;
         }
     }
 

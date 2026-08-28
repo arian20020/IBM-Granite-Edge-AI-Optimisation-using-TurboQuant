@@ -38,6 +38,10 @@ internal sealed class AppModelLibrary
         Directory.CreateDirectory(_partialRoot);
         Directory.CreateDirectory(_stateRoot);
         Directory.CreateDirectory(_locksRoot);
+        RejectReparsePoint(_modelsRoot);
+        RejectReparsePoint(_partialRoot);
+        RejectReparsePoint(_stateRoot);
+        RejectReparsePoint(_locksRoot);
     }
 
     internal static AppModelLibrary CreateDefault()
@@ -329,6 +333,7 @@ internal sealed class AppModelLibrary
 
     private string ArtifactPath(string parent, string stem, string suffix)
     {
+        RejectReparsePoint(parent);
         if (string.IsNullOrWhiteSpace(stem) ||
             stem.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 ||
             !string.Equals(Path.GetFileName(stem), stem, StringComparison.Ordinal))
@@ -338,6 +343,7 @@ internal sealed class AppModelLibrary
 
         string path = Path.GetFullPath(Path.Combine(parent, stem + suffix));
         EnsureContained(path);
+        RejectReparsePointIfExists(path);
         return path;
     }
 
@@ -357,6 +363,15 @@ internal sealed class AppModelLibrary
         if ((File.GetAttributes(path) & System.IO.FileAttributes.ReparsePoint) != 0)
         {
             throw new IOException("The model library root cannot be a reparse point.");
+        }
+    }
+
+    private static void RejectReparsePointIfExists(string path)
+    {
+        if ((File.Exists(path) || Directory.Exists(path)) &&
+            (File.GetAttributes(path) & System.IO.FileAttributes.ReparsePoint) != 0)
+        {
+            throw new IOException("A model library artifact cannot be a reparse point.");
         }
     }
 

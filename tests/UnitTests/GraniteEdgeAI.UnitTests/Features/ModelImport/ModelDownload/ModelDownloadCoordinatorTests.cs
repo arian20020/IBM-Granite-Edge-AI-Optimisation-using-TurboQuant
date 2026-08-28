@@ -74,6 +74,50 @@ public sealed class ModelDownloadCoordinatorTests
         Assert.AreEqual(ModelDownloadStage.Completed, coordinator.State.Stage);
     }
 
+    [TestMethod]
+    public async Task RecoverAsync_UnrestrictedConnection_ResumesDurablePartial()
+    {
+        var service = new FakeDownloadService { ResumeQuantisation = "Q4_K_M" };
+        var coordinator = new ModelDownloadCoordinator(service, new FakeNetworkPolicy(ModelDownloadConnectionKind.Unrestricted));
+
+        await coordinator.RecoverAsync(CancellationToken.None);
+
+        Assert.AreEqual(1, service.DownloadCalls);
+        Assert.AreEqual("Q4_K_M", coordinator.State.Quantisation);
+        Assert.AreEqual(ModelDownloadStage.Completed, coordinator.State.Stage);
+    }
+
+    [TestMethod]
+    public async Task CancelAsync_AwaitsQuiescenceThenDiscardsPartial()
+    {
+        var service = new FakeDownloadService { WaitForCancellation = true };
+        var coordinator = new ModelDownloadCoordinator(service, new FakeNetworkPolicy(ModelDownloadConnectionKind.Unrestricted));
+        Task running = coordinator.StartAsync(50, allowMetered: false, CancellationToken.None);
+        await service.DownloadStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        await coordinator.CancelAsync(discardPartial: true, CancellationToken.None);
+        await running;
+
+        Assert.AreEqual(1, service.DiscardCalls);
+        Assert.AreEqual("download-cancelled-discarded", coordinator.State.ErrorCode);
+        Assert.AreEqual(0, coordinator.State.DownloadedBytes);
+    }
+
+    [TestMethod]
+    public async Task StartingNewDownload_RevokesPriorAutomaticHandoffAuthorization()
+    {
+        var service = new FakeDownloadService();
+        var coordinator = new ModelDownloadCoordinator(service, new FakeNetworkPolicy(ModelDownloadConnectionKind.Unrestricted));
+        await coordinator.StartAsync(50, allowMetered: false, CancellationToken.None);
+        ModelDownloadOperationId first = coordinator.State.OperationId!.Value;
+        Assert.IsTrue(coordinator.TryClaimVerifiedModel(first, out _));
+        Assert.IsTrue(coordinator.IsAutomaticHandoffAuthorized(first));
+
+        await coordinator.StartAsync(80, allowMetered: false, CancellationToken.None);
+
+        Assert.IsFalse(coordinator.IsAutomaticHandoffAuthorized(first));
+    }
+
     private sealed class FakeNetworkPolicy(ModelDownloadConnectionKind kind) : IModelDownloadNetworkPolicy
     {
         public ModelDownloadConnectionKind GetCurrentConnectionKind() => kind;
@@ -85,17 +129,39 @@ public sealed class ModelDownloadCoordinatorTests
             @"C:\private\model.gguf", "Granite 4.0 H-Micro", "catalog", 4, new string('a', 64));
 
         internal int DownloadCalls { get; private set; }
+        internal int DiscardCalls { get; private set; }
+        internal string? ResumeQuantisation { get; init; }
+        internal bool WaitForCancellation { get; init; }
+        internal TaskCompletionSource DownloadStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        public Task<ModelDownloadResult> DownloadAsync(ModelDownloadCatalogEntry entry, IProgress<ModelDownloadProgress> progress, CancellationToken cancellationToken)
+        public async Task<ModelDownloadResult> DownloadAsync(ModelDownloadCatalogEntry entry, IProgress<ModelDownloadProgress> progress, CancellationToken cancellationToken)
         {
             DownloadCalls++;
+            DownloadStarted.TrySetResult();
             progress.Report(new ModelDownloadProgress(ModelDownloadStage.Downloading, 2, 4));
-            return Task.FromResult(new ModelDownloadResult(ModelDownloadResultKind.Completed, Model, null));
+            if (WaitForCancellation)
+            {
+                try
+                {
+                    await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    return new ModelDownloadResult(ModelDownloadResultKind.Interrupted, null, "download-cancelled");
+                }
+            }
+            return new ModelDownloadResult(ModelDownloadResultKind.Completed, Model, null);
         }
 
         public Task<ModelDownloadResumeInfo?> GetResumeInfoAsync(ModelDownloadCatalogEntry entry, CancellationToken cancellationToken) =>
-            Task.FromResult<ModelDownloadResumeInfo?>(null);
+            Task.FromResult<ModelDownloadResumeInfo?>(entry.Quantisation == ResumeQuantisation
+                ? new ModelDownloadResumeInfo(entry.Id, 2, entry.ExpectedByteLength, "\"v1\"")
+                : null);
 
-        public Task DiscardPartialAsync(ModelDownloadCatalogEntry entry, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task DiscardPartialAsync(ModelDownloadCatalogEntry entry, CancellationToken cancellationToken)
+        {
+            DiscardCalls++;
+            return Task.CompletedTask;
+        }
     }
 }

@@ -10,13 +10,20 @@ internal sealed class ResumableVerifiedModelDownloadService : IModelDownloadServ
 
     private readonly IModelDownloadTransport _transport;
     private readonly AppModelLibrary _library;
+    private readonly TimeSpan _inactivityTimeout;
 
     internal ResumableVerifiedModelDownloadService(
         IModelDownloadTransport transport,
-        AppModelLibrary library)
+        AppModelLibrary library,
+        TimeSpan? inactivityTimeout = null)
     {
         _transport = transport ?? throw new ArgumentNullException(nameof(transport));
         _library = library ?? throw new ArgumentNullException(nameof(library));
+        _inactivityTimeout = inactivityTimeout ?? TimeSpan.FromSeconds(30);
+        if (_inactivityTimeout <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(inactivityTimeout));
+        }
     }
 
     public async Task<ModelDownloadResult> DownloadAsync(
@@ -123,7 +130,10 @@ internal sealed class ResumableVerifiedModelDownloadService : IModelDownloadServ
                 byte[] buffer = new byte[BufferSize];
                 while (true)
                 {
-                    int read = await response.Content.ReadAsync(buffer, cancellationToken);
+                    int read = await ReadWithInactivityTimeoutAsync(
+                        response.Content,
+                        buffer,
+                        cancellationToken);
                     if (read == 0)
                     {
                         break;
@@ -187,9 +197,17 @@ internal sealed class ResumableVerifiedModelDownloadService : IModelDownloadServ
                     entry.ExpectedByteLength));
                 return new ModelDownloadResult(ModelDownloadResultKind.Completed, verified, null);
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
                 return Interrupted("download-cancelled");
+            }
+            catch (OperationCanceledException)
+            {
+                return Interrupted("download-inactivity-timeout");
+            }
+            catch (InvalidDataException)
+            {
+                return Failed("download-http-rejected");
             }
             catch (HttpRequestException)
             {
@@ -200,6 +218,18 @@ internal sealed class ResumableVerifiedModelDownloadService : IModelDownloadServ
                 return Interrupted("download-interrupted");
             }
         }
+    }
+
+    private async Task<int> ReadWithInactivityTimeoutAsync(
+        Stream source,
+        byte[] buffer,
+        CancellationToken cancellationToken)
+    {
+        using var timeout = new CancellationTokenSource(_inactivityTimeout);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(
+            cancellationToken,
+            timeout.Token);
+        return await source.ReadAsync(buffer, linked.Token);
     }
 
     public Task<ModelDownloadResumeInfo?> GetResumeInfoAsync(

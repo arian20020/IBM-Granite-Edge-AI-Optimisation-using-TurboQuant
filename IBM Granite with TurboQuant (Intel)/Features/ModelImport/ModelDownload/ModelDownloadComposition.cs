@@ -6,11 +6,12 @@ internal static class ModelDownloadComposition
 {
     internal static ModelDownloadCoordinator CreateDefault()
     {
-        var handler = new HttpClientHandler
+        var handler = new SocketsHttpHandler
         {
             AllowAutoRedirect = false,
             UseCookies = false,
-            AutomaticDecompression = DecompressionMethods.None
+            AutomaticDecompression = DecompressionMethods.None,
+            ConnectTimeout = TimeSpan.FromSeconds(20)
         };
         var client = new HttpClient(handler)
         {

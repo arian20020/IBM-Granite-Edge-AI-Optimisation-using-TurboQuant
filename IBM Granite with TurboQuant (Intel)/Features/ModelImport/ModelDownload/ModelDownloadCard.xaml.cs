@@ -120,7 +120,7 @@ namespace GraniteEdgeAI.Features.ModelImport.ModelDownload
                     case ModelDownloadStage.Preparing:
                     case ModelDownloadStage.Downloading:
                     case ModelDownloadStage.Verifying:
-                        await _coordinator.CancelAsync(discardPartial: false, CancellationToken.None);
+                        await _coordinator.CancelAsync(discardPartial: true, CancellationToken.None);
                         break;
                     case ModelDownloadStage.Interrupted:
                         await _coordinator.ResumeAsync(
@@ -172,6 +172,8 @@ namespace GraniteEdgeAI.Features.ModelImport.ModelDownload
                     ("Internet connection required. Reconnect to download this model.", "Try again"),
                 ModelDownloadStage.Interrupted when state.ErrorCode == "download-network-confirmation-required" =>
                     ("This connection may be metered. Continue only if you accept the data use.", "Download using this connection"),
+                ModelDownloadStage.Interrupted when state.ErrorCode == "download-cancelled-discarded" =>
+                    ("Download cancelled. The partial file was removed.", "Download selected model"),
                 ModelDownloadStage.Interrupted => ("Download paused. Your progress is saved.", "Resume download"),
                 ModelDownloadStage.Failed => ("The download could not be verified. No model was installed.", "Try again"),
                 _ => (string.Empty, "Download selected model")

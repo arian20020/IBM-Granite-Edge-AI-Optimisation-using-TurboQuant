@@ -166,6 +166,39 @@ public sealed class ResumableVerifiedModelDownloadServiceTests
         Assert.AreEqual(0, fixture.Transport.Requests.Count);
     }
 
+    [TestMethod]
+    public async Task DownloadAsync_UnsafeRedirectFailureBecomesBoundedResult()
+    {
+        using TestDownloadFixture fixture = TestDownloadFixture.Create(
+            [1, 2, 3, 4],
+            transportException: new InvalidDataException("unsafe redirect"));
+
+        ModelDownloadResult result = await fixture.Service.DownloadAsync(
+            fixture.Entry,
+            new Progress<ModelDownloadProgress>(),
+            CancellationToken.None);
+
+        Assert.AreEqual(ModelDownloadResultKind.Failed, result.Kind);
+        Assert.AreEqual("download-http-rejected", result.ErrorCode);
+    }
+
+    [TestMethod]
+    public async Task DownloadAsync_StalledBodyReturnsBoundedInterruption()
+    {
+        using TestDownloadFixture fixture = TestDownloadFixture.Create(
+            [1, 2, 3, 4],
+            customStream: new CancellationOnlyStream(),
+            inactivityTimeout: TimeSpan.FromMilliseconds(25));
+
+        ModelDownloadResult result = await fixture.Service.DownloadAsync(
+            fixture.Entry,
+            new Progress<ModelDownloadProgress>(),
+            CancellationToken.None);
+
+        Assert.AreEqual(ModelDownloadResultKind.Interrupted, result.Kind);
+        Assert.AreEqual("download-inactivity-timeout", result.ErrorCode);
+    }
+
     private sealed class TestDownloadFixture : IDisposable
     {
         private readonly string _root;
@@ -174,13 +207,14 @@ public sealed class ResumableVerifiedModelDownloadServiceTests
             string root,
             ModelDownloadCatalogEntry entry,
             AppModelLibrary library,
-            FakeTransport transport)
+            FakeTransport transport,
+            TimeSpan? inactivityTimeout)
         {
             _root = root;
             Entry = entry;
             Library = library;
             Transport = transport;
-            Service = new ResumableVerifiedModelDownloadService(transport, library);
+            Service = new ResumableVerifiedModelDownloadService(transport, library, inactivityTimeout);
         }
 
         internal ModelDownloadCatalogEntry Entry { get; }
@@ -194,7 +228,10 @@ public sealed class ResumableVerifiedModelDownloadServiceTests
             string? expectedSha256 = null,
             HttpStatusCode statusCode = HttpStatusCode.OK,
             ContentRangeHeaderValue? contentRange = null,
-            long availableBytes = long.MaxValue)
+            long availableBytes = long.MaxValue,
+            Exception? transportException = null,
+            Stream? customStream = null,
+            TimeSpan? inactivityTimeout = null)
         {
             string root = Path.Combine(
                 Path.GetTempPath(),
@@ -217,8 +254,10 @@ public sealed class ResumableVerifiedModelDownloadServiceTests
             var transport = new FakeTransport(
                 responseBytes ?? expectedBytes,
                 statusCode,
-                contentRange);
-            return new TestDownloadFixture(root, entry, library, transport);
+                contentRange,
+                transportException,
+                customStream);
+            return new TestDownloadFixture(root, entry, library, transport, inactivityTimeout);
         }
 
         internal async Task SeedPartialAsync(byte[] bytes, string entityTag)
@@ -271,7 +310,9 @@ public sealed class ResumableVerifiedModelDownloadServiceTests
     private sealed class FakeTransport(
         byte[] bytes,
         HttpStatusCode statusCode,
-        ContentRangeHeaderValue? contentRange) : IModelDownloadTransport
+        ContentRangeHeaderValue? contentRange,
+        Exception? openException,
+        Stream? customStream) : IModelDownloadTransport
     {
         internal List<(long Offset, string? EntityTag)> Requests { get; } = [];
 
@@ -282,6 +323,10 @@ public sealed class ResumableVerifiedModelDownloadServiceTests
             CancellationToken cancellationToken)
         {
             Requests.Add((offset, entityTag));
+            if (openException is not null)
+            {
+                return Task.FromException<ModelDownloadTransportResponse>(openException);
+            }
             var response = new HttpResponseMessage(statusCode)
             {
                 Content = new ByteArrayContent(bytes)
@@ -292,8 +337,29 @@ public sealed class ResumableVerifiedModelDownloadServiceTests
             return Task.FromResult(
                 new ModelDownloadTransportResponse(
                     response,
-                    response.Content.ReadAsStream(),
+                    customStream ?? response.Content.ReadAsStream(),
                     entry.ResolveUri));
+        }
+    }
+
+    private sealed class CancellationOnlyStream : Stream
+    {
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+        public override void Flush() { }
+        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+        public override async ValueTask<int> ReadAsync(
+            Memory<byte> buffer,
+            CancellationToken cancellationToken = default)
+        {
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            return 0;
         }
     }
 }

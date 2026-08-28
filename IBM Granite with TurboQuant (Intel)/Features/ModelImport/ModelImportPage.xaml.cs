@@ -107,6 +107,7 @@ namespace GraniteEdgeAI.Features.ModelImport
             _modelDownloadCoordinator = modelDownloadCoordinator ?? ModelDownloadComposition.CreateDefault();
             _modelDownloadCoordinator.VerifiedModelAvailable += ModelDownloadCoordinator_VerifiedModelAvailable;
             RecommendedModelDownloadCard.Attach(_modelDownloadCoordinator);
+            Loaded += ModelImportPage_Loaded;
         }
 
         private static Func<Task<ModelSelectionInput?>> AdaptOpenVinoPathPicker(
@@ -458,10 +459,24 @@ namespace GraniteEdgeAI.Features.ModelImport
                 isFolder: false));
 
             if (_automaticDownloadSubmission == e.OperationId &&
+                _modelDownloadCoordinator.IsAutomaticHandoffAuthorized(e.OperationId) &&
                 HasValidatedModel &&
                 CurrentRoute == ModelSelectionRoute.Gguf)
             {
                 TryRequestModelInspection();
+            }
+        }
+
+        private async void ModelImportPage_Loaded(object sender, RoutedEventArgs e)
+        {
+            Loaded -= ModelImportPage_Loaded;
+            try
+            {
+                await _modelDownloadCoordinator.RecoverAsync(CancellationToken.None);
+            }
+            catch (InvalidOperationException)
+            {
+                // A user-started operation won the race with startup recovery.
             }
         }
 
