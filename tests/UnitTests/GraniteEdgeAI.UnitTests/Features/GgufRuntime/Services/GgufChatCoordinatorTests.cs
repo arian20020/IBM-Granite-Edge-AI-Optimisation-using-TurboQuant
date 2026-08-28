@@ -41,6 +41,24 @@ public sealed class GgufChatCoordinatorTests
     }
 
     [TestMethod]
+    public async Task AssistantReplacementsUseTheInjectedClock()
+    {
+        DateTimeOffset expected = new(2032, 4, 5, 6, 7, 8, TimeSpan.Zero);
+        var coordinator = new GgufChatCoordinator(
+            new MemoryStore(),
+            new FakeSession(
+                new GgufChatDelta("deterministic"),
+                new GgufChatCompleted(GgufChatCompletionKind.Stop)),
+            new FixedTimeProvider(expected),
+            TimeZoneInfo.Utc);
+        await coordinator.NewChatAsync("model", "cpu", CancellationToken.None);
+
+        await coordinator.SendAsync("question", CancellationToken.None);
+
+        Assert.AreEqual(expected, coordinator.SelectedConversation!.UpdatedUtc);
+    }
+
+    [TestMethod]
     public async Task UnexpectedSessionFailurePersistsLatestPartialResponseOnce()
     {
         var store = new MemoryStore();
@@ -492,5 +510,10 @@ public sealed class GgufChatCoordinatorTests
             records.Clear();
             return Task.CompletedTask;
         }
+    }
+
+    private sealed class FixedTimeProvider(DateTimeOffset utcNow) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => utcNow;
     }
 }

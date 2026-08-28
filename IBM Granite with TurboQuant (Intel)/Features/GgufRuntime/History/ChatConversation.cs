@@ -85,7 +85,9 @@ internal sealed record ChatConversation
             [.. Messages, message]);
     }
 
-    internal ChatConversation ReplaceMessage(ChatMessage message)
+    internal ChatConversation ReplaceMessage(
+        ChatMessage message,
+        DateTimeOffset updatedUtc)
     {
         ArgumentNullException.ThrowIfNull(message);
         ChatMessage[] updated = Messages
@@ -103,7 +105,7 @@ internal sealed record ChatConversation
             ModelId,
             ProfileId,
             CreatedUtc,
-            DateTimeOffset.UtcNow,
+            updatedUtc,
             updated);
     }
 }

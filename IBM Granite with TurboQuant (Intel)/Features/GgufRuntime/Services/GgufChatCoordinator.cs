@@ -266,7 +266,7 @@ internal sealed class GgufChatCoordinator : IAsyncDisposable
             assistant = assistant.WithContent(
                 assistant.Content,
                 ChatCompletionStatus.Pending);
-            current = current.ReplaceMessage(assistant);
+            current = current.ReplaceMessage(assistant, clock.GetUtcNow());
             await PublishAsync(current, persist: true, cancellationToken)
                 .ConfigureAwait(false);
             await GenerateIntoAssistantAsync(
@@ -332,7 +332,7 @@ internal sealed class GgufChatCoordinator : IAsyncDisposable
                     _ => throw new InvalidOperationException(
                         "The chat event is unsupported."),
                 };
-                current = current.ReplaceMessage(assistant);
+                current = current.ReplaceMessage(assistant, clock.GetUtcNow());
                 bool persist = runtimeEvent is GgufChatCompleted or
                     GgufChatStopped or GgufChatFailed;
                 requiresSessionReload |= runtimeEvent is GgufChatStopped
