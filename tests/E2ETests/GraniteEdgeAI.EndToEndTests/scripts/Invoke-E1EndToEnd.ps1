@@ -30,7 +30,7 @@ New-Item -ItemType Directory -Force -Path $resultRoot | Out-Null
 $env:GRANITE_E2E_RESULTS_ROOT = $resultRoot
 $project = Join-Path $projectRoot 'GraniteEdgeAI.EndToEndTests.csproj'
 $appProject = Join-Path $repositoryRoot 'IBM Granite with TurboQuant (Intel)\IBM Granite with TurboQuant (Intel).csproj'
-& $dotnet build $appProject --configuration Debug -p:Platform=x64 -p:GenerateAppxPackageOnBuild=false --disable-build-servers -m:1
+& $dotnet build $appProject --configuration Debug -p:Platform=x64 -p:GenerateAppxPackageOnBuild=false "-p:DotNetHostPath=$dotnet" --disable-build-servers -m:1
 if ($LASTEXITCODE -ne 0) { throw "Candidate app build failed with exit code $LASTEXITCODE." }
 $appxRecipe = Get-ChildItem (Join-Path $repositoryRoot 'IBM Granite with TurboQuant (Intel)\obj') -Filter '*.build.appxrecipe' -Recurse |
     Where-Object { $_.FullName -match '[\\/]x64[\\/]' -and $_.Length -gt 0 } |
