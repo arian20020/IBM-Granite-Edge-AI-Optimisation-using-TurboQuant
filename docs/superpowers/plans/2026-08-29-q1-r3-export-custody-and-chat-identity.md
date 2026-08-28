@@ -44,12 +44,12 @@ Read `superpowers/test-driven-development/writing-good-tests.md` completely and 
 
 - [ ] **Step 2: Add the external destination regression**
 
-Add an OpenVINO persistent-publication test that creates the registry under one temporary root and supplies an absent final destination under a distinct user-selected root:
+Add an OpenVINO persistent-publication test that creates the registry under one temporary root and supplies an absent final destination under a distinct user-selected root. Assign the awaited production return to `object` so the same test executes both the R2 `bool` API and the R3 typed API without a compile-only RED:
 
 ```csharp
-OpenVinoExportResult export = await registry.ExportPersistentAsync(
+object export = await registry.ExportPersistentAsync(
     result, externalDestination, 1UL << 30, CancellationToken.None);
-Assert.AreEqual(OpenVinoExportDisposition.Succeeded, export.Disposition);
+Assert.IsNotNull(export);
 Assert.IsTrue(Directory.Exists(externalDestination));
 ```
 
@@ -57,27 +57,28 @@ Also create the destination first and assert `DestinationExists` without mutatio
 
 - [ ] **Step 3: Add topology-before-traversal and complete-ancestor regressions**
 
-Use real temporary directories and a Windows directory junction helper. Assert that a runtime publication with an immediate child directory is rejected by the top-level topology validator, and that an export destination below a junction ancestor is rejected before any temporary sibling exists:
+Use real temporary directories and a Windows directory junction helper. After registering a valid publication, add an immediate junction whose controlled target contains thousands of empty long-name files. Invoke the existing export API and assert rejection with a strict bounded-allocation ceiling; R2 fails because `AllDirectories` materializes the target tree, while R3 rejects the immediate junction before entering it. Separately call the existing `StoragePathGuard.RequireRoot` through the committed Q1 identity project and assert that a path below a junction ancestor is rejected:
 
 ```csharp
 Assert.ThrowsExactly<InvalidOperationException>(() =>
-    ExportDestinationGuard.RequireAbsentDirectory(path));
+    StoragePathGuard.RequireRoot(pathBelowJunction, create: false));
 ```
 
 The junction target must remain unchanged and cleanup must remove only test-owned roots.
 
 - [ ] **Step 4: Add observable cleanup failure regression**
 
-Create a real operation-owned temporary directory containing an unexpected child directory. Invoke the production cleanup implementation and assert a sanitized `OpenVinoExportCleanupException`, with no path in `Message`, instead of silent success.
+Use `FileSystemWatcher` to observe the real export temporary sibling and create an unexpected child directory inside that exact operation-owned root before cancellation completes. Invoke the existing export API, assert an observable sanitized `InvalidOperationException`, and assert no success result. R2 fails because it suppresses cleanup and returns/leaves the temporary root.
 
 - [ ] **Step 5: Add cancellation-during-hash regression**
 
-Create a sparse 256 MiB ordinary file, start `ResolveAsync` with a cancellable token, cancel after the operation starts, and assert `OperationCanceledException`, no destination, and bounded allocation:
+Create a sparse 256 MiB ordinary artifact, register it, then hold the artifact with `FileShare.None`. Pass an already-cancelled token to the existing export API and assert `OperationCanceledException`, no destination, and bounded allocation. R2 attempts synchronous identity resolution before consulting the token and returns identity failure; R3 observes cancellation before opening the artifact. Add a second GREEN-stage test that cancels after asynchronous hashing starts to prove per-read cancellation:
 
 ```csharp
 long before = GC.GetTotalAllocatedBytes(true);
 await Assert.ThrowsExactlyAsync<OperationCanceledException>(
-    () => registry.ResolveAsync(result, cancellation.Token));
+    () => registry.ExportPersistentAsync(
+        result, destination, 1UL << 30, cancellation.Token));
 Assert.IsTrue(GC.GetTotalAllocatedBytes(true) - before < 32L * 1024 * 1024);
 ```
 
