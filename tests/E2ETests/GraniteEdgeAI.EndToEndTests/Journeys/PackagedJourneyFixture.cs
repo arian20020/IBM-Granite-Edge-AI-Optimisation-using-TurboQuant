@@ -24,7 +24,10 @@ internal static class PackagedJourneyFixture
             _ = AssetManifest.Load(Require("GRANITE_E2E_ASSET_MANIFEST"));
         }
 
-        CandidateManifest candidate = CandidateManifest.Load(manifestPath);
+        CandidateManifest candidate = CandidateManifest.Load(
+            manifestPath,
+            Require("GRANITE_E2E_CANDIDATE_COMMIT"),
+            Require("GRANITE_E2E_CANDIDATE_TREE"));
         string evidenceRoot = Environment.GetEnvironmentVariable("GRANITE_E2E_RESULTS_ROOT") ?? Path.Combine(Path.GetTempPath(), "GraniteE1Results");
         string output = Path.Combine(evidenceRoot, Sanitize(testName), Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(output);

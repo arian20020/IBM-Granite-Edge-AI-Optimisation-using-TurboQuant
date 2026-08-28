@@ -23,7 +23,12 @@ public sealed class ProducerEvidenceSetTests
     public void Load_rejects_inconsistent_command_arithmetic()
     {
         using TestDirectory directory = TestDirectory.Create();
-        string h1 = Write(directory, "H1", ["hardwareSnapshot", "availableMemory", "safetyBudget"], executed: 2);
+        string h1 = Write(
+            directory,
+            "H1",
+            ["hardwareSnapshot", "availableMemory", "safetyBudget"],
+            executed: 2,
+            passed: 1);
 
         InvalidDataException error = Assert.ThrowsExactly<InvalidDataException>(() => ProducerEvidenceSet.Load(
             h1,
@@ -43,7 +48,30 @@ public sealed class ProducerEvidenceSetTests
         StringAssert.Contains(error.Message, "modelInspectionHandoff");
     }
 
-    private static string Write(TestDirectory directory, string workerId, string[] kinds, int executed = 1)
+    [TestMethod]
+    public void Load_rejects_negative_command_counts_even_when_arithmetic_balances()
+    {
+        using TestDirectory directory = TestDirectory.Create();
+        string h1 = Write(
+            directory,
+            "H1",
+            ["hardwareSnapshot", "availableMemory", "safetyBudget"],
+            executed: -1);
+
+        InvalidDataException error = Assert.ThrowsExactly<InvalidDataException>(() =>
+            ProducerEvidenceSet.Load(
+                h1,
+                Write(directory, "M1", ["modelSource", "modelInspectionResult", "modelInspectionHandoff"]),
+                Write(directory, "Q1", ["optimizationPlan", "executionResult", "chatTarget", "exportTarget"])));
+        StringAssert.Contains(error.Message, "arithmetic");
+    }
+
+    private static string Write(
+        TestDirectory directory,
+        string workerId,
+        string[] kinds,
+        int executed = 1,
+        int? passed = null)
     {
         object manifest = new
         {
@@ -53,7 +81,17 @@ public sealed class ProducerEvidenceSetTests
             evidenceSubjectTree = new string('b', 40),
             inputs = new[] { new { kind = kinds[0] } },
             outputs = kinds.Skip(1).Select(kind => new { kind }).ToArray(),
-            commands = new[] { new { discovered = executed, executed, passed = 1, failed = 0, skipped = 0 } },
+            commands = new[]
+            {
+                new
+                {
+                    discovered = executed,
+                    executed,
+                    passed = passed ?? executed,
+                    failed = 0,
+                    skipped = 0,
+                },
+            },
         };
         return directory.WriteText($"{workerId}.json", JsonSerializer.Serialize(manifest));
     }

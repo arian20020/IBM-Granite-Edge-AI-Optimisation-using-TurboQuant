@@ -10,11 +10,7 @@ internal sealed record AssetManifest(IReadOnlyList<AssetRecord> Assets)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
         string fullPath = Path.GetFullPath(path);
-        string[] files = File.Exists(fullPath)
-            ? [fullPath]
-            : Directory.Exists(fullPath)
-                ? Directory.GetFiles(fullPath, "*", SearchOption.AllDirectories)
-                : throw new FileNotFoundException("The guarded asset path does not exist.", fullPath);
+        string[] files = EnumerateRegularFiles(fullPath);
         if (files.Length == 0)
         {
             throw new InvalidDataException("The guarded asset directory is empty.");
@@ -23,12 +19,72 @@ internal sealed record AssetManifest(IReadOnlyList<AssetRecord> Assets)
         foreach (string file in files)
         {
             FileInfo info = new(file);
-            string digest = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(file))).ToLowerInvariant();
+            if (!info.Exists
+                || info.Length < 0
+                || (info.Attributes & FileAttributes.ReparsePoint) != 0)
+            {
+                throw new InvalidDataException(
+                    $"A guarded {route} asset is not a regular file.");
+            }
+
+            string digest;
+            using (FileStream stream = info.OpenRead())
+            {
+                digest = Convert.ToHexString(
+                    System.Security.Cryptography.SHA256.HashData(stream))
+                    .ToLowerInvariant();
+                if (stream.Length != info.Length)
+                {
+                    throw new InvalidDataException(
+                        $"A guarded {route} asset changed during verification.");
+                }
+            }
             if (!Assets.Any(asset => asset.Route == route && asset.Bytes == info.Length && asset.Sha256 == digest))
             {
                 throw new InvalidDataException($"A guarded {route} asset file is not bound by the asset manifest.");
             }
         }
+    }
+
+    private static string[] EnumerateRegularFiles(string path)
+    {
+        if (File.Exists(path))
+        {
+            return [path];
+        }
+        if (!Directory.Exists(path))
+        {
+            throw new FileNotFoundException(
+                "The guarded asset path does not exist.",
+                path);
+        }
+
+        var files = new List<string>();
+        var pending = new Stack<string>();
+        pending.Push(path);
+        while (pending.Count > 0)
+        {
+            string directory = pending.Pop();
+            if ((File.GetAttributes(directory) & FileAttributes.ReparsePoint) != 0)
+            {
+                throw new InvalidDataException(
+                    "A guarded asset directory cannot be a reparse point.");
+            }
+
+            files.AddRange(Directory.EnumerateFiles(directory));
+            foreach (string child in Directory.EnumerateDirectories(directory))
+            {
+                if ((File.GetAttributes(child) & FileAttributes.ReparsePoint) != 0)
+                {
+                    throw new InvalidDataException(
+                        "A guarded asset directory cannot contain a reparse point.");
+                }
+
+                pending.Push(child);
+            }
+        }
+
+        return files.ToArray();
     }
 
     internal static AssetManifest Load(string path)

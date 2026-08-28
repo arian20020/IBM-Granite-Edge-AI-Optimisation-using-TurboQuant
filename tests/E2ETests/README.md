@@ -11,18 +11,19 @@ The suite does not use Playwright, WinAppDriver, coordinates, OCR, visual pixels
 - `NativeFailure` requires the candidate plus the scenario-specific failure input.
 - `NativeAcceptance` requires the candidate, a route asset, and exact H1/M1/Q1 evidence manifests. A missing variable is MSTest inconclusive with `Blocked by declared guard`, never a pass.
 
-The candidate manifest may contain the local executable path because it is a git-ignored run input. The committed asset manifest format contains only stable IDs, routes, byte lengths and lowercase SHA-256 values; model paths and weights must never be committed.
+The candidate manifest may contain the local executable path because it is a git-ignored run input. Its source commit/tree must match the exact integrated branch tip/tree selected by the runner; the runner separately proves that tip descends from the frozen audit source. The committed asset manifest format contains only stable IDs, routes, byte lengths and lowercase SHA-256 values; model paths and weights must never be committed. Asset hashes are streamed under a closed regular-file/reparse-point policy.
 
 Run discovery and each stage through:
 
 ```powershell
 .\tests\E2ETests\GraniteEdgeAI.EndToEndTests\scripts\Invoke-E1EndToEnd.ps1 `
-  -CandidateManifest <local-candidate.json> -Stage List
+  -CandidateManifest <local-candidate.json> -Stage List `
+  -DotNetHostPath <complete-dotnet.exe>
 ```
 
-The script verifies the frozen commit/tree, builds the candidate and test project as Debug x64, rejects a missing/empty generated `.build.appxrecipe`, requires Visual Studio VSTest, lists tests before applying a filter, uses `tests/runsettings/OneWorker.runsettings`, and writes raw results only below ignored `TestResults/Audit-20260828/E1/`.
+The script verifies frozen ancestry plus the exact candidate tip/tree, builds the candidate and test project as Debug x64 with a selected complete SDK, rejects stale/missing/empty `.build.appxrecipe` output, requires Visual Studio VSTest, and requires at least the expected non-zero test inventory before applying a filter. It uses `tests/runsettings/OneWorker.runsettings` and writes raw results only below ignored `TestResults/Audit-20260828/E1/`.
 
-Native execution also requires the audit lock and predecessor receipts described by the E1 assignment. Do not run the app, workers, model tools, conversion, quantisation or Chat concurrently with another native worker.
+The deterministic stage does not acquire the native lock. Smoke, failure, acceptance and all-test native stages require the audit lock and predecessor receipts described by the E1 assignment. Before releasing the lock, the runner checks for candidate-root processes created during its slot and preserves the lock on ambiguous cleanup. Do not run the app, workers, model tools, conversion, quantisation or Chat concurrently with another native worker.
 
 ## Solution proposal for C0
 

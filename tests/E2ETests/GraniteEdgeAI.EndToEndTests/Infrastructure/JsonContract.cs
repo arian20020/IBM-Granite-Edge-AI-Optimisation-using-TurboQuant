@@ -4,18 +4,38 @@ namespace GraniteEdgeAI.EndToEndTests.Infrastructure;
 
 internal static class JsonContract
 {
+    private const long MaximumManifestBytes = 1024 * 1024;
+
     internal static JsonDocument Open(string path)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
         try
         {
-            return JsonDocument.Parse(File.ReadAllBytes(Path.GetFullPath(path)), new JsonDocumentOptions
+            string fullPath = Path.GetFullPath(path);
+            FileInfo file = new(fullPath);
+            if (!file.Exists
+                || file.Length <= 0
+                || file.Length > MaximumManifestBytes
+                || (file.Attributes & FileAttributes.ReparsePoint) != 0)
+            {
+                throw new InvalidDataException(
+                    "The JSON contract violates its closed size bound or regular-file requirement.");
+            }
+
+            using FileStream stream = file.OpenRead();
+            return JsonDocument.Parse(stream, new JsonDocumentOptions
             {
                 AllowTrailingCommas = false,
                 CommentHandling = JsonCommentHandling.Disallow,
             });
         }
-        catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException)
+        catch (InvalidDataException)
+        {
+            throw;
+        }
+        catch (Exception error) when (error is IOException
+                                      or UnauthorizedAccessException
+                                      or JsonException)
         {
             throw new InvalidDataException($"Unable to read strict JSON contract '{Path.GetFileName(path)}'.", error);
         }
@@ -59,6 +79,17 @@ internal static class JsonContract
         if (value.Length != 64 || value.Any(character => !Uri.IsHexDigit(character)) || value != value.ToLowerInvariant())
         {
             throw new InvalidDataException($"Property '{name}' must be a lowercase SHA-256 value.");
+        }
+    }
+
+    internal static void RequireGitObject(string value, string name)
+    {
+        if (value.Length != 40
+            || value.Any(character => !Uri.IsHexDigit(character))
+            || value != value.ToLowerInvariant())
+        {
+            throw new InvalidDataException(
+                $"Property '{name}' must be a lowercase Git object identity.");
         }
     }
 }

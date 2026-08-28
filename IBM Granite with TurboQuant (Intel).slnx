@@ -74,6 +74,9 @@
 
   <Folder Name="/tests/E2ETests/">
     <File Path="tests/E2ETests/README.md" />
+    <Project Path="tests/E2ETests/GraniteEdgeAI.EndToEndTests/GraniteEdgeAI.EndToEndTests.csproj">
+      <Platform Solution="*|x64" Project="x64" />
+    </Project>
   </Folder>
 
   <Folder Name="/tests/IntegrationTests/">

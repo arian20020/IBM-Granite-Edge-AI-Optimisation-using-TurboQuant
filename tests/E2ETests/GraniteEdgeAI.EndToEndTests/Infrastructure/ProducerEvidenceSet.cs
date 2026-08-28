@@ -51,7 +51,13 @@ internal sealed partial record ProducerEvidenceSet(ProducerEvidence Hardware, Pr
             long passed = JsonContract.RequiredInt64(command, "passed");
             long failed = JsonContract.RequiredInt64(command, "failed");
             long skipped = JsonContract.RequiredInt64(command, "skipped");
-            if (executed != passed + failed + skipped || discovered < executed)
+            if (discovered < 0
+                || executed < 0
+                || passed < 0
+                || failed < 0
+                || skipped < 0
+                || executed != passed + failed + skipped
+                || discovered < executed)
             {
                 throw new InvalidDataException($"{workerId} command arithmetic is inconsistent.");
             }
