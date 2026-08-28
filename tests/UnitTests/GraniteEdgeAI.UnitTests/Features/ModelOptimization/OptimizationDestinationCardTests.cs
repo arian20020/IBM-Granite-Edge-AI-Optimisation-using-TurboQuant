@@ -133,6 +133,35 @@ public sealed class OptimizationDestinationCardTests
     }
 
     [UITestMethod]
+    public async Task PageRetirementObservesNonCooperativeExportAndDisablesEveryAction()
+    {
+        var page = new GraniteEdgeAI.Features.ModelOptimization.OptimizationPage();
+        OptimizationPresentationState presentation = PersistentPresentation();
+        var service = new BlockingExportService();
+        page.ApplyPresentation(presentation);
+        Assert.IsTrue(page.BindVerifiedExport(
+            Target(presentation.OptimizationPlanId),
+            service));
+        var card = (OptimizationDestinationCard)page.FindName("DestinationCard");
+        Task<bool> operation = card.TryStartExportAsync();
+
+        Task retirement = page.RetireForNavigationAsync();
+        Assert.AreSame(retirement, page.RetireForNavigationAsync());
+        Assert.IsFalse(retirement.IsCompleted);
+        Assert.IsFalse(await card.TryStartExportAsync());
+        Assert.IsFalse(card.TryCancelExport());
+        Assert.IsFalse(await card.TryRetryExportAsync());
+        service.Complete(OptimizationExportResult.Failed(
+            OptimizationExportFailure.CleanupFailure));
+
+        await retirement;
+        Assert.IsTrue(await operation);
+        Assert.AreEqual(OptimizationExportStateKind.Unbound, card.ExportState.Kind);
+        Assert.IsFalse(card.IsActionEnabled(OptimizationCommand.Chat));
+        Assert.IsFalse(card.IsActionEnabled(OptimizationCommand.Save));
+    }
+
+    [UITestMethod]
     public void ExportStatesHaveStableAccessibleSemantics()
     {
         OptimizationDestinationCard card = new();

@@ -4,6 +4,9 @@ using GraniteEdgeAI.Features.ModelOptimization.Export;
 using GraniteEdgeAI.Features.ModelOptimization.Presentation;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Navigation;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GraniteEdgeAI.Features.ModelOptimization;
 
@@ -11,6 +14,9 @@ public sealed partial class OptimizationPage : Page
 {
     private OptimizationPresentationState? _presentation;
     private OptimizationJourneyEntryContext? _entryContext;
+    private readonly object _navigationRetirementLock = new();
+    private Task? _navigationRetirementTask;
+    private int _isRetired;
 
     public OptimizationPage()
     {
@@ -42,10 +48,15 @@ public sealed partial class OptimizationPage : Page
     internal bool BindVerifiedExport(
         VerifiedPersistentExportTarget target,
         IOptimizationExportService service) =>
-        DestinationCard.BindVerifiedExport(target, service);
+        Volatile.Read(ref _isRetired) == 0
+            && DestinationCard.BindVerifiedExport(target, service);
 
     internal void ApplyPresentation(OptimizationPresentationState presentation)
     {
+        if (Volatile.Read(ref _isRetired) != 0)
+        {
+            return;
+        }
         _presentation = presentation ?? throw new ArgumentNullException(nameof(presentation));
 
         PageTitle.Text = presentation.Title;
@@ -88,7 +99,7 @@ public sealed partial class OptimizationPage : Page
 
     private void RaiseIntent(OptimizationCommand command)
     {
-        if (_entryContext is null)
+        if (Volatile.Read(ref _isRetired) != 0 || _entryContext is null)
         {
             return;
         }
@@ -97,4 +108,26 @@ public sealed partial class OptimizationPage : Page
 
     private void OnOutcomeActionRequested(OptimizationCommand command) =>
         RaiseIntent(command);
+
+    internal Task RetireForNavigationAsync()
+    {
+        lock (_navigationRetirementLock)
+        {
+            if (_navigationRetirementTask is not null)
+            {
+                return _navigationRetirementTask;
+            }
+
+            Interlocked.Exchange(ref _isRetired, 1);
+            DestinationCard.ActionRequested -= OnOutcomeActionRequested;
+            _navigationRetirementTask = DestinationCard.RetireAsync();
+            return _navigationRetirementTask;
+        }
+    }
+
+    protected override async void OnNavigatedFrom(NavigationEventArgs e)
+    {
+        base.OnNavigatedFrom(e);
+        await RetireForNavigationAsync();
+    }
 }

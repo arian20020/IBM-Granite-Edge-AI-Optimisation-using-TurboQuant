@@ -42,6 +42,9 @@ namespace GraniteEdgeAI.Features.ModelImport
 
         // Identifies the scan whose result is currently allowed to update the page.
         private CancellationTokenSource? _scanCancellationTokenSource;
+        private readonly object _navigationRetirementLock = new();
+        private Task? _navigationRetirementTask;
+        private int _isRetired;
 
         public ModelImportPage()
             : this(null, null, null, null, null)
@@ -114,6 +117,11 @@ namespace GraniteEdgeAI.Features.ModelImport
         {
             ArgumentNullException.ThrowIfNull(offer);
             ArgumentNullException.ThrowIfNull(service);
+            if (Volatile.Read(ref _isRetired) != 0)
+            {
+                throw new InvalidOperationException(
+                    "A retired model import page cannot be rebound.");
+            }
             RecommendedModelDownloadCard.VerifiedDownloadCompleted -=
                 RecommendedModelDownloadCard_VerifiedDownloadCompleted;
             RecommendedModelDownloadCard.BindDownload(offer, service);
@@ -125,8 +133,12 @@ namespace GraniteEdgeAI.Features.ModelImport
             object? sender,
             CompletedModelDownload completedDownload)
         {
+            if (Volatile.Read(ref _isRetired) != 0)
+            {
+                return;
+            }
             await SubmitInputAsync(completedDownload.Selection);
-            if (HasValidatedModel)
+            if (Volatile.Read(ref _isRetired) == 0 && HasValidatedModel)
             {
                 ContinueToModelInspectionButton.Focus(FocusState.Programmatic);
             }

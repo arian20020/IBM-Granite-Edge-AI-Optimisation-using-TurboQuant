@@ -13,6 +13,9 @@ public sealed partial class OptimizationDestinationCard : UserControl
 {
     private OptimizationPresentationState? _presentation;
     private OptimizationExportController? _exportController;
+    private Task _detachedOperations = Task.CompletedTask;
+    private Task? _retirementTask;
+    private bool _retired;
 
     public OptimizationDestinationCard()
     {
@@ -38,6 +41,10 @@ public sealed partial class OptimizationDestinationCard : UserControl
     internal void Apply(OptimizationPresentationState presentation)
     {
         ArgumentNullException.ThrowIfNull(presentation);
+        if (_retired)
+        {
+            return;
+        }
         if (presentation.Kind is not OptimizationPageStateKind.SucceededPersistent
             and not OptimizationPageStateKind.SucceededRuntimeProfile)
         {
@@ -56,7 +63,11 @@ public sealed partial class OptimizationDestinationCard : UserControl
     {
         ArgumentNullException.ThrowIfNull(target);
         ArgumentNullException.ThrowIfNull(service);
-        if (_presentation is not
+        if (_retired
+            || !_detachedOperations.IsCompletedSuccessfully
+            || _exportController?.State.Kind is OptimizationExportStateKind.Running
+                or OptimizationExportStateKind.Cancelling
+            || _presentation is not
             { Kind: OptimizationPageStateKind.SucceededPersistent } presentation
             || presentation.OptimizationPlanId == Guid.Empty
             || !presentation.Configuration.ProducesPersistentArtifact
@@ -80,7 +91,8 @@ public sealed partial class OptimizationDestinationCard : UserControl
 
     internal Task<bool> TryStartExportAsync()
     {
-        if (!DestinationCore.IsActionEnabled(OptimizationCommand.Save))
+        if (_retired
+            || !DestinationCore.IsActionEnabled(OptimizationCommand.Save))
         {
             return Task.FromResult(false);
         }
@@ -100,11 +112,26 @@ public sealed partial class OptimizationDestinationCard : UserControl
         DestinationCore.SetActionEnabled(OptimizationCommand.Save, false);
     }
 
-    private void OnActionRequested(OptimizationCommand command)
+    internal Task RetireAsync()
+    {
+        if (_retirementTask is not null)
+        {
+            return _retirementTask;
+        }
+
+        _retired = true;
+        ResetExportBinding();
+        _presentation = null;
+        DestinationCore.SetAllActionsEnabled(false);
+        _retirementTask = _detachedOperations;
+        return _retirementTask;
+    }
+
+    private async void OnActionRequested(OptimizationCommand command)
     {
         if (command == OptimizationCommand.Save)
         {
-            _ = TryStartExportAsync();
+            await TryStartExportAsync();
             return;
         }
         ActionRequested?.Invoke(command);
@@ -181,7 +208,9 @@ public sealed partial class OptimizationDestinationCard : UserControl
         if (_exportController is not null)
         {
             _exportController.StateChanged -= ExportController_StateChanged;
-            _exportController.Unbind();
+            _detachedOperations = Task.WhenAll(
+                _detachedOperations,
+                _exportController.RetireAsync());
             _exportController = null;
         }
         ExportStatusText.Text = OptimizationExportViewState.Unbound().StatusText;

@@ -43,8 +43,11 @@ internal sealed class ModelDownloadController
     private long? _activeGeneration;
     private long? _cancelledGeneration;
     private CancellationTokenSource? _activeCancellation;
+    private Task<bool>? _activeTask;
     private RecommendedModelOffer? _lastOffer;
     private int _lastPreferenceValue;
+    private bool _retired;
+    private Task? _retirementTask;
     private ModelDownloadViewState _state = ModelDownloadViewState.Unavailable();
 
     internal ModelDownloadController(IRecommendedModelDownloadService service)
@@ -64,16 +67,16 @@ internal sealed class ModelDownloadController
         ModelDownloadViewState next;
         lock (_gate)
         {
-            if (_activeGeneration is not null)
+            if (_retired || _activeGeneration is not null)
             {
                 return;
             }
             _state = next = ModelDownloadViewState.Ready();
         }
-        StateChanged?.Invoke(this, next);
+        PublishState(next);
     }
 
-    internal async Task<bool> TryStartAsync(
+    internal Task<bool> TryStartAsync(
         RecommendedModelOffer offer,
         int preferenceValue)
     {
@@ -82,11 +85,13 @@ internal sealed class ModelDownloadController
         CancellationTokenSource cancellation;
         long generation;
         ModelDownloadViewState started;
+        TaskCompletionSource<bool> completion = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
         lock (_gate)
         {
-            if (_activeGeneration is not null)
+            if (_retired || _activeGeneration is not null)
             {
-                return false;
+                return Task.FromResult(false);
             }
 
             generation = checked(++_generation);
@@ -97,6 +102,7 @@ internal sealed class ModelDownloadController
             cancellation = new CancellationTokenSource();
             _activeGeneration = generation;
             _activeCancellation = cancellation;
+            _activeTask = completion.Task;
             _cancelledGeneration = null;
             _lastOffer = offer;
             _lastPreferenceValue = preferenceValue;
@@ -107,8 +113,21 @@ internal sealed class ModelDownloadController
                 ModelDownloadStage.Resolving,
                 Fraction: null);
         }
-        StateChanged?.Invoke(this, started);
+        PublishState(started);
+        _ = CompleteDownloadAsync(
+            generation,
+            request,
+            cancellation,
+            completion);
+        return completion.Task;
+    }
 
+    private async Task CompleteDownloadAsync(
+        long generation,
+        RecommendedModelDownloadRequest request,
+        CancellationTokenSource cancellation,
+        TaskCompletionSource<bool> completion)
+    {
         ModelDownloadResult result;
         try
         {
@@ -130,29 +149,43 @@ internal sealed class ModelDownloadController
         result ??= ModelDownloadResult.Failed(
             ModelDownloadFailure.PublicationFailure);
 
-        ModelDownloadViewState completed;
+        ModelDownloadViewState? completed = null;
         lock (_gate)
         {
             if (_activeGeneration != generation)
             {
                 cancellation.Dispose();
-                return true;
+                completion.TrySetResult(true);
+                return;
             }
 
-            if (_cancelledGeneration == generation
+            if (_retired)
+            {
+                _state = ModelDownloadViewState.Unavailable();
+            }
+            else if (_cancelledGeneration == generation
                 && result.Kind != ModelDownloadResultKind.Failed)
             {
                 result = ModelDownloadResult.Cancelled();
+                completed = ToTerminalState(request, result);
+                _state = completed;
             }
-            completed = ToTerminalState(request, result);
-            _state = completed;
+            else
+            {
+                completed = ToTerminalState(request, result);
+                _state = completed;
+            }
             _activeGeneration = null;
             _activeCancellation = null;
+            _activeTask = null;
             _cancelledGeneration = null;
         }
         cancellation.Dispose();
-        StateChanged?.Invoke(this, completed);
-        return true;
+        if (completed is not null)
+        {
+            PublishState(completed);
+        }
+        completion.TrySetResult(true);
     }
 
     internal bool TryCancel()
@@ -161,7 +194,8 @@ internal sealed class ModelDownloadController
         ModelDownloadViewState cancelling;
         lock (_gate)
         {
-            if (_activeGeneration is not long generation
+            if (_retired
+                || _activeGeneration is not long generation
                 || _activeCancellation is null
                 || _state.Kind != ModelDownloadStateKind.Running)
             {
@@ -175,9 +209,35 @@ internal sealed class ModelDownloadController
                 StatusText = "Cancelling the download and cleaning up."
             };
         }
-        StateChanged?.Invoke(this, cancelling);
+        PublishState(cancelling);
         cancellation.Cancel();
         return true;
+    }
+
+    internal Task RetireAsync()
+    {
+        lock (_gate)
+        {
+            if (_retirementTask is not null)
+            {
+                return _retirementTask;
+            }
+
+            _retired = true;
+            CancellationTokenSource? cancellation = _activeCancellation;
+            Task activeTask = _activeTask ?? Task.CompletedTask;
+            _state = ModelDownloadViewState.Unavailable();
+            _retirementTask = RetireCoreAsync(cancellation, activeTask);
+            return _retirementTask;
+        }
+    }
+
+    private static async Task RetireCoreAsync(
+        CancellationTokenSource? cancellation,
+        Task activeTask)
+    {
+        cancellation?.Cancel();
+        await activeTask.ConfigureAwait(false);
     }
 
     internal Task<bool> TryRetryAsync()
@@ -186,7 +246,8 @@ internal sealed class ModelDownloadController
         int preference;
         lock (_gate)
         {
-            if (_activeGeneration is not null
+            if (_retired
+                || _activeGeneration is not null
                 || _state.Kind is not (ModelDownloadStateKind.Cancelled
                     or ModelDownloadStateKind.Failed)
                 || _lastOffer is null)
@@ -207,7 +268,8 @@ internal sealed class ModelDownloadController
         ModelDownloadViewState next;
         lock (_gate)
         {
-            if (_activeGeneration != generation
+            if (_retired
+                || _activeGeneration != generation
                 || _cancelledGeneration == generation)
             {
                 return;
@@ -219,7 +281,7 @@ internal sealed class ModelDownloadController
                 progress.Stage,
                 progress.Fraction);
         }
-        StateChanged?.Invoke(this, next);
+        PublishState(next);
     }
 
     private static ModelDownloadViewState ToTerminalState(
@@ -271,6 +333,18 @@ internal sealed class ModelDownloadController
         _ =>
             "The model could not be published. Nothing was added to your models."
     };
+
+    private void PublishState(ModelDownloadViewState state)
+    {
+        try
+        {
+            StateChanged?.Invoke(this, state);
+        }
+        catch
+        {
+            // A retiring view must not fault or detach the owned backend operation.
+        }
+    }
 
     private sealed class InlineProgress<T>(Action<T> report) : IProgress<T>
     {

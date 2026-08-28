@@ -162,6 +162,29 @@ public sealed class ModelDownloadCardTests
             ((Button)card.FindName("RetryDownloadButton")).Visibility);
     }
 
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task RetirementObservesNonCooperativeDownloadAndDisablesEveryCommand()
+    {
+        var service = new ControlledDownloadService();
+        var card = new ModelDownloadCard();
+        card.BindDownload(Offer(), service);
+        Task<bool> operation = card.TryStartDownloadAsync();
+
+        Task retirement = card.RetireAsync();
+        Assert.AreSame(retirement, card.RetireAsync());
+        Assert.IsFalse(retirement.IsCompleted);
+        Assert.IsFalse(await card.TryStartDownloadAsync());
+        Assert.IsFalse(card.TryCancelDownload());
+        Assert.IsFalse(await card.TryRetryDownloadAsync());
+        service.Complete(ModelDownloadResult.Succeeded(Completion()));
+
+        await retirement;
+        Assert.IsTrue(await operation);
+        Assert.AreEqual(ModelDownloadStateKind.Unavailable, card.DownloadState.Kind);
+        Assert.IsFalse(((Button)card.FindName("DownloadModelButton")).IsEnabled);
+    }
+
     private static RecommendedModelOffer Offer() => new(
         "granite-offer-1",
         "Granite recommended model",
@@ -205,5 +228,19 @@ public sealed class ModelDownloadCardTests
                 return ModelDownloadResult.Cancelled();
             }
         }
+    }
+
+    private sealed class ControlledDownloadService : IRecommendedModelDownloadService
+    {
+        private readonly TaskCompletionSource<ModelDownloadResult> _completion =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task<ModelDownloadResult> DownloadAsync(
+            RecommendedModelDownloadRequest request,
+            IProgress<ModelDownloadProgress> progress,
+            CancellationToken cancellationToken) => _completion.Task;
+
+        internal void Complete(ModelDownloadResult result) =>
+            _completion.SetResult(result);
     }
 }

@@ -38,7 +38,10 @@ internal sealed class OptimizationExportController
     private long? _activeGeneration;
     private long? _cancelledGeneration;
     private CancellationTokenSource? _activeCancellation;
+    private Task<bool>? _activeTask;
     private VerifiedPersistentExportTarget? _target;
+    private bool _retired;
+    private Task? _retirementTask;
     private OptimizationExportViewState _state = OptimizationExportViewState.Unbound();
 
     internal OptimizationExportController(IOptimizationExportService service)
@@ -59,6 +62,11 @@ internal sealed class OptimizationExportController
         OptimizationExportViewState next;
         lock (_gate)
         {
+            if (_retired)
+            {
+                throw new InvalidOperationException(
+                    "A retired export controller cannot be rebound.");
+            }
             if (_activeGeneration is not null)
             {
                 throw new InvalidOperationException(
@@ -70,48 +78,34 @@ internal sealed class OptimizationExportController
                 "Ready to save this verified model result.",
                 target);
         }
-        StateChanged?.Invoke(this, next);
+        PublishState(next);
     }
 
-    internal void Unbind()
-    {
-        CancellationTokenSource? cancellation;
-        OptimizationExportViewState next;
-        lock (_gate)
-        {
-            cancellation = _activeCancellation;
-            _activeGeneration = null;
-            _activeCancellation = null;
-            _cancelledGeneration = null;
-            _target = null;
-            _state = next = OptimizationExportViewState.Unbound();
-        }
-        cancellation?.Cancel();
-        cancellation?.Dispose();
-        StateChanged?.Invoke(this, next);
-    }
-
-    internal async Task<bool> TryStartAsync()
+    internal Task<bool> TryStartAsync()
     {
         VerifiedPersistentExportTarget target;
         CancellationTokenSource cancellation;
         OptimizationExportViewState started;
         long generation;
+        TaskCompletionSource<bool> completion = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
         lock (_gate)
         {
-            if (_activeGeneration is not null
+            if (_retired
+                || _activeGeneration is not null
                 || _target is null
                 || _state.Kind is not (OptimizationExportStateKind.Ready
                     or OptimizationExportStateKind.Cancelled
                     or OptimizationExportStateKind.Failed))
             {
-                return false;
+                return Task.FromResult(false);
             }
             target = _target;
             generation = checked(++_generation);
             cancellation = new CancellationTokenSource();
             _activeGeneration = generation;
             _activeCancellation = cancellation;
+            _activeTask = completion.Task;
             _cancelledGeneration = null;
             _state = started = new(
                 OptimizationExportStateKind.Running,
@@ -119,8 +113,21 @@ internal sealed class OptimizationExportController
                 target,
                 OptimizationExportStage.ChoosingDestination);
         }
-        StateChanged?.Invoke(this, started);
+        PublishState(started);
+        _ = CompleteExportAsync(
+            generation,
+            target,
+            cancellation,
+            completion);
+        return completion.Task;
+    }
 
+    private async Task CompleteExportAsync(
+        long generation,
+        VerifiedPersistentExportTarget target,
+        CancellationTokenSource cancellation,
+        TaskCompletionSource<bool> completion)
+    {
         OptimizationExportResult result;
         try
         {
@@ -142,28 +149,43 @@ internal sealed class OptimizationExportController
         result ??= OptimizationExportResult.Failed(
             OptimizationExportFailure.PublicationFailure);
 
-        OptimizationExportViewState completed;
+        OptimizationExportViewState? completed = null;
         lock (_gate)
         {
             if (_activeGeneration != generation)
             {
                 cancellation.Dispose();
-                return true;
+                completion.TrySetResult(true);
+                return;
             }
-            if (_cancelledGeneration == generation
+            if (_retired)
+            {
+                _target = null;
+                _state = OptimizationExportViewState.Unbound();
+            }
+            else if (_cancelledGeneration == generation
                 && result.Kind != OptimizationExportResultKind.Failed)
             {
                 result = OptimizationExportResult.Cancelled();
+                completed = ToTerminalState(target, result);
+                _state = completed;
             }
-            completed = ToTerminalState(target, result);
-            _state = completed;
+            else
+            {
+                completed = ToTerminalState(target, result);
+                _state = completed;
+            }
             _activeGeneration = null;
             _activeCancellation = null;
+            _activeTask = null;
             _cancelledGeneration = null;
         }
         cancellation.Dispose();
-        StateChanged?.Invoke(this, completed);
-        return true;
+        if (completed is not null)
+        {
+            PublishState(completed);
+        }
+        completion.TrySetResult(true);
     }
 
     internal bool TryCancel()
@@ -172,7 +194,8 @@ internal sealed class OptimizationExportController
         OptimizationExportViewState cancelling;
         lock (_gate)
         {
-            if (_activeGeneration is not long generation
+            if (_retired
+                || _activeGeneration is not long generation
                 || _activeCancellation is null
                 || _state.Kind != OptimizationExportStateKind.Running)
             {
@@ -186,16 +209,44 @@ internal sealed class OptimizationExportController
                 StatusText = "Cancelling export and cleaning up incomplete output."
             };
         }
-        StateChanged?.Invoke(this, cancelling);
+        PublishState(cancelling);
         cancellation.Cancel();
         return true;
+    }
+
+    internal Task RetireAsync()
+    {
+        lock (_gate)
+        {
+            if (_retirementTask is not null)
+            {
+                return _retirementTask;
+            }
+
+            _retired = true;
+            _target = null;
+            _state = OptimizationExportViewState.Unbound();
+            CancellationTokenSource? cancellation = _activeCancellation;
+            Task activeTask = _activeTask ?? Task.CompletedTask;
+            _retirementTask = RetireCoreAsync(cancellation, activeTask);
+            return _retirementTask;
+        }
+    }
+
+    private static async Task RetireCoreAsync(
+        CancellationTokenSource? cancellation,
+        Task activeTask)
+    {
+        cancellation?.Cancel();
+        await activeTask.ConfigureAwait(false);
     }
 
     internal Task<bool> TryRetryAsync()
     {
         lock (_gate)
         {
-            if (_activeGeneration is not null
+            if (_retired
+                || _activeGeneration is not null
                 || _state.Kind is not (OptimizationExportStateKind.Cancelled
                     or OptimizationExportStateKind.Failed)
                 || _target is null)
@@ -214,7 +265,8 @@ internal sealed class OptimizationExportController
         OptimizationExportViewState next;
         lock (_gate)
         {
-            if (_activeGeneration != generation
+            if (_retired
+                || _activeGeneration != generation
                 || _cancelledGeneration == generation)
             {
                 return;
@@ -226,7 +278,7 @@ internal sealed class OptimizationExportController
                 progress.Stage,
                 progress.Fraction);
         }
-        StateChanged?.Invoke(this, next);
+        PublishState(next);
     }
 
     private static OptimizationExportViewState ToTerminalState(
@@ -301,6 +353,18 @@ internal sealed class OptimizationExportController
         _ =>
             "The verified model could not be saved. The in-app model is unchanged."
     };
+
+    private void PublishState(OptimizationExportViewState state)
+    {
+        try
+        {
+            StateChanged?.Invoke(this, state);
+        }
+        catch
+        {
+            // A retiring view must not fault or detach the owned backend operation.
+        }
+    }
 
     private sealed class InlineProgress<T>(Action<T> report) : IProgress<T>
     {

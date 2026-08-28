@@ -156,9 +156,29 @@ namespace GraniteEdgeAI.Features.ModelImport
         // Keeps navigation retirement deterministic without requiring a Frame in tests.
         internal void RetireSelectionForNavigation()
         {
-            CancelDownloadedModelSearch();
-            RetireActiveSelectionOperation();
-            ResetToAwaitingSelection();
+            _ = RetireForNavigationAsync();
+        }
+
+        internal Task RetireForNavigationAsync()
+        {
+            lock (_navigationRetirementLock)
+            {
+                if (_navigationRetirementTask is not null)
+                {
+                    return _navigationRetirementTask;
+                }
+
+                Interlocked.Exchange(ref _isRetired, 1);
+                RecommendedModelDownloadCard.VerifiedDownloadCompleted -=
+                    RecommendedModelDownloadCard_VerifiedDownloadCompleted;
+                CancelDownloadedModelSearch();
+                RetireActiveSelectionOperation();
+                CancelActiveScan();
+                ResetToAwaitingSelection();
+                _navigationRetirementTask =
+                    RecommendedModelDownloadCard.RetireAsync();
+                return _navigationRetirementTask;
+            }
         }
 
         private bool TryRequestFolderInspection()
@@ -245,11 +265,10 @@ namespace GraniteEdgeAI.Features.ModelImport
             ImportModelCardControl.ShowFailure(displayName, failureCode, userMessage);
         }
 
-        protected override void OnNavigatedFrom(NavigationEventArgs e)
+        protected override async void OnNavigatedFrom(NavigationEventArgs e)
         {
-            RetireSelectionForNavigation();
-            CancelActiveScan();
             base.OnNavigatedFrom(e);
+            await RetireForNavigationAsync();
         }
     }
 }

@@ -14,6 +14,9 @@ namespace GraniteEdgeAI.Features.ModelImport.ModelDownload
     {
         private RecommendedModelOffer? _offer;
         private ModelDownloadController? _controller;
+        private Task _detachedOperations = Task.CompletedTask;
+        private Task? _retirementTask;
+        private bool _retired;
 
         public ModelDownloadCard()
         {
@@ -35,10 +38,28 @@ namespace GraniteEdgeAI.Features.ModelImport.ModelDownload
         {
             ArgumentNullException.ThrowIfNull(offer);
             ArgumentNullException.ThrowIfNull(service);
+            if (_retired)
+            {
+                throw new InvalidOperationException(
+                    "A retired model download card cannot be rebound.");
+            }
+            if (!_detachedOperations.IsCompletedSuccessfully)
+            {
+                throw new InvalidOperationException(
+                    "A retiring model download cannot be replaced.");
+            }
+            if (_controller?.State.Kind is ModelDownloadStateKind.Running
+                or ModelDownloadStateKind.Cancelling)
+            {
+                throw new InvalidOperationException(
+                    "An active model download cannot be replaced.");
+            }
             if (_controller is not null)
             {
                 _controller.StateChanged -= Controller_StateChanged;
-                _controller.TryCancel();
+                _detachedOperations = Task.WhenAll(
+                    _detachedOperations,
+                    _controller.RetireAsync());
             }
 
             _offer = offer;
@@ -58,6 +79,7 @@ namespace GraniteEdgeAI.Features.ModelImport.ModelDownload
         {
             if (_offer is null
                 || _controller is null
+                || _retired
                 || !DownloadModelButton.IsEnabled)
             {
                 return Task.FromResult(false);
@@ -72,7 +94,31 @@ namespace GraniteEdgeAI.Features.ModelImport.ModelDownload
             _controller?.TryCancel() ?? false;
 
         internal Task<bool> TryRetryDownloadAsync() =>
-            _controller?.TryRetryAsync() ?? Task.FromResult(false);
+            !_retired && _controller is not null
+                ? _controller.TryRetryAsync()
+                : Task.FromResult(false);
+
+        internal Task RetireAsync()
+        {
+            if (_retirementTask is not null)
+            {
+                return _retirementTask;
+            }
+
+            _retired = true;
+            _offer = null;
+            ModelDownloadController? controller = _controller;
+            _controller = null;
+            if (controller is not null)
+            {
+                controller.StateChanged -= Controller_StateChanged;
+            }
+            _retirementTask = Task.WhenAll(
+                _detachedOperations,
+                controller?.RetireAsync() ?? Task.CompletedTask);
+            ApplyDownloadState(ModelDownloadViewState.Unavailable());
+            return _retirementTask;
+        }
 
         /*
             Runs every time the slider value changes.
@@ -133,6 +179,10 @@ namespace GraniteEdgeAI.Features.ModelImport.ModelDownload
 
         private void ApplyDownloadState(ModelDownloadViewState state)
         {
+            if (_retired && state.Kind != ModelDownloadStateKind.Unavailable)
+            {
+                return;
+            }
             bool running = state.Kind is ModelDownloadStateKind.Running
                 or ModelDownloadStateKind.Cancelling;
             DownloadModelButton.IsEnabled = state.Kind == ModelDownloadStateKind.Ready;

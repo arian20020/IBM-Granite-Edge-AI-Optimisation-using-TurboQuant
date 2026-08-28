@@ -3,7 +3,6 @@ using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Collections.Generic;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -166,13 +165,7 @@ public sealed class OptimizationExportControllerTests
         var controller = new OptimizationExportController(service);
         controller.Bind(Target());
         Task<bool> operation = controller.TryStartAsync();
-        MethodInfo? retireMethod = typeof(OptimizationExportController).GetMethod(
-            "RetireAsync",
-            BindingFlags.Instance | BindingFlags.NonPublic);
-        Assert.IsNotNull(retireMethod,
-            "The controller must expose an awaitable production retirement seam.");
-
-        var retirement = (Task)retireMethod.Invoke(controller, null)!;
+        Task retirement = controller.RetireAsync();
         Assert.IsFalse(retirement.IsCompleted,
             "Retirement must observe a non-cooperative active export.");
         service.Complete(OptimizationExportResult.Failed(
