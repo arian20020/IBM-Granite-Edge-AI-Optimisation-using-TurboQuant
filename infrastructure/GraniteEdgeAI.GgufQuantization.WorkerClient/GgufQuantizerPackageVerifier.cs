@@ -38,6 +38,8 @@ public sealed class VerifiedGgufQuantizerPackage
 
 public static class GgufQuantizerPackageVerifier
 {
+    private const int MaximumManifestBytes = 262_144;
+    private const int MaximumManifestFiles = 256;
     private const string PackageId = "granite-edge-ai-llama-quantize-x64";
     private const string SourceCommit = "3f7c29d318e317b63f54c558bc69803963d7d88c";
     private static readonly string[] AllowedTokens =
@@ -57,19 +59,29 @@ public static class GgufQuantizerPackageVerifier
         string root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(stageDirectory));
         RequireRegularDirectory(root);
         string manifestPath = RequireChild(root, Path.Combine(root, "llama-quantize.package.manifest.json"));
-        byte[] bytes = File.ReadAllBytes(manifestPath);
-        if (bytes.Length > 262_144)
-        {
-            throw new InvalidDataException("The quantizer manifest exceeds the size limit.");
-        }
+        byte[] bytes = ReadManifest(manifestPath);
         string actualManifestSha = Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
         if (!string.Equals(actualManifestSha, expectedManifestSha256, StringComparison.Ordinal))
         {
             throw new InvalidDataException("The quantizer manifest identity changed.");
         }
 
-        PackageManifest manifest = JsonSerializer.Deserialize<PackageManifest>(bytes, JsonOptions)
-            ?? throw new InvalidDataException("The quantizer manifest is empty.");
+        PackageManifest manifest;
+        try
+        {
+            ValidateNoDuplicateProperties(bytes);
+            manifest = JsonSerializer.Deserialize<PackageManifest>(bytes, JsonOptions)
+                ?? throw new InvalidDataException("The quantizer manifest is empty.");
+        }
+        catch (InvalidDataException)
+        {
+            throw;
+        }
+        catch (Exception exception) when (
+            exception is JsonException or NotSupportedException or ArgumentException)
+        {
+            throw new InvalidDataException("The quantizer manifest JSON is invalid.");
+        }
         if (manifest.SchemaVersion != 1
             || !string.Equals(manifest.PackageId, PackageId, StringComparison.Ordinal)
             || manifest.Source is null
@@ -93,15 +105,20 @@ public static class GgufQuantizerPackageVerifier
             || manifest.AllowedTokens is null
             || !manifest.AllowedTokens.SequenceEqual(AllowedTokens, StringComparer.Ordinal)
             || manifest.Files is null
-            || manifest.Files.Length == 0)
+            || manifest.Files.Length is <= 0 or > MaximumManifestFiles)
         {
             throw new InvalidDataException("The quantizer manifest identity or bounds are invalid.");
         }
 
         var listed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var listedExact = new HashSet<string>(StringComparer.Ordinal);
         foreach (PackageFile file in manifest.Files)
         {
-            if (!listed.Add(file.RelativePath) || !IsDigest(file.Sha256) || file.Length < 0)
+            if (!IsManifestPath(file.RelativePath)
+                || !listed.Add(file.RelativePath)
+                || !listedExact.Add(file.RelativePath)
+                || !IsDigest(file.Sha256)
+                || file.Length < 0)
             {
                 throw new InvalidDataException("The quantizer file table is invalid.");
             }
@@ -123,13 +140,14 @@ public static class GgufQuantizerPackageVerifier
             .Select(path => Path.GetRelativePath(root, path).Replace('\\', '/'))
             .Where(path => !string.Equals(path, "llama-quantize.package.manifest.json", StringComparison.Ordinal))
             .ToArray();
-        if (actualFiles.Any(path => !listed.Contains(path)) || actualFiles.Length != listed.Count)
+        if (actualFiles.Any(path => !listedExact.Contains(path)) ||
+            actualFiles.Length != listedExact.Count)
         {
             throw new InvalidDataException("The quantizer stage has missing or unlisted files.");
         }
 
         string executable = RequireChild(root, Path.Combine(root, "bin", "llama-quantize.exe"));
-        if (!listed.Contains("bin/llama-quantize.exe"))
+        if (!listedExact.Contains("bin/llama-quantize.exe"))
         {
             throw new InvalidDataException("The quantizer executable is not manifested.");
         }
@@ -162,15 +180,96 @@ public static class GgufQuantizerPackageVerifier
 
     private static void RequireRegularDirectory(string path)
     {
-        var info = new DirectoryInfo(path);
-        if (!info.Exists || IsReparse(info))
+        for (DirectoryInfo? info = new(path);
+             info is not null;
+             info = info.Parent)
         {
-            throw new InvalidDataException("The quantizer stage is unavailable or redirected.");
+            if (!info.Exists || IsReparse(info))
+            {
+                throw new InvalidDataException(
+                    "The quantizer stage is unavailable or redirected.");
+            }
         }
     }
 
     private static bool IsReparse(FileSystemInfo info) =>
         (info.Attributes & FileAttributes.ReparsePoint) != 0;
+
+    private static byte[] ReadManifest(string path)
+    {
+        var info = new FileInfo(path);
+        if (!info.Exists || IsReparse(info))
+        {
+            throw new InvalidDataException(
+                "The quantizer manifest is unavailable or redirected.");
+        }
+
+        using FileStream stream = new(
+            path,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.Read,
+            64 * 1024,
+            FileOptions.SequentialScan);
+        if (stream.Length is <= 0 or > MaximumManifestBytes)
+        {
+            throw new InvalidDataException(
+                "The quantizer manifest exceeds the size limit.");
+        }
+
+        byte[] bytes = new byte[checked((int)stream.Length)];
+        stream.ReadExactly(bytes);
+        if (stream.ReadByte() != -1)
+        {
+            throw new InvalidDataException("The quantizer manifest changed while reading.");
+        }
+
+        return bytes;
+    }
+
+    private static void ValidateNoDuplicateProperties(ReadOnlyMemory<byte> bytes)
+    {
+        using JsonDocument document = JsonDocument.Parse(bytes, new JsonDocumentOptions
+        {
+            AllowTrailingCommas = false,
+            CommentHandling = JsonCommentHandling.Disallow,
+            MaxDepth = 16,
+        });
+        ValidateNoDuplicateProperties(document.RootElement);
+    }
+
+    private static void ValidateNoDuplicateProperties(JsonElement element)
+    {
+        if (element.ValueKind == JsonValueKind.Object)
+        {
+            var names = new HashSet<string>(StringComparer.Ordinal);
+            foreach (JsonProperty property in element.EnumerateObject())
+            {
+                if (!names.Add(property.Name))
+                {
+                    throw new InvalidDataException(
+                        "The quantizer manifest contains a duplicate JSON property.");
+                }
+
+                ValidateNoDuplicateProperties(property.Value);
+            }
+        }
+        else if (element.ValueKind == JsonValueKind.Array)
+        {
+            foreach (JsonElement item in element.EnumerateArray())
+            {
+                ValidateNoDuplicateProperties(item);
+            }
+        }
+    }
+
+    private static bool IsManifestPath(string? value) =>
+        value is { Length: > 0 and <= 512 }
+        && !Path.IsPathFullyQualified(value)
+        && !value.Contains('\\')
+        && !value.Contains('\0')
+        && value.Split('/').All(segment =>
+            segment.Length > 0 && segment is not "." and not "..");
 
     private static bool IsDigest(string? value) =>
         value is { Length: 64 }

@@ -92,14 +92,20 @@ internal sealed class WindowsSuspendedProcess : IDisposable
                 return false;
             }
 
+            IReadOnlyDictionary<string, string> childEnvironment =
+                TrustedToolEnvironmentPolicy.CaptureCurrent();
+            using TrustedToolEnvironmentBlock environment =
+                TrustedToolEnvironmentBlock.Create(childEnvironment);
+
             processCreated = CreateProcess(
                 tool.ExecutablePath,
                 (commandLine + '\0').ToCharArray(),
                 IntPtr.Zero,
                 IntPtr.Zero,
                 inheritHandles: true,
-                CreateNoWindow | CreateSuspended | ExtendedStartupInfoPresent,
-                IntPtr.Zero,
+                CreateNoWindow | CreateSuspended | ExtendedStartupInfoPresent |
+                    CreateUnicodeEnvironment,
+                environment.Pointer,
                 tool.PackageRoot,
                 ref startup,
                 out processInformation);
@@ -335,6 +341,7 @@ internal sealed class WindowsSuspendedProcess : IDisposable
 
     private const int MaximumCommandLineLength = 32_767;
     private const uint CreateSuspended = 0x00000004;
+    private const uint CreateUnicodeEnvironment = 0x00000400;
     private const uint ExtendedStartupInfoPresent = 0x00080000;
     private const uint CreateNoWindow = 0x08000000;
     private const uint StartfUseStdHandles = 0x00000100;

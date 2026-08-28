@@ -7,6 +7,7 @@ using GraniteEdgeAI.GgufQuantization.WorkerClient;
 namespace GraniteEdgeAI.GgufQuantization.WorkerClient.Tests;
 
 [TestClass]
+[DoNotParallelize]
 public sealed class GgufQuantizationWorkerClientTests
 {
     [TestMethod]
@@ -112,6 +113,93 @@ public sealed class GgufQuantizationWorkerClientTests
         Assert.AreEqual(fixture.SourceSha256, Sha(fixture.SourcePath));
     }
 
+    [TestMethod]
+    public void PackageVerifierRejectsDuplicateJsonProperties()
+    {
+        using var fixture = new QuantizerFixture();
+        fixture.RewriteManifest(json => json.Replace(
+            "\"schemaVersion\":1",
+            "\"schemaVersion\":1,\"schemaVersion\":1",
+            StringComparison.Ordinal));
+
+        _ = Assert.ThrowsExactly<InvalidDataException>(() =>
+            GgufQuantizerPackageVerifier.Verify(
+                fixture.Stage,
+                fixture.ManifestSha256));
+    }
+
+    [TestMethod]
+    public void PackageVerifierRejectsCaseConfusedManifestMemberIdentity()
+    {
+        using var fixture = new QuantizerFixture();
+        fixture.RewriteManifest(json => json.Replace(
+            "\"relativePath\":\"bin/llama-quantize.exe\"",
+            "\"relativePath\":\"bin/LLAMA-quantize.exe\"",
+            StringComparison.Ordinal));
+
+        _ = Assert.ThrowsExactly<InvalidDataException>(() =>
+            GgufQuantizerPackageVerifier.Verify(
+                fixture.Stage,
+                fixture.ManifestSha256));
+    }
+
+    [TestMethod]
+    public void PackageVerifierRejectsReparsePointManifest()
+    {
+        using var fixture = new QuantizerFixture();
+        try
+        {
+            fixture.ReplaceManifestWithSymbolicLink();
+        }
+        catch (Exception exception) when (
+            exception is IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            Assert.Inconclusive($"File symbolic links are unavailable: {exception.GetType().Name}.");
+        }
+
+        _ = Assert.ThrowsExactly<InvalidDataException>(() =>
+            GgufQuantizerPackageVerifier.Verify(
+                fixture.Stage,
+                fixture.ManifestSha256));
+    }
+
+    [TestMethod]
+    public void PackageVerifierRejectsReparsePointInStageAncestor()
+    {
+        using var fixture = new QuantizerFixture();
+        string linkedStage;
+        try
+        {
+            linkedStage = fixture.CreateStageThroughReparseAncestor();
+        }
+        catch (Exception exception) when (
+            exception is IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            Assert.Inconclusive(
+                $"Directory symbolic links are unavailable: {exception.GetType().Name}.");
+            return;
+        }
+
+        _ = Assert.ThrowsExactly<InvalidDataException>(() =>
+            GgufQuantizerPackageVerifier.Verify(
+                linkedStage,
+                fixture.ManifestSha256));
+    }
+
+    [TestMethod]
+    public void PackageVerifierRejectsOversizedManifestBeforeReadingItsBytes()
+    {
+        using var fixture = new QuantizerFixture();
+        fixture.ReplaceManifestWithOversizedSparseFile();
+
+        InvalidDataException failure = Assert.ThrowsExactly<InvalidDataException>(() =>
+            GgufQuantizerPackageVerifier.Verify(fixture.Stage, Digest('0')));
+
+        Assert.AreEqual(
+            "The quantizer manifest exceeds the size limit.",
+            failure.Message);
+    }
+
     private static GgufQuantizationCommand Command(
         GgufQuantizationFormat source,
         GgufQuantizationFormat target,
@@ -163,6 +251,41 @@ public sealed class GgufQuantizationWorkerClientTests
         internal ulong SourceLength { get; }
         internal string ManifestSha256 { get; private set; } = string.Empty;
 
+        internal void RewriteManifest(Func<string, string> transform)
+        {
+            string manifestPath = ManifestPath;
+            File.WriteAllText(
+                manifestPath,
+                transform(File.ReadAllText(manifestPath)));
+            ManifestSha256 = Sha(manifestPath);
+        }
+
+        internal void ReplaceManifestWithSymbolicLink()
+        {
+            string target = Path.Combine(_root, "manifest-target.json");
+            File.Move(ManifestPath, target);
+            File.CreateSymbolicLink(ManifestPath, target);
+            ManifestSha256 = Sha(target);
+        }
+
+        internal void ReplaceManifestWithOversizedSparseFile()
+        {
+            using FileStream manifest = new(
+                ManifestPath,
+                FileMode.Create,
+                FileAccess.Write,
+                FileShare.None);
+            manifest.SetLength((long)int.MaxValue + 1);
+            ManifestSha256 = string.Empty;
+        }
+
+        internal string CreateStageThroughReparseAncestor()
+        {
+            string link = Path.Combine(_root, "linked-parent");
+            Directory.CreateSymbolicLink(link, _root);
+            return Path.Combine(link, "stage");
+        }
+
         public void Dispose()
         {
             try { Directory.Delete(_root, recursive: true); } catch { }
@@ -205,5 +328,8 @@ public sealed class GgufQuantizationWorkerClientTests
                 Path.Combine(Stage, "llama-quantize.package.manifest.json"),
                 JsonSerializer.Serialize(manifest));
         }
+
+        private string ManifestPath =>
+            Path.Combine(Stage, "llama-quantize.package.manifest.json");
     }
 }

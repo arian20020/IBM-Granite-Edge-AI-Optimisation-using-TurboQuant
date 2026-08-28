@@ -7,6 +7,7 @@ using GraniteEdgeAI.Features.OpenVinoRoute;
 using GraniteEdgeAI.Features.OpenVinoRoute.Conversion;
 using GraniteEdgeAI.Features.OpenVinoRoute.Optimization;
 using GraniteEdgeAI.Features.Prompting;
+using GraniteEdgeAI.HardwareInspection.Foundation.TrustedTools;
 using GraniteEdgeAI.OpenVino.Contracts;
 using GraniteEdgeAI.OpenVino.WorkerClient;
 #if MODEL_INSPECTION_X64
@@ -54,7 +55,9 @@ internal static class ModelInspectionServiceComposition
         workerRoot = Path.GetFullPath(workerRoot);
         string manifestPath = Path.Combine(workerRoot, "worker-manifest.json");
         string packagedManifestDigest = Convert.ToHexString(
-            SHA256.HashData(File.ReadAllBytes(manifestPath))).ToLowerInvariant();
+            SHA256.HashData(TrustedManifestFile.ReadBounded(
+                manifestPath,
+                1024 * 1024))).ToLowerInvariant();
         string expectedManifestDigest = typeof(ModelInspectionServiceComposition)
             .Assembly
             .GetCustomAttributes<AssemblyMetadataAttribute>()
@@ -135,7 +138,9 @@ internal static class ModelInspectionServiceComposition
             AppContext.BaseDirectory, "OpenVino", "Converter", "Worker"));
         string manifestPath = Path.Combine(converterRoot, "converter-manifest.json");
         string packagedDigest = Convert.ToHexString(
-            SHA256.HashData(File.ReadAllBytes(manifestPath))).ToLowerInvariant();
+            SHA256.HashData(TrustedManifestFile.ReadBounded(
+                manifestPath,
+                1024 * 1024))).ToLowerInvariant();
         string expectedDigest = typeof(ModelInspectionServiceComposition)
             .Assembly
             .GetCustomAttributes<AssemblyMetadataAttribute>()

@@ -31,7 +31,7 @@ public static class GgufRuntimePackageLoader
             throw new GgufRuntimeTrustException("runtime-manifest-copy-invalid");
         }
 
-        byte[] detachedBytes = File.ReadAllBytes(detached);
+        byte[] detachedBytes = ReadDetachedManifest(detached);
         if (detachedBytes.Length != trustedManifest.Length ||
             detachedBytes.Length > GgufRuntimeManifestJson.MaximumManifestBytes ||
             !CryptographicOperations.FixedTimeEquals(
@@ -44,5 +44,45 @@ public static class GgufRuntimePackageLoader
         GgufRuntimeManifest manifest =
             GgufRuntimeManifestJson.Deserialize(trustedManifest);
         return GgufRuntimeManifestVerifier.Verify(root, manifest, detached);
+    }
+
+    private static byte[] ReadDetachedManifest(string path)
+    {
+        try
+        {
+            using FileStream stream = new(
+                path,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Read,
+                64 * 1024,
+                FileOptions.SequentialScan);
+            if (stream.Length is <= 0 or > GgufRuntimeManifestJson.MaximumManifestBytes)
+            {
+                throw new GgufRuntimeTrustException(
+                    "runtime-manifest-copy-mismatch");
+            }
+
+            byte[] bytes = new byte[checked((int)stream.Length)];
+            stream.ReadExactly(bytes);
+            if (stream.ReadByte() != -1)
+            {
+                throw new GgufRuntimeTrustException(
+                    "runtime-manifest-copy-mismatch");
+            }
+
+            return bytes;
+        }
+        catch (GgufRuntimeTrustException)
+        {
+            throw;
+        }
+        catch (Exception exception) when (
+            exception is IOException or UnauthorizedAccessException or
+                NotSupportedException or ArgumentException)
+        {
+            throw new GgufRuntimeTrustException(
+                "runtime-manifest-copy-mismatch");
+        }
     }
 }

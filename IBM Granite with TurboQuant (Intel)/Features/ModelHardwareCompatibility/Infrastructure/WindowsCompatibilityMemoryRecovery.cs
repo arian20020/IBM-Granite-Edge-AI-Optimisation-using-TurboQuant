@@ -86,13 +86,17 @@ internal sealed class WindowsCompatibilityMemoryRecovery : ICompatibilityMemoryR
 /// </summary>
 internal sealed class TaskManagerLaunchRequest
 {
+    private static readonly string SystemTaskManagerPath = Path.Combine(
+        Environment.SystemDirectory,
+        "Taskmgr.exe");
+
     private TaskManagerLaunchRequest()
     {
     }
 
     internal static TaskManagerLaunchRequest Fixed { get; } = new();
 
-    internal string FileName => "taskmgr.exe";
+    internal string FileName => SystemTaskManagerPath;
 
     internal string Arguments => string.Empty;
 

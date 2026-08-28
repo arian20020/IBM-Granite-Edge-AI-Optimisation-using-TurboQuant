@@ -126,11 +126,30 @@ public sealed class GgufRuntimeClient
         }
 
         string fullPath = Path.GetFullPath(path);
-        if (!File.Exists(fullPath))
+        var file = new FileInfo(fullPath);
+        if (!file.Exists)
         {
             throw new FileNotFoundException(
-                "A required local runtime input is missing.",
-                fullPath);
+                "A required local runtime input is missing.");
+        }
+
+        if ((file.Attributes & FileAttributes.ReparsePoint) != 0)
+        {
+            throw new ArgumentException(
+                "A redirected runtime input is not accepted.",
+                parameterName);
+        }
+
+        for (DirectoryInfo? directory = file.Directory;
+             directory is not null;
+             directory = directory.Parent)
+        {
+            if ((directory.Attributes & FileAttributes.ReparsePoint) != 0)
+            {
+                throw new ArgumentException(
+                    "A redirected runtime input is not accepted.",
+                    parameterName);
+            }
         }
 
         return fullPath;

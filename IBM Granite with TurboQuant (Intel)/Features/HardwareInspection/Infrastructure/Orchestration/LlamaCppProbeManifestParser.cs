@@ -11,7 +11,7 @@ namespace GraniteEdgeAI.Features.HardwareInspection.Orchestration;
 
 internal static class LlamaCppProbeManifestParser
 {
-    private const int MaximumManifestBytes = 64 * 1024;
+    internal const int MaximumManifestBytes = 64 * 1024;
     private const string InvalidManifestMessage = "The packaged probe manifest is invalid.";
     private static readonly UTF8Encoding StrictUtf8 = new(
         encoderShouldEmitUTF8Identifier: false,
