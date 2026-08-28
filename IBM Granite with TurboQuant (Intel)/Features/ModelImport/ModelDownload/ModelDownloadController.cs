@@ -151,6 +151,12 @@ internal sealed class ModelDownloadController
         result ??= ModelDownloadResult.Failed(
             ModelDownloadFailure.PublicationFailure);
 
+        // Cancellation callbacks can complete the provider task inline and then
+        // throw. Defer terminalization until TryCancel has recorded whether the
+        // cancellation request itself succeeded, while preserving the caller's
+        // synchronization context for UI state publication.
+        await Task.Yield();
+
         ModelDownloadViewState? completed = null;
         lock (_gate)
         {
@@ -223,14 +229,12 @@ internal sealed class ModelDownloadController
             };
         }
         PublishState(cancelling);
-        if (!RequestCancellation(cancellation))
+        lock (_gate)
         {
-            lock (_gate)
+            if (_activeGeneration == generation
+                && !RequestCancellation(cancellation))
             {
-                if (_activeGeneration == generation)
-                {
-                    _cancellationFailureGeneration = generation;
-                }
+                _cancellationFailureGeneration = generation;
             }
         }
         return true;

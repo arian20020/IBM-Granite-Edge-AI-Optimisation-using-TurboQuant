@@ -186,7 +186,8 @@ public sealed class ModelDownloadControllerTests
     [TestMethod]
     public async Task ThrowingCancellationCallbackCannotBypassDownloadRetirement()
     {
-        var service = new ThrowingCancellationDownloadService();
+        var service = new ThrowingCancellationDownloadService(
+            completeDuringCancellation: false);
         var controller = new ModelDownloadController(service);
         Task<bool> operation = controller.TryStartAsync(Offer(), 50);
 
@@ -203,12 +204,12 @@ public sealed class ModelDownloadControllerTests
     [TestMethod]
     public async Task ThrowingCancellationCallbackMapsToDownloadCleanupFailure()
     {
-        var service = new ThrowingCancellationDownloadService();
+        var service = new ThrowingCancellationDownloadService(
+            completeDuringCancellation: true);
         var controller = new ModelDownloadController(service);
         Task<bool> operation = controller.TryStartAsync(Offer(), 50);
 
         Assert.IsTrue(controller.TryCancel());
-        service.Complete(ModelDownloadResult.Succeeded(Completion()));
 
         Assert.IsTrue(await operation);
         Assert.AreEqual(ModelDownloadStateKind.Failed, controller.State.Kind);
@@ -320,7 +321,8 @@ public sealed class ModelDownloadControllerTests
             Task.FromResult<ModelDownloadResult>(null!);
     }
 
-    private sealed class ThrowingCancellationDownloadService
+    private sealed class ThrowingCancellationDownloadService(
+        bool completeDuringCancellation)
         : IRecommendedModelDownloadService
     {
         private readonly TaskCompletionSource<ModelDownloadResult> _completion =
@@ -333,8 +335,16 @@ public sealed class ModelDownloadControllerTests
         {
             using CancellationTokenRegistration registration =
                 cancellationToken.Register(
-                    () => throw new InvalidOperationException(
-                        "Synthetic cancellation callback failure."));
+                    () =>
+                    {
+                        if (completeDuringCancellation)
+                        {
+                            _completion.TrySetResult(
+                                ModelDownloadResult.Succeeded(Completion()));
+                        }
+                        throw new InvalidOperationException(
+                            "Synthetic cancellation callback failure.");
+                    });
             return await _completion.Task;
         }
 

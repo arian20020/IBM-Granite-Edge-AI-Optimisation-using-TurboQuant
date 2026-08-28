@@ -181,7 +181,8 @@ public sealed class OptimizationExportControllerTests
     [TestMethod]
     public async Task ThrowingCancellationCallbackCannotBypassExportRetirement()
     {
-        var service = new ThrowingCancellationExportService();
+        var service = new ThrowingCancellationExportService(
+            completeDuringCancellation: false);
         var controller = new OptimizationExportController(service);
         controller.Bind(Target());
         Task<bool> operation = controller.TryStartAsync();
@@ -199,14 +200,13 @@ public sealed class OptimizationExportControllerTests
     [TestMethod]
     public async Task ThrowingCancellationCallbackMapsToExportCleanupFailure()
     {
-        var service = new ThrowingCancellationExportService();
+        var service = new ThrowingCancellationExportService(
+            completeDuringCancellation: true);
         var controller = new OptimizationExportController(service);
         controller.Bind(Target());
         Task<bool> operation = controller.TryStartAsync();
 
         Assert.IsTrue(controller.TryCancel());
-        service.Complete(OptimizationExportResult.Succeeded(
-            new OptimizationExportReceipt(Manifest, 4096)));
 
         Assert.IsTrue(await operation);
         Assert.AreEqual(OptimizationExportStateKind.Failed, controller.State.Kind);
@@ -337,7 +337,8 @@ public sealed class OptimizationExportControllerTests
             Task.FromResult<OptimizationExportResult>(null!);
     }
 
-    private sealed class ThrowingCancellationExportService
+    private sealed class ThrowingCancellationExportService(
+        bool completeDuringCancellation)
         : IOptimizationExportService
     {
         private readonly TaskCompletionSource<OptimizationExportResult> _completion =
@@ -350,8 +351,19 @@ public sealed class OptimizationExportControllerTests
         {
             using CancellationTokenRegistration registration =
                 cancellationToken.Register(
-                    () => throw new InvalidOperationException(
-                        "Synthetic cancellation callback failure."));
+                    () =>
+                    {
+                        if (completeDuringCancellation)
+                        {
+                            _completion.TrySetResult(
+                                OptimizationExportResult.Succeeded(
+                                    new OptimizationExportReceipt(
+                                        Manifest,
+                                        4096)));
+                        }
+                        throw new InvalidOperationException(
+                            "Synthetic cancellation callback failure.");
+                    });
             return await _completion.Task;
         }
 
