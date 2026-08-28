@@ -197,6 +197,7 @@
                         Future source: the selected artifact's quantization metadata.
                     -->
                     <TextBlock
+                        x:Name="QuantizationValueText"
                         Grid.Row="1"
                         Grid.Column="1"
                         FontSize="14"
@@ -358,6 +359,45 @@
 
                 </StackPanel>
 
+                <StackPanel
+                    x:Name="DownloadStatusRegion"
+                    Margin="0,4,0,0"
+                    Spacing="6"
+                    Visibility="Collapsed"
+                    AutomationProperties.LiveSetting="Polite">
+                    <TextBlock
+                        x:Name="DownloadStatusText"
+                        FontSize="13"
+                        FontWeight="SemiBold"
+                        Foreground="#374151"
+                        TextWrapping="WrapWholeWords" />
+                    <ProgressBar
+                        x:Name="DownloadProgressBar"
+                        Height="6"
+                        HorizontalAlignment="Stretch"
+                        Maximum="100"
+                        Minimum="0" />
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock
+                            x:Name="DownloadProgressText"
+                            Grid.Column="0"
+                            FontSize="12"
+                            Foreground="#6B7280" />
+                        <Button
+                            x:Name="DiscardDownloadButton"
+                            Grid.Column="1"
+                            Padding="8,2"
+                            AutomationProperties.Name="Discard partial model download"
+                            Click="DiscardDownloadButton_Click"
+                            Content="Discard"
+                            Visibility="Collapsed" />
+                    </Grid>
+                </StackPanel>
+
                 <!--
                     TODO(DOWNLOAD WORKFLOW):
                     This button is currently visual only.
@@ -377,6 +417,7 @@
                     Background="#2563EB"
                     BorderBrush="#2563EB"
                     BorderThickness="1"
+                    Click="DownloadModelButton_Click"
                     Content="Download selected model"
                     CornerRadius="12"
                     FontWeight="SemiBold"

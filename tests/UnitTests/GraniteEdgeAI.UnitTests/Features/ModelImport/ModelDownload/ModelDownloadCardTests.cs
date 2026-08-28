@@ -72,4 +72,35 @@ public sealed class ModelDownloadCardTests
             Assert.AreEqual(expectedLabel, label.Text);
         }
     }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void PreferenceSlider_UpdatesPinnedArtifactDetails()
+    {
+        var card = new ModelDownloadCard();
+        var slider = (Slider)card.FindName("ModelScaleSlider");
+        var quantisation = (TextBlock)card.FindName("QuantizationValueText");
+        var summary = (TextBlock)card.FindName("ModelPackageSummaryText");
+
+        slider.Value = 0;
+        Assert.AreEqual("Q2_K", quantisation.Text);
+        Assert.IsTrue(summary.Text.Contains("1.23 GB", StringComparison.Ordinal));
+
+        slider.Value = 100;
+        Assert.AreEqual("Q8_0", quantisation.Text);
+        Assert.IsTrue(summary.Text.Contains("3.40 GB", StringComparison.Ordinal));
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void Constructor_ProvidesAccessibleDownloadStatusControls()
+    {
+        var card = new ModelDownloadCard();
+
+        Assert.IsNotNull(card.FindName("DownloadStatusRegion"));
+        Assert.IsNotNull(card.FindName("DownloadStatusText"));
+        Assert.IsNotNull(card.FindName("DownloadProgressBar"));
+        Assert.IsNotNull(card.FindName("DownloadProgressText"));
+        Assert.IsNotNull(card.FindName("DiscardDownloadButton"));
+    }
 }
