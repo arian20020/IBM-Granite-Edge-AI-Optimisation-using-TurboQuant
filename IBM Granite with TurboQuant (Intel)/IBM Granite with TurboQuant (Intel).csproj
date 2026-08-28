@@ -521,6 +521,9 @@
       Include="..\infrastructure\GraniteEdgeAI.GgufRuntime.WorkerClient\GraniteEdgeAI.GgufRuntime.WorkerClient.csproj"
       Condition="'$(Platform)' == 'x64'" />
     <ProjectReference
+      Include="..\runtime\GraniteEdgeAI.GgufRuntime.Capabilities\GraniteEdgeAI.GgufRuntime.Capabilities.csproj"
+      Condition="'$(Platform)' == 'x64'" />
+    <ProjectReference
       Include="..\shared\GraniteEdgeAI.GgufQuantization.Contracts\GraniteEdgeAI.GgufQuantization.Contracts.csproj"
       Condition="'$(Platform)' == 'x64'" />
     <ProjectReference

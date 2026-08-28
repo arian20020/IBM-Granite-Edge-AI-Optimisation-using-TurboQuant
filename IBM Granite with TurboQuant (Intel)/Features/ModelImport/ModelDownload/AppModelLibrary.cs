@@ -122,7 +122,6 @@ internal sealed class AppModelLibrary
             {
                 await stream.WriteAsync(json, cancellationToken);
                 await stream.FlushAsync(cancellationToken);
-                stream.Flush(flushToDisk: true);
             }
 
             File.Move(temporaryPath, statePath, overwrite: true);
@@ -191,7 +190,6 @@ internal sealed class AppModelLibrary
                 FileOptions.Asynchronous | FileOptions.WriteThrough);
             stream.SetLength(state.DurableByteLength);
             await stream.FlushAsync(cancellationToken);
-            stream.Flush(flushToDisk: true);
         }
 
         return new ModelDownloadResumeInfo(

@@ -254,10 +254,6 @@ internal sealed class ResumableVerifiedModelDownloadService : IModelDownloadServ
         CancellationToken cancellationToken)
     {
         await destination.FlushAsync(cancellationToken);
-        if (destination is FileStream fileStream)
-        {
-            fileStream.Flush(flushToDisk: true);
-        }
 
         await _library.WriteCheckpointAsync(
             entry,

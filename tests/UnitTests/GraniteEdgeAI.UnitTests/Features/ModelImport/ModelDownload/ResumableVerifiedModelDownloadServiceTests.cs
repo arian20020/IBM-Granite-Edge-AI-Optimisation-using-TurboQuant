@@ -215,6 +215,33 @@ public sealed class ResumableVerifiedModelDownloadServiceTests
         Assert.AreEqual("download-inactivity-timeout", result.ErrorCode);
     }
 
+    [TestMethod]
+    public async Task DownloadAsync_CancelAtFirstDurableCheckpointCompletesPromptly()
+    {
+        byte[] payload = new byte[(8 * 1024 * 1024) + 1];
+        RandomNumberGenerator.Fill(payload);
+        using TestDownloadFixture fixture = TestDownloadFixture.Create(payload);
+        using var cancellation = new CancellationTokenSource();
+        var progress = new InlineProgress<ModelDownloadProgress>(value =>
+        {
+            if (value.Stage == ModelDownloadStage.Downloading &&
+                value.DownloadedBytes >= 8L * 1024 * 1024)
+            {
+                cancellation.Cancel();
+            }
+        });
+
+        Task<ModelDownloadResult> download = fixture.Service.DownloadAsync(
+            fixture.Entry,
+            progress,
+            cancellation.Token);
+        ModelDownloadResult result = await download.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.AreEqual(ModelDownloadResultKind.Interrupted, result.Kind);
+        Assert.AreEqual("download-cancelled", result.ErrorCode);
+        Assert.IsFalse(await fixture.Library.FinalExistsAsync(fixture.Entry, CancellationToken.None));
+    }
+
     private sealed class TestDownloadFixture : IDisposable
     {
         private readonly string _root;
@@ -377,5 +404,10 @@ public sealed class ResumableVerifiedModelDownloadServiceTests
             await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
             return 0;
         }
+    }
+
+    private sealed class InlineProgress<T>(Action<T> report) : IProgress<T>
+    {
+        public void Report(T value) => report(value);
     }
 }
