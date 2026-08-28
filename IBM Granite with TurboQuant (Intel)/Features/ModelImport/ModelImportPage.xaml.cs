@@ -5,6 +5,7 @@ using GraniteEdgeAI.Features.ModelImport.FileImport;
 using GraniteEdgeAI.Features.ModelImport.FileImport.PickerRoute;
 using GraniteEdgeAI.Features.ModelImport.QuickScan;
 using GraniteEdgeAI.Features.ModelImport.Selection;
+using GraniteEdgeAI.Features.ModelImport.ModelDownload;
 using GraniteEdgeAI.Features.ModelInspection.Contracts;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -38,6 +39,9 @@ namespace GraniteEdgeAI.Features.ModelImport
         private readonly Action<ModelQuickScanFailureDiagnostic>
             _recordScanFailure;
         private readonly ModelImportDropHandler _dropHandler;
+        private readonly ModelDownloadCoordinator _modelDownloadCoordinator;
+        private readonly bool _ownsModelDownloadCoordinator;
+        private ModelDownloadOperationId? _automaticDownloadSubmission;
 
         // Identifies the scan whose result is currently allowed to update the page.
         private CancellationTokenSource? _scanCancellationTokenSource;
@@ -71,7 +75,8 @@ namespace GraniteEdgeAI.Features.ModelImport
             Action<ModelQuickScanFailureDiagnostic>? recordScanFailure = null,
             IModelSelectionClassifier? classifier = null,
             IDownloadedModelFinder? downloadedModelFinder = null,
-            Func<Task<ModelSelectionInput?>>? pickOpenVinoInputAsync = null)
+            Func<Task<ModelSelectionInput?>>? pickOpenVinoInputAsync = null,
+            ModelDownloadCoordinator? modelDownloadCoordinator = null)
         {
             InitializeComponent();
 
@@ -98,6 +103,10 @@ namespace GraniteEdgeAI.Features.ModelImport
             _downloadedModelFinder = downloadedModelFinder ?? new BoundedDownloadedModelFinder();
             _dropHandler = new ModelImportDropHandler(
                 new ModelSelectionInputNormalizer());
+            _ownsModelDownloadCoordinator = modelDownloadCoordinator is null;
+            _modelDownloadCoordinator = modelDownloadCoordinator ?? ModelDownloadComposition.CreateDefault();
+            _modelDownloadCoordinator.VerifiedModelAvailable += ModelDownloadCoordinator_VerifiedModelAvailable;
+            RecommendedModelDownloadCard.Attach(_modelDownloadCoordinator);
         }
 
         private static Func<Task<ModelSelectionInput?>> AdaptOpenVinoPathPicker(
@@ -130,6 +139,7 @@ namespace GraniteEdgeAI.Features.ModelImport
 
         internal async Task BrowseFilesAsync()
         {
+            RetireAutomaticDownloadHandoff();
             ModelFormatSelection selectedFormat =
                 await _selectModelFormatAsync();
 
@@ -422,12 +432,43 @@ namespace GraniteEdgeAI.Features.ModelImport
 
         private async void ModelDropTarget_Drop(object sender, DragEventArgs e)
         {
+            RetireAutomaticDownloadHandoff();
             ImportModelCardControl.ClearDragValidation();
             await _dropHandler.HandleDropAsync(
                 e,
                 SubmitInputAsync,
                 RejectDroppedSelectionAsync,
                 CancellationToken.None);
+        }
+
+        private async void ModelDownloadCoordinator_VerifiedModelAvailable(
+            object? sender,
+            VerifiedModelAvailableEventArgs e)
+        {
+            if (!_modelDownloadCoordinator.TryClaimVerifiedModel(e.OperationId, out VerifiedDownloadedModel? model) ||
+                model is null)
+            {
+                return;
+            }
+
+            _automaticDownloadSubmission = e.OperationId;
+            await SubmitInputAsync(new ModelSelectionInput(
+                model.LocalPath,
+                model.DisplayName,
+                isFolder: false));
+
+            if (_automaticDownloadSubmission == e.OperationId &&
+                HasValidatedModel &&
+                CurrentRoute == ModelSelectionRoute.Gguf)
+            {
+                TryRequestModelInspection();
+            }
+        }
+
+        private void RetireAutomaticDownloadHandoff()
+        {
+            _automaticDownloadSubmission = null;
+            _modelDownloadCoordinator.RetireAutomaticHandoff();
         }
 
         // Task 5 delivers only a safe diagnostic for rejected native drops.

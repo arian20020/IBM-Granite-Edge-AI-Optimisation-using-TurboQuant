@@ -247,6 +247,12 @@ namespace GraniteEdgeAI.Features.ModelImport
 
         protected override void OnNavigatedFrom(NavigationEventArgs e)
         {
+            RetireAutomaticDownloadHandoff();
+            _modelDownloadCoordinator.VerifiedModelAvailable -= ModelDownloadCoordinator_VerifiedModelAvailable;
+            if (_ownsModelDownloadCoordinator)
+            {
+                _modelDownloadCoordinator.Dispose();
+            }
             RetireSelectionForNavigation();
             CancelActiveScan();
             base.OnNavigatedFrom(e);
