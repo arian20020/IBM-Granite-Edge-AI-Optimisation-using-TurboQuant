@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Security.Cryptography;
 using Windows.Storage;
 
 namespace GraniteEdgeAI.Features.ModelImport.ModelDownload;
@@ -217,6 +218,63 @@ internal sealed class AppModelLibrary
     {
         cancellationToken.ThrowIfCancellationRequested();
         return Task.FromResult(File.Exists(FinalPath(entry)));
+    }
+
+    internal async Task<VerifiedDownloadedModel?> GetVerifiedExistingAsync(
+        ModelDownloadCatalogEntry entry,
+        CancellationToken cancellationToken)
+    {
+        string finalPath = FinalPath(entry);
+        if (!File.Exists(finalPath))
+        {
+            return null;
+        }
+
+        if (new FileInfo(finalPath).Length != entry.ExpectedByteLength)
+        {
+            File.Delete(finalPath);
+            return null;
+        }
+
+        byte[] actual;
+        await using (var stream = new FileStream(
+            finalPath,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.Read,
+            bufferSize: 128 * 1024,
+            FileOptions.Asynchronous | FileOptions.SequentialScan))
+        {
+            actual = await SHA256.HashDataAsync(stream, cancellationToken);
+        }
+
+        byte[] expected = Convert.FromHexString(entry.ExpectedSha256);
+        if (!CryptographicOperations.FixedTimeEquals(actual, expected))
+        {
+            File.Delete(finalPath);
+            return null;
+        }
+
+        return new VerifiedDownloadedModel(
+            finalPath,
+            entry.FileName,
+            entry.Id,
+            entry.ExpectedByteLength,
+            entry.ExpectedSha256);
+    }
+
+    internal async Task<byte[]> ComputePartialSha256Async(
+        ModelDownloadCatalogEntry entry,
+        CancellationToken cancellationToken)
+    {
+        await using var stream = new FileStream(
+            PartialPath(entry),
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.Read,
+            bufferSize: 128 * 1024,
+            FileOptions.Asynchronous | FileOptions.SequentialScan);
+        return await SHA256.HashDataAsync(stream, cancellationToken);
     }
 
     internal Task<VerifiedDownloadedModel> PublishAsync(
