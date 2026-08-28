@@ -40,6 +40,7 @@ public static class GgufQuantizerPackageVerifier
 {
     private const int MaximumManifestBytes = 262_144;
     private const int MaximumManifestFiles = 256;
+    private const int MaximumPackageDirectories = 256;
     private const string PackageId = "granite-edge-ai-llama-quantize-x64";
     private const string SourceCommit = "3f7c29d318e317b63f54c558bc69803963d7d88c";
     private static readonly string[] AllowedTokens =
@@ -122,7 +123,11 @@ public static class GgufQuantizerPackageVerifier
             {
                 throw new InvalidDataException("The quantizer file table is invalid.");
             }
-            string path = RequireChild(root, Path.Combine(root, file.RelativePath.Replace('/', Path.DirectorySeparatorChar)));
+            string path = RequireRegularPackageMember(
+                root,
+                Path.Combine(
+                    root,
+                    file.RelativePath.Replace('/', Path.DirectorySeparatorChar)));
             FileInfo info = new(path);
             if (!info.Exists || info.Length != file.Length || IsReparse(info))
             {
@@ -136,8 +141,7 @@ public static class GgufQuantizerPackageVerifier
             }
         }
 
-        string[] actualFiles = Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories)
-            .Select(path => Path.GetRelativePath(root, path).Replace('\\', '/'))
+        string[] actualFiles = EnumeratePackageFiles(root)
             .Where(path => !string.Equals(path, "llama-quantize.package.manifest.json", StringComparison.Ordinal))
             .ToArray();
         if (actualFiles.Any(path => !listedExact.Contains(path)) ||
@@ -146,7 +150,9 @@ public static class GgufQuantizerPackageVerifier
             throw new InvalidDataException("The quantizer stage has missing or unlisted files.");
         }
 
-        string executable = RequireChild(root, Path.Combine(root, "bin", "llama-quantize.exe"));
+        string executable = RequireRegularPackageMember(
+            root,
+            Path.Combine(root, "bin", "llama-quantize.exe"));
         if (!listedExact.Contains("bin/llama-quantize.exe"))
         {
             throw new InvalidDataException("The quantizer executable is not manifested.");
@@ -176,6 +182,93 @@ public static class GgufQuantizerPackageVerifier
             throw new InvalidDataException("A package path escaped the verified stage.");
         }
         return full;
+    }
+
+    private static string RequireRegularPackageMember(string root, string path)
+    {
+        string full = RequireChild(root, path);
+        for (DirectoryInfo? directory = new FileInfo(full).Directory;
+             directory is not null;
+             directory = directory.Parent)
+        {
+            if (!directory.Exists || IsReparse(directory))
+            {
+                throw new InvalidDataException(
+                    "A quantizer package directory is unavailable or redirected.");
+            }
+
+            if (string.Equals(
+                    Path.TrimEndingDirectorySeparator(directory.FullName),
+                    root,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return full;
+            }
+        }
+
+        throw new InvalidDataException(
+            "A quantizer package member escaped the verified stage.");
+    }
+
+    private static string[] EnumeratePackageFiles(string root)
+    {
+        try
+        {
+            var files = new List<string>(MaximumManifestFiles + 1);
+            var pending = new Stack<DirectoryInfo>();
+            pending.Push(new DirectoryInfo(root));
+            int directoryCount = 0;
+
+            while (pending.TryPop(out DirectoryInfo? directory))
+            {
+                foreach (FileSystemInfo entry in directory.EnumerateFileSystemInfos())
+                {
+                    if (IsReparse(entry))
+                    {
+                        throw new InvalidDataException(
+                            "A quantizer package entry is redirected.");
+                    }
+
+                    if (entry is DirectoryInfo child)
+                    {
+                        directoryCount = checked(directoryCount + 1);
+                        if (directoryCount > MaximumPackageDirectories)
+                        {
+                            throw new InvalidDataException(
+                                "The quantizer package directory count exceeds the limit.");
+                        }
+
+                        pending.Push(child);
+                        continue;
+                    }
+
+                    if (entry is not FileInfo)
+                    {
+                        throw new InvalidDataException(
+                            "The quantizer package contains an unsupported entry.");
+                    }
+
+                    files.Add(Path.GetRelativePath(root, entry.FullName).Replace('\\', '/'));
+                    if (files.Count > MaximumManifestFiles + 1)
+                    {
+                        throw new InvalidDataException(
+                            "The quantizer package file count exceeds the limit.");
+                    }
+                }
+            }
+
+            return files.ToArray();
+        }
+        catch (InvalidDataException)
+        {
+            throw;
+        }
+        catch (Exception exception) when (
+            exception is IOException or UnauthorizedAccessException)
+        {
+            throw new InvalidDataException(
+                "The quantizer package inventory is unavailable.");
+        }
     }
 
     private static void RequireRegularDirectory(string path)

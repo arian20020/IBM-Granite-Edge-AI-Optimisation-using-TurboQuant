@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using System.Diagnostics;
 using System.Text.Json;
 using GraniteEdgeAI.GgufQuantization.Contracts;
 using GraniteEdgeAI.GgufQuantization.FakeQuantizer;
@@ -187,6 +188,38 @@ public sealed class GgufQuantizationWorkerClientTests
     }
 
     [TestMethod]
+    public void PackageVerifierRejectsReparsePointInIntermediatePackageDirectory()
+    {
+        using var fixture = new QuantizerFixture();
+        fixture.ReplaceBinWithDirectorySymbolicLink();
+
+        _ = Assert.ThrowsExactly<InvalidDataException>(() =>
+            GgufQuantizerPackageVerifier.Verify(
+                fixture.Stage,
+                fixture.ManifestSha256));
+    }
+
+    [TestMethod]
+    public async Task PackagingScriptRejectsReparsePointInIntermediatePackageDirectory()
+    {
+        using var fixture = new QuantizerFixture();
+        fixture.ReplaceBinWithDirectorySymbolicLink();
+
+        PackagingVerifierResult result = await RunPackagingVerifierAsync(
+            fixture.Stage,
+            fixture.ManifestSha256);
+
+        Assert.AreNotEqual(
+            0,
+            result.ExitCode,
+            "The production packaging verifier accepted a redirected package directory.");
+        StringAssert.Contains(
+            result.StandardError,
+            "quantizer_package_directory_redirected",
+            "The packaging verifier did not reject the directory before traversal.");
+    }
+
+    [TestMethod]
     public void PackageVerifierRejectsOversizedManifestBeforeReadingItsBytes()
     {
         using var fixture = new QuantizerFixture();
@@ -217,6 +250,103 @@ public sealed class GgufQuantizationWorkerClientTests
         using FileStream stream = File.OpenRead(path);
         return Convert.ToHexString(SHA256.HashData(stream)).ToLowerInvariant();
     }
+
+    private static async Task<PackagingVerifierResult> RunPackagingVerifierAsync(
+        string stage,
+        string manifestSha256)
+    {
+        string script = FindRepositoryFile(
+            "scripts",
+            "gguf-quantization",
+            "Test-GgufQuantizerPackage.ps1");
+        var start = new ProcessStartInfo
+        {
+            FileName = Path.Combine(
+                Environment.SystemDirectory,
+                "WindowsPowerShell",
+                "v1.0",
+                "powershell.exe"),
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+        };
+        foreach (string argument in new[]
+        {
+            "-NoLogo",
+            "-NoProfile",
+            "-NonInteractive",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            script,
+            "-StageDirectory",
+            stage,
+            "-ExpectedManifestSha256",
+            manifestSha256,
+        })
+        {
+            start.ArgumentList.Add(argument);
+        }
+        start.Environment.Clear();
+        foreach (string key in new[] { "SystemRoot", "WINDIR", "TEMP", "TMP" })
+        {
+            string? value = Environment.GetEnvironmentVariable(key);
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                start.Environment[key] = value;
+            }
+        }
+        start.Environment["DOTNET_EnableDiagnostics"] = "0";
+        start.Environment["DOTNET_EnableDiagnostics_IPC"] = "0";
+        start.Environment["DOTNET_EnableDiagnostics_Debugger"] = "0";
+        start.Environment["DOTNET_EnableDiagnostics_Profiler"] = "0";
+
+        using Process process = Process.Start(start)
+            ?? throw new InvalidOperationException("The packaging verifier did not start.");
+        Task<string> output = process.StandardOutput.ReadToEndAsync();
+        Task<string> error = process.StandardError.ReadToEndAsync();
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+        try
+        {
+            await Task.WhenAll(
+                process.WaitForExitAsync(timeout.Token),
+                output,
+                error);
+        }
+        catch (OperationCanceledException)
+        {
+            process.Kill(entireProcessTree: true);
+            throw;
+        }
+
+        return new PackagingVerifierResult(
+            process.ExitCode,
+            await output,
+            await error);
+    }
+
+    private static string FindRepositoryFile(params string[] relativeSegments)
+    {
+        for (DirectoryInfo? directory = new(AppContext.BaseDirectory);
+             directory is not null;
+             directory = directory.Parent)
+        {
+            string candidate = Path.Combine(
+                new[] { directory.FullName }.Concat(relativeSegments).ToArray());
+            if (File.Exists(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        throw new FileNotFoundException("The repository packaging verifier is unavailable.");
+    }
+
+    private sealed record PackagingVerifierResult(
+        int ExitCode,
+        string StandardOutput,
+        string StandardError);
 
     private sealed class QuantizerFixture : IDisposable
     {
@@ -284,6 +414,14 @@ public sealed class GgufQuantizationWorkerClientTests
             string link = Path.Combine(_root, "linked-parent");
             Directory.CreateSymbolicLink(link, _root);
             return Path.Combine(link, "stage");
+        }
+
+        internal void ReplaceBinWithDirectorySymbolicLink()
+        {
+            string bin = Path.Combine(Stage, "bin");
+            string target = Path.Combine(_root, "external-bin");
+            Directory.Move(bin, target);
+            Directory.CreateSymbolicLink(bin, target);
         }
 
         public void Dispose()
