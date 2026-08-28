@@ -136,6 +136,7 @@ public sealed class ModelDownloadCardTests
         Assert.IsFalse(status.Contains(@"C:\", StringComparison.Ordinal));
         Assert.IsFalse(status.Contains("private", StringComparison.OrdinalIgnoreCase));
         Assert.IsFalse(((Button)card.FindName("DownloadModelButton")).IsEnabled);
+        Assert.IsFalse(await card.TryStartDownloadAsync());
     }
 
     [UITestMethod]

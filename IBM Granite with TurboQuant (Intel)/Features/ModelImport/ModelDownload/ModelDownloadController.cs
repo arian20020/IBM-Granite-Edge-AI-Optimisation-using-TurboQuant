@@ -127,6 +127,8 @@ internal sealed class ModelDownloadController
             result = ModelDownloadResult.Failed(
                 ModelDownloadFailure.PublicationFailure);
         }
+        result ??= ModelDownloadResult.Failed(
+            ModelDownloadFailure.PublicationFailure);
 
         ModelDownloadViewState completed;
         lock (_gate)
@@ -137,7 +139,8 @@ internal sealed class ModelDownloadController
                 return true;
             }
 
-            if (_cancelledGeneration == generation)
+            if (_cancelledGeneration == generation
+                && result.Kind != ModelDownloadResultKind.Failed)
             {
                 result = ModelDownloadResult.Cancelled();
             }

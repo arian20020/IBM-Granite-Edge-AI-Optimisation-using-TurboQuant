@@ -56,7 +56,9 @@ namespace GraniteEdgeAI.Features.ModelImport.ModelDownload
 
         internal Task<bool> TryStartDownloadAsync()
         {
-            if (_offer is null || _controller is null)
+            if (_offer is null
+                || _controller is null
+                || !DownloadModelButton.IsEnabled)
             {
                 return Task.FromResult(false);
             }
@@ -105,13 +107,28 @@ namespace GraniteEdgeAI.Features.ModelImport.ModelDownload
             object? sender,
             ModelDownloadViewState state)
         {
+            if (sender is not ModelDownloadController controller
+                || !ReferenceEquals(controller, _controller))
+            {
+                return;
+            }
             DispatcherQueue dispatcher = DispatcherQueue;
             if (!dispatcher.HasThreadAccess)
             {
-                dispatcher.TryEnqueue(() => ApplyDownloadState(state));
+                dispatcher.TryEnqueue(() =>
+                {
+                    if (ReferenceEquals(controller, _controller)
+                        && Equals(controller.State, state))
+                    {
+                        ApplyDownloadState(state);
+                    }
+                });
                 return;
             }
-            ApplyDownloadState(state);
+            if (Equals(controller.State, state))
+            {
+                ApplyDownloadState(state);
+            }
         }
 
         private void ApplyDownloadState(ModelDownloadViewState state)

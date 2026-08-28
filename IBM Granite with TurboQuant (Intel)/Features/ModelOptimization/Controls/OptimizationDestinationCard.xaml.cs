@@ -67,6 +67,7 @@ public sealed partial class OptimizationDestinationCard : UserControl
                 StringComparison.Ordinal))
         {
             DestinationCore.SetActionEnabled(OptimizationCommand.Save, false);
+            ResetExportBinding();
             return false;
         }
 
@@ -77,8 +78,14 @@ public sealed partial class OptimizationDestinationCard : UserControl
         return true;
     }
 
-    internal Task<bool> TryStartExportAsync() =>
-        _exportController?.TryStartAsync() ?? Task.FromResult(false);
+    internal Task<bool> TryStartExportAsync()
+    {
+        if (!DestinationCore.IsActionEnabled(OptimizationCommand.Save))
+        {
+            return Task.FromResult(false);
+        }
+        return _exportController?.TryStartAsync() ?? Task.FromResult(false);
+    }
 
     internal bool TryCancelExport() =>
         _exportController?.TryCancel() ?? false;
@@ -107,19 +114,35 @@ public sealed partial class OptimizationDestinationCard : UserControl
         object? sender,
         OptimizationExportViewState state)
     {
+        if (sender is not OptimizationExportController controller
+            || !ReferenceEquals(controller, _exportController))
+        {
+            return;
+        }
         DispatcherQueue dispatcher = DispatcherQueue;
         if (!dispatcher.HasThreadAccess)
         {
-            dispatcher.TryEnqueue(() => ApplyExportState(state));
+            dispatcher.TryEnqueue(() =>
+            {
+                if (ReferenceEquals(controller, _exportController)
+                    && Equals(controller.State, state))
+                {
+                    ApplyExportState(state);
+                }
+            });
             return;
         }
-        ApplyExportState(state);
+        if (Equals(controller.State, state))
+        {
+            ApplyExportState(state);
+        }
     }
 
     private void ApplyExportState(OptimizationExportViewState state)
     {
         bool running = state.Kind is OptimizationExportStateKind.Running
             or OptimizationExportStateKind.Cancelling;
+        DestinationCore.SetAllActionsEnabled(!running);
         DestinationCore.SetActionEnabled(
             OptimizationCommand.Save,
             state.Kind == OptimizationExportStateKind.Ready);

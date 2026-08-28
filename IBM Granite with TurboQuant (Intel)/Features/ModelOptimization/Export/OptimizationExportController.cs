@@ -139,6 +139,8 @@ internal sealed class OptimizationExportController
             result = OptimizationExportResult.Failed(
                 OptimizationExportFailure.PublicationFailure);
         }
+        result ??= OptimizationExportResult.Failed(
+            OptimizationExportFailure.PublicationFailure);
 
         OptimizationExportViewState completed;
         lock (_gate)
@@ -148,7 +150,8 @@ internal sealed class OptimizationExportController
                 cancellation.Dispose();
                 return true;
             }
-            if (_cancelledGeneration == generation)
+            if (_cancelledGeneration == generation
+                && result.Kind != OptimizationExportResultKind.Failed)
             {
                 result = OptimizationExportResult.Cancelled();
             }

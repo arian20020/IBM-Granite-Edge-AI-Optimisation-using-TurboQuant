@@ -26,6 +26,14 @@ public sealed class ModelDownloadControllerTests
             selection, Digest, 0, "publication-1"));
         Assert.ThrowsExactly<ArgumentException>(() => new CompletedModelDownload(
             selection, Digest, 1024, @"C:\private\publication"));
+        Assert.ThrowsExactly<ArgumentException>(() => new CompletedModelDownload(
+            new ModelSelectionInput(
+                @"C:\private\granite.gguf",
+                @"C:\Users\person\granite.gguf",
+                isFolder: false),
+            Digest,
+            1024,
+            "publication-1"));
     }
 
     [TestMethod]
@@ -131,6 +139,33 @@ public sealed class ModelDownloadControllerTests
     }
 
     [TestMethod]
+    public async Task NullServiceResultFailsClosedAndDoesNotRemainActive()
+    {
+        var controller = new ModelDownloadController(new NullDownloadService());
+
+        Assert.IsTrue(await controller.TryStartAsync(Offer(), 50));
+
+        Assert.AreEqual(ModelDownloadStateKind.Failed, controller.State.Kind);
+        Assert.AreEqual(ModelDownloadFailure.PublicationFailure, controller.State.Failure);
+        Assert.IsTrue(await controller.TryRetryAsync());
+    }
+
+    [TestMethod]
+    public async Task CancellationDoesNotMaskCleanupFailure()
+    {
+        var service = new ControlledDownloadService(ignoreCancellation: true);
+        var controller = new ModelDownloadController(service);
+        Task<bool> operation = controller.TryStartAsync(Offer(), 50);
+
+        Assert.IsTrue(controller.TryCancel());
+        service.Complete(ModelDownloadResult.Failed(ModelDownloadFailure.CleanupFailure));
+
+        Assert.IsTrue(await operation);
+        Assert.AreEqual(ModelDownloadStateKind.Failed, controller.State.Kind);
+        Assert.AreEqual(ModelDownloadFailure.CleanupFailure, controller.State.Failure);
+    }
+
+    [TestMethod]
     public async Task EveryServiceFailureRemainsBoundedAndRetryable()
     {
         ModelDownloadFailure[] failures =
@@ -224,5 +259,14 @@ public sealed class ModelDownloadControllerTests
             IProgress<ModelDownloadProgress> progress,
             CancellationToken cancellationToken) =>
             throw new InvalidOperationException(message);
+    }
+
+    private sealed class NullDownloadService : IRecommendedModelDownloadService
+    {
+        public Task<ModelDownloadResult> DownloadAsync(
+            RecommendedModelDownloadRequest request,
+            IProgress<ModelDownloadProgress> progress,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<ModelDownloadResult>(null!);
     }
 }

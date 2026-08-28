@@ -129,6 +129,36 @@ public sealed class OptimizationExportControllerTests
     }
 
     [TestMethod]
+    public async Task NullServiceResultFailsClosedAndDoesNotRemainActive()
+    {
+        var controller = new OptimizationExportController(new NullExportService());
+        controller.Bind(Target());
+
+        Assert.IsTrue(await controller.TryStartAsync());
+
+        Assert.AreEqual(OptimizationExportStateKind.Failed, controller.State.Kind);
+        Assert.AreEqual(OptimizationExportFailure.PublicationFailure, controller.State.Failure);
+        Assert.IsTrue(await controller.TryRetryAsync());
+    }
+
+    [TestMethod]
+    public async Task CancellationDoesNotMaskCleanupFailure()
+    {
+        var service = new ControlledExportService(ignoreCancellation: true);
+        var controller = new OptimizationExportController(service);
+        controller.Bind(Target());
+        Task<bool> operation = controller.TryStartAsync();
+
+        Assert.IsTrue(controller.TryCancel());
+        service.Complete(OptimizationExportResult.Failed(
+            OptimizationExportFailure.CleanupFailure));
+
+        Assert.IsTrue(await operation);
+        Assert.AreEqual(OptimizationExportStateKind.Failed, controller.State.Kind);
+        Assert.AreEqual(OptimizationExportFailure.CleanupFailure, controller.State.Failure);
+    }
+
+    [TestMethod]
     public async Task EveryServiceFailureRemainsBoundedAndRetryable()
     {
         OptimizationExportFailure[] failures =
@@ -239,5 +269,14 @@ public sealed class OptimizationExportControllerTests
             IProgress<OptimizationExportProgress> progress,
             CancellationToken cancellationToken) =>
             throw new InvalidOperationException(message);
+    }
+
+    private sealed class NullExportService : IOptimizationExportService
+    {
+        public Task<OptimizationExportResult> ExportAsync(
+            VerifiedPersistentExportTarget target,
+            IProgress<OptimizationExportProgress> progress,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<OptimizationExportResult>(null!);
     }
 }

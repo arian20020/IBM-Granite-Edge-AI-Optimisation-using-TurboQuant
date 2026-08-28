@@ -84,6 +84,9 @@ internal sealed record CompletedModelDownload
         string publicationId)
     {
         Selection = selection ?? throw new ArgumentNullException(nameof(selection));
+        _ = ModelDownloadContractGuard.RequireDisplayText(
+            selection.DisplayName,
+            nameof(selection));
         Sha256 = ModelDownloadContractGuard.RequireSha256(sha256, nameof(sha256));
         if (lengthBytes == 0)
         {

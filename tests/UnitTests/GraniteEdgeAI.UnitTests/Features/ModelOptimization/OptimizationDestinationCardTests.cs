@@ -82,6 +82,7 @@ public sealed class OptimizationDestinationCardTests
 
         Task<bool> first = card.TryStartExportAsync();
         Assert.IsFalse(await card.TryStartExportAsync());
+        Assert.IsFalse(card.IsActionEnabled(OptimizationCommand.Chat));
         service.Complete(OptimizationExportResult.Succeeded(
             new OptimizationExportReceipt(Manifest, 4096)));
 
@@ -92,6 +93,7 @@ public sealed class OptimizationDestinationCardTests
         string status = ((TextBlock)card.FindName("ExportStatusText")).Text;
         Assert.IsFalse(status.Contains(@"C:\", StringComparison.Ordinal));
         Assert.IsFalse(card.IsActionEnabled(OptimizationCommand.Save));
+        Assert.IsTrue(card.IsActionEnabled(OptimizationCommand.Chat));
     }
 
     [UITestMethod]
@@ -109,6 +111,25 @@ public sealed class OptimizationDestinationCardTests
         Assert.IsFalse(card.IsActionEnabled(OptimizationCommand.Save));
         Assert.IsFalse(card.TryRequestAction(OptimizationCommand.Save));
         Assert.AreEqual(OptimizationExportStateKind.Unbound, card.ExportState.Kind);
+    }
+
+    [UITestMethod]
+    public async Task RejectedReplacementTargetCannotReuseEarlierExportCommand()
+    {
+        OptimizationDestinationCard card = new();
+        OptimizationPresentationState presentation = PersistentPresentation();
+        card.Apply(presentation);
+        Assert.IsTrue(card.BindVerifiedExport(
+            Target(presentation.OptimizationPlanId),
+            new ImmediateExportService()));
+
+        Assert.IsFalse(card.BindVerifiedExport(
+            Target(Guid.NewGuid()),
+            new ImmediateExportService()));
+
+        Assert.IsFalse(card.IsActionEnabled(OptimizationCommand.Save));
+        Assert.AreEqual(OptimizationExportStateKind.Unbound, card.ExportState.Kind);
+        Assert.IsFalse(await card.TryStartExportAsync());
     }
 
     [UITestMethod]
