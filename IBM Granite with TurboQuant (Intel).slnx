@@ -78,6 +78,9 @@
 
   <Folder Name="/tests/IntegrationTests/">
     <File Path="tests/IntegrationTests/README.md" />
+    <Project Path="tests/IntegrationTests/GraniteEdgeAI.CrossFeature.IntegrationTests/GraniteEdgeAI.CrossFeature.IntegrationTests.csproj">
+      <Platform Solution="*|x64" Project="x64" />
+    </Project>
     <Project Path="tests/IntegrationTests/GraniteEdgeAI.GgufRuntime.WorkerProcess.Tests/GraniteEdgeAI.GgufRuntime.WorkerProcess.Tests.csproj">
       <Platform Solution="*|x64" Project="AnyCPU" />
     </Project>
