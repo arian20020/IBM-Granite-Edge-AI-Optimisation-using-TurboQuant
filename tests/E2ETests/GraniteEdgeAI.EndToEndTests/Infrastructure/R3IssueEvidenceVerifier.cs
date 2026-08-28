@@ -17,11 +17,14 @@ internal sealed record R3ProductionReachability(
     string BehavioralRegressionTest,
     long ObservedRegistrations);
 
+internal sealed record R3EvidenceBlob(string Path, string Sha256, long Bytes);
+
 internal sealed record R3IssueEvidence(
     string IssueId,
     bool ProductDefectRemains,
     string EvidenceSubjectCommit,
     string EvidenceSubjectTree,
+    R3EvidenceBlob EvidenceBlob,
     IReadOnlyList<R3ExecutableEvidence> Commands,
     R3ProductionReachability? ProductionReachability);
 
@@ -62,6 +65,7 @@ internal static class R3IssueEvidenceVerifier
             "productDefectRemains",
             "evidenceSubjectCommit",
             "evidenceSubjectTree",
+            "evidenceBlob",
             "commands",
             "productionReachability");
         string issueId = JsonContract.RequiredString(issue, "issueId");
@@ -75,6 +79,7 @@ internal static class R3IssueEvidenceVerifier
         string subjectTree = JsonContract.RequiredString(issue, "evidenceSubjectTree");
         JsonContract.RequireGitObject(subjectCommit, "evidenceSubjectCommit");
         JsonContract.RequireGitObject(subjectTree, "evidenceSubjectTree");
+        R3EvidenceBlob evidenceBlob = ParseEvidenceBlob(RequiredObject(issue, "evidenceBlob"));
 
         JsonElement commandsElement = RequiredArray(issue, "commands");
         List<R3ExecutableEvidence> commands = commandsElement.EnumerateArray().Select(ParseCommand).ToList();
@@ -102,7 +107,21 @@ internal static class R3IssueEvidenceVerifier
             reachability = ParseReachability(optionalReachability, issueId);
         }
 
-        return new R3IssueEvidence(issueId, productDefectRemains, subjectCommit, subjectTree, commands, reachability);
+        return new R3IssueEvidence(issueId, productDefectRemains, subjectCommit, subjectTree, evidenceBlob, commands, reachability);
+    }
+
+    private static R3EvidenceBlob ParseEvidenceBlob(JsonElement value)
+    {
+        JsonContract.RequireOnly(value, "path", "sha256", "bytes");
+        string path = RequireRepositoryPath(value, "path");
+        string sha256 = JsonContract.RequiredString(value, "sha256");
+        JsonContract.RequireSha256(sha256, "sha256");
+        long bytes = JsonContract.RequiredInt64(value, "bytes");
+        if (bytes <= 0 || bytes > 1024 * 1024)
+        {
+            throw new InvalidDataException("R3 evidence blob violates its closed byte bound.");
+        }
+        return new R3EvidenceBlob(path, sha256, bytes);
     }
 
     private static R3ExecutableEvidence ParseCommand(JsonElement command)
@@ -166,6 +185,11 @@ internal static class R3IssueEvidenceVerifier
         root.TryGetProperty(name, out JsonElement value) && value.ValueKind == JsonValueKind.Array
             ? value
             : throw new InvalidDataException($"Required array property '{name}' is missing.");
+
+    private static JsonElement RequiredObject(JsonElement root, string name) =>
+        root.TryGetProperty(name, out JsonElement value) && value.ValueKind == JsonValueKind.Object
+            ? value
+            : throw new InvalidDataException($"Required object property '{name}' is missing.");
 
     private static bool RequiredBoolean(JsonElement root, string name) =>
         root.TryGetProperty(name, out JsonElement value) && value.ValueKind is JsonValueKind.True or JsonValueKind.False

@@ -27,6 +27,10 @@ $candidateCommit = (& git -C $repositoryRoot rev-parse HEAD).Trim()
 $candidateTree = (& git -C $repositoryRoot rev-parse 'HEAD^{tree}').Trim()
 $env:GRANITE_E2E_CANDIDATE_COMMIT = $candidateCommit
 $env:GRANITE_E2E_CANDIDATE_TREE = $candidateTree
+$env:GRANITE_E2E_CANDIDATE_REMOTE = $IntegrationCandidateRemote
+$env:GRANITE_E2E_CANDIDATE_REMOTE_REF = $IntegrationCandidateRemoteRef
+$env:GRANITE_E2E_R3_CLOSURE_MANIFEST = (Resolve-Path -LiteralPath $R3ClosureManifest).Path
+$env:GRANITE_E2E_R3_CLOSURE_RELATIVE_PATH = $R3ClosureRelativePath
 
 $env:GRANITE_E2E_CANDIDATE_MANIFEST = (Resolve-Path -LiteralPath $CandidateManifest).Path
 $candidateRecord = Get-Content -Raw -LiteralPath $env:GRANITE_E2E_CANDIDATE_MANIFEST | ConvertFrom-Json
@@ -38,7 +42,7 @@ if ($H1Manifest) { $env:GRANITE_E2E_H1_MANIFEST = (Resolve-Path -LiteralPath $H1
 if ($M1Manifest) { $env:GRANITE_E2E_M1_MANIFEST = (Resolve-Path -LiteralPath $M1Manifest).Path }
 if ($Q1Manifest) { $env:GRANITE_E2E_Q1_MANIFEST = (Resolve-Path -LiteralPath $Q1Manifest).Path }
 
-$resultRoot = Join-Path $repositoryRoot 'TestResults\Audit-20260828\E1'
+$resultRoot = Join-Path $repositoryRoot 'TestResults\Audit-20260829\E1'
 New-Item -ItemType Directory -Force -Path $resultRoot | Out-Null
 $env:GRANITE_E2E_RESULTS_ROOT = $resultRoot
 $project = Join-Path $projectRoot 'GraniteEdgeAI.EndToEndTests.csproj'
@@ -60,7 +64,7 @@ $testBuildStartedUtc = [DateTime]::UtcNow
 & $dotnet build $project --configuration Debug --arch x64 --disable-build-servers --no-incremental -m:1
 if ($LASTEXITCODE -ne 0) { throw "E1 build failed with exit code $LASTEXITCODE." }
 
-$assembly = Get-ChildItem (Join-Path $projectRoot 'bin\Debug') -Filter 'GraniteEdgeAI.EndToEndTests.dll' -Recurse |
+$assembly = Get-ChildItem (Join-Path $projectRoot 'bin') -Filter 'GraniteEdgeAI.EndToEndTests.dll' -Recurse |
     Where-Object {
         $_.FullName -match '[\\/]win-x64[\\/]' -and
         $_.LastWriteTimeUtc -ge $testBuildStartedUtc.AddSeconds(-2)
@@ -81,10 +85,10 @@ $discoveryExitCode = $LASTEXITCODE
 $discoveryOutput | Write-Output
 if ($discoveryExitCode -ne 0) { throw 'E1 test discovery failed.' }
 $discoveredTests = @($discoveryOutput | Where-Object {
-    $_ -match '^\s+GraniteEdgeAI\.EndToEndTests\.'
+    $_ -match '^\s{4,}\S' -and $_ -notmatch '^\s*(The following Tests|Informational|Starting test discovery|Microsoft|Copyright)'
 })
-if ($discoveredTests.Count -lt 35) {
-    throw "E1 test discovery returned only $($discoveredTests.Count) tests; expected at least 35."
+if ($discoveredTests.Count -lt 67) {
+    throw "E1 test discovery returned only $($discoveredTests.Count) tests; expected at least 67."
 }
 if ($Stage -eq 'List') { return }
 
