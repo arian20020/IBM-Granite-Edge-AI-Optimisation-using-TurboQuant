@@ -35,4 +35,8 @@
     <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelInspection\Contracts\*.cs"
              Link="Production\ModelInspection\Contracts\%(Filename)%(Extension)" />
   </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\shared\GraniteEdgeAI.ModelHardwareCompatibility.Core\GraniteEdgeAI.ModelHardwareCompatibility.Core.csproj" />
+  </ItemGroup>
 </Project>
