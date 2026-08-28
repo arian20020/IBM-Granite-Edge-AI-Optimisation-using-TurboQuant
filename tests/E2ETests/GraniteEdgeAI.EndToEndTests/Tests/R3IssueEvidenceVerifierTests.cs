@@ -95,6 +95,12 @@ public sealed class R3IssueEvidenceVerifierTests
                 ["productDefectRemains"] = false,
                 ["evidenceSubjectCommit"] = new string('a', 40),
                 ["evidenceSubjectTree"] = new string('b', 40),
+                ["evidenceBlob"] = new Dictionary<string, object?>
+                {
+                    ["path"] = "docs/evidence.json",
+                    ["sha256"] = new string('c', 64),
+                    ["bytes"] = 1,
+                },
                 ["commands"] = new List<Dictionary<string, object?>>
                 {
                     new()

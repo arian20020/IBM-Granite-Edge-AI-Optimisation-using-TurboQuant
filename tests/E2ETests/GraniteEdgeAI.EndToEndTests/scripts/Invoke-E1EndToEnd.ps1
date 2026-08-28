@@ -3,6 +3,10 @@ param(
     [string] $CandidateManifest,
     [string] $IntegrationCandidateCommit,
     [string] $IntegrationCandidateTree,
+    [string] $IntegrationCandidateRemote = 'origin',
+    [string] $IntegrationCandidateRemoteRef,
+    [string] $R3ClosureManifest,
+    [string] $R3ClosureRelativePath,
     [ValidateSet('List', 'Deterministic', 'Smoke', 'Failure', 'Acceptance', 'Restart', 'RealModel', 'All')] [string] $Stage = 'List',
     [string] $AssetManifest,
     [string] $H1Manifest,
@@ -54,8 +58,9 @@ $candidateRecord = $null
 $candidateCommit = $null
 $candidateTree = $null
 if ($nativeStage) {
-if (-not $CandidateManifest -or -not $IntegrationCandidateCommit -or -not $IntegrationCandidateTree) {
-    throw 'Native List/campaign stages require the exact candidate manifest and C0 integration commit/tree.'
+if (-not $CandidateManifest -or -not $IntegrationCandidateCommit -or -not $IntegrationCandidateTree -or
+    -not $IntegrationCandidateRemoteRef -or -not $R3ClosureManifest -or -not $R3ClosureRelativePath) {
+    throw 'Native List/campaign stages require the exact candidate manifest, pushed C0 identity, and committed R3 closure manifest.'
 }
 $gitIdentity = '^[0-9a-f]{40}$'
 if ($IntegrationCandidateCommit -notmatch $gitIdentity -or $IntegrationCandidateTree -notmatch $gitIdentity) {
@@ -68,6 +73,10 @@ if ($IntegrationCandidateCommit -eq $previousC0Tip) {
 if ($LASTEXITCODE -ne 0) { throw 'Integrated candidate commit is unavailable in the local Git object database.' }
 $actualCandidateTree = (& git -C $repositoryRoot rev-parse "$IntegrationCandidateCommit^{tree}").Trim()
 if ($actualCandidateTree -ne $IntegrationCandidateTree) { throw 'Integrated candidate tree does not match its commit.' }
+$remoteLine = @(& git -C $repositoryRoot ls-remote --exit-code $IntegrationCandidateRemote $IntegrationCandidateRemoteRef)
+if ($LASTEXITCODE -ne 0 -or $remoteLine.Count -ne 1 -or $remoteLine[0] -ne "$IntegrationCandidateCommit`t$IntegrationCandidateRemoteRef") {
+    throw 'Integrated candidate is not the exact pushed remote ref.'
+}
 foreach ($ancestor in @($requiredCommit, $previousC0Tip)) {
     & git -C $repositoryRoot merge-base --is-ancestor $ancestor $IntegrationCandidateCommit
     if ($LASTEXITCODE -ne 0) { throw "Integrated candidate does not descend from required ancestor $ancestor." }
@@ -77,7 +86,9 @@ if ($LASTEXITCODE -ne 0) { throw 'E1 branch does not descend from the exact inte
 $e1Delta = @(& git -C $repositoryRoot diff --name-only $IntegrationCandidateCommit HEAD)
 $outOfScopeDelta = @($e1Delta | Where-Object {
     $_ -notmatch '^tests/E2ETests/' -and
-    $_ -ne 'docs/audits/2026-08-28/E1-native-end-to-end-tests-r2.md'
+    $_ -ne 'docs/audits/2026-08-29/E1-native-end-to-end-tests-r3.md' -and
+    $_ -ne 'docs/superpowers/specs/2026-08-29-e1-r3-release-veto-design.md' -and
+    $_ -ne 'docs/superpowers/plans/2026-08-29-e1-r3-release-veto.md'
 })
 if ($outOfScopeDelta.Count -gt 0) {
     throw "E1 branch changes production/shared paths after the integrated candidate: $($outOfScopeDelta -join ', ')."
@@ -86,6 +97,10 @@ $candidateCommit = $IntegrationCandidateCommit
 $candidateTree = $IntegrationCandidateTree
 $env:GRANITE_E2E_CANDIDATE_COMMIT = $candidateCommit
 $env:GRANITE_E2E_CANDIDATE_TREE = $candidateTree
+$env:GRANITE_E2E_CANDIDATE_REMOTE = $IntegrationCandidateRemote
+$env:GRANITE_E2E_CANDIDATE_REMOTE_REF = $IntegrationCandidateRemoteRef
+$env:GRANITE_E2E_R3_CLOSURE_MANIFEST = (Resolve-Path -LiteralPath $R3ClosureManifest).Path
+$env:GRANITE_E2E_R3_CLOSURE_RELATIVE_PATH = $R3ClosureRelativePath
 
 $env:GRANITE_E2E_CANDIDATE_MANIFEST = (Resolve-Path -LiteralPath $CandidateManifest).Path
 $candidateRecord = Get-Content -Raw -LiteralPath $env:GRANITE_E2E_CANDIDATE_MANIFEST | ConvertFrom-Json
@@ -125,31 +140,17 @@ $env:GRANITE_E2E_HANDOFF_ROOT = (Resolve-Path -LiteralPath $HandoffRoot).Path
 $env:GRANITE_E2E_NATIVE_RECEIPT_ROOT = if (Test-Path -LiteralPath $NativeReceiptRoot) { (Resolve-Path -LiteralPath $NativeReceiptRoot).Path } else { $NativeReceiptRoot }
 }
 
-$resultRoot = Join-Path $repositoryRoot 'TestResults\Audit-20260828\E1'
+$resultRoot = Join-Path $repositoryRoot 'TestResults\Audit-20260829\E1'
 New-Item -ItemType Directory -Force -Path $resultRoot | Out-Null
 $env:GRANITE_E2E_RESULTS_ROOT = $resultRoot
 $project = Join-Path $projectRoot 'GraniteEdgeAI.EndToEndTests.csproj'
 $appProject = Join-Path $repositoryRoot 'IBM Granite with TurboQuant (Intel)\IBM Granite with TurboQuant (Intel).csproj'
-if ($nativeStage) {
-$appBuildStartedUtc = [DateTime]::UtcNow
-& $dotnet build $appProject --configuration Debug -p:Platform=x64 -p:GenerateAppxPackageOnBuild=false "-p:DotNetHostPath=$dotnet" --disable-build-servers --no-incremental -m:1
-if ($LASTEXITCODE -ne 0) { throw "Candidate app build failed with exit code $LASTEXITCODE." }
-$appxRecipe = Get-ChildItem (Join-Path $repositoryRoot 'IBM Granite with TurboQuant (Intel)\obj') -Filter '*.build.appxrecipe' -Recurse |
-    Where-Object {
-        $_.FullName -match '[\\/]x64[\\/]' -and
-        $_.Length -gt 0 -and
-        $_.LastWriteTimeUtc -ge $appBuildStartedUtc.AddSeconds(-2)
-    } |
-    Sort-Object LastWriteTimeUtc -Descending |
-    Select-Object -First 1
-if (-not $appxRecipe) { throw 'Blocked: the Debug x64 app build produced no non-empty .build.appxrecipe.' }
-}
 
 $testBuildStartedUtc = [DateTime]::UtcNow
 & $dotnet build $project --configuration Debug --arch x64 --disable-build-servers --no-incremental -m:1
 if ($LASTEXITCODE -ne 0) { throw "E1 build failed with exit code $LASTEXITCODE." }
 
-$assembly = Get-ChildItem (Join-Path $projectRoot 'bin\Debug') -Filter 'GraniteEdgeAI.EndToEndTests.dll' -Recurse |
+$assembly = Get-ChildItem (Join-Path $projectRoot 'bin') -Filter 'GraniteEdgeAI.EndToEndTests.dll' -Recurse |
     Where-Object {
         $_.FullName -match '[\\/]win-x64[\\/]' -and
         $_.LastWriteTimeUtc -ge $testBuildStartedUtc.AddSeconds(-2)
@@ -170,17 +171,12 @@ $discoveryExitCode = $LASTEXITCODE
 $discoveryOutput | Write-Output
 if ($discoveryExitCode -ne 0) { throw 'E1 test discovery failed.' }
 $discoveredTests = @($discoveryOutput | Where-Object {
-    $_ -match '^\s+GraniteEdgeAI\.EndToEndTests\.'
+    $_ -match '^\s{4,}\S' -and $_ -notmatch '^\s*(The following Tests|Informational|Starting test discovery|Microsoft|Copyright)'
 })
-if ($discoveredTests.Count -lt 35) {
-    throw "E1 test discovery returned only $($discoveredTests.Count) tests; expected at least 35."
+if ($discoveredTests.Count -lt 67) {
+    throw "E1 test discovery returned only $($discoveredTests.Count) tests; expected at least 67."
 }
 $runId = [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssfffZ')
-if ($Stage -eq 'List') {
-    [ordered]@{ stage = 'List'; discovered = $discoveredTests.Count; executed = 0; passed = 0; failed = 0; skipped = 0 } |
-        ConvertTo-Json | Set-Content -Encoding UTF8 -LiteralPath (Join-Path $resultRoot "E1-List-$runId.json")
-    return
-}
 
 $filters = @{
     Deterministic = '(TestCategory!=Preflight)&(TestCategory!=NativeSmoke)&(TestCategory!=NativeFailure)&(TestCategory!=NativeAcceptance)&(TestCategory!=NativeRestart)&(TestCategory!=NativeRealModel)'
@@ -239,6 +235,34 @@ $preflightArguments = @(
 )
 & $vstest.FullName @preflightArguments
 if ($LASTEXITCODE -ne 0) { throw 'Blocked: predecessor evidence/native-receipt preflight failed.' }
+
+$r3PreflightArguments = @(
+    $assembly.FullName,
+    '/Platform:x64',
+    "/Settings:$runsettings",
+    '/Tests:GraniteEdgeAI.EndToEndTests.Tests.R3ReleaseVetoPreflightTests.Exact_R3_candidate_and_issue_evidence_are_committed_and_pushed'
+)
+& $vstest.FullName @r3PreflightArguments
+if ($LASTEXITCODE -ne 0) { throw 'CHANGES REQUIRED: exact R3 candidate/issue evidence preflight failed.' }
+
+$appBuildStartedUtc = [DateTime]::UtcNow
+& $dotnet build $appProject --configuration Debug -p:Platform=x64 -p:GenerateAppxPackageOnBuild=false "-p:DotNetHostPath=$dotnet" --disable-build-servers --no-incremental -m:1
+if ($LASTEXITCODE -ne 0) { throw "Candidate app build failed with exit code $LASTEXITCODE." }
+$appxRecipe = Get-ChildItem (Join-Path $repositoryRoot 'IBM Granite with TurboQuant (Intel)\obj') -Filter '*.build.appxrecipe' -Recurse |
+    Where-Object {
+        $_.FullName -match '[\\/]x64[\\/]' -and
+        $_.Length -gt 0 -and
+        $_.LastWriteTimeUtc -ge $appBuildStartedUtc.AddSeconds(-2)
+    } |
+    Sort-Object LastWriteTimeUtc -Descending |
+    Select-Object -First 1
+if (-not $appxRecipe) { throw 'CHANGES REQUIRED: the Debug x64 app build produced no non-empty .build.appxrecipe.' }
+
+if ($Stage -eq 'List') {
+    [ordered]@{ stage = 'List'; discovered = $discoveredTests.Count; executed = 0; passed = 0; failed = 0; skipped = 0 } |
+        ConvertTo-Json | Set-Content -Encoding UTF8 -LiteralPath (Join-Path $resultRoot "E1-List-$runId.json")
+    return
+}
 
 $lockPath = 'C:\UCL-AUDIT-NATIVE.lock'
 try {
