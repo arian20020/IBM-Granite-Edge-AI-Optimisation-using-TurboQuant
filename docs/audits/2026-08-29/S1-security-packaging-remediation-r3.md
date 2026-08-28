@@ -1,14 +1,14 @@
 # S1 security and packaging remediation R3
 
-Date: 2026-08-29  
-Worker: S1  
-Branch: `audit/ucl-s1-security-remediation-r3`  
-Base commit: `13044fa89d156a9127eadeef639993e7155975b5`  
-Base tree: `e33a79b1e57ca41460b519c3348a0d54c28cf9f0`  
-Frozen ancestor: `4748fe04f19afdf6b27c4c12502b84db325e7294`  
-Frozen tree: `fe1fa8fb5fe4de8e7c1d867a83e08375bc1d0c91`  
-Evidence-subject commit: `6c21dc3a80f14522b8638804c1c478ca7702739d`  
-Evidence-subject tree: `84132eb2c86902170c0483ae977b81dae7c4e431`  
+Date: 2026-08-29
+Worker: S1
+Branch: `audit/ucl-s1-security-remediation-r3`
+Base commit: `13044fa89d156a9127eadeef639993e7155975b5`
+Base tree: `e33a79b1e57ca41460b519c3348a0d54c28cf9f0`
+Frozen ancestor: `4748fe04f19afdf6b27c4c12502b84db325e7294`
+Frozen tree: `fe1fa8fb5fe4de8e7c1d867a83e08375bc1d0c91`
+Evidence-subject commit: `6c21dc3a80f14522b8638804c1c478ca7702739d`
+Evidence-subject tree: `84132eb2c86902170c0483ae977b81dae7c4e431`
 Evidence manifest: `null`
 
 ## Scope and issue disposition
