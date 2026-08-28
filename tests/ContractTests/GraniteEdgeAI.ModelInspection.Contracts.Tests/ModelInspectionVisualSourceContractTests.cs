@@ -1657,7 +1657,10 @@ public sealed class ModelInspectionVisualSourceContractTests
             {
                 if (!itemSpec.IsControlledWorkerPackageExpression &&
                     !itemSpec.IsControlledWorkerPublishedFilesExpression &&
-                    !itemSpec.IsControlledWorkerPackagePathPropertyDefinition)
+                    !itemSpec.IsControlledWorkerPackagePathPropertyDefinition &&
+                    !IsControlledImportedPackageExpression(
+                        itemSpec.SourcePath,
+                        candidate))
                 {
                     Assert.Fail(
                         $"{itemSpec.SourcePath} contains unresolved " +
@@ -1712,6 +1715,31 @@ public sealed class ModelInspectionVisualSourceContractTests
         }
 
         return false;
+    }
+
+    private static bool IsControlledImportedPackageExpression(
+        string sourcePath,
+        string itemSpec)
+    {
+        string relativeSource = NormalizeProjectPath(
+            Path.GetRelativePath(Root, sourcePath))!;
+        string[] accepted = relativeSource switch
+        {
+            "IBM Granite with TurboQuant (Intel)/GgufQuantization.WorkerPackaging.targets" =>
+                ["@(_GgufQuantizerPackageFiles)"],
+            "IBM Granite with TurboQuant (Intel)/GgufRuntime.WorkerPackaging.targets" =>
+                ["@(_GgufRuntimePublishedFiles)", "$(_GgufRuntimeManifestPath)"],
+            "IBM Granite with TurboQuant (Intel)/HardwareInspection.LlamaCppProbePackaging.targets" =>
+                ["@(_HardwareInspectionLlamaCppProbePublishedFiles)", "$(_HardwareInspectionLlamaCppProbeManifestPath)"],
+            "tests/UnitTests/GraniteEdgeAI.UnitTests/HardwareInspection.ProcessFixturePackaging.targets" =>
+                ["@(_HardwareInspectionFixturePackagedFile)", "@(_HardwareInspectionLlamaCppFixturePackagedFile)"],
+            "IBM Granite with TurboQuant (Intel)/OpenVino.ConverterPackaging.targets" =>
+                ["@(_OpenVinoConverterFile)"],
+            "IBM Granite with TurboQuant (Intel)/OpenVino.TurboQuantPackaging.targets" =>
+                ["@(_OpenVinoTurboQuantWorkerFile)"],
+            _ => []
+        };
+        return accepted.Contains(itemSpec, StringComparer.Ordinal);
     }
 
     private sealed record ProjectPackageItemSpec(

@@ -2121,9 +2121,16 @@ public sealed class ModelInspectionFixtureValidationContractTests
 
     private static int CountFixtureItems(JsonObject items, string itemType) =>
         items[itemType]!.AsArray().Count(item =>
-            item!["Identity"]!.GetValue<string>()
-                .Replace('/', '\\')
-                .Contains("\\DebugFixtures\\", StringComparison.Ordinal));
+        {
+            string identity = item!["Identity"]!.GetValue<string>()
+                .Replace('/', '\\');
+            return identity.Contains(
+                    "Features\\ModelInspection\\DebugFixtures\\",
+                    StringComparison.Ordinal) ||
+                identity.Contains(
+                    "Features\\Onboarding\\DebugFixtures\\",
+                    StringComparison.Ordinal);
+        });
 
     private static bool HasExactDebugFixtureProjectReference(XDocument project)
     {

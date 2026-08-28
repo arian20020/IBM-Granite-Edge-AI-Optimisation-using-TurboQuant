@@ -81,4 +81,46 @@ internal static class WorkerProtocolValidation
             propertyName,
             "must be a defined protocol value");
     }
+
+    internal static void RequireOptionalText(
+        string? value,
+        string propertyName)
+    {
+        Require(
+            value is null || !string.IsNullOrWhiteSpace(value),
+            propertyName,
+            "must be null or contain non-whitespace text");
+    }
+
+    internal static void RequireOptionalPositive<T>(
+        T? value,
+        string propertyName)
+        where T : struct, IComparable<T>
+    {
+        Require(
+            !value.HasValue || value.Value.CompareTo(default) > 0,
+            propertyName,
+            "must be positive when present");
+    }
+
+    internal static void RequireOptionalNonNegative<T>(
+        T? value,
+        string propertyName)
+        where T : struct, IComparable<T>
+    {
+        Require(
+            !value.HasValue || value.Value.CompareTo(default) >= 0,
+            propertyName,
+            "must not be negative when present");
+    }
+
+    internal static void RequireHexDigest(
+        string? value,
+        string propertyName)
+    {
+        Require(
+            value is { Length: 64 } && value.All(Uri.IsHexDigit),
+            propertyName,
+            "must contain exactly 64 hexadecimal characters");
+    }
 }

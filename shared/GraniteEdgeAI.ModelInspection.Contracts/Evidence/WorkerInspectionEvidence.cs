@@ -28,16 +28,18 @@ public sealed record WorkerInspectionEvidence
             WorkerProtocolValidation.RequireNotNull(Runtime, nameof(Runtime));
         WorkerModelFileEvidence modelFile =
             WorkerProtocolValidation.RequireNotNull(ModelFile, nameof(ModelFile));
-        _ = WorkerProtocolValidation.RequireNotNull(
-            Configuration,
-            nameof(Configuration));
+        WorkerModelConfigurationEvidence configuration =
+            WorkerProtocolValidation.RequireNotNull(
+                Configuration,
+                nameof(Configuration));
         WorkerTokenizerEvidence tokenizer =
             WorkerProtocolValidation.RequireNotNull(
                 Tokenizer,
                 nameof(Tokenizer));
-        _ = WorkerProtocolValidation.RequireNotNull(
-            ChatTemplate,
-            nameof(ChatTemplate));
+        WorkerChatTemplateEvidence chatTemplate =
+            WorkerProtocolValidation.RequireNotNull(
+                ChatTemplate,
+                nameof(ChatTemplate));
         IReadOnlyList<WorkerObservation> observations =
             WorkerProtocolValidation.RequireNotNull(
                 Observations,
@@ -45,7 +47,9 @@ public sealed record WorkerInspectionEvidence
 
         runtime.Validate();
         modelFile.Validate();
+        configuration.Validate();
         tokenizer.Validate();
+        chatTemplate.Validate();
 
         foreach (WorkerObservation? candidate in observations)
         {

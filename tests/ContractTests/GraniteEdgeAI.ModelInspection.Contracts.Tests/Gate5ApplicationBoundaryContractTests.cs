@@ -168,6 +168,7 @@ public sealed class Gate5ApplicationBoundaryContractTests
         string[] approvedSources =
         [
             "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Infrastructure/ManifestVerifyingInspectionWorkerClient.cs",
+            "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Infrastructure/ModelInspectionProjectionFactory.cs",
             CompositionSource,
             "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Runtime/WorkerProcessLlamaModelProbe.cs",
             "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Runtime/WorkerRequestMapper.cs",

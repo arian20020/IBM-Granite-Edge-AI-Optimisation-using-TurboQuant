@@ -27,7 +27,7 @@ public sealed class ModelInspectionFixtureBuildBoundaryContractTests
     private const string DebugX64Condition =
         "'$(Configuration)|$(Platform)' == 'Debug|x64'";
     private const string GalleryConstant =
-        "$(DefineConstants);MODEL_INSPECTION_FIXTURE_GALLERY";
+        "MODEL_INSPECTION_FIXTURE_GALLERY";
     private const string FixtureProjectFileName =
         "GraniteEdgeAI.ModelInspection.Fixtures.csproj";
     private const string ScenarioLinkRoot =
@@ -414,9 +414,16 @@ public sealed class ModelInspectionFixtureBuildBoundaryContractTests
         else
         {
             XElement definition = galleryDefinitions[0];
-            if (!string.Equals(definition.Value, GalleryConstant, StringComparison.Ordinal))
+            string[] constants = definition.Value
+                .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Where(value => string.Equals(
+                    value,
+                    GalleryConstant,
+                    StringComparison.Ordinal))
+                .ToArray();
+            if (constants.Length != 1)
             {
-                errors.Add("Gallery constant definition is not the exact literal.");
+                errors.Add("Gallery constant definition must contain the exact token once.");
             }
 
             if (!HasExactParentCondition(definition, "PropertyGroup"))
@@ -1416,7 +1423,7 @@ public sealed class ModelInspectionFixtureBuildBoundaryContractTests
     private static bool IsFixtureRelatedValue(string value, XElement? projectRoot)
     {
         string detected = value.Replace('/', '\\');
-        if (detected.Contains("\\DebugFixtures", StringComparison.OrdinalIgnoreCase) ||
+        if (FixtureRoots.Any(root => detected.Contains(root, StringComparison.OrdinalIgnoreCase)) ||
             detected.Contains("ModelInspectionScenarios", StringComparison.OrdinalIgnoreCase) ||
             detected.EndsWith(FixtureProjectFileName, StringComparison.OrdinalIgnoreCase))
         {
@@ -1444,7 +1451,7 @@ public sealed class ModelInspectionFixtureBuildBoundaryContractTests
     private static bool IsDirectFixtureValue(string value)
     {
         string detected = value.Replace('/', '\\');
-        return detected.Contains("\\DebugFixtures", StringComparison.OrdinalIgnoreCase) ||
+        return FixtureRoots.Any(root => detected.Contains(root, StringComparison.OrdinalIgnoreCase)) ||
             detected.Contains("ModelInspectionScenarios", StringComparison.OrdinalIgnoreCase) ||
             detected.EndsWith(FixtureProjectFileName, StringComparison.OrdinalIgnoreCase);
     }
@@ -1473,9 +1480,10 @@ public sealed class ModelInspectionFixtureBuildBoundaryContractTests
         string mutation)
     {
         XElement FirstFixtureCompile() => document.Descendants("Compile")
-            .First(item => item.Attribute("Include")?.Value.Contains(
-                "DebugFixtures",
-                StringComparison.Ordinal) == true);
+            .First(item => item.Attribute("Include")?.Value is string include &&
+                FixtureRoots.Any(root => include.Contains(
+                    root,
+                    StringComparison.OrdinalIgnoreCase)));
         XElement FirstScenarioContent() => document.Descendants("Content")
             .First(item => item.Attribute("Include")?.Value.Contains(
                 "ModelInspectionScenarios",
@@ -1706,8 +1714,9 @@ public sealed class ModelInspectionFixtureBuildBoundaryContractTests
     {
         string identity = EvaluatedIdentity(item).Replace('/', '\\');
         string fullPath = item?["FullPath"]?.GetValue<string>()?.Replace('/', '\\') ?? string.Empty;
-        return identity.Contains("\\DebugFixtures\\", StringComparison.OrdinalIgnoreCase) ||
-            fullPath.Contains("\\DebugFixtures\\", StringComparison.OrdinalIgnoreCase) ||
+        return FixtureRoots.Any(root =>
+                identity.Contains(root, StringComparison.OrdinalIgnoreCase) ||
+                fullPath.Contains(root, StringComparison.OrdinalIgnoreCase)) ||
             identity.Contains("ModelInspectionScenarios", StringComparison.OrdinalIgnoreCase) ||
             fullPath.Contains("ModelInspectionScenarios", StringComparison.OrdinalIgnoreCase) ||
             identity.EndsWith(FixtureProjectFileName, StringComparison.OrdinalIgnoreCase) ||

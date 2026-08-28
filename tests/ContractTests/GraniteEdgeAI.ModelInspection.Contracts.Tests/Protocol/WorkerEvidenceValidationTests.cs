@@ -135,11 +135,13 @@ public sealed class WorkerEvidenceValidationTests
     [DataRow("FileName.Empty")]
     [DataRow("FileName.Path")]
     [DataRow("CanonicalPathSha256")]
+    [DataRow("CanonicalPathSha256.Invalid")]
     [DataRow("LengthBefore")]
     [DataRow("LengthAfter")]
     [DataRow("LastWriteTimeBeforeUtc")]
     [DataRow("LastWriteTimeAfterUtc")]
     [DataRow("Sha256Before")]
+    [DataRow("Sha256Before.Invalid")]
     [DataRow("Sha256After")]
     public void ModelFileRejectsInvalidPrimitiveField(string field)
     {
@@ -151,6 +153,10 @@ public sealed class WorkerEvidenceValidationTests
             "CanonicalPathSha256" => valid with
             {
                 CanonicalPathSha256 = string.Empty
+            },
+            "CanonicalPathSha256.Invalid" => valid with
+            {
+                CanonicalPathSha256 = new string('z', 64)
             },
             "LengthBefore" => valid with { LengthBefore = 0 },
             "LengthAfter" => valid with { LengthAfter = 0 },
@@ -164,6 +170,11 @@ public sealed class WorkerEvidenceValidationTests
                     valid.LastWriteTimeAfterUtc.ToOffset(TimeSpan.FromHours(1))
             },
             "Sha256Before" => valid with { Sha256Before = string.Empty },
+            "Sha256Before.Invalid" => valid with
+            {
+                Sha256Before = new string('a', 63),
+                Sha256After = new string('a', 63)
+            },
             "Sha256After" => valid with { Sha256After = string.Empty },
             _ => throw new InvalidOperationException()
         };
@@ -211,6 +222,130 @@ public sealed class WorkerEvidenceValidationTests
         };
 
         Assert.ThrowsExactly<WorkerProtocolException>(evidence.Validate);
+    }
+
+    [TestMethod]
+    [DataRow("Configuration.LayerCount")]
+    [DataRow("Configuration.TokenizerModel")]
+    [DataRow("Tokenizer.VocabularyCount")]
+    [DataRow("Tokenizer.SmokeCountWithoutResult")]
+    [DataRow("Tokenizer.SuccessWithoutTokens")]
+    [DataRow("Tokenizer.NegativeSpecialTokenId")]
+    [DataRow("Tokenizer.SpecialTokenIdOutsideVocabulary")]
+    [DataRow("ChatTemplate.AbsentWithLength")]
+    [DataRow("ChatTemplate.PresentWithoutDigest")]
+    [DataRow("ChatTemplate.PresentWithInvalidDigest")]
+    [DataRow("ChatTemplate.EmptyWithWrongDigest")]
+    public void InspectionEvidenceRejectsContradictoryNestedEvidence(
+        string mutation)
+    {
+        WorkerInspectionEvidence valid = TestJson.CreateValidEvidence();
+        WorkerInspectionEvidence invalid = mutation switch
+        {
+            "Configuration.LayerCount" => valid with
+            {
+                Configuration = valid.Configuration with { LayerCount = 0 }
+            },
+            "Configuration.TokenizerModel" => valid with
+            {
+                Configuration = valid.Configuration with
+                {
+                    TokenizerModel = " "
+                }
+            },
+            "Tokenizer.VocabularyCount" => valid with
+            {
+                Tokenizer = valid.Tokenizer with { VocabularyCount = 0 }
+            },
+            "Tokenizer.SmokeCountWithoutResult" => valid with
+            {
+                Tokenizer = valid.Tokenizer with
+                {
+                    TokenizerSmokePassed = null,
+                    TokenizerSmokeTokenCount = 1
+                }
+            },
+            "Tokenizer.SuccessWithoutTokens" => valid with
+            {
+                Tokenizer = valid.Tokenizer with
+                {
+                    TokenizerSmokePassed = true,
+                    TokenizerSmokeTokenCount = 0
+                }
+            },
+            "Tokenizer.NegativeSpecialTokenId" => valid with
+            {
+                Tokenizer = valid.Tokenizer with
+                {
+                    KnownSpecialTokenIds = new Dictionary<string, int>
+                    {
+                        ["bos"] = -1
+                    }
+                }
+            },
+            "Tokenizer.SpecialTokenIdOutsideVocabulary" => valid with
+            {
+                Tokenizer = valid.Tokenizer with
+                {
+                    VocabularyCount = 32_000,
+                    KnownSpecialTokenIds = new Dictionary<string, int>
+                    {
+                        ["bos"] = 32_000
+                    }
+                }
+            },
+            "ChatTemplate.AbsentWithLength" => valid with
+            {
+                ChatTemplate = valid.ChatTemplate with
+                {
+                    Present = false,
+                    LengthCharacters = 1,
+                    Sha256 = null
+                }
+            },
+            "ChatTemplate.PresentWithoutDigest" => valid with
+            {
+                ChatTemplate = valid.ChatTemplate with { Sha256 = null }
+            },
+            "ChatTemplate.PresentWithInvalidDigest" => valid with
+            {
+                ChatTemplate = valid.ChatTemplate with
+                {
+                    Sha256 = new string('z', 64)
+                }
+            },
+            "ChatTemplate.EmptyWithWrongDigest" => valid with
+            {
+                ChatTemplate = valid.ChatTemplate with
+                {
+                    Present = true,
+                    LengthCharacters = 0,
+                    Sha256 = new string('a', 64)
+                }
+            },
+            _ => throw new InvalidOperationException()
+        };
+
+        Assert.ThrowsExactly<WorkerProtocolException>(invalid.Validate);
+    }
+
+    [TestMethod]
+    public void PresentEmptyTemplateEvidenceRemainsProtocolCompatible()
+    {
+        WorkerInspectionEvidence valid = TestJson.CreateValidEvidence();
+        WorkerInspectionEvidence legacyEmpty = valid with
+        {
+            ChatTemplate = valid.ChatTemplate with
+            {
+                Present = true,
+                LengthCharacters = 0,
+                Sha256 =
+                    "e3b0c44298fc1c149afbf4c8996fb924" +
+                    "27ae41e4649b934ca495991b7852b855"
+            }
+        };
+
+        legacyEmpty.Validate();
     }
 
     [TestMethod]
