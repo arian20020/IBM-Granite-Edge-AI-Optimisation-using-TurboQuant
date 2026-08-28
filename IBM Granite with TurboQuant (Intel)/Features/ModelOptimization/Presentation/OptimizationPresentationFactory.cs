@@ -126,7 +126,9 @@ internal static class OptimizationPresentationFactory
 
     internal static OptimizationPresentationState Success(
         OptimizationPreferenceSelection preference,
-        OptimizationConfigurationPresentation configuration)
+        OptimizationConfigurationPresentation configuration,
+        Guid optimizationPlanId = default,
+        string configurationSha256 = "")
     {
         bool persistent = configuration.ProducesPersistentArtifact;
         return Terminal(
@@ -144,9 +146,15 @@ internal static class OptimizationPresentationFactory
             [
                 new(OptimizationCommand.Chat, "Chat with this model", true),
                 persistent
-                    ? new(OptimizationCommand.Save, "Save model to this computer", false)
+                    ? new(
+                        OptimizationCommand.Save,
+                        "Save model to this computer",
+                        false,
+                        IsEnabled: false)
                     : new(OptimizationCommand.Done, "Done", false)
-            ]);
+            ],
+            optimizationPlanId,
+            configurationSha256);
     }
 
     private static IReadOnlyList<OptimizationActionPresentation> RecoveryActions(
@@ -171,7 +179,9 @@ internal static class OptimizationPresentationFactory
         OptimizationPreferenceSelection preference,
         OptimizationConfigurationPresentation configuration,
         OptimizationSupportCode supportCode,
-        IReadOnlyList<OptimizationActionPresentation> actions) =>
+        IReadOnlyList<OptimizationActionPresentation> actions,
+        Guid optimizationPlanId = default,
+        string configurationSha256 = "") =>
         new(
             kind,
             title,
@@ -181,7 +191,9 @@ internal static class OptimizationPresentationFactory
             OptimizationPreferenceLabelPolicy.GetLabel(preference),
             configuration,
             actions: actions,
-            supportCode: supportCode);
+            supportCode: supportCode,
+            optimizationPlanId: optimizationPlanId,
+            configurationSha256: configurationSha256);
 
     private static string Title(OptimizationStage stage) => stage switch
     {

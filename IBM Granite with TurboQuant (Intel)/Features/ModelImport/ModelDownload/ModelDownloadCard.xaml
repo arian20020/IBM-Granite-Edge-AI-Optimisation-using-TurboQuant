@@ -71,7 +71,7 @@
                         FontSize="24"
                         FontWeight="SemiBold"
                         Foreground="#111827"
-                        Text="Granite 4.0 H-Micro"
+                        Text="Verified recommendation required"
                         TextTrimming="None"
                         TextWrapping="WrapWholeWords" />
 
@@ -87,7 +87,7 @@
                         VerticalAlignment="Center"
                         FontSize="14"
                         Foreground="#6B7280"
-                        Text="3B parameters · 1.94 GB download"
+                        Text="Not available"
                         TextAlignment="Right"
                         TextTrimming="None"
                         TextWrapping="WrapWholeWords" />
@@ -103,7 +103,7 @@
                     x:Name="ModelDescriptionText"
                     FontSize="14"
                     Foreground="#6B7280"
-                    Text="Long-context Granite model for instruction following, question answering, summarisation, coding and tool use."
+                    Text="Connect a verified model catalogue to view a recommendation."
                     TextTrimming="None"
                     TextWrapping="WrapWholeWords" />
 
@@ -185,24 +185,26 @@
                         This may be GGUF or OpenVINO IR.
                     -->
                     <TextBlock
+                        x:Name="ModelFormatValueText"
                         Grid.Row="1"
                         Grid.Column="0"
                         FontSize="14"
                         FontWeight="SemiBold"
                         Foreground="#111827"
-                        Text="GGUF" />
+                        Text="Not available" />
 
                     <!--
                         TEMPORARY SEED VALUE:
                         Future source: the selected artifact's quantization metadata.
                     -->
                     <TextBlock
+                        x:Name="ModelOptimizationValueText"
                         Grid.Row="1"
                         Grid.Column="1"
                         FontSize="14"
                         FontWeight="SemiBold"
                         Foreground="#111827"
-                        Text="Q4_K_M" />
+                        Text="Not available" />
 
                     <!--
                         DYNAMIC RESULT:
@@ -217,7 +219,7 @@
                         FontSize="14"
                         FontWeight="SemiBold"
                         Foreground="#111827"
-                        Text="Pending benchmark"
+                        Text="Not available"
                         TextTrimming="None"
                         TextWrapping="WrapWholeWords" />
 
@@ -233,7 +235,7 @@
                         FontSize="14"
                         FontWeight="SemiBold"
                         Foreground="#111827"
-                        Text="128K tokens"
+                        Text="Not available"
                         TextTrimming="None"
                         TextWrapping="WrapWholeWords" />
 
@@ -358,14 +360,6 @@
 
                 </StackPanel>
 
-                <!--
-                    TODO(DOWNLOAD WORKFLOW):
-                    This button is currently visual only.
-                    
-                    It will later bind to a download command supplied by
-                    ModelImportViewModel. The command will pass the selected
-                    ModelProfile to ModelDownloadService.
-                -->
                 <Button
                     x:Name="DownloadModelButton"
                     Height="48"
@@ -373,6 +367,8 @@
                     HorizontalAlignment="Stretch"
                     HorizontalContentAlignment="Center"
                     VerticalContentAlignment="Center"
+                    AutomationProperties.AutomationId="RecommendedModelDownload.Start"
+                    AutomationProperties.HelpText="Available only when a verified model offer and download service are connected"
                     AutomationProperties.Name="Download the selected model"
                     Background="#2563EB"
                     BorderBrush="#2563EB"
@@ -381,6 +377,8 @@
                     CornerRadius="12"
                     FontWeight="SemiBold"
                     Foreground="White"
+                    IsEnabled="False"
+                    Click="DownloadModelButton_Click"
                     UseSystemFocusVisuals="True">
 
                     <!--
@@ -445,6 +443,55 @@
                     </Button.Resources>
 
                 </Button>
+
+                <ProgressBar
+                    x:Name="DownloadProgressBar"
+                    Height="6"
+                    AutomationProperties.AutomationId="RecommendedModelDownload.Progress"
+                    AutomationProperties.Name="Recommended model download progress"
+                    IsIndeterminate="True"
+                    Maximum="100"
+                    Minimum="0"
+                    Visibility="Collapsed" />
+
+                <TextBlock
+                    x:Name="DownloadStatusText"
+                    AutomationProperties.AutomationId="RecommendedModelDownload.Status"
+                    AutomationProperties.LiveSetting="Polite"
+                    AutomationProperties.Name="Recommended model download status"
+                    Foreground="#374151"
+                    Text="A verified model recommendation is not available yet."
+                    TextTrimming="None"
+                    TextWrapping="WrapWholeWords" />
+
+                <Grid ColumnSpacing="10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Button
+                        x:Name="CancelDownloadButton"
+                        Grid.Column="0"
+                        MinHeight="44"
+                        HorizontalAlignment="Stretch"
+                        AutomationProperties.AutomationId="RecommendedModelDownload.Cancel"
+                        AutomationProperties.Name="Cancel model download"
+                        Click="CancelDownloadButton_Click"
+                        Content="Cancel download"
+                        UseSystemFocusVisuals="True"
+                        Visibility="Collapsed" />
+                    <Button
+                        x:Name="RetryDownloadButton"
+                        Grid.Column="1"
+                        MinHeight="44"
+                        HorizontalAlignment="Stretch"
+                        AutomationProperties.AutomationId="RecommendedModelDownload.Retry"
+                        AutomationProperties.Name="Retry model download"
+                        Click="RetryDownloadButton_Click"
+                        Content="Try download again"
+                        UseSystemFocusVisuals="True"
+                        Visibility="Collapsed" />
+                </Grid>
 
             </StackPanel>
 

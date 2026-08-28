@@ -12,6 +12,7 @@ namespace GraniteEdgeAI.Features.ModelOptimization.Controls;
 public sealed partial class OptimizationOutcomeCard : UserControl
 {
     private readonly List<string> _visibleActionTexts = [];
+    private readonly Dictionary<OptimizationCommand, Button> _actionButtons = [];
 
     public OptimizationOutcomeCard() => InitializeComponent();
 
@@ -42,12 +43,53 @@ public sealed partial class OptimizationOutcomeCard : UserControl
 
         ActionsHost.Children.Clear();
         _visibleActionTexts.Clear();
+        _actionButtons.Clear();
         foreach (OptimizationActionPresentation action in presentation.Actions)
         {
             Button button = CreateActionButton(action);
             ActionsHost.Children.Add(button);
             _visibleActionTexts.Add(action.Text);
+            _actionButtons.Add(action.Command, button);
         }
+    }
+
+    internal bool IsActionEnabled(OptimizationCommand command) =>
+        _actionButtons.TryGetValue(command, out Button? button)
+        && button.IsEnabled;
+
+    internal void SetActionEnabled(
+        OptimizationCommand command,
+        bool isEnabled)
+    {
+        if (_actionButtons.TryGetValue(command, out Button? button))
+        {
+            button.IsEnabled = isEnabled;
+        }
+    }
+
+    internal void SetAllActionsEnabled(bool isEnabled)
+    {
+        foreach (Button button in _actionButtons.Values)
+        {
+            button.IsEnabled = isEnabled;
+        }
+    }
+
+    internal bool FocusAction(
+        OptimizationCommand command,
+        FocusState focusState) =>
+        _actionButtons.TryGetValue(command, out Button? button)
+        && button.IsEnabled
+        && button.Focus(focusState);
+
+    internal bool TryRequestAction(OptimizationCommand command)
+    {
+        if (!IsActionEnabled(command))
+        {
+            return false;
+        }
+        ActionRequested?.Invoke(command);
+        return true;
     }
 
     private Button CreateActionButton(OptimizationActionPresentation action)
@@ -68,6 +110,9 @@ public sealed partial class OptimizationOutcomeCard : UserControl
             TextWrapping = TextWrapping.WrapWholeWords
         };
         AutomationProperties.SetName(button, action.Text);
+        AutomationProperties.SetAutomationId(
+            button,
+            $"OptimizationAction.{action.Command}");
         if (action.IsPrimary)
         {
             button.Background = (Brush)Resources["OptimizationPrimaryBrush"];
@@ -91,7 +136,7 @@ public sealed partial class OptimizationOutcomeCard : UserControl
     {
         if (sender is Button { Tag: OptimizationCommand command })
         {
-            ActionRequested?.Invoke(command);
+            TryRequestAction(command);
         }
     }
 }

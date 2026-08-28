@@ -1,5 +1,6 @@
 using System;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.Journey;
+using GraniteEdgeAI.Features.ModelOptimization.Export;
 using GraniteEdgeAI.Features.ModelOptimization.Presentation;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -38,6 +39,11 @@ public sealed partial class OptimizationPage : Page
 
     internal OptimizationPresentationState? Presentation => _presentation;
 
+    internal bool BindVerifiedExport(
+        VerifiedPersistentExportTarget target,
+        IOptimizationExportService service) =>
+        DestinationCard.BindVerifiedExport(target, service);
+
     internal void ApplyPresentation(OptimizationPresentationState presentation)
     {
         _presentation = presentation ?? throw new ArgumentNullException(nameof(presentation));
@@ -47,6 +53,7 @@ public sealed partial class OptimizationPage : Page
         ConfigurationCard.Apply(presentation.Configuration);
         ConfirmationCard.Apply(presentation);
         ProgressCard.Apply(presentation);
+        DestinationCard.ClearExportBinding();
         bool succeeded = presentation.Kind is OptimizationPageStateKind.SucceededPersistent
             or OptimizationPageStateKind.SucceededRuntimeProfile;
         bool recovering = presentation.Kind is OptimizationPageStateKind.Cancelled

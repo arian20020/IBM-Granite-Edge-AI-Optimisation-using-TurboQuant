@@ -69,6 +69,17 @@ public sealed class OptimizationPresentationFactoryTests
     }
 
     [TestMethod]
+    public void PersistentSuccessCannotEnableSaveWithoutVerifiedExportBinding()
+    {
+        OptimizationPresentationState state = OptimizationFixtureCatalog.All.Single(
+            static item => item.Id == "success-persistent").Presentation;
+        OptimizationActionPresentation save = state.Actions.Single(
+            static action => action.Command == OptimizationCommand.Save);
+
+        Assert.IsFalse(save.IsEnabled);
+    }
+
+    [TestMethod]
     public void OptionalRecoveryRetainsOriginalChatButRequiredRecoveryDoesNot()
     {
         OptimizationPresentationState seed = OptimizationFixtureCatalog.All.Single(

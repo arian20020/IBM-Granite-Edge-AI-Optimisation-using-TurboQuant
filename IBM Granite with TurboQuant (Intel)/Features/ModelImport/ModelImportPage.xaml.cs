@@ -3,6 +3,7 @@ using GraniteEdgeAI.Features.ModelImport.DragDropRoute;
 using GraniteEdgeAI.Features.ModelImport.DownloadedModels;
 using GraniteEdgeAI.Features.ModelImport.FileImport;
 using GraniteEdgeAI.Features.ModelImport.FileImport.PickerRoute;
+using GraniteEdgeAI.Features.ModelImport.ModelDownload;
 using GraniteEdgeAI.Features.ModelImport.QuickScan;
 using GraniteEdgeAI.Features.ModelImport.Selection;
 using GraniteEdgeAI.Features.ModelInspection.Contracts;
@@ -71,7 +72,9 @@ namespace GraniteEdgeAI.Features.ModelImport
             Action<ModelQuickScanFailureDiagnostic>? recordScanFailure = null,
             IModelSelectionClassifier? classifier = null,
             IDownloadedModelFinder? downloadedModelFinder = null,
-            Func<Task<ModelSelectionInput?>>? pickOpenVinoInputAsync = null)
+            Func<Task<ModelSelectionInput?>>? pickOpenVinoInputAsync = null,
+            RecommendedModelOffer? downloadOffer = null,
+            IRecommendedModelDownloadService? downloadService = null)
         {
             InitializeComponent();
 
@@ -98,6 +101,35 @@ namespace GraniteEdgeAI.Features.ModelImport
             _downloadedModelFinder = downloadedModelFinder ?? new BoundedDownloadedModelFinder();
             _dropHandler = new ModelImportDropHandler(
                 new ModelSelectionInputNormalizer());
+
+            if (downloadOffer is not null && downloadService is not null)
+            {
+                BindRecommendedModelDownload(downloadOffer, downloadService);
+            }
+        }
+
+        internal void BindRecommendedModelDownload(
+            RecommendedModelOffer offer,
+            IRecommendedModelDownloadService service)
+        {
+            ArgumentNullException.ThrowIfNull(offer);
+            ArgumentNullException.ThrowIfNull(service);
+            RecommendedModelDownloadCard.VerifiedDownloadCompleted -=
+                RecommendedModelDownloadCard_VerifiedDownloadCompleted;
+            RecommendedModelDownloadCard.BindDownload(offer, service);
+            RecommendedModelDownloadCard.VerifiedDownloadCompleted +=
+                RecommendedModelDownloadCard_VerifiedDownloadCompleted;
+        }
+
+        private async void RecommendedModelDownloadCard_VerifiedDownloadCompleted(
+            object? sender,
+            CompletedModelDownload completedDownload)
+        {
+            await SubmitInputAsync(completedDownload.Selection);
+            if (HasValidatedModel)
+            {
+                ContinueToModelInspectionButton.Focus(FocusState.Programmatic);
+            }
         }
 
         private static Func<Task<ModelSelectionInput?>> AdaptOpenVinoPathPicker(
@@ -161,6 +193,7 @@ namespace GraniteEdgeAI.Features.ModelImport
             string selectedPath,
             string selectedFileName)
         {
+            RecommendedModelDownloadCard.TryCancelDownload();
             SelectedModelPath = selectedPath;
             ValidatedScanResult = null;
             HasValidatedModel = false;

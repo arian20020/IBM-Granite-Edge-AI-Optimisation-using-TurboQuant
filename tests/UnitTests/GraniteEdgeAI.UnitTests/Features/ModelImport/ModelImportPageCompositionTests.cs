@@ -3,6 +3,7 @@ using GraniteEdgeAI.Features.ModelImport.DownloadedModels;
 using GraniteEdgeAI.Features.ModelImport.FileImport;
 using GraniteEdgeAI.Features.ModelImport.QuickScan;
 using GraniteEdgeAI.Features.ModelImport.ModelDownload;
+using GraniteEdgeAI.Features.ModelImport.Selection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
@@ -127,6 +128,44 @@ public sealed class ModelImportPageCompositionTests
         Assert.AreEqual(0, results.Items.Count);
     }
 
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task VerifiedDownloadUsesTheExistingQuickScanReadinessTransition()
+    {
+        ModelSelectionInput downloaded = new(
+            @"C:\private\granite.gguf", "granite.gguf", isFolder: false);
+        RecommendedModelOffer offer = new(
+            "granite-offer-1",
+            "Granite recommended model",
+            "1.94 GB download",
+            "Verified instruction model",
+            "GGUF",
+            "Q4_K_M",
+            "2.8 GB estimated memory",
+            "128K tokens");
+        var page = new ModelImportPage(
+            () => Task.FromResult(ModelFormatSelection.None),
+            () => Task.FromResult<string?>(null),
+            (_, _, _) => Task.FromResult(ModelQuickScanResult.CreateSuccess(
+                "Granite", "granite", "3B", "Q4", 64, 4096, 3)),
+            classifier: new StubClassifier());
+        page.BindRecommendedModelDownload(
+            offer,
+            new SuccessfulDownloadService(downloaded));
+        var card = (ModelDownloadCard)page.FindName("RecommendedModelDownloadCard");
+
+        Assert.IsTrue(await card.TryStartDownloadAsync());
+
+        Assert.IsTrue(page.HasValidatedModel);
+        Assert.AreEqual(ModelSelectionRoute.Gguf, page.CurrentRoute);
+        Assert.AreEqual(downloaded.LocalPath, page.SelectedModelPath);
+        Assert.IsTrue(((Button)page.FindName(
+            "ContinueToModelInspectionButton")).IsEnabled);
+        Assert.IsFalse(((TextBlock)card.FindName("DownloadStatusText")).Text.Contains(
+            downloaded.LocalPath,
+            StringComparison.Ordinal));
+    }
+
     private static ModelImportPage CreatePage(IDownloadedModelFinder finder) => new(
         () => Task.FromResult(ModelFormatSelection.None),
         () => Task.FromResult<string?>(null),
@@ -148,5 +187,32 @@ public sealed class ModelImportPageCompositionTests
             Task.FromResult(new DownloadedModelSearchResult(_displayNames));
 
         public void ClearResults() { }
+    }
+
+    private sealed class StubClassifier : IModelSelectionClassifier
+    {
+        public Task<ModelSelectionResult> ClassifyAsync(
+            ModelSelectionOperationId operationId,
+            ModelSelectionInput input,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(ModelSelectionResult.Accepted(
+                operationId,
+                ModelSelectionRoute.Gguf,
+                input.DisplayName));
+    }
+
+    private sealed class SuccessfulDownloadService(ModelSelectionInput selection)
+        : IRecommendedModelDownloadService
+    {
+        public Task<ModelDownloadResult> DownloadAsync(
+            RecommendedModelDownloadRequest request,
+            IProgress<ModelDownloadProgress> progress,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(ModelDownloadResult.Succeeded(
+                new CompletedModelDownload(
+                    selection,
+                    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    1024,
+                    "publication-1")));
     }
 }
