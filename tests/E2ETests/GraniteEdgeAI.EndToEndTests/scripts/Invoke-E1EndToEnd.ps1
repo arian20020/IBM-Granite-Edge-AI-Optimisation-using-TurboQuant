@@ -29,6 +29,15 @@ $resultRoot = Join-Path $repositoryRoot 'TestResults\Audit-20260828\E1'
 New-Item -ItemType Directory -Force -Path $resultRoot | Out-Null
 $env:GRANITE_E2E_RESULTS_ROOT = $resultRoot
 $project = Join-Path $projectRoot 'GraniteEdgeAI.EndToEndTests.csproj'
+$appProject = Join-Path $repositoryRoot 'IBM Granite with TurboQuant (Intel)\IBM Granite with TurboQuant (Intel).csproj'
+& $dotnet build $appProject --configuration Debug -p:Platform=x64 -p:GenerateAppxPackageOnBuild=false --disable-build-servers -m:1
+if ($LASTEXITCODE -ne 0) { throw "Candidate app build failed with exit code $LASTEXITCODE." }
+$appxRecipe = Get-ChildItem (Join-Path $repositoryRoot 'IBM Granite with TurboQuant (Intel)\obj') -Filter '*.build.appxrecipe' -Recurse |
+    Where-Object { $_.FullName -match '[\\/]x64[\\/]' -and $_.Length -gt 0 } |
+    Sort-Object LastWriteTimeUtc -Descending |
+    Select-Object -First 1
+if (-not $appxRecipe) { throw 'Blocked: the Debug x64 app build produced no non-empty .build.appxrecipe.' }
+
 & $dotnet build $project --configuration Debug --arch x64 --disable-build-servers -m:1
 if ($LASTEXITCODE -ne 0) { throw "E1 build failed with exit code $LASTEXITCODE." }
 

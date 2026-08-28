@@ -6,6 +6,19 @@ namespace GraniteEdgeAI.EndToEndTests.Tests;
 public sealed class AssetManifestTests
 {
     [TestMethod]
+    public void VerifyPath_binds_local_file_without_storing_its_path()
+    {
+        using TestDirectory directory = TestDirectory.Create();
+        string asset = directory.WriteText("model.gguf", "fixture");
+        string digest = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(asset))).ToLowerInvariant();
+        string manifestPath = directory.WriteText("assets.json", $$"""
+            {"schemaVersion":1,"assets":[{"id":"small-gguf","route":"gguf","sha256":"{{digest}}","bytes":7}]}
+            """);
+
+        AssetManifest.Load(manifestPath).VerifyPath("gguf", asset);
+    }
+
+    [TestMethod]
     public void Load_accepts_only_digest_length_and_route_metadata()
     {
         using TestDirectory directory = TestDirectory.Create();

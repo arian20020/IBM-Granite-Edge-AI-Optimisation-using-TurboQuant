@@ -4,7 +4,7 @@ namespace GraniteEdgeAI.EndToEndTests.Automation;
 
 internal sealed class OwnedProcessSet : IDisposable
 {
-    private readonly HashSet<int> processIds = [];
+    private readonly Dictionary<int, Process> processes = [];
 
     internal void Add(int processId)
     {
@@ -13,16 +13,18 @@ internal sealed class OwnedProcessSet : IDisposable
             throw new ArgumentOutOfRangeException(nameof(processId));
         }
 
-        processIds.Add(processId);
+        if (!processes.ContainsKey(processId))
+        {
+            processes.Add(processId, Process.GetProcessById(processId));
+        }
     }
 
     public void Dispose()
     {
-        foreach (int processId in processIds)
+        foreach (Process process in processes.Values)
         {
             try
             {
-                using Process process = Process.GetProcessById(processId);
                 if (!process.HasExited)
                 {
                     process.CloseMainWindow();
@@ -37,6 +39,12 @@ internal sealed class OwnedProcessSet : IDisposable
             {
                 // The owned process already exited.
             }
+            finally
+            {
+                process.Dispose();
+            }
         }
+
+        processes.Clear();
     }
 }

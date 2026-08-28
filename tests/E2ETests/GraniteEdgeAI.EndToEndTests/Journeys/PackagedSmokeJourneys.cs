@@ -1,5 +1,8 @@
 namespace GraniteEdgeAI.EndToEndTests.Journeys;
 
+using GraniteEdgeAI.EndToEndTests.Pages;
+using GraniteEdgeAI.EndToEndTests.Automation;
+
 [TestClass]
 [TestCategory("NativeSmoke")]
 public sealed class PackagedSmokeJourneys
@@ -19,7 +22,10 @@ public sealed class PackagedSmokeJourneys
     {
         PackagedJourneyFixture.Run(nameof(Malformed_GGUF_reaches_a_terminal_failure_without_disclosing_its_path), session =>
         {
-            Assert.IsNotNull(session.ByName("Choose model file", CancellationToken.None));
+            string path = PackagedJourneyFixture.Require("GRANITE_E2E_MALFORMED_GGUF_PATH");
+            new ImportPage(session).ChooseModel(path, CancellationToken.None);
+            Assert.IsNotNull(session.ByName("Model could not be imported", CancellationToken.None));
+            Assert.IsFalse(session.ExistsByName(Path.GetFullPath(path)), "The UI disclosed the guarded local asset path.");
         }, "GRANITE_E2E_MALFORMED_GGUF_PATH");
     }
 
@@ -28,7 +34,9 @@ public sealed class PackagedSmokeJourneys
     {
         PackagedJourneyFixture.Run(nameof(Import_cancellation_returns_to_a_retryable_import_shell), session =>
         {
+            new ImportPage(session).ChooseModel(PackagedJourneyFixture.Require("GRANITE_E2E_CANCEL_GGUF_PATH"), CancellationToken.None);
+            AutomationSession.Invoke(session.ByName("Remove selected model and cancel quick scan", CancellationToken.None));
             Assert.IsNotNull(session.ByName("Choose model file", CancellationToken.None));
-        });
+        }, "GRANITE_E2E_CANCEL_GGUF_PATH");
     }
 }
