@@ -61,6 +61,9 @@
              Link="Production\GgufRuntime\Services\GgufChatSessionAdapter.cs" />
     <Compile Include="..\..\..\infrastructure\GraniteEdgeAI.GgufQuantization.WorkerClient\GgufQuantizerEnvironmentPolicy.cs"
              Link="Production\GgufQuantization\GgufQuantizerEnvironmentPolicy.cs" />
+    <Compile Include="..\..\..\shared\GraniteEdgeAI.GgufRuntime.Contracts\**\*.cs"
+             Exclude="..\..\..\shared\GraniteEdgeAI.GgufRuntime.Contracts\bin\**;..\..\..\shared\GraniteEdgeAI.GgufRuntime.Contracts\obj\**"
+             Link="Production\GgufRuntimeContracts\%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 
   <ItemGroup>
@@ -70,8 +73,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\shared\GraniteEdgeAI.GgufRuntime.Contracts\GraniteEdgeAI.GgufRuntime.Contracts.csproj" />
     <ProjectReference Include="..\..\..\shared\GraniteEdgeAI.OpenVino.Contracts\GraniteEdgeAI.OpenVino.Contracts.csproj" />
-    <ProjectReference Include="..\..\..\infrastructure\GraniteEdgeAI.GgufRuntime.WorkerClient\GraniteEdgeAI.GgufRuntime.WorkerClient.csproj" />
   </ItemGroup>
 </Project>

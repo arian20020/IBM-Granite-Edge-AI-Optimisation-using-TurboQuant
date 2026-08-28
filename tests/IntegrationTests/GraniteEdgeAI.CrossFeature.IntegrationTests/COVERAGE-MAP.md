@@ -13,7 +13,7 @@
 | T1-OUT-01 | Persistent output identity | Register and reinspect successful output; require identical digest and length for Chat and export. |
 | T1-OV-01 | Runtime-only OpenVINO output | Preserve exact plan configuration and reject downloadable-model representation. |
 | T1-OV-02 | OpenVINO result consumer | RED: require Chat to consume the exact result-bound configuration and reject `LastPublishedDirectory` as authority. |
-| T1-FAIL-01 | Failure publication | Cancellation and independently mapped timeout, crash, malformed/oversized output and cleanup-failure results publish no success; the real output registry rejects a second terminal result for an admitted plan. |
+| T1-FAIL-01 | Failure publication | Cross-feature cancellation/failure results publish no success and the real output registry rejects a second terminal result for an admitted plan. Route worker suites own timeout, crash, malformed/oversized protocol output and cleanup mapping; E1 owns packaged process-residue acceptance. |
 | T1-REC-01 | Restart/recovery | Retain only identity-bound allowed state and reject stale operations after restart. |
 | T1-PARITY-01 | Route parity | Share product-level outcome semantics while retaining route-specific formats and configuration. |
 | T1-DL-01 | Recommended download lifecycle | RED: the real download button has neither a command nor click handler. Native cancellation, bounds, integrity and retry acceptance is assigned to E1 because no download service boundary exists at this base. |
@@ -24,4 +24,4 @@
 | T1-PRIV-01 | Privacy canaries | Exclude paths, usernames, raw worker output, credentials and provider/model payloads from every cross-feature handoff. |
 | T1-BOUND-01 | Canonical/property boundaries | Independently cover encodings, digests, integer/unit limits, preference edges, monotonicity and invalid combinations. |
 
-Characterization tests may begin green only when the production behavior is already present; each such test is identified in the audit report. Missing behavior receives a failing test against the authoritative base and no production fix from T1. The single E1-only row is limited to native keyboard/UI Automation behavior; all other unresolved C0 product issues have executable regressions here.
+Characterization tests may begin green only when the production behavior is already present; each such test is identified in the audit report. Missing behavior receives a failing test against the authoritative base and no production fix from T1. E1 allocations are limited to behavior that requires the packaged WinUI application, native worker process, network transfer, picker, or destination filesystem; managed contract boundaries remain executable here or in the named affected owner suite.

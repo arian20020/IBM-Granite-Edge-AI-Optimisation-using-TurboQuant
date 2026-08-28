@@ -25,14 +25,14 @@ The detailed mapping is in `tests/IntegrationTests/GraniteEdgeAI.CrossFeature.In
 
 ## Characterization GREEN versus remediation RED
 
-The final cross-feature executable discovered 80 tests: 78 passed, 2 failed, 0 skipped. The 78 passes characterize behavior already present at the authoritative base or validate independently derived cross-feature contracts. The two failures are intentional remediation-required regressions and were not weakened:
+The reviewed cross-feature tree discovered 76 tests: 74 passed, 2 failed, 0 skipped. The 74 passes characterize behavior already present at the authoritative base or validate independently derived cross-feature contracts. The two failures are intentional remediation-required regressions and were not weakened:
 
 1. `RecommendedModelDownloadActionIsFunctionallyWired`
 2. `OpenVinoChatConsumesExactResultBoundConfiguration`
 
 These RED cases correspond to two unresolved C0 findings: the visual-only download action and OpenVINO Chat using `LastPublishedDirectory` rather than the exact result-bound configuration. The unresolved package-item expression remains directly executable and RED in the affected Model Inspection contract project; T1 does not duplicate that owner regression with a weaker source-shape assertion.
 
-Disabled-action keyboard reachability and UI Automation invoke-pattern accessibility require E1 native WinUI coverage. Download/export cancellation and retry, actual network/file bounds, existing/inaccessible destinations, post-write digest mismatch and partial-output cleanup also require E1 at this base: there is no callable download/export service seam, and the managed host does not instantiate the packaged app, picker, network transfer or destination filesystem journey. The managed suite therefore proves functional wiring is currently absent, runtime-only exclusion, exact persistent output identity, and failure publication without pretending that token searches prove lifecycle behavior.
+Disabled-action keyboard reachability and UI Automation invoke-pattern accessibility require E1 native WinUI coverage. Download/export cancellation and retry, actual network/file bounds, existing/inaccessible destinations, post-write digest mismatch and partial-output cleanup also require E1 at this base: there is no callable download/export service seam, and the managed host does not instantiate the packaged app, picker, network transfer or destination filesystem journey. The OpenVINO Chat RED is deliberately only a source-level sentinel for the known `LastPublishedDirectory` defect; actual configuration loaded by the native runtime remains E1 acceptance. The managed suite therefore proves functional wiring is currently absent, runtime-only exclusion, exact persistent output identity, and failure publication without pretending that source tokens prove native lifecycle behavior.
 
 ## Verification receipts
 
@@ -40,8 +40,8 @@ All commands used the complete installed SDK entry point `C:\Program Files\dotne
 
 | Verification | Result |
 |---|---:|
-| Cross-feature explicit discovery | 80 discovered |
-| Cross-feature complete project | 80 total, 78 passed, 2 remediation RED, 0 skipped |
+| Cross-feature explicit discovery | 76 discovered |
+| Cross-feature complete project | 76 total, 74 passed, 2 remediation RED, 0 skipped |
 | Model/Hardware Compatibility | 1,050 total, 1,050 passed |
 | OpenVINO contracts | 205 total, 205 passed |
 | OpenVINO worker client | 13 total, 13 passed |
@@ -83,4 +83,4 @@ The Model Inspection result reproduces the existing authoritative-base failures;
 - `VisualArtifactPrivacyScanner_AcceptsOnlySafeManifestAndApprovedPngMetadata`
 - `VisualArtifactPrivacyScanner_RejectsPathsIdentityModelMetadataPngTextAndTrx`
 
-Their causes remain missing unreceipted workflows, cleanup/fixture ownership drift, child-process `dotnet` PATH resolution, local PowerShell execution policy, and the unresolved package-item expression. The final cross-feature TRX was generated locally at `TestResults/T1-R2-final/T1-R2-final.trx`; `TestResults` remains ignored and is not part of the commit or evidence manifest.
+Their causes remain missing unreceipted workflows, cleanup/fixture ownership drift, child-process `dotnet` PATH resolution, local PowerShell execution policy, and the unresolved package-item expression. The final cross-feature TRX was generated locally at `TestResults/T1-R2-final-reviewed/T1-R2-final-reviewed.trx`. To keep this managed test host reproducible under Application Control, the ten GGUF runtime contract sources are compile-linked and the unused worker-client constructor receives compile-only doubles; no production behavior is substituted in the exercised injected-session lifecycle path. `TestResults` remains ignored and is not part of the commit or evidence manifest.

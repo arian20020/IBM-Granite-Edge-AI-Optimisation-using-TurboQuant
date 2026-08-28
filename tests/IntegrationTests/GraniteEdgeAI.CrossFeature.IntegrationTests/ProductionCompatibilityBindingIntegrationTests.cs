@@ -34,16 +34,23 @@ public sealed class ProductionCompatibilityBindingIntegrationTests
     }
 
     [TestMethod]
-    public void CompatibilityAuthorityRejectsCurrentHardwareIdentityMutation()
+    [DataRow("model")]
+    [DataRow("hardware")]
+    public void CompatibilityAuthorityRejectsCurrentIdentityMutation(string identity)
     {
         DateTimeOffset now = new(2026, 8, 28, 12, 0, 0, TimeSpan.Zero);
 
         Assert.ThrowsExactly<ArgumentException>(() =>
-            CreateInput(now, bindingHardwareDigest: OtherDigest));
+            CreateInput(
+                now,
+                bindingModelDigest: identity == "model" ? OtherDigest : Digest,
+                bindingHardwareDigest:
+                    identity == "hardware" ? OtherDigest : Digest));
     }
 
     private static CompatibilityProductionInput CreateInput(
         DateTimeOffset observedAtUtc,
+        string bindingModelDigest = Digest,
         string bindingHardwareDigest = Digest)
     {
         Guid modelRun = Guid.Parse("11111111-1111-4111-8111-111111111111");
@@ -84,7 +91,7 @@ public sealed class ProductionCompatibilityBindingIntegrationTests
         OptimizationJourneyBinding binding = OptimizationJourneyBinding.Create(
             modelRun.ToString("N"),
             handoff.ToString("N"),
-            Digest,
+            bindingModelDigest,
             model.PackageLengthBytes,
             hardwareRun.ToString("N"),
             bindingHardwareDigest);
