@@ -31,6 +31,19 @@ internal sealed class TestDirectory : IDisposable
     {
         if (Directory.Exists(Path))
         {
+            foreach (string file in Directory.EnumerateFiles(Path, "*", new EnumerationOptions
+            {
+                RecurseSubdirectories = true,
+                IgnoreInaccessible = false,
+                AttributesToSkip = FileAttributes.ReparsePoint,
+            }))
+            {
+                FileAttributes attributes = File.GetAttributes(file);
+                if ((attributes & FileAttributes.ReadOnly) != 0)
+                {
+                    File.SetAttributes(file, attributes & ~FileAttributes.ReadOnly);
+                }
+            }
             Directory.Delete(Path, recursive: true);
         }
     }
