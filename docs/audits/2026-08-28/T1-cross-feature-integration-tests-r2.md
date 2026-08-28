@@ -1,0 +1,94 @@
+# T1 Cross-Feature Integration Test Remediation R2
+
+Date: 2026-08-28
+Worker: T1
+Branch: `test/ucl-t1-cross-feature-remediation-r2`
+Worktree: `C:\UCL-T1-R2`
+
+## Source identity and scope
+
+The worktree was created from `origin/audit/ucl-c0-audit-integration-v1` at commit `a5ef3558334e50587889140dafba194853938765`, tree `90c34ab009b744d7b00866fb93e8dbc86363f1b2`. The required frozen ancestor `4748fe04f19afdf6b27c4c12502b84db325e7294` resolves to tree `fe1fa8fb5fe4de8e7c1d867a83e08375bc1d0c91` and is an ancestor of the authoritative base.
+
+T1 changed only the cross-feature test project, its fixtures/coverage map, and audit documentation. No production source, application composition, worker implementation, or non-test project was changed. `evidenceManifest` is `null` because this worker produced no separately published evidence bundle.
+
+## Added executable coverage
+
+- Picker and Explorer drop now exercise the real picker normalizer and real drop handler against the same path-private classifier, parameterized for GGUF files and OpenVINO package folders.
+- Schema-v2 Model Inspection projection is independently checked for exact six-field encoding and byte-identical GGUF/OpenVINO handoff bytes.
+- Cross-route compatibility cases cover direct Chat when the current model fits, a distinct optional safe alternative, required optimization when only the alternative fits, and disabled execution when none fits. Route-specific configuration types and descriptors remain explicit.
+- Installed memory, fresh available memory, safety reserve, and executable model budget are asserted as four distinct values using an independent 10 GiB minus 1 GiB calculation.
+- Model/hardware binding, exact payload/plan matching, retry authority, stale-result rejection, cancellation/failure publication, duplicate live publication prevention, restart quarantine, and exact persistent Chat/export identity are executable.
+- Runtime-only OpenVINO success is excluded from model-file export. Quantizer child-environment isolation and GGUF stop/disposal lifetime behavior fixed by C0 are retained as characterization coverage.
+- One onboarding shell and the absence of the onboarding stage/footer surface on Chat are characterized.
+
+The detailed mapping is in `tests/IntegrationTests/GraniteEdgeAI.CrossFeature.IntegrationTests/COVERAGE-MAP.md`.
+
+## Characterization GREEN versus remediation RED
+
+The final cross-feature executable discovered 79 tests: 69 passed, 10 failed, 0 skipped. The 69 passes characterize behavior already present at the authoritative base or validate independently derived cross-feature contracts. The ten failures are intentional remediation-required regressions and were not weakened:
+
+1. `RecommendedModelDownloadImplementsRequiredLifecycle ("functional")`
+2. `RecommendedModelDownloadImplementsRequiredLifecycle ("cancellable")`
+3. `RecommendedModelDownloadImplementsRequiredLifecycle ("bounded")`
+4. `RecommendedModelDownloadImplementsRequiredLifecycle ("integrity-checked")`
+5. `RecommendedModelDownloadImplementsRequiredLifecycle ("retryable")`
+6. `OpenVinoChatConsumesExactResultBoundConfiguration`
+7. `PersistentExportVerifiesExactOutputAndLifecycle ("bounded")`
+8. `PersistentExportVerifiesExactOutputAndLifecycle ("integrity-checked")`
+9. `PersistentExportVerifiesExactOutputAndLifecycle ("cancellable-and-cleaned")`
+10. `HardwareProbePackagingDoesNotLeakAnUnresolvedPackageItemExpression`
+
+These RED cases correspond to the unresolved C0 findings: the visual-only download action; export without cancellation, bounds, digest verification, and partial-output cleanup; OpenVINO Chat using `LastPublishedDirectory` rather than the exact result-bound configuration; and the unresolved Hardware probe package-item expression found by the Model Inspection package inventory.
+
+Disabled-action keyboard reachability and UI Automation invoke-pattern accessibility require E1 native WinUI coverage. The cross-feature executable does not instantiate the packaged Windows application or automation peers, so a passing managed/source assertion would not prove keyboard or automation inaccessibility. This is the only explicit E1-only coverage boundary.
+
+## Verification receipts
+
+All commands used the complete installed SDK entry point `C:\Program Files\dotnet\sdk\10.0.400\dotnet.dll`; the repository-pinned `10.0.301` installation is incomplete in this environment.
+
+| Verification | Result |
+|---|---:|
+| Cross-feature explicit discovery | 79 discovered |
+| Cross-feature complete project | 79 total, 69 passed, 10 remediation RED, 0 skipped |
+| Model/Hardware Compatibility | 1,050 total, 1,050 passed |
+| OpenVINO contracts | 205 total, 205 passed |
+| OpenVINO worker client | 13 total, 13 passed |
+| GGUF quantization contracts | 7 total, 7 passed |
+| GGUF quantization worker client | 8 total, 8 passed |
+| GGUF runtime contracts | 12 total, 12 passed |
+| GGUF runtime worker client | 9 total, 9 passed |
+| Model Inspection contracts | 357 total, 333 passed, 24 failed, 0 skipped |
+| `git diff --check` | passed; line-ending notices only |
+| Production-change scan | 0 paths |
+| Sensitive-data scan of diff | 0 hits |
+| Duplicate cross-feature test-name scan | 0 duplicates |
+| Duplicate fixture/file SHA-256 scan | 0 duplicates |
+
+The Model Inspection result reproduces the existing authoritative-base failures; T1 did not suppress them. Exact failed test names:
+
+- `BuildWorkflowExecutesEveryGate2LayerWithoutRetainingRawResults`
+- `ControlledEvidenceWorkflowIsManualPreflightOnlyAndFailClosed`
+- `ControlledEvidencePreflightRejectsCampaignReferenceClassPinAndExecutionMutations`
+- `Task12WorkflowGuideAndEvidenceUseAsciiPunctuation`
+- `CleanupSourceListIsSortedUniqueAndContainsOnlyExistingFiles`
+- `CurrentCleanupScopeIsFullyInventoried`
+- `Projects_DeclareExactFailClosedDebugX64FixtureOwnership`
+- `ProjectBoundaryValidator_RejectsInMemoryMutation ("debug-only-condition")`
+- `ProjectBoundaryValidator_RejectsInMemoryMutation ("missing-default-remove")`
+- `ProjectBoundaryValidator_RejectsInMemoryMutation ("wildcard-include")`
+- `ProjectBoundaryValidator_RejectsInMemoryMutation ("update-instead-of-include")`
+- `ProjectBoundaryValidator_RejectsInMemoryMutation ("none-update-leakage")`
+- `ProjectBoundaryValidator_RejectsInMemoryMutation ("replacement-json")`
+- `ProjectBoundaryValidator_RejectsInMemoryMutation ("alternate-slash")`
+- `ProjectBoundaryValidator_RejectsInMemoryMutation ("alternate-case")`
+- `ProjectBoundaryValidator_RejectsInMemoryMutation ("property-indirected-condition")`
+- `ProjectBoundaryValidator_RejectsInMemoryMutation ("property-indirected-item")`
+- `ProjectBoundaryValidator_RejectsInMemoryMutation ("metadata-indirected-item")`
+- `ProjectBoundaryValidator_RejectsInMemoryMutation ("extra-fixture-item")`
+- `EvaluatedProjects_ExposeExactClosureOnlyForDebugX64WithMatchingRid`
+- `ModelInspectionFixtureGalleryBuildBoundary_EvaluatesOnboardingOnlyForDebugX64`
+- `DurableBoardAndBlockedReferences_AreExcludedFromAppAndTestPackages`
+- `VisualArtifactPrivacyScanner_AcceptsOnlySafeManifestAndApprovedPngMetadata`
+- `VisualArtifactPrivacyScanner_RejectsPathsIdentityModelMetadataPngTextAndTrx`
+
+Their causes remain missing unreceipted workflows, cleanup/fixture ownership drift, child-process `dotnet` PATH resolution, local PowerShell execution policy, and the unresolved package-item expression. The final cross-feature TRX was generated locally at `TestResults/T1-R2-final/T1-R2-final.trx`; `TestResults` remains ignored and is not part of the commit or evidence manifest.
