@@ -59,6 +59,7 @@ public sealed class R3ReleaseVetoTests
             blocked with { SecurityChecksGreen = false },
             blocked with { PrivacyChecksGreen = false },
             blocked with { CleanupChecksGreen = false },
+            blocked with { OwnedDescendantProcesses = 1 },
             blocked with { ProductTestFailures = 1 },
         ];
 
