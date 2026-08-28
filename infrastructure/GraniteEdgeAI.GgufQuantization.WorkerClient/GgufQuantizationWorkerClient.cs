@@ -52,6 +52,13 @@ public sealed class GgufQuantizationWorkerClient
         {
             start.ArgumentList.Add(argument);
         }
+        IReadOnlyDictionary<string, string> childEnvironment =
+            GgufQuantizerEnvironmentPolicy.CaptureCurrent();
+        start.Environment.Clear();
+        foreach ((string key, string value) in childEnvironment)
+        {
+            start.Environment.Add(key, value);
+        }
 
         using var process = new Process { StartInfo = start, EnableRaisingEvents = true };
         using var timeout = new CancellationTokenSource(_timeout);

@@ -24,6 +24,12 @@ await using FileStream input = new(source, FileMode.Open, FileAccess.Read, FileS
 await using FileStream result = new(output, FileMode.CreateNew, FileAccess.Write, FileShare.None);
 await input.CopyToAsync(result);
 await result.WriteAsync(new byte[] { (byte)'Q' });
+await result.WriteAsync(new byte[]
+{
+    Environment.GetEnvironmentVariable("GRANITE_SECURITY_AUDIT_SENTINEL") is null
+        ? (byte)'A'
+        : (byte)'P',
+});
 await result.FlushAsync();
 Console.WriteLine("quantize: 100%");
 return 0;

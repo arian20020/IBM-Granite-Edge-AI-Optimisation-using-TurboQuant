@@ -48,6 +48,50 @@ public sealed class GgufQuantizationWorkerClientTests
     }
 
     [TestMethod]
+    public async Task VerifiedClientDoesNotExposeUnapprovedParentEnvironment()
+    {
+        const string sentinel = "GRANITE_SECURITY_AUDIT_SENTINEL";
+        string? previous = Environment.GetEnvironmentVariable(sentinel);
+        try
+        {
+            Environment.SetEnvironmentVariable(sentinel, "parent-secret");
+            using var fixture = new QuantizerFixture();
+            VerifiedGgufQuantizerPackage package =
+                GgufQuantizerPackageVerifier.Verify(
+                    fixture.Stage,
+                    fixture.ManifestSha256);
+            using GgufQuantizationFileLease lease =
+                GgufQuantizationFileLease.Create(
+                    fixture.SourcePath,
+                    fixture.SourceSha256,
+                    fixture.SourceLength,
+                    fixture.OutputPath);
+
+            GgufQuantizationEvent result = await new GgufQuantizationWorkerClient(
+                TimeSpan.FromSeconds(20)).ExecuteAsync(
+                    Command(
+                        GgufQuantizationFormat.F16,
+                        GgufQuantizationFormat.Q4KM,
+                        null,
+                        fixture.ManifestSha256),
+                    package,
+                    lease,
+                    CancellationToken.None);
+
+            Assert.AreEqual(GgufQuantizationEventKind.Completed, result.Kind);
+            byte observation = File.ReadAllBytes(fixture.OutputPath)[^1];
+            Assert.AreEqual(
+                (byte)'A',
+                observation,
+                "The verified child observed an unapproved parent environment variable.");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(sentinel, previous);
+        }
+    }
+
+    [TestMethod]
     public async Task CancellationDeletesOnlyThePendingOutput()
     {
         using var fixture = new QuantizerFixture();
