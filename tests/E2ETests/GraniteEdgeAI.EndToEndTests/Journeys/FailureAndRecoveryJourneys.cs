@@ -10,5 +10,9 @@ public sealed class FailureAndRecoveryJourneys
     [TestMethod] public void Retry_cannot_publish_duplicate_or_late_worker_result() => Guarded("GRANITE_E2E_FAILURE_ASSET_PATH", "Continue to model inspection");
 
     private static void Guarded(string variable, string surface) =>
-        PackagedJourneyFixture.Run(surface, session => Assert.IsNotNull(session.ByName(surface, CancellationToken.None)), variable);
+        PackagedJourneyFixture.Run(surface, session =>
+        {
+            Assert.IsNotNull(session.ByName(surface, CancellationToken.None));
+            Assert.Inconclusive("Blocked: the packaged app exposes no accessible, test-owned fault injection seam for this failure boundary.");
+        }, variable);
 }

@@ -20,7 +20,7 @@ Run discovery and each stage through:
   -CandidateManifest <local-candidate.json> -Stage List
 ```
 
-The script verifies the frozen commit/tree, builds x64, requires Visual Studio VSTest, lists tests before applying a filter, uses `tests/runsettings/OneWorker.runsettings`, and writes raw results only below ignored `TestResults/Audit-20260828/E1/`.
+The script verifies the frozen commit/tree, builds the candidate and test project as Debug x64, rejects a missing/empty generated `.build.appxrecipe`, requires Visual Studio VSTest, lists tests before applying a filter, uses `tests/runsettings/OneWorker.runsettings`, and writes raw results only below ignored `TestResults/Audit-20260828/E1/`.
 
 Native execution also requires the audit lock and predecessor receipts described by the E1 assignment. Do not run the app, workers, model tools, conversion, quantisation or Chat concurrently with another native worker.
 

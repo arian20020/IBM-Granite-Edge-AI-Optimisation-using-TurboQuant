@@ -19,6 +19,11 @@ internal static class PackagedJourneyFixture
             _ = ProducerEvidenceSet.Load(Require("GRANITE_E2E_H1_MANIFEST"), Require("GRANITE_E2E_M1_MANIFEST"), Require("GRANITE_E2E_Q1_MANIFEST"));
         }
 
+        if (requiredVariables.Contains("GRANITE_E2E_ASSET_MANIFEST", StringComparer.Ordinal))
+        {
+            _ = AssetManifest.Load(Require("GRANITE_E2E_ASSET_MANIFEST"));
+        }
+
         CandidateManifest candidate = CandidateManifest.Load(manifestPath);
         string evidenceRoot = Environment.GetEnvironmentVariable("GRANITE_E2E_RESULTS_ROOT") ?? Path.Combine(Path.GetTempPath(), "GraniteE1Results");
         string output = Path.Combine(evidenceRoot, Sanitize(testName), Guid.NewGuid().ToString("N"));

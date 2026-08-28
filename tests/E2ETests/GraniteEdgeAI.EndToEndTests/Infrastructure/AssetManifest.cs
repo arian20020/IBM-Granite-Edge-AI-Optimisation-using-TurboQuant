@@ -6,6 +6,31 @@ internal sealed record AssetRecord(string Id, string Route, string Sha256, long 
 
 internal sealed record AssetManifest(IReadOnlyList<AssetRecord> Assets)
 {
+    internal void VerifyPath(string route, string path)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        string fullPath = Path.GetFullPath(path);
+        string[] files = File.Exists(fullPath)
+            ? [fullPath]
+            : Directory.Exists(fullPath)
+                ? Directory.GetFiles(fullPath, "*", SearchOption.AllDirectories)
+                : throw new FileNotFoundException("The guarded asset path does not exist.", fullPath);
+        if (files.Length == 0)
+        {
+            throw new InvalidDataException("The guarded asset directory is empty.");
+        }
+
+        foreach (string file in files)
+        {
+            FileInfo info = new(file);
+            string digest = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(file))).ToLowerInvariant();
+            if (!Assets.Any(asset => asset.Route == route && asset.Bytes == info.Length && asset.Sha256 == digest))
+            {
+                throw new InvalidDataException($"A guarded {route} asset file is not bound by the asset manifest.");
+            }
+        }
+    }
+
     internal static AssetManifest Load(string path)
     {
         using JsonDocument document = JsonContract.Open(path);
