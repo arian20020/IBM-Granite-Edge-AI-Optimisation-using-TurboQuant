@@ -66,6 +66,11 @@ $gitIdentity = '^[0-9a-f]{40}$'
 if ($IntegrationCandidateCommit -notmatch $gitIdentity -or $IntegrationCandidateTree -notmatch $gitIdentity) {
     throw 'Integrated candidate commit/tree must be exact lowercase Git identities.'
 }
+if ($IntegrationCandidateRemote -notmatch '^[A-Za-z0-9._-]+$' -or
+    $IntegrationCandidateRemoteRef -notmatch '^refs/heads/[A-Za-z0-9._/-]+$' -or
+    $IntegrationCandidateRemoteRef.Contains('..') -or $IntegrationCandidateRemoteRef.Contains('@{')) {
+    throw 'Integrated candidate remote/ref syntax is invalid.'
+}
 if ($IntegrationCandidateCommit -eq $previousC0Tip) {
     throw 'Blocked: native acceptance cannot run against the previous C0 tip alone.'
 }

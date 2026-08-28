@@ -42,7 +42,8 @@ internal static class R3ReleaseVeto
             && inputs.IdentityChecksGreen
             && inputs.SecurityChecksGreen
             && inputs.PrivacyChecksGreen
-            && inputs.CleanupChecksGreen;
+            && inputs.CleanupChecksGreen
+            && inputs.OwnedDescendantProcesses == 0;
         bool productAndEvidenceGreen = inputs.VerifiedIssueRecords == 22
             && inputs.AllIssuesExecutableGreen
             && !inputs.KnownProductDefectRemains
