@@ -326,7 +326,7 @@ public sealed class ModelDownloadControllerTests
         : IRecommendedModelDownloadService
     {
         private readonly TaskCompletionSource<ModelDownloadResult> _completion =
-            new(TaskCreationOptions.RunContinuationsAsynchronously);
+            new();
 
         public async Task<ModelDownloadResult> DownloadAsync(
             RecommendedModelDownloadRequest request,

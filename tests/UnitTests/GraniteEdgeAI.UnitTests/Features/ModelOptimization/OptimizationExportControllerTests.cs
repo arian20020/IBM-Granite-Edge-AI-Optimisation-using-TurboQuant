@@ -342,7 +342,7 @@ public sealed class OptimizationExportControllerTests
         : IOptimizationExportService
     {
         private readonly TaskCompletionSource<OptimizationExportResult> _completion =
-            new(TaskCreationOptions.RunContinuationsAsynchronously);
+            new();
 
         public async Task<OptimizationExportResult> ExportAsync(
             VerifiedPersistentExportTarget target,
