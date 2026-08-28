@@ -154,6 +154,8 @@ namespace GraniteEdgeAI.Features.ModelImport.ModelDownload
 
             DownloadStatusRegion.Visibility = showStatus ? Visibility.Visible : Visibility.Collapsed;
             ModelScaleSlider.IsEnabled = !active;
+            DownloadActivityRing.IsActive = active;
+            DownloadActivityRing.Visibility = active ? Visibility.Visible : Visibility.Collapsed;
             DownloadProgressBar.IsIndeterminate = state.Stage is ModelDownloadStage.Preparing or ModelDownloadStage.Verifying;
             DownloadProgressBar.Value = state.TotalBytes <= 0 ? 0 : 100d * state.DownloadedBytes / state.TotalBytes;
             DownloadProgressText.Text = state.TotalBytes <= 0

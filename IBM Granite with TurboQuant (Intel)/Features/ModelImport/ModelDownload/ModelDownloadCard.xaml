@@ -365,12 +365,29 @@
                     Spacing="6"
                     Visibility="Collapsed"
                     AutomationProperties.LiveSetting="Polite">
-                    <TextBlock
-                        x:Name="DownloadStatusText"
-                        FontSize="13"
-                        FontWeight="SemiBold"
-                        Foreground="#374151"
-                        TextWrapping="WrapWholeWords" />
+                    <Grid ColumnSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <ProgressRing
+                            x:Name="DownloadActivityRing"
+                            Width="18"
+                            Height="18"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Foreground="#2563EB"
+                            IsActive="False"
+                            Visibility="Collapsed" />
+                        <TextBlock
+                            x:Name="DownloadStatusText"
+                            Grid.Column="1"
+                            VerticalAlignment="Center"
+                            FontSize="13"
+                            FontWeight="SemiBold"
+                            Foreground="#374151"
+                            TextWrapping="WrapWholeWords" />
+                    </Grid>
                     <ProgressBar
                         x:Name="DownloadProgressBar"
                         Height="6"

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net;
 using System.Security.Cryptography;
 
@@ -7,6 +8,7 @@ internal sealed class ResumableVerifiedModelDownloadService : IModelDownloadServ
 {
     private const int BufferSize = 128 * 1024;
     private const long CheckpointIntervalBytes = 8L * 1024 * 1024;
+    private static readonly TimeSpan ProgressReportInterval = TimeSpan.FromMilliseconds(100);
 
     private readonly IModelDownloadTransport _transport;
     private readonly AppModelLibrary _library;
@@ -126,6 +128,7 @@ internal sealed class ResumableVerifiedModelDownloadService : IModelDownloadServ
                     ModelDownloadStage.Downloading,
                     downloaded,
                     entry.ExpectedByteLength));
+                long lastProgressReportTimestamp = Stopwatch.GetTimestamp();
 
                 byte[] buffer = new byte[BufferSize];
                 while (true)
@@ -147,12 +150,18 @@ internal sealed class ResumableVerifiedModelDownloadService : IModelDownloadServ
 
                     await destination.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
                     downloaded += read;
-                    progress.Report(new ModelDownloadProgress(
-                        ModelDownloadStage.Downloading,
-                        downloaded,
-                        entry.ExpectedByteLength));
+                    bool reachedCheckpoint = downloaded - lastCheckpoint >= CheckpointIntervalBytes;
+                    if (reachedCheckpoint ||
+                        Stopwatch.GetElapsedTime(lastProgressReportTimestamp) >= ProgressReportInterval)
+                    {
+                        progress.Report(new ModelDownloadProgress(
+                            ModelDownloadStage.Downloading,
+                            downloaded,
+                            entry.ExpectedByteLength));
+                        lastProgressReportTimestamp = Stopwatch.GetTimestamp();
+                    }
 
-                    if (downloaded - lastCheckpoint >= CheckpointIntervalBytes)
+                    if (reachedCheckpoint)
                     {
                         await WriteCheckpointAsync(
                             entry,

@@ -242,6 +242,27 @@ public sealed class ResumableVerifiedModelDownloadServiceTests
         Assert.IsFalse(await fixture.Library.FinalExistsAsync(fixture.Entry, CancellationToken.None));
     }
 
+    [TestMethod]
+    public async Task DownloadAsync_FastTransferCoalescesProgressNotifications()
+    {
+        byte[] payload = new byte[4 * 1024 * 1024];
+        RandomNumberGenerator.Fill(payload);
+        using TestDownloadFixture fixture = TestDownloadFixture.Create(payload);
+        var reports = new List<ModelDownloadProgress>();
+        var progress = new InlineProgress<ModelDownloadProgress>(reports.Add);
+
+        ModelDownloadResult result = await fixture.Service.DownloadAsync(
+            fixture.Entry,
+            progress,
+            CancellationToken.None);
+
+        Assert.AreEqual(ModelDownloadResultKind.Completed, result.Kind);
+        Assert.IsTrue(reports.Count <= 8, $"Expected coalesced UI progress, received {reports.Count} reports.");
+        Assert.AreEqual(ModelDownloadStage.Preparing, reports[0].Stage);
+        Assert.AreEqual(ModelDownloadStage.Completed, reports[^1].Stage);
+        Assert.AreEqual(payload.LongLength, reports[^1].DownloadedBytes);
+    }
+
     private sealed class TestDownloadFixture : IDisposable
     {
         private readonly string _root;

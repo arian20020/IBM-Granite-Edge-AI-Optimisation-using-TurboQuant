@@ -101,6 +101,7 @@ public sealed class ModelDownloadCardTests
         Assert.IsNotNull(card.FindName("DownloadStatusText"));
         Assert.IsNotNull(card.FindName("DownloadProgressBar"));
         Assert.IsNotNull(card.FindName("DownloadProgressText"));
+        Assert.IsNotNull(card.FindName("DownloadActivityRing"));
         Assert.IsNotNull(card.FindName("DiscardDownloadButton"));
     }
 }
