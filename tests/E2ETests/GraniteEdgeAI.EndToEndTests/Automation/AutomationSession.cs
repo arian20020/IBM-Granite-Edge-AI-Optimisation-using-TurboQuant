@@ -22,14 +22,51 @@ internal sealed class AutomationSession
     internal AutomationElement ByName(string accessibleName, TimeSpan timeout, CancellationToken cancellationToken) =>
         FindFrom(Window(cancellationToken), AutomationElement.NameProperty, accessibleName, timeout, cancellationToken);
 
-    internal static AutomationElement GlobalByAutomationId(string automationId, CancellationToken cancellationToken) =>
-        FindFrom(AutomationElement.RootElement, AutomationElement.AutomationIdProperty, automationId, cancellationToken);
+    internal static AutomationElement GlobalWindowContainingAutomationId(string automationId, CancellationToken cancellationToken)
+    {
+        AutomationElement? dialog = null;
+        bool observed = ConditionWait.Until(() =>
+        {
+            AutomationElementCollection windows = AutomationElement.RootElement.FindAll(TreeScope.Children, Condition.TrueCondition);
+            List<AutomationElement> matches = [];
+            foreach (AutomationElement window in windows)
+            {
+                if (window.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.AutomationIdProperty, automationId)) is not null)
+                {
+                    matches.Add(window);
+                }
+            }
+            if (matches.Count > 1)
+            {
+                throw new InvalidOperationException($"Ambiguous desktop state: multiple dialogs contain automation element '{automationId}'.");
+            }
+            dialog = matches.SingleOrDefault();
+            return dialog is not null;
+        }, DefaultTimeout, PollInterval, cancellationToken);
+        return observed ? dialog! : throw new TimeoutException($"Timed out waiting for the unique dialog containing '{automationId}'.");
+    }
+
+    internal static AutomationElement DescendantByAutomationId(AutomationElement root, string automationId, CancellationToken cancellationToken) =>
+        FindFrom(root, AutomationElement.AutomationIdProperty, automationId, cancellationToken);
 
     internal bool ExistsByName(string accessibleName) =>
         Window(CancellationToken.None).FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, accessibleName)) is not null;
 
-    internal bool IsEnabledByName(string accessibleName, CancellationToken cancellationToken) =>
-        ByName(accessibleName, cancellationToken).Current.IsEnabled;
+    internal int CountByName(string accessibleName) =>
+        Window(CancellationToken.None).FindAll(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, accessibleName)).Count;
+
+    internal void AssertUnavailableByName(string accessibleName)
+    {
+        AutomationElement? element = Window(CancellationToken.None).FindFirst(
+            TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.NameProperty, accessibleName));
+        if (element is null)
+        {
+            return;
+        }
+        Assert.IsFalse(element.Current.IsEnabled, $"'{accessibleName}' remains enabled to UI Automation.");
+        Assert.IsFalse(element.Current.IsKeyboardFocusable, $"'{accessibleName}' remains keyboard-focusable while disabled.");
+    }
 
     internal static void Invoke(AutomationElement element)
     {

@@ -10,8 +10,9 @@ internal sealed class CompatibilityPage(AutomationSession session)
 
     internal void AssertExecutionDisabled(CancellationToken cancellationToken)
     {
-        Assert.IsFalse(session.IsEnabledByName("Chat with current model", cancellationToken));
-        Assert.IsFalse(session.IsEnabledByName("Optimise this model before chatting", cancellationToken));
+        cancellationToken.ThrowIfCancellationRequested();
+        session.AssertUnavailableByName("Chat with current model");
+        session.AssertUnavailableByName("Optimise this model before chatting");
     }
 
     private void Invoke(string name, CancellationToken cancellationToken) =>

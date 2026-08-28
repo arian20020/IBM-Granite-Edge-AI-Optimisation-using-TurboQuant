@@ -24,9 +24,10 @@ internal sealed class ImportPage(AutomationSession session)
         }
 
         AutomationSession.Invoke(session.ByName("Choose model file", cancellationToken));
-        AutomationElement fileName = AutomationSession.GlobalByAutomationId("1148", cancellationToken);
+        AutomationElement dialog = AutomationSession.GlobalWindowContainingAutomationId("1148", cancellationToken);
+        AutomationElement fileName = AutomationSession.DescendantByAutomationId(dialog, "1148", cancellationToken);
         AutomationSession.SetValue(fileName, Path.GetFullPath(path));
-        AutomationSession.Invoke(AutomationSession.GlobalByAutomationId("1", cancellationToken));
+        AutomationSession.Invoke(AutomationSession.DescendantByAutomationId(dialog, "1", cancellationToken));
     }
 
     internal void Continue(CancellationToken cancellationToken) =>

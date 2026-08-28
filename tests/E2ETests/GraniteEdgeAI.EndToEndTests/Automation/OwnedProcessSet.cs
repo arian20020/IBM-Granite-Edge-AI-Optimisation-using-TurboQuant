@@ -31,7 +31,11 @@ internal sealed class OwnedProcessSet : IDisposable
                     if (!process.WaitForExit(3000))
                     {
                         process.Kill(entireProcessTree: true);
-                        process.WaitForExit(5000);
+                        if (!process.WaitForExit(5000))
+                        {
+                            throw new InvalidOperationException(
+                                $"Owned process {process.Id} did not exit within the cleanup deadline.");
+                        }
                     }
                 }
             }

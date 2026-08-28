@@ -23,11 +23,21 @@ internal static class JsonContract
             }
 
             using FileStream stream = file.OpenRead();
-            return JsonDocument.Parse(stream, new JsonDocumentOptions
+            JsonDocument document = JsonDocument.Parse(stream, new JsonDocumentOptions
             {
                 AllowTrailingCommas = false,
                 CommentHandling = JsonCommentHandling.Disallow,
             });
+            try
+            {
+                RejectDuplicateProperties(document.RootElement);
+                return document;
+            }
+            catch
+            {
+                document.Dispose();
+                throw;
+            }
         }
         catch (InvalidDataException)
         {
@@ -90,6 +100,29 @@ internal static class JsonContract
         {
             throw new InvalidDataException(
                 $"Property '{name}' must be a lowercase Git object identity.");
+        }
+    }
+
+    private static void RejectDuplicateProperties(JsonElement element)
+    {
+        if (element.ValueKind == JsonValueKind.Object)
+        {
+            HashSet<string> names = new(StringComparer.Ordinal);
+            foreach (JsonProperty property in element.EnumerateObject())
+            {
+                if (!names.Add(property.Name))
+                {
+                    throw new InvalidDataException($"Duplicate JSON property '{property.Name}' is not allowed.");
+                }
+                RejectDuplicateProperties(property.Value);
+            }
+        }
+        else if (element.ValueKind == JsonValueKind.Array)
+        {
+            foreach (JsonElement item in element.EnumerateArray())
+            {
+                RejectDuplicateProperties(item);
+            }
         }
     }
 }

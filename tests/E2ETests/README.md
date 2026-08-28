@@ -11,19 +11,24 @@ The suite does not use Playwright, WinAppDriver, coordinates, OCR, visual pixels
 - `NativeFailure` requires the candidate plus the scenario-specific failure input.
 - `NativeAcceptance` requires the candidate, a route asset, and exact H1/M1/Q1 evidence manifests. A missing variable is MSTest inconclusive with `Blocked by declared guard`, never a pass.
 
-The candidate manifest may contain the local executable path because it is a git-ignored run input. Its source commit/tree must match the exact integrated branch tip/tree selected by the runner; the runner separately proves that tip descends from the frozen audit source. The committed asset manifest format contains only stable IDs, routes, byte lengths and lowercase SHA-256 values; model paths and weights must never be committed. Asset hashes are streamed under a closed regular-file/reparse-point policy.
+The candidate manifest may contain the local executable path because it is a git-ignored run input. Its source commit/tree must match the exact immutable C0 integration candidate selected by the runner, not the later E1 test-branch tip. The committed asset manifest format contains only stable IDs, routes, byte lengths and lowercase SHA-256 values; model paths and weights must never be committed. Asset hashes are streamed under a closed regular-file/reparse-point policy.
 
 Run discovery and each stage through:
 
 ```powershell
 .\tests\E2ETests\GraniteEdgeAI.EndToEndTests\scripts\Invoke-E1EndToEnd.ps1 `
-  -CandidateManifest <local-candidate.json> -Stage List `
+  -CandidateManifest <local-candidate.json> `
+  -IntegrationCandidateCommit <exact-new-C0-commit> `
+  -IntegrationCandidateTree <exact-new-C0-tree> `
+  -Stage List `
   -DotNetHostPath <complete-dotnet.exe>
 ```
 
-The script verifies frozen ancestry plus the exact candidate tip/tree, builds the candidate and test project as Debug x64 with a selected complete SDK, rejects stale/missing/empty `.build.appxrecipe` output, requires Visual Studio VSTest, and requires at least the expected non-zero test inventory before applying a filter. It uses `tests/runsettings/OneWorker.runsettings` and writes raw results only below ignored `TestResults/Audit-20260828/E1/`.
+R2 never derives candidate identity from the E1 branch tip. It rejects the previous C0 tip `a5ef3558334e50587889140dafba194853938765`, proves frozen and previous-C0 ancestry, proves the E1 branch descends from the exact new C0 candidate, and permits only E1-owned test/report changes after it. It then verifies executable hash/bytes, package family, application ID and installed package root.
 
-The deterministic stage does not acquire the native lock. Smoke, failure, acceptance and all-test native stages require the audit lock and predecessor receipts described by the E1 assignment. Before releasing the lock, the runner checks for candidate-root processes created during its slot and preserves the lock on ambiguous cleanup. Do not run the app, workers, model tools, conversion, quantisation or Chat concurrently with another native worker.
+Run `-Stage Deterministic` first without candidate arguments. Packaged stages are `List`, `Smoke`, `Failure`, `Acceptance`, `Restart`, `RealModel`, and `All`. The script builds Debug x64 with the selected complete SDK, rejects stale/missing/empty `.build.appxrecipe` output, uses authoritative Visual Studio VSTest x64 discovery and one-worker settings, and writes unique raw TRX plus arithmetic-checked JSON summaries only below ignored `TestResults/Audit-20260828/E1/`.
+
+The deterministic stage does not acquire the native lock. Before any native lock acquisition, R2 requires sanitized H1/M1/Q1 manifests, closed H1/M1/Q1/F1 native receipts, exact handoff/report/manifest hashes and byte counts, evidence-subject joins, command arithmetic, cleanup verification, and accepted A1/H1/M1/Q1/F1/S1/T1 integration by ancestry or patch equivalence. Before releasing the lock, the runner checks for candidate-root processes created during its slot and preserves the lock on ambiguous cleanup. Do not run the app, workers, model tools, conversion, quantisation or Chat concurrently with another native worker.
 
 ## Solution proposal for C0
 
