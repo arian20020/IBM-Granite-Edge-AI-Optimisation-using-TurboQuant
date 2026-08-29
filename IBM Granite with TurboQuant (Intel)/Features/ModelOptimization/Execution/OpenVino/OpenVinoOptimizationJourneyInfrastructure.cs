@@ -176,7 +176,7 @@ internal sealed class OpenVinoOptimizationExecutor(
         out OpenVinoPublishedOutput? publication) =>
         _publishedOutputs.TryResolve(result, out publication);
 
-    internal Task<bool> ExportPersistentAsync(
+    internal Task<OpenVinoExportResult> ExportPersistentAsync(
         OptimizationExecutionResult result,
         string destinationDirectory,
         ulong maximumBytes,
@@ -187,28 +187,29 @@ internal sealed class OpenVinoOptimizationExecutor(
             maximumBytes,
             cancellationToken);
 
-    internal bool TryCreateChatTarget(
+    internal async Task<OpenVinoOptimizationChatTarget?> CreateChatTargetAsync(
         OptimizationExecutionResult result,
-        out OpenVinoOptimizationChatTarget? target)
+        CancellationToken cancellationToken)
     {
-        target = null;
-        if (!_publishedOutputs.TryResolve(result, out OpenVinoPublishedOutput? output)
-            || output is null)
+        OpenVinoPublishedOutput? output = await _publishedOutputs.ResolveAsync(
+            result,
+            cancellationToken).ConfigureAwait(false);
+        if (output is null)
         {
-            return false;
+            return null;
         }
 
         if (output.Kind == OpenVinoPublishedOutputKind.PersistentPackage)
         {
-            target = new OpenVinoOptimizationChatTarget(
+            return new OpenVinoOptimizationChatTarget(
                 result,
                 output.Kind,
                 output.PersistentDirectory!,
                 output.RuntimeOptions,
                 sourceLease: null);
-            return true;
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
         if (!Guid.TryParseExact(
                 result.ModelInspectionHandoffId,
                 "N",
@@ -221,16 +222,15 @@ internal sealed class OpenVinoOptimizationExecutor(
                     OptimizationRoute.OpenVino),
                 out ModelSourceLease? sourceLease))
         {
-            return false;
+            return null;
         }
 
-        target = new OpenVinoOptimizationChatTarget(
+        return new OpenVinoOptimizationChatTarget(
             result,
             output.Kind,
             sourceLease!.SourcePath,
             output.RuntimeOptions,
             sourceLease);
-        return true;
     }
 
     public async Task<OptimizationExecutionResult> ExecuteAsync(
@@ -276,7 +276,10 @@ internal sealed class OpenVinoOptimizationExecutor(
                 routeProgress,
                 cancellationToken);
             if (result.IsSuccessful
-                && !_publishedOutputs.TryRegister(result, destination))
+                && !await _publishedOutputs.RegisterAsync(
+                    result,
+                    destination,
+                    cancellationToken).ConfigureAwait(false))
             {
                 return OptimizationExecutionResult.Failed(
                     plan,

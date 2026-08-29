@@ -48,6 +48,14 @@
              Link="Production\Optimization\OpenVinoOptimizationService.cs" />
     <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\OpenVinoRoute\Optimization\OpenVinoPublishedOutputRegistry.cs"
              Link="Production\Optimization\OpenVinoPublishedOutputRegistry.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\OpenVinoRoute\Optimization\OpenVinoExportResult.cs"
+             Link="Production\Optimization\OpenVinoExportResult.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\OpenVinoRoute\Optimization\TemporaryExportDirectory.cs"
+             Link="Production\Optimization\TemporaryExportDirectory.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelOptimization\Storage\ExportDestinationGuard.cs"
+             Link="Production\Storage\ExportDestinationGuard.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelOptimization\Storage\StagedSourceSnapshot.cs"
+             Link="Production\Storage\StagedSourceSnapshot.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="..\..\TestFixtures\OpenVINO\GenAI\TinySyntheticV1\package\**\*">

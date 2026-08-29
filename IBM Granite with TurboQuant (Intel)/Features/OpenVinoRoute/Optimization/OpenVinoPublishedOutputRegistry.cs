@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Buffers;
 using System.Security.Cryptography;
+using GraniteEdgeAI.Features.ModelOptimization.Storage;
 using GraniteEdgeAI.Features.OpenVinoRoute.Conversion;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
 using GraniteEdgeAI.OpenVino.Contracts;
@@ -110,9 +111,21 @@ internal sealed class OpenVinoPublishedOutputRegistry
 
     internal bool TryRegister(
         OptimizationExecutionResult result,
-        string publicationDirectory)
+        string publicationDirectory) =>
+        RegisterAsync(result, publicationDirectory, CancellationToken.None)
+            .GetAwaiter().GetResult();
+
+    internal async Task<bool> RegisterAsync(
+        OptimizationExecutionResult result,
+        string publicationDirectory,
+        CancellationToken cancellationToken)
     {
-        if (!TryValidate(result, publicationDirectory, out _, out string? evidenceDigest))
+        cancellationToken.ThrowIfCancellationRequested();
+        ValidatedPublication? validated = await ValidateAsync(
+            result,
+            publicationDirectory,
+            cancellationToken).ConfigureAwait(false);
+        if (validated is null)
         {
             return false;
         }
@@ -122,7 +135,7 @@ internal sealed class OpenVinoPublishedOutputRegistry
             PublicationKey key = PublicationKey.From(result);
             var registration = new RegisteredPublication(
                 RequireDirectChild(publicationDirectory),
-                evidenceDigest!);
+                validated.EvidenceSha256);
             return _publications.TryAdd(key, registration);
         }
         catch (Exception failure) when (IsFileFailure(failure))
@@ -135,56 +148,74 @@ internal sealed class OpenVinoPublishedOutputRegistry
         OptimizationExecutionResult result,
         out OpenVinoPublishedOutput? publication)
     {
-        publication = null;
+        publication = ResolveAsync(result, CancellationToken.None)
+            .GetAwaiter().GetResult();
+        return publication is not null;
+    }
+
+    internal async Task<OpenVinoPublishedOutput?> ResolveAsync(
+        OptimizationExecutionResult result,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
         if (!IsEligible(result)
             || !_publications.TryGetValue(
                 PublicationKey.From(result),
                 out RegisteredPublication? registration))
         {
-            return false;
+            return null;
         }
 
         try
         {
-            if (!TryValidate(
-                    result,
-                    registration.Directory,
-                    out publication,
-                    out string? evidenceDigest)
+            ValidatedPublication? validated = await ValidateAsync(
+                result,
+                registration.Directory,
+                cancellationToken).ConfigureAwait(false);
+            if (validated is null
                 || !string.Equals(
-                    evidenceDigest,
+                    validated.EvidenceSha256,
                     registration.EvidenceSha256,
                     StringComparison.Ordinal))
             {
-                publication = null;
-                return false;
+                return null;
             }
 
-            return true;
+            return validated.Publication;
         }
         catch (Exception failure) when (IsFileFailure(failure))
         {
-            publication = null;
-            return false;
+            return null;
         }
     }
 
-    internal async Task<bool> ExportPersistentAsync(
+    internal async Task<OpenVinoExportResult> ExportPersistentAsync(
         OptimizationExecutionResult result,
         string destinationDirectory,
         ulong maximumBytes,
         CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(result);
         if (maximumBytes == 0 || maximumBytes > MaximumArtifactBytes)
         {
             throw new ArgumentOutOfRangeException(nameof(maximumBytes));
         }
-        if (!TryResolve(result, out OpenVinoPublishedOutput? publication)
-            || publication is null
-            || !publication.IsPersistentArtifact
+        cancellationToken.ThrowIfCancellationRequested();
+        OpenVinoPublishedOutput? publication = await ResolveAsync(
+            result,
+            cancellationToken).ConfigureAwait(false);
+        if (publication is null)
+        {
+            return OpenVinoExportResult.For(
+                result,
+                OpenVinoExportDisposition.ResultRejected);
+        }
+        if (!publication.IsPersistentArtifact
             || publication.PersistentDirectory is null)
         {
-            return false;
+            return OpenVinoExportResult.For(
+                result,
+                OpenVinoExportDisposition.RuntimeOnly);
         }
         if (result.OutputSizeBytes > maximumBytes)
         {
@@ -192,18 +223,33 @@ internal sealed class OpenVinoPublishedOutputRegistry
                 "The selected OpenVINO package exceeds the bounded export size.");
         }
 
-        string destination = RequireDirectChild(destinationDirectory);
-        if (Directory.Exists(destination) || File.Exists(destination))
-        {
-            throw new IOException("The export destination already exists.");
-        }
-        string temporary = RequireDirectChild(Path.Combine(
-            _root,
-            $".export-{Guid.NewGuid():N}.tmp"));
-        Directory.CreateDirectory(temporary);
-        RequirePlainDirectory(temporary);
+        ExportDestinationPaths paths;
         try
         {
+            paths = ExportDestinationGuard.RequireAbsentDirectory(
+                destinationDirectory);
+        }
+        catch (IOException)
+        {
+            return OpenVinoExportResult.For(
+                result,
+                OpenVinoExportDisposition.DestinationExists);
+        }
+        catch (Exception failure) when (failure is ArgumentException
+                                        or InvalidOperationException
+                                        or UnauthorizedAccessException)
+        {
+            return OpenVinoExportResult.For(
+                result,
+                OpenVinoExportDisposition.DestinationRejected);
+        }
+
+        bool promoted = false;
+        bool cancelled = false;
+        try
+        {
+            Directory.CreateDirectory(paths.Temporary);
+            RequirePlainDirectory(paths.Temporary);
             ulong copied = 0;
             ulong artifactBytes = 0;
             foreach (string source in Directory.EnumerateFiles(
@@ -230,104 +276,147 @@ internal sealed class OpenVinoPublishedOutputRegistry
                 }
                 await CopyFileAsync(
                     file.FullName,
-                    Path.Combine(temporary, file.Name),
+                    Path.Combine(paths.Temporary, file.Name),
                     checked((ulong)file.Length),
                     cancellationToken).ConfigureAwait(false);
             }
             if (artifactBytes != result.OutputSizeBytes)
             {
-                return false;
+                return OpenVinoExportResult.For(
+                    result,
+                    OpenVinoExportDisposition.IdentityMismatch);
             }
 
-            var verifier = new OpenVinoPublishedOutputRegistry(_root);
-            if (!verifier.TryRegister(result, temporary)
-                || !verifier.TryResolve(result, out OpenVinoPublishedOutput? verified)
-                || verified is null
-                || !verified.IsPersistentArtifact)
+            var verifier = new OpenVinoPublishedOutputRegistry(
+                Path.GetDirectoryName(paths.Temporary)!);
+            if (!await verifier.RegisterAsync(
+                    result,
+                    paths.Temporary,
+                    cancellationToken).ConfigureAwait(false))
             {
-                return false;
+                return OpenVinoExportResult.For(
+                    result,
+                    OpenVinoExportDisposition.IdentityMismatch);
+            }
+            OpenVinoPublishedOutput? verified = await verifier.ResolveAsync(
+                result,
+                cancellationToken).ConfigureAwait(false);
+            if (verified is null || !verified.IsPersistentArtifact)
+            {
+                return OpenVinoExportResult.For(
+                    result,
+                    OpenVinoExportDisposition.IdentityMismatch);
             }
             cancellationToken.ThrowIfCancellationRequested();
-            Directory.Move(temporary, destination);
-            return true;
+            StoragePathGuard.RequireNoReparseAncestors(paths.Destination);
+            if (Directory.Exists(paths.Destination) || File.Exists(paths.Destination))
+            {
+                return OpenVinoExportResult.For(
+                    result,
+                    OpenVinoExportDisposition.DestinationExists);
+            }
+            Directory.Move(paths.Temporary, paths.Destination);
+            promoted = true;
+            return OpenVinoExportResult.For(
+                result,
+                OpenVinoExportDisposition.Succeeded);
+        }
+        catch (OperationCanceledException)
+        {
+            cancelled = true;
+            throw;
         }
         finally
         {
-            TryDeleteTemporaryDirectory(temporary);
+            if (!promoted)
+            {
+                TemporaryExportDirectory.Cleanup(paths.Temporary, cancelled);
+            }
         }
     }
 
-    private bool TryValidate(
+    private async Task<ValidatedPublication?> ValidateAsync(
         OptimizationExecutionResult result,
         string directory,
-        out OpenVinoPublishedOutput? publication,
-        out string? evidenceDigest)
+        CancellationToken cancellationToken)
     {
-        publication = null;
-        evidenceDigest = null;
         if (!IsEligible(result) || string.IsNullOrWhiteSpace(directory))
         {
-            return false;
+            return null;
         }
 
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
             string fullPath = RequireDirectChild(directory);
             RequirePlainDirectory(fullPath);
             return result.ProducedPersistentArtifact
-                ? TryValidatePersistent(
+                ? await ValidatePersistentAsync(
                     result,
                     fullPath,
-                    out publication,
-                    out evidenceDigest)
-                : TryValidateRuntimeProfile(
+                    cancellationToken).ConfigureAwait(false)
+                : await ValidateRuntimeProfileAsync(
                     result,
                     fullPath,
-                    out publication,
-                    out evidenceDigest);
+                    cancellationToken).ConfigureAwait(false);
         }
         catch (Exception failure) when (IsFileFailure(failure))
         {
-            return false;
+            return null;
         }
     }
 
-    private static bool TryValidateRuntimeProfile(
+    private static async Task<ValidatedPublication?> ValidateRuntimeProfileAsync(
         OptimizationExecutionResult result,
         string directory,
-        out OpenVinoPublishedOutput? publication,
-        out string? evidenceDigest)
+        CancellationToken cancellationToken)
     {
-        publication = null;
-        evidenceDigest = null;
         if (!result.OutputIdentity!.StartsWith(
                 "openvino-runtime-profile-v3-",
                 StringComparison.Ordinal))
         {
-            return false;
+            return null;
         }
 
         string profilePath = Path.Combine(
             directory,
             OpenVinoRuntimeOptimizationProfile.FileName);
-        string[] files = Directory.GetFiles(directory, "*", SearchOption.AllDirectories);
-        if (Directory.EnumerateDirectories(directory).Any()
-            || files.Length != 1
+        string? discoveredFile = null;
+        int entryCount = 0;
+        foreach (string entry in Directory.EnumerateFileSystemEntries(
+                     directory,
+                     "*",
+                     SearchOption.TopDirectoryOnly))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            entryCount++;
+            FileAttributes attributes = File.GetAttributes(entry);
+            if ((attributes &
+                (FileAttributes.Directory | FileAttributes.ReparsePoint)) != 0)
+            {
+                return null;
+            }
+            discoveredFile = entry;
+        }
+        if (entryCount != 1
             || !string.Equals(
-                Path.GetFullPath(files[0]),
+                Path.GetFullPath(discoveredFile!),
                 Path.GetFullPath(profilePath),
                 StringComparison.OrdinalIgnoreCase))
         {
-            return false;
+            return null;
         }
 
         FileInfo file = RequireRegularFile(profilePath, MaximumMetadataBytes);
         if (checked((ulong)file.Length) != result.OutputSizeBytes)
         {
-            return false;
+            return null;
         }
 
-        evidenceDigest = ComputeSha256(profilePath, MaximumMetadataBytes);
+        string evidenceDigest = await ComputeSha256Async(
+            profilePath,
+            MaximumMetadataBytes,
+            cancellationToken).ConfigureAwait(false);
         if (!string.Equals(
                 evidenceDigest,
                 result.OutputManifestSha256,
@@ -337,9 +426,10 @@ internal sealed class OpenVinoPublishedOutputRegistry
                 "openvino-runtime-profile-v3-" + evidenceDigest,
                 StringComparison.Ordinal))
         {
-            return false;
+            return null;
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
         OpenVinoRuntimeOptimizationProfile profile =
             OpenVinoRuntimeOptimizationProfile.Read(directory);
         if (profile.OptimizationPlanId != result.OptimizationPlanId
@@ -362,54 +452,64 @@ internal sealed class OpenVinoPublishedOutputRegistry
                 result.HardwareSnapshotSha256,
                 StringComparison.Ordinal))
         {
-            return false;
+            return null;
         }
 
-        publication = new OpenVinoPublishedOutput(
-            OpenVinoPublishedOutputKind.RuntimeConfiguration,
-            PersistentDirectory: null,
-            profile,
-            profile.RuntimeConfiguration);
-        return true;
+        return new ValidatedPublication(
+            new OpenVinoPublishedOutput(
+                OpenVinoPublishedOutputKind.RuntimeConfiguration,
+                PersistentDirectory: null,
+                profile,
+                profile.RuntimeConfiguration),
+            evidenceDigest);
     }
 
-    private static bool TryValidatePersistent(
+    private static async Task<ValidatedPublication?> ValidatePersistentAsync(
         OptimizationExecutionResult result,
         string directory,
-        out OpenVinoPublishedOutput? publication,
-        out string? evidenceDigest)
+        CancellationToken cancellationToken)
     {
-        publication = null;
-        evidenceDigest = null;
         if (!result.OutputIdentity!.StartsWith(
                 "openvino-package-v2-",
                 StringComparison.Ordinal))
         {
-            return false;
+            return null;
         }
 
         string provenancePath = Path.Combine(
             directory,
             OpenVinoOptimizationProvenance.FileName);
         _ = RequireRegularFile(provenancePath, MaximumMetadataBytes);
-        evidenceDigest = ComputeSha256(provenancePath, MaximumMetadataBytes);
+        string evidenceDigest = await ComputeSha256Async(
+            provenancePath,
+            MaximumMetadataBytes,
+            cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
         OpenVinoOptimizationProvenance provenance =
             OpenVinoOptimizationProvenance.Read(directory);
-        if (Directory.EnumerateDirectories(directory).Any())
+        HashSet<string> actualNames = new(StringComparer.OrdinalIgnoreCase);
+        foreach (string entry in Directory.EnumerateFileSystemEntries(
+                     directory,
+                     "*",
+                     SearchOption.TopDirectoryOnly))
         {
-            return false;
+            cancellationToken.ThrowIfCancellationRequested();
+            FileAttributes attributes = File.GetAttributes(entry);
+            if ((attributes &
+                (FileAttributes.Directory | FileAttributes.ReparsePoint)) != 0)
+            {
+                return null;
+            }
+            actualNames.Add(Path.GetFileName(entry));
         }
 
         HashSet<string> expectedNames = provenance.OutputFiles
             .Select(static file => file.Path)
             .Append(OpenVinoOptimizationProvenance.FileName)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        HashSet<string> actualNames = Directory.EnumerateFiles(directory)
-            .Select(Path.GetFileName)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase)!;
         if (!expectedNames.SetEquals(actualNames))
         {
-            return false;
+            return null;
         }
 
         List<OpenVinoOutputArtifact> liveFiles = [];
@@ -422,13 +522,16 @@ internal sealed class OpenVinoPublishedOutputRegistry
             total = checked(total + length);
             if (total > MaximumArtifactBytes)
             {
-                return false;
+                return null;
             }
 
             liveFiles.Add(new OpenVinoOutputArtifact(
                 expected.Path,
                 file.Length,
-                ComputeSha256(path, checked((long)MaximumArtifactBytes))));
+                await ComputeSha256Async(
+                    path,
+                    checked((long)MaximumArtifactBytes),
+                    cancellationToken).ConfigureAwait(false)));
         }
 
         string digest = OpenVinoProvenance.ComputeOutputManifestDigest(liveFiles);
@@ -465,15 +568,16 @@ internal sealed class OpenVinoPublishedOutputRegistry
                 StringComparison.Ordinal)
             || total != result.OutputSizeBytes)
         {
-            return false;
+            return null;
         }
 
-        publication = new OpenVinoPublishedOutput(
-            OpenVinoPublishedOutputKind.PersistentPackage,
-            directory,
-            RuntimeProfile: null,
-            provenance.RuntimeConfiguration!);
-        return true;
+        return new ValidatedPublication(
+            new OpenVinoPublishedOutput(
+                OpenVinoPublishedOutputKind.PersistentPackage,
+                directory,
+                RuntimeProfile: null,
+                provenance.RuntimeConfiguration!),
+            evidenceDigest);
     }
 
     private string RequireDirectChild(string directory)
@@ -498,6 +602,7 @@ internal sealed class OpenVinoPublishedOutputRegistry
 
     private static void RequirePlainDirectory(string path)
     {
+        StoragePathGuard.RequireNoReparseAncestors(path);
         DirectoryInfo directory = new(path);
         if (!directory.Exists
             || (directory.Attributes & FileAttributes.ReparsePoint) != 0)
@@ -508,6 +613,7 @@ internal sealed class OpenVinoPublishedOutputRegistry
 
     private static FileInfo RequireRegularFile(string path, long maximumBytes)
     {
+        StoragePathGuard.RequireNoReparseAncestors(path);
         FileInfo file = new(path);
         if (!file.Exists
             || file.Length <= 0
@@ -519,24 +625,62 @@ internal sealed class OpenVinoPublishedOutputRegistry
         return file;
     }
 
-    private static string ComputeSha256(string path, long maximumBytes)
+    private static async Task<string> ComputeSha256Async(
+        string path,
+        long maximumBytes,
+        CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         FileInfo file = RequireRegularFile(path, maximumBytes);
-        byte[] buffer = GC.AllocateUninitializedArray<byte>(BufferBytes);
-        using FileStream stream = new(
-            file.FullName,
-            FileMode.Open,
-            FileAccess.Read,
-            FileShare.Read,
-            BufferBytes,
-            FileOptions.SequentialScan);
-        using IncrementalHash hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-        int read;
-        while ((read = stream.Read(buffer, 0, buffer.Length)) != 0)
+        long expectedLength = file.Length;
+        byte[] buffer = ArrayPool<byte>.Shared.Rent(BufferBytes);
+        try
         {
-            hash.AppendData(buffer, 0, read);
+            await using FileStream stream = new(
+                file.FullName,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Read,
+                BufferBytes,
+                FileOptions.Asynchronous | FileOptions.SequentialScan);
+            if (stream.Length != expectedLength)
+            {
+                throw new InvalidDataException(
+                    "The publication file changed during identity validation.");
+            }
+
+            using IncrementalHash hash = IncrementalHash.CreateHash(
+                HashAlgorithmName.SHA256);
+            long readTotal = 0;
+            while (true)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                int read = await stream.ReadAsync(
+                    buffer.AsMemory(0, BufferBytes),
+                    cancellationToken).ConfigureAwait(false);
+                if (read == 0)
+                {
+                    break;
+                }
+                readTotal = checked(readTotal + read);
+                if (readTotal > expectedLength || readTotal > maximumBytes)
+                {
+                    throw new InvalidDataException(
+                        "The publication file changed or exceeded its identity bound.");
+                }
+                hash.AppendData(buffer, 0, read);
+            }
+            if (readTotal != expectedLength)
+            {
+                throw new InvalidDataException(
+                    "The publication file changed during identity validation.");
+            }
+            return Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant();
         }
-        return Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant();
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer, clearArray: true);
+        }
     }
 
     private static async Task CopyFileAsync(
@@ -600,34 +744,12 @@ internal sealed class OpenVinoPublishedOutputRegistry
         }
     }
 
-    private static void TryDeleteTemporaryDirectory(string temporary)
-    {
-        try
-        {
-            if (!Directory.Exists(temporary))
-            {
-                return;
-            }
-            RequirePlainDirectory(temporary);
-            if (Directory.EnumerateDirectories(temporary).Any())
-            {
-                return;
-            }
-            foreach (string file in Directory.EnumerateFiles(temporary))
-            {
-                _ = RequireRegularFile(file, checked((long)MaximumArtifactBytes));
-                File.Delete(file);
-            }
-            Directory.Delete(temporary, recursive: false);
-        }
-        catch (Exception failure) when (IsFileFailure(failure))
-        {
-            // Cleanup remains bounded to this exact app-created temporary child.
-        }
-    }
-
     private sealed record RegisteredPublication(
         string Directory,
+        string EvidenceSha256);
+
+    private sealed record ValidatedPublication(
+        OpenVinoPublishedOutput Publication,
         string EvidenceSha256);
 
     private static bool IsEligible(OptimizationExecutionResult? result) =>

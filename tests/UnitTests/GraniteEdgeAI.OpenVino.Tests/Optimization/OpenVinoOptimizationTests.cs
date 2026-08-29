@@ -664,11 +664,11 @@ public sealed class OpenVinoOptimizationTests
         Assert.IsTrue(registry.TryRegister(result, package.Destination));
         string export = Path.Combine(package.Root, "output", "runtime-export");
 
-        Assert.IsFalse(await registry.ExportPersistentAsync(
+        Assert.AreEqual(OpenVinoExportDisposition.RuntimeOnly, (await registry.ExportPersistentAsync(
             result,
             export,
             maximumBytes: 1024 * 1024,
-            CancellationToken.None));
+            CancellationToken.None)).Disposition);
         Assert.IsFalse(Directory.Exists(export));
     }
 
@@ -700,17 +700,17 @@ public sealed class OpenVinoOptimizationTests
             DateTimeOffset.UtcNow);
         string export = Path.Combine(package.Root, "output", "persistent-export");
 
-        Assert.IsFalse(await registry.ExportPersistentAsync(
+        Assert.AreEqual(OpenVinoExportDisposition.ResultRejected, (await registry.ExportPersistentAsync(
             substituted,
             export,
             maximumBytes: 1024 * 1024,
-            CancellationToken.None));
+            CancellationToken.None)).Disposition);
         Assert.IsFalse(Directory.Exists(export));
-        Assert.IsTrue(await registry.ExportPersistentAsync(
+        Assert.IsTrue((await registry.ExportPersistentAsync(
             result,
             export,
             maximumBytes: 1024 * 1024,
-            CancellationToken.None));
+            CancellationToken.None)).IsSuccessful);
         Assert.IsTrue(Directory.Exists(export));
         Assert.IsFalse(Directory.EnumerateDirectories(
             Path.GetDirectoryName(export)!,
@@ -756,6 +756,20 @@ public sealed class OpenVinoOptimizationTests
             selectedRoot,
             ".export-*.tmp",
             SearchOption.TopDirectoryOnly).Any());
+
+        string existing = Path.Combine(selectedRoot, "existing-model");
+        Directory.CreateDirectory(existing);
+        string sentinel = Path.Combine(existing, "sentinel.txt");
+        File.WriteAllText(sentinel, "preserve");
+        OpenVinoExportResult rejected = await registry.ExportPersistentAsync(
+            result,
+            existing,
+            maximumBytes: 1024 * 1024,
+            CancellationToken.None);
+        Assert.AreEqual(
+            OpenVinoExportDisposition.DestinationExists,
+            rejected.Disposition);
+        Assert.AreEqual("preserve", File.ReadAllText(sentinel));
     }
 
     [TestMethod]
@@ -843,6 +857,49 @@ public sealed class OpenVinoOptimizationTests
                 Path.Combine(outputRoot, "cancel-before-identity"),
                 maximumBytes: 1024 * 1024,
                 cancellation.Token));
+    }
+
+    [TestMethod]
+    public async Task CancellationDuringLargeArtifactIdentityIsPromptAndBounded()
+    {
+        using PackageFixture package = PackageFixture.Create();
+        OptimizationExecutionPlan plan = CreatePlan(package.Source);
+        var pipeline = new RecordingOptimizationPipeline
+        {
+            SparseOutputLength = 512L * 1024 * 1024
+        };
+        OpenVinoOptimizationService service = new(pipeline, _ => true);
+        OptimizationExecutionResult result = await service.ExecuteAsync(
+            new OpenVinoOptimizationRequest(
+                package.Source,
+                package.Destination,
+                plan,
+                CurrentStateProvider(plan),
+                Confirmed: true),
+            progress: null,
+            CancellationToken.None);
+        string outputRoot = Path.GetDirectoryName(package.Destination)!;
+        var registry = new OpenVinoPublishedOutputRegistry(outputRoot);
+        Assert.IsTrue(registry.TryRegister(result, package.Destination));
+        using var cancellation = new CancellationTokenSource();
+        cancellation.CancelAfter(TimeSpan.FromMilliseconds(20));
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
+        long before = GC.GetTotalAllocatedBytes(precise: true);
+
+        await Assert.ThrowsExactlyAsync<OperationCanceledException>(async () =>
+            await registry.ExportPersistentAsync(
+                result,
+                Path.Combine(outputRoot, "cancel-during-identity"),
+                maximumBytes: 1UL << 30,
+                cancellation.Token));
+
+        long allocated = GC.GetTotalAllocatedBytes(precise: true) - before;
+        Assert.IsLessThan(32L * 1024 * 1024, allocated);
+        Assert.IsFalse(Directory.Exists(Path.Combine(
+            outputRoot,
+            "cancel-during-identity")));
     }
 
     [TestMethod]
