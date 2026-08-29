@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "workerId": "H1",
+  "campaign": "R3",
+  "createdAtUtc": "2026-08-29T03:16:09Z",
+  "subjectTree": "115a4f250bb81e63c8e97941daa4c94ad41288a7",
+  "commands": [
+    {"id":"HARDWARE-FOUNDATION","invocationId":"foundation-tests-v1","exitCode":0,"discovered":202,"executed":202,"passed":202,"failed":0,"skipped":0},
+    {"id":"LLAMACPP-PROBE-TOOL","invocationId":"llamacpp-probe-tests-v1","exitCode":0,"discovered":22,"executed":22,"passed":22,"failed":0,"skipped":0},
+    {"id":"MODEL-HARDWARE-COMPATIBILITY","invocationId":"compatibility-tests-v1","exitCode":0,"discovered":1060,"executed":1060,"passed":1060,"failed":0,"skipped":0},
+    {"id":"HARDWARE-POWERSHELL","invocationId":"h1-pester-v1","exitCode":0,"discovered":30,"executed":30,"passed":30,"failed":0,"skipped":0},
+    {"id":"DEBUG-X64-APP-BUILD","invocationId":"app-build-v1","exitCode":1,"discovered":1,"executed":1,"passed":0,"failed":1,"skipped":0},
+    {"id":"DEBUG-X64-UNIT-BUILD","invocationId":"unit-build-v1","exitCode":0,"discovered":1,"executed":1,"passed":1,"failed":0,"skipped":0},
+    {"id":"STATIC-PACKAGING-EVAL","invocationId":"static-package-matrix-v1","exitCode":0,"discovered":4,"executed":4,"passed":4,"failed":0,"skipped":0},
+    {"id":"PACKAGE-MANIFEST-VERIFY","invocationId":"probe-manifest-v1","exitCode":0,"discovered":1,"executed":1,"passed":1,"failed":0,"skipped":0},
+    {"id":"PACKAGE-PRIVACY-DUPLICATION","invocationId":"package-privacy-v1","exitCode":0,"discovered":1,"executed":1,"passed":1,"failed":0,"skipped":0},
+    {"id":"PRODUCTION-REACHABILITY","invocationId":"production-reachability-v1","exitCode":0,"discovered":1,"executed":1,"passed":1,"failed":0,"skipped":0},
+    {"id":"MODEL-INSPECTION-PACKAGE-BOUNDARY","invocationId":"model-package-boundary-v1","exitCode":1,"discovered":1,"executed":1,"passed":0,"failed":1,"skipped":0},
+    {"id":"PRIVACY-DIFF-SCANS","invocationId":"privacy-diff-v1","exitCode":0,"discovered":1,"executed":1,"passed":1,"failed":0,"skipped":0}
+  ],
+  "totals": {"discovered":1325,"executed":1325,"passed":1323,"failed":2,"skipped":0}
+}

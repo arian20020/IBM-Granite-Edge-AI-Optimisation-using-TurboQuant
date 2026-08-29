@@ -1,0 +1,29 @@
+{
+    "schemaVersion":  1,
+    "workerId":  "H1",
+    "campaign":  "R3",
+    "phaseClosed":  true,
+    "nativeDisposition":  "passed",
+    "startedAtUtc":  "2026-08-29T03:17:11Z",
+    "completedAtUtc":  "2026-08-29T03:17:21Z",
+    "cleanupVerified":  true,
+    "postProcessCount":  0,
+    "commands":  [
+                     {
+                         "command":  "identity",
+                         "exitCode":  0,
+                         "stdoutBytes":  366,
+                         "stderrBytes":  0,
+                         "timeoutSeconds":  30,
+                         "timedOut":  false
+                     },
+                     {
+                         "command":  "capabilities",
+                         "exitCode":  0,
+                         "stdoutBytes":  148,
+                         "stderrBytes":  0,
+                         "timeoutSeconds":  30,
+                         "timedOut":  false
+                     }
+                 ]
+}
