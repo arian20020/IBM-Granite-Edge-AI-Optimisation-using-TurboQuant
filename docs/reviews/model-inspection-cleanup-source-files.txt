@@ -178,6 +178,8 @@ docs/architecture/decisions/ADR-003-protected-model-inspection-worker.md
 docs/architecture/decisions/README.md
 docs/audits/2026-08-28/M1-model-inspection-remediation-r2.md
 docs/audits/2026-08-28/evidence/M1-model-inspection-evidence-v1.json
+docs/audits/2026-08-28/schemas/10-EVIDENCE-MANIFEST-SCHEMA.json
+docs/audits/2026-08-28/schemas/10-HANDOFF-RECEIPT-SCHEMA.json
 docs/development/Model-Import-Quick-Scan-Current-State.md
 docs/development/Model-Inspection-Visual-Studio-Debug-Guide.md
 docs/evidence/testing/Model-Inspection-Figma-Visual-Verification.md
@@ -311,6 +313,7 @@ runtime/README.md
 scripts/model-inspection/Generate-ModelInspectionFixtureReport.ps1
 scripts/model-inspection/Invoke-ModelInspectionProgressPolishGate.ps1
 scripts/model-inspection/New-ModelInspectionWorkerManifest.ps1
+scripts/model-inspection/Test-M1R3AuditEvidence.ps1
 scripts/model-inspection/Test-ModelInspectionFixtureReleaseIsolation.ps1
 scripts/model-inspection/Test-ModelInspectionVisualArtifactPrivacy.ps1
 scripts/model-inspection/Test-ModelInspectionWorkerManifest.ps1
@@ -369,6 +372,7 @@ tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Gate2ProjectGr
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Gate4PackagingContractTests.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Gate5ApplicationBoundaryContractTests.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/GraniteEdgeAI.ModelInspection.Contracts.Tests.csproj
+tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/M1R3AuditEvidenceContractTests.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/ModelInspectionFixtureBuildBoundaryContractTests.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/ModelInspectionFixtureCatalogueContractTests.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/ModelInspectionFixtureJsonContractTests.cs

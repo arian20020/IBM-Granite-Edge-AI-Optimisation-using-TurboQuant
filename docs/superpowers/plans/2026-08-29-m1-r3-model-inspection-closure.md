@@ -138,8 +138,8 @@ start only after fresh H1 handoff and phase receipts validate.
 
 - Update `docs/reviews/model-inspection-cleanup-source-files.txt` and
   `docs/reviews/model-inspection-cleanup-inventory.md` for every durable path.
-- Create `docs/audits/2026-08-29/M1-model-inspection-remediation-r3.md`.
-- Create `docs/audits/2026-08-29/evidence/M1-model-inspection-evidence-r3.json`.
+- Create `docs/audits/2026-08-28/M1-model-inspection-remediation-r3.md`.
+- Create `docs/audits/2026-08-28/evidence/M1-model-inspection-evidence-r3.json`.
 - Atomically publish `C:\UCL-AUDIT-HANDOFFS\M1.json` after all validations.
 
 1. Run focused R3 classes, the complete Model Inspection contract suite,
