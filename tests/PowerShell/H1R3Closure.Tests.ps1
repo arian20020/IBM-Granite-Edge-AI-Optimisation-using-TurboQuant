@@ -3,6 +3,7 @@ $ErrorActionPreference = 'Stop'
 $repositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $validator = Join-Path $repositoryRoot 'scripts\audits\Test-H1R3Closure.ps1'
 $managedRunner = Join-Path $repositoryRoot 'scripts\audits\Invoke-H1R3ManagedVerification.ps1'
+$nativeRunner = Join-Path $repositoryRoot 'scripts\audits\Invoke-H1R3NativeVerification.ps1'
 
 function New-H1R3LedgerFixture {
     param(
@@ -329,5 +330,49 @@ Describe 'H1 R3 managed runner contracts' {
         $actual = Get-Content -Raw -LiteralPath $summary | ConvertFrom-Json
         @($actual.commands).Count | Should Be 1
         $actual.commands[0].id | Should Be 'CONTROLLED'
+    }
+}
+
+Describe 'H1 R3 native runner fail-closed contracts' {
+    It 'refuses an existing native lock' {
+        $lock = Join-Path $TestDrive 'existing.lock'
+        New-Item -ItemType Directory -Path $lock | Out-Null
+        $output = & $nativeRunner -RepositoryRoot $repositoryRoot `
+            -OutputLedgerPath (Join-Path $TestDrive 'locked.json') -LockPath $lock 2>&1
+        $LASTEXITCODE | Should Not Be 0
+        ($output -join "`n") | Should Be 'H1R3-NATIVE-LOCKED'
+    }
+
+    It 'refuses an existing output destination' {
+        $destination = Join-Path $TestDrive 'existing-output.json'
+        [IO.File]::WriteAllText($destination, 'occupied', [Text.UTF8Encoding]::new($false))
+        $output = & $nativeRunner -RepositoryRoot $repositoryRoot `
+            -OutputLedgerPath $destination -LockPath (Join-Path $TestDrive 'destination.lock') 2>&1
+        $LASTEXITCODE | Should Not Be 0
+        ($output -join "`n") | Should Be 'H1R3-DESTINATION-EXISTS'
+    }
+
+    It 'refuses a mismatched probe manifest' {
+        $manifest = Join-Path $TestDrive 'bad-manifest.json'
+        [IO.File]::WriteAllText($manifest, '{}', [Text.UTF8Encoding]::new($false))
+        $output = & $nativeRunner -RepositoryRoot $repositoryRoot `
+            -OutputLedgerPath (Join-Path $TestDrive 'manifest-output.json') `
+            -LockPath (Join-Path $TestDrive 'manifest.lock') `
+            -ProbeDirectory (Join-Path $repositoryRoot 'obj\hi-lcp\package\Debug\win-x64') `
+            -ManifestPath $manifest 2>&1
+        $LASTEXITCODE | Should Not Be 0
+        ($output -join "`n") | Should Be 'H1R3-MANIFEST'
+    }
+
+    It 'reports an unclean owned process observation' {
+        # Mutation guarded: suppressing cleanup failure must fail this test.
+        $output = & $nativeRunner -RepositoryRoot $repositoryRoot `
+            -OutputLedgerPath (Join-Path $TestDrive 'cleanup-output.json') `
+            -LockPath (Join-Path $TestDrive 'cleanup.lock') `
+            -ProbeDirectory (Join-Path $repositoryRoot 'obj\hi-lcp\package\Debug\win-x64') `
+            -ManifestPath (Join-Path $repositoryRoot 'obj\hi-lcp\package\Debug\llamacpp-probe-manifest.json') `
+            -VerifyCleanupProcessId $PID 2>&1
+        $LASTEXITCODE | Should Not Be 0
+        ($output -join "`n") | Should Be 'H1R3-NATIVE-CLEANUP'
     }
 }
