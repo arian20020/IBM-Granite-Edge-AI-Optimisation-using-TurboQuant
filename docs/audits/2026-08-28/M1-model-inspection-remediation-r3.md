@@ -102,14 +102,14 @@ phase closure, cleanup, zero post-process count, exact handoff byte/hash join,
 committed record hashes and byte counts, Git identities, ancestry, remote tip,
 and managed-ledger arithmetic all agree.
 
-M1 then acquired `C:\UCL-AUDIT-NATIVE.lock`, discovered exactly one committed
+M1 then acquired the shared native lock, discovered exactly one committed
 `ProductionWorkerNativeCompletionTests` case, and ran it against the only
 available same-worktree production-worker output. The case failed before model
 inspection with `worker_handshake_invalid`; cleanup found zero worker processes
 and the lock was released. Inspection showed that output was an interrupted,
 incomplete build: its worker runtime configuration file had zero bytes. The
-pinned SDK 10.0.301 is unavailable (only 10.0.400 is installed), C: had 2.31
-GiB free, and prior fresh worker publication attempts were terminated at the
+pinned SDK 10.0.301 is unavailable (only 10.0.400 is installed), the system
+volume had 2.31 GiB free, and prior fresh worker publication attempts were terminated at the
 Application Control boundary. M1 did not weaken policy, substitute another
 commit's worker, or count the failed handshake as native execution. No passing
 M1 native phase receipt is published.

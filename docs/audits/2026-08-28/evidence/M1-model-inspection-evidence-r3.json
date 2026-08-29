@@ -13,8 +13,8 @@
   "evidenceStatus": "mixed",
   "report": {
     "path": "docs/audits/2026-08-28/M1-model-inspection-remediation-r3.md",
-    "sha256": "4462723660bb36130d7d53ae000624e560f528a3902e64e8772967a2d920d63b",
-    "bytes": 8463
+    "sha256": "f70fce163263d5285772457aafcf7fff66060e3a635c0f73ed25d28c5e830fa4",
+    "bytes": 8474
   },
   "inputs": [
     {
