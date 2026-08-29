@@ -7,6 +7,8 @@ using GraniteEdgeAI.Features.ModelInspection;
 using GraniteEdgeAI.Features.ModelInspection.Contracts;
 using GraniteEdgeAI.Features.ModelInspection.Handoff;
 using GraniteEdgeAI.Features.Onboarding;
+using GraniteEdgeAI.Features.OpenVinoRoute;
+using GraniteEdgeAI.Features.OpenVinoRoute.Inspection;
 using GraniteEdgeAI.HardwareInspection.Foundation.Windows;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation;
 using GraniteEdgeAI.UnitTests.Features.HardwareInspection;
@@ -22,6 +24,8 @@ public sealed class OnboardingCompatibilityNavigationTests
 {
     private static readonly Guid ModelRunId =
         Guid.Parse("22222222-2222-4222-8222-222222222222");
+    private static readonly Guid OpenVinoHandoffId =
+        Guid.Parse("33333333-3333-4333-8333-333333333333");
 
     [UITestMethod]
     [TestCategory("WinUI")]
@@ -152,6 +156,40 @@ public sealed class OnboardingCompatibilityNavigationTests
             compatibilityPage.ViewModel.Presentation.Tone);
     }
 
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task CompatibilityEvaluation_DoesNotConvertDependencyCancellationToFallback()
+    {
+        (ModelInspectionPage source, ModelInspectionHandoff modelHandoff) =
+            CreateOpenVinoSourcePage();
+        var shell = new OnboardingShellPage(
+            static (frame, request) => frame.Navigate(typeof(ModelInspectionPage), request),
+            new CountingHardwareService(), null, null,
+            new CancellingFreshResourcesSource(),
+            (_, _) => null,
+            (frame, page) =>
+            {
+                page.StartAutomatically = false;
+                frame.Content = page;
+                return true;
+            });
+        shell.AttachModelInspectionPage(source);
+        Assert.IsTrue(shell.NavigateToHardwareInspection(source, modelHandoff));
+        var frame = (Frame)shell.FindName("StageFrame");
+        var hardwarePage = (HardwareInspectionPage)frame.Content;
+        HardwareInspectionHandoff hardwareHandoff = HardwareInspectionHandoff.Create(
+            shell.CurrentProductHardwareRunId,
+            HardwareInspectionOutcome.Completed,
+            HardwareInspectionContractTests.CreateUsableSnapshotForPresentation());
+        Assert.IsTrue(await shell.NavigateToCompatibilityAsync(
+            hardwarePage,
+            new HardwareInspectionCompletedEventArgs(hardwareHandoff)));
+        var compatibilityPage = (CompatibilityPage)frame.Content;
+
+        await Assert.ThrowsExactlyAsync<OperationCanceledException>(
+            compatibilityPage.ViewModel.StartAsync);
+    }
+
     [TestMethod]
     public async Task WindowsFreshResourceSource_UsesCurrentProvidersAndInjectedClock()
     {
@@ -186,6 +224,50 @@ public sealed class OnboardingCompatibilityNavigationTests
         Assert.IsNotNull(activate);
         activate.Invoke(page, [PresentationTestData.CreateRequest()]);
         return page;
+    }
+
+    private static (ModelInspectionPage Page, ModelInspectionHandoff Handoff)
+        CreateOpenVinoSourcePage()
+    {
+        string package = Path.Combine(
+            AppContext.BaseDirectory,
+            "TestFixtures",
+            "OpenVINO",
+            "GenAI",
+            "TinySyntheticV1",
+            "package");
+        OpenVinoStaticPackageInspectionResult inspection =
+            new OpenVinoStaticPackageInspector().Inspect(package);
+        Assert.IsNotNull(inspection.Evidence);
+        OpenVinoStaticPackageEvidence evidence = inspection.Evidence;
+        var handoff = new ModelInspectionHandoff(
+            ModelInspectionHandoff.CurrentSchemaVersion,
+            OpenVinoHandoffId,
+            ModelRunId,
+            ModelInspectionOutcome.Ready,
+            evidence.ModelSha256,
+            evidence.ModelLengthBytes);
+        var page = new ModelInspectionPage();
+        SetPrivateField(page, "_openVinoDirectoryPath", package);
+        SetPrivateField(page, "_openVinoHardwareHandoff", handoff);
+        SetPrivateField(
+            page,
+            "_openVinoConfiguration",
+            OpenVinoRouteCapability.Candidates[0]);
+        return (page, handoff);
+    }
+
+    private static void SetPrivateField(
+        ModelInspectionPage page,
+        string fieldName,
+        object value)
+    {
+        System.Reflection.FieldInfo? field = typeof(ModelInspectionPage).GetField(
+            fieldName,
+            System.Reflection.BindingFlags.Instance |
+            System.Reflection.BindingFlags.NonPublic);
+        Assert.IsNotNull(field);
+        field.SetValue(page, value);
     }
 
     [TestMethod]
@@ -282,6 +364,15 @@ public sealed class OnboardingCompatibilityNavigationTests
         public ValueTask<CompatibilityFreshResourcesInput> CaptureAsync(
             CancellationToken cancellationToken) =>
             ValueTask.FromResult(FreshResources(24UL * 1024 * 1024 * 1024));
+    }
+
+    private sealed class CancellingFreshResourcesSource
+        : ICompatibilityFreshResourcesSource
+    {
+        public ValueTask<CompatibilityFreshResourcesInput> CaptureAsync(
+            CancellationToken cancellationToken) =>
+            ValueTask.FromException<CompatibilityFreshResourcesInput>(
+                new OperationCanceledException("dependency cancelled"));
     }
 
     private sealed class SequencedFreshResourcesSource : ICompatibilityFreshResourcesSource
