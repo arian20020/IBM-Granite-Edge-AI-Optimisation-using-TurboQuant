@@ -680,6 +680,9 @@ namespace GraniteEdgeAI.Features.Onboarding
                 return false;
             }
 
+            var evaluator = new CompatibilityEvaluationOrchestrator(
+                _compatibilityFreshResourcesSource,
+                TimeProvider.System);
             CompatibilityPage compatibilityPage;
             if (hasGguf && GgufOptimizationProductionAuthority.TryCreate(
                     preparedGguf!,
@@ -690,35 +693,11 @@ namespace GraniteEdgeAI.Features.Onboarding
                 _activeOpenVinoOptimizationService = null;
                 EnsureGgufChatRoute(production!);
                 compatibilityPage = new CompatibilityPage(
-                    async (optedInEvidence, token) =>
-                    {
-                        try
-                        {
-                            CompatibilityFreshResourcesInput fresh =
-                                await _compatibilityFreshResourcesSource
-                                    .CaptureAsync(token);
-                            DateTimeOffset evaluatedAtUtc = DateTimeOffset.UtcNow;
-                            return await Task.Run(
-                                () => production!.Evaluate(
-                                    fresh,
-                                    optedInEvidence,
-                                    evaluatedAtUtc,
-                                    token),
-                                token);
-                        }
-                        catch (OperationCanceledException)
-                            when (token.IsCancellationRequested)
-                        {
-                            throw;
-                        }
-                        catch
-                        {
-                            return new CompatibilityEvaluation(
-                                CompatibilityEngine.RunWithAvailableAdapters(token),
-                                null,
-                                null);
-                        }
-                    },
+                    (optedInEvidence, token) =>
+                        evaluator.EvaluateAuthorityAsync(
+                            optedInEvidence,
+                            production!.Evaluate,
+                            token),
                     production!,
                     evaluation => production!.ResolveCurrentModel(
                         evaluation,
@@ -738,29 +717,11 @@ namespace GraniteEdgeAI.Features.Onboarding
                 _activeOpenVinoAuthority = openVinoProduction;
                 _activeOpenVinoOptimizationService = openVinoService;
                 compatibilityPage = new CompatibilityPage(
-                    async (optedInEvidence, token) =>
-                    {
-                        try
-                        {
-                            CompatibilityFreshResourcesInput fresh =
-                                await _compatibilityFreshResourcesSource.CaptureAsync(token);
-                            DateTimeOffset evaluatedAtUtc = DateTimeOffset.UtcNow;
-                            return await Task.Run(
-                                () => openVinoProduction!.Evaluate(
-                                    fresh, optedInEvidence, evaluatedAtUtc, token), token);
-                        }
-                        catch (OperationCanceledException)
-                            when (token.IsCancellationRequested)
-                        {
-                            throw;
-                        }
-                        catch
-                        {
-                            return new CompatibilityEvaluation(
-                                CompatibilityEngine.RunWithAvailableAdapters(token),
-                                null, null);
-                        }
-                    },
+                    (optedInEvidence, token) =>
+                        evaluator.EvaluateAuthorityAsync(
+                            optedInEvidence,
+                            openVinoProduction!.Evaluate,
+                            token),
                     openVinoProduction!,
                     evaluation => openVinoProduction!.ResolveCurrentModel(
                         evaluation, CurrentModelChatLaunchRegistry),
@@ -771,36 +732,15 @@ namespace GraniteEdgeAI.Features.Onboarding
                 _activeGgufAuthority = null;
                 _activeOpenVinoAuthority = null;
                 _activeOpenVinoOptimizationService = null;
-                compatibilityPage = new CompatibilityPage(async token =>
-                {
-                    try
-                    {
-                        CompatibilityFreshResourcesInput fresh =
-                            await _compatibilityFreshResourcesSource.CaptureAsync(token);
-                        bool bound = hasGguf
-                            ? preparedGguf!.TryBindFresh(
-                                fresh,
-                                out CompatibilityProductionInput? input)
-                            : preparedOpenVino!.TryBindFresh(
-                                fresh,
-                                out input);
-                        if (!bound)
-                        {
-                            return CompatibilityEngine.RunWithAvailableAdapters(token);
-                        }
-                        return await Task.Run(
-                            () => CompatibilityEngine.Run(input!, token), token);
-                    }
-                    catch (OperationCanceledException)
-                        when (token.IsCancellationRequested)
-                    {
-                        throw;
-                    }
-                    catch
-                    {
-                        return CompatibilityEngine.RunWithAvailableAdapters(token);
-                    }
-                }, continueDestinationAvailable: false);
+                compatibilityPage = new CompatibilityPage(
+                    token => evaluator.EvaluateBoundAsync(
+                        (CompatibilityFreshResourcesInput fresh,
+                            out CompatibilityProductionInput? input) =>
+                            hasGguf
+                                ? preparedGguf!.TryBindFresh(fresh, out input)
+                                : preparedOpenVino!.TryBindFresh(fresh, out input),
+                        token),
+                    continueDestinationAvailable: false);
             }
             compatibilityPage.BackRequested += CompatibilityPage_BackRequested;
             compatibilityPage.ContinueRequested += CompatibilityPage_ContinueRequested;
