@@ -4,7 +4,7 @@
   "frozenSourceCommit": "4748fe04f19afdf6b27c4c12502b84db325e7294",
   "evidenceSubjectCommit": "e1657fcac13594014d18105558edd5cf8c2d35af",
   "evidenceSubjectTree": "66eb2720142fcc91265996dea64b24574fb616c8",
-  "createdAtUtc": "2026-08-29T03:26:06Z",
+  "createdAtUtc": "2026-08-29T03:47:00Z",
   "route": [
     "shared",
     "gguf",
@@ -13,8 +13,8 @@
   "evidenceStatus": "mixed",
   "report": {
     "path": "docs/audits/2026-08-28/M1-model-inspection-remediation-r3.md",
-    "sha256": "e8748def4c6014b71b9cb2ace0879bbfe1e5ef7eac7d0ce8ac687246a1728135",
-    "bytes": 7758
+    "sha256": "4462723660bb36130d7d53ae000624e560f528a3902e64e8772967a2d920d63b",
+    "bytes": 8463
   },
   "inputs": [
     {
@@ -190,6 +190,15 @@
       "passed": 0,
       "failed": 0,
       "skipped": 0
+    },
+    {
+      "id": "M1-CONTROLLED-NATIVE-PREFLIGHT",
+      "exitCode": 2,
+      "discovered": 1,
+      "executed": 1,
+      "passed": 0,
+      "failed": 1,
+      "skipped": 0
     }
   ],
   "blockers": [
@@ -197,7 +206,7 @@
     "Application Control rejects generated worker and worker-client test artifacts before managed process tests or OpenVINO test discovery can proceed.",
     "Windows PowerShell machine policy rejects the checked-in visual privacy scanner before script logic starts.",
     "The loose WinUI VSTest host lacks Windows App SDK COM registration and fails before packaged test logic.",
-    "Fresh H1 handoff and native receipts are absent, so nativeDisposition is not-run and no M1 native phase receipt exists."
+    "H1 receipts are valid, but the same-worktree production-worker output is incomplete, the pinned SDK 10.0.301 is unavailable, and fresh publication is blocked by Application Control; nativeDisposition is blocked and no passing M1 native phase receipt exists."
   ],
   "nonClaims": [
     "No native GGUF or OpenVINO execution is claimed.",

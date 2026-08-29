@@ -70,7 +70,7 @@ fixture boundary or combined user journey is green.
 | Projection protocol contract | 16/16 passed |
 | Package evaluation plus new-root mutation | 5/5 passed |
 | Cleanup plus execution boundary | 4/4 passed |
-| Cleanup inventory | 690/690, verifier 3/3 |
+| Cleanup inventory | 692/692, verifier 3/3 |
 
 The two contract privacy tests fail before the checked-in scanner starts
 because the host launches Windows PowerShell under a machine policy that
@@ -96,14 +96,23 @@ coverage without weakening package activation.
 
 ## Native disposition
 
-`nativeDisposition` is `not-run`. Fresh H1 handoff and native receipts are
-absent, and no native lock exists. M1 therefore did not enter the H1-to-M1
-native phase and did not publish an M1 native phase receipt. One initially
-unfiltered worker-process command selected
-`ProductionWorkerNativeCompletionTests`; its production-worker publication
-timed out before worker or native execution, and the run was stopped. This is
-recorded as an attempted test selection, not as native evidence or a passing
-row.
+`nativeDisposition` is `blocked`. H1's fresh R3 handoff and native receipts
+were independently verified before M1 entered the shared-lock phase: their
+phase closure, cleanup, zero post-process count, exact handoff byte/hash join,
+committed record hashes and byte counts, Git identities, ancestry, remote tip,
+and managed-ledger arithmetic all agree.
+
+M1 then acquired `C:\UCL-AUDIT-NATIVE.lock`, discovered exactly one committed
+`ProductionWorkerNativeCompletionTests` case, and ran it against the only
+available same-worktree production-worker output. The case failed before model
+inspection with `worker_handshake_invalid`; cleanup found zero worker processes
+and the lock was released. Inspection showed that output was an interrupted,
+incomplete build: its worker runtime configuration file had zero bytes. The
+pinned SDK 10.0.301 is unavailable (only 10.0.400 is installed), C: had 2.31
+GiB free, and prior fresh worker publication attempts were terminated at the
+Application Control boundary. M1 did not weaken policy, substitute another
+commit's worker, or count the failed handshake as native execution. No passing
+M1 native phase receipt is published.
 
 ## Changed paths
 
@@ -124,5 +133,5 @@ composition, package reference, or Q1 optimization file was edited.
   seven-context matrix.
 - Environment administration must provide a policy-authorized managed test
   closure and a PowerShell policy that permits the checked-in privacy scanner.
-- H1 must publish fresh schema-valid handoff and native receipts before M1 may
-  enter the native phase.
+- A policy-authorized, exact-subject production-worker build using the pinned
+  SDK must be provisioned before the controlled native case can be rerun.
