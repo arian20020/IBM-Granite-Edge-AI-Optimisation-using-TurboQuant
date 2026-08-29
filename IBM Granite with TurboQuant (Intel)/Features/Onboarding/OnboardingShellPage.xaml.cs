@@ -834,61 +834,27 @@ namespace GraniteEdgeAI.Features.Onboarding
                     Environment.SpecialFolder.LocalApplicationData),
                 "GraniteEdgeAI",
                 "Optimization");
-            var outputs = new OptimizationOutputRegistry(
-                Path.Combine(appRoot, "OutputStaging"),
-                Path.Combine(appRoot, "Outputs"));
-            IOptimizationExecutor executor;
-            IOptimizationRevalidator revalidator;
-            IOptimizationAttemptContextFactory contextFactory;
-            if (entry.OptimizationHandoff.Plan.Route == OptimizationRoute.Gguf
-                && _activeGgufAuthority is { } ggufAuthority)
-            {
-                GraniteEdgeAI.Features.ModelOptimization.Execution.Gguf
-                    .IGgufQuantizationRunner runner =
-                    ggufAuthority.QuantizerPackageRoot is { } quantizerRoot
-                        ? new VerifiedGgufQuantizationRunner(
-                            quantizerRoot,
-                            ggufAuthority.QuantizerManifestSha256,
-                            TimeSpan.FromHours(2))
-                        : UnavailableGgufQuantizationRunner.Instance;
-                executor = new GgufOptimizationExecutor(outputs, runner);
-                contextFactory = new GgufOptimizationAttemptContextFactory(
-                    _modelSourceCustodyRegistry,
-                    Path.Combine(appRoot, "SourceStaging"))
-                {
-                    Plan = entry.OptimizationHandoff.Plan,
-                };
-                revalidator = new GgufOptimizationRevalidator(
-                    _modelSourceCustodyRegistry, ggufAuthority);
-            }
-            else if (entry.OptimizationHandoff.Plan.Route == OptimizationRoute.OpenVino
-                && _activeOpenVinoAuthority is { } openVinoAuthority
-                && _activeOpenVinoOptimizationService is { } openVinoService)
-            {
-                _activeOpenVinoExecutor = new OpenVinoOptimizationExecutor(
-                    _modelSourceCustodyRegistry,
-                    openVinoAuthority,
-                    openVinoService,
-                    Path.Combine(appRoot, "OpenVinoOutputs"));
-                executor = _activeOpenVinoExecutor;
-                contextFactory = new OpenVinoOptimizationAttemptContextFactory(
-                    _modelSourceCustodyRegistry,
-                    Path.Combine(appRoot, "SourceStaging"))
-                {
-                    Plan = entry.OptimizationHandoff.Plan,
-                };
-                revalidator = new OpenVinoOptimizationRevalidator(
-                    _modelSourceCustodyRegistry, openVinoAuthority);
-            }
-            else
+            var factory = new OptimizationBackendCompositionFactory(
+                _modelSourceCustodyRegistry,
+                appRoot,
+                _activeGgufAuthority,
+                _activeOpenVinoAuthority,
+                _activeOpenVinoOptimizationService,
+                TimeProvider.System);
+            if (!factory.TryCreate(
+                    entry,
+                    out OptimizationBackendComposition? backend) ||
+                backend is null)
             {
                 return;
             }
-            var coordinator = new OptimizationJourneyCoordinator(
-                entry,
-                new OptimizationExecutorRouter([executor]),
-                revalidator,
-                contextFactory);
+
+            _activeOpenVinoExecutor =
+                backend.Executor as OpenVinoOptimizationExecutor;
+            OptimizationJourneyCoordinator coordinator = backend.Coordinator;
+            IOptimizationAttemptContextFactory contextFactory =
+                backend.ContextFactory;
+            OptimizationOutputRegistry outputs = backend.Outputs;
             var page = new OptimizationPage(entry);
             page.IntentRequested += OptimizationPage_IntentRequested;
             coordinator.StateChanged += OptimizationCoordinator_StateChanged;
