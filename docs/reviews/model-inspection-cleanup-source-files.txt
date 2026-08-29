@@ -178,6 +178,8 @@ docs/architecture/decisions/ADR-002-core-inspection-versus-backend-verification.
 docs/architecture/decisions/ADR-003-protected-model-inspection-worker.md
 docs/architecture/decisions/README.md
 docs/audits/2026-08-28/M1-model-inspection-remediation-r2.md
+docs/audits/2026-08-28/M1-model-inspection-remediation-r3.md
+docs/audits/2026-08-28/evidence/M1-model-inspection-evidence-r3.json
 docs/audits/2026-08-28/evidence/M1-model-inspection-evidence-v1.json
 docs/audits/2026-08-28/proposals/M1-R3-shared-project-fixture-boundary.diff
 docs/audits/2026-08-28/schemas/10-EVIDENCE-MANIFEST-SCHEMA.json

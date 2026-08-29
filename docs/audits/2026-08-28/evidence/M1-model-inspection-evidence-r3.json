@@ -1,0 +1,208 @@
+{
+  "schemaVersion": 1,
+  "workerId": "M1",
+  "frozenSourceCommit": "4748fe04f19afdf6b27c4c12502b84db325e7294",
+  "evidenceSubjectCommit": "e1657fcac13594014d18105558edd5cf8c2d35af",
+  "evidenceSubjectTree": "66eb2720142fcc91265996dea64b24574fb616c8",
+  "createdAtUtc": "2026-08-29T03:26:06Z",
+  "route": [
+    "shared",
+    "gguf",
+    "openvino"
+  ],
+  "evidenceStatus": "mixed",
+  "report": {
+    "path": "docs/audits/2026-08-28/M1-model-inspection-remediation-r3.md",
+    "sha256": "e8748def4c6014b71b9cb2ace0879bbfe1e5ef7eac7d0ce8ac687246a1728135",
+    "bytes": 7758
+  },
+  "inputs": [
+    {
+      "kind": "modelSource",
+      "id": "schema-v2-exact-model-source-identity-contract",
+      "sha256": "e9f2181f683895cbcb8c1ca8dd757488f7db950dabc4f0cdeccd68ac03f1b3b9",
+      "bytes": 15257,
+      "evidenceGrade": "verified"
+    },
+    {
+      "kind": "routeSpecificInspection",
+      "id": "live-gguf-issued-handoff-projection-adapter",
+      "sha256": "aaa9377d91da9deaaeda2103c02aa40766d909f5428eec88af9c2d90fb55410a",
+      "bytes": 1853,
+      "evidenceGrade": "verified"
+    },
+    {
+      "kind": "routeSpecificInspection",
+      "id": "live-openvino-issued-handoff-projection-adapter",
+      "sha256": "5b12e0666f7e60f1c868d07b05847d693858a85239117d1140d94eb623513c1c",
+      "bytes": 1285,
+      "evidenceGrade": "verified"
+    }
+  ],
+  "outputs": [
+    {
+      "kind": "modelInspectionResult",
+      "id": "schema-v2-terminal-result-binding",
+      "sha256": "e9f2181f683895cbcb8c1ca8dd757488f7db950dabc4f0cdeccd68ac03f1b3b9",
+      "bytes": 15257,
+      "evidenceGrade": "verified"
+    },
+    {
+      "kind": "modelInspectionHandoff",
+      "id": "schema-v2-path-private-handoff-binding",
+      "sha256": "e9f2181f683895cbcb8c1ca8dd757488f7db950dabc4f0cdeccd68ac03f1b3b9",
+      "bytes": 15257,
+      "evidenceGrade": "verified"
+    }
+  ],
+  "commands": [
+    {
+      "id": "MODEL-INSPECTION-CONTRACTS-REMAINDER",
+      "exitCode": 0,
+      "discovered": 407,
+      "executed": 407,
+      "passed": 407,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "id": "MODEL-INSPECTION-CONTRACTS-EXPLAINED",
+      "exitCode": 1,
+      "discovered": 3,
+      "executed": 3,
+      "passed": 0,
+      "failed": 3,
+      "skipped": 0
+    },
+    {
+      "id": "MODEL-INSPECTION-TRANSPORT",
+      "exitCode": 0,
+      "discovered": 27,
+      "executed": 27,
+      "passed": 27,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "id": "MODEL-INSPECTION-WORKER",
+      "exitCode": 0,
+      "discovered": 78,
+      "executed": 78,
+      "passed": 78,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "id": "MODEL-INSPECTION-WORKER-CLIENT",
+      "exitCode": 1,
+      "discovered": 119,
+      "executed": 119,
+      "passed": 92,
+      "failed": 27,
+      "skipped": 0
+    },
+    {
+      "id": "MODEL-INSPECTION-WORKER-PROCESS-STRUCTURAL",
+      "exitCode": 0,
+      "discovered": 8,
+      "executed": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "id": "MODEL-HARDWARE-COMPATIBILITY",
+      "exitCode": 0,
+      "discovered": 1050,
+      "executed": 1050,
+      "passed": 1050,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "id": "HARDWARE-FOUNDATION-CROSS-FEATURE",
+      "exitCode": 0,
+      "discovered": 202,
+      "executed": 202,
+      "passed": 202,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "id": "LLAMASHARP-DETERMINISTIC",
+      "exitCode": 0,
+      "discovered": 191,
+      "executed": 191,
+      "passed": 191,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "id": "GGUF-LIVE-HANDOFF-PROJECTION",
+      "exitCode": 0,
+      "discovered": 2,
+      "executed": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "id": "SCHEMA-V2-PROJECTION-PROTOCOL",
+      "exitCode": 0,
+      "discovered": 16,
+      "executed": 16,
+      "passed": 16,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "id": "PACKAGE-AND-FIXTURE-MUTATION",
+      "exitCode": 0,
+      "discovered": 5,
+      "executed": 5,
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "id": "CLEANUP-AND-EXECUTION-BOUNDARY",
+      "exitCode": 0,
+      "discovered": 4,
+      "executed": 4,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "id": "WINAPP-PROJECTION-FACTORY-HOST",
+      "exitCode": 1,
+      "discovered": 2,
+      "executed": 2,
+      "passed": 0,
+      "failed": 2,
+      "skipped": 0
+    },
+    {
+      "id": "OPENVINO-MANAGED-ROUTE-POLICY-BLOCK",
+      "exitCode": 1,
+      "discovered": 0,
+      "executed": 0,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 0
+    }
+  ],
+  "blockers": [
+    "The shared application project still leaks Model Optimization debug fixtures across seven prohibited evaluated contexts; C0 must consume the exact proposed shared diff.",
+    "Application Control rejects generated worker and worker-client test artifacts before managed process tests or OpenVINO test discovery can proceed.",
+    "Windows PowerShell machine policy rejects the checked-in visual privacy scanner before script logic starts.",
+    "The loose WinUI VSTest host lacks Windows App SDK COM registration and fails before packaged test logic.",
+    "Fresh H1 handoff and native receipts are absent, so nativeDisposition is not-run and no M1 native phase receipt exists."
+  ],
+  "nonClaims": [
+    "No native GGUF or OpenVINO execution is claimed.",
+    "No hosted CI, signed-package execution, controlled visual capture, or Application Control pass is claimed.",
+    "No zero-discovery, policy-blocked, build-only, or mock-only row is represented as passing behavior.",
+    "No local model path, filename, user identity, host identity, prompt, model data, or unapproved model metadata is evidence output."
+  ]
+}
