@@ -113,12 +113,28 @@ function New-H1R3ClosureFixture {
     }
     Write-H1R3Json (Join-Path $root 'managed.json') $managed
     Write-H1R3Json (Join-Path $root 'native.json') $native
+    $managedRecord = Get-H1R3FileRecord $root 'managed.json'
+    $nativeRecord = Get-H1R3FileRecord $root 'native.json'
+    $manifestCommands = @(
+        [ordered]@{
+            id = 'FIXTURE-MANAGED'; exitCode = 0
+            discovered = 1; executed = 1; passed = 1; failed = 0; skipped = 0
+            resultPath = $managedRecord.path; resultSha256 = $managedRecord.sha256; resultBytes = $managedRecord.bytes
+        },
+        [ordered]@{
+            id = 'FIXTURE-NATIVE'; exitCode = 0
+            discovered = 1; executed = 1; passed = 1; failed = 0; skipped = 0
+            resultPath = $nativeRecord.path; resultSha256 = $nativeRecord.sha256; resultBytes = $nativeRecord.bytes
+        }
+    )
     $manifest = [ordered]@{
         schemaVersion = 2; workerId = 'H1'; campaign = 'R3'
         baseCommit = $subject; evidenceSubjectCommit = $subject; evidenceSubjectTree = $subjectTree
         report = Get-H1R3FileRecord $root 'report.md'
-        managedLedger = Get-H1R3FileRecord $root 'managed.json'
-        nativeLedger = Get-H1R3FileRecord $root 'native.json'
+        managedLedger = $managedRecord
+        nativeLedger = $nativeRecord
+        commands = $manifestCommands
+        testTotals = [ordered]@{ discovered = 2; executed = 2; passed = 2; failed = 0; skipped = 0 }
         outputs = @(
             [ordered]@{ kind = 'hardwareSnapshot'; id = 'fixture'; evidenceGrade = 'verified' },
             [ordered]@{ kind = 'availableMemory'; id = 'fixture'; evidenceGrade = 'verified' },

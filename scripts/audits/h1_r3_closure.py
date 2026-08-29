@@ -305,6 +305,34 @@ def assert_native_join(handoff_bytes: bytes, native_receipt: dict[str, Any]) -> 
         fail("H1R3-NATIVE-JOIN")
 
 
+def validate_manifest_commands(
+    repository: pathlib.Path, final_tip: str, manifest: dict[str, Any]
+) -> dict[str, int]:
+    rows_value = manifest.get("commands")
+    if not isinstance(rows_value, list) or not rows_value:
+        fail("H1R3-ZERO-DISCOVERY")
+    totals = {key: 0 for key in ("discovered", "executed", "passed", "failed", "skipped")}
+    for row_value in rows_value:
+        row = require_object(row_value)
+        require_string(row.get("id"))
+        values = validate_counts(row)
+        for key, value in zip(totals, values):
+            totals[key] += value
+        record = {
+            "path": row.get("resultPath"),
+            "sha256": row.get("resultSha256"),
+            "bytes": row.get("resultBytes"),
+        }
+        assert_file_record(
+            repository, final_tip, record, "H1R3-COMMITTED-RESULT-MISSING"
+        )
+    aggregate = require_object(manifest.get("testTotals"))
+    for key, value in totals.items():
+        if require_int(aggregate.get(key)) != value:
+            fail("H1R3-ARITHMETIC")
+    return totals
+
+
 def validate_closure(args: argparse.Namespace) -> None:
     repository = pathlib.Path(args.repository).resolve()
     manifest = require_campaign(load_bounded_json(args.manifest))
@@ -336,6 +364,14 @@ def validate_closure(args: argparse.Namespace) -> None:
     managed_bytes = assert_file_record(repository, args.expected_final_tip, manifest.get("managedLedger"))
     native_bytes = assert_file_record(repository, args.expected_final_tip, manifest.get("nativeLedger"))
     del managed_bytes, native_bytes
+    validate_manifest_commands(repository, args.expected_final_tip, manifest)
+
+    outputs = manifest.get("outputs")
+    if not isinstance(outputs, list):
+        fail("H1R3-SCHEMA")
+    kinds = [require_object(value).get("kind") for value in outputs]
+    if sorted(kinds) != ["availableMemory", "hardwareSnapshot", "safetyBudget"]:
+        fail("H1R3-SCHEMA")
 
     if args.managed_ledger:
         managed = require_object(load_bounded_json(args.managed_ledger))

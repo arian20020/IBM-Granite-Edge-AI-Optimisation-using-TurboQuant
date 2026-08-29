@@ -193,10 +193,20 @@ else {
 
 $appProject = Join-Path $root 'IBM Granite with TurboQuant (Intel)\IBM Granite with TurboQuant (Intel).csproj'
 $unitProject = Join-Path $root 'tests\UnitTests\GraniteEdgeAI.UnitTests\GraniteEdgeAI.UnitTests.csproj'
-$buildExit = Invoke-H1R3Process $DotNetHostPath @('build', $appProject, '--no-restore', '-c', 'Debug', '-p:Platform=x64', '-p:RuntimeIdentifier=win-x64') 'app-build.txt'
-$rows.Add((if ($buildExit -eq 0) { New-H1R3Row 'DEBUG-X64-APP-BUILD' 'app-build-v1' 0 1 1 1 0 0 } else { New-H1R3Row 'DEBUG-X64-APP-BUILD' 'app-build-v1' $buildExit 1 1 0 1 0 }))
-$unitBuildExit = Invoke-H1R3Process $DotNetHostPath @('build', $unitProject, '--no-restore', '-c', 'Debug', '-p:Platform=x64', '-p:RuntimeIdentifier=win-x64') 'unit-build.txt'
-$rows.Add((if ($unitBuildExit -eq 0) { New-H1R3Row 'DEBUG-X64-UNIT-BUILD' 'unit-build-v1' 0 1 1 1 0 0 } else { New-H1R3Row 'DEBUG-X64-UNIT-BUILD' 'unit-build-v1' $unitBuildExit 1 1 0 1 0 }))
+$buildExit = Invoke-H1R3Process $DotNetHostPath @('build', $appProject, '--no-restore', '-c', 'Debug', '-m:1', '-p:Platform=x64', '-p:RuntimeIdentifier=win-x64', "-p:DotNetHostPath=$DotNetHostPath") 'app-build.txt'
+$appBuildRow = if ($buildExit -eq 0) {
+    New-H1R3Row 'DEBUG-X64-APP-BUILD' 'app-build-v1' 0 1 1 1 0 0
+} else {
+    New-H1R3Row 'DEBUG-X64-APP-BUILD' 'app-build-v1' $buildExit 1 1 0 1 0
+}
+$rows.Add($appBuildRow)
+$unitBuildExit = Invoke-H1R3Process $DotNetHostPath @('build', $unitProject, '--no-restore', '-c', 'Debug', '-m:1', '-p:Platform=x64', '-p:RuntimeIdentifier=win-x64', "-p:DotNetHostPath=$DotNetHostPath") 'unit-build.txt'
+$unitBuildRow = if ($unitBuildExit -eq 0) {
+    New-H1R3Row 'DEBUG-X64-UNIT-BUILD' 'unit-build-v1' 0 1 1 1 0 0
+} else {
+    New-H1R3Row 'DEBUG-X64-UNIT-BUILD' 'unit-build-v1' $unitBuildExit 1 1 0 1 0
+}
+$rows.Add($unitBuildRow)
 
 $staticPassed = 0
 $staticConfigurations = @(
@@ -211,8 +221,9 @@ foreach ($configuration in $staticConfigurations) {
     if ($exitCode -eq 0) { $staticPassed++ }
     $index++
 }
+$staticExit = if ($staticPassed -eq 4) { 0 } else { 1 }
 $rows.Add((New-H1R3Row 'STATIC-PACKAGING-EVAL' 'static-package-matrix-v1' `
-            $(if ($staticPassed -eq 4) { 0 } else { 1 }) 4 4 $staticPassed (4 - $staticPassed) 0))
+            $staticExit 4 4 $staticPassed (4 - $staticPassed) 0))
 
 $manifestVerifier = Join-Path $root 'scripts\hardware-inspection\Test-LlamaCppProbeManifest.ps1'
 $probeDirectory = Join-Path $root 'obj\hi-lcp\package\Debug\win-x64'
