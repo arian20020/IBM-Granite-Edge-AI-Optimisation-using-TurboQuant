@@ -132,10 +132,13 @@ than an external results directory.
 
 Use distinct history phases:
 
-1. **Closure implementation subject:** validator, regression tests, and the
-   managed ledger are committed. All managed tests are rerun on this exact
-   commit/tree. This becomes `evidenceSubjectCommit` and
-   `evidenceSubjectTree`.
+1. **Closure implementation subject:** validator, runners, and regression
+   tests are committed without any self-describing ledger. All managed tests
+   are rerun on this exact commit/tree. This becomes
+   `evidenceSubjectCommit` and `evidenceSubjectTree`. The managed ledger is
+   generated from that subject and committed only in the evidence phase;
+   otherwise its embedded subject tree would create an impossible Git-tree
+   self-reference.
 2. **Native/evidence publication:** acquire the native slot, run the committed
    subject's packaged probe, verify cleanup, then commit the sanitized native
    ledger, R3 report, and R3 evidence manifest. The final tip/tree therefore
