@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://granite-edge-ai.local/schemas/audit-evidence-manifest-v1.json",
+  "title": "Granite Edge AI audit evidence manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "workerId",
+    "frozenSourceCommit",
+    "evidenceSubjectCommit",
+    "evidenceSubjectTree",
+    "createdAtUtc",
+    "route",
+    "evidenceStatus",
+    "report",
+    "inputs",
+    "outputs",
+    "commands",
+    "blockers",
+    "nonClaims"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "workerId": { "enum": ["H1", "M1", "Q1"] },
+    "frozenSourceCommit": { "const": "4748fe04f19afdf6b27c4c12502b84db325e7294" },
+    "evidenceSubjectCommit": { "$ref": "#/$defs/gitObject" },
+    "evidenceSubjectTree": { "$ref": "#/$defs/gitObject" },
+    "createdAtUtc": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$" },
+    "route": {
+      "oneOf": [
+        { "enum": ["shared", "gguf", "openvino"] },
+        {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "enum": ["shared", "gguf", "openvino"] }
+        }
+      ]
+    },
+    "evidenceStatus": { "enum": ["passed", "failed", "blocked", "mixed"] },
+    "report": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "bytes"],
+      "properties": {
+        "path": { "type": "string", "pattern": "^docs/audits/2026-08-28/[^\\\\]+\\.md$" },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "bytes": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "inputs": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/evidenceItem" } },
+    "outputs": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/evidenceItem" } },
+    "commands": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/command" } },
+    "blockers": { "type": "array", "items": { "type": "string", "minLength": 1, "maxLength": 500 } },
+    "nonClaims": { "type": "array", "items": { "type": "string", "minLength": 1, "maxLength": 500 } }
+  },
+  "$defs": {
+    "gitObject": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "evidenceItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "id", "evidenceGrade"],
+      "properties": {
+        "kind": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "id": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "bytes": { "type": "integer", "minimum": 0 },
+        "digest": { "$ref": "#/$defs/sha256" },
+        "evidenceGrade": { "enum": ["measured", "parsed", "verified", "estimated", "fixture", "blocked"] }
+      }
+    },
+    "command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "exitCode", "discovered", "executed", "passed", "failed", "skipped"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[A-Z0-9][A-Z0-9._-]{1,79}$" },
+        "exitCode": { "type": "integer" },
+        "discovered": { "type": "integer", "minimum": 0 },
+        "executed": { "type": "integer", "minimum": 0 },
+        "passed": { "type": "integer", "minimum": 0 },
+        "failed": { "type": "integer", "minimum": 0 },
+        "skipped": { "type": "integer", "minimum": 0 },
+        "resultSha256": { "$ref": "#/$defs/sha256" }
+      }
+    }
+  }
+}
