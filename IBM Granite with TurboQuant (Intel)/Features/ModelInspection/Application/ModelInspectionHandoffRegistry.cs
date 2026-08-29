@@ -1,5 +1,4 @@
 using GraniteEdgeAI.Features.ModelInspection.Contracts;
-using GraniteEdgeAI.ModelInspection.Contracts;
 using System;
 using System.Collections.Generic;
 
@@ -107,7 +106,7 @@ internal sealed class ModelInspectionHandoffRegistry : IDisposable
                 candidate!.ModelInspectionHandoffId,
                 new Entry(
                     candidate,
-                    ModelInspectionProjectionFactory.CreateGguf(candidate)));
+                    ModelInspectionProjectionFactory.CreateGgufHandle(candidate)));
             handoff = candidate;
             return true;
         }
@@ -143,7 +142,7 @@ internal sealed class ModelInspectionHandoffRegistry : IDisposable
                 handoff.ModelInspectionHandoffId,
                 new Entry(
                     handoff,
-                    ModelInspectionProjectionFactory.CreateGguf(handoff)));
+                    ModelInspectionProjectionFactory.CreateGgufHandle(handoff)));
             return true;
         }
     }
@@ -250,14 +249,14 @@ internal sealed class ModelInspectionHandoffRegistry : IDisposable
                 replacement.ModelInspectionHandoffId,
                 new Entry(
                     replacement,
-                    ModelInspectionProjectionFactory.CreateGguf(replacement)));
+                    ModelInspectionProjectionFactory.CreateGgufHandle(replacement)));
             return true;
         }
     }
 
     internal bool TryGetProjection(
         Guid modelInspectionHandoffId,
-        out ModelInspectionProjectionV2? projection)
+        out ModelInspectionProjectionHandle? projection)
     {
         lock (gate)
         {
@@ -266,7 +265,8 @@ internal sealed class ModelInspectionHandoffRegistry : IDisposable
                 !entries.TryGetValue(modelInspectionHandoffId, out Entry? entry) ||
                 entry.State is ModelInspectionHandoffLifecycleState.Invalidated ||
                 entry.Projection is null ||
-                entry.Projection.ModelInspectionHandoff.ModelInspectionHandoffId !=
+                entry.Projection.Projection.ModelInspectionHandoff
+                    .ModelInspectionHandoffId !=
                     modelInspectionHandoffId)
             {
                 return false;
@@ -385,7 +385,7 @@ internal sealed class ModelInspectionHandoffRegistry : IDisposable
     {
         internal Entry(
             ModelInspectionHandoff handoff,
-            ModelInspectionProjectionV2 projection)
+            ModelInspectionProjectionHandle projection)
         {
             Handoff = handoff;
             Projection = projection;
@@ -393,7 +393,7 @@ internal sealed class ModelInspectionHandoffRegistry : IDisposable
 
         internal ModelInspectionHandoff Handoff { get; }
 
-        internal ModelInspectionProjectionV2? Projection { get; private set; }
+        internal ModelInspectionProjectionHandle? Projection { get; private set; }
 
         internal ModelInspectionHandoffLifecycleState State { get; set; } =
             ModelInspectionHandoffLifecycleState.Issued;

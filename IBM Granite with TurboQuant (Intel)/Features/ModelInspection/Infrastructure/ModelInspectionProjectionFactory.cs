@@ -5,12 +5,26 @@ using SharedOutcome = GraniteEdgeAI.ModelInspection.Contracts.ModelInspectionOut
 
 namespace GraniteEdgeAI.Features.ModelInspection.Handoff;
 
+internal sealed class ModelInspectionProjectionHandle
+{
+    internal ModelInspectionProjectionHandle(ModelInspectionProjectionV2 projection)
+    {
+        Projection = projection ?? throw new ArgumentNullException(nameof(projection));
+    }
+
+    internal ModelInspectionProjectionV2 Projection { get; }
+}
+
 /// <summary>
 /// Converts route-validated terminal evidence into the one shared,
 /// path-private schema-v2 projection without re-parsing route metadata.
 /// </summary>
 internal static partial class ModelInspectionProjectionFactory
 {
+    internal static ModelInspectionProjectionHandle CreateGgufHandle(
+        ModelInspectionHandoff handoff) =>
+        new(CreateGguf(handoff));
+
     internal static ModelInspectionProjectionV2 CreateGguf(
         ModelInspectionHandoff handoff)
     {

@@ -34,8 +34,12 @@ public sealed class ModelInspectionHandoffProjectionTests
             "The live GGUF registry does not retain the schema-v2 projection.");
         object?[] arguments = [handoff.ModelInspectionHandoffId, null];
         Assert.AreEqual(true, lookup.Invoke(registry, arguments));
+        PropertyInfo? projectionProperty = arguments[1]!.GetType().GetProperty(
+            "Projection",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsNotNull(projectionProperty);
         ModelInspectionProjectionV2 projection =
-            (ModelInspectionProjectionV2)arguments[1]!;
+            (ModelInspectionProjectionV2)projectionProperty.GetValue(arguments[1])!;
 
         Assert.AreEqual(handoff.ModelInspectionHandoffId,
             projection.ModelInspectionHandoff.ModelInspectionHandoffId);
