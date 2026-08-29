@@ -2,6 +2,7 @@ $ErrorActionPreference = 'Stop'
 
 $repositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $validator = Join-Path $repositoryRoot 'scripts\audits\Test-H1R3Closure.ps1'
+$managedRunner = Join-Path $repositoryRoot 'scripts\audits\Invoke-H1R3ManagedVerification.ps1'
 
 function New-H1R3LedgerFixture {
     param(
@@ -273,5 +274,60 @@ Describe 'H1 R3 committed evidence closure' {
         $actual = Invoke-H1R3ClosureFixture $fixture
         $actual.ExitCode | Should Be 0
         $actual.Output | Should Be 'H1R3-OK'
+    }
+}
+
+Describe 'H1 R3 managed runner contracts' {
+    It 'fails closed on zero discovery in a controlled catalog' {
+        # Mutation guarded: treating zero discovery as passing must fail this test.
+        $catalog = Join-Path $TestDrive 'zero-discovery.json'
+        Write-H1R3Json $catalog ([ordered]@{
+                schemaVersion = 1
+                commands = @([ordered]@{
+                        id = 'CONTROLLED'; invocationId = 'controlled-v1'; exitCode = 0
+                        discovered = 0; executed = 0; passed = 0; failed = 0; skipped = 0
+                    })
+            })
+        $output = & $managedRunner -RepositoryRoot $repositoryRoot `
+            -SubjectTree ('0' * 40) -OutputSummaryPath (Join-Path $TestDrive 'zero-summary.json') `
+            -ControlledCatalogPath $catalog 2>&1
+        $LASTEXITCODE | Should Not Be 0
+        ($output -join "`n") | Should Be 'H1R3-ZERO-DISCOVERY'
+    }
+
+    It 'fails closed on inconsistent controlled arithmetic' {
+        $catalog = Join-Path $TestDrive 'bad-arithmetic.json'
+        Write-H1R3Json $catalog ([ordered]@{
+                schemaVersion = 1
+                commands = @([ordered]@{
+                        id = 'CONTROLLED'; invocationId = 'controlled-v1'; exitCode = 0
+                        discovered = 2; executed = 2; passed = 1; failed = 0; skipped = 0
+                    })
+            })
+        $output = & $managedRunner -RepositoryRoot $repositoryRoot `
+            -SubjectTree ('0' * 40) -OutputSummaryPath (Join-Path $TestDrive 'arithmetic-summary.json') `
+            -ControlledCatalogPath $catalog 2>&1
+        $LASTEXITCODE | Should Not Be 0
+        ($output -join "`n") | Should Be 'H1R3-ARITHMETIC'
+    }
+
+    It 'normalizes a valid controlled catalog into one result row' {
+        $catalog = Join-Path $TestDrive 'valid-catalog.json'
+        $summary = Join-Path $TestDrive 'valid-summary.json'
+        Write-H1R3Json $catalog ([ordered]@{
+                schemaVersion = 1
+                commands = @([ordered]@{
+                        id = 'CONTROLLED'; invocationId = 'controlled-v1'; exitCode = 0
+                        discovered = 1; executed = 1; passed = 1; failed = 0; skipped = 0
+                    })
+            })
+        $output = & $managedRunner -RepositoryRoot $repositoryRoot `
+            -SubjectTree ('0' * 40) -OutputSummaryPath $summary `
+            -ControlledCatalogPath $catalog 2>&1
+        $LASTEXITCODE | Should Be 0
+        ($output -join "`n") | Should Be 'H1R3-OK'
+        $actual = Get-Content -Raw -LiteralPath $summary | ConvertFrom-Json
+        @($actual.commands).Count | Should Be 1
+        $actual.commands[0].id | Should Be 'CONTROLLED'
     }
 }
