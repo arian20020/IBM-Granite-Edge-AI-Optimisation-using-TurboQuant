@@ -167,6 +167,7 @@ IBM Granite with TurboQuant (Intel)/Features/Onboarding/OnboardingShellPage.xaml
 IBM Granite with TurboQuant (Intel)/Features/Onboarding/OnboardingShellPage.xaml.cs
 IBM Granite with TurboQuant (Intel)/Features/Onboarding/OnboardingStage.cs
 IBM Granite with TurboQuant (Intel)/Features/Onboarding/README.md
+IBM Granite with TurboQuant (Intel)/Features/OpenVinoRoute/Inspection/ModelInspectionProjectionFactory.OpenVino.cs
 IBM Granite with TurboQuant (Intel)/Features/README.md
 IBM Granite with TurboQuant (Intel)/IBM Granite with TurboQuant (Intel).csproj
 IBM Granite with TurboQuant (Intel)/MainWindow.xaml
@@ -480,6 +481,8 @@ tests/TestFixtures/ModelInspectionScenarios/model-inspection-fixture-coverage-po
 tests/TestFixtures/ModelInspectionScenarios/model-inspection-fixture.schema.json
 tests/TestFixtures/README.md
 tests/TestFixtures/fixture-manifest.json
+tests/UnitTests/GraniteEdgeAI.ModelInspection.Handoff.Tests/GraniteEdgeAI.ModelInspection.Handoff.Tests.csproj
+tests/UnitTests/GraniteEdgeAI.ModelInspection.Handoff.Tests/ModelInspectionHandoffProjectionTests.cs
 tests/UnitTests/GraniteEdgeAI.ModelInspection.Transport.Tests/BoundedUtf8LineConcurrencyTests.cs
 tests/UnitTests/GraniteEdgeAI.ModelInspection.Transport.Tests/BoundedUtf8LineTests.cs
 tests/UnitTests/GraniteEdgeAI.ModelInspection.Transport.Tests/GraniteEdgeAI.ModelInspection.Transport.Tests.csproj

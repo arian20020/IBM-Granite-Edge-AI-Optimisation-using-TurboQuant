@@ -6,6 +6,9 @@ using GraniteEdgeAI.OpenVino.Contracts;
 using GraniteEdgeAI.OpenVino.WorkerClient;
 using GraniteEdgeAI.Features.Prompting;
 using GraniteEdgeAI.Features.OpenVinoRoute.Conversion;
+using GraniteEdgeAI.Features.ModelInspection.Handoff;
+using SharedProjection = GraniteEdgeAI.ModelInspection.Contracts.ModelInspectionProjectionV2;
+using SharedOutcome = GraniteEdgeAI.ModelInspection.Contracts.ModelInspectionOutcomeV2;
 
 namespace GraniteEdgeAI.Features.OpenVinoRoute;
 
@@ -68,13 +71,17 @@ public sealed class OpenVinoRouteHandoffLease : IDisposable, IPromptRouteActivat
 
     internal OpenVinoRouteHandoffLease(
         ModelInspectionHandoffV2 handoff,
+        SharedProjection projection,
         OpenVinoRouteLeasePayload payload)
     {
         Handoff = handoff ?? throw new ArgumentNullException(nameof(handoff));
+        Projection = projection ?? throw new ArgumentNullException(nameof(projection));
         this.payload = payload ?? throw new ArgumentNullException(nameof(payload));
     }
 
     public ModelInspectionHandoffV2 Handoff { get; }
+
+    internal SharedProjection Projection { get; }
 
     public PromptRouteKind Kind => PromptRouteKind.OpenVino;
 
@@ -290,6 +297,8 @@ public sealed class OpenVinoRouteService : IPromptRouteAdapter
             staticResult,
             nativeEvidence,
             inspectionRunId);
+        SharedProjection projection =
+            ModelInspectionProjectionFactory.CreateOpenVino(handoff);
         if (!stateMachine.TryCompleteInspection(operationId, readyOutcome))
         {
             throw new InvalidOperationException(
@@ -298,6 +307,7 @@ public sealed class OpenVinoRouteService : IPromptRouteAdapter
 
         OpenVinoRouteHandoffLease lease = new(
             handoff,
+            projection,
             new OpenVinoRouteLeasePayload(
                 serviceIdentity,
                 stateMachine,
@@ -335,6 +345,13 @@ public sealed class OpenVinoRouteService : IPromptRouteAdapter
         ModelInspectionHandoffV2 handoff = handoffLease.Handoff;
         ArgumentNullException.ThrowIfNull(handoff);
         handoff.Validate();
+        SharedProjection projection = handoffLease.Projection;
+        projection.Validate();
+        if (!ProjectionMatchesHandoff(projection, handoff))
+        {
+            throw new InvalidOperationException(
+                "The schema-v2 projection does not match the issued handoff.");
+        }
         ArgumentNullException.ThrowIfNull(eventSink);
         ArgumentNullException.ThrowIfNull(runtimeOptions);
         runtimeOptions.Validate();
@@ -402,4 +419,47 @@ public sealed class OpenVinoRouteService : IPromptRouteAdapter
             OpenVinoRouteInspectionOutcome.Unsupported,
         _ => OpenVinoRouteInspectionOutcome.Invalid
     };
+
+    private static bool ProjectionMatchesHandoff(
+        SharedProjection projection,
+        ModelInspectionHandoffV2 handoff) =>
+        projection.SchemaVersion == handoff.SchemaVersion &&
+        projection.ModelSource.Route ==
+            GraniteEdgeAI.ModelInspection.Contracts.ModelInspectionRoute.OpenVino &&
+        projection.ModelInspectionResult.Route ==
+            GraniteEdgeAI.ModelInspection.Contracts.ModelInspectionRoute.OpenVino &&
+        projection.ModelInspectionHandoff.SchemaVersion == handoff.SchemaVersion &&
+        projection.ModelInspectionHandoff.ModelInspectionHandoffId ==
+            handoff.ModelInspectionHandoffId &&
+        projection.ModelInspectionResult.ModelInspectionRunId ==
+            handoff.ModelInspectionRunId &&
+        projection.ModelInspectionHandoff.ModelInspectionRunId ==
+            handoff.ModelInspectionRunId &&
+        projection.ModelInspectionResult.Outcome == MapOutcome(handoff.Outcome) &&
+        projection.ModelInspectionHandoff.Outcome == MapOutcome(handoff.Outcome) &&
+        string.Equals(
+            projection.ModelSource.ModelSha256,
+            handoff.ModelSha256,
+            StringComparison.Ordinal) &&
+        string.Equals(
+            projection.ModelInspectionResult.ModelSha256,
+            handoff.ModelSha256,
+            StringComparison.Ordinal) &&
+        string.Equals(
+            projection.ModelInspectionHandoff.ModelSha256,
+            handoff.ModelSha256,
+            StringComparison.Ordinal) &&
+        projection.ModelSource.ModelLengthBytes == handoff.ModelLengthBytes &&
+        projection.ModelInspectionResult.ModelLengthBytes == handoff.ModelLengthBytes &&
+        projection.ModelInspectionHandoff.ModelLengthBytes == handoff.ModelLengthBytes;
+
+    private static SharedOutcome MapOutcome(ModelInspectionOutcome outcome) =>
+        outcome switch
+        {
+            ModelInspectionOutcome.Ready => SharedOutcome.Ready,
+            ModelInspectionOutcome.ReadyWithWarnings =>
+                SharedOutcome.ReadyWithWarnings,
+            _ => throw new InvalidOperationException(
+                "The OpenVINO handoff outcome is unsupported.")
+        };
 }

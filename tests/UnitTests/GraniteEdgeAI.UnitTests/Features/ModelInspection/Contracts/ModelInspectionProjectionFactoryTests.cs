@@ -23,18 +23,22 @@ public sealed class ModelInspectionProjectionFactoryTests
             ModelInspectionExecutionResult.Completed(
                 PresentationTestData.CreateResult(AppOutcome.Ready));
 
-        Assert.IsTrue(ModelInspectionProjectionFactory.TryCreateGguf(
+        Assert.IsTrue(ModelInspectionHandoffProjector.TryProject(
             RunId,
             RunId,
             ggufTerminal,
-            out ModelInspectionProjectionV2? gguf));
-        ModelInspectionProjectionV2 openVino =
-            ModelInspectionProjectionFactory.CreateOpenVino(
+            out ModelInspectionHandoff? ggufHandoff));
+        Assert.IsNotNull(ggufHandoff);
+        ModelInspectionProjectionV2 gguf =
+            ModelInspectionProjectionFactory.CreateGguf(ggufHandoff);
+        GraniteEdgeAI.OpenVino.Contracts.ModelInspectionHandoffV2
+            openVinoHandoff = new OpenVinoInspectionHandoffFactory().Create(
                 StaticResult(),
                 NativeEvidence(),
                 RunId);
+        ModelInspectionProjectionV2 openVino =
+            ModelInspectionProjectionFactory.CreateOpenVino(openVinoHandoff);
 
-        Assert.IsNotNull(gguf);
         Assert.AreEqual(ModelInspectionRoute.Gguf, gguf.ModelSource.Route);
         Assert.AreEqual("gguf", gguf.ModelSource.ModelType);
         Assert.AreEqual(ModelInspectionRoute.OpenVino, openVino.ModelSource.Route);
@@ -45,6 +49,12 @@ public sealed class ModelInspectionProjectionFactoryTests
         Assert.AreEqual(
             openVino.ModelInspectionResult.ModelInspectionRunId,
             openVino.ModelInspectionHandoff.ModelInspectionRunId);
+        Assert.AreEqual(
+            ggufHandoff.ModelInspectionHandoffId,
+            gguf.ModelInspectionHandoff.ModelInspectionHandoffId);
+        Assert.AreEqual(
+            openVinoHandoff.ModelInspectionHandoffId,
+            openVino.ModelInspectionHandoff.ModelInspectionHandoffId);
         Assert.IsFalse(
             System.Text.Encoding.UTF8.GetString(gguf.ToCanonicalUtf8Json())
                 .Contains("path", StringComparison.OrdinalIgnoreCase));
@@ -64,13 +74,13 @@ public sealed class ModelInspectionProjectionFactoryTests
             ModelSha256 = new string('b', 64)
         };
 
-        Assert.IsFalse(ModelInspectionProjectionFactory.TryCreateGguf(
+        Assert.IsFalse(ModelInspectionHandoffProjector.TryProject(
             RunId,
             Guid.Parse("22222222-2222-4222-8222-222222222222"),
             ggufTerminal,
             out _));
         Assert.ThrowsExactly<InvalidOperationException>(() =>
-            ModelInspectionProjectionFactory.CreateOpenVino(
+            new OpenVinoInspectionHandoffFactory().Create(
                 StaticResult(),
                 mismatched,
                 RunId));

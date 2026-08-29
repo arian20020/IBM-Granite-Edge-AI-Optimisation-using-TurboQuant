@@ -1,9 +1,12 @@
+using System.Reflection;
+using System.Text;
 using GraniteEdgeAI.Features.OpenVinoRoute;
 using GraniteEdgeAI.Features.OpenVinoRoute.Conversion;
 using GraniteEdgeAI.Features.OpenVinoRoute.Inspection;
 using GraniteEdgeAI.Features.Prompting;
 using GraniteEdgeAI.OpenVino.Contracts;
 using GraniteEdgeAI.OpenVino.WorkerClient;
+using GraniteEdgeAI.ModelInspection.Contracts;
 
 namespace GraniteEdgeAI.OpenVino.Tests;
 
@@ -39,6 +42,89 @@ public sealed class OpenVinoRouteServiceTests
         string publicResult = result.ToString();
         Assert.IsFalse(publicResult.Contains(package.Root, StringComparison.OrdinalIgnoreCase));
         Assert.AreEqual(1, worker.InspectCount);
+    }
+
+    [TestMethod]
+    public async Task LiveRouteRetainsProjectionOfTheExactIssuedHandoff()
+    {
+        using TemporaryPackage package = TemporaryPackage.CopyFixture();
+        FakeWorkerClient worker = new(command => new InspectionCompletedEvent(
+            command.InspectionRunId,
+            command.PackageManifestDigest,
+            command.ModelSha256,
+            command.ModelLengthBytes,
+            true,
+            true,
+            true,
+            BuildEvidence()));
+        OpenVinoRouteInspectionResult result = await Service(worker).InspectAsync(
+            package.Root,
+            CancellationToken.None);
+        OpenVinoRouteHandoffLease lease = result.HandoffLease!;
+
+        PropertyInfo? property = typeof(OpenVinoRouteHandoffLease).GetProperty(
+            "Projection",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsNotNull(
+            property,
+            "The live OpenVINO route does not retain its schema-v2 projection.");
+        ModelInspectionProjectionV2 projection =
+            (ModelInspectionProjectionV2)property.GetValue(lease)!;
+
+        Assert.AreEqual(result.Handoff!.ModelInspectionHandoffId,
+            projection.ModelInspectionHandoff.ModelInspectionHandoffId);
+        Assert.AreEqual(result.Handoff.ModelInspectionRunId,
+            projection.ModelInspectionHandoff.ModelInspectionRunId);
+        Assert.AreEqual(result.Handoff.ModelSha256,
+            projection.ModelInspectionHandoff.ModelSha256);
+        Assert.AreEqual(result.Handoff.ModelLengthBytes,
+            projection.ModelInspectionHandoff.ModelLengthBytes);
+        Assert.AreEqual(ModelInspectionRoute.OpenVino, projection.ModelSource.Route);
+        Assert.IsFalse(
+            Encoding.UTF8.GetString(projection.ToCanonicalUtf8Json())
+                .Contains(package.Root, StringComparison.OrdinalIgnoreCase));
+    }
+
+    [TestMethod]
+    public async Task MutatedProjectionIsRejectedBeforePathBearingLeaseConsumption()
+    {
+        using TemporaryPackage package = TemporaryPackage.CopyFixture();
+        FakeWorkerClient worker = new(command => new InspectionCompletedEvent(
+            command.InspectionRunId,
+            command.PackageManifestDigest,
+            command.ModelSha256,
+            command.ModelLengthBytes,
+            true,
+            true,
+            true,
+            BuildEvidence()));
+        OpenVinoRouteService service = Service(worker);
+        OpenVinoRouteInspectionResult result = await service.InspectAsync(
+            package.Root,
+            CancellationToken.None);
+        OpenVinoRouteHandoffLease lease = result.HandoffLease!;
+        ModelInspectionProjectionV2 mutated = lease.Projection with
+        {
+            ModelInspectionHandoff = lease.Projection.ModelInspectionHandoff with
+            {
+                ModelInspectionHandoffId = Guid.NewGuid()
+            }
+        };
+        FieldInfo? backingField = typeof(OpenVinoRouteHandoffLease).GetField(
+            "<Projection>k__BackingField",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsNotNull(backingField);
+        backingField.SetValue(lease, mutated);
+
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
+            service.StartSessionAsync(
+                lease,
+                _ => { },
+                CancellationToken.None));
+
+        Assert.IsTrue(
+            lease.HasPathBearingDescriptor,
+            "Projection mismatch consumed the path-bearing descriptor.");
     }
 
     [TestMethod]
