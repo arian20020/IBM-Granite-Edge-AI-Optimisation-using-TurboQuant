@@ -373,6 +373,7 @@ tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Gate4Packaging
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Gate5ApplicationBoundaryContractTests.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/GraniteEdgeAI.ModelInspection.Contracts.Tests.csproj
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/M1R3AuditEvidenceContractTests.cs
+tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/M1R3PackageClosureContractTests.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/ModelInspectionFixtureBuildBoundaryContractTests.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/ModelInspectionFixtureCatalogueContractTests.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/ModelInspectionFixtureJsonContractTests.cs
@@ -390,6 +391,7 @@ tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Protocol/Worke
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Protocol/WorkerMessageSequenceValidatorTests.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Protocol/WorkerProtocolJsonTests.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Protocol/WorkerProtocolTests.cs
+tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Support/EvaluatedMsBuildItems.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/TestJson.cs
 tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests.csproj
 tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/ProductionWorkerNativeCompletionTests.cs
