@@ -21,8 +21,9 @@ public sealed class OpenVinoWorkerClientException : Exception
         OpenVinoSupportCode supportCode,
         string message,
         string retainedStandardError = "",
-        bool standardErrorTruncated = false)
-        : base(message)
+        bool standardErrorTruncated = false,
+        Exception? innerException = null)
+        : base(message, innerException)
     {
         supportCode.Validate();
         SupportCode = supportCode;

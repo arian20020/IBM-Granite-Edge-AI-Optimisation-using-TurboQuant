@@ -3,6 +3,7 @@ using GraniteEdgeAI.ModelInspection.WorkerClient.ProtectedWorker;
 using GraniteEdgeAI.ModelInspection.Transport;
 using GraniteEdgeAI.OpenVino.Contracts;
 using GraniteEdgeAI.HardwareInspection.Foundation.Processes;
+using System.Runtime.ExceptionServices;
 
 namespace GraniteEdgeAI.OpenVino.WorkerClient;
 
@@ -435,6 +436,8 @@ public sealed class OpenVinoConversation : IAsyncDisposable
             return;
         }
 
+        Exception? primaryFailure = null;
+        CleanupOutcome? cleanupOutcome = null;
         try
         {
             _watchdogCancellation.Cancel();
@@ -464,21 +467,46 @@ public sealed class OpenVinoConversation : IAsyncDisposable
                 }
             }
         }
+        catch (Exception error)
+        {
+            primaryFailure = error;
+        }
         finally
         {
             _disposed = true;
-            _watchdogCancellation.Dispose();
-            _operationGate.Dispose();
-            _terminalCleanup.Dispose();
-            await _session.DisposeAsync().ConfigureAwait(false);
-            _closure.Dispose();
-            _operationEnvironment.Dispose();
-            if (!_operationEnvironment.CleanupSucceeded)
-            {
-                OpenVinoWorkerClient.RequireCleanupSucceeded(_operationEnvironment);
-            }
+            cleanupOutcome = await new BoundedCleanupCoordinator(
+                Sync(OwnedCleanupStage.Channel, _watchdogCancellation.Dispose),
+                Sync(OwnedCleanupStage.Channel, _operationGate.Dispose),
+                Sync(OwnedCleanupStage.Channel, _terminalCleanup.Dispose),
+                new OwnedCleanupAction(OwnedCleanupStage.Session, () =>
+                    _session.DisposeAsync()),
+                Sync(OwnedCleanupStage.Closure, _closure.Dispose),
+                Sync(OwnedCleanupStage.OperationEnvironment, () =>
+                {
+                    _operationEnvironment.Dispose();
+                    OpenVinoWorkerClient.RequireCleanupSucceeded(
+                        _operationEnvironment);
+                })).ExecuteAsync().ConfigureAwait(false);
+        }
+
+        if (!cleanupOutcome.Succeeded)
+        {
+            throw OpenVinoWorkerClient.RuntimeFailure(primaryFailure);
+        }
+
+        if (primaryFailure is not null)
+        {
+            ExceptionDispatchInfo.Capture(primaryFailure).Throw();
         }
     }
+
+    private static OwnedCleanupAction Sync(
+        OwnedCleanupStage stage,
+        Action action) => new(stage, () =>
+        {
+            action();
+            return ValueTask.CompletedTask;
+        });
 
     private async Task CancelCoreAsync(
         OpenVinoWorkerClientException requestedOutcome,

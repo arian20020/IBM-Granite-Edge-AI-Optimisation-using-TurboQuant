@@ -365,6 +365,14 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
 
         if (rethrowPreStartCancellation)
         {
+            if (failures.PrimaryFailure is WorkerClientFailure cleanupFailure)
+            {
+                throw new OperationCanceledException(
+                    "The Model Inspection operation was cancelled and cleanup integrity failed.",
+                    new WorkerClientPolicyException(cleanupFailure),
+                    cancellationToken);
+            }
+
             throw new OperationCanceledException(cancellationToken);
         }
 

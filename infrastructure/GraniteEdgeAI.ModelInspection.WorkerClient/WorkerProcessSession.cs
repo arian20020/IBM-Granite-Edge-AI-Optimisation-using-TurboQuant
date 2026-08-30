@@ -1,5 +1,8 @@
 using System.Runtime.InteropServices;
+using GraniteEdgeAI.HardwareInspection.Foundation.Processes;
 using GraniteEdgeAI.ModelInspection.WorkerClient.Windows;
+using ModelInspectionSafeProcessHandle =
+    GraniteEdgeAI.ModelInspection.WorkerClient.Windows.SafeProcessHandle;
 
 namespace GraniteEdgeAI.ModelInspection.WorkerClient;
 
@@ -10,13 +13,14 @@ namespace GraniteEdgeAI.ModelInspection.WorkerClient;
 /// </summary>
 internal sealed class WorkerProcessSession : IAsyncDisposable
 {
-    private readonly SafeProcessHandle _processHandle;
+    private readonly ModelInspectionSafeProcessHandle _processHandle;
     private readonly TimeSpan _cleanupTimeout;
+    private readonly BoundedCleanupCoordinator _cleanup;
     private bool _disposed;
 
     internal WorkerProcessSession(
         uint processId,
-        SafeProcessHandle processHandle,
+        ModelInspectionSafeProcessHandle processHandle,
         WindowsJobObject job,
         FileStream standardInput,
         FileStream standardOutput,
@@ -42,6 +46,19 @@ internal sealed class WorkerProcessSession : IAsyncDisposable
         StandardOutput = standardOutput;
         StandardError = standardError;
         _cleanupTimeout = cleanupTimeout;
+        _cleanup = new BoundedCleanupCoordinator(
+            new OwnedCleanupAction(OwnedCleanupStage.StandardInput, () =>
+                StandardInput.DisposeAsync()),
+            new OwnedCleanupAction(OwnedCleanupStage.ProcessTree, async () =>
+            {
+                _ = await TerminateAndVerifyEmptyAsync().ConfigureAwait(false);
+            }),
+            new OwnedCleanupAction(OwnedCleanupStage.StandardOutput, () =>
+                StandardOutput.DisposeAsync()),
+            new OwnedCleanupAction(OwnedCleanupStage.StandardError, () =>
+                StandardError.DisposeAsync()),
+            Sync(OwnedCleanupStage.ProcessHandle, _processHandle.Dispose),
+            Sync(OwnedCleanupStage.Job, Job.Dispose));
     }
 
     internal uint ProcessId { get; }
@@ -134,58 +151,26 @@ internal sealed class WorkerProcessSession : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        if (_disposed)
-        {
-            return;
-        }
-
-        bool cleanupFailed = false;
-        try
-        {
-            // Closing stdin first lets a cooperative worker observe EOF before
-            // the containment fallback is required.
-            await StandardInput.DisposeAsync().ConfigureAwait(false);
-        }
-        catch (Exception error) when (IsExpectedCleanupError(error))
-        {
-            cleanupFailed = true;
-        }
-
-        try
-        {
-            _ = await TerminateAndVerifyEmptyAsync()
-                .ConfigureAwait(false);
-        }
-        catch (Exception error) when (
-            IsExpectedCleanupError(error) ||
-            error is WorkerClientPolicyException)
-        {
-            // The final Job Object close below still enforces kill-on-close.
-            cleanupFailed = true;
-        }
-
-        try
-        {
-            await StandardOutput.DisposeAsync().ConfigureAwait(false);
-            await StandardError.DisposeAsync().ConfigureAwait(false);
-        }
-        catch (Exception error) when (IsExpectedCleanupError(error))
-        {
-            cleanupFailed = true;
-        }
-
-        _processHandle.Dispose();
-        Job.Dispose();
+        CleanupOutcome outcome = await _cleanup.ExecuteAsync().ConfigureAwait(false);
         _disposed = true;
         GC.SuppressFinalize(this);
 
-        if (cleanupFailed)
+        if (!outcome.Succeeded)
         {
-            throw WorkerClientPolicyException.For(
-                WorkerClientFailureCodes.WorkerCleanupFailed,
-                "The Model Inspection worker process tree could not be fully verified during cleanup.");
+            throw new WorkerClientPolicyException(
+                new WorkerClientFailure(
+                    WorkerClientFailureCodes.WorkerCleanupFailed,
+                    "The Model Inspection worker process tree could not be fully verified during cleanup."));
         }
     }
+
+    private static OwnedCleanupAction Sync(
+        OwnedCleanupStage stage,
+        Action action) => new(stage, () =>
+        {
+            action();
+            return ValueTask.CompletedTask;
+        });
 
     private static bool IsExpectedCleanupError(Exception error) =>
         error is IOException or

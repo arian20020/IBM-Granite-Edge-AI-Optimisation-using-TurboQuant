@@ -86,9 +86,17 @@ public sealed class GgufRuntimeClient
                 Path.GetDirectoryName(_workerExecutable)!,
                 operationEnvironment);
         }
-        catch
+        catch (Exception primaryFailure)
         {
             operationEnvironment.Dispose();
+            if (!operationEnvironment.CleanupSucceeded)
+            {
+                throw new GgufWorkerPolicyException(
+                    "worker-cleanup-failed",
+                    "The GGUF runtime worker startup cleanup could not be verified.",
+                    primaryFailure);
+            }
+
             throw;
         }
         try
@@ -108,9 +116,20 @@ public sealed class GgufRuntimeClient
                 .ConfigureAwait(false);
             return session;
         }
-        catch
+        catch (Exception primaryFailure)
         {
-            await process.DisposeAsync().ConfigureAwait(false);
+            try
+            {
+                await process.DisposeAsync().ConfigureAwait(false);
+            }
+            catch (Exception cleanupFailure)
+            {
+                throw new GgufWorkerPolicyException(
+                    "worker-cleanup-failed",
+                    "The GGUF runtime worker startup cleanup could not be verified.",
+                    new AggregateException(primaryFailure, cleanupFailure));
+            }
+
             throw;
         }
     }

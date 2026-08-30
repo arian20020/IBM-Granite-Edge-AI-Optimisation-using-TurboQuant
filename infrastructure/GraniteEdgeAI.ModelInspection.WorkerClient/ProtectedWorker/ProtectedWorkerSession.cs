@@ -1,4 +1,5 @@
 using GraniteEdgeAI.ModelInspection.Transport;
+using GraniteEdgeAI.HardwareInspection.Foundation.Processes;
 
 namespace GraniteEdgeAI.ModelInspection.WorkerClient.ProtectedWorker;
 
@@ -11,6 +12,7 @@ public sealed class ProtectedWorkerSession : IAsyncDisposable
 {
     private readonly WorkerProcessSession _session;
     private readonly Task<StandardErrorSnapshot> _standardErrorTask;
+    private readonly BoundedCleanupCoordinator _cleanup;
 
     internal ProtectedWorkerSession(
         WorkerProcessSession session,
@@ -37,6 +39,14 @@ public sealed class ProtectedWorkerSession : IAsyncDisposable
         _standardErrorTask = collector.DrainAsync(
             session.StandardError,
             CancellationToken.None);
+        _cleanup = new BoundedCleanupCoordinator(
+            new OwnedCleanupAction(OwnedCleanupStage.Channel, () =>
+            {
+                StandardInput.Dispose();
+                return ValueTask.CompletedTask;
+            }),
+            new OwnedCleanupAction(OwnedCleanupStage.Session, () =>
+                _session.DisposeAsync()));
     }
 
     public uint ProcessId => _session.ProcessId;
@@ -73,7 +83,12 @@ public sealed class ProtectedWorkerSession : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        StandardInput.Dispose();
-        await _session.DisposeAsync().ConfigureAwait(false);
+        CleanupOutcome outcome = await _cleanup.ExecuteAsync().ConfigureAwait(false);
+        if (!outcome.Succeeded)
+        {
+            throw WorkerClientPolicyException.For(
+                WorkerClientFailureCodes.WorkerCleanupFailed,
+                "The protected worker cleanup could not be verified.");
+        }
     }
 }

@@ -3,7 +3,15 @@ namespace GraniteEdgeAI.GgufRuntime.WorkerClient;
 public sealed class GgufWorkerPolicyException : InvalidOperationException
 {
     internal GgufWorkerPolicyException(string code, string message)
-        : base(message)
+        : this(code, message, null)
+    {
+    }
+
+    internal GgufWorkerPolicyException(
+        string code,
+        string message,
+        Exception? innerException)
+        : base(message, innerException)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(code);
         Code = code;

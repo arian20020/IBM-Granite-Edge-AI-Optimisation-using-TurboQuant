@@ -3,6 +3,7 @@ using GraniteEdgeAI.ModelInspection.Transport;
 using GraniteEdgeAI.ModelInspection.WorkerClient;
 using GraniteEdgeAI.ModelInspection.WorkerClient.ProtectedWorker;
 using GraniteEdgeAI.OpenVino.Contracts;
+using System.Runtime.ExceptionServices;
 
 namespace GraniteEdgeAI.OpenVino.WorkerClient;
 
@@ -60,6 +61,10 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
         Task<StandardErrorSnapshot>? stderrTask = null;
         VerifiedOpenVinoWorkerClosure? closure = null;
         TrustedToolOperationEnvironment? operationEnvironment = null;
+        IOpenVinoEvent? result = null;
+        OpenVinoWorkerClientException? mappedFailure = null;
+        Exception? unexpectedFailure = null;
+        CleanupOutcome? cleanupOutcome = null;
         try
         {
             DateTimeOffset startupDeadline =
@@ -97,31 +102,46 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
             await session.CompleteInputAsync().ConfigureAwait(false);
             await RequireCleanExitAsync(session, processExit)
                 .ConfigureAwait(false);
-            return terminal;
+            result = terminal;
         }
         catch (Exception error) when (IsControlled(error))
         {
-            throw await ConvertFailureAsync(
+            mappedFailure = await ConvertFailureAsync(
                     error,
                     session,
                     stderrTask,
                     cancellationToken)
                 .ConfigureAwait(false);
         }
+        catch (Exception error)
+        {
+            unexpectedFailure = error;
+        }
         finally
         {
-            if (session is not null)
-            {
-                await session.DisposeAsync().ConfigureAwait(false);
-            }
-
-            closure?.Dispose();
-            operationEnvironment?.Dispose();
-            if (operationEnvironment is not null && !operationEnvironment.CleanupSucceeded)
-            {
-                RequireCleanupSucceeded(operationEnvironment);
-            }
+            cleanupOutcome = await CleanupOwnedAsync(
+                    session,
+                    closure,
+                    operationEnvironment)
+                .ConfigureAwait(false);
         }
+
+        if (!cleanupOutcome.Succeeded)
+        {
+            throw RuntimeFailure(mappedFailure ?? unexpectedFailure);
+        }
+
+        if (mappedFailure is not null)
+        {
+            throw mappedFailure;
+        }
+
+        if (unexpectedFailure is not null)
+        {
+            ExceptionDispatchInfo.Capture(unexpectedFailure).Throw();
+        }
+
+        return result ?? throw RuntimeFailure();
     }
 
     public async Task<OpenVinoConversation> StartSessionAsync(
@@ -134,6 +154,10 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
         Task<StandardErrorSnapshot>? stderrTask = null;
         VerifiedOpenVinoWorkerClosure? closure = null;
         TrustedToolOperationEnvironment? operationEnvironment = null;
+        OpenVinoConversation? result = null;
+        OpenVinoWorkerClientException? mappedFailure = null;
+        Exception? unexpectedFailure = null;
+        CleanupOutcome? cleanupOutcome = null;
         try
         {
             DateTimeOffset startupDeadline =
@@ -175,7 +199,7 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
                 throw ProtocolFailure();
             }
 
-            OpenVinoConversation result = new(
+            result = new OpenVinoConversation(
                 session,
                 stderrTask,
                 processExit,
@@ -189,31 +213,45 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
             stderrTask = null;
             closure = null;
             operationEnvironment = null;
-            return result;
         }
         catch (Exception error) when (IsControlled(error))
         {
-            throw await ConvertFailureAsync(
+            mappedFailure = await ConvertFailureAsync(
                     error,
                     session,
                     stderrTask,
                     cancellationToken)
                 .ConfigureAwait(false);
         }
+        catch (Exception error)
+        {
+            unexpectedFailure = error;
+        }
         finally
         {
-            if (session is not null)
-            {
-                await session.DisposeAsync().ConfigureAwait(false);
-            }
-
-            closure?.Dispose();
-            operationEnvironment?.Dispose();
-            if (operationEnvironment is not null && !operationEnvironment.CleanupSucceeded)
-            {
-                RequireCleanupSucceeded(operationEnvironment);
-            }
+            cleanupOutcome = await CleanupOwnedAsync(
+                    session,
+                    closure,
+                    operationEnvironment)
+                .ConfigureAwait(false);
         }
+
+        if (!cleanupOutcome.Succeeded)
+        {
+            throw RuntimeFailure(mappedFailure ?? unexpectedFailure);
+        }
+
+        if (mappedFailure is not null)
+        {
+            throw mappedFailure;
+        }
+
+        if (unexpectedFailure is not null)
+        {
+            ExceptionDispatchInfo.Capture(unexpectedFailure).Throw();
+        }
+
+        return result ?? throw RuntimeFailure();
     }
 
     private async Task<(
@@ -227,6 +265,7 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
         VerifiedOpenVinoWorkerClosure closure = _closureResolver.Resolve(
             _options.Installation);
         TrustedToolOperationEnvironment? operationEnvironment = null;
+        ProtectedWorkerSession? session = null;
         try
         {
             operationEnvironment = TrustedToolOperationEnvironment.Create(
@@ -241,16 +280,24 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
                 _options.StartupTimeout,
                 _options.CancellationGrace,
                 _options.CleanupTimeout);
-            ProtectedWorkerSession session = await _sessionFactory.StartAsync(
+            session = await _sessionFactory.StartAsync(
                     spec,
                     cancellationToken)
                 .ConfigureAwait(false);
             return (session, session.ReadStandardErrorAsync(), closure, operationEnvironment);
         }
-        catch
+        catch (Exception primaryFailure)
         {
-            closure.Dispose();
-            operationEnvironment?.Dispose();
+            CleanupOutcome cleanup = await CleanupOwnedAsync(
+                    session,
+                    closure,
+                    operationEnvironment)
+                .ConfigureAwait(false);
+            if (!cleanup.Succeeded)
+            {
+                throw RuntimeFailure(primaryFailure);
+            }
+
             throw;
         }
     }
@@ -448,9 +495,38 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
         supportCode,
         RuntimeFailureMessage);
 
-    internal static OpenVinoWorkerClientException RuntimeFailure() => new(
+    internal static OpenVinoWorkerClientException RuntimeFailure(
+        Exception? innerException = null) => new(
         OpenVinoSupportCode.RuntimeIntegrityFailed,
-        RuntimeFailureMessage);
+        RuntimeFailureMessage,
+        innerException: innerException);
+
+    private static Task<CleanupOutcome> CleanupOwnedAsync(
+        ProtectedWorkerSession? session,
+        VerifiedOpenVinoWorkerClosure? closure,
+        TrustedToolOperationEnvironment? operationEnvironment) =>
+        new BoundedCleanupCoordinator(
+            new OwnedCleanupAction(OwnedCleanupStage.Session, () =>
+                session?.DisposeAsync() ?? ValueTask.CompletedTask),
+            Sync(OwnedCleanupStage.Closure, () => closure?.Dispose()),
+            Sync(OwnedCleanupStage.OperationEnvironment, () =>
+            {
+                operationEnvironment?.Dispose();
+                if (operationEnvironment is not null &&
+                    !operationEnvironment.CleanupSucceeded)
+                {
+                    throw new InvalidOperationException(
+                        "The OpenVINO operation environment cleanup could not be verified.");
+                }
+            })).ExecuteAsync();
+
+    private static OwnedCleanupAction Sync(
+        OwnedCleanupStage stage,
+        Action action) => new(stage, () =>
+        {
+            action();
+            return ValueTask.CompletedTask;
+        });
 
     internal static void RequireCleanupSucceeded(
         TrustedToolOperationEnvironment operationEnvironment)
@@ -481,6 +557,7 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
             Task<StandardErrorSnapshot>? stderrTask,
             CancellationToken callerToken)
     {
+        bool cleanupIntegrityFailed = false;
         if (session is not null)
         {
             try
@@ -490,6 +567,7 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
             }
             catch (Exception cleanupError) when (IsControlled(cleanupError))
             {
+                cleanupIntegrityFailed = true;
             }
         }
 
@@ -505,7 +583,13 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
             }
             catch (Exception stderrError) when (IsControlled(stderrError))
             {
+                cleanupIntegrityFailed = true;
             }
+        }
+
+        if (cleanupIntegrityFailed)
+        {
+            return RuntimeFailure(error);
         }
 
         OpenVinoWorkerClientException mapped = error switch

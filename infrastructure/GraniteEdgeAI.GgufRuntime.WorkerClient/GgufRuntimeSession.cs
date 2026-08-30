@@ -5,6 +5,7 @@ using GraniteEdgeAI.GgufRuntime.Contracts.Configuration;
 using GraniteEdgeAI.GgufRuntime.Contracts.Events;
 using GraniteEdgeAI.GgufRuntime.Contracts.Session;
 using GraniteEdgeAI.GgufRuntime.Transport;
+using GraniteEdgeAI.HardwareInspection.Foundation.Processes;
 
 namespace GraniteEdgeAI.GgufRuntime.WorkerClient;
 
@@ -13,6 +14,7 @@ public sealed class GgufRuntimeSession : IAsyncDisposable
     private readonly GgufWorkerProcessSession _process;
     private readonly GgufFramedChannel _channel;
     private readonly GgufSessionId _sessionId;
+    private readonly BoundedCleanupCoordinator _cleanup;
     private bool _closed;
 
     internal GgufRuntimeSession(
@@ -23,6 +25,14 @@ public sealed class GgufRuntimeSession : IAsyncDisposable
         _process = process;
         _channel = channel;
         _sessionId = sessionId;
+        _cleanup = new BoundedCleanupCoordinator(
+            new OwnedCleanupAction(OwnedCleanupStage.Channel, () =>
+            {
+                _channel.Dispose();
+                return ValueTask.CompletedTask;
+            }),
+            new OwnedCleanupAction(OwnedCleanupStage.Session, () =>
+                _process.DisposeAsync()));
     }
 
     internal uint ActiveProcessCount => _process.ActiveProcessCount;
@@ -140,7 +150,12 @@ public sealed class GgufRuntimeSession : IAsyncDisposable
             }
         }
 
-        _channel.Dispose();
-        await _process.DisposeAsync().ConfigureAwait(false);
+        CleanupOutcome cleanup = await _cleanup.ExecuteAsync().ConfigureAwait(false);
+        if (!cleanup.Succeeded)
+        {
+            throw new GgufWorkerPolicyException(
+                "worker-cleanup-failed",
+                "The GGUF runtime worker cleanup could not be verified.");
+        }
     }
 }
