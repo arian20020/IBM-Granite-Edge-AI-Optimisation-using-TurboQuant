@@ -199,6 +199,21 @@ public sealed class ChatDemoControllerLifetimeTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
+    public async Task TypedRuntimeTeardownFailureBecomesBoundedSupportState()
+    {
+        var reporter = new BoundedApplicationFaultReporter(4);
+        ChatDemoController controller = CreateController(
+            new RuntimeUnavailableDisposalSession(),
+            reporter);
+
+        await controller.DisposeAsync();
+
+        Assert.AreEqual(ChatOperationSupportCode.RuntimeUnavailable, controller.LastSupportCode);
+        Assert.HasCount(0, reporter.Capture());
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
     public async Task RetirementRunsLaterCleanupAfterAnEarlierPhaseFault()
     {
         var session = new MultiFailureSession();
@@ -326,6 +341,27 @@ public sealed class ChatDemoControllerLifetimeTests
             DisposeCount++;
             return ValueTask.CompletedTask;
         }
+    }
+
+    private sealed class RuntimeUnavailableDisposalSession : IGgufChatSession
+    {
+        public ValueTask PrepareConversationAsync(
+            ChatConversation conversation,
+            CancellationToken cancellationToken) => ValueTask.CompletedTask;
+
+        public async IAsyncEnumerable<GgufChatEvent> GenerateAsync(
+            string prompt,
+            [EnumeratorCancellation] CancellationToken cancellationToken)
+        {
+            await Task.CompletedTask;
+            yield break;
+        }
+
+        public ValueTask StopAsync(CancellationToken cancellationToken) =>
+            ValueTask.CompletedTask;
+
+        public ValueTask DisposeAsync() => ValueTask.FromException(
+            new GgufChatRuntimeUnavailableException());
     }
 
     private sealed class MultiFailureSession : IGgufChatSession

@@ -65,6 +65,50 @@ public sealed class ChatHistoryStoreTests
     }
 
     [TestMethod]
+    public async Task EmptyOversizedNullAndIdentityMismatchRecordsSetBoundedSupportFact()
+    {
+        using var root = new TemporaryDirectory();
+        var store = new AtomicJsonChatHistoryStore(root.Path);
+        await File.WriteAllBytesAsync(
+            System.IO.Path.Combine(root.Path, $"{Guid.NewGuid():N}.json"),
+            []);
+        await File.WriteAllBytesAsync(
+            System.IO.Path.Combine(root.Path, $"{Guid.NewGuid():N}.json"),
+            new byte[ChatHistoryPolicy.MaximumRecordBytes + 1]);
+        await File.WriteAllTextAsync(
+            System.IO.Path.Combine(root.Path, $"{Guid.NewGuid():N}.json"),
+            "null");
+        ChatConversation mismatch = ChatConversation.Create(
+            Guid.NewGuid(), "model", "profile", DateTimeOffset.UtcNow);
+        await store.SaveAsync(mismatch, CancellationToken.None);
+        File.Move(
+            System.IO.Path.Combine(root.Path, $"{mismatch.Id:N}.json"),
+            System.IO.Path.Combine(root.Path, $"{Guid.NewGuid():N}.json"));
+
+        ChatHistoryLoadResult result = await store.LoadAsync(CancellationToken.None);
+
+        Assert.IsTrue(result.HasUnavailableRecords);
+        Assert.HasCount(0, result.Conversations);
+    }
+
+    [TestMethod]
+    public void SaveCleanupFailureCannotReplacePrimaryAndIsTypedWhenAlone()
+    {
+        var primary = new InvalidOperationException("primary-private-detail");
+
+        InvalidOperationException actual = Assert.ThrowsExactly<InvalidOperationException>(() =>
+            AtomicJsonChatHistoryStore.CompleteSave(
+                primary,
+                new IOException("cleanup-private-path")));
+        Assert.AreSame(primary, actual);
+
+        Assert.ThrowsExactly<ChatHistoryUnavailableException>(() =>
+            AtomicJsonChatHistoryStore.CompleteSave(
+                null,
+                new IOException("cleanup-private-path")));
+    }
+
+    [TestMethod]
     public async Task HiddenControlAndLimitStatusRoundTripWithoutChangingTitle()
     {
         using var root = new TemporaryDirectory();

@@ -44,6 +44,28 @@ public sealed class GgufRuntimeClientFactoryTests
         Assert.AreSame(primary, actual);
         Assert.AreEqual(source.Token, actual.CancellationToken);
     }
+
+    [TestMethod]
+    public async Task SessionTeardownRunsEveryPhaseAndPreservesCloseFailure()
+    {
+        var primary = new IOException("private-close-detail");
+        int channelDisposals = 0;
+        int processDisposals = 0;
+
+        IOException actual = await Assert.ThrowsExactlyAsync<IOException>(() =>
+            GgufRuntimeSession.DisposePreservingFirstFailureAsync(
+                () => Task.FromException(primary),
+                () => channelDisposals++,
+                () =>
+                {
+                    processDisposals++;
+                    return ValueTask.CompletedTask;
+                }).AsTask());
+
+        Assert.AreSame(primary, actual);
+        Assert.AreEqual(1, channelDisposals);
+        Assert.AreEqual(1, processDisposals);
+    }
     [TestMethod]
     public void CreateAcceptsVerifiedPackageAndExplicitAbsoluteModel()
     {

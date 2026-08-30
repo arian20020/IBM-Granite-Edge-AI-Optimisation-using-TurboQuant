@@ -5,6 +5,7 @@ using GraniteEdgeAI.GgufRuntime.Contracts.Configuration;
 using GraniteEdgeAI.GgufRuntime.Contracts.Events;
 using GraniteEdgeAI.GgufRuntime.Contracts.Session;
 using GraniteEdgeAI.GgufRuntime.Transport;
+using System.Runtime.ExceptionServices;
 
 namespace GraniteEdgeAI.GgufRuntime.WorkerClient;
 
@@ -127,20 +128,57 @@ public sealed class GgufRuntimeSession : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        if (!_closed)
+        await DisposePreservingFirstFailureAsync(
+            async () =>
+            {
+                if (!_closed)
+                {
+                    await CloseAsync(CancellationToken.None).ConfigureAwait(false);
+                }
+            },
+            _channel.Dispose,
+            () => _process.DisposeAsync()).ConfigureAwait(false);
+    }
+
+    internal static async ValueTask DisposePreservingFirstFailureAsync(
+        Func<Task> close,
+        Action disposeChannel,
+        Func<ValueTask> disposeProcess)
+    {
+        ArgumentNullException.ThrowIfNull(close);
+        ArgumentNullException.ThrowIfNull(disposeChannel);
+        ArgumentNullException.ThrowIfNull(disposeProcess);
+        Exception? firstFailure = null;
+        try
         {
-            try
-            {
-                await CloseAsync(CancellationToken.None).ConfigureAwait(false);
-            }
-            catch (Exception exception) when (
-                exception is IOException or GgufTransportException or
-                    GgufWorkerPolicyException or OperationCanceledException)
-            {
-            }
+            await close().ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            firstFailure = exception;
         }
 
-        _channel.Dispose();
-        await _process.DisposeAsync().ConfigureAwait(false);
+        try
+        {
+            disposeChannel();
+        }
+        catch (Exception exception)
+        {
+            firstFailure ??= exception;
+        }
+
+        try
+        {
+            await disposeProcess().ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            firstFailure ??= exception;
+        }
+
+        if (firstFailure is not null)
+        {
+            ExceptionDispatchInfo.Capture(firstFailure).Throw();
+        }
     }
 }

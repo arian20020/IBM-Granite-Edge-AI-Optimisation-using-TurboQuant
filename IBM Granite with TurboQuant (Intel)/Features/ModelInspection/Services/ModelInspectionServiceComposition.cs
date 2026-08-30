@@ -8,6 +8,7 @@ using GraniteEdgeAI.Features.OpenVinoRoute.Optimization;
 using GraniteEdgeAI.Features.Prompting;
 using GraniteEdgeAI.OpenVino.Contracts;
 using GraniteEdgeAI.OpenVino.WorkerClient;
+using GraniteEdgeAI.Features.ApplicationComposition;
 #if MODEL_INSPECTION_X64
 using GraniteEdgeAI.Features.ModelInspection.Infrastructure;
 #endif
@@ -72,7 +73,7 @@ internal static class ModelInspectionServiceComposition
                 "The packaged OpenVINO worker manifest does not match the app-approved identity.");
         }
         OpenVinoWorkerInstallation installation =
-            OpenVinoOfficialWorkerAuthority.CreateInstallation(
+            A1BackendProductionAuthorities.Shared.CreateOfficialWorkerInstallation(
                 workerRoot,
                 expectedManifestDigest);
         OpenVinoWorkerClient client = new(

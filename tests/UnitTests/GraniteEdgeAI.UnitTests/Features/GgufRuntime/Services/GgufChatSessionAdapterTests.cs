@@ -20,6 +20,16 @@ public sealed class GgufChatSessionAdapterTests
 
         Assert.IsFalse(translated.ToString().Contains("private", StringComparison.Ordinal));
     }
+
+    [TestMethod]
+    public void NonCancellableTeardownCancellationBecomesRuntimeUnavailability()
+    {
+        GgufChatRuntimeUnavailableException translated =
+            GgufChatSessionAdapter.TranslateExpectedTeardownFailure(
+                new OperationCanceledException("private-teardown-detail"));
+
+        Assert.IsFalse(translated.ToString().Contains("private", StringComparison.Ordinal));
+    }
     [TestMethod]
     public async Task PreparingConversationRestartsRuntimeWithDurableTurns()
     {

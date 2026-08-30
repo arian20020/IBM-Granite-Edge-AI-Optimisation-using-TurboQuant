@@ -12,6 +12,7 @@ using GraniteEdgeAI.Features.ModelHardwareCompatibility.Contracts;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.Infrastructure;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.Journey;
 using GraniteEdgeAI.Features.GgufRuntime;
+using GraniteEdgeAI.Features.ApplicationComposition;
 using GraniteEdgeAI.Features.ModelImport;
 using GraniteEdgeAI.Features.ModelInspection;
 using GraniteEdgeAI.Features.ModelInspection.Contracts;
@@ -682,7 +683,7 @@ namespace GraniteEdgeAI.Features.Onboarding
                 return false;
             }
 
-            var evaluator = new CompatibilityEvaluationOrchestrator(
+            var evaluator = A1BackendProductionAuthorities.Shared.CreateCompatibility(
                 _compatibilityFreshResourcesSource,
                 TimeProvider.System);
             CompatibilityPage compatibilityPage;
@@ -836,7 +837,7 @@ namespace GraniteEdgeAI.Features.Onboarding
                     Environment.SpecialFolder.LocalApplicationData),
                 "GraniteEdgeAI",
                 "Optimization");
-            var factory = new OptimizationBackendCompositionFactory(
+            var factory = A1BackendProductionAuthorities.Shared.CreateOptimization(
                 _modelSourceCustodyRegistry,
                 appRoot,
                 _activeGgufAuthority,
@@ -1068,8 +1069,8 @@ namespace GraniteEdgeAI.Features.Onboarding
                 ChatDemoController? controller;
                 try
                 {
-                    controller = await ChatDemoController
-                        .CreateInitializedProductionAsync(
+                    controller = await A1BackendProductionAuthorities.Shared
+                        .CreateInitializedChatAsync(
                             page,
                             request,
                             CancellationToken.None);

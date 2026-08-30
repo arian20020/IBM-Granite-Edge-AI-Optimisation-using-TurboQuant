@@ -6,6 +6,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Runtime.ExceptionServices;
 
 namespace GraniteEdgeAI.Features.GgufRuntime.History;
 
@@ -67,6 +68,7 @@ internal sealed class AtomicJsonChatHistoryStore : IChatHistoryStore
                 var info = new FileInfo(file);
                 if (info.Length is <= 0 or > ChatHistoryPolicy.MaximumRecordBytes)
                 {
+                    hasUnavailableRecords = true;
                     continue;
                 }
 
@@ -83,6 +85,10 @@ internal sealed class AtomicJsonChatHistoryStore : IChatHistoryStore
                 if (conversation?.Id == id)
                 {
                     conversations.Add(conversation);
+                }
+                else
+                {
+                    hasUnavailableRecords = true;
                 }
             }
             catch (Exception exception) when (IsExpectedRecordFailure(exception))
@@ -103,6 +109,7 @@ internal sealed class AtomicJsonChatHistoryStore : IChatHistoryStore
         ArgumentNullException.ThrowIfNull(conversation);
         string destination = GetFile(conversation.Id);
         string temporary = Path.Combine(root, $".{Guid.NewGuid():N}.tmp");
+        Exception? primaryFailure = null;
         try
         {
             await using (var stream = new FileStream(
@@ -130,15 +137,27 @@ internal sealed class AtomicJsonChatHistoryStore : IChatHistoryStore
         }
         catch (Exception exception) when (IsExpectedStorageFailure(exception))
         {
-            throw new ChatHistoryUnavailableException();
+            primaryFailure = new ChatHistoryUnavailableException();
         }
-        finally
+        catch (Exception exception)
+        {
+            primaryFailure = exception;
+        }
+
+        Exception? cleanupFailure = null;
+        try
         {
             if (File.Exists(temporary))
             {
                 File.Delete(temporary);
             }
         }
+        catch (Exception exception)
+        {
+            cleanupFailure = exception;
+        }
+
+        CompleteSave(primaryFailure, cleanupFailure);
     }
 
     public Task DeleteAsync(Guid conversationId, CancellationToken cancellationToken)
@@ -191,4 +210,24 @@ internal sealed class AtomicJsonChatHistoryStore : IChatHistoryStore
 
     private static bool IsExpectedStorageFailure(Exception exception) =>
         exception is IOException or UnauthorizedAccessException;
+
+    internal static void CompleteSave(
+        Exception? primaryFailure,
+        Exception? cleanupFailure)
+    {
+        if (primaryFailure is not null)
+        {
+            ExceptionDispatchInfo.Capture(primaryFailure).Throw();
+        }
+
+        if (cleanupFailure is not null)
+        {
+            if (IsExpectedStorageFailure(cleanupFailure))
+            {
+                throw new ChatHistoryUnavailableException();
+            }
+
+            ExceptionDispatchInfo.Capture(cleanupFailure).Throw();
+        }
+    }
 }

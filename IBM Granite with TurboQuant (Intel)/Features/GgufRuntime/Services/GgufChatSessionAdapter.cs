@@ -252,6 +252,20 @@ internal sealed class GgufChatSessionAdapter : IGgufChatSession
         return new GgufChatRuntimeUnavailableException();
     }
 
+    internal static GgufChatRuntimeUnavailableException
+        TranslateExpectedTeardownFailure(Exception exception)
+    {
+        if (!IsExpectedRuntimeFailure(exception) &&
+            exception is not OperationCanceledException)
+        {
+            throw new ArgumentException(
+                "The failure is not an expected runtime teardown failure.",
+                nameof(exception));
+        }
+
+        return new GgufChatRuntimeUnavailableException();
+    }
+
     private static bool IsExpectedRuntimeFailure(Exception exception) =>
         exception is IOException or UnauthorizedAccessException or
             GgufRuntimeStartupException or GgufWorkerPolicyException;
@@ -307,9 +321,11 @@ internal sealed class GgufChatSessionAdapter : IGgufChatSession
             {
                 await inner.DisposeAsync().ConfigureAwait(false);
             }
-            catch (Exception exception) when (IsExpectedRuntimeFailure(exception))
+            catch (Exception exception) when (
+                IsExpectedRuntimeFailure(exception) ||
+                exception is OperationCanceledException)
             {
-                throw TranslateExpectedRuntimeFailure(exception);
+                throw TranslateExpectedTeardownFailure(exception);
             }
         }
     }

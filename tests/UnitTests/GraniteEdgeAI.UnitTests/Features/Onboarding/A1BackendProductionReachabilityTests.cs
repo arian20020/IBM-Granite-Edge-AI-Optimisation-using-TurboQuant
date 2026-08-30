@@ -1,5 +1,6 @@
 using GraniteEdgeAI.UnitTests.Features.ModelOptimization;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.Infrastructure;
+using GraniteEdgeAI.Features.ApplicationComposition;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation;
 using GraniteEdgeAI.OpenVino.WorkerClient;
 using GraniteEdgeAI.UnitTests.Features.GgufRuntime;
@@ -15,7 +16,7 @@ public sealed class A1BackendProductionReachabilityTests
     public async Task CompatibilityAuthority_CapturesOneFreshFactSetPerEvaluation()
     {
         var source = new CountingFreshSource();
-        var orchestrator = new CompatibilityEvaluationOrchestrator(
+        var orchestrator = A1BackendProductionAuthorities.Shared.CreateCompatibility(
             source,
             TimeProvider.System);
         int evaluatorCalls = 0;
@@ -37,10 +38,14 @@ public sealed class A1BackendProductionReachabilityTests
     }
 
     [TestMethod]
-    public void OptimizationAuthority_RejectsASecondBuilderForTheSameRoute()
+    public void ProductionRegistryRejectsASecondAuthorityCompositionRoute()
     {
-        new OptimizationBackendCompositionFactoryTests()
-            .DuplicateRouteAuthorityIsRejected();
+        var registry = new A1BackendAuthorityRegistry();
+        var first = new A1BackendProductionAuthorities(registry);
+
+        Assert.AreEqual(4, first.RegistrationCount);
+        Assert.ThrowsExactly<InvalidOperationException>(() =>
+            new A1BackendProductionAuthorities(registry));
     }
 
     [TestMethod]
@@ -48,7 +53,8 @@ public sealed class A1BackendProductionReachabilityTests
     {
         const string digest =
             "1111111111111111111111111111111111111111111111111111111111111111";
-        var installation = OpenVinoOfficialWorkerAuthority.CreateInstallation(
+        var installation = A1BackendProductionAuthorities.Shared
+            .CreateOfficialWorkerInstallation(
             Path.GetFullPath("official-worker"),
             digest);
         var inventory = (IDictionary<string, OpenVinoWorkerBinaryMachine>)
@@ -66,9 +72,9 @@ public sealed class A1BackendProductionReachabilityTests
         string source = ReadAllProduction();
 
         Assert.AreEqual(1, Occurrences(
-            source, "new CompatibilityEvaluationOrchestrator("));
+            source, ".CreateCompatibility("));
         Assert.AreEqual(1, Occurrences(
-            source, "new OptimizationBackendCompositionFactory("));
+            source, ".CreateOptimization("));
         Assert.AreEqual(1, Occurrences(
             source, "OpenVinoOfficialWorkerAuthority.CreateInstallation("));
         Assert.AreEqual(1, Occurrences(
@@ -92,7 +98,7 @@ public sealed class A1BackendProductionReachabilityTests
             "Features", "GgufRuntime", "ChatDemoController.cs");
 
         Assert.AreEqual(2, Occurrences(
-            callers, ".CreateInitializedProductionAsync("));
+            callers, ".CreateInitializedChatAsync("));
         Assert.AreEqual(0, Occurrences(
             callers, ".InitializeAsync();"));
         Assert.AreEqual(1, Occurrences(
