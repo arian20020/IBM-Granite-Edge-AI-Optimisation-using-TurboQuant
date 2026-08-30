@@ -54,6 +54,7 @@ internal sealed class ModelDownloadCoordinator : IDisposable
     private ModelDownloadOperationId? _cancellationOperationId;
     private Task? _cancellationOperationTask;
     private bool _cancellationOperationDiscardsPartial;
+    private bool _cancellationOperationDiscardHandled;
 
     internal ModelDownloadCoordinator(
         IModelDownloadService service,
@@ -258,38 +259,109 @@ internal sealed class ModelDownloadCoordinator : IDisposable
     internal Task CancelAsync(bool discardPartial, CancellationToken cancellationToken)
     {
         var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        Task authority;
+        ModelDownloadOperationId? operationId;
+        bool cancellationWasPending;
         lock (_sync)
         {
             ThrowIfDisposed();
-            ModelDownloadOperationId? operationId = State.OperationId;
+            operationId = State.OperationId;
             if (operationId is not null
                 && _cancellationOperationId == operationId
-                && _cancellationOperationTask is not null
-                && (!_cancellationOperationTask.IsCompleted
-                    || _cancellationOperationDiscardsPartial
-                    || !discardPartial))
-                return _cancellationOperationTask;
+                && _cancellationOperationTask is not null)
+            {
+                if (!_cancellationOperationTask.IsCompleted)
+                {
+                    _cancellationOperationDiscardsPartial |= discardPartial;
+                    return ObserveCancellationAsync(_cancellationOperationTask, cancellationToken);
+                }
+                if (!discardPartial || _cancellationOperationDiscardHandled)
+                    return ObserveCancellationAsync(_cancellationOperationTask, cancellationToken);
+            }
             _cancellationOperationId = operationId;
-            _cancellationOperationTask = completion.Task;
+            authority = completion.Task;
+            _cancellationOperationTask = authority;
             _cancellationOperationDiscardsPartial = discardPartial;
+            _cancellationOperationDiscardHandled = false;
+            cancellationWasPending = _cancellationPendingOperation == operationId;
         }
-        _ = CompleteCancellationOperationAsync(discardPartial, cancellationToken, completion);
-        return completion.Task;
+        _ = CompleteCancellationOperationAsync(
+            operationId,
+            discardPartial,
+            cancellationWasPending,
+            completion);
+        return ObserveCancellationAsync(authority, cancellationToken);
     }
 
+    private static Task ObserveCancellationAsync(Task authority, CancellationToken cancellationToken) =>
+        cancellationToken.CanBeCanceled ? authority.WaitAsync(cancellationToken) : authority;
+
     private async Task CompleteCancellationOperationAsync(
+        ModelDownloadOperationId? operationId,
         bool discardPartial,
-        CancellationToken cancellationToken,
+        bool cancellationWasPending,
         TaskCompletionSource completion)
     {
         try
         {
-            await CancelCoreAsync(discardPartial, cancellationToken).ConfigureAwait(false);
-            completion.TrySetResult();
+            await CancelCoreAsync(discardPartial, CancellationToken.None).ConfigureAwait(false);
+            while (operationId is not null)
+            {
+                Task? reconciliation = null;
+                bool discardSettledPartial = false;
+                lock (_sync)
+                {
+                    if (_cancellationOperationId != operationId
+                        || !_cancellationOperationDiscardsPartial)
+                        break;
+                    if (_cancellationPendingOperation == operationId)
+                    {
+                        if (discardPartial && !cancellationWasPending)
+                        {
+                            _cancellationOperationDiscardHandled = true;
+                            break;
+                        }
+                        reconciliation = _cancellationReconciliation;
+                    }
+                    else if (State.OperationId == operationId
+                        && State.Stage == ModelDownloadStage.Interrupted
+                        && State.ErrorCode != "download-cancelled-discarded")
+                        discardSettledPartial = true;
+                    else
+                    {
+                        _cancellationOperationDiscardHandled = true;
+                        break;
+                    }
+                }
+                if (reconciliation is not null)
+                {
+                    await reconciliation.ConfigureAwait(false);
+                    continue;
+                }
+                if (discardSettledPartial)
+                {
+                    await CancelCoreAsync(true, CancellationToken.None).ConfigureAwait(false);
+                    continue;
+                }
+            }
+            lock (_sync)
+            {
+                completion.TrySetResult();
+            }
+        }
+        catch (OperationCanceledException exception)
+        {
+            lock (_sync)
+            {
+                completion.TrySetCanceled(exception.CancellationToken);
+            }
         }
         catch (Exception exception)
         {
-            completion.TrySetException(exception);
+            lock (_sync)
+            {
+                completion.TrySetException(exception);
+            }
         }
     }
 

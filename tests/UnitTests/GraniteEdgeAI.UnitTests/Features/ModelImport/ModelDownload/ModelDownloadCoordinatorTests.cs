@@ -416,7 +416,7 @@ public sealed class ModelDownloadCoordinatorTests
     }
 
     [TestMethod]
-    public async Task CallerCancelledWaitPreservesCleanupAuthorityUntilProviderQuiesces()
+    public async Task CallerCancelledWaitDoesNotCancelAnotherCallerOrCleanupAuthority()
     {
         var service = new NonCooperativeDownloadService();
         var coordinator = new ModelDownloadCoordinator(
@@ -427,15 +427,20 @@ public sealed class ModelDownloadCoordinatorTests
         Task operation = coordinator.StartAsync(50, false, CancellationToken.None);
         await service.Started.Task.WaitAsync(TimeSpan.FromSeconds(1));
         Task cancellation = coordinator.CancelAsync(false, waitCancellation.Token);
+        Task authorityObserver = coordinator.CancelAsync(false, CancellationToken.None);
+        Assert.AreNotSame(cancellation, authorityObserver);
         waitCancellation.Cancel();
 
-        await Assert.ThrowsExactlyAsync<OperationCanceledException>(async () => await cancellation);
-        Assert.AreEqual("download-cancellation-cleanup-pending", coordinator.State.ErrorCode);
+        await Assert.ThrowsAsync<OperationCanceledException>(async () => await cancellation);
+        Assert.IsTrue(cancellation.IsCanceled);
+        Assert.IsFalse(authorityObserver.IsCompleted);
+        Assert.AreEqual("download-cancelling", coordinator.State.ErrorCode);
         await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
             coordinator.StartAsync(65, false, CancellationToken.None));
 
         service.CompleteInterrupted();
         await operation.WaitAsync(TimeSpan.FromSeconds(1));
+        await authorityObserver.WaitAsync(TimeSpan.FromSeconds(1));
         await coordinator.CancellationReconciliation.WaitAsync(TimeSpan.FromSeconds(1));
         Assert.AreEqual(ModelDownloadStage.Interrupted, coordinator.State.Stage);
         Assert.AreEqual("download-cancelled", coordinator.State.ErrorCode);
@@ -606,6 +611,61 @@ public sealed class ModelDownloadCoordinatorTests
         service.ReleaseDiscard.TrySetResult();
         await Task.WhenAll(first, second).WaitAsync(TimeSpan.FromSeconds(1));
         Assert.AreEqual(1, service.DiscardCalls);
+    }
+
+    [TestMethod]
+    public async Task ConcurrentDiscardUpgradesActivePreserveCancellation()
+    {
+        var service = new BlockingDiscardDownloadService();
+        var coordinator = new ModelDownloadCoordinator(
+            service,
+            new FakeNetworkPolicy(ModelDownloadConnectionKind.Unrestricted));
+        Task operation = coordinator.StartAsync(50, false, CancellationToken.None);
+        await service.Started.Task.WaitAsync(TimeSpan.FromSeconds(1));
+
+        Task preserve = coordinator.CancelAsync(false, CancellationToken.None);
+        Task discard = coordinator.CancelAsync(true, CancellationToken.None);
+        Assert.AreSame(preserve, discard);
+        service.CompleteInterrupted();
+        await service.DiscardStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        await operation.WaitAsync(TimeSpan.FromSeconds(1));
+
+        Assert.AreEqual(1, service.DiscardCalls);
+        Assert.IsFalse(discard.IsCompleted);
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
+            coordinator.StartAsync(65, false, CancellationToken.None));
+        service.ReleaseDiscard.TrySetResult();
+        await discard.WaitAsync(TimeSpan.FromSeconds(1));
+        Assert.AreEqual("download-cancelled-discarded", coordinator.State.ErrorCode);
+    }
+
+    [TestMethod]
+    public async Task DiscardQueuedDuringDeferredPreserveWaitsForReconciliation()
+    {
+        var service = new BlockingDiscardDownloadService();
+        var coordinator = new ModelDownloadCoordinator(
+            service,
+            new FakeNetworkPolicy(ModelDownloadConnectionKind.Unrestricted),
+            TimeSpan.FromMilliseconds(50));
+        Task operation = coordinator.StartAsync(50, false, CancellationToken.None);
+        await service.Started.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        Task preserve = coordinator.CancelAsync(false, CancellationToken.None);
+        await preserve.WaitAsync(TimeSpan.FromSeconds(1));
+        Assert.AreEqual("download-cancellation-cleanup-pending", coordinator.State.ErrorCode);
+
+        Task discard = coordinator.CancelAsync(true, CancellationToken.None);
+        Assert.AreNotSame(preserve, discard);
+        Assert.IsFalse(discard.IsCompleted);
+        service.CompleteInterrupted();
+        await operation.WaitAsync(TimeSpan.FromSeconds(1));
+        await service.DiscardStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+
+        Assert.AreEqual(1, service.DiscardCalls);
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
+            coordinator.StartAsync(65, false, CancellationToken.None));
+        service.ReleaseDiscard.TrySetResult();
+        await discard.WaitAsync(TimeSpan.FromSeconds(1));
+        Assert.AreEqual("download-cancelled-discarded", coordinator.State.ErrorCode);
     }
 
     private sealed class FakeNetworkPolicy(ModelDownloadConnectionKind kind) : IModelDownloadNetworkPolicy
