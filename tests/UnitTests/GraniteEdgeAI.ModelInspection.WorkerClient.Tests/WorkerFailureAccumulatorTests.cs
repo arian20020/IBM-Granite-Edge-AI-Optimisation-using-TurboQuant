@@ -84,7 +84,12 @@ public sealed class WorkerFailureAccumulatorTests
         CleanupIntegrityException retained = Assert.IsInstanceOfType<CleanupIntegrityException>(
             accumulator.CleanupIntegrityCause!.InnerException);
         CollectionAssert.AreEqual(facts, retained.Failures.ToArray());
+        Assert.AreEqual(CleanupPrimaryFailureKind.Io, retained.PrimaryFailureKind);
+        Assert.IsNull(retained.InnerException);
+        Assert.AreEqual(facts.Length, accumulator.CleanupFailures.Count);
         Assert.IsFalse(policy.Message.Contains("private", StringComparison.OrdinalIgnoreCase));
         Assert.IsFalse(policy.Message.Contains("secret", StringComparison.OrdinalIgnoreCase));
+        Assert.IsFalse(policy.ToString().Contains("private", StringComparison.OrdinalIgnoreCase));
+        Assert.IsFalse(policy.ToString().Contains("secret", StringComparison.OrdinalIgnoreCase));
     }
 }

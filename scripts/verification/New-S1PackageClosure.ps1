@@ -10,7 +10,6 @@ param(
     [string]$Configuration = 'Release',
     [string]$Platform = 'x64',
     [string]$RuntimeIdentifier = 'win-x64',
-    [string]$ApprovedMembershipPolicyFile,
     [Parameter(Mandatory = $true)][string]$PreviousClosureFile,
     [string]$ActualPackageFile,
     [string[]]$Blocker = @()
@@ -18,9 +17,9 @@ param(
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
-if ([string]::IsNullOrWhiteSpace($ApprovedMembershipPolicyFile)) {
-    $ApprovedMembershipPolicyFile = Join-Path $PSScriptRoot 'S1PackageApprovedPaths.txt'
-}
+$repositoryRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
+$approvedMembershipPolicyFile = [IO.Path]::GetFullPath(
+    (Join-Path $PSScriptRoot 'S1PackageApprovedPaths.txt'))
 
 function Assert-CanonicalGitIdentity([string]$Name, [string]$Value) {
     if ($Value -cnotmatch '^[0-9a-f]{40}$') {
@@ -130,7 +129,6 @@ foreach ($line in [IO.File]::ReadAllLines((Resolve-Path -LiteralPath $EvaluatedM
 if ($entries.Count -eq 0) { throw 'Evaluated AppX membership was empty.' }
 $entries = @($entries | Sort-Object -Property path)
 
-$repositoryRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
 $validatorProject = Join-Path $repositoryRoot 'tools\GraniteEdgeAI.R4Handoff.Validator\GraniteEdgeAI.R4Handoff.Validator.csproj'
 & dotnet run --project $validatorProject --configuration Release --no-restore -- `
     assembly-membership ([IO.Path]::GetFullPath($EvaluatedMembershipFile)) $ImplementationSubjectCommit
@@ -163,6 +161,11 @@ $closure = [ordered]@{
     platform = $Platform
     runtimeIdentifier = $RuntimeIdentifier
     buildCommandIdentity = $BuildCommandIdentity
+    approvedMembershipPolicy = [ordered]@{
+        path = 'scripts/verification/S1PackageApprovedPaths.txt'
+        bytes = [long](Get-Item -LiteralPath $approvedMembershipPolicyFile).Length
+        sha256 = Get-Sha256 $approvedMembershipPolicyFile
+    }
     rawBuildOutput = [ordered]@{
         disposition = 'not-package-membership'
         enumerationUsed = $false

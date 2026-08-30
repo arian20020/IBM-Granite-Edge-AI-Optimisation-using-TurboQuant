@@ -63,6 +63,12 @@ public sealed class PackageMembershipPolicyTests
         StringAssert.Contains(script, "ASCII and UTF-16LE privacy scan");
         StringAssert.Contains(script, "assembly-membership");
         StringAssert.Contains(script, "$approvedPaths.Contains");
+        StringAssert.Contains(script, "S1PackageApprovedPaths.txt");
+        StringAssert.Contains(script, "approvedMembershipPolicy =");
+        StringAssert.Contains(script, "sha256 = Get-Sha256 $approvedMembershipPolicyFile");
+        Assert.IsFalse(script.Contains(
+            "[string]$ApprovedMembershipPolicyFile",
+            StringComparison.Ordinal));
         StringAssert.Contains(script, "package member contains private content");
         Assert.IsFalse(script.Contains(
             "EnumerateFiles($Build",

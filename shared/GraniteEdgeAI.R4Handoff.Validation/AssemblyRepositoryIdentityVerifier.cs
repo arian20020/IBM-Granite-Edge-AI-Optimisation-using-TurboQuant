@@ -84,8 +84,17 @@ public static class AssemblyRepositoryIdentityVerifier
             return false;
         }
 
-        string scope = metadata.GetString(metadata.GetAssemblyReference(
-            (AssemblyReferenceHandle)type.ResolutionScope).Name);
-        return scope is "System.Runtime" or "mscorlib" or "System.Private.CoreLib";
+        AssemblyReference scope = metadata.GetAssemblyReference(
+            (AssemblyReferenceHandle)type.ResolutionScope);
+        string scopeName = metadata.GetString(scope.Name);
+        string publicKeyToken = Convert.ToHexString(
+            metadata.GetBlobBytes(scope.PublicKeyOrToken)).ToLowerInvariant();
+        return (scopeName, publicKeyToken) switch
+        {
+            ("System.Runtime", "b03f5f7f11d50a3a") => true,
+            ("mscorlib", "b77a5c561934e089") => true,
+            ("System.Private.CoreLib", "7cec85d7bea7798e") => true,
+            _ => false,
+        };
     }
 }

@@ -404,7 +404,8 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
             standardError.IsTruncated,
             standardError.RetainedText,
             failures.SecondaryDiagnostics,
-            standardError.InvalidUtf8Detected);
+            StandardErrorInvalidUtf8Detected: standardError.InvalidUtf8Detected,
+            CleanupFailures: failures.CleanupFailures);
         result.Validate();
         return result;
     }

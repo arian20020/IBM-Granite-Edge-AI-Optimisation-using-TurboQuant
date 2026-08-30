@@ -25,6 +25,19 @@ internal enum CleanupFailureKind
     Unexpected,
 }
 
+internal enum CleanupPrimaryFailureKind
+{
+    None,
+    Cancellation,
+    Io,
+    Access,
+    InvalidState,
+    Native,
+    Timeout,
+    Policy,
+    Unexpected,
+}
+
 internal readonly record struct CleanupFailureFact(
     OwnedCleanupStage Stage,
     CleanupFailureKind Kind);
@@ -46,12 +59,15 @@ internal sealed class CleanupIntegrityException : InvalidOperationException
     internal CleanupIntegrityException(
         IReadOnlyList<CleanupFailureFact> failures,
         Exception? primaryFailure)
-        : base("Cleanup integrity could not be verified.", primaryFailure)
+        : base("Cleanup integrity could not be verified.")
     {
         Failures = failures.Take(16).ToArray();
+        PrimaryFailureKind = ClassifyPrimary(primaryFailure);
     }
 
     internal IReadOnlyList<CleanupFailureFact> Failures { get; }
+
+    internal CleanupPrimaryFailureKind PrimaryFailureKind { get; }
 
     internal static Exception PreserveCancellation(
         IReadOnlyList<CleanupFailureFact> failures,
@@ -65,6 +81,23 @@ internal sealed class CleanupIntegrityException : InvalidOperationException
                 cancellation.CancellationToken)
             : integrity;
     }
+
+    private static CleanupPrimaryFailureKind ClassifyPrimary(Exception? error) =>
+        error switch
+        {
+            null => CleanupPrimaryFailureKind.None,
+            OperationCanceledException => CleanupPrimaryFailureKind.Cancellation,
+            IOException => CleanupPrimaryFailureKind.Io,
+            UnauthorizedAccessException => CleanupPrimaryFailureKind.Access,
+            TimeoutException => CleanupPrimaryFailureKind.Timeout,
+            System.ComponentModel.Win32Exception => CleanupPrimaryFailureKind.Native,
+            InvalidOperationException or ObjectDisposedException or ArgumentException =>
+                CleanupPrimaryFailureKind.InvalidState,
+            _ when error.GetType().Name.EndsWith(
+                "PolicyException",
+                StringComparison.Ordinal) => CleanupPrimaryFailureKind.Policy,
+            _ => CleanupPrimaryFailureKind.Unexpected,
+        };
 }
 
 internal readonly record struct OwnedCleanupAction(

@@ -45,4 +45,41 @@ public sealed class AssemblyRepositoryIdentityVerifierTests
             typeof(Hostile.FixtureMarker).Assembly.Location,
             new string('a', 40)));
     }
+
+    [TestMethod]
+    public void ForgedFrameworkAssemblyReferenceTokenIsRejected()
+    {
+        string source = typeof(AssemblyRepositoryIdentityVerifierTests).Assembly.Location;
+        byte[] bytes = File.ReadAllBytes(source);
+        byte[] trustedToken = Convert.FromHexString("b03f5f7f11d50a3a");
+        int mutations = 0;
+        for (int index = 0; index <= bytes.Length - trustedToken.Length; index++)
+        {
+            if (!bytes.AsSpan(index, trustedToken.Length).SequenceEqual(trustedToken))
+            {
+                continue;
+            }
+
+            bytes.AsSpan(index, trustedToken.Length).Clear();
+            mutations++;
+        }
+
+        Assert.IsGreaterThan(0, mutations);
+        string copy = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".dll");
+        try
+        {
+            File.WriteAllBytes(copy, bytes);
+            string informationalVersion = typeof(AssemblyRepositoryIdentityVerifierTests)
+                .Assembly
+                .GetCustomAttribute<AssemblyInformationalVersionAttribute>()!
+                .InformationalVersion;
+            string subject = informationalVersion[(informationalVersion.LastIndexOf('+') + 1)..];
+
+            Assert.IsFalse(AssemblyRepositoryIdentityVerifier.HasExactSubject(copy, subject));
+        }
+        finally
+        {
+            File.Delete(copy);
+        }
+    }
 }

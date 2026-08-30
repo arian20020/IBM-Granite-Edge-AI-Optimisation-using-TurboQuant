@@ -14,6 +14,7 @@ internal sealed class WorkerFailureAccumulator
     private readonly List<string> _secondaryDiagnostics = [];
     private WorkerClientFailure? _primaryFailure;
     private WorkerClientPolicyException? _cleanupIntegrityCause;
+    private WorkerClientCleanupFailureFact[] _cleanupFailures = [];
 
     internal WorkerClientFailure? PrimaryFailure
     {
@@ -46,6 +47,17 @@ internal sealed class WorkerFailureAccumulator
             lock (_sync)
             {
                 return _cleanupIntegrityCause;
+            }
+        }
+    }
+
+    internal IReadOnlyList<WorkerClientCleanupFailureFact> CleanupFailures
+    {
+        get
+        {
+            lock (_sync)
+            {
+                return Array.AsReadOnly(_cleanupFailures.ToArray());
             }
         }
     }
@@ -90,11 +102,17 @@ internal sealed class WorkerFailureAccumulator
         Exception? current = error;
         for (int depth = 0; current is not null && depth < 8; depth++)
         {
-            if (current is CleanupIntegrityException)
+            if (current is CleanupIntegrityException integrity)
             {
                 lock (_sync)
                 {
                     _cleanupIntegrityCause ??= error;
+                    if (_cleanupFailures.Length == 0)
+                    {
+                        _cleanupFailures = integrity.Failures
+                            .Select(MapCleanupFailure)
+                            .ToArray();
+                    }
                 }
 
                 return;
@@ -103,4 +121,36 @@ internal sealed class WorkerFailureAccumulator
             current = current.InnerException;
         }
     }
+
+    private static WorkerClientCleanupFailureFact MapCleanupFailure(
+        CleanupFailureFact fact) => new(
+            fact.Stage switch
+            {
+                OwnedCleanupStage.StandardInput => WorkerClientCleanupStage.StandardInput,
+                OwnedCleanupStage.StandardOutput => WorkerClientCleanupStage.StandardOutput,
+                OwnedCleanupStage.StandardError => WorkerClientCleanupStage.StandardError,
+                OwnedCleanupStage.Channel => WorkerClientCleanupStage.Channel,
+                OwnedCleanupStage.Session => WorkerClientCleanupStage.Session,
+                OwnedCleanupStage.Closure => WorkerClientCleanupStage.Closure,
+                OwnedCleanupStage.ProcessTree => WorkerClientCleanupStage.ProcessTree,
+                OwnedCleanupStage.ProcessHandle => WorkerClientCleanupStage.ProcessHandle,
+                OwnedCleanupStage.Job => WorkerClientCleanupStage.Job,
+                OwnedCleanupStage.OperationEnvironment =>
+                    WorkerClientCleanupStage.OperationEnvironment,
+                OwnedCleanupStage.PendingOutput => WorkerClientCleanupStage.PendingOutput,
+                _ => throw new InvalidOperationException(
+                    "The cleanup stage was not mapped."),
+            },
+            fact.Kind switch
+            {
+                CleanupFailureKind.Io => WorkerClientCleanupFailureKind.Io,
+                CleanupFailureKind.Access => WorkerClientCleanupFailureKind.Access,
+                CleanupFailureKind.InvalidState =>
+                    WorkerClientCleanupFailureKind.InvalidState,
+                CleanupFailureKind.Native => WorkerClientCleanupFailureKind.Native,
+                CleanupFailureKind.Timeout => WorkerClientCleanupFailureKind.Timeout,
+                CleanupFailureKind.Unexpected => WorkerClientCleanupFailureKind.Unexpected,
+                _ => throw new InvalidOperationException(
+                    "The cleanup failure kind was not mapped."),
+            });
 }

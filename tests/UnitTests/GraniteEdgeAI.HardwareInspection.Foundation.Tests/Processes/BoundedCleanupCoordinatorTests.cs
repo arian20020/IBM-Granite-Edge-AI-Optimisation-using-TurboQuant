@@ -23,6 +23,10 @@ public sealed class BoundedCleanupCoordinatorTests
             Assert.AreEqual(source.Token, cancellation.CancellationToken);
             var integrity = (CleanupIntegrityException)cancellation.InnerException!;
             CollectionAssert.AreEqual(new[] { fact }, integrity.Failures.ToArray());
+            Assert.AreEqual(
+                CleanupPrimaryFailureKind.Cancellation,
+                integrity.PrimaryFailureKind);
+            Assert.IsNull(integrity.InnerException);
         }
     }
 
