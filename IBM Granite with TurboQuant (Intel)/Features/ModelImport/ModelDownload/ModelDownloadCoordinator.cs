@@ -262,16 +262,19 @@ internal sealed class ModelDownloadCoordinator : IDisposable
         lock (_sync)
         {
             ThrowIfDisposed();
-            active = _activeCancellation;
-            completion = _activeCompletion?.Task;
+            bool cancellableStage = State.Stage is ModelDownloadStage.Preparing
+                or ModelDownloadStage.Downloading
+                or ModelDownloadStage.Verifying;
+            active = cancellableStage ? _activeCancellation : null;
+            completion = cancellableStage ? _activeCompletion?.Task : null;
             operationId = State.OperationId;
             entry = PinnedGraniteModelCatalog.Entries.First(value => value.Quantisation == State.Quantisation);
-            _automaticHandoffRetired = true;
-            _claimableModel = null;
-            _claimableOperation = null;
-            _authorizedHandoffOperation = null;
             if (active is not null && operationId is not null)
             {
+                _automaticHandoffRetired = true;
+                _claimableModel = null;
+                _claimableOperation = null;
+                _authorizedHandoffOperation = null;
                 cancelling = State with { ErrorCode = "download-cancelling" };
                 State = cancelling;
                 _cancellationRequestedOperation = operationId;
@@ -289,6 +292,13 @@ internal sealed class ModelDownloadCoordinator : IDisposable
         {
             if (discardPartial && State.Stage == ModelDownloadStage.Interrupted)
             {
+                lock (_sync)
+                {
+                    _automaticHandoffRetired = true;
+                    _claimableModel = null;
+                    _claimableOperation = null;
+                    _authorizedHandoffOperation = null;
+                }
                 await _service.DiscardPartialAsync(entry, cancellationToken);
                 Publish(operationId.Value, entry, ModelDownloadStage.Interrupted, 0, "download-cancelled-discarded", allowAfterCancellation: true);
             }
@@ -342,7 +352,6 @@ internal sealed class ModelDownloadCoordinator : IDisposable
             {
                 cancellationFailed = _cancellationFailed || discardFailed;
                 _cancellationFailed = cancellationFailed;
-                _cancellationPendingOperation = null;
             }
             ModelDownloadCoordinatorState cancelled = new(
                 operationId,
@@ -350,16 +359,12 @@ internal sealed class ModelDownloadCoordinator : IDisposable
                 entry.PreferenceLabel,
                 entry.Quantisation,
                 entry.DownloadSizeText,
-                discardFailed ? State.DownloadedBytes : 0,
+                discardFailed ? cancellationState.DownloadedBytes : 0,
                 entry.ExpectedByteLength,
                 cancellationFailed
                     ? "download-cancellation-cleanup-failed"
                     : "download-cancelled-discarded");
-            lock (_sync)
-            {
-                State = cancelled;
-            }
-            PublishState(cancelled);
+            TryPublishCancellationState(operationId.Value, cancelled, clearPending: true);
         }
         else if (!quiesced)
         {
@@ -368,8 +373,7 @@ internal sealed class ModelDownloadCoordinator : IDisposable
                 Stage = ModelDownloadStage.Failed,
                 ErrorCode = "download-cancellation-cleanup-pending"
             };
-            lock (_sync) State = failed;
-            PublishState(failed);
+            TryPublishCancellationState(operationId.Value, failed, clearPending: false);
             _cancellationReconciliation = ReconcileCancellationAfterTimeoutAsync(
                 operationId!.Value,
                 entry,
@@ -385,12 +389,7 @@ internal sealed class ModelDownloadCoordinator : IDisposable
                 Stage = ModelDownloadStage.Failed,
                 ErrorCode = "download-cancellation-cleanup-failed"
             };
-            lock (_sync)
-            {
-                _cancellationPendingOperation = null;
-                State = failed;
-            }
-            PublishState(failed);
+            TryPublishCancellationState(operationId.Value, failed, clearPending: true);
         }
         else if (quiesced)
         {
@@ -399,12 +398,7 @@ internal sealed class ModelDownloadCoordinator : IDisposable
                 Stage = ModelDownloadStage.Interrupted,
                 ErrorCode = "download-cancelled"
             };
-            lock (_sync)
-            {
-                _cancellationPendingOperation = null;
-                State = cancelled;
-            }
-            PublishState(cancelled);
+            TryPublishCancellationState(operationId.Value, cancelled, clearPending: true);
         }
     }
 
@@ -600,6 +594,21 @@ internal sealed class ModelDownloadCoordinator : IDisposable
             _cancellationTasks.Add(cancellation, created);
             return created;
         }
+    }
+
+    private bool TryPublishCancellationState(
+        ModelDownloadOperationId operationId,
+        ModelDownloadCoordinatorState state,
+        bool clearPending)
+    {
+        lock (_sync)
+        {
+            if (_disposed || State.OperationId != operationId) return false;
+            if (clearPending) _cancellationPendingOperation = null;
+            State = state;
+        }
+        PublishState(state);
+        return true;
     }
 
     private async Task ReconcileCancellationAfterTimeoutAsync(

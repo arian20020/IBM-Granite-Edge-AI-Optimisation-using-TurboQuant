@@ -188,6 +188,36 @@ public sealed class ModelDownloadCardTests
         finally { release.Set(); }
     }
 
+    [UITestMethod]
+    public void TerminalCleanupFailureIsNotPresentedAsIntegrityFailure()
+    {
+        var card = new ModelDownloadCard();
+        ModelDownloadCatalogEntry entry = PinnedGraniteModelCatalog.ForSliderValue(50);
+        var state = new ModelDownloadCoordinatorState(
+            ModelDownloadOperationId.CreateNew(),
+            ModelDownloadStage.Failed,
+            entry.PreferenceLabel,
+            entry.Quantisation,
+            entry.DownloadSizeText,
+            100,
+            entry.ExpectedByteLength,
+            "download-cancellation-cleanup-failed");
+        typeof(ModelDownloadCard).GetMethod(
+            "Render",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .Invoke(card, [state]);
+
+        var status = (TextBlock)card.FindName("DownloadStatusText");
+        var button = (Button)card.FindName("DownloadModelButton");
+        StringAssert.Contains(status.Text, "cleanup could not be confirmed");
+        Assert.IsFalse(status.Text.Contains("integrity", StringComparison.OrdinalIgnoreCase));
+        Assert.AreEqual("Try again", button.Content);
+        Assert.IsTrue(button.IsEnabled);
+        Assert.AreEqual(
+            "Retry the model download after a cleanup failure",
+            AutomationProperties.GetName(button));
+    }
+
     private static async Task DrainDispatcherAsync(FrameworkElement element)
     {
         var drained = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);

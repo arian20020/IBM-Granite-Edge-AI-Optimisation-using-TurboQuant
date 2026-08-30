@@ -14,6 +14,7 @@ public sealed partial class OptimizationDestinationCard : UserControl
     private OptimizationExportController? _exportController;
     private readonly object _retirementGate = new();
     private Task _detachedOperations = Task.CompletedTask;
+    private Task _detachedCleanup = Task.CompletedTask;
     private Task _observedExportOperation = Task.CompletedTask;
     private Task? _retirementTask;
     private bool _retired;
@@ -31,6 +32,8 @@ public sealed partial class OptimizationDestinationCard : UserControl
     internal bool IsActionEnabled(OptimizationCommand command) => DestinationCore.IsActionEnabled(command);
     internal bool TryRequestAction(OptimizationCommand command) => DestinationCore.TryRequestAction(command);
     internal Task ObservedExportOperation => _observedExportOperation;
+    internal Task DetachedOperations => _detachedOperations;
+    internal Task DetachedCleanup => _detachedCleanup;
 
     internal void Apply(OptimizationPresentationState presentation)
     {
@@ -54,6 +57,7 @@ public sealed partial class OptimizationDestinationCard : UserControl
         ArgumentNullException.ThrowIfNull(target);
         ArgumentNullException.ThrowIfNull(service);
         if (_retired || !_detachedOperations.IsCompletedSuccessfully
+            || !_detachedCleanup.IsCompletedSuccessfully
             || _exportController?.IsCleanupPending == true)
         {
             DestinationCore.SetActionEnabled(OptimizationCommand.Save, false);
@@ -149,6 +153,7 @@ public sealed partial class OptimizationDestinationCard : UserControl
         if (_exportController is not null)
         {
             _exportController.StateChanged -= ExportController_StateChanged;
+            _detachedCleanup = Task.WhenAll(_detachedCleanup, _exportController.CleanupReconciliation);
             _detachedOperations = Task.WhenAll(_detachedOperations, _exportController.RetireAsync());
             _exportController = null;
         }

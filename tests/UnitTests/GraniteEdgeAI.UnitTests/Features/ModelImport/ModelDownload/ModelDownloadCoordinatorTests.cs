@@ -463,6 +463,78 @@ public sealed class ModelDownloadCoordinatorTests
         Assert.AreEqual(0, coordinator.CancellationTaskCount);
     }
 
+    [TestMethod]
+    public async Task CompletedObserverCancellationCannotRevokeCommittedHandoff()
+    {
+        var service = new FakeDownloadService();
+        var coordinator = new ModelDownloadCoordinator(
+            service,
+            new FakeNetworkPolicy(ModelDownloadConnectionKind.Unrestricted));
+        Task? cancellation = null;
+        coordinator.StateChanged += (_, state) =>
+        {
+            if (state.Stage == ModelDownloadStage.Completed)
+                cancellation = coordinator.CancelAsync(true, CancellationToken.None);
+        };
+
+        await coordinator.StartAsync(50, false, CancellationToken.None);
+        await (cancellation ?? Task.CompletedTask);
+
+        Assert.AreEqual(ModelDownloadStage.Completed, coordinator.State.Stage);
+        Assert.IsTrue(coordinator.TryClaimVerifiedModel(coordinator.State.OperationId!.Value, out _));
+        Assert.AreEqual(0, service.DiscardCalls);
+    }
+
+    [TestMethod]
+    public async Task RetirementDuringQuiescedDiscardSuppressesTerminalPublication()
+    {
+        var service = new BlockingDiscardDownloadService();
+        var coordinator = new ModelDownloadCoordinator(
+            service,
+            new FakeNetworkPolicy(ModelDownloadConnectionKind.Unrestricted));
+        int publications = 0;
+        coordinator.StateChanged += (_, _) => publications++;
+        Task operation = coordinator.StartAsync(50, false, CancellationToken.None);
+        await service.Started.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        Task cancellation = coordinator.CancelAsync(true, CancellationToken.None);
+        service.CompleteInterrupted();
+        await service.DiscardStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        await operation.WaitAsync(TimeSpan.FromSeconds(1));
+        await coordinator.RetireAsync().WaitAsync(TimeSpan.FromSeconds(1));
+        ModelDownloadCoordinatorState retiredState = coordinator.State;
+        int retiredPublications = publications;
+
+        service.ReleaseDiscard.TrySetResult();
+        await cancellation.WaitAsync(TimeSpan.FromSeconds(1));
+
+        Assert.AreEqual(retiredState, coordinator.State);
+        Assert.AreEqual(retiredPublications, publications);
+    }
+
+    [TestMethod]
+    public async Task ReplacementRemainsBlockedUntilDiscardTerminalCommit()
+    {
+        var service = new BlockingDiscardDownloadService();
+        var coordinator = new ModelDownloadCoordinator(
+            service,
+            new FakeNetworkPolicy(ModelDownloadConnectionKind.Unrestricted));
+        Task operation = coordinator.StartAsync(50, false, CancellationToken.None);
+        await service.Started.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        Task cancellation = coordinator.CancelAsync(true, CancellationToken.None);
+        service.CompleteInterrupted();
+        await service.DiscardStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        await operation.WaitAsync(TimeSpan.FromSeconds(1));
+
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
+            coordinator.StartAsync(65, false, CancellationToken.None));
+        service.ReleaseDiscard.TrySetResult();
+        await cancellation.WaitAsync(TimeSpan.FromSeconds(1));
+        ModelDownloadOperationId cancelledOperation = coordinator.State.OperationId!.Value;
+
+        await coordinator.StartAsync(65, false, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(1));
+        Assert.AreNotEqual(cancelledOperation, coordinator.State.OperationId);
+    }
+
     private sealed class FakeNetworkPolicy(ModelDownloadConnectionKind kind) : IModelDownloadNetworkPolicy
     {
         public ModelDownloadConnectionKind GetCurrentConnectionKind() => kind;
@@ -612,6 +684,39 @@ public sealed class ModelDownloadCoordinatorTests
         {
             DiscardCalls++;
             return Task.CompletedTask;
+        }
+    }
+
+    private sealed class BlockingDiscardDownloadService : IModelDownloadService
+    {
+        private readonly TaskCompletionSource<ModelDownloadResult> _completion =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource DiscardStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource ReleaseDiscard { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task<ModelDownloadResult> DownloadAsync(
+            ModelDownloadCatalogEntry entry,
+            IProgress<ModelDownloadProgress> progress,
+            CancellationToken cancellationToken)
+        {
+            Started.TrySetResult();
+            return _completion.Task;
+        }
+
+        internal void CompleteInterrupted() => _completion.TrySetResult(new ModelDownloadResult(
+            ModelDownloadResultKind.Interrupted, null, "download-cancelled"));
+
+        public Task<ModelDownloadResumeInfo?> GetResumeInfoAsync(
+            ModelDownloadCatalogEntry entry,
+            CancellationToken cancellationToken) => Task.FromResult<ModelDownloadResumeInfo?>(null);
+
+        public async Task DiscardPartialAsync(
+            ModelDownloadCatalogEntry entry,
+            CancellationToken cancellationToken)
+        {
+            DiscardStarted.TrySetResult();
+            await ReleaseDiscard.Task.WaitAsync(cancellationToken);
         }
     }
 

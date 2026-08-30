@@ -307,7 +307,8 @@ internal sealed class OptimizationExportController
     private async Task PublishCancellationTimeoutAsync(long generation, VerifiedPersistentExportTarget target, Task cancellationObservation, Task activeTask)
     {
         bool timedOut = false;
-        try { await cancellationObservation.WaitAsync(_retirementTimeout).ConfigureAwait(false); }
+        Task cleanup = Task.WhenAll(cancellationObservation, activeTask);
+        try { await cleanup.WaitAsync(_retirementTimeout).ConfigureAwait(false); }
         catch (TimeoutException)
         {
             timedOut = true;
@@ -323,7 +324,7 @@ internal sealed class OptimizationExportController
             }
             if (failed is not null) PublishState(failed);
         }
-        try { await Task.WhenAll(cancellationObservation, activeTask).ConfigureAwait(false); }
+        try { await cleanup.ConfigureAwait(false); }
         catch (Exception exception)
         {
             Trace.TraceWarning("Optimization-export cleanup reconciliation observed {0}.", exception.GetType().Name);

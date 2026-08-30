@@ -130,6 +130,35 @@ public sealed class OptimizationDestinationCardTests
     }
 
     [UITestMethod]
+    public async Task ClearedControllerStillBlocksRebindUntilDetachedCleanupQuiesces()
+    {
+        using var release = new ManualResetEventSlim(false);
+        var card = new OptimizationDestinationCard();
+        OptimizationPresentationState presentation = PersistentPresentation();
+        var service = new BlockingCancellationExportService(release);
+        card.Apply(presentation);
+        VerifiedPersistentExportTarget target = Target(presentation.OptimizationPlanId);
+        Assert.IsTrue(card.BindVerifiedExport(target, service, TimeSpan.FromMilliseconds(50)));
+        Task<bool> operation = card.TryStartExportAsync();
+        await service.Started.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        Assert.IsTrue(card.TryCancelExport());
+        await service.CallbackStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        service.Complete(OptimizationExportResult.Cancelled());
+        await WaitForExportStateAsync(card, state => state.Failure == OptimizationExportFailure.CleanupFailure);
+
+        card.ClearExportBinding();
+        card.Apply(presentation);
+        await card.DetachedOperations.WaitAsync(TimeSpan.FromSeconds(1));
+        Assert.IsFalse(card.DetachedCleanup.IsCompleted);
+        Assert.IsFalse(card.BindVerifiedExport(target, new ImmediateExportService()));
+
+        release.Set();
+        Assert.IsTrue(await operation.WaitAsync(TimeSpan.FromSeconds(1)));
+        await card.DetachedCleanup.WaitAsync(TimeSpan.FromSeconds(1));
+        Assert.IsTrue(card.BindVerifiedExport(target, new ImmediateExportService()));
+    }
+
+    [UITestMethod]
     public void ExportControlsHaveStableAccessibleSemantics()
     {
         OptimizationDestinationCard card = new();

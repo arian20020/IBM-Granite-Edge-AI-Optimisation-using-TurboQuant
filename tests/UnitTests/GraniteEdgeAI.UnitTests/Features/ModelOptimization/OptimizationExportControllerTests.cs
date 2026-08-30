@@ -282,6 +282,28 @@ public sealed class OptimizationExportControllerTests
     }
 
     [TestMethod]
+    public async Task PromptCancellationCallbackStillBoundsANonCooperativeProvider()
+    {
+        var service = new ControlledExportService();
+        var controller = new OptimizationExportController(service, TimeSpan.FromMilliseconds(50));
+        controller.Bind(Target());
+        Task<bool> operation = controller.TryStartAsync();
+        await service.Started.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        Task pending = WaitForCleanupFailureAsync(controller);
+
+        Assert.IsTrue(controller.TryCancel());
+        await pending.WaitAsync(TimeSpan.FromSeconds(1));
+
+        Assert.IsFalse(operation.IsCompleted);
+        Assert.IsTrue(controller.IsCleanupPending);
+        Assert.IsFalse(await controller.TryRetryAsync());
+        service.Complete(OptimizationExportResult.Cancelled());
+        Assert.IsTrue(await operation.WaitAsync(TimeSpan.FromSeconds(1)));
+        await controller.CleanupReconciliation.WaitAsync(TimeSpan.FromSeconds(1));
+        Assert.AreEqual(OptimizationExportStateKind.Cancelled, controller.State.Kind);
+    }
+
+    [TestMethod]
     public async Task DelayedSuccessfulCleanupReconcilesToRetryableCancellation()
     {
         using var release = new ManualResetEventSlim(false);
@@ -318,9 +340,10 @@ public sealed class OptimizationExportControllerTests
         controller.Bind(Target());
         Task<bool> operation = controller.TryStartAsync();
         await service.Started.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        Task pending = WaitForCleanupFailureAsync(controller);
         Assert.IsTrue(controller.TryCancel());
         await service.CallbackStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
-        await Task.Delay(75);
+        await pending.WaitAsync(TimeSpan.FromSeconds(1));
 
         service.Fault();
         await Assert.ThrowsExactlyAsync<InvalidOperationException>(async () => await operation);
@@ -344,9 +367,10 @@ public sealed class OptimizationExportControllerTests
         controller.Bind(target);
         Task<bool> operation = controller.TryStartAsync();
         await service.Started.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        Task pending = WaitForCleanupFailureAsync(controller);
         Assert.IsTrue(controller.TryCancel());
         await service.CallbackStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
-        await Task.Delay(75);
+        await pending.WaitAsync(TimeSpan.FromSeconds(1));
 
         service.Complete(OptimizationExportResult.Succeeded(Receipt(target)));
         Assert.IsTrue(await operation.WaitAsync(TimeSpan.FromSeconds(1)));
@@ -366,9 +390,10 @@ public sealed class OptimizationExportControllerTests
         controller.Bind(Target());
         Task<bool> operation = controller.TryStartAsync();
         await service.Started.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        Task pending = WaitForCleanupFailureAsync(controller);
         Assert.IsTrue(controller.TryCancel());
         await service.CallbackStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
-        await Task.Delay(75);
+        await pending.WaitAsync(TimeSpan.FromSeconds(1));
 
         service.Complete(OptimizationExportResult.Failed(OptimizationExportFailure.DestinationUnavailable));
         Assert.IsTrue(await operation.WaitAsync(TimeSpan.FromSeconds(1)));
@@ -396,6 +421,22 @@ public sealed class OptimizationExportControllerTests
         OptimizationRoute.Gguf, Guid.Parse("11111111-1111-1111-1111-111111111111"), Configuration, Source, true, "output-1", Manifest, 4096);
 
     private static OptimizationExportReceipt Receipt(VerifiedPersistentExportTarget target) => new(target, "published-1");
+
+    private static Task WaitForCleanupFailureAsync(OptimizationExportController controller)
+    {
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        EventHandler<OptimizationExportViewState>? handler = null;
+        handler = (_, state) =>
+        {
+            if (state.Kind != OptimizationExportStateKind.Failed
+                || state.Failure != OptimizationExportFailure.CleanupFailure) return;
+            controller.StateChanged -= handler;
+            completion.TrySetResult();
+        };
+        controller.StateChanged += handler;
+        handler!(controller, controller.State);
+        return completion.Task;
+    }
 
     private sealed class ControlledExportService : IOptimizationExportService
     {

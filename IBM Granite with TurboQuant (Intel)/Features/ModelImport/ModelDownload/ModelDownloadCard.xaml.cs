@@ -221,6 +221,8 @@ namespace GraniteEdgeAI.Features.ModelImport.ModelDownload
                     ("The server copy changed during download. Discard saved progress, then try again.", "Try again"),
                 ModelDownloadStage.Failed when state.ErrorCode == "download-cancellation-cleanup-pending" =>
                     ("Cancellation cleanup is still in progress. Retry is unavailable until it finishes.", "Cleanup pending"),
+                ModelDownloadStage.Failed when state.ErrorCode == "download-cancellation-cleanup-failed" =>
+                    ("The download stopped, but cleanup could not be confirmed. You can try the download again.", "Try again"),
                 ModelDownloadStage.Failed => ("The download failed integrity verification. No model was installed. Try again.", "Try again"),
                 _ => (string.Empty, "Download selected model")
             };
@@ -236,6 +238,8 @@ namespace GraniteEdgeAI.Features.ModelImport.ModelDownload
                         "Model download cancellation in progress",
                     ModelDownloadStage.Failed when state.ErrorCode == "download-cancellation-cleanup-pending" =>
                         "Model download cleanup in progress",
+                    ModelDownloadStage.Failed when state.ErrorCode == "download-cancellation-cleanup-failed" =>
+                        "Retry the model download after a cleanup failure",
                     ModelDownloadStage.Preparing or
                     ModelDownloadStage.Downloading or
                     ModelDownloadStage.Verifying =>
