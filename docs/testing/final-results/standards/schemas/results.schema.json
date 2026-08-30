@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Final results summary",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["route_id", "campaign_id", "test_case_id", "summary_id", "metric_name", "value", "unit", "aggregation", "source_measurement_ids"],
+  "properties": {
+    "route_id": {"type": "string", "minLength": 1},
+    "campaign_id": {"type": "string", "minLength": 1},
+    "test_case_id": {"type": "string", "minLength": 1},
+    "summary_id": {"type": "string", "minLength": 1},
+    "metric_name": {"type": "string", "minLength": 1},
+    "value": {"type": ["number", "null"]},
+    "unit": {"type": "string", "minLength": 1},
+    "aggregation": {"type": "string", "minLength": 1},
+    "source_measurement_ids": {"type": "array", "items": {"type": "string", "minLength": 1}}
+  }
+}

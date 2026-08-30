@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Final results attempt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["route_id", "campaign_id", "test_case_id", "attempt_id", "status", "executed", "reason", "model_id", "weight_format_id", "cache_format_id", "backend_id", "source_status", "failure_kind", "evidence_ids"],
+  "properties": {
+    "route_id": {"type": "string", "minLength": 1},
+    "campaign_id": {"type": "string", "minLength": 1},
+    "test_case_id": {"type": "string", "minLength": 1},
+    "attempt_id": {"type": "string", "minLength": 1},
+    "status": {"type": "string", "enum": ["passed", "failed", "blocked", "artifact_unavailable", "not_executed", "not_applicable", "not_collected"]},
+    "executed": {"type": "boolean"},
+    "reason": {"type": "string"},
+    "model_id": {"type": ["string", "null"]},
+    "weight_format_id": {"type": ["string", "null"]},
+    "cache_format_id": {"type": ["string", "null"]},
+    "backend_id": {"type": ["string", "null"]},
+    "source_status": {"type": ["string", "null"]},
+    "failure_kind": {"type": ["string", "null"]},
+    "evidence_ids": {"type": "array", "items": {"type": "string", "minLength": 1}}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"status": {"const": "passed"}}, "required": ["status"]},
+      "then": {"properties": {"executed": {"const": true}}}
+    },
+    {
+      "if": {"properties": {"status": {"not": {"const": "passed"}}}, "required": ["status"]},
+      "then": {"properties": {"reason": {"type": "string", "minLength": 1}}, "required": ["reason"]}
+    }
+  ]
+}

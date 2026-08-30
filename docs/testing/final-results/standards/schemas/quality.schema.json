@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Final results quality observation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["route_id", "campaign_id", "test_case_id", "quality_id", "prompt_id", "criterion_id", "score", "maximum_score", "prompt_suite_id", "rubric_id", "scoring_version", "source_evidence_id"],
+  "properties": {
+    "route_id": {"type": "string", "minLength": 1},
+    "campaign_id": {"type": "string", "minLength": 1},
+    "test_case_id": {"type": "string", "minLength": 1},
+    "quality_id": {"type": "string", "minLength": 1},
+    "prompt_id": {"type": ["string", "null"]},
+    "criterion_id": {"type": ["string", "null"]},
+    "score": {"type": ["number", "null"]},
+    "maximum_score": {"type": ["number", "null"], "minimum": 0},
+    "prompt_suite_id": {"type": ["string", "null"]},
+    "rubric_id": {"type": ["string", "null"]},
+    "scoring_version": {"type": ["string", "null"]},
+    "source_evidence_id": {"type": ["string", "null"]}
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Final results route manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["route_id", "campaign_id", "attempt_count", "measurement_count", "summary_count", "quality_count", "failure_count", "evidence_count", "repository", "hardware", "software"],
+  "properties": {
+    "route_id": {"type": "string", "minLength": 1},
+    "campaign_id": {"type": "string", "minLength": 1},
+    "attempt_count": {"type": "integer", "minimum": 0},
+    "measurement_count": {"type": "integer", "minimum": 0},
+    "summary_count": {"type": "integer", "minimum": 0},
+    "quality_count": {"type": "integer", "minimum": 0},
+    "failure_count": {"type": "integer", "minimum": 0},
+    "evidence_count": {"type": "integer", "minimum": 0},
+    "repository": {"type": "object"},
+    "hardware": {"type": "object"},
+    "software": {"type": "object"}
+  }
+}
