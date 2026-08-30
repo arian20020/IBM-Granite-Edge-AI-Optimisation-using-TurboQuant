@@ -45,6 +45,25 @@ public sealed class PackageMembershipPolicyTests
         Assert.IsFalse(lines.Contains("bin", StringComparison.OrdinalIgnoreCase));
     }
 
+    [TestMethod]
+    public void ClosureGeneratorConsumesOnlyEvaluatedMembershipAndFailsClosed()
+    {
+        string script = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot(),
+            "scripts",
+            "verification",
+            "New-S1PackageClosure.ps1"));
+
+        StringAssert.Contains(script, "$EvaluatedMembershipFile");
+        StringAssert.Contains(script, "AppxPackagePayload");
+        StringAssert.Contains(script, @"\.pdb$");
+        StringAssert.Contains(script, @"\.appxrecipe$");
+        StringAssert.Contains(script, "debugfixtures");
+        Assert.IsFalse(script.Contains(
+            "EnumerateFiles($Build",
+            StringComparison.OrdinalIgnoreCase));
+    }
+
     private static XDocument LoadProject() => XDocument.Load(Path.Combine(
         FindRepositoryRoot(),
         "IBM Granite with TurboQuant (Intel)",

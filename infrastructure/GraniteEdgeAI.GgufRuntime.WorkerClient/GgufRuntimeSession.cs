@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using System.Runtime.ExceptionServices;
 using GraniteEdgeAI.GgufRuntime.Contracts;
 using GraniteEdgeAI.GgufRuntime.Contracts.Commands;
 using GraniteEdgeAI.GgufRuntime.Contracts.Configuration;
@@ -137,6 +138,7 @@ public sealed class GgufRuntimeSession : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        Exception? primaryFailure = null;
         if (!_closed)
         {
             try
@@ -147,6 +149,7 @@ public sealed class GgufRuntimeSession : IAsyncDisposable
                 exception is IOException or GgufTransportException or
                     GgufWorkerPolicyException or OperationCanceledException)
             {
+                primaryFailure = exception;
             }
         }
 
@@ -155,7 +158,13 @@ public sealed class GgufRuntimeSession : IAsyncDisposable
         {
             throw new GgufWorkerPolicyException(
                 "worker-cleanup-failed",
-                "The GGUF runtime worker cleanup could not be verified.");
+                "The GGUF runtime worker cleanup could not be verified.",
+                primaryFailure);
+        }
+
+        if (primaryFailure is not null)
+        {
+            ExceptionDispatchInfo.Capture(primaryFailure).Throw();
         }
     }
 }
