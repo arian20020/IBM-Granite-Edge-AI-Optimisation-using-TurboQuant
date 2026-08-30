@@ -215,11 +215,42 @@ public sealed class OptimizationExportControllerTests
 
         try
         {
+            Assert.IsTrue(controller.TryCancel());
+            await service.CallbackStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+            service.Complete(OptimizationExportResult.Cancelled());
             await controller.RetireAsync().WaitAsync(TimeSpan.FromSeconds(1));
             Assert.AreEqual(OptimizationExportStateKind.Unbound, controller.State.Kind);
-            Assert.IsFalse(operation.IsCompleted);
+            Assert.AreEqual(1, service.CallbackCount);
         }
         finally { release.Set(); }
+        Assert.IsTrue(await operation.WaitAsync(TimeSpan.FromSeconds(1)));
+    }
+
+    [TestMethod]
+    public async Task UserCancellationTimesOutToCleanupFailureAndObservesDelayedCallbackFailure()
+    {
+        using var release = new ManualResetEventSlim(false);
+        var service = new BlockingCancellationExportService(release, throwAfterRelease: true);
+        var controller = new OptimizationExportController(service, TimeSpan.FromMilliseconds(50));
+        var failed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        controller.StateChanged += (_, state) =>
+        {
+            if (state.Kind == OptimizationExportStateKind.Failed) failed.TrySetResult();
+        };
+        controller.Bind(Target());
+        Task<bool> operation = controller.TryStartAsync();
+        await service.Started.Task.WaitAsync(TimeSpan.FromSeconds(1));
+
+        Assert.IsTrue(controller.TryCancel());
+        await service.CallbackStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        service.Complete(OptimizationExportResult.Cancelled());
+        await failed.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        Assert.AreEqual(OptimizationExportFailure.CleanupFailure, controller.State.Failure);
+
+        release.Set();
+        Assert.IsTrue(await operation.WaitAsync(TimeSpan.FromSeconds(1)));
+        Assert.AreEqual(OptimizationExportFailure.CleanupFailure, controller.State.Failure);
+        Assert.AreEqual(1, service.CallbackCount);
     }
 
     [TestMethod]
@@ -250,17 +281,27 @@ public sealed class OptimizationExportControllerTests
         internal void Complete(OptimizationExportResult result) => _completion.SetResult(result);
     }
 
-    private sealed class BlockingCancellationExportService(ManualResetEventSlim release) : IOptimizationExportService
+    private sealed class BlockingCancellationExportService(ManualResetEventSlim release, bool throwAfterRelease = false) : IOptimizationExportService
     {
         internal TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        private readonly TaskCompletionSource<OptimizationExportResult> _never = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource CallbackStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource<OptimizationExportResult> _completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal int CallbackCount { get; private set; }
 
         public Task<OptimizationExportResult> ExportAsync(VerifiedPersistentExportTarget target, IProgress<OptimizationExportProgress> progress, CancellationToken cancellationToken)
         {
-            cancellationToken.Register(release.Wait);
+            cancellationToken.Register(() =>
+            {
+                CallbackCount++;
+                CallbackStarted.TrySetResult();
+                release.Wait();
+                if (throwAfterRelease) throw new InvalidOperationException("delayed callback failure");
+            });
             Started.TrySetResult();
-            return _never.Task;
+            return _completion.Task;
         }
+
+        internal void Complete(OptimizationExportResult result) => _completion.TrySetResult(result);
     }
 
     private sealed class ImmediateService(OptimizationExportResult result) : IOptimizationExportService

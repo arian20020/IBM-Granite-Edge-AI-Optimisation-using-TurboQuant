@@ -379,7 +379,6 @@ internal sealed class AppModelLibrary
     {
         cancellationToken.ThrowIfCancellationRequested();
         File.Move(source, destination, overwrite: false);
-        cancellationToken.ThrowIfCancellationRequested();
         return ValueTask.CompletedTask;
     }
 

@@ -134,6 +134,31 @@ public sealed class AppModelLibraryTests
     }
 
     [TestMethod]
+    public async Task PublishAsync_AtomicCommitWinsOverCancellationSignalledAfterMove()
+    {
+        using var root = new TemporaryModelLibraryRoot();
+        using var cancellation = new CancellationTokenSource();
+        var library = new AppModelLibrary(
+            root.Path,
+            _ => long.MaxValue,
+            publisher: (source, destination, _) =>
+            {
+                File.Move(source, destination, overwrite: false);
+                cancellation.Cancel();
+                return ValueTask.CompletedTask;
+            });
+        ModelDownloadCatalogEntry entry = CreateSmallEntry(expectedBytes: 4);
+        await using (Stream partial = await library.OpenPartialWriteAsync(entry, 0, CancellationToken.None))
+            await partial.WriteAsync(new byte[] { 1, 2, 3, 4 });
+
+        VerifiedDownloadedModel verified = await library.PublishAsync(entry, cancellation.Token);
+
+        Assert.IsTrue(cancellation.IsCancellationRequested);
+        Assert.IsTrue(await library.FinalExistsAsync(entry, CancellationToken.None));
+        Assert.AreEqual(entry.FileName, verified.DisplayName);
+    }
+
+    [TestMethod]
     [DataRow((int)ModelDownloadCancellationBoundary.CheckpointWrite)]
     [DataRow((int)ModelDownloadCancellationBoundary.CheckpointReplace)]
     [DataRow((int)ModelDownloadCancellationBoundary.IntegrityHash)]

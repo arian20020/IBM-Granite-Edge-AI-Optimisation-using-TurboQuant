@@ -113,6 +113,21 @@ internal sealed class OptimizationExportController
         // The fallback is never published when unexpectedFault is set; it only keeps the
         // typed terminal branches total without constructing the invalid Failure.None value.
         OptimizationExportResult settledResult = result ?? OptimizationExportResult.Failed(OptimizationExportFailure.PublicationFailure);
+        Task? cancellationObservation;
+        lock (_gate)
+            cancellationObservation = _cancelledGeneration == generation
+                && _cancellationTasks.TryGetValue(cancellation, out Task? pending)
+                    ? pending
+                    : null;
+        if (cancellationObservation is not null)
+        {
+            try { await cancellationObservation.WaitAsync(_retirementTimeout).ConfigureAwait(false); }
+            catch (TimeoutException)
+            {
+                lock (_gate)
+                    if (_activeGeneration == generation) _cancellationFailureGeneration = generation;
+            }
+        }
         OptimizationExportViewState? completed = null;
         lock (_gate)
         {
@@ -149,7 +164,8 @@ internal sealed class OptimizationExportController
             if (_retired || _activeGeneration is not long active || _activeCancellation is null || _state.Kind != OptimizationExportStateKind.Running) return false;
             _cancelledGeneration = active;
             _state = cancelling = _state with { Kind = OptimizationExportStateKind.Cancelling, StatusText = "Cancelling export and cleaning up incomplete output." };
-            RequestCancellation(_activeCancellation, active);
+            Task cancellationObservation = RequestCancellation(_activeCancellation, active);
+            _ = PublishCancellationTimeoutAsync(active, _state.Target!, cancellationObservation);
         }
         PublishState(cancelling);
         return true;
@@ -168,7 +184,7 @@ internal sealed class OptimizationExportController
 
     private async Task RetireCoreAsync(CancellationTokenSource? cancellation, Task activeTask, long? generation)
     {
-        if (cancellation is not null && generation is long active) RequestCancellation(cancellation, active);
+        if (cancellation is not null && generation is long active) _ = RequestCancellation(cancellation, active);
         try { await activeTask.WaitAsync(_retirementTimeout).ConfigureAwait(false); }
         catch (TimeoutException) { Trace.TraceWarning("Optimization-export retirement detached after its five-second cleanup boundary."); }
         catch (Exception exception) { Trace.TraceWarning("Optimization-export retirement observed a settled {0} operation.", exception.GetType().Name); }
@@ -244,18 +260,40 @@ internal sealed class OptimizationExportController
             catch (Exception exception) { Trace.TraceError("An optimization-export state observer failed with {0}.", exception.GetType().Name); }
     }
 
-    private void RequestCancellation(CancellationTokenSource cancellation, long generation)
+    private Task RequestCancellation(CancellationTokenSource cancellation, long generation)
     {
         try
         {
+            lock (_gate)
+                if (_cancellationTasks.TryGetValue(cancellation, out Task? existing)) return existing;
             Task observation = ObserveCancellationAsync(cancellation.CancelAsync(), generation);
-            lock (_gate) _cancellationTasks[cancellation] = observation;
+            lock (_gate) _cancellationTasks.Add(cancellation, observation);
+            return observation;
         }
         catch (Exception exception)
         {
             Trace.TraceWarning("Optimization-export cancellation observed {0}.", exception.GetType().Name);
             lock (_gate)
                 if (_activeGeneration == generation) _cancellationFailureGeneration = generation;
+            return Task.CompletedTask;
+        }
+    }
+
+    private async Task PublishCancellationTimeoutAsync(long generation, VerifiedPersistentExportTarget target, Task cancellationObservation)
+    {
+        try { await cancellationObservation.WaitAsync(_retirementTimeout).ConfigureAwait(false); }
+        catch (TimeoutException)
+        {
+            OptimizationExportViewState? failed = null;
+            lock (_gate)
+            {
+                if (_activeGeneration == generation)
+                {
+                    _cancellationFailureGeneration = generation;
+                    _state = failed = ToTerminalState(target, OptimizationExportResult.Failed(OptimizationExportFailure.CleanupFailure));
+                }
+            }
+            if (failed is not null) PublishState(failed);
         }
     }
 

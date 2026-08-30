@@ -65,6 +65,10 @@ internal sealed class ResumableVerifiedModelDownloadService : IModelDownloadServ
         {
             return Failed("download-busy");
         }
+        catch (UnauthorizedAccessException)
+        {
+            return Failed("download-storage-failed");
+        }
         catch (OperationCanceledException)
         {
             return Interrupted("download-cancelled");
@@ -274,6 +278,10 @@ internal sealed class ResumableVerifiedModelDownloadService : IModelDownloadServ
                 return Interrupted("download-interrupted");
             }
             catch (IOException)
+            {
+                return Failed("download-storage-failed");
+            }
+            catch (UnauthorizedAccessException)
             {
                 return Failed("download-storage-failed");
             }

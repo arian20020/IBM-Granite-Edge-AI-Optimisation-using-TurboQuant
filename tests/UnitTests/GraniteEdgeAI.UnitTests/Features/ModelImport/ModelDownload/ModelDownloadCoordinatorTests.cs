@@ -275,7 +275,9 @@ public sealed class ModelDownloadCoordinatorTests
     }
 
     [TestMethod]
-    public async Task CancelAsync_BoundsAProviderWhoseCancellationCallbackNeverReturns()
+    [DataRow(false)]
+    [DataRow(true)]
+    public async Task CancelAsync_BoundsAProviderWhoseCancellationCallbackNeverReturns(bool discardPartial)
     {
         using var release = new ManualResetEventSlim(false);
         var service = new BlockingCancellationDownloadService(release);
@@ -288,13 +290,18 @@ public sealed class ModelDownloadCoordinatorTests
 
         try
         {
-            await coordinator.CancelAsync(discardPartial: true, CancellationToken.None)
-                .WaitAsync(TimeSpan.FromSeconds(1));
+            Task cancellation = coordinator.CancelAsync(discardPartial, CancellationToken.None);
+            await service.CallbackStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+            service.CompleteInterrupted();
+            await cancellation.WaitAsync(TimeSpan.FromSeconds(1));
             Assert.AreEqual(ModelDownloadStage.Failed, coordinator.State.Stage);
             Assert.AreEqual("download-cancellation-cleanup-failed", coordinator.State.ErrorCode);
-            Assert.IsFalse(operation.IsCompleted);
+            Assert.AreEqual(0, service.DiscardCalls);
+            await operation.WaitAsync(TimeSpan.FromSeconds(1));
         }
         finally { release.Set(); }
+        await service.CallbackFinished.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        Assert.IsTrue(service.CancellationSourceRetained);
     }
 
     private sealed class FakeNetworkPolicy(ModelDownloadConnectionKind kind) : IModelDownloadNetworkPolicy
@@ -410,20 +417,42 @@ public sealed class ModelDownloadCoordinatorTests
 
     private sealed class BlockingCancellationDownloadService(ManualResetEventSlim release) : IModelDownloadService
     {
-        private readonly TaskCompletionSource<ModelDownloadResult> _never = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource<ModelDownloadResult> _completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource CallbackStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource CallbackFinished { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal bool CancellationSourceRetained { get; private set; }
+        internal int DiscardCalls { get; private set; }
 
         public Task<ModelDownloadResult> DownloadAsync(ModelDownloadCatalogEntry entry, IProgress<ModelDownloadProgress> progress, CancellationToken cancellationToken)
         {
-            cancellationToken.Register(release.Wait);
+            cancellationToken.Register(() =>
+            {
+                CallbackStarted.TrySetResult();
+                release.Wait();
+                try
+                {
+                    using CancellationTokenRegistration probe = cancellationToken.Register(() => { });
+                    CancellationSourceRetained = true;
+                }
+                catch (ObjectDisposedException) { CancellationSourceRetained = false; }
+                CallbackFinished.TrySetResult();
+            });
             Started.TrySetResult();
-            return _never.Task;
+            return _completion.Task;
         }
+
+        internal void CompleteInterrupted() => _completion.TrySetResult(new ModelDownloadResult(
+            ModelDownloadResultKind.Interrupted, null, "download-cancelled"));
 
         public Task<ModelDownloadResumeInfo?> GetResumeInfoAsync(ModelDownloadCatalogEntry entry, CancellationToken cancellationToken) =>
             Task.FromResult<ModelDownloadResumeInfo?>(null);
 
-        public Task DiscardPartialAsync(ModelDownloadCatalogEntry entry, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task DiscardPartialAsync(ModelDownloadCatalogEntry entry, CancellationToken cancellationToken)
+        {
+            DiscardCalls++;
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class ThrowingCancellationDownloadService : IModelDownloadService

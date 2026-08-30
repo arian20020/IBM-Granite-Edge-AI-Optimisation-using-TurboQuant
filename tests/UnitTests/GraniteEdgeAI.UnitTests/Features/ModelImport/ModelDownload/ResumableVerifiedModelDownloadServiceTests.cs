@@ -376,11 +376,15 @@ public sealed class ResumableVerifiedModelDownloadServiceTests
     }
 
     [TestMethod]
-    public async Task DownloadAsync_LocalPreflightIoFailureIsStorageFailure()
+    [DataRow(false)]
+    [DataRow(true)]
+    public async Task DownloadAsync_LocalPreflightIoFailureIsStorageFailure(bool accessDenied)
     {
         using TestDownloadFixture fixture = TestDownloadFixture.Create(
             [1, 2, 3, 4],
-            availableSpaceException: new IOException("private local failure"));
+            availableSpaceException: accessDenied
+                ? new UnauthorizedAccessException("private local failure")
+                : new IOException("private local failure"));
 
         ModelDownloadResult result = await fixture.Service.DownloadAsync(
             fixture.Entry,
