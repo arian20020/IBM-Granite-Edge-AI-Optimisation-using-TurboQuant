@@ -11,30 +11,6 @@ using GraniteEdgeAI.OpenVino.WorkerClient;
 
 namespace GraniteEdgeAI.Features.ApplicationComposition;
 
-file enum A1BackendAuthorityKind
-{
-    FreshCompatibility,
-    RouteExactOptimization,
-    OfficialOpenVinoWorker,
-    InitializedGgufChat,
-}
-
-file sealed class A1BackendAuthorityRegistry
-{
-    private readonly HashSet<A1BackendAuthorityKind> _registrations = [];
-
-    internal int Count => _registrations.Count;
-
-    internal void Register(A1BackendAuthorityKind kind)
-    {
-        if (!_registrations.Add(kind))
-        {
-            throw new InvalidOperationException(
-                "Each A1 production backend authority can be registered only once.");
-        }
-    }
-}
-
 /// <summary>
 /// The one semantic production entry point for A1-owned backend composition.
 /// Registration happens once; live callers may create route-scoped instances
@@ -42,17 +18,41 @@ file sealed class A1BackendAuthorityRegistry
 /// </summary>
 internal sealed class A1BackendProductionAuthorities
 {
+    private enum AuthorityKind
+    {
+        FreshCompatibility,
+        RouteExactOptimization,
+        OfficialOpenVinoWorker,
+        InitializedGgufChat,
+    }
+
+    private sealed class AuthorityRegistry
+    {
+        private readonly HashSet<AuthorityKind> registrations = [];
+
+        internal int Count => registrations.Count;
+
+        internal void Register(AuthorityKind kind)
+        {
+            if (!registrations.Add(kind))
+            {
+                throw new InvalidOperationException(
+                    "Each A1 production backend authority can be registered only once.");
+            }
+        }
+    }
+
     private static readonly object s_authorityToken = new();
-    private static readonly A1BackendAuthorityRegistry s_registry = new();
+    private static readonly AuthorityRegistry s_registry = new();
     private static readonly A1BackendProductionAuthorities s_shared =
         new();
 
     private A1BackendProductionAuthorities()
     {
-        s_registry.Register(A1BackendAuthorityKind.FreshCompatibility);
-        s_registry.Register(A1BackendAuthorityKind.RouteExactOptimization);
-        s_registry.Register(A1BackendAuthorityKind.OfficialOpenVinoWorker);
-        s_registry.Register(A1BackendAuthorityKind.InitializedGgufChat);
+        s_registry.Register(AuthorityKind.FreshCompatibility);
+        s_registry.Register(AuthorityKind.RouteExactOptimization);
+        s_registry.Register(AuthorityKind.OfficialOpenVinoWorker);
+        s_registry.Register(AuthorityKind.InitializedGgufChat);
         RegistrationCount = s_registry.Count;
     }
 
