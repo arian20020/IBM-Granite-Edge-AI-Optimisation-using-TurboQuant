@@ -1,3 +1,5 @@
+using System.Reflection;
+
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.Contracts;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.Journey;
 using GraniteEdgeAI.Features.ModelOptimization.Journey;
@@ -9,73 +11,85 @@ namespace GraniteEdgeAI.CrossFeature.IntegrationTests;
 public sealed class OptimizationReducerIdentityTests
 {
     [TestMethod]
-    public void ResultWithSubstitutedHardwareBindingCannotBecomeTerminalSuccess()
+    public void TerminalSuccessWithSubstitutedJourneyIdentityIsSuppressed()
     {
         OptimizationExecutionPlan selected =
-            CrossFeaturePlanFixture.PersistentGgufPlan(
-                new string('a', 64),
-                4096);
-        OptimizationJourneyState running = RunningState(selected);
-        OptimizationJourneyBinding substitutedBinding =
-            OptimizationJourneyBinding.Create(
-                selected.Binding.ModelInspectionRunId,
-                selected.Binding.ModelInspectionHandoffId,
-                selected.Binding.ModelSha256,
-                selected.Binding.ModelLengthBytes,
-                "hw-run-substituted",
-                new string('9', 64));
-        OptimizationExecutionPlan substituted = CopyPlan(
-            selected,
-            substitutedBinding);
-        OptimizationExecutionResult result = OptimizationExecutionResult.Succeeded(
-            substituted,
-            "substituted-output",
-            new string('b', 64),
-            10,
-            sourceUnchanged: true,
-            DateTimeOffset.UnixEpoch);
+            CrossFeaturePlanFixture.PersistentGgufPlan(new string('a', 64), 4096);
+        var failures = new List<string>();
+        foreach (string substitutedIdentity in new[] { "hardware", "source" })
+        {
+            OptimizationJourneyState running = RunningState(selected);
+            OptimizationJourneyBinding substitutedBinding =
+                OptimizationJourneyBinding.Create(
+                    selected.Binding.ModelInspectionRunId,
+                    selected.Binding.ModelInspectionHandoffId,
+                    substitutedIdentity == "source"
+                        ? new string('c', 64)
+                        : selected.Binding.ModelSha256,
+                    selected.Binding.ModelLengthBytes,
+                    substitutedIdentity == "hardware"
+                        ? "hardware-run-substituted"
+                        : selected.Binding.ProductHardwareRunId,
+                    substitutedIdentity == "hardware"
+                        ? new string('9', 64)
+                        : selected.Binding.HardwareSnapshotSha256);
+            OptimizationExecutionPlan substituted = CopyPlan(
+                selected, substitutedBinding);
+            OptimizationExecutionResult result = OptimizationExecutionResult.Succeeded(
+                substituted, "substituted-output", new string('b', 64), 10,
+                sourceUnchanged: true, DateTimeOffset.UnixEpoch);
+            OptimizationJourneyState after = OptimizationJourneyReducer.Apply(
+                running, new OptimizationCompleted(1, result));
+            if (after.Kind != OptimizationJourneyKind.Running || after.Result is not null)
+                failures.Add(substitutedIdentity);
+        }
 
-        OptimizationJourneyState after = OptimizationJourneyReducer.Apply(
-            running,
-            new OptimizationCompleted(1, result));
-
-        Assert.AreEqual(OptimizationJourneyKind.Running, after.Kind);
-        Assert.IsNull(after.Result);
+        Assert.AreEqual(0, failures.Count,
+            "Terminal success accepted substituted identities: "
+            + string.Join(", ", failures));
     }
 
     [TestMethod]
-    public void ResultWithSubstitutedSourceBindingCannotBecomeTerminalSuccess()
+    public void SelectionHandoffRejectsSubstitutedJourneyIdentityBeforeExecution()
     {
         OptimizationExecutionPlan selected =
-            CrossFeaturePlanFixture.PersistentGgufPlan(
-                new string('a', 64),
-                4096);
+            CrossFeaturePlanFixture.PersistentGgufPlan(new string('a', 64), 4096);
+        OptimizationJourneyBinding substituted = OptimizationJourneyBinding.Create(
+            selected.Binding.ModelInspectionRunId,
+            selected.Binding.ModelInspectionHandoffId,
+            new string('c', 64),
+            selected.Binding.ModelLengthBytes,
+            selected.Binding.ProductHardwareRunId,
+            selected.Binding.HardwareSnapshotSha256);
+
+        Assert.IsFalse(OptimizationSelectionHandoff.TryCreate(
+            selected, substituted, selected.CapabilitySnapshot,
+            selected.Preference, out _));
+    }
+
+    [TestMethod]
+    public void WrongGenerationSuppressesLateCancellationAndCompletion()
+    {
+        OptimizationExecutionPlan selected =
+            CrossFeaturePlanFixture.PersistentGgufPlan(new string('a', 64), 4096);
         OptimizationJourneyState running = RunningState(selected);
-        OptimizationJourneyBinding substitutedBinding =
-            OptimizationJourneyBinding.Create(
-                selected.Binding.ModelInspectionRunId,
-                selected.Binding.ModelInspectionHandoffId,
-                new string('c', 64),
-                selected.Binding.ModelLengthBytes,
-                selected.Binding.ProductHardwareRunId,
-                selected.Binding.HardwareSnapshotSha256);
-        OptimizationExecutionPlan substituted = CopyPlan(
+        OptimizationJourneyState cancelling = OptimizationJourneyReducer.Apply(
+            running,
+            new OptimizationCancellationRequested(1));
+        OptimizationExecutionResult late = OptimizationExecutionResult.Cancelled(
             selected,
-            substitutedBinding);
-        OptimizationExecutionResult result = OptimizationExecutionResult.Succeeded(
-            substituted,
-            "substituted-output",
-            new string('b', 64),
-            10,
             sourceUnchanged: true,
             DateTimeOffset.UnixEpoch);
 
-        OptimizationJourneyState after = OptimizationJourneyReducer.Apply(
-            running,
-            new OptimizationCompleted(1, result));
+        OptimizationJourneyState afterLateCompletion = OptimizationJourneyReducer.Apply(
+            cancelling,
+            new OptimizationCompleted(2, late));
+        OptimizationJourneyState afterLateCancellation = OptimizationJourneyReducer.Apply(
+            afterLateCompletion,
+            new OptimizationCancelled(2));
 
-        Assert.AreEqual(OptimizationJourneyKind.Running, after.Kind);
-        Assert.IsNull(after.Result);
+        Assert.AreEqual(cancelling, afterLateCancellation);
+        Assert.IsNull(afterLateCancellation.Result);
     }
 
     private static OptimizationJourneyState RunningState(
@@ -98,7 +112,13 @@ public sealed class OptimizationReducerIdentityTests
 
     private static OptimizationExecutionPlan CopyPlan(
         OptimizationExecutionPlan selected,
-        OptimizationJourneyBinding binding) => new(
+        OptimizationJourneyBinding binding)
+    {
+        ConstructorInfo constructor = typeof(OptimizationExecutionPlan)
+            .GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic)
+            .Single(candidate => candidate.GetParameters().Length == 11);
+        return (OptimizationExecutionPlan)constructor.Invoke(
+        [
             selected.ContractVersion,
             selected.OptimizationPlanId,
             binding,
@@ -109,5 +129,7 @@ public sealed class OptimizationReducerIdentityTests
             selected.Preference,
             selected.SharedWithAdjacentBand,
             selected.ConfigurationSha256,
-            selected.CreatedAtUtc);
+            selected.CreatedAtUtc
+        ]);
+    }
 }

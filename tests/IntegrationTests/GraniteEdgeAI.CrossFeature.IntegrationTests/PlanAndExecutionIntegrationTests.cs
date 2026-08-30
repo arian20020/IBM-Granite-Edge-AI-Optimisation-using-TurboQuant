@@ -1,37 +1,16 @@
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Execution;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.OpenVino;
+using GraniteEdgeAI.Features.ModelHardwareCompatibility.Contracts;
+using GraniteEdgeAI.Features.ModelHardwareCompatibility.Journey;
+using GraniteEdgeAI.Features.ModelOptimization.Journey;
 
 namespace GraniteEdgeAI.CrossFeature.IntegrationTests;
 
 [TestClass]
 public sealed class PlanAndExecutionIntegrationTests
 {
-    [TestMethod]
-    public void IdenticalOutputClaimsRemainDistinctExecutions()
-    {
-        OptimizationExecutionPlan plan = CrossFeaturePlanFixture.PersistentGgufPlan(
-            CrossFeaturePlanFixture.ModelDigest,
-            4 * CrossFeaturePlanFixture.GiB);
-        OptimizationExecutionResult first = OptimizationExecutionResult.Succeeded(
-            plan,
-            "execution-output",
-            new string('e', 64),
-            1024,
-            sourceUnchanged: true,
-            DateTimeOffset.UtcNow);
-        OptimizationExecutionResult retry = OptimizationExecutionResult.Succeeded(
-            plan,
-            "execution-output",
-            new string('e', 64),
-            1024,
-            sourceUnchanged: true,
-            DateTimeOffset.UtcNow);
-
-        Assert.AreNotEqual(Guid.Empty, first.ExecutionId);
-        Assert.AreNotEqual(Guid.Empty, retry.ExecutionId);
-        Assert.AreNotEqual(first.ExecutionId, retry.ExecutionId);
-    }
-
     [TestMethod]
     public void AdmittedPreferenceIssuesStableExactV3Plan()
     {
@@ -50,6 +29,66 @@ public sealed class PlanAndExecutionIntegrationTests
     }
 
     [TestMethod]
+    public void ResultFactoryCopiesExactPersistentPlanAuthority()
+    {
+        OptimizationExecutionPlan plan = CrossFeaturePlanFixture.Issue();
+        OpenVinoExecutionPayload payload = plan.ExecutionPayload.OpenVino!;
+        OptimizationExecutionResult result = OptimizationExecutionResult.Succeeded(
+            plan,
+            "persistent-openvino-output",
+            new string('8', 64),
+            4096,
+            sourceUnchanged: true,
+            DateTimeOffset.UnixEpoch);
+
+        Assert.AreEqual(OpenVinoWeightPrecision.Fp16, payload.SourceWeightPrecision);
+        Assert.AreEqual(OpenVinoWeightPrecision.EightBit, payload.TargetWeightPrecision);
+        Assert.AreEqual("ov-int8", payload.EvidenceId);
+        Assert.AreEqual(plan.ConfigurationSha256, result.ConfigurationSha256);
+        Assert.AreEqual(plan.Binding.ModelSha256, result.SourceSha256);
+        Assert.AreEqual(plan.OptimizationPlanId, result.OptimizationPlanId);
+        Assert.IsTrue(plan.MatchesExecutionPayload(plan.ExecutionPayload));
+        Assert.IsTrue(plan.MatchesCapability(plan.CapabilitySnapshot));
+    }
+
+    [TestMethod]
+    public void TurboQuantConfigurationCannotBeAdmittedWithoutExactBuildCapability()
+    {
+        OptimizationExecutionPlan ordinary = CrossFeaturePlanFixture.Issue();
+        OpenVinoBuildIdentity build = ordinary.ExecutionPayload.OpenVino!.BuildIdentity;
+        var admitted = OpenVinoAdmittedConfiguration.Create(
+            "ov-turboquant-tbq4",
+            DeviceRouteId.Cpu,
+            OpenVinoWeightFormat.Original,
+            OpenVinoKvCacheFormat.TurboQuantTbq4,
+            OpenVinoPerformanceHint.Latency,
+            OpenVinoCompiledCachePolicy.Disabled,
+            1,
+            512,
+            8192,
+            SupportLevel.Experimental,
+            requiresEvidence: true);
+        OpenVinoExecutionAuthority releasedAuthority =
+            OpenVinoExecutionAuthority.Create(
+                admitted.EvidenceId,
+                "openvino.standard.cpu.original.default.v1",
+                OpenVinoWeightPrecision.Fp16,
+                build,
+                new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["openvino"] = "2026.3.0"
+                },
+                compiledCacheIsDisposable: true,
+                turboQuantBuild: null);
+
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            OpenVinoCapabilityPayload.Create(
+                "2026.3.0",
+                [admitted],
+                [releasedAuthority]));
+    }
+
+    [TestMethod]
     [DataRow(-1)]
     [DataRow(10)]
     [DataRow(30)]
@@ -59,28 +98,20 @@ public sealed class PlanAndExecutionIntegrationTests
     public void EveryVisiblePreferenceResolvesOnlyToCapabilityAdmittedCandidate(
         int preferenceValue)
     {
-        OptimizationCandidate candidate = CrossFeaturePlanFixture.Candidate();
-        OptimizationCapabilitySnapshot snapshot =
-            CrossFeaturePlanFixture.SnapshotFor(candidate);
-        OptimizationCandidate admitted =
-            CrossFeaturePlanFixture.Admit(candidate, snapshot);
         OptimizationPreferenceSelection preference = preferenceValue < 0
             ? OptimizationPreferenceSelection.Automatic()
             : OptimizationPreferenceSelection.Manual(preferenceValue);
+        OptimizationExecutionPlan plan = CrossFeaturePlanFixture.Issue(
+            preference: preference);
 
-        OptimizationSelection? selection = OptimizationPreferenceResolver.Resolve(
-            [admitted], preference);
-
-        Assert.IsNotNull(selection);
-        Assert.AreEqual(admitted.CanonicalDescriptor,
-            selection.Candidate.CanonicalDescriptor);
-        Assert.IsNotNull(selection.Candidate.AdmissionProof);
-        Assert.IsTrue(selection.Candidate.AdmissionProof!.MatchesCandidate(
-            selection.Candidate));
+        Assert.AreEqual("ov-int8", plan.Candidate.EvidenceId);
+        Assert.IsTrue(plan.IsExecutableBy(OptimizationExecutionPlan.CurrentContractVersion));
+        Assert.IsTrue(plan.MatchesCapability(plan.CapabilitySnapshot));
+        Assert.AreEqual(preference, plan.Preference);
     }
 
     [TestMethod]
-    public void ExecutionBindingRejectsChangedModelCapabilityPayloadAndHardware()
+    public void PlanMatchingRejectsChangedSourceCapabilityAndPayload()
     {
         OptimizationExecutionPlan plan = CrossFeaturePlanFixture.Issue();
         OptimizationCapabilitySnapshot changedCapability =
@@ -101,11 +132,68 @@ public sealed class PlanAndExecutionIntegrationTests
         Assert.IsTrue(plan.MatchesCapability(plan.CapabilitySnapshot));
         Assert.IsFalse(plan.MatchesCapability(changedCapability));
 
-        OptimizationJourneyBinding changedHardware = CrossFeaturePlanFixture.Binding(
-            hardwareDigest:
-                "6666666666666666666666666666666666666666666666666666666666666666");
-        Assert.AreNotEqual(plan.Binding.HardwareSnapshotSha256,
-            changedHardware.HardwareSnapshotSha256);
+        OptimizationCandidate changedCandidate = CrossFeaturePlanFixture.Candidate(
+            OpenVinoWeightFormat.Original,
+            "ov-original");
+        OptimizationExecutionPayload changedPayload =
+            CrossFeaturePlanFixture.Payload(changedCandidate);
+        Assert.IsTrue(plan.MatchesExecutionPayload(plan.ExecutionPayload));
+        Assert.IsFalse(plan.MatchesExecutionPayload(changedPayload));
+    }
+
+    [TestMethod]
+    public void ExactSelectedPlanAloneCanReachExecution()
+    {
+        OptimizationExecutionPlan selected = CrossFeaturePlanFixture.Issue();
+        OptimizationCandidate differentCandidate = CrossFeaturePlanFixture.Candidate(
+            OpenVinoWeightFormat.Original,
+            "ov-original");
+        OptimizationExecutionPayload differentPayload =
+            CrossFeaturePlanFixture.Payload(differentCandidate);
+
+        Assert.IsTrue(selected.MatchesExecutionPayload(selected.ExecutionPayload));
+        Assert.IsFalse(selected.MatchesExecutionPayload(differentPayload));
+        Assert.AreNotEqual(
+            selected.ConfigurationSha256,
+            differentPayload.ComputeRuntimeConfigurationSha256());
+    }
+
+    [TestMethod]
+    public void RetryReducerRejectsPriorAttemptResultAsStale()
+    {
+        OptimizationExecutionPlan firstPlan = CrossFeaturePlanFixture.Issue();
+        OptimizationExecutionResult firstResult = OptimizationExecutionResult.Failed(
+            firstPlan,
+            OptimizationSupportCode.UnexpectedFailure,
+            sourceUnchanged: true,
+            DateTimeOffset.UnixEpoch);
+        OptimizationExecutionPlan retryPlan = CrossFeaturePlanFixture.Issue();
+
+        Assert.AreNotEqual(firstPlan.OptimizationPlanId, retryPlan.OptimizationPlanId);
+        Assert.AreEqual(firstPlan.ConfigurationSha256, retryPlan.ConfigurationSha256,
+            "Retry may preserve the selected configuration while changing attempt authority.");
+        Assert.IsTrue(OptimizationSelectionHandoff.TryCreate(
+            retryPlan,
+            retryPlan.Binding,
+            retryPlan.CapabilitySnapshot,
+            retryPlan.Preference,
+            out OptimizationSelectionHandoff? handoff));
+        var entry = new OptimizationJourneyEntryContext(
+            handoff!,
+            OptimizationJourneyOrigin.Required,
+            currentModelFallback: null);
+        OptimizationJourneyState running = OptimizationJourneyReducer.Apply(
+            OptimizationJourneyState.Initial(entry),
+            new OptimizationStarted(2));
+
+        OptimizationJourneyState afterPriorAttempt = OptimizationJourneyReducer.Apply(
+            running,
+            new OptimizationCompleted(2, firstResult));
+
+        Assert.AreEqual(running, afterPriorAttempt,
+            "The real reducer must ignore a result issued by the prior plan attempt.");
+        Assert.AreEqual(OptimizationJourneyKind.Running, afterPriorAttempt.Kind);
+        Assert.IsNull(afterPriorAttempt.Result);
     }
 
     [TestMethod]
