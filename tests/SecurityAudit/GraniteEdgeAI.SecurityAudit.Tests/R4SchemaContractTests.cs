@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Json.Schema;
+using GraniteEdgeAI.R4Handoff.Validation;
 
 namespace GraniteEdgeAI.SecurityAudit.Tests;
 
@@ -13,6 +14,8 @@ public sealed class R4SchemaContractTests
         JsonSchema schema = LoadSchema("R4-HANDOFF-RECEIPT-SCHEMA.json");
         JsonObject valid = ValidReceipt();
         AssertValid(schema, valid);
+        Assert.IsTrue(R4HandoffSemanticValidator.HasValidReceiptArithmetic(
+            JsonSerializer.SerializeToElement(valid)));
 
         AssertInvalid(schema, Mutate(valid, "workerId", "X1"));
         AssertInvalid(schema, Mutate(valid, "branch", "feature/not-authorized"));
@@ -32,7 +35,8 @@ public sealed class R4SchemaContractTests
 
         JsonObject badArithmetic = (JsonObject)valid.DeepClone();
         badArithmetic["testTotals"]!["passed"] = 6;
-        Assert.IsFalse(HasValidTestArithmetic(badArithmetic));
+        Assert.IsFalse(R4HandoffSemanticValidator.HasValidReceiptArithmetic(
+            JsonSerializer.SerializeToElement(badArithmetic)));
     }
 
     [TestMethod]
@@ -41,6 +45,8 @@ public sealed class R4SchemaContractTests
         JsonSchema schema = LoadSchema("R4-EVIDENCE-MANIFEST-SCHEMA.json");
         JsonObject valid = ValidEvidence();
         AssertValid(schema, valid);
+        Assert.IsTrue(R4HandoffSemanticValidator.HasValidEvidenceArithmetic(
+            JsonSerializer.SerializeToElement(valid)));
 
         AssertInvalid(schema, Mutate(valid, "workerId", "S1"));
         AssertInvalid(schema, Mutate(valid, "evidenceStatus", "complete"));
@@ -48,6 +54,11 @@ public sealed class R4SchemaContractTests
         badGrade["inputs"]![0]!["evidenceGrade"] = "asserted";
         AssertInvalid(schema, badGrade);
         AssertInvalid(schema, Mutate(valid, "unexpected", true));
+
+        JsonObject badArithmetic = (JsonObject)valid.DeepClone();
+        badArithmetic["commands"]![0]!["executed"] = 2;
+        Assert.IsFalse(R4HandoffSemanticValidator.HasValidEvidenceArithmetic(
+            JsonSerializer.SerializeToElement(badArithmetic)));
     }
 
     private static JsonSchema LoadSchema(string filename)
@@ -103,17 +114,6 @@ public sealed class R4SchemaContractTests
         JsonObject clone = (JsonObject)source.DeepClone();
         clone[parent]![key] = value?.DeepClone();
         return clone;
-    }
-
-    private static bool HasValidTestArithmetic(JsonObject receipt)
-    {
-        JsonNode totals = receipt["testTotals"]!;
-        int discovered = totals["discovered"]!.GetValue<int>();
-        int executed = totals["executed"]!.GetValue<int>();
-        int passed = totals["passed"]!.GetValue<int>();
-        int failed = totals["failed"]!.GetValue<int>();
-        int skipped = totals["skipped"]!.GetValue<int>();
-        return discovered == executed && executed == passed + failed + skipped;
     }
 
     private static JsonObject ValidReceipt() => new()

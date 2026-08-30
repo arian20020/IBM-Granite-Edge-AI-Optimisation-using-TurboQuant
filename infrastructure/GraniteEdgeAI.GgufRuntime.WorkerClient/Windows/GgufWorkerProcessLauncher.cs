@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
+using GraniteEdgeAI.HardwareInspection.Foundation.Processes;
 
 namespace GraniteEdgeAI.GgufRuntime.WorkerClient.Windows;
 
@@ -10,7 +11,8 @@ internal static class GgufWorkerProcessLauncher
         string executablePath,
         IReadOnlyList<string> arguments,
         IReadOnlyDictionary<string, string> environment,
-        string workingDirectory)
+        string workingDirectory,
+        TrustedToolOperationEnvironment operationEnvironment)
     {
         ValidateLaunchInput(executablePath, workingDirectory);
         ArgumentNullException.ThrowIfNull(arguments);
@@ -83,7 +85,8 @@ internal static class GgufWorkerProcessLauncher
                 job,
                 standardInput,
                 standardOutput,
-                standardError);
+                standardError,
+                operationEnvironment);
             processHandle = null;
             job = null;
             standardInput = null;

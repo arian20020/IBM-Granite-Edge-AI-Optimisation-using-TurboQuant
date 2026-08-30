@@ -1,4 +1,4 @@
-using System.Collections;
+using GraniteEdgeAI.HardwareInspection.Foundation.Processes;
 using GraniteEdgeAI.ModelInspection.Transport;
 using GraniteEdgeAI.ModelInspection.WorkerClient;
 using GraniteEdgeAI.ModelInspection.WorkerClient.ProtectedWorker;
@@ -59,11 +59,13 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
         ProtectedWorkerSession? session = null;
         Task<StandardErrorSnapshot>? stderrTask = null;
         VerifiedOpenVinoWorkerClosure? closure = null;
+        TrustedToolOperationEnvironment? operationEnvironment = null;
         try
         {
             DateTimeOffset startupDeadline =
                 DateTimeOffset.UtcNow + _options.StartupTimeout;
-            (session, stderrTask, closure) = await StartProtectedAsync(cancellationToken)
+            (session, stderrTask, closure, operationEnvironment) =
+                await StartProtectedAsync(cancellationToken)
                 .ConfigureAwait(false);
             Task processExit = session.WaitForExitAsync(CancellationToken.None);
             OpenVinoConversationValidator validator = new();
@@ -114,6 +116,11 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
             }
 
             closure?.Dispose();
+            operationEnvironment?.Dispose();
+            if (operationEnvironment is not null && !operationEnvironment.CleanupSucceeded)
+            {
+                RequireCleanupSucceeded(operationEnvironment);
+            }
         }
     }
 
@@ -126,11 +133,13 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
         ProtectedWorkerSession? session = null;
         Task<StandardErrorSnapshot>? stderrTask = null;
         VerifiedOpenVinoWorkerClosure? closure = null;
+        TrustedToolOperationEnvironment? operationEnvironment = null;
         try
         {
             DateTimeOffset startupDeadline =
                 DateTimeOffset.UtcNow + _options.StartupTimeout;
-            (session, stderrTask, closure) = await StartProtectedAsync(cancellationToken)
+            (session, stderrTask, closure, operationEnvironment) =
+                await StartProtectedAsync(cancellationToken)
                 .ConfigureAwait(false);
             Task processExit = session.WaitForExitAsync(CancellationToken.None);
             OpenVinoConversationValidator validator = new();
@@ -174,10 +183,12 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
                 command.SessionId,
                 startupEvidence,
                 _options,
-                closure);
+                closure,
+                operationEnvironment);
             session = null;
             stderrTask = null;
             closure = null;
+            operationEnvironment = null;
             return result;
         }
         catch (Exception error) when (IsControlled(error))
@@ -197,26 +208,33 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
             }
 
             closure?.Dispose();
+            operationEnvironment?.Dispose();
+            if (operationEnvironment is not null && !operationEnvironment.CleanupSucceeded)
+            {
+                RequireCleanupSucceeded(operationEnvironment);
+            }
         }
     }
 
     private async Task<(
         ProtectedWorkerSession Session,
         Task<StandardErrorSnapshot> StandardError,
-        VerifiedOpenVinoWorkerClosure Closure)>
+        VerifiedOpenVinoWorkerClosure Closure,
+        TrustedToolOperationEnvironment OperationEnvironment)>
         StartProtectedAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         VerifiedOpenVinoWorkerClosure closure = _closureResolver.Resolve(
             _options.Installation);
+        TrustedToolOperationEnvironment? operationEnvironment = null;
         try
         {
-            IReadOnlyDictionary<string, string> environment =
-                WorkerEnvironmentPolicy.Create(_environmentProvider());
+            operationEnvironment = TrustedToolOperationEnvironment.Create(
+                _environmentProvider());
             ProtectedWorkerLaunchSpec spec = new(
                 closure.Executable,
                 ["--protocol", _options.Installation.ExpectedProtocolId],
-                environment,
+                operationEnvironment.Variables,
                 _options.MaximumLineBytes,
                 _options.MaximumLineBytes,
                 _options.MaximumRetainedStandardErrorBytes,
@@ -227,11 +245,12 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
                     spec,
                     cancellationToken)
                 .ConfigureAwait(false);
-            return (session, session.ReadStandardErrorAsync(), closure);
+            return (session, session.ReadStandardErrorAsync(), closure, operationEnvironment);
         }
         catch
         {
             closure.Dispose();
+            operationEnvironment?.Dispose();
             throw;
         }
     }
@@ -429,6 +448,19 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
         supportCode,
         RuntimeFailureMessage);
 
+    internal static OpenVinoWorkerClientException RuntimeFailure() => new(
+        OpenVinoSupportCode.RuntimeIntegrityFailed,
+        RuntimeFailureMessage);
+
+    internal static void RequireCleanupSucceeded(
+        TrustedToolOperationEnvironment operationEnvironment)
+    {
+        if (!operationEnvironment.CleanupSucceeded)
+        {
+            throw RuntimeFailure();
+        }
+    }
+
     internal static bool IsControlled(Exception error) =>
         error is OpenVinoWorkerClientException or
         OpenVinoProtocolException or
@@ -517,12 +549,12 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
     {
         Dictionary<string, string?> values =
             new(StringComparer.OrdinalIgnoreCase);
-        foreach (DictionaryEntry entry in Environment.GetEnvironmentVariables())
+        foreach (string key in new[]
+                 {
+                     "SystemRoot", "WINDIR", "DOTNET_ROOT", "DOTNET_ROOT_X64",
+                 })
         {
-            if (entry.Key is string key)
-            {
-                values[key] = entry.Value as string;
-            }
+            values[key] = Environment.GetEnvironmentVariable(key);
         }
 
         return values;

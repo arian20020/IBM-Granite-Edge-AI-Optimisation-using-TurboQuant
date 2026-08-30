@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Security.AccessControl;
 using System.Security.Principal;
+using System.Globalization;
 using GraniteEdgeAI.HardwareInspection.Foundation.Processes;
 
 namespace GraniteEdgeAI.HardwareInspection.Foundation.Tests.Processes;
@@ -125,6 +126,63 @@ public sealed class TrustedToolEnvironmentPolicyTests
         }
 
         Assert.IsFalse(Directory.Exists(operationDirectory));
+    }
+
+    [TestMethod]
+    public void OperationEnvironmentReportsBoundedCleanupFailureWithoutFollowingEntries()
+    {
+        TrustedToolOperationEnvironment operation =
+            TrustedToolOperationEnvironment.Create(ValidParent());
+        string operationDirectory = operation.Variables["TEMP"];
+        try
+        {
+            for (int index = 0; index < 513; index++)
+            {
+                File.WriteAllText(
+                    Path.Combine(
+                        operationDirectory,
+                        index.ToString("D4", CultureInfo.InvariantCulture) + ".tmp"),
+                    "bounded");
+            }
+
+            operation.Dispose();
+
+            Assert.IsFalse(operation.CleanupSucceeded);
+            Assert.IsTrue(Directory.Exists(operationDirectory));
+        }
+        finally
+        {
+            operation.Dispose();
+            if (Directory.Exists(operationDirectory))
+            {
+                Directory.Delete(operationDirectory, recursive: true);
+            }
+        }
+    }
+
+    [TestMethod]
+    public void OperationEnvironmentRetainsDirectoryCustodyUntilDisposed()
+    {
+        using TrustedToolOperationEnvironment operation =
+            TrustedToolOperationEnvironment.Create(ValidParent());
+        string operationDirectory = operation.Variables["TEMP"];
+        string replacementPath = operationDirectory + "-replacement";
+        try
+        {
+            IOException failure = Assert.ThrowsExactly<IOException>(
+                () => Directory.Move(operationDirectory, replacementPath));
+
+            Assert.IsFalse(string.IsNullOrWhiteSpace(failure.Message));
+            Assert.IsTrue(Directory.Exists(operationDirectory));
+            Assert.IsFalse(Directory.Exists(replacementPath));
+        }
+        finally
+        {
+            if (Directory.Exists(replacementPath))
+            {
+                Directory.Delete(replacementPath, recursive: true);
+            }
+        }
     }
 
     private static Dictionary<string, string?> ValidParent()

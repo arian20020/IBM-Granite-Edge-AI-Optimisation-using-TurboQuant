@@ -25,13 +25,7 @@ internal static class TrustedToolEnvironmentPolicy
     {
         try
         {
-            var parent = new Dictionary<string, string?>(StringComparer.Ordinal)
-            {
-                ["SystemRoot"] = Environment.GetEnvironmentVariable("SystemRoot"),
-                ["WINDIR"] = Environment.GetEnvironmentVariable("WINDIR"),
-            };
-
-            return TrustedToolOperationEnvironment.Create(parent);
+            return TrustedToolOperationEnvironment.CreateCurrent(includeDotnetRoots: false);
         }
         catch (InvalidOperationException exception)
             when (exception.Message == FailureMessage)

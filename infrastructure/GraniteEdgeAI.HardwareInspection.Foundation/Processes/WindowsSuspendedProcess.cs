@@ -32,6 +32,8 @@ internal sealed class WindowsSuspendedProcess : IDisposable
 
     private TrustedToolOperationEnvironment OperationEnvironment { get; }
 
+    internal bool CleanupSucceeded { get; private set; }
+
     internal static bool TryStart(
         VerifiedTrustedTool tool,
         TrustedToolCommand command,
@@ -283,6 +285,7 @@ internal sealed class WindowsSuspendedProcess : IDisposable
         Process.Dispose();
         ProcessHandle.Dispose();
         OperationEnvironment.Dispose();
+        CleanupSucceeded = OperationEnvironment.CleanupSucceeded;
     }
 
     private static string BuildCommandLine(

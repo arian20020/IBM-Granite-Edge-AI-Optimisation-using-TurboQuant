@@ -12,6 +12,7 @@
     <PublishTrimmed>false</PublishTrimmed>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="..\GraniteEdgeAI.HardwareInspection.Foundation\GraniteEdgeAI.HardwareInspection.Foundation.csproj" />
     <ProjectReference Include="..\GraniteEdgeAI.ModelInspection.WorkerClient\GraniteEdgeAI.ModelInspection.WorkerClient.csproj" />
     <ProjectReference Include="..\..\shared\GraniteEdgeAI.OpenVino.Contracts\GraniteEdgeAI.OpenVino.Contracts.csproj" />
   </ItemGroup>

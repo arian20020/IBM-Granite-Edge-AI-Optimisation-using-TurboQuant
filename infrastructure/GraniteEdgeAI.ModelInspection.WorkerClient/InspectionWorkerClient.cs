@@ -1,7 +1,7 @@
-using System.Collections;
 using GraniteEdgeAI.ModelInspection.Contracts;
 using GraniteEdgeAI.ModelInspection.Transport;
 using GraniteEdgeAI.ModelInspection.WorkerClient.ProtectedWorker;
+using GraniteEdgeAI.HardwareInspection.Foundation.Processes;
 
 namespace GraniteEdgeAI.ModelInspection.WorkerClient;
 
@@ -129,17 +129,18 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
         bool handshakeCompleted = false;
         bool startSent = false;
         bool rethrowPreStartCancellation = false;
+        TrustedToolOperationEnvironment? operationEnvironment = null;
 
         try
         {
             using VerifiedWorkerExecutable executable =
                 _resolver.Resolve(_options.ApprovedWorkerRoot);
-            IReadOnlyDictionary<string, string> environment =
-                WorkerEnvironmentPolicy.Create(_parentEnvironmentProvider());
+            operationEnvironment = TrustedToolOperationEnvironment.Create(
+                _parentEnvironmentProvider());
             ProtectedWorkerLaunchSpec launchSpec = new(
                 executable,
                 _testOnlyArguments,
-                environment,
+                operationEnvironment.Variables,
                 WorkerProtocol.MaximumMessageBytes,
                 WorkerProtocol.MaximumMessageBytes,
                 _options.MaximumRetainedStandardErrorBytes,
@@ -351,6 +352,14 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
                         WorkerClientFailureCodes.WorkerCleanupFailed,
                         "The Model Inspection worker cleanup could not be verified."));
                 }
+            }
+
+            operationEnvironment?.Dispose();
+            if (operationEnvironment is not null && !operationEnvironment.CleanupSucceeded)
+            {
+                _ = failures.TrySetPrimary(new WorkerClientFailure(
+                    WorkerClientFailureCodes.WorkerCleanupFailed,
+                    "The Model Inspection worker cleanup could not be verified."));
             }
         }
 
@@ -806,13 +815,12 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
     {
         Dictionary<string, string?> values =
             new(StringComparer.OrdinalIgnoreCase);
-        foreach (DictionaryEntry entry in
-                 Environment.GetEnvironmentVariables())
+        foreach (string key in new[]
+                 {
+                     "SystemRoot", "WINDIR", "DOTNET_ROOT", "DOTNET_ROOT_X64",
+                 })
         {
-            if (entry.Key is string key)
-            {
-                values[key] = entry.Value as string;
-            }
+            values[key] = Environment.GetEnvironmentVariable(key);
         }
 
         return values;

@@ -6,6 +6,7 @@ using GraniteEdgeAI.GgufRuntime.Contracts.Session;
 using GraniteEdgeAI.GgufRuntime.Capabilities.Manifest;
 using GraniteEdgeAI.GgufRuntime.Transport;
 using GraniteEdgeAI.GgufRuntime.WorkerClient.Windows;
+using GraniteEdgeAI.HardwareInspection.Foundation.Processes;
 
 namespace GraniteEdgeAI.GgufRuntime.WorkerClient;
 
@@ -73,13 +74,23 @@ public sealed class GgufRuntimeClient
     {
         ArgumentNullException.ThrowIfNull(configuration);
         ArgumentNullException.ThrowIfNull(initialTurns);
-        IReadOnlyDictionary<string, string> environment =
-            GgufWorkerEnvironmentPolicy.Create(ReadEnvironment());
-        GgufWorkerProcessSession process = GgufWorkerProcessLauncher.Launch(
-            _workerExecutable,
-            [],
-            environment,
-            Path.GetDirectoryName(_workerExecutable)!);
+        TrustedToolOperationEnvironment operationEnvironment =
+            TrustedToolOperationEnvironment.CreateCurrent(includeDotnetRoots: true);
+        GgufWorkerProcessSession process;
+        try
+        {
+            process = GgufWorkerProcessLauncher.Launch(
+                _workerExecutable,
+                [],
+                operationEnvironment.Variables,
+                Path.GetDirectoryName(_workerExecutable)!,
+                operationEnvironment);
+        }
+        catch
+        {
+            operationEnvironment.Dispose();
+            throw;
+        }
         try
         {
             await GgufFrameWriter.WriteAsync(
@@ -102,18 +113,6 @@ public sealed class GgufRuntimeClient
             await process.DisposeAsync().ConfigureAwait(false);
             throw;
         }
-    }
-
-    private static Dictionary<string, string?> ReadEnvironment()
-    {
-        var values = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
-        foreach (System.Collections.DictionaryEntry entry in
-            Environment.GetEnvironmentVariables())
-        {
-            values[(string)entry.Key] = entry.Value as string;
-        }
-
-        return values;
     }
 
     private static string RequireExistingAbsoluteFile(string path, string parameterName)

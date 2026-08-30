@@ -1,5 +1,6 @@
 using Microsoft.Win32.SafeHandles;
 using GraniteEdgeAI.GgufRuntime.WorkerClient.Windows;
+using GraniteEdgeAI.HardwareInspection.Foundation.Processes;
 
 namespace GraniteEdgeAI.GgufRuntime.WorkerClient;
 
@@ -7,6 +8,7 @@ internal sealed class GgufWorkerProcessSession : IAsyncDisposable
 {
     private readonly SafeFileHandle _processHandle;
     private readonly GgufWorkerJob _job;
+    private readonly TrustedToolOperationEnvironment _operationEnvironment;
     private bool _disposed;
 
     internal GgufWorkerProcessSession(
@@ -15,7 +17,8 @@ internal sealed class GgufWorkerProcessSession : IAsyncDisposable
         GgufWorkerJob job,
         FileStream standardInput,
         FileStream standardOutput,
-        FileStream standardError)
+        FileStream standardError,
+        TrustedToolOperationEnvironment operationEnvironment)
     {
         ProcessId = processId;
         _processHandle = processHandle;
@@ -23,6 +26,7 @@ internal sealed class GgufWorkerProcessSession : IAsyncDisposable
         StandardInput = standardInput;
         StandardOutput = standardOutput;
         StandardError = standardError;
+        _operationEnvironment = operationEnvironment;
     }
 
     internal uint ProcessId { get; }
@@ -82,6 +86,22 @@ internal sealed class GgufWorkerProcessSession : IAsyncDisposable
             await StandardError.DisposeAsync().ConfigureAwait(false);
             _processHandle.Dispose();
             _job.Dispose();
+            _operationEnvironment.Dispose();
+            if (!_operationEnvironment.CleanupSucceeded)
+            {
+                RequireCleanupSucceeded(_operationEnvironment);
+            }
+        }
+    }
+
+    private static void RequireCleanupSucceeded(
+        TrustedToolOperationEnvironment operationEnvironment)
+    {
+        if (!operationEnvironment.CleanupSucceeded)
+        {
+            throw new GgufWorkerPolicyException(
+                "worker-cleanup-failed",
+                "The GGUF runtime worker cleanup could not be verified.");
         }
     }
 }

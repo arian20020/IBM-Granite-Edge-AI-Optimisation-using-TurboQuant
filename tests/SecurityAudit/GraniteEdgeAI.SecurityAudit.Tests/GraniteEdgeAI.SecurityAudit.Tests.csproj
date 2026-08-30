@@ -24,6 +24,7 @@
     <PackageReference Include="JsonSchema.Net" Version="9.4.0" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\..\shared\GraniteEdgeAI.R4Handoff.Validation\GraniteEdgeAI.R4Handoff.Validation.csproj" />
     <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelHardwareCompatibility\Infrastructure\ICompatibilityMemoryRecovery.cs"
              Link="Production\ICompatibilityMemoryRecovery.cs" />
     <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelHardwareCompatibility\Infrastructure\WindowsCompatibilityMemoryRecovery.cs"

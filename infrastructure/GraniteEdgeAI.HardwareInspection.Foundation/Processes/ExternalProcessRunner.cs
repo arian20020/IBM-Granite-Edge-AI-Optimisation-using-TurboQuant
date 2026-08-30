@@ -70,9 +70,10 @@ public sealed class ExternalProcessRunner : IExternalProcessRunner
         }
 
         WindowsSuspendedProcess running = launched!;
+        ExternalProcessResult result;
         using (running)
         {
-            return await MonitorAsync(
+            result = await MonitorAsync(
                     running,
                     running.StandardOutput,
                     running.StandardError,
@@ -82,6 +83,10 @@ public sealed class ExternalProcessRunner : IExternalProcessRunner
                     cancellationToken)
                 .ConfigureAwait(false);
         }
+
+        return running.CleanupSucceeded
+            ? result
+            : CreateResult(ExternalProcessTerminationReason.CleanupFailed, elapsed);
     }
 
     private static async Task<ExternalProcessResult> MonitorAsync(

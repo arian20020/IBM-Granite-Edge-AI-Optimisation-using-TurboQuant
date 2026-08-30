@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using GraniteEdgeAI.GgufQuantization.Capabilities;
 using GraniteEdgeAI.GgufQuantization.Contracts;
+using GraniteEdgeAI.HardwareInspection.Foundation.Processes;
 
 namespace GraniteEdgeAI.GgufQuantization.WorkerClient;
 
@@ -52,10 +53,10 @@ public sealed class GgufQuantizationWorkerClient
         {
             start.ArgumentList.Add(argument);
         }
-        IReadOnlyDictionary<string, string> childEnvironment =
-            GgufQuantizerEnvironmentPolicy.CaptureCurrent();
+        TrustedToolOperationEnvironment operationEnvironment =
+            TrustedToolOperationEnvironment.CreateCurrent(includeDotnetRoots: false);
         start.Environment.Clear();
-        foreach ((string key, string value) in childEnvironment)
+        foreach ((string key, string value) in operationEnvironment.Variables)
         {
             start.Environment.Add(key, value);
         }
@@ -124,6 +125,15 @@ public sealed class GgufQuantizationWorkerClient
             TryKill(process);
             lease.DeletePendingOutput();
             throw;
+        }
+        finally
+        {
+            operationEnvironment.Dispose();
+            if (!operationEnvironment.CleanupSucceeded)
+            {
+                throw new InvalidOperationException(
+                    "The GGUF quantizer cleanup could not be verified.");
+            }
         }
     }
 
