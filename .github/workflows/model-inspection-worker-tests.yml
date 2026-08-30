@@ -81,7 +81,7 @@ jobs:
           $resultsDirectory = 'TestResults/Worker'
           New-Item -ItemType Directory -Force -Path $resultsDirectory |
             Out-Null
-          dotnet test tests/UnitTests/GraniteEdgeAI.ModelInspection.Worker.Tests/GraniteEdgeAI.ModelInspection.Worker.Tests.csproj --configuration Release --filter "FullyQualifiedName~WorkerHostTests|FullyQualifiedName~LlamaSharpInspectionEngineTests" --minimum-expected-tests 77 --results-directory $resultsDirectory --report-trx --report-trx-filename 'worker-engine.trx' -p:Platform=x64
+          dotnet test --project tests/UnitTests/GraniteEdgeAI.ModelInspection.Worker.Tests/GraniteEdgeAI.ModelInspection.Worker.Tests.csproj --configuration Release --filter "FullyQualifiedName~WorkerHostTests|FullyQualifiedName~LlamaSharpInspectionEngineTests" --minimum-expected-tests 77 --results-directory $resultsDirectory --report-trx --report-trx-filename 'worker-engine.trx' -p:Platform=x64
           if ($LASTEXITCODE -ne 0) {
             throw "Worker lifecycle tests failed: $LASTEXITCODE"
           }

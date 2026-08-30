@@ -9,7 +9,7 @@ $project = Join-Path $repositoryRoot 'tests\ContractTests\GraniteEdgeAI.ModelIns
 
 Push-Location $repositoryRoot
 try {
-    dotnet test $project `
+    dotnet test --project $project `
         --configuration Release `
         --filter 'FullyQualifiedName~CleanupInventoryContractTests' `
         --minimum-expected-tests 3

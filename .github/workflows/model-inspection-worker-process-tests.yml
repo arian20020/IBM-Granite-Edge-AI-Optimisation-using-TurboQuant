@@ -148,7 +148,7 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $project = 'tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests.csproj'
           $filter = 'FullyQualifiedName~WorkerLaunchContainmentTests|FullyQualifiedName~TestWorkerScenarioParserTests|FullyQualifiedName~TestFixtureIsolationTests|FullyQualifiedName~ProductionWorkerProcessTests|FullyQualifiedName~ProductionWorkerNativeCompletionTests|FullyQualifiedName~ProductionWorkerPackagingTests|FullyQualifiedName~WorkerHandshakeTests|FullyQualifiedName~WorkerProtocolIntegrityTests|FullyQualifiedName~WorkerCancellationAndTimeoutTests|FullyQualifiedName~WorkerProcessTreeContainmentTests|FullyQualifiedName~WorkerEnvironmentAndHandleTests|FullyQualifiedName~WorkerStandardErrorTests|FullyQualifiedName~WorkerConcurrencyTests'
-          dotnet test $project `
+          dotnet test --project $project `
             --configuration Release `
             --filter $filter `
             --minimum-expected-tests 32 `
@@ -192,7 +192,7 @@ jobs:
 
           for ($iteration = 1; $iteration -le 5; $iteration++) {
             Write-Host "Task 10 stability iteration $iteration of 5."
-            dotnet test $project `
+            dotnet test --project $project `
               --configuration Release `
               --no-build `
               --filter $filter `

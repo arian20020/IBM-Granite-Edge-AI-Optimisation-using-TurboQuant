@@ -54,7 +54,7 @@ jobs:
       # failing tests, or fewer tests than the complete Task 2 behaviour set.
       - name: Run strict transport behaviour tests
         run: >-
-          dotnet test
+          dotnet test --project
           tests/UnitTests/GraniteEdgeAI.ModelInspection.Transport.Tests/GraniteEdgeAI.ModelInspection.Transport.Tests.csproj
           --configuration Release
           --minimum-expected-tests 20

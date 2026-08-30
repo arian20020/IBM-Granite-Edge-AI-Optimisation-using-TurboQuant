@@ -201,7 +201,7 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
 
-          dotnet test "$env:REAL_MODEL_TEST_PROJECT" `
+          dotnet test --project "$env:REAL_MODEL_TEST_PROJECT" `
             --configuration Release `
             --no-restore `
             --runtime win-x64 `

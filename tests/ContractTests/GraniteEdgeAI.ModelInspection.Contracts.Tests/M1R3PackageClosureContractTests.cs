@@ -14,6 +14,61 @@ public sealed class M1R3PackageClosureContractTests
     private static readonly string Root = FindRepositoryRoot();
 
     [TestMethod]
+    [DoNotParallelize]
+    public void EvaluatorResolvesInstalledDotNetWithoutEnvironmentOverride()
+    {
+        using TemporaryDirectory directory = TemporaryDirectory.Create();
+        string payload = directory.WriteText("payload.txt", "portable host probe");
+        string project = directory.WriteText(
+            "PortableHost.proj",
+            $"""
+            <Project>
+              <ItemGroup>
+                <None Include="{EscapeXml(payload)}" />
+              </ItemGroup>
+            </Project>
+            """);
+        string? originalHost = Environment.GetEnvironmentVariable("DOTNET_HOST_PATH");
+
+        try
+        {
+            Environment.SetEnvironmentVariable("DOTNET_HOST_PATH", null);
+            IReadOnlyList<EvaluatedMsBuildItem> items = EvaluatedMsBuildItems.Evaluate(
+                project,
+                ["None"]);
+
+            Assert.AreEqual(1, items.Count);
+            Assert.AreEqual(Path.GetFullPath(payload), Path.GetFullPath(items[0].FullPath));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("DOTNET_HOST_PATH", originalHost);
+        }
+    }
+
+    [TestMethod]
+    public void DotNetHostResolutionRetainsPortableCandidateClasses()
+    {
+        string source = File.ReadAllText(Path.Combine(
+            Root,
+            "tests",
+            "ContractTests",
+            "GraniteEdgeAI.ModelInspection.Contracts.Tests",
+            "Support",
+            "EvaluatedMsBuildItems.cs"));
+
+        StringAssert.Contains(source, "DOTNET_HOST_PATH");
+        StringAssert.Contains(source, "Environment.ProcessPath");
+        StringAssert.Contains(source, "DOTNET_ROOT");
+        StringAssert.Contains(source, "Environment.SpecialFolder.ProgramFiles");
+        Assert.IsFalse(
+            source.Contains(
+                "return File.Exists(approvedSdk)",
+                StringComparison.Ordinal),
+            "One absolute machine-specific SDK path must not be the sole fallback.");
+    }
+
+    [TestMethod]
     public void PackageContractDoesNotWhitelistUnresolvedImportedExpressions()
     {
         string source = File.ReadAllText(Path.Combine(

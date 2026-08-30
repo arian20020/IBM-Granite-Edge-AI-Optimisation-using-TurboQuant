@@ -135,7 +135,7 @@ jobs:
       - name: Run Model Inspection contract tests
         run: |
           $ErrorActionPreference = 'Stop'
-          dotnet test "$env:CONTRACT_TEST_PROJECT" `
+          dotnet test --project "$env:CONTRACT_TEST_PROJECT" `
             --configuration Release `
             --no-restore `
             --minimum-expected-tests 357 `
@@ -248,7 +248,7 @@ jobs:
       - name: Run Gate 2 transport tests
         run: |
           $ErrorActionPreference = 'Stop'
-          dotnet test "$env:TRANSPORT_TEST_PROJECT" `
+          dotnet test --project "$env:TRANSPORT_TEST_PROJECT" `
             --configuration Release `
             --minimum-expected-tests 20 `
             --results-directory "$env:GATE2_RESULTS_DIRECTORY/Transport" `
@@ -261,7 +261,7 @@ jobs:
       - name: Run Gate 2 worker host tests
         run: |
           $ErrorActionPreference = 'Stop'
-          dotnet test "$env:WORKER_TEST_PROJECT" `
+          dotnet test --project "$env:WORKER_TEST_PROJECT" `
             --configuration Release `
             --minimum-expected-tests 77 `
             --results-directory "$env:GATE2_RESULTS_DIRECTORY/Worker" `
@@ -345,7 +345,7 @@ jobs:
       - name: Run Gate 2 WorkerClient tests
         run: |
           $ErrorActionPreference = 'Stop'
-          dotnet test "$env:WORKER_CLIENT_TEST_PROJECT" `
+          dotnet test --project "$env:WORKER_CLIENT_TEST_PROJECT" `
             --configuration Release `
             -p:Platform=x64 `
             --minimum-expected-tests 91 `
@@ -379,7 +379,7 @@ jobs:
       - name: Run Gate 2 real process tests
         run: |
           $ErrorActionPreference = 'Stop'
-          dotnet test "$env:WORKER_PROCESS_TEST_PROJECT" `
+          dotnet test --project "$env:WORKER_PROCESS_TEST_PROJECT" `
             --configuration Release `
             --runtime win-x64 `
             -p:Platform=x64 `

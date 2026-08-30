@@ -196,25 +196,40 @@ internal static class EvaluatedMsBuildItems
 
     private static string ResolveDotNetHost()
     {
-        string? configured = Environment.GetEnvironmentVariable("DOTNET_HOST_PATH");
-        if (!string.IsNullOrWhiteSpace(configured) && File.Exists(configured))
-        {
-            return configured;
-        }
-        string? processPath = Environment.ProcessPath;
-        if (!string.IsNullOrWhiteSpace(processPath) &&
-            string.Equals(
-                Path.GetFileName(processPath),
-                "dotnet.exe",
-                StringComparison.OrdinalIgnoreCase))
-        {
-            return processPath;
-        }
+        string hostFileName = OperatingSystem.IsWindows() ? "dotnet.exe" : "dotnet";
         const string approvedSdk = @"C:\GEAI-Tools\dotnet-sdk-10.0.301\dotnet.exe";
-        return File.Exists(approvedSdk)
-            ? approvedSdk
-            : throw new FileNotFoundException("The approved dotnet host is unavailable.");
+        string?[] candidates =
+        [
+            Environment.GetEnvironmentVariable("DOTNET_HOST_PATH"),
+            Environment.ProcessPath,
+            UnderRoot(Environment.GetEnvironmentVariable("DOTNET_ROOT"), hostFileName),
+            UnderRoot(Environment.GetFolderPath(
+                Environment.SpecialFolder.ProgramFiles), "dotnet", hostFileName),
+            approvedSdk,
+        ];
+
+        foreach (string? candidate in candidates)
+        {
+            if (string.IsNullOrWhiteSpace(candidate) ||
+                !string.Equals(
+                    Path.GetFileName(candidate),
+                    hostFileName,
+                    StringComparison.OrdinalIgnoreCase) ||
+                !File.Exists(candidate))
+            {
+                continue;
+            }
+
+            return Path.GetFullPath(candidate);
+        }
+
+        throw new FileNotFoundException("No installed dotnet host is available.");
     }
+
+    private static string? UnderRoot(string? root, params string[] segments) =>
+        string.IsNullOrWhiteSpace(root)
+            ? null
+            : Path.Combine([root, .. segments]);
 
     private static string Bounded(string error, string output)
     {

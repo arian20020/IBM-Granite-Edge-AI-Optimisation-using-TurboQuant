@@ -81,7 +81,7 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $resultsDirectory = 'TestResults/WorkerClient'
           New-Item -ItemType Directory -Force -Path $resultsDirectory | Out-Null
-          dotnet test tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests.csproj `
+          dotnet test --project tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests.csproj `
             --configuration Release `
             --filter "FullyQualifiedName~WorkerClientDomainTests|FullyQualifiedName~WorkerExecutableResolverTests|FullyQualifiedName~WorkerInstallationLayoutTests|FullyQualifiedName~WorkerEnvironmentPolicyTests|FullyQualifiedName~WindowsEnvironmentBlockTests|FullyQualifiedName~WorkerPolicyDiagnosticPrivacyTests|FullyQualifiedName~NativeLayoutTests|FullyQualifiedName~WindowsPipeSetTests|FullyQualifiedName~WindowsJobObjectTests|FullyQualifiedName~SafeAttributeListBufferTests|FullyQualifiedName~WindowsProcessWaiterTests|FullyQualifiedName~WindowsWorkerProcessLauncherFailureTests|FullyQualifiedName~WorkerHandshakeValidatorTests|FullyQualifiedName~WorkerExitConsistencyValidatorTests|FullyQualifiedName~WorkerFailureAccumulatorTests|FullyQualifiedName~BoundedStandardErrorCollectorTests|FullyQualifiedName~WorkerConversationTests" `
             --minimum-expected-tests 91 `
