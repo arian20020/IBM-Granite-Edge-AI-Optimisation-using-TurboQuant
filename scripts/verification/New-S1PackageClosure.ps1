@@ -44,6 +44,9 @@ function Get-AllowlistReason([string]$TargetPath) {
         '.png' { return 'approved-application-asset' }
         '.ico' { return 'approved-application-asset' }
         '.svg' { return 'approved-application-asset' }
+        '.ttf' { return 'approved-application-font' }
+        '.md' { return 'approved-bundled-license-or-font-documentation' }
+        '.txt' { return 'approved-bundled-license-or-font-documentation' }
         '.dat' { return 'approved-runtime-data' }
         '.bin' { return 'approved-runtime-data' }
         default { throw "Evaluated package member has no approved classification." }
