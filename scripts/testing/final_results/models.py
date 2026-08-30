@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
+import ntpath
+import re
 
 
 class Status(str, Enum):
@@ -262,6 +264,22 @@ class EvidenceRecord:
     derived: bool = False
     input_evidence_ids: tuple[str, ...] = ()
 
+    def __post_init__(self) -> None:
+        drive, _ = ntpath.splitdrive(self.relative_path)
+        path_parts = self.relative_path.split("/")
+        if (
+            not self.relative_path
+            or drive
+            or self.relative_path.startswith(("/", "\\"))
+            or "\\" in self.relative_path
+            or ".." in path_parts
+        ):
+            raise ValueError(
+                "relative_path must be a repository-relative POSIX-style path"
+            )
+        if not re.fullmatch(r"[0-9a-fA-F]{64}", self.sha256):
+            raise ValueError("sha256 must be exactly 64 hexadecimal characters")
+
     def to_row(self) -> dict[str, object]:
         return {
             "route_id": self.route_id,
@@ -294,6 +312,17 @@ class RouteBundle:
     software: dict[str, object] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
+        for collection_name in (
+            "attempts",
+            "measurements",
+            "summaries",
+            "quality",
+            "failures",
+            "evidence",
+        ):
+            object.__setattr__(
+                self, collection_name, tuple(getattr(self, collection_name))
+            )
         object.__setattr__(self, "repository", dict(self.repository))
         object.__setattr__(self, "hardware", dict(self.hardware))
         object.__setattr__(self, "software", dict(self.software))

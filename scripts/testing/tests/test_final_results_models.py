@@ -136,3 +136,83 @@ def test_canonical_records_serialize_stable_ids_and_nullable_metrics():
     assert evidence.to_row()["relative_path"] == "experiments/raw-results/result.json"
     assert bundle.to_row()["attempt_count"] == 1
     assert isinstance(bundle.repository, dict)
+
+
+@pytest.mark.parametrize(
+    "relative_path",
+    (
+        "C:/Users/Student/result.json",
+        r"C:\Users\Student\result.json",
+        r"\\server\share\result.json",
+        "/var/tmp/result.json",
+        "../result.json",
+        "evidence/../result.json",
+    ),
+)
+def test_evidence_record_rejects_nonportable_paths(relative_path):
+    with pytest.raises(ValueError, match="relative_path"):
+        EvidenceRecord(
+            route_id="openvino-official-upstream",
+            campaign_id="2026-08-30-fv2",
+            evidence_id="evidence-1",
+            role="raw-result",
+            relative_path=relative_path,
+            sha256="a" * 64,
+            size_bytes=42,
+        )
+
+
+@pytest.mark.parametrize("sha256", ("a" * 63, "g" * 64, "not-a-digest"))
+def test_evidence_record_rejects_non_sha256_digest(sha256):
+    with pytest.raises(ValueError, match="sha256"):
+        EvidenceRecord(
+            route_id="openvino-official-upstream",
+            campaign_id="2026-08-30-fv2",
+            evidence_id="evidence-1",
+            role="raw-result",
+            relative_path="evidence/result.json",
+            sha256=sha256,
+            size_bytes=42,
+        )
+
+
+def test_route_bundle_coerces_record_lists_to_isolated_tuples():
+    attempt = AttemptRecord(
+        route_id="openvino-official-upstream",
+        campaign_id="2026-08-30-fv2",
+        test_case_id="granite-3b__fp16__tbq3",
+        attempt_id="granite-3b__fp16__tbq3-attempt-1",
+        status=Status.PASSED,
+        executed=True,
+    )
+    attempts = [attempt]
+    measurements = []
+    summaries = []
+    quality = []
+    failures = []
+    evidence = []
+
+    bundle = RouteBundle(
+        route_id=attempt.route_id,
+        campaign_id=attempt.campaign_id,
+        attempts=attempts,
+        measurements=measurements,
+        summaries=summaries,
+        quality=quality,
+        failures=failures,
+        evidence=evidence,
+    )
+    attempts.append(attempt)
+
+    assert bundle.attempts == (attempt,)
+    assert all(
+        isinstance(collection, tuple)
+        for collection in (
+            bundle.attempts,
+            bundle.measurements,
+            bundle.summaries,
+            bundle.quality,
+            bundle.failures,
+            bundle.evidence,
+        )
+    )
