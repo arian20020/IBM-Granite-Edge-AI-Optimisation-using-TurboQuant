@@ -29,6 +29,12 @@ public sealed class C0ProposalAuthorityIntegrityTests
         Assert.IsFalse(additions.Contains(
                 "public ModelDownloadCatalogEntry(", StringComparison.Ordinal),
             "Ordinary callers must not construct authoritative catalog entries.");
+        Assert.IsFalse(additions.Contains(
+                "<InternalsVisibleTo Include=\"IBM Granite with TurboQuant (Intel)\" />",
+                StringComparison.Ordinal),
+            "The application assembly must not be able to forge internal authority values.");
+        StringAssert.Contains(additions,
+            "<InternalsVisibleTo Include=\"GraniteEdgeAI.UnitTests\" />");
         StringAssert.Contains(patch,
             "a/shared/GraniteEdgeAI.ModelDownload.Authority/PinnedGraniteModelCatalog.cs");
         StringAssert.Contains(patch,
@@ -52,10 +58,14 @@ public sealed class C0ProposalAuthorityIntegrityTests
             "CanonicalCatalogMapsAllFivePreferenceBandsToReviewedPins",
             "CanonicalCatalogRejectsUnknownPreferenceBand",
             "CanonicalAuthorityConstructorsAreNotPublic",
+            "CanonicalAuthorityFriendsOnlyExplicitTestAssemblies",
+            "CanonicalVerifierAcceptsExactCompletedDownloaderEvidence",
+            "LegacyF1OwnerFixtureConstructorRemainsTestOnlyAndBandBound",
             "CanonicalCatalogRejectsSelfConsistentNonCatalogTuple",
             "CanonicalVerifierRejectsEachObservedIdentityMutation",
             "CanonicalVerifierRejectsPathLikeFilename",
-            "CanonicalVerifierRejectsStaleCancelledAndMismatchedPublicationAuthority"
+            "CanonicalVerifierRejectsStaleCancelledAndMismatchedPublicationAuthority",
+            "CanonicalVerifierRejectsSelfConsistentEmptyAuthorityBindings"
         ];
 
         foreach (string requiredTest in requiredTests)

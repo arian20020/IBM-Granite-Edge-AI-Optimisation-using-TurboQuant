@@ -288,10 +288,10 @@ index 0000000000000000000000000000000000000000..9a89fd2197fff40c483f94af4bbea560
 +</Project>
 diff --git a/shared/GraniteEdgeAI.ModelDownload.Authority/C0-INTEGRATION.md b/shared/GraniteEdgeAI.ModelDownload.Authority/C0-INTEGRATION.md
 new file mode 100644
-index 0000000000000000000000000000000000000000..659cd58ac1d340f9a0da6a59a24eb31e5a942100
+index 0000000000000000000000000000000000000000..282c9ede17b6d7853f06b3988f7b5f691cdcf81e
 --- /dev/null
 +++ b/shared/GraniteEdgeAI.ModelDownload.Authority/C0-INTEGRATION.md
-@@ -0,0 +1,30 @@
+@@ -0,0 +1,38 @@
 +# C0 integration contract
 +
 +This patch is based on reviewed F1 tip `414ad9f97e5cc27e6b710f82d70b985aa14f3507`.
@@ -315,6 +315,14 @@ index 0000000000000000000000000000000000000000..659cd58ac1d340f9a0da6a59a24eb31e
 +owner tests around the real coordinator/service before changing T1's intentional
 +download RED to GREEN.
 +
++The application assembly is deliberately not a friend of the authority assembly.
++C0 must move the downloader-produced evidence creation, trust-boundary
++re-resolution, and verification implementation into this authority project and
++expose only a narrow operation API or opaque successful result to the app. No app
++component may construct evidence/context or invoke the internal verifier. The
++only friend grants are the two explicit test assemblies; the legacy constructor
++overload exists solely so the unchanged F1 owner fixtures continue to compile.
++
 +The retained `GraniteEdgeAI.CrossFeature.Contracts` project preserves the R4.1
 +exact-result Chat/export seam. C0 must implement `IExactOptimizationResultConsumer`
 +in Model Optimization storage, validate the exact result and receipt identities
@@ -324,10 +332,10 @@ index 0000000000000000000000000000000000000000..659cd58ac1d340f9a0da6a59a24eb31e
 +only the selected result and its lifecycle generation through this consumer.
 diff --git a/shared/GraniteEdgeAI.ModelDownload.Authority/CanonicalDownloadVerifier.cs b/shared/GraniteEdgeAI.ModelDownload.Authority/CanonicalDownloadVerifier.cs
 new file mode 100644
-index 0000000000000000000000000000000000000000..52f10ce88fe7245a89a7d6020d02fa8303cf9c26
+index 0000000000000000000000000000000000000000..cd4ad36325df338d0ad1ff1d3ee434d52e21b8e1
 --- /dev/null
 +++ b/shared/GraniteEdgeAI.ModelDownload.Authority/CanonicalDownloadVerifier.cs
-@@ -0,0 +1,70 @@
+@@ -0,0 +1,73 @@
 +using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
 +
 +namespace GraniteEdgeAI.Features.ModelImport.ModelDownload;
@@ -382,6 +390,11 @@ index 0000000000000000000000000000000000000000..52f10ce88fe7245a89a7d6020d02fa83
 +        }
 +
 +        return observed.Status == DownloadCompletionStatus.Completed
++            && expected.OperationId != Guid.Empty
++            && expected.Generation >= 0
++            && !string.IsNullOrWhiteSpace(expected.PublicationIdentity)
++            && expected.InspectionRequestId != Guid.Empty
++            && expected.LifecycleGeneration >= 0
 +            && observed.Band == expected.Band
 +            && string.Equals(observed.RepositoryId, canonical.RepositoryId, StringComparison.Ordinal)
 +            && string.Equals(observed.Revision, canonical.Revision, StringComparison.Ordinal)
@@ -390,17 +403,15 @@ index 0000000000000000000000000000000000000000..52f10ce88fe7245a89a7d6020d02fa83
 +            && string.Equals(observed.ObservedSha256, canonical.ExpectedSha256, StringComparison.Ordinal)
 +            && observed.OperationId == expected.OperationId
 +            && observed.Generation == expected.Generation
-+            && observed.Generation >= 0
 +            && string.Equals(observed.PublicationIdentity,
 +                expected.PublicationIdentity, StringComparison.Ordinal)
 +            && observed.InspectionRequestId == expected.InspectionRequestId
-+            && observed.LifecycleGeneration == expected.LifecycleGeneration
-+            && observed.LifecycleGeneration >= 0;
++            && observed.LifecycleGeneration == expected.LifecycleGeneration;
 +    }
 +}
 diff --git a/shared/GraniteEdgeAI.ModelDownload.Authority/GraniteEdgeAI.ModelDownload.Authority.csproj b/shared/GraniteEdgeAI.ModelDownload.Authority/GraniteEdgeAI.ModelDownload.Authority.csproj
 new file mode 100644
-index 0000000000000000000000000000000000000000..a5202659bee7687fa3fcb2833d35ab59db916af3
+index 0000000000000000000000000000000000000000..7ca9c2fa445965d2bd850caafdcc404f651cc926
 --- /dev/null
 +++ b/shared/GraniteEdgeAI.ModelDownload.Authority/GraniteEdgeAI.ModelDownload.Authority.csproj
 @@ -0,0 +1,18 @@
@@ -415,8 +426,8 @@ index 0000000000000000000000000000000000000000..a5202659bee7687fa3fcb2833d35ab59
 +    <Deterministic>true</Deterministic>
 +  </PropertyGroup>
 +  <ItemGroup>
-+    <InternalsVisibleTo Include="IBM Granite with TurboQuant (Intel)" />
 +    <InternalsVisibleTo Include="GraniteEdgeAI.ModelDownload.Authority.Tests" />
++    <InternalsVisibleTo Include="GraniteEdgeAI.UnitTests" />
 +  </ItemGroup>
 +  <ItemGroup>
 +    <ProjectReference Include="..\GraniteEdgeAI.ModelHardwareCompatibility.Core\GraniteEdgeAI.ModelHardwareCompatibility.Core.csproj" />
@@ -424,10 +435,10 @@ index 0000000000000000000000000000000000000000..a5202659bee7687fa3fcb2833d35ab59
 +</Project>
 diff --git a/shared/GraniteEdgeAI.ModelDownload.Authority/ModelDownloadCatalogEntry.cs b/shared/GraniteEdgeAI.ModelDownload.Authority/ModelDownloadCatalogEntry.cs
 new file mode 100644
-index 0000000000000000000000000000000000000000..f78f7097ef626c3b97114fe0fe220928fc9a0181
+index 0000000000000000000000000000000000000000..0b8d7dc481f27bba97f71f1d0a3de4134f802e5b
 --- /dev/null
 +++ b/shared/GraniteEdgeAI.ModelDownload.Authority/ModelDownloadCatalogEntry.cs
-@@ -0,0 +1,90 @@
+@@ -0,0 +1,127 @@
 +using System.Text.RegularExpressions;
 +using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
 +
@@ -479,6 +490,34 @@ index 0000000000000000000000000000000000000000..f78f7097ef626c3b97114fe0fe220928
 +        ExpectedSha256 = expectedSha256;
 +    }
 +
++    internal ModelDownloadCatalogEntry(
++        string id,
++        string preferenceLabel,
++        string quantisation,
++        double minimumSliderValue,
++        double maximumSliderValue,
++        bool includesMaximum,
++        string repositoryId,
++        string revision,
++        string fileName,
++        long expectedByteLength,
++        string expectedSha256)
++        : this(
++            BandForMinimumSliderValue(minimumSliderValue),
++            id,
++            preferenceLabel,
++            quantisation,
++            minimumSliderValue,
++            maximumSliderValue,
++            includesMaximum,
++            repositoryId,
++            revision,
++            fileName,
++            expectedByteLength,
++            expectedSha256)
++    {
++    }
++
 +    public OptimizationPreferenceBand Band { get; }
 +    public string Id { get; }
 +    public string PreferenceLabel { get; }
@@ -505,6 +544,15 @@ index 0000000000000000000000000000000000000000..f78f7097ef626c3b97114fe0fe220928
 +            throw new ArgumentException("A canonical value is required.", parameterName);
 +        return value;
 +    }
++
++    private static OptimizationPreferenceBand BandForMinimumSliderValue(double value) => value switch
++    {
++        < 20 => OptimizationPreferenceBand.MaximumEfficiency,
++        < 40 => OptimizationPreferenceBand.Efficient,
++        < 60 => OptimizationPreferenceBand.Balanced,
++        < 80 => OptimizationPreferenceBand.HighCapability,
++        _ => OptimizationPreferenceBand.MaximumCapability
++    };
 +
 +    private static string RequireSafeFileName(string value)
 +    {
@@ -589,11 +637,12 @@ index 0000000000000000000000000000000000000000..d2cb6189e232803720cd94e02d19ddba
 +}
 diff --git a/tests/ContractTests/GraniteEdgeAI.ModelDownload.Authority.Tests/CanonicalDownloadAuthorityTests.cs b/tests/ContractTests/GraniteEdgeAI.ModelDownload.Authority.Tests/CanonicalDownloadAuthorityTests.cs
 new file mode 100644
-index 0000000000000000000000000000000000000000..a91e3e616adaac1a2e511cfc8875f70260bdf59b
+index 0000000000000000000000000000000000000000..1fb5bf8fe778ce998d185e9643a0e1e2c8f95829
 --- /dev/null
 +++ b/tests/ContractTests/GraniteEdgeAI.ModelDownload.Authority.Tests/CanonicalDownloadAuthorityTests.cs
-@@ -0,0 +1,141 @@
+@@ -0,0 +1,203 @@
 +using System.Reflection;
++using System.Runtime.CompilerServices;
 +using GraniteEdgeAI.Features.ModelImport.ModelDownload;
 +using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
 +
@@ -602,6 +651,12 @@ index 0000000000000000000000000000000000000000..a91e3e616adaac1a2e511cfc8875f702
 +[TestClass]
 +public sealed class CanonicalDownloadAuthorityTests
 +{
++    private static readonly string[] ExpectedFriendAssemblies =
++    [
++        "GraniteEdgeAI.ModelDownload.Authority.Tests",
++        "GraniteEdgeAI.UnitTests"
++    ];
++
 +    [TestMethod]
 +    public void CanonicalCatalogMapsAllFivePreferenceBandsToReviewedPins()
 +    {
@@ -640,6 +695,38 @@ index 0000000000000000000000000000000000000000..a91e3e616adaac1a2e511cfc8875f702
 +        Assert.IsFalse(typeof(DownloadedArtifactEvidence).IsPublic);
 +        Assert.IsFalse(typeof(DownloadVerificationContext).IsPublic);
 +        Assert.IsFalse(typeof(CanonicalDownloadVerifier).IsPublic);
++    }
++
++    [TestMethod]
++    public void CanonicalAuthorityFriendsOnlyExplicitTestAssemblies()
++    {
++        string[] friends = typeof(PinnedGraniteModelCatalog).Assembly
++            .GetCustomAttributes<InternalsVisibleToAttribute>()
++            .Select(attribute => attribute.AssemblyName)
++            .Order(StringComparer.Ordinal)
++            .ToArray();
++
++        CollectionAssert.AreEqual(ExpectedFriendAssemblies, friends);
++    }
++
++    [TestMethod]
++    public void CanonicalVerifierAcceptsExactCompletedDownloaderEvidence()
++    {
++        DownloadVerificationContext expected = Context(OptimizationPreferenceBand.Balanced);
++        Assert.IsTrue(CanonicalDownloadVerifier.IsExactMatch(expected, ExactEvidence(expected)));
++    }
++
++    [TestMethod]
++    public void LegacyF1OwnerFixtureConstructorRemainsTestOnlyAndBandBound()
++    {
++        var entry = new ModelDownloadCatalogEntry(
++            "fixture", "Balanced", "Q4_K_M", 40, 60, false,
++            "fixture/repository", "fixture-revision", "fixture.gguf", 1,
++            new string('a', 64));
++
++        Assert.AreEqual(OptimizationPreferenceBand.Balanced, entry.Band);
++        Assert.AreEqual(0, typeof(ModelDownloadCatalogEntry).GetConstructors(
++            BindingFlags.Public | BindingFlags.Instance).Length);
 +    }
 +
 +    [TestMethod]
@@ -717,6 +804,29 @@ index 0000000000000000000000000000000000000000..a91e3e616adaac1a2e511cfc8875f702
 +            Status = (DownloadCompletionStatus)statusValue
 +        };
 +        Assert.IsFalse(CanonicalDownloadVerifier.IsExactMatch(expected, observed));
++    }
++
++    [TestMethod]
++    [DataRow("operation")]
++    [DataRow("generation")]
++    [DataRow("publication")]
++    [DataRow("inspection")]
++    [DataRow("lifecycle")]
++    public void CanonicalVerifierRejectsSelfConsistentEmptyAuthorityBindings(string field)
++    {
++        DownloadVerificationContext expected = Context(OptimizationPreferenceBand.Balanced);
++        expected = field switch
++        {
++            "operation" => expected with { OperationId = Guid.Empty },
++            "generation" => expected with { Generation = -1 },
++            "publication" => expected with { PublicationIdentity = string.Empty },
++            "inspection" => expected with { InspectionRequestId = Guid.Empty },
++            "lifecycle" => expected with { LifecycleGeneration = -1 },
++            _ => throw new InvalidOperationException(field)
++        };
++        DownloadedArtifactEvidence observed = ExactEvidence(expected);
++
++        Assert.IsFalse(CanonicalDownloadVerifier.IsExactMatch(expected, observed), field);
 +    }
 +
 +    private static DownloadVerificationContext Context(OptimizationPreferenceBand band) =>
