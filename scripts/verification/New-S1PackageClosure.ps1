@@ -32,7 +32,7 @@ function Get-Sha256([string]$Path) {
 # never need to be retained as decoded strings, and overlap chunks so a sentinel
 # cannot evade the check by crossing a read boundary.
 function Assert-NoPrivateContent([string]$Path) {
-    $pattern = '(?i)(?:[a-z]:\\(?:users|r4-[^\\\x00\r\n]*)(?:\\|/)|\\\\(?:\?\.|\.)(?:\\|/)|\.nuget(?:\\|/)|(?:all_proxy|http_proxy|https_proxy|no_proxy|access_token|api_key|password|secret|credential)\s*[:=]|cc7aee17|da49c3d1)'
+    $pattern = '(?i)(?:[a-z]:\\(?:users|r4-[^\\\x00\r\n]*)(?:\\|/)|\\\\(?![?.]\\)[a-z0-9][a-z0-9._-]{1,63}\\[a-z0-9$._-]+\\|\.nuget(?:\\|/)|(?:all_proxy|http_proxy|https_proxy|no_proxy|access_token|api_key|password|secret|credential)\s*[:=]|cc7aee17|da49c3d1)'
     $stream = [IO.File]::Open($Path, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
     try {
         $buffer = [byte[]]::new(1048576)
@@ -65,9 +65,9 @@ function Test-ContainsBytes([string]$Path, [byte[]]$Needle) {
             $chunk = [byte[]]::new($tail.Length + $read)
             if ($tail.Length -gt 0) { [Array]::Copy($tail, 0, $chunk, 0, $tail.Length) }
             [Array]::Copy($buffer, 0, $chunk, $tail.Length, $read)
-            if ([Text.Encoding]::ASCII.GetString($chunk).Contains(
+            if ([Text.Encoding]::ASCII.GetString($chunk).IndexOf(
                     [Text.Encoding]::ASCII.GetString($Needle),
-                    [StringComparison]::Ordinal)) { return $true }
+                    [StringComparison]::Ordinal) -ge 0) { return $true }
             $tailLength = [Math]::Min($Needle.Length - 1, $chunk.Length)
             $tail = [byte[]]::new($tailLength)
             [Array]::Copy($chunk, $chunk.Length - $tailLength, $tail, 0, $tailLength)
