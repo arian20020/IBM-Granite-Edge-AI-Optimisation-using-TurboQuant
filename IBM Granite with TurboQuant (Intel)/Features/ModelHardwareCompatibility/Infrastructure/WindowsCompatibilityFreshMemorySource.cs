@@ -4,6 +4,7 @@ using GraniteEdgeAI.Features.HardwareInspection.Infrastructure;
 using GraniteEdgeAI.HardwareInspection.Foundation.Windows;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation;
 using System;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -40,13 +41,33 @@ internal sealed class WindowsCompatibilityFreshResourcesSource : ICompatibilityF
     public async ValueTask<CompatibilityFreshResourcesInput> CaptureAsync(
         CancellationToken cancellationToken)
     {
-        AvailableMemorySnapshot memory = await _provider.CaptureAsync(cancellationToken);
-        WindowsStorageEvidence storage = await _captureStorage(cancellationToken);
+        AvailableMemorySnapshot memory;
+        WindowsStorageEvidence storage;
+        try
+        {
+            memory = await _provider.CaptureAsync(cancellationToken);
+            storage = await _captureStorage(cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (IOException)
+        {
+            throw new CompatibilityFreshResourcesUnavailableException(
+                CompatibilityFreshResourcesUnavailableReason.StorageInaccessible);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            throw new CompatibilityFreshResourcesUnavailableException(
+                CompatibilityFreshResourcesUnavailableReason.StorageInaccessible);
+        }
         cancellationToken.ThrowIfCancellationRequested();
         if (storage.State != WindowsStorageEvidenceState.Available
             || storage.AvailableToCallerBytes is not { } availableStorage)
         {
-            throw new InvalidOperationException("Fresh storage evidence is unavailable.");
+            throw new CompatibilityFreshResourcesUnavailableException(
+                CompatibilityFreshResourcesUnavailableReason.StorageUnavailable);
         }
 
         DateTimeOffset now = _timeProvider.GetUtcNow().ToUniversalTime();
@@ -55,8 +76,8 @@ internal sealed class WindowsCompatibilityFreshResourcesSource : ICompatibilityF
         TimeSpan providerSkew = memory.CapturedAtUtc - storage.CapturedAtUtc;
         if (providerSkew.Duration() > MaximumProviderSkew)
         {
-            throw new InvalidOperationException(
-                "Fresh resource observations are not temporally consistent.");
+            throw new CompatibilityFreshResourcesUnavailableException(
+                CompatibilityFreshResourcesUnavailableReason.ResourceEvidenceInconsistent);
         }
 
         // The oldest accepted observation is the conservative aggregate time.
@@ -77,7 +98,8 @@ internal sealed class WindowsCompatibilityFreshResourcesSource : ICompatibilityF
         TimeSpan age = nowUtc - capturedAtUtc;
         if (age > MaximumEvidenceAge || age < -MaximumFutureSkew)
         {
-            throw new InvalidOperationException("Fresh resource evidence is not current.");
+            throw new CompatibilityFreshResourcesUnavailableException(
+                CompatibilityFreshResourcesUnavailableReason.ResourceEvidenceStale);
         }
     }
 }

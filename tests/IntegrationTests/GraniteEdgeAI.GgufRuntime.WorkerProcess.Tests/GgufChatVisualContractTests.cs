@@ -475,7 +475,7 @@ public sealed class GgufChatVisualContractTests
     }
 
     [TestMethod]
-    public void PreviewCopyAndAssistantIdentityStayTruthfulAndUserFacing()
+    public void ReleaseChatHasNoDemoAuthorityAndAssistantIdentityStaysUserFacing()
     {
         string root = FindRepositoryRoot();
         string controller = File.ReadAllText(Path.Combine(
@@ -484,13 +484,13 @@ public sealed class GgufChatVisualContractTests
             "Features",
             "GgufRuntime",
             "ChatDemoController.cs"));
-        string session = File.ReadAllText(Path.Combine(
+        string demoSessionPath = Path.Combine(
             root,
             "IBM Granite with TurboQuant (Intel)",
             "Features",
             "GgufRuntime",
             "Services",
-            "DemoGgufChatSession.cs"));
+            "DemoGgufChatSession.cs");
         XNamespace presentation =
             "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
         XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
@@ -502,22 +502,16 @@ public sealed class GgufChatVisualContractTests
             "Controls",
             "ChatMessageBubble.xaml"));
 
-        StringAssert.Contains(
-            controller,
-            "\"Preview mode\",");
-        StringAssert.Contains(
-            controller,
-            "\"No model loaded\")");
+        Assert.IsFalse(File.Exists(demoSessionPath));
+        Assert.IsFalse(controller.Contains("DemoGgufChatSession", StringComparison.Ordinal));
+        Assert.IsFalse(controller.Contains("Preview mode", StringComparison.Ordinal));
+        Assert.IsFalse(controller.Contains("No model loaded", StringComparison.Ordinal));
         StringAssert.Contains(
             controller,
             "page.SetModelHeader(displayName, runtimeDescription);");
         StringAssert.Contains(
             controller,
-            "CreateProductionAsync(");
-        StringAssert.Contains(session, "Preview mode is active");
-        StringAssert.Contains(
-            session,
-            "Import a compatible GGUF model to run local generation");
+            "CreateInitializedProductionAsync(");
         foreach (string prohibited in new[]
                  {
                      "deterministic demo runtime",
@@ -526,7 +520,6 @@ public sealed class GgufChatVisualContractTests
                  })
         {
             Assert.IsFalse(controller.Contains(prohibited, StringComparison.Ordinal));
-            Assert.IsFalse(session.Contains(prohibited, StringComparison.Ordinal));
         }
 
         XElement identity = bubble.Descendants(presentation + "TextBlock")

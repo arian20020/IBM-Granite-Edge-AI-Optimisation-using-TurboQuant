@@ -5,6 +5,7 @@ using GraniteEdgeAI.Features.ModelHardwareCompatibility.Journey;
 using GraniteEdgeAI.Features.ModelInspection.SourceCustody;
 using GraniteEdgeAI.GgufRuntime.Contracts.Configuration;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
+using GraniteEdgeAI.Features.ApplicationComposition;
 using CoreCache = GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Execution.GgufCacheType;
 using CoreBackend = GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Execution.GgufRuntimeBackend;
 using RuntimeCache = GraniteEdgeAI.GgufRuntime.Contracts.Configuration.GgufCacheType;
@@ -49,13 +50,21 @@ internal sealed class GgufCurrentModelChatRouteLauncher(
             "Selected model",
             configuration);
         var page = new ChatPage();
-        ChatDemoController controller = await ChatDemoController.CreateProductionAsync(
+        ChatDemoController controller = await A1BackendProductionAuthorities.Shared
+            .CreateInitializedChatAsync(
             page,
             request,
             cancellationToken);
-        await controller.InitializeAsync();
-        _showChat(page, controller);
-        return CurrentModelChatLaunchResult.Success;
+        try
+        {
+            _showChat(page, controller);
+            return CurrentModelChatLaunchResult.Success;
+        }
+        catch
+        {
+            await controller.DisposeAsync();
+            throw;
+        }
     }
 
     internal static GgufRuntimeConfiguration CreateConfiguration(

@@ -117,31 +117,28 @@ public static class CompatibilityEngine
                 continueEnabled: false));
         }
 
-        try
-        {
-            CompatibilityRunResult result = input.CurrentModel.Route == OptimizationRoute.Gguf
+        CompatibilityRunResult result = input.CurrentModel.Route ==
+            OptimizationRoute.Gguf
                 ? CompatibilityRunCoordinator.Execute(
                     new CompatibilityRunRequest(
                         CompatibilityContextRequest.ApplicationDefault()),
                     ProductionDependencies(input, timeProvider),
                     cancellationToken)
-                : EvaluateOpenVinoBaseline(input, timeProvider, cancellationToken);
-            CompatibilityEvaluation evaluation =
-                ProjectProduction(result, input, evaluatedAtUtc);
-            return evaluation.Screen.State is
-                CompatibilityScreenState.EstimatedCompatible or
-                CompatibilityScreenState.OptimisationRequired or
-                CompatibilityScreenState.NoEstimatedSafeConfiguration
-                    ? evaluation with
-                    {
-                        MachineMemory = MachineMemory(input)
-                    }
-                    : evaluation;
-        }
-        catch (Exception exception) when (exception is not OperationCanceledException)
-        {
-            return WithoutPlanning(CompatibilityScreenModel.From(Failure()));
-        }
+                : EvaluateOpenVinoBaseline(
+                    input,
+                    timeProvider,
+                    cancellationToken);
+        CompatibilityEvaluation evaluation =
+            ProjectProduction(result, input, evaluatedAtUtc);
+        return evaluation.Screen.State is
+            CompatibilityScreenState.EstimatedCompatible or
+            CompatibilityScreenState.OptimisationRequired or
+            CompatibilityScreenState.NoEstimatedSafeConfiguration
+                ? evaluation with
+                {
+                    MachineMemory = MachineMemory(input)
+                }
+                : evaluation;
     }
 
     private static bool FreshResourcesAreCurrent(
@@ -178,31 +175,12 @@ public static class CompatibilityEngine
     public static CompatibilityScreenModel RunWithAvailableAdapters(
         CancellationToken cancellationToken = default)
     {
-        CompatibilityRunResult result;
-
-        try
-        {
-            result = CompatibilityRunCoordinator.Execute(
-                new CompatibilityRunRequest(CompatibilityContextRequest.ApplicationDefault()),
+        return ProjectWithoutOptimizationAuthority(
+            CompatibilityRunCoordinator.Execute(
+                new CompatibilityRunRequest(
+                    CompatibilityContextRequest.ApplicationDefault()),
                 Dependencies(),
-                cancellationToken);
-        }
-        catch (Exception exception) when (exception is not OperationCanceledException)
-        {
-            // Assembling the dependencies happens before the coordinator's own
-            // guard can reach it, so anything thrown while building them escapes
-            // the whole engine.
-            //
-            // Nothing here throws today. But each of these becomes a real
-            // adapter that reads a file, queries a driver or crosses a process
-            // boundary, and the first one to throw during construction would
-            // take the app down rather than produce the "we cannot tell you"
-            // this feature exists to produce. The cause is withheld: section 14
-            // forbids a native error reaching a screen.
-            result = Failure();
-        }
-
-        return ProjectWithoutOptimizationAuthority(result);
+                cancellationToken));
     }
 
     private static CompatibilityRunDependencies Dependencies() =>
@@ -660,22 +638,4 @@ public static class CompatibilityEngine
         }
     }
 
-    /// <summary>
-    /// A run that never started, described the same way as one that started and
-    /// broke. There is no assessment and no policy list, because neither was
-    /// ever established — reporting policies here would name versions that
-    /// decided nothing.
-    /// </summary>
-    private static CompatibilityRunResult Failure()
-    {
-        DateTimeOffset now = DateTimeOffset.UtcNow;
-
-        return CompatibilityRunResult.Failed(
-            CompatibilityRunId.New(),
-            [CompatibilityFinding.Create(
-                CompatibilityFindingCode.UnexpectedFailure, FindingSeverity.Blocking)],
-            [],
-            now,
-            now);
-    }
 }

@@ -395,16 +395,6 @@ internal static class CompatibilityRunCoordinator
                 startedAt,
                 dependencies.Clock.GetUtcNow());
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
-        {
-            // An adapter written by another team, or any arithmetic that escapes
-            // its own guard, becomes a Failed result rather than a native
-            // exception reaching the ViewModel. Section 14 forbids a native error
-            // surfacing, so the exception itself is deliberately not recorded —
-            // only that the run failed.
-            return Stop(
-                CompatibilityRunOutcome.Failed, CompatibilityFindingCode.UnexpectedFailure);
-        }
         finally
         {
             // Nothing commits here. The transfer commits only when the user

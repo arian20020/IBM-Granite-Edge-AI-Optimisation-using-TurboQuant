@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography;
 using System.Reflection;
@@ -10,6 +9,7 @@ using GraniteEdgeAI.Features.Prompting;
 using GraniteEdgeAI.HardwareInspection.Foundation.TrustedTools;
 using GraniteEdgeAI.OpenVino.Contracts;
 using GraniteEdgeAI.OpenVino.WorkerClient;
+using GraniteEdgeAI.Features.ApplicationComposition;
 #if MODEL_INSPECTION_X64
 using GraniteEdgeAI.Features.ModelInspection.Infrastructure;
 #endif
@@ -75,20 +75,15 @@ internal static class ModelInspectionServiceComposition
             throw new InvalidOperationException(
                 "The packaged OpenVINO worker manifest does not match the app-approved identity.");
         }
-        OpenVinoBuildEvidence buildEvidence = new(
-            "2026.3.0-22451-8a17657b995-releases/2026/3",
-            "2026.3.0.0-3277-bd8d6542e3c",
-            "2026.3.0.0-703-183c6f25cda",
-            expectedManifestDigest);
-        OpenVinoWorkerInstallation installation = new(
-            workerRoot,
-            "OpenVinoOfficial.Worker.exe",
-            OpenVinoProtocol.OfficialProtocolId,
-            buildEvidence,
-            OfficialBinaryMachines());
+        OpenVinoWorkerInstallation installation =
+            A1BackendProductionAuthorities.Shared.CreateOfficialWorkerInstallation(
+                workerRoot,
+                expectedManifestDigest);
         OpenVinoWorkerClient client = new(
             OpenVinoWorkerClientOptions.CreateDefault(installation));
-        return new OpenVinoRouteService(client, buildEvidence);
+        return new OpenVinoRouteService(
+            client,
+            installation.ExpectedBuildEvidence);
 #else
         throw new PlatformNotSupportedException(
             "The official OpenVINO route is available only on Windows x64.");
@@ -159,18 +154,4 @@ internal static class ModelInspectionServiceComposition
     }
 #endif
 
-    private static IReadOnlyDictionary<string, OpenVinoWorkerBinaryMachine>
-        OfficialBinaryMachines() =>
-        new Dictionary<string, OpenVinoWorkerBinaryMachine>(StringComparer.Ordinal)
-        {
-            ["OpenVinoOfficial.Worker.exe"] = OpenVinoWorkerBinaryMachine.Amd64,
-            ["openvino.dll"] = OpenVinoWorkerBinaryMachine.Amd64,
-            ["openvino_genai.dll"] = OpenVinoWorkerBinaryMachine.Amd64,
-            ["openvino_intel_cpu_plugin.dll"] = OpenVinoWorkerBinaryMachine.Amd64,
-            ["openvino_intel_gpu_plugin.dll"] = OpenVinoWorkerBinaryMachine.Amd64,
-            ["openvino_ir_frontend.dll"] = OpenVinoWorkerBinaryMachine.Amd64,
-            ["openvino_tokenizers.dll"] = OpenVinoWorkerBinaryMachine.Amd64,
-            ["tbb12.dll"] = OpenVinoWorkerBinaryMachine.Amd64,
-            ["tbbbind_2_5.dll"] = OpenVinoWorkerBinaryMachine.Amd64
-        };
 }

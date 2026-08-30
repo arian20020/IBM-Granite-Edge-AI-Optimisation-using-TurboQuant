@@ -175,4 +175,50 @@ public sealed class GgufRuntimeSession : IAsyncDisposable
             ExceptionDispatchInfo.Capture(primaryFailure).Throw();
         }
     }
+
+    internal static async ValueTask DisposePreservingFirstFailureAsync(
+        Func<Task> close,
+        Action disposeChannel,
+        Func<ValueTask> disposeProcess)
+    {
+        ArgumentNullException.ThrowIfNull(close);
+        ArgumentNullException.ThrowIfNull(disposeChannel);
+        ArgumentNullException.ThrowIfNull(disposeProcess);
+        Exception? firstFailure = null;
+        try
+        {
+            await close().ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            firstFailure = exception;
+        }
+
+        try
+        {
+            disposeChannel();
+        }
+        catch (Exception exception)
+        {
+            firstFailure ??= exception;
+        }
+
+        try
+        {
+            await disposeProcess().ConfigureAwait(false);
+        }
+        catch (GgufWorkerPolicyException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            firstFailure ??= exception;
+        }
+
+        if (firstFailure is not null)
+        {
+            ExceptionDispatchInfo.Capture(firstFailure).Throw();
+        }
+    }
 }

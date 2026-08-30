@@ -41,6 +41,24 @@ public sealed class GgufChatCoordinatorTests
     }
 
     [TestMethod]
+    public async Task AssistantReplacementsUseTheInjectedClock()
+    {
+        DateTimeOffset expected = new(2032, 4, 5, 6, 7, 8, TimeSpan.Zero);
+        var coordinator = new GgufChatCoordinator(
+            new MemoryStore(),
+            new FakeSession(
+                new GgufChatDelta("deterministic"),
+                new GgufChatCompleted(GgufChatCompletionKind.Stop)),
+            new FixedTimeProvider(expected),
+            TimeZoneInfo.Utc);
+        await coordinator.NewChatAsync("model", "cpu", CancellationToken.None);
+
+        await coordinator.SendAsync("question", CancellationToken.None);
+
+        Assert.AreEqual(expected, coordinator.SelectedConversation!.UpdatedUtc);
+    }
+
+    [TestMethod]
     public async Task UnexpectedSessionFailurePersistsLatestPartialResponseOnce()
     {
         var store = new MemoryStore();
@@ -180,33 +198,6 @@ public sealed class GgufChatCoordinatorTests
         Assert.AreEqual(1, coordinator.Conversations.Count);
         Assert.AreEqual(matching.Id, coordinator.SelectedConversation!.Id);
         Assert.AreEqual(matching.Id, session.PreparedConversations.Single().Id);
-    }
-
-    [TestMethod]
-    public async Task PreviewSessionExplainsItsBoundaryWithoutDeveloperTerminology()
-    {
-        await using var session = new DemoGgufChatSession();
-        var output = new System.Text.StringBuilder();
-
-        await foreach (GgufChatEvent runtimeEvent in session.GenerateAsync(
-                           "Explain this model",
-                           CancellationToken.None))
-        {
-            if (runtimeEvent is GgufChatDelta delta)
-            {
-                output.Append(delta.Text);
-            }
-        }
-
-        string response = output.ToString();
-        StringAssert.Contains(response, "Preview mode is active");
-        StringAssert.Contains(response, "Explain this model");
-        StringAssert.Contains(
-            response,
-            "Import a compatible GGUF model to run local generation");
-        Assert.IsFalse(response.Contains("deterministic demo runtime", StringComparison.Ordinal));
-        Assert.IsFalse(response.Contains("production path uses", StringComparison.Ordinal));
-        Assert.IsFalse(response.Contains("protected GGUF CLI supervisor", StringComparison.Ordinal));
     }
 
     [TestMethod]
@@ -470,8 +461,8 @@ public sealed class GgufChatCoordinatorTests
         internal int SaveCount { get; private set; }
         internal ChatConversation? LastSaved { get; private set; }
 
-        public Task<IReadOnlyList<ChatConversation>> LoadAsync(CancellationToken cancellationToken) =>
-            Task.FromResult<IReadOnlyList<ChatConversation>>(records.Values.ToArray());
+        public Task<ChatHistoryLoadResult> LoadAsync(CancellationToken cancellationToken) =>
+            Task.FromResult(new ChatHistoryLoadResult(records.Values.ToArray(), false));
 
         public Task SaveAsync(ChatConversation conversation, CancellationToken cancellationToken)
         {
@@ -492,5 +483,10 @@ public sealed class GgufChatCoordinatorTests
             records.Clear();
             return Task.CompletedTask;
         }
+    }
+
+    private sealed class FixedTimeProvider(DateTimeOffset utcNow) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => utcNow;
     }
 }

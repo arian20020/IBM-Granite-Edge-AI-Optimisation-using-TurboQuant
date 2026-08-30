@@ -6,6 +6,67 @@ namespace GraniteEdgeAI.GgufRuntime.WorkerClient.Tests;
 public sealed class GgufRuntimeClientFactoryTests
 {
     [TestMethod]
+    public async Task StartupCleanupFailurePreservesPrimaryAndReportsOnlySafeFact()
+    {
+        var primary = new InvalidOperationException("private-primary-detail");
+        var reporter = new RecordingCleanupReporter();
+
+        InvalidOperationException actual =
+            await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
+                GgufRuntimeStartupCleanup.RethrowPrimaryAfterCleanupAsync(
+                    primary,
+                    () => ValueTask.FromException(
+                        new IOException("private-cleanup-path")),
+                    reporter));
+
+        Assert.AreSame(primary, actual);
+        Assert.AreEqual(
+            GgufRuntimeCleanupFaultClassification.Io,
+            reporter.Fault?.Classification);
+        Assert.IsFalse(reporter.Fault.ToString()!.Contains("private", StringComparison.Ordinal));
+    }
+
+    [TestMethod]
+    public async Task StartupCleanupFailurePreservesExactCancellation()
+    {
+        using var source = new CancellationTokenSource();
+        source.Cancel();
+        var primary = new OperationCanceledException(source.Token);
+
+        OperationCanceledException actual =
+            await Assert.ThrowsExactlyAsync<OperationCanceledException>(() =>
+                GgufRuntimeStartupCleanup.RethrowPrimaryAfterCleanupAsync(
+                    primary,
+                    () => ValueTask.FromException(
+                        new InvalidOperationException("cleanup")),
+                    new RecordingCleanupReporter()));
+
+        Assert.AreSame(primary, actual);
+        Assert.AreEqual(source.Token, actual.CancellationToken);
+    }
+
+    [TestMethod]
+    public async Task SessionTeardownRunsEveryPhaseAndPreservesCloseFailure()
+    {
+        var primary = new IOException("private-close-detail");
+        int channelDisposals = 0;
+        int processDisposals = 0;
+
+        IOException actual = await Assert.ThrowsExactlyAsync<IOException>(() =>
+            GgufRuntimeSession.DisposePreservingFirstFailureAsync(
+                () => Task.FromException(primary),
+                () => channelDisposals++,
+                () =>
+                {
+                    processDisposals++;
+                    return ValueTask.CompletedTask;
+                }).AsTask());
+
+        Assert.AreSame(primary, actual);
+        Assert.AreEqual(1, channelDisposals);
+        Assert.AreEqual(1, processDisposals);
+    }
+    [TestMethod]
     public void CreateAcceptsVerifiedPackageAndExplicitAbsoluteModel()
     {
         string executable = Environment.ProcessPath!;
@@ -114,5 +175,12 @@ public sealed class GgufRuntimeClientFactoryTests
         {
             Directory.Delete(root, recursive: true);
         }
+    }
+
+    private sealed class RecordingCleanupReporter : IGgufRuntimeCleanupFaultReporter
+    {
+        internal GgufRuntimeCleanupFault? Fault { get; private set; }
+
+        public void Report(GgufRuntimeCleanupFault fault) => Fault = fault;
     }
 }

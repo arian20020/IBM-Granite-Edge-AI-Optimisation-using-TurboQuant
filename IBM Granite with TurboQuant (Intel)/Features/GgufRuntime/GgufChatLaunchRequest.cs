@@ -79,15 +79,24 @@ internal sealed class GgufChatLaunchRequest
 
     internal async Task VerifyModelAsync(CancellationToken cancellationToken)
     {
-        await using var stream = new FileStream(
-            ModelFile,
-            FileMode.Open,
-            FileAccess.Read,
-            FileShare.Read,
-            1024 * 1024,
-            FileOptions.Asynchronous | FileOptions.SequentialScan);
-        byte[] actual = await SHA256.HashDataAsync(stream, cancellationToken)
-            .ConfigureAwait(false);
+        byte[] actual;
+        try
+        {
+            await using var stream = new FileStream(
+                ModelFile,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Read,
+                1024 * 1024,
+                FileOptions.Asynchronous | FileOptions.SequentialScan);
+            actual = await SHA256.HashDataAsync(stream, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (Exception exception) when (
+            exception is IOException or UnauthorizedAccessException)
+        {
+            throw new GgufChatLaunchException("model-file-unavailable");
+        }
         byte[] expected = Convert.FromHexString(Configuration.ModelSha256);
         if (!CryptographicOperations.FixedTimeEquals(actual, expected))
         {

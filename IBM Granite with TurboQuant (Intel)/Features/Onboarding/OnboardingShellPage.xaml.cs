@@ -1,4 +1,5 @@
 using GraniteEdgeAI.Features.HardwareInspection;
+using GraniteEdgeAI.Features.ApplicationFaults;
 using GraniteEdgeAI.Features.HardwareInspection.Application;
 #if HARDWARE_INSPECTION_X64
 using GraniteEdgeAI.Features.HardwareInspection.Orchestration;
@@ -11,6 +12,7 @@ using GraniteEdgeAI.Features.ModelHardwareCompatibility.Contracts;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.Infrastructure;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.Journey;
 using GraniteEdgeAI.Features.GgufRuntime;
+using GraniteEdgeAI.Features.ApplicationComposition;
 using GraniteEdgeAI.Features.ModelImport;
 using GraniteEdgeAI.Features.ModelInspection;
 using GraniteEdgeAI.Features.ModelInspection.Contracts;
@@ -60,6 +62,7 @@ namespace GraniteEdgeAI.Features.Onboarding
         private ChatPage? _attachedChatPage;
         private ChatDemoController? _chatController;
         private bool _ggufChatRouteRegistered;
+        private int _ggufChatLaunchFaultReported;
         private OptimizationPage? _attachedOptimizationPage;
         private CompatibilityPage? _compatibilityPageForOptimizationReturn;
         private OptimizationJourneyCoordinator? _optimizationCoordinator;
@@ -680,6 +683,9 @@ namespace GraniteEdgeAI.Features.Onboarding
                 return false;
             }
 
+            var evaluator = A1BackendProductionAuthorities.Shared.CreateCompatibility(
+                _compatibilityFreshResourcesSource,
+                TimeProvider.System);
             CompatibilityPage compatibilityPage;
             if (hasGguf && GgufOptimizationProductionAuthority.TryCreate(
                     preparedGguf!,
@@ -690,35 +696,11 @@ namespace GraniteEdgeAI.Features.Onboarding
                 _activeOpenVinoOptimizationService = null;
                 EnsureGgufChatRoute(production!);
                 compatibilityPage = new CompatibilityPage(
-                    async (optedInEvidence, token) =>
-                    {
-                        try
-                        {
-                            CompatibilityFreshResourcesInput fresh =
-                                await _compatibilityFreshResourcesSource
-                                    .CaptureAsync(token);
-                            DateTimeOffset evaluatedAtUtc = DateTimeOffset.UtcNow;
-                            return await Task.Run(
-                                () => production!.Evaluate(
-                                    fresh,
-                                    optedInEvidence,
-                                    evaluatedAtUtc,
-                                    token),
-                                token);
-                        }
-                        catch (OperationCanceledException)
-                            when (token.IsCancellationRequested)
-                        {
-                            throw;
-                        }
-                        catch
-                        {
-                            return new CompatibilityEvaluation(
-                                CompatibilityEngine.RunWithAvailableAdapters(token),
-                                null,
-                                null);
-                        }
-                    },
+                    (optedInEvidence, token) =>
+                        evaluator.EvaluateAuthorityAsync(
+                            optedInEvidence,
+                            production!.Evaluate,
+                            token),
                     production!,
                     evaluation => production!.ResolveCurrentModel(
                         evaluation,
@@ -738,29 +720,11 @@ namespace GraniteEdgeAI.Features.Onboarding
                 _activeOpenVinoAuthority = openVinoProduction;
                 _activeOpenVinoOptimizationService = openVinoService;
                 compatibilityPage = new CompatibilityPage(
-                    async (optedInEvidence, token) =>
-                    {
-                        try
-                        {
-                            CompatibilityFreshResourcesInput fresh =
-                                await _compatibilityFreshResourcesSource.CaptureAsync(token);
-                            DateTimeOffset evaluatedAtUtc = DateTimeOffset.UtcNow;
-                            return await Task.Run(
-                                () => openVinoProduction!.Evaluate(
-                                    fresh, optedInEvidence, evaluatedAtUtc, token), token);
-                        }
-                        catch (OperationCanceledException)
-                            when (token.IsCancellationRequested)
-                        {
-                            throw;
-                        }
-                        catch
-                        {
-                            return new CompatibilityEvaluation(
-                                CompatibilityEngine.RunWithAvailableAdapters(token),
-                                null, null);
-                        }
-                    },
+                    (optedInEvidence, token) =>
+                        evaluator.EvaluateAuthorityAsync(
+                            optedInEvidence,
+                            openVinoProduction!.Evaluate,
+                            token),
                     openVinoProduction!,
                     evaluation => openVinoProduction!.ResolveCurrentModel(
                         evaluation, CurrentModelChatLaunchRegistry),
@@ -771,36 +735,15 @@ namespace GraniteEdgeAI.Features.Onboarding
                 _activeGgufAuthority = null;
                 _activeOpenVinoAuthority = null;
                 _activeOpenVinoOptimizationService = null;
-                compatibilityPage = new CompatibilityPage(async token =>
-                {
-                    try
-                    {
-                        CompatibilityFreshResourcesInput fresh =
-                            await _compatibilityFreshResourcesSource.CaptureAsync(token);
-                        bool bound = hasGguf
-                            ? preparedGguf!.TryBindFresh(
-                                fresh,
-                                out CompatibilityProductionInput? input)
-                            : preparedOpenVino!.TryBindFresh(
-                                fresh,
-                                out input);
-                        if (!bound)
-                        {
-                            return CompatibilityEngine.RunWithAvailableAdapters(token);
-                        }
-                        return await Task.Run(
-                            () => CompatibilityEngine.Run(input!, token), token);
-                    }
-                    catch (OperationCanceledException)
-                        when (token.IsCancellationRequested)
-                    {
-                        throw;
-                    }
-                    catch
-                    {
-                        return CompatibilityEngine.RunWithAvailableAdapters(token);
-                    }
-                }, continueDestinationAvailable: false);
+                compatibilityPage = new CompatibilityPage(
+                    token => evaluator.EvaluateBoundAsync(
+                        (CompatibilityFreshResourcesInput fresh,
+                            out CompatibilityProductionInput? input) =>
+                            hasGguf
+                                ? preparedGguf!.TryBindFresh(fresh, out input)
+                                : preparedOpenVino!.TryBindFresh(fresh, out input),
+                        token),
+                    continueDestinationAvailable: false);
             }
             compatibilityPage.BackRequested += CompatibilityPage_BackRequested;
             compatibilityPage.ContinueRequested += CompatibilityPage_ContinueRequested;
@@ -894,61 +837,27 @@ namespace GraniteEdgeAI.Features.Onboarding
                     Environment.SpecialFolder.LocalApplicationData),
                 "GraniteEdgeAI",
                 "Optimization");
-            var outputs = new OptimizationOutputRegistry(
-                Path.Combine(appRoot, "OutputStaging"),
-                Path.Combine(appRoot, "Outputs"));
-            IOptimizationExecutor executor;
-            IOptimizationRevalidator revalidator;
-            IOptimizationAttemptContextFactory contextFactory;
-            if (entry.OptimizationHandoff.Plan.Route == OptimizationRoute.Gguf
-                && _activeGgufAuthority is { } ggufAuthority)
-            {
-                GraniteEdgeAI.Features.ModelOptimization.Execution.Gguf
-                    .IGgufQuantizationRunner runner =
-                    ggufAuthority.QuantizerPackageRoot is { } quantizerRoot
-                        ? new VerifiedGgufQuantizationRunner(
-                            quantizerRoot,
-                            ggufAuthority.QuantizerManifestSha256,
-                            TimeSpan.FromHours(2))
-                        : UnavailableGgufQuantizationRunner.Instance;
-                executor = new GgufOptimizationExecutor(outputs, runner);
-                contextFactory = new GgufOptimizationAttemptContextFactory(
-                    _modelSourceCustodyRegistry,
-                    Path.Combine(appRoot, "SourceStaging"))
-                {
-                    Plan = entry.OptimizationHandoff.Plan,
-                };
-                revalidator = new GgufOptimizationRevalidator(
-                    _modelSourceCustodyRegistry, ggufAuthority);
-            }
-            else if (entry.OptimizationHandoff.Plan.Route == OptimizationRoute.OpenVino
-                && _activeOpenVinoAuthority is { } openVinoAuthority
-                && _activeOpenVinoOptimizationService is { } openVinoService)
-            {
-                _activeOpenVinoExecutor = new OpenVinoOptimizationExecutor(
-                    _modelSourceCustodyRegistry,
-                    openVinoAuthority,
-                    openVinoService,
-                    Path.Combine(appRoot, "OpenVinoOutputs"));
-                executor = _activeOpenVinoExecutor;
-                contextFactory = new OpenVinoOptimizationAttemptContextFactory(
-                    _modelSourceCustodyRegistry,
-                    Path.Combine(appRoot, "SourceStaging"))
-                {
-                    Plan = entry.OptimizationHandoff.Plan,
-                };
-                revalidator = new OpenVinoOptimizationRevalidator(
-                    _modelSourceCustodyRegistry, openVinoAuthority);
-            }
-            else
+            var factory = A1BackendProductionAuthorities.Shared.CreateOptimization(
+                _modelSourceCustodyRegistry,
+                appRoot,
+                _activeGgufAuthority,
+                _activeOpenVinoAuthority,
+                _activeOpenVinoOptimizationService,
+                TimeProvider.System);
+            if (!factory.TryCreate(
+                    entry,
+                    out OptimizationBackendComposition? backend) ||
+                backend is null)
             {
                 return;
             }
-            var coordinator = new OptimizationJourneyCoordinator(
-                entry,
-                new OptimizationExecutorRouter([executor]),
-                revalidator,
-                contextFactory);
+
+            _activeOpenVinoExecutor =
+                backend.Executor as OpenVinoOptimizationExecutor;
+            OptimizationJourneyCoordinator coordinator = backend.Coordinator;
+            IOptimizationAttemptContextFactory contextFactory =
+                backend.ContextFactory;
+            OptimizationOutputRegistry outputs = backend.Outputs;
             var page = new OptimizationPage(entry);
             page.IntentRequested += OptimizationPage_IntentRequested;
             coordinator.StateChanged += OptimizationCoordinator_StateChanged;
@@ -1157,18 +1066,58 @@ namespace GraniteEdgeAI.Features.Onboarding
                     "Optimised model",
                     configuration);
                 var page = new ChatPage();
-                ChatDemoController controller =
-                    await ChatDemoController.CreateProductionAsync(
-                        page,
-                        request,
-                        CancellationToken.None);
-                await controller.InitializeAsync();
-                await RetireOptimizationAsync();
-                ShowGgufChat(page, controller);
+                ChatDemoController? controller;
+                try
+                {
+                    controller = await A1BackendProductionAuthorities.Shared
+                        .CreateInitializedChatAsync(
+                            page,
+                            request,
+                            CancellationToken.None);
+                }
+                catch (Exception exception)
+                {
+                    ReportGgufLaunchFault(exception);
+                    return;
+                }
+
+                try
+                {
+                    await RetireOptimizationAsync();
+                    ShowGgufChat(page, controller);
+                    controller = null;
+                }
+                finally
+                {
+                    if (controller is not null)
+                    {
+                        await controller.DisposeAsync();
+                    }
+                }
+            }
+            catch (Exception exception)
+            {
+                ReportGgufLaunchFault(exception);
             }
             finally
             {
                 sourceLease?.Dispose();
+            }
+        }
+
+        private void ReportGgufLaunchFault(Exception exception)
+        {
+            if (!ChatDemoController.TryClassifyOperationalFailure(
+                    exception,
+                    out _)
+                && Interlocked.Exchange(
+                    ref _ggufChatLaunchFaultReported,
+                    1) == 0)
+            {
+                BoundedApplicationFaultReporter.Shared.Report(
+                    ApplicationFault.FromException(
+                        ApplicationFaultCode.GgufChatOperationUnexpected,
+                        exception));
             }
         }
 
@@ -1695,20 +1644,29 @@ namespace GraniteEdgeAI.Features.Onboarding
 
         private async void ChatPage_ImportModelRequested(
             object? sender,
-            EventArgs eventArguments)
+            EventArgs eventArguments) =>
+            await RetireChatAndNavigateToImportAsync(sender as ChatPage);
+
+        private async Task RetireChatAndNavigateToImportAsync(ChatPage? page)
         {
-            if (!ReferenceEquals(sender, _attachedChatPage))
+            if (!ReferenceEquals(page, _attachedChatPage))
             {
                 return;
             }
             _attachedChatPage!.ImportModelRequested -= ChatPage_ImportModelRequested;
             _attachedChatPage = null;
-            if (_chatController is { } controller)
+            try
             {
-                _chatController = null;
-                await controller.DisposeAsync();
+                if (_chatController is { } controller)
+                {
+                    _chatController = null;
+                    await controller.DisposeAsync();
+                }
             }
-            NavigateToFreshModelImport();
+            finally
+            {
+                NavigateToFreshModelImport();
+            }
         }
 
         private static bool DefaultCompatibilityNavigation(

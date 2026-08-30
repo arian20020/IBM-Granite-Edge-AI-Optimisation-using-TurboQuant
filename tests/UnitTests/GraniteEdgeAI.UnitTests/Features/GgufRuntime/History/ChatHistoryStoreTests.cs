@@ -25,8 +25,9 @@ public sealed class ChatHistoryStoreTests
 
         await store.SaveAsync(conversation, CancellationToken.None);
         var restartedStore = new AtomicJsonChatHistoryStore(root.Path);
-        IReadOnlyList<ChatConversation> loaded = await restartedStore.LoadAsync(
+        ChatHistoryLoadResult load = await restartedStore.LoadAsync(
             CancellationToken.None);
+        IReadOnlyList<ChatConversation> loaded = load.Conversations;
 
         Assert.AreEqual(1, loaded.Count);
         Assert.AreEqual("Explain TurboQuant", loaded[0].Title);
@@ -52,12 +53,59 @@ public sealed class ChatHistoryStoreTests
             "{broken",
             CancellationToken.None);
 
-        IReadOnlyList<ChatConversation> loaded = await store.LoadAsync(
-            CancellationToken.None);
+        ChatHistoryLoadResult load = await store.LoadAsync(CancellationToken.None);
+        IReadOnlyList<ChatConversation> loaded = load.Conversations;
         Assert.AreEqual(1, loaded.Count);
+        Assert.IsTrue(load.HasUnavailableRecords);
 
         await store.DeleteAsync(healthy.Id, CancellationToken.None);
-        Assert.AreEqual(0, (await store.LoadAsync(CancellationToken.None)).Count);
+        Assert.AreEqual(
+            0,
+            (await store.LoadAsync(CancellationToken.None)).Conversations.Count);
+    }
+
+    [TestMethod]
+    public async Task EmptyOversizedNullAndIdentityMismatchRecordsSetBoundedSupportFact()
+    {
+        using var root = new TemporaryDirectory();
+        var store = new AtomicJsonChatHistoryStore(root.Path);
+        await File.WriteAllBytesAsync(
+            System.IO.Path.Combine(root.Path, $"{Guid.NewGuid():N}.json"),
+            []);
+        await File.WriteAllBytesAsync(
+            System.IO.Path.Combine(root.Path, $"{Guid.NewGuid():N}.json"),
+            new byte[ChatHistoryPolicy.MaximumRecordBytes + 1]);
+        await File.WriteAllTextAsync(
+            System.IO.Path.Combine(root.Path, $"{Guid.NewGuid():N}.json"),
+            "null");
+        ChatConversation mismatch = ChatConversation.Create(
+            Guid.NewGuid(), "model", "profile", DateTimeOffset.UtcNow);
+        await store.SaveAsync(mismatch, CancellationToken.None);
+        File.Move(
+            System.IO.Path.Combine(root.Path, $"{mismatch.Id:N}.json"),
+            System.IO.Path.Combine(root.Path, $"{Guid.NewGuid():N}.json"));
+
+        ChatHistoryLoadResult result = await store.LoadAsync(CancellationToken.None);
+
+        Assert.IsTrue(result.HasUnavailableRecords);
+        Assert.HasCount(0, result.Conversations);
+    }
+
+    [TestMethod]
+    public void SaveCleanupFailureCannotReplacePrimaryAndIsTypedWhenAlone()
+    {
+        var primary = new InvalidOperationException("primary-private-detail");
+
+        InvalidOperationException actual = Assert.ThrowsExactly<InvalidOperationException>(() =>
+            AtomicJsonChatHistoryStore.CompleteSave(
+                primary,
+                new IOException("cleanup-private-path")));
+        Assert.AreSame(primary, actual);
+
+        Assert.ThrowsExactly<ChatHistoryUnavailableException>(() =>
+            AtomicJsonChatHistoryStore.CompleteSave(
+                null,
+                new IOException("cleanup-private-path")));
     }
 
     [TestMethod]
@@ -79,7 +127,7 @@ public sealed class ChatHistoryStoreTests
 
         await store.SaveAsync(conversation, CancellationToken.None);
         ChatConversation loaded = (await new AtomicJsonChatHistoryStore(root.Path)
-            .LoadAsync(CancellationToken.None)).Single();
+            .LoadAsync(CancellationToken.None)).Conversations.Single();
 
         Assert.AreEqual("Question", loaded.Title);
         Assert.AreEqual(3, loaded.Messages.Count);

@@ -35,10 +35,19 @@ internal sealed class GgufChatSessionAdapter : IGgufChatSession
         GgufRuntimeClient client,
         GgufRuntimeConfiguration configuration)
         : this(async (turns, cancellationToken) =>
-            new RuntimeSession(await client.StartAsync(
-                configuration,
-                turns,
-                cancellationToken).ConfigureAwait(false)))
+        {
+            try
+            {
+                return new RuntimeSession(await client.StartAsync(
+                    configuration,
+                    turns,
+                    cancellationToken).ConfigureAwait(false));
+            }
+            catch (Exception exception) when (IsExpectedRuntimeFailure(exception))
+            {
+                throw TranslateExpectedRuntimeFailure(exception);
+            }
+        })
     {
         ArgumentNullException.ThrowIfNull(client);
         ArgumentNullException.ThrowIfNull(configuration);
@@ -230,17 +239,102 @@ internal sealed class GgufChatSessionAdapter : IGgufChatSession
         }
     }
 
+    internal static GgufChatRuntimeUnavailableException
+        TranslateExpectedRuntimeFailure(Exception exception)
+    {
+        if (!IsExpectedRuntimeFailure(exception))
+        {
+            throw new ArgumentException(
+                "The failure is not an expected runtime availability failure.",
+                nameof(exception));
+        }
+
+        return new GgufChatRuntimeUnavailableException();
+    }
+
+    internal static GgufChatRuntimeUnavailableException
+        TranslateExpectedTeardownFailure(Exception exception)
+    {
+        if (!IsExpectedRuntimeFailure(exception) &&
+            exception is not OperationCanceledException)
+        {
+            throw new ArgumentException(
+                "The failure is not an expected runtime teardown failure.",
+                nameof(exception));
+        }
+
+        return new GgufChatRuntimeUnavailableException();
+    }
+
+    private static bool IsExpectedRuntimeFailure(Exception exception) =>
+        exception is IOException or UnauthorizedAccessException or
+            GgufRuntimeStartupException or GgufWorkerPolicyException;
+
     private sealed class RuntimeSession(GgufRuntimeSession inner) :
         IGgufChatRuntimeSession
     {
-        public IAsyncEnumerable<GgufRuntimeEvent> GenerateAsync(
+        public async IAsyncEnumerable<GgufRuntimeEvent> GenerateAsync(
             string prompt,
-            CancellationToken cancellationToken) =>
-            inner.GenerateAsync(prompt, cancellationToken);
+            [System.Runtime.CompilerServices.EnumeratorCancellation]
+            CancellationToken cancellationToken)
+        {
+            IAsyncEnumerable<GgufRuntimeEvent> events =
+                inner.GenerateAsync(prompt, cancellationToken);
+            await using IAsyncEnumerator<GgufRuntimeEvent> enumerator =
+                events.GetAsyncEnumerator(cancellationToken);
+            while (true)
+            {
+                bool hasNext;
+                try
+                {
+                    hasNext = await enumerator.MoveNextAsync().ConfigureAwait(false);
+                }
+                catch (Exception exception) when (IsExpectedRuntimeFailure(exception))
+                {
+                    throw TranslateExpectedRuntimeFailure(exception);
+                }
 
-        public ValueTask StopAsync(CancellationToken cancellationToken) =>
-            inner.StopAsync(cancellationToken);
+                if (!hasNext)
+                {
+                    yield break;
+                }
 
-        public ValueTask DisposeAsync() => inner.DisposeAsync();
+                yield return enumerator.Current;
+            }
+        }
+
+        public async ValueTask StopAsync(CancellationToken cancellationToken)
+        {
+            try
+            {
+                await inner.StopAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception exception) when (IsExpectedRuntimeFailure(exception))
+            {
+                throw TranslateExpectedRuntimeFailure(exception);
+            }
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            try
+            {
+                await inner.DisposeAsync().ConfigureAwait(false);
+            }
+            catch (Exception exception) when (
+                IsExpectedRuntimeFailure(exception) ||
+                exception is OperationCanceledException)
+            {
+                throw TranslateExpectedTeardownFailure(exception);
+            }
+        }
+    }
+}
+
+internal sealed class GgufChatRuntimeUnavailableException : Exception
+{
+    internal GgufChatRuntimeUnavailableException()
+        : base("The local GGUF runtime is temporarily unavailable.")
+    {
     }
 }

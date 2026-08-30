@@ -4,12 +4,32 @@ using GraniteEdgeAI.GgufRuntime.Contracts;
 using GraniteEdgeAI.GgufRuntime.Contracts.Commands;
 using GraniteEdgeAI.GgufRuntime.Contracts.Events;
 using GraniteEdgeAI.GgufRuntime.Contracts.Session;
+using GraniteEdgeAI.GgufRuntime.Transport;
 
 namespace GraniteEdgeAI.UnitTests.Features.GgufRuntime.Services;
 
 [TestClass]
 public sealed class GgufChatSessionAdapterTests
 {
+    [TestMethod]
+    public void TransportIoBecomesTypedRuntimeUnavailabilityWithoutRawDetail()
+    {
+        GgufChatRuntimeUnavailableException translated =
+            GgufChatSessionAdapter.TranslateExpectedRuntimeFailure(
+                new GgufTransportException("private-provider-output"));
+
+        Assert.IsFalse(translated.ToString().Contains("private", StringComparison.Ordinal));
+    }
+
+    [TestMethod]
+    public void NonCancellableTeardownCancellationBecomesRuntimeUnavailability()
+    {
+        GgufChatRuntimeUnavailableException translated =
+            GgufChatSessionAdapter.TranslateExpectedTeardownFailure(
+                new OperationCanceledException("private-teardown-detail"));
+
+        Assert.IsFalse(translated.ToString().Contains("private", StringComparison.Ordinal));
+    }
     [TestMethod]
     public async Task PreparingConversationRestartsRuntimeWithDurableTurns()
     {

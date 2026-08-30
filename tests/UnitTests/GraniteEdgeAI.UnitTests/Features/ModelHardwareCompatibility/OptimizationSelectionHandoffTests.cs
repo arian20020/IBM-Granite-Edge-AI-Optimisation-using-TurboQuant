@@ -25,10 +25,20 @@ public sealed class OptimizationSelectionHandoffTests
         "2222222222222222222222222222222222222222222222222222222222222222";
     private const string Commit = "0123456789abcdef0123456789abcdef01234567";
 
-    internal static OptimizationJourneyEntryContext RequiredJourneyEntry()
+    internal static OptimizationJourneyEntryContext RequiredJourneyEntry() =>
+        RequiredJourneyEntry(OptimizationRoute.Gguf);
+
+    internal static OptimizationJourneyEntryContext RequiredJourneyEntry(
+        OptimizationRoute route)
     {
-        OptimizationExecutionPlan plan = Plan(
-            OptimizationPreferenceSelection.Automatic());
+        OptimizationExecutionPlan plan = route switch
+        {
+            OptimizationRoute.Gguf => Plan(
+                OptimizationPreferenceSelection.Automatic()),
+            OptimizationRoute.OpenVino => OpenVinoPlan(
+                OptimizationPreferenceSelection.Automatic()),
+            _ => throw new ArgumentOutOfRangeException(nameof(route))
+        };
         Assert.IsTrue(OptimizationSelectionHandoff.TryCreate(
             plan,
             plan.Binding,
