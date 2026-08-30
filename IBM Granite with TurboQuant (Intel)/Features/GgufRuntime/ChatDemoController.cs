@@ -23,6 +23,7 @@ internal sealed class ChatDemoController : IAsyncDisposable
     private List<HistoryRenderKey> renderedHistory = [];
     private bool followLatest;
     private bool disposed;
+    private Task? retirementTask;
 
     internal ChatDemoController(ChatPage page)
         : this(
@@ -108,16 +109,20 @@ internal sealed class ChatDemoController : IAsyncDisposable
         Render();
     }
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
+    {
+        lock (operationSync)
+        {
+            retirementTask ??= RetireCoreAsync();
+            return new ValueTask(retirementTask);
+        }
+    }
+
+    private async Task RetireCoreAsync()
     {
         Task[] pending;
         lock (operationSync)
         {
-            if (disposed)
-            {
-                return;
-            }
-
             disposed = true;
             pending = activeOperations.ToArray();
         }
