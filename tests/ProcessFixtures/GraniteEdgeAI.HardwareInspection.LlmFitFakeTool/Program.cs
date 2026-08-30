@@ -106,6 +106,8 @@ static bool EnvironmentIsClosed()
         "CORECLR_ENABLE_PROFILING",
         "CORECLR_PROFILER",
         "DOTNET_STARTUP_HOOKS",
+        "DOTNET_ROOT",
+        "DOTNET_ROOT_X64",
     ];
     string[] disabledDiagnostics =
     [

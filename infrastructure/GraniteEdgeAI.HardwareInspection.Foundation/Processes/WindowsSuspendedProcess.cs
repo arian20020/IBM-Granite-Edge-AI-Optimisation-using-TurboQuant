@@ -12,12 +12,14 @@ internal sealed class WindowsSuspendedProcess : IDisposable
         Process process,
         SafeProcessHandle processHandle,
         AnonymousPipeServerStream standardOutput,
-        AnonymousPipeServerStream standardError)
+        AnonymousPipeServerStream standardError,
+        TrustedToolOperationEnvironment operationEnvironment)
     {
         Process = process;
         ProcessHandle = processHandle;
         StandardOutput = standardOutput;
         StandardError = standardError;
+        OperationEnvironment = operationEnvironment;
     }
 
     internal Process Process { get; }
@@ -27,6 +29,8 @@ internal sealed class WindowsSuspendedProcess : IDisposable
     internal Stream StandardOutput { get; }
 
     internal Stream StandardError { get; }
+
+    private TrustedToolOperationEnvironment OperationEnvironment { get; }
 
     internal static bool TryStart(
         VerifiedTrustedTool tool,
@@ -48,6 +52,7 @@ internal sealed class WindowsSuspendedProcess : IDisposable
         IntPtr inheritedHandleList = IntPtr.Zero;
         bool attributeListInitialized = false;
         SafeProcessHandle? processHandle = null;
+        TrustedToolOperationEnvironment? operationEnvironment = null;
         try
         {
             standardInput = new AnonymousPipeServerStream(
@@ -92,10 +97,9 @@ internal sealed class WindowsSuspendedProcess : IDisposable
                 return false;
             }
 
-            IReadOnlyDictionary<string, string> childEnvironment =
-                TrustedToolEnvironmentPolicy.CaptureCurrent();
+            operationEnvironment = TrustedToolEnvironmentPolicy.CaptureCurrent();
             using TrustedToolEnvironmentBlock environment =
-                TrustedToolEnvironmentBlock.Create(childEnvironment);
+                TrustedToolEnvironmentBlock.Create(operationEnvironment.Variables);
 
             processCreated = CreateProcess(
                 tool.ExecutablePath,
@@ -141,7 +145,9 @@ internal sealed class WindowsSuspendedProcess : IDisposable
                 process,
                 processHandle,
                 standardOutput,
-                standardError);
+                standardError,
+                operationEnvironment);
+            operationEnvironment = null;
             processHandle = null;
             standardOutput = null!;
             standardError = null!;
@@ -191,6 +197,7 @@ internal sealed class WindowsSuspendedProcess : IDisposable
             }
 
             processHandle?.Dispose();
+            operationEnvironment?.Dispose();
         }
     }
 
@@ -275,6 +282,7 @@ internal sealed class WindowsSuspendedProcess : IDisposable
         StandardError.Dispose();
         Process.Dispose();
         ProcessHandle.Dispose();
+        OperationEnvironment.Dispose();
     }
 
     private static string BuildCommandLine(

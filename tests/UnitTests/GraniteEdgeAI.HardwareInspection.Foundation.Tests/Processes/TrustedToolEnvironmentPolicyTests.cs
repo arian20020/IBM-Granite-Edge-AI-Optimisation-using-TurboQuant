@@ -1,4 +1,6 @@
 using System.Collections.ObjectModel;
+using System.Security.AccessControl;
+using System.Security.Principal;
 using GraniteEdgeAI.HardwareInspection.Foundation.Processes;
 
 namespace GraniteEdgeAI.HardwareInspection.Foundation.Tests.Processes;
@@ -93,6 +95,36 @@ public sealed class TrustedToolEnvironmentPolicyTests
         Assert.AreEqual(
             "The trusted hardware tool environment could not be secured.",
             failure.Message);
+    }
+
+    [TestMethod]
+    public void OperationEnvironmentUsesPrivateAclAndDeletesItsExactDirectory()
+    {
+        Dictionary<string, string?> parent = ValidParent();
+        string operationDirectory;
+        using (TrustedToolOperationEnvironment operation =
+               TrustedToolOperationEnvironment.Create(parent))
+        {
+            operationDirectory = operation.Variables["TEMP"];
+            Assert.AreEqual(operationDirectory, operation.Variables["TMP"]);
+            Assert.IsTrue(Directory.Exists(operationDirectory));
+
+            DirectorySecurity security =
+                new DirectoryInfo(operationDirectory).GetAccessControl();
+            Assert.IsTrue(security.AreAccessRulesProtected);
+            SecurityIdentifier currentUser = WindowsIdentity.GetCurrent().User
+                ?? throw new AssertFailedException("Current user SID was unavailable.");
+            AuthorizationRuleCollection rules = security.GetAccessRules(
+                includeExplicit: true,
+                includeInherited: true,
+                typeof(SecurityIdentifier));
+            Assert.IsTrue(rules.Cast<FileSystemAccessRule>().Any(rule =>
+                rule.IdentityReference == currentUser
+                && rule.AccessControlType == AccessControlType.Allow
+                && (rule.FileSystemRights & FileSystemRights.FullControl) != 0));
+        }
+
+        Assert.IsFalse(Directory.Exists(operationDirectory));
     }
 
     private static Dictionary<string, string?> ValidParent()

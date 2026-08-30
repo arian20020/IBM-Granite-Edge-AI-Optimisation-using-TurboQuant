@@ -17,6 +17,7 @@ public sealed class ExternalProcessEnvironmentSecurityTests
         string? previous = Environment.GetEnvironmentVariable(Sentinel);
         string? previousTemp = Environment.GetEnvironmentVariable("TEMP");
         string? previousTmp = Environment.GetEnvironmentVariable("TMP");
+        string? previousDotnetRoot = Environment.GetEnvironmentVariable("DOTNET_ROOT");
         string poisonedTemp = Path.Combine(
             Path.GetTempPath(),
             "geai-s1-poisoned-parent-temp-" + Guid.NewGuid().ToString("N"));
@@ -26,6 +27,7 @@ public sealed class ExternalProcessEnvironmentSecurityTests
             Environment.SetEnvironmentVariable(Sentinel, "credential-shaped-parent-value");
             Environment.SetEnvironmentVariable("TEMP", poisonedTemp);
             Environment.SetEnvironmentVariable("TMP", poisonedTemp);
+            Environment.SetEnvironmentVariable("DOTNET_ROOT", poisonedTemp);
             using var package = new VerifiedEnvironmentToolPackage();
 
             ExternalProcessResult result = await new ExternalProcessRunner().RunAsync(
@@ -48,6 +50,7 @@ public sealed class ExternalProcessEnvironmentSecurityTests
             Environment.SetEnvironmentVariable(Sentinel, previous);
             Environment.SetEnvironmentVariable("TEMP", previousTemp);
             Environment.SetEnvironmentVariable("TMP", previousTmp);
+            Environment.SetEnvironmentVariable("DOTNET_ROOT", previousDotnetRoot);
             Directory.Delete(poisonedTemp, recursive: true);
         }
     }

@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Collections.ObjectModel;
 
 namespace GraniteEdgeAI.HardwareInspection.Foundation.Processes;
@@ -22,22 +21,17 @@ internal static class TrustedToolEnvironmentPolicy
         "DOTNET_ROOT_X64",
     ];
 
-    internal static IReadOnlyDictionary<string, string> CaptureCurrent()
+    internal static TrustedToolOperationEnvironment CaptureCurrent()
     {
         try
         {
-            var parent = new Dictionary<string, string?>(StringComparer.Ordinal);
-            foreach (DictionaryEntry entry in Environment.GetEnvironmentVariables())
+            var parent = new Dictionary<string, string?>(StringComparer.Ordinal)
             {
-                if (entry.Key is not string key || entry.Value is not string value)
-                {
-                    throw Failure();
-                }
+                ["SystemRoot"] = Environment.GetEnvironmentVariable("SystemRoot"),
+                ["WINDIR"] = Environment.GetEnvironmentVariable("WINDIR"),
+            };
 
-                parent.Add(key, value);
-            }
-
-            return Create(parent);
+            return TrustedToolOperationEnvironment.Create(parent);
         }
         catch (InvalidOperationException exception)
             when (exception.Message == FailureMessage)
