@@ -480,7 +480,7 @@ public sealed class GgufQuantizationWorkerClientTests
                 FileMode.Create,
                 FileAccess.Write,
                 FileShare.None);
-            manifest.SetLength((long)int.MaxValue + 1);
+            manifest.SetLength(262_145);
             ManifestSha256 = string.Empty;
         }
 
