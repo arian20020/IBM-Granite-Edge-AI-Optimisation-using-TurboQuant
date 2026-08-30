@@ -48,9 +48,7 @@ public sealed class PlanAndExecutionIntegrationTests
         Assert.AreEqual(plan.Binding.ModelSha256, result.SourceSha256);
         Assert.AreEqual(plan.OptimizationPlanId, result.OptimizationPlanId);
         Assert.IsTrue(plan.MatchesExecutionPayload(plan.ExecutionPayload));
-        Assert.AreEqual(
-            plan.CapabilitySnapshot.CapabilitySnapshotSha256,
-            plan.Candidate.AdmissionProof!.CapabilitySnapshotSha256);
+        Assert.IsTrue(plan.MatchesCapability(plan.CapabilitySnapshot));
     }
 
     [TestMethod]
@@ -100,24 +98,16 @@ public sealed class PlanAndExecutionIntegrationTests
     public void EveryVisiblePreferenceResolvesOnlyToCapabilityAdmittedCandidate(
         int preferenceValue)
     {
-        OptimizationCandidate candidate = CrossFeaturePlanFixture.Candidate();
-        OptimizationCapabilitySnapshot snapshot =
-            CrossFeaturePlanFixture.SnapshotFor(candidate);
-        OptimizationCandidate admitted =
-            CrossFeaturePlanFixture.Admit(candidate, snapshot);
         OptimizationPreferenceSelection preference = preferenceValue < 0
             ? OptimizationPreferenceSelection.Automatic()
             : OptimizationPreferenceSelection.Manual(preferenceValue);
+        OptimizationExecutionPlan plan = CrossFeaturePlanFixture.Issue(
+            preference: preference);
 
-        OptimizationSelection? selection = OptimizationPreferenceResolver.Resolve(
-            [admitted], preference);
-
-        Assert.IsNotNull(selection);
-        Assert.AreEqual(admitted.CanonicalDescriptor,
-            selection.Candidate.CanonicalDescriptor);
-        Assert.IsNotNull(selection.Candidate.AdmissionProof);
-        Assert.IsTrue(selection.Candidate.AdmissionProof!.MatchesCandidate(
-            selection.Candidate));
+        Assert.AreEqual("ov-int8", plan.Candidate.EvidenceId);
+        Assert.IsTrue(plan.IsExecutableBy(OptimizationExecutionPlan.CurrentContractVersion));
+        Assert.IsTrue(plan.MatchesCapability(plan.CapabilitySnapshot));
+        Assert.AreEqual(preference, plan.Preference);
     }
 
     [TestMethod]

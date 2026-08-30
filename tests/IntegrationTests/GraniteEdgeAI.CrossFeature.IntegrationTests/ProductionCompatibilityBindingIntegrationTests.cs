@@ -53,7 +53,7 @@ public sealed class ProductionCompatibilityBindingIntegrationTests
     {
         DateTimeOffset now = new(2026, 8, 28, 12, 0, 0, TimeSpan.Zero);
         CompatibilityEvaluation evaluation = CompatibilityEngine.EvaluateProduction(
-            CreateInput(now - CompatibilityEngine.FreshResourceMaximumAge
+            CreateInput(now - TimeSpan.FromSeconds(30)
                 - TimeSpan.FromTicks(1)),
             new FixedTimeProvider(now));
 
@@ -64,10 +64,12 @@ public sealed class ProductionCompatibilityBindingIntegrationTests
         Assert.IsNull(evaluation.MachineMemory);
     }
 
-    private static CompatibilityProductionInput CreateInput(
+    internal static CompatibilityProductionInput CreateInput(
         DateTimeOffset observedAtUtc,
         string bindingModelDigest = Digest,
-        string bindingHardwareDigest = Digest)
+        string bindingHardwareDigest = Digest,
+        ulong installedSystemMemoryBytes = 16 * GiB,
+        ulong availableSystemMemoryBytes = 4 * GiB)
     {
         Guid modelRun = Guid.Parse("11111111-1111-4111-8111-111111111111");
         Guid hardwareRun = Guid.Parse("22222222-2222-4222-8222-222222222222");
@@ -99,7 +101,7 @@ public sealed class ProductionCompatibilityBindingIntegrationTests
                     1),
                 OpenVinoWeightPrecision.Fp16);
         CompatibilityHardwareInput hardware = CompatibilityHardwareInput.Create(
-            16 * GiB,
+            installedSystemMemoryBytes,
             4 * GiB,
             500 * GiB,
             [DeviceRouteId.Cpu],
@@ -136,8 +138,8 @@ public sealed class ProductionCompatibilityBindingIntegrationTests
             journey,
             hardware,
             CompatibilityFreshResourcesInput.Create(
-                16 * GiB,
-                4 * GiB,
+                availableSystemMemoryBytes,
+                0,
                 500 * GiB,
                 observedAtUtc),
             optimization);

@@ -1,5 +1,6 @@
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Execution;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.Gguf;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.OpenVino;
@@ -20,11 +21,11 @@ internal static class CrossFeaturePlanFixture
         string modelDigest = ModelDigest,
         string hardwareDigest = HardwareDigest) =>
         OptimizationJourneyBinding.Create(
-            "model-run-1",
-            "model-handoff-1",
+            "11111111111141118111111111111111",
+            "33333333333343338333333333333333",
             modelDigest,
             4 * GiB,
-            "hardware-run-1",
+            "22222222222242228222222222222222",
             hardwareDigest);
 
     internal static OptimizationCandidate Candidate(
@@ -103,31 +104,12 @@ internal static class CrossFeaturePlanFixture
                 authorities));
     }
 
-    internal static OptimizationWorkload Workload() =>
+    private static OptimizationWorkload Workload() =>
         OptimizationWorkload.Create(
             "chat",
             512,
             OptimizationAssessment.Poor,
             [ContextTokenCount.FromTokens(4096)]);
-
-    internal static OptimizationCandidate Admit(
-        OptimizationCandidate candidate,
-        OptimizationCapabilitySnapshot snapshot,
-        OptimizationJourneyBinding? binding = null)
-    {
-        OptimizationWorkload workload = Workload();
-        OptimizationJourneyBinding journey = binding ?? Binding();
-        OptimizationAdmissionProof proof = OptimizationAdmissionProof.Create(
-            snapshot,
-            workload,
-            journey,
-            candidate,
-            SupportLevel.DeclaredSupported,
-            requiresEvidence: false,
-            new HashSet<string>(),
-            Issuance(candidate));
-        return OptimizationCandidate.AttachAdmissionProof(candidate, proof);
-    }
 
     internal static OptimizationExecutionPayload Payload(
         OptimizationCandidate candidate)
@@ -161,21 +143,26 @@ internal static class CrossFeaturePlanFixture
             ? "ov-original"
             : "ov-int8";
         OptimizationCandidate candidate = Candidate(weights, evidence);
-        OptimizationCapabilitySnapshot snapshot = SnapshotFor(candidate);
-        OptimizationCandidate admitted = Admit(candidate, snapshot);
+        OpenVinoWeightFormat baselineWeights =
+            weights == OpenVinoWeightFormat.Original
+                ? OpenVinoWeightFormat.Int8
+                : OpenVinoWeightFormat.Original;
+        OptimizationCandidate baseline = Candidate(
+            baselineWeights,
+            baselineWeights == OpenVinoWeightFormat.Original
+                ? "ov-original"
+                : "ov-int8");
+        OptimizationCapabilitySnapshot snapshot = SnapshotFor(baseline, candidate);
         OptimizationPreferenceSelection selectedPreference =
             preference ?? OptimizationPreferenceSelection.Manual(50);
-        OptimizationSelection selection = OptimizationPreferenceResolver.Resolve(
-            [admitted],
-            selectedPreference)!;
-        return OptimizationPlanIssuer.Issue(
-            selection,
-            Payload(admitted),
-            snapshot,
-            Workload(),
-            Binding(),
-            modelLayerCount: 32,
-            Issuance(admitted),
+        CompatibilityProductionInput input = OpenVinoInput(candidate, snapshot);
+        CompatibilityEvaluation evaluation = CompatibilityEngine.EvaluateProduction(
+            input, new FixedTimeProvider(DateTimeOffset.UnixEpoch));
+        return evaluation.PlanningSession!.Issue(
+            selectedPreference,
+            new OpenVinoComposer(),
+            CompatibilityEngine.CreateOptimizationIssuanceAuthority(
+                input, DateTimeOffset.UnixEpoch),
             new FixedTimeProvider(DateTimeOffset.UnixEpoch));
     }
 
@@ -184,8 +171,10 @@ internal static class CrossFeaturePlanFixture
         ulong sourceLengthBytes)
     {
         OptimizationJourneyBinding binding = OptimizationJourneyBinding.Create(
-            "model-run-gguf", "model-handoff-gguf", sourceSha256,
-            sourceLengthBytes, "hardware-run-gguf", HardwareDigest);
+            "44444444444444448444444444444444",
+            "66666666666646668666666666666666",
+            sourceSha256, sourceLengthBytes,
+            "55555555555545558555555555555555", HardwareDigest);
         OptimizationCandidate candidate = OptimizationCandidate.Create(
             GgufRouteConfiguration.Create(
                 GgufWeightFormat.Q3KM, GgufKvCacheFormat.F16,
@@ -214,49 +203,128 @@ internal static class CrossFeaturePlanFixture
             "gguf-capability-persistent", CapabilityDigest,
             GgufCapabilityPayload.Create(
                 "runtime",
-                [GgufAdmittedConfiguration.Create(
-                    "gguf-q3-persistent", CompatibilityBackend.Cpu,
-                    DeviceRouteId.Cpu, GgufWeightFormat.Q3KM,
-                    GgufKvCacheFormat.F16, GpuOffloadLevel.None,
-                    512, 32768, SupportLevel.DeclaredSupported, false)],
+                [
+                    GgufAdmittedConfiguration.Create(
+                        "gguf-imported", CompatibilityBackend.Cpu,
+                        DeviceRouteId.Cpu, GgufWeightFormat.Imported,
+                        GgufKvCacheFormat.F16, GpuOffloadLevel.None,
+                        512, 32768, SupportLevel.DeclaredSupported, false),
+                    GgufAdmittedConfiguration.Create(
+                        "gguf-q3-persistent", CompatibilityBackend.Cpu,
+                        DeviceRouteId.Cpu, GgufWeightFormat.Q3KM,
+                        GgufKvCacheFormat.F16, GpuOffloadLevel.None,
+                        512, 32768, SupportLevel.DeclaredSupported, false)
+                ],
                 hasHigherPrecisionSource: true,
                 conversionSource: source,
                 admittedQuantiser: quantiser,
                 runtimeAuthority: GgufRuntimeAuthority.Create(
                     "runtime",
                     "0123456789abcdef0123456789abcdef01234567",
-                    [GgufExecutionProfileAuthority.Create(
-                        "gguf-q3-persistent", EvidenceGrade.Estimated,
-                        "profile", false, 4, 128, 256)])));
-        OptimizationWorkload workload = Workload();
-        OptimizationAdmissionProof proof = OptimizationAdmissionProof.Create(
-            snapshot, workload, binding, candidate,
-            SupportLevel.DeclaredSupported, false, new HashSet<string>(),
-            Issuance(candidate));
-        candidate = OptimizationCandidate.AttachAdmissionProof(candidate, proof);
-        OptimizationSelection selection = OptimizationPreferenceResolver.Resolve(
-            [candidate], OptimizationPreferenceSelection.Automatic())!;
-        return OptimizationPlanIssuer.Issue(
-            selection, payload, snapshot, workload, binding, 32,
-            Issuance(candidate), new FixedTimeProvider(DateTimeOffset.UnixEpoch));
+                    [
+                        GgufExecutionProfileAuthority.Create(
+                            "gguf-imported", EvidenceGrade.Estimated,
+                            "profile-imported", false, 4, 128, 256),
+                        GgufExecutionProfileAuthority.Create(
+                            "gguf-q3-persistent", EvidenceGrade.Estimated,
+                            "profile", false, 4, 128, 256)
+                    ])));
+        CompatibilityProductionInput input = GgufInput(
+            sourceLengthBytes, binding, snapshot);
+        CompatibilityEvaluation evaluation = CompatibilityEngine.EvaluateProduction(
+            input, new FixedTimeProvider(DateTimeOffset.UnixEpoch));
+        return evaluation.PlanningSession!.Issue(
+            OptimizationPreferenceSelection.Automatic(),
+            new FixedPayloadComposer(OptimizationRoute.Gguf, payload),
+            CompatibilityEngine.CreateOptimizationIssuanceAuthority(
+                input, DateTimeOffset.UnixEpoch),
+            new FixedTimeProvider(DateTimeOffset.UnixEpoch));
     }
 
-    private static OptimizationHardwareAuthority Hardware() =>
-        OptimizationHardwareAuthority.Create(
-            HardwareDigest,
-            [DeviceRouteId.Cpu],
-            [CompatibilityBackend.OpenVinoCpu],
-            ByteCount.FromBytes(64 * GiB),
-            DateTimeOffset.UnixEpoch,
-            DateTimeOffset.UnixEpoch,
-            OptimizationFreshnessPolicy.Version);
+    private static CompatibilityProductionInput OpenVinoInput(
+        OptimizationCandidate candidate,
+        OptimizationCapabilitySnapshot snapshot)
+    {
+        Guid modelRun = Guid.Parse("11111111-1111-4111-8111-111111111111");
+        Guid hardwareRun = Guid.Parse("22222222-2222-4222-8222-222222222222");
+        Guid handoff = Guid.Parse("33333333-3333-4333-8333-333333333333");
+        var model = OpenVinoCompatibilityModelInput.Create(
+            4 * GiB, 32, 4096, 32, 8, 8192);
+        OpenVinoWeightFormat currentWeights =
+            candidate.Configuration is OpenVinoRouteConfiguration desired
+                && desired.Weights == OpenVinoWeightFormat.Original
+                    ? OpenVinoWeightFormat.Int8
+                    : OpenVinoWeightFormat.Original;
+        var current = CompatibilityCurrentModelInput.ForOpenVino(
+            model,
+            OpenVinoRouteConfiguration.Create(
+                currentWeights, OpenVinoKvCacheFormat.U8,
+                DeviceRouteId.Cpu, OpenVinoPerformanceHint.Latency,
+                OpenVinoCompiledCachePolicy.Disabled, 1),
+            OpenVinoWeightPrecision.Fp16);
+        var hardware = CompatibilityHardwareInput.Create(
+            64 * GiB, 8 * GiB, 500 * GiB,
+            [DeviceRouteId.Cpu], [CompatibilityBackend.OpenVinoCpu]);
+        OptimizationJourneyBinding binding = Binding();
+        return CompatibilityProductionInput.Create(
+            modelRun, hardwareRun, current,
+            CompatibilityJourneyAuthorityInput.Create(
+                handoff, ModelDigest, CompatibilityFactDigest.ComputeModel(current),
+                HardwareDigest, CompatibilityFactDigest.ComputeHardware(hardware)),
+            hardware,
+            CompatibilityFreshResourcesInput.Create(
+                48 * GiB, 4 * GiB, 500 * GiB, DateTimeOffset.UnixEpoch),
+            CompatibilityOptimizationProductionInput.Create(
+                snapshot, Workload(), binding, new HashSet<string>()));
+    }
 
-    private static OptimizationIssuanceAuthority Issuance(
-        OptimizationCandidate candidate) =>
-        OptimizationIssuanceAuthority.FromGeneration(
-            Hardware(),
-            ByteCount.FromBytes(candidate.Metrics.SafeBudgetBytes),
-            ByteCount.FromBytes(candidate.Metrics.AvailableDiskBytes!.Value));
+    private static CompatibilityProductionInput GgufInput(
+        ulong sourceLengthBytes,
+        OptimizationJourneyBinding binding,
+        OptimizationCapabilitySnapshot snapshot)
+    {
+        Guid modelRun = Guid.Parse("44444444-4444-4444-8444-444444444444");
+        Guid hardwareRun = Guid.Parse("55555555-5555-4555-8555-555555555555");
+        Guid handoff = Guid.Parse("66666666-6666-4666-8666-666666666666");
+        var model = GgufCompatibilityModelInput.Create(
+            sourceLengthBytes, 32, 4096, 32, 8, 8192, 1, 2);
+        var current = CompatibilityCurrentModelInput.ForGguf(
+            model,
+            GgufRouteConfiguration.Create(
+                GgufWeightFormat.Imported, GgufKvCacheFormat.F16,
+                CompatibilityBackend.Cpu, DeviceRouteId.Cpu,
+                GpuOffloadLevel.None));
+        var hardware = CompatibilityHardwareInput.Create(
+            64 * GiB, 0, 500 * GiB,
+            [DeviceRouteId.Cpu], [CompatibilityBackend.Cpu]);
+        return CompatibilityProductionInput.Create(
+            modelRun, hardwareRun, current,
+            CompatibilityJourneyAuthorityInput.Create(
+                handoff, binding.ModelSha256,
+                CompatibilityFactDigest.ComputeModel(current), HardwareDigest,
+                CompatibilityFactDigest.ComputeHardware(hardware)),
+            hardware,
+            CompatibilityFreshResourcesInput.Create(
+                48 * GiB, 0, 500 * GiB, DateTimeOffset.UnixEpoch),
+            CompatibilityOptimizationProductionInput.Create(
+                snapshot, Workload(), binding, new HashSet<string>()));
+    }
+
+    private sealed class OpenVinoComposer : IOptimizationExecutionPayloadComposer
+    {
+        public OptimizationRoute Route => OptimizationRoute.OpenVino;
+        public OptimizationExecutionPayload Compose(OptimizationCandidate candidate) =>
+            Payload(candidate);
+    }
+
+    private sealed class FixedPayloadComposer(
+        OptimizationRoute route,
+        OptimizationExecutionPayload payload) : IOptimizationExecutionPayloadComposer
+    {
+        public OptimizationRoute Route { get; } = route;
+        public OptimizationExecutionPayload Compose(OptimizationCandidate candidate) =>
+            payload;
+    }
 
     private static OpenVinoBuildIdentity Build() =>
         OpenVinoBuildIdentity.Create(

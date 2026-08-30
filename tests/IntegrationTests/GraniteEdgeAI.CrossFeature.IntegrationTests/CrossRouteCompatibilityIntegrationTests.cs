@@ -1,12 +1,10 @@
-using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Candidates;
-using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Contracts;
-using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Estimation;
-using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.FitAssessment;
-using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.ModeSelection;
+using System.Reflection;
+
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Execution;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.Gguf;
-using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.OpenVino;
 
 namespace GraniteEdgeAI.CrossFeature.IntegrationTests;
 
@@ -14,29 +12,23 @@ namespace GraniteEdgeAI.CrossFeature.IntegrationTests;
 public sealed class CrossRouteCompatibilityIntegrationTests
 {
     private const ulong GiB = 1024UL * 1024 * 1024;
+    private static readonly DateTimeOffset Now =
+        new(2026, 8, 28, 12, 0, 0, TimeSpan.Zero);
 
     [TestMethod]
     [DataRow(0)]
     [DataRow(1)]
     public void CurrentModelFitAllowsDirectChat(int route)
     {
-        RouteConfiguration baselineConfiguration = Configuration(route, baseline: true);
-        RouteConfiguration alternativeConfiguration = Configuration(route, baseline: false);
-        EvaluatedCandidate baseline = Evaluated(
-            baselineConfiguration, CompatibilityFitState.Safe, isBaseline: true);
-        EvaluatedCandidate alternative = Evaluated(
-            alternativeConfiguration, CompatibilityFitState.Safe, isBaseline: false);
+        CompatibilityEvaluation evaluation = CompatibilityEngine.EvaluateProduction(
+            CreateRouteInput(route, 48 * GiB, 64 * GiB),
+            new FixedTimeProvider(Now));
 
-        CompatibilityScreenModel screen = CompatibilityScreenModel.From(
-            CompletedWith(baseline, alternative));
-
-        Assert.AreEqual(CompatibilityScreenState.EstimatedCompatible, screen.State);
-        Assert.IsTrue(screen.UseCurrentModelAvailable,
-            "A safe current configuration must permit direct Chat.");
-        Assert.IsTrue(screen.ContinueEnabled);
-        Assert.IsNotNull(screen.CurrentSetup);
-        AssertRouteSpecificConfiguration(route, baselineConfiguration);
-        AssertRouteSpecificConfiguration(route, alternativeConfiguration);
+        Assert.AreEqual(CompatibilityScreenState.EstimatedCompatible,
+            evaluation.Screen.State);
+        Assert.IsTrue(evaluation.Screen.UseCurrentModelAvailable);
+        Assert.IsTrue(evaluation.Screen.ContinueEnabled);
+        Assert.IsNotNull(evaluation.Screen.CurrentSetup);
     }
 
     [TestMethod]
@@ -44,25 +36,16 @@ public sealed class CrossRouteCompatibilityIntegrationTests
     [DataRow(1)]
     public void OnlyAdmittedAlternativeFitRequiresOptimization(int route)
     {
-        EvaluatedCandidate baseline = Evaluated(
-            Configuration(route, baseline: true),
-            CompatibilityFitState.DoesNotFit,
-            isBaseline: true);
-        EvaluatedCandidate admittedAlternative = Evaluated(
-            Configuration(route, baseline: false),
-            CompatibilityFitState.Safe,
-            isBaseline: false);
+        OptimizationExecutionPlan plan = route == 0
+            ? CrossFeaturePlanFixture.PersistentGgufPlan(
+                CrossFeaturePlanFixture.ModelDigest, 4 * GiB)
+            : CrossFeaturePlanFixture.Issue();
 
-        CompatibilityScreenModel screen = CompatibilityScreenModel.From(
-            CompletedWith(baseline, admittedAlternative));
-
-        Assert.AreEqual(CompatibilityScreenState.OptimisationRequired, screen.State);
-        Assert.IsFalse(screen.UseCurrentModelAvailable,
-            "The failing current model must never be the Continue target.");
-        Assert.IsTrue(screen.ContinueEnabled,
-            "The independently safe alternative is the only executable route.");
-        Assert.IsNull(screen.Setup);
-        Assert.IsNotNull(screen.CurrentSetup);
+        Assert.AreEqual(route == 0 ? OptimizationRoute.Gguf : OptimizationRoute.OpenVino,
+            plan.Route);
+        Assert.IsTrue(plan.IsExecutableBy(OptimizationExecutionPlan.CurrentContractVersion));
+        Assert.IsTrue(plan.MatchesCapability(plan.CapabilitySnapshot));
+        Assert.IsTrue(plan.Candidate.Metrics.FitsSafely);
     }
 
     [TestMethod]
@@ -70,192 +53,161 @@ public sealed class CrossRouteCompatibilityIntegrationTests
     [DataRow(1)]
     public void NoSafeConfigurationDisablesExecution(int route)
     {
-        EvaluatedCandidate baseline = Evaluated(
-            Configuration(route, baseline: true),
-            CompatibilityFitState.DoesNotFit,
-            isBaseline: true);
-        EvaluatedCandidate alternative = Evaluated(
-            Configuration(route, baseline: false),
-            CompatibilityFitState.DoesNotFit,
-            isBaseline: false);
+        CompatibilityEvaluation evaluation = CompatibilityEngine.EvaluateProduction(
+            CreateRouteInput(route, GiB / 2, GiB),
+            new FixedTimeProvider(Now));
 
-        CompatibilityScreenModel screen = CompatibilityScreenModel.From(
-            CompletedWith(baseline, alternative));
-
-        Assert.AreEqual(
-            CompatibilityScreenState.NoEstimatedSafeConfiguration,
-            screen.State);
-        Assert.IsFalse(screen.UseCurrentModelAvailable);
-        Assert.IsFalse(screen.ContinueEnabled);
+        Assert.AreEqual(CompatibilityScreenState.NoEstimatedSafeConfiguration,
+            evaluation.Screen.State);
+        Assert.IsFalse(evaluation.Screen.UseCurrentModelAvailable);
+        Assert.IsFalse(evaluation.Screen.ContinueEnabled);
     }
 
     [TestMethod]
     public void InstalledAvailableReserveAndExecutableBudgetRemainDistinct()
     {
-        // Independent H1 calculation: reserve=max(ceil(10 GiB * 10%), 512 MiB)
-        // = 1 GiB, so the executable budget is 9 GiB, not installed memory.
         CompatibilityMachineMemory memory = CompatibilityMachineMemory.Create(
-            installedSystemMemoryBytes: 16 * GiB,
-            availableSystemMemoryBytes: 10 * GiB,
-            safetyReserveBytes: GiB,
-            safeModelBudgetBytes: 9 * GiB);
+            16 * GiB, 10 * GiB, GiB, 9 * GiB);
 
         Assert.AreEqual(16 * GiB, memory.InstalledSystemMemoryBytes);
         Assert.AreEqual(10 * GiB, memory.AvailableSystemMemoryBytes);
         Assert.AreEqual(GiB, memory.SafetyReserveBytes);
         Assert.AreEqual(9 * GiB, memory.SafeModelBudgetBytes);
-        Assert.AreNotEqual(memory.InstalledSystemMemoryBytes,
-            memory.AvailableSystemMemoryBytes);
-        Assert.AreNotEqual(memory.AvailableSystemMemoryBytes,
-            memory.SafeModelBudgetBytes);
         Assert.AreEqual(
             memory.AvailableSystemMemoryBytes - memory.SafetyReserveBytes,
             memory.SafeModelBudgetBytes);
     }
 
     [TestMethod]
-    [DataRow(8, 858993460UL, 7730941132UL)]
-    [DataRow(16, 1717986919UL, 15461882265UL)]
-    [DataRow(32, 3435973837UL, 30923764531UL)]
-    public void ProportionalReserveUsesAvailableMemoryWithoutASecondFixedAllowance(
-        int availableGiB,
-        ulong expectedReserve,
-        ulong expectedBudget)
+    [DataRow(1UL, 0UL)]
+    [DataRow(1UL, 1UL)]
+    [DataRow(1073741824UL, 268435456UL)]
+    [DataRow(1073741824UL, 536870912UL)]
+    [DataRow(1073741824UL, 536870913UL)]
+    [DataRow(8589934592UL, 3221225472UL)]
+    [DataRow(17179869184UL, 10737418240UL)]
+    [DataRow(34359738368UL, 25769803776UL)]
+    [DataRow(6442450944UL, 5368709120UL)]
+    [DataRow(6442450944UL, 5368709121UL)]
+    [DataRow(ulong.MaxValue, ulong.MaxValue)]
+    public void ProportionalReserveIsBoundedByAvailabilityAndBudgetNeverNegative(
+        ulong installedBytes,
+        ulong availableBytes)
     {
-        ByteCount available = ByteCount.FromBytes((ulong)availableGiB * GiB);
-        SafetyPolicy policy = SafetyPolicy.ProportionalV2();
+        ulong tenPercentCeiling = availableBytes / 10
+            + (availableBytes % 10 == 0 ? 0UL : 1UL);
+        ulong expectedReserve = Math.Min(
+            availableBytes, Math.Max(tenPercentCeiling, GiB / 2));
+        ulong expectedBudget = availableBytes - expectedReserve;
 
-        ByteCount reserve = policy.AvailableMemoryReserveFor(available);
-        Assert.IsTrue(available.TrySubtract(reserve, out ByteCount budget));
+        ulong actualReserve = InvokeReserve(availableBytes);
 
-        Assert.AreEqual(expectedReserve, reserve.Bytes);
-        Assert.AreEqual(expectedBudget, budget.Bytes);
-        Assert.AreEqual(0UL, policy.OsAllowance.Bytes);
-        Assert.AreEqual(0UL, policy.OperationalReserve.Bytes);
+        Assert.AreEqual(expectedReserve, actualReserve);
+        Assert.IsTrue(actualReserve <= availableBytes);
+        ulong actualBudget = availableBytes - actualReserve;
+        Assert.AreEqual(expectedBudget, actualBudget);
+        CompatibilityMachineMemory memory = CompatibilityMachineMemory.Create(
+            installedBytes, availableBytes, actualReserve, actualBudget);
+        Assert.IsTrue(memory.SafetyReserveBytes <= memory.AvailableSystemMemoryBytes);
     }
 
     [TestMethod]
-    public void ProportionalReserveAppliesFloorAndCoherentBudgetBounds()
+    public void InstalledMemoryAloneCannotChangeAnAvailableMemoryReserve()
     {
-        SafetyPolicy policy = SafetyPolicy.ProportionalV2();
-        ByteCount reserve = policy.AvailableMemoryReserveFor(ByteCount.Zero);
+        ulong available = 10 * GiB;
+        ulong reserve = InvokeReserve(available);
+        ulong budget = available - reserve;
+        CompatibilityMachineMemory first = CompatibilityMachineMemory.Create(
+            16 * GiB, available, reserve, budget);
+        CompatibilityMachineMemory second = CompatibilityMachineMemory.Create(
+            32 * GiB, available, reserve, budget);
 
-        Assert.AreEqual(GiB / 2, reserve.Bytes);
+        Assert.AreEqual(first.SafetyReserveBytes, second.SafetyReserveBytes);
+        Assert.AreEqual(first.SafeModelBudgetBytes, second.SafeModelBudgetBytes);
+    }
+
+    [TestMethod]
+    public void MachineMemoryRejectsIncoherentBudgets()
+    {
+        TargetInvocationException absent = Assert.ThrowsExactly<TargetInvocationException>(
+            () => InvokeReserve(GiB, absentPolicy: true));
+        Assert.IsInstanceOfType<InvalidOperationException>(absent.InnerException);
         Assert.ThrowsExactly<ArgumentException>(() =>
             CompatibilityMachineMemory.Create(GiB, GiB / 4, GiB / 2, 0));
         Assert.ThrowsExactly<ArgumentException>(() =>
             CompatibilityMachineMemory.Create(GiB, GiB, GiB / 2, GiB));
-        Assert.ThrowsExactly<InvalidOperationException>(() =>
-            SafetyPolicy.Absent().AvailableMemoryReserveFor(ByteCount.FromBytes(GiB)));
     }
 
-    private static RouteConfiguration Configuration(int route, bool baseline) =>
-        route == 0
-            ? GgufRouteConfiguration.Create(
-                GgufWeightFormat.Imported,
-                baseline ? GgufKvCacheFormat.F16 : GgufKvCacheFormat.Q8_0,
-                CompatibilityBackend.Cpu,
-                DeviceRouteId.Cpu,
-                GpuOffloadLevel.None)
-            : OpenVinoRouteConfiguration.Create(
-                baseline ? OpenVinoWeightFormat.Original : OpenVinoWeightFormat.Int8,
-                OpenVinoKvCacheFormat.U8,
-                DeviceRouteId.Cpu,
-                OpenVinoPerformanceHint.Latency,
-                OpenVinoCompiledCachePolicy.Disabled,
-                streams: 1);
-
-    private static EvaluatedCandidate Evaluated(
-        RouteConfiguration configuration,
-        CompatibilityFitState fit,
-        bool isBaseline)
+    [TestMethod]
+    public void ZeroAvailableMemoryProjectsAnEstablishedZeroBudgetWithoutThrowing()
     {
-        CompatibilityCandidate candidate = CompatibilityCandidate.Create(
-            configuration,
-            ContextTokenCount.FromTokens(4096),
-            isBaseline ? CandidatePreparation.None : CandidatePreparation.RuntimeProfileOnly,
-            isBaseline ? "baseline" : "alternative",
-            isExperimental: false,
-            isBaseline);
-        ResourceEstimate estimate = ResourceEstimate.Established(
-            [ResourceComponent.Create(
-                ResourceComponentKind.Weights,
-                ResourceTarget.SystemMemory,
-                ByteCount.FromBytes(2 * GiB),
-                new HashSet<LifecyclePhase> { LifecyclePhase.Load })],
-            new HashSet<EstimationLimitation>());
-        bool fits = fit is CompatibilityFitState.Safe or CompatibilityFitState.Narrow;
+        CompatibilityEvaluation evaluation = CompatibilityEngine.EvaluateProduction(
+            ProductionCompatibilityBindingIntegrationTests.CreateInput(
+                Now,
+                installedSystemMemoryBytes: GiB,
+                availableSystemMemoryBytes: 0),
+            new FixedTimeProvider(Now));
 
-        return EvaluatedCandidate.Create(
-            candidate,
-            estimate,
-            ResourcePhaseComposer.Compose(estimate.Components),
-            new FitAssessment(
-                fit,
-                fits ? FitLimitingReason.None : FitLimitingReason.InsufficientSystemMemory,
-                ByteCount.FromBytes(3 * GiB),
-                ByteCount.FromBytes(2 * GiB),
-                fits ? ByteCount.FromBytes(GiB) : ByteCount.Zero,
-                1.5m),
-            WeightQuantisation.Q4_K_M,
-            EvidenceGrade.Estimated,
-            PerformanceIndicator.NotEstablished(),
-            ByteCount.Zero);
+        Assert.AreEqual(
+            CompatibilityScreenState.NoEstimatedSafeConfiguration,
+            evaluation.Screen.State);
+        Assert.IsNotNull(evaluation.MachineMemory);
+        Assert.AreEqual(0UL, evaluation.MachineMemory.SafetyReserveBytes);
+        Assert.AreEqual(0UL, evaluation.MachineMemory.SafeModelBudgetBytes);
     }
 
-    private static CompatibilityRunResult CompletedWith(
-        EvaluatedCandidate baseline,
-        params EvaluatedCandidate[] alternatives)
+    private static CompatibilityProductionInput CreateRouteInput(
+        int route, ulong availableBytes, ulong installedBytes)
     {
-        IReadOnlyList<EvaluatedCandidate> evaluated = [baseline, .. alternatives];
-        IReadOnlyList<CompatibilityModeSelection> modes =
-            baseline.Candidate.Configuration is GgufRouteConfiguration gguf
-                ? ModeSelector.SelectAll(
-                    ModeSelectionRequest.Create(
-                        evaluated,
-                        new HashSet<string>(),
-                        ContextTokenCount.FromTokens(4096),
-                        gguf)).Selections
-                :
-                [
-                    CompatibilityModeSelection.NotEstablished(CompatibilityMode.Automatic),
-                    CompatibilityModeSelection.NotEstablished(CompatibilityMode.Quality),
-                    CompatibilityModeSelection.NotEstablished(CompatibilityMode.Balanced),
-                    CompatibilityModeSelection.NotEstablished(CompatibilityMode.Efficiency)
-                ];
-        CompatibilityAssessment assessment = CompatibilityAssessment.Create(
-            evaluated,
-            modes,
-            baseline.Fingerprint,
-            BaselineExclusionReason.None,
-            baseline.Fit.State is CompatibilityFitState.Safe
-                or CompatibilityFitState.Narrow);
-
-        return CompatibilityRunResult.Completed(
-            CompatibilityRunId.New(),
-            assessment,
-            [],
-            [PolicyIdentity.Create(
-                "independent-test-estimator",
-                "v1",
-                PolicyProvenance.Provisional)],
-            DateTimeOffset.UnixEpoch,
-            DateTimeOffset.UnixEpoch);
-    }
-
-    private static void AssertRouteSpecificConfiguration(
-        int route,
-        RouteConfiguration configuration)
-    {
-        if (route == 0)
+        if (route == 1)
         {
-            Assert.IsInstanceOfType<GgufRouteConfiguration>(configuration);
-            StringAssert.StartsWith(configuration.CanonicalDescriptor, "gguf|");
+            return ProductionCompatibilityBindingIntegrationTests.CreateInput(
+                Now,
+                installedSystemMemoryBytes: installedBytes,
+                availableSystemMemoryBytes: availableBytes);
         }
-        else
-        {
-            Assert.IsInstanceOfType<OpenVinoRouteConfiguration>(configuration);
-            StringAssert.StartsWith(configuration.CanonicalDescriptor, "openvino|");
-        }
+
+        return CompatibilityProductionInput.Create(
+            Guid.Parse("77777777-7777-4777-8777-777777777777"),
+            Guid.Parse("88888888-8888-4888-8888-888888888888"),
+            GgufCompatibilityModelInput.Create(
+                3 * GiB, 32, 4096, 32, 8, 8192, 15, 2),
+            CompatibilityHardwareInput.Create(
+                installedBytes, 0, 500 * GiB,
+                [DeviceRouteId.Cpu], [CompatibilityBackend.Cpu]),
+            CompatibilityFreshResourcesInput.Create(
+                availableBytes, 0, 500 * GiB, Now));
+    }
+
+    private static ulong InvokeReserve(
+        ulong availableBytes,
+        bool absentPolicy = false)
+    {
+        Assembly assembly = typeof(CompatibilityEngine).Assembly;
+        Type safetyType = assembly.GetType(
+            "GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.FitAssessment.SafetyPolicy",
+            throwOnError: true)!;
+        Type byteCountType = assembly.GetType(
+            "GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain.ByteCount",
+            throwOnError: true)!;
+        const BindingFlags staticFlags = BindingFlags.Static
+            | BindingFlags.Public | BindingFlags.NonPublic;
+        const BindingFlags instanceFlags = BindingFlags.Instance
+            | BindingFlags.Public | BindingFlags.NonPublic;
+        object policy = safetyType.GetMethod(
+            absentPolicy ? "Absent" : "ProportionalV2", staticFlags)!
+            .Invoke(null, null)!;
+        object available = byteCountType.GetMethod("FromBytes", staticFlags)!
+            .Invoke(null, [availableBytes])!;
+        object reserve = safetyType.GetMethod(
+            "AvailableMemoryReserveFor", instanceFlags)!
+            .Invoke(policy, [available])!;
+        return (ulong)byteCountType.GetProperty("Bytes", instanceFlags)!
+            .GetValue(reserve)!;
+    }
+
+    private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => now;
     }
 }

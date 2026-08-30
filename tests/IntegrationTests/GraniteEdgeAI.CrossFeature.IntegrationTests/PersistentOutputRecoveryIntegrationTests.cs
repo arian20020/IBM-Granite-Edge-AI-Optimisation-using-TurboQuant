@@ -46,6 +46,54 @@ public sealed class PersistentOutputRecoveryIntegrationTests
     }
 
     [TestMethod]
+    public async Task PublishedGgufLookupRejectsNonExactResultAuthority()
+    {
+        using var fixture = new OutputFixture();
+        OptimizationExecutionPlan plan = fixture.Plan();
+        var registry = new OptimizationOutputRegistry(
+            fixture.StagingRoot, fixture.CommittedRoot);
+        using OptimizationOutputLease lease = registry.CreateLease(plan, 2);
+        await using (FileStream output = lease.CreateFileForWrite("model.gguf"))
+            await output.WriteAsync("exact-published-gguf"u8.ToArray());
+        SealedOptimizationCandidate candidate = lease.Seal("exact-output");
+        OptimizationCommitReceipt receipt = await registry.AdmitAsync(
+            plan, 2, fixture.SourceSnapshot(), true, candidate,
+            CancellationToken.None);
+        OptimizationExecutionPlan otherAttempt = fixture.Plan();
+        OptimizationExecutionResult[] mutations =
+        [
+            OptimizationExecutionResult.Succeeded(
+                otherAttempt, receipt.Key.OutputIdentity,
+                receipt.Key.OutputManifestSha256, receipt.OutputSizeBytes,
+                true, DateTimeOffset.UnixEpoch),
+            OptimizationExecutionResult.Succeeded(
+                plan, "substituted-output", receipt.Key.OutputManifestSha256,
+                receipt.OutputSizeBytes, true, DateTimeOffset.UnixEpoch),
+            OptimizationExecutionResult.Succeeded(
+                plan, receipt.Key.OutputIdentity, new string('f', 64),
+                receipt.OutputSizeBytes, true, DateTimeOffset.UnixEpoch),
+            OptimizationExecutionResult.Succeeded(
+                plan, receipt.Key.OutputIdentity,
+                receipt.Key.OutputManifestSha256, receipt.OutputSizeBytes + 1,
+                true, DateTimeOffset.UnixEpoch)
+        ];
+        var accepted = new List<int>();
+
+        for (int index = 0; index < mutations.Length; index++)
+        {
+            if (registry.TryGetPublishedGgufFile(
+                    mutations[index], out _, out _, out _))
+            {
+                accepted.Add(index);
+            }
+        }
+
+        Assert.AreEqual(0, accepted.Count,
+            "Published lookup accepted mutated result cases: "
+            + string.Join(", ", accepted));
+    }
+
+    [TestMethod]
     public void RestartQuarantinesOutputWithoutIdentityBoundReceipt()
     {
         using var fixture = new OutputFixture();

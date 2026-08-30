@@ -1,3 +1,5 @@
+using System.Reflection;
+
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.Contracts;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.Journey;
 using GraniteEdgeAI.Features.ModelOptimization.Journey;
@@ -48,6 +50,24 @@ public sealed class OptimizationReducerIdentityTests
     }
 
     [TestMethod]
+    public void SelectionHandoffRejectsSubstitutedJourneyIdentityBeforeExecution()
+    {
+        OptimizationExecutionPlan selected =
+            CrossFeaturePlanFixture.PersistentGgufPlan(new string('a', 64), 4096);
+        OptimizationJourneyBinding substituted = OptimizationJourneyBinding.Create(
+            selected.Binding.ModelInspectionRunId,
+            selected.Binding.ModelInspectionHandoffId,
+            new string('c', 64),
+            selected.Binding.ModelLengthBytes,
+            selected.Binding.ProductHardwareRunId,
+            selected.Binding.HardwareSnapshotSha256);
+
+        Assert.IsFalse(OptimizationSelectionHandoff.TryCreate(
+            selected, substituted, selected.CapabilitySnapshot,
+            selected.Preference, out _));
+    }
+
+    [TestMethod]
     public void WrongGenerationSuppressesLateCancellationAndCompletion()
     {
         OptimizationExecutionPlan selected =
@@ -92,7 +112,13 @@ public sealed class OptimizationReducerIdentityTests
 
     private static OptimizationExecutionPlan CopyPlan(
         OptimizationExecutionPlan selected,
-        OptimizationJourneyBinding binding) => new(
+        OptimizationJourneyBinding binding)
+    {
+        ConstructorInfo constructor = typeof(OptimizationExecutionPlan)
+            .GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic)
+            .Single(candidate => candidate.GetParameters().Length == 11);
+        return (OptimizationExecutionPlan)constructor.Invoke(
+        [
             selected.ContractVersion,
             selected.OptimizationPlanId,
             binding,
@@ -103,5 +129,7 @@ public sealed class OptimizationReducerIdentityTests
             selected.Preference,
             selected.SharedWithAdjacentBand,
             selected.ConfigurationSha256,
-            selected.CreatedAtUtc);
+            selected.CreatedAtUtc
+        ]);
+    }
 }

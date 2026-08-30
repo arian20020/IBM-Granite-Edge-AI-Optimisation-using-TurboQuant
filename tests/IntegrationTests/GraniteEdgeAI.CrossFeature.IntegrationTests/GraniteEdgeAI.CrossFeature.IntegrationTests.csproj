@@ -28,51 +28,71 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelImport\Selection\*.cs"
-             Link="Production\ModelImport\Selection\%(Filename)%(Extension)" />
-    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelImport\DragDropRoute\ModelImportDropHandler.cs"
-             Link="Production\ModelImport\DragDropRoute\ModelImportDropHandler.cs" />
-    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelInspection\Application\ModelInspectionHandoff*.cs"
-             Link="Production\ModelInspection\Handoff\%(Filename)%(Extension)" />
-    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelInspection\Contracts\*.cs"
-             Link="Production\ModelInspection\Contracts\%(Filename)%(Extension)" />
-    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelOptimization\Storage\*.cs"
-             Exclude="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelOptimization\Storage\OptimizationSourceResolver.cs"
-             Link="Production\ModelOptimization\Storage\%(Filename)%(Extension)" />
-    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelOptimization\Application\*.cs"
-             Link="Production\ModelOptimization\Application\%(Filename)%(Extension)" />
-    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelHardwareCompatibility\Application\OptimizationJourneyEntryContext.cs"
-             Link="Production\ModelHardwareCompatibility\OptimizationJourneyEntryContext.cs" />
-    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelHardwareCompatibility\Contracts\*.cs"
-             Link="Production\ModelHardwareCompatibility\Contracts\%(Filename)%(Extension)" />
-    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\GgufRuntime\History\ChatCompletionStatus.cs"
-             Link="Production\GgufRuntime\History\ChatCompletionStatus.cs" />
-    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\GgufRuntime\History\ChatConversation.cs"
-             Link="Production\GgufRuntime\History\ChatConversation.cs" />
-    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\GgufRuntime\History\ChatHistoryPolicy.cs"
-             Link="Production\GgufRuntime\History\ChatHistoryPolicy.cs" />
-    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\GgufRuntime\History\ChatMessage.cs"
-             Link="Production\GgufRuntime\History\ChatMessage.cs" />
-    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\GgufRuntime\History\ChatTitlePolicy.cs"
-             Link="Production\GgufRuntime\History\ChatTitlePolicy.cs" />
-    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\GgufRuntime\Services\IGgufChatSession.cs"
-             Link="Production\GgufRuntime\Services\IGgufChatSession.cs" />
-    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\GgufRuntime\Services\GgufChatSessionAdapter.cs"
-             Link="Production\GgufRuntime\Services\GgufChatSessionAdapter.cs" />
-    <Compile Include="..\..\..\infrastructure\GraniteEdgeAI.GgufQuantization.WorkerClient\GgufQuantizerEnvironmentPolicy.cs"
-             Link="Production\GgufQuantization\GgufQuantizerEnvironmentPolicy.cs" />
-    <Compile Include="..\..\..\shared\GraniteEdgeAI.GgufRuntime.Contracts\**\*.cs"
-             Exclude="..\..\..\shared\GraniteEdgeAI.GgufRuntime.Contracts\bin\**;..\..\..\shared\GraniteEdgeAI.GgufRuntime.Contracts\obj\**"
-             Link="Production\GgufRuntimeContracts\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelImport\Selection\SourceModelSelectionPreflight.cs" Link="Production\ModelImport\Selection\SourceModelSelectionPreflight.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelImport\Selection\ModelSelectionRoute.cs" Link="Production\ModelImport\Selection\ModelSelectionRoute.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelImport\Selection\ModelSelectionResult.cs" Link="Production\ModelImport\Selection\ModelSelectionResult.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelImport\Selection\ModelSelectionOperationId.cs" Link="Production\ModelImport\Selection\ModelSelectionOperationId.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelImport\Selection\ModelSelectionOperation.cs" Link="Production\ModelImport\Selection\ModelSelectionOperation.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelImport\Selection\ModelSelectionLimits.cs" Link="Production\ModelImport\Selection\ModelSelectionLimits.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelImport\Selection\ModelSelectionInputNormalizer.cs" Link="Production\ModelImport\Selection\ModelSelectionInputNormalizer.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelImport\Selection\ModelSelectionInput.cs" Link="Production\ModelImport\Selection\ModelSelectionInput.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelImport\Selection\ModelSelectionDiagnostic.cs" Link="Production\ModelImport\Selection\ModelSelectionDiagnostic.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelImport\Selection\IModelSelectionClassifier.cs" Link="Production\ModelImport\Selection\IModelSelectionClassifier.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelImport\Selection\BoundedModelSelectionClassifier.cs" Link="Production\ModelImport\Selection\BoundedModelSelectionClassifier.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelImport\DragDropRoute\ModelImportDropHandler.cs" Link="Production\ModelImport\DragDropRoute\ModelImportDropHandler.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelInspection\Application\ModelInspectionHandoffRegistry.cs" Link="Production\ModelInspection\Application\ModelInspectionHandoffRegistry.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelInspection\Application\ModelInspectionHandoffProjector.cs" Link="Production\ModelInspection\Application\ModelInspectionHandoffProjector.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelInspection\Application\ModelInspectionHandoffCodec.cs" Link="Production\ModelInspection\Application\ModelInspectionHandoffCodec.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelInspection\Application\ModelInspectionHandoff.cs" Link="Production\ModelInspection\Application\ModelInspectionHandoff.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelInspection\Contracts\ValidatedQuickScanSnapshot.cs" Link="Production\ModelInspection\Contracts\ValidatedQuickScanSnapshot.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelInspection\Contracts\ModelInspectionTokenizerEvidence.cs" Link="Production\ModelInspection\Contracts\ModelInspectionTokenizerEvidence.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelInspection\Contracts\ModelInspectionRuntimeIdentity.cs" Link="Production\ModelInspection\Contracts\ModelInspectionRuntimeIdentity.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelInspection\Contracts\ModelInspectionResult.cs" Link="Production\ModelInspection\Contracts\ModelInspectionResult.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelInspection\Contracts\ModelInspectionRequest.cs" Link="Production\ModelInspection\Contracts\ModelInspectionRequest.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelInspection\Contracts\ModelInspectionProgress.cs" Link="Production\ModelInspection\Contracts\ModelInspectionProgress.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelInspection\Contracts\ModelInspectionOperationalFailure.cs" Link="Production\ModelInspection\Contracts\ModelInspectionOperationalFailure.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelInspection\Contracts\ModelInspectionObservation.cs" Link="Production\ModelInspection\Contracts\ModelInspectionObservation.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelInspection\Contracts\ModelInspectionFinding.cs" Link="Production\ModelInspection\Contracts\ModelInspectionFinding.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelInspection\Contracts\ModelInspectionFileEvidence.cs" Link="Production\ModelInspection\Contracts\ModelInspectionFileEvidence.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelInspection\Contracts\ModelInspectionExecutionResult.cs" Link="Production\ModelInspection\Contracts\ModelInspectionExecutionResult.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelInspection\Contracts\ModelInspectionEvidence.cs" Link="Production\ModelInspection\Contracts\ModelInspectionEvidence.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelInspection\Contracts\ModelInspectionEnums.cs" Link="Production\ModelInspection\Contracts\ModelInspectionEnums.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelInspection\Contracts\ModelInspectionContractValidation.cs" Link="Production\ModelInspection\Contracts\ModelInspectionContractValidation.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelInspection\Contracts\ModelInspectionConfigurationEvidence.cs" Link="Production\ModelInspection\Contracts\ModelInspectionConfigurationEvidence.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelInspection\Contracts\ModelInspectionChatTemplateEvidence.cs" Link="Production\ModelInspection\Contracts\ModelInspectionChatTemplateEvidence.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelInspection\Contracts\ExpectedModelFileIdentity.cs" Link="Production\ModelInspection\Contracts\ExpectedModelFileIdentity.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelOptimization\Storage\StagedSourceSnapshot.cs" Link="Production\ModelOptimization\Storage\StagedSourceSnapshot.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelOptimization\Storage\OptimizationOutputRegistry.cs" Link="Production\ModelOptimization\Storage\OptimizationOutputRegistry.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelOptimization\Storage\OptimizationCommitJournal.cs" Link="Production\ModelOptimization\Storage\OptimizationCommitJournal.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelOptimization\Storage\OptimizationOutputLease.cs" Link="Production\ModelOptimization\Storage\OptimizationOutputLease.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelOptimization\Storage\OptimizationCommitReceipt.cs" Link="Production\ModelOptimization\Storage\OptimizationCommitReceipt.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelOptimization\Application\OptimizationProgress.cs" Link="Production\ModelOptimization\Application\OptimizationProgress.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelOptimization\Application\OptimizationJourneyState.cs" Link="Production\ModelOptimization\Application\OptimizationJourneyState.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelOptimization\Application\OptimizationJourneyReducer.cs" Link="Production\ModelOptimization\Application\OptimizationJourneyReducer.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelOptimization\Application\OptimizationJourneyCoordinator.cs" Link="Production\ModelOptimization\Application\OptimizationJourneyCoordinator.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelOptimization\Application\OptimizationExecutorRouter.cs" Link="Production\ModelOptimization\Application\OptimizationExecutorRouter.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelOptimization\Application\OptimizationAttemptContext.cs" Link="Production\ModelOptimization\Application\OptimizationAttemptContext.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelOptimization\Application\IOptimizationRevalidator.cs" Link="Production\ModelOptimization\Application\IOptimizationRevalidator.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelOptimization\Application\IOptimizationExecutor.cs" Link="Production\ModelOptimization\Application\IOptimizationExecutor.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelHardwareCompatibility\Application\OptimizationJourneyEntryContext.cs" Link="Production\ModelHardwareCompatibility\Application\OptimizationJourneyEntryContext.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelHardwareCompatibility\Contracts\OptimizationSelectionHandoff.cs" Link="Production\ModelHardwareCompatibility\Contracts\OptimizationSelectionHandoff.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelHardwareCompatibility\Contracts\OptimizationRequestedEventArgs.cs" Link="Production\ModelHardwareCompatibility\Contracts\OptimizationRequestedEventArgs.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelHardwareCompatibility\Contracts\CurrentModelLaunchHandoff.cs" Link="Production\ModelHardwareCompatibility\Contracts\CurrentModelLaunchHandoff.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelHardwareCompatibility\Contracts\CurrentModelChatRequestedEventArgs.cs" Link="Production\ModelHardwareCompatibility\Contracts\CurrentModelChatRequestedEventArgs.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelHardwareCompatibility\Contracts\CompatibilityContinueRequest.cs" Link="Production\ModelHardwareCompatibility\Contracts\CompatibilityContinueRequest.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\GgufRuntime\History\ChatCompletionStatus.cs" Link="Production\GgufRuntime\History\ChatCompletionStatus.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\GgufRuntime\History\ChatConversation.cs" Link="Production\GgufRuntime\History\ChatConversation.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\GgufRuntime\History\ChatHistoryPolicy.cs" Link="Production\GgufRuntime\History\ChatHistoryPolicy.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\GgufRuntime\History\ChatMessage.cs" Link="Production\GgufRuntime\History\ChatMessage.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\GgufRuntime\History\ChatTitlePolicy.cs" Link="Production\GgufRuntime\History\ChatTitlePolicy.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\GgufRuntime\Services\IGgufChatSession.cs" Link="Production\GgufRuntime\Services\IGgufChatSession.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\GgufRuntime\Services\GgufChatSessionAdapter.cs" Link="Production\GgufRuntime\Services\GgufChatSessionAdapter.cs" />
+    <Compile Include="..\..\..\infrastructure\GraniteEdgeAI.GgufQuantization.WorkerClient\GgufQuantizerEnvironmentPolicy.cs" Link="Production\GgufQuantization\GgufQuantizerEnvironmentPolicy.cs" />
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="..\..\..\shared\GraniteEdgeAI.ModelHardwareCompatibility.Core\**\*.cs"
-             Exclude="..\..\..\shared\GraniteEdgeAI.ModelHardwareCompatibility.Core\bin\**;..\..\..\shared\GraniteEdgeAI.ModelHardwareCompatibility.Core\obj\**"
-             Link="Production\CompatibilityCore\%(RecursiveDir)%(Filename)%(Extension)" />
-  </ItemGroup>
-
-  <ItemGroup>
+    <ProjectReference Include="..\..\..\shared\GraniteEdgeAI.GgufRuntime.Contracts\GraniteEdgeAI.GgufRuntime.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\shared\GraniteEdgeAI.ModelHardwareCompatibility.Core\GraniteEdgeAI.ModelHardwareCompatibility.Core.csproj" />
     <ProjectReference Include="..\..\..\shared\GraniteEdgeAI.OpenVino.Contracts\GraniteEdgeAI.OpenVino.Contracts.csproj" />
   </ItemGroup>
 </Project>

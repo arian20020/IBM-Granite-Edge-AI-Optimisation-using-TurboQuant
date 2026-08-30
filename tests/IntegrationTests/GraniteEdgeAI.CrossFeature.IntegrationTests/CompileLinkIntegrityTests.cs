@@ -16,6 +16,8 @@ public sealed class CompileLinkIntegrityTests
 
     private static readonly string[] ExpectedProjectReferences =
     [
+        @"..\..\..\shared\GraniteEdgeAI.GgufRuntime.Contracts\GraniteEdgeAI.GgufRuntime.Contracts.csproj",
+        @"..\..\..\shared\GraniteEdgeAI.ModelHardwareCompatibility.Core\GraniteEdgeAI.ModelHardwareCompatibility.Core.csproj",
         @"..\..\..\shared\GraniteEdgeAI.OpenVino.Contracts\GraniteEdgeAI.OpenVino.Contracts.csproj"
     ];
 
@@ -94,8 +96,11 @@ public sealed class CompileLinkIntegrityTests
             + string.Join(", ", duplicateMethods));
 
         var rows = map.Split('\n')
-            .Where(line => line.StartsWith("| `", StringComparison.Ordinal))
-            .Where(line => line.Count(character => character == '|') == 7)
+            .Where(line => line.Count(character => character == '|') == 10)
+            .Where(line => Regex.IsMatch(
+                line,
+                @"^\| [^|]+ \| `[A-Za-z0-9_]+` \|",
+                RegexOptions.CultureInvariant | RegexOptions.NonBacktracking))
             .Select(ParseCoverageRow)
             .ToArray();
         string[] duplicateRows = rows
@@ -111,11 +116,14 @@ public sealed class CompileLinkIntegrityTests
 
         foreach (CoverageRow row in rows)
         {
-            Assert.IsFalse(string.IsNullOrWhiteSpace(row.Owner), row.Method + " owner");
-            Assert.IsFalse(string.IsNullOrWhiteSpace(row.Behavior), row.Method + " behavior");
+            Assert.IsFalse(string.IsNullOrWhiteSpace(row.Requirement), row.Method + " requirement");
+            Assert.IsFalse(string.IsNullOrWhiteSpace(row.CompiledSubject), row.Method + " compiled subject");
             Assert.IsFalse(string.IsNullOrWhiteSpace(row.Layer), row.Method + " layer");
-            Assert.IsFalse(string.IsNullOrWhiteSpace(row.Disposition), row.Method + " disposition");
+            Assert.IsFalse(string.IsNullOrWhiteSpace(row.ExpectedDisposition), row.Method + " expected disposition");
+            Assert.IsFalse(string.IsNullOrWhiteSpace(row.CurrentDisposition), row.Method + " current disposition");
+            Assert.IsFalse(string.IsNullOrWhiteSpace(row.ProductionOwner), row.Method + " production owner");
             Assert.IsFalse(string.IsNullOrWhiteSpace(row.FollowUp), row.Method + " follow-up");
+            Assert.IsFalse(string.IsNullOrWhiteSpace(row.Limitation), row.Method + " limitation");
         }
     }
 
@@ -158,10 +166,21 @@ public sealed class CompileLinkIntegrityTests
                 && element.Attribute("Include") is not null)
             .Select(element => element.Attribute("Include")!.Value)
             .ToArray();
-        Assert.AreEqual(18, includeGroups.Length,
-            "Every linked production group must remain explicit and documented.");
+        Assert.AreEqual(60, includeGroups.Length,
+            "Every unavoidable linked production file must remain exact and documented.");
         Assert.IsTrue(includeGroups.All(include =>
             include.StartsWith(@"..\..\..\", StringComparison.Ordinal)));
+        Assert.IsTrue(includeGroups.All(include => !include.Contains('*')),
+            "Temporary compile links must enumerate exact files; wildcard expansion is prohibited.");
+
+        string coverage = File.ReadAllText(Path.Combine(
+            projectDirectory, "COVERAGE-MAP.md"));
+        foreach (string include in includeGroups)
+        {
+            string repositoryRelative = include[9..].Replace('\\', '/');
+            StringAssert.Contains(coverage, $"`{repositoryRelative}`",
+                "Every retained exact compile link requires a coverage-map custody row.");
+        }
     }
 
     private static IReadOnlyList<string> Expand(string projectDirectory, string include)
@@ -257,23 +276,28 @@ public sealed class CompileLinkIntegrityTests
     private static CoverageRow ParseCoverageRow(string line)
     {
         string[] cells = line.Split('|');
-        Assert.AreEqual(8, cells.Length,
-            "Coverage rows require exactly six populated columns: " + line);
-        string methodCell = cells[1].Trim();
+        Assert.AreEqual(11, cells.Length,
+            "Coverage rows require exactly nine populated columns: " + line);
+        string methodCell = cells[2].Trim();
         Match method = Regex.Match(methodCell, @"^`(?<name>[A-Za-z0-9_]+)`$");
         Assert.IsTrue(method.Success, "Invalid coverage method cell: " + methodCell);
-        return new CoverageRow(method.Groups["name"].Value,
-            cells[2].Trim(), cells[3].Trim(), cells[4].Trim(),
-            cells[5].Trim(), cells[6].Trim());
+        return new CoverageRow(
+            method.Groups["name"].Value,
+            cells[1].Trim(), cells[3].Trim(), cells[4].Trim(),
+            cells[5].Trim(), cells[6].Trim(), cells[7].Trim(),
+            cells[8].Trim(), cells[9].Trim());
     }
 
     private sealed record CoverageRow(
         string Method,
-        string Owner,
-        string Behavior,
+        string Requirement,
+        string CompiledSubject,
         string Layer,
-        string Disposition,
-        string FollowUp);
+        string ExpectedDisposition,
+        string CurrentDisposition,
+        string ProductionOwner,
+        string FollowUp,
+        string Limitation);
 
     private static bool Matches(
         string projectDirectory,

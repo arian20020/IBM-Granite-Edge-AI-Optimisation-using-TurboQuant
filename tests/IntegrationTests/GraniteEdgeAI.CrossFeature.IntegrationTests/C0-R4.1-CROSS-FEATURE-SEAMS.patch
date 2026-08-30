@@ -1,0 +1,200 @@
+diff --git a/shared/GraniteEdgeAI.CrossFeature.Contracts/GraniteEdgeAI.CrossFeature.Contracts.csproj b/shared/GraniteEdgeAI.CrossFeature.Contracts/GraniteEdgeAI.CrossFeature.Contracts.csproj
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/shared/GraniteEdgeAI.CrossFeature.Contracts/GraniteEdgeAI.CrossFeature.Contracts.csproj
+@@ -0,0 +1,13 @@
++<Project Sdk="Microsoft.NET.Sdk">
++  <PropertyGroup>
++    <TargetFramework>net8.0</TargetFramework>
++    <ImplicitUsings>enable</ImplicitUsings>
++    <Nullable>enable</Nullable>
++    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
++    <EnableNETAnalyzers>true</EnableNETAnalyzers>
++    <AnalysisLevel>latest-recommended</AnalysisLevel>
++  </PropertyGroup>
++  <ItemGroup>
++    <ProjectReference Include="..\GraniteEdgeAI.ModelHardwareCompatibility.Core\GraniteEdgeAI.ModelHardwareCompatibility.Core.csproj" />
++  </ItemGroup>
++</Project>
+diff --git a/shared/GraniteEdgeAI.CrossFeature.Contracts/CrossFeatureAcceptanceContracts.cs b/shared/GraniteEdgeAI.CrossFeature.Contracts/CrossFeatureAcceptanceContracts.cs
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/shared/GraniteEdgeAI.CrossFeature.Contracts/CrossFeatureAcceptanceContracts.cs
+@@ -0,0 +1,127 @@
++using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
++
++namespace GraniteEdgeAI.CrossFeature.Contracts;
++
++public sealed record PinnedModelArtifact(
++    OptimizationPreferenceBand Band,
++    string RepositoryId,
++    string Revision,
++    string FileName,
++    ulong ExpectedByteLength,
++    string ExpectedSha256);
++
++public sealed record DownloadedArtifactEvidence(
++    string RepositoryId,
++    string Revision,
++    string FileName,
++    ulong ObservedByteLength,
++    string ObservedSha256);
++
++public static class PinnedGraniteModelCatalog
++{
++    private const string Repository = "ibm-granite/granite-4.0-h-micro-GGUF";
++    private const string Revision = "51ce07a9c9cfa971ca359d9625836bf8a4a1b61f";
++
++    private static readonly Dictionary<OptimizationPreferenceBand, PinnedModelArtifact>
++        Entries = new Dictionary<OptimizationPreferenceBand, PinnedModelArtifact>
++        {
++            [OptimizationPreferenceBand.MaximumEfficiency] = new(
++                OptimizationPreferenceBand.MaximumEfficiency, Repository, Revision,
++                "granite-4.0-h-micro-Q2_K.gguf", 1_226_247_840,
++                "e60b313fc0ce2a0a2c3903f4399ac61fe1048c38f219bcbd9f7a708e168b8ead"),
++            [OptimizationPreferenceBand.Efficient] = new(
++                OptimizationPreferenceBand.Efficient, Repository, Revision,
++                "granite-4.0-h-micro-Q3_K_M.gguf", 1_555_472_032,
++                "bb684177d546a2c6d3aec9cc591fc8fa75d9c16a27e798cbb2400fe52d9b7e29"),
++            [OptimizationPreferenceBand.Balanced] = new(
++                OptimizationPreferenceBand.Balanced, Repository, Revision,
++                "granite-4.0-h-micro-Q4_K_M.gguf", 1_942_564_512,
++                "c698c78e895740f0e707eb7f8e92894f83f6d5b3f2f2f0b446dfe9635fa0063e"),
++            [OptimizationPreferenceBand.HighCapability] = new(
++                OptimizationPreferenceBand.HighCapability, Repository, Revision,
++                "granite-4.0-h-micro-Q5_K_M.gguf", 2_273_455_776,
++                "69857575412143ea74d66e4d54ad70ec420d42452eadfff4a7cc043fe445ed4c"),
++            [OptimizationPreferenceBand.MaximumCapability] = new(
++                OptimizationPreferenceBand.MaximumCapability, Repository, Revision,
++                "granite-4.0-h-micro-Q8_0.gguf", 3_397_676_704,
++                "a009111abf2865b7aad1e66326a6c772cddc29bccd22898f470292068b27bb59")
++        };
++
++    public static PinnedModelArtifact Get(OptimizationPreferenceBand band) =>
++        Entries.TryGetValue(band, out PinnedModelArtifact? artifact)
++            ? artifact
++            : throw new ArgumentOutOfRangeException(nameof(band));
++}
++
++public enum VerifiedDownloadStatus
++{
++    Verified = 0,
++    VerificationFailed = 1,
++    Cancelled = 2,
++    Retired = 3,
++    Stale = 4
++}
++
++public sealed record VerifiedDownloadResult(
++    Guid OperationId,
++    long Generation,
++    VerifiedDownloadStatus Status,
++    PinnedModelArtifact RequestedArtifact,
++    DownloadedArtifactEvidence Evidence,
++    string? PublicationIdentity,
++    Guid? InspectionRequestId)
++{
++    public bool IsVerified =>
++        Status == VerifiedDownloadStatus.Verified
++        && PublicationIdentity is not null
++        && InspectionRequestId is not null
++        && string.Equals(RequestedArtifact.RepositoryId, Evidence.RepositoryId,
++            StringComparison.Ordinal)
++        && string.Equals(RequestedArtifact.Revision, Evidence.Revision,
++            StringComparison.Ordinal)
++        && string.Equals(RequestedArtifact.FileName, Evidence.FileName,
++            StringComparison.Ordinal)
++        && RequestedArtifact.ExpectedByteLength == Evidence.ObservedByteLength
++        && string.Equals(RequestedArtifact.ExpectedSha256, Evidence.ObservedSha256,
++            StringComparison.Ordinal);
++}
++
++public interface IVerifiedModelDownloadCoordinator
++{
++    Task<VerifiedDownloadResult> DownloadAsync(
++        PinnedModelArtifact artifact,
++        Guid operationId,
++        long generation,
++        CancellationToken cancellationToken);
++
++    void Retire(Guid operationId, long generation);
++}
++
++public interface IVerifiedModelSubmissionBoundary
++{
++    Task SubmitVerifiedDownloadAsync(
++        PinnedModelArtifact requestedArtifact,
++        VerifiedDownloadResult result,
++        CancellationToken cancellationToken);
++}
++
++public readonly record struct ChatTargetAuthority(
++    Guid OptimizationPlanId,
++    string ConfigurationSha256,
++    string OutputIdentity);
++
++public readonly record struct ExportDestinationAuthority(Guid Value);
++
++public interface IExactOptimizationResultConsumer
++{
++    bool TryCreateChatTarget(
++        OptimizationExecutionResult exactResult,
++        long lifecycleGeneration,
++        out ChatTargetAuthority target);
++
++    Task<bool> ExportPersistentAsync(
++        OptimizationExecutionResult exactResult,
++        ExportDestinationAuthority destination,
++        long lifecycleGeneration,
++        CancellationToken cancellationToken);
++}
+diff --git a/shared/GraniteEdgeAI.CrossFeature.Contracts/C0-INTEGRATION.md b/shared/GraniteEdgeAI.CrossFeature.Contracts/C0-INTEGRATION.md
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/shared/GraniteEdgeAI.CrossFeature.Contracts/C0-INTEGRATION.md
+@@ -0,0 +1,42 @@
++# Required C0 integration after the contract patch
++
++This patch is deliberately a contract proposal, not a claim that applying the
++contract alone closes T1. C0 must complete every item below before either T1
++source/composition RED can become GREEN.
++
++1. Add a project reference from the WinUI app to this contract project.
++2. Implement `IVerifiedModelDownloadCoordinator` in
++   `Features/ModelImport/ModelDownload/ModelDownloadCoordinator.cs` using an
++   owned resumable transport. Construct observed evidence from the received
++   bytes and response identity, compare it to the requested catalog entry,
++   atomically publish only an exact verified match, and issue one inspection
++   request only after publication. Retirement, cancellation, stale generation,
++   duplicate completion, and late completion must publish and navigate zero times.
++3. Make `ModelDownloadCard.xaml.cs` select the compiled catalog entry by the
++   exact `OptimizationPreferenceBand`, pass its lifecycle token/generation to
++   the coordinator, and call `ModelImportPage.SubmitInputAsync` only through
++   `IVerifiedModelSubmissionBoundary` after rechecking `IsVerified` and exact
++   requested-artifact equality.
++4. Implement `IExactOptimizationResultConsumer` in Model Optimization storage.
++   The implementation must resolve Chat/export from the exact result plus
++   receipt, compare plan/configuration/source/hardware/output identity, manifest
++   digest, and byte length, reject runtime-only export, and never consult
++   `LastPublishedDirectory` or another ambient last-result field.
++5. Make `ModelOptimizationPage` retain the selected result and lifecycle
++   generation and call only that consumer for Chat/export.
++6. Add owner tests with controlled transports/tasks for all R4.1 download,
++   cancellation, exact-result, restart, substitution, and five-band catalog
++   cases. T1 then replaces its two composition REDs with ProjectReference-based
++   behavioral tests against those compiled owner seams.
++7. Extract the temporarily linked app families into referenceable projects:
++   ModelImport.Selection, ModelInspection.Contracts/Application,
++   ModelOptimization.Storage/Application, ModelHardwareCompatibility.Contracts,
++   and GgufRuntime.History/Services. Expose the worker environment policy from
++   its WorkerClient assembly. Replace each exact T1 link only after its owner
++   project preserves the shipping imports, generated inputs, constants,
++   analyzers, and references.
++
++Privacy/lifecycle rule: the public contracts carry opaque publication,
++destination, plan, configuration, digest, length, operation, and generation
++authority only. They carry no rooted path, provider payload, secret, ambient
++last-result state, or default lifecycle token.
