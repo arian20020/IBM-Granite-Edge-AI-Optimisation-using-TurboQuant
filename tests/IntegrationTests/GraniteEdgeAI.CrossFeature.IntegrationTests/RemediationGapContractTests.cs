@@ -9,27 +9,76 @@ namespace GraniteEdgeAI.CrossFeature.IntegrationTests;
 [TestClass]
 public sealed class RemediationGapContractTests
 {
-    private static readonly Lazy<IReadOnlySet<string>> EvaluatedAppCompileItems =
-        new(EvaluateAppCompileItems);
+    private static readonly Lazy<EvaluatedAppProjectInfo> EvaluatedAppProject =
+        new(EvaluateAppProject);
     [TestMethod]
-    public void ApplicationComposesExactlyOneOnboardingShell()
+    public void MainWindowSourceCompositionNavigatesItsOwnedRootFrameToOnboarding()
     {
-        string source = ReadAppFile("MainWindow.xaml.cs");
-        const string composition = "rootFrame.Navigate(typeof(OnboardingShellPage))";
+        var failures = new List<string>();
+        string xamlPath = AppFile("MainWindow.xaml");
+        string sourcePath = AppFile("MainWindow.xaml.cs");
+        RequireCompiledByAppProject(sourcePath, failures);
+        XDocument xaml = XDocument.Load(xamlPath);
+        XNamespace presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
+        XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
+        XElement[] rootFrames = xaml.Descendants(presentation + "Frame")
+            .Where(element => (string?)element.Attribute(x + "Name") == "rootFrame")
+            .ToArray();
+        if (rootFrames.Length != 1)
+            failures.Add("MainWindow XAML must declare exactly one rootFrame Frame");
+        if ((string?)xaml.Root?.Attribute(x + "Class") != "GraniteEdgeAI.MainWindow")
+            failures.Add("MainWindow XAML is not bound to the evaluated compiled MainWindow type");
+        string constructor = ConstructorBody(
+            StripComments(File.ReadAllText(sourcePath)), "MainWindow");
+        IReadOnlyList<string[]> navigation = InvocationStatements(
+            constructor, "Navigate", out bool containsLocalFunction);
+        if (containsLocalFunction)
+            failures.Add("MainWindow constructor contains a local function and is not accepted as direct composition");
+        if (navigation.Count(arguments => arguments.Length == 1
+                && Normalize(arguments[0]) == "typeof(OnboardingShellPage)") != 1)
+        {
+            failures.Add("MainWindow constructor must directly navigate rootFrame to OnboardingShellPage once");
+        }
+        if (!Normalize(constructor).Contains(
+                "rootFrame.Navigate(typeof(OnboardingShellPage));",
+                StringComparison.Ordinal))
+            failures.Add("Onboarding navigation is not issued by the owned rootFrame");
+        if (EvaluatedAppProject.Value.DefineConstants.Contains(
+                "COMPATIBILITY_FIXTURE_GALLERY", StringComparer.Ordinal))
+        {
+            failures.Add("fixture-gallery conditional is active in evaluated app constants");
+        }
 
-        Assert.AreEqual(1, Count(source, composition));
+        Assert.AreEqual(0, failures.Count,
+            "MainWindow composition gaps: " + string.Join("; ", failures));
     }
 
     [TestMethod]
-    public void ChatStageHasNoOnboardingFooter()
+    public void ChatXamlExcludesOnboardingIndicatorAndShellSetterCollapsesIt()
     {
-        string shell = ReadAppFile(
+        var failures = new List<string>();
+        string shellPath = AppFile(
             "Features", "Onboarding", "OnboardingShellPage.xaml.cs");
-        string chat = ReadAppFile("Features", "GgufRuntime", "ChatPage.xaml");
+        string chatCodePath = AppFile("Features", "GgufRuntime", "ChatPage.xaml.cs");
+        RequireCompiledByAppProject(shellPath, failures);
+        RequireCompiledByAppProject(chatCodePath, failures);
+        string setter = Normalize(PropertySetterBody(
+            StripComments(File.ReadAllText(shellPath)), "CurrentStage"));
+        XDocument chat = XDocument.Load(AppFile("Features", "GgufRuntime", "ChatPage.xaml"));
+        XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
+        if ((string?)chat.Root?.Attribute(x + "Class")
+            != "GraniteEdgeAI.Features.GgufRuntime.ChatPage")
+            failures.Add("Chat XAML is not bound to the evaluated compiled ChatPage type");
 
-        StringAssert.Contains(shell, "value == OnboardingStage.ReadyToChat");
-        StringAssert.Contains(shell, "? Visibility.Collapsed");
-        Assert.IsFalse(chat.Contains("OnboardingStageIndicator", StringComparison.Ordinal));
+        if (chat.Descendants().Any(element =>
+                element.Name.LocalName == "OnboardingStageIndicator"))
+            failures.Add("Chat XAML contains an onboarding stage indicator element");
+        if (!setter.Contains(
+                "StageIndicator.Visibility=value==OnboardingStage.ReadyToChat?Visibility.Collapsed:Visibility.Visible;",
+                StringComparison.Ordinal))
+            failures.Add("CurrentStage setter lacks the exact ReadyToChat collapse branch");
+        Assert.AreEqual(0, failures.Count,
+            "Chat/shell composition gaps: " + string.Join("; ", failures));
     }
 
     [TestMethod]
@@ -45,11 +94,31 @@ public sealed class RemediationGapContractTests
                     attribute.Name.LocalName == "Name"
                     && attribute.Value == "DownloadModelButton"));
 
-        if (!button.Attributes().Any(attribute =>
-                attribute.Name.LocalName is "Click" or "Command"
-                && !string.IsNullOrWhiteSpace(attribute.Value)))
+        XAttribute? actionBinding = button.Attributes().SingleOrDefault(attribute =>
+            attribute.Name.LocalName is "Click" or "Command"
+            && !string.IsNullOrWhiteSpace(attribute.Value));
+        if (actionBinding is null)
         {
             failures.Add("the recommended-model action has no Click or Command binding");
+        }
+        else
+        {
+            string cardCodePath = Path.ChangeExtension(xamlPath, ".xaml.cs");
+            RequireCompiledByAppProject(cardCodePath, failures);
+            string cardCode = StripComments(File.ReadAllText(cardCodePath));
+            string? actionCaller = ResolveActionCaller(
+                actionBinding, cardCode, failures);
+            if (actionCaller is not null)
+            {
+                IReadOnlyList<string[]> calls = InvocationStatements(
+                    actionCaller, "DownloadAsync", out bool containsLocalFunction);
+                if (containsLocalFunction || calls.Count != 1
+                    || !Normalize(actionCaller).Contains(
+                        "_downloadCoordinator.DownloadAsync(", StringComparison.Ordinal))
+                {
+                    failures.Add("download action does not directly invoke the owned coordinator once");
+                }
+            }
         }
 
         string downloadRoot = AppFile(
@@ -105,9 +174,24 @@ public sealed class RemediationGapContractTests
             RequireCompiledByAppProject(coordinatorPath, failures);
             string coordinator = StripComments(File.ReadAllText(coordinatorPath));
             RequireDeclaration(coordinator, "ModelDownloadCoordinator", failures);
-            RequireActualInvocation(coordinator, "DownloadAsync",
-                "coordinator has no executable download invocation", failures);
-            RequireActualInvocation(coordinator, "SubmitInputAsync",
+            string coordinatorMethod = MethodBody(coordinator, "DownloadAsync");
+            string normalizedCoordinator = Normalize(coordinatorMethod);
+            if (!normalizedCoordinator.Contains(
+                    "_downloadService.DownloadAsync(", StringComparison.Ordinal))
+                failures.Add("coordinator DownloadAsync does not call the owned service");
+            if (!normalizedCoordinator.Contains(".IsVerified", StringComparison.Ordinal)
+                || !normalizedCoordinator.Contains(
+                    "_modelImportPage.SubmitInputAsync(", StringComparison.Ordinal))
+                failures.Add("SubmitInputAsync is not guarded by a verified download result");
+            int serviceCall = normalizedCoordinator.IndexOf(
+                "_downloadService.DownloadAsync(", StringComparison.Ordinal);
+            int submitCall = normalizedCoordinator.IndexOf(
+                "_modelImportPage.SubmitInputAsync(", StringComparison.Ordinal);
+            if (serviceCall < 0 || submitCall <= serviceCall)
+                failures.Add("verified import convergence does not follow the service call");
+            RequireInvocationStatement(coordinatorMethod, "DownloadAsync",
+                "coordinator has no executable service download invocation", failures);
+            RequireInvocationStatement(coordinatorMethod, "SubmitInputAsync",
                 "verified completion does not invoke SubmitInputAsync", failures);
         }
 
@@ -154,7 +238,7 @@ public sealed class RemediationGapContractTests
         RejectToken(conversionMethod,
             "SourceModelConversionRequested?.Invoke(this, new OpenVinoInspectionRequestedEventArgs",
             "source conversion bypasses conversion as an inspection request", failures);
-        RequireActualInvocation(conversionMethod, "ConvertAndInspectAsync",
+        RequireInvocationStatement(conversionMethod, "ConvertAndInspectAsync",
             "source conversion intent has no real conversion-and-inspection composition",
             failures);
 
@@ -213,6 +297,27 @@ public sealed class RemediationGapContractTests
             + string.Join("; ", failures));
     }
 
+    [TestMethod]
+    public void CompositionParserRejectsDeclarationsLocalFunctionsAndLocalDefaultTokens()
+    {
+        const string declaration = "private Task ConvertAndInspectAsync(CancellationToken token) { return Task.CompletedTask; }";
+        Assert.AreEqual(0, InvocationStatements(
+            declaration, "ConvertAndInspectAsync", out bool declarationHasLocal).Count);
+        Assert.IsFalse(declarationHasLocal);
+
+        const string hidden = "private async Task CallerAsync() { async Task HiddenAsync() { await ConvertAndInspectAsync(CancellationToken.None); } await Task.CompletedTask; }";
+        _ = InvocationStatements(hidden, "ConvertAndInspectAsync", out bool hasLocalFunction);
+        Assert.IsTrue(hasLocalFunction,
+            "A call inside a never-invoked local function cannot satisfy composition.");
+
+        const string localDefault = "private async Task CallerAsync(State state) { CancellationToken localToken = default; await CreateChatTargetAsync(state.Result, localToken); }";
+        var failures = new List<string>();
+        RequireLifecycleInvocation(localDefault, "CreateChatTargetAsync",
+            ["state.Result"], failures);
+        Assert.AreEqual(1, failures.Count,
+            "A locally defaulted token cannot establish lifecycle provenance.");
+    }
+
     private static string MethodBody(string source, string methodName)
     {
         Match signature = Regex.Match(source,
@@ -239,17 +344,77 @@ public sealed class RemediationGapContractTests
         return string.Empty;
     }
 
-    private static int Count(string value, string fragment)
+    private static string ConstructorBody(string source, string typeName)
     {
-        int count = 0;
-        int position = 0;
-        while ((position = value.IndexOf(fragment, position,
-                   StringComparison.Ordinal)) >= 0)
+        Match signature = Regex.Match(source,
+            $@"\b(?:public|internal|private|protected)\s+{Regex.Escape(typeName)}\s*\(",
+            RegexOptions.CultureInvariant);
+        Assert.IsTrue(signature.Success, $"Constructor signature not found: {typeName}");
+        return BracedMember(source, signature.Index, signature.Index + signature.Length,
+            typeName + " constructor");
+    }
+
+    private static string PropertySetterBody(string source, string propertyName)
+    {
+        Match property = Regex.Match(source,
+            $@"\b(?:public|internal|private|protected)\s+[A-Za-z0-9_<>,?.]+\s+{Regex.Escape(propertyName)}\s*\{{",
+            RegexOptions.CultureInvariant);
+        Assert.IsTrue(property.Success, $"Property not found: {propertyName}");
+        string propertyBody = BracedMember(source, property.Index,
+            property.Index + property.Length - 1, propertyName + " property");
+        Match setter = Regex.Match(propertyBody, @"\b(?:private\s+)?set\s*\{",
+            RegexOptions.CultureInvariant);
+        Assert.IsTrue(setter.Success, $"Setter not found: {propertyName}");
+        return BracedMember(propertyBody, setter.Index,
+            setter.Index + setter.Length - 1, propertyName + " setter");
+    }
+
+    private static string BracedMember(
+        string source,
+        int memberStart,
+        int searchStart,
+        string description)
+    {
+        string code = MaskStrings(source);
+        int open = code.IndexOf('{', searchStart);
+        Assert.IsTrue(open >= 0, $"Opening brace not found: {description}");
+        int close = FindBalancedClose(code, open, '{', '}');
+        Assert.IsTrue(close > open, $"Closing brace not found: {description}");
+        return source[memberStart..(close + 1)];
+    }
+
+    private static string? ResolveActionCaller(
+        XAttribute actionBinding,
+        string code,
+        ICollection<string> failures)
+    {
+        if (actionBinding.Name.LocalName == "Click")
         {
-            count++;
-            position += fragment.Length;
+            if (!Regex.IsMatch(actionBinding.Value, @"^[A-Za-z_][A-Za-z0-9_]*$"))
+            {
+                failures.Add("download Click handler name is not an identifier");
+                return null;
+            }
+            return MethodBody(code, actionBinding.Value);
         }
-        return count;
+
+        Match command = Regex.Match(actionBinding.Value,
+            @"^\{x:Bind\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\}$",
+            RegexOptions.CultureInvariant);
+        if (!command.Success)
+        {
+            failures.Add("download Command must be an exact x:Bind to an owned command");
+            return null;
+        }
+        Match initialization = Regex.Match(MaskStrings(code),
+            $@"\b{Regex.Escape(command.Groups["name"].Value)}\s*=\s*new\s+[A-Za-z0-9_<>.]+\s*\(\s*(?<handler>[A-Za-z_][A-Za-z0-9_]*)\s*\)",
+            RegexOptions.CultureInvariant);
+        if (!initialization.Success)
+        {
+            failures.Add("download command does not bind an owned executable handler");
+            return null;
+        }
+        return MethodBody(code, initialization.Groups["handler"].Value);
     }
 
     private static void RequireFile(
@@ -281,18 +446,6 @@ public sealed class RemediationGapContractTests
             failures.Add(failure);
     }
 
-    private static void RequireNormalizedToken(
-        string source,
-        string token,
-        string failure,
-        ICollection<string> failures)
-    {
-        string normalized = string.Concat(source.Where(
-            character => !char.IsWhiteSpace(character)));
-        if (!normalized.Contains(token, StringComparison.Ordinal))
-            failures.Add(failure);
-    }
-
     private static void RequireDeclaration(
         string source,
         string typeName,
@@ -306,13 +459,14 @@ public sealed class RemediationGapContractTests
         }
     }
 
-    private static void RequireActualInvocation(
+    private static void RequireInvocationStatement(
         string source,
         string methodName,
         string failure,
         ICollection<string> failures)
     {
-        if (InvocationArguments(source, methodName).Count == 0)
+        if (InvocationStatements(source, methodName, out bool containsLocalFunction).Count == 0
+            || containsLocalFunction)
             failures.Add(failure);
     }
 
@@ -322,7 +476,13 @@ public sealed class RemediationGapContractTests
         IReadOnlyList<string> expectedPrefixArguments,
         ICollection<string> failures)
     {
-        IReadOnlyList<string[]> invocations = InvocationArguments(method, invokedMethod);
+        IReadOnlyList<string[]> invocations = InvocationStatements(
+            method, invokedMethod, out bool containsLocalFunction);
+        if (containsLocalFunction)
+        {
+            failures.Add($"{invokedMethod} caller contains a local function and cannot prove direct execution");
+            return;
+        }
         string[]? matching = invocations.SingleOrDefault(arguments =>
             arguments.Length == expectedPrefixArguments.Count + 1
             && expectedPrefixArguments.Select((expected, index) =>
@@ -335,21 +495,30 @@ public sealed class RemediationGapContractTests
         }
 
         string lifecycleToken = matching[^1].Trim();
+        int signatureClose = MaskStrings(method).IndexOf(')');
+        string signature = signatureClose >= 0 ? method[..(signatureClose + 1)] : string.Empty;
         if (!Regex.IsMatch(lifecycleToken, @"^[A-Za-z_][A-Za-z0-9_]*$",
                 RegexOptions.CultureInvariant)
-            || !Regex.IsMatch(MaskStrings(method),
+            || lifecycleToken is "default" or "None"
+            || !Regex.IsMatch(MaskStrings(signature),
                 $@"\bCancellationToken\s+{Regex.Escape(lifecycleToken)}\b",
                 RegexOptions.CultureInvariant))
         {
-            failures.Add($"{invokedMethod} must receive a declared lifecycle CancellationToken variable");
+            failures.Add($"{invokedMethod} must receive an enclosing method CancellationToken parameter");
         }
     }
 
-    private static IReadOnlyList<string[]> InvocationArguments(
+    private static IReadOnlyList<string[]> InvocationStatements(
         string source,
-        string methodName)
+        string methodName,
+        out bool containsLocalFunction)
     {
         string code = MaskStrings(StripComments(source));
+        int outerBody = code.IndexOf('{');
+        string nestedCode = outerBody >= 0 ? code[(outerBody + 1)..] : string.Empty;
+        containsLocalFunction = Regex.IsMatch(nestedCode,
+            @"(?m)^\s*(?!if\b|for\b|foreach\b|while\b|switch\b|catch\b|using\b)(?:static\s+)?(?:async\s+)?[A-Za-z_][A-Za-z0-9_<>,?.\[\]]*\s+[A-Za-z_][A-Za-z0-9_]*\s*\([^;{}]*\)\s*(?:\{|=>)",
+            RegexOptions.CultureInvariant);
         var invocations = new List<string[]>();
         foreach (Match match in Regex.Matches(code,
                      $@"\b{Regex.Escape(methodName)}\s*\(",
@@ -357,7 +526,9 @@ public sealed class RemediationGapContractTests
         {
             int open = code.IndexOf('(', match.Index);
             int close = FindBalancedClose(code, open, '(', ')');
-            if (close > open)
+            int next = close + 1;
+            while (next < code.Length && char.IsWhiteSpace(code[next])) next++;
+            if (close > open && next < code.Length && code[next] == ';')
                 invocations.Add(SplitArguments(source[(open + 1)..close]));
         }
         return invocations;
@@ -507,7 +678,7 @@ public sealed class RemediationGapContractTests
         string relative = Path.GetRelativePath(appRoot, canonicalPath).Replace('/', '\\');
         if (compileItem == "Compile")
         {
-            if (!EvaluatedAppCompileItems.Value.Contains(canonicalPath))
+            if (!EvaluatedAppProject.Value.CompileItems.Contains(canonicalPath))
                 failures.Add($"evaluated app Compile items exclude {relative}");
             return;
         }
@@ -539,7 +710,7 @@ public sealed class RemediationGapContractTests
         }
     }
 
-    private static IReadOnlySet<string> EvaluateAppCompileItems()
+    private static EvaluatedAppProjectInfo EvaluateAppProject()
     {
         string projectPath = AppFile("IBM Granite with TurboQuant (Intel).csproj");
         var start = new ProcessStartInfo("dotnet")
@@ -553,6 +724,7 @@ public sealed class RemediationGapContractTests
         start.ArgumentList.Add("msbuild");
         start.ArgumentList.Add(projectPath);
         start.ArgumentList.Add("-getItem:Compile");
+        start.ArgumentList.Add("-getProperty:DefineConstants");
         start.ArgumentList.Add("-p:Platform=x64");
         start.ArgumentList.Add("-p:RuntimeIdentifier=win-x64");
         using Process process = Process.Start(start)
@@ -569,11 +741,21 @@ public sealed class RemediationGapContractTests
         Assert.AreEqual(0, process.ExitCode,
             "App project Compile evaluation failed: " + error);
         using JsonDocument document = JsonDocument.Parse(output);
-        return document.RootElement.GetProperty("Items").GetProperty("Compile")
+        HashSet<string> compileItems = document.RootElement
+            .GetProperty("Items").GetProperty("Compile")
             .EnumerateArray()
             .Select(item => Path.GetFullPath(item.GetProperty("FullPath").GetString()!))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        string constantsValue = document.RootElement.GetProperty("Properties")
+            .GetProperty("DefineConstants").GetString() ?? string.Empty;
+        string[] constants = constantsValue.Split(
+            [';', ','], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return new EvaluatedAppProjectInfo(compileItems, constants);
     }
+
+    private sealed record EvaluatedAppProjectInfo(
+        IReadOnlySet<string> CompileItems,
+        IReadOnlyList<string> DefineConstants);
 
     private static string ReadAppFile(params string[] segments) =>
         File.ReadAllText(AppFile(segments));
