@@ -331,6 +331,14 @@ public sealed class OpenVinoConversionService
         }
         catch (OpenVinoConversionException exception)
         {
+            if (exception.SupportCode == OpenVinoSupportCode.OperationCancelled)
+            {
+                return new OpenVinoConversionResult(
+                    OpenVinoConversionStatus.Cancelled,
+                    operationId,
+                    Guid.Empty,
+                    OpenVinoSupportCode.OperationCancelled);
+            }
             return Failed(operationId, exception.SupportCode);
         }
         catch (InvalidDataException)

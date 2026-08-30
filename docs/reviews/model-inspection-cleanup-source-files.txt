@@ -168,6 +168,7 @@ IBM Granite with TurboQuant (Intel)/Features/Onboarding/OnboardingShellPage.xaml
 IBM Granite with TurboQuant (Intel)/Features/Onboarding/OnboardingStage.cs
 IBM Granite with TurboQuant (Intel)/Features/Onboarding/README.md
 IBM Granite with TurboQuant (Intel)/Features/OpenVinoRoute/Inspection/ModelInspectionProjectionFactory.OpenVino.cs
+IBM Granite with TurboQuant (Intel)/Features/OpenVinoRoute/OpenVinoActivationOutcomePolicy.cs
 IBM Granite with TurboQuant (Intel)/Features/OpenVinoRoute/OpenVinoInspectionPresentationPolicy.cs
 IBM Granite with TurboQuant (Intel)/Features/OpenVinoRoute/OpenVinoRouteService.cs
 IBM Granite with TurboQuant (Intel)/Features/OpenVinoRoute/OpenVinoRouteStateMachine.cs
@@ -518,7 +519,9 @@ tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/WorkerFailureAc
 tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/WorkerHandshakeValidatorTests.cs
 tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/WorkerInstallationLayoutTests.cs
 tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/WorkerPolicyDiagnosticPrivacyTests.cs
+tests/UnitTests/GraniteEdgeAI.OpenVino.Tests/Conversion/OpenVinoConversionTypedOutcomeTests.cs
 tests/UnitTests/GraniteEdgeAI.OpenVino.Tests/Inspection/OpenVinoInspectionHandoffFactoryTests.cs
+tests/UnitTests/GraniteEdgeAI.OpenVino.Tests/OpenVinoActivationOutcomePolicyTests.cs
 tests/UnitTests/GraniteEdgeAI.OpenVino.Tests/OpenVinoRouteServiceTests.cs
 tests/UnitTests/GraniteEdgeAI.OpenVino.Tests/OpenVinoRouteStateMachineTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/GgufRuntime/ChatAccessibilityTests.cs

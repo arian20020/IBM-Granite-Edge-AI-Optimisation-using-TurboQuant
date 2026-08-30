@@ -226,7 +226,7 @@ internal sealed class SealedOpenVinoConversionPipeline : IOpenVinoConversionPipe
             result.HandoffLease?.Dispose();
             result.ConversionOffer?.Dispose();
             throw new OpenVinoConversionException(
-                ParseSupportCode(result.Failure?.SupportCode));
+                OpenVinoActivationOutcomePolicy.GetConversionFailureCode(result));
         }
         return new OpenVinoConversionValidation(
             result.Handoff!.ModelInspectionRunId,
@@ -289,7 +289,7 @@ internal sealed class SealedOpenVinoConversionPipeline : IOpenVinoConversionPipe
                 OpenVinoRouteInspectionOutcome.ReadyWithWarnings) || result.Handoff is null)
             {
                 throw new OpenVinoConversionException(
-                    OpenVinoSupportCode.ConversionOutputInvalid);
+                    OpenVinoActivationOutcomePolicy.GetConversionFailureCode(result));
             }
             return result.Handoff.ModelInspectionRunId;
         }
