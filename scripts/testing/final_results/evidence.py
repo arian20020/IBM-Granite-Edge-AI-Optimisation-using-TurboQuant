@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import re
+import tempfile
 from collections.abc import Collection, Sequence
 from pathlib import Path
 
@@ -11,7 +13,6 @@ from .models import EvidenceRecord
 
 
 _HASH_BLOCK_SIZE = 1024 * 1024
-_SHA256_RE = re.compile(r"[0-9a-fA-F]{64}\Z")
 _EVIDENCE_ID_PREFIX_LENGTH = 12
 
 
@@ -112,20 +113,70 @@ def write_sha256_manifest(
     root: Path, paths: Sequence[Path], output: Path
 ) -> None:
     """Write sorted ``sha256  relative/path`` entries with POSIX newlines."""
+    root_path = Path(root).resolve(strict=True)
+    output_path = Path(output)
+    _, output_resolved = _resolved_contained_path(root_path, output_path)
+    resolved_inputs: list[tuple[str, Path]] = []
     entries: list[tuple[str, str]] = []
     seen_paths: set[str] = set()
     for path in paths:
-        relative_path = repo_relative(root, path)
+        _, input_resolved = _resolved_contained_path(root_path, Path(path))
+        same_file = (
+            output_resolved.exists()
+            and input_resolved.exists()
+            and os.path.samefile(output_resolved, input_resolved)
+        )
+        if input_resolved == output_resolved or same_file:
+            raise ValueError("manifest output aliases an input evidence file")
+        relative_path = repo_relative(root_path, input_resolved)
         if relative_path in seen_paths:
             raise ValueError(f"duplicate manifest path: {relative_path}")
         seen_paths.add(relative_path)
-        entries.append((relative_path, hash_file(Path(path))))
+        resolved_inputs.append((relative_path, input_resolved))
+
+    for relative_path, input_path in resolved_inputs:
+        entries.append((relative_path, hash_file(input_path)))
 
     entries.sort(key=lambda entry: entry[0])
-    content = "".join(f"{digest}  {relative_path}\n" for relative_path, digest in entries)
-    output_path = Path(output)
+    content = "".join(
+        f"{digest}  {relative_path}\n" for relative_path, digest in entries
+    ).encode("utf-8")
+
+    if output_resolved.exists():
+        if not output_resolved.is_file():
+            raise FileExistsError(output_resolved)
+        if output_resolved.read_bytes() == content:
+            return
+        raise FileExistsError(output_resolved)
+
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(content, encoding="utf-8", newline="\n")
+    temporary_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="wb",
+            dir=output_path.parent,
+            prefix=f".{output_path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as handle:
+            temporary_path = Path(handle.name)
+            handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
+        # Recheck after creating the temporary file so a concurrently-created
+        # output is never silently replaced.
+        if output_resolved.exists():
+            if output_resolved.is_file() and output_resolved.read_bytes() == content:
+                return
+            raise FileExistsError(output_resolved)
+        os.replace(temporary_path, output_path)
+        temporary_path = None
+    finally:
+        if temporary_path is not None:
+            try:
+                temporary_path.unlink()
+            except FileNotFoundError:
+                pass
 
 
 def _manifest_error(line_number: int, message: str) -> str:
@@ -141,18 +192,33 @@ def validate_sha256_manifest(root: Path, manifest: Path) -> list[str]:
     errors: list[str] = []
     seen_paths: set[str] = set()
     try:
-        lines = manifest_path.read_text(encoding="utf-8").splitlines()
+        raw = manifest_path.read_bytes()
+    except OSError as error:
+        return [f"manifest: {error}"]
+    if b"\r\n" in raw:
+        errors.append("manifest: CRLF line endings are not canonical")
+    elif b"\r" in raw:
+        errors.append("manifest: carriage-return line endings are not canonical")
+    if raw and not raw.endswith(b"\n"):
+        errors.append("manifest: missing final newline")
+    try:
+        text = raw.decode("utf-8")
     except (OSError, UnicodeError) as error:
         return [f"manifest: {error}"]
+    # Normalize only for parsing. The original bytes were already checked so
+    # non-canonical line endings remain visible in ``errors``.
+    lines = text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    if lines and lines[-1] == "":
+        lines.pop()
+
+    parsed_paths: list[str] = []
 
     for line_number, line in enumerate(lines, start=1):
-        if "  " not in line:
+        match = re.fullmatch(r"([0-9a-fA-F]{64})  (.+)", line)
+        if match is None:
             errors.append(_manifest_error(line_number, "malformed checksum entry"))
             continue
-        digest, relative_path = line.split("  ", 1)
-        if not _SHA256_RE.fullmatch(digest):
-            errors.append(_manifest_error(line_number, "malformed checksum entry"))
-            continue
+        digest, relative_path = match.groups()
         try:
             relative_path = _portable_relative(relative_path)
         except ValueError:
@@ -162,6 +228,7 @@ def validate_sha256_manifest(root: Path, manifest: Path) -> list[str]:
             errors.append(_manifest_error(line_number, "duplicate path"))
             continue
         seen_paths.add(relative_path)
+        parsed_paths.append(relative_path)
 
         try:
             _, target = _resolved_contained_path(root, Path(root) / relative_path)
@@ -175,6 +242,8 @@ def validate_sha256_manifest(root: Path, manifest: Path) -> list[str]:
         if actual.lower() != digest.lower():
             errors.append(f"{relative_path}: hash mismatch")
 
+    if parsed_paths != sorted(parsed_paths):
+        errors.insert(0, "manifest: entries are not sorted")
     return errors
 
 

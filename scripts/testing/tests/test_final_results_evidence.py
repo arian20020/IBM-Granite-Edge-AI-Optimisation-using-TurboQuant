@@ -155,6 +155,7 @@ def test_validate_sha256_manifest_reports_missing_and_incorrect_hashes(tmp_path)
         f"{'0' * 64}  evidence.json\n"
         f"{'1' * 64}  missing.json\n",
         encoding="utf-8",
+        newline="\n",
     )
 
     errors = validate_sha256_manifest(tmp_path, manifest)
@@ -168,7 +169,9 @@ def test_validate_sha256_manifest_reports_missing_and_incorrect_hashes(tmp_path)
 def test_validate_sha256_manifest_rejects_malformed_and_nonportable_lines(tmp_path):
     manifest = tmp_path / "manifest.txt"
     manifest.write_text(
-        "not-a-checksum\n" + "a" * 64 + "  C:\\secret.json\n", encoding="utf-8"
+        "not-a-checksum\n" + "a" * 64 + "  C:\\secret.json\n",
+        encoding="utf-8",
+        newline="\n",
     )
 
     errors = validate_sha256_manifest(tmp_path, manifest)
@@ -176,4 +179,108 @@ def test_validate_sha256_manifest_rejects_malformed_and_nonportable_lines(tmp_pa
     assert errors == [
         "line 1: malformed checksum entry",
         "line 2: non-portable path",
+    ]
+
+
+def test_write_sha256_manifest_rejects_output_aliasing_an_input(tmp_path):
+    source = tmp_path / "evidence.json"
+    source.write_text("{}", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="input"):
+        write_sha256_manifest(tmp_path, (source,), source)
+
+
+def test_write_sha256_manifest_rejects_output_outside_root(tmp_path):
+    source = tmp_path / "evidence.json"
+    source.write_text("{}", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="repository"):
+        write_sha256_manifest(tmp_path, (source,), tmp_path.parent / "manifest.txt")
+
+
+def test_write_sha256_manifest_rejects_different_existing_bytes(tmp_path):
+    source = tmp_path / "evidence.json"
+    source.write_text("{}", encoding="utf-8")
+    manifest = tmp_path / "manifest.txt"
+    manifest.write_text("different\n", encoding="utf-8", newline="\n")
+
+    with pytest.raises(FileExistsError):
+        write_sha256_manifest(tmp_path, (source,), manifest)
+    assert manifest.read_text(encoding="utf-8") == "different\n"
+
+
+def test_write_sha256_manifest_accepts_identical_existing_bytes_idempotently(tmp_path):
+    source = tmp_path / "evidence.json"
+    source.write_text("{}", encoding="utf-8")
+    manifest = tmp_path / "manifest.txt"
+    write_sha256_manifest(tmp_path, (source,), manifest)
+    original_bytes = manifest.read_bytes()
+    original_mtime = manifest.stat().st_mtime_ns
+
+    write_sha256_manifest(tmp_path, (source,), manifest)
+
+    assert manifest.read_bytes() == original_bytes
+    assert manifest.stat().st_mtime_ns == original_mtime
+
+
+def test_validate_sha256_manifest_diagnoses_unsorted_entries(tmp_path):
+    first = tmp_path / "evidence" / "a.json"
+    second = tmp_path / "evidence" / "z.json"
+    first.parent.mkdir()
+    first.write_text("a", encoding="utf-8")
+    second.write_text("z", encoding="utf-8")
+    manifest = tmp_path / "manifest.txt"
+    manifest.write_text(
+        f"{hash_file(second)}  evidence/z.json\n"
+        f"{hash_file(first)}  evidence/a.json\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+
+    assert validate_sha256_manifest(tmp_path, manifest) == [
+        "manifest: entries are not sorted"
+    ]
+
+
+def test_validate_sha256_manifest_diagnoses_crlf_bytes(tmp_path):
+    source = tmp_path / "evidence.json"
+    source.write_text("{}", encoding="utf-8")
+    manifest = tmp_path / "manifest.txt"
+    manifest.write_bytes(
+        f"{hash_file(source)}  evidence.json\r\n".encode("ascii")
+    )
+
+    assert validate_sha256_manifest(tmp_path, manifest) == [
+        "manifest: CRLF line endings are not canonical"
+    ]
+
+
+def test_validate_sha256_manifest_diagnoses_missing_final_newline(tmp_path):
+    source = tmp_path / "evidence.json"
+    source.write_text("{}", encoding="utf-8")
+    manifest = tmp_path / "manifest.txt"
+    manifest.write_bytes(f"{hash_file(source)}  evidence.json".encode("ascii"))
+
+    assert validate_sha256_manifest(tmp_path, manifest) == [
+        "manifest: missing final newline"
+    ]
+
+
+def test_validate_sha256_manifest_rejects_noncanonical_path_form(tmp_path):
+    manifest = tmp_path / "manifest.txt"
+    manifest.write_text(
+        f"{'a' * 64}  evidence//result.json\n", encoding="ascii", newline="\n"
+    )
+
+    assert validate_sha256_manifest(tmp_path, manifest) == [
+        "line 1: non-portable path"
+    ]
+
+
+def test_validate_sha256_manifest_diagnoses_malformed_separator(tmp_path):
+    manifest = tmp_path / "manifest.txt"
+    manifest.write_bytes(f"{'a' * 64} evidence.json\n".encode("ascii"))
+
+    assert validate_sha256_manifest(tmp_path, manifest) == [
+        "line 1: malformed checksum entry"
     ]
