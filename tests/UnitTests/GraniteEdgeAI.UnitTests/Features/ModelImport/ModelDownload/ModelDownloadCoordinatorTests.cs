@@ -496,7 +496,8 @@ public sealed class ModelDownloadCoordinatorTests
         var service = new BlockingDiscardDownloadService();
         var coordinator = new ModelDownloadCoordinator(
             service,
-            new FakeNetworkPolicy(ModelDownloadConnectionKind.Unrestricted));
+            new FakeNetworkPolicy(ModelDownloadConnectionKind.Unrestricted),
+            TimeSpan.FromMilliseconds(50));
         int publications = 0;
         coordinator.StateChanged += (_, _) => publications++;
         Task operation = coordinator.StartAsync(50, false, CancellationToken.None);
@@ -666,6 +667,109 @@ public sealed class ModelDownloadCoordinatorTests
         service.ReleaseDiscard.TrySetResult();
         await discard.WaitAsync(TimeSpan.FromSeconds(1));
         Assert.AreEqual("download-cancelled-discarded", coordinator.State.ErrorCode);
+    }
+
+    [TestMethod]
+    public async Task DiscardUpgradeAtFinalSettlementStartsNewAuthority()
+    {
+        using var settlementRelease = new ManualResetEventSlim(false);
+        var settlementStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var service = new BlockingDiscardDownloadService();
+        var coordinator = new ModelDownloadCoordinator(
+            service,
+            new FakeNetworkPolicy(ModelDownloadConnectionKind.Offline),
+            cancellationAuthoritySettling: () =>
+            {
+                settlementStarted.TrySetResult();
+                settlementRelease.Wait();
+            });
+        await coordinator.StartAsync(50, false, CancellationToken.None);
+
+        Task preserve = Task.Run(() => coordinator.CancelAsync(false, CancellationToken.None));
+        await settlementStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        Task discard = Task.Run(() => coordinator.CancelAsync(true, CancellationToken.None));
+        Assert.IsFalse(discard.IsCompleted);
+
+        settlementRelease.Set();
+        await preserve.WaitAsync(TimeSpan.FromSeconds(1));
+        await service.DiscardStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        Assert.AreEqual(1, service.DiscardCalls);
+        service.ReleaseDiscard.TrySetResult();
+        await discard.WaitAsync(TimeSpan.FromSeconds(1));
+        Assert.AreEqual("download-cancelled-discarded", coordinator.State.ErrorCode);
+    }
+
+    [TestMethod]
+    public async Task ActiveNeverSettlingDiscardDetachesAndReconciles()
+    {
+        var service = new BlockingDiscardDownloadService();
+        var coordinator = new ModelDownloadCoordinator(
+            service,
+            new FakeNetworkPolicy(ModelDownloadConnectionKind.Unrestricted),
+            TimeSpan.FromMilliseconds(50));
+        Task operation = coordinator.StartAsync(50, false, CancellationToken.None);
+        await service.Started.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        Task cancellation = coordinator.CancelAsync(true, CancellationToken.None);
+        service.CompleteInterrupted();
+        await service.DiscardStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+
+        await cancellation.WaitAsync(TimeSpan.FromSeconds(1));
+        await operation.WaitAsync(TimeSpan.FromSeconds(1));
+        Assert.AreEqual("download-cancellation-cleanup-pending", coordinator.State.ErrorCode);
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
+            coordinator.StartAsync(65, false, CancellationToken.None));
+
+        service.ReleaseDiscard.TrySetResult();
+        await coordinator.CancellationReconciliation.WaitAsync(TimeSpan.FromSeconds(1));
+        Assert.AreEqual("download-cancelled-discarded", coordinator.State.ErrorCode);
+    }
+
+    [TestMethod]
+    public async Task InactiveNeverSettlingDiscardDetachesAndReconciles()
+    {
+        var service = new BlockingDiscardDownloadService();
+        var coordinator = new ModelDownloadCoordinator(
+            service,
+            new FakeNetworkPolicy(ModelDownloadConnectionKind.Offline),
+            TimeSpan.FromMilliseconds(50));
+        await coordinator.StartAsync(50, false, CancellationToken.None);
+        Task cancellation = coordinator.CancelAsync(true, CancellationToken.None);
+        await service.DiscardStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+
+        await cancellation.WaitAsync(TimeSpan.FromSeconds(1));
+        Assert.AreEqual("download-cancellation-cleanup-pending", coordinator.State.ErrorCode);
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
+            coordinator.StartAsync(65, false, CancellationToken.None));
+
+        service.ReleaseDiscard.TrySetResult();
+        await coordinator.CancellationReconciliation.WaitAsync(TimeSpan.FromSeconds(1));
+        Assert.AreEqual("download-cancelled-discarded", coordinator.State.ErrorCode);
+    }
+
+    [TestMethod]
+    public async Task QueuedDiscardSettlesWithoutSpinWhenRetiredDuringPreserveReconciliation()
+    {
+        var service = new BlockingDiscardDownloadService();
+        var coordinator = new ModelDownloadCoordinator(
+            service,
+            new FakeNetworkPolicy(ModelDownloadConnectionKind.Unrestricted),
+            TimeSpan.FromMilliseconds(50));
+        int publications = 0;
+        coordinator.StateChanged += (_, _) => publications++;
+        Task operation = coordinator.StartAsync(50, false, CancellationToken.None);
+        await service.Started.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        await coordinator.CancelAsync(false, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(1));
+        Task discard = coordinator.CancelAsync(true, CancellationToken.None);
+        Assert.IsFalse(discard.IsCompleted);
+
+        await coordinator.RetireAsync().WaitAsync(TimeSpan.FromSeconds(1));
+        int retiredPublications = publications;
+        service.CompleteInterrupted();
+        await operation.WaitAsync(TimeSpan.FromSeconds(1));
+        await discard.WaitAsync(TimeSpan.FromSeconds(1));
+
+        Assert.AreEqual(0, service.DiscardCalls);
+        Assert.AreEqual(retiredPublications, publications);
     }
 
     private sealed class FakeNetworkPolicy(ModelDownloadConnectionKind kind) : IModelDownloadNetworkPolicy
