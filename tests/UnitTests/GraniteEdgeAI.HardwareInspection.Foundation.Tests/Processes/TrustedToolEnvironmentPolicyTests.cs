@@ -99,6 +99,27 @@ public sealed class TrustedToolEnvironmentPolicyTests
     }
 
     [TestMethod]
+    public void CreateRejectsUnicodeFormatCharactersWithoutEchoingThem()
+    {
+        Dictionary<string, string?> parent = ValidParent();
+        parent["TEMP"] = parent["TEMP"] + "\u202eprivate";
+
+        InvalidOperationException failure = Assert.ThrowsExactly<InvalidOperationException>(
+            () => TrustedToolEnvironmentPolicy.Create(parent));
+
+        Assert.IsFalse(failure.Message.Contains("private", StringComparison.Ordinal));
+    }
+
+    [TestMethod]
+    public void ArbitraryEnvironmentCreationIsNotPublicProductionSurface()
+    {
+        Assert.IsNull(typeof(TrustedToolOperationEnvironment).GetMethod(
+            "Create",
+            System.Reflection.BindingFlags.Public |
+                System.Reflection.BindingFlags.Static));
+    }
+
+    [TestMethod]
     public void OperationEnvironmentUsesPrivateAclAndDeletesItsExactDirectory()
     {
         Dictionary<string, string?> parent = ValidParent();
@@ -149,6 +170,35 @@ public sealed class TrustedToolEnvironmentPolicyTests
 
             Assert.IsFalse(operation.CleanupSucceeded);
             Assert.IsTrue(Directory.Exists(operationDirectory));
+        }
+        finally
+        {
+            operation.Dispose();
+            if (Directory.Exists(operationDirectory))
+            {
+                Directory.Delete(operationDirectory, recursive: true);
+            }
+        }
+    }
+
+    [TestMethod]
+    public void OperationEnvironmentBoundsCleanupByLogicalBytes()
+    {
+        TrustedToolOperationEnvironment operation =
+            TrustedToolOperationEnvironment.Create(ValidParent());
+        string operationDirectory = operation.Variables["TEMP"];
+        string oversized = Path.Combine(operationDirectory, "oversized.tmp");
+        try
+        {
+            using (FileStream stream = File.Create(oversized))
+            {
+                stream.SetLength((64L * 1024 * 1024) + 1);
+            }
+
+            operation.Dispose();
+
+            Assert.IsFalse(operation.CleanupSucceeded);
+            Assert.IsTrue(File.Exists(oversized));
         }
         finally
         {

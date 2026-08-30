@@ -13,5 +13,7 @@
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="GraniteEdgeAI.HardwareInspection.Foundation.Tests" />
+    <InternalsVisibleTo Include="GraniteEdgeAI.ModelInspection.WorkerClient" />
+    <InternalsVisibleTo Include="GraniteEdgeAI.OpenVino.WorkerClient" />
   </ItemGroup>
 </Project>

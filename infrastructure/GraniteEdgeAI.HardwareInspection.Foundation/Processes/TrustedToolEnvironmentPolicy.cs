@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
 
 namespace GraniteEdgeAI.HardwareInspection.Foundation.Processes;
 
@@ -149,7 +150,10 @@ internal static class TrustedToolEnvironmentPolicy
             .Any(static segment =>
                 segment is "." or ".."
                 || !string.Equals(segment, segment.Trim(), StringComparison.Ordinal)
-                || segment.Any(static character => char.IsControl(character)));
+                || segment.Any(static character =>
+                    char.IsControl(character) ||
+                    CharUnicodeInfo.GetUnicodeCategory(character) ==
+                        UnicodeCategory.Format));
 
     private static bool HasReparseAncestor(string canonical)
     {
