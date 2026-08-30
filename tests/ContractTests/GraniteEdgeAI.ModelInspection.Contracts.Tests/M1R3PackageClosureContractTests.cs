@@ -69,6 +69,74 @@ public sealed class M1R3PackageClosureContractTests
     }
 
     [TestMethod]
+    public void DotNetHostSelectorPreservesExplicitCandidatePrecedence()
+    {
+        using TemporaryDirectory directory = TemporaryDirectory.Create();
+        string hostFileName = OperatingSystem.IsWindows() ? "dotnet.exe" : "dotnet";
+        string explicitHost = directory.WriteBytes(
+            $"explicit/{hostFileName}",
+            [1]);
+        string standardHost = directory.WriteBytes(
+            $"standard/{hostFileName}",
+            [2]);
+
+        Assert.AreEqual(
+            explicitHost,
+            EvaluatedMsBuildItems.SelectDotNetHost(
+                [explicitHost, standardHost],
+                hostFileName));
+    }
+
+    [TestMethod]
+    public void DotNetHostSelectorRejectsEveryUnverifiedCandidateClass()
+    {
+        using TemporaryDirectory directory = TemporaryDirectory.Create();
+        string hostFileName = OperatingSystem.IsWindows() ? "dotnet.exe" : "dotnet";
+        string validHost = directory.WriteBytes(
+            $"valid/{hostFileName}",
+            [1]);
+        string missingHost = Path.Combine(
+            directory.CreateDirectory("missing"),
+            hostFileName);
+        string wrongFileName = directory.WriteBytes(
+            "wrong/worker-host.exe",
+            [2]);
+        string relativeExistingHost = Path.GetRelativePath(
+            Environment.CurrentDirectory,
+            validHost);
+        string nonConcreteHost = Path.Combine(
+            Path.GetDirectoryName(validHost)!,
+            "nested",
+            "..",
+            hostFileName);
+
+        Assert.AreEqual(
+            validHost,
+            EvaluatedMsBuildItems.SelectDotNetHost(
+                [missingHost, validHost],
+                hostFileName),
+            "A missing candidate must not be selected.");
+        Assert.AreEqual(
+            validHost,
+            EvaluatedMsBuildItems.SelectDotNetHost(
+                [wrongFileName, validHost],
+                hostFileName),
+            "A candidate with the wrong executable name must not be selected.");
+        Assert.AreEqual(
+            validHost,
+            EvaluatedMsBuildItems.SelectDotNetHost(
+                [relativeExistingHost, validHost],
+                hostFileName),
+            "A relative candidate must not be selected even when it resolves to an existing file.");
+        Assert.AreEqual(
+            validHost,
+            EvaluatedMsBuildItems.SelectDotNetHost(
+                [nonConcreteHost, validHost],
+                hostFileName),
+            "A non-normalized candidate must not be selected even when it resolves to an existing file.");
+    }
+
+    [TestMethod]
     public void PackageContractDoesNotWhitelistUnresolvedImportedExpressions()
     {
         string source = File.ReadAllText(Path.Combine(

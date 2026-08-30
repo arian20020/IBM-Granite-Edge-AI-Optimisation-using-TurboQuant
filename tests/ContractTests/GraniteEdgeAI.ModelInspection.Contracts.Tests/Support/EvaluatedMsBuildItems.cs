@@ -208,19 +208,49 @@ internal static class EvaluatedMsBuildItems
             approvedSdk,
         ];
 
+        return SelectDotNetHost(candidates, hostFileName);
+    }
+
+    internal static string SelectDotNetHost(
+        IReadOnlyList<string?> candidates,
+        string hostFileName)
+    {
+        ArgumentNullException.ThrowIfNull(candidates);
+        ArgumentException.ThrowIfNullOrWhiteSpace(hostFileName);
+        StringComparison pathComparison = OperatingSystem.IsWindows()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+
         foreach (string? candidate in candidates)
         {
             if (string.IsNullOrWhiteSpace(candidate) ||
+                !Path.IsPathFullyQualified(candidate) ||
                 !string.Equals(
                     Path.GetFileName(candidate),
                     hostFileName,
-                    StringComparison.OrdinalIgnoreCase) ||
-                !File.Exists(candidate))
+                    pathComparison))
             {
                 continue;
             }
 
-            return Path.GetFullPath(candidate);
+            string concreteCandidate;
+            try
+            {
+                concreteCandidate = Path.GetFullPath(candidate);
+            }
+            catch (Exception exception) when (
+                exception is ArgumentException or NotSupportedException or PathTooLongException)
+            {
+                continue;
+            }
+
+            if (!string.Equals(candidate, concreteCandidate, pathComparison) ||
+                !File.Exists(concreteCandidate))
+            {
+                continue;
+            }
+
+            return concreteCandidate;
         }
 
         throw new FileNotFoundException("No installed dotnet host is available.");
