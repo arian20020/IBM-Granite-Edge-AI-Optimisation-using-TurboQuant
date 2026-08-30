@@ -9,6 +9,12 @@ namespace GraniteEdgeAI.CrossFeature.IntegrationTests;
 [TestClass]
 public sealed class RemediationGapContractTests
 {
+#if DEBUG
+    private const string TestConfiguration = "Debug";
+#else
+    private const string TestConfiguration = "Release";
+#endif
+
     private static readonly Lazy<EvaluatedAppProjectInfo> EvaluatedAppProject =
         new(EvaluateAppProject);
     [TestMethod]
@@ -159,13 +165,26 @@ public sealed class RemediationGapContractTests
             RequireDeclaration(service, "ResumableVerifiedModelDownloadService", failures);
             foreach (string token in new[]
             {
-                "CancellationToken", "Content-Range", "ExpectedByteLength",
+                "CancellationToken", "ExpectedByteLength",
                 "ExpectedSha256", "Publish", "Recover", "Resume"
             })
             {
-                if (!MaskStrings(service).Contains(token, StringComparison.Ordinal))
+                if (!ActiveCodeMask(service).Contains(token, StringComparison.Ordinal))
                     failures.Add($"download transaction token missing: {token}");
             }
+            string downloadMethod = MethodBody(service, "DownloadAsync");
+            foreach (string rangeMember in new[]
+            {
+                "HttpStatusCode.PartialContent", "response.ContentRange",
+                ".HasRange", ".From", ".To", ".Length"
+            })
+            {
+                if (!ActiveCodeMask(downloadMethod).Contains(
+                        rangeMember, StringComparison.Ordinal))
+                    failures.Add($"active range validation member missing: {rangeMember}");
+            }
+            RequireInvocationExpression(downloadMethod, "IsValidContentRange",
+                "download does not actively validate the returned byte range", failures);
         }
 
         if (File.Exists(coordinatorPath))
@@ -253,7 +272,7 @@ public sealed class RemediationGapContractTests
             ReadAppFile("Features", "Onboarding", "OnboardingShellPage.xaml.cs"),
             "SaveOptimizedModelAsync");
 
-        string activeMethod = MaskStrings(method);
+        string activeMethod = ActiveCodeMask(method);
         StringAssert.Contains(activeMethod,
             "Status: OptimizationExecutionStatus.SucceededPersistent");
         Assert.IsFalse(activeMethod.Contains(
@@ -345,11 +364,33 @@ public sealed class RemediationGapContractTests
         Assert.AreEqual(1, InvocationStatements(
             characterHost, "RealInvocation", out bool characterHasLocal).Count);
         Assert.IsFalse(characterHasLocal);
+
+        const string inactiveBranch = "#if T1_UNDEFINED_CANARY && (true || false)\nprivate void InactiveMethod() { _downloadCoordinator.DownloadAsync(); _downloadService.DownloadAsync(); _modelImportPage.SubmitInputAsync(); bool verified = result.IsVerified; }\npublic InactiveType() { }\npublic Stage InactiveProperty { set { } }\n#elif false\nprivate void AlsoInactive() { }\n#else\nprivate void ActiveFallback() { RealInvocation(); }\n#endif";
+        Assert.IsFalse(FindMethodSignature(inactiveBranch, "InactiveMethod").Success);
+        Assert.IsFalse(FindConstructorSignature(inactiveBranch, "InactiveType").Success);
+        Assert.IsFalse(FindPropertySignature(inactiveBranch, "InactiveProperty").Success);
+        string activeBranchCode = NormalizeCode(inactiveBranch);
+        Assert.IsFalse(activeBranchCode.Contains("_downloadCoordinator", StringComparison.Ordinal));
+        Assert.IsFalse(activeBranchCode.Contains("_downloadService", StringComparison.Ordinal));
+        Assert.IsFalse(activeBranchCode.Contains("_modelImportPage", StringComparison.Ordinal));
+        Assert.IsFalse(activeBranchCode.Contains(".IsVerified", StringComparison.Ordinal));
+        Assert.IsTrue(FindMethodSignature(inactiveBranch, "ActiveFallback").Success);
+
+        string evaluatedSymbol = EvaluatedAppProject.Value.DefineConstants
+            .FirstOrDefault(symbol => Regex.IsMatch(
+                symbol, @"^[A-Za-z_][A-Za-z0-9_]*$")) ?? "true";
+        string evaluatedBranch = $"#if {evaluatedSymbol}\nprivate void EvaluatedSymbolActive() {{ RealInvocation(); }}\n#endif";
+        Assert.IsTrue(FindMethodSignature(
+            evaluatedBranch, "EvaluatedSymbolActive").Success);
+        Assert.ThrowsExactly<FormatException>(() =>
+            ActiveCodeMask("#if true &&\nprivate void Broken() { }\n#endif"));
+        Assert.ThrowsExactly<FormatException>(() =>
+            ActiveCodeMask("#unsupported value\nprivate void Broken() { }"));
     }
 
     private static string MethodBody(string source, string methodName)
     {
-        string code = MaskStrings(source);
+        string code = ActiveCodeMask(source);
         Match signature = FindMethodSignature(source, methodName);
         Assert.IsTrue(signature.Success, $"Method signature not found: {methodName}");
         int bodyStart = code.IndexOfAny(['{', '='], signature.Index + signature.Length);
@@ -385,7 +426,7 @@ public sealed class RemediationGapContractTests
         Assert.IsTrue(property.Success, $"Property not found: {propertyName}");
         string propertyBody = BracedMember(source, property.Index,
             property.Index + property.Length - 1, propertyName + " property");
-        Match setter = Regex.Match(MaskStrings(propertyBody),
+        Match setter = Regex.Match(ActiveCodeMask(propertyBody),
             @"\b(?:private\s+)?set\s*\{",
             RegexOptions.CultureInvariant);
         Assert.IsTrue(setter.Success, $"Setter not found: {propertyName}");
@@ -394,17 +435,17 @@ public sealed class RemediationGapContractTests
     }
 
     private static Match FindMethodSignature(string source, string methodName) =>
-        Regex.Match(MaskStrings(source),
+        Regex.Match(ActiveCodeMask(source),
             $@"\b(?:private|internal|public|protected)\s+(?:static\s+)?(?:async\s+)?[A-Za-z0-9_<>,?.]+\s+{Regex.Escape(methodName)}\s*\(",
             RegexOptions.CultureInvariant);
 
     private static Match FindConstructorSignature(string source, string typeName) =>
-        Regex.Match(MaskStrings(source),
+        Regex.Match(ActiveCodeMask(source),
             $@"\b(?:public|internal|private|protected)\s+{Regex.Escape(typeName)}\s*\(",
             RegexOptions.CultureInvariant);
 
     private static Match FindPropertySignature(string source, string propertyName) =>
-        Regex.Match(MaskStrings(source),
+        Regex.Match(ActiveCodeMask(source),
             $@"\b(?:public|internal|private|protected)\s+[A-Za-z0-9_<>,?.]+\s+{Regex.Escape(propertyName)}\s*\{{",
             RegexOptions.CultureInvariant);
 
@@ -414,7 +455,7 @@ public sealed class RemediationGapContractTests
         int searchStart,
         string description)
     {
-        string code = MaskStrings(source);
+        string code = ActiveCodeMask(source);
         int open = code.IndexOf('{', searchStart);
         Assert.IsTrue(open >= 0, $"Opening brace not found: {description}");
         int close = FindBalancedClose(code, open, '{', '}');
@@ -445,7 +486,7 @@ public sealed class RemediationGapContractTests
             failures.Add("download Command must be an exact x:Bind to an owned command");
             return null;
         }
-        Match initialization = Regex.Match(MaskStrings(code),
+        Match initialization = Regex.Match(ActiveCodeMask(code),
             $@"\b{Regex.Escape(command.Groups["name"].Value)}\s*=\s*new\s+[A-Za-z0-9_<>.]+\s*\(\s*(?<handler>[A-Za-z_][A-Za-z0-9_]*)\s*\)",
             RegexOptions.CultureInvariant);
         if (!initialization.Success)
@@ -471,7 +512,7 @@ public sealed class RemediationGapContractTests
         string failure,
         ICollection<string> failures)
     {
-        if (!MaskStrings(source).Contains(token, StringComparison.Ordinal))
+        if (!ActiveCodeMask(source).Contains(token, StringComparison.Ordinal))
             failures.Add(failure);
     }
 
@@ -481,7 +522,7 @@ public sealed class RemediationGapContractTests
         string failure,
         ICollection<string> failures)
     {
-        if (MaskStrings(source).Contains(token, StringComparison.Ordinal))
+        if (ActiveCodeMask(source).Contains(token, StringComparison.Ordinal))
             failures.Add(failure);
     }
 
@@ -490,7 +531,7 @@ public sealed class RemediationGapContractTests
         string typeName,
         ICollection<string> failures)
     {
-        if (!Regex.IsMatch(MaskStrings(source),
+        if (!Regex.IsMatch(ActiveCodeMask(source),
                 $@"\b(?:class|record|struct)\s+{Regex.Escape(typeName)}\b",
                 RegexOptions.CultureInvariant))
         {
@@ -506,6 +547,24 @@ public sealed class RemediationGapContractTests
     {
         if (InvocationStatements(source, methodName, out bool containsLocalFunction).Count == 0
             || containsLocalFunction)
+            failures.Add(failure);
+    }
+
+    private static void RequireInvocationExpression(
+        string source,
+        string methodName,
+        string failure,
+        ICollection<string> failures)
+    {
+        string code = ActiveCodeMask(source);
+        int outerBody = code.IndexOf('{');
+        string nestedCode = outerBody >= 0 ? code[(outerBody + 1)..] : string.Empty;
+        bool containsLocalFunction = Regex.IsMatch(nestedCode,
+            @"(?m)^\s*(?!if\b|for\b|foreach\b|while\b|switch\b|catch\b|using\b)(?:static\s+)?(?:async\s+)?[A-Za-z_][A-Za-z0-9_<>,?.\[\]]*\s+[A-Za-z_][A-Za-z0-9_]*\s*\([^;{}]*\)\s*(?:\{|=>)",
+            RegexOptions.CultureInvariant);
+        if (containsLocalFunction || !Regex.IsMatch(code,
+                $@"\b{Regex.Escape(methodName)}\s*\(",
+                RegexOptions.CultureInvariant))
             failures.Add(failure);
     }
 
@@ -534,12 +593,12 @@ public sealed class RemediationGapContractTests
         }
 
         string lifecycleToken = matching[^1].Trim();
-        int signatureClose = MaskStrings(method).IndexOf(')');
+        int signatureClose = ActiveCodeMask(method).IndexOf(')');
         string signature = signatureClose >= 0 ? method[..(signatureClose + 1)] : string.Empty;
         if (!Regex.IsMatch(lifecycleToken, @"^[A-Za-z_][A-Za-z0-9_]*$",
                 RegexOptions.CultureInvariant)
             || lifecycleToken is "default" or "None"
-            || !Regex.IsMatch(MaskStrings(signature),
+            || !Regex.IsMatch(ActiveCodeMask(signature),
                 $@"\bCancellationToken\s+{Regex.Escape(lifecycleToken)}\b",
                 RegexOptions.CultureInvariant))
         {
@@ -552,7 +611,7 @@ public sealed class RemediationGapContractTests
         string methodName,
         out bool containsLocalFunction)
     {
-        string code = MaskStrings(source);
+        string code = ActiveCodeMask(source);
         int outerBody = code.IndexOf('{');
         string nestedCode = outerBody >= 0 ? code[(outerBody + 1)..] : string.Empty;
         containsLocalFunction = Regex.IsMatch(nestedCode,
@@ -578,7 +637,7 @@ public sealed class RemediationGapContractTests
         var values = new List<string>();
         int start = 0;
         int depth = 0;
-        string code = MaskStrings(arguments);
+        string code = ActiveCodeMask(arguments);
         for (int index = 0; index < code.Length; index++)
         {
             if (code[index] is '(' or '[' or '{') depth++;
@@ -612,7 +671,205 @@ public sealed class RemediationGapContractTests
         string.Concat(source.Where(character => !char.IsWhiteSpace(character)));
 
     private static string NormalizeCode(string source) =>
-        Normalize(MaskStrings(source));
+        Normalize(ActiveCodeMask(source));
+
+    private static string ActiveCodeMask(string source) =>
+        MaskStrings(MaskInactivePreprocessor(source));
+
+    private static string MaskInactivePreprocessor(string source)
+    {
+        char[] result = source.ToCharArray();
+        string lexical = MaskStrings(source);
+        var symbols = new HashSet<string>(
+            EvaluatedAppProject.Value.DefineConstants, StringComparer.Ordinal);
+        var stack = new Stack<ConditionalFrame>();
+        bool active = true;
+        int lineStart = 0;
+        while (lineStart < source.Length)
+        {
+            int newline = source.IndexOf('\n', lineStart);
+            int lineEnd = newline < 0 ? source.Length : newline;
+            string lexicalLine = lexical[lineStart..lineEnd];
+            string trimmed = lexicalLine.TrimStart();
+            if (trimmed.StartsWith('#'))
+            {
+                string directiveText = trimmed[1..].Trim();
+                int separator = directiveText.IndexOfAny([' ', '\t']);
+                string directive = separator < 0
+                    ? directiveText
+                    : directiveText[..separator];
+                string argument = separator < 0
+                    ? string.Empty
+                    : directiveText[(separator + 1)..].Trim();
+                switch (directive)
+                {
+                    case "if":
+                    {
+                        bool condition = EvaluatePreprocessorExpression(argument, symbols);
+                        stack.Push(new ConditionalFrame(active, condition));
+                        active = active && condition;
+                        break;
+                    }
+                    case "elif":
+                    {
+                        if (stack.Count == 0) throw new FormatException("#elif without #if.");
+                        ConditionalFrame frame = stack.Peek();
+                        if (frame.ElseSeen) throw new FormatException("#elif after #else.");
+                        bool condition = EvaluatePreprocessorExpression(argument, symbols);
+                        active = frame.ParentActive && !frame.BranchTaken && condition;
+                        frame.BranchTaken |= condition;
+                        break;
+                    }
+                    case "else":
+                    {
+                        RequireNoDirectiveArgument(directive, argument);
+                        if (stack.Count == 0) throw new FormatException("#else without #if.");
+                        ConditionalFrame frame = stack.Peek();
+                        if (frame.ElseSeen) throw new FormatException("Duplicate #else.");
+                        frame.ElseSeen = true;
+                        active = frame.ParentActive && !frame.BranchTaken;
+                        frame.BranchTaken = true;
+                        break;
+                    }
+                    case "endif":
+                    {
+                        RequireNoDirectiveArgument(directive, argument);
+                        if (stack.Count == 0) throw new FormatException("#endif without #if.");
+                        ConditionalFrame frame = stack.Pop();
+                        active = frame.ParentActive;
+                        break;
+                    }
+                    case "define":
+                    case "undef":
+                        if (!Regex.IsMatch(argument, @"^[A-Za-z_][A-Za-z0-9_]*$"))
+                            throw new FormatException($"Malformed #{directive}.");
+                        if (active)
+                        {
+                            if (directive == "define") symbols.Add(argument);
+                            else symbols.Remove(argument);
+                        }
+                        break;
+                    case "region":
+                    case "endregion":
+                    case "nullable":
+                    case "pragma":
+                    case "line":
+                        break;
+                    case "warning":
+                    case "error":
+                        if (active) throw new FormatException($"Active #{directive} directive.");
+                        break;
+                    default:
+                        throw new FormatException($"Unsupported preprocessor directive: #{directive}.");
+                }
+                Blank(result, lineStart, lineEnd);
+            }
+            else if (!active)
+            {
+                Blank(result, lineStart, lineEnd);
+            }
+            lineStart = newline < 0 ? source.Length : newline + 1;
+        }
+        if (stack.Count != 0) throw new FormatException("Unclosed #if directive.");
+        return new string(result);
+    }
+
+    private static bool EvaluatePreprocessorExpression(
+        string expression,
+        IReadOnlySet<string> symbols) =>
+        new PreprocessorExpressionParser(expression, symbols).Parse();
+
+    private static void RequireNoDirectiveArgument(string directive, string argument)
+    {
+        if (argument.Length != 0)
+            throw new FormatException($"Unexpected argument after #{directive}.");
+    }
+
+    private sealed class ConditionalFrame(bool parentActive, bool branchTaken)
+    {
+        internal bool ParentActive { get; } = parentActive;
+        internal bool BranchTaken { get; set; } = branchTaken;
+        internal bool ElseSeen { get; set; }
+    }
+
+    private sealed class PreprocessorExpressionParser(
+        string expression,
+        IReadOnlySet<string> symbols)
+    {
+        private int position;
+
+        internal bool Parse()
+        {
+            bool value = ParseOr();
+            SkipWhitespace();
+            if (position != expression.Length)
+                throw new FormatException("Unsupported preprocessor expression.");
+            return value;
+        }
+
+        private bool ParseOr()
+        {
+            bool value = ParseAnd();
+            while (Take("||")) value = ParseAnd() || value;
+            return value;
+        }
+
+        private bool ParseAnd()
+        {
+            bool value = ParseUnary();
+            while (Take("&&")) value = ParseUnary() && value;
+            return value;
+        }
+
+        private bool ParseUnary()
+        {
+            if (Take("!")) return !ParseUnary();
+            if (Take("("))
+            {
+                bool value = ParseOr();
+                if (!Take(")")) throw new FormatException("Missing preprocessor ')'.");
+                return value;
+            }
+            string identifier = TakeIdentifier();
+            return identifier switch
+            {
+                "true" => true,
+                "false" => false,
+                "" => throw new FormatException("Expected preprocessor symbol."),
+                _ => symbols.Contains(identifier)
+            };
+        }
+
+        private bool Take(string token)
+        {
+            SkipWhitespace();
+            if (!expression.AsSpan(position).StartsWith(token, StringComparison.Ordinal))
+                return false;
+            position += token.Length;
+            return true;
+        }
+
+        private string TakeIdentifier()
+        {
+            SkipWhitespace();
+            int start = position;
+            if (position < expression.Length
+                && (char.IsLetter(expression[position]) || expression[position] == '_'))
+            {
+                position++;
+                while (position < expression.Length
+                       && (char.IsLetterOrDigit(expression[position])
+                           || expression[position] == '_')) position++;
+            }
+            return expression[start..position];
+        }
+
+        private void SkipWhitespace()
+        {
+            while (position < expression.Length && char.IsWhiteSpace(expression[position]))
+                position++;
+        }
+    }
 
     private static string StripComments(string source)
     {
@@ -827,6 +1084,7 @@ public sealed class RemediationGapContractTests
         start.ArgumentList.Add(projectPath);
         start.ArgumentList.Add("-getItem:Compile");
         start.ArgumentList.Add("-getProperty:DefineConstants");
+        start.ArgumentList.Add("-p:Configuration=" + TestConfiguration);
         start.ArgumentList.Add("-p:Platform=x64");
         start.ArgumentList.Add("-p:RuntimeIdentifier=win-x64");
         using Process process = Process.Start(start)
