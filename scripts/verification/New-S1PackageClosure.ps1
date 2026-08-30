@@ -28,6 +28,57 @@ function Get-Sha256([string]$Path) {
     (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
 }
 
+# ASCII and UTF-16LE privacy scan.  Scan bounded chunks so large native payloads
+# never need to be retained as decoded strings, and overlap chunks so a sentinel
+# cannot evade the check by crossing a read boundary.
+function Assert-NoPrivateContent([string]$Path) {
+    $pattern = '(?i)(?:[a-z]:\\(?:users|r4-[^\\\x00\r\n]*)(?:\\|/)|\\\\(?:\?\.|\.)(?:\\|/)|\.nuget(?:\\|/)|(?:all_proxy|http_proxy|https_proxy|no_proxy|access_token|api_key|password|secret|credential)\s*[:=]|cc7aee17|da49c3d1)'
+    $stream = [IO.File]::Open($Path, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
+    try {
+        $buffer = [byte[]]::new(1048576)
+        $tail = [byte[]]::new(0)
+        while (($read = $stream.Read($buffer, 0, $buffer.Length)) -gt 0) {
+            $chunk = [byte[]]::new($tail.Length + $read)
+            if ($tail.Length -gt 0) { [Array]::Copy($tail, 0, $chunk, 0, $tail.Length) }
+            [Array]::Copy($buffer, 0, $chunk, $tail.Length, $read)
+            $ascii = [Text.Encoding]::ASCII.GetString($chunk)
+            $unicode = [Text.Encoding]::Unicode.GetString($chunk)
+            if ($ascii -match $pattern -or $unicode -match $pattern) {
+                throw 'package member contains private content.'
+            }
+            $tailLength = [Math]::Min(512, $chunk.Length)
+            $tail = [byte[]]::new($tailLength)
+            [Array]::Copy($chunk, $chunk.Length - $tailLength, $tail, 0, $tailLength)
+        }
+    }
+    finally {
+        $stream.Dispose()
+    }
+}
+
+function Test-ContainsBytes([string]$Path, [byte[]]$Needle) {
+    $stream = [IO.File]::Open($Path, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
+    try {
+        $buffer = [byte[]]::new(1048576)
+        $tail = [byte[]]::new(0)
+        while (($read = $stream.Read($buffer, 0, $buffer.Length)) -gt 0) {
+            $chunk = [byte[]]::new($tail.Length + $read)
+            if ($tail.Length -gt 0) { [Array]::Copy($tail, 0, $chunk, 0, $tail.Length) }
+            [Array]::Copy($buffer, 0, $chunk, $tail.Length, $read)
+            if ([Text.Encoding]::ASCII.GetString($chunk).Contains(
+                    [Text.Encoding]::ASCII.GetString($Needle),
+                    [StringComparison]::Ordinal)) { return $true }
+            $tailLength = [Math]::Min($Needle.Length - 1, $chunk.Length)
+            $tail = [byte[]]::new($tailLength)
+            [Array]::Copy($chunk, $chunk.Length - $tailLength, $tail, 0, $tailLength)
+        }
+        return $false
+    }
+    finally {
+        $stream.Dispose()
+    }
+}
+
 function Get-AllowlistReason([string]$TargetPath) {
     $extension = [IO.Path]::GetExtension($TargetPath).ToLowerInvariant()
     switch ($extension) {
@@ -57,6 +108,7 @@ Assert-CanonicalGitIdentity 'ImplementationSubjectCommit' $ImplementationSubject
 Assert-CanonicalGitIdentity 'ImplementationSubjectTree' $ImplementationSubjectTree
 Assert-CanonicalGitIdentity 'BaseCommit' $BaseCommit
 Assert-CanonicalGitIdentity 'BaseTree' $BaseTree
+$ImplementationSubjectCommitBytes = [Text.Encoding]::ASCII.GetBytes($ImplementationSubjectCommit)
 if ($BuildCommandIdentity -cnotmatch '^[a-z0-9][a-z0-9._:-]{0,127}$') {
     throw 'BuildCommandIdentity is not sanitized.'
 }
@@ -86,6 +138,11 @@ foreach ($line in [IO.File]::ReadAllLines((Resolve-Path -LiteralPath $EvaluatedM
         throw 'Evaluated package source is unavailable or redirected.'
     }
     $file = Get-Item -LiteralPath $source
+    Assert-NoPrivateContent $source
+    if ($target -match '(?i)(^|/)(?:GraniteEdgeAI\.|IBM Granite with TurboQuant \(Intel\)\.).*\.dll$' -and
+        -not (Test-ContainsBytes $source $ImplementationSubjectCommitBytes)) {
+        throw 'First-party package member does not bind to the implementation subject.'
+    }
     $entries.Add([ordered]@{
         path = $target
         bytes = [long]$file.Length
@@ -146,6 +203,8 @@ $closure = [ordered]@{
         unresolvedExpressions = 0
         duplicateTargetPaths = 0
         privateSourcePathsEmitted = 0
+        privateContentMatches = 0
+        staleFirstPartyIdentityMatches = 0
     }
     blockers = @($Blocker)
     nonclaims = @(

@@ -59,9 +59,31 @@ public sealed class PackageMembershipPolicyTests
         StringAssert.Contains(script, @"\.pdb$");
         StringAssert.Contains(script, @"\.appxrecipe$");
         StringAssert.Contains(script, "debugfixtures");
+        StringAssert.Contains(script, "ASCII and UTF-16LE privacy scan");
+        StringAssert.Contains(script, "ImplementationSubjectCommitBytes");
+        StringAssert.Contains(script, "package member contains private content");
         Assert.IsFalse(script.Contains(
             "EnumerateFiles($Build",
             StringComparison.OrdinalIgnoreCase));
+    }
+
+    [TestMethod]
+    public void ReleaseBuildSuppressesPrivatePdbPathRecords()
+    {
+        XDocument properties = XDocument.Load(Path.Combine(
+            FindRepositoryRoot(),
+            "Directory.Build.props"));
+        XElement release = properties.Root!.Elements()
+            .Single(element =>
+                element.Name.LocalName == "PropertyGroup" &&
+                ((string?)element.Attribute("Condition"))?.Contains(
+                    "$(Configuration)",
+                    StringComparison.Ordinal) == true);
+
+        Assert.AreEqual("none", release.Elements().Single(
+            element => element.Name.LocalName == "DebugType").Value);
+        Assert.AreEqual("false", release.Elements().Single(
+            element => element.Name.LocalName == "DebugSymbols").Value);
     }
 
     private static XDocument LoadProject() => XDocument.Load(Path.Combine(
