@@ -51,6 +51,9 @@ internal sealed class ModelDownloadCoordinator : IDisposable
     private bool _disposed;
     private Task? _retirementTask;
     private Task _cancellationReconciliation = Task.CompletedTask;
+    private ModelDownloadOperationId? _cancellationOperationId;
+    private Task? _cancellationOperationTask;
+    private bool _cancellationOperationDiscardsPartial;
 
     internal ModelDownloadCoordinator(
         IModelDownloadService service,
@@ -142,7 +145,8 @@ internal sealed class ModelDownloadCoordinator : IDisposable
         lock (_sync)
         {
             ThrowIfDisposed();
-            if (_activeCancellation is not null || _cancellationPendingOperation is not null)
+            if (_activeCancellation is not null || _cancellationPendingOperation is not null
+                || _cancellationOperationTask is { IsCompleted: false })
             {
                 throw new InvalidOperationException("A model download is already active.");
             }
@@ -251,7 +255,45 @@ internal sealed class ModelDownloadCoordinator : IDisposable
         }
     }
 
-    internal async Task CancelAsync(bool discardPartial, CancellationToken cancellationToken)
+    internal Task CancelAsync(bool discardPartial, CancellationToken cancellationToken)
+    {
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        lock (_sync)
+        {
+            ThrowIfDisposed();
+            ModelDownloadOperationId? operationId = State.OperationId;
+            if (operationId is not null
+                && _cancellationOperationId == operationId
+                && _cancellationOperationTask is not null
+                && (!_cancellationOperationTask.IsCompleted
+                    || _cancellationOperationDiscardsPartial
+                    || !discardPartial))
+                return _cancellationOperationTask;
+            _cancellationOperationId = operationId;
+            _cancellationOperationTask = completion.Task;
+            _cancellationOperationDiscardsPartial = discardPartial;
+        }
+        _ = CompleteCancellationOperationAsync(discardPartial, cancellationToken, completion);
+        return completion.Task;
+    }
+
+    private async Task CompleteCancellationOperationAsync(
+        bool discardPartial,
+        CancellationToken cancellationToken,
+        TaskCompletionSource completion)
+    {
+        try
+        {
+            await CancelCoreAsync(discardPartial, cancellationToken).ConfigureAwait(false);
+            completion.TrySetResult();
+        }
+        catch (Exception exception)
+        {
+            completion.TrySetException(exception);
+        }
+    }
+
+    private async Task CancelCoreAsync(bool discardPartial, CancellationToken cancellationToken)
     {
         ModelDownloadCatalogEntry entry;
         CancellationTokenSource? active;
@@ -262,7 +304,6 @@ internal sealed class ModelDownloadCoordinator : IDisposable
         bool settledDiscard = false;
         lock (_sync)
         {
-            ThrowIfDisposed();
             bool cancellableStage = State.Stage is ModelDownloadStage.Preparing
                 or ModelDownloadStage.Downloading
                 or ModelDownloadStage.Verifying;

@@ -186,6 +186,33 @@ public sealed class OptimizationDestinationCardTests
     }
 
     [UITestMethod]
+    public async Task ThrowingExportStateObserverCannotSuppressRenderingOrLaterObservers()
+    {
+        var card = new OptimizationDestinationCard();
+        OptimizationPresentationState presentation = PersistentPresentation();
+        card.Apply(presentation);
+        Assert.IsTrue(card.BindVerifiedExport(
+            Target(presentation.OptimizationPlanId),
+            new ImmediateExportService()));
+        var observed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        card.ExportStateChanged += (_, _) => throw new InvalidOperationException("synthetic observer failure");
+        card.ExportStateChanged += (_, state) =>
+        {
+            if (state.Kind != OptimizationExportStateKind.Succeeded) return;
+            var status = (TextBlock)card.FindName("ExportStatusText");
+            var progress = (ProgressBar)card.FindName("ExportProgressBar");
+            if (status.Text == state.StatusText && progress.Visibility == Visibility.Collapsed)
+                observed.TrySetResult();
+        };
+
+        Assert.IsTrue(await card.TryStartExportAsync());
+        await observed.Task.WaitAsync(TimeSpan.FromSeconds(1));
+
+        Assert.AreEqual(OptimizationExportStateKind.Succeeded, card.ExportState.Kind);
+        Assert.AreEqual(card.ExportState.StatusText, ((TextBlock)card.FindName("ExportStatusText")).Text);
+    }
+
+    [UITestMethod]
     public void ExportControlsHaveStableAccessibleSemantics()
     {
         OptimizationDestinationCard card = new();

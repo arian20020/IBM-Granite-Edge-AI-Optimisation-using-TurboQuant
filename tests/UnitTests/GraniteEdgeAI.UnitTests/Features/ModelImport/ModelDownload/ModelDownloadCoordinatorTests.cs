@@ -559,6 +559,55 @@ public sealed class ModelDownloadCoordinatorTests
         Assert.AreNotEqual(discardedOperation, coordinator.State.OperationId);
     }
 
+    [TestMethod]
+    public async Task ConcurrentActiveCancellationSharesOneDiscardAuthority()
+    {
+        var service = new BlockingDiscardDownloadService();
+        var coordinator = new ModelDownloadCoordinator(
+            service,
+            new FakeNetworkPolicy(ModelDownloadConnectionKind.Unrestricted));
+        Task operation = coordinator.StartAsync(50, false, CancellationToken.None);
+        await service.Started.Task.WaitAsync(TimeSpan.FromSeconds(1));
+
+        Task first = coordinator.CancelAsync(true, CancellationToken.None);
+        Task second = coordinator.CancelAsync(true, CancellationToken.None);
+        Assert.AreSame(first, second);
+        service.CompleteInterrupted();
+        await service.DiscardStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        await operation.WaitAsync(TimeSpan.FromSeconds(1));
+
+        Assert.AreEqual(1, service.DiscardCalls);
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
+            coordinator.StartAsync(65, false, CancellationToken.None));
+        service.ReleaseDiscard.TrySetResult();
+        await Task.WhenAll(first, second).WaitAsync(TimeSpan.FromSeconds(1));
+        Assert.AreEqual(1, service.DiscardCalls);
+    }
+
+    [TestMethod]
+    public async Task ConcurrentInactiveDiscardSharesOneCleanupAuthority()
+    {
+        var service = new BlockingDiscardDownloadService();
+        var coordinator = new ModelDownloadCoordinator(
+            service,
+            new FakeNetworkPolicy(ModelDownloadConnectionKind.Offline));
+        await coordinator.StartAsync(50, false, CancellationToken.None);
+
+        Task first = coordinator.CancelAsync(true, CancellationToken.None);
+        Task second = coordinator.CancelAsync(true, CancellationToken.None);
+        Assert.AreSame(first, second);
+        await service.DiscardStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+
+        Assert.AreEqual(1, service.DiscardCalls);
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
+            coordinator.ResumeAsync(false, CancellationToken.None));
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
+            coordinator.StartAsync(65, false, CancellationToken.None));
+        service.ReleaseDiscard.TrySetResult();
+        await Task.WhenAll(first, second).WaitAsync(TimeSpan.FromSeconds(1));
+        Assert.AreEqual(1, service.DiscardCalls);
+    }
+
     private sealed class FakeNetworkPolicy(ModelDownloadConnectionKind kind) : IModelDownloadNetworkPolicy
     {
         public ModelDownloadConnectionKind GetCurrentConnectionKind() => kind;
@@ -718,6 +767,7 @@ public sealed class ModelDownloadCoordinatorTests
         internal TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource DiscardStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource ReleaseDiscard { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal int DiscardCalls { get; private set; }
 
         public Task<ModelDownloadResult> DownloadAsync(
             ModelDownloadCatalogEntry entry,
@@ -739,6 +789,7 @@ public sealed class ModelDownloadCoordinatorTests
             ModelDownloadCatalogEntry entry,
             CancellationToken cancellationToken)
         {
+            DiscardCalls++;
             DiscardStarted.TrySetResult();
             await ReleaseDiscard.Task.WaitAsync(cancellationToken);
         }

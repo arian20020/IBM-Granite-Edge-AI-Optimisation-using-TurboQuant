@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Threading.Tasks;
 using GraniteEdgeAI.Features.ModelOptimization.Export;
 using GraniteEdgeAI.Features.ModelOptimization.Presentation;
@@ -118,17 +119,38 @@ public sealed partial class OptimizationDestinationCard : UserControl
     private void ExportController_StateChanged(object? sender, OptimizationExportViewState state)
     {
         if (sender is not OptimizationExportController controller || !ReferenceEquals(controller, _exportController)) return;
-        ExportStateChanged?.Invoke(this, state);
         DispatcherQueue dispatcher = DispatcherQueue;
         if (!dispatcher.HasThreadAccess)
         {
             dispatcher.TryEnqueue(() =>
             {
-                if (ReferenceEquals(controller, _exportController) && Equals(controller.State, state)) ApplyExportState(state);
+                if (!ReferenceEquals(controller, _exportController) || !Equals(controller.State, state)) return;
+                ApplyExportState(state);
+                PublishExportStateChanged(state);
             });
             return;
         }
-        if (Equals(controller.State, state)) ApplyExportState(state);
+        if (!Equals(controller.State, state)) return;
+        ApplyExportState(state);
+        PublishExportStateChanged(state);
+    }
+
+    private void PublishExportStateChanged(OptimizationExportViewState state)
+    {
+        Delegate[] handlers = ExportStateChanged?.GetInvocationList() ?? [];
+        foreach (Delegate candidate in handlers)
+        {
+            try
+            {
+                ((EventHandler<OptimizationExportViewState>)candidate)(this, state);
+            }
+            catch (Exception exception)
+            {
+                Trace.TraceError(
+                    "An optimization-export card observer failed with {0}.",
+                    exception.GetType().Name);
+            }
+        }
     }
 
     private void ApplyExportState(OptimizationExportViewState state)
