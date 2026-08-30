@@ -1,134 +1,251 @@
-diff --git a/shared/GraniteEdgeAI.CrossFeature.Contracts/GraniteEdgeAI.CrossFeature.Contracts.csproj b/shared/GraniteEdgeAI.CrossFeature.Contracts/GraniteEdgeAI.CrossFeature.Contracts.csproj
+diff --git a/IBM Granite with TurboQuant (Intel)/Directory.Build.targets b/IBM Granite with TurboQuant (Intel)/Directory.Build.targets
 new file mode 100644
-index 0000000..1111111
+index 0000000000000000000000000000000000000000..b77e655ba0458939d8f548b19d5807e0341506af
 --- /dev/null
-+++ b/shared/GraniteEdgeAI.CrossFeature.Contracts/GraniteEdgeAI.CrossFeature.Contracts.csproj
-@@ -0,0 +1,13 @@
-+<Project Sdk="Microsoft.NET.Sdk">
-+  <PropertyGroup>
-+    <TargetFramework>net8.0</TargetFramework>
-+    <ImplicitUsings>enable</ImplicitUsings>
-+    <Nullable>enable</Nullable>
-+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
-+    <AnalysisLevel>latest-recommended</AnalysisLevel>
-+  </PropertyGroup>
-+  <ItemGroup>
-+    <ProjectReference Include="..\GraniteEdgeAI.ModelHardwareCompatibility.Core\GraniteEdgeAI.ModelHardwareCompatibility.Core.csproj" />
++++ b/IBM Granite with TurboQuant (Intel)/Directory.Build.targets
+@@ -0,0 +1,6 @@
++<Project>
++  <ItemGroup Condition="'$(MSBuildProjectName)' == 'IBM Granite with TurboQuant (Intel)' and '$(Platform)' == 'x64'">
++    <ProjectReference Include="$(MSBuildThisFileDirectory)..\shared\GraniteEdgeAI.ModelDownload.Authority\GraniteEdgeAI.ModelDownload.Authority.csproj" />
++    <ProjectReference Include="$(MSBuildThisFileDirectory)..\shared\GraniteEdgeAI.CrossFeature.Contracts\GraniteEdgeAI.CrossFeature.Contracts.csproj" />
 +  </ItemGroup>
 +</Project>
-diff --git a/shared/GraniteEdgeAI.CrossFeature.Contracts/CrossFeatureAcceptanceContracts.cs b/shared/GraniteEdgeAI.CrossFeature.Contracts/CrossFeatureAcceptanceContracts.cs
+diff --git a/IBM Granite with TurboQuant (Intel)/Features/ModelImport/ModelDownload/ModelDownloadCatalogEntry.cs b/IBM Granite with TurboQuant (Intel)/Features/ModelImport/ModelDownload/ModelDownloadCatalogEntry.cs
+deleted file mode 100644
+index 92ef724a81b916aa8f7f5eba08c818d0f605d80b..0000000000000000000000000000000000000000
+--- a/IBM Granite with TurboQuant (Intel)/Features/ModelImport/ModelDownload/ModelDownloadCatalogEntry.cs
++++ /dev/null
+@@ -1,116 +0,0 @@
+-using System.Text.RegularExpressions;
+-
+-namespace GraniteEdgeAI.Features.ModelImport.ModelDownload;
+-
+-internal sealed class ModelDownloadCatalogEntry
+-{
+-    private static readonly Regex Sha256Pattern = new(
+-        "^[0-9a-f]{64}$",
+-        RegexOptions.CultureInvariant | RegexOptions.NonBacktracking);
+-
+-    internal ModelDownloadCatalogEntry(
+-        string id,
+-        string preferenceLabel,
+-        string quantisation,
+-        double minimumSliderValue,
+-        double maximumSliderValue,
+-        bool includesMaximum,
+-        string repositoryId,
+-        string revision,
+-        string fileName,
+-        long expectedByteLength,
+-        string expectedSha256)
+-    {
+-        Id = RequireText(id, nameof(id));
+-        PreferenceLabel = RequireText(preferenceLabel, nameof(preferenceLabel));
+-        Quantisation = RequireText(quantisation, nameof(quantisation));
+-        RepositoryId = RequireText(repositoryId, nameof(repositoryId));
+-        Revision = RequireText(revision, nameof(revision));
+-        FileName = RequireSafeFileName(fileName);
+-
+-        if (!double.IsFinite(minimumSliderValue) ||
+-            !double.IsFinite(maximumSliderValue) ||
+-            minimumSliderValue < 0 ||
+-            maximumSliderValue > 100 ||
+-            minimumSliderValue >= maximumSliderValue)
+-        {
+-            throw new ArgumentOutOfRangeException(
+-                nameof(minimumSliderValue),
+-                "Slider bounds must describe a non-empty range inside 0 through 100.");
+-        }
+-
+-        if (expectedByteLength <= 0)
+-        {
+-            throw new ArgumentOutOfRangeException(nameof(expectedByteLength));
+-        }
+-
+-        if (expectedSha256 is null || !Sha256Pattern.IsMatch(expectedSha256))
+-        {
+-            throw new ArgumentException(
+-                "The expected SHA-256 must be exactly 64 lowercase hexadecimal characters.",
+-                nameof(expectedSha256));
+-        }
+-
+-        MinimumSliderValue = minimumSliderValue;
+-        MaximumSliderValue = maximumSliderValue;
+-        IncludesMaximum = includesMaximum;
+-        ExpectedByteLength = expectedByteLength;
+-        ExpectedSha256 = expectedSha256;
+-    }
+-
+-    internal string Id { get; }
+-
+-    internal string PreferenceLabel { get; }
+-
+-    internal string Quantisation { get; }
+-
+-    internal double MinimumSliderValue { get; }
+-
+-    internal double MaximumSliderValue { get; }
+-
+-    internal bool IncludesMaximum { get; }
+-
+-    internal string RepositoryId { get; }
+-
+-    internal string Revision { get; }
+-
+-    internal string FileName { get; }
+-
+-    internal long ExpectedByteLength { get; }
+-
+-    internal string ExpectedSha256 { get; }
+-
+-    internal Uri ResolveUri => new(
+-        $"https://huggingface.co/{RepositoryId}/resolve/{Revision}/{FileName}?download=true",
+-        UriKind.Absolute);
+-
+-    internal string DownloadSizeText =>
+-        $"{ExpectedByteLength / 1_000_000_000d:0.00} GB";
+-
+-    internal bool ContainsSliderValue(double value) =>
+-        value >= MinimumSliderValue &&
+-        (value < MaximumSliderValue || (IncludesMaximum && value == MaximumSliderValue));
+-
+-    private static string RequireText(string value, string parameterName)
+-    {
+-        if (string.IsNullOrWhiteSpace(value) || value != value.Trim())
+-        {
+-            throw new ArgumentException("A non-empty canonical value is required.", parameterName);
+-        }
+-
+-        return value;
+-    }
+-
+-    private static string RequireSafeFileName(string value)
+-    {
+-        string fileName = RequireText(value, nameof(value));
+-        if (!fileName.EndsWith(".gguf", StringComparison.OrdinalIgnoreCase) ||
+-            fileName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 ||
+-            !string.Equals(Path.GetFileName(fileName), fileName, StringComparison.Ordinal))
+-        {
+-            throw new ArgumentException("A safe GGUF file name is required.", nameof(value));
+-        }
+-
+-        return fileName;
+-    }
+-}
+diff --git a/IBM Granite with TurboQuant (Intel)/Features/ModelImport/ModelDownload/PinnedGraniteModelCatalog.cs b/IBM Granite with TurboQuant (Intel)/Features/ModelImport/ModelDownload/PinnedGraniteModelCatalog.cs
+deleted file mode 100644
+index 110a77b5dfc53deb1787a56b6a1e4d8d7b3b7a55..0000000000000000000000000000000000000000
+--- a/IBM Granite with TurboQuant (Intel)/Features/ModelImport/ModelDownload/PinnedGraniteModelCatalog.cs
++++ /dev/null
+@@ -1,99 +0,0 @@
+-using System.Collections.ObjectModel;
+-
+-namespace GraniteEdgeAI.Features.ModelImport.ModelDownload;
+-
+-internal static class PinnedGraniteModelCatalog
+-{
+-    private const string RepositoryId = "ibm-granite/granite-4.0-h-micro-GGUF";
+-    private const string Revision = "51ce07a9c9cfa971ca359d9625836bf8a4a1b61f";
+-
+-    private static readonly ReadOnlyCollection<ModelDownloadCatalogEntry> CatalogEntries =
+-        Array.AsReadOnly<ModelDownloadCatalogEntry>(
+-        [
+-            Create(
+-                "granite-4.0-h-micro-q2-k",
+-                "Maximum efficiency",
+-                "Q2_K",
+-                0,
+-                20,
+-                false,
+-                "granite-4.0-h-micro-Q2_K.gguf",
+-                1_226_247_840,
+-                "e60b313fc0ce2a0a2c3903f4399ac61fe1048c38f219bcbd9f7a708e168b8ead"),
+-            Create(
+-                "granite-4.0-h-micro-q3-k-m",
+-                "Efficient",
+-                "Q3_K_M",
+-                20,
+-                40,
+-                false,
+-                "granite-4.0-h-micro-Q3_K_M.gguf",
+-                1_555_472_032,
+-                "bb684177d546a2c6d3aec9cc591fc8fa75d9c16a27e798cbb2400fe52d9b7e29"),
+-            Create(
+-                "granite-4.0-h-micro-q4-k-m",
+-                "Balanced",
+-                "Q4_K_M",
+-                40,
+-                60,
+-                false,
+-                "granite-4.0-h-micro-Q4_K_M.gguf",
+-                1_942_564_512,
+-                "c698c78e895740f0e707eb7f8e92894f83f6d5b3f2f2f0b446dfe9635fa0063e"),
+-            Create(
+-                "granite-4.0-h-micro-q5-k-m",
+-                "High capability",
+-                "Q5_K_M",
+-                60,
+-                80,
+-                false,
+-                "granite-4.0-h-micro-Q5_K_M.gguf",
+-                2_273_455_776,
+-                "69857575412143ea74d66e4d54ad70ec420d42452eadfff4a7cc043fe445ed4c"),
+-            Create(
+-                "granite-4.0-h-micro-q8-0",
+-                "Maximum capability",
+-                "Q8_0",
+-                80,
+-                100,
+-                true,
+-                "granite-4.0-h-micro-Q8_0.gguf",
+-                3_397_676_704,
+-                "a009111abf2865b7aad1e66326a6c772cddc29bccd22898f470292068b27bb59")
+-        ]);
+-
+-    internal static IReadOnlyList<ModelDownloadCatalogEntry> Entries => CatalogEntries;
+-
+-    internal static ModelDownloadCatalogEntry ForSliderValue(double value)
+-    {
+-        if (!double.IsFinite(value) || value < 0 || value > 100)
+-        {
+-            throw new ArgumentOutOfRangeException(nameof(value));
+-        }
+-
+-        return CatalogEntries.First(entry => entry.ContainsSliderValue(value));
+-    }
+-
+-    private static ModelDownloadCatalogEntry Create(
+-        string id,
+-        string preferenceLabel,
+-        string quantisation,
+-        double minimumSliderValue,
+-        double maximumSliderValue,
+-        bool includesMaximum,
+-        string fileName,
+-        long expectedByteLength,
+-        string expectedSha256) =>
+-        new(
+-            id,
+-            preferenceLabel,
+-            quantisation,
+-            minimumSliderValue,
+-            maximumSliderValue,
+-            includesMaximum,
+-            RepositoryId,
+-            Revision,
+-            fileName,
+-            expectedByteLength,
+-            expectedSha256);
+-}
+diff --git a/shared/GraniteEdgeAI.CrossFeature.Contracts/ExactOptimizationResultContracts.cs b/shared/GraniteEdgeAI.CrossFeature.Contracts/ExactOptimizationResultContracts.cs
 new file mode 100644
-index 0000000..1111111
+index 0000000000000000000000000000000000000000..3a59c0516bc44a0d8653c42c881617ae8928e442
 --- /dev/null
-+++ b/shared/GraniteEdgeAI.CrossFeature.Contracts/CrossFeatureAcceptanceContracts.cs
-@@ -0,0 +1,127 @@
++++ b/shared/GraniteEdgeAI.CrossFeature.Contracts/ExactOptimizationResultContracts.cs
+@@ -0,0 +1,24 @@
 +using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
 +
 +namespace GraniteEdgeAI.CrossFeature.Contracts;
-+
-+public sealed record PinnedModelArtifact(
-+    OptimizationPreferenceBand Band,
-+    string RepositoryId,
-+    string Revision,
-+    string FileName,
-+    ulong ExpectedByteLength,
-+    string ExpectedSha256);
-+
-+public sealed record DownloadedArtifactEvidence(
-+    string RepositoryId,
-+    string Revision,
-+    string FileName,
-+    ulong ObservedByteLength,
-+    string ObservedSha256);
-+
-+public static class PinnedGraniteModelCatalog
-+{
-+    private const string Repository = "ibm-granite/granite-4.0-h-micro-GGUF";
-+    private const string Revision = "51ce07a9c9cfa971ca359d9625836bf8a4a1b61f";
-+
-+    private static readonly Dictionary<OptimizationPreferenceBand, PinnedModelArtifact>
-+        Entries = new Dictionary<OptimizationPreferenceBand, PinnedModelArtifact>
-+        {
-+            [OptimizationPreferenceBand.MaximumEfficiency] = new(
-+                OptimizationPreferenceBand.MaximumEfficiency, Repository, Revision,
-+                "granite-4.0-h-micro-Q2_K.gguf", 1_226_247_840,
-+                "e60b313fc0ce2a0a2c3903f4399ac61fe1048c38f219bcbd9f7a708e168b8ead"),
-+            [OptimizationPreferenceBand.Efficient] = new(
-+                OptimizationPreferenceBand.Efficient, Repository, Revision,
-+                "granite-4.0-h-micro-Q3_K_M.gguf", 1_555_472_032,
-+                "bb684177d546a2c6d3aec9cc591fc8fa75d9c16a27e798cbb2400fe52d9b7e29"),
-+            [OptimizationPreferenceBand.Balanced] = new(
-+                OptimizationPreferenceBand.Balanced, Repository, Revision,
-+                "granite-4.0-h-micro-Q4_K_M.gguf", 1_942_564_512,
-+                "c698c78e895740f0e707eb7f8e92894f83f6d5b3f2f2f0b446dfe9635fa0063e"),
-+            [OptimizationPreferenceBand.HighCapability] = new(
-+                OptimizationPreferenceBand.HighCapability, Repository, Revision,
-+                "granite-4.0-h-micro-Q5_K_M.gguf", 2_273_455_776,
-+                "69857575412143ea74d66e4d54ad70ec420d42452eadfff4a7cc043fe445ed4c"),
-+            [OptimizationPreferenceBand.MaximumCapability] = new(
-+                OptimizationPreferenceBand.MaximumCapability, Repository, Revision,
-+                "granite-4.0-h-micro-Q8_0.gguf", 3_397_676_704,
-+                "a009111abf2865b7aad1e66326a6c772cddc29bccd22898f470292068b27bb59")
-+        };
-+
-+    public static PinnedModelArtifact Get(OptimizationPreferenceBand band) =>
-+        Entries.TryGetValue(band, out PinnedModelArtifact? artifact)
-+            ? artifact
-+            : throw new ArgumentOutOfRangeException(nameof(band));
-+}
-+
-+public enum VerifiedDownloadStatus
-+{
-+    Verified = 0,
-+    VerificationFailed = 1,
-+    Cancelled = 2,
-+    Retired = 3,
-+    Stale = 4
-+}
-+
-+public sealed record VerifiedDownloadResult(
-+    Guid OperationId,
-+    long Generation,
-+    VerifiedDownloadStatus Status,
-+    PinnedModelArtifact RequestedArtifact,
-+    DownloadedArtifactEvidence Evidence,
-+    string? PublicationIdentity,
-+    Guid? InspectionRequestId)
-+{
-+    public bool IsVerified =>
-+        Status == VerifiedDownloadStatus.Verified
-+        && PublicationIdentity is not null
-+        && InspectionRequestId is not null
-+        && string.Equals(RequestedArtifact.RepositoryId, Evidence.RepositoryId,
-+            StringComparison.Ordinal)
-+        && string.Equals(RequestedArtifact.Revision, Evidence.Revision,
-+            StringComparison.Ordinal)
-+        && string.Equals(RequestedArtifact.FileName, Evidence.FileName,
-+            StringComparison.Ordinal)
-+        && RequestedArtifact.ExpectedByteLength == Evidence.ObservedByteLength
-+        && string.Equals(RequestedArtifact.ExpectedSha256, Evidence.ObservedSha256,
-+            StringComparison.Ordinal);
-+}
-+
-+public interface IVerifiedModelDownloadCoordinator
-+{
-+    Task<VerifiedDownloadResult> DownloadAsync(
-+        PinnedModelArtifact artifact,
-+        Guid operationId,
-+        long generation,
-+        CancellationToken cancellationToken);
-+
-+    void Retire(Guid operationId, long generation);
-+}
-+
-+public interface IVerifiedModelSubmissionBoundary
-+{
-+    Task SubmitVerifiedDownloadAsync(
-+        PinnedModelArtifact requestedArtifact,
-+        VerifiedDownloadResult result,
-+        CancellationToken cancellationToken);
-+}
 +
 +public readonly record struct ChatTargetAuthority(
 +    Guid OptimizationPlanId,
@@ -150,51 +267,499 @@ index 0000000..1111111
 +        long lifecycleGeneration,
 +        CancellationToken cancellationToken);
 +}
-diff --git a/shared/GraniteEdgeAI.CrossFeature.Contracts/C0-INTEGRATION.md b/shared/GraniteEdgeAI.CrossFeature.Contracts/C0-INTEGRATION.md
+diff --git a/shared/GraniteEdgeAI.CrossFeature.Contracts/GraniteEdgeAI.CrossFeature.Contracts.csproj b/shared/GraniteEdgeAI.CrossFeature.Contracts/GraniteEdgeAI.CrossFeature.Contracts.csproj
 new file mode 100644
-index 0000000..1111111
+index 0000000000000000000000000000000000000000..9a89fd2197fff40c483f94af4bbea5607a622769
 --- /dev/null
-+++ b/shared/GraniteEdgeAI.CrossFeature.Contracts/C0-INTEGRATION.md
-@@ -0,0 +1,42 @@
-+# Required C0 integration after the contract patch
++++ b/shared/GraniteEdgeAI.CrossFeature.Contracts/GraniteEdgeAI.CrossFeature.Contracts.csproj
+@@ -0,0 +1,13 @@
++<Project Sdk="Microsoft.NET.Sdk">
++  <PropertyGroup>
++    <TargetFramework>net8.0</TargetFramework>
++    <ImplicitUsings>enable</ImplicitUsings>
++    <Nullable>enable</Nullable>
++    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
++    <EnableNETAnalyzers>true</EnableNETAnalyzers>
++    <AnalysisLevel>latest-recommended</AnalysisLevel>
++  </PropertyGroup>
++  <ItemGroup>
++    <ProjectReference Include="..\GraniteEdgeAI.ModelHardwareCompatibility.Core\GraniteEdgeAI.ModelHardwareCompatibility.Core.csproj" />
++  </ItemGroup>
++</Project>
+diff --git a/shared/GraniteEdgeAI.ModelDownload.Authority/C0-INTEGRATION.md b/shared/GraniteEdgeAI.ModelDownload.Authority/C0-INTEGRATION.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..659cd58ac1d340f9a0da6a59a24eb31e5a942100
+--- /dev/null
++++ b/shared/GraniteEdgeAI.ModelDownload.Authority/C0-INTEGRATION.md
+@@ -0,0 +1,30 @@
++# C0 integration contract
 +
-+This patch is deliberately a contract proposal, not a claim that applying the
-+contract alone closes T1. C0 must complete every item below before either T1
-+source/composition RED can become GREEN.
++This patch is based on reviewed F1 tip `414ad9f97e5cc27e6b710f82d70b985aa14f3507`.
++It moves, rather than copies, the five reviewed pins into one shared authority.
++The existing F1 app consumes that authority through a project reference, so the
++working slider and download behavior remain intact while the app-local catalog
++files are removed.
 +
-+1. Add a project reference from the WinUI app to this contract project.
-+2. Implement `IVerifiedModelDownloadCoordinator` in
-+   `Features/ModelImport/ModelDownload/ModelDownloadCoordinator.cs` using an
-+   owned resumable transport. Construct observed evidence from the received
-+   bytes and response identity, compare it to the requested catalog entry,
-+   atomically publish only an exact verified match, and issue one inspection
-+   request only after publication. Retirement, cancellation, stale generation,
-+   duplicate completion, and late completion must publish and navigate zero times.
-+3. Make `ModelDownloadCard.xaml.cs` select the compiled catalog entry by the
-+   exact `OptimizationPreferenceBand`, pass its lifecycle token/generation to
-+   the coordinator, and call `ModelImportPage.SubmitInputAsync` only through
-+   `IVerifiedModelSubmissionBoundary` after rechecking `IsVerified` and exact
-+   requested-artifact equality.
-+4. Implement `IExactOptimizationResultConsumer` in Model Optimization storage.
-+   The implementation must resolve Chat/export from the exact result plus
-+   receipt, compare plan/configuration/source/hardware/output identity, manifest
-+   digest, and byte length, reject runtime-only export, and never consult
-+   `LastPublishedDirectory` or another ambient last-result field.
-+5. Make `ModelOptimizationPage` retain the selected result and lifecycle
-+   generation and call only that consumer for Chat/export.
-+6. Add owner tests with controlled transports/tasks for all R4.1 download,
-+   cancellation, exact-result, restart, substitution, and five-band catalog
-+   cases. T1 then replaces its two composition REDs with ProjectReference-based
-+   behavioral tests against those compiled owner seams.
-+7. Extract the temporarily linked app families into referenceable projects:
-+   ModelImport.Selection, ModelInspection.Contracts/Application,
-+   ModelOptimization.Storage/Application, ModelHardwareCompatibility.Contracts,
-+   and GgufRuntime.History/Services. Expose the worker environment policy from
-+   its WorkerClient assembly. Replace each exact T1 link only after its owner
-+   project preserves the shipping imports, generated inputs, constants,
-+   analyzers, and references.
++C0 must make `ResumableVerifiedModelDownloadService` create
++`DownloadedArtifactEvidence` only from the completed response and bytes it
++actually hashes. `ModelDownloadCoordinator` must begin with the closed
++`OptimizationPreferenceBand`, re-resolve it through `PinnedGraniteModelCatalog`
++at the completion boundary, and call `CanonicalDownloadVerifier.IsExactMatch`
++before publication, inspection, handoff, or navigation. It must bind the exact
++operation, generation, publication identity, inspection request, and lifecycle
++generation, and reject cancelled, retired, stale, duplicate, or late completion.
 +
-+Privacy/lifecycle rule: the public contracts carry opaque publication,
-+destination, plan, configuration, digest, length, operation, and generation
-+authority only. They carry no rooted path, provider payload, secret, ambient
-+last-result state, or default lifecycle token.
++No contract, event, navigation payload, receipt, diagnostic, or UI evidence may
++carry the downloader's local path. The existing internal `VerifiedDownloadedModel`
++may retain its path only inside the app-owned handoff implementation. C0 must add
++owner tests around the real coordinator/service before changing T1's intentional
++download RED to GREEN.
++
++The retained `GraniteEdgeAI.CrossFeature.Contracts` project preserves the R4.1
++exact-result Chat/export seam. C0 must implement `IExactOptimizationResultConsumer`
++in Model Optimization storage, validate the exact result and receipt identities
++(including plan, configuration, source, hardware, output, manifest digest, byte
++length, and lifecycle generation), reject runtime-only export, and never fall back
++to an ambient last-result field. `ModelOptimizationPage` must retain and submit
++only the selected result and its lifecycle generation through this consumer.
+diff --git a/shared/GraniteEdgeAI.ModelDownload.Authority/CanonicalDownloadVerifier.cs b/shared/GraniteEdgeAI.ModelDownload.Authority/CanonicalDownloadVerifier.cs
+new file mode 100644
+index 0000000000000000000000000000000000000000..52f10ce88fe7245a89a7d6020d02fa8303cf9c26
+--- /dev/null
++++ b/shared/GraniteEdgeAI.ModelDownload.Authority/CanonicalDownloadVerifier.cs
+@@ -0,0 +1,70 @@
++using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
++
++namespace GraniteEdgeAI.Features.ModelImport.ModelDownload;
++
++internal enum DownloadCompletionStatus
++{
++    Completed,
++    Failed,
++    Cancelled,
++    Retired,
++    Stale
++}
++
++internal sealed record DownloadVerificationContext(
++    OptimizationPreferenceBand Band,
++    Guid OperationId,
++    long Generation,
++    string PublicationIdentity,
++    Guid InspectionRequestId,
++    long LifecycleGeneration);
++
++internal sealed record DownloadedArtifactEvidence(
++    DownloadCompletionStatus Status,
++    OptimizationPreferenceBand Band,
++    string RepositoryId,
++    string Revision,
++    string FileName,
++    long ObservedByteLength,
++    string ObservedSha256,
++    Guid OperationId,
++    long Generation,
++    string PublicationIdentity,
++    Guid InspectionRequestId,
++    long LifecycleGeneration);
++
++internal static class CanonicalDownloadVerifier
++{
++    internal static bool IsExactMatch(
++        DownloadVerificationContext expected,
++        DownloadedArtifactEvidence observed)
++    {
++        ArgumentNullException.ThrowIfNull(expected);
++        ArgumentNullException.ThrowIfNull(observed);
++        ModelDownloadCatalogEntry canonical;
++        try
++        {
++            canonical = PinnedGraniteModelCatalog.ForPreferenceBand(expected.Band);
++        }
++        catch (ArgumentOutOfRangeException)
++        {
++            return false;
++        }
++
++        return observed.Status == DownloadCompletionStatus.Completed
++            && observed.Band == expected.Band
++            && string.Equals(observed.RepositoryId, canonical.RepositoryId, StringComparison.Ordinal)
++            && string.Equals(observed.Revision, canonical.Revision, StringComparison.Ordinal)
++            && string.Equals(observed.FileName, canonical.FileName, StringComparison.Ordinal)
++            && observed.ObservedByteLength == canonical.ExpectedByteLength
++            && string.Equals(observed.ObservedSha256, canonical.ExpectedSha256, StringComparison.Ordinal)
++            && observed.OperationId == expected.OperationId
++            && observed.Generation == expected.Generation
++            && observed.Generation >= 0
++            && string.Equals(observed.PublicationIdentity,
++                expected.PublicationIdentity, StringComparison.Ordinal)
++            && observed.InspectionRequestId == expected.InspectionRequestId
++            && observed.LifecycleGeneration == expected.LifecycleGeneration
++            && observed.LifecycleGeneration >= 0;
++    }
++}
+diff --git a/shared/GraniteEdgeAI.ModelDownload.Authority/GraniteEdgeAI.ModelDownload.Authority.csproj b/shared/GraniteEdgeAI.ModelDownload.Authority/GraniteEdgeAI.ModelDownload.Authority.csproj
+new file mode 100644
+index 0000000000000000000000000000000000000000..a5202659bee7687fa3fcb2833d35ab59db916af3
+--- /dev/null
++++ b/shared/GraniteEdgeAI.ModelDownload.Authority/GraniteEdgeAI.ModelDownload.Authority.csproj
+@@ -0,0 +1,18 @@
++<Project Sdk="Microsoft.NET.Sdk">
++  <PropertyGroup>
++    <TargetFramework>net8.0</TargetFramework>
++    <ImplicitUsings>enable</ImplicitUsings>
++    <Nullable>enable</Nullable>
++    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
++    <EnableNETAnalyzers>true</EnableNETAnalyzers>
++    <AnalysisLevel>latest-recommended</AnalysisLevel>
++    <Deterministic>true</Deterministic>
++  </PropertyGroup>
++  <ItemGroup>
++    <InternalsVisibleTo Include="IBM Granite with TurboQuant (Intel)" />
++    <InternalsVisibleTo Include="GraniteEdgeAI.ModelDownload.Authority.Tests" />
++  </ItemGroup>
++  <ItemGroup>
++    <ProjectReference Include="..\GraniteEdgeAI.ModelHardwareCompatibility.Core\GraniteEdgeAI.ModelHardwareCompatibility.Core.csproj" />
++  </ItemGroup>
++</Project>
+diff --git a/shared/GraniteEdgeAI.ModelDownload.Authority/ModelDownloadCatalogEntry.cs b/shared/GraniteEdgeAI.ModelDownload.Authority/ModelDownloadCatalogEntry.cs
+new file mode 100644
+index 0000000000000000000000000000000000000000..f78f7097ef626c3b97114fe0fe220928fc9a0181
+--- /dev/null
++++ b/shared/GraniteEdgeAI.ModelDownload.Authority/ModelDownloadCatalogEntry.cs
+@@ -0,0 +1,90 @@
++using System.Text.RegularExpressions;
++using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
++
++namespace GraniteEdgeAI.Features.ModelImport.ModelDownload;
++
++public sealed class ModelDownloadCatalogEntry
++{
++    private static readonly Regex Sha256Pattern = new(
++        "^[0-9a-f]{64}$",
++        RegexOptions.CultureInvariant | RegexOptions.NonBacktracking);
++
++    internal ModelDownloadCatalogEntry(
++        OptimizationPreferenceBand band,
++        string id,
++        string preferenceLabel,
++        string quantisation,
++        double minimumSliderValue,
++        double maximumSliderValue,
++        bool includesMaximum,
++        string repositoryId,
++        string revision,
++        string fileName,
++        long expectedByteLength,
++        string expectedSha256)
++    {
++        Band = band;
++        Id = RequireText(id, nameof(id));
++        PreferenceLabel = RequireText(preferenceLabel, nameof(preferenceLabel));
++        Quantisation = RequireText(quantisation, nameof(quantisation));
++        RepositoryId = RequireText(repositoryId, nameof(repositoryId));
++        Revision = RequireText(revision, nameof(revision));
++        FileName = RequireSafeFileName(fileName);
++        if (!double.IsFinite(minimumSliderValue)
++            || !double.IsFinite(maximumSliderValue)
++            || minimumSliderValue < 0
++            || maximumSliderValue > 100
++            || minimumSliderValue >= maximumSliderValue)
++        {
++            throw new ArgumentOutOfRangeException(nameof(minimumSliderValue));
++        }
++        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(expectedByteLength);
++        if (expectedSha256 is null || !Sha256Pattern.IsMatch(expectedSha256))
++            throw new ArgumentException("A lowercase SHA-256 is required.", nameof(expectedSha256));
++
++        MinimumSliderValue = minimumSliderValue;
++        MaximumSliderValue = maximumSliderValue;
++        IncludesMaximum = includesMaximum;
++        ExpectedByteLength = expectedByteLength;
++        ExpectedSha256 = expectedSha256;
++    }
++
++    public OptimizationPreferenceBand Band { get; }
++    public string Id { get; }
++    public string PreferenceLabel { get; }
++    public string Quantisation { get; }
++    public double MinimumSliderValue { get; }
++    public double MaximumSliderValue { get; }
++    public bool IncludesMaximum { get; }
++    public string RepositoryId { get; }
++    public string Revision { get; }
++    public string FileName { get; }
++    public long ExpectedByteLength { get; }
++    public string ExpectedSha256 { get; }
++    public Uri ResolveUri => new(
++        $"https://huggingface.co/{RepositoryId}/resolve/{Revision}/{FileName}?download=true",
++        UriKind.Absolute);
++    public string DownloadSizeText => $"{ExpectedByteLength / 1_000_000_000d:0.00} GB";
++    public bool ContainsSliderValue(double value) =>
++        value >= MinimumSliderValue
++        && (value < MaximumSliderValue || (IncludesMaximum && value == MaximumSliderValue));
++
++    private static string RequireText(string value, string parameterName)
++    {
++        if (string.IsNullOrWhiteSpace(value) || value != value.Trim())
++            throw new ArgumentException("A canonical value is required.", parameterName);
++        return value;
++    }
++
++    private static string RequireSafeFileName(string value)
++    {
++        string fileName = RequireText(value, nameof(value));
++        if (!fileName.EndsWith(".gguf", StringComparison.OrdinalIgnoreCase)
++            || fileName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0
++            || !string.Equals(Path.GetFileName(fileName), fileName, StringComparison.Ordinal))
++        {
++            throw new ArgumentException("A safe GGUF file name is required.", nameof(value));
++        }
++        return fileName;
++    }
++}
+diff --git a/shared/GraniteEdgeAI.ModelDownload.Authority/PinnedGraniteModelCatalog.cs b/shared/GraniteEdgeAI.ModelDownload.Authority/PinnedGraniteModelCatalog.cs
+new file mode 100644
+index 0000000000000000000000000000000000000000..d2cb6189e232803720cd94e02d19ddba16aaddd9
+--- /dev/null
++++ b/shared/GraniteEdgeAI.ModelDownload.Authority/PinnedGraniteModelCatalog.cs
+@@ -0,0 +1,63 @@
++using System.Collections.ObjectModel;
++using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
++
++namespace GraniteEdgeAI.Features.ModelImport.ModelDownload;
++
++public static class PinnedGraniteModelCatalog
++{
++    private const string RepositoryId = "ibm-granite/granite-4.0-h-micro-GGUF";
++    private const string Revision = "51ce07a9c9cfa971ca359d9625836bf8a4a1b61f";
++
++    private static readonly ReadOnlyCollection<ModelDownloadCatalogEntry> CatalogEntries =
++        Array.AsReadOnly<ModelDownloadCatalogEntry>(
++        [
++            Create(OptimizationPreferenceBand.MaximumEfficiency,
++                "granite-4.0-h-micro-q2-k", "Maximum efficiency", "Q2_K", 0, 20, false,
++                "granite-4.0-h-micro-Q2_K.gguf", 1_226_247_840,
++                "e60b313fc0ce2a0a2c3903f4399ac61fe1048c38f219bcbd9f7a708e168b8ead"),
++            Create(OptimizationPreferenceBand.Efficient,
++                "granite-4.0-h-micro-q3-k-m", "Efficient", "Q3_K_M", 20, 40, false,
++                "granite-4.0-h-micro-Q3_K_M.gguf", 1_555_472_032,
++                "bb684177d546a2c6d3aec9cc591fc8fa75d9c16a27e798cbb2400fe52d9b7e29"),
++            Create(OptimizationPreferenceBand.Balanced,
++                "granite-4.0-h-micro-q4-k-m", "Balanced", "Q4_K_M", 40, 60, false,
++                "granite-4.0-h-micro-Q4_K_M.gguf", 1_942_564_512,
++                "c698c78e895740f0e707eb7f8e92894f83f6d5b3f2f2f0b446dfe9635fa0063e"),
++            Create(OptimizationPreferenceBand.HighCapability,
++                "granite-4.0-h-micro-q5-k-m", "High capability", "Q5_K_M", 60, 80, false,
++                "granite-4.0-h-micro-Q5_K_M.gguf", 2_273_455_776,
++                "69857575412143ea74d66e4d54ad70ec420d42452eadfff4a7cc043fe445ed4c"),
++            Create(OptimizationPreferenceBand.MaximumCapability,
++                "granite-4.0-h-micro-q8-0", "Maximum capability", "Q8_0", 80, 100, true,
++                "granite-4.0-h-micro-Q8_0.gguf", 3_397_676_704,
++                "a009111abf2865b7aad1e66326a6c772cddc29bccd22898f470292068b27bb59")
++        ]);
++
++    public static IReadOnlyList<ModelDownloadCatalogEntry> Entries => CatalogEntries;
++
++    public static ModelDownloadCatalogEntry ForPreferenceBand(OptimizationPreferenceBand band) =>
++        CatalogEntries.SingleOrDefault(entry => entry.Band == band)
++        ?? throw new ArgumentOutOfRangeException(nameof(band));
++
++    public static ModelDownloadCatalogEntry ForSliderValue(double value)
++    {
++        if (!double.IsFinite(value) || value < 0 || value > 100)
++            throw new ArgumentOutOfRangeException(nameof(value));
++        return CatalogEntries.First(entry => entry.ContainsSliderValue(value));
++    }
++
++    private static ModelDownloadCatalogEntry Create(
++        OptimizationPreferenceBand band,
++        string id,
++        string preferenceLabel,
++        string quantisation,
++        double minimumSliderValue,
++        double maximumSliderValue,
++        bool includesMaximum,
++        string fileName,
++        long expectedByteLength,
++        string expectedSha256) =>
++        new(band, id, preferenceLabel, quantisation, minimumSliderValue,
++            maximumSliderValue, includesMaximum, RepositoryId, Revision,
++            fileName, expectedByteLength, expectedSha256);
++}
+diff --git a/tests/ContractTests/GraniteEdgeAI.ModelDownload.Authority.Tests/CanonicalDownloadAuthorityTests.cs b/tests/ContractTests/GraniteEdgeAI.ModelDownload.Authority.Tests/CanonicalDownloadAuthorityTests.cs
+new file mode 100644
+index 0000000000000000000000000000000000000000..a91e3e616adaac1a2e511cfc8875f70260bdf59b
+--- /dev/null
++++ b/tests/ContractTests/GraniteEdgeAI.ModelDownload.Authority.Tests/CanonicalDownloadAuthorityTests.cs
+@@ -0,0 +1,141 @@
++using System.Reflection;
++using GraniteEdgeAI.Features.ModelImport.ModelDownload;
++using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
++
++namespace GraniteEdgeAI.ModelDownload.Authority.Tests;
++
++[TestClass]
++public sealed class CanonicalDownloadAuthorityTests
++{
++    [TestMethod]
++    public void CanonicalCatalogMapsAllFivePreferenceBandsToReviewedPins()
++    {
++        (OptimizationPreferenceBand Band, string File, long Length, string Hash)[] expected =
++        [
++            (OptimizationPreferenceBand.MaximumEfficiency, "granite-4.0-h-micro-Q2_K.gguf", 1_226_247_840, "e60b313fc0ce2a0a2c3903f4399ac61fe1048c38f219bcbd9f7a708e168b8ead"),
++            (OptimizationPreferenceBand.Efficient, "granite-4.0-h-micro-Q3_K_M.gguf", 1_555_472_032, "bb684177d546a2c6d3aec9cc591fc8fa75d9c16a27e798cbb2400fe52d9b7e29"),
++            (OptimizationPreferenceBand.Balanced, "granite-4.0-h-micro-Q4_K_M.gguf", 1_942_564_512, "c698c78e895740f0e707eb7f8e92894f83f6d5b3f2f2f0b446dfe9635fa0063e"),
++            (OptimizationPreferenceBand.HighCapability, "granite-4.0-h-micro-Q5_K_M.gguf", 2_273_455_776, "69857575412143ea74d66e4d54ad70ec420d42452eadfff4a7cc043fe445ed4c"),
++            (OptimizationPreferenceBand.MaximumCapability, "granite-4.0-h-micro-Q8_0.gguf", 3_397_676_704, "a009111abf2865b7aad1e66326a6c772cddc29bccd22898f470292068b27bb59")
++        ];
++
++        Assert.AreEqual(5, PinnedGraniteModelCatalog.Entries.Count);
++        foreach (var item in expected)
++        {
++            ModelDownloadCatalogEntry entry =
++                PinnedGraniteModelCatalog.ForPreferenceBand(item.Band);
++            Assert.AreEqual("ibm-granite/granite-4.0-h-micro-GGUF", entry.RepositoryId);
++            Assert.AreEqual("51ce07a9c9cfa971ca359d9625836bf8a4a1b61f", entry.Revision);
++            Assert.AreEqual(item.File, entry.FileName);
++            Assert.AreEqual(entry.ExpectedByteLength, item.Length);
++            Assert.AreEqual(entry.ExpectedSha256, item.Hash);
++        }
++    }
++
++    [TestMethod]
++    public void CanonicalCatalogRejectsUnknownPreferenceBand() =>
++        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() =>
++            PinnedGraniteModelCatalog.ForPreferenceBand((OptimizationPreferenceBand)999));
++
++    [TestMethod]
++    public void CanonicalAuthorityConstructorsAreNotPublic()
++    {
++        Assert.AreEqual(0, typeof(ModelDownloadCatalogEntry).GetConstructors(
++            BindingFlags.Public | BindingFlags.Instance).Length);
++        Assert.IsFalse(typeof(DownloadedArtifactEvidence).IsPublic);
++        Assert.IsFalse(typeof(DownloadVerificationContext).IsPublic);
++        Assert.IsFalse(typeof(CanonicalDownloadVerifier).IsPublic);
++    }
++
++    [TestMethod]
++    public void CanonicalCatalogRejectsSelfConsistentNonCatalogTuple()
++    {
++        var expected = Context((OptimizationPreferenceBand)999);
++        var observed = new DownloadedArtifactEvidence(
++            DownloadCompletionStatus.Completed,
++            (OptimizationPreferenceBand)999,
++            "attacker/repository", "attacker-revision", "attacker.gguf", 123,
++            new string('a', 64), expected.OperationId, expected.Generation,
++            expected.PublicationIdentity, expected.InspectionRequestId,
++            expected.LifecycleGeneration);
++
++        Assert.IsFalse(CanonicalDownloadVerifier.IsExactMatch(expected, observed));
++    }
++
++    [TestMethod]
++    [DataRow("band")]
++    [DataRow("repository")]
++    [DataRow("revision")]
++    [DataRow("filename")]
++    [DataRow("length")]
++    [DataRow("hash")]
++    [DataRow("operation")]
++    [DataRow("generation")]
++    [DataRow("publication")]
++    [DataRow("inspection")]
++    [DataRow("lifecycle")]
++    public void CanonicalVerifierRejectsEachObservedIdentityMutation(string field)
++    {
++        DownloadVerificationContext expected = Context(OptimizationPreferenceBand.Balanced);
++        DownloadedArtifactEvidence observed = ExactEvidence(expected);
++        observed = field switch
++        {
++            "band" => observed with { Band = OptimizationPreferenceBand.Efficient },
++            "repository" => observed with { RepositoryId = observed.RepositoryId + "-other" },
++            "revision" => observed with { Revision = observed.Revision + "0" },
++            "filename" => observed with { FileName = "other.gguf" },
++            "length" => observed with { ObservedByteLength = observed.ObservedByteLength + 1 },
++            "hash" => observed with { ObservedSha256 = new string('f', 64) },
++            "operation" => observed with { OperationId = Guid.NewGuid() },
++            "generation" => observed with { Generation = observed.Generation + 1 },
++            "publication" => observed with { PublicationIdentity = "other-publication" },
++            "inspection" => observed with { InspectionRequestId = Guid.NewGuid() },
++            "lifecycle" => observed with { LifecycleGeneration = observed.LifecycleGeneration + 1 },
++            _ => throw new InvalidOperationException(field)
++        };
++
++        Assert.IsFalse(CanonicalDownloadVerifier.IsExactMatch(expected, observed), field);
++    }
++
++    [TestMethod]
++    [DataRow("../private/model.gguf")]
++    [DataRow("C:\\private\\model.gguf")]
++    [DataRow("folder/model.gguf")]
++    public void CanonicalVerifierRejectsPathLikeFilename(string fileName)
++    {
++        DownloadVerificationContext expected = Context(OptimizationPreferenceBand.Balanced);
++        DownloadedArtifactEvidence observed = ExactEvidence(expected) with { FileName = fileName };
++        Assert.IsFalse(CanonicalDownloadVerifier.IsExactMatch(expected, observed));
++    }
++
++    [TestMethod]
++    [DataRow(2)]
++    [DataRow(3)]
++    [DataRow(4)]
++    [DataRow(1)]
++    public void CanonicalVerifierRejectsStaleCancelledAndMismatchedPublicationAuthority(
++        int statusValue)
++    {
++        DownloadVerificationContext expected = Context(OptimizationPreferenceBand.Balanced);
++        DownloadedArtifactEvidence observed = ExactEvidence(expected) with
++        {
++            Status = (DownloadCompletionStatus)statusValue
++        };
++        Assert.IsFalse(CanonicalDownloadVerifier.IsExactMatch(expected, observed));
++    }
++
++    private static DownloadVerificationContext Context(OptimizationPreferenceBand band) =>
++        new(band, Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"), 7,
++            "publication-7", Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"), 11);
++
++    private static DownloadedArtifactEvidence ExactEvidence(DownloadVerificationContext context)
++    {
++        ModelDownloadCatalogEntry entry =
++            PinnedGraniteModelCatalog.ForPreferenceBand(context.Band);
++        return new(DownloadCompletionStatus.Completed, context.Band,
++            entry.RepositoryId, entry.Revision, entry.FileName,
++            entry.ExpectedByteLength, entry.ExpectedSha256, context.OperationId,
++            context.Generation, context.PublicationIdentity,
++            context.InspectionRequestId, context.LifecycleGeneration);
++    }
++}
+diff --git a/tests/ContractTests/GraniteEdgeAI.ModelDownload.Authority.Tests/GraniteEdgeAI.ModelDownload.Authority.Tests.csproj b/tests/ContractTests/GraniteEdgeAI.ModelDownload.Authority.Tests/GraniteEdgeAI.ModelDownload.Authority.Tests.csproj
+new file mode 100644
+index 0000000000000000000000000000000000000000..1ee58f4849fc0282326a7d70dc8eae7304beb10f
+--- /dev/null
++++ b/tests/ContractTests/GraniteEdgeAI.ModelDownload.Authority.Tests/GraniteEdgeAI.ModelDownload.Authority.Tests.csproj
+@@ -0,0 +1,23 @@
++<Project Sdk="Microsoft.NET.Sdk">
++  <PropertyGroup>
++    <OutputType>Exe</OutputType>
++    <TargetFramework>net8.0</TargetFramework>
++    <ImplicitUsings>enable</ImplicitUsings>
++    <Nullable>enable</Nullable>
++    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
++    <EnableNETAnalyzers>true</EnableNETAnalyzers>
++    <AnalysisLevel>latest-recommended</AnalysisLevel>
++    <IsPackable>false</IsPackable>
++    <IsTestProject>true</IsTestProject>
++    <EnableMSTestRunner>true</EnableMSTestRunner>
++  </PropertyGroup>
++  <ItemGroup>
++    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.8.1" />
++    <PackageReference Include="Microsoft.Testing.Extensions.TrxReport" Version="2.3.2" />
++    <PackageReference Include="MSTest.TestAdapter" Version="4.3.2" />
++    <PackageReference Include="MSTest.TestFramework" Version="4.3.2" />
++  </ItemGroup>
++  <ItemGroup>
++    <ProjectReference Include="..\..\..\shared\GraniteEdgeAI.ModelDownload.Authority\GraniteEdgeAI.ModelDownload.Authority.csproj" />
++  </ItemGroup>
++</Project>
