@@ -88,6 +88,38 @@ public sealed class M1R3PackageClosureContractTests
     }
 
     [TestMethod]
+    public void DotNetHostCandidateConstructionPreservesTrustedPrecedence()
+    {
+        string hostFileName = OperatingSystem.IsWindows() ? "dotnet.exe" : "dotnet";
+        string root = Path.GetPathRoot(Environment.CurrentDirectory)!;
+        string explicitHost = Path.Combine(root, "explicit", hostFileName);
+        string currentProcess = Path.Combine(root, "current", hostFileName);
+        string dotnetRoot = Path.Combine(root, "sdk-root");
+        string programFiles = Path.Combine(root, "program-files");
+        string approvedSdk = Path.Combine(root, "approved", hostFileName);
+
+        IReadOnlyList<string?> candidates =
+            EvaluatedMsBuildItems.BuildDotNetHostCandidates(
+                explicitHost,
+                currentProcess,
+                dotnetRoot,
+                programFiles,
+                approvedSdk,
+                hostFileName);
+
+        CollectionAssert.AreEqual(
+            new string?[]
+            {
+                explicitHost,
+                currentProcess,
+                Path.Combine(dotnetRoot, hostFileName),
+                Path.Combine(programFiles, "dotnet", hostFileName),
+                approvedSdk,
+            },
+            candidates.ToArray());
+    }
+
+    [TestMethod]
     public void DotNetHostSelectorRejectsEveryUnverifiedCandidateClass()
     {
         using TemporaryDirectory directory = TemporaryDirectory.Create();

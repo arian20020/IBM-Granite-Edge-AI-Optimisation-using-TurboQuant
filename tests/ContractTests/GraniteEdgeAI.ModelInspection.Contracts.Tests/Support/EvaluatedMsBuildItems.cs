@@ -198,18 +198,31 @@ internal static class EvaluatedMsBuildItems
     {
         string hostFileName = OperatingSystem.IsWindows() ? "dotnet.exe" : "dotnet";
         const string approvedSdk = @"C:\GEAI-Tools\dotnet-sdk-10.0.301\dotnet.exe";
-        string?[] candidates =
-        [
+        IReadOnlyList<string?> candidates = BuildDotNetHostCandidates(
             Environment.GetEnvironmentVariable("DOTNET_HOST_PATH"),
             Environment.ProcessPath,
-            UnderRoot(Environment.GetEnvironmentVariable("DOTNET_ROOT"), hostFileName),
-            UnderRoot(Environment.GetFolderPath(
-                Environment.SpecialFolder.ProgramFiles), "dotnet", hostFileName),
+            Environment.GetEnvironmentVariable("DOTNET_ROOT"),
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
             approvedSdk,
-        ];
+            hostFileName);
 
         return SelectDotNetHost(candidates, hostFileName);
     }
+
+    internal static IReadOnlyList<string?> BuildDotNetHostCandidates(
+        string? explicitHost,
+        string? currentProcess,
+        string? dotnetRoot,
+        string? programFiles,
+        string approvedSdk,
+        string hostFileName) =>
+        [
+            explicitHost,
+            currentProcess,
+            UnderRoot(dotnetRoot, hostFileName),
+            UnderRoot(programFiles, "dotnet", hostFileName),
+            approvedSdk,
+        ];
 
     internal static string SelectDotNetHost(
         IReadOnlyList<string?> candidates,
