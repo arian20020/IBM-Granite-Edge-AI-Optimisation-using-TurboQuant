@@ -310,6 +310,76 @@ public sealed class OptimizationExportControllerTests
     }
 
     [TestMethod]
+    public async Task DelayedCleanupPreservesUnexpectedProviderFaultAndClearsRetryGate()
+    {
+        using var release = new ManualResetEventSlim(false);
+        var service = new BlockingCancellationExportService(release);
+        var controller = new OptimizationExportController(service, TimeSpan.FromMilliseconds(50));
+        controller.Bind(Target());
+        Task<bool> operation = controller.TryStartAsync();
+        await service.Started.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        Assert.IsTrue(controller.TryCancel());
+        await service.CallbackStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        await Task.Delay(75);
+
+        service.Fault();
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(async () => await operation);
+        release.Set();
+        await controller.CleanupReconciliation.WaitAsync(TimeSpan.FromSeconds(1));
+
+        Assert.AreEqual(OptimizationExportStateKind.Failed, controller.State.Kind);
+        Assert.AreEqual(OptimizationExportFailure.None, controller.State.Failure);
+        Assert.IsFalse(controller.IsCleanupPending);
+        controller.Bind(Target());
+        Assert.AreEqual(OptimizationExportStateKind.Ready, controller.State.Kind);
+    }
+
+    [TestMethod]
+    public async Task DelayedCleanupPreservesLateSuccessAsCleanupFailure()
+    {
+        using var release = new ManualResetEventSlim(false);
+        var service = new BlockingCancellationExportService(release);
+        var controller = new OptimizationExportController(service, TimeSpan.FromMilliseconds(50));
+        VerifiedPersistentExportTarget target = Target();
+        controller.Bind(target);
+        Task<bool> operation = controller.TryStartAsync();
+        await service.Started.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        Assert.IsTrue(controller.TryCancel());
+        await service.CallbackStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        await Task.Delay(75);
+
+        service.Complete(OptimizationExportResult.Succeeded(Receipt(target)));
+        Assert.IsTrue(await operation.WaitAsync(TimeSpan.FromSeconds(1)));
+        release.Set();
+        await controller.CleanupReconciliation.WaitAsync(TimeSpan.FromSeconds(1));
+
+        Assert.AreEqual(OptimizationExportStateKind.Failed, controller.State.Kind);
+        Assert.AreEqual(OptimizationExportFailure.CleanupFailure, controller.State.Failure);
+    }
+
+    [TestMethod]
+    public async Task DelayedCleanupPreservesTypedProviderFailure()
+    {
+        using var release = new ManualResetEventSlim(false);
+        var service = new BlockingCancellationExportService(release);
+        var controller = new OptimizationExportController(service, TimeSpan.FromMilliseconds(50));
+        controller.Bind(Target());
+        Task<bool> operation = controller.TryStartAsync();
+        await service.Started.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        Assert.IsTrue(controller.TryCancel());
+        await service.CallbackStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        await Task.Delay(75);
+
+        service.Complete(OptimizationExportResult.Failed(OptimizationExportFailure.DestinationUnavailable));
+        Assert.IsTrue(await operation.WaitAsync(TimeSpan.FromSeconds(1)));
+        release.Set();
+        await controller.CleanupReconciliation.WaitAsync(TimeSpan.FromSeconds(1));
+
+        Assert.AreEqual(OptimizationExportStateKind.Failed, controller.State.Kind);
+        Assert.AreEqual(OptimizationExportFailure.DestinationUnavailable, controller.State.Failure);
+    }
+
+    [TestMethod]
     public async Task ObserverFailureDoesNotBlockOtherObserversOrCompletion()
     {
         var controller = new OptimizationExportController(new ImmediateService(
@@ -359,6 +429,7 @@ public sealed class OptimizationExportControllerTests
         }
 
         internal void Complete(OptimizationExportResult result) => _completion.TrySetResult(result);
+        internal void Fault() => _completion.TrySetException(new InvalidOperationException(FaultThenSuccessService.PrivateFault));
     }
 
     private sealed class ImmediateService(OptimizationExportResult result) : IOptimizationExportService

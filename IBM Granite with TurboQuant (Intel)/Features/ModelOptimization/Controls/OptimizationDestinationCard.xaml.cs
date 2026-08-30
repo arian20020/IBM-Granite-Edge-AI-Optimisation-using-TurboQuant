@@ -38,18 +38,28 @@ public sealed partial class OptimizationDestinationCard : UserControl
         if (_retired) return;
         if (presentation.Kind is not OptimizationPageStateKind.SucceededPersistent and not OptimizationPageStateKind.SucceededRuntimeProfile)
             throw new ArgumentException("Destination cards require a successful result.", nameof(presentation));
+        if (_exportController?.IsCleanupPending == true)
+            throw new InvalidOperationException("The prior export cleanup is still in progress.");
         ResetExportBinding();
         _presentation = presentation;
         DestinationCore.Apply(presentation);
         DestinationCore.SetActionEnabled(OptimizationCommand.Save, false);
     }
 
-    internal bool BindVerifiedExport(VerifiedPersistentExportTarget target, IOptimizationExportService service)
+    internal bool BindVerifiedExport(
+        VerifiedPersistentExportTarget target,
+        IOptimizationExportService service,
+        TimeSpan? retirementTimeout = null)
     {
         ArgumentNullException.ThrowIfNull(target);
         ArgumentNullException.ThrowIfNull(service);
         if (_retired || !_detachedOperations.IsCompletedSuccessfully
-            || _exportController?.State.Kind is OptimizationExportStateKind.Running or OptimizationExportStateKind.Cancelling
+            || _exportController?.IsCleanupPending == true)
+        {
+            DestinationCore.SetActionEnabled(OptimizationCommand.Save, false);
+            return false;
+        }
+        if (_exportController?.State.Kind is OptimizationExportStateKind.Running or OptimizationExportStateKind.Cancelling
             || _presentation is not { Kind: OptimizationPageStateKind.SucceededPersistent } presentation
             || presentation.OptimizationPlanId == Guid.Empty || !presentation.Configuration.ProducesPersistentArtifact
             || target.OptimizationPlanId != presentation.OptimizationPlanId
@@ -60,7 +70,7 @@ public sealed partial class OptimizationDestinationCard : UserControl
             return false;
         }
         ResetExportBinding();
-        _exportController = new(service);
+        _exportController = new(service, retirementTimeout);
         _exportController.StateChanged += ExportController_StateChanged;
         _exportController.Bind(target);
         return true;

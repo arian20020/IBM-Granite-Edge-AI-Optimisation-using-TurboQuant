@@ -362,6 +362,107 @@ public sealed class ModelDownloadCoordinatorTests
         Assert.AreEqual(0, verifiedEvents);
     }
 
+    [TestMethod]
+    public async Task QuiescedDiscardFailureSettlesAndDoesNotStrandReplacementAuthority()
+    {
+        var service = new FakeDownloadService
+        {
+            WaitForCancellation = true,
+            DiscardException = new IOException("synthetic cleanup failure")
+        };
+        var coordinator = new ModelDownloadCoordinator(
+            service,
+            new FakeNetworkPolicy(ModelDownloadConnectionKind.Unrestricted));
+        Task operation = coordinator.StartAsync(50, false, CancellationToken.None);
+        await service.DownloadStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+
+        await coordinator.CancelAsync(true, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(1));
+        await operation.WaitAsync(TimeSpan.FromSeconds(1));
+
+        Assert.AreEqual(ModelDownloadStage.Failed, coordinator.State.Stage);
+        Assert.AreEqual("download-cancellation-cleanup-failed", coordinator.State.ErrorCode);
+        service.WaitForCancellation = false;
+        service.DiscardException = null;
+        await coordinator.StartAsync(65, false, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(1));
+        Assert.AreEqual(ModelDownloadStage.Completed, coordinator.State.Stage);
+    }
+
+    [TestMethod]
+    public async Task DeferredCancellationReconciliationCannotPublishAfterRetirement()
+    {
+        using var release = new ManualResetEventSlim(false);
+        var service = new BlockingCancellationDownloadService(release);
+        var coordinator = new ModelDownloadCoordinator(
+            service,
+            new FakeNetworkPolicy(ModelDownloadConnectionKind.Unrestricted),
+            TimeSpan.FromMilliseconds(50));
+        int publications = 0;
+        coordinator.StateChanged += (_, _) => publications++;
+        Task operation = coordinator.StartAsync(50, false, CancellationToken.None);
+        await service.Started.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        Task cancellation = coordinator.CancelAsync(false, CancellationToken.None);
+        await service.CallbackStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        service.CompleteInterrupted();
+        await Task.WhenAll(operation, cancellation).WaitAsync(TimeSpan.FromSeconds(1));
+        await coordinator.RetireAsync().WaitAsync(TimeSpan.FromSeconds(1));
+        ModelDownloadCoordinatorState retiredState = coordinator.State;
+        int retiredPublications = publications;
+
+        release.Set();
+        await coordinator.CancellationReconciliation.WaitAsync(TimeSpan.FromSeconds(1));
+
+        Assert.AreEqual(retiredState, coordinator.State);
+        Assert.AreEqual(retiredPublications, publications);
+    }
+
+    [TestMethod]
+    public async Task CallerCancelledWaitPreservesCleanupAuthorityUntilProviderQuiesces()
+    {
+        var service = new NonCooperativeDownloadService();
+        var coordinator = new ModelDownloadCoordinator(
+            service,
+            new FakeNetworkPolicy(ModelDownloadConnectionKind.Unrestricted),
+            TimeSpan.FromSeconds(1));
+        using var waitCancellation = new CancellationTokenSource();
+        Task operation = coordinator.StartAsync(50, false, CancellationToken.None);
+        await service.Started.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        Task cancellation = coordinator.CancelAsync(false, waitCancellation.Token);
+        waitCancellation.Cancel();
+
+        await Assert.ThrowsExactlyAsync<OperationCanceledException>(async () => await cancellation);
+        Assert.AreEqual("download-cancellation-cleanup-pending", coordinator.State.ErrorCode);
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
+            coordinator.StartAsync(65, false, CancellationToken.None));
+
+        service.CompleteInterrupted();
+        await operation.WaitAsync(TimeSpan.FromSeconds(1));
+        await coordinator.CancellationReconciliation.WaitAsync(TimeSpan.FromSeconds(1));
+        Assert.AreEqual(ModelDownloadStage.Interrupted, coordinator.State.Stage);
+        Assert.AreEqual("download-cancelled", coordinator.State.ErrorCode);
+    }
+
+    [TestMethod]
+    public async Task CompletionAtCancellationClaimCannotBeatAuthorityOrLeakCancellationTask()
+    {
+        var service = new NonCooperativeDownloadService();
+        var disposing = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var coordinator = new ModelDownloadCoordinator(
+            service,
+            new FakeNetworkPolicy(ModelDownloadConnectionKind.Unrestricted),
+            cancellationDisposing: _ => disposing.TrySetResult(),
+            cancellationAuthorityClaimed: service.CompleteSuccessfully);
+        Task operation = coordinator.StartAsync(50, false, CancellationToken.None);
+        await service.Started.Task.WaitAsync(TimeSpan.FromSeconds(1));
+
+        await coordinator.CancelAsync(false, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(1));
+        await operation.WaitAsync(TimeSpan.FromSeconds(1));
+        await disposing.Task.WaitAsync(TimeSpan.FromSeconds(1));
+
+        Assert.AreEqual(ModelDownloadStage.Interrupted, coordinator.State.Stage);
+        Assert.AreEqual("download-cancelled", coordinator.State.ErrorCode);
+        Assert.AreEqual(0, coordinator.CancellationTaskCount);
+    }
+
     private sealed class FakeNetworkPolicy(ModelDownloadConnectionKind kind) : IModelDownloadNetworkPolicy
     {
         public ModelDownloadConnectionKind GetCurrentConnectionKind() => kind;
@@ -375,8 +476,9 @@ public sealed class ModelDownloadCoordinatorTests
         internal int DownloadCalls { get; private set; }
         internal int DiscardCalls { get; private set; }
         internal string? ResumeQuantisation { get; init; }
-        internal bool WaitForCancellation { get; init; }
+        internal bool WaitForCancellation { get; set; }
         internal bool DelayResumeProbe { get; init; }
+        internal Exception? DiscardException { get; set; }
         internal TaskCompletionSource DownloadStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource ResumeProbeStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource ReleaseResumeProbe { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -415,6 +517,7 @@ public sealed class ModelDownloadCoordinatorTests
         public Task DiscardPartialAsync(ModelDownloadCatalogEntry entry, CancellationToken cancellationToken)
         {
             DiscardCalls++;
+            if (DiscardException is not null) return Task.FromException(DiscardException);
             return Task.CompletedTask;
         }
     }

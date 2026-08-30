@@ -104,6 +104,32 @@ public sealed class OptimizationDestinationCardTests
     }
 
     [UITestMethod]
+    public async Task PendingCleanupRejectsRebindUntilOriginalCallbackQuiesces()
+    {
+        using var release = new ManualResetEventSlim(false);
+        var card = new OptimizationDestinationCard();
+        OptimizationPresentationState presentation = PersistentPresentation();
+        var service = new BlockingCancellationExportService(release);
+        card.Apply(presentation);
+        VerifiedPersistentExportTarget target = Target(presentation.OptimizationPlanId);
+        Assert.IsTrue(card.BindVerifiedExport(target, service, TimeSpan.FromMilliseconds(50)));
+        Task<bool> operation = card.TryStartExportAsync();
+        await service.Started.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        Assert.IsTrue(card.TryCancelExport());
+        await service.CallbackStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        service.Complete(OptimizationExportResult.Cancelled());
+        await WaitForExportStateAsync(card, state => state.Failure == OptimizationExportFailure.CleanupFailure);
+
+        Assert.IsFalse(card.BindVerifiedExport(target, new ImmediateExportService()));
+        Assert.AreEqual(OptimizationExportFailure.CleanupFailure, card.ExportState.Failure);
+
+        release.Set();
+        Assert.IsTrue(await operation.WaitAsync(TimeSpan.FromSeconds(1)));
+        await WaitForExportStateAsync(card, state => state.Kind == OptimizationExportStateKind.Cancelled);
+        Assert.IsTrue(card.BindVerifiedExport(target, new ImmediateExportService()));
+    }
+
+    [UITestMethod]
     public void ExportControlsHaveStableAccessibleSemantics()
     {
         OptimizationDestinationCard card = new();
@@ -141,6 +167,15 @@ public sealed class OptimizationDestinationCardTests
     private static VerifiedPersistentExportTarget Target(Guid planId) =>
         new(OptimizationRoute.Gguf, planId, Configuration, Source, true, "output-1", Manifest, 4096);
 
+    private static async Task WaitForExportStateAsync(
+        OptimizationDestinationCard card,
+        Func<OptimizationExportViewState, bool> predicate)
+    {
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(1));
+        while (!predicate(card.ExportState))
+            await Task.Delay(10, timeout.Token);
+    }
+
     private sealed class ImmediateExportService : IOptimizationExportService
     {
         public Task<OptimizationExportResult> ExportAsync(VerifiedPersistentExportTarget target, IProgress<OptimizationExportProgress> progress, CancellationToken cancellationToken) =>
@@ -152,6 +187,29 @@ public sealed class OptimizationDestinationCardTests
         private readonly TaskCompletionSource<OptimizationExportResult> _completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public Task<OptimizationExportResult> ExportAsync(VerifiedPersistentExportTarget target, IProgress<OptimizationExportProgress> progress, CancellationToken cancellationToken) => _completion.Task;
         internal void Complete(OptimizationExportResult result) => _completion.SetResult(result);
+    }
+
+    private sealed class BlockingCancellationExportService(ManualResetEventSlim release) : IOptimizationExportService
+    {
+        private readonly TaskCompletionSource<OptimizationExportResult> _completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource CallbackStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task<OptimizationExportResult> ExportAsync(
+            VerifiedPersistentExportTarget target,
+            IProgress<OptimizationExportProgress> progress,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.Register(() =>
+            {
+                CallbackStarted.TrySetResult();
+                release.Wait();
+            });
+            Started.TrySetResult();
+            return _completion.Task;
+        }
+
+        internal void Complete(OptimizationExportResult result) => _completion.TrySetResult(result);
     }
 
     [UITestMethod]
