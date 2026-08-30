@@ -56,7 +56,15 @@ internal sealed class WindowsSuspendedProcess : IDisposable
         VerifiedTrustedTool tool,
         TrustedToolCommand command,
         WindowsKillOnCloseJob job,
-        out WindowsSuspendedProcess? launched)
+        out WindowsSuspendedProcess? launched) =>
+        TryStart(tool, command, job, out launched, out _);
+
+    internal static bool TryStart(
+        VerifiedTrustedTool tool,
+        TrustedToolCommand command,
+        WindowsKillOnCloseJob job,
+        out WindowsSuspendedProcess? launched,
+        out bool startCleanupSucceeded)
     {
         ArgumentNullException.ThrowIfNull(tool);
         ArgumentNullException.ThrowIfNull(command);
@@ -67,9 +75,12 @@ internal sealed class WindowsSuspendedProcess : IDisposable
         {
             operationEnvironment = TrustedToolEnvironmentPolicy.CaptureCurrent();
         }
-        catch (InvalidOperationException)
+        catch (InvalidOperationException error)
         {
             launched = null;
+            startCleanupSucceeded = !error.Message.Contains(
+                "partial cleanup",
+                StringComparison.Ordinal);
             return false;
         }
 
@@ -80,7 +91,7 @@ internal sealed class WindowsSuspendedProcess : IDisposable
             operationEnvironment,
             job,
             out launched,
-            out _);
+            out startCleanupSucceeded);
     }
 
     internal static bool TryStart(
@@ -271,10 +282,20 @@ internal sealed class WindowsSuspendedProcess : IDisposable
             }
 
             processHandle?.Dispose();
+            bool processTreeCleanupSucceeded = true;
+            if (operationEnvironment is not null && processCreated)
+            {
+                processTreeCleanupSucceeded = job.TryTerminate() &&
+                    job.WaitForEmptyAsync(TimeSpan.FromSeconds(5))
+                        .GetAwaiter()
+                        .GetResult();
+            }
+
             operationEnvironment?.Dispose();
             if (operationEnvironment is not null)
             {
-                startCleanupSucceeded = operationEnvironment.CleanupSucceeded;
+                startCleanupSucceeded = processTreeCleanupSucceeded &&
+                    operationEnvironment.CleanupSucceeded;
             }
         }
     }

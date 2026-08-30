@@ -64,9 +64,14 @@ public sealed class ExternalProcessRunner : IExternalProcessRunner
                 tool,
                 command,
                 job,
-                out WindowsSuspendedProcess? launched))
+                out WindowsSuspendedProcess? launched,
+                out bool startCleanupSucceeded))
         {
-            return CreateResult(ExternalProcessTerminationReason.StartFailed, elapsed);
+            return CreateResult(
+                startCleanupSucceeded
+                    ? ExternalProcessTerminationReason.StartFailed
+                    : ExternalProcessTerminationReason.CleanupFailed,
+                elapsed);
         }
 
         WindowsSuspendedProcess running = launched!;
