@@ -92,4 +92,43 @@ public sealed class WorkerFailureAccumulatorTests
         Assert.IsFalse(policy.ToString().Contains("private", StringComparison.OrdinalIgnoreCase));
         Assert.IsFalse(policy.ToString().Contains("secret", StringComparison.OrdinalIgnoreCase));
     }
+
+    [TestMethod]
+    public void DistinctCleanupOutcomesAreMergedBoundedAndSameCauseIsNotDuplicated()
+    {
+        WorkerFailureAccumulator accumulator = new();
+        WorkerClientPolicyException first = PolicyWithCleanup(
+            Enumerable.Repeat(
+                new CleanupFailureFact(
+                    OwnedCleanupStage.Session,
+                    CleanupFailureKind.Io),
+                12).ToArray());
+        WorkerClientPolicyException second = PolicyWithCleanup(
+            Enumerable.Repeat(
+                new CleanupFailureFact(
+                    OwnedCleanupStage.OperationEnvironment,
+                    CleanupFailureKind.Access),
+                12).ToArray());
+
+        accumulator.RetainCleanupIntegrity(first);
+        accumulator.RetainCleanupIntegrity(first);
+        accumulator.RetainCleanupIntegrity(second);
+
+        Assert.AreEqual(16, accumulator.CleanupFailures.Count);
+        Assert.AreEqual(
+            12,
+            accumulator.CleanupFailures.Count(fact =>
+                fact.Stage == WorkerClientCleanupStage.Session));
+        Assert.AreEqual(
+            4,
+            accumulator.CleanupFailures.Count(fact =>
+                fact.Stage == WorkerClientCleanupStage.OperationEnvironment));
+    }
+
+    private static WorkerClientPolicyException PolicyWithCleanup(
+        IReadOnlyList<CleanupFailureFact> facts) => new(
+            new WorkerClientFailure(
+                WorkerClientFailureCodes.WorkerCleanupFailed,
+                "The Model Inspection worker cleanup could not be verified."),
+            new CleanupIntegrityException(facts, null));
 }

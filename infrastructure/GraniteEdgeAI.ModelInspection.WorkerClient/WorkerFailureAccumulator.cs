@@ -15,6 +15,8 @@ internal sealed class WorkerFailureAccumulator
     private WorkerClientFailure? _primaryFailure;
     private WorkerClientPolicyException? _cleanupIntegrityCause;
     private WorkerClientCleanupFailureFact[] _cleanupFailures = [];
+    private readonly HashSet<CleanupIntegrityException> _retainedCleanupCauses =
+        new(ReferenceEqualityComparer.Instance);
 
     internal WorkerClientFailure? PrimaryFailure
     {
@@ -107,10 +109,11 @@ internal sealed class WorkerFailureAccumulator
                 lock (_sync)
                 {
                     _cleanupIntegrityCause ??= error;
-                    if (_cleanupFailures.Length == 0)
+                    if (_retainedCleanupCauses.Add(integrity))
                     {
-                        _cleanupFailures = integrity.Failures
-                            .Select(MapCleanupFailure)
+                        _cleanupFailures = _cleanupFailures
+                            .Concat(integrity.Failures.Select(MapCleanupFailure))
+                            .Take(16)
                             .ToArray();
                     }
                 }

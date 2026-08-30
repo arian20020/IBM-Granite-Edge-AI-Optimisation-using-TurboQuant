@@ -91,11 +91,11 @@ internal sealed class CleanupIntegrityException : InvalidOperationException
             UnauthorizedAccessException => CleanupPrimaryFailureKind.Access,
             TimeoutException => CleanupPrimaryFailureKind.Timeout,
             System.ComponentModel.Win32Exception => CleanupPrimaryFailureKind.Native,
-            InvalidOperationException or ObjectDisposedException or ArgumentException =>
-                CleanupPrimaryFailureKind.InvalidState,
             _ when error.GetType().Name.EndsWith(
                 "PolicyException",
                 StringComparison.Ordinal) => CleanupPrimaryFailureKind.Policy,
+            InvalidOperationException or ObjectDisposedException or ArgumentException =>
+                CleanupPrimaryFailureKind.InvalidState,
             _ => CleanupPrimaryFailureKind.Unexpected,
         };
 }

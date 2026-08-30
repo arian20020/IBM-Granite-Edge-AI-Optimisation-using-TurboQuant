@@ -125,6 +125,21 @@ public sealed class BoundedCleanupCoordinatorTests
         }
     }
 
+    [TestMethod]
+    public void PolicyPrimaryIsClassifiedBeforeInvalidOperationBaseType()
+    {
+        var integrity = new CleanupIntegrityException(
+            [],
+            new FixturePolicyException());
+
+        Assert.AreEqual(
+            CleanupPrimaryFailureKind.Policy,
+            integrity.PrimaryFailureKind);
+        Assert.IsNull(integrity.InnerException);
+    }
+
+    private sealed class FixturePolicyException : InvalidOperationException;
+
     private static OwnedCleanupAction Successful(
         OwnedCleanupStage stage,
         int[] calls,
