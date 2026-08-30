@@ -28,8 +28,7 @@ public sealed class RemediationGapContractTests
             failures.Add("MainWindow XAML must declare exactly one rootFrame Frame");
         if ((string?)xaml.Root?.Attribute(x + "Class") != "GraniteEdgeAI.MainWindow")
             failures.Add("MainWindow XAML is not bound to the evaluated compiled MainWindow type");
-        string constructor = ConstructorBody(
-            StripComments(File.ReadAllText(sourcePath)), "MainWindow");
+        string constructor = ConstructorBody(File.ReadAllText(sourcePath), "MainWindow");
         IReadOnlyList<string[]> navigation = InvocationStatements(
             constructor, "Navigate", out bool containsLocalFunction);
         if (containsLocalFunction)
@@ -39,7 +38,7 @@ public sealed class RemediationGapContractTests
         {
             failures.Add("MainWindow constructor must directly navigate rootFrame to OnboardingShellPage once");
         }
-        if (!Normalize(constructor).Contains(
+        if (!NormalizeCode(constructor).Contains(
                 "rootFrame.Navigate(typeof(OnboardingShellPage));",
                 StringComparison.Ordinal))
             failures.Add("Onboarding navigation is not issued by the owned rootFrame");
@@ -62,8 +61,8 @@ public sealed class RemediationGapContractTests
         string chatCodePath = AppFile("Features", "GgufRuntime", "ChatPage.xaml.cs");
         RequireCompiledByAppProject(shellPath, failures);
         RequireCompiledByAppProject(chatCodePath, failures);
-        string setter = Normalize(PropertySetterBody(
-            StripComments(File.ReadAllText(shellPath)), "CurrentStage"));
+        string setter = NormalizeCode(PropertySetterBody(
+            File.ReadAllText(shellPath), "CurrentStage"));
         XDocument chat = XDocument.Load(AppFile("Features", "GgufRuntime", "ChatPage.xaml"));
         XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
         if ((string?)chat.Root?.Attribute(x + "Class")
@@ -105,7 +104,7 @@ public sealed class RemediationGapContractTests
         {
             string cardCodePath = Path.ChangeExtension(xamlPath, ".xaml.cs");
             RequireCompiledByAppProject(cardCodePath, failures);
-            string cardCode = StripComments(File.ReadAllText(cardCodePath));
+            string cardCode = File.ReadAllText(cardCodePath);
             string? actionCaller = ResolveActionCaller(
                 actionBinding, cardCode, failures);
             if (actionCaller is not null)
@@ -113,7 +112,7 @@ public sealed class RemediationGapContractTests
                 IReadOnlyList<string[]> calls = InvocationStatements(
                     actionCaller, "DownloadAsync", out bool containsLocalFunction);
                 if (containsLocalFunction || calls.Count != 1
-                    || !Normalize(actionCaller).Contains(
+                    || !NormalizeCode(actionCaller).Contains(
                         "_downloadCoordinator.DownloadAsync(", StringComparison.Ordinal))
                 {
                     failures.Add("download action does not directly invoke the owned coordinator once");
@@ -156,7 +155,7 @@ public sealed class RemediationGapContractTests
         if (File.Exists(servicePath))
         {
             RequireCompiledByAppProject(servicePath, failures);
-            string service = StripComments(File.ReadAllText(servicePath));
+            string service = File.ReadAllText(servicePath);
             RequireDeclaration(service, "ResumableVerifiedModelDownloadService", failures);
             foreach (string token in new[]
             {
@@ -164,7 +163,7 @@ public sealed class RemediationGapContractTests
                 "ExpectedSha256", "Publish", "Recover", "Resume"
             })
             {
-                if (!service.Contains(token, StringComparison.Ordinal))
+                if (!MaskStrings(service).Contains(token, StringComparison.Ordinal))
                     failures.Add($"download transaction token missing: {token}");
             }
         }
@@ -172,10 +171,10 @@ public sealed class RemediationGapContractTests
         if (File.Exists(coordinatorPath))
         {
             RequireCompiledByAppProject(coordinatorPath, failures);
-            string coordinator = StripComments(File.ReadAllText(coordinatorPath));
+            string coordinator = File.ReadAllText(coordinatorPath);
             RequireDeclaration(coordinator, "ModelDownloadCoordinator", failures);
             string coordinatorMethod = MethodBody(coordinator, "DownloadAsync");
-            string normalizedCoordinator = Normalize(coordinatorMethod);
+            string normalizedCoordinator = NormalizeCode(coordinatorMethod);
             if (!normalizedCoordinator.Contains(
                     "_downloadService.DownloadAsync(", StringComparison.Ordinal))
                 failures.Add("coordinator DownloadAsync does not call the owned service");
@@ -208,7 +207,7 @@ public sealed class RemediationGapContractTests
         string shellPath = AppFile(
             "Features", "Onboarding", "OnboardingShellPage.xaml.cs");
         RequireCompiledByAppProject(shellPath, failures);
-        string shell = StripComments(File.ReadAllText(shellPath));
+        string shell = File.ReadAllText(shellPath);
         string method = MethodBody(shell,
             "LaunchOptimizedChatAsync");
         string export = MethodBody(shell,
@@ -216,7 +215,7 @@ public sealed class RemediationGapContractTests
         string selectionPath = AppFile(
             "Features", "ModelImport", "ModelImportPage.Selection.cs");
         RequireCompiledByAppProject(selectionPath, failures);
-        string selection = StripComments(File.ReadAllText(selectionPath));
+        string selection = File.ReadAllText(selectionPath);
 
         RequireToken(method, "openVinoResult.ConfigurationSha256",
             "Chat does not bind the result configuration", failures);
@@ -251,12 +250,13 @@ public sealed class RemediationGapContractTests
     public void RuntimeOnlyOpenVinoResultCannotEnterModelFileExport()
     {
         string method = MethodBody(
-            StripComments(ReadAppFile("Features", "Onboarding", "OnboardingShellPage.xaml.cs")),
+            ReadAppFile("Features", "Onboarding", "OnboardingShellPage.xaml.cs"),
             "SaveOptimizedModelAsync");
 
-        StringAssert.Contains(method,
+        string activeMethod = MaskStrings(method);
+        StringAssert.Contains(activeMethod,
             "Status: OptimizationExecutionStatus.SucceededPersistent");
-        Assert.IsFalse(method.Contains(
+        Assert.IsFalse(activeMethod.Contains(
             "OptimizationExecutionStatus.SucceededRuntimeProfile",
             StringComparison.Ordinal));
     }
@@ -272,18 +272,21 @@ public sealed class RemediationGapContractTests
             "Features", "Onboarding", "OnboardingShellPage.xaml.cs");
         RequireCompiledByAppProject(composerPath, failures);
         RequireCompiledByAppProject(shellPath, failures);
-        string chat = File.ReadAllText(chatPath);
-        string composer = StripComments(File.ReadAllText(composerPath));
-        string shell = StripComments(File.ReadAllText(shellPath));
-        string key = Normalize(MethodBody(composer, "IsSendKey"));
-        string keyHandler = Normalize(MethodBody(composer, "TryHandlePromptKeyDown"));
-        string submission = Normalize(MethodBody(composer, "TrySubmitPrompt"));
-        string enabledState = Normalize(MethodBody(composer, "UpdateSubmissionState"));
+        XDocument chat = XDocument.Load(chatPath);
+        XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
+        string composer = File.ReadAllText(composerPath);
+        string shell = File.ReadAllText(shellPath);
+        string key = NormalizeCode(MethodBody(composer, "IsSendKey"));
+        string keyHandler = NormalizeCode(MethodBody(composer, "TryHandlePromptKeyDown"));
+        string submission = NormalizeCode(MethodBody(composer, "TrySubmitPrompt"));
+        string enabledState = NormalizeCode(MethodBody(composer, "UpdateSubmissionState"));
 
-        StringAssert.Contains(chat, "RequestedTheme=\"Light\"");
-        StringAssert.Contains(chat, "x:Name=\"SettingsFooter\"");
-        StringAssert.Contains(shell, "OnboardingStage.ReadyToChat");
-        StringAssert.Contains(shell, "Visibility.Collapsed");
+        Assert.AreEqual("Light", (string?)chat.Root?.Attribute("RequestedTheme"));
+        Assert.AreEqual(1, chat.Descendants().Count(element =>
+            (string?)element.Attribute(x + "Name") == "SettingsFooter"));
+        string shellCode = NormalizeCode(shell);
+        StringAssert.Contains(shellCode, "OnboardingStage.ReadyToChat");
+        StringAssert.Contains(shellCode, "Visibility.Collapsed");
         StringAssert.Contains(key, "key==VirtualKey.Enter&&!isShiftPressed");
         StringAssert.Contains(keyHandler, "if(!IsSendKey(key,isShiftPressed)){returnfalse;}");
         StringAssert.Contains(keyHandler, "TrySubmitPrompt();returntrue;");
@@ -316,15 +319,39 @@ public sealed class RemediationGapContractTests
             ["state.Result"], failures);
         Assert.AreEqual(1, failures.Count,
             "A locally defaulted token cannot establish lifecycle provenance.");
+
+        const string fakeSignatures = "private void Real() { string method = \"private void PhantomMethod() { }\"; string constructor = \"public PhantomType() { }\"; string property = \"public Stage PhantomProperty { set { } }\"; string receivers = \"_downloadCoordinator.DownloadAsync(); _downloadService.DownloadAsync(); _modelImportPage.SubmitInputAsync(); result.IsVerified\"; }";
+        Assert.IsFalse(FindMethodSignature(fakeSignatures, "PhantomMethod").Success);
+        Assert.IsFalse(FindConstructorSignature(fakeSignatures, "PhantomType").Success);
+        Assert.IsFalse(FindPropertySignature(fakeSignatures, "PhantomProperty").Success);
+        string maskedFakeCode = NormalizeCode(fakeSignatures);
+        Assert.IsFalse(maskedFakeCode.Contains("_downloadCoordinator", StringComparison.Ordinal));
+        Assert.IsFalse(maskedFakeCode.Contains("_downloadService", StringComparison.Ordinal));
+        Assert.IsFalse(maskedFakeCode.Contains("_modelImportPage", StringComparison.Ordinal));
+        Assert.IsFalse(maskedFakeCode.Contains(".IsVerified", StringComparison.Ordinal));
+
+        const string rawLiteral = "private void Real() { string fake = \"\"\"private void RawPhantom() { _downloadService.DownloadAsync(); }\"\"\"; }";
+        const string interpolatedLiteral = "private void Real() { string fake = $\"private void InterpolatedPhantom() { _modelImportPage.SubmitInputAsync(); }\"; }";
+        Assert.IsFalse(FindMethodSignature(rawLiteral, "RawPhantom").Success);
+        Assert.IsFalse(FindMethodSignature(
+            interpolatedLiteral, "InterpolatedPhantom").Success);
+        Assert.IsFalse(NormalizeCode(rawLiteral).Contains(
+            "_downloadService", StringComparison.Ordinal));
+        Assert.IsFalse(NormalizeCode(interpolatedLiteral).Contains(
+            "_modelImportPage", StringComparison.Ordinal));
+
+        const string characterLiteral = "private void CharacterHost() { char close = '}'; RealInvocation(); } private void Following() { }";
+        string characterHost = MethodBody(characterLiteral, "CharacterHost");
+        Assert.AreEqual(1, InvocationStatements(
+            characterHost, "RealInvocation", out bool characterHasLocal).Count);
+        Assert.IsFalse(characterHasLocal);
     }
 
     private static string MethodBody(string source, string methodName)
     {
-        Match signature = Regex.Match(source,
-            $@"\b(?:private|internal|public|protected)\s+(?:static\s+)?(?:async\s+)?[A-Za-z0-9_<>,?.]+\s+{Regex.Escape(methodName)}\s*\(",
-            RegexOptions.CultureInvariant);
-        Assert.IsTrue(signature.Success, $"Method signature not found: {methodName}");
         string code = MaskStrings(source);
+        Match signature = FindMethodSignature(source, methodName);
+        Assert.IsTrue(signature.Success, $"Method signature not found: {methodName}");
         int bodyStart = code.IndexOfAny(['{', '='], signature.Index + signature.Length);
         Assert.IsTrue(bodyStart >= 0, $"Method body not found: {methodName}");
         if (source[bodyStart] == '=')
@@ -346,9 +373,7 @@ public sealed class RemediationGapContractTests
 
     private static string ConstructorBody(string source, string typeName)
     {
-        Match signature = Regex.Match(source,
-            $@"\b(?:public|internal|private|protected)\s+{Regex.Escape(typeName)}\s*\(",
-            RegexOptions.CultureInvariant);
+        Match signature = FindConstructorSignature(source, typeName);
         Assert.IsTrue(signature.Success, $"Constructor signature not found: {typeName}");
         return BracedMember(source, signature.Index, signature.Index + signature.Length,
             typeName + " constructor");
@@ -356,18 +381,32 @@ public sealed class RemediationGapContractTests
 
     private static string PropertySetterBody(string source, string propertyName)
     {
-        Match property = Regex.Match(source,
-            $@"\b(?:public|internal|private|protected)\s+[A-Za-z0-9_<>,?.]+\s+{Regex.Escape(propertyName)}\s*\{{",
-            RegexOptions.CultureInvariant);
+        Match property = FindPropertySignature(source, propertyName);
         Assert.IsTrue(property.Success, $"Property not found: {propertyName}");
         string propertyBody = BracedMember(source, property.Index,
             property.Index + property.Length - 1, propertyName + " property");
-        Match setter = Regex.Match(propertyBody, @"\b(?:private\s+)?set\s*\{",
+        Match setter = Regex.Match(MaskStrings(propertyBody),
+            @"\b(?:private\s+)?set\s*\{",
             RegexOptions.CultureInvariant);
         Assert.IsTrue(setter.Success, $"Setter not found: {propertyName}");
         return BracedMember(propertyBody, setter.Index,
             setter.Index + setter.Length - 1, propertyName + " setter");
     }
+
+    private static Match FindMethodSignature(string source, string methodName) =>
+        Regex.Match(MaskStrings(source),
+            $@"\b(?:private|internal|public|protected)\s+(?:static\s+)?(?:async\s+)?[A-Za-z0-9_<>,?.]+\s+{Regex.Escape(methodName)}\s*\(",
+            RegexOptions.CultureInvariant);
+
+    private static Match FindConstructorSignature(string source, string typeName) =>
+        Regex.Match(MaskStrings(source),
+            $@"\b(?:public|internal|private|protected)\s+{Regex.Escape(typeName)}\s*\(",
+            RegexOptions.CultureInvariant);
+
+    private static Match FindPropertySignature(string source, string propertyName) =>
+        Regex.Match(MaskStrings(source),
+            $@"\b(?:public|internal|private|protected)\s+[A-Za-z0-9_<>,?.]+\s+{Regex.Escape(propertyName)}\s*\{{",
+            RegexOptions.CultureInvariant);
 
     private static string BracedMember(
         string source,
@@ -432,7 +471,7 @@ public sealed class RemediationGapContractTests
         string failure,
         ICollection<string> failures)
     {
-        if (!source.Contains(token, StringComparison.Ordinal))
+        if (!MaskStrings(source).Contains(token, StringComparison.Ordinal))
             failures.Add(failure);
     }
 
@@ -442,7 +481,7 @@ public sealed class RemediationGapContractTests
         string failure,
         ICollection<string> failures)
     {
-        if (source.Contains(token, StringComparison.Ordinal))
+        if (MaskStrings(source).Contains(token, StringComparison.Ordinal))
             failures.Add(failure);
     }
 
@@ -513,7 +552,7 @@ public sealed class RemediationGapContractTests
         string methodName,
         out bool containsLocalFunction)
     {
-        string code = MaskStrings(StripComments(source));
+        string code = MaskStrings(source);
         int outerBody = code.IndexOf('{');
         string nestedCode = outerBody >= 0 ? code[(outerBody + 1)..] : string.Empty;
         containsLocalFunction = Regex.IsMatch(nestedCode,
@@ -571,6 +610,9 @@ public sealed class RemediationGapContractTests
 
     private static string Normalize(string source) =>
         string.Concat(source.Where(character => !char.IsWhiteSpace(character)));
+
+    private static string NormalizeCode(string source) =>
+        Normalize(MaskStrings(source));
 
     private static string StripComments(string source)
     {
@@ -631,32 +673,92 @@ public sealed class RemediationGapContractTests
 
     private static string MaskStrings(string source)
     {
-        var result = new StringBuilder(source);
-        bool quoted = false;
-        bool verbatim = false;
-        bool character = false;
+        char[] result = source.ToCharArray();
         for (int index = 0; index < source.Length; index++)
         {
             char current = source[index];
             char next = index + 1 < source.Length ? source[index + 1] : '\0';
-            if (!character && current == '"')
+            if (current == '/' && next == '/')
             {
-                if (!quoted) { quoted = true; verbatim = index > 0 && source[index - 1] == '@'; }
-                else if (verbatim && next == '"') { result[index] = ' '; result[index + 1] = ' '; index++; continue; }
-                else if (verbatim || index == 0 || source[index - 1] != '\\') quoted = false;
-                result[index] = ' ';
+                int end = source.IndexOfAny(['\r', '\n'], index + 2);
+                if (end < 0) end = source.Length;
+                Blank(result, index, end);
+                index = end - 1;
                 continue;
             }
-            if (!quoted && current == '\''
-                && (index == 0 || source[index - 1] != '\\'))
+            if (current == '/' && next == '*')
             {
-                character = !character;
-                result[index] = ' ';
+                int closing = source.IndexOf("*/", index + 2, StringComparison.Ordinal);
+                int end = closing < 0 ? source.Length : closing + 2;
+                Blank(result, index, end);
+                index = end - 1;
                 continue;
             }
-            if (quoted || character) result[index] = current is '\r' or '\n' ? current : ' ';
+            if (current == '\'')
+            {
+                int end = index + 1;
+                while (end < source.Length)
+                {
+                    if (source[end] == '\\') end += 2;
+                    else if (source[end++] == '\'') break;
+                }
+                Blank(result, index, Math.Min(end, source.Length));
+                index = Math.Min(end, source.Length) - 1;
+                continue;
+            }
+
+            int quote = -1;
+            int prefixEnd = index;
+            if (current == '"') quote = index;
+            else if (current is '$' or '@')
+            {
+                while (prefixEnd < source.Length && source[prefixEnd] is '$' or '@')
+                    prefixEnd++;
+                if (prefixEnd < source.Length && source[prefixEnd] == '"')
+                    quote = prefixEnd;
+            }
+            if (quote < 0) continue;
+
+            int quoteCount = 0;
+            while (quote + quoteCount < source.Length
+                   && source[quote + quoteCount] == '"') quoteCount++;
+            bool raw = quoteCount >= 3;
+            bool verbatim = source[index..quote].Contains('@');
+            int stringEnd = quote + (raw ? quoteCount : 1);
+            if (raw)
+            {
+                while (stringEnd < source.Length)
+                {
+                    int run = 0;
+                    while (stringEnd + run < source.Length
+                           && source[stringEnd + run] == '"') run++;
+                    if (run >= quoteCount) { stringEnd += quoteCount; break; }
+                    stringEnd += Math.Max(1, run);
+                }
+            }
+            else
+            {
+                while (stringEnd < source.Length)
+                {
+                    if (!verbatim && source[stringEnd] == '\\') stringEnd += 2;
+                    else if (verbatim && source[stringEnd] == '"'
+                             && stringEnd + 1 < source.Length
+                             && source[stringEnd + 1] == '"') stringEnd += 2;
+                    else if (source[stringEnd] == '"') { stringEnd++; break; }
+                    else stringEnd++;
+                }
+            }
+            stringEnd = Math.Min(stringEnd, source.Length);
+            Blank(result, index, stringEnd);
+            index = stringEnd - 1;
         }
-        return result.ToString();
+        return new string(result);
+    }
+
+    private static void Blank(char[] value, int start, int end)
+    {
+        for (int index = start; index < end; index++)
+            if (value[index] is not ('\r' or '\n')) value[index] = ' ';
     }
 
     private static void RequireCompiledByAppProject(
