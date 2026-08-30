@@ -99,7 +99,7 @@ public sealed class TrustedToolOperationEnvironment : IDisposable
             "operation-" + Guid.NewGuid().ToString("N"));
         try
         {
-            rootCustody = OpenDirectoryCustody(ownedRoot);
+            rootCustody = OpenRootCustody(ownedRoot);
             Directory.CreateDirectory(operationDirectory);
             ApplyPrivateAcl(operationDirectory);
             EnsureNonReparseAncestry(operationDirectory);
@@ -242,10 +242,20 @@ public sealed class TrustedToolOperationEnvironment : IDisposable
     }
 
     private static SafeFileHandle OpenDirectoryCustody(string directory)
+        => OpenVerifiedDirectoryCustody(
+            directory,
+            DeleteAccess | FileReadAttributes);
+
+    private static SafeFileHandle OpenRootCustody(string directory)
+        => OpenVerifiedDirectoryCustody(directory, FileReadAttributes);
+
+    private static SafeFileHandle OpenVerifiedDirectoryCustody(
+        string directory,
+        uint desiredAccess)
     {
         SafeFileHandle handle = CreateFile(
             directory,
-            DeleteAccess | FileReadAttributes,
+            desiredAccess,
             FileShare.Read | FileShare.Write,
             IntPtr.Zero,
             FileMode.Open,

@@ -400,6 +400,19 @@ public sealed class TrustedToolEnvironmentPolicyTests
     }
 
     [TestMethod]
+    public void ConcurrentOperationEnvironmentsShareProtectedRootCustody()
+    {
+        using TrustedToolOperationEnvironment first =
+            TrustedToolOperationEnvironment.Create(ValidParent());
+        using TrustedToolOperationEnvironment second =
+            TrustedToolOperationEnvironment.Create(ValidParent());
+
+        Assert.AreNotEqual(first.Variables["TEMP"], second.Variables["TEMP"]);
+        Assert.IsTrue(Directory.Exists(first.Variables["TEMP"]));
+        Assert.IsTrue(Directory.Exists(second.Variables["TEMP"]));
+    }
+
+    [TestMethod]
     public void OperationEnvironmentDeletesNestedFilesUnderStableDirectoryCustody()
     {
         TrustedToolOperationEnvironment operation =

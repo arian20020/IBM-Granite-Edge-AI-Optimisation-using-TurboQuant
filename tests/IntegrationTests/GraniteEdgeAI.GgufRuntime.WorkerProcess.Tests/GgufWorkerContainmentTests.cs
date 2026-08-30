@@ -3,6 +3,7 @@ using System.Text;
 using GraniteEdgeAI.GgufRuntime.ProtocolTestWorker;
 using GraniteEdgeAI.GgufRuntime.WorkerClient;
 using GraniteEdgeAI.GgufRuntime.WorkerClient.Windows;
+using GraniteEdgeAI.HardwareInspection.Foundation.Processes;
 
 namespace GraniteEdgeAI.GgufRuntime.WorkerProcess.Tests;
 
@@ -13,12 +14,14 @@ public sealed class GgufWorkerContainmentTests
     public async Task LaunchUsesSanitizedEnvironmentAndInheritedStandardStreams()
     {
         string executable = ResolveFixtureExecutable();
-        IReadOnlyDictionary<string, string> environment = CreateEnvironment();
+        TrustedToolOperationEnvironment operationEnvironment =
+            TrustedToolOperationEnvironment.CreateCurrent(includeDotnetRoots: true);
         await using GgufWorkerProcessSession session = GgufWorkerProcessLauncher.Launch(
             executable,
             [],
-            environment,
-            Path.GetDirectoryName(executable)!);
+            operationEnvironment.Variables,
+            Path.GetDirectoryName(executable)!,
+            operationEnvironment);
         using var reader = new StreamReader(
             session.StandardOutput,
             new UTF8Encoding(false, true),
@@ -48,11 +51,14 @@ public sealed class GgufWorkerContainmentTests
     public async Task TerminateAndVerifyEmptyKillsWorkerAndSpawnedChild()
     {
         string executable = ResolveFixtureExecutable();
+        TrustedToolOperationEnvironment operationEnvironment =
+            TrustedToolOperationEnvironment.CreateCurrent(includeDotnetRoots: true);
         await using GgufWorkerProcessSession session = GgufWorkerProcessLauncher.Launch(
             executable,
             ["--spawn-child"],
-            CreateEnvironment(),
-            Path.GetDirectoryName(executable)!);
+            operationEnvironment.Variables,
+            Path.GetDirectoryName(executable)!,
+            operationEnvironment);
         using var reader = new StreamReader(
             session.StandardOutput,
             new UTF8Encoding(false, true),
@@ -81,18 +87,4 @@ public sealed class GgufWorkerContainmentTests
         return $"{processId}:{process.ProcessName}";
     }
 
-    private static IReadOnlyDictionary<string, string> CreateEnvironment()
-    {
-        string windows = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
-        string temp = Path.GetTempPath().TrimEnd(Path.DirectorySeparatorChar);
-        var parent = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["SystemRoot"] = windows,
-            ["WINDIR"] = windows,
-            ["TEMP"] = temp,
-            ["TMP"] = temp,
-            ["G1_TEST_SECRET"] = "must-not-cross-boundary",
-        };
-        return GgufWorkerEnvironmentPolicy.Create(parent);
-    }
 }
