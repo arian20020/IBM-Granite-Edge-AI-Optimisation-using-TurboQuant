@@ -74,7 +74,9 @@ public sealed class A1BackendProductionReachabilityTests
         Assert.AreEqual(2, Occurrences(
             callers, "ChatDemoController.CreateProductionAsync("));
         Assert.AreEqual(1, Occurrences(
-            owner, "retirementTask ??= RetireCoreAsync();"));
+            owner, "retirementTask = retirementStarter.Task;"));
+        Assert.AreEqual(1, Occurrences(
+            owner, "_ = CompleteRetirementAsync(retirementStarter);"));
     }
 
     [TestMethod]
