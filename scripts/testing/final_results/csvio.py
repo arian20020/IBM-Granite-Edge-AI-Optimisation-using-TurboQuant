@@ -40,7 +40,13 @@ def write_csv(
 def write_json(path: Path, payload: object) -> None:
     """Write stable UTF-8 JSON with sorted keys and a terminating newline."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    serialized = json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True)
+    serialized = json.dumps(
+        payload,
+        allow_nan=False,
+        ensure_ascii=False,
+        indent=2,
+        sort_keys=True,
+    )
     path.write_text(f"{serialized}\n", encoding="utf-8", newline="\n")
 
 

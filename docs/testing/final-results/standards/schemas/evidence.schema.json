@@ -9,11 +9,17 @@
     "campaign_id": {"type": "string", "minLength": 1},
     "evidence_id": {"type": "string", "minLength": 1},
     "role": {"type": "string", "minLength": 1},
-    "relative_path": {"type": "string", "pattern": "^(?!/)(?![A-Za-z]:)(?!.*\\\\)(?!.*(^|/)\\.\\.(/|$)).+"},
+    "relative_path": {"type": "string", "pattern": "^(?![\\s\\S]*[\\u0000-\\u001F\\u007F])(?!/)(?![A-Za-z]:)(?!\\\\)(?![\\s\\S]*\\\\)(?![\\s\\S]*(?:^|/)\\.\\.(?:/|$))[\\s\\S]+$"},
     "sha256": {"type": "string", "pattern": "^[0-9a-fA-F]{64}$"},
     "size_bytes": {"type": "integer", "minimum": 0},
-    "source_label": {"type": ["string", "null"]},
+    "source_label": {"type": ["string", "null"], "minLength": 1, "pattern": "^(?![\\s\\S]*[\\u0000-\\u001F\\u007F])(?!/)(?![A-Za-z]:)(?!\\\\)(?![\\s\\S]*\\\\)[\\s\\S]*\\S[\\s\\S]*$"},
     "derived": {"type": "boolean"},
     "input_evidence_ids": {"type": "array", "items": {"type": "string", "minLength": 1}}
-  }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"derived": {"const": true}}, "required": ["derived"]},
+      "then": {"properties": {"input_evidence_ids": {"minItems": 1}}, "required": ["input_evidence_ids"]}
+    }
+  ]
 }

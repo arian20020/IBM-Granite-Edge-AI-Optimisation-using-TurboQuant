@@ -1,7 +1,9 @@
 import json
+import math
 import sys
 from pathlib import Path
 
+import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
@@ -183,8 +185,11 @@ def test_all_final_results_schemas_are_strict_and_accept_canonical_rows():
         assert validate_json(row, SCHEMA_DIRECTORY / schema_name) == []
 
 
-def test_attempt_schema_requires_reason_for_each_non_passed_status():
-    """Catches non-passed attempt rows that lose their explanatory reason."""
+@pytest.mark.parametrize("reason", ("", " \t"))
+def test_attempt_schema_requires_non_whitespace_reason_for_each_non_passed_status(
+    reason,
+):
+    """Catches non-passed attempts that retain only whitespace as a reason."""
     row = {
         "route_id": "route-1",
         "campaign_id": "campaign-1",
@@ -192,7 +197,7 @@ def test_attempt_schema_requires_reason_for_each_non_passed_status():
         "attempt_id": "attempt-1",
         "status": "failed",
         "executed": False,
-        "reason": "",
+        "reason": reason,
         "model_id": None,
         "weight_format_id": None,
         "cache_format_id": None,
@@ -205,3 +210,83 @@ def test_attempt_schema_requires_reason_for_each_non_passed_status():
     errors = validate_json(row, SCHEMA_DIRECTORY / "attempts.schema.json")
 
     assert errors
+
+
+def _evidence_row(**overrides):
+    row = {
+        "route_id": "route-1",
+        "campaign_id": "campaign-1",
+        "evidence_id": "evidence-1",
+        "role": "raw-result",
+        "relative_path": "experiments/raw-results/result.json",
+        "sha256": "a" * 64,
+        "size_bytes": 42,
+        "source_label": "raw result export",
+        "derived": False,
+        "input_evidence_ids": [],
+    }
+    row.update(overrides)
+    return row
+
+
+@pytest.mark.parametrize(
+    "relative_path",
+    (
+        "foo\n../escape.txt",
+        "foo\nC:\\secret.txt",
+        "../escape.txt",
+        "folder\\result.txt",
+        "/var/tmp/result.json",
+        "C:/secret.txt",
+        "\\\\server\\share\\result.json",
+        "folder/\x01result.txt",
+    ),
+)
+def test_evidence_schema_rejects_nonportable_relative_paths(relative_path):
+    """Catches path validation that accepts traversal, machine paths, or controls."""
+    errors = validate_json(
+        _evidence_row(relative_path=relative_path),
+        SCHEMA_DIRECTORY / "evidence.schema.json",
+    )
+
+    assert errors
+
+
+def test_evidence_schema_requires_inputs_for_derived_records():
+    """Catches derived evidence records that do not identify their inputs."""
+    schema = SCHEMA_DIRECTORY / "evidence.schema.json"
+
+    assert validate_json(
+        _evidence_row(derived=True, input_evidence_ids=[]), schema
+    )
+    assert validate_json(_evidence_row(derived=False, input_evidence_ids=[]), schema) == []
+
+
+@pytest.mark.parametrize(
+    "source_label",
+    (
+        "",
+        " \t",
+        "/machine/path",
+        "C:\\secret.txt",
+        "\\\\server\\share",
+        "source\\label",
+        "source\nlabel",
+        "source\x01label",
+    ),
+)
+def test_evidence_schema_rejects_nonportable_source_labels(source_label):
+    """Catches source labels that leak machine paths or control characters."""
+    errors = validate_json(
+        _evidence_row(source_label=source_label),
+        SCHEMA_DIRECTORY / "evidence.schema.json",
+    )
+
+    assert errors
+
+
+@pytest.mark.parametrize("value", (math.nan, math.inf, -math.inf))
+def test_write_json_rejects_nonfinite_numbers(tmp_path, value):
+    """Catches JSON output that emits non-standard NaN or Infinity literals."""
+    with pytest.raises(ValueError):
+        write_json(tmp_path / "nonfinite.json", {"value": value})

@@ -27,7 +27,7 @@
     },
     {
       "if": {"properties": {"status": {"not": {"const": "passed"}}}, "required": ["status"]},
-      "then": {"properties": {"reason": {"type": "string", "minLength": 1}}, "required": ["reason"]}
+      "then": {"properties": {"reason": {"type": "string", "pattern": "\\S"}}, "required": ["reason"]}
     }
   ]
 }
