@@ -119,33 +119,28 @@ public static class CompatibilityEngine
                 continueEnabled: false));
         }
 
-        return CompatibilityFallbackPolicy.Execute(
-            () =>
-            {
-                CompatibilityRunResult result = input.CurrentModel.Route ==
-                    OptimizationRoute.Gguf
-                        ? CompatibilityRunCoordinator.Execute(
-                            new CompatibilityRunRequest(
-                                CompatibilityContextRequest.ApplicationDefault()),
-                            ProductionDependencies(input, timeProvider),
-                            cancellationToken)
-                        : EvaluateOpenVinoBaseline(
-                            input,
-                            timeProvider,
-                            cancellationToken);
-                CompatibilityEvaluation evaluation =
-                    ProjectProduction(result, input, evaluatedAtUtc);
-                return evaluation.Screen.State is
-                    CompatibilityScreenState.EstimatedCompatible or
-                    CompatibilityScreenState.OptimisationRequired or
-                    CompatibilityScreenState.NoEstimatedSafeConfiguration
-                        ? evaluation with
-                        {
-                            MachineMemory = MachineMemory(input)
-                        }
-                        : evaluation;
-            },
-            () => WithoutPlanning(CompatibilityFallbackPolicy.NotEstablished()));
+        CompatibilityRunResult result = input.CurrentModel.Route ==
+            OptimizationRoute.Gguf
+                ? CompatibilityRunCoordinator.Execute(
+                    new CompatibilityRunRequest(
+                        CompatibilityContextRequest.ApplicationDefault()),
+                    ProductionDependencies(input, timeProvider),
+                    cancellationToken)
+                : EvaluateOpenVinoBaseline(
+                    input,
+                    timeProvider,
+                    cancellationToken);
+        CompatibilityEvaluation evaluation =
+            ProjectProduction(result, input, evaluatedAtUtc);
+        return evaluation.Screen.State is
+            CompatibilityScreenState.EstimatedCompatible or
+            CompatibilityScreenState.OptimisationRequired or
+            CompatibilityScreenState.NoEstimatedSafeConfiguration
+                ? evaluation with
+                {
+                    MachineMemory = MachineMemory(input)
+                }
+                : evaluation;
     }
 
     private static bool FreshResourcesAreCurrent(
@@ -184,14 +179,12 @@ public static class CompatibilityEngine
     public static CompatibilityScreenModel RunWithAvailableAdapters(
         CancellationToken cancellationToken = default)
     {
-        return CompatibilityFallbackPolicy.Execute(
-            () => ProjectWithoutOptimizationAuthority(
-                CompatibilityRunCoordinator.Execute(
-                    new CompatibilityRunRequest(
-                        CompatibilityContextRequest.ApplicationDefault()),
-                    Dependencies(),
-                    cancellationToken)),
-            CompatibilityFallbackPolicy.NotEstablished);
+        return ProjectWithoutOptimizationAuthority(
+            CompatibilityRunCoordinator.Execute(
+                new CompatibilityRunRequest(
+                    CompatibilityContextRequest.ApplicationDefault()),
+                Dependencies(),
+                cancellationToken));
     }
 
     private static CompatibilityRunDependencies Dependencies() =>

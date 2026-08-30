@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation;
@@ -25,7 +26,7 @@ internal sealed class CompatibilityEvaluationOrchestrator
             ?? throw new ArgumentNullException(nameof(timeProvider));
     }
 
-    internal Task<CompatibilityEvaluation> EvaluateAuthorityAsync(
+    internal async Task<CompatibilityEvaluation> EvaluateAuthorityAsync(
         IReadOnlySet<string> optedInEvidence,
         Func<CompatibilityFreshResourcesInput, IReadOnlySet<string>,
             DateTimeOffset, CancellationToken, CompatibilityEvaluation> evaluator,
@@ -33,62 +34,61 @@ internal sealed class CompatibilityEvaluationOrchestrator
     {
         ArgumentNullException.ThrowIfNull(optedInEvidence);
         ArgumentNullException.ThrowIfNull(evaluator);
-        return ExecuteAsync(
-            async () =>
-            {
-                CompatibilityFreshResourcesInput fresh =
-                    await _freshResourcesSource.CaptureAsync(cancellationToken);
-                DateTimeOffset evaluatedAtUtc = _timeProvider.GetUtcNow();
-                return await Task.Run(
-                    () => evaluator(
-                        fresh,
-                        optedInEvidence,
-                        evaluatedAtUtc,
-                        cancellationToken),
-                    cancellationToken);
-            },
-            () => new CompatibilityEvaluation(Fallback(cancellationToken), null, null));
+        CompatibilityFreshResourcesInput? fresh =
+            await CaptureFreshAsync(cancellationToken);
+        if (fresh is null)
+        {
+            return new CompatibilityEvaluation(
+                Fallback(cancellationToken), null, null);
+        }
+
+        DateTimeOffset evaluatedAtUtc = _timeProvider.GetUtcNow();
+        return await Task.Run(
+            () => evaluator(
+                fresh,
+                optedInEvidence,
+                evaluatedAtUtc,
+                cancellationToken),
+            cancellationToken);
     }
 
-    internal Task<CompatibilityScreenModel> EvaluateBoundAsync(
+    internal async Task<CompatibilityScreenModel> EvaluateBoundAsync(
         CompatibilityFreshInputBinder binder,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(binder);
-        return ExecuteAsync(
-            async () =>
-            {
-                CompatibilityFreshResourcesInput fresh =
-                    await _freshResourcesSource.CaptureAsync(cancellationToken);
-                if (!binder(fresh, out CompatibilityProductionInput? input))
-                {
-                    return Fallback(cancellationToken);
-                }
-                return await Task.Run(
-                    () => CompatibilityEngine.Run(
-                        input!,
-                        _timeProvider,
-                        cancellationToken),
-                    cancellationToken);
-            },
-            () => Fallback(cancellationToken));
+        CompatibilityFreshResourcesInput? fresh =
+            await CaptureFreshAsync(cancellationToken);
+        if (fresh is null ||
+            !binder(fresh, out CompatibilityProductionInput? input))
+        {
+            return Fallback(cancellationToken);
+        }
+
+        return await Task.Run(
+            () => CompatibilityEngine.Run(
+                input!,
+                _timeProvider,
+                cancellationToken),
+            cancellationToken);
     }
 
-    private static async Task<T> ExecuteAsync<T>(
-        Func<Task<T>> operation,
-        Func<T> fallback)
+    private async Task<CompatibilityFreshResourcesInput?> CaptureFreshAsync(
+        CancellationToken cancellationToken)
     {
         try
         {
-            return await operation();
+            return await _freshResourcesSource.CaptureAsync(cancellationToken);
         }
         catch (OperationCanceledException)
         {
             throw;
         }
-        catch
+        catch (Exception exception) when (exception is IOException
+            or UnauthorizedAccessException
+            or InvalidOperationException)
         {
-            return fallback();
+            return null;
         }
     }
 

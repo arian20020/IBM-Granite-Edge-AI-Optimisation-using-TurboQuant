@@ -9,35 +9,25 @@ namespace GraniteEdgeAI.ModelHardwareCompatibility.Tests.Application.Presentatio
 public sealed class CompatibilityFallbackPolicyTests
 {
     [TestMethod]
-    public void FaultUsesOneFailClosedProjection()
+    public void NotEstablishedProjectionIsFailClosed()
     {
-        CompatibilityScreenModel result = CompatibilityFallbackPolicy.Execute(
-            () => throw new InvalidOperationException("adapter failed"),
-            CompatibilityFallbackPolicy.NotEstablished);
+        CompatibilityScreenModel result =
+            CompatibilityFallbackPolicy.NotEstablished();
 
         Assert.AreEqual(CompatibilityScreenState.NotEstablished, result.State);
         Assert.IsFalse(result.ContinueEnabled);
         Assert.IsFalse(result.UseCurrentModelAvailable);
+    }
+
+    [TestMethod]
+    public void NotEstablishedProjectionNamesOneBlockingUnexpectedFailure()
+    {
+        CompatibilityScreenModel result =
+            CompatibilityFallbackPolicy.NotEstablished();
+
         Assert.AreEqual(1, result.Findings.Count);
         CompatibilityFindingView finding = result.Findings[0];
         Assert.AreEqual(CompatibilityFindingCode.UnexpectedFailure, finding.Code);
         Assert.AreEqual(FindingSeverity.Blocking, finding.Severity);
-    }
-
-    [TestMethod]
-    public void CancellationIsNeverConvertedIntoFallback()
-    {
-        bool fallbackInvoked = false;
-
-        Assert.ThrowsExactly<OperationCanceledException>(() =>
-            CompatibilityFallbackPolicy.Execute(
-                () => throw new OperationCanceledException(),
-                () =>
-                {
-                    fallbackInvoked = true;
-                    return 0;
-                }));
-
-        Assert.IsFalse(fallbackInvoked);
     }
 }

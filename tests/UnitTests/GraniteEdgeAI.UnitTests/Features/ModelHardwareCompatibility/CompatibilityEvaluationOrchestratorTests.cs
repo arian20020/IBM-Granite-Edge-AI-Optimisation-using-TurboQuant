@@ -69,6 +69,22 @@ public sealed class CompatibilityEvaluationOrchestratorTests
     }
 
     [TestMethod]
+    public async Task EvaluatorProgrammingFaultIsNotConvertedIntoCompatibilityFallback()
+    {
+        DateTimeOffset now = new(2035, 6, 7, 8, 9, 10, TimeSpan.Zero);
+        var orchestrator = new CompatibilityEvaluationOrchestrator(
+            new FixedSource(Fresh(now)),
+            new FixedTimeProvider(now));
+
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
+            orchestrator.EvaluateAuthorityAsync(
+                new HashSet<string>(StringComparer.Ordinal),
+                (fresh, optedIn, evaluatedAtUtc, token) =>
+                    throw new InvalidOperationException("programming defect"),
+                CancellationToken.None));
+    }
+
+    [TestMethod]
     public async Task UnboundProductionInputUsesTheSameFailClosedFallback()
     {
         DateTimeOffset now = new(2035, 6, 7, 8, 9, 10, TimeSpan.Zero);
