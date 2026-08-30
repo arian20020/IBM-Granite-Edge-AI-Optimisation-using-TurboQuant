@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Collections.Generic;
 using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -25,6 +26,8 @@ internal sealed class OptimizationExportController
 {
     private readonly object _gate = new();
     private readonly IOptimizationExportService _service;
+    private readonly TimeSpan _retirementTimeout;
+    private readonly Dictionary<CancellationTokenSource, Task> _cancellationTasks = [];
     private long _generation;
     private long? _activeGeneration;
     private long? _cancelledGeneration;
@@ -36,8 +39,12 @@ internal sealed class OptimizationExportController
     private Task? _retirementTask;
     private OptimizationExportViewState _state = OptimizationExportViewState.Unbound();
 
-    internal OptimizationExportController(IOptimizationExportService service) =>
+    internal OptimizationExportController(IOptimizationExportService service, TimeSpan? retirementTimeout = null)
+    {
         _service = service ?? throw new ArgumentNullException(nameof(service));
+        _retirementTimeout = retirementTimeout ?? TimeSpan.FromSeconds(5);
+        if (_retirementTimeout <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(retirementTimeout));
+    }
 
     internal event EventHandler<OptimizationExportViewState>? StateChanged;
     internal OptimizationExportViewState State { get { lock (_gate) return _state; } }
@@ -111,7 +118,7 @@ internal sealed class OptimizationExportController
         {
             if (_activeGeneration != generation)
             {
-                cancellation.Dispose();
+                DisposeAfterCancellation(cancellation);
                 if (unexpectedFault is not null) ExceptionDispatchInfo.Capture(unexpectedFault).Throw();
                 return true;
             }
@@ -128,7 +135,7 @@ internal sealed class OptimizationExportController
             _activeGeneration = null; _activeCancellation = null; _activeTask = null;
             _cancelledGeneration = null; _cancellationFailureGeneration = null;
         }
-        cancellation.Dispose();
+        DisposeAfterCancellation(cancellation);
         if (completed is not null) PublishState(completed);
         if (unexpectedFault is not null) ExceptionDispatchInfo.Capture(unexpectedFault).Throw();
         return true;
@@ -142,9 +149,9 @@ internal sealed class OptimizationExportController
             if (_retired || _activeGeneration is not long active || _activeCancellation is null || _state.Kind != OptimizationExportStateKind.Running) return false;
             _cancelledGeneration = active;
             _state = cancelling = _state with { Kind = OptimizationExportStateKind.Cancelling, StatusText = "Cancelling export and cleaning up incomplete output." };
-            if (!RequestCancellation(_activeCancellation)) _cancellationFailureGeneration = active;
-            PublishState(cancelling);
+            RequestCancellation(_activeCancellation, active);
         }
+        PublishState(cancelling);
         return true;
     }
 
@@ -154,15 +161,15 @@ internal sealed class OptimizationExportController
         {
             if (_retirementTask is not null) return _retirementTask;
             _retired = true; _target = null; _state = OptimizationExportViewState.Unbound();
-            _retirementTask = RetireCoreAsync(_activeCancellation, _activeTask ?? Task.CompletedTask);
+            _retirementTask = RetireCoreAsync(_activeCancellation, _activeTask ?? Task.CompletedTask, _activeGeneration);
             return _retirementTask;
         }
     }
 
-    private static async Task RetireCoreAsync(CancellationTokenSource? cancellation, Task activeTask)
+    private async Task RetireCoreAsync(CancellationTokenSource? cancellation, Task activeTask, long? generation)
     {
-        if (cancellation is not null) RequestCancellation(cancellation);
-        try { await activeTask.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false); }
+        if (cancellation is not null && generation is long active) RequestCancellation(cancellation, active);
+        try { await activeTask.WaitAsync(_retirementTimeout).ConfigureAwait(false); }
         catch (TimeoutException) { Trace.TraceWarning("Optimization-export retirement detached after its five-second cleanup boundary."); }
         catch (Exception exception) { Trace.TraceWarning("Optimization-export retirement observed a settled {0} operation.", exception.GetType().Name); }
     }
@@ -237,14 +244,48 @@ internal sealed class OptimizationExportController
             catch (Exception exception) { Trace.TraceError("An optimization-export state observer failed with {0}.", exception.GetType().Name); }
     }
 
-    private static bool RequestCancellation(CancellationTokenSource cancellation)
+    private void RequestCancellation(CancellationTokenSource cancellation, long generation)
     {
-        try { cancellation.Cancel(); return true; }
+        try
+        {
+            Task observation = ObserveCancellationAsync(cancellation.CancelAsync(), generation);
+            lock (_gate) _cancellationTasks[cancellation] = observation;
+        }
         catch (Exception exception)
         {
             Trace.TraceWarning("Optimization-export cancellation observed {0}.", exception.GetType().Name);
-            return false;
+            lock (_gate)
+                if (_activeGeneration == generation) _cancellationFailureGeneration = generation;
         }
+    }
+
+    private async Task ObserveCancellationAsync(Task cancellation, long generation)
+    {
+        try { await cancellation.ConfigureAwait(false); }
+        catch (Exception exception)
+        {
+            Trace.TraceWarning("Optimization-export cancellation observed {0}.", exception.GetType().Name);
+            lock (_gate)
+                if (_activeGeneration == generation) _cancellationFailureGeneration = generation;
+        }
+    }
+
+    private void DisposeAfterCancellation(CancellationTokenSource cancellation)
+    {
+        Task observation;
+        lock (_gate)
+        {
+            observation = _cancellationTasks.Remove(cancellation, out Task? pending)
+                ? pending
+                : Task.CompletedTask;
+        }
+        _ = DisposeAfterCancellationAsync(cancellation, observation);
+    }
+
+    private static async Task DisposeAfterCancellationAsync(CancellationTokenSource cancellation, Task observation)
+    {
+        try { await observation.ConfigureAwait(false); }
+        finally { cancellation.Dispose(); }
     }
 
     private sealed class InlineProgress<T>(Action<T> report) : IProgress<T> { public void Report(T value) => report(value); }

@@ -33,6 +33,7 @@ internal sealed class ModelDownloadCoordinator : IDisposable
     private readonly object _sync = new();
     private readonly IModelDownloadService _service;
     private readonly IModelDownloadNetworkPolicy _networkPolicy;
+    private readonly TimeSpan _retirementTimeout;
     private CancellationTokenSource? _activeCancellation;
     private TaskCompletionSource? _activeCompletion;
     private VerifiedDownloadedModel? _claimableModel;
@@ -48,10 +49,13 @@ internal sealed class ModelDownloadCoordinator : IDisposable
 
     internal ModelDownloadCoordinator(
         IModelDownloadService service,
-        IModelDownloadNetworkPolicy networkPolicy)
+        IModelDownloadNetworkPolicy networkPolicy,
+        TimeSpan? retirementTimeout = null)
     {
         _service = service ?? throw new ArgumentNullException(nameof(service));
         _networkPolicy = networkPolicy ?? throw new ArgumentNullException(nameof(networkPolicy));
+        _retirementTimeout = retirementTimeout ?? TimeSpan.FromSeconds(5);
+        if (_retirementTimeout <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(retirementTimeout));
         State = ModelDownloadCoordinatorState.Idle(PinnedGraniteModelCatalog.ForSliderValue(50));
     }
 
@@ -270,19 +274,22 @@ internal sealed class ModelDownloadCoordinator : IDisposable
             cancelling = State with { ErrorCode = "download-cancelling" };
             State = cancelling;
         }
-        bool cancellationRequested = RequestCancellation(active);
+        Task<bool> cancellationRequest = RequestCancellationAsync(active);
         lock (_sync)
         {
-            _cancellationFailed = !cancellationRequested;
-            if (cancellationRequested)
-            {
-                _cancellationRequestedOperation = operationId;
-            }
+            _cancellationRequestedOperation = operationId;
         }
         PublishState(cancelling);
-        if (completion is not null)
+        try
         {
-            await completion.WaitAsync(cancellationToken);
+            await Task.WhenAll(completion ?? Task.CompletedTask, cancellationRequest)
+                .WaitAsync(_retirementTimeout, cancellationToken);
+            lock (_sync) _cancellationFailed = !cancellationRequest.Result;
+        }
+        catch (TimeoutException)
+        {
+            lock (_sync) _cancellationFailed = true;
+            Trace.TraceWarning("Model-download cancellation detached after its five-second cleanup boundary.");
         }
         if (discardPartial)
         {
@@ -425,7 +432,7 @@ internal sealed class ModelDownloadCoordinator : IDisposable
             Task activeTask = _activeCompletion?.Task ?? Task.CompletedTask;
             CancellationTokenSource? recoveryCancellation = _recoveryCancellation;
             Task recoveryTask = _recoveryCompletion?.Task ?? Task.CompletedTask;
-            _retirementTask = RetireCoreAsync(cancellation, activeTask, recoveryCancellation, recoveryTask);
+            _retirementTask = RetireCoreAsync(cancellation, activeTask, recoveryCancellation, recoveryTask, _retirementTimeout);
             return _retirementTask;
         }
     }
@@ -436,19 +443,20 @@ internal sealed class ModelDownloadCoordinator : IDisposable
         CancellationTokenSource? cancellation,
         Task activeTask,
         CancellationTokenSource? recoveryCancellation,
-        Task recoveryTask)
+        Task recoveryTask,
+        TimeSpan retirementTimeout)
     {
         if (cancellation is not null)
         {
-            RequestCancellation(cancellation);
+            _ = RequestCancellationAsync(cancellation);
         }
         if (recoveryCancellation is not null)
         {
-            RequestCancellation(recoveryCancellation);
+            _ = RequestCancellationAsync(recoveryCancellation);
         }
         try
         {
-            await Task.WhenAll(activeTask, recoveryTask).WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            await Task.WhenAll(activeTask, recoveryTask).WaitAsync(retirementTimeout).ConfigureAwait(false);
         }
         catch (TimeoutException)
         {
@@ -492,15 +500,16 @@ internal sealed class ModelDownloadCoordinator : IDisposable
         }
     }
 
-    private static bool RequestCancellation(CancellationTokenSource cancellation)
+    private static async Task<bool> RequestCancellationAsync(CancellationTokenSource cancellation)
     {
         try
         {
-            cancellation.Cancel();
+            await cancellation.CancelAsync().ConfigureAwait(false);
             return true;
         }
-        catch (AggregateException)
+        catch (Exception exception)
         {
+            Trace.TraceWarning("Model-download cancellation observed {0}.", exception.GetType().Name);
             return false;
         }
     }

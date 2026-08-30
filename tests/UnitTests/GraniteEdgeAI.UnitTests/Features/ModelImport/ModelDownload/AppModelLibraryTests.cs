@@ -134,8 +134,8 @@ public sealed class AppModelLibraryTests
     }
 
     [TestMethod]
-    [DataRow((int)ModelDownloadCancellationBoundary.PartialWrite)]
     [DataRow((int)ModelDownloadCancellationBoundary.CheckpointWrite)]
+    [DataRow((int)ModelDownloadCancellationBoundary.CheckpointReplace)]
     [DataRow((int)ModelDownloadCancellationBoundary.IntegrityHash)]
     [DataRow((int)ModelDownloadCancellationBoundary.FinalPublish)]
     public async Task OwnedStorageOperationObservesCancellationWithHandleAndPublishesNoFinal(int boundaryValue)
@@ -144,23 +144,32 @@ public sealed class AppModelLibraryTests
         using var root = new TemporaryModelLibraryRoot();
         using var cancellation = new CancellationTokenSource();
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var library = new AppModelLibrary(root.Path, _ => long.MaxValue, async (observed, token) =>
+        async ValueTask Gate(CancellationToken token)
         {
-            if (observed != boundary) return;
             entered.TrySetResult();
             await Task.Delay(Timeout.InfiniteTimeSpan, token);
-        });
+        }
+        var library = new AppModelLibrary(
+            root.Path,
+            _ => long.MaxValue,
+            checkpointWriter: boundary == ModelDownloadCancellationBoundary.CheckpointWrite
+                ? async (_, _, token) => await Gate(token) : null,
+            checkpointReplacer: boundary == ModelDownloadCancellationBoundary.CheckpointReplace
+                ? async (_, _, token) => await Gate(token) : null,
+            hasher: boundary == ModelDownloadCancellationBoundary.IntegrityHash
+                ? async (_, token) => { await Gate(token); return []; } : null,
+            publisher: boundary == ModelDownloadCancellationBoundary.FinalPublish
+                ? async (_, _, token) => await Gate(token) : null);
         ModelDownloadCatalogEntry entry = CreateSmallEntry(expectedBytes: 4);
-        if (boundary != ModelDownloadCancellationBoundary.PartialWrite)
+        await using (Stream partial = await library.OpenPartialWriteAsync(entry, 0, CancellationToken.None))
         {
-            await using Stream partial = await library.OpenPartialWriteAsync(entry, 0, CancellationToken.None);
             await partial.WriteAsync(new byte[] { 1, 2, 3, 4 });
         }
 
         Task operation = boundary switch
         {
-            ModelDownloadCancellationBoundary.PartialWrite => library.OpenPartialWriteAsync(entry, 0, cancellation.Token),
             ModelDownloadCancellationBoundary.CheckpointWrite => library.WriteCheckpointAsync(entry, CreateState(entry, 4), cancellation.Token),
+            ModelDownloadCancellationBoundary.CheckpointReplace => library.WriteCheckpointAsync(entry, CreateState(entry, 4), cancellation.Token),
             ModelDownloadCancellationBoundary.IntegrityHash => library.ComputePartialSha256Async(entry, cancellation.Token),
             ModelDownloadCancellationBoundary.FinalPublish => library.PublishAsync(entry, cancellation.Token),
             _ => throw new InvalidOperationException()

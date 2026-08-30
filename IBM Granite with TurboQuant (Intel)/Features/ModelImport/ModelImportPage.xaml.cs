@@ -465,9 +465,15 @@ namespace GraniteEdgeAI.Features.ModelImport
             ImportModelCardControl.ClearDragValidation();
             await _dropHandler.HandleDropAsync(
                 e,
-                SubmitInputAsync,
+                SubmitDroppedInputAsync,
                 RejectDroppedSelectionAsync,
                 CancellationToken.None);
+        }
+
+        internal Task SubmitDroppedInputAsync(ModelSelectionInput input)
+        {
+            RetireAutomaticDownloadHandoff();
+            return SubmitInputAsync(input);
         }
 
         private void ModelDownloadCoordinator_VerifiedModelAvailable(

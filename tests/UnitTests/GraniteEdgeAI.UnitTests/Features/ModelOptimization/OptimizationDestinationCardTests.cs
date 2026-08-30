@@ -100,6 +100,7 @@ public sealed class OptimizationDestinationCardTests
 
         Assert.AreEqual(OptimizationExportStateKind.Failed, card.ExportState.Kind);
         Assert.AreEqual(OptimizationExportFailure.None, card.ExportState.Failure);
+        Assert.AreEqual(typeof(InvalidOperationException), card.ObservedExportFaultType);
     }
 
     [UITestMethod]

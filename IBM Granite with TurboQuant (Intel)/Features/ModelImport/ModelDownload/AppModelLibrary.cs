@@ -22,15 +22,27 @@ internal sealed class AppModelLibrary
     private readonly string _locksRoot;
     private readonly Func<string, long> _availableFreeSpace;
     private readonly Func<ModelDownloadCancellationBoundary, CancellationToken, ValueTask>? _boundaryObserver;
+    private readonly Func<Stream, ReadOnlyMemory<byte>, CancellationToken, ValueTask> _checkpointWriter;
+    private readonly Func<string, string, CancellationToken, ValueTask> _checkpointReplacer;
+    private readonly Func<Stream, CancellationToken, ValueTask<byte[]>> _hasher;
+    private readonly Func<string, string, CancellationToken, ValueTask> _publisher;
 
     internal AppModelLibrary(
         string root,
         Func<string, long> availableFreeSpace,
-        Func<ModelDownloadCancellationBoundary, CancellationToken, ValueTask>? boundaryObserver = null)
+        Func<ModelDownloadCancellationBoundary, CancellationToken, ValueTask>? boundaryObserver = null,
+        Func<Stream, ReadOnlyMemory<byte>, CancellationToken, ValueTask>? checkpointWriter = null,
+        Func<string, string, CancellationToken, ValueTask>? checkpointReplacer = null,
+        Func<Stream, CancellationToken, ValueTask<byte[]>>? hasher = null,
+        Func<string, string, CancellationToken, ValueTask>? publisher = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(root);
         _availableFreeSpace = availableFreeSpace ?? throw new ArgumentNullException(nameof(availableFreeSpace));
         _boundaryObserver = boundaryObserver;
+        _checkpointWriter = checkpointWriter ?? WriteAndFlushAsync;
+        _checkpointReplacer = checkpointReplacer ?? ReplaceFileAsync;
+        _hasher = hasher ?? SHA256.HashDataAsync;
+        _publisher = publisher ?? PublishFileAsync;
         _root = Path.GetFullPath(root);
         _modelsRoot = ContainedDirectory("Models");
         _partialRoot = ContainedDirectory("Partial");
@@ -135,11 +147,11 @@ internal sealed class AppModelLibrary
                 FileOptions.Asynchronous | FileOptions.WriteThrough))
             {
                 await ObserveBoundaryAsync(ModelDownloadCancellationBoundary.CheckpointWrite, cancellationToken);
-                await stream.WriteAsync(json, cancellationToken);
-                await stream.FlushAsync(cancellationToken);
+                await _checkpointWriter(stream, json, cancellationToken);
             }
 
-            File.Move(temporaryPath, statePath, overwrite: true);
+            await ObserveBoundaryAsync(ModelDownloadCancellationBoundary.CheckpointReplace, cancellationToken);
+            await _checkpointReplacer(temporaryPath, statePath, cancellationToken);
         }
         finally
         {
@@ -295,7 +307,7 @@ internal sealed class AppModelLibrary
             bufferSize: 128 * 1024,
             FileOptions.Asynchronous | FileOptions.SequentialScan);
         await ObserveBoundaryAsync(ModelDownloadCancellationBoundary.IntegrityHash, cancellationToken);
-        return await SHA256.HashDataAsync(stream, cancellationToken);
+        return await _hasher(stream, cancellationToken);
     }
 
     internal async Task<VerifiedDownloadedModel> PublishAsync(
@@ -311,7 +323,7 @@ internal sealed class AppModelLibrary
 
         string finalPath = FinalPath(entry);
         await ObserveBoundaryAsync(ModelDownloadCancellationBoundary.FinalPublish, cancellationToken);
-        File.Move(partialPath, finalPath, overwrite: false);
+        await _publisher(partialPath, finalPath, cancellationToken);
         DeleteIfExists(StatePath(entry));
         return new VerifiedDownloadedModel(
                 finalPath,
@@ -347,6 +359,28 @@ internal sealed class AppModelLibrary
         if (_boundaryObserver is not null)
             await _boundaryObserver(boundary, cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
+    }
+
+    private static async ValueTask WriteAndFlushAsync(Stream stream, ReadOnlyMemory<byte> bytes, CancellationToken cancellationToken)
+    {
+        await stream.WriteAsync(bytes, cancellationToken);
+        await stream.FlushAsync(cancellationToken);
+    }
+
+    private static ValueTask ReplaceFileAsync(string source, string destination, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        File.Move(source, destination, overwrite: true);
+        cancellationToken.ThrowIfCancellationRequested();
+        return ValueTask.CompletedTask;
+    }
+
+    private static ValueTask PublishFileAsync(string source, string destination, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        File.Move(source, destination, overwrite: false);
+        cancellationToken.ThrowIfCancellationRequested();
+        return ValueTask.CompletedTask;
     }
 
     private string PartialPath(ModelDownloadCatalogEntry entry) =>

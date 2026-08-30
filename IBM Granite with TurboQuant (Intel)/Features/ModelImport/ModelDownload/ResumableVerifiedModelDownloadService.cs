@@ -7,10 +7,12 @@ namespace GraniteEdgeAI.Features.ModelImport.ModelDownload;
 internal enum ModelDownloadCancellationBoundary
 {
     Connection,
+    StoragePreflight,
     ResponseRead,
     PartialWrite,
     CheckpointFlush,
     CheckpointWrite,
+    CheckpointReplace,
     IntegrityHash,
     FinalPublish
 }
@@ -25,17 +27,20 @@ internal sealed class ResumableVerifiedModelDownloadService : IModelDownloadServ
     private readonly AppModelLibrary _library;
     private readonly TimeSpan _inactivityTimeout;
     private readonly Func<ModelDownloadCancellationBoundary, CancellationToken, ValueTask>? _boundaryObserver;
+    private readonly Func<Stream, ReadOnlyMemory<byte>, CancellationToken, ValueTask> _blockWriter;
 
     internal ResumableVerifiedModelDownloadService(
         IModelDownloadTransport transport,
         AppModelLibrary library,
         TimeSpan? inactivityTimeout = null,
-        Func<ModelDownloadCancellationBoundary, CancellationToken, ValueTask>? boundaryObserver = null)
+        Func<ModelDownloadCancellationBoundary, CancellationToken, ValueTask>? boundaryObserver = null,
+        Func<Stream, ReadOnlyMemory<byte>, CancellationToken, ValueTask>? blockWriter = null)
     {
         _transport = transport ?? throw new ArgumentNullException(nameof(transport));
         _library = library ?? throw new ArgumentNullException(nameof(library));
         _inactivityTimeout = inactivityTimeout ?? TimeSpan.FromSeconds(30);
         _boundaryObserver = boundaryObserver;
+        _blockWriter = blockWriter ?? ((stream, bytes, token) => stream.WriteAsync(bytes, token));
         if (_inactivityTimeout <= TimeSpan.Zero)
         {
             throw new ArgumentOutOfRangeException(nameof(inactivityTimeout));
@@ -67,7 +72,7 @@ internal sealed class ResumableVerifiedModelDownloadService : IModelDownloadServ
 
         await using (lease)
         {
-            ModelDownloadCancellationBoundary phase = ModelDownloadCancellationBoundary.Connection;
+            ModelDownloadCancellationBoundary phase = ModelDownloadCancellationBoundary.StoragePreflight;
             try
             {
                 VerifiedDownloadedModel? existing =
@@ -180,7 +185,7 @@ internal sealed class ResumableVerifiedModelDownloadService : IModelDownloadServ
 
                     phase = ModelDownloadCancellationBoundary.PartialWrite;
                     await ObserveBoundaryAsync(ModelDownloadCancellationBoundary.PartialWrite, cancellationToken);
-                    await destination.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
+                    await _blockWriter(destination, buffer.AsMemory(0, read), cancellationToken);
                     downloaded += read;
                     bool reachedCheckpoint = downloaded - lastCheckpoint >= CheckpointIntervalBytes;
                     if (reachedCheckpoint ||

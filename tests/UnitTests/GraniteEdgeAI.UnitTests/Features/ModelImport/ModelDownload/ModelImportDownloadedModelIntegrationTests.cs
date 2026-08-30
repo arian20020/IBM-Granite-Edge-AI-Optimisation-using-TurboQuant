@@ -104,6 +104,13 @@ public sealed class ModelImportDownloadedModelIntegrationTests
             Assert.IsFalse(page.TryClaimVerifiedDownloadInspection(pickerRevoked, out _));
 
             ready = null;
+            await coordinator.StartAsync(70, allowMetered: false, CancellationToken.None);
+            Assert.IsNotNull(ready);
+            ModelDownloadOperationId dropRevoked = ready.OperationId;
+            await page.SubmitDroppedInputAsync(new ModelSelectionInput(path, "granite.gguf", false));
+            Assert.IsFalse(page.TryClaimVerifiedDownloadInspection(dropRevoked, out _));
+
+            ready = null;
             await coordinator.StartAsync(80, allowMetered: false, CancellationToken.None);
             Assert.IsNotNull(ready);
             ModelDownloadOperationId retirementRevoked = ready.OperationId;

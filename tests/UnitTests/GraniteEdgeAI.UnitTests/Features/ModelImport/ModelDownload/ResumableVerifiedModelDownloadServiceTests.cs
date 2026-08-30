@@ -350,6 +350,49 @@ public sealed class ResumableVerifiedModelDownloadServiceTests
     }
 
     [TestMethod]
+    public async Task DownloadAsync_CancellationWhilePartialWriteIsPendingUsesCallerToken()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using TestDownloadFixture fixture = TestDownloadFixture.Create(
+            [1, 2, 3, 4],
+            blockWriter: async (_, _, token) =>
+            {
+                entered.TrySetResult();
+                await Task.Delay(Timeout.InfiniteTimeSpan, token);
+            });
+
+        Task<ModelDownloadResult> operation = fixture.Service.DownloadAsync(
+            fixture.Entry,
+            new InlineProgress<ModelDownloadProgress>(_ => { }),
+            cancellation.Token);
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        cancellation.Cancel();
+        ModelDownloadResult result = await operation.WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.AreEqual(ModelDownloadResultKind.Interrupted, result.Kind);
+        Assert.AreEqual("download-cancelled", result.ErrorCode);
+        Assert.IsFalse(await fixture.Library.FinalExistsAsync(fixture.Entry, CancellationToken.None));
+    }
+
+    [TestMethod]
+    public async Task DownloadAsync_LocalPreflightIoFailureIsStorageFailure()
+    {
+        using TestDownloadFixture fixture = TestDownloadFixture.Create(
+            [1, 2, 3, 4],
+            availableSpaceException: new IOException("private local failure"));
+
+        ModelDownloadResult result = await fixture.Service.DownloadAsync(
+            fixture.Entry,
+            new InlineProgress<ModelDownloadProgress>(_ => { }),
+            CancellationToken.None);
+
+        Assert.AreEqual(ModelDownloadResultKind.Failed, result.Kind);
+        Assert.AreEqual("download-storage-failed", result.ErrorCode);
+        Assert.AreEqual(0, fixture.Transport.OpenCount);
+    }
+
+    [TestMethod]
     public async Task DownloadAsync_FastTransferCoalescesProgressNotifications()
     {
         byte[] payload = new byte[4 * 1024 * 1024];
@@ -380,7 +423,8 @@ public sealed class ResumableVerifiedModelDownloadServiceTests
             AppModelLibrary library,
             FakeTransport transport,
             TimeSpan? inactivityTimeout,
-            Func<ModelDownloadCancellationBoundary, CancellationToken, ValueTask>? boundaryObserver = null)
+            Func<ModelDownloadCancellationBoundary, CancellationToken, ValueTask>? boundaryObserver = null,
+            Func<Stream, ReadOnlyMemory<byte>, CancellationToken, ValueTask>? blockWriter = null)
         {
             _root = root;
             Entry = entry;
@@ -390,7 +434,8 @@ public sealed class ResumableVerifiedModelDownloadServiceTests
                 transport,
                 library,
                 inactivityTimeout,
-                boundaryObserver);
+                boundaryObserver,
+                blockWriter);
         }
 
         internal ModelDownloadCatalogEntry Entry { get; }
@@ -409,7 +454,9 @@ public sealed class ResumableVerifiedModelDownloadServiceTests
             Stream? customStream = null,
             TimeSpan? inactivityTimeout = null,
             string responseEntityTag = "\"v1\"",
-            Func<ModelDownloadCancellationBoundary, CancellationToken, ValueTask>? boundaryObserver = null)
+            Func<ModelDownloadCancellationBoundary, CancellationToken, ValueTask>? boundaryObserver = null,
+            Func<Stream, ReadOnlyMemory<byte>, CancellationToken, ValueTask>? blockWriter = null,
+            Exception? availableSpaceException = null)
         {
             string root = Path.Combine(
                 Path.GetTempPath(),
@@ -428,7 +475,9 @@ public sealed class ResumableVerifiedModelDownloadServiceTests
                 "test-artifact.gguf",
                 expectedBytes.LongLength,
                 sha);
-            var library = new AppModelLibrary(root, _ => availableBytes);
+            var library = new AppModelLibrary(root, _ => availableSpaceException is null
+                ? availableBytes
+                : throw availableSpaceException);
             var transport = new FakeTransport(
                 responseBytes ?? expectedBytes,
                 statusCode,
@@ -442,7 +491,8 @@ public sealed class ResumableVerifiedModelDownloadServiceTests
                 library,
                 transport,
                 inactivityTimeout,
-                boundaryObserver);
+                boundaryObserver,
+                blockWriter);
         }
 
         internal async Task SeedPartialAsync(byte[] bytes, string entityTag)
@@ -501,6 +551,7 @@ public sealed class ResumableVerifiedModelDownloadServiceTests
         string responseEntityTag) : IModelDownloadTransport
     {
         internal List<(long Offset, string? EntityTag)> Requests { get; } = [];
+        internal int OpenCount => Requests.Count;
 
         public Task<ModelDownloadTransportResponse> OpenAsync(
             ModelDownloadCatalogEntry entry,

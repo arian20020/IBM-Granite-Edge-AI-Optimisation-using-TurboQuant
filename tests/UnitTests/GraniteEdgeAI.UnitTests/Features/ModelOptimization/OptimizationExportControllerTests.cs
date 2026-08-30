@@ -204,6 +204,25 @@ public sealed class OptimizationExportControllerTests
     }
 
     [TestMethod]
+    public async Task RetirementBoundsAProviderWhoseCancellationCallbackNeverReturns()
+    {
+        using var release = new ManualResetEventSlim(false);
+        var service = new BlockingCancellationExportService(release);
+        var controller = new OptimizationExportController(service, TimeSpan.FromMilliseconds(50));
+        controller.Bind(Target());
+        Task<bool> operation = controller.TryStartAsync();
+        await service.Started.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        try
+        {
+            await controller.RetireAsync().WaitAsync(TimeSpan.FromSeconds(1));
+            Assert.AreEqual(OptimizationExportStateKind.Unbound, controller.State.Kind);
+            Assert.IsFalse(operation.IsCompleted);
+        }
+        finally { release.Set(); }
+    }
+
+    [TestMethod]
     public async Task ObserverFailureDoesNotBlockOtherObserversOrCompletion()
     {
         var controller = new OptimizationExportController(new ImmediateService(
@@ -229,6 +248,19 @@ public sealed class OptimizationExportControllerTests
         public Task<OptimizationExportResult> ExportAsync(VerifiedPersistentExportTarget target, IProgress<OptimizationExportProgress> progress, CancellationToken cancellationToken)
         { CallCount++; LastTarget = target; return _completion.Task; }
         internal void Complete(OptimizationExportResult result) => _completion.SetResult(result);
+    }
+
+    private sealed class BlockingCancellationExportService(ManualResetEventSlim release) : IOptimizationExportService
+    {
+        internal TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource<OptimizationExportResult> _never = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task<OptimizationExportResult> ExportAsync(VerifiedPersistentExportTarget target, IProgress<OptimizationExportProgress> progress, CancellationToken cancellationToken)
+        {
+            cancellationToken.Register(release.Wait);
+            Started.TrySetResult();
+            return _never.Task;
+        }
     }
 
     private sealed class ImmediateService(OptimizationExportResult result) : IOptimizationExportService

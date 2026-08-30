@@ -150,9 +150,17 @@ public sealed partial class OptimizationDestinationCard : UserControl
     private void RetryExportButton_Click(object sender, RoutedEventArgs eventArguments) =>
         _observedExportOperation = ObserveExportOperationAsync(TryRetryExportAsync());
 
-    private static async Task ObserveExportOperationAsync(Task<bool> operation)
+    internal Type? ObservedExportFaultType { get; private set; }
+
+    private async Task ObserveExportOperationAsync(Task<bool> operation)
     {
         try { await operation.ConfigureAwait(false); }
-        catch (Exception) { /* The controller records the exception type; the UI boundary only observes it. */ }
+        catch (Exception exception)
+        {
+            ObservedExportFaultType = exception.GetType();
+            System.Diagnostics.Trace.TraceError(
+                "The optimization-export UI boundary observed {0}.",
+                exception.GetType().Name);
+        }
     }
 }
