@@ -51,6 +51,8 @@ internal sealed class ModelDownloadCoordinator : IDisposable
     private TaskCompletionSource? _recoveryCompletion;
     private bool _disposed;
     private Task? _retirementTask;
+    private readonly TaskCompletionSource _retirementSignaled =
+        new(TaskCreationOptions.RunContinuationsAsynchronously);
     private Task _cancellationReconciliation = Task.CompletedTask;
     private ModelDownloadOperationId? _cancellationOperationId;
     private Task? _cancellationOperationTask;
@@ -345,7 +347,7 @@ internal sealed class ModelDownloadCoordinator : IDisposable
                 }
                 if (reconciliation is not null)
                 {
-                    await reconciliation.ConfigureAwait(false);
+                    await Task.WhenAny(reconciliation, _retirementSignaled.Task).ConfigureAwait(false);
                     continue;
                 }
                 if (discardSettledPartial)
@@ -687,6 +689,7 @@ internal sealed class ModelDownloadCoordinator : IDisposable
                 return _retirementTask;
             }
             _disposed = true;
+            _retirementSignaled.TrySetResult();
             _automaticHandoffRetired = true;
             _claimableModel = null;
             _claimableOperation = null;

@@ -764,10 +764,9 @@ public sealed class ModelDownloadCoordinatorTests
 
         await coordinator.RetireAsync().WaitAsync(TimeSpan.FromSeconds(1));
         int retiredPublications = publications;
-        service.CompleteInterrupted();
-        await operation.WaitAsync(TimeSpan.FromSeconds(1));
         await discard.WaitAsync(TimeSpan.FromSeconds(1));
 
+        Assert.IsFalse(operation.IsCompleted);
         Assert.AreEqual(0, service.DiscardCalls);
         Assert.AreEqual(retiredPublications, publications);
     }
