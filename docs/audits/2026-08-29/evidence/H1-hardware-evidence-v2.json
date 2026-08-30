@@ -1,0 +1,220 @@
+{
+  "schemaVersion": 2,
+  "workerId": "H1",
+  "campaign": "R3",
+  "frozenSourceCommit": "4748fe04f19afdf6b27c4c12502b84db325e7294",
+  "frozenSourceTree": "fe1fa8fb5fe4de8e7c1d867a83e08375bc1d0c91",
+  "baseCommit": "e000ee4f7b1ecc68cac79d774d47e659c96b661c",
+  "baseTree": "dc40d2effa2a0363094a069c118fda486b836260",
+  "evidenceSubjectCommit": "32b0cab7e4c6c30b4b3d3c3588f7fc394e9d26eb",
+  "evidenceSubjectTree": "115a4f250bb81e63c8e97941daa4c94ad41288a7",
+  "createdAtUtc": "2026-08-29T03:20:19Z",
+  "evidenceStatus": "mixed",
+  "report": {
+    "path": "docs/audits/2026-08-29/H1-hardware-remediation-r3.md",
+    "sha256": "d20051da434b8f8f5d7e30dced1f7a444efcad6e006271595133146bf13847c6",
+    "bytes": 5795
+  },
+  "managedLedger": {
+    "path": "docs/audits/2026-08-29/evidence/H1-managed-verification-results-v1.json",
+    "sha256": "f305e11414cb14ea8bf63d4b242782b0721107ff9fbe78fad1e98425da141ab5",
+    "bytes": 2086
+  },
+  "nativeLedger": {
+    "path": "docs/audits/2026-08-29/evidence/H1-native-verification-results-v1.json",
+    "sha256": "bd8ef541101130c6781e60571d6d347f42a263397cbe3fbe3b25fe6287d2f691",
+    "bytes": 966
+  },
+  "outputs": [
+    {
+      "kind": "hardwareSnapshot",
+      "id": "uuid-bound-path-private-hardware-snapshot-v1",
+      "evidenceGrade": "verified"
+    },
+    {
+      "kind": "availableMemory",
+      "id": "currently-available-memory-role-v1",
+      "evidenceGrade": "verified"
+    },
+    {
+      "kind": "safetyBudget",
+      "id": "bounded-proportional-executable-budget-v1",
+      "evidenceGrade": "verified"
+    }
+  ],
+  "commands": [
+    {
+      "id": "HARDWARE-FOUNDATION",
+      "exitCode": 0,
+      "discovered": 202,
+      "executed": 202,
+      "passed": 202,
+      "failed": 0,
+      "skipped": 0,
+      "resultPath": "docs/audits/2026-08-29/evidence/H1-managed-verification-results-v1.json",
+      "resultSha256": "f305e11414cb14ea8bf63d4b242782b0721107ff9fbe78fad1e98425da141ab5",
+      "resultBytes": 2086
+    },
+    {
+      "id": "LLAMACPP-PROBE-TOOL",
+      "exitCode": 0,
+      "discovered": 22,
+      "executed": 22,
+      "passed": 22,
+      "failed": 0,
+      "skipped": 0,
+      "resultPath": "docs/audits/2026-08-29/evidence/H1-managed-verification-results-v1.json",
+      "resultSha256": "f305e11414cb14ea8bf63d4b242782b0721107ff9fbe78fad1e98425da141ab5",
+      "resultBytes": 2086
+    },
+    {
+      "id": "MODEL-HARDWARE-COMPATIBILITY",
+      "exitCode": 0,
+      "discovered": 1060,
+      "executed": 1060,
+      "passed": 1060,
+      "failed": 0,
+      "skipped": 0,
+      "resultPath": "docs/audits/2026-08-29/evidence/H1-managed-verification-results-v1.json",
+      "resultSha256": "f305e11414cb14ea8bf63d4b242782b0721107ff9fbe78fad1e98425da141ab5",
+      "resultBytes": 2086
+    },
+    {
+      "id": "HARDWARE-POWERSHELL",
+      "exitCode": 0,
+      "discovered": 30,
+      "executed": 30,
+      "passed": 30,
+      "failed": 0,
+      "skipped": 0,
+      "resultPath": "docs/audits/2026-08-29/evidence/H1-managed-verification-results-v1.json",
+      "resultSha256": "f305e11414cb14ea8bf63d4b242782b0721107ff9fbe78fad1e98425da141ab5",
+      "resultBytes": 2086
+    },
+    {
+      "id": "DEBUG-X64-APP-BUILD",
+      "exitCode": 1,
+      "discovered": 1,
+      "executed": 1,
+      "passed": 0,
+      "failed": 1,
+      "skipped": 0,
+      "resultPath": "docs/audits/2026-08-29/evidence/H1-managed-verification-results-v1.json",
+      "resultSha256": "f305e11414cb14ea8bf63d4b242782b0721107ff9fbe78fad1e98425da141ab5",
+      "resultBytes": 2086
+    },
+    {
+      "id": "DEBUG-X64-UNIT-BUILD",
+      "exitCode": 0,
+      "discovered": 1,
+      "executed": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "resultPath": "docs/audits/2026-08-29/evidence/H1-managed-verification-results-v1.json",
+      "resultSha256": "f305e11414cb14ea8bf63d4b242782b0721107ff9fbe78fad1e98425da141ab5",
+      "resultBytes": 2086
+    },
+    {
+      "id": "STATIC-PACKAGING-EVAL",
+      "exitCode": 0,
+      "discovered": 4,
+      "executed": 4,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "resultPath": "docs/audits/2026-08-29/evidence/H1-managed-verification-results-v1.json",
+      "resultSha256": "f305e11414cb14ea8bf63d4b242782b0721107ff9fbe78fad1e98425da141ab5",
+      "resultBytes": 2086
+    },
+    {
+      "id": "PACKAGE-MANIFEST-VERIFY",
+      "exitCode": 0,
+      "discovered": 1,
+      "executed": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "resultPath": "docs/audits/2026-08-29/evidence/H1-managed-verification-results-v1.json",
+      "resultSha256": "f305e11414cb14ea8bf63d4b242782b0721107ff9fbe78fad1e98425da141ab5",
+      "resultBytes": 2086
+    },
+    {
+      "id": "PACKAGE-PRIVACY-DUPLICATION",
+      "exitCode": 0,
+      "discovered": 1,
+      "executed": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "resultPath": "docs/audits/2026-08-29/evidence/H1-managed-verification-results-v1.json",
+      "resultSha256": "f305e11414cb14ea8bf63d4b242782b0721107ff9fbe78fad1e98425da141ab5",
+      "resultBytes": 2086
+    },
+    {
+      "id": "PRODUCTION-REACHABILITY",
+      "exitCode": 0,
+      "discovered": 1,
+      "executed": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "resultPath": "docs/audits/2026-08-29/evidence/H1-managed-verification-results-v1.json",
+      "resultSha256": "f305e11414cb14ea8bf63d4b242782b0721107ff9fbe78fad1e98425da141ab5",
+      "resultBytes": 2086
+    },
+    {
+      "id": "MODEL-INSPECTION-PACKAGE-BOUNDARY",
+      "exitCode": 1,
+      "discovered": 1,
+      "executed": 1,
+      "passed": 0,
+      "failed": 1,
+      "skipped": 0,
+      "resultPath": "docs/audits/2026-08-29/evidence/H1-managed-verification-results-v1.json",
+      "resultSha256": "f305e11414cb14ea8bf63d4b242782b0721107ff9fbe78fad1e98425da141ab5",
+      "resultBytes": 2086
+    },
+    {
+      "id": "PRIVACY-DIFF-SCANS",
+      "exitCode": 0,
+      "discovered": 1,
+      "executed": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "resultPath": "docs/audits/2026-08-29/evidence/H1-managed-verification-results-v1.json",
+      "resultSha256": "f305e11414cb14ea8bf63d4b242782b0721107ff9fbe78fad1e98425da141ab5",
+      "resultBytes": 2086
+    },
+    {
+      "id": "NATIVE-HARDWARE-PROBE",
+      "exitCode": 0,
+      "discovered": 2,
+      "executed": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "resultPath": "docs/audits/2026-08-29/evidence/H1-native-verification-results-v1.json",
+      "resultSha256": "bd8ef541101130c6781e60571d6d347f42a263397cbe3fbe3b25fe6287d2f691",
+      "resultBytes": 966
+    }
+  ],
+  "testTotals": {
+    "discovered": 1327,
+    "executed": 1327,
+    "passed": 1325,
+    "failed": 2,
+    "skipped": 0
+  },
+  "blockers": [
+    "OpenVINO-owned application packaging requires OpenVinoOfficialWorkerStageDirectory for the Debug x64 application build.",
+    "GGUF runtime packaging retains unresolved @(_GgufRuntimePublishedFiles), outside H1 ownership.",
+    "M1, Q1, C0, and E1 continuations are required for combined dependency and integrated acceptance."
+  ],
+  "nonClaims": [
+    "No combined R3 campaign, integrated user journey, App Control, or package-wide acceptance is claimed.",
+    "No raw provider output, username, hostname, local path, filename, credential, token, prompt, or model data is committed.",
+    "No tool download, certificate installation, trust-policy change, hash weakening, or shared composition change is claimed."
+  ]
+}

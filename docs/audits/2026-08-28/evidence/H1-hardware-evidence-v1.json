@@ -1,0 +1,166 @@
+{
+  "schemaVersion": 1,
+  "workerId": "H1",
+  "frozenSourceCommit": "4748fe04f19afdf6b27c4c12502b84db325e7294",
+  "evidenceSubjectCommit": "1273808c31d4025adc0f494349ecdac188c250a9",
+  "evidenceSubjectTree": "03eead0ca570535831e064efc5771a5e35993916",
+  "createdAtUtc": "2026-08-28T17:58:38Z",
+  "route": [
+    "shared",
+    "gguf",
+    "openvino"
+  ],
+  "evidenceStatus": "mixed",
+  "report": {
+    "path": "docs/audits/2026-08-28/H1-hardware-remediation-r2.md",
+    "sha256": "4578e7033ac4cae5ed9d43c966e6320cfc76f65f96002d36b317ae46efabc021",
+    "bytes": 6850
+  },
+  "inputs": [
+    {
+      "kind": "hardwareSnapshotContract",
+      "id": "tagged-path-private-snapshot-identity-v1",
+      "sha256": "ca72c737af714e8ce323d36e2f5f19e91468886348e41bf2308a4c95e5db5f27",
+      "bytes": 5834,
+      "evidenceGrade": "verified"
+    },
+    {
+      "kind": "packagedProbeManifest",
+      "id": "llamacpp-probe-closed-inventory-v1",
+      "sha256": "7733bccd22b81cbe96390eee3766aded0fa3ae6e13125f7f2e2953a2be3fcd75",
+      "bytes": 678,
+      "evidenceGrade": "verified"
+    }
+  ],
+  "outputs": [
+    {
+      "kind": "hardwareSnapshot",
+      "id": "uuid-bound-path-private-hardware-snapshot-v1",
+      "sha256": "ca72c737af714e8ce323d36e2f5f19e91468886348e41bf2308a4c95e5db5f27",
+      "bytes": 5834,
+      "digest": "fd53ad925eff0d6c8c279f12f08a0ed72c7b08761aa00ef92aeada3308509a79",
+      "evidenceGrade": "measured"
+    },
+    {
+      "kind": "availableMemory",
+      "id": "currently-available-memory-role-v1",
+      "sha256": "f3f8efe7d53632905f1ec3630f52a993c92315a0cc61b96deab69a7807d1b5f2",
+      "bytes": 3554,
+      "evidenceGrade": "verified"
+    },
+    {
+      "kind": "safetyBudget",
+      "id": "bounded-proportional-executable-budget-v1",
+      "sha256": "f3f8efe7d53632905f1ec3630f52a993c92315a0cc61b96deab69a7807d1b5f2",
+      "bytes": 3554,
+      "evidenceGrade": "verified"
+    }
+  ],
+  "commands": [
+    {
+      "id": "HARDWARE-FOUNDATION",
+      "exitCode": 0,
+      "discovered": 202,
+      "executed": 202,
+      "passed": 202,
+      "failed": 0,
+      "skipped": 0,
+      "resultSha256": "34dc6824016daa8468a5cb89dd4812f028b69f6a988518756a085eef285108b2"
+    },
+    {
+      "id": "LLAMACPP-PROBE-TOOL",
+      "exitCode": 0,
+      "discovered": 22,
+      "executed": 22,
+      "passed": 22,
+      "failed": 0,
+      "skipped": 0,
+      "resultSha256": "ba4cbd7699adf5b1ee9081ac344e7d3eb746b8ccbbd5a202af956682050631a5"
+    },
+    {
+      "id": "MODEL-HARDWARE-COMPATIBILITY",
+      "exitCode": 0,
+      "discovered": 1060,
+      "executed": 1060,
+      "passed": 1060,
+      "failed": 0,
+      "skipped": 0,
+      "resultSha256": "ff8cb1f102885d815f753ae99a6b4292a4d98d46de730005a667333281df86e5"
+    },
+    {
+      "id": "HARDWARE-PACKAGING-TRUST",
+      "exitCode": 0,
+      "discovered": 10,
+      "executed": 10,
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "id": "DEBUG-X64-APP-BUILD",
+      "exitCode": 0,
+      "discovered": 1,
+      "executed": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "id": "STATIC-PACKAGING-EVAL",
+      "exitCode": 0,
+      "discovered": 4,
+      "executed": 4,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "id": "NATIVE-HARDWARE-PROBE",
+      "exitCode": 0,
+      "discovered": 2,
+      "executed": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "resultSha256": "19856c1c44ff193b4e5f7a27ce4ef7c245e694901e9f3cd2d3f93b91dc5005d6"
+    },
+    {
+      "id": "MODEL-INSPECTION-PACKAGE-BOUNDARY",
+      "exitCode": 1,
+      "discovered": 1,
+      "executed": 1,
+      "passed": 0,
+      "failed": 1,
+      "skipped": 0,
+      "resultSha256": "49d1a962247404bb3daa4d9a8c972854f0a9882080c8ed01ddd5d9c1b80ba307"
+    },
+    {
+      "id": "PRIVACY-DIFF-SCANS",
+      "exitCode": 0,
+      "discovered": 1,
+      "executed": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "id": "PACKAGE-MANIFEST-VERIFY",
+      "exitCode": 0,
+      "discovered": 1,
+      "executed": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "resultSha256": "7733bccd22b81cbe96390eee3766aded0fa3ae6e13125f7f2e2953a2be3fcd75"
+    }
+  ],
+  "blockers": [
+    "C0-owned Debug x64 composition includes the Hardware Inspection fixture gallery page; H1 did not edit shared composition or navigation.",
+    "The Model Inspection package-boundary test stops on unresolved @(_GgufRuntimePublishedFiles) in GGUF runtime packaging, outside H1 ownership."
+  ],
+  "nonClaims": [
+    "No package-wide clean claim is made for inherited shared gallery, audit/reference, or GGUF runtime items.",
+    "No raw provider JSON, username, hostname, local path, or private native output is committed or exposed by this manifest.",
+    "No model execution, OpenVINO behavior change, hosted CI result, visual validation, security-policy bypass, certificate installation, or asset download is claimed."
+  ]
+}

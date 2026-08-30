@@ -272,7 +272,7 @@ public sealed class HardwareInspectionGate9AcceptanceHostTests
         Gate9RunObservation observation = await RunHostAsync(async (id, progress, cancellationToken) =>
         {
             await ReportStagesAsync(id, progress, cancellationToken);
-            HardwareSnapshot snapshot = CreateSnapshot(19);
+            HardwareSnapshot snapshot = CreateSnapshot(id, 19);
             return CreateRawResult(
                 id,
                 HardwareInspectionOutcome.Completed,
@@ -458,9 +458,9 @@ public sealed class HardwareInspectionGate9AcceptanceHostTests
         int manifestFieldCount) => HardwareInspectionRunResult.CreateCompleted(
             inspectionId,
             outcome,
-            CreateSnapshot(manifestFieldCount));
+            CreateSnapshot(inspectionId, manifestFieldCount));
 
-    private static HardwareSnapshot CreateSnapshot(int manifestFieldCount)
+    private static HardwareSnapshot CreateSnapshot(Guid snapshotId, int manifestFieldCount)
     {
         HardwareSnapshot template =
             HardwareInspectionContractTests.CreateUsableSnapshotForPresentation();
@@ -482,7 +482,7 @@ public sealed class HardwareInspectionGate9AcceptanceHostTests
             .ToArray();
 
         return new HardwareSnapshot(
-            Guid.NewGuid(),
+            snapshotId,
             template.CapturedAtUtc,
             template.SchemaVersion,
             template.PolicyVersion,

@@ -75,11 +75,9 @@ public static class CompatibilityEngine
         }
 
         SafetyPolicy safety = SafetyPolicy.ProportionalV2();
-        ByteCount available = ByteCount.FromBytes(
-            input.FreshResources.AvailableSystemMemoryBytes);
-        _ = available.TrySubtract(
-            safety.AvailableMemoryReserveFor(available),
-            out ByteCount fitBudget);
+        AvailableMemorySafetyBudget memoryBudget = safety.AvailableMemoryBudgetFor(
+            input.FreshResources.AvailableSystemMemory);
+        ByteCount fitBudget = ByteCount.FromBytes(memoryBudget.Executable.Bytes);
         ByteCount generationBudget = GenerationBudget(fitBudget, safety);
         ulong? dedicatedBudget = null;
         if (input.FreshResources.DedicatedDeviceMemoryEstablished)
@@ -156,15 +154,13 @@ public static class CompatibilityEngine
         CompatibilityProductionInput input)
     {
         SafetyPolicy safety = SafetyPolicy.ProportionalV2();
-        ByteCount available = ByteCount.FromBytes(
-            input.FreshResources.AvailableSystemMemoryBytes);
-        ByteCount reserve = safety.AvailableMemoryReserveFor(available);
-        _ = available.TrySubtract(reserve, out ByteCount safeBudget);
+        AvailableMemorySafetyBudget memoryBudget = safety.AvailableMemoryBudgetFor(
+            input.FreshResources.AvailableSystemMemory);
         return CompatibilityMachineMemory.Create(
-            input.Hardware.InstalledSystemMemoryBytes,
-            available.Bytes,
-            reserve.Bytes,
-            safeBudget.Bytes);
+            input.Hardware.TotalPhysicalMemory,
+            memoryBudget.Available,
+            memoryBudget.Reserve,
+            memoryBudget.Executable);
     }
 
     /// <summary>

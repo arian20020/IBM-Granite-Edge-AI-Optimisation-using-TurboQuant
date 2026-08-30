@@ -79,7 +79,7 @@ public sealed class HardwareInspectionViewModelTests
         call.Complete(HardwareInspectionRunResult.CreateCompleted(
             call.InspectionId,
             HardwareInspectionOutcome.Completed,
-            HardwareInspectionContractTests.CreateUsableSnapshotForPresentation()));
+            HardwareInspectionContractTests.CreateUsableSnapshotForPresentation(call.InspectionId)));
 
         await run;
 
@@ -103,7 +103,7 @@ public sealed class HardwareInspectionViewModelTests
         call.Complete(HardwareInspectionRunResult.CreateCompleted(
             call.InspectionId,
             HardwareInspectionOutcome.Completed,
-            HardwareInspectionContractTests.CreateUsableSnapshotForPresentation()));
+            HardwareInspectionContractTests.CreateUsableSnapshotForPresentation(call.InspectionId)));
 
         await run;
 
@@ -205,7 +205,7 @@ public sealed class HardwareInspectionViewModelTests
         oldRun.Complete(HardwareInspectionRunResult.CreateCompleted(
             oldRun.InspectionId,
             HardwareInspectionOutcome.Completed,
-            HardwareInspectionContractTests.CreateUsableSnapshotForPresentation()));
+            HardwareInspectionContractTests.CreateUsableSnapshotForPresentation(oldRun.InspectionId)));
         await first;
         Assert.AreEqual(winner.InspectionId, viewModel.Snapshot.InspectionId);
         Assert.AreEqual(winnerRevision, viewModel.Snapshot.Revision);

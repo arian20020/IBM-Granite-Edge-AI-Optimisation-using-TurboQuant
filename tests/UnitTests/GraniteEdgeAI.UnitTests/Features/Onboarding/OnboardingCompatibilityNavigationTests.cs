@@ -46,7 +46,8 @@ public sealed class OnboardingCompatibilityNavigationTests
         HardwareInspectionHandoff hardwareHandoff = HardwareInspectionHandoff.Create(
             shell.CurrentProductHardwareRunId,
             HardwareInspectionOutcome.Completed,
-            HardwareInspectionContractTests.CreateUsableSnapshotForPresentation());
+            HardwareInspectionContractTests.CreateUsableSnapshotForPresentation(
+                shell.CurrentProductHardwareRunId));
 
         Assert.IsTrue(await shell.NavigateToCompatibilityAsync(
             hardwarePage,
@@ -90,10 +91,11 @@ public sealed class OnboardingCompatibilityNavigationTests
         Assert.IsTrue(shell.NavigateToHardwareInspection(source, modelHandoff));
         var frame = (Frame)shell.FindName("StageFrame");
         var hardwarePage = (HardwareInspectionPage)frame.Content;
+        Guid mismatchId = Guid.NewGuid();
         HardwareInspectionHandoff mismatch = HardwareInspectionHandoff.Create(
-            Guid.NewGuid(),
+            mismatchId,
             HardwareInspectionOutcome.Completed,
-            HardwareInspectionContractTests.CreateUsableSnapshotForPresentation());
+            HardwareInspectionContractTests.CreateUsableSnapshotForPresentation(mismatchId));
 
         Assert.IsFalse(await shell.NavigateToCompatibilityAsync(
             hardwarePage,
@@ -128,7 +130,8 @@ public sealed class OnboardingCompatibilityNavigationTests
         HardwareInspectionHandoff hardwareHandoff = HardwareInspectionHandoff.Create(
             shell.CurrentProductHardwareRunId,
             HardwareInspectionOutcome.Completed,
-            HardwareInspectionContractTests.CreateUsableSnapshotForPresentation());
+            HardwareInspectionContractTests.CreateUsableSnapshotForPresentation(
+                shell.CurrentProductHardwareRunId));
 
         Assert.IsTrue(await shell.NavigateToCompatibilityAsync(
             hardwarePage, new HardwareInspectionCompletedEventArgs(hardwareHandoff)));
@@ -262,7 +265,7 @@ public sealed class OnboardingCompatibilityNavigationTests
 
     private static CompatibilityFreshResourcesInput FreshResources(ulong memory) =>
         CompatibilityFreshResourcesInput.Create(
-            memory,
+            CurrentlyAvailableMemory.FromBytes(memory),
             availableDedicatedDeviceMemoryBytes: null,
             availableStorageBytes: 64UL * 1024 * 1024 * 1024,
             DateTimeOffset.UtcNow);

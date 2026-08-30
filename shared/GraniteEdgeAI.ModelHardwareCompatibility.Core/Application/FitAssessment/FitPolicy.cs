@@ -1,5 +1,6 @@
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Estimation;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation;
 
 namespace GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.FitAssessment;
 
@@ -47,10 +48,9 @@ internal static class FitPolicy
 
         // An exhausted budget is an expected answer, not an arithmetic error,
         // so the subtractions saturate at zero instead of throwing.
-        ByteCount budget = ByteCount.Zero;
-        available.SystemMemory.TrySubtract(
-            policy.AvailableMemoryReserveFor(available.SystemMemory),
-            out budget);
+        AvailableMemorySafetyBudget memoryBudget = policy.AvailableMemoryBudgetFor(
+            CurrentlyAvailableMemory.FromBytes(available.SystemMemory.Bytes));
+        ByteCount budget = ByteCount.FromBytes(memoryBudget.Executable.Bytes);
 
         if (budget == ByteCount.Zero)
         {

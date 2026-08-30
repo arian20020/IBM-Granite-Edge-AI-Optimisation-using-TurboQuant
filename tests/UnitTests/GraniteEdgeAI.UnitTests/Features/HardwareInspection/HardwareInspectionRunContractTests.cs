@@ -60,8 +60,6 @@ public sealed class HardwareInspectionRunContractTests
     [TestMethod]
     public void CompletedResults_CreateOnlyUsableSameRunHandoffs()
     {
-        HardwareSnapshot snapshot =
-            HardwareInspectionContractTests.CreateUsableSnapshotForPresentation();
         foreach (HardwareInspectionOutcome outcome in new[]
                  {
                      HardwareInspectionOutcome.Completed,
@@ -69,6 +67,8 @@ public sealed class HardwareInspectionRunContractTests
                  })
         {
             Guid runId = Guid.NewGuid();
+            HardwareSnapshot snapshot = HardwareInspectionContractTests
+                .CreateUsableSnapshotForPresentation(runId);
             HardwareInspectionRunResult result =
                 HardwareInspectionRunResult.CreateCompleted(runId, outcome, snapshot);
 
@@ -82,11 +82,14 @@ public sealed class HardwareInspectionRunContractTests
             Assert.AreSame(snapshot, result.Handoff.Snapshot);
         }
 
+        Guid invalidRunId = Guid.NewGuid();
+        HardwareSnapshot invalidOutcomeSnapshot = HardwareInspectionContractTests
+            .CreateUsableSnapshotForPresentation(invalidRunId);
         Assert.Throws<ArgumentException>(() =>
             HardwareInspectionRunResult.CreateCompleted(
-                Guid.NewGuid(),
+                invalidRunId,
                 HardwareInspectionOutcome.Failed,
-                snapshot));
+                invalidOutcomeSnapshot));
     }
 
     [TestMethod]

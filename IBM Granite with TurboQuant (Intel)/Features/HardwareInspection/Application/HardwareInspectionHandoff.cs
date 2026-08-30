@@ -36,6 +36,13 @@ public sealed class HardwareInspectionHandoff
             throw new ArgumentException("Handoff requires a usable snapshot.", nameof(snapshot));
         }
 
+        if (inspectionId != snapshot.SnapshotId)
+        {
+            throw new ArgumentException(
+                "Inspection identity must match the stable hardware snapshot identity.",
+                nameof(inspectionId));
+        }
+
         return new HardwareInspectionHandoff(inspectionId, snapshot);
     }
 }

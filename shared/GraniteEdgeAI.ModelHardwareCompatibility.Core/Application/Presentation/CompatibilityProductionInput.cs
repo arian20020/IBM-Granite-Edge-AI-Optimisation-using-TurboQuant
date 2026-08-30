@@ -384,35 +384,36 @@ public sealed record CompatibilityJourneyAuthorityInput
 public sealed record CompatibilityHardwareInput
 {
     private CompatibilityHardwareInput(
-        ulong installedSystemMemoryBytes,
+        TotalPhysicalMemory totalPhysicalMemory,
         ulong installedDedicatedDeviceMemoryBytes,
         ulong freeStorageBytes,
         IReadOnlySet<DeviceRouteId> presentDevices,
         IReadOnlySet<CompatibilityBackend> verifiedBackends)
     {
-        InstalledSystemMemoryBytes = installedSystemMemoryBytes;
+        TotalPhysicalMemory = totalPhysicalMemory;
         InstalledDedicatedDeviceMemoryBytes = installedDedicatedDeviceMemoryBytes;
         FreeStorageBytes = freeStorageBytes;
         PresentDevices = presentDevices;
         VerifiedBackends = verifiedBackends;
     }
 
-    public ulong InstalledSystemMemoryBytes { get; }
+    public TotalPhysicalMemory TotalPhysicalMemory { get; }
+    public ulong InstalledSystemMemoryBytes => TotalPhysicalMemory.Bytes;
     public ulong InstalledDedicatedDeviceMemoryBytes { get; }
     public ulong FreeStorageBytes { get; }
     public IReadOnlySet<DeviceRouteId> PresentDevices { get; }
     public IReadOnlySet<CompatibilityBackend> VerifiedBackends { get; }
 
     public static CompatibilityHardwareInput Create(
-        ulong installedSystemMemoryBytes,
+        TotalPhysicalMemory totalPhysicalMemory,
         ulong installedDedicatedDeviceMemoryBytes,
         ulong freeStorageBytes,
         IEnumerable<DeviceRouteId> presentDevices,
         IEnumerable<CompatibilityBackend> verifiedBackends)
     {
-        if (installedSystemMemoryBytes == 0)
+        if (totalPhysicalMemory.Bytes == 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(installedSystemMemoryBytes));
+            throw new ArgumentOutOfRangeException(nameof(totalPhysicalMemory));
         }
 
         ArgumentNullException.ThrowIfNull(presentDevices);
@@ -450,7 +451,7 @@ public sealed record CompatibilityHardwareInput
         }
 
         return new CompatibilityHardwareInput(
-            installedSystemMemoryBytes,
+            totalPhysicalMemory,
             installedDedicatedDeviceMemoryBytes,
             freeStorageBytes,
             devices,
@@ -462,27 +463,28 @@ public sealed record CompatibilityHardwareInput
 public sealed record CompatibilityFreshResourcesInput
 {
     private CompatibilityFreshResourcesInput(
-        ulong availableSystemMemoryBytes,
+        CurrentlyAvailableMemory availableSystemMemory,
         ulong availableDedicatedDeviceMemoryBytes,
         bool dedicatedDeviceMemoryEstablished,
         ulong availableStorageBytes,
         DateTimeOffset observedAtUtc)
     {
-        AvailableSystemMemoryBytes = availableSystemMemoryBytes;
+        AvailableSystemMemory = availableSystemMemory;
         AvailableDedicatedDeviceMemoryBytes = availableDedicatedDeviceMemoryBytes;
         DedicatedDeviceMemoryEstablished = dedicatedDeviceMemoryEstablished;
         AvailableStorageBytes = availableStorageBytes;
         ObservedAtUtc = observedAtUtc;
     }
 
-    public ulong AvailableSystemMemoryBytes { get; }
+    public CurrentlyAvailableMemory AvailableSystemMemory { get; }
+    public ulong AvailableSystemMemoryBytes => AvailableSystemMemory.Bytes;
     public ulong AvailableDedicatedDeviceMemoryBytes { get; }
     public bool DedicatedDeviceMemoryEstablished { get; }
     public ulong AvailableStorageBytes { get; }
     public DateTimeOffset ObservedAtUtc { get; }
 
     public static CompatibilityFreshResourcesInput Create(
-        ulong availableSystemMemoryBytes,
+        CurrentlyAvailableMemory availableSystemMemory,
         ulong? availableDedicatedDeviceMemoryBytes,
         ulong availableStorageBytes,
         DateTimeOffset observedAtUtc)
@@ -493,7 +495,7 @@ public sealed record CompatibilityFreshResourcesInput
         }
 
         return new CompatibilityFreshResourcesInput(
-            availableSystemMemoryBytes,
+            availableSystemMemory,
             availableDedicatedDeviceMemoryBytes.GetValueOrDefault(),
             availableDedicatedDeviceMemoryBytes.HasValue,
             availableStorageBytes,

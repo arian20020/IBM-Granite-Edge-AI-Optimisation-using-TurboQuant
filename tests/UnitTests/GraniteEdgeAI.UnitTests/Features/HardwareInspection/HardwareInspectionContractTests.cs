@@ -45,6 +45,42 @@ public sealed class HardwareInspectionContractTests
 
     [TestMethod]
     [TestCategory("Unit")]
+    public void Snapshot_IdentityIsDeterministicLowercaseAndMutationSensitive()
+    {
+        Guid id = Guid.Parse("4ec4bb9b-e3be-4d9f-98a2-1804f061dcfb");
+        HardwareSnapshot first = CreateSnapshot(
+            ["avx2"], [], CreateRequiredEvidence(), snapshotId: id);
+        HardwareSnapshot same = CreateSnapshot(
+            ["avx2"], [], CreateRequiredEvidence(), snapshotId: id);
+        HardwareSnapshot changed = CreateSnapshot(
+            ["avx2"], [new GraphicsAdapterFacts("adapter", 1, 0, 2)],
+            CreateRequiredEvidence(), snapshotId: id);
+
+        Assert.AreEqual(id, first.Identity.SnapshotId);
+        Assert.AreEqual(64, first.Identity.Sha256.Length);
+        Assert.IsTrue(first.Identity.Sha256.All(character => character is
+            >= '0' and <= '9' or >= 'a' and <= 'f'));
+        Assert.AreEqual(first.Identity.Sha256, same.Identity.Sha256);
+        Assert.AreNotEqual(first.Identity.Sha256, changed.Identity.Sha256);
+    }
+
+    [TestMethod]
+    [TestCategory("Unit")]
+    public void Snapshot_IdentityExcludesFreeFormProviderAndMachineText()
+    {
+        Guid id = Guid.Parse("4ec4bb9b-e3be-4d9f-98a2-1804f061dcfb");
+        HardwareSnapshot safe = CreateSnapshot(
+            ["avx2"], [], CreateRequiredEvidence(), snapshotId: id);
+        HardwareSnapshot privateText = CreateSnapshot(
+            [@"C:\Users\private\raw-provider.txt"], [],
+            CreateRequiredEvidence().Reverse(), snapshotId: id,
+            processorName: "host-private-user");
+
+        Assert.AreEqual(safe.Identity.Sha256, privateText.Identity.Sha256);
+    }
+
+    [TestMethod]
+    [TestCategory("Unit")]
     public void Snapshot_CopiesProviderOwnedCollections()
     {
         List<string> instructionSets = ["avx2"];
@@ -107,8 +143,8 @@ public sealed class HardwareInspectionContractTests
     [TestCategory("Unit")]
     public void Handoff_AllowsOnlyActionableOutcomesAndUsableSnapshot()
     {
-        Guid inspectionId = Guid.NewGuid();
         HardwareSnapshot usable = CreateUsableSnapshot();
+        Guid inspectionId = usable.SnapshotId;
 
         HardwareInspectionHandoff completed = HardwareInspectionHandoff.Create(
             inspectionId,
@@ -142,6 +178,10 @@ public sealed class HardwareInspectionContractTests
                 [],
                 CreateRequiredEvidence(),
                 HardwareSnapshotUsability.NotUsable)));
+        Assert.Throws<ArgumentException>(() => HardwareInspectionHandoff.Create(
+            Guid.NewGuid(),
+            HardwareInspectionOutcome.Completed,
+            usable));
     }
 
     [TestMethod]
@@ -192,10 +232,11 @@ public sealed class HardwareInspectionContractTests
         Assert.AreEqual(CapturedAtUtc, value.CapturedAtUtc);
     }
 
-    internal static HardwareSnapshot CreateUsableSnapshotForPresentation() =>
+    internal static HardwareSnapshot CreateUsableSnapshotForPresentation(
+        Guid? snapshotId = null) =>
         CreateSnapshot(["avx2"],
             [new GraphicsAdapterFacts("Intel Arc Graphics", 8UL * 1024 * 1024 * 1024, 0, 16UL * 1024 * 1024 * 1024)],
-            CreateRequiredEvidence());
+            CreateRequiredEvidence(), snapshotId: snapshotId);
 
     private static HardwareSnapshot CreateUsableSnapshot() =>
         CreateUsableSnapshotForPresentation();
@@ -204,13 +245,15 @@ public sealed class HardwareInspectionContractTests
         IEnumerable<string> instructionSets,
         IEnumerable<GraphicsAdapterFacts> graphics,
         IEnumerable<HardwareEvidenceEntry> evidence,
-        HardwareSnapshotUsability usability = HardwareSnapshotUsability.Usable) =>
+        HardwareSnapshotUsability usability = HardwareSnapshotUsability.Usable,
+        Guid? snapshotId = null,
+        string processorName = "Intel Core Ultra 7 155H") =>
         new(
-            snapshotId: Guid.NewGuid(),
+            snapshotId: snapshotId ?? Guid.NewGuid(),
             capturedAtUtc: CapturedAtUtc,
             schemaVersion: 1,
             policyVersion: "hardware-policy-v1",
-            processor: new ProcessorFacts("Intel Core Ultra 7 155H", "x64", 16, 22, instructionSets),
+            processor: new ProcessorFacts(processorName, "x64", 16, 22, instructionSets),
             memory: new MemoryFacts(
                 32UL * 1024 * 1024 * 1024,
                 31UL * 1024 * 1024 * 1024,

@@ -11,43 +11,47 @@ namespace GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation
 public sealed record CompatibilityMachineMemory
 {
     private CompatibilityMachineMemory(
-        ulong installedSystemMemoryBytes,
-        ulong availableSystemMemoryBytes,
-        ulong safetyReserveBytes,
-        ulong safeModelBudgetBytes)
+        TotalPhysicalMemory totalPhysicalMemory,
+        CurrentlyAvailableMemory currentlyAvailableMemory,
+        ProportionalSafetyReserve proportionalSafetyReserve,
+        ExecutableModelBudget executableModelBudget)
     {
-        InstalledSystemMemoryBytes = installedSystemMemoryBytes;
-        AvailableSystemMemoryBytes = availableSystemMemoryBytes;
-        SafetyReserveBytes = safetyReserveBytes;
-        SafeModelBudgetBytes = safeModelBudgetBytes;
+        TotalPhysicalMemory = totalPhysicalMemory;
+        CurrentlyAvailableMemory = currentlyAvailableMemory;
+        ProportionalSafetyReserve = proportionalSafetyReserve;
+        ExecutableModelBudget = executableModelBudget;
     }
 
-    public ulong InstalledSystemMemoryBytes { get; }
-    public ulong AvailableSystemMemoryBytes { get; }
-    public ulong SafetyReserveBytes { get; }
-    public ulong SafeModelBudgetBytes { get; }
+    public TotalPhysicalMemory TotalPhysicalMemory { get; }
+    public CurrentlyAvailableMemory CurrentlyAvailableMemory { get; }
+    public ProportionalSafetyReserve ProportionalSafetyReserve { get; }
+    public ExecutableModelBudget ExecutableModelBudget { get; }
+    public ulong InstalledSystemMemoryBytes => TotalPhysicalMemory.Bytes;
+    public ulong AvailableSystemMemoryBytes => CurrentlyAvailableMemory.Bytes;
+    public ulong SafetyReserveBytes => ProportionalSafetyReserve.Bytes;
+    public ulong SafeModelBudgetBytes => ExecutableModelBudget.Bytes;
 
     public static CompatibilityMachineMemory Create(
-        ulong installedSystemMemoryBytes,
-        ulong availableSystemMemoryBytes,
-        ulong safetyReserveBytes,
-        ulong safeModelBudgetBytes)
+        TotalPhysicalMemory totalPhysicalMemory,
+        CurrentlyAvailableMemory currentlyAvailableMemory,
+        ProportionalSafetyReserve proportionalSafetyReserve,
+        ExecutableModelBudget executableModelBudget)
     {
-        if (installedSystemMemoryBytes == 0
-            || availableSystemMemoryBytes > installedSystemMemoryBytes
-            || safetyReserveBytes > availableSystemMemoryBytes
-            || safeModelBudgetBytes
-                != availableSystemMemoryBytes - safetyReserveBytes)
+        if (totalPhysicalMemory.Bytes == 0
+            || currentlyAvailableMemory.Bytes > totalPhysicalMemory.Bytes
+            || proportionalSafetyReserve.Bytes > currentlyAvailableMemory.Bytes
+            || executableModelBudget.Bytes
+                != currentlyAvailableMemory.Bytes - proportionalSafetyReserve.Bytes)
         {
             throw new ArgumentException(
                 "Machine-memory values must describe one coherent evaluation.");
         }
 
         return new CompatibilityMachineMemory(
-            installedSystemMemoryBytes,
-            availableSystemMemoryBytes,
-            safetyReserveBytes,
-            safeModelBudgetBytes);
+            totalPhysicalMemory,
+            currentlyAvailableMemory,
+            proportionalSafetyReserve,
+            executableModelBudget);
     }
 }
 

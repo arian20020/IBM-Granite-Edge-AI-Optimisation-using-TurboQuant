@@ -344,7 +344,7 @@ internal sealed class GgufOptimizationProductionAuthority
 
     private static CompatibilityHardwareInput WithPackagedCpuRuntime(
         CompatibilityHardwareInput hardware) => CompatibilityHardwareInput.Create(
-        hardware.InstalledSystemMemoryBytes,
+        hardware.TotalPhysicalMemory,
         hardware.InstalledDedicatedDeviceMemoryBytes,
         hardware.FreeStorageBytes,
         hardware.PresentDevices.Append(DeviceRouteId.Cpu),

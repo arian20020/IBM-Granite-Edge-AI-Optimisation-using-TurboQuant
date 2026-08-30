@@ -6,7 +6,9 @@ param(
 
     [Parameter(Mandatory)]
     [ValidateNotNullOrEmpty()]
-    [string] $ManifestPath
+    [string] $ManifestPath,
+
+    [switch] $EmitVerifiedFilePaths
 )
 
 Set-StrictMode -Version Latest
@@ -77,3 +79,9 @@ if ($actualBytes.Length -eq 0 -or $actualBytes.Length -gt 65536 -or
 
 try { $null = [Text.UTF8Encoding]::new($false, $true).GetString($actualBytes) | ConvertFrom-Json }
 catch { throw 'The probe manifest is not strict UTF-8 JSON.' }
+
+if ($EmitVerifiedFilePaths) {
+    foreach ($member in $members) {
+        [Console]::Out.WriteLine((Join-Path $probeRoot $member))
+    }
+}
