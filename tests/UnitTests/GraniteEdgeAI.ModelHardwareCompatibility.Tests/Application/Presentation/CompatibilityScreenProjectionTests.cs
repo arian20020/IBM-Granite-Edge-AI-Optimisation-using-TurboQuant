@@ -1757,12 +1757,10 @@ public sealed class CompatibilityScreenProjectionTests
     }
 
     [TestMethod]
-    public void RunWhoseAdapterThrows_ReportsAnUnexpectedFailureNotAClaimFailure()
+    public void RunWhoseAdapterThrows_PropagatesTheProgrammingFault()
     {
-        // Reusing HandoffClaimFailed for anything that threw told the user to
-        // fix a handoff that had already succeeded. A wrong instruction is worse
-        // than a vague one.
-        CompatibilityRunResult result = CompatibilityRunCoordinator.Execute(
+        InvalidOperationException exception = Assert.ThrowsExactly<InvalidOperationException>(
+            () => CompatibilityRunCoordinator.Execute(
             new CompatibilityRunRequest(CompatibilityContextRequest.ApplicationDefault()),
             CompatibilityRunDependencies.Create(
                 new ThrowingGateway(),
@@ -1787,13 +1785,9 @@ public sealed class CompatibilityScreenProjectionTests
                     GpuOffloadLevel.None),
                 ContextTokenCount.FromTokens(4096),
                 TimeProvider.System),
-            CancellationToken.None);
+            CancellationToken.None));
 
-        Assert.AreEqual(CompatibilityRunOutcome.Failed, result.Outcome);
-        Assert.IsTrue(
-            result.Findings.Any(finding =>
-                finding.Code == CompatibilityFindingCode.UnexpectedFailure),
-            "A throwing adapter was reported as a failed handoff claim.");
+        Assert.AreEqual("An adapter failed the way adapters do.", exception.Message);
     }
 
     [TestMethod]
@@ -1803,7 +1797,8 @@ public sealed class CompatibilityScreenProjectionTests
         // most easily skips cleanup. A held claim blocks every later run.
         ThrowingGateway gateway = new();
 
-        _ = CompatibilityRunCoordinator.Execute(
+        _ = Assert.ThrowsExactly<InvalidOperationException>(() =>
+            CompatibilityRunCoordinator.Execute(
             new CompatibilityRunRequest(CompatibilityContextRequest.ApplicationDefault()),
             CompatibilityRunDependencies.Create(
                 gateway,
@@ -1828,7 +1823,7 @@ public sealed class CompatibilityScreenProjectionTests
                     GpuOffloadLevel.None),
                 ContextTokenCount.FromTokens(4096),
                 TimeProvider.System),
-            CancellationToken.None);
+            CancellationToken.None));
 
         Assert.IsTrue(gateway.RolledBack, "A throwing run kept the claim it took.");
     }

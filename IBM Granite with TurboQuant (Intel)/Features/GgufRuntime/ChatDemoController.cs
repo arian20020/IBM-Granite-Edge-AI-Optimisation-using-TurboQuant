@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using GraniteEdgeAI.Features.GgufRuntime.History;
@@ -20,6 +21,7 @@ internal sealed class ChatDemoController : IAsyncDisposable
     private readonly object operationSync = new();
     private readonly CancellationTokenSource lifetimeCancellation = new();
     private readonly HashSet<Task> activeOperations = [];
+    private readonly List<Exception> operationFailures = [];
     private List<HistoryRenderKey> renderedHistory = [];
     private bool followLatest;
     private bool disposed;
@@ -111,22 +113,58 @@ internal sealed class ChatDemoController : IAsyncDisposable
 
     public ValueTask DisposeAsync()
     {
+        TaskCompletionSource? retirementStarter = null;
+        Task retirement;
         lock (operationSync)
         {
-            retirementTask ??= RetireCoreAsync();
-            return new ValueTask(retirementTask);
+            if (retirementTask is null)
+            {
+                retirementStarter = new TaskCompletionSource(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                retirementTask = retirementStarter.Task;
+            }
+
+            retirement = retirementTask;
+        }
+
+        if (retirementStarter is not null)
+        {
+            _ = CompleteRetirementAsync(retirementStarter);
+        }
+
+        return new ValueTask(retirement);
+    }
+
+    private async Task CompleteRetirementAsync(TaskCompletionSource completion)
+    {
+        try
+        {
+            await RetireCoreAsync();
+            completion.SetResult();
+        }
+        catch (Exception exception)
+        {
+            completion.SetException(exception);
         }
     }
 
     private async Task RetireCoreAsync()
     {
+        List<Exception> failures = [];
         Task[] pending;
         lock (operationSync)
         {
             disposed = true;
             pending = activeOperations.ToArray();
         }
-        lifetimeCancellation.Cancel();
+        try
+        {
+            lifetimeCancellation.Cancel();
+        }
+        catch (Exception exception)
+        {
+            failures.Add(exception);
+        }
 
         coordinator.ConversationChanged -= Coordinator_ConversationChanged;
         page.NewChatRequested -= Page_NewChatRequested;
@@ -140,15 +178,62 @@ internal sealed class ChatDemoController : IAsyncDisposable
             {
                 await coordinator.StopAsync(CancellationToken.None);
             }
-            catch
+            catch (Exception exception)
             {
-                // Lifetime cancellation remains the fail-closed fallback.
+                failures.Add(exception);
             }
         }
-        await Task.WhenAll(pending);
-        renderScheduler.Dispose();
-        await coordinator.DisposeAsync();
-        lifetimeCancellation.Dispose();
+
+        try
+        {
+            await Task.WhenAll(pending);
+        }
+        catch (Exception exception)
+        {
+            failures.Add(exception);
+        }
+
+        lock (operationSync)
+        {
+            failures.AddRange(operationFailures);
+        }
+
+        try
+        {
+            renderScheduler.Dispose();
+        }
+        catch (Exception exception)
+        {
+            failures.Add(exception);
+        }
+
+        try
+        {
+            await coordinator.DisposeAsync();
+        }
+        catch (Exception exception)
+        {
+            failures.Add(exception);
+        }
+
+        try
+        {
+            lifetimeCancellation.Dispose();
+        }
+        catch (Exception exception)
+        {
+            failures.Add(exception);
+        }
+
+        if (failures.Count == 1)
+        {
+            ExceptionDispatchInfo.Capture(failures[0]).Throw();
+        }
+
+        if (failures.Count > 1)
+        {
+            throw new AggregateException("GGUF Chat retirement failed.", failures);
+        }
     }
 
     private void Page_NewChatRequested(object? sender, EventArgs eventArguments) =>
@@ -250,10 +335,13 @@ internal sealed class ChatDemoController : IAsyncDisposable
         {
             // Controller disposal owns this lifetime cancellation.
         }
-        catch
+        catch (Exception exception)
         {
-            // Coordinators map expected failures into state. Unexpected event
-            // failures remain bounded to this surface and request a safe redraw.
+            lock (operationSync)
+            {
+                operationFailures.Add(exception);
+            }
+
             renderScheduler.Request();
         }
     }

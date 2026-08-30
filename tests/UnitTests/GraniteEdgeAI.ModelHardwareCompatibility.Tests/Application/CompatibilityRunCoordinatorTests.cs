@@ -441,14 +441,12 @@ public sealed class CompatibilityRunCoordinatorTests
     }
 
     [TestMethod]
-    public void Execute_TurnsAThrowingAdapterIntoAFailedResultRatherThanAnException()
+    public void Execute_PropagatesAThrowingAdapterProgrammingFault()
     {
-        // Adapters are written by other teams. A native exception reaching the
-        // ViewModel would also be a section 14 exposure.
-        CompatibilityRunResult result = Run(Dependencies(gateway: new ThrowingGateway()));
+        InvalidOperationException exception = Assert.ThrowsExactly<InvalidOperationException>(
+            () => Run(Dependencies(gateway: new ThrowingGateway())));
 
-        Assert.AreEqual(nameof(CompatibilityRunOutcome.Failed), result.Outcome.ToString());
-        Assert.IsNull(result.Assessment);
+        Assert.AreEqual("adapter failure", exception.Message);
     }
 
     [TestMethod]
@@ -457,7 +455,8 @@ public sealed class CompatibilityRunCoordinatorTests
         // A claim taken and never released blocks every later run.
         ThrowingGateway gateway = new();
 
-        Run(Dependencies(gateway: gateway));
+        _ = Assert.ThrowsExactly<InvalidOperationException>(
+            () => Run(Dependencies(gateway: gateway)));
 
         Assert.AreEqual(1, gateway.RollbackCount);
     }
