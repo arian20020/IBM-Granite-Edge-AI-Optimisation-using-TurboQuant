@@ -281,10 +281,12 @@ public sealed class ModelDownloadCoordinatorTests
     {
         using var release = new ManualResetEventSlim(false);
         var service = new BlockingCancellationDownloadService(release);
+        var disposing = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var coordinator = new ModelDownloadCoordinator(
             service,
             new FakeNetworkPolicy(ModelDownloadConnectionKind.Unrestricted),
-            TimeSpan.FromMilliseconds(50));
+            TimeSpan.FromMilliseconds(50),
+            _ => disposing.TrySetResult());
         Task operation = coordinator.StartAsync(50, allowMetered: false, CancellationToken.None);
         await service.Started.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
@@ -298,10 +300,11 @@ public sealed class ModelDownloadCoordinatorTests
             Assert.AreEqual("download-cancellation-cleanup-failed", coordinator.State.ErrorCode);
             Assert.AreEqual(0, service.DiscardCalls);
             await operation.WaitAsync(TimeSpan.FromSeconds(1));
+            Assert.IsFalse(disposing.Task.IsCompleted);
         }
         finally { release.Set(); }
         await service.CallbackFinished.Task.WaitAsync(TimeSpan.FromSeconds(1));
-        Assert.IsTrue(service.CancellationSourceRetained);
+        await disposing.Task.WaitAsync(TimeSpan.FromSeconds(1));
     }
 
     private sealed class FakeNetworkPolicy(ModelDownloadConnectionKind kind) : IModelDownloadNetworkPolicy
@@ -421,7 +424,6 @@ public sealed class ModelDownloadCoordinatorTests
         internal TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource CallbackStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource CallbackFinished { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        internal bool CancellationSourceRetained { get; private set; }
         internal int DiscardCalls { get; private set; }
 
         public Task<ModelDownloadResult> DownloadAsync(ModelDownloadCatalogEntry entry, IProgress<ModelDownloadProgress> progress, CancellationToken cancellationToken)
@@ -430,12 +432,6 @@ public sealed class ModelDownloadCoordinatorTests
             {
                 CallbackStarted.TrySetResult();
                 release.Wait();
-                try
-                {
-                    using CancellationTokenRegistration probe = cancellationToken.Register(() => { });
-                    CancellationSourceRetained = true;
-                }
-                catch (ObjectDisposedException) { CancellationSourceRetained = false; }
                 CallbackFinished.TrySetResult();
             });
             Started.TrySetResult();

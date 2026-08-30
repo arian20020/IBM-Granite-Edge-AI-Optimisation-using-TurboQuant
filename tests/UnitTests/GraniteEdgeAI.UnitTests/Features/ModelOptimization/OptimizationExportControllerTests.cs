@@ -254,6 +254,32 @@ public sealed class OptimizationExportControllerTests
     }
 
     [TestMethod]
+    public async Task UserCancellationOfNeverSettlingProviderBecomesNonRetryableCleanupFailure()
+    {
+        using var release = new ManualResetEventSlim(false);
+        var service = new BlockingCancellationExportService(release);
+        var controller = new OptimizationExportController(service, TimeSpan.FromMilliseconds(50));
+        var failed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        controller.StateChanged += (_, state) =>
+        {
+            if (state.Kind == OptimizationExportStateKind.Failed) failed.TrySetResult();
+        };
+        controller.Bind(Target());
+        Task<bool> operation = controller.TryStartAsync();
+        await service.Started.Task.WaitAsync(TimeSpan.FromSeconds(1));
+
+        try
+        {
+            Assert.IsTrue(controller.TryCancel());
+            await failed.Task.WaitAsync(TimeSpan.FromSeconds(1));
+            Assert.AreEqual(OptimizationExportFailure.CleanupFailure, controller.State.Failure);
+            Assert.IsFalse(await controller.TryRetryAsync());
+            Assert.IsFalse(operation.IsCompleted);
+        }
+        finally { release.Set(); }
+    }
+
+    [TestMethod]
     public async Task ObserverFailureDoesNotBlockOtherObserversOrCompletion()
     {
         var controller = new OptimizationExportController(new ImmediateService(

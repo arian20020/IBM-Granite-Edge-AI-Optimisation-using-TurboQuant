@@ -34,6 +34,7 @@ internal sealed class ModelDownloadCoordinator : IDisposable
     private readonly IModelDownloadService _service;
     private readonly IModelDownloadNetworkPolicy _networkPolicy;
     private readonly TimeSpan _retirementTimeout;
+    private readonly Action<CancellationTokenSource>? _cancellationDisposing;
     private readonly Dictionary<CancellationTokenSource, Task<bool>> _cancellationTasks = [];
     private CancellationTokenSource? _activeCancellation;
     private TaskCompletionSource? _activeCompletion;
@@ -51,12 +52,14 @@ internal sealed class ModelDownloadCoordinator : IDisposable
     internal ModelDownloadCoordinator(
         IModelDownloadService service,
         IModelDownloadNetworkPolicy networkPolicy,
-        TimeSpan? retirementTimeout = null)
+        TimeSpan? retirementTimeout = null,
+        Action<CancellationTokenSource>? cancellationDisposing = null)
     {
         _service = service ?? throw new ArgumentNullException(nameof(service));
         _networkPolicy = networkPolicy ?? throw new ArgumentNullException(nameof(networkPolicy));
         _retirementTimeout = retirementTimeout ?? TimeSpan.FromSeconds(5);
         if (_retirementTimeout <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(retirementTimeout));
+        _cancellationDisposing = cancellationDisposing;
         State = ModelDownloadCoordinatorState.Idle(PinnedGraniteModelCatalog.ForSliderValue(50));
     }
 
@@ -231,7 +234,7 @@ internal sealed class ModelDownloadCoordinator : IDisposable
                     _activeCompletion = null;
                 }
             }
-            linked.Dispose();
+            DisposeAfterCancellation(linked);
             completion.TrySetResult();
         }
     }
@@ -320,6 +323,16 @@ internal sealed class ModelDownloadCoordinator : IDisposable
             PublishState(cancelled);
         }
         else if (!quiesced)
+        {
+            ModelDownloadCoordinatorState failed = cancelling with
+            {
+                Stage = ModelDownloadStage.Failed,
+                ErrorCode = "download-cancellation-cleanup-failed"
+            };
+            lock (_sync) State = failed;
+            PublishState(failed);
+        }
+        else if (!cancellationRequest.Result)
         {
             ModelDownloadCoordinatorState failed = cancelling with
             {
@@ -550,10 +563,14 @@ internal sealed class ModelDownloadCoordinator : IDisposable
         _ = DisposeAfterCancellationAsync(cancellation, observation);
     }
 
-    private static async Task DisposeAfterCancellationAsync(CancellationTokenSource cancellation, Task observation)
+    private async Task DisposeAfterCancellationAsync(CancellationTokenSource cancellation, Task observation)
     {
         try { await observation.ConfigureAwait(false); }
-        finally { cancellation.Dispose(); }
+        finally
+        {
+            _cancellationDisposing?.Invoke(cancellation);
+            cancellation.Dispose();
+        }
     }
 
     private sealed class InlineProgress<T>(Action<T> report) : IProgress<T>

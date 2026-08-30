@@ -154,6 +154,20 @@ public sealed class OptimizationDestinationCardTests
         internal void Complete(OptimizationExportResult result) => _completion.SetResult(result);
     }
 
+    [UITestMethod]
+    public void CleanupFailureHidesUnavailableRetryAction()
+    {
+        var card = new OptimizationDestinationCard();
+        var state = new OptimizationExportViewState(
+            OptimizationExportStateKind.Failed,
+            "Cleanup is not confirmed.",
+            Failure: OptimizationExportFailure.CleanupFailure);
+        typeof(OptimizationDestinationCard).GetMethod("ApplyExportState", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .Invoke(card, [state]);
+
+        Assert.AreEqual(Visibility.Collapsed, ((Button)card.FindName("RetryExportButton")).Visibility);
+    }
+
     private sealed class ThrowingExportService : IOptimizationExportService
     {
         internal TaskCompletionSource Called { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);

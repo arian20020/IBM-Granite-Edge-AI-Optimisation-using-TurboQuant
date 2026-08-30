@@ -162,6 +162,31 @@ public sealed class ModelDownloadCardTests
         Assert.AreEqual(100, coordinator.State.DownloadedBytes);
     }
 
+    [UITestMethod]
+    public async Task CleanupTimeoutDisablesUnavailableRetryAction()
+    {
+        using var release = new ManualResetEventSlim(false);
+        var service = new NeverSettlingCancellationService(release);
+        var coordinator = new ModelDownloadCoordinator(
+            service,
+            new UnrestrictedNetworkPolicy(),
+            TimeSpan.FromMilliseconds(50));
+        var card = new ModelDownloadCard();
+        card.Attach(coordinator);
+        _ = coordinator.StartAsync(50, false, CancellationToken.None);
+        await service.Started.Task.WaitAsync(TimeSpan.FromSeconds(1));
+
+        try
+        {
+            await coordinator.CancelAsync(false, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(1));
+            await DrainDispatcherAsync(card);
+            var button = (Button)card.FindName("DownloadModelButton");
+            Assert.IsFalse(button.IsEnabled);
+            Assert.AreEqual("Cleanup pending", button.Content);
+        }
+        finally { release.Set(); }
+    }
+
     private static async Task DrainDispatcherAsync(FrameworkElement element)
     {
         var drained = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -208,5 +233,23 @@ public sealed class ModelDownloadCardTests
             DiscardCalls++;
             return Task.CompletedTask;
         }
+    }
+
+    private sealed class NeverSettlingCancellationService(ManualResetEventSlim release) : IModelDownloadService
+    {
+        private readonly TaskCompletionSource<ModelDownloadResult> _never = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task<ModelDownloadResult> DownloadAsync(ModelDownloadCatalogEntry entry, IProgress<ModelDownloadProgress> progress, CancellationToken cancellationToken)
+        {
+            cancellationToken.Register(release.Wait);
+            Started.TrySetResult();
+            return _never.Task;
+        }
+
+        public Task<ModelDownloadResumeInfo?> GetResumeInfoAsync(ModelDownloadCatalogEntry entry, CancellationToken cancellationToken) =>
+            Task.FromResult<ModelDownloadResumeInfo?>(null);
+
+        public Task DiscardPartialAsync(ModelDownloadCatalogEntry entry, CancellationToken cancellationToken) => Task.CompletedTask;
     }
 }

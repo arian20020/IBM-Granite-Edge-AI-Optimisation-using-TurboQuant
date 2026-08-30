@@ -219,10 +219,12 @@ namespace GraniteEdgeAI.Features.ModelImport.ModelDownload
                     ("The model service could not be reached. Check the connection, then try again.", "Try again"),
                 ModelDownloadStage.Failed when state.ErrorCode is "download-range-invalid" or "download-size-invalid" or "download-identity-changed" =>
                     ("The server copy changed during download. Discard saved progress, then try again.", "Try again"),
+                ModelDownloadStage.Failed when state.ErrorCode == "download-cancellation-cleanup-failed" =>
+                    ("Cancellation cleanup is still in progress. Retry is unavailable until it finishes.", "Cleanup pending"),
                 ModelDownloadStage.Failed => ("The download failed integrity verification. No model was installed. Try again.", "Try again"),
                 _ => (string.Empty, "Download selected model")
             };
-            DownloadModelButton.IsEnabled = !cancelling &&
+            DownloadModelButton.IsEnabled = !cancelling && state.ErrorCode != "download-cancellation-cleanup-failed" &&
                 state.Stage != ModelDownloadStage.Completed;
             AutomationProperties.SetName(
                 DownloadModelButton,

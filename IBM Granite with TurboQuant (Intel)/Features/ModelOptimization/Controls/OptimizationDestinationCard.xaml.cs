@@ -125,8 +125,10 @@ public sealed partial class OptimizationDestinationCard : UserControl
         ExportProgressBar.IsIndeterminate = state.Fraction is null;
         if (state.Fraction is double fraction) ExportProgressBar.Value = fraction * 100;
         CancelExportButton.Visibility = state.Kind == OptimizationExportStateKind.Running ? Visibility.Visible : Visibility.Collapsed;
-        RetryExportButton.Visibility = state.Kind is OptimizationExportStateKind.Cancelled or OptimizationExportStateKind.Failed ? Visibility.Visible : Visibility.Collapsed;
-        if (state.Kind is OptimizationExportStateKind.Cancelled or OptimizationExportStateKind.Failed)
+        bool retryable = state.Kind == OptimizationExportStateKind.Cancelled
+            || (state.Kind == OptimizationExportStateKind.Failed && state.Failure != OptimizationExportFailure.CleanupFailure);
+        RetryExportButton.Visibility = retryable ? Visibility.Visible : Visibility.Collapsed;
+        if (retryable)
             RetryExportButton.Focus(FocusState.Programmatic);
         else if (state.Kind == OptimizationExportStateKind.Succeeded)
             DestinationCore.FocusAction(OptimizationCommand.Chat, FocusState.Programmatic);
