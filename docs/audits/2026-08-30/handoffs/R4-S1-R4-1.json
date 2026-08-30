@@ -9,11 +9,11 @@
   "implementationSubjectCommit": "4e76c9f55a787ea8f51ba81d4c870743d41f9d24",
   "implementationSubjectTree": "b09c181930048c7a15b652fe2af17c46a5db5bde",
   "worktreeCleanAtHandoff": true,
-  "completedAtUtc": "2026-08-30T17:21:49Z",
+  "completedAtUtc": "2026-08-30T17:24:37Z",
   "report": {
     "path": "docs/audits/2026-08-30/S1-security-packaging-r4-1.md",
-    "sha256": "712bdc2f6e1177ed50102ba3783e7b11b51559beb75b67c8eb92f7eb60b60b6d",
-    "bytes": 15294
+    "sha256": "625b559ef572c438a8790ffb7767ea390fe72529780e51ed98b2579416446aa9",
+    "bytes": 15309
   },
   "transport": "remote",
   "remoteRef": "refs/remotes/origin/audit/ucl-s1-security-remediation-r4-1",

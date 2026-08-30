@@ -234,8 +234,8 @@
   },
   "closure": {
     "path": "docs/audits/2026-08-30/S1-package-closure-r4-1.json",
-    "bytes": 85783,
-    "sha256": "5042d2a2ea51109962eedd68987bf6ef7f32b8fce0401322761ba3a2fa6c271f",
+    "bytes": 84447,
+    "sha256": "2e38e8da4014c489a3e1b626643e095f82e4a80969a75884f074d3579603b104",
     "evaluatedMemberCount": 200,
     "rawBuildOutputUsedAsMembership": false,
     "actualPackage": null,
@@ -430,8 +430,8 @@
     },
     "adversarial": {
       "path": "docs/audits/2026-08-30/reviews/S1-R4-1-adversarial-security-review.md",
-      "bytes": 5455,
-      "sha256": "19570bb39333d91b81aee45538b01d9c97cff2bf233297caf8457624b47dea03",
+      "bytes": 5485,
+      "sha256": "4858d91ab88a5d4c4a93b2a331bd564704594f7331e973031a756db5376db0d5",
       "critical": 0,
       "important": 0
     }
