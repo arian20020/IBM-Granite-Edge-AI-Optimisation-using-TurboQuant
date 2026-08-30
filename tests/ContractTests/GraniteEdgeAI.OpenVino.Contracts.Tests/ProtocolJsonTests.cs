@@ -145,6 +145,22 @@ public sealed class ProtocolJsonTests
     }
 
     [TestMethod]
+    public void HandoffRejectsOneUuidV4UsedForBothIdentityRoles()
+    {
+        ModelInspectionHandoffV2 invalid = new(
+            RunId,
+            RunId,
+            ModelInspectionOutcome.Ready,
+            Digest,
+            1);
+        string payload = $$"""{"schemaVersion":2,"modelInspectionHandoffId":"{{RunId:D}}","modelInspectionRunId":"{{RunId:D}}","outcome":"Ready","modelSha256":"{{Digest}}","modelLengthBytes":1}""";
+
+        Assert.ThrowsExactly<OpenVinoProtocolException>(invalid.Validate);
+        Assert.ThrowsExactly<OpenVinoProtocolException>(() =>
+            ModelInspectionHandoffV2.Parse(Encoding.UTF8.GetBytes(payload)));
+    }
+
+    [TestMethod]
     public void HandoffCanonicalSerializationContainsExactlyTheSixPathFreeFieldsForOpenvinoModelBinIdentity()
     {
         ModelInspectionHandoffV2 handoff = new(

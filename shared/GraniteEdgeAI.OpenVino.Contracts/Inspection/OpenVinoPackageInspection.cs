@@ -49,6 +49,9 @@ public sealed record ModelInspectionHandoffV2(
         RequireUuidV4(ModelInspectionHandoffId, nameof(ModelInspectionHandoffId));
         RequireUuidV4(ModelInspectionRunId, nameof(ModelInspectionRunId));
         OpenVinoProtocol.Require(
+            ModelInspectionHandoffId != ModelInspectionRunId,
+            "modelInspectionHandoffId must have a role distinct from modelInspectionRunId.");
+        OpenVinoProtocol.Require(
             Outcome is ModelInspectionOutcome.Ready or ModelInspectionOutcome.ReadyWithWarnings,
             "outcome must be Ready or ReadyWithWarnings.");
         OpenVinoProtocol.Require(
