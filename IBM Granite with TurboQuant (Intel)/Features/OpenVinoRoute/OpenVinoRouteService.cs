@@ -253,6 +253,18 @@ public sealed class OpenVinoRouteService : IPromptRouteAdapter
                 OpenVinoPromptAdapter.MapFailure(failure.SupportCode),
                 Configuration: null);
         }
+        catch (OperationCanceledException)
+            when (cancellationToken.IsCancellationRequested)
+        {
+            OpenVinoSupportCode code = OpenVinoSupportCode.OperationCancelled;
+            OpenVinoRouteInspectionOutcome outcome = InspectionOutcome(code);
+            stateMachine.TryCompleteInspection(operationId, outcome);
+            return new OpenVinoRouteInspectionResult(
+                outcome,
+                HandoffLease: null,
+                OpenVinoPromptAdapter.MapFailure(code),
+                Configuration: null);
+        }
 
         if (terminal is InspectionFailedEvent failed)
         {
@@ -269,11 +281,12 @@ public sealed class OpenVinoRouteService : IPromptRouteAdapter
         if (terminal is not InspectionCompletedEvent completed)
         {
             OpenVinoSupportCode code = OpenVinoSupportCode.RuntimeProtocolFailed;
+            OpenVinoRouteInspectionOutcome outcome = InspectionOutcome(code);
             stateMachine.TryCompleteInspection(
                 operationId,
-                OpenVinoRouteInspectionOutcome.Invalid);
+                outcome);
             return new OpenVinoRouteInspectionResult(
-                OpenVinoRouteInspectionOutcome.Invalid,
+                outcome,
                 HandoffLease: null,
                 OpenVinoPromptAdapter.MapFailure(code),
                 Configuration: null);
@@ -417,7 +430,34 @@ public sealed class OpenVinoRouteService : IPromptRouteAdapter
         OpenVinoSupportCode.ModelTaskUnsupported or
         OpenVinoSupportCode.TokenizerUnsupported =>
             OpenVinoRouteInspectionOutcome.Unsupported,
-        _ => OpenVinoRouteInspectionOutcome.Invalid
+        OpenVinoSupportCode.RuntimeDependencyMissing or
+        OpenVinoSupportCode.RuntimeDeviceUnavailable =>
+            OpenVinoRouteInspectionOutcome.DependencyUnavailable,
+        OpenVinoSupportCode.OperationCancelled =>
+            OpenVinoRouteInspectionOutcome.Cancelled,
+        OpenVinoSupportCode.RuntimeTimedOut =>
+            OpenVinoRouteInspectionOutcome.TimedOut,
+        OpenVinoSupportCode.PackageChanged =>
+            OpenVinoRouteInspectionOutcome.StaleEvidence,
+        OpenVinoSupportCode.PackageUnsafePath or
+        OpenVinoSupportCode.PackageUnreadable or
+        OpenVinoSupportCode.RuntimeIntegrityFailed or
+        OpenVinoSupportCode.RuntimeLoadFailed or
+        OpenVinoSupportCode.RuntimeDeviceMismatch or
+        OpenVinoSupportCode.RuntimeContextExceeded or
+        OpenVinoSupportCode.RuntimeProtocolFailed or
+        OpenVinoSupportCode.ConversionPreflightFailed or
+        OpenVinoSupportCode.ConversionFailed or
+        OpenVinoSupportCode.ConversionOutputInvalid or
+        OpenVinoSupportCode.ConversionPublishFailed or
+        OpenVinoSupportCode.OptimizationUnsupported or
+        OpenVinoSupportCode.TurboQuantUnavailable or
+        OpenVinoSupportCode.TurboQuantActivationUnverified =>
+            OpenVinoRouteInspectionOutcome.InvalidEvidence,
+        _ => throw new ArgumentOutOfRangeException(
+            nameof(supportCode),
+            supportCode,
+            "Unknown OpenVINO support code.")
     };
 
     private static bool ProjectionMatchesHandoff(

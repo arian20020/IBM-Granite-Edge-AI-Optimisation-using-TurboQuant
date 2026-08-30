@@ -125,6 +125,44 @@ public sealed class OpenVinoRouteStateMachineTests
     }
 
     [TestMethod]
+    public void InspectionOutcomeSetIsExhaustiveAndOnlyReadyOutcomesCanProceed()
+    {
+        string[] expectedOutcomes =
+        [
+            "Ready",
+            "ReadyWithWarnings",
+            "ConversionRequired",
+            "IncompletePackage",
+            "Unsupported",
+            "DependencyUnavailable",
+            "Cancelled",
+            "TimedOut",
+            "InvalidEvidence",
+            "StaleEvidence"
+        ];
+        CollectionAssert.AreEquivalent(
+            expectedOutcomes,
+            Enum.GetNames<OpenVinoRouteInspectionOutcome>());
+
+        foreach (string outcomeName in expectedOutcomes)
+        {
+            OpenVinoRouteStateMachine machine = new();
+            Guid operationId = machine.Snapshot.Identity.OperationId;
+            Assert.IsTrue(machine.TryBeginInspection(operationId));
+            Assert.IsTrue(Enum.TryParse(
+                outcomeName,
+                out OpenVinoRouteInspectionOutcome outcome));
+            Assert.IsTrue(machine.TryCompleteInspection(operationId, outcome));
+
+            bool expectedToProceed = outcomeName is "Ready" or "ReadyWithWarnings";
+            Assert.AreEqual(
+                expectedToProceed,
+                machine.TryAwaitConfiguration(operationId),
+                $"Unexpected configuration gate for {outcomeName}.");
+        }
+    }
+
+    [TestMethod]
     public void ConfirmedTurnGateGivesCancellationOrCompletionExactlyOneOwner()
     {
         OpenVinoRouteStateMachine cancellationFirst = ReadyMachine();

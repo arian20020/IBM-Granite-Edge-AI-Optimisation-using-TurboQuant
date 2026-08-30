@@ -26,7 +26,11 @@ public enum OpenVinoRouteInspectionOutcome
     ConversionRequired,
     IncompletePackage,
     Unsupported,
-    Invalid
+    DependencyUnavailable,
+    Cancelled,
+    TimedOut,
+    InvalidEvidence,
+    StaleEvidence
 }
 
 public sealed record OpenVinoRouteIdentity(
