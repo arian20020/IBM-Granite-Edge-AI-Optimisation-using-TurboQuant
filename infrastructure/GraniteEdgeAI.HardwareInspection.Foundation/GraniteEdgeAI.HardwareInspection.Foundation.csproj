@@ -11,4 +11,7 @@
     <Deterministic>true</Deterministic>
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
   </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="GraniteEdgeAI.HardwareInspection.Foundation.Tests" />
+  </ItemGroup>
 </Project>
