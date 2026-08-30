@@ -103,6 +103,21 @@ public sealed class ChatDemoControllerInitializationTests
         Assert.AreEqual(1, session.DisposeCount);
     }
 
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task DamagedHistoryRecordsBecomeBoundedSupportState()
+    {
+        var session = new InitializationSession();
+        ChatDemoController controller = await CreateAsync(
+            new InitializationStore(hasUnavailableRecords: true),
+            session);
+
+        Assert.AreEqual(
+            ChatOperationSupportCode.HistoryUnavailable,
+            controller.LastSupportCode);
+        await controller.DisposeAsync();
+    }
+
     private static Task<ChatDemoController> CreateAsync(
         IChatHistoryStore store,
         IGgufChatSession session,
@@ -124,12 +139,15 @@ public sealed class ChatDemoControllerInitializationTests
 
     private sealed class InitializationStore(
         IReadOnlyList<ChatConversation>? conversations = null,
-        Exception? loadFailure = null) : IChatHistoryStore
+        Exception? loadFailure = null,
+        bool hasUnavailableRecords = false) : IChatHistoryStore
     {
-        public Task<IReadOnlyList<ChatConversation>> LoadAsync(CancellationToken token) =>
+        public Task<ChatHistoryLoadResult> LoadAsync(CancellationToken token) =>
             loadFailure is null
-                ? Task.FromResult(conversations ?? (IReadOnlyList<ChatConversation>)[])
-                : Task.FromException<IReadOnlyList<ChatConversation>>(loadFailure);
+                ? Task.FromResult(new ChatHistoryLoadResult(
+                    conversations ?? (IReadOnlyList<ChatConversation>)[],
+                    hasUnavailableRecords))
+                : Task.FromException<ChatHistoryLoadResult>(loadFailure);
         public Task SaveAsync(ChatConversation conversation, CancellationToken token) =>
             Task.CompletedTask;
         public Task DeleteAsync(Guid conversationId, CancellationToken token) =>

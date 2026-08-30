@@ -6,6 +6,8 @@ using GraniteEdgeAI.GgufRuntime.Contracts.Session;
 using GraniteEdgeAI.GgufRuntime.Capabilities.Manifest;
 using GraniteEdgeAI.GgufRuntime.Transport;
 using GraniteEdgeAI.GgufRuntime.WorkerClient.Windows;
+using System.Diagnostics;
+using System.Runtime.ExceptionServices;
 
 namespace GraniteEdgeAI.GgufRuntime.WorkerClient;
 
@@ -97,10 +99,13 @@ public sealed class GgufRuntimeClient
                 .ConfigureAwait(false);
             return session;
         }
-        catch
+        catch (Exception primary)
         {
-            await process.DisposeAsync().ConfigureAwait(false);
-            throw;
+            await GgufRuntimeStartupCleanup.RethrowPrimaryAfterCleanupAsync(
+                primary,
+                () => process.DisposeAsync(),
+                BoundedGgufRuntimeCleanupFaultReporter.Shared).ConfigureAwait(false);
+            throw new UnreachableException();
         }
     }
 
@@ -134,5 +139,80 @@ public sealed class GgufRuntimeClient
         }
 
         return fullPath;
+    }
+}
+
+internal enum GgufRuntimeCleanupFaultClassification
+{
+    Io,
+    InvalidOperation,
+    ObjectDisposed,
+    Unexpected,
+}
+
+internal readonly record struct GgufRuntimeCleanupFault(
+    GgufRuntimeCleanupFaultClassification Classification);
+
+internal interface IGgufRuntimeCleanupFaultReporter
+{
+    void Report(GgufRuntimeCleanupFault fault);
+}
+
+internal sealed class BoundedGgufRuntimeCleanupFaultReporter :
+    IGgufRuntimeCleanupFaultReporter
+{
+    private static readonly BoundedGgufRuntimeCleanupFaultReporter s_shared = new();
+    private readonly object _sync = new();
+    private GgufRuntimeCleanupFault? _last;
+
+    internal static IGgufRuntimeCleanupFaultReporter Shared => s_shared;
+
+    public void Report(GgufRuntimeCleanupFault fault)
+    {
+        lock (_sync)
+        {
+            _last = fault;
+        }
+    }
+
+    internal GgufRuntimeCleanupFault? Capture()
+    {
+        lock (_sync)
+        {
+            return _last;
+        }
+    }
+}
+
+internal static class GgufRuntimeStartupCleanup
+{
+    internal static async Task RethrowPrimaryAfterCleanupAsync(
+        Exception primary,
+        Func<ValueTask> cleanup,
+        IGgufRuntimeCleanupFaultReporter reporter)
+    {
+        ArgumentNullException.ThrowIfNull(primary);
+        ArgumentNullException.ThrowIfNull(cleanup);
+        ArgumentNullException.ThrowIfNull(reporter);
+        try
+        {
+            await cleanup().ConfigureAwait(false);
+        }
+        catch (Exception cleanupFailure)
+        {
+            reporter.Report(new GgufRuntimeCleanupFault(
+                cleanupFailure switch
+                {
+                    IOException => GgufRuntimeCleanupFaultClassification.Io,
+                    ObjectDisposedException =>
+                        GgufRuntimeCleanupFaultClassification.ObjectDisposed,
+                    InvalidOperationException =>
+                        GgufRuntimeCleanupFaultClassification.InvalidOperation,
+                    _ => GgufRuntimeCleanupFaultClassification.Unexpected,
+                }));
+        }
+
+        ExceptionDispatchInfo.Capture(primary).Throw();
+        throw new UnreachableException();
     }
 }

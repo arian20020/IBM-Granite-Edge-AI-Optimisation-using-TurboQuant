@@ -113,8 +113,8 @@ public sealed class OnboardingShellChatLifetimeTests
 
     private sealed class ShellStore : IChatHistoryStore
     {
-        public Task<IReadOnlyList<ChatConversation>> LoadAsync(CancellationToken token) =>
-            Task.FromResult<IReadOnlyList<ChatConversation>>([]);
+        public Task<ChatHistoryLoadResult> LoadAsync(CancellationToken token) =>
+            Task.FromResult(new ChatHistoryLoadResult([], false));
         public Task SaveAsync(ChatConversation conversation, CancellationToken token) =>
             Task.CompletedTask;
         public Task DeleteAsync(Guid conversationId, CancellationToken token) =>

@@ -79,7 +79,8 @@ internal sealed class ChatDemoController : IAsyncDisposable
         this.faultReporter = faultReporter ?? BoundedApplicationFaultReporter.Shared;
         renderScheduler = new ChatRenderScheduler(
             callback => page.DispatcherQueue.TryEnqueue(() => callback()),
-            Render);
+            Render,
+            ReportOperationFault);
         coordinator.ConversationChanged += Coordinator_ConversationChanged;
         page.NewChatRequested += Page_NewChatRequested;
         page.SendRequested += Page_SendRequested;
@@ -183,6 +184,10 @@ internal sealed class ChatDemoController : IAsyncDisposable
             modelId,
             profileId,
             cancellationToken);
+        if (coordinator.HistoryHadUnavailableRecords)
+        {
+            lastSupportCode = ChatOperationSupportCode.HistoryUnavailable;
+        }
         if (coordinator.SelectedConversation is null)
         {
             await coordinator.NewChatAsync(
@@ -411,11 +416,9 @@ internal sealed class ChatDemoController : IAsyncDisposable
             {
                 lastSupportCode = code;
             }
-            else if (Interlocked.Exchange(ref operationFaultReported, 1) == 0)
+            else
             {
-                faultReporter.Report(ApplicationFault.FromException(
-                    ApplicationFaultCode.GgufChatOperationUnexpected,
-                    exception));
+                ReportOperationFault(exception);
             }
 
             TryRequestRender();
@@ -430,12 +433,7 @@ internal sealed class ChatDemoController : IAsyncDisposable
         }
         catch (Exception exception)
         {
-            if (Interlocked.Exchange(ref operationFaultReported, 1) == 0)
-            {
-                faultReporter.Report(ApplicationFault.FromException(
-                    ApplicationFaultCode.GgufChatOperationUnexpected,
-                    exception));
-            }
+            ReportOperationFault(exception);
         }
         finally
         {
@@ -454,12 +452,17 @@ internal sealed class ChatDemoController : IAsyncDisposable
         }
         catch (Exception exception)
         {
-            if (Interlocked.Exchange(ref operationFaultReported, 1) == 0)
-            {
-                faultReporter.Report(ApplicationFault.FromException(
-                    ApplicationFaultCode.GgufChatOperationUnexpected,
-                    exception));
-            }
+            ReportOperationFault(exception);
+        }
+    }
+
+    private void ReportOperationFault(Exception exception)
+    {
+        if (Interlocked.Exchange(ref operationFaultReported, 1) == 0)
+        {
+            faultReporter.Report(ApplicationFault.FromException(
+                ApplicationFaultCode.GgufChatOperationUnexpected,
+                exception));
         }
     }
 
@@ -488,7 +491,7 @@ internal sealed class ChatDemoController : IAsyncDisposable
         Exception exception,
         out ChatOperationSupportCode code)
     {
-        if (exception is IOException or UnauthorizedAccessException or JsonException)
+        if (exception is ChatHistoryUnavailableException)
         {
             code = ChatOperationSupportCode.HistoryUnavailable;
             return true;
@@ -497,6 +500,7 @@ internal sealed class ChatDemoController : IAsyncDisposable
         if (exception is GgufRuntimeStartupException
             or GgufWorkerPolicyException
             or GgufRuntimeTrustException
+            or GgufChatRuntimeUnavailableException
             or GgufChatLaunchException)
         {
             code = ChatOperationSupportCode.RuntimeUnavailable;

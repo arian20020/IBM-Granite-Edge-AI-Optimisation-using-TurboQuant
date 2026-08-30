@@ -25,8 +25,9 @@ public sealed class ChatHistoryStoreTests
 
         await store.SaveAsync(conversation, CancellationToken.None);
         var restartedStore = new AtomicJsonChatHistoryStore(root.Path);
-        IReadOnlyList<ChatConversation> loaded = await restartedStore.LoadAsync(
+        ChatHistoryLoadResult load = await restartedStore.LoadAsync(
             CancellationToken.None);
+        IReadOnlyList<ChatConversation> loaded = load.Conversations;
 
         Assert.AreEqual(1, loaded.Count);
         Assert.AreEqual("Explain TurboQuant", loaded[0].Title);
@@ -52,12 +53,15 @@ public sealed class ChatHistoryStoreTests
             "{broken",
             CancellationToken.None);
 
-        IReadOnlyList<ChatConversation> loaded = await store.LoadAsync(
-            CancellationToken.None);
+        ChatHistoryLoadResult load = await store.LoadAsync(CancellationToken.None);
+        IReadOnlyList<ChatConversation> loaded = load.Conversations;
         Assert.AreEqual(1, loaded.Count);
+        Assert.IsTrue(load.HasUnavailableRecords);
 
         await store.DeleteAsync(healthy.Id, CancellationToken.None);
-        Assert.AreEqual(0, (await store.LoadAsync(CancellationToken.None)).Count);
+        Assert.AreEqual(
+            0,
+            (await store.LoadAsync(CancellationToken.None)).Conversations.Count);
     }
 
     [TestMethod]
@@ -79,7 +83,7 @@ public sealed class ChatHistoryStoreTests
 
         await store.SaveAsync(conversation, CancellationToken.None);
         ChatConversation loaded = (await new AtomicJsonChatHistoryStore(root.Path)
-            .LoadAsync(CancellationToken.None)).Single();
+            .LoadAsync(CancellationToken.None)).Conversations.Single();
 
         Assert.AreEqual("Question", loaded.Title);
         Assert.AreEqual(3, loaded.Messages.Count);

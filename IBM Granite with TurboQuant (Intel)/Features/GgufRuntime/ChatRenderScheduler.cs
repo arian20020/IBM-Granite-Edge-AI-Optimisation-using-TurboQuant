@@ -7,13 +7,18 @@ internal sealed class ChatRenderScheduler : IDisposable
     private readonly object sync = new();
     private readonly Func<Action, bool> enqueue;
     private readonly Action render;
+    private readonly Action<Exception>? reportFault;
     private bool isPending;
     private bool isDisposed;
 
-    internal ChatRenderScheduler(Func<Action, bool> enqueue, Action render)
+    internal ChatRenderScheduler(
+        Func<Action, bool> enqueue,
+        Action render,
+        Action<Exception>? reportFault = null)
     {
         this.enqueue = enqueue ?? throw new ArgumentNullException(nameof(enqueue));
         this.render = render ?? throw new ArgumentNullException(nameof(render));
+        this.reportFault = reportFault;
     }
 
     internal void Request()
@@ -60,7 +65,14 @@ internal sealed class ChatRenderScheduler : IDisposable
                 return;
             }
 
-            render();
+            try
+            {
+                render();
+            }
+            catch (Exception exception) when (reportFault is not null)
+            {
+                reportFault(exception);
+            }
         }
     }
 }

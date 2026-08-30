@@ -1,5 +1,6 @@
 using Microsoft.Win32.SafeHandles;
 using GraniteEdgeAI.GgufRuntime.WorkerClient.Windows;
+using System.Runtime.ExceptionServices;
 
 namespace GraniteEdgeAI.GgufRuntime.WorkerClient;
 
@@ -68,20 +69,46 @@ internal sealed class GgufWorkerProcessSession : IAsyncDisposable
         }
 
         _disposed = true;
-        try
+        Exception? firstFailure = null;
+        async ValueTask AttemptAsync(Func<ValueTask> action)
         {
-            await StandardInput.DisposeAsync().ConfigureAwait(false);
+            try
+            {
+                await action().ConfigureAwait(false);
+            }
+            catch (Exception exception)
+            {
+                firstFailure ??= exception;
+            }
+        }
+
+        void Attempt(Action action)
+        {
+            try
+            {
+                action();
+            }
+            catch (Exception exception)
+            {
+                firstFailure ??= exception;
+            }
+        }
+
+        await AttemptAsync(StandardInput.DisposeAsync).ConfigureAwait(false);
+        Attempt(() =>
+        {
             if (_job.ActiveProcessCount != 0)
             {
                 _job.Terminate();
             }
-        }
-        finally
+        });
+        await AttemptAsync(StandardOutput.DisposeAsync).ConfigureAwait(false);
+        await AttemptAsync(StandardError.DisposeAsync).ConfigureAwait(false);
+        Attempt(_processHandle.Dispose);
+        Attempt(_job.Dispose);
+        if (firstFailure is not null)
         {
-            await StandardOutput.DisposeAsync().ConfigureAwait(false);
-            await StandardError.DisposeAsync().ConfigureAwait(false);
-            _processHandle.Dispose();
-            _job.Dispose();
+            ExceptionDispatchInfo.Capture(firstFailure).Throw();
         }
     }
 }

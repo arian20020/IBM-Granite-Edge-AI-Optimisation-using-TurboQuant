@@ -21,6 +21,7 @@ internal sealed class GgufChatCoordinator : IAsyncDisposable
     private readonly List<ChatConversation> conversations = [];
     private ChatConversation? selectedConversation;
     private bool isGenerating;
+    private bool historyHadUnavailableRecords;
 
     internal GgufChatCoordinator(
         IChatHistoryStore store,
@@ -71,6 +72,17 @@ internal sealed class GgufChatCoordinator : IAsyncDisposable
         }
     }
 
+    internal bool HistoryHadUnavailableRecords
+    {
+        get
+        {
+            lock (stateSync)
+            {
+                return historyHadUnavailableRecords;
+            }
+        }
+    }
+
     internal ChatCoordinatorSnapshot CaptureSnapshot()
     {
         lock (stateSync)
@@ -99,8 +111,9 @@ internal sealed class GgufChatCoordinator : IAsyncDisposable
                 "Model and profile filters must be supplied together.");
         }
 
-        IReadOnlyList<ChatConversation> loaded = await store.LoadAsync(cancellationToken)
+        ChatHistoryLoadResult load = await store.LoadAsync(cancellationToken)
             .ConfigureAwait(false);
+        IReadOnlyList<ChatConversation> loaded = load.Conversations;
         IEnumerable<ChatConversation> applicable = modelId is null
             ? loaded
             : loaded.Where(conversation =>
@@ -109,6 +122,7 @@ internal sealed class GgufChatCoordinator : IAsyncDisposable
         lock (stateSync)
         {
             conversations.Clear();
+            historyHadUnavailableRecords = load.HasUnavailableRecords;
             conversations.AddRange(ChatHistoryPolicy.ApplyRetention(
                 applicable,
                 clock.GetUtcNow()));

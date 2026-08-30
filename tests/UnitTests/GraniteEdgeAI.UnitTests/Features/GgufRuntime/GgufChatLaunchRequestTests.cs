@@ -117,6 +117,36 @@ public sealed class GgufChatLaunchRequestTests
     }
 
     [TestMethod]
+    public async Task ModelVerificationAccessFailureBecomesTypedLaunchUnavailability()
+    {
+        string root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        string model = Path.Combine(root, "private-model.gguf");
+        File.WriteAllBytes(model, [1]);
+        try
+        {
+            var request = new GgufChatLaunchRequest(
+                root,
+                Manifest(),
+                model,
+                "Granite 3B",
+                Configuration());
+            File.Delete(model);
+
+            GgufChatLaunchException error =
+                await Assert.ThrowsExactlyAsync<GgufChatLaunchException>(() =>
+                    request.VerifyModelAsync(CancellationToken.None));
+
+            Assert.AreEqual("model-file-unavailable", error.Code);
+            Assert.IsFalse(error.ToString().Contains(root, StringComparison.OrdinalIgnoreCase));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [TestMethod]
     public void MissingModelFailureDoesNotExposeTheAbsolutePath()
     {
         string root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));

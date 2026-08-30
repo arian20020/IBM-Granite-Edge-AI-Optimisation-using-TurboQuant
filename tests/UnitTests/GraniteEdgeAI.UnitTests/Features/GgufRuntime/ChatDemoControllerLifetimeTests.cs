@@ -12,6 +12,48 @@ namespace GraniteEdgeAI.UnitTests.Features.GgufRuntime;
 [TestClass]
 public sealed class ChatDemoControllerLifetimeTests
 {
+    [TestMethod]
+    public void UnscopedIoFailureIsNotMisclassifiedAsHistoryUnavailable()
+    {
+        bool classified = ChatDemoController.TryClassifyOperationalFailure(
+            new IOException("private-non-history-path"),
+            out _);
+
+        Assert.IsFalse(classified);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task UnrelatedIoAndArgumentFaultsReachSafeReporterOnlyOnce()
+    {
+        var session = new BlockingDisposalSession();
+        var reporter = new BoundedApplicationFaultReporter(4);
+        ChatDemoController controller = CreateController(session, reporter);
+        MethodInfo runOperation = typeof(ChatDemoController).GetMethod(
+            "RunOperationAsync",
+            BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new InvalidOperationException("The operation boundary was not found.");
+
+        foreach (Exception fault in new Exception[]
+        {
+            new IOException("private-unrelated-path"),
+            new ArgumentException("private-invariant-detail")
+        })
+        {
+            var operation = (Func<CancellationToken, Task>)(_ =>
+                Task.FromException(fault));
+            await (Task)(runOperation.Invoke(
+                controller,
+                [operation, CancellationToken.None])
+                ?? throw new InvalidOperationException("The operation task was not returned."));
+        }
+
+        ApplicationFault report = reporter.Capture().Single();
+        Assert.AreEqual(ApplicationFaultCode.GgufChatOperationUnexpected, report.Code);
+        Assert.IsFalse(report.ToString().Contains("private", StringComparison.Ordinal));
+        session.AllowDisposal();
+        await controller.DisposeAsync();
+    }
     [UITestMethod]
     [TestCategory("WinUI")]
     public async Task ConcurrentRetirementCallersAwaitTheSameSessionDisposal()
@@ -119,7 +161,7 @@ public sealed class ChatDemoControllerLifetimeTests
             BindingFlags.Instance | BindingFlags.NonPublic)
             ?? throw new InvalidOperationException("The operation boundary was not found.");
         var operation = (Func<CancellationToken, Task>)(_ => Task.FromException(
-            new IOException(@"private path C:\Users\private\history.json")));
+            new ChatHistoryUnavailableException()));
 
         await (Task)(runOperation.Invoke(controller, [operation, CancellationToken.None])
             ?? throw new InvalidOperationException("The operation task was not returned."));

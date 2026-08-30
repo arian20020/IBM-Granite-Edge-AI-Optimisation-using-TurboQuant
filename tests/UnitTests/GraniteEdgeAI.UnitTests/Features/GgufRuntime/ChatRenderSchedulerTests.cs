@@ -1,4 +1,5 @@
 using GraniteEdgeAI.Features.GgufRuntime;
+using GraniteEdgeAI.Features.ApplicationFaults;
 
 namespace GraniteEdgeAI.UnitTests.Features.GgufRuntime;
 
@@ -147,5 +148,31 @@ public sealed class ChatRenderSchedulerTests
         Assert.IsFalse(dispose.Wait(TimeSpan.FromMilliseconds(250)));
         releaseRender.Set();
         await Task.WhenAll(drain, dispose).WaitAsync(TimeSpan.FromSeconds(5));
+    }
+
+    [TestMethod]
+    public void QueuedRenderProgrammingFaultDoesNotEscapeDispatcherCallback()
+    {
+        Action? queued = null;
+        var reporter = new BoundedApplicationFaultReporter(2);
+        using var scheduler = new ChatRenderScheduler(
+            callback =>
+            {
+                queued = callback;
+                return true;
+            },
+            () => throw new InvalidOperationException("private-render-detail"),
+            exception => reporter.Report(ApplicationFault.FromException(
+                ApplicationFaultCode.GgufChatOperationUnexpected,
+                exception)));
+
+        scheduler.Request();
+
+        Assert.IsNotNull(queued);
+        queued!();
+        ApplicationFault report = reporter.Capture().Single();
+        Assert.AreEqual(ApplicationFaultCode.GgufChatOperationUnexpected, report.Code);
+        Assert.AreEqual(ApplicationFaultClassification.InvalidOperation, report.Classification);
+        Assert.IsFalse(report.ToString().Contains("private-render-detail", StringComparison.Ordinal));
     }
 }

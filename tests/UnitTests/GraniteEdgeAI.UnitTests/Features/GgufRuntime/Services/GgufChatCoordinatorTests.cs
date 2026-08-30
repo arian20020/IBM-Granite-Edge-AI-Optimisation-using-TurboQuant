@@ -461,8 +461,8 @@ public sealed class GgufChatCoordinatorTests
         internal int SaveCount { get; private set; }
         internal ChatConversation? LastSaved { get; private set; }
 
-        public Task<IReadOnlyList<ChatConversation>> LoadAsync(CancellationToken cancellationToken) =>
-            Task.FromResult<IReadOnlyList<ChatConversation>>(records.Values.ToArray());
+        public Task<ChatHistoryLoadResult> LoadAsync(CancellationToken cancellationToken) =>
+            Task.FromResult(new ChatHistoryLoadResult(records.Values.ToArray(), false));
 
         public Task SaveAsync(ChatConversation conversation, CancellationToken cancellationToken)
         {

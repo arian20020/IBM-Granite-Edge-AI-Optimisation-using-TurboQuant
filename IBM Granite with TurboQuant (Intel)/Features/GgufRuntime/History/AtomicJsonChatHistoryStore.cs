@@ -29,14 +29,32 @@ internal sealed class AtomicJsonChatHistoryStore : IChatHistoryStore
         }
 
         this.root = Path.GetFullPath(root);
-        Directory.CreateDirectory(this.root);
+        try
+        {
+            Directory.CreateDirectory(this.root);
+        }
+        catch (Exception exception) when (IsExpectedStorageFailure(exception))
+        {
+            throw new ChatHistoryUnavailableException();
+        }
     }
 
-    public async Task<IReadOnlyList<ChatConversation>> LoadAsync(
+    public async Task<ChatHistoryLoadResult> LoadAsync(
         CancellationToken cancellationToken)
     {
         var conversations = new List<ChatConversation>();
-        foreach (string file in Directory.EnumerateFiles(root, "*.json"))
+        bool hasUnavailableRecords = false;
+        IEnumerable<string> files;
+        try
+        {
+            files = Directory.EnumerateFiles(root, "*.json").ToArray();
+        }
+        catch (Exception exception) when (IsExpectedStorageFailure(exception))
+        {
+            throw new ChatHistoryUnavailableException();
+        }
+
+        foreach (string file in files)
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (!Guid.TryParseExact(Path.GetFileNameWithoutExtension(file), "N", out Guid id))
@@ -67,15 +85,15 @@ internal sealed class AtomicJsonChatHistoryStore : IChatHistoryStore
                     conversations.Add(conversation);
                 }
             }
-            catch (Exception exception) when (
-                exception is JsonException or IOException or UnauthorizedAccessException or
-                    ArgumentException)
+            catch (Exception exception) when (IsExpectedRecordFailure(exception))
             {
-                // One damaged record cannot hide the remaining local history.
+                hasUnavailableRecords = true;
             }
         }
 
-        return conversations.OrderByDescending(item => item.UpdatedUtc).ToArray();
+        return new ChatHistoryLoadResult(
+            conversations.OrderByDescending(item => item.UpdatedUtc).ToArray(),
+            hasUnavailableRecords);
     }
 
     public async Task SaveAsync(
@@ -110,6 +128,10 @@ internal sealed class AtomicJsonChatHistoryStore : IChatHistoryStore
 
             File.Move(temporary, destination, overwrite: true);
         }
+        catch (Exception exception) when (IsExpectedStorageFailure(exception))
+        {
+            throw new ChatHistoryUnavailableException();
+        }
         finally
         {
             if (File.Exists(temporary))
@@ -122,22 +144,36 @@ internal sealed class AtomicJsonChatHistoryStore : IChatHistoryStore
     public Task DeleteAsync(Guid conversationId, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        File.Delete(GetFile(conversationId));
-        return Task.CompletedTask;
+        try
+        {
+            File.Delete(GetFile(conversationId));
+            return Task.CompletedTask;
+        }
+        catch (Exception exception) when (IsExpectedStorageFailure(exception))
+        {
+            throw new ChatHistoryUnavailableException();
+        }
     }
 
     public Task ClearAsync(CancellationToken cancellationToken)
     {
-        foreach (string file in Directory.EnumerateFiles(root, "*.json"))
+        try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (Guid.TryParseExact(Path.GetFileNameWithoutExtension(file), "N", out _))
+            foreach (string file in Directory.EnumerateFiles(root, "*.json"))
             {
-                File.Delete(file);
+                cancellationToken.ThrowIfCancellationRequested();
+                if (Guid.TryParseExact(Path.GetFileNameWithoutExtension(file), "N", out _))
+                {
+                    File.Delete(file);
+                }
             }
-        }
 
-        return Task.CompletedTask;
+            return Task.CompletedTask;
+        }
+        catch (Exception exception) when (IsExpectedStorageFailure(exception))
+        {
+            throw new ChatHistoryUnavailableException();
+        }
     }
 
     private string GetFile(Guid id)
@@ -149,4 +185,10 @@ internal sealed class AtomicJsonChatHistoryStore : IChatHistoryStore
 
         return Path.Combine(root, $"{id:N}.json");
     }
+
+    private static bool IsExpectedRecordFailure(Exception exception) =>
+        exception is JsonException || IsExpectedStorageFailure(exception);
+
+    private static bool IsExpectedStorageFailure(Exception exception) =>
+        exception is IOException or UnauthorizedAccessException;
 }

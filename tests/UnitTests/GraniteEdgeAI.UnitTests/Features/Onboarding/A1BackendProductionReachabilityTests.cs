@@ -1,4 +1,9 @@
 using GraniteEdgeAI.UnitTests.Features.ModelOptimization;
+using GraniteEdgeAI.Features.ModelHardwareCompatibility.Infrastructure;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation;
+using GraniteEdgeAI.OpenVino.WorkerClient;
+using GraniteEdgeAI.UnitTests.Features.GgufRuntime;
+using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace GraniteEdgeAI.UnitTests.Features.Onboarding;
@@ -7,37 +12,52 @@ namespace GraniteEdgeAI.UnitTests.Features.Onboarding;
 public sealed class A1BackendProductionReachabilityTests
 {
     [TestMethod]
-    public void CompatibilityOrchestrator_HasExactlyOneProductionRegistration()
+    public async Task CompatibilityAuthority_CapturesOneFreshFactSetPerEvaluation()
     {
-        string source = ReadProduction(
-            "Features", "Onboarding", "OnboardingShellPage.xaml.cs");
+        var source = new CountingFreshSource();
+        var orchestrator = new CompatibilityEvaluationOrchestrator(
+            source,
+            TimeProvider.System);
+        int evaluatorCalls = 0;
 
-        Assert.AreEqual(1, Occurrences(
-            source, "new CompatibilityEvaluationOrchestrator("));
+        await orchestrator.EvaluateAuthorityAsync(
+            new HashSet<string>(StringComparer.Ordinal),
+            (fresh, optedIn, evaluatedAtUtc, cancellationToken) =>
+            {
+                evaluatorCalls++;
+                return new CompatibilityEvaluation(
+                    CompatibilityEngine.RunWithAvailableAdapters(cancellationToken),
+                    null,
+                    null);
+            },
+            CancellationToken.None);
+
+        Assert.AreEqual(1, source.CaptureCount);
+        Assert.AreEqual(1, evaluatorCalls);
     }
 
     [TestMethod]
-    public void OptimizationFactory_HasExactlyOneProductionRegistration()
+    public void OptimizationAuthority_RejectsASecondBuilderForTheSameRoute()
     {
-        string source = ReadProduction(
-            "Features", "Onboarding", "OnboardingShellPage.xaml.cs");
-
-        Assert.AreEqual(1, Occurrences(
-            source, "new OptimizationBackendCompositionFactory("));
+        new OptimizationBackendCompositionFactoryTests()
+            .DuplicateRouteAuthorityIsRejected();
     }
 
     [TestMethod]
-    public void OfficialWorkerAuthority_HasOneRegistrationAndNoDuplicateInventory()
+    public void OfficialWorkerAuthority_ExposesOneClosedImmutableInventory()
     {
-        string source = ReadProduction(
-            "Features", "ModelInspection", "Services",
-            "ModelInspectionServiceComposition.cs");
+        const string digest =
+            "1111111111111111111111111111111111111111111111111111111111111111";
+        var installation = OpenVinoOfficialWorkerAuthority.CreateInstallation(
+            Path.GetFullPath("official-worker"),
+            digest);
+        var inventory = (IDictionary<string, OpenVinoWorkerBinaryMachine>)
+            installation.ExpectedBinaryMachines;
 
-        Assert.AreEqual(1, Occurrences(
-            source, "OpenVinoOfficialWorkerAuthority.CreateInstallation("));
-        Assert.AreEqual(0, Occurrences(source, "OfficialBinaryMachines("));
-        Assert.AreEqual(0, Occurrences(
-            source, "OpenVinoWorkerInstallation installation = new("));
+        Assert.HasCount(9, inventory);
+        Assert.ThrowsExactly<NotSupportedException>(() => inventory.Add(
+            "second-authority.dll",
+            OpenVinoWorkerBinaryMachine.Amd64));
     }
 
     [TestMethod]
@@ -79,6 +99,14 @@ public sealed class A1BackendProductionReachabilityTests
             owner, "retirementTask = retirementStarter.Task;"));
         Assert.AreEqual(1, Occurrences(
             owner, "_ = CompleteRetirementAsync(retirementStarter);"));
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task GgufChatAuthority_TransfersOneInitializedRetirableOwner()
+    {
+        await new ChatDemoControllerInitializationTests()
+            .SuccessfulFactoryReturnsInitializedOwnerAndRetiresOnce();
     }
 
     [TestMethod]
@@ -159,5 +187,21 @@ public sealed class A1BackendProductionReachabilityTests
             count++;
         }
         return count;
+    }
+
+    private sealed class CountingFreshSource : ICompatibilityFreshResourcesSource
+    {
+        internal int CaptureCount { get; private set; }
+
+        public ValueTask<CompatibilityFreshResourcesInput> CaptureAsync(
+            CancellationToken cancellationToken)
+        {
+            CaptureCount++;
+            return ValueTask.FromResult(CompatibilityFreshResourcesInput.Create(
+                8UL * 1024 * 1024 * 1024,
+                availableDedicatedDeviceMemoryBytes: null,
+                32UL * 1024 * 1024 * 1024,
+                DateTimeOffset.UtcNow));
+        }
     }
 }
