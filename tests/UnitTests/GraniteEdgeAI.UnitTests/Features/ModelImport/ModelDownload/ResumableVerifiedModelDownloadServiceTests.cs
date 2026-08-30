@@ -234,6 +234,51 @@ public sealed class ResumableVerifiedModelDownloadServiceTests
     }
 
     [TestMethod]
+    public async Task DownloadAsync_ConnectionCancellationUsesCallerToken()
+    {
+        using TestDownloadFixture fixture = TestDownloadFixture.Create([1, 2, 3, 4]);
+        var transport = new CancellationBlockingTransport();
+        var service = new ResumableVerifiedModelDownloadService(transport, fixture.Library);
+        using var cancellation = new CancellationTokenSource();
+
+        Task<ModelDownloadResult> operation = service.DownloadAsync(
+            fixture.Entry,
+            new InlineProgress<ModelDownloadProgress>(_ => { }),
+            cancellation.Token);
+        CancellationToken observed = await transport.Started.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.AreEqual(cancellation.Token, observed);
+        cancellation.Cancel();
+
+        ModelDownloadResult result = await operation.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.AreEqual("download-cancelled", result.ErrorCode);
+        Assert.IsFalse(await fixture.Library.FinalExistsAsync(fixture.Entry, CancellationToken.None));
+    }
+
+    [TestMethod]
+    public async Task DownloadAsync_ResponseReadCancellationUsesCallerToken()
+    {
+        var stream = new CancellationOnlyStream();
+        using TestDownloadFixture fixture = TestDownloadFixture.Create(
+            [1, 2, 3, 4],
+            customStream: stream,
+            inactivityTimeout: TimeSpan.FromMinutes(1));
+        using var cancellation = new CancellationTokenSource();
+
+        Task<ModelDownloadResult> operation = fixture.Service.DownloadAsync(
+            fixture.Entry,
+            new InlineProgress<ModelDownloadProgress>(_ => { }),
+            cancellation.Token);
+        CancellationToken observed = await stream.Started.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.IsFalse(observed.IsCancellationRequested);
+        cancellation.Cancel();
+
+        ModelDownloadResult result = await operation.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.IsTrue(observed.IsCancellationRequested);
+        Assert.AreEqual("download-cancelled", result.ErrorCode);
+        Assert.IsFalse(await fixture.Library.FinalExistsAsync(fixture.Entry, CancellationToken.None));
+    }
+
+    [TestMethod]
     public async Task DownloadAsync_CancelAtFirstDurableCheckpointCompletesPromptly()
     {
         byte[] payload = new byte[(8 * 1024 * 1024) + 1];
@@ -258,6 +303,50 @@ public sealed class ResumableVerifiedModelDownloadServiceTests
         Assert.AreEqual(ModelDownloadResultKind.Interrupted, result.Kind);
         Assert.AreEqual("download-cancelled", result.ErrorCode);
         Assert.IsFalse(await fixture.Library.FinalExistsAsync(fixture.Entry, CancellationToken.None));
+    }
+
+    [TestMethod]
+    [DataRow((int)ModelDownloadCancellationBoundary.Connection, false)]
+    [DataRow((int)ModelDownloadCancellationBoundary.ResponseRead, false)]
+    [DataRow((int)ModelDownloadCancellationBoundary.PartialWrite, false)]
+    [DataRow((int)ModelDownloadCancellationBoundary.CheckpointFlush, false)]
+    [DataRow((int)ModelDownloadCancellationBoundary.CheckpointWrite, false)]
+    [DataRow((int)ModelDownloadCancellationBoundary.IntegrityHash, true)]
+    [DataRow((int)ModelDownloadCancellationBoundary.FinalPublish, true)]
+    public async Task DownloadAsync_CancellationAtOwnedBoundarySettlesWithoutPublishing(
+        int boundaryValue,
+        bool durableResumeExpected)
+    {
+        ModelDownloadCancellationBoundary boundary = (ModelDownloadCancellationBoundary)boundaryValue;
+        using var cancellation = new CancellationTokenSource();
+        using TestDownloadFixture fixture = TestDownloadFixture.Create(
+            [1, 2, 3, 4],
+            boundaryObserver: (observed, observedToken) =>
+            {
+                if (observed == boundary)
+                {
+                    Assert.AreEqual(cancellation.Token, observedToken);
+                    cancellation.Cancel();
+                }
+                return ValueTask.CompletedTask;
+            });
+
+        ModelDownloadResult result = await fixture.Service.DownloadAsync(
+            fixture.Entry,
+            new InlineProgress<ModelDownloadProgress>(_ => { }),
+            cancellation.Token).WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.AreEqual(ModelDownloadResultKind.Interrupted, result.Kind);
+        Assert.AreEqual("download-cancelled", result.ErrorCode);
+        Assert.IsFalse(await fixture.Library.FinalExistsAsync(fixture.Entry, CancellationToken.None));
+        ModelDownloadResumeInfo? resume = await fixture.Service.GetResumeInfoAsync(
+            fixture.Entry,
+            CancellationToken.None);
+        Assert.AreEqual(durableResumeExpected, resume is not null);
+        if (resume is not null) Assert.AreEqual(fixture.Entry.ExpectedByteLength, resume.DownloadedBytes);
+        await using ModelDownloadLibraryLease reacquired = await fixture.Library.AcquireLeaseAsync(
+            fixture.Entry,
+            CancellationToken.None).AsTask().WaitAsync(TimeSpan.FromSeconds(2));
     }
 
     [TestMethod]
@@ -290,13 +379,18 @@ public sealed class ResumableVerifiedModelDownloadServiceTests
             ModelDownloadCatalogEntry entry,
             AppModelLibrary library,
             FakeTransport transport,
-            TimeSpan? inactivityTimeout)
+            TimeSpan? inactivityTimeout,
+            Func<ModelDownloadCancellationBoundary, CancellationToken, ValueTask>? boundaryObserver = null)
         {
             _root = root;
             Entry = entry;
             Library = library;
             Transport = transport;
-            Service = new ResumableVerifiedModelDownloadService(transport, library, inactivityTimeout);
+            Service = new ResumableVerifiedModelDownloadService(
+                transport,
+                library,
+                inactivityTimeout,
+                boundaryObserver);
         }
 
         internal ModelDownloadCatalogEntry Entry { get; }
@@ -314,7 +408,8 @@ public sealed class ResumableVerifiedModelDownloadServiceTests
             Exception? transportException = null,
             Stream? customStream = null,
             TimeSpan? inactivityTimeout = null,
-            string responseEntityTag = "\"v1\"")
+            string responseEntityTag = "\"v1\"",
+            Func<ModelDownloadCancellationBoundary, CancellationToken, ValueTask>? boundaryObserver = null)
         {
             string root = Path.Combine(
                 Path.GetTempPath(),
@@ -341,7 +436,13 @@ public sealed class ResumableVerifiedModelDownloadServiceTests
                 transportException,
                 customStream,
                 responseEntityTag);
-            return new TestDownloadFixture(root, entry, library, transport, inactivityTimeout);
+            return new TestDownloadFixture(
+                root,
+                entry,
+                library,
+                transport,
+                inactivityTimeout,
+                boundaryObserver);
         }
 
         internal async Task SeedPartialAsync(byte[] bytes, string entityTag)
@@ -429,6 +530,7 @@ public sealed class ResumableVerifiedModelDownloadServiceTests
 
     private sealed class CancellationOnlyStream : Stream
     {
+        internal TaskCompletionSource<CancellationToken> Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public override bool CanRead => true;
         public override bool CanSeek => false;
         public override bool CanWrite => false;
@@ -443,8 +545,25 @@ public sealed class ResumableVerifiedModelDownloadServiceTests
             Memory<byte> buffer,
             CancellationToken cancellationToken = default)
         {
+            Started.TrySetResult(cancellationToken);
             await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
             return 0;
+        }
+    }
+
+    private sealed class CancellationBlockingTransport : IModelDownloadTransport
+    {
+        internal TaskCompletionSource<CancellationToken> Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public async Task<ModelDownloadTransportResponse> OpenAsync(
+            ModelDownloadCatalogEntry entry,
+            long offset,
+            string? entityTag,
+            CancellationToken cancellationToken)
+        {
+            Started.TrySetResult(cancellationToken);
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            throw new InvalidOperationException("Cancellation must end the connection wait.");
         }
     }
 

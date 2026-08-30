@@ -14,6 +14,7 @@ public sealed partial class OptimizationDestinationCard : UserControl
     private OptimizationExportController? _exportController;
     private readonly object _retirementGate = new();
     private Task _detachedOperations = Task.CompletedTask;
+    private Task _observedExportOperation = Task.CompletedTask;
     private Task? _retirementTask;
     private bool _retired;
 
@@ -29,6 +30,7 @@ public sealed partial class OptimizationDestinationCard : UserControl
     internal OptimizationExportViewState ExportState => _exportController?.State ?? OptimizationExportViewState.Unbound();
     internal bool IsActionEnabled(OptimizationCommand command) => DestinationCore.IsActionEnabled(command);
     internal bool TryRequestAction(OptimizationCommand command) => DestinationCore.TryRequestAction(command);
+    internal Task ObservedExportOperation => _observedExportOperation;
 
     internal void Apply(OptimizationPresentationState presentation)
     {
@@ -92,9 +94,9 @@ public sealed partial class OptimizationDestinationCard : UserControl
         }
     }
 
-    private async void OnActionRequested(OptimizationCommand command)
+    private void OnActionRequested(OptimizationCommand command)
     {
-        if (command == OptimizationCommand.Save) { await TryStartExportAsync(); return; }
+        if (command == OptimizationCommand.Save) { _observedExportOperation = ObserveExportOperationAsync(TryStartExportAsync()); return; }
         ActionRequested?.Invoke(command);
     }
 
@@ -145,5 +147,12 @@ public sealed partial class OptimizationDestinationCard : UserControl
     }
 
     private void CancelExportButton_Click(object sender, RoutedEventArgs eventArguments) => TryCancelExport();
-    private async void RetryExportButton_Click(object sender, RoutedEventArgs eventArguments) => await TryRetryExportAsync();
+    private void RetryExportButton_Click(object sender, RoutedEventArgs eventArguments) =>
+        _observedExportOperation = ObserveExportOperationAsync(TryRetryExportAsync());
+
+    private static async Task ObserveExportOperationAsync(Task<bool> operation)
+    {
+        try { await operation.ConfigureAwait(false); }
+        catch (Exception) { /* The controller records the exception type; the UI boundary only observes it. */ }
+    }
 }

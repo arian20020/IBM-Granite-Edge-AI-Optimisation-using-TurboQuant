@@ -2,6 +2,7 @@ using GraniteEdgeAI.Features.ModelImport.Selection;
 using GraniteEdgeAI.Features.ModelImport.QuickScan;
 using Microsoft.UI.Xaml.Navigation;
 using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -184,10 +185,29 @@ namespace GraniteEdgeAI.Features.ModelImport
                 CancelActiveScan();
                 ResetToAwaitingSelection();
                 Task detachCard = RecommendedModelDownloadCard.RetireAsync();
-                _navigationRetirementTask = _ownsModelDownloadCoordinator
-                    ? Task.WhenAll(detachCard, _modelDownloadCoordinator.RetireAsync())
-                    : detachCard;
+                Task retireCoordinator = _ownsModelDownloadCoordinator
+                    ? _modelDownloadCoordinator.RetireAsync()
+                    : Task.CompletedTask;
+                _navigationRetirementTask = Task.WhenAll(
+                    detachCard,
+                    retireCoordinator,
+                    ObserveAutomaticHandoffRetirementAsync(
+                        _automaticDownloadHandoffTask,
+                        _automaticHandoffRetirementTimeout));
                 return _navigationRetirementTask;
+            }
+        }
+
+        private static async Task ObserveAutomaticHandoffRetirementAsync(Task handoff, TimeSpan timeout)
+        {
+            try { await handoff.WaitAsync(timeout); }
+            catch (TimeoutException)
+            {
+                Trace.TraceWarning("Verified-download handoff retirement detached after its bounded cleanup interval.");
+            }
+            catch (Exception exception)
+            {
+                Trace.TraceWarning("Verified-download handoff retirement observed {0}.", exception.GetType().Name);
             }
         }
 

@@ -86,6 +86,23 @@ public sealed class OptimizationDestinationCardTests
     }
 
     [UITestMethod]
+    public async Task SaveButtonObservesUnexpectedProviderFaultWithoutUiEscape()
+    {
+        OptimizationDestinationCard card = new();
+        OptimizationPresentationState presentation = PersistentPresentation();
+        var service = new ThrowingExportService();
+        card.Apply(presentation);
+        Assert.IsTrue(card.BindVerifiedExport(Target(presentation.OptimizationPlanId), service));
+
+        Assert.IsTrue(card.TryRequestAction(OptimizationCommand.Save));
+        await service.Called.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await card.ObservedExportOperation.WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.AreEqual(OptimizationExportStateKind.Failed, card.ExportState.Kind);
+        Assert.AreEqual(OptimizationExportFailure.None, card.ExportState.Failure);
+    }
+
+    [UITestMethod]
     public void ExportControlsHaveStableAccessibleSemantics()
     {
         OptimizationDestinationCard card = new();
@@ -134,5 +151,18 @@ public sealed class OptimizationDestinationCardTests
         private readonly TaskCompletionSource<OptimizationExportResult> _completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public Task<OptimizationExportResult> ExportAsync(VerifiedPersistentExportTarget target, IProgress<OptimizationExportProgress> progress, CancellationToken cancellationToken) => _completion.Task;
         internal void Complete(OptimizationExportResult result) => _completion.SetResult(result);
+    }
+
+    private sealed class ThrowingExportService : IOptimizationExportService
+    {
+        internal TaskCompletionSource Called { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public Task<OptimizationExportResult> ExportAsync(VerifiedPersistentExportTarget target, IProgress<OptimizationExportProgress> progress, CancellationToken cancellationToken) =>
+            Throw();
+
+        private Task<OptimizationExportResult> Throw()
+        {
+            Called.TrySetResult();
+            throw new InvalidOperationException(@"C:\Users\private\provider.gguf?token=secret");
+        }
     }
 }

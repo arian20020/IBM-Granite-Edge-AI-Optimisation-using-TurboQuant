@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -61,7 +62,8 @@ internal sealed class OptimizationExportController
         CancellationTokenSource cancellation;
         OptimizationExportViewState started;
         long generation;
-        TaskCompletionSource<bool> completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        TaskCompletionSource start = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        Task<bool> operation;
         lock (_gate)
         {
             if (_retired || _activeGeneration is not null || _target is null
@@ -72,18 +74,21 @@ internal sealed class OptimizationExportController
             cancellation = new();
             _activeGeneration = generation;
             _activeCancellation = cancellation;
-            _activeTask = completion.Task;
+            operation = CompleteExportAsync(generation, target, cancellation, start.Task);
+            _activeTask = operation;
             _cancelledGeneration = null;
             _state = started = new(OptimizationExportStateKind.Running, "Choose where to save the verified model.", target, OptimizationExportStage.ChoosingDestination);
         }
         PublishState(started);
-        _ = CompleteExportAsync(generation, target, cancellation, completion);
-        return completion.Task;
+        start.TrySetResult();
+        return operation;
     }
 
-    private async Task CompleteExportAsync(long generation, VerifiedPersistentExportTarget target, CancellationTokenSource cancellation, TaskCompletionSource<bool> completion)
+    private async Task<bool> CompleteExportAsync(long generation, VerifiedPersistentExportTarget target, CancellationTokenSource cancellation, Task start)
     {
-        OptimizationExportResult result;
+        await start.ConfigureAwait(false);
+        OptimizationExportResult? result = null;
+        Exception? unexpectedFault = null;
         bool mayInvoke;
         lock (_gate)
         {
@@ -93,46 +98,53 @@ internal sealed class OptimizationExportController
         {
             result = OptimizationExportResult.Cancelled();
         }
-        else try { result = await _service.ExportAsync(target, new InlineProgress<OptimizationExportProgress>(v => ApplyProgress(generation, target, v)), cancellation.Token); }
+        else try { result = await _service.ExportAsync(target, new InlineProgress<OptimizationExportProgress>(v => ApplyProgress(generation, target, v)), cancellation.Token).ConfigureAwait(false); }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { result = OptimizationExportResult.Cancelled(); }
-        catch { result = OptimizationExportResult.Failed(OptimizationExportFailure.PublicationFailure); }
-        result ??= OptimizationExportResult.Failed(OptimizationExportFailure.PublicationFailure);
-        await Task.Yield();
-
+        catch (Exception exception) { unexpectedFault = exception; }
+        if (unexpectedFault is null && result is null)
+            unexpectedFault = new InvalidOperationException("The export provider returned no result.");
+        // The fallback is never published when unexpectedFault is set; it only keeps the
+        // typed terminal branches total without constructing the invalid Failure.None value.
+        OptimizationExportResult settledResult = result ?? OptimizationExportResult.Failed(OptimizationExportFailure.PublicationFailure);
         OptimizationExportViewState? completed = null;
         lock (_gate)
         {
-            if (_activeGeneration != generation) { cancellation.Dispose(); completion.TrySetResult(true); return; }
+            if (_activeGeneration != generation)
+            {
+                cancellation.Dispose();
+                if (unexpectedFault is not null) ExceptionDispatchInfo.Capture(unexpectedFault).Throw();
+                return true;
+            }
             if (_retired) { _target = null; _state = OptimizationExportViewState.Unbound(); }
+            else if (unexpectedFault is not null)
+                _state = completed = UnexpectedFault(target);
             else if (_cancellationFailureGeneration == generation)
                 _state = completed = ToTerminalState(target, OptimizationExportResult.Failed(OptimizationExportFailure.CleanupFailure));
-            else if (_cancelledGeneration == generation && result.Kind == OptimizationExportResultKind.Cancelled)
-                _state = completed = ToTerminalState(target, result);
-            else if (_cancelledGeneration == generation && result.Kind == OptimizationExportResultKind.Succeeded)
+            else if (_cancelledGeneration == generation && settledResult.Kind == OptimizationExportResultKind.Cancelled)
+                _state = completed = ToTerminalState(target, settledResult);
+            else if (_cancelledGeneration == generation && settledResult.Kind == OptimizationExportResultKind.Succeeded)
                 _state = completed = ToTerminalState(target, OptimizationExportResult.Failed(OptimizationExportFailure.CleanupFailure));
-            else _state = completed = ToTerminalState(target, result);
+            else _state = completed = ToTerminalState(target, settledResult);
             _activeGeneration = null; _activeCancellation = null; _activeTask = null;
             _cancelledGeneration = null; _cancellationFailureGeneration = null;
         }
         cancellation.Dispose();
         if (completed is not null) PublishState(completed);
-        completion.TrySetResult(true);
+        if (unexpectedFault is not null) ExceptionDispatchInfo.Capture(unexpectedFault).Throw();
+        return true;
     }
 
     internal bool TryCancel()
     {
-        CancellationTokenSource cancellation;
         OptimizationExportViewState cancelling;
-        long generation;
         lock (_gate)
         {
             if (_retired || _activeGeneration is not long active || _activeCancellation is null || _state.Kind != OptimizationExportStateKind.Running) return false;
-            generation = active; _cancelledGeneration = generation; cancellation = _activeCancellation;
+            _cancelledGeneration = active;
             _state = cancelling = _state with { Kind = OptimizationExportStateKind.Cancelling, StatusText = "Cancelling export and cleaning up incomplete output." };
+            if (!RequestCancellation(_activeCancellation)) _cancellationFailureGeneration = active;
+            PublishState(cancelling);
         }
-        bool requested = RequestCancellation(cancellation);
-        lock (_gate) if (_activeGeneration == generation && !requested) _cancellationFailureGeneration = generation;
-        PublishState(cancelling);
         return true;
     }
 
@@ -152,6 +164,7 @@ internal sealed class OptimizationExportController
         if (cancellation is not null) RequestCancellation(cancellation);
         try { await activeTask.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false); }
         catch (TimeoutException) { Trace.TraceWarning("Optimization-export retirement detached after its five-second cleanup boundary."); }
+        catch (Exception exception) { Trace.TraceWarning("Optimization-export retirement observed a settled {0} operation.", exception.GetType().Name); }
     }
 
     internal Task<bool> TryRetryAsync()
@@ -194,6 +207,9 @@ internal sealed class OptimizationExportController
     private static OptimizationExportViewState Failed(VerifiedPersistentExportTarget target, OptimizationExportFailure failure) =>
         new(OptimizationExportStateKind.Failed, FailureText(failure), target, Failure: failure);
 
+    private static OptimizationExportViewState UnexpectedFault(VerifiedPersistentExportTarget target) =>
+        new(OptimizationExportStateKind.Failed, "Export stopped because of an unexpected internal error. Try again.", target);
+
     private static string ProgressText(OptimizationExportStage stage) => stage switch
     {
         OptimizationExportStage.ChoosingDestination => "Choose where to save the verified model.",
@@ -222,7 +238,14 @@ internal sealed class OptimizationExportController
     }
 
     private static bool RequestCancellation(CancellationTokenSource cancellation)
-    { try { cancellation.Cancel(); return true; } catch (AggregateException) { return false; } }
+    {
+        try { cancellation.Cancel(); return true; }
+        catch (Exception exception)
+        {
+            Trace.TraceWarning("Optimization-export cancellation observed {0}.", exception.GetType().Name);
+            return false;
+        }
+    }
 
     private sealed class InlineProgress<T>(Action<T> report) : IProgress<T> { public void Report(T value) => report(value); }
 }

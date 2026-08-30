@@ -40,7 +40,7 @@ public sealed class OptimizationExportControllerTests
     }
 
     [TestMethod]
-    public async Task WrongDigestFailsClosedAndProviderDetailsStayBounded()
+    public async Task WrongDigestFailsClosed()
     {
         var mismatch = new OptimizationExportController(new ImmediateService(
             OptimizationExportResult.Succeeded(new OptimizationExportReceipt(
@@ -50,11 +50,109 @@ public sealed class OptimizationExportControllerTests
         Assert.IsTrue(await mismatch.TryStartAsync());
         Assert.AreEqual(OptimizationExportFailure.IntegrityMismatch, mismatch.State.Failure);
 
-        var throwing = new OptimizationExportController(new ThrowingService());
-        throwing.Bind(Target());
-        Assert.IsTrue(await throwing.TryStartAsync());
-        Assert.AreEqual(OptimizationExportFailure.PublicationFailure, throwing.State.Failure);
-        Assert.IsFalse(throwing.State.StatusText.Contains("C:\\", StringComparison.Ordinal));
+    }
+
+    [TestMethod]
+    public async Task TypedPublicationFailureRemainsAnOperationalFailure()
+    {
+        var controller = new OptimizationExportController(new ImmediateService(
+            OptimizationExportResult.Failed(OptimizationExportFailure.PublicationFailure)));
+        controller.Bind(Target());
+
+        Assert.IsTrue(await controller.TryStartAsync());
+
+        Assert.AreEqual(OptimizationExportStateKind.Failed, controller.State.Kind);
+        Assert.AreEqual(OptimizationExportFailure.PublicationFailure, controller.State.Failure);
+    }
+
+    [TestMethod]
+    public async Task NullProviderResultIsAnUnexpectedFaultNotPublicationFailure()
+    {
+        var controller = new OptimizationExportController(new NullResultService());
+        controller.Bind(Target());
+
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => controller.TryStartAsync());
+
+        Assert.AreEqual(OptimizationExportStateKind.Failed, controller.State.Kind);
+        Assert.AreEqual(OptimizationExportFailure.None, controller.State.Failure);
+    }
+
+    [TestMethod]
+    public async Task ProviderOwnedCancellationIsAnUnexpectedFault()
+    {
+        var controller = new OptimizationExportController(new ForeignCancellationService());
+        controller.Bind(Target());
+
+        await Assert.ThrowsExactlyAsync<OperationCanceledException>(() => controller.TryStartAsync());
+
+        Assert.AreEqual(OptimizationExportStateKind.Failed, controller.State.Kind);
+        Assert.AreEqual(OptimizationExportFailure.None, controller.State.Failure);
+    }
+
+    [TestMethod]
+    public async Task UnexpectedProviderFaultPropagatesAndSettlesForRetry()
+    {
+        var service = new FaultThenSuccessService();
+        var controller = new OptimizationExportController(service);
+        VerifiedPersistentExportTarget target = Target();
+        controller.Bind(target);
+
+        InvalidOperationException fault = await Assert.ThrowsExactlyAsync<InvalidOperationException>(
+            () => controller.TryStartAsync());
+
+        Assert.AreEqual(FaultThenSuccessService.PrivateFault, fault.Message);
+        Assert.AreEqual(OptimizationExportStateKind.Failed, controller.State.Kind);
+        Assert.AreEqual(OptimizationExportFailure.None, controller.State.Failure);
+        Assert.IsFalse(controller.State.StatusText.Contains("C:\\", StringComparison.Ordinal));
+        Assert.IsTrue(await controller.TryRetryAsync());
+        Assert.AreEqual(2, service.CallCount);
+        Assert.AreEqual(OptimizationExportStateKind.Succeeded, controller.State.Kind);
+    }
+
+    [TestMethod]
+    public async Task LateProgressFromFaultedGenerationCannotReplaceRetrySuccess()
+    {
+        var service = new FaultThenSuccessService();
+        var controller = new OptimizationExportController(service);
+        controller.Bind(Target());
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => controller.TryStartAsync());
+        Assert.IsTrue(await controller.TryRetryAsync());
+
+        service.ReportFirstGenerationProgress();
+
+        Assert.AreEqual(OptimizationExportStateKind.Succeeded, controller.State.Kind);
+    }
+
+    [TestMethod]
+    public async Task UnexpectedProviderFaultAllowsExplicitRebind()
+    {
+        var controller = new OptimizationExportController(new FaultThenSuccessService());
+        controller.Bind(Target());
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => controller.TryStartAsync());
+
+        controller.Bind(Target());
+
+        Assert.AreEqual(OptimizationExportStateKind.Ready, controller.State.Kind);
+        Assert.IsTrue(await controller.TryStartAsync());
+        Assert.AreEqual(OptimizationExportStateKind.Succeeded, controller.State.Kind);
+    }
+
+    [TestMethod]
+    public async Task RetirementDuringUnexpectedFaultIsBoundedAndLeavesUnboundState()
+    {
+        var service = new DeferredFaultService();
+        var controller = new OptimizationExportController(service);
+        controller.Bind(Target());
+        Task<bool> operation = controller.TryStartAsync();
+        await service.Started.WaitAsync(TimeSpan.FromSeconds(2));
+
+        Task retirement = controller.RetireAsync();
+        service.Fault();
+
+        await retirement.WaitAsync(TimeSpan.FromSeconds(2));
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => operation);
+        Assert.AreEqual(OptimizationExportStateKind.Unbound, controller.State.Kind);
+        Assert.IsFalse(await controller.TryStartAsync());
     }
 
     [TestMethod]
@@ -138,9 +236,55 @@ public sealed class OptimizationExportControllerTests
         public Task<OptimizationExportResult> ExportAsync(VerifiedPersistentExportTarget target, IProgress<OptimizationExportProgress> progress, CancellationToken cancellationToken) => Task.FromResult(result);
     }
 
-    private sealed class ThrowingService : IOptimizationExportService
+    private sealed class FaultThenSuccessService : IOptimizationExportService
+    {
+        internal const string PrivateFault = @"C:\Users\person\output.gguf?token=secret";
+        private IProgress<OptimizationExportProgress>? _firstProgress;
+        internal int CallCount { get; private set; }
+
+        public Task<OptimizationExportResult> ExportAsync(VerifiedPersistentExportTarget target, IProgress<OptimizationExportProgress> progress, CancellationToken cancellationToken)
+        {
+            CallCount++;
+            if (CallCount == 1)
+            {
+                _firstProgress = progress;
+                throw new InvalidOperationException(PrivateFault);
+            }
+            return Task.FromResult(OptimizationExportResult.Succeeded(Receipt(target)));
+        }
+
+        internal void ReportFirstGenerationProgress() =>
+            _firstProgress!.Report(new OptimizationExportProgress(OptimizationExportStage.Writing, 0.25));
+    }
+
+    private sealed class NullResultService : IOptimizationExportService
     {
         public Task<OptimizationExportResult> ExportAsync(VerifiedPersistentExportTarget target, IProgress<OptimizationExportProgress> progress, CancellationToken cancellationToken) =>
-            throw new InvalidOperationException(@"C:\Users\person\output.gguf?token=secret");
+            Task.FromResult<OptimizationExportResult>(null!);
+    }
+
+    private sealed class ForeignCancellationService : IOptimizationExportService
+    {
+        public Task<OptimizationExportResult> ExportAsync(VerifiedPersistentExportTarget target, IProgress<OptimizationExportProgress> progress, CancellationToken cancellationToken)
+        {
+            using var foreign = new CancellationTokenSource();
+            foreign.Cancel();
+            throw new OperationCanceledException(foreign.Token);
+        }
+    }
+
+    private sealed class DeferredFaultService : IOptimizationExportService
+    {
+        private readonly TaskCompletionSource _started = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource<OptimizationExportResult> _completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal Task Started => _started.Task;
+
+        public Task<OptimizationExportResult> ExportAsync(VerifiedPersistentExportTarget target, IProgress<OptimizationExportProgress> progress, CancellationToken cancellationToken)
+        {
+            _started.TrySetResult();
+            return _completion.Task;
+        }
+
+        internal void Fault() => _completion.TrySetException(new InvalidOperationException(FaultThenSuccessService.PrivateFault));
     }
 }

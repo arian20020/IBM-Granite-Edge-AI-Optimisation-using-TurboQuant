@@ -21,11 +21,16 @@ internal sealed class AppModelLibrary
     private readonly string _stateRoot;
     private readonly string _locksRoot;
     private readonly Func<string, long> _availableFreeSpace;
+    private readonly Func<ModelDownloadCancellationBoundary, CancellationToken, ValueTask>? _boundaryObserver;
 
-    internal AppModelLibrary(string root, Func<string, long> availableFreeSpace)
+    internal AppModelLibrary(
+        string root,
+        Func<string, long> availableFreeSpace,
+        Func<ModelDownloadCancellationBoundary, CancellationToken, ValueTask>? boundaryObserver = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(root);
         _availableFreeSpace = availableFreeSpace ?? throw new ArgumentNullException(nameof(availableFreeSpace));
+        _boundaryObserver = boundaryObserver;
         _root = Path.GetFullPath(root);
         _modelsRoot = ContainedDirectory("Models");
         _partialRoot = ContainedDirectory("Partial");
@@ -70,7 +75,7 @@ internal sealed class AppModelLibrary
         return ValueTask.FromResult(new ModelDownloadLibraryLease(stream, lockPath));
     }
 
-    internal Task<Stream> OpenPartialWriteAsync(
+    internal async Task<Stream> OpenPartialWriteAsync(
         ModelDownloadCatalogEntry entry,
         long truncateToLength,
         CancellationToken cancellationToken)
@@ -88,9 +93,18 @@ internal sealed class AppModelLibrary
             FileShare.Read,
             bufferSize: 128 * 1024,
             FileOptions.Asynchronous | FileOptions.SequentialScan);
-        stream.SetLength(truncateToLength);
-        stream.Position = truncateToLength;
-        return Task.FromResult<Stream>(stream);
+        try
+        {
+            stream.SetLength(truncateToLength);
+            stream.Position = truncateToLength;
+            await ObserveBoundaryAsync(ModelDownloadCancellationBoundary.PartialWrite, cancellationToken);
+            return stream;
+        }
+        catch
+        {
+            await stream.DisposeAsync();
+            throw;
+        }
     }
 
     internal async Task WriteCheckpointAsync(
@@ -120,6 +134,7 @@ internal sealed class AppModelLibrary
                 bufferSize: 16 * 1024,
                 FileOptions.Asynchronous | FileOptions.WriteThrough))
             {
+                await ObserveBoundaryAsync(ModelDownloadCancellationBoundary.CheckpointWrite, cancellationToken);
                 await stream.WriteAsync(json, cancellationToken);
                 await stream.FlushAsync(cancellationToken);
             }
@@ -279,10 +294,11 @@ internal sealed class AppModelLibrary
             FileShare.Read,
             bufferSize: 128 * 1024,
             FileOptions.Asynchronous | FileOptions.SequentialScan);
+        await ObserveBoundaryAsync(ModelDownloadCancellationBoundary.IntegrityHash, cancellationToken);
         return await SHA256.HashDataAsync(stream, cancellationToken);
     }
 
-    internal Task<VerifiedDownloadedModel> PublishAsync(
+    internal async Task<VerifiedDownloadedModel> PublishAsync(
         ModelDownloadCatalogEntry entry,
         CancellationToken cancellationToken)
     {
@@ -294,15 +310,15 @@ internal sealed class AppModelLibrary
         }
 
         string finalPath = FinalPath(entry);
+        await ObserveBoundaryAsync(ModelDownloadCancellationBoundary.FinalPublish, cancellationToken);
         File.Move(partialPath, finalPath, overwrite: false);
         DeleteIfExists(StatePath(entry));
-        return Task.FromResult(
-            new VerifiedDownloadedModel(
+        return new VerifiedDownloadedModel(
                 finalPath,
                 entry.FileName,
                 entry.Id,
                 entry.ExpectedByteLength,
-                entry.ExpectedSha256));
+                entry.ExpectedSha256);
     }
 
     internal Task DiscardPartialAsync(
@@ -321,6 +337,16 @@ internal sealed class AppModelLibrary
         string path = Path.GetFullPath(Path.Combine(_root, name));
         EnsureContained(path);
         return path;
+    }
+
+    private async ValueTask ObserveBoundaryAsync(
+        ModelDownloadCancellationBoundary boundary,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (_boundaryObserver is not null)
+            await _boundaryObserver(boundary, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
     }
 
     private string PartialPath(ModelDownloadCatalogEntry entry) =>

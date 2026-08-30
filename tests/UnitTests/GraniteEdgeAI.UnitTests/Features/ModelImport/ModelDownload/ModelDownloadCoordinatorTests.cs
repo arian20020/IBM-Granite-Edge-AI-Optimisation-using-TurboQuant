@@ -30,6 +30,7 @@ public sealed class ModelDownloadCoordinatorTests
         await coordinator.StartAsync(50, allowMetered: false, CancellationToken.None);
         ModelDownloadOperationId operationId = coordinator.State.OperationId!.Value;
 
+        Assert.IsFalse(coordinator.TryClaimVerifiedModel(ModelDownloadOperationId.CreateNew(), out _));
         Assert.IsTrue(coordinator.TryClaimVerifiedModel(operationId, out VerifiedDownloadedModel? first));
         Assert.AreSame(service.Model, first);
         Assert.IsFalse(coordinator.TryClaimVerifiedModel(operationId, out _));
@@ -173,6 +174,7 @@ public sealed class ModelDownloadCoordinatorTests
         Assert.AreEqual(ModelDownloadStage.Interrupted, coordinator.State.Stage);
         Assert.AreEqual("download-cancelled", coordinator.State.ErrorCode);
         Assert.AreEqual(0, handoffs);
+        Assert.IsFalse(coordinator.TryClaimVerifiedModel(coordinator.State.OperationId!.Value, out _));
     }
 
     [TestMethod]

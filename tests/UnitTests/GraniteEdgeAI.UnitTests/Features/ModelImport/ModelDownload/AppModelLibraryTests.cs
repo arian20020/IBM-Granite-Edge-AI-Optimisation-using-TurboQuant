@@ -134,6 +134,47 @@ public sealed class AppModelLibraryTests
     }
 
     [TestMethod]
+    [DataRow((int)ModelDownloadCancellationBoundary.PartialWrite)]
+    [DataRow((int)ModelDownloadCancellationBoundary.CheckpointWrite)]
+    [DataRow((int)ModelDownloadCancellationBoundary.IntegrityHash)]
+    [DataRow((int)ModelDownloadCancellationBoundary.FinalPublish)]
+    public async Task OwnedStorageOperationObservesCancellationWithHandleAndPublishesNoFinal(int boundaryValue)
+    {
+        ModelDownloadCancellationBoundary boundary = (ModelDownloadCancellationBoundary)boundaryValue;
+        using var root = new TemporaryModelLibraryRoot();
+        using var cancellation = new CancellationTokenSource();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var library = new AppModelLibrary(root.Path, _ => long.MaxValue, async (observed, token) =>
+        {
+            if (observed != boundary) return;
+            entered.TrySetResult();
+            await Task.Delay(Timeout.InfiniteTimeSpan, token);
+        });
+        ModelDownloadCatalogEntry entry = CreateSmallEntry(expectedBytes: 4);
+        if (boundary != ModelDownloadCancellationBoundary.PartialWrite)
+        {
+            await using Stream partial = await library.OpenPartialWriteAsync(entry, 0, CancellationToken.None);
+            await partial.WriteAsync(new byte[] { 1, 2, 3, 4 });
+        }
+
+        Task operation = boundary switch
+        {
+            ModelDownloadCancellationBoundary.PartialWrite => library.OpenPartialWriteAsync(entry, 0, cancellation.Token),
+            ModelDownloadCancellationBoundary.CheckpointWrite => library.WriteCheckpointAsync(entry, CreateState(entry, 4), cancellation.Token),
+            ModelDownloadCancellationBoundary.IntegrityHash => library.ComputePartialSha256Async(entry, cancellation.Token),
+            ModelDownloadCancellationBoundary.FinalPublish => library.PublishAsync(entry, cancellation.Token),
+            _ => throw new InvalidOperationException()
+        };
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        cancellation.Cancel();
+
+        await Assert.ThrowsExactlyAsync<TaskCanceledException>(() => operation.WaitAsync(TimeSpan.FromSeconds(2)));
+        Assert.IsFalse(await library.FinalExistsAsync(entry, CancellationToken.None));
+        await library.DiscardPartialAsync(entry, CancellationToken.None);
+        Assert.AreEqual(0, await library.GetPartialLengthAsync(entry, CancellationToken.None));
+    }
+
+    [TestMethod]
     public async Task DiscardPartialAsync_RemovesOnlyCatalogueDerivedPartialState()
     {
         using var root = new TemporaryModelLibraryRoot();

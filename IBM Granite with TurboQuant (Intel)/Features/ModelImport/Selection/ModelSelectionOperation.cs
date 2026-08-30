@@ -26,7 +26,7 @@ internal sealed class ModelSelectionOperation : IDisposable
             }
 
             retired = true;
-            cancellation.Cancel();
+            RequestCancellation();
         }
     }
 
@@ -52,11 +52,17 @@ internal sealed class ModelSelectionOperation : IDisposable
             if (!retired)
             {
                 retired = true;
-                cancellation.Cancel();
+                RequestCancellation();
             }
 
             DisposeCancellationSourceWhenQuiescent();
         }
+    }
+
+    private void RequestCancellation()
+    {
+        try { cancellation.Cancel(); }
+        catch (AggregateException) { }
     }
 
     private void DisposeCancellationSourceWhenQuiescent()

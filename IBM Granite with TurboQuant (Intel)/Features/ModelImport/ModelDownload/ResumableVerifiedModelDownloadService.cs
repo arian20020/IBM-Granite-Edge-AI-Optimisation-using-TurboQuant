@@ -4,6 +4,17 @@ using System.Security.Cryptography;
 
 namespace GraniteEdgeAI.Features.ModelImport.ModelDownload;
 
+internal enum ModelDownloadCancellationBoundary
+{
+    Connection,
+    ResponseRead,
+    PartialWrite,
+    CheckpointFlush,
+    CheckpointWrite,
+    IntegrityHash,
+    FinalPublish
+}
+
 internal sealed class ResumableVerifiedModelDownloadService : IModelDownloadService
 {
     private const int BufferSize = 128 * 1024;
@@ -13,15 +24,18 @@ internal sealed class ResumableVerifiedModelDownloadService : IModelDownloadServ
     private readonly IModelDownloadTransport _transport;
     private readonly AppModelLibrary _library;
     private readonly TimeSpan _inactivityTimeout;
+    private readonly Func<ModelDownloadCancellationBoundary, CancellationToken, ValueTask>? _boundaryObserver;
 
     internal ResumableVerifiedModelDownloadService(
         IModelDownloadTransport transport,
         AppModelLibrary library,
-        TimeSpan? inactivityTimeout = null)
+        TimeSpan? inactivityTimeout = null,
+        Func<ModelDownloadCancellationBoundary, CancellationToken, ValueTask>? boundaryObserver = null)
     {
         _transport = transport ?? throw new ArgumentNullException(nameof(transport));
         _library = library ?? throw new ArgumentNullException(nameof(library));
         _inactivityTimeout = inactivityTimeout ?? TimeSpan.FromSeconds(30);
+        _boundaryObserver = boundaryObserver;
         if (_inactivityTimeout <= TimeSpan.Zero)
         {
             throw new ArgumentOutOfRangeException(nameof(inactivityTimeout));
@@ -53,6 +67,7 @@ internal sealed class ResumableVerifiedModelDownloadService : IModelDownloadServ
 
         await using (lease)
         {
+            ModelDownloadCancellationBoundary phase = ModelDownloadCancellationBoundary.Connection;
             try
             {
                 VerifiedDownloadedModel? existing =
@@ -78,6 +93,8 @@ internal sealed class ResumableVerifiedModelDownloadService : IModelDownloadServ
                     await _library.RecoverAsync(entry, cancellationToken);
                 long requestedOffset = resume?.DownloadedBytes ?? 0;
 
+                await ObserveBoundaryAsync(ModelDownloadCancellationBoundary.Connection, cancellationToken);
+                phase = ModelDownloadCancellationBoundary.Connection;
                 await using ModelDownloadTransportResponse response = await _transport.OpenAsync(
                     entry,
                     requestedOffset,
@@ -124,11 +141,16 @@ internal sealed class ResumableVerifiedModelDownloadService : IModelDownloadServ
                 string? entityTag = response.EntityTag ?? resume?.EntityTag;
                 long downloaded = writeOffset;
                 long lastCheckpoint = writeOffset;
+                phase = ModelDownloadCancellationBoundary.PartialWrite;
                 await using Stream destination = await _library.OpenPartialWriteAsync(
                     entry,
                     writeOffset,
                     cancellationToken);
-                await WriteCheckpointAsync(entry, destination, downloaded, entityTag, cancellationToken);
+                if (downloaded > 0)
+                {
+                    phase = ModelDownloadCancellationBoundary.CheckpointFlush;
+                    await WriteCheckpointAsync(entry, destination, downloaded, entityTag, cancellationToken);
+                }
 
                 progress.Report(new ModelDownloadProgress(
                     ModelDownloadStage.Downloading,
@@ -139,6 +161,8 @@ internal sealed class ResumableVerifiedModelDownloadService : IModelDownloadServ
                 byte[] buffer = new byte[BufferSize];
                 while (true)
                 {
+                    phase = ModelDownloadCancellationBoundary.ResponseRead;
+                    await ObserveBoundaryAsync(ModelDownloadCancellationBoundary.ResponseRead, cancellationToken);
                     int read = await ReadWithInactivityTimeoutAsync(
                         response.Content,
                         buffer,
@@ -154,6 +178,8 @@ internal sealed class ResumableVerifiedModelDownloadService : IModelDownloadServ
                         return Failed("download-size-invalid");
                     }
 
+                    phase = ModelDownloadCancellationBoundary.PartialWrite;
+                    await ObserveBoundaryAsync(ModelDownloadCancellationBoundary.PartialWrite, cancellationToken);
                     await destination.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
                     downloaded += read;
                     bool reachedCheckpoint = downloaded - lastCheckpoint >= CheckpointIntervalBytes;
@@ -169,6 +195,7 @@ internal sealed class ResumableVerifiedModelDownloadService : IModelDownloadServ
 
                     if (reachedCheckpoint)
                     {
+                        phase = ModelDownloadCancellationBoundary.CheckpointFlush;
                         await WriteCheckpointAsync(
                             entry,
                             destination,
@@ -179,6 +206,7 @@ internal sealed class ResumableVerifiedModelDownloadService : IModelDownloadServ
                     }
                 }
 
+                phase = ModelDownloadCancellationBoundary.CheckpointFlush;
                 await WriteCheckpointAsync(
                     entry,
                     destination,
@@ -196,6 +224,8 @@ internal sealed class ResumableVerifiedModelDownloadService : IModelDownloadServ
                     ModelDownloadStage.Verifying,
                     downloaded,
                     entry.ExpectedByteLength));
+                phase = ModelDownloadCancellationBoundary.IntegrityHash;
+                await ObserveBoundaryAsync(ModelDownloadCancellationBoundary.IntegrityHash, cancellationToken);
                 byte[] actual = await _library.ComputePartialSha256Async(entry, cancellationToken);
                 byte[] expected = Convert.FromHexString(entry.ExpectedSha256);
                 if (!CryptographicOperations.FixedTimeEquals(actual, expected))
@@ -204,6 +234,8 @@ internal sealed class ResumableVerifiedModelDownloadService : IModelDownloadServ
                     return Failed("download-integrity-failed");
                 }
 
+                phase = ModelDownloadCancellationBoundary.FinalPublish;
+                await ObserveBoundaryAsync(ModelDownloadCancellationBoundary.FinalPublish, cancellationToken);
                 VerifiedDownloadedModel verified =
                     await _library.PublishAsync(entry, cancellationToken);
                 progress.Report(new ModelDownloadProgress(
@@ -232,9 +264,13 @@ internal sealed class ResumableVerifiedModelDownloadService : IModelDownloadServ
             {
                 return Interrupted("download-interrupted");
             }
-            catch (IOException)
+            catch (IOException) when (phase is ModelDownloadCancellationBoundary.Connection or ModelDownloadCancellationBoundary.ResponseRead)
             {
                 return Interrupted("download-interrupted");
+            }
+            catch (IOException)
+            {
+                return Failed("download-storage-failed");
             }
         }
     }
@@ -268,8 +304,11 @@ internal sealed class ResumableVerifiedModelDownloadService : IModelDownloadServ
         string? entityTag,
         CancellationToken cancellationToken)
     {
+        // From this point through checkpoint replacement, an I/O failure is storage-owned.
+        await ObserveBoundaryAsync(ModelDownloadCancellationBoundary.CheckpointFlush, cancellationToken);
         await destination.FlushAsync(cancellationToken);
 
+        await ObserveBoundaryAsync(ModelDownloadCancellationBoundary.CheckpointWrite, cancellationToken);
         await _library.WriteCheckpointAsync(
             entry,
             new ModelDownloadPartialState(
@@ -283,6 +322,16 @@ internal sealed class ResumableVerifiedModelDownloadService : IModelDownloadServ
                 entityTag,
                 DateTimeOffset.UtcNow),
             cancellationToken);
+    }
+
+    private async ValueTask ObserveBoundaryAsync(
+        ModelDownloadCancellationBoundary boundary,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (_boundaryObserver is not null)
+            await _boundaryObserver(boundary, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
     }
 
     private static bool IsValidContentRange(
