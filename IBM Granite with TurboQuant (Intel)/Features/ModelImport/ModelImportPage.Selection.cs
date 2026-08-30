@@ -23,6 +23,10 @@ namespace GraniteEdgeAI.Features.ModelImport
         internal async Task SubmitInputAsync(ModelSelectionInput input)
         {
             ArgumentNullException.ThrowIfNull(input);
+            if (Volatile.Read(ref _isRetired) != 0)
+            {
+                return;
+            }
 
             CancelDownloadedModelSearch();
             ClearSelectionAnnouncement();
@@ -47,7 +51,8 @@ namespace GraniteEdgeAI.Features.ModelImport
             try
             {
                 ModelSelectionResult result = await _classifier.ClassifyAsync(next.Id, input, next.Token);
-                if (!IsCurrent(next) || next.Token.IsCancellationRequested || result.OperationId != next.Id)
+                if (Volatile.Read(ref _isRetired) != 0 ||
+                    !IsCurrent(next) || next.Token.IsCancellationRequested || result.OperationId != next.Id)
                 {
                     return;
                 }
@@ -156,9 +161,32 @@ namespace GraniteEdgeAI.Features.ModelImport
         // Keeps navigation retirement deterministic without requiring a Frame in tests.
         internal void RetireSelectionForNavigation()
         {
-            CancelDownloadedModelSearch();
-            RetireActiveSelectionOperation();
-            ResetToAwaitingSelection();
+            _ = RetireForNavigationAsync();
+        }
+
+        internal Task RetireForNavigationAsync()
+        {
+            lock (_navigationRetirementLock)
+            {
+                if (_navigationRetirementTask is not null)
+                {
+                    return _navigationRetirementTask;
+                }
+
+                Interlocked.Exchange(ref _isRetired, 1);
+                Loaded -= ModelImportPage_Loaded;
+                _modelDownloadCoordinator.VerifiedModelAvailable -=
+                    ModelDownloadCoordinator_VerifiedModelAvailable;
+                CancelDownloadedModelSearch();
+                RetireActiveSelectionOperation();
+                CancelActiveScan();
+                ResetToAwaitingSelection();
+                Task detachCard = RecommendedModelDownloadCard.RetireAsync();
+                _navigationRetirementTask = _ownsModelDownloadCoordinator
+                    ? Task.WhenAll(detachCard, _modelDownloadCoordinator.RetireAsync())
+                    : detachCard;
+                return _navigationRetirementTask;
+            }
         }
 
         private bool TryRequestFolderInspection()
@@ -245,17 +273,10 @@ namespace GraniteEdgeAI.Features.ModelImport
             ImportModelCardControl.ShowFailure(displayName, failureCode, userMessage);
         }
 
-        protected override void OnNavigatedFrom(NavigationEventArgs e)
+        protected override async void OnNavigatedFrom(NavigationEventArgs e)
         {
-            RetireAutomaticDownloadHandoff();
-            _modelDownloadCoordinator.VerifiedModelAvailable -= ModelDownloadCoordinator_VerifiedModelAvailable;
-            if (_ownsModelDownloadCoordinator)
-            {
-                _modelDownloadCoordinator.Dispose();
-            }
-            RetireSelectionForNavigation();
-            CancelActiveScan();
             base.OnNavigatedFrom(e);
+            await RetireForNavigationAsync();
         }
     }
 }

@@ -135,6 +135,24 @@ public sealed class ResumableVerifiedModelDownloadServiceTests
     }
 
     [TestMethod]
+    public async Task DownloadAsync_ChangedEntityTagDiscardsIncompatiblePartial()
+    {
+        using TestDownloadFixture fixture = TestDownloadFixture.Create(
+            expectedBytes: [1, 2, 3, 4], responseBytes: [3, 4],
+            statusCode: HttpStatusCode.PartialContent,
+            contentRange: new ContentRangeHeaderValue(2, 3, 4),
+            responseEntityTag: "\"v2\"");
+        await fixture.SeedPartialAsync([1, 2], "\"v1\"");
+
+        ModelDownloadResult result = await fixture.Service.DownloadAsync(
+            fixture.Entry, new Progress<ModelDownloadProgress>(), CancellationToken.None);
+
+        Assert.AreEqual(ModelDownloadResultKind.Failed, result.Kind);
+        Assert.AreEqual("download-identity-changed", result.ErrorCode);
+        Assert.AreEqual(0, await fixture.Library.GetPartialLengthAsync(fixture.Entry, CancellationToken.None));
+    }
+
+    [TestMethod]
     public async Task DownloadAsync_ReusesOnlyAnExistingArtifactWithMatchingDigest()
     {
         using TestDownloadFixture fixture = TestDownloadFixture.Create([1, 2, 3, 4]);
@@ -295,7 +313,8 @@ public sealed class ResumableVerifiedModelDownloadServiceTests
             long availableBytes = long.MaxValue,
             Exception? transportException = null,
             Stream? customStream = null,
-            TimeSpan? inactivityTimeout = null)
+            TimeSpan? inactivityTimeout = null,
+            string responseEntityTag = "\"v1\"")
         {
             string root = Path.Combine(
                 Path.GetTempPath(),
@@ -320,7 +339,8 @@ public sealed class ResumableVerifiedModelDownloadServiceTests
                 statusCode,
                 contentRange,
                 transportException,
-                customStream);
+                customStream,
+                responseEntityTag);
             return new TestDownloadFixture(root, entry, library, transport, inactivityTimeout);
         }
 
@@ -376,7 +396,8 @@ public sealed class ResumableVerifiedModelDownloadServiceTests
         HttpStatusCode statusCode,
         ContentRangeHeaderValue? contentRange,
         Exception? openException,
-        Stream? customStream) : IModelDownloadTransport
+        Stream? customStream,
+        string responseEntityTag) : IModelDownloadTransport
     {
         internal List<(long Offset, string? EntityTag)> Requests { get; } = [];
 
@@ -397,7 +418,7 @@ public sealed class ResumableVerifiedModelDownloadServiceTests
             };
             response.Content.Headers.ContentLength = bytes.LongLength;
             response.Content.Headers.ContentRange = contentRange;
-            response.Headers.ETag = new EntityTagHeaderValue("\"v1\"");
+            response.Headers.ETag = new EntityTagHeaderValue(responseEntityTag);
             return Task.FromResult(
                 new ModelDownloadTransportResponse(
                     response,

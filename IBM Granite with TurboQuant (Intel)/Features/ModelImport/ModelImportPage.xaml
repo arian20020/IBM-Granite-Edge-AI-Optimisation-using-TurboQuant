@@ -111,17 +111,6 @@
                             HorizontalAlignment="Stretch"
                             AutomationProperties.Name="Recommended model download option" />
 
-                        <!--
-                            TODO(MODEL READINESS):
-                            
-                            This button must remain disabled until either:
-                            
-                            1. A local model has been successfully imported and validated.
-                            2. A recommended model has finished downloading and validating.
-                            
-                            ModelImportViewModel.IsModelReady will eventually control
-                            this button's IsEnabled property.
-                        -->
                         <Button
                             x:Name="ContinueToModelInspectionButton"
                             Height="48"

@@ -42,6 +42,9 @@ namespace GraniteEdgeAI.Features.ModelImport
         private readonly ModelDownloadCoordinator _modelDownloadCoordinator;
         private readonly bool _ownsModelDownloadCoordinator;
         private ModelDownloadOperationId? _automaticDownloadSubmission;
+        private readonly object _navigationRetirementLock = new();
+        private Task? _navigationRetirementTask;
+        private int _isRetired;
 
         // Identifies the scan whose result is currently allowed to update the page.
         private CancellationTokenSource? _scanCancellationTokenSource;
@@ -140,10 +143,18 @@ namespace GraniteEdgeAI.Features.ModelImport
 
         internal async Task BrowseFilesAsync()
         {
+            if (Volatile.Read(ref _isRetired) != 0)
+            {
+                return;
+            }
             RetireAutomaticDownloadHandoff();
             ModelFormatSelection selectedFormat =
                 await _selectModelFormatAsync();
 
+            if (Volatile.Read(ref _isRetired) != 0)
+            {
+                return;
+            }
             if (selectedFormat == ModelFormatSelection.OpenVino)
             {
                 await PickOpenVinoFolderAsync();
@@ -156,7 +167,7 @@ namespace GraniteEdgeAI.Features.ModelImport
             }
 
             string? selectedPath = await _pickGgufPathAsync();
-            if (selectedPath is null)
+            if (selectedPath is null || Volatile.Read(ref _isRetired) != 0)
             {
                 return;
             }
@@ -401,6 +412,10 @@ namespace GraniteEdgeAI.Features.ModelImport
 
         private async Task PickOpenVinoFolderAsync()
         {
+            if (Volatile.Read(ref _isRetired) != 0)
+            {
+                return;
+            }
             ModelSelectionInput? input;
             if (_pickOpenVinoInputAsync is not null)
             {
@@ -413,7 +428,7 @@ namespace GraniteEdgeAI.Features.ModelImport
                     new ModelSelectionInputNormalizer());
             }
 
-            if (input is not null)
+            if (input is not null && Volatile.Read(ref _isRetired) == 0)
             {
                 await SubmitInputAsync(input);
             }
@@ -433,6 +448,10 @@ namespace GraniteEdgeAI.Features.ModelImport
 
         private async void ModelDropTarget_Drop(object sender, DragEventArgs e)
         {
+            if (Volatile.Read(ref _isRetired) != 0)
+            {
+                return;
+            }
             RetireAutomaticDownloadHandoff();
             ImportModelCardControl.ClearDragValidation();
             await _dropHandler.HandleDropAsync(
@@ -446,6 +465,10 @@ namespace GraniteEdgeAI.Features.ModelImport
             object? sender,
             VerifiedModelAvailableEventArgs e)
         {
+            if (Volatile.Read(ref _isRetired) != 0)
+            {
+                return;
+            }
             if (!_modelDownloadCoordinator.TryClaimVerifiedModel(e.OperationId, out VerifiedDownloadedModel? model) ||
                 model is null)
             {
@@ -458,7 +481,8 @@ namespace GraniteEdgeAI.Features.ModelImport
                 model.DisplayName,
                 isFolder: false));
 
-            if (_automaticDownloadSubmission == e.OperationId &&
+            if (Volatile.Read(ref _isRetired) == 0 &&
+                _automaticDownloadSubmission == e.OperationId &&
                 _modelDownloadCoordinator.IsAutomaticHandoffAuthorized(e.OperationId) &&
                 HasValidatedModel &&
                 CurrentRoute == ModelSelectionRoute.Gguf)
@@ -470,6 +494,10 @@ namespace GraniteEdgeAI.Features.ModelImport
         private async void ModelImportPage_Loaded(object sender, RoutedEventArgs e)
         {
             Loaded -= ModelImportPage_Loaded;
+            if (Volatile.Read(ref _isRetired) != 0)
+            {
+                return;
+            }
             try
             {
                 await _modelDownloadCoordinator.RecoverAsync(CancellationToken.None);

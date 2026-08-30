@@ -98,6 +98,12 @@ internal sealed class ResumableVerifiedModelDownloadService : IModelDownloadServ
                     {
                         return Failed("download-range-invalid");
                     }
+                    if (!string.IsNullOrWhiteSpace(resume?.EntityTag)
+                        && !string.Equals(resume.EntityTag, response.EntityTag, StringComparison.Ordinal))
+                    {
+                        await _library.DiscardPartialAsync(entry, CancellationToken.None);
+                        return Failed("download-identity-changed");
+                    }
                 }
                 else if (response.StatusCode == HttpStatusCode.OK)
                 {

@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 namespace GraniteEdgeAI.Features.ModelImport.ModelDownload;
 
 internal sealed record ModelDownloadCoordinatorState(
@@ -37,7 +39,12 @@ internal sealed class ModelDownloadCoordinator : IDisposable
     private ModelDownloadOperationId? _claimableOperation;
     private ModelDownloadOperationId? _authorizedHandoffOperation;
     private bool _automaticHandoffRetired;
+    private bool _cancellationFailed;
+    private ModelDownloadOperationId? _cancellationRequestedOperation;
+    private CancellationTokenSource? _recoveryCancellation;
+    private TaskCompletionSource? _recoveryCompletion;
     private bool _disposed;
+    private Task? _retirementTask;
 
     internal ModelDownloadCoordinator(
         IModelDownloadService service,
@@ -54,34 +61,59 @@ internal sealed class ModelDownloadCoordinator : IDisposable
 
     internal async Task RecoverAsync(CancellationToken cancellationToken)
     {
-        foreach (ModelDownloadCatalogEntry entry in PinnedGraniteModelCatalog.Entries)
+        CancellationTokenSource linked;
+        TaskCompletionSource completion;
+        lock (_sync)
         {
-            ModelDownloadResumeInfo? resume = await _service.GetResumeInfoAsync(entry, cancellationToken);
-            if (resume is null)
+            ThrowIfDisposed();
+            if (_recoveryCancellation is not null)
             {
-                continue;
-            }
-
-            ModelDownloadConnectionKind connection = _networkPolicy.GetCurrentConnectionKind();
-            lock (_sync)
-            {
-                if (_activeCancellation is not null || State.OperationId is not null)
-                {
-                    return;
-                }
-            }
-            if (connection == ModelDownloadConnectionKind.Unrestricted)
-            {
-                await StartAsync(entry.MinimumSliderValue, allowMetered: false, cancellationToken);
                 return;
             }
+            linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            _recoveryCancellation = linked;
+            _recoveryCompletion = completion;
+        }
+        try
+        {
+            foreach (ModelDownloadCatalogEntry entry in PinnedGraniteModelCatalog.Entries)
+            {
+                linked.Token.ThrowIfCancellationRequested();
+                ModelDownloadResumeInfo? resume = await _service.GetResumeInfoAsync(entry, linked.Token);
+                if (resume is null) continue;
+
+                ModelDownloadConnectionKind connection = _networkPolicy.GetCurrentConnectionKind();
+                lock (_sync)
+                {
+                    if (_disposed || _activeCancellation is not null || State.OperationId is not null) return;
+                }
+                if (connection == ModelDownloadConnectionKind.Unrestricted)
+                {
+                    await StartAsync(entry.MinimumSliderValue, allowMetered: false, linked.Token);
+                    return;
+                }
 
             ModelDownloadOperationId operationId = ModelDownloadOperationId.CreateNew();
             string errorCode = connection == ModelDownloadConnectionKind.Offline
                 ? "download-offline"
                 : "download-network-confirmation-required";
-            PublishRecovered(operationId, entry, resume.DownloadedBytes, errorCode);
-            return;
+                PublishRecovered(operationId, entry, resume.DownloadedBytes, errorCode);
+                return;
+            }
+        }
+        finally
+        {
+            lock (_sync)
+            {
+                if (ReferenceEquals(_recoveryCancellation, linked))
+                {
+                    _recoveryCancellation = null;
+                    _recoveryCompletion = null;
+                }
+            }
+            linked.Dispose();
+            completion.TrySetResult();
         }
     }
 
@@ -108,12 +140,14 @@ internal sealed class ModelDownloadCoordinator : IDisposable
             _claimableOperation = null;
             _authorizedHandoffOperation = null;
             _automaticHandoffRetired = false;
+            _cancellationFailed = false;
+            _cancellationRequestedOperation = null;
             started = new(operationId, ModelDownloadStage.Preparing,
                 entry.PreferenceLabel, entry.Quantisation, entry.DownloadSizeText,
                 0, entry.ExpectedByteLength, null);
             State = started;
         }
-        StateChanged?.Invoke(this, started);
+        PublishState(started);
 
         try
         {
@@ -133,19 +167,33 @@ internal sealed class ModelDownloadCoordinator : IDisposable
             var progress = new InlineProgress<ModelDownloadProgress>(value =>
                 Publish(operationId, entry, value.Stage, value.DownloadedBytes, null));
             ModelDownloadResult result = await _service.DownloadAsync(entry, progress, linked.Token);
+            await Task.Yield();
             if (!IsCurrent(operationId))
             {
                 return;
             }
 
-            ModelDownloadStage stage = result.Kind switch
+            bool cancellationFailed;
+            bool cancellationWon;
+            lock (_sync)
+            {
+                cancellationFailed = _cancellationFailed;
+                cancellationWon = _cancellationRequestedOperation == operationId;
+            }
+            ModelDownloadStage stage = cancellationFailed
+                ? ModelDownloadStage.Failed
+                : cancellationWon
+                    ? ModelDownloadStage.Interrupted
+                : result.Kind switch
             {
                 ModelDownloadResultKind.Completed or ModelDownloadResultKind.AlreadyAvailable => ModelDownloadStage.Completed,
                 ModelDownloadResultKind.Interrupted => ModelDownloadStage.Interrupted,
                 _ => ModelDownloadStage.Failed
             };
             Publish(operationId, entry, stage,
-                result.VerifiedModel?.ByteLength ?? State.DownloadedBytes, result.ErrorCode);
+                result.VerifiedModel?.ByteLength ?? State.DownloadedBytes,
+                cancellationFailed ? "download-cancellation-cleanup-failed"
+                    : cancellationWon ? "download-cancelled" : result.ErrorCode);
 
             if (result.VerifiedModel is not null && stage == ModelDownloadStage.Completed)
             {
@@ -163,8 +211,8 @@ internal sealed class ModelDownloadCoordinator : IDisposable
 
                 if (notify)
                 {
-                    VerifiedModelAvailable?.Invoke(this,
-                        new VerifiedModelAvailableEventArgs(operationId, result.VerifiedModel.DisplayName));
+                    PublishVerifiedModelAvailable(
+                        new VerifiedModelAvailableEventArgs(operationId, entry.FileName));
                 }
             }
         }
@@ -191,6 +239,7 @@ internal sealed class ModelDownloadCoordinator : IDisposable
         ModelDownloadOperationId? operationId;
         lock (_sync)
         {
+            ThrowIfDisposed();
             active = _activeCancellation;
             completion = _activeCompletion?.Task;
             operationId = State.OperationId;
@@ -200,7 +249,37 @@ internal sealed class ModelDownloadCoordinator : IDisposable
             _claimableOperation = null;
             _authorizedHandoffOperation = null;
         }
-        active?.Cancel();
+        if (operationId is null)
+        {
+            return;
+        }
+
+        if (active is null)
+        {
+            if (discardPartial && State.Stage == ModelDownloadStage.Interrupted)
+            {
+                await _service.DiscardPartialAsync(entry, cancellationToken);
+                Publish(operationId.Value, entry, ModelDownloadStage.Interrupted, 0, "download-cancelled-discarded");
+            }
+            return;
+        }
+
+        ModelDownloadCoordinatorState cancelling;
+        lock (_sync)
+        {
+            cancelling = State with { ErrorCode = "download-cancelling" };
+            State = cancelling;
+        }
+        bool cancellationRequested = RequestCancellation(active);
+        lock (_sync)
+        {
+            _cancellationFailed = !cancellationRequested;
+            if (cancellationRequested)
+            {
+                _cancellationRequestedOperation = operationId;
+            }
+        }
+        PublishState(cancelling);
         if (completion is not null)
         {
             await completion.WaitAsync(cancellationToken);
@@ -208,20 +287,27 @@ internal sealed class ModelDownloadCoordinator : IDisposable
         if (discardPartial)
         {
             await _service.DiscardPartialAsync(entry, cancellationToken);
+            bool cancellationFailed;
+            lock (_sync)
+            {
+                cancellationFailed = _cancellationFailed;
+            }
             ModelDownloadCoordinatorState cancelled = new(
                 operationId,
-                ModelDownloadStage.Interrupted,
+                cancellationFailed ? ModelDownloadStage.Failed : ModelDownloadStage.Interrupted,
                 entry.PreferenceLabel,
                 entry.Quantisation,
                 entry.DownloadSizeText,
                 0,
                 entry.ExpectedByteLength,
-                "download-cancelled-discarded");
+                cancellationFailed
+                    ? "download-cancellation-cleanup-failed"
+                    : "download-cancelled-discarded");
             lock (_sync)
             {
                 State = cancelled;
             }
-            StateChanged?.Invoke(this, cancelled);
+            PublishState(cancelled);
         }
     }
 
@@ -274,7 +360,7 @@ internal sealed class ModelDownloadCoordinator : IDisposable
         ModelDownloadCoordinatorState next;
         lock (_sync)
         {
-            if (State.OperationId is not null && State.OperationId != operationId)
+            if (_disposed || (State.OperationId is not null && State.OperationId != operationId))
             {
                 return;
             }
@@ -283,7 +369,7 @@ internal sealed class ModelDownloadCoordinator : IDisposable
                 entry.ExpectedByteLength, errorCode);
             State = next;
         }
-        StateChanged?.Invoke(this, next);
+        PublishState(next);
     }
 
     private void PublishRecovered(
@@ -303,13 +389,13 @@ internal sealed class ModelDownloadCoordinator : IDisposable
             errorCode);
         lock (_sync)
         {
-            if (_activeCancellation is not null || State.OperationId is not null)
+            if (_disposed || _activeCancellation is not null || State.OperationId is not null)
             {
                 return;
             }
             State = recovered;
         }
-        StateChanged?.Invoke(this, recovered);
+        PublishState(recovered);
     }
 
     private bool IsCurrent(ModelDownloadOperationId operationId)
@@ -317,19 +403,105 @@ internal sealed class ModelDownloadCoordinator : IDisposable
         lock (_sync) return IsCurrentUnsafe(operationId);
     }
 
-    private bool IsCurrentUnsafe(ModelDownloadOperationId operationId) => State.OperationId == operationId;
+    private bool IsCurrentUnsafe(ModelDownloadOperationId operationId) =>
+        !_disposed && State.OperationId == operationId;
 
     private void ThrowIfDisposed() => ObjectDisposedException.ThrowIf(_disposed, this);
 
-    public void Dispose()
+    internal Task RetireAsync()
     {
         lock (_sync)
         {
-            if (_disposed) return;
+            if (_retirementTask is not null)
+            {
+                return _retirementTask;
+            }
             _disposed = true;
-            _activeCancellation?.Cancel();
+            _automaticHandoffRetired = true;
             _claimableModel = null;
+            _claimableOperation = null;
             _authorizedHandoffOperation = null;
+            CancellationTokenSource? cancellation = _activeCancellation;
+            Task activeTask = _activeCompletion?.Task ?? Task.CompletedTask;
+            CancellationTokenSource? recoveryCancellation = _recoveryCancellation;
+            Task recoveryTask = _recoveryCompletion?.Task ?? Task.CompletedTask;
+            _retirementTask = RetireCoreAsync(cancellation, activeTask, recoveryCancellation, recoveryTask);
+            return _retirementTask;
+        }
+    }
+
+    public void Dispose() => _ = RetireAsync();
+
+    private static async Task RetireCoreAsync(
+        CancellationTokenSource? cancellation,
+        Task activeTask,
+        CancellationTokenSource? recoveryCancellation,
+        Task recoveryTask)
+    {
+        if (cancellation is not null)
+        {
+            RequestCancellation(cancellation);
+        }
+        if (recoveryCancellation is not null)
+        {
+            RequestCancellation(recoveryCancellation);
+        }
+        try
+        {
+            await Task.WhenAll(activeTask, recoveryTask).WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+        }
+        catch (TimeoutException)
+        {
+            Trace.TraceWarning("Model-download retirement detached after its five-second cleanup boundary.");
+        }
+    }
+
+    private void PublishState(ModelDownloadCoordinatorState state)
+    {
+        Delegate[] handlers = StateChanged?.GetInvocationList() ?? [];
+        foreach (Delegate candidate in handlers)
+        {
+            try
+            {
+                ((EventHandler<ModelDownloadCoordinatorState>)candidate)(this, state);
+            }
+            catch (Exception exception)
+            {
+                Trace.TraceError(
+                    "A model-download state observer failed with {0}.",
+                    exception.GetType().Name);
+            }
+        }
+    }
+
+    private void PublishVerifiedModelAvailable(VerifiedModelAvailableEventArgs value)
+    {
+        Delegate[] handlers = VerifiedModelAvailable?.GetInvocationList() ?? [];
+        foreach (Delegate candidate in handlers)
+        {
+            try
+            {
+                ((EventHandler<VerifiedModelAvailableEventArgs>)candidate)(this, value);
+            }
+            catch (Exception exception)
+            {
+                Trace.TraceError(
+                    "A verified-model observer failed with {0}.",
+                    exception.GetType().Name);
+            }
+        }
+    }
+
+    private static bool RequestCancellation(CancellationTokenSource cancellation)
+    {
+        try
+        {
+            cancellation.Cancel();
+            return true;
+        }
+        catch (AggregateException)
+        {
+            return false;
         }
     }
 

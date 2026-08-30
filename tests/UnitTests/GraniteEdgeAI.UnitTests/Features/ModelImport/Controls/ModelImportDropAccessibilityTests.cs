@@ -125,9 +125,7 @@ public sealed class ModelImportDropAccessibilityTests
     {
         var page = new ModelImportPage();
         var card = (ImportModelCard)page.FindName("ImportModelCardControl");
-        var fileButton = card.FindName("ChooseModelFileButton") as Button;
-
-        Assert.IsNotNull(fileButton);
+        var fileButton = (Button)card.FindName("ChooseModelFileButton");
         Assert.IsTrue(fileButton.MinHeight >= 44);
         Assert.AreEqual("Choose model file", AutomationProperties.GetName(fileButton));
         StringAssert.Contains(AutomationProperties.GetHelpText(fileButton), "OpenVINO");
@@ -141,18 +139,18 @@ public sealed class ModelImportDropAccessibilityTests
         var page = new ModelImportPage();
         MethodInfo reject = typeof(ModelImportPage).GetMethod(
             "RejectDroppedSelectionAsync",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new AssertFailedException("RejectDroppedSelectionAsync was not found.");
 
-        Assert.IsNotNull(reject);
-        var completion = (Task)reject.Invoke(
+        var completion = reject.Invoke(
             page,
             [new ModelSelectionDiagnostic(
                 "selection-multiple-items",
-                "Drop only one model file or model folder at a time.")]);
+                "Drop only one model file or model folder at a time.")]) as Task
+            ?? throw new AssertFailedException("RejectDroppedSelectionAsync did not return a Task.");
         await completion;
 
-        var announcement = page.FindName("SelectionAnnouncement") as TextBlock;
-        Assert.IsNotNull(announcement);
+        var announcement = (TextBlock)page.FindName("SelectionAnnouncement");
         Assert.AreEqual(Visibility.Visible, announcement.Visibility);
         Assert.AreEqual(
             "Drop only one model file or model folder at a time.",
@@ -171,18 +169,19 @@ public sealed class ModelImportDropAccessibilityTests
             classifier: new AcceptedFolderClassifier());
         MethodInfo reject = typeof(ModelImportPage).GetMethod(
             "RejectDroppedSelectionAsync",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new AssertFailedException("RejectDroppedSelectionAsync was not found.");
 
-        await (Task)reject.Invoke(
+        await (reject.Invoke(
             page,
             [new ModelSelectionDiagnostic(
                 "selection-multiple-items",
-                "Drop only one model file or model folder at a time.")]);
+                "Drop only one model file or model folder at a time.")]) as Task
+            ?? throw new AssertFailedException("RejectDroppedSelectionAsync did not return a Task."));
         await page.SubmitInputAsync(
             new ModelSelectionInput(@"C:\Models\granite", "granite", isFolder: true));
 
-        var announcement = page.FindName("SelectionAnnouncement") as TextBlock;
-        Assert.IsNotNull(announcement);
+        var announcement = (TextBlock)page.FindName("SelectionAnnouncement");
         Assert.AreEqual(Visibility.Collapsed, announcement.Visibility);
         Assert.AreEqual(string.Empty, announcement.Text);
     }

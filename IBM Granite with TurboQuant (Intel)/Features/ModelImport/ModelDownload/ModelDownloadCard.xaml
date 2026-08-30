@@ -11,11 +11,6 @@
 
     <Grid
         x:Name="CardLayoutRoot">
-        <!--
-            TODO(THEMING):
-            Move repeated colours, spacing and corner radii into shared theme resources.
-            This will eventually support consistent styling and dark mode.
-        -->
         <Border
             Padding="20"
             Background="#F9FAFB"
@@ -27,16 +22,6 @@
             <StackPanel
                 Spacing="8">
 
-                <!--
-                    TODO(MODEL DATA):
-                    The values below are temporary development seed data.
-                    
-                    Planned data flow:
-                    ModelSeedData or ModelCatalogService
-                    → ModelImportViewModel.SelectedModel
-                    → ModelCard.Model
-                    → these TextBlock bindings.
-                -->
                 <Grid
                     x:Name="ModelHeaderGrid"
                     ColumnSpacing="12">
@@ -415,14 +400,6 @@
                     </Grid>
                 </StackPanel>
 
-                <!--
-                    TODO(DOWNLOAD WORKFLOW):
-                    This button is currently visual only.
-                    
-                    It will later bind to a download command supplied by
-                    ModelImportViewModel. The command will pass the selected
-                    ModelProfile to ModelDownloadService.
-                -->
                 <Button
                     x:Name="DownloadModelButton"
                     Height="48"
@@ -441,11 +418,6 @@
                     Foreground="White"
                     UseSystemFocusVisuals="True">
 
-                    <!--
-                        TODO(THEMING):
-                        Move these repeated button colours into shared resources
-                        so BrowseModelButton and DownloadModelButton use one style.
-                    -->
                     <Button.Resources>
 
                         <!--  Normal state.  -->

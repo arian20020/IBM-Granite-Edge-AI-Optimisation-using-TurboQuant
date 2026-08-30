@@ -1,6 +1,7 @@
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using System.Globalization;
 
 namespace GraniteEdgeAI.Features.ModelImport.ModelDownload
@@ -11,6 +12,9 @@ namespace GraniteEdgeAI.Features.ModelImport.ModelDownload
     public sealed partial class ModelDownloadCard : UserControl
     {
         private ModelDownloadCoordinator? _coordinator;
+        private readonly object _retirementGate = new();
+        private Task? _retirementTask;
+        private bool _retired;
 
         public ModelDownloadCard()
         {
@@ -83,6 +87,11 @@ namespace GraniteEdgeAI.Features.ModelImport.ModelDownload
         internal void Attach(ModelDownloadCoordinator coordinator)
         {
             ArgumentNullException.ThrowIfNull(coordinator);
+            if (_retired)
+            {
+                throw new InvalidOperationException(
+                    "A retired model download card cannot be rebound.");
+            }
             if (ReferenceEquals(_coordinator, coordinator))
             {
                 return;
@@ -100,7 +109,15 @@ namespace GraniteEdgeAI.Features.ModelImport.ModelDownload
 
         private void Coordinator_StateChanged(object? sender, ModelDownloadCoordinatorState state)
         {
-            if (!DispatcherQueue.TryEnqueue(() => Render(state)))
+            ModelDownloadCoordinator? source = sender as ModelDownloadCoordinator;
+            if (_retired || !DispatcherQueue.TryEnqueue(() =>
+                {
+                    if (!_retired && source is not null && ReferenceEquals(_coordinator, source)
+                        && source.State == state)
+                    {
+                        Render(state);
+                    }
+                }))
             {
                 return;
             }
@@ -108,7 +125,7 @@ namespace GraniteEdgeAI.Features.ModelImport.ModelDownload
 
         private async void DownloadModelButton_Click(object sender, RoutedEventArgs e)
         {
-            if (_coordinator is null)
+            if (_retired || _coordinator is null)
             {
                 return;
             }
@@ -120,7 +137,7 @@ namespace GraniteEdgeAI.Features.ModelImport.ModelDownload
                     case ModelDownloadStage.Preparing:
                     case ModelDownloadStage.Downloading:
                     case ModelDownloadStage.Verifying:
-                        await _coordinator.CancelAsync(discardPartial: true, CancellationToken.None);
+                        await _coordinator.CancelAsync(discardPartial: false, CancellationToken.None);
                         break;
                     case ModelDownloadStage.Interrupted:
                         await _coordinator.ResumeAsync(
@@ -132,7 +149,8 @@ namespace GraniteEdgeAI.Features.ModelImport.ModelDownload
                         break;
                 }
             }
-            catch (InvalidOperationException)
+            catch (Exception exception) when (exception is InvalidOperationException
+                or IOException or UnauthorizedAccessException or OperationCanceledException)
             {
                 // A second activation while the current transaction is settling is ignored.
             }
@@ -140,9 +158,17 @@ namespace GraniteEdgeAI.Features.ModelImport.ModelDownload
 
         private async void DiscardDownloadButton_Click(object sender, RoutedEventArgs e)
         {
-            if (_coordinator is not null)
+            if (!_retired && _coordinator is not null)
             {
-                await _coordinator.CancelAsync(discardPartial: true, CancellationToken.None);
+                try
+                {
+                    await _coordinator.CancelAsync(discardPartial: true, CancellationToken.None);
+                }
+                catch (Exception exception) when (exception is IOException
+                    or UnauthorizedAccessException or OperationCanceledException or InvalidOperationException)
+                {
+                    // The coordinator remains authoritative for the visible retry state.
+                }
             }
         }
 
@@ -150,22 +176,32 @@ namespace GraniteEdgeAI.Features.ModelImport.ModelDownload
         {
             bool active = state.Stage is ModelDownloadStage.Preparing or
                 ModelDownloadStage.Downloading or ModelDownloadStage.Verifying;
+            bool indeterminate = state.Stage is ModelDownloadStage.Preparing or
+                ModelDownloadStage.Verifying;
+            bool cancelling = active && state.ErrorCode == "download-cancelling";
             bool showStatus = state.Stage != ModelDownloadStage.Idle;
 
             DownloadStatusRegion.Visibility = showStatus ? Visibility.Visible : Visibility.Collapsed;
             ModelScaleSlider.IsEnabled = !active;
-            DownloadActivityRing.IsActive = active;
-            DownloadActivityRing.Visibility = active ? Visibility.Visible : Visibility.Collapsed;
-            DownloadProgressBar.IsIndeterminate = state.Stage is ModelDownloadStage.Preparing or ModelDownloadStage.Verifying;
+            DownloadActivityRing.IsActive = indeterminate;
+            DownloadActivityRing.Visibility = indeterminate ? Visibility.Visible : Visibility.Collapsed;
+            DownloadProgressBar.IsIndeterminate = indeterminate;
             DownloadProgressBar.Value = state.TotalBytes <= 0 ? 0 : 100d * state.DownloadedBytes / state.TotalBytes;
             DownloadProgressText.Text = state.TotalBytes <= 0
                 ? string.Empty
-                : $"{FormatBytes(state.DownloadedBytes)} of {FormatBytes(state.TotalBytes)}";
+                : $"{FormatBytes(state.DownloadedBytes)} of {FormatBytes(state.TotalBytes)} "
+                    + $"({100d * state.DownloadedBytes / state.TotalBytes:0}%)";
             DiscardDownloadButton.Visibility = state.Stage == ModelDownloadStage.Interrupted
                 ? Visibility.Visible : Visibility.Collapsed;
 
             (DownloadStatusText.Text, DownloadModelButton.Content) = state.Stage switch
             {
+                ModelDownloadStage.Downloading when state.ErrorCode == "download-cancelling" =>
+                    ("Cancelling the download and preserving resumable progress...", "Cancelling..."),
+                ModelDownloadStage.Preparing when state.ErrorCode == "download-cancelling" =>
+                    ("Cancelling the download and preserving resumable progress...", "Cancelling..."),
+                ModelDownloadStage.Verifying when state.ErrorCode == "download-cancelling" =>
+                    ("Cancelling the download and preserving resumable progress...", "Cancelling..."),
                 ModelDownloadStage.Preparing => ("Preparing secure download...", "Cancel download"),
                 ModelDownloadStage.Downloading => ("Downloading and saving progress...", "Cancel download"),
                 ModelDownloadStage.Verifying => ("Verifying the downloaded model...", "Cancel download"),
@@ -177,9 +213,37 @@ namespace GraniteEdgeAI.Features.ModelImport.ModelDownload
                 ModelDownloadStage.Interrupted when state.ErrorCode == "download-cancelled-discarded" =>
                     ("Download cancelled. The partial file was removed.", "Download selected model"),
                 ModelDownloadStage.Interrupted => ("Download paused. Your progress is saved.", "Resume download"),
-                ModelDownloadStage.Failed => ("The download could not be verified. No model was installed.", "Try again"),
+                ModelDownloadStage.Failed when state.ErrorCode == "download-storage-insufficient" =>
+                    ("There is not enough free storage for this download. Free space, then try again.", "Try again"),
+                ModelDownloadStage.Failed when state.ErrorCode is "download-http-rejected" or "download-timeout" =>
+                    ("The model service could not be reached. Check the connection, then try again.", "Try again"),
+                ModelDownloadStage.Failed when state.ErrorCode is "download-range-invalid" or "download-size-invalid" or "download-identity-changed" =>
+                    ("The server copy changed during download. Discard saved progress, then try again.", "Try again"),
+                ModelDownloadStage.Failed => ("The download failed integrity verification. No model was installed. Try again.", "Try again"),
                 _ => (string.Empty, "Download selected model")
             };
+            DownloadModelButton.IsEnabled = !cancelling &&
+                state.Stage != ModelDownloadStage.Completed;
+            AutomationProperties.SetName(
+                DownloadModelButton,
+                state.Stage switch
+                {
+                    ModelDownloadStage.Preparing or
+                    ModelDownloadStage.Downloading or
+                    ModelDownloadStage.Verifying when cancelling =>
+                        "Model download cancellation in progress",
+                    ModelDownloadStage.Preparing or
+                    ModelDownloadStage.Downloading or
+                    ModelDownloadStage.Verifying =>
+                        "Cancel the model download",
+                    ModelDownloadStage.Interrupted =>
+                        "Resume the model download",
+                    ModelDownloadStage.Failed =>
+                        "Retry the model download",
+                    ModelDownloadStage.Completed =>
+                        "Model download completed",
+                    _ => "Download the selected model"
+                });
         }
 
         private static string FormatBytes(long bytes) =>
@@ -192,6 +256,30 @@ namespace GraniteEdgeAI.Features.ModelImport.ModelDownload
             if (_coordinator is not null)
             {
                 _coordinator.StateChanged -= Coordinator_StateChanged;
+            }
+        }
+
+        internal Task RetireAsync()
+        {
+            lock (_retirementGate)
+            {
+                if (_retirementTask is not null)
+                {
+                    return _retirementTask;
+                }
+
+                _retired = true;
+                ModelDownloadCoordinator? coordinator = _coordinator;
+                _coordinator = null;
+                if (coordinator is not null)
+                {
+                    coordinator.StateChanged -= Coordinator_StateChanged;
+                }
+                DownloadModelButton.IsEnabled = false;
+                DiscardDownloadButton.IsEnabled = false;
+                DownloadActivityRing.IsActive = false;
+                _retirementTask = Task.CompletedTask;
+                return _retirementTask;
             }
         }
     }
