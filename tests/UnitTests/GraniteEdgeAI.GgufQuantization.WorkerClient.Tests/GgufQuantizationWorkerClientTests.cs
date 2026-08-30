@@ -104,13 +104,85 @@ public sealed class GgufQuantizationWorkerClientTests
             fixture.OutputPath);
         using var cancellation = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
 
-        await Assert.ThrowsExactlyAsync<OperationCanceledException>(() =>
+        OperationCanceledException failure =
+            await Assert.ThrowsExactlyAsync<OperationCanceledException>(() =>
             new GgufQuantizationWorkerClient(TimeSpan.FromSeconds(20)).ExecuteAsync(
                 Command(GgufQuantizationFormat.F16, GgufQuantizationFormat.Q4KM, null, fixture.ManifestSha256),
                 package, lease, cancellation.Token));
 
+        Assert.AreEqual(cancellation.Token, failure.CancellationToken);
         Assert.IsFalse(File.Exists(fixture.OutputPath));
         Assert.AreEqual(fixture.SourceSha256, Sha(fixture.SourcePath));
+    }
+
+    [TestMethod]
+    public async Task TimeoutTerminatesContainedTreeAndDeletesPendingOutput()
+    {
+        using var fixture = new QuantizerFixture();
+        File.WriteAllText(fixture.FakeDelayMarker, "delay");
+        VerifiedGgufQuantizerPackage package =
+            GgufQuantizerPackageVerifier.Verify(fixture.Stage, fixture.ManifestSha256);
+        using GgufQuantizationFileLease lease = GgufQuantizationFileLease.Create(
+            fixture.SourcePath, fixture.SourceSha256, fixture.SourceLength,
+            fixture.OutputPath);
+
+        GgufQuantizationEvent result = await new GgufQuantizationWorkerClient(
+            TimeSpan.FromMilliseconds(100)).ExecuteAsync(
+                Command(GgufQuantizationFormat.F16, GgufQuantizationFormat.Q4KM, null,
+                    fixture.ManifestSha256),
+                package,
+                lease,
+                CancellationToken.None);
+
+        Assert.AreEqual(GgufQuantizationEventKind.Failed, result.Kind);
+        Assert.AreEqual(GgufQuantizationSupportCode.TimedOut, result.SupportCode);
+        Assert.IsFalse(File.Exists(fixture.OutputPath));
+    }
+
+    [TestMethod]
+    public async Task NonzeroExitIsContainedAndMappedWithoutPublishingOutput()
+    {
+        using var fixture = new QuantizerFixture();
+        File.WriteAllText(fixture.FakeFailureMarker, "fail");
+        VerifiedGgufQuantizerPackage package =
+            GgufQuantizerPackageVerifier.Verify(fixture.Stage, fixture.ManifestSha256);
+        using GgufQuantizationFileLease lease = GgufQuantizationFileLease.Create(
+            fixture.SourcePath, fixture.SourceSha256, fixture.SourceLength,
+            fixture.OutputPath);
+
+        GgufQuantizationEvent result = await new GgufQuantizationWorkerClient(
+            TimeSpan.FromSeconds(20)).ExecuteAsync(
+                Command(GgufQuantizationFormat.F16, GgufQuantizationFormat.Q4KM, null,
+                    fixture.ManifestSha256),
+                package,
+                lease,
+                CancellationToken.None);
+
+        Assert.AreEqual(GgufQuantizationSupportCode.ProcessFailed, result.SupportCode);
+        Assert.IsFalse(File.Exists(fixture.OutputPath));
+    }
+
+    [TestMethod]
+    public async Task OversizedStandardOutputIsContainedAndMappedAsProtocolViolation()
+    {
+        using var fixture = new QuantizerFixture();
+        File.WriteAllText(fixture.FakeNoiseMarker, "noise");
+        VerifiedGgufQuantizerPackage package =
+            GgufQuantizerPackageVerifier.Verify(fixture.Stage, fixture.ManifestSha256);
+        using GgufQuantizationFileLease lease = GgufQuantizationFileLease.Create(
+            fixture.SourcePath, fixture.SourceSha256, fixture.SourceLength,
+            fixture.OutputPath);
+
+        GgufQuantizationEvent result = await new GgufQuantizationWorkerClient(
+            TimeSpan.FromSeconds(20)).ExecuteAsync(
+                Command(GgufQuantizationFormat.F16, GgufQuantizationFormat.Q4KM, null,
+                    fixture.ManifestSha256),
+                package,
+                lease,
+                CancellationToken.None);
+
+        Assert.AreEqual(GgufQuantizationSupportCode.ProtocolViolation, result.SupportCode);
+        Assert.IsFalse(File.Exists(fixture.OutputPath));
     }
 
     [TestMethod]
@@ -365,6 +437,8 @@ public sealed class GgufQuantizationWorkerClientTests
             SourcePath = Path.Combine(_root, "source.gguf");
             OutputPath = Path.Combine(_root, "output.gguf");
             FakeDelayMarker = SourcePath + ".delay";
+            FakeFailureMarker = SourcePath + ".fail";
+            FakeNoiseMarker = SourcePath + ".noise";
             File.WriteAllBytes(SourcePath, [1, 2, 3, 4]);
             SourceSha256 = Sha(SourcePath);
             SourceLength = (ulong)new FileInfo(SourcePath).Length;
@@ -376,6 +450,8 @@ public sealed class GgufQuantizationWorkerClientTests
         internal string SourcePath { get; }
         internal string OutputPath { get; }
         internal string FakeDelayMarker { get; }
+        internal string FakeFailureMarker { get; }
+        internal string FakeNoiseMarker { get; }
         internal string SourceSha256 { get; }
         internal ulong SourceLength { get; }
         internal string ManifestSha256 { get; private set; } = string.Empty;

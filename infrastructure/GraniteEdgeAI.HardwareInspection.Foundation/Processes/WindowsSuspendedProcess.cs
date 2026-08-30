@@ -8,6 +8,8 @@ namespace GraniteEdgeAI.HardwareInspection.Foundation.Processes;
 
 internal sealed class WindowsSuspendedProcess : IDisposable
 {
+    private readonly BoundedCleanupCoordinator _cleanup;
+
     private WindowsSuspendedProcess(
         Process process,
         SafeProcessHandle processHandle,
@@ -20,6 +22,20 @@ internal sealed class WindowsSuspendedProcess : IDisposable
         StandardOutput = standardOutput;
         StandardError = standardError;
         OperationEnvironment = operationEnvironment;
+        _cleanup = new BoundedCleanupCoordinator(
+            Sync(OwnedCleanupStage.StandardOutput, StandardOutput.Dispose),
+            Sync(OwnedCleanupStage.StandardError, StandardError.Dispose),
+            Sync(OwnedCleanupStage.Session, Process.Dispose),
+            Sync(OwnedCleanupStage.ProcessHandle, ProcessHandle.Dispose),
+            Sync(OwnedCleanupStage.OperationEnvironment, () =>
+            {
+                OperationEnvironment.Dispose();
+                if (!OperationEnvironment.CleanupSucceeded)
+                {
+                    throw new InvalidOperationException(
+                        "The trusted operation environment cleanup could not be verified.");
+                }
+            }));
     }
 
     internal Process Process { get; }
@@ -34,6 +50,8 @@ internal sealed class WindowsSuspendedProcess : IDisposable
 
     internal bool CleanupSucceeded { get; private set; }
 
+    internal CleanupOutcome? CleanupOutcome { get; private set; }
+
     internal static bool TryStart(
         VerifiedTrustedTool tool,
         TrustedToolCommand command,
@@ -44,7 +62,62 @@ internal sealed class WindowsSuspendedProcess : IDisposable
         ArgumentNullException.ThrowIfNull(command);
         ArgumentNullException.ThrowIfNull(job);
 
+        TrustedToolOperationEnvironment operationEnvironment;
+        try
+        {
+            operationEnvironment = TrustedToolEnvironmentPolicy.CaptureCurrent();
+        }
+        catch (InvalidOperationException)
+        {
+            launched = null;
+            return false;
+        }
+
+        return TryStartCore(
+            tool.ExecutablePath,
+            command.Arguments,
+            tool.PackageRoot,
+            operationEnvironment,
+            job,
+            out launched,
+            out _);
+    }
+
+    internal static bool TryStart(
+        string executablePath,
+        IReadOnlyList<string> arguments,
+        string workingDirectory,
+        TrustedToolOperationEnvironment operationEnvironment,
+        WindowsKillOnCloseJob job,
+        out WindowsSuspendedProcess? launched,
+        out bool startCleanupSucceeded)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(executablePath);
+        ArgumentNullException.ThrowIfNull(arguments);
+        ArgumentException.ThrowIfNullOrWhiteSpace(workingDirectory);
+        ArgumentNullException.ThrowIfNull(operationEnvironment);
+        ArgumentNullException.ThrowIfNull(job);
+        return TryStartCore(
+            executablePath,
+            arguments,
+            workingDirectory,
+            operationEnvironment,
+            job,
+            out launched,
+            out startCleanupSucceeded);
+    }
+
+    private static bool TryStartCore(
+        string executablePath,
+        IReadOnlyList<string> arguments,
+        string workingDirectory,
+        TrustedToolOperationEnvironment suppliedEnvironment,
+        WindowsKillOnCloseJob job,
+        out WindowsSuspendedProcess? launched,
+        out bool startCleanupSucceeded)
+    {
         launched = null;
+        startCleanupSucceeded = true;
         AnonymousPipeServerStream? standardInput = null;
         AnonymousPipeServerStream? standardOutput = null;
         AnonymousPipeServerStream? standardError = null;
@@ -54,7 +127,7 @@ internal sealed class WindowsSuspendedProcess : IDisposable
         IntPtr inheritedHandleList = IntPtr.Zero;
         bool attributeListInitialized = false;
         SafeProcessHandle? processHandle = null;
-        TrustedToolOperationEnvironment? operationEnvironment = null;
+        TrustedToolOperationEnvironment? operationEnvironment = suppliedEnvironment;
         try
         {
             standardInput = new AnonymousPipeServerStream(
@@ -93,18 +166,17 @@ internal sealed class WindowsSuspendedProcess : IDisposable
                 },
                 AttributeList = attributeList,
             };
-            string commandLine = BuildCommandLine(tool.ExecutablePath, command.Arguments);
+            string commandLine = BuildCommandLine(executablePath, arguments);
             if (commandLine.Length >= MaximumCommandLineLength)
             {
                 return false;
             }
 
-            operationEnvironment = TrustedToolEnvironmentPolicy.CaptureCurrent();
             using TrustedToolEnvironmentBlock environment =
                 TrustedToolEnvironmentBlock.Create(operationEnvironment.Variables);
 
             processCreated = CreateProcess(
-                tool.ExecutablePath,
+                executablePath,
                 (commandLine + '\0').ToCharArray(),
                 IntPtr.Zero,
                 IntPtr.Zero,
@@ -112,7 +184,7 @@ internal sealed class WindowsSuspendedProcess : IDisposable
                 CreateNoWindow | CreateSuspended | ExtendedStartupInfoPresent |
                     CreateUnicodeEnvironment,
                 environment.Pointer,
-                tool.PackageRoot,
+                workingDirectory,
                 ref startup,
                 out processInformation);
             standardInput.DisposeLocalCopyOfClientHandle();
@@ -200,6 +272,10 @@ internal sealed class WindowsSuspendedProcess : IDisposable
 
             processHandle?.Dispose();
             operationEnvironment?.Dispose();
+            if (operationEnvironment is not null)
+            {
+                startCleanupSucceeded = operationEnvironment.CleanupSucceeded;
+            }
         }
     }
 
@@ -280,13 +356,17 @@ internal sealed class WindowsSuspendedProcess : IDisposable
 
     public void Dispose()
     {
-        StandardOutput.Dispose();
-        StandardError.Dispose();
-        Process.Dispose();
-        ProcessHandle.Dispose();
-        OperationEnvironment.Dispose();
-        CleanupSucceeded = OperationEnvironment.CleanupSucceeded;
+        CleanupOutcome = _cleanup.ExecuteAsync().GetAwaiter().GetResult();
+        CleanupSucceeded = CleanupOutcome.Succeeded;
     }
+
+    private static OwnedCleanupAction Sync(
+        OwnedCleanupStage stage,
+        Action action) => new(stage, () =>
+        {
+            action();
+            return ValueTask.CompletedTask;
+        });
 
     private static string BuildCommandLine(
         string executablePath,

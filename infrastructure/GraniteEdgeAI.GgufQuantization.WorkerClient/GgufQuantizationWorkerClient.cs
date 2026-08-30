@@ -1,4 +1,4 @@
-using System.Diagnostics;
+using System.Runtime.ExceptionServices;
 using GraniteEdgeAI.GgufQuantization.Capabilities;
 using GraniteEdgeAI.GgufQuantization.Contracts;
 using GraniteEdgeAI.HardwareInspection.Foundation.Processes;
@@ -40,101 +40,169 @@ public sealed class GgufQuantizationWorkerClient
             return Failed(command, GgufQuantizationSupportCode.SourceChanged, 0);
         }
 
-        var start = new ProcessStartInfo
-        {
-            FileName = package.ExecutablePath,
-            WorkingDirectory = Path.GetDirectoryName(lease.OutputPath)!,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-        };
-        foreach (string argument in BuildArguments(command, lease.SourcePath, lease.OutputPath))
-        {
-            start.ArgumentList.Add(argument);
-        }
         TrustedToolOperationEnvironment operationEnvironment =
             TrustedToolOperationEnvironment.CreateCurrent(includeDotnetRoots: false);
-        start.Environment.Clear();
-        foreach ((string key, string value) in operationEnvironment.Variables)
-        {
-            start.Environment.Add(key, value);
-        }
-
-        using var process = new Process { StartInfo = start, EnableRaisingEvents = true };
-        using var timeout = new CancellationTokenSource(_timeout);
-        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeout.Token);
-        try
-        {
-            if (!process.Start())
-            {
-                return Failed(command, GgufQuantizationSupportCode.ProcessFailed, 0);
-            }
-
-            Task output = DrainBoundedAsync(
-                process.StandardOutput, package.StandardOutputMaximumBytes, linked.Token);
-            Task error = DrainBoundedAsync(
-                process.StandardError, package.StandardErrorMaximumBytes, linked.Token);
-            await Task.WhenAll(process.WaitForExitAsync(linked.Token), output, error)
-                .ConfigureAwait(false);
-
-            if (process.ExitCode != 0)
-            {
-                lease.DeletePendingOutput();
-                return Failed(command, GgufQuantizationSupportCode.ProcessFailed, 0);
-            }
-            lease.VerifySourceUnchanged();
-            var result = new FileInfo(lease.OutputPath);
-            if (!result.Exists
-                || result.Length <= 0
-                || result.Length > package.MaximumOutputBytes
-                || (result.Attributes & FileAttributes.ReparsePoint) != 0)
-            {
-                lease.DeletePendingOutput();
-                return Failed(command, GgufQuantizationSupportCode.OutputInvalid, 0);
-            }
-
-            return GgufQuantizationEvent.Create(
-                command.CorrelationId,
-                command.OptimizationPlanId,
-                command.ConfigurationSha256,
-                GgufQuantizationEventKind.Completed,
-                100,
-                GgufQuantizationSupportCode.None,
-                command.OutputToken,
-                command.RequantizationAuthorizationSha256);
-        }
-        catch (OperationCanceledException) when (linked.IsCancellationRequested)
-        {
-            TryKill(process);
-            lease.DeletePendingOutput();
-            if (cancellationToken.IsCancellationRequested)
-            {
-                throw new OperationCanceledException(cancellationToken);
-            }
-            return Failed(command, GgufQuantizationSupportCode.TimedOut, 0);
-        }
-        catch (InvalidDataException)
-        {
-            TryKill(process);
-            lease.DeletePendingOutput();
-            return Failed(command, GgufQuantizationSupportCode.ProtocolViolation, 0);
-        }
-        catch
-        {
-            TryKill(process);
-            lease.DeletePendingOutput();
-            throw;
-        }
-        finally
+        if (!WindowsKillOnCloseJob.TryCreate(out WindowsKillOnCloseJob job))
         {
             operationEnvironment.Dispose();
             if (!operationEnvironment.CleanupSucceeded)
             {
                 throw new InvalidOperationException(
-                    "The GGUF quantizer cleanup could not be verified.");
+                    "The GGUF quantizer startup cleanup could not be verified.");
+            }
+
+            return Failed(command, GgufQuantizationSupportCode.ProcessFailed, 0);
+        }
+
+        if (!WindowsSuspendedProcess.TryStart(
+                package.ExecutablePath,
+                BuildArguments(command, lease.SourcePath, lease.OutputPath),
+                Path.GetDirectoryName(lease.OutputPath)!,
+                operationEnvironment,
+                job,
+                out WindowsSuspendedProcess? launched,
+                out bool startCleanupSucceeded))
+        {
+            job.Dispose();
+            if (!startCleanupSucceeded)
+            {
+                throw new InvalidOperationException(
+                    "The GGUF quantizer startup cleanup could not be verified.");
+            }
+
+            return Failed(command, GgufQuantizationSupportCode.ProcessFailed, 0);
+        }
+
+        WindowsSuspendedProcess running = launched!;
+        using var timeout = new CancellationTokenSource(_timeout);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeout.Token);
+        GgufQuantizationEvent? result = null;
+        Exception? primaryFailure = null;
+        try
+        {
+            Task output = DrainBoundedAsync(
+                running.StandardOutput, package.StandardOutputMaximumBytes, linked.Token);
+            Task error = DrainBoundedAsync(
+                running.StandardError, package.StandardErrorMaximumBytes, linked.Token);
+            await Task.WhenAll(
+                    running.Process.WaitForExitAsync(linked.Token),
+                    output,
+                    error)
+                .ConfigureAwait(false);
+
+            if (!running.TryGetExitCode(out int exitCode) || exitCode != 0)
+            {
+                result = Failed(command, GgufQuantizationSupportCode.ProcessFailed, 0);
+            }
+            else if (!await job.WaitForEmptyAsync(TimeSpan.FromSeconds(5))
+                         .ConfigureAwait(false))
+            {
+                result = Failed(command, GgufQuantizationSupportCode.ProcessFailed, 0);
+            }
+            else
+            {
+                lease.VerifySourceUnchanged();
+                var outputFile = new FileInfo(lease.OutputPath);
+                result = !outputFile.Exists
+                    || outputFile.Length <= 0
+                    || outputFile.Length > package.MaximumOutputBytes
+                    || (outputFile.Attributes & FileAttributes.ReparsePoint) != 0
+                    ? Failed(command, GgufQuantizationSupportCode.OutputInvalid, 0)
+                    : GgufQuantizationEvent.Create(
+                        command.CorrelationId,
+                        command.OptimizationPlanId,
+                        command.ConfigurationSha256,
+                        GgufQuantizationEventKind.Completed,
+                        100,
+                        GgufQuantizationSupportCode.None,
+                        command.OutputToken,
+                        command.RequantizationAuthorizationSha256);
             }
         }
+        catch (OperationCanceledException) when (linked.IsCancellationRequested)
+        {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                primaryFailure = new OperationCanceledException(cancellationToken);
+            }
+            else
+            {
+                result = Failed(command, GgufQuantizationSupportCode.TimedOut, 0);
+            }
+        }
+        catch (InvalidDataException)
+        {
+            result = Failed(command, GgufQuantizationSupportCode.ProtocolViolation, 0);
+        }
+        catch (Exception error)
+        {
+            primaryFailure = error;
+        }
+
+        bool retainOutput = result?.Kind == GgufQuantizationEventKind.Completed;
+        CleanupOutcome cleanup = await new BoundedCleanupCoordinator(
+            new OwnedCleanupAction(OwnedCleanupStage.ProcessTree, async () =>
+            {
+                if (!job.TryTerminate() ||
+                    !await job.WaitForEmptyAsync(TimeSpan.FromSeconds(5))
+                        .ConfigureAwait(false))
+                {
+                    throw new InvalidOperationException(
+                        "The GGUF quantizer process tree cleanup could not be verified.");
+                }
+            }),
+            new OwnedCleanupAction(OwnedCleanupStage.Session, () =>
+            {
+                running.Dispose();
+                if (!running.CleanupSucceeded)
+                {
+                    throw new InvalidOperationException(
+                        "The GGUF quantizer session cleanup could not be verified.");
+                }
+
+                return ValueTask.CompletedTask;
+            }),
+            new OwnedCleanupAction(OwnedCleanupStage.Job, () =>
+            {
+                job.Dispose();
+                return ValueTask.CompletedTask;
+            }),
+            new OwnedCleanupAction(OwnedCleanupStage.PendingOutput, () =>
+            {
+                if (!retainOutput)
+                {
+                    lease.DeletePendingOutput();
+                }
+
+                return ValueTask.CompletedTask;
+            })).ExecuteAsync().ConfigureAwait(false);
+
+        if (primaryFailure is OperationCanceledException &&
+            cancellationToken.IsCancellationRequested)
+        {
+            if (!cleanup.Succeeded)
+            {
+                throw new OperationCanceledException(
+                    "The GGUF quantization was cancelled and cleanup integrity failed.",
+                    new QuantizerCleanupException(cleanup.Failures, primaryFailure),
+                    cancellationToken);
+            }
+
+            throw new OperationCanceledException(cancellationToken);
+        }
+
+        if (!cleanup.Succeeded)
+        {
+            throw new QuantizerCleanupException(cleanup.Failures, primaryFailure);
+        }
+
+        if (primaryFailure is not null)
+        {
+            ExceptionDispatchInfo.Capture(primaryFailure).Throw();
+        }
+
+        return result ?? throw new InvalidOperationException(
+            "The GGUF quantizer did not produce a bounded outcome.");
     }
 
     internal static string[] BuildArguments(
@@ -155,21 +223,21 @@ public sealed class GgufQuantizationWorkerClient
     }
 
     private static async Task DrainBoundedAsync(
-        StreamReader reader,
-        int maximumCharacters,
+        Stream stream,
+        int maximumBytes,
         CancellationToken cancellationToken)
     {
-        char[] buffer = new char[1024];
+        byte[] buffer = new byte[4096];
         int total = 0;
         while (true)
         {
-            int read = await reader.ReadAsync(buffer.AsMemory(), cancellationToken).ConfigureAwait(false);
+            int read = await stream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
             if (read == 0)
             {
                 return;
             }
             total = checked(total + read);
-            if (total > maximumCharacters)
+            if (total > maximumBytes)
             {
                 throw new InvalidDataException("Quantizer output exceeded its closed bound.");
             }
@@ -189,19 +257,18 @@ public sealed class GgufQuantizationWorkerClient
             code,
             requantizationAuthorizationSha256: command.RequantizationAuthorizationSha256);
 
-    private static void TryKill(Process process)
+    internal sealed class QuantizerCleanupException : InvalidOperationException
     {
-        try
+        internal QuantizerCleanupException(
+            IReadOnlyList<CleanupFailureFact> failures,
+            Exception? primaryFailure)
+            : base(
+                "The GGUF quantizer cleanup could not be verified.",
+                primaryFailure)
         {
-            if (!process.HasExited)
-            {
-                process.Kill(entireProcessTree: true);
-                process.WaitForExit(5000);
-            }
+            Failures = failures.ToArray();
         }
-        catch
-        {
-            // Cleanup remains bounded to the process tree started by this client.
-        }
+
+        internal IReadOnlyList<CleanupFailureFact> Failures { get; }
     }
 }

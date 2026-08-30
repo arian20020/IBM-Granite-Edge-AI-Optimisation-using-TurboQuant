@@ -19,6 +19,14 @@ if (File.Exists(source + ".delay"))
 {
     await Task.Delay(TimeSpan.FromSeconds(5));
 }
+if (File.Exists(source + ".fail"))
+{
+    return 9;
+}
+if (File.Exists(source + ".noise"))
+{
+    Console.Write(new string('N', 5000));
+}
 
 await using FileStream input = new(source, FileMode.Open, FileAccess.Read, FileShare.Read);
 await using FileStream result = new(output, FileMode.CreateNew, FileAccess.Write, FileShare.None);

@@ -15,5 +15,6 @@
     <InternalsVisibleTo Include="GraniteEdgeAI.HardwareInspection.Foundation.Tests" />
     <InternalsVisibleTo Include="GraniteEdgeAI.ModelInspection.WorkerClient" />
     <InternalsVisibleTo Include="GraniteEdgeAI.OpenVino.WorkerClient" />
+    <InternalsVisibleTo Include="GraniteEdgeAI.GgufQuantization.WorkerClient" />
   </ItemGroup>
 </Project>
