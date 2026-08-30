@@ -120,11 +120,17 @@ internal static class StoragePathGuard
             throw new ArgumentException("A fully qualified app-owned root is required.", nameof(path));
         }
         string full = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+        RequireNoReparseAncestors(full);
         if (create)
         {
             Directory.CreateDirectory(full);
+            RequireNoReparseAncestors(full);
         }
-        RequireNoReparsePoint(full, full);
+        if (!Directory.Exists(full))
+        {
+            throw new DirectoryNotFoundException(
+                "The app-owned root does not exist.");
+        }
         return full;
     }
 
@@ -141,12 +147,14 @@ internal static class StoragePathGuard
         {
             throw new FileNotFoundException("The app-owned path no longer exists.");
         }
-        RequireNoReparsePoint(fullRoot, full);
+        RequireNoReparseAncestors(fullRoot);
+        RequireNoReparseAncestors(full);
         return full;
     }
 
     internal static void RequireRegularFile(string path)
     {
+        RequireNoReparseAncestors(path);
         if (!File.Exists(path))
         {
             throw new FileNotFoundException("The sealed source is unavailable.");
@@ -164,27 +172,39 @@ internal static class StoragePathGuard
             Path.GetPathRoot(Path.GetFullPath(second)),
             StringComparison.OrdinalIgnoreCase);
 
-    private static void RequireNoReparsePoint(string root, string target)
+    internal static void RequireNoReparseAncestors(string path)
     {
-        string cursor = root;
-        while (true)
+        if (string.IsNullOrWhiteSpace(path) || !Path.IsPathFullyQualified(path))
         {
-            if ((File.GetAttributes(cursor) & FileAttributes.ReparsePoint) != 0)
-            {
-                throw new InvalidOperationException("Reparse-point ancestry is not accepted.");
-            }
-            if (string.Equals(cursor, target, StringComparison.OrdinalIgnoreCase))
-            {
-                return;
-            }
-            string relative = Path.GetRelativePath(cursor, target);
-            string nextName = relative.Split(
-                [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
-                StringSplitOptions.RemoveEmptyEntries)[0];
-            cursor = Path.Combine(cursor, nextName);
+            throw new ArgumentException(
+                "A fully qualified local path is required.", nameof(path));
+        }
+
+        string full = Path.GetFullPath(path);
+        string root = Path.GetPathRoot(full)
+            ?? throw new ArgumentException(
+                "A rooted local path is required.", nameof(path));
+        if ((File.GetAttributes(root) & FileAttributes.ReparsePoint) != 0)
+        {
+            throw new InvalidOperationException(
+                "Reparse-point ancestry is not accepted.");
+        }
+
+        string cursor = root;
+        string relative = Path.GetRelativePath(root, full);
+        foreach (string component in relative.Split(
+                     [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
+                     StringSplitOptions.RemoveEmptyEntries))
+        {
+            cursor = Path.Combine(cursor, component);
             if (!File.Exists(cursor) && !Directory.Exists(cursor))
             {
                 return;
+            }
+            if ((File.GetAttributes(cursor) & FileAttributes.ReparsePoint) != 0)
+            {
+                throw new InvalidOperationException(
+                    "Reparse-point ancestry is not accepted.");
             }
         }
     }

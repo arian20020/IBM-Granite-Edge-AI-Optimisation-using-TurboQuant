@@ -111,6 +111,28 @@ internal sealed class OptimizationOutputLease : IDisposable
             throw new ArgumentException("A bounded opaque output identity is required.", nameof(outputIdentity));
         }
         string root = StoragePathGuard.RequireChild(_stagingRoot, _candidateRoot, mustExist: true);
+        if (Directory.EnumerateDirectories(
+                root,
+                "*",
+                SearchOption.TopDirectoryOnly).Any())
+        {
+            throw new InvalidDataException(
+                "A GGUF candidate cannot contain directories or linked content.");
+        }
+        string[] members = Directory.GetFiles(
+            root,
+            "*",
+            SearchOption.TopDirectoryOnly);
+        if (members.Length != 1
+            || !string.Equals(
+                Path.GetExtension(members[0]),
+                ".gguf",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidDataException(
+                "A GGUF candidate must contain exactly one model file.");
+        }
+        StoragePathGuard.RequireRegularFile(members[0]);
         (string manifest, ulong size, int files) = ComputeManifest(root);
         if (files == 0 || size == 0)
         {
@@ -181,6 +203,8 @@ internal sealed class OptimizationOutputLease : IDisposable
     {
         if (string.IsNullOrWhiteSpace(relativePath)
             || Path.IsPathFullyQualified(relativePath)
+            || relativePath.Contains(Path.DirectorySeparatorChar)
+            || relativePath.Contains(Path.AltDirectorySeparatorChar)
             || relativePath.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
                 .Any(segment => segment is "" or "." or ".."))
         {

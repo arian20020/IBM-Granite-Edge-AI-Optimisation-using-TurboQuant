@@ -7,6 +7,32 @@ namespace GraniteEdgeAI.CrossFeature.IntegrationTests;
 public sealed class PlanAndExecutionIntegrationTests
 {
     [TestMethod]
+    public void IdenticalOutputClaimsRemainDistinctExecutions()
+    {
+        OptimizationExecutionPlan plan = CrossFeaturePlanFixture.PersistentGgufPlan(
+            CrossFeaturePlanFixture.ModelDigest,
+            4 * CrossFeaturePlanFixture.GiB);
+        OptimizationExecutionResult first = OptimizationExecutionResult.Succeeded(
+            plan,
+            "execution-output",
+            new string('e', 64),
+            1024,
+            sourceUnchanged: true,
+            DateTimeOffset.UtcNow);
+        OptimizationExecutionResult retry = OptimizationExecutionResult.Succeeded(
+            plan,
+            "execution-output",
+            new string('e', 64),
+            1024,
+            sourceUnchanged: true,
+            DateTimeOffset.UtcNow);
+
+        Assert.AreNotEqual(Guid.Empty, first.ExecutionId);
+        Assert.AreNotEqual(Guid.Empty, retry.ExecutionId);
+        Assert.AreNotEqual(first.ExecutionId, retry.ExecutionId);
+    }
+
+    [TestMethod]
     public void AdmittedPreferenceIssuesStableExactV3Plan()
     {
         OptimizationExecutionPlan first = CrossFeaturePlanFixture.Issue();

@@ -1,0 +1,57 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <PlatformTarget>x64</PlatformTarget>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <Deterministic>true</Deterministic>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <EnableMSTestRunner>true</EnableMSTestRunner>
+    <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
+    <TestingPlatformShowTestsFailure>true</TestingPlatformShowTestsFailure>
+    <NoWarn>$(NoWarn);CA1512;CA1707;CA1720;CA1870;CA2208</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.8.1" />
+    <PackageReference Include="Microsoft.Testing.Extensions.TrxReport" Version="2.3.2" />
+    <PackageReference Include="MSTest.TestAdapter" Version="4.3.2" />
+    <PackageReference Include="MSTest.TestFramework" Version="4.3.2" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\GraniteEdgeAI.CrossFeature.IntegrationTests\CrossFeaturePlanFixture.cs"
+             Link="Tests\CrossFeaturePlanFixture.cs" />
+    <Compile Include="..\GraniteEdgeAI.CrossFeature.IntegrationTests\PersistentOutputRecoveryIntegrationTests.cs"
+             Link="Tests\PersistentOutputRecoveryIntegrationTests.cs" />
+    <Compile Include="..\GraniteEdgeAI.CrossFeature.IntegrationTests\PlanAndExecutionIntegrationTests.cs"
+             Link="Tests\PlanAndExecutionIntegrationTests.cs" />
+    <Compile Include="..\GraniteEdgeAI.CrossFeature.IntegrationTests\OptimizationReducerIdentityTests.cs"
+             Link="Tests\OptimizationReducerIdentityTests.cs" />
+    <Compile Include="..\..\UnitTests\GraniteEdgeAI.UnitTests\Features\ModelOptimization\OptimizationSourceResolverTests.cs"
+             Link="Tests\OptimizationSourceResolverTests.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelInspection\Application\ModelSourceCustodyRegistry.cs"
+             Link="Production\ModelInspection\ModelSourceCustodyRegistry.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelOptimization\Storage\*.cs"
+             Link="Production\ModelOptimization\Storage\%(Filename)%(Extension)" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelHardwareCompatibility\Contracts\CurrentModelLaunchHandoff.cs"
+             Link="Production\Compatibility\CurrentModelLaunchHandoff.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelHardwareCompatibility\Contracts\OptimizationSelectionHandoff.cs"
+             Link="Production\Compatibility\OptimizationSelectionHandoff.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelHardwareCompatibility\Application\OptimizationJourneyEntryContext.cs"
+             Link="Production\Compatibility\OptimizationJourneyEntryContext.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelOptimization\Application\OptimizationJourneyState.cs"
+             Link="Production\ModelOptimization\Journey\OptimizationJourneyState.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelOptimization\Application\OptimizationProgress.cs"
+             Link="Production\ModelOptimization\Journey\OptimizationProgress.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelOptimization\Application\OptimizationJourneyReducer.cs"
+             Link="Production\ModelOptimization\Journey\OptimizationJourneyReducer.cs" />
+    <Compile Include="..\..\..\shared\GraniteEdgeAI.ModelHardwareCompatibility.Core\**\*.cs"
+             Exclude="..\..\..\shared\GraniteEdgeAI.ModelHardwareCompatibility.Core\bin\**;..\..\..\shared\GraniteEdgeAI.ModelHardwareCompatibility.Core\obj\**"
+             Link="Production\CompatibilityCore\%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>

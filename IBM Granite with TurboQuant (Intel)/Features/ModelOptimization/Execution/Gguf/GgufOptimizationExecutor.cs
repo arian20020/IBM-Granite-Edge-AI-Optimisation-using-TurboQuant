@@ -177,7 +177,8 @@ internal sealed class GgufOptimizationExecutor : IOptimizationExecutor
             receipt.Key.OutputManifestSha256,
             receipt.OutputSizeBytes,
             sourceUnchanged: true,
-            _timeProvider.GetUtcNow());
+            _timeProvider.GetUtcNow(),
+            receipt.Key.ExecutionId);
     }
 
     private static void Report(

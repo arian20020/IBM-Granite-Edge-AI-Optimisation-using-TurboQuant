@@ -32,11 +32,28 @@
              Link="Production\ModelImport\Selection\%(Filename)%(Extension)" />
     <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelInspection\Application\ModelInspectionHandoff*.cs"
              Link="Production\ModelInspection\Handoff\%(Filename)%(Extension)" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelInspection\Infrastructure\ModelInspectionProjectionFactory.cs"
+             Link="Production\ModelInspection\ModelInspectionProjectionFactory.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelInspection\Application\ModelSourceCustodyRegistry.cs"
+             Link="Production\ModelInspection\ModelSourceCustodyRegistry.cs" />
     <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelInspection\Contracts\*.cs"
              Link="Production\ModelInspection\Contracts\%(Filename)%(Extension)" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelHardwareCompatibility\Contracts\CurrentModelLaunchHandoff.cs"
+             Link="Production\Compatibility\CurrentModelLaunchHandoff.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelHardwareCompatibility\Contracts\OptimizationSelectionHandoff.cs"
+             Link="Production\Compatibility\OptimizationSelectionHandoff.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelHardwareCompatibility\Application\OptimizationJourneyEntryContext.cs"
+             Link="Production\Compatibility\OptimizationJourneyEntryContext.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelOptimization\Application\OptimizationJourneyState.cs"
+             Link="Production\ModelOptimization\Journey\OptimizationJourneyState.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelOptimization\Application\OptimizationProgress.cs"
+             Link="Production\ModelOptimization\Journey\OptimizationProgress.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelOptimization\Application\OptimizationJourneyReducer.cs"
+             Link="Production\ModelOptimization\Journey\OptimizationJourneyReducer.cs" />
     <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelOptimization\Storage\*.cs"
-             Exclude="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelOptimization\Storage\OptimizationSourceResolver.cs"
              Link="Production\ModelOptimization\Storage\%(Filename)%(Extension)" />
+    <Compile Include="..\..\UnitTests\GraniteEdgeAI.UnitTests\Features\ModelOptimization\OptimizationSourceResolverTests.cs"
+             Link="Tests\OptimizationSourceResolverTests.cs" />
     <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\GgufRuntime\History\ChatCompletionStatus.cs"
              Link="Production\GgufRuntime\History\ChatCompletionStatus.cs" />
     <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\GgufRuntime\History\ChatConversation.cs"
@@ -60,6 +77,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\..\shared\GraniteEdgeAI.ModelInspection.Contracts\GraniteEdgeAI.ModelInspection.Contracts.csproj" />
     <ProjectReference Include="..\..\..\shared\GraniteEdgeAI.GgufRuntime.Contracts\GraniteEdgeAI.GgufRuntime.Contracts.csproj" />
     <ProjectReference Include="..\..\..\infrastructure\GraniteEdgeAI.GgufRuntime.WorkerClient\GraniteEdgeAI.GgufRuntime.WorkerClient.csproj" />
   </ItemGroup>

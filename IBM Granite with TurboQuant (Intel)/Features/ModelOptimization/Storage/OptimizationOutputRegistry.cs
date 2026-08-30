@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
@@ -63,6 +64,7 @@ internal sealed class OptimizationOutputRegistry
         {
             receipt = _admitted.Values.SingleOrDefault(candidate =>
                 candidate.Key.OptimizationPlanId == result.OptimizationPlanId
+                && candidate.Key.ExecutionId == result.ExecutionId
                 && string.Equals(
                     candidate.Key.ConfigurationSha256,
                     result.ConfigurationSha256,
@@ -74,6 +76,19 @@ internal sealed class OptimizationOutputRegistry
                 && string.Equals(
                     candidate.Key.OutputManifestSha256,
                     result.OutputManifestSha256,
+                    StringComparison.Ordinal)
+                && string.Equals(
+                    candidate.SourceSha256,
+                    result.SourceSha256,
+                    StringComparison.Ordinal)
+                && candidate.SourceLengthBytes == result.SourceLengthBytes
+                && string.Equals(
+                    candidate.ProductHardwareRunId,
+                    result.ProductHardwareRunId,
+                    StringComparison.Ordinal)
+                && string.Equals(
+                    candidate.HardwareSnapshotSha256,
+                    result.HardwareSnapshotSha256,
                     StringComparison.Ordinal));
         }
         if (receipt is null)
@@ -81,30 +96,65 @@ internal sealed class OptimizationOutputRegistry
             return false;
         }
 
-        string publication = StoragePathGuard.RequireChild(
-            _committedRoot,
-            Path.Combine(_committedRoot, receipt.PublicationIdentity),
-            mustExist: true);
-        string[] files = Directory.GetFiles(
-            publication,
-            "*",
-            SearchOption.AllDirectories);
-        if (files.Length != 1
-            || !string.Equals(
-                Path.GetExtension(files[0]),
-                ".gguf",
-                StringComparison.OrdinalIgnoreCase))
+        try
+        {
+            string publication = StoragePathGuard.RequireChild(
+                _committedRoot,
+                Path.Combine(_committedRoot, receipt.PublicationIdentity),
+                mustExist: true);
+            if (!TryGetSingleGgufFile(publication, out string publishedFile))
+            {
+                return false;
+            }
+            (string manifest, ulong size, int fileCount) =
+                OptimizationOutputLease.ComputeManifest(publication);
+            if (fileCount != 1
+                || size != receipt.OutputSizeBytes
+                || size != result.OutputSizeBytes
+                || !string.Equals(
+                    manifest,
+                    receipt.Key.OutputManifestSha256,
+                    StringComparison.Ordinal)
+                || !string.Equals(
+                    manifest,
+                    result.OutputManifestSha256,
+                    StringComparison.Ordinal)
+                || !string.Equals(
+                    Path.GetExtension(publishedFile),
+                    ".gguf",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+            using FileStream stream = File.OpenRead(publishedFile);
+            string digest = Convert.ToHexString(SHA256.HashData(stream))
+                .ToLowerInvariant();
+            string relative = Path.GetRelativePath(publication, publishedFile)
+                .Replace('\\', '/');
+            byte[] canonicalRow = Encoding.UTF8.GetBytes(
+                relative + "\0" + digest + "\0" + stream.Length + "\n");
+            string currentManifest = Convert.ToHexString(
+                SHA256.HashData(canonicalRow)).ToLowerInvariant();
+            if (!string.Equals(
+                    currentManifest,
+                    result.OutputManifestSha256,
+                    StringComparison.Ordinal))
+            {
+                return false;
+            }
+            filePath = publishedFile;
+            fileSha256 = digest;
+            fileLengthBytes = checked((ulong)stream.Length);
+            return fileLengthBytes == size;
+        }
+        catch (Exception exception) when (exception is IOException
+                                          or UnauthorizedAccessException
+                                          or InvalidOperationException
+                                          or ArgumentException
+                                          or OverflowException)
         {
             return false;
         }
-        StoragePathGuard.RequireRegularFile(files[0]);
-        using FileStream stream = File.OpenRead(files[0]);
-        string digest = Convert.ToHexString(SHA256.HashData(stream))
-            .ToLowerInvariant();
-        filePath = files[0];
-        fileSha256 = digest;
-        fileLengthBytes = checked((ulong)stream.Length);
-        return true;
     }
 
     internal OptimizationOutputLease CreateLease(
@@ -144,9 +194,26 @@ internal sealed class OptimizationOutputRegistry
         }
     }
 
+    internal Task<OptimizationCommitReceipt> AdmitAsync(
+        OptimizationExecutionPlan plan,
+        long generation,
+        StagedSourceSnapshot source,
+        bool sourceUnchanged,
+        SealedOptimizationCandidate candidate,
+        CancellationToken cancellationToken) =>
+        AdmitAsync(
+            plan,
+            generation,
+            Guid.NewGuid(),
+            source,
+            sourceUnchanged,
+            candidate,
+            cancellationToken);
+
     internal async Task<OptimizationCommitReceipt> AdmitAsync(
         OptimizationExecutionPlan plan,
         long generation,
+        Guid executionId,
         StagedSourceSnapshot source,
         bool sourceUnchanged,
         SealedOptimizationCandidate candidate,
@@ -156,6 +223,7 @@ internal sealed class OptimizationOutputRegistry
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(candidate);
         if (generation < 1
+            || executionId == Guid.Empty
             || !plan.ProducesPersistentArtifact
             || !sourceUnchanged
             || !source.RehashMatches()
@@ -166,6 +234,11 @@ internal sealed class OptimizationOutputRegistry
 
         string candidateRoot = candidate.CandidateRoot(_ownerToken);
         StoragePathGuard.RequireChild(_stagingRoot, candidateRoot, mustExist: true);
+        if (!TryGetSingleGgufFile(candidateRoot, out _))
+        {
+            throw new InvalidDataException(
+                "A persistent GGUF output must contain one direct regular model file.");
+        }
         if (!StoragePathGuard.SameVolume(candidateRoot, _committedRoot))
         {
             throw new InvalidOperationException("Cross-volume output promotion is prohibited.");
@@ -181,6 +254,7 @@ internal sealed class OptimizationOutputRegistry
         var key = new OptimizationOutputKey(
             plan.Route,
             plan.OptimizationPlanId,
+            executionId,
             plan.ConfigurationSha256,
             candidate.OutputIdentity,
             candidate.OutputManifestSha256).Validate();
@@ -190,6 +264,9 @@ internal sealed class OptimizationOutputRegistry
             key,
             generation,
             source.SourceSha256,
+            source.SourceLengthBytes,
+            plan.Binding.ProductHardwareRunId,
+            plan.Binding.HardwareSnapshotSha256,
             SourceUnchanged: true,
             candidate.OutputSizeBytes,
             candidate.SealedStagingIdentity,
@@ -242,11 +319,28 @@ internal sealed class OptimizationOutputRegistry
                 _stagingRoot,
                 operationRoot,
                 mustExist: true);
-            foreach (string file in Directory.EnumerateFiles(owned, "*", SearchOption.AllDirectories))
+            string candidate = StoragePathGuard.RequireChild(
+                owned,
+                Path.Combine(owned, "candidate"),
+                mustExist: true);
+            if (Directory.EnumerateDirectories(
+                    candidate,
+                    "*",
+                    SearchOption.TopDirectoryOnly).Any())
             {
-                File.SetAttributes(file, FileAttributes.Normal);
+                return;
             }
-            Directory.Delete(owned, recursive: true);
+            foreach (string file in Directory.EnumerateFiles(
+                         candidate,
+                         "*",
+                         SearchOption.TopDirectoryOnly))
+            {
+                StoragePathGuard.RequireRegularFile(file);
+                File.SetAttributes(file, FileAttributes.Normal);
+                File.Delete(file);
+            }
+            Directory.Delete(candidate, recursive: false);
+            Directory.Delete(owned, recursive: false);
         }
         catch
         {
@@ -275,10 +369,16 @@ internal sealed class OptimizationOutputRegistry
                     _committedRoot,
                     Path.Combine(_committedRoot, receipt.PublicationIdentity),
                     mustExist: true);
+                if (!TryGetSingleGgufFile(path, out _))
+                {
+                    throw new InvalidDataException();
+                }
                 (string manifest, ulong size, int files) = OptimizationOutputLease.ComputeManifest(path);
                 if (files == 0
                     || size != receipt.OutputSizeBytes
                     || !string.Equals(manifest, receipt.Key.OutputManifestSha256, StringComparison.Ordinal)
+                    || _admitted.Keys.Any(existing =>
+                        existing.OptimizationPlanId == receipt.Key.OptimizationPlanId)
                     || !_admitted.TryAdd(receipt.Key, receipt))
                 {
                     throw new InvalidDataException();
@@ -313,5 +413,34 @@ internal sealed class OptimizationOutputRegistry
         {
             // Never broaden cleanup beyond the exact verified app-owned item.
         }
+    }
+
+    private static bool TryGetSingleGgufFile(
+        string root,
+        out string filePath)
+    {
+        filePath = string.Empty;
+        if (Directory.EnumerateDirectories(
+                root,
+                "*",
+                SearchOption.TopDirectoryOnly).Any())
+        {
+            return false;
+        }
+        string[] files = Directory.GetFiles(
+            root,
+            "*",
+            SearchOption.TopDirectoryOnly);
+        if (files.Length != 1
+            || !string.Equals(
+                Path.GetExtension(files[0]),
+                ".gguf",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+        StoragePathGuard.RequireRegularFile(files[0]);
+        filePath = files[0];
+        return true;
     }
 }

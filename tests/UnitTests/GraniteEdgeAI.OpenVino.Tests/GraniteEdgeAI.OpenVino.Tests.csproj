@@ -35,6 +35,10 @@
              Link="Production\Conversion\%(Filename)%(Extension)" />
     <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\OpenVinoRoute\Optimization\*.cs"
              Link="Production\Optimization\%(Filename)%(Extension)" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelOptimization\Storage\ExportDestinationGuard.cs"
+             Link="Production\Storage\ExportDestinationGuard.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelOptimization\Storage\StagedSourceSnapshot.cs"
+             Link="Production\Storage\StagedSourceSnapshot.cs" />
     <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\OpenVinoRoute\TurboQuant\*.cs"
              Link="Production\TurboQuant\%(Filename)%(Extension)" />
     <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\Prompting\*.cs"

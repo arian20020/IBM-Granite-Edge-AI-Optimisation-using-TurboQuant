@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using GraniteEdgeAI.Features.OpenVinoRoute.Conversion;
 using GraniteEdgeAI.Features.OpenVinoRoute.Optimization;
 using GraniteEdgeAI.Features.OpenVinoRoute.Inspection;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Candidates;
@@ -157,6 +158,46 @@ public sealed class OpenVinoOptimizationTests
     }
 
     [TestMethod]
+    public void SparseLargeOpenVinoArtifactHashingUsesBoundedMemory()
+    {
+        const long sparseLength = 64L * 1024 * 1024;
+        string root = Path.Combine(
+            Path.GetTempPath(),
+            "ov-sparse-hash-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            using (FileStream model = new(
+                       Path.Combine(root, "openvino_model.bin"),
+                       FileMode.CreateNew,
+                       FileAccess.Write,
+                       FileShare.None))
+            {
+                model.SetLength(sparseLength);
+            }
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+            long before = GC.GetTotalAllocatedBytes(precise: true);
+
+            IReadOnlyList<OpenVinoOutputArtifact> output =
+                OpenVinoOptimizationProvenance.CaptureOutput(root);
+            long allocated = GC.GetTotalAllocatedBytes(precise: true) - before;
+
+            Assert.HasCount(1, output);
+            Assert.AreEqual(sparseLength, output[0].Length);
+            Assert.IsLessThan(8L * 1024 * 1024, allocated);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [TestMethod]
     public void CandidatesContainNoGgufQuantizationOrLlamaCppFlags()
     {
         string json = JsonSerializer.Serialize(
@@ -253,6 +294,7 @@ public sealed class OpenVinoOptimizationTests
         OpenVinoOptimizationProvenance provenance =
             OpenVinoOptimizationProvenance.Read(package.Destination);
         Assert.AreEqual(plan.OptimizationPlanId, result.OptimizationPlanId);
+        Assert.AreEqual(provenance.OperationId, result.ExecutionId);
         Assert.AreEqual(plan.ConfigurationSha256, result.ConfigurationSha256);
         Assert.AreEqual(plan.Binding.ModelSha256, result.SourceSha256);
         Assert.IsTrue(result.SourceUnchanged);
@@ -381,7 +423,26 @@ public sealed class OpenVinoOptimizationTests
             result.Status);
         OpenVinoRuntimeOptimizationProfile profile =
             OpenVinoRuntimeOptimizationProfile.Read(package.Destination);
+        Assert.AreEqual(result.ExecutionId, profile.ExecutionId);
         Assert.AreEqual(OpenVinoWeightPrecision.FourBit, profile.WeightPrecision);
+        var registry = new OpenVinoPublishedOutputRegistry(
+            Path.GetDirectoryName(package.Destination)!);
+        Assert.IsTrue(registry.TryRegister(result, package.Destination));
+        Assert.IsTrue(registry.TryResolve(
+            result,
+            out OpenVinoPublishedOutput? published));
+        Assert.IsNotNull(published);
+        Assert.AreEqual(OpenVinoRuntimeOptions.U8, published.RuntimeOptions);
+        using var sourceLease = new CancellationTokenSource();
+        using var chatTarget = new OpenVinoOptimizationChatTarget(
+            result,
+            published.Kind,
+            package.Source,
+            published.RuntimeOptions,
+            sourceLease);
+        Assert.AreEqual(result.ExecutionId, chatTarget.ExecutionId);
+        Assert.AreEqual(OpenVinoRuntimeOptions.U8, chatTarget.RuntimeOptions);
+        Assert.IsFalse(chatTarget.CanExportModel);
         AssertPayloadBinding(
             plan.ExecutionPayload.OpenVino!,
             profile.OpenVinoExecutionPayloadJson,
@@ -475,6 +536,560 @@ public sealed class OpenVinoOptimizationTests
             package.Destination, "openvino_model.bin")));
         Assert.IsFalse(File.Exists(Path.Combine(
             package.Destination, OpenVinoOptimizationProvenance.FileName)));
+    }
+
+    [TestMethod]
+    public async Task RuntimeProfileRegistryResolvesOnlyTheExactSuccessfulResult()
+    {
+        using PackageFixture package = PackageFixture.Create();
+        OptimizationExecutionPlan plan = CreatePlan(
+            package.Source,
+            OpenVinoWeightFormat.Original,
+            OpenVinoKvCacheFormat.RouteDefault);
+        OpenVinoOptimizationService service = new(
+            new RecordingOptimizationPipeline(), _ => false);
+        OptimizationExecutionResult result = await service.ExecuteAsync(
+            new OpenVinoOptimizationRequest(
+                package.Source,
+                package.Destination,
+                plan,
+                CurrentStateProvider(plan),
+                Confirmed: true),
+            progress: null,
+            CancellationToken.None);
+        var registry = new OpenVinoPublishedOutputRegistry(
+            Path.GetDirectoryName(package.Destination)!);
+
+        Assert.IsTrue(registry.TryRegister(result, package.Destination));
+        Assert.IsFalse(registry.TryRegister(result, package.Destination));
+        Assert.IsTrue(registry.TryResolve(
+            result,
+            out OpenVinoPublishedOutput? publication));
+        Assert.IsNotNull(publication);
+        Assert.AreEqual(
+            OpenVinoPublishedOutputKind.RuntimeConfiguration,
+            publication.Kind);
+        Assert.IsNull(publication.PersistentDirectory);
+        Assert.IsNotNull(publication.RuntimeProfile);
+        Assert.AreEqual(
+            plan.ConfigurationSha256,
+            publication.RuntimeProfile.ConfigurationSha256);
+        Assert.AreEqual(
+            OpenVinoRuntimeOptions.ReleasedDefault,
+            publication.RuntimeOptions);
+        Assert.IsFalse(publication.IsPersistentArtifact);
+
+        OptimizationExecutionResult substitutedExecution =
+            OptimizationExecutionResult.Succeeded(
+                plan,
+                result.OutputIdentity!,
+                result.OutputManifestSha256!,
+                result.OutputSizeBytes,
+                sourceUnchanged: true,
+                DateTimeOffset.UtcNow);
+        Assert.AreNotEqual(result.ExecutionId, substitutedExecution.ExecutionId);
+        Assert.IsFalse(registry.TryResolve(substitutedExecution, out _));
+        var freshRegistry = new OpenVinoPublishedOutputRegistry(
+            Path.GetDirectoryName(package.Destination)!);
+        Assert.IsFalse(freshRegistry.TryRegister(
+            substitutedExecution,
+            package.Destination));
+
+        OptimizationExecutionResult differentLength =
+            OptimizationExecutionResult.Succeeded(
+                plan,
+                result.OutputIdentity!,
+                result.OutputManifestSha256!,
+                checked(result.OutputSizeBytes + 1),
+                sourceUnchanged: true,
+                DateTimeOffset.UtcNow);
+        Assert.IsFalse(registry.TryResolve(differentLength, out _));
+    }
+
+    [TestMethod]
+    public async Task RuntimeProfileRegistryRejectsPublicationMutationAtConsumption()
+    {
+        using PackageFixture package = PackageFixture.Create();
+        OptimizationExecutionPlan plan = CreatePlan(
+            package.Source,
+            OpenVinoWeightFormat.Original,
+            OpenVinoKvCacheFormat.RouteDefault);
+        OpenVinoOptimizationService service = new(
+            new RecordingOptimizationPipeline(), _ => false);
+        OptimizationExecutionResult result = await service.ExecuteAsync(
+            new OpenVinoOptimizationRequest(
+                package.Source,
+                package.Destination,
+                plan,
+                CurrentStateProvider(plan),
+                Confirmed: true),
+            progress: null,
+            CancellationToken.None);
+        var registry = new OpenVinoPublishedOutputRegistry(
+            Path.GetDirectoryName(package.Destination)!);
+        Assert.IsTrue(registry.TryRegister(result, package.Destination));
+        Assert.IsTrue(registry.TryResolve(result, out _));
+
+        string profilePath = Path.Combine(
+            package.Destination,
+            OpenVinoRuntimeOptimizationProfile.FileName);
+        byte[] profile = File.ReadAllBytes(profilePath);
+        profile[^1] ^= 1;
+        File.WriteAllBytes(profilePath, profile);
+
+        Assert.IsFalse(registry.TryResolve(result, out _));
+    }
+
+    [TestMethod]
+    public async Task RuntimeConfigurationCannotBeExportedAsAModelArtifact()
+    {
+        using PackageFixture package = PackageFixture.Create();
+        OptimizationExecutionPlan plan = CreatePlan(
+            package.Source,
+            OpenVinoWeightFormat.Original,
+            OpenVinoKvCacheFormat.RouteDefault);
+        OpenVinoOptimizationService service = new(
+            new RecordingOptimizationPipeline(), _ => false);
+        OptimizationExecutionResult result = await service.ExecuteAsync(
+            new OpenVinoOptimizationRequest(
+                package.Source,
+                package.Destination,
+                plan,
+                CurrentStateProvider(plan),
+                Confirmed: true),
+            progress: null,
+            CancellationToken.None);
+        var registry = new OpenVinoPublishedOutputRegistry(
+            Path.GetDirectoryName(package.Destination)!);
+        Assert.IsTrue(registry.TryRegister(result, package.Destination));
+        string export = Path.Combine(package.Root, "output", "runtime-export");
+
+        Assert.AreEqual(OpenVinoExportDisposition.RuntimeOnly, (await registry.ExportPersistentAsync(
+            result,
+            export,
+            maximumBytes: 1024 * 1024,
+            CancellationToken.None)).Disposition);
+        Assert.IsFalse(Directory.Exists(export));
+    }
+
+    [TestMethod]
+    public async Task PersistentExportRequiresExactExecutionAndAtomicVerification()
+    {
+        using PackageFixture package = PackageFixture.Create();
+        OptimizationExecutionPlan plan = CreatePlan(package.Source);
+        OpenVinoOptimizationService service = new(
+            new RecordingOptimizationPipeline(), _ => true);
+        OptimizationExecutionResult result = await service.ExecuteAsync(
+            new OpenVinoOptimizationRequest(
+                package.Source,
+                package.Destination,
+                plan,
+                CurrentStateProvider(plan),
+                Confirmed: true),
+            progress: null,
+            CancellationToken.None);
+        var registry = new OpenVinoPublishedOutputRegistry(
+            Path.GetDirectoryName(package.Destination)!);
+        Assert.IsTrue(registry.TryRegister(result, package.Destination));
+        OptimizationExecutionResult substituted = OptimizationExecutionResult.Succeeded(
+            plan,
+            result.OutputIdentity!,
+            result.OutputManifestSha256!,
+            result.OutputSizeBytes,
+            sourceUnchanged: true,
+            DateTimeOffset.UtcNow);
+        string export = Path.Combine(package.Root, "output", "persistent-export");
+
+        Assert.AreEqual(OpenVinoExportDisposition.ResultRejected, (await registry.ExportPersistentAsync(
+            substituted,
+            export,
+            maximumBytes: 1024 * 1024,
+            CancellationToken.None)).Disposition);
+        Assert.IsFalse(Directory.Exists(export));
+        Assert.IsTrue((await registry.ExportPersistentAsync(
+            result,
+            export,
+            maximumBytes: 1024 * 1024,
+            CancellationToken.None)).IsSuccessful);
+        Assert.IsTrue(Directory.Exists(export));
+        Assert.IsFalse(Directory.EnumerateDirectories(
+            Path.GetDirectoryName(export)!,
+            ".export-*.tmp").Any());
+        var exportedRegistry = new OpenVinoPublishedOutputRegistry(
+            Path.GetDirectoryName(export)!);
+        Assert.IsTrue(exportedRegistry.TryRegister(result, export));
+        Assert.IsTrue(exportedRegistry.TryResolve(result, out _));
+    }
+
+    [TestMethod]
+    public async Task PersistentExportAcceptsExternalUserSelectedDestination()
+    {
+        using PackageFixture package = PackageFixture.Create();
+        OptimizationExecutionPlan plan = CreatePlan(package.Source);
+        OpenVinoOptimizationService service = new(
+            new RecordingOptimizationPipeline(), _ => true);
+        OptimizationExecutionResult result = await service.ExecuteAsync(
+            new OpenVinoOptimizationRequest(
+                package.Source,
+                package.Destination,
+                plan,
+                CurrentStateProvider(plan),
+                Confirmed: true),
+            progress: null,
+            CancellationToken.None);
+        string outputRoot = Path.GetDirectoryName(package.Destination)!;
+        var registry = new OpenVinoPublishedOutputRegistry(outputRoot);
+        Assert.IsTrue(registry.TryRegister(result, package.Destination));
+        string selectedRoot = Path.Combine(package.Root, "user-selected");
+        Directory.CreateDirectory(selectedRoot);
+        string destination = Path.Combine(selectedRoot, "optimized-model");
+
+        object export = await registry.ExportPersistentAsync(
+            result,
+            destination,
+            maximumBytes: 1024 * 1024,
+            CancellationToken.None);
+
+        Assert.IsNotNull(export);
+        Assert.IsTrue(Directory.Exists(destination));
+        Assert.IsFalse(Directory.EnumerateFileSystemEntries(
+            selectedRoot,
+            ".export-*.tmp",
+            SearchOption.TopDirectoryOnly).Any());
+
+        string existing = Path.Combine(selectedRoot, "existing-model");
+        Directory.CreateDirectory(existing);
+        string sentinel = Path.Combine(existing, "sentinel.txt");
+        File.WriteAllText(sentinel, "preserve");
+        OpenVinoExportResult rejected = await registry.ExportPersistentAsync(
+            result,
+            existing,
+            maximumBytes: 1024 * 1024,
+            CancellationToken.None);
+        Assert.AreEqual(
+            OpenVinoExportDisposition.DestinationExists,
+            rejected.Disposition);
+        Assert.AreEqual("preserve", File.ReadAllText(sentinel));
+    }
+
+    [TestMethod]
+    public async Task RuntimePublicationRejectsChildTopologyWithoutTraversingIt()
+    {
+        using PackageFixture package = PackageFixture.Create();
+        OptimizationExecutionPlan plan = CreatePlan(
+            package.Source,
+            OpenVinoWeightFormat.Original,
+            OpenVinoKvCacheFormat.RouteDefault);
+        OpenVinoOptimizationService service = new(
+            new RecordingOptimizationPipeline(), _ => false);
+        OptimizationExecutionResult result = await service.ExecuteAsync(
+            new OpenVinoOptimizationRequest(
+                package.Source,
+                package.Destination,
+                plan,
+                CurrentStateProvider(plan),
+                Confirmed: true),
+            progress: null,
+            CancellationToken.None);
+        string outputRoot = Path.GetDirectoryName(package.Destination)!;
+        var registry = new OpenVinoPublishedOutputRegistry(outputRoot);
+        Assert.IsTrue(registry.TryRegister(result, package.Destination));
+        string child = Path.Combine(package.Destination, "untrusted-child");
+        Directory.CreateDirectory(child);
+        string longPrefix = new('x', 96);
+        for (int index = 0; index < 4096; index++)
+        {
+            File.WriteAllBytes(Path.Combine(
+                child,
+                $"{longPrefix}-{index:D4}.dat"), []);
+        }
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
+        long before = GC.GetTotalAllocatedBytes(precise: true);
+
+        _ = await registry.ExportPersistentAsync(
+            result,
+            Path.Combine(outputRoot, "runtime-must-not-export"),
+            maximumBytes: 1024 * 1024,
+            CancellationToken.None);
+
+        long allocated = GC.GetTotalAllocatedBytes(precise: true) - before;
+        Assert.IsLessThan(512L * 1024, allocated,
+            "Validation entered the rejected child topology.");
+    }
+
+    [TestMethod]
+    public async Task PreCancelledExportDoesNotOpenArtifactForIdentityWork()
+    {
+        using PackageFixture package = PackageFixture.Create();
+        OptimizationExecutionPlan plan = CreatePlan(package.Source);
+        OpenVinoOptimizationService service = new(
+            new RecordingOptimizationPipeline(), _ => true);
+        OptimizationExecutionResult result = await service.ExecuteAsync(
+            new OpenVinoOptimizationRequest(
+                package.Source,
+                package.Destination,
+                plan,
+                CurrentStateProvider(plan),
+                Confirmed: true),
+            progress: null,
+            CancellationToken.None);
+        string outputRoot = Path.GetDirectoryName(package.Destination)!;
+        var registry = new OpenVinoPublishedOutputRegistry(outputRoot);
+        Assert.IsTrue(registry.TryRegister(result, package.Destination));
+        OpenVinoOptimizationProvenance provenance =
+            OpenVinoOptimizationProvenance.Read(package.Destination);
+        string artifact = Path.Combine(
+            package.Destination,
+            provenance.OutputFiles[0].Path);
+        await using FileStream custody = new(
+            artifact,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.None);
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        await Assert.ThrowsExactlyAsync<OperationCanceledException>(async () =>
+            await registry.ExportPersistentAsync(
+                result,
+                Path.Combine(outputRoot, "cancel-before-identity"),
+                maximumBytes: 1024 * 1024,
+                cancellation.Token));
+    }
+
+    [TestMethod]
+    public async Task CancellationDuringLargeArtifactIdentityIsPromptAndBounded()
+    {
+        using PackageFixture package = PackageFixture.Create();
+        OptimizationExecutionPlan plan = CreatePlan(package.Source);
+        var pipeline = new RecordingOptimizationPipeline
+        {
+            SparseOutputLength = 512L * 1024 * 1024
+        };
+        OpenVinoOptimizationService service = new(pipeline, _ => true);
+        OptimizationExecutionResult result = await service.ExecuteAsync(
+            new OpenVinoOptimizationRequest(
+                package.Source,
+                package.Destination,
+                plan,
+                CurrentStateProvider(plan),
+                Confirmed: true),
+            progress: null,
+            CancellationToken.None);
+        string outputRoot = Path.GetDirectoryName(package.Destination)!;
+        var registry = new OpenVinoPublishedOutputRegistry(outputRoot);
+        Assert.IsTrue(registry.TryRegister(result, package.Destination));
+        using var cancellation = new CancellationTokenSource();
+        cancellation.CancelAfter(TimeSpan.FromMilliseconds(20));
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
+        long before = GC.GetTotalAllocatedBytes(precise: true);
+
+        await Assert.ThrowsExactlyAsync<OperationCanceledException>(async () =>
+            await registry.ExportPersistentAsync(
+                result,
+                Path.Combine(outputRoot, "cancel-during-identity"),
+                maximumBytes: 1UL << 30,
+                cancellation.Token));
+
+        long allocated = GC.GetTotalAllocatedBytes(precise: true) - before;
+        Assert.IsLessThan(32L * 1024 * 1024, allocated);
+        Assert.IsFalse(Directory.Exists(Path.Combine(
+            outputRoot,
+            "cancel-during-identity")));
+    }
+
+    [TestMethod]
+    public async Task CleanupFailureIsObservableAndSanitized()
+    {
+        using PackageFixture package = PackageFixture.Create();
+        OptimizationExecutionPlan plan = CreatePlan(package.Source);
+        var pipeline = new RecordingOptimizationPipeline
+        {
+            SparseOutputLength = 64L * 1024 * 1024
+        };
+        OpenVinoOptimizationService service = new(pipeline, _ => true);
+        OptimizationExecutionResult result = await service.ExecuteAsync(
+            new OpenVinoOptimizationRequest(
+                package.Source,
+                package.Destination,
+                plan,
+                CurrentStateProvider(plan),
+                Confirmed: true),
+            progress: null,
+            CancellationToken.None);
+        string outputRoot = Path.GetDirectoryName(package.Destination)!;
+        var registry = new OpenVinoPublishedOutputRegistry(outputRoot);
+        Assert.IsTrue(registry.TryRegister(result, package.Destination));
+        using var cancellation = new CancellationTokenSource();
+        using var observed = new ManualResetEventSlim();
+        using var watcher = new FileSystemWatcher(outputRoot)
+        {
+            Filter = ".export-*.tmp",
+            NotifyFilter = NotifyFilters.DirectoryName,
+            EnableRaisingEvents = true
+        };
+        watcher.Created += (_, eventArguments) =>
+        {
+            try
+            {
+                Directory.CreateDirectory(Path.Combine(
+                    eventArguments.FullPath,
+                    "unexpected-child"));
+                cancellation.Cancel();
+                observed.Set();
+            }
+            catch (IOException)
+            {
+                // The assertion below reports that the real race was not established.
+            }
+        };
+        Exception? failure = null;
+        try
+        {
+            _ = await registry.ExportPersistentAsync(
+                result,
+                Path.Combine(outputRoot, "cleanup-failure"),
+                maximumBytes: 128UL * 1024 * 1024,
+                cancellation.Token);
+        }
+        catch (Exception exception)
+        {
+            failure = exception;
+        }
+
+        Assert.IsTrue(observed.Wait(TimeSpan.FromSeconds(5)),
+            "The production temporary directory was not observed.");
+        Assert.IsInstanceOfType<InvalidOperationException>(failure);
+        Assert.IsFalse(failure.Message.Contains(package.Root, StringComparison.Ordinal));
+        Assert.IsFalse(failure.Message.Contains("unexpected-child", StringComparison.Ordinal));
+    }
+
+    [TestMethod]
+    public async Task CancelledPersistentExportLeavesNoDestinationOrTemporaryDirectory()
+    {
+        using PackageFixture package = PackageFixture.Create();
+        OptimizationExecutionPlan plan = CreatePlan(package.Source);
+        OpenVinoOptimizationService service = new(
+            new RecordingOptimizationPipeline(), _ => true);
+        OptimizationExecutionResult result = await service.ExecuteAsync(
+            new OpenVinoOptimizationRequest(
+                package.Source,
+                package.Destination,
+                plan,
+                CurrentStateProvider(plan),
+                Confirmed: true),
+            progress: null,
+            CancellationToken.None);
+        string outputRoot = Path.GetDirectoryName(package.Destination)!;
+        var registry = new OpenVinoPublishedOutputRegistry(outputRoot);
+        Assert.IsTrue(registry.TryRegister(result, package.Destination));
+        string export = Path.Combine(outputRoot, "cancelled-export");
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        await Assert.ThrowsExactlyAsync<OperationCanceledException>(async () =>
+            await registry.ExportPersistentAsync(
+                result,
+                export,
+                maximumBytes: 1024 * 1024,
+                cancellation.Token));
+
+        Assert.IsFalse(Directory.Exists(export));
+        Assert.IsFalse(Directory.EnumerateDirectories(
+            outputRoot,
+            ".export-*.tmp").Any());
+    }
+
+    [TestMethod]
+    public async Task PersistentRegistryRejectsChangedModelBytesAtConsumption()
+    {
+        using PackageFixture package = PackageFixture.Create();
+        OptimizationExecutionPlan plan = CreatePlan(package.Source);
+        OpenVinoOptimizationService service = new(
+            new RecordingOptimizationPipeline(), _ => true);
+        OptimizationExecutionResult result = await service.ExecuteAsync(
+            new OpenVinoOptimizationRequest(
+                package.Source,
+                package.Destination,
+                plan,
+                CurrentStateProvider(plan),
+                Confirmed: true),
+            progress: null,
+            CancellationToken.None);
+        var registry = new OpenVinoPublishedOutputRegistry(
+            Path.GetDirectoryName(package.Destination)!);
+
+        Assert.AreEqual(
+            OptimizationExecutionStatus.SucceededPersistent,
+            result.Status);
+        OptimizationExecutionResult substitutedExecution =
+            OptimizationExecutionResult.Succeeded(
+                plan,
+                result.OutputIdentity!,
+                result.OutputManifestSha256!,
+                result.OutputSizeBytes,
+                sourceUnchanged: true,
+                DateTimeOffset.UtcNow);
+        Assert.IsFalse(registry.TryRegister(
+            substitutedExecution,
+            package.Destination));
+        Assert.IsTrue(registry.TryRegister(result, package.Destination));
+        Assert.IsTrue(registry.TryResolve(
+            result,
+            out OpenVinoPublishedOutput? publication));
+        Assert.IsNotNull(publication);
+        Assert.IsTrue(publication.IsPersistentArtifact);
+        Assert.AreEqual(
+            OpenVinoPublishedOutputKind.PersistentPackage,
+            publication.Kind);
+        Assert.AreEqual(package.Destination, publication.PersistentDirectory);
+        Assert.IsNull(publication.RuntimeProfile);
+
+        OpenVinoOptimizationProvenance provenance =
+            OpenVinoOptimizationProvenance.Read(package.Destination);
+        string outputPath = Path.Combine(
+            package.Destination,
+            provenance.OutputFiles[0].Path);
+        byte[] bytes = File.ReadAllBytes(outputPath);
+        bytes[^1] ^= 1;
+        File.WriteAllBytes(outputPath, bytes);
+
+        Assert.IsFalse(registry.TryResolve(result, out _));
+    }
+
+    [TestMethod]
+    public async Task PersistentRegistryRejectsChangedProvenanceBytesAtConsumption()
+    {
+        using PackageFixture package = PackageFixture.Create();
+        OptimizationExecutionPlan plan = CreatePlan(package.Source);
+        OpenVinoOptimizationService service = new(
+            new RecordingOptimizationPipeline(), _ => true);
+        OptimizationExecutionResult result = await service.ExecuteAsync(
+            new OpenVinoOptimizationRequest(
+                package.Source,
+                package.Destination,
+                plan,
+                CurrentStateProvider(plan),
+                Confirmed: true),
+            progress: null,
+            CancellationToken.None);
+        var registry = new OpenVinoPublishedOutputRegistry(
+            Path.GetDirectoryName(package.Destination)!);
+
+        Assert.IsTrue(registry.TryRegister(result, package.Destination));
+        Assert.IsTrue(registry.TryResolve(result, out _));
+
+        File.AppendAllText(
+            Path.Combine(
+                package.Destination,
+                OpenVinoOptimizationProvenance.FileName),
+            " ");
+
+        Assert.IsFalse(registry.TryResolve(result, out _));
     }
 
     [TestMethod]
@@ -1568,6 +2183,7 @@ public sealed class OpenVinoOptimizationTests
         internal IReadOnlyDictionary<string, string>? CompletionVersions { get; init; }
         internal string SmokeDevice { get; init; } = "CPU";
         internal OpenVinoKvCachePrecision? SmokeKvCachePrecision { get; init; }
+        internal long? SparseOutputLength { get; init; }
 
         public Task<OpenVinoOptimizationCompletion> OptimizeAsync(
             OpenVinoOptimizationInvocation invocation,
@@ -1581,6 +2197,15 @@ public sealed class OpenVinoOptimizationTests
                 Path.Combine(invocation.StagingDirectory, "openvino_model.xml"));
             File.WriteAllBytes(
                 Path.Combine(invocation.StagingDirectory, "openvino_model.bin"), [1, 2, 3]);
+            if (SparseOutputLength is { } sparseOutputLength)
+            {
+                using FileStream sparse = new(
+                    Path.Combine(invocation.StagingDirectory, "openvino_model.bin"),
+                    FileMode.Open,
+                    FileAccess.Write,
+                    FileShare.None);
+                sparse.SetLength(sparseOutputLength);
+            }
             File.Copy(
                 Path.Combine(invocation.SourceDirectory, "config.json"),
                 Path.Combine(invocation.StagingDirectory, "config.json"));

@@ -512,12 +512,30 @@ public sealed record OpenVinoOptimizationProvenance(
         }
     }
 
-    internal static IReadOnlyList<OpenVinoOutputArtifact> CaptureOutput(string stagingDirectory)
+    internal static IReadOnlyList<OpenVinoOutputArtifact> CaptureOutput(
+        string stagingDirectory) =>
+        CaptureOutput(stagingDirectory, CancellationToken.None);
+
+    internal static IReadOnlyList<OpenVinoOutputArtifact> CaptureOutput(
+        string stagingDirectory,
+        CancellationToken cancellationToken)
     {
         string root = Path.GetFullPath(stagingDirectory);
-        List<OpenVinoOutputArtifact> output = [];
-        foreach (string path in Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories))
+        if (Directory.EnumerateDirectories(
+                root,
+                "*",
+                SearchOption.TopDirectoryOnly).Any())
         {
+            throw new InvalidDataException("optimization_output_invalid");
+        }
+        List<OpenVinoOutputArtifact> output = [];
+        ulong total = 0;
+        foreach (string path in Directory.EnumerateFiles(
+                     root,
+                     "*",
+                     SearchOption.TopDirectoryOnly))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
             string relative = Path.GetRelativePath(root, path).Replace('\\', '/');
             if (relative == FileName || relative.Contains('/') || relative.Contains(':'))
             {
@@ -528,10 +546,18 @@ public sealed record OpenVinoOptimizationProvenance(
             {
                 throw new InvalidDataException("optimization_output_invalid");
             }
+            total = checked(total + (ulong)file.Length);
+            if (total > (1UL << 40))
+            {
+                throw new InvalidDataException("optimization_output_invalid");
+            }
             output.Add(new OpenVinoOutputArtifact(
                 relative,
                 file.Length,
-                Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))).ToLowerInvariant()));
+                OpenVinoProvenance.HashFile(
+                    path,
+                    checked((ulong)file.Length),
+                    cancellationToken)));
         }
         output.Sort(static (left, right) => StringComparer.Ordinal.Compare(left.Path, right.Path));
         return output;
@@ -887,6 +913,7 @@ internal static class OpenVinoDurablePlanDigest
 public sealed record OpenVinoRuntimeOptimizationProfile(
     int SchemaVersion,
     Guid OptimizationPlanId,
+    Guid ExecutionId,
     string ConfigurationSha256,
     int ExecutorContractVersion,
     string OpenVinoExecutionPayloadJson,
@@ -908,7 +935,7 @@ public sealed record OpenVinoRuntimeOptimizationProfile(
     bool SourceUnchanged,
     DateTimeOffset CreatedAtUtc)
 {
-    public const int CurrentSchemaVersion = 2;
+    public const int CurrentSchemaVersion = 3;
     public const string FileName = "granite-openvino-runtime-profile.json";
     private static readonly JsonSerializerOptions ProfileJsonOptions = new()
     {
@@ -924,6 +951,7 @@ public sealed record OpenVinoRuntimeOptimizationProfile(
     internal static OpenVinoRuntimeOptimizationProfile From(
         OptimizationExecutionPlan plan,
         OpenVinoOptimizationCandidate candidate,
+        Guid executionId,
         DateTimeOffset createdAtUtc)
     {
         OpenVinoExecutionPayload payload = plan.ExecutionPayload.OpenVino ??
@@ -949,6 +977,7 @@ public sealed record OpenVinoRuntimeOptimizationProfile(
         return new(
             CurrentSchemaVersion,
             plan.OptimizationPlanId,
+            executionId,
             plan.ConfigurationSha256,
             plan.ContractVersion,
             serializedPayload.Json,
@@ -995,7 +1024,9 @@ public sealed record OpenVinoRuntimeOptimizationProfile(
 
     internal void Validate()
     {
-        if (SchemaVersion != CurrentSchemaVersion || OptimizationPlanId == Guid.Empty ||
+        if (SchemaVersion != CurrentSchemaVersion
+            || OptimizationPlanId == Guid.Empty
+            || ExecutionId == Guid.Empty ||
             ExecutorContractVersion != 2 ||
             ModelLengthBytes == 0 || !SourceUnchanged ||
             !Enum.IsDefined(WeightPrecision) ||

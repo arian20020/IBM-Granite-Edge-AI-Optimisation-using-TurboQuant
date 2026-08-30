@@ -1,0 +1,183 @@
+{
+  "schemaVersion": 1,
+  "workerId": "Q1",
+  "frozenSourceCommit": "4748fe04f19afdf6b27c4c12502b84db325e7294",
+  "evidenceSubjectCommit": "31302b4f46cf562271767e0bbcfd241bb4db28f5",
+  "evidenceSubjectTree": "1b9e14c5b5a2d9a981caeae7ebae020554a6ec76",
+  "createdAtUtc": "2026-08-29T00:25:08Z",
+  "route": [
+    "shared",
+    "gguf",
+    "openvino"
+  ],
+  "evidenceStatus": "mixed",
+  "report": {
+    "path": "docs/audits/2026-08-28/Q1-optimisation-artifact-remediation-r3.md",
+    "sha256": "06e3129ab355ade644079ae2b36c591929050bec254b60f810c755c2e8d73749",
+    "bytes": 9072
+  },
+  "inputs": [
+    {
+      "kind": "optimizationPlan",
+      "id": "shared/GraniteEdgeAI.ModelHardwareCompatibility.Core/Application/Optimization/OptimizationExecutionPlan.cs",
+      "sha256": "0b089ea82f0422f975e1d79d334f9862277243c6ba524d69692d4a7a1730c4dc",
+      "bytes": 11877,
+      "evidenceGrade": "verified"
+    },
+    {
+      "kind": "redCommit",
+      "id": "4fd9ec3f6758b866fba40e0028d4280164b25c5d",
+      "evidenceGrade": "verified"
+    },
+    {
+      "kind": "nativePredecessor",
+      "id": "H1-R3-and-M1-R3-receipts-absent",
+      "evidenceGrade": "blocked"
+    }
+  ],
+  "outputs": [
+    {
+      "kind": "executionResult",
+      "id": "shared/GraniteEdgeAI.ModelHardwareCompatibility.Core/Application/Optimization/OptimizationExecutionResult.cs",
+      "sha256": "ad42de5b0c44957ef09d813a6f1cd28f3125461b63b9074b7b08cec1b5f155de",
+      "bytes": 12142,
+      "evidenceGrade": "verified"
+    },
+    {
+      "kind": "chatTarget",
+      "id": "IBM Granite with TurboQuant (Intel)/Features/OpenVinoRoute/Optimization/OpenVinoPublishedOutputRegistry.cs",
+      "sha256": "f75010724702544af26adaf4625aeab31f0fc2d1ebea76a771ce843f05dd0b79",
+      "bytes": 29538,
+      "evidenceGrade": "verified"
+    },
+    {
+      "kind": "exportTarget",
+      "id": "IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/Storage/ExportDestinationGuard.cs",
+      "sha256": "e6dfe66f4cedf269d730b927f09fd5c8ec4970965201c26303ad6a17fbbe5b72",
+      "bytes": 2009,
+      "evidenceGrade": "verified"
+    },
+    {
+      "kind": "exactResultApi",
+      "id": "IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/Execution/OpenVino/OpenVinoOptimizationJourneyInfrastructure.cs",
+      "sha256": "c5e1ca54b73ff4b3a593f0c3945e6eeee5041314bf99be319aff8be3d392ddd8",
+      "bytes": 13232,
+      "evidenceGrade": "verified"
+    }
+  ],
+  "commands": [
+    {
+      "id": "Q1-R3-RED-OPENVINO",
+      "exitCode": 1,
+      "discovered": 4,
+      "executed": 4,
+      "passed": 0,
+      "failed": 4,
+      "skipped": 0
+    },
+    {
+      "id": "Q1-R3-RED-ANCESTOR",
+      "exitCode": 1,
+      "discovered": 1,
+      "executed": 1,
+      "passed": 0,
+      "failed": 1,
+      "skipped": 0
+    },
+    {
+      "id": "Q1-R3-OPENVINO-OPTIMIZATION",
+      "exitCode": 0,
+      "discovered": 55,
+      "executed": 55,
+      "passed": 55,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "id": "Q1-R3-IDENTITY-RECOVERY",
+      "exitCode": 0,
+      "discovered": 37,
+      "executed": 37,
+      "passed": 37,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "id": "Q1-R3-OPENVINO-ACTIVATION",
+      "exitCode": 0,
+      "discovered": 3,
+      "executed": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "id": "Q1-R3-OPENVINO-CONTRACTS",
+      "exitCode": 0,
+      "discovered": 205,
+      "executed": 205,
+      "passed": 205,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "id": "Q1-R3-OPENVINO-WORKER-CLIENT",
+      "exitCode": 0,
+      "discovered": 13,
+      "executed": 13,
+      "passed": 13,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "id": "Q1-R3-GGUF-CONTRACTS",
+      "exitCode": 0,
+      "discovered": 7,
+      "executed": 7,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "id": "Q1-R3-GGUF-WORKER-CLIENT",
+      "exitCode": 0,
+      "discovered": 8,
+      "executed": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "id": "Q1-R3-OPENVINO-WORKER-PROCESS",
+      "exitCode": 1,
+      "discovered": 69,
+      "executed": 69,
+      "passed": 18,
+      "failed": 36,
+      "skipped": 15
+    },
+    {
+      "id": "Q1-R3-MANAGED-APP-COMPILE",
+      "exitCode": 0,
+      "discovered": 0,
+      "executed": 0,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 0
+    }
+  ],
+  "blockers": [
+    "H1 R3 and M1 R3 receipts and the native-phase lock were absent, so ordered native staging and package construction did not run.",
+    "The repository-pinned SDK was absent; managed commands used an installed SDK explicitly, while subprocess suites that enforce the pin failed closed.",
+    "Authorized OpenVINO converter, official-worker, and TurboQuant-worker native stages were absent.",
+    "The C0-owned live shell still references the fail-closed ambient compatibility seam instead of consuming Q1 exact-result Chat and export APIs.",
+    "The full cross-feature test assembly was denied by App Control; policy was not weakened."
+  ],
+  "nonClaims": [
+    "No live shared-shell Chat or export integration is claimed.",
+    "No native worker stage, Debug x64 package construction, package-content acceptance, or native App Control execution is claimed.",
+    "No runtime-only configuration is claimed to be an exportable model file.",
+    "No onboarding, navigation, composition, XAML, or presentation change is claimed.",
+    "No model, tool, SDK, or worker dependency was downloaded."
+  ]
+}

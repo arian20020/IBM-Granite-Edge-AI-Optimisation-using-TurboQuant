@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.Infrastructure;
@@ -13,20 +12,26 @@ using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
 
 namespace GraniteEdgeAI.Features.ModelOptimization.Execution.OpenVino;
 
-internal sealed class OpenVinoOptimizationAttemptContextFactory(
-    ModelSourceCustodyRegistry sourceCustody,
-    string stagingRoot) : IOptimizationAttemptContextFactory
+internal sealed class OpenVinoOptimizationAttemptContextFactory :
+    IOptimizationAttemptContextFactory
 {
-    private readonly ModelSourceCustodyRegistry _sourceCustody = sourceCustody
-        ?? throw new ArgumentNullException(nameof(sourceCustody));
-    private readonly string _stagingRoot = StoragePathGuard.RequireRoot(
-        stagingRoot, create: true);
+    private readonly ModelSourceCustodyRegistry _sourceCustody;
+
+    internal OpenVinoOptimizationAttemptContextFactory(
+        ModelSourceCustodyRegistry sourceCustody,
+        string stagingRoot)
+    {
+        _sourceCustody = sourceCustody
+            ?? throw new ArgumentNullException(nameof(sourceCustody));
+        _ = StoragePathGuard.RequireRoot(stagingRoot, create: true);
+    }
 
     internal OptimizationExecutionPlan Plan { get; set; } = null!;
 
-    public async Task<OptimizationAttemptContext> CreateAsync(
+    public Task<OptimizationAttemptContext> CreateAsync(
         long generation, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         OptimizationExecutionPlan plan = Plan ?? throw new InvalidOperationException(
             "The current OpenVINO plan was not bound to staging.");
         ModelSourceCustodyKey key = SourceKey(plan);
@@ -35,42 +40,31 @@ internal sealed class OpenVinoOptimizationAttemptContextFactory(
             throw new FileNotFoundException("The inspected OpenVINO package is unavailable.");
         }
 
-        string operationRoot = Path.Combine(
-            _stagingRoot, $"openvino-{generation}-{Guid.NewGuid():N}");
-        string stagedModel = Path.Combine(operationRoot, "openvino_model.bin");
         try
         {
             string sourceModel = Path.Combine(lease!.SourcePath, "openvino_model.bin");
             StoragePathGuard.RequireRegularFile(sourceModel);
-            Directory.CreateDirectory(operationRoot);
-            await using (FileStream source = new(
-                sourceModel, FileMode.Open, FileAccess.Read, FileShare.Read,
-                1024 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan))
-            await using (FileStream destination = new(
-                stagedModel, FileMode.CreateNew, FileAccess.Write, FileShare.None,
-                1024 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan))
-            {
-                await source.CopyToAsync(destination, 1024 * 1024, cancellationToken);
-                await destination.FlushAsync(cancellationToken);
-            }
             var snapshot = new StagedSourceSnapshot(
                 plan.Binding.ModelSha256,
                 plan.Binding.ModelLengthBytes,
                 $"ovsrc-{generation}-{Guid.NewGuid():N}",
-                stagedModel,
-                integrityVerifier: () => SourceMatches(sourceModel, stagedModel, plan),
-                cleanup: () => Cleanup(operationRoot, lease!));
+                sourceModel,
+                integrityVerifier: () => FileMatches(sourceModel, plan),
+                cleanup: lease.Dispose);
             if (!snapshot.RehashMatches())
             {
                 snapshot.Dispose();
-                throw new InvalidDataException("The OpenVINO model changed before staging.");
+                throw new InvalidDataException(
+                    "The inspected OpenVINO source changed before execution.");
             }
-            return new OptimizationAttemptContext(
-                generation, snapshot, $"ovstage-{generation}-{Guid.NewGuid():N}");
+            return Task.FromResult(new OptimizationAttemptContext(
+                generation,
+                snapshot,
+                $"ovlease-{generation}-{Guid.NewGuid():N}"));
         }
         catch
         {
-            Cleanup(operationRoot, lease!);
+            lease!.Dispose();
             throw;
         }
     }
@@ -81,29 +75,25 @@ internal sealed class OpenVinoOptimizationAttemptContextFactory(
             checked((long)plan.Binding.ModelLengthBytes),
             OptimizationRoute.OpenVino);
 
-    private static bool SourceMatches(
-        string source, string staged, OptimizationExecutionPlan plan)
+    private static bool FileMatches(string path, OptimizationExecutionPlan plan)
     {
         try
         {
-            return FileMatches(source, plan) && FileMatches(staged, plan);
+            StoragePathGuard.RequireRegularFile(path);
+            using FileStream stream = File.OpenRead(path);
+            return (ulong)stream.Length == plan.Binding.ModelLengthBytes
+                && string.Equals(
+                    Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(stream))
+                        .ToLowerInvariant(),
+                    plan.Binding.ModelSha256,
+                    StringComparison.Ordinal);
         }
-        catch { return false; }
-    }
-
-    private static bool FileMatches(string path, OptimizationExecutionPlan plan)
-    {
-        using FileStream stream = File.OpenRead(path);
-        return (ulong)stream.Length == plan.Binding.ModelLengthBytes
-            && string.Equals(Convert.ToHexString(SHA256.HashData(stream))
-                .ToLowerInvariant(), plan.Binding.ModelSha256, StringComparison.Ordinal);
-    }
-
-    private static void Cleanup(string root, ModelSourceLease lease)
-    {
-        lease.Dispose();
-        try { if (Directory.Exists(root)) Directory.Delete(root, recursive: true); }
-        catch { }
+        catch (Exception exception) when (exception is IOException
+                                          or UnauthorizedAccessException
+                                          or InvalidOperationException)
+        {
+            return false;
+        }
     }
 }
 
@@ -172,9 +162,76 @@ internal sealed class OpenVinoOptimizationExecutor(
 {
     private readonly string _outputRoot = StoragePathGuard.RequireRoot(
         outputRoot, create: true);
+    private readonly OpenVinoPublishedOutputRegistry _publishedOutputs =
+        new(outputRoot);
 
     public OptimizationRoute Route => OptimizationRoute.OpenVino;
-    internal string? LastPublishedDirectory { get; private set; }
+
+    // Compatibility seam for shared composition. Ambient publication lookup is
+    // deliberately disabled; C0 must pass State.Result to the exact APIs below.
+    internal string? LastPublishedDirectory => null;
+
+    internal bool TryGetPublishedOutput(
+        OptimizationExecutionResult result,
+        out OpenVinoPublishedOutput? publication) =>
+        _publishedOutputs.TryResolve(result, out publication);
+
+    internal Task<OpenVinoExportResult> ExportPersistentAsync(
+        OptimizationExecutionResult result,
+        string destinationDirectory,
+        ulong maximumBytes,
+        CancellationToken cancellationToken) =>
+        _publishedOutputs.ExportPersistentAsync(
+            result,
+            destinationDirectory,
+            maximumBytes,
+            cancellationToken);
+
+    internal async Task<OpenVinoOptimizationChatTarget?> CreateChatTargetAsync(
+        OptimizationExecutionResult result,
+        CancellationToken cancellationToken)
+    {
+        OpenVinoPublishedOutput? output = await _publishedOutputs.ResolveAsync(
+            result,
+            cancellationToken).ConfigureAwait(false);
+        if (output is null)
+        {
+            return null;
+        }
+
+        if (output.Kind == OpenVinoPublishedOutputKind.PersistentPackage)
+        {
+            return new OpenVinoOptimizationChatTarget(
+                result,
+                output.Kind,
+                output.PersistentDirectory!,
+                output.RuntimeOptions,
+                sourceLease: null);
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+        if (!Guid.TryParseExact(
+                result.ModelInspectionHandoffId,
+                "N",
+                out Guid handoffId)
+            || !sourceCustody.TryAcquire(
+                new ModelSourceCustodyKey(
+                    handoffId,
+                    result.SourceSha256,
+                    checked((long)result.SourceLengthBytes),
+                    OptimizationRoute.OpenVino),
+                out ModelSourceLease? sourceLease))
+        {
+            return null;
+        }
+
+        return new OpenVinoOptimizationChatTarget(
+            result,
+            output.Kind,
+            sourceLease!.SourcePath,
+            output.RuntimeOptions,
+            sourceLease);
+    }
 
     public async Task<OptimizationExecutionResult> ExecuteAsync(
         OptimizationExecutionPlan plan,
@@ -218,7 +275,18 @@ internal sealed class OpenVinoOptimizationExecutor(
                     Confirmed: true),
                 routeProgress,
                 cancellationToken);
-            LastPublishedDirectory = result.IsSuccessful ? destination : null;
+            if (result.IsSuccessful
+                && !await _publishedOutputs.RegisterAsync(
+                    result,
+                    destination,
+                    cancellationToken).ConfigureAwait(false))
+            {
+                return OptimizationExecutionResult.Failed(
+                    plan,
+                    OptimizationSupportCode.PublicationFailed,
+                    context.Source.RehashMatches(),
+                    DateTimeOffset.UtcNow);
+            }
             return result;
         }
     }

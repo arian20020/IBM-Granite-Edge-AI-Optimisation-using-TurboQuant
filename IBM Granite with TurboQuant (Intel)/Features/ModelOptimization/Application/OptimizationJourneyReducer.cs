@@ -72,13 +72,37 @@ internal static class OptimizationJourneyReducer
         OptimizationCompleted completed)
     {
         OptimizationExecutionResult result = completed.Result;
+        OptimizationExecutionPlan plan =
+            state.Entry.OptimizationHandoff.Plan;
         if (state.Kind != OptimizationJourneyKind.Running
             || completed.Generation != state.Generation
-            || result.OptimizationPlanId
-                != state.Entry.OptimizationHandoff.OptimizationPlanId
+            || result.ExecutionId == Guid.Empty
+            || result.OptimizationPlanId != plan.OptimizationPlanId
+            || result.Route != plan.Route
             || !string.Equals(
                 result.ConfigurationSha256,
-                state.Entry.OptimizationHandoff.ConfigurationSha256,
+                plan.ConfigurationSha256,
+                StringComparison.Ordinal)
+            || !string.Equals(
+                result.SourceSha256,
+                plan.Binding.ModelSha256,
+                StringComparison.Ordinal)
+            || result.SourceLengthBytes != plan.Binding.ModelLengthBytes
+            || !string.Equals(
+                result.ModelInspectionRunId,
+                plan.Binding.ModelInspectionRunId,
+                StringComparison.Ordinal)
+            || !string.Equals(
+                result.ModelInspectionHandoffId,
+                plan.Binding.ModelInspectionHandoffId,
+                StringComparison.Ordinal)
+            || !string.Equals(
+                result.ProductHardwareRunId,
+                plan.Binding.ProductHardwareRunId,
+                StringComparison.Ordinal)
+            || !string.Equals(
+                result.HardwareSnapshotSha256,
+                plan.Binding.HardwareSnapshotSha256,
                 StringComparison.Ordinal))
         {
             return state;
