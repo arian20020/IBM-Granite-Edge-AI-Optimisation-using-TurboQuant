@@ -70,6 +70,8 @@ public sealed class TrustedToolEnvironmentPolicyTests
     public void CreateRejectsExistingDirectoryThatIsNotTheCanonicalWindowsRoot()
     {
         Dictionary<string, string?> parent = ValidParent();
+        parent["SystemRoot"] = Path.GetTempPath();
+        parent["WINDIR"] = Path.GetTempPath();
 
         InvalidOperationException failure = Assert.ThrowsExactly<InvalidOperationException>(
             () => TrustedToolEnvironmentPolicy.Create(parent));
@@ -83,7 +85,7 @@ public sealed class TrustedToolEnvironmentPolicyTests
     public void CreateRejectsMismatchedSystemRootAndWindir()
     {
         Dictionary<string, string?> parent = ValidParent();
-        parent["SystemRoot"] = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+        parent["WINDIR"] = Path.GetTempPath();
 
         InvalidOperationException failure = Assert.ThrowsExactly<InvalidOperationException>(
             () => TrustedToolEnvironmentPolicy.Create(parent));
@@ -95,13 +97,15 @@ public sealed class TrustedToolEnvironmentPolicyTests
 
     private static Dictionary<string, string?> ValidParent()
     {
-        string directory = Path.GetTempPath();
+        string windowsDirectory =
+            Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+        string tempDirectory = Path.GetTempPath();
         return new Dictionary<string, string?>(StringComparer.Ordinal)
         {
-            ["SystemRoot"] = directory,
-            ["WINDIR"] = directory,
-            ["TEMP"] = directory,
-            ["TMP"] = directory,
+            ["SystemRoot"] = windowsDirectory,
+            ["WINDIR"] = windowsDirectory,
+            ["TEMP"] = tempDirectory,
+            ["TMP"] = tempDirectory,
         };
     }
 }

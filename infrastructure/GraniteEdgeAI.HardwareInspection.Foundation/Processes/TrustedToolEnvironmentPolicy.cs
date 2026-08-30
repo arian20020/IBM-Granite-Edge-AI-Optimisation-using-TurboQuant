@@ -70,17 +70,27 @@ internal static class TrustedToolEnvironmentPolicy
                 }
             }
 
-            var child = new Dictionary<string, string>(
-                StringComparer.OrdinalIgnoreCase);
-            foreach (string key in RequiredDirectoryKeys)
+            string systemRoot = RequireDirectory(normalized, "SystemRoot");
+            string windowsDirectory = RequireDirectory(normalized, "WINDIR");
+            string canonicalWindowsDirectory = ValidateDirectory(
+                Environment.GetFolderPath(Environment.SpecialFolder.Windows));
+            if (!string.Equals(systemRoot, windowsDirectory, StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(
+                    systemRoot,
+                    canonicalWindowsDirectory,
+                    StringComparison.OrdinalIgnoreCase))
             {
-                if (!normalized.TryGetValue(key, out string? value) || value is null)
-                {
-                    throw Failure();
-                }
-
-                child.Add(key, ValidateDirectory(value));
+                throw Failure();
             }
+
+            var child = new Dictionary<string, string>(
+                StringComparer.OrdinalIgnoreCase)
+            {
+                ["SystemRoot"] = systemRoot,
+                ["WINDIR"] = windowsDirectory,
+                ["TEMP"] = RequireDirectory(normalized, "TEMP"),
+                ["TMP"] = RequireDirectory(normalized, "TMP"),
+            };
 
             foreach (string key in OptionalDotnetRootKeys)
             {
@@ -113,18 +123,60 @@ internal static class TrustedToolEnvironmentPolicy
     {
         if (string.IsNullOrWhiteSpace(value)
             || value.Contains('\0')
+            || !string.Equals(value, value.Trim(), StringComparison.Ordinal)
+            || value.StartsWith(@"\\", StringComparison.Ordinal)
+            || value.StartsWith("//", StringComparison.Ordinal)
+            || value.IndexOf(':', 2) >= 0
+            || HasUnsafeSegment(value)
             || !Path.IsPathFullyQualified(value))
         {
             throw Failure();
         }
 
         string canonical = Path.GetFullPath(value);
-        if (!Directory.Exists(canonical))
+        if (!Directory.Exists(canonical) || HasReparseAncestor(canonical))
         {
             throw Failure();
         }
 
         return canonical;
+    }
+
+    private static string RequireDirectory(
+        Dictionary<string, string?> environment,
+        string key)
+    {
+        if (!environment.TryGetValue(key, out string? value) || value is null)
+        {
+            throw Failure();
+        }
+
+        return ValidateDirectory(value);
+    }
+
+    private static bool HasUnsafeSegment(string value) =>
+        value.Split(
+                [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
+                StringSplitOptions.RemoveEmptyEntries)
+            .Any(static segment =>
+                segment is "." or ".."
+                || !string.Equals(segment, segment.Trim(), StringComparison.Ordinal)
+                || segment.Any(static character => char.IsControl(character)));
+
+    private static bool HasReparseAncestor(string canonical)
+    {
+        DirectoryInfo? directory = new(canonical);
+        while (directory is not null)
+        {
+            if ((directory.Attributes & FileAttributes.ReparsePoint) != 0)
+            {
+                return true;
+            }
+
+            directory = directory.Parent;
+        }
+
+        return false;
     }
 
     private static InvalidOperationException Failure() => new(FailureMessage);
