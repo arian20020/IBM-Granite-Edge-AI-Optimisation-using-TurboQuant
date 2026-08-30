@@ -1,12 +1,12 @@
 # T1 R4 executable coverage map
 
-Every linked-contract test compiles a canonical production file directly from the app, shared, or infrastructure tree. `LinkedProductionSourcesResolveCanonicallyWithoutLocalDuplicates` verifies path identity, allowed roots, exclusions, unique sources/destinations, and absence of a test-local `Production` shadow. `LinkedCompilationOptionsAndReferenceBoundaryRemainExplicit` pins the test host's relevant compiler options, absence of test-only constants, reference boundary, and explicit Include-group count. These checks detect path and host-option drift; they do **not** prove absolute semantic parity with each owning project (conditional build logic, generated inputs, and owning-project references may still differ).
+Every linked-contract test compiles a canonical production file directly from the app, shared, or infrastructure tree. `LinkedProductionSourcesResolveCanonicallyWithoutLocalDuplicates` verifies bounded, non-reparse path identity, allowed roots, exclusions, unique sources/destinations, and absence of a test-local `Production` shadow. `LinkedCompilationOptionsAndReferenceBoundaryRemainExplicit` pins only this test host's relevant compiler options, absence of test-only constants, reference boundary, and explicit Include-group count. These checks detect link-path and test-host-option drift; they do **not** evaluate or prove owning-project semantic parity (conditional build logic, generated inputs, imports, and owning-project references may still differ). C0 replaces links with project references when integrated assemblies expose the required seams.
 
 “Composition fitness” means an executing source/composition assertion only. It is neither behavioral runtime evidence nor native acceptance.
 
 | Test method | Owner | Behavior | Layer | Current disposition | Native/C0 follow-up |
 |---|---|---|---|---|---|
-| `LinkedProductionSourcesResolveCanonicallyWithoutLocalDuplicates` | T1 | Canonical compile links cannot drift or be shadowed. | Managed build fitness | GREEN | None. |
+| `LinkedProductionSourcesResolveCanonicallyWithoutLocalDuplicates` | T1 | Bounded link enumeration rejects reparse ancestry, root escape, duplicate sources/destinations, and local shadows. | Managed build fitness | GREEN | C0 replaces direct links with project references; this is not owning-project parity proof. |
 | `LinkedCompilationOptionsAndReferenceBoundaryRemainExplicit` | T1 | Relevant options/constants, project references, and Include-group count stay explicit. | Managed build fitness | GREEN | C0 replaces links with project references when assemblies expose the required seams. |
 | `CoverageMapListsEveryExecutableMethod` | T1 | Every executable method appears in this map. | Managed documentation fitness | GREEN | None. |
 | `CurrentModelFitAllowsDirectChat` | T1 | Current fit permits direct Chat per route. | Managed behavioral | GREEN | E1 packaged journey. |
@@ -37,14 +37,14 @@ Every linked-contract test compiles a canonical production file directly from th
 | `SamePlanAttemptCannotPublishThroughDuplicateLiveLeases` | T1 | Duplicate live lease rejects. | Managed behavioral | GREEN | None. |
 | `PublishedPlanRejectsASecondTerminalOutputAsStale` | T1 | Second terminal publication rejects. | Managed behavioral | GREEN | None. |
 | `RetiringUnsealedLeaseLeavesNoStagedOutputOrPublication` | T1 | Retiring unsealed lease must leave no orphan. | Managed behavioral/deterministic | **INTENTIONAL RED** | C0 storage-owner fix; E1 residue acceptance. |
-| `StorageCustodyRejectsReparseOrRecordsHostCapabilityBlocker` | T1 | Real storage guard rejects a created directory reparse; if creation is denied, records only host capability and preserves outside sentinel. | Managed behavioral or explicit capability blocker | GREEN on this host | C0 retains guard; E1 repeats under packaged ACLs. A blocked host run is not custody proof. |
+| `StorageCustodyRejectsReparseOrRecordsHostCapabilityBlocker` | T1 | Real storage guard rejects a created directory reparse; host denial is explicitly Inconclusive rather than GREEN. | Managed behavioral or explicit capability blocker | GREEN only when guard is exercised; otherwise Inconclusive | C0 retains guard; E1 repeats under packaged ACLs. A blocked host run is not custody proof. |
 | `AdmittedPreferenceIssuesStableExactV3Plan` | T1 | Plan v3 is stable except attempt identity. | Managed behavioral | GREEN | Worker E1. |
 | `ResultFactoryCopiesExactPersistentPlanAuthority` | T1 | Result factory copies exact plan/config/source authority; no journey claim. | Managed contract behavioral | GREEN | End-to-end propagation is covered only by coordinator/registry and E1. |
 | `TurboQuantConfigurationCannotBeAdmittedWithoutExactBuildCapability` | T1 | TurboQuant requires exact build capability. | Managed behavioral | GREEN | Intel/TurboQuant native activation E1. |
 | `EveryVisiblePreferenceResolvesOnlyToCapabilityAdmittedCandidate` | T1 | Automatic/manual preferences remain capability-admitted. | Managed behavioral/table | GREEN | UI selection E1. |
-| `ExecutionBindingRejectsChangedModelCapabilityPayloadAndHardware` | T1 | Binding helpers reject model/capability/payload/hardware drift. | Managed behavioral | GREEN | Worker E1. |
+| `PlanMatchingRejectsChangedSourceCapabilityAndPayload` | T1 | Real plan matching APIs reject changed source identity, capability snapshot, and execution payload; hardware drift is exercised separately by the compatibility authority test. | Managed behavioral | GREEN | Worker E1. |
 | `ExactSelectedPlanAloneCanReachExecution` | T1 | Changed payload does not match selected plan. | Managed behavioral | GREEN | Worker E1. |
-| `RetryMintsNewPlanIdentityAndRejectsPriorResultAsStale` | T1 | Retry mints new attempt authority. | Managed behavioral | GREEN | Shell retry E1. |
+| `RetryReducerRejectsPriorAttemptResultAsStale` | T1 | A new plan attempt is installed in the real journey reducer, which rejects the prior attempt result. | Managed behavioral/deterministic | GREEN | Shell-wide retry retirement remains E1/C0. |
 | `DriftPublishesReplanWithNoStaleOutput` | T1 | Drift codes carry no success output. | Managed behavioral/table | GREEN | Worker drift E1. |
 | `FailuresPublishNoSuccessOrStaleOutput` | T1 | Failure codes carry no output. | Managed behavioral/table | GREEN | Worker/process failure E1. |
 | `CancellationPublishesNoSuccessOrStaleOutput` | T1 | Cancellation carries no output. | Managed behavioral | GREEN | Shell/process cancellation E1. |
@@ -61,10 +61,10 @@ Every linked-contract test compiles a canonical production file directly from th
 | `QuantizerChildEnvironmentIsAllowlistedAndDiagnosticsDisabled` | T1 | Child excludes PATH/secrets, disables diagnostics, and requires private TEMP/TMP. | Managed behavioral | **INTENTIONAL RED** | C0 security-owner fix; E1 ACL/process environment. |
 | `ApplicationComposesExactlyOneOnboardingShell` | T1 | One onboarding shell composition. | Composition fitness | GREEN | E1 packaged shell. |
 | `ChatStageHasNoOnboardingFooter` | T1 | Chat collapses onboarding footer. | Composition fitness | GREEN | E1 UIA/scaling. |
-| `RecommendedModelDownloadActionIsFunctionallyWired` | T1 | Exact IBM pins, service, verified publication, resume/restart and SubmitInput composition required. | Composition fitness | **INTENTIONAL RED** | C0 download seam absent; E1 network/native lifecycle. |
-| `OpenVinoChatConsumesExactResultBoundConfiguration` | T1 | Exact result Chat/export and real conversion-plus-inspection composition required; forbid `LastPublishedDirectory`. | Composition fitness | **INTENTIONAL RED** | C0 seams absent; E1 native Chat/export/conversion. |
+| `RecommendedModelDownloadActionIsFunctionallyWired` | T1 | Active declarations and invocation structure must supply exact IBM pins, resumable verified publication, restart/cancel, and SubmitInput convergence; comments cannot satisfy it and it is not download behavior proof. | Composition fitness | **INTENTIONAL RED** | C0 adds callable download seams; E1 proves network/native lifecycle. |
+| `OpenVinoChatAndExportSourceCompositionRequiresExactResultAndLifecycleToken` | T1 | Parsed method bodies require exact-result Chat/export calls with declared lifecycle tokens, real conversion-plus-inspection, and reject `CancellationToken.None`/`LastPublishedDirectory`; this is not runtime proof. | Composition fitness | **INTENTIONAL RED** | C0 adds callable result-bound seams; E1 proves native Chat/export/conversion behavior. |
 | `RuntimeOnlyOpenVinoResultCannotEnterModelFileExport` | T1 | Save composition filters runtime-only result. | Composition fitness | GREEN | Behavioral destination API absent; E1/C0. |
-| `LightShellAndChatComposerKeepKeyboardAndEnabledActionGuards` | T1 | Light/footer/Enter/Shift+Enter/guard source composition. | Composition fitness | GREEN | E1 UIA, enabled-only invocation, scaling/HC. |
+| `LightShellAndChatComposerSourceCompositionHasExactKeyAndActionGuards` | T1 | Parsed active method bodies contain the exact Enter/Shift+Enter branch, submit guard, enabled-state predicate, and invocation path; this is not UI behavior proof. | Composition fitness | GREEN | C0 exposes a managed composer seam; E1 proves UIA, enabled-only invocation, scaling/HC. |
 
 ## C0 intentional RED list
 
@@ -74,7 +74,7 @@ Exactly five unique methods are expected RED on this base:
 2. `RetiringUnsealedLeaseLeavesNoStagedOutputOrPublication`
 3. `QuantizerChildEnvironmentIsAllowlistedAndDiagnosticsDisabled`
 4. `RecommendedModelDownloadActionIsFunctionallyWired`
-5. `OpenVinoChatConsumesExactResultBoundConfiguration`
+5. `OpenVinoChatAndExportSourceCompositionRequiresExactResultAndLifecycleToken`
 
 No T1 result claims Intel-native behavior, performance acceptance, packaged UIA/scaling, real worker/model execution, network transfer, or native filesystem acceptance.
 

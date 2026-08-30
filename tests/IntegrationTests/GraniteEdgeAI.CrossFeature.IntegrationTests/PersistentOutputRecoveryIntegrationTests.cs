@@ -148,10 +148,12 @@ public sealed class PersistentOutputRecoveryIntegrationTests
                                                or IOException
                                                or NotSupportedException)
             {
-                Console.WriteLine("REPARSE_CAPABILITY_BLOCKED:" + error.GetType().Name);
-                Assert.IsTrue(File.Exists(sentinel),
-                    "The host denied reparse creation before custody was exercised.");
-                return;
+              Assert.IsTrue(File.Exists(sentinel),
+                  "The host denied reparse creation before custody was exercised.");
+              Assert.Inconclusive(
+                  "StoragePathGuard was not exercised because the host denied reparse creation: "
+                  + error.GetType().Name);
+              return;
             }
 
             Assert.ThrowsExactly<InvalidOperationException>(() =>

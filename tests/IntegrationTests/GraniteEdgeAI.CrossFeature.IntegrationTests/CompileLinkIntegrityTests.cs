@@ -1,3 +1,4 @@
+using System.IO.Enumeration;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 
@@ -51,6 +52,7 @@ public sealed class CompileLinkIntegrityTests
                          !excludes.Any(exclude => Matches(projectDirectory, source, exclude))))
             {
                 string canonical = Canonical(source);
+                AssertNoReparseAncestry(repository, canonical);
                 Assert.IsTrue(File.Exists(canonical), canonical);
                 Assert.IsTrue(allowedRoots.Any(root => IsUnder(canonical, root)),
                     $"Linked source escaped allowed production roots: {canonical}");
@@ -77,15 +79,44 @@ public sealed class CompileLinkIntegrityTests
         Regex methodPattern = new(
             @"\[TestMethod\](?:\s*\[[^\r\n]+\])*\s*public\s+(?:async\s+)?(?:Task|void)\s+(?<name>[A-Za-z0-9_]+)\s*\(",
             RegexOptions.CultureInvariant | RegexOptions.NonBacktracking);
-        string[] methods = Directory.EnumerateFiles(projectDirectory, "*.cs")
+        string[] allMethods = Directory.EnumerateFiles(projectDirectory, "*.cs")
             .SelectMany(path => methodPattern.Matches(File.ReadAllText(path))
                 .Select(match => match.Groups["name"].Value))
-            .Distinct(StringComparer.Ordinal)
             .Order(StringComparer.Ordinal)
             .ToArray();
+        string[] duplicateMethods = allMethods
+            .GroupBy(name => name, StringComparer.Ordinal)
+            .Where(group => group.Count() != 1)
+            .Select(group => group.Key)
+            .ToArray();
+        Assert.AreEqual(0, duplicateMethods.Length,
+            "Executable test method names must be globally unique: "
+            + string.Join(", ", duplicateMethods));
 
-        foreach (string method in methods)
-            StringAssert.Contains(map, $"`{method}`", method);
+        var rows = map.Split('\n')
+            .Where(line => line.StartsWith("| `", StringComparison.Ordinal))
+            .Where(line => line.Count(character => character == '|') == 7)
+            .Select(ParseCoverageRow)
+            .ToArray();
+        string[] duplicateRows = rows
+            .GroupBy(row => row.Method, StringComparer.Ordinal)
+            .Where(group => group.Count() != 1)
+            .Select(group => group.Key)
+            .ToArray();
+        Assert.AreEqual(0, duplicateRows.Length,
+            "Coverage rows must be unique: " + string.Join(", ", duplicateRows));
+        CollectionAssert.AreEquivalent(allMethods,
+            rows.Select(row => row.Method).ToArray(),
+            "Coverage map must contain exactly one structured row per executable method.");
+
+        foreach (CoverageRow row in rows)
+        {
+            Assert.IsFalse(string.IsNullOrWhiteSpace(row.Owner), row.Method + " owner");
+            Assert.IsFalse(string.IsNullOrWhiteSpace(row.Behavior), row.Method + " behavior");
+            Assert.IsFalse(string.IsNullOrWhiteSpace(row.Layer), row.Method + " layer");
+            Assert.IsFalse(string.IsNullOrWhiteSpace(row.Disposition), row.Method + " disposition");
+            Assert.IsFalse(string.IsNullOrWhiteSpace(row.FollowUp), row.Method + " follow-up");
+        }
     }
 
     [TestMethod]
@@ -146,12 +177,103 @@ public sealed class CompileLinkIntegrityTests
         string root = Path.GetFullPath(Path.Combine(
             projectDirectory, normalized[..separator]));
         string pattern = Path.GetFileName(normalized);
-        SearchOption search = normalized.Contains(
-            $"**{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
-                ? SearchOption.AllDirectories
-                : SearchOption.TopDirectoryOnly;
-        return Directory.EnumerateFiles(root, pattern, search).ToArray();
+        bool recursive = normalized.Contains(
+            $"**{Path.DirectorySeparatorChar}", StringComparison.Ordinal);
+        return EnumerateFilesWithoutFollowingReparsePoints(root, pattern, recursive);
     }
+
+    private static IReadOnlyList<string> EnumerateFilesWithoutFollowingReparsePoints(
+        string root,
+        string pattern,
+        bool recursive)
+    {
+        const int maximumDirectories = 4096;
+        const int maximumEntries = 32768;
+        string canonicalRoot = Canonical(root);
+        var pending = new Stack<string>();
+        var files = new List<string>();
+        pending.Push(canonicalRoot);
+        int visitedDirectories = 0;
+        int visitedEntries = 0;
+
+        while (pending.Count > 0)
+        {
+            string directory = Canonical(pending.Pop());
+            Assert.IsTrue(directory.Equals(canonicalRoot, StringComparison.OrdinalIgnoreCase)
+                || IsUnder(directory, canonicalRoot),
+                $"Enumeration escaped its canonical root: {directory}");
+            FileAttributes directoryAttributes = File.GetAttributes(directory);
+            Assert.IsFalse(directoryAttributes.HasFlag(FileAttributes.ReparsePoint),
+                $"Refusing to enter reparse directory: {directory}");
+            Assert.IsTrue(++visitedDirectories <= maximumDirectories,
+                $"Bounded enumeration exceeded {maximumDirectories} directories.");
+
+            foreach (string entry in Directory.EnumerateFileSystemEntries(directory))
+            {
+                Assert.IsTrue(++visitedEntries <= maximumEntries,
+                    $"Bounded enumeration exceeded {maximumEntries} entries.");
+                string canonicalEntry = Canonical(entry);
+                Assert.IsTrue(IsUnder(canonicalEntry, canonicalRoot),
+                    $"Entry escaped its canonical root: {canonicalEntry}");
+                FileAttributes attributes = File.GetAttributes(canonicalEntry);
+                Assert.IsFalse(attributes.HasFlag(FileAttributes.ReparsePoint),
+                    $"Linked-source enumeration encountered reparse entry: {canonicalEntry}");
+                if (attributes.HasFlag(FileAttributes.Directory))
+                {
+                    if (recursive)
+                        pending.Push(canonicalEntry);
+                }
+                else if (FileSystemName.MatchesSimpleExpression(
+                             pattern, Path.GetFileName(canonicalEntry), ignoreCase: true))
+                {
+                    files.Add(canonicalEntry);
+                }
+            }
+        }
+
+        return files;
+    }
+
+    private static void AssertNoReparseAncestry(string root, string path)
+    {
+        string canonicalRoot = Canonical(root);
+        string canonicalPath = Canonical(path);
+        Assert.IsTrue(canonicalPath.Equals(canonicalRoot, StringComparison.OrdinalIgnoreCase)
+            || IsUnder(canonicalPath, canonicalRoot),
+            $"Path escaped repository custody: {canonicalPath}");
+        string relative = Path.GetRelativePath(canonicalRoot, canonicalPath);
+        string current = canonicalRoot;
+        Assert.IsFalse(File.GetAttributes(current).HasFlag(FileAttributes.ReparsePoint),
+            $"Repository root is a reparse point: {current}");
+        foreach (string segment in relative.Split(Path.DirectorySeparatorChar,
+                     StringSplitOptions.RemoveEmptyEntries))
+        {
+            current = Path.Combine(current, segment);
+            Assert.IsFalse(File.GetAttributes(current).HasFlag(FileAttributes.ReparsePoint),
+                $"Linked source ancestry contains a reparse point: {current}");
+        }
+    }
+
+    private static CoverageRow ParseCoverageRow(string line)
+    {
+        string[] cells = line.Split('|');
+        Assert.AreEqual(8, cells.Length,
+            "Coverage rows require exactly six populated columns: " + line);
+        string methodCell = cells[1].Trim();
+        Match method = Regex.Match(methodCell, @"^`(?<name>[A-Za-z0-9_]+)`$");
+        Assert.IsTrue(method.Success, "Invalid coverage method cell: " + methodCell);
+        return new CoverageRow(method.Groups["name"].Value,
+            cells[2].Trim(), cells[3].Trim(), cells[4].Trim(),
+            cells[5].Trim(), cells[6].Trim());
+    }
+
+    private sealed record CoverageRow(
+        string Method,
+        string Owner,
+        string Behavior,
+        string Layer,
+        string Disposition,
+        string FollowUp);
 
     private static bool Matches(
         string projectDirectory,

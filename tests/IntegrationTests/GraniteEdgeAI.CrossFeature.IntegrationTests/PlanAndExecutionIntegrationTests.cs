@@ -2,6 +2,9 @@ using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Execution;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.OpenVino;
+using GraniteEdgeAI.Features.ModelHardwareCompatibility.Contracts;
+using GraniteEdgeAI.Features.ModelHardwareCompatibility.Journey;
+using GraniteEdgeAI.Features.ModelOptimization.Journey;
 
 namespace GraniteEdgeAI.CrossFeature.IntegrationTests;
 
@@ -118,7 +121,7 @@ public sealed class PlanAndExecutionIntegrationTests
     }
 
     [TestMethod]
-    public void ExecutionBindingRejectsChangedModelCapabilityPayloadAndHardware()
+    public void PlanMatchingRejectsChangedSourceCapabilityAndPayload()
     {
         OptimizationExecutionPlan plan = CrossFeaturePlanFixture.Issue();
         OptimizationCapabilitySnapshot changedCapability =
@@ -139,11 +142,13 @@ public sealed class PlanAndExecutionIntegrationTests
         Assert.IsTrue(plan.MatchesCapability(plan.CapabilitySnapshot));
         Assert.IsFalse(plan.MatchesCapability(changedCapability));
 
-        OptimizationJourneyBinding changedHardware = CrossFeaturePlanFixture.Binding(
-            hardwareDigest:
-                "6666666666666666666666666666666666666666666666666666666666666666");
-        Assert.AreNotEqual(plan.Binding.HardwareSnapshotSha256,
-            changedHardware.HardwareSnapshotSha256);
+        OptimizationCandidate changedCandidate = CrossFeaturePlanFixture.Candidate(
+            OpenVinoWeightFormat.Original,
+            "ov-original");
+        OptimizationExecutionPayload changedPayload =
+            CrossFeaturePlanFixture.Payload(changedCandidate);
+        Assert.IsTrue(plan.MatchesExecutionPayload(plan.ExecutionPayload));
+        Assert.IsFalse(plan.MatchesExecutionPayload(changedPayload));
     }
 
     [TestMethod]
@@ -164,7 +169,7 @@ public sealed class PlanAndExecutionIntegrationTests
     }
 
     [TestMethod]
-    public void RetryMintsNewPlanIdentityAndRejectsPriorResultAsStale()
+    public void RetryReducerRejectsPriorAttemptResultAsStale()
     {
         OptimizationExecutionPlan firstPlan = CrossFeaturePlanFixture.Issue();
         OptimizationExecutionResult firstResult = OptimizationExecutionResult.Failed(
@@ -175,9 +180,30 @@ public sealed class PlanAndExecutionIntegrationTests
         OptimizationExecutionPlan retryPlan = CrossFeaturePlanFixture.Issue();
 
         Assert.AreNotEqual(firstPlan.OptimizationPlanId, retryPlan.OptimizationPlanId);
-        Assert.AreNotEqual(firstResult.OptimizationPlanId, retryPlan.OptimizationPlanId);
         Assert.AreEqual(firstPlan.ConfigurationSha256, retryPlan.ConfigurationSha256,
             "Retry may preserve the selected configuration while changing attempt authority.");
+        Assert.IsTrue(OptimizationSelectionHandoff.TryCreate(
+            retryPlan,
+            retryPlan.Binding,
+            retryPlan.CapabilitySnapshot,
+            retryPlan.Preference,
+            out OptimizationSelectionHandoff? handoff));
+        var entry = new OptimizationJourneyEntryContext(
+            handoff!,
+            OptimizationJourneyOrigin.Required,
+            currentModelFallback: null);
+        OptimizationJourneyState running = OptimizationJourneyReducer.Apply(
+            OptimizationJourneyState.Initial(entry),
+            new OptimizationStarted(2));
+
+        OptimizationJourneyState afterPriorAttempt = OptimizationJourneyReducer.Apply(
+            running,
+            new OptimizationCompleted(2, firstResult));
+
+        Assert.AreEqual(running, afterPriorAttempt,
+            "The real reducer must ignore a result issued by the prior plan attempt.");
+        Assert.AreEqual(OptimizationJourneyKind.Running, afterPriorAttempt.Kind);
+        Assert.IsNull(afterPriorAttempt.Result);
     }
 
     [TestMethod]
