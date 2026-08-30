@@ -120,6 +120,41 @@ public sealed class TrustedToolEnvironmentPolicyTests
     }
 
     [TestMethod]
+    [DataRow(@"\\server\private-share")]
+    [DataRow(@"\\?\C:\private-device")]
+    [DataRow(@"\??\C:\private-device")]
+    public void OperationEnvironmentRejectsNonLocalOrDeviceLocalAppData(
+        string hostileRoot)
+    {
+        InvalidOperationException failure = Assert.ThrowsExactly<InvalidOperationException>(
+            () => TrustedToolOperationEnvironment.Create(ValidParent(), hostileRoot));
+
+        Assert.IsFalse(failure.Message.Contains("private", StringComparison.Ordinal));
+    }
+
+    [TestMethod]
+    public void OperationEnvironmentRejectsRedirectedLocalAppDataAncestor()
+    {
+        string root = Path.Combine(
+            Path.GetTempPath(),
+            "geai-s1-root-test-" + Guid.NewGuid().ToString("N"));
+        string target = Path.Combine(root, "target");
+        string link = Path.Combine(root, "redirected");
+        Directory.CreateDirectory(target);
+        Directory.CreateSymbolicLink(link, target);
+        try
+        {
+            _ = Assert.ThrowsExactly<InvalidOperationException>(() =>
+                TrustedToolOperationEnvironment.Create(ValidParent(), link));
+        }
+        finally
+        {
+            Directory.Delete(link);
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [TestMethod]
     public void OperationEnvironmentUsesPrivateAclAndDeletesItsExactDirectory()
     {
         Dictionary<string, string?> parent = ValidParent();

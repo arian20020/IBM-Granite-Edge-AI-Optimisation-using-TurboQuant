@@ -74,6 +74,32 @@ public sealed class BoundedCleanupCoordinatorTests
         Assert.IsFalse(outcome.ToString()!.Contains("secret", StringComparison.Ordinal));
     }
 
+    [TestMethod]
+    public async Task EveryOwnedStageFailureStillAttemptsEveryOtherOwnedStage()
+    {
+        OwnedCleanupStage[] stages = Enum.GetValues<OwnedCleanupStage>();
+        foreach (OwnedCleanupStage failingStage in stages)
+        {
+            int[] calls = new int[stages.Length];
+            OwnedCleanupAction[] actions = stages.Select((stage, index) =>
+                new OwnedCleanupAction(stage, () =>
+                {
+                    calls[index]++;
+                    return stage == failingStage
+                        ? ValueTask.FromException(new IOException("private-path"))
+                        : ValueTask.CompletedTask;
+                })).ToArray();
+
+            CleanupOutcome outcome = await new BoundedCleanupCoordinator(actions)
+                .ExecuteAsync();
+
+            Assert.IsTrue(calls.All(static call => call == 1));
+            Assert.AreEqual(1, outcome.Failures.Count);
+            Assert.AreEqual(failingStage, outcome.Failures[0].Stage);
+            Assert.AreEqual(CleanupFailureKind.Io, outcome.Failures[0].Kind);
+        }
+    }
+
     private static OwnedCleanupAction Successful(
         OwnedCleanupStage stage,
         int[] calls,

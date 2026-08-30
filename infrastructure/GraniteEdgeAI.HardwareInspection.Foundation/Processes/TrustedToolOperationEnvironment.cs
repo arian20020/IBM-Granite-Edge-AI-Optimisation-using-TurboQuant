@@ -56,12 +56,18 @@ public sealed class TrustedToolOperationEnvironment : IDisposable
     }
 
     internal static TrustedToolOperationEnvironment Create(
-        IReadOnlyDictionary<string, string?> explicitEnvironment)
+        IReadOnlyDictionary<string, string?> explicitEnvironment) =>
+        Create(explicitEnvironment, localApplicationDataOverride: null);
+
+    internal static TrustedToolOperationEnvironment Create(
+        IReadOnlyDictionary<string, string?> explicitEnvironment,
+        string? localApplicationDataOverride)
     {
         ArgumentNullException.ThrowIfNull(explicitEnvironment);
-        string localApplicationData = Environment.GetFolderPath(
-            Environment.SpecialFolder.LocalApplicationData,
-            Environment.SpecialFolderOption.DoNotVerify);
+        string localApplicationData = localApplicationDataOverride ??
+            Environment.GetFolderPath(
+                Environment.SpecialFolder.LocalApplicationData,
+                Environment.SpecialFolderOption.DoNotVerify);
         if (string.IsNullOrWhiteSpace(localApplicationData))
         {
             throw Failure();

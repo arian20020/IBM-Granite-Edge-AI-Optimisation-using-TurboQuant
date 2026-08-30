@@ -27,7 +27,7 @@ public sealed class TrustedManifestFileTests
                    FileAccess.Write,
                    FileShare.None))
         {
-            stream.SetLength((long)int.MaxValue + 1);
+            stream.SetLength((64L * 1024) + 1);
         }
 
         _ = Assert.ThrowsExactly<InvalidDataException>(() =>
