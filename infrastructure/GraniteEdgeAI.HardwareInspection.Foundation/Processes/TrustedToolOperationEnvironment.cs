@@ -4,7 +4,7 @@ using System.Security.Principal;
 
 namespace GraniteEdgeAI.HardwareInspection.Foundation.Processes;
 
-internal sealed class TrustedToolOperationEnvironment : IDisposable
+public sealed class TrustedToolOperationEnvironment : IDisposable
 {
     private const int MaximumEntries = 512;
     private const int MaximumDepth = 16;
@@ -18,9 +18,9 @@ internal sealed class TrustedToolOperationEnvironment : IDisposable
         Variables = variables;
     }
 
-    internal IReadOnlyDictionary<string, string> Variables { get; }
+    public IReadOnlyDictionary<string, string> Variables { get; }
 
-    internal static TrustedToolOperationEnvironment Create(
+    public static TrustedToolOperationEnvironment Create(
         IReadOnlyDictionary<string, string?> explicitEnvironment)
     {
         ArgumentNullException.ThrowIfNull(explicitEnvironment);
